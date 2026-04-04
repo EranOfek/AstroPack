@@ -20,7 +20,7 @@ classdef PhotCalibTrans < Component
     %   SourceData - AstroCatalog with observed calibrator sources (after calibration: Used, Residuals columns)
     %   CalFound   - Flag indicating whether calibrators were found (set by selectCalibrators)
     %   Success    - Flag indicating successful calibration (set by populateSuccess)
-    %   DeltaZP_CB - Constant-band ΔZP [mag] (set by applyConstBand, written to header as PT_DZP)
+    %   DeltaZP_CB - Constant-band delta ZP [mag] (set by applyConstBand, written to header as PT_DZP)
     %   AirMass, ExpTime, NCoadd, Temp, Pressure, Humidity, Aperture - Observation metadata
     %
     % Example:
@@ -143,6 +143,9 @@ classdef PhotCalibTrans < Component
 
         % Constant band
         DeltaZP_CB = NaN        % Constant-band delta ZP [mag] (set by applyConstBand)
+
+        % Bright-star RMS
+        ARMS = NaN              % sqrt(median(R²)) of N brightest calibrators [mag] (set by calibrate)
 
         % Success status
         Success = false         % Flag indicating successful calibration (set by populateSuccess)
@@ -274,6 +277,7 @@ classdef PhotCalibTrans < Component
                 Args.AperCorrMinSN    = 30           % Minimum S/N for aperture correction stars
 
                 Args.MagSystem char   = 'AB'
+                Args.N_ARMS           = 0              % N brightest calibrators for ARMS (0=skip)
                 Args.Verbose logical  = true
             end
 
@@ -671,6 +675,22 @@ classdef PhotCalibTrans < Component
 
             % Evaluate success criteria
             Obj = Obj.populateSuccess('Verbose', Args.Verbose);
+
+            % Compute ARMS (bright-star RMS) if requested
+            if Args.N_ARMS > 0 && Obj.Success && ~isempty(Obj.SourceData)
+                Tab = Obj.SourceData.Table;
+                UsedMask = logical(Tab.Used);
+                FluxUsed = Tab.Flux(UsedMask);
+                ResUsed  = Tab.Residuals(UsedMask);
+                ValidMask = isfinite(FluxUsed) & isfinite(ResUsed);
+                FluxValid = FluxUsed(ValidMask);
+                ResValid  = ResUsed(ValidMask);
+                N = min(Args.N_ARMS, numel(FluxValid));
+                if N > 0
+                    [~, SortIdx] = sort(FluxValid, 'descend');
+                    Obj.ARMS = sqrt(median(ResValid(SortIdx(1:N)).^2));
+                end
+            end
 
             % Calculate aperture corrections if requested
             if Args.CalcAperCorr
@@ -1854,7 +1874,7 @@ classdef PhotCalibTrans < Component
             % Example: Header = PC.photCalibTransToHeader(Header);
             %          Header = PC.photCalibTransToHeader(Header, 'WriteComments', true);
             % Description: Writes calibration results and fitted parameters to header.
-            %              Keywords: PT_RMS, PT_CHI2, PT_DOF, PT_NCALIB, PT_SUCC,
+            %              Keywords: PT_RMS, PT_ARMS, PT_CHI2, PT_DOF, PT_NCALIB, PT_SUCC,
             %                        PT_AREF, PT_SPEC,
             %                        PT_X_N, PT_X_VY, PT_X_FY (function parameters),
             %                        PT_P_N, PT_P_VY, PT_P_FY (position corrections if UseTran2D=true)
@@ -1877,6 +1897,7 @@ classdef PhotCalibTrans < Component
 
             % General results
             HeaderObj = HeaderObj.replaceVal('PT_RMS', Obj.TransModel.RMS);
+            HeaderObj = HeaderObj.replaceVal('PT_ARMS', Obj.ARMS);
             HeaderObj = HeaderObj.replaceVal('PT_CHI2', Obj.TransModel.Chi2);
             HeaderObj = HeaderObj.replaceVal('PT_DOF', Obj.TransModel.DOF);
             % Use final calibrator count (after sigma clipping) from last stage
@@ -1896,6 +1917,7 @@ classdef PhotCalibTrans < Component
 
             if Args.WriteComments
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_RMS: RMS of calibration fit [mag]';
+                IComment = IComment + 1; HistoryComments{IComment} = 'PT_ARMS: sqrt(median(R^2)) of N brightest calibrators [mag]';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_CHI2: Chi-squared of fit';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_DOF: Degrees of freedom';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_NCALIB: Number of calibrators';
@@ -2755,8 +2777,9 @@ classdef PhotCalibTrans < Component
 
             % Load ConstBandParams from .mat if path given
             if ischar(Args.ConstBandParams) || isstring(Args.ConstBandParams)
-                S = load(Args.ConstBandParams, 'ConstBandParams');
-                CBP = S.ConstBandParams;
+                S = load(Args.ConstBandParams);
+                Fn = fieldnames(S);
+                CBP = S.(Fn{1});
             else
                 CBP = Args.ConstBandParams;
             end

@@ -277,11 +277,12 @@ function buildHTMfromFiles(Args)
         fprintf('Saved column metadata: %s_htmColCell.mat\n', CatName);
     end
 
-    % Precompute cell lists per grouped HDF5 file for incremental NFS copy.
-    % A grouped file is copied once all its cells have been processed.
+    % Precompute max MeanDec per grouped HDF5 file for incremental NFS copy.
+    % A grouped file is safe to copy when its MaxDec < SafeDecRad
+    % (= min Dec of remaining unprocessed files - margin).
     if ~isempty(TargetDir)
-        [HdfFileCells, HdfFileNames] = precomputeFileCells( ...
-            ListIndexHTM, CatName, Args.NcatInFile);
+        [HdfFileMaxDec, HdfFileNames] = precomputeFileMaxDec( ...
+            HTM, ListIndexHTM, CatName, Args.NcatInFile);
         CopiedFiles = false(numel(HdfFileNames), 1);
 
         % Copy ColCell file immediately
@@ -320,13 +321,13 @@ function buildHTMfromFiles(Args)
                 AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
                 IsRemote, DownloadDir, MarginDeg, RAD, HTM, LevelHTM, ...
                 ListIndexHTM, CatName, LocalDir, TargetDir, ...
-                HdfFileCells, HdfFileNames, CopiedFiles, Args);
+                HdfFileMaxDec, HdfFileNames, CopiedFiles, Args);
         else
             [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, CompletionLog, ...
                 AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
                 IsRemote, DownloadDir, MarginDeg, RAD, HTM, LevelHTM, ...
                 ListIndexHTM, CatName, LocalDir, '', ...
-                {}, {}, [], Args);
+                [], {}, [], Args);
         end
 
     else
@@ -576,11 +577,15 @@ function buildHTMfromFiles(Args)
                     DownloadDir, Iband, Nbands, DecEdges, MarginDeg);
             end
 
-            % Incremental NFS copy: copy HDF5 files whose cells are all
-            % Copy grouped HDF5 files where all cells have been processed
+            % Incremental NFS copy: safe threshold = next band's lower Dec - margin
             if ~isempty(TargetDir)
-                CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileCells, ...
-                    HdfFileNames, Nsrc, LocalDir, TargetDir, Args.Verbose);
+                if Iband < Nbands
+                    SafeDecRad = DecEdges(Iband + 1) / RAD - MarginRad;
+                else
+                    SafeDecRad = Inf;  % last band: copy everything
+                end
+                CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
+                    HdfFileNames, SafeDecRad, LocalDir, TargetDir, Args.Verbose);
             end
         end
 
@@ -590,8 +595,8 @@ function buildHTMfromFiles(Args)
     % Step 4: Copy remaining data files to TargetDir via NFS
     %------------------------------------------------------------------
     if ~isempty(TargetDir)
-        CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileCells, ...
-            HdfFileNames, Nsrc, LocalDir, TargetDir, Args.Verbose);
+        CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
+            HdfFileNames, Inf, LocalDir, TargetDir, Args.Verbose);
     end
 
     %------------------------------------------------------------------
@@ -802,23 +807,26 @@ function Complete = checkBandComplete(CatName, HTM, ListIndexHTM, ...
 end
 
 
-function [FileCells, FileNames] = precomputeFileCells(ListIndexHTM, ...
+function [MaxDec, FileNames] = precomputeFileMaxDec(HTM, ListIndexHTM, ...
         CatName, NcatInFile)
-    % For each grouped HDF5 file, collect the list of HTM cell indices
-    % it contains. Used to check whether all cells have been processed,
-    % so the file can be copied to remote and deleted locally.
+    % For each grouped HDF5 file, compute the maximum MeanDec among its
+    % leaf cells. A file is safe to copy when its MaxDec is below the
+    % safe Dec threshold (= min Dec of remaining unprocessed files - margin).
     FileMap = containers.Map();
     for Ihtm = 1:numel(ListIndexHTM)
         IndHTM = ListIndexHTM(Ihtm);
+        MeanDec = mean(HTM(IndHTM).coo(:, 2));
         [FileName, ~] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NcatInFile);
         if FileMap.isKey(FileName)
-            FileMap(FileName) = [FileMap(FileName), IndHTM];
+            if MeanDec > FileMap(FileName)
+                FileMap(FileName) = MeanDec;
+            end
         else
-            FileMap(FileName) = IndHTM;
+            FileMap(FileName) = MeanDec;
         end
     end
     FileNames = FileMap.keys()';
-    FileCells = FileMap.values()';
+    MaxDec = cellfun(@(K) FileMap(K), FileNames);
 end
 
 
@@ -826,13 +834,24 @@ function [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, Completio
         AllFiles, Nfiles, FileDecRanges, FileRARanges, ...
         IsRemote, DownloadDir, MarginDeg, RAD, HTM, LevelHTM, ...
         ListIndexHTM, CatName, LocalDir, TargetDir, ...
-        HdfFileCells, HdfFileNames, CopiedFiles, Args)
+        HdfFileMaxDec, HdfFileNames, CopiedFiles, Args)
     % Process one sweep file at a time with margin from neighbors.
     % For each file, read it plus overlapping neighbor files, then call
     % build_htm_catalog with RA/Dec range limited to the file's footprint.
     % This avoids accumulating all files per band in memory.
+    %
+    % Files are sorted by Dec (south to north) so that incremental NFS
+    % copy can safely remove local files: once all files below a Dec
+    % threshold have been processed, grouped HDF5 files below that
+    % threshold cannot receive more sources.
 
     MarginRad = MarginDeg / RAD;
+
+    % Sort files by DecLo (south to north) for safe incremental copy
+    [~, SortOrder] = sort(FileDecRanges(:, 1));
+    AllFiles      = AllFiles(SortOrder);
+    FileDecRanges = FileDecRanges(SortOrder, :);
+    FileRARanges  = FileRARanges(SortOrder, :);
 
     for Ifile = 1:Nfiles
         [~, Bn, Ext] = fileparts(AllFiles{Ifile});
@@ -1005,11 +1024,17 @@ function [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, Completio
             fprintf('  Done (%.1f sec)\n', toc(FileTic));
         end
 
-        % Incremental NFS copy: copy HDF5 files whose cells are all
-        % Copy grouped HDF5 files where all cells have been processed
+        % Incremental NFS copy: safe Dec threshold = min Dec of remaining
+        % unprocessed files - margin. Grouped files below this can't
+        % receive more sources from future files.
         if ~isempty(TargetDir)
-            CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileCells, ...
-                HdfFileNames, Nsrc, LocalDir, TargetDir, Args.Verbose);
+            if Ifile < Nfiles
+                SafeDecRad = FileDecRanges(Ifile + 1, 1) / RAD - MarginRad;
+            else
+                SafeDecRad = Inf;  % last file: copy everything
+            end
+            CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
+                HdfFileNames, SafeDecRad, LocalDir, TargetDir, Args.Verbose);
         end
 
         % Mark this file as completed in the log
@@ -1086,27 +1111,17 @@ function Complete = checkRegionComplete(CatName, HTM, ListIndexHTM, ...
 end
 
 
-function CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileCells, ...
-        HdfFileNames, Nsrc, LocalDir, TargetDir, Verbose)
-    % Copy grouped HDF5 files where all cells have been processed.
-    % A cell is considered processed when its Nsrc entry is > 0 or it
-    % has been confirmed (Nsrc set by build_htm_catalog or fillNsrcFromHDF5).
-    % HdfFileCells{Ihdf} is the list of HTM indices belonging to file Ihdf.
+function CopiedFiles = copyCompletedFiles(CopiedFiles, HdfFileMaxDec, ...
+        HdfFileNames, SafeDecRad, LocalDir, TargetDir, Verbose)
+    % Copy grouped HDF5 files whose max cell MeanDec < SafeDecRad.
+    % SafeDecRad is the lowest Dec of all remaining unprocessed files
+    % minus margin. No future file can contribute sources to cells
+    % below this threshold.
     for Ihdf = 1:numel(HdfFileNames)
         if CopiedFiles(Ihdf)
             continue;
         end
-        % Check if all cells in this file have been processed
-        CellIndices = HdfFileCells{Ihdf};
-        AllProcessed = true;
-        for J = 1:numel(CellIndices)
-            Pos = Nsrc(:, 1) == CellIndices(J);
-            if ~any(Pos) || isnan(Nsrc(Pos, 2))
-                AllProcessed = false;
-                break;
-            end
-        end
-        if AllProcessed
+        if HdfFileMaxDec(Ihdf) < SafeDecRad
             FullPath = fullfile(LocalDir, HdfFileNames{Ihdf});
             if isfile(FullPath)
                 tools.os.copyFileOverNFS({FullPath}, TargetDir, ...

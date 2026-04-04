@@ -103,7 +103,7 @@ function plotPhotResiduals(PC, Args)
     end
 
     if ~isempty(AllMag)
-        plot(AllMag, AllRes, '.', 'MarkerSize', 2);
+        plot(AllMag, AllRes, '.', 'MarkerSize', 5);
         plot(xlim, [0 0], 'k--');
 
         if ~strcmp(Args.OverlayTrend, 'none')

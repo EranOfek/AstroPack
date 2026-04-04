@@ -38,7 +38,7 @@ function MS = matchPhotEpochs(Cats, Args)
         Args.MagFields      = {'MAG_AB_PSF', 'MAG_AB_APER_3'}
         Args.BadFlags       = {'Saturated','NearEdge','Overlap'}
         Args.MaxMagErr      = 0.02
-        Args.MinEpochs      = 3
+        Args.MinEpochs      = 2
         Args.ApplyRelZP logical = false  % Apply zp_meddiff to original (non-AB) mags
         Args.OutDir         = ''
         Args.ForceRecalc logical = false
@@ -144,8 +144,8 @@ function MS = matchPhotEpochs(Cats, Args)
             end
 
             % Flag bad photometry
-            MSobj = MSobj.setBadPhotToNan('BadFlags', Args.BadFlags, ...
-                'MagField', 'MAG_PSF', 'CreateNewObj', false);
+ %           MSobj = MSobj.setBadPhotToNan('BadFlags', Args.BadFlags, ...
+ %               'MagField', 'MAG_PSF', 'CreateNewObj', false);
 
             % Apply relative ZP correction to original (non-AB) mag fields
             if Args.ApplyRelZP
