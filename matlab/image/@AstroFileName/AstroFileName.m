@@ -1783,6 +1783,11 @@ classdef AstroFileName < Component
 
             Nfields  = numel(Obj.FIELDS);
             Literals = strings(Nind, Nfields);
+            
+            if isempty(Literals) % nothing to do, return an empty string
+                Result = strings(0,1);
+                return
+            end
 
             % prepare an array of literals
             % line per file, column per literal
