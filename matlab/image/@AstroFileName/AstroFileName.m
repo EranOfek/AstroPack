@@ -1662,7 +1662,7 @@ classdef AstroFileName < Component
 
         end
 
-        function Obj=uncompress(Obj, Type)
+        function Obj=uncompress(Obj, Args)
             % Uncompress files in AstroFileName object and modify FileType accordingly.
             % Input  : - self.
             %          - Compression type. Options are:
@@ -1670,6 +1670,10 @@ classdef AstroFileName < Component
             %            Default is 'fz' (with -D option).
             % Output : - Updated AstroFileName object.
             % Author : Eran Ofek (Sep 2025)
+            arguments
+                Obj
+                Args.Type = 'fz'
+            end
 
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
@@ -1684,10 +1688,10 @@ classdef AstroFileName < Component
                         case 'bz2'
                             system(sprintf("bunzip2 %s", Files{If}));
                         otherwise
-                            error('Unsupported compression type: %s',Type);
+                            error('Unsupported compression type: %s',Args.Type);
                     end
                 end
-                Obj(Iobj).FileType = strrep(Obj(Iobj).FileType, ['.',Type], '');
+                Obj(Iobj).FileType = strrep(Obj(Iobj).FileType, ['.',Args.Type], '');
             end
 
         end
