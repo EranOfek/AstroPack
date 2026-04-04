@@ -1768,6 +1768,7 @@ classdef AstroFileName < Component
                 Args.Product   = [];
                 Args.Version   = [];
                 Args.FileType  = [];
+                Args.Compression = [];
             end
             
             Nfile = Obj.nFiles;
