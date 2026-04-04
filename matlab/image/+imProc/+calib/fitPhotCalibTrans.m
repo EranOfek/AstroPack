@@ -98,6 +98,11 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         Result = Obj;
     end
 
+    % Apply predefCalibArgs defaults when no CalibArgs provided
+    if isempty(Args.CalibArgs)
+        Args.CalibArgs = predefCalibArgs();
+    end
+
     % ====================================================================
     % ASTRODIFF / ASTROZOGY: delegate to recursive calls per sub-property
     % ====================================================================
@@ -560,6 +565,7 @@ function CalibArgs = predefCalibArgs(Args)
     %            'AperCorrMethod'   - Aperture corr method. Default 'median'.
     %            'AperCorrSNColName'- S/N column for aper corr. Default 'SN'.
     %            'AperCorrMinSN'    - Min S/N for aper corr. Default 30.
+    %            'N_ARMS'           - N brightest calibrators for ARMS. Default 20.
     % Output : - Cell array of key-value pairs for PhotCalibTrans.calibrate.
     % Author : D. Kovaleva (Feb 2026)
     % Example: CalibArgs = predefCalibArgs();
@@ -598,6 +604,9 @@ function CalibArgs = predefCalibArgs(Args)
         Args.AperCorrMethod   = 'median'    % 'median' or 'weighted'
         Args.AperCorrSNColName = 'SN'       % S/N column for filtering
         Args.AperCorrMinSN    = 30          % Minimum S/N for aperture correction stars
+
+        % Bright-star RMS
+        Args.N_ARMS           = 20          % N brightest calibrators for ARMS (0=skip)
     end
 
     CalibArgs = namedargs2cell(Args);

@@ -402,7 +402,7 @@ classdef INPOP < Base
                 FileName = 'inpop21a_TDB_m100_p100_asc_header.asc';
             end
             
-            FullFileName = sprintf('%s%s',INPOP.Location, FileName);
+            FullFileName = sprintf('%s%s',celestial.INPOP.Location, FileName);
             
             FID = fopen(FullFileName);
             if FID>0
@@ -452,10 +452,10 @@ classdef INPOP < Base
                 Args.FileType    = 'mat';
                 Args.PopForce logical = false;
                 Args.MaxOrder    = Inf;
-             end
+            end
             
             
-            Result = INPOP;
+            Result = celestial.INPOP;
             
             if IsPos
                 Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...

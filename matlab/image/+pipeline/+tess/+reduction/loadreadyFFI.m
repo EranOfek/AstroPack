@@ -48,9 +48,7 @@ function FFI=loadreadyFFI(FFIPath, Args)
     FFI.HeaderData.insertKey({'PH_ZP',Args.ZP},inf);
     
     % Remove keys that should not be in a fits header
-    FFI.HeaderData.deleteKey({'EXTVER'});
-    FFI.HeaderData.deleteKey({'PCOUNT'});
-    FFI.HeaderData.deleteKey({'GCOUNT'});
+    FFI.HeaderData.deleteKey({'EXTVER','PCOUNT','GCOUNT'}, 'UseRegExp',false);
 
     % Remove leading and trailing black strips
     FFI.crop([45 2092 1 2048]);

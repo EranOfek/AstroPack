@@ -772,7 +772,7 @@ classdef Tran2D < Base
                 end
                 if Iter>MaxIter
                     NotConverged = false;
-                    error('Tran2D.backward didnot converge after %d iterations',Iter);
+                    error('Tran2D.backward did not converge after %d iterations',Iter);
                 end
                 
             end

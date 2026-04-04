@@ -140,16 +140,20 @@ function TranCat=findTransients(AD, Args)
 
             N_PSFSize = floor(size(AD(Iobj).New.PSFData.getPSF,2)/2);
             R_PSFSize = floor(size(AD(Iobj).Ref.PSFData.getPSF,2)/2);
-            Aper_Annulus_Max = Args.Aper_Annulus_min + ceil(min(N_PSFSize,R_PSFSize)/2);
+            Aper_Annulus_min = min(N_PSFSize,R_PSFSize)-2.0;
+            Aper_Annulus_min = max(Args.Aper_Annulus_min, Aper_Annulus_min);
+            Aper_Annulus_Max = Aper_Annulus_min + 2 + ceil(min(N_PSFSize,R_PSFSize)/2);
             Aper_Annulus_Max = max(Aper_Annulus_Max, ceil(1.7*AD(Iobj).PSFData.fwhm));
 
             [M1, M2, Aper] = imUtil.image.moment2(AD(Iobj).Dbs, ...
                 LocalMax(:,1), LocalMax(:,2),...
                 'MomRadius',1.7*AD(Iobj).PSFData.fwhm, ...
-                'Annulus',[Args.Aper_Annulus_min Aper_Annulus_Max]);
+                'Annulus',[Aper_Annulus_min Aper_Annulus_Max]);
+
             [M1N, ~, ~] = imUtil.image.moment2(AD(Iobj).New.Image, ...
                 LocalMax(:,1), LocalMax(:,2),...
                 'MomRadius',1.7*AD(Iobj).New.PSFData.fwhm);
+
             NewPSFHalfSize =  floor(size(AD(Iobj).New.PSFData.getPSF,2)/2)+1;
 
             % rotate the PSF so that ellipse axes agree with
