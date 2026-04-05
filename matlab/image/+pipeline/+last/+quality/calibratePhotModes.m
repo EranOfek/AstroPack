@@ -267,7 +267,7 @@ function Result = calibratePhotModes(AI, Args)
                 if ~isempty(PC_ic.TransModel.Tran2DObj) && PC_ic.TransModel.UseTran2D
                     Xc = PC_ic.TransModel.Tran2DObj.ParNX(1);
                     Yc = PC_ic.TransModel.Tran2DObj.ParNY(1);
-                    [CenterCorr, ~] = PC_ic.TransModel.Tran2DObj.forward(Xc, Yc, false);
+                    [CenterCorr, ~] = PC_ic.TransModel.Tran2DObj.forward(Xc, Yc);
                     ZPbase = ZPbase - CenterCorr;
                 end
                 ZPcenterPercrop(Iv, Ic) = ZPbase;

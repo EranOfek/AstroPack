@@ -1956,7 +1956,7 @@ classdef CompositeFun < handle
             % Step 4: Calculate position-dependent correction in magnitude space
             % Use Tran2D's forward() method - it returns [Xi, Yi] where Xi is the magnitude correction
             Coo = [X, Y];
-            [FieldCorrectionMag, ~] = Obj.Tran2DObj.forward(X, Y, false);
+            [FieldCorrectionMag, ~] = Obj.Tran2DObj.forward(X, Y);
             FieldCorrectionMag = FieldCorrectionMag(:);  % [N_sources x 1]
 
             % Check for invalid values from Tran2D
@@ -2037,7 +2037,7 @@ classdef CompositeFun < handle
 
             % Evaluate correction at reference position
             Coo_ref = [X_ref, Y_ref];
-            [P_ref, ~] = Obj.Tran2DObj.forward(Coo_ref, false);
+            [P_ref, ~] = Obj.Tran2DObj.forward(Coo_ref);
 
             if Args.Verbose
                 fprintf('Normalizing position polynomial\n');
@@ -2057,7 +2057,7 @@ classdef CompositeFun < handle
                 Obj.Tran2DObj.ParX(1) = Obj.Tran2DObj.ParX(1) - P_ref;
 
                 % Verify normalization
-                [P_ref_new, ~] = Obj.Tran2DObj.forward(Coo_ref, false);
+                [P_ref_new, ~] = Obj.Tran2DObj.forward(Coo_ref);
 
                 if Args.Verbose
                     fprintf('  Correction at reference after normalization: %.6f mag\n', P_ref_new);
@@ -2436,7 +2436,7 @@ classdef CompositeFun < handle
 
                     % Apply Tran2D separately (evaluateWithPosition assumes single base)
                     if UsePositionCorrections
-                        [FieldCorrectionMag, ~] = Obj.Tran2DObj.forward(Args.X, Args.Y, false);
+                        [FieldCorrectionMag, ~] = Obj.Tran2DObj.forward(Args.X, Args.Y);
                         FieldCorrectionTrans = 10.^(-0.4 * FieldCorrectionMag(:));
                         ModelOutput = ModelOutput .* FieldCorrectionTrans';
                     end

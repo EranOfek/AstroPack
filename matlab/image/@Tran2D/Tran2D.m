@@ -630,8 +630,11 @@ classdef Tran2D < Base
             
         end
         
-        function [Xf,Yf]=forward(TC, varargin)
+        function [Xf,Yf]=forward(TC, Coo, Args)
             % Applay forward transformation to coordinates
+            % WARNING: as design_matrix also normalizes the coordinates, 
+            %          usually it is required to run with Args.Normalize = false
+            %          use Args.Normalize = true only if you understand well what you are doing! 
             % Package: @Tran2D
             % Input  : - A Tran2D object
             %          - A matrix of coordinates, line per point.
@@ -641,30 +644,22 @@ classdef Tran2D < Base
             %            Tran2D object. If the other coordinates are not
             %            provided then they assumed to be zero.
             %            Alternatively, two arguments, X, Y.
+            %          * ...,key,val,... ,
+            %          'Normalize' - Default is false, because design_matrix also normalizes the coordinates
             % Output : - X coordinate after applaying the forward
             %            transformation.
             %          - Y coordinate after applaying the forward
             %            transformation.
-            % Example: TC=Tran2D; TC.ParY=ones(1,13);  TC.ParX=ones(1,13);
+            % Example: TC=Tran2D; TC.ParY=ones(1,10);  TC.ParX=ones(1,10);
             %          [Xf,Yf]=forward(TC,[1 1;2 1])
-            %          [Xf,Yf]=forward(TC,[1 1;2 1],false)
-            switch numel(varargin)
-                case 1
-                    Coo = varargin{1};
-                    Normalize = true;
-                case 2
-                    Coo = [varargin{1}(:), varargin{2}(:)];
-                    Normalize = true;
-                case 3
-                    Coo = [varargin{1}(:), varargin{2}(:)];
-                    Normalize = varargin{3};
-                otherwise
-                    error('Number of argumnets need to be 2 or 3');
+            arguments
+                TC
+                Coo
+                Args.Normalize = false
             end
-            
-            % applay normalization
-%             Normalize = true;
-            if Normalize
+
+            % apply normalization if needed
+            if Args.Normalize
                 if iscell(Coo)
                     Xref = TC.FunNX(Coo{1},TC.ParNX(1),TC.ParNX(2));
                     Yref = TC.FunNX(Coo{2},TC.ParNY(1),TC.ParNY(2));

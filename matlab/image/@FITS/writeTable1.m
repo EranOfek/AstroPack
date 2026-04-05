@@ -9,6 +9,7 @@ function Result = writeTable1(Table, FileName, Args)
     %          - FileName   - FITS file name to save.
     %          * Arbitrary number of ...,key,val,... pairs.
     %            Following keywords are available:
+    %            'CompressedOutput' - Default is []; 'fz' will be implemented later  
     %            'TableType'- FITS table type {'bintable'|'binary','table','ascii'}.
     %                         Default is 'binary'. 
     %                         CURRENTLY ONLY 'binary' IS SUPPORTED.
@@ -43,6 +44,7 @@ function Result = writeTable1(Table, FileName, Args)
     arguments
         Table
         FileName
+        Args.CompressedOutput = [];
         Args.TableType      = 'binary';
         Args.HDUnum         = 1;        
         Args.DataType       = '1D';
