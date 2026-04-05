@@ -13,6 +13,7 @@ function Result = testPhotStability(Args)
     %                5. Transmission curves per mode.
     %                6. Integral T mosaic + T vs epoch time series.
     %                7. FWHM vs epoch.
+    %                8. Fitted atmospheric parameters vs epoch.
     %
     % Input  : * ...,key,val,...
     %          --- Data loading ---

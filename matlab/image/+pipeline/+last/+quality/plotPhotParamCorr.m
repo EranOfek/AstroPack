@@ -21,7 +21,7 @@ function plotPhotParamCorr(PC, Args)
 
     arguments
         PC
-        Args.ParamNames     = {'TauAod500', 'PWV_cm', 'Norm'}
+        Args.ParamNames     = {'TauAod500', 'PWV_cm', 'Center_Ang', 'Norm'}
         Args.CropsToAnalyze = []
         Args.ColorByCrop logical = false
         Args.MarkerSize     = 4
