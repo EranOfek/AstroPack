@@ -11,7 +11,8 @@ function ps1dr2CsvToHdf5(CsvDir, Hdf5Dir, Args)
     %          'Verbose'    - print progress (true)
     %
     % Output HDF5 structure: dataset '/data' contains Nrows x 56 double matrix.
-    % Use VO.prep.ps1dr2ReadHdf5 as PostReadFun when calling buildHTMfromFiles.
+    % Use @(F) h5read(F, '/data') as PostReadFun when calling
+    % buildHTMfromFiles. Range attributes are auto-detected for *.hdf5 files.
     %
     % Example:
     %   VO.prep.ps1dr2CsvToHdf5('~/tmp/PS1DR2/csv/', '~/tmp/PS1DR2/hdf5/');

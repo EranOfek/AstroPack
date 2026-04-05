@@ -76,12 +76,15 @@ function buildHTMfromFiles(Args)
 %                                        margin from neighbors. For very
 %                                        large catalogs (DECaLS, etc.) that
 %                                        would OOM in band mode.
-%            'ParseRangeFun'- Function handle for custom file range parsing:
+%            'ParseRangeFun'- Optional function handle for custom file
+%                             range parsing:
 %                             [DecLo,DecHi,RALo,RAHi] = fun(filepath).
 %                             Returns ranges in degrees.
-%                             If empty (default), uses built-in sweep-style
-%                             filename parser. Use for files with embedded
-%                             range metadata (e.g., HDF5 attributes).
+%                             If empty (default):
+%                               - for *.hdf5/*.h5 files, reads MinDec,
+%                                 MaxDec, MinRA, MaxRA attributes from
+%                                 the '/data' dataset (in radians)
+%                               - otherwise uses sweep-style filename parser.
 %            'DecBandWidth' - Dec band width [deg] for 'band' mode. Default: 5.
 %            'Resume'       - Skip existing HTM cells. Default: true.
 %                             In band mode, completed bands are skipped
@@ -112,11 +115,19 @@ function buildHTMfromFiles(Args)
 %       'TargetDir', '/euclid/catsHTM/NewCats/DECaLS10/', ...
 %       'DownloadDir', '/home/dana/tmp/DECaLS10/');
 %
-%   % DECaLS DR10 — per-file mode (large catalogs, avoids OOM):
+%   % DECaLS DR10 — pre-converted HDF5, per-file mode (recommended):
+%   % Step 1: Download sweep FITS and convert to HDF5 (one-time)
+%   %   VO.prep.decalsSweepToHdf5( ...
+%   %       'https://portal.nersc.gov/cfs/cosmo/data/legacysurvey/dr10/south/sweep/10.1/', ...
+%   %       '/home/dana/tmp/DECaLS10/fits/', ...
+%   %       '/home/dana/tmp/DECaLS10/hdf5/');
+%   % Step 2: Build HTM catalog
 %   VO.prep.buildHTMfromFiles(...
-%       'SourceURL', 'https://portal.nersc.gov/cfs/cosmo/data/legacysurvey/dr10/south/sweep/10.1/', ...
+%       'SourceDir', '/home/dana/tmp/DECaLS10/hdf5/', ...
+%       'FilePattern', '*.hdf5', ...
 %       'ProcessMode', 'perfile', ...
-%       'PostReadFun', @VO.prep.decalsPostRead, ...
+%       'PostReadFun',   @(F) h5read(F, '/data'), ...
+%       'CoorUnits', 'rad', ...
 %       'ColNames', {'RA','Dec','RA_IVAR','DEC_IVAR','Type', ...
 %           'Flux_g','Flux_r','Flux_i','Flux_z', ...
 %           'Flux_W1','Flux_W2','Flux_W3','Flux_W4', ...
@@ -124,9 +135,8 @@ function buildHTMfromFiles(Args)
 %           'FluxIvar_W1','FluxIvar_W2','FluxIvar_W3','FluxIvar_W4', ...
 %           'MaskBits','ShapeR'}, ...
 %       'CatName', 'DECaLS10', 'HTM_Level', 9, ...
-%       'LocalDir', '/home/dana/tmp/DECaLS10/htm/', ...
-%       'TargetDir', '/euclid/catsHTM/NewCats/DECaLS10/', ...
-%       'DownloadDir', '/home/dana/tmp/DECaLS10/');
+%       'LocalDir',  '/home/dana/tmp/DECaLS10/htm/', ...
+%       'TargetDir', '/euclid/catsHTM/NewCats/DECaLS10/');
 %
 %   % PS1DR2 — pre-converted HDF5, per-file mode:
 %   % Step 1: Convert CSV to HDF5 (one-time)
@@ -136,8 +146,7 @@ function buildHTMfromFiles(Args)
 %       'SourceDir', '~/tmp/PS1DR2/hdf5/', ...
 %       'FilePattern', '*.hdf5', ...
 %       'ProcessMode', 'perfile', ...
-%       'ParseRangeFun', @VO.prep.ps1dr2ParseRange, ...
-%       'PostReadFun', @VO.prep.ps1dr2ReadHdf5, ...
+%       'PostReadFun',   @(F) h5read(F, '/data'), ...
 %       'CoorUnits', 'rad', ...
 %       'ColNames', {'RA','Dec','raerr','decerr', ...
 %           'objinfoflag','qualityflag','epochmean','posmeanchisq', ...
@@ -225,24 +234,28 @@ function buildHTMfromFiles(Args)
     FileDecRanges = nan(Nfiles, 2);
     FileRARanges  = nan(Nfiles, 2);
     for Ifile = 1:Nfiles
-        [~, Bn, ~] = fileparts(AllFiles{Ifile});
+        [~, ~, Ext] = fileparts(AllFiles{Ifile});
         if ~isempty(Args.ParseRangeFun)
+            % User-provided parser
             [DecLo, DecHi, RALo, RAHi] = Args.ParseRangeFun(AllFiles{Ifile});
-            FileDecRanges(Ifile, :) = [DecLo, DecHi];
-            FileRARanges(Ifile, :)  = [RALo, RAHi];
+        elseif strcmpi(Ext, '.hdf5') || strcmpi(Ext, '.h5')
+            % HDF5 file: read MinDec/MaxDec/MinRA/MaxRA attributes
+            % from the '/data' dataset (stored in radians by converters
+            % such as decalsSweepToHdf5 or ps1dr2CsvToHdf5).
+            [DecLo, DecHi, RALo, RAHi] = readHdf5RangeAttrs(AllFiles{Ifile});
         else
-            [DecLo, DecHi] = parseSweepDecRange(Bn);
-            FileDecRanges(Ifile, :) = [DecLo, DecHi];
-            [RALo, RAHi] = parseSweepRaRange(Bn);
-            FileRARanges(Ifile, :) = [RALo, RAHi];
+            error('VO:prep:buildHTMfromFiles', ...
+                ['Cannot determine RA/Dec range for file %s.\n' ...
+                 'Either use HDF5 files with range attributes, or pass ' ...
+                 'a ParseRangeFun argument.'], AllFiles{Ifile});
         end
+        FileDecRanges(Ifile, :) = [DecLo, DecHi];
+        FileRARanges(Ifile, :)  = [RALo, RAHi];
     end
 
     if any(isnan(FileDecRanges(:)))
-        warning('VO:prep:buildHTMfromFiles', ...
-            'Could not parse Dec ranges from filenames. Assuming full sky per file.');
-        FileDecRanges(:, 1) = -90;
-        FileDecRanges(:, 2) = 90;
+        error('VO:prep:buildHTMfromFiles', ...
+            'Dec range could not be determined for one or more files.');
     end
     if any(isnan(FileRARanges(:)))
         FileRARanges(:, 1) = 0;
@@ -691,47 +704,17 @@ function FileList = scrapeFileList(BaseURL, Pattern)
 end
 
 
-function [DecLo, DecHi] = parseSweepDecRange(BaseName)
-    % Parse Dec range from sweep-style filename
-    % Format: sweep-{3digitRA}{p|m}{2-3digitDec}-{3digitRA}{p|m}{2-3digitDec}
-    Tokens = regexp(BaseName, ...
-        'sweep-\d{3}([pm]\d{2,3})-\d{3}([pm]\d{2,3})', 'tokens');
-    if isempty(Tokens)
-        DecLo = NaN;
-        DecHi = NaN;
-        return;
-    end
-    DecLo = parseSweepCoord(Tokens{1}{1});
-    DecHi = parseSweepCoord(Tokens{1}{2});
-end
-
-
-function [RALo, RAHi] = parseSweepRaRange(BaseName)
-    % Parse RA range from sweep-style filename
-    % Format: sweep-{3digitRA}{p|m}{2-3digitDec}-{3digitRA}{p|m}{2-3digitDec}
-    % Example: sweep-175m030-180m025 -> RA [175, 180]
-    Tokens = regexp(BaseName, ...
-        'sweep-(\d{3})[pm]\d{2,3}-(\d{3})[pm]\d{2,3}', 'tokens');
-    if isempty(Tokens)
-        RALo = NaN;
-        RAHi = NaN;
-        return;
-    end
-    RALo = str2double(Tokens{1}{1});
-    RAHi = str2double(Tokens{1}{2});
-    % Handle wraparound (e.g., sweep-355...-005...)
-    if RAHi <= RALo
-        RAHi = RAHi + 360;
-    end
-end
-
-
-function Val = parseSweepCoord(Str)
-    % Parse coordinate string like 'p035' -> 35 or 'm010' -> -10
-    if Str(1) == 'p'
-        Val = str2double(Str(2:end));
-    else
-        Val = -str2double(Str(2:end));
+function [DecLo, DecHi, RALo, RAHi] = readHdf5RangeAttrs(FilePath)
+    % Read RA/Dec range attributes from an HDF5 file's '/data' dataset.
+    % Attributes are expected to be in radians; returned in degrees.
+    RAD = 180 / pi;
+    try
+        DecLo = h5readatt(FilePath, '/data', 'MinDec') * RAD;
+        DecHi = h5readatt(FilePath, '/data', 'MaxDec') * RAD;
+        RALo  = h5readatt(FilePath, '/data', 'MinRA')  * RAD;
+        RAHi  = h5readatt(FilePath, '/data', 'MaxRA')  * RAD;
+    catch
+        DecLo = NaN; DecHi = NaN; RALo = NaN; RAHi = NaN;
     end
 end
 
