@@ -163,6 +163,11 @@ function Result = testPhotCalib(Args)
     %          pipeline.last.quality.plotPhotTransmission(R, 'Modes', {'percrop'});
     %          pipeline.last.quality.plotPhotIntegralT(R.PC);
     %          pipeline.last.quality.plotPhotFWHM(R);  % uses R.HeaderData
+    %          pipeline.last.quality.plotPhotFittedParams(R.PC);
+    %          pipeline.last.quality.plotPhotFittedParams(R.PC, ...
+    %              'ParamNames', {'TauAod500','PWV_cm','Norm','QE_Center_Ang'});
+    %          pipeline.last.quality.plotPhotParamCorr(R.PC);
+    %          pipeline.last.quality.plotPhotParamCorr(R.PC, 'ColorByCrop', true);
     %
     %          % Fit quality only (from cached PC):
     %          pipeline.last.quality.testPhotFitQuality(R.PC);
