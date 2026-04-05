@@ -169,8 +169,6 @@ function [Result] = register(Obj, TransRef, Args)
 
         % Fill the other proprties of the regsitered object:
         if Args.CopyPSF
-            if isempty(Args.WCS)
-
             if Args.CreateNewObj
                 Result(Iobj).PSFData = Obj(Iobj).PSFData.copy;
             else

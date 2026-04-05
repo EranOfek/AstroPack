@@ -87,7 +87,7 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
         Args.BackArgs        = {};
         Args.ScalarVar       = true;
         Args.CCDSEC          = [];
-        Args.ZP              = [];  % if empty use equal flux matching
+        Args.ZP              = 'PH_ZP';  % if empty use equal flux matching
         Args.ZP0             = 25;
         
         %--- coadd ---
@@ -161,9 +161,19 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
     % coadd
     CubePSF   = imProc.psf.psf2cube(Obj);
     
+    PixNaN = isnan(ImageCube);
+    CoaddN = sum(~PixNaN,3);
+    % for proper coaddition - replace all NaNs with background level.
+    if Args.SubBack
+        % background supoosed to be 0
+        ImageCube(PixNaN) = 0; % replace NaN with 0
+    else
+        error('SubBack false is not supported');
+    end
+
     [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.combine_proper(ImageCube, CubePSF, 'F',FluxMatch, 'Var',Var, 'PsfType','center', 'Norm',true);
     
-    CoaddN = Nim;
+    
 
     if Args.AddBack
         Result.BackData.Data = imUtil.background.backVar(Result.ImageData.Data, Args.BackArgs{:});
@@ -172,6 +182,11 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
     % coadd mask
     if Args.AddMask
         Result.MaskData.Data  = squeeze(tools.array.bitor_array(MaskCube, DimIndex, Args.BitCoaddUseMex));
+    
+        % update Mask to NaN for pixels in which CoaddN<Nim
+
+        'todo'
+
     end
 
     % Update header:
