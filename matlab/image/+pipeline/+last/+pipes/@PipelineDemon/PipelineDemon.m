@@ -2990,9 +2990,6 @@ classdef PipelineDemon < Component
                         RepackRaw = Args.RepackRaw && FilesUncomp;
                         
                         RawImageList   = FN_Sci_Groups(IndStartGroup).genFile();
-%                         if Args.DebugMode
-%                             RawImageList = RawImageList + ".fz";
-%                         end
                         NimagesInVisit = numel(RawImageList);
     
                         % log
