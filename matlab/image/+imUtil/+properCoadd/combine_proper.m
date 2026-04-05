@@ -55,6 +55,9 @@ end
 
    
 % prep the PSF
+PSF = imUtil.psf.padShift(PSF, SizeData(1:2));
+
+
 switch lower(Args.PsfType)
     case 'center'
         % put PSF in corner
