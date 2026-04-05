@@ -99,7 +99,6 @@ classdef AstroFileName < Component
         Product             = ["Image"];
         Version             = ["1"];
         FileType            = ["fits"];
-        Compression         = [];
         %
         SubDir              = "";
         BasePath            = "/lastdata"; %"/marvin"; %{'2022', '/marvin'; '2023','/marvin'; '2024','/marvin'; '2025', '/euclid'}; %"/marvin";    % or cell array of : year, path (e.g., {'2022', '/marvin'; '2025', '/euclid'})
@@ -137,7 +136,7 @@ classdef AstroFileName < Component
         ListLevel       = ["", "raw", "proc", "stack", "ref", "coadd", "merged", "calib", "junk", "proc.zogyD","coadd.zogyD", "report"];
         ListProduct     = ["", "Image", "Back", "Var", "Exp", "Nim", "PSF", "Cat", "Cat.forced", "Spec", "Mask", "Evt", "MergedMat", "Asteroids","Asteroids.Known","Asteroids.Fast","Pipeline", "TransientsCat"];
         SEPERATOR       = "_";
-        FIELDS          = ["ProjName", "Time", "Filter", "FieldID", "Counter", "CCDID", "CropID", "Type", "Level", "Product", "Version", "FileType", "Compression"];
+        FIELDS          = ["ProjName", "Time", "Filter", "FieldID", "Counter", "CCDID", "CropID", "Type", "Level", "Product", "Version", "FileType"];
         PATH_FIELDS     = ["SubDir", "BasePath", "BasePathRef", "Path"];
     end
     
@@ -698,8 +697,8 @@ classdef AstroFileName < Component
             Literals = AstroFileName.parseString2literals(FileNameString, Seperator);
             
             if ~isempty(FileNameString)
-                Nliterals = size(Literals,2);
-                for Ifield=1:1:Nliterals 
+                Nfields = numel(Result.FIELDS);
+                for Ifield=1:1:Nfields
                     Result.(Result.FIELDS(Ifield)) = Literals(:,Ifield);
                 end
             end
@@ -1613,22 +1612,19 @@ classdef AstroFileName < Component
             % Input  : - A single element AstroFileName object.
             %          * ...,key,val,...
             %            'CompressionType' - Compression type to search.
-            %                   Default is 'fz'.
+            %                   Default is '.fz'.
             % Output : - A vector of logicals indicating if each file is
             %            compressed.
             % Author : Eran Ofek (Sep 2025)
 
             arguments
                 Obj(1,1)
-                Args.CompressionType = 'fz';
+                Args.CompressionType = '.fz';
             end
 
             Iobj = 1;
-            if isempty(Obj(Iobj).Compression)
-                Result = 0;
-            else
-                Result = contains(Obj(Iobj).Compression, Args.CompressionType);
-            end
+            Result = contains(Obj(Iobj).FileType, Args.CompressionType);
+
         end
 
         function Obj=compress(Obj, Type)
@@ -1662,7 +1658,7 @@ classdef AstroFileName < Component
 
         end
 
-        function Obj=uncompress(Obj, Args)
+        function Obj=uncompress(Obj, Type)
             % Uncompress files in AstroFileName object and modify FileType accordingly.
             % Input  : - self.
             %          - Compression type. Options are:
@@ -1670,10 +1666,6 @@ classdef AstroFileName < Component
             %            Default is 'fz' (with -D option).
             % Output : - Updated AstroFileName object.
             % Author : Eran Ofek (Sep 2025)
-            arguments
-                Obj
-                Args.Type = 'fz'
-            end
 
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
@@ -1688,10 +1680,10 @@ classdef AstroFileName < Component
                         case 'bz2'
                             system(sprintf("bunzip2 %s", Files{If}));
                         otherwise
-                            error('Unsupported compression type: %s',Args.Type);
+                            error('Unsupported compression type: %s',Type);
                     end
                 end
-                Obj(Iobj).FileType = strrep(Obj(Iobj).FileType, ['.',Args.Type], '');
+                Obj(Iobj).FileType = strrep(Obj(Iobj).FileType, ['.',Type], '');
             end
 
         end
@@ -1772,7 +1764,6 @@ classdef AstroFileName < Component
                 Args.Product   = [];
                 Args.Version   = [];
                 Args.FileType  = [];
-                Args.Compression = [];
             end
             
             Nfile = Obj.nFiles;
@@ -1783,11 +1774,6 @@ classdef AstroFileName < Component
 
             Nfields  = numel(Obj.FIELDS);
             Literals = strings(Nind, Nfields);
-            
-            if isempty(Literals) % nothing to do, return an empty string
-                Result = strings(0,1);
-                return
-            end
 
             % prepare an array of literals
             % line per file, column per literal
@@ -1815,14 +1801,9 @@ classdef AstroFileName < Component
                     Literals(:,I) = Tmp;
                 end
             end
-            
-            if strcmpi(Literals(end),"")
-                Delim = [repmat(Obj.SEPERATOR,1,Nfields-3), "."];
-                Result = join(Literals(1:end-1), Delim); %Obj.SEPERATOR);
-            else
-                Delim = [repmat(Obj.SEPERATOR,1,Nfields-3), ".", "."];
-                Result = join(Literals, Delim);
-            end
+
+            Delim = [repmat(Obj.SEPERATOR,1,Nfields-2), "."];
+            Result = join(Literals, Delim); %Obj.SEPERATOR);
 
         end
 
