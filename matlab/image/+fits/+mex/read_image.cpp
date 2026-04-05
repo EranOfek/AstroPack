@@ -281,8 +281,8 @@ void mexFunction(int nlhs, mxArray* plhs[],
                 NULL,
                 data,
                 &anynul,
-                &status);
-        checkStatus(status);
+                &status_try);
+        checkStatus(status_try);
 
         if (status_try != 0) {
             native_ok = false;
@@ -299,7 +299,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
         mexPrintf("Native FITS format not found, falling back to double\n");
 
         out = mxCreateNumericArray(naxis, dims.data(), mxDOUBLE_CLASS, mxREAL);
-        double* dptr = mxGetPr(out);
+        double* data = mxGetPr(out);
 
         fits_read_subset(fptr, TDOUBLE,
                 fpixel.data(),
