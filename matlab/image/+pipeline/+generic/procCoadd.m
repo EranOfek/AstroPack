@@ -165,7 +165,10 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.KeyBack                          = 'MEDBCK'; % Header keyword name from which to get the background.
         Args.KeyVar                           = 'MEDVAR'; % Header keyword name from which to get the variance.
         Args.StackMethod                      = 'wrobust'; %'sigmaclip';  
+        Args.ZP                               = [];  % [] - equal weights; use 'PH_ZP' for ref images.
+        Args.ZP0                              = 25;  % the ZP that used to convert inst. mag to mag.
         Args.coadd_WRobustArgs                = {};
+        Args.coadd_ProperArgs                 = {};
         Args.StackArgs                        = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
 
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
@@ -173,7 +176,6 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.backgroundArgs cell              = {};
         Args.BackSubSizeXY                    = [128 128];
         Args.findMeasureSourcesArgs cell      = {};
-        Args.ZP                               = 25;
         Args.ColCell cell                     = {'XPEAK','YPEAK',...
                                                  'X1', 'Y1',...
                                                  'X2','Y2','XY',...
@@ -342,13 +344,18 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             switch Args.StackMethod
                 case 'wrobust'
                     % RegisteredImages contains also the Back and Var
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',[], Args.coadd_WRobustArgs{:});
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:});
                    
-                otherwise
+                case 'proper'
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:});
+
+                case 'sigmaclip'
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, ~, MidJD, SumExpTime] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
                                                                                                  'Cube',PreAllocCube,...
                                                                                                  'StackMethod',Args.StackMethod,...
                                                                                                  'StackArgs',{'MeanFun',@tools.math.stat.nanmean, 'Nsigma',[2 2]});
+                otherwise
+                    error('Unknown StackMethod option');
             end
             ResultCoadd(Ifields).WMeanJD = MidJD;
 
@@ -425,7 +432,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 %CatColNameMagErr   = 'MAGERR_APER_3';
                 [Coadd(Ifields), ResultCoadd(Ifields).ZP, ResultCoadd(Ifields).PhotCat] = imProc.calib.photometricZP(Coadd(Ifields),...
                                                                                                             'CreateNewObj',false,...
-                                                                                                            'MagZP',Args.ZP,...
+                                                                                                            'MagZP',Args.ZP0,...
                                                                                                             'CatName',AstrometricCat,...
                                                                                                             Args.photometricZPArgs{:});
             end
