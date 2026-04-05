@@ -2536,12 +2536,12 @@ classdef PipelineDemon < Component
             FN_C.Level = "coadd";
             FN_C.duplicateCrop(Nsub);
 
-            [~,FN_I] = imProc.io.saveProductImage(AllSI, FN_I, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveEpochProduct, 'WriteHeader',Args.SaveEpochHeader, 'WriteMethodImages',Args.WriteMethodImages, 'WriteMethodTables',Args.WriteMethodTables);  % 20 s
+            [~,FN_I] = imProc.io.saveProductImage(AllSI, FN_I, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveEpochProduct, 'WriteHeader',Args.SaveEpochHeader, 'WriteMethodImages',Args.WriteMethodImages, 'WriteMethodTables',Args.WriteMethodTables, 'CompressedOutput', Args.CompressedOutput);  % 20 s
 
             % Coadd
             FN_C.SubDir  = FN_I.SubDir;
             FN_C.Counter = 0;
-            imProc.io.saveProductImage(Coadd, FN_C, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveVisitProduct, 'WriteHeader',Args.SaveVisitHeader);  % 3 s
+            imProc.io.saveProductImage(Coadd, FN_C, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveVisitProduct, 'WriteHeader',Args.SaveVisitHeader, 'CompressedOutput', Args.CompressedOutput);  % 3 s
             
             % Asteroids:
             if OnlyMP.sizeCatalog>0 && Args.SaveVisitAsteroids
@@ -2841,6 +2841,8 @@ classdef PipelineDemon < Component
                 Args.WriteMethodImages = 'ThreadedMex';     % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
                 Args.WriteMethodTables = 'MexHeader';       % can be 'Standard' or 'MexHeader'  
                 Args.UpdateStatusFile  = true;              % write update strings to the .status files in the output directories
+                
+                Args.CompressedOutput  = [];                % if empty, write FITS files ('fz' will lead to FITS.fz compression) 
 
                 Args.SendTransientAlerts logical      = true;
                 %Args.RunAsService logical  = false;
