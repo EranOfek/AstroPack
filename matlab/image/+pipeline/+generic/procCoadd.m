@@ -390,6 +390,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             end
 
             
+            %Ifields
             if Args.FindStars
                 [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), Args.multiIterExtractorArgs{:},...
                                                     'AddSkyCoo',false, 'UseMex',Args.UseMex);
