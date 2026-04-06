@@ -2469,6 +2469,7 @@ classdef PipelineDemon < Component
                 MsgF{2} = sprintf('pipeline run time : %f', RunTime);
                 Obj.writeLog(MsgF, LogLevel.Info);
 
+                
                 Status.WriteI = true;
 
                 % Move images to raw/ dir                

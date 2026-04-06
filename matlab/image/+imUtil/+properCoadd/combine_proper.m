@@ -56,7 +56,7 @@ end
    
 % prep the PSF
 PSF = imUtil.psf.padShift(PSF, SizeData(1:2));
-
+PSF = imUtil.psf.stamp
 
 switch lower(Args.PsfType)
     case 'center'
