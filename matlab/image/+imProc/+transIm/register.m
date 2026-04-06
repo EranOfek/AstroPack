@@ -42,6 +42,7 @@ function [Result] = register(Obj, TransRef, Args)
     %                   If CopyWCS is true, then will update header by the
     %                   WCS.
     %            'CopyFilename' - Copy file name. Default is true.
+    %            'CopyMaskDict' - Copy mask dictionary (pointer copy). Default is true.
     %            --- Aux ---
     %            'Sampling' - AstroWCS/xy2refxy sampling parameter.
     %                   The WCS is evaluated with this steps and
@@ -70,6 +71,7 @@ function [Result] = register(Obj, TransRef, Args)
         Args.CopyWCS                  = true;
         Args.CopyHeader               = true;
         Args.CopyFilename             = true;
+        Args.CopyMaskDict             = true;
 
         Args.Sampling                 = 20;
 
@@ -228,6 +230,11 @@ function [Result] = register(Obj, TransRef, Args)
                 Result(Iobj).HeaderData = wcs2header(Result(Iobj).WCS, Result(Iobj).HeaderData);
             end
         end
+
+        if Args.CopyMaskDict
+            Result(Iobj).MaskData.Dict = Obj(Iobj).MaskData.Dict;
+        end
+            
 
 
 

@@ -85,6 +85,7 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
         Obj   % AstroImage, AstroDiff, AstroZOGY
         Args.SubBack         = true;
         Args.BackArgs        = {};
+        Args.FinalBackArgs   = {'Method',@imUtil.background.modeVar_Hist};
         Args.ScalarVar       = true;
         Args.CCDSEC          = [];
         Args.ZP              = 'PH_ZP';  % if empty use equal flux matching
@@ -96,6 +97,9 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
         %--- Mask ---
         Args.AddMask         = true;
         Args.BitCoaddUseMex  = true;
+        Args.KeyNaN          = 'NaN';
+        Args.KeyCoaddLess    = 'CoaddLessImages';
+        Args.FracCoaddLess   = 0.8; 
 
         %--- Header ---
         Args.HeaderCopy1 logical                    = true;
@@ -171,21 +175,24 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
         error('SubBack false is not supported');
     end
 
-    [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.combine_proper(ImageCube, CubePSF, 'F',FluxMatch, 'Var',Var, 'PsfType','center', 'Norm',true);
-    
+    [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.combine_proper(ImageCube, CubePSF, 'F',FluxMatch, 'Var',Var, 'Norm',true);
+    Result.ImageData.Data = real(Result.ImageData.Data);
     
 
     if Args.AddBack
-        Result.BackData.Data = imUtil.background.backVar(Result.ImageData.Data, Args.BackArgs{:});
+        [Result.BackData.Data, Result.VarData.Data] = imUtil.background.backVar(Result.ImageData.Data, Args.FinalBackArgs{:});
     end
 
     % coadd mask
     if Args.AddMask
+        Result.MaskData.Dict  = Obj(1).MaskData.Dict; % copy dictionary (pointer)
         Result.MaskData.Data  = squeeze(tools.array.bitor_array(MaskCube, DimIndex, Args.BitCoaddUseMex));
     
         % update Mask to NaN for pixels in which CoaddN<Nim
-
-        'todo'
+        Result.MaskData.maskSet(CoaddN<Nim, Args.KeyNaN);
+        % Update CoaddLessImages
+        Result.MaskData.maskSet( CoaddN<(Args.FracCoaddLess.*Nim), Args.KeyCoaddLess);
+       
 
     end
 

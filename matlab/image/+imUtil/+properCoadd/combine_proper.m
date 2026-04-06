@@ -5,20 +5,21 @@ function [R,PR,R_f,PR_f]=combine_proper(Data,PSF,Args)
 % Input  : - A cube of images, where the 3rd dimension is the image index.
 %          - A cube of PSFs, where the 3rd dimension is the image index.
 %            Alternatively, this can be a single PSF.
+%            The PSF is centered in the stamp.
 %          * Arbitrary number of ...,key,val,... arguments.
 %            The following keywords are available:
 %            'F' - A vector of weights (one weight per image).
 %                   Default is 1.
 %            'Var' - A vector of variances (one variance per image).
 %                   Default is 1.
-%            'PsfType' - A string indicating where is the center of the
-%                   PSF.
-%                   'center' - PSF is centered in stamp.
-%                   'corner' - PSF is in corner.
-%                   Default is 'center'.
 %            'Norm' - A logical flag indicating if to normalize the PSF to
 %                   unity prior to coaddition. 
 %                   Default is true.
+%            --- PSF ---
+%            'CenterPSF' - Center the PSF to the image center.
+%                   Default is false.
+%            'SizePSF'   - If CenterPSF is true, then will cut the PSF image size
+%                   to this size. If empty, do nothing. Default is [].
 % Output : - The proper coadded image.
 %          - The proper PSF
 %          - FFT of the proper coadded image.
@@ -39,7 +40,7 @@ arguments
     PSF
     Args.F                     = 1;
     Args.Var                   = 1;
-    Args.PsfType               = 'center';
+    %Args.PsfType               = 'center';
     Args.Norm(1,1) logical     = true;
 end
 
@@ -55,21 +56,21 @@ end
 
    
 % prep the PSF
-PSF = imUtil.psf.padShift(PSF, SizeData(1:2));
-PSF = imUtil.psf.stamp
+%PSF = imUtil.psf.padShift(PSF, SizeData(1:2));
+PSF = imUtil.psf.stamp2full(PSF, SizeData(1:2), 'CenterPosition','corner');
 
-switch lower(Args.PsfType)
-    case 'center'
-        % put PSF in corner
-        PSF = ifftshift(ifftshift(PSF,1),2);
-        PadSize = SizeData(1:2) - SizePsf(1:2);
-        PSF = padarray(PSF,PadSize,0,'post');
-    case 'corner'
-        PadSize = SizeData(1:2) - SizePsf(1:2);
-        PSF = padarray(PSF,PadSize,0,'post');
-    otherwise
-        error('Unknown PsfType option');
-end
+% switch lower(Args.PsfType)
+%     case 'center'
+%         % put PSF in corner
+%         PSF = ifftshift(ifftshift(PSF,1),2);
+%         PadSize = SizeData(1:2) - SizePsf(1:2);
+%         PSF = padarray(PSF,PadSize,0,'post');
+%     case 'corner'
+%         PadSize = SizeData(1:2) - SizePsf(1:2);
+%         PSF = padarray(PSF,PadSize,0,'post');
+%     otherwise
+%         error('Unknown PsfType option');
+% end
 
 
 

@@ -121,7 +121,10 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
         %--- Mask ---
         Args.AddMask         = true;
         Args.BitCoaddUseMex  = true;
-
+        Args.KeyNaN          = 'NaN';
+        Args.KeyCoaddLess    = 'CoaddLessImages';
+        Args.FracCoaddLess   = 0.8; 
+        
         %--- Header ---
         Args.HeaderCopy1 logical                    = true;
         Args.NewHeader                              = [];
@@ -196,7 +199,14 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
 
     % coadd mask
     if Args.AddMask
+        Result.MaskData.Dict  = Obj(1).MaskData.Dict; % copy dictionary (pointer)
         Result.MaskData.Data  = squeeze(tools.array.bitor_array(MaskCube, DimIndex, Args.BitCoaddUseMex));
+
+        % update Mask to NaN for pixels in which CoaddN<Nim
+        Result.MaskData.maskSet(isnan(Result.ImageData.Data), Args.KeyNaN);
+        % Update CoaddLessImages
+        Result.MaskData.maskSet( CoaddN<(Args.FracCoaddLess.*Nim), Args.KeyCoaddLess);
+       
     end
 
     % Update header:
