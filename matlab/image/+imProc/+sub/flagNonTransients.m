@@ -177,7 +177,7 @@ function TranCat = flagNonTransients(Obj, Args)
                        Default is true.
 
                 'ExtendedThreshold' - Threshold on SCORE vs SN_ext.
-                       Default is -0.59.
+                       Default is -0.41.
 
                 'ExtendedSatDelta' - Relaxation near saturation.
                        Default is 0.5.
@@ -344,13 +344,13 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ContaminationSelfRadiusFactor double = 1.5
         Args.BufferAgainstEdgeSmoothing double = 2;
 
-        Args.ContaminationMag double = [0.0 0.3 1.0]
+        Args.ContaminationMag double = [0.3 0.5]
         Args.ContaminationBackAnnulusMax double = [1.0 3.0]
         Args.ContaminationStdAnnulusMax double = [4.5 12.0]
 
         % Extendedness
         Args.flagExtended logical = true
-        Args.ExtendedThreshold double = -0.59
+        Args.ExtendedThreshold double = -0.41
         Args.ExtendedSatDelta double = 0.5
 
         % Limiting magnitude
@@ -507,6 +507,7 @@ function TranCat = flagNonTransients(Obj, Args)
         if CandCat.isColumn('R_Y2')
             R_Y2 = CandCat.getCol('R_Y2');
         end
+
         HasRX2Y2 = ~isempty(R_X2) && ~isempty(R_Y2);
 
         if HasRX2Y2
@@ -531,14 +532,20 @@ function TranCat = flagNonTransients(Obj, Args)
         % Get Nuclear candidates
         if CandCat.isColumn('GAL_DIST')
             GalDist = CandCat.getCol('GAL_DIST');
-            % 5sig for nuclear check, dirty, I know
             % TODO: rather than doing this here, match2Galaxies should be
             % extended to determined if a source is nuclear or not,
             % probably best to write a dedicated matchTransients2Galaxies
             % function which uses the N, R, and D catalogs
-            NuclearCand = GalDist < PointLimit*5/3; 
+            NuclearCand = GalDist < PointLimit;
         else
             NuclearCand = false(NumCand,1);
+        end
+
+        if CandCat.isColumn('STAR_DIST')
+            StarDist = CandCat.getCol('STAR_DIST');
+            NearStar = StarDist < PointLimit;
+        else
+            NearStar = false(NumCand,1);
         end
 
         Star_Prob = [];
@@ -825,8 +832,6 @@ function TranCat = flagNonTransients(Obj, Args)
 
             N_PSFSize = floor(size(Obj(Iobj).New.PSFData.getPSF,2)/2);
             R_PSFSize = floor(size(Obj(Iobj).Ref.PSFData.getPSF,2)/2);
-            PSFSize_Min = min(N_PSFSize,R_PSFSize)-Args.BufferAgainstEdgeSmoothing;
-            PSFSize_Max = max(N_PSFSize,R_PSFSize);
 
             % Recalculating the moments due to issue #701, this should change once the
             % issue is properly fixed. TODO
@@ -866,9 +871,6 @@ function TranCat = flagNonTransients(Obj, Args)
             % stamp boundary, which indicates asymmetry or broader
             % non-Gaussian wings.
             
-            FractionTailFlux_Gauss = 1 - ...
-                erf((PSFSize_Min)./sqrt(2*Med_NX2))*erf((PSFSize_Min)./sqrt(2*Med_NY2));
-
             % Punish for assymetry
             [~, imax] = max(PSFnew(:));
             [iy0, ix0] = ind2sub(size(PSFnew), imax);
@@ -877,10 +879,21 @@ function TranCat = flagNonTransients(Obj, Args)
             dx = abs(xg - ix0);
             dy = abs(yg - iy0);
             
-            EdgeMask = (dx >= PSFSize_Min) | (dy >= PSFSize_Min);
+            PSFSize_Min = min(N_PSFSize,R_PSFSize);
+            ExpectedMaxPos = PSFSize_Min + 1;
+            MaxOffset = abs(ExpectedMaxPos - [ix0, iy0]);
+            EdgeOffset = Args.BufferAgainstEdgeSmoothing;%+ max(MaxOffset);
+            PSFSize_Min = min(N_PSFSize,R_PSFSize)-EdgeOffset;
+            PSFSize_Max = max(N_PSFSize,R_PSFSize);
+
+            FractionTailFlux_Gauss = 1 - ...
+                erf((PSFSize_Min)./sqrt(2*Med_NX2))*erf((PSFSize_Min)./sqrt(2*Med_NY2));
+
+            EdgeMask = (dx >= PSFSize_Min-MaxOffset(1)) ...
+                | (dy >= PSFSize_Min-MaxOffset(2));
 
             EdgeFrac = sum(PSFnew(EdgeMask), 'all');
-            Inflation = min(1 + 2 * EdgeFrac, 3.0);
+            Inflation = min(1 + 10 * EdgeFrac, 3.0);
 
             FractionTailFlux = min(FractionTailFlux_Gauss * Inflation, 0.9);
             N_TailFlux = N_IntFlux*FractionTailFlux;
@@ -1014,37 +1027,33 @@ function TranCat = flagNonTransients(Obj, Args)
             MagContamination = inf(NumCand,1);
             MagContamination(HasContam) = ...
                 log10(CandFluxes(HasContam) ./ ContaminationFlux(HasContam));
-
-            PassesLocalAperStrict = ...
-                (STD_ANNULUS < Args.ContaminationStdAnnulusMax(1)) ...
-                & (abs(BACK_ANNULUS) < Args.ContaminationBackAnnulusMax(1));
             
             PassesLocalAperLoose = ...
                 (STD_ANNULUS < Args.ContaminationStdAnnulusMax(2)) ...
                 & (abs(BACK_ANNULUS) < Args.ContaminationBackAnnulusMax(2));
 
             PassesContaminationLoose = ...
-                ( ...
-                    (PassesLocalAperStrict & (MagContamination > Args.ContaminationMag(1))) ...
-                    | ...
-                    (MagContamination > Args.ContaminationMag(2)) ...
-                ) | N_GoodPSF;
+                (MagContamination > Args.ContaminationMag(1)) & PassesLocalAperLoose;
+
+            PassesLocalAperStrict = ...
+                (STD_ANNULUS < Args.ContaminationStdAnnulusMax(1)) ...
+                & (abs(BACK_ANNULUS) < Args.ContaminationBackAnnulusMax(1));
 
             PassesContaminationStrict = ...
                 ~N_VeryPoorPSF ...
-                | ((MagContamination > Args.ContaminationMag(3)) & PassesLocalAperStrict);
+                | ((MagContamination > Args.ContaminationMag(2)) & PassesLocalAperStrict);
 
             % Final decision: require a reasonably clean local environment, pass the
             % contamination test appropriate to the N-image PSF quality, and satisfy
             % the R-image PSF requirement.
+
             Passes_PSFShape = ...
-                PassesLocalAperLoose ...        % Require a reasonably clean local subtraction
-                & PassesContaminationLoose ...  % Pass the main contamination test, or have a good N PSF
+                  PassesContaminationLoose ...  % Pass the main contamination test
                 & PassesContaminationStrict ... % Additional requirement for very poor N PSFs
                 & R_Passes_PSFShape;            % Require a good R PSF unless the candidate is isolated
            
-            N_Passes_PSF_Global = ...
-                PassesContaminationLoose & PassesContaminationStrict;
+            %N_Passes_PSF_Global = ...
+            %   PassesContaminationLoose & PassesContaminationStrict;
 
             PSF_Flagged = ~Passes_PSFShape;
             FilterFlags = setFilterBit(FilterFlags, PSF_Flagged, BD_TF, 'PSFShape');
@@ -1238,11 +1247,6 @@ function TranCat = flagNonTransients(Obj, Args)
             % variable galaxies also. I'll keep refereing to them as stars
             % but matching variable galaxies this way is also a good thing.
 
-            % Get star distances and find stars matched on candidate
-            % position.
-            StarDist = CandCat.getCol('STAR_DIST');
-            NearStar = StarDist <= PointLimit;
-
             % Use the maxium candidate distance + maximum star distance
             % among candidates as search radius for variable stars.
             StarSearchRadius = MaxDistAngle.convert('arcsec').Angle + max(StarDist);
@@ -1332,13 +1336,14 @@ function TranCat = flagNonTransients(Obj, Args)
         % Check for nuclear noise
         if Args.flagNuclearNoise && any(NuclearCand)
 
-            %NuclearCat = CandCat.selectRows(NuclearCand);
+            GalPSFNoiseCand = NuclearCand | (NearStar & GalCand);
+
             % Get R magnitude and score of nuclear candidates
-            NuclearRMag = R_MAG_PSF(NuclearCand);
-            NuclearScore = Score(NuclearCand);
+            NuclearRMag = R_MAG_PSF(GalPSFNoiseCand);
+            NuclearScore = Score(GalPSFNoiseCand);
 
             % Initialize result array
-            NumNuclear = sum(NuclearCand);
+            NumNuclear = sum(GalPSFNoiseCand);
             NuclearNoise = false(NumNuclear,1);
 
             % Only test nuclear candidates if it's detectable in R image
@@ -1350,9 +1355,10 @@ function TranCat = flagNonTransients(Obj, Args)
             R_MAG_PSF_4Nuc = R_MAG_PSF;
             Score_4Nuc = Score;
 
-            if ~isempty(Injections)
-                R_MAG_PSF_4Nuc = R_MAG_PSF_4Nuc(~Injections);
-                Score_4Nuc = Score_4Nuc(~Injections);
+            if CandCat.isColumn('S_CORR')
+                Scorr = CandCat.getCol('S_CORR');
+                Score_4Nuc = Scorr;
+                NuclearScore = Scorr(GalPSFNoiseCand);
             end
 
             % Loop through each and assign corresponding median
@@ -1376,16 +1382,26 @@ function TranCat = flagNonTransients(Obj, Args)
                 % and have a low R_MAG_PSF but high SCORE value, which
                 % leads to filtering of real nuclear transients.
                 % TODO: this maybe should be done cleaner
+                ExcludeComparison = false(NumCand,1);
+
                 if exist('BadPixHard','var')
-                    BadPixHard_4Nuc = BadPixHard;
-
-                    if ~isempty(Injections)
-                        BadPixHard_4Nuc = BadPixHard_4Nuc(~Injections);
-                    end
-
-                    BinnedMags = BinnedMags & ~BadPixHard_4Nuc;
-
+                    ExcludeComparison = ExcludeComparison | BadPixHard;
                 end
+                
+                if ~isempty(Injections)
+                    ExcludeComparison = ExcludeComparison | Injections;
+                end
+
+                if any(NearStar)
+                    ExcludeComparison = ExcludeComparison | ~NearStar;
+                end
+
+                if CandCat.isColumn('S_CORR')
+                    Scorr = CandCat.getCol('S_CORR');
+                    ExcludeComparison = ExcludeComparison | (sign(Scorr) ~= sign(Score));
+                end
+
+                BinnedMags = BinnedMags & ~ExcludeComparison;
                 
                 % If bin is empty, assume that this magnitude range is well
                 % subtracted and don't flag the candidate.
@@ -1402,9 +1418,8 @@ function TranCat = flagNonTransients(Obj, Args)
                 NuclearNoise(INuclear) = (NuclearScore(INuclear) < BinThresholdS);
             end
 
-            FilterFlags(NuclearCand) = setFilterBit(...
-                FilterFlags(NuclearCand), NuclearNoise, BD_TF, 'NuclearNoise');
-
+            FilterFlags(GalPSFNoiseCand) = setFilterBit(...
+                FilterFlags(GalPSFNoiseCand), NuclearNoise, BD_TF, 'NuclearNoise');
         end
 
         % ----- AstroZOGY -----
@@ -1417,27 +1432,27 @@ function TranCat = flagNonTransients(Obj, Args)
             % Exclude isolated candidates unless PSF shape is poor.
             % Exclude also galaxy matched candidates that are not nuclear
             % and do not match to stars.
-            ExcludeCand = (GalCand & ~NuclearCand & ~StarCand);
-
-            if ~isempty(IsStar)
-                ExcludeCand = (GalCand & ~NuclearCand & ~IsStar);
-            end
+            ExcludeCand = (GalCand & ~NuclearCand & ~NearStar);
 
             if ~isempty(IsolatedCand)
                 ExcludeCand = ExcludeCand | IsolatedCand;
             end
 
-            if exist('N_Passes_PSF_Global','var')
-                ExcludeCand = ExcludeCand & N_Passes_PSF_Global;
-            end
+            %if exist('N_Passes_PSF_Global','var')
+            %    ExcludeCand = ExcludeCand & N_Passes_PSF_Global;
+            %end
 
             % Test if Score is higher than Scorr (has to be), Scorr is
             % above threshold and the difference between Score and Scorr is
             % below threshold.
-            ScorrGood = (sign(Scorr) == sign(Score) ) ...
-                & (abs(Score) >= abs(Scorr)) ...
-                & ((abs(Scorr) > Args.ScorrThreshold) | ...
-                (SDiff < Args.ScorrCorrectionParam)) | ExcludeCand;
+
+            ScorrSane = (sign(Scorr) == sign(Score) ) ...
+                & (abs(Score) >= abs(Scorr) );
+
+            ScorrHigh = ((abs(Scorr) > Args.ScorrThreshold) | ...
+                (SDiff < Args.ScorrCorrectionParam));
+
+            ScorrGood = ScorrSane & (ScorrHigh | ExcludeCand);
 
             ScorrFlagged = ~ScorrGood;
             FilterFlags = setFilterBit(FilterFlags, ScorrFlagged, BD_TF, 'Scorr');
@@ -1454,18 +1469,12 @@ function TranCat = flagNonTransients(Obj, Args)
                 +Args.TranslientExpThresh(3);
             AIC_Diff_Thresh = min(AIC_Diff_Thresh, 2.5);
 
-            %AIC_Diff_Thresh(~N_GoodPSF) = Args.TranslientThresh;
-
             % Exclude isolated candidates unless PSF shape is poor.
             % Exclude also galaxy matched candidates that are not nuclear
             % and do not match to stars.
-            ExcludeCand = (GalCand & ~NuclearCand & ~StarCand);
+            ExcludeCand = (GalCand & ~NuclearCand & ~NearStar);
 
-            if ~isempty(IsStar) 
-                ExcludeCand = (GalCand & ~NuclearCand & ~IsStar);
-            end
-
-            if exist('IsolatedCand', 'var')
+            if ~isempty(IsolatedCand)
                 ExcludeCand = ExcludeCand | IsolatedCand;
             end
 
