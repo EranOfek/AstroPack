@@ -124,7 +124,7 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
         Args.KeyNaN          = 'NaN';
         Args.KeyCoaddLess    = 'CoaddLessImages';
         Args.FracCoaddLess   = 0.8; 
-        
+
         %--- Header ---
         Args.HeaderCopy1 logical                    = true;
         Args.NewHeader                              = [];
@@ -187,11 +187,10 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
     Result = AstroImage;
 
     % coadd
-    [Result.ImageData.Data, Result.VarData.Data] = imUtil.stack.wcoaddRobust(ImageCube, BackCube, 'Var',Var, 'F',FluxMatch, 'ZP',[],'ZP0',[],...
+    [Result.ImageData.Data, Result.VarData.Data, CoaddN] = imUtil.stack.wcoaddRobust(ImageCube, BackCube, 'Var',Var, 'F',FluxMatch, 'ZP',[],'ZP0',[],...
                                                                        'RemoveMinMax',Args.RemoveMinMax,'Niter',Args.Niter,'SigmaClip',Args.SigmaClip, 'StdMethod',Args.StdMethod,...
                                                                        'UseMex',Args.CoaddUseMex);
 
-    CoaddN = Nim;
 
     if Args.AddBack
         Result.BackData.Data = imUtil.background.backVar(Result.ImageData.Data, Args.backVarArgs{:});

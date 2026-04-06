@@ -74,8 +74,10 @@ function [Coadd, CoaddVar, Ncoadd]=wcoaddRobust(Image, Back, Args)
             [Coadd, CoaddVar, Ncoadd] = imUtil.stack.mex.wcoaddRobust_mex(Image, Back, Args.Var, Args.F, Args.ZP, Args.ZP0, Args.RemoveMinMax, Args.Niter, Args.SigmaClip, Args.StdMethod);
         elseif nargout==2
             [Coadd, CoaddVar] = imUtil.stack.mex.wcoaddRobust_mex(Image, Back, Args.Var, Args.F, Args.ZP, Args.ZP0, Args.RemoveMinMax, Args.Niter, Args.SigmaClip, Args.StdMethod);
+            CoaddN  = [];
         else
             [Coadd] = imUtil.stack.mex.wcoaddRobust_mex(Image, Back, Args.Var, Args.F, Args.ZP, Args.ZP0, Args.RemoveMinMax, Args.Niter, Args.SigmaClip, Args.StdMethod);
+            CoaddN  = [];
         end
     else
         % matlab version
@@ -217,7 +219,6 @@ function [Coadd, CoaddVar, Ncoadd]=wcoaddRobust(Image, Back, Args)
             CoaddVar(SumW==0) = NaN;
         end
     end
-    Ncoadd = [];
 end
 
 
