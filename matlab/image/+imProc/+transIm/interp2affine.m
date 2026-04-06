@@ -69,7 +69,7 @@ function Result=interp2affine(Obj, AffineTran, Args)
     Nprop = numel(Args.DataProp);
 
     Nobj=numel(Obj);
-    Nref=numel(TransRef); % relevant for non-numeric classes
+    %Nref=numel(TransRef); % relevant for non-numeric classes
     Result = AstroImage(size(Obj));
     for Iobj=1:1:Nobj
         
@@ -92,6 +92,7 @@ function Result=interp2affine(Obj, AffineTran, Args)
                 
             otherwise
                 % assume numeric input
+                Iref = min(Iobj, Nref);
                 switch size(AffineTran,2)
                     case 2
                         FullRefX = MatX - AffineTran(Iref,1);
