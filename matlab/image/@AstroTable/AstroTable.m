@@ -869,7 +869,11 @@ classdef AstroTable < Component
                 % assume already in cell format
                 ColUnit = ColInd;
             else
-                ColUnit = Obj.ColUnits(ColInd);
+                if isempty(Obj.ColUnits)
+                    [ColUnit{1:numel(ColInd)}] = deal('');
+                else
+                    ColUnit = Obj.ColUnits(ColInd);
+                end
             end
         end
         

@@ -20,6 +20,24 @@ function [R,PR,R_f,PR_f]=combine_proper(Data,PSF,Args)
 %                   Default is false.
 %            'SizePSF'   - If CenterPSF is true, then will cut the PSF image size
 %                   to this size. If empty, do nothing. Default is [].
+%            'AnnulusPre' - [Inner Outer] annulus cosbell taper radii (pix) to apply
+%                   to all PSF prior to coadding.
+%                   Preferably this should be done in an earlier step.
+%                   If empty, then skip this step. Default is [].
+%            'AnnulusPost' - [Inner Outer] annulus cosbell taper radii (pix) to apply
+%                   to coadd PSF.
+%                   If empty, then skip this step. Default is [5 8].
+%            'ReCalcAfterAnnPost' - If 'AnnulusPost' is not empty, and this
+%                   argument is true, then will redo the coaddition with
+%                   the tapered PSF. Default is true.
+%            'Full2stamp' - If false, then final PSF is of the image size.
+%                   If true, then the final PSF stamp size is equal to the input
+%                   PSF stamp size.
+%                   Default is true.
+%            'Convert2real' - Convert final coadd image to real.
+%                   Useful since sometimes the output may have small
+%                   imaginary part.
+%                   Default is true.
 % Output : - The proper coadded image.
 %          - The proper PSF
 %          - FFT of the proper coadded image.
@@ -42,6 +60,12 @@ arguments
     Args.Var                   = 1;
     %Args.PsfType               = 'center';
     Args.Norm(1,1) logical     = true;
+
+    Args.AnnulusPre            = []; % preferably this should be done earlier
+    Args.AnnulusPost           = [5 8];
+    Args.ReCalcAfterAnnPost    = true; % only if AnnulusPost is not empty
+    Args.Full2stamp            = true;
+    Args.Convert2real          = true;
 end
 
 SizeData = size(Data);
@@ -54,10 +78,14 @@ if Args.Norm
     PSF = PSF./sum(PSF,[1 2]);
 end
 
+StampSize = size(PSF);
    
 % prep the PSF
 %PSF = imUtil.psf.padShift(PSF, SizeData(1:2));
 PSF = imUtil.psf.stamp2full(PSF, SizeData(1:2), 'CenterPosition','corner');
+if ~isempty(Args.AnnulusPre)
+    PSF = imUtil.psf.mex.cosbellCorners(PSF, Args.AnnulusPre);
+end
 
 % switch lower(Args.PsfType)
 %     case 'center'
@@ -82,8 +110,34 @@ WW_n  = reshape( (Args.F.^2./Args.Var), 1, 1, []);
 WW_d  = reshape( Args.F./Args.Var, 1, 1, []);
 
 PR_f  = sqrt(sum(WW_n .* abs(PSF_f).^2,IndexDim));
-R_f   = sum(WW_d .* fft2(Data).*conj(PSF_f),IndexDim)./PR_f;
+Data_f = fft2(Data);
+R_f   = sum(WW_d .* Data_f.*conj(PSF_f),IndexDim)./PR_f;
 R     = ifft2(R_f);
 PR    = ifft2(PR_f);
+if ~isempty(Args.AnnulusPost)
+    PR = imUtil.psf.mex.cosbellCorners(PR, Args.AnnulusPost);
+    
+    if Args.ReCalcAfterAnnPost
+        PR_f  = ifft2(PR);
+        R_f   = sum(WW_d .* Data_f.*conj(PSF_f),IndexDim)./PR_f;
+        R     = ifft2(R_f);
+    end 
+end
+
+if Args.Full2stamp
+    % convert PSF size to stamp size
+
+    % need to update with new function:
+    PR = imUtil.psf.full2stamp(PR, 'StampHalfSize',(StampSize(1:2)-1)./2, 'IsCorner',true);
+end
+
+if Args.Convert2real
+    R  = real(R);
+    PR = real(PR);
+end
+
+
+
+
 
 

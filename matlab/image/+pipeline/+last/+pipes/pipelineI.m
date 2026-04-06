@@ -268,7 +268,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     % (93 s with parfor)
     
     % 64 s
-    tic;
+    %tic;
     % Phot calib is done later (after adding airmass columns):
     [Coadd, ResCoadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
                                               'SubBack',false,...
@@ -282,7 +282,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
                                               'PhotCalibSimple',false,...
                                               'PhotCalibTrans',false);
     
-    toc
+    %toc
 
     % 96 s
     % tic;
