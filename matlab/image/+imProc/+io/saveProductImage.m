@@ -49,6 +49,8 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
     %            'FileType' - FileType. If FileName is an AstroFileName
     %                   then this keyword is ignored.
     %                   Default is 'fits'.
+    %            'CompressedOutput' - Default is [] (no compression), 
+    %                   if requested, can be "fz", "bz2", "hdf5"
     %            'OverWrite' - Default is false.
     %            'WriteTime' - Add the write time to header.
     %                   Default is false.
@@ -93,6 +95,7 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
         Args.SubDirKey                = 'SUBDIR';
         Args.FileType                 = 'fits';  % If AstroFileName, use info
         
+        Args.CompressedOutput         = [];      % if not empty, e.g., "fz", the requested type of compression will be performed by lower-lever functions   
         Args.OverWrite logical        = false;
         Args.WriteTime logical        = false;
         Args.SanifyPath               = false; 
@@ -131,7 +134,7 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
         FileList = strings(Nim, Nprod);
         for Iprod=1:1:Nprod
             FileList(:,Iprod) = FileName.genFile('Product',Args.OutProduct{Iprod});
-        end
+        end        
         FileType = AFN.FileType{1};
     else
         AFN = [];
@@ -153,7 +156,15 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
     if Args.AddSubDir && isa(AI, 'AstroImage') && isa(AFN, 'AstroFileName')
         AI.setKeyVal(Args.SubDirKey, AFN.SubDir);
     end
-
+    
+    % correct the FileType: cut the ending and addd a new one if requested
+    Idx = strfind(FileType, '.');
+    if ~isempty(Idx)
+       FileType = FileType(1:Idx(1)-1);
+    end
+    if ~isempty(Args.CompressedOutput)
+       FileType = [FileType '.' Args.CompressedOutput];
+    end
 
     Nobj = numel(AI);
     if Nim~=Nobj
@@ -189,6 +200,7 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
             else
                 AI(Iobj).write1(FileToSave, Args.OutProduct{Iprod},...
                                              'FileType',FileType,...
+                                             'CompressedOutput',Args.CompressedOutput,...
                                              'WriteHeader',Args.WriteHeader(Iprod),...
                                              'MkDir',~DirCreated,...
                                              'OverWrite',Args.OverWrite,...

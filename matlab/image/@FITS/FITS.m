@@ -1118,6 +1118,7 @@ classdef FITS < handle
             %          - FITS file name to save.
             %          * Arbitrary number of ...,key,val,... pairs.
             %            Following keywords are available:
+            %            'CompressedOutput' - Default is []; 'fz' will be implemented later  
             %            'Header' - Cell array of {key,val,comment} header
             %                       or an HEAD object to write into the
             %                       FITS file.
@@ -1137,10 +1138,11 @@ classdef FITS < handle
             arguments
                 Image
                 FileName
+                Args.CompressedOutput         = [];
                 Args.Header cell              = {};
                 Args.DataType                 = 'single';
                 Args.Append(1,1) logical      = false;
-                Args.OverWrite(1,1) logical  = false;
+                Args.OverWrite(1,1) logical   = false;
                 Args.WriteTime(1,1) logical   = false;
                 Args.SanifyPath logical       = true;
             end
@@ -1207,6 +1209,7 @@ classdef FITS < handle
             %                   header.
             %            'DataType' - Image data type. If empty, use image type.
             %                   Default is [].
+            %            'CompressedOutput' - Default is []; 'fz' will be implemented later 
             %            'CompressType' which CFITS compression to use (see
             %                   'help matlab.io.fits.setCompressionType' and
             %                   https://heasarc.gsfc.nasa.gov/docs/software/fitsio/compression.html).
@@ -1230,6 +1233,7 @@ classdef FITS < handle
             arguments
                 Image
                 FileName
+                Args.CompressedOutput         = [];
                 Args.Header cell              = {};
                 Args.DataType                 = [];
                 Args.CompressType  char       = 'NOCOMPRESS';

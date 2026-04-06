@@ -1327,13 +1327,13 @@ classdef PhotCalibTrans < Component
                 % Add position-dependent Tran2D correction if available
                 if ~isempty(Args.X) && ~isempty(Args.Y) && ...
                    ~isempty(Obj.TransModel.Tran2DObj) && Obj.TransModel.UseTran2D
-                    [FieldCorrectionMag, ~] = Obj.TransModel.Tran2DObj.forward(Args.X(:), Args.Y(:), false);
+                    [FieldCorrectionMag, ~] = Obj.TransModel.Tran2DObj.forward([Args.X(:), Args.Y(:)]);
                     if Args.UseRefNorm && Args.NormTran2D
                         % Center-normalize: subtract Tran2D value at crop center
                         % so that Tran2D captures only relative shape, not absolute offset
                         Xc = Obj.TransModel.Tran2DObj.ParNX(1);
                         Yc = Obj.TransModel.Tran2DObj.ParNY(1);
-                        [CenterCorr, ~] = Obj.TransModel.Tran2DObj.forward(Xc, Yc, false);
+                        [CenterCorr, ~] = Obj.TransModel.Tran2DObj.forward([Xc, Yc]);
                         FieldCorrectionMag = FieldCorrectionMag(:) - CenterCorr;
                     end
                     ZP = ZP - FieldCorrectionMag(:);
@@ -1381,7 +1381,7 @@ classdef PhotCalibTrans < Component
                     Y = Args.Y(:);
 
                     % Get field correction in magnitude space from Tran2D
-                    [FieldCorrectionMag, ~] = Obj.TransModel.Tran2DObj.forward(X, Y, false);
+                    [FieldCorrectionMag, ~] = Obj.TransModel.Tran2DObj.forward([X, Y]);
                     FieldCorrectionMag = FieldCorrectionMag(:);  % [N_pos x 1]
 
                     if Args.UseRefNorm && Args.NormTran2D
@@ -1389,7 +1389,7 @@ classdef PhotCalibTrans < Component
                         % so that Tran2D captures only relative shape, not absolute offset
                         Xc = Obj.TransModel.Tran2DObj.ParNX(1);
                         Yc = Obj.TransModel.Tran2DObj.ParNY(1);
-                        [CenterCorr, ~] = Obj.TransModel.Tran2DObj.forward(Xc, Yc, false);
+                        [CenterCorr, ~] = Obj.TransModel.Tran2DObj.forward([Xc, Yc]);
                         FieldCorrectionMag = FieldCorrectionMag - CenterCorr;
                     end
 

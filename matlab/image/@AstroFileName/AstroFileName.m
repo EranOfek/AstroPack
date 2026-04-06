@@ -639,9 +639,9 @@ classdef AstroFileName < Component
                 
             if SplitLast
                 if N==1
-                    Result = [Result(:,1:end-1), split(Result(:,end), SeperatorLast).'];
+                    Result = [Result(:,1:end-1), extractBefore(Result(:,end), SeperatorLast),extractAfter(Result(:,end), SeperatorLast)];
                 else
-                    Result = [Result(:,1:end-1), split(Result(:,end), SeperatorLast)];
+                    Result = [Result(:,1:end-1), extractBefore(Result(:,end), SeperatorLast),extractAfter(Result(:,end), SeperatorLast)];
                 end
             end
                 

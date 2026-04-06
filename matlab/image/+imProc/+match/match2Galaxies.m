@@ -205,8 +205,8 @@ function match2Galaxies(Obj, Args)
 
         if PGCCat.sizeCatalog > 0
             PGCCat.sortrows('Dec');
-            [PGCLon, PGCLat] = PGCCat.getLonLat();
-
+            [PGCLon, PGCLat] = PGCCat.getLonLat('rad');
+    
             MatchResPGC = VO.search.search_sortedlat_multi( ...
                 [PGCLon, PGCLat], RA, Dec, -Args.RadiusPGC .* Arcsec2Rad);
             MatchesPGC = vertcat(MatchResPGC.Nmatch);

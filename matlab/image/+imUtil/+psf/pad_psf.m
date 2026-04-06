@@ -1,5 +1,6 @@
 function PadPSF = pad_psf(PSF, SizeImageIJ, PadVal)
     % Pad PSF such that it size will be equal to the image size.
+    %   For general case see: imUtil.psf.stamp2full
     % Input  : - PSF stamp.
     %          - [I J] size of image.
     %          - Pad value. Default is 0.
