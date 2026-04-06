@@ -810,6 +810,11 @@ classdef AstroPSF < Component
 
             arguments
                 Obj
+                Args.NewVer               = true;
+                Args.FullPosition         = 'center';
+                Args.Supress              = true;
+                Args.suppressEdgesArgs    = {};
+
                 Args.PsfArgs              = {};
                 Args.StampHalfSize        = [7 7];   % [X, Y]
                 Args.IsCorner logical     = true;
@@ -829,14 +834,18 @@ classdef AstroPSF < Component
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 P = Obj.getPSF();
-                Result(Iobj).DataPSF = imUtil.psf.full2stamp(P, 'StampHalfSize',Args.StampHalfSize,...
+                if Args.NewVer
+                    Result(Iobj).DataPSF = imUtil.psf.obsolete.full2stamp(P, Args.StampHalfSize.*2 + 1, 'FullPosition',Args.FullPosition, 'Supress',Args.Supress, 'suppressEdgesArgs',Args.suppressEdgesArgs);
+                else
+                    Result(Iobj).DataPSF = imUtil.psf.obsolete.full2stamp(P, 'StampHalfSize',Args.StampHalfSize,...
                                                                          'IsCorner',Args.IsCorner,...
                                                                          'Recenter',Args.Recenter,...
                                                                          'zeroConv',Args.zeroConv,...
                                                                          'zeroConvArgs',Args.zeroConvArgs,...
                                                                          'Norm',Args.Norm);
-            % as the resulting stamp is 2D, additional dimensions do not exist any more:
-            Result(Iobj).DimVals = cellfun(@(x) [0], Result(Iobj).DimVals, 'UniformOutput', false);
+                end
+                % as the resulting stamp is 2D, additional dimensions do not exist any more:
+                Result(Iobj).DimVals = cellfun(@(x) [0], Result(Iobj).DimVals, 'UniformOutput', false);
             end
         end
         

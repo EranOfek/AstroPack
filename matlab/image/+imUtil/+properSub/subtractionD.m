@@ -105,7 +105,7 @@ function [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt, P_deltaNhat, P_deltaR
 
     % clean Pd
     % if Args.CleanPd
-    %     PdS    = imUtil.psf.full2stamp(ifft2(Pd_hat), 'IsCorner',true, 'StampHalfSize',[7 7]);
+    %     PdS    = imUtil.psf.obsolete.full2stamp(ifft2(Pd_hat), 'IsCorner',true, 'StampHalfSize',[7 7]);
     %     PdSS   = imUtil.psf.padShift(PdS,size(D_hat));
     %     PdSS   = fftshift(fftshift(PdSS,1),2);
     %     Pd_hat = fft2(PdSS);

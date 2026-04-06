@@ -3,7 +3,7 @@ function PSF=suppressEdges(PSF, Args)
     %   Useful in order to verify that the PSF is zero padded and
     %   approach zero smoothly.
     %   See also: imUtil.psf.psf_zeroConverge
-    % Input  : - A PSF matrix.
+    % Input  : - A PSF matrix or cube (image index in 3rd dim).
     %          * ...,key,val,...
     %            'Fun' - A 2-D function that will multiply the PSF.
     %                   The function is of the form F(Pars, SizeXY)
@@ -22,7 +22,7 @@ function PSF=suppressEdges(PSF, Args)
         PSF
         Args.Fun                     = @imUtil.kernel2.cosbell;
         Args.FunPars                 = [5 7];
-        Args.Norm logical            = true;
+        Args.Norm                    = true;
     end
 
     Size = size(PSF);
