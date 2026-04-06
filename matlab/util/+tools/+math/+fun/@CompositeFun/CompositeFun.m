@@ -1955,8 +1955,8 @@ classdef CompositeFun < handle
 
             % Step 4: Calculate position-dependent correction in magnitude space
             % Use Tran2D's forward() method - it returns [Xi, Yi] where Xi is the magnitude correction
-            Coo = [X, Y];
-            [FieldCorrectionMag, ~] = Obj.Tran2DObj.forward(X, Y);
+%             Coo = [X, Y];
+            [FieldCorrectionMag, ~] = Obj.Tran2DObj.forward([X, Y]);
             FieldCorrectionMag = FieldCorrectionMag(:);  % [N_sources x 1]
 
             % Check for invalid values from Tran2D
@@ -2436,7 +2436,7 @@ classdef CompositeFun < handle
 
                     % Apply Tran2D separately (evaluateWithPosition assumes single base)
                     if UsePositionCorrections
-                        [FieldCorrectionMag, ~] = Obj.Tran2DObj.forward(Args.X, Args.Y);
+                        [FieldCorrectionMag, ~] = Obj.Tran2DObj.forward([Args.X, Args.Y]);
                         FieldCorrectionTrans = 10.^(-0.4 * FieldCorrectionMag(:));
                         ModelOutput = ModelOutput .* FieldCorrectionTrans';
                     end
