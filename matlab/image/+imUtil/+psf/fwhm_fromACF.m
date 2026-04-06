@@ -149,7 +149,7 @@ function [FWHM, Nstars, Info, ACF] = fwhm_fromACF(Image, Args)
         else
             % In order to make sure that CumVal is monothonic increasing
             % function - add epsilon (Issue #853):
-            CumVal = CumVal(:) +  (1:1:numel(CumVal)).'.*10.*eps;
+            CumVal = CumVal(:) +  (1:1:numel(CumVal)).'.*20.*eps;
             FWHM = interp1(CumVal, Rad(:), Args.CorrFrac);
             
             
