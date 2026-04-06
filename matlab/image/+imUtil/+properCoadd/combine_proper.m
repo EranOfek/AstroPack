@@ -34,6 +34,10 @@ function [R,PR,R_f,PR_f]=combine_proper(Data,PSF,Args)
 %                   If true, then the final PSF stamp size is equal to the input
 %                   PSF stamp size.
 %                   Default is true.
+%            'Convert2real' - Convert final coadd image to real.
+%                   Useful since sometimes the output may have small
+%                   imaginary part.
+%                   Default is true.
 % Output : - The proper coadded image.
 %          - The proper PSF
 %          - FFT of the proper coadded image.
@@ -61,6 +65,7 @@ arguments
     Args.AnnulusPost           = [5 8];
     Args.ReCalcAfterAnnPost    = true; % only if AnnulusPost is not empty
     Args.Full2stamp            = true;
+    Args.Convert2real          = true;
 end
 
 SizeData = size(Data);
@@ -124,6 +129,11 @@ if Args.Full2stamp
 
     % need to update with new function:
     PR = imUtil.psf.full2stamp(PR, 'StampHalfSize',(StampSize(1:2)-1)./2, 'IsCorner',true);
+end
+
+if Args.Convert2real
+    R  = real(R);
+    PR = real(PR);
 end
 
 

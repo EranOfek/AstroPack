@@ -436,7 +436,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         end    
         %Result(Iobj).Table = [];
         FWHM(Iobj) = Result(Iobj).PSFData.fwhm;
-
+      
         if isnan(Keys(Iobj).(Args.KeyGain))
             Gain = 1;
         else
