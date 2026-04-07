@@ -48,9 +48,8 @@ function Result = unitTest()
     [MatX, MatY] = meshgrid(VecX, VecY);
     MatR = sqrt(MatX.^2 + MatY.^2);
      
-    tic; for i=1:1000, R=imUtil.psf.radialProfile(K, [CenterY CenterX]);end, T1=toc;
-    tic;for i=1:1000, [Rm,Mm,Sm]=imUtil.psf.mex.radialProfile_mex(K, CenterX, CenterY);end,T2=toc;
-    fprintf('imUtil.psf.mex.radialProfile_mex is x %f faster than imUtil.psf.radialProfile\n',T1./T2);
+    R=imUtil.psf.radialProfile(K, [CenterY CenterX]);
+    [Rm,Mm,Sm]=imUtil.psf.mex.radialProfile_mex(K, CenterX, CenterY);
 
     % manual:
     

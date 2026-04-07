@@ -30,6 +30,7 @@ void RunTyped(const mxArray* Cube,
               const int nlhs,
               mxArray*& OutR,
               mxArray*& OutMean,
+              mxArray*& OutSum,
               mxArray*& OutStd,
               mxArray*& OutMin,
               mxArray*& OutMax)
@@ -51,9 +52,10 @@ void RunTyped(const mxArray* Cube,
 
     const bool NeedR    = (nlhs >= 1);
     const bool NeedMean = (nlhs >= 2);
-    const bool NeedStd  = (nlhs >= 3);
-    const bool NeedMin  = (nlhs >= 4);
-    const bool NeedMax  = (nlhs >= 5);
+    const bool NeedSum  = (nlhs >= 3);
+    const bool NeedStd  = (nlhs >= 4);
+    const bool NeedMin  = (nlhs >= 5);
+    const bool NeedMax  = (nlhs >= 6);
 
     const Tin* Data = static_cast<const Tin*>(mxGetData(Cube));
 
@@ -84,16 +86,18 @@ void RunTyped(const mxArray* Cube,
         OutR = nullptr;
     }
 
-    if (!NeedMean && !NeedStd && !NeedMin && !NeedMax) {
+    if (!NeedMean && !NeedSum && !NeedStd && !NeedMin && !NeedMax) {
         return;
     }
 
     OutMean = NeedMean ? mxCreateNumericMatrix(Nbin, NK, mxGetClassID(Cube), mxREAL) : nullptr;
+    OutSum  = NeedSum  ? mxCreateNumericMatrix(Nbin, NK, mxGetClassID(Cube), mxREAL) : nullptr;
     OutStd  = NeedStd  ? mxCreateNumericMatrix(Nbin, NK, mxGetClassID(Cube), mxREAL) : nullptr;
     OutMin  = NeedMin  ? mxCreateNumericMatrix(Nbin, NK, mxGetClassID(Cube), mxREAL) : nullptr;
     OutMax  = NeedMax  ? mxCreateNumericMatrix(Nbin, NK, mxGetClassID(Cube), mxREAL) : nullptr;
 
     Tin* MeanPtr = NeedMean ? static_cast<Tin*>(mxGetData(OutMean)) : nullptr;
+    Tin* SumPtr  = NeedSum  ? static_cast<Tin*>(mxGetData(OutSum))  : nullptr;
     Tin* StdPtr  = NeedStd  ? static_cast<Tin*>(mxGetData(OutStd))  : nullptr;
     Tin* MinPtr  = NeedMin  ? static_cast<Tin*>(mxGetData(OutMin))  : nullptr;
     Tin* MaxPtr  = NeedMax  ? static_cast<Tin*>(mxGetData(OutMax))  : nullptr;
@@ -114,6 +118,7 @@ void RunTyped(const mxArray* Cube,
         const Tin NaNVal = static_cast<Tin>(mxGetNaN());
         const mwSize Tot = Nbin * NK;
         if (NeedMean) { for (mwSize i = 0; i < Tot; ++i) MeanPtr[i] = NaNVal; }
+        if (NeedSum)  { for (mwSize i = 0; i < Tot; ++i) SumPtr[i]  = static_cast<Tin>(0); }
         if (NeedStd)  { for (mwSize i = 0; i < Tot; ++i) StdPtr[i]  = NaNVal; }
         if (NeedMin)  { for (mwSize i = 0; i < Tot; ++i) MinPtr[i]  = NaNVal; }
         if (NeedMax)  { for (mwSize i = 0; i < Tot; ++i) MaxPtr[i]  = NaNVal; }
@@ -151,11 +156,11 @@ void RunTyped(const mxArray* Cube,
 
             const Tin* Slice = Data + static_cast<mwSize>(Kimg) * PageSize;
 
-            std::vector<double>   Sum(NeedMean || NeedStd ? Nbin : 0, 0.0);
+            std::vector<double>   Sum((NeedMean || NeedSum || NeedStd) ? Nbin : 0, 0.0);
             std::vector<double>   Sum2(NeedStd ? Nbin : 0, 0.0);
             std::vector<double>   MinV(NeedMin ? Nbin : 0,  std::numeric_limits<double>::infinity());
             std::vector<double>   MaxV(NeedMax ? Nbin : 0, -std::numeric_limits<double>::infinity());
-            std::vector<uint32_t> Count((NeedMean || NeedStd || NeedMin || NeedMax) ? Nbin : 0, 0u);
+            std::vector<uint32_t> Count((NeedMean || NeedSum || NeedStd || NeedMin || NeedMax) ? Nbin : 0, 0u);
 
             for (mwSize jj = 0; jj < NJv; ++jj) {
                 const Tgeom DX2j = DX2[jj];
@@ -191,10 +196,10 @@ void RunTyped(const mxArray* Cube,
                     const double V = static_cast<double>(Vraw);
 
                     Count[Kbin] += 1u;
-                    if (NeedMean || NeedStd) { Sum[Kbin] += V; }
-                    if (NeedStd)             { Sum2[Kbin] += V * V; }
-                    if (NeedMin)             { MinV[Kbin] = std::min(MinV[Kbin], V); }
-                    if (NeedMax)             { MaxV[Kbin] = std::max(MaxV[Kbin], V); }
+                    if (NeedMean || NeedSum || NeedStd) { Sum[Kbin] += V; }
+                    if (NeedStd)                        { Sum2[Kbin] += V * V; }
+                    if (NeedMin)                        { MinV[Kbin] = std::min(MinV[Kbin], V); }
+                    if (NeedMax)                        { MaxV[Kbin] = std::max(MaxV[Kbin], V); }
                 }
             }
 
@@ -204,6 +209,10 @@ void RunTyped(const mxArray* Cube,
             for (mwSize Kbin = 0; Kbin < Nbin; ++Kbin) {
                 const uint32_t N = Count[Kbin];
                 const mwSize OutIdx = BaseOut + Kbin;
+
+                if (NeedSum) {
+                    SumPtr[OutIdx] = static_cast<Tin>(Sum[Kbin]);
+                }
 
                 if (N == 0u) {
                     if (NeedMean) MeanPtr[OutIdx] = NaNVal;
@@ -248,19 +257,19 @@ void RunTyped(const mxArray* Cube,
 
         const mwSize Tot = Nbin * NK;
 
-        std::vector<double>   GSum(NeedMean || NeedStd ? Tot : 0, 0.0);
+        std::vector<double>   GSum((NeedMean || NeedSum || NeedStd) ? Tot : 0, 0.0);
         std::vector<double>   GSum2(NeedStd ? Tot : 0, 0.0);
         std::vector<double>   GMin(NeedMin ? Tot : 0,  std::numeric_limits<double>::infinity());
         std::vector<double>   GMax(NeedMax ? Tot : 0, -std::numeric_limits<double>::infinity());
-        std::vector<uint32_t> GCount((NeedMean || NeedStd || NeedMin || NeedMax) ? Tot : 0, 0u);
+        std::vector<uint32_t> GCount((NeedMean || NeedSum || NeedStd || NeedMin || NeedMax) ? Tot : 0, 0u);
 
         #pragma omp parallel
         {
-            std::vector<double>   LSum(NeedMean || NeedStd ? Tot : 0, 0.0);
+            std::vector<double>   LSum((NeedMean || NeedSum || NeedStd) ? Tot : 0, 0.0);
             std::vector<double>   LSum2(NeedStd ? Tot : 0, 0.0);
             std::vector<double>   LMin(NeedMin ? Tot : 0,  std::numeric_limits<double>::infinity());
             std::vector<double>   LMax(NeedMax ? Tot : 0, -std::numeric_limits<double>::infinity());
-            std::vector<uint32_t> LCount((NeedMean || NeedStd || NeedMin || NeedMax) ? Tot : 0, 0u);
+            std::vector<uint32_t> LCount((NeedMean || NeedSum || NeedStd || NeedMin || NeedMax) ? Tot : 0, 0u);
 
             #pragma omp for schedule(static)
             for (mwSignedIndex jjSigned = 0; jjSigned < static_cast<mwSignedIndex>(NJv); ++jjSigned) {
@@ -302,10 +311,10 @@ void RunTyped(const mxArray* Cube,
                         const double V = static_cast<double>(Vraw);
 
                         LCount[OutIdx] += 1u;
-                        if (NeedMean || NeedStd) { LSum[OutIdx] += V; }
-                        if (NeedStd)             { LSum2[OutIdx] += V * V; }
-                        if (NeedMin)             { LMin[OutIdx] = std::min(LMin[OutIdx], V); }
-                        if (NeedMax)             { LMax[OutIdx] = std::max(LMax[OutIdx], V); }
+                        if (NeedMean || NeedSum || NeedStd) { LSum[OutIdx] += V; }
+                        if (NeedStd)                        { LSum2[OutIdx] += V * V; }
+                        if (NeedMin)                        { LMin[OutIdx] = std::min(LMin[OutIdx], V); }
+                        if (NeedMax)                        { LMax[OutIdx] = std::max(LMax[OutIdx], V); }
                     }
                 }
             }
@@ -314,10 +323,10 @@ void RunTyped(const mxArray* Cube,
             {
                 for (mwSize Idx = 0; Idx < Tot; ++Idx) {
                     GCount[Idx] += LCount[Idx];
-                    if (NeedMean || NeedStd) { GSum[Idx] += LSum[Idx]; }
-                    if (NeedStd)             { GSum2[Idx] += LSum2[Idx]; }
-                    if (NeedMin && LCount[Idx] > 0u) { GMin[Idx] = std::min(GMin[Idx], LMin[Idx]); }
-                    if (NeedMax && LCount[Idx] > 0u) { GMax[Idx] = std::max(GMax[Idx], LMax[Idx]); }
+                    if (NeedMean || NeedSum || NeedStd) { GSum[Idx] += LSum[Idx]; }
+                    if (NeedStd)                        { GSum2[Idx] += LSum2[Idx]; }
+                    if (NeedMin && LCount[Idx] > 0u)   { GMin[Idx] = std::min(GMin[Idx], LMin[Idx]); }
+                    if (NeedMax && LCount[Idx] > 0u)   { GMax[Idx] = std::max(GMax[Idx], LMax[Idx]); }
                 }
             }
         }
@@ -326,6 +335,10 @@ void RunTyped(const mxArray* Cube,
 
         for (mwSize Idx = 0; Idx < Tot; ++Idx) {
             const uint32_t N = GCount[Idx];
+
+            if (NeedSum) {
+                SumPtr[Idx] = static_cast<Tin>(GSum[Idx]);
+            }
 
             if (N == 0u) {
                 if (NeedMean) MeanPtr[Idx] = NaNVal;
@@ -371,9 +384,9 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
 {
     if (nrhs < 1 || nrhs > 6) {
         mexErrMsgIdAndTxt("radialProfile_mex:NumInputs",
-                          "Usage: [R,Mean,Std,Min,Max]=radialProfile_mex(Cube,X0,Y0,MaxR,Step,IgnoreNaN)");
+                          "Usage: [R,Mean,Sum,Std,Min,Max]=radialProfile_mex(Cube,X0,Y0,MaxR,Step,IgnoreNaN)");
     }
-    if (nlhs > 5) {
+    if (nlhs > 6) {
         mexErrMsgIdAndTxt("radialProfile_mex:NumOutputs",
                           "Too many output arguments.");
     }
@@ -439,23 +452,21 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
         P.IgnoreNaN = (mxGetScalar(prhs[5]) != 0.0);
     }
 
-    plhs[0] = nullptr;
-    if (nlhs >= 2) plhs[1] = nullptr;
-    if (nlhs >= 3) plhs[2] = nullptr;
-    if (nlhs >= 4) plhs[3] = nullptr;
-    if (nlhs >= 5) plhs[4] = nullptr;
+    for (int i = 0; i < nlhs; ++i) {
+        plhs[i] = nullptr;
+    }
 
     if (mxGetClassID(Cube) == mxDOUBLE_CLASS) {
         if (P.IgnoreNaN) {
-            RunTyped<double,double,true >(Cube, P, nlhs, plhs[0], plhs[1], plhs[2], plhs[3], plhs[4]);
+            RunTyped<double,double,true >(Cube, P, nlhs, plhs[0], plhs[1], plhs[2], plhs[3], plhs[4], plhs[5]);
         } else {
-            RunTyped<double,double,false>(Cube, P, nlhs, plhs[0], plhs[1], plhs[2], plhs[3], plhs[4]);
+            RunTyped<double,double,false>(Cube, P, nlhs, plhs[0], plhs[1], plhs[2], plhs[3], plhs[4], plhs[5]);
         }
     } else {
         if (P.IgnoreNaN) {
-            RunTyped<float,float,true >(Cube, P, nlhs, plhs[0], plhs[1], plhs[2], plhs[3], plhs[4]);
+            RunTyped<float,float,true >(Cube, P, nlhs, plhs[0], plhs[1], plhs[2], plhs[3], plhs[4], plhs[5]);
         } else {
-            RunTyped<float,float,false>(Cube, P, nlhs, plhs[0], plhs[1], plhs[2], plhs[3], plhs[4]);
+            RunTyped<float,float,false>(Cube, P, nlhs, plhs[0], plhs[1], plhs[2], plhs[3], plhs[4], plhs[5]);
         }
     }
 }

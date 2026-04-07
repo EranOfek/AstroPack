@@ -479,6 +479,7 @@ classdef AstroPSF < Component
         
         function [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(Obj, Args)
             % Calculate curve of growth of a PSF including radii
+            %       This is obsolete: see also AstroPSF/radialProfile
             % Input  : - An AstroPSF object
             %          * ...,key,val,...
             %            'ReCenter' - A logical indicating if to find the
@@ -622,6 +623,11 @@ classdef AstroPSF < Component
             %          * ...,key,val,...
             %            'PsfArgs' - a cell array of key,val arguments to pass to curve_of_growth. Default is {}. 
             %            'curveArgs' - a cell array of additional arguments to be passed to curve_of_growth
+            %            'UseLegacy' - If true then Use old code (curve of
+            %                   growth), else use new mex.
+            %                   There are some differences between the two
+            %                   codes.
+            %                   Default is false.
             % Output : - The FWHM calculated from the half cumsum [pix]
             %          - The FWHM calculated from the half peak flux [pix]
             %            radius.
@@ -630,13 +636,42 @@ classdef AstroPSF < Component
             
             arguments
                 Obj
-                Args.PsfArgs cell     = {};    
-                Args.curveArgs cell   = {};
+                Args.PsfArgs          = {};    
+                Args.curveArgs        = {};
+                Args.UseLegacy        = true;
             end
             
-            [~, FWHM_CumSum, FWHM_Flux] = curve_of_growth(Obj,'PsfArgs',Args.PsfArgs,Args.curveArgs{:});
-            FWHM_CumSum = 2.*FWHM_CumSum;
-            FWHM_Flux   = 2.*FWHM_Flux;
+            if Args.UseLegacy
+                [~, FWHM_CumSum, FWHM_Flux] = curve_of_growth(Obj,'PsfArgs',Args.PsfArgs,Args.curveArgs{:});
+                FWHM_CumSum = 2.*FWHM_CumSum;
+                FWHM_Flux   = 2.*FWHM_Flux;
+            else
+                SizeStamp = size(Obj(1).Data);
+                X0        = (SizeStamp(2) + 1).*0.5;
+                Y0        = (SizeStamp(2) + 1).*0.5;
+                [Rad, Mean, Sum] = imUtil.psf.mex.radialProfile_mex(Obj(1).Data, X0, Y0, floor(X0), 1);
+                EpsVec = (1:1:numel(Mean)).'.*1e-6;
+                
+                CumSum  = cumsum(Sum(:));
+                CumSum  = CumSum./CumSum(end) + EpsVec;
+                Frac = 0.5;
+                if CumSum(1)>=Frac
+                    FWHM_CumSum = 2.*Frac./CumSum(1);
+                else
+                    FWHM_CumSum = 2.*interp1(CumSum, Rad, Frac);
+                end
+                if nargout>1
+                    %CumMean = Mean(:);
+                    CumMean = Mean(:)./Mean(1) + EpsVec;
+                    if CumMean(1)<=Frac
+                        % interpolate below the 1st step
+                        FWHM_Flux = 2.*Frac./CumMean(1);
+                    else
+                        FWHM_Flux   = 2.*interp1(CumMean, Rad, Frac);
+                    end
+                end
+                
+            end
             
         end
         
@@ -651,6 +686,7 @@ classdef AstroPSF < Component
             %        'Step'   - Step size for radial edges. Default is 1
             %        'ReCenter' - a [Y, X] position around to calculate the radial profile.
             %                   If empty, use image center. Default is [].
+            %        'UseMex' - Use mex code. Default is false.
             % Output: - the radial profile: a vector of radii R and a vector of Sum
             % Author: A.M. Krassilchtchikov (Oct 2023)
             % Example: AP = AstroPSF; AP.DataPSF = imUtil.kernel2.gauss;
@@ -661,10 +697,28 @@ classdef AstroPSF < Component
                 Args.Radius   = [];
                 Args.Step     = 1;
                 Args.ReCenter = [];
+                Args.UseMex   = false;
             end           
             Stamp  = Obj.getPSF('PsfArgs',Args.PsfArgs); % get the stamp
-            Prof   = imUtil.psf.radialProfile(Stamp,Args.ReCenter,'Radius',Args.Radius,'Step',Args.Step);
-            Radius = Prof.R; Val = Prof.Sum; 
+            if Args.UseMex
+                SizeStamp = size(Stamp);
+                if isempty(Args.ReCenter)
+                    X0 = (SizeStamp(2) + 1).*0.5;
+                    Y0 = (SizeStamp(1) + 1).*0.5;
+                else
+                    X0 = Args.ReCenter(2);
+                    Y0 = Args.ReCenter(1);
+                end
+                if isempty(Args.Radius)
+                    Args.Radius = min(SizeStamp);
+                end
+                [Radius, Val]   = imUtil.psf.mex.radialProfile_mex(Stamp, X0, Y0, Args.Radius, Args.Step);
+                Val = Val.*Args.Step.*2.*pi.*Radius; % analog to sum
+            else
+                Prof   = imUtil.psf.radialProfile(Stamp,Args.ReCenter,'Radius',Args.Radius,'Step',Args.Step);
+
+                Radius = Prof.R; Val = Prof.Sum; 
+            end
         end
         
 %         function fitGaussians

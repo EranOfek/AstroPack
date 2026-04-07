@@ -38,7 +38,7 @@ end
 [MatX,MatY] = meshgrid((1:1:SizeXY(1))-CenterPSFxy(1),(1:1:SizeXY(2))-CenterPSFxy(2));
 MatR = sqrt(MatX.^2 + MatY.^2);
 
-MaxR = min([SizeXY - CenterPSFxy; abs(1-CenterPSFxy)]);
+MaxR = min([SizeXY - CenterPSFxy; abs(1-CenterPSFxy)],[],'all');
 
 Radius = (0:Step:floor(MaxR)).';
 Nrad   = numel(Radius) - 1;

@@ -17,6 +17,15 @@ function [Result] = perfTest(X, Y, Args)
     tic;for i=1:Nsim, [Rm,Mm,Sm]=imUtil.psf.mex.radialProfile_mex(K, CenterX, CenterY, 150);end,T2=toc;
     fprintf('imUtil.psf.mex.radialProfile_mex is x %f faster than imUtil.psf.radialProfile (large stamp)\n',T1./T2);
 
+    Nsim = 100;
+    K = imUtil.kernel2.gauss(2.*ones(Nsim,1));
+    CenterX = (size(K,2)+1)./2;
+    CenterY = (size(K,1)+1)./2;
+   
+    tic; for i=1:Nsim, R=imUtil.psf.radialProfile(K(:,:,1), [CenterY CenterX]);end, T1=toc;
+    tic;[Rm,Mm,Sm]=imUtil.psf.mex.radialProfile_mex(K, CenterX, CenterY); T2=toc;
+    fprintf('imUtil.psf.mex.radialProfile_mex is x %f faster than imUtil.psf.radialProfile (small cube)\n',T1./T2);
+
 
     %%
 

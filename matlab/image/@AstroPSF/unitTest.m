@@ -6,6 +6,24 @@ function Result = unitTest()
 
     %io.msgStyle(LogLevel.Test, '@start', 'AstroPSF test started');       
     
+    %% AstroPSF/fwhm
+
+    P=AstroPSF;
+    P.Data=imUtil.kernel2.gauss(2);
+    [a,b]=P.fwhm('UseLegacy',true);
+    2.*2.35./[a b] - 1
+    if abs(2.*2.35./[a b] - 1)>0.2
+        error('Problem with AstroPSF/fwhm');
+    end
+    [a,b]=P.fwhm('UseLegacy',false);
+    2.*2.35./[a b] - 1
+    if abs(2.*2.35./[a b] - 1)>0.2
+        error('Problem with AstroPSF/fwhm');
+    end
+    
+
+    %%
+
     % synthetic kernels:
     
     AP = AstroPSF('Synthetic','gauss','GaussSigma',[3 4 0],'StampSize',[15 19]);    

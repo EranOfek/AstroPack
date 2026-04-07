@@ -22,6 +22,7 @@
 %            is 0.5.*Step.
 %          - (Mean) Mean value in each annulus. For cube input the output
 %            size is [Nbin, Nimage].
+%          - (Sum) Sum value in each annulus.
 %          - (Std) Sample standard deviation in each annulus. For cube
 %            input the output size is [Nbin, Nimage].
 %          - (Min) Minimum value in each annulus. For cube input the
@@ -43,6 +44,6 @@
 %
 %       For cube input, the calculation is parallelized over image slices when
 %       beneficial, and otherwise over spatial columns using OpenMP.
-%
+% Compilation: mex -R2018a CXXFLAGS='$CXXFLAGS -O3 -march=native -fopenmp' LDFLAGS='$LDFLAGS -fopenmp' radialProfile_mex.cpp
 % Author : ChatGPT + Eran Ofek (Apr 2026)
 % Example: [R,M,S,Min,Max]=imUtil.psf.mex.radialProfile_mex(K,3001, 3001,500,1);
