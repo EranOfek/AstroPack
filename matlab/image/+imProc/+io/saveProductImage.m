@@ -157,13 +157,15 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
         AI.setKeyVal(Args.SubDirKey, AFN.SubDir);
     end
     
-    % correct the FileType: cut the ending and addd a new one if requested
+    % correct the FileType: cut the ending and add a new one if requested
     Idx = strfind(FileType, '.');
     if ~isempty(Idx)
-       FileType = FileType(1:Idx(1)-1);
+        FileType = FileType(1:Idx(1)-1);
     end
     if ~isempty(Args.CompressedOutput)
-       FileType = [FileType '.' Args.CompressedOutput];
+        FileType = [FileType '.' Args.CompressedOutput];
+    else
+        FileList = regexprep(FileList, '\.[^.]*$', '');
     end
 
     Nobj = numel(AI);
