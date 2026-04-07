@@ -1,6 +1,14 @@
 function Result = unitTest()
     % Unit-Test for tools.interp2
 
+    %% tools.interp.interp1crossVal
+
+    R=tools.interp.interp1crossVal([1 2 3 4 5],[0.9 0.6 0.5 0.5 0.3],0.49,[]);
+    if (R~=4.05)
+        error('Problem with tools.interp.interp1crossVal');
+    end
+    
+
     %% mex.interp2_*
 
     [Xin, Yin] = meshgrid((1:1716),(1:1716));
