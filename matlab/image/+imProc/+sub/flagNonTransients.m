@@ -157,6 +157,10 @@ function TranCat = flagNonTransients(Obj, Args)
                        contaminators.
                        Default is 6.0.
 
+                'ContaminationSelfRadiusFactor' - Radius in PSF units within
+                       which a matched source is considered self-contamination.
+                       Default is 1.5.
+
                 'BufferAgainstEdgeSmoothing' - Pixel buffer applied when
                        estimating PSF tail flux beyond the stamp.
                        Default is 2.
@@ -340,6 +344,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ContaminationBackRatio double = 0.1
         Args.ContaminationRadius double = 1.5
         Args.ContaminatorBlendChi2Thresh double = 6.0
+        Args.ContaminationSelfRadiusFactor double = 1.5
         Args.BufferAgainstEdgeSmoothing double = 2;
 
         Args.ContaminationMag double = [0.3 0.5]
@@ -1039,6 +1044,9 @@ function TranCat = flagNonTransients(Obj, Args)
                 NumMatchesWideCont = zeros(NumCand,1);
             end
 
+            SelfSrcRadiusRad = Args.ContaminationSelfRadiusFactor .* ...
+                Args.PixelScale .* Arcsec2Rad;
+
             ContaminationFlux = zeros(NumCand,1);
 
             for ICand = 1:NumCand
@@ -1051,7 +1059,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 DistRad   = N_ContCatMatchWide(ICand).Dist(:);
 
                 % Ignore self-contamination.
-                IdxRef = IdxRef(DistRad > PointLimit*Arcsec2Rad);
+                IdxRef = IdxRef(DistRad > SelfSrcRadiusRad);
 
                 if isempty(IdxRef)  
                     ContaminationFlux(ICand) = 0;
