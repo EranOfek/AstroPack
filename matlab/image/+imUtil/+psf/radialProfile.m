@@ -48,7 +48,7 @@ function Result = radialProfile(Image, CenterPos, Args)
         Args.Radius = min(ImSize(1:2));
     end
     
-    if numel(Args.Radius)==1
+    if isscalar(Args.Radius)
         % create vector of edges
         RadiusEdges = (0:Args.Step:Args.Radius);
     else
@@ -59,7 +59,7 @@ function Result = radialProfile(Image, CenterPos, Args)
         error('Radius edges must start with 0');
     end
     
-    if Args.Cut && ~isempty(Args.Radius)
+    if Args.Cut && ~isempty(Args.Radius) && Args.Radius<(0.5.*max(ImSize))
         Image=imUtil.cut.trim(Image, [CenterPos, Args.Radius, Args.Radius], 'center');
         ImSize = size(Image);
         CenterPos = [Args.Radius Args.Radius] + 1;

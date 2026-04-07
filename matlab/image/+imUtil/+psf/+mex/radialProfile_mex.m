@@ -9,6 +9,8 @@
 %            single or double precision.
 %          - (X0) X center position in pixel units. X corresponds to the
 %            2nd dimension (J). Default is the image center.
+%            Image center is calculated: X0 = (size(Cube,2)+1)./2;
+%                                        Y0 = (size(Cube,1)+1)./2;
 %          - (Y0) Y center position in pixel units. Y corresponds to the
 %            1st dimension (I). Default is the image center.
 %          - (MaxR) Maximum radius in pixels. Default is 100.
