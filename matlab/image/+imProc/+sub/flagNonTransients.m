@@ -135,7 +135,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
                 'SecondMomSoftLim' - Soft limit on second moments defining
                        the good-PSF regime.
-                       Default is 1.3.
+                       Default is 1.5.
 
                 'SecondMomHardLim' - Two-element threshold defining the
                        very-poor N-PSF regime:
@@ -334,7 +334,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % N-image PSF shape
         Args.flagPSFShape logical = true
-        Args.SecondMomSoftLim double = 1.3
+        Args.SecondMomSoftLim double = 1.5
         Args.SecondMomHardLim double = [5.0 3.0]
 
         % Contamination logic
@@ -404,9 +404,7 @@ function TranCat = flagNonTransients(Obj, Args)
         CandCat = Obj(Iobj).CatData;
         Score = CandCat.getCol('SCORE');
     
-        % Based on sigma in arcsec.
-        PointLimit = Obj(Iobj).PSFData.fwhm ...
-            .* Args.PixelScale .* Args.PointLimitSigmaFactor;
+
 
         % Get size of catalog and initialize an array holding the filtering
         % summary. Array is initialized as zero and will be updates with 
@@ -513,6 +511,15 @@ function TranCat = flagNonTransients(Obj, Args)
         if HasRX2Y2
             R_GoodPSF = ((R_X2 + R_Y2) < Args.SecondMomHardLim(1)) ...
                 | (max(R_X2, R_Y2) < Args.SecondMomHardLim(2));
+        end
+
+        % Based on sigma in arcsec.
+        PointLimit = Obj(Iobj).PSFData.fwhm ...
+            .* Args.PixelScale .* Args.PointLimitSigmaFactor;
+
+        % If PSF is poor, increase PSF limit.
+        if ~any(N_GoodPSF)
+            PointLimit = PointLimit * 5/3;
         end
 
         % Get star matched candidates
@@ -669,14 +676,31 @@ function TranCat = flagNonTransients(Obj, Args)
                 BPinNew = BD_IM.findBit(N_BM, IBadPix_Soft{1});
                 %BPinRef = BD_IM.findBit(R_BM, IBadPix_Soft{1});
 
+                BPS_ThresholdIncrement = IBadPix_Soft{2};
+
+                % ad hoc but noisy images pass too many bad pixels so we'll
+                % make the conditions stricter if the expected FP rate is
+                % higher than 1
+                NumBPSoft = sum(BPinNew);
+                ExpectedBPPass = NumBPSoft*0.05;
+
+                if ExpectedBPPass > 1
+                    BPS_ThresholdPercentile = (1-1/ExpectedBPPass)*100;
+                    BPS_PercentileTheshold = ...
+                        prctile(SdiffSd(BPinNew),BPS_ThresholdPercentile);
+                    BPS_ThresholdIncrement = ...
+                        max(BPS_PercentileTheshold, ...
+                        BPS_ThresholdIncrement);
+                end
+
                 BPSThresh(BPinNew) = BPSThresh(BPinNew) ...
-                    + IBadPix_Soft{2};
+                    + BPS_ThresholdIncrement;
             end
 
             BadPixSoft = (SdiffSd < BPSThresh);
 
             FilterFlags = setFilterBit(FilterFlags, BadPixSoft, BD_TF, 'BadPixelSoft');
-        end        
+       end        
 
         % Flag saturated candidates
         if Args.flagSaturated
@@ -791,12 +815,9 @@ function TranCat = flagNonTransients(Obj, Args)
             %   2) Is the local subtraction around the candidate generally clean?
             %      - We use annulus statistics measured in the difference image.
             %
-            % The conditions are layered for three regimes:
-            %   1) Good PSFs: contamination residuals are less likely, so the test is
-            %      more permissive.
-            %   2) Moderately poor PSFs: contamination can still be recognized
-            %      reasonably well.
-            %   3) Very poor PSFs: only very obvious transients are retained.
+            % The conditions are layered in loose and strict conditions.
+            % Loose conditions are always applied and the strict
+            % coniditions are only applied if the PSF is very poor.
             %
             % A future alternative would be to replace these layered cuts with a
             % trained multi-dimensional classifier such as a BDT.
@@ -806,14 +827,6 @@ function TranCat = flagNonTransients(Obj, Args)
 
             R_Passes_PSF_Global = (R_GoodPSF | IsolatedCand);
             R_Passes_PSFShape = R_Passes_PSF_Global;
-
-            % Identify candidates with very poor N-image PSF shape.
-            % These candidates are only retained if they satisfy the strictest
-            % contamination and local-background conditions.
-
-            N_VeryPoorPSF = ((N_X2 + N_Y2) >= Args.SecondMomHardLim(1)) ...
-                & (max(N_X2,N_Y2) >= Args.SecondMomHardLim(2))...
-                & ~N_GoodPSF;
 
             % In the N image, a transient superimposed on a persistent source can
             % shift the measured centroid and bias the local source photometry.
@@ -1039,6 +1052,12 @@ function TranCat = flagNonTransients(Obj, Args)
                 (STD_ANNULUS < Args.ContaminationStdAnnulusMax(1)) ...
                 & (abs(BACK_ANNULUS) < Args.ContaminationBackAnnulusMax(1));
 
+            % Identify candidates with very poor N-image PSF shape.
+            % These candidates are only retained if they satisfy the strictest
+            % contamination and local-background conditions.
+            N_VeryPoorPSF = ((N_X2 + N_Y2) >= Args.SecondMomHardLim(1)) ...
+                & (max(N_X2,N_Y2) >= Args.SecondMomHardLim(2));
+
             PassesContaminationStrict = ...
                 ~N_VeryPoorPSF ...
                 | ((MagContamination > Args.ContaminationMag(2)) & PassesLocalAperStrict);
@@ -1052,9 +1071,6 @@ function TranCat = flagNonTransients(Obj, Args)
                 & PassesContaminationStrict ... % Additional requirement for very poor N PSFs
                 & R_Passes_PSFShape;            % Require a good R PSF unless the candidate is isolated
            
-            %N_Passes_PSF_Global = ...
-            %   PassesContaminationLoose & PassesContaminationStrict;
-
             PSF_Flagged = ~Passes_PSFShape;
             FilterFlags = setFilterBit(FilterFlags, PSF_Flagged, BD_TF, 'PSFShape');
         end
