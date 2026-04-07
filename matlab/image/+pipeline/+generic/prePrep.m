@@ -56,7 +56,7 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
     %            'MaxNBadVal' - Maximum allowed number of pixels equal to BadVal.
     %                   Images exceeding this are flagged. Default is 1e4.
     %            'GlobalBadPSF' - If true, estimate PSF via ACF and flag
-    %                   images with too-large FWHM. Default is true.
+    %                   images with too-large FWHM. Default is false.
     %            'MaxRadius' - Max radius (pixels) for ACF-based PSF measure.
     %                   Default is 50.
     %            'ACF_HalfSize' - Half-size [X Y] of the cutout used for ACF.
@@ -145,7 +145,7 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
 
         Args.RequiredSizeXY              = [6422 9600];  % [X Y]
 
-        Args.GlobalBackLevel             = true;
+        Args.GlobalBackLevel             = false;
         Args.backgroundLevelArgs         = {}; %{'DiluteFactor',101, 'UseMex',true, 'MaxPixFraction',0.4, 'ThresholdBack',4000};
 
         Args.HistAnomaly                 = true;

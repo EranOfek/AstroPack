@@ -650,7 +650,7 @@ classdef AstroPSF < Component
                 X0        = (SizeStamp(2) + 1).*0.5;
                 Y0        = (SizeStamp(2) + 1).*0.5;
                 [Rad, Mean, Sum] = imUtil.psf.mex.radialProfile_mex(Obj(1).Data, X0, Y0, floor(X0), 1);
-                EpsVec = (1:1:numel(Mean)).'.*1e-6;
+                EpsVec = (1:1:numel(Mean)).'.*1e-4;
                 
                 CumSum  = cumsum(Sum(:));
                 CumSum  = CumSum./CumSum(end) + EpsVec;
@@ -659,6 +659,7 @@ classdef AstroPSF < Component
                     FWHM_CumSum = 2.*Frac./CumSum(1);
                 else
                     FWHM_CumSum = 2.*interp1(CumSum, Rad, Frac);
+                    
                 end
                 if nargout>1
                     %CumMean = Mean(:);

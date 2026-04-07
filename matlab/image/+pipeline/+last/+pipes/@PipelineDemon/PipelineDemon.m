@@ -2506,7 +2506,7 @@ classdef PipelineDemon < Component
                 Obj.writeLog(ErrorMsg, LogLevel.Error);
                 Obj.writeLog(MEp, LogLevel.Info);
 
-            end
+            end % try
 
 
 

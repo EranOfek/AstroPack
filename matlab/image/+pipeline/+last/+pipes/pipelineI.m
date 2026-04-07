@@ -70,6 +70,8 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
 
+    %ProcessingStep = 11;
+
     if isempty(RawImageList)
         % mainly for debuging/manual purposses - read file from current dir:
         Files = dir(Args.TempName);
@@ -81,7 +83,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         RawImageList = {Files.name};
     end
 
-
+    %ProcessingStep = 21;
     Nepoch = numel(RawImageList);
     % load images and check quality
     % AI putput is of size [Nimages x 1]
@@ -89,9 +91,10 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     TableRaw = [TableHeader, TableForDB];
     % basic calibration (bias, flat,...) 
     % FixJD false, since already done in prePrep
+    %ProcessingStep = 31;
     AI = pipeline.generic.basicCalib(AI, CI, Args.basicCalibArgs{:}, 'UpdateJD',false); %31.2s
     
-
+    %ProcessingStep = 41;
     % Add MIDJD to header % 0.03s
     Nepoch = numel(AI);
     for Iepoch=1:1:Nepoch
@@ -101,11 +104,13 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     % break images into sub images
     % 1st dim is epoch; 2nd dim is sub image
     % include sub image partitioning
+    %ProcessingStep = 51;
     if isempty(Args.EdgesCCDSEC)
         SizeXY = fliplr(size(AI(1).ImageData.Data));
         [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);  % 0.01s
     end
     % No WCS/PSF/Cat so no need to update them
+    %ProcessingStep = 61;
     AllSI=imProc.image.images2subImages(AI, 'SubSizeXY',Args.SubSizeXY, 'EdgesCCDSEC',Args.EdgesCCDSEC, 'ListCenters',Args.ListCenters, 'NoOverlapCCDSEC',Args.NoOverlapCCDSEC, 'NewNoOverlap',Args.NewNoOverlap,...
                                             'UpdateWCS',false, 'UpdatePSF',false, 'UpdateCat',false, 'UpdateXY',false);  % 6.6s
     [Nepoch, Nsub] = size(AllSI);
@@ -113,10 +118,12 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
     
     % get JD of all epoch - once
+    %ProcessingStep = 71;
     JD = repmat(JD_AI(:), 1, Nsub); % faster than getting the JD for AllSI
 
 
     % initiate parpool if needed
+    %ProcessingStep = 81;
     PP = [];
     if Args.UseParfor
         PP = gcp('nocreate');
@@ -130,11 +137,13 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     end
 
     % Add ImageID to individual cropped images: in ID_PROC
+    %ProcessingStep = 91;
     [AllSI, ID_Coadd] = imProc.db.generateImageID(AllSI, 'JD',JD, Args.generateImageIDArgs{:}); % 0.5 s
    
     
     % measure background, PSF, search for stars in all images
     if isempty(PP)
+        %ProcessingStep = 101;
         [AllSI] = imProc.sources.multiIterExtractor(AllSI, Args.multiIterExtractorArgs{:},...
                                                     'JD',JD,...
                                                     'ColCell',Args.ColCell,...
@@ -142,8 +151,9 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
                                                     'AddSkyCoo',false);  % 466 s (with UseMex=false)
        
     else
+        %ProcessingStep = 102;
         %tic;
-        parfor Iobj=1:1:Nobj
+        parfor (Iobj=1:1:Nobj, 0)
             [AllSI(Iobj)] = imProc.sources.multiIterExtractor(AllSI(Iobj), Args.multiIterExtractorArgs{:},...
                                                     'JD',JD(Iobj),...
                                                     'ColCell',Args.ColCell,...
@@ -152,21 +162,28 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         end
         %toc
     end
-    % add PSF FWHM to header - after astrometry, beacuse WCS is needed
-    AllSI = imProc.psf.fwhm(AllSI, 'AddMorphology',true);
-            
+        
 
     % solve astrometry of all images
+    %ProcessingStep = 301;
     [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, Args.astrometryVisitSubImageArgs{:}); % 22s
     % add coordinates to catalogs
+    %ProcessingStep = 401;
     AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true, 'OutUnits','deg');  % 0.8s
     
+    % add PSF FWHM to header - after astrometry, beacuse WCS is needed
+    %ProcessingStep = 201;
+    % This must be done after astrometry as the Scale is used
+    AllSI = imProc.psf.fwhm(AllSI, 'AddMorphology',true, 'UseLegacy',false);
+        
     
     % Update Airmass header keyword to based on measured crop center
+    %ProcessingStep = 411;
     [AllSI, AllImagesAirMass] = imProc.header.addAirMass(AllSI, 'JD',JD, 'HealpixType','nested', Args.Header_addAirMassArgs{:}); % 0.3s
 
     % Individual sub images : quality           
     % astrometry
+    %ProcessingStep = 421;
     IsGoodWCS = imProc.astrometry.isSuccessWCS(AllSI);  % 1.3 s
     % Nstars
     Nstars    = AllSI.sizeCatalog;
@@ -185,6 +202,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
     % write stat data to header: Nstars, PSF, Scale, Rotation,...
     % background, var: written as part of the background estimation
+    %ProcessingStep = 431;
     AllSI = imProc.header.writeStat2Header(AllSI, 'WriteBack',false);  % 4.2s
 
     % ADD - IsGoodWCS, IsGood, MaxFracGrad to image header
@@ -192,6 +210,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
     % forced photometry
     % forced photometry on pre-selected targets
+    %ProcessingStep = 441;
     if ~isempty(Args.ForcedPhotCat)
         %tic;
         MidEpoch = ceil(Nepoch.*0.5);
@@ -227,6 +246,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     end
 
     % Sort all catalogs by Dec
+    %ProcessingStep = 451;
     for Iim=1:1:Nsub.*Nepoch
         AllSI(Iim).CatData.sortrows('Dec');  % 0.16s (for all in loop)
     end
@@ -239,6 +259,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     %AllSI = imProc.match.match_catsHTMmerged(AllSI); % 240 s
 
     % Merge catalogs
+    %ProcessingStep = 501;
     MS = pipeline.generic.proc2MatchedSources(AllSI, 'FlagGood',IsGood, 'DimEpoch',1);   % 9.6 s
 
 
@@ -246,8 +267,10 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     % Calculate drift between epochs
     % Note that MS is already filerted! I.e., some epochs may not
     % be included
+    %ProcessingStep = 601;
     [GlobalMotion, ShiftInfo] = lcUtil.positionDrift(MS);
     
+    %ProcessingStep = 701;
     %tic;
     for Isub=1:1:Nsub
         [AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub));  % 10s for all in loop
@@ -270,6 +293,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     % 64 s
     %tic;
     % Phot calib is done later (after adding airmass columns):
+    %ProcessingStep = 801;
     [Coadd, ResCoadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
                                               'SubBack',false,...
                                               'CatName',CatName,...
@@ -303,13 +327,16 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
 
     % Add image ID to coadd images: in: ID_PROC
+    %ProcessingStep = 901;
     JD_Coadd = [ResCoadd.MidMidJD];
     [Coadd, ID_Coadd] = imProc.db.generateImageID(Coadd, 'KeyID','ID_COADD', 'JD',JD_Coadd, Args.generateImageIDArgs{:});  % 0.05 s
 
     % Update Airmass (And UPIX) header keyword to based on measured crop center
+    %ProcessingStep = 911;
     [Coadd, AllCoaddAirMass] = imProc.header.addAirMass(Coadd, 'JD',JD_Coadd, 'HealpixType','nested', Args.Header_addAirMassArgs{:}); % 0.3s
 
     % Add catsHTM MergedCat column to Coadd catalogs
+    %ProcessingStep = 921;
     if Args.AddMergedCat
         %tic;
         if isempty(Args.UseParfor)
@@ -328,6 +355,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     end
 
     %tic;
+    %ProcessingStep = 931;
     if Args.AddKnownAst
         % slower with parfor
         [OnlyMP,~,Coadd] = imProc.match.match2solarSystem(Coadd, 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
@@ -354,11 +382,13 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     
 
     % write drifts to header
+    %ProcessingStep = 941;
     for Isub=1:1:Nsub      
         DataGM = [Args.KeysGlobalMotion(:), num2cell([GlobalMotion(Isub).RateX; GlobalMotion(Isub).StdX; GlobalMotion(Isub).RateY; GlobalMotion(Isub).StdY])];
         Coadd(Isub).HeaderData.insertKey(DataGM,'end');
     end
     
+    %ProcessingStep = 951;
     %tic;
     if Args.AddSrcAM
         AllSI = imProc.cat.addAirMass(AllSI, 'JD',JD, Args.Cat_addAirMassArgs{:});
@@ -368,6 +398,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
 
     % photometric calibration
+    %ProcessingStep = 961;
     %tic;
     for Isub=1:1:Nsub
         %[AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub));  % 10s for all in loop
@@ -377,6 +408,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
     % Coadd images
     % Photometric calibration of coadd images:
+    %ProcessingStep = 971;
     %tic;
     [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
     %toc
@@ -397,5 +429,6 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
     % write status
     
-
+    % Finish
+    %ProcessingStep = 1000;
 end

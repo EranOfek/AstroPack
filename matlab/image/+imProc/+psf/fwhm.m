@@ -36,6 +36,9 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
     %                   Default is {'X2','Y2','XY'}.
     %            'constructPSFArgs' - the PSF construction arguments to be
     %                   passed to imProc.psf.populatePSF
+    %            'UseLegacy' - Use the lgacy code in AstroPSF/fwhm (true)
+    %                   or the new mex version (false).
+    %                   Default is true.
     % Output : - The AstroImage object with the populated PSF object and FWHM in
     %            the header [arcsec].
     %            Also populated are the MED_A [pix], MED_B [pix], MED_TH [deg]
@@ -58,6 +61,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
         Args.AddMom2 logical        = true;
         Args.KeysMom2 cell          = {'X2','Y2','XY'};
         Args.constructPSFArgs       = {};
+        Args.UseLegacy              = true;
     end
     ARCSEC_DEG = 3600;    
     
@@ -79,7 +83,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
                 Scale = Args.Scale;
             end
             
-            [FWHM_C, FWHM_H] = Obj(Iobj).PSFData.fwhm('curveArgs',{'Step',1});  % see fix in issue #585
+            [FWHM_C, FWHM_H] = Obj(Iobj).PSFData.fwhm('curveArgs',{'Step',1}, 'UseLegacy',Args.UseLegacy);  % see fix in issue #585
             FWHM_C = FWHM_C.*Scale;
             %FWHM_H = FWHM_H.*Scale;
         else
