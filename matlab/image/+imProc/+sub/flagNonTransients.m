@@ -157,10 +157,6 @@ function TranCat = flagNonTransients(Obj, Args)
                        contaminators.
                        Default is 6.0.
 
-                'ContaminationSelfRadiusFactor' - Radius in PSF units within
-                       which a matched source is considered self-contamination.
-                       Default is 1.5.
-
                 'BufferAgainstEdgeSmoothing' - Pixel buffer applied when
                        estimating PSF tail flux beyond the stamp.
                        Default is 2.
@@ -274,6 +270,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PointLimitSigmaFactor double = 1.2739   % converts FWHM to ~3 sigma radius
         Args.injectedSrcs double = []
 
+        Args.SoftNChi2Lim = 21.0
+
         % Negative candidates
         Args.flagNegatives logical = true
 
@@ -342,7 +340,6 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ContaminationBackRatio double = 0.1
         Args.ContaminationRadius double = 1.5
         Args.ContaminatorBlendChi2Thresh double = 6.0
-        Args.ContaminationSelfRadiusFactor double = 1.5
         Args.BufferAgainstEdgeSmoothing double = 2;
 
         Args.ContaminationMag double = [0.3 0.5]
@@ -405,8 +402,6 @@ function TranCat = flagNonTransients(Obj, Args)
         CandCat = Obj(Iobj).CatData;
         Score = CandCat.getCol('SCORE');
     
-
-
         % Get size of catalog and initialize an array holding the filtering
         % summary. Array is initialized as zero and will be updates with 
         % each failed filter.
@@ -436,6 +431,11 @@ function TranCat = flagNonTransients(Obj, Args)
         % Get limiting magnitudes of N and R
         N_LIMMAG = Obj(Iobj).New.HeaderData.getVal('LIMMAG');
         R_LIMMAG = Obj(Iobj).Ref.HeaderData.getVal('LIMMAG');
+
+        % Get local Chi2
+        N_CHI2DOF_Local = CandCat.getCol('N_PSF_CHI2DOF');
+        R_CHI2DOF_Local = CandCat.getCol('R_PSF_CHI2DOF');
+        D_CHI2DOF_Local = CandCat.getCol('PSF_CHI2DOF');
 
         MedDiffVar = median(Obj(Iobj).Var(:));
 
@@ -665,12 +665,15 @@ function TranCat = flagNonTransients(Obj, Args)
         if Args.flagBadPix_Soft && CandCat.isColumn('SN_delta')
 
             SN_delta = CandCat.getCol('SN_delta');
+
             SdiffSd = Score - SN_delta;
 
             BPSThresh = zeros(NumCand,1);
 
             NumBadSoft = numel(Args.BadPix_Soft);
 
+            BPSoftOkayNchi2 = true(NumCand,1);
+       
             for IBad=1:1:NumBadSoft
                 IBadPix_Soft = Args.BadPix_Soft{IBad};
 
@@ -679,26 +682,15 @@ function TranCat = flagNonTransients(Obj, Args)
 
                 BPS_ThresholdIncrement = IBadPix_Soft{2};
 
-                % ad hoc but noisy images pass too many bad pixels so we'll
-                % make the conditions stricter if the expected FP rate is
-                % higher than 1
-                NumBPSoft = sum(BPinNew);
-                ExpectedBPPass = NumBPSoft*0.05;
-
-                if ExpectedBPPass > 1
-                    BPS_ThresholdPercentile = (1-1/ExpectedBPPass)*100;
-                    BPS_PercentileTheshold = ...
-                        prctile(SdiffSd(BPinNew),BPS_ThresholdPercentile);
-                    BPS_ThresholdIncrement = ...
-                        max(BPS_PercentileTheshold, ...
-                        BPS_ThresholdIncrement);
-                end
+                BPSoftOkayNchi2(BPinNew) = BPSoftOkayNchi2(BPinNew) & ...
+                    (N_CHI2DOF_Local(BPinNew) < Args.SoftNChi2Lim);
 
                 BPSThresh(BPinNew) = BPSThresh(BPinNew) ...
                     + BPS_ThresholdIncrement;
             end
 
-            BadPixSoft = (SdiffSd < BPSThresh);
+            PassesBPSoft = (SdiffSd >= BPSThresh) & BPSoftOkayNchi2;
+            BadPixSoft = ~PassesBPSoft;
 
             FilterFlags = setFilterBit(FilterFlags, BadPixSoft, BD_TF, 'BadPixelSoft');
        end        
@@ -735,18 +727,8 @@ function TranCat = flagNonTransients(Obj, Args)
         if Args.flagPeakValley && CandCat.isColumn('PV_DIST')
             PVDist = CandCat.getCol('PV_DIST');
 
-            PVFlagged = (PVDist <= Args.PVDistThresh);
-
-            % ad hoc but very crowded fields with poor PSFs will slip
-            % through too many FPs so we'll control it here by adjusting
-            % the threshold based on the flagged population
-            PVFPEstimate = sum(PVFlagged)*0.01;
-
-            if PVFPEstimate > 1.0
-                PVNewThresh = prctile(PVDist,(1-1/(PVFPEstimate))*100);
-                PVNewThresh = min(PVNewThresh, 1.5*Args.PVDistThresh);
-                PVFlagged = (PVDist <= PVNewThresh);
-            end
+            PVFlagged = (PVDist <= Args.PVDistThresh) ...
+                & (N_CHI2DOF_Local > Args.SoftNChi2Lim);
 
             FilterFlags = setFilterBit(FilterFlags, PVFlagged, BD_TF, 'PVDist');
         end
@@ -884,8 +866,7 @@ function TranCat = flagNonTransients(Obj, Args)
             % Require a good R-image PSF unless the candidate is isolated.
             % For isolated candidates, the N-image PSF test is considered sufficient.
 
-            R_Passes_PSF_Global = (R_GoodPSF | IsolatedCand);
-            R_Passes_PSFShape = R_Passes_PSF_Global;
+            R_Passes_PSFShape = (R_GoodPSF | IsolatedCand);
 
             % In the N image, a transient superimposed on a persistent source can
             % shift the measured centroid and bias the local source photometry.
@@ -965,7 +946,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 | (dy >= PSFSize_Min-MaxOffset(2));
 
             EdgeFrac = sum(PSFnew(EdgeMask), 'all');
-            Inflation = min(1 + 10 * EdgeFrac, 3.0);
+            Inflation = min(1 + 2 * EdgeFrac, 3.0);
 
             FractionTailFlux = min(FractionTailFlux_Gauss * Inflation, 0.9);
             N_TailFlux = N_IntFlux*FractionTailFlux;
@@ -1058,9 +1039,6 @@ function TranCat = flagNonTransients(Obj, Args)
                 NumMatchesWideCont = zeros(NumCand,1);
             end
 
-            SelfSrcRadiusRad = Args.ContaminationSelfRadiusFactor .* ...
-                Args.PixelScale .* Arcsec2Rad;
-
             ContaminationFlux = zeros(NumCand,1);
 
             for ICand = 1:NumCand
@@ -1073,7 +1051,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 DistRad   = N_ContCatMatchWide(ICand).Dist(:);
 
                 % Ignore self-contamination.
-                IdxRef = IdxRef(DistRad > SelfSrcRadiusRad);
+                IdxRef = IdxRef(DistRad > PointLimit*Arcsec2Rad);
 
                 if isempty(IdxRef)  
                     ContaminationFlux(ICand) = 0;
@@ -1209,11 +1187,6 @@ function TranCat = flagNonTransients(Obj, Args)
             % Get global Chi2
             N_CHI2DOF_Global = CandCat.getCol('N_PSF_CHI2DOF_MED');
             R_CHI2DOF_Global = CandCat.getCol('R_PSF_CHI2DOF_MED');
-
-            % Get local Chi2
-            N_CHI2DOF_Local = CandCat.getCol('N_PSF_CHI2DOF');
-            R_CHI2DOF_Local = CandCat.getCol('R_PSF_CHI2DOF');
-            D_CHI2DOF_Local = CandCat.getCol('PSF_CHI2DOF');
 
             % Test global Chi2
             N_Passes_CHI2DOF_Global = ...
@@ -1504,18 +1477,13 @@ function TranCat = flagNonTransients(Obj, Args)
             Scorr = CandCat.getCol('S_CORR');
             SDiff = abs(Score) - abs(Scorr);
 
-            % Exclude isolated candidates unless PSF shape is poor.
-            % Exclude also galaxy matched candidates that are not nuclear
-            % and do not match to stars.
+            % Exclude isolated candidates.
+            % Exclude also galaxy matched candidates that are not nuclear.
             ExcludeCand = (GalCand & ~NuclearCand & ~NearStar);
 
             if ~isempty(IsolatedCand)
-                ExcludeCand = ExcludeCand | IsolatedCand;
+                ExcludeCand = ExcludeCand | IsolatedCand | AmbBlendedCand;
             end
-
-            %if exist('N_Passes_PSF_Global','var')
-            %    ExcludeCand = ExcludeCand & N_Passes_PSF_Global;
-            %end
 
             % Test if Score is higher than Scorr (has to be), Scorr is
             % above threshold and the difference between Score and Scorr is
@@ -1550,7 +1518,7 @@ function TranCat = flagNonTransients(Obj, Args)
             ExcludeCand = (GalCand & ~NuclearCand & ~NearStar);
 
             if ~isempty(IsolatedCand)
-                ExcludeCand = ExcludeCand | IsolatedCand;
+                ExcludeCand = ExcludeCand | IsolatedCand | AmbBlendedCand;
             end
 
             IsNotTranslient = (AIC_Diff < AIC_Diff_Thresh) ...
