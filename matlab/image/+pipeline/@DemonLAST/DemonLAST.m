@@ -2670,6 +2670,7 @@ classdef DemonLAST < Component
                 Args.UpdateStatusFile  = true;              % write update strings to the .status files in the output directories
                 Args.UnpackRaw         = false;             % unpack raw FITS images before processing
                 Args.RepackRaw         = false;             % pack raw FITS images after processing 
+                Args.CompressedRAW     = false;             % deal with compressed RAW images w/o unpacking
 
                 % DataBase
                 Args.Insert2DB         = false;              % Insert images data to LAST DB or prepare CSV dumps for further insertion
@@ -2904,6 +2905,10 @@ classdef DemonLAST < Component
                 
                 % look for new images
                 FN_Sci   = FileNames.generateFromFileName(Args.TempRawSci, 'FullPath',false);
+                if Args.CompressedRAW % adjust the file type in the FileNames object 
+                    S = string(FN_Sci.FileType) + ".fz";
+                    FN_Sci.FileType = cellstr(S); 
+                end
                 [FN_Sci] = selectBy(FN_Sci, 'Product', 'Image', 'CreateNewObj',false);
                 [FN_Sci] = selectBy(FN_Sci, 'Type', {'sci','science'}, 'CreateNewObj',false);
                 [FN_Sci] = selectBy(FN_Sci, 'Level', 'raw', 'CreateNewObj',false);
