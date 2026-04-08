@@ -523,6 +523,8 @@ function TranCat = flagNonTransients(Obj, Args)
         PointLimit = Obj(Iobj).PSFData.fwhm ...
             .* Args.PixelScale .* Args.PointLimitSigmaFactor;
 
+        PointLimit0 = PointLimit;
+
         % If PSF is poor, increase PSF limit.
         if ~any(N_GoodPSF)
             PointLimit = PointLimit * 5/3;
@@ -1044,8 +1046,9 @@ function TranCat = flagNonTransients(Obj, Args)
                 NumMatchesWideCont = zeros(NumCand,1);
             end
 
-            SelfSrcRadiusRad = Args.ContaminationSelfRadiusFactor .* ...
-                Args.PixelScale .* Arcsec2Rad;
+            %SelfSrcRadiusRad = Args.ContaminationSelfRadiusFactor .* ...
+            %    Args.PixelScale .* Arcsec2Rad;
+            SelfSrcRadiusRad = PointLimit0*Arcsec2Rad;
 
             ContaminationFlux = zeros(NumCand,1);
 
