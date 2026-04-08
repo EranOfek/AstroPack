@@ -2,10 +2,57 @@ function Result = unitTest
     % unitTest for +imProc.match
     % Example: imProc.match.unitTest
 
+    %% imProc.match.unify
+
+    RAD = 180./pi;
+    
+    RA0  = 100;
+    Dec0 = 50;
+    N1 = 100;
+    N11 = 10;
+    Err = 0; %0.01./3600;
+    MatchDist = 1.5./3600;
+    RA1  = rand(N1,1)+RA0;
+    Dec1 = rand(N1,1)+Dec0;
+    
+    RA2  = RA1 + randn(N1,1).*Err./cosd(Dec0);
+    Dec2 = Dec1 + randn(N1,1).*Err;
+    RA2  = [RA2; RA2+3.05];
+    Dec2 = [Dec2; Dec2+3.02];
+    Origin2    = [ones(N1,1).*1; ones(N1,1).*2]; 
+    [Dec2, SI] = sort(Dec2);
+    RA2        = RA2(SI);
+    Origin2    = Origin2(SI);
+    
+    RA1  = [RA1; RA1(1:N11)+0.1];
+    Dec1 = [Dec1; Dec1(1:N11)+0.1];
+    Origin1 = [ones(N1,1).*1; ones(N11,1).*2];
+    
+    AC = AstroCatalog({[RA1, Dec1],[RA2, Dec2]}, 'ColNames',{'RA','Dec'});
+    AC = AC.sortrows('Dec');
+
+    Nsim = 1000;
+    % tic;
+    % for i=1:Nsim
+    %     [MCoo, MInd]=imProc.match.unify(AC, 'WithInd2',true);
+    % end
+    % toc
+    tic;
+    for i=1:Nsim
+        [MCoo, MInd]=imProc.match.unify(AC, 'MatchRadius',0.1);
+    end
+    toc
+
+    if size(MCoo,1)~=(N1.*2 + N11)
+        error('Problem with imProc.match.unify');
+    end
+
+
+    %% old tests
     
     DataSampleDir = tools.os.getTestDataDir;
     PWD = pwd;
-    cd(DataSampleDir);
+    %cd(DataSampleDir);
 
     
     % coneSearch
