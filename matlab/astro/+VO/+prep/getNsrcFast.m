@@ -21,8 +21,10 @@ function Nsrc = getNsrcFast(CatName)
         for Iih = 1:Nih
             K = K + 1;
             IndHTM = str2double(Info.Datasets(IndH(Iih)).Name(5:end));
+            % Dataspace.Size is in MATLAB column-major order [Nrows, Ncols]
+            % (HDF5.save writes with fliplr, so h5info reports it flipped back).
             DsSize = Info.Datasets(IndH(Iih)).Dataspace.Size;
-            Nsrc(K, :) = [IndHTM, DsSize(end)];
+            Nsrc(K, :) = [IndHTM, DsSize(1)];
         end
     end
     Nsrc = Nsrc(1:K, :);

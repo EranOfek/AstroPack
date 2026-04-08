@@ -2633,6 +2633,7 @@ classdef DemonLAST < Component
                 Args.TempRawSci    = '*_sci_raw_*.fits';   % file name template to search
                 Args.NewSubDir     = 'new';          % new sub dir
                 Args.NonStandardNew= '';             % non-standard new dir
+                Args.LocalBase     = [];             % a local base that is not in the same tree as new and calib
                 Args.MinInGroup    = 10;             % min. number of images in visit/group to analyze.
                 Args.MaxInGroup    = 20;             % max. number of images in visit/group to analyze.
                 Args.SortDirection = 'descend';      % 'ascend'|'descend' - analyze last image first
@@ -2671,6 +2672,7 @@ classdef DemonLAST < Component
                 Args.UnpackRaw         = false;             % unpack raw FITS images before processing
                 Args.RepackRaw         = false;             % pack raw FITS images after processing 
                 Args.CompressedRAW     = false;             % deal with compressed RAW images w/o unpacking
+                Args.MoveRaw2OutputDir = true;              % move RAW to output directory after a successfull processing
 
                 % DataBase
                 Args.Insert2DB         = false;              % Insert images data to LAST DB or prepare CSV dumps for further insertion
@@ -2702,6 +2704,8 @@ classdef DemonLAST < Component
                 
                 Args.Backup                           = true; % Backup data to WIS
                 Args.RunInstaller                     = false;
+                
+                Args.DebugMode                        = false; % a debug/unit test mode
             end
             RAD = 180./pi;
             
@@ -2929,12 +2933,15 @@ classdef DemonLAST < Component
                 Ngroup = numel(FN_Sci_Groups);
                 
                 % select group for analysis
+                if Args.DebugMode
+                    Ngroup = 1;  % do one group (visit) only
+                end
                
                 % check if need to wait for additional images
                 if Ngroup==1
                     % Only one potential visit was found - check if need to
                     % wait
-                    Nfiles1    = FN_Sci_Groups.nfiles;
+                    Nfiles1    = FN_Sci_Groups(1).nfiles;
 
                     if Nfiles1<Args.MaxInGroup && isempty(Args.NonStandardNew)
                         % wait for 20 s X number of images needed to finish the
@@ -3000,9 +3007,12 @@ classdef DemonLAST < Component
                         Obj.setLogFile('HostName',Args.HostName);
 
                         RawImageList = FN_Sci_Groups(Igroup).genFull('FullPath',NewPath);
-    
-                        FN_Sci_Groups(Igroup).BasePath = BasePath;
                         
+                        if isempty(Args.LocalBase)
+                            FN_Sci_Groups(Igroup).BasePath = BasePath;                        
+                        else
+                            FN_Sci_Groups(Igroup).BasePath = Args.LocalBase;
+                        end
                         % check for specialspecialIns instructions
                         JDepochs = FN_Sci_Groups(Igroup).julday;
                         UpArgs = Obj.specialInstruction(JDepochs(1), Args);
@@ -3232,7 +3242,9 @@ classdef DemonLAST < Component
     
                             % move raw images to final location
                             RawImageListFinal = FN_Sci_Groups(Igroup).genFull;
-                            io.files.moveFiles(RawImageList, RawImageListFinal);
+                            if Args.MoveRaw2OutputDir
+                                io.files.moveFiles(RawImageList, RawImageListFinal);                            
+                            end
                         
                             % Write ready-to-transfer
                             if Args.UpdateStatusFile

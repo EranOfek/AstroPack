@@ -564,7 +564,7 @@ function buildHTMfromFiles(Args)
                 'NfilesInHDF', Args.NcatInFile, ...
                 'IndStep', Args.IndStep, ...
                 'SaveInd', false, ...
-                'CheckExist', Args.Resume);
+                'CheckExist', false);
 
             % Merge per-band Nsrc into cumulative Nsrc
             Nsrc = mergeNsrc(Nsrc, BandNsrc);
@@ -745,46 +745,6 @@ function cleanDownloadCache(AllFiles, OverlapIdx, FileDecRanges, ...
             if exist(CachedFile, 'file')
                 delete(CachedFile);
             end
-        end
-    end
-end
-
-
-function Complete = checkBandComplete(CatName, HTM, ListIndexHTM, ...
-        DecLoRad, DecHiRad, NcatInFile, TargetDir)
-    % Check if all HTM cells for a Dec band already exist in HDF5.
-    % Returns true only if every cell whose mean Dec falls in [DecLo,DecHi)
-    % already exists as an HDF5 dataset (locally or on TargetDir).
-    Complete = true;
-    InfoCache = containers.Map();  % cache h5info per HDF5 file
-    for Ihtm = 1:numel(ListIndexHTM)
-        IndHTM  = ListIndexHTM(Ihtm);
-        MeanDec = mean(HTM(IndHTM).coo(:, 2));
-        if MeanDec < DecLoRad || MeanDec >= DecHiRad
-            continue;
-        end
-        [FileName, DataName] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NcatInFile);
-        % Try local first, then remote
-        ActualFile = FileName;
-        if ~isfile(ActualFile) && ~isempty(TargetDir)
-            ActualFile = fullfile(TargetDir, FileName);
-        end
-        if ~isfile(ActualFile)
-            Complete = false;
-            return;
-        end
-        if ~InfoCache.isKey(ActualFile)
-            try
-                InfoCache(ActualFile) = h5info(ActualFile);
-            catch
-                Complete = false;
-                return;
-            end
-        end
-        Info = InfoCache(ActualFile);
-        if ~any(strcmp({Info.Datasets.Name}, DataName))
-            Complete = false;
-            return;
         end
     end
 end
@@ -996,7 +956,7 @@ function [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, Completio
             'NfilesInHDF', Args.NcatInFile, ...
             'IndStep', Args.IndStep, ...
             'SaveInd', false, ...
-            'CheckExist', Args.Resume);
+            'CheckExist', false);
 
         % Merge per-file Nsrc into cumulative Nsrc
         Nsrc = mergeNsrc(Nsrc, FileNsrc);
@@ -1048,47 +1008,6 @@ function [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, Completio
                     end
                 end
             end
-        end
-    end
-end
-
-
-function Complete = checkRegionComplete(CatName, HTM, ListIndexHTM, ...
-        DecLoRad, DecHiRad, RALoRad, RAHiRad, NcatInFile, TargetDir)
-    % Check if all HTM cells within an RA/Dec region already exist in HDF5.
-    % Checks local files first, then TargetDir (remote).
-    Complete = true;
-    InfoCache = containers.Map();
-    for Ihtm = 1:numel(ListIndexHTM)
-        IndHTM  = ListIndexHTM(Ihtm);
-        MeanDec = mean(HTM(IndHTM).coo(:, 2));
-        MeanRA  = mean(HTM(IndHTM).coo(:, 1));
-        if MeanDec < DecLoRad || MeanDec >= DecHiRad || ...
-           MeanRA  < RALoRad  || MeanRA  >= RAHiRad
-            continue;
-        end
-        [FileName, DataName] = HDF5.get_file_var_from_htmid(CatName, IndHTM, NcatInFile);
-        % Try local first, then remote
-        ActualFile = FileName;
-        if ~isfile(ActualFile) && ~isempty(TargetDir)
-            ActualFile = fullfile(TargetDir, FileName);
-        end
-        if ~isfile(ActualFile)
-            Complete = false;
-            return;
-        end
-        if ~InfoCache.isKey(ActualFile)
-            try
-                InfoCache(ActualFile) = h5info(ActualFile);
-            catch
-                Complete = false;
-                return;
-            end
-        end
-        Info = InfoCache(ActualFile);
-        if ~any(strcmp({Info.Datasets.Name}, DataName))
-            Complete = false;
-            return;
         end
     end
 end
