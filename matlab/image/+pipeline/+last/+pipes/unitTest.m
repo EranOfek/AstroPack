@@ -13,9 +13,9 @@ function [Result] = unitTest(Args)
         Args.RAWImageDir       = '/mnt/marvin/LAST.01.01.01/2025/07/07/raw/'
         Args.CalibDir          = [] % '/mnt/marvin/LAST.01.01.01/calib/'
         Args.RefPath           = '/mnt/euclid/last/data/references/v4/'
-        Args.StartImage        = [] % 'LAST.01.01.01_20250708.012814.769_clear_1718.c_015_001_001_sci_raw_Image_1.fits.fz' % currently not used 
+        Args.StartImage        = 'LAST.01.01.01_20250708.000029.080_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz' 
         Args.StartTime         = [] % [2025 8 7 01 28 0] or 2025.3456
-        Args.TimeInterval      = 450  % [s] 
+        Args.TimeInterval      = 420  % [s] 
         Args.MinInGroup        = 10 
         Args.RegenCalib        = false; % we do not know yet how to write the new calib to a local dir and use it from there
         Args.PipelineVersion   = 'dev'; % 'dev' or 'prod'
@@ -90,7 +90,10 @@ function [Result] = unitTest(Args)
                 'UpdateStatusFile', false, ...
                 'PauseDay',1,'PauseNight',1, ...
                 'TempRawSci','*_sci_raw_*fits*',...
-                'CompressedRAW',true);
+                'CompressedRAW',true,...
+                'LocalBase',Args.LocalPath,...
+                'MoveRaw2OutputDir',false,...
+                'Backup',false, 'DebugMode', true);
                    
         otherwise 
             error('Unknown pipeline version');
