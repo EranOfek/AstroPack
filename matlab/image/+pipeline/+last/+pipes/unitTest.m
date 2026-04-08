@@ -4,10 +4,10 @@ function [Result] = unitTest(Args)
     % Input  : -
     %          * ...,key,val,... 
     %
-    % Output : - 
+    % Output : - filled visit directory Args.LocalPath/YYYY/MM/DD/proc/HHMMSSvXX (XX starting with 0) 
     % Author : A.M. Krassilchtchikov (2026 Mar) 
     % Example: pipeline.last.pipes.unitTest('StartTime',[8 7 2025 01 28 0]);
-    % 
+    %          pipeline.last.pipes.unitTest('PipelineVersion','prod', 'StartImage','LAST.01.01.01_20250708.003700.313_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz');
     arguments
         Args.LocalPath         = '~/LASTunitTest';
         Args.RAWImageDir       = '/mnt/marvin/LAST.01.01.01/2025/07/07/raw/'
