@@ -1,7 +1,7 @@
-% (matchCatalogs) Fast mex for match two spherical-coo catalogs using nearest-neighbor search.
-%   See also: imUtil.match.mex.matchCatalogsXY (for planer coordinates)
+% (matchCatalogsXY) Fast mex for match two planar-coo catalogs using nearest-neighbor search.
+%   See also: imUtil.match.mex.matchCatalogs (for spherical coordinates)
 % Package: +imUtil/+match/+mex
-% Description: Given two catalogs of spherical coordinates, find the
+% Description: Given two catalogs of planar coordinates, find the
 %              closest match to each source in catalog 1 within a search
 %              radius in catalog 2, and vice versa. The matching is
 %              non-symmetric: the best match of source I1 in catalog 1 may
@@ -9,14 +9,14 @@
 %              may point to another source in catalog 1. For each source,
 %              the function also returns the number of matches found within
 %              the search radius.
-% Input  : - Vector of longitudes/RA of catalog 1.
-%          - Vector of latitudes/Dec of catalog 1.
-%          - Vector of longitudes/RA of catalog 2 (sorted by Dec)
-%          - Vector of latitudes/Dec of catalog 2 (Sorted by Dec).
+% Input  : - Vector of X of catalog 1.
+%          - Vector of Y of catalog 1.
+%          - Vector of X of catalog 2 (sorted by Y)
+%          - Vector of Y of catalog 2 (Sorted by Y).
 %          - Search radius.
 %   
-%          - Units flag. true/1 for degrees, false/0 for radians.
-%            Default is true.
+%          - Units flag. Ignored. Kept here for consistency with
+%            imUtil.match.mex.matchCatalogs
 %
 %          - Logical/numeric vector indicating which sources in catalog 1
 %            to use. If empty or omitted, then all sources are used.
@@ -59,7 +59,7 @@
 %              in ascending order.
 %           9. If List2Sorted is false, the code does not sort catalog 2
 %              internally.
-% Compilation: mex -R2018a CXXFLAGS='$CXXFLAGS -O3 -std=c++11 -fopenmp' LDFLAGS='$LDFLAGS -fopenmp' matchCatalogs.cpp
+% Compilation: mex -R2018a CXXFLAGS='$CXXFLAGS -O3 -std=c++11 -fopenmp' LDFLAGS='$LDFLAGS -fopenmp' matchCatalogsXY.cpp
 %
 % Example:
 %{
