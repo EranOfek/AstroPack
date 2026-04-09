@@ -1,4 +1,4 @@
-function [MasterUniqueCoo, MasterInd] = unify(Obj, Args)
+function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
     % Unify an AstroCatalog object with multiple catalogs (e.g., different epochs).
     %   This function match multiple catalogs by coordinates (RA, Dec) or
     %   (X,Y) and unify them into a single catalog, in which no object is
@@ -23,8 +23,14 @@ function [MasterUniqueCoo, MasterInd] = unify(Obj, Args)
     %            'MatchRadius' - Matching radius. Default is 1.5.
     %            'MatchRadiusUnits' - Matching radius units.
     %                   Default is 'arcsec'.
+    %            'Col' - A cell array of column names to extract from the
+    %                   AstroCatalog object. The Data structure (in the
+    %                   MatchedSources object) will have a field per column
+    %                   name.
+    %                   Default is {'RA','Dec','X','Y','FLAGS','MAG_APER_3','MAGERR_APER_3','MAG_PSF','MAGERR_PSF'};
     % Output : - MasterUniqueCoo matrix [Nunique,2].
     %          - MasterInd matrix [Nunique,Nobj].
+    %          - A MatchedSources object containing the unified catalogs.
     % Author : Eran Ofek (2026 Apr)
     % Example:
     %   [MasterUniqueCoo, MasterInd] = unify(Obj, MatchRadius=1.5, ...
@@ -41,6 +47,8 @@ function [MasterUniqueCoo, MasterInd] = unify(Obj, Args)
         Args.Sort              = false;
         Args.TestSorted        = false;
         Args.ColUse            = [];
+
+        Args.Col               = {'RA','Dec','X','Y','FLAGS','MAG_APER_3','MAGERR_APER_3','MAG_PSF','MAGERR_PSF'};
     end
 
     Nobj = numel(Obj);
@@ -150,6 +158,11 @@ function [MasterUniqueCoo, MasterInd] = unify(Obj, Args)
     % trim unused tail
     MasterUniqueCoo = MasterUniqueCoo(1:Nmaster, :);
     MasterInd       = MasterInd(1:Nmaster, :);
+
+    if nargout>2
+        MS = imProc.cat.catalog2MatchedSources(AC, 'MasterInd',MasterInd, 'Col',Args.Col, 'CopyJD',true);
+    end
+
 end
 
 
