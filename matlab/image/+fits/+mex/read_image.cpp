@@ -3,6 +3,7 @@
 #include "mex.h"
 #include "fitsio.h"
 #include <vector>
+#include <cstring>
 
 void checkStatus(int status)
 {
@@ -61,6 +62,58 @@ int find_image_hdu(fitsfile* fptr)
     return -1;
 }
 
+#include <string>
+#include <cstdlib>
+
+// ---------------------------------------------------------------------------
+// Unquote a FITS string value from a raw char buffer.
+// Handles '' -> ' escaping and strips the trailing '&' continuation marker.
+// Sets had_continuation=true when '&' was present (more fragments follow).
+// Returns false if the buffer does not start with a quote (not a string).
+// ---------------------------------------------------------------------------
+
+static bool unquoteFitsString(const char* buf,
+                               std::string& out,
+                               bool& had_continuation)
+{
+    const char* v = buf;
+    while (*v == ' ') v++;
+    if (*v != '\'') return false;
+    v++;  // skip opening quote
+
+    std::string s;
+    while (*v) {
+        if (*v == '\'') {
+            if (*(v+1) == '\'') { s += '\''; v += 2; }  // '' -> '
+            else                { v++; break; }           // closing quote
+        } else {
+            s += *v++;
+        }
+    }
+
+    if (!s.empty() && s.back() == '&') {
+        s.pop_back();
+        had_continuation = true;
+    } else {
+        had_continuation = false;
+        while (!s.empty() && s.back() == ' ') s.pop_back();
+    }
+
+    out = s;
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Read header as Nx3 cell array {keyword, value, comment}.
+//
+// Implements the FITS Long String Convention (OGIP 1.0):
+//   - The initial keyword stores a string value ending with '&' in value_str.
+//   - Each CONTINUE card carries its fragment in the *comment* field as seen
+//     by fits_read_keyn (cfitsio places the quoted continuation string there),
+//     and value_str is empty.
+//   - CONTINUE rows are merged into the preceding row: no new row is emitted.
+// ---------------------------------------------------------------------------
+
 mxArray* readHeaderCell(fitsfile* fptr)
 {
     int status = 0, nkeys = 0;
@@ -68,59 +121,83 @@ mxArray* readHeaderCell(fitsfile* fptr)
     fits_get_hdrspace(fptr, &nkeys, NULL, &status);
     checkStatus(status);
 
-    mxArray* cell = mxCreateCellMatrix(nkeys, 3);
+    // Collect into vectors first — CONTINUE lines reduce the final row count.
+    std::vector<std::string> v_key, v_comment;
+    std::vector<mxArray*>    v_val;
+    std::vector<std::string> v_strval;   // accumulated string content per row
+    std::vector<bool>        v_is_str;
 
-    char key[FLEN_KEYWORD];
-    char comment[FLEN_COMMENT];
+    char key[FLEN_KEYWORD], value_str[FLEN_VALUE], comment[FLEN_COMMENT];
 
     for (int i = 1; i <= nkeys; i++) {
-
-        char value_str[FLEN_VALUE];
         fits_read_keyn(fptr, i, key, value_str, comment, &status);
         checkStatus(status);
 
-        int row = i - 1;
-
-        // --- Column 1: keyword ---
-        mxSetCell(cell, row + 0*nkeys, mxCreateString(key));
-
-        // --- Column 2: value (typed) ---
-        mxArray* val = nullptr;
-
-        int status2 = 0;
-
-        // Try double
-        double dval;
-        if (fits_read_key(fptr, TDOUBLE, key, &dval, NULL, &status2) == 0) {
-            val = mxCreateDoubleScalar(dval);
+        if (strcmp(key, "CONTINUE") == 0 && !v_key.empty() && v_is_str.back()) {
+            // Fragment is a quoted string sitting in the comment field
+            std::string fragment;
+            bool more = false;
+            if (unquoteFitsString(comment, fragment, more)) {
+                v_strval.back() += fragment;
+                mxDestroyArray(v_val.back());
+                v_val.back() = mxCreateString(v_strval.back().c_str());
+            }
         }
         else {
-            status2 = 0;
+            // --- parse value_str into a typed mxArray ---
+            mxArray* val = nullptr;
+            int status2  = 0;
 
-            // Try logical
-            int lval;
-            if (fits_read_key(fptr, TLOGICAL, key, &lval, NULL, &status2) == 0) {
-                val = mxCreateLogicalScalar(lval);
+            // Try double
+            double dval;
+            if (fits_read_key(fptr, TDOUBLE, key, &dval, NULL, &status2) == 0) {
+                val = mxCreateDoubleScalar(dval);
+                v_is_str.push_back(false);
+                v_strval.push_back("");
             }
             else {
                 status2 = 0;
-
-                // Try string
-                char sval[FLEN_VALUE];
-                if (fits_read_key(fptr, TSTRING, key, sval, NULL, &status2) == 0) {
-                    val = mxCreateString(sval);
+                // Try logical
+                int lval;
+                if (fits_read_key(fptr, TLOGICAL, key, &lval, NULL, &status2) == 0) {
+                    val = mxCreateLogicalScalar(lval);
+                    v_is_str.push_back(false);
+                    v_strval.push_back("");
                 }
                 else {
                     status2 = 0;
-                    val = mxCreateString("");  // fallback
+                    // Try string — also check for '&' continuation marker
+                    char sval[FLEN_VALUE];
+                    if (fits_read_key(fptr, TSTRING, key, sval, NULL, &status2) == 0) {
+                        std::string s(sval);
+                        bool had_cont = (!s.empty() && s.back() == '&');
+                        if (had_cont) s.pop_back();
+                        val = mxCreateString(s.c_str());
+                        v_is_str.push_back(true);
+                        v_strval.push_back(s);
+                    }
+                    else {
+                        status2 = 0;
+                        val = mxCreateString("");  // fallback
+                        v_is_str.push_back(false);
+                        v_strval.push_back("");
+                    }
                 }
             }
+
+            v_key.push_back(key);
+            v_comment.push_back(comment);
+            v_val.push_back(val);
         }
+    }
 
-        mxSetCell(cell, row + 1*nkeys, val);
+    int nrows = (int)v_key.size();
+    mxArray* cell = mxCreateCellMatrix(nrows, 3);
 
-        // --- Column 3: comment ---
-        mxSetCell(cell, row + 2*nkeys, mxCreateString(comment));
+    for (int r = 0; r < nrows; r++) {
+        mxSetCell(cell, r,           mxCreateString(v_key[r].c_str()));
+        mxSetCell(cell, r + nrows,   v_val[r]);
+        mxSetCell(cell, r + 2*nrows, mxCreateString(v_comment[r].c_str()));
     }
 
     return cell;
