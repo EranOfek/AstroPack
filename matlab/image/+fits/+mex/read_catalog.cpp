@@ -3,9 +3,9 @@
 // after: sudo apt install libcfitsio-dev
 //
 // Usage:
-//   [S, Header, hdu] = fits.mex.read_catalog(filename, hdu)
-//   [S, Header, hdu] = fits.mex.read_catalog(filename, hdu, rows)
-//   [S, Header, hdu] = fits.mex.read_catalog(filename, hdu, rows, cols, hdu_header)
+//   [S, Header, hdu, ColUnits] = fits.mex.read_catalog(filename, hdu)
+//   [S, Header, hdu, ColUnits] = fits.mex.read_catalog(filename, hdu, rows)
+//   [S, Header, hdu, ColUnits] = fits.mex.read_catalog(filename, hdu, rows, cols, hdu_header)
 //
 // Arguments:
 //   filename  - path to FITS file
@@ -18,6 +18,7 @@
 //   S         - struct with one field per column (all double arrays)
 //   Header    - Nx3 cell array {keyword, value, comment}
 //   hdu       - HDU number actually used to read the catalog
+//   ColUnits  - 1×Ncols cell array of unit strings (one per column in S)
 //
 // All numeric columns are read as double. String columns are skipped with a
 // warning. Vector columns (repeat > 1) are flattened with a warning.
@@ -246,7 +247,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
     // ------------------------------------------------------------------
     if (nrhs < 2)
         mexErrMsgTxt(
-            "Usage: [S, Header, hdu] = fits.mex.read_catalog(filename, hdu [, rows [, cols [, hdu_header]]])");
+            "Usage: [S, Header, hdu, colunits] = fits.mex.read_catalog(filename, hdu [, rows [, cols [, hdu_header]]])");
 
     char* filename = mxArrayToString(prhs[0]);
     MxStringGuard fnGuard{filename};
@@ -335,6 +336,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
     struct ColInfo {
         int         colnum;   // 1-based FITS column number
         std::string name;
+        std::string unit;     // physical unit string from TUNIT keyword
         long        repeat;   // element count per row
     };
 
@@ -343,11 +345,12 @@ void mexFunction(int nlhs, mxArray* plhs[],
 
     for (int c = 1; c <= ncols_total; c++) {
         char ttype[FLEN_VALUE] = {0};
+        char tunit[FLEN_VALUE] = {0};
         int  typecode = 0;
         long repeat = 1, width = 0;
 
         fits_get_bcolparms(fptr, c,
-                           ttype, NULL,
+                           ttype, tunit,
                            NULL, &repeat, NULL, NULL, NULL, NULL,
                            &status);
         if (status) { status = 0; continue; }
@@ -381,6 +384,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
         ColInfo ci;
         ci.colnum = c;
         ci.name   = name;
+        ci.unit   = std::string(tunit);
         ci.repeat = repeat;
         cols.push_back(ci);
     }
@@ -444,4 +448,11 @@ void mexFunction(int nlhs, mxArray* plhs[],
     plhs[0] = S;
     if (nlhs >= 2) plhs[1] = Header;
     if (nlhs >= 3) plhs[2] = mxCreateDoubleScalar((double)hdu);
+    if (nlhs >= 4) {
+        // ColUnits: 1×Ncols cell array of unit strings
+        mxArray* ColUnits = mxCreateCellMatrix(1, ncols);
+        for (int i = 0; i < ncols; i++)
+            mxSetCell(ColUnits, i, mxCreateString(cols[i].unit.c_str()));
+        plhs[3] = ColUnits;
+    }
 }

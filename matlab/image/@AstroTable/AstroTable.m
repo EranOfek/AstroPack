@@ -124,6 +124,7 @@ classdef AstroTable < Component
             %                   attempt to convert the table to an array (only of
             %                   all columns are of class double).
             %                   Default is true.
+            %            'UseMex' - Use a Mex version of FITS image reader. Defaults is false  
             % Output : - An AstroTable object.
             % Author : Eran Ofek (Mar 2021)
             % Example: AC = AstroTable
@@ -151,6 +152,8 @@ classdef AstroTable < Component
                 Args.TableType                = 'auto'; % 'auto'|'bintable'|'table' for FITS.readTable1
                 Args.readTableArgs            = {}; % e.g., {'ValidateColumnNames',true} to avoid column names started with "_"
                 Args.ConvertTable2array       = true;  % only if all columns are double
+                                 
+                Args.UseMex                   = false;  
             end
             
             % FFU: use ImageIO instead!!!
@@ -198,7 +201,8 @@ classdef AstroTable < Component
                                              'FileType',Args.FileType,...
                                              'IsTable',true,...
                                              'UseRegExp',Args.UseRegExp,...
-                                             'readTableArgs',Args.readTableArgs);
+                                             'readTableArgs',Args.readTableArgs,...
+                                             'UseMex',Args.UseMex);
                                          
                     Nobj = numel(ImIO);
                     for Iobj=1:1:Nobj
