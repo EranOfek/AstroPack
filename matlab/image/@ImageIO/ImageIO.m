@@ -222,8 +222,14 @@ classdef ImageIO < Component
                         Header = FITS.readHeader1(FileName, Args.HDU);
                     else
                         if Args.IsTable
-                            [Data, Header] = FITS.readTable1(FileName, Args.readTableArgs{:});
-                            %Data = table2array(Data);
+                            if Args.UseMex
+                                [DataStruct, Header, ~, ColUnits] = fits.mex.read_catalog(FileName, 0);
+                                Data = struct2table(DataStruct);
+                                Data.Properties.VariableUnits = ColUnits;
+                            else
+                                [Data, Header] = FITS.readTable1(FileName, Args.readTableArgs{:});
+                                %Data = table2array(Data);
+                            end
                         else
                             if Args.ReadData && nargout<2
                                 [Data] = FITS.read1(FileName, Args.HDU, 'CCDSEC',Args.CCDSEC,'UseMex',Args.UseMex);
