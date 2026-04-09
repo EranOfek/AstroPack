@@ -1,34 +1,41 @@
-// Compile with: mex read_catalog.cpp -lcfitsio
+// read_catalog_mex.cpp
+// Compile with: mex read_catalog_mex.cpp -lcfitsio
 // after: sudo apt install libcfitsio-dev
 //
 // Usage:
-//   [cat, colnames, units, hdu] = read_catalog(filename, hdu)
-//   [cat, colnames, units, hdu] = read_catalog(filename, hdu, rows)
-//   [cat, colnames, units, hdu] = read_catalog(filename, hdu, rows, cols)
+//   [S, Header, hdu] = fits.mex.read_catalog(filename, hdu)
+//   [S, Header, hdu] = fits.mex.read_catalog(filename, hdu, rows)
+//   [S, Header, hdu] = fits.mex.read_catalog(filename, hdu, rows, cols, hdu_header)
 //
 // Arguments:
 //   filename  - path to FITS file
 //   hdu       - HDU number (1-based); pass 0 to auto-detect first table HDU
 //   rows      - optional [R1 R2] row range, 1-based inclusive; [] = all rows
 //   cols      - optional cell array of column names to read; {} = all columns
+//   hdu_header- if we wish to read the header from a different HDU 
 //
 // Outputs:
-//   cat       - struct with one field per column (typed arrays)
-//   colnames  - Nx1 cell array of column names
-//   units     - Nx1 cell array of column units
-//   hdu       - HDU number actually used
+//   S         - struct with one field per column (all double arrays)
+//   Header    - Nx3 cell array {keyword, value, comment}
+//   hdu       - HDU number actually used to read the catalog
+//
+// All numeric columns are read as double. String columns are skipped with a
+// warning. Vector columns (repeat > 1) are flattened with a warning.
+//
+// Author: A.M. Krassilchtchikov, D. Kovaleva (2026 Apr)
 
 #include "mex.h"
 #include "fitsio.h"
 #include <vector>
 #include <string>
 #include <cstring>
-#include <algorithm>
 #include <cctype>
+#include <cstdlib>
+#include <limits>
 
-// --------------------------------------------------------------------------
-// Error helpers
-// --------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Error helper
+// ---------------------------------------------------------------------------
 
 static void checkStatus(int status)
 {
@@ -38,9 +45,18 @@ static void checkStatus(int status)
     }
 }
 
-// --------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// RAII guard for mxArrayToString
+// ---------------------------------------------------------------------------
+
+struct MxStringGuard {
+    char* p;
+    ~MxStringGuard() { if (p) mxFree(p); }
+};
+
+// ---------------------------------------------------------------------------
 // Find first binary or ASCII table HDU (1-based)
-// --------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 
 static int find_table_hdu(fitsfile* fptr)
 {
@@ -57,91 +73,9 @@ static int find_table_hdu(fitsfile* fptr)
     return -1;
 }
 
-// --------------------------------------------------------------------------
-// Convert FITS typecode to a MATLAB class and a cfitsio read datatype.
-// Returns false if the column should be read as a string.
-// --------------------------------------------------------------------------
-
-struct ColType {
-    mxClassID   mxclass;   // mxUNKNOWN_CLASS = string column
-    int         cftype;    // cfitsio TSTRING / TINT etc.
-    bool        is_string;
-    bool        is_logical;
-};
-
-static ColType resolve_coltype(int typecode)
-{
-    // typecode is the raw value from fits_get_coltype; strip the VARIABLE flag
-    int tc = abs(typecode);
-
-    ColType ct;
-    ct.is_string  = false;
-    ct.is_logical = false;
-
-    switch (tc) {
-        case TBIT:
-        case TLOGICAL:
-            ct.mxclass  = mxLOGICAL_CLASS;
-            ct.cftype   = TLOGICAL;
-            ct.is_logical = true;
-            break;
-        case TBYTE:
-            ct.mxclass = mxUINT8_CLASS;
-            ct.cftype  = TBYTE;
-            break;
-        case TSBYTE:
-            ct.mxclass = mxINT8_CLASS;
-            ct.cftype  = TSBYTE;
-            break;
-        case TSHORT:
-            ct.mxclass = mxINT16_CLASS;
-            ct.cftype  = TSHORT;
-            break;
-        case TUSHORT:
-            ct.mxclass = mxUINT16_CLASS;
-            ct.cftype  = TUSHORT;
-            break;
-        case TINT:
-        case TLONG:
-            ct.mxclass = mxINT32_CLASS;
-            ct.cftype  = TINT;
-            break;
-        case TUINT:
-        case TULONG:
-            ct.mxclass = mxUINT32_CLASS;
-            ct.cftype  = TUINT;
-            break;
-        case TLONGLONG:
-            ct.mxclass = mxINT64_CLASS;
-            ct.cftype  = TLONGLONG;
-            break;
-        case TULONGLONG:
-            ct.mxclass = mxUINT64_CLASS;
-            ct.cftype  = TULONGLONG;
-            break;
-        case TFLOAT:
-            ct.mxclass = mxSINGLE_CLASS;
-            ct.cftype  = TFLOAT;
-            break;
-        case TDOUBLE:
-        case TCOMPLEX:    // fall through – read real part as double
-        case TDBLCOMPLEX:
-            ct.mxclass = mxDOUBLE_CLASS;
-            ct.cftype  = TDOUBLE;
-            break;
-        case TSTRING:
-        default:
-            ct.mxclass  = mxUNKNOWN_CLASS;  // sentinel for string columns
-            ct.cftype   = TSTRING;
-            ct.is_string = true;
-            break;
-    }
-    return ct;
-}
-
-// --------------------------------------------------------------------------
-// Case-insensitive string comparison helper
-// --------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Case-insensitive string comparison
+// ---------------------------------------------------------------------------
 
 static bool iequal(const std::string& a, const std::string& b)
 {
@@ -152,26 +86,176 @@ static bool iequal(const std::string& a, const std::string& b)
     return true;
 }
 
-// --------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Unquote a FITS string value from a raw char buffer.
+// Handles '' -> ' escaping and strips the trailing '&' continuation marker.
+// Returns the unquoted content and sets *had_continuation=true when '&' was
+// present (meaning more fragments follow on CONTINUE lines).
+// Returns false if the buffer does not start with a quote (not a string).
+// ---------------------------------------------------------------------------
+
+static bool unquoteFitsString(const char* buf,
+                               std::string& out,
+                               bool& had_continuation)
+{
+    const char* v = buf;
+    while (*v == ' ') v++;
+    if (*v != '\'') return false;
+    v++;  // skip opening quote
+
+    std::string s;
+    while (*v) {
+        if (*v == '\'') {
+            if (*(v+1) == '\'') { s += '\''; v += 2; }  // '' -> '
+            else                { v++; break; }           // closing quote
+        } else {
+            s += *v++;
+        }
+    }
+
+    // Strip trailing '&' (continuation marker) or trailing spaces
+    if (!s.empty() && s.back() == '&') {
+        s.pop_back();
+        had_continuation = true;
+    } else {
+        had_continuation = false;
+        while (!s.empty() && s.back() == ' ') s.pop_back();
+    }
+
+    out = s;
+    return true;
+}
+
+// ---------------------------------------------------------------------------
+// Parse a raw FITS value_str into a typed mxArray.
+// If the value is a string, *is_string=true and *out_str holds the unquoted
+// content (without trailing '&').
+// ---------------------------------------------------------------------------
+
+static mxArray* parseValue(const char* value_str,
+                            bool* is_string, std::string* out_str,
+                            bool* had_continuation)
+{
+    *is_string        = false;
+    *had_continuation = false;
+
+    const char* v = value_str;
+    while (*v == ' ') v++;
+
+    if (*v == '\0') {
+        return mxCreateString("");
+    }
+    else if (*v == 'T' && (*(v+1) == '\0' || *(v+1) == ' ' || *(v+1) == '/')) {
+        return mxCreateLogicalScalar(true);
+    }
+    else if (*v == 'F' && (*(v+1) == '\0' || *(v+1) == ' ' || *(v+1) == '/')) {
+        return mxCreateLogicalScalar(false);
+    }
+    else if (*v == '\'') {
+        std::string s;
+        unquoteFitsString(v, s, *had_continuation);
+        *is_string = true;
+        *out_str   = s;
+        return mxCreateString(s.c_str());
+    }
+    else {
+        char* endptr;
+        double dval = strtod(v, &endptr);
+        if (endptr != v && (*endptr == '\0' || *endptr == ' ' || *endptr == '/'))
+            return mxCreateDoubleScalar(dval);
+        else
+            return mxCreateString(value_str);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Read header as Nx3 cell array {keyword, value, comment}.
+//
+// Implements the FITS Long String Convention (OGIP 1.0):
+//   - The initial keyword stores a string value ending with '&' in value_str.
+//   - Each CONTINUE card carries its fragment in the *comment* field as seen
+//     by fits_read_keyn (cfitsio places the quoted continuation string there),
+//     and value_str is empty.
+//   - CONTINUE rows are merged into the preceding row: no new row is emitted.
+// ---------------------------------------------------------------------------
+
+static mxArray* readHeaderCell(fitsfile* fptr)
+{
+    int status = 0, nkeys = 0;
+    fits_get_hdrspace(fptr, &nkeys, NULL, &status);
+    checkStatus(status);
+
+    // Collect into vectors first — CONTINUE lines reduce the final row count.
+    std::vector<std::string> v_key, v_comment;
+    std::vector<mxArray*>    v_val;
+    std::vector<std::string> v_strval;   // accumulated string content per row
+    std::vector<bool>        v_is_str;
+
+    char key[FLEN_KEYWORD], value_str[FLEN_VALUE], comment[FLEN_COMMENT];
+
+    for (int i = 1; i <= nkeys; i++) {
+        fits_read_keyn(fptr, i, key, value_str, comment, &status);
+        checkStatus(status);
+
+        if (strcmp(key, "CONTINUE") == 0 && !v_key.empty() && v_is_str.back()) {
+            // The continuation fragment is a quoted string in the comment field.
+            // e.g. comment == " 'age_1.fits'"  or  " 'more&'"
+            std::string fragment;
+            bool more = false;
+            if (unquoteFitsString(comment, fragment, more)) {
+                v_strval.back() += fragment;
+                mxDestroyArray(v_val.back());
+                v_val.back() = mxCreateString(v_strval.back().c_str());
+            }
+            // If 'more' is true there will be another CONTINUE — loop handles it.
+        }
+        else {
+            bool is_str = false, had_cont = false;
+            std::string strval;
+            mxArray* val = parseValue(value_str, &is_str, &strval, &had_cont);
+
+            v_key.push_back(key);
+            v_comment.push_back(comment);
+            v_val.push_back(val);
+            v_strval.push_back(is_str ? strval : "");
+            v_is_str.push_back(is_str);
+        }
+    }
+
+    int nrows = (int)v_key.size();
+    mxArray* cell = mxCreateCellMatrix(nrows, 3);
+
+    for (int r = 0; r < nrows; r++) {
+        mxSetCell(cell, r,            mxCreateString(v_key[r].c_str()));
+        mxSetCell(cell, r + nrows,    v_val[r]);
+        mxSetCell(cell, r + 2*nrows,  mxCreateString(v_comment[r].c_str()));
+    }
+
+    return cell;
+}
+
+// ---------------------------------------------------------------------------
 // mexFunction
-// --------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 
 void mexFunction(int nlhs, mxArray* plhs[],
                  int nrhs, const mxArray* prhs[])
 {
     // ------------------------------------------------------------------
-    // 1.  Parse inputs
+    // 1. Parse inputs
     // ------------------------------------------------------------------
     if (nrhs < 2)
         mexErrMsgTxt(
-            "Usage: [cat,colnames,units,hdu] = read_catalog(filename, hdu [, rows [, cols]])");
+            "Usage: [S, Header, hdu] = fits.mex.read_catalog(filename, hdu [, rows [, cols [, hdu_header]]])");
 
     char* filename = mxArrayToString(prhs[0]);
-    int   hdu_req  = (int)mxGetScalar(prhs[1]);
+    MxStringGuard fnGuard{filename};
+
+    int hdu_req = (int)mxGetScalar(prhs[1]);
 
     // Optional row range [R1 R2]
-    bool  use_rowrange = false;
-    long  row1 = 1, row2 = 0;   // row2 filled after we know nrows
+    bool use_rowrange = false;
+    long row1 = 1, row2 = 0;
 
     if (nrhs >= 3 && !mxIsEmpty(prhs[2])) {
         if (mxGetNumberOfElements(prhs[2]) != 2)
@@ -182,7 +266,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
         use_rowrange = true;
     }
 
-    // Optional column name filter – cell array of strings
+    // Optional column name filter — cell array of strings
     std::vector<std::string> wanted_cols;
     if (nrhs >= 4 && !mxIsEmpty(prhs[3])) {
         if (!mxIsCell(prhs[3]))
@@ -198,15 +282,19 @@ void mexFunction(int nlhs, mxArray* plhs[],
         }
     }
 
+    // Optional HDU number from which to read the header (-1 = same as table)
+    int hdu_header_req = -1;
+    if (nrhs >= 5 && !mxIsEmpty(prhs[4]))
+        hdu_header_req = (int)mxGetScalar(prhs[4]);
+
     // ------------------------------------------------------------------
-    // 2.  Open file & move to the right HDU
+    // 2. Open file & move to the right HDU
     // ------------------------------------------------------------------
     fitsfile* fptr;
     int status = 0, hdutype;
 
     fits_open_file(&fptr, filename, READONLY, &status);
     checkStatus(status);
-    mxFree(filename);
 
     int hdu = hdu_req;
     if (hdu == 0) {
@@ -222,7 +310,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
         mexErrMsgTxt("Requested HDU is not a table (BINARY_TBL or ASCII_TBL)");
 
     // ------------------------------------------------------------------
-    // 3.  Table geometry
+    // 3. Table geometry
     // ------------------------------------------------------------------
     int  ncols_total;
     long nrows_total;
@@ -230,27 +318,24 @@ void mexFunction(int nlhs, mxArray* plhs[],
     fits_get_num_cols(fptr, &ncols_total, &status); checkStatus(status);
     fits_get_num_rows(fptr, &nrows_total, &status); checkStatus(status);
 
-    // Clamp row range
     if (!use_rowrange) {
         row1 = 1;
         row2 = nrows_total;
     } else {
-        if (row1 < 1)          row1 = 1;
-        if (row2 > nrows_total) row2 = nrows_total;
+        if (row1 < 1)            row1 = 1;
+        if (row2 > nrows_total)  row2 = nrows_total;
         if (row1 > row2)
             mexErrMsgTxt("Invalid row range: R1 > R2 (or both out of bounds)");
     }
     long nrows = row2 - row1 + 1;
 
     // ------------------------------------------------------------------
-    // 4.  Enumerate columns; apply column filter
+    // 4. Enumerate columns; filter; detect string/vector columns
     // ------------------------------------------------------------------
     struct ColInfo {
-        int         colnum;      // 1-based FITS column number
+        int         colnum;   // 1-based FITS column number
         std::string name;
-        std::string unit;
-        ColType     type;
-        long        repeat;      // repeat count (vector columns)
+        long        repeat;   // element count per row
     };
 
     std::vector<ColInfo> cols;
@@ -258,21 +343,19 @@ void mexFunction(int nlhs, mxArray* plhs[],
 
     for (int c = 1; c <= ncols_total; c++) {
         char ttype[FLEN_VALUE] = {0};
-        char tunit[FLEN_VALUE] = {0};
         int  typecode = 0;
         long repeat = 1, width = 0;
 
         fits_get_bcolparms(fptr, c,
-                           ttype, tunit,
+                           ttype, NULL,
                            NULL, &repeat, NULL, NULL, NULL, NULL,
                            &status);
-        if (status) { status = 0; continue; }   // skip broken columns
+        if (status) { status = 0; continue; }
 
         fits_get_coltype(fptr, c, &typecode, &repeat, &width, &status);
         if (status) { status = 0; continue; }
 
         std::string name(ttype);
-        std::string unit(tunit);
 
         // Apply column filter (case-insensitive)
         if (!wanted_cols.empty()) {
@@ -282,151 +365,83 @@ void mexFunction(int nlhs, mxArray* plhs[],
             if (!found) continue;
         }
 
+        // Skip string columns
+        int tc = abs(typecode);
+        if (tc == TSTRING) {
+            mexPrintf("Warning: skipping string column '%s'\n", ttype);
+            continue;
+        }
+
+        // Warn about vector columns (repeat > 1)
+        if (repeat > 1) {
+            mexPrintf("Warning: column '%s' has repeat=%ld, flattening to %ld rows\n",
+                      ttype, repeat, nrows * repeat);
+        }
+
         ColInfo ci;
         ci.colnum = c;
         ci.name   = name;
-        ci.unit   = unit;
-        ci.type   = resolve_coltype(typecode);
         ci.repeat = repeat;
         cols.push_back(ci);
     }
 
     int ncols = (int)cols.size();
     if (ncols == 0)
-        mexErrMsgTxt("No columns matched (or table is empty)");
+        mexErrMsgTxt("No columns matched (or table has only string columns)");
 
     // ------------------------------------------------------------------
-    // 5.  Build output struct  (cat)
+    // 5. Build output struct
     // ------------------------------------------------------------------
     std::vector<const char*> fieldnames(ncols);
     for (int i = 0; i < ncols; i++)
         fieldnames[i] = cols[i].name.c_str();
 
-    mxArray* cat = mxCreateStructMatrix(1, 1, ncols, fieldnames.data());
+    mxArray* S = mxCreateStructMatrix(1, 1, ncols, fieldnames.data());
 
     // ------------------------------------------------------------------
-    // 6.  Read each column
-    // ------------------------------------------------------------------
+    // 6. Read each column as double
+    // ------------------------------------------------------------------   
+    double nulval = std::numeric_limits<double>::quiet_NaN();
+
     for (int i = 0; i < ncols; i++) {
         const ColInfo& ci = cols[i];
         int anynul = 0;
 
-        // Each element may itself be a vector (repeat > 1).
-        // We store vector columns as nrows × repeat matrices.
-        long repeat = (ci.type.is_string) ? 1 : ci.repeat;
-        long nelems = nrows * repeat;
+        long nelems = nrows * ci.repeat;
+        mwSize dims[2] = { (mwSize)nrows, (mwSize)ci.repeat };
 
-        if (ci.type.is_string) {
-            // ----- string column ----------------------------------------
-            // Find the max string width from the TFORM keyword
-            char tform[FLEN_VALUE] = {0};
-            int  status2 = 0;
-            fits_get_acolparms(fptr, ci.colnum,
-                               NULL, NULL, NULL, tform,
-                               NULL, NULL, NULL, NULL,
-                               &status2);
-            // For binary tables use fits_get_coltype width
-            long str_width = 1;
-            {
-                int  tc2 = 0; long rep2 = 1, wid2 = 0; int s2 = 0;
-                fits_get_coltype(fptr, ci.colnum, &tc2, &rep2, &wid2, &s2);
-                if (!s2 && wid2 > 0) str_width = wid2;
-                else                 str_width = 80;  // ASCII fallback
-            }
+        mxArray* arr = mxCreateNumericArray(2, dims, mxDOUBLE_CLASS, mxREAL);
+        double* data = (double*)mxGetData(arr);
 
-            // Allocate buffer for all strings
-            long buflen = str_width + 1;
-            std::vector<char> strbuf((size_t)(nrows * buflen), '\0');
-            std::vector<char*> strptrs(nrows);
-            for (long r = 0; r < nrows; r++)
-                strptrs[r] = strbuf.data() + r * buflen;
+        fits_read_col(fptr, TDOUBLE, ci.colnum,
+                      row1, 1, nelems,
+                      &nulval, data, &anynul, &status);
+        checkStatus(status);
 
-            int s3 = 0;
-            fits_read_col_str(fptr, ci.colnum,
-                              row1, 1, nrows,
-                              NULL,
-                              strptrs.data(),
-                              &anynul, &s3);
-            if (s3) { s3 = 0; }
-
-            mxArray* cell = mxCreateCellMatrix(nrows, 1);
-            for (long r = 0; r < nrows; r++) {
-                // Trim trailing spaces (common in FITS ASCII tables)
-                std::string sv(strptrs[r]);
-                size_t last = sv.find_last_not_of(' ');
-                if (last != std::string::npos) sv = sv.substr(0, last + 1);
-                else                            sv.clear();
-                mxSetCell(cell, r, mxCreateString(sv.c_str()));
-            }
-            mxSetFieldByNumber(cat, 0, i, cell);
-
-        } else if (ci.type.is_logical) {
-            // ----- logical column ----------------------------------------
-            mwSize dims[2] = { (mwSize)nrows, (mwSize)repeat };
-            mxArray* arr = mxCreateLogicalArray(2, dims);
-            mxLogical* data = mxGetLogicals(arr);
-
-            // cfitsio reads logicals as char (0/1)
-            std::vector<char> tmp(nelems, 0);
-            int s4 = 0;
-            fits_read_col(fptr, TLOGICAL, ci.colnum,
-                          row1, 1, nelems,
-                          NULL, tmp.data(), &anynul, &s4);
-            if (s4) s4 = 0;
-            for (long k = 0; k < nelems; k++)
-                data[k] = (mxLogical)(tmp[k] != 0);
-
-            mxSetFieldByNumber(cat, 0, i, arr);
-
-        } else {
-            // ----- numeric column ----------------------------------------
-            mwSize dims[2] = { (mwSize)nrows, (mwSize)repeat };
-            mxArray* arr = mxCreateNumericArray(2, dims,
-                                                ci.type.mxclass, mxREAL);
-            void* data = mxGetData(arr);
-
-            int s5 = 0;
-            fits_read_col(fptr, ci.type.cftype, ci.colnum,
-                          row1, 1, nelems,
-                          NULL, data, &anynul, &s5);
-            if (s5) {
-                // Fallback to double
-                s5 = 0;
-                mxDestroyArray(arr);
-                arr  = mxCreateNumericArray(2, dims, mxDOUBLE_CLASS, mxREAL);
-                data = mxGetData(arr);
-                fits_read_col(fptr, TDOUBLE, ci.colnum,
-                              row1, 1, nelems,
-                              NULL, data, &anynul, &s5);
-                if (s5) s5 = 0;
-            }
-
-            mxSetFieldByNumber(cat, 0, i, arr);
-        }
+        mxSetFieldByNumber(S, 0, i, arr);
     }
 
     // ------------------------------------------------------------------
-    // 7.  Output 2: colnames  (Nx1 cell array)
+    // 7. Read header — explicitly move to the correct HDU first because
+    //    fits_read_col may leave fptr on a different HDU internally.
     // ------------------------------------------------------------------
-    mxArray* colnames = mxCreateCellMatrix(ncols, 1);
-    for (int i = 0; i < ncols; i++)
-        mxSetCell(colnames, i, mxCreateString(cols[i].name.c_str()));
+    {
+        int hdr_hdu = (hdu_header_req == -1) ? hdu        // default: table HDU
+                    : (hdu_header_req ==  0) ? 1           // 0 = primary HDU
+                    : hdu_header_req;
+        fits_movabs_hdu(fptr, hdr_hdu, NULL, &status);
+        checkStatus(status);
+    }
+
+    mxArray* Header = readHeaderCell(fptr);
 
     // ------------------------------------------------------------------
-    // 8.  Output 3: units  (Nx1 cell array)
-    // ------------------------------------------------------------------
-    mxArray* units_cell = mxCreateCellMatrix(ncols, 1);
-    for (int i = 0; i < ncols; i++)
-        mxSetCell(units_cell, i, mxCreateString(cols[i].unit.c_str()));
-
-    // ------------------------------------------------------------------
-    // 9.  Close file & assign outputs
+    // 8. Close file & assign outputs
     // ------------------------------------------------------------------
     fits_close_file(fptr, &status);
     checkStatus(status);
 
-    plhs[0] = cat;
-    if (nlhs >= 2) plhs[1] = colnames;
-    if (nlhs >= 3) plhs[2] = units_cell;
-    if (nlhs >= 4) plhs[3] = mxCreateDoubleScalar((double)hdu);
+    plhs[0] = S;
+    if (nlhs >= 2) plhs[1] = Header;
+    if (nlhs >= 3) plhs[2] = mxCreateDoubleScalar((double)hdu);
 }
