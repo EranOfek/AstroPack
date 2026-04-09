@@ -60,7 +60,7 @@ function [FWHM, Nstars, Info, ACF] = fwhm_fromACF(Image, Args)
 
         Args.Back              = [];
         Args.BackStep          = 1;
-        Args.CorrFrac          = 0.84;% 0.65; %84;
+        Args.CorrFrac          = 0.65; %84;
         
         Args.Nsigma0           = 10; %0; %-10;
         Args.MaxRadius         = 200;
@@ -128,16 +128,17 @@ function [FWHM, Nstars, Info, ACF] = fwhm_fromACF(Image, Args)
         %ACF = ACF - median(ACF(:));
         
         SizeACF = size(ACF);
-        CenterPix = floor((SizeACF + 1).*0.5);  % [Y, X]
+        
         if Args.UseMexRP
             % new version with MEX
+            CenterPix = floor((SizeACF + 1).*0.5);  % [Y, X]
             [Rad, Mean] = imUtil.psf.mex.radialProfile_mex(ACF, CenterPix(2), CenterPix(1), Args.MaxRadius, Args.Step);
 
             CumVal = cumsum(Mean);
             CumVal = CumVal./CumVal(end);
         else
             % old code
-            RR = imUtil.psf.radialProfile(ACF, CenterPix, 'Cut',true, 'Step',Args.Step, 'Radius',Args.MaxRadius);
+            RR = imUtil.psf.radialProfile(ACF, [], 'Cut',true, 'Step',Args.Step, 'Radius',Args.MaxRadius);
            
             % legacy:
             Rad = RR.MeanR(2:end);
@@ -158,7 +159,7 @@ function [FWHM, Nstars, Info, ACF] = fwhm_fromACF(Image, Args)
 
             % In order to make sure that CumVal is monothonic increasing
             % function - add epsilon (Issue #853):
-            CumVal = CumVal(:) +  (1:1:numel(CumVal)).'.*1e-6;
+            CumVal = CumVal(:) +  (1:1:numel(CumVal)).'.*1e-7;
 
             % THIS SHOULD BE UNCOMMENTED
             % BUT NEED TO VERIFY THIS IS NOT AFFECTING LAST FOCUS
