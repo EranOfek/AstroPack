@@ -1,40 +1,64 @@
 function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
-    % Unify an AstroCatalog object with multiple catalogs (e.g., different epochs).
-    %   This function match multiple catalogs by coordinates (RA, Dec) or
-    %   (X,Y) and unify them into a single catalog, in which no object is
-    %   left behind.
-    %   Assuming the input object contains Nobj elements.
-    %   The output are:
-    %       A MasterUniqueCoo matrix (two columns [RA, Dec] or [X,Y]).
-    %           Containing the coordinates of the unique sources. The
-    %           coordinates are from the individual catalog in which the
-    %           coordinates first appeared (i.e., not matched).
-    %           By definition, the first entries contains all the
-    %           coordinates in the first element of the input object.
-    %           The number of rows in this matrix is Nunique.
-    %       An [Nunique X Nobj] matrix, containing the index of the unique
-    %           source in the corresponding epoch. If the source doesn't
-    %           appear then a NaN appear in the matrix.
+    % Unify multiple catalogs into a single master list of unique sources.
+    % Description: Match multiple catalogs by coordinates [RA, Dec] or
+    %              [X,Y] and unify them into a single catalog, in which no
+    %              source is left behind.
+    %              This function is similar to unify, but can optionally
+    %              build in parallel another master list using the complement
+    %              of ColUse (i.e., the unused sources).
     % Input  : - An AstroCatalog object with multiple elements. Each
-    %            element contains a catalog from a specific epoch.
-    %            The catalogs should contain [RA, Dec], or [X,Y]
+    %            element contains a catalog from a specific epoch. The
+    %            catalogs should contain either [RA, Dec] or [X,Y]
     %            coordinates.
     %          * ...,key,val,...
     %            'MatchRadius' - Matching radius. Default is 1.5.
-    %            'MatchRadiusUnits' - Matching radius units.
-    %                   Default is 'arcsec'.
-    %            'Col' - A cell array of column names to extract from the
-    %                   AstroCatalog object. The Data structure (in the
-    %                   MatchedSources object) will have a field per column
-    %                   name.
-    %                   Default is {'RA','Dec','X','Y','FLAGS','MAG_APER_3','MAGERR_APER_3','MAG_PSF','MAGERR_PSF'};
-    % Output : - MasterUniqueCoo matrix [Nunique,2].
-    %          - MasterInd matrix [Nunique,Nobj].
-    %          - A MatchedSources object containing the unified catalogs.
+    %            'MatchRadiusUnits' - Matching radius units. Default is
+    %                   'arcsec'.
+    %            'IsSpherical' - If true, use spherical matching with
+    %                   [RA, Dec]. If false, use planar matching with [X,Y].
+    %                   Default is true.
+    %            'ColRADec' - Cell array containing the RA/Dec column names.
+    %                   Default is {'RA','Dec'}.
+    %            'IsDeg' - If empty, infer angular units from the first
+    %                   catalog and convert MatchRadius accordingly. If not
+    %                   empty, use the provided value directly and assume
+    %                   MatchRadius is already in the correct units.
+    %                   Default is [].
+    %            'ColXY' - Cell array containing the X/Y column names.
+    %                   Default is {'X','Y'}.
+    %            'Sort' - If true, sort all catalogs by the second
+    %                   coordinate column before matching. Default is false.
+    %            'TestSorted' - If true, test that the second list passed
+    %                   to the MEX matching function is sorted. Default is
+    %                   false.
+    %            'ColUse' - Optional column name used as a source mask.
+    %                   Sources for which this column is NaN are ignored in
+    %                   the regular master list. Default is [].
+    %            'AddUnUse' - If true, then ColUse is required and a second
+    %                   master list is generated simultaneously using the
+    %                   complement mask ~Use. Default is false.
+    %            'Col' - Cell array of column names to extract into the
+    %                   output MatchedSources object. Default is
+    %                   {'RA','Dec','X','Y','FLAGS','MAG_APER_3', ...
+    %                    'MAGERR_APER_3','MAG_PSF','MAGERR_PSF'}.
+    %                   If AddUnUse is true, you may want to add here also:
+    %                   'NITER'.
+    % Output : - MasterUniqueCoo matrix [Nunique,2]. Coordinates of the
+    %            unique sources. If AddUnUse=true, then the unused-source
+    %            master list is appended below the used-source master list.
+    %          - MasterInd matrix [Nunique,Nobj]. Row index of each unique
+    %            source in each catalog/epoch. Missing sources are marked by
+    %            NaN. If AddUnUse=true, then the unused-source matrix is
+    %            appended below the used-source matrix.
+    %          - A MatchedSources object containing the matched/unified
+    %            catalogs, generated only if requested as output.
     % Author : Eran Ofek (2026 Apr)
     % Example:
     %   [MasterUniqueCoo, MasterInd] = unify(Obj, MatchRadius=1.5, ...
     %       MatchRadiusUnits='arcsec');
+    %
+    %   [MasterUniqueCoo, MasterInd] = unify(Obj, ColUse='FLAGS', ...
+    %       AddUnUse=true, MatchRadius=1.5, MatchRadiusUnits='arcsec');
 
     arguments
         Obj
@@ -47,7 +71,7 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
         Args.Sort              = false;
         Args.TestSorted        = false;
         Args.ColUse            = [];
-
+        Args.AddUnUse          = false;
         Args.Col               = {'RA','Dec','X','Y','FLAGS','MAG_APER_3','MAGERR_APER_3','MAG_PSF','MAGERR_PSF'};
     end
 
@@ -55,7 +79,12 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
     if Nobj == 0
         MasterUniqueCoo = zeros(0,2);
         MasterInd       = zeros(0,0);
+        MS              = [];
         return;
+    end
+
+    if Args.AddUnUse && isempty(Args.ColUse)
+        error('When AddUnUse=true, ColUse must be provided');
     end
 
     % choose spherical/planar
@@ -82,21 +111,25 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
     else
         Use1 = getUseMask(Obj(Iobj), Args.ColUse, size(Coo,1));
     end
+    NotUse1 = ~Use1;
 
-    % initialize master from first catalog
+    % initialize used master from first catalog
     MasterCoo = Coo(Use1, :);
-    MasterXRA  = MasterCoo(:,1);
-    MasterYDec = MasterCoo(:,2);
 
-    % unit handling - keep simple/original logic
+    % unit handling - keep same/original logic
     if isempty(Args.IsDeg)
         % automatic selection of units based on first catalog
-        if all(strcmp(Units, 'deg'))
-            IsDeg = true;
-            MatchRadius = convert.angular(Args.MatchRadiusUnits, 'deg', Args.MatchRadius);
+        if Args.IsSpherical
+            if all(strcmp(Units, 'deg'))
+                IsDeg = true;
+                MatchRadius = convert.angular(Args.MatchRadiusUnits, 'deg', Args.MatchRadius);
+            else
+                IsDeg = false;
+                MatchRadius = convert.angular(Args.MatchRadiusUnits, 'rad', Args.MatchRadius);
+            end
         else
             IsDeg = false;
-            MatchRadius = convert.angular(Args.MatchRadiusUnits, 'rad', Args.MatchRadius);
+            MatchRadius = Args.MatchRadius;
         end
     else
         IsDeg = Args.IsDeg;
@@ -111,6 +144,7 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
         InitCap = sum(SizeCat);
     end
 
+    % used branch
     MasterUniqueCoo = nan(InitCap, 2);
     MasterInd       = nan(InitCap, Nobj);
 
@@ -120,38 +154,78 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
         MasterInd(1:Nmaster, Iobj)    = find(Use1);
     end
 
+    % unused branch
+    if Args.AddUnUse
+        MasterCoo_NU = Coo(NotUse1, :);
+
+        MasterUniqueCoo_NU = nan(InitCap, 2);
+        MasterInd_NU       = nan(InitCap, Nobj);
+
+        Nmaster_NU = size(MasterCoo_NU, 1);
+        if Nmaster_NU > 0
+            MasterUniqueCoo_NU(1:Nmaster_NU, :) = MasterCoo_NU;
+            MasterInd_NU(1:Nmaster_NU, Iobj)    = find(NotUse1);
+        end
+    end
+
     % process remaining objects
     for Iobj = 2:Nobj
         CooNext = Obj(Iobj).getCol(ColCoo);
         Use2    = getUseMask(Obj(Iobj), Args.ColUse, size(CooNext,1));
+        NotUse2 = ~Use2;
 
-        % active master only
+        %----- used branch -----
         MasterXRA  = MasterUniqueCoo(1:Nmaster, 1);
         MasterYDec = MasterUniqueCoo(1:Nmaster, 2);
 
-        % Need reverse index to identify new sources in current epoch
         [Ind1, ~, ~, Ind2] = MatchFun(MasterXRA, MasterYDec, ...
                                       CooNext(:,1), CooNext(:,2), ...
                                       MatchRadius, IsDeg, [], Use2, Args.TestSorted);
 
-        % matched sources: fill existing rows for this epoch
         FlagMatch = ~isnan(Ind1);
         if any(FlagMatch)
             MasterInd(FlagMatch, Iobj) = Ind1(FlagMatch);
         end
 
-        % unmatched usable sources in current epoch are new master sources
         FlagNew = Use2 & isnan(Ind2);
         Nnew    = nnz(FlagNew);
 
         if Nnew > 0
-            NewInd = find(FlagNew);
-            NewRows = ((Nmaster + 1):(Nmaster + Nnew));
+            NewInd  = find(FlagNew);
+            NewRows = (Nmaster + 1):(Nmaster + Nnew);
 
             MasterUniqueCoo(NewRows, :) = CooNext(NewInd, :);
             MasterInd(NewRows, Iobj)    = NewInd;
 
             Nmaster = Nmaster + Nnew;
+        end
+
+        %----- unused branch -----
+        if Args.AddUnUse
+            MasterXRA_NU  = MasterUniqueCoo_NU(1:Nmaster_NU, 1);
+            MasterYDec_NU = MasterUniqueCoo_NU(1:Nmaster_NU, 2);
+
+            [Ind1_NU, ~, ~, Ind2_NU] = MatchFun(MasterXRA_NU, MasterYDec_NU, ...
+                                                CooNext(:,1), CooNext(:,2), ...
+                                                MatchRadius, IsDeg, [], NotUse2, Args.TestSorted);
+
+            FlagMatch_NU = ~isnan(Ind1_NU);
+            if any(FlagMatch_NU)
+                MasterInd_NU(FlagMatch_NU, Iobj) = Ind1_NU(FlagMatch_NU);
+            end
+
+            FlagNew_NU = NotUse2 & isnan(Ind2_NU);
+            Nnew_NU    = nnz(FlagNew_NU);
+
+            if Nnew_NU > 0
+                NewInd_NU  = find(FlagNew_NU);
+                NewRows_NU = (Nmaster_NU + 1):(Nmaster_NU + Nnew_NU);
+
+                MasterUniqueCoo_NU(NewRows_NU, :) = CooNext(NewInd_NU, :);
+                MasterInd_NU(NewRows_NU, Iobj)    = NewInd_NU;
+
+                Nmaster_NU = Nmaster_NU + Nnew_NU;
+            end
         end
     end
 
@@ -159,10 +233,17 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
     MasterUniqueCoo = MasterUniqueCoo(1:Nmaster, :);
     MasterInd       = MasterInd(1:Nmaster, :);
 
-    if nargout>2
-        MS = imProc.cat.catalog2MatchedSources(AC, 'MasterInd',MasterInd, 'Col',Args.Col, 'CopyJD',true);
+    if Args.AddUnUse
+        MasterUniqueCoo_NU = MasterUniqueCoo_NU(1:Nmaster_NU, :);
+        MasterInd_NU       = MasterInd_NU(1:Nmaster_NU, :);
+
+        MasterUniqueCoo = [MasterUniqueCoo; MasterUniqueCoo_NU];
+        MasterInd       = [MasterInd;       MasterInd_NU];
     end
 
+    if nargout > 2
+        MS = imProc.cat.catalog2MatchedSources(AC, 'MasterInd', MasterInd, 'Col', Args.Col, 'CopyJD', true);
+    end
 end
 
 
