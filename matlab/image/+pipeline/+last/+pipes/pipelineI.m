@@ -29,7 +29,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
                                               'MAG_APER', 'MAGERR_APER',...
                                               'FLUX_XYPEAK'};
         Args.image2subimagesArgs           = {};
-        Args.multiIterExtractorArgs        = {};
+        Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
         Args.astrometryVisitSubImageArgs   = {};
         Args.forcedPhotArgs                = {};
         Args.matchExternal_Indiv           = true;
@@ -304,8 +304,9 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
                                               'StackMethod',Args.StackMethod,...
                                               'UseMex',Args.UseMex,...
                                               'PhotCalibSimple',false,...
-                                              'PhotCalibTrans',false);
-    
+                                              'PhotCalibTrans',false,...
+                                              Args.multiIterExtractorArgs{:});
+  
     %toc
 
     % 96 s

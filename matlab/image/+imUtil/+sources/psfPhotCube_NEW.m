@@ -143,8 +143,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     Xcenter = Nx .* 0.5 + 0.5;
     Ycenter = Ny .* 0.5 + 0.5;
 
-    VecXrel = (1:Nx) - Xcenter;
-    VecYrel = (1:Ny) - Ycenter;
+    VecXrel = cast((1:Nx) - Xcenter, 'like',Cube);
+    VecYrel = cast((1:Ny) - Ycenter, 'like',Cube);
 
     if isempty(Args.Xinit)
         Args.Xinit = Xcenter;
@@ -167,8 +167,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
 
     [SmallStep, ConvThresh] = localPrepareStepControl(Args, Nim);
 
-    DX = Args.Xinit(:).' - Xcenter;
-    DY = Args.Yinit(:).' - Ycenter;
+    DX = cast(Args.Xinit(:).' - Xcenter, 'like',Cube);
+    DY = cast(Args.Yinit(:).' - Ycenter, 'like',Cube);
 
     ConvergeFlag = false(Args.MaxIter, Nim);
     AppFlux      = nan(Args.MaxIter, Nim);
@@ -706,6 +706,7 @@ function [Chi2, Flux, ShiftedPSF, Dof, FluxErr] = internalCalcChi2( ...
 
 
     if UseMex
+      
         [Chi2, Flux, Dof, FluxErr] = imUtil.sources.mex.psfPhotCube_chi2flux_mex( ...
                             Cube, Std, ShiftedPSF, DX, DY, VecXrel, VecYrel, FitRadius2);
     else
