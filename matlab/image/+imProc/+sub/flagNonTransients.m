@@ -11,11 +11,6 @@ function TranCat = flagNonTransients(Obj, Args)
                 'PixelScale' - Pixel scale in arcsec per pixel.
                        Default is 1.25.
 
-                'PointLimitSigmaFactor' - Conversion factor from FWHM to
-                       an approximate 3-sigma radius used for nuclear
-                       matching.
-                       Default is 1.2739.
-
                 'SaturatedNeighborDistanceThreshold' - Maximum distance (pix)
                        to search for nearby saturated pixels.
                        Default is 250.
@@ -271,7 +266,6 @@ function TranCat = flagNonTransients(Obj, Args)
         % General
         Args.ConfigFile char = ''
         Args.PixelScale double = 1.25
-        Args.PointLimitSigmaFactor double = 1.2739   % converts FWHM to ~3 sigma radius
         Args.injectedSrcs double = []
 
         Args.SoftNChi2Lim = 21.0
@@ -496,13 +490,13 @@ function TranCat = flagNonTransients(Obj, Args)
             N_Y2 = CandCat.getCol('N_Y2');
         end
 
-        HasNX2Y2 = ~isempty(N_X2) && ~isempty(N_Y2);
-        if HasNX2Y2
-            N_GoodPSF = (N_X2 < Args.SecondMomSoftLim) & ...
-                        (N_Y2 < Args.SecondMomSoftLim);
-        else
-            N_GoodPSF = true(NumCand,1);
-        end
+        %HasNX2Y2 = ~isempty(N_X2) && ~isempty(N_Y2);
+        %if HasNX2Y2
+        %    N_GoodPSF = (N_X2 < Args.SecondMomSoftLim) & ...
+        %                (N_Y2 < Args.SecondMomSoftLim);
+        %else
+        %    N_GoodPSF = true(NumCand,1);
+        %end
 
         if CandCat.isColumn('R_X2')
             R_X2 = CandCat.getCol('R_X2');
@@ -520,15 +514,11 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         % Based on sigma in arcsec.
-        PointLimit = Obj(Iobj).PSFData.fwhm ...
-            .* Args.PixelScale .* Args.PointLimitSigmaFactor;
-
-        PointLimit0 = PointLimit;
-
-        % If PSF is poor, increase PSF limit.
-        if ~any(N_GoodPSF)
-            PointLimit = PointLimit * 5/3;
-        end
+        % 3sigma, narrow
+        PointLimit3 = Obj(Iobj).PSFData.fwhm ...
+            .* Args.PixelScale .* 1.2739;
+        % 5sigma, wide
+        PointLimit5 = PointLimit3*5/3;
 
         % Get star matched candidates
         if CandCat.isColumn('STAR_N')
@@ -551,14 +541,14 @@ function TranCat = flagNonTransients(Obj, Args)
             % extended to determined if a source is nuclear or not,
             % probably best to write a dedicated matchTransients2Galaxies
             % function which uses the N, R, and D catalogs
-            NuclearCand = GalDist < PointLimit;
+            NuclearCand = GalDist < PointLimit5;
         else
             NuclearCand = false(NumCand,1);
         end
 
         if CandCat.isColumn('STAR_DIST')
             StarDist = CandCat.getCol('STAR_DIST');
-            NearStar = StarDist < PointLimit;
+            NearStar = StarDist < PointLimit5;
         else
             NearStar = false(NumCand,1);
         end
@@ -1048,7 +1038,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
             %SelfSrcRadiusRad = Args.ContaminationSelfRadiusFactor .* ...
             %    Args.PixelScale .* Arcsec2Rad;
-            SelfSrcRadiusRad = PointLimit0*Arcsec2Rad;
+            SelfSrcRadiusRad = PointLimit3*Arcsec2Rad;
 
             ContaminationFlux = zeros(NumCand,1);
 
@@ -1295,7 +1285,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 % We're matching galaxy nuclei, so the matching radius is
                 % on candidate postions.
                 MatchResQSO = VO.search.search_sortedlat_multi( ...
-                    [QSOLon, QSOLat], RA, Dec, -PointLimit*Arcsec2Rad);
+                    [QSOLon, QSOLat], RA, Dec, -PointLimit5*Arcsec2Rad);
     
                 % Flag candidates as variable if matched to a QSO.
                 VariableGal = vertcat(MatchResQSO.Nmatch) > 0;
