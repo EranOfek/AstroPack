@@ -65,7 +65,9 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
         % 
         Args.UseMex                      = true;
-
+        
+        Args.DBobj                       = [];
+        Args.DB_Table_Raw                = [];
     end
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
@@ -88,7 +90,13 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
     % load images and check quality
     % AI putput is of size [Nimages x 1]
     [AI, TableForDB, TableHeader, JD_AI] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
-    TableRaw = [TableHeader, TableForDB];
+    
+    TableRaw = [TableHeader, TableForDB];    
+    % need to make the set of columns in Args.DB_Table_Raw fit the columns of TableRaw 
+%     if ~isempty(Args.DBobj)
+%         Args.DBobj.insert(Args.DB_Table_Raw,TableRaw); 
+%     end
+
     % basic calibration (bias, flat,...) 
     % FixJD false, since already done in prePrep
     %ProcessingStep = 31;

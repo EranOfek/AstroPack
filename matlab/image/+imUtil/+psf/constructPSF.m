@@ -138,7 +138,7 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         Args.SN                     = [];
         Args.Back                   = [];
         Args.Var                    = [];
-        Args.SubAnnulusBack logical = true;
+        Args.SubAnnulusBack         = true;
        
         Args.RadiusPSF                 = 8;
         Args.Annulus                   = [10 12];
@@ -166,7 +166,11 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         Args.constructPSF_cutoutsArgs cell = {};
         Args.SumMethod                 = 'median';
         
-        Args.SmoothWings logical       = true;
+        
+        Args.SmoothWings               = true;  % old: psf_zeroConverge  !! set to false
+        Args.SuppressWings             = false; % suppressWings fun      !! set to true;
+        Args.WingsThreshold            = 1e-4;
+        Args.SuppressEdges             = true;  % suppressEdges fun      !! set to false
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
         Args.SuppressWidth             = 3;
         
@@ -300,9 +304,16 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
             VarPSF  = Args.DataType(VarPSF);
         end
 
-        % suppress edges
-        if ~isempty(Args.SuppressWidth) && ~isempty(MeanPSF) 
-             MeanPSF = imUtil.psf.suppressEdges(MeanPSF, 'Fun',Args.SuppressFun, 'FunPars', [Args.RadiusPSF-Args.SuppressWidth, Args.RadiusPSF]);
+        %--- PSF cleaning steps ---
+        InnerRad = NaN;
+        if ~isempty(Args.SuppressWidth) && ~isempty(MeanPSF)
+            if Args.SuppressWings
+                [PSF, InnerRad] = imUtil.psf.suppressWings(PSF, 'Fun',Args.SuppressFun, 'FunPars',Args.RadiusPSF, 'Threshold',Args.WingThreshold);
+            end
+            % suppress edges
+            if Args.SuppressEdges 
+                 MeanPSF = imUtil.psf.suppressEdges(MeanPSF, 'Fun',Args.SuppressFun, 'FunPars', [Args.RadiusPSF-Args.SuppressWidth, Args.RadiusPSF]);
+            end
         end
 
         % cut the stamp and its variance to a given quantile

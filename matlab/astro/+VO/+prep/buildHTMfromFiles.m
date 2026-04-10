@@ -796,6 +796,17 @@ function [Nsrc, CompletedFiles] = processPerFile(Nsrc, CompletedFiles, Completio
     FileDecRanges = FileDecRanges(SortOrder, :);
     FileRARanges  = FileRARanges(SortOrder, :);
 
+    % Eliminate Dec gaps between adjacent files: extend each file's
+    % MaxDec to the next file's MinDec where a gap exists. This ensures
+    % HTM cells whose center falls between adjacent files' actual data
+    % ranges are still processed (no orphaned cells, no lost sources).
+    % Files with overlapping Dec ranges are left unchanged.
+    for Ifile = 1:(Nfiles - 1)
+        if FileDecRanges(Ifile, 2) < FileDecRanges(Ifile + 1, 1)
+            FileDecRanges(Ifile, 2) = FileDecRanges(Ifile + 1, 1);
+        end
+    end
+
     for Ifile = 1:Nfiles
         [~, Bn, Ext] = fileparts(AllFiles{Ifile});
 

@@ -1,4 +1,4 @@
-function Result=cosbell(Pars, SizeXY, PosXY, IsNormPeak)
+function Result=cosbell(Pars, SizeXY, PosXY, IsNormPeak, TypeLikeThisVar)
     % create a matrix or a cube of 2D cosine bell functions
     % Package: +imUtil.kernel2
     % Input  : - [Inner radius, Outer radius] of the cosine bell function.
@@ -9,6 +9,8 @@ function Result=cosbell(Pars, SizeXY, PosXY, IsNormPeak)
     %          - A logical indicating if to normlize peak to 1 (true),
     %            or bu=y sum to 1 (false).
     %            Default is true.
+    %          - A matlab variable. The output will be of the same type.
+    %            Default is [] (i.e., generating a double output).
     % Output : - A matrix or a cube with the 2D cosine-bell.
     %            If a cube, the third dimension corresponds to the template
     %            index.
@@ -20,7 +22,8 @@ function Result=cosbell(Pars, SizeXY, PosXY, IsNormPeak)
         Pars     = [4 7]
         SizeXY   = [15 15];
         PosXY    = [];
-        IsNormPeak logical = false;
+        IsNormPeak  = false;
+        TypeLikeThisVar = [];
     end
 
     if isempty(PosXY)
@@ -37,7 +40,7 @@ function Result=cosbell(Pars, SizeXY, PosXY, IsNormPeak)
     % faster
     MatR = hypot(VecX, VecY);
     
-    Result      = ones(SizeXY(2), SizeXY(1), Npars);
+    Result      = ones(SizeXY(2), SizeXY(1), Npars, 'like',TypeLikeThisVar);
     for Ipars=1:1:Npars
         Val    = ones(SizeXY(2), SizeXY(1));
         
