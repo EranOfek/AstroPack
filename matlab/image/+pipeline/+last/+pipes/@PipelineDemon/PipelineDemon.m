@@ -2763,21 +2763,21 @@ classdef PipelineDemon < Component
                
                  % DataBase
                 
-                Args.DB_Table_Raw      = 'raw_images';
+                Args.DB_Table_Raw      = 'test_raw_images'; % 'raw_images';
                 Args.DB_Table_Proc     = 'proc_images';
                 Args.DB_Table_Coadd    = 'coadd_images';
                 Args.DB_Table_ProcCat  = 'proc_src_catalog';
                 Args.DB_Table_CoaddCat = 'coadd_src_catalog';
                 Args.DB_ImageBulk   logical = true;  % whether to use bulk or direct injection method
                 Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
-                Args.AstroDBArgs cell  = {'Host','10.150.28.18','DatabaseName','last','Port',9000};
+                Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5328};
                 Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
                 
                 Args.InsertTransients2DB = true;
                 Args.DBHost              = '10.23.1.25';
+                Args.DbPort              =  9000;                
                 Args.DbName              = 'last';
-                Args.DbUser              = 'default';
-                
+                Args.DbUser              = 'default';                
 
                 %% NEW
 
@@ -3020,7 +3020,15 @@ classdef PipelineDemon < Component
                             Obj.writeLog(Msg, LogLevel.Info);
                         end
     
-                        % insert raw images to DB
+                        % prepare to insert raw images to DB (this is actually done in pipeline.last.pipes.pipelineI) 
+                        if Args.DebugMode
+                            Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+                            PM = PasswordsManager;    
+                            DB.Password = PM.search(Args.DbName).Pass;                        
+                            DBclient = db.mex.ClickHouseClient(Args.DBhost, Args.DBport, Args.DBuser, DB.Password);
+                            DBclient.query(sprintf('use %s',Args.DBname));
+                            UPArgs.pipelineIArgs = [UPArgs.pipelineIArgs,{'DBobj',DBclient,'DB_Table_Raw',Args.DB_Table_Raw}];
+                        end
                         % FFU
     
     
