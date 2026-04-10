@@ -130,11 +130,19 @@ function decalsSweepToHdf5(SourceURL, FitsDir, Hdf5Dir, Args)
         Mat(:, 1) = Mat(:, 1) .* (pi / 180);
         Mat(:, 2) = Mat(:, 2) .* (pi / 180);
 
-        % Compute RA/Dec range attributes (in radians)
-        MinDec = min(Mat(:, 2));
-        MaxDec = max(Mat(:, 2));
-        MinRA  = min(Mat(:, 1));
-        MaxRA  = max(Mat(:, 1));
+        % Use NOMINAL tile boundaries from the sweep filename (in radians).
+        % This ensures adjacent tiles tile perfectly with no Dec/RA gaps,
+        % so HTM cells at tile boundaries are not missed during HTM build.
+        [RALoDeg, RAHiDeg, DecLoDeg, DecHiDeg] = parseSweepNominal(Bn);
+        if isnan(RALoDeg)
+            fprintf('  WARNING: could not parse nominal range from %s\n', Bn);
+            Nfailed = Nfailed + 1;
+            continue;
+        end
+        MinDec = DecLoDeg * (pi / 180);
+        MaxDec = DecHiDeg * (pi / 180);
+        MinRA  = RALoDeg  * (pi / 180);
+        MaxRA  = RAHiDeg  * (pi / 180);
 
         % Write HDF5
         if isfile(Hdf5Path)
@@ -159,6 +167,34 @@ function decalsSweepToHdf5(SourceURL, FitsDir, Hdf5Dir, Args)
     if Args.Verbose
         fprintf('\nDone: %d converted, %d skipped, %d failed (%.1f min total)\n', ...
             Nconverted, Nskipped, Nfailed, toc(TotalTic) / 60);
+    end
+end
+
+
+function [RALo, RAHi, DecLo, DecHi] = parseSweepNominal(BaseName)
+    % Parse nominal RA/Dec range (degrees) from a DECaLS sweep filename.
+    % Format: sweep-RRR{p|m}DDD-RRR{p|m}DDD where RRR is 3-digit RA and
+    % DDD is 2-3 digit Dec, with 'p' for positive and 'm' for negative.
+    % Example: sweep-180m030-185m025 -> RA [180,185], Dec [-30,-25].
+    Tokens = regexp(BaseName, ...
+        'sweep-(\d{3})([pm])(\d{2,3})-(\d{3})([pm])(\d{2,3})', 'tokens');
+    if isempty(Tokens)
+        RALo  = NaN;
+        RAHi  = NaN;
+        DecLo = NaN;
+        DecHi = NaN;
+        return;
+    end
+    T = Tokens{1};
+    RALo  = str2double(T{1});
+    DecLo = str2double(T{3});
+    if T{2} == 'm', DecLo = -DecLo; end
+    RAHi  = str2double(T{4});
+    DecHi = str2double(T{6});
+    if T{5} == 'm', DecHi = -DecHi; end
+    % Handle RA wraparound (e.g., sweep-355...-005...)
+    if RAHi <= RALo
+        RAHi = RAHi + 360;
     end
 end
 
