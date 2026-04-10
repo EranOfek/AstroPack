@@ -1,7 +1,243 @@
 function [Result] = unitTest()
     % unitTest for imUtil.match
     
-    %%
+    %% imUtil.match.mex.matchTwoCats
+
+    RAD  = 180./pi;
+    
+    N1   = 500;
+    RA0  = 100;
+    Dec0 = 50;
+    Err  = 0.01./3600;  % arcsec
+    RA1  = rand(N1,1) + RA0;
+    Dec1 = rand(N1,1) + Dec0;
+    SearchRad = 1.5./(RAD.*3600);
+    
+    [Dec1, SI] = sort(Dec1);
+    RA1        = RA1(SI);
+    
+    N2   = 1000;
+    RA2  = rand(N2,1) + RA0;
+    Dec2 = rand(N2,1) + Dec0;
+    RA2(1:N1)  = RA1(1:N1) + randn(N1,1).*Err;
+    Dec2(1:N1) = Dec1(1:N1) + randn(N1,1).*Err;
+    
+    RA1  = RA1./RAD;
+    Dec1 = Dec1./RAD;
+    RA2  = RA2./RAD;
+    Dec2 = Dec2./RAD;
+    
+    [Ind,FlagUnique,FlagFound]=VO.search.search_sortedlat_multi([RA1, Dec1], RA2, Dec2, -SearchRad);
+    [IndNearest2to1, DistNearest, Nmatch, IndAll] = imUtil.match.mex.matchTwoCats(RA1, Dec1, RA2, Dec2, SearchRad, false, false, false);
+       
+    if any((IndNearest2to1(~isnan(IndNearest2to1))~=[Ind.Ind].'))
+        error('Problem with matchTwoCats');
+    end
+    
+    if max(DistNearest(~isnan(DistNearest))-[Ind.Dist].')>3e-8
+        error('Problem with matchTwoCats');
+    end
+    
+    %% imUtil.match.mex.matchTwoCatsXY
+    % this can fail sometimes (just do it again)
+    
+    RAD  = 180./pi;
+    
+    N1   = 200;
+    RA0  = 100;
+    Dec0 = 50;
+    Err  = 0.01./3600;  % arcsec
+    RA1  = rand(N1,1) + RA0;
+    Dec1 = rand(N1,1) + Dec0;
+    SearchRad = 1.5./(RAD.*3600);
+    
+    [Dec1, SI] = sort(Dec1);
+    RA1        = RA1(SI);
+    
+    N2   = 500;
+    RA2  = rand(N2,1) + RA0;
+    Dec2 = rand(N2,1) + Dec0;
+    RA2(1:N1)  = RA1(1:N1) + randn(N1,1).*Err;
+    Dec2(1:N1) = Dec1(1:N1) + randn(N1,1).*Err;
+    
+    RA1  = RA1./RAD;
+    Dec1 = Dec1./RAD;
+    RA2  = RA2./RAD;
+    Dec2 = Dec2./RAD;
+  
+    [Ind,FlagUnique,FlagFound]=VO.search.search_sortedlat_multi([RA1, Dec1], RA2, Dec2, -SearchRad);
+  
+    [IndNearest2to1, DistNearest, Nmatch, IndAll] = imUtil.match.mex.matchTwoCatsXY(RA1, Dec1, RA2, Dec2, SearchRad, false, false, false);
+ 
+    
+    if any((IndNearest2to1(~isnan(IndNearest2to1))~=[Ind.Ind].'))
+        error('Problem with matchTwoCats');
+    end
+    
+    if max(DistNearest(~isnan(DistNearest))-[Ind.Dist].')>1e-7
+        max(DistNearest(~isnan(DistNearest))-[Ind.Dist].')
+        error('Problem with matchTwoCats');
+    end
+    
+    
+    
+    %% imUtil.match.mex.matchSelfCat
+    
+    RAD  = 180./pi;
+    
+    N1   = 100;
+    RA0  = 100;
+    Dec0 = 50;
+    Err  = 0.01./3600;  % arcsec
+    SearchRad = 1./3600; % arcsec
+    RA1  = rand(N1,1) + RA0;
+    Dec1 = rand(N1,1) + Dec0;
+    SearchRad = 1.5./(RAD.*3600);
+    RA1(end+1) = RA1(1) - Err;
+    Dec1(end+1) = Dec1(1) - Err;
+    
+    RA1  = RA1./RAD;
+    Dec1 = Dec1./RAD;
+    
+    [Dec1, SI] = sort(Dec1);
+    RA1 = RA1(SI);
+    
+    [Ind,FlagUnique,FlagFound]=VO.search.search_sortedlat_multi([RA1, Dec1], RA1, Dec1, -SearchRad);
+   
+    [IndNearest2to1, DistNearest, Nmatch, IndAll] = imUtil.match.mex.matchSelfCat(RA1, Dec1, SearchRad, false, true, false);
+   
+    if sum(~isnan(IndNearest2to1))~=2 || sum(Nmatch)~=2
+        error('Problem');
+    end
+    
+    % remove duplicates
+    [IndNearest2to1, DistNearest, Nmatch] = imUtil.match.mex.matchSelfCat(RA1, Dec1, SearchRad, false, false, false, true);
+
+    if sum(~isnan(IndNearest2to1))~=1 || sum(Nmatch)~=1
+        error('Problem');
+    end
+
+    %% imUtil.match.mex.matchSelfCatXY
+    
+    RAD  = 180./pi;
+    
+    N1   = 100;
+    RA0  = 100;
+    Dec0 = 50;
+    Err  = 0.01./3600;  % arcsec
+    SearchRad = 1./3600; % arcsec
+    RA1  = rand(N1,1) + RA0;
+    Dec1 = rand(N1,1) + Dec0;
+    SearchRad = 1.5./(RAD.*3600);
+    RA1(end+1) = RA1(1) - Err;
+    Dec1(end+1) = Dec1(1) - Err;
+    
+    RA1  = RA1./RAD;
+    Dec1 = Dec1./RAD;
+    
+    [Dec1, SI] = sort(Dec1);
+    RA1 = RA1(SI);
+    
+    [Ind,FlagUnique,FlagFound]=VO.search.search_sortedlat_multi([RA1, Dec1], RA1, Dec1, -SearchRad);
+   
+    [IndNearest2to1, DistNearest, Nmatch, IndAll] = imUtil.match.mex.matchSelfCatXY(RA1, Dec1, SearchRad, false, true, false);
+   
+    if sum(~isnan(IndNearest2to1))~=2 || sum(Nmatch)~=2
+        error('Problem');
+    end
+    
+    % remove duplicates
+    [IndNearest2to1, DistNearest, Nmatch] = imUtil.match.mex.matchSelfCat(RA1, Dec1, SearchRad, false, false, false, true);
+
+    if sum(~isnan(IndNearest2to1))~=1 || sum(Nmatch)~=1
+        error('Problem');
+    end
+
+
+
+    %% VO.search.search_sortedlat_multi (different package but related)
+    RAD  = 180./pi;
+    
+    N1   = 1000;
+    RA0  = 100;
+    Dec0 = 50;
+    Err  = 0.1./3600;  % arcsec
+    RA1  = rand(N1,1) + RA0;
+    Dec1 = rand(N1,1) + Dec0;
+    
+    N2   = 2000;
+    RA2  = rand(N2,1) + RA0 + 1;
+    Dec2 = rand(N2,1) + Dec0 + 1;
+    
+    Nm = 3;  % manually match 3 sources
+    [RA2(10),Imin] = min(RA1);
+    Dec2(10)       = Dec1(Imin);
+    [RA2(20),Imax] = max(RA1);
+    Dec2(20)       = Dec1(Imax);
+    RA2(30)        = RA1(100);
+    Dec2(30)       = Dec1(100);
+    
+    %
+    Cat = [RA2, Dec2];
+    [Cat, SI] = sortrows(Cat,2);
+    SearchRad = 1.5./(RAD.*3600);
+    % convert to radians:
+    Cat  = Cat./RAD;
+    RA1  = RA1./RAD;
+    Dec1 = Dec1./RAD;
+    
+    
+    Nt=10;
+    [Ind,FlagUnique,FlagFound]=VO.search.search_sortedlat_multi(Cat,Cat(1:Nt,1),Cat(1:Nt,2),SearchRad);
+    if sum([Ind.Nmatch])~=Nt
+        sum([Ind.Nmatch])
+        error('Problem with VO.search.search_sortedlat_multi');
+    end
+    
+    [Ind,FlagUnique,FlagFound]=VO.search.search_sortedlat_multi(Cat,RA1, Dec1,SearchRad);
+    IndF = find([Ind.Nmatch]>0);
+    if numel(IndF)~=Nm
+        error('Problem with VO.search.search_sortedlat_multi');
+    end
+    if sum(FlagUnique)~=Nm
+        error('Problem with VO.search.search_sortedlat_multi');
+    end
+    
+    %
+    % multiple coincidence
+    
+    RAD  = 180./pi;
+    
+    N1   = 10;
+    RA0  = 100;
+    Dec0 = 50;
+    Err  = 0.01./3600;  % arcsec
+    RA1  = rand(N1,1) + RA0;
+    Dec1 = rand(N1,1) + Dec0;
+    SearchRad = 1.5./(RAD.*3600);
+    
+    
+    [Dec1, SI] = sort(Dec1);
+    RA1        = RA1(SI);
+    
+    N2   = 20;
+    RA2  = RA1(1) + randn(N2,1).*Err;
+    Dec2 = Dec1(1) + randn(N2,1).*Err;
+    Dist = celestial.coo.sphere_dist_fast(RA1(1)./RAD, Dec1(1)./RAD, RA2./RAD, Dec2./RAD);
+    [~,MinInd] = min(Dist);
+    
+    
+    [Ind,FlagUnique,FlagFound]=VO.search.search_sortedlat_multi([RA1, Dec1]./RAD, RA2./RAD, Dec2./RAD,SearchRad);
+    if sum([Ind.Nmatch]>0)~=N2
+        error('Problem with VO.search.search_sortedlat_multi / many match');
+    end
+    
+    [Dec2, SI] = sort(Dec2);
+    RA2        = RA2(SI);
+    [Ind,FlagUnique,FlagFound]=VO.search.search_sortedlat_multi([RA2, Dec2]./RAD, RA1./RAD, Dec1./RAD,SearchRad);
+    if sum([Ind.Nmatch]>0)~=1
+        error('Problem with VO.search.search_sortedlat_multi / many match');
+    end
 
     %% imUtil.match.mex.matchCatalogs / full test (list 1)
     RAD = 180./pi;
