@@ -2774,7 +2774,7 @@ classdef PipelineDemon < Component
                 Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
                 
                 Args.InsertTransients2DB = true;
-                Args.DBHost              = '10.23.1.25';
+                Args.DbHost              = '10.23.1.25';
                 Args.DbPort              =  9000;                
                 Args.DbName              = 'last';
                 Args.DbUser              = 'default';                
@@ -3025,9 +3025,9 @@ classdef PipelineDemon < Component
                             Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
                             PM = PasswordsManager;    
                             DB.Password = PM.search(Args.DbName).Pass;                        
-                            DBclient = db.mex.ClickHouseClient(Args.DBhost, Args.DBport, Args.DBuser, DB.Password);
-                            DBclient.query(sprintf('use %s',Args.DBname));
-                            UPArgs.pipelineIArgs = [UPArgs.pipelineIArgs,{'DBobj',DBclient,'DB_Table_Raw',Args.DB_Table_Raw}];
+                            DBclient = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
+                            DBclient.query(sprintf('use %s',Args.DbName));
+                            UpArgs.pipelineIArgs = [UpArgs.pipelineIArgs,{'DBobj',DBclient,'DB_Table_Raw',Args.DB_Table_Raw}];
                         end
                         % FFU
     
