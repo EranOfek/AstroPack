@@ -2589,8 +2589,30 @@ classdef PipelineDemon < Component
             % FN_FP.Counter  = 0;
             % FN_FP.CropID   = 0;
             % imProc.io.saveProductImage(AllForcedPhot, FN_FP, 'BasePath',DD.BasePath, 'OutProduct',["Cat"], 'WriteHeader',false);
+            
+            
+            % Insert pipeline products to the DB
+            if Args.Insert2DB
+                Msg{1} = sprintf('pipeline.DemonLAST started preparing DB data for group %d',Igroup);
+                Obj.writeLog(Msg, LogLevel.Info);
+                if isempty(ADB) % && ( ~Args.DB_ImageBulk || ~Args.DB_CatalogBulk) % connect to DB
+                    ADB = db.AstroDb(Args.AstroDBArgs{:});
+                end
+                try
+                    Obj.insert2DB(ADB, RawHeader, AllSI, Coadd, RawImageListFinal, FN_I, FN_Proc, FN_Coadd, ...
+                        'DB_ImageBulk',Args.DB_ImageBulk,'DB_CatalogBulk',Args.DB_CatalogBulk,...
+                        'DB_Table_Raw',Args.DB_Table_Raw,'DB_Table_Proc',Args.DB_Table_Proc,'DB_Table_Coadd',Args.DB_Table_Coadd,...
+                        'UpdateStatusFile',Args.UpdateStatusFile,'Tstart',Tstart);
+                catch DBMsg
+                    DBErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', DBMsg.message, DBMsg.stack(1).name, DBMsg.stack(1).line);
+                    Obj.writeLog(DBErrorMsg, LogLevel.Error);
+                    Obj.writeLog(DBMsg, LogLevel.Error);
+                end
+            end
+            
         end
 
+        
         function transientDetectionPipeline(Obj, Coadd, FN_Proc, UpArgs)
             % excute transients detection pipeline
 
@@ -2646,25 +2668,6 @@ classdef PipelineDemon < Component
                 Obj.writeLog(Msg, LogLevel.Info);
             end
 
-
-            % Insert pipeline products to the DB
-            if Args.Insert2DB 
-                Msg{1} = sprintf('pipeline.DemonLAST started preparing DB data for group %d',Igroup);
-                Obj.writeLog(Msg, LogLevel.Info);
-                if isempty(ADB) % && ( ~Args.DB_ImageBulk || ~Args.DB_CatalogBulk) % connect to DB
-                    ADB = db.AstroDb(Args.AstroDBArgs{:});
-                end
-                try                                                                                                                                                             
-                    Obj.insert2DB(ADB, RawHeader, AllSI, Coadd, RawImageListFinal, FN_I, FN_Proc, FN_Coadd, ...
-                        'DB_ImageBulk',Args.DB_ImageBulk,'DB_CatalogBulk',Args.DB_CatalogBulk,...
-                        'DB_Table_Raw',Args.DB_Table_Raw,'DB_Table_Proc',Args.DB_Table_Proc,'DB_Table_Coadd',Args.DB_Table_Coadd,...
-                        'UpdateStatusFile',Args.UpdateStatusFile,'Tstart',Tstart);                                     
-                catch DBMsg
-                    DBErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', DBMsg.message, DBMsg.stack(1).name, DBMsg.stack(1).line);
-                    Obj.writeLog(DBErrorMsg, LogLevel.Error);
-                    Obj.writeLog(DBMsg, LogLevel.Error);
-                end
-            end
             % Insert transients to the transients' DB (on the fly)
             if Args.InsertTransients2DB && ~isempty(TCL2)
                 if ~TCL2.isemptyCatalog
@@ -3020,7 +3023,8 @@ classdef PipelineDemon < Component
                             Obj.writeLog(Msg, LogLevel.Info);
                         end
     
-                        % prepare to insert raw images to DB (this is actually done in pipeline.last.pipes.pipelineI) 
+                        % prepare to insert data into the DB, in particular,
+                        % to insert raw images' header data (this is done in pipeline.last.pipes.pipelineI) 
                         if Args.DebugMode
                             Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
                             PM = PasswordsManager;    
