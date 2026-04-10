@@ -2770,7 +2770,7 @@ classdef PipelineDemon < Component
                 Args.DB_Table_CoaddCat = 'coadd_src_catalog';
                 Args.DB_ImageBulk   logical = true;  % whether to use bulk or direct injection method
                 Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
-                Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};
+                Args.AstroDBArgs cell  = {'Host','10.150.28.18','DatabaseName','last','Port',9000};
                 Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
                 
                 Args.InsertTransients2DB = true;
