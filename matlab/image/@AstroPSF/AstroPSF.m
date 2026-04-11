@@ -658,7 +658,7 @@ classdef AstroPSF < Component
                 if CumSum(1)>=Frac
                     FWHM_CumSum = 2.*Frac./CumSum(1);
                 else
-                    Mask = [true; diff(CumSum) ~= 0];  % in order interp1 not fall when CumSum contains 2 identical values                  
+                    Mask = [true; diff(CumSum) ~= 0]; % in order interp1 not fall when CumSum contains 2 identical values                  
                     FWHM_CumSum = 2.*interp1(CumSum(Mask), Rad(Mask), Frac);
                     
                 end
