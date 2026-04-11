@@ -1,5 +1,7 @@
 function [Ind,FlagUnique,FlagFound]=search_sortedlat_multi(Cat,Long,Lat,Radius,FlagUnique,DistFun,Args)
 % Search a single long/lat in a catalog sorted by latitude
+%   OBSOLETE: use instead funcions in imUtil.match.mex
+%   Known bugs: see issue #710
 % Package: VO.search
 % Description: A low level function for a single cone search
 %              in a [Long, Lat] array.

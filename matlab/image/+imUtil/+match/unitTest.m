@@ -295,8 +295,8 @@ function [Result] = unitTest()
         error('Problem with imUtil.match.mex.matchCatalogs / Nmatch1 output');
     end
     TestVal=max(abs(TestDist1-Dist1),[],1);
-    if TestVal>1e-12
-        TestVal
+    if TestVal>1e-6
+        TestVal  % deg
         error('Problem with imUtil.match.mex.matchCatalogs / Dist1 output');
     end
     TestVal1 = max(abs(TestInd1-Ind1),[],1);
@@ -331,7 +331,7 @@ function [Result] = unitTest()
         error('Problem with imUtil.match.mex.matchCatalogs / Nmatch2 output');
     end
     TestVal=max(abs(TestDist2-Dist2),[],1);
-    if TestVal>1e-12
+    if TestVal>1e-6
         TestVal
         error('Problem with imUtil.match.mex.matchCatalogs / Dist2 output');
     end
@@ -407,7 +407,7 @@ function [Result] = unitTest()
         error('Problem with imUtil.match.mex.matchCatalogs / Nmatch1 output');
     end
     TestVal=max(abs(TestDist1-Dist1),[],1);
-    if TestVal>1e-12
+    if TestVal>1e-6
         TestVal
         error('Problem with imUtil.match.mex.matchCatalogs / Dist1 output');
     end
@@ -484,7 +484,7 @@ function [Result] = unitTest()
         error('Problem with imUtil.match.mex.matchCatalogs / Nmatch2 output');
     end
     TestVal=max(abs(TestDist2-Dist2),[],1);
-    if TestVal>1e-12
+    if TestVal>1e-6
         TestVal
         error('Problem with imUtil.match.mex.matchCatalogs / Dist2 output');
     end

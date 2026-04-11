@@ -44,6 +44,12 @@
 %            'Dist' - Distances of all matches. Units follow IsUnitsDeg.
 %            This output is calculated only if requested.
 % Author : ChatGPT + Eran Ofek (Apr 2026)
+% Notes  : To get a vector of logicals (length of list1), which indicate
+%          the object in list1 that was identified as the nearest object to a source
+%          in list2:
+%               FlagNearest = false(numel(RA1),1);
+%               Igood = ~isnan(IndNearest2to1);
+%               FlagNearest(IndNearest2to1(Igood)) = true;
 % Compilation: mex -O CXXFLAGS='$CXXFLAGS -fopenmp -std=c++17' LDFLAGS='$LDFLAGS -fopenmp' matchTwoCats.cpp
 % Example: 
 %{

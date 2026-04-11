@@ -52,6 +52,8 @@ function [Result] = matchByMaxAngSpeed(Data, Args)
     MaxDeltaJD  = range(JD);
     MaxSearchRadius = MaxDeltaJD.*Args.MaxAngSpeed;
     Result=VO.search.search_sortedlat_multi([RA, Dec], RA, Dec, MaxSearchRadius);
+    % if completed - use: imUtil.match.mex.* instead
+
 
     'a'
 
