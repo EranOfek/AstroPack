@@ -157,16 +157,21 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
         AI.setKeyVal(Args.SubDirKey, AFN.SubDir);
     end
     
-    % correct the FileType: cut the ending and add a new one if requested
-    Idx = strfind(FileType, '.');
-    if ~isempty(Idx)
-        FileType = FileType(1:Idx(1)-1);
-    end
-    if ~isempty(Args.CompressedOutput)
-        FileType = [FileType '.' Args.CompressedOutput];
-    else
+    % correct the FileType and FileList: cut the ending and add a new one if requested
+    Idx = strfind(FileType, '.'); 
+    if isempty(Idx)  % input is plain fits
+        if ~isempty(Args.CompressedOutput) % output is fits.fz or alike
+            FileType = [FileType '.' Args.CompressedOutput];
+            FileList = [FileList '.' Args.CompressedOutput];
+        end
+    else % input is fits.fz (or fits.bz2 or alike)
+        FileType = FileType(1:Idx(1)-1); % first cut the original extension
         FileList = regexprep(FileList, '\.[^.]*$', '');
-    end
+        if ~isempty(Args.CompressedOutput) % add a new extension if needed
+            FileType = [FileType '.' Args.CompressedOutput];
+            FileList = [FileList '.' Args.CompressedOutput];
+        end
+    end    
 
     Nobj = numel(AI);
     if Nim~=Nobj
