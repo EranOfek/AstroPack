@@ -1,5 +1,7 @@
 function [Ind,FlagUnique,FlagFound]=search_sortedlat_multi(Cat,Long,Lat,Radius,FlagUnique,DistFun,Args)
 % Search a single long/lat in a catalog sorted by latitude
+%   OBSOLETE: use instead funcions in imUtil.match.mex
+%   Known bugs: see issue #710
 % Package: VO.search
 % Description: A low level function for a single cone search
 %              in a [Long, Lat] array.
@@ -94,6 +96,33 @@ FlagFound    = false(Nlat,1);
 
 
 for I=1:1:Nlat
+    %% NEW BLOCK (to fix Issue: #710 - returned sourceis not necesserly the nearest)
+    % NOT TESTED - Instead use new functionality:
+    %
+    % Dist  = DistFun(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat), Args.DistFunArgs{:});
+    % FlagDist = Dist <= Radius;
+    % Ind(I).Ind    = Ilow(I)-1+find(FlagDist);
+    % %Ind(I).Ind    = Ilow(I)-1+find(Dist <= Radius);
+    % Ind(I).Nmatch = numel(Ind(I).Ind);
+    % 
+    % if CalcDist
+    %     Ind(I).Dist   = Dist(FlagDist);
+    % 
+    %     switch numel(Ind(I).Ind)
+    %         case 0
+    %             Ind(I).Ind1 = NaN;
+    %         case 1
+    %             Ind(I).Ind1 = Ind(I).Ind;
+    %         otherwise
+    %             [~,MinI] = min(Ind(I).Dist);
+    %             Ind(I).Ind1 = Ind(I).Ind(MinI);
+    %     end
+    % 
+    % end
+
+    %%
+
+    %% OLD BLOCK
     %Dist  = celestial.coo.sphere_dist_fast(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat));
     Dist  = DistFun(Long(I),Lat(I), Cat(Ilow(I):Ihigh(I),Col.Lon), Cat(Ilow(I):Ihigh(I),Col.Lat), Args.DistFunArgs{:});
     FlagDist = Dist <= Radius;
@@ -115,6 +144,8 @@ for I=1:1:Nlat
         end
         
     end
+    %%
+
     if ~any(FlagUnique(Ind(I).Ind))
         % a new unique source
         FlagUnique(Ind(I).Ind) = true;

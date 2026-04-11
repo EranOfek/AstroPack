@@ -129,6 +129,7 @@ CatalogCompact BuildCompactCatalog(const mxArray* RA_Arr,
     C.OrigInd.reserve(N);
 
     const double NaN = mxGetNaN();
+
     double PrevDec = -std::numeric_limits<double>::infinity();
     HasSortedError = false;
 
@@ -176,37 +177,6 @@ CatalogCompact BuildCompactCatalog(const mxArray* RA_Arr,
     return C;
 }
 
-CatalogCompact SortCatalogByDec(const CatalogCompact& C) {
-    const std::size_t N = C.Dec.size();
-    std::vector<std::size_t> Order(N);
-    for (std::size_t i = 0; i < N; ++i) {
-        Order[i] = i;
-    }
-
-    std::stable_sort(Order.begin(), Order.end(),
-                     [&C](std::size_t a, std::size_t b) {
-                         return C.Dec[a] < C.Dec[b];
-                     });
-
-    CatalogCompact S;
-    S.RA.resize(N);
-    S.Dec.resize(N);
-    S.SinDec.resize(N);
-    S.CosDec.resize(N);
-    S.OrigInd.resize(N);
-
-    for (std::size_t i = 0; i < N; ++i) {
-        const std::size_t j = Order[i];
-        S.RA[i]      = C.RA[j];
-        S.Dec[i]     = C.Dec[j];
-        S.SinDec[i]  = C.SinDec[j];
-        S.CosDec[i]  = C.CosDec[j];
-        S.OrigInd[i] = C.OrigInd[j];
-    }
-
-    return S;
-}
-
 struct MatchResult {
     mwSize BestOrigInd;
     double BestCosD;
@@ -233,7 +203,7 @@ MatchResult FindBestInSortedDecSlab(double RA_Q,
                                     double Dec_Q,
                                     double SinDec_Q,
                                     double CosDec_Q,
-                                    const CatalogCompact& TargetSorted,
+                                    const CatalogCompact& Target,
                                     double MatchDistRad,
                                     double CosLimit,
                                     double SinR) {
@@ -246,33 +216,33 @@ MatchResult FindBestInSortedDecSlab(double RA_Q,
     const double DecMin = std::max(Dec_Q - MatchDistRad, -HALF_PI);
     const double DecMax = std::min(Dec_Q + MatchDistRad,  HALF_PI);
 
-    auto ItLo = std::lower_bound(TargetSorted.Dec.begin(), TargetSorted.Dec.end(), DecMin);
-    auto ItHi = std::upper_bound(TargetSorted.Dec.begin(), TargetSorted.Dec.end(), DecMax);
+    auto ItLo = std::lower_bound(Target.Dec.begin(), Target.Dec.end(), DecMin);
+    auto ItHi = std::upper_bound(Target.Dec.begin(), Target.Dec.end(), DecMax);
 
-    const std::size_t ILo = static_cast<std::size_t>(ItLo - TargetSorted.Dec.begin());
-    const std::size_t IHi = static_cast<std::size_t>(ItHi - TargetSorted.Dec.begin());
+    const std::size_t ILo = static_cast<std::size_t>(ItLo - Target.Dec.begin());
+    const std::size_t IHi = static_cast<std::size_t>(ItHi - Target.Dec.begin());
 
     bool DoRaPrefilter = false;
     double DeltaRaMax = 0.0;
     DoRaPrefilter = UseRaPrefilter(CosDec_Q, SinR, DeltaRaMax);
 
     for (std::size_t K = ILo; K < IHi; ++K) {
-        const double DRA = WrapDiffRA(TargetSorted.RA[K] - RA_Q);
+        const double DRA = WrapDiffRA(Target.RA[K] - RA_Q);
         if (DoRaPrefilter && std::fabs(DRA) > DeltaRaMax) {
             continue;
         }
 
         const double CosD =
-            SinDec_Q * TargetSorted.SinDec[K] +
-            CosDec_Q * TargetSorted.CosDec[K] * std::cos(DRA);
+            SinDec_Q * Target.SinDec[K] +
+            CosDec_Q * Target.CosDec[K] * std::cos(DRA);
 
         if (CosD >= CosLimit) {
             ++R.Count;
             if (!R.Found || CosD > R.BestCosD ||
-                (CosD == R.BestCosD && TargetSorted.OrigInd[K] < R.BestOrigInd)) {
+                (CosD == R.BestCosD && Target.OrigInd[K] < R.BestOrigInd)) {
                 R.Found = true;
                 R.BestCosD = CosD;
-                R.BestOrigInd = TargetSorted.OrigInd[K];
+                R.BestOrigInd = Target.OrigInd[K];
             }
         }
     }
@@ -369,6 +339,14 @@ void mexFunction(int Nlhs, mxArray* Plhs[], int Nrhs, const mxArray* Prhs[]) {
     const double CosLimit = std::cos(MatchDistRad);
     const double SinR = std::sin(MatchDistRad);
 
+    // Output order:
+    // 1: Ind1
+    // 2: Dist1
+    // 3: Nmatch1
+    // 4: Ind2
+    // 5: Dist2
+    // 6: Nmatch2
+
     const bool NeedDist1   = (Nlhs >= 2);
     const bool NeedNmatch1 = (Nlhs >= 3);
     const bool NeedReverse = (Nlhs >= 4);
@@ -376,7 +354,7 @@ void mexFunction(int Nlhs, mxArray* Plhs[], int Nrhs, const mxArray* Prhs[]) {
     const bool NeedNmatch2 = (Nlhs >= 6);
 
     // Allocate outputs now, but do not write to them in parallel.
-    Plhs[0] = mxCreateDoubleMatrix(N1, 1, mxREAL);
+    Plhs[0] = mxCreateDoubleMatrix(N1, 1, mxREAL); // Ind1
     double* Ind1 = mxGetPr(Plhs[0]);
 
     double* Dist1 = nullptr;
@@ -406,9 +384,9 @@ void mexFunction(int Nlhs, mxArray* Plhs[], int Nrhs, const mxArray* Prhs[]) {
         Nmatch2 = mxGetPr(Plhs[5]);
     }
 
+    // Temporary output buffers
     const double NaN = mxGetNaN();
 
-    // Temporary output buffers
     std::vector<double> TmpInd1(N1, NaN);
     std::vector<double> TmpDist1;
     std::vector<double> TmpNmatch1;
@@ -442,14 +420,11 @@ void mexFunction(int Nlhs, mxArray* Plhs[], int Nrhs, const mxArray* Prhs[]) {
                           "Valid/used Dec2 entries must be sorted in ascending order after declination correction.");
     }
 
-    // Auxiliary sorted view of compact catalog 1 for reverse search only
-    CatalogCompact C1Sorted = SortCatalogByDec(C1);
-
     const std::size_t M1 = C1.Dec.size();
     const std::size_t M2 = C2.Dec.size();
     const bool UseOMP = ShouldUseOpenMP(M1, M2, NeedReverse);
 
-    // Direction 1: Catalog 1 -> Catalog 2 (C2 is sorted by Dec)
+    // Direction 1: Catalog 1 -> Catalog 2 (binary search in sorted Dec2)
 #ifdef _OPENMP
 #pragma omp parallel for if(UseOMP) schedule(guided, 32)
 #endif
@@ -480,7 +455,7 @@ void mexFunction(int Nlhs, mxArray* Plhs[], int Nrhs, const mxArray* Prhs[]) {
         }
     }
 
-    // Direction 2: Catalog 2 -> Catalog 1 (use sorted auxiliary C1 view)
+    // Direction 2: Catalog 2 -> Catalog 1 (also slab search now)
     if (NeedReverse) {
 #ifdef _OPENMP
 #pragma omp parallel for if(UseOMP) schedule(guided, 32)
@@ -494,7 +469,7 @@ void mexFunction(int Nlhs, mxArray* Plhs[], int Nrhs, const mxArray* Prhs[]) {
                 C2.Dec[K],
                 C2.SinDec[K],
                 C2.CosDec[K],
-                C1Sorted,
+                C1,
                 MatchDistRad,
                 CosLimit,
                 SinR

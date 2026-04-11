@@ -1,6 +1,6 @@
-% (matchCatalogs) Fast mex for match two spherical-coo catalogs using nearest-neighbor search.
+% (matchCatalogsBothSorted) Fast mex for match two spherical-coo catalogs using nearest-neighbor search (two lists sorted).
 %   See also: imUtil.match.mex.matchCatalogsXY (for planer coordinates)
-%             imUtil.match.mex.matchCatalogsBothSorted (both list sorted)
+%             imUtil.match.mex.matchCatalogs (for only list2 sorted)
 % Package: +imUtil/+match/+mex
 % Description: Given two catalogs of spherical coordinates, find the
 %              closest match to each source in catalog 1 within a search
@@ -10,8 +10,8 @@
 %              may point to another source in catalog 1. For each source,
 %              the function also returns the number of matches found within
 %              the search radius.
-% Input  : - Vector of longitudes/RA of catalog 1.
-%          - Vector of latitudes/Dec of catalog 1.
+% Input  : - Vector of longitudes/RA of catalog 1 (soered by Dec)
+%          - Vector of latitudes/Dec of catalog 1 (sorted by Dec)
 %          - Vector of longitudes/RA of catalog 2 (sorted by Dec)
 %          - Vector of latitudes/Dec of catalog 2 (Sorted by Dec).
 %          - Search radius.
