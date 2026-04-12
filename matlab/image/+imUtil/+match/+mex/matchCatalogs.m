@@ -60,8 +60,8 @@
 %              in ascending order.
 %           9. If List2Sorted is false, the code does not sort catalog 2
 %              internally.
-% Compilation: mex -R2018a CXXFLAGS='$CXXFLAGS -O3 -std=c++11 -fopenmp' LDFLAGS='$LDFLAGS -fopenmp' matchCatalogs.cpp
-%
+% Compilation: %mex -R2018a CXXFLAGS='$CXXFLAGS -O3 -std=c++11 -fopenmp' LDFLAGS='$LDFLAGS -fopenmp' matchCatalogs.cpp
+%              mex -R2018a CXXFLAGS='$CXXFLAGS -O3 -std=c++17 -march=x86-64 -mtune=generic -fopenmp' LDFLAGS='$LDFLAGS -fopenmp -static-libstdc++ -static-libgcc' matchCatalogs.cpp
 % Example:
 %{
         RA1  = [10; 20; 30];

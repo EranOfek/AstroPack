@@ -32,14 +32,18 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
     %                   WCS epochs are masked via FlagGood using
     %                   imProc.astrometry.isSuccessWCS.
     %                   Default is false.
+    %            'unifyArgs' - A cell array of arguments to pass to: imProc.match.unify
+    %                   Default is {}.
+    %
     %            'CooType' - Coordinate type by which to match the sources
     %                   I.e., 'pix'|'sphere'.
+    %                   Relevant only for MatchMethod=legacy.
     %                   Default is 'sphere'.
     %            'Radius' - Matching radius (in RadiusUnits).
     %                   Default is 3.
     %            'RadiusUnits' - Units of matching radius (e.g., 'arcsec'|'pix').
     %                   Default is 'arcsec'.
-    %            'MatchedColums' - Cell array of column names to carry into
+    %            'MatchedCols' - Cell array of column names to carry into
     %                   the matched catalog (see default in arguments block).
     %            'unifiedSourcesCatalogArgs' - Cell array of additional
     %                   arguments forwarded to MatchedSources.unifiedCatalogsIntoMatched.
@@ -78,6 +82,13 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
     %                   Default is {}.
     %            'UseMex' - A logical indicating if to use MEX when
     %                   possible. Default is false.
+    %            'MatchMethod' - Matching method: 'unify' | 'legacy'.
+    %                   Options are:
+    %                       'unify' - use imProc.match.unify including mex.
+    %                       'legacy' - Use
+    %                           MatchedSources/unifiedCatalogsIntoMatched (old
+    %                           code).
+    %                   Default is 'unify'.
     %
     % Output : - MatchedS : 1-by-Nfields array of MatchedSources objects.
     %           - ResZP   : 1-by-Nfields struct array with zero-point fit
@@ -92,15 +103,15 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
         Args.JD                = [];
         Args.FlagGood          = []; % same Dim as AI
         Args.CheckAstrom       = false;
+        Args.unifyArgs         = {};
         Args.CooType           = 'sphere';
         Args.Radius            = 3;
         Args.RadiusUnits       = 'arcsec';
-        Args.MatchedColums     = {'RA','Dec',...
+        Args.MatchedCols       = {'RA','Dec',...
                                   'X','Y',...
                                   'X1','Y1','X2','Y2','XY',...
-                                  'SN','SN_1','SN_2','SN_3','SN_4',...
+                                  'SN','SN_1','SN_2',...
                                   'MAG_PSF','MAGERR_PSF','PSF_CHI2DOF',...
-                                  'MAG_APER_2','MAGERR_APER_2',...
                                   'MAG_APER_3','MAGERR_APER_3',...
                                   'FLUX_APER_3',...
                                   'FLAGS',...
@@ -122,6 +133,7 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
 
         Args.unifiedSourcesCatalogArgs = {};
         Args.UseMex            = false;
+        Args.MatchMethod       = 'unify'; % 'legacy'
         %Args.LogObj            = [];
     end
 
@@ -184,15 +196,23 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
         FlagGood = Args.FlagGood(:,Ifields);   
 
         % source matching
-        [MatchedS(Ifields), Matched(Ifields,:)] = MatchedS(Ifields).unifiedCatalogsIntoMatched(AI(FlagGood,Ifields),...
-                                                         'CooType',Args.CooType,...
-                                                         'Radius',Args.Radius,...
-                                                         'RadiusUnits',Args.RadiusUnits,...
-                                                         'MatchedColums',Args.MatchedColums,...
-                                                         'JD',JD(FlagGood),...
-                                                         Args.unifiedSourcesCatalogArgs{:});
+        switch Args.MatchMethod
+            case 'unify'
+                % x7 faster
+                [~,~, MatchedS(Ifields)] = imProc.match.unify(AI(FlagGood,Ifields), Args.unifyArgs{:}, 'MatchRadius',Args.Radius, 'Col',Args.MatchedCols);
+            case 'legacy'
+                [MatchedS(Ifields), Matched(Ifields,:)] = MatchedS(Ifields).unifiedCatalogsIntoMatched(AI(FlagGood,Ifields),...
+                                                                 'CooType',Args.CooType,...
+                                                                 'Radius',Args.Radius,...
+                                                                 'RadiusUnits',Args.RadiusUnits,...
+                                                                 'MatchedColums',Args.MatchedCols,...
+                                                                 'JD',JD(FlagGood),...
+                                                                 Args.unifiedSourcesCatalogArgs{:});
+            otherwise
+                error('Unknown MatchMethod option');
+        end
 
-       
+
         % relative photometry
         if Args.RelPhot
 

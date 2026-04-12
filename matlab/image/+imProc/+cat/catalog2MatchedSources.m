@@ -8,7 +8,7 @@ function [MS] = catalog2MatchedSources(AC, Args)
     %   MasterInd contains the cross indices requires in order to match the
     %   catalogs, such that the MatchedSources object will contain [Epoch X
     %   UniqueSources].
-    % Input  : - An AstroCatalog object.
+    % Input  : - An AstroCatalog or AstroImage object.
     %          * ...,key,val,... 
     %            'MasterInd' - An [Nunique X Nobj] matrix, containing the index of the unique
     %                   source in the corresponding epoch. If the source doesn't
@@ -60,15 +60,19 @@ function [MS] = catalog2MatchedSources(AC, Args)
     % Init MatchedSources Data property:
     
     Ncol = numel(Args.Col);
-    CellSt = cell(1, Ncol.*2);
-    CellSt(1:2:end-1) = Args.Col;
-    [CellSt{2:2:end}] = deal(nan(Nobj, NrowFinal));
-    Data = struct(CellSt);
+    % CellSt = cell(1, Ncol.*2);
+    % CellSt(1:2:end-1) = Args.Col;
+    % [CellSt{2:2:end}] = deal(nan(Nobj, NrowFinal));
+    % Data = struct(CellSt{:});
+    % more efficient way:
+    Data = cell2struct(repmat({nan(Nobj, NrowFinal)}, 1, numel(Args.Col)), Args.Col, 2);
+
 
     MS = MatchedSources();
 
     for Iobj=1:1:Nobj
-        ColVal = AC(Iobj).getCol(Args.Col);
+        Cat    = AC(Iobj).getCatData;
+        ColVal = Cat.getCol(Args.Col);
 
         if isempty(Args.MasterInd)
             for Icol=1:1:Ncol

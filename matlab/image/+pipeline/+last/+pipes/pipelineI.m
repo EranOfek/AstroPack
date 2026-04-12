@@ -32,6 +32,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
         Args.astrometryVisitSubImageArgs   = {};
         Args.forcedPhotArgs                = {};
+        Args.proc2MatchedSourcesArgs       = {};
         Args.matchExternal_Indiv           = true;
         Args.matchExternalArgs_Indiv       = {};
         Args.procCoaddArgs                 = {};
@@ -270,8 +271,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
     % Merge catalogs
     %ProcessingStep = 501;
-    MS = pipeline.generic.proc2MatchedSources(AllSI, 'FlagGood',IsGood, 'DimEpoch',1);   % 9.6 s
-
+    MS = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1);   % 9.6 s -> 1.3s (with MatchMethod='unify')
 
 
     % Calculate drift between epochs

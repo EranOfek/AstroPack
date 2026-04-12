@@ -6,7 +6,7 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
     %              This function is similar to unify, but can optionally
     %              build in parallel another master list using the complement
     %              of ColUse (i.e., the unused sources).
-    % Input  : - An AstroCatalog object with multiple elements. Each
+    % Input  : - An AstroCatalog or AstroImage object with multiple elements. Each
     %            element contains a catalog from a specific epoch. The
     %            catalogs should contain either [RA, Dec] or [X,Y]
     %            coordinates.
@@ -97,19 +97,20 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
     end
 
     % sort
+    Iobj = 1;
+    Cat = Obj(Iobj).getCatData;
     if Args.Sort
-        Obj.sortrows(ColCoo{2});
+        Cat.sortrows(ColCoo{2});
     end
 
     % get coordinates from first catalog
-    Iobj = 1;
-    [Coo, Units] = Obj(Iobj).getCol(ColCoo);
+    [Coo, Units] = Cat.getCol(ColCoo);
 
     % get Use
     if isempty(Args.ColUse)
         Use1 = true(size(Coo,1), 1);
     else
-        Use1 = getUseMask(Obj(Iobj), Args.ColUse, size(Coo,1));
+        Use1 = getUseMask(Cat, Args.ColUse, size(Coo,1));
     end
     NotUse1 = ~Use1;
 
@@ -170,8 +171,9 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
 
     % process remaining objects
     for Iobj = 2:Nobj
-        CooNext = Obj(Iobj).getCol(ColCoo);
-        Use2    = getUseMask(Obj(Iobj), Args.ColUse, size(CooNext,1));
+        Cat     = Obj(Iobj).getCatData;
+        CooNext = Cat.getCol(ColCoo);
+        Use2    = getUseMask(Cat, Args.ColUse, size(CooNext,1));
         NotUse2 = ~Use2;
 
         %----- used branch -----
@@ -242,17 +244,18 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
     end
 
     if nargout > 2
-        MS = imProc.cat.catalog2MatchedSources(AC, 'MasterInd', MasterInd, 'Col', Args.Col, 'CopyJD', true);
+        % call it with Obj / Note that the catalog was not changed
+        MS = imProc.cat.catalog2MatchedSources(Obj, 'MasterInd', MasterInd, 'Col', Args.Col, 'CopyJD', true);
     end
 end
 
 
-function Use = getUseMask(Obj1, ColUse, Nrow)
+function Use = getUseMask(Cat1, ColUse, Nrow)
     % Return logical use mask for one catalog.
     if isempty(ColUse)
         Use = true(Nrow, 1);
     else
-        UseVal = Obj1.getCol(ColUse);
+        UseVal = Cat1.getCol(ColUse);
         if isempty(UseVal)
             Use = true(Nrow, 1);
         else
