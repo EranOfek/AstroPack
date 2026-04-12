@@ -79,7 +79,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         Files = dir(Args.TempName);
         Nfile = numel(Files);
         if Nfile==0 || Nfile>40
-            % critical error [in manula mode] - stop
+            % critical error [in manual mode] - stop
             error('Number of files (%d) is too small or too larege',Nfile);
         end
         RawImageList = {Files.name};
@@ -87,9 +87,11 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
     %ProcessingStep = 21;
     Nepoch = numel(RawImageList);
+
     % load images and check quality
     % AI putput is of size [Nimages x 1]
     [AI, TableForDB, TableHeader, JD_AI] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
+    TableForDB.FileName = RawImageList;
     
     TableRaw = [TableHeader, TableForDB];    
     % need to make the set of columns in Args.DB_Table_Raw fit the columns of TableRaw 

@@ -231,7 +231,7 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
     
     % allocate TableForDB:
     TableForDB=allocateTableForDB(TableForDB, Nim, Args.ClassID);
-   
+    
     % Check for empty images
     if Args.CheckEmpty
         NotEmptyImage = ~AI.isemptyImage;
@@ -402,7 +402,8 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
     if ~isempty(TableForDB)
         if islogical(TableForDB) && TableForDB
             % create new TableForDB
-            TableForDB = struct('NotEmptyImage',false(Nim,1),...
+            TableForDB = struct( 'FileName',strings(Nim,1),...
+                                'NotEmptyImage',false(Nim,1),...
                                 'CorrectSize',false(Nim,1),...
                                 'Nx',nan(Nim,1),...
                                 'Ny',nan(Nim,1),...
@@ -419,6 +420,7 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
                                 'SelectedImages',false(Nim,1));
         else
             % Add columns:
+            TableForDB.FileName              = strings(Nim,1);
             TableForDB.NotEmptyImage         = false(Nim,1);
             TableForDB.CorrectSize           = false(Nim,1);
             TableForDB.Nx                    = nan(Nim,1);
