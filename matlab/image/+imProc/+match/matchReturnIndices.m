@@ -156,12 +156,38 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         [IndTable, CatFlagNearest, CatFlagAll, IndInObj2] = VO.search.search_sortedlat_multiNearest(Coo1,...
                                                     Coo2(:,1), Coo2(:,2), RadiusRad, DistFun, 'DistFunArgs',DistFunArgs);
 
-        
-        % Columns of IndTable:
-        % For each source in Obj2:
-        % 1. Index of nearest source, within search radius, in Obj1
-        % 2. Distance;
-        % 3. Total number of matches within radius.
+        % % faster:
+        % tic;
+        % [Ind1, Dist1, Nmatch1, Ind2, Dist2, Nmatch2] = imUtil.match.mex.matchCatalogsXY(Coo2(:,1), Coo2(:,2), Coo1(:,1), Coo1(:,2), RadiusRad, true, [], [], true, true);
+        % toc
+        % 
+        % % debuging:
+        % aa=~isnan(Ind1);                   
+        % sum(abs(IndTable(aa,1)-Ind1(aa)))
+        % sum(~isnan(Ind1(aa)) ~= ~isnan(IndTable(aa,1)))
+        % 
+        % sum(abs(IndTable(aa,2)-Dist1(aa)))
+        % sum(~isnan(Dist1(aa)) ~= ~isnan(IndTable(aa,2)))
+        % 
+        % sum(abs(IndTable(aa,3)-Nmatch1(aa)))
+        % sum(~isnan(Nmatch1(aa)) ~= ~isnan(IndTable(aa,3)))
+        % 
+        % b=~isnan(Ind2);
+        % sum(~isnan(Ind2) ~= ~isnan(IndInObj2))
+        % sum(Ind2(bb) ~= IndInObj2(bb))
+        % 
+        % %Ind1 corresponds to IndTable(:,1)
+        % %Dist1 to IndTable(:,2)
+        % %Nmatch1 to IndTable(:,3)
+        % %Ind2 to IndInObj2
+
+    
+
+        Columns of IndTable:
+        For each source in Obj2:
+        1. Index of nearest source, within search radius, in Obj1
+        2. Distance;
+        3. Total number of matches within radius.
         Result(Imax).Obj2_IndInObj1   = IndTable(:,1);
         Result(Imax).Obj2_Dist        = IndTable(:,2);
         Result(Imax).Obj2_NmatchObj1  = IndTable(:,3);

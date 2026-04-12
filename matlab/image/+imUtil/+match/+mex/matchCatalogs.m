@@ -70,5 +70,5 @@
         Dec2 = [ 0.0;  1.1;  5];
         [Dec2, SI] = sort(Dec2);
         RA2 = RA2(SI);
-        [Ind1, Ind2, Dist1, Dist2, Nmatch1, Nmatch2] = matchCatalogs(RA1, Dec1, RA2, Dec2, 0.5, true, [], [], true, true);
+        [Ind1, Dist1, Nmatch1, Ind2, Dist2, Nmatch2] = matchCatalogs(RA1, Dec1, RA2, Dec2, 0.5, true, [], [], true, true);
 %}

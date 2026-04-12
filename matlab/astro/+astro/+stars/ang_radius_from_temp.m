@@ -27,7 +27,7 @@ if nargin<6
 end
 
 Gc = G - A_G;
-[Mag]=AstroUtil.spec.blackbody_mag_c(Teff,Family,Band,System,constant.SunR,10,0);
+[Mag]=astro.spec.blackbody_mag_c(Teff,Family,Band,System,constant.SunR,10,0);
 SunAngRad = constant.SunR./(constant.pc.*10).*RAD.*3600;  % arcsec
 AngRad = SunAngRad.*10.^(-0.2.*(Gc-Mag));   % arcsec
 

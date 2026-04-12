@@ -239,6 +239,70 @@ function [Result] = unitTest()
         error('Problem with VO.search.search_sortedlat_multi / many match');
     end
 
+    %% imUtil.match.mex.matchCatalogs
+
+    RAD = 180./pi;
+    
+    RA0  = 100;
+    Dec0 = 50;
+    N1 = 1000;
+    N11 = 100;
+    Err = 0.01./3600;
+    MatchDist = 1.5./3600;
+    RA1  = rand(N1,1)+RA0;
+    Dec1 = rand(N1,1)+Dec0;
+    Use1 = true(N1,1);
+    
+    RA2  = RA1 + randn(N1,1).*Err./cosd(Dec0);
+    Dec2 = Dec1 + randn(N1,1).*Err;
+    RA2  = [RA2; RA2+3.05];
+    Dec2 = [Dec2; Dec2-3.02];
+    Origin2    = [ones(N1,1).*1; ones(N1,1).*2]; 
+    [Dec2, SI] = sort(Dec2);
+    RA2        = RA2(SI);
+    Origin2    = Origin2(SI);
+    
+    RA1  = [RA1; RA1(1:N11)];
+    Dec1 = [Dec1; Dec1(1:N11)+0.1];
+    Origin1 = [ones(N1,1).*1; ones(N11,1).*2];
+
+    RA1  = RA1./RAD;
+    Dec1 = Dec1./RAD;
+    RA2  = RA2./RAD;
+    Dec2 = Dec2./RAD;
+
+
+    [IndTable, CatFlagNearest, CatFlagAll, IndInObj2] = VO.search.search_sortedlat_multiNearest([RA2, Dec2],RA1, Dec1, MatchDist./RAD);
+   
+    [Ind1, Dist1, Nmatch1, Ind2, Dist2, Nmatch2] = imUtil.match.mex.matchCatalogs(RA1, Dec1, RA2, Dec2, MatchDist./RAD);
+    
+    
+    aa=~isnan(Ind1);                   
+    if sum(abs(IndTable(aa,1)-Ind1(aa)))>0 || sum(~isnan(Ind1(aa)) ~= ~isnan(IndTable(aa,1)))>0
+        error('Probelm with imUtil.match.mex.matchCatalogs');
+    end
+    
+    if max(abs(IndTable(aa,2)-Dist1(aa))).*RAD.*3600>0.4 || sum(~isnan(Dist1(aa)) ~= ~isnan(IndTable(aa,2)))>0
+        max(abs(IndTable(aa,2)-Dist1(aa))).*RAD.*3600
+        error('Probelm with imUtil.match.mex.matchCatalogs');
+    end
+    
+    
+    if sum(abs(IndTable(aa,3)-Nmatch1(aa)))>0 || sum(~isnan(Nmatch1(aa)) ~= ~isnan(IndTable(aa,3)))>0
+        error('Probelm with imUtil.match.mex.matchCatalogs');
+    end
+     
+    
+    bb=~isnan(Ind2);
+    if sum(~isnan(Ind2) ~= ~isnan(IndInObj2))>0 || sum(Ind2(bb) ~= IndInObj2(bb))>0
+        error('Probelm with imUtil.match.mex.matchCatalogs');
+    end
+     
+
+
+
+
+
     %% imUtil.match.mex.matchCatalogs / full test (list 1)
     RAD = 180./pi;
     
