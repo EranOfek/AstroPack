@@ -1279,6 +1279,12 @@ classdef FITS < handle
             Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BITPIX',{BitPix});
             Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BZERO',{bzero});
             
+            % PCOUNT must be integer
+            Ind = find(strcmpi(Args.Header(:,1),'pcount'));
+            Args.Header{Ind,2} = int32(Args.Header{Ind,2});
+            % replace all NaNs with empty chars
+            Args.Header(cellfun(@(x) isnumeric(x) && isnan(x), Args.Header(:,2)), 2) = {''};
+            
             switch lower(Args.WriteMethodImages)
                 case 'simple'
                     io.fits.writeSimpleFITS(Image, FileName, 'Header',Args.Header,...
