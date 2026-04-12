@@ -99,7 +99,7 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
         Args.BitCoaddUseMex  = true;
         Args.KeyNaN          = 'NaN';
         Args.KeyCoaddLess    = 'CoaddLessImages';
-        Args.FracCoaddLess   = 0.8; 
+        Args.FracCoaddLess   = 0.6; 
 
         %--- Header ---
         Args.HeaderCopy1 logical                    = true;
