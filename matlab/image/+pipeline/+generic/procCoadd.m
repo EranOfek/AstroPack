@@ -148,6 +148,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.IsGood                           = [];
         Args.MinNumCoadd                      = 10;
         Args.ShiftXY                          = [];  % if empty, then, register by WCS.
+        Args.WCS                              = [];
         Args.PropShiftXY                      = 'ShiftXY';
         Args.IsShiftXYfiltered                = true;
         Args.UseMultiIterPSF                  = true;
@@ -309,10 +310,16 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
            
         
             if isempty(Args.ShiftXY)
-                % register by the WCS of the fisrt available image:
-                RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), AllSI(IfirstGood,Ifields).WCS,...
-                                                       Args.registerArgs{:},...
-                                                       'DataProp',DataProp);
+                if isempty(Args.WCS)
+                    % register by the WCS of the fisrt available image:
+                    RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), AllSI(IfirstGood,Ifields).WCS,...
+                                                           Args.registerArgs{:},...
+                                                           'DataProp',DataProp);
+                else
+                    RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), Args.WCS,...
+                                                           Args.registerArgs{:},...
+                                                           'DataProp',DataProp);
+                end
             else
                 % Register images by Args.ShiftXY
                 if isstruct(Args.ShiftXY)

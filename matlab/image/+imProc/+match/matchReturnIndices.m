@@ -179,4 +179,5 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         Result(Imax).Obj1_Dist          = IndTable(IndInObj2, Col);
         Result(Imax).Obj1_Dist(FlagNaN) = NaN;
     end
+    'a'
 end
