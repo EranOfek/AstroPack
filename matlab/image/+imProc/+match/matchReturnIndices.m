@@ -181,13 +181,13 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         % %Nmatch1 to IndTable(:,3)
         % %Ind2 to IndInObj2
 
-    
 
-        Columns of IndTable:
-        For each source in Obj2:
-        1. Index of nearest source, within search radius, in Obj1
-        2. Distance;
-        3. Total number of matches within radius.
+        % Columns of IndTable:
+        % For each source in Obj2:
+        % 1. Index of nearest source, within search radius, in Obj1
+        % 2. Distance;
+        % 3. Total number of matches within radius.
+
         Result(Imax).Obj2_IndInObj1   = IndTable(:,1);
         Result(Imax).Obj2_Dist        = IndTable(:,2);
         Result(Imax).Obj2_NmatchObj1  = IndTable(:,3);
@@ -205,5 +205,4 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         Result(Imax).Obj1_Dist          = IndTable(IndInObj2, Col);
         Result(Imax).Obj1_Dist(FlagNaN) = NaN;
     end
-    'a'
 end
