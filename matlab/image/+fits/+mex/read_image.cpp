@@ -1,9 +1,20 @@
-// compiled with mex read_image.cpp -lcfitsio
+// compiled with 
+// mex CXX=g++-9 read_image.cpp /usr/lib/x86_64-linux-gnu/libcfitsio.a /home/sasha/ExternalLib/bzip2-1.0.8/libbz2.a -lz -lcurl -lm
 // after sudo apt install libcfitsio-dev  
 #include "mex.h"
 #include "fitsio.h"
 #include <vector>
 #include <cstring>
+#include <string>
+#include <cstdlib>
+
+bool isFITSFZ(const char* filename)
+{
+    const char* ext = strrchr(filename, '.');
+    if (!ext) return false;
+
+    return (strcmp(ext, ".fz") == 0);
+}
 
 void checkStatus(int status)
 {
@@ -61,9 +72,6 @@ int find_image_hdu(fitsfile* fptr)
 
     return -1;
 }
-
-#include <string>
-#include <cstdlib>
 
 // ---------------------------------------------------------------------------
 // Unquote a FITS string value from a raw char buffer.
@@ -203,6 +211,85 @@ mxArray* readHeaderCell(fitsfile* fptr)
     return cell;
 }
 
+#include <unordered_set>
+#include <unordered_map>
+
+mxArray* cleanCompressedHeader(mxArray* hdr)
+{
+    mwSize n = mxGetM(hdr);
+
+    // ---- keys to delete ----
+    std::unordered_set<std::string> drop = {
+        "XTENSION","PCOUNT","GCOUNT","TFIELDS","TTYPE1","TFORM1",
+        "ZIMAGE","ZTILE1","ZTILE2","ZCMPTYPE","ZNAME1","BLOCKSIZE",
+        "ZVAL1","ZNAME2","BYTEPIX","ZVAL2","EXTNAME",
+        "BITPIX","NAXIS","NAXIS1","NAXIS2"
+    };
+
+    // ---- rename map ----
+    std::unordered_map<std::string,std::string> rename = {
+        {"ZSIMPLE","SIMPLE"},
+        {"ZBITPIX","BITPIX"},
+        {"ZNAXIS","NAXIS"},
+        {"ZNAXIS1","NAXIS1"},
+        {"ZNAXIS2","NAXIS2"},
+        {"ZEXTEND","EXTEND"}
+    };
+
+    std::vector<int> keep;
+    keep.reserve(n);
+
+    std::vector<std::string> newKeys;
+    newKeys.reserve(n);
+
+    // ---- pass 1: decide what to keep ----
+    for (mwSize i = 0; i < n; i++)
+    {
+        mxArray* keyCell = mxGetCell(hdr, i);
+        if (!keyCell) continue;
+
+        char* keyC = mxArrayToString(keyCell);
+        std::string key(keyC ? keyC : "");
+        mxFree(keyC);
+
+        if (drop.count(key))
+            continue;
+
+        // rename if needed
+        if (rename.count(key))
+            key = rename[key];
+
+        keep.push_back(i);
+        newKeys.push_back(key);
+    }
+
+    // ---- build output ----
+    mwSize m = keep.size();
+    mxArray* out = mxCreateCellMatrix(m, 3);
+
+    for (mwSize j = 0; j < m; j++)
+    {
+        mwSize i = keep[j];
+
+        // KEY
+        mxArray* oldKey = mxGetCell(hdr, i);
+        char* keyC = mxArrayToString(oldKey);
+        std::string key(keyC ? keyC : "");
+        mxFree(keyC);
+
+        if (rename.count(key))
+            key = rename[key];
+
+        mxSetCell(out, j + 0*m, mxCreateString(key.c_str()));
+        // VALUE
+        mxSetCell(out, j + 1*m, mxDuplicateArray(mxGetCell(hdr, i + 1*n)));
+        // COMMENT
+        mxSetCell(out, j + 2*m, mxDuplicateArray(mxGetCell(hdr, i + 2*n)));
+    }
+
+    return out;
+}
+
 /////////
 
 void mexFunction(int nlhs, mxArray* plhs[],
@@ -212,6 +299,8 @@ void mexFunction(int nlhs, mxArray* plhs[],
         mexErrMsgTxt("Usage: img = fits_read_image(filename, hdu, [CCDSEC])");
 
     char* filename = mxArrayToString(prhs[0]);
+    bool compressed_header = isFITSFZ(filename);
+    
     int hdu_req = (int)mxGetScalar(prhs[1]);
 
     fitsfile* fptr;
@@ -327,7 +416,11 @@ void mexFunction(int nlhs, mxArray* plhs[],
             
             // Output 2: header (optional)
             if (nlhs >= 2) {
-                plhs[1] = readHeaderCell(fptr);
+                mxArray* rawheader = readHeaderCell(fptr);
+                if (compressed_header)
+                    plhs[1] = cleanCompressedHeader(rawheader);
+                else
+                    plhs[1] = rawheader;
             }            
             // Output 3: HDU number used (optional)
             if (nlhs >= 3) {
@@ -391,8 +484,12 @@ void mexFunction(int nlhs, mxArray* plhs[],
     }
     
     // Output 2: header (optional)
-    if (nlhs >= 2) {
-        plhs[1] = readHeaderCell(fptr);
+    if (nlhs >= 2) {        
+        mxArray* rawheader = readHeaderCell(fptr);
+        if (compressed_header)
+            plhs[1] = cleanCompressedHeader(rawheader);
+        else
+            plhs[1] = rawheader;
     }    
     // Output 3: HDU number used (optional)
     if (nlhs >= 3) {

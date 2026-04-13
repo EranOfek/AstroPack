@@ -302,6 +302,8 @@ classdef FITS < handle
                 
                 if endsWith(FileName, '.fz') % in the compressed FITS the HDU numbers are shifted  
                    HDUnum = HDUnum +1; 
+                   cprintf('red',"NB: reading fits.fz with matlab.io.fits leads to incorrect header! \n" + ...
+                           "Use the MeX reader instead: e.g., AI = AstroImage(File,'UseMex',true); \n"); 
                 end
                 
                 matlab.io.fits.movAbsHDU(Fptr, HDUnum);
@@ -1278,15 +1280,7 @@ classdef FITS < handle
             
             Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BITPIX',{BitPix});
             Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BZERO',{bzero});
-            
-%             % PCOUNT and GCOUNT must be integer
-%             Ind = find(strcmpi(Args.Header(:,1),'pcount') | strcmpi(Args.Header(:,1),'gcount') );
-%             if ~isempty(Ind)                
-%                 Args.Header(Ind,2) = cellfun(@int32, Args.Header(Ind,2), 'UniformOutput', false);
-%             end
-%             % replace all NaNs with empty chars
-%             Args.Header(cellfun(@(x) isnumeric(x) && isnan(x), Args.Header(:,2)), 2) = {''};
-            
+                        
             switch lower(Args.WriteMethodImages)
                 case 'simple'
                     io.fits.writeSimpleFITS(Image, FileName, 'Header',Args.Header,...
