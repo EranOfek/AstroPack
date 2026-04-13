@@ -62,12 +62,9 @@ function [Result1, Result2] = matchInd(Obj1, Obj2, Args)
     %                                  Default is false.
     %            'Sort2'             - Sort catalog 2 before matching.
     %                                  Default is false.
-    %            'SortCol'           - Column used for sorting when Sort1
-    %                                  and/or Sort2 are true.
-    %                                  For spherical matching this is
-    %                                  typically 'Dec'; for planar matching
-    %                                  typically 'Y'.
-    %                                  Default is 'Dec'.
+    %            'SortCol'           - Column index in 'ColSPhere#'
+    %                                  'ColPlanar#' by which to sort.
+    %                                  Default is 2.
     %            'TestSort2'         - Test that catalog 2 is sorted as
     %                                  required by the MEX matcher.
     %                                  Default is false.
@@ -113,7 +110,7 @@ function [Result1, Result2] = matchInd(Obj1, Obj2, Args)
         Args.ColPlanar2        = {'X','Y'};
         Args.Sort1             = false;
         Args.Sort2             = false;
-        Args.SortCol           = 'Dec';
+        Args.SortCol           = 2;
         Args.TestSort2         = false;  % test that list 2 is sorted
     end
     RAD = 180./pi;
@@ -121,6 +118,10 @@ function [Result1, Result2] = matchInd(Obj1, Obj2, Args)
     Nobj1 = numel(Obj1);
     Nobj2 = numel(Obj2);
     Nmax  = max(Nobj1, Nobj2);
+
+    if ~(Nobj1==Nobj2 || Nobj1==1 || Nobj2==1)
+        error('Obj1 and Obj2 must have equal number of elements, or one input must be scalar.');
+    end
 
     if Args.IsSpherical
         % convert to radians
@@ -141,15 +142,17 @@ function [Result1, Result2] = matchInd(Obj1, Obj2, Args)
         Cat1  = Obj1(Iobj1).getCatData;
         Cat2  = Obj2(Iobj2).getCatData;
 
-        % sort
-        if Args.Sort1
-            Cat1 = Cat1.sortrows(Args.SortCol);
-        end
-        if Args.Sort2
-            Cat2 = Cat2.sortrows(Args.SortCol);
-        end
-
+       
         if Args.IsSpherical
+            % sort
+            if Args.Sort1
+                Cat1 = Cat1.sortrows(Args.ColSphere1{Args.SortCol});
+            end
+            if Args.Sort2
+                Cat2 = Cat2.sortrows(Args.ColSphere2{Args.SortCol});
+            end
+
+            % get columns
             [Coo1, Units1] = Cat1.getCol(Args.ColSphere1);
             [Coo2, Units2] = Cat2.getCol(Args.ColSphere2);
             if isempty(Args.Units)
@@ -182,18 +185,26 @@ function [Result1, Result2] = matchInd(Obj1, Obj2, Args)
 
 
         else % if Args.IsSpherical
+            % sort
+            if Args.Sort1
+                Cat1 = Cat1.sortrows(Args.ColPlanar1{Args.SortCol});
+            end
+            if Args.Sort2
+                Cat2 = Cat2.sortrows(Args.ColPlanar2{Args.SortCol});
+            end
+
             [Coo1] = Cat1.getCol(Args.ColPlanar1);
             [Coo2] = Cat2.getCol(Args.ColPlanar2);
 
             % assumption: Coo2 is sorted by Dec
             if nargout<2
-                [Result1(Imax).Ind, Result1(Imax).Dist, Result1(Imax).Nmatch] = imUtil.match.mex.matchCatalogsXY(Coo1(:,1), Coo1(:,2), Coo2(:,1), Coo2(:,1), Searchradius, false, [], [], Args.TestSort2);
+                [Result1(Imax).Ind, Result1(Imax).Dist, Result1(Imax).Nmatch] = imUtil.match.mex.matchCatalogsXY(Coo1(:,1), Coo1(:,2), Coo2(:,1), Coo2(:,2), SearchRadius, false, [], [], Args.TestSort2);
             else
                 % cross indexing
                 [Result1(Imax).Ind, Result1(Imax).Dist, Result1(Imax).Nmatch, ...
                  Result2(Imax).Ind, Result2(Imax).Dist, Result2(Imax).Nmatch] = imUtil.match.mex.matchCatalogsXY(Coo1(:,1), Coo1(:,2), ...
-                                                                                                               Coo2(:,1), Coo2(:,1), ...
-                                                                                                               Searchradius, false, [], [], Args.TestSort2);
+                                                                                                               Coo2(:,1), Coo2(:,2), ...
+                                                                                                               SearchRadius, false, [], [], Args.TestSort2);
                 
             end
 
