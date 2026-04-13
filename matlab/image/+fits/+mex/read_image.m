@@ -1,7 +1,7 @@
 % Read an image from a FITS, FITS.fz, FITS.gz or FITS.bz2 file
 % A special case of INT16 and BZERO = 32768 employed for UINT16 values is treated as well
 % Compiled with: 
-% mex read_image.cpp /usr/lib/x86_64-linux-gnu/libcfitsio.a /home/kra/ExternalLib/bzip2-1.0.8/libbz2.a -lz -lcurl -lm
+% mex CXX=g++-9 read_image.cpp /usr/lib/x86_64-linux-gnu/libcfitsio.a /home/sasha/ExternalLib/bzip2-1.0.8/libbz2.a -lz -lcurl -lm
 % after: sudo apt install libcfitsio-dev and:
 % wget https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz 
 % tar xzf bzip2-1.0.8.tar.gz && cd bzip2-1.0.8 
