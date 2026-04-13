@@ -82,7 +82,7 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
     %                   Default is {}.
     %            'UseMex' - A logical indicating if to use MEX when
     %                   possible. Default is false.
-    %            'MatchMethod' - Matching method: 'unify' | 'legacy'.
+    %            'MergeMethod' - Matching and merging method: 'unify' | 'legacy'.
     %                   Options are:
     %                       'unify' - use imProc.match.unify including mex.
     %                       'legacy' - Use
@@ -133,7 +133,7 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
 
         Args.unifiedSourcesCatalogArgs = {};
         Args.UseMex            = false;
-        Args.MatchMethod       = 'unify'; % 'legacy'
+        Args.MergeMethod       = 'unify'; % 'legacy'
         %Args.LogObj            = [];
     end
 
@@ -196,7 +196,7 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
         FlagGood = Args.FlagGood(:,Ifields);   
 
         % source matching
-        switch Args.MatchMethod
+        switch Args.MergeMethod
             case 'unify'
                 % x7 faster
                 [~,~, MatchedS(Ifields)] = imProc.match.unify(AI(FlagGood,Ifields), Args.unifyArgs{:}, 'MatchRadius',Args.Radius, 'Col',Args.MatchedCols);
