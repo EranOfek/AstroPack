@@ -8,6 +8,14 @@
 #include <string>
 #include <cstdlib>
 
+bool isFITSFZ(const char* filename)
+{
+    const char* ext = strrchr(filename, '.');
+    if (!ext) return false;
+
+    return (strcmp(ext, ".fz") == 0);
+}
+
 void checkStatus(int status)
 {
     if (status) {
@@ -291,6 +299,8 @@ void mexFunction(int nlhs, mxArray* plhs[],
         mexErrMsgTxt("Usage: img = fits_read_image(filename, hdu, [CCDSEC])");
 
     char* filename = mxArrayToString(prhs[0]);
+    bool compressed_header = isFITSFZ(filename);
+    
     int hdu_req = (int)mxGetScalar(prhs[1]);
 
     fitsfile* fptr;
@@ -407,8 +417,10 @@ void mexFunction(int nlhs, mxArray* plhs[],
             // Output 2: header (optional)
             if (nlhs >= 2) {
                 mxArray* rawheader = readHeaderCell(fptr);
-                plhs[1] = cleanCompressedHeader(rawheader);
-//                 plhs[1] = readHeaderCell(fptr);
+                if (compressed_header)
+                    plhs[1] = cleanCompressedHeader(rawheader);
+                else
+                    plhs[1] = rawheader;
             }            
             // Output 3: HDU number used (optional)
             if (nlhs >= 3) {
@@ -472,8 +484,12 @@ void mexFunction(int nlhs, mxArray* plhs[],
     }
     
     // Output 2: header (optional)
-    if (nlhs >= 2) {
-        plhs[1] = readHeaderCell(fptr);
+    if (nlhs >= 2) {        
+        mxArray* rawheader = readHeaderCell(fptr);
+        if (compressed_header)
+            plhs[1] = cleanCompressedHeader(rawheader);
+        else
+            plhs[1] = rawheader;
     }    
     // Output 3: HDU number used (optional)
     if (nlhs >= 3) {
