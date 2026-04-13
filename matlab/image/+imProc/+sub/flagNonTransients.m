@@ -1480,7 +1480,8 @@ function TranCat = flagNonTransients(Obj, Args)
 
             % Exclude isolated candidates.
             % Exclude also galaxy matched candidates that are not nuclear.
-            ExcludeCand = (GalCand & ~NuclearCand & ~NearStar);
+            ExcludeCand = (GalCand & ~NuclearCand & ~NearStar & abs(Scorr) > 3.0);
+            
 
             if ~isempty(IsolatedCand)
                 ExcludeCand = ExcludeCand | IsolatedCand | AmbBlendedCand;
