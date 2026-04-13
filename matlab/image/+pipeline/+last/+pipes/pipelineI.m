@@ -69,6 +69,8 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
         
         Args.DBobj                       = [];
         Args.DB_Table_Raw                = [];
+
+        Args.MatchMethod                 = 'mex'; % 'old'|'mex'
     end
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
@@ -177,7 +179,8 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
 
     % solve astrometry of all images
     %ProcessingStep = 301;
-    [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, Args.astrometryVisitSubImageArgs{:}); % 22s
+    [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, 'MatchMethod',Args.MatchMethod, Args.astrometryVisitSubImageArgs{:}); % 22s
+
     % add coordinates to catalogs
     %ProcessingStep = 401;
     AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true, 'OutUnits','deg');  % 0.8s
@@ -315,6 +318,7 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
                                               'UseMex',Args.UseMex,...
                                               'PhotCalibSimple',false,...
                                               'PhotCalibTrans',false,...
+                                              'MatchMethod',Args.MatchMethod,...
                                               Args.multiIterExtractorArgs{:});
   
     %toc

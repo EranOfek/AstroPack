@@ -12,7 +12,7 @@ function [Matched2, Ind1, Matched1, Ind2] = matchCat(Obj1, Obj2, Args)
     % Input  : - Obj1 : An AstroCatalog/AstroImage/AstroDiff/AstroZOGY
     %                   object array. Each element must contain a source
     %                   catalog.
-    %          - Obj2 : An AstroCatalog/AstroImage/AstroDiff/AstroZOGY
+    %          - Obj2 : A **sorted** AstroCatalog/AstroImage/AstroDiff/AstroZOGY
     %                   object array. Each element must contain a source
     %                   catalog.
     %                   If numel(Obj1)==numel(Obj2), catalogs are matched
@@ -20,6 +20,13 @@ function [Matched2, Ind1, Matched1, Ind2] = matchCat(Obj1, Obj2, Args)
     %                   If one of the inputs is scalar, then that object is
     %                   matched against all elements of the other input.
     %          * ...,key,val,...
+    %            'InputObj'          - If non empty, then the Matched2 matched
+    %                                  catalog object will be inserted into this object
+    %                                  using the setCatData method.
+    %                                  Note that if 'CreateNewObj' is true
+    %                                  then a new object will be created.
+    %                                  Default is [].
+    %            --- Args of imProc.match.matchInd ---
     %            'SearchRadius'      - Search radius. If IsSpherical is
     %                                  false, then this is in planar units
     %                                  (typically pixels). If IsSpherical
@@ -66,6 +73,7 @@ function [Matched2, Ind1, Matched1, Ind2] = matchCat(Obj1, Obj2, Args)
     %            'TestSort2'         - Test that catalog 2 is sorted as
     %                                  required by the MEX matcher.
     %                                  Default is false.
+    %            --- Aux ---
     %            'CreateNewObj'      - Logical indicating whether row
     %                                  selection should create a new object
     %                                  when building the matched output
@@ -111,9 +119,10 @@ function [Matched2, Ind1, Matched1, Ind2] = matchCat(Obj1, Obj2, Args)
 
     arguments
         Obj1
-        Obj2
+        Obj2     % sorted
        
         %-- Args of matchInd ---
+        Args.InputObj          = [];
         Args.SearchRadius      = 1.5;
         Args.SearchRadiusUnits = 'arcsec';
         Args.IsSpherical       = true;
@@ -179,10 +188,18 @@ function [Matched2, Ind1, Matched1, Ind2] = matchCat(Obj1, Obj2, Args)
 
     switch lower(OutType)
         case {'astroimage', 'astrozogy', 'astrodiff'}
-           Matched2 = AstroImage([Nmax, 1]);
-           if CalcM1
-               Matched1 = AstroImage([Nmax, 1]);
-           end
+            if isempty(Args.InputObj)
+                Matched2 = AstroImage([Nmax, 1]);
+            else
+                if Args.CreateNewObj
+                    Matched2 = Args.InputObj.copy;
+                else
+                    Matched2 = Args.InputObj;
+                end
+            end
+            if CalcM1
+                Matched1 = AstroImage([Nmax, 1]);
+            end
         case {'astrocatalog', 'astrotable'}
             Matched2 = AstroCatalog([Nmax, 1]);
             if CalcM1
@@ -204,11 +221,13 @@ function [Matched2, Ind1, Matched1, Ind2] = matchCat(Obj1, Obj2, Args)
         
         Cat2  = Obj2(Iobj2).getCatData;
 
-        Matched2(Imax).setCatData( Cat2.selectRows(Ind1(Iobj1).Ind, 'IgnoreNaN',true, 'CreateNewObj',Args.CreateNewObj) );
+        Cat2.Catalog()
+        Matched2(Imax) = Matched2(Imax).setCatData( Cat2.selectRows(Ind1(Iobj1).Ind, 'IgnoreNaN',false, 'CreateNewObj',Args.CreateNewObj), 'CreateNewObj',false );
         
         if CalcM1
             Cat1  = Obj1(Iobj1).getCatData;
-            Matched1(Imax).setCatData( Cat1.selectRows(Ind2(Iobj2).Ind, 'IgnoreNaN',true, 'CreateNewObj',Args.CreateNewObj) );
+            Matched1(Imax) = Matched1(Imax).setCatData( Cat1.selectRows(Ind2(Iobj2).Ind, 'IgnoreNaN',false, 'CreateNewObj',Args.CreateNewObj), 'CreateNewObj',false );
+
         end
         
     end

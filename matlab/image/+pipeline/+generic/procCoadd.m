@@ -226,6 +226,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.Col2copy cell                    = {'Nobs'};  % cell array of columns to copy from MergedCat to Coadd
 
         Args.UseMex                           = false;
+
+        Args.MatchMethod                      = 'old'; % 'old'|'mex'
     end
     
     SEC_DAY = 86400;
@@ -420,6 +422,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                                     'SearchRadius',3,...
                                                                                                     'CatName',AstrometricCat,...
                                                                                                     'Tran',Args.Tran,...
+                                                                                                    'MatchMethod',Args.MatchMethod,...
                                                                                                     'CreateNewObj',false);
                 %ResultCoadd(Ifields).MidMidJD = MidMidJD;
             end

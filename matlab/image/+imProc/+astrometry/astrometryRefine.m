@@ -244,6 +244,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         Args.UpdateHeaderCoo logical      = true;
         Args.KeyRA                        = 'RA';
         Args.KeyDec                       = 'DEC';
+
+        Args.MatchMethod                  = 'old'; % 'old'|'mex'
     end
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
@@ -469,7 +471,10 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
 
             % match the RA/Dec against an external catalog
             % sources in MatchedCat corresponds to sources in ProjAstCat
-            MatchInd = imProc.match.matchReturnIndices(Cat, ProjAstCat,...
+            switch Args.MatchMethod
+                case 'old'
+                    % Old matching code:
+                        MatchInd = imProc.match.matchReturnIndices(Cat, ProjAstCat,...
                                                         'Radius',Args.SearchRadius,...
                                                         'RadiusUnits','arcsec',...
                                                         'CooType','sphere',...
@@ -478,13 +483,26 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                                                         'ColRefX',CatColNameRA,...
                                                         'ColRefY',CatColNameDec);
 
-            MatchedCat = Cat.copy;
-            MatchedCat = selectRows(MatchedCat, MatchInd.Obj2_IndInObj1, 'CreateNewObj',false);
-    %                                                                                      
-            % Debug: check that the matching is working
-            % F=~isnan(MatchedCat.Catalog(:,1));
-            % [ProjAstCat.Catalog(F,1:2), MatchedCat.Catalog(F,40:41)].*RAD
+                        MatchedCat = Cat.copy;
+                        MatchedCat = selectRows(MatchedCat, MatchInd.Obj2_IndInObj1, 'CreateNewObj',false);
+                %                                                                                      
+                        % Debug: check that the matching is working
+                        % F=~isnan(MatchedCat.Catalog(:,1));
+                        % [ProjAstCat.Catalog(F,1:2), MatchedCat.Catalog(F,40:41)].*RAD
 
+                case 'mex'
+                    [Ind1] = imProc.match.matchInd(ProjAstCat, Cat, 'IsSpherical',true, 'SearchRadius',Args.SearchRadius);
+                    MatchedCat = selectRows(Cat, Ind1.Ind, 'CreateNewObj',true);
+
+                    % debug (after name it MatchedCat1)
+                    % aa=~isnan(MatchedCat1.Catalog(:,1));
+                    % sum(~isnan(MatchedCat1.Catalog(:,1)) ~= ~isnan(MatchedCat.Catalog(:,1)))
+                    % max(abs(MatchedCat1.Catalog(aa,:) - MatchedCat.Catalog(aa,:)),[],'all')
+
+                otherwise
+                    error('Unknown MatchMethod');
+            end
+   
 
             % Count the number of matches
             Flag = ~isnan(MatchedCat.Catalog(:,1));

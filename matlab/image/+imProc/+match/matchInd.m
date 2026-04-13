@@ -14,7 +14,7 @@ function [Result1, Result2] = matchInd(Obj1, Obj2, Args)
     % Input  : - Obj1 : An AstroCatalog/AstroImage/AstroDiff/AstroZOGY
     %                   object array. Each element must contain a source
     %                   catalog.
-    %          - Obj2 : An AstroCatalog/AstroImage/AstroDiff/AstroZOGY
+    %          - Obj2 : A **sorted** AstroCatalog/AstroImage/AstroDiff/AstroZOGY
     %                   object array. Each element must contain a source
     %                   catalog.
     %                   If numel(Obj1)==numel(Obj2), catalogs are matched

@@ -1,6 +1,16 @@
 function [Result] = perfTest()
     % perfTest for: tools.array
 
+    %% tools.array.mex.selectIndNaN
+   
+    Matrix=rand(1000,100);
+    Ind=randi(1000,500,1);
+    Ind(2)=NaN;           
+    tic;for i=1:1000, NewMatrix=selectIndNaN(Matrix,Ind);end,T2=toc;
+    tic; for i=1:1000, Ind0 = double(Ind(:)); Good = ~isnan(Ind0);NewMatrix1 = NaN(numel(Ind0), size(Matrix,2));NewMatrix1(Good,:) = double(Matrix(Ind0(Good),:));end,T1=toc;
+    fprintf('tools.array.mex.selectIndNaN is x %f faster than matlab\n',T1./T2);
+
+
     %% tools.array.mex.countNaN
     
     A=rand(1000,1000);

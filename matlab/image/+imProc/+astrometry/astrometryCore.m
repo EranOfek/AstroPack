@@ -236,6 +236,8 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.KeyDec                       = 'DEC';
 
         Args.FilterCat logical            = true;
+
+        Args.MatchMethod                  = 'old'; % 'old'|'mex'
     end
     RAD         = 180./pi;
     ARCSEC_DEG  = 3600;
@@ -448,17 +450,50 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                                                                 'ColY',RefColNameY,...
                                                                 'CreateNewObj',false);
 
-                MatchInd = imProc.match.matchReturnIndices(FilteredCat, TransformedProjAstCat,...
-                                                 'Radius',Args.SearchRadius.*mean(Args.Scale),...
-                                                 'CooType','pix',...
-                                                 'ColCatX',Args.CatColNamesX,...
-                                                 'ColCatY',Args.CatColNamesY,...
-                                                 'ColRefX',RefColNameX,...
-                                                 'ColRefY',RefColNameY);
-                                             
-                MatchedCat = FilteredCat.copy;
-                MatchedCat = selectRows(MatchedCat, MatchInd.Obj2_IndInObj1, 'CreateNewObj',false);
-                                             
+
+                switch Args.MatchMethod
+                    case 'old'
+                        % Old matching code:
+                        MatchInd = imProc.match.matchReturnIndices(FilteredCat, TransformedProjAstCat,...
+                                                         'Radius',Args.SearchRadius.*mean(Args.Scale),...
+                                                         'CooType','pix',...
+                                                         'ColCatX',Args.CatColNamesX,...
+                                                         'ColCatY',Args.CatColNamesY,...
+                                                         'ColRefX',RefColNameX,...
+                                                         'ColRefY',RefColNameY);
+        
+                        MatchedCat = FilteredCat.copy;
+                        MatchedCat = selectRows(MatchedCat, MatchInd.Obj2_IndInObj1, 'CreateNewObj',false);
+                    case 'mex'
+                        % New matching code
+                        % TransformedProjAstCat - not sorted
+                        % FilteredCat - is sorted
+
+                        %[~, Ind2] = imProc.match.matchInd(FilteredCat, TransformedProjAstCat, 'IsSpherical',false, 'SearchRadius',Args.SearchRadius.*mean(Args.Scale));
+                        [Ind1] = imProc.match.matchInd(TransformedProjAstCat, FilteredCat, 'IsSpherical',false, 'SearchRadius',Args.SearchRadius.*mean(Args.Scale));
+                        MatchedCat = selectRows(FilteredCat, Ind1.Ind, 'CreateNewObj',true);
+
+                        % alternatively:
+                        % [MatchedCat1] = imProc.match.matchCat(TransformedProjAstCat, FilteredCat, 'IsSpherical',false, 'SearchRadius',Args.SearchRadius.*mean(Args.Scale));
+
+                        % debug (after name it MatchedCat1)
+                        % aa=~isnan(MatchedCat1.Catalog(:,1));
+                        % sum(~isnan(MatchedCat1.Catalog(:,1)) ~= ~isnan(MatchedCat.Catalog(:,1)))
+                        % max(abs(MatchedCat1.Catalog(aa,:) - MatchedCat.Catalog(aa,:)),[],'all')
+
+                        % debuging:
+                        %sum(~isnan(MatchInd.Obj2_IndInObj1)  ~= ~isnan(Ind1.Ind))
+                        %bb = ~isnan(Ind1.Ind);
+                        %sum(MatchInd.Obj2_IndInObj1(bb) ~=Ind1.Ind(bb))
+
+
+
+                    otherwise
+                        error('Unknown MatchMethod');
+                end
+
+                
+
                 % DEBUGING:
                 % FilteredCat.plot({'X','Y'},'o')          
                 % hold on

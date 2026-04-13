@@ -10,6 +10,19 @@ function [Result] = unitTest()
         error('Problem with: tools.array.mex.countNaN');
     end
 
+    %% tools.array.mex.selectIndNaN
+
+    Matrix=rand(1000,100);
+    Ind=randi(1000,500,1);
+    Ind(2)=NaN;           
+    NewMatrix=tools.array.mex.selectIndNaN(Matrix,Ind);
+    Ind0 = double(Ind(:)); Good = ~isnan(Ind0);NewMatrix1 = NaN(numel(Ind0), size(Matrix,2));NewMatrix1(Good,:) = double(Matrix(Ind0(Good),:));
+
+    if max(abs(NewMatrix1-NewMatrix),[],'all')>0
+        error('problem with tools.array.mex.selectIndNaN');
+    end
+    
+
     %% tools.array.bitor_array.m
     Array = randi(2^16,1600,1600,20);   
     I = rand(size(Array))>0.05;
