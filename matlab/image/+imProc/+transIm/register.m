@@ -77,7 +77,7 @@ function [Result] = register(Obj, TransRef, Args)
 
     end
 
-    if (isnumeric(TransRef) || isa(TransRef,'affine2d') || isa(TranbsRef, 'affinetform2d')) && isempty(Args.WCS)
+    if (isnumeric(TransRef) || isa(TransRef,'affine2d') || isa(TransRef, 'affinetform2d')) && isempty(Args.WCS)
         error('When TransRef is %s WCS argument must be provided',class(TransRef));
     end
 
