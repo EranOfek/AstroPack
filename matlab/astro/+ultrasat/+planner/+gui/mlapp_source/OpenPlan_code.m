@@ -58,7 +58,7 @@ classdef OpenPlan < matlab.apps.AppBase
             app.UITable.RowName = "numbered";
 
             % Load the initial list
-            % app.getList();
+            app.getList();
         end
         
 
