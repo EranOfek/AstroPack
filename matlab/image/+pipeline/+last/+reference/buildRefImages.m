@@ -180,7 +180,6 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         while Icrop < height(TabEpoch)+1 % merge the rasters of all the crops involved 
                             CropPoly = double([TabEpoch.ra1(Icrop), TabEpoch.dec1(Icrop); TabEpoch.ra2(Icrop), TabEpoch.dec2(Icrop); ...
                                         TabEpoch.ra3(Icrop), TabEpoch.dec3(Icrop); TabEpoch.ra4(Icrop), TabEpoch.dec4(Icrop)]);                                                                   
-%                             Raster   = celestial.healpix.rasterize_polygon(CropPoly,'Resolution',Args.RasterResolution);
                             Raster   = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution);
                             % if this crop does not overlap with the reference region, deselect it
                             Coverage(Icrop) = sum(ismember(Raster,Raster0));
@@ -189,12 +188,12 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                             else
                                 RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];                                
                             end
-                            % TEMPORARY: check the new overlap function:    
-                            Flag = celestial.polygon.isSpherePolyIntersect(P0(:,1), P0(:,2), ...
-                                double(CropPoly(:,1)), double(CropPoly(:,2)));
-                            if ( Coverage(Icrop) < 1 && Flag > 0 ) || (Coverage(Icrop) > 0 && Flag < 1 )
-                                cprintf('red','crop %d: coverage estimate mismatch \n', Icrop);
-                            end
+%                             % TEMPORARY: check the new overlap function:    
+%                             Flag = celestial.polygon.isSpherePolyIntersect(P0(:,1), P0(:,2), ...
+%                                 double(CropPoly(:,1)), double(CropPoly(:,2)));
+%                             if ( Coverage(Icrop) < 1 && Flag > 0 ) || (Coverage(Icrop) > 0 && Flag < 1 )
+%                                 cprintf('red','crop %d: coverage estimate mismatch \n', Icrop);
+%                             end
                             Icrop = Icrop + 1;
                         end
                         
@@ -235,15 +234,15 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                         
                         % 4.2 merge the set of covering crops                                                     
                             %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
-                            try % 
+%                             try % 
                                 StitchedImage = imProc.stack.stitchCrops(AI,'UpdateWCS',true,'UpdateZP',true);
-                            catch ME
-                                fprintf('%s\n',ME.message);
-                                 if Args.Verbosity > 1
-                                     cprintf('err','However stitching of epoch %d failed, we are going on with other epochs\n',Iepoch);
-                                 end
-                                 continue
-                            end
+%                             catch ME
+%                                 fprintf('%s\n',ME.message);
+%                                  if Args.Verbosity > 1
+%                                      cprintf('err','However stitching of epoch %d failed, we are going on with other epochs\n',Iepoch);
+%                                  end
+%                                  continue
+%                             end
                             
                             if isnan(julday(StitchedImage))
                                 StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabEpoch.jd_start(Iepoch));
