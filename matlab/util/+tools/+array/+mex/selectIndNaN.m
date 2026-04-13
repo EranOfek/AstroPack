@@ -1,4 +1,4 @@
-% Select rows from a 2D matrix, and insert NaN rows for NaN indices.
+% Fast mex for selecting rows from a 2D matrix, and insert NaN rows for NaN indices.
 % Description: Given a 2D matrix and a vector/matrix of row indices, return
 %              a new matrix containing the selected rows. If an element in
 %              Ind is NaN, then the corresponding output row is filled with
