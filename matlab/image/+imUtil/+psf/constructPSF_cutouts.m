@@ -94,6 +94,8 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         XY                         = [];  % XY positions of sources in image
         
         Args.M1                    = []; % override the first moment calculation
+        Args.MomentsMethod         = 'legacy';  %'legacy'|'mex'
+
         Args.Norm                  = [];  % vector of normalization per cutout
         Args.FluxRadius            = 4; % if norm is not given.
         Args.Back                  = [];  % Back to subtract. If [] don't subtract.
@@ -115,7 +117,7 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         Args.MomRadius             = 8;
         Args.Annulus               = [10 12];        
         
-        Args.ShiftMethod           = 'fft';   % 'lanczos' | 'fft'
+        Args.ShiftMethod           = 'fft';   % 'lanczos3' | 'fft'
         Args.A                     = 2;
         Args.IsCircFilt logical    = true;
         Args.PadVal                = 0;
@@ -175,7 +177,15 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         
         %M1 = imUtil.image.moment2(Cube, X, Y, 'MomRadius',Args.MomRadius);
         if isempty(Args.M1)
-            M1 = imUtil.image.moment2(Cube, Xcen, Ycen, 'MomRadius',Args.MomRadius, 'Annulus',Args.Annulus);
+            switch Args.MomnentsMethod
+                case 'mex'
+                    SN_W = ones(size(Xcen)).*100;
+                    [M1] = imUtil.sources.moments(Image, 'X',Xcen, 'Y',Ycen, 'SN',SN_W);
+                case 'legacy'
+                    M1 = imUtil.image.moment2(Cube, Xcen, Ycen, 'MomRadius',Args.MomRadius, 'Annulus',Args.Annulus);
+                otherwise
+                    error('Unknown MomentsMethod option');
+            end
         else
             M1 = Args.M1;
         end
@@ -190,7 +200,9 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     
     
     switch lower(Args.ShiftMethod)
-        case 'lanczos'
+        case 'lanczos3'
+            [ShiftedCube] = imUtil.trans.mex.shift_lanczos3(Cube, ShiftXY(:,1), ShiftXY(:,2));
+        case 'lanczos_old'
             [ShiftedCube] = imUtil.trans.shift_lanczos(Cube, ShiftXY, Args.A, Args.IsCircFilt, Args.PadVal);
         case 'fft'            
             [ShiftedCube] = imUtil.trans.shift_fft(Cube, ShiftXY(:,1), ShiftXY(:,2));

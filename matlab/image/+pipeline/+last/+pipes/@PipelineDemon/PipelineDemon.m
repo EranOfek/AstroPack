@@ -2444,44 +2444,68 @@ classdef PipelineDemon < Component
             Status.WriteI  = false;
             Status.MoveRaw = false;
             
-            try
-                Tstart = clock;
+            Tstart = clock;
 
-                % executing pipelineI
-                [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
-                ProcImageList = TableRaw.FileNames;                
-                RunTime = etime(clock, Tstart);
+            % executing pipelineI
+            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
+            %ProcImageList = TableRaw.FileName;                
+            RunTime = etime(clock, Tstart);
+            Ntr = size(TableRaw,1);
+            TableRaw.TimePipeI = RunTime.*ones(Ntr,1);
+
+            % Notify watchdog that process is running
+            tools.systemd.mex.notify_watchdog;
+
+            if Status.PipeI
+                % success
+
                 MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI finished executing pipeline for visit');
                 MsgF{2} = sprintf('pipeline run time : %f', RunTime);
                 Obj.writeLog(MsgF, LogLevel.Info);
 
-                Status.PipeI = true;
-
-                % Notify watchdog that process is running
-                tools.systemd.mex.notify_watchdog;
-
                 % saving data products of pipelineI
-                Tstart = clock;
-                AllForcedPhot = []; % TEMPORARY
-                [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, Args);
-                RunTime = etime(clock, Tstart);
-                MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI finished saving products for visit');
-                MsgF{2} = sprintf('pipeline run time : %f', RunTime);
-                Obj.writeLog(MsgF, LogLevel.Info);
 
+                try
+                    Tstart = clock;
+                    AllForcedPhot = []; % TEMPORARY
+                    [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, Args);
+                    RunTime = etime(clock, Tstart);
+                    TableRaw.TimeSaveI = RunTime.*ones(Ntr,1);
+
+                    MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI finished saving products for visit');
+                    MsgF{2} = sprintf('pipeline run time : %f', RunTime);
+                    Obj.writeLog(MsgF, LogLevel.Info);
+
+                    Status.WriteI = true;
                 
-                Status.WriteI = true;
+                
+                    % Move images to raw/ dir                
+                    if Args.MoveNew2Raw     
+                        RawImageListFinal = FN_I.genPath('PathType','raw');
+                        io.files.moveFiles(RawImageList, [], '', RawImageListFinal);
+                        
+                        Status.MoveRaw = true;
+                    else
+                        RawImageListFinal = FN_I.genPath;
+                        Status.MoveRaw = false;
+                    end
+                    %TableRaw.SaveStatus = true(Ntr,1);
+                catch MEs
+                    % save failed
+                    Status.WriteI = false;
+                    TableRaw.SaveStatus = false(Ntr,1);
 
-                % Move images to raw/ dir                
-                if Args.MoveNew2Raw     
-                    RawImageListFinal = FN_I.genPath('PathType','raw');
-                    io.files.moveFiles(RawImageList, [], '', RawImageListFinal);
-                    
-                    Status.MoveRaw = true;
-                else
-                    RawImageListFinal = FN_I.genPath;
-                    Status.MoveRaw = false;
-                end
+                    ErrorMsg = sprintf('Save data products Pipeline I failed: %s / funname: %s @ line: %d', MEs.message, MEs.stack(1).name, MEs.stack(1).line);
+                    Obj.writeLog(ErrorMsg, LogLevel.Error);
+                    Obj.writeLog(MEp, LogLevel.Info);
+                end % try
+            else
+                ErrorMsg = sprintf('Pipeline I failed: %s / funname: %s @ line: %d', Status.ME.message, Status.ME.stack(1).name, Status.ME.stack(1).line);
+                Obj.writeLog(ErrorMsg, LogLevel.Error);
+                Obj.writeLog(MEp, LogLevel.Info);
+            end % if Status.PipeI
+
+
                     
 
                 % Pipeline II
@@ -2492,21 +2516,21 @@ classdef PipelineDemon < Component
 
                 % Status.WriteII = true;
 
-            catch MEp
-                % pipeline failed
-               
-                RawImageListFinal = [];
-                AllSI = [];
-                MS    = [];
-                Coadd = [];
-                OnlyMP = [];
-                AllForcedPhot = [];
-
-                ErrorMsg = sprintf('Pipeline I failed: %s / funname: %s @ line: %d', MEp.message, MEp.stack(1).name, MEp.stack(1).line);
-                Obj.writeLog(ErrorMsg, LogLevel.Error);
-                Obj.writeLog(MEp, LogLevel.Info);
-
-            end % try
+            % catch MEp
+            %     % pipeline failed
+            % 
+            %     RawImageListFinal = [];
+            %     AllSI = [];
+            %     MS    = [];
+            %     Coadd = [];
+            %     OnlyMP = [];
+            %     AllForcedPhot = [];
+            % 
+            %     ErrorMsg = sprintf('Pipeline I failed: %s / funname: %s @ line: %d', MEp.message, MEp.stack(1).name, MEp.stack(1).line);
+            %     Obj.writeLog(ErrorMsg, LogLevel.Error);
+            %     Obj.writeLog(MEp, LogLevel.Info);
+            % 
+            % end % try
 
 
 
