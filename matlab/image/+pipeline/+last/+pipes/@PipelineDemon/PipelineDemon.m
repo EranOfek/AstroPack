@@ -2461,7 +2461,7 @@ classdef PipelineDemon < Component
                 tools.systemd.mex.notify_watchdog;
 
                 % saving data products of pipelineI
-                Tstart = clock;
+                anTstart = clock;
                 AllForcedPhot = []; % TEMPORARY
                 [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, Args);
                 RunTime = etime(clock, Tstart);

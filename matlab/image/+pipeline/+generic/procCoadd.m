@@ -187,8 +187,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                  'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
         Args.Threshold                        = 5;
        
-        Args.multiIterExtractorArgs           = {};
 
+        Args.multiIterExtractorArgs           = {};
+        Args.AperRadius                       = [2, 4, 6];
+        Args.Annulus                          = [10 12];
+        Args.MomentsMethod                    = 'mex';  %'legacy'|'mex'
+        Args.AperPhotMethod                   = 'interp';  % 'simple'|'interp'
 
         Args.RefineAstrometry                 = true;
         Args.astrometryRefineArgs cell        = {};
@@ -401,8 +405,14 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             
             %Ifields
             if Args.FindStars
-                [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), Args.multiIterExtractorArgs{:},...
-                                                    'AddSkyCoo',false, 'UseMex',Args.UseMex);
+                [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), ...
+                                                    Args.multiIterExtractorArgs{:},...
+                                                    'AperRadius',Args.AperRadius,...
+                                                    'Annulus',Args.Annulus,...
+                                                    'MomentsMethod',Args.MomentsMethod,...
+                                                    'AperPhotMethod',Args.AperPhotMethod,...
+                                                    'AddSkyCoo',false,...
+                                                    'UseMex',Args.UseMex);
             end
 
             % astrometry / refine
