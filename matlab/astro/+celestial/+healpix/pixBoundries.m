@@ -1,5 +1,7 @@
 function [CornerLons, CornerLats] = pixBoundries(NSide, Pix, Type)
-    % Return healpix pixel boundries corners.
+    % Return healpix pixel verteces (corners).
+    %   OBSOLETE: likely wrong / use celestial.healpix.healpixVertices
+    %   instead.
     %   These are the north/south/east/west boundries and not the healpix
     %   corners.
     % Input  : - Healpix Nside.
@@ -17,6 +19,8 @@ function [CornerLons, CornerLats] = pixBoundries(NSide, Pix, Type)
         Pix
         Type   = 'nested';
     end
+
+    error('Likely not correct')
 
     Pix = Pix(:);
 
