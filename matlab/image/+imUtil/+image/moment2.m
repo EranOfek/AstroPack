@@ -1,6 +1,7 @@
 function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 % Calculate 1st, 2nd moments and (weighted) aperture photometry 
-% Package: @imUtil.image
+%   OBSOLETE: Use instead: imUtil.sources.moments2
+% Package: imUtil.image
 % Description: Given a 2D image, or a 3D cube of image stamps, and X, Y
 %              coordinates of sources (or the center of the stamps),
 %              calculate for each stamp the 1st and 2nd moments, and
