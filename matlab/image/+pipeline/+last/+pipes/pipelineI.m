@@ -248,7 +248,9 @@ function [TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args
             % for each sub image - run over all epochs
             Coo = CatForcedPhot(Isub).getCol({'RA','Dec'}).*RAD;
             %if strcmpi(Args.OutputType, 'concatai')
+            if ~isempty(Coo)
                 AllSI(:,Isub) = imProc.sources.forcedPhotNew(AllSI(:,Isub), 'OutputType','ConcatAI', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, 'ReadColFromHeader',false, Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
+            end
             %else
             %    error('Currently, adding forced phot is supported only using the ConcatAI option');
             %end
