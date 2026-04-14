@@ -365,7 +365,7 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
     if nargout>2 && ~isempty(Args.Keys2table)
         % preparing a catalog of images
         TableHeader = imProc.header.headers2table(AI,'ColNameDic',Args.Keys2table);
-        TableHeader.FileNames = string(Images(:));
+        TableHeader.FileName = string(Images(:));
     else
         TableHeader = [];
     end
@@ -402,7 +402,8 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
     if ~isempty(TableForDB)
         if islogical(TableForDB) && TableForDB
             % create new TableForDB
-            TableForDB = struct( 'FileName',strings(Nim,1),...
+            TableForDB = struct('PrePrepOK',false(Nim,1),...
+                                'Exception',false(Nim,1),...
                                 'NotEmptyImage',false(Nim,1),...
                                 'CorrectSize',false(Nim,1),...
                                 'Nx',nan(Nim,1),...
@@ -417,10 +418,14 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
                                 'ACF_FWHM',nan(Nim,1),...
                                 'GoodACF_FWHM',false(Nim,1),...
                                 'GoodImages',false(Nim,1),...
-                                'SelectedImages',false(Nim,1));
+                                'SelectedImages',false(Nim,1),...
+                                'BasicCalib',false(Nim,1));
         else
             % Add columns:
-            TableForDB.FileName              = strings(Nim,1);
+            %TableForDB.FileName              = strings(Nim,1); already in
+            %header
+            TableForDB.PrePrepOK             = false(Nim,1);
+            TableForDB.Exception             = false(Nim,1);
             TableForDB.NotEmptyImage         = false(Nim,1);
             TableForDB.CorrectSize           = false(Nim,1);
             TableForDB.Nx                    = nan(Nim,1);
@@ -436,6 +441,7 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
             TableForDB.GoodACF_FWHM          = false(Nim,1);
             TableForDB.GoodImages            = false(Nim,1);
             TableForDB.SelectedImages        = false(Nim,1);
+            TableForDB.BasicCalib            = false(Nim,1);
         end
     end
 end

@@ -24,7 +24,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.NsideLow    = 2^8; 
         Args.SearchTable = 'visit_images'; % 'proc_images'
         % the list of table columns needed to check the overlaps + filtering + control 
-        Args.Fields      = "id_visit, upix_low, jd_start, exptime, fieldid, mountnum, camnum, cropid," + ... 
+        Args.Fields      = "id_visit, upix_low, jd_start, midjd, exptime, fieldid, mountnum, camnum, cropid," + ... 
                            "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
                        
         Args.RefNumbers  = []; % e.g., [120000 120001] or [120000:120020]; input range of ref. image numbers  
@@ -110,7 +110,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         
         % find the center and neighbors at the search resolution Args.NsideSearch
         UpixCenter = celestial.healpix.ang2pix(Args.NsideSearch, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);               
-        UpixNeighb = celestial.healpix.mex.neighbors_nested(log2(Args.NsideSearch),UpixCenter);
+        UpixNeighb = celestial.healpix.mex.neighbors_nested(Args.NsideSearch,UpixCenter);
 
         % translate the center and the neighbors to Args.NsideLow (as in the image table of the DB)                 
         UpixCenterLow = celestial.healpix.increasePixelResolution(UpixCenter, Args.NsideSearch, Args.NsideLow); 
@@ -153,7 +153,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         %
         StackImages = [];
         
-        for Iepoch = 1:Nepoch
+        for Iepoch = 1:Nepoch % loop by sets of epoch + telescope 
             
             TabEpoch  = T(Grp == Iepoch, :);
             Imount    = unique(TabEpoch.mountnum); % unique is used to prevent multiple mounts in one set 
@@ -163,7 +163,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                     fprintf('M%dC%d epoch %d: %d crop images found in the DB \n',Imount,Icam,Iepoch,Nim);
                 end
 
-            % 2. select exposures by specific obs. time, time span, etc.
+            % 2. select exposures by specific obs. time, mount, telescope, time span, etc.
             %
             % if T2.jd_start ...
             %   fprintf('Epoch %d is skipped due to..\n', Iepoch);
@@ -208,19 +208,23 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
             if Args.Verbosity > 1
                 fprintf('M%dC%d epoch %d: %d images filtered, start dowloading and stitching..\n',Imount,Icam,Iepoch,Nim);
             end
-            Nim = height(TabEpoch);
-            AI = AstroImage([1 Nim]);
-            Mt  = compose('%02d',TabEpoch.mountnum(1)); Cam = compose('%02d',TabEpoch.camnum(1));
-            YY  = compose('%04d',TabEpoch.diryear(1)); MM = compose('%02d',TabEpoch.dirmon(1)); DD = compose('%02d',TabEpoch.dirday(1));
-            for Icrop = 1:Nim
-                FN = strcat('/mnt/euclid/last/data/LAST.01.',Mt,'.',Cam,'/',YY,'/',MM,'/',DD,...
-                    '/proc/',TabEpoch.subdir(Icrop),'/LAST.01.',Mt,'.',Cam,'_',YY,MM,DD,'.',TabEpoch.filetime(Icrop),...
-                    '_clear_',string(TabEpoch.fieldid(Icrop)),'_000_001_',compose('%03d',TabEpoch.cropid(Icrop)),...
-                    '_sci_coadd_Image_1.fits');
-                AI(Icrop)= AstroImage.readProducts(FN);
-                AI(Icrop).CatData.JD = AI(Icrop).julday;
-            end
-
+            
+            AF = AstroFileName;           
+            AF.ProjName = {'LAST', 1, TabEpoch.mountnum, TabEpoch.camnum};                        
+            AF.JD = double(TabEpoch.jd_start);
+            AF.julday2time;                          
+            AF.FieldID = TabEpoch.fieldid;
+            AF.CropID  = TabEpoch.cropid;
+            AF.Counter = 0;
+            AF.Level   = "coadd";
+            AF.CCDID   = 1;                        
+            AF.SubDir  = TabEpoch.subdir;                        
+            AF.BasePath                = '/mnt/euclid/last/data';
+            AF.BasePathIncludeProjName = true;
+            AF.AddSubDir               = true;
+            
+            AI = AstroImage.readProducts(AF.genFull);             
+                                    
             % check if WCS is present in all the selected crops
             if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
                 if Args.Verbosity > 1
