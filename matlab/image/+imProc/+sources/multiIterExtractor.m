@@ -286,6 +286,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.FitRadius                 = [3];% PSF fit radius at each iteration
         Args.MaxIter                   = 8;
         Args.mexCutout                 = true;
+        Args.ShiftMethod               = 'fft'; % 'lanczos3' | 'fft'
 
         
         % source detection:        
@@ -408,6 +409,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                    'RangeSN',Args.RangeSN,...
                                                    'InitPsf',Args.InitPsf,...
                                                    'InitPsfArgs',Args.InitPsfArgs,...
+                                                   'ShiftMethod',Args.ShiftMethod,...
                                                    'RePopulatePSF',true);
     end
 
