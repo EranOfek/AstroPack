@@ -333,6 +333,8 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
         K = K + 1;
         ColCellOut{K} = Args.ColCell{Icol};
         switch lower(Args.ColCell{Icol})
+            case 'forced'
+                Cat(:,K) = 0;  % forced photometry : NO
             case 'xpeak'
                 Cat(:,K) = Src.XPEAK;
             case 'ypeak'

@@ -27,7 +27,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                                               'BACK_ANNULUS', 'STD_ANNULUS', ...
                                               'FLUX_APER', 'FLUXERR_APER',...
                                               'MAG_APER', 'MAGERR_APER',...
-                                              'FLUX_XYPEAK'};
+                                              'FLUX_XYPEAK', 'FORCED'};
         Args.AperRadius                    = [2, 4, 6];
         Args.Annulus                       = [10 12];
         Args.MomentsMethod                 = 'mex';  %'legacy'|'mex'
@@ -38,7 +38,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
         Args.astrometryVisitSubImageArgs   = {};
         Args.forcedPhotArgs                = {};
+        %--- pipeline.generic.proc2MatchedSources args ---
         Args.proc2MatchedSourcesArgs       = {};
+        Args.ColUse                        = 'FORCED';
+        Args.AddUnUse                      = true;
+
         Args.matchExternal_Indiv           = true;
         Args.matchExternalArgs_Indiv       = {};
         Args.procCoaddArgs                 = {};
@@ -267,7 +271,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                     % for each sub image - run over all epochs
                     Coo = CatForcedPhot(Isub).getCol({'RA','Dec'}).*RAD;
                     %if strcmpi(Args.OutputType, 'concatai')
-                        AllSI(:,Isub) = imProc.sources.forcedPhotNew(AllSI(:,Isub), 'OutputType','ConcatAI', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, 'ReadColFromHeader',false, Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
+                    AllSI(:,Isub) = imProc.sources.forcedPhotNew(AllSI(:,Isub), 'OutputType','ConcatAI', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, 'ReadColFromHeader',false, Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
                     %else
                     %    error('Currently, adding forced phot is supported only using the ConcatAI option');
                     %end
@@ -304,9 +308,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         
             % Merge catalogs
             %ProcessingStep = 501;
-            MS = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1);   % 9.6 s -> 1.3s (with MatchMethod='unify')
+            MS = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse);   % 9.6 s -> 1.3s (with MatchMethod='unify')
         
-        
+         
+
             % Calculate drift between epochs
             % Note that MS is already filerted! I.e., some epochs may not
             % be included

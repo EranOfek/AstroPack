@@ -412,6 +412,8 @@ function [Result] = forcedPhotNew(Obj, Args)
                 case 'MITER'
                     % do nothing
                     % for forced photometry MITER is NaN
+                case 'FORCED'
+                    Data(:,K) = 1;
 
                 case 'FLUX_XYPEAK'
                     % flux at XPEAK, YPEAK
