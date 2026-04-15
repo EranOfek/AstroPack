@@ -293,16 +293,20 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
                 BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Image, [Args.ACF_HalfSize, Args.ACF_HalfSize], false, [], Args.UseMex);
                 % subtract background
                 BackSubImage = BackSubImage - BackImage;
-            
-                
-                [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius, 'UseMex',Args.UseMex, 'Back',[]); %BackImage);
+                            
+                [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius, 'UseMex',Args.UseMex, 'Back',[]); %BackImage);                                                
                 if FWHM_ACF>Args.MaxFWHM
                     % run it again in a different CCDSEC
                     % this may be due to satellite streaks
                     BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Image, Args.CCDSEC2, true, [], Args.UseMex);
                     % subtract background
-                    BackSubImage = BackSubImage - TableForDB.Median(Iim);
+                    BackSubImage = BackSubImage - TableForDB.Median(Iim); % a misprint? 
+%                     BackSubImage = BackSubImage - BackImage;
+%                     try
                     [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius, 'UseMex',Args.UseMex, 'Back',[]); %BackImage);
+%                     catch ME
+%                         fprintf('%d',Iim);
+%                     end
                 end
     
                 TableForDB.ACF_FWHM(Iim)     = FWHM_ACF;
@@ -365,7 +369,7 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
     if nargout>2 && ~isempty(Args.Keys2table)
         % preparing a catalog of images
         TableHeader = imProc.header.headers2table(AI,'ColNameDic',Args.Keys2table);
-        TableHeader.FileName = string(Images(:));
+        TableHeader.FileName = string(Images(FlagGoodImages));
     else
         TableHeader = [];
     end
