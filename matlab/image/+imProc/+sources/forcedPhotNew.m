@@ -73,6 +73,12 @@ function [Result] = forcedPhotNew(Obj, Args)
         
     end
 
+    % empty object list returns the input untouched 
+    if isempty(Args.Coo)
+        Result = Obj;
+        return;
+    end
+    
     RAD  = 180./pi;
 
     Nobj = numel(Obj);

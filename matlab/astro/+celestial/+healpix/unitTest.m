@@ -19,7 +19,7 @@ function Result = unitTest()
     RAD = 180./pi;
     Pix=(1:1e5);
     In1 =celestial.healpix.findNeighbors(2.^16,Pix);
-    In2 = celestial.healpix.mex.neighbors_nested(16, int64(Pix));
+    In2 = celestial.healpix.mex.neighbors_nested(2.^16, int64(Pix));
 
     [Lon0,Lat0]=celestial.healpix.pix2ang(2.^16, Pix);
     Lon0 = Lon0(:).';
