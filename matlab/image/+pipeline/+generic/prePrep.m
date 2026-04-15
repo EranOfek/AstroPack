@@ -299,14 +299,9 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
                     % run it again in a different CCDSEC
                     % this may be due to satellite streaks
                     BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Image, Args.CCDSEC2, true, [], Args.UseMex);
-                    % subtract background
-                    BackSubImage = BackSubImage - TableForDB.Median(Iim); % a misprint? 
-%                     BackSubImage = BackSubImage - BackImage;
-%                     try
-                    [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius, 'UseMex',Args.UseMex, 'Back',[]); %BackImage);
-%                     catch ME
-%                         fprintf('%d',Iim);
-%                     end
+                    % subtract background                    
+                    BackSubImage = BackSubImage - BackImage;                   
+                    [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius, 'UseMex',Args.UseMex, 'Back',[]); %BackImage);                    
                 end
     
                 TableForDB.ACF_FWHM(Iim)     = FWHM_ACF;
