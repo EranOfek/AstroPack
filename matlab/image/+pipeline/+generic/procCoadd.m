@@ -187,8 +187,13 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                  'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
         Args.Threshold                        = 5;
        
-        Args.multiIterExtractorArgs           = {};
 
+        Args.multiIterExtractorArgs           = {};
+        Args.AperRadius                       = [2, 4, 6];
+        Args.Annulus                          = [10 12];
+        Args.MomentsMethod                    = 'mex';  %'legacy'|'mex'
+        Args.AperPhotMethod                   = 'interp';  % 'simple'|'interp'
+        Args.ShiftMethod                      = 'fft'; % 'lanczos3' | 'fft'
 
         Args.RefineAstrometry                 = true;
         Args.astrometryRefineArgs cell        = {};
@@ -226,6 +231,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.Col2copy cell                    = {'Nobs'};  % cell array of columns to copy from MergedCat to Coadd
 
         Args.UseMex                           = false;
+
+        Args.MatchMethod                      = 'old'; % 'old'|'mex'
     end
     
     SEC_DAY = 86400;
@@ -399,8 +406,15 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             
             %Ifields
             if Args.FindStars
-                [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), Args.multiIterExtractorArgs{:},...
-                                                    'AddSkyCoo',false, 'UseMex',Args.UseMex);
+                [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), ...
+                                                    Args.multiIterExtractorArgs{:},...
+                                                    'AperRadius',Args.AperRadius,...
+                                                    'Annulus',Args.Annulus,...
+                                                    'MomentsMethod',Args.MomentsMethod,...
+                                                    'AperPhotMethod',Args.AperPhotMethod,...
+                                                    'ShiftMethod',Args.ShiftMethod,...
+                                                    'AddSkyCoo',false,...
+                                                    'UseMex',Args.UseMex);
             end
 
             % astrometry / refine
@@ -420,6 +434,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                                     'SearchRadius',3,...
                                                                                                     'CatName',AstrometricCat,...
                                                                                                     'Tran',Args.Tran,...
+                                                                                                    'MatchMethod',Args.MatchMethod,...
                                                                                                     'CreateNewObj',false);
                 %ResultCoadd(Ifields).MidMidJD = MidMidJD;
             end

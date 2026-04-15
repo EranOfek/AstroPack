@@ -20,4 +20,4 @@
 % Output : - A vector of X^2 2nd central moment in X.
 %          - A vector of Y^2 2nd central moment in Y.
 %          - A vector of X*Y 2nd central moment in X*Y.
-% Example: [X2,Y2,XY] = imUtil.sources.mex.mom2_cube(Cube, X,Y, NaN);
+% Example: [X2,Y2,XY] = imUtil.sources.mex.mom2_cube(Cube, Back, X,Y, NaN);

@@ -131,6 +131,8 @@ function [ResultFit, AI, CatName] = astrometrySameImage(Obj, Args)
 
         Args.astrometryCoreArgs     = {};
         Args.astrometryRefineArgs   = {};
+
+        Args.MatchMethod            = 'old'; % 'old'|'mex'
     end
 
     if Args.CreateNewObj
@@ -228,6 +230,7 @@ function [ResultFit, AI, CatName] = astrometrySameImage(Obj, Args)
                                                                                                 'FilterSigma',Args.FilterSigma,...
                                                                                                 'KeyExpTime',Args.KeyExpTime,...
                                                                                                 'RefRangeMagExpTimeFun',Args.RefRangeMagExpTimeFun,...
+                                                                                                'MatchMethod',Args.MatchMethod,...
                                                                                                 'astrometryCoreArgs',Args.astrometryCoreArgs,...
                                                                                                 'astrometryRefineArgs',Args.astrometryRefineArgs);
 

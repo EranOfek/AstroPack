@@ -82,7 +82,7 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
     %                   Default is {}.
     %            'UseMex' - A logical indicating if to use MEX when
     %                   possible. Default is false.
-    %            'MatchMethod' - Matching method: 'unify' | 'legacy'.
+    %            'MergeMethod' - Matching and merging method: 'unify' | 'legacy'.
     %                   Options are:
     %                       'unify' - use imProc.match.unify including mex.
     %                       'legacy' - Use
@@ -103,7 +103,11 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
         Args.JD                = [];
         Args.FlagGood          = []; % same Dim as AI
         Args.CheckAstrom       = false;
+        %--- imProc.match.unify arguments ---
         Args.unifyArgs         = {};
+        Args.ColUse            = [];
+        Args.AddUnUse          = false;
+
         Args.CooType           = 'sphere';
         Args.Radius            = 3;
         Args.RadiusUnits       = 'arcsec';
@@ -115,7 +119,8 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
                                   'MAG_APER_3','MAGERR_APER_3',...
                                   'FLUX_APER_3',...
                                   'FLAGS',...
-                                  'BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};
+                                  'BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS',...
+                                  'FORCED'};
 
         Args.RelPhot           = true;
         Args.RelPhotAlgo       = 'meddiff';  % 'meddiff'
@@ -133,7 +138,7 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
 
         Args.unifiedSourcesCatalogArgs = {};
         Args.UseMex            = false;
-        Args.MatchMethod       = 'unify'; % 'legacy'
+        Args.MergeMethod       = 'unify'; % 'legacy'
         %Args.LogObj            = [];
     end
 
@@ -196,10 +201,15 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
         FlagGood = Args.FlagGood(:,Ifields);   
 
         % source matching
-        switch Args.MatchMethod
+        switch Args.MergeMethod
             case 'unify'
                 % x7 faster
-                [~,~, MatchedS(Ifields)] = imProc.match.unify(AI(FlagGood,Ifields), Args.unifyArgs{:}, 'MatchRadius',Args.Radius, 'Col',Args.MatchedCols);
+                [~,~, MatchedS(Ifields)] = imProc.match.unify(AI(FlagGood,Ifields), Args.unifyArgs{:},...
+                                                              'MatchRadius',Args.Radius,...
+                                                              'Col',Args.MatchedCols,...
+                                                              'ColUse',Args.ColUse,...
+                                                              'AddUnUse',Args.AddUnUse);
+              
             case 'legacy'
                 [MatchedS(Ifields), Matched(Ifields,:)] = MatchedS(Ifields).unifiedCatalogsIntoMatched(AI(FlagGood,Ifields),...
                                                                  'CooType',Args.CooType,...

@@ -63,6 +63,10 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
     %            'BackPar' - A cell array of additional parameters to pass to
     %                   the imUtil.background.background function.
     %                   Default is {}.
+    %            'AperRadius' - Aperture photometry radii.
+    %                   Default is [2 4 6] pix.
+    %            'Annulus' - Background annulus [iner, outer] radii.
+    %                   Default is [10 12] pix.
     %            'MomPar' - A cell array of additional parameters to pass to
     %                   the imUtil.image.moment2 function.
     %                   Default is {}.
@@ -87,7 +91,10 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
     %            'ImageField' - Image field. Default is 'Im'.
     %            'BackField' - Background field. Default is 'Back'.
     %            'VarField' - Variance field. Default is 'Var'.
-    %
+    %            'MomentsMethod' - Options:
+    %                   'legacy' - use imUtil.image.moment2
+    %                   'mex' - use imUtil.sources.moments
+    %                   Default is 'mex'
     %            --- Streak detection ---
     %            'SearchStreaks' - A logical indicating if to search for
     %                   streaks. Default is false.
@@ -131,7 +138,12 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
         Args.BackIm                        = [];
         Args.VarIm                         = [];
         Args.BackPar cell                  = {};
-        Args.MomPar cell                   = {};
+        Args.AperRadius                    = [2 4 6];
+        Args.Annulus                       = [10 12];
+        Args.MomentsMethod                 = 'mex';  %'legacy'|'mex'
+        Args.AperPhotMethod                = 'interp';  % 'simple'|'interp'
+
+        Args.MomPar cell                   = {}; % for moments2
         Args.OutType                       = 'AstroCatalog';   % 'mat', 'table', 'catcl', 'struct'
         Args.ColCell cell                  = {'XPEAK','YPEAK','TEMP_ID','SN','FLUX_CONV','BACK_IM','VAR_IM',...           
                                                 'X1', 'Y1',...
@@ -152,6 +164,8 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
 
         Args.SearchStreaks                 = false;
         Args.detectStreaksLSDArgs          = {};
+
+        
     end
     
     ZP_Flux = 10.^(0.4.*Args.ZP);
@@ -211,16 +225,64 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
         %
         %Aper = imUtil.sources.aperPhotCube(Cube, X, Y, 'PSF',PSF,'SubPixShift','fft')
         
-        % old:
-        [M1,M2,Aper] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK,Args.MomPar{:});
-        
-    elseif any(ismember(Args.ColCell,Mom2Cell))
-        [M1,M2] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK,Args.MomPar{:});
+        switch Args.MomentsMethod
+            case 'legacy'
+                %tic; for i=1:100
+                [M1,M2,Aper] = imUtil.image.moment2(Image-Back, Src.XPEAK, Src.YPEAK, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, Args.MomPar{:});
+                % Note M1.Iter is a scalar! This may generate a crash
+                %end, toc
+            case 'mex'
+
+                % new:
+                % x7-10 faster     
+                %tic; for i=1:100
+                SN_W = Src.SN(:,2);
+                SN_W(SN_W<1) = 1;
+                [M1, M2, Aper] = imUtil.sources.moments(Image, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod);
+                % %end, toc
+                % 
+                % % debuging plots:  
+                % % M1
+                % hist([M1a.X1-Src.XPEAK, M1.X-Src.XPEAK],20); xlabel('Final X - Initial X [pix]'); ylabel('N'); legend('New','Old')
+                % % M2
+                % hist(sqrt(M2a.X2),30)
+                % hist(M2.X2,100)
+                % % AperPhot
+                % ia=3; [H,Hl,Hu]=plot.plotSignedLogY(Apera.AperPhot(:,ia), (Aper.AperPhot(:,ia)-Apera.AperPhot(:,ia))./Apera.AperPhot(:,ia),'.');   
+                % ia=1;plot(Apera.AperPhot(:,ia), Aper.AperPhot(:,ia)-Apera.AperPhot(:,ia),'.')
+            otherwise
+                error('Unknown MomentsMethod option');
+        end
+
+    elseif any(ismember(Args.ColCell,Mom2Cell))            
         Aper    = [];
+        switch Args.MomentsMethod
+            case 'legacy'
+                [M1,M2] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, Args.MomPar{:});
+                
+            case 'mex'
+                
+                SN_W = Src.SN(:,2);
+                SN_W(SN_W<1) = 1;
+                [M1, M2] = imUtil.sources.moments(Image, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod);
+            otherwise
+                error('Unknown MomentsMethod option');
+        end
+
     elseif any(ismember(Args.ColCell,Mom1Cell))
-        [M1] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK,Args.MomPar{:});
         M2   = [];
         Aper = [];
+        switch Args.MomentsMethod
+            case 'legacy'
+                [M1] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, Args.MomPar{:});
+            case 'mex'
+                
+                SN_W = Src.SN(:,2);
+                SN_W(SN_W<1) = 1;
+                [M1] = imUtil.sources.moments(Image, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod);
+            otherwise
+                error('Unknown MomentsMethod option');
+        end
     else
         % no need to call moment2
         M1   = [];
@@ -271,6 +333,8 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
         K = K + 1;
         ColCellOut{K} = Args.ColCell{Icol};
         switch lower(Args.ColCell{Icol})
+            case 'forced'
+                Cat(:,K) = 0;  % forced photometry : NO
             case 'xpeak'
                 Cat(:,K) = Src.XPEAK;
             case 'ypeak'
@@ -310,6 +374,8 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
                 Cat(:,K) = M1.X;
             case 'y1'
                 Cat(:,K) = M1.Y;
+            case 'm1iter'
+                Cat(:,K) = M1.Iter;
             case 'x2'
                 Cat(:,K) = M2.X2;
             case 'y2'
