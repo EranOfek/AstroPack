@@ -492,7 +492,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         catch ME
             Status.PipeI   = false;
             Status.ME      = ME;
-            TableRaw.FileName   = strings(RawImageList(:));
+                        
+%             TableRaw.FileName   = strings(RawImageList(:));
+            TableRaw.FileName   = RawImageList(:);
             TableRaw.Exception  = true(numel(RawImageList), 1); % Exception in this stage will have PrePrepOK = true
 
             % TableRaw is populated!
