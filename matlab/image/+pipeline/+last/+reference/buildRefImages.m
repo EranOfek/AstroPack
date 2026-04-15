@@ -53,8 +53,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                     'MAG_APER', 'MAGERR_APER'};
         
         Args.CoaddFunction     = @pipeline.generic.procCoadd;  % @imProc.stack.coaddW; % a handle to coadder of registered images 
-        Args.StackMethod       = 'sigmaclip';
-        Args.StackArgs         = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
+%         Args.StackMethod       = 'sigmaclip';
+%         Args.StackArgs         = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
         
         Args.PixScale           = 1.25;
         Args.Tran               = Tran2D('poly3');
@@ -291,7 +291,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         end
         
 %         RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'FluxMatch','PH_ZP',...
-%                     'StackMethod',Args.StackMethod,'StackArgs',Args.StackArgs);     
+%                     'StackMethod',Args.StackMethod,'StackArgs',Args.StackArgs);   
+        for i=1:numel(StackImages); StackImages(i).WCS.Success=1;end % a temporary patch 
+        
         RefImage = Args.CoaddFunction(StackImages','WCS',AIref.WCS); 
         
         % measure the background, find and measure sources, measure the PSF
