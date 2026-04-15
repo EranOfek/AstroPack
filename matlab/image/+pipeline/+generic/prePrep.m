@@ -360,6 +360,7 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
     end
 
     TableForDB = struct2table(TableForDB);
+    TableForDB = TableForDB(FlagGoodImages,:);
 
     if nargout>2 && ~isempty(Args.Keys2table)
         % preparing a catalog of images
