@@ -73,7 +73,7 @@ classdef PhotCalibTrans < Component
     %     calcAperCorr - Calculate aperture corrections vs reference flux/mag column.
     %                    Stores AperCorr, AperCorrColNames, AperCorrNStars on object.
     %                    Results written to header by photCalibTransToHeader (APCOR_A1/A2/A3/PS/N).
-    %                    Applied to magnitudes by addMag (when ApplyAperCorr=true).
+    %                    Applied to MAG_AB_* columns by orchestrator (fitPhotCalibTrans).
     %                    On failure: AperCorr set to NaN, warning via msgLog.
     %     addMag - Add calibrated magnitude columns to catalog (AB or Vega)
     %     applyConstBand - Apply constant-band correction to AB magnitudes.
@@ -90,6 +90,11 @@ classdef PhotCalibTrans < Component
     %                      Source='single': extract from one object directly.
     %                      Usage: CBP = PhotCalibTrans.buildConstBandParams(PCArray);
     %                             CBP = PhotCalibTrans.buildConstBandParams(PC, 'Source', 'single');
+    %     propagatePhotCalibToEpoch - Propagate coadd calibration to individual
+    %                      epoch images. Computes per-epoch DeltaZP from
+    %                      MatchedSources flux comparison, adjusts Norm, applies
+    %                      addMag/addZP, propagates AperCorr, writes headers.
+    %                      Usage: [AIs, PCs, DZP] = PhotCalibTrans.propagatePhotCalibToEpoch(PC, MS, AIs);
     %   Display/Output Methods:
     %     summary - Display photometric calibration summary
     %   Plotting Methods:
@@ -138,7 +143,8 @@ classdef PhotCalibTrans < Component
 
         % Aperture corrections
         AperCorr = []           % [1 x N_aper] aperture corrections in mag; NaN if calculation failed
-        AperCorrColNames = {}   % Cell array of flux column names corresponding to AperCorr entries
+        AperCorrColNames = {}   % Cell array of column names where AperCorr applies
+                                %   ('mag' mode: MAG_<prefix>_*; 'flux' mode: FLUX_*)
         AperCorrNStars = 0      % Number of stars used for aperture correction calculation
 
         % Constant band
@@ -692,14 +698,9 @@ classdef PhotCalibTrans < Component
                 end
             end
 
-            % Calculate aperture corrections if requested
-            if Args.CalcAperCorr
-                Obj = Obj.calcAperCorr(CurrentCat, ...
-                    'Method', Args.AperCorrMethod, ...
-                    'SNColName', Args.AperCorrSNColName, ...
-                    'MinSN', Args.AperCorrMinSN, ...
-                    'Verbose', Args.Verbose);
-            end
+            % NOTE: calcAperCorr is no longer called here. It runs in
+            % fitPhotCalibTrans AFTER addMag creates MAG_AB_* columns,
+            % so 'mag' mode can use AB magnitudes.
 
             if Args.Verbose
                 fprintf('=== Calibration Complete ===\n');
@@ -1229,6 +1230,78 @@ classdef PhotCalibTrans < Component
             IntTrans = trapz(Lambda, Trans) / (Lambda(end) - Lambda(1));
         end
 
+        function PCnew = derivePC(Obj, RefTransParams, Args)
+            % Derive a modified PhotCalibTrans from reference transmission parameters.
+            %   Creates a deep copy of this object with its transmission
+            %   parameters replaced by RefTransParams, optionally keeping
+            %   this crop's own Norm and absorbing the Tran2D center offset.
+            %   Used by orchestrators for non-percrop photometry modes
+            %   (refshape, refzp, refzp_raw, etc.) to produce a PhotCalibTrans
+            %   object with the desired state baked in, so plain addMag/
+            %   evaluateZP calls work without mode-aware overrides.
+            % Input  : - PhotCalibTrans object (this crop's fit).
+            %          - RefTransParams — full parameter vector (same length
+            %            as Obj.TransModel.getAllFunPar().Val), typically
+            %            visit-averaged. Position params (ZenithAngle_deg,
+            %            Temperature_C) are preserved from this crop.
+            %          * ...,key,val,...
+            %            'UseRefNorm'  - If true, use Norm from RefTransParams.
+            %                       If false (default), keep this crop's own Norm.
+            %            'NormTran2DToCenter' - If true (default when UseRefNorm=true),
+            %                       absorb Tran2D(center) into Norm so that Tran2D
+            %                       captures only relative shape. Default is true.
+            %            'PreserveObsParams' - Cell array of param names to keep
+            %                       from this crop (observation-dependent params).
+            %                       Default is {'ZenithAngle_deg', 'Temperature_C'}.
+            % Output : - PCnew — modified deep-copied PhotCalibTrans.
+            % Author : D. Kovaleva (Apr 2026)
+            % Example: PCref = PC.derivePC(RefParamVec);                 % refshape
+            %          PCref = PC.derivePC(RefParamVec, 'UseRefNorm', true);  % refzp
+            %          PCref = PC.derivePC(RefParamVec, 'UseRefNorm', true, ...
+            %                     'NormTran2DToCenter', false);                % refzp_raw
+
+            arguments
+                Obj
+                RefTransParams
+                Args.UseRefNorm logical = false
+                Args.NormTran2DToCenter logical = true
+                Args.PreserveObsParams cell = {'ZenithAngle_deg', 'Temperature_C'}
+            end
+
+            PCnew = Obj.copy();
+            AllFunPar = PCnew.TransModel.getAllFunPar();
+
+            % Start from reference params
+            NewVal = RefTransParams(:);
+
+            % Preserve observation-dependent params from this crop
+            for Ip = 1:numel(Args.PreserveObsParams)
+                Idx = find(strcmp(AllFunPar.Name, Args.PreserveObsParams{Ip}), 1);
+                if ~isempty(Idx)
+                    NewVal(Idx) = AllFunPar.Val(Idx);
+                end
+            end
+
+            % Optionally keep this crop's Norm (refshape mode)
+            NormIdx = find(strcmp(AllFunPar.Name, 'Norm'), 1);
+            if ~Args.UseRefNorm && ~isempty(NormIdx)
+                NewVal(NormIdx) = AllFunPar.Val(NormIdx);
+            end
+
+            % Optionally absorb Tran2D(center) into Norm (refzp mode)
+            HasTran2D = ~isempty(PCnew.TransModel.Tran2DObj) && PCnew.TransModel.UseTran2D;
+            if Args.UseRefNorm && Args.NormTran2DToCenter && HasTran2D && ~isempty(NormIdx)
+                Xc = PCnew.TransModel.Tran2DObj.ParNX(1);
+                Yc = PCnew.TransModel.Tran2DObj.ParNY(1);
+                [CenterCorr, ~] = PCnew.TransModel.Tran2DObj.forward([Xc, Yc]);
+                % Adjust Norm so that ZP at (Xc,Yc) equals the un-corrected ZP
+                NewVal(NormIdx) = NewVal(NormIdx) * 10^(CenterCorr / 2.5);
+            end
+
+            AllFunPar.Val = NewVal;
+            PCnew.TransModel.setAllFunPar(AllFunPar);
+        end
+
         function ZP = evaluateZP(Obj, Args)
             % Evaluate photometric zero point at specific positions
             % Input  : - PhotCalibTrans object.
@@ -1255,14 +1328,6 @@ classdef PhotCalibTrans < Component
                 Args.Y = []
                 Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
                 Args.PerSourceZenithAngles = []  % [N_pos x 1] per-source zenith angles [deg]
-                Args.RefTransParams = []  % Reference transmission parameter vector.
-                                          % When non-empty, uses these spectral params
-                                          % but keeps this crop's own Norm for ZP evaluation.
-                Args.UseRefNorm logical = false  % If true, use Norm from RefTransParams (refzp mode).
-                                                 % If false (default), swap Norm back to crop's own (refshape mode).
-                Args.NormTran2D logical = true    % If true (default), center-normalize Tran2D when UseRefNorm=true
-                                                  % (subtract Tran2D value at crop center to remove Norm/kx0 degeneracy).
-                                                  % Set false for raw refzp without normalization.
             end
 
             % Vega magnitude system placeholder — not yet implemented
@@ -1285,18 +1350,7 @@ classdef PhotCalibTrans < Component
                 % Build per-source AllFunPar matrix
                 AllFunPar = Obj.TransModel.getAllFunPar();
                 AllNames = AllFunPar.Name;
-
-                % If RefTransParams provided, use reference spectral params
-                if ~isempty(Args.RefTransParams)
-                    BaseParams = Args.RefTransParams(:)';
-                    if ~Args.UseRefNorm
-                        % refshape: keep crop's own Norm
-                        NormIdx = find(strcmp(AllNames, 'Norm'));
-                        BaseParams(NormIdx) = AllFunPar.Val(NormIdx);
-                    end
-                else
-                    BaseParams = AllFunPar.Val(:)';
-                end
+                BaseParams = AllFunPar.Val(:)';
 
                 ZenithIdx = find(strcmp(AllNames, 'ZenithAngle_deg'));
                 PerSourceParams = repmat(BaseParams, N_pos, 1);  % [N_pos x N_params]
@@ -1328,32 +1382,11 @@ classdef PhotCalibTrans < Component
                 if ~isempty(Args.X) && ~isempty(Args.Y) && ...
                    ~isempty(Obj.TransModel.Tran2DObj) && Obj.TransModel.UseTran2D
                     [FieldCorrectionMag, ~] = Obj.TransModel.Tran2DObj.forward([Args.X(:), Args.Y(:)]);
-                    if Args.UseRefNorm && Args.NormTran2D
-                        % Center-normalize: subtract Tran2D value at crop center
-                        % so that Tran2D captures only relative shape, not absolute offset
-                        Xc = Obj.TransModel.Tran2DObj.ParNX(1);
-                        Yc = Obj.TransModel.Tran2DObj.ParNY(1);
-                        [CenterCorr, ~] = Obj.TransModel.Tran2DObj.forward([Xc, Yc]);
-                        FieldCorrectionMag = FieldCorrectionMag(:) - CenterCorr;
-                    end
                     ZP = ZP - FieldCorrectionMag(:);
                 end
             else
                 % === Single airmass mode (original path) ===
-                % Evaluate BASE transmission (without position-dependent correction)
-                if ~isempty(Args.RefTransParams)
-                    % Uniform photometry: use reference spectral params
-                    MixedParams = Args.RefTransParams(:)';
-                    if ~Args.UseRefNorm
-                        % refshape: keep crop's own Norm
-                        AllFunPar = Obj.TransModel.getAllFunPar();
-                        NormIdx = find(strcmp(AllFunPar.Name, 'Norm'));
-                        MixedParams(NormIdx) = AllFunPar.Val(NormIdx);
-                    end
-                    TransBase = Obj.TransModel.evaluateAllFunParInput(Lambda, MixedParams);
-                else
-                    TransBase = Obj.TransModel.evaluateAllFunParInput(Lambda);
-                end
+                TransBase = Obj.TransModel.evaluateAllFunParInput(Lambda);
                 TransBase = TransBase(:)';  % Row vector [1 x N_lambda]
 
                 % Create flat Fnu spectrum for AB zero-point
@@ -1383,15 +1416,6 @@ classdef PhotCalibTrans < Component
                     % Get field correction in magnitude space from Tran2D
                     [FieldCorrectionMag, ~] = Obj.TransModel.Tran2DObj.forward([X, Y]);
                     FieldCorrectionMag = FieldCorrectionMag(:);  % [N_pos x 1]
-
-                    if Args.UseRefNorm && Args.NormTran2D
-                        % Center-normalize: subtract Tran2D value at crop center
-                        % so that Tran2D captures only relative shape, not absolute offset
-                        Xc = Obj.TransModel.Tran2DObj.ParNX(1);
-                        Yc = Obj.TransModel.Tran2DObj.ParNY(1);
-                        [CenterCorr, ~] = Obj.TransModel.Tran2DObj.forward([Xc, Yc]);
-                        FieldCorrectionMag = FieldCorrectionMag - CenterCorr;
-                    end
 
                     % ZP at each position = base ZP + field correction
                     ZP = ZP_base - FieldCorrectionMag;
@@ -1892,8 +1916,8 @@ classdef PhotCalibTrans < Component
                 IComment = 0;
             end
 
-            % Remove all existing PT_* keywords to ensure clean ordering
-            HeaderObj = HeaderObj.deleteKey({'PT_.*'});
+            % Remove all existing PT_* and APCOR_* keywords to ensure clean ordering
+            HeaderObj = HeaderObj.deleteKey({'PT_.*', 'APCOR.*'});
 
             % General results
             HeaderObj = HeaderObj.replaceVal('PT_RMS', Obj.TransModel.RMS);
@@ -2270,13 +2294,11 @@ classdef PhotCalibTrans < Component
             %   magnitude offset relative to RefFluxCol. The reference column
             %   itself gets AperCorr = 0.
             %   Results are stored on the object (AperCorr, AperCorrColNames,
-            %   AperCorrNStars) and used by two other methods:
-            %     - addMag: applies corrections to calibrated magnitudes
-            %       when ApplyAperCorr=true. If correction is NaN and
-            %       UpdateMagIfFail=true, the magnitude becomes NaN.
-            %     - photCalibTransToHeader: writes APCOR_A1, APCOR_A2,
-            %       APCOR_A3, APCOR_PS, APCOR_N keywords to FITS header.
-            %       NaN is written when calculation failed.
+            %   AperCorrNStars). Orchestrators (e.g., fitPhotCalibTrans)
+            %   apply the corrections to existing MAG_<System>_* columns
+            %   after this method runs. photCalibTransToHeader writes
+            %   APCOR_A1, APCOR_A2, APCOR_A3, APCOR_PS, APCOR_N keywords
+            %   to the FITS header. NaN is written when calculation failed.
             %   On failure (missing columns, too few stars), AperCorr is set
             %   to NaN and a warning is issued via msgLog and warning().
             % Input  : - PhotCalibTrans object.
@@ -2294,11 +2316,12 @@ classdef PhotCalibTrans < Component
             %            'MinSN'          - Minimum S/N for star selection. Default is 30.
             %            'MaxSN'          - Maximum S/N. Default is Inf.
             %            'Method'         - 'median' or 'weighted'. Default is 'median'.
-            %            'CalcCorrType'   - 'mag' reads magnitude columns and
-            %                        computes median(MAG_i - MAG_ref) per star
-            %                        (more numerically stable); 'flux' computes
-            %                        -2.5*log10(median(FLUX_i / FLUX_ref)).
-            %                        Default is 'mag'.
+            %            'CalcCorrType'   - 'flux' (default) computes
+            %                        -2.5*log10(median(FLUX_i / FLUX_ref)) from
+            %                        pristine FLUX columns; 'mag' reads MAG_*
+            %                        columns (may be pre-corrected by prior
+            %                        pipeline steps — use with caution).
+            %                        Default is 'flux'.
             %            'UpdateMagIfFail' - If true, NaN corrections propagate
             %                        to magnitudes in addMag. Default is true.
             %            'Verbose'        - Enable verbose output. Default is false.
@@ -2315,7 +2338,7 @@ classdef PhotCalibTrans < Component
                 CatObj
                 Args.RefFluxCol = 'FLUX_APER_3'
                 Args.AperFluxPrefix = 'FLUX_'
-                Args.AperMagPrefix = 'MAG_'          % Prefix for magnitude columns (CalcCorrType='mag')
+                Args.AperMagPrefix = 'MAG_AB_'       % Prefix for magnitude columns (CalcCorrType='mag')
                 Args.SNColName = 'SN'
                 Args.MinSN = 30
                 Args.MaxSN = Inf
@@ -2328,8 +2351,9 @@ classdef PhotCalibTrans < Component
             % Get column names
             AllColNames = CatObj.Table.Properties.VariableNames;
 
-            % Find aperture flux columns (exclude the reference itself)
+            % Find aperture flux columns (exclude FLUX_XYPEAK — not photometric)
             AperCols = AllColNames(startsWith(AllColNames, Args.AperFluxPrefix));
+            AperCols = AperCols(~strcmp(AperCols, 'FLUX_XYPEAK'));
             AperCols = sort(AperCols);
             % Keep reference in the list (correction = 0 by definition)
             Naper = numel(AperCols);
@@ -2424,7 +2448,9 @@ classdef PhotCalibTrans < Component
                     MagAper = CatObj.getCol(AperMagCol);
                     MagAper = MagAper(Mask);
 
-                    MagDiff = MagAper - MagRef;
+                    % Sign: AperCorr = MagRef - MagAper
+                    % (negative for smaller apertures; applied as Mag + AperCorr)
+                    MagDiff = MagRef - MagAper;
                     Valid = isfinite(MagDiff);
 
                     if sum(Valid) < 5
@@ -2467,9 +2493,11 @@ classdef PhotCalibTrans < Component
 
                     switch lower(Args.Method)
                         case 'median'
-                            AperCorrVec(Iaper) = -2.5 * log10(median(Ratio, 'omitnan'));
+                            % Sign: AperCorr = 2.5*log10(<FluxAper/FluxRef>)
+                            % (negative for smaller apertures; applied as Mag + AperCorr)
+                            AperCorrVec(Iaper) = 2.5 * log10(median(Ratio, 'omitnan'));
                         case 'weighted'
-                            MagDiff = -2.5 * log10(Ratio);
+                            MagDiff = 2.5 * log10(Ratio);
                             FluxErrColName = strrep(AperCols{Iaper}, 'FLUX_', 'FLUXERR_');
                             RefErrColName = strrep(Args.RefFluxCol, 'FLUX_', 'FLUXERR_');
                             if ismember(FluxErrColName, AllColNames) && ismember(RefErrColName, AllColNames)
@@ -2488,9 +2516,15 @@ classdef PhotCalibTrans < Component
                 end
             end
 
-            % Store results
+            % Store results — column names reflect mode:
+            % MAG_<prefix>_* in 'mag' mode, FLUX_* in 'flux' mode.
             Obj.AperCorr = AperCorrVec;
-            Obj.AperCorrColNames = AperCols;
+            if UseMag
+                Obj.AperCorrColNames = cellfun(@(C) strrep(C, 'FLUX_', Args.AperMagPrefix), ...
+                    AperCols, 'UniformOutput', false);
+            else
+                Obj.AperCorrColNames = AperCols;
+            end
             Obj.AperCorrNStars = NStars;
 
             if Args.Verbose
@@ -2544,11 +2578,6 @@ classdef PhotCalibTrans < Component
                 Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
                 Args.AddMagErr logical = true  % Add magnitude error columns
                 Args.AddZP logical = false  % Also insert ZP column (avoids recomputing)
-                Args.ApplyAperCorr logical = false  % Apply aperture correction to magnitudes
-                Args.UpdateMagIfFail logical = true  % If true, NaN correction makes magnitude NaN
-                Args.RefTransParams = []  % Reference transmission params for uniform photometry
-                Args.UseRefNorm logical = false  % If true, use Norm from RefTransParams (refzp mode)
-                Args.NormTran2D logical = true    % If true, center-normalize Tran2D in refzp mode
                 Args.PropagateCalibratedErr logical = false  % Propagate calibrated errors (placeholder)
                 Args.ApplyConstBand logical = false  % Apply constant-band correction after AB mags
                 Args.ConstBandParams = []            % Struct or .mat path for constant band params
@@ -2576,8 +2605,9 @@ classdef PhotCalibTrans < Component
             % Determine which flux columns to calibrate
             AllColNames = Tab.Properties.VariableNames;
             if isempty(Args.FluxColNames)
-                % Find all flux columns (FLUX_*)
+                % Find all flux columns (FLUX_*), excluding FLUX_XYPEAK
                 FluxColNames = AllColNames(startsWith(AllColNames, 'FLUX_'));
+                FluxColNames = FluxColNames(~strcmp(FluxColNames, 'FLUX_XYPEAK'));
             else
                 % Use specified columns
                 if ischar(Args.FluxColNames)
@@ -2638,11 +2668,6 @@ classdef PhotCalibTrans < Component
                 if ~isempty(PerSourceZenithAngles)
                     ZPArgs = [ZPArgs, 'PerSourceZenithAngles', PerSourceZenithAngles(ValidPosMask)];
                 end
-                if ~isempty(Args.RefTransParams)
-                    ZPArgs = [ZPArgs, 'RefTransParams', Args.RefTransParams, ...
-                                      'UseRefNorm', Args.UseRefNorm, ...
-                                      'NormTran2D', Args.NormTran2D];
-                end
                 ZP_valid = Obj.evaluateZP(ZPArgs{:});
                 ZP(ValidPosMask) = ZP_valid(:);
             end
@@ -2667,21 +2692,6 @@ classdef PhotCalibTrans < Component
                 % Create new calibrated magnitude column name
                 % e.g., FLUX_APER_3 -> MAG_AB_APER_3
                 NewMagColName = strrep(FluxColName, 'FLUX_', MagPrefix);
-
-                % Apply aperture correction if requested
-                if Args.ApplyAperCorr && ~isempty(Obj.AperCorr) && ~isempty(Obj.AperCorrColNames)
-                    AperIdx = find(strcmp(Obj.AperCorrColNames, FluxColName), 1);
-                    if ~isempty(AperIdx)
-                        % NaN correction propagates to Mag when UpdateMagIfFail is true
-                        if isnan(Obj.AperCorr(AperIdx)) && ~Args.UpdateMagIfFail
-                            % Skip: correction failed but user chose not to NaN magnitudes
-                        else
-                            % Subtract: AperCorr = MagAper - MagRef > 0 for smaller apertures,
-                            % so corrected = Mag - AperCorr brings magnitude toward reference level
-                            Mag = Mag - Obj.AperCorr(AperIdx);
-                        end
-                    end
-                end
 
                 % Insert magnitude column into catalog
                 CatObj = CatObj.insertCol(Mag, Inf, {NewMagColName});
@@ -3357,13 +3367,14 @@ classdef PhotCalibTrans < Component
                     Yvec = linspace(1, Ny, Args.GridSize(2));
                     [Xgrid, Ygrid] = meshgrid(Xvec, Yvec);
 
-                    ZPArgs = {'X', Xgrid(:), 'Y', Ygrid(:)};
                     if ~isempty(RefParamVec)
-                        ZPArgs = [ZPArgs, 'RefTransParams', RefParamVec, ...
-                                          'UseRefNorm', UseRefNorm, ...
-                                          'NormTran2D', NormTran2D];
+                        PCeval = Obj(Iobj).derivePC(RefParamVec, ...
+                            'UseRefNorm', UseRefNorm, ...
+                            'NormTran2DToCenter', NormTran2D);
+                    else
+                        PCeval = Obj(Iobj);
                     end
-                    ZP = Obj(Iobj).evaluateZP(ZPArgs{:});
+                    ZP = PCeval.evaluateZP('X', Xgrid(:), 'Y', Ygrid(:));
 
                     X_global = Xgrid(:) + (Col - 1) * Nx;
                     Y_global = Ygrid(:) + (Row - 1) * Ny;
@@ -3629,23 +3640,21 @@ classdef PhotCalibTrans < Component
             end
         end
 
-        function KeyName = fluxCol2AperCorrKey(FluxColName)
-            % Convert flux column name to FITS header keyword (max 8 chars)
-            %   FLUX_APER_1 -> APCOR_A1
-            %   FLUX_APER_2 -> APCOR_A2
-            %   FLUX_APER_3 -> APCOR_A3
-            %   FLUX_PSF    -> APCOR_PS
-            % Input  : - Flux column name (char)
+        function KeyName = fluxCol2AperCorrKey(ColName)
+            % Convert flux/mag column name to FITS header keyword (max 8 chars)
+            %   FLUX_APER_1 / MAG_AB_APER_1 / MAG_APER_1 -> APCOR_A1
+            %   FLUX_PSF    / MAG_AB_PSF                 -> APCOR_PS
+            % Input  : - Column name (char)
             % Output : - FITS keyword (char, max 8 chars)
 
-            if startsWith(FluxColName, 'FLUX_APER_')
-                Suffix = extractAfter(FluxColName, 'FLUX_APER_');
+            if contains(ColName, 'APER_')
+                Suffix = extractAfter(ColName, 'APER_');
                 KeyName = ['APCOR_A', Suffix];
-            elseif strcmp(FluxColName, 'FLUX_PSF')
+            elseif endsWith(ColName, 'PSF')
                 KeyName = 'APCOR_PS';
             else
                 % Generic: take last 2 chars of column name
-                Tag = FluxColName(max(1, end-1):end);
+                Tag = ColName(max(1, end-1):end);
                 KeyName = ['APCOR_', Tag];
             end
         end
@@ -3818,8 +3827,199 @@ classdef PhotCalibTrans < Component
                 end
             end
         end
+
+        function [EpochAIs, PCepochs, DeltaZP] = propagatePhotCalibToEpoch(PC, MS, EpochAIs, Args)
+            % Propagate coadd photometric calibration to individual epoch images.
+            %   Computes per-epoch DeltaZP from MatchedSources flux comparison,
+            %   creates a modified PhotCalibTrans per epoch (adjusted Norm),
+            %   and applies calibrated magnitudes, ZP, aperture corrections,
+            %   and header keywords to each epoch image.
+            % Input  : - PhotCalibTrans object from coadd calibration.
+            %          - MatchedSources object with matched sources across epochs.
+            %            Must contain FLUX_APER_3 (or FluxField) in Data.
+            %          - array of AstroImages for individual epochs.
+            %          * ...,key,val,...
+            %            'FluxField'    - Flux field in MS.Data. Default is 'FLUX_APER_3'.
+            %            'FluxErrField' - Flux error field. Default is 'FLUXERR_APER_3'.
+            %            'RefEpoch'     - Reference epoch index. Default is 1.
+            %            'UseWeightedMedian' - Use weighted median for DeltaZP.
+            %                        Default is true.
+            %            'AddMag'       - Add MAG columns. Default is true.
+            %            'AddZP'        - Add ZP column. Default is true.
+            %            'ApplyAperCorr' - Apply inherited aperture corrections to
+            %                        MAG_<System>_* columns. Default is true.
+            %            'UpdateHeader' - Write PT_* to epoch headers. Default is true.
+            %            'MagSystem'    - Magnitude system. Default is 'AB'.
+            %            'Verbose'      - Print progress. Default is true.
+            % Output : - updated AstroImages with MAG, ZP, header.
+            %          - array of PhotCalibTrans objects (one per epoch).
+            %          - [Nepoch × 1] vector of per-epoch ZP offsets [mag].
+            % Author : D. Kovaleva (Apr 2026)
+            % Example: [EpochAIs, PCe, DZP] = PhotCalibTrans.propagatePhotCalibToEpoch( ...
+            %              PC, MS, EpochAIs);
+
+            arguments
+                PC PhotCalibTrans
+                MS MatchedSources
+                EpochAIs
+                Args.FluxField = 'FLUX_APER_3'
+                Args.FluxErrField = 'FLUXERR_APER_3'
+                Args.RefEpoch = 1
+                Args.UseWeightedMedian logical = true
+                Args.AddMag logical = true
+                Args.AddZP logical = true
+                Args.ApplyAperCorr logical = true
+                Args.UpdateHeader logical = true
+                Args.MagSystem char = 'AB'
+                Args.Verbose logical = true
+            end
+
+            Nepoch = numel(EpochAIs);
+
+            % =============================================================
+            % Step 1: Compute per-epoch DeltaZP from MatchedSources
+            % =============================================================
+
+            % Select good sources using MatchedSources built-in selection
+            [~, GoodStar] = MS.selectGoodPhotCalibStars();
+
+            % Get flux matrix [Nepoch × Nsrc]
+            Flux = MS.getMatrix(Args.FluxField);
+            Flux = Flux(:, GoodStar);
+
+            % Flux of reference epoch
+            FluxRef = Flux(Args.RefEpoch, :);
+            ValidRef = FluxRef > 0 & isfinite(FluxRef);
+
+            % DiffMag per epoch per source relative to reference
+            DiffMag = -2.5 * log10(Flux ./ FluxRef);
+            ValidMask = isfinite(DiffMag) & ValidRef;
+
+            % Prepare flux errors if weighted median requested
+            HasFluxErr = Args.UseWeightedMedian && isfield(MS.Data, Args.FluxErrField);
+            if HasFluxErr
+                FluxErr = MS.getMatrix(Args.FluxErrField);
+                FluxErr = FluxErr(:, GoodStar);
+                FluxErrRef = FluxErr(Args.RefEpoch, :);
+            end
+
+            % Compute DeltaZP per epoch
+            DeltaZP = nan(Nepoch, 1);
+            for Ie = 1:Nepoch
+                if Ie == Args.RefEpoch
+                    DeltaZP(Ie) = 0;
+                elseif sum(ValidMask(Ie, :)) < 5
+                    DeltaZP(Ie) = NaN;
+                elseif HasFluxErr
+                    Valid = ValidMask(Ie, :);
+                    DM = DiffMag(Ie, Valid);
+                    MagErr = 1.086 * sqrt((FluxErr(Ie, Valid) ./ Flux(Ie, Valid)).^2 + ...
+                                          (FluxErrRef(Valid) ./ FluxRef(Valid)).^2);
+                    DeltaZP(Ie) = tools.math.stat.wmedian(DM(:), MagErr(:), 1);
+                else
+                    DeltaZP(Ie) = median(DiffMag(Ie, ValidMask(Ie, :)), 'omitnan');
+                end
+            end
+
+            % Normalize: zero-mean across epochs
+            DeltaZP = DeltaZP - mean(DeltaZP, 'omitnan');
+
+            if Args.Verbose
+                fprintf('DeltaZP per epoch (relative to mean):\n');
+                for Ie = 1:Nepoch
+                    fprintf('  Epoch %2d: %+.4f mag\n', Ie, DeltaZP(Ie));
+                end
+            end
+
+            % =============================================================
+            % Step 2: Create modified PhotCalibTrans per epoch and apply
+            % =============================================================
+
+            AllFunPar = PC.TransModel.getAllFunPar();
+            NormIdx = find(strcmp(AllFunPar.Name, 'Norm'), 1);
+            NormOrig = AllFunPar.Val(NormIdx);
+
+            PCepochs = PhotCalibTrans.empty(0, Nepoch);
+
+            for Ie = 1:Nepoch
+                PCe = PC.copy();
+                PCe.NCoadd = 1;
+
+                % Read epoch ExpTime from header
+                if isa(EpochAIs(Ie), 'AstroImage') && ~isempty(EpochAIs(Ie).HeaderData)
+                    ExpTimeVal = EpochAIs(Ie).HeaderData.getVal('EXPTIME');
+                    if ~isempty(ExpTimeVal) && isnumeric(ExpTimeVal)
+                        PCe.ExpTime = ExpTimeVal;
+                    end
+                end
+
+                % Adjust Norm by DeltaZP
+                NormNew = NormOrig;
+                if isfinite(DeltaZP(Ie))
+                    NormNew = NormOrig * 10^(DeltaZP(Ie) / 2.5);
+                    AllParEp = PCe.TransModel.getAllFunPar();
+                    AllParEp.Val(NormIdx) = NormNew;
+                    PCe.TransModel.setAllFunPar(AllParEp);
+                end
+
+                % Propagate coadd aperture corrections
+                PCe.AperCorr = PC.AperCorr;
+                PCe.AperCorrColNames = PC.AperCorrColNames;
+                PCe.AperCorrNStars = PC.AperCorrNStars;
+
+                % Get epoch catalog
+                if isa(EpochAIs(Ie), 'AstroImage')
+                    CatObj = EpochAIs(Ie).CatData;
+                else
+                    CatObj = EpochAIs(Ie);
+                end
+
+                HasCat = ~isempty(CatObj) && ~isempty(CatObj.Table) && height(CatObj.Table) > 0;
+
+                % Add calibrated magnitudes and ZP column 
+               
+                if HasCat && (Args.AddMag || Args.AddZP)
+                    if Args.AddMag
+                        CatObj = PCe.addMag(CatObj, 'MagSystem', Args.MagSystem, ...
+                            'AddZP', Args.AddZP);
+                    else
+                        % AddZP only, no AddMag: fall back to addZP
+                        CatObj = PCe.addZP(CatObj, 'MagSystem', Args.MagSystem);
+                    end
+                end
+
+                % Apply inherited aperture corrections to MAG columns
+                if HasCat && Args.AddMag && Args.ApplyAperCorr && ...
+                        ~isempty(PCe.AperCorr) && ~isempty(PCe.AperCorrColNames)
+                    AllColNamesC = CatObj.Table.Properties.VariableNames;
+                    for Iap = 1:numel(PCe.AperCorrColNames)
+                        ColName = PCe.AperCorrColNames{Iap};
+                        if ismember(ColName, AllColNamesC) && isfinite(PCe.AperCorr(Iap))
+                            Vals = CatObj.getCol(ColName) + PCe.AperCorr(Iap);
+                            CatObj.replaceCol(Vals, ColName);
+                        end
+                    end
+                end
+
+                % Write back catalog
+                if isa(EpochAIs(Ie), 'AstroImage')
+                    EpochAIs(Ie).CatData = CatObj;
+                end
+
+                % Update header
+                if Args.UpdateHeader && isa(EpochAIs(Ie), 'AstroImage')
+                    PCe.photCalibTransToHeader(EpochAIs(Ie).HeaderData);
+                end
+
+                PCepochs(Ie) = PCe;
+
+                if Args.Verbose
+                    fprintf('  Epoch %2d: Norm=%.6f, DeltaZP=%+.4f mag\n', ...
+                        Ie, NormNew, DeltaZP(Ie));
+                end
+            end
+        end
     end
 
-    methods (Access = private)
-    end
+ 
 end

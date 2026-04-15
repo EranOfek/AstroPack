@@ -21,7 +21,7 @@ function plotPhotFittedParams(PC, Args)
 
     arguments
         PC
-        Args.ParamNames     = {'TauAod500', 'PWV_cm', 'Norm'}
+        Args.ParamNames     = {'TauAod500', 'PWV_cm', 'Center_Ang', 'Norm'}
         Args.CropsToAnalyze = []
         Args.TileOrder      = 'rowmajor'
     end

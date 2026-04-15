@@ -14,6 +14,7 @@ function Result = testPhotStability(Args)
     %                6. Integral T mosaic + T vs epoch time series.
     %                7. FWHM vs epoch.
     %                8. Fitted atmospheric parameters vs epoch.
+    %                9. Asymptotic RMS (PT_ARMS vs PH_RMS) vs epoch.
     %
     % Input  : * ...,key,val,...
     %          --- Data loading ---
@@ -34,8 +35,16 @@ function Result = testPhotStability(Args)
     % Output : - Result struct with .PC, .Cats, .MS, .FitRMS, .ZPcenter,
     %            .HeaderData, .PersetInfo.
     % Author : D. Kovaleva (Mar 2026)
-    % Example: % Default (proc files from DataDir):
-    %          R = pipeline.last.quality.testPhotStability();
+    % Example: % Default (MergedMat + propagation, auto-detected):
+    %          R = pipeline.last.quality.testPhotStability('DataDir', '~/222625v1');
+    %
+    %          % Explicit MergedMat directory:
+    %          R = pipeline.last.quality.testPhotStability('DataDir', '~/222625v1', ...
+    %              'MergedMatDir', '~/222625v1');
+    %
+    %          % Force full cross-matching (no MergedMat):
+    %          R = pipeline.last.quality.testPhotStability('DataDir', '~/222625v1', ...
+    %              'ForceMatch', true);
     %
     %          % Coadd files from visit list:
     %          R = pipeline.last.quality.testPhotStability('DataDir', '', ...
@@ -43,7 +52,7 @@ function Result = testPhotStability(Args)
     %              'ListFields', {'M2C4Jul2p1'}, 'FileType', 'coadd', ...
     %              'OutDir', '~/results_coadd');
     %
-    %          % Compare modes with ConstBand:
+    %          % ConstBand mode:
     %          CBP = PhotCalibTrans.buildConstBandParams(R.PC.percrop);
     %          R = pipeline.last.quality.testPhotStability('Modes', {'percrop'}, ...
     %              'ApplyConstBand', true, 'ConstBandParams', CBP, ...
@@ -64,26 +73,27 @@ function Result = testPhotStability(Args)
         Args.ListFields     = {}
         Args.VisitIdx       = []
         Args.FileType       = 'proc'
-        Args.Modes          = {'percrop', 'shapeimage', 'perimage', 'shapeset', 'perset'}
+        Args.Modes          = {'percrop'}
         Args.RefCrop        = 10
         Args.Ncrop          = 24
         Args.CropsToAnalyze = []
-        Args.MatchRadius    = 1
-        Args.MagFields      = {'MAG_AB_PSF', 'MAG_AB_APER_3'}
+        Args.MatchRadius    = 3
+        Args.MagFields      = {'MAG_AB_APER_3', 'MAG_AB_PSF'}
         Args.MatchedColumns = {'RA','Dec','X1','Y1','SN', ...
                                'MAG_AB_PSF','MAG_AB_APER_3', ...
                                'MAG_PSF','MAG_APER_3', ...
                                'MAGERR_PSF','MAGERR_APER_3','FLAGS'}
         Args.BadFlags       = {'Saturated','NearEdge','Overlap'}
         Args.MaxMagErr      = 0.02
-        Args.MinEpochs      = 3
+        Args.MinEpochs      = 2
         Args.ApplyRelZP logical = false
+        Args.MergedMatDir = ''   % Load MergedMat HDF5 files into R.MS_merged ('' = skip)
         Args.ForceRecalc logical = false
         Args.CalibArgs cell = {}
         Args.ApplyConstBand logical = false
         Args.ConstBandParams = []
         Args.Plot logical   = true
-        Args.SaveFig logical = false
+        Args.SaveFig logical = true
         Args.TwoPanels logical = true
         Args.OverlayTrend   = 'median'
         Args.TrendBinWidth  = 0.5
@@ -189,6 +199,19 @@ function Result = testPhotStability(Args)
         'ForceRecalc', Args.ForceRecalc, ...
         'Verbose', Args.Verbose);
 
+    % === Load MergedMat (optional) ===
+    MS_merged = [];
+    if ~isempty(Args.MergedMatDir)
+        if Args.Verbose
+            fprintf('\n=== Loading MergedMat ===\n');
+        end
+        MS_merged = pipeline.last.quality.loadMergedMat( ...
+            'MergedMatDir', Args.MergedMatDir, ...
+            'CropsToAnalyze', Args.CropsToAnalyze, ...
+            'Ncrop', Args.Ncrop, ...
+            'Verbose', Args.Verbose);
+    end
+
     % === Assemble Result ===
     Result.PC         = Calib.PC;
     Result.Cats       = Calib.Cats;
@@ -199,6 +222,9 @@ function Result = testPhotStability(Args)
     end
     Result.MS         = MS;
     Result.HeaderData = HeaderData;
+    if ~isempty(MS_merged)
+        Result.MS_merged = MS_merged;
+    end
 
     % === Save ===
     ResultFile = fullfile(Args.OutDir, 'Result.mat');
@@ -215,6 +241,18 @@ function Result = testPhotStability(Args)
     % === Plots ===
     if ~Args.Plot
         return;
+    end
+
+    % MergedMat scatter (relative photometry from pipeline matching)
+    if ~isempty(MS_merged)
+        pipeline.last.quality.plotPhotScatter(MS_merged, ...
+            'Modes', {'percrop'}, ...
+            'MagFields', {'MAG_APER_3'}, ...
+            'TwoPanels', false, ...
+            'CropsToAnalyze', Args.CropsToAnalyze, ...
+            'OverlayTrend', Args.OverlayTrend, ...
+            'TrendBinWidth', Args.TrendBinWidth, ...
+            'MinEpochs', Args.MinEpochs);
     end
 
     pipeline.last.quality.plotPhotScatter(MS, ...
@@ -267,6 +305,12 @@ function Result = testPhotStability(Args)
         'TileOrder', Args.TileOrder);
 
     pipeline.last.quality.plotPhotFWHM(HeaderData, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'Ncrop', Args.Ncrop, ...
+        'TileOrder', Args.TileOrder);
+
+    pipeline.last.quality.plotPhotAsympRMS(Calib.PC, ...
+        'HeaderData', HeaderData, ...
         'CropsToAnalyze', Args.CropsToAnalyze, ...
         'Ncrop', Args.Ncrop, ...
         'TileOrder', Args.TileOrder);

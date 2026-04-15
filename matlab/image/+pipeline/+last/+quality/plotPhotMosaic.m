@@ -127,20 +127,21 @@ function plotPhotMosaic(CalibResult, Args)
                     CropParams = Info.VisitRefParams;
                     if Info.IsShapeset
                         % shapeset: per-crop Norm, no Tran2D normalization
-                        UseRefNorm = false;
+                        PCeval = PCvis(Ic).derivePC(CropParams, ...
+                            'UseRefNorm', false, ...
+                            'NormTran2DToCenter', false);
                     else
                         % perset/perset_raw: adjusted Norm to target ZP
-                        % Compute baseline ZP from visit-averaged shape (not percrop)
-                        UseRefNorm = true;
-                        ZPvisitBase = PCvis(Ic).evaluateZP( ...
-                            'RefTransParams', Info.VisitRefParams, ...
+                        PCeval = PCvis(Ic).derivePC(CropParams, ...
                             'UseRefNorm', true, ...
-                            'NormTran2D', Info.DoNormTran2D);
+                            'NormTran2DToCenter', Info.DoNormTran2D);
+                        ZPvisitBase = PCeval.evaluateZP();
                         if isfinite(ZPvisitBase) && Ic <= numel(Info.TargetZP) && ...
                            isfinite(Info.TargetZP(Ic))
                             DeltaZP = Info.TargetZP(Ic) - ZPvisitBase;
-                            CropParams(Info.NormIdx) = ...
-                                Info.VisitRefParams(Info.NormIdx) * 10^(DeltaZP / 2.5);
+                            AllPar = PCeval.TransModel.getAllFunPar();
+                            AllPar.Val(Info.NormIdx) = AllPar.Val(Info.NormIdx) * 10^(DeltaZP / 2.5);
+                            PCeval.TransModel.setAllFunPar(AllPar);
                         end
                     end
 
@@ -148,10 +149,7 @@ function plotPhotMosaic(CalibResult, Args)
                     Yvec = linspace(1, SubImgSize, GridN);
                     [Xgrid, Ygrid] = meshgrid(Xvec, Yvec);
 
-                    ZP = PCvis(Ic).evaluateZP('X', Xgrid(:), 'Y', Ygrid(:), ...
-                        'RefTransParams', CropParams, ...
-                        'UseRefNorm', UseRefNorm, ...
-                        'NormTran2D', Info.DoNormTran2D);
+                    ZP = PCeval.evaluateZP('X', Xgrid(:), 'Y', Ygrid(:));
                     ZPgrid = reshape(ZP, GridN, GridN);
 
                     [Row, Col] = PhotCalibTrans.cropID2RowCol(Ic, Nrows, Ncols, Args.TileOrder);
