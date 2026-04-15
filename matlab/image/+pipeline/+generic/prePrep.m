@@ -1,4 +1,4 @@
-function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
+function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, Args)
     % pre-preparation of astronomical images (cast, quality checks)
     %     Optional steps include:
     %       Read images from local directory or get an AstroImage object.
@@ -123,6 +123,7 @@ function [AI, TableForDB, TableHeader, JD_AI] = prePrep(Images, Args)
     %            the images. The columns in this table corresponds to the
     %            header keyword names in the Args.Keys2table argument.
     %          - A vector of mid JD (UTC) of images.
+    %          - A vector of FlagGoodImages flags 
     % Author : Eran Ofek (2025 Sep) 
     % Example: [AI, TFD]=pipeline.generic.prePrep(AI);
 
