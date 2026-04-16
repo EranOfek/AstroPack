@@ -50,7 +50,7 @@ function [Result] = stitchCrops(AI, Args)
     % make an empty AstroImage    
     Nx = max(Xmax)-X0+1;
     Ny = max(Ymax)-Y0+1;
-    Result = AstroImage({nan(Ny,Nx)}); 
+    Result = AstroImage({single(nan(Ny,Nx))}); 
     
     % fill the new image with chopped crops, shift the catalog pixels    
     for Icrop = 1:Ncrop                
