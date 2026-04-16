@@ -32,7 +32,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         Args.Annulus                       = [10 12];
         Args.MomentsMethod                 = 'mex';  %'legacy'|'mex'
         Args.AperPhotMethod                = 'interp';  % 'simple'|'interp'
-        Args.ShiftMethod                   = 'fft';
+
+        Args.ShiftMethod                   = 'fft'; %'lanczos3';  % 'fft'|'lanczos3'
+        Args.PsfPhotMethod                 = 'legacy'; %'2DGN';    % 'legacy'/'old' |'1D'|'2D'|'2DGN'
 
         Args.image2subimagesArgs           = {};
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
@@ -191,6 +193,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                                                             'Annulus',Args.Annulus,...
                                                             'MomentsMethod',Args.MomentsMethod,...
                                                             'ShiftMethod',Args.ShiftMethod,...
+                                                            'PsfPhotMethod',Args.PsfPhotMethod,...
                                                             'AddSkyCoo',false);  % 466 s (with UseMex=false)
                
             else
@@ -206,6 +209,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                                                             'Annulus',Args.Annulus,...
                                                             'MomentsMethod',Args.MomentsMethod,...
                                                             'ShiftMethod',Args.ShiftMethod,...
+                                                            'PsfPhotMethod',Args.PsfPhotMethod,...
                                                             'AddSkyCoo',false);  % 119 s (on 16 cores): 169s -> 135s (with UseMex=true)
                 end
                 %toc
@@ -274,7 +278,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                     %if strcmpi(Args.OutputType, 'concatai')
 
                     if ~isempty(Coo)
-                        AllSI(:,Isub) = imProc.sources.forcedPhotNew(AllSI(:,Isub), 'OutputType','ConcatAI', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, 'ReadColFromHeader',false, Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
+                        AllSI(:,Isub) = imProc.sources.forcedPhotNew(AllSI(:,Isub), 'OutputType','ConcatAI', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, 'ReadColFromHeader',false, 'PsfPhotMethod',Args.PsfPhotMethod, 'ShiftMethod',Args.ShiftMethod, Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
                     end
                     %else
                     %    error('Currently, adding forced phot is supported only using the ConcatAI option');
@@ -364,6 +368,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                                                       'MomentsMethod',Args.MomentsMethod,...
                                                       'AperPhotMethod',Args.AperPhotMethod,...
                                                       'ShiftMethod',Args.ShiftMethod,...
+                                                      'PsfPhotMethod',Args.PsfPhotMethod,...
                                                       Args.multiIterExtractorArgs{:});
           
             %toc

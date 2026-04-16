@@ -12,6 +12,10 @@ function [Result] = forcedPhotNew(Obj, Args)
 
     arguments
         Obj
+
+        Args.PsfPhotMethod           = 'legacy';
+        Args.ShiftMethod             = 'fft';
+
         Args.Coo                     = zeros(0,2);  % or a single AstroCatalog
         Args.CooUnits                = 'deg';   % 'pix'|'deg'|'rad
         Args.CatIsUniform            = true; % true - one catalog for all images; false - one line in the catalog per image 
@@ -282,6 +286,8 @@ function [Result] = forcedPhotNew(Obj, Args)
                                                             'ConvThresh',Args.ConvThresh,...
                                                             'MaxIter',Args.MaxIter,...
                                                             'UseSourceNoise',Args.UseSourceNoise,...
+                                                            'PsfPhotMethod',Args.PsfPhotMethod,...
+                                                            'ShiftMethod',Args.ShiftMethod,...
                                                             'ZP',Args.ZP);
                                                         
         

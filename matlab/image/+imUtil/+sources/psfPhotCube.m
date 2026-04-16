@@ -92,6 +92,10 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
    
     arguments
         Cube
+
+        Args.PsfPhotMethod = 'legacy';  % 'legacy'/'old' |'1D'|'2D'|'2DGN'
+        Args.ShiftMethod   = 'fft'; % 1 lanczos3, 2-fft
+
         Args.PSF        = 1.5;  % scalar will generate a Gaussian PSF - normalized to 1
         Args.Std        = [];   % vector or cube
         Args.Back       = [];
@@ -114,331 +118,670 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.UseSourceNoise = 'last'; %'off';
         Args.ZP         = 25; 
         
-        Args.Verbous logical = false;
+        Args.Verbose logical = false;
 
         Args.UseMex          = false;
     end
-         
+    
+
+    if strcmp(Args.PsfPhotMethod, 'legacy') || strcmp(Args.PsfPhotMethod, 'old')
+        % call legacy (old) function 
+        [Result, CubePsfSub] = imUtil.sources.psfPhotCube_legacy(Cube, 'PSF',Args.PSF, 'Std',Args.Std, 'Back',Args.Back, 'FitRadius',Args.FitRadius, 'AnnulusRad',Args.AnnulusRad,...
+                                                        'backgroundCubeArgs',Args.backgroundCubeArgs,...
+                                                        'Xinit',Args.Xinit, 'Yinit',Args.Yinit,...
+                                                        'SmallStep',Args.SmallStep, 'MaxStep',Args.MaxStep, 'FloorStep',Args.FloorStep, 'ConvThresh',Args.ConvThresh,...
+                                                        'MaxIter',Args.MaxIter,...
+                                                        'SN',Args.SN, 'UseSNR',Args.UseSNR,...
+                                                        'UseSourceNoise',Args.UseSourceNoise,...
+                                                        'ZP',Args.ZP,...
+                                                        'Verbose',Args.Verbose,...
+                                                        'UseMex',Args.UseMex);
+        return;
+    end
+
+    %% New code
+
+    % 1 lanczos3, 2-fft
+    switch Args.ShiftMethod
+        case 'fft'
+            Args.ShiftMethod = 2;
+        case 'lanczos3'
+            Args.ShiftMethod = 1;
+        otherwise
+            error('Unknown ShiftMethod option');
+    end
+
+
+    Args.UseSourceNoise = lower(Args.UseSourceNoise);
+    if ~ismember(Args.UseSourceNoise, {'all','last','off'})
+        error('UseSourceNoise must be ''all'', ''last'', or ''off''');
+    end
+
     [Ny, Nx, Nim] = size(Cube);
-    
-    ConvergeFlag = zeros(Args.MaxIter,Nim);
-    AppFlux      = zeros(Args.MaxIter,Nim);
-    
-    % background treatment
-    % 1. do nothing
-    % 2. subtract and return
-    % 3.Back
-    % measure in first image [NaN] - same for std!
-    % 4. fit?    
 
-    % if Args.UseMex
-    %     % about x6 faster
-    %     [Cube1,Back1,Std1,Npix1] = imUtil.sources.mex.annulus_median(Cube, Args.AnnulusRad, 0);
-    % else
-        if isempty(Args.Back) || isempty(Args.Std)
-            % calculate background and std
-            [Back, Std] = imUtil.sources.backgroundCube(Cube, Args.backgroundCubeArgs{:}, 'Squeeze',false);
-        else
-            if ndims(Args.Back)<3
-                Back = permute(Args.Back(:), [3 2 1]);
-            else
-                Back = Args.Back;
-            end
-            if ndims(Args.Std)<3
-                Std = permute(Args.Std(:),[3 2 1]);
-            else
-                Std = Args.Std;
-            end
-        end
-            
-        % subtract background
-        Cube = Cube - Back;
-    %end
+    if numel(Args.PSF) == 1
+        Args.PSF = imUtil.kernel2.gauss(Args.PSF);
+    end
 
+    Xcenter = Nx .* 0.5 + 0.5;
+    Ycenter = Ny .* 0.5 + 0.5;
 
-    FitRadius2 = Args.FitRadius.^2;
-       
-    Xcenter = Nx.*0.5 + 0.5;
-    Ycenter = Ny.*0.5 + 0.5;
-%     Dof     = Nx.*Ny - 3;
-    
-    VecXrel = (1:1:Nx) - Xcenter;
-    VecYrel = (1:1:Ny) - Ycenter;
-    
+    VecXrel = cast((1:Nx) - Xcenter, 'like',Cube);
+    VecYrel = cast((1:Ny) - Ycenter, 'like',Cube);
+
     if isempty(Args.Xinit)
         Args.Xinit = Xcenter;
     end
     if isempty(Args.Yinit)
         Args.Yinit = Ycenter;
     end
-    
-    if numel(Args.PSF)==1
-        Args.PSF = imUtil.kernel2.gauss(Args.PSF);
-    end    
-    
-    % the small step and conversion threshold may depend on the SNR: 
-    if isempty(Args.SN) || ~Args.UseSNR  
-        SmallStep  = Args.SmallStep;
-        ConvThresh = Args.ConvThresh;
+
+    Args.Xinit = localExpandInit(Args.Xinit, Nim);
+    Args.Yinit = localExpandInit(Args.Yinit, Nim);
+
+    if isempty(Args.FitRadius)
+        FitRadius2 = [];
     else
-        ConvThresh = max(0.5./Args.SN, Args.ConvThresh); 
-        SmallStep  = max(Args.SmallStep./Args.SN, Args.FloorStep); 
+        FitRadius2 = Args.FitRadius.^2;
     end
 
-    WeightedPSF = sum(Args.PSF.^2, [1 2]); % for flux estimation
-    
-    X = Args.Xinit;
-    Y = Args.Yinit;
-    
-    StepX = 0;
-    StepY = 0;
-    DX = X - Xcenter + StepX;
-    DY = Y - Ycenter + StepY;
-        
-    AdditionalIter=false;
-    UseSourceNoise=false;
+    [CubeFit, Back, StdBack, BackgroundWasSubtracted] = localPrepareBackground(Cube, Args);
+    Std = StdBack;
+
+    Args.SmallStep  = cast(Args.SmallStep, 'like',Cube);
+    Args.ConvThresh = cast(Args.ConvThresh, 'like',Cube); 
+    Args.MaxStep    = cast(Args.MaxStep, 'like',Cube);
+    [SmallStep, ConvThresh] = localPrepareStepControl(Args, Nim);
+
+    DX = cast(Args.Xinit(:).' - Xcenter, 'like',Cube);
+    DY = cast(Args.Yinit(:).' - Ycenter, 'like',Cube);
+
+    ConvergeFlag = false(Args.MaxIter, Nim);
+    AppFlux      = nan(Args.MaxIter, Nim);
+
+    AdditionalIter = false;
+    UseSourceNoise = false;
     switch lower(Args.UseSourceNoise)
         case 'all'
-            UseSourceNoise=true;
+            UseSourceNoise = true;
         case 'off'
-            UseSourceNoise=false;
+            UseSourceNoise = false;
         case 'last'
             AdditionalIter = true;
-            UseSourceNoise=false;
+            UseSourceNoise = false;
     end
 
-    VecD = [0, SmallStep(1), 2.*SmallStep(1)];
-    H    = VecD'.^[0, 1, 2];
-    
-    % if the SmallStep varies with source, we need to rescale 
-    % the fitting parameters (within gradDescentPSF)
-    if isempty(Args.SN) || ~Args.UseSNR 
-        Scale = 1.;
-    else
-        Ratio = SmallStep./SmallStep(1);
-        Scale = [ones(1,Nim); Ratio'; Ratio'.^2];
-    end
+    Ind = 0;
+    Active = true(1, Nim);
 
-    Ind   = 0;
-    NotConverged = true;
-    StdBack = Std;
-    while Ind<Args.MaxIter && NotConverged
+    while Ind < Args.MaxIter && any(Active)
         Ind = Ind + 1;
-        if UseSourceNoise && Ind>2
-            [~, Flux, ShiftedPSF]  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2, Args.UseMex);
-            Std = sqrt(Flux.*ShiftedPSF+StdBack.^2);
+
+        if UseSourceNoise && Ind > 1
+            [~, FluxTmp, ShiftedPSFTmp] = internalCalcChi2( ...
+                CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, FitRadius2, Args.ShiftMethod, Args.UseMex);
+            Std = localUpdateStdWithSourceNoise(FluxTmp, ShiftedPSFTmp, StdBack);
         end
-        % AppFlux is approximate flux
-        [StepX,StepY,AppFlux(Ind,:)]  = gradDescentPSF(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2,H,SmallStep,Args.MaxStep,Scale, Args.UseMex);
-        
-        DX       = DX + StepX.* (ConvergeFlag(max(Ind-1,1),:) < 1);
-        DY       = DY + StepY.* (ConvergeFlag(max(Ind-1,1),:) < 1);
-                
-        % stopping criteria
-        ConvergeFlag(Ind,:) = abs(StepX')<ConvThresh & abs(StepY')<ConvThresh; % ?? & AppFlux(Ind,:)' >= AppFlux(max(Ind-1,1),:)';
-        
-        if all(ConvergeFlag(Ind,:))
-            NotConverged = false;
+
+        switch upper(Args.PsfPhotMethod)
+            case '1D'
+                [StepX, StepY, AppFlux(Ind,:)] = gradDescentPSF1D( ...
+                    CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, ...
+                    FitRadius2, SmallStep, Args.MaxStep, Args.ShiftMethod, Args.UseMex);
+
+            case '2D'
+                [StepX, StepY, AppFlux(Ind,:)] = gradDescentPSF2D( ...
+                    CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, ...
+                    FitRadius2, SmallStep, Args.MaxStep, Args.ShiftMethod, Args.UseMex);
+
+            case '2DGN'
+                [StepX, StepY, AppFlux(Ind,:)] = gradDescentPSF2DGN( ...
+                    CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, ...
+                    FitRadius2, SmallStep, Args.MaxStep, Args.ShiftMethod, Args.UseMex);
         end
-        
-        if Args.Verbous && Ind > 1                                       
-            fprintf('Iter: %2.0d of %d, SNR < 10: %d of %d, SNR >10: %d of %d \n',...
-                Ind, Args.MaxIter,sum(ConvergeFlag(Ind,Args.SN<10)),numel(Args.SN(Args.SN<10)),sum(ConvergeFlag(Ind,Args.SN>10)),numel(Args.SN(Args.SN>10)));
+
+        StepX(~Active) = 0;
+        StepY(~Active) = 0;
+
+        DX = DX + StepX;
+        DY = DY + StepY;
+
+        ConvergeFlag(Ind,:) = abs(StepX) < ConvThresh(:).' & abs(StepY) < ConvThresh(:).';
+        Active = ~ConvergeFlag(Ind,:);
+
+        if Args.Verbose
+            fprintf('Iter: %2.0d of %d, converged: %d of %d\n', ...
+                Ind, Args.MaxIter, sum(ConvergeFlag(Ind,:)), Nim);
         end
-        
     end
-    % final fit and return flux
+
     if AdditionalIter
-        [~, Flux, ShiftedPSF]  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2, Args.UseMex);
-        Std = sqrt(Flux.*ShiftedPSF+StdBack.^2);
-        [StepX,StepY]  = gradDescentPSF(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2,H,SmallStep,Args.MaxStep, Scale, Args.UseMex);
-        DX       = DX + StepX;
-        DY       = DY + StepY;
+        [~, FluxTmp, ShiftedPSFTmp] = internalCalcChi2( ...
+            CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, FitRadius2, Args.ShiftMethod, Args.UseMex);
+
+        Std = localUpdateStdWithSourceNoise(FluxTmp, ShiftedPSFTmp, StdBack);
+
+        switch upper(Args.PsfPhotMethod)
+            case '1D'
+                [StepX, StepY] = gradDescentPSF1D( ...
+                    CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, ...
+                    FitRadius2, SmallStep, Args.MaxStep, Args.ShiftMethod, Args.UseMex);
+            case '2D'
+                [StepX, StepY] = gradDescentPSF2D( ...
+                    CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, ...
+                    FitRadius2, SmallStep, Args.MaxStep, Args.ShiftMethod, Args.UseMex);
+            case '2DGN'
+                [StepX, StepY] = gradDescentPSF2DGN( ...
+                    CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, ...
+                    FitRadius2, SmallStep, Args.MaxStep, Args.ShiftMethod, Args.UseMex);
+        end
+
+        DX = DX + StepX;
+        DY = DY + StepY;
     end
-    [Result.Chi2, Flux, ShiftedPSF, Dof]  = internalCalcChi2(Cube, Std, Args.PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2, Args.UseMex);
-    if isempty(Dof)
-        Result.Dof  = Nx.*Ny - 3;
-    else
-        Result.Dof  = Dof;
-    end
-        
-    Result.Flux = squeeze(Flux);
-    % SNm can be negaive if source is negative
-    Result.SNm  = sign(Result.Flux).*abs(Result.Flux)./sqrt(abs(Result.Flux) + (squeeze(StdBack)).^2);  % S/N for measurments
-    Result.Mag  = convert.luptitude(Result.Flux, 10.^(0.4.*Args.ZP));
-    Result.DX = DX(:);
-    Result.DY = DY(:);
-    Result.Xinit = Args.Xinit;
-    Result.Yinit = Args.Yinit;
-    Result.Xcenter = Xcenter;
-    Result.Ycenter = Ycenter;
+
+    [Chi2, Flux, ShiftedPSF, Dof, FluxErr] = internalCalcChi2( ...
+        CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, FitRadius2, Args.ShiftMethod, Args.UseMex);
+
+    Result = struct();
+    Result.Chi2         = Chi2(:);
+    Result.Dof          = Dof(:);
+    Result.Flux         = Flux(:);
+    Result.FluxErr      = FluxErr(:);
+    Result.SNm          = Flux(:) ./ FluxErr(:);
+    Result.Mag          = convert.luptitude(Result.Flux, 10.^(0.4 .* Args.ZP));
+    Result.DX           = DX(:);
+    Result.DY           = DY(:);
+    Result.Xinit        = Args.Xinit(:);
+    Result.Yinit        = Args.Yinit(:);
+    Result.Xcenter      = Xcenter;
+    Result.Ycenter      = Ycenter;
     Result.ConvergeFlag = ConvergeFlag;
-    Result.Niter   = Ind;
-    Result.ShiftedPSF = ShiftedPSF;
-    
-    if nargout>1
-        % subtract best fit PSFs from cube
-        CubePsfSub = Cube - ShiftedPSF.*Flux;
-        if ~isempty(Args.Back)
-            % return the background
+    Result.Niter        = Ind;
+    Result.ShiftedPSF   = ShiftedPSF;
+    Result.Back         = Back;
+    Result.StdBack      = StdBack;
+
+    if nargout > 1
+        CubePsfSub = CubeFit - ShiftedPSF .* reshape(Flux, 1, 1, []);
+        if BackgroundWasSubtracted
             CubePsfSub = CubePsfSub + Back;
         end
     end
 end
 
-%%% Internal functions
 
-function [StepX,StepY,AppFlux]  = gradDescentPSF(Cube, Std, PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2,H,SmallStep,MaxStep,Scale, UseMex)
-% Return the next gradient Descent step for the PSF's position fitting.
+%% =========================================================================
+% Internal functions
+% =========================================================================
 
-        [Chi2,AppFlux] = internalCalcChi2(Cube, Std, PSF, DX,         DY, WeightedPSF, VecXrel, VecYrel, FitRadius2, UseMex);
-        Chi2_Dx  = internalCalcChi2(Cube, Std, PSF, DX+SmallStep',    DY, WeightedPSF, VecXrel, VecYrel, FitRadius2, UseMex);
-        Chi2_Dx2 = internalCalcChi2(Cube, Std, PSF, DX+SmallStep'.*2, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2, UseMex);
-                
-        %ParX     = polyfit(VecD, [Chi2, Chi2_Dx, Chi2_Dx2], 2); 
-        ParX = H\[Chi2.'; Chi2_Dx.'; Chi2_Dx2.'];
-        ParX = ParX./Scale;
-        
-        Chi2_Dy  = internalCalcChi2(Cube, Std, PSF, DX, DY+SmallStep',   WeightedPSF, VecXrel, VecYrel, FitRadius2, UseMex);
-        Chi2_Dy2 = internalCalcChi2(Cube, Std, PSF, DX, DY+SmallStep'.*2,WeightedPSF, VecXrel, VecYrel, FitRadius2, UseMex);
-        
-        ParY = H\[Chi2.'; Chi2_Dy.'; Chi2_Dy2.'];
-        ParY = ParY./Scale;
-        
-        StepX    = -ParX(2,:)./(2.*ParX(3,:));
-        StepY    = -ParY(2,:)./(2.*ParY(3,:));
-        
-        NotMinimaX = ParX(3,:)<0;
-        NotMinimaY = ParY(3,:)<0;
-        
-        % reverse sign for maxima...
-        StepX(NotMinimaX) = -StepX(NotMinimaX);
-        StepY(NotMinimaY) = -StepY(NotMinimaY);
-        
-        StepX    = sign(StepX).*min(abs(StepX), MaxStep);
-        StepY    = sign(StepY).*min(abs(StepY), MaxStep);
-end
-
-function [Chi2,WeightedFlux, ShiftedPSF, Dof] = internalCalcChi2(Cube, Std, PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2, UseMex)
-    % Return Chi2 for specific PSF and Cube
-    % shift PSF
-    
-    FluxMethod = 'wsumall'; %'medall';
-    
-    %UseMex = true;
-    if UseMex
-        % x5 times faster:
-        %PSFr = repmat(PSF,[1, 1, numel(DX)]);
-        if isempty(DX)
-            ShiftedPSF = zeros([size(PSF),0], 'like',PSF);
-        else
-            ShiftedPSF = imUtil.trans.mex.shift_lanczos3(PSF,DX,DY);
-        end
+function Init = localExpandInit(Init, Nim)
+    if isscalar(Init)
+        Init = repmat(Init, Nim, 1);
     else
-        % Shifting PSF is safer, because of the fft on a smooth function is more reliable.
-        ShiftedPSF = imUtil.trans.shift_fft(PSF, DX, DY);
+        Init = Init(:);
+        if numel(Init) ~= Nim
+            error('Xinit/Yinit must be scalar or have one element per stamp');
+        end
     end
-    
-
-    switch FluxMethod
-        case 'wsumall'
-            WeightedFlux = sum(Cube.*ShiftedPSF, [1 2], 'omitnan')./WeightedPSF;
-        case 'meanall'
-            WeightedFlux = mean(Cube./ShiftedPSF, [1 2], 'omitnan'); %./WeightedPSF;
-        case 'medall'
-            WeightedFlux = median(Cube./ShiftedPSF, [1 2], 'omitnan'); %./WeightedPSF;    
-        case 'med'
-            
-        otherwise
-            error('Unknown FluxMethod option');
-    end
-    Resid = Cube - WeightedFlux.*ShiftedPSF;
-    
-    % FFU: search / remove outliers
-
-    if isempty(FitRadius2) % use the entire stamp
-        ResidStd = Resid./Std;
-        Dof      = [];
-    else                   % use stamp cutout
-
-        %if UseMex
-            % current version not faster!
-            %[Flag, ResidStd] = imUtil.image.mex.cubeResidStd_Radius(single(VecXrel), single(VecYrel), single(DX), single(DY), Resid, single(real(Std)), single(FitRadius2));
-        %else
-            
-            MatX     = permute(VecXrel - DX(:),[3 2 1]);
-            MatY     = permute(VecYrel - DY(:),[2 3 1]);
-            MatR2    = MatX.^2 + MatY.^2;
-            Flag     = MatR2<FitRadius2;
-            ResidStd = Flag.*Resid./Std;
-            
-        %end
-
-        Dof      = squeeze(sum(Flag,[1 2]) - 3);
-        
-    end
-    
-    Chi2  = sum( ResidStd.^2, [1 2], 'omitnan'); % sum( (Resid./Std).^2, [1 2], 'omitnan');   
-    Chi2  = squeeze(Chi2);     
 end
 
-function [Chi2,WeightedFlux, ShiftedPSF, Dof] = internalCalcChi2_v2(Cube, Std, PSF, DX, DY, WeightedPSF, VecXrel, VecYrel, FitRadius2)
-    % Return Chi2 for specific PSF and Cube
-    % shift PSF
-    
-    FluxMethod = 'wsumall'; %'medall';
-    
-    % Shifting PSF is safer, because of the fft on a smooth function is more reliable.
-    ShiftedPSF = imUtil.trans.shift_fft(PSF, DX, DY);
-    
 
-    
-    % FFU: search / remove outliers
+function [CubeFit, Back, StdBack, BackgroundWasSubtracted] = localPrepareBackground(Cube, Args)
+    if isequal(Args.Back, 0)
+        Back = zeros(size(Cube), 'like', Cube);
 
-    if isempty(FitRadius2) % use the entire stamp
-        %%%%
-        switch FluxMethod
-            case 'wsumall'
-                WeightedFlux = sum(Cube.*ShiftedPSF, [1 2], 'omitnan')./WeightedPSF;
-            case 'meanall'
-                WeightedFlux = mean(Cube./ShiftedPSF, [1 2], 'omitnan'); %./WeightedPSF;
-            case 'medall'
-                WeightedFlux = median(Cube./ShiftedPSF, [1 2], 'omitnan'); %./WeightedPSF;    
-            case 'med'
-
-            otherwise
-                error('Unknown FluxMethod option');
+        if isempty(Args.Std)
+            [~, StdBack] = imUtil.sources.backgroundCube(Cube, 'AnnulusRad',Args.AnnulusRad, Args.backgroundCubeArgs{:}, 'Squeeze', false);
+        else
+            StdBack = localExpandToCubeOrStamp(Args.Std, size(Cube), 'Std', Cube);
         end
-        Resid = Cube - WeightedFlux.*ShiftedPSF;        
-        %%%%%
-        ResidStd = Resid./Std;
-        Dof      = [];
-    else                   % use stamp cutout
-        MatX     = permute(VecXrel - DX(:),[3 2 1]);
-        MatY     = permute(VecYrel - DY(:),[2 3 1]);
-        MatR2    = MatX.^2 + MatY.^2;
-        Flag     = MatR2<FitRadius2;
-        
-        %%%%
-        switch FluxMethod
-            case 'wsumall'
-                WeightedFlux = sum(Flag.*Cube.*ShiftedPSF, [1 2], 'omitnan')./sum(PSF(Flag(:,:,1)).^2, [1 2]);
-            case 'meanall'
-                WeightedFlux = mean(Flag.*Cube./ShiftedPSF, [1 2], 'omitnan'); %./WeightedPSF;
-            case 'medall'
-                WeightedFlux = median(Flag.*Cube./ShiftedPSF, [1 2], 'omitnan'); %./WeightedPSF;    
-            case 'med'
 
-            otherwise
-                error('Unknown FluxMethod option');
-        end
-        Resid = Cube - WeightedFlux.*ShiftedPSF;           
-        
-        %%%%
-        ResidStd = Flag.*Resid./Std;
-        Dof      = squeeze(sum(Flag,[1 2]) - 3);
+        CubeFit = Cube;
+        BackgroundWasSubtracted = false;
+        return;
+    end
+
+    if isempty(Args.Back) && isempty(Args.Std)
+        [Back, StdBack] = imUtil.sources.backgroundCube(Cube, 'AnnulusRad',Args.AnnulusRad, Args.backgroundCubeArgs{:}, 'Squeeze', false);
+        CubeFit = Cube - Back;
+        BackgroundWasSubtracted = true;
+        return;
+    end
+
+    if ~isempty(Args.Back) && isempty(Args.Std)
+        Back = localExpandToCubeOrStamp(Args.Back, size(Cube), 'Back', Cube);
+        [~, StdBack] = imUtil.sources.backgroundCube(Cube, 'AnnulusRad',Args.AnnulusRad, Args.backgroundCubeArgs{:}, 'Squeeze', false);
+        CubeFit = Cube - Back;
+        BackgroundWasSubtracted = true;
+        return;
+    end
+
+    if isempty(Args.Back) && ~isempty(Args.Std)
+        [Back, ~] = imUtil.sources.backgroundCube(Cube, 'AnnulusRad',Args.AnnulusRad, Args.backgroundCubeArgs{:}, 'Squeeze', false);
+        StdBack = localExpandToCubeOrStamp(Args.Std, size(Cube), 'Std', Cube);
+        CubeFit = Cube - Back;
+        BackgroundWasSubtracted = true;
+        return;
+    end
+
+    Back    = localExpandToCubeOrStamp(Args.Back, size(Cube), 'Back', Cube);
+    StdBack = localExpandToCubeOrStamp(Args.Std,  size(Cube), 'Std',  Cube);
+
+    CubeFit = Cube - Back;
+    BackgroundWasSubtracted = true;
+end
+
+
+function Value = localExpandToCubeOrStamp(ValueIn, CubeSize, NameStr, LikeValue)
+    Ny  = CubeSize(1);
+    Nx  = CubeSize(2);
+    if numel(CubeSize)==2
+        Nim = 1;
+    else
+        Nim = CubeSize(3);
     end
     
-    Chi2  = sum( ResidStd.^2, [1 2], 'omitnan'); % sum( (Resid./Std).^2, [1 2], 'omitnan');   
-    Chi2  = squeeze(Chi2);     
+    if isscalar(ValueIn)
+        Value = repmat(cast(ValueIn, 'like', LikeValue), Ny, Nx, Nim);
+        return;
+    end
+
+    if isvector(ValueIn)
+        if numel(ValueIn) ~= Nim
+            error('%s vector must contain one element per stamp', NameStr);
+        end
+        Value = cast(reshape(ValueIn(:), 1, 1, Nim), 'like', LikeValue);
+        return;
+    end
+
+    if isequal(size(ValueIn), CubeSize)
+        Value = cast(ValueIn, 'like', LikeValue);
+        return;
+    end
+
+    error('%s must be scalar, vector of length Nim, or a cube of size(Cube)', NameStr);
+end
+
+
+function [SmallStep, ConvThresh] = localPrepareStepControl(Args, Nim)
+    if isempty(Args.SN) || ~Args.UseSNR
+        SmallStep  = repmat(Args.SmallStep, Nim, 1);
+        ConvThresh = repmat(Args.ConvThresh, Nim, 1);
+    else
+        SN = Args.SN(:);
+        if numel(SN) ~= Nim
+            error('SN must contain one element per stamp');
+        end
+        SN_Pos = max(0.5,SN); % to avoid negative S/N
+        ConvThresh = max(0.5 ./ SN_Pos, Args.ConvThresh);
+        SmallStep  = max(Args.SmallStep ./ SN_Pos, Args.FloorStep);
+    end
+end
+
+
+function Std = localUpdateStdWithSourceNoise(Flux, ShiftedPSF, StdBack)
+    Flux3 = reshape(Flux, 1, 1, []);
+    ModelVar = Flux3 .* ShiftedPSF;
+    ModelVar = max(ModelVar, 0);
+    Var = max(ModelVar + StdBack.^2, eps(class(StdBack)));
+    Std = sqrt(Var);
+end
+
+
+function [StepX, StepY, AppFlux] = gradDescentPSF1D( ...
+    Cube, Std, PSF, DX, DY, VecXrel, VecYrel, FitRadius2, SmallStep, MaxStep, ShiftMethod, UseMex)
+
+    Nim = numel(DX);
+    StepRef = SmallStep(1);
+    VecD = [0; StepRef; 2 .* StepRef];
+    H = VecD .^ [0 1 2];
+
+    if all(abs(SmallStep - StepRef) < eps(max(abs(SmallStep))))
+        Scale = 1;
+    else
+        Ratio = SmallStep ./ StepRef;
+        Scale = [ones(1, Nim); Ratio.'; (Ratio.^2).'];
+    end
+
+    [Chi2_0, AppFlux] = internalCalcChi2( ...
+        Cube, Std, PSF, DX, DY, VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex);
+
+    Chi2_X1 = internalCalcChi2( ...
+        Cube, Std, PSF, DX + SmallStep.', DY, VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex);
+
+    Chi2_X2 = internalCalcChi2( ...
+        Cube, Std, PSF, DX + 2 .* SmallStep.', DY, VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex);
+
+    UseBacklash = false;
+    if UseBacklash
+        ParX = H \ [Chi2_0.'; Chi2_X1.'; Chi2_X2.']; % slower
+    else
+        d0 = VecD(1);
+        d1 = VecD(2);
+        d2 = VecD(3);
+        
+        f0 = Chi2_0(:).';
+        f1 = Chi2_X1(:).';
+        f2 = Chi2_X2(:).';
+        
+        Den0 = (d0 - d1) .* (d0 - d2);
+        Den1 = (d1 - d0) .* (d1 - d2);
+        Den2 = (d2 - d0) .* (d2 - d1);
+        
+        ParX = zeros(3, numel(f0), 'like', f0);
+        
+        ParX(1,:) = f0 .* ( d1 .* d2 ./ Den0 ) + ...
+                    f1 .* ( d0 .* d2 ./ Den1 ) + ...
+                    f2 .* ( d0 .* d1 ./ Den2 );
+        
+        ParX(2,:) = f0 .* (-(d1 + d2) ./ Den0 ) + ...
+                    f1 .* (-(d0 + d2) ./ Den1 ) + ...
+                    f2 .* (-(d0 + d1) ./ Den2 );
+        
+        ParX(3,:) = f0 .* ( 1 ./ Den0 ) + ...
+                    f1 .* ( 1 ./ Den1 ) + ...
+                    f2 .* ( 1 ./ Den2 );
+    end
+
+
+    if ~isscalar(Scale)
+        ParX = ParX ./ Scale;
+    end
+
+    Chi2_Y1 = internalCalcChi2( ...
+        Cube, Std, PSF, DX, DY + SmallStep.', VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex);
+
+    Chi2_Y2 = internalCalcChi2( ...
+        Cube, Std, PSF, DX, DY + 2 .* SmallStep.', VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex);
+
+    if UseBacklash
+        ParY = H \ [Chi2_0.'; Chi2_Y1.'; Chi2_Y2.']; % slower
+    else
+        f1 = Chi2_Y1(:).';
+        f2 = Chi2_Y2(:).';
+        
+        Den0 = (d0 - d1) .* (d0 - d2);
+        Den1 = (d1 - d0) .* (d1 - d2);
+        Den2 = (d2 - d0) .* (d2 - d1);
+        
+        ParY = zeros(3, numel(f0), 'like', f0);
+        
+        ParY(1,:) = f0 .* ( d1 .* d2 ./ Den0 ) + ...
+                    f1 .* ( d0 .* d2 ./ Den1 ) + ...
+                    f2 .* ( d0 .* d1 ./ Den2 );
+        
+        ParY(2,:) = f0 .* (-(d1 + d2) ./ Den0 ) + ...
+                    f1 .* (-(d0 + d2) ./ Den1 ) + ...
+                    f2 .* (-(d0 + d1) ./ Den2 );
+        
+        ParY(3,:) = f0 .* ( 1 ./ Den0 ) + ...
+                    f1 .* ( 1 ./ Den1 ) + ...
+                    f2 .* ( 1 ./ Den2 );
+    end
+
+    if ~isscalar(Scale)
+        ParY = ParY ./ Scale;
+    end
+
+    StepX = localParabolaStep(ParX, MaxStep);
+    StepY = localParabolaStep(ParY, MaxStep);
+end
+
+
+function [StepX, StepY, AppFlux] = gradDescentPSF2D( ...
+    Cube, Std, PSF, DX, DY, VecXrel, VecYrel, FitRadius2, SmallStep, MaxStep, ShiftMethod, UseMex)
+
+    Nim = numel(DX);
+
+    [F0, AppFlux] = internalCalcChi2( ...
+        Cube, Std, PSF, DX, DY, VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex);
+
+    sx = SmallStep(:).';
+    sy = SmallStep(:).';
+
+    Fxp = internalCalcChi2(Cube, Std, PSF, DX + sx, DY,      VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex);
+    Fxm = internalCalcChi2(Cube, Std, PSF, DX - sx, DY,      VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex);
+    Fyp = internalCalcChi2(Cube, Std, PSF, DX,      DY + sy, VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex);
+    Fym = internalCalcChi2(Cube, Std, PSF, DX,      DY - sy, VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex);
+
+    Fpp = internalCalcChi2(Cube, Std, PSF, DX + sx, DY + sy, VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex);
+    Fpm = internalCalcChi2(Cube, Std, PSF, DX + sx, DY - sy, VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex);
+    Fmp = internalCalcChi2(Cube, Std, PSF, DX - sx, DY + sy, VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex);
+    Fmm = internalCalcChi2(Cube, Std, PSF, DX - sx, DY - sy, VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex);
+
+    if UseMex
+        [StepX, StepY] = imUtil.sources.mex.psfPhotCube_step2d_mex( ...
+                    F0, Fxp, Fxm, Fyp, Fym, Fpp, Fpm, Fmp, Fmm, sx, sy, MaxStep);
+    else
+
+        Gx  = (Fxp - Fxm) ./ (2 .* sx);
+        Gy  = (Fyp - Fym) ./ (2 .* sy);
+    
+        Hxx = (Fxp - 2 .* F0 + Fxm) ./ (sx.^2);
+        Hyy = (Fyp - 2 .* F0 + Fym) ./ (sy.^2);
+        Hxy = (Fpp - Fpm - Fmp + Fmm) ./ (4 .* sx .* sy);
+    
+        StepX = zeros(1, Nim);
+        StepY = zeros(1, Nim);
+    
+        for Iim = 1:Nim
+            Hmat = [Hxx(Iim), Hxy(Iim); Hxy(Iim), Hyy(Iim)];
+            Gvec = [Gx(Iim); Gy(Iim)];
+    
+            if all(isfinite(Hmat), 'all') && all(isfinite(Gvec))
+                if det(Hmat) > 0 && Hxx(Iim) > 0 && Hyy(Iim) > 0
+                    Step = -Hmat \ Gvec;
+                else
+                    Step = zeros(2,1);
+                    if isfinite(Hxx(Iim)) && Hxx(Iim) ~= 0
+                        Step(1) = -Gx(Iim) ./ Hxx(Iim);
+                    end
+                    if isfinite(Hyy(Iim)) && Hyy(Iim) ~= 0
+                        Step(2) = -Gy(Iim) ./ Hyy(Iim);
+                    end
+                end
+            else
+                Step = [0; 0];
+            end
+    
+            Step(1) = sign(Step(1)) .* min(abs(Step(1)), MaxStep);
+            Step(2) = sign(Step(2)) .* min(abs(Step(2)), MaxStep);
+    
+            if ~isfinite(Step(1)); Step(1) = 0; end
+            if ~isfinite(Step(2)); Step(2) = 0; end
+    
+            StepX(Iim) = Step(1);
+            StepY(Iim) = Step(2);
+        end
+    end
+end
+
+
+function [StepX, StepY, AppFlux] = gradDescentPSF2DGN( ...
+    Cube, Std, PSF, DX, DY, VecXrel, VecYrel, FitRadius2, SmallStep, MaxStep, ShiftMethod, UseMex)
+
+    Nim = numel(DX);
+
+    [~, Flux, ShiftedPSF] = internalCalcChi2( ...
+        Cube, Std, PSF, DX, DY, VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex);
+
+    AppFlux = Flux(:).';
+
+    SX = reshape(SmallStep(:), 1, 1, []);
+    SY = SX;
+
+    PSF_Xp = localShiftPSF(PSF, DX + SmallStep(:).', DY,                  ShiftMethod);
+    PSF_Xm = localShiftPSF(PSF, DX - SmallStep(:).', DY,                  ShiftMethod);
+    PSF_Yp = localShiftPSF(PSF, DX,                  DY + SmallStep(:).', ShiftMethod);
+    PSF_Ym = localShiftPSF(PSF, DX,                  DY - SmallStep(:).', ShiftMethod);
+
+    if UseMex
+         [StepX, StepY] = imUtil.sources.mex.psfPhotCube_step2dgn_mex( ...
+                                Cube, Std, ShiftedPSF, PSF_Xp, PSF_Xm, PSF_Yp, PSF_Ym, ...
+                                SmallStep(:), SmallStep(:), Flux(:), DX(:), DY(:), VecXrel(:), VecYrel(:), ...
+                                FitRadius2, MaxStep);
+    else
+
+        dPdx = (PSF_Xp - PSF_Xm) ./ (2 .* SX);
+        dPdy = (PSF_Yp - PSF_Ym) ./ (2 .* SY);
+    
+        [Ny, Nx, ~] = size(Cube);
+        if isempty(FitRadius2)
+            Flag = true(Ny, Nx, Nim);
+        else
+            MatX = reshape(VecXrel, 1, Nx, 1) - reshape(DX, 1, 1, []);
+            MatY = reshape(VecYrel, Ny, 1, 1) - reshape(DY, 1, 1, []);
+            MatR2 = MatX.^2 + MatY.^2;
+            Flag = MatR2 < FitRadius2;
+        end
+    
+        W = 1 ./ max(Std.^2, eps(class(Std)));
+        if size(W,1)==1 && size(W,2)==1
+            W = repmat(W, size(Cube,1), size(Cube,2), 1);
+        end
+        
+        Flux3 = reshape(Flux, 1, 1, []);
+        Resid = Cube - ShiftedPSF .* Flux3;
+        
+        Jx = Flux3 .* dPdx;
+        Jy = Flux3 .* dPdy;
+    
+       
+    
+        StepX = zeros(1, Nim, 'like', Flux);
+        StepY = zeros(1, Nim, 'like', Flux);
+    
+        for Iim = 1:Nim
+            Wi  = W(:,:,Iim);
+            Fi  = Flag(:,:,Iim);
+    
+            Ri  = Resid(:,:,Iim);
+            Jxi = Jx(:,:,Iim);
+            Jyi = Jy(:,:,Iim);
+    
+            Wi  = Wi(Fi);
+            Ri  = Ri(Fi);
+            Jxi = Jxi(Fi);
+            Jyi = Jyi(Fi);
+    
+            Good = isfinite(Wi) & isfinite(Ri) & isfinite(Jxi) & isfinite(Jyi);
+            Wi   = Wi(Good);
+            Ri   = Ri(Good);
+            Jxi  = Jxi(Good);
+            Jyi  = Jyi(Good);
+    
+            if isempty(Wi)
+                continue;
+            end
+    
+            A11 = sum(Wi .* Jxi .* Jxi);
+            A12 = sum(Wi .* Jxi .* Jyi);
+            A22 = sum(Wi .* Jyi .* Jyi);
+    
+            B1  = sum(Wi .* Jxi .* Ri);
+            B2  = sum(Wi .* Jyi .* Ri);
+    
+            A = [A11, A12; A12, A22];
+            B = [B1; B2];
+    
+            if all(isfinite(A), 'all') && all(isfinite(B)) && rcond(A) > 1e-10
+                Step = A \ B;
+            else
+                Step = [0; 0];
+                if isfinite(A11) && A11 > 0
+                    Step(1) = B1 ./ A11;
+                end
+                if isfinite(A22) && A22 > 0
+                    Step(2) = B2 ./ A22;
+                end
+            end
+    
+            Step(1) = sign(Step(1)) .* min(abs(Step(1)), MaxStep);
+            Step(2) = sign(Step(2)) .* min(abs(Step(2)), MaxStep);
+    
+            if ~isfinite(Step(1)); Step(1) = 0; end
+            if ~isfinite(Step(2)); Step(2) = 0; end
+    
+            StepX(Iim) = Step(1);
+            StepY(Iim) = Step(2);
+        end
+    end
+end
+
+
+function Step = localParabolaStep(Par, MaxStep)
+    Curv = Par(3,:);
+    Grad = Par(2,:);
+
+    Step = zeros(size(Grad));
+
+    Good = abs(Curv) > 0 & isfinite(Curv) & isfinite(Grad);
+    Step(Good) = -Grad(Good) ./ (2 .* Curv(Good));
+
+    BadMin = Good & (Curv < 0);
+    Step(BadMin) = -Step(BadMin);
+
+    Step(~isfinite(Step)) = 0;
+    Step = sign(Step) .* min(abs(Step), MaxStep);
+end
+
+
+function [Chi2, Flux, ShiftedPSF, Dof, FluxErr] = internalCalcChi2( ...
+    Cube, Std, PSF, DX, DY, VecXrel, VecYrel, FitRadius2, ShiftMethod, UseMex)
+
+    [Ny, Nx, Nim] = size(Cube);
+
+    ShiftedPSF = localShiftPSF(PSF, DX, DY, ShiftMethod);
+
+
+    if UseMex
+      
+        [Chi2, Flux, Dof, FluxErr] = imUtil.sources.mex.psfPhotCube_chi2flux_mex( ...
+                            Cube, Std, ShiftedPSF, DX, DY, VecXrel, VecYrel, FitRadius2);
+    else
+
+        if isempty(FitRadius2)
+            Flag = true(Ny, Nx, Nim);
+        else
+            MatX = reshape(VecXrel, 1, Nx, 1) - reshape(DX, 1, 1, []);
+            MatY = reshape(VecYrel, Ny, 1, 1) - reshape(DY, 1, 1, []);
+            MatR2 = MatX.^2 + MatY.^2;
+            Flag  = MatR2 < FitRadius2;
+        end
+    
+        W = 1 ./ max(Std.^2, eps(class(Std)));
+    
+        Num = sum(Flag .* W .* Cube .* ShiftedPSF, [1 2], 'omitnan');
+        Den = sum(Flag .* W .* ShiftedPSF.^2,      [1 2], 'omitnan');
+    
+        Den = max(Den, eps(class(Den)));
+        Flux = squeeze(Num ./ Den);
+    
+        Flux3 = reshape(Flux, 1, 1, []);
+        Resid = Cube - ShiftedPSF .* Flux3;
+    
+        ResidStd = Flag .* Resid ./ Std;
+        Chi2 = squeeze(sum(ResidStd.^2, [1 2], 'omitnan'));
+    
+        Dof = squeeze(sum(Flag, [1 2], 'omitnan') - 3);
+        FluxErr = sqrt(1 ./ squeeze(Den));
+    end
+end
+
+
+function ShiftedPSF = localShiftPSF(PSF, DX, DY, ShiftMethod)
+    if isempty(DX)
+        ShiftedPSF = zeros([size(PSF), 0], 'like', PSF);
+        return;
+    end
+
+    switch ShiftMethod
+        case 1
+            ShiftedPSF = imUtil.trans.mex.shift_lanczos3(PSF, DX, DY);
+        case 2
+            ShiftedPSF = imUtil.trans.shift_fft(PSF, DX, DY);
+        otherwise
+            error('Uknkonw  ShiftMethod option');
+    end
 end

@@ -246,6 +246,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     arguments
         Obj AstroImage
 
+        Args.PsfPhotMethod             = 'legacy';
+        Args.ShiftMethod               = 'fft'; % 'lanczos3' | 'fft'
+
         % pre subtraction treatment
         Args.ExcludeEmpty              = false;  % if true, will not keep the shape
         Args.BitDict                   = BitDictionary('BitMask.Image.Default');
@@ -286,7 +289,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.FitRadius                 = [3];% PSF fit radius at each iteration
         Args.MaxIter                   = 8;
         Args.mexCutout                 = true;
-        Args.ShiftMethod               = 'fft'; % 'lanczos3' | 'fft'
+        
 
         
         % source detection:        
@@ -580,7 +583,10 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 end
                 
                 % PSF photometry
-                [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN,'FitRadius',Args.FitRadius(Iiter), 'MaxIter',Args.MaxIter, 'ZP',Args.ZP, 'UseMex',Args.UseMex, Args.psfFitPhotArgs{:});  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
+                [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN,'FitRadius',Args.FitRadius(Iiter), 'MaxIter',Args.MaxIter, 'ZP',Args.ZP, 'UseMex',Args.UseMex,...
+                                                         'PsfPhotMethod',Args.PsfPhotMethod,...
+                                                         'ShiftMethod',Args.ShiftMethod,...
+                                                         Args.psfFitPhotArgs{:});  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
     
                 
                 % use either a) interpolation (experimental) or b) FFT shift (obtained above as Res.ShiftedPSF) + edge suppression
