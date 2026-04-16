@@ -10,7 +10,7 @@ function [Summary] = telescopeAlignmentStatus(Args)
     %            .Median
     %            .Std
     % Author : Eran Ofek (2025 Oct) 
-    % Example: Summary=pipeline.last.quality.telescopeAlignmentStatus;
+    % Example: Summary=pipeline.last.quality.DB.telescopeAlignmentStatus;
 
     arguments
         Args.MountNumVec       = (1:10);   % mounts to check

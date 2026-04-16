@@ -5,7 +5,7 @@ function [Summary,PerMnt] = polarAlignStatus(Args)
     % Output : - Summary poer camera
     %          - Summary per mount [Mny, DeltaAz, DeltaAlt]
     % Author : Eran Ofek (2025 Nov) 
-    % Example: [S,PerMnt]=pipeline.last.quality.polarAlignStatus('DB',DB);
+    % Example: [S,PerMnt]=pipeline.last.quality.DB.polarAlignStatus('DB',DB);
 
    
     arguments
