@@ -37,8 +37,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.MinAllowedCoverage = 0.999;  % 0.995; % allowed inaccuracy in the required reference field coverage  
                        
         Args.CoaddFunction     = @pipeline.generic.procCoadd; 
+        Args.SubBack           = true;
         Args.StackMethod       = 'wrobust';
-        Args.StackMethodArgs   = {'coadd_WRobustArgs',{'backVarArgs',{'Method',@imUtil.background.modeVar_Hist}}};
+        Args.StackMethodArgs   = {'coadd_WRobustArgs',{'backVarArgs',{'Method',@imUtil.background.modeVar_Hist}}};        
         
         Args.PixScale           = 1.25;        
         
@@ -251,7 +252,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 end
             end
             
-            RefImage = Args.CoaddFunction(StackImages','WCS',AIref,...
+            RefImage = Args.CoaddFunction(StackImages','WCS',AIref,'SubBack',Args.SubBack,...
                 'StackMethod',Args.StackMethod, Args.StackMethodArgs{:});
                                        
             % 6. save the new reference image and its catalog, mask, and PSF to the disk
