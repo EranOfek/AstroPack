@@ -7,7 +7,7 @@ function [All, PerCam] = pointingRMS(Args)
     %          - The same as above, but in which each line is the median
     %            over all fieldsID in a specific mount/cam.
     % Author : Eran Ofek (2025 Oct) 
-    % Example: [All,PerCam]=pipeline.last.quality.pointingRMS('DB',DB);
+    % Example: [All,PerCam]=pipeline.last.quality.DB.pointingRMS('DB',DB);
 
     arguments
         Args.MountNumVec       = (1:10);   % mounts to check

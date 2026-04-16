@@ -4,7 +4,7 @@ function [Summary] = cameraRotationStatus(Args)
     %            See code for details.
     % Output : - A structute with a table with median rotation per camera
     % Author : Eran Ofek (2025 Nov) 
-    % Example: S=pipeline.last.quality.cameraRotationStatus
+    % Example: S=pipeline.last.quality.DB.cameraRotationStatus
 
 
     arguments

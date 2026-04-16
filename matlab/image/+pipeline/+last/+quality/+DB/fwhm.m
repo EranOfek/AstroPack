@@ -6,8 +6,8 @@ function [Summary] = fwhm(Args)
     %          * ...,key,val,... 
     % Output : - 
     % Author : Eran Ofek (2025 Nov) 
-    % Example: Summary=pipeline.last.quality.fwhm;
-    %          Summary=pipeline.last.quality.fwhm('DB',DB,'MountNumVec',1,'CamNumVec',1);
+    % Example: Summary=pipeline.last.quality.DB.fwhm;
+    %          Summary=pipeline.last.quality.DB.fwhm('DB',DB,'MountNumVec',1,'CamNumVec',1);
 
     arguments
         Args.MountNumVec       = (1:10);   % mounts to check

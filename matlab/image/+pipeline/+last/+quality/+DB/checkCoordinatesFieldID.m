@@ -23,7 +23,7 @@ function [GoodFlag] = checkCoordinatesFieldID(T, Args)
     % Output : - A vector of logicals indicating if the coordinates are
     %            consistent (true) or not (false).
     % Author : Eran Ofek (2024 Dec) 
-    % Example: GF = pipeline.last.quality.checkCoordinatesFieldID(T)
+    % Example: GF = pipeline.last.quality.DB.checkCoordinatesFieldID(T)
 
     arguments
         T
