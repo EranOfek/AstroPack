@@ -45,7 +45,7 @@ classdef LcsHelper < Component
         SetA_Nwindows = 6;
         
         % Intermediate Results
-        Nominal_windows table
+        Nominal_windows table 
         Full_windows    table
 
         vis_day_field   logical
@@ -887,23 +887,22 @@ classdef LcsHelper < Component
             % Hold the axes and set the box to on
             hold(ax, 'on');  
             box(ax, 'on');
-            l = {};
 
             % Sort the schedule by category
-            Schedule = sortrows(Obj.Schedule,'category');
-            for i = 1:height(Schedule)
+            schedule = sortrows(Obj.Schedule,'category');
+            for i = 1:height(schedule)
                 % Plot the schedule for each category
-                switch Schedule.category{i}
+                switch schedule.category{i}
                     case 'A'
-                        plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*Schedule.group(i),'-k');
+                        plot([schedule.start(i),schedule.end(i)],ones(2,1)*schedule.group(i),'-k');
                     case 'C'
-                        plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*(mod((Schedule.ind(i)-1),4)/8+floor((Schedule.ind(i)-1)/4)+17),'--k');
+                        plot([schedule.start(i),schedule.end(i)],ones(2,1)*(mod((schedule.ind(i)-1),4)/8+floor((schedule.ind(i)-1)/4)+17),'--k');
                     case 'B_45'
-                        plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*(mod((Schedule.ind(i)-1),4)+floor((Schedule.ind(i)-1)/4)+9),'-k');
+                        plot([schedule.start(i),schedule.end(i)],ones(2,1)*(mod((schedule.ind(i)-1),4)+floor((schedule.ind(i)-1)/4)+9),'-k');
                     case 'B_90'
-                        plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*(mod((Schedule.ind(i)-1),4)/8+floor((Schedule.ind(i)-1)/4)+13),'--k');
+                        plot([schedule.start(i),schedule.end(i)],ones(2,1)*(mod((schedule.ind(i)-1),4)/8+floor((schedule.ind(i)-1)/4)+13),'--k');
                     case 'D'
-                        plot([Schedule.start(i),Schedule.end(i)],ones(2,1)*Schedule.group(i)-300+20,'-k');
+                        plot([schedule.start(i),schedule.end(i)],ones(2,1)*schedule.group(i)-300+20,'-k');
                         
                 end
             end
@@ -926,7 +925,7 @@ classdef LcsHelper < Component
             title(ax, Args.PlotTitle);            
             
             % Display a legend with the plot lines
-%            legend(ax, l,'Location','best');
+            %legend(ax, l,'Location','best');
             hold(ax, 'off');
 
             if Args.SavePlot

@@ -221,6 +221,53 @@ classdef PlannerMainPlotHelper < ultrasat.api.core.Loggable
             end
         end
 
+        % =================================================================
+        %                         LCS PLOTS
+        % =================================================================
+        
+        function showLcsGraphsWindow(obj, app)
+            % Show the LCS plots window (new verion of LCS, 02/2026)
+
+            if ~obj.hasData(app), return; end
+            Planner = app.MainModule.Planner;
+            if isempty(Planner.LCS_obj), return; end
+
+            % Create and show PlotLcsGraphsApp
+            if isempty(app.PlotLcsGraphsApp) || ~isvalid(app.PlotLcsGraphsApp)
+                app.PlotLcsGraphsApp = ultrasat.planner.gui.PlotLcsGraphsApp(app.MainModule);
+            end
+            app.PlotLcsGraphsApp.UIFigure.Visible = 'on';            
+
+            % Refresh plot according to selected plot
+            obj.plotLcsGraphs(app.PlotLcsGraphsApp);
+        end
+
+
+        function plotLcsGraphs(obj, LcsPlotsApp)
+            % Plot according to selected plot type
+
+            app.msglog('plotLcsGraphs');
+
+            % Clear
+            cla(LcsPlotsApp.AxesGraphsPlot, 'reset');            
+
+            if ~obj.hasData(app), return; end
+            Planner = app.MainModule.Planner;
+            if isempty(Planner.LCS_obj), return; end
+
+            % Refresh plot according to selected plot            
+            try
+                if LcsPlotsApp.ScheduleButton.Value
+                    Planner.LCS_obj.plotSchedule('AxesHandle', LcsPlotsApp.AxesGraphsPlot);
+
+                elseif LcsPlotsApp.CatBButton.Value
+                    Planner.LCS_obj.plotCatB('AxesHandle', LcsPlotsApp.AxesGraphsPlot);
+                end
+            catch ME
+                app.msgex('plotLcsGraphs', ME);
+            end
+        end
+
     end
 
     % =====================================================================

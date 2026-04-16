@@ -114,9 +114,17 @@ function AI = loadVisitData(Args)
         Ncf = numel(CatFiles);
         AIv = AstroImage([1, Ncf]);
         for Ic = 1:Ncf
-            AIv(Ic).CatData = AstroCatalog(CatFiles{Ic});
+            try
+                AIv(Ic).CatData = AstroCatalog(CatFiles{Ic});
+            catch
+                % Skip unreadable catalog
+            end
             if Ic <= numel(ImFiles)
-                AIv(Ic).HeaderData = AstroHeader(ImFiles{Ic}, 1);
+                try
+                    AIv(Ic).HeaderData = AstroHeader(ImFiles{Ic}, 1);
+                catch
+                    % Skip unreadable header
+                end
             end
         end
         AI{Iv} = AIv;
@@ -169,15 +177,51 @@ function AI = loadFromDataDir(Args)
         return;
     end
 
+    CatPattern = sprintf('*_sci_%s_Cat_1.fits', Args.FileType);
+    ImPattern  = sprintf('*_sci_%s_Image_1.fits', Args.FileType);
+
+    AllCatFiles = io.files.filelist(fullfile(Args.DataDir, CatPattern));
+    AllImFiles  = io.files.filelist(fullfile(Args.DataDir, ImPattern));
+
+    % Coadd: one coadd per crop per visit folder — no visit-index filtering
+    if strcmpi(Args.FileType, 'coadd')
+        if Args.Verbose
+            fprintf('Loading coadd from %s\n', Args.DataDir);
+        end
+        AI = cell(1, 1);
+        if isempty(AllCatFiles)
+            if Args.Verbose
+                fprintf('  No coadd Cat files found\n');
+            end
+            return;
+        end
+        Ncf = numel(AllCatFiles);
+        AIv = AstroImage([1, Ncf]);
+        for Ic = 1:Ncf
+            try
+                AIv(Ic).CatData = AstroCatalog(AllCatFiles{Ic});
+            catch
+            end
+            if Ic <= numel(AllImFiles)
+                try
+                    AIv(Ic).HeaderData = AstroHeader(AllImFiles{Ic}, 1);
+                catch
+                end
+            end
+        end
+        AI{1} = AIv;
+        if Args.Verbose
+            fprintf('  Coadd: %d crops\n', Ncf);
+        end
+        return;
+    end
+
     Nvisits = numel(Args.Visits);
     if Args.Verbose
         fprintf('Loading %d visits from %s\n', Nvisits, Args.DataDir);
     end
 
     AI = cell(Nvisits, 1);
-
-    AllCatFiles = io.files.filelist(fullfile(Args.DataDir, '*_sci_proc_Cat_1.fits'));
-    AllImFiles  = io.files.filelist(fullfile(Args.DataDir, '*_sci_proc_Image_1.fits'));
 
     for Iv = 1:Nvisits
         VisitNum = Args.Visits(Iv);
@@ -212,9 +256,17 @@ function AI = loadFromDataDir(Args)
         Ncf = numel(CatFiles);
         AIv = AstroImage([1, Ncf]);
         for Ic = 1:Ncf
-            AIv(Ic).CatData = AstroCatalog(CatFiles{Ic});
+            try
+                AIv(Ic).CatData = AstroCatalog(CatFiles{Ic});
+            catch
+                % Skip unreadable catalog
+            end
             if Ic <= numel(ImFiles)
-                AIv(Ic).HeaderData = AstroHeader(ImFiles{Ic}, 1);
+                try
+                    AIv(Ic).HeaderData = AstroHeader(ImFiles{Ic}, 1);
+                catch
+                    % Skip unreadable header
+                end
             end
         end
         AI{Iv} = AIv;

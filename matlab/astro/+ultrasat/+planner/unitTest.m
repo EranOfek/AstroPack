@@ -47,9 +47,8 @@ function Result = unitTest(Args)
         LCS_grid = readtable(fullfile(upLCS.BaseDataDir,'LCS_nonoverlapping_grid_surveys.csv'));
         upLCS.addUniqTargets(LCS_grid.RA,LCS_grid.Dec,'Name',num2cell(LCS_grid.Field));
 
-        upLCS.buildLCS1;
-        
-
+        % This is the new version of LCS (2026)
+        upLCS.buildLCS1;      
         
         % Example for creating LCS survey:
         upLCS = ultrasat.planner.uplanner('AstPlanner','YS','Type','LCS');

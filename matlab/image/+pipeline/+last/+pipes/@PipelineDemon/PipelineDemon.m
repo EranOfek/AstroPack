@@ -2502,7 +2502,7 @@ classdef PipelineDemon < Component
             else
                 ErrorMsg = sprintf('Pipeline I failed: %s / funname: %s @ line: %d', Status.ME.message, Status.ME.stack(1).name, Status.ME.stack(1).line);
                 Obj.writeLog(ErrorMsg, LogLevel.Error);
-                Obj.writeLog(MEp, LogLevel.Info);
+                Obj.writeLog(Status.ME, LogLevel.Info);
             end % if Status.PipeI
 
 

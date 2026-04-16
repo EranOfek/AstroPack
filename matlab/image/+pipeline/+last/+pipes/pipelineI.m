@@ -106,9 +106,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
     % load images and check quality
     % AI putput is of size [Nimages x 1]
     try
-        [AI, TableForDB, TableHeader, JD_AI] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
+        [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
         TableRaw = [TableHeader, TableForDB]; 
         TableRaw.PrepPrepOK = true(size(TableRaw,1), 1);
+        RawImageList = RawImageList(FlagGoodImages,:);
     catch ME
         Status.PipeI   = false;
         Status.ME      = ME;
@@ -493,7 +494,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         catch ME
             Status.PipeI   = false;
             Status.ME      = ME;
-            TableRaw.FileName   = strings(RawImageList(:));
+                        
+%             TableRaw.FileName   = strings(RawImageList(:));
+            TableRaw.FileName   = RawImageList(:);
             TableRaw.Exception  = true(numel(RawImageList), 1); % Exception in this stage will have PrePrepOK = true
 
             % TableRaw is populated!

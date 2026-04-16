@@ -19,6 +19,9 @@ function Result = testPhotCalib(Args)
     %                testPhotStability  — stability analysis (Task A)
     %                plotPhotFittedParams — fitted parameters vs epoch
     %                plotPhotParamCorr  — parameter correlation scatter matrix
+    %                plotPhotParamSynchrony — cross-crop parameter synchrony analysis
+    %                plotPhotShapeSynchrony — cross-crop shape-only T synchrony
+    %                plotPhotAsympRMS   — asymptotic RMS (absolute vs relative) vs epoch
     %
     %              Stability plots (Task A):
     %                1. Mag vs Std scatter per mode (TwoPanels, ColorByCrop, CentralEdge).
@@ -30,13 +33,14 @@ function Result = testPhotCalib(Args)
     %                7. FWHM vs epoch.
     %                8. Fitted atmospheric parameters vs epoch (Tau, PWV, Norm).
     %                9. Fitted parameter correlations (scatter matrix).
+    %               10. Asymptotic RMS (PT_ARMS vs PH_RMS) vs epoch.
     %              Fit quality plots (Task B, via testPhotFitQuality):
-    %               10. Calibrator residuals vs magnitude.
-    %               11. Calibrator residual RMS vs magnitude.
-    %               12. Calibrator residuals vs GAIA BP-RP color.
-    %               13. Calibrator residuals vs 1/Flux (background check).
-    %               14. Calibrator residuals vs X-XPEAK, Y-YPEAK.
-    %               15. Calibrator residuals vs airmass.
+    %               11. Calibrator residuals vs magnitude.
+    %               12. Calibrator residual RMS vs magnitude.
+    %               13. Calibrator residuals vs GAIA BP-RP color.
+    %               14. Calibrator residuals vs 1/Flux (background check).
+    %               15. Calibrator residuals vs X-XPEAK, Y-YPEAK.
+    %               16. Calibrator residuals vs airmass.
     %
     %              Cached in OutDir: PC_<mode>.mat, MS_all.mat, Result.mat.
     %              Use ForceRecalc=true to recompute.
@@ -168,6 +172,9 @@ function Result = testPhotCalib(Args)
     %              'ParamNames', {'TauAod500','PWV_cm','Norm','QE_Center_Ang'});
     %          pipeline.last.quality.plotPhotParamCorr(R.PC);
     %          pipeline.last.quality.plotPhotParamCorr(R.PC, 'ColorByCrop', true);
+    %          pipeline.last.quality.plotPhotParamSynchrony(R.PC);
+    %          pipeline.last.quality.plotPhotShapeSynchrony(R.PC);
+    %          pipeline.last.quality.plotPhotAsympRMS(R);
     %
     %          % Fit quality only (from cached PC):
     %          pipeline.last.quality.testPhotFitQuality(R.PC);
@@ -213,7 +220,7 @@ function Result = testPhotCalib(Args)
         Args.ListFields     = {}       % field name(s) from ListFile
         Args.VisitIdx       = []       % indices into folder list
         Args.FileType       = 'proc'   % 'proc' | 'coadd'
-        Args.Modes          = {'percrop', 'shapeimage', 'perimage', 'shapeset', 'perset'}
+        Args.Modes          = {'percrop'}
         Args.RefCrop        = 10
         Args.Ncrop          = 24
         Args.CropsToAnalyze = []
@@ -422,6 +429,12 @@ function Result = testPhotCalib(Args)
         'TileOrder', Args.TileOrder);
 
     pipeline.last.quality.plotPhotFWHM(HeaderData, ...
+        'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'Ncrop', Args.Ncrop, ...
+        'TileOrder', Args.TileOrder);
+
+    pipeline.last.quality.plotPhotAsympRMS(Calib.PC, ...
+        'HeaderData', HeaderData, ...
         'CropsToAnalyze', Args.CropsToAnalyze, ...
         'Ncrop', Args.Ncrop, ...
         'TileOrder', Args.TileOrder);

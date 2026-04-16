@@ -18,7 +18,7 @@ function HeaderData = extractHeaderData(AI, Args)
 
     arguments
         AI cell
-        Args.HeaderKeys = {'FWHM', 'AIRMASS', 'EXPTIME', 'JD', 'BACK_IM'}
+        Args.HeaderKeys = {'FWHM', 'AIRMASS', 'EXPTIME', 'JD', 'BACK_IM', 'PT_ARMS', 'PH_RMS'}
         Args.Ncrop      = 24
         Args.Verbose logical = false
     end
