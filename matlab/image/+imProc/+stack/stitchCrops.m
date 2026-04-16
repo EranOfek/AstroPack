@@ -50,7 +50,8 @@ function [Result] = stitchCrops(AI, Args)
     % make an empty AstroImage    
     Nx = max(Xmax)-X0+1;
     Ny = max(Ymax)-Y0+1;
-    Result = AstroImage({single(nan(Ny,Nx))}); 
+    Result = AstroImage({nan(Ny,Nx)}); 
+%     Result = AstroImage({single(nan(Ny,Nx))});
     
     % fill the new image with chopped crops, shift the catalog pixels    
     for Icrop = 1:Ncrop                
@@ -94,8 +95,12 @@ function [Result] = stitchCrops(AI, Args)
         end
         
         Result.Image(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.Image;
+        Result.Mask(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)  = AIc.Mask;
     end
-                    
+    
+    % set the right mask type:
+    Result.MaskData.Data = uint32(Result.MaskData.Data);
+    
     % merge the catalogs:
     Result.CatData = merge(MCat);
     Result.CatData.JD = MCat(1).julday;  
