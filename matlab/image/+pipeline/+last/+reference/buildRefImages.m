@@ -70,7 +70,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         
             tstart = tic;
             if Args.Verbosity > 0
-                cprintf('blue','Starting to build a reference image for field %d at RA %.2f Dec %.2f \n',Iref,RefGrid.RA(Iref),RefGrid.Dec(Iref));
+                cprintf('blue','Starting to build a reference image for field %d of %d at RA %.2f Dec %.2f \n',Iref,Nref,RefGrid.RA(Iref),RefGrid.Dec(Iref));
             end
             
         % read or build the WCS of the target reference image
