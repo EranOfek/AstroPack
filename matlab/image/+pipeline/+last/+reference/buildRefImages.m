@@ -33,7 +33,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.Naxis1            = 1716;  % the pixel size of a reference image   
         Args.Naxis2            = 1716;  % NOTE that it was reduced to 1716 from 1726, while the grid was built for 1726 x 1726    
                
-        Args.RasterResolution   = 10;     % arcsec
+        Args.RasterResolution   = 3;    % arcsec
         Args.MinAllowedCoverage = 0.999;  % 0.995; % allowed inaccuracy in the required reference field coverage  
                        
         Args.CoaddFunction     = @pipeline.generic.procCoadd; 
@@ -91,7 +91,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         % 0. build the ref polygon to be covered and find the healpix coverage
         P0 = [RefGrid.RA1(Iref), RefGrid.Dec1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
               RefGrid.RA3(Iref), RefGrid.Dec3(Iref); RefGrid.RA4(Iref), RefGrid.Dec4(Iref)];
-        Raster0 = celestial.healpix.mex.rasterize_polygon(P0, Args.RasterResolution); 
+        [Raster0, NsideRaster] = celestial.healpix.mex.rasterize_polygon(P0, Args.RasterResolution); 
         
         % find the center and neighbors at the search resolution Args.NsideSearch
         UpixCenter = celestial.healpix.ang2pix(Args.NsideSearch, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);
@@ -168,7 +168,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 while Icrop < height(TabEpoch)+1 % merge the rasters of all the crops involved
                     CropPoly = double([TabEpoch.ra1(Icrop), TabEpoch.dec1(Icrop); TabEpoch.ra2(Icrop), TabEpoch.dec2(Icrop); ...
                         TabEpoch.ra3(Icrop), TabEpoch.dec3(Icrop); TabEpoch.ra4(Icrop), TabEpoch.dec4(Icrop)]);
-                    Raster   = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution);
+                    Raster = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution);                         
                     % if this crop does not overlap with the reference region, deselect it
                     Coverage(Icrop) = sum(ismember(Raster,Raster0));
                     if Coverage(Icrop) < 1
@@ -235,7 +235,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                     StackImages = [StackImages StitchedImage];
                 else
                     StackImages = StitchedImage;
-                end                
+                end  
+                
+                clear AI
             end % epochs
             
             % 5. coadd the epochs from different telescopes and cameras
