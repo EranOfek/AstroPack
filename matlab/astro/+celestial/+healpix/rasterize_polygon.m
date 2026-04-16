@@ -68,7 +68,7 @@ function [Result, Nside] = rasterize_polygon(P, Args)
     if Args.CheckPlot
         figure(1)
         axesm('aitoff', 'Frame', 'on', 'Grid', 'on');
-        plotm(PixLat(Inside>0)*RAD,PixLon(Inside>0)*RAD,'*')
+        plotm(PixLat(Inside>0),PixLon(Inside>0),'*')
         plotm(P(:,2),P(:,1),'+','Color','red'); hold on;        
     end
 end
