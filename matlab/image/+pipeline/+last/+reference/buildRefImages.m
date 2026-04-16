@@ -123,16 +123,16 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
             end
         else
             if Args.Verbosity > 0
-                fprintf('%d images found in the DB to build reference #%d at %.2f, %.2f \n',height(T), Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
+                fprintf('%d crop images found in the DB to build reference #%d at %.2f, %.2f \n',height(T), Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
             end
             
-            % identify sets of subimages from the same mount, camera, and epoch to be stitched
+            % identify sets of subimages from the same epoch and telescope to be stitched
             T = sortrows(T, {'mountnum','camnum','jd_start'});
             [Grp, ~] = findgroups(T.mountnum, T.camnum, T.jd_start);
             
             Nepoch   = max(Grp);
                     if Args.Verbosity > 0              
-                        fprintf('%d original images found\n',Nepoch);
+                        fprintf('%d groups of same epoch + telescope images found\n',Nepoch);
                     end
             %
             StackImages = [];
@@ -190,7 +190,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 end
                 
                 % 4.1 retrieve the crop images
-                    if Args.Verbosity > 1
+                    if Args.Verbosity > 0
                         fprintf('M%dC%d epoch %d: %d images filtered, dowloading and stitching...',Imount,Icam,Iepoch,Nim);
                     end
                 
@@ -212,7 +212,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 
                 % check if WCS is present in all the selected crops
                 if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
-                    if Args.Verbosity > 1
+                    if Args.Verbosity > 0
                         cprintf('red','\nWCS is not correct in one or several crops, skipping the epoch %d\n',Iepoch);
                     end
                     continue
@@ -226,7 +226,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                     StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabEpoch.jd_start(Iepoch));
                 end
                 
-                if Args.Verbosity > 1
+                if Args.Verbosity > 0
                     fprintf(' done \n');
                 end
                 
@@ -249,7 +249,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 end
                 continue
             else
-                if Args.Verbosity > 1
+                if Args.Verbosity > 0
                     cprintf('blue','Coadding %d epochs \n',numel(StackImages));
                 end
             end
