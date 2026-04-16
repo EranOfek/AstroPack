@@ -11,11 +11,12 @@ function [Result, Nside] = rasterize_polygon(P, Args)
     %          - Nside of the HEALpix in the raster
     % Author : A.M. Krassilchtchikov (2025 May) 
     % Example: P = [10, 70; 10, 70.5; 9.5, 70.5; 9.5, 70];
-    %          [R, Nside] = celestial.healpix.rasterize_polygon(P)
+    %          [R1, Nside1] = celestial.healpix.rasterize_polygon(P,'Nside',2^16)
+    %          [R2, Nside2] = celestial.healpix.rasterize_polygon(P,'Resolution',5)
     arguments        
         P
-        Args.Nside      = 2^16; 
-        Args.Resolution = 5;       % [arcsec]  
+        Args.Nside      = []; 
+        Args.Resolution = [];       % [arcsec]  
         Args.CheckPlot  = false;
         Args.UseMex     = true;
     end
