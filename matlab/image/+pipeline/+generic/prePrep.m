@@ -218,6 +218,15 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
     AI = AI(:);
     Nim = numel(AI);
 
+
+    if nargout>2 && ~isempty(Args.Keys2table)
+        % preparing a catalog of images
+        TableHeader = imProc.header.headers2table(AI,'ColNameDic',Args.Keys2table);
+        TableHeader.FileName = string(Images);
+    else
+        TableHeader = [];
+    end
+
     if Args.Convert2single
         %AI.cast(Args.ImageClass);  % very slow
 
@@ -287,11 +296,11 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
         for Iim=1:1:Nim
             if NotEmptyImage(Iim)
                 if isnan(TableForDB.Median(Iim))
-                    BackImage = median(AI(Iim).ImageData.Image, 'all','omitnan');
+                    BackImage = median(AI(Iim).ImageData.Data, 'all','omitnan');
                 else
                     BackImage = TableForDB.Median(Iim);
                 end
-                BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Image, [Args.ACF_HalfSize, Args.ACF_HalfSize], false, [], Args.UseMex);
+                BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Data, [Args.ACF_HalfSize, Args.ACF_HalfSize], false, [], Args.UseMex);
                 % subtract background
                 BackSubImage = BackSubImage - BackImage;
                             
@@ -299,7 +308,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
                 if FWHM_ACF>Args.MaxFWHM
                     % run it again in a different CCDSEC
                     % this may be due to satellite streaks
-                    BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Image, Args.CCDSEC2, true, [], Args.UseMex);
+                    BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Data, Args.CCDSEC2, true, [], Args.UseMex);
                     % subtract background                    
                     BackSubImage = BackSubImage - BackImage;                   
                     [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius, 'UseMex',Args.UseMex, 'Back',[]); %BackImage);                    
@@ -363,13 +372,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
     TableForDB = struct2table(TableForDB);
     TableForDB = TableForDB(FlagGoodImages,:);
 
-    if nargout>2 && ~isempty(Args.Keys2table)
-        % preparing a catalog of images
-        TableHeader = imProc.header.headers2table(AI,'ColNameDic',Args.Keys2table);
-        TableHeader.FileName = string(Images(FlagGoodImages));
-    else
-        TableHeader = [];
-    end
+   
 
     % write DIRYEAR, DIRMON, DIRDAY, FILETIME
     if Args.FixJD
