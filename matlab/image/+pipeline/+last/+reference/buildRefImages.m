@@ -52,9 +52,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                                     'FLUX_APER', 'FLUXERR_APER',...
                                     'MAG_APER', 'MAGERR_APER'};
         
-        Args.CoaddFunction     = @pipeline.generic.procCoadd;  % @imProc.stack.coaddW; % a handle to coadder of registered images 
-%         Args.StackMethod       = 'sigmaclip';
-%         Args.StackArgs         = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
+        Args.CoaddFunction     = @pipeline.generic.procCoadd;  
         
         Args.PixScale           = 1.25;
         Args.Tran               = Tran2D('poly3');
@@ -105,7 +103,6 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         % 0. build the ref polygon to be covered and find the healpix coverage        
         P0 = [RefGrid.RA1(Iref), RefGrid.Dec1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
               RefGrid.RA3(Iref), RefGrid.Dec3(Iref); RefGrid.RA4(Iref), RefGrid.Dec4(Iref)];
-%         Raster0 = celestial.healpix.rasterize_polygon(P0,'Resolution',Args.RasterResolution);
         Raster0 = celestial.healpix.mex.rasterize_polygon(P0, Args.RasterResolution); 
         
         % find the center and neighbors at the search resolution Args.NsideSearch
@@ -228,7 +225,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
             % check if WCS is present in all the selected crops
             if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
                 if Args.Verbosity > 1
-                    cprintf('red','WCS not correct in one or several crops, skipping the epoch %d\n',Iepoch);
+                    cprintf('red','WCS is not correct in one or several crops, skipping the epoch %d\n',Iepoch);
                 end
                 continue
             end
@@ -241,101 +238,37 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabEpoch.jd_start(Iepoch));
             end
 
-            % 4.3 rotate, align, and cut the merged crops to the ref. coordinates:
-            % warp with the reference grid WCS
-            if Args.UseInterp2WCS
-                RegisteredImage = imProc.transIm.interp2wcs(StitchedImage, AIref, Args.interp2wcsArgs{:});
-            else
-                RegisteredImage = imProc.transIm.imwarp(StitchedImage, AIref,...
-                    'TransWCS',true,...
-                    'FillValues',0,...
-                    'ReplaceNaN',true,...
-                    'Sampling',1,...
-                    'InterpMethod','linear',...
-                    'CreateNewObj',true);
-            end
-
-            % 4.4 measure background, find sources, populate PSF
-            RegisteredImage = imProc.background.background(RegisteredImage, 'SubSizeXY',Args.BackSubSizeXY);
-            RegisteredImage = imProc.sources.findMeasureSources(RegisteredImage, ...
-                'Threshold', Args.Threshold,...
-                'ReCalcBack',false,...
-                'MomPar',{'MomRadius',Args.MomRadius},...
-                'ColCell',Args.ColCell,...
-                'FlagCR',true,...
-                'ZP',Args.ZP,...
-                'CreateNewObj',false);
-
-            % re-measure PSF [do PSF photometry -- do we really need it here?]
-            RegisteredImage = imProc.psf.populatePSF(RegisteredImage, 'RePopulatePSF', true, 'DataType',@single);
-            %                         RegisteredImage = imProc.sources.psfFitPhot(RegisteredImage, 'CreateNewObj',false, 'ZP',Args.ZP);
-
-            % 4.5 add the RegisteredImage to the stack
+            % add the images to the stack
             if exist('StackImages','var')
-                StackImages = [StackImages RegisteredImage];
+                StackImages = [StackImages StitchedImage];
             else
-                StackImages = RegisteredImage;
+                StackImages = StitchedImage;
             end
             % clear the intermediate objects
             clear AI;
-            clear StitchedImage;
-            clear RegisteredImage;
+            clear StitchedImage;            
         end % epochs
      
         % 5. coadd the epochs from different telescopes and cameras                
+        % rotate, align, and cut the merged crops to the ref. coordinates
+        % measure background, find sources, populate PSF      
         if isempty(StackImages)
             if Args.Verbosity > 0
                 cprintf('err','No images have been qualified for the field %d, skipping to the next field..\n',Iref);
             end
             continue
+        else
+            if Args.Verbosity > 1
+                cprintf('blue','Coadding %d epochs \n',numel(StackImages));
+            end
         end
         
-%         RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'FluxMatch','PH_ZP',...
-%                     'StackMethod',Args.StackMethod,'StackArgs',Args.StackArgs);   
-        for i=1:numel(StackImages); StackImages(i).WCS.Success=1;end % a temporary patch 
-        
-        RefImage = Args.CoaddFunction(StackImages','WCS',AIref.WCS); 
-        
-        % measure the background, find and measure sources, measure the PSF
-        RefImage = imProc.background.background(RefImage, 'SubSizeXY',Args.BackSubSizeXY);                        
-        RefImage = imProc.sources.findMeasureSources(RefImage, ...
-                                       'Threshold', Args.Threshold,...
-                                       'ReCalcBack',false,...
-                                       'MomPar',{'MomRadius',Args.MomRadius},...
-                                       'ColCell',Args.ColCell,...
-                                       'FlagCR',true,...
-                                       'ZP',Args.ZP,...
-                                       'CreateNewObj',false);                                                                                                      
-                        
-        % re-measure PSF, do PSF photometry 
-        RefImage = imProc.psf.populatePSF(RefImage, 'RePopulatePSF', true, 'DataType',@single);
-        RefImage = imProc.sources.psfFitPhot(RefImage, 'CreateNewObj',false, 'ZP', Args.ZP); 
-                
-        MeanJD = mean(julday(StackImages));        
-        RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MIDJD', MeanJD);
-%                            
-%         [~, RefImage, ~] = imProc.astrometry.astrometryRefine(RefImage,...                                            
-%                                             'EpochOut',MeanJD,...
-%                                             'Scale',Args.PixScale,...
-%                                             'CatName',Args.CatName,...
-%                                             'Tran',Args.Tran,...
-%                                             'CreateNewObj',false);                    
-%                                         
-        [~, RefImage, ~] = imProc.astrometry.astrometryRefine(RefImage);
-%         RefImage = imProc.calib.photometricZP(RefImage);
-        
-%         RefImage.Back = imProc.stat.median(RefImage).*ones(size(RefImage.Image));
-%         RefImage.Var = imProc.stat.rstd(RefImage).^2 .*ones(size(RefImage.Image));
-%         RefImage = imProc.sources.findMeasureSources(RefImage,'AddFlags',true);
-%         RefImage = imProc.psf.populatePSF(RefImage);
-%         imProc.psf.fwhm(RefImage);
-%         RefImage = imProc.sources.psfFitPhot(RefImage);
-%         RefImage = imProc.astrometry.addCoordinates2catalog(RefImage,'OutUnits','deg');
-%         RefImage = imProc.calib.photometricZP(RefImage);
-%         RefImage = imProc.match.match_catsHTMmerged(RefImage, 'SameField',false, 'CreateNewObj',false);
-        
-        RefImage.UserData.Nimages = numel(StackImages);        
-
+        RefImage = Args.CoaddFunction(StackImages','WCS',AIref,'StackMethod','wrobust',...
+                            'coadd_WRobustArgs',{...
+                            'backVarArgs',{'Method',@imUtil.background.modeVar_Hist},...
+                            'addMask',false,...
+                            }'); 
+                          
         % 6. save the new reference image and its catalog, mask, and PSF to the disk                 
         for Iprop=1:numel(Args.WriteProp)
             FN = sprintf('%s/LAST_clear_%d_sci_ref_%s_1.fits',Args.OutputDir,Iref,Args.WriteProp(Iprop));
