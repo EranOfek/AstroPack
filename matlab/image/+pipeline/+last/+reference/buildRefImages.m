@@ -32,39 +32,21 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         Args.UsePrebuiltRefWCS = false; % use pre-built WCS read with the reference image grid
         Args.Naxis1            = 1716;  % the pixel size of a reference image   
         Args.Naxis2            = 1716;  % NOTE that it was reduced to 1716 from 1726, while the grid was built for 1726 x 1726    
-        
-        Args.UseInterp2WCS     = true; % the method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
-        Args.interp2wcsArgs    = {'Sampling',1,'CreateNewObj',true};  % probably 'Sampling',5 is enough? (def. 20)
-        
+               
         Args.RasterResolution   = 10;     % arcsec
         Args.MinAllowedCoverage = 0.999;  % 0.995; % allowed inaccuracy in the required reference field coverage  
-        
-        Args.BackSubSizeXY      = [128 128];
-        Args.Threshold          = 5;
-        Args.MomRadius          = 6;
-        Args.PsfFunPar cell     = {[0.1;1.0;1.5]};  % search for sources  
-        Args.ZP                 = 25;
-        Args.ColCell cell       = {'XPEAK','YPEAK',...
-                                    'X1', 'Y1',...
-                                    'X2','Y2','XY',...
-                                    'SN','BACK_IM','VAR_IM',...
-                                    'BACK_ANNULUS', 'STD_ANNULUS', ...
-                                    'FLUX_APER', 'FLUXERR_APER',...
-                                    'MAG_APER', 'MAGERR_APER'};
-        
+                       
         Args.CoaddFunction     = @pipeline.generic.procCoadd; 
         Args.StackMethod       = 'wrobust';
         Args.StackMethodArgs   = {'coadd_WRobustArgs',{'backVarArgs',{'Method',@imUtil.background.modeVar_Hist}}};
         
-        Args.PixScale           = 1.25;
-        Args.Tran               = Tran2D('poly3');
-        Args.CatName            = 'GAIAEDR3';
+        Args.PixScale           = 1.25;        
         
         Args.OutputDir          = '~/NewRef/';
         Args.WriteProp          = ["Image","Cat","Mask","PSF"];
         
         Args.OutputRefTable    = 'ref_images_v5'; % the output DB table name   
-        Args.Verbosity         = 2; % from 0 to 2 
+        Args.Verbosity         = 2; % from 0 (mute) to 2 (maximal)
     end
     % 
     RAD = 180/pi;  
@@ -94,11 +76,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         if Args.UsePrebuiltRefWCS && exist('PrebuiltRefWCS','var')
             RefWCS = PrebuiltRefWCS(Iref);
         else
-            % NOTE: when the right values of ref. image PA are written to the RefGrid, use this line:
-            %             RefWCS = AstroWCS.buildSimpleWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
-            %                      'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
             RefWCS = AstroWCS.buildSimpleWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
-                'PixScale',Args.PixScale); % temporary!
+                'PixScale',Args.PixScale); 
+            % NOTE: when the right values of ref. image PA are written to the RefGrid, change for this:
+            %  RefWCS = AstroWCS.buildSimpleWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
+            %                      'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
         end
         % create an empty reference AstroImage and attach the RefWCS to it
         AIref = AstroImage({zeros(Args.Naxis1,Args.Naxis2)});
@@ -160,9 +142,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 Imount    = unique(TabEpoch.mountnum); % unique is used to prevent multiple mounts in one set
                 Icam      = unique(TabEpoch.camnum);   % unique is used to prevent multiple cameras in one set
                 Nim       = height(TabEpoch);
-                if Args.Verbosity > 1
-                    fprintf('M%dC%d epoch %d: %d crop images found in the DB \n',Imount,Icam,Iepoch,Nim);
-                end
+                    if Args.Verbosity > 1
+                        fprintf('M%dC%d epoch %d: %d crop images found in the DB \n',Imount,Icam,Iepoch,Nim);
+                    end
                 
                 % 2. select exposures by specific obs. time, mount, telescope, time span, etc.
                 %
@@ -174,10 +156,11 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 % 3. select the overlapping proc images by some quality
                 %
                 % T2 = T2(quality condition,:)
+                
                 Nim = height(TabEpoch);
-                if Args.Verbosity > 1
-                    fprintf('M%dC%d epoch %d: %d images selected according to the time and quality criteria \n',Imount,Icam,Iepoch,Nim);
-                end
+                    if Args.Verbosity > 1
+                        fprintf('M%dC%d epoch %d: %d images selected according to the time and quality criteria \n',Imount,Icam,Iepoch,Nim);
+                    end
                 
                 % if the total coverage is incomplete, skip to the next epoch
                 Coverage = []; RasterC = []; Icrop = 1;
@@ -206,9 +189,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                 end
                 
                 % 4.1 retrieve the crop images
-                if Args.Verbosity > 1
-                    fprintf('M%dC%d epoch %d: %d images filtered, dowloading and stitching...',Imount,Icam,Iepoch,Nim);
-                end
+                    if Args.Verbosity > 1
+                        fprintf('M%dC%d epoch %d: %d images filtered, dowloading and stitching...',Imount,Icam,Iepoch,Nim);
+                    end
                 
                 AF = AstroFileName;
                 AF.ProjName = {'LAST', 1, TabEpoch.mountnum, TabEpoch.camnum};
