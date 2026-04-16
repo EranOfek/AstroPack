@@ -82,8 +82,9 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     
     % the main loop over the reference grid 
     for Iref = RefNumbers   
+        tstart = tic;
                 if Args.Verbosity > 0
-                    fprintf('Starting to build a reference image for field %d at RA %.2f Dec %.2f \n',Iref,RefGrid.RA(Iref),RefGrid.Dec(Iref));
+                    cprintf('blue','Starting to build a reference image for field %d at RA %.2f Dec %.2f \n',Iref,RefGrid.RA(Iref),RefGrid.Dec(Iref));
                 end
         % if the WCS of the target Reference Image has not been read from the RefGrid object, build it here 
         if Args.UsePrebuiltRefWCS && exist('PrebuiltRefWCS','var')
@@ -151,9 +152,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         StackImages = [];
         
         for Iepoch = 1:Nepoch % loop by sets of epoch + telescope 
-            
-            tstart = tic;
-            
+                                  
             TabEpoch  = T(Grp == Iepoch, :);
             Imount    = unique(TabEpoch.mountnum); % unique is used to prevent multiple mounts in one set 
             Icam      = unique(TabEpoch.camnum);   % unique is used to prevent multiple cameras in one set
@@ -282,8 +281,8 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
                     
         end % for the particular reference grid position we have some coadds to build on  
         if Args.Verbosity > 0            
-            fprintf('Finished building a reference image for field %d: %d epochs stacked in %d s\n',...
-                Iref, RefImage.HeaderData.Key.NCoadd,toc(tstart));
+            fprintf('Finished building a reference image for field %d: %d epochs stacked in %.1f s\n',...
+                Iref, RefImage.HeaderData.Key.NCOADD,toc(tstart));
         end
     end % reference image grid      
 end 
