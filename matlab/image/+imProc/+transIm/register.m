@@ -115,6 +115,7 @@ function [Result] = register(Obj, TransRef, Args)
                 % Object is AstroWCS
                 [RefX, RefY, X, Y] = TransRef(Iref).xy2refxy(CCDSEC, Obj(Iobj).WCS, 'Sampling',Args.Sampling);
                 
+                error('not completed yet, more input to detemine SizeRefIm is needed');
                 SizeRefIm = size(Ref(Iref).Image); % this is not correct, how to determine the image size in this case? 
                 VecRefX = (1:1:SizeRefIm(2));
                 VecRefY = (1:1:SizeRefIm(1));
