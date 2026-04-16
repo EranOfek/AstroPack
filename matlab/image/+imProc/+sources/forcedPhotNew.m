@@ -61,12 +61,12 @@ function [Result] = forcedPhotNew(Obj, Args)
         Args.FlagsHalfSize           = 3;
 
         Args.ReconstructPSF logical  = false;
-        Args.HalfSizePSF             = 6;
+        Args.HalfSizePSF             = 12;
         Args.FitRadius               = 3;
         Args.SmallStep               = 1e-3;
-        Args.MaxStep                 = 0.2;
+        Args.MaxStep                 = 0.1; %0.2;
         Args.ConvThresh              = 1e-4;
-        Args.MaxIter                 = 10;      % use 1 for no itrations
+        Args.MaxIter                 = 2; % 10      % use 1 for no itrations
         Args.UseSourceNoise          = 'off';
         Args.ZP                      = 25; 
         Args.HeaderZP                = true; %false;   % Use ZP from image header (PH_ZP); (if nan returns to Args.ZP)

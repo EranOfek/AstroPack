@@ -40,7 +40,7 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
     %                   Relevant only for MatchMethod=legacy.
     %                   Default is 'sphere'.
     %            'Radius' - Matching radius (in RadiusUnits).
-    %                   Default is 3.
+    %                   Default is 1.5.
     %            'RadiusUnits' - Units of matching radius (e.g., 'arcsec'|'pix').
     %                   Default is 'arcsec'.
     %            'MatchedCols' - Cell array of column names to carry into
@@ -109,7 +109,7 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
         Args.AddUnUse          = false;
 
         Args.CooType           = 'sphere';
-        Args.Radius            = 3;
+        Args.Radius            = 1.5;
         Args.RadiusUnits       = 'arcsec';
         Args.MatchedCols       = {'RA','Dec',...
                                   'X','Y',...
