@@ -6,12 +6,13 @@ function [Result] = unitTest(Args)
     %
     % Output : - filled visit directory Args.LocalPath/YYYY/MM/DD/proc/HHMMSSvXX (XX starting with 0) 
     % Author : A.M. Krassilchtchikov (2026 Mar) 
-    % Example: pipeline.last.pipes.unitTest('StartTime',[8 7 2025 01 28 0]);
-    %          pipeline.last.pipes.unitTest('PipelineVersion','prod', 'StartImage','LAST.01.01.01_20250708.003700.313_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz');
+    % Example: RAWImageDir = '/mnt/marvin/LAST.01.01.01/2025/07/07/raw/';
+    %          pipeline.last.pipes.unitTest('RAWImageDir',RAWImageDir,'StartTime',[8 7 2025 01 28 0]);
+    %          pipeline.last.pipes.unitTest('RAWImageDir',RAWImageDir,'PipelineVersion','prod', 'StartImage','LAST.01.01.01_20250708.003700.313_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz');
     arguments
         Args.LocalPath         = '~/LASTunitTest';
-        Args.RAWImageDir       = '/mnt/marvin/LAST.01.01.01/2025/07/07/raw/'
-        Args.CalibDir          = [] % '/mnt/marvin/LAST.01.01.01/calib/'
+        Args.RAWImageDir       = [] 
+        Args.CalibDir          = [] 
         Args.RefPath           = '/mnt/euclid/last/data/references/v4/'
         Args.StartImage        = 'LAST.01.01.01_20250708.000029.080_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz' 
         Args.StartTime         = [] % [2025 8 7 01 28 0] or 2025.3456
@@ -19,6 +20,12 @@ function [Result] = unitTest(Args)
         Args.MinInGroup        = 10 
         Args.RegenCalib        = false; % we do not know yet how to write the new calib to a local dir and use it from there
         Args.PipelineVersion   = 'dev'; % 'dev' or 'prod'
+    end
+    
+    % if running without explicit arguments, do nothing
+    if isempty(Args.RAWImageDir)
+        fprintf("LAST pipeline unit test: run me with at least 'RAWImageDir' defined\n");
+       return 
     end
     
     % arrange a local folder to store results 

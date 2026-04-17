@@ -15,5 +15,5 @@
 % Author : A.M. Krassilchtchikov (2026 Apr) 
 % Example: FN = '/home/kra/LAST/LAST.01.01.01_20260324.164951.543_clear_1268_000_001_001_sci_coadd_Cat_1.fits';
 %          read a catalog from the first HDU where there is one, and read header specifically from HDU = 3
-%          [DataStruct, Header, hdu] = fits.mex.read_catalog(FN, 0, [], {}, 3); 
+%          [DataStruct, Header, hdu] = io.fits.mex.read_catalog(FN, 0, [], {}, 3); 
 %          Data = struct2table(DataStruct);

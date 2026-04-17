@@ -223,7 +223,7 @@ classdef ImageIO < Component
                     else
                         if Args.IsTable
                             if Args.UseMex
-                                [DataStruct, Header, ~, ColUnits] = fits.mex.read_catalog(FileName, 0);
+                                [DataStruct, Header, ~, ColUnits] = io.fits.mex.read_catalog(FileName, 0);
                                 Data = struct2table(DataStruct);
                                 Data.Properties.VariableUnits = ColUnits;
                             else

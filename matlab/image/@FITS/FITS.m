@@ -294,7 +294,7 @@ classdef FITS < handle
             end
                          
             if Args.UseMex
-                [Image, HeadCell, Nhdu] = fits.mex.read_image(FileName, HDUnum-1, Args.CCDSEC); 
+                [Image, HeadCell, Nhdu] = io.fits.mex.read_image(FileName, HDUnum-1, Args.CCDSEC); 
                 Image = Image'; % the Mex function itself does not transpose the image into the matlab style 
             else
                 Fptr = matlab.io.fits.openFile(FileName);
