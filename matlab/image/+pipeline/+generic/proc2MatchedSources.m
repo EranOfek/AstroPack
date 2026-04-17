@@ -40,7 +40,7 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
     %                   Relevant only for MatchMethod=legacy.
     %                   Default is 'sphere'.
     %            'Radius' - Matching radius (in RadiusUnits).
-    %                   Default is 3.
+    %                   Default is 1.5.
     %            'RadiusUnits' - Units of matching radius (e.g., 'arcsec'|'pix').
     %                   Default is 'arcsec'.
     %            'MatchedCols' - Cell array of column names to carry into
@@ -103,9 +103,13 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
         Args.JD                = [];
         Args.FlagGood          = []; % same Dim as AI
         Args.CheckAstrom       = false;
+        %--- imProc.match.unify arguments ---
         Args.unifyArgs         = {};
+        Args.ColUse            = [];
+        Args.AddUnUse          = false;
+
         Args.CooType           = 'sphere';
-        Args.Radius            = 3;
+        Args.Radius            = 1.5;
         Args.RadiusUnits       = 'arcsec';
         Args.MatchedCols       = {'RA','Dec',...
                                   'X','Y',...
@@ -115,7 +119,8 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
                                   'MAG_APER_3','MAGERR_APER_3',...
                                   'FLUX_APER_3',...
                                   'FLAGS',...
-                                  'BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};
+                                  'BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS',...
+                                  'FORCED'};
 
         Args.RelPhot           = true;
         Args.RelPhotAlgo       = 'meddiff';  % 'meddiff'
@@ -199,7 +204,12 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
         switch Args.MergeMethod
             case 'unify'
                 % x7 faster
-                [~,~, MatchedS(Ifields)] = imProc.match.unify(AI(FlagGood,Ifields), Args.unifyArgs{:}, 'MatchRadius',Args.Radius, 'Col',Args.MatchedCols);
+                [~,~, MatchedS(Ifields)] = imProc.match.unify(AI(FlagGood,Ifields), Args.unifyArgs{:},...
+                                                              'MatchRadius',Args.Radius,...
+                                                              'Col',Args.MatchedCols,...
+                                                              'ColUse',Args.ColUse,...
+                                                              'AddUnUse',Args.AddUnUse);
+              
             case 'legacy'
                 [MatchedS(Ifields), Matched(Ifields,:)] = MatchedS(Ifields).unifiedCatalogsIntoMatched(AI(FlagGood,Ifields),...
                                                                  'CooType',Args.CooType,...

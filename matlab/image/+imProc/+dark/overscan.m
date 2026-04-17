@@ -52,7 +52,7 @@ function [Result, OverScanAI] = overscan(ImObj, Args)
     %            'DataProp' - Data property on which to operate.
     %                   Defaultis 'ImageData'.
     %            'DataPropIn' - Data property, in the image component, on which to operate.
-    %                   Defaultis 'Image'.
+    %                   Defaultis 'Data'.
     %
     %            'TrimDataProp' - A cell array of data properties in the
     %                   AstroImage to trim.
@@ -86,7 +86,7 @@ function [Result, OverScanAI] = overscan(ImObj, Args)
         Args.UpdateHeader logical        = true;
         Args.KeyCCDSEC                   = 'CCDSEC';
         Args.DataProp                    = 'ImageData';
-        Args.DataPropIn                  = 'Image';
+        Args.DataPropIn                  = 'Data'; %'Image';
         Args.TrimDataProp                = {'Image','Mask'};
 
         Args.CreateNewObj logical        = false;

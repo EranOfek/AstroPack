@@ -11,7 +11,7 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     %         'NsideLow'    -
     %         'SearchTable' - name of the DB table containing image data
     %
-    % Output : - reference image files written to disk and ref_images table filled in the DB
+    % Output : - reference image files (Image, Mask, PSF, Cat) written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2025 Jul) 
     % Example: load('LAST_refGrid.mat'); D = db.Db.connectLASTdb('Pass','*');
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,D); % a most general usage  
@@ -22,49 +22,32 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
         
         Args.NsideSearch = 2^7; % 2^7; % we should start the search at a somewhat larger region then the ref. image size  
         Args.NsideLow    = 2^8; 
-        Args.SearchTable = 'visit_images'; % 'proc_images'
+        Args.SearchTable = 'visit_images'; 
         % the list of table columns needed to check the overlaps + filtering + control 
         Args.Fields      = "id_visit, upix_low, jd_start, midjd, exptime, fieldid, mountnum, camnum, cropid," + ... 
                            "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
                        
         Args.RefNumbers  = []; % e.g., [120000 120001] or [120000:120020]; input range of ref. image numbers  
         
-        Args.UsePrebuiltRefWCS = false; % use pre-built WCS read with the reference image grid
+        Args.PrebuiltRefWCS    = [];    % use an array of pre-built WCS (e.g., from the RefGrid object) 
         Args.Naxis1            = 1716;  % the pixel size of a reference image   
         Args.Naxis2            = 1716;  % NOTE that it was reduced to 1716 from 1726, while the grid was built for 1726 x 1726    
-        
-        Args.UseInterp2WCS     = true; % the method to warp the image: either imProc.transIm.interp2wcs or imProc.transIm.imwarp
-        Args.interp2wcsArgs    = {'Sampling',1,'CreateNewObj',true};  % probably 'Sampling',5 is enough? (def. 20)
-        
-        Args.RasterResolution   = 10;     % arcsec
+               
+        Args.RasterResolution   = 3;    % arcsec
         Args.MinAllowedCoverage = 0.999;  % 0.995; % allowed inaccuracy in the required reference field coverage  
+                       
+        Args.CoaddFunction     = @pipeline.generic.procCoadd; 
+        Args.SubBack           = true;
+        Args.StackMethod       = 'wrobust';
+        Args.StackMethodArgs   = {'coadd_WRobustArgs',{'backVarArgs',{'Method',@imUtil.background.modeVar_Hist}}};        
         
-        Args.BackSubSizeXY      = [128 128];
-        Args.Threshold          = 5;
-        Args.MomRadius          = 6;
-        Args.PsfFunPar cell     = {[0.1;1.0;1.5]};  % search for sources  
-        Args.ZP                 = 25;
-        Args.ColCell cell       = {'XPEAK','YPEAK',...
-                                    'X1', 'Y1',...
-                                    'X2','Y2','XY',...
-                                    'SN','BACK_IM','VAR_IM',...
-                                    'BACK_ANNULUS', 'STD_ANNULUS', ...
-                                    'FLUX_APER', 'FLUXERR_APER',...
-                                    'MAG_APER', 'MAGERR_APER'};
-        
-        Args.CoaddFunction     = @pipeline.generic.procCoadd;  % @imProc.stack.coaddW; % a handle to coadder of registered images 
-        Args.StackMethod       = 'sigmaclip';
-        Args.StackArgs         = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
-        
-        Args.PixScale           = 1.25;
-        Args.Tran               = Tran2D('poly3');
-        Args.CatName            = 'GAIAEDR3';
+        Args.PixScale           = 1.25;        
         
         Args.OutputDir          = '~/NewRef/';
         Args.WriteProp          = ["Image","Cat","Mask","PSF"];
         
         Args.OutputRefTable    = 'ref_images_v5'; % the output DB table name   
-        Args.Verbosity         = 2; % from 0 to 2 
+        Args.Verbosity         = 2; % from 0 (mute) to 2 (maximal)
     end
     % 
     RAD = 180/pi;  
@@ -83,272 +66,212 @@ function [Result] = buildRefImages(RefGrid, DB, Args)
     end
     
     % the main loop over the reference grid 
-    for Iref = RefNumbers   
-                if Args.Verbosity > 0
-                    fprintf('Starting to build a reference image for field %d at RA %.2f Dec %.2f \n',Iref,RefGrid.RA(Iref),RefGrid.Dec(Iref));
-                end
-        % if the WCS of the target Reference Image has not been read from the RefGrid object, build it here 
-        if Args.UsePrebuiltRefWCS && exist('PrebuiltRefWCS','var')
-            RefWCS = PrebuiltRefWCS(Iref); 
-        else
-            % NOTE: when the right values of ref. image PA are written to the RefGrid, use this line: 
-%             RefWCS = AstroWCS.buildSimpleWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
-%                      'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
-            RefWCS = AstroWCS.buildSimpleWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
-                     'PixScale',Args.PixScale); % temporary! 
-        end         
-        % create an empty reference AstroImage and attach the RefWCS to it
-        AIref = AstroImage({zeros(Args.Naxis1,Args.Naxis2)});
-        AIref.WCS = RefWCS;
-        AIref.HeaderData = AIref.WCS.wcs2header;
+    for Iref = RefNumbers
         
-        % 0. build the ref polygon to be covered and find the healpix coverage        
+            tstart = tic;
+            if Args.Verbosity > 0
+                cprintf('blue','Starting to build a reference image for field %d of %d at RA %.2f Dec %.2f \n',Iref,Nref,RefGrid.RA(Iref),RefGrid.Dec(Iref));
+            end
+            
+        % read or build the WCS of the target reference image
+        if ~isempty(Args.PrebuiltRefWCS)
+            RefWCS = Args.PrebuiltRefWCS(Iref);
+        else
+            RefWCS = AstroWCS.buildSimpleWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
+                'PixScale',Args.PixScale); 
+            % NOTE: when the right values of ref. image PA are written to the RefGrid, change for this:
+            %  RefWCS = AstroWCS.buildSimpleWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
+            %                      'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
+        end        
+        % create an empty reference AstroImage and attach the RefWCS to it
+        AIref = AstroImage({zeros(Args.Naxis1,Args.Naxis2)}); 
+        AIref.WCS = RefWCS; 
+        AIref.HeaderData = AIref.WCS.wcs2header; 
+        
+        % 0. build the ref polygon to be covered and find the healpix coverage
         P0 = [RefGrid.RA1(Iref), RefGrid.Dec1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
               RefGrid.RA3(Iref), RefGrid.Dec3(Iref); RefGrid.RA4(Iref), RefGrid.Dec4(Iref)];
-%         Raster0 = celestial.healpix.rasterize_polygon(P0,'Resolution',Args.RasterResolution);
-        Raster0 = celestial.healpix.mex.rasterize_polygon(P0, Args.RasterResolution); 
+        [Raster0, NsideRaster] = celestial.healpix.mex.rasterize_polygon(P0, Args.RasterResolution); 
         
         % find the center and neighbors at the search resolution Args.NsideSearch
-        UpixCenter = celestial.healpix.ang2pix(Args.NsideSearch, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);               
-        UpixNeighb = celestial.healpix.mex.neighbors_nested(Args.NsideSearch,UpixCenter);
-
-        % translate the center and the neighbors to Args.NsideLow (as in the image table of the DB)                 
-        UpixCenterLow = celestial.healpix.increasePixelResolution(UpixCenter, Args.NsideSearch, Args.NsideLow); 
-        UpixNeighbLow = celestial.healpix.increasePixelResolution(UpixNeighb, Args.NsideSearch, Args.NsideLow); 
-        % convert to UNIQ:    
+        UpixCenter = celestial.healpix.ang2pix(Args.NsideSearch, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);
+        UpixNeighb = celestial.healpix.mex.neighbors_nested(Args.NsideSearch,UpixCenter); 
+        
+        % translate the center and the neighbors to Args.NsideLow (as in the image table of the DB)
+        UpixCenterLow = celestial.healpix.increasePixelResolution(UpixCenter, Args.NsideSearch, Args.NsideLow);
+        UpixNeighbLow = celestial.healpix.increasePixelResolution(UpixNeighb, Args.NsideSearch, Args.NsideLow);
+        % convert to UNIQ:
         UpixCenterLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixCenterLow);
         UpixNeighbLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixNeighbLow);
         
-        % 1. find the overlapping coadd proc or single-epoch proc images (determined by Args.SearchTable)         
+        % 1. find the overlapping coadd proc or single-epoch proc images (determined by Args.SearchTable)
         Q = sprintf("select %s from %s",Args.Fields, Args.SearchTable);
         W = " where 1<0";
         for Icen=1:numel(UpixCenterLow)
             Wc = sprintf(" or toString(upix_low) = toString(%s)",string(UpixCenterLow(Icen)));
             W  = strcat(W,Wc);
         end
-        for Inei=1:numel(UpixNeighbLow) 
+        for Inei=1:numel(UpixNeighbLow)
             Wn = sprintf(" or toString(upix_low) = toString(%s)",string(UpixNeighbLow(Inei)));
             W = strcat(W,Wn);
-        end      
+        end
         T = DB.query(strcat(Q,W)); % T = db.mex.query(strcat(S,W));
-
-        if isempty(T)                       
+        
+        if isempty(T)
             if Args.Verbosity > 0
-                fprintf('No images are found in the DB to build reference #%d at %.2f, %.2f \n',Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
+                fprintf('No images found in the DB to build reference #%d at %.2f, %.2f \n',Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
             end
         else
             if Args.Verbosity > 0
-                fprintf('%d images are found in the DB to build reference #%d at %.2f, %.2f \n',height(T), Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
+                fprintf('%d crop images found in the DB to build reference #%d at %.2f, %.2f \n',height(T), Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
             end
-        
-        % identify sets of subimages from the same mount, camera, and epoch to be stitched 
-        T = sortrows(T, {'mountnum','camnum','jd_start'});
-        [Grp, ~] = findgroups(T.mountnum, T.camnum, T.jd_start);
-        
-        Nepoch   = max(Grp);
-        if Args.Verbosity > 0
-            %                         fprintf('M%dC%d: %d epochs\n',Imount,Icam,Nepoch);
-            fprintf('%d original images found\n',Nepoch);
-        end
-        %
-        StackImages = [];
-        
-        for Iepoch = 1:Nepoch % loop by sets of epoch + telescope 
             
-            TabEpoch  = T(Grp == Iepoch, :);
-            Imount    = unique(TabEpoch.mountnum); % unique is used to prevent multiple mounts in one set 
-            Icam      = unique(TabEpoch.camnum);   % unique is used to prevent multiple cameras in one set
-            Nim       = height(TabEpoch);            
-                if Args.Verbosity > 1
-                    fprintf('M%dC%d epoch %d: %d crop images found in the DB \n',Imount,Icam,Iepoch,Nim);
-                end
-
-            % 2. select exposures by specific obs. time, mount, telescope, time span, etc.
+            % identify sets of subimages from the same epoch and telescope to be stitched
+            T = sortrows(T, {'mountnum','camnum','jd_start'});
+            [Grp, ~] = findgroups(T.mountnum, T.camnum, T.jd_start);
+            
+            Nepoch   = max(Grp);
+                    if Args.Verbosity > 0              
+                        fprintf('%d groups of same epoch + telescope images found\n',Nepoch);
+                    end
             %
-            % if T2.jd_start ...
-            %   fprintf('Epoch %d is skipped due to..\n', Iepoch);
-            %   continue % to the next epoch
-            % end
-
-            % 3. select the overlapping proc images by some quality
-            %
-            % T2 = T2(quality condition,:)
-            Nim = height(TabEpoch);
-                if Args.Verbosity > 1
-                    fprintf('M%dC%d epoch %d: %d images selected according to the time and quality criteria \n',Imount,Icam,Iepoch,Nim);
+            StackImages = [];
+            
+            for Iepoch = 1:Nepoch % loop by sets of epoch + telescope
+                
+                TabEpoch  = T(Grp == Iepoch, :);
+                Imount    = unique(TabEpoch.mountnum); % unique is used to prevent multiple mounts in one set
+                Icam      = unique(TabEpoch.camnum);   % unique is used to prevent multiple cameras in one set
+                Nim       = height(TabEpoch);
+                    if Args.Verbosity > 1
+                        fprintf('M%dC%d epoch %d: %d crop images found in the DB \n',Imount,Icam,Iepoch,Nim);
+                    end
+                
+                % 2. select exposures by specific obs. time, mount, telescope, time span, etc.
+                %
+                % if T2.jd_start ...
+                %   fprintf('Epoch %d is skipped due to..\n', Iepoch);
+                %   continue % to the next epoch
+                % end
+                
+                % 3. select the overlapping proc images by some quality
+                %
+                % T2 = T2(quality condition,:)
+                
+                Nim = height(TabEpoch);
+                    if Args.Verbosity > 1
+                        fprintf('M%dC%d epoch %d: %d images selected according to the time and quality criteria \n',Imount,Icam,Iepoch,Nim);
+                    end
+                
+                % if the total coverage is incomplete, skip to the next epoch
+                Coverage = []; RasterC = []; Icrop = 1;
+                while Icrop < height(TabEpoch)+1 % merge the rasters of all the crops involved
+                    CropPoly = double([TabEpoch.ra1(Icrop), TabEpoch.dec1(Icrop); TabEpoch.ra2(Icrop), TabEpoch.dec2(Icrop); ...
+                        TabEpoch.ra3(Icrop), TabEpoch.dec3(Icrop); TabEpoch.ra4(Icrop), TabEpoch.dec4(Icrop)]);
+                    Raster = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution);                         
+                    % if this crop does not overlap with the reference region, deselect it
+                    Coverage(Icrop) = sum(ismember(Raster,Raster0));
+                    if Coverage(Icrop) < 1
+                        TabEpoch(Icrop,:) = [];
+                    else
+                        RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];
+                    end
+                    Icrop = Icrop + 1;
                 end
-
-            % if the total coverage is incomplete, skip to the next epoch
-            Coverage = []; RasterC = []; Icrop = 1;
-            while Icrop < height(TabEpoch)+1 % merge the rasters of all the crops involved
-                CropPoly = double([TabEpoch.ra1(Icrop), TabEpoch.dec1(Icrop); TabEpoch.ra2(Icrop), TabEpoch.dec2(Icrop); ...
-                    TabEpoch.ra3(Icrop), TabEpoch.dec3(Icrop); TabEpoch.ra4(Icrop), TabEpoch.dec4(Icrop)]);
-                Raster   = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution);
-                % if this crop does not overlap with the reference region, deselect it
-                Coverage(Icrop) = sum(ismember(Raster,Raster0));
-                if Coverage(Icrop) < 1
-                    TabEpoch(Icrop,:) = [];
+                
+                Nim = height(TabEpoch);
+                
+                CoverageAll = sum(ismember(Raster0, RasterC))/numel(Raster0);
+                if CoverageAll < Args.MinAllowedCoverage
+                    if Args.Verbosity > 1
+                        fprintf('Incomplete coverage of %.4f, epoch %d is skipped\n', CoverageAll, Iepoch);
+                    end
+                    continue % to the next epoch
+                end
+                
+                % 4.1 retrieve the crop images
+                    if Args.Verbosity > 0
+                        fprintf('M%dC%d epoch %d: %d images filtered, dowloading and stitching...',Imount,Icam,Iepoch,Nim);
+                    end
+                
+                AF = AstroFileName;
+                AF.ProjName = {'LAST', 1, TabEpoch.mountnum, TabEpoch.camnum};
+                AF.JD = double(TabEpoch.jd_start);
+                AF.julday2time;
+                AF.FieldID = TabEpoch.fieldid;
+                AF.CropID  = TabEpoch.cropid;
+                AF.Counter = 0;
+                AF.Level   = "coadd";
+                AF.CCDID   = 1;
+                AF.SubDir  = TabEpoch.subdir;
+                AF.BasePath                = '/mnt/euclid/last/data';
+                AF.BasePathIncludeProjName = true;
+                AF.AddSubDir               = true;
+                
+                AI = AstroImage.readProducts(AF.genFull);
+                
+                % check if WCS is present in all the selected crops
+                if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
+                    if Args.Verbosity > 0
+                        cprintf('red','\nWCS is not correct in one or several crops, skipping the epoch %d\n',Iepoch);
+                    end
+                    continue
+                end
+                
+                % 4.2 stitch the set of covering crops
+                %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
+                StitchedImage = imProc.stack.stitchCrops(AI,'UpdateWCS',true,'UpdateZP',true);
+                
+                if isnan(julday(StitchedImage))
+                    StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabEpoch.jd_start(Iepoch));
+                end
+                
+                if Args.Verbosity > 0
+                    fprintf(' done \n');
+                end
+                
+                % add the images to the stack
+                if exist('StackImages','var')
+                    StackImages = [StackImages StitchedImage];
                 else
-                    RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];
-                end
-                Icrop = Icrop + 1;
-            end
-
-            Nim = height(TabEpoch);
-
-            CoverageAll = sum(ismember(Raster0, RasterC))/numel(Raster0);
-            if CoverageAll < Args.MinAllowedCoverage
-                if Args.Verbosity > 1
-                    fprintf('Incomplete coverage of %.4f, epoch %d is skipped\n', CoverageAll, Iepoch);
-                end
-                continue % to the next epoch
-            end
-
-            % 4.1 retrieve the crop images
-            if Args.Verbosity > 1
-                fprintf('M%dC%d epoch %d: %d images filtered, start dowloading and stitching..\n',Imount,Icam,Iepoch,Nim);
-            end
+                    StackImages = StitchedImage;
+                end  
+                
+                clear AI
+            end % epochs
             
-            AF = AstroFileName;           
-            AF.ProjName = {'LAST', 1, TabEpoch.mountnum, TabEpoch.camnum};                        
-            AF.JD = double(TabEpoch.jd_start);
-            AF.julday2time;                          
-            AF.FieldID = TabEpoch.fieldid;
-            AF.CropID  = TabEpoch.cropid;
-            AF.Counter = 0;
-            AF.Level   = "coadd";
-            AF.CCDID   = 1;                        
-            AF.SubDir  = TabEpoch.subdir;                        
-            AF.BasePath                = '/mnt/euclid/last/data';
-            AF.BasePathIncludeProjName = true;
-            AF.AddSubDir               = true;
-            
-            AI = AstroImage.readProducts(AF.genFull);             
-                                    
-            % check if WCS is present in all the selected crops
-            if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
-                if Args.Verbosity > 1
-                    cprintf('red','WCS not correct in one or several crops, skipping the epoch %d\n',Iepoch);
+            % 5. coadd the epochs from different telescopes and cameras
+            %    rotate, align, and cut the merged crops to the ref. coordinates
+            %    measure background, find sources, populate PSF
+            if isempty(StackImages)
+                if Args.Verbosity > 0
+                    cprintf('err','No images have been qualified for the field %d, skipping to the next field..\n',Iref);
                 end
                 continue
-            end
-
-            % 4.2 merge the set of covering crops
-            %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
-            StitchedImage = imProc.stack.stitchCrops(AI,'UpdateWCS',true,'UpdateZP',true);
-
-            if isnan(julday(StitchedImage))
-                StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabEpoch.jd_start(Iepoch));
-            end
-
-            % 4.3 rotate, align, and cut the merged crops to the ref. coordinates:
-            % warp with the reference grid WCS
-            if Args.UseInterp2WCS
-                RegisteredImage = imProc.transIm.interp2wcs(StitchedImage, AIref, Args.interp2wcsArgs{:});
             else
-                RegisteredImage = imProc.transIm.imwarp(StitchedImage, AIref,...
-                    'TransWCS',true,...
-                    'FillValues',0,...
-                    'ReplaceNaN',true,...
-                    'Sampling',1,...
-                    'InterpMethod','linear',...
-                    'CreateNewObj',true);
+                if Args.Verbosity > 0
+                    cprintf('blue','Coadding %d epochs \n',numel(StackImages));
+                end
             end
-
-            % 4.4 measure background, find sources, populate PSF
-            RegisteredImage = imProc.background.background(RegisteredImage, 'SubSizeXY',Args.BackSubSizeXY);
-            RegisteredImage = imProc.sources.findMeasureSources(RegisteredImage, ...
-                'Threshold', Args.Threshold,...
-                'ReCalcBack',false,...
-                'MomPar',{'MomRadius',Args.MomRadius},...
-                'ColCell',Args.ColCell,...
-                'FlagCR',true,...
-                'ZP',Args.ZP,...
-                'CreateNewObj',false);
-
-            % re-measure PSF [do PSF photometry -- do we really need it here?]
-            RegisteredImage = imProc.psf.populatePSF(RegisteredImage, 'RePopulatePSF', true, 'DataType',@single);
-            %                         RegisteredImage = imProc.sources.psfFitPhot(RegisteredImage, 'CreateNewObj',false, 'ZP',Args.ZP);
-
-            % 4.5 add the RegisteredImage to the stack
-            if exist('StackImages','var')
-                StackImages = [StackImages RegisteredImage];
-            else
-                StackImages = RegisteredImage;
+            
+            RefImage = Args.CoaddFunction(StackImages','WCS',AIref,'SubBack',Args.SubBack,...
+                'StackMethod',Args.StackMethod, Args.StackMethodArgs{:});
+                                       
+            % 6. save the new reference image and its catalog, mask, and PSF to the disk
+            for Iprop=1:numel(Args.WriteProp)
+                FN = sprintf('%s/LAST_clear_%d_sci_ref_%s_1.fits',Args.OutputDir,Iref,Args.WriteProp(Iprop));
+                RefImage.write1(FN, Args.WriteProp(Iprop), 'OverWrite', true, 'MkDir', true);
             end
-            % clear the intermediate objects
-            clear AI;
-            clear StitchedImage;
-            clear RegisteredImage;
-        end % epochs
-     
-        % 5. coadd the epochs from different telescopes and cameras                
-        if isempty(StackImages)
-            if Args.Verbosity > 0
-                cprintf('err','No images have been qualified for the field %d, skipping to the next field..\n',Iref);
-            end
-            continue
-        end
-        
-%         RefImage = Args.CoaddFunction(StackImages,'SubBack',false,'FluxMatch','PH_ZP',...
-%                     'StackMethod',Args.StackMethod,'StackArgs',Args.StackArgs);     
-        RefImage = Args.CoaddFunction(StackImages','WCS',AIref.WCS); 
-        
-        % measure the background, find and measure sources, measure the PSF
-        RefImage = imProc.background.background(RefImage, 'SubSizeXY',Args.BackSubSizeXY);                        
-        RefImage = imProc.sources.findMeasureSources(RefImage, ...
-                                       'Threshold', Args.Threshold,...
-                                       'ReCalcBack',false,...
-                                       'MomPar',{'MomRadius',Args.MomRadius},...
-                                       'ColCell',Args.ColCell,...
-                                       'FlagCR',true,...
-                                       'ZP',Args.ZP,...
-                                       'CreateNewObj',false);                                                                                                      
-                        
-        % re-measure PSF, do PSF photometry 
-        RefImage = imProc.psf.populatePSF(RefImage, 'RePopulatePSF', true, 'DataType',@single);
-        RefImage = imProc.sources.psfFitPhot(RefImage, 'CreateNewObj',false, 'ZP', Args.ZP); 
-                
-        MeanJD = mean(julday(StackImages));        
-        RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MIDJD', MeanJD);
-%                            
-%         [~, RefImage, ~] = imProc.astrometry.astrometryRefine(RefImage,...                                            
-%                                             'EpochOut',MeanJD,...
-%                                             'Scale',Args.PixScale,...
-%                                             'CatName',Args.CatName,...
-%                                             'Tran',Args.Tran,...
-%                                             'CreateNewObj',false);                    
-%                                         
-        [~, RefImage, ~] = imProc.astrometry.astrometryRefine(RefImage);
-%         RefImage = imProc.calib.photometricZP(RefImage);
-        
-%         RefImage.Back = imProc.stat.median(RefImage).*ones(size(RefImage.Image));
-%         RefImage.Var = imProc.stat.rstd(RefImage).^2 .*ones(size(RefImage.Image));
-%         RefImage = imProc.sources.findMeasureSources(RefImage,'AddFlags',true);
-%         RefImage = imProc.psf.populatePSF(RefImage);
-%         imProc.psf.fwhm(RefImage);
-%         RefImage = imProc.sources.psfFitPhot(RefImage);
-%         RefImage = imProc.astrometry.addCoordinates2catalog(RefImage,'OutUnits','deg');
-%         RefImage = imProc.calib.photometricZP(RefImage);
-%         RefImage = imProc.match.match_catsHTMmerged(RefImage, 'SameField',false, 'CreateNewObj',false);
-        
-        RefImage.UserData.Nimages = numel(StackImages);        
-
-        % 6. save the new reference image and its catalog, mask, and PSF to the disk                 
-        for Iprop=1:numel(Args.WriteProp)
-            FN = sprintf('%s/LAST_clear_%d_sci_ref_%s_1.fits',Args.OutputDir,Iref,Args.WriteProp(Iprop));
-            RefImage.write1(FN, Args.WriteProp(Iprop), 'OverWrite', true, 'MkDir', true);
-        end
-                                        
-        % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)  
-        %    write the reference image catalog to the reference image catalog table of the DB
-                    
-        end % for the particular reference grid position we have some coadds to build on  
+            
+            % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)
+            %    write the reference image catalog to the reference image catalog table of the DB
+            
+        end % for the particular reference grid position we have some coadds to build on
         if Args.Verbosity > 0
-            fprintf('Finished building a reference image for field %d: %d epochs stacked\n',...
-                Iref, RefImage.UserData.Nimages);
+            fprintf('Finished building a reference image for field %d: %d epochs stacked in %.1f s\n',...
+                Iref, RefImage.HeaderData.Key.NCOADD,toc(tstart));
         end
-    end % reference image grid      
+    end % reference image grid
 end 
 
 

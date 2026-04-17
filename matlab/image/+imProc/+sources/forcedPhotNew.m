@@ -12,6 +12,10 @@ function [Result] = forcedPhotNew(Obj, Args)
 
     arguments
         Obj
+
+        Args.PsfPhotMethod           = 'legacy';
+        Args.ShiftMethod             = 'fft';
+
         Args.Coo                     = zeros(0,2);  % or a single AstroCatalog
         Args.CooUnits                = 'deg';   % 'pix'|'deg'|'rad
         Args.CatIsUniform            = true; % true - one catalog for all images; false - one line in the catalog per image 
@@ -61,12 +65,12 @@ function [Result] = forcedPhotNew(Obj, Args)
         Args.FlagsHalfSize           = 3;
 
         Args.ReconstructPSF logical  = false;
-        Args.HalfSizePSF             = 6;
+        Args.HalfSizePSF             = 12;
         Args.FitRadius               = 3;
         Args.SmallStep               = 1e-3;
-        Args.MaxStep                 = 0.2;
+        Args.MaxStep                 = 0.1; %0.2;
         Args.ConvThresh              = 1e-4;
-        Args.MaxIter                 = 10;      % use 1 for no itrations
+        Args.MaxIter                 = 2; % 10      % use 1 for no itrations
         Args.UseSourceNoise          = 'off';
         Args.ZP                      = 25; 
         Args.HeaderZP                = true; %false;   % Use ZP from image header (PH_ZP); (if nan returns to Args.ZP)
@@ -282,6 +286,8 @@ function [Result] = forcedPhotNew(Obj, Args)
                                                             'ConvThresh',Args.ConvThresh,...
                                                             'MaxIter',Args.MaxIter,...
                                                             'UseSourceNoise',Args.UseSourceNoise,...
+                                                            'PsfPhotMethod',Args.PsfPhotMethod,...
+                                                            'ShiftMethod',Args.ShiftMethod,...
                                                             'ZP',Args.ZP);
                                                         
         
@@ -418,6 +424,8 @@ function [Result] = forcedPhotNew(Obj, Args)
                 case 'MITER'
                     % do nothing
                     % for forced photometry MITER is NaN
+                case 'FORCED'
+                    Data(:,K) = 1;
 
                 case 'FLUX_XYPEAK'
                     % flux at XPEAK, YPEAK

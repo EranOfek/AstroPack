@@ -70,6 +70,7 @@ function [Coadd, CoaddVar, Ncoadd]=wcoaddRobust(Image, Back, Args)
     end
 
     if Args.UseMex
+        Back = cast(Back, 'like', Image); % if the classes do not match, the mex function will break 
         if nargout==3
             [Coadd, CoaddVar, Ncoadd] = imUtil.stack.mex.wcoaddRobust_mex(Image, Back, Args.Var, Args.F, Args.ZP, Args.ZP0, Args.RemoveMinMax, Args.Niter, Args.SigmaClip, Args.StdMethod);
         elseif nargout==2

@@ -27,18 +27,24 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                                               'BACK_ANNULUS', 'STD_ANNULUS', ...
                                               'FLUX_APER', 'FLUXERR_APER',...
                                               'MAG_APER', 'MAGERR_APER',...
-                                              'FLUX_XYPEAK'};
+                                              'FLUX_XYPEAK', 'FORCED'};
         Args.AperRadius                    = [2, 4, 6];
         Args.Annulus                       = [10 12];
         Args.MomentsMethod                 = 'mex';  %'legacy'|'mex'
         Args.AperPhotMethod                = 'interp';  % 'simple'|'interp'
-        Args.ShiftMethod                   = 'fft';
+
+        Args.ShiftMethod                   = 'fft'; %'lanczos3';  % 'fft'|'lanczos3'
+        Args.PsfPhotMethod                 = 'legacy'; %'2DGN';    % 'legacy'/'old' |'1D'|'2D'|'2DGN'
 
         Args.image2subimagesArgs           = {};
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
         Args.astrometryVisitSubImageArgs   = {};
         Args.forcedPhotArgs                = {};
+        %--- pipeline.generic.proc2MatchedSources args ---
         Args.proc2MatchedSourcesArgs       = {};
+        Args.ColUse                        = 'FORCED';
+        Args.AddUnUse                      = true;
+
         Args.matchExternal_Indiv           = true;
         Args.matchExternalArgs_Indiv       = {};
         Args.procCoaddArgs                 = {};
@@ -102,9 +108,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
     % load images and check quality
     % AI putput is of size [Nimages x 1]
     try
-        [AI, TableForDB, TableHeader, JD_AI] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
+        [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
+
         TableRaw = [TableHeader, TableForDB]; 
         TableRaw.PrepPrepOK = true(size(TableRaw,1), 1);
+        RawImageList = RawImageList(FlagGoodImages,:);
     catch ME
         Status.PipeI   = false;
         Status.ME      = ME;
@@ -124,8 +132,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             % basic calibration (bias, flat,...) 
             % FixJD false, since already done in prePrep
             %ProcessingStep = 31;
-
             AI = pipeline.generic.basicCalib(AI, CI, Args.basicCalibArgs{:}, 'UpdateJD',false); %31.2s
+
             TableRaw.BasicCalib = true(numel(AI),1);  % basic calib success
         
             %ProcessingStep = 41;
@@ -186,6 +194,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                                                             'Annulus',Args.Annulus,...
                                                             'MomentsMethod',Args.MomentsMethod,...
                                                             'ShiftMethod',Args.ShiftMethod,...
+                                                            'PsfPhotMethod',Args.PsfPhotMethod,...
                                                             'AddSkyCoo',false);  % 466 s (with UseMex=false)
                
             else
@@ -201,6 +210,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                                                             'Annulus',Args.Annulus,...
                                                             'MomentsMethod',Args.MomentsMethod,...
                                                             'ShiftMethod',Args.ShiftMethod,...
+                                                            'PsfPhotMethod',Args.PsfPhotMethod,...
                                                             'AddSkyCoo',false);  % 119 s (on 16 cores): 169s -> 135s (with UseMex=true)
                 end
                 %toc
@@ -267,8 +277,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                     % for each sub image - run over all epochs
                     Coo = CatForcedPhot(Isub).getCol({'RA','Dec'}).*RAD;
                     %if strcmpi(Args.OutputType, 'concatai')
+
                     if ~isempty(Coo)
-                        AllSI(:,Isub) = imProc.sources.forcedPhotNew(AllSI(:,Isub), 'OutputType','ConcatAI', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, 'ReadColFromHeader',false, Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
+                        AllSI(:,Isub) = imProc.sources.forcedPhotNew(AllSI(:,Isub), 'OutputType','ConcatAI', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, 'ReadColFromHeader',false, 'PsfPhotMethod',Args.PsfPhotMethod, 'ShiftMethod',Args.ShiftMethod, Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
                     end
                     %else
                     %    error('Currently, adding forced phot is supported only using the ConcatAI option');
@@ -306,9 +317,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         
             % Merge catalogs
             %ProcessingStep = 501;
-            MS = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1);   % 9.6 s -> 1.3s (with MatchMethod='unify')
+            MS = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse);   % 9.6 s -> 1.3s (with MatchMethod='unify')
         
-        
+         
+            
+
             % Calculate drift between epochs
             % Note that MS is already filerted! I.e., some epochs may not
             % be included
@@ -356,6 +369,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                                                       'MomentsMethod',Args.MomentsMethod,...
                                                       'AperPhotMethod',Args.AperPhotMethod,...
                                                       'ShiftMethod',Args.ShiftMethod,...
+                                                      'PsfPhotMethod',Args.PsfPhotMethod,...
                                                       Args.multiIterExtractorArgs{:});
           
             %toc
@@ -486,7 +500,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         catch ME
             Status.PipeI   = false;
             Status.ME      = ME;
-            TableRaw.FileName   = strings(RawImageList(:));
+                        
+%             TableRaw.FileName   = strings(RawImageList(:));
+            TableRaw.FileName   = RawImageList(:);
             TableRaw.Exception  = true(numel(RawImageList), 1); % Exception in this stage will have PrePrepOK = true
 
             % TableRaw is populated!

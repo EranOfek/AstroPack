@@ -32,8 +32,8 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
     %                   to the MEX matching function is sorted. Default is
     %                   false.
     %            'ColUse' - Optional column name used as a source mask.
-    %                   Sources for which this column is NaN are ignored in
-    %                   the regular master list. Default is [].
+    %                   Sources for which have 0 in this column are "used".
+    %                   Default is 'FORCED'.
     %            'AddUnUse' - If true, then ColUse is required and a second
     %                   master list is generated simultaneously using the
     %                   complement mask ~Use. Default is false.
@@ -70,7 +70,7 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
         Args.ColXY             = {'X','Y'};
         Args.Sort              = false;
         Args.TestSorted        = false;
-        Args.ColUse            = [];
+        Args.ColUse            = 'FORCED';
         Args.AddUnUse          = false;
         Args.Col               = {'RA','Dec','X','Y','FLAGS','MAG_APER_3','MAGERR_APER_3','MAG_PSF','MAGERR_PSF'};
     end
@@ -83,9 +83,9 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
         return;
     end
 
-    if Args.AddUnUse && isempty(Args.ColUse)
-        error('When AddUnUse=true, ColUse must be provided');
-    end
+    % if Args.AddUnUse && isempty(Args.ColUse)
+    %     error('When AddUnUse=true, ColUse must be provided');
+    % end
 
     % choose spherical/planar
     if Args.IsSpherical
@@ -107,10 +107,10 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
     [Coo, Units] = Cat.getCol(ColCoo);
 
     % get Use
-    if isempty(Args.ColUse)
-        Use1 = true(size(Coo,1), 1);
-    else
+    if Args.AddUnUse
         Use1 = getUseMask(Cat, Args.ColUse, size(Coo,1));
+    else
+        Use1 = true(size(Coo,1), 1);
     end
     NotUse1 = ~Use1;
 
@@ -172,9 +172,20 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
     % process remaining objects
     for Iobj = 2:Nobj
         Cat     = Obj(Iobj).getCatData;
+        if Args.Sort
+            Cat.sortrows(ColCoo{2});
+        end
+
         CooNext = Cat.getCol(ColCoo);
-        Use2    = getUseMask(Cat, Args.ColUse, size(CooNext,1));
-        NotUse2 = ~Use2;
+        
+        if Args.AddUnUse
+            Use2 = getUseMask(Cat, Args.ColUse, size(CooNext,1));
+        else
+            Use2 = true(size(CooNext,1), 1);
+        end
+        NotUse2 = ~Use2; %sum(NotUse2)
+        %Use2    = getUseMask(Cat, Args.ColUse, size(CooNext,1));
+        %NotUse2 = ~Use2;
 
         %----- used branch -----
         MasterXRA  = MasterUniqueCoo(1:Nmaster, 1);
@@ -259,11 +270,12 @@ function Use = getUseMask(Cat1, ColUse, Nrow)
         if isempty(UseVal)
             Use = true(Nrow, 1);
         else
-            if isvector(UseVal)
-                Use = ~isnan(UseVal(:));
-            else
-                Use = all(~isnan(UseVal), 2);
-            end
+            Use = ~logical(UseVal);   % NOTE THE sign NOT !!! needed for FORCED!
+            % if isvector(UseVal)
+            %     Use = ~isnan(UseVal(:));
+            % else
+            %     Use = all(~isnan(UseVal), 2);
+            % end
         end
     end
 end

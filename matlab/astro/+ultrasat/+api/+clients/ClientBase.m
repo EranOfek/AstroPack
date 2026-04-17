@@ -87,6 +87,9 @@ classdef ClientBase < ultrasat.api.core.Loggable
             import matlab.net.*
             import matlab.net.http.*
 
+            % Default response
+            response = struct('status', 'error', 'message', '', 'data', []);
+
             if endpoint(1) ~= '/'
                 endpoint = ['/', endpoint];
             end
@@ -94,6 +97,8 @@ classdef ClientBase < ultrasat.api.core.Loggable
 
             % Check if params is struct
             if ~isstruct(params)
+                %response.message = 'params must be a struct';
+                %return;
                 error('postRequest:InvalidParams', 'params must be a struct');
             end
 
@@ -131,23 +136,48 @@ classdef ClientBase < ultrasat.api.core.Loggable
                 % Send the HTTP request
                 rawResponse = send(request, url, options);
 
-                % Check returned response
+                % Handle response
+                try
+                    respData = rawResponse.Body.Data;
+        
+                    % Convert to struct safely
+                    respJson = jsonencode(respData);
+                    respStruct = ultrasat.api.utils.JsonUtils.json2struct(respJson);
+        
+                catch
+                    respStruct = [];
+                end
+
                 if rawResponse.StatusCode == matlab.net.http.StatusCode.OK
-                    respJson = jsonencode(rawResponse.Body.Data);
-                    response = ultrasat.api.utils.JsonUtils.json2struct(respJson);
+                    % Assume server already returns {status, message, ...}
+                    response = respStruct;
+        
+                    % fallback if server returned raw object
+                    if ~isfield(response, 'status')
+                        response = struct( ...
+                            'status', 'ok', ...
+                            'message', '', ...
+                            'data', respStruct ...
+                        );
+                    end        
                 else
-                    error('HTTP Error: %s', char(rawResponse.StatusCode));
+                    response.status = 'error';
+                    response.message = sprintf('HTTP error: %s', char(rawResponse.StatusCode));
+                    response.data = respStruct;
                 end
             catch ME
+                % Normalize all errors
+                response.status = 'error';
+
                 switch ME.identifier
                     case 'MATLAB:networklib:ConnectionFailed'
-                        error('Connection failed. Check server URL or network.');
+                        response.message = 'Connection failed. Check server URL or network.';
                     case 'MATLAB:webservices:Timeout'
-                        error('Request timed out after %d seconds.', obj.Timeout);
+                        response.message = sprintf('Request timed out after %d seconds.', obj.Timeout);
                     case 'MATLAB:webservices:HTTPErrorStatusCode'
-                        error('HTTP error: %s. Check API endpoint or parameters.', ME.message);
+                        response.message = sprintf('HTTP error: %s', ME.message);
                     otherwise
-                        rethrow(ME);
+                        response.message = sprintf('Unexpected error: %s', ME.message);
                 end
             end
         end

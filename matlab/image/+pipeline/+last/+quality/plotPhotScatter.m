@@ -40,13 +40,13 @@ function plotPhotScatter(MS, Args)
 
     arguments
         MS struct
-        Args.Modes cell
+        Args.Modes cell = {'percrop'}
         Args.MagFields      = {'MAG_AB_PSF', 'MAG_AB_APER_3'}
         Args.CropsToAnalyze = []
         Args.TwoPanels logical = true
         Args.OverlayTrend   = 'median'
-        Args.TrendBinWidth  = 0.75
-        Args.MinEpochs      = 0   % Min non-NaN epochs per source; 0 = no filter
+        Args.TrendBinWidth  = 0.5
+        Args.MinEpochs      = 2   % Min non-NaN epochs per source; 0 = no filter
         Args.ColorByCrop logical = false  % Color sources by crop ID (multicolor)
         Args.CentralEdge logical = false  % Distinguish central vs edge crops by shade
         Args.TileOrder      = 'rowmajor'  % For CentralEdge: 'colmajor'|'rowmajor'
@@ -70,13 +70,12 @@ function plotPhotScatter(MS, Args)
         MagField = Args.MagFields{Imf};
 
         % Derive original (instrumental) mag field name
+        % Derive relative photometry field name from calibrated field
         OrigMagField = '';
-        if Args.TwoPanels
-            if contains(MagField, '_AB_')
-                OrigMagField = strrep(MagField, '_AB_', '_');
-            elseif contains(MagField, '_CB_')
-                OrigMagField = strrep(MagField, '_CB_', '_');
-            end
+        if contains(MagField, '_AB_')
+            OrigMagField = strrep(MagField, '_AB_', '_');
+        elseif contains(MagField, '_CB_')
+            OrigMagField = strrep(MagField, '_CB_', '_');
         end
 
         % Number of panels: 2 per mode if TwoPanels, else 1 per mode (overlaid)
