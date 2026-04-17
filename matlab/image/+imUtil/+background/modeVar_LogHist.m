@@ -71,12 +71,13 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
         
         Args.VarSqrtFactor             = 1.05;   % if Var/Mode is failed - estimate Var from Mode0*VarSqrtFactor
         Args.RN2                       = 12;     % RN variance (RN^2)
-        Args.CalclPoissVar             = false;
+        Args.CalcPoissVar              = false;
+        Args.UseMex                    = true;
     end
     
     %OrigArray = Array;
     % convert to vector
-    Array = Array(:);
+    %Array = Array(:);
  
     if Args.DiluteFactor>1
         Array = Array(1:Args.DiluteFactor:end, 1:Args.DiluteFactor:end);
@@ -100,24 +101,38 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     end
     
     Na = numel(Array);
-    
-    LogArray = log(Array); %(1:Args.DiluteFactor1:end));
-    Min      = min(LogArray);
-    Max      = max(LogArray);
+    if Args.UseMex
+        LogArray = tools.math.fun.logApprox(Array); % approximation to better than 10^-5
+    else
+        LogArray = log(Array); %(1:Args.DiluteFactor1:end));
+    end
+    if Args.UseMex
+        [Min,Max]= tools.math.stat.mex.minmaxGlobal_mex(LogArray);
+    else
+        Min      = min(LogArray);
+        Max      = max(LogArray);
+    end
     Range    = Max - Min;
 
     Nbin     = max(Args.MinNbin1, 2.*ceil(Range));
     BinSize   = Range./Nbin;
-    % Why Max+2.*BinSize: sometimes due to pixels with low counts, the
-    % number of bins (Args.MinNbin1) is not sufficient 
-    Edges     = (Min:BinSize:(Max+2.*BinSize)).';
 
-    BinCenter = (Edges(1:end-1) + Edges(2:end)).*0.5;
-    if any(isnan(Edges))
-        error('Edges is NaN use MinVal, MaxVal inputs');
+    if Args.UseMex
+        Nbin = (Range + 2.*BinSize)./BinSize;
+        [Nhist,Edges,BinCenter] = tools.hist.mex.hist1reg_mex(LogArray, double([Min, Max+2.*BinSize]), Nbin, single(1), false);
+    else
+        % Why Max+2.*BinSize: sometimes due to pixels with low counts, the
+        % number of bins (Args.MinNbin1) is not sufficient 
+        Edges     = (Min:BinSize:(Max+2.*BinSize)).';
+    
+        BinCenter = (Edges(1:end-1) + Edges(2:end)).*0.5;
+        if any(isnan(Edges))
+            error('Edges is NaN use MinVal, MaxVal inputs');
+        end
+        Nhist = matlab.internal.math.histcounts(LogArray, Edges);    
     end
-    Nhist = matlab.internal.math.histcounts(LogArray, Edges);    
 
+    % why is this needed?
     Nhist = Nhist(1:end-1);
     BinCenter = BinCenter(1:end-1);
     % Debug: bar(BinCenter, Nhist)
@@ -130,12 +145,27 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
 %     BinCenter = (Edges(1:end-1) + Edges(2:end)).*0.5;
     
     Mode1 = exp(Mode1);
-    Edges = (Mode1.*Args.EdgesFactor: sqrt(Mode1).*Args.OverSampling:Mode1./Args.EdgesFactor).';
-    BinCenter = (Edges(1:end-1) + Edges(2:end)).*0.5;
     
-    Nhist = matlab.internal.math.histcounts(Array, Edges);
+    
+    if Args.UseMex
+        Edges = (Mode1.*Args.EdgesFactor: sqrt(Mode1).*Args.OverSampling:Mode1./Args.EdgesFactor).';
+        HistStart = Edges(1);
+        HistEnd   = Edges(end);
+        Nbin      = numel(Edges) - 1;
+        %HistStart = Mode1.*Args.EdgesFactor;
+        %HistBin   = sqrt(Mode1).*Args.OverSampling;
+        %HistEnd = Mode1./Args.EdgesFactor;
+        %Nbin = ceil((HistEnd - HistStart)./HistBin);
+        [Nhist,Edges,BinCenter] = tools.hist.mex.hist1reg_mex(Array, [HistStart HistEnd], Nbin, single(1), false);
+    else
+        Edges = (Mode1.*Args.EdgesFactor: sqrt(Mode1).*Args.OverSampling:Mode1./Args.EdgesFactor).';
+        BinCenter = (Edges(1:end-1) + Edges(2:end)).*0.5;
+        Nhist = matlab.internal.math.histcounts(Array, Edges);
+    end
+    % why needed?
     Nhist = Nhist(1:end-1);
     BinCenter = BinCenter(1:end-1);
+
 
     Nhist = log(Nhist);
     [MaxNhist,Imax] = max(Nhist);
@@ -169,7 +199,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     end
     Mode  = Mode0 - Par(2)./(2.*Par(1));
     Var = -0.5./Par(1);
-    if Var<0 || Args.CalclPoissVar
+    if Var<0 || Args.CalcPoissVar
         % use Mode from hsitogram
         Mode = Mode0;
         % For variance, assume Poisson noise

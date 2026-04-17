@@ -2,43 +2,43 @@ function [Result] = unitTest()
     % unitTest for tools.math.fun
     % Example: tools.math.fun.unitTest
     
+
+    %% tools.math.fun.mex.logApprox
+
+    R = single(rand(1e4,1).*10);
+    L0 = log(R);
+    L1 = tools.math.fun.logApprox(R);
+
+    if max(abs(L0-L1),[],'all')>1e-5
+        error('Problem with tools.math.fun.mex.logApprox');
+    end
+
+
+    R = double(rand(1e4,1).*10);
+    L0 = log(R);
+    L1 = tools.math.fun.logApprox(R);
+
+    if max(abs(L0-L1),[],'all')>1e-5
+        error('Problem with tools.math.fun.mex.logApprox');
+    end
+
     %%
-    R = rand(1726,1726, 'single').*2.*pi;
-    test_sincos(R);
 
-    R = rand(1726,1726, 'double').*2.*pi;
-    test_sincos(R);
+    R = single(rand(1e4,1).*10);
+    S0=sin(R); C0=cos(R);
 
-    %%
-
-
-    Result = true;
-
-end
-
-
-function test_sincos(R)
-    % test sincos
-
-    tic;for i=1:100, S0=sin(R); C0=cos(R);end,T=toc;
-    % Elapsed time is 4.883494 seconds.
-    fprintf('matlab sin and cos run time: %f\n',T);
-
-    tic;for i=1:100, [S1,C1]=tools.math.fun.mex.sincos(R);end,T=toc;
-    % Elapsed time is 1.774913 seconds.
-    fprintf('tools.math.fun.mex.sincos run time: %f\n',T);
-
-    %tic;for i=1:100, [S2,C2]=tools.math.fun.mex.sincos_approx(R);end,T=toc;
-    % Elapsed time is 1.686673 seconds.
-    %fprintf('tools.math.fun.mex.sincos_approx run time: %f\n',T);
+    [S1,C1]=tools.math.fun.mex.sincos(R);
 
     if max(abs(S0-S1),[],'all')>1e-6 || max(abs(C0-C1),[],'all')>1e-6
         max(abs(S0-S1),[],'all')
         max(abs(C0-C1),[],'all')
         error('tools.math.fun.mex.sincos problem');
     end
+
     
-    %if max(abs(S0-S2),[],'all')>1e-5 || max(abs(C0-C2),[],'all')>1e-5
-    %    error('tools.math.fun.mex.sincos_approx problem');
-    %end
+    %%
+
+    Result = true;
+
 end
+
