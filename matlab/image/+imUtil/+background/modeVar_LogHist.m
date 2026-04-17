@@ -55,13 +55,13 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
         Args.DiluteFactor              = 2;
         Args.DiluteFactor1             = 10;
         
-        Args.Convert2single logical    = false;
+        Args.Convert2single            = false;
         Args.MinVal                    = [];
         Args.MaxVal                    = [];
         Args.RemoveLowerQuantile       = 0; %0.01; %0.01;
         Args.RemoveUpperQuantile       = 0; %0.1; %0.1;
 
-        Args.UseSlash logical          = true;
+        Args.UseSlash                  = true;
 
         Args.EdgesFactor               = 0.5;
         Args.OverSampling              = 0.1;
@@ -190,6 +190,31 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
         % X=[100:1:250]';  H = [(X-Mode0).^2, (X-Mode0), ones(numel(X),1)];
         % plot(BinCenter, Nhist,'o'); hold on; plot(X,H*Par(:) )
         
+
+        % Equivalent to:
+        % x = BinCenter - Mode0;
+        % y = Nhist(:);
+        % 
+        % S0 = numel(x);
+        % S1 = sum(x);
+        % S2 = sum(x.^2);
+        % S3 = sum(x.^3);
+        % S4 = sum(x.^4);
+        % 
+        % T0 = sum(y);
+        % T1 = sum(y.*x);
+        % T2 = sum(y.*x.^2);
+        % 
+        % A = [S4, S3, S2; ...
+        %      S3, S2, S1; ...
+        %      S2, S1, S0];
+        % 
+        % b = [T2; T1; T0];
+        % 
+        % Par = (A\b).';
+
+
+
     else
         % slower
         Par   = polyfit(BinCenter-Mode0, Nhist,2);
