@@ -122,7 +122,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                     BitInd = Result(Iobj).Dict.name2bit(BitName) + 1;
                 end
 
-                if isempty(Obj(Iobj).Image)
+                if isempty(Obj(Iobj).Data)
                     % no maks image - allocate
                     if isempty(SizeImage)
                         error('When Flag is a vector of indices, image mask must be pre defined');
@@ -133,23 +133,23 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                 if Args.UseMex
                     if ~isempty(Flag)
                         
-                        if numel(Flag)==numel(Result(Iobj).Image)
+                        if numel(Flag)==numel(Result(Iobj).Data)
                             % assume that Flag in logical array of the same
                             % size 
-                            Result(Iobj).Image = tools.array.bitsetFlag(Result(Iobj).Image, squeeze(Flag), BitInd, SetVal, true, true);
+                            Result(Iobj).Data = tools.array.bitsetFlag(Result(Iobj).Data, squeeze(Flag), BitInd, SetVal, true, true);
                         else
                             % Flag is indices:
-                            Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);
+                            Result(Iobj).Data(Flag) = bitset(Result(Iobj).Data(Flag), BitInd, SetVal);
                         end
                     end
                 else
 
                     % use indices instead of flags - maybe faster in some cases
                     if Args.UseFlags
-                        Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);
+                        Result(Iobj).Data(Flag) = bitset(Result(Iobj).Data(Flag), BitInd, SetVal);
                     else
                         Ind = find(Flag);
-                        Result(Iobj).Image(Ind) = bitset(Result(Iobj).Image(Ind), BitInd, SetVal);
+                        Result(Iobj).Data(Ind) = bitset(Result(Iobj).Data(Ind), BitInd, SetVal);
                     end
                 end
             end

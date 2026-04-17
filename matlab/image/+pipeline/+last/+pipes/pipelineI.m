@@ -108,7 +108,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
     % load images and check quality
     % AI putput is of size [Nimages x 1]
     try
-        [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s -> 26s (median)
+        [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
 
         TableRaw = [TableHeader, TableForDB]; 
         TableRaw.PrepPrepOK = true(size(TableRaw,1), 1);
@@ -132,8 +132,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             % basic calibration (bias, flat,...) 
             % FixJD false, since already done in prePrep
             %ProcessingStep = 31;
-
             AI = pipeline.generic.basicCalib(AI, CI, Args.basicCalibArgs{:}, 'UpdateJD',false); %31.2s
+
             TableRaw.BasicCalib = true(numel(AI),1);  % basic calib success
         
             %ProcessingStep = 41;

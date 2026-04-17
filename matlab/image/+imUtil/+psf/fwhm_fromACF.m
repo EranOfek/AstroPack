@@ -117,7 +117,8 @@ function [FWHM, Nstars, Info, ACF] = fwhm_fromACF(Image, Args)
         %Std = tools.math.stat.rstd(Image(:),1,1);
         %Std = tools.math.stat.mex.rstd_mex(Image(:));
         Std = tools.math.stat.std_mad(Image(:),1);
-
+        %Std = tools.math.stat.mex.std_madmean_mex(Image(:),1,1);  % faster but nor ribust enough
+        
         Image(Image<(Args.Nsigma0.*Std)) = 0;
         %Image = Image - Args.Nsigma0.*Std;
         %Image = log10(Image);

@@ -146,7 +146,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
 
         Args.RequiredSizeXY              = [6422 9600];  % [X Y]
 
-        Args.GlobalBackLevel             = false;
+        Args.GlobalBackLevel             = true;
         Args.backgroundLevelArgs         = {}; %{'DiluteFactor',101, 'UseMex',true, 'MaxPixFraction',0.4, 'ThresholdBack',4000};
 
         Args.HistAnomaly                 = true;
