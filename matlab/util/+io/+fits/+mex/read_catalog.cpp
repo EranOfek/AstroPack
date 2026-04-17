@@ -3,9 +3,9 @@
 // after: sudo apt install libcfitsio-dev
 //
 // Usage:
-//   [S, Header, hdu, ColUnits] = fits.mex.read_catalog(filename, hdu)
-//   [S, Header, hdu, ColUnits] = fits.mex.read_catalog(filename, hdu, rows)
-//   [S, Header, hdu, ColUnits] = fits.mex.read_catalog(filename, hdu, rows, cols, hdu_header)
+//   [S, Header, hdu, ColUnits] = io.fits.mex.read_catalog(filename, hdu)
+//   [S, Header, hdu, ColUnits] = io.fits.mex.read_catalog(filename, hdu, rows)
+//   [S, Header, hdu, ColUnits] = io.fits.mex.read_catalog(filename, hdu, rows, cols, hdu_header)
 //
 // Arguments:
 //   filename  - path to FITS file
@@ -247,7 +247,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
     // ------------------------------------------------------------------
     if (nrhs < 2)
         mexErrMsgTxt(
-            "Usage: [S, Header, hdu, colunits] = fits.mex.read_catalog(filename, hdu [, rows [, cols [, hdu_header]]])");
+            "Usage: [S, Header, hdu, colunits] = io.fits.mex.read_catalog(filename, hdu [, rows [, cols [, hdu_header]]])");
 
     char* filename = mxArrayToString(prhs[0]);
     MxStringGuard fnGuard{filename};

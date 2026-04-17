@@ -16,6 +16,6 @@
 %          - the hdu number where the image was found (optional)
 % Author : A.M. Krassilchtchikov (2026 Mar) 
 % Example: FN = '~/LAST.01.01.01_20250708.014436.528_clear_1718.c_020_001_001_sci_raw_Image_1.fits.fz';
-%          Image = fits.mex.read_image(FN,0);
-%          [Image, Header] = fits.mex.read_image(FN,0);
-%          [Image, Header] = fits.mex.read_image(FN,1,[2100 2200 1700 1900]);
+%          Image = io.fits.mex.read_image(FN,0);
+%          [Image, Header] = io.fits.mex.read_image(FN,0);
+%          [Image, Header] = io.fits.mex.read_image(FN,1,[2100 2200 1700 1900]);

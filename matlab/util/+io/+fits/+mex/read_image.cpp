@@ -296,7 +296,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
                  int nrhs, const mxArray* prhs[])
 {
     if (nrhs < 2)
-        mexErrMsgTxt("Usage: img = fits_read_image(filename, hdu, [CCDSEC])");
+        mexErrMsgTxt("Usage: img = io.fits.mex.read_image(filename, hdu, [CCDSEC])");
 
     char* filename = mxArrayToString(prhs[0]);
     bool compressed_header = isFITSFZ(filename);
