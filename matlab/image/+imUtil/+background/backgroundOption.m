@@ -45,18 +45,18 @@ function [Back] = backgroundOption(Vec, Method, MethodArgs)
             end
         case 'std'
             Back = std(Vec, [], 1, 'omitnan');
-        case 'var'
+        case 'var'                                                                                                                                                                                              
             Back = var(Vec, [], 1, 'omitnan');
         case 'rstd'
-            if isempty(MethodArgs)
+            if isempty(MethodArgs)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
                 Back = tools.math.stat.rstd(Vec,1,1);
             else
-                Back = tools.math.stat.rstd(Vec,1,MethodArgs{:});
+                Back = tools.math.stat.rstd(Vec,1,MethodArgs{:});                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
             end
         case 'rstd_mex'
-            Back = tools.math.stat.mex.rstd_mex(Vec,[],1);
+            Back = tools.math.stat.mex.rstd1_mex(Vec);
         case 'rvar_mex'
-            Back = tools.math.stat.mex.rstd_mex(Vec,[],1).^2;
+            Back = tools.math.stat.mex.rstd1_mex(Vec).^2;
         case 'rvar'
             if isempty(MethodArgs)
                 Back = tools.math.stat.rstd(Vec,1,1).^2;
@@ -66,9 +66,9 @@ function [Back] = backgroundOption(Vec, Method, MethodArgs)
         case 'quantile'
             if isempty(MethodArgs)
                 Back = quantile(Vec, 0.25);
-            else
+            else                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
                 Back = quantile(Vec, MethodArgs{:});
-            end
+            end                                                                                                                                                                                                                                                                                     
         otherwise
             error('Unknown Back option');
     end

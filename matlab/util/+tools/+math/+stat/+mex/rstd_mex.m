@@ -1,4 +1,5 @@
 % Fast mex for robust std using 0.25-0.75 quantiles
+%   See also: tools.math.stat.rstd1_nex
 % Input  : - Array
 %          - Type (like matlab std). 0|1. 
 %            If empty, then use 0.
