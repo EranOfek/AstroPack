@@ -1,6 +1,11 @@
 function [Result] = unitTest()
     % unitTest for: tools.array
 
+
+    %% tools.array.mex.allocateUninit
+    A = tools.array.mex.allocateUninit([10 10 3],'single');
+
+    
     %% tools.array.mex.countNaN
 
     A=rand(100,100);

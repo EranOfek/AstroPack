@@ -1,6 +1,18 @@
 function [Result] = perfTest()
     % perfTest for: tools.array
 
+
+    %% tools.array.mex.allocateUninit
+    tic;for i=1:100, a=repmat(single(0),[1716 1716 3]);end; T1=toc;
+    tic;for i=1:100, a=tools.array.mex.allocateUninit([1716 1716 3],'single');end; T2=toc;
+    fprintf('tools.array.mex.allocateUninit is x %f faster than repmat [1716 1716 3]\n',T1./T2);
+
+    tic;for i=1:100, a=zeros([1716 1716 3], 'single');end; T1=toc;
+    tic;for i=1:100, a=tools.array.mex.allocateUninit([1716 1716 3],'single');end; T2=toc;
+    fprintf('tools.array.mex.allocateUninit is x %f faster than zeros [1716 1716 3]\n',T1./T2);
+
+
+
     %% tools.array.mex.selectIndNaN
    
     Matrix=rand(1000,100);
