@@ -90,6 +90,18 @@ function Result=perfTest()
     tic;for i=1:Nsim,[M1,E1,S1]=tools.math.stat.wmean(R,Err);end, T2=toc;
     fprintf('tools.math.stat.mex.WmeanStd_mex is x %f faster compared to tools.math.stat.wmean\n',T2./T1);
 
+    %% tools.math.stat.mex.rstd1_mex
+    R = rand(1e6,1);
+    Nsim=1e1;
+    tic; for i=1:Nsim, r1=tools.math.stat.rstd(R); end, T1=toc;
+    tic; for i=1:Nsim, r2=tools.math.stat.mex.rstd1_mex(R); end, T2=toc;
+    fprintf('rstd1_mex is x %f times faster compared to rstd (Dim=1)\n',T1./T2);
+
+    tic; for i=1:Nsim, r1=tools.math.stat.mex.rstd_mex(R); end, T1=toc;
+    tic; for i=1:Nsim, r2=tools.math.stat.mex.rstd1_mex(R); end, T2=toc;
+    fprintf('rstd1_mex is x %f faster than rstd_mex\n',T1./T2);
+
+
     %% tools.math.stat.mex.rstd_mex
     R = rand(1726,1726);
     Nsim=1e2;

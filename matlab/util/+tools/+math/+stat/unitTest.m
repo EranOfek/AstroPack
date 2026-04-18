@@ -221,6 +221,16 @@ function Result = unitTest()
     if max(abs(M-M1))>1e-8 || max(abs(S-S1))>1e-3 || max(abs(E-E1))>1e-4 
         error('Problem with tools.math.stat.mex.wMeanStd_mex');
     end
+
+    %% tools.math.stat.mex.rstd1_mex
+    R = rand(1726,1726);
+    r1=tools.math.stat.rstd(R(:));
+    r2=tools.math.stat.mex.rstd1_mex(R);
+    if max(abs(r1-r2),[],'all')>3e-3
+        r1 - r2
+        error('Problem with tools.math.stat.mex.rstd_mex Dim=1');
+    end
+    
     
     %% tools.math.stat.mex.rstd_mex
     R = rand(1726,1726);

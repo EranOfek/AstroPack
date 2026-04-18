@@ -155,6 +155,7 @@ addOptional(InPar,'Conn',8);
 addOptional(InPar,'FracOfMax',0.5);
 
 addOptional(InPar,'UseBackMex',true); % @median);
+addOptional(InPar,'RVarSkip',1); % increase in order to make it faster
 addOptional(InPar,'BackFun',@median); % @median);
 addOptional(InPar,'BackFunPar',{'all','omitnan'});      % {[1 2],'omitnan'});
 addOptional(InPar,'VarFun',@imUtil.background.rvar);    % if empty, then will try to read var from second output of BackFun...
@@ -244,7 +245,7 @@ for Iflip=1:1:Nflip
                 case {'thresh','thresh_fracmax'}
                     if InPar.UseBackMex
                         Back = fast_median(H2(:));
-                        Var  = tools.math.stat.mex.rstd_mex(H2(:)).^2;
+                        Var  = tools.math.stat.mex.rstd1_mex(H2(:), InPar.RVarSkip).^2;
                     else
                         [Back,Var]=imUtil.background.background(H2,...
                                                            'BackFun',InPar.BackFun,...
