@@ -114,11 +114,11 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     end
     Range    = Max - Min;
 
-    Nbin     = max(Args.MinNbin1, 2.*ceil(Range));
+    Nbin     = round(max(Args.MinNbin1, 2.*ceil(Range)));
     BinSize   = Range./Nbin;
 
     if Args.UseMex
-        Nbin = (Range + 2.*BinSize)./BinSize;
+        Nbin = round((Range + 2.*BinSize)./BinSize);       
         [Nhist,Edges,BinCenter] = tools.hist.mex.hist1reg_mex(LogArray, double([Min, Max+2.*BinSize]), Nbin, single(1), false);
     else
         % Why Max+2.*BinSize: sometimes due to pixels with low counts, the
