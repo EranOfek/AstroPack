@@ -658,9 +658,7 @@ classdef AstroPSF < Component
                 if CumSum(1)>=Frac
                     FWHM_CumSum = 2.*Frac./CumSum(1);
                 else
-                    Mask = [true; diff(CumSum) ~= 0]; % in order interp1 not fall when CumSum contains 2 identical values                  
-                    FWHM_CumSum = 2.*interp1(CumSum(Mask), Rad(Mask), Frac);
-                    
+                    FWHM_CumSum = 2.*tools.interp.interp1crossVal(Rad, CumSum, Frac);
                 end
                 if nargout>1
                     %CumMean = Mean(:);
@@ -669,7 +667,7 @@ classdef AstroPSF < Component
                         % interpolate below the 1st step
                         FWHM_Flux = 2.*Frac./CumMean(1);
                     else
-                        FWHM_Flux   = 2.*interp1(CumMean, Rad, Frac);
+                        FWHM_Flux = 2.*tools.interp.interp1crossVal(Rad, CumSum, Frac);
                     end
                 end
                 
