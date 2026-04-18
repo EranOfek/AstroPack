@@ -46,7 +46,9 @@ function plotPhotScatter(MS, Args)
         Args.TwoPanels logical = true
         Args.OverlayTrend   = 'median'
         Args.TrendBinWidth  = 0.5
-        Args.MinEpochs      = 2   % Min non-NaN epochs per source; 0 = no filter
+        Args.MinEpochs      = 2   % Min non-NaN epochs per source (after flag filtering)
+        Args.FilterFlags cell = {'Saturated', 'NearEdge', 'NaN'}  % NaN out epochs with these flags
+        Args.BackgroundMag  = 22   % Mag fainter than this treated as bad epoch
         Args.ColorByCrop logical = false  % Color sources by crop ID (multicolor)
         Args.CentralEdge logical = false  % Distinguish central vs edge crops by shade
         Args.TileOrder      = 'rowmajor'  % For CentralEdge: 'colmajor'|'rowmajor'
@@ -109,9 +111,28 @@ function plotPhotScatter(MS, Args)
                 if Ic > numel(MS.(Mode)) || isempty(MS.(Mode){Ic}); continue; end
                 MSobj = MS.(Mode){Ic};
 
+                % Build per-epoch bad-flag mask [Nepochs × Nsrc]
+                BadEpochMask = false(size(MSobj.Data.(MagField)));
+                if ~isempty(Args.FilterFlags) && isfield(MSobj.Data, 'FLAGS')
+                    FlagMat = MSobj.Data.FLAGS;
+                    FlagMat(isnan(FlagMat)) = 0;
+                    try
+                        BD = BitDictionary;
+                        for Ifl = 1:numel(Args.FilterFlags)
+                            [~, ~, BitDec] = BD.name2bit(Args.FilterFlags{Ifl});
+                            BadEpochMask = BadEpochMask | (bitand(uint32(FlagMat), uint32(BitDec)) > 0);
+                        end
+                    catch
+                    end
+                end
+
                 % Relative photometry
                 if ~isempty(OrigMagField) && isfield(MSobj.Data, OrigMagField)
                     OrigData = MSobj.Data.(OrigMagField);
+                    OrigData(BadEpochMask) = NaN;
+                    if isfinite(Args.BackgroundMag)
+                        OrigData(OrigData > Args.BackgroundMag) = NaN;
+                    end
                     if Args.MinEpochs > 0
                         Good = sum(~isnan(OrigData), 1) >= Args.MinEpochs;
                         OrigData = OrigData(:, Good);
@@ -126,6 +147,10 @@ function plotPhotScatter(MS, Args)
                 % Calibrated
                 if isfield(MSobj.Data, MagField)
                     MagData = MSobj.Data.(MagField);
+                    MagData(BadEpochMask) = NaN;
+                    if isfinite(Args.BackgroundMag)
+                        MagData(MagData > Args.BackgroundMag) = NaN;
+                    end
                     if Args.MinEpochs > 0
                         Good = sum(~isnan(MagData), 1) >= Args.MinEpochs;
                         MagData = MagData(:, Good);

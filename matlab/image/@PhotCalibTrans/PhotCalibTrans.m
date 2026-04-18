@@ -90,11 +90,11 @@ classdef PhotCalibTrans < Component
     %                      Source='single': extract from one object directly.
     %                      Usage: CBP = PhotCalibTrans.buildConstBandParams(PCArray);
     %                             CBP = PhotCalibTrans.buildConstBandParams(PC, 'Source', 'single');
-    %     propagatePhotCalibToEpoch - Propagate coadd calibration to individual
-    %                      epoch images. Computes per-epoch DeltaZP from
-    %                      MatchedSources flux comparison, adjusts Norm, applies
-    %                      addMag/addZP, propagates AperCorr, writes headers.
-    %                      Usage: [AIs, PCs, DZP] = PhotCalibTrans.propagatePhotCalibToEpoch(PC, MS, AIs);
+    %     applyPhotCalibShifts - Apply coadd calibration to individual epoch
+    %                      images using pre-computed DeltaZP (from zp_meddiff)
+    %                      or MatchedSources. Evaluates ZP once, shifts per epoch.
+    %                      Usage: [AIs, Norms, DZP] = PhotCalibTrans.applyPhotCalibShifts(PC, AIs, 'DeltaZP', DZP);
+    %                             [AIs, Norms, DZP] = PhotCalibTrans.applyPhotCalibShifts(PC, AIs, 'MS', MS);
     %   Display/Output Methods:
     %     summary - Display photometric calibration summary
     %   Plotting Methods:
@@ -3828,40 +3828,55 @@ classdef PhotCalibTrans < Component
             end
         end
 
-        function [EpochAIs, PCepochs, DeltaZP] = propagatePhotCalibToEpoch(PC, MS, EpochAIs, Args)
-            % Propagate coadd photometric calibration to individual epoch images.
-            %   Computes per-epoch DeltaZP from MatchedSources flux comparison,
-            %   creates a modified PhotCalibTrans per epoch (adjusted Norm),
-            %   and applies calibrated magnitudes, ZP, aperture corrections,
-            %   and header keywords to each epoch image.
+        function [EpochAIs, NormPerEpoch, DeltaZP] = applyPhotCalibShifts(PC, EpochAIs, Args)
+            % Apply coadd photometric calibration to individual epoch images.
+            %   Default: accepts pre-computed DeltaZP vector (e.g., from
+            %   lcUtil.zp_meddiff). Evaluates ZP at source positions ONCE
+            %   (from coadd PC), then shifts by DeltaZP per epoch. No
+            %   per-epoch PC copies — header keywords are copied from coadd
+            %   with Norm overridden.
+            %   Optional: if DeltaZP is empty and MS is provided, computes
+            %   DeltaZP internally from flux comparison (legacy path).
             % Input  : - PhotCalibTrans object from coadd calibration.
-            %          - MatchedSources object with matched sources across epochs.
-            %            Must contain FLUX_APER_3 (or FluxField) in Data.
-            %          - array of AstroImages for individual epochs.
+            %          - Array of AstroImages for individual epochs.
             %          * ...,key,val,...
-            %            'FluxField'    - Flux field in MS.Data. Default is 'FLUX_APER_3'.
+            %            'DeltaZP'   - [Nepoch × 1] pre-computed ZP shifts [mag].
+            %                        Same sign as zp_meddiff.FitZP: positive
+            %                        when epoch is fainter than reference.
+            %                        Default is [] (compute from MS).
+            %            'MS'        - MatchedSources object (optional).
+            %                        Used only when DeltaZP is empty.
+            %            'FluxField' - Flux field in MS.Data. Default is 'FLUX_APER_3'.
             %            'FluxErrField' - Flux error field. Default is 'FLUXERR_APER_3'.
-            %            'RefEpoch'     - Reference epoch index. Default is 1.
-            %            'UseWeightedMedian' - Use weighted median for DeltaZP.
-            %                        Default is true.
-            %            'AddMag'       - Add MAG columns. Default is true.
-            %            'AddZP'        - Add ZP column. Default is true.
-            %            'ApplyAperCorr' - Apply inherited aperture corrections to
-            %                        MAG_<System>_* columns. Default is true.
+            %            'RefEpoch'  - Reference epoch for MS-based DeltaZP.
+            %                        Default is 1.
+            %            'UseWeightedMedian' - Use weighted median for MS-based
+            %                        DeltaZP. Default is true.
+            %            'AddMag'    - Add MAG columns. Default is true.
+            %            'AddZP'     - Add ZP column. Default is true.
+            %            'ApplyAperCorr' - Apply inherited aperture corrections
+            %                        to MAG_<System>_* columns. Default is true.
             %            'UpdateHeader' - Write PT_* to epoch headers. Default is true.
-            %            'MagSystem'    - Magnitude system. Default is 'AB'.
-            %            'Verbose'      - Print progress. Default is true.
-            % Output : - updated AstroImages with MAG, ZP, header.
-            %          - array of PhotCalibTrans objects (one per epoch).
-            %          - [Nepoch × 1] vector of per-epoch ZP offsets [mag].
+            %            'MagSystem' - Magnitude system. Default is 'AB'.
+            %            'Verbose'   - Print progress. Default is true.
+            % Output : - Updated AstroImages with MAG, ZP, header.
+            %          - [Nepoch × 1] per-epoch Norm values.
+            %          - [Nepoch × 1] DeltaZP vector [mag].
             % Author : D. Kovaleva (Apr 2026)
-            % Example: [EpochAIs, PCe, DZP] = PhotCalibTrans.propagatePhotCalibToEpoch( ...
-            %              PC, MS, EpochAIs);
+            % Example: % With pre-computed DeltaZP (fast path):
+            %          Rzp = lcUtil.zp_meddiff(MS);
+            %          [AIs, Norms, DZP] = PhotCalibTrans.applyPhotCalibShifts( ...
+            %              PC, AIs, 'DeltaZP', Rzp.FitZP);
+            %
+            %          % With MatchedSources (legacy):
+            %          [AIs, Norms, DZP] = PhotCalibTrans.applyPhotCalibShifts( ...
+            %              PC, AIs, 'MS', MS);
 
             arguments
                 PC PhotCalibTrans
-                MS MatchedSources
                 EpochAIs
+                Args.DeltaZP = []
+                Args.MS = []
                 Args.FluxField = 'FLUX_APER_3'
                 Args.FluxErrField = 'FLUXERR_APER_3'
                 Args.RefEpoch = 1
@@ -3877,95 +3892,66 @@ classdef PhotCalibTrans < Component
             Nepoch = numel(EpochAIs);
 
             % =============================================================
-            % Step 1: Compute per-epoch DeltaZP from MatchedSources
+            % Step 1: Obtain DeltaZP — from input or from MS
             % =============================================================
 
-            % Select good sources using MatchedSources built-in selection
-            [~, GoodStar] = MS.selectGoodPhotCalibStars();
-
-            % Get flux matrix [Nepoch × Nsrc]
-            Flux = MS.getMatrix(Args.FluxField);
-            Flux = Flux(:, GoodStar);
-
-            % Flux of reference epoch
-            FluxRef = Flux(Args.RefEpoch, :);
-            ValidRef = FluxRef > 0 & isfinite(FluxRef);
-
-            % DiffMag per epoch per source relative to reference
-            DiffMag = -2.5 * log10(Flux ./ FluxRef);
-            ValidMask = isfinite(DiffMag) & ValidRef;
-
-            % Prepare flux errors if weighted median requested
-            HasFluxErr = Args.UseWeightedMedian && isfield(MS.Data, Args.FluxErrField);
-            if HasFluxErr
-                FluxErr = MS.getMatrix(Args.FluxErrField);
-                FluxErr = FluxErr(:, GoodStar);
-                FluxErrRef = FluxErr(Args.RefEpoch, :);
-            end
-
-            % Compute DeltaZP per epoch
-            DeltaZP = nan(Nepoch, 1);
-            for Ie = 1:Nepoch
-                if Ie == Args.RefEpoch
-                    DeltaZP(Ie) = 0;
-                elseif sum(ValidMask(Ie, :)) < 5
-                    DeltaZP(Ie) = NaN;
-                elseif HasFluxErr
-                    Valid = ValidMask(Ie, :);
-                    DM = DiffMag(Ie, Valid);
-                    MagErr = 1.086 * sqrt((FluxErr(Ie, Valid) ./ Flux(Ie, Valid)).^2 + ...
-                                          (FluxErrRef(Valid) ./ FluxRef(Valid)).^2);
-                    DeltaZP(Ie) = tools.math.stat.wmedian(DM(:), MagErr(:), 1);
-                else
-                    DeltaZP(Ie) = median(DiffMag(Ie, ValidMask(Ie, :)), 'omitnan');
+            if ~isempty(Args.DeltaZP)
+                DeltaZP = Args.DeltaZP(:);
+                if numel(DeltaZP) ~= Nepoch
+                    error('PhotCalibTrans:applyPhotCalibShifts:BadDeltaZP', ...
+                        'DeltaZP length (%d) must match Nepoch (%d).', ...
+                        numel(DeltaZP), Nepoch);
                 end
+            elseif ~isempty(Args.MS)
+                DeltaZP = computeDeltaZPfromMS(Args.MS, Nepoch, ...
+                    Args.FluxField, Args.FluxErrField, ...
+                    Args.RefEpoch, Args.UseWeightedMedian);
+            else
+                error('PhotCalibTrans:applyPhotCalibShifts:NoInput', ...
+                    'Provide either DeltaZP vector or MS (MatchedSources).');
             end
-
-            % Normalize: zero-mean across epochs
-            DeltaZP = DeltaZP - mean(DeltaZP, 'omitnan');
 
             if Args.Verbose
-                fprintf('DeltaZP per epoch (relative to mean):\n');
+                fprintf('DeltaZP per epoch:\n');
                 for Ie = 1:Nepoch
                     fprintf('  Epoch %2d: %+.4f mag\n', Ie, DeltaZP(Ie));
                 end
             end
 
             % =============================================================
-            % Step 2: Create modified PhotCalibTrans per epoch and apply
+            % Step 2: Apply calibrated magnitudes & headers per epoch
+            %         ZP evaluated ONCE on coadd PC; DeltaZP is additive.
+            %         No PC.copy() — header keywords copied from coadd with
+            %         Norm overridden per epoch.
             % =============================================================
 
             AllFunPar = PC.TransModel.getAllFunPar();
             NormIdx = find(strcmp(AllFunPar.Name, 'Norm'), 1);
             NormOrig = AllFunPar.Val(NormIdx);
+            ExpTime_coadd = PC.ExpTime / PC.NCoadd;
 
-            PCepochs = PhotCalibTrans.empty(0, Nepoch);
+            % Write coadd header once as a template (reused per epoch)
+            if Args.UpdateHeader
+                TemplateHeader = AstroHeader();
+                PC.photCalibTransToHeader(TemplateHeader);
+                TemplateKeys = TemplateHeader.Data;
+            end
+
+            % Pre-compute position-independent ZP_base once (the expensive part:
+            % transmission integral). Per-epoch, only the cheap Tran2D.forward
+            % is called for that epoch's source positions.
+            ZP_base = PC.evaluateZP('MagSystem', Args.MagSystem);  % scalar, field center
+            HasTran2D = ~isempty(PC.TransModel.Tran2DObj) && PC.TransModel.UseTran2D;
+
+            % Collect per-epoch Norm values (for output)
+            NormPerEpoch = nan(Nepoch, 1);
 
             for Ie = 1:Nepoch
-                PCe = PC.copy();
-                PCe.NCoadd = 1;
-
-                % Read epoch ExpTime from header
-                if isa(EpochAIs(Ie), 'AstroImage') && ~isempty(EpochAIs(Ie).HeaderData)
-                    ExpTimeVal = EpochAIs(Ie).HeaderData.getVal('EXPTIME');
-                    if ~isempty(ExpTimeVal) && isnumeric(ExpTimeVal)
-                        PCe.ExpTime = ExpTimeVal;
-                    end
-                end
-
-                % Adjust Norm by DeltaZP
                 NormNew = NormOrig;
                 if isfinite(DeltaZP(Ie))
                     NormNew = NormOrig * 10^(DeltaZP(Ie) / 2.5);
-                    AllParEp = PCe.TransModel.getAllFunPar();
-                    AllParEp.Val(NormIdx) = NormNew;
-                    PCe.TransModel.setAllFunPar(AllParEp);
                 end
-
-                % Propagate coadd aperture corrections
-                PCe.AperCorr = PC.AperCorr;
-                PCe.AperCorrColNames = PC.AperCorrColNames;
-                PCe.AperCorrNStars = PC.AperCorrNStars;
+                NormPerEpoch(Ie) = NormNew;
 
                 % Get epoch catalog
                 if isa(EpochAIs(Ie), 'AstroImage')
@@ -3973,30 +3959,75 @@ classdef PhotCalibTrans < Component
                 else
                     CatObj = EpochAIs(Ie);
                 end
-
                 HasCat = ~isempty(CatObj) && ~isempty(CatObj.Table) && height(CatObj.Table) > 0;
 
-                % Add calibrated magnitudes and ZP column 
-               
-                if HasCat && (Args.AddMag || Args.AddZP)
-                    if Args.AddMag
-                        CatObj = PCe.addMag(CatObj, 'MagSystem', Args.MagSystem, ...
-                            'AddZP', Args.AddZP);
-                    else
-                        % AddZP only, no AddMag: fall back to addZP
-                        CatObj = PCe.addZP(CatObj, 'MagSystem', Args.MagSystem);
+                % Read epoch ExpTime
+                ExpTime_epoch = ExpTime_coadd;
+                if isa(EpochAIs(Ie), 'AstroImage') && ~isempty(EpochAIs(Ie).HeaderData)
+                    ExpTimeVal = EpochAIs(Ie).HeaderData.getVal('EXPTIME');
+                    if ~isempty(ExpTimeVal) && isnumeric(ExpTimeVal)
+                        ExpTime_epoch = ExpTimeVal;
                     end
                 end
 
-                % Apply inherited aperture corrections to MAG columns
-                if HasCat && Args.AddMag && Args.ApplyAperCorr && ...
-                        ~isempty(PCe.AperCorr) && ~isempty(PCe.AperCorrColNames)
-                    AllColNamesC = CatObj.Table.Properties.VariableNames;
-                    for Iap = 1:numel(PCe.AperCorrColNames)
-                        ColName = PCe.AperCorrColNames{Iap};
-                        if ismember(ColName, AllColNamesC) && isfinite(PCe.AperCorr(Iap))
-                            Vals = CatObj.getCol(ColName) + PCe.AperCorr(Iap);
-                            CatObj.replaceCol(Vals, ColName);
+                if HasCat && (Args.AddMag || Args.AddZP)
+                    Tab = CatObj.Table;
+                    AllColNames = Tab.Properties.VariableNames;
+                    Nrows = height(Tab);
+
+                    % ZP per source: base (scalar, computed once) + field correction
+                    % (per-epoch, cheap Tran2D.forward on this epoch's positions)
+                    if HasTran2D && ismember('X', AllColNames) && ismember('Y', AllColNames)
+                        [FieldCorr, ~] = PC.TransModel.Tran2DObj.forward([Tab.X(:), Tab.Y(:)]);
+                        ZP_epoch = (ZP_base - FieldCorr(:)) + DeltaZP(Ie);
+                    else
+                        ZP_epoch = repmat(ZP_base + DeltaZP(Ie), Nrows, 1);
+                    end
+
+                    % Insert ZP column
+                    if Args.AddZP
+                        ZPColName = [Args.MagSystem, '_ZP'];
+                        CatObj = CatObj.insertCol(ZP_epoch, Inf, {ZPColName});
+                    end
+
+                    % Compute calibrated magnitudes per flux column
+                    if Args.AddMag
+                        MagPrefix = ['MAG_', Args.MagSystem, '_'];
+                        FluxColNames = AllColNames(startsWith(AllColNames, 'FLUX_'));
+                        for I = 1:numel(FluxColNames)
+                            Flux_col = Tab.(FluxColNames{I});
+                            Mag = convert.luptitude(Flux_col / ExpTime_epoch, ...
+                                10.^(0.4 .* ZP_epoch));
+                            NewMagColName = strrep(FluxColNames{I}, 'FLUX_', MagPrefix);
+
+                            % Aperture correction
+                            if Args.ApplyAperCorr && ~isempty(PC.AperCorr) && ...
+                                    ~isempty(PC.AperCorrColNames)
+                                AperIdx = find(strcmp(PC.AperCorrColNames, FluxColNames{I}), 1);
+                                if ~isempty(AperIdx) && isfinite(PC.AperCorr(AperIdx))
+                                    Mag = Mag - PC.AperCorr(AperIdx);
+                                end
+                            end
+
+                            CatObj = CatObj.insertCol(Mag, Inf, {NewMagColName});
+
+                            % Magnitude error: try FLUXERR, fall back to MAGERR
+                            FluxErrCol = strrep(FluxColNames{I}, 'FLUX_', 'FLUXERR_');
+                            MagErrCol  = [NewMagColName, '_ERR'];
+                            if ismember(FluxErrCol, AllColNames)
+                                FluxErr = Tab.(FluxErrCol);
+                                MagErr = nan(Nrows, 1);
+                                ValidFlux = Flux_col > 0 & isfinite(Flux_col) & isfinite(FluxErr);
+                                MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux) ./ Flux_col(ValidFlux);
+                                CatObj = CatObj.insertCol(MagErr, Inf, {MagErrCol});
+                            else
+                                MagErrFallback = strrep(FluxColNames{I}, 'FLUX_', 'MAGERR_');
+                                if ismember(MagErrFallback, AllColNames)
+                                    CatObj = CatObj.insertCol(Tab.(MagErrFallback), Inf, {MagErrCol});
+                                else
+                                    CatObj = CatObj.insertCol(nan(Nrows, 1), Inf, {MagErrCol});
+                                end
+                            end
                         end
                     end
                 end
@@ -4006,20 +4037,66 @@ classdef PhotCalibTrans < Component
                     EpochAIs(Ie).CatData = CatObj;
                 end
 
-                % Update header
-                if Args.UpdateHeader && isa(EpochAIs(Ie), 'AstroImage')
-                    PCe.photCalibTransToHeader(EpochAIs(Ie).HeaderData);
+                % Copy coadd header keywords, override Norm (PT_1_V1)
+                if Args.UpdateHeader && isa(EpochAIs(Ie), 'AstroImage') && ...
+                        ~isempty(EpochAIs(Ie).HeaderData)
+                    EpochHeader = EpochAIs(Ie).HeaderData;
+                    EpochHeader = EpochHeader.deleteKey({'PT_.*', 'APCOR.*'});
+                    for Ik = 1:size(TemplateKeys, 1)
+                        EpochHeader = EpochHeader.replaceVal(TemplateKeys{Ik, 1}, TemplateKeys{Ik, 2});
+                    end
+                    EpochHeader = EpochHeader.replaceVal('PT_1_V1', NormNew);
                 end
-
-                PCepochs(Ie) = PCe;
 
                 if Args.Verbose
                     fprintf('  Epoch %2d: Norm=%.6f, DeltaZP=%+.4f mag\n', ...
                         Ie, NormNew, DeltaZP(Ie));
                 end
             end
+
         end
     end
 
- 
+end
+
+% =========================================================================
+function DeltaZP = computeDeltaZPfromMS(MS, Nepoch, FluxField, FluxErrField, RefEpoch, UseWeightedMedian)
+    % Compute per-epoch DeltaZP from MatchedSources flux comparison (legacy).
+    % Same sign as zp_meddiff: positive when epoch is fainter.
+
+    [~, GoodStar] = MS.selectGoodPhotCalibStars();
+    Flux = MS.getMatrix(FluxField);
+    Flux = Flux(:, GoodStar);
+
+    FluxRef = Flux(RefEpoch, :);
+    ValidRef = FluxRef > 0 & isfinite(FluxRef);
+
+    DiffMag = -2.5 * log10(Flux ./ FluxRef);
+    ValidMask = isfinite(DiffMag) & ValidRef;
+
+    HasFluxErr = UseWeightedMedian && isfield(MS.Data, FluxErrField);
+    if HasFluxErr
+        FluxErr = MS.getMatrix(FluxErrField);
+        FluxErr = FluxErr(:, GoodStar);
+        FluxErrRef = FluxErr(RefEpoch, :);
+    end
+
+    DeltaZP = nan(Nepoch, 1);
+    for Ie = 1:Nepoch
+        if Ie == RefEpoch
+            DeltaZP(Ie) = 0;
+        elseif sum(ValidMask(Ie, :)) < 5
+            DeltaZP(Ie) = NaN;
+        elseif HasFluxErr
+            Valid = ValidMask(Ie, :);
+            DM = DiffMag(Ie, Valid);
+            MagErr = 1.086 * sqrt((FluxErr(Ie, Valid) ./ Flux(Ie, Valid)).^2 + ...
+                                  (FluxErrRef(Valid) ./ FluxRef(Valid)).^2);
+            DeltaZP(Ie) = tools.math.stat.wmedian(DM(:), MagErr(:), 1);
+        else
+            DeltaZP(Ie) = median(DiffMag(Ie, ValidMask(Ie, :)), 'omitnan');
+        end
+    end
+
+    DeltaZP = DeltaZP - mean(DeltaZP, 'omitnan');
 end
