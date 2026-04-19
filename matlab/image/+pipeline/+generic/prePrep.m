@@ -221,11 +221,11 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
     Nim = numel(AI);
 
     % delete comments from header
-    if Args.DeleteComments
-        for Iim=1:1:Nim
-            AI(Iim).HeaderData.deleteComment;
-        end
-    end
+%     if Args.DeleteComments
+%         for Iim=1:1:Nim
+%             AI(Iim).HeaderData.deleteComment;
+%         end
+%     end
 
 
     if nargout>2 && ~isempty(Args.Keys2table)
