@@ -4,8 +4,8 @@ function [Result] = unitTest(Args)
     % Input  : -
     %          * ...,key,val,... 
     %            'PipelineVersion' - One of the following options:
-    %                   'dev' - new pipeline.
-    %                   'prod' - old pipeline.
+    %                   'v1' - new pipeline.
+    %                   'p0' - current pipeline.
     % Output : - filled visit directory Args.LocalPath/YYYY/MM/DD/proc/HHMMSSvXX (XX starting with 0) 
     % Author : A.M. Krassilchtchikov (2026 Mar) 
     % Example: RAWImageDir = '/mnt/marvin/LAST.01.01.01/2025/07/07/raw/';
@@ -21,7 +21,7 @@ function [Result] = unitTest(Args)
         Args.TimeInterval      = 420  % [s] 
         Args.MinInGroup        = 10 
         Args.RegenCalib        = false % we do not know yet how to write the new calib to a local dir and use it from there
-        Args.PipelineVersion   = 'dev' % 'dev' or 'prod'
+        Args.PipelineVersion   = 'v1' % 'v0' is the production version, 'v1' is the development 
         Args.UseParfor         = true
         Args.DebugMode         = false
     end
@@ -60,7 +60,7 @@ function [Result] = unitTest(Args)
     % create the daemon and configure paths 
     switch lower(Args.PipelineVersion)
         
-        case 'dev'            
+        case 'v1'            
             D=pipeline.last.pipes.PipelineDemon;
             D.setPath(Args.LocalPath,...
                 'NewPath',Args.RAWImageDir,...
@@ -81,7 +81,7 @@ function [Result] = unitTest(Args)
                 'DebugMode',Args.DebugMode,...
                 'DbHost','10.150.28.18');
             
-        case 'prod'
+        case 'v0'
             
             D = pipeline.DemonLAST;
             
