@@ -25,6 +25,8 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
     %                   Default is [].
     %            'Convert2single' - Transform raw images to single class.
     %                   Default is true.
+    %            'DeleteComments' - Delete comments from header.
+    %                   Default is true.
     %            'LogObj' - An optional MsgLogger object.
     %                   If non empty, then will write error and information
     %                   messages to the specified log file and standard
@@ -135,7 +137,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
         %Args.BitDictionaryName           = 'BitMask.Image.Default.yml';
 
         Args.Convert2single              = true;
-
+        Args.DeleteComments              = true; % delete comments from header
         
         Args.LogObj                      = []; % if given write log.
         
@@ -217,6 +219,13 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
     end
     AI = AI(:);
     Nim = numel(AI);
+
+    % delete comments from header
+    if Args.DeleteComments
+        for Iim=1:1:Nim
+            AI(Iim).HeaderData.deleteComment;
+        end
+    end
 
 
     if nargout>2 && ~isempty(Args.Keys2table)
