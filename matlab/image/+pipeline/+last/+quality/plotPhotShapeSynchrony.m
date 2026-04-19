@@ -102,7 +102,7 @@ function Result = plotPhotShapeSynchrony(PC, Args)
     SubMat = ShapeT(:, CropsToUse);
 
     % Per-crop temporal median
-    MedPerCrop = nanmedian(SubMat, 1);
+    MedPerCrop = median(SubMat, 1, 'omitnan');
 
     % Delta from each crop's own median
     DeltaMat = SubMat - MedPerCrop;
@@ -205,9 +205,9 @@ function Result = plotPhotShapeSynchrony(PC, Args)
 end
 
 function [SharedVar, MeanCorr, MedianCorr, CorrMat] = syncStats(SubMat, DeltaMat)
-    MedDeltaEpoch = nanmedian(DeltaMat, 2);
-    TotalVar  = nanvar(DeltaMat(:));
-    MedianVar = nanvar(MedDeltaEpoch);
+    MedDeltaEpoch = median(DeltaMat, 2, 'omitnan');
+    TotalVar  = var(DeltaMat(:), 'omitnan');
+    MedianVar = var(MedDeltaEpoch, 'omitnan');
     if TotalVar > 0
         SharedVar = 100 * MedianVar / TotalVar;
     else
@@ -216,6 +216,6 @@ function [SharedVar, MeanCorr, MedianCorr, CorrMat] = syncStats(SubMat, DeltaMat
     Nc = size(SubMat, 2);
     CorrMat = corr(SubMat, 'rows', 'pairwise');
     OffDiag = CorrMat(~eye(Nc));
-    MeanCorr   = nanmean(OffDiag);
-    MedianCorr = nanmedian(OffDiag);
+    MeanCorr   = mean(OffDiag, 'omitnan');
+    MedianCorr = median(OffDiag, 'omitnan');
 end

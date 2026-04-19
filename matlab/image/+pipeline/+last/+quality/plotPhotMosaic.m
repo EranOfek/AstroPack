@@ -38,8 +38,8 @@ function plotPhotMosaic(CalibResult, Args)
     GrayMap = GrayMap(26:230, :);
 
     RMSmat = CalibResult.FitRMS;
-    MedRMS = nanmedian(RMSmat, 1);
-    ZPstd  = nanstd(CalibResult.ZPcenter.percrop, 0, 1);
+    MedRMS = median(RMSmat, 1, 'omitnan');
+    ZPstd  = std(CalibResult.ZPcenter.percrop, 0, 1, 'omitnan');
 
     figure('Name', 'Fit RMS & ZP RMS Mosaic', 'Position', [100, 100, 1000, 600]);
 
@@ -101,7 +101,7 @@ function plotPhotMosaic(CalibResult, Args)
                 ZPvals(Ic) = PCref(Ic).evaluateZP('X', 863, 'Y', 863);
             end
         end
-        CLim = [nanmin(ZPvals) - 0.05, nanmax(ZPvals) + 0.05];
+        CLim = [min(ZPvals, [], 'omitnan') - 0.05, max(ZPvals, [], 'omitnan') + 0.05];
 
         figure('Position', [50, 50, 500*Nmodes, 500], ...
                'Name', sprintf('ZP Mosaic — Visit %d', Args.Visits(VisitIdx)));

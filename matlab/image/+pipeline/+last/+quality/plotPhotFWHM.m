@@ -1,7 +1,7 @@
 function plotPhotFWHM(Input, Args)
     % Plot FWHM vs epoch number per crop
     % Description: Accepts either AI cell array (extracts from headers) or
-    %              HeaderData struct (from extractHeaderData / Result.HeaderData).
+    %              HeaderData struct (from pipeline.last.load.extractHeaderData / Result.HeaderData).
     %              Plots per-crop lines (bold for central, dashed for edge)
     %              and thick median line.
     %
@@ -91,7 +91,7 @@ function plotPhotFWHM(Input, Args)
     end
 
     % Median over crops (bold)
-    MedVal = nanmedian(FWHMmat(:, Args.CropsToAnalyze), 2);
+    MedVal = median(FWHMmat(:, Args.CropsToAnalyze), 2, 'omitnan');
     plot(EpochVec, MedVal, '-k', 'LineWidth', 3.5);
 
     box on; grid on;

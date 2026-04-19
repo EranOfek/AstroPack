@@ -62,7 +62,7 @@ function Result = testApplyPhotCalibShifts(Args)
     %              'EpochDir', '~/222625v1');
     %
     %          % Single-epoch — apply coadd PC to one epoch AstroImage:
-    %          AI_coadd = pipeline.last.quality.loadVisitData( ...
+    %          AI_coadd = pipeline.last.load.loadVisitCatHdr( ...
     %              'DataDir', '~/222625v1', 'FileType', 'coadd');
     %          AIepoch  = AstroImage('proc_epoch5_crop10.fits');
     %          R = pipeline.last.quality.testApplyPhotCalibShifts( ...
@@ -71,7 +71,7 @@ function Result = testApplyPhotCalibShifts(Args)
     %          CatEnhanced = R.AIepoch.CatData;  % has MAG_AB_*, AB_ZP
     %
     %          % Standalone DeltaZP from zp_meddiff:
-    %          MS = pipeline.last.quality.loadMergedMat('MergedMatDir', '~/222625v1');
+    %          MS = pipeline.last.load.loadMergedMat('MergedMatDir', '~/222625v1');
     %          Rzp = lcUtil.zp_meddiff(MS.percrop{10}, 'MagField', 'MAG_APER_3');
     %          DeltaZP = Rzp.FitZP;  % [Nepoch x 1], pass to applyPhotCalibShifts
 
@@ -118,7 +118,7 @@ function Result = testApplyPhotCalibShifts(Args)
     if isempty(Args.CoaddPCFile) && ~isempty(Args.VisitDir)
         % Auto-detect: calibrate coadd from VisitDir
         if Args.Verbose; fprintf('Calibrating coadd from %s\n', Args.VisitDir); end
-        AI_coadd = pipeline.last.quality.loadVisitData( ...
+        AI_coadd = pipeline.last.load.loadVisitCatHdr( ...
             'DataDir', Args.VisitDir, 'Visits', 1, ...
             'FileType', 'coadd', 'Verbose', Args.Verbose);
         if ~isempty(AI_coadd) && ~isempty(AI_coadd{1})
@@ -138,7 +138,7 @@ function Result = testApplyPhotCalibShifts(Args)
             end
         end
     elseif iscell(Args.CoaddPCFile)
-        % Cell of AstroImage (from loadVisitData) or cell of PC arrays
+        % Cell of AstroImage (from loadVisitCatHdr) or cell of PC arrays
         FirstValid = find(~cellfun(@isempty, Args.CoaddPCFile), 1);
         Item = Args.CoaddPCFile{FirstValid};
         if isa(Item, 'AstroImage')
@@ -167,7 +167,7 @@ function Result = testApplyPhotCalibShifts(Args)
             'MergedMatDir is required. Provide VisitDir or MergedMatDir.');
     end
     if Args.Verbose; fprintf('Loading MergedMat from %s\n', Args.MergedMatDir); end
-    MSstruct = pipeline.last.quality.loadMergedMat( ...
+    MSstruct = pipeline.last.load.loadMergedMat( ...
         'MergedMatDir', Args.MergedMatDir, ...
         'CropsToAnalyze', Args.CropsToAnalyze, ...
         'Ncrop', Args.Ncrop, ...
@@ -178,7 +178,7 @@ function Result = testApplyPhotCalibShifts(Args)
     AI = [];
     if ~isempty(Args.EpochDir)
         if Args.Verbose; fprintf('Loading proc epochs from %s\n', Args.EpochDir); end
-        AI = pipeline.last.quality.loadVisitData( ...
+        AI = pipeline.last.load.loadVisitCatHdr( ...
             'DataDir', Args.EpochDir, 'FileType', 'proc', ...
             'Verbose', Args.Verbose);
     end
@@ -456,7 +456,7 @@ function PCarray = resolveCoaddPC(Args)
     % Extract PhotCalibTrans array from CoaddPCFile/VisitDir (shared logic).
     PCarray = [];
     if isempty(Args.CoaddPCFile) && ~isempty(Args.VisitDir)
-        AI_coadd = pipeline.last.quality.loadVisitData( ...
+        AI_coadd = pipeline.last.load.loadVisitCatHdr( ...
             'DataDir', Args.VisitDir, 'Visits', 1, ...
             'FileType', 'coadd', 'Verbose', Args.Verbose);
         if ~isempty(AI_coadd) && ~isempty(AI_coadd{1})

@@ -11,7 +11,7 @@ function plotPhotScatter(MS, Args)
     %              Optionally color-codes sources by crop ID.
     %
     % Input  : - MS struct with MS.(mode){crop} = MatchedSources
-    %            (from matchPhotEpochs or loadMergedMat).
+    %            (from matchPhotEpochs or pipeline.last.load.loadMergedMat).
     %          * ...,key,val,...
     %            'Modes'       - Cell array of modes. Required.
     %            'MagFields'   - Magnitude columns. Default is {'MAG_AB_PSF','MAG_AB_APER_3'}.
@@ -46,7 +46,7 @@ function plotPhotScatter(MS, Args)
         Args.TwoPanels logical = true
         Args.OverlayTrend   = 'median'
         Args.TrendBinWidth  = 0.5
-        Args.MinEpochs      = 2   % Min non-NaN epochs per source (after flag filtering)
+        Args.MinEpochs      = 5   % Min non-NaN epochs per source (after flag filtering)
         Args.FilterFlags cell = {'Saturated', 'NearEdge', 'NaN'}  % NaN out epochs with these flags
         Args.BackgroundMag  = 22   % Mag fainter than this treated as bad epoch
         Args.ColorByCrop logical = false  % Color sources by crop ID (multicolor)
@@ -137,8 +137,8 @@ function plotPhotScatter(MS, Args)
                         Good = sum(~isnan(OrigData), 1) >= Args.MinEpochs;
                         OrigData = OrigData(:, Good);
                     end
-                    Med = nanmedian(OrigData, 1);
-                    Std = nanstd(OrigData, 0, 1);
+                    Med = median(OrigData, 1, 'omitnan');
+                    Std = std(OrigData, 0, 1, 'omitnan');
                     PerCropOrig{Iic} = struct('Med', Med, 'Std', Std);
                     AllMedOrig = [AllMedOrig, Med];
                     AllStdOrig = [AllStdOrig, Std];
@@ -155,8 +155,8 @@ function plotPhotScatter(MS, Args)
                         Good = sum(~isnan(MagData), 1) >= Args.MinEpochs;
                         MagData = MagData(:, Good);
                     end
-                    Med = nanmedian(MagData, 1);
-                    Std = nanstd(MagData, 0, 1);
+                    Med = median(MagData, 1, 'omitnan');
+                    Std = std(MagData, 0, 1, 'omitnan');
                     PerCropMag{Iic} = struct('Med', Med, 'Std', Std);
                     AllMedMag = [AllMedMag, Med];
                     AllStdMag = [AllStdMag, Std];

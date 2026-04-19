@@ -1,11 +1,17 @@
-function AI = loadVisitData(Args)
-    % Load LAST pipeline FITS files into AstroImage arrays per visit
-    % Description: Two input modes:
-    %   1. DataDir mode — single directory with all visits' proc files,
-    %      grouped by visit number parsed from LAST filenames.
-    %   2. VisitDirs mode — string array of visit folder paths (or .mat file
-    %      containing such arrays). Each folder = one visit. Supports proc
-    %      and coadd file types.
+function AI = loadVisitCatHdr(Args)
+    % Load LAST pipeline files into lightweight AstroImage arrays (Cat + Header only)
+    % Description: Lightweight loader that populates AstroImage.CatData and
+    %              AstroImage.HeaderData only — no Image pixels, Mask, or PSF.
+    %              Use this for diagnostics that need catalogs + headers but
+    %              not pixel data (e.g. photometric calibration QA).
+    %              For the full image products, see pipeline.last.load.loadVisit.
+    %
+    %              Two input modes:
+    %              1. DataDir mode — single directory with all visits' proc files,
+    %                 grouped by visit number parsed from LAST filenames.
+    %              2. VisitDirs mode — string array of visit folder paths (or
+    %                 .mat file containing such arrays). Each folder = one visit.
+    %                 Supports proc and coadd file types.
     %
     % Input  : * ...,key,val,...
     %   --- DataDir mode (original) ---
@@ -23,24 +29,25 @@ function AI = loadVisitData(Args)
     %   --- Common ---
     %            'FileType'  - 'proc' or 'coadd'. Default is 'proc'.
     %            'Verbose'   - Print progress. Default is true.
-    % Output : - AI cell(Nvisits,1), each element a 1xNcrop AstroImage array.
+    % Output : - AI cell(Nvisits,1), each element a 1xNcrop AstroImage array
+    %            with only CatData + HeaderData populated.
     %            Empty cells for visits with no matching files.
     % Author : D. Kovaleva (Mar 2026)
-    % Example: % DataDir mode (original):
-    %          AI = pipeline.last.quality.loadVisitData('DataDir', '/data/222625v1');
+    % Example: % DataDir mode:
+    %          AI = pipeline.last.load.loadVisitCatHdr('DataDir', '/data/222625v1');
     %
     %          % VisitDirs mode — from .mat file, coadd files:
-    %          AI = pipeline.last.quality.loadVisitData('ListFile', ...
+    %          AI = pipeline.last.load.loadVisitCatHdr('ListFile', ...
     %               '/home/dana/N3_M2C4Jul2_7_list.mat', ...
     %               'ListFields', 'M2C4Jul2p1', 'FileType', 'coadd');
     %
     %          % VisitDirs mode — all fields, first 10 folders:
-    %          AI = pipeline.last.quality.loadVisitData('ListFile', ...
+    %          AI = pipeline.last.load.loadVisitCatHdr('ListFile', ...
     %               '/home/dana/N3_M2C4Jul2_7_list.mat', ...
     %               'VisitIdx', 1:10, 'FileType', 'coadd');
     %
     %          % VisitDirs mode — explicit folder list:
-    %          AI = pipeline.last.quality.loadVisitData('VisitDirs', ...
+    %          AI = pipeline.last.load.loadVisitCatHdr('VisitDirs', ...
     %               ["/path/to/visit1", "/path/to/visit2"], 'FileType', 'coadd');
 
     arguments
@@ -111,23 +118,7 @@ function AI = loadVisitData(Args)
             continue;
         end
 
-        Ncf = numel(CatFiles);
-        AIv = AstroImage([1, Ncf]);
-        for Ic = 1:Ncf
-            try
-                AIv(Ic).CatData = AstroCatalog(CatFiles{Ic});
-            catch
-                % Skip unreadable catalog
-            end
-            if Ic <= numel(ImFiles)
-                try
-                    AIv(Ic).HeaderData = AstroHeader(ImFiles{Ic}, 1);
-                catch
-                    % Skip unreadable header
-                end
-            end
-        end
-        AI{Iv} = AIv;
+        AI{Iv} = buildAIfromFiles(CatFiles, ImFiles);
 
         % Clean up temp files
         if ~isempty(TmpDir)
@@ -135,7 +126,32 @@ function AI = loadVisitData(Args)
         end
 
         if Args.Verbose
-            fprintf('  Epoch %d: %d crops from %s\n', Iv, Ncf, D);
+            fprintf('  Epoch %d: %d crops from %s\n', Iv, numel(CatFiles), D);
+        end
+    end
+end
+
+% =========================================================================
+function AIv = buildAIfromFiles(CatFiles, ImFiles)
+    % Batched AstroCatalog + AstroHeader loader — much faster than per-file loop.
+    Ncf = numel(CatFiles);
+    AIv = AstroImage([1, Ncf]);
+    try
+        Cats = AstroCatalog(CatFiles);
+    catch
+        Cats = [];
+    end
+    try
+        Heads = AstroHeader(ImFiles, 1);
+    catch
+        Heads = [];
+    end
+    for Ic = 1:Ncf
+        if ~isempty(Cats) && Ic <= numel(Cats)
+            AIv(Ic).CatData = Cats(Ic);
+        end
+        if ~isempty(Heads) && Ic <= numel(Heads)
+            AIv(Ic).HeaderData = Heads(Ic);
         end
     end
 end
@@ -195,23 +211,9 @@ function AI = loadFromDataDir(Args)
             end
             return;
         end
-        Ncf = numel(AllCatFiles);
-        AIv = AstroImage([1, Ncf]);
-        for Ic = 1:Ncf
-            try
-                AIv(Ic).CatData = AstroCatalog(AllCatFiles{Ic});
-            catch
-            end
-            if Ic <= numel(AllImFiles)
-                try
-                    AIv(Ic).HeaderData = AstroHeader(AllImFiles{Ic}, 1);
-                catch
-                end
-            end
-        end
-        AI{1} = AIv;
+        AI{1} = buildAIfromFiles(AllCatFiles, AllImFiles);
         if Args.Verbose
-            fprintf('  Coadd: %d crops\n', Ncf);
+            fprintf('  Coadd: %d crops\n', numel(AllCatFiles));
         end
         return;
     end
@@ -253,26 +255,10 @@ function AI = loadFromDataDir(Args)
             continue;
         end
 
-        Ncf = numel(CatFiles);
-        AIv = AstroImage([1, Ncf]);
-        for Ic = 1:Ncf
-            try
-                AIv(Ic).CatData = AstroCatalog(CatFiles{Ic});
-            catch
-                % Skip unreadable catalog
-            end
-            if Ic <= numel(ImFiles)
-                try
-                    AIv(Ic).HeaderData = AstroHeader(ImFiles{Ic}, 1);
-                catch
-                    % Skip unreadable header
-                end
-            end
-        end
-        AI{Iv} = AIv;
+        AI{Iv} = buildAIfromFiles(CatFiles, ImFiles);
 
         if Args.Verbose
-            fprintf('  Visit %s: %d crops\n', VStr, Ncf);
+            fprintf('  Visit %s: %d crops\n', VStr, numel(CatFiles));
         end
     end
 end
