@@ -91,9 +91,9 @@ function Image = addSources(Image, SrcPSF, XY, Args)
         
     % construct a source image  
     if isempty(Image)
-        Image = repmat(0,ImSize);
+        Image = zeros(ImSize);
     end
-    SrcImage = repmat(0,ImSize);     
+    SrcImage = zeros(ImSize, 'like',Image);     
     
     for Isrc = 1:Nsrc
         % determine the region to be filled in the image
