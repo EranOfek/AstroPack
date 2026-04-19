@@ -2452,7 +2452,8 @@ classdef PipelineDemon < Component
             RunTime = etime(clock, Tstart);
             Ntr = size(TableRaw,1);
             TableRaw.TimePipeI = RunTime.*ones(Ntr,1);
-
+            RawImageListFinal = TableRaw.FileName;
+            
             % Notify watchdog that process is running
             tools.systemd.mex.notify_watchdog;
 
@@ -2475,6 +2476,7 @@ classdef PipelineDemon < Component
                     MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI finished saving products for visit');
                     MsgF{2} = sprintf('pipeline run time : %f', RunTime);
                     Obj.writeLog(MsgF, LogLevel.Info);
+
 
                     Status.WriteI = true;
                 

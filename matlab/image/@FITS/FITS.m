@@ -1361,8 +1361,9 @@ classdef FITS < handle
             % Write creation date to header
             if (Args.WriteTime)
                 Time = celestial.time.get_atime([],0,0); % Na'ama, 20180516
-                Header = replace_key(Header,'CRDATE',  Time.ISO,'Creation date of FITS file',...
-                                            'COMMENT', 'File created by MATLAB FITS.write.m written by E. Ofek', '');                                        
+                Header = replace_key(Header,'CRDATE',  Time.ISO,'Creation date of FITS file');
+                %,...
+                %                            'COMMENT', 'File created by MATLAB FITS.write.m written by E. Ofek', '');                                        
             end
         end
         
