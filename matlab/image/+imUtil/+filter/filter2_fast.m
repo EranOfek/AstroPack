@@ -33,7 +33,7 @@ arguments
     Mat2
     UseFFT    = [];
     PadMethod         = ''; % 'symmetric'; % circular | replicate | symmetric
-    UesMex            = true;
+    UseMex            = true;
 end
 
 Threshold = 0.004;  % requires calibration
