@@ -2687,9 +2687,10 @@ classdef DemonLAST < Component
                 Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
                 
                 Args.InsertTransients2DB = true;
-                Args.DBHost              = '10.23.1.25';
+                Args.DbHost              = '10.23.1.25';
                 Args.DbName              = 'last';
                 Args.DbUser              = 'default';
+                Args.DbPort              = 9000;
                 
                 Args.HostName          = []; 
 
@@ -2746,7 +2747,7 @@ classdef DemonLAST < Component
                     Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
                     PM = PasswordsManager;
                     DB          = db.Db;
-                    DB.Host     = Args.DBHost;
+                    DB.Host     = Args.DbHost;
                     DB.DbName   = Args.DbName;
                     DB.User     = Args.DbUser;
                     DB.Password = PM.search(Args.DbName).Pass;
@@ -3193,7 +3194,7 @@ classdef DemonLAST < Component
 
                                     try
                                         [TransientCutouts, TCL2, MultiEpochStatus] = pipeline.last.transients.matchTransientsToMultiEpochs(...
-                                            TransientCutouts, TCL1, 'DbHost', Args.DBHost, 'DB', DB);
+                                            TransientCutouts, TCL1, 'DbHost', Args.DbHost, 'DB', DB);
                                         Obj.writeLog(sprintf('pipeline.DemonLAST / Transients match multi epoch - %s', MultiEpochStatus), LogLevel.Info);
                                     catch MEtran
                                         Msg{1} = sprintf('pipeline.DemonLAST - Transients match multi epoch / Failed');
@@ -3275,7 +3276,7 @@ classdef DemonLAST < Component
                                 if ~TCL2.isemptyCatalog
                                     Err = [];
                                     try
-                                        Err = pipeline.last.insertDB.insertTransients2DB(TCL2, [Coadd.HeaderData],'DbHost',Args.DBHost,'DB',DB);
+                                        Err = pipeline.last.insertDB.insertTransients2DB(TCL2, [Coadd.HeaderData],'DbHost',Args.DbHost,'DB',DB);
                                     catch ME
                                         Obj.writeLog(ME, LogLevel.Error);
                                     end
@@ -3288,6 +3289,33 @@ classdef DemonLAST < Component
                                 end
                             end
                             %
+                            
+                            if Args.DebugMode
+                                PM = PasswordsManager;
+                                DB.Password = PM.search(Args.DbName).Pass; 
+                                DBclient = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
+                                DBclient.query(sprintf('use %s',Args.DbName));
+                                
+                                T = vertcat(Coadd.Table);
+                                T.Properties.VariableNames=lower(T.Properties.VariableNames);
+%                                 T.flux_xypeak=[];
+                                T.psf_chi2dof=[];
+%                                 T.miter=[];
+%                                 T.airmass=[];
+                                T.mergedcat= T.mergedcatmask;T.mergedcatmask=[];
+%                                 T.upix_partition= T.upix_par; T.upix_par=[];
+%                                 T.upix_high     = T.upix_hig; T.upix_hig=[];
+                                
+                                T.apc_mag_aper_1=[];
+                                T.apc_mag_aper_2=[];
+                                T.apc_mag_psf=[];
+%                                 T.ab_zp=[];
+%                                 T.mag_ab_aper_1=[];
+%                                 T.mag_ab_aper_2=[];
+%                                 T.mag_ab_aper_3=[];
+%                                 T.mag_ab_psf=[];                                                                
+                                DBclient.insert('last.test_visit_src',T)
+                            end
                             
                             if Args.Backup
                                 BackupPath = FN_Coadd.genPath('Level','proc');
