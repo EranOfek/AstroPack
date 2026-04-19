@@ -100,8 +100,8 @@ function plotPhotResidualsColor(PC, Args)
         Ncalib = numel(CalibRA);
 
         % Single cone search covering all calibrators in this crop
-        MedRA  = nanmedian(CalibRA);
-        MedDec = nanmedian(CalibDec);
+        MedRA  = median(CalibRA, 'omitnan');
+        MedDec = median(CalibDec, 'omitnan');
         MaxDist = max(celestial.coo.sphere_dist_fast(MedRA, MedDec, CalibRA, CalibDec));
         SearchRadius = convert.angular('rad', 'arcsec', MaxDist) + Args.MatchRadius + 10;
 

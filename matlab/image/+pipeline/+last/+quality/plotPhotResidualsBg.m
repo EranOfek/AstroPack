@@ -146,7 +146,7 @@ function plotPhotResidualsBg(PC, Args)
         for It = 1:numel(MagTicks)
             Near = abs(AllMagAB - MagTicks(It)) < 0.5;
             if sum(Near) >= 3
-                InvFluxTicks(It) = nanmedian(AllInvFlux(Near));
+                InvFluxTicks(It) = median(AllInvFlux(Near), 'omitnan');
             end
         end
         KeepTicks = isfinite(InvFluxTicks) & ...

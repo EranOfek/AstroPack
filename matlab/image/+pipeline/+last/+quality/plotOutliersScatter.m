@@ -23,9 +23,17 @@ function Result = plotOutliersScatter(MS, Cats, Args)
     %            'MatchRadius'- Cross-match radius [arcsec] for Cats lookup.
     %                        Default is 2.
     %            'PlotLC'     - Plot lightcurves. Default is true.
-    %            'PlotStats'  - Plot Nepochs + flag histograms. Default is true.
+    %            'PlotStats'  - Plot Nepochs + flag histograms comparing
+    %                        outliers vs. the non-outlier reference
+    %                        population (sources passing MinEpochsSummary
+    %                        but not the MaxMag/MinStd outlier cut).
+    %                        Default is true.
     %            'PlotPerEpoch' - Plot per-epoch histogram (sum over outliers
     %                        of flagged vs. valid detections at each epoch).
+    %                        Default is false.
+    %            'PlotXY'     - Plot source positions per crop (subplot grid):
+    %                        non-outlier sources in grey (dot size grows with
+    %                        brightness), outliers as small red dots.
     %                        Default is false.
     %            'MaxPlotSrc' - Max sources to plot individually. Default is 20.
     %            'Verbose'    - Print summary. Default is true.
@@ -60,6 +68,7 @@ function Result = plotOutliersScatter(MS, Cats, Args)
         Args.PlotLC logical = true
         Args.PlotStats logical = true
         Args.PlotPerEpoch logical = false
+        Args.PlotXY logical = false
         Args.MaxPlotSrc     = 20
         Args.Verbose logical = true
     end
@@ -82,6 +91,8 @@ function Result = plotOutliersScatter(MS, Cats, Args)
     Result.Outliers = cell(1, max(CropsToUse));
     AllMed = []; AllStd = []; AllCrop = []; AllNep = [];
     AllFlagsOR = []; AllFlagNames = {};
+    AllFlagNamesRest = {};   % non-outlier sources (Nvalid >= MinEpochsSummary)
+    AllNepRest = [];
 
     for Iic = 1:numel(CropsToUse)
         Ic = CropsToUse(Iic);
@@ -125,8 +136,8 @@ function Result = plotOutliersScatter(MS, Cats, Args)
                 Nvalid = sum(~isnan(MagMat), 1);
                 EpochMask = Nvalid >= Args.MinEpochsSummary;
 
-                MedMag = nanmedian(MagMat, 1);
-                StdMag = nanstd(MagMat, 0, 1);
+                MedMag = median(MagMat, 1, 'omitnan');
+                StdMag = std(MagMat, 0, 1, 'omitnan');
 
                 % Select outliers
                 SelMask = EpochMask & MedMag < Args.MaxMag & StdMag > Args.MinStd;
@@ -143,6 +154,20 @@ function Result = plotOutliersScatter(MS, Cats, Args)
                 Out.MedMag = MedMag(SrcIdx);
                 Out.StdMag = StdMag(SrcIdx);
                 Out.Nepochs = Nvalid(SrcIdx);
+
+                % Per-crop source positions (median over epochs) for PlotXY.
+                % LAST MS stores centroids as X1/Y1; fall back to X/Y for
+                % other conventions.
+                XField = ''; YField = '';
+                if     isfield(MSobj.Data, 'X1') && isfield(MSobj.Data, 'Y1'); XField = 'X1'; YField = 'Y1';
+                elseif isfield(MSobj.Data, 'X')  && isfield(MSobj.Data, 'Y');  XField = 'X';  YField = 'Y';
+                end
+                if ~isempty(XField)
+                    Out.XYAllX     = median(MSobj.Data.(XField), 1, 'omitnan');
+                    Out.XYAllY     = median(MSobj.Data.(YField), 1, 'omitnan');
+                    Out.XYAllMed   = MedMag;
+                    Out.XYSelMask  = SelMask;
+                end
 
                 % Extract MS subset
                 if ~isempty(SrcIdx)
@@ -181,8 +206,8 @@ function Result = plotOutliersScatter(MS, Cats, Args)
 
                     % Get RA/Dec of selected sources from MS
                     if isfield(MSobj.Data, 'RA') && isfield(MSobj.Data, 'Dec')
-                        RA_sel  = nanmedian(MSobj.Data.RA(:, SrcIdx), 1);
-                        Dec_sel = nanmedian(MSobj.Data.Dec(:, SrcIdx), 1);
+                        RA_sel  = median(MSobj.Data.RA(:, SrcIdx), 1, 'omitnan');
+                        Dec_sel = median(MSobj.Data.Dec(:, SrcIdx), 1, 'omitnan');
                     else
                         RA_sel = []; Dec_sel = [];
                     end
@@ -230,6 +255,31 @@ function Result = plotOutliersScatter(MS, Cats, Args)
                 AllFlagsOR = [AllFlagsOR, Out.FlagsOR];
                 AllFlagNames = [AllFlagNames, Out.FlagNames];
                 AllCrop = [AllCrop, Ic * ones(1, numel(SrcIdx))];
+
+                % Reference population: non-outliers passing MinEpochsSummary
+                RestIdx = find(EpochMask & ~SelMask);
+                AllNepRest = [AllNepRest, Nvalid(RestIdx)];
+                RestFlagNames = repmat({''}, 1, numel(RestIdx));
+                if isfield(MSobj.Data, 'FLAGS') && ~isempty(RestIdx)
+                    FMR = MSobj.Data.FLAGS(:, RestIdx);
+                    FMR(isnan(FMR)) = 0;
+                    RestFlagsOR = zeros(1, numel(RestIdx));
+                    for Is = 1:numel(RestIdx)
+                        RestFlagsOR(Is) = double(bitor_reduce(uint32(FMR(:, Is))));
+                    end
+                    try
+                        BDr = BitDictionary;
+                        [BNr, ~, ~] = BDr.bitdec2name(RestFlagsOR);
+                        for Is = 1:numel(RestIdx)
+                            RestFlagNames{Is} = strjoin(BNr{Is}, ',');
+                        end
+                    catch
+                        for Is = 1:numel(RestIdx)
+                            RestFlagNames{Is} = sprintf('%d', RestFlagsOR(Is));
+                        end
+                    end
+                end
+                AllFlagNamesRest = [AllFlagNamesRest, RestFlagNames];
             end
         end
     end
@@ -280,15 +330,23 @@ function Result = plotOutliersScatter(MS, Cats, Args)
         end
     end
 
-    % Plot Nepochs + flag statistics histograms
+    % Plot Nepochs + flag statistics histograms (outliers vs. rest)
     if Args.PlotStats && ~isempty(AllNep)
         figure('Name', 'Outlier statistics', 'Position', [50, 50, 1100, 400]);
+        Nout  = numel(AllFlagNames);
+        Nrest = numel(AllFlagNamesRest);
 
-        % Nepochs histogram
+        % Nepochs histogram — probability-normalized so N_out vs N_rest is comparable
         subplot(1, 2, 1);
-        Edges = 0.5:1:(max(AllNep)+0.5);
-        histogram(AllNep, Edges, 'FaceColor', [0.3 0.5 0.8]);
+        MaxEp = max([AllNep, AllNepRest]);
+        Edges = 0.5:1:(MaxEp + 0.5);
+        histogram(AllNep, Edges, 'Normalization', 'probability', ...
+            'FaceColor', [0.8 0.4 0.3], 'FaceAlpha', 0.75);
         hold on;
+        if ~isempty(AllNepRest)
+            histogram(AllNepRest, Edges, 'Normalization', 'probability', ...
+                'FaceColor', [0.5 0.5 0.5], 'FaceAlpha', 0.5);
+        end
         YL = ylim;
         plot([Args.MinEpochsSummary Args.MinEpochsSummary]-0.5, YL, '--k', 'LineWidth', 1);
         plot([Args.MinEpochsPlot Args.MinEpochsPlot]-0.5, YL, '--r', 'LineWidth', 1);
@@ -296,52 +354,46 @@ function Result = plotOutliersScatter(MS, Cats, Args)
         text(Args.MinEpochsPlot-0.5, YL(2), ' MinPlot', 'VerticalAlignment', 'top', 'Color', 'r');
         box on; grid on;
         xlabel('N valid epochs');
-        ylabel('Number of outliers');
-        title(sprintf('Nepochs distribution (N=%d outliers)', numel(AllNep)));
+        ylabel('Fraction of sources');
+        title('Nepochs distribution');
+        legend({sprintf('Outliers (N=%d)', Nout), sprintf('Rest (N=%d)', Nrest)}, ...
+            'Location', 'best');
 
-        % Flag statistics histogram: per-flag-name frequency across outliers
+        % Flag statistics: grouped bar — outlier vs rest fractions
         subplot(1, 2, 2);
-        FlagCounts = containers.Map();
-        NoFlag = 0;
-        for Is = 1:numel(AllFlagNames)
-            Nm = AllFlagNames{Is};
-            if isempty(Nm) || strcmp(Nm, '0')
-                NoFlag = NoFlag + 1;
-            else
-                Parts = strsplit(Nm, ',');
-                for Ip = 1:numel(Parts)
-                    K = strtrim(Parts{Ip});
-                    if isempty(K); continue; end
-                    if isKey(FlagCounts, K)
-                        FlagCounts(K) = FlagCounts(K) + 1;
-                    else
-                        FlagCounts(K) = 1;
-                    end
-                end
-            end
+        [KeysO, ValsO] = countFlagNames(AllFlagNames);
+        [KeysR, ValsR] = countFlagNames(AllFlagNamesRest);
+        AllKeys = union(KeysO, KeysR, 'stable');
+        CountsO = zeros(1, numel(AllKeys));
+        CountsR = zeros(1, numel(AllKeys));
+        for Ik = 1:numel(AllKeys)
+            io = find(strcmp(KeysO, AllKeys{Ik}), 1);
+            ir = find(strcmp(KeysR, AllKeys{Ik}), 1);
+            if ~isempty(io); CountsO(Ik) = ValsO(io); end
+            if ~isempty(ir); CountsR(Ik) = ValsR(ir); end
         end
-        Keys = FlagCounts.keys();
-        Vals = zeros(1, numel(Keys));
-        for Ik = 1:numel(Keys)
-            Vals(Ik) = FlagCounts(Keys{Ik});
-        end
-        if NoFlag > 0
-            Keys = [Keys, {'(none)'}];
-            Vals = [Vals, NoFlag];
-        end
-        [Vals, Order] = sort(Vals, 'descend');
-        Keys = Keys(Order);
-        if ~isempty(Vals)
-            bar(Vals, 'FaceColor', [0.8 0.4 0.3]);
-            set(gca, 'XTick', 1:numel(Keys), 'XTickLabel', Keys, ...
+        FracO = CountsO / max(Nout, 1);
+        FracR = CountsR / max(Nrest, 1);
+        [~, Order] = sort(FracO, 'descend');
+        AllKeys = AllKeys(Order); FracO = FracO(Order); FracR = FracR(Order);
+        CountsO = CountsO(Order); CountsR = CountsR(Order);
+        if ~isempty(AllKeys)
+            Bh = bar(1:numel(AllKeys), [FracO; FracR]');
+            Bh(1).FaceColor = [0.8 0.4 0.3];
+            Bh(2).FaceColor = [0.5 0.5 0.5];
+            set(gca, 'XTick', 1:numel(AllKeys), 'XTickLabel', AllKeys, ...
                 'XTickLabelRotation', 45, 'TickLabelInterpreter', 'none');
-            ylabel('Number of outliers');
+            ylabel('Fraction of sources');
             title('Flag frequency (bitwise-OR per source)');
+            legend({sprintf('Outliers (N=%d)', Nout), sprintf('Rest (N=%d)', Nrest)}, ...
+                'Location', 'best');
             box on; grid on;
         end
 
-        Result.NepochsHist = AllNep;
-        Result.FlagCounts  = containers.Map(Keys, num2cell(Vals));
+        Result.NepochsHist     = AllNep;
+        Result.NepochsHistRest = AllNepRest;
+        Result.FlagCounts      = containers.Map(AllKeys, num2cell(CountsO));
+        Result.FlagCountsRest  = containers.Map(AllKeys, num2cell(CountsR));
     end
 
     % Per-epoch histogram: sum across outliers of valid vs. bad at each epoch
@@ -369,6 +421,85 @@ function Result = plotOutliersScatter(MS, Cats, Args)
 
         Result.PerEpoch.Valid = ValidPerEp;
         Result.PerEpoch.Bad   = BadPerEp;
+    end
+
+    % Plot source positions per crop: rest = grey (size ∝ flux), outliers = red
+    if Args.PlotXY
+        HasAnyXY = false;
+        for Iic = 1:numel(CropsToUse)
+            Ic = CropsToUse(Iic);
+            if Ic <= numel(Result.Outliers) && isstruct(Result.Outliers{Ic}) ...
+                    && isfield(Result.Outliers{Ic}, 'XYAllX')
+                HasAnyXY = true;
+                break;
+            end
+        end
+        if HasAnyXY
+            Ncrops = numel(CropsToUse);
+            Ncols  = ceil(sqrt(Ncrops));
+            Nrows  = ceil(Ncrops / Ncols);
+            figure('Name', 'Outlier X,Y positions', ...
+                'Position', [50, 50, 260*Ncols, 240*Nrows]);
+            for Iic = 1:Ncrops
+                Ic = CropsToUse(Iic);
+                subplot(Nrows, Ncols, Iic);
+                if Ic > numel(Result.Outliers) || ~isstruct(Result.Outliers{Ic}) ...
+                        || ~isfield(Result.Outliers{Ic}, 'XYAllX')
+                    title(sprintf('Crop %02d (no XY)', Ic), 'FontSize', 8);
+                    continue;
+                end
+                Out = Result.Outliers{Ic};
+                X      = Out.XYAllX;
+                Y      = Out.XYAllY;
+                MedAll = Out.XYAllMed;
+                SelMsk = Out.XYSelMask;
+
+                RestMsk = ~SelMsk & ~isnan(MedAll);
+                % Map magnitude to marker area: brighter = larger.
+                % 5th/95th percentile of rest mags gives a robust size range.
+                MagRef = MedAll(RestMsk);
+                if numel(MagRef) >= 10
+                    Lo = prctile(MagRef,  5);
+                    Hi = prctile(MagRef, 95);
+                else
+                    Lo = 10; Hi = 20;
+                end
+                if Hi <= Lo; Hi = Lo + 1; end
+                Sz = 2 + 50 * (Hi - MedAll) / (Hi - Lo);
+                Sz = max(1, min(Sz, 80));
+
+                hold on;
+                scatter(X(RestMsk), Y(RestMsk), Sz(RestMsk), ...
+                    [0.7 0.7 0.7], 'filled', 'MarkerFaceAlpha', 0.6);
+                if any(SelMsk)
+                    scatter(X(SelMsk), Y(SelMsk), Sz(SelMsk), ...
+                        'MarkerEdgeColor', [0.9 0.2 0.2], 'LineWidth', 1);
+                    % Label each outlier with its flag names (if any)
+                    OutSrcIdx = find(SelMsk);
+                    for Is = 1:numel(OutSrcIdx)
+                        si = OutSrcIdx(Is);
+                        Lbl = '';
+                        if isfield(Out, 'FlagNames') && Is <= numel(Out.FlagNames)
+                            Lbl = Out.FlagNames{Is};
+                        end
+                        if ~isempty(Lbl)
+                            text(X(si), Y(si), [' ' Lbl], ...
+                                'FontSize', 6, 'Color', [0.7 0.1 0.1], ...
+                                'Interpreter', 'none', ...
+                                'VerticalAlignment', 'middle', ...
+                                'HorizontalAlignment', 'left');
+                        end
+                    end
+                end
+                axis equal; axis tight;
+                box on;
+                title(sprintf('Crop %02d  (out=%d / rest=%d)', ...
+                    Ic, sum(SelMsk), sum(RestMsk)), 'FontSize', 8);
+                set(gca, 'FontSize', 7);
+            end
+            sgtitle(sprintf('Outliers (red) over sources (grey, dot size \\propto flux) — %s', ...
+                strrep(Args.MagField, '_', '\_')), 'FontSize', 10);
+        end
     end
 
     % Plot lightcurves — one subplot per source, sorted by StdMag descending
@@ -436,5 +567,39 @@ function Val = bitor_reduce(Vec)
     Val = uint32(0);
     for I = 1:numel(Vec)
         Val = bitor(Val, uint32(Vec(I)));
+    end
+end
+
+function [Keys, Vals] = countFlagNames(FlagNameCell)
+    % Count per-flag-name occurrences across a cell array of comma-joined
+    % flag-name strings (one entry per source). Bitwise-OR decoding is
+    % already done upstream, so each source contributes 1 per named flag.
+    M = containers.Map();
+    NoFlag = 0;
+    for Is = 1:numel(FlagNameCell)
+        Nm = FlagNameCell{Is};
+        if isempty(Nm) || strcmp(Nm, '0')
+            NoFlag = NoFlag + 1;
+        else
+            Parts = strsplit(Nm, ',');
+            for Ip = 1:numel(Parts)
+                K = strtrim(Parts{Ip});
+                if isempty(K); continue; end
+                if isKey(M, K)
+                    M(K) = M(K) + 1;
+                else
+                    M(K) = 1;
+                end
+            end
+        end
+    end
+    Keys = M.keys();
+    Vals = zeros(1, numel(Keys));
+    for Ik = 1:numel(Keys)
+        Vals(Ik) = M(Keys{Ik});
+    end
+    if NoFlag > 0
+        Keys = [Keys, {'(none)'}];
+        Vals = [Vals, NoFlag];
     end
 end

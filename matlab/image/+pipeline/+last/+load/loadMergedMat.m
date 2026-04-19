@@ -14,7 +14,7 @@ function MS = loadMergedMat(Args)
     %            'Verbose'   - Print progress. Default is true.
     % Output : - MS struct with MS.(Mode){Ic} = MatchedSources.
     % Author : D. Kovaleva (Apr 2026)
-    % Example: MS = pipeline.last.quality.loadMergedMat('MergedMatDir', '~/222635v0');
+    % Example: MS = pipeline.last.load.loadMergedMat('MergedMatDir', '~/222635v0');
     %          pipeline.last.quality.plotPhotScatter(MS, 'Modes', {'percrop'}, ...
     %              'MagFields', {'MAG_PSF','MAG_APER_3'}, 'TwoPanels', false);
 
@@ -58,17 +58,31 @@ function MS = loadMergedMat(Args)
 
     MS.(Args.Mode) = cell(1, Args.Ncrop);
 
-    for Ic = Args.CropsToAnalyze
+    % Select the files we actually need, preserving order aligned with Args.CropsToAnalyze
+    KeepIdx = zeros(1, numel(Args.CropsToAnalyze));
+    KeepCrop = zeros(1, numel(Args.CropsToAnalyze));
+    Nkeep = 0;
+    for Iic = 1:numel(Args.CropsToAnalyze)
+        Ic = Args.CropsToAnalyze(Iic);
         FileIdx = find(CropIDs == Ic, 1);
-        if isempty(FileIdx)
-            if Args.Verbose
-                fprintf('  Crop %02d: no file found, skipping\n', Ic);
-            end
-            continue;
+        if ~isempty(FileIdx)
+            Nkeep = Nkeep + 1;
+            KeepIdx(Nkeep) = FileIdx;
+            KeepCrop(Nkeep) = Ic;
+        elseif Args.Verbose
+            fprintf('  Crop %02d: no file found, skipping\n', Ic);
         end
+    end
+    KeepIdx = KeepIdx(1:Nkeep);
+    KeepCrop = KeepCrop(1:Nkeep);
 
-        % Read via MatchedSources.read
-        MSobj = MatchedSources.read(FileList{FileIdx});
+    if Nkeep == 0; return; end
+
+    % Batched read — MatchedSources.read accepts a cell array
+    MSarr = MatchedSources.read(FileList(KeepIdx));
+
+    for Ik = 1:Nkeep
+        MSobj = MSarr(Ik);
 
         % Transpose: HDF5 stores [Nsrc x Nepochs], MS expects [Nepochs x Nsrc]
         Flds = fieldnames(MSobj.Data);
@@ -79,11 +93,11 @@ function MS = loadMergedMat(Args)
             end
         end
 
-        MS.(Args.Mode){Ic} = MSobj;
+        MS.(Args.Mode){KeepCrop(Ik)} = MSobj;
 
         if Args.Verbose
             fprintf('  Crop %02d: %d sources x %d epochs from %s\n', ...
-                Ic, MSobj.Nsrc, MSobj.Nepoch, FileList{FileIdx});
+                KeepCrop(Ik), MSobj.Nsrc, MSobj.Nepoch, FileList{KeepIdx(Ik)});
         end
     end
 end

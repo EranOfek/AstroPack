@@ -3,7 +3,7 @@ function HeaderData = extractHeaderData(AI, Args)
     % Description: Reads header keywords from each crop/epoch AstroImage
     %              and stores them as [Nepochs x Ncrop] matrices in a struct.
     %
-    % Input  : - AI cell(Nepochs,1) of AstroImage arrays (from loadVisitData).
+    % Input  : - AI cell(Nepochs,1) of AstroImage arrays (from pipeline.last.load.loadVisitCatHdr).
     %          * ...,key,val,...
     %            'HeaderKeys' - Cell array of FITS header keywords to extract.
     %                        Default is {'FWHM','AIRMASS','EXPTIME','JD','BACK_IM'}.
@@ -12,8 +12,8 @@ function HeaderData = extractHeaderData(AI, Args)
     % Output : - HeaderData struct with one field per keyword, each
     %            [Nepochs x Ncrop] matrix. NaN where keyword is missing.
     % Author : D. Kovaleva (Mar 2026)
-    % Example: HD = pipeline.last.quality.extractHeaderData(AI);
-    %          HD = pipeline.last.quality.extractHeaderData(AI, ...
+    % Example: HD = pipeline.last.load.extractHeaderData(AI);
+    %          HD = pipeline.last.load.extractHeaderData(AI, ...
     %               'HeaderKeys', {'FWHM','AIRMASS','JD'});
 
     arguments
@@ -26,26 +26,32 @@ function HeaderData = extractHeaderData(AI, Args)
     Nepochs = numel(AI);
     Nkeys = numel(Args.HeaderKeys);
 
+    % Precompute valid-name mapping once
+    FieldNames = cell(1, Nkeys);
+    for Ik = 1:Nkeys
+        FieldNames{Ik} = matlab.lang.makeValidName(Args.HeaderKeys{Ik});
+    end
+
     % Initialize all fields as NaN matrices
     HeaderData = struct();
     for Ik = 1:Nkeys
-        FieldName = matlab.lang.makeValidName(Args.HeaderKeys{Ik});
-        HeaderData.(FieldName) = nan(Nepochs, Args.Ncrop);
+        HeaderData.(FieldNames{Ik}) = nan(Nepochs, Args.Ncrop);
     end
 
     for Iv = 1:Nepochs
         if isempty(AI{Iv}); continue; end
-        for Ic = 1:min(Args.Ncrop, numel(AI{Iv}))
-            if isempty(AI{Iv}(Ic).HeaderData); continue; end
+        % Batched header read: one call returns [1 x Ncrop_v] struct array
+        try
+            St = AI{Iv}.getStructKey(Args.HeaderKeys);
+        catch
+            continue;
+        end
+        Ncrop_v = min(Args.Ncrop, numel(St));
+        for Ic = 1:Ncrop_v
             for Ik = 1:Nkeys
-                try
-                    Val = AI{Iv}(Ic).HeaderData.getVal(Args.HeaderKeys{Ik});
-                    if isnumeric(Val) && isscalar(Val) && isfinite(Val)
-                        FieldName = matlab.lang.makeValidName(Args.HeaderKeys{Ik});
-                        HeaderData.(FieldName)(Iv, Ic) = Val;
-                    end
-                catch
-                    % Skip if keyword not found
+                V = St(Ic).(Args.HeaderKeys{Ik});
+                if isnumeric(V) && isscalar(V) && isfinite(V)
+                    HeaderData.(FieldNames{Ik})(Iv, Ic) = V;
                 end
             end
         end

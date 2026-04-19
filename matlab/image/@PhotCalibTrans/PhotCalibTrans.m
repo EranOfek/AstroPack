@@ -4005,12 +4005,17 @@ classdef PhotCalibTrans < Component
                     end
 
                     if HasCat && (Args.AddMag || Args.AddZP)
-                        Tab = CatObj.Table;
-                        AllColNames = Tab.Properties.VariableNames;
-                        Nrows = height(Tab);
+                        % Direct numeric access — avoids per-call array2table
+                        % from CatObj.Table getter.
+                        AllColNames = CatObj.ColNames;
+                        Nrows       = size(CatObj.Catalog, 1);
 
-                        if HasTran2D && ismember('X', AllColNames) && ismember('Y', AllColNames)
-                            [FieldCorr, ~] = PC_c.TransModel.Tran2DObj.forward([Tab.X(:), Tab.Y(:)]);
+                        Xidx = find(strcmp(AllColNames, 'X'), 1);
+                        Yidx = find(strcmp(AllColNames, 'Y'), 1);
+                        if HasTran2D && ~isempty(Xidx) && ~isempty(Yidx)
+                            Xcol = CatObj.Catalog(:, Xidx);
+                            Ycol = CatObj.Catalog(:, Yidx);
+                            [FieldCorr, ~] = PC_c.TransModel.Tran2DObj.forward([Xcol, Ycol]);
                             ZP_epoch = (ZP_base - FieldCorr(:)) + dZP;
                         else
                             ZP_epoch = repmat(ZP_base + dZP, Nrows, 1);
@@ -4023,9 +4028,11 @@ classdef PhotCalibTrans < Component
 
                         if Args.AddMag
                             MagPrefix = ['MAG_', Args.MagSystem, '_'];
-                            FluxColNames = AllColNames(startsWith(AllColNames, 'FLUX_'));
+                            IsFlux    = startsWith(AllColNames, 'FLUX_');
+                            FluxColIdx   = find(IsFlux);
+                            FluxColNames = AllColNames(IsFlux);
                             for I = 1:numel(FluxColNames)
-                                Flux_col = Tab.(FluxColNames{I});
+                                Flux_col = CatObj.Catalog(:, FluxColIdx(I));
                                 Mag = convert.luptitude(Flux_col / ExpTime_epoch, ...
                                     10.^(0.4 .* ZP_epoch));
                                 NewMagColName = strrep(FluxColNames{I}, 'FLUX_', MagPrefix);
@@ -4042,16 +4049,18 @@ classdef PhotCalibTrans < Component
 
                                 FluxErrCol = strrep(FluxColNames{I}, 'FLUX_', 'FLUXERR_');
                                 MagErrCol  = [NewMagColName, '_ERR'];
-                                if ismember(FluxErrCol, AllColNames)
-                                    FluxErr = Tab.(FluxErrCol);
+                                FluxErrIdx = find(strcmp(AllColNames, FluxErrCol), 1);
+                                if ~isempty(FluxErrIdx)
+                                    FluxErr = CatObj.Catalog(:, FluxErrIdx);
                                     MagErr = nan(Nrows, 1);
                                     ValidFlux = Flux_col > 0 & isfinite(Flux_col) & isfinite(FluxErr);
                                     MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux) ./ Flux_col(ValidFlux);
                                     CatObj = CatObj.insertCol(MagErr, Inf, {MagErrCol});
                                 else
                                     MagErrFallback = strrep(FluxColNames{I}, 'FLUX_', 'MAGERR_');
-                                    if ismember(MagErrFallback, AllColNames)
-                                        CatObj = CatObj.insertCol(Tab.(MagErrFallback), Inf, {MagErrCol});
+                                    MagErrIdx = find(strcmp(AllColNames, MagErrFallback), 1);
+                                    if ~isempty(MagErrIdx)
+                                        CatObj = CatObj.insertCol(CatObj.Catalog(:, MagErrIdx), Inf, {MagErrCol});
                                     else
                                         CatObj = CatObj.insertCol(nan(Nrows, 1), Inf, {MagErrCol});
                                     end

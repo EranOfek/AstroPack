@@ -104,7 +104,7 @@ function plotPhotResidualsAirmass(PC, Args)
     plot(R(ValidBins,1), R(ValidBins,3), '-r', 'LineWidth', 2);
 
     % Show median shift value
-    MedShift = nanmedian(AllRes);
+    MedShift = median(AllRes, 'omitnan');
     plot(xlim, [MedShift MedShift], '--m', 'LineWidth', 1.5);
     text(0.05, 0.95, sprintf('median shift = %.4f mag', MedShift), ...
         'Units', 'normalized', 'VerticalAlignment', 'top', ...
