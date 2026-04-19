@@ -17,7 +17,7 @@ function Result = plotPhotParamSynchrony(PC, Args)
     %            'PlotDelta' - Show delta plot. Default is true.
     %            'PlotHeatmap' - Show correlation heatmap. Default is true.
     %            'Verbose'   - Print numerical summary. Default is true.
-    % Output : - Result struct with .(ParamName).VarianceRatio, .MeanCorr,
+    % Output : - Result struct with .(ParamName).SharedVar, .MeanCorr,
     %            .CorrMatrix, .ParMat for each parameter.
     % Author : D. Kovaleva (Apr 2026)
     % Example: pipeline.last.quality.plotPhotParamSynchrony(R.PC);
@@ -74,10 +74,18 @@ function Result = plotPhotParamSynchrony(PC, Args)
     Cmap = lines(NcropUse);
     Result = struct();
 
+    % Split crops into central and peripheral
+    CentralMask = ismember(CropsToUse, CentralCrops);
+    PeriphCrops = CropsToUse(~CentralMask);
+    CentralCropsUsed = CropsToUse(CentralMask);
+
     if Args.Verbose
         fprintf('\n=== Parameter synchrony across crops ===\n');
-        fprintf('%-20s %12s %12s %12s\n', 'Parameter', 'VarRatio(%)', 'MeanCorr', 'MedianCorr');
-        fprintf('%s\n', repmat('-', 1, 60));
+        fprintf('%-20s | %-36s | %-36s | %-36s\n', '', 'All crops', 'Central', 'Peripheral');
+        fprintf('%-20s | %11s %11s %11s | %11s %11s %11s | %11s %11s %11s\n', ...
+            'Parameter', 'ShVar(%)', 'MnCorr', 'MdCorr', ...
+            'ShVar(%)', 'MnCorr', 'MdCorr', 'ShVar(%)', 'MnCorr', 'MdCorr');
+        fprintf('%s\n', repmat('-', 1, 140));
     end
 
     for Ip = 1:numel(Args.ParamNames)
@@ -111,30 +119,35 @@ function Result = plotPhotParamSynchrony(PC, Args)
         % after removing crop-specific baseline)
         DeltaMat = SubMat - MedPerCrop;
 
-        % Variance decomposition of the TEMPORAL signal (after removing
-        % per-crop baseline). This isolates synchrony from baseline scatter.
-        %   VarRatio = var(shared temporal signal) / var(total temporal signal)
-        % High = crops move together in time; low = independent temporal noise.
-        MedDeltaEpoch = nanmedian(DeltaMat, 2);   % shared temporal signal
-        TotalVar  = nanvar(DeltaMat(:));
-        MedianVar = nanvar(MedDeltaEpoch);
-        VarianceRatio = 100 * MedianVar / TotalVar;
+        % Compute stats for all, central, peripheral
+        [SharedVar, MeanCorr, MedianCorr, CorrMat] = syncStats(SubMat, DeltaMat);
 
-        % Cross-crop correlation matrix
-        CorrMat = corr(SubMat, 'rows', 'pairwise');
-        OffDiag = CorrMat(~eye(NcropUse));
-        MeanCorr   = nanmean(OffDiag);
-        MedianCorr = nanmedian(OffDiag);
-
-        if Args.Verbose
-            fprintf('%-20s %12.1f %12.3f %12.3f\n', PName, VarianceRatio, MeanCorr, MedianCorr);
+        CentralIdx = find(CentralMask);
+        PeriphIdx  = find(~CentralMask);
+        if numel(CentralIdx) >= 2
+            [VR_c, MC_c, MDC_c] = syncStats(SubMat(:, CentralIdx), DeltaMat(:, CentralIdx));
+        else
+            VR_c = NaN; MC_c = NaN; MDC_c = NaN;
+        end
+        if numel(PeriphIdx) >= 2
+            [VR_p, MC_p, MDC_p] = syncStats(SubMat(:, PeriphIdx), DeltaMat(:, PeriphIdx));
+        else
+            VR_p = NaN; MC_p = NaN; MDC_p = NaN;
         end
 
-        Result.(matlab.lang.makeValidName(PName)).ParMat = ParMat;
-        Result.(matlab.lang.makeValidName(PName)).VarianceRatio = VarianceRatio;
-        Result.(matlab.lang.makeValidName(PName)).MeanCorr = MeanCorr;
-        Result.(matlab.lang.makeValidName(PName)).MedianCorr = MedianCorr;
-        Result.(matlab.lang.makeValidName(PName)).CorrMatrix = CorrMat;
+        if Args.Verbose
+            fprintf('%-20s | %11.1f %11.3f %11.3f | %11.1f %11.3f %11.3f | %11.1f %11.3f %11.3f\n', ...
+                PName, SharedVar, MeanCorr, MedianCorr, ...
+                VR_c, MC_c, MDC_c, VR_p, MC_p, MDC_p);
+        end
+
+        FN = matlab.lang.makeValidName(PName);
+        Result.(FN).ParMat = ParMat;
+        Result.(FN).DeltaMat = DeltaMat;
+        Result.(FN).All = struct('SharedVar', SharedVar, 'MeanCorr', MeanCorr, ...
+            'MedianCorr', MedianCorr, 'CorrMatrix', CorrMat);
+        Result.(FN).Central = struct('SharedVar', VR_c, 'MeanCorr', MC_c, 'MedianCorr', MDC_c);
+        Result.(FN).Peripheral = struct('SharedVar', VR_p, 'MeanCorr', MC_p, 'MedianCorr', MDC_p);
 
         % --- (1) Delta plot ---
         if Args.PlotDelta
@@ -155,8 +168,8 @@ function Result = plotPhotParamSynchrony(PC, Args)
             box on; grid on;
             xlabel('Epoch');
             ylabel(sprintf('%s - median', strrep(PName, '_', '\_')));
-            title(sprintf('%s deviation from cross-crop median (VarRatio=%.1f%%, MeanCorr=%.2f)', ...
-                strrep(PName, '_', '\_'), VarianceRatio, MeanCorr));
+            title(sprintf('%s deviation from cross-crop median (SharedVar=%.1f%%, MeanCorr=%.2f)', ...
+                strrep(PName, '_', '\_'), SharedVar, MeanCorr));
         end
 
         % --- (2) Correlation heatmap ---
@@ -178,8 +191,26 @@ function Result = plotPhotParamSynchrony(PC, Args)
     end
 
     if Args.Verbose
-        fprintf('%s\n', repmat('-', 1, 60));
-        fprintf('VarRatio: %% of total variance in the cross-crop median (shared signal)\n');
-        fprintf('MeanCorr: mean off-diagonal cross-crop correlation\n');
+        fprintf('%s\n', repmat('-', 1, 140));
+        fprintf('SharedVar: %% of total variance in the cross-crop median (shared signal)\n');
+        fprintf('MeanCorr/MdCorr: mean/median off-diagonal cross-crop correlation\n');
+        fprintf('Central crops: %s\n', mat2str(CentralCropsUsed));
+        fprintf('Peripheral crops: %s\n', mat2str(PeriphCrops));
     end
+end
+
+function [SharedVar, MeanCorr, MedianCorr, CorrMat] = syncStats(SubMat, DeltaMat)
+    MedDeltaEpoch = nanmedian(DeltaMat, 2);
+    TotalVar  = nanvar(DeltaMat(:));
+    MedianVar = nanvar(MedDeltaEpoch);
+    if TotalVar > 0
+        SharedVar = 100 * MedianVar / TotalVar;
+    else
+        SharedVar = NaN;
+    end
+    Nc = size(SubMat, 2);
+    CorrMat = corr(SubMat, 'rows', 'pairwise');
+    OffDiag = CorrMat(~eye(Nc));
+    MeanCorr   = nanmean(OffDiag);
+    MedianCorr = nanmedian(OffDiag);
 end

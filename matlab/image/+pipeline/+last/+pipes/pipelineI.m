@@ -481,7 +481,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         
         
             % proapage photometric calibration to individual images
-        
+            % PC.propagatePhotCalibToEpoch
+
+
             % propagae photometric calibration to MatchedSources
         
             % save products

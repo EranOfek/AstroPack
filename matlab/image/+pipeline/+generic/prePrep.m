@@ -264,6 +264,22 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
         FlagGoodImages = FlagGoodImages & FlagCorrectSize;
     end
 
+    % update header with SoftVersion keyword
+    if Args.AddGitVersion
+        VerString = tools.git.getVersion;
+        AI.setKeyVal(Args.KeySoftVer,VerString);
+    end
+    
+    % add raw image ID
+    if Args.AddRawImageID
+        % populate LEVEL and CROPID
+        AI = AI.setKeyVal('LEVEL','raw');
+        AI = AI.setKeyVal('CROPID',0);
+        [AI, ID] = imProc.db.generateImageID(AI, 'KeyID',Args.KeyRawID);
+
+        %TableForDB.RawID(FlagGoodImages) = ID;
+        TableForDB.RawID = ID;
+    end
     
     % global background
     if Args.GlobalBackLevel
@@ -353,21 +369,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
         end
     end
 
-    % update header with SoftVersion keyword
-    if Args.AddGitVersion
-        VerString = tools.git.getVersion;
-        AI.setKeyVal(Args.KeySoftVer,VerString);
-    end
     
-    % add raw image ID
-    if Args.AddRawImageID
-        % populate LEVEL and CROPID
-        AI = AI.setKeyVal('LEVEL','raw');
-        AI = AI.setKeyVal('CROPID',0);
-        [AI, ID] = imProc.db.generateImageID(AI, 'KeyID',Args.KeyRawID);
-
-        TableForDB.RawID(FlagGoodImages) = ID;
-    end
 
     TableForDB = struct2table(TableForDB);
     TableForDB = TableForDB(FlagGoodImages,:);

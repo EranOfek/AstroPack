@@ -1,4 +1,4 @@
-function Res=filter2_fast(Mat1, Mat2, UseFFT, PadMethod)
+function Res=filter2_fast(Mat1, Mat2, UseFFT, PadMethod, UseMex)
 % Source/template detection in 2D images by filtering (cross-correlation) 
 % Package: imUtil.filter
 % Description: 2D filtering (cross correkation) of an image (matrix) with a
@@ -16,6 +16,7 @@ function Res=filter2_fast(Mat1, Mat2, UseFFT, PadMethod)
 %            'circular' - circular boundry conditions.
 %            'replicate' - relpicate nearest edge value.
 %            'symmetric' - mirror reflection boundry conditions.
+%          - UseMex (for memory allocation). Default is true.
 % Output : - Convolution between the two matrices.
 %            If the filter is a 3D then the output is 3D.
 % License: GNU general public license version 3
@@ -32,6 +33,7 @@ arguments
     Mat2
     UseFFT    = [];
     PadMethod         = ''; % 'symmetric'; % circular | replicate | symmetric
+    UseMex            = true;
 end
 
 Threshold = 0.004;  % requires calibration
@@ -51,12 +53,18 @@ if UseFFT
     % use fft
     Res = imUtil.filter.filter2_fft(Mat1,Mat2);
 else
-    % note Mat2 is the first argument
     Nfilter = size(Mat2,3);
-    %Res     = zeros(size(Mat1,1), size(Mat1,2), Nfilter);
-    % should be faster
-    Res     = repmat(0, size(Mat1,1), size(Mat1,2), Nfilter);
-
+    if UseMex
+        % allocate memory without initialization:
+        Res = tools.array.mex.allocateUninit([size(Mat1,1), size(Mat1,2), Nfilter], class(Mat1));
+    else
+        % note Mat2 is the first argument
+    
+        Res     = zeros(size(Mat1,1), size(Mat1,2), Nfilter);
+        % slower
+        %Res     = repmat(0, size(Mat1,1), size(Mat1,2), Nfilter);
+    end
+    
     for Ifilter=1:1:Nfilter
         Res(:,:,Ifilter) = filter2(Mat2(:,:,Ifilter),Mat1,'same');
     end

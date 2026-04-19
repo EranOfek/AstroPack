@@ -43,7 +43,7 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
         if any( abs(RotAngle) > 1 & abs(RotAngle-360) > 1 ) 
             M = size(PSF,1);
             M1 = ceil(M * abs(cosd(RotAngle)) + M * abs(sind(RotAngle)) ); % the sizes of rotated images
-            MaxSize = max(M1); RotPSF  = repmat(0,MaxSize,MaxSize,NumPsf);
+            MaxSize = max(M1); RotPSF  = zeros(MaxSize,MaxSize,NumPsf);
             for Isrc = 1:1:NumPsf
                 X1   = ceil(MaxSize/2-M1(Isrc)/2)+1; % the position of the lower left corner 
                 RotPSF(X1:X1+M1(Isrc)-1,X1:X1+M1(Isrc)-1,Isrc) = imrotate(PSF(:,:,Isrc), RotAngle(Isrc), 'bilinear', 'loose');                      
@@ -61,7 +61,7 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
                 % need to check the following block and, probably, make it faster and more compact                 
                 ShiftX = round(Shift(:,1) * Oversample(1)); % to the scale of the oversampled PSF 
                 ShiftY = round(Shift(:,2) * Oversample(2));
-                ShiftedPSF = repmat(0,size(PSF)); 
+                ShiftedPSF = zeros(size(PSF)); 
                 for Ipsf = 1:NumPsf
                     if ShiftX(Ipsf) > 0
                         ShiftedPSF(:, ShiftX(Ipsf)+1:end, Ipsf) = PSF(:, 1:end-ShiftX(Ipsf), Ipsf);

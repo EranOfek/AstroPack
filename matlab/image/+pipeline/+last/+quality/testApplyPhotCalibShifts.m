@@ -1,14 +1,13 @@
-function Result = testPhotPropagation(Args)
-    % Test propagation of coadd photometric calibration to individual epochs
+function Result = testApplyPhotCalibShifts(Args)
+    % Test applying coadd photometric calibration to individual epochs
     % Description: Two branches:
     %
-    %   MULTI-EPOCH (default): Loads coadd PhotCalibTrans, MergedMat
-    %   MatchedSources, and proc epoch AstroImages from a visit folder.
-    %   Propagates coadd calibration to each epoch using
-    %   PhotCalibTrans.propagatePhotCalibToEpoch. Computes MAG_AB directly
-    %   from MS fluxes (using propagated per-epoch PC + MS X/Y) and injects
-    %   into MS.Data. Compares stability of propagated MAG_AB vs relative
-    %   photometry.
+    %   MULTI-EPOCH (default): Loads coadd PhotCalibTrans and MergedMat
+    %   MatchedSources. Computes DeltaZP per crop via lcUtil.zp_meddiff
+    %   (from MergedMat magnitudes), then calls applyPhotCalibShifts with
+    %   the pre-computed DeltaZP to calibrate epoch AstroImages. Also
+    %   computes MAG_AB in MS.Data from MS fluxes + coadd ZP + DeltaZP.
+    %   Falls back to MS-based DeltaZP (legacy) if MAG field not available.
     %
     %   SINGLE-EPOCH (when EpochAI is set): Applies coadd PC directly to
     %   one epoch's AstroImage catalog. No MergedMat, no DeltaZP — just
@@ -25,6 +24,7 @@ function Result = testPhotPropagation(Args)
     %                          or cell of AstroImage (auto-calibrated).
     %                          Default is '' (auto from VisitDir).
     %            'MergedMatDir'- Directory with MergedMat HDF5 files.
+    %                          Used to compute DeltaZP via zp_meddiff.
     %                          Default is '' (= VisitDir).
     %            'EpochDir'   - Directory with proc epoch FITS files.
     %                          Default is '' (= VisitDir).
@@ -35,8 +35,10 @@ function Result = testPhotPropagation(Args)
     %            'CropIdx'    - Crop index into PCarray (and EpochAI if array).
     %                          Default is 1.
     %          --- Propagation ---
-    %            'RefEpoch'   - Reference epoch for DeltaZP. Default is 1.
-    %            'FluxField'  - Flux field in MS. Default is 'FLUX_APER_3'.
+    %            'RefEpoch'   - Reference epoch for DeltaZP (legacy MS path).
+    %                          Default is 1.
+    %            'FluxField'  - Flux field for MS fallback and MAG_AB computation.
+    %                          Default is 'FLUX_APER_3'.
     %          --- Plotting ---
     %            'Ncrop'      - Number of crops. Default is 24.
     %            'CropsToAnalyze' - Crops to process. Default is [] (all).
@@ -46,17 +48,15 @@ function Result = testPhotPropagation(Args)
     %            'Verbose'    - Print progress. Default is true.
     % Output : - Result struct.
     %          Multi-epoch: .MS (with propagated MAG_AB_*), .DeltaZP,
-    %                       .PCepochs, .PC_coadd. Saved to OutDir/ResultProp.mat
-    %                       (compact: MS + DeltaZP + PC_coadd; PCepochs is
-    %                       reconstructible as PC_coadd + DeltaZP).
+    %                       .PC_coadd. Saved to OutDir/ResultProp.mat.
     %          Single-epoch: .AIepoch (catalog + header enhanced), .PCepoch.
     % Author : D. Kovaleva (Apr 2026)
     % Example: % Multi-epoch — everything in one folder:
-    %          R = pipeline.last.quality.testPhotPropagation( ...
+    %          R = pipeline.last.quality.testApplyPhotCalibShifts( ...
     %              'VisitDir', '~/222625v1');
     %
     %          % Multi-epoch — separate inputs:
-    %          R = pipeline.last.quality.testPhotPropagation( ...
+    %          R = pipeline.last.quality.testApplyPhotCalibShifts( ...
     %              'CoaddPCFile', '~/results/PC_percrop.mat', ...
     %              'MergedMatDir', '~/222625v1', ...
     %              'EpochDir', '~/222625v1');
@@ -65,10 +65,15 @@ function Result = testPhotPropagation(Args)
     %          AI_coadd = pipeline.last.quality.loadVisitData( ...
     %              'DataDir', '~/222625v1', 'FileType', 'coadd');
     %          AIepoch  = AstroImage('proc_epoch5_crop10.fits');
-    %          R = pipeline.last.quality.testPhotPropagation( ...
+    %          R = pipeline.last.quality.testApplyPhotCalibShifts( ...
     %              'CoaddPCFile', AI_coadd{1}, 'EpochAI', AIepoch, ...
     %              'CropIdx', 10);
     %          CatEnhanced = R.AIepoch.CatData;  % has MAG_AB_*, AB_ZP
+    %
+    %          % Standalone DeltaZP from zp_meddiff:
+    %          MS = pipeline.last.quality.loadMergedMat('MergedMatDir', '~/222625v1');
+    %          Rzp = lcUtil.zp_meddiff(MS.percrop{10}, 'MagField', 'MAG_APER_3');
+    %          DeltaZP = Rzp.FitZP;  % [Nepoch x 1], pass to applyPhotCalibShifts
 
     arguments
         Args.VisitDir    = ''   % visit folder with everything
@@ -152,13 +157,13 @@ function Result = testPhotPropagation(Args)
     end
 
     if isempty(PCarray)
-        error('testPhotPropagation:NoPC', ...
+        error('testApplyPhotCalibShifts:NoPC', ...
             'Cannot obtain coadd PC. Provide VisitDir or CoaddPCFile.');
     end
 
     % === Step 2: Load MergedMat ===
     if isempty(Args.MergedMatDir)
-        error('testPhotPropagation:NoMergedMat', ...
+        error('testApplyPhotCalibShifts:NoMergedMat', ...
             'MergedMatDir is required. Provide VisitDir or MergedMatDir.');
     end
     if Args.Verbose; fprintf('Loading MergedMat from %s\n', Args.MergedMatDir); end
@@ -180,7 +185,6 @@ function Result = testPhotPropagation(Args)
 
     % === Step 4: Propagate per crop ===
     DeltaZPall = cell(1, Args.Ncrop);
-    PCepochsAll = cell(1, Args.Ncrop);
 
     for Ic = Args.CropsToAnalyze
         if Ic > numel(PCarray) || ~PCarray(Ic).Success
@@ -199,6 +203,21 @@ function Result = testPhotPropagation(Args)
         MSobj = MSall{Ic};
         Nepochs = MSobj.Nepoch;
 
+        % Compute DeltaZP from MergedMat via zp_meddiff
+        MagField = strrep(Args.FluxField, 'FLUX_', 'MAG_');
+        MagErrField = strrep(Args.FluxField, 'FLUX_', 'MAGERR_');
+        if isfield(MSobj.Data, MagField)
+            if isfield(MSobj.Data, MagErrField)
+                Rzp = lcUtil.zp_meddiff(MSobj, 'MagField', MagField, ...
+                    'MagErrField', MagErrField);
+            else
+                Rzp = lcUtil.zp_meddiff(MSobj, 'MagField', MagField);
+            end
+            DeltaZP = Rzp.FitZP(:);
+        else
+            DeltaZP = [];
+        end
+
         % Collect per-epoch AstroImages for this crop
         EpochAIcrop = AstroImage.empty(0, Nepochs);
         if ~isempty(AI)
@@ -212,26 +231,35 @@ function Result = testPhotPropagation(Args)
         end
 
         if Args.Verbose
-            fprintf('  Crop %02d: propagating to %d epochs\n', Ic, Nepochs);
+            fprintf('  Crop %02d: propagating to %d epochs (DeltaZP from zp_meddiff)\n', Ic, Nepochs);
         end
 
         try
-            [EpochAIcrop, PCepochs, DeltaZP] = ...
-                PhotCalibTrans.propagatePhotCalibToEpoch( ...
-                    PCarray(Ic), MSobj, EpochAIcrop, ...
-                    'FluxField', Args.FluxField, ...
-                    'RefEpoch', Args.RefEpoch, ...
-                    'Verbose', false);
+            if ~isempty(DeltaZP)
+                [EpochAIcrop, NormPerEpoch, DeltaZP] = ...
+                    PhotCalibTrans.applyPhotCalibShifts( ...
+                        PCarray(Ic), EpochAIcrop, ...
+                        'DeltaZP', DeltaZP, ...
+                        'Verbose', false);
+            else
+                [EpochAIcrop, NormPerEpoch, DeltaZP] = ...
+                    PhotCalibTrans.applyPhotCalibShifts( ...
+                        PCarray(Ic), EpochAIcrop, ...
+                        'MS', MSobj, ...
+                        'FluxField', Args.FluxField, ...
+                        'RefEpoch', Args.RefEpoch, ...
+                        'Verbose', false);
+            end
 
             DeltaZPall{Ic} = DeltaZP;
-            PCepochsAll{Ic} = PCepochs;
 
-            % Compute propagated MAG_AB directly from MS fluxes (no catalog row-matching)
-            % Uses MS's own cross-matched fluxes/positions and per-epoch PC objects.
+            % Compute propagated MAG_AB from MS fluxes using coadd ZP + DeltaZP
             Nsrc = MSobj.Nsrc;
+            ExpTime_coadd = PCarray(Ic).ExpTime / PCarray(Ic).NCoadd;
             FluxToMag = {'FLUX_APER_3', 'MAG_AB_APER_3'; ...
                          'FLUX_PSF',    'MAG_AB_PSF'};
-            % Pick position fields available in MS
+
+            % Evaluate ZP at MS source positions once from coadd PC
             if isfield(MSobj.Data, 'X1')
                 Xfield = 'X1'; Yfield = 'Y1';
             elseif isfield(MSobj.Data, 'X')
@@ -239,30 +267,29 @@ function Result = testPhotPropagation(Args)
             else
                 Xfield = ''; Yfield = '';
             end
+            if ~isempty(Xfield)
+                X1 = MSobj.Data.(Xfield)(1, :).';
+                Y1 = MSobj.Data.(Yfield)(1, :).';
+                ZP_coadd = PCarray(Ic).evaluateZP('X', X1, 'Y', Y1);
+            else
+                ZP_coadd = PCarray(Ic).evaluateZP();
+            end
+            ZP_coadd = ZP_coadd(:).';
+
             for Imf = 1:size(FluxToMag, 1)
                 FF = FluxToMag{Imf, 1};
                 MF = FluxToMag{Imf, 2};
                 if ~isfield(MSobj.Data, FF); continue; end
                 FluxMat = MSobj.Data.(FF);
                 MagAB = nan(Nepochs, Nsrc);
-                for Iv = 1:min(Nepochs, numel(PCepochs))
-                    if isempty(PCepochs(Iv)) || ~PCepochs(Iv).Success; continue; end
-                    Flux = FluxMat(Iv, :).';
+                for Iv = 1:Nepochs
+                    if ~isfinite(DeltaZP(Iv)); continue; end
+                    Flux = FluxMat(Iv, :);
                     Valid = isfinite(Flux) & Flux > 0;
                     if ~any(Valid); continue; end
-                    if ~isempty(Xfield)
-                        X = MSobj.Data.(Xfield)(Iv, :).';
-                        Y = MSobj.Data.(Yfield)(Iv, :).';
-                        try
-                            Mag = PCepochs(Iv).evaluateMag(Flux(Valid), ...
-                                'X', X(Valid), 'Y', Y(Valid));
-                        catch
-                            Mag = PCepochs(Iv).evaluateMag(Flux(Valid));
-                        end
-                    else
-                        Mag = PCepochs(Iv).evaluateMag(Flux(Valid));
-                    end
-                    MagAB(Iv, Valid) = Mag(:).';
+                    ZP_epoch = ZP_coadd(Valid) + DeltaZP(Iv);
+                    MagAB(Iv, Valid) = convert.luptitude( ...
+                        Flux(Valid) / ExpTime_coadd, 10.^(0.4 .* ZP_epoch));
                 end
                 MSobj.Data.(MF) = MagAB;
             end
@@ -282,7 +309,6 @@ function Result = testPhotPropagation(Args)
     % === Assemble Result ===
     Result.MS.percrop = MSall;
     Result.DeltaZP    = DeltaZPall;
-    Result.PCepochs   = PCepochsAll;
     Result.PC_coadd   = PCarray;
 
     % === Save Result (compact form: PC_coadd + DeltaZP reconstructs PCepochs) ===
@@ -297,7 +323,7 @@ function Result = testPhotPropagation(Args)
             fprintf('Saved %s\n', ResultFile);
         end
     catch ME
-        warning('testPhotPropagation:SaveFailed', ...
+        warning('testApplyPhotCalibShifts:SaveFailed', ...
             'Failed to save %s: %s', ResultFile, ME.message);
     end
 
@@ -366,7 +392,7 @@ function Result = runSingleEpoch(Args)
     % Resolve coadd PC array (now scalar if we narrowed above)
     PCarray = resolveCoaddPC(Args);
     if isempty(PCarray)
-        error('testPhotPropagation:NoPC', ...
+        error('testApplyPhotCalibShifts:NoPC', ...
             'Provide CoaddPCFile (PC/AstroImage) or VisitDir.');
     end
 
@@ -379,7 +405,7 @@ function Result = runSingleEpoch(Args)
         PCcrop = PCarray(1);
     end
     if ~PCcrop.Success
-        error('testPhotPropagation:BadPC', ...
+        error('testApplyPhotCalibShifts:BadPC', ...
             'Coadd PC for crop %d is not Success.', Args.CropIdx);
     end
 
@@ -412,7 +438,7 @@ function Result = runSingleEpoch(Args)
             PCe.photCalibTransToHeader(AIepoch.HeaderData);
         end
     else
-        warning('testPhotPropagation:EmptyCat', ...
+        warning('testApplyPhotCalibShifts:EmptyCat', ...
             'Epoch catalog is empty — nothing to calibrate.');
     end
 
