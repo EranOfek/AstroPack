@@ -396,19 +396,23 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         
             % Add image ID to coadd images: in: ID_PROC
             %ProcessingStep = 901;
-            JD_Coadd = [ResCoadd.MidMidJD];
-            [Coadd, ID_Coadd] = imProc.db.generateImageID(Coadd, 'KeyID','ID_COADD', 'JD',JD_Coadd, Args.generateImageIDArgs{:});  % 0.05 s
+            NotIsEmptyCoadd = ~Coadd.isemptyImage;
+            JD_Coadd = [ResCoadd(NotIsEmptyCoadd).MidMidJD];
+            [Coadd(NotIsEmptyCoadd)] = imProc.db.generateImageID(Coadd(NotIsEmptyCoadd), 'KeyID','ID_COADD', 'JD',JD_Coadd, Args.generateImageIDArgs{:});  % 0.05 s
         
             % Update Airmass (And UPIX) header keyword to based on measured crop center
             %ProcessingStep = 911;
-            [Coadd, AllCoaddAirMass] = imProc.header.addAirMass(Coadd, 'JD',JD_Coadd, 'HealpixType','nested', Args.Header_addAirMassArgs{:}); % 0.3s
-        
+            AnyCoaddExist = any(NotIsEmptyCoadd);
+            if any(AnyCoaddExist)
+                [Coadd(NotIsEmptyCoadd)] = imProc.header.addAirMass(Coadd(NotIsEmptyCoadd), 'JD',JD_Coadd, 'HealpixType','nested', Args.Header_addAirMassArgs{:}); % 0.3s
+            end
+
             % Add catsHTM MergedCat column to Coadd catalogs
             %ProcessingStep = 921;
-            if Args.AddMergedCat
+            if Args.AddMergedCat && AnyCoaddExist
                 %tic;
                 if isempty(Args.UseParfor)
-                    Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false);  % 23 s
+                    Coadd(NotIsEmptyCoadd) = imProc.match.match_catsHTMmerged(Coadd(NotIsEmptyCoadd), 'SameField',false, 'CreateNewObj',false);  % 23 s
                 else
                     PP = gcp('nocreate');
                     if isempty(PP)
@@ -416,7 +420,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                     end
                     %tic;
                     parfor Isub=1:1:Nsub
-                        Coadd(Isub) = imProc.match.match_catsHTMmerged(Coadd(Isub), 'SameField',false, 'CreateNewObj',false);  % 8 s
+                        if NotIsEmptyCoadd(Isub)
+                            Coadd(Isub) = imProc.match.match_catsHTMmerged(Coadd(Isub), 'SameField',false, 'CreateNewObj',false);  % 8 s
+                        end
                     end
                     %toc
                 end
@@ -426,7 +432,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             %ProcessingStep = 931;
             if Args.AddKnownAst
                 % slower with parfor
-                [OnlyMP,~,Coadd] = imProc.match.match2solarSystem(Coadd, 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
+                [OnlyMP,~,Coadd(NotIsEmptyCoadd)] = imProc.match.match2solarSystem(Coadd(NotIsEmptyCoadd), 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
                 Nast = OnlyMP.sizeCatalog;
                 if sum(Nast)>0
                     % add CropID, Node, Mount, Cam, ID_COADD:
