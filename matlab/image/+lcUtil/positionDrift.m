@@ -13,6 +13,9 @@ function [GlobalMotion, Result] = positionDrift(MS, Args)
     %                   Default is 'Y'.
     %            'ColSN' - S/N field name in MatchedSosurces.
     %                   Default is 'SN'.
+    %            'MinEpoch' - Minimum number of epochs required. If not
+    %                   enough epochs then and empty result will be returned.
+    %                   Default is 5.
     % Output : - A structure array (element per MatchedSources element)
     %            with the field global motion as a function of time.
     %            Fields include:
@@ -39,6 +42,7 @@ function [GlobalMotion, Result] = positionDrift(MS, Args)
         Args.ColX        = 'X';
         Args.ColY        = 'Y';
         Args.ColSN       = 'SN';
+        Args.MinEpoch    = 5;
     end
     SEC_DAY = 86400;
 
@@ -46,36 +50,37 @@ function [GlobalMotion, Result] = positionDrift(MS, Args)
     Result = struct('DShiftX',cell(Nms,1), 'DShiftY',cell(Nms,1), 'ShiftXY',cell(Nms,1));
     GlobalMotion = struct('ResidX',cell(Nms,1), 'StdX',cell(Nms,1), 'RateX',cell(Nms,1), 'ResidY',cell(Nms,1), 'StdY',cell(Nms,1), 'RateY',cell(Nms,1));
     for Ims=1:1:Nms
-        switch lower(Args.Method)
-            case 'diff'
-                if isempty(Args.MinSN)
-                    Result(Ims).DShiftX    = median(diff(MS(Ims).Data.(Args.ColX),1,1), 2, 'omitnan');
-                    Result(Ims).DShiftY    = median(diff(MS(Ims).Data.(Args.ColY),1,1), 2, 'omitnan');
-                   
-                else
-                    IndSN = find(mean(MS(Ims).Data.(Args.ColSN), 1, 'omitnan')>Args.MinSN);
-                    Result(Ims).DShiftX    = median(diff(MS(Ims).Data.(Args.ColX)(:,IndSN),1,1), 2, 'omitnan');
-                    Result(Ims).DShiftY    = median(diff(MS(Ims).Data.(Args.ColY)(:,IndSN),1,1), 2, 'omitnan');
-                    
-                end
-                JD = MS(Ims).JD;
-                Result(Ims).DeltaTime = median(diff(JD));
-                Result(Ims).ShiftXY = cumsum([0 0; -[Result(Ims).DShiftX, Result(Ims).DShiftY]]);
-
-
-                RelTimeDay                 = JD-mean(JD);
-                Par                        = polyfit(RelTimeDay, Result(Ims).ShiftXY(:,1),1);
-                GlobalMotion(Ims).ResidX   = Result(Ims).ShiftXY(:,1) - polyval(Par, RelTimeDay);
-                GlobalMotion(Ims).StdX     = std(GlobalMotion(Ims).ResidX);
-                GlobalMotion(Ims).RateX    = Par(1)./SEC_DAY;       % pix/sec
-                Par                        = polyfit(RelTimeDay, Result(Ims).ShiftXY(:,2),1);
-                GlobalMotion(Ims).ResidY   = Result(Ims).ShiftXY(:,2) - polyval(Par, RelTimeDay);
-                GlobalMotion(Ims).StdY     = std(GlobalMotion(Ims).ResidY);
-                GlobalMotion(Ims).RateY    = Par(1)./SEC_DAY;  % pix/sec
-            otherwise
-                error('Unknown Method option');
+        if MS(Ims).Nepoch>Args.MinEpoch
+            switch lower(Args.Method)
+                case 'diff'
+                    if isempty(Args.MinSN)
+                        Result(Ims).DShiftX    = median(diff(MS(Ims).Data.(Args.ColX),1,1), 2, 'omitnan');
+                        Result(Ims).DShiftY    = median(diff(MS(Ims).Data.(Args.ColY),1,1), 2, 'omitnan');
+                       
+                    else
+                        IndSN = find(mean(MS(Ims).Data.(Args.ColSN), 1, 'omitnan')>Args.MinSN);
+                        Result(Ims).DShiftX    = median(diff(MS(Ims).Data.(Args.ColX)(:,IndSN),1,1), 2, 'omitnan');
+                        Result(Ims).DShiftY    = median(diff(MS(Ims).Data.(Args.ColY)(:,IndSN),1,1), 2, 'omitnan');
+                        
+                    end
+                    JD = MS(Ims).JD;
+                    Result(Ims).DeltaTime = median(diff(JD));
+                    Result(Ims).ShiftXY = cumsum([0 0; -[Result(Ims).DShiftX, Result(Ims).DShiftY]]);
+    
+    
+                    RelTimeDay                 = JD-mean(JD);
+                    Par                        = polyfit(RelTimeDay, Result(Ims).ShiftXY(:,1),1);
+                    GlobalMotion(Ims).ResidX   = Result(Ims).ShiftXY(:,1) - polyval(Par, RelTimeDay);
+                    GlobalMotion(Ims).StdX     = std(GlobalMotion(Ims).ResidX);
+                    GlobalMotion(Ims).RateX    = Par(1)./SEC_DAY;       % pix/sec
+                    Par                        = polyfit(RelTimeDay, Result(Ims).ShiftXY(:,2),1);
+                    GlobalMotion(Ims).ResidY   = Result(Ims).ShiftXY(:,2) - polyval(Par, RelTimeDay);
+                    GlobalMotion(Ims).StdY     = std(GlobalMotion(Ims).ResidY);
+                    GlobalMotion(Ims).RateY    = Par(1)./SEC_DAY;  % pix/sec
+                otherwise
+                    error('Unknown Method option');
+            end
         end
-
     end
 
 end
