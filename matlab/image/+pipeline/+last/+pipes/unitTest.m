@@ -3,7 +3,9 @@ function [Result] = unitTest(Args)
     %     Optional detailed description
     % Input  : -
     %          * ...,key,val,... 
-    %
+    %            'PipelineVersion' - One of the following options:
+    %                   'dev' - new pipeline.
+    %                   'prod' - old pipeline.
     % Output : - filled visit directory Args.LocalPath/YYYY/MM/DD/proc/HHMMSSvXX (XX starting with 0) 
     % Author : A.M. Krassilchtchikov (2026 Mar) 
     % Example: RAWImageDir = '/mnt/marvin/LAST.01.01.01/2025/07/07/raw/';

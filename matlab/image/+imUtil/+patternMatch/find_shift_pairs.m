@@ -243,18 +243,18 @@ for Iflip=1:1:Nflip
         otherwise
             switch lower(InPar.MaxMethod)
                 case {'thresh','thresh_fracmax'}
-                    if InPar.UseBackMex
-                        Back = fast_median(H2(:));
-                        Var  = tools.math.stat.mex.rstd1_mex(H2(:), InPar.RVarSkip).^2;
-                    else
-                        [Back,Var]=imUtil.background.background(H2,...
+                    % if InPar.UseBackMex
+                    %     Back = fast_median(H2(:));
+                    %     Var  = tools.math.stat.mex.rstd1_mex(H2(:), InPar.RVarSkip).^2;
+                    % else
+                        [Back1,Var1]=imUtil.background.background(H2,...
                                                            'BackFun',InPar.BackFun,...
                                                            'BackFunPar',InPar.BackFunPar,...
                                                            'VarFun',InPar.VarFun,...
                                                            'VarFunPar',InPar.VarFunPar,...
                                                            'SubSizeXY',InPar.SubSizeXY,...
                                                            'Overlap',InPar.Overlap);
-                    end
+                    %end
 
                     % normalize the H2 histogram surface by expected region of pverlap.
                     Var = max(Var,InPar.MinVariance);
