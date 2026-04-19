@@ -152,13 +152,27 @@ mxArray* readHeaderCell(fitsfile* fptr)
             }
         }
         else {
+            // COMMENT and HISTORY: free text lands in 'comment'; move it to value
+            if (strcmp(key, "COMMENT") == 0 || strcmp(key, "HISTORY") == 0) {
+                v_key.push_back(key);
+                v_val.push_back(mxCreateString(comment));
+                v_comment.push_back("");
+                v_is_str.push_back(false);
+                v_strval.push_back("");
+                continue;
+            }
+
             // --- parse value_str into a typed mxArray ---
             mxArray* val = nullptr;
             int status2  = 0;
 
+            // OBJECT is always a string even if the value looks numeric
+            bool force_string = (strcmp(key, "OBJECT") == 0);
+
             // Try double
             double dval;
-            if (fits_read_key(fptr, TDOUBLE, key, &dval, NULL, &status2) == 0) {
+            if (!force_string &&
+                fits_read_key(fptr, TDOUBLE, key, &dval, NULL, &status2) == 0) {
                 val = mxCreateDoubleScalar(dval);
                 v_is_str.push_back(false);
                 v_strval.push_back("");
@@ -167,7 +181,8 @@ mxArray* readHeaderCell(fitsfile* fptr)
                 status2 = 0;
                 // Try logical
                 int lval;
-                if (fits_read_key(fptr, TLOGICAL, key, &lval, NULL, &status2) == 0) {
+                if (!force_string &&
+                    fits_read_key(fptr, TLOGICAL, key, &lval, NULL, &status2) == 0) {
                     val = mxCreateLogicalScalar(lval);
                     v_is_str.push_back(false);
                     v_strval.push_back("");
