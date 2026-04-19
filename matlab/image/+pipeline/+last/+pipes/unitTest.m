@@ -21,6 +21,7 @@ function [Result] = unitTest(Args)
         Args.RegenCalib        = false % we do not know yet how to write the new calib to a local dir and use it from there
         Args.PipelineVersion   = 'dev' % 'dev' or 'prod'
         Args.UseParfor         = true
+        Args.DebugMode         = false
     end
     
     % if running without explicit arguments, do nothing
@@ -75,7 +76,7 @@ function [Result] = unitTest(Args)
                 'UpdateStatusFile', false, ...
                 'pipelineIArgs', {'UseParfor',Args.UseParfor,'prePrepArgs',{'AstroImageReadArgs',{'UseMex', true}} },...
                 'MoveNew2Raw',false,...
-                'DebugMode',true,...
+                'DebugMode',Args.DebugMode,...
                 'DbHost','10.150.28.18');
             
         case 'prod'
