@@ -51,6 +51,9 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
     
     Status = 'Uncontrolled exit.';
 
+    % TODO
+    % This whole thing really need to be re-written, replaced even.
+
     TranCatLevel2 = [];
 
     % Return if catalog is empty
@@ -168,6 +171,16 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
             " AND cropid=",CropIDStr," AND jd >",JDBackStr);
         TranDB = DB.query(SearchCMD);
 
+
+        HighSelf = ADc(Ipos).CatData.getCol('SCORE') >= 7.5;
+    
+        CleanSelf = ...
+            (ADc(Ipos).CatData.getCol('N_NEIGH') < 1) &...
+            (ADc(Ipos).CatData.getCol('S_CORR') > 3);
+    
+        PassingMatches = sum(HighSelf | CleanSelf);
+        
+
         if ~isempty(TranDB)
             % Get RADec of found candidates and match to current candidate via
             % cone search
@@ -217,16 +230,19 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
             if AlreadyReported
                 ADc(Ipos).AlreadyReported = 1;
             end
-    
-            % The second ( | ) condition is a bit adhoc, this is to reduce
-            % the amount of passing flucations near bright stars and on
-            % faint ghosts
-            PassingMatches = sum(MatchDB.flags_transient == 0 & ...
-                ((MatchDB.n_neigh < 1) | (MatchDB.score > 6.0)) ...
-                & ((MatchDB.s_corr > 3.0) | (MatchDB.score > 7.0))) + 1;
+
+            PositiveMatches = (MatchDB.flags_transient == 0);
+
+            HighMatches = MatchDB.score >= 7.5;
+            CleanMatches = ...
+                (log10(MatchDB.flux_psf/MatchDB.flux_contam) > 0.5) &...
+                (MatchDB.n_neigh < 1) &...
+                (MatchDB.s_corr > 3.0);
+
+            PassingMatches = PassingMatches + ...
+                sum(PositiveMatches & (HighMatches | CleanMatches));
         else
             MatchJDs = [];
-            PassingMatches = 1;
             DBQueryFails = DBQueryFails + 1;
         end
         % See if this candidate is worth reporting. If yes, set its report
@@ -235,7 +251,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
         % should probably move elsewhere in the future.
         Score = ADc(Ipos).CatData.getCol('SCORE');
 
-        if (PassingMatches > 1) || (Score >= 7.7)
+        if (PassingMatches > 1) || (Score >= 7.5)
             UTCNow = datetime('now', 'TimeZone', 'UTC');
             JDNow = juliandate(UTCNow);
             ADc(Ipos).CatData.replaceCol(JDNow, 'Reported');
