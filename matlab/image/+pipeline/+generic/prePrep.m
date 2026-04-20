@@ -389,7 +389,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
     
 
     TableForDB = struct2table(TableForDB);
-    TableForDB = TableForDB(FlagGoodImages,:);
+    %TableForDB = TableForDB(FlagGoodImages,:);
 
    
 

@@ -117,113 +117,128 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
         Args.OutProduct = string(Args.OutProduct);
     end
     Nprod = numel(Args.OutProduct);
- 
-    if isa(FileName, 'AstroFileName')
-        %FileList = FileName.genProducts('OutProduct',Args.OutProduct, 'AddPath',false);
-        %if isempty(Args.Path)
-        %    Args.Path = FileName.Path;
-        %end
-        [FileListImage,PathList,~,AFN]  = FileName.genFullPath('AddSubDir',Args.AddSubDir,...
-                                                     'PathType',Args.PathType,...
-                                                     'BasePath',Args.BasePath,...
-                                                     'BasePathRef',Args.BasePathRef,...
-                                                     'Path',Args.Path,...
-                                                     'CreateNewObj',true);
-        FileName.SubDir = AFN.SubDir;
-        Nim = numel(FileListImage);
-        FileList = strings(Nim, Nprod);
-        for Iprod=1:1:Nprod
-            FileList(:,Iprod) = FileName.genFile('Product',Args.OutProduct{Iprod});
-        end        
-        FileType = AFN.FileType{1};
-    else
-        AFN = [];
-        if ischar(FileName)
-            FileName = string(FileName);
-        end
-        if isvector(FileName)
-            FileName = FileName(:);
-        end
-        [Nim, NprodGiven] = size(FileName);
-        if Nprod~=NprodGiven
-            error('Input FileName contains only %d columns, while %d products were requested', NprodGiven, Nprod);
-        end
-        FileType = Args.FileType;
-        PathList = Args.Path;
-        FileList = FileName;
-    end
 
-    if Args.AddSubDir && isa(AI, 'AstroImage') && isa(AFN, 'AstroFileName')
-        AI.setKeyVal(Args.SubDirKey, AFN.SubDir);
-    end
+    % remove images that we don't save
+    Images2Save = ~isemptyImage(AI);
+    if any(Images2Save)
+        if ~all(Images2Save)
+
+            FileName = FileName.copy;
+            FileName = FileName.reorderEntries(Images2Save);
+            AI       = AI(Images2Save);
+
+        end
+
+        if isa(FileName, 'AstroFileName')
+            %FileList = FileName.genProducts('OutProduct',Args.OutProduct, 'AddPath',false);
+            %if isempty(Args.Path)
+            %    Args.Path = FileName.Path;
+            %end
+            [FileListImage,PathList,~,AFN]  = FileName.genFullPath('AddSubDir',Args.AddSubDir,...
+                                                         'PathType',Args.PathType,...
+                                                         'BasePath',Args.BasePath,...
+                                                         'BasePathRef',Args.BasePathRef,...
+                                                         'Path',Args.Path,...
+                                                         'CreateNewObj',true);
+            FileName.SubDir = AFN.SubDir;
+            Nim = numel(FileListImage);
+            FileList = strings(Nim, Nprod);
+            for Iprod=1:1:Nprod
+                FileList(:,Iprod) = FileName.genFile('Product',Args.OutProduct{Iprod});
+            end        
+            FileType = AFN.FileType{1};
+        else
+            AFN = [];
+            if ischar(FileName)
+                FileName = string(FileName);
+            end
+            if isvector(FileName)
+                FileName = FileName(:);
+            end
+            [Nim, NprodGiven] = size(FileName);
+            if Nprod~=NprodGiven
+                error('Input FileName contains only %d columns, while %d products were requested', NprodGiven, Nprod);
+            end
+            FileType = Args.FileType;
+            PathList = Args.Path;
+            FileList = FileName;
+        end
     
-    % correct the FileType and FileList: cut the ending and add a new one if requested
-    Idx = strfind(FileType, '.'); 
-    if isempty(Idx)  % input is plain fits
-        if ~isempty(Args.CompressedOutput) % output is fits.fz or alike
-            FileType = [FileType '.' Args.CompressedOutput];
-            FileList = [FileList '.' Args.CompressedOutput];
+        if Args.AddSubDir && isa(AI, 'AstroImage') && isa(AFN, 'AstroFileName')
+            AI.setKeyVal(Args.SubDirKey, AFN.SubDir);
         end
-    else % input is fits.fz (or fits.bz2 or alike)
-        FileType = FileType(1:Idx(1)-1); % first cut the original extension
-        FileList = regexprep(FileList, '\.[^.]*$', '');
-        if ~isempty(Args.CompressedOutput) % add a new extension if needed
-            FileType = [FileType '.' Args.CompressedOutput];
-            FileList = [FileList '.' Args.CompressedOutput];
-        end
-    end    
-
-    Nobj = numel(AI);
-    if Nim~=Nobj
-        error('Numbder of images (%d) is not consistent with the number of file names (%d)', Nobj, Nim);
-    end
-
-    Npath      = numel(PathList);
-    Status     = {};
-    ErrInd     = 0;
-    DirCreated = false;
-    for Iobj=1:1:Nobj
-        for Iprod=1:1:Nprod
-            % product type: Args.OutProduct{Iprod}
-            % save product: AI(Iobj).(Args.OutProduct{Iprod})
-            % Path: PathList{Iobj}
-            % File FileList{Iobj, Iprod}
-
-            Ipath = min(Iobj, Npath);
-            FileToSave = join([PathList(Ipath), filesep, FileList{Iobj, Iprod}],"",2);
-
-            if strcmp(Args.OutProduct{Iprod}, 'Cat')
-                Prop = 'CatData';
-            else
-                Prop = Args.OutProduct{Iprod};
+        
+        % correct the FileType and FileList: cut the ending and add a new one if requested
+        Idx = strfind(FileType, '.'); 
+        if isempty(Idx)  % input is plain fits
+            if ~isempty(Args.CompressedOutput) % output is fits.fz or alike
+                FileType = [FileType '.' Args.CompressedOutput];
+                FileList = [FileList '.' Args.CompressedOutput];
             end
-            if AI(Iobj).isemptyProperty(Prop)
-            % Data = AI(Iobj).(Args.OutProduct{Iprod});
-            % if isempty(Data)
-                % Image is empty
-                % Write error status
-                ErrInd = ErrInd + 1;
-                Status{ErrInd} = sprintf('Product not saved / Image: %s is empty',FileToSave);
-            else
-                AI(Iobj).write1(FileToSave, Args.OutProduct{Iprod},...
-                                             'FileType',FileType,...
-                                             'CompressedOutput',Args.CompressedOutput,...
-                                             'WriteHeader',Args.WriteHeader(Iprod),...
-                                             'MkDir',~DirCreated,...
-                                             'OverWrite',Args.OverWrite,...
-                                             'WriteTime',Args.WriteTime,...
-                                             'SanifyPath',Args.SanifyPath,...
-                                             'WriteMethodImages',Args.WriteMethodImages,...
-                                             'WriteMethodTables',Args.WriteMethodTables);
-
-                DirCreated = true;
-                % Update FileName in Obj
-                %Obj(Iobj).ImageData.FileName = OutFileNames{Iobj};
-                Obj(Iobj).ImageData.FileName = FileToSave;
-
+        else % input is fits.fz (or fits.bz2 or alike)
+            FileType = FileType(1:Idx(1)-1); % first cut the original extension
+            FileList = regexprep(FileList, '\.[^.]*$', '');
+            if ~isempty(Args.CompressedOutput) % add a new extension if needed
+                FileType = [FileType '.' Args.CompressedOutput];
+                FileList = [FileList '.' Args.CompressedOutput];
+            end
+        end    
+    
+        Nobj = numel(AI);
+        if Nim~=Nobj
+            error('Numbder of images (%d) is not consistent with the number of file names (%d)', Nobj, Nim);
+        end
+    
+        Npath      = numel(PathList);
+        Status     = {};
+        ErrInd     = 0;
+        DirCreated = false;
+        for Iobj=1:1:Nobj
+            for Iprod=1:1:Nprod
+                % product type: Args.OutProduct{Iprod}
+                % save product: AI(Iobj).(Args.OutProduct{Iprod})
+                % Path: PathList{Iobj}
+                % File FileList{Iobj, Iprod}
+    
+                Ipath = min(Iobj, Npath);
+                FileToSave = join([PathList(Ipath), filesep, FileList{Iobj, Iprod}],"",2);
+    
+                if strcmp(Args.OutProduct{Iprod}, 'Cat')
+                    Prop = 'CatData';
+                else
+                    Prop = Args.OutProduct{Iprod};
+                end
+                if AI(Iobj).isemptyProperty(Prop)
+                % Data = AI(Iobj).(Args.OutProduct{Iprod});
+                % if isempty(Data)
+                    % Image is empty
+                    % Write error status
+                    ErrInd = ErrInd + 1;
+                    Status{ErrInd} = sprintf('Product not saved / Image: %s is empty',FileToSave);
+                else
+                    AI(Iobj).write1(FileToSave, Args.OutProduct{Iprod},...
+                                                 'FileType',FileType,...
+                                                 'CompressedOutput',Args.CompressedOutput,...
+                                                 'WriteHeader',Args.WriteHeader(Iprod),...
+                                                 'MkDir',~DirCreated,...
+                                                 'OverWrite',Args.OverWrite,...
+                                                 'WriteTime',Args.WriteTime,...
+                                                 'SanifyPath',Args.SanifyPath,...
+                                                 'WriteMethodImages',Args.WriteMethodImages,...
+                                                 'WriteMethodTables',Args.WriteMethodTables);
+    
+                    DirCreated = true;
+                    % Update FileName in Obj
+                    %Obj(Iobj).ImageData.FileName = OutFileNames{Iobj};
+                    Obj(Iobj).ImageData.FileName = FileToSave;
+    
+                end
             end
         end
-    end
+    else
+        ErrInd = 1;
+        Status{ErrInd} = sprintf('Product not saved / All images are empty');
+    end % if any(Images2Save)
 
     cd(PWD);
 end

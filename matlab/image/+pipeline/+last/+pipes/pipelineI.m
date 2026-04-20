@@ -109,6 +109,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
     % AI putput is of size [Nimages x 1]
     try
         [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
+        % Note that AI may be shorter than TableRaw
+        % It contains only: TableRaw.SelectedImages
 
         TableRaw = [TableHeader, TableForDB]; 
         TableRaw.PrepPrepOK = true(size(TableRaw,1), 1);
@@ -134,7 +136,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             %ProcessingStep = 31;
             AI = pipeline.generic.basicCalib(AI, CI, Args.basicCalibArgs{:}, 'UpdateJD',false); %31.2s
 
-            TableRaw.BasicCalib = true(numel(AI),1);  % basic calib success
+            TableRaw.BasicCalib(TableRaw.SelectedImages) = true(numel(AI),1);  % basic calib success
         
             %ProcessingStep = 41;
             % Add MIDJD to header % 0.03s
@@ -447,7 +449,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                     AllCols = {'CROPID', Cols{:}};
                     for Isub=1:1:Nsub
                         if Nast(Isub)>0
-                            OnlyMP(Isub).insertCol([Isub, Vals], Inf, AllCols);
+                            Nrow = size(OnlyMP(Isub).Catalog,1);
+                            OnlyMP(Isub).insertMultiCol(repmat([Isub, Vals], Nrow,1), AllCols, repmat({''},1, numel(AllCols)));
                         end
                     end
                     OnlyMP = OnlyMP.merge('IsTable',true);
@@ -523,7 +526,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                         
 %             TableRaw.FileName   = strings(RawImageList(:));
             TableRaw.FileName   = RawImageList(:);
-            TableRaw.Exception  = true(numel(RawImageList), 1); % Exception in this stage will have PrePrepOK = true
+            TableRaw.Exception(TableRaw.SelectedImages)  = true(numel(RawImageList), 1); % Exception in this stage will have PrePrepOK = true
 
             % TableRaw is populated!
             AllSI    = [];

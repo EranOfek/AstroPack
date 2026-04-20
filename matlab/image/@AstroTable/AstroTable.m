@@ -400,7 +400,8 @@ classdef AstroTable < Component
             Ans(1:MinN) = ~tools.cell.isempty_cell(regexp(ColNames1(1:MinN),ColNames2(1:MinN),'match'));
             
        end
-        
+       
+
        function NewArray = insertColumn(OldArray,NewData,ColInd)
             % Insert a single column into a matrix, table, or a cell array
             % Package: @AstroTable (Static)
@@ -1111,6 +1112,41 @@ classdef AstroTable < Component
             end
         end
         
+
+        function Obj = insertMultiCol(Obj, Data, NewColNames, NewColUnits)
+            % Insert data in multiple columns into AstroTable object
+
+            arguments
+                Obj(1,1)
+                Data
+                NewColNames
+                NewColUnits = [];
+            end
+
+            Ncol     = size(Obj.Catalog,2);
+            NcolData = size(Data,2);
+
+            if istable(Obj.Catalog)
+                if istable(Data)
+                    Obj.Catalog = [Obj.Catalog, Data];
+                else
+                    Obj.Catalog = [Obj.Catalog, array2table(Data, 'VariableNames',NewColNames)];
+                end
+            else
+                if istable(Data)
+                    error('Data is table and catalog is an array');
+                else
+                    Obj.Catalog = [Obj.Catalog, Data];
+                end
+            end
+            ColInd      = (Ncol+1:1:Ncol+NcolData);
+            Obj.ColNames(ColInd) = NewColNames;
+            if ~isempty(NewColUnits)
+                Obj.ColUnits(ColInd) = NewColUnits;
+            end
+
+        end
+
         function Obj = insertCol(Obj, Data, Pos, NewColNames, NewColUnits)
             % Insert columns to AstroTable object
             % Input  : - An AstroTable object

@@ -1719,13 +1719,28 @@ classdef PipelineDemon < Component
                         % get max JD of each sequence:
                         
                         TimeSinceLastImage = celestial.time.julday() - MaxJDPerGroup;
-                        if TimeSinceLastImage<(40./SEC_DAY)
-                            % Don't wait for more images
+
+                        if TimeSinceLastImage>(60./SEC_DAY)
+                            % check if there are enough images in visit
+                            if FN_Sci_Groups.nFiles>Args.MinInGroup
+                                % continue with current visit
+                                IndStartGroup = 1;
+                            end
                         else
                             % wait for more images
                             pause((Args.MaxInGroup - NinGroup).*Args.ExpTime+5);
                             Skip = true;
                         end
+
+
+
+                        % if TimeSinceLastImage<(60./SEC_DAY)
+                        %     % Don't wait for more images
+                        % else
+                        %     % wait for more images
+                        %     pause((Args.MaxInGroup - NinGroup).*Args.ExpTime+5);
+                        %     Skip = true;
+                        % end
                     else
                         switch lower(Args.SortDirection)
                             case 'ascend'
@@ -2453,7 +2468,7 @@ classdef PipelineDemon < Component
             Ntr = size(TableRaw,1);
             TableRaw.TimePipeI = RunTime.*ones(Ntr,1);
             RawImageListFinal = TableRaw.FileName;
-            
+
             % Notify watchdog that process is running
             tools.systemd.mex.notify_watchdog;
 
@@ -2567,7 +2582,7 @@ classdef PipelineDemon < Component
 
             % Coadd
             FN_C.SubDir  = FN_I.SubDir;
-            FN_C.Counter = 0;
+            FN_C.Counter = repmat(0, numel(Coadd),1);
             imProc.io.saveProductImage(Coadd, FN_C, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveVisitProduct, 'WriteHeader',Args.SaveVisitHeader, 'CompressedOutput', Args.CompressedOutput);  % 3 s
             
             % Asteroids:
@@ -2589,7 +2604,11 @@ classdef PipelineDemon < Component
                 FN_MS.Level    = repmat("merged", Nsub, 1);
                 FN_MS.Product  = repmat("MergedMat", Nsub, 1);
                 FN_MS.FileType = repmat("hdf5", Nsub, 1);
-                [~,FN_MS]   = imProc.io.saveProductMatchedSources(MS, FN_MS, 'BasePath',Obj.BasePath);
+                if ~isempty([MS.Nepoch]) && ~isempty([MS.Nsrc])
+                    [~,FN_MS]   = imProc.io.saveProductMatchedSources(MS, FN_MS, 'BasePath',Obj.BasePath);
+                else
+                    FN_MS = [];
+                end
             else
                 FN_MS = [];
             end
