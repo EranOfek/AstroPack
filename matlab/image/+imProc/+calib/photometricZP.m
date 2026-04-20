@@ -240,7 +240,6 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
             IsGoodImage = Args.IsGoodImage;
         end
     end
-
         
     PhotCat=AstroCatalog();
     
