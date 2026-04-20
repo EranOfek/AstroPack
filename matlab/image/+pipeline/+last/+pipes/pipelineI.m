@@ -57,7 +57,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         Args.CornersRA                   = {'RA1','RA2','RA3','RA4'};
         Args.CornersDec                  = {'DEC1','DEC2','DEC3','DEC4'};
         Args.MinNstars                   = 50;
-        Args.MaxFracGrad                 = 0.4;
+        Args.MaxFracGrad                 = 1.0;
 
         Args.AddMergedCat                = true;
         Args.AddKnownAst                 = true;
@@ -248,7 +248,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             %MeanVar      = imProc.stat.mean(AllSI);
             MeanMeanBack = mean(MeanBack, 2); % mean background over all sub images in each epoch
             MaxFracGrad  = (max(MeanBack,[],2) - min(MeanBack,[],2))./MeanMeanBack; % max fractional background gradient per epoch
-        
+            TableRaw.MaxFracGrad(TableRaw.SelectedImages) = MaxFracGrad;
+
             IsGood = IsGoodWCS & Nstars>Args.MinNstars & MaxFracGrad<Args.MaxFracGrad;
         
             % Photometric calibration of individual images:

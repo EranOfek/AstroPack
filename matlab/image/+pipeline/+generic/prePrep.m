@@ -195,6 +195,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
                                             'AIRMASS','TRK_RA','TRK_DEC',...
                                             'MNTTEMP','FOCUS','PRVFOCUS',...
                                             'OBJECT','COUNTER','NODENUMB','MOUNTNUM','CAMNUM'};
+        Args.DeleteHeaderKeys            = {'M_AAZ','M_AALT', 'GIT_UNIT', 'GIT_MESS', 'GITSWITC', 'GITMOUNT', 'CAMPOS'};
         
 
 
@@ -226,6 +227,10 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
     AI = AI(:);
     Nim = numel(AI);
 
+    % Delete some header keys:
+    for Iim=1:1:Nim
+        AI(Iim).HeaderData.deleteKey(Args.DeleteHeaderKeys, 'UseRegExp',false);
+    end
     % delete comments from header
 %     if Args.DeleteComments
 %         for Iim=1:1:Nim
@@ -442,7 +447,8 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
                                 'GoodACF_FWHM',false(Nim,1),...
                                 'GoodImages',false(Nim,1),...
                                 'SelectedImages',false(Nim,1),...
-                                'BasicCalib',false(Nim,1));
+                                'BasicCalib',false(Nim,1),...
+                                'MaxFracGrad',nan(Nim,1));
         else
             % Add columns:
             %TableForDB.FileName              = strings(Nim,1); already in
@@ -465,6 +471,7 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
             TableForDB.GoodImages            = false(Nim,1);
             TableForDB.SelectedImages        = false(Nim,1);
             TableForDB.BasicCalib            = false(Nim,1);
+            TableForDB.MaxFracGrad           = nan(Nim,1);
         end
     end
 end
