@@ -1115,7 +1115,13 @@ classdef AstroTable < Component
 
         function Obj = insertMultiCol(Obj, Data, NewColNames, NewColUnits)
             % Insert data in multiple columns into AstroTable object
-
+            % Input  : - self (single element).
+            %          - Data matrix or table.
+            %          - Column names to add.
+            %          - Column units to add.
+            % Output : - AstroTable with new columns and data.
+            % Author : Eran Ofek (Apr 2026)
+            
             arguments
                 Obj(1,1)
                 Data

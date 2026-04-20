@@ -444,8 +444,6 @@ classdef PipelineDemon < Component
 
         end
         
-        
-    
     end
 
     methods (Static)  % fields related utilities
@@ -1959,6 +1957,10 @@ classdef PipelineDemon < Component
                                     mkdir(Obj.CalibPath);
                                 end
 
+
+                                % add ID to image
+                                %[CI.Bias,ID]=imProc.db.generateImageID(CI.Bias, 'KeyID','ID_DARK');
+
                                 FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
                                 write1(CI.Bias, FileN{1}, 'Image');
                                 FN_Master.Product  = {'Mask'};
@@ -2002,6 +2004,7 @@ classdef PipelineDemon < Component
                 % copy files to: FN_Dark.genPath();
                 io.files.moveFiles(RawList, FN.genFull);
             end
+
 
         end
         
@@ -2175,6 +2178,8 @@ classdef PipelineDemon < Component
                                 FN_Master.CropID   = {''};
                                 FN_Master.ProjName = FN_Flat.ProjName{1};
 
+                                % add ID to image
+                                %[CI.Flat,ID]=imProc.db.generateImageID(CI.Flat, 'KeyID','ID_DARK');
 
                                 FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
                                 write1(CI.Flat, FileN{1}, 'Image', 'Overwrite',Args.OverWrite);
@@ -2339,7 +2344,8 @@ classdef PipelineDemon < Component
             
             cd(PWD);
         end
-                
+        
+
         function Obj=loadCalib(Obj, Args)
             % load CalibImages into the pipeline.DemonLAST object
             % Input  : - A pipeline.DemonLAST object.
@@ -2383,6 +2389,8 @@ classdef PipelineDemon < Component
                 Args.FlatNearJD      = [];
 
                 Args.ForceReload     = false;
+                Args.KeyID_Dark      = 'ID_DARK';
+                Args.KeyID_Flat      = 'ID_FLAT';
             end
 
             PWD = pwd;
@@ -2412,6 +2420,22 @@ classdef PipelineDemon < Component
                     end
                         
                     Obj.CI.Bias = AstroImage.readFileNamesObj(FN_Bias, 'AddProduct',Args.AddImages);
+
+                    % add ID
+                    if ~isempty(Args.KeyID_Dark)
+                        if isnan(Obj.CI.Bias.HeaderData.getVal(Args.KeyID_Dark))
+                            % This block is an ugly patch to fix the fact
+                            % that old dark/flats doesn't have an image ID:
+                            SpProjName = split(FN_Bias.ProjName{1},'.'); % This command is specific for LAST
+                            Node = str2double(SpProjName{2});
+                            Mount = str2double(SpProjName{3});
+                            
+                            Obj.CI.Bias.HeaderData.deleteKey('CROPID');
+                            Obj.CI.Bias.HeaderData.insertKey({'NODENUMB', Node, ''; 'MOUNTNUM', Mount, ''; 'CROPID', 0 , ''});
+                            [Obj.CI.Bias] = imProc.db.generateImageID(Obj.CI.Bias, 'KeyID',Args.KeyID_Dark);
+                        end
+                    end
+
                     Obj.writeLog(sprintf('Using dark: %s\n', char(FN_Bias.genFile)), LogLevel.Info);
                     %fprintf('\nUsing dark: %s\n', char(FN_Bias.genFile))
                 end
@@ -2426,6 +2450,23 @@ classdef PipelineDemon < Component
                     else
                         [~,~,FN_Flat] = FN_Flat.selectNearest2JD(Args.FlatNearJD);
                     end
+
+                    % add ID
+                    if ~isempty(Args.KeyID_Flat)
+                        if isnan(Obj.CI.Flat.HeaderData.getVal(Args.KeyID_Flat))
+                            % This block is an ugly patch to fix the fact
+                            % that old dark/flats doesn't have an image ID:
+                            SpProjName = split(FN_Flat.ProjName{1},'.'); % This command is specific for LAST
+                            Node = str2double(SpProjName{2});
+                            Mount = str2double(SpProjName{3});
+                            
+                            Obj.CI.Flat.HeaderData.deleteKey('CROPID');
+                            Obj.CI.Flat.HeaderData.insertKey({'NODENUMB', Node, ''; 'MOUNTNUM', Mount, ''; 'CROPID', 0 , ''});   
+
+                            [Obj.CI.Flat] = imProc.db.generateImageID(Obj.CI.Flat, 'KeyID',Args.KeyID_Flat);
+                        end
+                    end
+
                     Obj.CI.Flat = AstroImage.readFileNamesObj(FN_Flat, 'AddProduct',Args.AddImages);
                     Obj.writeLog(sprintf('Using flat: %s\n', char(FN_Flat.genFile)), LogLevel.Info);
                     %fprintf('Using flat: %s\n\n', char(FN_Flat.genFile))
