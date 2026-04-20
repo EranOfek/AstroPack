@@ -174,7 +174,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 'ExtendedThreshold' - Threshold on SCORE vs SN_ext.
                        Default is -0.41.
 
-                'ExtendedSatDelta' - Relaxation near saturation.
+                'ExtendedSatDelta' - Stricter near saturation.
                        Default is 0.5.
 
                 'flagLimitingMag' - Flag candidates fainter than limiting mag
@@ -288,7 +288,9 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Soft bad-pixel filters
         Args.flagBadPix_Soft logical = true
-        Args.BadPix_Soft cell = {{'DarkHighVal',1.2},{'CR_DeltaHT',2.9}}
+        Args.BadPix_Soft cell = {'DarkHighVal', 'CR_DeltaHT'}
+        Args.BPS_PSFLimit double = -2.797
+        Args.BPS_DeltaLimit double = 2.996
 
         % Holes in the reference filters
         Args.flagRefHole logical = true;
@@ -347,7 +349,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Extendedness
         Args.flagExtended logical = true
-        Args.ExtendedThreshold double = -0.41
+        Args.ExtendedThreshold double = -0.19
         Args.ExtendedSatDelta double = 0.5
 
         % Limiting magnitude
@@ -368,7 +370,7 @@ function TranCat = flagNonTransients(Obj, Args)
         % Nuclear noise
         Args.flagNuclearNoise logical = true
         Args.BrightGalMagThresh double = 17.0
-        Args.BrightGalPrcThresh double = 80
+        Args.BrightGalPrcThresh double = 95
         Args.NuclearDefaultPrcThresh double = 50
         Args.NuclearMagBinWidth double = 0.5
 
@@ -378,8 +380,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ScorrCorrectionParam double = 0.7
 
         Args.flagTranslients logical = true
-        Args.TranslientThresh double = 0.48
-        Args.TranslientExpThresh (1,3) double = [10.84285361 -0.11715016 -0.06581693]
+        Args.TranslientThresh double = 0.95
     end
 
     % Don't question all this madness.
@@ -438,12 +439,15 @@ function TranCat = flagNonTransients(Obj, Args)
 
         MedDiffVar = median(Obj(Iobj).Var(:));
 
+        DgreaterR = []; % object is brighter in D than R
+
         % N and R PSF magnitudes
         if CandCat.isColumn('N_MAG_PSF')
             N_MAG_PSF = CandCat.getCol('N_MAG_PSF');
         end
         if CandCat.isColumn('R_MAG_PSF')
             R_MAG_PSF = CandCat.getCol('R_MAG_PSF');
+            DgreaterR = R_MAG_PSF > CandCat.getCol('MAG_PSF');
         end
 
         IsolatedCand = [];
@@ -669,24 +673,27 @@ function TranCat = flagNonTransients(Obj, Args)
 
             NumBadSoft = numel(Args.BadPix_Soft);
 
-            BPSoftOkayNchi2 = true(NumCand,1);
+            BPSoftOkayChi2 = true(NumCand,1);
        
             for IBad=1:1:NumBadSoft
-                IBadPix_Soft = Args.BadPix_Soft{IBad};
+                BPinNew = BD_IM.findBit(N_BM, Args.BadPix_Soft{IBad});
+                BPinRef = BD_IM.findBit(R_BM, Args.BadPix_Soft{IBad});
+                BPinNewRef = BPinNew | BPinRef;
 
-                BPinNew = BD_IM.findBit(N_BM, IBadPix_Soft{1});
-                %BPinRef = BD_IM.findBit(R_BM, IBadPix_Soft{1});
+                BPS_ThresholdIncrement = Args.BPS_DeltaLimit;
 
-                BPS_ThresholdIncrement = IBadPix_Soft{2};
-
-                BPSoftOkayNchi2(BPinNew) = BPSoftOkayNchi2(BPinNew) & ...
+                BPSoftOkayChi2(BPinNew) = BPSoftOkayChi2(BPinNew) & ...
                     (N_CHI2DOF_Local(BPinNew) < Args.SoftNChi2Lim);
+                BPSoftOkayChi2(BPinRef) = BPSoftOkayChi2(BPinRef) & ...
+                    (N_CHI2DOF_Local(BPinRef) < Args.SoftNChi2Lim);
 
-                BPSThresh(BPinNew) = BPSThresh(BPinNew) ...
+                BPSThresh(BPinNewRef) = BPSThresh(BPinNewRef) ...
                     + BPS_ThresholdIncrement;
             end
 
-            PassesBPSoft = (SdiffSd >= BPSThresh) & BPSoftOkayNchi2;
+            BPSThresh(BPSThresh == 0) = Args.BPS_PSFLimit;
+
+            PassesBPSoft = (SdiffSd >= BPSThresh) & BPSoftOkayChi2;
             BadPixSoft = ~PassesBPSoft;
 
             FilterFlags = setFilterBit(FilterFlags, BadPixSoft, BD_TF, 'BadPixelSoft');
@@ -823,9 +830,9 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % ----- PSF Shape -----
 
-        if Args.flagExtended && CandCat.isColumn('SN_ext')
+        if Args.flagExtended && CandCat.isColumn('SN_ext1')
 
-            SN_ext = CandCat.getCol('SN_ext');
+            SN_ext = CandCat.getCol('SN_ext1');
 
             ExtendedThreshold = ones(NumCand,1)*Args.ExtendedThreshold;
 
@@ -1467,6 +1474,10 @@ function TranCat = flagNonTransients(Obj, Args)
                 NuclearNoise(INuclear) = (NuclearScore(INuclear) < BinThresholdS);
             end
 
+            if ~isempty(DgreaterR)
+                NuclearNoise = NuclearNoise | DgreaterR(GalPSFNoiseCand);
+            end
+
             FilterFlags(GalPSFNoiseCand) = setFilterBit(...
                 FilterFlags(GalPSFNoiseCand), NuclearNoise, BD_TF, 'NuclearNoise');
         end
@@ -1485,6 +1496,10 @@ function TranCat = flagNonTransients(Obj, Args)
 
             if ~isempty(IsolatedCand)
                 ExcludeCand = ExcludeCand | IsolatedCand | AmbBlendedCand;
+            end
+
+            if ~isempty(DgreaterR)
+                ExcludeCand = ExcludeCand | DgreaterR;
             end
 
             % Test if Score is higher than Scorr (has to be), Scorr is
@@ -1508,11 +1523,6 @@ function TranCat = flagNonTransients(Obj, Args)
             S2_AIC = CandCat.getCol('S2_AIC');
             Z2_AIC = CandCat.getCol('Z2_AIC');
             AIC_Diff = S2_AIC - Z2_AIC;
-            AIC_Diff_Thresh = ...
-                Args.TranslientExpThresh(1)...
-                .*exp(Args.TranslientExpThresh(2)*Score)...
-                +Args.TranslientExpThresh(3);
-            AIC_Diff_Thresh = min(AIC_Diff_Thresh, 2.5);
 
             % Exclude isolated candidates unless PSF shape is poor.
             % Exclude also galaxy matched candidates that are not nuclear
@@ -1523,7 +1533,11 @@ function TranCat = flagNonTransients(Obj, Args)
                 ExcludeCand = ExcludeCand | IsolatedCand | AmbBlendedCand;
             end
 
-            IsNotTranslient = (AIC_Diff < AIC_Diff_Thresh) ...
+            if ~isempty(DgreaterR)
+                ExcludeCand = ExcludeCand | DgreaterR;
+            end
+
+            IsNotTranslient = (AIC_Diff < Args.TranslientThresh) ...
                 | ExcludeCand;
 
             TranslientFlagged = ~IsNotTranslient;
