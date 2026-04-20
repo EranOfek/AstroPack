@@ -450,7 +450,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
            
 
             % Need to check that the astrometry suceeded
-            if Args.PhotCalibSimple
+            if Args.PhotCalibSimple && Coadd(Ifields).WCS.Success
            
                 % photometric calibration
                 % change to PSF phot...
