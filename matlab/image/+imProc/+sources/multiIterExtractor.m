@@ -348,15 +348,20 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         % miscellaneous:
         %Args.DeleteInputCatalog        = true;  % delete the catalog property from the input AI stack 
         Args.AddSkyCoo                 = true;  % add RA, Dec from the AstroImage WCS if it is present 
-        Args.CreateNewObj logical      = false;   
+        Args.CreateNewObj              = false;   
         %Args.SaveSourcelessImage logical= false; % save the cleaned sourceless image as the second result
-        Args.Verbose logical           = false;  
-        Args.WriteDs9Regions logical   = false;
+        Args.Verbose                   = false;  
+        Args.WriteDs9Regions           = false;
+        Args.AddSrcStat2Header         = true;
+        Args.KeyNsrc                   = 'NSTARS';
 
         Args.SearchStreaks                 = false;
         Args.detectStreaksLSDArgs          = {};
 
+
         Args.UseMex                        = false;
+
+
     end
     
     % check consistency
@@ -800,6 +805,13 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             Result(Iobj).CatData.sortrows(Args.ColDec);    
         end        
         
+
+        % add header keywords
+        if ~isempty(Args.AddSrcStat2Header)
+            Nsrc = Result(Iobj).CatData.sizeCatalog;
+            Result(Iobj).HeaderData.insertKey({Args.KeyNsrc, Nsrc, ''});
+        end
+
         % save a copy of the AI object with the image replaced by the final subtracted image
         if ExtraOutput
             SourceLess(Iobj)       = Result(Iobj).copy;

@@ -2898,7 +2898,8 @@ classdef PipelineDemon < Component
                 
                 Args.UncompressRaw     = false;             % we already know how to read compressed fits.fz, so no need to uncompress
                 
-                Args.MoveNew2Raw       = true;
+                Args.MoveNew2Raw       = true;     % move RAW images from new/ to YYYY/MM/DD/raw/ after processing
+                Args.RemoveAfterWrite  = false;    % remove the output YYYY/MM/DD/raw/subdir/ folder after writing into it (usefull for multiple tests)  
                 Args.DebugMode         = false;
             end
             RAD = 180./pi;
