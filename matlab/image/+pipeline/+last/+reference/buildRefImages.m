@@ -260,39 +260,45 @@ function [Result] = buildRefImages(RefGrid, Args)
                     StackImages = [StackImages StitchedImage];
                 else
                     StackImages = StitchedImage;
-                end  
-                
-                clear AI
-            end % epochs
+                end                                  
+            end % groups (epochs + telescopes)
             
-            % 5. coadd the epochs from different telescopes and cameras
-            %    rotate, align, and cut the merged crops to the ref. coordinates
-            %    measure background, find sources, populate PSF
+            % do the stacking 
             if isempty(StackImages)
-                if Args.Verbose > 0
-                    cprintf('err','No images have been qualified for the field %d, skipping to the next field..\n',Iref);
-                end
-                continue
+                    if Args.Verbose > 0
+                        cprintf('err','No images have been qualified for the field %d, skipping to the next field..\n',Iref);
+                    end                
             else
-                if Args.Verbose > 0
-                    cprintf('blue','Coadding %d groups \n',numel(StackImages));
-                end
-            end
-            
-            RefImage = Args.CoaddFunction(StackImages','WCS',AIref,'SubBack',Args.SubBack,...
-                'StackMethod',Args.StackMethod, Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:});
-                                       
-            % 6. save the new reference image and its catalog, mask, and PSF to the disk
-            for Iprop=1:numel(Args.WriteProp)
-                FN = sprintf('%s/LAST_clear_%d_sci_ref_%s_1.fits',Args.OutputDir,Iref,Args.WriteProp(Iprop));
-                RefImage.write1(FN, Args.WriteProp(Iprop), 'OverWrite', true, 'MkDir', true);
-            end
-            
-            % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)
-            %    write the reference image catalog to the reference image catalog table of the DB
-            if Args.Verbose > 0
-                fprintf('Finished building a reference image for field %d: %d epochs stacked in %.1f s\n',...
-                    Iref, RefImage.HeaderData.Key.NCOADD,toc(tstart));
+                    if Args.Verbose > 0
+                        cprintf('blue','Coadding %d groups \n',numel(StackImages));
+                    end
+                    
+                    % 5. coadd the epochs from different groups of images (e.g., telescopes and cameras)
+                    %    rotate, align, and cut the merged crops to the ref. coordinates
+                    %    measure background, find sources, populate PSF
+                    RefImage = Args.CoaddFunction(StackImages','WCS',AIref,'SubBack',Args.SubBack,...
+                        'StackMethod',Args.StackMethod, Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:});
+                    
+                    % 5a. add the ID_REF keyword
+                    RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MOUNTNUM', 0);
+                    RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'CAMNUM', 0);
+                    JD = RefImage.getStructKey('MIDJD').MIDJD;
+                    [RefImage,~] = imProc.db.generateImageID(RefImage,'KeyID','ID_REF','JD',JD);
+                    
+                    % 6. save the new reference image and its catalog, mask, and PSF to the disk
+                    for Iprop=1:numel(Args.WriteProp)
+                        FN = sprintf('%s/LAST_clear_%d_sci_ref_%s_1.fits',Args.OutputDir,Iref,Args.WriteProp(Iprop));
+                        RefImage.write1(FN, Args.WriteProp(Iprop), 'OverWrite', true, 'MkDir', true);
+                    end
+                    
+                    % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)
+                    %    write the reference image catalog to the reference image catalog table of the DB
+                    
+                    
+                        if Args.Verbose > 0
+                            fprintf('Finished building a reference image for field %d: %d epochs stacked in %.1f s\n',...
+                                Iref, RefImage.HeaderData.Key.NCOADD,toc(tstart));
+                        end
             end
         end % for the particular reference grid position we have some coadds to build on        
     end % reference image grid
