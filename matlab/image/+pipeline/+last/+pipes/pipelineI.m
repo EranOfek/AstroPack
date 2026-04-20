@@ -308,6 +308,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                 AllSI(Iim).CatData.sortrows('Dec');  % 0.16s (for all in loop)
             end
         
+            if Args.AddSrcAM
+                AllSI = imProc.cat.addAirMass(AllSI, 'JD',JD, Args.Cat_addAirMassArgs{:});
+            end
+
             % match external / too expensive
             %if Args.matchExternal_Indiv
             %    % current default is true - do we want this?
@@ -403,7 +407,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             % Update Airmass (And UPIX) header keyword to based on measured crop center
             %ProcessingStep = 911;
             AnyCoaddExist = any(NotIsEmptyCoadd);
-            if any(AnyCoaddExist)
+            if AnyCoaddExist
                 [Coadd(NotIsEmptyCoadd)] = imProc.header.addAirMass(Coadd(NotIsEmptyCoadd), 'JD',JD_Coadd, 'HealpixType','nested', Args.Header_addAirMassArgs{:}); % 0.3s
             end
 
@@ -430,9 +434,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         
             %tic;
             %ProcessingStep = 931;
-            if Args.AddKnownAst
+            if Args.AddKnownAst && AnyCoaddExist
                 % slower with parfor
                 [OnlyMP,~,Coadd(NotIsEmptyCoadd)] = imProc.match.match2solarSystem(Coadd(NotIsEmptyCoadd), 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
+
                 Nast = OnlyMP.sizeCatalog;
                 if sum(Nast)>0
                     % add CropID, Node, Mount, Cam, ID_COADD:
@@ -458,15 +463,16 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             % write drifts to header
             %ProcessingStep = 941;
             for Isub=1:1:Nsub      
-                DataGM = [Args.KeysGlobalMotion(:), num2cell([GlobalMotion(Isub).RateX; GlobalMotion(Isub).StdX; GlobalMotion(Isub).RateY; GlobalMotion(Isub).StdY])];
-                Coadd(Isub).HeaderData.insertKey(DataGM,'end');
+                if NotIsEmptyCoadd(Isub)
+                    DataGM = [Args.KeysGlobalMotion(:), num2cell([GlobalMotion(Isub).RateX; GlobalMotion(Isub).StdX; GlobalMotion(Isub).RateY; GlobalMotion(Isub).StdY])];
+                    Coadd(Isub).HeaderData.insertKey(DataGM,'end');
+                end
             end
             
             %ProcessingStep = 951;
             %tic;
             if Args.AddSrcAM
-                AllSI = imProc.cat.addAirMass(AllSI, 'JD',JD, Args.Cat_addAirMassArgs{:});
-                Coadd = imProc.cat.addAirMass(Coadd, 'JD',JD, Args.Cat_addAirMassArgs{:});
+                Coadd(NotIsEmptyCoadd) = imProc.cat.addAirMass(Coadd(NotIsEmptyCoadd), 'JD',JD, Args.Cat_addAirMassArgs{:});
             end
             %toc
         
@@ -476,7 +482,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             %tic;
             for Isub=1:1:Nsub
                 %[AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub));  % 10s for all in loop
-                [Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub));  % 2.4s for all in loop
+                if NotIsEmptyCoadd(Isub)
+                    [Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub));  % 2.4s for all in loop
+                end
             end
             %toc
         
@@ -484,7 +492,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             % Photometric calibration of coadd images:
             %ProcessingStep = 971;
             %tic;
-            [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
+            if AnyCoaddExist
+                [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
+            end
             %toc
         
         
