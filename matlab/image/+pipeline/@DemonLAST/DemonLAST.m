@@ -3298,22 +3298,12 @@ classdef DemonLAST < Component
                                 
                                 T = vertcat(Coadd.Table);
                                 T.Properties.VariableNames=lower(T.Properties.VariableNames);
-%                                 T.flux_xypeak=[];
                                 T.psf_chi2dof=[];
-%                                 T.miter=[];
-%                                 T.airmass=[];
                                 T.mergedcat= T.mergedcatmask;T.mergedcatmask=[];
-%                                 T.upix_partition= T.upix_par; T.upix_par=[];
-%                                 T.upix_high     = T.upix_hig; T.upix_hig=[];
-                                
+                                T.nobs = [];
                                 T.apc_mag_aper_1=[];
                                 T.apc_mag_aper_2=[];
                                 T.apc_mag_psf=[];
-%                                 T.ab_zp=[];
-%                                 T.mag_ab_aper_1=[];
-%                                 T.mag_ab_aper_2=[];
-%                                 T.mag_ab_aper_3=[];
-%                                 T.mag_ab_psf=[];                                                                
                                 DBclient.insert('last.test_visit_src',T)
                             end
                             
