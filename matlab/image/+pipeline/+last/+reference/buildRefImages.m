@@ -2,23 +2,51 @@ function [Result] = buildRefImages(RefGrid, Args)
     % given a grid of reference images, build them from proc/coadd images
     %     employs proc/coadd image DB     
     %
-    % Input  : - a grid of reference images: coordinates of image centers and corners (RA0, Dec0, RA1-RA4, Dec1-Dec4) 
-    %         
-    %          * ...,key,val,... 
-    %         
-    %         'NsideSearch' -
-    %         'NsideLow'    -
-    %         'SearchTable' - name of the DB table containing image data
+    % Input  : - a grid of reference images: coordinates of image centers and corners (RA0, Dec0, RA1-RA4, Dec1-Dec4)
     %
-    % Output : - reference image files (Image, Mask, PSF, Cat) written to disk and ref_images table filled in the DB
+    %          * ...,key,val,...
+    %
+    %         'RefID'                - a vector of reference image IDs to be built (def. empty = all)
+    %         'PrebuiltRefWCS'       - if not empty, use an array of pre-built WCS, e.g., from the RefGrid object (def. empty)
+    %         'Naxis1'               - the pixel size of a reference image, X axis (def. 1716)
+    %         'Naxis2'               - the pixel size of a reference image, Y axis (def. 1716)
+    %         'NsideSearch'          - the healpix Nside at which overlapping regions are searched; coarser than the DB table by one step (def. 2^7)
+    %         'NsideLow'             - the healpix Nside of the image DB table (def. 2^8)
+    %         'DB'                   - a DB object; auto-generated from the connection args below if not supplied (def. empty)
+    %         'SearchTable'          - name of the DB table containing image data (def. 'last.visit_images')
+    %         'Fields'               - comma-separated list of DB table columns to be retrieved for overlap checks, filtering, and control
+    %         'GroupByFields'        - table fields used to group images that will be stitched separately, e.g., same epoch + telescope (def. {'mountnum','camnum','jd_start'})
+    %         'ImageStorageBasePath' - base path for retrieving the input crop images (def. '/mnt/euclid/last/data')
+    %         'ImageQualityFilter'   - a user-supplied quality filter injected directly into the SQL query (def. "fwhm < 4")
+    %         'RasterResolution'     - polygon rasterization step, in arcsec (def. 3)
+    %         'MinAllowedCoverage'   - minimum fractional coverage of the reference field required to accept a group (def. 0.999)
+    %         'CoaddFunction'        - function handle used to coadd the per-group stitched images (def. @pipeline.generic.procCoadd)
+    %         'SubBack'              - subtract the background in the coaddition step (def. true)
+    %         'StackMethod'          - stacking method passed to the coadd function (def. 'wrobust')
+    %         'StackMethodArgs'      - extra arguments controlling the stacking method
+    %         'CoaddFunctionArgs'    - extra arguments passed to the coadd function (def. {})
+    %         'PixScale'             - pixel scale of the reference image, in arcsec/pix (def. 1.25)
+    %         'Write2Disk'           - whether to write the products to disk (def. true)
+    %         'OutputDir'            - directory where the reference image products are written (def. '~/NewRef/')
+    %         'WriteProp'            - list of AstroImage properties to write to disk (def. ["Image","Cat","Mask","PSF"])
+    %         'OutputRefTable'       - name of the DB table to be populated with reference-image metadata (def. 'ref_images_v5')
+    %         'DbHost'               - DB server host address (def. '10.150.28.18')
+    %         'DbPort'               - DB server port (def. 9000)
+    %         'DbUser'               - DB user name (def. 'last_user')
+    %         'DbName'               - DB name used to look up the password in the AstroPack passwords file (def. 'last_ro')
+    %         'AstroDBPassFile'      - path to the AstroPack YAML passwords file (def. '~/.astropack/Passwords.yml')
+    %         'Verbose'              - verbosity level: 0 (mute), 1, 2 (maximal) (def. 2)
+    %
+    % Output : - an AstroImage object for the last reference ID from the input list 
+    %          - reference image files (Image, Mask, PSF, Cat) written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2025 Jul) 
     % Example: load('LAST_refGrid.mat'); D = db.Db.connectLASTdb('Pass','*');
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D); % a most general usage  
-    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D,'RefNumbers',[99945 99946]); % a short test
+    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D,'RefID',[99945 99946]); % a short test
     arguments
         RefGrid
                                                            
-        Args.RefNumbers        = []; % e.g., [120000 120001] or [120000:120020]; input range of ref. image numbers  
+        Args.RefID             = []; % e.g., [120000 120001] or [120000:120020]; input range of ref. image numbers  
         
         Args.PrebuiltRefWCS    = [];    % use an array of pre-built WCS (e.g., from the RefGrid object)
         Args.Naxis1            = 1716;  % the pixel size of a reference image   
@@ -49,7 +77,8 @@ function [Result] = buildRefImages(RefGrid, Args)
         
         Args.PixScale           = 1.25;        
         
-        Args.OutputDir          = '~/NewRef/';
+        Args.Write2Disk         = true
+        Args.OutputDir          = '~/NewRef/';        
         Args.WriteProp          = ["Image","Cat","Mask","PSF"];
         
         Args.OutputRefTable     = 'ref_images_v5'; % the output DB table name  
@@ -72,14 +101,14 @@ function [Result] = buildRefImages(RefGrid, Args)
     RefGrid.RA3 = RefGrid.RA3 + 180; RefGrid.RA4 = RefGrid.RA4 + 180;
         
     % loop over the Reference Image grid that has been read above 
-    if isempty(Args.RefNumbers)
-        RefNumbers = 1:Nref;
+    if isempty(Args.RefID)
+        RefID = 1:Nref;
     else
-        RefNumbers = Args.RefNumbers;
+        RefID = Args.RefID;
     end
     
     % the main loop over the reference grid 
-    for Iref = RefNumbers
+    for Iref = RefID
         
             tstart = tic;
             if Args.Verbose > 0
@@ -286,9 +315,11 @@ function [Result] = buildRefImages(RefGrid, Args)
                     [RefImage,~] = imProc.db.generateImageID(RefImage,'KeyID','ID_REF','JD',JD);
                     
                     % 6. save the new reference image and its catalog, mask, and PSF to the disk
-                    for Iprop=1:numel(Args.WriteProp)
-                        FN = sprintf('%s/LAST_clear_%d_sci_ref_%s_1.fits',Args.OutputDir,Iref,Args.WriteProp(Iprop));
-                        RefImage.write1(FN, Args.WriteProp(Iprop), 'OverWrite', true, 'MkDir', true);
+                    if Args.Write2Disk
+                        for Iprop=1:numel(Args.WriteProp)
+                            FN = sprintf('%s/LAST_clear_%d_sci_ref_%s_1.fits',Args.OutputDir,Iref,Args.WriteProp(Iprop));
+                            RefImage.write1(FN, Args.WriteProp(Iprop), 'OverWrite', true, 'MkDir', true);
+                        end
                     end
                     
                     % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)
@@ -302,6 +333,7 @@ function [Result] = buildRefImages(RefGrid, Args)
             end
         end % for the particular reference grid position we have some coadds to build on        
     end % reference image grid
+    Result = RefImage;
 end 
 
 
