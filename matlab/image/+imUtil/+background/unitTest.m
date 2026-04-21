@@ -6,6 +6,60 @@ function Result = unitTest()
     % Example: imUtil.background.unitTest
 
     Result = true;
+
+    %% imUtil.background.modeVar_SampleHist + modeVar_SampleHist_mex
+
+    Im=single(poissrnd(ones(256,256).*100));
+    [m1,v1]=imUtil.background.modeVar_LogHist(Im);
+    [m2,v2]=imUtil.background.modeVar_SampleHist(Im);
+    [m3,v3]=imUtil.background.modeVar_SampleHist(Im, 'UseMex',false);
+    
+    if abs(m1-m2)>1
+        m1-m2
+        error('Problem with: imUtil.background.modeVar_SampleHist');
+    end
+    if abs(m2-m3)>1e-5 || abs(v2-v3)>1e-5
+        m2-m3
+        v2-v3
+        error('Problem with: imUtil.background.modeVar_SampleHist');
+    end
+
+    % random test:
+
+    Nsim = 100;
+    m1   = zeros(Nsim,1);
+    v1   = zeros(Nsim,1);
+    m2   = zeros(Nsim,1);
+    v2   = zeros(Nsim,1);
+    for i=1:Nsim
+        Im = single(poissrnd(ones(256,256).*100));
+        [m1(i),v1(i)]=imUtil.background.modeVar_LogHist(Im);
+        [m2(i),v2(i)]=imUtil.background.modeVar_SampleHist(Im, 'UseMex',false);
+    end
+
+    mean(m1-m2)
+    mean(v1-v2)
+    std(v1-v2)
+    [mean(m1), mean(v1), std(m1), std(v1)]
+    [mean(m2), mean(v2), std(m2), std(v2)]
+    if std(m1-m2)>1
+        error('Problem with imUtil.background.modeVar_SampleHist (mode)');
+    end
+
+    if abs(mean(v1-v2))>3
+        mean(v1-v2)
+        error('Problem with imUtil.background.modeVar_SampleHist (var)');
+    end
+
+    if abs(mean(m1)-100)>1
+        error('Problem with imUtil.background.modeVar_SampleHist (mode)');
+    end
+    if abs(mean(v1)-100)>2
+        error('Problem with imUtil.background.modeVar_SampleHist (var)');
+    end
+
+    %%
+    
     Tol    = 1e-3;   % relative tolerance for Mode and Var between MEX / non-MEX
 
     fprintf('=== imUtil.background.modeVar_LogHist unit tests ===\n');
