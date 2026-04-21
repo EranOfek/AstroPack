@@ -3296,15 +3296,15 @@ classdef DemonLAST < Component
                                 DBclient = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
                                 DBclient.query(sprintf('use %s',Args.DbName));
                                 
-                                T = vertcat(Coadd.Table);
-                                T.Properties.VariableNames=lower(T.Properties.VariableNames);
-                                T.psf_chi2dof=[];
+                                StartDB = now;
+                                T = vertcat(Coadd.Table); T.Properties.VariableNames=lower(T.Properties.VariableNames);                                
                                 T.mergedcat= T.mergedcatmask;T.mergedcatmask=[];
-                                T.nobs = [];
-                                T.apc_mag_aper_1=[];
-                                T.apc_mag_aper_2=[];
-                                T.apc_mag_psf=[];
+                                T.nobs = []; T.psf_chi2dof=[]; 
+                                T.apc_mag_aper_1=[]; T.apc_mag_aper_2=[]; T.apc_mag_psf=[]; 
                                 DBclient.insert('last.test_visit_src',T)
+                                EndDB = now;
+                                Msg{1} = sprintf('pipeline.DemonLAST: DB injection time %.1d sec', (EndDB-StartDB)*24*3600);
+                                Obj.writeLog(Msg, LogLevel.Info);
                             end
                             
                             if Args.Backup
