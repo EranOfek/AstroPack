@@ -32,6 +32,7 @@ function [Mode, Var] = modeVar(Array, Args)
         
     end
     
+    
     if Args.DiluteFactor>1
         Array = Array(1:Args.DiluteFactor:end, 1:Args.DiluteFactor:end);
     end
