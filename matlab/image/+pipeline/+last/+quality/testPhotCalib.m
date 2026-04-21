@@ -10,10 +10,10 @@ function Result = testPhotCalib(Args)
     %     Does not require cross-matching. Also available standalone via
     %     pipeline.last.quality.testPhotFitQuality.
     %
-    %              Delegated functions in +pipeline.+last.+quality:
-    %                loadVisitData      — load FITS into AstroImage arrays
+    %              Delegated functions:
+    %                pipeline.last.load.loadVisitCatHdr — load FITS (Cat+Header) into AstroImage arrays
     %                calibratePhotModes — run calibration, compute FitRMS/ZPcenter
-    %                extractHeaderData  — extract FWHM, AIRMASS, etc. from headers
+    %                pipeline.last.load.extractHeaderData — extract FWHM, AIRMASS, etc. from headers
     %                matchPhotEpochs    — cross-epoch source matching
     %                testPhotFitQuality — fit quality diagnostics (Task B)
     %                testPhotStability  — stability analysis (Task A)
@@ -46,7 +46,7 @@ function Result = testPhotCalib(Args)
     %              Use ForceRecalc=true to recompute.
     %
     % Input  : * ...,key,val,...
-    %          --- Data loading (see also loadVisitData) ---
+    %          --- Data loading (see also pipeline.last.load.loadVisitCatHdr) ---
     %            'DataDir' - Directory with all visits' FITS files in one folder.
     %                        Default is '~/222625v1'.
     %            'OutDir'  - Directory for cached results. Default is DataDir/results.
@@ -295,7 +295,7 @@ function Result = testPhotCalib(Args)
     end
 
     % === Load ===
-    AI = pipeline.last.quality.loadVisitData( ...
+    AI = pipeline.last.load.loadVisitCatHdr( ...
         'DataDir', Args.DataDir, ...
         'Visits', Args.Visits, ...
         'VisitDirs', Args.VisitDirs, ...
@@ -312,7 +312,7 @@ function Result = testPhotCalib(Args)
     end
 
     % Extract header metadata
-    HeaderData = pipeline.last.quality.extractHeaderData(AI, ...
+    HeaderData = pipeline.last.load.extractHeaderData(AI, ...
         'Ncrop', Args.Ncrop, 'Verbose', Args.Verbose);
 
     % === Calibrate ===

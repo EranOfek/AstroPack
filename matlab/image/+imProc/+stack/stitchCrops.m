@@ -129,9 +129,13 @@ function [Result] = stitchCrops(AI, Args)
     MeanExp = mean([AI.getStructKey('EXPTIME').EXPTIME]);
     Result.HeaderData = replaceVal(Result.HeaderData, 'EXPTIME', MeanExp);
     
-    % add mount and camera number from the first crop:
+    % add some keywords from the first crop:
+    Node  = AI(1).getStructKey('NODENUMB').NODENUMB; 
     Mount = AI(1).getStructKey('MOUNTNUM').MOUNTNUM; 
     Camera= AI(1).getStructKey('CAMNUM').CAMNUM; 
+    Imtype= AI(1).getStructKey('IMTYPE').IMTYPE; 
+    Result.HeaderData = replaceVal(Result.HeaderData, 'NODENUMB', Node);
     Result.HeaderData = replaceVal(Result.HeaderData, 'MOUNTNUM', Mount);
     Result.HeaderData = replaceVal(Result.HeaderData, 'CAMNUM'  , Camera);
+    Result.HeaderData = replaceVal(Result.HeaderData, 'IMTYPE'  , Imtype);
 end

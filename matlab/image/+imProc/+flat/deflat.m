@@ -128,8 +128,9 @@ function [Result, Flat, IsFlat, IsNotFlat] = deflat(ImObj, Flat, Args)
     end
 
     if ~isempty(Args.KeyFlatID)
-        FlatID = Flat.HeaderData.getVal(Args.KeyFlatID);
+        FlatID = Flat.HeaderData.getVal(Args.KeyFlatID, 'Val2Num',false); % ID is a string
         Result.setKeyVal(Args.KeyFlatID, FlatID);
+
     end
 
 end

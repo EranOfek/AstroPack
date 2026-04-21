@@ -25,6 +25,8 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
     %                   Default is [].
     %            'Convert2single' - Transform raw images to single class.
     %                   Default is true.
+    %            'DeleteComments' - Delete comments from header.
+    %                   Default is true.
     %            'LogObj' - An optional MsgLogger object.
     %                   If non empty, then will write error and information
     %                   messages to the specified log file and standard
@@ -135,7 +137,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
         %Args.BitDictionaryName           = 'BitMask.Image.Default.yml';
 
         Args.Convert2single              = true;
-
+        Args.DeleteComments              = true; % delete comments from header
         
         Args.LogObj                      = []; % if given write log.
         
@@ -182,14 +184,21 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
         Args.FixJD                       = true;
         
 
-        Args.Keys2table                  = {'EXPMODE','FILTER','JD','EXPTIME','GAIN','READNOI','CAMNAME','CAMTEMP','CAMCOOL','CAMMODE','CAMGAIN','GAMOFFS','DATE-OBS',...
+        Args.Keys2table                  = {'EXPMODE','FILTER','JD','EXPTIME','GAIN','READNOI','CAMNAME','CAMTEMP','CAMCOOL','CAMMODE','CAMGAIN','CAMOFFS','DATE-OBS',...
                                             'M_RA','M_DEC','M_HA',...
-                                            'M_JRA','M_JDEC','M_JHA',...
-                                            'RA','Dec','HA',...
-                                            'AZ','ALT','AIRMASS','TRK_RA','TRK_DEC',...
-                                            'MNTTEMP','FOCUS','PREVFOCUS',...
-                                            'FIELDID','COUNTER','NODENUMB','MOUNTNUM','CAMNUM',...
-                                            'ID_RAW'};
+                                            'M_JRA','M_JDEC',...
+                                            'M_ARA','M_AHA','M_ADEC',...
+                                            'M_ADRA','M_ADHA','M_ADDEC',...
+                                            'M_AZ','M_ALT',...
+                                            'RA','Dec','LST',...
+                                            'OBSLON','OBSLAT','OBSALT',...
+                                            'AIRMASS','TRK_RA','TRK_DEC',...
+                                            'MNTTEMP','FOCUS','PRVFOCUS',...
+                                            'OBJECT','COUNTER','NODENUMB','MOUNTNUM','CAMNUM'};
+        Args.DeleteHeaderKeys            = {'M_AAZ','M_AALT', 'GIT_UNIT', 'GIT_MESS', 'GITSWITC', 'GITMOUNT', 'CAMPOS'};
+        
+
+
         Args.TableForDB                  = true; % if given then update table with header + results.
         
     end
@@ -218,11 +227,24 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
     AI = AI(:);
     Nim = numel(AI);
 
+    % Delete some header keys:
+    for Iim=1:1:Nim
+        AI(Iim).HeaderData.deleteKey(Args.DeleteHeaderKeys, 'UseRegExp',false);
+    end
+    % delete comments from header
+%     if Args.DeleteComments
+%         for Iim=1:1:Nim
+%             AI(Iim).HeaderData.deleteComment;
+%         end
+%     end
+
 
     if nargout>2 && ~isempty(Args.Keys2table)
         % preparing a catalog of images
         TableHeader = imProc.header.headers2table(AI,'ColNameDic',Args.Keys2table);
         TableHeader.FileName = string(Images);
+        % copy OBJECT to FIELDID
+        TableHeader.FIELDID = TableHeader.OBJECT;
     else
         TableHeader = [];
     end
@@ -264,6 +286,22 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
         FlagGoodImages = FlagGoodImages & FlagCorrectSize;
     end
 
+    % update header with SoftVersion keyword
+    if Args.AddGitVersion
+        VerString = tools.git.getVersion;
+        AI.setKeyVal(Args.KeySoftVer,VerString);
+    end
+    
+    % add raw image ID
+    if Args.AddRawImageID
+        % populate LEVEL and CROPID
+        AI = AI.setKeyVal('LEVEL','raw');
+        AI = AI.setKeyVal('CROPID',0);
+        [AI, ID] = imProc.db.generateImageID(AI, 'KeyID',Args.KeyRawID);
+
+        %TableForDB.RawID(FlagGoodImages) = ID;
+        TableForDB.ID_RAW = ID;
+    end
     
     % global background
     if Args.GlobalBackLevel
@@ -353,24 +391,10 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, 
         end
     end
 
-    % update header with SoftVersion keyword
-    if Args.AddGitVersion
-        VerString = tools.git.getVersion;
-        AI.setKeyVal(Args.KeySoftVer,VerString);
-    end
     
-    % add raw image ID
-    if Args.AddRawImageID
-        % populate LEVEL and CROPID
-        AI = AI.setKeyVal('LEVEL','raw');
-        AI = AI.setKeyVal('CROPID',0);
-        [AI, ID] = imProc.db.generateImageID(AI, 'KeyID',Args.KeyRawID);
-
-        TableForDB.RawID(FlagGoodImages) = ID;
-    end
 
     TableForDB = struct2table(TableForDB);
-    TableForDB = TableForDB(FlagGoodImages,:);
+    %TableForDB = TableForDB(FlagGoodImages,:);
 
    
 
@@ -412,7 +436,7 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
                                 'CorrectSize',false(Nim,1),...
                                 'Nx',nan(Nim,1),...
                                 'Ny',nan(Nim,1),...
-                                'RawID',ClassID(nan(Nim,1)),...
+                                'ID_RAW',ClassID(nan(Nim,1)),...
                                 'GoodGlobalBack',false(Nim,1),...
                                 'FracPixAboveThreshold',nan(Nim,1),...
                                 'Median',nan(Nim,1),...
@@ -423,7 +447,8 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
                                 'GoodACF_FWHM',false(Nim,1),...
                                 'GoodImages',false(Nim,1),...
                                 'SelectedImages',false(Nim,1),...
-                                'BasicCalib',false(Nim,1));
+                                'BasicCalib',false(Nim,1),...
+                                'MaxFracGrad',nan(Nim,1));
         else
             % Add columns:
             %TableForDB.FileName              = strings(Nim,1); already in
@@ -434,7 +459,7 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
             TableForDB.CorrectSize           = false(Nim,1);
             TableForDB.Nx                    = nan(Nim,1);
             TableForDB.Ny                    = nan(Nim,1);
-            TableForDB.RawID                 = nan(Nim,1);
+            TableForDB.ID_RAW                 = nan(Nim,1);
             TableForDB.GoodGlobalBack        = false(Nim,1);
             TableForDB.FracPixAboveThreshold = nan(Nim,1);
             TableForDB.Median                = nan(Nim,1);
@@ -446,6 +471,7 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
             TableForDB.GoodImages            = false(Nim,1);
             TableForDB.SelectedImages        = false(Nim,1);
             TableForDB.BasicCalib            = false(Nim,1);
+            TableForDB.MaxFracGrad           = nan(Nim,1);
         end
     end
 end

@@ -28,7 +28,7 @@ function [ShiftedImage] = shift_interp(Image, DX, DY, Args)
     [Ny, Nx, Nim] = size(Image);
     [X, Y] = meshgrid((1:Nx),(1:Ny));
 
-    ShiftedImage = repmat(0,Ny,Nx,Nim);
+    ShiftedImage = zeros(Ny,Nx,Nim);
     for Iim=1:1:Nim
         ShiftedImage(:,:,Iim) = interp2(X,Y,Image(:,:,Iim), X-DX(Iim), Y-DY(Iim));
     end

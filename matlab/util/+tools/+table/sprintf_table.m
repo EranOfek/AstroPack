@@ -6,6 +6,8 @@ function [Text] = sprintf_table(T, Args)
     %            'Cols' - Optional column names.
     %            'IsLatex' - print latex table. Default is false.
     %            'AddHeader' - Add VizieR style header. Default is false.
+    %            'NoData' - If true, then replace $ NaN $ with \nodata.
+    %                   Default is false.
     % Output : - A char array.
     % Author : Eran Ofek (2025 Apr) 
     % Example: tools.table.sprintf_table(table([1;2], ["aa";"bb"]),'Format', {'%d','%3s'})
@@ -17,6 +19,7 @@ function [Text] = sprintf_table(T, Args)
         Args.Cols              = [];
         Args.IsLatex           = false;
         Args.AddHeader         = false;
+        Args.NoData            = false;
     end
 
     [Nrow, Ncol] = size(T);
@@ -97,4 +100,8 @@ function [Text] = sprintf_table(T, Args)
 
     end
 
+    if Args.NoData
+        Text = regexprep(Text, '\$\s*NaN\s*\$', '\\nodata');
+        Text = regexprep(Text, '\s*NaN\s*', '\\nodata');
+    end
 end

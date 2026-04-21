@@ -202,7 +202,7 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
             SExt(ScorePos) = SExtPos;
             SExt(ScoreNeg) = -SExtNeg;
             AD(Iobj).CatData.insertCol(cast(SExt,'double'),'SCORE',...
-                {'SN_ext'},{''});
+                {'SN_ext1'},{''});
         end
 
 

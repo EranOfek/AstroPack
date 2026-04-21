@@ -57,7 +57,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         Args.CornersRA                   = {'RA1','RA2','RA3','RA4'};
         Args.CornersDec                  = {'DEC1','DEC2','DEC3','DEC4'};
         Args.MinNstars                   = 50;
-        Args.MaxFracGrad                 = 0.2;
+        Args.MaxFracGrad                 = 1.0;
 
         Args.AddMergedCat                = true;
         Args.AddKnownAst                 = true;
@@ -109,6 +109,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
     % AI putput is of size [Nimages x 1]
     try
         [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
+        % Note that AI may be shorter than TableRaw
+        % It contains only: TableRaw.SelectedImages
 
         TableRaw = [TableHeader, TableForDB]; 
         TableRaw.PrepPrepOK = true(size(TableRaw,1), 1);
@@ -134,7 +136,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             %ProcessingStep = 31;
             AI = pipeline.generic.basicCalib(AI, CI, Args.basicCalibArgs{:}, 'UpdateJD',false); %31.2s
 
-            TableRaw.BasicCalib = true(numel(AI),1);  % basic calib success
+            TableRaw.BasicCalib(TableRaw.SelectedImages) = true(numel(AI),1);  % basic calib success
         
             %ProcessingStep = 41;
             % Add MIDJD to header % 0.03s
@@ -246,7 +248,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             %MeanVar      = imProc.stat.mean(AllSI);
             MeanMeanBack = mean(MeanBack, 2); % mean background over all sub images in each epoch
             MaxFracGrad  = (max(MeanBack,[],2) - min(MeanBack,[],2))./MeanMeanBack; % max fractional background gradient per epoch
-        
+            TableRaw.MaxFracGrad(TableRaw.SelectedImages) = MaxFracGrad;
+
             IsGood = IsGoodWCS & Nstars>Args.MinNstars & MaxFracGrad<Args.MaxFracGrad;
         
             % Photometric calibration of individual images:
@@ -308,6 +311,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                 AllSI(Iim).CatData.sortrows('Dec');  % 0.16s (for all in loop)
             end
         
+            if Args.AddSrcAM
+                AllSI = imProc.cat.addAirMass(AllSI, 'JD',JD, Args.Cat_addAirMassArgs{:});
+            end
+
             % match external / too expensive
             %if Args.matchExternal_Indiv
             %    % current default is true - do we want this?
@@ -317,7 +324,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         
             % Merge catalogs
             %ProcessingStep = 501;
-            MS = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse);   % 9.6 s -> 1.3s (with MatchMethod='unify')
+            [MS,ResRelZP] = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse);   % 9.6 s -> 1.3s (with MatchMethod='unify')
         
          
             
@@ -352,26 +359,28 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             %tic;
             % Phot calib is done later (after adding airmass columns):
             %ProcessingStep = 801;
+            % If there is not ShiftInfo, the no poinmt of coadding images
             [Coadd, ResCoadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
-                                                      'SubBack',false,...
-                                                      'CatName',CatName,...
-                                                      'ShiftXY',ShiftInfo,...
-                                                      'IsGood',IsGood,...
-                                                      'PropShiftXY','ShiftXY',...
-                                                      'IsShiftXYfiltered',true,...
-                                                      'StackMethod',Args.StackMethod,...
-                                                      'UseMex',Args.UseMex,...
-                                                      'PhotCalibSimple',false,...
-                                                      'PhotCalibTrans',false,...
-                                                      'MatchMethod',Args.MatchMethod,...
-                                                      'AperRadius',Args.AperRadius,...
-                                                      'Annulus',Args.Annulus,...
-                                                      'MomentsMethod',Args.MomentsMethod,...
-                                                      'AperPhotMethod',Args.AperPhotMethod,...
-                                                      'ShiftMethod',Args.ShiftMethod,...
-                                                      'PsfPhotMethod',Args.PsfPhotMethod,...
-                                                      Args.multiIterExtractorArgs{:});
-          
+                                                          'SubBack',false,...
+                                                          'CatName',CatName,...
+                                                          'ShiftXY',ShiftInfo,...
+                                                          'IsGood',IsGood,...
+                                                          'PropShiftXY','ShiftXY',...
+                                                          'IsShiftXYfiltered',true,...
+                                                          'StackMethod',Args.StackMethod,...
+                                                          'UseMex',Args.UseMex,...
+                                                          'PhotCalibSimple',false,...
+                                                          'PhotCalibTrans',false,...
+                                                          'MatchMethod',Args.MatchMethod,...
+                                                          'AperRadius',Args.AperRadius,...
+                                                          'Annulus',Args.Annulus,...
+                                                          'MomentsMethod',Args.MomentsMethod,...
+                                                          'AperPhotMethod',Args.AperPhotMethod,...
+                                                          'ShiftMethod',Args.ShiftMethod,...
+                                                          'PsfPhotMethod',Args.PsfPhotMethod,...
+                                                          Args.multiIterExtractorArgs{:});
+            
+              
             %toc
         
             % 96 s
@@ -394,19 +403,23 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         
             % Add image ID to coadd images: in: ID_PROC
             %ProcessingStep = 901;
-            JD_Coadd = [ResCoadd.MidMidJD];
-            [Coadd, ID_Coadd] = imProc.db.generateImageID(Coadd, 'KeyID','ID_COADD', 'JD',JD_Coadd, Args.generateImageIDArgs{:});  % 0.05 s
+            NotIsEmptyCoadd = ~Coadd.isemptyImage;
+            JD_Coadd = [ResCoadd(NotIsEmptyCoadd).MidMidJD];
+            [Coadd(NotIsEmptyCoadd)] = imProc.db.generateImageID(Coadd(NotIsEmptyCoadd), 'KeyID','ID_COADD', 'JD',JD_Coadd, Args.generateImageIDArgs{:});  % 0.05 s
         
             % Update Airmass (And UPIX) header keyword to based on measured crop center
             %ProcessingStep = 911;
-            [Coadd, AllCoaddAirMass] = imProc.header.addAirMass(Coadd, 'JD',JD_Coadd, 'HealpixType','nested', Args.Header_addAirMassArgs{:}); % 0.3s
-        
+            AnyCoaddExist = any(NotIsEmptyCoadd);
+            if AnyCoaddExist
+                [Coadd(NotIsEmptyCoadd)] = imProc.header.addAirMass(Coadd(NotIsEmptyCoadd), 'JD',JD_Coadd, 'HealpixType','nested', Args.Header_addAirMassArgs{:}); % 0.3s
+            end
+
             % Add catsHTM MergedCat column to Coadd catalogs
             %ProcessingStep = 921;
-            if Args.AddMergedCat
+            if Args.AddMergedCat && AnyCoaddExist
                 %tic;
                 if isempty(Args.UseParfor)
-                    Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false);  % 23 s
+                    Coadd(NotIsEmptyCoadd) = imProc.match.match_catsHTMmerged(Coadd(NotIsEmptyCoadd), 'SameField',false, 'CreateNewObj',false);  % 23 s
                 else
                     PP = gcp('nocreate');
                     if isempty(PP)
@@ -414,7 +427,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                     end
                     %tic;
                     parfor Isub=1:1:Nsub
-                        Coadd(Isub) = imProc.match.match_catsHTMmerged(Coadd(Isub), 'SameField',false, 'CreateNewObj',false);  % 8 s
+                        if NotIsEmptyCoadd(Isub)
+                            Coadd(Isub) = imProc.match.match_catsHTMmerged(Coadd(Isub), 'SameField',false, 'CreateNewObj',false);  % 8 s
+                        end
                     end
                     %toc
                 end
@@ -422,9 +437,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         
             %tic;
             %ProcessingStep = 931;
-            if Args.AddKnownAst
+            if Args.AddKnownAst && AnyCoaddExist
                 % slower with parfor
-                [OnlyMP,~,Coadd] = imProc.match.match2solarSystem(Coadd, 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
+                [OnlyMP,~,Coadd(NotIsEmptyCoadd)] = imProc.match.match2solarSystem(Coadd(NotIsEmptyCoadd), 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
+
                 Nast = OnlyMP.sizeCatalog;
                 if sum(Nast)>0
                     % add CropID, Node, Mount, Cam, ID_COADD:
@@ -434,7 +450,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                     AllCols = {'CROPID', Cols{:}};
                     for Isub=1:1:Nsub
                         if Nast(Isub)>0
-                            OnlyMP(Isub).insertCol([Isub, Vals], Inf, AllCols);
+                            Nrow = size(OnlyMP(Isub).Catalog,1);
+                            OnlyMP(Isub).insertMultiCol(repmat([Isub, Vals], Nrow,1), AllCols, repmat({''},1, numel(AllCols)));
                         end
                     end
                     OnlyMP = OnlyMP.merge('IsTable',true);
@@ -450,15 +467,16 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             % write drifts to header
             %ProcessingStep = 941;
             for Isub=1:1:Nsub      
-                DataGM = [Args.KeysGlobalMotion(:), num2cell([GlobalMotion(Isub).RateX; GlobalMotion(Isub).StdX; GlobalMotion(Isub).RateY; GlobalMotion(Isub).StdY])];
-                Coadd(Isub).HeaderData.insertKey(DataGM,'end');
+                if NotIsEmptyCoadd(Isub)
+                    DataGM = [Args.KeysGlobalMotion(:), num2cell([GlobalMotion(Isub).RateX; GlobalMotion(Isub).StdX; GlobalMotion(Isub).RateY; GlobalMotion(Isub).StdY])];
+                    Coadd(Isub).HeaderData.insertKey(DataGM,'end');
+                end
             end
             
             %ProcessingStep = 951;
             %tic;
             if Args.AddSrcAM
-                AllSI = imProc.cat.addAirMass(AllSI, 'JD',JD, Args.Cat_addAirMassArgs{:});
-                Coadd = imProc.cat.addAirMass(Coadd, 'JD',JD, Args.Cat_addAirMassArgs{:});
+                Coadd(NotIsEmptyCoadd) = imProc.cat.addAirMass(Coadd(NotIsEmptyCoadd), 'JD',JD, Args.Cat_addAirMassArgs{:});
             end
             %toc
         
@@ -468,7 +486,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             %tic;
             for Isub=1:1:Nsub
                 %[AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub));  % 10s for all in loop
-                [Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub));  % 2.4s for all in loop
+                if NotIsEmptyCoadd(Isub)
+                    [Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub));  % 2.4s for all in loop
+                end
             end
             %toc
         
@@ -476,13 +496,18 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             % Photometric calibration of coadd images:
             %ProcessingStep = 971;
             %tic;
-            [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
+            if AnyCoaddExist
+                [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
+            end
             %toc
         
         
-            % proapage photometric calibration to individual images
-        
-            % propagae photometric calibration to MatchedSources
+            % propogate photometric calibration to individual images
+            %[ResRelZP.FitZP]
+            %AI = PC.applyPhotCalibShifts(AI, 'DeltaZP',DeltaZP);
+
+
+            % propogate photometric calibration to MatchedSources
         
             % save products
             %imProc.io.saveProductImage
@@ -503,7 +528,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                         
 %             TableRaw.FileName   = strings(RawImageList(:));
             TableRaw.FileName   = RawImageList(:);
-            TableRaw.Exception  = true(numel(RawImageList), 1); % Exception in this stage will have PrePrepOK = true
+            TableRaw.Exception(TableRaw.SelectedImages)  = true(numel(RawImageList), 1); % Exception in this stage will have PrePrepOK = true
 
             % TableRaw is populated!
             AllSI    = [];

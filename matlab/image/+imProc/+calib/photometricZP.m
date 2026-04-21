@@ -240,9 +240,9 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
             IsGoodImage = Args.IsGoodImage;
         end
     end
-
+        
+    PhotCat=AstroCatalog();
     
-    %PhotCat = [];
     for Iobj=1:1:Nobj
         if isa(Obj, 'AstroCatalog')
             Cat = Result(Iobj);

@@ -92,7 +92,7 @@ function plotPhotAsympRMS(PC, Args)
                     'Color', [0.85 0.85 0.85 0.4]);
             end
         end
-        MedPH = nanmedian(PHRMSmat(:, CropsToUse), 2);
+        MedPH = median(PHRMSmat(:, CropsToUse), 2, 'omitnan');
         plot(EpochVec, MedPH, '-', 'Color', [0.5 0.5 0.5], 'LineWidth', 3);
     end
 
@@ -107,7 +107,7 @@ function plotPhotAsympRMS(PC, Args)
                 'Color', [Cmap(Iic,:) 0.3]);
         end
     end
-    MedARMS = nanmedian(ARMSmat(:, CropsToUse), 2);
+    MedARMS = median(ARMSmat(:, CropsToUse), 2, 'omitnan');
     plot(EpochVec, MedARMS, '-k', 'LineWidth', 3.5);
 
     box on; grid on;
@@ -121,8 +121,8 @@ function plotPhotAsympRMS(PC, Args)
         legend([HrelMed, HabsMed], {'Relative (PH\_RMS)', 'Absolute (PT\_ARMS)'}, ...
             'Location', 'best');
         title(sprintf('ARMS median=%.4f, PH\\_RMS median=%.4f', ...
-            nanmedian(MedARMS), nanmedian(MedPH)));
+            median(MedARMS, 'omitnan'), median(MedPH, 'omitnan')));
     else
-        title(sprintf('ARMS median=%.4f', nanmedian(MedARMS)));
+        title(sprintf('ARMS median=%.4f', median(MedARMS, 'omitnan')));
     end
 end

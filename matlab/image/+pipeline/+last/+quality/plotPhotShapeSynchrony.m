@@ -20,7 +20,7 @@ function Result = plotPhotShapeSynchrony(PC, Args)
     %            'PlotHeatmap' - Show correlation heatmap. Default is true.
     %            'Verbose'   - Print numerical summary. Default is true.
     % Output : - Result struct with .ShapeT (Nvisits x Ncrop matrix),
-    %            .VarianceRatio, .MeanCorr, .MedianCorr, .CorrMatrix.
+    %            .SharedVar, .MeanCorr, .MedianCorr, .CorrMatrix.
     % Author : D. Kovaleva (Apr 2026)
     % Example: pipeline.last.quality.plotPhotShapeSynchrony(R.PC);
     %          pipeline.last.quality.plotPhotShapeSynchrony(R.PC, ...
@@ -102,40 +102,10 @@ function Result = plotPhotShapeSynchrony(PC, Args)
     SubMat = ShapeT(:, CropsToUse);
 
     % Per-crop temporal median
-    MedPerCrop = nanmedian(SubMat, 1);
+    MedPerCrop = median(SubMat, 1, 'omitnan');
 
     % Delta from each crop's own median
     DeltaMat = SubMat - MedPerCrop;
-
-    % Variance decomposition of the TEMPORAL signal (after removing
-    % per-crop baseline). Isolates synchrony from baseline scatter.
-    MedDeltaEpoch = nanmedian(DeltaMat, 2);
-    TotalVar    = nanvar(DeltaMat(:));
-    MedianVar   = nanvar(MedDeltaEpoch);
-    VarianceRatio = 100 * MedianVar / TotalVar;
-
-    % Cross-crop correlation
-    CorrMat = corr(SubMat, 'rows', 'pairwise');
-    OffDiag = CorrMat(~eye(NcropUse));
-    MeanCorr   = nanmean(OffDiag);
-    MedianCorr = nanmedian(OffDiag);
-
-    if Args.Verbose
-        fprintf('\n=== Shape-only integral T synchrony across crops ===\n');
-        fprintf('%-20s %12s %12s %12s\n', 'Quantity', 'VarRatio(%)', 'MeanCorr', 'MedianCorr');
-        fprintf('%s\n', repmat('-', 1, 60));
-        fprintf('%-20s %12.1f %12.3f %12.3f\n', ...
-            'ShapeT (Norm=1)', VarianceRatio, MeanCorr, MedianCorr);
-        fprintf('%s\n', repmat('-', 1, 60));
-        fprintf('VarRatio: %% of total variance in cross-crop median (shared signal)\n');
-        fprintf('MeanCorr: mean off-diagonal cross-crop correlation\n');
-    end
-
-    Result.ShapeT        = ShapeT;
-    Result.VarianceRatio = VarianceRatio;
-    Result.MeanCorr      = MeanCorr;
-    Result.MedianCorr    = MedianCorr;
-    Result.CorrMatrix    = CorrMat;
 
     % Central crops
     switch lower(Args.TileOrder)
@@ -146,6 +116,49 @@ function Result = plotPhotShapeSynchrony(PC, Args)
         otherwise
             CentralCrops = [];
     end
+    CentralMask = ismember(CropsToUse, CentralCrops);
+    CentralCropsUsed = CropsToUse(CentralMask);
+    PeriphCrops = CropsToUse(~CentralMask);
+
+    % Compute stats for all, central, peripheral
+    [SharedVar, MeanCorr, MedianCorr, CorrMat] = syncStats(SubMat, DeltaMat);
+
+    CentralIdx = find(CentralMask);
+    PeriphIdx  = find(~CentralMask);
+    if numel(CentralIdx) >= 2
+        [SV_c, MC_c, MDC_c] = syncStats(SubMat(:, CentralIdx), DeltaMat(:, CentralIdx));
+    else
+        SV_c = NaN; MC_c = NaN; MDC_c = NaN;
+    end
+    if numel(PeriphIdx) >= 2
+        [SV_p, MC_p, MDC_p] = syncStats(SubMat(:, PeriphIdx), DeltaMat(:, PeriphIdx));
+    else
+        SV_p = NaN; MC_p = NaN; MDC_p = NaN;
+    end
+
+    if Args.Verbose
+        fprintf('\n=== Shape-only integral T synchrony across crops ===\n');
+        fprintf('%-20s | %-36s | %-36s | %-36s\n', '', 'All crops', 'Central', 'Peripheral');
+        fprintf('%-20s | %11s %11s %11s | %11s %11s %11s | %11s %11s %11s\n', ...
+            'Quantity', 'ShVar(%)', 'MnCorr', 'MdCorr', ...
+            'ShVar(%)', 'MnCorr', 'MdCorr', 'ShVar(%)', 'MnCorr', 'MdCorr');
+        fprintf('%s\n', repmat('-', 1, 140));
+        fprintf('%-20s | %11.1f %11.3f %11.3f | %11.1f %11.3f %11.3f | %11.1f %11.3f %11.3f\n', ...
+            'ShapeT (Norm=1)', SharedVar, MeanCorr, MedianCorr, ...
+            SV_c, MC_c, MDC_c, SV_p, MC_p, MDC_p);
+        fprintf('%s\n', repmat('-', 1, 140));
+        fprintf('SharedVar: %% of total variance in cross-crop median (shared signal)\n');
+        fprintf('MeanCorr/MdCorr: mean/median off-diagonal cross-crop correlation\n');
+        fprintf('Central crops: %s\n', mat2str(CentralCropsUsed));
+        fprintf('Peripheral crops: %s\n', mat2str(PeriphCrops));
+    end
+
+    Result.ShapeT    = ShapeT;
+    Result.DeltaMat  = DeltaMat;
+    Result.All       = struct('SharedVar', SharedVar, 'MeanCorr', MeanCorr, ...
+        'MedianCorr', MedianCorr, 'CorrMatrix', CorrMat);
+    Result.Central   = struct('SharedVar', SV_c, 'MeanCorr', MC_c, 'MedianCorr', MDC_c);
+    Result.Peripheral = struct('SharedVar', SV_p, 'MeanCorr', MC_p, 'MedianCorr', MDC_p);
 
     EpochVec = 1:Nvisits;
     Cmap = lines(NcropUse);
@@ -169,8 +182,8 @@ function Result = plotPhotShapeSynchrony(PC, Args)
         box on; grid on;
         xlabel('Epoch');
         ylabel('Shape-only Integral T - crop median');
-        title(sprintf('Shape-only integral T (Norm=1) deviation (VarRatio=%.1f%%, MeanCorr=%.2f)', ...
-            VarianceRatio, MeanCorr));
+        title(sprintf('Shape-only integral T (Norm=1) deviation (SharedVar=%.1f%%, MeanCorr=%.2f)', ...
+            SharedVar, MeanCorr));
     end
 
     % --- (2) Correlation heatmap ---
@@ -189,4 +202,20 @@ function Result = plotPhotShapeSynchrony(PC, Args)
         title(sprintf('Shape-only integral T cross-crop correlation (mean=%.2f, median=%.2f)', ...
             MeanCorr, MedianCorr));
     end
+end
+
+function [SharedVar, MeanCorr, MedianCorr, CorrMat] = syncStats(SubMat, DeltaMat)
+    MedDeltaEpoch = median(DeltaMat, 2, 'omitnan');
+    TotalVar  = var(DeltaMat(:), 'omitnan');
+    MedianVar = var(MedDeltaEpoch, 'omitnan');
+    if TotalVar > 0
+        SharedVar = 100 * MedianVar / TotalVar;
+    else
+        SharedVar = NaN;
+    end
+    Nc = size(SubMat, 2);
+    CorrMat = corr(SubMat, 'rows', 'pairwise');
+    OffDiag = CorrMat(~eye(Nc));
+    MeanCorr   = mean(OffDiag, 'omitnan');
+    MedianCorr = median(OffDiag, 'omitnan');
 end

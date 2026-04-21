@@ -132,7 +132,7 @@ function plotPhotIntegralT(PC, Args)
     end
 
     % Median over all crops (bold)
-    MedT = nanmedian(Tmat(:, CropsToUse), 2);
+    MedT = median(Tmat(:, CropsToUse), 2, 'omitnan');
     plot(EpochVec, MedT, '-k', 'LineWidth', 3.5);
 
     box on; grid on;

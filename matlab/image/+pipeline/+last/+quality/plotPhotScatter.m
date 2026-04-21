@@ -11,7 +11,7 @@ function plotPhotScatter(MS, Args)
     %              Optionally color-codes sources by crop ID.
     %
     % Input  : - MS struct with MS.(mode){crop} = MatchedSources
-    %            (from matchPhotEpochs or loadMergedMat).
+    %            (from matchPhotEpochs or pipeline.last.load.loadMergedMat).
     %          * ...,key,val,...
     %            'Modes'       - Cell array of modes. Required.
     %            'MagFields'   - Magnitude columns. Default is {'MAG_AB_PSF','MAG_AB_APER_3'}.
@@ -46,7 +46,9 @@ function plotPhotScatter(MS, Args)
         Args.TwoPanels logical = true
         Args.OverlayTrend   = 'median'
         Args.TrendBinWidth  = 0.5
-        Args.MinEpochs      = 2   % Min non-NaN epochs per source; 0 = no filter
+        Args.MinEpochs      = 5   % Min non-NaN epochs per source (after flag filtering)
+        Args.FilterFlags cell = {'Saturated', 'NearEdge', 'NaN'}  % NaN out epochs with these flags
+        Args.BackgroundMag  = 22   % Mag fainter than this treated as bad epoch
         Args.ColorByCrop logical = false  % Color sources by crop ID (multicolor)
         Args.CentralEdge logical = false  % Distinguish central vs edge crops by shade
         Args.TileOrder      = 'rowmajor'  % For CentralEdge: 'colmajor'|'rowmajor'
@@ -109,15 +111,34 @@ function plotPhotScatter(MS, Args)
                 if Ic > numel(MS.(Mode)) || isempty(MS.(Mode){Ic}); continue; end
                 MSobj = MS.(Mode){Ic};
 
+                % Build per-epoch bad-flag mask [Nepochs × Nsrc]
+                BadEpochMask = false(size(MSobj.Data.(MagField)));
+                if ~isempty(Args.FilterFlags) && isfield(MSobj.Data, 'FLAGS')
+                    FlagMat = MSobj.Data.FLAGS;
+                    FlagMat(isnan(FlagMat)) = 0;
+                    try
+                        BD = BitDictionary;
+                        for Ifl = 1:numel(Args.FilterFlags)
+                            [~, ~, BitDec] = BD.name2bit(Args.FilterFlags{Ifl});
+                            BadEpochMask = BadEpochMask | (bitand(uint32(FlagMat), uint32(BitDec)) > 0);
+                        end
+                    catch
+                    end
+                end
+
                 % Relative photometry
                 if ~isempty(OrigMagField) && isfield(MSobj.Data, OrigMagField)
                     OrigData = MSobj.Data.(OrigMagField);
+                    OrigData(BadEpochMask) = NaN;
+                    if isfinite(Args.BackgroundMag)
+                        OrigData(OrigData > Args.BackgroundMag) = NaN;
+                    end
                     if Args.MinEpochs > 0
                         Good = sum(~isnan(OrigData), 1) >= Args.MinEpochs;
                         OrigData = OrigData(:, Good);
                     end
-                    Med = nanmedian(OrigData, 1);
-                    Std = nanstd(OrigData, 0, 1);
+                    Med = median(OrigData, 1, 'omitnan');
+                    Std = std(OrigData, 0, 1, 'omitnan');
                     PerCropOrig{Iic} = struct('Med', Med, 'Std', Std);
                     AllMedOrig = [AllMedOrig, Med];
                     AllStdOrig = [AllStdOrig, Std];
@@ -126,12 +147,16 @@ function plotPhotScatter(MS, Args)
                 % Calibrated
                 if isfield(MSobj.Data, MagField)
                     MagData = MSobj.Data.(MagField);
+                    MagData(BadEpochMask) = NaN;
+                    if isfinite(Args.BackgroundMag)
+                        MagData(MagData > Args.BackgroundMag) = NaN;
+                    end
                     if Args.MinEpochs > 0
                         Good = sum(~isnan(MagData), 1) >= Args.MinEpochs;
                         MagData = MagData(:, Good);
                     end
-                    Med = nanmedian(MagData, 1);
-                    Std = nanstd(MagData, 0, 1);
+                    Med = median(MagData, 1, 'omitnan');
+                    Std = std(MagData, 0, 1, 'omitnan');
                     PerCropMag{Iic} = struct('Med', Med, 'Std', Std);
                     AllMedMag = [AllMedMag, Med];
                     AllStdMag = [AllStdMag, Std];

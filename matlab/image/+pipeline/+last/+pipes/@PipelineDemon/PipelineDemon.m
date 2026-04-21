@@ -444,8 +444,6 @@ classdef PipelineDemon < Component
 
         end
         
-        
-    
     end
 
     methods (Static)  % fields related utilities
@@ -1719,13 +1717,28 @@ classdef PipelineDemon < Component
                         % get max JD of each sequence:
                         
                         TimeSinceLastImage = celestial.time.julday() - MaxJDPerGroup;
-                        if TimeSinceLastImage<(40./SEC_DAY)
-                            % Don't wait for more images
+
+                        if TimeSinceLastImage>(60./SEC_DAY)
+                            % check if there are enough images in visit
+                            if FN_Sci_Groups.nFiles>Args.MinInGroup
+                                % continue with current visit
+                                IndStartGroup = 1;
+                            end
                         else
                             % wait for more images
                             pause((Args.MaxInGroup - NinGroup).*Args.ExpTime+5);
                             Skip = true;
                         end
+
+
+
+                        % if TimeSinceLastImage<(60./SEC_DAY)
+                        %     % Don't wait for more images
+                        % else
+                        %     % wait for more images
+                        %     pause((Args.MaxInGroup - NinGroup).*Args.ExpTime+5);
+                        %     Skip = true;
+                        % end
                     else
                         switch lower(Args.SortDirection)
                             case 'ascend'
@@ -1944,6 +1957,10 @@ classdef PipelineDemon < Component
                                     mkdir(Obj.CalibPath);
                                 end
 
+
+                                % add ID to image
+                                [CI.Bias,ID]=imProc.db.generateImageID(CI.Bias, 'KeyID','ID_DARK');
+
                                 FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
                                 write1(CI.Bias, FileN{1}, 'Image');
                                 FN_Master.Product  = {'Mask'};
@@ -1987,6 +2004,7 @@ classdef PipelineDemon < Component
                 % copy files to: FN_Dark.genPath();
                 io.files.moveFiles(RawList, FN.genFull);
             end
+
 
         end
         
@@ -2160,6 +2178,8 @@ classdef PipelineDemon < Component
                                 FN_Master.CropID   = {''};
                                 FN_Master.ProjName = FN_Flat.ProjName{1};
 
+                                % add ID to image
+                                [CI.Flat,ID]=imProc.db.generateImageID(CI.Flat, 'KeyID','ID_FLAT');
 
                                 FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
                                 write1(CI.Flat, FileN{1}, 'Image', 'Overwrite',Args.OverWrite);
@@ -2324,7 +2344,8 @@ classdef PipelineDemon < Component
             
             cd(PWD);
         end
-                
+        
+
         function Obj=loadCalib(Obj, Args)
             % load CalibImages into the pipeline.DemonLAST object
             % Input  : - A pipeline.DemonLAST object.
@@ -2368,6 +2389,8 @@ classdef PipelineDemon < Component
                 Args.FlatNearJD      = [];
 
                 Args.ForceReload     = false;
+                Args.KeyID_Dark      = 'ID_DARK';
+                Args.KeyID_Flat      = 'ID_FLAT';
             end
 
             PWD = pwd;
@@ -2397,6 +2420,22 @@ classdef PipelineDemon < Component
                     end
                         
                     Obj.CI.Bias = AstroImage.readFileNamesObj(FN_Bias, 'AddProduct',Args.AddImages);
+
+                    % add ID
+                    if ~isempty(Args.KeyID_Dark)
+                        if isnan(Obj.CI.Bias.HeaderData.getVal(Args.KeyID_Dark))
+                            % This block is an ugly patch to fix the fact
+                            % that old dark/flats doesn't have an image ID:
+                            SpProjName = split(FN_Bias.ProjName{1},'.'); % This command is specific for LAST
+                            Node = str2double(SpProjName{2});
+                            Mount = str2double(SpProjName{3});
+                            
+                            Obj.CI.Bias.HeaderData.deleteKey('CROPID');
+                            Obj.CI.Bias.HeaderData.insertKey({'NODENUMB', Node, ''; 'MOUNTNUM', Mount, ''; 'CROPID', 0 , ''});
+                            [Obj.CI.Bias] = imProc.db.generateImageID(Obj.CI.Bias, 'KeyID',Args.KeyID_Dark);
+                        end
+                    end
+
                     Obj.writeLog(sprintf('Using dark: %s\n', char(FN_Bias.genFile)), LogLevel.Info);
                     %fprintf('\nUsing dark: %s\n', char(FN_Bias.genFile))
                 end
@@ -2411,7 +2450,26 @@ classdef PipelineDemon < Component
                     else
                         [~,~,FN_Flat] = FN_Flat.selectNearest2JD(Args.FlatNearJD);
                     end
+
                     Obj.CI.Flat = AstroImage.readFileNamesObj(FN_Flat, 'AddProduct',Args.AddImages);
+
+                    % add ID
+                    if ~isempty(Args.KeyID_Flat)
+                        if isnan(Obj.CI.Flat.HeaderData.getVal(Args.KeyID_Flat))
+                            % This block is an ugly patch to fix the fact
+                            % that old dark/flats doesn't have an image ID:
+                            SpProjName = split(FN_Flat.ProjName{1},'.'); % This command is specific for LAST
+                            Node = str2double(SpProjName{2});
+                            Mount = str2double(SpProjName{3});
+                            
+                            Obj.CI.Flat.HeaderData.deleteKey('CROPID');
+                            Obj.CI.Flat.HeaderData.insertKey({'NODENUMB', Node, ''; 'MOUNTNUM', Mount, ''; 'CROPID', 0 , ''});   
+
+                            [Obj.CI.Flat] = imProc.db.generateImageID(Obj.CI.Flat, 'KeyID',Args.KeyID_Flat);
+                        end
+                    end
+
+
                     Obj.writeLog(sprintf('Using flat: %s\n', char(FN_Flat.genFile)), LogLevel.Info);
                     %fprintf('Using flat: %s\n\n', char(FN_Flat.genFile))
                 end
@@ -2444,6 +2502,9 @@ classdef PipelineDemon < Component
             Status.WriteI  = false;
             Status.MoveRaw = false;
             
+            MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI start executing pipeline for visit');
+            Obj.writeLog(MsgF, LogLevel.Info);
+
             Tstart = clock;
 
             % executing pipelineI
@@ -2452,6 +2513,7 @@ classdef PipelineDemon < Component
             RunTime = etime(clock, Tstart);
             Ntr = size(TableRaw,1);
             TableRaw.TimePipeI = RunTime.*ones(Ntr,1);
+            RawImageListFinal = TableRaw.FileName;
 
             % Notify watchdog that process is running
             tools.systemd.mex.notify_watchdog;
@@ -2475,6 +2537,7 @@ classdef PipelineDemon < Component
                     MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI finished saving products for visit');
                     MsgF{2} = sprintf('pipeline run time : %f', RunTime);
                     Obj.writeLog(MsgF, LogLevel.Info);
+
 
                     Status.WriteI = true;
                 
@@ -2503,6 +2566,7 @@ classdef PipelineDemon < Component
                 ErrorMsg = sprintf('Pipeline I failed: %s / funname: %s @ line: %d', Status.ME.message, Status.ME.stack(1).name, Status.ME.stack(1).line);
                 Obj.writeLog(ErrorMsg, LogLevel.Error);
                 Obj.writeLog(Status.ME, LogLevel.Info);
+
             end % if Status.PipeI
 
 
@@ -2565,7 +2629,7 @@ classdef PipelineDemon < Component
 
             % Coadd
             FN_C.SubDir  = FN_I.SubDir;
-            FN_C.Counter = 0;
+            FN_C.Counter = repmat(0, numel(Coadd),1);
             imProc.io.saveProductImage(Coadd, FN_C, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveVisitProduct, 'WriteHeader',Args.SaveVisitHeader, 'CompressedOutput', Args.CompressedOutput);  % 3 s
             
             % Asteroids:
@@ -2587,7 +2651,11 @@ classdef PipelineDemon < Component
                 FN_MS.Level    = repmat("merged", Nsub, 1);
                 FN_MS.Product  = repmat("MergedMat", Nsub, 1);
                 FN_MS.FileType = repmat("hdf5", Nsub, 1);
-                [~,FN_MS]   = imProc.io.saveProductMatchedSources(MS, FN_MS, 'BasePath',Obj.BasePath);
+                if ~isempty([MS.Nepoch]) && ~isempty([MS.Nsrc])
+                    [~,FN_MS]   = imProc.io.saveProductMatchedSources(MS, FN_MS, 'BasePath',Obj.BasePath);
+                else
+                    FN_MS = [];
+                end
             else
                 FN_MS = [];
             end
@@ -2877,7 +2945,8 @@ classdef PipelineDemon < Component
                 
                 Args.UncompressRaw     = false;             % we already know how to read compressed fits.fz, so no need to uncompress
                 
-                Args.MoveNew2Raw       = true;
+                Args.MoveNew2Raw       = true;     % move RAW images from new/ to YYYY/MM/DD/raw/ after processing
+                Args.RemoveAfterWrite  = false;    % remove the output YYYY/MM/DD/raw/subdir/ folder after writing into it (usefull for multiple tests)  
                 Args.DebugMode         = false;
             end
             RAD = 180./pi;
@@ -3066,6 +3135,10 @@ classdef PipelineDemon < Component
                         if ~Status.PipeI || ~Status.WriteI
                             % Move images to failed directory:
                             Obj.moveImagesToFailedDir(RawImageList);
+
+                            % Write the Status info to the failed
+                            % directory:
+                            
                         end
     
                         if Status.PipeI && Status.WriteI && Status.MoveRaw

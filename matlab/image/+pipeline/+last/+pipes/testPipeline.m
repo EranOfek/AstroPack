@@ -1,14 +1,16 @@
-function [Result] = unitTest(Args)
+function [Result] = testPipeline(Args)
     % A unit test for the LAST pipeline
     %     Optional detailed description
     % Input  : -
     %          * ...,key,val,... 
-    %
+    %            'PipelineVersion' - One of the following options:
+    %                   'v1' - new pipeline.
+    %                   'p0' - current pipeline.
     % Output : - filled visit directory Args.LocalPath/YYYY/MM/DD/proc/HHMMSSvXX (XX starting with 0) 
     % Author : A.M. Krassilchtchikov (2026 Mar) 
     % Example: RAWImageDir = '/mnt/marvin/LAST.01.01.01/2025/07/07/raw/';
-    %          pipeline.last.pipes.unitTest('RAWImageDir',RAWImageDir,'StartTime',[8 7 2025 01 28 0]);
-    %          pipeline.last.pipes.unitTest('RAWImageDir',RAWImageDir,'PipelineVersion','prod', 'StartImage','LAST.01.01.01_20250708.003700.313_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz');
+    %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'StartTime',[8 7 2025 01 28 0]);
+    %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'PipelineVersion','prod', 'StartImage','LAST.01.01.01_20250708.003700.313_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz');
     arguments
         Args.LocalPath         = '~/LASTunitTest';
         Args.RAWImageDir       = [] 
@@ -19,8 +21,9 @@ function [Result] = unitTest(Args)
         Args.TimeInterval      = 420  % [s] 
         Args.MinInGroup        = 10 
         Args.RegenCalib        = false % we do not know yet how to write the new calib to a local dir and use it from there
-        Args.PipelineVersion   = 'dev' % 'dev' or 'prod'
+        Args.PipelineVersion   = 'v1' % 'v0' is the production version, 'v1' is the development 
         Args.UseParfor         = true
+        Args.DebugMode         = false
     end
     
     % if running without explicit arguments, do nothing
@@ -57,7 +60,7 @@ function [Result] = unitTest(Args)
     % create the daemon and configure paths 
     switch lower(Args.PipelineVersion)
         
-        case 'dev'            
+        case 'v1'            
             D=pipeline.last.pipes.PipelineDemon;
             D.setPath(Args.LocalPath,...
                 'NewPath',Args.RAWImageDir,...
@@ -75,10 +78,10 @@ function [Result] = unitTest(Args)
                 'UpdateStatusFile', false, ...
                 'pipelineIArgs', {'UseParfor',Args.UseParfor,'prePrepArgs',{'AstroImageReadArgs',{'UseMex', true}} },...
                 'MoveNew2Raw',false,...
-                'DebugMode',true,...
+                'DebugMode',Args.DebugMode,...
                 'DbHost','10.150.28.18');
             
-        case 'prod'
+        case 'v0'
             
             D = pipeline.DemonLAST;
             
@@ -102,7 +105,8 @@ function [Result] = unitTest(Args)
                 'CompressedRAW',true,...
                 'LocalBase',Args.LocalPath,...
                 'MoveRaw2OutputDir',false,...
-                'Backup',false, 'DebugMode', true);
+                'Backup',false, 'DebugMode', true,...
+                'DbHost','10.150.28.18');
                    
         otherwise 
             error('Unknown pipeline version');

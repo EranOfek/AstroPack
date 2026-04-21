@@ -5,7 +5,7 @@ function Result = calibratePhotModes(AI, Args)
     %              shapeimage, perimage, perimage_raw) and visit-level modes (perset,
     %              perset_raw). Results are cached in OutDir as PC_<mode>.mat.
     %
-    % Input  : - AI cell(Nvisits,1) of AstroImage arrays (from loadVisitData).
+    % Input  : - AI cell(Nvisits,1) of AstroImage arrays (from pipeline.last.load.loadVisitCatHdr).
     %          * ...,key,val,...
     %            'Modes'    - Cell array of PhotSys modes. Default is
     %                         {'percrop','shapeimage','perimage','perimage_raw'}.
@@ -393,13 +393,13 @@ function Result = calibratePhotModes(AI, Args)
             if ~IsShapeset
                 switch Args.VisitRefZP
                     case 'crop_median'
-                        TargetZP = nanmedian(ZPc, 1);
+                        TargetZP = median(ZPc, 1, 'omitnan');
                     case 'crop_mean'
-                        TargetZP = nanmean(ZPc, 1);
+                        TargetZP = mean(ZPc, 1, 'omitnan');
                     case 'global_median'
-                        TargetZP = repmat(nanmedian(ZPc(:)), 1, Args.Ncrop);
+                        TargetZP = repmat(median(ZPc(:), 'omitnan'), 1, Args.Ncrop);
                     case 'global_mean'
-                        TargetZP = repmat(nanmean(ZPc(:)), 1, Args.Ncrop);
+                        TargetZP = repmat(mean(ZPc(:), 'omitnan'), 1, Args.Ncrop);
                     case 'epoch'
                         EpIdx = Args.VisitRefZPEpoch;
                         TargetZP = ZPc(EpIdx, :);
@@ -410,7 +410,7 @@ function Result = calibratePhotModes(AI, Args)
 
                 if Args.Verbose
                     fprintf('  VisitRefZP=%s, target ZP range: %.3f..%.3f\n', ...
-                        Args.VisitRefZP, nanmin(TargetZP), nanmax(TargetZP));
+                        Args.VisitRefZP, min(TargetZP, [], 'omitnan'), max(TargetZP, [], 'omitnan'));
                 end
             end
 

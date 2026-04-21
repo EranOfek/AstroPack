@@ -83,9 +83,9 @@ function plotPhotStdDiff(MS, Args)
                     Mag_other = Mag_other(:, Good);
                 end
 
-                Std_pc    = nanstd(Mag_pc, 0, 1);
-                Std_other = nanstd(Mag_other, 0, 1);
-                MedMag    = nanmedian(Mag_pc, 1);
+                Std_pc    = std(Mag_pc, 0, 1, 'omitnan');
+                Std_other = std(Mag_other, 0, 1, 'omitnan');
+                MedMag    = median(Mag_pc, 1, 'omitnan');
 
                 AllMedMag = [AllMedMag, MedMag];
                 AllDeltaStd = [AllDeltaStd, Std_pc - Std_other];
@@ -175,9 +175,9 @@ function plotFieldDiff(MS, Args)
             MagB = MagB(:, Good);
         end
 
-        StdA = nanstd(MagA, 0, 1);
-        StdB = nanstd(MagB, 0, 1);
-        MedMag = nanmedian(MagA, 1);
+        StdA = std(MagA, 0, 1, 'omitnan');
+        StdB = std(MagB, 0, 1, 'omitnan');
+        MedMag = median(MagA, 1, 'omitnan');
 
         AllMedMag = [AllMedMag, MedMag];
         AllDeltaStd = [AllDeltaStd, StdA - StdB];

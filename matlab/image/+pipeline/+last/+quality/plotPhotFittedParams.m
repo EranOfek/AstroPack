@@ -106,7 +106,7 @@ function plotPhotFittedParams(PC, Args)
         end
 
         % Median over crops (bold)
-        MedPar = nanmedian(ParMat(:, CropsToUse), 2);
+        MedPar = median(ParMat(:, CropsToUse), 2, 'omitnan');
         plot(EpochVec, MedPar, '-k', 'LineWidth', 3.5);
 
         box on; grid on;
