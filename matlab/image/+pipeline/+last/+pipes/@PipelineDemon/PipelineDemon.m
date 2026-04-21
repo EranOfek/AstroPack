@@ -1959,7 +1959,7 @@ classdef PipelineDemon < Component
 
 
                                 % add ID to image
-                                %[CI.Bias,ID]=imProc.db.generateImageID(CI.Bias, 'KeyID','ID_DARK');
+                                [CI.Bias,ID]=imProc.db.generateImageID(CI.Bias, 'KeyID','ID_DARK');
 
                                 FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
                                 write1(CI.Bias, FileN{1}, 'Image');
@@ -2179,7 +2179,7 @@ classdef PipelineDemon < Component
                                 FN_Master.ProjName = FN_Flat.ProjName{1};
 
                                 % add ID to image
-                                %[CI.Flat,ID]=imProc.db.generateImageID(CI.Flat, 'KeyID','ID_DARK');
+                                [CI.Flat,ID]=imProc.db.generateImageID(CI.Flat, 'KeyID','ID_FLAT');
 
                                 FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
                                 write1(CI.Flat, FileN{1}, 'Image', 'Overwrite',Args.OverWrite);
@@ -2502,6 +2502,9 @@ classdef PipelineDemon < Component
             Status.WriteI  = false;
             Status.MoveRaw = false;
             
+            MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI start executing pipeline for visit');
+            Obj.writeLog(MsgF, LogLevel.Info);
+
             Tstart = clock;
 
             % executing pipelineI
@@ -2563,6 +2566,7 @@ classdef PipelineDemon < Component
                 ErrorMsg = sprintf('Pipeline I failed: %s / funname: %s @ line: %d', Status.ME.message, Status.ME.stack(1).name, Status.ME.stack(1).line);
                 Obj.writeLog(ErrorMsg, LogLevel.Error);
                 Obj.writeLog(Status.ME, LogLevel.Info);
+
             end % if Status.PipeI
 
 
@@ -3131,6 +3135,10 @@ classdef PipelineDemon < Component
                         if ~Status.PipeI || ~Status.WriteI
                             % Move images to failed directory:
                             Obj.moveImagesToFailedDir(RawImageList);
+
+                            % Write the Status info to the failed
+                            % directory:
+                            
                         end
     
                         if Status.PipeI && Status.WriteI && Status.MoveRaw

@@ -1066,16 +1066,16 @@ classdef AstroHeader < Component
                 Obj
                 Key
                 Val
-                Args.SearchAlgo char                          = 'strcmp';
-                Args.CaseSens(1,1) logical                    = true;
-                Args.RepVal(1,1) logical                      = true;
-                Args.Comment                                  = [];
-                Args.NewKey                                   = {};
-                Args.AddKey(1,1) logical                      = true;
-                Args.AddPos                                   = 'end';
-                Args.ColKey(1,1) uint8                        = 1;
-                Args.ColVal(1,1) uint8                        = 2;
-                Args.ColComment(1,1) uint8                    = 3;
+                Args.SearchAlgo                     = 'strcmp';
+                Args.CaseSens                       = true;
+                Args.RepVal                         = true;
+                Args.Comment                        = [];
+                Args.NewKey                         = {};
+                Args.AddKey                         = true;
+                Args.AddPos                         = 'end';
+                Args.ColKey                         = 1;
+                Args.ColVal                         = 2;
+                Args.ColComment                     = 3;
             end
 
             Nobj = numel(Obj);
@@ -1522,14 +1522,14 @@ classdef AstroHeader < Component
             
             arguments
                 Obj
-                Keys cell        = {};  % e.g., {'IMTYPE','EXPTIME','FILTER'}
-                Args.UseDict(1,1) logical                                       = true;
-                Args.CaseSens(1,1) logical                                      = true;
-                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
-                Args.Fill                                                       = NaN;
-                Args.Val2Num(1,1) logical                                       = true;
-                Args.IsInputAlt(1,1) logical                                    = true;
-                Args.KeyDict                                                    = [];
+                Keys             = {};  % e.g., {'IMTYPE','EXPTIME','FILTER'}
+                Args.UseDict                                     = true;
+                Args.CaseSens                                    = true;
+                Args.SearchAlgo                                  = 'strcmp'; % {'strcmp','regexp'}
+                Args.Fill                                        = NaN;
+                Args.Val2Num                                     = true;
+                Args.IsInputAlt                                  = true;
+                Args.KeyDict                                     = [];
             end
             
             % need a version of getStructKey for cells

@@ -324,7 +324,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         
             % Merge catalogs
             %ProcessingStep = 501;
-            MS = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse);   % 9.6 s -> 1.3s (with MatchMethod='unify')
+            [MS,ResRelZP] = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse);   % 9.6 s -> 1.3s (with MatchMethod='unify')
         
          
             
@@ -503,7 +503,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         
         
             % propogate photometric calibration to individual images
-            % PC.propagatePhotCalibToEpoch
+            %[ResRelZP.FitZP]
+            %AI = PC.applyPhotCalibShifts(AI, 'DeltaZP',DeltaZP);
 
 
             % propogate photometric calibration to MatchedSources

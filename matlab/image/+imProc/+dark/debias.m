@@ -119,7 +119,7 @@ function [Result, Bias, IsBias, IsNotBias] = debias(ImObj, Bias, Args)
     end
 
     if ~isempty(Args.KeyBiasID)
-        BiasID = Bias.HeaderData.getVal(Args.KeyBiasID);
+        BiasID = Bias.HeaderData.getVal(Args.KeyBiasID, 'Val2Num',false); % ID is a string
         Result.setKeyVal(Args.KeyBiasID, BiasID);
     end
 end
