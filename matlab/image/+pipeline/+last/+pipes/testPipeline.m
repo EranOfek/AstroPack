@@ -2,14 +2,26 @@ function [Result] = testPipeline(Args)
     % A unit test for the LAST pipeline
     %     Optional detailed description
     % Input  : -
-    %          * ...,key,val,... 
-    %            'PipelineVersion' - One of the following options:
+    %          * ...,key,val,...
+    %            'LocalPath'        - the local directory to save the pipeline products and logs (def. '~/LASTunitTest')
+    %            'RAWImageDir'      - a (remote) directory with RAW images; if empty, the function does nothing (def. empty)
+    %            'CalibDir'         - path to calibration images; if empty, derived from 'RAWImageDir' (def. empty)
+    %            'RefPath'          - path to reference images, used by PipelineII (def. '/mnt/euclid/last/data/references/v4/')
+    %            'StartImage'       - explicit RAW image filename marking the start of the processed range; overrides 'StartTime' when set (def. a representative LAST filename)
+    %            'StartTime'        - start time of the processed interval, as a date vector or JD; ignored if 'StartImage' is set (def. empty)
+    %            'TimeInterval'     - length of the processed time interval, in seconds (def. 420)
+    %            'MinInGroup'       - minimal number of RAW images in 'RAWImageDir' required to start processing (def. 10)
+    %            'RegenCalib'       - regenerate the calibration images locally (def. false)
+    %            'PipelineVersion'  - one of the following options (def. 'v1'):
     %                   'v1' - new pipeline.
-    %                   'p0' - current pipeline.
-    % Output : - filled visit directory Args.LocalPath/YYYY/MM/DD/proc/HHMMSSvXX (XX starting with 0) 
+    %                   'v0' - current (production) pipeline.
+    %            'UseParfor'        - use MATLAB parallelization; disabling it may help accurate debugging (def. true)
+    %            'DebugMode'        - run extra tests (e.g., DB injection) not required for a production run (def. false)
+    %            'RemoveAfterWrite' - remove pipeline product files after they are written to disk; useful for massive tests (def. false)
+    % Output : - filled visit directory Args.LocalPath/YYYY/MM/DD/proc/HHMMSSvXX (XX starting with 0)
     % Author : A.M. Krassilchtchikov (2026 Mar) 
     % Example: RAWImageDir = '/mnt/marvin/LAST.01.01.01/2025/07/07/raw/';
-    %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'StartTime',[8 7 2025 01 28 0]);
+    %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'StartTime',[8 7 2025 01 28 0],'RemoveAfterWrite',true);
     %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'PipelineVersion','prod', 'StartImage','LAST.01.01.01_20250708.003700.313_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz');
     arguments
         Args.LocalPath         = '~/LASTunitTest';
@@ -17,13 +29,14 @@ function [Result] = testPipeline(Args)
         Args.CalibDir          = [] 
         Args.RefPath           = '/mnt/euclid/last/data/references/v4/'
         Args.StartImage        = 'LAST.01.01.01_20250708.000029.080_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz' 
-        Args.StartTime         = [] % [2025 8 7 01 28 0] or 2025.3456
-        Args.TimeInterval      = 420  % [s] 
-        Args.MinInGroup        = 10 
+        Args.StartTime         = []    % [2025 8 7 01 28 0] or 2025.3456
+        Args.TimeInterval      = 420   % [s] 
+        Args.MinInGroup        = 10    % the minimal number of RAW images in 'RAWImageDir'required to start processing  
         Args.RegenCalib        = false % we do not know yet how to write the new calib to a local dir and use it from there
-        Args.PipelineVersion   = 'v1' % 'v0' is the production version, 'v1' is the development 
-        Args.UseParfor         = true
-        Args.DebugMode         = false
+        Args.PipelineVersion   = 'v1'  % 'v0' is the production version, 'v1' is the development 
+        Args.UseParfor         = true  % use the matlab parallelization; in some cases may prevent accurate debugging  
+        Args.DebugMode         = false % do some tests (e.g., DB injection) not required for a production phase  
+        Args.RemoveAfterWrite  = false % an option to remove pipeline product files after they are written to disk, useful for massive tests
     end
     
     % if running without explicit arguments, do nothing
@@ -79,6 +92,7 @@ function [Result] = testPipeline(Args)
                 'pipelineIArgs', {'UseParfor',Args.UseParfor,'prePrepArgs',{'AstroImageReadArgs',{'UseMex', true}} },...
                 'MoveNew2Raw',false,...
                 'DebugMode',Args.DebugMode,...
+                'RemoveAfterWrite',Args.RemoveAfterWrite,...
                 'DbHost','10.150.28.18');
             
         case 'v0'

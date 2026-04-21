@@ -2553,6 +2553,15 @@ classdef PipelineDemon < Component
                         Status.MoveRaw = false;
                     end
                     %TableRaw.SaveStatus = true(Ntr,1);
+                    
+                    % for test runs / debugging:
+                    if Args.RemoveAfterWrite
+                        SubDir = FN_I.genPath;
+                        Command = sprintf('rm %s/*',SubDir);
+                        system(Command);
+                        Command = sprintf('rmdir %s',SubDir);
+                        system(Command);
+                    end
                 catch MEs
                     % save failed
                     Status.WriteI = false;
