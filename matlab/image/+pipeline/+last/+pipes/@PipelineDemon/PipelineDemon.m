@@ -2451,6 +2451,8 @@ classdef PipelineDemon < Component
                         [~,~,FN_Flat] = FN_Flat.selectNearest2JD(Args.FlatNearJD);
                     end
 
+                    Obj.CI.Flat = AstroImage.readFileNamesObj(FN_Flat, 'AddProduct',Args.AddImages);
+
                     % add ID
                     if ~isempty(Args.KeyID_Flat)
                         if isnan(Obj.CI.Flat.HeaderData.getVal(Args.KeyID_Flat))
@@ -2467,7 +2469,7 @@ classdef PipelineDemon < Component
                         end
                     end
 
-                    Obj.CI.Flat = AstroImage.readFileNamesObj(FN_Flat, 'AddProduct',Args.AddImages);
+
                     Obj.writeLog(sprintf('Using flat: %s\n', char(FN_Flat.genFile)), LogLevel.Info);
                     %fprintf('Using flat: %s\n\n', char(FN_Flat.genFile))
                 end
