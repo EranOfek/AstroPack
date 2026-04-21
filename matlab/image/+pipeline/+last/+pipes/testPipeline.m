@@ -22,7 +22,7 @@ function [Result] = testPipeline(Args)
     % Author : A.M. Krassilchtchikov (2026 Mar) 
     % Example: RAWImageDir = '/mnt/marvin/LAST.01.01.01/2025/07/07/raw/';
     %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'StartTime',[8 7 2025 01 28 0],'RemoveAfterWrite',true);
-    %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'PipelineVersion','prod', 'StartImage','LAST.01.01.01_20250708.003700.313_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz');
+    %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'PipelineVersion','v1', 'StartImage','LAST.01.01.01_20250708.003700.313_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz');
     arguments
         Args.LocalPath         = '~/LASTunitTest';
         Args.RAWImageDir       = [] 
