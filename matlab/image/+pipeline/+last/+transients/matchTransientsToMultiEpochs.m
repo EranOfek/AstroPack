@@ -40,8 +40,6 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
         Args.SearchRad = 3;
         Args.MinTimeDiffMinutes = 1;
 
-        Args.Template = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
-
         Args.DB = [];
         Args.DbHost = 'last0';
         Args.DbName = 'last';   
@@ -176,7 +174,8 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
     
         CleanSelf = ...
             (ADc(Ipos).CatData.getCol('N_NEIGH') < 1) &...
-            (ADc(Ipos).CatData.getCol('S_CORR') > 3);
+            (ADc(Ipos).CatData.getCol('S_CORR') > 3) & ...
+            (ADc(Ipos).CatData.getCol('SCORE') > ADc(Ipos).CatData.getCol('SN_ext1'));
     
         PassingMatches = sum(HighSelf | CleanSelf);
         
@@ -237,7 +236,8 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
             CleanMatches = ...
                 (log10(MatchDB.flux_psf/MatchDB.flux_contam) > 0.5) &...
                 (MatchDB.n_neigh < 1) &...
-                (MatchDB.s_corr > 3.0);
+                (MatchDB.s_corr > 3.0) & ...
+                (MatchDB.score > MatchDB.sn_ext1);
 
             PassingMatches = PassingMatches + ...
                 sum(PositiveMatches & (HighMatches | CleanMatches));
