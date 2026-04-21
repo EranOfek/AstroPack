@@ -3,6 +3,7 @@ function [Result] = testPipeline(Args)
     %     Optional detailed description
     % Input  : -
     %          * ...,key,val,... 
+    %            'LocalPath'       - the local directory to save the pipeline products and logs
     %            'PipelineVersion' - One of the following options:
     %                   'v1' - new pipeline.
     %                   'p0' - current pipeline.
@@ -24,6 +25,7 @@ function [Result] = testPipeline(Args)
         Args.PipelineVersion   = 'v1' % 'v0' is the production version, 'v1' is the development 
         Args.UseParfor         = true
         Args.DebugMode         = false
+        Args.RemoveAfterWrite  = false
     end
     
     % if running without explicit arguments, do nothing
@@ -79,6 +81,7 @@ function [Result] = testPipeline(Args)
                 'pipelineIArgs', {'UseParfor',Args.UseParfor,'prePrepArgs',{'AstroImageReadArgs',{'UseMex', true}} },...
                 'MoveNew2Raw',false,...
                 'DebugMode',Args.DebugMode,...
+                'RemoveAfterWrite',Args.RemoveAfterWrite,...
                 'DbHost','10.150.28.18');
             
         case 'v0'

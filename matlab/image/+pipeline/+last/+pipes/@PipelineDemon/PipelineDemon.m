@@ -2556,7 +2556,7 @@ classdef PipelineDemon < Component
                     
                     % for test runs / debugging:
                     if Args.RemoveAfterWrite
-                        SubDir = FN_I.genFullPath;
+                        SubDir = FN_I.genPath;
                         Command = sprintf('rm %s/*',SubDir);
                         system(Command);
                         Command = sprintf('rmdir %s',SubDir);
