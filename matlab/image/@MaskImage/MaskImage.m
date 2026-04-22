@@ -132,13 +132,13 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
 
                 if Args.UseMex
                     if ~isempty(Flag)
-                        
                         if numel(Flag)==numel(Result(Iobj).Data)
                             % assume that Flag in logical array of the same
                             % size 
                             Result(Iobj).Data = tools.array.bitsetFlag(Result(Iobj).Data, squeeze(Flag), BitInd, SetVal, true, true);
                         else
                             % Flag is indices:
+                            % consider using: tools.array.mex.bitsetInd (only slightly faster)
                             Result(Iobj).Data(Flag) = bitset(Result(Iobj).Data(Flag), BitInd, SetVal);
                         end
                     end
