@@ -79,6 +79,24 @@ function [Result] = perfTest()
     fprintf('tools.array.bitsetFlag old mex is x %f faster than matlab\n',T1./T2);
     fprintf('tools.array.bitsetFlag new mex is x %f faster than matlab\n',T1./T3);
 
+    %% tools.array.mex.bitsetFlagMulti
+    Array = uint32(zeros(1716,1716));
+    Flag1  = rand(1716,1716)>0.95;
+    Flag2  = rand(1716,1716)>0.95;
+
+    Nsim = 100;
+
+    tic;
+    for I=1:Nsim
+        Res3 = tools.array.bitsetFlag(Array, Flag1, 13);
+        Res3 = tools.array.bitsetFlag(Res3, Flag2, 14);
+    end
+    T1=toc;
+    tic; for I=1:Nsim, Res3 = tools.array.mex.bitsetFlagMulti(Array, Flag1, 13, 1, Flag2, 14, 1); end, T2=toc;
+
+    fprintf('tools.array.mex.bitsetFlagMulti is x %f faster mex.bitsetFlag (two arrays)\n',T1./T2);
+
+
 
     %% tools.array.sumInRange
     A=rand(1700,1700);

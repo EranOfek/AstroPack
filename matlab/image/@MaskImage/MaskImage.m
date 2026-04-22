@@ -74,7 +74,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             %            'UseFlags' - A logical indicating if to use flags
             %                   or indices (speed considerations).
             %                   Default is true.
-            %            'UseMex' - Use the tools.array.mex_bitsetFlag
+            %            'UseMex' - Use the tools.array.mex.bitsetFlag
             %                   mex function. Default is true.
             % Output : - An ImageMaks object.
             % Author : Eran Ofek (May 2021)
@@ -91,9 +91,9 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                 BitName                      % name or bit index (start with zero)
                 SetVal                            = 1;
                 Args.DefBitDict                   = BitDictionary('BitMask.Image.Default');
-                Args.CreateNewObj logical         = false;
-                Args.UseFlags logical             = false;
-                Args.UseMex logical               = true;
+                Args.CreateNewObj                 = false;
+                Args.UseFlags                     = false;
+                Args.UseMex                       = true;
             end
             
             if Args.CreateNewObj

@@ -9,7 +9,7 @@
 %            Default is false.
 %
 % Output : - Am array in which the bits were updated.
-%
+% Compilation: mex -R2018a CXXFLAGS='$CXXFLAGS -O3 -mavx2 -mfma -fopenmp -march=native -DNDEBUG' LDFLAGS='$LDFLAGS -fopenmp' bitsetFlag.cpp
 % Author : ChatGPT, Eran Ofek (Sep 2025)
 % Example: Array = zeros(1726, 1726, 'uint32');
 %          Flag  = rand(1726, 1726) > 0.9;
