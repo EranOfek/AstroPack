@@ -39,7 +39,7 @@ function [Result] = buildRefImages(RefGrid, Args)
     %
     % Output : - an AstroImage object for the last reference ID from the input list 
     %          - reference image files (Image, Mask, PSF, Cat) written to disk and ref_images table filled in the DB
-    % Author : A.M. Krassilchtchikov (2025 Jul) 
+    % Author : A.M. Krassilchtchikov (2026 Apr) 
     % Example: load('LAST_refGrid.mat'); D = db.Db.connectLASTdb('Pass','*');
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D); % a most general usage  
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D,'RefID',[99945 99946]); % a short test
