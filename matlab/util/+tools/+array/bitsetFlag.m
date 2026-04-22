@@ -38,7 +38,7 @@ function Result = bitsetFlag(Array, Flag, Bit, Value, UseMex, UseMP)
             Result(Flag) = bitset(Array(Flag), Bit, Value);
           
         else
-            % UseMex is [false false]
+            % UseMex is [false false] / old MEX (much slower than new)
             % MEX implementation
             % Call function according to input data type
             C = lower(class(Array));    

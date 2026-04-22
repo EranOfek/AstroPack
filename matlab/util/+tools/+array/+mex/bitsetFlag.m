@@ -5,6 +5,8 @@
 %          - Flags - Array of logical flags
 %          - Bit - Bit number
 %          - Value - 0 or 1
+%          - Logical: use prescan (true), or not (false).
+%            Default is false.
 %
 % Output : - Am array in which the bits were updated.
 %

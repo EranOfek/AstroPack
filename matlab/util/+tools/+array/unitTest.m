@@ -75,6 +75,11 @@ function [Result] = unitTest()
         error('Problem with tools.array.mex.bitsetFlag - new mex');
     end
 
+    % more bitsetFlag tests
+
+    test_bitsetFlag();
+
+
     %% tools.array.unique_count
     Vec=randi(100,10000,1);
     [UnVal1,Count1]=tools.array.unique_count(Vec,@strcmpi,'search');
@@ -89,4 +94,185 @@ function [Result] = unitTest()
     %%
     
     Result = true;
+end
+
+
+function test_bitsetFlag()
+
+    rng(1);
+
+    Classes = {'uint8','uint16','uint32','uint64'};
+    NumTrialsPerClass = 50;
+
+    fprintf('Testing bitsetFlag...\n');
+
+    for Ic = 1:numel(Classes)
+        ClassName = Classes{Ic};
+
+        switch ClassName
+            case 'uint8'
+                MaxBit = 8;
+            case 'uint16'
+                MaxBit = 16;
+            case 'uint32'
+                MaxBit = 32;
+            case 'uint64'
+                MaxBit = 64;
+            otherwise
+                error('Unexpected class');
+        end
+
+        for It = 1:NumTrialsPerClass
+
+            % Random size
+            Size1 = randi([1,50]);
+            Size2 = randi([1,40]);
+            Sz = [Size1, Size2];
+
+            % Random array of requested integer class
+            A = randomIntegerArray(Sz, ClassName);
+
+            % Random logical flag mask
+            F = rand(Sz) > rand();
+
+            % Random bit number
+            BitNumber = randi(MaxBit);
+
+            % Random SetVal
+            SetVal = rand() > 0.5;
+
+            % ---- MATLAB reference ----
+            Ref = referenceBitsetFlag(A, F, BitNumber, SetVal);
+
+            % ---- MEX without prescan (default) ----
+            Out0 = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal);
+
+            if ~isequal(Out0, Ref)
+                error('Mismatch without prescan. Class=%s Trial=%d Bit=%d SetVal=%d', ...
+                    ClassName, It, BitNumber, SetVal);
+            end
+
+            % ---- MEX with explicit prescan=false ----
+            Out1 = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal, false);
+
+            if ~isequal(Out1, Ref)
+                error('Mismatch with prescan=false. Class=%s Trial=%d Bit=%d SetVal=%d', ...
+                    ClassName, It, BitNumber, SetVal);
+            end
+
+            % ---- MEX with prescan=true ----
+            Out2 = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal, true);
+
+            if ~isequal(Out2, Ref)
+                error('Mismatch with prescan=true. Class=%s Trial=%d Bit=%d SetVal=%d', ...
+                    ClassName, It, BitNumber, SetVal);
+            end
+        end
+
+        fprintf('  %s passed\n', ClassName);
+    end
+
+    % Extra edge/uniform-mask tests
+    testSpecialCases();
+
+    fprintf('All tests passed successfully.\n');
+end
+
+
+function Ref = referenceBitsetFlag(A, F, BitNumber, SetVal)
+    % MATLAB reference implementation
+
+    Ref = A;
+
+    if SetVal ~= 0
+        % Set the selected bit only where F is true
+        Ref(F) = bitset(Ref(F), BitNumber, 1);
+    else
+        % Clear the selected bit only where F is true
+        Ref(F) = bitset(Ref(F), BitNumber, 0);
+    end
+end
+
+
+function A = randomIntegerArray(Sz, ClassName)
+
+    switch ClassName
+        case 'uint8'
+            A = uint8(randi([0, intmax('uint8')], Sz));
+        case 'uint16'
+            A = uint16(randi([0, intmax('uint16')], Sz));
+        case 'uint32'
+            % Build uint32 from two uint16 chunks to avoid randi limitations
+            Hi = uint32(randi([0, 65535], Sz));
+            Lo = uint32(randi([0, 65535], Sz));
+            A = bitor(bitshift(Hi, 16), Lo);
+        case 'uint64'
+            % Build uint64 from four uint16 chunks
+            P1 = uint64(randi([0, 65535], Sz));
+            P2 = uint64(randi([0, 65535], Sz));
+            P3 = uint64(randi([0, 65535], Sz));
+            P4 = uint64(randi([0, 65535], Sz));
+            A = bitor( ...
+                    bitor(bitshift(P1, 48), bitshift(P2, 32)), ...
+                    bitor(bitshift(P3, 16), P4) );
+        otherwise
+            error('Unsupported class');
+    end
+end
+
+
+function testSpecialCases()
+
+    fprintf('  Running special-case tests...\n');
+
+    Cases = {
+        'uint8',  8
+        'uint16', 16
+        'uint32', 32
+        'uint64', 64
+        };
+
+    for I = 1:size(Cases,1)
+        ClassName = Cases{I,1};
+        MaxBit    = Cases{I,2};
+
+        A = randomIntegerArray([20,30], ClassName);
+
+        for BitNumber = [1, MaxBit]
+            for SetVal = [0, 1]
+
+                % All false mask
+                F = false(size(A));
+                Ref = referenceBitsetFlag(A, F, BitNumber, SetVal);
+                Out = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal);
+                assert(isequal(Out, Ref), 'Special case failed: all false');
+
+                Out = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal, true);
+                assert(isequal(Out, Ref), 'Special case failed: all false + prescan');
+
+                % All true mask
+                F = true(size(A));
+                Ref = referenceBitsetFlag(A, F, BitNumber, SetVal);
+                Out = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal);
+                assert(isequal(Out, Ref), 'Special case failed: all true');
+
+                Out = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal, true);
+                assert(isequal(Out, Ref), 'Special case failed: all true + prescan');
+
+                % Single true pixel
+                F = false(size(A));
+                F(randi(numel(F))) = true;
+                Ref = referenceBitsetFlag(A, F, BitNumber, SetVal);
+                Out = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal);
+                assert(isequal(Out, Ref), 'Special case failed: single true');
+
+                % Single false pixel
+                F = true(size(A));
+                F(randi(numel(F))) = false;
+                Ref = referenceBitsetFlag(A, F, BitNumber, SetVal);
+                Out = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal, true);
+                assert(isequal(Out, Ref), 'Special case failed: single false');
+            end
+        end
+    end
 end
