@@ -1,29 +1,35 @@
-function Report = checkMaskPropForcedPhot(NewAI, RefAI, Args)
-    % Check whether a named mask bit survives forced photometry.
-    %   Applies an operation Op to (NewAI, RefAI) — by default AstroDiff.register
-    %   — that typically modifies the mask of one or both images (e.g. register
-    %   adds the NaN bit on the non-overlap region of Ref). Then compares, per
-    %   source, the ground truth (does a FlagsHalfSize x FlagsHalfSize window
-    %   of the post-Op mask contain the bit?) against the FLAGS column returned
-    %   by forced photometry. Runs against imProc.sources.forcedPhotNew (new)
-    %   and/or imProc.sources.forcedPhot (old) so the user can confirm a fix
-    %   or a regression.
+function Report = checkMaskPropagationOper(NewAI, RefAI, Args)
+    % Check whether a named mask bit survives an operation on AstroImage(s).
+    %   Applies an operation Op to one or two AstroImages — by default
+    %   AstroDiff.register for the two-AI form — that typically modifies
+    %   the mask (e.g. register adds the NaN bit on the non-overlap region
+    %   of Ref). Then compares, per source, the ground truth (does a
+    %   FlagsHalfSize x FlagsHalfSize window of the post-Op mask contain the
+    %   bit?) against the FLAGS column returned by forced photometry. Runs
+    %   against imProc.sources.forcedPhotNew (new) and/or
+    %   imProc.sources.forcedPhot (old) so the user can confirm a fix or a
+    %   regression.
+    %
+    %   Modes:
+    %     - Two-AI (RefAI provided): Op is [NewOut,RefOut] = Op(NewAI,RefAI).
+    %       Default Op is AstroDiff.register. Both targets are checked.
+    %     - One-AI (RefAI = [] or omitted): Op is NewOut = Op(NewAI). No
+    %       default — caller must pass Op. Only NewAI is checked.
     %
     %   Verdict per (Target, Version) is Kept = (FN == 0) among evaluable
     %   sources (edge-clipped sources with FLAGS = NaN are excluded from the
     %   per-source contingency table).
     %
-    %   Verbose defaults to true, matching the pipeline.last.quality package
-    %   convention.
-    %
-    %   Side effect: Back / Var are populated on the post-Op AstroImages if
-    %   unpopulated (forcedPhotNew requires them).
-    %
     % Input  : - NewAI. A populated AstroImage (Image, Mask, WCS).
-    %          - RefAI. A populated AstroImage (Image, Mask, WCS).
+    %          - RefAI. A populated AstroImage (Image, Mask, WCS), or [].
+    %            Default is [] (single-AI mode).
     %          * ...,key,val,...
-    %            'Op'           - Function handle: [NewOut, RefOut] = Op(NewAI, RefAI).
-    %                             Default is [], which selects AstroDiff.register.
+    %            'Op'           - Function handle.
+    %                             Two-AI form: [NewOut,RefOut] = Op(NewAI,RefAI).
+    %                             One-AI form: NewOut = Op(NewAI).
+    %                             Default is []; in two-AI mode this selects
+    %                             AstroDiff.register, in one-AI mode Op is
+    %                             required.
     %            'BitName'      - Name of the mask bit to track, resolved via
     %                             BitDictionary. Default is 'NaN'.
     %            'BitDictName'  - BitDictionary name. Default is
@@ -50,10 +56,10 @@ function Report = checkMaskPropForcedPhot(NewAI, RefAI, Args)
     %            .Timestamp   - datetime of the run
     %            .BitName, .BitIndex, .BitValue - the tracked bit
     %            .OpName      - string form of the operation applied
+    %            .Mode        - 'one-AI' or 'two-AI'
     %            .X, .Y       - pixel positions used (Nsrc x 1)
-    %            .MaskHasBit_New, .MaskHasBit_Ref - logical Nsrc x 1: does a
-    %                           FlagsHalfSize window around (X,Y) on the post-Op
-    %                           mask of that target contain the bit?
+    %            .MaskHasBit_New - logical Nsrc x 1
+    %            .MaskHasBit_Ref - logical Nsrc x 1, or [] in one-AI mode
     %            .FLAGS       - struct: FLAGS.(Target)_(Version) = Nsrc x 1
     %                           numeric column from the forced-phot catalog;
     %                           NaN where forcedPhot edge-clipped the source.
@@ -63,18 +69,20 @@ function Report = checkMaskPropForcedPhot(NewAI, RefAI, Args)
     %            .Errors      - struct of per-step error messages.
     %            .Summary     - text summary.
     % Author : Dana Kovaleva (Apr 2026)
-    % Example: % Default: register + NaN + auto-grid + both versions
-    %          R = pipeline.last.quality.checkMaskPropForcedPhot(NewAI, RefAI);
-    %          % Custom operation and bit:
-    %          Op = @(N,R) myCustomOp(N,R);
-    %          R = pipeline.last.quality.checkMaskPropForcedPhot(NewAI, RefAI, ...
-    %                  'Op', Op, 'BitName', 'Overlap');
+    % Example: % Two-AI: register + NaN + auto-grid + both versions
+    %          R = pipeline.last.quality.checkMaskPropagationOper(NewAI, RefAI);
+    %          % Two-AI with custom Op and bit:
+    %          R = pipeline.last.quality.checkMaskPropagationOper(NewAI, RefAI, ...
+    %                  'Op', @(N,R) myCustomOp(N,R), 'BitName', 'Overlap');
+    %          % One-AI: single-image op (e.g. convolution)
+    %          R = pipeline.last.quality.checkMaskPropagationOper(AI, [], ...
+    %                  'Op', @(A) imProc.image.filter(A, 'Filter', K));
     %          % Inspect verdict:
     %          disp(R.Results);
 
     arguments
         NewAI AstroImage
-        RefAI AstroImage
+        RefAI                                  = []
         Args.Op                                = [];
         Args.BitName       (1,:) char          = 'NaN';
         Args.BitDictName   (1,:) char          = 'BitMask.Image.Default';
@@ -90,10 +98,15 @@ function Report = checkMaskPropForcedPhot(NewAI, RefAI, Args)
         Args.Verbose       (1,1) logical       = true;
     end
 
-    Errors = struct();
+    Errors   = struct();
+    OneAIMode = isempty(RefAI);
 
     % --- Resolve Op ---
     if isempty(Args.Op)
+        if OneAIMode
+            error('checkMaskPropagationOper:NoOp', ...
+                  'Op must be provided in one-AI mode.');
+        end
         Op     = @localDefaultRegisterOp;
         OpName = 'AstroDiff.register';
     else
@@ -110,13 +123,19 @@ function Report = checkMaskPropForcedPhot(NewAI, RefAI, Args)
     BitVal = bitshift(uint32(1), uint32(BitInd));
 
     if Args.Verbose
-        fprintf('checkMaskPropForcedPhot: Op=%s, bit=%s (%d, val=%u)\n', ...
+        fprintf('checkMaskPropagationOper: mode=%s, Op=%s, bit=%s (%d, val=%u)\n', ...
+                ternary(OneAIMode,'one-AI','two-AI'), ...
                 OpName, Args.BitName, BitInd, BitVal);
     end
 
     % --- 1. Apply operation ---
     try
-        [NewPost, RefPost] = Op(NewAI, RefAI);
+        if OneAIMode
+            NewPost = Op(NewAI);
+            RefPost = [];
+        else
+            [NewPost, RefPost] = Op(NewAI, RefAI);
+        end
     catch ME
         Errors.Op = ME.message;
         error('Operation failed: %s', ME.message);
@@ -128,7 +147,7 @@ function Report = checkMaskPropForcedPhot(NewAI, RefAI, Args)
 
     % --- 2. Resolve positions to pixel (X, Y) in the post-Op frame ---
     if isempty(Args.Coo)
-        [Ny, Nx] = size(RefPost.Image);
+        [Ny, Nx] = size(NewPost.Image);
         Step   = Args.GridStep;
         Margin = Args.GridMargin;
         [Xg, Yg] = meshgrid(Margin:Step:(Nx-Margin), Margin:Step:(Ny-Margin));
@@ -153,50 +172,63 @@ function Report = checkMaskPropForcedPhot(NewAI, RefAI, Args)
     end
     Nsrc = numel(X);
 
-    % --- 3. Populate Back on both targets (required by forcedPhotNew) ---
+    % --- 3. Populate Back on each target (required by forcedPhotNew) ---
     try
         NewPost = imProc.background.background(NewPost);
     catch ME
         Errors.background_New = ME.message;
     end
-    try
-        RefPost = imProc.background.background(RefPost);
-    catch ME
-        Errors.background_Ref = ME.message;
+    if ~OneAIMode
+        try
+            RefPost = imProc.background.background(RefPost);
+        catch ME
+            Errors.background_Ref = ME.message;
+        end
     end
 
     % --- 4. Ground truth: window lookup on each target's post-Op mask ---
     MaskHasBit_New = localWindowHasBit(uint32(NewPost.Mask), X, Y, BitVal, Args.FlagsHalfSize);
-    MaskHasBit_Ref = localWindowHasBit(uint32(RefPost.Mask), X, Y, BitVal, Args.FlagsHalfSize);
+    MaskHasBit_Ref = [];
+    if ~OneAIMode
+        MaskHasBit_Ref = localWindowHasBit(uint32(RefPost.Mask), X, Y, BitVal, Args.FlagsHalfSize);
+    end
 
     % --- 5. Run forced photometry on each target, per requested version ---
-    FLAGS = struct();
-    if Args.TestNew
-        [FLAGS.New_new, Errors] = localCallForcedPhotNew(NewPost, CooFP, CooUnitsFP, ...
-                                    Args.MinEdgeDist, Args.FlagsHalfSize, ...
-                                    'New_new', Errors, Args.Verbose);
-        [FLAGS.Ref_new, Errors] = localCallForcedPhotNew(RefPost, CooFP, CooUnitsFP, ...
-                                    Args.MinEdgeDist, Args.FlagsHalfSize, ...
-                                    'Ref_new', Errors, Args.Verbose);
+    Targets     = {'New'};
+    TargetPosts = {NewPost};
+    MasksC      = {MaskHasBit_New};
+    if ~OneAIMode
+        Targets{end+1}     = 'Ref';
+        TargetPosts{end+1} = RefPost;
+        MasksC{end+1}      = MaskHasBit_Ref;
     end
-    if Args.TestOld
-        [FLAGS.New_old, Errors] = localCallForcedPhotOld(NewPost, CooFP, CooUnitsFP, ...
-                                    Args.MinEdgeDist, Args.FlagsHalfSize, ...
-                                    'New_old', Errors, Args.Verbose);
-        [FLAGS.Ref_old, Errors] = localCallForcedPhotOld(RefPost, CooFP, CooUnitsFP, ...
-                                    Args.MinEdgeDist, Args.FlagsHalfSize, ...
-                                    'Ref_old', Errors, Args.Verbose);
+
+    FLAGS = struct();
+    for Itg = 1:numel(Targets)
+        Tag  = Targets{Itg};
+        Post = TargetPosts{Itg};
+        if Args.TestNew
+            [FLAGS.([Tag '_new']), Errors] = localCallForcedPhotNew(Post, CooFP, CooUnitsFP, ...
+                                        Args.MinEdgeDist, Args.FlagsHalfSize, ...
+                                        [Tag '_new'], Errors, Args.Verbose);
+        end
+        if Args.TestOld
+            [FLAGS.([Tag '_old']), Errors] = localCallForcedPhotOld(Post, CooFP, CooUnitsFP, ...
+                                        Args.MinEdgeDist, Args.FlagsHalfSize, ...
+                                        [Tag '_old'], Errors, Args.Verbose);
+        end
     end
 
     % --- 6. Results table ---
-    Results = localBuildResults({'New','Ref'}, {MaskHasBit_New, MaskHasBit_Ref}, ...
-                                FLAGS, BitVal, Args.TestNew, Args.TestOld, Nsrc);
+    Results = localBuildResults(Targets, MasksC, FLAGS, BitVal, ...
+                                Args.TestNew, Args.TestOld, Nsrc);
 
     % --- 7. Summary and assemble Report ---
     Summary = localBuildSummary(Results, Args.BitName, OpName, Nsrc, Errors);
 
     Report                = struct();
     Report.Timestamp      = datetime('now');
+    Report.Mode           = ternary(OneAIMode, 'one-AI', 'two-AI');
     Report.BitName        = Args.BitName;
     Report.BitIndex       = BitInd;
     Report.BitValue       = double(BitVal);
@@ -225,6 +257,11 @@ end
 
 
 % =========================================================================
+
+function Out = ternary(Cond, A, B)
+    if Cond; Out = A; else; Out = B; end
+end
+
 
 function [NewOut, RefOut] = localDefaultRegisterOp(NewAI, RefAI)
     % Default operation: AstroDiff.register (Ref resampled into New frame).
@@ -393,8 +430,8 @@ function S = localBuildSummary(Results, BitName, OpName, Nsrc, Errors)
         end
     end
 
-    S = sprintf(['checkMaskPropForcedPhot Report\n', ...
-                 '==============================\n', ...
+    S = sprintf(['checkMaskPropagationOper Report\n', ...
+                 '================================\n', ...
                  'Operation : %s\n', ...
                  'Bit       : %s\n', ...
                  'Positions : %d\n', ...
