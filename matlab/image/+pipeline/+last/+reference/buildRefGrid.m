@@ -1,28 +1,32 @@
 function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     % Building a grid for LAST reference images 
     %     Optional detailed description
-    % Input  : - 
-    %          * ...,key,val,... 
-    %          'Save2mat' - logical, save output to a .mat file
+    % Input  : * ...,key,val,...
+    %          'Save2mat' - logical, save output to a .mat file.
+    %            Default is false.
+    %          'RefImSizePix' - reference-grid image size in pixels (square).
+    %            Default is 1716.
     % Output : - structures with reference image and subimage coordinates (incl. corners) 
     % Author : Yossi Shvartzvald (2025 Jul) 
     % Example: [LAST_RefIm_Grid, LAST_SubIm_Grid] = pipeline.last.reference.buildRefGrid('Save2mat',true);
-    arguments        
-        Args.Save2mat          = false;   
+    arguments
+        Args.Save2mat          = false;
         Args.FileName          = 'LAST_refGrid.mat';
+        Args.RefImSizePix      = 1716;    % reference-grid image size [pix]
     end
-    % 
+    %
     load('~/matlab/data/LAST/RefGrid/CamRot.mat');
     load('~/matlab/data/LAST/RefGrid/dDec.mat');
     load('~/matlab/data/LAST/RefGrid/dRA.mat');
     load('~/matlab/data/LAST/RefGrid/LAST_Grid_comb.mat');
 
-    RAD = 180/pi;    
+    RAD = 180/pi;
     % New - RefIm with corners
     newT = table();
     LAST_RefIm_Grid = table();
-    dRA_sub = 0.3; 
-    dDec_sub= 0.3;
+    PixScale = 1.25/3600;                             % [deg/pix]
+    dRA_sub  = Args.RefImSizePix * PixScale / 2;
+    dDec_sub = Args.RefImSizePix * PixScale / 2;
     for i = 1:height(LAST_Grid)
         for k = 1:height(Telescope_offset_Grid.dRA)
             [Dist,PA0]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA,Telescope_offset_Grid.dDec(k)+RefIm_offset_Grid.dDec,'deg');
