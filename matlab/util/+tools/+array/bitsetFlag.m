@@ -34,7 +34,7 @@ function Result = bitsetFlag(Array, Flag, Bit, Value, UseMex, UseMP)
         %UseMex is [false]
         if ~isscalar(UseMex)
             % MATLAB implementation
-            Result = zeros(size(Array),'like',Array);
+            Result = Array; %zeros(size(Array),'like',Array);
             Result(Flag) = bitset(Array(Flag), Bit, Value);
           
         else

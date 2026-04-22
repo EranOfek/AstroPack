@@ -96,6 +96,25 @@ function [Result] = perfTest()
 
     fprintf('tools.array.mex.bitsetFlagMulti is x %f faster mex.bitsetFlag (two arrays)\n',T1./T2);
 
+    %% tools.array.mex.bitsetInd
+
+    Array = uint32(zeros(1716,1716));
+    Flag1  = find(rand(1716,1716)>0.95);
+    %Flag2  = find(rand(1716,1716)>0.95);
+
+    Nsim = 100;
+
+    tic;
+    for I=1:Nsim
+        Res3 = Array;
+        Res3(Flag1) = bitset(Array(Flag1),13,1);
+    end
+    T1=toc;
+    tic; for I=1:Nsim, Res4 = tools.array.mex.bitsetInd(Array, Flag1, 13, 1); end, T2=toc;
+
+    fprintf('tools.array.mex.bitsetFlagMulti is x %f faster mex.bitsetFlag (two arrays)\n',T1./T2);
+
+
 
 
     %% tools.array.sumInRange

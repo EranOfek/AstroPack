@@ -83,6 +83,42 @@ function [Result] = unitTest()
     test_bitsetFlagMulti()
 
 
+    Array = uint32(zeros(1716,1716));
+    Flag1  = rand(1716,1716)>0.95;
+    Flag2  = rand(1716,1716)>0.95;
+
+    Nsim = 100;
+
+    Res3 = tools.array.bitsetFlag(Array, Flag1, 13, true, false);
+    Res3 = tools.array.bitsetFlag(Res3, Flag2, 14, true, false);
+    Res4 = tools.array.mex.bitsetFlagMulti(Array, Flag1, 13, 1, Flag2, 14, 1);
+
+    if sum(abs(Res3~=Res4),'all')>0
+        error('Problem with tools.array.mex.bitsetFlagMulti');
+    end
+
+    %% tools.array.mex.bitsetInd
+
+    Array = uint32(zeros(1716,1716));
+    Flag1  = find(rand(1716,1716)>0.95);
+
+    Nsim = 100;
+
+    Res2 = Array;
+    Res2(Flag1) = bitset(Array(Flag1), 13);
+    Res3 = tools.array.bitsetFlag(Array, Flag1, 13, 1, [false, false]);
+    Res4 = tools.array.mex.bitsetInd(Array, Flag1, 13, true);
+
+    if sum(abs(Res2~=Res3),'all')>0
+        error('Problem with tools.array.bitsetFlag (with indices)');
+    end
+
+    if sum(abs(Res2~=Res4),'all')>0
+        error('Problem with tools.array.mex.bitsetInd');
+    end
+
+
+
     %% tools.array.unique_count
     Vec=randi(100,10000,1);
     [UnVal1,Count1]=tools.array.unique_count(Vec,@strcmpi,'search');
