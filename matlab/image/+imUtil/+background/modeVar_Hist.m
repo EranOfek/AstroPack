@@ -1,5 +1,6 @@
 function [Mode,Var,Method] = modeVar_Hist(Array, Args)
     % Mode and variance estimator based on histogram fitting
+    %   Obsolete: use instead:  imUtil.background.modeVar_SampleHist
     %     The function make an histogram of the data and a fits its log
     %     counts around the peak region.
     % Input  : - An array.

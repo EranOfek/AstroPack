@@ -1,5 +1,6 @@
 function [Mode, Var] = modeVar_LogHist(Array, Args)
     % Estimate the mode and variance of an array (over all dims).
+    %   Obsolete: use instead:  imUtil.background.modeVar_SampleHist
     %   This function is designed for astronomical images in units of
     %   electrons (i.e., their Poisson properties are still in place) and
     %   that do not have negative values.
@@ -9,6 +10,8 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     %   The log of the data histogram is then fitted with a parabola.
     %   The maximum of the parabola is the mode, while the points it which
     %   it intersects the maximum-0.5 defines the std and the variance.
+    %       See also: imUtil.background.modeVar_LogHist
+    %       
     % Input  : - An array for which to calculate the mode (over all dims).
     %          * ...,key,val,... 
     %            'DiluteFactor' - (positive integer) If >1 then will dilute the array by this
@@ -46,6 +49,8 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     %
     % Output : - Estimated mode.
     %          - Estimated variance.
+    % Notes  : - Array diluation is done in a weird way and should be
+    %            revisted.
     % Author : Eran Ofek (2023 Dec) 
     % Example: [M,V]=imUtil.background.modeVar_LogHist(R);
     %          for I=1:1:numel(AI); [M(I),V(I)]=imUtil.background.modeVar_LogHist(AI(1).Image(:)); [M1(I),V1(I)]=imUtil.background.mode(AI(1).Image(:)); end
