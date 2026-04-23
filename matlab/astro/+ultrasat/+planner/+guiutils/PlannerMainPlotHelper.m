@@ -234,16 +234,16 @@ classdef PlannerMainPlotHelper < ultrasat.api.core.Loggable
 
             % Create and show PlotLcsGraphsApp
             if isempty(app.PlotLcsGraphsApp) || ~isvalid(app.PlotLcsGraphsApp)
-                app.PlotLcsGraphsApp = ultrasat.planner.gui.PlotLcsGraphsApp(app.MainModule);
+                app.PlotLcsGraphsApp = ultrasat.planner.gui.PlotLcsGraphs(app.MainModule);
             end
             app.PlotLcsGraphsApp.UIFigure.Visible = 'on';            
 
             % Refresh plot according to selected plot
-            obj.plotLcsGraphs(app.PlotLcsGraphsApp);
+            obj.plotLcsGraphs(app, app.PlotLcsGraphsApp);
         end
 
 
-        function plotLcsGraphs(obj, LcsPlotsApp)
+        function plotLcsGraphs(obj, app, LcsPlotsApp)
             % Plot according to selected plot type
 
             app.msglog('plotLcsGraphs');

@@ -894,23 +894,23 @@ classdef LcsHelper < Component
                 % Plot the schedule for each category
                 switch schedule.category{i}
                     case 'A'
-                        plot([schedule.start(i),schedule.end(i)],ones(2,1)*schedule.group(i),'-k');
+                        plot(ax, [schedule.start(i),schedule.end(i)],ones(2,1)*schedule.group(i),'-k');
                     case 'C'
-                        plot([schedule.start(i),schedule.end(i)],ones(2,1)*(mod((schedule.ind(i)-1),4)/8+floor((schedule.ind(i)-1)/4)+17),'--k');
+                        plot(ax, [schedule.start(i),schedule.end(i)],ones(2,1)*(mod((schedule.ind(i)-1),4)/8+floor((schedule.ind(i)-1)/4)+17),'--k');
                     case 'B_45'
-                        plot([schedule.start(i),schedule.end(i)],ones(2,1)*(mod((schedule.ind(i)-1),4)+floor((schedule.ind(i)-1)/4)+9),'-k');
+                        plot(ax, [schedule.start(i),schedule.end(i)],ones(2,1)*(mod((schedule.ind(i)-1),4)+floor((schedule.ind(i)-1)/4)+9),'-k');
                     case 'B_90'
-                        plot([schedule.start(i),schedule.end(i)],ones(2,1)*(mod((schedule.ind(i)-1),4)/8+floor((schedule.ind(i)-1)/4)+13),'--k');
+                        plot(ax, [schedule.start(i),schedule.end(i)],ones(2,1)*(mod((schedule.ind(i)-1),4)/8+floor((schedule.ind(i)-1)/4)+13),'--k');
                     case 'D'
-                        plot([schedule.start(i),schedule.end(i)],ones(2,1)*schedule.group(i)-300+20,'-k');
+                        plot(ax, [schedule.start(i),schedule.end(i)],ones(2,1)*schedule.group(i)-300+20,'-k');
                         
                 end
             end
 
-            ylim([0,25]);            
+            ylim(ax, [0,25]);            
 
             set(ax,'Ydir','reverse');
-            set(gca,'YTickLabels',[])
+            set(ax,'YTickLabels',[])
 
                         
             % Display vertical lines at the start and end times
@@ -955,7 +955,6 @@ classdef LcsHelper < Component
             end
             hold(ax, 'on');  
             box(ax, 'on');
-            l = {};
 
             % Plot the Schedule for the SetB fields
             for i = 1:Obj.SetBnumel
@@ -970,7 +969,7 @@ classdef LcsHelper < Component
             end
 
             % Set the y-axis limits
-            ylim([0.5,16.5]);            
+            ylim(ax,[0.5,16.5]);            
 
             % Set the x-axis label
             xlabel(ax,sprintf('Time since %s [days]',Obj.StartDate)); 
