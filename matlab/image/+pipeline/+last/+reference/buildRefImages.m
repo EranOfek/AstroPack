@@ -16,7 +16,7 @@ function [Result] = buildRefImages(RefGrid, Args)
     %         'SearchTable'          - name of the DB table containing image data (def. 'last.visit_images')
     %         'Fields'               - comma-separated list of DB table columns to be retrieved for overlap checks, filtering, and control
     %         'GroupByFields'        - table fields used to group images that will be stitched separately, e.g., same epoch + telescope (def. {'mountnum','camnum','jd_start'})
-    %         'ImageStorageBasePath' - base path for retrieving the input crop images (def. '/mnt/euclid/last/data')
+    %         'BasePath'             - base path for retrieving the input crop images (def. '/mnt/euclid/last/data')
     %         'ImageQualityFilter'   - a user-supplied quality filter injected directly into the SQL query (def. "fwhm < 4")
     %         'RasterResolution'     - polygon rasterization step, in arcsec (def. 3)
     %         'MinAllowedCoverage'   - minimum fractional coverage of the reference field required to accept a group (def. 0.999)
@@ -40,7 +40,7 @@ function [Result] = buildRefImages(RefGrid, Args)
     % Output : - an AstroImage object for the last reference ID from the input list 
     %          - reference image files (Image, Mask, PSF, Cat) written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2026 Apr) 
-    % Example: load('LAST_refGrid.mat'); D = db.Db.connectLASTdb('Pass','*');
+    % Example: load('LAST_refGrid_new.mat'); D = db.Db.connectLASTdb('Pass','*');
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D); % a most general usage  
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D,'RefID',[99945 99946]); % a short test
     arguments
@@ -62,7 +62,7 @@ function [Result] = buildRefImages(RefGrid, Args)
                                  "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
         Args.GroupByFields     = {'mountnum','camnum','jd_start'} % fields employed for grouping images to be stitched separately
         
-        Args.ImageStorageBasePath = '/mnt/euclid/last/data'; % base path for image retrieval  
+        Args.BasePath          = '/mnt/euclid/last/data'; % base path for image retrieval  
         
         Args.ImageQualityFilter = "fwhm < 4"; % a user-supplied filter (to be included directly into the SQL query) 
                        
@@ -94,12 +94,7 @@ function [Result] = buildRefImages(RefGrid, Args)
     % 
     RAD = 180/pi;  
     Nref = height(RefGrid); 
-    
-    % convert the RA to [0, 360]:    % TEMPORARY: change Yossi's grid itself to avoid this 
-    RefGrid.RA  = RefGrid.RA  + 180; 
-    RefGrid.RA1 = RefGrid.RA1 + 180; RefGrid.RA2 = RefGrid.RA2 + 180;
-    RefGrid.RA3 = RefGrid.RA3 + 180; RefGrid.RA4 = RefGrid.RA4 + 180;
-        
+           
     % loop over the Reference Image grid that has been read above 
     if isempty(Args.RefID)
         RefID = 1:Nref;
@@ -126,7 +121,7 @@ function [Result] = buildRefImages(RefGrid, Args)
             %                      'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
         end        
         % create an empty reference AstroImage and attach the RefWCS to it
-        AIref = AstroImage({zeros(Args.Naxis1,Args.Naxis2)}); 
+        AIref = AstroImage({zeros(Args.Naxis1,Args.Naxis2,'single')}); 
         AIref.WCS = RefWCS; 
         AIref.HeaderData = AIref.WCS.wcs2header; 
         
@@ -258,7 +253,7 @@ function [Result] = buildRefImages(RefGrid, Args)
                 AF.Level   = "coadd";
                 AF.CCDID   = 1;
                 AF.SubDir  = TabGrp.subdir;
-                AF.BasePath                = Args.ImageStorageBasePath;
+                AF.BasePath                = Args.BasePath;
                 AF.BasePathIncludeProjName = true;
                 AF.AddSubDir               = true;
                 
@@ -266,6 +261,7 @@ function [Result] = buildRefImages(RefGrid, Args)
                 
                 % check if WCS is present in all the selected crops
                 if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
+%                 if all(arrayfun(@(x) x.WCS.Success, AI))
                     if Args.Verbose > 0
                         cprintf('red','\nWCS is not correct in one or several crops, skipping the epoch %d\n',Igroup);
                     end
