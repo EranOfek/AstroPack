@@ -195,7 +195,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.core.Loggable
                 return;
             end
 
-            app.showPleaseWait('Updating plan targets display...');
+            app.showPleaseWait('Updating plan targets display... expected duration: up to ~60 seconds.');
             try
                 app.UITablePlanTargets.SelectionType = "row";
                 app.UITablePlanTargets.Multiselect = "off";
