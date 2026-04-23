@@ -135,6 +135,12 @@ function [Result] = register(Obj, TransRef, Args)
         
                 FullRefX = interp2(X, Y, RefX, VecRefX(:).', VecRefY(:), 'cubic');
                 FullRefY = interp2(X, Y, RefY, VecRefX(:).', VecRefY(:), 'cubic');
+                
+                % class verification (WCS.xy2refxy gives double RefX, RefY, thus FullRefX and FullRefY are also double)
+                if strcmpi(class(TransRef(Iref).ImageData.Data),'single')
+                    FullRefX = single(FullRefX);
+                    FullRefY = single(FullRefY);
+                end 
 
             case {'affine2d', 'affinetform2d'}
                 Iref = min(Iobj, Nref);
@@ -154,7 +160,7 @@ function [Result] = register(Obj, TransRef, Args)
                         error('Numeric transformation - only two columns option is supported');
                 end
         end % switch class(TransRef)
-
+                
         % Interpolation        
         for Iprop=1:1:Nprop
             if ~isempty(Obj(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn))
