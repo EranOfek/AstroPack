@@ -202,7 +202,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.Scale                            = 1.25;
         Args.Tran                             = Tran2D('poly3');
         Args.CatName                          = 'GAIADR3';
-        Args.photometricZPArgs cell           = {};    
+        
         Args.fitPhotCalibTransArgs            = {};
         Args.ReturnRegisteredAllSI logical    = true; % false;  % if true it means that AllSI will be modified and contain the registered images
           
@@ -212,6 +212,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
 
         Args.FindStars                        = true;
         Args.PhotCalibSimple                  = true;  % execute simple photometric calibration
+        Args.photometricZPArgs                = {}; 
+        Args.photometricZP_UpdateMagCols      = false;
         Args.PhotCalibTrans                   = true;  % execute transmission fit calibration
 
         %Args.RemoveHighBackImages logical     = true;   % remove images which background differ from median back by 'HighBackNsigma' sigma
@@ -460,6 +462,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                                             'CreateNewObj',false,...
                                                                                                             'MagZP',Args.ZP0,...
                                                                                                             'CatName',AstrometricCat,...
+                                                                                                             'UpdateMagCols',Args.photometricZP_UpdateMagCols,...
                                                                                                             Args.photometricZPArgs{:});
             end
 

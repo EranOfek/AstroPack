@@ -127,6 +127,11 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
             ResInd = imProc.match.matchReturnIndices(CatH(Iobj), Obj(Iobj), 'CooType','sphere',...
                                                             'Radius',Args.Radius,...
                                                             'RadiusUnits',Args.RadiusUnits);
+        
+            % TBD: replace matchReturnINdices with this, but need to update
+            % insertCol_matchIndices
+            %[ResMatch] = imProc.match.matchInd(Obj(Iobj), CatH(Iobj), 'SearchRadius',Args.Radius, 'SearchRadiusUnits',Args.RadiusUnits, 'IsSpherical',true, 'ConvertCoo2toDouble',true);
+
         end
         
         [Result(Iobj), SelObj] = imProc.match.insertCol_matchIndices(Result(Iobj), ResInd, 'AddColDist',Args.AddColDist,...
