@@ -18,7 +18,7 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     load('~/matlab/data/LAST/RefGrid/CamRot.mat');
     load('~/matlab/data/LAST/RefGrid/dDec.mat');
     load('~/matlab/data/LAST/RefGrid/dRA.mat');
-    load('~/matlab/data/LAST/RefGrid/LAST_Grid_comb.mat');
+    load('~/matlab/data/LAST/RefGrid/LAST_Grid_comb_backup.mat');
 
     RAD = 180/pi;
     % New - RefIm with corners
@@ -34,7 +34,7 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
             [d4,r4] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA0*RAD);
             newT.mount(1:nRefIm) = i;
             newT.telescope(1:nRefIm) = k;
-            newT.RA(1:nRefIm) = r4;
+            newT.RA(1:nRefIm)  = r4+180;
             newT.Dec(1:nRefIm) = d4;
             %
             [Dist,PA1]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA+dRA_sub,...
@@ -49,11 +49,11 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
             [Dist,PA4]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA-dRA_sub,...
                 Telescope_offset_Grid.dDec(k)+RefIm_offset_Grid.dDec+dDec_sub,'deg');
             [d4,r4] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA4*RAD);
-            newT.RA1(1:nRefIm) = r1; newT.Dec1(1:nRefIm) = d1;
-            newT.RA2(1:nRefIm) = r2; newT.Dec2(1:nRefIm) = d2;
-            newT.RA3(1:nRefIm) = r3; newT.Dec3(1:nRefIm) = d3;
-            newT.RA4(1:nRefIm) = r4; newT.Dec4(1:nRefIm) = d4;
-            newT.PA1(1:nRefIm) = PA1; % is it the right angle?
+            newT.RA1(1:nRefIm) = r1+180; newT.Dec1(1:nRefIm) = d1;
+            newT.RA2(1:nRefIm) = r2+180; newT.Dec2(1:nRefIm) = d2;
+            newT.RA3(1:nRefIm) = r3+180; newT.Dec3(1:nRefIm) = d3;
+            newT.RA4(1:nRefIm) = r4+180; newT.Dec4(1:nRefIm) = d4;
+            newT.PA1(1:nRefIm) = PA1; % are these the right angles?
             newT.PA2(1:nRefIm) = PA2;
             newT.PA3(1:nRefIm) = PA3;
             newT.PA4(1:nRefIm) = PA4;

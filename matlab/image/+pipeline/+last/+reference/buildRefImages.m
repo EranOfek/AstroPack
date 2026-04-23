@@ -45,7 +45,7 @@ function [Result] = buildRefImages(RefGrid, Args)
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D,'RefID',[99945 99946]); % a short test
     arguments
         RefGrid
-                                                           
+                                                        
         Args.RefID             = []; % e.g., [120000 120001] or [120000:120020]; input range of ref. image numbers  
         
         Args.PrebuiltRefWCS    = [];    % use an array of pre-built WCS (e.g., from the RefGrid object)
@@ -59,8 +59,8 @@ function [Result] = buildRefImages(RefGrid, Args)
         Args.SearchTable       = 'last.visit_images'; 
         % the list of table columns needed to check the overlaps + filtering + control 
         Args.Fields            = "id_visit, upix_low, jd_start, midjd, exptime, fieldid, mountnum, camnum, cropid," + ... 
-                           "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
-        Args.GroupByFields     = {'mountnum','camnum','jd_start'} % fields employed for grouping images to be stitched spearately
+                                 "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
+        Args.GroupByFields     = {'mountnum','camnum','jd_start'} % fields employed for grouping images to be stitched separately
         
         Args.ImageStorageBasePath = '/mnt/euclid/last/data'; % base path for image retrieval  
         

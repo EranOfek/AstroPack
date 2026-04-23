@@ -36,15 +36,12 @@ function H = plotRefGridSky(RefGrid, RowInd, Args)
     %             .Line  - handle of the (single) line object holding all
     %                      rectangle outlines (separated internally by NaN).
     %             .Texts - vector of text handles, one per drawn row.
-    % Author : Dmitry Kovaleva (Apr 2026)
-    % Example: G = load('~/matlab/data/LAST/RefGrid/LAST_refGrid.mat');
+    % Author : A.M. Krassilchtchikov + ClaudeCode (Apr 2026)
+    % Example: G = load('LAST_refGrid.mat');
     %          % all rows that survived the use-mask, on an Aitoff map:
-    %          H = pipeline.last.reference.plotRefGridSky( ...
-    %                  G.LAST_RefIm_Grid, G.LAST_RefIm_Grid.use, ...
-    %                  'Projection','aitoff');
+    %          pipeline.last.reference.plotRefGridSky(G.LAST_RefIm_Grid, LAST_RefIm_Grid.use, 'Projection','aitoff');
     %          % a few specific rows on a flat plot:
-    %          H = pipeline.last.reference.plotRefGridSky( ...
-    %                  G.LAST_RefIm_Grid, [10 25 137], 'Projection','flat');
+    %          pipeline.last.reference.plotRefGridSky(G.LAST_RefIm_Grid, [10 25 137], 'Projection','flat');
     arguments
         RefGrid           table
         RowInd                          = [];
