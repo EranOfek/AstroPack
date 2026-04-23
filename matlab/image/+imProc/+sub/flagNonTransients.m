@@ -378,6 +378,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagScorr logical = true
         Args.ScorrThreshold double = 5.0
         Args.ScorrCorrectionParam double = 0.7
+        Args.ScorrDiffLowerThreshold double = -0.3
 
         Args.flagTranslients logical = true
         Args.TranslientThresh double = 0.95
@@ -1507,7 +1508,7 @@ function TranCat = flagNonTransients(Obj, Args)
             % below threshold.
 
             ScorrSane = (sign(Scorr) == sign(Score) ) ...
-                & (abs(Score) >= abs(Scorr) );
+                & (SDiff > Args.ScorrDiffLowerThreshold );
 
             ScorrHigh = ((abs(Scorr) > Args.ScorrThreshold) | ...
                 (SDiff < Args.ScorrCorrectionParam));
