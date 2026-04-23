@@ -208,7 +208,7 @@ classdef PhotCalibTrans < Component
                     if isprop(Obj, PropName)
                         Obj.(PropName) = varargin{I+1};
                     else
-                        warning('PhotCalibTrans:UnknownProperty', ...
+                        Obj.msgLog(LogLevel.Warning, ...
                             'Property "%s" does not exist and will be ignored.', PropName);
                     end
                 end
@@ -285,7 +285,7 @@ classdef PhotCalibTrans < Component
 
                 Args.MagSystem char   = 'AB'
                 Args.N_ARMS           = 0              % N brightest calibrators for ARMS (0=skip)
-                Args.Verbose logical  = true
+                Args.Verbose logical  = false
             end
 
             % Save Metadata argument separately
@@ -512,7 +512,7 @@ classdef PhotCalibTrans < Component
                             fprintf('  Extracted flux errors from %s column\n', Args.FluxErrColName);
                         end
                     catch
-                        warning('PhotCalibTrans:NoFluxErr', ...
+                        Obj.msgLog(LogLevel.Warning, ...
                             'Could not extract flux errors from %s. Falling back to spectral weighting.', ...
                             Args.FluxErrColName);
                         if strcmpi(Args.WeightingMode, 'flux')
@@ -757,7 +757,7 @@ classdef PhotCalibTrans < Component
                 Args.FilterNegFlux logical = false    % Remove sources with negative flux
                 Args.MinSN2 = 0                       % Minimum SN_2 for calibrators (0 to skip)
                 Args.SpFluxCol = [7, 349, 350, 692]   % [flux_start, flux_end, error_start, error_end]
-                Args.Verbose logical = true
+                Args.Verbose logical = false
             end
 
             RAD = constant.RAD;
@@ -2367,7 +2367,6 @@ classdef PhotCalibTrans < Component
             if ~ismember(Args.RefFluxCol, AllColNames)
                 Msg = sprintf('calcAperCorr: %s column not found - aperture corrections set to NaN', Args.RefFluxCol);
                 Obj.msgLog(LogLevel.Warning, Msg);
-                warning('PhotCalibTrans:calcAperCorr:NoRefCol', '%s', Msg);
                 Obj.AperCorr = nanVecWithRefZero(Naper);
                 Obj.AperCorrColNames = AperCols;
                 Obj.AperCorrNStars = 0;
@@ -2377,7 +2376,6 @@ classdef PhotCalibTrans < Component
             if Naper == 0
                 Msg = sprintf('calcAperCorr: No %s* columns found - aperture corrections not computed', Args.AperFluxPrefix);
                 Obj.msgLog(LogLevel.Warning, Msg);
-                warning('PhotCalibTrans:calcAperCorr:NoCols', '%s', Msg);
                 Obj.AperCorr = [];
                 Obj.AperCorrColNames = {};
                 Obj.AperCorrNStars = 0;
@@ -2391,7 +2389,6 @@ classdef PhotCalibTrans < Component
             else
                 Msg = sprintf('calcAperCorr: S/N column %s not found - using all sources', Args.SNColName);
                 Obj.msgLog(LogLevel.Warning, Msg);
-                warning('PhotCalibTrans:calcAperCorr:NoSNCol', '%s', Msg);
                 Mask = true(CatObj.sizeCatalog, 1);
             end
 
@@ -2399,7 +2396,6 @@ classdef PhotCalibTrans < Component
             if NStars < 5
                 Msg = sprintf('calcAperCorr: Only %d high-S/N stars - aperture corrections set to NaN', NStars);
                 Obj.msgLog(LogLevel.Warning, Msg);
-                warning('PhotCalibTrans:calcAperCorr:FewStars', '%s', Msg);
                 Obj.AperCorr = nanVecWithRefZero(Naper);
                 Obj.AperCorrColNames = AperCols;
                 Obj.AperCorrNStars = NStars;
@@ -2416,7 +2412,6 @@ classdef PhotCalibTrans < Component
                 if ~ismember(RefMagCol, AllColNames)
                     Msg = sprintf('calcAperCorr: %s column not found for mag mode - aperture corrections set to NaN', RefMagCol);
                     Obj.msgLog(LogLevel.Warning, Msg);
-                    warning('PhotCalibTrans:calcAperCorr:NoRefMagCol', '%s', Msg);
                     Obj.AperCorr = nanVecWithRefZero(Naper);
                     Obj.AperCorrColNames = AperCols;
                     Obj.AperCorrNStars = 0;
@@ -2596,7 +2591,7 @@ classdef PhotCalibTrans < Component
             Tab = CatObj.Table;
 
             if isempty(Tab) || height(Tab) == 0
-                warning('PhotCalibTrans:addMag:EmptyCatalog', 'Catalog is empty. No columns added.');
+                Obj.msgLog(LogLevel.Warning, 'addMag: Catalog is empty. No columns added.');
                 return;
             end
 
@@ -2616,7 +2611,7 @@ classdef PhotCalibTrans < Component
             end
 
             if isempty(FluxColNames)
-                warning('PhotCalibTrans:addMag:NoFluxCols', 'No FLUX_* columns found in catalog.');
+                Obj.msgLog(LogLevel.Warning, 'addMag: No FLUX_* columns found in catalog.');
                 return;
             end
 
@@ -2628,8 +2623,8 @@ classdef PhotCalibTrans < Component
                     X = Tab.X;
                     Y = Tab.Y;
                 else
-                    warning('PhotCalibTrans:addMag:NoCoords', ...
-                            'X, Y columns not found. Position corrections disabled.');
+                    Obj.msgLog(LogLevel.Warning, ...
+                            'addMag: X, Y columns not found. Position corrections disabled.');
                 end
             end
 
@@ -2778,8 +2773,8 @@ classdef PhotCalibTrans < Component
             end
 
             if isempty(Args.ConstBandParams)
-                warning('PhotCalibTrans:applyConstBand:NoParams', ...
-                    'ConstBandParams not provided — skipping constant band correction');
+                Obj.msgLog(LogLevel.Warning, ...
+                    'applyConstBand: ConstBandParams not provided — skipping constant band correction');
                 return;
             end
 
@@ -2798,8 +2793,8 @@ classdef PhotCalibTrans < Component
             %       has its own ZenithAngle and thus its own T_atm_crop). Currently
             %       computes a single scalar delta ZP per crop assuming shared airmass.
             if Obj.PerSourceAirmass
-                warning('PhotCalibTrans:applyConstBand:PerSourceAirmass', ...
-                    'PerSourceAirmass mode not yet supported — using single-airmass delta ZP');
+                Obj.msgLog(LogLevel.Warning, ...
+                    'applyConstBand: PerSourceAirmass mode not yet supported — using single-airmass delta ZP');
             end
 
             % --- Evaluate T_atm_crop (fitted atmospheric, Norm=1, no Tran2D) ---
@@ -2829,8 +2824,8 @@ classdef PhotCalibTrans < Component
             IntConst = trapz(Lambda, T_const(:) .* Lambda(:));
 
             if IntCrop <= 0 || IntConst <= 0
-                warning('PhotCalibTrans:applyConstBand:BadIntegral', ...
-                    'Non-positive transmission integral — skipping constant band');
+                Obj.msgLog(LogLevel.Warning, ...
+                    'applyConstBand: Non-positive transmission integral — skipping constant band');
                 return;
             end
 
@@ -2947,7 +2942,7 @@ classdef PhotCalibTrans < Component
 
             arguments
                 Obj
-                Args.Verbose logical = true
+                Args.Verbose logical = false
             end
 
             if ~Args.Verbose
@@ -3337,8 +3332,8 @@ classdef PhotCalibTrans < Component
                         RefTransParams = Obj(RefIdx).TransModel.getAllFunPar();
                         RefParamVec = RefTransParams.Val;
                     else
-                        warning('PhotCalibTrans:plotZPMap:BadRefCrop', ...
-                                'RefCrop=%d invalid or failed. Falling back to percrop.', RefIdx);
+                        Obj(1).msgLog(LogLevel.Warning, ...
+                                'plotZPMap: RefCrop=%d invalid or failed. Falling back to percrop.', RefIdx);
                     end
                     if ~isempty(RefParamVec)
                         UseRefNorm = ismember(Args.PhotSys, {'refzp', 'refzp_raw'});
@@ -3916,7 +3911,7 @@ classdef PhotCalibTrans < Component
                 Args.OutputPath = ''
                 Args.OutputName = 'ConstBandParams_LAST'
                 Args.ExcludeParams cell = {}
-                Args.Verbose logical = true
+                Args.Verbose logical = false
             end
 
             PCArray = Obj(:);
