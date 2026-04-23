@@ -53,7 +53,7 @@ function Result = testPhotStability(Args)
     %              'OutDir', '~/results_coadd');
     %
     %          % ConstBand mode:
-    %          CBP = PhotCalibTrans.buildConstBandParams(R.PC.percrop);
+    %          CBP = [R.PC.percrop{:}].buildConstBandParams();
     %          R = pipeline.last.quality.testPhotStability('Modes', {'percrop'}, ...
     %              'ApplyConstBand', true, 'ConstBandParams', CBP, ...
     %              'ForceRecalc', true);
@@ -135,11 +135,13 @@ function Result = testPhotStability(Args)
                 if isfield(S, 'CBP')
                     CBP = S.CBP;
                 elseif isfield(S, 'PC_all')
-                    CBP = PhotCalibTrans.buildConstBandParams(S.PC_all, 'Verbose', Args.Verbose);
+                    PCflat = [S.PC_all{:}];   % flatten cell-of-arrays to flat array
+                    CBP = PCflat.buildConstBandParams('Verbose', Args.Verbose);
                 end
             end
         elseif iscell(Args.ConstBandParams)
-            CBP = PhotCalibTrans.buildConstBandParams(Args.ConstBandParams, 'Verbose', Args.Verbose);
+            PCflat = [Args.ConstBandParams{:}];
+            CBP = PCflat.buildConstBandParams('Verbose', Args.Verbose);
         end
         if isempty(CBP)
             warning('testPhotStability:NoCBP', 'Cannot build ConstBandParams. Disabling.');

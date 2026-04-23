@@ -88,8 +88,8 @@ classdef PhotCalibTrans < Component
     %                      (excluding Norm, ZenithAngle, Temperature).
     %                      Source='aggregate' (default): robust median/mean across objects.
     %                      Source='single': extract from one object directly.
-    %                      Usage: CBP = PhotCalibTrans.buildConstBandParams(PCArray);
-    %                             CBP = PhotCalibTrans.buildConstBandParams(PC, 'Source', 'single');
+    %                      Usage: CBP = PCArray.buildConstBandParams();
+    %                             CBP = PC.buildConstBandParams('Source', 'single');
     %     applyPhotCalibShifts - Apply coadd calibration to individual epoch
     %                      images using pre-computed DeltaZP (from zp_meddiff)
     %                      or MatchedSources. Evaluates ZP once per crop,
@@ -3665,7 +3665,7 @@ classdef PhotCalibTrans < Component
                 Args.ApplyAperCorr logical = true
                 Args.UpdateHeader logical = true
                 Args.MagSystem char = 'AB'
-                Args.Verbose logical = true
+                Args.Verbose logical = false
             end
 
             % ---- Normalize dimensions ----
@@ -3873,54 +3873,8 @@ classdef PhotCalibTrans < Component
             end
 
         end
-    end
 
-    methods (Static)
-        function [Row, Col] = cropID2RowCol(CropID, Nrows, Ncols, TileOrder)
-            % Convert CropID to grid (Row, Col) position
-            % Input  : - CropID (scalar integer, 1-based)
-            %          - Nrows - number of rows in grid
-            %          - Ncols - number of columns in grid
-            %          - TileOrder - 'colmajor' or 'rowmajor'
-            %            'colmajor' (old pipeline): CropIDs fill bottom-to-top,
-            %              then left-to-right. CropID 1..Nrows = column 1, etc.
-            %            'rowmajor' (new pipeline): CropIDs fill left-to-right,
-            %              then bottom-to-top. CropID 1..Ncols = row 1, etc.
-            % Output : - Row (1-based, 1 = bottom)
-            %          - Col (1-based, 1 = left)
-
-            switch lower(TileOrder)
-                case 'colmajor'
-                    Col = ceil(CropID / Nrows);
-                    Row = mod(CropID - 1, Nrows) + 1;
-                case 'rowmajor'
-                    Row = ceil(CropID / Ncols);
-                    Col = mod(CropID - 1, Ncols) + 1;
-                otherwise
-                    error('PhotCalibTrans:cropID2RowCol:BadTileOrder', ...
-                          'TileOrder must be ''colmajor'' or ''rowmajor'', got ''%s''.', TileOrder);
-            end
-        end
-
-        function KeyName = fluxCol2AperCorrKey(ColName)
-            % Convert flux/mag column name to FITS header keyword (max 8 chars)
-            %   FLUX_APER_1 / MAG_AB_APER_1 / MAG_APER_1 -> APCOR_A1
-            %   FLUX_PSF    / MAG_AB_PSF                 -> APCOR_PS
-            % Input  : - Column name (char)
-            % Output : - FITS keyword (char, max 8 chars)
-
-            if contains(ColName, 'APER_')
-                Suffix = extractAfter(ColName, 'APER_');
-                KeyName = ['APCOR_A', Suffix];
-            elseif endsWith(ColName, 'PSF')
-                KeyName = 'APCOR_PS';
-            else
-                % Generic: take last 2 chars of column name
-                Tag = ColName(max(1, end-1):end);
-                KeyName = ['APCOR_', Tag];
-            end
-        end
-        function CBP = buildConstBandParams(PCArray, Args)
+        function CBP = buildConstBandParams(Obj, Args)
             % Build constant-band parameters from fitted PhotCalibTrans objects.
             %   Extracts fitted atmospheric parameters (excluding Norm,
             %   ZenithAngle_deg, Temperature_C) from each object's TransModel.
@@ -3928,10 +3882,10 @@ classdef PhotCalibTrans < Component
             %     'aggregate' (default) — robust median/mean across all objects.
             %     'single' — extract from a single object directly (no aggregation).
             %   Optionally saves to .mat file with date in filename.
-            % Input  : - PCArray — array or cell array of PhotCalibTrans objects.
-            %            For Source='single', a single object (or the first
-            %            successful object in the array is used).
-            %            Cell arrays are flattened; non-Success objects are skipped.
+            % Input  : - Obj — PhotCalibTrans array (flat). Non-Success objects
+            %            are skipped. If a cell of arrays, flatten first at the
+            %            call site: [PC_cell{:}].buildConstBandParams(...).
+            %            For Source='single', the first successful object is used.
             %          * ...,key,val,...
             %            'Source'     - 'aggregate' (median/mean across objects)
             %                        or 'single' (extract from one object).
@@ -3947,18 +3901,16 @@ classdef PhotCalibTrans < Component
             % Output : - ConstBandParams struct with one field per parameter.
             %            Also contains .CreatedDate, .NObjects, .Method metadata.
             % Author : D. Kovaleva (Mar 2026)
-            % Example: % Aggregate from cached PC files:
+            % Example: % Aggregate:
+            %          CBP = PC_all.buildConstBandParams();
+            %          % From cached cell storage:
             %          S = load('results/PC_percrop.mat');
-            %          CBP = PhotCalibTrans.buildConstBandParams(S.PC_all);
-            %          CBP = PhotCalibTrans.buildConstBandParams(S.PC_all, ...
-            %              'OutputPath', '~/matlab/data/spec/Telescope/LAST');
-            %
-            %          % Single crop (e.g., crop 10 of visit 1):
-            %          CBP = PhotCalibTrans.buildConstBandParams(PC_all{1}(10), ...
-            %              'Source', 'single');
+            %          CBP = [S.PC_all{:}].buildConstBandParams('OutputPath', '~/data');
+            %          % Single crop:
+            %          CBP = PC_all(10).buildConstBandParams('Source', 'single');
 
             arguments
-                PCArray
+                Obj  PhotCalibTrans
                 Args.Source = 'aggregate'       % 'aggregate' or 'single'
                 Args.Method = 'median'
                 Args.OutputPath = ''
@@ -3967,11 +3919,7 @@ classdef PhotCalibTrans < Component
                 Args.Verbose logical = true
             end
 
-            % Flatten cell arrays
-            if iscell(PCArray)
-                PCArray = [PCArray{:}];
-            end
-            PCArray = PCArray(:);
+            PCArray = Obj(:);
 
             % Parameters to always exclude
             AlwaysExclude = {'Norm', 'ZenithAngle_deg', 'Temperature_C'};
@@ -4087,6 +4035,53 @@ classdef PhotCalibTrans < Component
                 if Args.Verbose
                     fprintf('Saved: %s\n', FullPath);
                 end
+            end
+        end
+    end
+
+    methods (Static)
+        function [Row, Col] = cropID2RowCol(CropID, Nrows, Ncols, TileOrder)
+            % Convert CropID to grid (Row, Col) position
+            % Input  : - CropID (scalar integer, 1-based)
+            %          - Nrows - number of rows in grid
+            %          - Ncols - number of columns in grid
+            %          - TileOrder - 'colmajor' or 'rowmajor'
+            %            'colmajor' (old pipeline): CropIDs fill bottom-to-top,
+            %              then left-to-right. CropID 1..Nrows = column 1, etc.
+            %            'rowmajor' (new pipeline): CropIDs fill left-to-right,
+            %              then bottom-to-top. CropID 1..Ncols = row 1, etc.
+            % Output : - Row (1-based, 1 = bottom)
+            %          - Col (1-based, 1 = left)
+
+            switch lower(TileOrder)
+                case 'colmajor'
+                    Col = ceil(CropID / Nrows);
+                    Row = mod(CropID - 1, Nrows) + 1;
+                case 'rowmajor'
+                    Row = ceil(CropID / Ncols);
+                    Col = mod(CropID - 1, Ncols) + 1;
+                otherwise
+                    error('PhotCalibTrans:cropID2RowCol:BadTileOrder', ...
+                          'TileOrder must be ''colmajor'' or ''rowmajor'', got ''%s''.', TileOrder);
+            end
+        end
+
+        function KeyName = fluxCol2AperCorrKey(ColName)
+            % Convert flux/mag column name to FITS header keyword (max 8 chars)
+            %   FLUX_APER_1 / MAG_AB_APER_1 / MAG_APER_1 -> APCOR_A1
+            %   FLUX_PSF    / MAG_AB_PSF                 -> APCOR_PS
+            % Input  : - Column name (char)
+            % Output : - FITS keyword (char, max 8 chars)
+
+            if contains(ColName, 'APER_')
+                Suffix = extractAfter(ColName, 'APER_');
+                KeyName = ['APCOR_A', Suffix];
+            elseif endsWith(ColName, 'PSF')
+                KeyName = 'APCOR_PS';
+            else
+                % Generic: take last 2 chars of column name
+                Tag = ColName(max(1, end-1):end);
+                KeyName = ['APCOR_', Tag];
             end
         end
     end

@@ -28,9 +28,9 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %                         Default is false.
     %            'ConstBandParams' - Struct or .mat path with global atmospheric
     %                         parameters for constant band. Build via
-    %                         PhotCalibTrans.buildConstBandParams(PCArray) for
-    %                         aggregate, or with 'Source','single' for a single
-    %                         reference crop. Required when ApplyConstBand=true.
+    %                         PCArray.buildConstBandParams() for aggregate,
+    %                         or with 'Source','single' for a single reference
+    %                         crop. Required when ApplyConstBand=true.
     %            'ConstBandOutputMode' - 'newcol' or 'replace'. Default is 'newcol'.
     %            'ConstBandPrefix' - Column prefix for newcol mode. Default is 'MAG_CB_'.
     % Output : - Result - Input object with updated catalog and header.
