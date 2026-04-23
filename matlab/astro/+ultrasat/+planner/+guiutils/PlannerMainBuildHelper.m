@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainBuildHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 18/12/2025
+% Updated     : 23/04/2026
 % Description : Build Helper for Main Planner
 %==========================================================================
 
@@ -65,7 +65,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
             end
 
             % Show "Please Wait" dialog
-            app.showPleaseWait('Building your plan. This may take a while. Please wait....');
+            app.showPleaseWait('Building your plan... expected duration: up to ~30 seconds.');
             try
                 app.MainModule.clearStatus();
                 app.updateStatus();
@@ -174,12 +174,16 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
                 return;
             end
 
+            % Build HCS plan
             upHCS = app.MainModule.Planner;
             upHCS.buildHCS('HCS_UniqTarg', SelectedRows);
+
+            % Update history & status
             app.addHistory('BuildHCS Ok');
             obj.setBuildStatus(app, 'OK');
             app.MainModule.setStatus('OK', 'Build HCS completed successfully');
             %app.debugSave('upHCS.mat', upHCS);
+
             app.msglog('doBuildHCS done');
             BuildOk = true;
         end
@@ -201,8 +205,10 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
                 return;
             end
 
+            % Build LCS plan using the new function (03/2026) 
             upLCS.buildLCS1('TargetList', SelectedRows);
 
+            % Update history & status
             app.addHistory('BuildLCS Ok');
             obj.setBuildStatus(app, 'OK');
             app.msglog('doBuildLCS done');

@@ -184,7 +184,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
 
             % Show app
             if strcmp(app.showModal(app.LoadUniqueTargetsFromFileApp), 'Load')
-                app.showPleaseWait('Loading unique targets...');
+                app.showPleaseWait('Loading unique targets... expected duration: up to ~30 seconds.');
                 try
                     % Write loaded/edited text from dialog to tempfile
                     Text = app.LoadUniqueTargetsFromFileApp.Text;
