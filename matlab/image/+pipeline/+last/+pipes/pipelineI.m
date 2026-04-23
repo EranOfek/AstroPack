@@ -33,8 +33,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         Args.MomentsMethod                 = 'mex';  %'legacy'|'mex'
         Args.AperPhotMethod                = 'interp';  % 'simple'|'interp'
 
-        Args.ShiftMethod                   = 'fft'; %'lanczos3';  % 'fft'|'lanczos3'
-        Args.PsfPhotMethod                 = 'legacy'; %'2DGN';    % 'legacy'/'old' |'1D'|'2D'|'2DGN'
+        Args.ShiftMethod                   = 'lanczos3';  % 'fft'|'lanczos3'
+        Args.PsfPhotMethod                 = '2DGN';    % 'legacy'/'old' |'1D'|'2D'|'2DGN'
 
         Args.image2subimagesArgs           = {};
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
@@ -503,22 +503,12 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         
         
             % propogate photometric calibration to individual images
-            %[ResRelZP.FitZP]
-            %AI = PC.applyPhotCalibShifts(AI, 'DeltaZP',DeltaZP);
+            % tic;
+            DeltaZP = reshape([ResRelZP.FitZP], Nepoch, Nsub);
+            AllSI = PC.applyPhotCalibShifts(AllSI, 'DeltaZP',DeltaZP);
+            % toc
 
 
-            % propogate photometric calibration to MatchedSources
-        
-            % save products
-            %imProc.io.saveProductImage
-            %imProc.io.saveProductMatchedSources
-        
-            
-            
-            % save products
-            %imProc.io.saveProductImage
-        
-            % write status
             
             % Finish
             %ProcessingStep = 1000;

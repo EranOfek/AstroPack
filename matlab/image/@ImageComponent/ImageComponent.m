@@ -761,7 +761,7 @@ classdef ImageComponent < Component
             arguments
                 Obj
                 Args.CCDSEC                        = [];  % empty for the entire image
-                Args.DataPropIn                    = 'Image';
+                Args.DataPropIn                    = 'Data'; %'Image';
                 Args.DimIndex                      = 3;
                 Args.Class                         = [];
             end
@@ -783,8 +783,11 @@ classdef ImageComponent < Component
             if Args.DimIndex==1
                 Cube = zeros(Size(1), Size(2), Nobj, Args.Class);    % faster
                 %Cube = zeros(Nobj, Size(1), Size(2), Args.Class);   % slower
+                
             elseif Args.DimIndex==3
                 Cube = zeros(Size(1), Size(2), Nobj, Args.Class);
+                % allocate memory without initialization
+                Cube = tools.array.mex.allocateUninit([Size(1), Size(2), Nobj], Args.Class);
             else
                 error('DimINdex must be 1 or 3');
             end

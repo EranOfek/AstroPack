@@ -185,7 +185,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
 
         Args.ColorOrder                = 1;
         Args.UseWidth logical          = false;
-        
+       
+        Args.UseMex                    = true;
     end
     
     if Args.CreateNewObj
@@ -312,12 +313,18 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
 
             else
 
-                ResMatch = imProc.match.matchReturnIndices(PhotCat(Ipc), Cat, 'Radius',Args.Radius,...
+                if Args.UseMex
+                    [ResMatch] = imProc.match.matchInd(Cat, PhotCat(Ipc), 'SearchRadius',Args.Radius, 'SearchRadiusUnits',Args.RadiusUnits, 'IsSpherical',true);
+                    MatchedPhotCat = selectRows(PhotCat(Ipc), ResMatch.Ind, 'IgnoreNaN',false, 'CreateNewObj',true);
+                else
+                    ResMatch = imProc.match.matchReturnIndices(PhotCat(Ipc), Cat, 'Radius',Args.Radius,...
                                                                               'RadiusUnits',Args.RadiusUnits,...
                                                                               'CooType','sphere',...
                                                                               Args.matchReturnIndicesArgs{:});
-    
-                MatchedPhotCat = selectRows(PhotCat(Ipc), ResMatch.Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',true);
+
+                    MatchedPhotCat = selectRows(PhotCat(Ipc), ResMatch.Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',true);
+                end
+                
     
     
     

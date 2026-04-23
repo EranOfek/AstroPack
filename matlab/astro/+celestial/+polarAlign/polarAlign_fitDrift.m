@@ -67,7 +67,7 @@ function [Result] = polarAlign_fitDrift(HA, Dec, RateAlpha, RateDelta, Args)
                 Result(Iiter).Chi2_Alpha(Idaz,Idalt) = sum((DAlpha - RateAlpha).^2);
                 Result(Iiter).Chi2_Delta(Idaz,Idalt) = sum((DDelta - RateDelta).^2);
                 Result(Iiter).Chi2(Idaz,Idalt) = Result(Iiter).Chi2_Alpha(Idaz,Idalt) + Result(Iiter).Chi2_Delta(Idaz,Idalt);
-    
+                
             end
         end
         
@@ -78,6 +78,7 @@ function [Result] = polarAlign_fitDrift(HA, Dec, RateAlpha, RateDelta, Args)
         DAltVecIter = BestDAlt + DAltVec./(Args.IterDecrease.^Iiter);
         Result(Iiter).BestDAz  = BestDAz;
         Result(Iiter).BestDAlt = BestDAlt;
+        Result(Iiter).N        = numel(HA);
 
     end
           
