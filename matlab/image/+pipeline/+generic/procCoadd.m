@@ -171,11 +171,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.coadd_WRobustArgs                = {};
         Args.coadd_ProperArgs                 = {};
         Args.StackArgs                        = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
-
+        
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
         
-        Args.backgroundArgs cell              = {};
-        Args.BackSubSizeXY                    = [128 128];
+        %Args.backgroundArgs cell              = {};
+        %Args.BackSubSizeXY                    = [128 128];
+        Args.backVarArgs                      = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[128 128]}
         Args.findMeasureSourcesArgs cell      = {};
         Args.ColCell cell                     = {'XPEAK','YPEAK',...
                                                  'X1', 'Y1',...
@@ -392,6 +393,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % Background
             %Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...
             %                                                              'SubSizeXY',Args.BackSubSizeXY);
+            Coadd(Ifields)  = imProc.background.backVar(Coadd(Ifields), Args.backVarArgs{:}, 'ReCalc',true);
 
 
             % Mask Source noise dominated pixels
