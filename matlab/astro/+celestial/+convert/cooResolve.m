@@ -29,6 +29,10 @@ function [OutRA, OutDec, ObjName] = cooResolve(InRA, InDec, Args)
         Args.Server            = @VO.name.server_simbad;
     end
 
+    if isempty(Args.Server)
+        Args.Server = @VO.name.server_simbad;
+    end
+
     if isempty(InDec)
         Args.InUnits = 'name';
         ObjName      = InRA;

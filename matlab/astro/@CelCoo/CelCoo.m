@@ -37,10 +37,15 @@ classdef CelCoo < matlab.mixin.Copyable
         Equinox(1,1)         = 2000;    % always in J system
         IsTrue(1,1) logical  = false;   % mean equinox of date.
         Epoch     = 2000;    % always in J system
+        EpochType = 'J';     % 'J'|'B'|'JD','MJD'
         PM_RA     = 0;      % [mas/yr]
         PM_Dec    = 0;      % [mas/yr]
         RadVel    = 0;      % [mas/yr]
         Plx       = 1e-6;   % [mas/yr]
+    end
+
+    properties (SetAccess=private)
+        SortBy  = [];  % 'Dec';
     end
 
     properties (Hidden,Dependent)
@@ -52,6 +57,11 @@ classdef CelCoo < matlab.mixin.Copyable
         Y
         Z
     end
+
+    properties (Hidden)
+        KDTree = []; % KD-Tree
+    end
+
 
     properties (Hidden)
         DoNotCall = false;  % do not call internal setter
@@ -298,8 +308,7 @@ classdef CelCoo < matlab.mixin.Copyable
     end
 
     
-    methods % conversion
-        % not ready
+    methods % conversion 
         function Result=precess(Obj, NewEquinox, Args)
             % Precess coordinates to new equinox
             % Input  : - self.
@@ -316,8 +325,14 @@ classdef CelCoo < matlab.mixin.Copyable
             %            'CreateNewObj' - create a new copy of the object.
             %                   Default is true.
             % Output : - Updated CelCoo object.
+            % Notes  : - Coordinates are precessed as currently stored in
+            %            Obj.RA/Obj.Dec (feature; no automatic system check
+            %            or conversion is performed).
+            %          - Uses static CelCoo.precessCoo for the actual
+            %            rotation.
             % Author : Eran Ofek (Mar 2026)
             % Example: C.precess(2023.212)
+            %          C.precess(2460310.5,'IsJD',true,'OutIsTrue',false);
 
             arguments
                 Obj
@@ -490,6 +505,297 @@ classdef CelCoo < matlab.mixin.Copyable
 
         end
 
+        function [Az, Alt] = azAlt(Obj, JD, Args)
+            % Convert RA/Dec to horizontal coordinates (Az/Alt).
+            % Input  : - A single-element CelCoo object.
+            %          - JD scalar, or JD array with same size as RA/Dec.
+            %          * ...,key,val,...
+            %            'GeoCoo' - Geodetic coordinates
+            %                   [Lon(deg), Lat(deg), Height(m)].
+            %                   Default is [35 30 415] (deg).
+            %            'OutUnits' - Output units for Az/Alt.
+            %                   Default is Obj.Units.
+            %            'LSTType' - 'a' (apparent) | 'm' (mean).
+            %                   Default is 'a'.
+            % Output : - Azimuth array.
+            %          - Altitude array.
+            % Author : Eran Ofek (Apr 2026)
+            % Example: [Az,Alt] = C.azAlt(2451545,'GeoCoo',[35 30 415]);
+
+            arguments
+                Obj(1,1)
+                JD
+                Args.GeoCoo = [35 30 415];   % [deg deg m]
+                Args.OutUnits = [];
+                Args.LSTType = 'a';
+            end
+
+            if ~strcmpi(Obj.System, 'eq')
+                error('convertHoriz currently expects equatorial coordinates (Obj.System=''eq'')');
+            end
+
+            RA  = Obj.RA;
+            Dec = Obj.Dec;
+            if isempty(RA) || isempty(Dec)
+                Az  = [];
+                Alt = [];
+                return;
+            end
+            if ~isequal(size(RA), size(Dec))
+                error('Obj.RA and Obj.Dec must have the same size');
+            end
+
+            if isscalar(JD)
+                JDuse = JD + zeros(size(RA));
+            else
+                if ~isequal(size(JD), size(RA))
+                    error('JD must be scalar or have the same size as RA/Dec');
+                end
+                JDuse = JD;
+            end
+
+            if isempty(Args.OutUnits)
+                Args.OutUnits = Obj.Units;
+            end
+
+            [Az, Alt] = celestial.coo.radec2azalt(JDuse,...
+                                                  RA,...
+                                                  Dec,...
+                                                  'GeoCoo', Args.GeoCoo,...
+                                                  'InUnits', Obj.Units,...
+                                                  'OutUnits', Args.OutUnits,...
+                                                  'LSTType', Args.LSTType);
+        end
+
+
+    end
+
+    methods % distance and search
+        function [Dist,PA] = dist(Obj, RA, Dec, Args)
+            % Angular distance and position angle from object coordinates.
+            % Input  : - CelCoo object (single element).
+            %          - RA of comparison point(s), or object name(s)
+            %            resolvable by celestial.convert.cooResolve.
+            %            This can be scalar or array of the same size as
+            %            the RA/Dec in the object.
+            %          - Dec of comparison point(s). Can be empty when RA
+            %            is resolvable object name(s).
+            %          * ...,key,val,...
+            %            'InUnits' - Units of input RA/Dec ('rad'|'deg').
+            %                   Default is 'deg'.
+            %            'OutUnits' - Output units for Dist/PA ('rad'|'deg').
+            %                   Default is 'deg'.
+            %            'Server' - Name resolver server passed to
+            %                   celestial.convert.cooResolve.
+            %                   Default is [].
+            % Output : - Angular distance between Obj coordinates and input
+            %            coordinates.
+            %          - Position angle (eastward from north) of Obj
+            %            coordinates as seen from the input coordinates.
+            % Author : Eran Ofek (Apr 2026)
+            % Example: [D,PA] = C.dist(180, 30, 'InUnits','deg','OutUnits','deg');
+            %          [D,PA] = C.dist('M31',[],'Server','simbad');
+            %          D = C.dist(RA2, Dec2, 'InUnits','rad');
+
+            arguments
+                Obj(1,1)
+                RA
+                Dec           = [];
+                Args.InUnits  = 'deg';
+                Args.OutUnits = 'deg';
+                Args.Server   = []; % see celestial.convert.cooResolve
+            end
+
+            [RA, Dec] = celestial.convert.cooResolve(RA, Dec, 'InUnits',Args.InUnits, 'OutUnits','rad','Server',Args.Server);
+
+            Coo = Obj.Rad;
+
+            [Dist] = celestial.coo.sphere_dist_fast(RA, Dec, Coo(:,1), Coo(:,2));
+            ConvFactor = convert.angular('rad',Args.OutUnits);
+            Dist       = Dist.*ConvFactor;
+            if nargout>1
+                PA = celestial.coo.position_angle(RA, Dec, Coo(:,1), Coo(:,2));
+                PA = PA.*ConvFactor;
+            end
+        end
+
+        function [Obj,SI]=sort(Obj, SortBy)
+            % Sort coordinate vectors in-place by RA or Dec.
+            % Input  : - A single-element CelCoo object.
+            %            Obj.RA and Obj.Dec are expected to be vectors (or
+            %            arrays with compatible linear indexing).
+            %          - Sort key:
+            %            'Dec' | 'RA' (case-insensitive).
+            %            Default is 'Dec'.
+            % Output : - The same CelCoo object, with RA/Dec reordered by
+            %            the selected key.
+            %            The selected key is also written to Obj.SortBy.
+            % Notes  : - This method sorts only RA and Dec arrays.
+            %            Associated arrays (e.g., PM_RA/PM_Dec) are not
+            %            reordered here.
+            %          - The sorted indices vector.
+            % Author : Eran Ofek (Apr 2026)
+            % Example: C = C.sort('RA');
+            %          C = C.sort('Dec');
+
+            arguments
+                Obj(1,1)
+                SortBy  = 'Dec';
+            end
+
+            switch lower(SortBy)
+                case 'dec'
+                    [~,SI] = sort(Obj.Dec);
+                case 'ra'
+                    [~,SI] = sort(Obj.RA);
+                otherwise
+                    error('Uknown SortBy option');
+            end
+            Obj.RA  = Obj.RA(SI);
+            Obj.Dec = Obj.Dec(SI);
+            Obj.SortBy = SortBy;
+
+        end
+    
+
+        function [Obj]=populateKDTree(Obj, Args)
+            % Build/populate a KD-tree index for fast coordinate matching.
+            % Input  : - CelCoo object.
+            %          * ...,key,val,...
+            %            'Type' - KD-tree type/mode passed to
+            %                   celestial.KDTreeCoo.populate.
+            %                   Default is [] (use KDTreeCoo default).
+            % Output : - CelCoo object with Obj.KDTree populated.
+            % Notes  : - Uses Obj.RA/Obj.Dec as currently stored.
+            %          - Uses Obj.Units as input units for KDTree build.
+            % Author : Eran Ofek (Apr 2026)
+            % Example: C = C.populateKDTree();
+            %          C = C.populateKDTree('Type','Flat');
+
+            arguments
+                Obj
+                Args.Type   = [];
+            end
+
+            Obj.KDTree = celestial.KDTreeCoo;
+            Obj.KDTree.populate(Obj.RA, Obj.Dec, 'InUnits',Obj.Units, 'Type',Args.Type);
+
+        end
+
+        function [Ind, Dist, Nmatch, MatchSt]=matchSorted(Obj, RA, Dec, SearchRadius, Args)
+            % Match input coordinates against a pre-sorted CelCoo catalog.
+            % Input  : - A single-element CelCoo object with sorted
+            %            coordinates (Obj.SortBy must be populated).
+            %          - RA of query coordinate(s), or resolvable object
+            %            name(s).
+            %          - Dec of query coordinate(s). Can be empty when RA
+            %            is provided as name(s) for coordinate resolution.
+            %          - Search radius (scalar or array).
+            %          * ...,key,val,...
+            %            'SearchRadiusUnits' - Units of search radius.
+            %                   Default is 'arcsec'.
+            %            'InUnits' - Units of input RA/Dec.
+            %                   Default is 'deg'.
+            %            'Server' - Name resolver server used by
+            %                   celestial.convert.cooResolve.
+            %                   Default is [].
+            % Output : - Match indices returned by matchTwoCats.
+            %            The size is identical to the size of the input
+            %            search coordinates.
+            %          - Angular distances returned by matchTwoCats
+            %            (in radians).
+            %          - Number of matches per source returned by
+            %            matchTwoCats.
+            %          - Match status/flags returned by matchTwoCats.
+            % Notes  : - Uses binary-search matcher:
+            %            imUtil.match.mex.matchTwoCats.
+            %          - Obj coordinates are taken from Obj.Rad
+            %            (i.e., radians).
+            %          - Input coordinates are resolved/converted to radians
+            %            using celestial.convert.cooResolve.
+            % Author : Eran Ofek (Apr 2026)
+            % Example: [Ind,Dist,Nm,St] = C.matchSorted(180,30,5,...
+            %                     'InUnits','deg','SearchRadiusUnits','arcsec');
+            %          [Ind,Dist] = C.matchSorted('M31',[],30,'Server','simbad');
+
+            arguments
+                Obj(1,1)
+                RA
+                Dec           = [];
+                SearchRadius  = 10;
+                Args.SearchRadiusUnits = 'arcsec';
+                Args.InUnits  = 'deg';
+                Args.Server   = []; % see celestial.convert.cooResolve
+            end
+
+            [RA, Dec] = celestial.convert.cooResolve(RA, Dec, 'InUnits',Args.InUnits, 'OutUnits','rad','Server',Args.Server);
+
+            Coo = Obj.Rad;
+
+            if isempty(Obj.SortBy)
+                error('Requires sorted coordinates');
+            end
+               
+            % use binary search 
+            SearchRadiusRad = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);
+            [Ind, Dist, Nmatch, MatchSt] = imUtil.match.mex.matchTwoCats(Coo(:,1), Coo(:,2), RA, Dec, SearchRadiusRad, false, false, false);
+              
+        end
+
+        function [ID, Dist] = matchKD(Obj, RA, Dec, SearchRadius, Args)
+            % Match input coordinates using pre-populated KDTree.
+            % Input  : - A single-element CelCoo object with populated
+            %            Obj.KDTree.
+            %          - RA of query coordinate(s), or resolvable object
+            %            name(s).
+            %          - Dec of query coordinate(s). Can be empty when RA
+            %            is resolvable name(s).
+            %          - Search radius (scalar or array).
+            %          * ...,key,val,...
+            %            'SearchRadiusUnits' - Radius units for search.
+            %                   Default is 'arcsec'.
+            %            'InUnits' - Units of input RA/Dec.
+            %                   Default is 'deg'.
+            %            'Server' - Name resolver server used by
+            %                   celestial.convert.cooResolve.
+            %                   Default is [].
+            %            'KDType' - KDTree search type, forwarded to
+            %                   KDTreeCoo.coneSearch ('M'|'K'|[]).
+            %                   Default is [] (auto).
+            % Output : - Cell array of matched indices per query.
+            %          - Cell array of distances per query.
+            %            Output distances are those returned by
+            %            KDTreeCoo.coneSearch.
+            % Author : Eran Ofek (Apr 2026)
+            % Example: [ID,D] = C.matchKD(180,30,5,'InUnits','deg',...
+            %                     'SearchRadiusUnits','arcsec');
+            %          [ID,D] = C.matchKD('M31',[],30,'Server','simbad');
+
+            arguments
+                Obj(1,1)
+                RA
+                Dec                 = [];
+                SearchRadius        = 10;
+                Args.SearchRadiusUnits = 'arcsec';
+                Args.InUnits        = 'deg';
+                Args.Server         = []; % see celestial.convert.cooResolve
+                Args.KDType         = [];
+            end
+
+            if isempty(Obj.KDTree)
+                error('KDTree is empty. Run populateKDTree first.');
+            end
+
+            [RA, Dec] = celestial.convert.cooResolve(RA, Dec, ...
+                                                      'InUnits', Args.InUnits, ...
+                                                      'OutUnits', 'rad', ...
+                                                      'Server', Args.Server);
+
+            [ID, Dist] = Obj.KDTree.coneSearch(RA, Dec, SearchRadius, ...
+                                               'InUnits', 'rad', ...
+                                               'RadiusUnits', Args.SearchRadiusUnits, ...
+                                               'Type', Args.KDType);
+        end
 
     end
 
@@ -500,11 +806,45 @@ classdef CelCoo < matlab.mixin.Copyable
             % Plot coordinates in Aitoff projection 
             %   Plot coordinates in Aitoff along with optional
             %   galactic/ecliptic plane lines.
+            %   Uses MATLAB Mapping Toolbox (axesm/plotm).
+            % Input  : - CelCoo object (scalar or array).
+            %          - Marker style (char) or cell array of plotting
+            %            arguments. Default is {'k.','MarkerSize',5}.
+            %          * ...,key,val,...
+            %            'Grid' - Backward-compatible grid flag.
+            %                   Default is false.
+            %            'GridOn' - Explicit grid flag. If empty, use
+            %                   'Grid'. Default is [].
+            %            'Labels' - Show map meridian/parallel labels.
+            %                   Default is true.
+            %            'MapProjection' - Mapping Toolbox projection name.
+            %                   Default is 'aitoff'.
+            %            'CooSys' - Output/display coordinate system:
+            %                   'eq' (equatorial), 'gal' (galactic),
+            %                   'ec'/'ecl' (ecliptic). Default is 'eq'.
+            %            'AddEcliptc' - Overlay ecliptic equator.
+            %                   Default is true.
+            %            'EclMarker' - Marker/style for ecliptic equator.
+            %                   Default is {'r--','LineWidth',1}.
+            %            'AddGalactic' - Overlay galactic equator.
+            %                   Default is true.
+            %            'GalMarker' - Marker/style for galactic equator.
+            %                   Default is {'b--','LineWidth',1}.
+            % Output : null.
+            % Author : Cursor + Eran Ofek (Mar 2026)
+            % Example: C.plotAitoff({'k.','MarkerSize',6},'CooSys','eq',...
+            %                       'GridOn',true,'Labels',true);
+            %          C.plotAitoff('k.','CooSys','gal','AddEcliptc',false);
+            %          C.plotAitoff('Labels',false,'AddGalactic',false);
+            
 
             arguments
                 Obj
                 Marker      = {'k.','MarkerSize',5}; 
                 Args.Grid   = false;
+                Args.GridOn = [];
+                Args.Labels logical = true;
+                Args.MapProjection = 'aitoff';
                 Args.CooSys = 'eq';  % 'gal'|'ec'
                 Args.AddEcliptc  = true;  % add eqcliptic plane
                 Args.EclMarker   = {'r--','LineWidth',1};
@@ -523,11 +863,242 @@ classdef CelCoo < matlab.mixin.Copyable
                 Args.GalMarker = {Args.GalMarker};
             end
 
+            targetSys = localNormSys(Args.CooSys);
+            PrevHold  = ishold();
+            if exist('axesm','file') ~= 2 || exist('plotm','file') ~= 2
+                error('plotAitoff requires MATLAB Mapping Toolbox (axesm/plotm)');
+            end
+            if isempty(Args.GridOn)
+                Args.GridOn = Args.Grid;
+            end
+
+            % Plot objects in requested coordinate system.
+            Lon = [];
+            Lat = [];
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                if isempty(Obj(Iobj).RA) || isempty(Obj(Iobj).Dec)
+                    continue;
+                end
+                RA_rad  = convert.angular(Obj(Iobj).Units, 'rad', Obj(Iobj).RA);
+                Dec_rad = convert.angular(Obj(Iobj).Units, 'rad', Obj(Iobj).Dec);
+                EqJD    = convert.time(Obj(Iobj).Equinox, 'J', 'JD');
+                srcSys  = localNormSys(Obj(Iobj).System);
+                [LonI, LatI] = localRotateCoo(RA_rad, Dec_rad, srcSys, targetSys, EqJD);
+                Lon = [Lon; LonI(:)];
+                Lat = [Lat; LatI(:)];
+            end
+
+            Lon = mod(Lon + pi, 2.*pi) - pi;   % rad in [-pi,pi]
+            LonDeg = Lon.*180./pi;
+            LatDeg = Lat.*180./pi;
+
+            % Use Mapping Toolbox Aitoff map axes.
+            if ~ismap(gca)
+                axesm(Args.MapProjection, ...
+                      'Frame', 'on', ...                % keep ellipse map boundary
+                      'MeridianLabel', 'off', ...
+                      'ParallelLabel', 'off', ...
+                      'MLabelParallel', 0, ...
+                      'MLabelLocation', 60, ...
+                      'PLabelMeridian', 0, ...
+                      'PLabelLocation', 30);
+            else
+                setm(gca, 'MapProjection', Args.MapProjection, ...
+                          'Frame', 'on', ...
+                          'MeridianLabel', 'off', ...
+                          'ParallelLabel', 'off', ...
+                          'MLabelParallel', 0, ...
+                          'MLabelLocation', 60, ...
+                          'PLabelMeridian', 0, ...
+                          'PLabelLocation', 30);
+            end
+            if Args.Labels
+                setm(gca, 'MeridianLabel', 'on', 'ParallelLabel', 'on');
+            else
+                setm(gca, 'MeridianLabel', 'off', 'ParallelLabel', 'off');
+            end
+            % Hide regular Cartesian axes border/ticks; keep map frame ellipse.
+            set(gca, 'Box', 'off', 'XColor', 'none', 'YColor', 'none');
+            if Args.GridOn
+                setm(gca, 'Grid', 'on');
+            else
+                setm(gca, 'Grid', 'off');
+            end
+
+            plotm(LatDeg, LonDeg, Marker{:});
+            hold on;
+
+            % Add ecliptic equator.
+            if Args.AddEcliptc
+                EqJD = convert.time(Obj(1).Equinox, 'J', 'JD');
+                Lon0 = linspace(0, 2.*pi, 2000).';
+                Lat0 = zeros(size(Lon0));
+                [LonE, LatE] = localRotateCoo(Lon0, Lat0, "ecl", targetSys, EqJD);
+                [LonE, LatE] = localBreakWrap(LonE, LatE);
+                plotm(LatE.*180./pi, LonE.*180./pi, Args.EclMarker{:});
+            end
+
+            % Add galactic equator.
+            if Args.AddGalactic
+                EqJD = convert.time(Obj(1).Equinox, 'J', 'JD');
+                Lon0 = linspace(0, 2.*pi, 2000).';
+                Lat0 = zeros(size(Lon0));
+                [LonG, LatG] = localRotateCoo(Lon0, Lat0, "gal", targetSys, EqJD);
+                [LonG, LatG] = localBreakWrap(LonG, LatG);
+                plotm(LatG.*180./pi, LonG.*180./pi, Args.GalMarker{:});
+            end
+
+            if ~PrevHold
+                hold off;
+            end
+
+            function Sys = localNormSys(S)
+                S = lower(string(S));
+                if any(strcmp(S, ["eq","equ","equatorial"]))
+                    Sys = "eq";
+                elseif any(strcmp(S, ["gal","galactic"]))
+                    Sys = "gal";
+                elseif any(strcmp(S, ["ec","ecl","ecliptic"]))
+                    Sys = "ecl";
+                else
+                    error('Unknown coordinate system: %s', string(S));
+                end
+            end
+
+            function R = localRotEq2Sys(Sys, EqJD)
+                switch Sys
+                    case "eq"
+                        R = eye(3);
+                    case "gal"
+                        R = celestial.coo.rotm_coo('g');
+                    case "ecl"
+                        R = celestial.coo.rotm_coo('e', EqJD);
+                    otherwise
+                        error('Unknown system option');
+                end
+            end
+
+            function [OutLon, OutLat] = localRotateCoo(InLon, InLat, SrcSys, DstSys, EqJD)
+                SrcSys = localNormSys(SrcSys);
+                DstSys = localNormSys(DstSys);
+                if SrcSys == DstSys
+                    OutLon = InLon;
+                    OutLat = InLat;
+                    return;
+                end
+                [SX,SY,SZ] = celestial.coo.coo2cosined(InLon(:), InLat(:));
+                Rsrc = localRotEq2Sys(SrcSys, EqJD);
+                Rdst = localRotEq2Sys(DstSys, EqJD);
+                Vdst = Rdst * (Rsrc.') * [SX.'; SY.'; SZ.'];
+                [OutLon, OutLat] = celestial.coo.cosined2coo(Vdst(1,:).', Vdst(2,:).', Vdst(3,:).');
+                OutLon = mod(OutLon + pi, 2.*pi) - pi;
+            end
+
+            function [LonW, LatW] = localBreakWrap(LonIn, LatIn)
+                LonW = mod(LonIn + pi, 2.*pi) - pi;
+                LatW = LatIn;
+                J = find(abs(diff(LonW)) > pi*0.95);
+                if isempty(J)
+                    return;
+                end
+                K = numel(J);
+                OutLon = nan(numel(LonW)+K,1);
+                OutLat = nan(numel(LatW)+K,1);
+                iIn = 1;
+                iOut = 1;
+                for i=1:numel(LonW)-1
+                    OutLon(iOut) = LonW(iIn);
+                    OutLat(iOut) = LatW(iIn);
+                    iOut = iOut + 1;
+                    if any(J==i)
+                        iOut = iOut + 1; % keep NaN separator
+                    end
+                    iIn = iIn + 1;
+                end
+                OutLon(iOut) = LonW(end);
+                OutLat(iOut) = LatW(end);
+                LonW = OutLon;
+                LatW = OutLat;
+            end
+
         end
 
         % not ready
-        function plotPM
+        function plotPM(Obj, Args)
             % Plot positions with proper motion vectors
+            % Input  : - CelCoo object.
+            %          * ...,key,val,...
+            %            'CooUnits' - Plot units ('deg'|'rad').
+            %                   Default is Obj.Units.
+            %            'TimeBase' - Time baseline in years for vector
+            %                   length scaling. Default is 1.
+            %            'ApplyCosDec' - Convert PM_RA to dRA by dividing
+            %                   by cos(Dec). Default is true.
+            %            'PlotMarker' - Marker/cell args for positions.
+            %                   Default is {'k.','MarkerSize',8}.
+            %            'QuiverArgs' - Additional args for quiver.
+            %                   Default is {'Color','r','LineWidth',1}.
+            %            'QuiverScale' - Numeric quiver scale argument.
+            %                   Default is 0 (no autoscale).
+            % Output : null.
+            % Example: C.plotPM('CooUnits','deg','TimeBase',10);
+
+            arguments
+                Obj(1,1)
+                Args.CooUnits = [];
+                Args.TimeBase(1,1) double = 1;
+                Args.ApplyCosDec(1,1) logical = true;
+                Args.PlotMarker = {'k.','MarkerSize',8};
+                Args.QuiverArgs cell = {'Color','r','LineWidth',1};
+                Args.QuiverScale = [];
+            end
+
+            if isempty(Args.CooUnits)
+                Args.CooUnits = Obj(1).Units;
+            end
+            if ischar(Args.PlotMarker)
+                Args.PlotMarker = {Args.PlotMarker};
+            end
+
+            RA0   = Obj.RA;
+            Dec0  = Obj.Dec;
+            PM_RA = Obj.PM_RA;
+            PM_Dec= Obj.PM_Dec;
+
+            if ~isequal(size(RA0), size(Dec0), size(PM_RA), size(PM_Dec))
+                error('In a scalar CelCoo object, RA/Dec/PM_RA/PM_Dec must have identical size');
+            end
+
+            % Positions in requested plotting units.
+            PosRA  = convert.angular(Obj.Units, Args.CooUnits, RA0);
+            PosDec = convert.angular(Obj.Units, Args.CooUnits, Dec0);
+
+            % Proper motion components [mas/yr] -> [plot-units/yr].
+            dRA_mas = PM_RA;
+            if Args.ApplyCosDec
+                DecRad = convert.angular(Obj.Units, 'rad', Dec0);
+                CDec = cos(DecRad);
+                CDec(abs(CDec) < 1e-12) = NaN; % avoid singularity near poles
+                dRA_mas = dRA_mas ./ CDec;
+            end
+            dRA  = convert.angular('mas', Args.CooUnits, dRA_mas) .* Args.TimeBase;
+            dDec = convert.angular('mas', Args.CooUnits, PM_Dec)  .* Args.TimeBase;
+
+            PrevHold = ishold();
+            plot(PosRA, PosDec, Args.PlotMarker{:});
+            hold on;
+            if isempty(Args.QuiverScale)
+                % Use quiver autoscaling by default for visibility.
+                quiver(PosRA, PosDec, dRA, dDec, Args.QuiverArgs{:});
+            else
+                quiver(PosRA, PosDec, dRA, dDec, Args.QuiverScale, Args.QuiverArgs{:});
+            end
+            axis tight;
+            box on;
+            if ~PrevHold
+                hold off;
+            end
 
         end
 
@@ -544,8 +1115,8 @@ classdef CelCoo < matlab.mixin.Copyable
             % Precess coordinates between two epochs.
             % Input  : - RA.
             %          - Dec.
-            %          - Input epoch (JD).
-            %          - Output epoch (JD).
+            %          - Input epoch (JD, scalar).
+            %          - Output epoch (JD, scalar).
             %          * ...,key,val,...
             %            'CooUnits' - Coordinate units ('deg'|'rad').
             %                   Default is 'deg'.
