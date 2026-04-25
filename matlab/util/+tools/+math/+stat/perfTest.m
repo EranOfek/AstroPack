@@ -2,6 +2,51 @@ function Result=perfTest()
     % perfTest for: tools.math.stat
 
 
+    %% fast_median & tools.math.stat.mex.median1
+
+    % speed test
+    V    = double(rand(1e6,1));
+    Nsim = 10;
+    tic;
+    for Isim=1:Nsim, R = median(V); end
+    T1=toc;
+    
+    tic;
+    for Isim=1:Nsim, R = fast_median(V);  end
+    T2=toc;
+    fprintf('fast_median is x %f faster than matlab (10^6 vector)\n',T1./T2);
+    
+
+    tic;
+    for Isim=1:Nsim, R = tools.math.stat.mex.median1(V); end
+    T3=toc;
+    fprintf('tools.math.stat.mex.median1 is x %f faster than matlab (10^6 vector)\n',T1./T3);
+    
+    %% tools.math.stat.mex.median
+    R = rand(1726,1726,20,'single');
+
+    Nsim = 1;
+    tic;
+    for Isim=1:1:Nsim, M2 = median(R,3,'omitnan'); end
+    T1=toc;
+
+    tic;
+    for Isim=1:1:Nsim, M1 = tools.math.stat.mex.median(R,3,'omitnan'); end
+    T2=toc;
+    fprintf('tools.math.stat.mex.median is x %f faster than matlab (10^7; 3rd dim)\n',T1./T2);
+
+    Nsim = 1;
+    tic;
+    for Isim=1:1:Nsim, M2 = median(R,1,'omitnan'); end
+    T1=toc;
+
+    tic;
+    for Isim=1:1:Nsim, M1 = tools.math.stat.mex.median(R,1,'omitnan'); end
+    T2=toc;
+    fprintf('tools.math.stat.mex.median is x %f faster than matlab (10^7; 1st dim)\n',T1./T2);
+
+
+
 
     %% tools.math.stat.mex.minGlobal_mex
     R = single(rand(1716,1716));

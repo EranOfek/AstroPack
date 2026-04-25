@@ -1,9 +1,30 @@
 function Result = unitTest()
     % imUtil.art.unitTest
     % Example: imUtil.art.unitTest
-    io.msgLog(LogLevel.Test, 'imUtil.art.unitTest started');
     
-    %%% create an artificial sky image 
+  
+    %% imUtil.art.mex.addBrightSourceProfile
+    Image = zeros(1716,1716,'single');
+    X = ([200.3 800.7]);
+    Y = ([1190.2 1000.5]);
+    Flux = ([1e5 5e4]);
+    MaxRadius = ([500 700]);
+    R = 0:1000;
+    RadialProfile = 1./R;
+    RadialProfile(1) = 1.5;
+    NewImage = imUtil.art.mex.addBrightSourceProfile(Image, X, Y, Flux, MaxRadius, RadialProfile);
+
+    Image = zeros(1716,1716,'single');
+    X = 1000; Y=1000;
+    Flux = 1;
+    MaxRadius = 1000;
+    R = 0:1000;
+    RadialProfile = 1./R;
+    RadialProfile(1) = 1.5;
+    NewImage = imUtil.art.mex.addBrightSourceProfile(Image, X, Y, Flux, MaxRadius, RadialProfile);
+    
+
+    %% create an artificial sky image 
     if false %%%% TEMPRORARILY SWITCH OFF
         
         Nx = 1700; Ny = Nx;
@@ -56,8 +77,8 @@ function Result = unitTest()
     
 %     Res = imUtil.sources.findSources(Image);
 
-    %%% build an image from a source list measured from some real data 
-    %%% and compare it with the original one
+    %% build an image from a source list measured from some real data 
+    %% and compare it with the original one
     Thresh = [30 10 5 5 5];
     tic;
     % a high-latitude (tenuous) field:  
@@ -138,7 +159,7 @@ function Result = unitTest()
     Result = true;
 end
 
-%%% internal functions
+%% internal functions
 
 function Result = FitRestoreSubtract(AI, Args)
 
