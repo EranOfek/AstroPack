@@ -80,6 +80,33 @@ function Result = unitTest()
         error('CelCoo properMotion forward/backward round-trip failed');
     end
 
+    %% rise/set
+
+    C = CelCoo;
+    C.Units = 'deg';
+    C.RA  = [100; 270];
+    C.Dec = [0; 89];
+    JD    = 2451545;
+    Alt   = 5;
+
+    [Rise,Set,RiseAz,SetAz] = C.riseSet(JD, Alt);
+    [Az1, Alt1] = C.azAlt(Rise);
+    [Az2, Alt2] = C.azAlt(Set);
+    [~, Alt2a]  = C.azAlt(Set+0.01);
+
+    if ~isnan(Rise(2)) || ~isnan(Set(2))
+        error('Problem witrh CelCoo/riseSet');
+    end
+    if abs(Alt-Alt1(1))>1e-6 || abs(Alt-Alt2(1))>1e-6
+        error('Problem witrh CelCoo/riseSet');
+    end
+    if Alt2a>=Alt
+        error('Problem witrh CelCoo/riseSet');
+    end
+    
+
+
+
     %% searches
 
     C = CelCoo;
