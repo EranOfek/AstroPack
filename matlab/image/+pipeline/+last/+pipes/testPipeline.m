@@ -24,7 +24,7 @@ function [Result] = testPipeline(Args)
     %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'StartTime',[8 7 2025 01 28 0],'RemoveAfterWrite',true);
     %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'PipelineVersion','v1', 'StartImage','LAST.01.01.01_20250708.003700.313_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz');
     arguments
-        Args.LocalPath         = '~/LASTunitTest';
+        Args.LocalPath         = '/Data/LASTunitTest/';
         Args.RAWImageDir       = [] 
         Args.CalibDir          = [] 
         Args.RefPath           = '/mnt/euclid/last/data/references/v4/'
@@ -45,6 +45,8 @@ function [Result] = testPipeline(Args)
        return 
     end
     
+    PWD = pwd; 
+
     % arrange a local folder to store results 
     Args.LocalPath = tools.os.relPath2absPath(Args.LocalPath);    
     if ~isfolder(Args.LocalPath)
@@ -109,7 +111,8 @@ function [Result] = testPipeline(Args)
             D.RefPath = Args.RefPath;
                         
             D.main('StopWhenDone',true,'Insert2DB',false, 'SaveEpochProduct',{'Image','Mask','Cat','PSF'},'StopButton',false,...
-                'StartJD', StartJD, 'EndJD', EndJD, ...  
+                'StartJD', StartJD, 'EndJD', EndJD, ... 
+                'AstroImageReadArgs',{'UseMex', true}, ...
                 'RegenCalib', Args.RegenCalib, ...
                 'MinInGroup',Args.MinInGroup, ...
                 'InsertTransients2DB', false, ...
@@ -126,5 +129,7 @@ function [Result] = testPipeline(Args)
             error('Unknown pipeline version');
     end
     % 
-    Result = 'Passed';
+    cd(PWD);
+    
+    Result = 'Passed';    
 end
