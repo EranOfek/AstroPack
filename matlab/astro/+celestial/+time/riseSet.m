@@ -9,7 +9,8 @@ function [Rise, Set, RiseAz, SetAz] = riseSet(JD, RA, Dec, Alt, Args)
     %              Coordinates are treated as fixed over the interval
     %              (no proper motion/parallax/topocentric correction here).
     % Input  : - Reference Julian Date (scalar).
-    %          - Right ascension (scalar/array).
+    %          - Right ascension (scalar/array) - formallt in equinox of
+    %            date system.
     %          - Declination (scalar/array).
     %          - Altitude threshold (scalar). Default is 0.
     %            Use negative values for apparent horizon corrections
