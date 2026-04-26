@@ -1,23 +1,116 @@
-function [Result] = downloadHistoricSNe(X, Y, Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
-    %          * ...,key,val,... 
-    % Output : - 
-    % Author : Eran Ofek (2026 Apr) 
-    % Example: 
+function [T, CsvFiles] = downloadHistoricSNe(Args)
+    % Download all TNS search CSV pages and concatenate into one table.
+    % Input  : * ...,key,val,...
+    %            'Url'       - string, must contain %d for page number
+    %            'OutDir'    - string
+    %            'TextType'  - string = "string"
+    %            'KeepFiles' - logical = false
+    %            'Verbose'   - logical = false
+    %            'MaxPages'  - double = Inf
+    % Output : - TNS table with all pages concatenated
+    %          - CSV file names
+    %
+    % Example:
+    %   T = VO.TNS.downloadHistoricSNe;
 
     arguments
-        X
-        Y
-        Args.A                 = [];
-        Args.B                 = [];
+        Args.FirstPage   = 0;
+        Args.Url (1,1) string = ...
+            "https://www.wis-tns.org/search?&isTNS_AT=no&name=SN&num_page=500&format=csv&page=%d"
+        Args.OutDir (1,1) string = string(tempdir)
+        Args.TextType (1,1) string {mustBeMember(Args.TextType,["string","char"])} = "string"
+        Args.KeepFiles (1,1) logical = false
+        Args.Verbose (1,1) logical = false
+        Args.MaxPages (1,1) double {mustBePositive} = Inf
     end
 
-
-    for I=1:10
-        system(sprintf('wget -U Mozilla https://www.wis-tns.org/search?&isTNS_AT=no&name=SN&num_page=500&format=csv&page=%d',I));
+    if ~exist(Args.OutDir, 'dir')
+        mkdir(Args.OutDir);
     end
 
+    OptsWeb = weboptions( ...
+        'HeaderFields', {'User-Agent', 'Mozilla/5.0'}, ...
+        'Timeout', 600);
+
+    T = table;
+    CsvFiles = strings(0,1);
+
+    Page = Args.FirstPage;
+
+    while Page < Args.MaxPages
+
+        PageUrl = sprintf(Args.Url, Page);
+        CsvFile = fullfile(Args.OutDir, sprintf('tns_search_SN_page_%06d.csv', Page));
+
+        if Args.Verbose
+            fprintf('Downloading page %d: %s\n', Page, PageUrl);
+        end
+
+        try
+            CsvText = webread(PageUrl, OptsWeb);
+        catch ME
+            if Args.Verbose
+                fprintf('Stopping: failed to download page %d\n%s\n', Page, ME.message);
+            end
+            break;
+        end
+
+        CsvText = string(CsvText);
+
+        % Stop if page is empty or not really CSV
+        if strlength(strtrim(CsvText)) == 0
+            if Args.Verbose
+                fprintf('Stopping: empty page %d\n', Page);
+            end
+            break;
+        end
+
+        % Save page to file
+        Fid = fopen(CsvFile, 'w');
+        assert(Fid > 0, 'Could not open file for writing: %s', CsvFile);
+        fwrite(Fid, char(CsvText), 'char');
+        fclose(Fid);
+
+        try
+            ImportOpts = detectImportOptions(CsvFile, 'TextType', Args.TextType);
+            Tpage = readtable(CsvFile, ImportOpts);
+        catch ME
+            if Args.Verbose
+                fprintf('Stopping: failed to read page %d as table\n%s\n', Page, ME.message);
+            end
+            break;
+        end
+
+        % Stop when no rows are returned
+        if height(Tpage) == 0
+            if Args.Verbose
+                fprintf('Stopping: page %d has zero rows\n', Page);
+            end
+            break;
+        end
+
+        % Append
+        if isempty(T)
+            T = Tpage;
+        else
+            T = [T; Tpage]; %#ok<AGROW>
+        end
+
+        CsvFiles(end+1,1) = string(CsvFile); %#ok<AGROW>
+
+        if Args.Verbose
+            fprintf('Read page %d: %d rows, total %d rows\n', ...
+                Page, height(Tpage), height(T));
+        end
+
+        Page = Page + 1;
+    end
+
+    if ~Args.KeepFiles
+        for I = 1:numel(CsvFiles)
+            try
+                delete(CsvFiles(I));
+            end %#ok<TRYNC>
+        end
+    end
 end

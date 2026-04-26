@@ -309,6 +309,131 @@ classdef CelCoo < matlab.mixin.Copyable
 
     
     methods % conversion 
+        function Result=raRange(Obj, Type, Args)
+            % Normalize RA values to a requested angular range.
+            % Input  : - CelCoo object (scalar or array).
+            %          - Requested RA range mode (case-insensitive):
+            %            '2pi'|'pos'|'0-360'|'0-2pi'  : RA in [0,360) deg or [0,2*pi) rad.
+            %            'pi'|'pm' |'+-180'|'+-pi'   : RA in [-180,180) deg or [-pi,pi) rad.
+            %            Default is '2pi'.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - If true, normalize in a copy.
+            %                   Otherwise modify in place. Default is false.
+            % Output : - CelCoo object with normalized RA.
+            % Notes  : - Dec is unchanged.
+            %          - Normalization is performed in Obj.Units.
+            % Author : Eran Ofek (Apr 2026)
+            % Example: C = C.raRange('pos');
+            %          C = C.raRange('pm');
+
+            arguments
+                Obj
+                Type = '2pi';
+                Args.CreateNewObj  = false;
+            end
+
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            Nobj = numel(Result);
+            for Iobj=1:1:Nobj
+                if isempty(Result(Iobj).RA)
+                    continue;
+                end
+
+                switch lower(Type)
+                    case {'2pi', 'pos', '0-360', '0-2pi'}
+                        if strcmp(Result(Iobj).Units, 'deg')
+                            Result(Iobj).RA = mod(Result(Iobj).RA, 360);
+                        else
+                            Result(Iobj).RA = mod(Result(Iobj).RA, 2.*pi);
+                        end
+
+                    case {'pi', 'pm','+-180','+-pi','-180:180','-pi:pi'}
+                        if strcmp(Result(Iobj).Units, 'deg')
+                            Result(Iobj).RA = mod(Result(Iobj).RA + 180, 360) - 180;
+                        else
+                            Result(Iobj).RA = mod(Result(Iobj).RA + pi, 2.*pi) - pi;
+                        end
+
+                    otherwise
+                        error('Unknown Type option: %s', string(Type));
+                end
+            end
+
+        end
+
+        function Result = decRange(Obj, Args)
+            % Fold declination into the physical range [-90,+90] deg
+            % (or [-pi/2,+pi/2] rad), while preserving spherical position.
+            % Input  : - CelCoo object (scalar or array).
+            %          * ...,key,val,...
+            %            'CreateNewObj' - If true, normalize in a copy.
+            %                   Otherwise modify in place. Default is false.
+            % Output : - CelCoo object with Dec folded to physical range.
+            % Notes  : - When Dec crosses a pole, RA is shifted by pi
+            %            (or 180 deg), as required by spherical geometry.
+            %          - Final RA is wrapped back to the same RA convention
+            %            used in raRange('2pi') i.e., [0,360) or [0,2*pi).
+            % Author : Eran Ofek (Apr 2026)
+            % Example: C = C.decRange();
+
+            arguments
+                Obj
+                Args.CreateNewObj  = false;
+            end
+
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            Nobj = numel(Result);
+            for Iobj=1:1:Nobj
+                if isempty(Result(Iobj).Dec)
+                    continue;
+                end
+
+                if strcmp(Result(Iobj).Units, 'deg')
+                    HalfPi = 90;
+                    PiVal  = 180;
+                    TwoPi  = 360;
+                else
+                    HalfPi = 0.5.*pi;
+                    PiVal  = pi;
+                    TwoPi  = 2.*pi;
+                end
+
+                % First fold to [-pi,+pi) (or [-180,+180))
+                DecF = mod(Result(Iobj).Dec + PiVal, TwoPi) - PiVal;
+                RA   = Result(Iobj).RA;
+
+                % Reflect values outside [-pi/2,+pi/2] and shift RA by pi
+                I = DecF > HalfPi;
+                if any(I(:))
+                    DecF(I) = PiVal - DecF(I);
+                    RA(I)   = RA(I) + PiVal;
+                end
+
+                I = DecF < -HalfPi;
+                if any(I(:))
+                    DecF(I) = -PiVal - DecF(I);
+                    RA(I)   = RA(I) + PiVal;
+                end
+
+                % Keep RA in the same default positive range as raRange('2pi')
+                RA = mod(RA, TwoPi);
+
+                Result(Iobj).RA  = RA;
+                Result(Iobj).Dec = DecF;
+            end
+
+        end
+
         function Result=precess(Obj, NewEquinox, Args)
             % Precess coordinates to new equinox
             % Input  : - self.
@@ -505,7 +630,7 @@ classdef CelCoo < matlab.mixin.Copyable
 
         end
 
-        function [Az, Alt] = azAlt(Obj, JD, Args)
+        function [Az, Alt, AM] = azAlt(Obj, JD, Args)
             % Convert RA/Dec to horizontal coordinates (Az/Alt).
             % Input  : - A single-element CelCoo object.
             %          - JD scalar, or JD array with same size as RA/Dec.
@@ -519,6 +644,7 @@ classdef CelCoo < matlab.mixin.Copyable
             %                   Default is 'a'.
             % Output : - Azimuth array.
             %          - Altitude array.
+            %          - Airmass array.
             % Author : Eran Ofek (Apr 2026)
             % Example: [Az,Alt] = C.azAlt(2451545,'GeoCoo',[35 30 415]);
 
@@ -610,7 +736,7 @@ classdef CelCoo < matlab.mixin.Copyable
 
             Coo = Obj.Rad;
 
-            [Dist] = celestial.coo.sphere_dist_fast(RA, Dec, Coo(:,1), Coo(:,2));
+            [Dist] = celestial.coo.sphere_dist_fast(RA(:), Dec(:), Coo(:,1), Coo(:,2));
             ConvFactor = convert.angular('rad',Args.OutUnits);
             Dist       = Dist.*ConvFactor;
             if nargout>1
