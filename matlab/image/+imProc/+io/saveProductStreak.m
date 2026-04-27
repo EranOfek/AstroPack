@@ -1,11 +1,15 @@
-function [Result] = saveProductStreak(AI, FN, Args)
+function [AllStreaks] = saveProductStreak(AI, FN, Args)
     % Save streaks data stored in AstroImage object
     % Input  : - An AstroImage object.
     %          - An AstroFileName object with file name to save.
     %          * ...,key,val,... 
-    % Output : - 
+    %            'JD' - An array of JD per image. If empty, then read from
+    %                   header. Default is [].
+    %            'Save' - A logical indicating if to save the product.
+    %                   Default is true.
+    % Output : - A structure array of streaks from all the images.
     % Author : Eran Ofek (2026 Apr) 
-    % Example: 
+    % Example: imProc.io.saveProductStreak
 
     arguments
         AI
@@ -16,6 +20,7 @@ function [Result] = saveProductStreak(AI, FN, Args)
 
     [Nep, Nsub] = size(AI);
     K = 0;
+    AllStreaks = struct('Streak',[], 'Epoch',[], 'Crop',[], 'JD',[]);
     for Isub=1:1:Nsub
         for Iep=1:1:Nep
             if ~isempty(AI(Iep, Isub).Streaks)
