@@ -225,7 +225,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     %                   to imUtil.streaks.detectStreaksLSD
     %                   Default is {}.
     %            ---
-    %            'UseMex' - Default is false.
+    %            'UseMex' - Default is true.
     %
     % Output : - (Result) An AstroImage array, same size as the
     %            input Obj, in which the Image, Back, Var, PSF and
@@ -495,10 +495,40 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Cat             = AstroCatalog([1 Niter]);                              % catalogs produced at each iter, merged afterwards 
         
         SizeImage       = size(AI.ImageData.Image);
-        SourceImage     = repmat(single(0),SizeImage(1), SizeImage(2), Niter);    % source image after each iteration
-        SumSourceImage  = repmat(single(0),SizeImage(1), SizeImage(2));    % source image after each iteration
-        if ExtraOutput
-            SubtractedImage = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % subtracted image after each iteration
+
+        if Args.UseMex
+            % SourceImage     = zeros(SizeImage(1), SizeImage(2), Niter, 'like',AI.ImageData.Data);    % source image after each iteration
+            % SumSourceImage  = zerso(SizeImage(1), SizeImage(2), 'like',AI.ImageData.Data);    % source image after each iteration
+            % if ExtraOutput
+            %     SubtractedImage = zeros(SizeImage(1), SizeImage(2), Niter, 'like',AI.ImageData.Data);    % subtracted image after each iteration
+            % end
+
+            %ClassI = class(AI.ImageData.Data);
+            SourceImage     = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % source image after each iteration
+            SumSourceImage  = repmat(single(0), SizeImage(1), SizeImage(2));    % source image after each iteration
+            if ExtraOutput
+                SubtractedImage = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % subtracted image after each iteration
+            end 
+
+            
+            %SourceImage     = tools.array.mex.allocateUninit([SizeImage(1), SizeImage(2), Niter], ClassI);    % source image after each iteration
+            %SumSourceImage  = tools.array.mex.allocateUninit([SizeImage(1), SizeImage(2)], ClassI);    % source image after each iteration
+            %if ExtraOutput
+            %    SubtractedImage = tools.array.mex.allocateUninit([SizeImage(1), SizeImage(2), Niter], ClassI);    % subtracted image after each iteration
+            %end
+        else
+            %ClassI = class(AI.ImageData.Data);
+            SourceImage     = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % source image after each iteration
+            SumSourceImage  = repmat(single(0), SizeImage(1), SizeImage(2));    % source image after each iteration
+            if ExtraOutput
+                SubtractedImage = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % subtracted image after each iteration
+            end 
+
+            % SourceImage     = zeros(SizeImage(1), SizeImage(2), Niter, 'like',AI.ImageData.Data);    % source image after each iteration
+            % SumSourceImage  = zerso(SizeImage(1), SizeImage(2), 'like',AI.ImageData.Data);    % source image after each iteration
+            % if ExtraOutput
+            %     SubtractedImage = zeros(SizeImage(1), SizeImage(2), Niter, 'like',AI.ImageData.Data);    % subtracted image after each iteration
+            % end
         end
 
         SizePSF = size(AI.PSFData.DataPSF);

@@ -239,6 +239,7 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
                 SN_W = Src.SN(:,2);
                 SN_W(SN_W<1) = 1;
                 [M1, M2, Aper] = imUtil.sources.moments(Image, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod);
+                
                 % %end, toc
                 % 
                 % % debuging plots:  
@@ -328,130 +329,135 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
 
     FluxErrAper = [];
     
-    K    = 0;
-    for Icol=1:1:Ncol
-        K = K + 1;
-        ColCellOut{K} = Args.ColCell{Icol};
-        switch lower(Args.ColCell{Icol})
-            case 'forced'
-                Cat(:,K) = 0;  % forced photometry : NO
-            case 'xpeak'
-                Cat(:,K) = Src.XPEAK;
-            case 'ypeak'
-                Cat(:,K) = Src.YPEAK;
-            case 'temp_id'
-                Cat(:,K) = Src.TEMP_ID;
-            case 'sn'
-                % may have multiple columns
-                NC = size(Src.SN,2);
-                Cat(:,K:K+NC-1) = Src.SN;
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
-                K  = K + NC - 1;
-            case 'flux_conv'
-                % may have multiple columns
-                NC = size(Src.FLUX_CONV,2);
-                Cat(:,K:K+NC-1) = Src.FLUX_CONV;
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
-                K = K + NC - 1;
-            case 'mag_conv'
-                % may have multiple columns
-                NC = size(Src.FLUX_CONV,2);
-                Cat(:,K:K+NC-1) = convert.luptitude(Src.FLUX_CONV, ZP_Flux, Args.LupSoftPar);  
-                %Cat(:,K:K+NC-1) = real(Cat(:,K:K+NC-1));
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
-                K = K + NC - 1;    
-            case 'magerr_conv'
-                % may have multiple columns
-                NC = size(Src.FLUX_CONV,2);
-                Cat(:,K:K+NC-1) = 1.086./Src.SN;
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
-                K = K + NC - 1;   
-            case 'back_im'
-                Cat(:,K) = Src.BACK_IM;
-            case 'var_im'
-                Cat(:,K) = Src.VAR_IM;
-            case 'x1'
-                Cat(:,K) = M1.X;
-            case 'y1'
-                Cat(:,K) = M1.Y;
-            case 'm1iter'
-                Cat(:,K) = M1.Iter;
-            case 'x2'
-                Cat(:,K) = M2.X2;
-            case 'y2'
-                Cat(:,K) = M2.Y2;
-            case 'xy'
-                Cat(:,K) = M2.XY;
-            case 'flux_aper'
-                % may have multiple columns
-                NC = size(Aper.AperPhot,2);
-                Cat(:,K:K+NC-1) = Aper.AperPhot;
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('FLUX_APER',(1:1:NC)));
-                K = K + NC - 1;
-            case 'fluxerr_aper'
-                % may have multiple columns
-                NC = size(Aper.AperPhot,2);
-                if isempty(FluxErrAper)
-                    AperPhot    = Aper.AperPhot.*Args.Gain;
-                    FluxErrAper = sqrt(abs(AperPhot) + Aper.AnnulusStd.^2)./AperPhot;
-                end
-                Cat(:,K:K+NC-1) = FluxErrAper;
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('FLUXERR_APER',(1:1:NC)));
-                K = K + NC - 1;
-            case 'mag_aper'
-                % may have multiple columns
-                NC = size(Aper.AperPhot,2);
-                Cat(:,K:K+NC-1) = convert.luptitude(Aper.AperPhot, ZP_Flux, Args.LupSoftPar);
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('MAG_APER',(1:1:NC)));
-                K = K + NC - 1;
-            case 'magerr_aper'
-                % may have multiple columns
-                NC = size(Aper.AperPhot,2);
-                if isempty(FluxErrAper)
-                    AperPhot    = Aper.AperPhot.*Args.Gain;
-                    FluxErrAper = sqrt(abs(AperPhot) + Aper.AnnulusStd.^2)./AperPhot;
-                end
-                Cat(:,K:K+NC-1) = 1.086 .* FluxErrAper;
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('MAGERR_APER',(1:1:NC)));
-                K = K + NC - 1;    
-            case 'aper_area'
-                % may have multiple columns
-                NC = size(Aper.AperArea,2);
-                Cat(:,K:K+NC-1) = Aper.AperArea.*ones(size(Cat(:,1)));
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('APER_AREA',(1:1:NC)));
-                K = K + NC - 1;
-            case 'flux_box'
-                % this is no longer in use
-                Cat(:,K) = Aper.BoxPhot;
-            case 'back_annulus'
-                % need to add Src.BACK_IM because the background was subtract
-                % (in moment2 input)
-                Cat(:,K) = Aper.AnnulusBack + Src.BACK_IM;
-            case 'backmag_annulus'
-                % need to add Src.BACK_IM because the background was subtract
-                % (in moment2 input)
-                Cat(:,K) = convert.luptitude(Aper.AnnulusBack + Src.BACK_IM, ZP_Flux, Args.LupSoftPar);    
-            case 'std_annulus'
-                Cat(:,K) = Aper.AnnulusStd;
-            case 'flux_waper'
-                Cat(:,K) = Aper.WeightedAper;
-            case 'flux_xypeak'
-                % flux at XPEAK, YPEAK
-                Cat(:,K) = imUtil.image.getValPos(Image-Back, Src.XPEAK, Src.YPEAK);
+    if ~isempty(Cat)
+        K    = 0;
+        for Icol=1:1:Ncol
+            K = K + 1;
+            ColCellOut{K} = Args.ColCell{Icol};
+            switch lower(Args.ColCell{Icol})
+                case 'forced'
+                    Cat(:,K) = 0;  % forced photometry : NO
+                case 'xpeak'
+                    Cat(:,K) = Src.XPEAK;
+                case 'ypeak'
+                    Cat(:,K) = Src.YPEAK;
+                case 'temp_id'
+                    Cat(:,K) = Src.TEMP_ID;
+                case 'sn'
+                    % may have multiple columns
+                    NC = size(Src.SN,2);
+                    Cat(:,K:K+NC-1) = Src.SN;
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
+                    K  = K + NC - 1;
+                case 'flux_conv'
+                    % may have multiple columns
+                    NC = size(Src.FLUX_CONV,2);
+                    Cat(:,K:K+NC-1) = Src.FLUX_CONV;
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
+                    K = K + NC - 1;
+                case 'mag_conv'
+                    % may have multiple columns
+                    NC = size(Src.FLUX_CONV,2);
+                    Cat(:,K:K+NC-1) = convert.luptitude(Src.FLUX_CONV, ZP_Flux, Args.LupSoftPar);  
+                    %Cat(:,K:K+NC-1) = real(Cat(:,K:K+NC-1));
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
+                    K = K + NC - 1;    
+                case 'magerr_conv'
+                    % may have multiple columns
+                    NC = size(Src.FLUX_CONV,2);
+                    Cat(:,K:K+NC-1) = 1.086./Src.SN;
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
+                    K = K + NC - 1;   
+                case 'back_im'
+                    Cat(:,K) = Src.BACK_IM;
+                case 'var_im'
+                    Cat(:,K) = Src.VAR_IM;
+                case 'x1'
+                    Cat(:,K) = M1.X;
+                case 'y1'
+                    Cat(:,K) = M1.Y;
+                case 'm1iter'
+                    Cat(:,K) = M1.Iter;
+                case 'x2'
+                    Cat(:,K) = M2.X2;
+                case 'y2'
+                    Cat(:,K) = M2.Y2;
+                case 'xy'
+                    Cat(:,K) = M2.XY;
+                case 'flux_aper'
+                    % may have multiple columns
+                    NC = size(Aper.AperPhot,2);
+                    Cat(:,K:K+NC-1) = Aper.AperPhot;
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('FLUX_APER',(1:1:NC)));
+                    K = K + NC - 1;
+                case 'fluxerr_aper'
+                    % may have multiple columns
+                    NC = size(Aper.AperPhot,2);
 
-            otherwise
-                error('Unknown column in ColCell (%s)',Args.ColCell{Icol});
+                    if isempty(FluxErrAper)
+                        AperPhot    = Aper.AperPhot.*Args.Gain;
+                        FluxErrAper = sqrt(abs(AperPhot) + Aper.AnnulusStd.^2)./AperPhot;
+                    end
+                    Cat(:,K:K+NC-1) = FluxErrAper;
+                    
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('FLUXERR_APER',(1:1:NC)));
+                    K = K + NC - 1;
+                case 'mag_aper'
+                    % may have multiple columns
+                    NC = size(Aper.AperPhot,2);
+                    Cat(:,K:K+NC-1) = convert.luptitude(Aper.AperPhot, ZP_Flux, Args.LupSoftPar);
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('MAG_APER',(1:1:NC)));
+                    K = K + NC - 1;
+                case 'magerr_aper'
+                    % may have multiple columns
+                    NC = size(Aper.AperPhot,2);
+                    if isempty(FluxErrAper)
+                        AperPhot    = Aper.AperPhot.*Args.Gain;
+                        FluxErrAper = sqrt(abs(AperPhot) + Aper.AnnulusStd.^2)./AperPhot;
+                    end
+                    Cat(:,K:K+NC-1) = 1.086 .* FluxErrAper;
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('MAGERR_APER',(1:1:NC)));
+                    K = K + NC - 1;    
+                case 'aper_area'
+                    % may have multiple columns
+                    NC = size(Aper.AperArea,2);
+                    Cat(:,K:K+NC-1) = Aper.AperArea.*ones(size(Cat(:,1)));
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('APER_AREA',(1:1:NC)));
+                    K = K + NC - 1;
+                case 'flux_box'
+                    % this is no longer in use
+                    Cat(:,K) = Aper.BoxPhot;
+                case 'back_annulus'
+                    % need to add Src.BACK_IM because the background was subtract
+                    % (in moment2 input)
+                    Cat(:,K) = Aper.AnnulusBack + Src.BACK_IM;
+                case 'backmag_annulus'
+                    % need to add Src.BACK_IM because the background was subtract
+                    % (in moment2 input)
+                    Cat(:,K) = convert.luptitude(Aper.AnnulusBack + Src.BACK_IM, ZP_Flux, Args.LupSoftPar);    
+                case 'std_annulus'
+                    Cat(:,K) = Aper.AnnulusStd;
+                case 'flux_waper'
+                    Cat(:,K) = Aper.WeightedAper;
+                case 'flux_xypeak'
+                    % flux at XPEAK, YPEAK
+                    Cat(:,K) = imUtil.image.getValPos(Image-Back, Src.XPEAK, Src.YPEAK);
+    
+                otherwise
+                    error('Unknown column in ColCell (%s)',Args.ColCell{Icol});
+    
+            end
+        end % for Icol=1:1:Ncol
+    
 
+        if ~isnan(Args.RemoveEdgeDist)
+            SizeIm = size(Image);
+            FlagEdge = Src.XPEAK<=(Args.RemoveEdgeDist+1) | ...
+                       Src.XPEAK>=(SizeIm(2)-Args.RemoveEdgeDist) | ...
+                       Src.YPEAK<=(Args.RemoveEdgeDist+1) | ...
+                       Src.YPEAK>=(SizeIm(1)-Args.RemoveEdgeDist);
+            Cat = Cat(~FlagEdge,:);
         end
-    end
-
-    if ~isnan(Args.RemoveEdgeDist)
-        SizeIm = size(Image);
-        FlagEdge = Src.XPEAK<=(Args.RemoveEdgeDist+1) | ...
-                   Src.XPEAK>=(SizeIm(2)-Args.RemoveEdgeDist) | ...
-                   Src.YPEAK<=(Args.RemoveEdgeDist+1) | ...
-                   Src.YPEAK>=(SizeIm(1)-Args.RemoveEdgeDist);
-        Cat = Cat(~FlagEdge,:);
     end
 
     if nargout>2
