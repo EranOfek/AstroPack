@@ -2508,7 +2508,7 @@ classdef PipelineDemon < Component
             Tstart = clock;
 
             % executing pipelineI
-            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
+            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
             %ProcImageList = TableRaw.FileName;                
             RunTime = etime(clock, Tstart);
             Ntr = size(TableRaw,1);
@@ -2530,7 +2530,7 @@ classdef PipelineDemon < Component
                 try
                     Tstart = clock;
                     AllForcedPhot = []; % TEMPORARY
-                    [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, Args);
+                    [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, JD, Args);
                     RunTime = etime(clock, Tstart);
                     TableRaw.TimeSaveI = RunTime.*ones(Ntr,1);
 
@@ -2610,7 +2610,7 @@ classdef PipelineDemon < Component
         end
 
 
-        function [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, Args)
+        function [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, JD,Args)
             % Save data products for pipeline I
 
           
@@ -2636,9 +2636,17 @@ classdef PipelineDemon < Component
 
             [~,FN_I] = imProc.io.saveProductImage(AllSI, FN_I, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveEpochProduct, 'WriteHeader',Args.SaveEpochHeader, 'WriteMethodImages',Args.WriteMethodImages, 'WriteMethodTables',Args.WriteMethodTables, 'CompressedOutput', Args.CompressedOutput);  % 20 s
 
+            % Streaks
+            % need JD
+            FN_Str = FN_I.reorderEntries(1, 'CreateNewObj',true);
+            Nf = FN_Str.nFiles;
+            FN_Str.FileType = repmat("mat",Nf,1);
+            FN_Str.Product  = repmat("Streaks",Nf,1);
+            imProc.io.saveProductStreak(AllSI, FN_Str, 'JD',JD);
+
             % Coadd
             FN_C.SubDir  = FN_I.SubDir;
-            FN_C.Counter = repmat(0, numel(Coadd),1);
+            FN_C.Counter = zeros(0, numel(Coadd),1);
             imProc.io.saveProductImage(Coadd, FN_C, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveVisitProduct, 'WriteHeader',Args.SaveVisitHeader, 'CompressedOutput', Args.CompressedOutput);  % 3 s
             
             % Asteroids:
