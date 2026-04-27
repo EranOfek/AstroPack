@@ -504,6 +504,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             % end
 
             %ClassI = class(AI.ImageData.Data);
+            % FROM SOME reasons using zeros or allocateUninit fails the
+            % function.
             SourceImage     = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % source image after each iteration
             SumSourceImage  = repmat(single(0), SizeImage(1), SizeImage(2));    % source image after each iteration
             if ExtraOutput
