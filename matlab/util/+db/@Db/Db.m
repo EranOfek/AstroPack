@@ -1514,26 +1514,40 @@ rs = stmt.executeQuery(Query);
 %         Result = unitTest()
         
         function DB = connectLASTdb(Args)
+            %
             arguments
                 Args.User = [];
                 Args.Pass = [];
+                Args.Host = '10.150.28.18';
                 Args.DbName = 'last';   
                 Args.AstroDBPassFile   = '~/.astropack/Passwords.yml'; 
+                Args.Client = 'java';
             end
-            DB = db.Db;
+            %
             if isempty(Args.User)
-                DB.User = 'last_user';
-            else
-                DB.User = Args.User;
+               Args.User = 'last_user';
             end
-            if isempty(Args.Pass)
-                Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-                PM = PasswordsManager;
-                DB.Password = PM.search(Args.DbName).Pass;
+            if strcmpi(Args.Client,'java')
+                DB = db.Db;
+                DB.User = Args.User;                
+                if isempty(Args.Pass)
+                    Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+                    PM = PasswordsManager;
+                    DB.Password = PM.search(Args.DbName).Pass;
+                else
+                    DB.Password = Args.Pass;
+                end
+                DB.useDB(Args.DbName);
+            elseif strcmpi(Args.Client,'native')
+                if isempty(Args.Pass)
+                    Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+                    PM = PasswordsManager;
+                    Args.Pass = PM.search(Args.DbName).Pass;
+                end
+                DB = db.mex.ClickHouseClient(Args.Host,9000,Args.User,Args.Pass);
             else
-                DB.Password = Args.Pass;
+                error('unknown DB client type')
             end
-            DB.useDB(Args.DbName);
         end
     end
     

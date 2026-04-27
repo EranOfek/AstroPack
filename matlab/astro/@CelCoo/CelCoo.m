@@ -694,6 +694,63 @@ classdef CelCoo < matlab.mixin.Copyable
         end
 
 
+        function [varargout] = riseSet(Obj, JD, Alt, Args)
+            % Calculate next rise/set times for object coordinates.
+            % Input  : - A single-element CelCoo object.
+            %          - Reference JD (scalar). Rise/Set are returned after JD.
+            %          - Altitude threshold (scalar). Default is 0.
+            %          * ...,key,val,...
+            %            'GeoCoo' - Geodetic coordinates
+            %                   [Lon(deg), Lat(deg), Height(m)].
+            %                   Default is [35 30 415].
+            %            'STType' - Sidereal time type: 'a' | 'm'.
+            %                   Default is 'a'.
+            % Output : - Rise JD array, same size as Obj.RA/Obj.Dec.
+            %          - Set JD array, same size as Obj.RA/Obj.Dec.
+            %          - Optional rise azimuth array (same angular units as
+            %            Obj.Units).
+            %          - Optional set azimuth array (same angular units as
+            %            Obj.Units).
+            % Notes  : - Coordinates are passed as stored in Obj.RA/Obj.Dec.
+            %          - NaN is returned for non-rising/non-setting targets.
+            % Author : Eran Ofek (Apr 2026)
+            % Example: [R,S] = C.riseSet(2460400.5);
+            %          [R,S,RAz,SAz] = C.riseSet(2460400.5,-0.5667,...
+            %                           'GeoCoo',[35 30 415],'STType','a');
+
+            arguments
+                Obj(1,1)
+                JD (1,1)
+                Alt (1,1)   = 0;
+                Args.GeoCoo = [35 30 415];
+                Args.STType = 'a';
+            end
+
+            if ~strcmpi(Obj.System, 'eq')
+                error('riseSet currently expects equatorial coordinates (Obj.System=''eq'')');
+            end
+
+            RA  = Obj.RA;
+            Dec = Obj.Dec;
+            if isempty(RA) || isempty(Dec)
+                Rise   = [];
+                Set    = [];
+                RiseAz = [];
+                SetAz  = [];
+                return;
+            end
+            if ~isequal(size(RA), size(Dec))
+                error('Obj.RA and Obj.Dec must have the same size');
+            end
+
+           
+            [varargout{1:nargout}] = celestial.time.riseSet(JD, RA, Dec, Alt, ...
+                                           'ObsPos', Args.GeoCoo, ...
+                                           'InUnits', Obj.Units, ...
+                                           'STType', Args.STType);
+               
+        end
+
     end
 
     methods % distance and search
