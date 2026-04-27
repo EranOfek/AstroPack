@@ -35,4 +35,6 @@ function [Result] = directLoad(TempName, Args)
             error('Unknown file type');
         end
     end
+    
+    cd(PWD);
 end
