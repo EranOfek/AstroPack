@@ -69,6 +69,7 @@ function [Result] = register(Obj, TransRef, Args)
 
         Args.CreateNewObj             = true;
         Args.WCS                      = [];
+        Args.RotatePSF                = false;  % if true, then make hard copy / operate only if TransRef is an AstroImage!
         Args.CopyPSF                  = true;
         Args.CopyWCS                  = true;
         Args.CopyHeader               = true;
@@ -103,6 +104,7 @@ function [Result] = register(Obj, TransRef, Args)
     Nwcs = numel(Args.WCS);
     Nobj = numel(Obj);
     Result = AstroImage(size(Obj));
+    CanRotatePSF = false;
     for Iobj=1:1:Nobj
         
         SizeIm = size(Obj(Iobj).ImageData.Data);
@@ -132,6 +134,7 @@ function [Result] = register(Obj, TransRef, Args)
                 FullRefY = interp2(X, Y, RefY, VecRefX(:).', VecRefY(:), 'cubic');
 
             case {'AstroImage', 'AstroZOGY', 'AstroDiff'}
+                CanRotatePSF = true;
                 Iref = min(Iobj, Nref);
 
                 %SizeRefIm = size(TransRef(Iref).ImageData.Data);
@@ -190,10 +193,24 @@ function [Result] = register(Obj, TransRef, Args)
 
         % Fill the other proprties of the regsitered object:
         if Args.CopyPSF
-            if Args.CreateNewObj
-                Result(Iobj).PSFData = Obj(Iobj).PSFData.copy;
+            if Args.RotatePSF
+                if CanRotatePSF
+                    Result(Iobj).PSFData = Obj(Iobj).PSFData.copy;
+                    % find ritation
+                    St1 = imUtil.astrometry.cdmatrix2rotScale(Obj(Iobj).WCS.CD);
+                    St2 = imUtil.astrometry.cdmatrix2rotScale(TransRef(Iref).WCS.CD);
+                    Rotation = St2.PA_deg - St1.PA_deg;
+                    % apply rotation / check direction
+                    Result(Iobj).PSFData.Data = imrotate_sinc(Result(Iobj).PSFData.Data, Rotation);
+                else
+                    error('RotatePSF is available only for some options / TBD')
+                end
             else
-                Result(Iobj).PSFData = Obj(Iobj).PSFData;
+                if Args.CreateNewObj
+                    Result(Iobj).PSFData = Obj(Iobj).PSFData.copy;
+                else
+                    Result(Iobj).PSFData = Obj(Iobj).PSFData;
+                end
             end
         end
         % WCS
