@@ -13,6 +13,8 @@ function [Result] = register(Obj, TransRef, Args)
     %               An affine2d, or affinetform2d object, or a two column
     %            matrix. If a two column matrix, then the columns are the X
     %            and Y shifts.
+    %            Note that the affine transformation must map in this direction:
+    %               output/reference coordinates -> input-image coordinates
     %          * ...,key,val,... 
     %            'InterpMethod' - Interpolation method for images.
     %                   See interp2 for options.
@@ -82,7 +84,8 @@ function [Result] = register(Obj, TransRef, Args)
     end
 
     if isempty(Args.WCS)
-        Args.CopyWCS = false;
+        % BUG2
+        %Args.CopyWCS = false;
     else
         if numel(Args.WCS)>1
             error('Args.WCS must be a single element AstroWCS or AstroImage');
@@ -101,6 +104,11 @@ function [Result] = register(Obj, TransRef, Args)
     Nobj = numel(Obj);
     Result = AstroImage(size(Obj));
     for Iobj=1:1:Nobj
+        
+        % BUG 1: uncmment this
+        %SizeRefIm = size(TransRef(Iref).ImageData.Data);
+        %CCDSEC = [1 SizeRefIm(2) 1 SizeRefIm(1)];
+
         SizeIm = size(Obj(Iobj).ImageData.Data);
         CCDSEC = [1 SizeIm(2) 1 SizeIm(1)];
         
@@ -223,7 +231,7 @@ function [Result] = register(Obj, TransRef, Args)
         end
 
         if Args.CopyFilename
-            Result(Iobj).ImageData.FileName = Obj(Iref).ImageData.FileName;
+            Result(Iobj).ImageData.FileName = Obj(Iobj).ImageData.FileName;
         end
         if Args.CopyHeader
             if Args.CreateNewObj
