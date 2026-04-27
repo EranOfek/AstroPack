@@ -41,7 +41,7 @@ function [Result] = overlapSources(AI, Args)
     IndX = AI(1).CatData.colname2ind({'XPEAK','X1','X'});
     IndY = AI(1).CatData.colname2ind({'YPEAK','Y1','Y'});
     % read the list of overlap interfaces:
-    Ind   = LASToverlapsNew('CroppingScheme', Args.CroppingScheme);
+    Ind   = LASToverlaps('CroppingScheme', Args.CroppingScheme);
     Nvrlp = size(Ind,1);
     % loop over all the possible pairs of crops
     for Ivrlp = 1:Nvrlp
@@ -191,7 +191,7 @@ function [Result] = overlapSources(AI, Args)
     end
 end
 %
-function Ind = LASToverlapsNew(Args)
+function Ind = LASToverlaps(Args)
     arguments
         Args.CroppingScheme = 'new';
     end
