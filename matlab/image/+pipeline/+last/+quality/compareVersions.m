@@ -12,12 +12,14 @@ function [Result] = compareVersions(Dir0, Dir1, Args)
     arguments
         Dir0
         Dir1
-        Args.CoaddOnly  = false       
+        Args.CoaddOnly  = true       
         
         Args.PropNew    = {'RA', 'Dec', 'XPEAK', 'YPEAK', 'X1', 'Y1', 'X', 'Y', ...
             'FLUX_APER_3', 'MAG_APER_3', 'MAG_AB_APER_3', 'MAG_PSF', 'MAG_AB_PSF'};
         Args.PropOld    = {'RA', 'Dec', 'XPEAK', 'YPEAK', 'X1', 'Y1', 'X', 'Y', ...
             'FLUX_APER_3', 'MAG_APER_3', 'MAG_PSF'};
+        Args.OverlapMagRange   = [13 15];
+        Args.PlotOverlapStats  = false;
     end
     %
     Result = [];
@@ -30,11 +32,28 @@ function [Result] = compareVersions(Dir0, Dir1, Args)
         [AllSI1, Coadd1, MS1] = pipeline.last.load.loadVisit(Dir1);
     end
     
+    % 0. overall statistics
+    Result.v0.NStar = sum(arrayfun(@(x) height(x.Table), Coadd0));
+    Result.v1.NStar = sum(arrayfun(@(x) height(x.Table), Coadd1));
+    Result.v0.FWHM = [Coadd0.getStructKey('FWHM').FWHM]';
+    Result.v1.FWHM = [Coadd1.getStructKey('FWHM').FWHM]';
+    Result.v0.LimMag = [Coadd0.getStructKey('LIMMAG').LIMMAG]';
+    Result.v1.LimMag = [Coadd1.getStructKey('LIMMAG').LIMMAG]';
+%     Result.v0.Back = 
+%     Result.v1.Back = 
+    Result.v0.BackMag = [Coadd0.getStructKey('BACKMAG').BACKMAG]';
+    Result.v1.BackMag = [Coadd1.getStructKey('BACKMAG').BACKMAG]';
+    Result.v0.AstRMS = [Coadd0.getStructKey('AST_ARMS').AST_ARMS]';
+    Result.v1.AstRMS = [Coadd1.getStructKey('AST_ARMS').AST_ARMS]';
+    
     % 1. overlap 
-    R0 = pipeline.last.quality.overlapSources(Coadd0,'Prop',Args.PropOld,'CroppingScheme','old');
-    R1 = pipeline.last.quality.overlapSources(Coadd1,'Prop',Args.PropNew,'CroppingScheme','new');
+    R0 = pipeline.last.quality.overlapSources(Coadd0,'Prop',Args.PropOld,'MagRange',Args.OverlapMagRange,...
+        'CroppingScheme','old','Plot',Args.PlotOverlapStats,'Verbose',true);
+    R1 = pipeline.last.quality.overlapSources(Coadd1,'Prop',Args.PropNew,'MagRange',Args.OverlapMagRange,...
+        'CroppingScheme','new','Plot',Args.PlotOverlapStats,'Verbose',true);
     
-    
+%     Result.v0.OverlapMed = 
+        
 end
 % 
 % Overlap regions - for each one of the following quantities: APER_MAG_3, APER_MAG_AB_3, PSF_MAG, PSF_AB_MAG, RA, Dec
