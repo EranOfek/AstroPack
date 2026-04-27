@@ -1,4 +1,4 @@
-function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
+function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageList, CI, Args)
     %
     % Example: D.loadCalib();
     %          [AllSI, MS, Coadd, OnlyMP]=pipeline.last.pipes.pipelineI([],D.CI);
