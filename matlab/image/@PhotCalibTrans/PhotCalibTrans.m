@@ -726,6 +726,10 @@ classdef PhotCalibTrans < Component
             %                        to skip this filter. Default is 10.
             %            'SpFluxCol' - Spectral flux column indices [flux_start, flux_end, error_start, error_end].
             %                          Default is [7, 349, 350, 692] for Gaia DR3 XP spectra.
+            %            'BadBitNames' - A cell array of bad bit mask
+            %                   names. Sources with one of these bits are not used
+            %                   as calibrators.
+            %                   Default is {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'}
             %            'Verbose' - Enable verbose output. Default is true.
             % Output : - PhotCalibTrans object with populated properties:
             %                  .SpecData - Structure with reference spectral data:
@@ -757,6 +761,7 @@ classdef PhotCalibTrans < Component
                 Args.FilterNegFlux logical = false    % Remove sources with negative flux
                 Args.MinSN2 = 0                       % Minimum SN_2 for calibrators (0 to skip)
                 Args.SpFluxCol = [7, 349, 350, 692]   % [flux_start, flux_end, error_start, error_end]
+                Args.BadBitNames     = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'};
                 Args.Verbose logical = false
             end
 
@@ -839,8 +844,8 @@ classdef PhotCalibTrans < Component
                 % Resolve bit names → combined decimal mask via BitDictionary
                 % (no hardcoded bit indices — picks up YAML renumbering).
                 BD = BitDictionary('BitMask.Image.Default');
-                BadBitNames = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'};
-                [~, ~, BadBitMask] = BD.name2bit(BadBitNames);
+                
+                [~, ~, BadBitMask] = BD.name2bit(Args.BadBitNames);
                 BadFlagsMask = BadValue | bitand(uint32(Flags), uint32(BadBitMask)) > 0;
                 GoodMask = GoodMask & ~BadFlagsMask;
 
