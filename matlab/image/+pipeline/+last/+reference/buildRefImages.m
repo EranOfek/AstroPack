@@ -69,8 +69,10 @@ function [Result] = buildRefImages(RefGrid, Args)
         Args.RasterResolution   = 3;    % arcsec
         Args.MinAllowedCoverage = 0.999;  % 0.995; % allowed inaccuracy in the required reference field coverage  
                        
-        Args.CoaddFunction      = @pipeline.generic.procCoadd; 
-        Args.SubBack            = true;
+        %Args.CoaddFunction      = @pipeline.generic.procCoadd; 
+        Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[128 128], 'MethodArgs',{'Range',[-50 50]}}
+
+        Args.SubBack            = true;  % don't change unless you understand what you are doing
         Args.StackMethod        = 'wrobust';
         Args.StackMethodArgs    = {'coadd_WRobustArgs',{'backVarArgs',{'Method',@imUtil.background.modeVar_Hist}}};     
         Args.CoaddFunctionArgs  = {}; % additional arguments to be passed to the coadd function 
@@ -301,8 +303,11 @@ function [Result] = buildRefImages(RefGrid, Args)
                     % 5. coadd the epochs from different groups of images (e.g., telescopes and cameras)
                     %    rotate, align, and cut the merged crops to the ref. coordinates
                     %    measure background, find sources, populate PSF
-                    RefImage = Args.CoaddFunction(StackImages','WCS',AIref,'SubBack',Args.SubBack,...
-                        'StackMethod',Args.StackMethod, Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:});
+                    RefImage = pipeline.generic.procCoadd(StackImages','WCS',AIref,...
+                                        'SubBack',Args.SubBack,...
+                                        'SetBackTo0',true,...
+                                        'StackMethod',Args.StackMethod, Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:},...
+                                        'backVarArgs',Args.backVarArgs, 'AddMaskSrcNoise',false);
                     
                     % 5a. add the ID_REF keyword
                     RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MOUNTNUM', 0);

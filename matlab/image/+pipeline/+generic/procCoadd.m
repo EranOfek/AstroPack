@@ -156,6 +156,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.registerArgs                     = {};
         Args.DataProp                         = {'ImageData','BackData','VarData','MaskData'};
         Args.SubBack                          = true;  % false is useful for visit coaddition, for general coaddition use true.
+        Args.SetBackTo0                       = true; % if SubBack=true and SetBackTo0 then set back to 0.
+
         %Args.UseShift logical                 = true;
         %Args.UseInterp2 logical               = true;
         %Args.interp2affineArgs cell           = {};
@@ -234,6 +236,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.CoaddMatchMergedCat logical      = true;
         Args.MergedCat                        = [];
         Args.Col2copy cell                    = {'Nobs'};  % cell array of columns to copy from MergedCat to Coadd
+        Args.AddMaskSrcNoise                  = true;
 
         Args.UseMex                           = false;
 
@@ -378,6 +381,9 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             end
             ResultCoadd(Ifields).WMeanJD = MidJD;
 
+            if Args.SetBackTo0 && Args.SubBack
+                Coadd(Ifields).BackData.Data = zeros(size(Coadd(Ifields).ImageData.Data), 'like',Coadd(Ifields).ImageData.Data);
+            end
 
             % In some cases the first image of the stack is rejected, so
             % the 'DATEOBS' in the resulting Coadd may be not the same 
@@ -393,11 +399,15 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % Background
             %Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...
             %                                                              'SubSizeXY',Args.BackSubSizeXY);
-            Coadd(Ifields)  = imProc.background.backVar(Coadd(Ifields), Args.backVarArgs{:}, 'ReCalc',true);
+            
+            % This is already done in imProc.stack.coadd_*
+            %Coadd(Ifields)  = imProc.background.backVar(Coadd(Ifields), Args.backVarArgs{:}, 'ReCalc',true);
 
 
             % Mask Source noise dominated pixels
-            Coadd(Ifields) = imProc.mask.maskSourceNoise(Coadd(Ifields), 'Factor',1, 'CreateNewObj',false);
+            if Args.AddMaskSrcNoise
+                Coadd(Ifields) = imProc.mask.maskSourceNoise(Coadd(Ifields), 'Factor',1, 'CreateNewObj',false);
+            end
 
 
             
@@ -444,6 +454,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                                     'MatchMethod',Args.MatchMethod,...
                                                                                                     'CreateNewObj',false);
                 %ResultCoadd(Ifields).MidMidJD = MidMidJD;
+                Coadd(Ifields).WCS.Success = ResultCoadd(Ifields).AstrometricFit.Success;
             end
 
             if Args.FindStars
@@ -468,7 +479,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                                             Args.photometricZPArgs{:});
             end
 
-            if Args.PhotCalibTrans
+            if Args.PhotCalibTrans && Coadd(Ifields).WCS.Success
                 [Coadd, PC, ResultCoadd(Ifields).TransFit] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
             end
          
