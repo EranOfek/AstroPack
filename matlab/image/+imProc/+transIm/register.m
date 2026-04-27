@@ -105,10 +105,6 @@ function [Result] = register(Obj, TransRef, Args)
     Result = AstroImage(size(Obj));
     for Iobj=1:1:Nobj
         
-        % BUG 1: uncmment this
-        %SizeRefIm = size(TransRef(Iref).ImageData.Data);
-        %CCDSEC = [1 SizeRefIm(2) 1 SizeRefIm(1)];
-
         SizeIm = size(Obj(Iobj).ImageData.Data);
         CCDSEC = [1 SizeIm(2) 1 SizeIm(1)];
         
@@ -120,6 +116,10 @@ function [Result] = register(Obj, TransRef, Args)
             case 'AstroWCS'
                 Iref = min(Iobj, Nref);
 
+                % Need image size from external source
+                %SizeRefIm = size(TransRef(Iref).ImageData.Data);
+                %CCDSEC = [1 SizeRefIm(2) 1 SizeRefIm(1)];
+    
                 % Object is AstroWCS
                 [RefX, RefY, X, Y] = TransRef(Iref).xy2refxy(CCDSEC, Obj(Iobj).WCS, 'Sampling',Args.Sampling);
                 
@@ -134,6 +134,10 @@ function [Result] = register(Obj, TransRef, Args)
             case {'AstroImage', 'AstroZOGY', 'AstroDiff'}
                 Iref = min(Iobj, Nref);
 
+                %SizeRefIm = size(TransRef(Iref).ImageData.Data);
+                %CCDSEC = [1 SizeRefIm(2) 1 SizeRefIm(1)];
+
+    
                 % WCS in AstroImage:
                 [RefX, RefY, X, Y] = TransRef(Iref).WCS.xy2refxy(CCDSEC, Obj(Iobj).WCS, 'Sampling',Args.Sampling);
         
