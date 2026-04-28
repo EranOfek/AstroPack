@@ -26,6 +26,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %            'EpochDim' - Dimension (1 or 2) of the epoch axis in the
     %                   input AstroImage object. Default is 1.
     %
+    %            'WCS' - Reference WCS (must have Success=true).
+    %                   Default is [].
     %            'coaddArgs' - A cell array of arguments to pass to the 
     %                   imProc.stack.coadd function.
     %                   default is {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
@@ -213,11 +215,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.BitName_CoaddLess                = 'CoaddLessImages';
         
 
+        Args.RefineSearchRadius               = 3;
         Args.FindStars                        = true;
         Args.PhotCalibSimple                  = true;  % execute simple photometric calibration
         Args.photometricZPArgs                = {}; 
         Args.photometricZP_UpdateMagCols      = false;
-        Args.PhotCalibTrans                   = true;  % execute transmission fit calibration
+        Args.PhotCalibTrans                   = true;  % execute transmission fit calibratio
 
         %Args.RemoveHighBackImages logical     = true;   % remove images which background differ from median back by 'HighBackNsigma' sigma
         Args.HighBackNsigma                   = 3;
@@ -434,6 +437,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                     'UseMex',Args.UseMex);
             end
 
+            % prelimnary astrometry by copying the WCS
+            %Coadd(Ifields).WCS = RegisteredImages(1).WCS.copy; %AllSI(IfirstGood,Ifields).WCS.copy;
             % astrometry / refine
             if Args.RefineAstrometry && Coadd(Ifields).CatData.sizeCatalog>0
                 if isa(Args.CatName, 'AstroCatalog')
@@ -444,15 +449,22 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 
                 % This part also add the RA/Dec coordinates [deg] to the
                 % catalog:
+                % if isempty(Args.WCS)
+                %     WCSpointer = AllSI(IfirstGood,Ifields).WCS;
+                % else
+                %     WCSpointer = Args.WCS;
+                % end
+                    
                 [ResultCoadd(Ifields).AstrometricFit, Coadd(Ifields), AstrometricCat] = imProc.astrometry.astrometryRefine(Coadd(Ifields), Args.astrometryRefineArgs{:},...
-                                                                                                    'WCS',AllSI(IfirstGood,Ifields).WCS,...
+                                                                                                    'WCS',RegisteredImages(1).WCS,...
                                                                                                     'EpochOut',MidJD,...
                                                                                                     'Scale',Args.Scale,...
-                                                                                                    'SearchRadius',3,...
+                                                                                                    'SearchRadius',Args.RefineSearchRadius,...
                                                                                                     'CatName',AstrometricCat,...
                                                                                                     'Tran',Args.Tran,...
                                                                                                     'MatchMethod',Args.MatchMethod,...
                                                                                                     'CreateNewObj',false);
+                
                 %ResultCoadd(Ifields).MidMidJD = MidMidJD;
                 Coadd(Ifields).WCS.Success = ResultCoadd(Ifields).AstrometricFit.Success;
             end

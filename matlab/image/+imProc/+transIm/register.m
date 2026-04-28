@@ -15,6 +15,8 @@ function [Result] = register(Obj, TransRef, Args)
     %            and Y shifts.
     %            Note that the affine transformation must map in this direction:
     %               output/reference coordinates -> input-image coordinates
+    %            Note in this object WCS.Success must be true in order for
+    %            the function to work.
     %          * ...,key,val,... 
     %            'InterpMethod' - Interpolation method for images.
     %                   See interp2 for options.
@@ -87,9 +89,21 @@ function [Result] = register(Obj, TransRef, Args)
     if isempty(Args.WCS)
         % BUG2
         %Args.CopyWCS = false;
+        if ~TransRef.WCS.Success
+            error('Reference WCS (in TransRef) must have Success=true');
+        end
     else
         if numel(Args.WCS)>1
             error('Args.WCS must be a single element AstroWCS or AstroImage');
+        end
+        if isa(Args.WCS, 'AstroWCS')
+            if ~Args.WCS.Success
+                error('Reference WCS must have Success=true');
+            end
+        else
+            if ~Args.WCS.WCS.Success
+                error('Reference WCS must have Success=true');
+            end
         end
     end
 

@@ -125,6 +125,7 @@ function [Result] = buildRefImages(RefGrid, Args)
         % create an empty reference AstroImage and attach the RefWCS to it
         AIref = AstroImage({zeros(Args.Naxis1,Args.Naxis2,'single')}); 
         AIref.WCS = RefWCS; 
+        AIref.WCS.Success = true;  % must have Success=true
         AIref.HeaderData = AIref.WCS.wcs2header; 
         
         % 0. build the ref polygon to be covered and find the healpix coverage
