@@ -369,12 +369,13 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             switch Args.StackMethod
                 case 'wrobust'
                     % RegisteredImages contains also the Back and Var
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:});
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:}, 'backVarArgs',Args.backVarArgs);
                    
                 case 'proper'
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:});
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:}, 'backVarArgs',Args.backVarArgs);
 
                 case 'sigmaclip'
+                    % obsolete channel
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, ~, MidJD, SumExpTime] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
                                                                                                  'Cube',PreAllocCube,...
                                                                                                  'StackMethod',Args.StackMethod,...
