@@ -238,7 +238,7 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
                 %tic; for i=1:100
                 SN_W = Src.SN(:,2);
                 SN_W(SN_W<1) = 1;
-                [M1, M2, Aper] = imUtil.sources.moments(Image, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod);
+                [M1, M2, Aper] = imUtil.sources.moments(Image-Back, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod);
                 
                 % %end, toc
                 % 
