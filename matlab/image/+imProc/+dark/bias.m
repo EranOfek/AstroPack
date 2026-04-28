@@ -114,11 +114,11 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
 
         Args.getValArgs                 = {};
         Args.LowRN_BitName              = 'LowRN';
-        Args.LowRN_Threshold            = 0.05;
+        Args.LowRN_Threshold            = 0.03;
         Args.LowRN_MeanFun              = @median;   % or RN or RN keyword...
 
         Args.HighRN_BitName             = 'HighRN';
-        Args.HighRN_Threshold           = 10;
+        Args.HighRN_Threshold           = 20;
         Args.HighRN_MeanFun             = @median;   % or RN or RN keyword...
 
         Args.DarkHighVal_BitName        = 'DarkHighVal';

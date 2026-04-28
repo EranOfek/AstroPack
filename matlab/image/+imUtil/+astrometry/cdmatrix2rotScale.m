@@ -1,6 +1,6 @@
 function [Result] = cdmatrix2rotScale(CD1_1, CD1_2, CD2_1, CD2_2)
     % Given a WCS CD matrix, return the PA, scale, and handness.
-    % Input  : - CD1_1
+    % Input  : - CD1_1 or 2x2 CD matrix
     %          - CD1_2
     %          - CD2_1
     %          - CD2_2
@@ -16,6 +16,14 @@ function [Result] = cdmatrix2rotScale(CD1_1, CD1_2, CD2_1, CD2_2)
     % Example: [Result] = imUtil.astrometry.cdmatrix2rotScale(CD1_1, CD1_2, CD2_1, CD2_2)
 
    
+    if nargin==1
+        CD1_1 = CD(1,1);
+        CD2_1 = CD(2,1);
+        CD1_2 = CD(1,2);
+        CD2_2 = CD(2,2);
+    end
+        
+
     Result.PA_Y_deg = atan2d(CD1_2, CD2_2);       % PA of +Y, East of North
     Result.PA_X_deg = atan2d(CD1_1, CD2_1) - 90;       % PA of +X, East of North - > PA of +Y East of North
     Result.PA_deg   = 0.5.*(Result.PA_X_deg + Result.PA_Y_deg);
