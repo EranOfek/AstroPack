@@ -6,7 +6,8 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
     %              first-moment algorithm, estimate second moments, and optionally
     %              perform aperture photometry. Background is estimated from an
     %              annulus around each stamp and subtracted before the measurements.
-    % Input  : - Either:
+    % Input  : - Background subtrcated image. 
+    %            Either:
     %            1) A 2-D image.
     %               In this case, Args.X and Args.Y must be provided, and cutouts
     %               of size (2*HalfSize+1)-by-(2*HalfSize+1) are extracted around
