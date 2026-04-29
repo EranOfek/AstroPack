@@ -276,7 +276,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.ThresholdPSF              = 100;
         Args.RangeSN                   = [50 1000];
         Args.InitPsf                   = @imUtil.kernel2.gauss
-        Args.InitPsfArgs cell          = {[0.1; 1.2]}; %{[0.1;1.0;1.5]};  
+        Args.InitPsfArgs cell          = {[0.1; 1.5]}; %{[0.1;1.0;1.5]};  
         Args.ConvFunExtendedPSF        = @imUtil.kernel2.sersic;
         Args.ConvFunExtendedPSF_Args   = {[1 2 1]}; 
         
