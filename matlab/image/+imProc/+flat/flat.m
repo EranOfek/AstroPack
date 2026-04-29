@@ -108,7 +108,7 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
         Args.FlatHighStd_MeanFun        = 0.01;   %@median;   % or RN or RN keyword...
 
         Args.FlatLowVal_BitName         = 'FlatLowVal';
-        Args.FlatLowVal_Threshold       = 0.5;
+        Args.FlatLowVal_Threshold       = 0.3;
         Args.Replace0 logical           = true;   % replace 0 or negative with NaN
         Args.NaN_BitName                = 'NaN';
 
