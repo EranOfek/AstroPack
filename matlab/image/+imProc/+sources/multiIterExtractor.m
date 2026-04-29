@@ -354,6 +354,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.WriteDs9Regions           = false;
         Args.AddSrcStat2Header         = true;
         Args.KeyNsrc                   = 'NSTARS';
+        Args.KeyMedChi2Dof             = 'M_CHI2D';  % median of CHI2DOF over all stars 
 
         Args.SearchStreaks                 = false;
         Args.detectStreaksLSDArgs          = {};
@@ -898,6 +899,11 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         if ~isempty(Args.AddSrcStat2Header)
             Nsrc = Result(Iobj).CatData.sizeCatalog;
             Result(Iobj).HeaderData.insertKey({Args.KeyNsrc, Nsrc, ''});
+
+            % median CHI2_DOF
+            Chi2Dof = Result(Iobj).CatData.getCol('PSF_CHI2DOF');
+            MedChi2Dof = median(Chi2Dof,'all','omitnan');
+            Result(Iobj).HeaderData.insertKey({Args.KeyMedChi2Dof, MedChi2Dof, ''});
         end
 
         % save a copy of the AI object with the image replaced by the final subtracted image

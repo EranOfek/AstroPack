@@ -2646,7 +2646,7 @@ classdef PipelineDemon < Component
 
             % Coadd
             FN_C.SubDir  = FN_I.SubDir;
-            FN_C.Counter = zeros(0, numel(Coadd),1);
+            FN_C.Counter = zeros(numel(Coadd),1);
             imProc.io.saveProductImage(Coadd, FN_C, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveVisitProduct, 'WriteHeader',Args.SaveVisitHeader, 'CompressedOutput', Args.CompressedOutput);  % 3 s
             
             % Asteroids:
