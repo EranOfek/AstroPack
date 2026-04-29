@@ -258,7 +258,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.KeyNcoadd                 = 'NCOADD';
 
         % background and variance measurement:
-        Args.backVarArgs               = {'Block',[128 128], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',5, 'MaxVal',3000},{}}};
+        Args.backVarArgs               = {'Block',[128 128], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',10, 'MaxVal',6000},{}}};
         Args.ReCalcBackIter            = []; % list of iterations in which to re-calc the background. If 1, recalc also in the begining.
 
         % measure PSF
@@ -276,7 +276,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.ThresholdPSF              = 100;
         Args.RangeSN                   = [50 1000];
         Args.InitPsf                   = @imUtil.kernel2.gauss
-        Args.InitPsfArgs cell          = {[0.1; 1.2]}; %{[0.1;1.0;1.5]};  
+        Args.InitPsfArgs cell          = {[0.1; 1.5]}; %{[0.1;1.0;1.5]};  
         Args.ConvFunExtendedPSF        = @imUtil.kernel2.sersic;
         Args.ConvFunExtendedPSF_Args   = {[1 2 1]}; 
         
@@ -354,6 +354,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.WriteDs9Regions           = false;
         Args.AddSrcStat2Header         = true;
         Args.KeyNsrc                   = 'NSTARS';
+        Args.KeyMedChi2Dof             = 'M_CHI2D';  % median of CHI2DOF over all stars 
 
         Args.SearchStreaks                 = false;
         Args.detectStreaksLSDArgs          = {};
@@ -898,6 +899,11 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         if ~isempty(Args.AddSrcStat2Header)
             Nsrc = Result(Iobj).CatData.sizeCatalog;
             Result(Iobj).HeaderData.insertKey({Args.KeyNsrc, Nsrc, ''});
+
+            % median CHI2_DOF
+            Chi2Dof = Result(Iobj).CatData.getCol('PSF_CHI2DOF');
+            MedChi2Dof = median(Chi2Dof,'all','omitnan');
+            Result(Iobj).HeaderData.insertKey({Args.KeyMedChi2Dof, MedChi2Dof, ''});
         end
 
         % save a copy of the AI object with the image replaced by the final subtracted image

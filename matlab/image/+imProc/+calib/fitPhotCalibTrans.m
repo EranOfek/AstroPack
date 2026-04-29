@@ -442,7 +442,7 @@ function CalibArgs = predefCalibArgs(Args)
 
         % Calibrator selection
         Args.SearchRadius     = 2         % arcsec
-        Args.MagRange         = [11.5 15.5]
+        Args.MagRange         = [11.5 16.0]
         Args.FilterNegFlux logical = true % Remove sources with negative flux
         Args.MinSN2           = 10        % Minimum SN_2 for calibrators (0 to skip)
 

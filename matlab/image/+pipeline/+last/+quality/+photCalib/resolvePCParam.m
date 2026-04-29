@@ -11,11 +11,9 @@ function V = resolvePCParam(PCobj, Name)
     %         e.g. 'TauAod500','PWV_cm','Center_Ang','Norm', ...
     %     (b) TransModel scalar fit-quality fields:
     %         'RMS','Chi2','DOF', plus derived 'Chi2_DOF' = Chi2/DOF.
-    %         TEMPORARY: 'DOF' and 'Chi2_DOF' currently subtract 12 from
-    %         TransModel.DOF as a stopgap, because TransModel.DOF only
-    %         records the last-stage local DOF (K_atmospheric=2) instead
-    %         of the global K=14. Will be removed once PhotCalibTrans
-    %         stores the global DOF directly.
+    %         'DOF' returns TransModel.DOF as-is (currently the last-stage
+    %         local DOF; will become the global DOF once PhotCalibTrans
+    %         stores it directly).
     %     (c) PhotCalibTrans scalar properties (header-derived or metadata):
     %         'AirMass','Temp','Pressure','Humidity','ExpTime','NCoadd',
     %         'ARMS','DeltaZP_CB','Aperture'
@@ -57,29 +55,15 @@ function V = resolvePCParam(PCobj, Name)
         end
 
         % (b) TransModel scalar fit-quality fields
-        if ismember(Name, {'RMS', 'Chi2'}) && isprop(PCobj.TransModel, Name)
+        if ismember(Name, {'RMS', 'Chi2', 'DOF'}) && isprop(PCobj.TransModel, Name)
             V = PCobj.TransModel.(Name);
-            return;
-        end
-        % --- TEMPORARY shortcut: global DOF = stored DOF - 12 ---
-        % TransModel.DOF currently holds the Atmospheric stage's local DOF
-        % only (K=2). Global K = 14 for the LAST_NormLin sequence with
-        % cheby1_4_xt Tran2D, so DOF_global = DOF_local - 12.
-        % Remove this offset once PhotCalibTrans/CompositeFun stores the
-        % global DOF directly.
-        DOFOffset = 12;
-        if strcmp(Name, 'DOF')
-            DOFstored = PCobj.TransModel.DOF;
-            if ~isnan(DOFstored)
-                V = DOFstored - DOFOffset;
-            end
             return;
         end
         if strcmp(Name, 'Chi2_DOF')
             Chi2 = PCobj.TransModel.Chi2;
-            DOFstored = PCobj.TransModel.DOF;
-            if ~isnan(Chi2) && ~isnan(DOFstored) && (DOFstored - DOFOffset) > 0
-                V = Chi2 / (DOFstored - DOFOffset);
+            DOF  = PCobj.TransModel.DOF;
+            if ~isnan(Chi2) && ~isnan(DOF) && DOF > 0
+                V = Chi2 / DOF;
             end
             return;
         end

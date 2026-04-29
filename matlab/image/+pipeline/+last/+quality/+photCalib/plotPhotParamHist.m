@@ -135,10 +135,12 @@ function Result = plotPhotParamHist(PC, Args)
         fprintf('  Range= [%.4g, %.4g]\n', S.Min, S.Max);
     end
 
-    % Plotting values (log or linear)
+    % Plotting values (log or linear). All text is rendered with
+    % Interpreter='none' so column names like 'Chi2_DOF' display verbatim
+    % (no TeX subscript interpretation).
     if Args.LogX
         Plot = log10(Vals(Vals > 0));
-        XLab = sprintf('log_{10}(%s)', Args.Param);
+        XLab = sprintf('log10(%s)', Args.Param);
     else
         Plot = Vals;
         XLab = Args.Param;
@@ -160,7 +162,7 @@ function Result = plotPhotParamHist(PC, Args)
 
     figure;
     histogram(Plot, Edges, 'FaceColor', Args.Color, 'EdgeColor', 'k');
-    xlabel(XLab);
+    xlabel(XLab, 'Interpreter', 'none');
     ylabel('Count');
     if numel(Sources) > 1
         TStr = sprintf('%s  (N = %d, pooled over %d sets)', ...
@@ -168,7 +170,7 @@ function Result = plotPhotParamHist(PC, Args)
     else
         TStr = sprintf('%s  (N = %d)', Args.Param, S.N);
     end
-    title(TStr);
+    title(TStr, 'Interpreter', 'none');
     if ~isempty(Args.XLim); xlim(Args.XLim); end
     grid on; box on;
 
@@ -194,7 +196,7 @@ function Result = plotPhotParamHist(PC, Args)
         text(XL(1) + 0.65*(XL(2)-XL(1)), YLim(1) + 0.92*(YLim(2)-YLim(1)), ...
             Txt, 'VerticalAlignment','top', 'HorizontalAlignment','left', ...
             'BackgroundColor', [1 1 1 0.85], 'EdgeColor','k', ...
-            'FontSize', 9);
+            'FontSize', 9, 'Interpreter', 'none');
         hold off;
     end
 end
