@@ -799,35 +799,6 @@ classdef CompositeFun < handle
                 end
             end
         end
-
-        function [N, HasFieldCorrection] = nFreeParamsOptSeq(OptSeq)
-            % Count unique transmission parameters fitted across an OptSeq.
-            % Input  : - OptSeq struct array with .FreeParams field per stage.
-            %            Each .FreeParams is a struct array with .Parameter
-            %            field, or [] for a field-correction stage.
-            % Output : - N unique transmission parameter names across all stages.
-            %          - HasFieldCorrection true if any stage has empty
-            %            .FreeParams (signals a field-correction stage that
-            %            fits Tran2D coefficients separately).
-            % Author : D. Kovaleva (Apr 2026)
-            % Example: [N, HasFC] = CompositeFun.nFreeParamsOptSeq(OptSeq);
-            UniqueNames = {};
-            HasFieldCorrection = false;
-            for I = 1:numel(OptSeq)
-                FP = OptSeq(I).FreeParams;
-                if isempty(FP)
-                    HasFieldCorrection = true;
-                else
-                    for J = 1:numel(FP)
-                        Name = FP(J).Parameter;
-                        if ~any(strcmp(UniqueNames, Name))
-                            UniqueNames{end+1} = Name; %#ok<AGROW>
-                        end
-                    end
-                end
-            end
-            N = numel(UniqueNames);
-        end
     end
 
     methods % setter/getters
@@ -3818,34 +3789,6 @@ classdef CompositeFun < handle
                     fprintf('Stage complete: RMS=%.4f mag, NCalUsed=%d\n', ...
                             StageResult.RMS, StageResult.NCalUsed);
                     fprintf('\n');
-                end
-            end
-
-            % Override per-stage local DOF with a global one: unique
-            % transmission parameters across all stages (sequence property)
-            % plus Tran2D coefficients if any stage is a field-correction
-            % stage (runtime property of Tran2DObj). Per-stage DOFs in
-            % FitResult(IStage).DOF are preserved for diagnostics.
-            if ~isempty(FitResult)
-                if isfield(Stages, 'NUniqueTransParams') && ...
-                        isfield(Stages, 'HasFieldCorrection')
-                    KOptSeq = Stages(1).NUniqueTransParams;
-                    HasFC   = Stages(1).HasFieldCorrection;
-                else
-                    [KOptSeq, HasFC] = ...
-                        tools.math.fun.CompositeFun.nFreeParamsOptSeq(Stages);
-                end
-                KTran2D = 0;
-                if HasFC && ~isempty(Obj.Tran2DObj) && ~isempty(Obj.Tran2DObj.ParX)
-                    KTran2D = numel(Obj.Tran2DObj.ParX);
-                end
-                KGlobal   = KOptSeq + KTran2D;
-                NobsFinal = FitResult(end).NCalUsed;
-                Obj.DOF   = NobsFinal - KGlobal;
-
-                if Args.Verbose
-                    fprintf('Global K: %d (OptSeq: %d + Tran2D: %d), Nobs: %d, DOF: %d\n', ...
-                        KGlobal, KOptSeq, KTran2D, NobsFinal, Obj.DOF);
                 end
             end
 

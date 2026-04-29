@@ -137,8 +137,8 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     FunCatalog.Normalization = struct();
 
     FunCatalog.Normalization.Name = 'Normalization';
-    FunCatalog.Normalization.Handle = '@(Lambda, Norm) ones(numel(Lambda),1) * Norm(:)''';
-    FunCatalog.Normalization.HandleType = 'anonymous';
+    FunCatalog.Normalization.Handle = '@astro.transmission.normalization';
+    FunCatalog.Normalization.HandleType = 'named';
     FunCatalog.Normalization.Params = [Args.Norm];
     FunCatalog.Normalization.FitPar = [true];  % Fit normalization factor
     FunCatalog.Normalization.ParamInfo = struct(...
@@ -482,19 +482,5 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     StageCatalog.Atmospheric.SigmaIter = 0;
     StageCatalog.Atmospheric.Description = 'Optimize water vapor and aerosol';
 
-    % Attach OptSeq-level metadata (sequence property): count of unique
-    % transmission parameters fitted across all stages, and a flag for
-    % the presence of a field-correction stage. Tran2D coefficient count
-    % is added separately at fit time (depends on chosen Tran2D type).
-    SeqsToAnnotate = {'DefaultLASTOptSeq', 'LAST_NormLin'};
-    for IS = 1:numel(SeqsToAnnotate)
-        SeqName = SeqsToAnnotate{IS};
-        if isfield(StageCatalog, SeqName)
-            [NUnique, HasFC] = tools.math.fun.CompositeFun.nFreeParamsOptSeq( ...
-                StageCatalog.(SeqName));
-            [StageCatalog.(SeqName).NUniqueTransParams] = deal(NUnique);
-            [StageCatalog.(SeqName).HasFieldCorrection] = deal(HasFC);
-        end
-    end
 
-end
+ end

@@ -572,7 +572,7 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/GLADE/v1';
+            Data(I).Dir  = '/GLADE/v1/';
             Data(I).Name = 'GLADEp';
             Data(I).Desc = 'GLADE galaxy catalog; http://glade.elte.hu/';
             Data(I).Ref  = 'Dalya et al. 2021';
@@ -587,15 +587,7 @@ classdef catsHTM
             Data(I).Ref  = 'Dalya et al. 2021';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2022MNRAS.514.1403D/abstract';
        
-            I = I + 1;
-            Data(I).Status  = true;
-            Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/GLADE/plus/';
-            Data(I).Name = 'GLADEplus';
-            Data(I).Desc = 'GLADE+ galaxy catalog; http://glade.elte.hu/';
-            Data(I).Ref  = 'Dalya et al. 2021';
-            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2022MNRAS.514.1403D/abstract';            
-            
+      
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
@@ -608,7 +600,7 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/IPHAS/';
+            Data(I).Dir  = '/IPHAS/DR2/';
             Data(I).Name = 'IPHAS';
             Data(I).Desc = 'INT Photometric Hα Survey of the Northern Galactic Plane (IPHAS DR2)';
             Data(I).Ref  = 'Barentsen et al. 2014';
@@ -661,7 +653,7 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = false;  % ready
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/NOAO/';
+            Data(I).Dir  = '/NOAO/merged/';
             Data(I).Name = 'NOAO';
             Data(I).Desc = 'NOAO-DR1 All-Sky source catalog';
             Data(I).Ref  = 'Nidever et al. 2018';
@@ -905,7 +897,7 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/WD/EDR3_v0/';
+            Data(I).Dir  = '/WD/EDR3v0/';
             Data(I).Name = 'WDEDR3';
             Data(I).Desc = 'GAIA-EDR3 WD catalog';
             Data(I).Ref  = 'Gentile Fusillo et al. 2021';
@@ -914,7 +906,7 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/WD/EDR3_v1/';
+            Data(I).Dir  = '/WD/EDR3v1/';
             Data(I).Name = 'WDEDR3maincat';
             Data(I).Desc = 'GAIA-EDR3 WD catalog, all columns';
             Data(I).Ref  = 'Gentile Fusillo et al. 2021';
@@ -1063,7 +1055,7 @@ classdef catsHTM
             Text = '';
             Text = sprintf('%s <table><tr><th> Name </th> <th> Description</th> <th>wget file</th> <th>checksum</th> <th> Nsrc</th><th>Reference</th> </tr>\n',Text);
             for I=1:1:N
-                I
+                
                
                Data(I).Name
                
