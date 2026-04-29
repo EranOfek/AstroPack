@@ -27,7 +27,17 @@ function Report = maskBitStatistics(DataPath, Args)
     %            'KeepPerFileMaps' - If true, also store per-(file,bit) logical
     %                             2D maps in Report.PerFileMaps (memory-heavy).
     %                             Default is false.
-    %            'Recursive'    - Recurse into subdirectories. Default is true.
+    %            'VisitPattern' - If non-empty, restrict the search to
+    %                             subdirectories whose name matches this glob
+    %                             (e.g. '*v[0-9]*' for LAST visit directories
+    %                             like 002712v0, 002712v1, ...). Visit dirs are
+    %                             located recursively at any depth under
+    %                             DataPath, and mask files are then globbed one
+    %                             level inside each matching visit dir.
+    %                             Overrides 'Recursive'. Default is ''
+    %                             (use 'Recursive' instead).
+    %            'Recursive'    - Recurse into subdirectories. Used only when
+    %                             'VisitPattern' is empty. Default is true.
     %            'ReportFile'   - Optional file path to save report (.mat).
     %                             Default is '' (no save).
     %            'Verbose'      - Print progress to console. Default is false.
@@ -45,7 +55,8 @@ function Report = maskBitStatistics(DataPath, Args)
     %            .Aggregate     - per-bit aggregate table:
     %                             BitName, BitIndex, NumFiles, TotalPixels,
     %                             TotalPixelsWithBit, OverallFraction,
-    %                             MeanFraction, MedianFraction, MaxFraction
+    %                             MeanFraction, MedianFraction, StdFraction,
+    %                             MaxFraction
     %            .AccumMaps     - (if AccumulateMaps) struct of per-bit
     %                             accumulator maps. Each field is named after
     %                             a size group ("S<SizeY>x<SizeX>") and holds
@@ -62,7 +73,8 @@ function Report = maskBitStatistics(DataPath, Args)
     %            .Summary       - text summary
     %
     % Author : Dana Kovaleva (Apr 2026)
-    % Example: DataPath = '/bigdata2/projects/last/testNewPipe/222625v3';
+    % Example: % --- Single visit directory --------------------------------
+    %          DataPath = '/archimedes/LASTunitTest/2025/04/26/proc/002712v0';
     %          % Single bit, statistics only:
     %          R = pipeline.last.quality.masks.maskBitStatistics(DataPath, ...
     %                  'BitNames', {'CoaddLessImages'});
@@ -73,6 +85,12 @@ function Report = maskBitStatistics(DataPath, Args)
     %          pipeline.last.quality.masks.plotMaskBitStatistics(R);
     %          % All bits in the dictionary, statistics only:
     %          R = pipeline.last.quality.masks.maskBitStatistics(DataPath);
+    %
+    %          % --- All visit directories under a parent ------------------
+    %          % Process every *v0/*v1/... visit dir under proc/ in one pass:
+    %          ParentPath = '/archimedes/LASTunitTest/2025/04/26/proc';
+    %          R = pipeline.last.quality.masks.maskBitStatistics(ParentPath, ...
+    %                  'VisitPattern', '*v[0-9]*');
 
     arguments
         DataPath                     (1,:) char
@@ -81,6 +99,7 @@ function Report = maskBitStatistics(DataPath, Args)
         Args.BitDictName             (1,:) char  = 'BitMask.Image.Default'
         Args.AccumulateMaps          (1,1) logical = false
         Args.KeepPerFileMaps         (1,1) logical = false
+        Args.VisitPattern            (1,:) char    = ''
         Args.Recursive               (1,1) logical = true
         Args.ReportFile              (1,:) char  = ''
         Args.Verbose                 (1,1) logical = false
@@ -117,14 +136,26 @@ function Report = maskBitStatistics(DataPath, Args)
 
     % --- Find mask files ------------------------------------------------
     Pattern = ['*' Args.FileType '_Mask_*.fits'];
-    if Args.Recursive
+    if ~isempty(Args.VisitPattern)
+        % Find visit directories at any depth, then glob masks inside each.
+        Dv = dir(fullfile(DataPath, '**', Args.VisitPattern));
+        Dv = Dv([Dv.isdir]);
+        Dm = repmat(dir(''), 0, 1);
+        for Iv = 1:numel(Dv)
+            VisitDir = fullfile(Dv(Iv).folder, Dv(Iv).name);
+            Dm = [Dm; dir(fullfile(VisitDir, Pattern))]; %#ok<AGROW>
+        end
+        ScopeStr = sprintf('%s/**/%s', DataPath, Args.VisitPattern);
+    elseif Args.Recursive
         Dm = dir(fullfile(DataPath, '**', Pattern));
+        ScopeStr = DataPath;
     else
         Dm = dir(fullfile(DataPath, Pattern));
+        ScopeStr = DataPath;
     end
 
     if isempty(Dm)
-        error('No mask files found matching %s under %s', Pattern, DataPath);
+        error('No mask files found matching %s under %s', Pattern, ScopeStr);
     end
 
     Nfiles = numel(Dm);
@@ -248,6 +279,7 @@ function Report = maskBitStatistics(DataPath, Args)
     AggOverallFraction = zeros(Nbits, 1);
     AggMeanFraction    = zeros(Nbits, 1);
     AggMedianFraction  = zeros(Nbits, 1);
+    AggStdFraction     = zeros(Nbits, 1);
     AggMaxFraction     = zeros(Nbits, 1);
 
     for Ib = 1:Nbits
@@ -269,16 +301,20 @@ function Report = maskBitStatistics(DataPath, Args)
             AggMeanFraction(Ib)   = mean(SubFrac);
             AggMedianFraction(Ib) = median(SubFrac);
             AggMaxFraction(Ib)    = max(SubFrac);
+            if numel(SubFrac) >= 2
+                AggStdFraction(Ib) = std(SubFrac);
+            end
         end
     end
 
     Aggregate = table(AggBitName, AggBitIndex, AggNumFiles, ...
                       AggTotalPixels, AggTotalBitPixels, ...
-                      AggOverallFraction, AggMeanFraction, AggMedianFraction, AggMaxFraction, ...
+                      AggOverallFraction, AggMeanFraction, AggMedianFraction, ...
+                      AggStdFraction, AggMaxFraction, ...
         'VariableNames', {'BitName', 'BitIndex', 'NumFiles', ...
                           'TotalPixels', 'TotalPixelsWithBit', ...
                           'OverallFraction', 'MeanFraction', ...
-                          'MedianFraction', 'MaxFraction'});
+                          'MedianFraction', 'StdFraction', 'MaxFraction'});
 
     % --- Summary --------------------------------------------------------
     Summary = sprintf(['Mask Bit Statistics Report\n', ...

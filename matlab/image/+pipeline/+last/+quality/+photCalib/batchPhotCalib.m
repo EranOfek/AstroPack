@@ -13,6 +13,9 @@ function R = batchPhotCalib(BaseDir, Args)
     %          * ...,key,val,...
     %            'VisitGlob' - Pattern matching visit subdirectories under
     %                          BaseDir. Default '*v*' (e.g. 000029v1, 012334v1).
+    %            'Recursive' - If true, search for matching visit dirs at any
+    %                          depth under BaseDir; otherwise only direct
+    %                          children of BaseDir. Default false.
     %            'FileType'  - 'coadd' or 'proc'. Default 'coadd'.
     %            'CalibArgs' - Cell of NV pairs forwarded to fitPhotCalibTrans
     %                          (e.g. {'CalibArgs', {'MagRange', [12 18]}}).
@@ -31,11 +34,17 @@ function R = batchPhotCalib(BaseDir, Args)
     %            .FileType   - echo of Args.FileType.
     %            .Args       - echo of input arguments.
     % Author : D. Kovaleva (Apr 2026)
-    % Example: % Coadd over 5 visits:
+    % Example: % Coadd over 5 visits (one date dir, direct children):
     %          R = pipeline.last.quality.photCalib.batchPhotCalib( ...
     %              '/bigdata2/.../2025/07/08', ...
     %              'FileType', 'coadd', 'OutFile', '~/results/batch_coadd.mat');
     %          pipeline.last.quality.photCalib.plotPhotParamHist(R.PC, 'Param', 'Chi2_DOF');
+    %
+    %          % Recursive: every *v[0-9]* visit anywhere under a year tree:
+    %          R = pipeline.last.quality.photCalib.batchPhotCalib( ...
+    %              '/archimedes/LASTunitTest/2025', ...
+    %              'VisitGlob', '*v[0-9]*', 'Recursive', true, ...
+    %              'FileType', 'coadd');
     %
     %          % Proc over a single visit (development cycle):
     %          R = pipeline.last.quality.photCalib.batchPhotCalib( ...
@@ -45,6 +54,7 @@ function R = batchPhotCalib(BaseDir, Args)
     arguments
         BaseDir         {mustBeText}
         Args.VisitGlob  {mustBeText}          = '*v*'
+        Args.Recursive  logical               = false
         Args.FileType   {mustBeMember(Args.FileType, {'coadd','proc'})} = 'coadd'
         Args.CalibArgs  cell                  = {}
         Args.OutFile    {mustBeText}          = ''
@@ -54,13 +64,19 @@ function R = batchPhotCalib(BaseDir, Args)
     BaseDir = char(BaseDir);
 
     % Discover visit subdirectories
-    Listing = dir(fullfile(BaseDir, Args.VisitGlob));
+    if Args.Recursive
+        Listing = dir(fullfile(BaseDir, '**', Args.VisitGlob));
+    else
+        Listing = dir(fullfile(BaseDir, Args.VisitGlob));
+    end
     Listing = Listing([Listing.isdir] & ~startsWith({Listing.name}, '.'));
 
     if isempty(Listing)
+        ScopeStr = BaseDir;
+        if Args.Recursive; ScopeStr = [ScopeStr ' (recursive)']; end
         error('batchPhotCalib:NoVisits', ...
             'No subdirectories matching "%s" found under %s', ...
-            Args.VisitGlob, BaseDir);
+            Args.VisitGlob, ScopeStr);
     end
 
     Nvisits = numel(Listing);

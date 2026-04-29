@@ -230,7 +230,7 @@ classdef PhotCalibTrans < Component
             %                         Default is [].
             %            'Lambda'         - Transmission wavelength grid [Angstrom]. Default is (3000:20:11000)'.
             %            'SearchRadius'   - Gaia matching radius [arcsec]. Default is 2.
-            %            'MagRange'       - Calibrator magnitude range [min max]. Default is [11.5 15.5].
+            %            'MagRange'       - Calibrator magnitude range [min max]. Default is [11.5 16.0].
             %            'FunListName'    - Transmission function list name. Default is 'DefaultLASTFunList'.
             %            'CustomFunList'  - Custom function list. Default is [].
             %            'OptSeqName'     - Optimization sequence name. Default is 'LAST_NormLin'.
@@ -261,7 +261,7 @@ classdef PhotCalibTrans < Component
                 % Calibration settings (individual NV pairs with defaults)
                 Args.Lambda           = (3000:20:11000)'
                 Args.SearchRadius     = 2
-                Args.MagRange         = [11.5 15.5]
+                Args.MagRange         = [11.5 16.0]
                 Args.FilterNegFlux logical = false
                 Args.MinSN2           = 0
                 Args.FunListName      = 'DefaultLASTFunList'
@@ -715,7 +715,7 @@ classdef PhotCalibTrans < Component
             %          - AstroCatalog object with observed sources (single element)
             %          * ...,key,val,...
             %            'SearchRadius' - Calibrator matching radius [arcsec]. Default is 2.
-            %            'MagRange' - Calibrator magnitude range [min max]. Default is [11.5 15.5].
+            %            'MagRange' - Calibrator magnitude range [min max]. Default is [11.5 16.0].
             %            'MinSN' - Minimum S/N for calibrators. Default is 5.
             %            'MaxSN' - Maximum S/N for calibrators. Default is 1000.
             %            'FilterBadFlags' - Apply FLAGS quality filtering. Default is true.
@@ -742,7 +742,7 @@ classdef PhotCalibTrans < Component
             %                  .CalFound - true if length(SourceData) > 0
             % Author : D. Kovaleva (Jan 2026)
             % Example: PC = PC.selectCalibrators(Cat);
-            %          PC = PC.selectCalibrators(Cat, 'SearchRadius', 2, 'MagRange', [11.5 15.5]);
+            %          PC = PC.selectCalibrators(Cat, 'SearchRadius', 2, 'MagRange', [11.5 16.0]);
             %          PC = PC.selectCalibrators(Cat, 'SpFluxCol', [7, 349, 350, 692]);
             % Note: Default implementation uses Gaia DR3 XP spectra from GAIADR3spec catalog.
             %       Default telescope/instrument configuration is for LAST.
@@ -752,7 +752,7 @@ classdef PhotCalibTrans < Component
                 Obj
                 Cat  % AstroCatalog
                 Args.SearchRadius = 2  % arcsec
-                Args.MagRange = [11.5 15.5]
+                Args.MagRange = [11.5 16.0]
                 Args.MinSN = 5
                 Args.MaxSN = 1000
                 Args.FilterBadFlags logical = true
@@ -1977,11 +1977,7 @@ classdef PhotCalibTrans < Component
                 Fun = Funs(IFun);
 
                 % Function reference
-                if IFun == 1 && strcmp(Fun.Desc, 'Normalization')
-                    FunRef = '@(Lambda,Par)Par';
-                else
-                    FunRef = func2str(Fun.Handle);
-                end
+                FunRef = func2str(Fun.Handle);
                 KeyName = sprintf('PT_%d_N', IFun);
                 HeaderObj = HeaderObj.replaceVal(KeyName, FunRef);
                 if Args.WriteComments
