@@ -2963,7 +2963,8 @@ classdef PipelineDemon < Component
                 Args.UncompressRaw     = false;             % we already know how to read compressed fits.fz, so no need to uncompress
                 
                 Args.MoveNew2Raw       = true;     % move RAW images from new/ to YYYY/MM/DD/raw/ after processing
-                Args.RemoveAfterWrite  = false;    % remove the output YYYY/MM/DD/raw/subdir/ folder after writing into it (usefull for multiple tests)  
+                Args.RemoveAfterWrite  = false;    % remove the output YYYY/MM/DD/raw/subdir/ folder after writing into it (usefull for multiple tests)
+                Args.StaticRAWDir logical = false; % when NewPath holds a fixed archive (e.g. for testing), process all full groups in order instead of only the most recent
                 Args.DebugMode         = false;
             end
             RAD = 180./pi;
@@ -3068,8 +3069,14 @@ classdef PipelineDemon < Component
                     FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
     
                     % Select visit for reduction:
-                    [IndStartGroup]=selectVisitForReduction(Obj, FN_Sci_Groups, Args);
-                    
+                    if Args.StaticRAWDir
+                        % Test mode: queue all full groups, oldest-first
+                        NinGroup   = FN_Sci_Groups.nFiles;
+                        GroupQueue = fliplr(find(NinGroup == Args.MaxInGroup));
+                    else
+                        GroupQueue = selectVisitForReduction(Obj, FN_Sci_Groups, Args);
+                    end
+
                     %--- End Select group ---
                     
                     % check if stop loop
@@ -3081,12 +3088,13 @@ classdef PipelineDemon < Component
                         delete(Args.AbortFileName);
                     end
     
-                    if isempty(IndStartGroup)
+                    if isempty(GroupQueue)
                         % no files for reduction found
                         Msg = sprintf('Waiting for new visit - pause for %f seconds', Args.PauseNotFound);
                         Obj.writeLog(Msg, LogLevel.Info);
                         pause(Args.PauseNotFound);
                     else
+                        for IndStartGroup = GroupQueue
                         % visit found
                         TstartAll = clock;
     
@@ -3201,11 +3209,15 @@ classdef PipelineDemon < Component
                             Obj.writeLog(MsgV, LogLevel.Info);  
                         end
                         
-                        RunTime = etime(clock, TstartAll);    
+                        RunTime = etime(clock, TstartAll);
                         Msg = sprintf('Visit total run time : %.1f',RunTime);
                         Obj.writeLog(Msg, LogLevel.Info);
-    
-                    end % if isempty(IndStartGroup)
+
+                        if ~Cont
+                            break;
+                        end
+                        end % for IndStartGroup
+                    end % if isempty(GroupQueue)
     
                     if ~Cont
                         % exist the visit loop
