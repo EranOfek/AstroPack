@@ -554,8 +554,10 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 	
     // Allocate more than needed because long multi-line string and long-comments
     // may need more space than we can calculate. On writing we will write
-    // only the used size (in multiples of 2880)	
-    headerBuffer = allocHeaderBuffer(9 + numRows, allocatedSize);    
+    // only the used size (in multiples of 2880).
+    // numRows/4 + 10 extra cards provide headroom for CONTINUE cards generated
+    // by long string values (> 67 chars) and multi-line comments.
+    headerBuffer = allocHeaderBuffer(9 + numRows + numRows/4 + 10, allocatedSize);
 	_allocatedSize = allocatedSize;
 	
     // Allocate buffer and reorder data based on the data type
