@@ -23,7 +23,7 @@ function [Result] = testPipeline(Args)
     % Example: RAWImageDir = '/mnt/marvin/LAST.01.01.01/2025/07/07/raw/';
     %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'StartTime',[8 7 2025 01 28 0],'RemoveAfterWrite',true);
     %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'PipelineVersion','v1', 'StartImage','LAST.01.01.01_20250708.003700.313_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz');
-    %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'LocalPath','/Data/test1000/','TimeInterval',36000,'StopWhenDone',false);
+    %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'LocalPath','/Data/test1000/','StopWhenDone',false);
     arguments
         Args.LocalPath         = '~/LASTunitTest/';
         Args.RAWImageDir       = [] 
@@ -33,14 +33,14 @@ function [Result] = testPipeline(Args)
         Args.StartTime         = []    % [2025 8 7 01 28 0] or 2025.3456
         Args.CompressedRAW     = true  % the input images are compressed 
         Args.TimeInterval      = 420   % [s] 
-        Args.StopWhenDone      = true  % do all the visits within Args.TimeInterval
+        Args.StopWhenDone      = true  % do not wait for new RAW images to appear, exit after processing the list   
         Args.MinInGroup        = 10    % the minimal number of RAW images in 'RAWImageDir'required to start processing  
         Args.RegenCalib        = false % we do not know yet how to write the new calib to a local dir and use it from there
         Args.PipelineVersion   = 'v1'  % 'v0' is the production version, 'v1' is the development 
         Args.UseParfor         = true  % use the matlab parallelization; in some cases may prevent accurate debugging  
         Args.DebugMode         = false % do some tests (e.g., DB injection) not required for a production phase  
         Args.RemoveAfterWrite  = false % an option to remove pipeline product files after they are written to disk, useful for massive tests
-        Args.StaticRAWDir logical = true % RAWImageDir is a fixed archive: process all visits in order (default true for test runs)
+        Args.StaticRAWDir      = false % RAWImageDir is a fixed archive: process all visits in order 
     end
     
     % if running without explicit arguments, do nothing
