@@ -3,7 +3,8 @@ function [Result] = testPipeline(Args)
     %     Optional detailed description
     % Input  : -
     %          * ...,key,val,...
-    %            'LocalPath'        - the local directory to save the pipeline products and logs (def. '~/LASTunitTest')
+    %            'LocalPath'        - base local directory; results are written to LocalPath/LAST.XX.XX.XX/ where
+    %                                  LAST.XX.XX.XX is extracted from 'RAWImageDir' (def. '~/LASTunitTest')
     %            'RAWImageDir'      - a (remote) directory with RAW images; if empty, the function does nothing (def. empty)
     %            'CalibDir'         - path to calibration images; if empty, derived from 'RAWImageDir' (def. empty)
     %            'RefPath'          - path to reference images, used by PipelineII (def. '/mnt/euclid/last/data/references/v4/')
@@ -51,8 +52,10 @@ function [Result] = testPipeline(Args)
     
     PWD = pwd; 
 
-    % arrange a local folder to store results 
-    Args.LocalPath = tools.os.relPath2absPath(Args.LocalPath);    
+    % arrange a local folder to store results under LocalPath/LAST.XX.XX.XX/
+    Args.LocalPath = tools.os.relPath2absPath(Args.LocalPath);
+    LASTId = regexprep(Args.RAWImageDir, '^.*(LAST\.\d{2}\.\d{2}\.\d{2}).*$', '$1');
+    Args.LocalPath = fullfile(Args.LocalPath, LASTId);
     if ~isfolder(Args.LocalPath)
         mkdir(Args.LocalPath);
     end
