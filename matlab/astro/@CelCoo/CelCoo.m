@@ -1034,6 +1034,47 @@ classdef CelCoo < matlab.mixin.Copyable
                                                'Type', Args.KDType);
         end
 
+    
+        function Result=inPolySphere(Obj, Poly, Args)
+            % Test if object coordinates are inside a convex spherical polygon region.
+            % Input  : - CelCoo object (scalar or array). Coordinates are
+            %            taken from Obj.RA/Obj.Dec and evaluated in radians.
+            %          - Polygon definition:
+            %            Nx2 numeric matrix of [Lon,Lat] vertices.
+            %            or a Nx3 cosine directions.
+            %            See: celestial.htm.in_polysphere.
+            %          * ...,key,val,...
+            %            'PolyUnits' - Units of Nx2 polygon vertices
+            %                   ('rad'|'deg'). Used only when Poly has
+            %                   two columns. Default is 'rad'.
+            %            'OutIsInd' - If true, return indices of matching
+            %                   points. If false, return logical mask.
+            %                   Default is false.
+            % Output : - Logical array of points inside polygon (default),
+            %            or index vector of inside points if OutIsInd=true.
+            % Author : Eran Ofek (May 2026)
+            % Example: Flag = C.inPolySphere([10 20; 15 20; 15 25; 10 25],'PolyUnits','deg');
+            %          I = C.inPolySphere(Poly,'OutIsInd',true);
+
+            arguments
+                Obj
+                Poly
+                Args.PolyUnits  = 'rad';
+                Args.OutIsInd   = false;
+            end
+
+            if size(Poly,2)==2
+                Poly = convert.angular(Args.PolyUnits, 'rad', Poly);
+            end
+
+            Result = celestial.htm.in_polysphere(Obj.Rad, Poly);
+
+            if Args.OutIsInd
+                Result = find(Result);
+            end
+
+        end
+    
     end
 
     methods % sun and moon
