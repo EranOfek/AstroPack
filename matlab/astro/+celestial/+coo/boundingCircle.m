@@ -1,5 +1,6 @@
 function [BestCoo, BestRadius] = boundingCircle(X, Y, Z, Args)
     % fit the smallest-radius bounding circle to set of X, Y points
+    %   See also: tools.math.geometry.boundingCircle
     % Input  : - If 3-rd input is [], then this is longitude [rad].
     %            Elese cosine direction X.
     %          - If 3-rd input is [], then this is longitlatitudeude [rad].
