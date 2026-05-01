@@ -42,6 +42,8 @@ classdef CelCoo < matlab.mixin.Copyable
         PM_Dec    = 0;      % [mas/yr]
         RadVel    = 0;      % [mas/yr]
         Plx       = 1e-6;   % [mas/yr]
+
+        GeoCoo    = [35 30 415];  % [deg deg m]
     end
 
     properties (SetAccess=private)
@@ -630,6 +632,48 @@ classdef CelCoo < matlab.mixin.Copyable
 
         end
 
+        function [Lon, Lat]=galCoo(Obj, Args)
+            % Calculate galactic coordinates without changing the object
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            'OutUnits' - Output units. Default is 'deg'.
+            % Output : - Gal Lon.
+            %          - Gal Lat.
+            % Author : Eran Ofek (May 2026)
+            % Example: [a,b]=C.galCoo
+
+            arguments
+                Obj
+                Args.OutUnits   = 'deg';
+            end
+
+            [Lon, Lat] = CelCoo.convertCoo(Obj.RA, Obj.Dec, 'gal', 'Equinox',Obj.Equinox, 'CooUnits',Obj.Units);
+            Conv = convert.angular(Obj.Units, Args.OutUnits);
+            Lon  = Lon.*Conv;
+            Lat  = Lat.*Conv;
+        end
+
+        function [Lon, Lat]=eclCoo(Obj, Args)
+            % Calculate ecliptic coordinates without changing the object
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            'OutUnits' - Output units. Default is 'deg'.
+            % Output : - Ecl Lon.
+            %          - Ecl Lat.
+            % Author : Eran Ofek (May 2026)
+            % Example: [a,b]=C.eclCoo
+
+            arguments
+                Obj
+                Args.OutUnits   = 'deg';
+            end
+
+            [Lon, Lat] = CelCoo.convertCoo(Obj.RA, Obj.Dec, 'ecl', 'Equinox',Obj.Equinox, 'CooUnits',Obj.Units);
+            Conv = convert.angular(Obj.Units, Args.OutUnits);
+            Lon  = Lon.*Conv;
+            Lat  = Lat.*Conv;
+        end
+
         function [Az, Alt, AM] = azAlt(Obj, JD, Args)
             % Convert RA/Dec to horizontal coordinates (Az/Alt).
             % Input  : - A single-element CelCoo object.
@@ -637,7 +681,8 @@ classdef CelCoo < matlab.mixin.Copyable
             %          * ...,key,val,...
             %            'GeoCoo' - Geodetic coordinates
             %                   [Lon(deg), Lat(deg), Height(m)].
-            %                   Default is [35 30 415] (deg).
+            %                   If empty, then use GeoCoo property.
+            %                   Default is [].
             %            'OutUnits' - Output units for Az/Alt.
             %                   Default is Obj.Units.
             %            'LSTType' - 'a' (apparent) | 'm' (mean).
@@ -651,9 +696,13 @@ classdef CelCoo < matlab.mixin.Copyable
             arguments
                 Obj(1,1)
                 JD
-                Args.GeoCoo = [35 30 415];   % [deg deg m]
+                Args.GeoCoo = [];   % [deg deg m]
                 Args.OutUnits = [];
                 Args.LSTType = 'a';
+            end
+
+            if isempty(Args.GeoCoo)
+                Args.GeoCoo = Obj.GeoCoo;
             end
 
             if ~strcmpi(Obj.System, 'eq')
@@ -702,7 +751,8 @@ classdef CelCoo < matlab.mixin.Copyable
             %          * ...,key,val,...
             %            'GeoCoo' - Geodetic coordinates
             %                   [Lon(deg), Lat(deg), Height(m)].
-            %                   Default is [35 30 415].
+            %                   If empty, use object GeoCoo property.
+            %                   Default is [].
             %            'STType' - Sidereal time type: 'a' | 'm'.
             %                   Default is 'a'.
             % Output : - Rise JD array, same size as Obj.RA/Obj.Dec.
@@ -722,8 +772,12 @@ classdef CelCoo < matlab.mixin.Copyable
                 Obj(1,1)
                 JD (1,1)
                 Alt (1,1)   = 0;
-                Args.GeoCoo = [35 30 415];
+                Args.GeoCoo = [];
                 Args.STType = 'a';
+            end
+
+            if isempty(Args.GeoCoo)
+                Args.GeoCoo = Obj.GeoCoo;
             end
 
             if ~strcmpi(Obj.System, 'eq')
@@ -980,8 +1034,330 @@ classdef CelCoo < matlab.mixin.Copyable
                                                'Type', Args.KDType);
         end
 
+    
+        function Result=inPolySphere(Obj, Poly, Args)
+            % Test if object coordinates are inside a convex spherical polygon region.
+            % Input  : - CelCoo object (scalar or array). Coordinates are
+            %            taken from Obj.RA/Obj.Dec and evaluated in radians.
+            %          - Polygon definition:
+            %            Nx2 numeric matrix of [Lon,Lat] vertices.
+            %            or a Nx3 cosine directions.
+            %            See: celestial.htm.in_polysphere.
+            %          * ...,key,val,...
+            %            'PolyUnits' - Units of Nx2 polygon vertices
+            %                   ('rad'|'deg'). Used only when Poly has
+            %                   two columns. Default is 'rad'.
+            %            'OutIsInd' - If true, return indices of matching
+            %                   points. If false, return logical mask.
+            %                   Default is false.
+            % Output : - Logical array of points inside polygon (default),
+            %            or index vector of inside points if OutIsInd=true.
+            % Author : Eran Ofek (May 2026)
+            % Example: Flag = C.inPolySphere([10 20; 15 20; 15 25; 10 25],'PolyUnits','deg');
+            %          I = C.inPolySphere(Poly,'OutIsInd',true);
+
+            arguments
+                Obj
+                Poly
+                Args.PolyUnits  = 'rad';
+                Args.OutIsInd   = false;
+            end
+
+            if size(Poly,2)==2
+                Poly = convert.angular(Args.PolyUnits, 'rad', Poly);
+            end
+
+            Result = celestial.htm.in_polysphere(Obj.Rad, Poly);
+
+            if Args.OutIsInd
+                Result = find(Result);
+            end
+
+        end
+    
     end
 
+    methods % sun and moon
+        function [Sun, Dist] = sunDist(Obj, JD, Args)
+            % Sun coordinates and distance from object coordinates.
+            % Input  : - CelCoo object (scalar or array).
+            %          - JD scalar. If empty, uses current JD (UTC0.
+            %            Default is celestial.time.julday().
+            %          * ...,key,val,...
+            %            'OutUnits' - Output angular units for Sun RA/Dec,
+            %                   Sun Az/Alt, and Dist. Default is 'deg'.
+            %            'GeoCoo' - Geodetic coordinates
+            %                   [Lon(deg), Lat(deg), Height(m)] used for
+            %                   horizontal coordinates. If empty, use
+            %                   Obj.GeoCoo. Default is [].
+            % Output : - Structure with Sun fields:
+            %              RA, Dec  - Sun apparent equatorial coordinates.
+            %              Az, Alt  - Sun horizontal coordinates.
+            %              EqOfTime - Equation of time [minutes].
+            %          - (Optional) Angular distance between each Obj
+            %            coordinate and the Sun, in OutUnits.
+            % Author : Eran Ofek (May 2026)
+            % Example: Sun = C.sunDist();
+            %          [Sun,D] = C.sunDist(2460430.5,'OutUnits','deg');
+            %          [Sun,D] = C.sunDist(JD,'GeoCoo',[35 30 415],'OutUnits','rad');
+
+            arguments
+                Obj
+                JD    = celestial.time.julday();
+                Args.OutUnits   = 'deg';
+                Args.GeoCoo     = [];
+            end
+            RAD = 180./pi;
+
+            if isempty(Args.GeoCoo)
+                Args.GeoCoo = Obj.GeoCoo;
+            end
+
+            % equation of time [min]
+            [Sun.RA,Sun.Dec,~,~,Sun.EqOfTime]=celestial.SolarSys.suncoo(JD, 'a');
+            [Sun.Az, Sun.Alt] = celestial.coo.radec2azalt(JD, Sun.RA, Sun.Dec,'GeoCoo',Obj.GeoCoo(1:2)./RAD, 'InUnits','rad', 'OutUnits','rad','LSTType','m');
+            
+            Conv = convert.angular('rad',Args.OutUnits);
+
+            if nargout>1
+                
+                Coo = Obj.Rad;
+
+                Dist = Conv.*celestial.coo.sphere_dist_fast(Sun.RA, Sun.Dec, Coo(:,1), Coo(:,2));
+
+            end
+
+            Sun.RA  = Sun.RA.*Conv;
+            Sun.Dec = Sun.Dec.*Conv;
+            Sun.Az  = Sun.Az.*Conv;
+            Sun.Alt = Sun.Alt.*Conv;
+
+        end
+
+        function [Moon, Dist] = moonDist(Obj, JD, Args)
+            % Moon coordinates and distance from object coordinates.
+            % Input  : - CelCoo object (scalar or array).
+            %          - JD scalar. If empty, uses current JD (UTC).
+            %            Default is celestial.time.julday().
+            %          * ...,key,val,...
+            %            'OutUnits' - Output angular units for Moon RA/Dec,
+            %                   Moon Az/Alt, and Dist. Default is 'deg'.
+            %            'GeoCoo' - Geodetic coordinates
+            %                   [Lon(deg), Lat(deg), Height(m)] used for
+            %                   topocentric Moon position and horizontal
+            %                   coordinates. If empty, use Obj.GeoCoo.
+            %                   Default is [].
+            % Output : - Structure with Moon fields:
+            %              RA, Dec  - Moon apparent equatorial coordinates.
+            %              Az, Alt  - Moon horizontal coordinates.
+            %              Illum    - Moon illuminated fraction (negative
+            %                   for wanning moon).
+            %          - (Optional) Angular distance between each Obj
+            %            coordinate and the Moon, in OutUnits.
+            % Notes  : - Dist is computed against Obj coordinates as stored,
+            %            internally via radians.
+            %          - If Obj contains multiple coordinates, Dist follows
+            %            Obj.RA/Obj.Dec linearized shape convention.
+            % Author : Eran Ofek (May 2026)
+            % Example: Moon = C.moonDist();
+            %          [Moon,D] = C.moonDist(2460430.5,'OutUnits','deg');
+            %          [Moon,D] = C.moonDist(JD,'GeoCoo',[35 30 415],'OutUnits','rad');
+
+            arguments
+                Obj
+                JD    = celestial.time.julday();
+                Args.OutUnits   = 'deg';
+                Args.GeoCoo     = [];
+            end
+            RAD = 180./pi;
+
+            if isempty(Args.GeoCoo)
+                Args.GeoCoo = Obj.GeoCoo;
+            end
+
+            [Moon.RA,Moon.Dec]=celestial.SolarSys.mooncool(JD, Args.GeoCoo(1:2)./RAD, 'b');
+            [Moon.Az, Moon.Alt] = celestial.coo.radec2azalt(JD, Moon.RA, Moon.Dec,'GeoCoo',Obj.GeoCoo(1:2)./RAD, 'InUnits','rad', 'OutUnits','rad','LSTType','m');
+            
+            Conv = convert.angular('rad',Args.OutUnits);
+
+            if nargout>1
+                
+                Coo = Obj.Rad;
+
+                Dist = Conv.*celestial.coo.sphere_dist_fast(Moon.RA, Moon.Dec, Coo(:,1), Coo(:,2));
+
+            end
+
+            Moon.RA  = Moon.RA.*Conv;
+            Moon.Dec = Moon.Dec.*Conv;
+            Moon.Az  = Moon.Az.*Conv;
+            Moon.Alt = Moon.Alt.*Conv;
+
+            % Moon illumination
+            Moon.Illum = celestial.SolarSys.moon_illum(JD);
+
+        end
+
+    end
+
+    methods % constraints
+        function Result = isAlt(Obj, JD, AzAlt, Args)
+            % Select targets that satisfy Azimuth and Altitude constraints
+            % Input  : - CelCoo object.
+            %          - JD scalar, passed to azAlt.
+            %            Default is celestial.time.julday().
+            %          - Altitude constraints.
+            %            * scalar: minimum altitude threshold.
+            %            * 2-element vector: [MinAlt, MaxAlt].
+            %            * Nx2 array: [Az, MinAlt(Az)] horizon profile.
+            %            * Nx3 array: [Az, MinAlt(Az), MaxAlt(Az)].
+            %            Default is 30.
+            %          * ...,key,val,...
+            %            'AzAltUnits' - Units for AzAlt values ('deg'|'rad').
+            %                   Default is 'deg'.
+            %            'GeoCoo' - Geodetic coordinates
+            %                   [Lon(deg), Lat(deg), Height(m)].
+            %                   If empty, use Obj.GeoCoo. Default is [].
+            %            'LSTType' - Sidereal time type for azAlt:
+            %                   'm' (mean) | 'a' (apparent). Default is 'm'.
+            %            'OutIsInd' - If true, return indices of accepted
+            %                   targets; otherwise return logical mask.
+            %                   Default is false.
+            % Output : - Logical mask of targets that satisfy the altitude
+            %            constraints, or index vector if OutIsInd=true.
+            % Notes  : - For Nx2/Nx3 AzAlt tables, interpolation is done in
+            %            azimuth space using interp1.
+            %          - Az/Alt are computed in degrees internally.
+            % Author : Eran Ofek (May 2026)
+            % Example: Flag = C.isAlt(JD, 25);
+            %          Flag = C.isAlt(JD, [20 85]);
+            %          Flag = C.isAlt(JD, HorProf, 'AzAltUnits','deg');
+            %          I = C.isAlt(JD, HorProf, 'OutIsInd',true);
+
+            arguments
+                Obj(1,1)
+                JD     = celestial.time.julday();
+                AzAlt  = 30; % [Az, MinAlt, [MaxAlt]]
+                Args.AzAltUnits    = 'deg';
+                Args.GeoCoo        = [];
+                Args.LSTType       = 'm';
+                Args.OutIsInd      = false;
+            end
+
+            if isempty(Args.GeoCoo)
+                Args.GeoCoo = Obj.GeoCoo;
+            end
+
+            AzAlt = convert.angular(Args.AzAltUnits, 'deg', AzAlt);  % [deg]
+
+            [Az, Alt] = Obj.azAlt(JD, 'GeoCoo',Args.GeoCoo, 'OutUnits', 'deg', 'LSTType',Args.LSTType);  % [deg]
+
+            if isscalar(AzAlt)
+                Result = Alt>AzAlt;
+            else
+                if numel(AzAlt)==2
+                    Result = Alt>AzAlt(1) & Alt<AzAlt(2);
+                else
+                    MinAlt = interp1(AzAlt(:,1), AzAlt(:,2), Az);
+
+                    if size(AzAlt,2)==2
+                        MaxFlag = true;
+                    else                    
+                        MaxAlt = interp1(AzAlt(:,1), AzAlt(:,3), Az);
+
+                        MaxFlag = Alt<MaxAlt;
+                    end
+
+                    Result = MaxFlag & Alt>MinAlt;
+                end
+            end
+
+            if Args.OutIsInd
+                Result = find(Result);
+            end
+
+        end
+
+        function Result = isMoonOk(Obj, JD, MoonDistProfile, Args)
+            % Select targets that satisfy Moon constraints
+            % Input  : - CelCoo object.
+            %          - JD scalar, passed to azAlt.
+            %            Default is celestial.time.julday().
+            %          - Moon distance/illum. constraints.
+            %            * scalar: minimum Moon distance from target.
+            %            * Nx2 [abs(Illum), MinDist], where Illum is the absolute
+            %              Moon illuminated fraction in [0,1], and MinDist is
+            %              required minimum angular separation.
+            %            Default is 30.
+            %          * ...,key,val,...
+            %            'AzAltUnits' - Units for MinMoonAlt and MinDist
+            %                   values ('deg'|'rad').
+            %                   Default is 'deg'.
+            %            'MinMoonAlt' - Moon Alt below to ignore moon
+            %                   (i.e., if Moon is below this threshold then output
+            %                   is true for all targets).
+            %                   Default is 0 (units specified in
+            %                   AzAltUnits).
+            %            'GeoCoo' - Geodetic coordinates
+            %                   [Lon(deg), Lat(deg), Height(m)].
+            %                   If empty, use Obj.GeoCoo. Default is [].
+            %            'LSTType' - Sidereal time type for azAlt:
+            %                   'm' (mean) | 'a' (apparent). Default is 'm'.
+            %            'OutIsInd' - If true, return indices of accepted
+            %                   targets; otherwise return logical mask.
+            %                   Default is false.
+            % Output : - Logical mask of targets that satisfy the moon
+            %            constraint, or index vector if OutIsInd=true.
+            % Author : Eran Ofek (May 2026)
+            % Example: Flag = C.isMoonOk(JD, 30);  % constant 30 deg limit
+            %          P = [0 10; 0.5 25; 1 40];
+            %          Flag = C.isMoonOk(JD, P, 'AzAltUnits','deg');
+            %          I = C.isMoonOk(JD, P, 'OutIsInd',true);
+
+            arguments
+                Obj(1,1)
+                JD     = celestial.time.julday();
+                MoonDistProfile    = 30; % [Illum, MaxDist]
+                Args.AzAltUnits    = 'deg';
+                Args.MinMoonAlt    = 0;
+                Args.GeoCoo        = [];
+                Args.LSTType       = 'm';
+                Args.OutIsInd      = false;
+            end
+
+            if isempty(Args.GeoCoo)
+                Args.GeoCoo = Obj.GeoCoo;
+            end
+
+            Conv = convert.angular(Args.AzAltUnits, 'deg');
+            Args.MinMoonAlt = Conv.*Args.MinMoonAlt;
+            if isscalar(MoonDistProfile)
+                MoonDistProfile = Conv.*MoonDistProfile;
+            else
+                MoonDistProfile(:,2) = Conv.*MoonDistProfile(:,2);
+            end
+
+            [Moon,MoonDist] = Obj.moonDist(JD,'GeoCoo',Args.GeoCoo, 'OutUnits','deg');
+
+            SizeTarget = size(Obj.RA);
+            if Moon.Alt<Args.MinMoonAlt
+                Result = true(SizeTarget);
+            else
+                if isscalar(MoonDistProfile)
+                    MinMoonDist = MoonDistProfile;
+                else
+                    MinMoonDist = interp1(MoonDistProfile(:,1), MoonDistProfile(:,2), abs(Moon.Illum));
+                end
+                Result      = MoonDist>MinMoonDist;
+            end
+
+
+            if Args.OutIsInd
+                Result = find(Result);
+            end
+        end
+
+    end
 
     methods % plots
         % not ready

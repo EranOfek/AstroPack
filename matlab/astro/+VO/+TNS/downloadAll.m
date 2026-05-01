@@ -12,6 +12,7 @@ function [T, CsvFile, ZipFile] = downloadAll(Args)
     %            'TextType' -    string = "string"
     %            'KeepFiles' -   logical = false            % delete ZIP/CSV after reading if false
     %            'Verbose' -     logical = false
+    %            'AddOld'  -     false.
     % Output : - TNS Table
     %          - CSV file name.
     %          - Zip file name.
@@ -31,6 +32,7 @@ function [T, CsvFile, ZipFile] = downloadAll(Args)
         Args.TextType    = "string"
         Args.KeepFiles   = false
         Args.Verbose     = false
+        Args.AddOld      = false;
     end
     
     % --- TNS user-agent header ---
@@ -97,6 +99,19 @@ function [T, CsvFile, ZipFile] = downloadAll(Args)
             delete(CsvFile);
         end %#ok<TRYNC>
     end
+
+    if Args.AddOld
+        Told = VO.TNS.downloadHistoricSNe;
+
+        Told = tools.table.reorderAddMissing(Told, T.Properties.VariableNames);
+
+        T.discoverydate = string(T.discoverydate);
+        T.time_received = string(T.time_received);
+        T.creationdate = string(T.creationdate);
+        T.lastmodified = string(T.lastmodified);
+        
+    end
+
 end
 
 
