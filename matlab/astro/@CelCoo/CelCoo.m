@@ -1200,6 +1200,165 @@ classdef CelCoo < matlab.mixin.Copyable
 
     end
 
+    methods % constraints
+        function Result = isAlt(Obj, JD, AzAlt, Args)
+            % Select targets that satisfy Azimuth and Altitude constraints
+            % Input  : - CelCoo object.
+            %          - JD scalar, passed to azAlt.
+            %            Default is celestial.time.julday().
+            %          - Altitude constraints.
+            %            * scalar: minimum altitude threshold.
+            %            * 2-element vector: [MinAlt, MaxAlt].
+            %            * Nx2 array: [Az, MinAlt(Az)] horizon profile.
+            %            * Nx3 array: [Az, MinAlt(Az), MaxAlt(Az)].
+            %            Default is 30.
+            %          * ...,key,val,...
+            %            'AzAltUnits' - Units for AzAlt values ('deg'|'rad').
+            %                   Default is 'deg'.
+            %            'GeoCoo' - Geodetic coordinates
+            %                   [Lon(deg), Lat(deg), Height(m)].
+            %                   If empty, use Obj.GeoCoo. Default is [].
+            %            'LSTType' - Sidereal time type for azAlt:
+            %                   'm' (mean) | 'a' (apparent). Default is 'm'.
+            %            'OutIsInd' - If true, return indices of accepted
+            %                   targets; otherwise return logical mask.
+            %                   Default is false.
+            % Output : - Logical mask of targets that satisfy the altitude
+            %            constraints, or index vector if OutIsInd=true.
+            % Notes  : - For Nx2/Nx3 AzAlt tables, interpolation is done in
+            %            azimuth space using interp1.
+            %          - Az/Alt are computed in degrees internally.
+            % Author : Eran Ofek (May 2026)
+            % Example: Flag = C.isAlt(JD, 25);
+            %          Flag = C.isAlt(JD, [20 85]);
+            %          Flag = C.isAlt(JD, HorProf, 'AzAltUnits','deg');
+            %          I = C.isAlt(JD, HorProf, 'OutIsInd',true);
+
+            arguments
+                Obj(1,1)
+                JD     = celestial.time.julday();
+                AzAlt  = 30; % [Az, MinAlt, [MaxAlt]]
+                Args.AzAltUnits    = 'deg';
+                Args.GeoCoo        = [];
+                Args.LSTType       = 'm';
+                Args.OutIsInd      = false;
+            end
+
+            if isempty(Args.GeoCoo)
+                Args.GeoCoo = Obj.GeoCoo;
+            end
+
+            AzAlt = convert.angular(Args.AzAltUnits, 'deg', AzAlt);  % [deg]
+
+            [Az, Alt] = Obj.azAlt(JD, 'GeoCoo',Args.GeoCoo, 'OutUnits', 'deg', 'LSTType',Args.LSTType);  % [deg]
+
+            if isscalar(AzAlt)
+                Result = Alt>AzAlt;
+            else
+                if numel(AzAlt)==2
+                    Result = Alt>AzAlt(1) & Alt<AzAlt(2);
+                else
+                    MinAlt = interp1(AzAlt(:,1), AzAlt(:,2), Az);
+
+                    if size(AzAlt,2)==2
+                        MaxFlag = true;
+                    else                    
+                        MaxAlt = interp1(AzAlt(:,1), AzAlt(:,3), Az);
+
+                        MaxFlag = Alt<MaxAlt;
+                    end
+
+                    Result = MaxFlag & Alt>MinAlt;
+                end
+            end
+
+            if Args.OutIsInd
+                Result = find(Result);
+            end
+
+        end
+
+        function Result = isMoonOk(Obj, JD, MoonDistProfile, Args)
+            % Select targets that satisfy Moon constraints
+            % Input  : - CelCoo object.
+            %          - JD scalar, passed to azAlt.
+            %            Default is celestial.time.julday().
+            %          - Moon distance/illum. constraints.
+            %            * scalar: minimum Moon distance from target.
+            %            * Nx2 [abs(Illum), MinDist], where Illum is the absolute
+            %              Moon illuminated fraction in [0,1], and MinDist is
+            %              required minimum angular separation.
+            %            Default is 30.
+            %          * ...,key,val,...
+            %            'AzAltUnits' - Units for MinMoonAlt and MinDist
+            %                   values ('deg'|'rad').
+            %                   Default is 'deg'.
+            %            'MinMoonAlt' - Moon Alt below to ignore moon
+            %                   (i.e., if Moon is below this threshold then output
+            %                   is true for all targets).
+            %                   Default is 0 (units specified in
+            %                   AzAltUnits).
+            %            'GeoCoo' - Geodetic coordinates
+            %                   [Lon(deg), Lat(deg), Height(m)].
+            %                   If empty, use Obj.GeoCoo. Default is [].
+            %            'LSTType' - Sidereal time type for azAlt:
+            %                   'm' (mean) | 'a' (apparent). Default is 'm'.
+            %            'OutIsInd' - If true, return indices of accepted
+            %                   targets; otherwise return logical mask.
+            %                   Default is false.
+            % Output : - Logical mask of targets that satisfy the moon
+            %            constraint, or index vector if OutIsInd=true.
+            % Author : Eran Ofek (May 2026)
+            % Example: Flag = C.isMoonOk(JD, 30);  % constant 30 deg limit
+            %          P = [0 10; 0.5 25; 1 40];
+            %          Flag = C.isMoonOk(JD, P, 'AzAltUnits','deg');
+            %          I = C.isMoonOk(JD, P, 'OutIsInd',true);
+
+            arguments
+                Obj(1,1)
+                JD     = celestial.time.julday();
+                MoonDistProfile    = 30; % [Illum, MaxDist]
+                Args.AzAltUnits    = 'deg';
+                Args.MinMoonAlt    = 0;
+                Args.GeoCoo        = [];
+                Args.LSTType       = 'm';
+                Args.OutIsInd      = false;
+            end
+
+            if isempty(Args.GeoCoo)
+                Args.GeoCoo = Obj.GeoCoo;
+            end
+
+            Conv = convert.angular(Args.AzAltUnits, 'deg');
+            Args.MinMoonAlt = Conv.*Args.MinMoonAlt;
+            if isscalar(MoonDistProfile)
+                MoonDistProfile = Conv.*MoonDistProfile;
+            else
+                MoonDistProfile(:,2) = Conv.*MoonDistProfile(:,2);
+            end
+
+            [Moon,MoonDist] = Obj.moonDist(JD,'GeoCoo',Args.GeoCoo, 'OutUnits','deg');
+
+            SizeTarget = size(Obj.RA);
+            if Moon.Alt<Args.MinMoonAlt
+                Result = true(SizeTarget);
+            else
+                if isscalar(MoonDistProfile)
+                    MinMoonDist = MoonDistProfile;
+                else
+                    MinMoonDist = interp1(MoonDistProfile(:,1), MoonDistProfile(:,2), abs(Moon.Illum));
+                end
+                Result      = MoonDist>MinMoonDist;
+            end
+
+
+            if Args.OutIsInd
+                Result = find(Result);
+            end
+        end
+
+    end
+
     methods % plots
         % not ready
         function plotAitoff(Obj, Marker, Args)
