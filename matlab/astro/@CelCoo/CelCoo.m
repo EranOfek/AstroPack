@@ -42,6 +42,8 @@ classdef CelCoo < matlab.mixin.Copyable
         PM_Dec    = 0;      % [mas/yr]
         RadVel    = 0;      % [mas/yr]
         Plx       = 1e-6;   % [mas/yr]
+
+        GeoCoo    = [35 30 415];  % [deg deg m]
     end
 
     properties (SetAccess=private)
@@ -630,6 +632,48 @@ classdef CelCoo < matlab.mixin.Copyable
 
         end
 
+        function [Lon, Lat]=galCoo(Obj, Args)
+            % Calculate galactic coordinates without changing the object
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            'OutUnits' - Output units. Default is 'deg'.
+            % Output : - Gal Lon.
+            %          - Gal Lat.
+            % Author : Eran Ofek (May 2026)
+            % Example: [a,b]=C.galCoo
+
+            arguments
+                Obj
+                Args.OutUnits   = 'deg';
+            end
+
+            [Lon, Lat] = CelCoo.convertCoo(Obj.RA, Obj.Dec, 'gal', 'Equinox',Obj.Equinox, 'CooUnits',Obj.Units);
+            Conv = convert.angular(Obj.Units, Args.OutUnits);
+            Lon  = Lon.*Conv;
+            Lat  = Lat.*Conv;
+        end
+
+        function [Lon, Lat]=eclCoo(Obj, Args)
+            % Calculate ecliptic coordinates without changing the object
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            'OutUnits' - Output units. Default is 'deg'.
+            % Output : - Ecl Lon.
+            %          - Ecl Lat.
+            % Author : Eran Ofek (May 2026)
+            % Example: [a,b]=C.eclCoo
+
+            arguments
+                Obj
+                Args.OutUnits   = 'deg';
+            end
+
+            [Lon, Lat] = CelCoo.convertCoo(Obj.RA, Obj.Dec, 'ecl', 'Equinox',Obj.Equinox, 'CooUnits',Obj.Units);
+            Conv = convert.angular(Obj.Units, Args.OutUnits);
+            Lon  = Lon.*Conv;
+            Lat  = Lat.*Conv;
+        end
+
         function [Az, Alt, AM] = azAlt(Obj, JD, Args)
             % Convert RA/Dec to horizontal coordinates (Az/Alt).
             % Input  : - A single-element CelCoo object.
@@ -637,7 +681,8 @@ classdef CelCoo < matlab.mixin.Copyable
             %          * ...,key,val,...
             %            'GeoCoo' - Geodetic coordinates
             %                   [Lon(deg), Lat(deg), Height(m)].
-            %                   Default is [35 30 415] (deg).
+            %                   If empty, then use GeoCoo property.
+            %                   Default is [].
             %            'OutUnits' - Output units for Az/Alt.
             %                   Default is Obj.Units.
             %            'LSTType' - 'a' (apparent) | 'm' (mean).
@@ -651,9 +696,13 @@ classdef CelCoo < matlab.mixin.Copyable
             arguments
                 Obj(1,1)
                 JD
-                Args.GeoCoo = [35 30 415];   % [deg deg m]
+                Args.GeoCoo = [];   % [deg deg m]
                 Args.OutUnits = [];
                 Args.LSTType = 'a';
+            end
+
+            if isempty(Args.GeoCoo)
+                Args.GeoCoo = Obj.GeoCoo;
             end
 
             if ~strcmpi(Obj.System, 'eq')
@@ -702,7 +751,8 @@ classdef CelCoo < matlab.mixin.Copyable
             %          * ...,key,val,...
             %            'GeoCoo' - Geodetic coordinates
             %                   [Lon(deg), Lat(deg), Height(m)].
-            %                   Default is [35 30 415].
+            %                   If empty, use object GeoCoo property.
+            %                   Default is [].
             %            'STType' - Sidereal time type: 'a' | 'm'.
             %                   Default is 'a'.
             % Output : - Rise JD array, same size as Obj.RA/Obj.Dec.
@@ -722,8 +772,12 @@ classdef CelCoo < matlab.mixin.Copyable
                 Obj(1,1)
                 JD (1,1)
                 Alt (1,1)   = 0;
-                Args.GeoCoo = [35 30 415];
+                Args.GeoCoo = [];
                 Args.STType = 'a';
+            end
+
+            if isempty(Args.GeoCoo)
+                Args.GeoCoo = Obj.GeoCoo;
             end
 
             if ~strcmpi(Obj.System, 'eq')
@@ -982,6 +1036,128 @@ classdef CelCoo < matlab.mixin.Copyable
 
     end
 
+    methods % sun and moon
+        function [Sun, Dist] = sunDist(Obj, JD, Args)
+            % Sun coordinates and distance from object coordinates.
+            % Input  : - CelCoo object (scalar or array).
+            %          - JD scalar. If empty, uses current JD (UTC0.
+            %            Default is celestial.time.julday().
+            %          * ...,key,val,...
+            %            'OutUnits' - Output angular units for Sun RA/Dec,
+            %                   Sun Az/Alt, and Dist. Default is 'deg'.
+            %            'GeoCoo' - Geodetic coordinates
+            %                   [Lon(deg), Lat(deg), Height(m)] used for
+            %                   horizontal coordinates. If empty, use
+            %                   Obj.GeoCoo. Default is [].
+            % Output : - Structure with Sun fields:
+            %              RA, Dec  - Sun apparent equatorial coordinates.
+            %              Az, Alt  - Sun horizontal coordinates.
+            %              EqOfTime - Equation of time [minutes].
+            %          - (Optional) Angular distance between each Obj
+            %            coordinate and the Sun, in OutUnits.
+            % Author : Eran Ofek (May 2026)
+            % Example: Sun = C.sunDist();
+            %          [Sun,D] = C.sunDist(2460430.5,'OutUnits','deg');
+            %          [Sun,D] = C.sunDist(JD,'GeoCoo',[35 30 415],'OutUnits','rad');
+
+            arguments
+                Obj
+                JD    = celestial.time.julday();
+                Args.OutUnits   = 'deg';
+                Args.GeoCoo     = [];
+            end
+            RAD = 180./pi;
+
+            if isempty(Args.GeoCoo)
+                Args.GeoCoo = Obj.GeoCoo;
+            end
+
+            % equation of time [min]
+            [Sun.RA,Sun.Dec,~,~,Sun.EqOfTime]=celestial.SolarSys.suncoo(JD, 'a');
+            [Sun.Az, Sun.Alt] = celestial.coo.radec2azalt(JD, Sun.RA, Sun.Dec,'GeoCoo',Obj.GeoCoo(1:2)./RAD, 'InUnits','rad', 'OutUnits','rad','LSTType','m');
+            
+            Conv = convert.angular('rad',Args.OutUnits);
+
+            if nargout>1
+                
+                Coo = Obj.Rad;
+
+                Dist = Conv.*celestial.coo.sphere_dist_fast(Sun.RA, Sun.Dec, Coo(:,1), Coo(:,2));
+
+            end
+
+            Sun.RA  = Sun.RA.*Conv;
+            Sun.Dec = Sun.Dec.*Conv;
+            Sun.Az  = Sun.Az.*Conv;
+            Sun.Alt = Sun.Alt.*Conv;
+
+        end
+
+        function [Moon, Dist] = moonDist(Obj, JD, Args)
+            % Moon coordinates and distance from object coordinates.
+            % Input  : - CelCoo object (scalar or array).
+            %          - JD scalar. If empty, uses current JD (UTC).
+            %            Default is celestial.time.julday().
+            %          * ...,key,val,...
+            %            'OutUnits' - Output angular units for Moon RA/Dec,
+            %                   Moon Az/Alt, and Dist. Default is 'deg'.
+            %            'GeoCoo' - Geodetic coordinates
+            %                   [Lon(deg), Lat(deg), Height(m)] used for
+            %                   topocentric Moon position and horizontal
+            %                   coordinates. If empty, use Obj.GeoCoo.
+            %                   Default is [].
+            % Output : - Structure with Moon fields:
+            %              RA, Dec  - Moon apparent equatorial coordinates.
+            %              Az, Alt  - Moon horizontal coordinates.
+            %              Illum    - Moon illuminated fraction (negative
+            %                   for wanning moon).
+            %          - (Optional) Angular distance between each Obj
+            %            coordinate and the Moon, in OutUnits.
+            % Notes  : - Dist is computed against Obj coordinates as stored,
+            %            internally via radians.
+            %          - If Obj contains multiple coordinates, Dist follows
+            %            Obj.RA/Obj.Dec linearized shape convention.
+            % Author : Eran Ofek (May 2026)
+            % Example: Moon = C.moonDist();
+            %          [Moon,D] = C.moonDist(2460430.5,'OutUnits','deg');
+            %          [Moon,D] = C.moonDist(JD,'GeoCoo',[35 30 415],'OutUnits','rad');
+
+            arguments
+                Obj
+                JD    = celestial.time.julday();
+                Args.OutUnits   = 'deg';
+                Args.GeoCoo     = [];
+            end
+            RAD = 180./pi;
+
+            if isempty(Args.GeoCoo)
+                Args.GeoCoo = Obj.GeoCoo;
+            end
+
+            [Moon.RA,Moon.Dec]=celestial.SolarSys.mooncool(JD, Args.GeoCoo(1:2)./RAD, 'b');
+            [Moon.Az, Moon.Alt] = celestial.coo.radec2azalt(JD, Moon.RA, Moon.Dec,'GeoCoo',Obj.GeoCoo(1:2)./RAD, 'InUnits','rad', 'OutUnits','rad','LSTType','m');
+            
+            Conv = convert.angular('rad',Args.OutUnits);
+
+            if nargout>1
+                
+                Coo = Obj.Rad;
+
+                Dist = Conv.*celestial.coo.sphere_dist_fast(Moon.RA, Moon.Dec, Coo(:,1), Coo(:,2));
+
+            end
+
+            Moon.RA  = Moon.RA.*Conv;
+            Moon.Dec = Moon.Dec.*Conv;
+            Moon.Az  = Moon.Az.*Conv;
+            Moon.Alt = Moon.Alt.*Conv;
+
+            % Moon illumination
+            Moon.Illum = celestial.SolarSys.moon_illum(JD);
+
+        end
+
+    end
 
     methods % plots
         % not ready
