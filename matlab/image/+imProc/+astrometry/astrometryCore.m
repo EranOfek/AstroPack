@@ -389,7 +389,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         else
             FilteredProjAstCat = ProjAstCat;
         end
-
+                             
         % The Ref catalog is projected around some center that should coincide
         % with the center of Cat.
         % Therefore, we should shift Cat to its own center
@@ -402,6 +402,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         end
         FilteredCat = imProc.trans.tranAffine(FilteredCat, -Result(Iobj).ImageCenterXY, true, 'CreateNewObj',false); %[-1024 -2048],true);
   
+        FilteredCat.sortrows('Y');
         % debuging
         %figure(1); FilteredCat.plotSources; axis([-200 50 -400 100]);
         %figure(2); FilteredProjAstCat.plotSources; axis([-200 50 -400 100])

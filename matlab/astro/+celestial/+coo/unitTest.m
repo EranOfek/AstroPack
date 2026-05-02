@@ -5,6 +5,45 @@ function Result = unitTest()
     
     %test_sphere_dist_fast();
     
+    %%
+    Nsim = 1000;
+    Nsrc = 300;
+    tic;
+    for Isim=1:1:Nsim
+        X = rand(Nsrc,1);
+        Y = rand(Nsrc,1);
+        [BestXY, BestRadius] = celestial.coo.boundingCircle(X,Y,[],'UseMex',false);
+        %BestXY
+        %BestRadius
+        %[BestXY1, BestRadius1] = tools.math.geometry.boundingCircle(X,Y,'UseMex',true);
+        if max(abs(BestXY - 0.5),[],"all")>0.15 || abs(BestRadius-1./sqrt(2))>0.25
+            Isim
+            BestXY
+            BestRadius
+            error('Problem with tools.math.geometry.boundingCircle');
+        end
+
+    end
+    toc
+
+    tic;
+    for Isim=1:1:Nsim
+        X = rand(Nsrc,1);
+        Y = rand(Nsrc,1);
+        [BestXY, BestRadius] = celestial.coo.boundingCircle(X,Y,[],'UseMex',true);
+        if max(abs(BestXY - 0.5),[],"all")>0.15 || abs(BestRadius-1./sqrt(2))>0.25
+            Isim
+            BestXY
+            BestRadius
+            error('Problem with tools.math.geometry.boundingCircle');
+        end
+
+    end
+    toc
+
+
+    %%
+
     RAD = 180/pi;
     %% Check conversion for altitude to hour angle, and the inverse.
     Dec=0.5;

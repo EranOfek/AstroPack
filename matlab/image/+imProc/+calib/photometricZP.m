@@ -163,6 +163,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.CatRadius                = [];   % if empty, use bounding_circle
         Args.CatRadiusUnits           = 'arcsec';
         Args.OutUnits                 = 'rad';
+        Args.boundingCircleArgs       = {};
         Args.Con cell                 = {};
         Args.UseIndex(1,1) logical    = false;
         
@@ -272,7 +273,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
             else
                 % RA/Dec bounding box
                 if isempty(Args.CatRadius)
-                    [RA, Dec, CircleRadius] = boundingCircle(Cat, 'OutUnits','rad', 'CooType','sphere');
+                    [RA, Dec, CircleRadius] = boundingCircle(Cat, 'OutUnits','rad', 'CooType','sphere',Args.boundingCircleArgs{:});
                 else
                     CircleRadius = Args.CatRadius;
                     error('CatRadius is not yet supported, use empty');

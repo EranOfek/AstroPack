@@ -245,6 +245,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         Args.KeyRA                        = 'RA';
         Args.KeyDec                       = 'DEC';
 
+        Args.boundingCircleArgs           = {};
+        
         Args.MatchMethod                  = 'old'; % 'old'|'mex'
     end
     RAD        = 180./pi;
@@ -388,13 +390,13 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                 CircleUnits         = 'deg';
                 if isempty(WCS)
                     % estimate RA/Dec of center of catalog from catalog itself
-                    [Args.RA, Args.Dec, Args.CatRadius] = boundingCircle(Cat,'CooType','sphere','OutUnits',CircleUnits); 
+                    [Args.RA, Args.Dec, Args.CatRadius] = boundingCircle(Cat,'CooType','sphere','OutUnits',CircleUnits,Args.boundingCircleArgs{:}); 
 
                     Args.CooUnits       = CircleUnits;
                     Args.CatRadiusUnits = CircleUnits;
                 else
                     % estimate from image center and WCS
-                    [CenterX, CenterY, CenterRadius] = boundingCircle(Cat,'CooType','pix');
+                    [CenterX, CenterY, CenterRadius] = boundingCircle(Cat,'CooType','pix',Args.boundingCircleArgs{:});
                     [Args.RA, Args.Dec] = xy2sky(WCS, CenterX, CenterY, 'OutUnits',CircleUnits,...
                                                   'includeDistortion',Args.IncludeDistortions);
                     if isempty(Args.Scale)

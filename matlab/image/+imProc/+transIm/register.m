@@ -35,7 +35,12 @@ function [Result] = register(Obj, TransRef, Args)
     %            'CreateNewObj' - When copying the WCS, PSF, Header, create
     %                   new object. Default is true.
     %            'WCS' - An optional (single element) AstroWCS or AstroImage to insert (WCS) into the registered image.
+    %                   If this is an AstroWCSm then also has to provide
+    %                   the RefCCDSEC argument.
     %                   If empty, then do not insert WCS.
+    %                   Default is [].
+    %            'RefCCDSEC' - The CCDSEC of the ref image. This is needed
+    %                   and used only if 'WCS' is an AstroWCS object.
     %                   Default is [].
     %            'CopyPSF' - Copy PSF from input image.
     %                   If the 'WCS' argument is not provided, then this
@@ -71,6 +76,7 @@ function [Result] = register(Obj, TransRef, Args)
 
         Args.CreateNewObj             = true;
         Args.WCS                      = [];
+        Args.RefCCDSEC                = [];
         Args.RotatePSF                = false;  % if true, then make hard copy / operate only if TransRef is an AstroImage!
         Args.CopyPSF                  = true;
         Args.CopyWCS                  = true;
@@ -130,6 +136,7 @@ function [Result] = register(Obj, TransRef, Args)
         % Transformation types
         switch class(TransRef)
             case 'AstroWCS'
+                CanRotatePSF = true;
                 Iref = min(Iobj, Nref);
 
                 % Need image size from external source
@@ -137,8 +144,8 @@ function [Result] = register(Obj, TransRef, Args)
                 %CCDSEC = [1 SizeRefIm(2) 1 SizeRefIm(1)];
     
                 %
-                SizeRefIm = size(TransRef(Iref).ImageData.Data);
-                CCDSEC = [1 SizeRefIm(2) 1 SizeRefIm(1)];
+                %SizeRefIm = size(TransRef(Iref).ImageData.Data);
+                CCDSEC = Args.RefCCDSEC; %[1 SizeRefIm(2) 1 SizeRefIm(1)];
 
                 % Object is AstroWCS
                 [RefX, RefY, X, Y] = TransRef(Iref).xy2refxy(CCDSEC, Obj(Iobj).WCS, 'Sampling',Args.Sampling);
