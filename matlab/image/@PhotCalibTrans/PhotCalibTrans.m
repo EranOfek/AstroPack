@@ -154,6 +154,9 @@ classdef PhotCalibTrans < Component
         % Bright-star RMS
         ARMS = NaN              % sqrt(median(R²)) of N brightest calibrators [mag] (set by calibrate)
 
+        % Calibrator count entering the fit (after filtering / catalog matching, before sigma clipping)
+        NCalibEnterFit = 0      % Number of calibrators entering the fit (set by calibrate)
+
         % Success status
         Success = false         % Flag indicating successful calibration (set by populateSuccess)
 
