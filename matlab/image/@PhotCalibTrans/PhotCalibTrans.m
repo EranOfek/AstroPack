@@ -254,6 +254,9 @@ classdef PhotCalibTrans < Component
             arguments
                 Obj
                 Cat                    % AstroImage or AstroCatalog
+                
+                % Select calibrators via match_catsHTM
+                Args.match_catsHTMArgs = {};
 
                 % Metadata argument (for AstroCatalog only)
                 Args.Metadata = []     % AstroHeader object or cell array {key1, val1, key2, val2, ...}
@@ -441,7 +444,8 @@ classdef PhotCalibTrans < Component
                 'MagRange', Args.MagRange, ...
                 'FilterNegFlux', Args.FilterNegFlux, ...
                 'MinSN2', Args.MinSN2, ...
-                'Verbose', Args.Verbose);
+                'Verbose', Args.Verbose, ...
+                'match_catsHTMArgs',Args.match_catsHTMArgs);
 
             % selectCalibrators populates Obj.SpecData, Obj.SourceData, and Obj.CalFound
 
@@ -762,6 +766,7 @@ classdef PhotCalibTrans < Component
                 Args.MinSN2 = 0                       % Minimum SN_2 for calibrators (0 to skip)
                 Args.SpFluxCol = [7, 349, 350, 692]   % [flux_start, flux_end, error_start, error_end]
                 Args.BadBitNames     = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'};
+                Args.match_catsHTMArgs = {};
                 Args.Verbose logical = false
             end
 
@@ -803,7 +808,8 @@ classdef PhotCalibTrans < Component
 
                 [~, ~, ResInd, CatH] = imProc.match.match_catsHTM(Cat, 'GAIADR3spec', ...
                                                               'Radius', Args.SearchRadius, ...
-                                                              'RadiusUnits', 'arcsec');
+                                                              'RadiusUnits', 'arcsec',...
+                                                              Args.match_catsHTMArgs{:});
 
             % Extract match information (indexed to full catalog)
             CalIdxAll   = ResInd.Obj2_IndInObj1;     % Index of calibrator match for each source
