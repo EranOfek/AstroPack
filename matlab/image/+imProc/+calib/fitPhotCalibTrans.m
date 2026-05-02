@@ -83,6 +83,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         Args.ConstBandParams = []             % Struct or .mat path
         Args.ConstBandOutputMode = 'newcol'   % 'newcol' or 'replace'
         Args.ConstBandPrefix = 'MAG_CB_'      % Prefix for constant-band columns
+        Args.match_catsHTMArgs = {}        
         Args.Verbose logical = false
     end
 
@@ -210,7 +211,9 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
 
         PC = PC.calibrate(Result(Iobj), Args.CalibArgs{:}, ...
             'CalcAperCorr', Args.CalcAperCorr, ...
-            'MagSystem', Args.MagSystem, 'Verbose', Args.Verbose);
+            'MagSystem', Args.MagSystem,...
+            'match_catsHTMArgs',Args.match_catsHTMArgs,...
+            'Verbose', Args.Verbose);
 
         % ----------------------------------------------------------------
         % Post-calibration processing
@@ -442,7 +445,7 @@ function CalibArgs = predefCalibArgs(Args)
 
         % Calibrator selection
         Args.SearchRadius     = 2         % arcsec
-        Args.MagRange         = [11.5 15.5]
+        Args.MagRange         = [11.5 16.0]
         Args.FilterNegFlux logical = true % Remove sources with negative flux
         Args.MinSN2           = 10        % Minimum SN_2 for calibrators (0 to skip)
 

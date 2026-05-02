@@ -26,6 +26,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %            'EpochDim' - Dimension (1 or 2) of the epoch axis in the
     %                   input AstroImage object. Default is 1.
     %
+    %            'WCS' - Reference WCS (must have Success=true).
+    %                   Default is [].
     %            'coaddArgs' - A cell array of arguments to pass to the 
     %                   imProc.stack.coadd function.
     %                   default is {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
@@ -156,6 +158,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.registerArgs                     = {};
         Args.DataProp                         = {'ImageData','BackData','VarData','MaskData'};
         Args.SubBack                          = true;  % false is useful for visit coaddition, for general coaddition use true.
+        Args.SetBackTo0                       = true; % if SubBack=true and SetBackTo0 then set back to 0.
+
         %Args.UseShift logical                 = true;
         %Args.UseInterp2 logical               = true;
         %Args.interp2affineArgs cell           = {};
@@ -171,12 +175,14 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.coadd_WRobustArgs                = {};
         Args.coadd_ProperArgs                 = {};
         Args.StackArgs                        = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
-
+        
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
         
-        Args.backgroundArgs cell              = {};
-        Args.BackSubSizeXY                    = [128 128];
+        %Args.backgroundArgs cell              = {};
+        %Args.BackSubSizeXY                    = [128 128];
+        Args.backVarArgs                      = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[128 128]}
         Args.findMeasureSourcesArgs cell      = {};
+        Args.maskCR_Args                      = {};
         Args.ColCell cell                     = {'XPEAK','YPEAK',...
                                                  'X1', 'Y1',...
                                                  'X2','Y2','XY',...
@@ -202,7 +208,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.Scale                            = 1.25;
         Args.Tran                             = Tran2D('poly3');
         Args.CatName                          = 'GAIADR3';
-        Args.photometricZPArgs cell           = {};    
+        
         Args.fitPhotCalibTransArgs            = {};
         Args.ReturnRegisteredAllSI logical    = true; % false;  % if true it means that AllSI will be modified and contain the registered images
           
@@ -210,9 +216,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.BitName_CoaddLess                = 'CoaddLessImages';
         
 
+        Args.RefineSearchRadius               = 3;
         Args.FindStars                        = true;
         Args.PhotCalibSimple                  = true;  % execute simple photometric calibration
-        Args.PhotCalibTrans                   = true;  % execute transmission fit calibration
+        Args.photometricZPArgs                = {}; 
+        Args.photometricZP_UpdateMagCols      = false;
+        Args.PhotCalibTrans                   = true;  % execute transmission fit calibratio
 
         %Args.RemoveHighBackImages logical     = true;   % remove images which background differ from median back by 'HighBackNsigma' sigma
         Args.HighBackNsigma                   = 3;
@@ -231,6 +240,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.CoaddMatchMergedCat logical      = true;
         Args.MergedCat                        = [];
         Args.Col2copy cell                    = {'Nobs'};  % cell array of columns to copy from MergedCat to Coadd
+        Args.AddMaskSrcNoise                  = true;
 
         Args.UseMex                           = false;
 
@@ -360,12 +370,13 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             switch Args.StackMethod
                 case 'wrobust'
                     % RegisteredImages contains also the Back and Var
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:});
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:}, 'backVarArgs',Args.backVarArgs);
                    
                 case 'proper'
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:});
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:}, 'backVarArgs',Args.backVarArgs);
 
                 case 'sigmaclip'
+                    % obsolete channel
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, ~, MidJD, SumExpTime] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
                                                                                                  'Cube',PreAllocCube,...
                                                                                                  'StackMethod',Args.StackMethod,...
@@ -375,6 +386,9 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             end
             ResultCoadd(Ifields).WMeanJD = MidJD;
 
+            if Args.SetBackTo0 && Args.SubBack
+                Coadd(Ifields).BackData.Data = zeros(size(Coadd(Ifields).ImageData.Data), 'like',Coadd(Ifields).ImageData.Data);
+            end
 
             % In some cases the first image of the stack is rejected, so
             % the 'DATEOBS' in the resulting Coadd may be not the same 
@@ -390,10 +404,15 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % Background
             %Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...
             %                                                              'SubSizeXY',Args.BackSubSizeXY);
+            
+            % This is already done in imProc.stack.coadd_*
+            %Coadd(Ifields)  = imProc.background.backVar(Coadd(Ifields), Args.backVarArgs{:}, 'ReCalc',true);
 
 
             % Mask Source noise dominated pixels
-            Coadd(Ifields) = imProc.mask.maskSourceNoise(Coadd(Ifields), 'Factor',1, 'CreateNewObj',false);
+            if Args.AddMaskSrcNoise
+                Coadd(Ifields) = imProc.mask.maskSourceNoise(Coadd(Ifields), 'Factor',1, 'CreateNewObj',false);
+            end
 
 
             
@@ -410,6 +429,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             if Args.FindStars
                 [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), ...
                                                     Args.multiIterExtractorArgs{:},...
+                                                    'maskCR_Args',Args.maskCR_Args,...
                                                     'AperRadius',Args.AperRadius,...
                                                     'Annulus',Args.Annulus,...
                                                     'MomentsMethod',Args.MomentsMethod,...
@@ -420,6 +440,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                     'UseMex',Args.UseMex);
             end
 
+            % prelimnary astrometry by copying the WCS
+            %Coadd(Ifields).WCS = RegisteredImages(1).WCS.copy; %AllSI(IfirstGood,Ifields).WCS.copy;
             % astrometry / refine
             if Args.RefineAstrometry && Coadd(Ifields).CatData.sizeCatalog>0
                 if isa(Args.CatName, 'AstroCatalog')
@@ -430,16 +452,24 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 
                 % This part also add the RA/Dec coordinates [deg] to the
                 % catalog:
+                % if isempty(Args.WCS)
+                %     WCSpointer = AllSI(IfirstGood,Ifields).WCS;
+                % else
+                %     WCSpointer = Args.WCS;
+                % end
+                    
                 [ResultCoadd(Ifields).AstrometricFit, Coadd(Ifields), AstrometricCat] = imProc.astrometry.astrometryRefine(Coadd(Ifields), Args.astrometryRefineArgs{:},...
-                                                                                                    'WCS',AllSI(IfirstGood,Ifields).WCS,...
+                                                                                                    'WCS',RegisteredImages(1).WCS,...
                                                                                                     'EpochOut',MidJD,...
                                                                                                     'Scale',Args.Scale,...
-                                                                                                    'SearchRadius',3,...
+                                                                                                    'SearchRadius',Args.RefineSearchRadius,...
                                                                                                     'CatName',AstrometricCat,...
                                                                                                     'Tran',Args.Tran,...
                                                                                                     'MatchMethod',Args.MatchMethod,...
                                                                                                     'CreateNewObj',false);
+                
                 %ResultCoadd(Ifields).MidMidJD = MidMidJD;
+                Coadd(Ifields).WCS.Success = ResultCoadd(Ifields).AstrometricFit.Success;
             end
 
             if Args.FindStars
@@ -460,10 +490,11 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                                             'CreateNewObj',false,...
                                                                                                             'MagZP',Args.ZP0,...
                                                                                                             'CatName',AstrometricCat,...
+                                                                                                             'UpdateMagCols',Args.photometricZP_UpdateMagCols,...
                                                                                                             Args.photometricZPArgs{:});
             end
 
-            if Args.PhotCalibTrans
+            if Args.PhotCalibTrans && Coadd(Ifields).WCS.Success
                 [Coadd, PC, ResultCoadd(Ifields).TransFit] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
             end
          

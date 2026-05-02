@@ -1,4 +1,4 @@
-function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, CI, Args)
+function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageList, CI, Args)
     %
     % Example: D.loadCalib();
     %          [AllSI, MS, Coadd, OnlyMP]=pipeline.last.pipes.pipelineI([],D.CI);
@@ -20,6 +20,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         Args.ListCenters                   = [];
         Args.NewNoOverlap                  = [];
 
+        Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[128 128], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+
         Args.ColCell                       = {'XPEAK','YPEAK',...
                                               'X1', 'Y1',...
                                               'X2','Y2','XY',...
@@ -33,11 +35,12 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         Args.MomentsMethod                 = 'mex';  %'legacy'|'mex'
         Args.AperPhotMethod                = 'interp';  % 'simple'|'interp'
 
-        Args.ShiftMethod                   = 'fft'; %'lanczos3';  % 'fft'|'lanczos3'
-        Args.PsfPhotMethod                 = 'legacy'; %'2DGN';    % 'legacy'/'old' |'1D'|'2D'|'2DGN'
+        Args.ShiftMethod                   = 'lanczos3';  % 'fft'|'lanczos3'
+        Args.PsfPhotMethod                 = '2DGN';    % 'legacy'/'old' |'1D'|'2D'|'2DGN'
 
         Args.image2subimagesArgs           = {};
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
+        Args.maskCR_Args                   = {'RemoveFromCat',true}; % <-- remove CR
         Args.astrometryVisitSubImageArgs   = {};
         Args.forcedPhotArgs                = {};
         %--- pipeline.generic.proc2MatchedSources args ---
@@ -52,6 +55,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
         Args.coadd_WRobustArgs             = {};
         Args.generateImageIDArgs           = {};
         Args.fitPhotCalibTransArgs         = {};
+        
+        Args.photometricZPArgs             = {};
 
         Args.ForcedPhotCat               = 'WDEDR3';  % UPDATE
         Args.CornersRA                   = {'RA1','RA2','RA3','RA4'};
@@ -192,11 +197,13 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                                                             'JD',JD,...
                                                             'ColCell',Args.ColCell,...
                                                             'UseMex',Args.UseMex,...
+                                                            'backVarArgs',Args.backVarArgs,...
                                                             'AperRadius',Args.AperRadius,...
                                                             'Annulus',Args.Annulus,...
                                                             'MomentsMethod',Args.MomentsMethod,...
                                                             'ShiftMethod',Args.ShiftMethod,...
                                                             'PsfPhotMethod',Args.PsfPhotMethod,...
+                                                            'maskCR_Args',Args.maskCR_Args,...
                                                             'AddSkyCoo',false);  % 466 s (with UseMex=false)
                
             else
@@ -208,11 +215,13 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                                                             'JD',JD(Iobj),...
                                                             'ColCell',Args.ColCell,...
                                                             'UseMex',Args.UseMex,...
+                                                            'backVarArgs',Args.backVarArgs,...
                                                             'AperRadius',Args.AperRadius,...
                                                             'Annulus',Args.Annulus,...
                                                             'MomentsMethod',Args.MomentsMethod,...
                                                             'ShiftMethod',Args.ShiftMethod,...
                                                             'PsfPhotMethod',Args.PsfPhotMethod,...
+                                                            'maskCR_Args',Args.maskCR_Args,...
                                                             'AddSkyCoo',false);  % 119 s (on 16 cores): 169s -> 135s (with UseMex=true)
                 end
                 %toc
@@ -338,7 +347,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             %ProcessingStep = 701;
             %tic;
             for Isub=1:1:Nsub
-                [AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub));  % 10s for all in loop
+                [AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub), ...
+                    'UpdateMagCols',false, Args.photometricZPArgs{:});  % 10s for all in loop
                 %[Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub));  % 2.4s for all in loop
             end
             %toc
@@ -372,12 +382,14 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
                                                           'PhotCalibSimple',false,...
                                                           'PhotCalibTrans',false,...
                                                           'MatchMethod',Args.MatchMethod,...
+                                                          'backVarArgs',Args.backVarArgs,...
                                                           'AperRadius',Args.AperRadius,...
                                                           'Annulus',Args.Annulus,...
                                                           'MomentsMethod',Args.MomentsMethod,...
                                                           'AperPhotMethod',Args.AperPhotMethod,...
                                                           'ShiftMethod',Args.ShiftMethod,...
                                                           'PsfPhotMethod',Args.PsfPhotMethod,...
+                                                          'maskCR_Args',Args.maskCR_Args,...
                                                           Args.multiIterExtractorArgs{:});
             
               
@@ -487,7 +499,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             for Isub=1:1:Nsub
                 %[AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub));  % 10s for all in loop
                 if NotIsEmptyCoadd(Isub)
-                    [Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub));  % 2.4s for all in loop
+                    [Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub), ...
+                        'UpdateMagCols',false, Args.photometricZPArgs{:});  % 2.4s for all in loop
                 end
             end
             %toc
@@ -502,23 +515,13 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipelineI(RawImageList, 
             %toc
         
         
-            % propogate photometric calibration to individual images
-            %[ResRelZP.FitZP]
-            %AI = PC.applyPhotCalibShifts(AI, 'DeltaZP',DeltaZP);
+            % propagate photometric calibration to individual images
+            % tic;
+            DeltaZP = reshape([ResRelZP.FitZP], Nepoch, Nsub);
+            AllSI = PC.applyPhotCalibShifts(AllSI, 'DeltaZP',DeltaZP);
+            % toc
 
 
-            % propogate photometric calibration to MatchedSources
-        
-            % save products
-            %imProc.io.saveProductImage
-            %imProc.io.saveProductMatchedSources
-        
-            
-            
-            % save products
-            %imProc.io.saveProductImage
-        
-            % write status
             
             % Finish
             %ProcessingStep = 1000;

@@ -1241,6 +1241,8 @@ classdef FITS < handle
                 Args.CompressType  char       = 'NOCOMPRESS';
                 Args.SanifyPath logical       = true;                
                 Args.WriteMethodImages        = 'Simple';    % can be 'Simple', 'Mex', or 'ThreadedMex'
+                Args.ReportLongKeys logical   = false;
+                Args.ReportLongKeysFile       = '/tmp/fits_longkeys.log';
             end
             
             if isstring(FileName)
@@ -1290,7 +1292,8 @@ classdef FITS < handle
                 case 'mex'
                     io.fits.writeMexFITS(FileName, Image, Args.Header);
                 case 'threadedmex'
-                    io.fits.writeThreadMexFITS(FileName, Image, Args.Header);
+                    io.fits.writeThreadMexFITS(FileName, Image, Args.Header, ...
+                        'ReportLongKeys', Args.ReportLongKeys, 'ReportLongKeysFile', Args.ReportLongKeysFile);
                 otherwise
                     error('Requested WriteMethod is not supported');
             end

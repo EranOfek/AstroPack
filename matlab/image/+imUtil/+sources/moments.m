@@ -6,7 +6,8 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
     %              first-moment algorithm, estimate second moments, and optionally
     %              perform aperture photometry. Background is estimated from an
     %              annulus around each stamp and subtracted before the measurements.
-    % Input  : - Either:
+    % Input  : - Background subtrcated image. 
+    %            Either:
     %            1) A 2-D image.
     %               In this case, Args.X and Args.Y must be provided, and cutouts
     %               of size (2*HalfSize+1)-by-(2*HalfSize+1) are extracted around
@@ -157,18 +158,20 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
         
         % construct cube of images
         if isempty(Args.X) || isempty(Args.Y)
-            error('When Image is 2D image, X and Y must be provided');
+             Cube = [];
+        else
+                
+            % the stamp size is always HalfSize.*2+1 (so odd number)
+            [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, Args.X, Args.Y, Args.HalfSize, 'mexCutout',Args.mexCutout);
+            [Ny, Nx, Nslice] = size(Cube);
+    
+            X = RoundX;
+            Y = RoundY;
+    
+            % X/Y
+            StampX = (Args.X-RoundX) + Args.HalfSize + 1;
+            StampY = (Args.Y-RoundY) + Args.HalfSize + 1;
         end
-        % the stamp size is always HalfSize.*2+1 (so odd number)
-        [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, Args.X, Args.Y, Args.HalfSize, 'mexCutout',Args.mexCutout);
-        [Ny, Nx, Nslice] = size(Cube);
-
-        X = RoundX;
-        Y = RoundY;
-
-        % X/Y
-        StampX = (Args.X-RoundX) + Args.HalfSize + 1;
-        StampY = (Args.Y-RoundY) + Args.HalfSize + 1;
 
     else
         % Image is already a Cube
@@ -199,43 +202,65 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
 
     end
 
-    [CubeBS, Aper.AnnulusBack, Aper.AnnulusStd, Aper.AnnulusArea] = imUtil.sources.mex.annulus_median(Cube, Args.Annulus, 0);
-    B0 = zeros(Nslice, 1);
 
-    % M1.X1S/Y1S are the 1st moment estimated centers relative to the stamp
-    % center (not stamp corner - controloed by the meaning of the 7th input
-    % argument).
-    [M1.StampX1, M1.StampY1, M1.Iter] = imUtil.sources.mex.moment1_cube(CubeBS, B0, Args.SN, Args.MaxIter, Args.SigmaWidth, Args.TruncateSigma, true, Args.MaxStepSize(2), Args.MaxStepSize(1));
+    if isempty(Cube)
+        M1.X = [];
+        M1.Y = [];
+        M1.StampX1     = [];
+        M1.StampY1     = [];
+        M1.StampInitX  = [];
+        M1.StampInitY  = [];
+        M1.Iter        = [];
+        M2.X2          = [];
+        M2.Y2          = [];
+        M2.XY          = [];
+        Aper.AperPhot  = zeros(0,numel(Args.AperRadius));
+        Aper.AperArea  =  zeros(0,numel(Args.AperRadius));
+        Aper.AnnulusBack = [];
+        Aper.AnnulusStd  = [];
+        Aper.AnnulusAre  = [];
+        Aper.AperRadius  = Args.AperRadius;
 
-    % return X, Y positions to stamp center position
-    % Note that if the user didn't define Args.X, Args.Y then these are
-    % empty
-    % X/Y are rounded coordinates corresponds to the stamp centeral pixel
-    % (stamp size is always odd).
-    % Note: If the input is a cube and the user didn't provide X/Y then the
-    % X1/Y1 (in image coordinates) will be empty, and the use should use
-    % StampX1/StampY1
-    M1.X = M1.StampX1 + X;  % coordinates in full image
-    M1.Y = M1.StampY1 + Y;  % coordinates in full image
-    M1.StampInitX = StampX;
-    M1.StampInitY = StampY;
+    else
 
-
-    if nargout>1
-        
-        [M2.X2,M2.Y2,M2.XY] = imUtil.sources.mex.mom2_cube(CubeBS, B0, M1.StampX1, M1.StampY1, Args.MaxRadiusM2);
-
-        
-        if nargout>2
-            switch Args.AperPhotMethod
-                case 'interp'
-                    [Aper.AperPhot, Aper.AperArea] = imUtil.sources.mex.aper_phot_cube_interp(CubeBS, B0, M1.StampX1, M1.StampY1, Args.AperRadius);
-                case 'simple'
-                    [Aper.AperPhot, Aper.AperArea] = imUtil.sources.mex.aper_phot_cube_simple(CubeBS, B0, M1.StampX1, M1.StampY1, Args.AperRadius);
-                otherwise
-                    error('Unknown AperPhotType option');
+        [CubeBS, Aper.AnnulusBack, Aper.AnnulusStd, Aper.AnnulusArea] = imUtil.sources.mex.annulus_median(Cube, Args.Annulus, 0);
+        B0 = zeros(Nslice, 1);
+    
+        % M1.X1S/Y1S are the 1st moment estimated centers relative to the stamp
+        % center (not stamp corner - controloed by the meaning of the 7th input
+        % argument).
+        [M1.StampX1, M1.StampY1, M1.Iter] = imUtil.sources.mex.moment1_cube(CubeBS, B0, Args.SN, Args.MaxIter, Args.SigmaWidth, Args.TruncateSigma, true, Args.MaxStepSize(2), Args.MaxStepSize(1));
+    
+        % return X, Y positions to stamp center position
+        % Note that if the user didn't define Args.X, Args.Y then these are
+        % empty
+        % X/Y are rounded coordinates corresponds to the stamp centeral pixel
+        % (stamp size is always odd).
+        % Note: If the input is a cube and the user didn't provide X/Y then the
+        % X1/Y1 (in image coordinates) will be empty, and the use should use
+        % StampX1/StampY1
+        M1.X = M1.StampX1 + X;  % coordinates in full image
+        M1.Y = M1.StampY1 + Y;  % coordinates in full image
+        M1.StampInitX = StampX;
+        M1.StampInitY = StampY;
+    
+    
+        if nargout>1
+            
+            [M2.X2,M2.Y2,M2.XY] = imUtil.sources.mex.mom2_cube(CubeBS, B0, M1.StampX1, M1.StampY1, Args.MaxRadiusM2);
+    
+            
+            if nargout>2
+                switch Args.AperPhotMethod
+                    case 'interp'
+                        [Aper.AperPhot, Aper.AperArea] = imUtil.sources.mex.aper_phot_cube_interp(CubeBS, B0, M1.StampX1, M1.StampY1, Args.AperRadius);
+                    case 'simple'
+                        [Aper.AperPhot, Aper.AperArea] = imUtil.sources.mex.aper_phot_cube_simple(CubeBS, B0, M1.StampX1, M1.StampY1, Args.AperRadius);
+                    otherwise
+                        error('Unknown AperPhotType option');
+                end
+                Aper.AperRadius = Args.AperRadius;
             end
-            Aper.AperRadius = Args.AperRadius;
         end
     end
 end

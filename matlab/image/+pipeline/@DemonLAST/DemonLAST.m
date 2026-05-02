@@ -2631,6 +2631,7 @@ classdef DemonLAST < Component
                 Args.DataDir       = 1;              % LAST data dir: 1|2
                 Args.CamNumber     = [];             % Camera number: 1|2|3|4
                 Args.TempRawSci    = '*_sci_raw_*.fits';   % file name template to search
+                Args.AstroImageReadArgs = {};        % e.g., {'Use.Mex',1}
                 Args.NewSubDir     = 'new';          % new sub dir
                 Args.NonStandardNew= '';             % non-standard new dir
                 Args.LocalBase     = [];             % a local base that is not in the same tree as new and calib
@@ -3050,6 +3051,7 @@ classdef DemonLAST < Component
                             tic;
                             [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,RawHeader,OnlyMP]=pipeline.generic.multiRaw2procCoadd(RawImageList, 'CalibImages',Obj.CI,...
                                                                        Args.multiRaw2procCoaddArgs{:},...
+                                                                       'AstroImageReadArgs',Args.AstroImageReadArgs,...
                                                                        'SubDir',NaN,...
                                                                        'BasePath', BasePath,...
                                                                        'SaveAll',false,...                                                                       
@@ -3290,22 +3292,22 @@ classdef DemonLAST < Component
                             end
                             %
                             
-                            if Args.DebugMode
-                                PM = PasswordsManager;
-                                DB.Password = PM.search(Args.DbName).Pass; 
-                                DBclient = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
-                                DBclient.query(sprintf('use %s',Args.DbName));
-                                
-                                StartDB = now;
-                                T = vertcat(Coadd.Table); T.Properties.VariableNames=lower(T.Properties.VariableNames);                                
-                                T.mergedcat= T.mergedcatmask;T.mergedcatmask=[];
-                                T.nobs = []; T.psf_chi2dof=[]; 
-                                T.apc_mag_aper_1=[]; T.apc_mag_aper_2=[]; T.apc_mag_psf=[]; 
-                                DBclient.insert('last.test_visit_src',T)
-                                EndDB = now;
-                                Msg{1} = sprintf('pipeline.DemonLAST: DB injection time %.1d sec', (EndDB-StartDB)*24*3600);
-                                Obj.writeLog(Msg, LogLevel.Info);
-                            end
+                            % if Args.DebugMode
+                            %     PM = PasswordsManager;
+                            %     DB.Password = PM.search(Args.DbName).Pass; 
+                            %     DBclient = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
+                            %     DBclient.query(sprintf('use %s',Args.DbName));
+                            % 
+                            %     StartDB = now;
+                            %     T = vertcat(Coadd.Table); T.Properties.VariableNames=lower(T.Properties.VariableNames);                                
+                            %     T.mergedcat= T.mergedcatmask;T.mergedcatmask=[];
+                            %     T.nobs = []; T.psf_chi2dof=[]; 
+                            %     T.apc_mag_aper_1=[]; T.apc_mag_aper_2=[]; T.apc_mag_psf=[]; 
+                            %     DBclient.insert('last.test_visit_src',T)
+                            %     EndDB = now;
+                            %     Msg{1} = sprintf('pipeline.DemonLAST: DB injection time %.1d sec', (EndDB-StartDB)*24*3600);
+                            %     Obj.writeLog(Msg, LogLevel.Info);
+                            % end
                             
                             if Args.Backup
                                 BackupPath = FN_Coadd.genPath('Level','proc');

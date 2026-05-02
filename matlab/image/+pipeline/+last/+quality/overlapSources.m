@@ -24,11 +24,11 @@ function [Result] = overlapSources(AI, Args)
     %          .MedianDiff: median over the sources for each of the interfaces  
     % Author : A.M. Krassilchtchikov (2026 Feb) 
     % Example: R = pipeline.last.quality.overlapSources(Coadd);
-    %
+    %          R = pipeline.last.quality.overlapSources(Coadd, 'Plot',true);
     arguments
         AI      
         Args.MagRange    = [13 15];  
-        Args.MatchRadius = 1; % arcsec
+        Args.MatchRadius = 3; % arcsec
         Args.Prop        = {'RA', 'Dec', 'XPEAK', 'YPEAK', 'X1', 'Y1', 'X', 'Y', ...
                             'FLUX_APER_3', 'MAG_APER_3', 'MAG_AB_APER_3', 'MAG_PSF', 'MAG_AB_PSF'};        
         Args.BadFlags    = {'Saturated', 'Negative', 'NaN', 'Spike', 'Hole', 'NearEdge'};   
@@ -41,7 +41,7 @@ function [Result] = overlapSources(AI, Args)
     IndX = AI(1).CatData.colname2ind({'XPEAK','X1','X'});
     IndY = AI(1).CatData.colname2ind({'YPEAK','Y1','Y'});
     % read the list of overlap interfaces:
-    Ind   = LASToverlapsNew('CroppingScheme', Args.CroppingScheme);
+    Ind   = LASToverlaps('CroppingScheme', Args.CroppingScheme);
     Nvrlp = size(Ind,1);
     % loop over all the possible pairs of crops
     for Ivrlp = 1:Nvrlp
@@ -103,14 +103,16 @@ function [Result] = overlapSources(AI, Args)
         end
         %clear Cat1 Cat2
     end
-    if Args.Plot
+    if Args.Plot        
         [c, r] = ind2sub([4 6],Ind);
         X = (c(:,1)+c(:,2))/2;
         Y = (r(:,1)+r(:,2))/2;      
         figure; 
         subplot(2,3,1)
-        scatter(X,Y,80, Result.MAG_AB_APER_3.MedianDiff, ...
-           'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
+        if ismember('MAG_AB_APER_3',Args.Prop)
+            scatter(X,Y,80, Result.MAG_AB_APER_3.MedianDiff, ...
+                'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5);
+        end        
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
         title 'Median Diff MAG\_AB\_APER\_3'      
         subplot(2,3,2)
@@ -119,8 +121,10 @@ function [Result] = overlapSources(AI, Args)
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
         title 'Median Diff MAG\_APER\_3'
         subplot(2,3,3)
-        scatter(X,Y,80, Result.MAG_AB_PSF.MedianDiff, ...
-           'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5); 
+        if ismember('MAG_AB_PSF',Args.Prop)
+            scatter(X,Y,80, Result.MAG_AB_PSF.MedianDiff, ...
+                'filled', 'MarkerEdgeColor', 'k', 'LineWidth', 1.5);
+        end
         xlim([0.5 4.5]); ylim([0.5 6.5]); colorbar
         Msg = sprintf('filtered by %d < MAG-APER-3 < %d',Args.MagRange(1),Args.MagRange(2));
         xlabel(Msg);
@@ -151,7 +155,9 @@ function [Result] = overlapSources(AI, Args)
         figure;
         dFlux    = vertcat(Result.FLUX_APER_3.Diff{:});       
         dRelFlux = vertcat(Result.FLUX_APER_3.RelDiff{:});
-        dMagAB   = vertcat(Result.MAG_AB_APER_3.Diff{:});
+        if ismember('MAG_AB_APER_3',Args.Prop)
+            dMagAB   = vertcat(Result.MAG_AB_APER_3.Diff{:});
+        end
         dMagPSF  = vertcat(Result.MAG_PSF.Diff{:});
                 
         dX1 = vertcat(Result.X1.Diff{:}); dY1 = vertcat(Result.Y1.Diff{:});
@@ -175,10 +181,14 @@ function [Result] = overlapSources(AI, Args)
         loglog(dR1,abs(dFlux),"*"); 
         xlabel 'dR1, pix'; ylabel 'dFlux, e^-'
         subplot(2,3,3)
-        semilogy(dMagAB,dRelFlux,"*"); 
+        if ismember('MAG_AB_APER_3',Args.Prop)
+            semilogy(dMagAB,dRelFlux,"*");
+        end
         xlabel 'dMagAB\_APER3'; ylabel 'dRelFlux'
         subplot(2,3,4)
-        semilogx(dR1,dMagAB,"*"); 
+        if ismember('MAG_AB_APER_3',Args.Prop)
+            semilogx(dR1,dMagAB,"*");
+        end
         xlabel 'dR1, pix'; ylabel 'dMagAB\_APER3'
         subplot(2,3,5)
         semilogx(dR,dMagPSF,"*"); 
@@ -191,7 +201,7 @@ function [Result] = overlapSources(AI, Args)
     end
 end
 %
-function Ind = LASToverlapsNew(Args)
+function Ind = LASToverlaps(Args)
     arguments
         Args.CroppingScheme = 'new';
     end

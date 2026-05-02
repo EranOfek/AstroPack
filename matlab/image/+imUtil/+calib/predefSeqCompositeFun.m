@@ -137,8 +137,8 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     FunCatalog.Normalization = struct();
 
     FunCatalog.Normalization.Name = 'Normalization';
-    FunCatalog.Normalization.Handle = '@(Lambda, Norm) ones(numel(Lambda),1) * Norm(:)''';
-    FunCatalog.Normalization.HandleType = 'anonymous';
+    FunCatalog.Normalization.Handle = '@astro.transmission.normalization';
+    FunCatalog.Normalization.HandleType = 'named';
     FunCatalog.Normalization.Params = [Args.Norm];
     FunCatalog.Normalization.FitPar = [true];  % Fit normalization factor
     FunCatalog.Normalization.ParamInfo = struct(...

@@ -230,7 +230,7 @@ classdef PhotCalibTrans < Component
             %                         Default is [].
             %            'Lambda'         - Transmission wavelength grid [Angstrom]. Default is (3000:20:11000)'.
             %            'SearchRadius'   - Gaia matching radius [arcsec]. Default is 2.
-            %            'MagRange'       - Calibrator magnitude range [min max]. Default is [11.5 15.5].
+            %            'MagRange'       - Calibrator magnitude range [min max]. Default is [11.5 16.0].
             %            'FunListName'    - Transmission function list name. Default is 'DefaultLASTFunList'.
             %            'CustomFunList'  - Custom function list. Default is [].
             %            'OptSeqName'     - Optimization sequence name. Default is 'LAST_NormLin'.
@@ -254,6 +254,9 @@ classdef PhotCalibTrans < Component
             arguments
                 Obj
                 Cat                    % AstroImage or AstroCatalog
+                
+                % Select calibrators via match_catsHTM
+                Args.match_catsHTMArgs = {};
 
                 % Metadata argument (for AstroCatalog only)
                 Args.Metadata = []     % AstroHeader object or cell array {key1, val1, key2, val2, ...}
@@ -261,7 +264,7 @@ classdef PhotCalibTrans < Component
                 % Calibration settings (individual NV pairs with defaults)
                 Args.Lambda           = (3000:20:11000)'
                 Args.SearchRadius     = 2
-                Args.MagRange         = [11.5 15.5]
+                Args.MagRange         = [11.5 16.0]
                 Args.FilterNegFlux logical = false
                 Args.MinSN2           = 0
                 Args.FunListName      = 'DefaultLASTFunList'
@@ -441,7 +444,8 @@ classdef PhotCalibTrans < Component
                 'MagRange', Args.MagRange, ...
                 'FilterNegFlux', Args.FilterNegFlux, ...
                 'MinSN2', Args.MinSN2, ...
-                'Verbose', Args.Verbose);
+                'Verbose', Args.Verbose, ...
+                'match_catsHTMArgs',Args.match_catsHTMArgs);
 
             % selectCalibrators populates Obj.SpecData, Obj.SourceData, and Obj.CalFound
 
@@ -715,7 +719,7 @@ classdef PhotCalibTrans < Component
             %          - AstroCatalog object with observed sources (single element)
             %          * ...,key,val,...
             %            'SearchRadius' - Calibrator matching radius [arcsec]. Default is 2.
-            %            'MagRange' - Calibrator magnitude range [min max]. Default is [11.5 15.5].
+            %            'MagRange' - Calibrator magnitude range [min max]. Default is [11.5 16.0].
             %            'MinSN' - Minimum S/N for calibrators. Default is 5.
             %            'MaxSN' - Maximum S/N for calibrators. Default is 1000.
             %            'FilterBadFlags' - Apply FLAGS quality filtering. Default is true.
@@ -726,6 +730,10 @@ classdef PhotCalibTrans < Component
             %                        to skip this filter. Default is 10.
             %            'SpFluxCol' - Spectral flux column indices [flux_start, flux_end, error_start, error_end].
             %                          Default is [7, 349, 350, 692] for Gaia DR3 XP spectra.
+            %            'BadBitNames' - A cell array of bad bit mask
+            %                   names. Sources with one of these bits are not used
+            %                   as calibrators.
+            %                   Default is {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'}
             %            'Verbose' - Enable verbose output. Default is true.
             % Output : - PhotCalibTrans object with populated properties:
             %                  .SpecData - Structure with reference spectral data:
@@ -738,7 +746,7 @@ classdef PhotCalibTrans < Component
             %                  .CalFound - true if length(SourceData) > 0
             % Author : D. Kovaleva (Jan 2026)
             % Example: PC = PC.selectCalibrators(Cat);
-            %          PC = PC.selectCalibrators(Cat, 'SearchRadius', 2, 'MagRange', [11.5 15.5]);
+            %          PC = PC.selectCalibrators(Cat, 'SearchRadius', 2, 'MagRange', [11.5 16.0]);
             %          PC = PC.selectCalibrators(Cat, 'SpFluxCol', [7, 349, 350, 692]);
             % Note: Default implementation uses Gaia DR3 XP spectra from GAIADR3spec catalog.
             %       Default telescope/instrument configuration is for LAST.
@@ -748,7 +756,7 @@ classdef PhotCalibTrans < Component
                 Obj
                 Cat  % AstroCatalog
                 Args.SearchRadius = 2  % arcsec
-                Args.MagRange = [11.5 15.5]
+                Args.MagRange = [11.5 16.0]
                 Args.MinSN = 5
                 Args.MaxSN = 1000
                 Args.FilterBadFlags logical = true
@@ -757,6 +765,8 @@ classdef PhotCalibTrans < Component
                 Args.FilterNegFlux logical = false    % Remove sources with negative flux
                 Args.MinSN2 = 0                       % Minimum SN_2 for calibrators (0 to skip)
                 Args.SpFluxCol = [7, 349, 350, 692]   % [flux_start, flux_end, error_start, error_end]
+                Args.BadBitNames     = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'};
+                Args.match_catsHTMArgs = {};
                 Args.Verbose logical = false
             end
 
@@ -798,7 +808,8 @@ classdef PhotCalibTrans < Component
 
                 [~, ~, ResInd, CatH] = imProc.match.match_catsHTM(Cat, 'GAIADR3spec', ...
                                                               'Radius', Args.SearchRadius, ...
-                                                              'RadiusUnits', 'arcsec');
+                                                              'RadiusUnits', 'arcsec',...
+                                                              Args.match_catsHTMArgs{:});
 
             % Extract match information (indexed to full catalog)
             CalIdxAll   = ResInd.Obj2_IndInObj1;     % Index of calibrator match for each source
@@ -839,8 +850,8 @@ classdef PhotCalibTrans < Component
                 % Resolve bit names → combined decimal mask via BitDictionary
                 % (no hardcoded bit indices — picks up YAML renumbering).
                 BD = BitDictionary('BitMask.Image.Default');
-                BadBitNames = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'};
-                [~, ~, BadBitMask] = BD.name2bit(BadBitNames);
+                
+                [~, ~, BadBitMask] = BD.name2bit(Args.BadBitNames);
                 BadFlagsMask = BadValue | bitand(uint32(Flags), uint32(BadBitMask)) > 0;
                 GoodMask = GoodMask & ~BadFlagsMask;
 
@@ -1972,11 +1983,7 @@ classdef PhotCalibTrans < Component
                 Fun = Funs(IFun);
 
                 % Function reference
-                if IFun == 1 && strcmp(Fun.Desc, 'Normalization')
-                    FunRef = '@(Lambda,Par)Par';
-                else
-                    FunRef = func2str(Fun.Handle);
-                end
+                FunRef = func2str(Fun.Handle);
                 KeyName = sprintf('PT_%d_N', IFun);
                 HeaderObj = HeaderObj.replaceVal(KeyName, FunRef);
                 if Args.WriteComments

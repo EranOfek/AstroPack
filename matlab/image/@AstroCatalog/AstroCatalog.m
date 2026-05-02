@@ -686,6 +686,10 @@ classdef AstroCatalog < AstroTable
             %            'CooType' - Coordinate type {'sphere'|'pix'}.
             %                   If empty, use the AstroCatalog CooType.
             %                   Default is empty.
+            %            'UseMex' - Use Mex function options in:
+            %                   tools.math.geometry.boundingCircle
+            %                   and celestial.coo.boundingCircle
+            %                   Default is false.
             % Output : - The best fit circle X/Long
             %          - The best fit circle Y/Lat
             %          - The best fit circle radius
@@ -696,8 +700,9 @@ classdef AstroCatalog < AstroTable
             
             arguments
                 Obj
-                Args.OutUnits char       = 'deg';
+                Args.OutUnits            = 'deg';
                 Args.CooType             = [];
+                Args.UseMex              = false;
             end
             
             Nobj         = numel(Obj);
@@ -724,7 +729,7 @@ classdef AstroCatalog < AstroTable
                         if all(isnan(X))
                             error('All coordinates are NaN - cant find boundingCircle');
                         end
-                        [BestCoo, BestRadius] = celestial.coo.boundingCircle(X, Y);   % [radians]
+                        [BestCoo, BestRadius] = celestial.coo.boundingCircle(X, Y, [], 'UseMex',Args.UseMex);   % [radians]
                     case 'pix'
                         [X, Y] = getXY(Obj(Iobj));
                         if isempty(X) || isempty(Y)
@@ -733,7 +738,7 @@ classdef AstroCatalog < AstroTable
                         if all(isnan(X))
                             error('All coordinates are NaN - cant find boundingCircle');
                         end
-                        [BestCoo, BestRadius] = tools.math.geometry.boundingCircle(X, Y);  % [radians]
+                        [BestCoo, BestRadius] = tools.math.geometry.boundingCircle(X, Y, 'UseMex',Args.UseMex);  % [radians]
                     otherwise
                         error('Unknown CooType=%s option',CooType{Iobj});
                 end

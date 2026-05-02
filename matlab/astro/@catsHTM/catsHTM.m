@@ -455,6 +455,15 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/DECaLS/DR10/';
+            Data(I).Name = 'DECaLS10';
+            Data(I).Desc = 'The DESI Legacy Imaging Surveys Data Release 10';
+            Data(I).Ref  = 'Dey et al. 2019';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2019AJ....157..168D/abstract';
+            
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/FIRST/';
             Data(I).Name = 'FIRST';
             Data(I).Desc = 'The FIRST 21cm radio survey catalog';
@@ -545,43 +554,53 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/GALEX/DR6Plus7/';
+            Data(I).Dir  = '/GALEX/DR6Plus7Old/';
             Data(I).Name = 'GALEX';
             Data(I).Desc = 'GALEX-DR6Plus7 source catalog';
             Data(I).Ref  = 'Martin et al. 2005';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2005ApJ...619L...1M/abstract';
+  
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/GALEX/DR6Plus7/';
+            Data(I).Name = 'GALEX';
+            Data(I).Desc = 'Revised catalog of GALEX Ultraviolet Sources';
+            Data(I).Ref  = 'Bianchi et al. 2017';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2017ApJS..230...24B/abstract';
             
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/GLADE/';
+            Data(I).Dir  = '/GLADE/v1/';
             Data(I).Name = 'GLADEp';
             Data(I).Desc = 'GLADE galaxy catalog; http://glade.elte.hu/';
             Data(I).Ref  = 'Dalya et al. 2021';
             Data(I).RefLink = 'https://arxiv.org/abs/2110.06184';
             
-            % I = I + 1;
-            % Data(I).Status  = true;
-            % Data(I).iscatsHTM  = true;
-            % Data(I).Dir  = '/GLADE/plus/';
-            % Data(I).Name = 'GLADEp';
-            % Data(I).Desc = 'GLADE+ galaxy catalog; http://glade.elte.hu/';
-            % Data(I).Ref  = 'Dalya et al. 2021';
-            % Data(I).RefLink = 'https://arxiv.org/abs/2110.06184';
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/GLADE/plus/';
+            Data(I).Name = 'GLADEplus';
+            Data(I).Desc = 'GLADE+ galaxy catalog; http://glade.elte.hu/';
+            Data(I).Ref  = 'Dalya et al. 2021';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2022MNRAS.514.1403D/abstract';
+       
+      
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/ForcedPhotList/';
+            Data(I).Name = 'ForcedPhotList';
+            Data(I).Desc = 'A merge of GAIA WD catalog + AGN + CVs from SIMBAD';
+            Data(I).Ref  = '';
+            Data(I).RefLink = '';
             
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/HST/HSCv2/';
-            Data(I).Name = 'HSCv2';
-            Data(I).Desc = 'HST source catalog version 2';
-            Data(I).Ref  = 'Whitmore et al. 2016';
-            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2016AJ....151..134W/abstract';
-            
-            I = I + 1;
-            Data(I).Status  = true;
-            Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/IPHAS/';
+            Data(I).Dir  = '/IPHAS/DR2/';
             Data(I).Name = 'IPHAS';
             Data(I).Desc = 'INT Photometric Hα Survey of the Northern Galactic Plane (IPHAS DR2)';
             Data(I).Ref  = 'Barentsen et al. 2014';
@@ -595,6 +614,15 @@ classdef catsHTM
             Data(I).Desc = 'LAMOST DR4 catalog';
             Data(I).Ref  = 'Luo et al. 2018';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2018RAA..in.prep..L/abstract';
+   
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/LOFAR/';
+            Data(I).Name = 'LoTSS_DR3';
+            Data(I).Desc = 'The LOFAR Two-metre Sky Survey: Third Data Release';
+            Data(I).Ref  = 'Shimwell et al. 2026';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2026A%26A...707A.198S/abstract';
             
 %             I = I + 1;
 %             Data(I).Dir  = '/NED/20170328/';
@@ -625,7 +653,7 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = false;  % ready
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/NOAO/';
+            Data(I).Dir  = '/NOAO/merged/';
             Data(I).Name = 'NOAO';
             Data(I).Desc = 'NOAO-DR1 All-Sky source catalog';
             Data(I).Ref  = 'Nidever et al. 2018';
@@ -652,11 +680,20 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/PS1/';
+            Data(I).Dir  = '/PS1/DR1/';
             Data(I).Name = 'PS1';
             Data(I).Desc = 'The Pan-STARRS DR1 catalog';
             Data(I).Ref  = 'Chambers et al. 2016';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2016arXiv161205560C/abstract';
+            
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/PS1/DR2/';
+            Data(I).Name = 'PS1DR2';
+            Data(I).Desc = 'The Pan-STARRS release 1 (PS1) DR2 catalog';
+            Data(I).Ref  = 'Magnier et al. 2020';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2020ApJS..251....6M/abstract';
             
             I = I + 1;
             Data(I).Status  = true;
@@ -860,11 +897,20 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/WD/WDEDR3/';
+            Data(I).Dir  = '/WD/EDR3v0/';
             Data(I).Name = 'WDEDR3';
             Data(I).Desc = 'GAIA-EDR3 WD catalog';
             Data(I).Ref  = 'Gentile Fusillo et al. 2021';
             Data(I).RefLink = 'https://arxiv.org/abs/2106.07669';
+            
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/WD/EDR3v1/';
+            Data(I).Name = 'WDEDR3maincat';
+            Data(I).Desc = 'GAIA-EDR3 WD catalog, all columns';
+            Data(I).Ref  = 'Gentile Fusillo et al. 2021';
+            Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2021MNRAS.508.3877G/abstract';
             
             I = I + 1;
             Data(I).Status  = true;
@@ -895,7 +941,7 @@ classdef catsHTM
 
 
             I = I + 1;
-            Data(I).Status  = true;  % non catsHTM
+            Data(I).Status  = false;  % non catsHTM
             Data(I).iscatsHTM  = false;
             Data(I).Dir  = '/ZTF/LCDR1/';
             Data(I).Name = 'ztfLCDR1';
@@ -913,8 +959,8 @@ classdef catsHTM
             % Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2020MNRAS.499.5782O/abstract';
             
             I = I + 1;
-            Data(I).Status  = true;
-            Data(I).iscatsHTM  = true;
+            Data(I).Status  = false;
+            Data(I).iscatsHTM  = false;
             Data(I).Dir  = '/ZTF/ztfDR1var/';
             Data(I).Name = 'ztfDR1var';
             Data(I).Desc = 'ZTF-DR1 variable star candidates';
@@ -1009,7 +1055,7 @@ classdef catsHTM
             Text = '';
             Text = sprintf('%s <table><tr><th> Name </th> <th> Description</th> <th>wget file</th> <th>checksum</th> <th> Nsrc</th><th>Reference</th> </tr>\n',Text);
             for I=1:1:N
-                I
+                
                
                Data(I).Name
                

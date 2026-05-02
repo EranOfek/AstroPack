@@ -10,7 +10,7 @@ function [Result] = directLoad(TempName, Args)
     %            'Path' - Default is pwd.
     % Output : - AstroImage/AstroCatalog/MatchedSources of loaded files.
     % Author : Eran Ofek (2026 Jan) 
-    % Example: AI=pipeline.last.load.directLoadCrop('LAST*_TNO*_016_sci_proc_Image_1.fits');
+    % Example: AI=pipeline.last.load.directLoad('LAST*_TNO*_016_sci_proc_Image_1.fits');
 
     arguments
         TempName          = 'LAST*_TNO*_016_sci_proc_Image_1.fits';
@@ -21,7 +21,7 @@ function [Result] = directLoad(TempName, Args)
     cd(Args.Path);
 
     F=io.files.findFiles(TempName,'NotModified',0,'MinSize',[],'MaxSize',[]);
-    FN = fullfile({F.folder},{F.name}).';
+    FN = sort(fullfile({F.folder},{F.name}).');
     if isempty(FN)
         Result = [];
     else
@@ -35,4 +35,6 @@ function [Result] = directLoad(TempName, Args)
             error('Unknown file type');
         end
     end
+    
+    cd(PWD);
 end

@@ -1,4 +1,4 @@
-function [Az, Alt, AM, PA]=radec2azalt(JD, RA, Dec, Args)
+function [Az, Alt, AM, PA, HA]=radec2azalt(JD, RA, Dec, Args)
     % Convert JD,RA,Dec to Az,Alt,AM,ParAng
     % Input  : - Array of JD [days]
     %          - Array of RA
@@ -12,6 +12,7 @@ function [Az, Alt, AM, PA]=radec2azalt(JD, RA, Dec, Args)
     %          - Altitude.
     %          - Hardie airmass.
     %          - Parallactic angle.
+    %          - HA.
     % Author : Eran Ofek (May 2023)
     % Example: [Az, Alt, AM, ParAng]=celestial.coo.radec2azalt(2451545+90,0,0,'GeoCoo',[35 30]);
 
@@ -54,5 +55,6 @@ function [Az, Alt, AM, PA]=radec2azalt(JD, RA, Dec, Args)
 
     Az  = Az.*OutFactor;
     Alt = Alt.*OutFactor;
+    HA  = HA.*OutFactor;
 
 end

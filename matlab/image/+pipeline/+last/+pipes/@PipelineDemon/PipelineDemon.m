@@ -2508,7 +2508,7 @@ classdef PipelineDemon < Component
             Tstart = clock;
 
             % executing pipelineI
-            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
+            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
             %ProcImageList = TableRaw.FileName;                
             RunTime = etime(clock, Tstart);
             Ntr = size(TableRaw,1);
@@ -2530,7 +2530,7 @@ classdef PipelineDemon < Component
                 try
                     Tstart = clock;
                     AllForcedPhot = []; % TEMPORARY
-                    [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, Args);
+                    [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, JD, Args);
                     RunTime = etime(clock, Tstart);
                     TableRaw.TimeSaveI = RunTime.*ones(Ntr,1);
 
@@ -2610,7 +2610,7 @@ classdef PipelineDemon < Component
         end
 
 
-        function [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, Args)
+        function [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, JD,Args)
             % Save data products for pipeline I
 
           
@@ -2636,9 +2636,17 @@ classdef PipelineDemon < Component
 
             [~,FN_I] = imProc.io.saveProductImage(AllSI, FN_I, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveEpochProduct, 'WriteHeader',Args.SaveEpochHeader, 'WriteMethodImages',Args.WriteMethodImages, 'WriteMethodTables',Args.WriteMethodTables, 'CompressedOutput', Args.CompressedOutput);  % 20 s
 
+            % Streaks
+            % need JD
+            FN_Str = FN_I.reorderEntries(1, 'CreateNewObj',true);
+            Nf = FN_Str.nFiles;
+            FN_Str.FileType = repmat("mat",Nf,1);
+            FN_Str.Product  = repmat("Streaks",Nf,1);
+            imProc.io.saveProductStreak(AllSI, FN_Str, 'JD',JD);
+
             % Coadd
             FN_C.SubDir  = FN_I.SubDir;
-            FN_C.Counter = repmat(0, numel(Coadd),1);
+            FN_C.Counter = zeros(numel(Coadd),1);
             imProc.io.saveProductImage(Coadd, FN_C, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveVisitProduct, 'WriteHeader',Args.SaveVisitHeader, 'CompressedOutput', Args.CompressedOutput);  % 3 s
             
             % Asteroids:
@@ -2955,7 +2963,8 @@ classdef PipelineDemon < Component
                 Args.UncompressRaw     = false;             % we already know how to read compressed fits.fz, so no need to uncompress
                 
                 Args.MoveNew2Raw       = true;     % move RAW images from new/ to YYYY/MM/DD/raw/ after processing
-                Args.RemoveAfterWrite  = false;    % remove the output YYYY/MM/DD/raw/subdir/ folder after writing into it (usefull for multiple tests)  
+                Args.RemoveAfterWrite  = false;    % remove the output YYYY/MM/DD/raw/subdir/ folder after writing into it (usefull for multiple tests)
+                Args.StaticRAWDir logical = false; % when NewPath holds a fixed archive (e.g. for testing), process all full groups in order instead of only the most recent
                 Args.DebugMode         = false;
             end
             RAD = 180./pi;
@@ -3060,8 +3069,14 @@ classdef PipelineDemon < Component
                     FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
     
                     % Select visit for reduction:
-                    [IndStartGroup]=selectVisitForReduction(Obj, FN_Sci_Groups, Args);
-                    
+                    if Args.StaticRAWDir
+                        % Test mode: queue all full groups, oldest-first
+                        NinGroup   = FN_Sci_Groups.nFiles;
+                        GroupQueue = fliplr(find(NinGroup == Args.MaxInGroup));
+                    else
+                        GroupQueue = selectVisitForReduction(Obj, FN_Sci_Groups, Args);
+                    end
+
                     %--- End Select group ---
                     
                     % check if stop loop
@@ -3073,12 +3088,13 @@ classdef PipelineDemon < Component
                         delete(Args.AbortFileName);
                     end
     
-                    if isempty(IndStartGroup)
+                    if isempty(GroupQueue)
                         % no files for reduction found
                         Msg = sprintf('Waiting for new visit - pause for %f seconds', Args.PauseNotFound);
                         Obj.writeLog(Msg, LogLevel.Info);
                         pause(Args.PauseNotFound);
                     else
+                        for IndStartGroup = GroupQueue
                         % visit found
                         TstartAll = clock;
     
@@ -3193,11 +3209,15 @@ classdef PipelineDemon < Component
                             Obj.writeLog(MsgV, LogLevel.Info);  
                         end
                         
-                        RunTime = etime(clock, TstartAll);    
+                        RunTime = etime(clock, TstartAll);
                         Msg = sprintf('Visit total run time : %.1f',RunTime);
                         Obj.writeLog(Msg, LogLevel.Info);
-    
-                    end % if isempty(IndStartGroup)
+
+                        if ~Cont
+                            break;
+                        end
+                        end % for IndStartGroup
+                    end % if isempty(GroupQueue)
     
                     if ~Cont
                         % exist the visit loop

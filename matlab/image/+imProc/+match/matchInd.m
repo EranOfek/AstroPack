@@ -68,6 +68,8 @@ function [Result1, Result2] = matchInd(Obj1, Obj2, Args)
     %            'TestSort2'         - Test that catalog 2 is sorted as
     %                                  required by the MEX matcher.
     %                                  Default is false.
+    %            'ConvertCoo1toDouble' - Default is false.
+    %            'ConvertCoo2toDouble' - Default is false.
     %
     % Output : - Result1 : Structure array of length max(numel(Obj1),
     %                      numel(Obj2)). Each element contains the matching
@@ -112,6 +114,9 @@ function [Result1, Result2] = matchInd(Obj1, Obj2, Args)
         Args.Sort2             = false;
         Args.SortCol           = 2;
         Args.TestSort2         = false;  % test that list 2 is sorted
+
+        Args.ConvertCoo1toDouble = false;
+        Args.ConvertCoo2toDouble = false;
     end
     RAD = 180./pi;
 
@@ -169,6 +174,13 @@ function [Result1, Result2] = matchInd(Obj1, Obj2, Args)
             end
             if strcmp(Units2, 'deg')
                 Coo2 = Coo2./RAD;
+            end
+
+            if Args.ConvertCoo1toDouble
+                Coo1 = double(Coo1);
+            end
+            if Args.ConvertCoo2toDouble
+                Coo2 = double(Coo2);
             end
 
             % assumption: Coo2 is sorted by Dec

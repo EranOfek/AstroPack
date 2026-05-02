@@ -52,6 +52,8 @@ function [Mode, Var, Method] = modeVar_SampleHist(Array, Args)
     %                   If the fitted variance is negative or exceeds this
     %                   limit, the code switches to the robust fallback
     %                   method. Default is 1e4.
+    %            'MaxRangeLogL' - Maximum range in LogL (from max LogL) to
+    %                   fit. Default is 0.6.
     %            'UseMex' - Logical indicating if to use the fast MEX
     %                   version. Default is true.
     %
@@ -82,12 +84,13 @@ function [Mode, Var, Method] = modeVar_SampleHist(Array, Args)
     arguments
         Array
         Args.Ninit           = 1000;
-        Args.QuantileRange   = [0.1 0.9];
+        Args.QuantileRange   = [0.02 0.8];
         Args.Nlarge          = 1e4;
         Args.Nbin            = 20;
         Args.IntegerData     = true;
         Args.FitOnlyPeak     = false;
         Args.MaxVar          = 1e4;
+        Args.MaxRangeLogL    = 0.6
         Args.UseMex          = true;
     end
 
@@ -149,17 +152,26 @@ function [Mode, Var, Method] = modeVar_SampleHist(Array, Args)
     
           
             Y = log(Nhist(Flag));
+            [MaxY,ImaxY] = max(Y);
+            FlagUse = Y > (MaxY-Args.MaxRangeLogL);
+
+            Flag      = Flag(FlagUse);
+            BinCenter = BinCenter(FlagUse);
+            Y         = Y(FlagUse);
             [~,ImaxY] = max(Y);
+
             Mode0     = BinCenter(ImaxY);
             H = ones(sum(Flag),3);
-            BinCenter = BinCenter - Mode0;
+            %BinCenter = BinCenter - Mode0;
             H(:,2) = BinCenter(Flag);
             H(:,3) = BinCenter(Flag).^2;
         
             Par = H\Y(:);
-            Mode = Mode0 - 0.5.*Par(2)./Par(3);
+            %Mode = Mode0 - 0.5.*Par(2)./Par(3);
+            Mode = -0.5.*Par(2)./Par(3);
             DeltaChi2 = 0.5;
             Var = -DeltaChi2./Par(3);
+            %plot(BinCenter, H*Par); hold on; plot(BinCenter, Y, 'o')
         
             if Var<0 || Var>Args.MaxVar
                 % no maximum to the parabola

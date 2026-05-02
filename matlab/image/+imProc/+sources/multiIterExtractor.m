@@ -225,7 +225,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     %                   to imUtil.streaks.detectStreaksLSD
     %                   Default is {}.
     %            ---
-    %            'UseMex' - Default is false.
+    %            'UseMex' - Default is true.
     %
     % Output : - (Result) An AstroImage array, same size as the
     %            input Obj, in which the Image, Back, Var, PSF and
@@ -258,7 +258,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.KeyNcoadd                 = 'NCOADD';
 
         % background and variance measurement:
-        Args.backVarArgs               = {'Block',[128 128], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',5, 'MaxVal',3000},{}}};
+        Args.backVarArgs               = {'Block',[128 128], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',10, 'MaxVal',6000},{}}};
         Args.ReCalcBackIter            = []; % list of iterations in which to re-calc the background. If 1, recalc also in the begining.
 
         % measure PSF
@@ -276,7 +276,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.ThresholdPSF              = 100;
         Args.RangeSN                   = [50 1000];
         Args.InitPsf                   = @imUtil.kernel2.gauss
-        Args.InitPsfArgs cell          = {[0.1; 1.2]}; %{[0.1;1.0;1.5]};  
+        Args.InitPsfArgs cell          = {[0.1; 1.5]}; %{[0.1;1.0;1.5]};  
         Args.ConvFunExtendedPSF        = @imUtil.kernel2.sersic;
         Args.ConvFunExtendedPSF_Args   = {[1 2 1]}; 
         
@@ -354,15 +354,35 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.WriteDs9Regions           = false;
         Args.AddSrcStat2Header         = true;
         Args.KeyNsrc                   = 'NSTARS';
+        Args.KeyMedChi2Dof             = 'M_CHI2D';  % median of CHI2DOF over all stars 
 
         Args.SearchStreaks                 = false;
         Args.detectStreaksLSDArgs          = {};
 
-
+        % Bright stars back/var adjustment:
+        Args.BS_R     = (0:1:1500)+0.1;
+        Args.BS_Par   = [0.57111      -4.1984       4.7473];
+        Args.BS_Prof  = @(Par, R) 10.^polyval(Par,log10(R));
+        Args.BS_PL    = 1.5;
+        Args.MethodBS = 'prof';
+        
         Args.UseMex                        = false;
 
 
     end
+
+    if isa(Args.BS_Prof, 'function_handle')
+        BS_RadProf = Args.BS_Prof(Args.BS_Par, Args.BS_R);
+        %loglog(R,10.^polyval([Par],log10(R)))
+        
+        Ibsr = find(Args.BS_R<max(Args.AperRadius),1,'last');
+        BS_RadProf(1:Ibsr-1) = BS_RadProf(Ibsr);
+        %Fbs = BS_RadProf>1e6;
+        %BS_RadProf(Fbs) = 1e6;
+    else
+        BS_RadProf = Args.BS_Prof;
+    end
+    MaxRadius = ceil(max(Args.BS_R));
     
     % check consistency
     % if numel(Args.Threshold) > numel(Args.MomRadius) || numel(Args.Threshold) > numel(Args.FitRadius)
@@ -476,10 +496,42 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Cat             = AstroCatalog([1 Niter]);                              % catalogs produced at each iter, merged afterwards 
         
         SizeImage       = size(AI.ImageData.Image);
-        SourceImage     = repmat(single(0),SizeImage(1), SizeImage(2), Niter);    % source image after each iteration
-        SumSourceImage  = repmat(single(0),SizeImage(1), SizeImage(2));    % source image after each iteration
-        if ExtraOutput
-            SubtractedImage = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % subtracted image after each iteration
+
+        if Args.UseMex
+            % SourceImage     = zeros(SizeImage(1), SizeImage(2), Niter, 'like',AI.ImageData.Data);    % source image after each iteration
+            % SumSourceImage  = zerso(SizeImage(1), SizeImage(2), 'like',AI.ImageData.Data);    % source image after each iteration
+            % if ExtraOutput
+            %     SubtractedImage = zeros(SizeImage(1), SizeImage(2), Niter, 'like',AI.ImageData.Data);    % subtracted image after each iteration
+            % end
+
+            %ClassI = class(AI.ImageData.Data);
+            % FROM SOME reasons using zeros or allocateUninit fails the
+            % function.
+            SourceImage     = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % source image after each iteration
+            SumSourceImage  = repmat(single(0), SizeImage(1), SizeImage(2));    % source image after each iteration
+            if ExtraOutput
+                SubtractedImage = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % subtracted image after each iteration
+            end 
+
+            
+            %SourceImage     = tools.array.mex.allocateUninit([SizeImage(1), SizeImage(2), Niter], ClassI);    % source image after each iteration
+            %SumSourceImage  = tools.array.mex.allocateUninit([SizeImage(1), SizeImage(2)], ClassI);    % source image after each iteration
+            %if ExtraOutput
+            %    SubtractedImage = tools.array.mex.allocateUninit([SizeImage(1), SizeImage(2), Niter], ClassI);    % subtracted image after each iteration
+            %end
+        else
+            %ClassI = class(AI.ImageData.Data);
+            SourceImage     = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % source image after each iteration
+            SumSourceImage  = repmat(single(0), SizeImage(1), SizeImage(2));    % source image after each iteration
+            if ExtraOutput
+                SubtractedImage = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % subtracted image after each iteration
+            end 
+
+            % SourceImage     = zeros(SizeImage(1), SizeImage(2), Niter, 'like',AI.ImageData.Data);    % source image after each iteration
+            % SumSourceImage  = zerso(SizeImage(1), SizeImage(2), 'like',AI.ImageData.Data);    % source image after each iteration
+            % if ExtraOutput
+            %     SubtractedImage = zeros(SizeImage(1), SizeImage(2), Niter, 'like',AI.ImageData.Data);    % subtracted image after each iteration
+            % end
         end
 
         SizePSF = size(AI.PSFData.DataPSF);
@@ -669,23 +721,60 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                     % Add noise/back around bright sources
                     %GK = imUtil.kernel2.gauss(FWHM);
                     %AI.Var  = conv2(AI.Var, GK, 'same'); 
-                    LK = imUtil.kernel2.lorentzian(4,[101 101]);
-                    CK = imUtil.kernel2.circ(ceil(2.*FWHM(Iobj)),[15 15]);
-                    CK = CK./max(CK,[],'all');
-                    EdgesVarMap = repmat(single(0), SizeImage);
-                    ColData = AI.CatData.getCol({'XPEAK','YPEAK','FLUX_APER_3'});
-                    LinIndex = imUtil.image.sub2ind_fast(SizeImage,ColData(:,2), ColData(:,1));
-                    %LinIndex = imUtil.image.mex.sub2ind_mex(SizeImage, ColData(:,2), ColData(:,1));
-                    %LinIndex = sub2ind(SizeImage, AI.CatData.Table.YPEAK, AI.CatData.Table.XPEAK);
-                    %EdgesVarMap(LinIndex) = AI.CatData.Table.FLUX_APER_3;
+
                     
-                    MinFluxFlag = ColData(:,3)>1e5;
-                    EdgesVarMap(LinIndex) = ColData(:,3).*Args.ScatteredLightFrac.*max(1, log10(ColData(:,3)./1e5)).*MinFluxFlag;
-                    %AI.Back(AI.Image>5000) = 5000;
-                    ConvBright = conv2(EdgesVarMap, LK, 'same');
-                    ConvCore   = conv2(EdgesVarMap, CK, 'same')./Args.ScatteredLightFrac;
-                    AI.VarData.Image  = AI.VarData.Image  + ConvBright./(Ncoadd.*Gain) + ConvCore;
-                    AI.BackData.Image = AI.BackData.Image + ConvBright + ConvCore;
+                    switch Args.MethodBS
+                        case 'prof'
+
+
+                            % Add noise/back around bright sources
+                            %tic;
+                            % normalize such that its correct for a source
+                            % with flux of 10^5:
+                            %BS_RadProf = io.files.load2('/home/eran/LAST_BrightStar_RadialProfile.mat');
+        
+                            ColData = AI.CatData.getCol({'XPEAK','YPEAK','FLUX_APER_3'});
+                            % 
+                            MinFluxFlag = ColData(:,3)>1e5;
+                            X = ColData(MinFluxFlag,1);
+                            Y = ColData(MinFluxFlag,2);
+                            Flux = ColData(MinFluxFlag,3);
+                            FluxNorm = (Flux./1e5).^Args.BS_PL;
+                            % 
+                            MaxRadiusF = repmat(MaxRadius,size(X));
+                            VarFactor   = AI.VarData.Data(1)./AI.BackData.Data(1); %   <1./(Ncoadd.*Gain) or use AI.VarData.Data(1)./AI.BackData.Data(1)>
+                            AI.BackData.Data = imUtil.art.mex.addBrightSourceProfile(AI.BackData.Data, X, Y, FluxNorm, MaxRadiusF, BS_RadProf);
+                            AI.VarData.Data  = imUtil.art.mex.addBrightSourceProfile(AI.VarData.Data, X, Y, FluxNorm.*VarFactor, MaxRadiusF, BS_RadProf);
+        
+                            %toc
+
+                        case 'old'
+                            % tic;
+                            % hueristic algorithm /problematic and requires
+                            % fine tunning
+                            LK = imUtil.kernel2.lorentzian(4,[101 101]);
+                            CK = imUtil.kernel2.circ(ceil(2.*FWHM(Iobj)),[15 15]);
+                            CK = CK./max(CK,[],'all');
+                            EdgesVarMap = repmat(single(0), SizeImage);
+                            ColData = AI.CatData.getCol({'XPEAK','YPEAK','FLUX_APER_3'});
+                            LinIndex = imUtil.image.sub2ind_fast(SizeImage,ColData(:,2), ColData(:,1));
+                            %LinIndex = imUtil.image.mex.sub2ind_mex(SizeImage, ColData(:,2), ColData(:,1));
+                            %LinIndex = sub2ind(SizeImage, AI.CatData.Table.YPEAK, AI.CatData.Table.XPEAK);
+                            %EdgesVarMap(LinIndex) = AI.CatData.Table.FLUX_APER_3;
+
+                            MinFluxFlag = ColData(:,3)>1e5;
+                            EdgesVarMap(LinIndex) = ColData(:,3).*Args.ScatteredLightFrac.*max(1, log10(ColData(:,3)./1e5)).*MinFluxFlag;
+                            %AI.Back(AI.Image>5000) = 5000;
+                            ConvBright = conv2(EdgesVarMap, LK, 'same');
+                            ConvCore   = conv2(EdgesVarMap, CK, 'same')./Args.ScatteredLightFrac;
+                            AI.VarData.Image  = AI.VarData.Image  + ConvBright./(Ncoadd.*Gain) + ConvCore;
+                            AI.BackData.Image = AI.BackData.Image + ConvBright + ConvCore;
+                            % toc
+                        
+                        otherwise
+                            error('Uknown BrightStarsAlgo option');
+                    end
+
                 end % if Iiter==1 && Args.AddBackNoise
                 
     
@@ -810,6 +899,11 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         if ~isempty(Args.AddSrcStat2Header)
             Nsrc = Result(Iobj).CatData.sizeCatalog;
             Result(Iobj).HeaderData.insertKey({Args.KeyNsrc, Nsrc, ''});
+
+            % median CHI2_DOF
+            Chi2Dof = Result(Iobj).CatData.getCol('PSF_CHI2DOF');
+            MedChi2Dof = median(Chi2Dof,'all','omitnan');
+            Result(Iobj).HeaderData.insertKey({Args.KeyMedChi2Dof, MedChi2Dof, ''});
         end
 
         % save a copy of the AI object with the image replaced by the final subtracted image
