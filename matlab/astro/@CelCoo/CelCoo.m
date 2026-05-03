@@ -206,6 +206,95 @@ classdef CelCoo < matlab.mixin.Copyable
     end
  
     
+    methods % constructor
+        function Obj=CelCoo(RA, Dec, Args)
+            % Construct a CelCoo object from RA/Dec (or resolvable names).
+            % Description:
+            %   Resolves RA/Dec through celestial.convert.cooResolve, stores
+            %   coordinates in Obj.RA/Obj.Dec, then assigns any non-empty
+            %   optional fields in Args to matching object properties (same
+            %   names as class properties).
+            % Input  : - Right ascension: numeric angle(s), or object name(s)
+            %            passed to celestial.convert.cooResolve.
+            %          - Declination: numeric angle(s), or empty when RA is
+            %            given as resolvable name(s).
+            %          * ...,key,val,...
+            %            'InUnits' - Units for numeric input RA/Dec before
+            %                   resolution ('rad'|'deg'). Default is 'deg'.
+            %            'Units' - Units for stored Obj.RA/Obj.Dec after
+            %                   cooResolve ('rad'|'deg'). Default is 'rad'.
+            %            'Server' - Name resolver server for cooResolve.
+            %                   Default is [].
+            %            'System' - Coordinate system tag (e.g. 'eq').
+            %                   Default is [] (class default).
+            %            'Equinox' - Julian equinox metadata (scalar).
+            %                   Default is [] (class default).
+            %            'IsTrue' - True vs mean equinox of date (logical).
+            %                   Default is [] (class default).
+            %            'Epoch' - Epoch value. Default is [] (class default).
+            %            'EpochType' - Epoch type flag. Default is [].
+            %            'PM_RA' - Proper motion in RA [mas/yr]. Default [].
+            %            'PM_Dec' - Proper motion in Dec [mas/yr]. Default [].
+            %            'RadVel' - Radial velocity (property units; see class).
+            %                   Default [].
+            %            'Plx' - Parallax (property units; see class). Default [].
+            % Output : - CelCoo object with RA/Dec and any supplied metadata.
+            %
+            % Notes  : - Only Args fields listed above are accepted by the
+            %            arguments block; additional properties must be set
+            %            after construction if needed.
+            %          - While assigning properties, DoNotCall is set true so
+            %            setters (e.g. Equinox, Epoch) do not trigger transforms.
+            % Author : Eran Ofek (May 2026)
+            % Example: C = CelCoo(180, 30);
+            %          C = CelCoo('M31', [], 'InUnits','deg','Server','simbad');
+            %          C = CelCoo(RA, Dec, 'InUnits','deg','Units','rad', ...
+            %                     'Equinox',2000,'PM_RA',10,'PM_Dec',-2);
+
+            arguments
+                RA
+                Dec
+                Args.InUnits  = 'deg';
+                Args.Units = 'rad';
+                Args.Server   = [];
+
+                Args.System   = [];
+                Args.Equinox  = [];
+                Args.IsTrue   = [];
+                Args.Epoch    = [];
+                Args.EpochType = [];
+                Args.PM_RA     = [];
+                Args.PM_Dec    = [];
+                Args.RadVel    = [];
+                Args.Plx       = [];
+
+            end
+
+            [RA, Dec] = celestial.convert.cooResolve(RA, Dec, 'InUnits',Args.InUnits, 'OutUnits',Args.Units, 'Server',Args.Server);
+    
+            Obj.RA  = RA;
+            Obj.Dec = Dec;
+            %Obj.Units = Args.Units;
+
+            PropList = properties(Obj);
+            Npl      = numel(PropList);
+            ArgsF    = fieldnames(Args);
+            DefDoNotCall = Obj.DoNotCall;
+            Obj.DoNotCall = true;
+            for Ipl=1:1:Npl
+                Iarg = find(strcmp(PropList{Ipl}, ArgsF));
+                if ~isempty(Iarg) 
+                    if ~isempty(Args.(ArgsF{Iarg}))
+                        Obj.(PropList{Ipl}) = Args.(ArgsF{Iarg});
+                    end
+                end
+            end
+            Obj.DoNotCall = DefDoNotCall;
+
+        end
+
+    end
+
     methods % populate
         function Obj=populateEpoch(Obj, Epoch)
             % Convert Epoch to Julian Epoch and populate
