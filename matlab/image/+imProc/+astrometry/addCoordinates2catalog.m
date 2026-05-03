@@ -74,43 +74,42 @@ function Result = addCoordinates2catalog(Obj, Args)
             error('WCS is empty');
         end
         
-        % Cat contains an AstroCatalog object
-        
-        % check if RA/Dec exist in catalog
-        [ColIndRA]  = colnameDict2ind(Cat, Args.DicNamesRA);
-        [ColIndDec] = colnameDict2ind(Cat, Args.DicNamesDec);
-        
-        if isempty(ColIndRA) || isempty(ColIndDec)
-            UpdateCoo = true;
-        else
-            % RA/Dec columns already exist in Cat
-            UpdateCoo = Args.UpdateCoo;
-        end
-        
-        if UpdateCoo
-            [X, Y] = getXY(Cat, 'ColX',Args.DicNamesX, 'ColY',Args.DicNamesY);
+        if WCS.Success
+            % Cat contains an AstroCatalog object
             
-            [Alpha, Delta]  = xy2sky(WCS, X, Y, 'OutUnits',Args.OutUnits,...
-                                               'includeDistortion',Args.includeDistortion,...
-                                               'useTran2D',Args.useTran2D);
-            % replace or insert coordinates
-            Cat = replaceCol(Cat, [Alpha, Delta], {Args.ColNameRA, Args.ColNameDec}, Args.Pos, {Args.OutUnits, Args.OutUnits});
+            % check if RA/Dec exist in catalog
+            [ColIndRA]  = colnameDict2ind(Cat, Args.DicNamesRA);
+            [ColIndDec] = colnameDict2ind(Cat, Args.DicNamesDec);
             
-            % update catalog
-            if isa(Obj, 'AstroCatalog')
-                Result(Iobj) = Cat;
-            elseif isa(Obj, 'AstroImage')
-                Result(Iobj).CatData = Cat;
+            if isempty(ColIndRA) || isempty(ColIndDec)
+                UpdateCoo = true;
             else
-                error('Unknown input object type - first input arg must be AstroCatalog or AstroImage');
+                % RA/Dec columns already exist in Cat
+                UpdateCoo = Args.UpdateCoo;
             end
             
-        end
+            if UpdateCoo
+                [X, Y] = getXY(Cat, 'ColX',Args.DicNamesX, 'ColY',Args.DicNamesY);
+                
+                [Alpha, Delta]  = xy2sky(WCS, X, Y, 'OutUnits',Args.OutUnits,...
+                                                   'includeDistortion',Args.includeDistortion,...
+                                                   'useTran2D',Args.useTran2D);
+                % replace or insert coordinates
+                Cat = replaceCol(Cat, [Alpha, Delta], {Args.ColNameRA, Args.ColNameDec}, Args.Pos, {Args.OutUnits, Args.OutUnits});
+                
+                % update catalog
+                if isa(Obj, 'AstroCatalog')
+                    Result(Iobj) = Cat;
+                elseif isa(Obj, 'AstroImage')
+                    Result(Iobj).CatData = Cat;
+                else
+                    error('Unknown input object type - first input arg must be AstroCatalog or AstroImage');
+                end
+                
+            end % if UpdateCoo
             
-            
-        
-        
-    end
+        end % if WCS.Success    
+    end % for Iobj=1:1:Nobj
     
     
     

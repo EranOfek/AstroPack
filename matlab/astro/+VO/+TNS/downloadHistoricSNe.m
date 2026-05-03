@@ -8,7 +8,7 @@ function [T, CsvFiles] = downloadHistoricSNe(Args)
     %            'Verbose'   - logical = false
     %            'MaxPages'  - double = Inf
     %            'Pause'     - Psuse [s] between retrivals. Default is 10.
-    %            'FixColumns' - make the columns similat to that of the
+    %            'FixColumns' - make the columns similar to that of the
     %                   TNS. Default is true.
     % Output : - TNS table with all pages concatenated
     %          - CSV file names
@@ -149,7 +149,7 @@ function [T, CsvFiles] = downloadHistoricSNe(Args)
         T.Properties.VariableNames{'DiscoveryFilter'} = 'discmagfilter';
         T.Properties.VariableNames{'DiscoveryBibcode'} = 'Discovery_ADS_bibcode';
         T.Properties.VariableNames{'ClassificationBibcodes'} = 'Class_ADS_bibcodes';
-
+        T.redshift = str2double(T.redshift);
 
         RmCol = {'RA','DEC','Name','HostName','HostRedshift','DiscoveryDataSource_s',...
          'ClassifyingGroup_s','AssociatedGroup_s','Disc_InternalName','Disc_Instrument_s',...

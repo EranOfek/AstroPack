@@ -2508,6 +2508,7 @@ classdef PipelineDemon < Component
             Tstart = clock;
 
             % executing pipelineI
+            AllForcedPhot = []; % TEMPORARY / not used
             [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
             %ProcImageList = TableRaw.FileName;                
             RunTime = etime(clock, Tstart);
@@ -2529,7 +2530,7 @@ classdef PipelineDemon < Component
 
                 try
                     Tstart = clock;
-                    AllForcedPhot = []; % TEMPORARY
+                    
                     [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, JD, Args);
                     RunTime = etime(clock, Tstart);
                     TableRaw.TimeSaveI = RunTime.*ones(Ntr,1);
@@ -2964,7 +2965,7 @@ classdef PipelineDemon < Component
                 
                 Args.MoveNew2Raw       = true;     % move RAW images from new/ to YYYY/MM/DD/raw/ after processing
                 Args.RemoveAfterWrite  = false;    % remove the output YYYY/MM/DD/raw/subdir/ folder after writing into it (usefull for multiple tests)
-                Args.StaticRAWDir logical = false; % when NewPath holds a fixed archive (e.g. for testing), process all full groups in order instead of only the most recent
+                Args.StaticRAWDir      = false;    % when NewPath holds a fixed archive (e.g. for testing), process all full groups in order instead of only the most recent
                 Args.DebugMode         = false;
             end
             RAD = 180./pi;
