@@ -171,10 +171,10 @@ function [FWHM, Nstars, Info, ACF] = fwhm_fromACF(Image, Args)
             %   % interpolate:
             %   FWHM = Args.Step .*Args.CorrFrac./CumVal(1);
             %else
-                FWHM = interp1(CumVal, Rad(:), Args.CorrFrac);
+%                 FWHM = interp1(CumVal, Rad(:), Args.CorrFrac); % breaks if CumVal has the same value for 2 point in Rad  
+                FWHM = tools.interp.interp1crossVal(Rad(:),CumVal,Args.CorrFrac);
             %end
             %%%
-
             
             Info.Rad = Rad;
             Info.CumVal = CumVal;
