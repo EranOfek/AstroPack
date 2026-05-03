@@ -882,7 +882,7 @@ classdef CelCoo < matlab.mixin.Copyable
                 Args.TimeStep (1,1) double = 5./1440; %1./96;
             end
 
-            error('Not tested')
+            %error('Not tested')
 
             % --- Observer site: same convention as azAlt / isMoonOk ---
             if isempty(Args.GeoCoo)
@@ -904,15 +904,27 @@ classdef CelCoo < matlab.mixin.Copyable
             Sz      = size(Obj.RA);
             Ntarget = numel(Obj.RA);
 
+            JD1 = JD;
             % find noon of the previous day.
-            Vec_JD = ((JD-1):0.01:JD);
-            Sun    = Obj.sunDist(Vec_JD);
-            [~,Imax] = max(Sun.Alt);
-            JD = Vec_JD(Imax);
+            Sun    = Obj.sunDist(JD1, 'OutUnits','deg');   % [deg]
+            if Sun.Alt(end)>(Args.SunAlt.*ConvToDeg)
+                % day time
+                % use elestial.time.riseSet(
+                % will return only the NEXT rise/set
+                JD = JD1;
+            else
+                % night time
+                % need to find the previous set
 
+                Vec_JD = ((JD-1):0.01:JD);
+                Sun    = Obj.sunDist(Vec_JD, 'OutUnits','deg');   % [deg]
+                [~,Imax] = max(Sun.Alt);
+                JD = Vec_JD(Imax);
+            end
+            
             % find midnight
             [Sun.RA, Sun.Dec] = celestial.SolarSys.suncoo(JD, 'a');  % [rad]
-            [Sun.Rise, Sun.Set] = celestial.time.riseSet(JD, Sun.RA, Sun.Dec, Args.SunAlt.*ConvToRad, 'ObsPos',Args.GeoCoo, 'InUnits','rad', 'First','first', 'LSTType',Args.LSTType);
+            [Sun.Rise, Sun.Set] = celestial.time.riseSet(JD, Sun.RA, Sun.Dec, Args.SunAlt.*ConvToRad, 'ObsPos',Args.GeoCoo, 'InUnits','rad', 'First','set', 'LSTType',Args.LSTType);
             % Need: Rise after Set
             JD_Midnight = 0.5.*(Sun.Rise + Sun.Set);
            
@@ -1316,6 +1328,7 @@ classdef CelCoo < matlab.mixin.Copyable
             % Output : - Structure with Sun fields:
             %              RA, Dec  - Sun apparent equatorial coordinates.
             %              Az, Alt  - Sun horizontal coordinates.
+            %              AltDir - Sun altitude direction (-1; setting).
             %              EqOfTime - Equation of time [minutes].
             %          - (Optional) Angular distance between each Obj
             %            coordinate and the Sun, in OutUnits.
@@ -1339,7 +1352,9 @@ classdef CelCoo < matlab.mixin.Copyable
             % equation of time [min]
             [Sun.RA,Sun.Dec,~,~,Sun.EqOfTime]=celestial.SolarSys.suncoo(JD, 'a');
             [Sun.Az, Sun.Alt] = celestial.coo.radec2azalt(JD, Sun.RA, Sun.Dec,'GeoCoo',Obj.GeoCoo(1:2)./RAD, 'InUnits','rad', 'OutUnits','rad','LSTType','m');
-            
+            [~, Alt2] = celestial.coo.radec2azalt(JD+0.01./1440, Sun.RA, Sun.Dec,'GeoCoo',Obj.GeoCoo(1:2)./RAD, 'InUnits','rad', 'OutUnits','rad','LSTType','m');
+            Sun.SltDir = sign(Alt2-Sun.Alt);
+
             Conv = convert.angular('rad',Args.OutUnits);
 
             if nargout>1
