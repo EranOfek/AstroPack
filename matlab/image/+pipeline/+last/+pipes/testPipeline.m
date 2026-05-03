@@ -41,7 +41,7 @@ function [Result] = testPipeline(Args)
         Args.UseParfor         = true  % use the matlab parallelization; in some cases may prevent accurate debugging  
         Args.DebugMode         = false % do some tests (e.g., DB injection) not required for a production phase  
         Args.RemoveAfterWrite  = false % an option to remove pipeline product files after they are written to disk, useful for massive tests
-        Args.StaticRAWDir logical = true % RAWImageDir is a fixed archive: process all visits in order (default true for test runs)
+        Args.StaticRAWDir      = false % RAWImageDir is a fixed archive: process all visits in order (default false)
     end
     
     % if running without explicit arguments, do nothing

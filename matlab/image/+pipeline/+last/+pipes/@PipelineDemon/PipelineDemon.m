@@ -2964,7 +2964,7 @@ classdef PipelineDemon < Component
                 
                 Args.MoveNew2Raw       = true;     % move RAW images from new/ to YYYY/MM/DD/raw/ after processing
                 Args.RemoveAfterWrite  = false;    % remove the output YYYY/MM/DD/raw/subdir/ folder after writing into it (usefull for multiple tests)
-                Args.StaticRAWDir logical = false; % when NewPath holds a fixed archive (e.g. for testing), process all full groups in order instead of only the most recent
+                Args.StaticRAWDir      = false;    % when NewPath holds a fixed archive (e.g. for testing), process all full groups in order instead of only the most recent
                 Args.DebugMode         = false;
             end
             RAD = 180./pi;
