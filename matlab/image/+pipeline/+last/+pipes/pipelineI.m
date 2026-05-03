@@ -131,6 +131,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         MS       = [];
         Coadd    = [];
         OnlyMP   = [];
+        JD       = [];
     end
 
     if Status.PipeI
