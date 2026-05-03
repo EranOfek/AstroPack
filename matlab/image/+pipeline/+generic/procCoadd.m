@@ -389,6 +389,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             if Args.SetBackTo0 && Args.SubBack
                 Coadd(Ifields).BackData.Data = zeros(size(Coadd(Ifields).ImageData.Data), 'like',Coadd(Ifields).ImageData.Data);
             end
+        
+            %Coadd = imProc.background.backVar(Coadd, 'Method',@imUtil.background.modeVar_SampleHist, 'Block',[128 128], 'ReCalc',true, 'MethodArgs',{'UseMex',false});
 
             % In some cases the first image of the stack is rejected, so
             % the 'DATEOBS' in the resulting Coadd may be not the same 

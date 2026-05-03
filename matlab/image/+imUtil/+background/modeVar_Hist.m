@@ -37,6 +37,7 @@ function [Mode,Var,Method] = modeVar_Hist(Array, Args)
         Args.NptFit            = 5;
         Args.Fit               = true;
         Args.Dillute           = [];
+        Args.RN2               = []; % NOT USED
         
     end
 
