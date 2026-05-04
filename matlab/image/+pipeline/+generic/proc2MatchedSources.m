@@ -199,9 +199,10 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
     % Define an array of MatchedSources object of size: Nfields
     % HERE
     
+    ResZP = struct('FitZP',cell(Nfields,1), 'FitStdZP',cell(Nfields,1), 'FitErrZP',cell(Nfields,1), 'Nsrc',cell(Nfields,1)); % depands on the output of lcUtil.relZPfit !!!
     for Ifields=1:1:Nfields
         MatchedS(Ifields)  = MatchedSources;
-                    
+        
         FlagGood = Args.FlagGood(:,Ifields);   
 
         if sum(FlagGood)>=Args.MinGoodEpoch

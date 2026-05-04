@@ -281,28 +281,35 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             if ~isempty(Args.ForcedPhotCat)
                 %tic;
                 MidEpoch = ceil(Nepoch.*0.5);
-                CatForcedPhot = imProc.cat.catsHTM_inImage(Args.ForcedPhotCat, AllSI(MidEpoch,:));  % 0.2
+                % select only images with good astrometry+ (IsGood)
+                IsForcedPhot = IsGood(MidEpoch,:);
+
+                CatForcedPhot = imProc.cat.catsHTM_inImage(Args.ForcedPhotCat, AllSI(MidEpoch,IsForcedPhot));  % 0.2
                 
                 ColNamesFF = AllSI(1).CatData.ColNames;
         
                 %AllFP = AstroCatalog([Nepoch, Nsub]);
                 for Isub=1:1:Nsub
                     % for each sub image - run over all epochs
-                    Coo = CatForcedPhot(Isub).getCol({'RA','Dec'}).*RAD;
-                    %if strcmpi(Args.OutputType, 'concatai')
-
-                    if ~isempty(Coo)
-                        AllSI(:,Isub) = imProc.sources.forcedPhotNew(AllSI(:,Isub), 'OutputType','ConcatAI', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, 'ReadColFromHeader',false, 'PsfPhotMethod',Args.PsfPhotMethod, 'ShiftMethod',Args.ShiftMethod, Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
+                    if IsForcedPhot(Isub)
+                        IsubGood = find(find(IsForcedPhot)==Isub);
+                        Coo = CatForcedPhot(IsubGood).getCol({'RA','Dec'}).*RAD;
+                        %if strcmpi(Args.OutputType, 'concatai')
+    
+                        if ~isempty(Coo)
+                            IsGoodEpoch = IsGood(:,Isub);
+                            AllSI(IsGoodEpoch,Isub) = imProc.sources.forcedPhotNew(AllSI(IsGoodEpoch,Isub), 'OutputType','ConcatAI', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, 'ReadColFromHeader',false, 'PsfPhotMethod',Args.PsfPhotMethod, 'ShiftMethod',Args.ShiftMethod, Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
+                        end
+                        %else
+                        %    error('Currently, adding forced phot is supported only using the ConcatAI option');
+                        %end
+                        %for Iepoch=1:1:Nepoch
+                        %    AllSI(Iepoch,Isub).CatData.insertCol(AllFP)
+                        %end
+            
+                        % need to add CropID to catalog
+                        % XXX?
                     end
-                    %else
-                    %    error('Currently, adding forced phot is supported only using the ConcatAI option');
-                    %end
-                    %for Iepoch=1:1:Nepoch
-                    %    AllSI(Iepoch,Isub).CatData.insertCol(AllFP)
-                    %end
-        
-                    % need to add CropID to catalog
-                    % XXX?
                 end
                 %toc
         
@@ -322,7 +329,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             end
         
             if Args.AddSrcAM
-                AllSI = imProc.cat.addAirMass(AllSI, 'JD',JD, Args.Cat_addAirMassArgs{:});
+                AllSI = imProc.cat.addAirMass(AllSI, 'JD',JD, 'IsGood',IsGood, Args.Cat_addAirMassArgs{:});
             end
 
             % match external / too expensive
@@ -518,8 +525,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         
             % propagate photometric calibration to individual images
             % tic;
-            DeltaZP = reshape([ResRelZP.FitZP], Nepoch, Nsub);
-            AllSI = PC.applyPhotCalibShifts(AllSI, 'DeltaZP',DeltaZP);
+            GoodCrop = ~tools.cell.isempty_cell({ResRelZP.FitZP});
+            DeltaZP = reshape([ResRelZP.FitZP], Nepoch, sum(GoodCrop));
+            AllSI(:,GoodCrop) = PC(GoodCrop).applyPhotCalibShifts(AllSI(:,GoodCrop), 'DeltaZP',DeltaZP);
             % toc
 
 

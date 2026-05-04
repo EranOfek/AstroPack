@@ -1470,7 +1470,7 @@ classdef AstroTable < Component
                     SortByColumnInd           = colname2ind(Obj(Iobj), SortByColumn);
                 end
                 
-                if ~Obj(Iobj).IsSorted || any(SortByColumnInd~=Obj(Iobj).SortByCol)
+                if ~isnan(SortByColumnInd) && (~Obj(Iobj).IsSorted || any(SortByColumnInd~=Obj(Iobj).SortByCol))
                     [Obj(Iobj).Catalog, Ind]   = sortrows(Obj(Iobj).Catalog, SortByColumnInd);
                     Obj(Iobj).SortByCol = SortByColumnInd;
                     Obj(Iobj).IsSorted  = true;

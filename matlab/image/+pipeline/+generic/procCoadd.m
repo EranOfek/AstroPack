@@ -342,7 +342,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             else
                 % Register images by Args.ShiftXY
                 if isstruct(Args.ShiftXY)
-                    ShiftXY = Args.ShiftXY.(Args.PropShiftXY);
+                    ShiftXY = Args.ShiftXY(Ifields).(Args.PropShiftXY);
                 else
                     ShiftXY = Args.ShiftXY;
                 end
