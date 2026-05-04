@@ -1,12 +1,18 @@
-function Result = plotHeaderHist(DataPath, Args)
+function Result = plotHeaderHist(Data, Args)
     % Histogram of one or more FITS header keywords pooled over many visit dirs.
-    % Description: Discovers visit subdirectories under DataPath (one level
-    %              or recursively), loads each visit's AstroImages with
-    %              loadVisitCatHdr (HeaderData populated), pulls the
-    %              requested header keyword(s) via extractHeaderData, pools
-    %              the (epoch x crop) values into one (or several overlaid)
-    %              distribution(s), and plots a histogram with optional
-    %              summary statistics.
+    % Description: Pulls the requested header keyword(s) via
+    %              extractHeaderData, pools the (visit x crop) values into
+    %              one (or several overlaid) distribution(s), and plots a
+    %              histogram with optional summary statistics.
+    %
+    %              Three input shapes are accepted:
+    %              (1) char/string DataPath: discovers visit subdirectories
+    %                  matching VisitPattern under DataPath (recursively by
+    %                  default), then loads each via loadVisitCatHdr.
+    %              (2) AstroImage array (e.g. one coadd's 1xNcrop AI):
+    %                  treated as a single visit, no disk walk.
+    %              (3) Cell array of AstroImage arrays: treated as one
+    %                  visit per cell element (multi-visit, in-memory).
     %
     %              Use this for any header-only quantity (no calibration
     %              required), e.g. AST_ARMS (asymptotic astrometry RMS),
@@ -19,8 +25,12 @@ function Result = plotHeaderHist(DataPath, Args)
     %              CatData rows). Faster than plotPhotHistogram because no
     %              per-visit calibration step is needed.
     %
-    % Input  : - DataPath char/string. Parent directory containing one or
-    %            more visit subdirectories.
+    % Input  : - Data, one of:
+    %              char/string DataPath (parent dir; visit dirs discovered),
+    %              AstroImage array (single visit, in memory),
+    %              or cell of AstroImage arrays (multi-visit, in memory).
+    %            VisitPattern / Recursive / FileType are silently irrelevant
+    %            for in-memory inputs.
     %          * ...,key,val,...
     %            'HeaderKeys'   - Header keyword (char) or cell of names to
     %                             overlay (e.g. {'PT_RMS','PT_ARMS','AST_ARMS','PH_RMS'}).
@@ -52,17 +62,23 @@ function Result = plotHeaderHist(DataPath, Args)
     %            .HeaderData - struct returned by extractHeaderData (per-key
     %                          [Nvisits x Ncrop] matrices), useful for
     %                          downstream per-crop or per-visit analyses.
-    %            .DataPath, .VisitPattern, .Recursive, .FileType - echoed.
-    %            .NVisits    - number of visit dirs found.
-    % Author : D. Kovaleva (Apr 2026)
-    % Example: % All four RMS-style header keys overlaid:
+    %            .DataPath, .VisitPattern, .Recursive, .FileType - echoed
+    %                          (DataPath = '<in-memory>' for AI inputs).
+    %            .NVisits    - number of visits processed.
+    % Author : D. Kovaleva (Apr 2026; AI input May 2026)
+    % Example: % All four RMS-style header keys overlaid (disk walk):
     %          DP = '/archimedes/LASTunitTest/2025/04/26';
     %          R  = pipeline.last.quality.photCalib.plotHeaderHist(DP, ...
     %                  'HeaderKeys', {'PT_RMS','PT_ARMS','AST_ARMS','PH_RMS'});
     %
-    %          % Single key with stats overlay:
-    %          R  = pipeline.last.quality.photCalib.plotHeaderHist(DP, ...
-    %                  'HeaderKeys', 'AST_ARMS');
+    %          % In-memory AI from fitPhotCalibTrans / loadVisit (no reload):
+    %          [AI, ~] = imProc.calib.fitPhotCalibTrans(Coadd);
+    %          R  = pipeline.last.quality.photCalib.plotHeaderHist(AI, ...
+    %                  'HeaderKeys', {'PT_DOF','PT_CHI2','AST_ARMS','PH_RMS'});
+    %
+    %          % Multi-visit in memory (cell of AI arrays):
+    %          R  = pipeline.last.quality.photCalib.plotHeaderHist({AI1, AI2}, ...
+    %                  'HeaderKeys', 'PH_RMS');
     %
     %          % Whole year, only v0 coadds, log-x FWHM:
     %          R  = pipeline.last.quality.photCalib.plotHeaderHist( ...
@@ -70,7 +86,7 @@ function Result = plotHeaderHist(DataPath, Args)
     %                  'VisitPattern', '*v0', 'HeaderKeys', 'FWHM');
 
     arguments
-        DataPath                          {mustBeText}
+        Data                                                     % char/string DataPath, AstroImage array, or cell of AI arrays
         Args.HeaderKeys                                          % char or cell
         Args.VisitPattern    {mustBeText}              = '*v[0-9]*'
         Args.Recursive       logical                    = true
@@ -97,35 +113,57 @@ function Result = plotHeaderHist(DataPath, Args)
     Nkeys = numel(Keys);
     FieldNames = cellfun(@matlab.lang.makeValidName, Keys, 'UniformOutput', false);
 
-    % --- Discover visit dirs --------------------------------------------
-    if Args.Recursive
-        Listing = dir(fullfile(char(DataPath), '**', Args.VisitPattern));
+    % --- Detect input shape and obtain AIc cell -------------------------
+    %   AIc is a cell of AstroImage arrays, one per visit (the contract
+    %   that extractHeaderData expects).
+    IsTextInput = ischar(Data) || (isstring(Data) && isscalar(Data));
+    IsAIInput   = isa(Data, 'AstroImage');
+    IsCellInput = iscell(Data) && ~isempty(Data) && ...
+                  all(cellfun(@(x) isa(x, 'AstroImage'), Data));
+
+    if IsAIInput
+        AIc = {Data(:).'};
+        Nvisits = 1;
+        DataPathEcho = '<in-memory AstroImage>';
+    elseif IsCellInput
+        AIc = Data(:).';
+        Nvisits = numel(AIc);
+        DataPathEcho = '<in-memory cell>';
+    elseif IsTextInput
+        DataPath = char(Data);
+        DataPathEcho = DataPath;
+        if Args.Recursive
+            Listing = dir(fullfile(DataPath, '**', Args.VisitPattern));
+        else
+            Listing = dir(fullfile(DataPath, Args.VisitPattern));
+        end
+        Listing = Listing([Listing.isdir] & ~startsWith({Listing.name}, '.'));
+        if isempty(Listing)
+            ScopeStr = DataPath;
+            if Args.Recursive; ScopeStr = [ScopeStr ' (recursive)']; end
+            error('plotHeaderHist:NoVisits', ...
+                'No subdirectories matching "%s" found under %s', ...
+                Args.VisitPattern, ScopeStr);
+        end
+        Nvisits = numel(Listing);
+        VisitDirs = strings(1, Nvisits);
+        for I = 1:Nvisits
+            VisitDirs(I) = string(fullfile(Listing(I).folder, Listing(I).name));
+        end
+        AIc = pipeline.last.load.loadVisitCatHdr( ...
+            'VisitDirs', VisitDirs, ...
+            'FileType',  Args.FileType, ...
+            'Verbose',   false);
     else
-        Listing = dir(fullfile(char(DataPath), Args.VisitPattern));
-    end
-    Listing = Listing([Listing.isdir] & ~startsWith({Listing.name}, '.'));
-    if isempty(Listing)
-        ScopeStr = char(DataPath);
-        if Args.Recursive; ScopeStr = [ScopeStr ' (recursive)']; end
-        error('plotHeaderHist:NoVisits', ...
-            'No subdirectories matching "%s" found under %s', ...
-            Args.VisitPattern, ScopeStr);
-    end
-    Nvisits = numel(Listing);
-    VisitDirs = strings(1, Nvisits);
-    for I = 1:Nvisits
-        VisitDirs(I) = string(fullfile(Listing(I).folder, Listing(I).name));
-    end
-    if Args.Verbose
-        fprintf('plotHeaderHist: %d visit dirs, FileType=%s, Keys={%s}\n', ...
-            Nvisits, Args.FileType, strjoin(Keys, ','));
+        error('plotHeaderHist:BadInput', ...
+            ['First argument must be a DataPath (char/string), an ', ...
+             'AstroImage array, or a cell of AstroImage arrays.']);
     end
 
-    % --- Load headers ---------------------------------------------------
-    AIc = pipeline.last.load.loadVisitCatHdr( ...
-        'VisitDirs', VisitDirs, ...
-        'FileType',  Args.FileType, ...
-        'Verbose',   false);
+    if Args.Verbose
+        fprintf('plotHeaderHist: %d visit(s), Keys={%s}\n', ...
+            Nvisits, strjoin(Keys, ','));
+    end
 
     HD = pipeline.last.load.extractHeaderData(AIc, ...
         'HeaderKeys', Keys, ...
@@ -271,7 +309,7 @@ function Result = plotHeaderHist(DataPath, Args)
     Result.Values       = Vals;
     Result.Stats        = Stats;
     Result.HeaderData   = HD;
-    Result.DataPath     = char(DataPath);
+    Result.DataPath     = DataPathEcho;
     Result.VisitPattern = Args.VisitPattern;
     Result.Recursive    = Args.Recursive;
     Result.FileType     = Args.FileType;

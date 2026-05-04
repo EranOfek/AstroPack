@@ -154,9 +154,6 @@ classdef PhotCalibTrans < Component
         % Bright-star RMS
         ARMS = NaN              % sqrt(median(R²)) of N brightest calibrators [mag] (set by calibrate)
 
-        % Calibrator count entering the fit (after filtering / catalog matching, before sigma clipping)
-        NCalibEnterFit = 0      % Number of calibrators entering the fit (set by calibrate)
-
         % Success status
         Success = false         % Flag indicating successful calibration (set by populateSuccess)
 
@@ -279,6 +276,15 @@ classdef PhotCalibTrans < Component
                 Args.WeightingMode    = 'spectral'
                 Args.FluxErrColName   = 'FluxErr'
                 Args.SigmaClipMethod  = 'median'
+                % Outer clip-and-refit loop (passed through to fitPar/fitMultiStage).
+                % When OuterSigmaClip=true, full stage loop is run repeatedly,
+                % applying a single sigma clip on the final residuals between
+                % runs (StdFunc='mad_std' robust by default).
+                Args.OuterSigmaClip logical = false
+                Args.OuterSigmaThresh = 3.0
+                Args.OuterStdFunc     = 'mad_std'   % 'mad_std' (robust) | 'std'
+                Args.OuterMaxIter     = 5
+                Args.OuterMinNewClipped = 1
                 Args.FluxErrorNorm    = 0.5
                 Args.AirmassColName   = 'AIRMASS'
                 Args.PerSourceAirmass logical = false
@@ -290,7 +296,7 @@ classdef PhotCalibTrans < Component
                 Args.AperCorrMinSN    = 30           % Minimum S/N for aperture correction stars
 
                 Args.MagSystem char   = 'AB'
-                Args.N_ARMS           = 0              % N brightest calibrators for ARMS (0=skip)
+                Args.N_ARMS           = 20              % N brightest calibrators for ARMS (0=skip)
                 Args.Verbose logical  = false
             end
 
@@ -570,6 +576,11 @@ classdef PhotCalibTrans < Component
                     'X', X, 'Y', Y, ...
                     'CostArgs', CostArgs, ...
                     'SigmaClipMethod', Args.SigmaClipMethod, ...
+                    'OuterSigmaClip',     Args.OuterSigmaClip, ...
+                    'OuterSigmaThresh',   Args.OuterSigmaThresh, ...
+                    'OuterStdFunc',       Args.OuterStdFunc, ...
+                    'OuterMaxIter',       Args.OuterMaxIter, ...
+                    'OuterMinNewClipped', Args.OuterMinNewClipped, ...
                     'Verbose', Args.Verbose);
 
                 % Store fitted model and fit results
@@ -3238,7 +3249,7 @@ classdef PhotCalibTrans < Component
             %            'TileOrder' - Crop tiling order in mosaic:
             %                        'colmajor' (old pipeline) - bottom-to-top, column by column.
             %                        'rowmajor' (new pipeline) - left-to-right, row by row.
-            %                        Default is 'colmajor'.
+            %                        Default is 'rowmajor'.
             % Output : - Figure handle
             % Author : D. Kovaleva (Dec 2025, Mar 2026)
             % Example: PC(5).plotZPMap();                          % single crop
@@ -3260,7 +3271,7 @@ classdef PhotCalibTrans < Component
                 Args.SmoothSigma = 3
                 Args.PhotSys = 'percrop'
                 Args.RefCrop = 10
-                Args.TileOrder = 'colmajor'  % 'colmajor' (old: bottom-up columns) | 'rowmajor' (new: left-right rows)
+                Args.TileOrder = 'rowmajor'  % 'colmajor' (old: bottom-up columns) | 'rowmajor' (new: left-right rows)
             end
 
             Nobj = numel(Obj);
