@@ -2,7 +2,7 @@ function [Result] = findMeasureOutFocusAnnulus(Image, Args)
     % Find out-of-focus-rings in an image and measure their radial/angular properties.
     %   Measure the mean/median/std of radial plots for sectors for the
     %   brightest out-of-focus source in the image.
-    % Input  : - A 2D image.
+    % Input  : - A 2D image or a FITS file name.
     %          * ...,key,val,... 
     %            'Threshold' - S/N for detection threshold for rings.
     %                   Default is 50.
@@ -22,6 +22,8 @@ function [Result] = findMeasureOutFocusAnnulus(Image, Args)
     %            'HeightFactor' - Height factor relative to max. val. t
     %                   which to estimate radius of inner and outer annulus.
     %                   Default is 0.5.
+    %            'ReadUseMex' - ' Read image using mex (can read fz files).
+    %                   Default is true.
     % Output : - A structure array with elemnt per sub image, and the
     %            following fields:
     %            .RadialVec - Vector of mid radial points.
@@ -38,6 +40,8 @@ function [Result] = findMeasureOutFocusAnnulus(Image, Args)
     %          plot(R(1).RadialVec, R(1).MeanSector)
     %          % std of radial plots over all sectors
     %          plot(R(1).RadialVec, std(R(1).MeanSector,[],2))
+    %
+    %          plot(R(1).AngleVec(:), [R(1).InnerRadius(:), R(1).OuterRadius(:)])
 
     arguments
         Image
@@ -54,8 +58,14 @@ function [Result] = findMeasureOutFocusAnnulus(Image, Args)
                                   5301 6300  101 1100;...
                                   5301 6300 8501 9500];
         Args.HeightFactor      = 0.5;
+        Args.ReadUseMex        = true;
     end
 
+    if ~isnumeric(Image)
+        AI = AstroImage(Image, 'UseMex',Args.ReadUseMex);
+        Image = single(AI.Image);
+    end
+    
     Nsub = size(Args.SubImagesCCDSEC,1);
     for Isub=1:1:Nsub
         SubImage = imUtil.cut.trim2d(Image, Args.SubImagesCCDSEC(Isub,:));
