@@ -543,6 +543,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         % end
         if isempty(AI.PSFData.DataPSF)
             % No PSF - do not look for stars!
+            % See issue #963 - consider calling findMeasureSources
 
         else
             for Iiter=1:1:Niter     
@@ -885,32 +886,40 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             %                                                                'CreateNewObj',false);
             % end
                
-        % add RA, Dec from the object's WCS if it is present
-        if Args.AddSkyCoo && ~isempty(Result(Iobj).WCS)
-            XY        = Result(Iobj).CatData.getXY();
-            [RA, Dec] = Result(Iobj).WCS.xy2sky(XY(:,1), XY(:,2));
-            Result(Iobj).CatData = insertCol(Result(Iobj).CatData, RA, Inf, Args.ColRA, {''});
-            Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Dec, Inf, Args.ColDec, {''});
-            Result(Iobj).CatData.sortrows(Args.ColDec);    
-        end        
-        
 
-        % add header keywords
-        if ~isempty(Args.AddSrcStat2Header)
-            Nsrc = Result(Iobj).CatData.sizeCatalog;
-            Result(Iobj).HeaderData.insertKey({Args.KeyNsrc, Nsrc, ''});
+        % The following block should be done only if there is a PSF and
+        % star was found
+        if ~isempty(Result(Iobj).CatData.ColNames)
+            % add RA, Dec from the object's WCS if it is present
+            if Args.AddSkyCoo && ~isempty(Result(Iobj).WCS)
+                XY        = Result(Iobj).CatData.getXY();
+                [RA, Dec] = Result(Iobj).WCS.xy2sky(XY(:,1), XY(:,2));
+                Result(Iobj).CatData = insertCol(Result(Iobj).CatData, RA, Inf, Args.ColRA, {''});
+                Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Dec, Inf, Args.ColDec, {''});
+                Result(Iobj).CatData.sortrows(Args.ColDec);    
+            end        
+    
+            % add header keywords
+            if ~isempty(Args.AddSrcStat2Header)
+                Nsrc = Result(Iobj).CatData.sizeCatalog;
+                Result(Iobj).HeaderData.insertKey({Args.KeyNsrc, Nsrc, ''});
+    
+                % median CHI2_DOF
+                Chi2Dof = Result(Iobj).CatData.getCol('PSF_CHI2DOF');
+               
+                MedChi2Dof = median(Chi2Dof,'all','omitnan');
+                Result(Iobj).HeaderData.insertKey({Args.KeyMedChi2Dof, MedChi2Dof, ''});
+            end
+    
+            % save a copy of the AI object with the image replaced by the final subtracted image
+            if ExtraOutput
+                SourceLess(Iobj)       = Result(Iobj).copy;
+                SourceLess(Iobj).Image = SubtractedImage(:,:,Niter); % or just  = Subtracted ?
+            end        
 
-            % median CHI2_DOF
-            Chi2Dof = Result(Iobj).CatData.getCol('PSF_CHI2DOF');
-            MedChi2Dof = median(Chi2Dof,'all','omitnan');
-            Result(Iobj).HeaderData.insertKey({Args.KeyMedChi2Dof, MedChi2Dof, ''});
-        end
-
-        % save a copy of the AI object with the image replaced by the final subtracted image
-        if ExtraOutput
-            SourceLess(Iobj)       = Result(Iobj).copy;
-            SourceLess(Iobj).Image = SubtractedImage(:,:,Niter); % or just  = Subtracted ?
-        end        
+        else
+            % no catalog - skip
+        end % if ~isempty(Result(Obj).CatData.ColNames)
 
         if Args.Verbose
             fprintf('Total %d objects extracted \n',height(Result(Iobj).CatData.Catalog));

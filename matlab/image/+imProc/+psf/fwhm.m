@@ -98,7 +98,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
         end
 
         % Add PSF morphology information
-        if Args.AddMorphology
+        if Args.AddMorphology & Obj(Iobj).PSFData.Nstars>0
             [PH,DistH] = imUtil.psf.numPeaks(Obj(Iobj).PSFData.Data);
             Npeak = numel(PH);
             if Npeak>1

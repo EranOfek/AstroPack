@@ -170,8 +170,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % get JD of all epoch - once
             %ProcessingStep = 71;
             JD = repmat(JD_AI(:), 1, Nsub); % faster than getting the JD for AllSI
-        
-        
+                
             % initiate parpool if needed
             %ProcessingStep = 81;
             PP = [];
@@ -227,7 +226,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 end
                 %toc
             end
-                
+        
+            % Consider update TableRaw - No PSF, etc? 
+            %TableRaw.BasicCalib(TableRaw.SelectedImages) = true(numel(AI),1); 
         
             % solve astrometry of all images
             %ProcessingStep = 301;

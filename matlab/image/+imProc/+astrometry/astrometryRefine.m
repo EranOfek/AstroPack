@@ -375,17 +375,18 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         else
             % Convert X/Y to RA/Dec using AstroWCS
             GoodAstrometry = WCS.Success;
-            if GoodAstrometry
+            % generate a new copy of Cat
+            Cat = Cat.copy;
+            if GoodAstrometry && ~isempty(Xcat)
                 [SrcRA, SrcDec] = WCS.xy2sky(Xcat, Ycat, 'OutUnits','rad',...
                                                          'IncludeDistortions',Args.IncludeDistortions);
+                
                 % add approximate RA, Dec to new copy of catalog
-                % generate a new copy of Cat
-                Cat = Cat.copy;
                 Cat = insertCol(Cat, [SrcRA, SrcDec], Inf, {CatColNameRA, CatColNameDec}, {'rad', 'rad'});
             end
         end
 
-        if GoodAstrometry
+        if GoodAstrometry && ~isempty(Xcat)
             if CooFromBoundingCircle || isempty(Args.RA) || isempty(Args.Dec)
                 CircleUnits         = 'deg';
                 if isempty(WCS)
