@@ -78,6 +78,12 @@ function [AI] = writeStat2Header(AI, Args)
     Nai = numel(AI);
     for Iai=1:1:Nai
         % 
+        if isempty(AI(Iai).CatData.ColNames)
+            EmptyCat = true;
+        else
+            EmptyCat = false;
+        end
+
         Data = nan(Ncols, 1);
         Idata = 0;
         if Args.WriteBack
@@ -90,7 +96,11 @@ function [AI] = writeStat2Header(AI, Args)
             Idata = Idata + 1;            
             Data(Idata) = size(AI(Iai).CatData.Catalog, 1);
             Idata = Idata + 1;
-            Mag = AI(Iai).CatData.getCol(Args.ColMag);
+            if EmptyCat
+                Mag = NaN;
+            else
+                Mag = AI(Iai).CatData.getCol(Args.ColMag);
+            end
             Data(Idata) = quantile(Mag, Args.MagQuantile);
         end
         if Args.WritePSF
@@ -104,7 +114,11 @@ function [AI] = writeStat2Header(AI, Args)
             Idata = Idata + 3;
             Data(Idata) = sqrt(sum(AI(Iai).PSFData.Data.^2, 'all'));
             Idata = Idata + 1;
-            M2 = AI(Iai).CatData.getCol({Args.ColX2, Args.ColY2, Args.ColXY});
+            if EmptyCat
+                M2 = [NaN NaN NaN];
+            else
+                M2 = AI(Iai).CatData.getCol({Args.ColX2, Args.ColY2, Args.ColXY});
+            end
             Data(Idata:Idata+2) = median(M2, 1, 'omitnan');
             Idata = Idata + 2;
         if Args.WriteScale

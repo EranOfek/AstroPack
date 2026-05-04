@@ -984,6 +984,7 @@ classdef AstroTable < Component
 %             if Args.UseDict
 %                 error('FFU: Dictinary is not implemented yet');
 %             end
+           
             ColInd = colname2ind(Obj, Columns, [], 'CaseSens',Args.CaseSens);
             if istable(Obj.Catalog)
                 if OutputIsTable

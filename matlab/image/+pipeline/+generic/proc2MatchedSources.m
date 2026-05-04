@@ -241,6 +241,15 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
                                                                    'MagCalibErrColName',Args.MagCalibErrColName,...
                                                                    'ApplyToMagField',Args.ApplyToMagField,...
                                                                    'Operator',@minus);
+                % check that all epochs exist
+                if ~all(FlagGood)
+                    FieldName = fieldnames(ResZP(Ifields)); % {'FitZP','FitStdZP','FitErrZP','Nsrc'};
+                    for Ifn=1:1:numel(FieldName)
+                        ResZP(Ifields).(FieldName{Ifn})(FlagGood)  = ResZP(Ifields).(FieldName{Ifn});
+                        ResZP(Ifields).(FieldName{Ifn})(~FlagGood) = NaN;
+                    end
+
+                end
             else
                 ResZP = [];
             end % if Args.RelPhot
