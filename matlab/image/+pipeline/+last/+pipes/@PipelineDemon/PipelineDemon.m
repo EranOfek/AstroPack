@@ -2570,7 +2570,7 @@ classdef PipelineDemon < Component
 
                     ErrorMsg = sprintf('Save data products Pipeline I failed: %s / funname: %s @ line: %d', MEs.message, MEs.stack(1).name, MEs.stack(1).line);
                     Obj.writeLog(ErrorMsg, LogLevel.Error);
-                    Obj.writeLog(MEp, LogLevel.Info);
+                    Obj.writeLog(MEs, LogLevel.Info);
                 end % try
             else
                 ErrorMsg = sprintf('Pipeline I failed: %s / funname: %s @ line: %d', Status.ME.message, Status.ME.stack(1).name, Status.ME.stack(1).line);
@@ -2629,11 +2629,7 @@ classdef PipelineDemon < Component
             FN_I.Level  = repmat("proc", Nim, 1);
             FN_I.duplicateCrop(Nsub);
             FN_I.JD = FN_I.julday;
-            % Coadd
-            FN_C.JD = Coadd(1).julday('KeyJD','MIDJD');
-            FN_C.julday2time;
-            FN_C.Level = "coadd";
-            FN_C.duplicateCrop(Nsub);
+            
 
             [~,FN_I] = imProc.io.saveProductImage(AllSI, FN_I, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveEpochProduct, 'WriteHeader',Args.SaveEpochHeader, 'WriteMethodImages',Args.WriteMethodImages, 'WriteMethodTables',Args.WriteMethodTables, 'CompressedOutput', Args.CompressedOutput);  % 20 s
 
@@ -2646,10 +2642,25 @@ classdef PipelineDemon < Component
             imProc.io.saveProductStreak(AllSI, FN_Str, 'JD',JD);
 
             % Coadd
-            FN_C.SubDir  = FN_I.SubDir;
-            FN_C.Counter = zeros(numel(Coadd),1);
-            imProc.io.saveProductImage(Coadd, FN_C, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveVisitProduct, 'WriteHeader',Args.SaveVisitHeader, 'CompressedOutput', Args.CompressedOutput);  % 3 s
-            
+            Ncoadd = numel(Coadd);
+            for Icoadd=1:1:Ncoadd
+                JDc = Coadd(Icoadd).julday('KeyJD','MIDJD');
+                if ~isnan(JDc)
+                    break;
+                end
+            end
+            if isnan(JDc)
+                % skip Coadd
+            else
+                FN_C.JD = JDc;
+                FN_C.julday2time;
+                FN_C.Level = "coadd";
+                FN_C.duplicateCrop(Nsub);
+                FN_C.SubDir  = FN_I.SubDir;
+                FN_C.Counter = zeros(numel(Coadd),1);
+                imProc.io.saveProductImage(Coadd, FN_C, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveVisitProduct, 'WriteHeader',Args.SaveVisitHeader, 'CompressedOutput', Args.CompressedOutput);  % 3 s
+            end
+
             % Asteroids:
             if OnlyMP.sizeCatalog>0 && Args.SaveVisitAsteroids
                 FN_A = FN_C.reorderEntries(1, 'CreateNewObj',true);
