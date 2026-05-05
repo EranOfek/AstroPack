@@ -39,8 +39,8 @@ function [AI] = writeStat2Header(AI, Args)
         Args.KeyNstars         = 'N_STARS';
         Args.KeyMagQuant       = 'MAG_95Q';
         % PSF realted
-        Args.KeyFWHM           = 'FWHM';
-        Args.KeyShapePSF       = {'FWHM_A', 'FWHM_B', 'FWHM_TH'};
+        %Args.KeyFWHM           = 'FWHM';
+        %Args.KeyShapePSF       = {'FWHM_A', 'FWHM_B', 'FWHM_TH'};
         Args.KeySqrtSumPSF2    = 'SSPSF2';
         Args.KeyMedM2          = {'MED_X2', 'MED_Y2', 'MED_XY'};
 
@@ -63,17 +63,23 @@ function [AI] = writeStat2Header(AI, Args)
     else
         ColsStars = {};
     end
-    if Args.WritePSF
-        ColsPSF = {Args.KeyFWHM, Args.KeyShapePSF{:}, Args.KeySqrtSumPSF2, Args.KeyMedM2{:}};
+    if Args.WriteMom
+        ColMom     = Args.KeyMedM2;
     else
-        ColsPSF = {};
+        ColMom     = [];
     end
+    %if Args.WritePSF
+    %    ColsPSF = {Args.KeyFWHM, Args.KeyShapePSF{:}, Args.KeySqrtSumPSF2, Args.KeyMedM2{:}};
+    %else
+    %    ColsPSF = {};
+    %end
     if Args.WriteScale
         ColsScale = Args.KeyScaleRot;
     else
         ColsScale = {};
     end
-    Cols = [ColsBack, ColsStars, ColsPSF, ColsScale];
+    %Cols = [ColsBack, ColsStars, ColsPSF, ColsScale];
+    Cols = [ColsBack, ColsStars, ColMom, ColsScale];
     Ncols = numel(Cols);
 
     Nai = numel(AI);
