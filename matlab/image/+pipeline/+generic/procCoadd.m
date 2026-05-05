@@ -241,6 +241,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.MergedCat                        = [];
         Args.Col2copy cell                    = {'Nobs'};  % cell array of columns to copy from MergedCat to Coadd
         Args.AddMaskSrcNoise                  = true;
+        
+        Args.WriteStatHeader                  = true;
 
         Args.UseMex                           = false;
 
@@ -501,9 +503,17 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             end
          
 
-        end
-    end
+            % write stat data to header: Nstars, PSF, Scale, Rotation,...
+            % background, var: written as part of the background estimation
+            %ProcessingStep = 431;
+            if Args.WriteStatHeader
+                Coadd(Ifields) = imProc.header.writeStat2Header(Coadd(Ifields), 'WriteBack',false);
+            end
+
+        end % if Ngood>=Args.MinNumCoadd || Ngood==Nepoch
+    end % for Ifields=1:1:Nfields
     
 
+    
 
 end
