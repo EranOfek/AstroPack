@@ -21,8 +21,14 @@ function [Rise, Set, RiseAz, SetAz] = riseSet(JD, RA, Dec, Alt, Args)
     %                   Default is [35 30 415].
     %            'InUnits' - Input units for RA/Dec/Alt: 'deg' or 'rad'.
     %                   Default is 'deg'.
-    %            'STType' - Sidereal time type for celestial.time.lst:
+    %            'LSTType' - Sidereal time type for celestial.time.lst:
     %                   'm' (mean) or 'a' (apparent). Default is 'a'.
+    %            'First' - Options are:
+    %                   'first' - What ever is first after the requested
+    %                           JD.
+    %                   'rise' - first rise, set afterwards.
+    %                   'set' - first set, rise afterwards.
+    %                   Default is 'first'.
     % Output : - Next rise time(s) in JD, same size as expanded RA/Dec.
     %            NaN for coordinates that do not rise/set at this altitude
     %            (e.g., circumpolar or never-rises cases).
@@ -44,8 +50,10 @@ function [Rise, Set, RiseAz, SetAz] = riseSet(JD, RA, Dec, Alt, Args)
         Alt (1,1)      = 0;
         Args.ObsPos    = [35 30 415]   % [Lon deg, Lat deg, Height m]
         Args.InUnits   = 'deg'
-        Args.STType    = 'a'
+        Args.LSTType   = 'a'
+        Args.First     = 'first';
     end
+    SID_DAY = 0.99727;
     
     if strcmpi(Args.InUnits,'deg')
         RA  = deg2rad(RA);
@@ -75,8 +83,21 @@ function [Rise, Set, RiseAz, SetAz] = riseSet(JD, RA, Dec, Alt, Args)
     
     Omega = 2*pi .* 1.0027379093;  % rad / solar day
     
-    Rise(Valid) = nextCrossing(JD, TargetRise(Valid), Lon, Omega, Args.STType);
-    Set(Valid)  = nextCrossing(JD, TargetSet(Valid),  Lon, Omega, Args.STType);
+    Rise(Valid) = nextCrossing(JD, TargetRise(Valid), Lon, Omega, Args.LSTType);
+    Set(Valid)  = nextCrossing(JD, TargetSet(Valid),  Lon, Omega, Args.LSTType);
+
+    switch Args.First
+        case 'first'
+            % do nothing
+        case 'rise'
+            FlagSSR = Set<Rise;
+            Set(FlagSSR) = Set(FlagSSR) + SID_DAY;
+        case 'set'
+            FlagSLR = Set>Rise;
+            Rise(FlagSLR) = Rise(FlagSLR) + SID_DAY;
+        otherwise
+            error('Unknown First option');
+    end
 
     if nargout>2
         RiseAz = nan(size(RA));
@@ -92,14 +113,14 @@ function [Rise, Set, RiseAz, SetAz] = riseSet(JD, RA, Dec, Alt, Args)
                                                         'GeoCoo', Args.ObsPos, ...
                                                         'InUnits', 'rad', ...
                                                         'OutUnits', OutUnits, ...
-                                                        'LSTType', Args.STType);
+                                                        'LSTType', Args.LSTType);
         [SetAz(Valid), ~]  = celestial.coo.radec2azalt(Set(Valid), ...
                                                        RA(Valid), ...
                                                        Dec(Valid), ...
                                                        'GeoCoo', Args.ObsPos, ...
                                                        'InUnits', 'rad', ...
                                                        'OutUnits', OutUnits, ...
-                                                       'LSTType', Args.STType);
+                                                       'LSTType', Args.LSTType);
     end
 end
 

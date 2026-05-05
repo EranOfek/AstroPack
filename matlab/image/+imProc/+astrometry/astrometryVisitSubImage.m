@@ -192,11 +192,9 @@ function [ResFit, AI, CatName] = astrometryVisitSubImage(Obj, Args)
 
     if Nep>1
         % solve all epochs for each sub image
-        for Isub=1:1:Nsub
-            %Isub
-          
-
-            [ResFit(2:end,Isub), AI(2:end,Isub)] = imProc.astrometry.astrometrySameImage(AI(2:end,Isub),...
+        for Isub=1:1:Nsub          
+            if AI(1,Isub).WCS.Success
+                [ResFit(2:end,Isub), AI(2:end,Isub)] = imProc.astrometry.astrometrySameImage(AI(2:end,Isub),...
                                                                                          'Scale',Args.Scale,...
                                                                                          'Tran',Args.Tran,...
                                                                                          'CatName',CatName(Isub),...
@@ -222,9 +220,12 @@ function [ResFit, AI, CatName] = astrometryVisitSubImage(Obj, Args)
                                                                                          'MatchMethod',Args.MatchMethod,...
                                                                                          'astrometryCoreArgs',Args.astrometryCoreArgs,...
                                                                                          'astrometryRefineArgs',Args.astrometryRefineArgs);              
-
-
-
+            else
+                [ResFit(2:end,Isub).Success] = deal(false);
+                for Iep1=2:1:Nep
+                    AI(Iep1,Isub).WCS.Success = false;
+                end
+            end
 
         end
     end

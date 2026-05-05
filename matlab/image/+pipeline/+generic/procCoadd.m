@@ -241,6 +241,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.MergedCat                        = [];
         Args.Col2copy cell                    = {'Nobs'};  % cell array of columns to copy from MergedCat to Coadd
         Args.AddMaskSrcNoise                  = true;
+        
+        Args.WriteStatHeader                  = true;
 
         Args.UseMex                           = false;
 
@@ -342,7 +344,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             else
                 % Register images by Args.ShiftXY
                 if isstruct(Args.ShiftXY)
-                    ShiftXY = Args.ShiftXY.(Args.PropShiftXY);
+                    ShiftXY = Args.ShiftXY(Ifields).(Args.PropShiftXY);
                 else
                     ShiftXY = Args.ShiftXY;
                 end
@@ -389,6 +391,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             if Args.SetBackTo0 && Args.SubBack
                 Coadd(Ifields).BackData.Data = zeros(size(Coadd(Ifields).ImageData.Data), 'like',Coadd(Ifields).ImageData.Data);
             end
+        
+            %Coadd = imProc.background.backVar(Coadd, 'Method',@imUtil.background.modeVar_SampleHist, 'Block',[128 128], 'ReCalc',true, 'MethodArgs',{'UseMex',false});
 
             % In some cases the first image of the stack is rejected, so
             % the 'DATEOBS' in the resulting Coadd may be not the same 
@@ -499,9 +503,17 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             end
          
 
-        end
-    end
+            % write stat data to header: Nstars, PSF, Scale, Rotation,...
+            % background, var: written as part of the background estimation
+            %ProcessingStep = 431;
+            if Args.WriteStatHeader
+                Coadd(Ifields) = imProc.header.writeStat2Header(Coadd(Ifields), 'WriteBack',false);
+            end
+
+        end % if Ngood>=Args.MinNumCoadd || Ngood==Nepoch
+    end % for Ifields=1:1:Nfields
     
 
+    
 
 end

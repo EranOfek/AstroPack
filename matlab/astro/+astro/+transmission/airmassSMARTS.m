@@ -69,6 +69,7 @@ function Constituent_Airmasses = airmassSMARTS(ZenithAngle_deg)
     for i = 1:numel(Names)
         a = C(i,1); b = C(i,2); c = C(i,3); d = C(i,4);
         Am = 1 ./ (Cosz + a .* (ZA.^b) .* ((c - ZA).^d));
+        Am = max(Am, 1);  % SMARTS empirical fit dips ~1e-5 below 1 for ZA<~0.3 deg; airmass>=1 by physics
         Constituent_Airmasses.(Names{i}) = reshape(Am, InputSize);
     end
 

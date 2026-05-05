@@ -3,6 +3,7 @@ function [OutRA, OutDec, ObjName] = cooResolve(InRA, InDec, Args)
     % Input  : - R.A., [deg|rad|sex] or object name.
     %            If second input is provided and RA is not numeric, then
     %            will assume input is in sexagesinal coordinates.
+    %            Optionally, this can be a CelCoo object with RA and Dec.
     %          - Dec. [deg|rad|sex]. If empty, then will interpret the
     %            first input argument as an object name.
     %            Default is [].
@@ -41,6 +42,14 @@ function [OutRA, OutDec, ObjName] = cooResolve(InRA, InDec, Args)
         if ~isnumeric(InRA)
             Args.InUnits = 'sex';
         end
+    end
+
+    if isa(InRA, 'CelCoo')
+        % A CelCoo object
+        Coo   = InRA.Rad;
+        InRA  = Coo(:,1);
+        InDec = Coo(:,2);
+        Args.InUnits = 'rad';
     end
 
     if strcmp(Args.InUnits, Args.OutUnits)

@@ -110,6 +110,7 @@ function [T, CsvFile, ZipFile] = downloadAll(Args)
         T.creationdate = string(T.creationdate);
         T.lastmodified = string(T.lastmodified);
         
+        T = [Told; T];
     end
 
 end

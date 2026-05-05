@@ -13,6 +13,7 @@ function [Result] = forcedPhotNew(Obj, Args)
     arguments
         Obj
 
+        Args.IsGood                  = [];
         Args.PsfPhotMethod           = 'legacy';
         Args.ShiftMethod             = 'fft';
 
@@ -211,287 +212,293 @@ function [Result] = forcedPhotNew(Obj, Args)
     ColCellOut = cell(1,NcolOut);
     [ColUnitsOut{1:1:NcolOut}] = deal('');
 
+    if isempty(Args.IsGood)
+        IsGood = true(Nobj,1);
+    else
+        IsGood = Args.IsGood;
+    end
 
     for Iobj=1:1:Nobj
         % convert RA/Dec to X/Y
-        if IsSpherical
-            if Args.CatIsUniform
-                [XI, YI] = Obj(Iobj).WCS.sky2xy(RA, Dec, 'InUnits','deg', 'includeDistortion', Args.includeDistortion);
+        if IsGood(Iobj)
+            if IsSpherical
+                if Args.CatIsUniform
+                    [XI, YI] = Obj(Iobj).WCS.sky2xy(RA, Dec, 'InUnits','deg', 'includeDistortion', Args.includeDistortion);
+                else
+                    % single coordinate
+                    [XI, YI] = Obj(Iobj).WCS.sky2xy(RA(Iobj), Dec(Iobj), 'InUnits','deg', 'includeDistortion', Args.includeDistortion);
+                end
+    
             else
-                % single coordinate
-                [XI, YI] = Obj(Iobj).WCS.sky2xy(RA(Iobj), Dec(Iobj), 'InUnits','deg', 'includeDistortion', Args.includeDistortion);
+                if Args.CatIsUniform
+                    XI = X;
+                    YI = Y;
+                else
+                    XI = X(Iobj);
+                    YI = Y(Iobj);
+                end
+            end % if IsSpherical
+    
+            % add reference stars
+            if Nadd>0
+                [Xadd, Yadd] = Obj(Iobj).WCS.sky2xy(CatAdd(:,1), CatAdd(:,2), 'InUnits','deg', 'includeDistortion', Args.includeDistortion);
+                XI = [XI; Xadd];
+                YI = [YI; Yadd];
             end
-
-        else
-            if Args.CatIsUniform
-                XI = X;
-                YI = Y;
+    
+    
+            % generate PSF
+            if Obj(Iobj).isemptyPSF || Args.ReconstructPSF
+                % if there is no PSF in AstroImage or PSF reconstruction is requested, generate a PSF
+                Obj(Iobj) = imProc.psf.populatePSF(Obj(Iobj), 'RadiusPSF',Args.HalfSizePSF, Args.constructPSFArgs{:});
+            end
+            PSF = Obj(Iobj).PSFData.Data;
+    
+            HalfSizePSF = (size(Obj(Iobj).PSFData.Data,1)-1).*0.5;
+            % stamps around sources
+            [Cube] = imUtil.cut.image2cutouts(Obj(Iobj).(Args.ImageProp).Data, XI, YI, HalfSizePSF);
+    
+            % background
+            if Args.UseBack
+                % use existing background/var from AstroImage
+                Back = Obj(Iobj).Back;
+                Std  = sqrt(Obj(Iobj).Var);
             else
-                XI = X(Iobj);
-                YI = Y(Iobj);
+                % calculate background from annulus in stamps
+                [Back, Std] = imUtil.sources.backgroundCube(Cube, 'AnnulusRad',Args.AnnulusRad, Args.backgroundCubeArgs{:});
             end
-        end % if IsSpherical
-
-        % add reference stars
-        if Nadd>0
-            [Xadd, Yadd] = Obj(Iobj).WCS.sky2xy(CatAdd(:,1), CatAdd(:,2), 'InUnits','deg', 'includeDistortion', Args.includeDistortion);
-            XI = [XI; Xadd];
-            YI = [YI; Yadd];
-        end
-
-
-        % generate PSF
-        if Obj(Iobj).isemptyPSF || Args.ReconstructPSF
-            % if there is no PSF in AstroImage or PSF reconstruction is requested, generate a PSF
-            Obj(Iobj) = imProc.psf.populatePSF(Obj(Iobj), 'RadiusPSF',Args.HalfSizePSF, Args.constructPSFArgs{:});
-        end
-        PSF = Obj(Iobj).PSFData.Data;
-
-        HalfSizePSF = (size(Obj(Iobj).PSFData.Data,1)-1).*0.5;
-        % stamps around sources
-        [Cube] = imUtil.cut.image2cutouts(Obj(Iobj).(Args.ImageProp).Data, XI, YI, HalfSizePSF);
-
-        % background
-        if Args.UseBack
-            % use existing background/var from AstroImage
-            Back = Obj(Iobj).Back;
-            Std  = sqrt(Obj(Iobj).Var);
-        else
-            % calculate background from annulus in stamps
-            [Back, Std] = imUtil.sources.backgroundCube(Cube, 'AnnulusRad',Args.AnnulusRad, Args.backgroundCubeArgs{:});
-        end
-
-        
-        % Moments and aperture phot:
-        [M1,M2,Aper] = imUtil.image.moment2(Obj(Iobj).(Args.ImageProp).Data, XI, YI,...
-                                'MaxIter',Args.MomentMaxIter, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus);
-
-        % if Args.UseMomCoo
-        %     %X = nan(Nsrc,1);
-        %     %Y = nan(Nsrc,1);
-        %     X1 = M1.X;
-        %     Y1 = M1.Y;
-        % else
-        %     X1 = X;
-        %     Y1 = Y;
-        % end
-
-        % psf photometry        
-        [ResultPSF, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
-                                                            'Std',Std,...
-                                                            'Back',Back,...
-                                                            'FitRadius',Args.FitRadius,...
-                                                            'SmallStep',Args.SmallStep,...
-                                                            'MaxStep',Args.MaxStep,...
-                                                            'ConvThresh',Args.ConvThresh,...
-                                                            'MaxIter',Args.MaxIter,...
-                                                            'UseSourceNoise',Args.UseSourceNoise,...
-                                                            'PsfPhotMethod',Args.PsfPhotMethod,...
-                                                            'ShiftMethod',Args.ShiftMethod,...
-                                                            'ZP',Args.ZP);
-                                                        
-        
-        
-        Xpos = XI(:) + ResultPSF.DX(:);
-        Ypos = YI(:) + ResultPSF.DY(:);
-        % RA, Dec of fitted position
-        [RAI, DecI] = Obj(Iobj).WCS.xy2sky(Xpos,Ypos,'OutUnits',Args.CooOutUnits);
-
-        
-
-
-        [Ny, Nx] = Obj(Iobj).sizeImage;
-        %FlagIn      = X>1 & X<Nx & Y>1 & Y<Ny;
-        FlagIn  = Xpos>Args.MinEdgeDist & Xpos<(Nx-Args.MinEdgeDist) & Ypos>Args.MinEdgeDist & Ypos<(Ny-Args.MinEdgeDist);        
-
-
-        if any(FlagIn) && ~isempty(Obj(Iobj).Mask)
-            FlagsXY  = nan(Nsrc,1);
-            FlagsXY(FlagIn)  = bitwise_cutouts(Obj(Iobj).MaskData, [Xpos(FlagIn),Ypos(FlagIn)], 'or', 'HalfSize',Args.FlagsHalfSize);
-        else
-            FlagsXY  = nan(Nsrc, 1);
-        end
-
-        NsrcAll = Nsrc + Nadd;
-        Data    = nan(NsrcAll, NcolOut);
-        K = 0;
-        for Icol=1:1:Ncol
-            K = K + 1;
-            ColCellOut{K} = Args.ColCell{Icol};
-            switch Args.ColCell{Icol}
-                case 'X'
-                    Data(:,K) = Xpos;
-                case 'Y'
-                    Data(:,K) = Ypos;
-                case 'X1'
-                    Data(:,K) = M1.X;  % NaN position corresponds to out of image...
-                case 'Y1'
-                    Data(:,K) = M1.Y;
-                case 'XPEAK'
-                    % This is X initial rather than Xpeak
-                    Data(:,K) = XI;
-                case 'YPEAK'
-                    % This is Y initial rather than Ypeak
-                    Data(:,K) = YI;
-                case 'RA_IN'
-                    Data(:,K) = RA;
-                case 'Dec_IN'
-                    Data(:,K) = Dec;
-                case 'RA'
-                    Data(:,K) = RAI;
-                case 'Dec'
-                    Data(:,K) = DecI;    
-                case 'X2'
-                    Data(:,K) = M2.X2;
-                case 'Y2'
-                    Data(:,K) = M2.Y2;
-                case 'XY'
-                    Data(:,K) = M2.XY;
-                case 'FLUX_PSF'
-                    Data(:,K) = ResultPSF.Flux;
-                case 'MAG_PSF'
-                    Data(:,K) = ResultPSF.Mag;
-                case 'SN'
-                    Data(:,K) = ResultPSF.SNm;
-                case 'FLUXERR_PSF'
-                    Data(:,K) = ResultPSF.Flux./ResultPSF.SNm;
-                case 'MAGERR_PSF'
-                    Data(:,K) = 1.086./ResultPSF.SNm;
-                case 'CHI2DOF'
-                    Data(:,K) = ResultPSF.Chi2./ResultPSF.Dof;
-
-                case 'FLUX_APER_1'
-                    Data(:,K) = Aper.AperPhot(:,1);
-                    %Data(:,K:K+Naper-1) = Aper.AperPhot;
-                    %[ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('FLUX_APER',(1:1:Naper)));
-                    %K = K + Naper - 1;
-                case 'FLUX_APER_2'
-                    Data(:,K) = Aper.AperPhot(:,2);
-                case 'FLUX_APER_3'
-                    Data(:,K) = Aper.AperPhot(:,3);
-
-                case 'FLUXERR_APER_1'
-                    Data(:,K) = Aper.AperPhotErr(:,1);
-                    %Data(:,K:K+Naper-1) = sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2);
-                    %[ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('FLUXERR_APER',(1:1:Naper)));
-                    %K = K + Naper - 1;
-                case 'FLUXERR_APER_2'
-                    Data(:,K) = Aper.AperPhotErr(:,2);
-                case 'FLUXERR_APER_3'
-                    Data(:,K) = Aper.AperPhotErr(:,3);
-                case 'MAG_APER_1'
-                    Data(:,K) = convert.luptitude(Aper.AperPhot(:,1), 10.^(0.4.*Args.ZP));
-                    %Data(:,K:K+Naper-1) = convert.luptitude(Aper.AperPhot, 10.^(0.4.*Args.ZP));
-                    %[ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('MAG_APER',(1:1:Naper)));
-                    %K = K + Naper - 1;
-                case 'MAG_APER_2'
-                    Data(:,K) = convert.luptitude(Aper.AperPhot(:,2), 10.^(0.4.*Args.ZP));
-                case 'MAG_APER_3'
-                    Data(:,K) = convert.luptitude(Aper.AperPhot(:,3), 10.^(0.4.*Args.ZP));    
-                case 'MAGERR_APER_1'
-                    Data(:,K) = 1.086.*sqrt(Aper.AperPhotErr(:,1).^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot(:,1);
-                    %Data(:,K:K+Naper-1) = 1.086.*sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot;
-                    %[ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('MAGERR_APER',(1:1:Naper)));
-                    %K = K + Naper - 1;
-                case 'MAGERR_APER_2'
-                    Data(:,K) = 1.086.*sqrt(Aper.AperPhotErr(:,2).^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot(:,2);
-                case 'MAGERR_APER_3'
-                    Data(:,K) = 1.086.*sqrt(Aper.AperPhotErr(:,3).^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot(:,3);    
-                case 'APER_AREA_1'
-                    Data(:,K) = Aper.AperArea(:,1);
-                    %Data(:,K:K+Naper-1) = Aper.AperArea;
-                    %[ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('APER_AREA',(1:1:Naper)));
-                    %K = K + Naper - 1;
-                case 'APER_AREA_2'
-                    Data(:,K) = Aper.AperArea(:,2);
-                case 'APER_AREA_3'
-                    Data(:,K) = Aper.AperArea(:,3);
-                    
-                case 'BACK_IM'
-                    Data(:,K) = Obj(Iobj).getImageVal(round(Xpos), round(Ypos), 'DataProp',{'Back'});
-                case 'VAR_IM'  
-                    Data(:,K) = Obj(Iobj).getImageVal(round(Xpos), round(Ypos), 'DataProp',{'Var'});
-                case 'BACK_ANNULUS'
-                    Data(:,K) = Aper.AnnulusBack;
-                case 'BACKMAG_ANNULUS'
-                    Data(:,K) = convert.luptitude(Aper.AnnulusBack, 10.^(0.4.*Args.ZP));
-                case 'STD_ANNULUS'
-                    Data(:,K) = Aper.AnnulusStd;
-                case 'FLAGS'
-                    Data(:,K) = FlagsXY;
-                case 'FLAG_IN'
-                    Data(:,K) = FlagsIn;
-                case 'MITER'
-                    % do nothing
-                    % for forced photometry MITER is NaN
-                case 'FORCED'
-                    Data(:,K) = 1;
-
-                case 'FLUX_XYPEAK'
-                    % flux at XPEAK, YPEAK
-                    Data(:,K) = imUtil.image.getValPos(Obj(Iobj).(Args.ImageProp).Data - Obj(Iobj).BackData.Data, XI, YI);
-
-                otherwise
-                    % attempt to read value from header
-
-                    if Args.ReadColFromHeader
-                        Val  = Obj(Iobj).HeaderData.getVal(Args.ColCell{Icol}, 'UseDict',false);
-                            
-                        if isnan(Val)
-                            % Any other column will be set to NaN
-                            %error('Unknown ColCell name option: %s - not available also [as numeric] in header',Args.ColCell{Icol});
-                        else
-                            Data(:,K) = repmat(Val, NsrcAll, 1);
+    
+            
+            % Moments and aperture phot:
+            [M1,M2,Aper] = imUtil.image.moment2(Obj(Iobj).(Args.ImageProp).Data, XI, YI,...
+                                    'MaxIter',Args.MomentMaxIter, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus);
+    
+            % if Args.UseMomCoo
+            %     %X = nan(Nsrc,1);
+            %     %Y = nan(Nsrc,1);
+            %     X1 = M1.X;
+            %     Y1 = M1.Y;
+            % else
+            %     X1 = X;
+            %     Y1 = Y;
+            % end
+    
+            % psf photometry        
+            [ResultPSF, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
+                                                                'Std',Std,...
+                                                                'Back',Back,...
+                                                                'FitRadius',Args.FitRadius,...
+                                                                'SmallStep',Args.SmallStep,...
+                                                                'MaxStep',Args.MaxStep,...
+                                                                'ConvThresh',Args.ConvThresh,...
+                                                                'MaxIter',Args.MaxIter,...
+                                                                'UseSourceNoise',Args.UseSourceNoise,...
+                                                                'PsfPhotMethod',Args.PsfPhotMethod,...
+                                                                'ShiftMethod',Args.ShiftMethod,...
+                                                                'ZP',Args.ZP);
+                                                            
+            
+            
+            Xpos = XI(:) + ResultPSF.DX(:);
+            Ypos = YI(:) + ResultPSF.DY(:);
+            % RA, Dec of fitted position
+            [RAI, DecI] = Obj(Iobj).WCS.xy2sky(Xpos,Ypos,'OutUnits',Args.CooOutUnits);
+    
+            
+    
+    
+            [Ny, Nx] = Obj(Iobj).sizeImage;
+            %FlagIn      = X>1 & X<Nx & Y>1 & Y<Ny;
+            FlagIn  = Xpos>Args.MinEdgeDist & Xpos<(Nx-Args.MinEdgeDist) & Ypos>Args.MinEdgeDist & Ypos<(Ny-Args.MinEdgeDist);        
+    
+    
+            if any(FlagIn) && ~isempty(Obj(Iobj).Mask)
+                FlagsXY  = nan(Nsrc,1);
+                FlagsXY(FlagIn)  = bitwise_cutouts(Obj(Iobj).MaskData, [Xpos(FlagIn),Ypos(FlagIn)], 'or', 'HalfSize',Args.FlagsHalfSize);
+            else
+                FlagsXY  = nan(Nsrc, 1);
+            end
+    
+            NsrcAll = Nsrc + Nadd;
+            Data    = nan(NsrcAll, NcolOut);
+            K = 0;
+            for Icol=1:1:Ncol
+                K = K + 1;
+                ColCellOut{K} = Args.ColCell{Icol};
+                switch Args.ColCell{Icol}
+                    case 'X'
+                        Data(:,K) = Xpos;
+                    case 'Y'
+                        Data(:,K) = Ypos;
+                    case 'X1'
+                        Data(:,K) = M1.X;  % NaN position corresponds to out of image...
+                    case 'Y1'
+                        Data(:,K) = M1.Y;
+                    case 'XPEAK'
+                        % This is X initial rather than Xpeak
+                        Data(:,K) = XI;
+                    case 'YPEAK'
+                        % This is Y initial rather than Ypeak
+                        Data(:,K) = YI;
+                    case 'RA_IN'
+                        Data(:,K) = RA;
+                    case 'Dec_IN'
+                        Data(:,K) = Dec;
+                    case 'RA'
+                        Data(:,K) = RAI;
+                    case 'Dec'
+                        Data(:,K) = DecI;    
+                    case 'X2'
+                        Data(:,K) = M2.X2;
+                    case 'Y2'
+                        Data(:,K) = M2.Y2;
+                    case 'XY'
+                        Data(:,K) = M2.XY;
+                    case 'FLUX_PSF'
+                        Data(:,K) = ResultPSF.Flux;
+                    case 'MAG_PSF'
+                        Data(:,K) = ResultPSF.Mag;
+                    case 'SN'
+                        Data(:,K) = ResultPSF.SNm;
+                    case 'FLUXERR_PSF'
+                        Data(:,K) = ResultPSF.Flux./ResultPSF.SNm;
+                    case 'MAGERR_PSF'
+                        Data(:,K) = 1.086./ResultPSF.SNm;
+                    case 'CHI2DOF'
+                        Data(:,K) = ResultPSF.Chi2./ResultPSF.Dof;
+    
+                    case 'FLUX_APER_1'
+                        Data(:,K) = Aper.AperPhot(:,1);
+                        %Data(:,K:K+Naper-1) = Aper.AperPhot;
+                        %[ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('FLUX_APER',(1:1:Naper)));
+                        %K = K + Naper - 1;
+                    case 'FLUX_APER_2'
+                        Data(:,K) = Aper.AperPhot(:,2);
+                    case 'FLUX_APER_3'
+                        Data(:,K) = Aper.AperPhot(:,3);
+    
+                    case 'FLUXERR_APER_1'
+                        Data(:,K) = Aper.AperPhotErr(:,1);
+                        %Data(:,K:K+Naper-1) = sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2);
+                        %[ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('FLUXERR_APER',(1:1:Naper)));
+                        %K = K + Naper - 1;
+                    case 'FLUXERR_APER_2'
+                        Data(:,K) = Aper.AperPhotErr(:,2);
+                    case 'FLUXERR_APER_3'
+                        Data(:,K) = Aper.AperPhotErr(:,3);
+                    case 'MAG_APER_1'
+                        Data(:,K) = convert.luptitude(Aper.AperPhot(:,1), 10.^(0.4.*Args.ZP));
+                        %Data(:,K:K+Naper-1) = convert.luptitude(Aper.AperPhot, 10.^(0.4.*Args.ZP));
+                        %[ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('MAG_APER',(1:1:Naper)));
+                        %K = K + Naper - 1;
+                    case 'MAG_APER_2'
+                        Data(:,K) = convert.luptitude(Aper.AperPhot(:,2), 10.^(0.4.*Args.ZP));
+                    case 'MAG_APER_3'
+                        Data(:,K) = convert.luptitude(Aper.AperPhot(:,3), 10.^(0.4.*Args.ZP));    
+                    case 'MAGERR_APER_1'
+                        Data(:,K) = 1.086.*sqrt(Aper.AperPhotErr(:,1).^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot(:,1);
+                        %Data(:,K:K+Naper-1) = 1.086.*sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot;
+                        %[ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('MAGERR_APER',(1:1:Naper)));
+                        %K = K + Naper - 1;
+                    case 'MAGERR_APER_2'
+                        Data(:,K) = 1.086.*sqrt(Aper.AperPhotErr(:,2).^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot(:,2);
+                    case 'MAGERR_APER_3'
+                        Data(:,K) = 1.086.*sqrt(Aper.AperPhotErr(:,3).^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot(:,3);    
+                    case 'APER_AREA_1'
+                        Data(:,K) = Aper.AperArea(:,1);
+                        %Data(:,K:K+Naper-1) = Aper.AperArea;
+                        %[ColCellOut(K:K+Naper-1)] = deal(sprintf_cell('APER_AREA',(1:1:Naper)));
+                        %K = K + Naper - 1;
+                    case 'APER_AREA_2'
+                        Data(:,K) = Aper.AperArea(:,2);
+                    case 'APER_AREA_3'
+                        Data(:,K) = Aper.AperArea(:,3);
+                        
+                    case 'BACK_IM'
+                        Data(:,K) = Obj(Iobj).getImageVal(round(Xpos), round(Ypos), 'DataProp',{'Back'});
+                    case 'VAR_IM'  
+                        Data(:,K) = Obj(Iobj).getImageVal(round(Xpos), round(Ypos), 'DataProp',{'Var'});
+                    case 'BACK_ANNULUS'
+                        Data(:,K) = Aper.AnnulusBack;
+                    case 'BACKMAG_ANNULUS'
+                        Data(:,K) = convert.luptitude(Aper.AnnulusBack, 10.^(0.4.*Args.ZP));
+                    case 'STD_ANNULUS'
+                        Data(:,K) = Aper.AnnulusStd;
+                    case 'FLAGS'
+                        Data(:,K) = FlagsXY;
+                    case 'FLAG_IN'
+                        Data(:,K) = FlagsIn;
+                    case 'MITER'
+                        % do nothing
+                        % for forced photometry MITER is NaN
+                    case 'FORCED'
+                        Data(:,K) = 1;
+    
+                    case 'FLUX_XYPEAK'
+                        % flux at XPEAK, YPEAK
+                        Data(:,K) = imUtil.image.getValPos(Obj(Iobj).(Args.ImageProp).Data - Obj(Iobj).BackData.Data, XI, YI);
+    
+                    otherwise
+                        % attempt to read value from header
+    
+                        if Args.ReadColFromHeader
+                            Val  = Obj(Iobj).HeaderData.getVal(Args.ColCell{Icol}, 'UseDict',false);
+                                
+                            if isnan(Val)
+                                % Any other column will be set to NaN
+                                %error('Unknown ColCell name option: %s - not available also [as numeric] in header',Args.ColCell{Icol});
+                            else
+                                Data(:,K) = repmat(Val, NsrcAll, 1);
+                            end
+                        end
+    
+                end % switch Args.ColCell{Icol}
+            end %for Icol=1:1:Ncol
+    
+            switch lower(Args.OutputType)
+                case 'concatai'
+                    % concat catalog to AstroCatalog in input AstroImage
+                    Result(Iobj).CatData.Catalog = [Result(Iobj).CatData.Catalog; Data];
+    
+                case {'astrocatalog','astroimage'}
+                    %Out = AstroCatalog({Data}, 'ColNames',ColCellOut, 'ColUnits',ColUnitsOut);
+    
+                    if strcmpi(Args.OutputType, 'astroimage')
+                        Result(Iobj).CatData.Catalog  = Data;
+                        Result(Iobj).CatData.ColNames = ColCellOut;
+                        Result(Iobj).CatData.ColUnits = ColUnitsOut;
+                    else
+                        if Iobj==1
+                            Result = AstroCatalog([Nobj, 1]);
+                        end
+                        %Result(Iobj) = Out;
+                        Result(Iobj).Catalog = Data;
+                        Result(Iobj).ColNames = ColCellOut;
+                        Resuly(Iobj).ColUnits = ColUnitsOut;
+                    end
+                case 'table'
+                    if Iobj==1
+                        Result = array2table(Data, 'VariableNames',Args.ColCell, 'VariableUnits',Args.ColUnits);
+                    else
+                        Result = [Result; array2table(Data)];
+                    end
+                case 'matchedsources'
+                    if Iobj==1
+                        Result = MatchedSources;
+                        for Icol=1:1:Ncol
+                            Result.Data.(Args.ColCell{Icol}) = nan(Nobj, NsrcAll);
                         end
                     end
-
-            end % switch Args.ColCell{Icol}
-        end %for Icol=1:1:Ncol
-
-        switch lower(Args.OutputType)
-            case 'concatai'
-                % concat catalog to AstroCatalog in input AstroImage
-                Result(Iobj).CatData.Catalog = [Result(Iobj).CatData.Catalog; Data];
-
-            case {'astrocatalog','astroimage'}
-                %Out = AstroCatalog({Data}, 'ColNames',ColCellOut, 'ColUnits',ColUnitsOut);
-
-                if strcmpi(Args.OutputType, 'astroimage')
-                    Result(Iobj).CatData.Catalog  = Data;
-                    Result(Iobj).CatData.ColNames = ColCellOut;
-                    Result(Iobj).CatData.ColUnits = ColUnitsOut;
-                else
-                    if Iobj==1
-                        Result = AstroCatalog([Nobj, 1]);
-                    end
-                    %Result(Iobj) = Out;
-                    Result(Iobj).Catalog = Data;
-                    Result(Iobj).ColNames = ColCellOut;
-                    Resuly(Iobj).ColUnits = ColUnitsOut;
-                end
-            case 'table'
-                if Iobj==1
-                    Result = array2table(Data, 'VariableNames',Args.ColCell, 'VariableUnits',Args.ColUnits);
-                else
-                    Result = [Result; array2table(Data)];
-                end
-            case 'matchedsources'
-                if Iobj==1
-                    Result = MatchedSources;
+                    % table2struct / scalar do not do the work
                     for Icol=1:1:Ncol
-                        Result.Data.(Args.ColCell{Icol}) = nan(Nobj, NsrcAll);
+                        Result.Data.(Args.ColCell{Icol})(Iobj,:) = Data(:,Icol).';
                     end
-                end
-                % table2struct / scalar do not do the work
-                for Icol=1:1:Ncol
-                    Result.Data.(Args.ColCell{Icol})(Iobj,:) = Data(:,Icol).';
-                end
-                
-                Result.JD(Iobj) = Obj(Iobj).HeaderData.julday();
-            otherwise
-                error('Unknown OutputType option: %s', Args.OutputType);
-        end % switch lower(Args.OutputType)
-    
+                    
+                    Result.JD(Iobj) = Obj(Iobj).HeaderData.julday();
+                otherwise
+                    error('Unknown OutputType option: %s', Args.OutputType);
+            end % switch lower(Args.OutputType)
+        end % if IsGood(Iobj)
     end %for Iobj=1:1:Nobj
 end
                         

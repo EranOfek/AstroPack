@@ -92,6 +92,8 @@ function [Mode, Var, Method] = modeVar_SampleHist(Array, Args)
         Args.MaxVar          = 1e4;
         Args.MaxRangeLogL    = 0.6
         Args.UseMex          = true;
+
+        Args.RN2             = []; % NOT USED
     end
 
     if Args.UseMex

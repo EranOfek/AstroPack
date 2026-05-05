@@ -1,30 +1,83 @@
 function plotPhotMosaic(CalibResult, Args)
     % Plot RMS/ZP mosaic and ZP map comparison across modes
     % Description: Two figures:
-    %   1. Two-panel mosaic: median fit RMS and center ZP std per crop
-    %      (light-to-dark gray colormap).
-    %   2. Side-by-side ZP maps for the first visit, one panel per mode.
+    %   1. Two-panel mosaic per crop:
+    %        - panel 1: median fit RMS  (single-visit input: just fit RMS)
+    %        - panel 2: center ZP std   (single-visit input: center ZP value)
+    %      Light-to-dark gray colormap.
+    %   2. Side-by-side ZP maps for one visit, one panel per mode.
+    %      Single-visit input: a single ZP-map panel.
     %
-    % Input  : - CalibResult struct (from calibratePhotModes) with fields:
-    %            .PC, .FitRMS, .ZPcenter.
+    % Input  : - Either:
+    %            (a) CalibResult struct (from calibratePhotModes) with
+    %                fields .PC, .FitRMS, .ZPcenter (multi-visit, multi-mode).
+    %                'Modes' arg required.
+    %            (b) Plain PhotCalibTrans array (e.g. 1 x 24, the result of
+    %                imProc.calib.fitPhotCalibTrans on one coadd's crops).
+    %                'Modes' is silently ignored; treated as a single
+    %                'percrop' visit. Panel 2 shows the center ZP value
+    %                (per crop) instead of an std (which would need >1 visit).
     %          * ...,key,val,...
-    %            'Modes'     - Cell array of modes. Required.
-    %            'Visits'    - Visit index vector. Default is 1:20.
-    %            'Ncrop'     - Number of crops. Default is 24.
-    %            'RefCrop'   - Reference crop for ZP maps. Default is 10.
-    %            'TileOrder' - 'colmajor'|'rowmajor'. Default is 'rowmajor'.
-    % Output : - CalibResult.CLim is NOT modified (caller can read it from
-    %            the figure if needed).
-    % Author : D. Kovaleva (Mar 2026)
-    % Example: pipeline.last.quality.photCalib.plotPhotMosaic(Calib, 'Modes', {'percrop','perimage'});
+    %            'Modes'     - Cell array of modes. Required for shape (a),
+    %                          ignored for shape (b).
+    %            'Visits'    - Visit index vector. Default 1:20. Ignored
+    %                          for shape (b).
+    %            'Ncrop'     - Number of crops. Default 24.
+    %            'RefCrop'   - Reference crop for ZP maps. Default 10.
+    %            'TileOrder' - 'colmajor'|'rowmajor'. Default 'rowmajor'.
+    %            'CenterXY'  - [X Y] pixel coords for center-ZP evaluation
+    %                          in single-visit mode. Default [858 858]
+    %                          (paired with TileOrder='rowmajor'). For
+    %                          'colmajor' use [863 863].
+    % Author : D. Kovaleva (Mar 2026; PC-array mode May 2026)
+    % Example: % Multi-visit / multi-mode (original):
+    %          pipeline.last.quality.photCalib.plotPhotMosaic(Calib, ...
+    %              'Modes', {'percrop','perimage'});
+    %
+    %          % Single coadd's per-crop PC array:
+    %          [~, PC] = imProc.calib.fitPhotCalibTrans(Coadd);
+    %          pipeline.last.quality.photCalib.plotPhotMosaic(PC);
 
     arguments
-        CalibResult struct
-        Args.Modes cell
-        Args.Visits  = 1:20
-        Args.Ncrop   = 24
-        Args.RefCrop = 10
-        Args.TileOrder = 'rowmajor'
+        CalibResult                              % struct OR PhotCalibTrans array
+        Args.Modes      cell        = {}
+        Args.Visits                 = 1:20
+        Args.Ncrop                  = 24
+        Args.RefCrop                = 10
+        Args.TileOrder              = 'rowmajor'
+        Args.CenterXY               = [858 858]
+    end
+
+    % --- Detect / normalize input ---------------------------------------
+    SingleVisit = isa(CalibResult, 'PhotCalibTrans');
+    if SingleVisit
+        PCarray  = CalibResult(:).';
+        Args.Ncrop = numel(PCarray);
+        FitRMS = nan(1, Args.Ncrop);
+        ZPcent = nan(1, Args.Ncrop);
+        for Ic = 1:Args.Ncrop
+            if PCarray(Ic).Success
+                if ~isempty(PCarray(Ic).TransModel)
+                    FitRMS(Ic) = PCarray(Ic).TransModel.RMS;
+                end
+                ZPcent(Ic) = PCarray(Ic).evaluateZP( ...
+                    'X', Args.CenterXY(1), 'Y', Args.CenterXY(2));
+            end
+        end
+        CR = struct();
+        CR.PC.percrop       = {PCarray};
+        CR.FitRMS           = FitRMS;
+        CR.ZPcenter.percrop = ZPcent;
+        CalibResult = CR;
+        Args.Modes  = {'percrop'};
+        Args.Visits = 1;
+    elseif ~isstruct(CalibResult)
+        error('plotPhotMosaic:BadInput', ...
+            'CalibResult must be a CalibResult struct or a PhotCalibTrans array.');
+    elseif isempty(Args.Modes)
+        error('plotPhotMosaic:NoModes', ...
+            ['''Modes'' is required when CalibResult is a struct. ', ...
+             'Pass a PhotCalibTrans array instead for single-visit mode.']);
     end
 
     Nmodes  = numel(Args.Modes);
@@ -48,12 +101,23 @@ function plotPhotMosaic(CalibResult, Args)
 
         if Ipanel == 1
             PlotVals = MedRMS;
-            CbLabel  = 'Median fit RMS [mag]';
-            PanelTitle = sprintf('Median fit RMS over %d epochs', Nvisits);
+            if SingleVisit
+                CbLabel    = 'Fit RMS [mag]';
+                PanelTitle = 'Fit RMS per crop';
+            else
+                CbLabel    = 'Median fit RMS [mag]';
+                PanelTitle = sprintf('Median fit RMS over %d epochs', Nvisits);
+            end
         else
-            PlotVals = ZPstd;
-            CbLabel  = 'ZP std [mag]';
-            PanelTitle = sprintf('Center ZP std over %d epochs', Nvisits);
+            if SingleVisit
+                PlotVals   = CalibResult.ZPcenter.percrop;
+                CbLabel    = 'Center ZP value [mag]';
+                PanelTitle = 'Center ZP per crop';
+            else
+                PlotVals   = ZPstd;
+                CbLabel    = 'ZP std [mag]';
+                PanelTitle = sprintf('Center ZP std over %d epochs', Nvisits);
+            end
         end
 
         MosaicImg = nan(Nrows, Ncols);

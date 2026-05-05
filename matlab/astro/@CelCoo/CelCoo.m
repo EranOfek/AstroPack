@@ -206,6 +206,95 @@ classdef CelCoo < matlab.mixin.Copyable
     end
  
     
+    methods % constructor
+        function Obj=CelCoo(RA, Dec, Args)
+            % Construct a CelCoo object from RA/Dec (or resolvable names).
+            % Description:
+            %   Resolves RA/Dec through celestial.convert.cooResolve, stores
+            %   coordinates in Obj.RA/Obj.Dec, then assigns any non-empty
+            %   optional fields in Args to matching object properties (same
+            %   names as class properties).
+            % Input  : - Right ascension: numeric angle(s), or object name(s)
+            %            passed to celestial.convert.cooResolve.
+            %          - Declination: numeric angle(s), or empty when RA is
+            %            given as resolvable name(s).
+            %          * ...,key,val,...
+            %            'InUnits' - Units for numeric input RA/Dec before
+            %                   resolution ('rad'|'deg'). Default is 'deg'.
+            %            'Units' - Units for stored Obj.RA/Obj.Dec after
+            %                   cooResolve ('rad'|'deg'). Default is 'rad'.
+            %            'Server' - Name resolver server for cooResolve.
+            %                   Default is [].
+            %            'System' - Coordinate system tag (e.g. 'eq').
+            %                   Default is [] (class default).
+            %            'Equinox' - Julian equinox metadata (scalar).
+            %                   Default is [] (class default).
+            %            'IsTrue' - True vs mean equinox of date (logical).
+            %                   Default is [] (class default).
+            %            'Epoch' - Epoch value. Default is [] (class default).
+            %            'EpochType' - Epoch type flag. Default is [].
+            %            'PM_RA' - Proper motion in RA [mas/yr]. Default [].
+            %            'PM_Dec' - Proper motion in Dec [mas/yr]. Default [].
+            %            'RadVel' - Radial velocity (property units; see class).
+            %                   Default [].
+            %            'Plx' - Parallax (property units; see class). Default [].
+            % Output : - CelCoo object with RA/Dec and any supplied metadata.
+            %
+            % Notes  : - Only Args fields listed above are accepted by the
+            %            arguments block; additional properties must be set
+            %            after construction if needed.
+            %          - While assigning properties, DoNotCall is set true so
+            %            setters (e.g. Equinox, Epoch) do not trigger transforms.
+            % Author : Eran Ofek (May 2026)
+            % Example: C = CelCoo(180, 30);
+            %          C = CelCoo('M31', [], 'InUnits','deg','Server','simbad');
+            %          C = CelCoo(RA, Dec, 'InUnits','deg','Units','rad', ...
+            %                     'Equinox',2000,'PM_RA',10,'PM_Dec',-2);
+
+            arguments
+                RA
+                Dec
+                Args.InUnits  = 'deg';
+                Args.Units = 'rad';
+                Args.Server   = [];
+
+                Args.System   = [];
+                Args.Equinox  = [];
+                Args.IsTrue   = [];
+                Args.Epoch    = [];
+                Args.EpochType = [];
+                Args.PM_RA     = [];
+                Args.PM_Dec    = [];
+                Args.RadVel    = [];
+                Args.Plx       = [];
+
+            end
+
+            [RA, Dec] = celestial.convert.cooResolve(RA, Dec, 'InUnits',Args.InUnits, 'OutUnits',Args.Units, 'Server',Args.Server);
+    
+            Obj.RA  = RA;
+            Obj.Dec = Dec;
+            %Obj.Units = Args.Units;
+
+            PropList = properties(Obj);
+            Npl      = numel(PropList);
+            ArgsF    = fieldnames(Args);
+            DefDoNotCall = Obj.DoNotCall;
+            Obj.DoNotCall = true;
+            for Ipl=1:1:Npl
+                Iarg = find(strcmp(PropList{Ipl}, ArgsF));
+                if ~isempty(Iarg) 
+                    if ~isempty(Args.(ArgsF{Iarg}))
+                        Obj.(PropList{Ipl}) = Args.(ArgsF{Iarg});
+                    end
+                end
+            end
+            Obj.DoNotCall = DefDoNotCall;
+
+        end
+
+    end
+
     methods % populate
         function Obj=populateEpoch(Obj, Epoch)
             % Convert Epoch to Julian Epoch and populate
@@ -755,6 +844,12 @@ classdef CelCoo < matlab.mixin.Copyable
             %                   Default is [].
             %            'STType' - Sidereal time type: 'a' | 'm'.
             %                   Default is 'a'.
+            %            'First' - Options are:
+            %                   'first' - What ever is first after the requested
+            %                           JD.
+            %                   'rise' - first rise, set afterwards.
+            %                   'set' - first set, rise afterwards.
+            %                   Default is 'first'.
             % Output : - Rise JD array, same size as Obj.RA/Obj.Dec.
             %          - Set JD array, same size as Obj.RA/Obj.Dec.
             %          - Optional rise azimuth array (same angular units as
@@ -774,6 +869,7 @@ classdef CelCoo < matlab.mixin.Copyable
                 Alt (1,1)   = 0;
                 Args.GeoCoo = [];
                 Args.STType = 'a';
+                Args.First  = 'first';
             end
 
             if isempty(Args.GeoCoo)
@@ -801,10 +897,238 @@ classdef CelCoo < matlab.mixin.Copyable
             [varargout{1:nargout}] = celestial.time.riseSet(JD, RA, Dec, Alt, ...
                                            'ObsPos', Args.GeoCoo, ...
                                            'InUnits', Obj.Units, ...
-                                           'STType', Args.STType);
+                                           'STType', Args.STType,...
+                                           'First',Args.First);
                
         end
 
+    end
+
+    methods % visibility
+        function [TotalVisibility,FlagMoon,StartEnd]=nightVisibility(Obj, JD, AltLimit, Args)
+            % Integrated visibility above altitude limits during one night.
+            %   Optionally includes Moon constraints via isMoonOk.
+            %   Integration is along the night from Sun.Set to Sun.Rise
+            %   (celestial.time.riseSet at solar altitude SunAlt).
+            % Input  : - A single-element CelCoo object (equatorial RA/Dec).
+            %          - Reference JD (scalar). Sun position at JD is used with
+            %            celestial.time.riseSet to obtain night endpoints.
+            %          - Altitude limit, in Args.AltUnits:
+            %            * Scalar: minimum altitude; source is visible when
+            %              apparent altitude exceeds this value.
+            %            * Nx2 matrix: columns [Az, MinAlt(Az)] in Args.AltUnits;
+            %              MinAlt is interpolated in azimuth (see Notes).
+            %            * Nx3 matrix: [Az, MinAlt(Az), MaxAlt(Az)] band.
+            %            Default is 30.
+            %          * ...,key,val,...
+            %            'AltUnits' - Angular units for AltLimit, SunAlt, and
+            %                   table columns ('deg'|'rad'). Default is 'deg'.
+            %            'SunAlt' - Solar altitude threshold (same units as
+            %                   AltUnits) passed to celestial.time.riseSet as
+            %                   the rise/set horizon. Default is -11.5.
+            %            'GeoCoo' - Geodetic [Lon(deg), Lat(deg), Height(m)].
+            %                   If empty, use Obj.GeoCoo. Default is [].
+            %            'LSTType' - Sidereal type for riseSet and radec2azalt:
+            %                   'm' (mean) | 'a' (apparent). Default is 'm'.
+            %            'IncludeMoon' - If true, multiply visibility by
+            %                   isMoonOk evaluated at mid-night between Sun.Set
+            %                   and Sun.Rise. Default is true.
+            %            'MoonDistProfile' - Second argument to isMoonOk when
+            %                   IncludeMoon is true. 
+            %                   See isMoonOk for options.
+            %                   Default is 30.
+            %            'TimeStep' - JD sampling step (days) along the night.
+            %                   Default is 5/1440 (5 minutes).
+            % Output : - Per-target integrated time (days) with altitude (and
+            %            Moon, if requested) satisfied on the time grid.
+            %          - Logical mask of Moon constraint (same size as Obj.RA),
+            %            or all true when IncludeMoon is false.
+            %          - (Optional) Ntarget x 2 array: [JD_first, JD_last] of
+            %            usable samples per target.
+            %
+            % Notes  : - Night span is JD_NightVec from Sun.Set to Sun.Rise
+            %            (celestial.time.riseSet with First='set', ObsPos=GeoCoo).
+            %          - Az/Alt from radec2azalt use OutUnits 'deg'; AltLimit
+            %            columns are converted to degrees internally.
+            %          - For Nx2/Nx3 AltLimit, first column is azimuth; it must
+            %                   be suitable as interp1 abscissa (e.g. sorted).
+            %          - If Obj.RA/Obj.Dec are empty, all outputs are [].
+            % Author : Eran Ofek (May 2026)
+            % Example: [V,F] = C.nightVisibility(2460400.5, 30);
+            %          [V,F,S] = C.nightVisibility(JD, [0 25; 180 30; 360 25], ...
+            %                     'AltUnits','deg','IncludeMoon',true);
+
+            arguments
+                Obj(1,1)
+                JD (1,1) = celestial.time.julday();
+                AltLimit = 30;
+                Args.AltUnits = 'deg';
+                Args.SunAlt = -11.5;
+                Args.GeoCoo = [];
+                Args.LSTType = 'm';
+                Args.IncludeMoon (1,1) logical = true;
+                Args.MoonDistProfile = 30;
+                Args.TimeStep (1,1) double = 5./1440; %1./96;
+            end
+
+            %error('Not tested')
+
+            % --- Observer site: same convention as azAlt / isMoonOk ---
+            if isempty(Args.GeoCoo)
+                Args.GeoCoo = Obj.GeoCoo;
+            end
+
+            % --- Convert altitude thresholds to degrees (internal convention) ---
+            ConvToRad  = convert.angular(Args.AltUnits, 'rad');
+            ConvToDeg  = convert.angular(Args.AltUnits, 'deg');
+
+
+            % --- Empty catalog: nothing to integrate ---
+            if isempty(Obj.RA) || isempty(Obj.Dec)
+                TotalVisibility = [];
+                FlagMoon        = [];
+                StartEnd        = [];
+                return;
+            end
+            Sz      = size(Obj.RA);
+            Ntarget = numel(Obj.RA);
+
+            JD1 = JD;
+            % find noon of the previous day.
+            Sun    = Obj.sunDist(JD1, 'OutUnits','deg');   % [deg]
+            if Sun.Alt(end)>(Args.SunAlt.*ConvToDeg)
+                % day time
+                % use elestial.time.riseSet(
+                % will return only the NEXT rise/set
+                JD = JD1;
+            else
+                % night time
+                % need to find the previous set
+
+                Vec_JD = ((JD-1):0.01:JD);
+                Sun    = Obj.sunDist(Vec_JD, 'OutUnits','deg');   % [deg]
+                [~,Imax] = max(Sun.Alt);
+                JD = Vec_JD(Imax);
+            end
+            
+            % find midnight
+            [Sun.RA, Sun.Dec] = celestial.SolarSys.suncoo(JD, 'a');  % [rad]
+            [Sun.Rise, Sun.Set] = celestial.time.riseSet(JD, Sun.RA, Sun.Dec, Args.SunAlt.*ConvToRad, 'ObsPos',Args.GeoCoo, 'InUnits','rad', 'First','set', 'LSTType',Args.LSTType);
+            % Need: Rise after Set
+            JD_Midnight = 0.5.*(Sun.Rise + Sun.Set);
+           
+            JD_NightVec = (Sun.Set:Args.TimeStep:Sun.Rise);
+            CooRad = Obj.Rad;
+            [SrcAz, SrcAlt] = celestial.coo.radec2azalt(JD_NightVec, CooRad(:,1), CooRad(:,2), 'GeoCoo',Args.GeoCoo, 'InUnits','rad', 'OutUnits','deg', 'LSTType',Args.LSTType);
+
+            if isscalar(AltLimit)
+                FlagAlt = SrcAlt>(AltLimit.*ConvToDeg);
+            else
+                SrcAltLimit = interp1(AltLimit(:,1).*ConvToDeg, AltLimit(:,2).*ConvToDeg, SrcAz);
+                if size(AltLimit,2)==2
+                    FlagAlt     = SrcAlt>SrcAltLimit;
+                elseif size(AltLimit,2)==3
+                    SrcAltLimitUpper = interp1(AltLimit(:,1).*ConvToDeg, AltLimit(:,3).*ConvToDeg, SrcAz);
+                    FlagAlt     = SrcAlt>SrcAltLimit & SrcAlt<SrcAltLimitUpper;
+                else
+                    error('Unknown AltLimit size option');
+                end
+            end
+
+            if Args.IncludeMoon
+                FlagMoon = Obj.isMoonOk(JD_Midnight, Args.MoonDistProfile, 'OutIsInd',false, 'GeoCoo',Args.GeoCoo);
+            else
+                FlagMoon = true(Sz);
+            end
+            FlagAll = FlagAlt & FlagMoon;
+            TotalVisibility = sum(FlagAll,2).*Args.TimeStep;
+            if nargout>2
+                StartEnd = nan(Ntarget,2);
+                for Itarget=1:1:Ntarget
+                    Istart = find(FlagAll(Itarget,:), 1, 'first');
+                    Iend   = find(FlagAll(Itarget,:), 1, 'last');
+                    if ~isempty(Istart)
+                        StartEnd(Itarget,:) = [JD_NightVec(Istart), JD_NightVec(Iend)+Args.TimeStep.*0.5];
+                    end
+                end
+            end
+        end
+
+
+        function LeftTime = leftVisibility(Obj, JD, Alt, Args)
+            % Calendar time remaining until end of per-target visibility window.
+            % Description:
+            %   Calls nightVisibility with the same rules (altitude limit,
+            %   optional Moon, Sun night bounds) and uses the StartEnd output:
+            %   column 1 is the first JD of the visible segment, column 2 the
+            %   last (see nightVisibility). LeftTime is the span from the
+            %   requested JD to that last sample, in days, floored at zero.
+            % Input  : - A single-element CelCoo object (equatorial RA/Dec).
+            %          - Current JD (scalar), in the same time system as
+            %            nightVisibility (UT JD).
+            %          - Altitude limit Alt (same as nightVisibility AltLimit):
+            %            scalar, Nx2 [Az, MinAlt], or Nx3 [Az, MinAlt, MaxAlt];
+            %            angular columns use Args.AltUnits. Default is 30.
+            %          * ...,key,val,...
+            %            'AltUnits' - Units for Alt, SunAlt, and table columns
+            %                   ('deg'|'rad'). Default is 'deg'.
+            %            'SunAlt' - Solar altitude threshold for riseSet
+            %                   (same units as AltUnits). Default is -11.5.
+            %            'GeoCoo' - Geodetic [Lon(deg), Lat(deg), Height(m)].
+            %                   If empty, use Obj.GeoCoo. Default is [].
+            %            'LSTType' - 'm' (mean) | 'a' (apparent) for riseSet and
+            %                   radec2azalt. Default is 'm'.
+            %            'IncludeMoon' - Forwarded to nightVisibility. Default
+            %                   is true.
+            %            'MoonDistProfile' - Forwarded to nightVisibility /
+            %                   isMoonOk when IncludeMoon is true. Default is 30.
+            %            'TimeStep' - Night sampling step (days) forwarded to
+            %                   nightVisibility; affects StartEnd endpoints.
+            %                   Default is 5/1440 (~5 minutes).
+            % Output : - Array same shape as Obj.RA: non-negative time (days)
+            %            until StartEnd(:,2) for each target. Entries are 0
+            %            if JD is after the visible window or if that target had
+            %            no visible samples (NaN in StartEnd).
+            % Notes  : - This is elapsed calendar time to the last good sample,
+            %            not the integral of visibility (see TotalVisibility).
+            %          - If Obj.RA/Obj.Dec are empty, returns [].
+            % Author : Eran Ofek (May 2026)
+            % Example: L = C.leftVisibility(2460400.5, 30);
+            %          L = C.leftVisibility(JD, 25, 'IncludeMoon',false);
+            %          L = C.leftVisibility(JD, [0 25; 180 30; 360 25], ...
+            %                     'AltUnits','deg','SunAlt',-18);
+
+            arguments
+                Obj(1,1)
+                JD (1,1) = celestial.time.julday();
+                Alt = 30;
+                Args.AltUnits = 'deg';
+                Args.SunAlt = -11.5;
+                Args.GeoCoo = [];
+                Args.LSTType = 'm';
+                Args.IncludeMoon (1,1) logical = true;
+                Args.MoonDistProfile = 30;
+                Args.TimeStep (1,1) double = 5./1440;
+            end
+
+            [~, ~, StartEnd] = Obj.nightVisibility(JD, Alt, ...
+                'AltUnits', Args.AltUnits, ...
+                'SunAlt', Args.SunAlt, ...
+                'GeoCoo', Args.GeoCoo, ...
+                'LSTType', Args.LSTType, ...
+                'IncludeMoon', Args.IncludeMoon, ...
+                'MoonDistProfile', Args.MoonDistProfile, ...
+                'TimeStep', Args.TimeStep);
+
+            if isempty(StartEnd)
+                LeftTime = [];
+                return;
+            end
+
+            LeftTime = StartEnd(:, 2) - JD;
+            LeftTime(LeftTime < 0 | isnan(LeftTime)) = 0;
+            LeftTime = reshape(LeftTime, size(Obj.RA));
+        end
     end
 
     methods % distance and search
@@ -1093,6 +1417,7 @@ classdef CelCoo < matlab.mixin.Copyable
             % Output : - Structure with Sun fields:
             %              RA, Dec  - Sun apparent equatorial coordinates.
             %              Az, Alt  - Sun horizontal coordinates.
+            %              AltDir - Sun altitude direction (-1; setting).
             %              EqOfTime - Equation of time [minutes].
             %          - (Optional) Angular distance between each Obj
             %            coordinate and the Sun, in OutUnits.
@@ -1116,7 +1441,9 @@ classdef CelCoo < matlab.mixin.Copyable
             % equation of time [min]
             [Sun.RA,Sun.Dec,~,~,Sun.EqOfTime]=celestial.SolarSys.suncoo(JD, 'a');
             [Sun.Az, Sun.Alt] = celestial.coo.radec2azalt(JD, Sun.RA, Sun.Dec,'GeoCoo',Obj.GeoCoo(1:2)./RAD, 'InUnits','rad', 'OutUnits','rad','LSTType','m');
-            
+            [~, Alt2] = celestial.coo.radec2azalt(JD+0.01./1440, Sun.RA, Sun.Dec,'GeoCoo',Obj.GeoCoo(1:2)./RAD, 'InUnits','rad', 'OutUnits','rad','LSTType','m');
+            Sun.SltDir = sign(Alt2-Sun.Alt);
+
             Conv = convert.angular('rad',Args.OutUnits);
 
             if nargout>1
