@@ -42,7 +42,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.core.Loggable
 
             % Do nothing if already connected
             if ~isempty(app.MainModule.UserName)
-                %return;
+                return;
             end
 
             % Check active planner user name
@@ -54,11 +54,11 @@ classdef PlannerMainSessionHelper < ultrasat.api.core.Loggable
 
             % Create app
             if isempty(app.LoginApp) || ~isvalid(app.LoginApp)
-                %app.LoginApp = ultrasat.planner.gui.Login(app.MainModule);
+                app.LoginApp = ultrasat.planner.gui.Login(app.MainModule);
             end
 
             % Show the login dialog, it will call MainModule.login()
-            %app.showModal(app.LoginApp);
+            app.showModal(app.LoginApp);
             app.MainModule.UserName = 'chen';
 
             % Dialog was canceled or failed
