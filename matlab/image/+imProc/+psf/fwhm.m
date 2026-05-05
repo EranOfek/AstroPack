@@ -34,6 +34,9 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
     %                   keyword. Default is Inf.
     %            'KeysMom2' - 2nd moment column names in catalog.
     %                   Default is {'X2','Y2','XY'}.
+    %            'KeyNstars' - Header keyword name to add, with the number
+    %                   of stars used to construct the PSF.
+    %                   If empty, then skip. Default is 'PSF_NST'.
     %            'constructPSFArgs' - the PSF construction arguments to be
     %                   passed to imProc.psf.populatePSF
     %            'UseLegacy' - Use the lgacy code in AstroPSF/fwhm (true)
@@ -49,7 +52,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
     arguments
         Obj 
         Args.Scale                  = [];  % if empty - figure out from WCS
-        Args.AddToHeader logical    = true;
+        Args.AddToHeader            = true;
         Args.HeaderKey              = 'FWHM';
 
         Args.AddMorphology          = false;
@@ -58,8 +61,9 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
         Args.KeyDistPeaks           = 'PSF_DPK';
 
         Args.AddPos                 = Inf;
-        Args.AddMom2 logical        = true;
-        Args.KeysMom2 cell          = {'X2','Y2','XY'};
+        Args.AddMom2                = true;
+        Args.KeysMom2               = {'X2','Y2','XY'};
+        Args.KeyNstars              = 'PSF_NST';
         Args.constructPSFArgs       = {};
         Args.UseLegacy              = true;
     end
@@ -75,6 +79,11 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
             end
         end
         
+        if ~isempty(Args.KeyNstars)
+            % Add to header the number of stars used to construct the PSF
+            Obj(Iobj).HeaderData.replaceVal({Args.KeyNstars}, [Obj(Iobj).PSFData.Nstars], 'AddPos',Args.AddPos);
+        end
+
         if Obj(Iobj).PSFData.Nstars>0
             if isempty(Args.Scale)
                 % get scale from WCS
@@ -98,7 +107,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
         end
 
         % Add PSF morphology information
-        if Args.AddMorphology & Obj(Iobj).PSFData.Nstars>0
+        if Args.AddMorphology && Obj(Iobj).PSFData.Nstars>0
             [PH,DistH] = imUtil.psf.numPeaks(Obj(Iobj).PSFData.Data);
             Npeak = numel(PH);
             if Npeak>1
