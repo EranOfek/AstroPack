@@ -9,7 +9,7 @@
 
 function debug_NamespaceManagerClient()
     factory = ultrasat.api.clients.ClientFactory();
-    baseUrl = factory.getServiceBaseUrl('namespace_manager');
+    baseUrl = factory.getServiceBaseUrl('namespace_manager', 'nginx');
     client = ultrasat.api.clients.NamespaceManagerClient(baseUrl);
     response = client.getNamespaceList();
     disp(response);

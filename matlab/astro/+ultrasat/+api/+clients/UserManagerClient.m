@@ -23,13 +23,14 @@ classdef UserManagerClient < ultrasat.api.clients.ClientBase
 
 
     methods
-        function obj = UserManagerClient(BaseUrl)
+        function obj = UserManagerClient(BaseUrl, Mode)
             % Constructor
             %
             % :param BaseUrl: Base URL of the User Manager API (e.g. from ClientFactory.getServiceBaseUrl('user_manager')).
-            % :param ApiKey: API key (optional; defaults to SOC_API_KEY env var).
-            if nargin < 2 || isempty(ApiKey)
-                ApiKey = getenv('SOC_API_KEY');
+            % API key is read from SOC_API_KEY env var by ClientBase.
+            arguments
+                BaseUrl
+                Mode = 'direct';
             end
             obj@ultrasat.api.clients.ClientBase('BaseUrl', BaseUrl);
             obj.LogPrefix = 'UserManagerClient';

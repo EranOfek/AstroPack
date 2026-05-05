@@ -21,10 +21,14 @@ classdef NamespaceManagerClient < ultrasat.api.clients.ClientBase
 
 
     methods
-        function obj = NamespaceManagerClient(BaseUrl)
+        function obj = NamespaceManagerClient(BaseUrl, Mode)
             % Constructor
             %
             % :param BaseUrl: Base URL of the Namespace Manager API (e.g. from ClientFactory.getServiceBaseUrl('namespace_manager')).
+            arguments
+                BaseUrl
+                Mode = 'direct';
+            end
             obj@ultrasat.api.clients.ClientBase('BaseUrl', BaseUrl);
             obj.LogPrefix = 'NamespaceManagerClient';
             obj.msglog('NamespaceManagerClient constructor started');

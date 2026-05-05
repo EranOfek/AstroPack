@@ -12,7 +12,7 @@ function debug_PlansManagerClient()
     fprintf('========== DEBUG PLANS MANAGER CLIENT ==========\n');
 
     factory = ultrasat.api.clients.ClientFactory();
-    baseUrl = factory.getServiceBaseUrl('plans_manager');
+    baseUrl = factory.getServiceBaseUrl('plans_manager', 'nginx');
     client = ultrasat.api.clients.PlansManagerClient(baseUrl);
     client.Namespace = 'dev';
 
@@ -132,6 +132,7 @@ function debug_saveMatlabMat(client, pk)
     try
         [PlanData, ~] = debug_createMinimalPlan();
         base64Str = ultrasat.api.utils.MatBase64Utils.matToBase64(PlanData.planner, 'planner');
+
         resp = client.saveMatlabMat(pk, base64Str);
         fprintf('ok=%d, status=%s\n', resp.ok, sget(resp, 'status'));
     catch ME

@@ -205,14 +205,18 @@ classdef MainModule < ultrasat.api.core.Loggable
             obj.Planner = Planner;
 
             % Create UplannerClient instance (adapter class for uplanner)
-            uplannerClient = ultrasat.api.clients.UplannerClient( obj.PlansClient, obj.ScheduleClient, obj.ValidatorClient );
-            Planner.Mclient = uplannerClient;
+            Planner.Mclient = obj.createUplannerClient();
 
             % Override BaseDataDir to allow Linux/Windows compatibility
             if ~strcmp(Planner.BaseDataDir, obj.BaseDataDir) 
                 obj.msglog(sprintf('setPlanner: updating BaseDataDir to match current O/S: %s', obj.BaseDataDir));
                 Planner.BaseDataDir = obj.BaseDataDir;
             end
+        end
+
+
+        function uplannerClient = createUplannerClient(obj)
+            uplannerClient = ultrasat.api.clients.UplannerClient( obj.PlansClient, obj.ScheduleClient, obj.ValidatorClient );            
         end
 
         % =================================================================
