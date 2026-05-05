@@ -8,8 +8,8 @@ function [AI] = writeStat2Header(AI, Args)
     %                   Including: mean background, range background.
     %            'WriteStars' - Write stars data. Default is true.
     %                   Including: n stars, magnitude quantile
-    %            'WritePSF' - Write PSF data. Default is true.
-    %                   Including: FWHM, A, B, Theta, Median X^2, Y^2, X*Y
+    %            'WriteMom' - Write median 2nd moments of stars [pix^2]
+    %                   Default is true.
     %            'WriteScale' - Write scale data. Default is true.
     %                   Including: Scale, Rotation
     %            For more arguments see code.
@@ -22,6 +22,7 @@ function [AI] = writeStat2Header(AI, Args)
 
         Args.WriteBack         = true;
         Args.WriteStars        = true;
+        Args.WriteMom          = true;
         Args.WritePSF          = true;
         Args.WriteScale        = true;
 
@@ -103,16 +104,17 @@ function [AI] = writeStat2Header(AI, Args)
             end
             Data(Idata) = quantile(Mag, Args.MagQuantile);
         end
-        if Args.WritePSF
-            Idata = Idata + 1;
-            Data(Idata) = AI(Iai).PSFData.fwhm;
-            % SigmaX, SigmaY, Rho
-            Idata = Idata + 1;
-            [~,~,BestFit] = AI(Iai).PSFData.fitFunPSF();
-            [A, B, Theta] = imUtil.psf.gaussianSigma2SemiAxis(BestFit{1}.Par(2), BestFit{1}.Par(3), BestFit{1}.Par(4));
-            Data(Idata:Idata+2) = [A, B, Theta];
-            Idata = Idata + 3;
-            Data(Idata) = sqrt(sum(AI(Iai).PSFData.Data.^2, 'all'));
+        % if Args.WritePSF
+        %     Idata = Idata + 1;
+        %     Data(Idata) = AI(Iai).PSFData.fwhm;
+        %     % SigmaX, SigmaY, Rho
+        %     Idata = Idata + 1;
+        %     [~,~,BestFit] = AI(Iai).PSFData.fitFunPSF();
+        %     [A, B, Theta] = imUtil.psf.gaussianSigma2SemiAxis(BestFit{1}.Par(2), BestFit{1}.Par(3), BestFit{1}.Par(4));
+        %     Data(Idata:Idata+2) = [A, B, Theta];
+        %     Idata = Idata + 3;
+        %     Data(Idata) = sqrt(sum(AI(Iai).PSFData.Data.^2, 'all'));
+        if Args.WriteMom
             Idata = Idata + 1;
             if EmptyCat
                 M2 = [NaN NaN NaN];
@@ -121,6 +123,7 @@ function [AI] = writeStat2Header(AI, Args)
             end
             Data(Idata:Idata+2) = median(M2, 1, 'omitnan');
             Idata = Idata + 2;
+        end
         if Args.WriteScale
             Idata = Idata + 1;
             CD = AI(Iai).WCS.CD;

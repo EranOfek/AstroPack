@@ -1,7 +1,7 @@
 function [A, B, Theta] = gaussianSigma2SemiAxis(SX, SY, Rho)
     % Given a Gaussian SigmaX, SigmaY, Rho, calculate A, B, Theta
     %   See also: imUtil.psf.mom2shape
-    % Input  : - SigmaX
+    % Input  : - SigmaX (e.g., sqrt of the 2nd moment in X)
     %          - SigmaY
     %          - Rho
     % Output : - A

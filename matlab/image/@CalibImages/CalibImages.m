@@ -1317,11 +1317,11 @@ classdef CalibImages < Component
                 Args.MultiplyByGain logical         = true;
                 Args.BitNameNaN                     = 'NaN';
                 Args.BitNameNegative                = 'Negative';
-                Args.SetNegativeTo0 logical         = true;
-                Args.InterpolateOverBadPix logical  = false;
+                Args.SetNegativeTo0                 = true;
+                Args.InterpolateOverBadPix          = false;
                 Args.BitNameBadPix                  = {}; %{'Saturated','NaN', 'Negative'};
                 Args.BitNameInterpolated            = 'Interpolated';
-                Args.interpOverNanArgs cell         = {};
+                Args.interpOverNanArgs              = {};
                 
             end
             

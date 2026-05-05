@@ -1,4 +1,4 @@
-function [Result] = interp1crossVal(Pos, Vec, CrossVal, IsAscending, FirstLast)
+function [Result] = interp1crossVal(Pos, Vec, CrossVal, IsAscending, FirstLast, Algo)
     % Return the interpolated position where a monotonic sampled vector crosses a specified value.
     %       Interpolate the X position at which a monotonic vector crosses a given Y value.
     %       The function searches for the first or last crossing of CrossVal in Vec and
@@ -13,6 +13,7 @@ function [Result] = interp1crossVal(Pos, Vec, CrossVal, IsAscending, FirstLast)
     %            [] for automatic detection.
     %            Defaut is [].
     %          - Find 'first' | 'last' point. Default is 'first'.
+    %          - Alogorithm: 'interp'|'find'. Default is 'interp'.
     % Output : - The interpolated position of the Y crossing value.
     % Author : Eran Ofek (2026 Apr) 
     % Example: R=tools.interp.interp1crossVal([1 2 3 4 5],[0.3 0.4 0.5 0.6 0.9], 0.5)
@@ -23,6 +24,7 @@ function [Result] = interp1crossVal(Pos, Vec, CrossVal, IsAscending, FirstLast)
         CrossVal
         IsAscending         = []
         FirstLast           = 'first';
+        Algo                = 'interp'; % 'interp' | 'find'
     end
 
     if isempty(IsAscending)
@@ -33,36 +35,49 @@ function [Result] = interp1crossVal(Pos, Vec, CrossVal, IsAscending, FirstLast)
         end
     end
 
+    switch Algo
+        case 'interp'
+            N = numel(Vec);
+            EpsVec = (1:1:N).*1e-7;
+            Result = interp1(Vec(:)+EpsVec(:), Pos(:), CrossVal);
 
-    if IsAscending
-        I = find(Vec>CrossVal, 1, FirstLast);
-        if isempty(I)
-            Result = Pos(end);
-        else
-            if I==1
-                Result = CrossVal./Vec(I);
-            else
-                DY = Vec(I) - Vec(I-1);
-                DX = Pos(I) - Pos(I-1);
-                Result = Pos(I-1) + (CrossVal - Vec(I-1)).*DX./DY;
-            end
-        end
-    else
-       Vec = rot90(Vec,2);
-       Pos = rot90(Pos,2);
-       I = find(Vec>CrossVal, 1, FirstLast);
-        if isempty(I)
-            Result = Pos(end);
-        else
-            if I==1
-                Result = CrossVal./Vec(I);
-            else
-                DY = Vec(I) - Vec(I-1);
-                DX = Pos(I) - Pos(I-1);
-                Result = Pos(I-1) + (CrossVal - Vec(I-1)).*DX./DY;
-            end
-        end
+        case 'find'
+            error('bug');
 
+
+        
+            if IsAscending
+                I = find(Vec>CrossVal, 1, FirstLast);
+                if isempty(I)
+                    Result = Pos(end);
+                else
+                    if I==1
+                        Result = CrossVal./Vec(I);
+                    else
+                        DY = Vec(I) - Vec(I-1);
+                        DX = Pos(I) - Pos(I-1);
+                        Result = Pos(I-1) + (CrossVal - Vec(I-1)).*DX./DY;
+                    end
+                end
+            else
+               Vec = rot90(Vec,2);
+               Pos = rot90(Pos,2);
+               I = find(Vec>CrossVal, 1, FirstLast);
+                if isempty(I)
+                    Result = Pos(end);
+                else
+                    if I==1
+                        Result = CrossVal./Vec(I);
+                    else
+                        DY = Vec(I) - Vec(I-1);
+                        DX = Pos(I) - Pos(I-1);
+                        Result = Pos(I-1) + (CrossVal - Vec(I-1)).*DX./DY;
+                    end
+                end
+        
+            end
+        otherwise
+            error('Unknown Algo option');
     end
 
 end
