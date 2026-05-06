@@ -4,9 +4,12 @@ function [Result] = interp1crossVal(Pos, Vec, CrossVal, IsAscending, FirstLast, 
     %       The function searches for the first or last crossing of CrossVal in Vec and
     %       returns the corresponding interpolated position in Pos using linear interpolation
     %       between the two neighboring samples. The direction of monotonicity can be
-    %       provided explicitly or detected automatically from Vec.
+    %       provided explicitly or detected automatically from Vec
     % Input  : - A vector of positions - X coordinates.
     %          - A vector of values - Y coordinates.
+    %            Note that this values must be monotonic, and if they are
+    %            not (e.g., due to noise), the function will force
+    %            montonicity on the data.
     %          - Y Crossing value. 
     %          - True for asending Y values.
     %            False for descening Y values.
@@ -24,28 +27,38 @@ function [Result] = interp1crossVal(Pos, Vec, CrossVal, IsAscending, FirstLast, 
         CrossVal
         IsAscending         = []
         FirstLast           = 'first';
-        Algo                = 'interp'; % 'interp' | 'find'
+        Algo                = 'find';% 'interp'; % 'interp' | 'find'
     end
 
     if isempty(IsAscending)
-        if all(diff(Vec)>=0)
+        if (Vec(end)-Vec(1))>0
             IsAscending = true;
         else
             IsAscending = false;
         end
     end
 
+    % Force monotonicity on the data
+    % See issue #966
+    Vec = Vec(:);
+    Pos = Pos(:);
+    Diff = [0;diff(Vec)];
+    if IsAscending
+        Sign = 1;
+        Diff(Diff>0) = 0;
+    else
+        Sign = -1;
+        Diff(Diff<0) = 0;
+    end
+    Vec = Vec - Sign.*cumsum(Diff);
+
     switch Algo
         case 'interp'
             N = numel(Vec);
             EpsVec = (1:1:N).*1e-7;
-            Result = interp1(Vec(:)+EpsVec(:), Pos(:), CrossVal);
-
+            Result = interp1(Vec(:)+Sign.*EpsVec(:), Pos(:), CrossVal);
+            
         case 'find'
-            error('bug');
-
-
-        
             if IsAscending
                 I = find(Vec>CrossVal, 1, FirstLast);
                 if isempty(I)

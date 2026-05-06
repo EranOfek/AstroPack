@@ -68,7 +68,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
         Args.KeyDistPeaks           = 'PSF_DPK';
 
         Args.AddPos                 = Inf;
-        Args.AddMom2                = true;
+        Args.AddMom2                = false; % writing median of stellar moments is not the responsibility of this fun. Instead use: imProc.header.writeStat2Header
         Args.KeysMom2               = {'X2','Y2','XY'};
         Args.KeyFitPSF              = {'PSF_FITN','PSF_FITA','PSF_FITB','PSF_FITT'};
         Args.KeyNstars              = 'PSF_NST';
