@@ -1,10 +1,15 @@
 function R = batchPhotCalib(BaseDir, Args)
     % Run PhotCalibTrans calibration over multiple visit subdirectories
     % Description: Discovers visit subdirectories under BaseDir, loads each
-    %              with pipeline.last.load.loadVisitCatHdr, calibrates with
+    %              with pipeline.last.load.loadVisit (full AstroImage with
+    %              .Image populated), calibrates with
     %              imProc.calib.fitPhotCalibTrans, and aggregates the
     %              resulting PhotCalibTrans objects into a single flat
     %              array (one entry per AstroImage processed).
+    %              When CalibArgs contains 'EvaluateBackMag',true the
+    %              function calls imProc.background.background after load
+    %              to populate .Back (LAST coadd files do not store Back
+    %              on disk, so it must be recomputed for BACKMAG to work).
     %              Designed for diagnostic surveys across many fields/visits
     %              (e.g. for plotPhotParamHist over Chi2_DOF, NCalib, etc.).
     %
@@ -90,6 +95,17 @@ function R = batchPhotCalib(BaseDir, Args)
             Nvisits, BaseDir, Args.FileType);
     end
 
+    % Detect whether the user asked for BackMag — if so we need to
+    % populate AI.Back via imProc.background.background after loading,
+    % since loadVisit/readProducts does not load Back from disk.
+    NeedBack = false;
+    if ~isempty(Args.CalibArgs)
+        KeyIdx = find(strcmpi(Args.CalibArgs(1:2:end), 'EvaluateBackMag'), 1, 'last');
+        if ~isempty(KeyIdx)
+            NeedBack = isequal(Args.CalibArgs{2*KeyIdx}, true);
+        end
+    end
+
     % Per-visit accumulators (flatten at end)
     PCcell        = cell(1, Nvisits);
     VisitNameCell = cell(1, Nvisits);
@@ -100,13 +116,23 @@ function R = batchPhotCalib(BaseDir, Args)
         VName = Listing(Iv).name;
         Tstart = tic;
 
-        % Load visit data (lightweight: Cat + Header only)
-        AIc = [];
+        % Load visit data (full AstroImage with Image; .Back is populated
+        % below via imProc.background.background only if BackMag is requested,
+        % since neither readProducts nor LAST coadd files carry .Back).
+        AIvis = AstroImage.empty;
         try
-            AIc = pipeline.last.load.loadVisitCatHdr( ...
-                'VisitDirs', string(VisitDirs{Iv}), ...
-                'FileType',  Args.FileType, ...
-                'Verbose',   false);
+            switch Args.FileType
+                case 'coadd'
+                    [~, AIvis, ~] = pipeline.last.load.loadVisit( ...
+                        VisitDirs{Iv}, ...
+                        'TempName_IndivIm', '', ...
+                        'TempName_MS',      '');
+                case 'proc'
+                    [AIvis, ~, ~] = pipeline.last.load.loadVisit( ...
+                        VisitDirs{Iv}, ...
+                        'TempName_Coadd', '', ...
+                        'TempName_MS',    '');
+            end
         catch ME
             if Args.Verbose
                 fprintf('  [%2d/%2d] %s : load failed (%s)\n', ...
@@ -115,7 +141,7 @@ function R = batchPhotCalib(BaseDir, Args)
             continue;
         end
 
-        if isempty(AIc) || isempty(AIc{1})
+        if isempty(AIvis)
             if Args.Verbose
                 fprintf('  [%2d/%2d] %s : no %s files\n', ...
                     Iv, Nvisits, VName, Args.FileType);
@@ -123,7 +149,23 @@ function R = batchPhotCalib(BaseDir, Args)
             continue;
         end
 
-        AIvis = AIc{1};   % 1 x Nimg AstroImage array
+        % Flatten to 1 x Nimg (proc returns reshaped 2D; coadd is already 1D)
+        AIvis = AIvis(:).';
+
+        % Populate .Back if BackMag was requested. SubSizeXY=[] matches
+        % the production setting in pipeline.last.coadd.coadd:189 so
+        % BackMag values reproduce the pipeline's. Failures are logged
+        % but non-fatal: BACKMAG will fall through to NaN downstream.
+        if NeedBack
+            try
+                AIvis = imProc.background.background(AIvis, 'SubSizeXY', []);
+            catch ME
+                if Args.Verbose
+                    fprintf('  [%2d/%2d] %s : background failed (%s) - BACKMAG will be NaN\n', ...
+                        Iv, Nvisits, VName, ME.message);
+                end
+            end
+        end
 
         % Calibrate
         PCv = [];
