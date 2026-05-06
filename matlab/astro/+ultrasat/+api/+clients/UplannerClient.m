@@ -35,7 +35,7 @@ classdef UplannerClient < handle
 
         function approved = getApprovedTargets(obj, startTime, endTime)
             % Returns the list of approved targets for the given time range.
-            approved = obj.PlansClient.getApprovedTargets(startTime, endTime);
+            approved = obj.ScheduleClient.getTargets(startTime, endTime);
         end
 
         function resp = validatePlan(obj, planStruct)

@@ -12,13 +12,13 @@
 classdef ScheduleManagerClient < ultrasat.api.clients.ClientBase
     % Client for the Schedule Manager FastAPI service.
     % Uses ClientBase.postRequest; returns struct from JSON via JsonUtils.json2struct.
-    % Requires namespace header.
+    % Requires namespace header (set via obj.Namespace).
     %
     % Typical Usage:
     %   factory = ultrasat.api.clients.ClientFactory();
     %   baseUrl = factory.getServiceBaseUrl('schedule_manager');
-    %   apiKey = factory.getApiKey();
-    %   client = ultrasat.api.clients.ScheduleManagerClient(baseUrl, 'OPER', apiKey);
+    %   client = ultrasat.api.clients.ScheduleManagerClient(baseUrl);
+    %   client.Namespace = 'OPER';
     %   response = client.getTargets();
 
 
@@ -57,6 +57,40 @@ classdef ScheduleManagerClient < ultrasat.api.clients.ClientBase
                 params.limit = Limit;
             end
             response = obj.postRequest('/get-targets', params);
+
+            return;
+            
+
+            % Convert ISO datetime strings in response targets to MATLAB datetime (UTC).
+            % The API may return timezone offsets (e.g. +02:00), so use parseIsoDateTime.
+            if isfield(response, 'targets') && ~isempty(response.targets) && isstruct(response.targets)
+                timeFields = {'start_time','end_time','estimated_end_time'};
+                for i = 1:numel(response.targets)
+                    for f = 1:numel(timeFields)
+                        fieldName = timeFields{f};
+                        if ~isfield(response.targets(i), fieldName)
+                            continue;
+                        end
+                        v = response.targets(i).(fieldName);
+
+                        % Some JSON conversions yield 1x1 cell containing a char/string.
+                        if iscell(v)
+                            if numel(v) == 1
+                                v = v{1};
+                            else
+                                continue;
+                            end
+                        end
+
+                        if ischar(v) || isstring(v)
+                            dt = ultrasat.api.utils.DateTimeUtils.parseIsoDateTime(v);
+                            if ~isnat(dt)
+                                response.targets(i).(fieldName) = dt;
+                            end
+                        end
+                    end
+                end
+            end
         end
     end
 

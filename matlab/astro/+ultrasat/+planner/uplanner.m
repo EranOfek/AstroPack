@@ -2486,26 +2486,7 @@ classdef uplanner < Component
             % Vis: 304 MB, UniqTarg: 22 MB, FieldObjects: 4.5 MB
             % UniqTarg: HealpixArray: 12.24 MB, FieldObj: 9.97 MB
             Obj.Vis = [];
-            Obj.Mclient = [];
-
-            return;
-
-            Obj.FieldObjects = [];
-            Obj.CalibObj = [];
-        
-            % --- UniqTarg cleanup ---
-            if ~isempty(Obj.UniqTarg)
-                if ismember('FieldObj', Obj.UniqTarg.Properties.VariableNames)
-                    Obj.UniqTarg.FieldObj = [];
-                end
-                if ismember('HealpixArray', Obj.UniqTarg.Properties.VariableNames)
-                    Obj.UniqTarg.HealpixArray = [];
-                end
-            end
-        
-            % --- LCS helper (runtime object) ---
-            Obj.LCS_obj = [];
-        
+            Obj.Mclient = [];       
         end
 
         
@@ -2518,40 +2499,7 @@ classdef uplanner < Component
             % Recompute visibility
             if ~isempty(Obj.UniqTarg) && ~isempty(Obj.CheckTimes)
                 Obj.updateTargetVisibility();
-            end
-
-            return;
-
-            % --- Reload external data ---
-            % (reuse constructor logic assumptions)
-            
-            % Load calibration objects
-            if isempty(Obj.CalibObj)
-                load(fullfile(Obj.BaseDataDir, 'starlib23_table.mat'), 'CalibObj');
-                Obj.CalibObj = CalibObj;
-            end
-        
-            % Load external surveys
-            if isempty(Obj.ExtSurveysTable)
-                load(fullfile(Obj.BaseDataDir, 'ExtSurveyMaps.mat'), 'SurveyMaps');
-                Obj.ExtSurveysTable = SurveyMaps;
-            end
-        
-            % Load field objects catalogs
-            if isempty(Obj.FieldObjects)
-                load(fullfile(Obj.BaseDataDir, 'FieldObjects.mat'));
-                Obj.FieldObjects.TransPlanets = Known_Obj_large.WG3_det_trans_planets;
-                Obj.FieldObjects.MassiveStars = Known_Obj_large.WG5_Massive_Stars;
-                Obj.FieldObjects.Clusters = Known_Obj_large.WG5_AllClusters;
-                Obj.FieldObjects.Blazars = Known_Obj_large.WG7_Blazars;
-                Obj.FieldObjects.Small = Known_Obj_small;
-            end
-        
-            % --- Recompute target properties ---
-            if ~isempty(Obj.UniqTarg)
-                Obj.updateTargetProperties();
-            end
-        
+            end       
         end
 
     end
