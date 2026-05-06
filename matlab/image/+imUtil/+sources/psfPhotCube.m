@@ -736,7 +736,9 @@ function [Chi2, Flux, ShiftedPSF, Dof, FluxErr] = internalCalcChi2( ...
 
 
     if UseMex
-      
+        % Tested old version - same results.
+        %[Chi2a, Fluxa, Dofa, FluxErra] = imUtil.sources.mex.obsolete.psfPhotCube_chi2flux_mex( ...
+        %                    Cube, Std, ShiftedPSF, DX, DY, VecXrel, VecYrel, FitRadius2);
         [Chi2, Flux, Dof, FluxErr] = imUtil.sources.mex.psfPhotCube_chi2flux_mex( ...
                             Cube, Std, ShiftedPSF, DX, DY, VecXrel, VecYrel, FitRadius2);
     else
