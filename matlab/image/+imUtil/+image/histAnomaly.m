@@ -25,7 +25,7 @@ function [Flag] = histAnomaly(Image, Args)
         Image
         Args.CCDSEC            = [];
         Args.Dilute            = 1;
-        Args.HistEdges         = [-0.5, 5, 1000]; %(-0.5:5:5000.5);
+        Args.HistEdges         = (-0.5:5:5000.5);
         Args.RelPeakHeight     = 0.04;
         Args.RangeDistPeaks    = [15 400];
         Args.Plot              = false;
@@ -44,7 +44,10 @@ function [Flag] = histAnomaly(Image, Args)
 
     % make histogram
     if Args.UseMex
-        Nh = tools.hist.mex.histcounts1regular(Image(:), Args.HistEdges(1), Args.HistEdges(2), Args.HistEdges(3));
+        BinStart = Args.HistEdges(1);
+        BinSize  = Args.HistEdges(2) - Args.HistEdges(1);
+        BinN     = numel(Args.HistEdges) - 1;
+        Nh = tools.hist.mex.histcounts1regular(Image(:), BinStart, BinSize, BinN);
     else
         EndVal    = Args.HistEdges(1) + Args.HistEdges(2).*Args.HistEdges(3);
         HistEdges = (Args.HistEdges(1):Args.HistEdges(2):EndVal);
