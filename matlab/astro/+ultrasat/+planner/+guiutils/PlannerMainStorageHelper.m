@@ -157,7 +157,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
 
                             % Reconstruct uplanner.Vis and set Mclient
                             mclient = app.MainModule.createUplannerClient();
-                            PlanData.planner.restoreAfterLoad(mclient);
+                            PlanData.planner.restoreAfterLoad('Mclient', mclient, 'BaseDataDir', app.MainModule.BaseDataDir);
                         end
 
                         % Open plan
