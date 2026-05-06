@@ -89,6 +89,7 @@
 % - CheckTimes = getDefaultCheckTimes()                     : Get the default Check times.  TODO - Need to update
 %
 % - Result = Obj.isEditable()                               : Return true if the plan is editable (Status is 'draft' and Editable is true)
+%   Res = Obj.getRefImagesForTarget(UniqTargInd)            :
 % - Res = Obj.getExtSurveysForTarget(UniqTargInd)           : Return external surveys table for a given unique target index
 % - Res = Obj.getFieldObjForTarget(UniqTargInd, FieldName)  : Return table of field objects for a given unique target and field name. FieldName: char or string, e.g. 'Blazars', 'Clusters', 'Small', ...
 % - Obj.enforceUniqueNames()                                : Enforce unique names in the UniqTarg table, add _n suffix to duplicate names
@@ -174,6 +175,7 @@ classdef uplanner < Component
         Rfov                            =  10;              % [deg] FOV radius conservative, w/o roll information
         
         BaseDataDir                                         % Base directory for data needed for uplanner
+        CalSubDir                                           % Subdirectory for calibration objects
         
         CalibObj                        = [];               % table of calibration objects 
         CalibDir                                            % the catibration objects' spectra directory 
@@ -309,7 +311,8 @@ classdef uplanner < Component
 
             % Set folder paths            
             Obj.BaseDataDir = Args.BaseDataDir;
-            Obj.CalibDir = fullfile(Obj.BaseDataDir, Args.CalSubDir);
+            Obj.CalSubDir = Args.CalSubDir;
+            Obj.CalibDir = fullfile(Obj.BaseDataDir, Obj.CalSubDir);
             
             % ---------- Load ----------
             % Load the calibration objects' table
@@ -2369,6 +2372,33 @@ classdef uplanner < Component
         end
 
         % ---------------------- New Functions ----------------------
+
+        function Res = getRefImagesForTarget(Obj, UniqTargInd)
+            % Return external surveys table for a given unique target index
+        
+            % Defensive checks
+            if isempty(UniqTargInd) || UniqTargInd < 1 || UniqTargInd > height(Obj.UniqTarg)
+                Res = Obj.ExtSurveysTable([],:);
+                return;
+            end
+        
+            % Extract survey indices (cell content!)
+            Data = Obj.UniqTarg.RefImageIDs{UniqTargInd};
+       
+            % Ensure table output
+            if isempty(Data)
+                % Return empty table with correct schema
+                Res = table([], 'VariableNames', {'ImageID'});
+                return;
+            end
+
+            % Normalize to column vector
+            Data = Data(:);
+
+            % Convert to table
+            Res = table(Data, 'VariableNames', {'ImageID'});            
+        end
+
         
         function Res = getExtSurveysForTarget(Obj, UniqTargInd)
             % Return external surveys table for a given unique target index
@@ -2486,72 +2516,31 @@ classdef uplanner < Component
             % Vis: 304 MB, UniqTarg: 22 MB, FieldObjects: 4.5 MB
             % UniqTarg: HealpixArray: 12.24 MB, FieldObj: 9.97 MB
             Obj.Vis = [];
-            Obj.Mclient = [];
-
-            return;
-
-            Obj.FieldObjects = [];
-            Obj.CalibObj = [];
-        
-            % --- UniqTarg cleanup ---
-            if ~isempty(Obj.UniqTarg)
-                if ismember('FieldObj', Obj.UniqTarg.Properties.VariableNames)
-                    Obj.UniqTarg.FieldObj = [];
-                end
-                if ismember('HealpixArray', Obj.UniqTarg.Properties.VariableNames)
-                    Obj.UniqTarg.HealpixArray = [];
-                end
-            end
-        
-            % --- LCS helper (runtime object) ---
-            Obj.LCS_obj = [];
-        
+            Obj.Mclient = [];       
         end
 
         
-        function Obj = restoreAfterLoad(Obj, mclient)
+        function Obj = restoreAfterLoad(Obj, Args)
             % Restore runtime / computed data after loading from saved state
+            arguments
+                Obj
+                Args.Mclient = [];
+                Args.BaseDataDir = [];
+            end
 
             % Set Mclient with fresh instance
-            Obj.Mclient = mclient;
+            Obj.Mclient = Args.Mclient;
+
+            % Set BaseDataDir if provided (required for Windows/Linux compatibility because BaseDataDir is different)
+            if ~isempty(Args.BaseDataDir)
+                Obj.BaseDataDir = Args.BaseDataDir;
+                Obj.CalibDir = fullfile(Obj.BaseDataDir, Obj.CalSubDir);
+            end
 
             % Recompute visibility
             if ~isempty(Obj.UniqTarg) && ~isempty(Obj.CheckTimes)
                 Obj.updateTargetVisibility();
-            end
-
-            return;
-
-            % --- Reload external data ---
-            % (reuse constructor logic assumptions)
-            
-            % Load calibration objects
-            if isempty(Obj.CalibObj)
-                load(fullfile(Obj.BaseDataDir, 'starlib23_table.mat'), 'CalibObj');
-                Obj.CalibObj = CalibObj;
-            end
-        
-            % Load external surveys
-            if isempty(Obj.ExtSurveysTable)
-                load(fullfile(Obj.BaseDataDir, 'ExtSurveyMaps.mat'), 'SurveyMaps');
-                Obj.ExtSurveysTable = SurveyMaps;
-            end
-        
-            % Load field objects catalogs
-            if isempty(Obj.FieldObjects)
-                load(fullfile(Obj.BaseDataDir, 'FieldObjects.mat'));
-                Obj.FieldObjects.TransPlanets = Known_Obj_large.WG3_det_trans_planets;
-                Obj.FieldObjects.MassiveStars = Known_Obj_large.WG5_Massive_Stars;
-                Obj.FieldObjects.Clusters = Known_Obj_large.WG5_AllClusters;
-                Obj.FieldObjects.Blazars = Known_Obj_large.WG7_Blazars;
-                Obj.FieldObjects.Small = Known_Obj_small;
-            end
-        
-            % --- Recompute target properties ---
-            if ~isempty(Obj.UniqTarg)
-                Obj.updateTargetProperties();
-            end
-        
+            end       
         end
 
     end

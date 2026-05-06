@@ -231,12 +231,8 @@ classdef PlannerMainTablesHelper < ultrasat.api.core.Loggable
                 app.ExtSurveysTableApp.UITableData.ColumnSortable = true;
 
                 % Update column names if table is non-empty
-                if ~isempty(app.UniqueTargetCalibObj) && istable(app.UniqueTargetCalibObj)
-                    app.ExtSurveysTableApp.UITableData.ColumnName = ...
+                app.ExtSurveysTableApp.UITableData.ColumnName = ...
                         Data.Properties.VariableNames;
-                else
-                    app.msglog('showExtSurveysTable: UniqueTargetCalibObj is empty or not a table.');
-                end
             catch ME
                 app.msglog(sprintf('updateExtSurveysTable: unexpected error - %s', ME.message));
             end
