@@ -125,6 +125,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     if Args.UseMex
         Nbin = round((Range + 2.*BinSize)./BinSize);       
         [Nhist,Edges,BinCenter] = tools.hist.mex.hist1reg_mex(LogArray, double([Min, Max+2.*BinSize]), Nbin, single(1), false);
+       
     else
         % Why Max+2.*BinSize: sometimes due to pixels with low counts, the
         % number of bins (Args.MinNbin1) is not sufficient 
