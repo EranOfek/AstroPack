@@ -164,6 +164,9 @@ function Result = plotPhotScatter(MS, Args)
         Args.ColorByCrop            logical             = false
         Args.CentralEdge            logical             = false
         Args.TileOrder                                  = 'rowmajor'
+        Args.CentralColor           (1,3) double        = [0.2 0.4 0.8]
+        Args.EdgeColor              (1,3) double        = [0.95 0.75 0.25]
+        Args.MarkerSize             (1,1) double        = 3
     end
 
     % --- Normalize MS input ---------------------------------------------
@@ -483,7 +486,7 @@ function drawMagPanel(Ax, QName, DataByQ, Im, Args, CentralCrops)
 
     CropCmap = lines(numel(CropsToUse));
     plotCropDots(Ax, CropsToUse, D.PerCrop{Im}, Args, CropCmap, ...
-        CentralCrops, [0.2 0.4 0.8], [0.6 0.75 0.95]);
+        CentralCrops, Args.CentralColor, Args.EdgeColor);
     if Args.ColorByCrop
         addCropLegend(Ax, CropsToUse, D.PerCrop{Im}, CropCmap);
     end
@@ -507,7 +510,7 @@ function drawAngularPanel(Ax, QName, DataByQ, Im, Args, CentralCrops)
 
     CropCmap = lines(numel(CropsToUse));
     plotCropDots(Ax, CropsToUse, D.PerCrop{Im}, Args, CropCmap, ...
-        CentralCrops, [0.2 0.4 0.8], [0.6 0.75 0.95]);
+        CentralCrops, Args.CentralColor, Args.EdgeColor);
     if Args.ColorByCrop
         addCropLegend(Ax, CropsToUse, D.PerCrop{Im}, CropCmap);
     end
@@ -540,15 +543,15 @@ function plotCropDots(Ax, CropsToUse, PerCropData, Args, CropCmap, CentralCrops,
         Std = PerCropData{Iic}.Std;
 
         if Args.ColorByCrop
-            plot(Ax, Med, Std, '.', 'Color', CropCmap(Iic,:), 'MarkerSize', 3);
+            plot(Ax, Med, Std, '.', 'Color', CropCmap(Iic,:), 'MarkerSize', Args.MarkerSize);
         elseif Args.CentralEdge
             if ismember(Ic, CentralCrops)
-                plot(Ax, Med, Std, '.', 'Color', CentralColor, 'MarkerSize', 4);
+                plot(Ax, Med, Std, '.', 'Color', CentralColor, 'MarkerSize', Args.MarkerSize);
             else
-                plot(Ax, Med, Std, '.', 'Color', EdgeColor, 'MarkerSize', 2);
+                plot(Ax, Med, Std, '.', 'Color', EdgeColor, 'MarkerSize', Args.MarkerSize);
             end
         else
-            plot(Ax, Med, Std, '.', 'Color', CentralColor, 'MarkerSize', 3);
+            plot(Ax, Med, Std, '.', 'Color', CentralColor, 'MarkerSize', Args.MarkerSize);
         end
     end
 end

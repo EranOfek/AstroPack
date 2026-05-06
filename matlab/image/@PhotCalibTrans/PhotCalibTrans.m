@@ -21,6 +21,8 @@ classdef PhotCalibTrans < Component
     %   CalFound   - Flag indicating whether calibrators were found (set by selectCalibrators)
     %   Success    - Flag indicating successful calibration (set by populateSuccess)
     %   DeltaZP_CB - Constant-band delta ZP [mag] (set by applyConstBand, written to header as PT_DZP)
+    %   LimMag     - Limiting magnitude at SN=LimMagSN [mag] (set by evaluateLimMag, header keyword LIMMAG)
+    %   BackMag    - Sky background surface brightness [mag/arcsec^2] (set by evaluateBackMag, header keyword BACKMAG)
     %   AirMass, ExpTime, NCoadd, Temp, Pressure, Humidity, Aperture - Observation metadata
     %
     % Example:
@@ -76,6 +78,13 @@ classdef PhotCalibTrans < Component
     %                    Applied to MAG_AB_* columns by orchestrator (fitPhotCalibTrans).
     %                    On failure: AperCorr set to NaN, warning via msgLog.
     %     addMag - Add calibrated magnitude columns to catalog (AB or Vega)
+    %     evaluateLimMag - Empirical limiting magnitude from polyfit of MAG_AB_* vs log10(SN)
+    %                      in window [MinSN, MaxSN], evaluated at SN=LimMagSN. Stores Obj.LimMag.
+    %                      NaN on failure (column missing, <3 points, fit error).
+    %     evaluateBackMag - Sky surface brightness via legacy formula
+    %                       ZP - 2.5*log10(MedBack) + 5*log10(PixScale), with ZP=evaluateZP()
+    %                       (scalar, field centre) and MedBack=fast_median(AI.Back(:)).
+    %                       Stores Obj.BackMag. NaN on failure.
     %     applyConstBand - Apply constant-band correction to AB magnitudes.
     %                      Replaces fitted atmospheric params with global ConstBandParams,
     %                      computes scalar ΔZP per crop. Called by addMag when
@@ -153,6 +162,10 @@ classdef PhotCalibTrans < Component
 
         % Bright-star RMS
         ARMS = NaN              % sqrt(median(R²)) of N brightest calibrators [mag] (set by calibrate)
+
+        % Limiting magnitude and sky surface brightness (legacy compat keywords)
+        LimMag  = NaN           % Limiting magnitude at SN=LimMagSN [mag] (set by evaluateLimMag)
+        BackMag = NaN           % Sky background surface brightness [mag/arcsec^2] (set by evaluateBackMag)
 
         % Success status
         Success = false         % Flag indicating successful calibration (set by populateSuccess)
@@ -1924,7 +1937,10 @@ classdef PhotCalibTrans < Component
             %              Keywords: PT_RMS, PT_ARMS, PT_CHI2, PT_DOF, PT_NCALIB, PT_SUCC,
             %                        PT_AREF, PT_SPEC,
             %                        PT_X_N, PT_X_VY, PT_X_FY (function parameters),
-            %                        PT_P_N, PT_P_VY, PT_P_FY (position corrections if UseTran2D=true)
+            %                        PT_P_N, PT_P_VY, PT_P_FY (position corrections if UseTran2D=true),
+            %                        APCOR_* (aperture corrections, if AperCorr populated),
+            %                        PT_DZP (constant-band delta ZP, if DeltaZP_CB finite),
+            %                        LIMMAG (if LimMag finite), BACKMAG (if BackMag finite).
 
             arguments
                 Obj
@@ -2099,6 +2115,22 @@ classdef PhotCalibTrans < Component
                 end
             end
 
+            % Limiting magnitude and sky surface brightness (legacy keyword names)
+            if isfinite(Obj.LimMag)
+                HeaderObj = HeaderObj.replaceVal('LIMMAG', Obj.LimMag);
+                if Args.WriteComments
+                    IComment = IComment + 1;
+                    HistoryComments{IComment} = 'LIMMAG: Limiting magnitude at SN=5 [mag]';
+                end
+            end
+            if isfinite(Obj.BackMag)
+                HeaderObj = HeaderObj.replaceVal('BACKMAG', Obj.BackMag);
+                if Args.WriteComments
+                    IComment = IComment + 1;
+                    HistoryComments{IComment} = 'BACKMAG: Sky background surface brightness [mag/arcsec^2]';
+                end
+            end
+
             % Write HISTORY comments at the end if requested
             if Args.WriteComments
                 % Trim to actual size
@@ -2143,6 +2175,14 @@ classdef PhotCalibTrans < Component
             end
             if HeaderObj.isKeyExist('PT_SUCC')
                 Obj.Success = HeaderObj.getVal('PT_SUCC');
+            end
+
+            % Limiting magnitude and sky surface brightness (legacy keywords)
+            if HeaderObj.isKeyExist('LIMMAG')
+                Obj.LimMag = HeaderObj.getVal('LIMMAG');
+            end
+            if HeaderObj.isKeyExist('BACKMAG')
+                Obj.BackMag = HeaderObj.getVal('BACKMAG');
             end
 
             % Observation metadata - read from standard FITS keywords if available
@@ -2519,8 +2559,9 @@ classdef PhotCalibTrans < Component
                                 FluxRefErr  = CatObj.getCol(RefErrColName);
                                 FluxAperErr = FluxAperErr(Mask); FluxAperErr = FluxAperErr(ValidRatio);
                                 FluxRefErr  = FluxRefErr(Mask);  FluxRefErr  = FluxRefErr(ValidRatio);
-                                RelErr = sqrt((FluxAperErr ./ FluxAper(ValidRatio)).^2 + ...
-                                              (FluxRefErr ./ FluxRef(ValidRatio)).^2);
+                                % FLUXERR is the relative flux uncertainty (FluxErr/Flux),
+                                % so the relative error of the ratio adds them in quadrature directly.
+                                RelErr = sqrt(FluxAperErr.^2 + FluxRefErr.^2);
                                 MagErr = 1.086 .* RelErr;
                                 AperCorrVec(Iaper) = tools.math.stat.wmedian(MagDiff, MagErr, 1);
                             else
@@ -2561,7 +2602,8 @@ classdef PhotCalibTrans < Component
             %            'MagSystem' - Magnitude system: 'AB' or 'Vega'.
             %                         Default is 'AB'. Vega is not yet implemented.
             %            'AddMagErr' - Add magnitude error columns. Default is true.
-            %                         Error formula: MagErr = 1.086 * FluxErr / Flux.
+            %                         Error formula: MagErr = 1.086 * FluxErr
+            %                         (FLUXERR is the relative flux uncertainty FluxErr/Flux).
             %                         Requires FLUXERR_<suffix> columns in catalog.
             %                         Column naming: MAG_<System>_<suffix>_ERR.
             %            'PropagateCalibratedErr' - Propagate calibrated magnitude
@@ -2719,10 +2761,11 @@ classdef PhotCalibTrans < Component
 
                     if ismember(FluxErrColName, AllColNames)
                         FluxErr = Tab.(FluxErrColName);
-                        % MagErr = 1.086 * FluxErr / Flux  (first-order error propagation)
+                        % FLUXERR is the relative flux uncertainty (FluxErr/Flux),
+                        % so MagErr = 1.086 * FluxErr (first-order error propagation).
                         MagErr = nan(Nrows, 1);
                         ValidFlux = Flux > 0 & ~isnan(Flux) & ~isnan(FluxErr);
-                        MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux) ./ Flux(ValidFlux);
+                        MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux);
                         CatObj = CatObj.insertCol(MagErr, Inf, {MagErrColName});
                     else
                         % No flux error column found — insert NaN column
@@ -2948,6 +2991,157 @@ classdef PhotCalibTrans < Component
 
             % Insert column
             CatObj = CatObj.insertCol(ZP, Inf, {ZPColName});
+        end
+
+        function Obj = evaluateLimMag(Obj, CatObj, Args)
+            % Compute limiting magnitude from calibrated catalog (legacy LIMMAG)
+            % Input  : - PhotCalibTrans object.
+            %          - AstroCatalog object after addMag (must contain the
+            %            matching FLUXERR_<suffix> and MAG_<system>_<suffix>
+            %            columns derived from FluxColName).
+            %          * ...,key,val,...
+            %            'FluxColName' - Flux column name; the matching
+            %                            FLUXERR_<suffix> drives the SN ratio
+            %                            and MAG_<system>_<suffix> is fit.
+            %                            Default is 'FLUX_APER_3'.
+            %            'MagSystem'   - Magnitude system ('AB' or 'Vega') used
+            %                            to build MAG_<system>_<suffix>.
+            %                            Default is 'AB'.
+            %            'MinSN'       - Lower SN bound for fit window. Default is 5.
+            %            'MaxSN'       - Upper SN bound for fit window. Default is 50.
+            %            'LimMagSN'    - SN at which to evaluate limiting magnitude.
+            %                            Default is 5.
+            % Output : - PhotCalibTrans object with Obj.LimMag set (NaN on failure).
+            % Author : D. Kovaleva (May 2026)
+            % Example: PC = PC.evaluateLimMag(Cat);
+            %          PC = PC.evaluateLimMag(Cat, 'FluxColName', 'FLUX_PSF');
+            % Description: Empirical limiting magnitude via straight-line fit of
+            %              MAG_<system>_<suffix> vs log10(SN) in window
+            %              [MinSN, MaxSN], evaluated at SN=LimMagSN. SN is taken
+            %              as 1./FLUXERR_<suffix> because FLUXERR is the relative
+            %              flux uncertainty (FluxErr/Flux); equivalent to
+            %              1.086/MagErr in the Gaussian limit. Color term omitted
+            %              because MAG_<system>_* already absorbs color.
+
+            arguments
+                Obj
+                CatObj
+                Args.FluxColName char = 'FLUX_APER_3'
+                Args.MagSystem   char = 'AB'
+                Args.MinSN       double = 5
+                Args.MaxSN       double = 50
+                Args.LimMagSN    double = 5
+            end
+
+            Obj.LimMag = NaN;
+
+            if isempty(CatObj) || isempty(CatObj.Table) || height(CatObj.Table) == 0
+                Obj.msgLog(LogLevel.Warning, 'evaluateLimMag: Catalog is empty - LimMag set to NaN.');
+                return;
+            end
+
+            % Derive FLUXERR / MAG column names from FLUX_<suffix>
+            Tokens = regexp(Args.FluxColName, '^FLUX_(.+)$', 'tokens', 'once');
+            if isempty(Tokens)
+                Obj.msgLog(LogLevel.Warning, ...
+                    'evaluateLimMag: FluxColName "%s" must start with FLUX_ - LimMag set to NaN.', ...
+                    Args.FluxColName);
+                return;
+            end
+            Suffix         = Tokens{1};
+            FluxErrColName = ['FLUXERR_', Suffix];
+            MagColName     = ['MAG_', Args.MagSystem, '_', Suffix];
+
+            AllCols = CatObj.Table.Properties.VariableNames;
+            if ~ismember(FluxErrColName, AllCols) || ~ismember(MagColName, AllCols)
+                Obj.msgLog(LogLevel.Warning, ...
+                    'evaluateLimMag: Required columns %s / %s not found - LimMag set to NaN.', ...
+                    FluxErrColName, MagColName);
+                return;
+            end
+
+            try
+                FluxErr = CatObj.getCol(FluxErrColName);
+                Mag     = CatObj.getCol(MagColName);
+                FluxErr = FluxErr(:);
+                Mag     = Mag(:);
+
+                % FLUXERR is relative (FluxErr/Flux), so SN = 1/FLUXERR
+                % (equivalent to 1.086/MagErr in the Gaussian limit).
+                SN = 1 ./ FluxErr;
+
+                Valid = isfinite(Mag) & isfinite(SN) & SN > Args.MinSN & SN < Args.MaxSN;
+                if nnz(Valid) < 3
+                    Obj.msgLog(LogLevel.Warning, ...
+                        'evaluateLimMag: Only %d points in SN window [%.1f, %.1f] - LimMag set to NaN.', ...
+                        nnz(Valid), Args.MinSN, Args.MaxSN);
+                    return;
+                end
+
+                ParLimMagFit = polyfit(log10(SN(Valid)), Mag(Valid), 1);
+                Obj.LimMag = polyval(ParLimMagFit, log10(Args.LimMagSN));
+            catch ME
+                Obj.msgLog(LogLevel.Warning, ...
+                    'evaluateLimMag: Fit failed (%s) - LimMag set to NaN.', ME.message);
+                Obj.LimMag = NaN;
+            end
+        end
+
+        function Obj = evaluateBackMag(Obj, AI, Args)
+            % Compute sky surface brightness from image background (legacy BACKMAG)
+            % Input  : - PhotCalibTrans object.
+            %          - AstroImage with populated .Back and WCS.
+            %          * ...,key,val,...
+            %            'PixScale' - Pixel scale [arcsec/pixel]. Default is []
+            %                         (read from AI.WCS via getScale('arcsec')).
+            % Output : - PhotCalibTrans object with Obj.BackMag set (NaN on failure).
+            % Author : D. Kovaleva (May 2026)
+            % Example: PC = PC.evaluateBackMag(AI);
+            % Description: Sky surface brightness in mag/arcsec^2 using legacy formula
+            %              BackMag = ZP - 2.5*log10(MedBack) + 5*log10(PixScale),
+            %              where ZP = Obj.evaluateZP() (scalar at field centre) and
+            %              MedBack = fast_median(AI.Back(:)).
+
+            arguments
+                Obj
+                AI
+                Args.PixScale = []
+            end
+
+            Obj.BackMag = NaN;
+
+            if ~isa(AI, 'AstroImage') || isempty(AI.Back)
+                Obj.msgLog(LogLevel.Warning, ...
+                    'evaluateBackMag: No AstroImage with Back property - BackMag set to NaN.');
+                return;
+            end
+
+            try
+                MedBack = fast_median(AI.Back(:));
+                if ~isfinite(MedBack) || MedBack <= 0
+                    Obj.msgLog(LogLevel.Warning, ...
+                        'evaluateBackMag: Non-positive median background (%.3g) - BackMag set to NaN.', MedBack);
+                    return;
+                end
+
+                if isempty(Args.PixScale)
+                    PixScale = AI.WCS.getScale('arcsec');
+                else
+                    PixScale = Args.PixScale;
+                end
+                if ~isfinite(PixScale) || PixScale <= 0
+                    Obj.msgLog(LogLevel.Warning, ...
+                        'evaluateBackMag: Invalid pixel scale (%.3g) - BackMag set to NaN.', PixScale);
+                    return;
+                end
+
+                ZP = Obj.evaluateZP();   % scalar at field centre
+                Obj.BackMag = ZP - 2.5*log10(MedBack) + 5*log10(PixScale);
+            catch ME
+                Obj.msgLog(LogLevel.Warning, ...
+                    'evaluateBackMag: Computation failed (%s) - BackMag set to NaN.', ME.message);
+                Obj.BackMag = NaN;
+            end
         end
     end
 
