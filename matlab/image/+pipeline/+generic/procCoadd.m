@@ -159,6 +159,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.DataProp                         = {'ImageData','BackData','VarData','MaskData'};
         Args.SubBack                          = true;  % false is useful for visit coaddition, for general coaddition use true.
         Args.SetBackTo0                       = true; % if SubBack=true and SetBackTo0 then set back to 0.
+        Args.ReMeasureBackVar                 = true; % if SetBackT0=false and this is true than remeasure back and var
 
         %Args.UseShift logical                 = true;
         %Args.UseInterp2 logical               = true;
@@ -392,7 +393,9 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 Coadd(Ifields).BackData.Data = zeros(size(Coadd(Ifields).ImageData.Data), 'like',Coadd(Ifields).ImageData.Data);
             end
         
-            %Coadd = imProc.background.backVar(Coadd, 'Method',@imUtil.background.modeVar_SampleHist, 'Block',[128 128], 'ReCalc',true, 'MethodArgs',{'UseMex',false});
+            if ~Args.SetBackTo0 && Args.ReMeasureBackVar
+                Coadd(Ifields) = imProc.background.backVar(Coadd(Ifields), 'Method',@imUtil.background.modeVar_LogHist, 'Block',[128 128], 'ReCalc',true, 'MethodArgs',{{'MinVal',50, 'MaxVal',5000},{}});
+            end
 
             % In some cases the first image of the stack is rejected, so
             % the 'DATEOBS' in the resulting Coadd may be not the same 

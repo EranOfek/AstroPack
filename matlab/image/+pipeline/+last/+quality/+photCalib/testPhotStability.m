@@ -6,7 +6,8 @@ function Result = testPhotStability(Args)
     %              see testPhotFitQuality.
     %
     %              Plots generated:
-    %                1. Mag vs Std scatter per mode.
+    %                1. Mag vs Std scatter per mode (and an extra scatter
+    %                   from MergedMat when MergedMatDir is given).
     %                2. Std difference between modes (or AB vs CB).
     %                3. RMS & ZP mosaic.
     %                4. ZP map mosaic per mode.
@@ -20,6 +21,10 @@ function Result = testPhotStability(Args)
     %          --- Data loading ---
     %            'DataDir','OutDir','Visits','VisitDirs','ListFile',
     %            'ListFields','VisitIdx','FileType' — see pipeline.last.load.loadVisitCatHdr.
+    %            'FileType' accepts 'proc' (default) or 'coadd'.
+    %            'MergedMatDir' — directory containing MergedMat HDF5
+    %                             files; loaded into Result.MS_merged
+    %                             ('' = skip, default).
     %          --- Calibration ---
     %            'Modes','RefCrop','Ncrop','ForceRecalc','CalibArgs',
     %            'ApplyConstBand','ConstBandParams',
@@ -28,12 +33,15 @@ function Result = testPhotStability(Args)
     %            'CropsToAnalyze','MatchRadius','MagFields','MatchedColumns',
     %            'BadFlags','MaxMagErr','MinEpochs','ApplyRelZP'.
     %          --- Plotting ---
-    %            'Plot','SaveFig','TwoPanels','OverlayTrend',
+    %            'Plot','SaveFig','LayoutMode','OverlayTrend',
     %            'TrendBinWidth','TileOrder'.
+    %            'LayoutMode' is forwarded to plotPhotScatter:
+    %            'PerQuantity' (default) or 'Combined'.
     %          --- General ---
     %            'Verbose'.
     % Output : - Result struct with .PC, .Cats, .MS, .FitRMS, .ZPcenter,
-    %            .HeaderData, .PersetInfo.
+    %            .HeaderData, .PersetInfo. .MS_merged is added when
+    %            MergedMatDir is non-empty.
     % Author : D. Kovaleva (Mar 2026)
     % Example: % Default (MergedMat + propagation, auto-detected):
     %          R = pipeline.last.quality.photCalib.testPhotStability('DataDir', '~/222625v1');
@@ -42,9 +50,9 @@ function Result = testPhotStability(Args)
     %          R = pipeline.last.quality.photCalib.testPhotStability('DataDir', '~/222625v1', ...
     %              'MergedMatDir', '~/222625v1');
     %
-    %          % Force full cross-matching (no MergedMat):
+    %          % Force full re-calibration and re-matching (skip caches):
     %          R = pipeline.last.quality.photCalib.testPhotStability('DataDir', '~/222625v1', ...
-    %              'ForceMatch', true);
+    %              'ForceRecalc', true);
     %
     %          % Coadd files from visit list:
     %          R = pipeline.last.quality.photCalib.testPhotStability('DataDir', '', ...
@@ -94,7 +102,8 @@ function Result = testPhotStability(Args)
         Args.ConstBandParams = []
         Args.Plot logical   = true
         Args.SaveFig logical = true
-        Args.TwoPanels logical = true
+        Args.LayoutMode     {mustBeMember(Args.LayoutMode, ...
+                              {'PerQuantity','Combined'})} = 'PerQuantity'
         Args.OverlayTrend   = 'median'
         Args.TrendBinWidth  = 0.5
         Args.TileOrder      = 'rowmajor'
@@ -250,7 +259,7 @@ function Result = testPhotStability(Args)
         pipeline.last.quality.photCalib.plotPhotScatter(MS_merged, ...
             'Modes', {'percrop'}, ...
             'MagFields', {'MAG_APER_3'}, ...
-            'TwoPanels', false, ...
+            'LayoutMode', Args.LayoutMode, ...
             'CropsToAnalyze', Args.CropsToAnalyze, ...
             'OverlayTrend', Args.OverlayTrend, ...
             'TrendBinWidth', Args.TrendBinWidth, ...
@@ -261,7 +270,7 @@ function Result = testPhotStability(Args)
         'Modes', Args.Modes, ...
         'MagFields', Args.MagFields, ...
         'CropsToAnalyze', Args.CropsToAnalyze, ...
-        'TwoPanels', Args.TwoPanels, ...
+        'LayoutMode', Args.LayoutMode, ...
         'OverlayTrend', Args.OverlayTrend, ...
         'TrendBinWidth', Args.TrendBinWidth, ...
         'MinEpochs', Args.MinEpochs);

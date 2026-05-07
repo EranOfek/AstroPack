@@ -144,8 +144,8 @@ function MS = matchPhotEpochs(Cats, Args)
             end
 
             % Flag bad photometry
- %           MSobj = MSobj.setBadPhotToNan('BadFlags', Args.BadFlags, ...
- %               'MagField', 'MAG_PSF', 'CreateNewObj', false);
+            MSobj = MSobj.setBadPhotToNan('BadFlags', Args.BadFlags, ...
+                'MagField', 'MAG_PSF', 'CreateNewObj', false);
 
             % Apply relative ZP correction to original (non-AB) mag fields
             if Args.ApplyRelZP
