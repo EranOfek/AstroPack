@@ -123,6 +123,30 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.UseMex          = false;
     end
     
+    if isempty(Cube)
+        % Cube is empty
+        Result = struct();
+        Result.Chi2         = [];
+        Result.Dof          = [];
+        Result.Flux         = [];
+        Result.FluxErr      = [];
+        Result.SNm          = [];
+        Result.Mag          = [];
+        Result.DX           = [];
+        Result.DY           = [];
+        Result.Xinit        = [];
+        Result.Yinit        = [];
+        Result.Xcenter      = [];
+        Result.Ycenter      = [];
+        Result.ConvergeFlag = [];
+        Result.Niter        = [];
+        Result.ShiftedPSF   = [];
+        Result.Back         = [];
+        Result.StdBack      = [];
+        CubePsfSub          = [];
+        return;
+    end
+
 
     if strcmp(Args.PsfPhotMethod, 'legacy') || strcmp(Args.PsfPhotMethod, 'old')
         % call legacy (old) function 
@@ -617,6 +641,10 @@ function [StepX, StepY, AppFlux] = gradDescentPSF2DGN( ...
     PSF_Ym = localShiftPSF(PSF, DX,                  DY - SmallStep(:).', ShiftMethod);
 
     if UseMex
+         % [StepXa, StepYa] = imUtil.sources.mex.obsolete.psfPhotCube_step2dgn_mex( ...
+         %                        Cube, Std, ShiftedPSF, PSF_Xp, PSF_Xm, PSF_Yp, PSF_Ym, ...
+         %                        SmallStep(:), SmallStep(:), Flux(:), DX(:), DY(:), VecXrel(:), VecYrel(:), ...
+         %                        FitRadius2, MaxStep);
          [StepX, StepY] = imUtil.sources.mex.psfPhotCube_step2dgn_mex( ...
                                 Cube, Std, ShiftedPSF, PSF_Xp, PSF_Xm, PSF_Yp, PSF_Ym, ...
                                 SmallStep(:), SmallStep(:), Flux(:), DX(:), DY(:), VecXrel(:), VecYrel(:), ...
