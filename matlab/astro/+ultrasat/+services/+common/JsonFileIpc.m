@@ -125,7 +125,12 @@ classdef JsonFileIpc < Component
                 end
                 
                 % Do one tick of the loop
-                Obj.tick();
+                try
+                    Obj.tick();
+                catch Ex
+                    Obj.msgLog(LogLevel.Error, 'processLoop: %s', Ex.message);
+                end
+
                 pause(Args.DelaySec);
 
                 % Check if the processing time has exceeded the maximum allowed time

@@ -20,8 +20,8 @@ function Result = calcSlewWrapper(ra1, dec1, ra2, dec2, TimeIso)
     end
 
     % Parse time string
-    if ~isempty(TimeIso) && ischar(TimeIso)
-        dt = ultrasat.api.utils.DateTimeUtils.parseIsoDatetime(TimeIso);
+    if ~isempty(TimeIso) && (ischar(TimeIso) || isstring(TimeIso))
+        dt = ultrasat.api.utils.DateTimeUtils.parseIsoDateTime(TimeIso);
         if ~isnat(dt)
             jd = juliandate(dt);
         else
