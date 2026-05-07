@@ -155,12 +155,12 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
         JD = Args.JD;
     end
 
-    ExpTime = AI(1).HeaderData.getVal(Args.KeyExpTime);
-    if ~isnan(ExpTime) && ~isempty(Args.RefRangeMagExpTimeFun)
-        Diff = diff(Args.RefRangeMagExpTimeFun([20 ExpTime]));
-        
-        Args.RefRangeMag = Args.RefRangeMag + Diff;
-    end
+    % ExpTime = AI(1).HeaderData.getVal(Args.KeyExpTime);
+    % if ~isnan(ExpTime) && ~isempty(Args.RefRangeMagExpTimeFun)
+    %     Diff = diff(Args.RefRangeMagExpTimeFun([20 ExpTime]));
+    % 
+    %     Args.RefRangeMag = Args.RefRangeMag + Diff;
+    % end
 
     if isnumeric(Args.CCDSEC)
         % CCDSEC is a matrix of CCDSEC per image

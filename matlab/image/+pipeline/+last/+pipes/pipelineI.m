@@ -6,6 +6,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
     arguments
         RawImageList                       = [];
         CI                                 = [];   
+        Args.DefScale                      = 1.25;  % Default scale if WCS is empty
         Args.UseParfor                     = true;
         Args.Nworkers                      = 16;
         Args.TempName                      = 'LAST*.fit*';
@@ -72,6 +73,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.AsteroidSearchRadius        = 10;
 
         Args.KeysGlobalMotion            = {'GM_RATEX', 'GM_STDX', 'GM_RATEY', 'GM_STDY'};
+        Args.KeyRelPhotRMS               = {'RP_MRMS','RP_MMRMS'};
 
         Args.Header_addAirMassArgs       = {};
         Args.Cat_addAirMassArgs          = {};
@@ -241,7 +243,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % add PSF FWHM to header - after astrometry, beacuse WCS is needed
             %ProcessingStep = 201;
             % This must be done after astrometry as the Scale is used
-            AllSI = imProc.psf.fwhm(AllSI, 'AddMorphology',true, 'UseLegacy',false);
+            AllSI = imProc.psf.fwhm(AllSI, 'AddMorphology',true, 'UseLegacy',false, 'DefScale',Args.DefScale);
                 
             
             % Update Airmass header keyword to based on measured crop center
@@ -329,19 +331,6 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %end
             %AllSI = imProc.match.match_catsHTMmerged(AllSI); % 240 s
         
-            % Merge catalogs
-            %ProcessingStep = 501;
-            [MS,ResRelZP] = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse);   % 9.6 s -> 1.3s (with MatchMethod='unify')
-        
-         
-            
-
-            % Calculate drift between epochs
-            % Note that MS is already filerted! I.e., some epochs may not
-            % be included
-            %ProcessingStep = 601;
-            [GlobalMotion, ShiftInfo] = lcUtil.positionDrift(MS);
-            
             %ProcessingStep = 701;
             %tic;
             for Isub=1:1:Nsub
@@ -350,6 +339,24 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 %[Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub));  % 2.4s for all in loop
             end
             %toc
+
+            % Merge catalogs
+            %ProcessingStep = 501;
+            [MS,ResRelZP] = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse);   % 9.6 s -> 1.3s (with MatchMethod='unify')
+        
+            % calculate the photometric rms per crop
+            PhotRMS = MS.calcRMS('FieldX','MAG_APER_3');
+            Phot_MinRMS    = [PhotRMS.MinRMS];
+            Phot_MagMinRMS = [PhotRMS.MagMinRMS];
+            
+
+            % Calculate drift between epochs
+            % Note that MS is already filerted! I.e., some epochs may not
+            % be included
+            %ProcessingStep = 601;
+            [GlobalMotion, ShiftInfo] = lcUtil.positionDrift(MS);
+            
+            
         
             % The following logic is applied:
             % MatchedSources and photometric calibration is done only after
@@ -369,6 +376,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 801;
             % If there is not ShiftInfo, the no poinmt of coadding images
             [Coadd, ResCoadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
+                                                          'DefScale',Args.DefScale,...
                                                           'SubBack',false,...
                                                           'SetBackTo0',false,...
                                                           'ReMeasureBackVar',true,...
@@ -396,23 +404,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
               
             %toc
         
-            % 96 s
-            % tic;
-            % parfor Isub=1:1:Nsub
-            %     [Coadd(Isub), ResCoadd(Isub)] = pipeline.generic.procCoadd(AllSI(:,Isub), Args.procCoaddArgs{:},...
-            %                                           'SubBack',false,...
-            %                                           'CatName',CatName,...
-            %                                           'ShiftXY',ShiftInfo,...
-            %                                           'IsGood',IsGood,...
-            %                                           'PropShiftXY','ShiftXY',...
-            %                                           'IsShiftXYfiltered',true,...
-            %                                           'StackMethod',Args.StackMethod,...
-            %                                           'UseMex',Args.UseMex,...
-            %                                           'PhotCalibSimple',false,...
-            %                                           'PhotCalibTrans',false);
-            % end
-            % toc
-        
+         
+            
         
             % Add image ID to coadd images: in: ID_PROC
             %ProcessingStep = 901;
@@ -420,11 +413,23 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             JD_Coadd = [ResCoadd(NotIsEmptyCoadd).MidMidJD];
             [Coadd(NotIsEmptyCoadd)] = imProc.db.generateImageID(Coadd(NotIsEmptyCoadd), 'KeyID','ID_COADD', 'JD',JD_Coadd, Args.generateImageIDArgs{:});  % 0.05 s
         
+    
+
             % Update Airmass (And UPIX) header keyword to based on measured crop center
             %ProcessingStep = 911;
             AnyCoaddExist = any(NotIsEmptyCoadd);
             if AnyCoaddExist
                 [Coadd(NotIsEmptyCoadd)] = imProc.header.addAirMass(Coadd(NotIsEmptyCoadd), 'JD',JD_Coadd, 'HealpixType','nested', Args.Header_addAirMassArgs{:}); % 0.3s
+
+                % Add to Coadd header:
+                HCell = Args.KeyRelPhotRMS(:);
+                for Isub=1:1:Nsub
+                    if NotIsEmptyCoadd(Isub)
+                        HCell(:,2) = num2cell([Phot_MinRMS(Isub); Phot_MagMinRMS(Isub)]);
+                        Coadd(Isub).HeaderData.insertKey(HCell,'end-1');
+                    end
+                end
+
             end
 
             % Add catsHTM MergedCat column to Coadd catalogs

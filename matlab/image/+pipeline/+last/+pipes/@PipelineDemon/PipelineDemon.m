@@ -2487,7 +2487,7 @@ classdef PipelineDemon < Component
 
 
 
-        function [Status, RawImageListFinal, AllSI, MS, Coadd, OnlyMP, AllForcedPhot]=runPipelineI(Obj, RawImageList, FN_I, Args)
+        function [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot]=runPipelineI(Obj, RawImageList, FN_I, Args)
             % Reduce + save + error catching a single visit  
             
             arguments
@@ -3167,7 +3167,7 @@ classdef PipelineDemon < Component
     
     
                         % visit found - start reduction
-                        [Status, RawImageListFinal, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
+                        [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
     
                         if ~Status.PipeI || ~Status.WriteI
                             % Move images to failed directory:
@@ -3175,6 +3175,16 @@ classdef PipelineDemon < Component
 
                             % Write the Status info to the failed
                             % directory:
+                            PWD = pwd;
+                            cd(Obj.FailedPath);
+                            FailInfoFileName = RawImageList{1};
+                            FailedInfoFileName = strrep(FailedInfoFileName, 'sci_raw_Image', 'sci_raw_Failure');
+                            FailedInfoFileName = strrep(FailedInfoFileName, '.fits', '.mat');
+                            Status.RawImageList = RawImageList;
+                            Status.TableRaw     = TableRaw;
+                            save('-v7.3', FailedInfoFileName, Status)
+                            cd(PWD);
+
                             
                         end
     

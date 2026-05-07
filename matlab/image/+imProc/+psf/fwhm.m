@@ -12,6 +12,8 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
     %                   take the Scale from the AstroImage.WCS object.
     %                   If Scale not found then it is set to NaN.
     %                   Default is [].
+    %            'DefScale' - Default scale to use if WCS is empty.
+    %                   Default is 1.
     %            'AddToHeader' - A logical indicating if to add FWHM based
     %                   on cumsum to header. Default is true.
     %            'HeaderKey' - Header keyword in which to add the FWHM.
@@ -60,6 +62,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
     arguments
         Obj 
         Args.Scale                  = [];  % if empty - figure out from WCS
+        Args.DefScale               = 1; % if WCS is empty, then use this scale.
         Args.AddToHeader            = true;
         Args.HeaderKey              = 'FWHM';
 
@@ -92,9 +95,13 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
         if Obj(Iobj).PSFData.Nstars>0
             if isempty(Args.Scale)
                 % get scale from WCS
-                Scale = 0.5.*(abs(Obj(Iobj).WCS.CD(1,1)) + abs(Obj(Iobj).WCS.CD(2,2))) .* ARCSEC_DEG;
-                if isempty(Scale)
-                    Scale = NaN;
+                if Obj(Iobj).WCS.Success
+                    Scale = 0.5.*(abs(Obj(Iobj).WCS.CD(1,1)) + abs(Obj(Iobj).WCS.CD(2,2))) .* ARCSEC_DEG;
+                    if isempty(Scale)
+                        Scale = Args.DefScale;
+                    end
+                else
+                    Scale = Args.DefScale;
                 end
             else
                 Scale = Args.Scale;

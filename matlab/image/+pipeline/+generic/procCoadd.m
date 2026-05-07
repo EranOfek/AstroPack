@@ -145,6 +145,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
    
     arguments
         AllSI
+        Args.DefScale                         = 1.25; % Default scale if WCS is empty
         Args.EpochDim                         = 1;
         Args.JD                               = [];
         Args.IsGood                           = [];
@@ -394,7 +395,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             end
         
             if ~Args.SetBackTo0 && Args.ReMeasureBackVar
-                Coadd(Ifields) = imProc.background.backVar(Coadd(Ifields), 'Method',@imUtil.background.modeVar_LogHist, 'Block',[128 128], 'ReCalc',true, 'MethodArgs',{{'MinVal',50, 'MaxVal',5000},{}});
+                Coadd(Ifields) = imProc.background.backVar(Coadd(Ifields), Args.backVarArgs{:});                
             end
 
             % In some cases the first image of the stack is rejected, so
@@ -481,7 +482,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
 
             if Args.FindStars
                 % add PSF FWHM to header - after astrometry, beacuse WCS is needed
-                imProc.psf.fwhm(Coadd(Ifields), 'AddMorphology',true, 'UseLegacy',false);
+                imProc.psf.fwhm(Coadd(Ifields), 'AddMorphology',true, 'UseLegacy',false, 'DefScale',Args.DefScale);
             end
             
            
