@@ -10,6 +10,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
     %            'Scale' - Image scale (arcsec/pix) that will be used in order to
     %                   convert the FWHM to arcsec. If empty, then will
     %                   take the Scale from the AstroImage.WCS object.
+    %                   If Scale not found then it is set to NaN.
     %                   Default is [].
     %            'AddToHeader' - A logical indicating if to add FWHM based
     %                   on cumsum to header. Default is true.
@@ -92,6 +93,9 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
             if isempty(Args.Scale)
                 % get scale from WCS
                 Scale = 0.5.*(abs(Obj(Iobj).WCS.CD(1,1)) + abs(Obj(Iobj).WCS.CD(2,2))) .* ARCSEC_DEG;
+                if isempty(Scale)
+                    Scale = NaN;
+                end
             else
                 Scale = Args.Scale;
             end
@@ -103,6 +107,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
             % NO PSF - put NaNs in header
             FWHM_C = NaN;
             FWHM_H = NaN;
+            Scale  = NaN;
         end
         AllFWHM(Iobj) = FWHM_C;
 

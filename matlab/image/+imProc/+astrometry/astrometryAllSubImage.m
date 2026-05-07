@@ -241,14 +241,17 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
                                                                                                 'astrometryCoreArgs',Args.astrometryCoreArgs,...
                                                                                                 'astrometryRefineArgs',Args.astrometryRefineArgs);
 
-        if ~isempty(ResultFit(Args.StartSubImage(Istart)).Success) && (ResultFit(Args.StartSubImage(Istart)).Success || Istart>=Nstart)
+        if Istart>=Nstart || (~isempty(ResultFit(Args.StartSubImage(Istart)).Success) && ResultFit(Args.StartSubImage(Istart)).Success)
+        %if ~isempty(ResultFit(Args.StartSubImage(Istart)).Success) && (ResultFit(Args.StartSubImage(Istart)).Success || Istart>=Nstart)
             % found or went over all options
             NotFound = false;
         end
     end
 
     SolvedWCS = AstroWCS([Nai,1]);
-    SolvedWCS(Args.StartSubImage(Istart)) = ResultFit(Args.StartSubImage(Istart)).WCS;
+    if ~isempty(ResultFit(Args.StartSubImage(Istart)).WCS)
+        SolvedWCS(Args.StartSubImage(Istart)) = ResultFit(Args.StartSubImage(Istart)).WCS;
+    end
 
     FlagNotDone = true(Nai,1);
     if ~isempty(ResultFit(Args.StartSubImage)) && ~isempty(ResultFit(Args.StartSubImage).WCS) && ResultFit(Args.StartSubImage).WCS.Success
@@ -262,6 +265,9 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
         
         %[InitWCS, Iccdsec]=imProc.astrometry.remapWCS(CCDSEC(IndNotDone,:), AI, CCDSEC, 'JD',[]);
         [InitWCS, Iccdsec, Iref]=imProc.astrometry.remapWCS(CCDSEC(IndNotDone,:), SolvedWCS, CCDSEC, 'JD',[]);
+        if isempty(Iccdsec)
+            break;
+        end
 
         Iwcs = IndNotDone(Iccdsec);
 
