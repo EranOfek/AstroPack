@@ -16,6 +16,15 @@ classdef JsonFileIpc < Component
     %
     % Used for file-based inter-process communication and batch processing
     % pipelines (e.g., SNR <-> Python server IPC).
+    % 
+    % Input:   InputPath - path to the directory where input files are located
+    %          InputMask - file mask to filter files in the input folder (default: '*.json')
+    %          ProcessedPath - path to the directory to store processed files (archive folder)
+    %          KeepProcessedFilesDays - number of days to keep processed files in Processed Path
+    %          Callback - function handle that points to the function for processing files
+    %          WatchdogFileName - name of the watchdog file used to monitor the proces
+    %          WatchdogInterval - time interval (in seconds) for the watchdog process
+    %          MaxRunTime - maximum runtime allowed for the JsonFileIpc instance
 
     % Properties
     properties (SetAccess = public)
@@ -182,6 +191,10 @@ classdef JsonFileIpc < Component
         
         function processJsonFile(Obj, FileName)
             % Process input JSON file: load, call callback, write output
+            % Input:   FileName - name of the file to process
+            % Output:  -
+            % Example: processJsonFile('input.json');
+
             Obj.msgLog(LogLevel.Info, 'processJsonFile started: %s', strrep(FileName, '\', '/'));
             try                            
                 % Read the input JSON file
@@ -226,6 +239,10 @@ classdef JsonFileIpc < Component
        
         function Result = moveOrDeleteProcessedFile(Obj, FileName)                              
             % Move or delete the processed file, return true if the file was moved or deleted
+            % Input:   FileName - name of the file to move or delete
+            % Output:  Result - true if the file was moved or deleted
+            % Example: Result = moveOrDeleteProcessedFile('input.json');
+
             Result = false;
             try
                 % Move input file to 'processed' folder                
@@ -263,6 +280,12 @@ classdef JsonFileIpc < Component
 
         function deleteOldFiles(Obj, Path, Mask, DeleteBeforeDate)
             % Scans a directory and deletes files that are older than the specified date.
+            % Input:   Path - path to the directory to scan
+            %          Mask - file mask to filter files in the directory
+            %          DeleteBeforeDate - date before which files should be deleted
+            % Output:  -
+            % Example: deleteOldFiles('processed', '*', now - 7);
+
             List = dir(fullfile(Path, Mask));
             for i = 1:length(List)
                 if ~List(i).isdir
@@ -277,6 +300,8 @@ classdef JsonFileIpc < Component
         
 
         function updateWatchdogFile(Obj)
+            % Update the watchdog file
+
             if Obj.WatchdogInterval > 0 && ~isempty(Obj.WatchdogFileName)
                 Elapsed = toc(Obj.LastWatchdogTime);
                 if Elapsed >= Obj.WatchdogInterval

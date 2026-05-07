@@ -1,13 +1,18 @@
 %==========================================================================
 % Project     : ULTRASAT SOC
-% Filename    : ultrasat.services.common.sparseLogFile.m
+% Filename    : ultrasat.services.common.setLogFile.m
 % Author      : Chen Tishler
 % Created     : 02/11/2021
 % Modified    : 10/02/2026
-% Description : JSON file IPC class
+% Description : Set log file name and link to MsgLogger.
 %==========================================================================
 
 function setLogFile(FileName, SubFolder)
+    % Set log file name and link to MsgLogger.
+    % Input:   FileName - log file name
+    %          SubFolder - sub folder name
+    % Output:  -
+    % Example: setLogFile('slew_calc_service', 'matlab_services/slew_calc/');
 
     % Set log file name
     LF = LogFile.getSingleton('FileName', FileName, 'SubFolder', SubFolder);

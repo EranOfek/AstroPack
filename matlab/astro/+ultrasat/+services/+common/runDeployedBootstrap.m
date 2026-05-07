@@ -1,16 +1,25 @@
+%==========================================================================
+% Project     : ULTRASAT SOC
+% Filename    : ultrasat.services.common.runDeployedBootstrap.m
+% Author      : Chen Tishler
+% Created     : 02/11/2023
+% Modified    : 10/02/2026
+% Description : Run deployed bootstrap: set SOC_PATH and load FileMap when isdeployed.
+%==========================================================================
+
 function runDeployedBootstrap(RelativePath)
-% Run deployed bootstrap: set SOC_PATH and load FileMap when isdeployed.
-% Use from MATLAB services (slew_calc, snr, too_planner) that run as MCC EXE.
-%
-% Input : RelativePath - path relative to SOC_PATH for FileMap .mat file
-%                         e.g. 'slew/slew_matlab/AstroPackFileMap_1.mat'
-% Output: None
-%
-% When ~isdeployed, returns immediately after setting global SOC_PATH.
-% When isdeployed, loads FileMap from fullfile(SOC_PATH, RelativePath),
-% then addPathFolders() and scanFolders().
-%
-% Author: Refactored from slew/snr/too_planner services (2026)
+    % Run deployed bootstrap: set SOC_PATH and load FileMap when isdeployed.
+    % Use from MATLAB services (slew_calc, snr, too_planner) that run as MCC EXE.
+    %
+    % Input : RelativePath - path relative to SOC_PATH for FileMap .mat file
+    %                         e.g. 'slew/slew_matlab/AstroPackFileMap_1.mat'
+    % Output: None
+    %
+    % When ~isdeployed, returns immediately after setting global SOC_PATH.
+    % When isdeployed, loads FileMap from fullfile(SOC_PATH, RelativePath),
+    % then addPathFolders() and scanFolders().
+    %
+    % Author: Refactored from slew/snr/too_planner services (2026)
 
     global SOC_PATH;
 
