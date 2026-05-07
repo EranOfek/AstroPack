@@ -167,6 +167,8 @@ function Result = plotPhotScatter(MS, Args)
         Args.CentralColor           (1,3) double        = [0.2 0.4 0.8]
         Args.EdgeColor              (1,3) double        = [0.95 0.75 0.25]
         Args.MarkerSize             (1,1) double        = 3
+        Args.ShowTrend              logical             = true
+        Args.ShowLegend             logical             = true
     end
 
     % --- Normalize MS input ---------------------------------------------
@@ -487,10 +489,10 @@ function drawMagPanel(Ax, QName, DataByQ, Im, Args, CentralCrops)
     CropCmap = lines(numel(CropsToUse));
     plotCropDots(Ax, CropsToUse, D.PerCrop{Im}, Args, CropCmap, ...
         CentralCrops, Args.CentralColor, Args.EdgeColor);
-    if Args.ColorByCrop
+    if Args.ColorByCrop && Args.ShowLegend
         addCropLegend(Ax, CropsToUse, D.PerCrop{Im}, CropCmap);
     end
-    if ~strcmp(Args.OverlayTrend, 'none') && ~isempty(D.AllMed{Im})
+    if Args.ShowTrend && ~strcmp(Args.OverlayTrend, 'none') && ~isempty(D.AllMed{Im})
         TrendFun = str2func(['nan' Args.OverlayTrend]);
         drawTrend(Ax, D.AllMed{Im}, D.AllStd{Im}, ...
             Args.TrendBinWidth, TrendFun, '-', [0 0 0], 2);
@@ -511,10 +513,10 @@ function drawAngularPanel(Ax, QName, DataByQ, Im, Args, CentralCrops)
     CropCmap = lines(numel(CropsToUse));
     plotCropDots(Ax, CropsToUse, D.PerCrop{Im}, Args, CropCmap, ...
         CentralCrops, Args.CentralColor, Args.EdgeColor);
-    if Args.ColorByCrop
+    if Args.ColorByCrop && Args.ShowLegend
         addCropLegend(Ax, CropsToUse, D.PerCrop{Im}, CropCmap);
     end
-    if ~strcmp(Args.OverlayTrend, 'none') && ~isempty(D.AllMed{Im})
+    if Args.ShowTrend && ~strcmp(Args.OverlayTrend, 'none') && ~isempty(D.AllMed{Im})
         TrendFun = str2func(['nan' Args.OverlayTrend]);
         drawTrend(Ax, D.AllMed{Im}, D.AllStd{Im}, ...
             Args.TrendBinWidth, TrendFun, '-', [0 0 0], 2);

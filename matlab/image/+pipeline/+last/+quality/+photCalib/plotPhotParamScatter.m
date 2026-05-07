@@ -67,6 +67,15 @@ function Result = plotPhotParamScatter(PC, Args)
         Args.MarkerSize     = 18
         Args.FitLine logical    = true
         Args.ShowStats logical  = true
+        Args.ShowLegend logical = true
+        Args.LogX    logical    = false
+        Args.LogY    logical    = false
+        Args.XLim                = []      % [xmin xmax]; overrides auto-tight
+        Args.YLim                = []      % [ymin ymax]; overrides auto-tight
+        Args.Chi2Quantiles       = []      % e.g. [0.16 0.5 0.84]; overlay chi2inv(q, DOF)
+        Args.Chi2DofMin          = 1       % min DOF used when drawing curves
+        Args.SplitCentral logical = false  % true = colour central vs peripheral separately
+        Args.DotColor    (1,3) double = [0.15 0.35 0.75]   % used when SplitCentral=false
         Args.Labels cell    = {}
         Args.Verbose logical    = true
     end
@@ -184,17 +193,23 @@ function Result = plotPhotParamScatter(PC, Args)
     HandleNames = {};
 
     if Nsets == 1
-        % Single-set: original central/peripheral distinction
         ColCentral = [0.15 0.35 0.75];
         ColPeriph  = [0.85 0.30 0.10];
 
-        hC = scatter(Xs(CentralMask), Ys(CentralMask), Args.MarkerSize, ...
-            ColCentral, 'filled', 'MarkerFaceAlpha', 0.75, ...
-            'DisplayName', 'Central');
-        hP = scatter(Xs(~CentralMask), Ys(~CentralMask), Args.MarkerSize, ...
-            'MarkerEdgeColor', ColPeriph, 'LineWidth', 0.8, ...
-            'DisplayName', 'Peripheral');
-        Handles = [hC, hP];
+        if Args.SplitCentral
+            hC = scatter(Xs(CentralMask), Ys(CentralMask), Args.MarkerSize, ...
+                ColCentral, 'filled', 'MarkerFaceAlpha', 0.75, ...
+                'DisplayName', 'Central');
+            hP = scatter(Xs(~CentralMask), Ys(~CentralMask), Args.MarkerSize, ...
+                'MarkerEdgeColor', ColPeriph, 'LineWidth', 0.8, ...
+                'DisplayName', 'Peripheral');
+            Handles = [hC, hP];
+        else
+            hAll = scatter(Xs, Ys, Args.MarkerSize, ...
+                Args.DotColor, 'filled', 'MarkerFaceAlpha', 0.75, ...
+                'DisplayName', sprintf('All (N=%d)', numel(Xs)));
+            Handles = hAll;
+        end
     else
         % Multi-set: color per set, central=filled / peripheral=empty
         Colors = lines(Nsets);
@@ -264,6 +279,50 @@ function Result = plotPhotParamScatter(PC, Args)
         end
     end
 
+    % --- Optional chi^2(q, DOF) reference curves ------------------------
+    %   Auto-detect: whichever of XParam/YParam contains 'DOF'
+    %   (case-insens.) is the DOF axis; iterate over it and compute the
+    %   chi^2 quantile on the opposite axis.
+    if ~isempty(Args.Chi2Quantiles)
+        Q = Args.Chi2Quantiles(:).';
+        XIsDof = contains(Args.XParam, 'DOF', 'IgnoreCase', true);
+        YIsDof = contains(Args.YParam, 'DOF', 'IgnoreCase', true);
+        if any(Q <= 0 | Q >= 1)
+            warning('plotPhotParamScatter:BadChi2Quantiles', ...
+                'Chi2Quantiles must lie strictly in (0,1); ignoring.');
+        elseif ~XIsDof && ~YIsDof
+            warning('plotPhotParamScatter:NoDofAxis', ...
+                ['Chi2Quantiles requires one axis to be a DOF (param name ', ...
+                 'containing ''DOF''). XParam=%s, YParam=%s; skipping curves.'], ...
+                Args.XParam, Args.YParam);
+        else
+            if XIsDof; Dof = Xs; else; Dof = Ys; end
+            DofFloor = max(Args.Chi2DofMin, 1);
+            DofKept  = Dof(Dof >= DofFloor);
+            if ~isempty(DofKept) && max(DofKept) > min(DofKept)
+                DofGrid = linspace(min(DofKept), max(DofKept), 400);
+                for Iq = 1:numel(Q)
+                    q   = Q(Iq);
+                    Chi = chi2inv(q, DofGrid);
+                    if abs(q - 0.5) < 1e-9
+                        Style = '-'; LW = 2.0;
+                    else
+                        Style = '--'; LW = 1.0;
+                    end
+                    if XIsDof
+                        plot(DofGrid, Chi, Style, 'Color', [0.85 0.20 0.20], ...
+                            'LineWidth', LW, ...
+                            'DisplayName', sprintf('chi2inv(%.2f, %s)', q, Args.XParam));
+                    else
+                        plot(Chi, DofGrid, Style, 'Color', [0.85 0.20 0.20], ...
+                            'LineWidth', LW, ...
+                            'DisplayName', sprintf('chi2inv(%.2f, %s)', q, Args.YParam));
+                    end
+                end
+            end
+        end
+    end
+
     if Args.ShowStats
         Lines = {sprintf('N_{tot} = %d', numel(Xs))};
         if Nsets == 1
@@ -299,13 +358,39 @@ function Result = plotPhotParamScatter(PC, Args)
             'FontName', 'FixedWidth');
     end
 
-    if ~isempty(Handles)
+    if Args.ShowLegend && ~isempty(Handles)
         legend(Handles, 'Location', 'best');
     end
     box on; grid on;
     xlabel(XLab);
     ylabel(YLab);
     title(sprintf('%s vs %s', YLab, XLab));
+
+    if Args.LogX; set(gca, 'XScale', 'log'); end
+    if Args.LogY; set(gca, 'YScale', 'log'); end
+
+    % Tight axes: hug actual data extrema (no MATLAB nice-round padding).
+    % On log axes, restrict to strictly-positive samples.
+    XFin = isfinite(Xs);
+    YFin = isfinite(Ys);
+    if Args.LogX; XFin = XFin & Xs > 0; end
+    if Args.LogY; YFin = YFin & Ys > 0; end
+    if any(XFin)
+        Xmn = min(Xs(XFin)); Xmx = max(Xs(XFin));
+        if Xmx > Xmn; xlim([Xmn Xmx]); end
+    end
+    if any(YFin)
+        Ymn = min(Ys(YFin)); Ymx = max(Ys(YFin));
+        if Ymx > Ymn; ylim([Ymn Ymx]); end
+    end
+
+    % Explicit XLim/YLim override (final word, applied after scale + auto).
+    if ~isempty(Args.XLim)
+        set(gca, 'XLimMode', 'manual'); xlim(Args.XLim);
+    end
+    if ~isempty(Args.YLim)
+        set(gca, 'YLimMode', 'manual'); ylim(Args.YLim);
+    end
 
     if Args.Verbose
         fprintf('\n=== plotPhotParamScatter ===\n');
