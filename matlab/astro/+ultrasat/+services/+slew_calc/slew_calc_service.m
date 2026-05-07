@@ -9,6 +9,10 @@
 
 function slew_calc_service()
     % Slew calculator service - main function
+    % This function is the main entry point for the slew calculator service.
+    % On deployment, it sets the SOC_PATH environment variable, and should be loaded 
+    % as system service (systemd) - See Ultrasat.git/python/prj/nova/deploy/socsrv/systemd/soc-slew-calc-matlab.service
+    
 	fprintf('slew_calc_service started\n');    
 
     % Get the SOC_PATH environment variable

@@ -8,12 +8,12 @@
 %==========================================================================
 
 function Output = processRequest(Input)
-% Process request: dispatch on action (flat JSON, no inner json_text).
-%
-% Input  : item struct with .action ('health'|'slew'|'slew_batch') and action-specific fields
-% Output : flat struct: .message, .result; for slew also .slew, .direct; for batch .results
-%
-% Author : Chen Tishler (2021), refactored for flat API (2026)
+    % Process request: dispatch on action (flat JSON, no inner json_text).
+    %
+    % Input  : item struct with .action ('health'|'slew'|'slew_batch') and action-specific fields
+    % Output : flat struct: .message, .result; for slew also .slew, .direct; for batch .results
+    %
+    % Author : Chen Tishler (2021), refactored for flat API (2026)
 
     Output = struct;
     Output.status = '?';    
@@ -40,6 +40,10 @@ end
 % ===========================================================================
 
 function Output = processSlew(Input)
+    % Process slew request: calculate slew time between two points
+    % Input:   Input - input struct with .from.ra, .from.dec, .to.ra, .to.dec, .time
+    % Output:  Output - output struct with .status, .message, .slew, .direct
+    % Example: Output = processSlew(Input);
 
     try
 
@@ -67,9 +71,15 @@ function Output = processSlew(Input)
         io.msgLog(LogLevel.Error, Output.message);
     end
 end
+
 % ===========================================================================
 
 function Output = processSlewBatch(Input)
+    % Process slew batch request: calculate slew time between multiple pairs of points
+    % Input:   Input - input struct with .pairs, .time
+    % Output:  Output - output struct with .status, .message, .results
+    % Example: Output = processSlewBatch(Input);
+
     try
         if ~isfield(Input, 'pairs')
             Output.message = 'processSlewBatch: Missing field "pairs"';

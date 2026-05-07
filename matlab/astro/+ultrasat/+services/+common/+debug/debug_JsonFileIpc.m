@@ -1,3 +1,12 @@
+%==========================================================================
+% Project     : ULTRASAT SOC
+% Filename    : ultrasat.services.common.debug.debug_JsonFileIpc.m
+% Author      : Chen Tishler
+% Created     : 05/02/2026
+% Modified    : 10/02/2026
+% Description : Debug JsonFileIpc class
+%==========================================================================
+
 function debug_JsonFileIpc()
     % debug_JsonFileIpc
     %   Creates temporary folders, instantiates JsonFileIpc,

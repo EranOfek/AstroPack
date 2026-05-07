@@ -49,6 +49,9 @@ function [Result] = testPipeline(Args)
         fprintf("LAST pipeline unit test: run me with at least 'RAWImageDir' defined\n");
        return 
     end
+    if isstring(Args.RAWImageDir)
+        Args.RAWImageDir = char(Args.RAWImageDir);
+    end
     
     PWD = pwd; 
 

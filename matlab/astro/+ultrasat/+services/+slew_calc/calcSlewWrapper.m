@@ -8,12 +8,13 @@
 %==========================================================================
 
 function Result = calcSlewWrapper(ra1, dec1, ra2, dec2, TimeIso)
+    % Wrapper for calcSlew to calculate slew time between targets and return result in struct
+    % Input:   ra1, dec1, ra2, dec2 - ra and dec in degrees
+    %          TimeIso - optional ISO string
+    % Output:  Result - result struct with .slew (sec), .direct (bool)
+    % Example: Result = calcSlewWrapper(10.5, -20.0, 15.8, -22.1, '2028-07-01T12:00:00Z');
+
     % Single slew calculation: ra/dec in deg, optional TimeIso (ISO string).
-    % Used by processSlew and processSlewBatch.
-    %
-    % Input  : ra1, dec1, ra2, dec2 (deg), TimeIso (optional, ISO datetime or empty)
-    % Output : Result struct with .slew (sec), .direct (bool); Message string.
-    
     if nargin < 5
         TimeIso = '';
     end
