@@ -3190,6 +3190,30 @@ classdef PipelineDemon < Component
     
                         if Status.PipeI && Status.WriteI && Status.MoveRaw
                             % continue to pipeline II
+                            try
+                                % call method runPipelineII(Obj, Coadd, FN_I, Args)
+                                % This function create the products and write
+                                % them to the disk
+
+
+                                Status.PipeII  = true;
+                                Status.WriteII = true;
+                            catch MEs
+                                Status.ME = MEs;
+                                PWD = pwd;
+                                cd(Obj.FailedPath);
+                                FailInfoFileName = RawImageList{1};
+                                FailedInfoFileName = strrep(FailedInfoFileName, 'sci_raw_Image', 'sci_zogy_Failure');
+                                FailedInfoFileName = strrep(FailedInfoFileName, '.fits', '.mat');
+                                Status.RawImageList = RawImageList;
+                                Status.TableRaw     = TableRaw;
+                                save('-v7.3', FailedInfoFileName, Status)
+                                cd(PWD);
+                                Status.PipeII  = false;
+                                Status.WriteII = false;
+
+                            end
+                            
     
                         end
       
