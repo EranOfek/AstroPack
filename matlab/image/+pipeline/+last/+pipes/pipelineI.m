@@ -74,6 +74,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
         Args.KeysGlobalMotion            = {'GM_RATEX', 'GM_STDX', 'GM_RATEY', 'GM_STDY'};
         Args.KeyRelPhotRMS               = {'RP_MRMS','RP_MMRMS'};
+        Args.KeyIDProc                   = {'ID_PROCF','ID_PROCL'}; % ID of the first and last proc images that were used to create the visit - will be written into the Coadd header
 
         Args.Header_addAirMassArgs       = {};
         Args.Cat_addAirMassArgs          = {};
@@ -189,7 +190,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         
             % Add ImageID to individual cropped images: in ID_PROC
             %ProcessingStep = 91;
-            [AllSI, ID_Coadd] = imProc.db.generateImageID(AllSI, 'JD',JD, Args.generateImageIDArgs{:}); % 0.5 s
+            [AllSI, ~, ID_Epoch_Str] = imProc.db.generateImageID(AllSI, 'JD',JD, Args.generateImageIDArgs{:}); % 0.5 s
            
             
             % measure background, PSF, search for stars in all images
@@ -345,6 +346,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             [MS,ResRelZP] = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse);   % 9.6 s -> 1.3s (with MatchMethod='unify')
         
             % calculate the photometric rms per crop
+            
             PhotRMS = MS.calcRMS('FieldX','MAG_APER_3');
             Phot_MinRMS    = [PhotRMS.MinRMS];
             Phot_MagMinRMS = [PhotRMS.MagMinRMS];
@@ -408,24 +410,34 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             
         
             % Add image ID to coadd images: in: ID_PROC
-            %ProcessingStep = 901;
             NotIsEmptyCoadd = ~Coadd.isemptyImage;
             JD_Coadd = [ResCoadd(NotIsEmptyCoadd).MidMidJD];
+            %Ncoadd   = numel(Coadd);
+            %CoaddID  = nan(Ncoadd,1);
+            %[Coadd(NotIsEmptyCoadd), CoaddID(NotIsEmptyCoadd)]
             [Coadd(NotIsEmptyCoadd)] = imProc.db.generateImageID(Coadd(NotIsEmptyCoadd), 'KeyID','ID_COADD', 'JD',JD_Coadd, Args.generateImageIDArgs{:});  % 0.05 s
         
     
 
-            % Update Airmass (And UPIX) header keyword to based on measured crop center
-            %ProcessingStep = 911;
+            % Update header keywords:
+            % Airmass, UPIX, relative photometry of epochs
+            % header keyword to based on measured crop center
             AnyCoaddExist = any(NotIsEmptyCoadd);
             if AnyCoaddExist
+                % Add airmass + UPIX to header
                 [Coadd(NotIsEmptyCoadd)] = imProc.header.addAirMass(Coadd(NotIsEmptyCoadd), 'JD',JD_Coadd, 'HealpixType','nested', Args.Header_addAirMassArgs{:}); % 0.3s
 
-                % Add to Coadd header:
-                HCell = Args.KeyRelPhotRMS(:);
+
+                % Add relphot rms to Coadd header:
+                HCell = [Args.KeyRelPhotRMS(:); Args.KeyIDProc(:)];
                 for Isub=1:1:Nsub
                     if NotIsEmptyCoadd(Isub)
-                        HCell(:,2) = num2cell([Phot_MinRMS(Isub); Phot_MagMinRMS(Isub)]);
+                        % Add ID of first and last proc images
+                        ID_Str = ID_Epoch_Str(IsGood(:,Isub), Isub);
+                        
+                        % Add relphot rms to Coadd header:
+                        [HCell(1:4,2)] = {Phot_MinRMS(Isub); Phot_MagMinRMS(Isub); char(ID_Str(1)); char(ID_Str(end)) }';
+                        %HCell(:,2) = num2cell([Phot_MinRMS(Isub); Phot_MagMinRMS(Isub); char(ID_Str(1)); char(ID_Str(end))]);
                         Coadd(Isub).HeaderData.insertKey(HCell,'end-1');
                     end
                 end
@@ -433,7 +445,6 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             end
 
             % Add catsHTM MergedCat column to Coadd catalogs
-            %ProcessingStep = 921;
             if Args.AddMergedCat && AnyCoaddExist
                 %tic;
                 if isempty(Args.UseParfor)

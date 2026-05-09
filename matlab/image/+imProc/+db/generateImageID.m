@@ -1,4 +1,4 @@
-function [Obj, ID] = generateImageID(Obj, Args)
+function [Obj, ID, ID_Str] = generateImageID(Obj, Args)
     % Generate image 'unique' ID and store it in the header.
     %       The ID is constructed from multiple pats each containing a pre
     %       defined number of bits and information from a specific header keyword.
@@ -32,6 +32,7 @@ function [Obj, ID] = generateImageID(Obj, Args)
     %
     % Output : - An AstroImage object with the updated header.
     %          - A vector of IDs (one per image).
+    %          - ID in strings format (only if WriteAsStr is true).
     % Author : Eran Ofek (2024 Oct) 
     % Example: [A,ID]=imProc.db.generateImageID(A)
 
@@ -60,7 +61,8 @@ function [Obj, ID] = generateImageID(Obj, Args)
 
     Nobj = numel(Obj);
     Nsub = numel(Args.FormatSt);
-    ID   = zeros(Nobj,1, "uint64");
+    ID   = zeros(size(Obj), "uint64");
+    ID_Str = strings(size(Obj));
     for Iobj=1:1:Nobj
         BitNum = zeros(1,Nsub);
         BitVal = zeros(1,Nsub);
@@ -93,10 +95,11 @@ function [Obj, ID] = generateImageID(Obj, Args)
         ID(Iobj) = tools.bit.bitEncode(BitNum, BitVal);
         if ~isempty(Args.KeyID)
             if Args.WriteAsStr
+                ID_Str(Iobj) = sprintf('%d',ID(Iobj));
                 if     isa(Obj, 'AstroImage')
-                    Obj(Iobj).HeaderData.replaceVal(char(Args.KeyID), sprintf('%d',ID(Iobj)));
+                    Obj(Iobj).HeaderData.replaceVal(char(Args.KeyID), ID_Str(Iobj));
                 else
-                    Obj(Iobj).replaceVal(char(Args.KeyID), sprintf('%d',ID(Iobj)));
+                    Obj(Iobj).replaceVal(char(Args.KeyID), ID_Str(Iobj));
                 end
             else
                 if     isa(Obj, 'AstroImage')
