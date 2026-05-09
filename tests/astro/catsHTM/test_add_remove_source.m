@@ -212,6 +212,121 @@ end
 
 
 % ------------------------------------------------------------------------
+% insertColumn / removeColumn tests
+% ------------------------------------------------------------------------
+
+function testInsertColumnAtEnd(testCase)
+    % Insert JD_Added with FillValue=0 at the end and verify
+    OutDir = freshOutDir(testCase, 'insert_end');
+    TD = testCase.TestData;
+
+    R = catsHTM.insertColumn(TD.CatName, 'JD_Added', 'day', OutDir, ...
+        'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
+        'FillValue', 0, 'Verbose', false);
+
+    verifyEqual(testCase, R.NewColCell, [TD.ColCell, {'JD_Added'}]);
+    verifyEqual(testCase, R.NewSortCol, TD.SortCol);   % SortCol unchanged
+    verifyGreaterThanOrEqual(testCase, R.CellsTouched, 1);
+
+    % Inspect rewritten seed cell
+    [DataFileName, DataSetName] = catsHTM.get_file_var_from_htmid( ...
+        TD.CatName, TD.SeedCellID, 100);
+    Cat = HDF5.load(fullfile(OutDir, TD.CatRelDir, DataFileName), ['/' DataSetName]);
+    Seeded = readSeedRow(TD);
+    verifyEqual(testCase, size(Cat,2), size(Seeded,2) + 1);
+    verifyEqual(testCase, Cat(:, end), zeros(size(Seeded,1), 1));
+    verifyEqual(testCase, Cat(:, 1:end-1), sortrows(Seeded, TD.SortCol), 'AbsTol', 0);
+
+    % Loaded ColCell .mat must reflect new layout
+    S = load(fullfile(OutDir, TD.CatRelDir, sprintf('%s_htmColCell.mat', TD.CatName)));
+    verifyEqual(testCase, S.ColCell, [TD.ColCell, {'JD_Added'}]);
+    verifyEqual(testCase, S.ColUnits, [TD.ColUnits, {'day'}]);
+end
+
+function testInsertColumnDuplicateName(testCase)
+    OutDir = freshOutDir(testCase, 'insert_dup');
+    TD = testCase.TestData;
+
+    verifyError(testCase, ...
+        @() catsHTM.insertColumn(TD.CatName, 'Mag', 'mag', OutDir, ...
+            'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
+            'Verbose', false), ...
+        'catsHTM:insertColumn:DuplicateName');
+end
+
+function testInsertColumnFunctionFill(testCase)
+    % FillValue function: derive new column from existing data
+    OutDir = freshOutDir(testCase, 'insert_fun');
+    TD = testCase.TestData;
+
+    R = catsHTM.insertColumn(TD.CatName, 'TwoMag', 'mag', OutDir, ...
+        'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
+        'FillValue', @(M) 2 .* M(:,3), 'Verbose', false);   % 2 * Mag
+
+    [DataFileName, DataSetName] = catsHTM.get_file_var_from_htmid( ...
+        TD.CatName, TD.SeedCellID, 100);
+    Cat = HDF5.load(fullfile(OutDir, TD.CatRelDir, DataFileName), ['/' DataSetName]);
+
+    verifyEqual(testCase, size(Cat,2), numel(R.NewColCell));
+    verifyEqual(testCase, Cat(:, end), 2 .* Cat(:, 3), 'AbsTol', 1e-12);
+end
+
+function testRemoveColumnByName(testCase)
+    OutDir = freshOutDir(testCase, 'rm_col');
+    TD = testCase.TestData;
+
+    R = catsHTM.removeColumn(TD.CatName, 'MagErr', OutDir, ...
+        'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
+        'Verbose', false);
+
+    verifyEqual(testCase, R.NewColCell, {'RA','Dec','Mag'});
+    verifyEqual(testCase, R.NewSortCol, TD.SortCol);   % unchanged (Pos > SortCol)
+    verifyEqual(testCase, R.RemovedAt, 4);
+
+    [DataFileName, DataSetName] = catsHTM.get_file_var_from_htmid( ...
+        TD.CatName, TD.SeedCellID, 100);
+    Cat = HDF5.load(fullfile(OutDir, TD.CatRelDir, DataFileName), ['/' DataSetName]);
+    Seeded = readSeedRow(TD);
+    verifyEqual(testCase, size(Cat,2), size(Seeded,2) - 1);
+    verifyEqual(testCase, Cat, sortrows(Seeded(:, [1 2 3]), TD.SortCol), 'AbsTol', 0);
+
+    S = load(fullfile(OutDir, TD.CatRelDir, sprintf('%s_htmColCell.mat', TD.CatName)));
+    verifyEqual(testCase, S.ColCell, {'RA','Dec','Mag'});
+    verifyEqual(testCase, S.ColUnits, {'rad','rad','mag'});
+end
+
+function testRemoveColumnRefusesRA(testCase)
+    OutDir = freshOutDir(testCase, 'rm_ra');
+    TD = testCase.TestData;
+    verifyError(testCase, ...
+        @() catsHTM.removeColumn(TD.CatName, 'RA', OutDir, ...
+            'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
+            'Verbose', false), ...
+        'catsHTM:removeColumn:CoordColumn');
+end
+
+function testRemoveColumnRefusesSortCol(testCase)
+    OutDir = freshOutDir(testCase, 'rm_sort');
+    TD = testCase.TestData;
+    verifyError(testCase, ...
+        @() catsHTM.removeColumn(TD.CatName, 'Dec', OutDir, ...
+            'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
+            'Verbose', false), ...
+        'catsHTM:removeColumn:CoordColumn');
+end
+
+function testRemoveColumnNotFound(testCase)
+    OutDir = freshOutDir(testCase, 'rm_missing');
+    TD = testCase.TestData;
+    verifyError(testCase, ...
+        @() catsHTM.removeColumn(TD.CatName, 'DoesNotExist', OutDir, ...
+            'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
+            'Verbose', false), ...
+        'catsHTM:removeColumn:NotFound');
+end
+
+
+% ------------------------------------------------------------------------
 % Helpers
 % ------------------------------------------------------------------------
 

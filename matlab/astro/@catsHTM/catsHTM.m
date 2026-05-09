@@ -23,6 +23,7 @@
 % get_nsrc - Count number of sources over all HTM in HDF5 files Package: @catsHTM
 % getNsrcMeta - Count sources per HTM cell from HDF5 metadata only. Package: @catsHTM Description: Same output as catsHTM.get_nsrc but reads each dataset's row count from h5info dataspace dimensions instead of loading data with h5read. (Author: Dana Kovaleva, Mar 2026)
 % htm_search_cone - Search for all HTM leafs interscting a small circle (cone search) Package: @catsHTM Description: Search for all HTM leafs interscting a small circle (i.e., cone search).
+% insertColumn - Insert a new column into every HTM cell of a catsHTM catalog. Package: @catsHTM Description: Adds a single new column by rewriting every htm_<id> dataset and updating the ColCell .mat file. Auto-shifts SortCol if inserted at or before its position. (Author: Dana Kovaleva, May 2026)
 % load_1htm - Load a single tile of HDF5/HTM catalog Package: @catsHTM Description: Load a single HTM tile of HDF5/HTM catalog based on its HTM index. This is slower relative to catsHTM.load_cat,
 % load_cat - Load catalog stored in an HDF5 file Package: @catsHTM Description: Load catalog stored in an HDF5 file. Given a a catalog in HDF5 file created by HDF5.save_cat, load the catalog. The catalog is
 % load_cat_edge - Load and concat HDF5/HTM catalog and its edge catalog Package: @catsHTM Description: Load and concat HDF5/HTM catalog and its edge catalog
@@ -37,6 +38,7 @@
 % read_colnames - read HDF5 catalog column names from index file Package: @catsHTM
 % reference - Get references for an HDF5/HTM catalog Package: @catsHTM Description: Get references for an HDF5/HTM catalog
 % remove_source - Remove sources from a catsHTM catalog (read-only source). Package: @catsHTM Description: Remove sources from an existing catsHTM catalog by cone match. The source catalog at BaseDir is read but never modified; modified files are written under OutDir. (Author: Dana Kovaleva, May 2026)
+% removeColumn - Remove a column from every HTM cell of a catsHTM catalog. Package: @catsHTM Description: Drops a column (matched by name) from every htm_<id> dataset and updates ColCell .mat. Refuses to drop RA/Dec/SortCol; auto-shifts SortCol when columns to its left are removed. (Author: Dana Kovaleva, May 2026)
 % resolve_cat_paths - Resolve BaseDir and catalog subdir for a catsHTM catalog. Package: @catsHTM Description: Falls back to ASTROPACK_CATSHTM_PATH then '/euclid/catsHTM' for BaseDir, and to catsHTM.catalogs for CatRelDir. (Author: Dana Kovaleva, May 2026)
 % save_cat - save catalog data in HDF5 file Package: @catsHTM Description: save catalog data in HDF5 file Given a matrix containing a catalog, save the data in an HDF5 file. The data will be saved
 % save_cat_colcell - Save ColCell cell array of an HTM catalog Package: @catsHTM
@@ -2377,6 +2379,396 @@ classdef catsHTM
             if Args.Verbose
                 fprintf('remove_source: %d source(s) removed across %d cell(s)%s\n', ...
                     SourcesRemoved, sum(DirtyCells), ...
+                    repmat(' (dry-run)', 1, double(Args.DryRun)));
+                fprintf('  Files written under %s:\n', OutDir);
+                for If = 1:numel(ModifiedFiles)
+                    fprintf('    %s\n', ModifiedFiles{If});
+                end
+            end
+        end
+
+
+        function Result = insertColumn(CatName, ColName, ColUnit, OutDir, Args)
+            % Insert a new column into every HTM cell of a catsHTM catalog.
+            % Package: @catsHTM
+            % Description: Adds a single new column to a catsHTM catalog by
+            %              rewriting every htm_<id> dataset and updating
+            %              the ColCell .mat file. The source catalog at
+            %              BaseDir is read but never modified; modified
+            %              files are written under OutDir. The HTM index
+            %              file is unchanged (Nsrc per cell does not change).
+            %
+            %              SortCol is auto-shifted if the new column is
+            %              inserted at or before its current position.
+            %
+            % Input  : - CatName  : Catalog name (e.g., 'ForcedPhotList').
+            %          - ColName  : Name for the new column (must be unique
+            %                       within the catalog).
+            %          - ColUnit  : Unit string for the new column (e.g.,
+            %                       'day', 'mag', '').
+            %          - OutDir   : Writable directory mirroring BaseDir.
+            % Args   : 'BaseDir'         - Source catsHTM root, read-only.
+            %                              Default ASTROPACK_CATSHTM_PATH
+            %                              or '/euclid/catsHTM'.
+            %          'CatRelDir'       - Catalog subdir under BaseDir.
+            %                              Default looked up from registry.
+            %          'FillValue'       - Scalar fill (default 0) OR a
+            %                              function handle of the form
+            %                              @(M) Vec where M is the existing
+            %                              [Nrows x Ncol] cell matrix and
+            %                              Vec is the [Nrows x 1] new column.
+            %          'Position'        - 'end' (default) or numeric
+            %                              insert index in 1..Ncol+1.
+            %          'SortCol'         - Existing SortCol (default 2 = Dec).
+            %                              Auto-shifted on insert.
+            %          'StepRows'        - Default 30.
+            %          'NfilesInHDF'     - Default 100.
+            %          'DryRun'          - List affected files, no writes.
+            %                              Default false.
+            %          'Verbose'         - Default true.
+            % Output : - Result struct with fields:
+            %            .OutDir          - target directory
+            %            .ModifiedFiles   - cellstr of files written
+            %            .CellsTouched    - HTM cells modified
+            %            .RowsTouched     - total source rows touched
+            %            .NewColCell      - updated ColCell cell array
+            %            .NewSortCol      - SortCol position after insert
+            % Author : Dana Kovaleva (May 2026)
+            % Example:
+            %   R = catsHTM.insertColumn('ForcedPhotList', 'JD_Added', 'day', ...
+            %                            '~/tmp/cats_mod', 'FillValue', 0);
+
+            arguments
+                CatName            (1,:) char
+                ColName            (1,:) char
+                ColUnit            (1,:) char
+                OutDir             (1,:) char
+                Args.BaseDir       (1,:) char    = ''
+                Args.CatRelDir     (1,:) char    = ''
+                Args.FillValue                   = 0
+                Args.Position                    = 'end'
+                Args.SortCol       (1,1) double  = 2
+                Args.StepRows      (1,1) double  = 30
+                Args.NfilesInHDF   (1,1) double  = 100
+                Args.DryRun        (1,1) logical = false
+                Args.Verbose       (1,1) logical = true
+            end
+
+            [BaseDir, CatRelDir] = catsHTM.resolve_cat_paths(CatName, Args.BaseDir, Args.CatRelDir);
+            SrcDir = fullfile(BaseDir, CatRelDir);
+            DstDir = fullfile(OutDir, CatRelDir);
+            if ~isfolder(SrcDir)
+                error('catsHTM:insertColumn:NoSrcDir', ...
+                    'Source catalog directory does not exist: %s', SrcDir);
+            end
+            if ~Args.DryRun && ~isfolder(DstDir)
+                mkdir(DstDir);
+            end
+
+            % Existing ColCell / ColUnits
+            [ColCell, ColUnits] = catsHTM.load_colcell_from_dir(SrcDir, CatName);
+            Ncol = numel(ColCell);
+            if any(strcmp(ColCell, ColName))
+                error('catsHTM:insertColumn:DuplicateName', ...
+                    'Column "%s" already exists in catalog %s.', ColName, CatName);
+            end
+            if isempty(ColUnits)
+                ColUnits = repmat({''}, 1, Ncol);
+            elseif numel(ColUnits) < Ncol
+                ColUnits = [ColUnits(:).', repmat({''}, 1, Ncol - numel(ColUnits))];
+            end
+
+            % Position
+            if (ischar(Args.Position) || isstring(Args.Position))
+                if ~strcmpi(char(Args.Position), 'end')
+                    error('catsHTM:insertColumn:BadPosition', ...
+                        'Position must be ''end'' or a numeric index in 1..Ncol+1.');
+                end
+                Pos = Ncol + 1;
+            else
+                Pos = double(Args.Position);
+                if Pos < 1 || Pos > Ncol + 1 || Pos ~= round(Pos)
+                    error('catsHTM:insertColumn:BadPosition', ...
+                        'Position %g out of range 1..%d.', Pos, Ncol + 1);
+                end
+            end
+
+            NewColCell  = [ColCell(1:Pos-1), {ColName}, ColCell(Pos:end)];
+            NewColUnits = [ColUnits(1:Pos-1), {ColUnit}, ColUnits(Pos:end)];
+
+            % Auto-shift SortCol
+            NewSortCol = Args.SortCol;
+            if Pos <= Args.SortCol
+                NewSortCol = Args.SortCol + 1;
+            end
+
+            % Iterate over all data files in BaseDir
+            Files = dir(fullfile(SrcDir, sprintf('%s_htm_*.hdf5', CatName)));
+            Nfiles = numel(Files);
+            if Nfiles == 0
+                error('catsHTM:insertColumn:NoFiles', ...
+                    'No %s_htm_*.hdf5 files in %s.', CatName, SrcDir);
+            end
+
+            DirtyFiles   = containers.Map('KeyType','char','ValueType','any');
+            CellsTouched = 0;
+            RowsTouched  = 0;
+            IsFunFill    = isa(Args.FillValue, 'function_handle');
+
+            for If = 1:Nfiles
+                SrcFile = fullfile(SrcDir, Files(If).name);
+                DstFile = fullfile(DstDir, Files(If).name);
+                Info = h5info(SrcFile);
+                Names = {Info.Datasets.Name};
+                IndH = find(cellfun(@numel, strfind(Names, '_')) == 1);
+                Nih = numel(IndH);
+                if Nih == 0
+                    continue;
+                end
+
+                if ~Args.DryRun && ~DirtyFiles.isKey(DstFile)
+                    copyfile(SrcFile, DstFile);
+                    DirtyFiles(DstFile) = true;
+                end
+
+                for Iih = 1:Nih
+                    DataSetName = Info.Datasets(IndH(Iih)).Name;
+                    Cat = HDF5.load(SrcFile, ['/' DataSetName]);
+                    Nrows = size(Cat, 1);
+
+                    if IsFunFill
+                        FillVec = Args.FillValue(Cat);
+                        FillVec = FillVec(:);
+                        if numel(FillVec) ~= Nrows
+                            error('catsHTM:insertColumn:FillSizeMismatch', ...
+                                'FillValue function returned %d values for %d rows in %s.', ...
+                                numel(FillVec), Nrows, DataSetName);
+                        end
+                    else
+                        FillVec = repmat(Args.FillValue, Nrows, 1);
+                    end
+
+                    NewCat = [Cat(:, 1:Pos-1), FillVec, Cat(:, Pos:end)];
+
+                    if ~Args.DryRun
+                        catsHTM.delete_dataset(DstFile, ['/' DataSetName]);
+                        catsHTM.delete_dataset(DstFile, ['/' DataSetName '_Ind']);
+                        catsHTM.save_cat(DstFile, DataSetName, NewCat, NewSortCol, Args.StepRows);
+                    end
+
+                    CellsTouched = CellsTouched + 1;
+                    RowsTouched  = RowsTouched + Nrows;
+                end
+
+                if Args.Verbose
+                    fprintf('  %s: %d cell(s)%s\n', Files(If).name, Nih, ...
+                        repmat(' (dry-run)', 1, double(Args.DryRun)));
+                end
+            end
+
+            % ColCell .mat
+            ColCellFile = fullfile(DstDir, sprintf('%s_htmColCell.mat', CatName));
+            if ~Args.DryRun
+                ColCell  = NewColCell;   %#ok<NASGU>
+                ColUnits = NewColUnits;  %#ok<NASGU>
+                save(ColCellFile, 'ColCell', 'ColUnits');
+                DirtyFiles(ColCellFile) = true;
+            end
+
+            FilesAbs = DirtyFiles.keys;
+            ModifiedFiles = cell(numel(FilesAbs), 1);
+            for If = 1:numel(FilesAbs)
+                ModifiedFiles{If} = strrep(FilesAbs{If}, [OutDir filesep], '');
+            end
+
+            Result = struct( ...
+                'OutDir',         OutDir, ...
+                'ModifiedFiles',  {ModifiedFiles}, ...
+                'CellsTouched',   CellsTouched, ...
+                'RowsTouched',    RowsTouched, ...
+                'NewColCell',     {NewColCell}, ...
+                'NewSortCol',     NewSortCol);
+
+            if Args.Verbose
+                fprintf('insertColumn: added "%s" at position %d across %d cell(s), %d row(s)%s\n', ...
+                    ColName, Pos, CellsTouched, RowsTouched, ...
+                    repmat(' (dry-run)', 1, double(Args.DryRun)));
+                fprintf('  Files written under %s:\n', OutDir);
+                for If = 1:numel(ModifiedFiles)
+                    fprintf('    %s\n', ModifiedFiles{If});
+                end
+            end
+        end
+
+
+        function Result = removeColumn(CatName, ColName, OutDir, Args)
+            % Remove a column from every HTM cell of a catsHTM catalog.
+            % Package: @catsHTM
+            % Description: Drops a column (matched by name) from every
+            %              htm_<id> dataset and updates the ColCell .mat
+            %              file. The source catalog at BaseDir is read but
+            %              never modified; modified files are written
+            %              under OutDir. The HTM index file is unchanged.
+            %
+            %              Refuses to remove RA (column 1), Dec (column 2),
+            %              or the current SortCol -- these are required
+            %              for spatial lookup and the binary _Ind index.
+            %
+            %              SortCol is auto-shifted if a column to its left
+            %              is removed.
+            %
+            % Input  : - CatName  : Catalog name.
+            %          - ColName  : Name of the column to remove.
+            %          - OutDir   : Writable directory mirroring BaseDir.
+            % Args   : 'BaseDir'         - Default ASTROPACK_CATSHTM_PATH
+            %                              or '/euclid/catsHTM'.
+            %          'CatRelDir'       - Default looked up from registry.
+            %          'SortCol'         - Default 2 (Dec). Auto-shifted.
+            %          'StepRows'        - Default 30.
+            %          'NfilesInHDF'     - Default 100.
+            %          'DryRun'          - Default false.
+            %          'Verbose'         - Default true.
+            % Output : - Result struct (same shape as insertColumn) plus
+            %            .RemovedAt       - position of removed column
+            % Author : Dana Kovaleva (May 2026)
+            % Example:
+            %   R = catsHTM.removeColumn('ForcedPhotList', 'JD_Added', '~/tmp/cats_mod');
+
+            arguments
+                CatName            (1,:) char
+                ColName            (1,:) char
+                OutDir             (1,:) char
+                Args.BaseDir       (1,:) char    = ''
+                Args.CatRelDir     (1,:) char    = ''
+                Args.SortCol       (1,1) double  = 2
+                Args.StepRows      (1,1) double  = 30
+                Args.NfilesInHDF   (1,1) double  = 100
+                Args.DryRun        (1,1) logical = false
+                Args.Verbose       (1,1) logical = true
+            end
+
+            [BaseDir, CatRelDir] = catsHTM.resolve_cat_paths(CatName, Args.BaseDir, Args.CatRelDir);
+            SrcDir = fullfile(BaseDir, CatRelDir);
+            DstDir = fullfile(OutDir, CatRelDir);
+            if ~isfolder(SrcDir)
+                error('catsHTM:removeColumn:NoSrcDir', ...
+                    'Source catalog directory does not exist: %s', SrcDir);
+            end
+            if ~Args.DryRun && ~isfolder(DstDir)
+                mkdir(DstDir);
+            end
+
+            [ColCell, ColUnits] = catsHTM.load_colcell_from_dir(SrcDir, CatName);
+            Ncol = numel(ColCell);
+            Pos  = find(strcmp(ColCell, ColName), 1);
+            if isempty(Pos)
+                error('catsHTM:removeColumn:NotFound', ...
+                    'Column "%s" not found in catalog %s. Available: %s', ...
+                    ColName, CatName, strjoin(ColCell, ', '));
+            end
+            if Pos == 1 || Pos == 2
+                error('catsHTM:removeColumn:CoordColumn', ...
+                    ['Refusing to remove RA/Dec (column %d). These are ', ...
+                     'required for catsHTM spatial lookup.'], Pos);
+            end
+            if Pos == Args.SortCol
+                error('catsHTM:removeColumn:SortColumn', ...
+                    ['Refusing to remove the SortCol (column %d, "%s"). ', ...
+                     'Re-sort the catalog by another column first.'], Pos, ColName);
+            end
+            if Ncol <= 2
+                error('catsHTM:removeColumn:TooFew', ...
+                    'Catalog has only %d column(s); cannot remove any more.', Ncol);
+            end
+            if isempty(ColUnits) || numel(ColUnits) < Ncol
+                ColUnits = [ColUnits(:).', repmat({''}, 1, Ncol - numel(ColUnits))];
+            end
+
+            NewColCell  = ColCell;   NewColCell(Pos)  = [];
+            NewColUnits = ColUnits;  NewColUnits(Pos) = [];
+
+            NewSortCol = Args.SortCol;
+            if Pos < Args.SortCol
+                NewSortCol = Args.SortCol - 1;
+            end
+
+            Files = dir(fullfile(SrcDir, sprintf('%s_htm_*.hdf5', CatName)));
+            Nfiles = numel(Files);
+            if Nfiles == 0
+                error('catsHTM:removeColumn:NoFiles', ...
+                    'No %s_htm_*.hdf5 files in %s.', CatName, SrcDir);
+            end
+
+            DirtyFiles   = containers.Map('KeyType','char','ValueType','any');
+            CellsTouched = 0;
+            RowsTouched  = 0;
+
+            for If = 1:Nfiles
+                SrcFile = fullfile(SrcDir, Files(If).name);
+                DstFile = fullfile(DstDir, Files(If).name);
+                Info = h5info(SrcFile);
+                Names = {Info.Datasets.Name};
+                IndH = find(cellfun(@numel, strfind(Names, '_')) == 1);
+                Nih = numel(IndH);
+                if Nih == 0
+                    continue;
+                end
+
+                if ~Args.DryRun && ~DirtyFiles.isKey(DstFile)
+                    copyfile(SrcFile, DstFile);
+                    DirtyFiles(DstFile) = true;
+                end
+
+                for Iih = 1:Nih
+                    DataSetName = Info.Datasets(IndH(Iih)).Name;
+                    Cat = HDF5.load(SrcFile, ['/' DataSetName]);
+                    Nrows = size(Cat, 1);
+
+                    NewCat = Cat;
+                    NewCat(:, Pos) = [];
+
+                    if ~Args.DryRun
+                        catsHTM.delete_dataset(DstFile, ['/' DataSetName]);
+                        catsHTM.delete_dataset(DstFile, ['/' DataSetName '_Ind']);
+                        catsHTM.save_cat(DstFile, DataSetName, NewCat, NewSortCol, Args.StepRows);
+                    end
+
+                    CellsTouched = CellsTouched + 1;
+                    RowsTouched  = RowsTouched + Nrows;
+                end
+
+                if Args.Verbose
+                    fprintf('  %s: %d cell(s)%s\n', Files(If).name, Nih, ...
+                        repmat(' (dry-run)', 1, double(Args.DryRun)));
+                end
+            end
+
+            ColCellFile = fullfile(DstDir, sprintf('%s_htmColCell.mat', CatName));
+            if ~Args.DryRun
+                ColCell  = NewColCell;   %#ok<NASGU>
+                ColUnits = NewColUnits;  %#ok<NASGU>
+                save(ColCellFile, 'ColCell', 'ColUnits');
+                DirtyFiles(ColCellFile) = true;
+            end
+
+            FilesAbs = DirtyFiles.keys;
+            ModifiedFiles = cell(numel(FilesAbs), 1);
+            for If = 1:numel(FilesAbs)
+                ModifiedFiles{If} = strrep(FilesAbs{If}, [OutDir filesep], '');
+            end
+
+            Result = struct( ...
+                'OutDir',         OutDir, ...
+                'ModifiedFiles',  {ModifiedFiles}, ...
+                'CellsTouched',   CellsTouched, ...
+                'RowsTouched',    RowsTouched, ...
+                'NewColCell',     {NewColCell}, ...
+                'NewSortCol',     NewSortCol, ...
+                'RemovedAt',      Pos);
+
+            if Args.Verbose
+                fprintf('removeColumn: removed "%s" (was column %d) from %d cell(s), %d row(s)%s\n', ...
+                    ColName, Pos, CellsTouched, RowsTouched, ...
                     repmat(' (dry-run)', 1, double(Args.DryRun)));
                 fprintf('  Files written under %s:\n', OutDir);
                 for If = 1:numel(ModifiedFiles)
