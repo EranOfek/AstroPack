@@ -19,7 +19,7 @@ function buildHTMfromFiles(Args)
 %              3. Process sources into HTM cells via PostReadFun +
 %                 VO.prep.build_htm_catalog. Completed grouped HDF5
 %                 files are copied to TargetDir incrementally.
-%              4. Build index with VO.prep.getNsrcFast +
+%              4. Build index with catsHTM.getNsrcMeta +
 %                 celestial.htm.saveHTMIndexFast
 %              5. Copy remaining files and index to TargetDir
 %
