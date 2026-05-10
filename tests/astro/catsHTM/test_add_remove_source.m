@@ -1,5 +1,5 @@
 function tests = test_add_remove_source
-    % Function-based unit tests for catsHTM.add_source / remove_source.
+    % Function-based unit tests for catsHTM.addSource / removeSource.
     % Builds a tiny synthetic catsHTM catalog under a temp BaseDir and
     % exercises add/remove against it. No data on /euclid is touched.
     tests = functiontests(localfunctions);
@@ -37,7 +37,7 @@ end
 
 
 % ------------------------------------------------------------------------
-% add_source tests
+% addSource tests
 % ------------------------------------------------------------------------
 
 function testAddToPopulatedCellMatrix(testCase)
@@ -47,7 +47,7 @@ function testAddToPopulatedCellMatrix(testCase)
     NewMat = [1.0,  0.5,  17.5, 0.05;
               1.01, 0.51, 18.0, 0.06];
 
-    R = catsHTM.add_source(TD.CatName, NewMat, OutDir, ...
+    R = catsHTM.addSource(TD.CatName, NewMat, OutDir, ...
         'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
         'Verbose', false);
 
@@ -66,7 +66,7 @@ function testAddViaAstroCatalog(testCase)
     AC.ColNames = {'RA','Dec','Mag','MagErr'};
     AC.ColUnits = {'rad','rad','mag','mag'};
 
-    R = catsHTM.add_source(TD.CatName, AC, OutDir, ...
+    R = catsHTM.addSource(TD.CatName, AC, OutDir, ...
         'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
         'Verbose', false);
 
@@ -84,7 +84,7 @@ function testAddProjectsByColumnName(testCase)
     AC.ColNames = {'Mag','Dec','RA'};
     AC.ColUnits = {'mag','rad','rad'};
 
-    R = catsHTM.add_source(TD.CatName, AC, OutDir, ...
+    R = catsHTM.addSource(TD.CatName, AC, OutDir, ...
         'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
         'Verbose', false);
 
@@ -102,7 +102,7 @@ function testAddDryRunWritesNothing(testCase)
     TD = testCase.TestData;
 
     NewMat = [1.0, 0.5, 17.5, 0.05];
-    R = catsHTM.add_source(TD.CatName, NewMat, OutDir, ...
+    R = catsHTM.addSource(TD.CatName, NewMat, OutDir, ...
         'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
         'DryRun', true, 'Verbose', false);
 
@@ -121,11 +121,11 @@ function testAddDuplicateError(testCase)
     NewMat = Existing(1, :);
 
     verifyError(testCase, ...
-        @() catsHTM.add_source(TD.CatName, NewMat, OutDir, ...
+        @() catsHTM.addSource(TD.CatName, NewMat, OutDir, ...
             'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
             'DuplicateRadius', 1, 'OnDuplicate', 'error', ...
             'Verbose', false), ...
-        'catsHTM:add_source:Duplicate');
+        'catsHTM:addSource:Duplicate');
 end
 
 function testAddDuplicateSkip(testCase)
@@ -136,7 +136,7 @@ function testAddDuplicateSkip(testCase)
     NewMat = [Existing(1, :);                              % duplicate
               1.4, 0.6, 18.5, 0.08];                       % unique
 
-    R = catsHTM.add_source(TD.CatName, NewMat, OutDir, ...
+    R = catsHTM.addSource(TD.CatName, NewMat, OutDir, ...
         'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
         'DuplicateRadius', 1, 'OnDuplicate', 'skip', ...
         'Verbose', false);
@@ -147,7 +147,7 @@ end
 
 
 % ------------------------------------------------------------------------
-% remove_source tests
+% removeSource tests
 % ------------------------------------------------------------------------
 
 function testRemoveExistingSource(testCase)
@@ -157,7 +157,7 @@ function testRemoveExistingSource(testCase)
     Existing = readSeedRow(TD);
     Target = Existing(1, :);
 
-    R = catsHTM.remove_source(TD.CatName, Target(1), Target(2), OutDir, ...
+    R = catsHTM.removeSource(TD.CatName, Target(1), Target(2), OutDir, ...
         'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
         'SearchRadius', 1, 'RadiusUnits', 'arcsec', ...
         'Verbose', false);
@@ -174,10 +174,10 @@ function testRemoveNoMatchWarn(testCase)
     % Position far from any seeded source. Use lastwarn (rather than
     % verifyWarning) so we can also inspect the result struct.
     lastwarn('', '');
-    OldState = warning('on', 'catsHTM:remove_source:NoMatch');
+    OldState = warning('on', 'catsHTM:removeSource:NoMatch');
     Cleanup  = onCleanup(@() warning(OldState));
 
-    R = catsHTM.remove_source(TD.CatName, 0.01, -0.99, OutDir, ...
+    R = catsHTM.removeSource(TD.CatName, 0.01, -0.99, OutDir, ...
         'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
         'SearchRadius', 1, 'RadiusUnits', 'arcsec', ...
         'OnNoMatch', 'warn', 'Verbose', false);
@@ -185,7 +185,7 @@ function testRemoveNoMatchWarn(testCase)
 
     verifyEqual(testCase, R.SourcesRemoved, 0);
     verifyTrue(testCase,  R.NotFound(1));
-    verifyEqual(testCase, MsgId, 'catsHTM:remove_source:NoMatch');
+    verifyEqual(testCase, MsgId, 'catsHTM:removeSource:NoMatch');
 end
 
 function testRemoveLastSourceClearsCell(testCase)
@@ -194,7 +194,7 @@ function testRemoveLastSourceClearsCell(testCase)
     TD = testCase.TestData;
 
     Seeded = readSeedRow(TD);  % returns the full seed for the populated cell
-    R = catsHTM.remove_source(TD.CatName, Seeded(:,1), Seeded(:,2), OutDir, ...
+    R = catsHTM.removeSource(TD.CatName, Seeded(:,1), Seeded(:,2), OutDir, ...
         'BaseDir', TD.BaseDir, 'CatRelDir', TD.CatRelDir, ...
         'SearchRadius', 1, 'RadiusUnits', 'arcsec', ...
         'OnMultiMatch', 'all', ...
