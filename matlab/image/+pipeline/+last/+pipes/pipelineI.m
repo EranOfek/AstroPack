@@ -405,8 +405,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             
               
             %toc
-        
-         
+
             
         
             % Add image ID to coadd images: in: ID_PROC
