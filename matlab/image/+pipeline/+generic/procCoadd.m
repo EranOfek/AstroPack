@@ -243,7 +243,10 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.MergedCat                        = [];
         Args.Col2copy cell                    = {'Nobs'};  % cell array of columns to copy from MergedCat to Coadd
         Args.AddMaskSrcNoise                  = true;
-        
+        Args.MinFracNepoch                    = [];  % if fraction of caood images is below this, then set pixel to NaN.
+        Args.BitNameNaN                       = 'NaN';
+        Args.CorrectVarByNcoadd               = false;
+
         Args.WriteStatHeader                  = true;
 
         Args.UseMex                           = false;
@@ -390,12 +393,28 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             end
             ResultCoadd(Ifields).WMeanJD = MidJD;
 
+            if ~isempty(Args.MinFracNepoch)
+                MinNc  = min(ResultCoadd(Ifields).CoaddN(:));
+                MinNepochThreshold = Nepoch.*Args.MinFracNepoch;
+                if MinNc<MinNepochThreshold
+                    FlagLow = ResultCoadd(Ifields).CoaddN<MinNepochThreshold;
+                    Coadd(Ifields).ImageData.Data(FlagLow) = NaN;
+                    Coadd(Ifields).MaskData = maskSet(Coadd(Ifields).MaskData, FlagLow, Args.BitNameNaN, 1);
+                end
+            end
+
+
             if Args.SetBackTo0 && Args.SubBack
                 Coadd(Ifields).BackData.Data = zeros(size(Coadd(Ifields).ImageData.Data), 'like',Coadd(Ifields).ImageData.Data);
             end
         
             if ~Args.SetBackTo0 && Args.ReMeasureBackVar
                 Coadd(Ifields) = imProc.background.backVar(Coadd(Ifields), Args.backVarArgs{:});                
+            end
+
+            if Args.CorrectVarByNcoadd
+                MeanN = mean(ResultCoadd(Ifields).CoaddN(:));
+                Coadd(Ifields).VarData.Data = Coadd(Ifields).VarData.Data .* (MeanN./ResultCoadd(Ifields).CoaddN).^2;
             end
 
             % In some cases the first image of the stack is rejected, so

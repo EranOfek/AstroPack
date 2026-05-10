@@ -289,9 +289,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.FitRadius                 = [3];% PSF fit radius at each iteration
         Args.MaxIter                   = 8;
         Args.mexCutout                 = true;
-        
+        Args.CleanSN                   = 4;  % remove sources below this SN (PSF fitting S/N).
+        Args.KeyCleanSN                = 'SN';
 
-        
         % source detection:        
         Args.FindWithEmpiricalPSF logical = true;
         Args.PsfFunPar cell            = {[0.1;1.0;1.5]};  % search for sources                 
@@ -306,6 +306,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                           'FLUX_XYPEAK'};
         Args.ColNamesX                 = AstroCatalog.DefNamesX;
         Args.ColNamesY                 = AstroCatalog.DefNamesY;
+        
 
         % source cleaning and mask
         Args.RemoveEdgeDist            = 0;  % NaN for non removal
@@ -866,7 +867,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
 
         
 
-        % Cleaning:
+        
+        
+
         % remove sources on edge
         % mask CR
         % remove CR
@@ -891,6 +894,13 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         % The following block should be done only if there is a PSF and
         % star was found
         if ~isempty(Result(Iobj).CatData.ColNames)
+            % Clean sources with low S/N
+            if ~isempty(Args.CleanSN)
+                SNclean = Result(Iobj).CatData.getCol(Args.KeyCleanSN);
+                FlagSN = SNclean>Args.CleanSN;
+                Result(Iobj).CatData.Catalog = Result(Iobj).CatData.Catalog(FlagSN,:);
+            end
+
             % add RA, Dec from the object's WCS if it is present
             if Args.AddSkyCoo && ~isempty(Result(Iobj).WCS)
                 XY        = Result(Iobj).CatData.getXY();
@@ -918,6 +928,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 SourceLess(Iobj).Image = SubtractedImage(:,:,Niter); % or just  = Subtracted ?
             end        
 
+
+            
         else
             % no catalog - skip
         end % if ~isempty(Result(Obj).CatData.ColNames)

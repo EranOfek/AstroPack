@@ -1,4 +1,4 @@
-function [Result] = traceByCollapse(AI, varargin)
+function [Result] = traceByCollapse(AI, Args)
     % Find, fit and linazrize traces from spectra in an AstroImage, and output a SpecTrace object.
     %   This function is performing the following steps:
     %   1. Measure global background and variance
@@ -94,6 +94,14 @@ function [Result] = traceByCollapse(AI, varargin)
     %          AI=imProc.spec.trace.traceByCollapse(AI, 'DimWave',2);
     
    
+    arguments
+        AI
+        Args.DimWave     = 1;
+        Args.CalcBack    = true;
+        Args.backVarArgs = {'Method',@imUtil.background.modeVar_LogHist,'Block',[128 128],'ReCalc',true};
+        Args.SubBack     = true;
+    end
+
     %PropCopy = ["DimWave", "ExpectedSpatPos", "SN", "LinTraceImage", "LinTracePos", "Intensity", "ExtractShift"];
     PropCopy = ["DimWave", "ExpectedSpatPos", "PosMean", "PosBest", "SNdet", "LinTraceImage", "LinTracePos", "WavePix", "FluxPeak", "ExtractShift", "Mom2"];
     Nprop    = numel(PropCopy);
@@ -110,11 +118,19 @@ function [Result] = traceByCollapse(AI, varargin)
         % cast to single
         AI.cast('single');
     end
-    
+
+    % Estimate back and Var
+    if Args.CalcBack
+        AI = imProc.background.backVar(AI, 'SubBack',Args.SubBack, Args.backVarArgs{:});
+        %'Method',@imUtil.background.modeVar_LogHist,'Block',[128 128],'ReCalc',true);
+    end
+
     Nim = numel(Result);
     %Result = SpecTrace(size(AI));
     for Iim=1:1:Nim
-        Output = imUtil.spec.trace.traceByCollapse(AI(Iim).Image, varargin{:});
+
+        
+        Output = imUtil.spec.trace.traceByCollapse(AI(Iim).Image, 'DimWave',Args.DimWave, 'Back',0, 'Var',AI.Var); % varargin{:});
         Ntrace = numel(Output);
      
         % populate the .Trace property of AstroImage

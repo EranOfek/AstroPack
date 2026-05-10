@@ -1411,6 +1411,7 @@ classdef FITS < handle
                             if any(isnan(Header.(HeaderField){Inl,2}))
                                 Header.(HeaderField){Inl,2} = ' ';
                             end
+                            
                             if (isempty(Header.(HeaderField){Inl,3}))
                                 Header.(HeaderField){Inl,3} = ' ';
                             end

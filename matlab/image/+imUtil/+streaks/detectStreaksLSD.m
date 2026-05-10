@@ -1,4 +1,4 @@
-function [segs,phot,parfit]=detectStreaksLSD(Im,filtIm,Args)
+function S=detectStreaksLSD(Im,filtIm,Args)
 % detect streaks using a modified version of the LSD algorithm, detecting
 %  ridges in the Hessian of the filtered image
 %
@@ -19,6 +19,10 @@ function [segs,phot,parfit]=detectStreaksLSD(Im,filtIm,Args)
 %                      with pronounced concavity
 %
 % Outputs:
+%    S  - an imUtil.streaks.AstroStreak, with the fields 
+%            {X, Y, Flux, FitPar, Curve} populated by the streak detector
+%
+% (intermediate results):
 %    segs   - 4xN array of detected segment coordinates (x1,y1,x2,y2)
 %    phot   - 1xN array of corresponding estimated streak strengths (per
 %                 unit length)
@@ -35,7 +39,7 @@ function [segs,phot,parfit]=detectStreaksLSD(Im,filtIm,Args)
      AI.PSF=imUtil.kernel2.gauss;
      im=AI.Image;
      AI=imProc.image.xcorrWithPSF(AI);
-     [segs,phot,parfit]=imUtil.streaks.detectStreaksLSD(im,AI.Image)
+     S=imUtil.streaks.detectStreaksLSD(im,AI.Image)
 %}
 %
 %   Authors: Enrico Segre, February 2026
@@ -60,6 +64,19 @@ function [segs,phot,parfit]=detectStreaksLSD(Im,filtIm,Args)
     % photometry on the original image
     % 1px - empirical longitudinal extension of the streak region (fixed, yet)
     [phot,~,parfit]=imUtil.streaks.streak_photometry(filtIm,segs,1,Args.StripHalfWidth);
+    
+    % pack the results in an AstroStreak object
+    S = imUtil.streaks.AstroStreak;
+    S.X = segs([1,3],:);
+    S.Y = segs([2,4],:);
+    S.Flux = phot;
+    
+    for i=1:size(segs,2)
+        S.FitPar(i,:) = parfit(i).parfit';
+        S.Curve(i).X = parfit(i).coord(:,1)';
+        S.Curve(i).Y = parfit(i).coord(:,2)';
+        S.Curve(i).Flux = parfit(i).linephot;
+    end
     
 end
 

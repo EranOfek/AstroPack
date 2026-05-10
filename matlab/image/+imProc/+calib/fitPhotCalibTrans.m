@@ -477,6 +477,10 @@ function CalibArgs = predefCalibArgs(Args)
     %            'CustomOptSeq'     - Custom opt sequence (overrides OptSeqName). Default [].
     %            'Tran2DType'       - Tran2D polynomial type. Default 'cheby1_4_xt'.
     %            'UseTran2D'        - Enable Tran2D. Default true.
+    %            'XPixel'           - Detector X size in pixels (sets Tran2D
+    %                                 normalisation, ParNX = [XPixel/2, XPixel/2]).
+    %                                 Default 1716.
+    %            'YPixel'           - Detector Y size in pixels. Default 1716.
     %            'WeightingMode'    - Weighting mode. Default 'spectral'.
     %            'FluxErrColName'   - Flux error column. Default 'FluxErr'.
     %            'SigmaClipMethod'  - 'median' or 'weighted'. Default 'median'.
@@ -510,6 +514,8 @@ function CalibArgs = predefCalibArgs(Args)
         Args.CustomOptSeq     = []
         Args.Tran2DType       = 'cheby1_4_xt'
         Args.UseTran2D logical = true
+        Args.XPixel           = 1716   % Detector X size [pix]; sets Tran2D centre = XPixel/2
+        Args.YPixel           = 1716   % Detector Y size [pix]; sets Tran2D centre = YPixel/2
 
         % Weighting
         Args.WeightingMode    = 'spectral'  % 'none', 'spectral', 'flux', 'combined'

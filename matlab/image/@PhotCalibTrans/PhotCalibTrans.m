@@ -250,6 +250,10 @@ classdef PhotCalibTrans < Component
             %            'CustomOptSeq'   - Custom optimization sequence. Default is [].
             %            'Tran2DType'     - Position-dependent correction type. Default is 'cheby1_4_xt'.
             %            'UseTran2D'      - Enable position-dependent correction. Default is true.
+            %            'XPixel'         - Detector X size in pixels (sets Tran2D
+            %                               normalisation, ParNX = [XPixel/2, XPixel/2]).
+            %                               Default is 1716.
+            %            'YPixel'         - Detector Y size in pixels. Default is 1716.
             %            'WeightingMode'  - Weighting mode. Default is 'spectral'.
             %            'FluxErrColName' - Flux error column name. Default is 'FluxErr'.
             %            'SigmaClipMethod'- Sigma clipping method. Default is 'median'.
@@ -286,6 +290,8 @@ classdef PhotCalibTrans < Component
                 Args.CustomOptSeq     = []
                 Args.Tran2DType       = 'cheby1_4_xt'
                 Args.UseTran2D logical = true
+                Args.XPixel           = 1716   % Detector X size [pix]; Tran2D centre = XPixel/2
+                Args.YPixel           = 1716   % Detector Y size [pix]; Tran2D centre = YPixel/2
                 Args.WeightingMode    = 'spectral'
                 Args.FluxErrColName   = 'FluxErr'
                 Args.SigmaClipMethod  = 'median'
@@ -445,12 +451,14 @@ classdef PhotCalibTrans < Component
                           'Pressure_mbar', Obj.Pressure, ...
                           'Temperature_C', Obj.Temp};
 
-            % Build TransModel 
+            % Build TransModel
             Obj.TransModel = tools.math.fun.CompositeFun.model(FunList, ...
                 'MetadataValues', MetaValues, ...
                 'OptimizationSequence', OptSeq, ...
                 'UseTran2D', Args.UseTran2D, ...
-                'Tran2DType', Args.Tran2DType);
+                'Tran2DType', Args.Tran2DType, ...
+                'XPixel', Args.XPixel, ...
+                'YPixel', Args.YPixel);
 
             % ====================================================================
             % STEP 4: Select calibrators
@@ -4036,9 +4044,15 @@ classdef PhotCalibTrans < Component
 
                                 if Args.ApplyAperCorr && ~isempty(PC_c.AperCorr) && ...
                                         ~isempty(PC_c.AperCorrColNames)
-                                    AperIdx = find(strcmp(PC_c.AperCorrColNames, FluxColNames{I}), 1);
+                                    % Match AperCorrColNames stored in either
+                                    % mag mode (MAG_<sys>_*) or flux mode (FLUX_*).
+                                    AperIdx = find(strcmp(PC_c.AperCorrColNames, NewMagColName) | ...
+                                                   strcmp(PC_c.AperCorrColNames, FluxColNames{I}), 1);
                                     if ~isempty(AperIdx) && isfinite(PC_c.AperCorr(AperIdx))
-                                        Mag = Mag - PC_c.AperCorr(AperIdx);
+                                        % Sign matches fitPhotCalibTrans / calcAperCorr:
+                                        % AperCorr = MagRef - MagAper (<=0 for smaller apertures),
+                                        % applied as Mag + AperCorr.
+                                        Mag = Mag + PC_c.AperCorr(AperIdx);
                                     end
                                 end
 

@@ -43,8 +43,8 @@ end
 
 % Call MEX function for fitting (returns C and goodindices)
 try
-    [C, goodindices] = sliceGaussianProfile_mex(X1, X2, x, y, W, ...
-        Args.slice_width, Args.rthreshold,Args.medianclip);
+    [C, goodindices] = imUtil.streaks.mex.sliceGaussianProfile_mex(X1, X2, ...
+        x, y, W, Args.slice_width, Args.rthreshold,Args.medianclip);
 catch ME
     error('MEX function failed. Make sure sliceGaussianProfile_mex is compiled. Error: %s', ME.message);
 end

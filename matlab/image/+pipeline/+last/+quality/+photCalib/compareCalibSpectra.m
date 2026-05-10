@@ -193,8 +193,11 @@ function plotMedianSpectra(R, Args, OutDir)
     F = figure('Name', 'compareCalibSpectra: median spectra', ...
         'Position', [80 80 950 600]);
     hold on;
+    % NU: keep light-grey filled 16-84 band.
     bandShade(R.Wvl, R.P16NU, R.P84NU, [0.85 0.85 0.85]);
-    bandShade(R.Wvl, R.P16U,  R.P84U,  [0.55 0.55 0.55]);
+    % U: outline-only (thin lines for P16 and P84) so the two envelopes
+    % don't visually compete.
+    bandOutline(R.Wvl, R.P16U, R.P84U, [0.30 0.30 0.30]);
     plot(R.Wvl, R.MedNU, '-', 'Color', [0.85 0.20 0.20], 'LineWidth', 2.0, ...
         'DisplayName', sprintf('NU median (N=%d)', R.NNU));
     plot(R.Wvl, R.MedU,  '-', 'Color', [0.10 0.10 0.10], 'LineWidth', 1.5, ...
@@ -269,5 +272,16 @@ function bandShade(X, Lo, Hi, Color)
     Xs = X(Fin); Ls = Lo(Fin); Hs = Hi(Fin);
     fill([Xs; flipud(Xs)], [Ls; flipud(Hs)], Color, ...
         'EdgeColor', 'none', 'FaceAlpha', 0.6, ...
+        'HandleVisibility', 'off');
+end
+
+% =========================================================================
+function bandOutline(X, Lo, Hi, Color)
+    % Draw only the P16 and P84 curves as thin lines (no fill).
+    Fin = isfinite(Lo) & isfinite(Hi);
+    if ~any(Fin); return; end
+    plot(X(Fin), Lo(Fin), '-', 'Color', Color, 'LineWidth', 0.7, ...
+        'HandleVisibility', 'off');
+    plot(X(Fin), Hi(Fin), '-', 'Color', Color, 'LineWidth', 0.7, ...
         'HandleVisibility', 'off');
 end

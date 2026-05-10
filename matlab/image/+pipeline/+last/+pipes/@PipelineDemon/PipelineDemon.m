@@ -3107,137 +3107,161 @@ classdef PipelineDemon < Component
                         pause(Args.PauseNotFound);
                     else
                         for IndStartGroup = GroupQueue
-                        % visit found
-                        TstartAll = clock;
-    
-                        % --- files compression ---
-                        % Check if images are compressed
-                        if any(FN_Sci_Groups(IndStartGroup).isCompressed) && Args.UncompressRaw
-                            % files are compressed
-                            FN_Sci_Groups(IndStartGroup).uncompress('Type','fz');
-                            FilesUncomp = true;
+                            % visit found
+                            TstartAll = clock;
         
-                            Msg = 'Uncompress visit';
-                            Obj.writeLog(Msg, LogLevel.Info);
-        
-                        else
-                            FilesUncomp = false;
-                        end
-                        RepackRaw = Args.RepackRaw && FilesUncomp;
-                        
-                        RawImageList   = FN_Sci_Groups(IndStartGroup).genFile();
-                        NimagesInVisit = numel(RawImageList);
-    
-                        % log
-                        MsgV{1} = sprintf('New visit found - Number of images in visit: %d', NimagesInVisit);
-                        MsgV{2} = sprintf('New visit first image : %s', RawImageList{1});
-                        MsgV{3} = sprintf('New visit last image : %s', RawImageList{end});
-                        Obj.writeLog(MsgV, LogLevel.Info);
-    
-                        
-                        % special instruction block
-                        % FFU
-                        UpArgs = Args;
-    
-                        % reload calibration files
-                        FN_I = FN_Sci_Groups(IndStartGroup);
-                        JDgr = FN_I.juldayFun(@mean);
-                        if abs(JDgr-JDlastCalib)>Args.ReloadCalibTimeDiff
-                            % if time difference between the last time
-                            % calibration was loaded and current image >
-                            % 0.7 days, then reload...
-                            Obj.loadCalib('FlatNearJD',JDgr, 'BiasNearJD',JDgr, 'ForceReload',true);
-                            JDlastCalib = JDgr(1);
-    
-                            Msg = 'Reload calibration files';
-                            Obj.writeLog(Msg, LogLevel.Info);
-                        end
-    
-                        % prepare to insert data into the DB, in particular,
-                        % to insert raw images' header data (this is done in pipeline.last.pipes.pipelineI) 
-                        if Args.DebugMode
-                            Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-                            PM = PasswordsManager;    
-                            DB.Password = PM.search(Args.DbName).Pass;                        
-                            DBclient = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
-                            DBclient.query(sprintf('use %s',Args.DbName));
-                            UpArgs.pipelineIArgs = [UpArgs.pipelineIArgs,{'DBobj',DBclient,'DB_Table_Raw',Args.DB_Table_Raw}];
-                        end
-                        % FFU
-    
-    
-                        % visit found - start reduction
-                        [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
-    
-                        if ~Status.PipeI || ~Status.WriteI
-                            % Move images to failed directory:
-                            Obj.moveImagesToFailedDir(RawImageList);
-
-                            % Write the Status info to the failed
-                            % directory:
-                            PWD = pwd;
-                            cd(Obj.FailedPath);
-                            FailInfoFileName = RawImageList{1};
-                            FailedInfoFileName = strrep(FailedInfoFileName, 'sci_raw_Image', 'sci_raw_Failure');
-                            FailedInfoFileName = strrep(FailedInfoFileName, '.fits', '.mat');
-                            Status.RawImageList = RawImageList;
-                            Status.TableRaw     = TableRaw;
-                            save('-v7.3', FailedInfoFileName, Status)
-                            cd(PWD);
-
-                            
-                        end
-    
-                        if Status.PipeI && Status.WriteI && Status.MoveRaw
-                            % continue to pipeline II
-    
-                        end
-      
-                            
-                        % Write ready-to-transfer
-                        if Args.UpdateStatusFile
-                            writeStatus(Obj, FN_I.genPath);
-                            writeStatus(Obj, RawImageListFinal{1});
-                        end
-    
-    
-                        Msg = sprintf('Pipeline summary status - PipeI: %d, Write: %d, Move: %d', Status.PipeI, Status.WriteI, Status.MoveRaw);
-                        Obj.writeLog(Msg, LogLevel.Info);
-                        
-    
-                        % check if stop loop
-                        if Args.StopButton && StopGUI()
-                            Cont = false;
-                        end
-                        if isfile(Args.AbortFileName)
-                            Cont = false;
-                            delete(Args.AbortFileName);
-                        end
-        
-                        % check disk storage state
-                        if ~isempty(Args.StopDiskFull)
-                            [~,DiskP] = tools.os.df(sprintf('data%d',Obj.DataDir));
-                            if DiskP>Args.StopDiskFull
-                                Cont = false;
-                                Msg = sprintf('Pipeline stopped because disk is full');
+                            % --- files compression ---
+                            % Check if images are compressed
+                            if any(FN_Sci_Groups(IndStartGroup).isCompressed) && Args.UncompressRaw
+                                % files are compressed
+                                FN_Sci_Groups(IndStartGroup).uncompress('Type','fz');
+                                FilesUncomp = true;
+            
+                                Msg = 'Uncompress visit';
                                 Obj.writeLog(Msg, LogLevel.Info);
-                            end
-                        end 
-    
-                        if RepackRaw
-                            FN_Sci_Groups(IndStartGroup).compress('fz');
+            
+                            else
+                                FilesUncomp = false;
+                            end % if any(FN_Sci_Groups(IndStartGroup).isCompressed) && Args.UncompressRaw
+                            RepackRaw = Args.RepackRaw && FilesUncomp;
                             
-                            Msg = 'Re-compress visit';
-                            Obj.writeLog(MsgV, LogLevel.Info);  
-                        end
-                        
-                        RunTime = etime(clock, TstartAll);
-                        Msg = sprintf('Visit total run time : %.1f',RunTime);
-                        Obj.writeLog(Msg, LogLevel.Info);
-
-                        if ~Cont
-                            break;
-                        end
+                            RawImageList   = FN_Sci_Groups(IndStartGroup).genFile();
+                            NimagesInVisit = numel(RawImageList);
+        
+                            % log
+                            MsgV{1} = sprintf('New visit found - Number of images in visit: %d', NimagesInVisit);
+                            MsgV{2} = sprintf('New visit first image : %s', RawImageList{1});
+                            MsgV{3} = sprintf('New visit last image : %s', RawImageList{end});
+                            Obj.writeLog(MsgV, LogLevel.Info);
+        
+                            
+                            % special instruction block
+                            % FFU
+                            UpArgs = Args;
+        
+                            % reload calibration files
+                            FN_I = FN_Sci_Groups(IndStartGroup);
+                            JDgr = FN_I.juldayFun(@mean);
+                            if abs(JDgr-JDlastCalib)>Args.ReloadCalibTimeDiff
+                                % if time difference between the last time
+                                % calibration was loaded and current image >
+                                % 0.7 days, then reload...
+                                Obj.loadCalib('FlatNearJD',JDgr, 'BiasNearJD',JDgr, 'ForceReload',true);
+                                JDlastCalib = JDgr(1);
+        
+                                Msg = 'Reload calibration files';
+                                Obj.writeLog(Msg, LogLevel.Info);
+                            end % if abs(JDgr-JDlastCalib)>Args.ReloadCalibTimeDiff
+        
+                            % prepare to insert data into the DB, in particular,
+                            % to insert raw images' header data (this is done in pipeline.last.pipes.pipelineI) 
+                            if Args.DebugMode
+                                Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+                                PM = PasswordsManager;    
+                                DB.Password = PM.search(Args.DbName).Pass;                        
+                                DBclient = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
+                                DBclient.query(sprintf('use %s',Args.DbName));
+                                UpArgs.pipelineIArgs = [UpArgs.pipelineIArgs,{'DBobj',DBclient,'DB_Table_Raw',Args.DB_Table_Raw}];
+                            end %if Args.DebugMode
+                            % FFU
+        
+        
+                            % visit found - start reduction
+                            [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
+        
+                            if ~Status.PipeI || ~Status.WriteI
+                                % Move images to failed directory:
+                                Obj.moveImagesToFailedDir(RawImageList);
+    
+                                % Write the Status info to the failed
+                                % directory:
+                                PWD = pwd;
+                                cd(Obj.FailedPath);
+                                FailInfoFileName = RawImageList{1};
+                                FailedInfoFileName = strrep(FailedInfoFileName, 'sci_raw_Image', 'sci_raw_Failure');
+                                FailedInfoFileName = strrep(FailedInfoFileName, '.fits', '.mat');
+                                Status.RawImageList = RawImageList;
+                                Status.TableRaw     = TableRaw;
+                                save('-v7.3', FailedInfoFileName, Status)
+                                cd(PWD);
+    
+                                
+                            end % if ~Status.PipeI || ~Status.WriteI
+        
+                            if Status.PipeI && Status.WriteI && Status.MoveRaw
+                                % continue to pipeline II
+                                try
+                                    % call method runPipelineII(Obj, Coadd, FN_I, Args)
+                                    % This function create the products and write
+                                    % them to the disk
+    
+    
+                                    Status.PipeII  = true;
+                                    Status.WriteII = true;
+                                catch MEs
+                                    Status.ME = MEs;
+                                    PWD = pwd;
+                                    cd(Obj.FailedPath);
+                                    FailInfoFileName = RawImageList{1};
+                                    FailedInfoFileName = strrep(FailedInfoFileName, 'sci_raw_Image', 'sci_zogy_Failure');
+                                    FailedInfoFileName = strrep(FailedInfoFileName, '.fits', '.mat');
+                                    Status.RawImageList = RawImageList;
+                                    Status.TableRaw     = TableRaw;
+                                    save('-v7.3', FailedInfoFileName, Status)
+                                    cd(PWD);
+                                    Status.PipeII  = false;
+                                    Status.WriteII = false;
+    
+                                end
+                                
+        
+                            end %if Status.PipeI && Status.WriteI && Status.MoveRaw
+          
+                                
+                            % Write ready-to-transfer
+                            if Args.UpdateStatusFile
+                                writeStatus(Obj, FN_I.genPath);
+                                writeStatus(Obj, RawImageListFinal{1});
+                            end
+        
+        
+                            Msg = sprintf('Pipeline summary status - PipeI: %d, Write: %d, Move: %d', Status.PipeI, Status.WriteI, Status.MoveRaw);
+                            Obj.writeLog(Msg, LogLevel.Info);
+                            
+        
+                            % check if stop loop
+                            if Args.StopButton && StopGUI()
+                                Cont = false;
+                            end
+                            if isfile(Args.AbortFileName)
+                                Cont = false;
+                                delete(Args.AbortFileName);
+                            end
+            
+                            % check disk storage state
+                            if ~isempty(Args.StopDiskFull)
+                                [~,DiskP] = tools.os.df(sprintf('data%d',Obj.DataDir));
+                                if DiskP>Args.StopDiskFull
+                                    Cont = false;
+                                    Msg = sprintf('Pipeline stopped because disk is full');
+                                    Obj.writeLog(Msg, LogLevel.Info);
+                                end
+                            end 
+        
+                            if RepackRaw
+                                FN_Sci_Groups(IndStartGroup).compress('fz');
+                                
+                                Msg = 'Re-compress visit';
+                                Obj.writeLog(MsgV, LogLevel.Info);  
+                            end
+                            
+                            RunTime = etime(clock, TstartAll);
+                            Msg = sprintf('Visit total run time : %.1f',RunTime);
+                            Obj.writeLog(Msg, LogLevel.Info);
+    
+                            if ~Cont
+                                break;
+                            end
                         end % for IndStartGroup
                     end % if isempty(GroupQueue)
     
