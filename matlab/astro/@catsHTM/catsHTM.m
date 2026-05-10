@@ -1912,7 +1912,7 @@ classdef catsHTM
                 Args.DuplicateRadius      (1,1) double  = 0
                 Args.OnDuplicate          (1,:) char    {mustBeMember(Args.OnDuplicate,{'error','skip','replace'})} = 'error'
                 Args.DryRun               (1,1) logical = false
-                Args.Verbose              (1,1) logical = true
+                Args.Verbose              (1,1) logical = false
             end
 
             RAD = 180./pi;
@@ -2123,23 +2123,24 @@ classdef catsHTM
             %          - Dec     : Vector of declinations, radians,
             %                      sexagesimal string, or [sign D M S].
             %          - OutDir  : Writable directory mirroring BaseDir.
-            % Args   : 'BaseDir'         - Source catsHTM root.
+            %                    * ...,key,val,...
+            %                      'BaseDir'         - Source catsHTM root.
             %                              Default ASTROPACK_CATSHTM_PATH
             %                              or '/euclid/catsHTM'.
-            %          'CatRelDir'       - Catalog subdir under BaseDir.
+            %                       'CatRelDir'       - Catalog subdir under BaseDir.
             %                              Default looked up from registry.
-            %          'SearchRadius'    - Match radius. Default 1.
-            %          'RadiusUnits'     - Default 'arcsec'.
-            %          'SortCol'         - Default 2.
-            %          'StepRows'        - Default 30.
-            %          'NfilesInHDF'     - Default 100.
-            %          'OnMultiMatch'    - 'error'|'first'|'all'.
+            %                       'SearchRadius'    - Match radius. Default 1.
+            %                       'RadiusUnits'     - Default 'arcsec'.
+            %                       'SortCol'         - Default 2.
+            %                       'StepRows'        - Default 30.
+            %                       'NfilesInHDF'     - Default 100.
+            %                       'OnMultiMatch'    - 'error'|'first'|'all'.
             %                              Default 'error'.
-            %          'OnNoMatch'       - 'error'|'warn'|'silent'.
+            %                       'OnNoMatch'       - 'error'|'warn'|'silent'.
             %                              Default 'warn'.
-            %          'DryRun'          - List affected files, no writes.
+            %                       'DryRun'          - List affected files, no writes.
             %                              Default false.
-            %          'Verbose'         - Default true.
+            %                       'Verbose'         - Print progress. Default false.
             % Output : - Result struct with fields:
             %            .OutDir          - target directory
             %            .ModifiedFiles   - cellstr of files written
@@ -2166,7 +2167,7 @@ classdef catsHTM
                 Args.OnMultiMatch         (1,:) char    {mustBeMember(Args.OnMultiMatch,{'error','first','all'})}  = 'error'
                 Args.OnNoMatch            (1,:) char    {mustBeMember(Args.OnNoMatch,{'error','warn','silent'})}    = 'warn'
                 Args.DryRun               (1,1) logical = false
-                Args.Verbose              (1,1) logical = true
+                Args.Verbose              (1,1) logical = false
             end
 
             % --- Resolve paths ---------------------------------------
@@ -2408,25 +2409,26 @@ classdef catsHTM
             %          - ColUnit  : Unit string for the new column (e.g.,
             %                       'day', 'mag', '').
             %          - OutDir   : Writable directory mirroring BaseDir.
-            % Args   : 'BaseDir'         - Source catsHTM root, read-only.
+            %                    * ...,key,val,...
+            %                      'BaseDir'         - Source catsHTM root, read-only.
             %                              Default ASTROPACK_CATSHTM_PATH
             %                              or '/euclid/catsHTM'.
-            %          'CatRelDir'       - Catalog subdir under BaseDir.
+            %                       'CatRelDir'       - Catalog subdir under BaseDir.
             %                              Default looked up from registry.
-            %          'FillValue'       - Scalar fill (default 0) OR a
+            %                       'FillValue'       - Scalar fill (default 0) OR a
             %                              function handle of the form
             %                              @(M) Vec where M is the existing
             %                              [Nrows x Ncol] cell matrix and
             %                              Vec is the [Nrows x 1] new column.
-            %          'Position'        - 'end' (default) or numeric
+            %                       'Position'        - 'end' (default) or numeric
             %                              insert index in 1..Ncol+1.
-            %          'SortCol'         - Existing SortCol (default 2 = Dec).
+            %                       'SortCol'         - Existing SortCol (default 2 = Dec).
             %                              Auto-shifted on insert.
-            %          'StepRows'        - Default 30.
-            %          'NfilesInHDF'     - Default 100.
-            %          'DryRun'          - List affected files, no writes.
+            %                       'StepRows'        - Default 30.
+            %                       'NfilesInHDF'     - Default 100.
+            %                       'DryRun'          - List affected files, no writes.
             %                              Default false.
-            %          'Verbose'         - Default true.
+            %                       'Verbose'         - Print progress. Default false.
             % Output : - Result struct with fields:
             %            .OutDir          - target directory
             %            .ModifiedFiles   - cellstr of files written
@@ -2452,7 +2454,7 @@ classdef catsHTM
                 Args.StepRows      (1,1) double  = 30
                 Args.NfilesInHDF   (1,1) double  = 100
                 Args.DryRun        (1,1) logical = false
-                Args.Verbose       (1,1) logical = true
+                Args.Verbose       (1,1) logical = false
             end
 
             [BaseDir, CatRelDir] = catsHTM.resolve_cat_paths(CatName, Args.BaseDir, Args.CatRelDir);
@@ -2621,14 +2623,15 @@ classdef catsHTM
             % Input  : - CatName  : Catalog name.
             %          - ColName  : Name of the column to remove.
             %          - OutDir   : Writable directory mirroring BaseDir.
-            % Args   : 'BaseDir'         - Default ASTROPACK_CATSHTM_PATH
+            %                    * ...,key,val,...
+            %                      'BaseDir'         - Default ASTROPACK_CATSHTM_PATH
             %                              or '/euclid/catsHTM'.
-            %          'CatRelDir'       - Default looked up from registry.
-            %          'SortCol'         - Default 2 (Dec). Auto-shifted.
-            %          'StepRows'        - Default 30.
-            %          'NfilesInHDF'     - Default 100.
-            %          'DryRun'          - Default false.
-            %          'Verbose'         - Default true.
+            %                       'CatRelDir'       - Default looked up from registry.
+            %                       'SortCol'         - Default 2 (Dec). Auto-shifted.
+            %                       'StepRows'        - Default 30.
+            %                       'NfilesInHDF'     - Default 100.
+            %                       'DryRun'          - Default false.
+            %                       'Verbose'         - Print progress. Default false.
             % Output : - Result struct (same shape as insertColumn) plus
             %            .RemovedAt       - position of removed column
             % Author : Dana Kovaleva (May 2026)
@@ -2645,7 +2648,7 @@ classdef catsHTM
                 Args.StepRows      (1,1) double  = 30
                 Args.NfilesInHDF   (1,1) double  = 100
                 Args.DryRun        (1,1) logical = false
-                Args.Verbose       (1,1) logical = true
+                Args.Verbose       (1,1) logical = false
             end
 
             [BaseDir, CatRelDir] = catsHTM.resolve_cat_paths(CatName, Args.BaseDir, Args.CatRelDir);
