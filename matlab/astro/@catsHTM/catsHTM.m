@@ -8,7 +8,7 @@
 %--------------------------------------------------------------------------
 %
 % #functions (autogen)
-% add_source - Insert new sources into a catsHTM catalog (read-only source). Package: @catsHTM Description: Add sources to an existing catsHTM catalog. The source catalog at BaseDir is read but never modified; modified files are written under OutDir. (Author: Dana Kovaleva, May 2026)
+% addSource - Insert new sources into a catsHTM catalog (read-only source). Package: @catsHTM Description: Add sources to an existing catsHTM catalog. The source catalog at BaseDir is read but never modified; modified files are written under OutDir. (Author: Dana Kovaleva, May 2026)
 % catalogs - List of catsHTM catalogs Example: Data = catsHTM.catalogs
 % catalogs_html - generate an html table of catalogs Example: catsHTM.catalogs_html
 % cone_search - Cone earch on local HDF5/HTM catalog Package: @catsHTM Description: Perform a cone search around RA/Dec on a local catalog in HDF5 format sorted into HTM.
@@ -37,7 +37,7 @@
 % project_to_colcell - Project an AstroCatalog or numeric matrix onto ColCell order. Package: @catsHTM Description: AstroCatalog/AstroTable columns matched by name; missing columns become NaN; deg->rad if NewCat.ColUnits says 'deg'. (Author: Dana Kovaleva, May 2026)
 % read_colnames - read HDF5 catalog column names from index file Package: @catsHTM
 % reference - Get references for an HDF5/HTM catalog Package: @catsHTM Description: Get references for an HDF5/HTM catalog
-% remove_source - Remove sources from a catsHTM catalog (read-only source). Package: @catsHTM Description: Remove sources from an existing catsHTM catalog by cone match. The source catalog at BaseDir is read but never modified; modified files are written under OutDir. (Author: Dana Kovaleva, May 2026)
+% removeSource - Remove sources from a catsHTM catalog (read-only source). Package: @catsHTM Description: Remove sources from an existing catsHTM catalog by cone match. The source catalog at BaseDir is read but never modified; modified files are written under OutDir. (Author: Dana Kovaleva, May 2026)
 % removeColumn - Remove a column from every HTM cell of a catsHTM catalog. Package: @catsHTM Description: Drops a column (matched by name) from every htm_<id> dataset and updates ColCell .mat. Refuses to drop RA/Dec/SortCol; auto-shifts SortCol when columns to its left are removed. (Author: Dana Kovaleva, May 2026)
 % resolve_cat_paths - Resolve BaseDir and catalog subdir for a catsHTM catalog. Package: @catsHTM Description: Falls back to ASTROPACK_CATSHTM_PATH then '/euclid/catsHTM' for BaseDir, and to catsHTM.catalogs for CatRelDir. (Author: Dana Kovaleva, May 2026)
 % save_cat - save catalog data in HDF5 file Package: @catsHTM Description: save catalog data in HDF5 file Given a matrix containing a catalog, save the data in an HDF5 file. The data will be saved
@@ -1837,7 +1837,7 @@ classdef catsHTM
         end
 
 
-        function Result = add_source(CatName, NewCat, OutDir, Args)
+        function Result = addSource(CatName, NewCat, OutDir, Args)
             % Insert new sources into a catsHTM catalog (read-only source).
             % Package: @catsHTM
             % Description: Add sources to an existing catsHTM catalog. The
@@ -1897,7 +1897,7 @@ classdef catsHTM
             %   AC.Catalog  = [RA_rad, Dec_rad, Mag, MagErr];
             %   AC.ColNames = {'RA','Dec','Mag','MagErr'};
             %   AC.ColUnits = {'rad','rad','mag','mag'};
-            %   R = catsHTM.add_source('ForcedPhotList', AC, '~/tmp/cats_mod');
+            %   R = catsHTM.addSource('ForcedPhotList', AC, '~/tmp/cats_mod');
 
             arguments
                 CatName                   (1,:) char
@@ -1922,7 +1922,7 @@ classdef catsHTM
             DstDir = fullfile(OutDir, CatRelDir);
 
             if ~isfolder(SrcDir)
-                error('catsHTM:add_source:NoSrcDir', ...
+                error('catsHTM:addSource:NoSrcDir', ...
                     'Source catalog directory does not exist: %s', SrcDir);
             end
             if ~Args.DryRun && ~isfolder(DstDir)
@@ -1936,7 +1936,7 @@ classdef catsHTM
             Nnew = size(NewMat, 1);
             if Nnew == 0
                 if Args.Verbose
-                    fprintf('add_source: nothing to add (NewCat is empty).\n');
+                    fprintf('addSource: nothing to add (NewCat is empty).\n');
                 end
                 Result = struct('OutDir', DstDir, 'ModifiedFiles', {{}}, ...
                     'CellsTouched', 0, 'SourcesAdded', 0, 'SourcesSkipped', 0);
@@ -1947,7 +1947,7 @@ classdef catsHTM
             [IndexFileName, IndexVarName] = catsHTM.get_index_filename(CatName);
             SrcIndex = fullfile(SrcDir, IndexFileName);
             if ~isfile(SrcIndex)
-                error('catsHTM:add_source:NoIndex', ...
+                error('catsHTM:addSource:NoIndex', ...
                     'Index file not found: %s', SrcIndex);
             end
             DataHTM = HDF5.load(SrcIndex, IndexVarName);
@@ -2001,7 +2001,7 @@ classdef catsHTM
                         if IsDup
                             switch Args.OnDuplicate
                                 case 'error'
-                                    error('catsHTM:add_source:Duplicate', ...
+                                    error('catsHTM:addSource:Duplicate', ...
                                         ['Source at RA=%g, Dec=%g (rad) matches an ', ...
                                          'existing row in HTM cell %d within %g arcsec.'], ...
                                         Rows(Irow,1), Rows(Irow,2), CellID, Args.DuplicateRadius);
@@ -2087,7 +2087,7 @@ classdef catsHTM
                 'SourcesSkipped', SourcesSkipped);
 
             if Args.Verbose
-                fprintf('add_source: %d source(s) added across %d cell(s)%s\n', ...
+                fprintf('addSource: %d source(s) added across %d cell(s)%s\n', ...
                     SourcesAdded, sum(DirtyCells), ...
                     repmat(' (dry-run)', 1, double(Args.DryRun)));
                 fprintf('  Files written under %s:\n', OutDir);
@@ -2098,7 +2098,7 @@ classdef catsHTM
         end
 
 
-        function Result = remove_source(CatName, RA, Dec, OutDir, Args)
+        function Result = removeSource(CatName, RA, Dec, OutDir, Args)
             % Remove sources from a catsHTM catalog (read-only source).
             % Package: @catsHTM
             % Description: Remove sources from an existing catsHTM catalog
@@ -2148,7 +2148,7 @@ classdef catsHTM
             %                               input position had no match
             % Author : Dana Kovaleva (May 2026)
             % Example:
-            %   R = catsHTM.remove_source('ForcedPhotList', RA_rad, Dec_rad, '~/tmp/cats_mod');
+            %   R = catsHTM.removeSource('ForcedPhotList', RA_rad, Dec_rad, '~/tmp/cats_mod');
 
             arguments
                 CatName                   (1,:) char
@@ -2173,7 +2173,7 @@ classdef catsHTM
             SrcDir = fullfile(BaseDir, CatRelDir);
             DstDir = fullfile(OutDir, CatRelDir);
             if ~isfolder(SrcDir)
-                error('catsHTM:remove_source:NoSrcDir', ...
+                error('catsHTM:removeSource:NoSrcDir', ...
                     'Source catalog directory does not exist: %s', SrcDir);
             end
             if ~Args.DryRun && ~isfolder(DstDir)
@@ -2190,7 +2190,7 @@ classdef catsHTM
             RA  = RA(:);
             Dec = Dec(:);
             if numel(RA) ~= numel(Dec)
-                error('catsHTM:remove_source:SizeMismatch', ...
+                error('catsHTM:removeSource:SizeMismatch', ...
                     'RA and Dec must have the same number of elements.');
             end
             Nq = numel(RA);
@@ -2200,7 +2200,7 @@ classdef catsHTM
             [IndexFileName, IndexVarName] = catsHTM.get_index_filename(CatName);
             SrcIndex = fullfile(SrcDir, IndexFileName);
             if ~isfile(SrcIndex)
-                error('catsHTM:remove_source:NoIndex', ...
+                error('catsHTM:removeSource:NoIndex', ...
                     'Index file not found: %s', SrcIndex);
             end
             DataHTM = HDF5.load(SrcIndex, IndexVarName);
@@ -2273,7 +2273,7 @@ classdef catsHTM
                     if numel(Match) > 1
                         switch Args.OnMultiMatch
                             case 'error'
-                                error('catsHTM:remove_source:MultiMatch', ...
+                                error('catsHTM:removeSource:MultiMatch', ...
                                     ['Query %d (RA=%g, Dec=%g rad) matches %d sources ', ...
                                      'in HTM cell %d within %g %s.'], ...
                                     Iq, RA(Iq), Dec(Iq), numel(Match), CellID, ...
@@ -2342,9 +2342,9 @@ classdef catsHTM
                     sum(NotFound), Nq, Args.SearchRadius, Args.RadiusUnits);
                 switch Args.OnNoMatch
                     case 'error'
-                        error('catsHTM:remove_source:NoMatch', '%s', Msg);
+                        error('catsHTM:removeSource:NoMatch', '%s', Msg);
                     case 'warn'
-                        warning('catsHTM:remove_source:NoMatch', '%s', Msg);
+                        warning('catsHTM:removeSource:NoMatch', '%s', Msg);
                     case 'silent'
                         % no-op
                 end
@@ -2377,7 +2377,7 @@ classdef catsHTM
                 'NotFound',       NotFound);
 
             if Args.Verbose
-                fprintf('remove_source: %d source(s) removed across %d cell(s)%s\n', ...
+                fprintf('removeSource: %d source(s) removed across %d cell(s)%s\n', ...
                     SourcesRemoved, sum(DirtyCells), ...
                     repmat(' (dry-run)', 1, double(Args.DryRun)));
                 fprintf('  Files written under %s:\n', OutDir);
