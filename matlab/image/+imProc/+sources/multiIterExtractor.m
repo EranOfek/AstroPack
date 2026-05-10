@@ -291,7 +291,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.mexCutout                 = true;
         Args.CleanSN                   = 4;  % remove sources below this SN (PSF fitting S/N).
         Args.KeyCleanSN                = 'SN';
-        
+
         % source detection:        
         Args.FindWithEmpiricalPSF logical = true;
         Args.PsfFunPar cell            = {[0.1;1.0;1.5]};  % search for sources                 
