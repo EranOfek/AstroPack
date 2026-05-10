@@ -27,12 +27,13 @@ function slew_calc_service()
 
     % Set the input path
     InputPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'slew_calc', 'input');
-    ProcessedPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'slew_calc', 'processed');    
+    ProcessedPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'slew_calc', 'processed');
+    WatchdogFileName = fullfile(SOC_PATH, 'runtime', 'exchange', 'slew_calc', 'slew_calc.watchdog');
 
     % Create the JsonFileIpc object
     io.msgLog(LogLevel.Info, 'creating JsonFileIpc');    
     jsonIpc = ultrasat.services.common.JsonFileIpc('InputPath', InputPath, 'ProcessedPath', ProcessedPath, ...
-        'Callback', @ultrasat.services.slew_calc.processRequest);
+        'Callback', @ultrasat.services.slew_calc.processRequest, 'WatchdogFileName', WatchdogFileName);
 
     % Blocking loop: process files in the input folder, call processRequest.m for each file
     io.msgLog(LogLevel.Info, 'calling processLoop...');

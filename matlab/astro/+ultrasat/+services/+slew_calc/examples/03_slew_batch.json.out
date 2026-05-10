@@ -1,0 +1,14 @@
+{
+  "status": "ok",
+  "message": "MATLAB: processSlewBatch completed (2 items)",
+  "results": [
+    {
+      "slew": 25.7,
+      "direct": true
+    },
+    {
+      "slew": 23.4,
+      "direct": true
+    }
+  ]
+}
