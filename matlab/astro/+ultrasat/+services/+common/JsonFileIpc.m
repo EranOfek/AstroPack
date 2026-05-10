@@ -3,7 +3,7 @@
 % Filename    : ultrasat.services.common.JsonFileIpc.m
 % Author      : Chen Tishler
 % Created     : 02/11/2021
-% Modified    : 10/02/2026
+% Modified    : 10/05/2026
 % Description : JSON file IPC class
 %==========================================================================
 
@@ -169,6 +169,11 @@ classdef JsonFileIpc < Component
             % Process file by file
             for i = IndexList
                 if ~List(i).isdir
+                    % Ignore output and temp files (mask '*.json' also matches '*.out.json')
+                    if endsWith(List(i).name, '.out.json') || endsWith(List(i).name, '.tmp')
+                        continue;
+                    end
+
                     % Process single file
                     FileName = fullfile(List(i).folder, List(i).name);
 
@@ -226,8 +231,9 @@ classdef JsonFileIpc < Component
                 OutputText = jsonencode(OutputStruct, 'PrettyPrint', true);
 
                 % Write to a temporary file, then rename to the final output file
-                TmpFileName = strcat(FileName, '.out.tmp');
-                OutputFileName = strcat(FileName, '.out');
+                [filepath, name, ~] = fileparts(FileName);
+                TmpFileName = fullfile(filepath, [name, '.out.json.tmp']);
+                OutputFileName = fullfile(filepath, [name, '.out.json']);
                 fid = fopen(TmpFileName, 'wt');
                 fprintf(fid, OutputText);
                 fclose(fid);
@@ -249,12 +255,20 @@ classdef JsonFileIpc < Component
             % Example: Result = moveOrDeleteProcessedFile('input.json');
 
             Result = false;
+            ProcessedFileName = FileName;
             try
                 % Move input file to 'processed' folder                
                 if ~isempty(Obj.ProcessedPath)
                     [~, name, ext] = fileparts(FileName);
-                    FName = [name, ext];                        
-                    ProcessedFileName = fullfile(Obj.ProcessedPath, FName);
+                    FName = [name, ext];
+
+                    % Archive into UTC yyyy/MM/dd subfolder, matching matlab_bridge.py
+                    DayDir = fullfile(Obj.ProcessedPath, char(datetime('now', 'TimeZone', 'UTC', 'Format', 'yyyy/MM/dd')));
+                    if ~isfolder(DayDir)
+                        mkdir(DayDir);
+                    end
+
+                    ProcessedFileName = fullfile(DayDir, FName);
                     Obj.msgLog(LogLevel.Debug, 'Moving input file to processed folder: %s', strrep(ProcessedFileName, '\', '/'));                            
                     movefile(FileName, ProcessedFileName, 'f');                           
                     Result = ~isfile(FileName);
@@ -266,7 +280,7 @@ classdef JsonFileIpc < Component
                     Result = ~isfile(FileName);                    
                 end
             catch Ex
-                Obj.msgLog(LogLevel.Error, 'moveOrDeleteProcessedFile: exception trying to move or delete file: %s', strrep(ProcessedFileName, '\', '/'));
+                Obj.msgLog(LogLevel.Error, 'moveOrDeleteProcessedFile: exception trying to move or delete file: %s - %s', strrep(ProcessedFileName, '\', '/'), Ex.message);
             end            
         end
 
@@ -276,7 +290,11 @@ classdef JsonFileIpc < Component
             Elapsed = toc(Obj.LastCleanTime);
             if Elapsed > 10
                 if ~isempty(Obj.ProcessedPath) && Obj.KeepProcessedFilesDays > 0
-                    Obj.deleteOldFiles(Obj.ProcessedPath, '*', now - Obj.KeepProcessedFilesDays);
+                    try 
+                        Obj.deleteOldFiles(Obj.ProcessedPath, '*.json', now - Obj.KeepProcessedFilesDays);
+                    catch Ex
+                        Obj.msgLog(LogLevel.Error, 'cleanOldFilesFromProcessedFolder: exception trying to delete old files: %s: %s', Obj.ProcessedPath, Ex.message);
+                    end
                 end
                 Obj.LastCleanTime = tic();
             end            
@@ -284,20 +302,25 @@ classdef JsonFileIpc < Component
 
 
         function deleteOldFiles(Obj, Path, Mask, DeleteBeforeDate)
-            % Scans a directory and deletes files that are older than the specified date.
-            % Input:   Path - path to the directory to scan
+            % Scans a directory recursively and deletes files older than the specified date.
+            % Input:   Path - path to the directory to scan (recurses into all subfolders)
             %          Mask - file mask to filter files in the directory
             %          DeleteBeforeDate - date before which files should be deleted
             % Output:  -
             % Example: deleteOldFiles('processed', '*', now - 7);
 
-            List = dir(fullfile(Path, Mask));
+            % '**' enables recursive scan so files under yyyy/MM/dd subfolders are reached
+            List = dir(fullfile(Path, '**', Mask));
             for i = 1:length(List)
                 if ~List(i).isdir
                     FileName = fullfile(List(i).folder, List(i).name);
                     if List(i).datenum < DeleteBeforeDate
                         Obj.msgLog(LogLevel.Debug, 'deleteOldFiles: %s', FileName);
-                        delete(FileName);
+                        try
+                            delete(FileName);
+                        catch Ex
+                            Obj.msgLog(LogLevel.Error, 'deleteOldFiles: exception trying to delete file: %s: %s', FileName, Ex.message);
+                        end
                     end
                 end
             end            
