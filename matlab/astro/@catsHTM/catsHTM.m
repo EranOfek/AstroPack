@@ -1866,24 +1866,25 @@ classdef catsHTM
             %          - OutDir  : Writable directory where modified files
             %                      are placed. The catalog subdirectory
             %                      structure under BaseDir is mirrored.
-            % Args   : 'BaseDir'         - Source catsHTM root, read-only.
+            %                    * ...,key,val,... 
+            %                      'BaseDir'         - Source catsHTM root, read-only.
             %                              Default: getenv('ASTROPACK_CATSHTM_PATH')
             %                              or '/euclid/catsHTM'.
-            %          'CatRelDir'       - Catalog subdirectory under
+            %                       'CatRelDir'       - Catalog subdirectory under
             %                              BaseDir (e.g., '/FIRST/'). If
             %                              empty, looked up from
             %                              catsHTM.catalogs by Name.
-            %          'SortCol'         - Column to sort by. Default 2.
-            %          'StepRows'        - save_cat index step. Default 30.
-            %          'NfilesInHDF'     - Cells per data file. Default 100.
-            %          'DuplicateRadius' - arcsec. >0 enables cone dedup
+            %                       'SortCol'         - Column to sort by. Default 2.
+            %                       'StepRows'        - save_cat index step. Default 30.
+            %                       'NfilesInHDF'     - Cells per data file. Default 100.
+            %                       'DuplicateRadius' - arcsec. >0 enables cone dedup
             %                              against existing sources.
             %                              Default 0 (no dedup).
-            %          'OnDuplicate'     - 'error'|'skip'|'replace'.
+            %                       'OnDuplicate'     - 'error'|'skip'|'replace'.
             %                              Default 'error'.
-            %          'DryRun'          - List affected files without
+            %                       'DryRun'          - List affected files without
             %                              writing. Default false.
-            %          'Verbose'         - Print progress. Default true.
+            %                       'Verbose'         - Print progress. Default false.
             % Output : - Result struct with fields:
             %            .OutDir          - target directory
             %            .ModifiedFiles   - cellstr of files written in OutDir
