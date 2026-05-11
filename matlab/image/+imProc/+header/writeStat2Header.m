@@ -38,6 +38,7 @@ function [AI] = writeStat2Header(AI, Args)
         % stars related
         Args.KeyNstars         = 'N_STARS';
         Args.KeyMagQuant       = 'MAG_95Q';
+        Args.Key
         % PSF realted
         %Args.KeyFWHM           = 'FWHM';
         %Args.KeyShapePSF       = {'FWHM_A', 'FWHM_B', 'FWHM_TH'};
@@ -109,6 +110,10 @@ function [AI] = writeStat2Header(AI, Args)
                 Mag = AI(Iai).CatData.getCol(Args.ColMag);
             end
             Data(Idata) = quantile(Mag, Args.MagQuantile);
+
+            %Chi2Dof = Result(Iobj).CatData.getCol('PSF_CHI2DOF');
+               
+            %MedChi2Dof = median(Chi2Dof,'all','omitnan');
         end
         % if Args.WritePSF
         %     Idata = Idata + 1;
