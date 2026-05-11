@@ -39,6 +39,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.ShiftMethod                   = 'lanczos3';  % 'fft'|'lanczos3'
         Args.PsfPhotMethod                 = '2DGN';    % 'legacy'/'old' |'1D'|'2D'|'2DGN'
 
+        Args.BitName       = 'Streak';
+        Args.SemiWidth     = 3;
+
         Args.image2subimagesArgs           = {};
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
         Args.SearchStreaksEpoch            = true;  % search streaks in epoch images
@@ -118,7 +121,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
     % load images and check quality
     % AI putput is of size [Nimages x 1]
     try
-        [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
+        [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime_AI] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
         % Note that AI may be shorter than TableRaw
         % It contains only: TableRaw.SelectedImages
 
@@ -175,7 +178,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % get JD of all epoch - once
             %ProcessingStep = 71;
             JD = repmat(JD_AI(:), 1, Nsub); % faster than getting the JD for AllSI
-                
+            ExpTime = repmat(ExpTime_AI(:), 1, Nsub);
+
             % initiate parpool if needed
             %ProcessingStep = 81;
             PP = [];
@@ -244,8 +248,12 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % add coordinates to catalogs
             %ProcessingStep = 401;
             AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true, 'OutUnits','deg');  % 0.8s
-            
-            % SizeImage = fliplr(size(AllSI(1).ImageData.Data));
+
+            % Add JD, RA, Dec, IsEdge to streaks data:
+            AllSI=imProc.streaks.addSkyCoo(AllSI, 'PopJD',true, 'JD',JD, 'ExpTime',ExpTime);
+            % populate streak mask:
+            AllSI = imProc.streaks.addStreak2Mask(AllSI, 'BitName', Args.BitName, 'SemiWidth',Args.SemiWidth);
+
             % Args.DistEdgeStreak = 10;
             % for Iobj=1:1:Nobj
             %     if ~isempty(AllSI(Iobj).Streaks) && ~isempty(AllSI(Iobj).Streaks.Segs)

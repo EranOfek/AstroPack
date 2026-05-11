@@ -69,6 +69,7 @@ function [Result] = match2Galaxies(RA, Dec, Args)
         Itarget
         CatPGC     = catsHTM.cone_search(Args.CatNamePGC, RA(Itarget), Dec(Itarget), Args.SearchRadPGC);
         if ~isempty(CatPGC)
+            %60.*0.05.*10.^1.28
             GalRadius  = 3.*10.^CatPGC(:,4);  % arcsec
             GalRadius  = GalRadius./(RAD.*ARCSEC_DEG); % rad
             GalZ       = CatPGC(:,Args.ColPGCZ);

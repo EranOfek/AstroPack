@@ -67,8 +67,8 @@ function S=detectStreaksLSD(Im,filtIm,Args)
     
     % pack the results in an AstroStreak object
     S = imUtil.streaks.AstroStreak;
-    S.X = segs([1,3],:);
-    S.Y = segs([2,4],:);
+    S.X = segs([2,4],:);
+    S.Y = segs([1,3],:);
     S.Flux = phot;
     
     for i=1:size(segs,2)

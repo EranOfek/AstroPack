@@ -1,4 +1,4 @@
-function [Result] = addStreak2Mask(AI, Streaks, Args)
+function [Result] = addStreak2Mask(AI, Args)
     % Set Streak bit in MaskData for every detected streak in an AstroImage.
     % Description:
     %   For each AstroImage element, iterates over the streaks supplied in
@@ -18,8 +18,7 @@ function [Result] = addStreak2Mask(AI, Streaks, Args)
     %               May be [] to disable edge extension for all streaks.
     %
     % Input  : - AI: AstroImage object (scalar or array).
-    %          - Streaks: AstroStreak object, struct, or struct array with
-    %            the same number of elements as AI.
+    %            containing a Streaks property.
     %          * ...,key,val,...
     %            'BitName' - Bit name (or bit index) to set in MaskData.
     %                   Default is 'Streak'.
@@ -35,10 +34,10 @@ function [Result] = addStreak2Mask(AI, Streaks, Args)
 
     arguments
         AI
-        Streaks
+        
         Args.BitName       = 'Streak';
         Args.SemiWidth     = 3;
-        Args.CreateNewObj  logical = false;
+        Args.CreateNewObj  = false;
     end
 
     if Args.CreateNewObj
@@ -58,8 +57,8 @@ function [Result] = addStreak2Mask(AI, Streaks, Args)
         end
 
         % --- Get matching streaks element ---
-        Istreak_obj = min(Iobj, numel(Streaks));
-        St = Streaks(Istreak_obj);
+        %Istreak_obj = min(Iobj, numel(Streaks));
+        St = AI(Iobj).Streaks;
 
         if isempty(St) || isempty(St.X) || isempty(St.FitPar)
             continue;

@@ -1,4 +1,4 @@
-function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages] = prePrep(Images, Args)
+function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep(Images, Args)
     % pre-preparation of astronomical images (cast, quality checks)
     %     Optional steps include:
     %       Read images from local directory or get an AstroImage object.
