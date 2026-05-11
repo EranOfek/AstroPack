@@ -41,6 +41,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
         Args.image2subimagesArgs           = {};
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
+        Args.SearchStreaksEpoch            = true;  % search streaks in epoch images
         Args.maskCR_Args                   = {'RemoveFromCat',true}; % <-- remove CR
         Args.astrometryVisitSubImageArgs   = {};
         Args.forcedPhotArgs                = {};
@@ -208,6 +209,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                             'ShiftMethod',Args.ShiftMethod,...
                                                             'PsfPhotMethod',Args.PsfPhotMethod,...
                                                             'maskCR_Args',Args.maskCR_Args,...
+                                                            'SearchStreaks',Args.SearchStreaksEpoch,...
                                                             'AddSkyCoo',false);  % 466 s (with UseMex=false)
                
             else
@@ -226,6 +228,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                             'ShiftMethod',Args.ShiftMethod,...
                                                             'PsfPhotMethod',Args.PsfPhotMethod,...
                                                             'maskCR_Args',Args.maskCR_Args,...
+                                                            'SearchStreaks',Args.SearchStreaksEpoch,...
                                                             'AddSkyCoo',false);  % 119 s (on 16 cores): 169s -> 135s (with UseMex=true)
                 end
                 %toc
@@ -242,6 +245,23 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 401;
             AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true, 'OutUnits','deg');  % 0.8s
             
+            % SizeImage = fliplr(size(AllSI(1).ImageData.Data));
+            % Args.DistEdgeStreak = 10;
+            % for Iobj=1:1:Nobj
+            %     if ~isempty(AllSI(Iobj).Streaks) && ~isempty(AllSI(Iobj).Streaks.Segs)
+            % 
+            %         XY = fliplr(reshape(AllSI(Iobj).Streaks.Segs,2,2).');
+            %         [S_RA, S_Dec] = AllSI(Iobj).WCS.xy2sky(XY(:,1),XY(:,2));
+            %         AllSI(Iobj).Streaks.XY  = XY;
+            %         AllSI(Iobj).Streaks.RA  = S_RA;
+            %         AllSI(Iobj).Streaks.Dec = S_Dec;
+            %         AllSI(Iobj).Streaks.IsEdge = [any(XY(1,:)<Args.DistEdgeStreak) || any(XY(1,:)>(SizeImage-Args.DistEdgeStreak)),...
+            %                                       any(XY(2,:)<Args.DistEdgeStreak) || any(XY(2,:)>(SizeImage-Args.DistEdgeStreak))];
+            % 
+            %     end
+            % end
+        
+
             % add PSF FWHM to header - after astrometry, beacuse WCS is needed
             %ProcessingStep = 201;
             % This must be done after astrometry as the Scale is used

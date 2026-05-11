@@ -601,7 +601,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                               'detectStreaksLSDArgs',Args.detectStreaksLSDArgs);
                    
                     ColSN = 'SN_2';   
-                    AI.Streaks = Streaks;
+                    if Iiter==1
+                        Result(Iobj).Streaks = Streaks;
+                    end
                     %clear PSFTemplate
                 else
                     [AI,Streaks] = imProc.sources.findMeasureSources(AI,'Threshold', Args.Threshold(Iiter),'ReCalcBack',false,...
@@ -621,7 +623,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                               'SearchStreaks',SearchStreaks,...
                                                               'detectStreaksLSDArgs',Args.detectStreaksLSDArgs);
                    
-                    AI.Streaks = Streaks;
+                    if Iiter==1
+                        Result(Iobj).Streaks = Streaks;
+                    end
                     ColSN = 'SN_2';
                 end % if Args.FindWithEmpiricalPSF                             
                 
