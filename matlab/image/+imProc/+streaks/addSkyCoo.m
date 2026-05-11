@@ -35,17 +35,17 @@ function [AI] = addSkyCoo(AI, Args)
             if ~isempty(AI(I).WCS) && AI(I).WCS.Success
                 [AI(I).Streaks.RA, AI(I).Streaks.Dec] = AI(I).WCS.xy2sky(AI(I).Streaks.X, AI(I).Streaks.Y, 'OutUnits',Args.OutUnits);
             end
-        end
-       
-        if Args.PopJD
-            AI(I).Streaks.JD = [Args.JD(I)-0.5.*ExpTime(I); Args.JD(I)+0.5.*ExpTime(I)];
-        end
-
-        if Args.PopIsEdge
-            SizeImageIJ = size(AI(I).ImageData.Data);
-            IEX = AI(I).Streaks.X<Args.EdgeDist | AI(I).Streaks.X>(SizeImageIJ(2)-Args.EdgeDist);
-            IEY = AI(I).Streaks.Y<Args.EdgeDist | AI(I).Streaks.X>(SizeImageIJ(2)-Args.EdgeDist);
-            AI(I).Streaks.IsEdge = [IEX(1,:) | IEY(1,:); IEX(2,:) | IEY(2,:)];
+        
+            if Args.PopJD
+                AI(I).Streaks.JD = [Args.JD(I)-0.5.*ExpTime(I); Args.JD(I)+0.5.*ExpTime(I)];
+            end
+    
+            if Args.PopIsEdge
+                SizeImageIJ = size(AI(I).ImageData.Data);
+                IEX = AI(I).Streaks.X<Args.EdgeDist | AI(I).Streaks.X>(SizeImageIJ(2)-Args.EdgeDist);
+                IEY = AI(I).Streaks.Y<Args.EdgeDist | AI(I).Streaks.X>(SizeImageIJ(2)-Args.EdgeDist);
+                AI(I).Streaks.IsEdge = [IEX(1,:) | IEY(1,:); IEX(2,:) | IEY(2,:)];
+            end
         end
     end
 
