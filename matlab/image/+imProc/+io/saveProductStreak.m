@@ -3,8 +3,6 @@ function [AllStreaks] = saveProductStreak(AI, FN, Args)
     % Input  : - An AstroImage object.
     %          - An AstroFileName object with file name to save.
     %          * ...,key,val,... 
-    %            'JD' - An array of JD per image. If empty, then read from
-    %                   header. Default is [].
     %            'Save' - A logical indicating if to save the product.
     %                   Default is true.
     % Output : - A structure array of streaks from all the images.
@@ -20,19 +18,19 @@ function [AllStreaks] = saveProductStreak(AI, FN, Args)
 
     [Nep, Nsub] = size(AI);
     K = 0;
-    AllStreaks = struct('Streak',[], 'Epoch',[], 'Crop',[], 'JD',[]);
+    AllStreaks = struct('Streaks',[], 'Epoch',[], 'Crop',[]);
     for Isub=1:1:Nsub
         for Iep=1:1:Nep
             if ~isempty(AI(Iep, Isub).Streaks)
                 K = K + 1;
-                AllStreaks(K).Streak = AI(Iep, Isub).Streak;
+                AllStreaks(K).Streaks = AI(Iep, Isub).Streaks;
                 AllStreaks(K).Epoch  = Iep;
                 AllStreaks(K).Crop   = Isub;
-                if isempty(Args.JD)
-                    AllStreaks(K).JD = AI(Iep, Isub).julday;
-                else
-                    AllStreaks(K).JD     = Args.JD(Iep, Isub);
-                end
+                % if isempty(Args.JD)
+                %     AllStreaks(K).JD = AI(Iep, Isub).julday;
+                % else
+                %     AllStreaks(K).JD     = Args.JD(Iep, Isub);
+                % end
             end
         end
     end
