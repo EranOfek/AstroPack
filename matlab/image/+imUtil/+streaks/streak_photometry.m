@@ -15,7 +15,8 @@ function [phot,extsegs,curve,stripeindices]=...
 %    im: a [background subtracted, std divided, PSF filtered] image
 %    segs: [x1; y1; x2; y2] segments (pixel coordinates)
 %    offlength: number of pixels to extend the search, along the direction
-%               of seg. Default 1.
+%               of seg. Default 3, up to Inf (the extended segment is
+%               clipped at the image box)
 %    offside: number of the lateral pixels of the search region. Default 3.
 % Key-Value pairs
 %    'sigmaclip': control parameter to discard outlier intensities, whose meaning
@@ -83,7 +84,7 @@ function [phot,extsegs,curve,stripeindices]=...
     nsegs=size(segs,2);
     phot=nan(1,nsegs);
     extsegs=nan(size(segs));
-    curve=struct('parfit',nan(3,1),'coord',zeros(2,0),'linephot',[]);
+    curve=struct('parfit',nan(3,0),'coord',zeros(2,0),'linephot',[]);
     if nargout==4
         stripeindices=cell(1,nsegs);
     end
@@ -93,20 +94,50 @@ function [phot,extsegs,curve,stripeindices]=...
         x2=segs(3,i);
         y1=segs(2,i);
         y2=segs(4,i);
-        L=sqrt((x2-x1)^2 + (y2-y1)^2);
+        L2= (x2-x1)^2 + (y2-y1)^2;
+        L=sqrt(L2);
         
         [py,px]=meshgrid(1:size(im,2),1:size(im,1));
         
-        t=((px-x1)*(x2-x1)+(py-y1)*(y2-y1))/((x2-x1)^2+(y2-y1)^2);
+        t=((px-x1)*(x2-x1)+(py-y1)*(y2-y1))/L2;
         dt=offlength/L;
-        t=min(max(t,-dt),1+dt);
-        
-        % for the time being, just grow them offlength
-        extsegs(1,i)=x1-dt*(x2-x1);
-        extsegs(2,i)=y1-dt*(y2-y1);
-        extsegs(3,i)=x1+(1+dt)*(x2-x1);
-        extsegs(4,i)=y1+(1+dt)*(y2-y1);
-        Lext=sqrt((extsegs(3,i)-extsegs(1,i))^2 + (extsegs(4,i)-extsegs(2,i))^2);
+
+        %extremal t, corresponding to projecting the bounding box on the
+        % segment
+        tmin=min([(1-x1)*(x2-x1)+(1-y1)*(y2-y1),...
+                 (size(im,1)-x1)*(x2-x1)+(1-y1)*(y2-y1),...
+                 (1-x1)*(x2-x1)+(size(im,2)-y1)*(y2-y1),...
+                 (size(im,1)-x1)*(x2-x1)+(size(im,2)-y1)*(y2-y1)])/L2;
+        tmax=max([(1-x1)*(x2-x1)+(1-y1)*(y2-y1),...
+                 (size(im,1)-x1)*(x2-x1)+(1-y1)*(y2-y1),...
+                 (1-x1)*(x2-x1)+(size(im,2)-y1)*(y2-y1),...
+                 (size(im,1)-x1)*(x2-x1)+(size(im,2)-y1)*(y2-y1)])/L2;
+ 
+        % clip to offlength if < Inf
+        tmin=max(tmin,-dt);
+        tmax=min(tmax,1+dt);
+
+        t=min(max(t,tmin),tmax); % clip t at [tmin,tmax]
+
+        % grow the photometric segment
+        x1ext = x1 + tmin*(x2-x1);
+        y1ext = y1 + tmin*(y2-y1);
+        x2ext = x1 + tmax*(x2-x1);
+        y2ext = y1 + tmax*(y2-y1);
+
+        % clip it to image box
+        [clippedX]=imUtil.streaks.liang_barsky_clipper([1 1 size(im)],[x1ext,y1ext,x2ext,y2ext]);
+        x1ext=clippedX(1);
+        y1ext=clippedX(2);
+        x2ext=clippedX(3);
+        y2ext=clippedX(4);
+
+        Lext=sqrt((x2ext-x1ext)^2 + (y2ext-y1ext)^2);
+        extsegs(1,i)=x1ext;
+        extsegs(2,i)=y1ext;
+        extsegs(3,i)=x2ext;
+        extsegs(4,i)=y2ext;
+
         
         sx=x1+t*(x2-x1);
         sy=y1+t*(y2-y1);
@@ -126,14 +157,14 @@ function [phot,extsegs,curve,stripeindices]=...
                 if Args.UseMex
                     % use mex wrapper function in /mex
                     [C,goodindices,tm] = ...
-                        imUtil.streaks.mex.sliceGaussianProfile([x1,y1],...
-                        [x2,y2],px(mask),py(mask),pp,...
+                        imUtil.streaks.mex.sliceGaussianProfile([x1ext,y1ext],...
+                        [x2ext,y2ext],px(mask),py(mask),pp,...
                         'slice_width',Args.slice_width,...
                         'rthreshold',Args.sigmaclip);
                 else
                     % use private function, at the bottom of this file
-                    [C,goodindices,tm] = sliceGaussianProfile([x1,y1],[x2,y2],...
-                        px(mask),py(mask),pp,...
+                    [C,goodindices,tm] = sliceGaussianProfile([x1ext,y1ext],...
+                        [x2ext,y2ext],px(mask),py(mask),pp,...
                         'slice_width',Args.slice_width,...
                         'rthreshold',Args.sigmaclip);
                 end
@@ -161,7 +192,8 @@ function [phot,extsegs,curve,stripeindices]=...
         %  implanted)?
         %phot(i)=median(scpp)*numel(pp)/Lext;
         
-        % fit a parabola
+        % fit a parabola only to the base detected segment (but note that
+        %  smask depends on goodindices calculated including the extended segment
         curve(i).parfit = weightedParabolicOffset([x1,y1],[x2,y2],...
             px(smask),py(smask),scpp);
         % offsets at extremes: [curve(i).parfit(3), sum(curve(i).parfit)]
@@ -192,7 +224,7 @@ function [phot,extsegs,curve,stripeindices]=...
                 end
         end
         
-        [X,Y]=segmentParabolicOffset([x1,y1],[x2,y2],curve(i).parfit,tm);
+        [X,Y]=segmentParabolicOffset([x1ext,y1ext],[x2ext,y2ext],curve(i).parfit,tm);
         curve(i).coord=[X',Y'];
         
         % second pass photometry: only consider the pixels traversed by
