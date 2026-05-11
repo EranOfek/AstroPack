@@ -17,6 +17,7 @@ function [Result] = polarAlign_fitDrift(HA, Dec, RateAlpha, RateDelta, Args)
         Dec
         RateAlpha
         RateDelta
+        Args.ApplyRefraction   = true;
         Args.RateAlphaArcsec   = true;
         Args.Phi               = 30.05;
         Args.DAzRange     = [-1 1];
@@ -29,6 +30,7 @@ function [Result] = polarAlign_fitDrift(HA, Dec, RateAlpha, RateDelta, Args)
     end
     ARCSEC_DEG = 3600;
     MIN_DAY    = 1440;
+    SEC_DAY    = 86400;
 
     
     DAzVec      = (Args.DAzRange(1):Args.Resolution:Args.DAzRange(2));
@@ -52,7 +54,11 @@ function [Result] = polarAlign_fitDrift(HA, Dec, RateAlpha, RateDelta, Args)
                 DAz  = DAzVecIter(Idaz);
                 DAlt = DAltVecIter(Idalt);
     
-                [DAlpha, DDelta] = celestial.polarAlign.trackingErrorRates(DAz, DAlt, HA, Dec, 'Phi',Args.Phi, 'OmegaDegPerDay',Args.SiderealRate);  % [deg/day]
+                [DAlpha, DDelta] = celestial.polarAlign.polarAlignmentDrift(DAz, DAlt, HA, Dec, 'Phi',Args.Phi, 'ApplyRefraction',Args.ApplyRefraction);
+                % convert from deg/s to deg/day
+                DAlpha = DAlpha.*SEC_DAY;
+                DDelta = DDelta.*SEC_DAY;
+                %[DAlpha, DDelta] = celestial.polarAlign.trackingErrorRates(DAz, DAlt, HA, Dec, 'Phi',Args.Phi, 'OmegaDegPerDay',Args.SiderealRate);  % [deg/day]
                 if Args.RateAlphaArcsec
                     DAlpha = DAlpha.*cosd(Dec); 
                 end
@@ -61,7 +67,7 @@ function [Result] = polarAlign_fitDrift(HA, Dec, RateAlpha, RateDelta, Args)
                 Result(Iiter).Chi2_Alpha(Idaz,Idalt) = sum((DAlpha - RateAlpha).^2);
                 Result(Iiter).Chi2_Delta(Idaz,Idalt) = sum((DDelta - RateDelta).^2);
                 Result(Iiter).Chi2(Idaz,Idalt) = Result(Iiter).Chi2_Alpha(Idaz,Idalt) + Result(Iiter).Chi2_Delta(Idaz,Idalt);
-    
+                
             end
         end
         
@@ -72,6 +78,7 @@ function [Result] = polarAlign_fitDrift(HA, Dec, RateAlpha, RateDelta, Args)
         DAltVecIter = BestDAlt + DAltVec./(Args.IterDecrease.^Iiter);
         Result(Iiter).BestDAz  = BestDAz;
         Result(Iiter).BestDAlt = BestDAlt;
+        Result(Iiter).N        = numel(HA);
 
     end
           

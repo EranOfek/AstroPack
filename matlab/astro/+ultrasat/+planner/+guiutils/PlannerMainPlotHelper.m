@@ -150,6 +150,9 @@ classdef PlannerMainPlotHelper < ultrasat.api.core.Loggable
             % Get index of selected unique target in the drop-down
             UniqueTargetIndex = app.UniqueTargetsHelper.getUniqueTargetIndexFromDropDown(app);
 
+            % Get index of selected calibration object in the drop-down
+            CalibObjIndex = app.UniqueTargetsHelper.getCalibObjIndexFromDropDown(app);
+
             try
                 % Check if the unique target has a calibration object, if not, clear the plot and return
                 HasCalObj = ~isempty( Planner.UniqTarg.CalObj{UniqueTargetIndex} );
@@ -170,12 +173,12 @@ classdef PlannerMainPlotHelper < ultrasat.api.core.Loggable
 
                  % Plot the CalibObj spectrum
                 cla(app.AxesGraphsPlot, 'reset');
-                Planner.plotCalibSpectrum(CalibObjTable, 'subInd2plot', 1, 'AxesHandle', app.AxesGraphsPlot);
+                Planner.plotCalibSpectrum(CalibObjTable, 'subInd2plot', CalibObjIndex, 'AxesHandle', app.AxesGraphsPlot);
 
                 % Plot the CalibObj spectrum in the standalone window
                 if ~isempty(app.PlotGraphsApp) && isvalid(app.PlotGraphsApp)
                     cla(app.PlotGraphsApp.AxesGraphsPlot, 'reset');
-                    Planner.plotCalibSpectrum(CalibObjTable, 'subInd2plot', 1, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
+                    Planner.plotCalibSpectrum(CalibObjTable, 'subInd2plot', CalibObjIndex, 'AxesHandle', app.PlotGraphsApp.AxesGraphsPlot);
                 end
             catch ME
                 app.msgex('plotCalibObj', ME);
@@ -234,16 +237,16 @@ classdef PlannerMainPlotHelper < ultrasat.api.core.Loggable
 
             % Create and show PlotLcsGraphsApp
             if isempty(app.PlotLcsGraphsApp) || ~isvalid(app.PlotLcsGraphsApp)
-                app.PlotLcsGraphsApp = ultrasat.planner.gui.PlotLcsGraphsApp(app.MainModule);
+                app.PlotLcsGraphsApp = ultrasat.planner.gui.PlotLcsGraphs(app.MainModule);
             end
             app.PlotLcsGraphsApp.UIFigure.Visible = 'on';            
 
             % Refresh plot according to selected plot
-            obj.plotLcsGraphs(app.PlotLcsGraphsApp);
+            obj.plotLcsGraphs(app, app.PlotLcsGraphsApp);
         end
 
 
-        function plotLcsGraphs(obj, LcsPlotsApp)
+        function plotLcsGraphs(obj, app, LcsPlotsApp)
             % Plot according to selected plot type
 
             app.msglog('plotLcsGraphs');

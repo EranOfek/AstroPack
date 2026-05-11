@@ -80,6 +80,71 @@ function Result = unitTest()
         error('CelCoo properMotion forward/backward round-trip failed');
     end
 
+    %% rise/set
+
+    C = CelCoo;
+    C.Units = 'deg';
+    C.RA  = [100; 270];
+    C.Dec = [0; 89];
+    JD    = 2451545;
+    Alt   = 5;
+
+    [Rise,Set,RiseAz,SetAz] = C.riseSet(JD, Alt);
+    [Az1, Alt1] = C.azAlt(Rise);
+    [Az2, Alt2] = C.azAlt(Set);
+    [~, Alt2a]  = C.azAlt(Set+0.01);
+
+    if ~isnan(Rise(2)) || ~isnan(Set(2))
+        error('Problem witrh CelCoo/riseSet');
+    end
+    if abs(Alt-Alt1(1))>1e-6 || abs(Alt-Alt2(1))>1e-6
+        error('Problem witrh CelCoo/riseSet');
+    end
+    if Alt2a>=Alt
+        error('Problem witrh CelCoo/riseSet');
+    end
+    
+
+
+
+    %% searches
+
+    C = CelCoo;
+    C.RA = [rand(10,1);1.1];
+    C.Dec = [rand(10,1);1.1];
+
+    C.sort;
+
+    Dist = C.dist(1.1,1.1, 'InUnits','rad');
+    if Dist(11)>eps
+        error('Problem with CelCoo/dist');
+    end
+
+    [a,b]=C.matchSorted(1.1,1.1,10,'InUnits','rad');
+    if a~=11 || b>eps
+        error('Problem with CelCoo/matchSorted');
+    end
+
+    C.populateKDTree;
+    [a,b]=C.matchKD(1.1,1.1,10,'InUnits','rad');
+    if a{1}~=11 || b{1}>eps
+        error('Problem with CelCoo/matchSorted');
+    end
+
+    % speed
+    C = CelCoo;
+    C.RA = [rand(1e6,1)];
+    C.Dec = [rand(1e6,1)];
+
+    C.sort;
+    C.populateKDTree;
+    
+    % KDTree is much faster
+    Nsim = 100;
+    tic; for i=1:Nsim, [a,b]=C.matchSorted(0.8,0.1,10,'InUnits','rad');end, toc
+    tic; for i=1:Nsim, [a,b]=C.matchKD(0.8,0.1,10,'InUnits','rad'); end, toc
+
+    
     %%
 
     Result = true;

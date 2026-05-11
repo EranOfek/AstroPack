@@ -86,8 +86,8 @@ classdef NewPlan < matlab.apps.AppBase
 
             % Set default values for fields? here or by caller?
             app.TitleEditField.Value = sprintf('MyPlan_%d', app.NewPlanIndex);
-            app.StartTimeEditField.Value = '2028-01-01 00:00:00';
-            app.EndTimeEditField.Value = '2028-07-01 00:00:00';
+            app.StartTimeEditField.Value = '2029-02-01 00:00:00';
+            app.EndTimeEditField.Value = '2030-03-28 00:00:00';
         end
 
         % Button pushed function: CancelButton
@@ -211,6 +211,7 @@ classdef NewPlan < matlab.apps.AppBase
             % Create Panel_2
             app.Panel_2 = uipanel(app.UIFigure);
             app.Panel_2.BorderColor = [0.651 0.651 0.651];
+            app.Panel_2.HighlightColor = [0.651 0.651 0.651];
             app.Panel_2.BackgroundColor = [0.302 0.7451 0.9333];
             app.Panel_2.Position = [16 326 599 33];
 

@@ -658,6 +658,7 @@ classdef AstroPSF < Component
                 if CumSum(1)>=Frac
                     FWHM_CumSum = 2.*Frac./CumSum(1);
                 else
+                    %interp1(CumSum,Rad,0.5)
                     FWHM_CumSum = 2.*tools.interp.interp1crossVal(Rad, CumSum, Frac);
                 end
                 if nargout>1

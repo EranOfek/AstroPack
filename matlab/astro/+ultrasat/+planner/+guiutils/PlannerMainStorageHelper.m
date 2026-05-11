@@ -151,7 +151,13 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                         % Get planner data from database
                         matResp = app.MainModule.PlansClient.getMatlabMat(Pk);
                         if matResp.ok && isfield(matResp, 'data') && ~isempty(matResp.data)
+
+                            % Deserialize
                             PlanData.planner = ultrasat.api.utils.MatBase64Utils.base64ToMat(matResp.data, 'planner');
+
+                            % Reconstruct uplanner.Vis and set Mclient
+                            mclient = app.MainModule.createUplannerClient();
+                            PlanData.planner.restoreAfterLoad('Mclient', mclient, 'BaseDataDir', app.MainModule.BaseDataDir);
                         end
 
                         % Open plan
@@ -242,7 +248,12 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                             end
                         end
 
-                        base64Str = ultrasat.api.utils.MatBase64Utils.matToBase64(app.MainModule.Planner, 'planner');
+                        % Clone and prepare
+                        planner_copy = app.MainModule.Planner.clone();
+                        planner_copy.prepareForSave();
+
+                        % Serialize
+                        base64Str = ultrasat.api.utils.MatBase64Utils.matToBase64(planner_copy, 'planner');
                         try
                             resp = app.MainModule.PlansClient.saveMatlabMat(savedPk, base64Str);
                             if ~resp.ok

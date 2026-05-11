@@ -184,7 +184,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
 
             % Show app
             if strcmp(app.showModal(app.LoadUniqueTargetsFromFileApp), 'Load')
-                app.showPleaseWait('Loading unique targets...');
+                app.showPleaseWait('Loading unique targets... expected duration: up to ~30 seconds.');
                 try
                     % Write loaded/edited text from dialog to tempfile
                     Text = app.LoadUniqueTargetsFromFileApp.Text;
@@ -553,7 +553,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
                 obj.setUniqueTargetIndexInDropDown(app, UniqueTargetIndex);
 
                 % Update the plots and tables of the selected unique target
-                obj.updateUniqueTargetPlotsAndTables(app, UniqueTargetIndex);
+                obj.updateUniqueTargetPlotsAndTables(app);  %, UniqueTargetIndex);
             catch ME
                 app.msgex('uniqueTargetDoubleClick', ME)
             end
@@ -638,6 +638,12 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
             % Set the dropdown items to these values
             app.PlotCalibObjDropDown.Items = string(ObjValues);
             app.PlotCalibObjDropDown.Value = ObjValues{1};
+        end
+
+
+        function CalibObjIndex = getCalibObjIndexFromDropDown(obj, app)
+            % Get index of selected calibration object in the drop-down
+            CalibObjIndex = find(strcmp(app.PlotCalibObjDropDown.Value, app.PlotCalibObjDropDown.Items));
         end
 
 

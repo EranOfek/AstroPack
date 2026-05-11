@@ -2778,6 +2778,15 @@ classdef CompositeFun < handle
                 Args.MinCalibrators = 30  % Minimum calibrators to keep (0 = no limit)
                 Args.OptimOptions = []
                 Args.OptimizationSequence = []  % Multi-stage optimization sequence
+                % Outer clip-and-refit loop (multi-stage only). When enabled, the
+                % stage loop is run repeatedly; after each pass a single sigma
+                % clip is applied to the fit residuals using the chosen scale,
+                % outliers are removed, and the stages are re-run on the survivors.
+                Args.OuterSigmaClip logical = false   % opt-in; default off
+                Args.OuterSigmaThresh = 3.0
+                Args.OuterStdFunc = 'mad_std'         % 'mad_std' (robust) | 'std'
+                Args.OuterMaxIter = 5
+                Args.OuterMinNewClipped = 1           % stop when fewer new outliers in an iter
                 Args.ValInp logical = true
                 Args.Verbose logical = false
             end
@@ -3421,6 +3430,63 @@ classdef CompositeFun < handle
                 fprintf('Initial observations: %d\n\n', length(CurrentObs));
             end
 
+            % --- Outer clip-and-refit loop ---
+            % When Args.OuterSigmaClip is true, run the full stage loop, then
+            % apply a single sigma clip to the final residuals (using
+            % Args.OuterStdFunc as the scale: 'mad_std' robust by default),
+            % drop outliers, and repeat the stages on the survivors. When off
+            % (default), the outer loop executes exactly once and behavior is
+            % identical to the legacy fitMultiStage. Per-iteration diagnostics
+            % are stored on FitResult(1).OuterClipHistory.
+            % NOTE: To minimize diff, the per-stage loop body below is NOT
+            % re-indented; it sits inside the outer-for at one extra level.
+
+            % Save originals so subsequent outer iterations can re-subset.
+            OrigObs = ObservedValues(:);
+            OrigX = Args.X(:);
+            OrigY = Args.Y(:);
+            OrigCostArgs = Args.CostArgs;
+
+            OuterClipHistory = struct('Iter',{},'RMS',{},'NewClipped',{}, ...
+                                      'TotalClipped',{},'Converged',{});
+            if Args.OuterSigmaClip
+                NumOuterIter = max(1, Args.OuterMaxIter);
+            else
+                NumOuterIter = 1;
+            end
+
+            for OuterIter = 1:NumOuterIter
+                if OuterIter > 1
+                    % Re-subset Current* from full-N originals using updated GlobalKeepMask.
+                    CurrentIndices = find(GlobalKeepMask);
+                    CurrentObs = OrigObs(GlobalKeepMask);
+                    if ~isempty(OrigX)
+                        CurrentX = OrigX(GlobalKeepMask);
+                        CurrentY = OrigY(GlobalKeepMask);
+                    end
+                    CurrentCostArgs = OrigCostArgs;
+                    Idx = find(strcmp(CurrentCostArgs(1:2:end), 'WeightMatrix'));
+                    if ~isempty(Idx) && ~isempty(CurrentCostArgs{2*Idx})
+                        CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(:, GlobalKeepMask);
+                    end
+                    Idx = find(strcmp(CurrentCostArgs(1:2:end), 'PrecomputedMagErr'));
+                    if ~isempty(Idx) && ~isempty(CurrentCostArgs{2*Idx})
+                        CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(GlobalKeepMask);
+                    end
+                    Idx = find(strcmp(CurrentCostArgs(1:2:end), 'PrecomputedSpecFluxMatrix'));
+                    if ~isempty(Idx) && ~isempty(CurrentCostArgs{2*Idx})
+                        CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(:, GlobalKeepMask);
+                    end
+                    Idx = find(strcmp(CurrentCostArgs(1:2:end), 'PerSourceZenithAngles'));
+                    if ~isempty(Idx) && ~isempty(CurrentCostArgs{2*Idx})
+                        CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(GlobalKeepMask);
+                    end
+                    % Reset per-stage results for this fresh outer iteration.
+                    FitResult = struct('StageName', {}, 'Method', {}, 'Cost', {}, 'RMS', {}, ...
+                                       'Residuals', {}, 'NCalUsed', {}, 'NumClipped', {}, 'KeepMask', {}, ...
+                                       'IsFieldCorrection', {}, 'Chi2', {}, 'DOF', {});
+                end
+
             % Loop through optimization stages
             for IStage = 1:NumStages
                 Stage = Stages(IStage);
@@ -3638,7 +3704,7 @@ classdef CompositeFun < handle
                     end
 
                     StageResult = struct();
-                    StageResult.Cost = sum(Residuals.^2);
+                    StageResult.Cost = StageChi2;   % chi² scale, consistent with nonlinear branch
                     StageResult.RMS = StageRMS;
                     StageResult.Residuals = Residuals;
                     StageResult.WeightedResiduals = WeightedRes;
@@ -3649,7 +3715,9 @@ classdef CompositeFun < handle
                     StageResult.Chi2 = StageChi2;
                     StageResult.DOF = length(Residuals) - 1;  % 1 free parameter (Norm)
                     StageResult.MagErr = MagErr_base;
-                    StageResult.PredictedFlux = [];  % Not computed (would require extra costFun call)
+                    % PredictedFlux derived analytically from Residuals (= DiffMag at optimal Norm):
+                    %   DiffMag = 2.5 * log10(PredictedFlux / ObservedValues)
+                    StageResult.PredictedFlux = CurrentObsNorm .* 10.^(Residuals / 2.5);
 
                     if Args.Verbose
                         fprintf('  RMS: %.4f mag, Observations: %d\n', StageRMS, length(CurrentObsNorm));
@@ -3790,6 +3858,60 @@ classdef CompositeFun < handle
                             StageResult.RMS, StageResult.NCalUsed);
                     fprintf('\n');
                 end
+            end
+            % End of stage loop
+
+                % --- Outer sigma clip on final stage residuals ---
+                if ~Args.OuterSigmaClip
+                    break
+                end
+                if isempty(FitResult) || isempty(FitResult(end).Residuals)
+                    break
+                end
+                FinalResiduals = FitResult(end).Residuals;
+                [OuterOutMask, ~] = tools.math.stat.sigmaClip(FinalResiduals, ...
+                    Args.OuterSigmaThresh, 'Method', 'median', ...
+                    'StdFunc', Args.OuterStdFunc);
+                NewClipped = sum(OuterOutMask);
+
+                PrevTotalClipped = NCalUsedInitial - sum(GlobalKeepMask);
+                Converged = NewClipped < Args.OuterMinNewClipped;
+                OuterClipHistory(end+1) = struct( ...
+                    'Iter', OuterIter, ...
+                    'RMS', sqrt(mean(FinalResiduals.^2)), ...
+                    'NewClipped', NewClipped, ...
+                    'TotalClipped', PrevTotalClipped + NewClipped, ...
+                    'Converged', Converged); %#ok<AGROW>
+
+                if Args.Verbose
+                    fprintf('Outer iter %d: RMS=%.4f, NewClipped=%d, Converged=%d\n', ...
+                            OuterIter, OuterClipHistory(end).RMS, NewClipped, Converged);
+                end
+
+                if Converged
+                    break
+                end
+
+                % Project local outliers (relative to current survivors) into GlobalKeepMask.
+                ProposedGKM = GlobalKeepMask;
+                ProposedGKM(CurrentIndices(OuterOutMask)) = false;
+
+                % Floor check: if removing these outliers would drop below
+                % MinCalibrators, abort the outer loop without applying.
+                if Args.MinCalibrators > 0 && sum(ProposedGKM) < Args.MinCalibrators
+                    if Args.Verbose
+                        fprintf('  Outer-clip iter %d would drop below MinCalibrators=%d; aborting outer loop\n', ...
+                                OuterIter, Args.MinCalibrators);
+                    end
+                    break
+                end
+                GlobalKeepMask = ProposedGKM;
+            end
+            % End of outer loop
+
+            % Attach OuterClipHistory to FitResult(1) (broadcast as [] to other elements)
+            if ~isempty(FitResult)
+                FitResult(1).OuterClipHistory = OuterClipHistory;
             end
 
             if Args.Verbose

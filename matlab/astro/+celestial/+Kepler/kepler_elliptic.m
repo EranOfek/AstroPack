@@ -156,12 +156,13 @@ function [Nu,R,E,Vel,M]=kepler_elliptic(T,Q,Ecc,K,Tol)
        %                 (M(IndUnsolved) + Ecc(IndUnsolved).*sin(E0(IndUnsolved)) - E0(IndUnsolved))./(1 - Ecc(IndUnsolved).*cos(E0(IndUnsolved)));
     
         E0 = E1;
+
+        % This is slightly (~10%) faster (and tested):
         %[SinE0, CosE0]=tools.math.fun.mex.sincos(E0);
         %E1 = E0 + (M + Ecc.*SinE0 - E0)./(1 - Ecc.*CosE0);
+        
         E1 = E0 + (M + Ecc.*sin(E0) - E0)./(1 - Ecc.*cos(E0));
         
-    
-    
        % The next line slow down the code:
        %IndUnsolved = find(abs(E1(IndUnsolved)-E0(IndUnsolved))>Tol);
     end
@@ -173,7 +174,7 @@ function [Nu,R,E,Vel,M]=kepler_elliptic(T,Q,Ecc,K,Tol)
     % 
     
     
-    TanVH = sqrt((1+Ecc)./(1-Ecc)).*tan(0.5.*E);
+    %TanVH = sqrt((1+Ecc)./(1-Ecc)).*tan(0.5.*E);
     %Nu    = 2.*atan(TanVH); % may overflow foe E=pi
     Nu    = 2.*atan2( sqrt(1+Ecc).*sin(0.5.*E), sqrt(1-Ecc).*cos(0.5.*E) );
     

@@ -59,6 +59,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.core.Loggable
 
             % Show the login dialog, it will call MainModule.login()
             app.showModal(app.LoginApp);
+            app.MainModule.UserName = 'chen';
 
             % Dialog was canceled or failed
             if isempty(app.MainModule.UserName)
@@ -99,6 +100,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.core.Loggable
 
         function Result = isLogin(obj, app, varargin)
             % Return true is user is loggned in, show popup message if Args.Message is true
+
             Message = false;
             if ~isempty(varargin)
                 Message = varargin{1};

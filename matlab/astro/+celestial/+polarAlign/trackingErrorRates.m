@@ -1,5 +1,6 @@
 function [DAlphaDtDegPerDay, DDeltaDtDegPerDay,HA, Dec] = trackingErrorRates(DAz, DAlt, HA, Dec, Args)
     % Calculate an equatorial mount tracking errors as a fun of HA and Dec
+    %   Obsolete. Use celestial.polarAlign.polarAlignmentDrift
     % and as a function of axis shift in Az and Alt.
     % Input  : - Axis shift in Az [deg] measured upward.
     %          - Axis shift in Alt [deg] measured eastward.

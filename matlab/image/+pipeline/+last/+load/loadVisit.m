@@ -26,6 +26,7 @@ function [AllSI, Coadd, MS] = loadVisit(Path, Args)
         Args.TempName_Coadd    = 'LAST*_sci_coadd_Image_*.fits';
         Args.TempName_MS       = 'LAST*_sci_merged_MatchedMat_*.hdf5';
         Args.GenError          = false;
+        Args.PipelineVer       = 'v0';
     end
 
     PWD = pwd;
@@ -47,7 +48,14 @@ function [AllSI, Coadd, MS] = loadVisit(Path, Args)
             [~,SI] = sortrows([[St.MIDJD].', [St.CROPID].'],[1 2]);
             Nepoch = max([St.COUNTER]);
             Nsub   = max([St.CROPID]);
-            AllSI = reshape(AllSI(SI),[Nepoch Nsub]);        
+            if strcmpi(Args.PipelineVer,'v0')
+                AllSI = reshape(AllSI(SI),[Nepoch Nsub]); 
+            elseif strcmpi(Args.PipelineVer,'v1')
+                AllSI = reshape(AllSI(SI),[Nsub Nepoch]);
+                AllSI = AllSI';
+            else
+                error('incorrect pipeline version')
+            end
         end
     end
 

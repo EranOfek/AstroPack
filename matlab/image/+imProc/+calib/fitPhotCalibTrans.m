@@ -6,6 +6,10 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %              For AstroDiff/AstroZOGY input, calibrates the sub-images
     %              specified by DiffCalibProps (default: .New and .Ref) via
     %              recursive calls.
+    %              Optionally evaluates legacy LIMMAG/BACKMAG keywords via
+    %              evaluateLimMag/evaluateBackMag. Disabled by default while
+    %              imProc.calib.fitPhotCalibMag remains the pipeline default
+    %              source of those keywords.
     % Input  :  - AstroImage, AstroCatalog, AstroDiff, or AstroZOGY
     %                 object (scalar or vector).
     %          * ...,key,val,...
@@ -28,11 +32,20 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %                         Default is false.
     %            'ConstBandParams' - Struct or .mat path with global atmospheric
     %                         parameters for constant band. Build via
-    %                         PhotCalibTrans.buildConstBandParams(PCArray) for
-    %                         aggregate, or with 'Source','single' for a single
-    %                         reference crop. Required when ApplyConstBand=true.
+    %                         PCArray.buildConstBandParams() for aggregate,
+    %                         or with 'Source','single' for a single reference
+    %                         crop. Required when ApplyConstBand=true.
     %            'ConstBandOutputMode' - 'newcol' or 'replace'. Default is 'newcol'.
     %            'ConstBandPrefix' - Column prefix for newcol mode. Default is 'MAG_CB_'.
+    %            'EvaluateLimMag'  - Evaluate limiting magnitude (legacy LIMMAG).
+    %                         Default is false (legacy fitPhotCalibMag emits it).
+    %                         Uses Args.FluxColName / Args.MagSystem to locate
+    %                         FLUXERR_<suffix> and MAG_<system>_<suffix>.
+    %            'EvaluateBackMag' - Evaluate sky surface brightness (legacy BACKMAG).
+    %                         Default is false; AstroImage input only.
+    %            'LimMagMinSN'     - Lower SN bound for LimMag fit. Default is 5.
+    %            'LimMagMaxSN'     - Upper SN bound for LimMag fit. Default is 50.
+    %            'LimMagSN'        - SN at which to evaluate LimMag. Default is 5.
     % Output : - Result - Input object with updated catalog and header.
     %          - PhotCalib - For AstroImage/AstroCatalog: [1 x Nobj] array.
     %                        For AstroDiff/AstroZOGY: [Nobj x Nprops] array
@@ -62,6 +75,9 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %          % Per-source airmass mode:
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
     %              'CalibArgs', {'PerSourceAirmass', true});
+    %          % Emit LIMMAG/BACKMAG from this path (instead of legacy fitPhotCalibMag):
+    %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
+    %              'EvaluateLimMag', true, 'EvaluateBackMag', true);
 
     arguments
         Obj  % AstroImage, AstroCatalog, AstroDiff, or AstroZOGY
@@ -79,10 +95,19 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         Args.AddMagErr logical = false
         Args.CalcAperCorr logical = true
         Args.ApplyAperCorr logical = true
+        % Default false because legacy fitPhotCalibMag still writes LIMMAG/BACKMAG.
+        % Flip to true (and set WriteLimBackMag=false in fitPhotCalibMag) once this
+        % path becomes the pipeline default.
+        Args.EvaluateLimMag  logical = false
+        Args.EvaluateBackMag logical = false
+        Args.LimMagMinSN    double = 5
+        Args.LimMagMaxSN    double = 50
+        Args.LimMagSN       double = 5
         Args.ApplyConstBand logical = false   % Apply constant-band correction
         Args.ConstBandParams = []             % Struct or .mat path
         Args.ConstBandOutputMode = 'newcol'   % 'newcol' or 'replace'
         Args.ConstBandPrefix = 'MAG_CB_'      % Prefix for constant-band columns
+        Args.match_catsHTMArgs = {}        
         Args.Verbose logical = false
     end
 
@@ -144,6 +169,9 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                 'AddMag', Args.AddMag, 'MagSystem', Args.MagSystem, ...
                 'FluxColName', Args.FluxColName, 'AddZP', Args.AddZP, ...
                 'CalcAperCorr', Args.CalcAperCorr, 'ApplyAperCorr', Args.ApplyAperCorr, ...
+                'EvaluateLimMag', Args.EvaluateLimMag, 'EvaluateBackMag', Args.EvaluateBackMag, ...
+                'LimMagMinSN', Args.LimMagMinSN, 'LimMagMaxSN', Args.LimMagMaxSN, ...
+                'LimMagSN', Args.LimMagSN, ...
                 'UpdateHeader', Args.UpdateHeader, 'CreateNewObj', false);
 
             % Store calibrated images back into Result
@@ -210,7 +238,9 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
 
         PC = PC.calibrate(Result(Iobj), Args.CalibArgs{:}, ...
             'CalcAperCorr', Args.CalcAperCorr, ...
-            'MagSystem', Args.MagSystem, 'Verbose', Args.Verbose);
+            'MagSystem', Args.MagSystem,...
+            'match_catsHTMArgs',Args.match_catsHTMArgs,...
+            'Verbose', Args.Verbose);
 
         % ----------------------------------------------------------------
         % Post-calibration processing
@@ -269,6 +299,25 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                         end
                     end
                 end
+            end
+
+            % Limiting magnitude and sky surface brightness (legacy LIMMAG/BACKMAG)
+            % Run after aperture correction so LimMag fits the corrected MAG_AB_* values.
+            if Args.EvaluateLimMag
+                if IsAstroImage
+                    CatLim = Result(Iobj).CatData;
+                else
+                    CatLim = Result(Iobj);
+                end
+                PC = PC.evaluateLimMag(CatLim, ...
+                    'FluxColName', Args.FluxColName, ...
+                    'MagSystem',   Args.MagSystem, ...
+                    'MinSN',       Args.LimMagMinSN, ...
+                    'MaxSN',       Args.LimMagMaxSN, ...
+                    'LimMagSN',    Args.LimMagSN);
+            end
+            if Args.EvaluateBackMag && IsAstroImage
+                PC = PC.evaluateBackMag(Result(Iobj));
             end
 
             % Update header if requested (always per-crop, for diagnostics)
@@ -335,6 +384,14 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                 H = H.replaceVal(...
                     {'PT_RMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALIB', 'PT_SUCC', 'PT_AREF', 'PT_SPEC'}, ...
                     {NaN,      NaN,       NaN,      -1,          false,     'SMART v2.9.8', 'GaiaDR3'});
+
+                % NaN fills for legacy LIMMAG/BACKMAG (only when feature enabled)
+                if Args.EvaluateLimMag
+                    H = H.replaceVal('LIMMAG', NaN);
+                end
+                if Args.EvaluateBackMag
+                    H = H.replaceVal('BACKMAG', NaN);
+                end
 
                 % Write function parameters with NaN values and 0 flags
                 if ~isempty(PC.TransModel) && ~isempty(PC.TransModel.Funs)
@@ -420,6 +477,10 @@ function CalibArgs = predefCalibArgs(Args)
     %            'CustomOptSeq'     - Custom opt sequence (overrides OptSeqName). Default [].
     %            'Tran2DType'       - Tran2D polynomial type. Default 'cheby1_4_xt'.
     %            'UseTran2D'        - Enable Tran2D. Default true.
+    %            'XPixel'           - Detector X size in pixels (sets Tran2D
+    %                                 normalisation, ParNX = [XPixel/2, XPixel/2]).
+    %                                 Default 1716.
+    %            'YPixel'           - Detector Y size in pixels. Default 1716.
     %            'WeightingMode'    - Weighting mode. Default 'spectral'.
     %            'FluxErrColName'   - Flux error column. Default 'FluxErr'.
     %            'SigmaClipMethod'  - 'median' or 'weighted'. Default 'median'.
@@ -442,7 +503,7 @@ function CalibArgs = predefCalibArgs(Args)
 
         % Calibrator selection
         Args.SearchRadius     = 2         % arcsec
-        Args.MagRange         = [11.5 15.5]
+        Args.MagRange         = [11.5 16.0]
         Args.FilterNegFlux logical = true % Remove sources with negative flux
         Args.MinSN2           = 10        % Minimum SN_2 for calibrators (0 to skip)
 
@@ -453,6 +514,8 @@ function CalibArgs = predefCalibArgs(Args)
         Args.CustomOptSeq     = []
         Args.Tran2DType       = 'cheby1_4_xt'
         Args.UseTran2D logical = true
+        Args.XPixel           = 1716   % Detector X size [pix]; sets Tran2D centre = XPixel/2
+        Args.YPixel           = 1716   % Detector Y size [pix]; sets Tran2D centre = YPixel/2
 
         % Weighting
         Args.WeightingMode    = 'spectral'  % 'none', 'spectral', 'flux', 'combined'

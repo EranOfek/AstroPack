@@ -13,6 +13,9 @@ function [Result,PeakDet]=collapse(Image, Args)
     %            'DimWave' - The dimension along to collapse the image
     %                   (e.g., wavelength dimension).
     %                   Default is 2.
+    %            'CCDSEC' - CCDSEC on which to apply the collapse.
+    %                   If empty, then use all.
+    %                   Default is [].
     %            'PreConv' - sigma-width of Gaussian to use to convolve the
     %                   image with prior to the collapse.
     %                   Alternatively, this can be a function handle that
@@ -46,6 +49,7 @@ function [Result,PeakDet]=collapse(Image, Args)
     arguments
         Image
         Args.DimWave          = 2;  % i.e., collapse-dim
+        Args.CCDSEC           = [];
         Args.PreConv          = [];  % filter to convolve with prior to collapse
         Args.PreConvArgs cell = {};
         Args.PostFilter       = 2;  % sigma-width
@@ -55,6 +59,10 @@ function [Result,PeakDet]=collapse(Image, Args)
                 
     end
     
+    if ~isempty(Args.CCDSEC)
+        Image = Image(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2));
+    end
+
     if ~isempty(Args.PreConv)
         if isa(Args.PreConv, 'function_handle')
             Conv = Args.PreConv(Args.PreConvArgs{:});

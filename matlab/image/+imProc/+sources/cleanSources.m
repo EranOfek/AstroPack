@@ -72,7 +72,8 @@ function [Result, Flag] = cleanSources(Obj, Args)
         
         Args.MaskCR logical            = true;
         Args.BitNameCR                 = 'CR_DeltaHT';
-        
+        Args.RemoveByBadSN             = false;
+
         Args.RemoveBadSources logical  = true;
         Args.CreateNewObj logical      = false;
     end
@@ -120,11 +121,14 @@ function [Result, Flag] = cleanSources(Obj, Args)
         
         Flag(Iobj).BadLocation = Dist>Args.LocationShift;
         
-        F = (SN.*sqrt(VarIm) + BackIm - BackAnn) < (Args.ThresholdSN.*StdAnn);
-        %(1 + 20.*log( max(BackAnn./BackIm,1) )));
-        Flag(Iobj).BadSN = all(F,2);
-        %Flag(Iobj).BadSN = false;
-        
+        if Args.RemoveByBadSN
+            F = (SN.*sqrt(VarIm) + BackIm - BackAnn) < (Args.ThresholdSN.*StdAnn);
+            %(1 + 20.*log( max(BackAnn./BackIm,1) )));
+            Flag(Iobj).BadSN = all(F,2);
+        else
+            Flag(Iobj).BadSN = false;
+        end
+
         % Flag CR
         Flag(Iobj).CR = SN(:,1) > (SN(:,2)-0);
         

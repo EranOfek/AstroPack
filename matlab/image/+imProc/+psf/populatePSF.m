@@ -24,33 +24,33 @@ function [Obj,Result]=populatePSF(Obj, Args)
    
     arguments
         Obj AstroImage
-        Args.RePopulatePSF logical     = false;
+        Args.RePopulatePSF             = false;
         Args.ColSN                     = {'SN_1','SN_2'};
         
-        Args.backgroundArgs cell       = {};
+        Args.backgroundArgs            = {};
         
-        Args.SubAnnulusBack logical    = true;
+        Args.SubAnnulusBack            = true;
         Args.RadiusPSF                 = 8;
         Args.Annulus                   = [10 12];
-        Args.image2cutoutsArgs cell    = {};
+        Args.image2cutoutsArgs         = {};
         
         %Args.Threshold                 = 5;
         Args.ThresholdPSF              = 20;
         Args.RangeSN                   = [50 1000];
         Args.InitPsf                   = @imUtil.kernel2.gauss
-        Args.InitPsfArgs cell          = {[0.1;2]};
+        Args.InitPsfArgs               = {[0.1;2]};
         Args.Conn                      = 8;
         Args.CleanSources              = true;
-        Args.cleanSourcesArgs cell     = {};
-        Args.backgroundCubeArgs cell   = {};
+        Args.cleanSourcesArgs          = {};
+        Args.backgroundCubeArgs        = {};
         
         Args.SNdiff                    = 0;  % if empty skip
-        Args.moment2Args cell          = {};
+        Args.moment2Args               = {};
         Args.DeltaSigma                = 0.5;   % if empty skip
         Args.NighRadius                = 7;     % if empty skip
         Args.MinNumGoodPsf             = 5;
         
-        Args.constructPSF_cutoutsArgs cell = {};
+        Args.constructPSF_cutoutsArgs  = {};
         Args.SumMethod                 = 'median';
         
         Args.SmoothWings               = true;  % old: psf_zeroConverge  !! set to false

@@ -163,6 +163,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.CatRadius                = [];   % if empty, use bounding_circle
         Args.CatRadiusUnits           = 'arcsec';
         Args.OutUnits                 = 'rad';
+        Args.boundingCircleArgs       = {};
         Args.Con cell                 = {};
         Args.UseIndex(1,1) logical    = false;
         
@@ -185,7 +186,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
 
         Args.ColorOrder                = 1;
         Args.UseWidth logical          = false;
-        
+       
+        Args.UseMex                    = true;
     end
     
     if Args.CreateNewObj
@@ -271,7 +273,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
             else
                 % RA/Dec bounding box
                 if isempty(Args.CatRadius)
-                    [RA, Dec, CircleRadius] = boundingCircle(Cat, 'OutUnits','rad', 'CooType','sphere');
+                    [RA, Dec, CircleRadius] = boundingCircle(Cat, 'OutUnits','rad', 'CooType','sphere',Args.boundingCircleArgs{:});
                 else
                     CircleRadius = Args.CatRadius;
                     error('CatRadius is not yet supported, use empty');
@@ -312,12 +314,18 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
 
             else
 
-                ResMatch = imProc.match.matchReturnIndices(PhotCat(Ipc), Cat, 'Radius',Args.Radius,...
+                if Args.UseMex
+                    [ResMatch] = imProc.match.matchInd(Cat, PhotCat(Ipc), 'SearchRadius',Args.Radius, 'SearchRadiusUnits',Args.RadiusUnits, 'IsSpherical',true);
+                    MatchedPhotCat = selectRows(PhotCat(Ipc), ResMatch.Ind, 'IgnoreNaN',false, 'CreateNewObj',true);
+                else
+                    ResMatch = imProc.match.matchReturnIndices(PhotCat(Ipc), Cat, 'Radius',Args.Radius,...
                                                                               'RadiusUnits',Args.RadiusUnits,...
                                                                               'CooType','sphere',...
                                                                               Args.matchReturnIndicesArgs{:});
-    
-                MatchedPhotCat = selectRows(PhotCat(Ipc), ResMatch.Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',true);
+
+                    MatchedPhotCat = selectRows(PhotCat(Ipc), ResMatch.Obj2_IndInObj1, 'IgnoreNaN',false, 'CreateNewObj',true);
+                end
+                
     
     
     

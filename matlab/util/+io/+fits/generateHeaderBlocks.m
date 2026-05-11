@@ -78,7 +78,7 @@ function HeaderStr = generateHeaderBlocks(HeaderCell, DataClass, DataSize)
                                 % fixed value read in chars 11 to 30
                                 if abs(HeaderCell{Iline,2})>1e7 || abs(HeaderCell{Iline,2})<1e-4
                                     % use exponebts
-                                    StrVal = sprintf('%16.13e',HeaderCell{Iline,2});
+                                    StrVal = sprintf('%16.13E',HeaderCell{Iline,2});
                                 else
                                     %  
                                     StrVal = sprintf('%20.10f',HeaderCell{Iline,2});

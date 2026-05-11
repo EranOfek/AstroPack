@@ -58,7 +58,7 @@ switch lower(Args.StitchMethod)
 
         end
 
-        FullImage = nanmean(FullCube,3);
+        FullImage = mean(FullCube,3, 'omitnan');
     case 'ignoreoverlap'
         FullImage = nan(FullCCDSEC(4), FullCCDSEC(2) );
         for Isub=1:1:Nsub

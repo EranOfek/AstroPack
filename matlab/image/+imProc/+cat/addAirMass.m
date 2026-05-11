@@ -3,6 +3,10 @@ function [Result, AirMass] = addAirMass(AI, Args)
     %   Optionally also add healpix information.
     % Input  : - An AstroImage object.
     %          * ...,key,val,... 
+    %            'IsGood' - An array of logical flags indicating if to add
+    %                   airmass for the specific image.
+    %                   If empty, them true for all image.
+    %                   Default is [].
     %            'ColAM' - Column name in which to store (or
     %                   replace) the calculated airmass.
     %            'JD' - A vector/scalar of JD (one per image, or scalar) to
@@ -50,6 +54,7 @@ function [Result, AirMass] = addAirMass(AI, Args)
 
     arguments
         AI
+        Args.IsGood            = [];
         Args.ColAM             = 'AIRMASS'
         Args.JD                = [];
         Args.KeyJD             = 'MIDJD';
@@ -100,29 +105,37 @@ function [Result, AirMass] = addAirMass(AI, Args)
     % calculate Hardie airmass
     %
 
+    if isempty(Args.IsGood)
+        IsGood = true(Nai,1);
+    else
+        IsGood = Args.IsGood;
+    end
+
     for Iai=1:1:Nai
-        % get CatData from AstroCatalog or AstroImage
-        Cat = AI(Iai).getCatData();
-
-        % Calculate AirMass
-        Coo = Cat.getCol(Args.ColCoo).*Conv;  % read RA, Dec and convert to radians
-        AirMass = celestial.coo.airmass(Args.JD(Iai), Coo(:,1), Coo(:,2), Args.GeoPos);
-
-        % insert airmass to catalog
-        Cat.replaceCol(AirMass, Args.ColAM, Inf, '');
-
-        if ~isempty(Args.HealpixType)
-            Ncoo    = size(Coo,1);
-            UpixVal = zeros(Ncoo, Nlevel, 'int64');
-            for Ilevel=1:1:Nlevel
-                UpixVal(:,Ilevel) = celestial.healpix.ang2pix(Args.HealpixLevel(Ilevel), Coo(:,1), Coo(:,2), 'Type',Args.HealpixType, 'CooUnits','rad', 'UniqueID', Args.UniqueID);
+        if IsGood(Iai)
+            % get CatData from AstroCatalog or AstroImage
+            Cat = AI(Iai).getCatData();
+    
+            % Calculate AirMass
+            Coo = Cat.getCol(Args.ColCoo).*Conv;  % read RA, Dec and convert to radians
+            AirMass = celestial.coo.airmass(Args.JD(Iai), Coo(:,1), Coo(:,2), Args.GeoPos);
+    
+            % insert airmass to catalog
+            Cat.replaceCol(AirMass, Args.ColAM, Inf, '');
+    
+            if ~isempty(Args.HealpixType)
+                Ncoo    = size(Coo,1);
+                UpixVal = zeros(Ncoo, Nlevel, 'int64');
+                for Ilevel=1:1:Nlevel
+                    UpixVal(:,Ilevel) = celestial.healpix.ang2pix(Args.HealpixLevel(Ilevel), Coo(:,1), Coo(:,2), 'Type',Args.HealpixType, 'CooUnits','rad', 'UniqueID', Args.UniqueID);
+                end
+                UpixVal = cast(UpixVal, "like",Cat.Catalog);
+                Cat  = Cat.insertCol(UpixVal, Inf, {Args.KeyHealpix{:}});
             end
-            UpixVal = cast(UpixVal, "like",Cat.Catalog);
-            Cat  = Cat.insertCol(UpixVal, Inf, {Args.KeyHealpix{:}});
+    
+            % Insert Cat into Result
+            Result(Iai).setCatData(Cat);
         end
-
-        % Insert Cat into Result
-        Result(Iai).setCatData(Cat);
     end
 
 end

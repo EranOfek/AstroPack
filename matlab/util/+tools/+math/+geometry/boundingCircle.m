@@ -1,5 +1,6 @@
 function [BestXY, BestRadius] = boundingCircle(X, Y, Args)
     % fit the smallest-radius bounding circle to set of X, Y points
+    %   See also: celestial.coo.boundingCircle
     % Input  : - An array containing X coordinates.
     %          - An array containing Y coordinates (corresponding to the X
     %            coordunates).

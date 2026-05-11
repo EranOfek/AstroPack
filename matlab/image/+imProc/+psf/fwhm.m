@@ -10,7 +10,10 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
     %            'Scale' - Image scale (arcsec/pix) that will be used in order to
     %                   convert the FWHM to arcsec. If empty, then will
     %                   take the Scale from the AstroImage.WCS object.
+    %                   If Scale not found then it is set to NaN.
     %                   Default is [].
+    %            'DefScale' - Default scale to use if WCS is empty.
+    %                   Default is 1.
     %            'AddToHeader' - A logical indicating if to add FWHM based
     %                   on cumsum to header. Default is true.
     %            'HeaderKey' - Header keyword in which to add the FWHM.
@@ -34,22 +37,33 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
     %                   keyword. Default is Inf.
     %            'KeysMom2' - 2nd moment column names in catalog.
     %                   Default is {'X2','Y2','XY'}.
+    %            'KeyFitPSF' - A four element cell array with header keyword names
+    %                   in which to write the Gaussian fitting  results:
+    %                   [Norm, major axis (1\sigma), minor axis (1\sigma),
+    %                   theta]. Multiplied by Scale.
+    %                   If empty, then skip.
+    %                   Default is {'PSF_FITN','PSF_FITA','PSF_FITB','PSF_FITT'}
+    %            'KeyNstars' - Header keyword name to add, with the number
+    %                   of stars used to construct the PSF.
+    %                   If empty, then skip. Default is 'PSF_NST'.
     %            'constructPSFArgs' - the PSF construction arguments to be
     %                   passed to imProc.psf.populatePSF
     %            'UseLegacy' - Use the lgacy code in AstroPSF/fwhm (true)
     %                   or the new mex version (false).
     %                   Default is true.
-    % Output : - The AstroImage object with the populated PSF object and FWHM in
-    %            the header [arcsec].
+    % Output : - The AstroImage object with the populated PSF object and
+    %            FWHM and additional meta data in the header [arcsec].
     %            Also populated are the MED_A [pix], MED_B [pix], MED_TH [deg]
     %          - FWHM_C.
+    %          - A structure array with all the derived parameters
     % Author : Eran Ofek (Jan 2022)
     % Example: imProc.psf.fwhm(Coadd);
     
     arguments
         Obj 
         Args.Scale                  = [];  % if empty - figure out from WCS
-        Args.AddToHeader logical    = true;
+        Args.DefScale               = 1; % if WCS is empty, then use this scale.
+        Args.AddToHeader            = true;
         Args.HeaderKey              = 'FWHM';
 
         Args.AddMorphology          = false;
@@ -58,8 +72,10 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
         Args.KeyDistPeaks           = 'PSF_DPK';
 
         Args.AddPos                 = Inf;
-        Args.AddMom2 logical        = true;
-        Args.KeysMom2 cell          = {'X2','Y2','XY'};
+        Args.AddMom2                = false; % writing median of stellar moments is not the responsibility of this fun. Instead use: imProc.header.writeStat2Header
+        Args.KeysMom2               = {'X2','Y2','XY'};
+        Args.KeyFitPSF              = {'PSF_FITN','PSF_FITA','PSF_FITB','PSF_FITT'};
+        Args.KeyNstars              = 'PSF_NST';
         Args.constructPSFArgs       = {};
         Args.UseLegacy              = true;
     end
@@ -69,57 +85,85 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
     AllFWHM = zeros(size(Obj));
     for Iobj=1:1:Nobj
         if isemptyPSF(Obj(Iobj).PSFData)
-            % construct the PSF
+            % construct the PSF if needed
             if isnan(Obj(Iobj).PSFData.Nstars)
                 [Obj(Iobj)] = imProc.psf.populatePSF(Obj(Iobj), Args.constructPSFArgs{:});
             end
         end
         
+        
         if Obj(Iobj).PSFData.Nstars>0
             if isempty(Args.Scale)
                 % get scale from WCS
-                Scale = 0.5.*(abs(Obj(Iobj).WCS.CD(1,1)) + abs(Obj(Iobj).WCS.CD(2,2))) .* ARCSEC_DEG;
+                if Obj(Iobj).WCS.Success
+                    Scale = 0.5.*(abs(Obj(Iobj).WCS.CD(1,1)) + abs(Obj(Iobj).WCS.CD(2,2))) .* ARCSEC_DEG;
+                    if isempty(Scale)
+                        Scale = Args.DefScale;
+                    end
+                else
+                    Scale = Args.DefScale;
+                end
             else
                 Scale = Args.Scale;
             end
             
             [FWHM_C, FWHM_H] = Obj(Iobj).PSFData.fwhm('curveArgs',{'Step',1}, 'UseLegacy',Args.UseLegacy);  % see fix in issue #585
             FWHM_C = FWHM_C.*Scale;
-            %FWHM_H = FWHM_H.*Scale;
+            FWHM_H = FWHM_H.*Scale;
         else
             % NO PSF - put NaNs in header
             FWHM_C = NaN;
+            FWHM_H = NaN;
+            Scale  = NaN;
         end
         AllFWHM(Iobj) = FWHM_C;
+
 
         % add FWHM to header
         if Args.AddToHeader
             Obj(Iobj).HeaderData.replaceVal(Args.HeaderKey, FWHM_C, 'AddPos',Args.AddPos);
-        end
+        
 
-        % Add PSF morphology information
-        if Args.AddMorphology
-            [PH,DistH] = imUtil.psf.numPeaks(Obj(Iobj).PSFData.Data);
-            Npeak = numel(PH);
-            if Npeak>1
-                PeakRatio = PH(1)./PH(2);
-            else
-                PeakRatio = NaN;
-            end
-            Obj(Iobj).HeaderData.replaceVal({Args.KeyNpeaksPSF, Args.KeyPeaksRatio, Args.KeyDistPeaks}, [Npeak, PeakRatio, DistH], 'AddPos',Args.AddPos);
-        end
+            % fit Gaussian to PSF
+            if ~isempty(Args.KeyFitPSF)
+                [~,~,BestFit] = Obj(Iobj).PSFData.fitFunPSF();
+                % sqrt(BestFit{1}).Par(2)) is the sigma of the Gaussian in
+                % the X direction...
+                [A, B, Theta] = imUtil.psf.gaussianSigma2SemiAxis(sqrt(BestFit{1}.Par(2)), sqrt(BestFit{1}.Par(3)), BestFit{1}.Par(4));
 
-        % add 2nd moment information
-        if Args.AddMom2
-            if Obj(Iobj).PSFData.Nstars>0
-                M2 = Obj(Iobj).CatData.getCol(Args.KeysMom2);
-                [AB] = imUtil.psf.mom2shape(M2(:,1),M2(:,2),M2(:,3));
-                Med  = median([AB.A, AB.B, AB.Theta],1,'omitnan');
-                Med(3) = Med(3).*180./pi;
-            else
-                Med = nan(1,3);
+                Obj(Iobj).HeaderData.replaceVal(Args.KeyFitPSF, [BestFit{1}.Par(1), A.*Scale, B.*Scale, Theta], 'AddPos',Args.AddPos);
             end
-            Obj(Iobj).HeaderData.replaceVal({'MED_A','MED_B','MED_TH'}, Med, 'AddPos',Args.AddPos);
+
+            if ~isempty(Args.KeyNstars)
+                % Add to header the number of stars used to construct the PSF
+                Obj(Iobj).HeaderData.replaceVal({Args.KeyNstars}, [Obj(Iobj).PSFData.Nstars], 'AddPos',Args.AddPos);
+            end
+    
+    
+            % Add PSF morphology information
+            if Args.AddMorphology && Obj(Iobj).PSFData.Nstars>0
+                [PH,DistH] = imUtil.psf.numPeaks(Obj(Iobj).PSFData.Data);
+                Npeak = numel(PH);
+                if Npeak>1
+                    PeakRatio = PH(1)./PH(2);
+                else
+                    PeakRatio = NaN;
+                end
+                Obj(Iobj).HeaderData.replaceVal({Args.KeyNpeaksPSF, Args.KeyPeaksRatio, Args.KeyDistPeaks}, [Npeak, PeakRatio, DistH], 'AddPos',Args.AddPos);
+            end
+    
+            % add 2nd moment information
+            if Args.AddMom2
+                if Obj(Iobj).PSFData.Nstars>0
+                    M2 = Obj(Iobj).CatData.getCol(Args.KeysMom2);
+                    [AB] = imUtil.psf.mom2shape(M2(:,1),M2(:,2),M2(:,3));
+                    Med  = median([AB.A, AB.B, AB.Theta],1,'omitnan');
+                    Med(3) = Med(3).*180./pi;
+                else
+                    Med = nan(1,3);
+                end
+                Obj(Iobj).HeaderData.replaceVal({'MED_A','MED_B','MED_TH'}, Med, 'AddPos',Args.AddPos);
+            end
         end
     end    
 end

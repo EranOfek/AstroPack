@@ -10,18 +10,22 @@
 
 function debug_UserManagerClient()
     factory = ultrasat.api.clients.ClientFactory();
-    baseUrl = factory.getServiceBaseUrl('user_manager');
+    baseUrl = factory.getServiceBaseUrl('user_manager', 'nginx');
     client = ultrasat.api.clients.UserManagerClient(baseUrl);
 
     fprintf('Testing login (user: chen, password: 123)...\n');
     loginResponse = client.login('chen', '123', 'OPER');
     disp(loginResponse);
+    if isfield(loginResponse, 'data') && isstruct(loginResponse.data) && ~isempty(loginResponse.data)
+        fprintf('  data (PlatformUser):\n');
+        disp(loginResponse.data);
+    end
 
     fprintf('\nTesting logout (user: chen)...\n');
     logoutResponse = client.logout('chen');
     disp(logoutResponse);
 
-    fprintf('Testing login (user: chen, password: 123)...\n');
+    fprintf('Testing login (user: chen, password: wrong)...\n');
     loginResponse = client.login('chen', 'wrong', 'OPER');
-    disp(loginResponse);    
+    disp(loginResponse);
 end

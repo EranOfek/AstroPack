@@ -21,75 +21,13 @@ function Result = unitTest()
         error('tools.math.stat.median1 inconsistent with median (single input)');
     end
     
-    % speed test
-    V    = double(rand(1e6,1));
-    Nsim = 10;
-    tic;
-    for Isim=1:Nsim
-        R = median(V);
-    end
-    T=toc;
-    fprintf('median on 1e6 double vector: %f\n',T);
+    %% tools.math.stat.mex.median
     
-    tic;
-    for Isim=1:Nsim
-        R = fast_median(V);
-    end
-    T=toc;
-    fprintf('fast_median on 1e6 double vector: %f\n',T);
-    
-    tic;
-    for Isim=1:Nsim
-        R = tools.math.stat.mex.median1(V);
-    end
-    T=toc;
-    fprintf('mex.median1 on 1e6 double vector: %f\n',T);
-    
-    V    = single(rand(1e6,1));
-    Nsim = 10;
-    tic;
-    for Isim=1:Nsim
-        R = median(V);
-    end
-    T=toc;
-    fprintf('median on 1e6 single vector: %f\n',T);
-    
-    tic;
-    for Isim=1:Nsim
-        R = fast_median(V);
-    end
-    T=toc;
-    fprintf('fast_median on 1e6 single vector: %f\n',T);
-    
-    tic;
-    for Isim=1:Nsim
-        R = tools.math.stat.mex.median1(V);
-    end
-    T=toc;
-    fprintf('mex.median1 on 1e6 single vector: %f\n',T);
-
-    tic;
-    for Isim=1:Nsim
-        R = tools.math.stat.mex.median(V,1);
-    end
-    T=toc;
-    fprintf('mex.median on 1e6 single vector: %f\n',T);
-
     R = rand(1726,1726,20,'single');
-    tic;
-    for Isim=1:1:10
-        M1 = tools.math.stat.mex.median(R,3,'omitnan');
-    end
-    T=toc;
-    fprintf('mex.median on cube 3rd dim single : %f\n',T);
-
-    tic;
-    for Isim=1:1:10
-        M2 = median(R,3,'omitnan');
-    end
-    T=toc;
-    fprintf('median on cube 3rd dim single : %f\n',T);
-
+    
+    M1 = tools.math.stat.mex.median(R,3,'omitnan');
+    M2 = median(R,3,'omitnan');
+    
     if max(abs(M1-M2),[],'all')>1e-6
         error('Problem with mex.median cube 3rd dim test');
     end

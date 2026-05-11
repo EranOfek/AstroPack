@@ -19,6 +19,10 @@ function [OutlierMask, Info] = sigmaClip(Residuals, SigmaThresh, Args)
     %                        'weighted' - |r_i / Errors_i| > SigmaThresh
     %                        'median'   - Iterative median+std on abs(residuals)
     %                                     (default)
+    %            'StdFunc' - Scale function for 'median' method:
+    %                        'mad_std' - 1.4826 * MAD (robust scale; default)
+    %                        'std'     - sample std (matches astropy default)
+    %                        Ignored for 'weighted' method.
     %            'Errors'  - Per-observation errors [N x 1] for 'weighted'
     %                        method. Ignored for 'median'. Default is [].
     %            'MaxIter' - Max internal iterations for 'median' method.
@@ -47,6 +51,7 @@ function [OutlierMask, Info] = sigmaClip(Residuals, SigmaThresh, Args)
         Residuals
         SigmaThresh
         Args.Method  = 'median'
+        Args.StdFunc = 'mad_std'   % 'mad_std' (default, robust) | 'std'
         Args.Errors  = []
         Args.MaxIter = 5
     end
@@ -87,7 +92,16 @@ function [OutlierMask, Info] = sigmaClip(Residuals, SigmaThresh, Args)
                     if ~Converged
                         ValidData = AbsRes(~ClipMask);
                         Center = median(ValidData);
-                        Scale = std(ValidData);
+                        switch Args.StdFunc
+                            case 'std'
+                                Scale = std(ValidData);
+                            case 'mad_std'
+                                Scale = 1.4826 * median(abs(ValidData - median(ValidData)));
+                            otherwise
+                                warning('sigmaClip:UnknownStdFunc', ...
+                                    'Unknown StdFunc ''%s''; falling back to std', Args.StdFunc);
+                                Scale = std(ValidData);
+                        end
                         NewClipMask = abs(AbsRes - Center) > SigmaThresh * Scale;
                         IterDone = Iter;
                         if isequal(NewClipMask, ClipMask)

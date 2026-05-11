@@ -3,6 +3,10 @@
 This document describes the structure and roles of the Slew Calculation 
 subsystem used by ULTRASAT Mission Control.  
 
+### Bridge JSON and `Attitude.roll`
+
+File-exchange requests match the Pydantic models in the SOC repo (`soc/common/models/matlab_bridges/api/slew_calc.py`). **`roll` is kept in the schema and in JSON** (per `Attitude`), but **the MATLAB slew time is RA/Dec-only** (`ultrasat.tools.calcSlew`). A non-zero delta in `from.roll` vs `to.roll` does not change `slew`; it is logged at **Debug** in `processRequest.m`.
+
 %
 % MATLAB R2023a is required.
 %

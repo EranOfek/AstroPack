@@ -155,6 +155,7 @@ classdef PlannerMain < matlab.apps.AppBase
         AddUniqueTargetButton           matlab.ui.control.Button
         UITableUniqueTargets            matlab.ui.control.Table
         PanelToolbar                    matlab.ui.container.Panel
+        LCSPlotsButton                  matlab.ui.control.Button
         HelpButton                      matlab.ui.control.Button
         QAButton                        matlab.ui.control.Button
         RetractButton                   matlab.ui.control.Button
@@ -210,6 +211,7 @@ classdef PlannerMain < matlab.apps.AppBase
         PleaseWaitDlg                           % Please wait dialog        
         PlotSkyMapApp                           %
         PlotGraphsApp                           %        
+        PlotLcsGraphsApp                        %
         PreferencesApp                          %
         SavePlanToFileApp                       % Save to file
         SaveUniqueTargetsToFileApp              % Save to text file        
@@ -317,13 +319,13 @@ classdef PlannerMain < matlab.apps.AppBase
         function checkMatlabVersion(app)
             % Required version
             v = ver('MATLAB');            
-            isOK = strcmp(v.Release, '(R2023a)');
+            isOK = strcmp(v.Release, '(R2023a)') || strcmp(v.Release, '(R2025b)');
         
             if ~isOK
                 % Blocking popup
-                uialert(app.UIFigure, sprintf(['This ULTRASAT Planner has only been tested with MATLAB R2023a.\n' ...
+                uialert(app.UIFigure, sprintf(['This ULTRASAT Planner has only been tested with MATLAB R2023a and R2025b.\n' ...
                              'Your version is: %s\n\n' ...
-                             'Please use MATLAB R2023a for guaranteed compatibility.'], v.Release), ...
+                             'Please use MATLAB R2023a or R2025b for guaranteed compatibility.'], v.Release), ...
                              'MATLAB Version Not Supported');
             end
         end
@@ -1243,6 +1245,11 @@ classdef PlannerMain < matlab.apps.AppBase
         function PlotFlagVisibilityMoonCheckBoxValueChanged(app, event)
             app.PlotHelper.plotVisibility(app);
         end
+
+        % Button pushed function: LCSPlotsButton
+        function LCSPlotsButtonPushed(app, event)
+            app.PlotHelper.showLcsGraphsWindow(app);
+        end
     end
 
     % Component initialization
@@ -1585,6 +1592,13 @@ classdef PlannerMain < matlab.apps.AppBase
             app.HelpButton.Position = [1439 8 64 30];
             app.HelpButton.Text = 'Help';
 
+            % Create LCSPlotsButton
+            app.LCSPlotsButton = uibutton(app.PanelToolbar, 'push');
+            app.LCSPlotsButton.ButtonPushedFcn = createCallbackFcn(app, @LCSPlotsButtonPushed, true);
+            app.LCSPlotsButton.Tooltip = {'Show LCS plots window'};
+            app.LCSPlotsButton.Position = [1105 8 88 30];
+            app.LCSPlotsButton.Text = 'LCS Plots';
+
             % Create UniqueTargetsPanel
             app.UniqueTargetsPanel = uipanel(app.UIFigure);
             app.UniqueTargetsPanel.TitlePosition = 'centertop';
@@ -1762,7 +1776,6 @@ classdef PlannerMain < matlab.apps.AppBase
 
             % Create ApprovedTargetsPanel
             app.ApprovedTargetsPanel = uipanel(app.UIFigure);
-            app.ApprovedTargetsPanel.BorderColor = [0.4902 0.4902 0.4902];
             app.ApprovedTargetsPanel.TitlePosition = 'centertop';
             app.ApprovedTargetsPanel.Title = 'Approved Targets';
             app.ApprovedTargetsPanel.BackgroundColor = [0.851 0.9216 0.851];
@@ -1826,7 +1839,6 @@ classdef PlannerMain < matlab.apps.AppBase
             ylabel(app.AxesSkymapPlot, 'Y')
             zlabel(app.AxesSkymapPlot, 'Z')
             app.AxesSkymapPlot.FontName = 'Helvetica';
-            app.AxesSkymapPlot.XTick = [0 0.2 0.4 0.6 0.8 1];
             app.AxesSkymapPlot.YTick = [0 0.2 0.4 0.6 0.8 1];
             app.AxesSkymapPlot.Position = [7 14 386 316];
 

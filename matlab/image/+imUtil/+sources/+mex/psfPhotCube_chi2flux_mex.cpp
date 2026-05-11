@@ -14,9 +14,41 @@ enum class StdMode {
     CUBE
 };
 
+struct NumericReader {
+    const void* Data;
+    mxClassID ClassID;
+
+    NumericReader() : Data(nullptr), ClassID(mxUNKNOWN_CLASS) {}
+
+    NumericReader(const mxArray* Arr)
+        : Data(mxGetData(Arr)), ClassID(mxGetClassID(Arr)) {}
+
+    inline double get(mwIndex I) const {
+        if (ClassID == mxDOUBLE_CLASS) {
+            return static_cast<const double*>(Data)[I];
+        } else {
+            return static_cast<double>(static_cast<const float*>(Data)[I]);
+        }
+    }
+};
+
 template <typename T>
 inline double ToDouble(T x) {
     return static_cast<double>(x);
+}
+
+void ValidateRealSingleOrDouble(const mxArray* Arr, const char* Name)
+{
+    const mxClassID ClassID = mxGetClassID(Arr);
+    if (!(ClassID == mxDOUBLE_CLASS || ClassID == mxSINGLE_CLASS)) {
+        mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Class",
+                          "%s must be single or double.", Name);
+    }
+
+    if (mxIsComplex(Arr)) {
+        mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Complex",
+                          "%s must be real.", Name);
+    }
 }
 
 void ValidateVectorLength(const mxArray* Arr, mwSize Expected, const char* Name)
@@ -27,25 +59,36 @@ void ValidateVectorLength(const mxArray* Arr, mwSize Expected, const char* Name)
     }
 }
 
-void ValidateSameCubeSize(const mxArray* Arr, mwSize Ny, mwSize Nx, mwSize Nim, const char* Name)
+void ValidateSameImageStackSize(const mxArray* Arr, mwSize Ny, mwSize Nx, mwSize Nim, const char* Name)
 {
     const mwSize Ndim = mxGetNumberOfDimensions(Arr);
     const mwSize* Dims = mxGetDimensions(Arr);
-    if (Ndim != 3 || Dims[0] != Ny || Dims[1] != Nx || Dims[2] != Nim) {
+
+    if (Ndim == 2) {
+        if (!(Nim == 1 && Dims[0] == Ny && Dims[1] == Nx)) {
+            mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Size",
+                              "%s must have the same size as Cube.", Name);
+        }
+    } else if (Ndim == 3) {
+        if (!(Dims[0] == Ny && Dims[1] == Nx && Dims[2] == Nim)) {
+            mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Size",
+                              "%s must have the same size as Cube.", Name);
+        }
+    } else {
         mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Size",
-                          "%s must have the same size as Cube.", Name);
+                          "%s must be NyxNx or NyxNxxNim.", Name);
     }
 }
 
 template <typename T, StdMode MODE, bool USE_RADIUS>
 void ComputeChi2FluxKernel(
     const T* Cube,
-    const T* Std,
-    const T* ShiftedPSF,
-    const T* DX,
-    const T* DY,
-    const T* VecXrel,
-    const T* VecYrel,
+    NumericReader Std,
+    NumericReader ShiftedPSF,
+    NumericReader DX,
+    NumericReader DY,
+    NumericReader VecXrel,
+    NumericReader VecYrel,
     mwSize Ny,
     mwSize Nx,
     mwSize Nim,
@@ -56,18 +99,16 @@ void ComputeChi2FluxKernel(
     T* FluxErr)
 {
     const mwSize Npix = Ny * Nx;
-    const double Eps = std::numeric_limits<double>::epsilon();
     const double Radius = USE_RADIUS ? std::sqrt(FitRadius2) : 0.0;
 
     #if defined(_OPENMP)
     #pragma omp parallel for
     #endif
     for (mwIndex Iim = 0; Iim < Nim; ++Iim) {
-        const T* CubeI       = Cube       + Iim * Npix;
-        const T* ShiftedPSFI = ShiftedPSF + Iim * Npix;
+        const T* CubeI = Cube + Iim * Npix;
 
-        const double DXI = ToDouble(DX[Iim]);
-        const double DYI = ToDouble(DY[Iim]);
+        const double DXI = DX.get(Iim);
+        const double DYI = DY.get(Iim);
 
         mwIndex IxStart = 0;
         mwIndex IxEnd   = Nx - 1;
@@ -75,33 +116,35 @@ void ComputeChi2FluxKernel(
         mwIndex IyEnd   = Ny - 1;
 
         if constexpr (USE_RADIUS) {
-            while (IxStart < Nx && std::abs(ToDouble(VecXrel[IxStart]) - DXI) >= Radius) {
+            while (IxStart < Nx && std::abs(VecXrel.get(IxStart) - DXI) >= Radius) {
                 ++IxStart;
             }
-            while (IxEnd > IxStart && std::abs(ToDouble(VecXrel[IxEnd]) - DXI) >= Radius) {
+            while (IxEnd > IxStart && std::abs(VecXrel.get(IxEnd) - DXI) >= Radius) {
                 --IxEnd;
             }
-            while (IyStart < Ny && std::abs(ToDouble(VecYrel[IyStart]) - DYI) >= Radius) {
+            while (IyStart < Ny && std::abs(VecYrel.get(IyStart) - DYI) >= Radius) {
                 ++IyStart;
             }
-            while (IyEnd > IyStart && std::abs(ToDouble(VecYrel[IyEnd]) - DYI) >= Radius) {
+            while (IyEnd > IyStart && std::abs(VecYrel.get(IyEnd) - DYI) >= Radius) {
                 --IyEnd;
             }
         }
 
         double Num = 0.0;
         double Den = 0.0;
+        double SumD2 = 0.0;
         double DofCount = 0.0;
 
         if (!(IxStart >= Nx || IyStart >= Ny || IxStart > IxEnd || IyStart > IyEnd)) {
             for (mwIndex Ix = IxStart; Ix <= IxEnd; ++Ix) {
-                const double Xr = ToDouble(VecXrel[Ix]) - DXI;
+                const double Xr = VecXrel.get(Ix) - DXI;
                 const double Xr2 = Xr * Xr;
 
                 for (mwIndex Iy = IyStart; Iy <= IyEnd; ++Iy) {
                     if constexpr (USE_RADIUS) {
-                        const double Yr = ToDouble(VecYrel[Iy]) - DYI;
+                        const double Yr = VecYrel.get(Iy) - DYI;
                         const double R2 = Xr2 + Yr * Yr;
+
                         if (!(R2 < FitRadius2)) {
                             continue;
                         }
@@ -111,94 +154,79 @@ void ComputeChi2FluxKernel(
 
                     double StdVal;
                     if constexpr (MODE == StdMode::SCALAR) {
-                        StdVal = ToDouble(Std[0]);
+                        StdVal = Std.get(0);
                     } else if constexpr (MODE == StdMode::VECTOR_NIM) {
-                        StdVal = ToDouble(Std[Iim]);
+                        StdVal = Std.get(Iim);
                     } else {
-                        StdVal = ToDouble(Std[Iim * Npix + Ip]);
+                        StdVal = Std.get(Iim * Npix + Ip);
                     }
-
-                    double Var = StdVal * StdVal;
-                    if (!std::isfinite(Var)) {
-                        continue;
-                    }
-                    if (Var < Eps) {
-                        Var = Eps;
-                    }
-                    const double W = 1.0 / Var;
 
                     const double CubeVal = ToDouble(CubeI[Ip]);
-                    const double PVal    = ToDouble(ShiftedPSFI[Ip]);
+                    const double PVal    = ShiftedPSF.get(Iim * Npix + Ip);
 
-                    const double TermNum = W * CubeVal * PVal;
-                    const double TermDen = W * PVal * PVal;
-
-                    if (std::isfinite(TermNum) && std::isfinite(TermDen)) {
-                        Num += TermNum;
-                        Den += TermDen;
+                    if (!(std::isfinite(StdVal) &&
+                          std::isfinite(CubeVal) &&
+                          std::isfinite(PVal))) {
+                        continue;
                     }
 
+                    // Requested fix:
+                    // Std <= 0 is invalid. Do not give it enormous weight.
+                    if (StdVal <= 0.0) {
+                        continue;
+                    }
+
+                    const double W = 1.0 / (StdVal * StdVal);
+
+                    const double WP  = W * PVal;
+                    const double WDP = WP * CubeVal;
+                    const double WPP = WP * PVal;
+                    const double WDD = W * CubeVal * CubeVal;
+
+                    if (!(std::isfinite(WDP) &&
+                          std::isfinite(WPP) &&
+                          std::isfinite(WDD))) {
+                        continue;
+                    }
+
+                    Num   += WDP;
+                    Den   += WPP;
+                    SumD2 += WDD;
+
+                    // DofCount now counts only pixels that actually enter the fit.
                     DofCount += 1.0;
                 }
             }
         }
 
-        if (Den < Eps || !std::isfinite(Den)) {
-            Den = Eps;
-        }
+        double FluxI;
+        double FluxErrI;
+        double Chi2I;
 
-        const double FluxI = Num / Den;
-        const double FluxErrI = std::sqrt(1.0 / Den);
+        if (Den > 0.0 && std::isfinite(Den)) {
+            FluxI = Num / Den;
+            FluxErrI = std::sqrt(1.0 / Den);
 
-        double Chi2I = 0.0;
+            // One-pass chi2 formula:
+            // chi2 = sum(w D^2) - (sum(w D P))^2 / sum(w P^2)
+            Chi2I = SumD2 - (Num * Num) / Den;
 
-        if (!(IxStart >= Nx || IyStart >= Ny || IxStart > IxEnd || IyStart > IyEnd)) {
-            for (mwIndex Ix = IxStart; Ix <= IxEnd; ++Ix) {
-                const double Xr = ToDouble(VecXrel[Ix]) - DXI;
-                const double Xr2 = Xr * Xr;
-
-                for (mwIndex Iy = IyStart; Iy <= IyEnd; ++Iy) {
-                    if constexpr (USE_RADIUS) {
-                        const double Yr = ToDouble(VecYrel[Iy]) - DYI;
-                        const double R2 = Xr2 + Yr * Yr;
-                        if (!(R2 < FitRadius2)) {
-                            continue;
-                        }
-                    }
-
-                    const mwIndex Ip = Iy + Ix * Ny;
-
-                    double StdVal;
-                    if constexpr (MODE == StdMode::SCALAR) {
-                        StdVal = ToDouble(Std[0]);
-                    } else if constexpr (MODE == StdMode::VECTOR_NIM) {
-                        StdVal = ToDouble(Std[Iim]);
-                    } else {
-                        StdVal = ToDouble(Std[Iim * Npix + Ip]);
-                    }
-
-                    const double CubeVal = ToDouble(CubeI[Ip]);
-                    const double PVal    = ToDouble(ShiftedPSFI[Ip]);
-
-                    if (!(std::isfinite(StdVal) && std::isfinite(CubeVal) && std::isfinite(PVal))) {
-                        continue;
-                    }
-                    if (StdVal == 0.0) {
-                        continue;
-                    }
-
-                    const double Resid = CubeVal - PVal * FluxI;
-                    const double ResidStd = Resid / StdVal;
-                    const double Term = ResidStd * ResidStd;
-
-                    if (std::isfinite(Term)) {
-                        Chi2I += Term;
-                    }
+            // Protect against tiny negative values from floating-point roundoff.
+            if (Chi2I < 0.0) {
+                const double Scale = std::max(std::abs(SumD2), std::abs((Num * Num) / Den));
+                if (Chi2I > -1e-12 * Scale) {
+                    Chi2I = 0.0;
                 }
             }
+        } else {
+            FluxI    = std::numeric_limits<double>::quiet_NaN();
+            FluxErrI = std::numeric_limits<double>::infinity();
+            Chi2I    = std::numeric_limits<double>::quiet_NaN();
         }
 
+        // Requested: keep 3 fitted parameters.
         double DofI = DofCount - 3.0;
+
         if (!std::isfinite(DofI)) {
             DofI = 0.0;
         }
@@ -215,12 +243,12 @@ void DispatchStdMode(
     StdMode Mode,
     bool UseFitRadius,
     const T* Cube,
-    const T* Std,
-    const T* ShiftedPSF,
-    const T* DX,
-    const T* DY,
-    const T* VecXrel,
-    const T* VecYrel,
+    NumericReader Std,
+    NumericReader ShiftedPSF,
+    NumericReader DX,
+    NumericReader DY,
+    NumericReader VecXrel,
+    NumericReader VecYrel,
     mwSize Ny,
     mwSize Nx,
     mwSize Nim,
@@ -237,11 +265,13 @@ void DispatchStdMode(
                     Cube, Std, ShiftedPSF, DX, DY, VecXrel, VecYrel,
                     Ny, Nx, Nim, FitRadius2, Chi2, Flux, Dof, FluxErr);
                 break;
+
             case StdMode::VECTOR_NIM:
                 ComputeChi2FluxKernel<T, StdMode::VECTOR_NIM, true>(
                     Cube, Std, ShiftedPSF, DX, DY, VecXrel, VecYrel,
                     Ny, Nx, Nim, FitRadius2, Chi2, Flux, Dof, FluxErr);
                 break;
+
             case StdMode::CUBE:
             default:
                 ComputeChi2FluxKernel<T, StdMode::CUBE, true>(
@@ -256,11 +286,13 @@ void DispatchStdMode(
                     Cube, Std, ShiftedPSF, DX, DY, VecXrel, VecYrel,
                     Ny, Nx, Nim, FitRadius2, Chi2, Flux, Dof, FluxErr);
                 break;
+
             case StdMode::VECTOR_NIM:
                 ComputeChi2FluxKernel<T, StdMode::VECTOR_NIM, false>(
                     Cube, Std, ShiftedPSF, DX, DY, VecXrel, VecYrel,
                     Ny, Nx, Nim, FitRadius2, Chi2, Flux, Dof, FluxErr);
                 break;
+
             case StdMode::CUBE:
             default:
                 ComputeChi2FluxKernel<T, StdMode::CUBE, false>(
@@ -277,6 +309,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
         mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Input",
             "Expected 8 inputs: Cube, Std, ShiftedPSF, DX, DY, VecXrel, VecYrel, FitRadius2.");
     }
+
     if (nlhs != 4) {
         mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Output",
             "Expected 4 outputs: Chi2, Flux, Dof, FluxErr.");
@@ -291,40 +324,34 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
     const mxArray* VecYrelArr    = prhs[6];
     const mxArray* FitRadiusArr  = prhs[7];
 
-    const mxClassID ClassID = mxGetClassID(CubeArr);
-    if (!(ClassID == mxDOUBLE_CLASS || ClassID == mxSINGLE_CLASS)) {
-        mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Class",
-                          "Cube must be single or double.");
-    }
-    if (mxIsComplex(CubeArr)) {
-        mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Complex", "Cube must be real.");
-    }
+    ValidateRealSingleOrDouble(CubeArr,       "Cube");
+    ValidateRealSingleOrDouble(StdArr,        "Std");
+    ValidateRealSingleOrDouble(ShiftedPSFArr, "ShiftedPSF");
+    ValidateRealSingleOrDouble(DXArr,         "DX");
+    ValidateRealSingleOrDouble(DYArr,         "DY");
+    ValidateRealSingleOrDouble(VecXrelArr,    "VecXrel");
+    ValidateRealSingleOrDouble(VecYrelArr,    "VecYrel");
 
-    const mxArray* SameClass[] = {
-        StdArr, ShiftedPSFArr, DXArr, DYArr, VecXrelArr, VecYrelArr
-    };
-    for (mwIndex I = 0; I < sizeof(SameClass)/sizeof(SameClass[0]); ++I) {
-        if (mxGetClassID(SameClass[I]) != ClassID) {
-            mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Class",
-                              "All numeric inputs must have the same class as Cube.");
-        }
-        if (mxIsComplex(SameClass[I])) {
-            mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Complex",
-                              "All numeric inputs must be real.");
-        }
-    }
+    const mxClassID CubeClassID = mxGetClassID(CubeArr);
 
     const mwSize CubeNdim = mxGetNumberOfDimensions(CubeArr);
     const mwSize* CubeDims = mxGetDimensions(CubeArr);
-    if (CubeNdim != 3) {
-        mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Size", "Cube must be a 3D array.");
+
+    if (!(CubeNdim == 2 || CubeNdim == 3)) {
+        mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Size",
+                          "Cube must be NyxNx or NyxNxxNim.");
     }
 
     const mwSize Ny  = CubeDims[0];
     const mwSize Nx  = CubeDims[1];
-    const mwSize Nim = CubeDims[2];
+    const mwSize Nim = (CubeNdim == 3) ? CubeDims[2] : 1;
 
-    ValidateSameCubeSize(ShiftedPSFArr, Ny, Nx, Nim, "ShiftedPSF");
+    if (Ny == 0 || Nx == 0 || Nim == 0) {
+        mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Size",
+                          "Cube dimensions must be non-zero.");
+    }
+
+    ValidateSameImageStackSize(ShiftedPSFArr, Ny, Nx, Nim, "ShiftedPSF");
     ValidateVectorLength(DXArr, Nim, "DX");
     ValidateVectorLength(DYArr, Nim, "DY");
     ValidateVectorLength(VecXrelArr, Nx, "VecXrel");
@@ -344,6 +371,8 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
             ThisStdMode = StdMode::VECTOR_NIM;
         } else if (StdNdim == 3 && StdDims[0] == Ny && StdDims[1] == Nx && StdDims[2] == Nim) {
             ThisStdMode = StdMode::CUBE;
+        } else if (Nim == 1 && StdNdim == 2 && StdDims[0] == Ny && StdDims[1] == Nx) {
+            ThisStdMode = StdMode::CUBE;
         } else {
             mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Size",
                               "Std must be scalar, vector of length Nim, 1x1xNim, or NyxNxxNim.");
@@ -352,32 +381,47 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
 
     bool UseFitRadius = false;
     double FitRadius2 = 0.0;
+
     if (!mxIsEmpty(FitRadiusArr)) {
         if (mxGetNumberOfElements(FitRadiusArr) != 1) {
             mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Size",
                               "FitRadius2 must be empty or scalar.");
         }
+
         FitRadius2 = mxGetScalar(FitRadiusArr);
+
+        if (!(std::isfinite(FitRadius2)) || FitRadius2 <= 0.0) {
+            mexErrMsgIdAndTxt("psfPhotCube_chi2flux_mex:Value",
+                              "FitRadius2 must be positive and finite.");
+        }
+
         UseFitRadius = true;
     }
 
-    // FIXED: return column vectors Nim x 1
     mwSize OutDims[2] = {Nim, 1};
-    plhs[0] = mxCreateNumericArray(2, OutDims, ClassID, mxREAL); // Chi2
-    plhs[1] = mxCreateNumericArray(2, OutDims, ClassID, mxREAL); // Flux
-    plhs[2] = mxCreateNumericArray(2, OutDims, ClassID, mxREAL); // Dof
-    plhs[3] = mxCreateNumericArray(2, OutDims, ClassID, mxREAL); // FluxErr
 
-    if (ClassID == mxDOUBLE_CLASS) {
+    plhs[0] = mxCreateNumericArray(2, OutDims, CubeClassID, mxREAL); // Chi2
+    plhs[1] = mxCreateNumericArray(2, OutDims, CubeClassID, mxREAL); // Flux
+    plhs[2] = mxCreateNumericArray(2, OutDims, CubeClassID, mxREAL); // Dof
+    plhs[3] = mxCreateNumericArray(2, OutDims, CubeClassID, mxREAL); // FluxErr
+
+    NumericReader StdReader(StdArr);
+    NumericReader ShiftedPSFReader(ShiftedPSFArr);
+    NumericReader DXReader(DXArr);
+    NumericReader DYReader(DYArr);
+    NumericReader VecXrelReader(VecXrelArr);
+    NumericReader VecYrelReader(VecYrelArr);
+
+    if (CubeClassID == mxDOUBLE_CLASS) {
         DispatchStdMode<double>(
             ThisStdMode, UseFitRadius,
             static_cast<const double*>(mxGetData(CubeArr)),
-            static_cast<const double*>(mxGetData(StdArr)),
-            static_cast<const double*>(mxGetData(ShiftedPSFArr)),
-            static_cast<const double*>(mxGetData(DXArr)),
-            static_cast<const double*>(mxGetData(DYArr)),
-            static_cast<const double*>(mxGetData(VecXrelArr)),
-            static_cast<const double*>(mxGetData(VecYrelArr)),
+            StdReader,
+            ShiftedPSFReader,
+            DXReader,
+            DYReader,
+            VecXrelReader,
+            VecYrelReader,
             Ny, Nx, Nim, FitRadius2,
             static_cast<double*>(mxGetData(plhs[0])),
             static_cast<double*>(mxGetData(plhs[1])),
@@ -388,12 +432,12 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
         DispatchStdMode<float>(
             ThisStdMode, UseFitRadius,
             static_cast<const float*>(mxGetData(CubeArr)),
-            static_cast<const float*>(mxGetData(StdArr)),
-            static_cast<const float*>(mxGetData(ShiftedPSFArr)),
-            static_cast<const float*>(mxGetData(DXArr)),
-            static_cast<const float*>(mxGetData(DYArr)),
-            static_cast<const float*>(mxGetData(VecXrelArr)),
-            static_cast<const float*>(mxGetData(VecYrelArr)),
+            StdReader,
+            ShiftedPSFReader,
+            DXReader,
+            DYReader,
+            VecXrelReader,
+            VecYrelReader,
             Ny, Nx, Nim, FitRadius2,
             static_cast<float*>(mxGetData(plhs[0])),
             static_cast<float*>(mxGetData(plhs[1])),

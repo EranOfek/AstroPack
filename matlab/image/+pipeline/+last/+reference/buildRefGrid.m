@@ -1,36 +1,41 @@
 function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
     % Building a grid for LAST reference images 
     %     Optional detailed description
-    % Input  : - 
-    %          * ...,key,val,... 
-    %          'Save2mat' - logical, save output to a .mat file
+    % Input  : * ...,key,val,...
+    %          'Save2mat' - logical, save output to a .mat file.
+    %            Default is false.
+    %          'RefImSizePix' - reference-grid image size in pixels (square).
+    %            Default is 1716.
     % Output : - structures with reference image and subimage coordinates (incl. corners) 
     % Author : Yossi Shvartzvald (2025 Jul) 
     % Example: [LAST_RefIm_Grid, LAST_SubIm_Grid] = pipeline.last.reference.buildRefGrid('Save2mat',true);
-    arguments        
-        Args.Save2mat          = false;   
+    arguments
+        Args.Save2mat          = false; 
         Args.FileName          = 'LAST_refGrid.mat';
+        Args.RefImSizePix      = 1716;    % reference-grid image size [pix]
     end
-    % 
+    %
     load('~/matlab/data/LAST/RefGrid/CamRot.mat');
     load('~/matlab/data/LAST/RefGrid/dDec.mat');
     load('~/matlab/data/LAST/RefGrid/dRA.mat');
-    load('~/matlab/data/LAST/RefGrid/LAST_Grid_comb.mat');
+    load('~/matlab/data/LAST/RefGrid/LAST_Grid_comb_backup.mat');
 
-    RAD = 180/pi;    
+    RAD = 180/pi;
     % New - RefIm with corners
     newT = table();
     LAST_RefIm_Grid = table();
-    dRA_sub = 0.3; 
-    dDec_sub= 0.3;
+    PixScale = 1.25/3600;                             % [deg/pix]
+    dRA_sub  = Args.RefImSizePix * PixScale / 2;
+    dDec_sub = Args.RefImSizePix * PixScale / 2;
+    nRefIm   = height(RefIm_offset_Grid);
     for i = 1:height(LAST_Grid)
         for k = 1:height(Telescope_offset_Grid.dRA)
             [Dist,PA0]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA,Telescope_offset_Grid.dDec(k)+RefIm_offset_Grid.dDec,'deg');
             [d4,r4] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA0*RAD);
-            newT.mount(1:24) = i;
-            newT.telescope(1:24) = k;
-            newT.RA(1:24) = r4;
-            newT.Dec(1:24) = d4;
+            newT.mount(1:nRefIm) = i;
+            newT.telescope(1:nRefIm) = k;
+            newT.RA(1:nRefIm)  = r4+180;
+            newT.Dec(1:nRefIm) = d4;
             %
             [Dist,PA1]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA+dRA_sub,...
                 Telescope_offset_Grid.dDec(k)+RefIm_offset_Grid.dDec+dDec_sub,'deg');
@@ -43,15 +48,15 @@ function [LAST_RefIm_Grid, LAST_SubIm_Grid] = buildRefGrid(Args)
             [d3,r3] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA3*RAD);
             [Dist,PA4]=celestial.coo.sphere_dist(0,0,Telescope_offset_Grid.dRA(k)+RefIm_offset_Grid.dRA-dRA_sub,...
                 Telescope_offset_Grid.dDec(k)+RefIm_offset_Grid.dDec+dDec_sub,'deg');
-            [d4,r4] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA4*RAD);       
-            newT.RA1(1:24) = r1; newT.Dec1(1:24) = d1;
-            newT.RA2(1:24) = r2; newT.Dec2(1:24) = d2;
-            newT.RA3(1:24) = r3; newT.Dec3(1:24) = d3;
-            newT.RA4(1:24) = r4; newT.Dec4(1:24) = d4;
-            newT.PA1(1:24) = PA1; % is it the right angle? 
-            newT.PA2(1:24) = PA2; 
-            newT.PA3(1:24) = PA3; 
-            newT.PA4(1:24) = PA4; 
+            [d4,r4] = reckon(LAST_Grid.Dec(i),LAST_Grid.RA(i),Dist*RAD,PA4*RAD);
+            newT.RA1(1:nRefIm) = r1+180; newT.Dec1(1:nRefIm) = d1;
+            newT.RA2(1:nRefIm) = r2+180; newT.Dec2(1:nRefIm) = d2;
+            newT.RA3(1:nRefIm) = r3+180; newT.Dec3(1:nRefIm) = d3;
+            newT.RA4(1:nRefIm) = r4+180; newT.Dec4(1:nRefIm) = d4;
+            newT.PA1(1:nRefIm) = PA1; % are these the right angles?
+            newT.PA2(1:nRefIm) = PA2;
+            newT.PA3(1:nRefIm) = PA3;
+            newT.PA4(1:nRefIm) = PA4;
             %        
             LAST_RefIm_Grid = [LAST_RefIm_Grid;newT];
         end

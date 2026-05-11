@@ -17,9 +17,9 @@ function [Back, Var] = backVarScalar(Image, Args)
     %                           calculate both Back and Var.
     %                   {@median, 'poiss'} | {@median, 'rvar_mex'} | ...
     %                   Default is @imUtil.background.modeVar_Hist
-    %            'MethodArgs' - A cell array of additional arguments to pass to:
-    %                   imUtil.background.backgroundOption
-    %                   Default is {}.
+    %            'MethodArgs' - A two element cell array of additional arguments to pass
+    %                   to the back and var functions respecively.
+    %                   Default is {{},{}}.
     %            'RN2' - Readout noise ^2 (required by 'poiss').
     %                   Note thta modeVar_LogHist has its own RN2 argument.
     %                   Default is 12.

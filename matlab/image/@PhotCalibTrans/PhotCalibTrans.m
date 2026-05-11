@@ -21,6 +21,8 @@ classdef PhotCalibTrans < Component
     %   CalFound   - Flag indicating whether calibrators were found (set by selectCalibrators)
     %   Success    - Flag indicating successful calibration (set by populateSuccess)
     %   DeltaZP_CB - Constant-band delta ZP [mag] (set by applyConstBand, written to header as PT_DZP)
+    %   LimMag     - Limiting magnitude at SN=LimMagSN [mag] (set by evaluateLimMag, header keyword LIMMAG)
+    %   BackMag    - Sky background surface brightness [mag/arcsec^2] (set by evaluateBackMag, header keyword BACKMAG)
     %   AirMass, ExpTime, NCoadd, Temp, Pressure, Humidity, Aperture - Observation metadata
     %
     % Example:
@@ -76,6 +78,13 @@ classdef PhotCalibTrans < Component
     %                    Applied to MAG_AB_* columns by orchestrator (fitPhotCalibTrans).
     %                    On failure: AperCorr set to NaN, warning via msgLog.
     %     addMag - Add calibrated magnitude columns to catalog (AB or Vega)
+    %     evaluateLimMag - Empirical limiting magnitude from polyfit of MAG_AB_* vs log10(SN)
+    %                      in window [MinSN, MaxSN], evaluated at SN=LimMagSN. Stores Obj.LimMag.
+    %                      NaN on failure (column missing, <3 points, fit error).
+    %     evaluateBackMag - Sky surface brightness via legacy formula
+    %                       ZP - 2.5*log10(MedBack) + 5*log10(PixScale), with ZP=evaluateZP()
+    %                       (scalar, field centre) and MedBack=fast_median(AI.Back(:)).
+    %                       Stores Obj.BackMag. NaN on failure.
     %     applyConstBand - Apply constant-band correction to AB magnitudes.
     %                      Replaces fitted atmospheric params with global ConstBandParams,
     %                      computes scalar ΔZP per crop. Called by addMag when
@@ -88,14 +97,14 @@ classdef PhotCalibTrans < Component
     %                      (excluding Norm, ZenithAngle, Temperature).
     %                      Source='aggregate' (default): robust median/mean across objects.
     %                      Source='single': extract from one object directly.
-    %                      Usage: CBP = PhotCalibTrans.buildConstBandParams(PCArray);
-    %                             CBP = PhotCalibTrans.buildConstBandParams(PC, 'Source', 'single');
+    %                      Usage: CBP = PCArray.buildConstBandParams();
+    %                             CBP = PC.buildConstBandParams('Source', 'single');
     %     applyPhotCalibShifts - Apply coadd calibration to individual epoch
     %                      images using pre-computed DeltaZP (from zp_meddiff)
     %                      or MatchedSources. Evaluates ZP once per crop,
     %                      shifts per epoch. Accepts [Nepoch × Ncrop] layout.
-    %                      Usage: [AIs, Norms, DZP] = PhotCalibTrans.applyPhotCalibShifts(PC, AIs, 'DeltaZP', DZP);
-    %                             [AIs, Norms, DZP] = PhotCalibTrans.applyPhotCalibShifts(PC, AIs, 'MS', MScell);
+    %                      Usage: [AIs, Norms, DZP] = PC.applyPhotCalibShifts(AIs, 'DeltaZP', DZP);
+    %                             [AIs, Norms, DZP] = PC.applyPhotCalibShifts(AIs, 'MS', MScell);
     %   Display/Output Methods:
     %     summary - Display photometric calibration summary
     %   Plotting Methods:
@@ -154,6 +163,10 @@ classdef PhotCalibTrans < Component
         % Bright-star RMS
         ARMS = NaN              % sqrt(median(R²)) of N brightest calibrators [mag] (set by calibrate)
 
+        % Limiting magnitude and sky surface brightness (legacy compat keywords)
+        LimMag  = NaN           % Limiting magnitude at SN=LimMagSN [mag] (set by evaluateLimMag)
+        BackMag = NaN           % Sky background surface brightness [mag/arcsec^2] (set by evaluateBackMag)
+
         % Success status
         Success = false         % Flag indicating successful calibration (set by populateSuccess)
 
@@ -208,7 +221,7 @@ classdef PhotCalibTrans < Component
                     if isprop(Obj, PropName)
                         Obj.(PropName) = varargin{I+1};
                     else
-                        warning('PhotCalibTrans:UnknownProperty', ...
+                        Obj.msgLog(LogLevel.Warning, ...
                             'Property "%s" does not exist and will be ignored.', PropName);
                     end
                 end
@@ -230,13 +243,17 @@ classdef PhotCalibTrans < Component
             %                         Default is [].
             %            'Lambda'         - Transmission wavelength grid [Angstrom]. Default is (3000:20:11000)'.
             %            'SearchRadius'   - Gaia matching radius [arcsec]. Default is 2.
-            %            'MagRange'       - Calibrator magnitude range [min max]. Default is [11.5 15.5].
+            %            'MagRange'       - Calibrator magnitude range [min max]. Default is [11.5 16.0].
             %            'FunListName'    - Transmission function list name. Default is 'DefaultLASTFunList'.
             %            'CustomFunList'  - Custom function list. Default is [].
             %            'OptSeqName'     - Optimization sequence name. Default is 'LAST_NormLin'.
             %            'CustomOptSeq'   - Custom optimization sequence. Default is [].
             %            'Tran2DType'     - Position-dependent correction type. Default is 'cheby1_4_xt'.
             %            'UseTran2D'      - Enable position-dependent correction. Default is true.
+            %            'XPixel'         - Detector X size in pixels (sets Tran2D
+            %                               normalisation, ParNX = [XPixel/2, XPixel/2]).
+            %                               Default is 1716.
+            %            'YPixel'         - Detector Y size in pixels. Default is 1716.
             %            'WeightingMode'  - Weighting mode. Default is 'spectral'.
             %            'FluxErrColName' - Flux error column name. Default is 'FluxErr'.
             %            'SigmaClipMethod'- Sigma clipping method. Default is 'median'.
@@ -254,6 +271,9 @@ classdef PhotCalibTrans < Component
             arguments
                 Obj
                 Cat                    % AstroImage or AstroCatalog
+                
+                % Select calibrators via match_catsHTM
+                Args.match_catsHTMArgs = {};
 
                 % Metadata argument (for AstroCatalog only)
                 Args.Metadata = []     % AstroHeader object or cell array {key1, val1, key2, val2, ...}
@@ -261,7 +281,7 @@ classdef PhotCalibTrans < Component
                 % Calibration settings (individual NV pairs with defaults)
                 Args.Lambda           = (3000:20:11000)'
                 Args.SearchRadius     = 2
-                Args.MagRange         = [11.5 15.5]
+                Args.MagRange         = [11.5 16.0]
                 Args.FilterNegFlux logical = false
                 Args.MinSN2           = 0
                 Args.FunListName      = 'DefaultLASTFunList'
@@ -270,9 +290,20 @@ classdef PhotCalibTrans < Component
                 Args.CustomOptSeq     = []
                 Args.Tran2DType       = 'cheby1_4_xt'
                 Args.UseTran2D logical = true
+                Args.XPixel           = 1716   % Detector X size [pix]; Tran2D centre = XPixel/2
+                Args.YPixel           = 1716   % Detector Y size [pix]; Tran2D centre = YPixel/2
                 Args.WeightingMode    = 'spectral'
                 Args.FluxErrColName   = 'FluxErr'
                 Args.SigmaClipMethod  = 'median'
+                % Outer clip-and-refit loop (passed through to fitPar/fitMultiStage).
+                % When OuterSigmaClip=true, full stage loop is run repeatedly,
+                % applying a single sigma clip on the final residuals between
+                % runs (StdFunc='mad_std' robust by default).
+                Args.OuterSigmaClip logical = false
+                Args.OuterSigmaThresh = 3.0
+                Args.OuterStdFunc     = 'mad_std'   % 'mad_std' (robust) | 'std'
+                Args.OuterMaxIter     = 5
+                Args.OuterMinNewClipped = 1
                 Args.FluxErrorNorm    = 0.5
                 Args.AirmassColName   = 'AIRMASS'
                 Args.PerSourceAirmass logical = false
@@ -284,8 +315,8 @@ classdef PhotCalibTrans < Component
                 Args.AperCorrMinSN    = 30           % Minimum S/N for aperture correction stars
 
                 Args.MagSystem char   = 'AB'
-                Args.N_ARMS           = 0              % N brightest calibrators for ARMS (0=skip)
-                Args.Verbose logical  = true
+                Args.N_ARMS           = 20              % N brightest calibrators for ARMS (0=skip)
+                Args.Verbose logical  = false
             end
 
             % Save Metadata argument separately
@@ -420,12 +451,14 @@ classdef PhotCalibTrans < Component
                           'Pressure_mbar', Obj.Pressure, ...
                           'Temperature_C', Obj.Temp};
 
-            % Build TransModel 
+            % Build TransModel
             Obj.TransModel = tools.math.fun.CompositeFun.model(FunList, ...
                 'MetadataValues', MetaValues, ...
                 'OptimizationSequence', OptSeq, ...
                 'UseTran2D', Args.UseTran2D, ...
-                'Tran2DType', Args.Tran2DType);
+                'Tran2DType', Args.Tran2DType, ...
+                'XPixel', Args.XPixel, ...
+                'YPixel', Args.YPixel);
 
             % ====================================================================
             % STEP 4: Select calibrators
@@ -441,7 +474,8 @@ classdef PhotCalibTrans < Component
                 'MagRange', Args.MagRange, ...
                 'FilterNegFlux', Args.FilterNegFlux, ...
                 'MinSN2', Args.MinSN2, ...
-                'Verbose', Args.Verbose);
+                'Verbose', Args.Verbose, ...
+                'match_catsHTMArgs',Args.match_catsHTMArgs);
 
             % selectCalibrators populates Obj.SpecData, Obj.SourceData, and Obj.CalFound
 
@@ -512,7 +546,7 @@ classdef PhotCalibTrans < Component
                             fprintf('  Extracted flux errors from %s column\n', Args.FluxErrColName);
                         end
                     catch
-                        warning('PhotCalibTrans:NoFluxErr', ...
+                        Obj.msgLog(LogLevel.Warning, ...
                             'Could not extract flux errors from %s. Falling back to spectral weighting.', ...
                             Args.FluxErrColName);
                         if strcmpi(Args.WeightingMode, 'flux')
@@ -563,6 +597,11 @@ classdef PhotCalibTrans < Component
                     'X', X, 'Y', Y, ...
                     'CostArgs', CostArgs, ...
                     'SigmaClipMethod', Args.SigmaClipMethod, ...
+                    'OuterSigmaClip',     Args.OuterSigmaClip, ...
+                    'OuterSigmaThresh',   Args.OuterSigmaThresh, ...
+                    'OuterStdFunc',       Args.OuterStdFunc, ...
+                    'OuterMaxIter',       Args.OuterMaxIter, ...
+                    'OuterMinNewClipped', Args.OuterMinNewClipped, ...
                     'Verbose', Args.Verbose);
 
                 % Store fitted model and fit results
@@ -715,7 +754,7 @@ classdef PhotCalibTrans < Component
             %          - AstroCatalog object with observed sources (single element)
             %          * ...,key,val,...
             %            'SearchRadius' - Calibrator matching radius [arcsec]. Default is 2.
-            %            'MagRange' - Calibrator magnitude range [min max]. Default is [11.5 15.5].
+            %            'MagRange' - Calibrator magnitude range [min max]. Default is [11.5 16.0].
             %            'MinSN' - Minimum S/N for calibrators. Default is 5.
             %            'MaxSN' - Maximum S/N for calibrators. Default is 1000.
             %            'FilterBadFlags' - Apply FLAGS quality filtering. Default is true.
@@ -726,6 +765,10 @@ classdef PhotCalibTrans < Component
             %                        to skip this filter. Default is 10.
             %            'SpFluxCol' - Spectral flux column indices [flux_start, flux_end, error_start, error_end].
             %                          Default is [7, 349, 350, 692] for Gaia DR3 XP spectra.
+            %            'BadBitNames' - A cell array of bad bit mask
+            %                   names. Sources with one of these bits are not used
+            %                   as calibrators.
+            %                   Default is {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'}
             %            'Verbose' - Enable verbose output. Default is true.
             % Output : - PhotCalibTrans object with populated properties:
             %                  .SpecData - Structure with reference spectral data:
@@ -738,7 +781,7 @@ classdef PhotCalibTrans < Component
             %                  .CalFound - true if length(SourceData) > 0
             % Author : D. Kovaleva (Jan 2026)
             % Example: PC = PC.selectCalibrators(Cat);
-            %          PC = PC.selectCalibrators(Cat, 'SearchRadius', 2, 'MagRange', [11.5 15.5]);
+            %          PC = PC.selectCalibrators(Cat, 'SearchRadius', 2, 'MagRange', [11.5 16.0]);
             %          PC = PC.selectCalibrators(Cat, 'SpFluxCol', [7, 349, 350, 692]);
             % Note: Default implementation uses Gaia DR3 XP spectra from GAIADR3spec catalog.
             %       Default telescope/instrument configuration is for LAST.
@@ -748,7 +791,7 @@ classdef PhotCalibTrans < Component
                 Obj
                 Cat  % AstroCatalog
                 Args.SearchRadius = 2  % arcsec
-                Args.MagRange = [11.5 15.5]
+                Args.MagRange = [11.5 16.0]
                 Args.MinSN = 5
                 Args.MaxSN = 1000
                 Args.FilterBadFlags logical = true
@@ -757,7 +800,9 @@ classdef PhotCalibTrans < Component
                 Args.FilterNegFlux logical = false    % Remove sources with negative flux
                 Args.MinSN2 = 0                       % Minimum SN_2 for calibrators (0 to skip)
                 Args.SpFluxCol = [7, 349, 350, 692]   % [flux_start, flux_end, error_start, error_end]
-                Args.Verbose logical = true
+                Args.BadBitNames     = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'};
+                Args.match_catsHTMArgs = {};
+                Args.Verbose logical = false
             end
 
             RAD = constant.RAD;
@@ -798,7 +843,8 @@ classdef PhotCalibTrans < Component
 
                 [~, ~, ResInd, CatH] = imProc.match.match_catsHTM(Cat, 'GAIADR3spec', ...
                                                               'Radius', Args.SearchRadius, ...
-                                                              'RadiusUnits', 'arcsec');
+                                                              'RadiusUnits', 'arcsec',...
+                                                              Args.match_catsHTMArgs{:});
 
             % Extract match information (indexed to full catalog)
             CalIdxAll   = ResInd.Obj2_IndInObj1;     % Index of calibrator match for each source
@@ -836,15 +882,12 @@ classdef PhotCalibTrans < Component
                 % Sanitize: NaN/Inf/non-integer flags treated as bad
                 BadValue = isnan(Flags) | isinf(Flags) | Flags < 0 | Flags ~= floor(Flags);
                 Flags(BadValue) = 0;
-                % Check for critical bad flags (vectorized bitget operations)
-                IsSaturated = bitget(Flags, 1);
-                IsNaN = bitget(Flags, 7);
-                IsNegative = bitget(Flags, 11);
-                IsCR = bitget(Flags, 15);
-                IsNearEdge = bitget(Flags, 24);
-
-                % Mark as bad if ANY of these flags is true, or if FLAGS value was invalid
-                BadFlagsMask = BadValue | IsSaturated | IsNaN | IsNegative | IsCR | IsNearEdge;
+                % Resolve bit names → combined decimal mask via BitDictionary
+                % (no hardcoded bit indices — picks up YAML renumbering).
+                BD = BitDictionary('BitMask.Image.Default');
+                
+                [~, ~, BadBitMask] = BD.name2bit(Args.BadBitNames);
+                BadFlagsMask = BadValue | bitand(uint32(Flags), uint32(BadBitMask)) > 0;
                 GoodMask = GoodMask & ~BadFlagsMask;
 
                 if Args.Verbose
@@ -1902,7 +1945,10 @@ classdef PhotCalibTrans < Component
             %              Keywords: PT_RMS, PT_ARMS, PT_CHI2, PT_DOF, PT_NCALIB, PT_SUCC,
             %                        PT_AREF, PT_SPEC,
             %                        PT_X_N, PT_X_VY, PT_X_FY (function parameters),
-            %                        PT_P_N, PT_P_VY, PT_P_FY (position corrections if UseTran2D=true)
+            %                        PT_P_N, PT_P_VY, PT_P_FY (position corrections if UseTran2D=true),
+            %                        APCOR_* (aperture corrections, if AperCorr populated),
+            %                        PT_DZP (constant-band delta ZP, if DeltaZP_CB finite),
+            %                        LIMMAG (if LimMag finite), BACKMAG (if BackMag finite).
 
             arguments
                 Obj
@@ -1975,11 +2021,7 @@ classdef PhotCalibTrans < Component
                 Fun = Funs(IFun);
 
                 % Function reference
-                if IFun == 1 && strcmp(Fun.Desc, 'Normalization')
-                    FunRef = '@(Lambda,Par)Par';
-                else
-                    FunRef = func2str(Fun.Handle);
-                end
+                FunRef = func2str(Fun.Handle);
                 KeyName = sprintf('PT_%d_N', IFun);
                 HeaderObj = HeaderObj.replaceVal(KeyName, FunRef);
                 if Args.WriteComments
@@ -2081,6 +2123,22 @@ classdef PhotCalibTrans < Component
                 end
             end
 
+            % Limiting magnitude and sky surface brightness (legacy keyword names)
+            if isfinite(Obj.LimMag)
+                HeaderObj = HeaderObj.replaceVal('LIMMAG', Obj.LimMag);
+                if Args.WriteComments
+                    IComment = IComment + 1;
+                    HistoryComments{IComment} = 'LIMMAG: Limiting magnitude at SN=5 [mag]';
+                end
+            end
+            if isfinite(Obj.BackMag)
+                HeaderObj = HeaderObj.replaceVal('BACKMAG', Obj.BackMag);
+                if Args.WriteComments
+                    IComment = IComment + 1;
+                    HistoryComments{IComment} = 'BACKMAG: Sky background surface brightness [mag/arcsec^2]';
+                end
+            end
+
             % Write HISTORY comments at the end if requested
             if Args.WriteComments
                 % Trim to actual size
@@ -2125,6 +2183,14 @@ classdef PhotCalibTrans < Component
             end
             if HeaderObj.isKeyExist('PT_SUCC')
                 Obj.Success = HeaderObj.getVal('PT_SUCC');
+            end
+
+            % Limiting magnitude and sky surface brightness (legacy keywords)
+            if HeaderObj.isKeyExist('LIMMAG')
+                Obj.LimMag = HeaderObj.getVal('LIMMAG');
+            end
+            if HeaderObj.isKeyExist('BACKMAG')
+                Obj.BackMag = HeaderObj.getVal('BACKMAG');
             end
 
             % Observation metadata - read from standard FITS keywords if available
@@ -2370,7 +2436,6 @@ classdef PhotCalibTrans < Component
             if ~ismember(Args.RefFluxCol, AllColNames)
                 Msg = sprintf('calcAperCorr: %s column not found - aperture corrections set to NaN', Args.RefFluxCol);
                 Obj.msgLog(LogLevel.Warning, Msg);
-                warning('PhotCalibTrans:calcAperCorr:NoRefCol', '%s', Msg);
                 Obj.AperCorr = nanVecWithRefZero(Naper);
                 Obj.AperCorrColNames = AperCols;
                 Obj.AperCorrNStars = 0;
@@ -2380,7 +2445,6 @@ classdef PhotCalibTrans < Component
             if Naper == 0
                 Msg = sprintf('calcAperCorr: No %s* columns found - aperture corrections not computed', Args.AperFluxPrefix);
                 Obj.msgLog(LogLevel.Warning, Msg);
-                warning('PhotCalibTrans:calcAperCorr:NoCols', '%s', Msg);
                 Obj.AperCorr = [];
                 Obj.AperCorrColNames = {};
                 Obj.AperCorrNStars = 0;
@@ -2394,7 +2458,6 @@ classdef PhotCalibTrans < Component
             else
                 Msg = sprintf('calcAperCorr: S/N column %s not found - using all sources', Args.SNColName);
                 Obj.msgLog(LogLevel.Warning, Msg);
-                warning('PhotCalibTrans:calcAperCorr:NoSNCol', '%s', Msg);
                 Mask = true(CatObj.sizeCatalog, 1);
             end
 
@@ -2402,7 +2465,6 @@ classdef PhotCalibTrans < Component
             if NStars < 5
                 Msg = sprintf('calcAperCorr: Only %d high-S/N stars - aperture corrections set to NaN', NStars);
                 Obj.msgLog(LogLevel.Warning, Msg);
-                warning('PhotCalibTrans:calcAperCorr:FewStars', '%s', Msg);
                 Obj.AperCorr = nanVecWithRefZero(Naper);
                 Obj.AperCorrColNames = AperCols;
                 Obj.AperCorrNStars = NStars;
@@ -2419,7 +2481,6 @@ classdef PhotCalibTrans < Component
                 if ~ismember(RefMagCol, AllColNames)
                     Msg = sprintf('calcAperCorr: %s column not found for mag mode - aperture corrections set to NaN', RefMagCol);
                     Obj.msgLog(LogLevel.Warning, Msg);
-                    warning('PhotCalibTrans:calcAperCorr:NoRefMagCol', '%s', Msg);
                     Obj.AperCorr = nanVecWithRefZero(Naper);
                     Obj.AperCorrColNames = AperCols;
                     Obj.AperCorrNStars = 0;
@@ -2506,8 +2567,9 @@ classdef PhotCalibTrans < Component
                                 FluxRefErr  = CatObj.getCol(RefErrColName);
                                 FluxAperErr = FluxAperErr(Mask); FluxAperErr = FluxAperErr(ValidRatio);
                                 FluxRefErr  = FluxRefErr(Mask);  FluxRefErr  = FluxRefErr(ValidRatio);
-                                RelErr = sqrt((FluxAperErr ./ FluxAper(ValidRatio)).^2 + ...
-                                              (FluxRefErr ./ FluxRef(ValidRatio)).^2);
+                                % FLUXERR is the relative flux uncertainty (FluxErr/Flux),
+                                % so the relative error of the ratio adds them in quadrature directly.
+                                RelErr = sqrt(FluxAperErr.^2 + FluxRefErr.^2);
                                 MagErr = 1.086 .* RelErr;
                                 AperCorrVec(Iaper) = tools.math.stat.wmedian(MagDiff, MagErr, 1);
                             else
@@ -2548,7 +2610,8 @@ classdef PhotCalibTrans < Component
             %            'MagSystem' - Magnitude system: 'AB' or 'Vega'.
             %                         Default is 'AB'. Vega is not yet implemented.
             %            'AddMagErr' - Add magnitude error columns. Default is true.
-            %                         Error formula: MagErr = 1.086 * FluxErr / Flux.
+            %                         Error formula: MagErr = 1.086 * FluxErr
+            %                         (FLUXERR is the relative flux uncertainty FluxErr/Flux).
             %                         Requires FLUXERR_<suffix> columns in catalog.
             %                         Column naming: MAG_<System>_<suffix>_ERR.
             %            'PropagateCalibratedErr' - Propagate calibrated magnitude
@@ -2599,7 +2662,7 @@ classdef PhotCalibTrans < Component
             Tab = CatObj.Table;
 
             if isempty(Tab) || height(Tab) == 0
-                warning('PhotCalibTrans:addMag:EmptyCatalog', 'Catalog is empty. No columns added.');
+                Obj.msgLog(LogLevel.Warning, 'addMag: Catalog is empty. No columns added.');
                 return;
             end
 
@@ -2619,7 +2682,7 @@ classdef PhotCalibTrans < Component
             end
 
             if isempty(FluxColNames)
-                warning('PhotCalibTrans:addMag:NoFluxCols', 'No FLUX_* columns found in catalog.');
+                Obj.msgLog(LogLevel.Warning, 'addMag: No FLUX_* columns found in catalog.');
                 return;
             end
 
@@ -2631,8 +2694,8 @@ classdef PhotCalibTrans < Component
                     X = Tab.X;
                     Y = Tab.Y;
                 else
-                    warning('PhotCalibTrans:addMag:NoCoords', ...
-                            'X, Y columns not found. Position corrections disabled.');
+                    Obj.msgLog(LogLevel.Warning, ...
+                            'addMag: X, Y columns not found. Position corrections disabled.');
                 end
             end
 
@@ -2706,10 +2769,11 @@ classdef PhotCalibTrans < Component
 
                     if ismember(FluxErrColName, AllColNames)
                         FluxErr = Tab.(FluxErrColName);
-                        % MagErr = 1.086 * FluxErr / Flux  (first-order error propagation)
+                        % FLUXERR is the relative flux uncertainty (FluxErr/Flux),
+                        % so MagErr = 1.086 * FluxErr (first-order error propagation).
                         MagErr = nan(Nrows, 1);
                         ValidFlux = Flux > 0 & ~isnan(Flux) & ~isnan(FluxErr);
-                        MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux) ./ Flux(ValidFlux);
+                        MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux);
                         CatObj = CatObj.insertCol(MagErr, Inf, {MagErrColName});
                     else
                         % No flux error column found — insert NaN column
@@ -2781,8 +2845,8 @@ classdef PhotCalibTrans < Component
             end
 
             if isempty(Args.ConstBandParams)
-                warning('PhotCalibTrans:applyConstBand:NoParams', ...
-                    'ConstBandParams not provided — skipping constant band correction');
+                Obj.msgLog(LogLevel.Warning, ...
+                    'applyConstBand: ConstBandParams not provided — skipping constant band correction');
                 return;
             end
 
@@ -2801,8 +2865,8 @@ classdef PhotCalibTrans < Component
             %       has its own ZenithAngle and thus its own T_atm_crop). Currently
             %       computes a single scalar delta ZP per crop assuming shared airmass.
             if Obj.PerSourceAirmass
-                warning('PhotCalibTrans:applyConstBand:PerSourceAirmass', ...
-                    'PerSourceAirmass mode not yet supported — using single-airmass delta ZP');
+                Obj.msgLog(LogLevel.Warning, ...
+                    'applyConstBand: PerSourceAirmass mode not yet supported — using single-airmass delta ZP');
             end
 
             % --- Evaluate T_atm_crop (fitted atmospheric, Norm=1, no Tran2D) ---
@@ -2832,8 +2896,8 @@ classdef PhotCalibTrans < Component
             IntConst = trapz(Lambda, T_const(:) .* Lambda(:));
 
             if IntCrop <= 0 || IntConst <= 0
-                warning('PhotCalibTrans:applyConstBand:BadIntegral', ...
-                    'Non-positive transmission integral — skipping constant band');
+                Obj.msgLog(LogLevel.Warning, ...
+                    'applyConstBand: Non-positive transmission integral — skipping constant band');
                 return;
             end
 
@@ -2936,6 +3000,157 @@ classdef PhotCalibTrans < Component
             % Insert column
             CatObj = CatObj.insertCol(ZP, Inf, {ZPColName});
         end
+
+        function Obj = evaluateLimMag(Obj, CatObj, Args)
+            % Compute limiting magnitude from calibrated catalog (legacy LIMMAG)
+            % Input  : - PhotCalibTrans object.
+            %          - AstroCatalog object after addMag (must contain the
+            %            matching FLUXERR_<suffix> and MAG_<system>_<suffix>
+            %            columns derived from FluxColName).
+            %          * ...,key,val,...
+            %            'FluxColName' - Flux column name; the matching
+            %                            FLUXERR_<suffix> drives the SN ratio
+            %                            and MAG_<system>_<suffix> is fit.
+            %                            Default is 'FLUX_APER_3'.
+            %            'MagSystem'   - Magnitude system ('AB' or 'Vega') used
+            %                            to build MAG_<system>_<suffix>.
+            %                            Default is 'AB'.
+            %            'MinSN'       - Lower SN bound for fit window. Default is 5.
+            %            'MaxSN'       - Upper SN bound for fit window. Default is 50.
+            %            'LimMagSN'    - SN at which to evaluate limiting magnitude.
+            %                            Default is 5.
+            % Output : - PhotCalibTrans object with Obj.LimMag set (NaN on failure).
+            % Author : D. Kovaleva (May 2026)
+            % Example: PC = PC.evaluateLimMag(Cat);
+            %          PC = PC.evaluateLimMag(Cat, 'FluxColName', 'FLUX_PSF');
+            % Description: Empirical limiting magnitude via straight-line fit of
+            %              MAG_<system>_<suffix> vs log10(SN) in window
+            %              [MinSN, MaxSN], evaluated at SN=LimMagSN. SN is taken
+            %              as 1./FLUXERR_<suffix> because FLUXERR is the relative
+            %              flux uncertainty (FluxErr/Flux); equivalent to
+            %              1.086/MagErr in the Gaussian limit. Color term omitted
+            %              because MAG_<system>_* already absorbs color.
+
+            arguments
+                Obj
+                CatObj
+                Args.FluxColName char = 'FLUX_APER_3'
+                Args.MagSystem   char = 'AB'
+                Args.MinSN       double = 5
+                Args.MaxSN       double = 50
+                Args.LimMagSN    double = 5
+            end
+
+            Obj.LimMag = NaN;
+
+            if isempty(CatObj) || isempty(CatObj.Table) || height(CatObj.Table) == 0
+                Obj.msgLog(LogLevel.Warning, 'evaluateLimMag: Catalog is empty - LimMag set to NaN.');
+                return;
+            end
+
+            % Derive FLUXERR / MAG column names from FLUX_<suffix>
+            Tokens = regexp(Args.FluxColName, '^FLUX_(.+)$', 'tokens', 'once');
+            if isempty(Tokens)
+                Obj.msgLog(LogLevel.Warning, ...
+                    'evaluateLimMag: FluxColName "%s" must start with FLUX_ - LimMag set to NaN.', ...
+                    Args.FluxColName);
+                return;
+            end
+            Suffix         = Tokens{1};
+            FluxErrColName = ['FLUXERR_', Suffix];
+            MagColName     = ['MAG_', Args.MagSystem, '_', Suffix];
+
+            AllCols = CatObj.Table.Properties.VariableNames;
+            if ~ismember(FluxErrColName, AllCols) || ~ismember(MagColName, AllCols)
+                Obj.msgLog(LogLevel.Warning, ...
+                    'evaluateLimMag: Required columns %s / %s not found - LimMag set to NaN.', ...
+                    FluxErrColName, MagColName);
+                return;
+            end
+
+            try
+                FluxErr = CatObj.getCol(FluxErrColName);
+                Mag     = CatObj.getCol(MagColName);
+                FluxErr = FluxErr(:);
+                Mag     = Mag(:);
+
+                % FLUXERR is relative (FluxErr/Flux), so SN = 1/FLUXERR
+                % (equivalent to 1.086/MagErr in the Gaussian limit).
+                SN = 1 ./ FluxErr;
+
+                Valid = isfinite(Mag) & isfinite(SN) & SN > Args.MinSN & SN < Args.MaxSN;
+                if nnz(Valid) < 3
+                    Obj.msgLog(LogLevel.Warning, ...
+                        'evaluateLimMag: Only %d points in SN window [%.1f, %.1f] - LimMag set to NaN.', ...
+                        nnz(Valid), Args.MinSN, Args.MaxSN);
+                    return;
+                end
+
+                ParLimMagFit = polyfit(log10(SN(Valid)), Mag(Valid), 1);
+                Obj.LimMag = polyval(ParLimMagFit, log10(Args.LimMagSN));
+            catch ME
+                Obj.msgLog(LogLevel.Warning, ...
+                    'evaluateLimMag: Fit failed (%s) - LimMag set to NaN.', ME.message);
+                Obj.LimMag = NaN;
+            end
+        end
+
+        function Obj = evaluateBackMag(Obj, AI, Args)
+            % Compute sky surface brightness from image background (legacy BACKMAG)
+            % Input  : - PhotCalibTrans object.
+            %          - AstroImage with populated .Back and WCS.
+            %          * ...,key,val,...
+            %            'PixScale' - Pixel scale [arcsec/pixel]. Default is []
+            %                         (read from AI.WCS via getScale('arcsec')).
+            % Output : - PhotCalibTrans object with Obj.BackMag set (NaN on failure).
+            % Author : D. Kovaleva (May 2026)
+            % Example: PC = PC.evaluateBackMag(AI);
+            % Description: Sky surface brightness in mag/arcsec^2 using legacy formula
+            %              BackMag = ZP - 2.5*log10(MedBack) + 5*log10(PixScale),
+            %              where ZP = Obj.evaluateZP() (scalar at field centre) and
+            %              MedBack = fast_median(AI.Back(:)).
+
+            arguments
+                Obj
+                AI
+                Args.PixScale = []
+            end
+
+            Obj.BackMag = NaN;
+
+            if ~isa(AI, 'AstroImage') || isempty(AI.Back)
+                Obj.msgLog(LogLevel.Warning, ...
+                    'evaluateBackMag: No AstroImage with Back property - BackMag set to NaN.');
+                return;
+            end
+
+            try
+                MedBack = fast_median(AI.Back(:));
+                if ~isfinite(MedBack) || MedBack <= 0
+                    Obj.msgLog(LogLevel.Warning, ...
+                        'evaluateBackMag: Non-positive median background (%.3g) - BackMag set to NaN.', MedBack);
+                    return;
+                end
+
+                if isempty(Args.PixScale)
+                    PixScale = AI.WCS.getScale('arcsec');
+                else
+                    PixScale = Args.PixScale;
+                end
+                if ~isfinite(PixScale) || PixScale <= 0
+                    Obj.msgLog(LogLevel.Warning, ...
+                        'evaluateBackMag: Invalid pixel scale (%.3g) - BackMag set to NaN.', PixScale);
+                    return;
+                end
+
+                ZP = Obj.evaluateZP();   % scalar at field centre
+                Obj.BackMag = ZP - 2.5*log10(MedBack) + 5*log10(PixScale);
+            catch ME
+                Obj.msgLog(LogLevel.Warning, ...
+                    'evaluateBackMag: Computation failed (%s) - BackMag set to NaN.', ME.message);
+                Obj.BackMag = NaN;
+            end
+        end
     end
 
     methods % Display/Output methods
@@ -2950,7 +3165,7 @@ classdef PhotCalibTrans < Component
 
             arguments
                 Obj
-                Args.Verbose logical = true
+                Args.Verbose logical = false
             end
 
             if ~Args.Verbose
@@ -3236,7 +3451,7 @@ classdef PhotCalibTrans < Component
             %            'TileOrder' - Crop tiling order in mosaic:
             %                        'colmajor' (old pipeline) - bottom-to-top, column by column.
             %                        'rowmajor' (new pipeline) - left-to-right, row by row.
-            %                        Default is 'colmajor'.
+            %                        Default is 'rowmajor'.
             % Output : - Figure handle
             % Author : D. Kovaleva (Dec 2025, Mar 2026)
             % Example: PC(5).plotZPMap();                          % single crop
@@ -3258,7 +3473,7 @@ classdef PhotCalibTrans < Component
                 Args.SmoothSigma = 3
                 Args.PhotSys = 'percrop'
                 Args.RefCrop = 10
-                Args.TileOrder = 'colmajor'  % 'colmajor' (old: bottom-up columns) | 'rowmajor' (new: left-right rows)
+                Args.TileOrder = 'rowmajor'  % 'colmajor' (old: bottom-up columns) | 'rowmajor' (new: left-right rows)
             end
 
             Nobj = numel(Obj);
@@ -3340,8 +3555,8 @@ classdef PhotCalibTrans < Component
                         RefTransParams = Obj(RefIdx).TransModel.getAllFunPar();
                         RefParamVec = RefTransParams.Val;
                     else
-                        warning('PhotCalibTrans:plotZPMap:BadRefCrop', ...
-                                'RefCrop=%d invalid or failed. Falling back to percrop.', RefIdx);
+                        Obj(1).msgLog(LogLevel.Warning, ...
+                                'plotZPMap: RefCrop=%d invalid or failed. Falling back to percrop.', RefIdx);
                     end
                     if ~isempty(RefParamVec)
                         UseRefNorm = ismember(Args.PhotSys, {'refzp', 'refzp_raw'});
@@ -3614,52 +3829,276 @@ classdef PhotCalibTrans < Component
         end
     end
 
-    methods (Static)
-        function [Row, Col] = cropID2RowCol(CropID, Nrows, Ncols, TileOrder)
-            % Convert CropID to grid (Row, Col) position
-            % Input  : - CropID (scalar integer, 1-based)
-            %          - Nrows - number of rows in grid
-            %          - Ncols - number of columns in grid
-            %          - TileOrder - 'colmajor' or 'rowmajor'
-            %            'colmajor' (old pipeline): CropIDs fill bottom-to-top,
-            %              then left-to-right. CropID 1..Nrows = column 1, etc.
-            %            'rowmajor' (new pipeline): CropIDs fill left-to-right,
-            %              then bottom-to-top. CropID 1..Ncols = row 1, etc.
-            % Output : - Row (1-based, 1 = bottom)
-            %          - Col (1-based, 1 = left)
+    methods
+        function [EpochAIs, NormPerEpoch, DeltaZP] = applyPhotCalibShifts(Obj, EpochAIs, Args)
+            % Apply coadd photometric calibration to individual epoch images.
+            %   Handles multi-crop layout: EpochAIs is [Nepoch × Ncrop] and
+            %   Obj (the PC array) is [1 × Ncrop]. DeltaZP is [Nepoch × Ncrop]
+            %   matrix (from lcUtil.zp_meddiff per crop). The expensive
+            %   transmission-integral evaluation runs ONCE per crop, with
+            %   cheap position-dependent Tran2D correction per epoch. Scalar
+            %   Obj / 1-D EpochAIs are accepted (treated as Ncrop = 1).
+            % Input  : - [1 × Ncrop] PhotCalibTrans array (one per crop).
+            %          - [Nepoch × Ncrop] AstroImage matrix. May be [Nepoch × 1]
+            %            when Ncrop = 1.
+            %          * ...,key,val,...
+            %            'DeltaZP'   - [Nepoch × Ncrop] pre-computed ZP shifts
+            %                        [mag]. Same sign as zp_meddiff.FitZP:
+            %                        positive when epoch is fainter.
+            %                        Default is [] (compute from MS).
+            %            'MS'        - Cell array {Ncrop} of MatchedSources,
+            %                        one per crop, or scalar MatchedSources for
+            %                        Ncrop = 1. Used when DeltaZP is empty.
+            %            'FluxField' - Flux field in MS.Data. Default is 'FLUX_APER_3'.
+            %            'FluxErrField' - Flux error field. Default is 'FLUXERR_APER_3'.
+            %            'RefEpoch'  - Reference epoch for MS-based DeltaZP.
+            %                        Default is 1.
+            %            'UseWeightedMedian' - Use weighted median for MS-based
+            %                        DeltaZP. Default is true.
+            %            'AddMag'    - Add MAG columns. Default is true.
+            %            'AddZP'     - Add ZP column. Default is true.
+            %            'ApplyAperCorr' - Apply inherited aperture corrections
+            %                        to MAG_<System>_* columns. Default is true.
+            %            'UpdateHeader' - Write PT_* to epoch headers. Default is true.
+            %            'MagSystem' - Magnitude system. Default is 'AB'.
+            %            'Verbose'   - Print progress. Default is true.
+            % Output : - Updated AstroImages with MAG, ZP, header.
+            %          - [Nepoch × Ncrop] per-epoch Norm values.
+            %          - [Nepoch × Ncrop] DeltaZP matrix [mag].
+            % Author : D. Kovaleva (Apr 2026)
+            % Example: % Multi-crop fast path (instance call):
+            %          [AIs, Norms, DZP] = PC.applyPhotCalibShifts(AllSI, 'DeltaZP', ZPdif);
 
-            switch lower(TileOrder)
-                case 'colmajor'
-                    Col = ceil(CropID / Nrows);
-                    Row = mod(CropID - 1, Nrows) + 1;
-                case 'rowmajor'
-                    Row = ceil(CropID / Ncols);
-                    Col = mod(CropID - 1, Ncols) + 1;
-                otherwise
-                    error('PhotCalibTrans:cropID2RowCol:BadTileOrder', ...
-                          'TileOrder must be ''colmajor'' or ''rowmajor'', got ''%s''.', TileOrder);
+            arguments
+                Obj  PhotCalibTrans
+                EpochAIs
+                Args.DeltaZP = []
+                Args.MS = []
+                Args.FluxField = 'FLUX_APER_3'
+                Args.FluxErrField = 'FLUXERR_APER_3'
+                Args.RefEpoch = 1
+                Args.UseWeightedMedian logical = true
+                Args.AddMag logical = true
+                Args.AddZP logical = true
+                Args.ApplyAperCorr logical = true
+                Args.UpdateHeader logical = true
+                Args.MagSystem char = 'AB'
+                Args.Verbose logical = false
             end
-        end
 
-        function KeyName = fluxCol2AperCorrKey(ColName)
-            % Convert flux/mag column name to FITS header keyword (max 8 chars)
-            %   FLUX_APER_1 / MAG_AB_APER_1 / MAG_APER_1 -> APCOR_A1
-            %   FLUX_PSF    / MAG_AB_PSF                 -> APCOR_PS
-            % Input  : - Column name (char)
-            % Output : - FITS keyword (char, max 8 chars)
-
-            if contains(ColName, 'APER_')
-                Suffix = extractAfter(ColName, 'APER_');
-                KeyName = ['APCOR_A', Suffix];
-            elseif endsWith(ColName, 'PSF')
-                KeyName = 'APCOR_PS';
+            % ---- Normalize dimensions ----
+            % EpochAIs: [Nepoch × Ncrop]. Obj: [1 × Ncrop].
+            Ncrop = numel(Obj);
+            SizeAI = size(EpochAIs);
+            if Ncrop == 1
+                EpochAIs = EpochAIs(:);  % force column
+                Nepoch   = numel(EpochAIs);
             else
-                % Generic: take last 2 chars of column name
-                Tag = ColName(max(1, end-1):end);
-                KeyName = ['APCOR_', Tag];
+                if SizeAI(2) ~= Ncrop
+                    if SizeAI(1) == Ncrop
+                        EpochAIs = EpochAIs.';  % transpose to [Nepoch × Ncrop]
+                        SizeAI = size(EpochAIs);
+                    else
+                        error('PhotCalibTrans:applyPhotCalibShifts:BadShape', ...
+                            'EpochAIs must be [Nepoch x Ncrop] with Ncrop=%d.', Ncrop);
+                    end
+                end
+                Nepoch = SizeAI(1);
             end
+
+            % =============================================================
+            % Step 1: Obtain DeltaZP — from input or from MS
+            % =============================================================
+
+            if ~isempty(Args.DeltaZP)
+                DeltaZP = Args.DeltaZP;
+                % Accept zp_meddiff output struct array: [1 x Ncrop] with .FitZP
+                if isstruct(DeltaZP) && isfield(DeltaZP, 'FitZP')
+                    DZmat = nan(Nepoch, numel(DeltaZP));
+                    for Ic = 1:numel(DeltaZP)
+                        DZmat(:, Ic) = DeltaZP(Ic).FitZP(:);
+                    end
+                    DeltaZP = DZmat;
+                end
+                if Ncrop == 1
+                    DeltaZP = DeltaZP(:);
+                end
+                if ~isequal(size(DeltaZP), [Nepoch, Ncrop])
+                    error('PhotCalibTrans:applyPhotCalibShifts:BadDeltaZP', ...
+                        'DeltaZP size must be [%d x %d], got [%d x %d].', ...
+                        Nepoch, Ncrop, size(DeltaZP,1), size(DeltaZP,2));
+                end
+            elseif ~isempty(Args.MS)
+                DeltaZP = nan(Nepoch, Ncrop);
+                MScell = Args.MS;
+                if ~iscell(MScell)
+                    MScell = {MScell};
+                end
+                for Ic = 1:Ncrop
+                    DeltaZP(:, Ic) = computeDeltaZPfromMS(MScell{Ic}, Nepoch, ...
+                        Args.FluxField, Args.FluxErrField, ...
+                        Args.RefEpoch, Args.UseWeightedMedian);
+                end
+            else
+                error('PhotCalibTrans:applyPhotCalibShifts:NoInput', ...
+                    'Provide either DeltaZP matrix or MS (MatchedSources).');
+            end
+
+            % Mean-center DeltaZP per crop: coadd ZP reflects the pooled
+            % data level across epochs, not epoch 1's level. No-op if the
+            % input is already centered.
+            DeltaZP = DeltaZP - mean(DeltaZP, 1, 'omitnan');
+
+            % =============================================================
+            % Step 2: Loop over crops (outer), epochs (inner)
+            %         evaluateZP called ONCE per crop (Ncrop× total).
+            %         Tran2D.forward called per epoch (cheap).
+            % =============================================================
+
+            NormPerEpoch = nan(Nepoch, Ncrop);
+
+            for Ic = 1:Ncrop
+                PC_c = Obj(Ic);
+
+                AllFunPar = PC_c.TransModel.getAllFunPar();
+                NormIdx   = find(strcmp(AllFunPar.Name, 'Norm'), 1);
+                NormOrig  = AllFunPar.Val(NormIdx);
+                ExpTime_coadd = PC_c.ExpTime / PC_c.NCoadd;
+
+                % Per-crop template header (PT_*/APCOR rows only). Cheaper
+                % per-epoch path: pre-locate the PT_1_V1 (Norm) row so we can
+                % patch it once and append the whole block in a single
+                % Data-setter call instead of ~100 replaceVal invocations.
+                if Args.UpdateHeader
+                    TemplateHeader = AstroHeader();
+                    PC_c.photCalibTransToHeader(TemplateHeader);
+                    TemplateKeys = TemplateHeader.Data;
+                    NormRowIdx = find(strcmp(TemplateKeys(:, 1), 'PT_1_V1'), 1, 'last');
+                end
+
+                % Expensive scalar ZP_base (transmission integral) once per crop
+                ZP_base   = PC_c.evaluateZP('MagSystem', Args.MagSystem);
+                HasTran2D = ~isempty(PC_c.TransModel.Tran2DObj) && PC_c.TransModel.UseTran2D;
+
+                if Args.Verbose
+                    fprintf('  Crop %02d: ZP_base=%.4f, Norm=%.6f\n', ...
+                        Ic, ZP_base, NormOrig);
+                end
+
+                for Ie = 1:Nepoch
+                    dZP = DeltaZP(Ie, Ic);
+                    NormNew = NormOrig;
+                    if isfinite(dZP)
+                        NormNew = NormOrig * 10^(dZP / 2.5);
+                    end
+                    NormPerEpoch(Ie, Ic) = NormNew;
+
+                    AIie = EpochAIs(Ie, Ic);
+                    if isa(AIie, 'AstroImage')
+                        CatObj = AIie.CatData;
+                    else
+                        CatObj = AIie;
+                    end
+                    HasCat = ~isempty(CatObj) && ~isempty(CatObj.Table) && height(CatObj.Table) > 0;
+
+                    ExpTime_epoch = ExpTime_coadd;
+                    if isa(AIie, 'AstroImage') && ~isempty(AIie.HeaderData)
+                        ExpTimeVal = AIie.HeaderData.getVal('EXPTIME');
+                        if ~isempty(ExpTimeVal) && isnumeric(ExpTimeVal)
+                            ExpTime_epoch = ExpTimeVal;
+                        end
+                    end
+
+                    if HasCat && (Args.AddMag || Args.AddZP)
+                        % Direct numeric access — avoids per-call array2table
+                        % from CatObj.Table getter.
+                        AllColNames = CatObj.ColNames;
+                        Nrows       = size(CatObj.Catalog, 1);
+
+                        Xidx = find(strcmp(AllColNames, 'X'), 1);
+                        Yidx = find(strcmp(AllColNames, 'Y'), 1);
+                        if HasTran2D && ~isempty(Xidx) && ~isempty(Yidx)
+                            Xcol = CatObj.Catalog(:, Xidx);
+                            Ycol = CatObj.Catalog(:, Yidx);
+                            [FieldCorr, ~] = PC_c.TransModel.Tran2DObj.forward([Xcol, Ycol]);
+                            ZP_epoch = (ZP_base - FieldCorr(:)) + dZP;
+                        else
+                            ZP_epoch = repmat(ZP_base + dZP, Nrows, 1);
+                        end
+
+                        if Args.AddZP
+                            ZPColName = [Args.MagSystem, '_ZP'];
+                            CatObj = CatObj.insertCol(ZP_epoch, Inf, {ZPColName});
+                        end
+
+                        if Args.AddMag
+                            MagPrefix = ['MAG_', Args.MagSystem, '_'];
+                            IsFlux    = startsWith(AllColNames, 'FLUX_');
+                            FluxColIdx   = find(IsFlux);
+                            FluxColNames = AllColNames(IsFlux);
+                            for I = 1:numel(FluxColNames)
+                                Flux_col = CatObj.Catalog(:, FluxColIdx(I));
+                                Mag = convert.luptitude(Flux_col / ExpTime_epoch, ...
+                                    10.^(0.4 .* ZP_epoch));
+                                NewMagColName = strrep(FluxColNames{I}, 'FLUX_', MagPrefix);
+
+                                if Args.ApplyAperCorr && ~isempty(PC_c.AperCorr) && ...
+                                        ~isempty(PC_c.AperCorrColNames)
+                                    % Match AperCorrColNames stored in either
+                                    % mag mode (MAG_<sys>_*) or flux mode (FLUX_*).
+                                    AperIdx = find(strcmp(PC_c.AperCorrColNames, NewMagColName) | ...
+                                                   strcmp(PC_c.AperCorrColNames, FluxColNames{I}), 1);
+                                    if ~isempty(AperIdx) && isfinite(PC_c.AperCorr(AperIdx))
+                                        % Sign matches fitPhotCalibTrans / calcAperCorr:
+                                        % AperCorr = MagRef - MagAper (<=0 for smaller apertures),
+                                        % applied as Mag + AperCorr.
+                                        Mag = Mag + PC_c.AperCorr(AperIdx);
+                                    end
+                                end
+
+                                CatObj = CatObj.insertCol(Mag, Inf, {NewMagColName});
+
+                                FluxErrCol = strrep(FluxColNames{I}, 'FLUX_', 'FLUXERR_');
+                                MagErrCol  = [NewMagColName, '_ERR'];
+                                FluxErrIdx = find(strcmp(AllColNames, FluxErrCol), 1);
+                                if ~isempty(FluxErrIdx)
+                                    FluxErr = CatObj.Catalog(:, FluxErrIdx);
+                                    MagErr = nan(Nrows, 1);
+                                    ValidFlux = Flux_col > 0 & isfinite(Flux_col) & isfinite(FluxErr);
+                                    MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux) ./ Flux_col(ValidFlux);
+                                    CatObj = CatObj.insertCol(MagErr, Inf, {MagErrCol});
+                                else
+                                    MagErrFallback = strrep(FluxColNames{I}, 'FLUX_', 'MAGERR_');
+                                    MagErrIdx = find(strcmp(AllColNames, MagErrFallback), 1);
+                                    if ~isempty(MagErrIdx)
+                                        CatObj = CatObj.insertCol(CatObj.Catalog(:, MagErrIdx), Inf, {MagErrCol});
+                                    else
+                                        CatObj = CatObj.insertCol(nan(Nrows, 1), Inf, {MagErrCol});
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    if isa(AIie, 'AstroImage')
+                        EpochAIs(Ie, Ic).CatData = CatObj;
+                    end
+
+                    if Args.UpdateHeader && isa(AIie, 'AstroImage') && ~isempty(AIie.HeaderData)
+                        EpochHeader = EpochAIs(Ie, Ic).HeaderData;
+                        EpochHeader.deleteKey({'PT_.*', 'APCOR.*'});
+                        EpochTemplate = TemplateKeys;
+                        if ~isempty(NormRowIdx)
+                            EpochTemplate{NormRowIdx, 2} = NormNew;
+                        end
+                        EpochHeader.Data = [EpochHeader.Data; EpochTemplate];
+                    end
+                end
+            end
+
         end
-        function CBP = buildConstBandParams(PCArray, Args)
+
+        function CBP = buildConstBandParams(Obj, Args)
             % Build constant-band parameters from fitted PhotCalibTrans objects.
             %   Extracts fitted atmospheric parameters (excluding Norm,
             %   ZenithAngle_deg, Temperature_C) from each object's TransModel.
@@ -3667,10 +4106,10 @@ classdef PhotCalibTrans < Component
             %     'aggregate' (default) — robust median/mean across all objects.
             %     'single' — extract from a single object directly (no aggregation).
             %   Optionally saves to .mat file with date in filename.
-            % Input  : - PCArray — array or cell array of PhotCalibTrans objects.
-            %            For Source='single', a single object (or the first
-            %            successful object in the array is used).
-            %            Cell arrays are flattened; non-Success objects are skipped.
+            % Input  : - Obj — PhotCalibTrans array (flat). Non-Success objects
+            %            are skipped. If a cell of arrays, flatten first at the
+            %            call site: [PC_cell{:}].buildConstBandParams(...).
+            %            For Source='single', the first successful object is used.
             %          * ...,key,val,...
             %            'Source'     - 'aggregate' (median/mean across objects)
             %                        or 'single' (extract from one object).
@@ -3686,31 +4125,25 @@ classdef PhotCalibTrans < Component
             % Output : - ConstBandParams struct with one field per parameter.
             %            Also contains .CreatedDate, .NObjects, .Method metadata.
             % Author : D. Kovaleva (Mar 2026)
-            % Example: % Aggregate from cached PC files:
+            % Example: % Aggregate:
+            %          CBP = PC_all.buildConstBandParams();
+            %          % From cached cell storage:
             %          S = load('results/PC_percrop.mat');
-            %          CBP = PhotCalibTrans.buildConstBandParams(S.PC_all);
-            %          CBP = PhotCalibTrans.buildConstBandParams(S.PC_all, ...
-            %              'OutputPath', '~/matlab/data/spec/Telescope/LAST');
-            %
-            %          % Single crop (e.g., crop 10 of visit 1):
-            %          CBP = PhotCalibTrans.buildConstBandParams(PC_all{1}(10), ...
-            %              'Source', 'single');
+            %          CBP = [S.PC_all{:}].buildConstBandParams('OutputPath', '~/data');
+            %          % Single crop:
+            %          CBP = PC_all(10).buildConstBandParams('Source', 'single');
 
             arguments
-                PCArray
+                Obj  PhotCalibTrans
                 Args.Source = 'aggregate'       % 'aggregate' or 'single'
                 Args.Method = 'median'
                 Args.OutputPath = ''
                 Args.OutputName = 'ConstBandParams_LAST'
                 Args.ExcludeParams cell = {}
-                Args.Verbose logical = true
+                Args.Verbose logical = false
             end
 
-            % Flatten cell arrays
-            if iscell(PCArray)
-                PCArray = [PCArray{:}];
-            end
-            PCArray = PCArray(:);
+            PCArray = Obj(:);
 
             % Parameters to always exclude
             AlwaysExclude = {'Norm', 'ZenithAngle_deg', 'Temperature_C'};
@@ -3828,263 +4261,52 @@ classdef PhotCalibTrans < Component
                 end
             end
         end
+    end
 
-        function [EpochAIs, NormPerEpoch, DeltaZP] = applyPhotCalibShifts(PC, EpochAIs, Args)
-            % Apply coadd photometric calibration to individual epoch images.
-            %   Handles multi-crop layout: EpochAIs is [Nepoch × Ncrop] and
-            %   PC is [1 × Ncrop]. DeltaZP is [Nepoch × Ncrop] matrix (from
-            %   lcUtil.zp_meddiff per crop). The expensive transmission-integral
-            %   evaluation runs ONCE per crop, with cheap position-dependent
-            %   Tran2D correction per epoch. Scalar PC / 1-D EpochAIs are
-            %   accepted (treated as Ncrop = 1).
-            % Input  : - [1 × Ncrop] PhotCalibTrans array (one per crop).
-            %          - [Nepoch × Ncrop] AstroImage matrix. May be [Nepoch × 1]
-            %            when Ncrop = 1.
-            %          * ...,key,val,...
-            %            'DeltaZP'   - [Nepoch × Ncrop] pre-computed ZP shifts
-            %                        [mag]. Same sign as zp_meddiff.FitZP:
-            %                        positive when epoch is fainter.
-            %                        Default is [] (compute from MS).
-            %            'MS'        - Cell array {Ncrop} of MatchedSources,
-            %                        one per crop, or scalar MatchedSources for
-            %                        Ncrop = 1. Used when DeltaZP is empty.
-            %            'FluxField' - Flux field in MS.Data. Default is 'FLUX_APER_3'.
-            %            'FluxErrField' - Flux error field. Default is 'FLUXERR_APER_3'.
-            %            'RefEpoch'  - Reference epoch for MS-based DeltaZP.
-            %                        Default is 1.
-            %            'UseWeightedMedian' - Use weighted median for MS-based
-            %                        DeltaZP. Default is true.
-            %            'AddMag'    - Add MAG columns. Default is true.
-            %            'AddZP'     - Add ZP column. Default is true.
-            %            'ApplyAperCorr' - Apply inherited aperture corrections
-            %                        to MAG_<System>_* columns. Default is true.
-            %            'UpdateHeader' - Write PT_* to epoch headers. Default is true.
-            %            'MagSystem' - Magnitude system. Default is 'AB'.
-            %            'Verbose'   - Print progress. Default is true.
-            % Output : - Updated AstroImages with MAG, ZP, header.
-            %          - [Nepoch × Ncrop] per-epoch Norm values.
-            %          - [Nepoch × Ncrop] DeltaZP matrix [mag].
-            % Author : D. Kovaleva (Apr 2026)
-            % Example: % Multi-crop fast path:
-            %          [AIs, Norms, DZP] = PhotCalibTrans.applyPhotCalibShifts( ...
-            %              PC_coadd, AllSI, 'DeltaZP', ZPdif);
+    methods (Static)
+        function [Row, Col] = cropID2RowCol(CropID, Nrows, Ncols, TileOrder)
+            % Convert CropID to grid (Row, Col) position
+            % Input  : - CropID (scalar integer, 1-based)
+            %          - Nrows - number of rows in grid
+            %          - Ncols - number of columns in grid
+            %          - TileOrder - 'colmajor' or 'rowmajor'
+            %            'colmajor' (old pipeline): CropIDs fill bottom-to-top,
+            %              then left-to-right. CropID 1..Nrows = column 1, etc.
+            %            'rowmajor' (new pipeline): CropIDs fill left-to-right,
+            %              then bottom-to-top. CropID 1..Ncols = row 1, etc.
+            % Output : - Row (1-based, 1 = bottom)
+            %          - Col (1-based, 1 = left)
 
-            arguments
-                PC
-                EpochAIs
-                Args.DeltaZP = []
-                Args.MS = []
-                Args.FluxField = 'FLUX_APER_3'
-                Args.FluxErrField = 'FLUXERR_APER_3'
-                Args.RefEpoch = 1
-                Args.UseWeightedMedian logical = true
-                Args.AddMag logical = true
-                Args.AddZP logical = true
-                Args.ApplyAperCorr logical = true
-                Args.UpdateHeader logical = true
-                Args.MagSystem char = 'AB'
-                Args.Verbose logical = true
+            switch lower(TileOrder)
+                case 'colmajor'
+                    Col = ceil(CropID / Nrows);
+                    Row = mod(CropID - 1, Nrows) + 1;
+                case 'rowmajor'
+                    Row = ceil(CropID / Ncols);
+                    Col = mod(CropID - 1, Ncols) + 1;
+                otherwise
+                    error('PhotCalibTrans:cropID2RowCol:BadTileOrder', ...
+                          'TileOrder must be ''colmajor'' or ''rowmajor'', got ''%s''.', TileOrder);
             end
+        end
 
-            % ---- Normalize dimensions ----
-            % EpochAIs: [Nepoch × Ncrop]. PC: [1 × Ncrop].
-            Ncrop = numel(PC);
-            SizeAI = size(EpochAIs);
-            if Ncrop == 1
-                EpochAIs = EpochAIs(:);  % force column
-                Nepoch   = numel(EpochAIs);
+        function KeyName = fluxCol2AperCorrKey(ColName)
+            % Convert flux/mag column name to FITS header keyword (max 8 chars)
+            %   FLUX_APER_1 / MAG_AB_APER_1 / MAG_APER_1 -> APCOR_A1
+            %   FLUX_PSF    / MAG_AB_PSF                 -> APCOR_PS
+            % Input  : - Column name (char)
+            % Output : - FITS keyword (char, max 8 chars)
+
+            if contains(ColName, 'APER_')
+                Suffix = extractAfter(ColName, 'APER_');
+                KeyName = ['APCOR_A', Suffix];
+            elseif endsWith(ColName, 'PSF')
+                KeyName = 'APCOR_PS';
             else
-                if SizeAI(2) ~= Ncrop
-                    if SizeAI(1) == Ncrop
-                        EpochAIs = EpochAIs.';  % transpose to [Nepoch × Ncrop]
-                        SizeAI = size(EpochAIs);
-                    else
-                        error('PhotCalibTrans:applyPhotCalibShifts:BadShape', ...
-                            'EpochAIs must be [Nepoch x Ncrop] with Ncrop=%d.', Ncrop);
-                    end
-                end
-                Nepoch = SizeAI(1);
+                % Generic: take last 2 chars of column name
+                Tag = ColName(max(1, end-1):end);
+                KeyName = ['APCOR_', Tag];
             end
-
-            % =============================================================
-            % Step 1: Obtain DeltaZP — from input or from MS
-            % =============================================================
-
-            if ~isempty(Args.DeltaZP)
-                DeltaZP = Args.DeltaZP;
-                % Accept zp_meddiff output struct array: [1 x Ncrop] with .FitZP
-                if isstruct(DeltaZP) && isfield(DeltaZP, 'FitZP')
-                    DZmat = nan(Nepoch, numel(DeltaZP));
-                    for Ic = 1:numel(DeltaZP)
-                        DZmat(:, Ic) = DeltaZP(Ic).FitZP(:);
-                    end
-                    DeltaZP = DZmat;
-                end
-                if Ncrop == 1
-                    DeltaZP = DeltaZP(:);
-                end
-                if ~isequal(size(DeltaZP), [Nepoch, Ncrop])
-                    error('PhotCalibTrans:applyPhotCalibShifts:BadDeltaZP', ...
-                        'DeltaZP size must be [%d x %d], got [%d x %d].', ...
-                        Nepoch, Ncrop, size(DeltaZP,1), size(DeltaZP,2));
-                end
-            elseif ~isempty(Args.MS)
-                DeltaZP = nan(Nepoch, Ncrop);
-                MScell = Args.MS;
-                if ~iscell(MScell)
-                    MScell = {MScell};
-                end
-                for Ic = 1:Ncrop
-                    DeltaZP(:, Ic) = computeDeltaZPfromMS(MScell{Ic}, Nepoch, ...
-                        Args.FluxField, Args.FluxErrField, ...
-                        Args.RefEpoch, Args.UseWeightedMedian);
-                end
-            else
-                error('PhotCalibTrans:applyPhotCalibShifts:NoInput', ...
-                    'Provide either DeltaZP matrix or MS (MatchedSources).');
-            end
-
-            % =============================================================
-            % Step 2: Loop over crops (outer), epochs (inner)
-            %         evaluateZP called ONCE per crop (Ncrop× total).
-            %         Tran2D.forward called per epoch (cheap).
-            % =============================================================
-
-            NormPerEpoch = nan(Nepoch, Ncrop);
-
-            for Ic = 1:Ncrop
-                PC_c = PC(Ic);
-
-                AllFunPar = PC_c.TransModel.getAllFunPar();
-                NormIdx   = find(strcmp(AllFunPar.Name, 'Norm'), 1);
-                NormOrig  = AllFunPar.Val(NormIdx);
-                ExpTime_coadd = PC_c.ExpTime / PC_c.NCoadd;
-
-                % Per-crop template header (PT_*/APCOR rows only). Cheaper
-                % per-epoch path: pre-locate the PT_1_V1 (Norm) row so we can
-                % patch it once and append the whole block in a single
-                % Data-setter call instead of ~100 replaceVal invocations.
-                if Args.UpdateHeader
-                    TemplateHeader = AstroHeader();
-                    PC_c.photCalibTransToHeader(TemplateHeader);
-                    TemplateKeys = TemplateHeader.Data;
-                    NormRowIdx = find(strcmp(TemplateKeys(:, 1), 'PT_1_V1'), 1, 'last');
-                end
-
-                % Expensive scalar ZP_base (transmission integral) once per crop
-                ZP_base   = PC_c.evaluateZP('MagSystem', Args.MagSystem);
-                HasTran2D = ~isempty(PC_c.TransModel.Tran2DObj) && PC_c.TransModel.UseTran2D;
-
-                if Args.Verbose
-                    fprintf('  Crop %02d: ZP_base=%.4f, Norm=%.6f\n', ...
-                        Ic, ZP_base, NormOrig);
-                end
-
-                for Ie = 1:Nepoch
-                    dZP = DeltaZP(Ie, Ic);
-                    NormNew = NormOrig;
-                    if isfinite(dZP)
-                        NormNew = NormOrig * 10^(dZP / 2.5);
-                    end
-                    NormPerEpoch(Ie, Ic) = NormNew;
-
-                    AIie = EpochAIs(Ie, Ic);
-                    if isa(AIie, 'AstroImage')
-                        CatObj = AIie.CatData;
-                    else
-                        CatObj = AIie;
-                    end
-                    HasCat = ~isempty(CatObj) && ~isempty(CatObj.Table) && height(CatObj.Table) > 0;
-
-                    ExpTime_epoch = ExpTime_coadd;
-                    if isa(AIie, 'AstroImage') && ~isempty(AIie.HeaderData)
-                        ExpTimeVal = AIie.HeaderData.getVal('EXPTIME');
-                        if ~isempty(ExpTimeVal) && isnumeric(ExpTimeVal)
-                            ExpTime_epoch = ExpTimeVal;
-                        end
-                    end
-
-                    if HasCat && (Args.AddMag || Args.AddZP)
-                        % Direct numeric access — avoids per-call array2table
-                        % from CatObj.Table getter.
-                        AllColNames = CatObj.ColNames;
-                        Nrows       = size(CatObj.Catalog, 1);
-
-                        Xidx = find(strcmp(AllColNames, 'X'), 1);
-                        Yidx = find(strcmp(AllColNames, 'Y'), 1);
-                        if HasTran2D && ~isempty(Xidx) && ~isempty(Yidx)
-                            Xcol = CatObj.Catalog(:, Xidx);
-                            Ycol = CatObj.Catalog(:, Yidx);
-                            [FieldCorr, ~] = PC_c.TransModel.Tran2DObj.forward([Xcol, Ycol]);
-                            ZP_epoch = (ZP_base - FieldCorr(:)) + dZP;
-                        else
-                            ZP_epoch = repmat(ZP_base + dZP, Nrows, 1);
-                        end
-
-                        if Args.AddZP
-                            ZPColName = [Args.MagSystem, '_ZP'];
-                            CatObj = CatObj.insertCol(ZP_epoch, Inf, {ZPColName});
-                        end
-
-                        if Args.AddMag
-                            MagPrefix = ['MAG_', Args.MagSystem, '_'];
-                            IsFlux    = startsWith(AllColNames, 'FLUX_');
-                            FluxColIdx   = find(IsFlux);
-                            FluxColNames = AllColNames(IsFlux);
-                            for I = 1:numel(FluxColNames)
-                                Flux_col = CatObj.Catalog(:, FluxColIdx(I));
-                                Mag = convert.luptitude(Flux_col / ExpTime_epoch, ...
-                                    10.^(0.4 .* ZP_epoch));
-                                NewMagColName = strrep(FluxColNames{I}, 'FLUX_', MagPrefix);
-
-                                if Args.ApplyAperCorr && ~isempty(PC_c.AperCorr) && ...
-                                        ~isempty(PC_c.AperCorrColNames)
-                                    AperIdx = find(strcmp(PC_c.AperCorrColNames, FluxColNames{I}), 1);
-                                    if ~isempty(AperIdx) && isfinite(PC_c.AperCorr(AperIdx))
-                                        Mag = Mag - PC_c.AperCorr(AperIdx);
-                                    end
-                                end
-
-                                CatObj = CatObj.insertCol(Mag, Inf, {NewMagColName});
-
-                                FluxErrCol = strrep(FluxColNames{I}, 'FLUX_', 'FLUXERR_');
-                                MagErrCol  = [NewMagColName, '_ERR'];
-                                FluxErrIdx = find(strcmp(AllColNames, FluxErrCol), 1);
-                                if ~isempty(FluxErrIdx)
-                                    FluxErr = CatObj.Catalog(:, FluxErrIdx);
-                                    MagErr = nan(Nrows, 1);
-                                    ValidFlux = Flux_col > 0 & isfinite(Flux_col) & isfinite(FluxErr);
-                                    MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux) ./ Flux_col(ValidFlux);
-                                    CatObj = CatObj.insertCol(MagErr, Inf, {MagErrCol});
-                                else
-                                    MagErrFallback = strrep(FluxColNames{I}, 'FLUX_', 'MAGERR_');
-                                    MagErrIdx = find(strcmp(AllColNames, MagErrFallback), 1);
-                                    if ~isempty(MagErrIdx)
-                                        CatObj = CatObj.insertCol(CatObj.Catalog(:, MagErrIdx), Inf, {MagErrCol});
-                                    else
-                                        CatObj = CatObj.insertCol(nan(Nrows, 1), Inf, {MagErrCol});
-                                    end
-                                end
-                            end
-                        end
-                    end
-
-                    if isa(AIie, 'AstroImage')
-                        EpochAIs(Ie, Ic).CatData = CatObj;
-                    end
-
-                    if Args.UpdateHeader && isa(AIie, 'AstroImage') && ~isempty(AIie.HeaderData)
-                        EpochHeader = EpochAIs(Ie, Ic).HeaderData;
-                        EpochHeader.deleteKey({'PT_.*', 'APCOR.*'});
-                        EpochTemplate = TemplateKeys;
-                        if ~isempty(NormRowIdx)
-                            EpochTemplate{NormRowIdx, 2} = NormNew;
-                        end
-                        EpochHeader.Data = [EpochHeader.Data; EpochTemplate];
-                    end
-                end
-            end
-
         end
     end
 
@@ -4128,6 +4350,4 @@ function DeltaZP = computeDeltaZPfromMS(MS, Nepoch, FluxField, FluxErrField, Ref
             DeltaZP(Ie) = median(DiffMag(Ie, ValidMask(Ie, :)), 'omitnan');
         end
     end
-
-    DeltaZP = DeltaZP - mean(DeltaZP, 'omitnan');
 end

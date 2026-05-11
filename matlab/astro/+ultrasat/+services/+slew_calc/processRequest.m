@@ -3,17 +3,18 @@
 % Filename    : ultrasat/+services/+slew_calc/processRequest.m
 % Author      : Chen Tishler
 % Created     : 02/11/2025
-% Modified    : 10/02/2026
-% Description : MATLAB service to calculate slew time between targets
+% Modified    : 10/05/2026
+% Description : MATLAB service to calculate slew time between targets (RA/Dec per calcSlew; roll accepted but ignored)
 %==========================================================================
 
 function Output = processRequest(Input)
-% Process request: dispatch on action (flat JSON, no inner json_text).
-%
-% Input  : item struct with .action ('health'|'slew'|'slew_batch') and action-specific fields
-% Output : flat struct: .message, .result; for slew also .slew, .direct; for batch .results
-%
-% Author : Chen Tishler (2021), refactored for flat API (2026)
+    % Process request: dispatch on action (flat JSON, no inner json_text).
+    %
+    % Input  : item struct with .action ('health'|'slew'|'slew_batch') and action-specific fields.
+    %            Attitude objects may include .roll (Python Attitude model); slew time is RA/Dec-only — roll is not used.
+    % Output : ApiBaseResponse-style: .status ('ok'|'error'), .message; for 'slew' also .slew, .direct; for 'slew_batch' .results
+    %
+    % Author : Chen Tishler (2021), refactored for flat API (2026)
 
     Output = struct;
     Output.status = '?';    
@@ -40,6 +41,10 @@ end
 % ===========================================================================
 
 function Output = processSlew(Input)
+    % Process slew request: calculate slew time between two points
+    % Input:   Input - input struct with .from.ra, .from.dec, .to.ra, .to.dec, optional .from/.to.roll, .time
+    % Output:  Output - output struct with .status, .message, .slew, .direct
+    % Example: Output = processSlew(Input);
 
     try
 
@@ -52,6 +57,8 @@ function Output = processSlew(Input)
         if isfield(Input, 'time') && ~isempty(Input.time)
             timeIso = Input.time;
         end
+
+        logRollIgnoredIfSignificant(Input.from, Input.to, 'slew');
 
         % Calculate
         res = ultrasat.services.slew_calc.calcSlewWrapper(ra1, dec1, ra2, dec2, timeIso);
@@ -67,12 +74,20 @@ function Output = processSlew(Input)
         io.msgLog(LogLevel.Error, Output.message);
     end
 end
+
 % ===========================================================================
 
 function Output = processSlewBatch(Input)
+    % Process slew batch request: calculate slew time between multiple pairs of points
+    % Input:   Input - input struct with .pairs, .time
+    % Output:  Output - output struct with .status, .message, .results
+    % Example: Output = processSlewBatch(Input);
+
     try
         if ~isfield(Input, 'pairs')
+            Output.status = 'error';
             Output.message = 'processSlewBatch: Missing field "pairs"';
+            Output.results = [];
             return;
         end
         pairs = Input.pairs;
@@ -91,6 +106,8 @@ function Output = processSlewBatch(Input)
             ra2 = p.to.ra;
             dec2 = p.to.dec;
 
+            logRollIgnoredIfSignificant(p.from, p.to, sprintf('slew_batch pair %d', i));
+
             % Calculate
             res = ultrasat.services.slew_calc.calcSlewWrapper(ra1, dec1, ra2, dec2, timeIso);
             results(i).slew   = res.slew;
@@ -105,6 +122,33 @@ function Output = processSlewBatch(Input)
         Output.message = sprintf('MATLAB: processSlewBatch exception: %s', ex.message);
         Output.status  = 'error';
         io.msgLog(LogLevel.Error, Output.message);
+    end
+end
+
+% ===========================================================================
+
+function r = attitudeRollDeg(S)
+    % Default roll 0 when field absent (JSON attitude may omit roll)
+    if isstruct(S) && isfield(S, 'roll') && ~isempty(S.roll)
+        r = double(S.roll);
+    else
+        r = 0;
+    end
+end
+
+
+function logRollIgnoredIfSignificant(FromS, ToS, ContextTag)
+    % Log once at Debug when roll delta is non-zero; slew time remains RA/Dec-only.
+    arguments
+        FromS
+        ToS
+        ContextTag (1, :) char = ''
+    end
+    dRoll = attitudeRollDeg(ToS) - attitudeRollDeg(FromS);
+    if abs(dRoll) > 1e-6
+        io.msgLog(LogLevel.Debug, ...
+            'slew_calc: ignoring roll delta (%.6g deg) for %s; result is RA/Dec slew only', ...
+            dRoll, ContextTag);
     end
 end
 

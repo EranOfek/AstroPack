@@ -143,7 +143,7 @@ function [ResultFit, AI, CatName] = astrometrySingleImage(AI, Args)
         Args.RefRangeMag = Args.RefRangeMag + Diff;
     end
     
-    if ~isempty(Args.RA) && ~isempty(Args.Dec)
+   if ~isempty(Args.RA) && ~isempty(Args.Dec)
         RA        = Args.RA  + Args.CooOffset(1);
         Dec       = Args.Dec + Args.CooOffset(2);
         InitWCS   = Args.InitWCS;

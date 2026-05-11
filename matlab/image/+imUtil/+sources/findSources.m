@@ -155,7 +155,8 @@ function [Result,Template,FiltImage,FiltImageVar, Streaks] = findSources(Image, 
     [SN,Flux,FiltImage,FiltImageVar] = imUtil.filter.filter2_snBank(Image,Back,Var,Template);
 
     if Args.SearchStreaks
-        [Streaks.Segs, Streaks.Phot, Streaks.Parfit] = imUtil.streaks.detectStreaksLSD(Image-Back, squeeze(SN(:,:,Args.StreaksFilterInd)), Args.detectStreaksLSDArgs{:});
+        %[Streaks.Segs, Streaks.Phot, Streaks.Parfit] = imUtil.streaks.detectStreaksLSD(Image-Back, squeeze(SN(:,:,Args.StreaksFilterInd)), Args.detectStreaksLSDArgs{:});
+        [Streaks] = imUtil.streaks.detectStreaksLSD(Image-Back, squeeze(SN(:,:,Args.StreaksFilterInd)), Args.detectStreaksLSDArgs{:});
     else
         Streaks = [];
     end
