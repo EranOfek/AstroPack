@@ -282,7 +282,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
     double* sigma_series = new double[M];
     
     // Output 1: C (4xM)
-    plhs[0] = mxCreateDoubleMatrix(4, M, mxREAL);
+    plhs[0] = mxCreateDoubleMatrix(5, M, mxREAL);
     double* C = (double*)mxGetPr(plhs[0]);
     
     // Initialize C with NaN
@@ -324,10 +324,11 @@ void mexFunction(int nlhs, mxArray* plhs[],
                          A, mu, sigma, rsquare);
         
         // Store results
-        C[slice * 4 + 0] = A;
-        C[slice * 4 + 1] = mu;
-        C[slice * 4 + 2] = sigma;
-        C[slice * 4 + 3] = rsquare;
+        C[slice * 5 + 0] = A;
+        C[slice * 5 + 1] = mu;
+        C[slice * 5 + 2] = sigma;
+        C[slice * 5 + 3] = rsquare;
+        C[slice * 5 + 4] = 1; // acceptable; will be turned to 0 if not, below
         
         A_series[slice] = A;
         sigma_series[slice] = sigma;
@@ -354,19 +355,17 @@ void mexFunction(int nlhs, mxArray* plhs[],
             }
         }
 
-        A = C[slice * 4 + 0];
-        mu = C[slice * 4 + 1];
-        sigma = C[slice * 4 + 2];
-        rsquare = C[slice * 4 + 3];
+        A = C[slice * 5 + 0];
+        mu = C[slice * 5 + 1];
+        sigma = C[slice * 5 + 2];
+        rsquare = C[slice * 5 + 3];
 
         // Set goodindices
         if (rsquare < rthreshold || A > medianclip*A_median || sigma > medianclip*sigma_median) {
             for (int idx : indices) {
                 goodindices[idx] = false;
             }
-            C[slice*4] = nan_val;
-            C[slice*4 + 1] = nan_val;
-            C[slice*4 + 2] = nan_val;
+            C[slice*5 + 4] = 0; // flag as not acceptable
         }
     }
 }

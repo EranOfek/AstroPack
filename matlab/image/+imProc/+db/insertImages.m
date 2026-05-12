@@ -158,7 +158,7 @@ function [T,Error,FileName] = insertImages(Obj, Args)
             ID = Args.ID_Origin;
         end
         % insert ID to table
-        T.(Args.ColNameID) = ID;
+        T.(Args.ColNameID) = ID';
     end
 
     % clean bad lines were RA or Dec = NaN:
