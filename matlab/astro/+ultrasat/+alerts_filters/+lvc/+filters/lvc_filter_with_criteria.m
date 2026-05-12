@@ -1,10 +1,10 @@
 %==========================================================================
 % Project     : ULTRASAT Observation Planner
-% File        : ultrasat.api.ClientBase.m
+% File        : ultrasat.alerts.filters.lvc_filter_with_criteria.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
-% Updated     : 06/10/2025
-% Description : Base class for interacting with REST API services.
+% Updated     : 12/05/2026
+% Description : LVC filter with criteria implementation.
 %==========================================================================
 
 function result = lvc_filter_with_criteria(alert, criteria, logger)

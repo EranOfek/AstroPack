@@ -1,12 +1,12 @@
 %==========================================================================
 % Project     : ULTRASAT SOC Alert Parser
-% File        : +alerts/debug/debug_LvcParsedAlert.m
+% File        : +ultrasat/+alerts_filters/+lvc/+debug/debug_LvcParsedAlert.m
 % Author      : Chen Tishler
 % Created     : 09/02/2026
-% Updated     : 09/02/2026
-% Description : Debug script for ultrasat.alerts.models.LvcParsedAlert
+% Updated     : 12/05/2026
+% Description : Debug script for ultrasat.alerts_filters.lvc.models.LvcParsedAlert
 %
-% Run by: ultrasat.alerts.debug_LvcParsedAlert()
+% Run by: ultrasat.alerts_filters.lvc.debug.debug_LvcParsedAlert()
 %==========================================================================
 
 function debug_LvcParsedAlert()
@@ -28,7 +28,7 @@ end
 
 function debugDefaultConstructor()
     fprintf('\n--- Default constructor ---\n');
-    alert = ultrasat.alerts.models.LvcParsedAlert();
+    alert = ultrasat.alerts_filters.lvc.models.LvcParsedAlert();
     disp(alert);
     fprintf('alert_id="%s", prob_bns=%s\n', alert.alert_id, num2str(alert.prob_bns));
 end
@@ -37,7 +37,7 @@ end
 
 function debugNameValueConstructor()
     fprintf('\n--- Name/value constructor ---\n');
-    alert = ultrasat.alerts.models.LvcParsedAlert( ...
+    alert = ultrasat.alerts_filters.lvc.models.LvcParsedAlert( ...
         "alert_id", "G12345", ...
         "superevent_id", "S12345", ...
         "prob_bns", 0.7, ...
@@ -52,7 +52,7 @@ end
 
 function debugToJsonString()
     fprintf('\n--- toJsonString ---\n');
-    alert = ultrasat.alerts.models.LvcParsedAlert( ...
+    alert = ultrasat.alerts_filters.lvc.models.LvcParsedAlert( ...
         "alert_id", "G99", "prob_bns", 0.5, "skymap_path", "/path/to/skymap.fits");
     result = alert.toJsonString();
     disp(result);
@@ -64,7 +64,7 @@ function debugFromJsonStringRoundTrip()
     fprintf('\n--- fromJsonString round-trip ---\n');
     jsonStr = ['{"alert_id":"G88","prob_bns":0.6,"far_per_year":1.2,', ...
         '"event_time":"2026-02-09T14:30:00","instruments":["H1","L1"]}'];
-    alert = ultrasat.alerts.models.LvcParsedAlert.fromJsonString(jsonStr);
+    alert = ultrasat.alerts_filters.lvc.models.LvcParsedAlert.fromJsonString(jsonStr);
     fprintf('After fromJsonString: alert_id="%s", prob_bns=%.2f\n', alert.alert_id, alert.prob_bns);
     back = alert.toJsonString();
     fprintf('Back to JSON (excerpt): %s\n', back);
@@ -80,7 +80,7 @@ function debugFromStruct()
     s.prob_bns = 0.8;
     s.instruments = ["H1", "L1", "V1"];
     s.raw_fields = struct("extra_key", "extra_value");
-    alert = ultrasat.alerts.models.LvcParsedAlert.fromStruct(s);
+    alert = ultrasat.alerts_filters.lvc.models.LvcParsedAlert.fromStruct(s);
     fprintf('alert_id="%s", prob_bns=%.2f\n', alert.alert_id, alert.prob_bns);
     fprintf('event_time: %s\n', string(alert.event_time));
     fprintf('instruments: %s\n', strjoin(alert.instruments, ", "));
@@ -95,7 +95,7 @@ function debugDatetimeHandling()
     s.time_created = "2026-02-09T08:00:00";
     s.event_time = "2026-02-09T09:15:30";
     s.parsed_time = "2026-02-09T09:16:00";
-    alert = ultrasat.alerts.models.LvcParsedAlert.fromStruct(s);
+    alert = ultrasat.alerts_filters.lvc.models.LvcParsedAlert.fromStruct(s);
     fprintf('time_created: %s\n', string(alert.time_created));
     fprintf('event_time: %s\n', string(alert.event_time));
     fprintf('parsed_time: %s\n', string(alert.parsed_time));
@@ -106,11 +106,11 @@ end
 
 function debugSaveLoadJson()
     fprintf('\n--- saveToJsonFile / loadFromJsonFile ---\n');
-    alert = ultrasat.alerts.models.LvcParsedAlert( ...
+    alert = ultrasat.alerts_filters.lvc.models.LvcParsedAlert( ...
         "alert_id", "G66", "prob_bns", 0.55, "far_per_year", 3.0);
     filePath = [tempname(), '.json'];
     alert.saveToJsonFile(filePath);
-    loaded = ultrasat.alerts.models.LvcParsedAlert.loadFromJsonFile(filePath);
+    loaded = ultrasat.alerts_filters.lvc.models.LvcParsedAlert.loadFromJsonFile(filePath);
     delete(filePath);
     assert(loaded.alert_id == alert.alert_id && loaded.prob_bns == alert.prob_bns, ...
         'Save/load round-trip failed');
@@ -121,9 +121,9 @@ end
 
 function debugFilterIntegration()
     fprintf('\n--- Integration: LvcParsedAlert + LvcFilterCriteria + lvc_filter_with_criteria ---\n');
-    alert = ultrasat.alerts.models.LvcParsedAlert( ...
+    alert = ultrasat.alerts_filters.lvc.models.LvcParsedAlert( ...
         "alert_id", "G55", "prob_bns", 0.6, "prob_nsbh", 0.2, "far_per_year", 5.0);
-    criteria = ultrasat.alerts.models.LvcFilterCriteria("bns_min", 0.3, "far_max", 10);
-    result = ultrasat.alerts.filters.lvc_filter_with_criteria(alert, criteria, MsgLogger.getSingleton());
+    criteria = ultrasat.alerts_filters.lvc.models.LvcFilterCriteria("bns_min", 0.3, "far_max", 10);
+    result = ultrasat.alerts_filters.lvc.filters.lvc_filter_with_criteria(alert, criteria, MsgLogger.getSingleton());
     %fprintf('Filter result: score=%.2f, reasons=%s\n', result.score, strjoin(result.reasons, "; "));
 end

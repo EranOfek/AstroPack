@@ -9,7 +9,7 @@
 
 function alerts_filter_service()
     % AlertsFilter service - main function
-	fprintf('alert_filter_service started\n');    
+	fprintf('alerts_filter_service started, V1.00 (12/05/2026)\n');    
 
     % Get the SOC_PATH environment variable
     SOC_PATH = getenv('SOC_PATH');
@@ -23,12 +23,13 @@ function alerts_filter_service()
 
     % Set the input path
     InputPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'alerts_filter', 'input');
-    ProcessedPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'alerts_filter', 'processed');    
+    ProcessedPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'alerts_filter', 'processed');
+    WatchdogFileName = fullfile(SOC_PATH, 'runtime', 'exchange', 'alerts_filter', 'alerts_filter.watchdog');
 
     % Create the JsonFileIpc object
     io.msgLog(LogLevel.Info, 'creating JsonFileIpc');    
     jsonIpc = ultrasat.services.common.JsonFileIpc('InputPath', InputPath, 'ProcessedPath', ProcessedPath, ...
-        'Callback', @ultrasat.services.alerts_filter.processRequest);
+        'Callback', @ultrasat.services.alerts_filter.processRequest, 'WatchdogFileName', WatchdogFileName);
 
     % Blocking loop: process files in the input folder, call processRequest.m for each file
     io.msgLog(LogLevel.Info, 'calling processLoop...');
