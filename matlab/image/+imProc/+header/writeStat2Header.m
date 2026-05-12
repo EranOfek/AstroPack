@@ -35,6 +35,8 @@ function [AI] = writeStat2Header(AI, Args)
         % background related
         Args.KeyMeanBack       = 'MEAN_BCK';
         Args.KeyRangeBack      = 'RNG_BCK';
+        Args.KeyMedChi2        = 'M_CHI2D'
+        Args.ColPsfChi2        = 'PSF_CHI2DOF';
         % stars related
         Args.KeyNstars         = 'N_STARS';
         Args.KeyMagQuant       = 'MAG_95Q';
@@ -60,7 +62,7 @@ function [AI] = writeStat2Header(AI, Args)
         ColsBack = {};
     end
     if Args.WriteStars
-        ColsStars = {Args.KeyNstars, Args.KeyMagQuant};
+        ColsStars = {Args.KeyNstars, Args.KeyMagQuant, Args.KeyMedChi2};
     else
         ColsStars = {};
     end
@@ -111,9 +113,9 @@ function [AI] = writeStat2Header(AI, Args)
             end
             Data(Idata) = quantile(Mag, Args.MagQuantile);
 
-            %Chi2Dof = Result(Iobj).CatData.getCol('PSF_CHI2DOF');
-               
-            %MedChi2Dof = median(Chi2Dof,'all','omitnan');
+            Idata = Idata + 1;
+            Chi2Dof = AI(Iai).CatData.getCol(Args.ColPsfChi2);
+            Data(Idata) = median(Chi2Dof,'all','omitnan');
         end
         % if Args.WritePSF
         %     Idata = Idata + 1;

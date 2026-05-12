@@ -915,16 +915,17 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             end        
     
             % add header keywords
-            if ~isempty(Args.AddSrcStat2Header)
-                Nsrc = Result(Iobj).CatData.sizeCatalog;
-                Result(Iobj).HeaderData.insertKey({Args.KeyNsrc, Nsrc, ''});
-    
-                % median CHI2_DOF
-                Chi2Dof = Result(Iobj).CatData.getCol('PSF_CHI2DOF');
-               
-                MedChi2Dof = median(Chi2Dof,'all','omitnan');
-                Result(Iobj).HeaderData.insertKey({Args.KeyMedChi2Dof, MedChi2Dof, ''});
-            end
+            % This is done by imProc.header.writeStat2Header
+            % if ~isempty(Args.AddSrcStat2Header)
+            %     Nsrc = Result(Iobj).CatData.sizeCatalog;
+            %     Result(Iobj).HeaderData.insertKey({Args.KeyNsrc, Nsrc, ''});
+            % 
+            %     % median CHI2_DOF
+            %     Chi2Dof = Result(Iobj).CatData.getCol('PSF_CHI2DOF');
+            % 
+            %     MedChi2Dof = median(Chi2Dof,'all','omitnan');
+            %     Result(Iobj).HeaderData.insertKey({Args.KeyMedChi2Dof, MedChi2Dof, ''});
+            % end
     
             % save a copy of the AI object with the image replaced by the final subtracted image
             if ExtraOutput
