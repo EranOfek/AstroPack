@@ -31,10 +31,15 @@ function Report = checkMaskPropagationToFlags(Input, Args)
     %          Report = pipeline.last.quality.masks.checkMaskPropagationToFlags(DataPath);
     %          Report = pipeline.last.quality.masks.checkMaskPropagationToFlags(DataPath, 'FileType', 'sci_coadd');
     %          Report = pipeline.last.quality.masks.checkMaskPropagationToFlags(AI);
+    %          % Restrict to a single observation field (token after '_clear_'):
+    %          Report = pipeline.last.quality.masks.checkMaskPropagationToFlags(DataPath, ...
+    %                       'FieldId', '1781');
 
     arguments
         Input
         Args.FileType       = 'sci_proc';
+        Args.FieldId        = '';
+        Args.CropID         double {mustBeInteger, mustBeNonnegative} = [];
         Args.ColX           = 'XPEAK';
         Args.ColY           = 'YPEAK';
         Args.ColFlags       = 'FLAGS';
@@ -60,6 +65,13 @@ function Report = checkMaskPropagationToFlags(Input, Args)
         Di = dir(fullfile(DataPath, ['*' FileType '_Image*.fits']));
         Dc = dir(fullfile(DataPath, ['*' FileType '_Cat*.fits']));
         Dm = dir(fullfile(DataPath, ['*' FileType '_Mask*.fits']));
+
+        % FieldId / CropID filter (per-list).
+        if ~isempty(Args.FieldId) || ~isempty(Args.CropID)
+            Di = filterDirByFieldId(Di, Args.FieldId, Args.CropID, Args.Verbose, 'Image');
+            Dc = filterDirByFieldId(Dc, Args.FieldId, Args.CropID, Args.Verbose, 'Cat');
+            Dm = filterDirByFieldId(Dm, Args.FieldId, Args.CropID, Args.Verbose, 'Mask');
+        end
 
         if isempty(Di)
             error('No Image files found matching pattern *%s_Image*.fits in %s', FileType, DataPath);
@@ -319,5 +331,25 @@ function [BitInd, BitNames] = getBitIndicesAndNames(BD, DecVal)
         else
             BitNames{Ibit} = sprintf('Bit%d', BitInd(Ibit));
         end
+    end
+end
+
+% =========================================================================
+function D = filterDirByFieldId(D, FieldId, CropID, Verbose, Tag)
+    if (isempty(FieldId) && isempty(CropID)) || isempty(D); return; end
+    NB  = numel(D);
+    FP  = arrayfun(@(d) fullfile(d.folder, d.name), D, 'Uni', 0);
+    AFN = AstroFileName(FP);
+    Keep = true(numel(D), 1);
+    if ~isempty(FieldId)
+        Keep = Keep & strcmp(string(AFN.FieldID), string(FieldId));
+    end
+    if ~isempty(CropID)
+        Keep = Keep & strcmp(string(AFN.CropID), sprintf('%03d', CropID));
+    end
+    D = D(Keep);
+    if Verbose && any(~Keep)
+        fprintf('  %s: FieldId=%s CropID=%s filter dropped %d/%d\n', ...
+            Tag, char(string(FieldId)), char(string(CropID)), sum(~Keep), NB);
     end
 end

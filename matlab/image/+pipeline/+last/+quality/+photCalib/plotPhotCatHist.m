@@ -71,6 +71,10 @@ function Result = plotPhotCatHist(DataPath, Args)
     %                  'VisitPattern', '*v0', ...
     %                  'Columns', 'MAG_AB_APER_3', ...
     %                  'RowFilter', @(AI) AI.CatData.getCol('SN_3') > 5);
+    %
+    %          % Restrict to a single observation field (token after '_clear_'):
+    %          R = pipeline.last.quality.photCalib.plotPhotCatHist(DP, ...
+    %                  'Columns', 'MAG_PSF', 'FieldId', '1781');
 
     arguments
         DataPath                          {mustBeText}
@@ -78,6 +82,8 @@ function Result = plotPhotCatHist(DataPath, Args)
         Args.VisitPattern    {mustBeText}              = '*v[0-9]*'
         Args.Recursive       logical                    = true
         Args.FileType        {mustBeMember(Args.FileType, {'coadd','proc'})} = 'coadd'
+        Args.FieldId                                      = ''
+        Args.CropID          double {mustBeInteger, mustBeNonnegative} = []
         Args.CropsToAnalyze                              = []
         Args.RowFilter                                   = []
         Args.MaxRowsPerImage                             = Inf
@@ -128,6 +134,8 @@ function Result = plotPhotCatHist(DataPath, Args)
     AIc = pipeline.last.load.loadVisitCatHdr( ...
         'VisitDirs', VisitDirs, ...
         'FileType',  Args.FileType, ...
+        'FieldId',   Args.FieldId, ...
+        'CropID',    Args.CropID, ...
         'Verbose',   false);
 
     % --- Pool column values across visits and AIs -----------------------

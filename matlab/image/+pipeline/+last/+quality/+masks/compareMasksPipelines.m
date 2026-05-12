@@ -10,6 +10,17 @@ function Report = compareMasksPipelines(OldPath, NewPath, Args)
     %            'EdgeOffset'       - Pixel offset for edge trimming. Default is 5.
     %            'MaxDetailsPerFile'- Max mismatch details to store per file.
     %                                 Set to Inf for all details. Default is 100.
+    %            'FieldId'          - Keep only files whose AstroFileName.FieldID
+    %                                 (the token after '_clear_' in the LAST
+    %                                 filename) equals this value. Char/string/
+    %                                 numeric. Default '' (no filter). Used in
+    %                                 directory mode only.
+    %            'CropID'           - Keep only files whose AstroFileName.CropID
+    %                                 slot (3-digit zero-padded crop index)
+    %                                 matches. Integer scalar (1..Ncrop);
+    %                                 formatted to '%03d' internally.
+    %                                 Default [] (no filter). AND-combined
+    %                                 with FieldId. Directory mode only.
     %            'ReportFile'       - Optional file path to save report (.mat).
     %                                 Default is '' (no save).
     %            'Verbose'          - Print progress to console. Default is true.
@@ -35,6 +46,9 @@ function Report = compareMasksPipelines(OldPath, NewPath, Args)
     %          OldFile = '/bigdata2/projects/last/testNewPipe/222635v0/LAST.01.08.03_20230616.222635.384_clear_346+79_001_001_001_sci_proc_Mask_1.fits';
     %          NewFile = '/bigdata2/projects/last/testNewPipe/222625v1/LAST.01.08.03_20230616.222625.384_clear_346+79_001_001_001_sci_proc_Mask_1.fits';
     %          Report = pipeline.last.quality.masks.compareMasksPipelines(OldFile, NewFile);
+    %          % Directory mode restricted to a single observation field:
+    %          Report = pipeline.last.quality.masks.compareMasksPipelines( ...
+    %                       OldPath, NewPath, 'FieldId', '346+79');
 
     arguments
         OldPath
@@ -42,6 +56,8 @@ function Report = compareMasksPipelines(OldPath, NewPath, Args)
         Args.FileType          = 'sci_proc';
         Args.EdgeOffset        = 5;
         Args.MaxDetailsPerFile = 1000000;
+        Args.FieldId           = '';
+        Args.CropID            double {mustBeInteger, mustBeNonnegative} = [];
         Args.ReportFile        = '';
         Args.Verbose           = true;
     end
@@ -88,6 +104,26 @@ function Report = compareMasksPipelines(OldPath, NewPath, Args)
         end
         if isempty(NewFiles)
             error('No mask files found in NewPath: %s', NewPath);
+        end
+
+        % FieldId / CropID filter: keep only files whose AstroFileName
+        % slots match (both filters apply via AND when both are set).
+        if ~isempty(Args.FieldId) || ~isempty(Args.CropID)
+            NOldB = numel(OldFiles); NNewB = numel(NewFiles);
+            OldFP = arrayfun(@(d) fullfile(d.folder, d.name), OldFiles, 'Uni', 0);
+            NewFP = arrayfun(@(d) fullfile(d.folder, d.name), NewFiles, 'Uni', 0);
+            OldFiles = OldFiles(mkKeep(OldFP, Args.FieldId, Args.CropID));
+            NewFiles = NewFiles(mkKeep(NewFP, Args.FieldId, Args.CropID));
+            if Args.Verbose
+                fprintf('FieldId=%s CropID=%s filter: dropped %d/%d Old, %d/%d New\n', ...
+                    char(string(Args.FieldId)), char(string(Args.CropID)), ...
+                    NOldB - numel(OldFiles), NOldB, ...
+                    NNewB - numel(NewFiles), NNewB);
+            end
+            if isempty(OldFiles) || isempty(NewFiles)
+                error('No files left after FieldId=%s CropID=%s filter.', ...
+                    char(string(Args.FieldId)), char(string(Args.CropID)));
+            end
         end
 
         if Args.Verbose
@@ -282,4 +318,17 @@ function Report = compareMasksPipelines(OldPath, NewPath, Args)
         end
     end
 
+end
+
+% =========================================================================
+function K = mkKeep(FilePaths, FieldId, CropID)
+    if isempty(FilePaths); K = false(0,1); return; end
+    AFN = AstroFileName(FilePaths);
+    K = true(numel(FilePaths), 1);
+    if ~isempty(FieldId)
+        K = K & strcmp(string(AFN.FieldID), string(FieldId));
+    end
+    if ~isempty(CropID)
+        K = K & strcmp(string(AFN.CropID), sprintf('%03d', CropID));
+    end
 end

@@ -22,6 +22,16 @@ function R = batchPhotCalib(BaseDir, Args)
     %                          depth under BaseDir; otherwise only direct
     %                          children of BaseDir. Default false.
     %            'FileType'  - 'coadd' or 'proc'. Default 'coadd'.
+    %            'FieldId'   - Keep only visit directories whose files'
+    %                          AstroFileName.FieldID equals this value
+    %                          (the token after '_clear_' in the LAST
+    %                          filename, e.g. '1781' or '346+79').
+    %                          Char/string/numeric. Default '' (no filter).
+    %            'CropID'    - Keep only one crop index per visit (the
+    %                          loaded AIvis is sliced to AIvis(CropID)
+    %                          before calibration). Integer scalar
+    %                          (1..Ncrop). Default [] (no filter, keep
+    %                          all crops).
     %            'CalibArgs' - Cell of NV pairs forwarded to fitPhotCalibTrans
     %                          (e.g. {'CalibArgs', {'MagRange', [12 18]}}).
     %                          Default {}.
@@ -55,12 +65,21 @@ function R = batchPhotCalib(BaseDir, Args)
     %          R = pipeline.last.quality.photCalib.batchPhotCalib( ...
     %              '/bigdata2/.../2025/07/08', ...
     %              'VisitGlob', '012334v1', 'FileType', 'proc');
+    %
+    %          % Recursive walk restricted to a single observation field
+    %          % (token after '_clear_' in the LAST filename, e.g. '1781'):
+    %          R = pipeline.last.quality.photCalib.batchPhotCalib( ...
+    %              '/archimedes/LASTunitTest/2025', ...
+    %              'VisitGlob', '*v[0-9]*', 'Recursive', true, ...
+    %              'FileType', 'coadd', 'FieldId', '1781');
 
     arguments
         BaseDir         {mustBeText}
         Args.VisitGlob  {mustBeText}          = '*v*'
         Args.Recursive  logical               = false
         Args.FileType   {mustBeMember(Args.FileType, {'coadd','proc'})} = 'coadd'
+        Args.FieldId                          = ''
+        Args.CropID     double {mustBeInteger, mustBeNonnegative} = []
         Args.CalibArgs  cell                  = {}
         Args.OutFile    {mustBeText}          = ''
         Args.Verbose    logical               = false
@@ -111,10 +130,33 @@ function R = batchPhotCalib(BaseDir, Args)
     VisitNameCell = cell(1, Nvisits);
     AIIndexCell   = cell(1, Nvisits);
     SuccessCell   = cell(1, Nvisits);
+    JDCell        = cell(1, Nvisits);
 
     for Iv = 1:Nvisits
         VName = Listing(Iv).name;
         Tstart = tic;
+
+        % FieldId filter: peek at one matching file in this visit dir,
+        % parse its AstroFileName, skip the visit if it does not match.
+        if ~isempty(Args.FieldId)
+            PeekPattern = sprintf('*_sci_%s_*_1.fits', Args.FileType);
+            PeekList = dir(fullfile(VisitDirs{Iv}, PeekPattern));
+            if isempty(PeekList)
+                if Args.Verbose
+                    fprintf('  [%2d/%2d] %s : no %s files for FieldId peek\n', ...
+                        Iv, Nvisits, VName, Args.FileType);
+                end
+                continue;
+            end
+            PeekPath = fullfile(PeekList(1).folder, PeekList(1).name);
+            if ~strcmp(string(AstroFileName({PeekPath}).FieldID), string(Args.FieldId))
+                if Args.Verbose
+                    fprintf('  [%2d/%2d] %s : FieldId mismatch, skipping\n', ...
+                        Iv, Nvisits, VName);
+                end
+                continue;
+            end
+        end
 
         % Load visit data (full AstroImage with Image; .Back is populated
         % below via imProc.background.background only if BackMag is requested,
@@ -152,6 +194,18 @@ function R = batchPhotCalib(BaseDir, Args)
         % Flatten to 1 x Nimg (proc returns reshaped 2D; coadd is already 1D)
         AIvis = AIvis(:).';
 
+        % CropID filter: keep only the requested crop index in this visit.
+        if ~isempty(Args.CropID)
+            if Args.CropID > numel(AIvis)
+                if Args.Verbose
+                    fprintf('  [%2d/%2d] %s : CropID=%d > Ncrop=%d, skipping\n', ...
+                        Iv, Nvisits, VName, Args.CropID, numel(AIvis));
+                end
+                continue;
+            end
+            AIvis = AIvis(Args.CropID);
+        end
+
         % Populate .Back if BackMag was requested. SubSizeXY=[] matches
         % the production setting in pipeline.last.coadd.coadd:189 so
         % BackMag values reproduce the pipeline's. Failures are logged
@@ -186,6 +240,30 @@ function R = batchPhotCalib(BaseDir, Args)
         VisitNameCell{Iv} = repmat({VName}, 1, Nimg);
         AIIndexCell{Iv}   = 1:Nimg;
         SuccessCell{Iv}   = arrayfun(@(pc) pc.Success, PCv);
+
+        % Per-image JD: prefer header keyword 'JD', fall back to the
+        % filename timestamp via AstroFileName.julday() when missing.
+        JDv = nan(1, Nimg);
+        for K = 1:Nimg
+            try
+                v = AIvis(K).HeaderData.getVal('JD');
+                if isnumeric(v) && isscalar(v) && isfinite(v); JDv(K) = v; end
+            catch
+            end
+        end
+        if all(isnan(JDv))
+            % Header-less fallback: parse from one filename in the visit.
+            try
+                Peek = dir(fullfile(VisitDirs{Iv}, ...
+                    sprintf('*_sci_%s_*_1.fits', Args.FileType)));
+                if ~isempty(Peek)
+                    JDvis = AstroFileName({fullfile(Peek(1).folder, Peek(1).name)}).julday();
+                    JDv(:) = JDvis;
+                end
+            catch
+            end
+        end
+        JDCell{Iv} = JDv;
 
         if Args.Verbose
             NS = sum(SuccessCell{Iv});

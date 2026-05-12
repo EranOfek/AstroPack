@@ -210,6 +210,10 @@ function Result = testPhotCalib(Args)
                     'VisitRefZP', 'global_median');
     %}
     %
+    %          % Restrict to a single observation field (token after '_clear_'):
+    %          R = pipeline.last.quality.photCalib.testPhotCalib( ...
+    %                  'DataDir', '~/222625v1', 'FieldId', '1781');
+    %
                  
     arguments
         Args.DataDir        = '~/222625v1'
@@ -220,6 +224,8 @@ function Result = testPhotCalib(Args)
         Args.ListFields     = {}       % field name(s) from ListFile
         Args.VisitIdx       = []       % indices into folder list
         Args.FileType       = 'proc'   % 'proc' | 'coadd'
+        Args.FieldId        = ''       % see pipeline.last.load.loadVisitCatHdr
+        Args.CropID         double {mustBeInteger, mustBeNonnegative} = []
         Args.Modes          = {'percrop'}
         Args.RefCrop        = 10
         Args.Ncrop          = 24
@@ -305,6 +311,8 @@ function Result = testPhotCalib(Args)
         'ListFields', Args.ListFields, ...
         'VisitIdx', Args.VisitIdx, ...
         'FileType', Args.FileType, ...
+        'FieldId',  Args.FieldId, ...
+        'CropID',   Args.CropID, ...
         'Verbose', Args.Verbose);
 
     % Update Visits to match actual loaded count (VisitDirs mode)

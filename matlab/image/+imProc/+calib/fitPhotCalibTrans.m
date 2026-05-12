@@ -481,6 +481,13 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 normalisation, ParNX = [XPixel/2, XPixel/2]).
     %                                 Default 1716.
     %            'YPixel'           - Detector Y size in pixels. Default 1716.
+    %            'Tran2DPerturbStd' - Std-dev for one-shot N(0,std) randn-seeding
+    %                                 of Tran2D ParX before fit. Coefficients
+    %                                 are perturbed once before stage 1 and
+    %                                 propagate through pre-FieldCorrection
+    %                                 stages (1-3) only; stage 4 overwrites
+    %                                 ParX with the linear LS fit. 0 disables.
+    %                                 Default 0.
     %            'WeightingMode'    - Weighting mode. Default 'spectral'.
     %            'FluxErrColName'   - Flux error column. Default 'FluxErr'.
     %            'SigmaClipMethod'  - 'median' or 'weighted'. Default 'median'.
@@ -516,6 +523,7 @@ function CalibArgs = predefCalibArgs(Args)
         Args.UseTran2D logical = true
         Args.XPixel           = 1716   % Detector X size [pix]; sets Tran2D centre = XPixel/2
         Args.YPixel           = 1716   % Detector Y size [pix]; sets Tran2D centre = YPixel/2
+        Args.Tran2DPerturbStd = 0   % Std-dev for randn-seed of Tran2D ParX (one shot before stage 1); 0 disables
 
         % Weighting
         Args.WeightingMode    = 'spectral'  % 'none', 'spectral', 'flux', 'combined'

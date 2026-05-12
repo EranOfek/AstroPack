@@ -254,6 +254,12 @@ classdef PhotCalibTrans < Component
             %                               normalisation, ParNX = [XPixel/2, XPixel/2]).
             %                               Default is 1716.
             %            'YPixel'         - Detector Y size in pixels. Default is 1716.
+            %            'Tran2DPerturbStd' - Std-dev for one-shot N(0,std)
+            %                               randn-seeding of Tran2D ParX
+            %                               before fitPar. Affects stages 1-3
+            %                               only; stage 4 overwrites ParX with
+            %                               the linear LS fit. 0 disables.
+            %                               Default is 0.
             %            'WeightingMode'  - Weighting mode. Default is 'spectral'.
             %            'FluxErrColName' - Flux error column name. Default is 'FluxErr'.
             %            'SigmaClipMethod'- Sigma clipping method. Default is 'median'.
@@ -292,6 +298,7 @@ classdef PhotCalibTrans < Component
                 Args.UseTran2D logical = true
                 Args.XPixel           = 1716   % Detector X size [pix]; Tran2D centre = XPixel/2
                 Args.YPixel           = 1716   % Detector Y size [pix]; Tran2D centre = YPixel/2
+                Args.Tran2DPerturbStd = 0      % Std-dev for randn-seed of Tran2D ParX (one shot before stage 1); 0 disables
                 Args.WeightingMode    = 'spectral'
                 Args.FluxErrColName   = 'FluxErr'
                 Args.SigmaClipMethod  = 'median'
@@ -591,6 +598,22 @@ classdef PhotCalibTrans < Component
                     'ExpTime', ExpTime_eff, ...
                     'Aperture_area_m2', Obj.Aperture, ...
                     'PerSourceZenithAngles', PerSourceZenithAngles};
+
+                % One-shot Tran2D ParX seeding (before stage 1 of the OptSeq).
+                % Stages 1-3 see the perturbed coeffs; stage 4 (FieldCorrection)
+                % overwrites ParX with the linear LS fit, so the final Tran2D
+                % is determined by the data. The perturbation propagates only
+                % via the calibrator subset (sigma-clipping in stages 1 & 3) and
+                % via Norm / QE_Center fitted on shifted residuals.
+                if Args.Tran2DPerturbStd > 0 && Obj.TransModel.UseTran2D && ...
+                        ~isempty(Obj.TransModel.Tran2DObj)
+                    Nparams = numel(Obj.TransModel.Tran2DObj.ParX);
+                    Obj.TransModel.Tran2DObj.ParX = randn(1, Nparams) * Args.Tran2DPerturbStd;
+                    if Args.Verbose
+                        fprintf('Tran2D ParX seeded with N(0, %.3f), %d coeffs\n', ...
+                            Args.Tran2DPerturbStd, Nparams);
+                    end
+                end
 
                 % Fit transmission parameters
                 [Model, FitResult] = Obj.TransModel.fitPar(Obj.TransWvl, Flux, ...
@@ -2811,7 +2834,6 @@ classdef PhotCalibTrans < Component
             %   observation (Obj.AirMass, Obj.Temp). Norm and Tran2D cancel
             %   (they are wavelength-independent and already in MAG_AB).
             %   The correction is a scalar delta ZP per crop:
-            %     delta ZP = 2.5*log10(∫T_const(λ)×λ dλ / ∫T_crop(λ)×λ dλ)
             %     MAG_CB = MAG_AB + delta ZP
             % Input  : - PhotCalibTrans object (must have fitted TransModel).
             %          - AstroCatalog object with MAG_AB columns from addMag.
