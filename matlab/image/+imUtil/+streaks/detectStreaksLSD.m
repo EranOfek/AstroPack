@@ -81,6 +81,10 @@ function S=detectStreaksLSD(Im,filtIm,Args)
         S.Curve(i).X = parfit(i).coord(:,2)';
         S.Curve(i).Y = parfit(i).coord(:,1)';
         S.Curve(i).Flux = parfit(i).linephot;
+        S.Curve(i).Hmean = parfit(i).hMean;
+        S.Curve(i).TransverseSigma = parfit(i).transverseSigma;
+        S.Curve(i).Acceptable = parfit(i).acceptable;
+
     end
     
 end

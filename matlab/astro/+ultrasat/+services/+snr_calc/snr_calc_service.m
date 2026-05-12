@@ -22,14 +22,14 @@
 %       to the folder of this file (i.e. app_snr/)
 %==========================================================================
 
-function soc_snr_matlab()
+function snr_calc_service()
     % SNR App - Main function
 
     global SOC_PATH;
 
     % Set logfile name
-	fprintf('soc_snr_matlab started, V1.04 (15/11/2023)\n');
-    LogFile.getSingleton('FileName', 'soc_snr_matlab');
+	fprintf('snr_calc_service started, V1.04 (15/11/2023)\n');
+    LogFile.getSingleton('FileName', 'snr_calc_service');
             
     % Print some info
     fprintf('getPid: %d\n', tools.os.getPid());

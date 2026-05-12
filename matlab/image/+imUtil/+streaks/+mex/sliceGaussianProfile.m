@@ -18,7 +18,9 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,x,y,W,Args)
 %    testplot: show diagnostic plot (default false)
 %
 % Output:
-%  C:           4xM for each slice, (A,sigma,mu_h,r). M is L/slice_width.
+%  C:           5xM for each slice, (A,sigma,mu_h,r,acceptable).
+%               M is L/Args.slice_width. Acceptable is 1, not acceptable
+%               is 0.
 %  goodindices: logical vector 1xN, true for indices of elements of W which
 %               lead to an acceptable fit (R-square>rthreshold)
 %  tm:          vector of values of the intrinsic segment coordinate, at the
