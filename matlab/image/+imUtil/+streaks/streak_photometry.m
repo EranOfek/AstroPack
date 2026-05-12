@@ -237,7 +237,7 @@ end
 %%
 function C = weightedParabolicOffset(X1,X2,x,y,W,testplot)
 % X1: [x1,y1]; X2: [x2,y2]
-% X,Y,S: Nx1 vectors
+% x,y,W: Nx1 vectors
 %
 % Example
 %{
@@ -248,7 +248,7 @@ function C = weightedParabolicOffset(X1,X2,x,y,W,testplot)
         + [5*randn(N/2,1); 0.1*randn(N/2,1)];
     Y= X1(2)+(X2(2)-X1(2))*T + 0.1*randn(size(T)) + H*(X2(1)-X1(1));
     W=[0.1*ones(N/2,1); 2*ones(N/2,1)];
-    weigthedParabolicOffset(X1,X2,X,Y,W,true)
+    weightedParabolicOffset(X1,X2,X,Y,W,true)
 %}
 
     arguments
@@ -263,6 +263,16 @@ function C = weightedParabolicOffset(X1,X2,x,y,W,testplot)
     if numel(W)==1
         W=W*ones(N,1);
     end
+
+    % check that W has no NaNs and exclude them if it has
+    Wnan=find(isnan(W));
+    if ~isempty(Wnan)
+        W(Wnan)=[];
+        x(Wnan)=[];
+        y(Wnan)=[];
+        N=N-length(Wnan);
+    end
+
     % transform to intrinsic coordinates (t(X1)=0, t(X2)=1)
     L=sqrt((X2-X1)*(X2-X1)');
     T=((X2(1)-X1(1))*(x-X1(1)) + (X2(2)-X1(2))*(y-X1(2)))/L^2;
