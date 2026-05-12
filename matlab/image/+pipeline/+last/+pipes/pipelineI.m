@@ -21,7 +21,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.ListCenters                   = [];
         Args.NewNoOverlap                  = [];
 
-        Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[128 128], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+        Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
 
         Args.ColCell                       = {'XPEAK','YPEAK',...
                                               'X1', 'Y1',...

@@ -1,33 +1,32 @@
 %==========================================================================
-% Project     : ULTRASAT Observation Planner
-% File        : ultrasat.api.ClientBase.m
+% Project     : ULTRASAT Incoming Alerts Filter
+% File        : +ultrasat/+alerts_filters/+lvc/+filters/lvc_filter_simple.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
-% Updated     : 06/10/2025
-% Description : Base class for interacting with REST API services.
+% Updated     : 12/05/2026
+% Description : Simple LVC filter implementation.
 %==========================================================================
 
 function result = lvc_filter_simple(alert, logger)
-    % Basic LVC filter without criteria
+    % Simple LVC filter implementation
     %
     % Parameters:
     %   alert - LvcParsedAlert object
     %   logger - Logger object
     %
     % Returns:
-    %   result - Struct with score, class_probs, flags, and reasons
+    %   result - LvcFilterResult
 
     % Log the alert
     logger.info("Filtering alert: %s", alert.alert_id);
 
-    % Initialize score and reasons
-    score = 0.0;
-    reasons = {};
+    % Initialize result
+    result = ultrasat.alerts_filters.lvc.models.LvcFilterResult();
 
     % Add BNS contribution
     if ~isempty(alert.prob_bns)
-        score = score + 2.0 * alert.prob_bns;
-        reasons{end+1} = sprintf("BNS contribution: %.3f", alert.prob_bns);
+        result.score = result.score + 2.0 * alert.prob_bns;
+        result.reasons{end+1} = sprintf("BNS contribution: %.3f", alert.prob_bns);
     end
 
     % Add NSBH contribution

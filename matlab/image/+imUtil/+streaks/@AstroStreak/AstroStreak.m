@@ -8,7 +8,8 @@ classdef AstroStreak < handle
         IsEdge % 2xN
         Flux % 1xN % photometric
         FitPar % 3xN % a,b,c coefficients of the fitted sagittal deviation
-        Curve = struct('X',[],'Y',[],'Flux',[]); % coordinates and fluxes of streak slices
+        Curve = struct('X',[],'Y',[],'Flux',[],'TransverseSigma',[],...
+            'Hmean',[],'Acceptable',false(0,0)); % coordinates and fluxes of streak slices
         ID % Telescope, Epoch, Crop ID.
     end
 end

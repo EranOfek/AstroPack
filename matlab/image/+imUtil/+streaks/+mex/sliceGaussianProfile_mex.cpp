@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstring>
 #include <vector>
+#include <limits>
 
 /*
  * MEX function for fast Gaussian profile fitting
@@ -29,15 +30,33 @@ void fitGaussian3Param(const double* D, const double* W, int n,
     }
     
     // Initial parameters
-    double W_max = *std::max_element(W, W + n);
+    // Find W_max among non-NaN values
+    double W_max = -std::numeric_limits<double>::infinity();
+    for (int i = 0; i < n; i++) {
+        if (!std::isnan(W[i]) && W[i] > W_max) {
+            W_max = W[i];
+        }
+    }
+    if (W_max == -std::numeric_limits<double>::infinity()) {
+        // No valid W values
+        rsquare = 0.0;
+        A = std::nan("");
+        mu = std::nan("");
+        sigma = std::nan("");
+        return;
+    }
+    
     double W_sum = 0.0;
     double D_sum = 0.0;
     double D2_sum = 0.0;
     
+    // Skip NaN values in sums
     for (int i = 0; i < n; i++) {
-        W_sum += W[i];
-        D_sum += D[i] * W[i];
-        D2_sum += D[i] * D[i] * W[i];
+        if (!std::isnan(W[i])) {
+            W_sum += W[i];
+            D_sum += D[i] * W[i];
+            D2_sum += D[i] * D[i] * W[i];
+        }
     }
     
     if (W_sum < 1e-10) {
@@ -69,6 +88,14 @@ void fitGaussian3Param(const double* D, const double* W, int n,
         double SS_res = 0.0;
         
         for (int i = 0; i < n; i++) {
+            if (std::isnan(W[i])) {
+                residuals[i] = 0.0;
+                jac_A[i] = 0.0;
+                jac_mu[i] = 0.0;
+                jac_sigma[i] = 0.0;
+                continue;
+            }
+            
             double diff = D[i] - mu;
             double sigma2 = sigma * sigma;
             double exp_term = std::exp(-(diff * diff) / (2.0 * sigma2));
@@ -89,16 +116,18 @@ void fitGaussian3Param(const double* D, const double* W, int n,
         double g_A = 0, g_mu = 0, g_sigma = 0;
         
         for (int i = 0; i < n; i++) {
-            H_AA += jac_A[i] * jac_A[i];
-            H_mm += jac_mu[i] * jac_mu[i];
-            H_ss += jac_sigma[i] * jac_sigma[i];
-            H_Am += jac_A[i] * jac_mu[i];
-            H_As += jac_A[i] * jac_sigma[i];
-            H_ms += jac_mu[i] * jac_sigma[i];
-            
-            g_A += jac_A[i] * residuals[i];
-            g_mu += jac_mu[i] * residuals[i];
-            g_sigma += jac_sigma[i] * residuals[i];
+            if (!std::isnan(W[i])) {
+                H_AA += jac_A[i] * jac_A[i];
+                H_mm += jac_mu[i] * jac_mu[i];
+                H_ss += jac_sigma[i] * jac_sigma[i];
+                H_Am += jac_A[i] * jac_mu[i];
+                H_As += jac_A[i] * jac_sigma[i];
+                H_ms += jac_mu[i] * jac_sigma[i];
+                
+                g_A += jac_A[i] * residuals[i];
+                g_mu += jac_mu[i] * residuals[i];
+                g_sigma += jac_sigma[i] * residuals[i];
+            }
         }
         
         // Levenberg-Marquardt damping
@@ -152,17 +181,30 @@ void fitGaussian3Param(const double* D, const double* W, int n,
     
     // Compute final R-squared
     double W_mean = 0.0;
-    for (int i = 0; i < n; i++) W_mean += W[i];
-    W_mean /= n;
+    int valid_count = 0;
+    for (int i = 0; i < n; i++) {
+        if (!std::isnan(W[i])) {
+            W_mean += W[i];
+            valid_count++;
+        }
+    }
+    if (valid_count > 0) {
+        W_mean /= valid_count;
+    } else {
+        rsquare = 0.0;
+        return;
+    }
     
     double SS_res_final = 0.0;
     double SS_tot = 0.0;
     
     for (int i = 0; i < n; i++) {
-        double W_fit = gaussianModel(A, mu, sigma, D[i]);
-        double residual = W[i] - W_fit;
-        SS_res_final += residual * residual;
-        SS_tot += (W[i] - W_mean) * (W[i] - W_mean);
+        if (!std::isnan(W[i])) {
+            double W_fit = gaussianModel(A, mu, sigma, D[i]);
+            double residual = W[i] - W_fit;
+            SS_res_final += residual * residual;
+            SS_tot += (W[i] - W_mean) * (W[i] - W_mean);
+        }
     }
     
     if (SS_tot > 1e-10) {
@@ -174,16 +216,19 @@ void fitGaussian3Param(const double* D, const double* W, int n,
 
 // Compute median of array (for medianclip)
 double computeMedian(double* arr, int n) {
-    if (n == 0) return 0.0;
-    if (n == 1) return arr[0];
+    // Filter out NaN values
+    std::vector<double> valid;
+    for (int i = 0; i < n; i++) {
+        if (!std::isnan(arr[i])) {
+            valid.push_back(arr[i]);
+        }
+    }
     
-    // Simple partition for median (not fully sorted, just find median element)
-    double* temp = new double[n];
-    std::copy(arr, arr + n, temp);
-    std::nth_element(temp, temp + n/2, temp + n);
-    double median = temp[n/2];
-    delete[] temp;
-    return median;
+    if (valid.empty()) return 0.0;
+    if (valid.size() == 1) return valid[0];
+    
+    std::nth_element(valid.begin(), valid.begin() + valid.size()/2, valid.end());
+    return valid[valid.size()/2];
 }
 
 
@@ -237,7 +282,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
     double* sigma_series = new double[M];
     
     // Output 1: C (4xM)
-    plhs[0] = mxCreateDoubleMatrix(4, M, mxREAL);
+    plhs[0] = mxCreateDoubleMatrix(5, M, mxREAL);
     double* C = (double*)mxGetPr(plhs[0]);
     
     // Initialize C with NaN
@@ -279,10 +324,11 @@ void mexFunction(int nlhs, mxArray* plhs[],
                          A, mu, sigma, rsquare);
         
         // Store results
-        C[slice * 4 + 0] = A;
-        C[slice * 4 + 1] = mu;
-        C[slice * 4 + 2] = sigma;
-        C[slice * 4 + 3] = rsquare;
+        C[slice * 5 + 0] = A;
+        C[slice * 5 + 1] = mu;
+        C[slice * 5 + 2] = sigma;
+        C[slice * 5 + 3] = rsquare;
+        C[slice * 5 + 4] = 1; // acceptable; will be turned to 0 if not, below
         
         A_series[slice] = A;
         sigma_series[slice] = sigma;
@@ -309,19 +355,17 @@ void mexFunction(int nlhs, mxArray* plhs[],
             }
         }
 
-        A = C[slice * 4 + 0];
-        mu = C[slice * 4 + 1];
-        sigma = C[slice * 4 + 2];
-        rsquare = C[slice * 4 + 3];
+        A = C[slice * 5 + 0];
+        mu = C[slice * 5 + 1];
+        sigma = C[slice * 5 + 2];
+        rsquare = C[slice * 5 + 3];
 
         // Set goodindices
         if (rsquare < rthreshold || A > medianclip*A_median || sigma > medianclip*sigma_median) {
             for (int idx : indices) {
                 goodindices[idx] = false;
             }
-            C[slice*4] = nan_val;
-            C[slice*4 + 1] = nan_val;
-            C[slice*4 + 2] = nan_val;
+            C[slice*5 + 4] = 0; // flag as not acceptable
         }
     }
 }

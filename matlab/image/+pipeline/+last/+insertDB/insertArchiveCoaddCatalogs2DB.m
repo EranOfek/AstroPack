@@ -166,7 +166,9 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
             [~, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                                     'CreateCsv',true,'FileName',CsvFN,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID); 
             if ~isempty(Error)
-                error('catalog injection failed');
+                fprintf('catalog injection failed: %s\n', Error);                                 
+                error('exiting because of an unrecoverable error');
+%                 continue
             end
             % copy the CSV file into the proc catalog and edit the .status file
             if Args.UpdateStatus

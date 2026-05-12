@@ -34,6 +34,10 @@ function [AI] = addSkyCoo(AI, Args)
         if ~isempty(AI(I).Streaks) && ~isempty(AI(I).Streaks.X)
             if ~isempty(AI(I).WCS) && AI(I).WCS.Success
                 [AI(I).Streaks.RA, AI(I).Streaks.Dec] = AI(I).WCS.xy2sky(AI(I).Streaks.X, AI(I).Streaks.Y, 'OutUnits',Args.OutUnits);
+                Nst = numel(AI(I).Streaks.Curve);
+                for Ist=1:1:Nst
+                    [AI(I).Streaks.Curve(Ist).RA, AI(I).Streaks.Curve(Ist).Dec] = AI(I).WCS.xy2sky(AI(I).Streaks.Curve(Ist).X, AI(I).Streaks.Curve(Ist).Y, 'OutUnits',Args.OutUnits);
+                end
             end
         
             if Args.PopJD

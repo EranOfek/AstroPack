@@ -39,10 +39,14 @@ function Report = checkMaskConsistency(Input, Args)
     %          Report = pipeline.last.quality.masks.checkMaskConsistency(DataPath);
     %          Report = pipeline.last.quality.masks.checkMaskConsistency(DataPath, 'FileType', 'sci_coadd');
     %          Report = pipeline.last.quality.masks.checkMaskConsistency(DataPath, 'Checks', {'NearEdge','NaN'});
+    %          % Restrict to a single observation field (token after '_clear_'):
+    %          Report = pipeline.last.quality.masks.checkMaskConsistency(DataPath, 'FieldId', '1781');
 
     arguments
         Input
         Args.FileType       = 'sci_proc';
+        Args.FieldId        = '';
+        Args.CropID         double {mustBeInteger, mustBeNonnegative} = [];
         Args.Checks         = {'NearEdge'};
         Args.EdgeWidth      = 10;
         Args.SatLevel       = 62000;
@@ -84,6 +88,10 @@ function Report = checkMaskConsistency(Input, Args)
     if isempty(Dm)
         error('No Mask files found matching *%s_Mask*.fits in %s', FileType, DataPath);
     end
+    Dm = filterDirByFieldId(Dm, Args.FieldId, Args.CropID, Args.Verbose, 'Mask');
+    if isempty(Dm)
+        error('No Mask files matching FieldId=%s in %s', char(string(Args.FieldId)), DataPath);
+    end
     FNm = sort(fullfile({Dm.folder}, {Dm.name}));
     MaskNames = sort({Dm.name});
 
@@ -94,6 +102,7 @@ function Report = checkMaskConsistency(Input, Args)
         if isempty(Di)
             error('No Image files found matching *%s_Image*.fits in %s', FileType, DataPath);
         end
+        Di = filterDirByFieldId(Di, Args.FieldId, Args.CropID, Args.Verbose, 'Image');
         FNi = sort(fullfile({Di.folder}, {Di.name}));
         if numel(FNi) ~= numel(FNm)
             error('Mismatch: %d Mask files vs %d Image files', numel(FNm), numel(FNi));
@@ -107,6 +116,7 @@ function Report = checkMaskConsistency(Input, Args)
         if isempty(Dc)
             error('No Cat files found matching *%s_Cat*.fits in %s', FileType, DataPath);
         end
+        Dc = filterDirByFieldId(Dc, Args.FieldId, Args.CropID, Args.Verbose, 'Cat');
         FNc = sort(fullfile({Dc.folder}, {Dc.name}));
         if numel(FNc) ~= numel(FNm)
             error('Mismatch: %d Mask files vs %d Cat files', numel(FNm), numel(FNc));
@@ -598,3 +608,26 @@ function ColData = tryGetCol(CatObj, ColNames)
         end
     end
 end
+
+% =========================================================================
+function D = filterDirByFieldId(D, FieldId, CropID, Verbose, Tag)
+    % Drop dir() entries whose AstroFileName.FieldID and/or CropID do
+    % not match. Both filters apply via AND when both are set.
+    if (isempty(FieldId) && isempty(CropID)) || isempty(D); return; end
+    NB  = numel(D);
+    FP  = arrayfun(@(d) fullfile(d.folder, d.name), D, 'Uni', 0);
+    AFN = AstroFileName(FP);
+    Keep = true(numel(D), 1);
+    if ~isempty(FieldId)
+        Keep = Keep & strcmp(string(AFN.FieldID), string(FieldId));
+    end
+    if ~isempty(CropID)
+        Keep = Keep & strcmp(string(AFN.CropID), sprintf('%03d', CropID));
+    end
+    D = D(Keep);
+    if Verbose && any(~Keep)
+        fprintf('  %s: FieldId=%s CropID=%s filter dropped %d/%d\n', ...
+            Tag, char(string(FieldId)), char(string(CropID)), sum(~Keep), NB);
+    end
+end
+

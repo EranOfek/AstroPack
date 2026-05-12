@@ -258,7 +258,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.KeyNcoadd                 = 'NCOADD';
 
         % background and variance measurement:
-        Args.backVarArgs               = {'Block',[128 128], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',10, 'MaxVal',6000},{}}};
+        Args.backVarArgs               = {'Block',[256 256], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',10, 'MaxVal',6000},{}}};
         Args.ReCalcBackIter            = []; % list of iterations in which to re-calc the background. If 1, recalc also in the begining.
 
         % measure PSF
@@ -915,16 +915,17 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             end        
     
             % add header keywords
-            if ~isempty(Args.AddSrcStat2Header)
-                Nsrc = Result(Iobj).CatData.sizeCatalog;
-                Result(Iobj).HeaderData.insertKey({Args.KeyNsrc, Nsrc, ''});
-    
-                % median CHI2_DOF
-                Chi2Dof = Result(Iobj).CatData.getCol('PSF_CHI2DOF');
-               
-                MedChi2Dof = median(Chi2Dof,'all','omitnan');
-                Result(Iobj).HeaderData.insertKey({Args.KeyMedChi2Dof, MedChi2Dof, ''});
-            end
+            % This is done by imProc.header.writeStat2Header
+            % if ~isempty(Args.AddSrcStat2Header)
+            %     Nsrc = Result(Iobj).CatData.sizeCatalog;
+            %     Result(Iobj).HeaderData.insertKey({Args.KeyNsrc, Nsrc, ''});
+            % 
+            %     % median CHI2_DOF
+            %     Chi2Dof = Result(Iobj).CatData.getCol('PSF_CHI2DOF');
+            % 
+            %     MedChi2Dof = median(Chi2Dof,'all','omitnan');
+            %     Result(Iobj).HeaderData.insertKey({Args.KeyMedChi2Dof, MedChi2Dof, ''});
+            % end
     
             % save a copy of the AI object with the image replaced by the final subtracted image
             if ExtraOutput
