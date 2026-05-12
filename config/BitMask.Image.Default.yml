@@ -1,4 +1,3 @@
-
 Saturated        : [0  ,       'Pixel is saturated']
 LowRN            : [1  ,       'Pixel noise is low (Var<median(Var).*0.05) (probably dead)']
 HighRN           : [2  ,       'Pixel noise is high (Var>10*median(Var)) (noisy pixel)']
