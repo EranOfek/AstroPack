@@ -15,19 +15,18 @@ function result = lvc_filter_simple(alert, logger)
     %   logger - Logger object
     %
     % Returns:
-    %   result - Struct with score, class_probs, flags, and reasons
+    %   result - LvcFilterResult
 
     % Log the alert
     logger.info("Filtering alert: %s", alert.alert_id);
 
-    % Initialize score and reasons
-    score = 0.0;
-    reasons = {};
+    % Initialize result
+    result = ultrasat.alerts_filters.lvc.models.LvcFilterResult();
 
     % Add BNS contribution
     if ~isempty(alert.prob_bns)
-        score = score + 2.0 * alert.prob_bns;
-        reasons{end+1} = sprintf("BNS contribution: %.3f", alert.prob_bns);
+        result.score = result.score + 2.0 * alert.prob_bns;
+        result.reasons{end+1} = sprintf("BNS contribution: %.3f", alert.prob_bns);
     end
 
     % Add NSBH contribution

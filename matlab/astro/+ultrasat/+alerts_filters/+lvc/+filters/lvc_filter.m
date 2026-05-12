@@ -7,7 +7,7 @@
 % Description : LVC filter implementation entry point.
 %==========================================================================
 
-function result = lvc_filter(alert, logger)
+function result = lvc_filter(Input, logger)
     % LVC filter implementation entry point
     %
     % Parameters:
@@ -20,53 +20,36 @@ function result = lvc_filter(alert, logger)
     % Log the alert
     logger.info("Filtering alert: %s", alert.alert_id);
 
-    % Initialize score and reasons
-    score = 0.0;
-    reasons = {};
 
-    % Add BNS contribution
-    if ~isempty(alert.prob_bns)
-        score = score + 2.0 * alert.prob_bns;
-        reasons{end+1} = sprintf("BNS contribution: %.3f", alert.prob_bns);
+    alert = Input.alert;
+
+    filter_name = "simple";
+
+    % Get the filter name from the input
+    if isfield(Input, 'filter')
+        filter_name = string(Input.filter);
     end
 
-    % Add NSBH contribution
-    if ~isempty(alert.prob_nsbh)
-        score = score + 1.5 * alert.prob_nsbh;
-        reasons{end+1} = sprintf("NSBH contribution: %.3f", alert.prob_nsbh);
+    logger.info("Filtering alert: %s using filter=%s", alert.alert_id, filter_name);
+
+    % Process the alert using the selected filter
+    switch filter_name
+
+        case "simple"
+            result = ultrasat.alerts_filters.lvc.filters.lvc_filter_simple(alert, logger);
+
+        otherwise
+            error("Unknown LVC filter: %s", filter_name);
     end
-
-    % Add BBH contribution
-    if ~isempty(alert.prob_bbh)
-        score = score + 0.2 * alert.prob_bbh;
-        reasons{end+1} = sprintf("BBH contribution: %.3f", alert.prob_bbh);
-    end
-
-    % Add terrestrial penalty
-    if ~isempty(alert.prob_terrestrial)
-        score = score - 2.0 * alert.prob_terrestrial;
-        reasons{end+1} = sprintf("Terrestrial penalty: %.3f", alert.prob_terrestrial);
-    end
-
-    % Initialize flags
-    flags = struct();
-    flags.has_skymap = ~isempty(alert.skymap_path);
-    flags.low_far = ~isempty(alert.far_per_year) && alert.far_per_year < 10;
-
-    % Initialize result
-    result = struct();
-    result.score = max(score, 0.0);
-    result.class_probs = struct( ...
-        "bns", alert.prob_bns, ...
-        "nsbh", alert.prob_nsbh, ...
-        "bbh", alert.prob_bbh, ...
-        "terrestrial", alert.prob_terrestrial ...
-    );
-    result.flags = flags;
-    result.reasons = reasons;
 
     % Log the result
     msg = strjoin(string(result.reasons), "; ");
     logger.info("Filter result: score=%.2f, reasons=%s", result.score, msg);
 
+    % Return the result
+    result = struct;
+    result.status  = 'ok';
+    result.message = 'lvc_filter: OK';
+    result.result = result;
 end
+
