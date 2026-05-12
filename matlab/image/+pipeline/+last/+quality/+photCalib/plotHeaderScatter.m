@@ -90,6 +90,11 @@ function Result = plotHeaderScatter(DataPath, Args)
     %          pipeline.last.quality.photCalib.plotHeaderScatter(DataPath, 'XKey', 'PT_DOF', 'YKey', 'PT_CHI2', 'CentralEdge', true, 'visitPattern', '*v1');
     %          pipeline.last.quality.photCalib.plotHeaderScatter(DataPath, 'XKey', 'PT_DOF', 'YKey', 'PT_CHI2', 'CentralEdge', true, 'visitPattern', '*v1', 'LogY', true);
     %
+    %          % Restrict to a single observation field (token after '_clear_'):
+    %          pipeline.last.quality.photCalib.plotHeaderScatter(DataPath, ...
+    %                  'XKey', 'PT_DOF', 'YKey', 'PT_CHI2', ...
+    %                  'VisitPattern', '*v1', 'FieldId', '1781');
+    %
 
     arguments
         DataPath                          {mustBeText}
@@ -98,6 +103,8 @@ function Result = plotHeaderScatter(DataPath, Args)
         Args.VisitPattern    {mustBeText}              = '*v[0-9]*'
         Args.Recursive       logical                    = true
         Args.FileType        {mustBeMember(Args.FileType, {'coadd','proc'})} = 'coadd'
+        Args.FieldId                                      = ''
+        Args.CropID          double {mustBeInteger, mustBeNonnegative} = []
         Args.Ncrop                                       = 24
         Args.CropsToAnalyze                              = []
         Args.LogX            logical                    = false
@@ -154,6 +161,8 @@ function Result = plotHeaderScatter(DataPath, Args)
     AIc = pipeline.last.load.loadVisitCatHdr( ...
         'VisitDirs', VisitDirs, ...
         'FileType',  Args.FileType, ...
+        'FieldId',   Args.FieldId, ...
+        'CropID',    Args.CropID, ...
         'Verbose',   false);
 
     Keys = {Args.XKey, Args.YKey};

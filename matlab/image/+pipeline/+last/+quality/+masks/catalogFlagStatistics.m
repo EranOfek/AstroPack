@@ -72,10 +72,16 @@ function Report = catalogFlagStatistics(DataPath, Args)
     %                  'KeepAllSourcesXY',     false);
     %          % Plot the spatial fraction of flagged sources per bin:
     %          pipeline.last.quality.masks.plotCatalogFlagStatistics(R, 'Mode','fraction');
+    %          % Restrict to a single observation field (token after
+    %          % '_clear_' in the LAST filename):
+    %          R = pipeline.last.quality.masks.catalogFlagStatistics(DataPath, ...
+    %                  'FieldId', '1781');
 
     arguments
         DataPath                     (1,:) char
         Args.FileType                (1,:) char  = 'sci_coadd'
+        Args.FieldId                              = ''
+        Args.CropID    double {mustBeInteger, mustBeNonnegative} = []
         Args.BitNames                cell        = {}
         Args.BitDictName             (1,:) char  = 'BitMask.Image.Default'
         Args.ColFlags                (1,:) char  = 'FLAGS'
@@ -127,6 +133,28 @@ function Report = catalogFlagStatistics(DataPath, Args)
 
     if isempty(Dc)
         error('No catalog files found matching %s under %s', Pattern, DataPath);
+    end
+
+    if ~isempty(Args.FieldId) || ~isempty(Args.CropID)
+        FP  = arrayfun(@(d) fullfile(d.folder, d.name), Dc, 'Uni', 0);
+        AFN = AstroFileName(FP);
+        Keep = true(numel(Dc), 1);
+        if ~isempty(Args.FieldId)
+            Keep = Keep & strcmp(string(AFN.FieldID), string(Args.FieldId));
+        end
+        if ~isempty(Args.CropID)
+            Keep = Keep & strcmp(string(AFN.CropID), sprintf('%03d', Args.CropID));
+        end
+        if Args.Verbose && any(~Keep)
+            fprintf('FieldId=%s CropID=%s filter: dropped %d/%d catalog files\n', ...
+                char(string(Args.FieldId)), char(string(Args.CropID)), ...
+                sum(~Keep), numel(Dc));
+        end
+        Dc = Dc(Keep);
+        if isempty(Dc)
+            error('No catalog files matching FieldId=%s CropID=%s under %s', ...
+                char(string(Args.FieldId)), char(string(Args.CropID)), DataPath);
+        end
     end
 
     Nfiles = numel(Dc);
@@ -386,3 +414,4 @@ pipeline.last.quality.masks.plotMaskBitStatistics(Rmask);                FracBit
         end
     end
 end
+

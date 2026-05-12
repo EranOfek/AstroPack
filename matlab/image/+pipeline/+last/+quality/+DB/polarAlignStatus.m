@@ -5,6 +5,9 @@ function [MntSummary,Summary,PerMnt] = polarAlignStatus(Args)
     % Output : - Summary per mount
     %          - Summary per camera
     %          - Summary per mount [Mny, DeltaAz, DeltaAlt]
+    %            The output contains the offset of the mount relative to
+    %            the NCP, so one have to correct by moving in the opposite
+    %            direction.
     % Author : Eran Ofek (2025 Nov) 
     % Example: [Sm,S,PerMnt]=pipeline.last.quality.DB.polarAlignStatus('DB',DB);
 

@@ -17,6 +17,9 @@ function S=detectStreaksLSD(Im,filtIm,Args)
 %     StripHalfWidth - empirical half width of the transverse streak aperture
 %                      window. Default 6 pixel, increase for long streaks
 %                      with pronounced concavity
+%     ExtendLength - (pixels, up to Inf to clip at the image boundaries)
+%                extend the detected segments of that length, and compute
+%                line photometry also on the extension
 %
 % Outputs:
 %    S  - an imUtil.streaks.AstroStreak, with the fields 
@@ -51,7 +54,8 @@ function S=detectStreaksLSD(Im,filtIm,Args)
         Args.Subsample = 1/3;  % 1/3 - empirical best subsample factor
         Args.AngTol = 5*pi/180;  % 5° - empirical colinearity tolerance
         Args.EdgeGuard = 16; % 16px - empirical edge guard
-        Args.StripHalfWidth = 6; % 6px - empirical half width of the transverse streak aperure window
+        Args.StripHalfWidth = 6; % 6px - empirical half width of the transverse streak aperture window
+        Args.ExtendLength = 3; % compute slice photometry on prolongations of the detected segments beyond the extremes (px)
     end
 
    
@@ -62,8 +66,9 @@ function S=detectStreaksLSD(Im,filtIm,Args)
     segs=purge_edge_segments(segs,size(Im),Args.EdgeGuard);
 
     % photometry on the original image
-    % 1px - empirical longitudinal extension of the streak region (fixed, yet)
-    [phot,~,parfit]=imUtil.streaks.streak_photometry(filtIm,segs,1,Args.StripHalfWidth);
+    % ExtendLength - empirical longitudinal extension of the streak region
+    [phot,~,parfit]=imUtil.streaks.streak_photometry(filtIm,segs,...
+        Args.ExtendLength,Args.StripHalfWidth);
     
     % pack the results in an AstroStreak object
     S = imUtil.streaks.AstroStreak;
@@ -72,7 +77,7 @@ function S=detectStreaksLSD(Im,filtIm,Args)
     S.Flux = phot;
     
     for i=1:size(segs,2)
-        S.FitPar(i,:) = parfit(i).parfit';
+        S.FitPar(:,i) = parfit(i).parfit(:);
         S.Curve(i).X = parfit(i).coord(:,2)';
         S.Curve(i).Y = parfit(i).coord(:,1)';
         S.Curve(i).Flux = parfit(i).linephot;

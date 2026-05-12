@@ -3292,22 +3292,30 @@ classdef DemonLAST < Component
                             end
                             %
                             
-                            % if Args.DebugMode
-                            %     PM = PasswordsManager;
-                            %     DB.Password = PM.search(Args.DbName).Pass; 
-                            %     DBclient = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
-                            %     DBclient.query(sprintf('use %s',Args.DbName));
-                            % 
-                            %     StartDB = now;
-                            %     T = vertcat(Coadd.Table); T.Properties.VariableNames=lower(T.Properties.VariableNames);                                
-                            %     T.mergedcat= T.mergedcatmask;T.mergedcatmask=[];
-                            %     T.nobs = []; T.psf_chi2dof=[]; 
-                            %     T.apc_mag_aper_1=[]; T.apc_mag_aper_2=[]; T.apc_mag_psf=[]; 
-                            %     DBclient.insert('last.test_visit_src',T)
-                            %     EndDB = now;
-                            %     Msg{1} = sprintf('pipeline.DemonLAST: DB injection time %.1d sec', (EndDB-StartDB)*24*3600);
-                            %     Obj.writeLog(Msg, LogLevel.Info);
-                            % end
+                            if Args.DebugMode
+                                Configuration.getSingleton().loadFile(Args.AstroDBPassFile);
+                                PM = PasswordsManager;
+                                DB.Password = PM.search(Args.DbName).Pass; 
+                                DBclient = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
+                                DBclient.query(sprintf('use %s',Args.DbName));
+                                                                
+                                StartDB = now;
+                                Tproc = vertcat(AllSI.Table); Tproc.Properties.VariableNames=lower(Tproc.Properties.VariableNames);                                
+                                Tproc.psf_chi2dof=[]; Tproc.apc_mag_aper_1=[]; Tproc.apc_mag_aper_2=[]; Tproc.apc_mag_psf=[]; 
+                                DBclient.insert('last.test_visit_src',Tproc)
+                                EndDB = now;
+                                Msg{1} = sprintf('pipeline.DemonLAST: Proc src injection time %.1d sec', (EndDB-StartDB)*24*3600);                                
+                                Obj.writeLog(Msg, LogLevel.Info);
+                            
+                                StartDB = now;
+                                Tcoadd = vertcat(Coadd.Table); Tcoadd.Properties.VariableNames=lower(Tcoadd.Properties.VariableNames);                                
+                                Tcoadd.mergedcat= Tcoadd.mergedcatmask;  Tcoadd.mergedcatmask=[];
+                                Tcoadd.nobs = []; Tcoadd.psf_chi2dof=[]; Tcoadd.apc_mag_aper_1=[]; Tcoadd.apc_mag_aper_2=[]; Tcoadd.apc_mag_psf=[]; 
+                                DBclient.insert('last.test_visit_src',Tcoadd)
+                                EndDB = now;
+                                Msg{1} = sprintf('pipeline.DemonLAST: Coadd src injection time %.1d sec', (EndDB-StartDB)*24*3600);                                
+                                Obj.writeLog(Msg, LogLevel.Info);                                
+                            end
                             
                             if Args.Backup
                                 BackupPath = FN_Coadd.genPath('Level','proc');
