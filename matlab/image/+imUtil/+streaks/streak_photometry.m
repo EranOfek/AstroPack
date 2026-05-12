@@ -47,9 +47,20 @@ function [phot,extsegs,curve,stripeindices]=...
 %  Outputs:
 %    - phot: esimated intensity/unit length of each streak
 %    - extseg: [x1e; y1e; x2e; y2e]
-%    - curve: coefficients {a,b,c} of the parabolic fits
-%             to the offset w.r.o the base segs, h(t) = a+b*t+c*t^2
-%             where {x,y} = {x1e, y1e} for t=0 and {x,y} = {x2e, y2e} for t=1
+%    - curve: structure containing:
+%            * coefficients {a,b,c} of the parabolic fits
+%              to the offset w.r.o the base segs, h(t) = a+b*t+c*t^2
+%              where {x,y} = {x1e, y1e} for t=0 and {x,y} = {x2e, y2e} for t=1
+%              (note that this fit is done only on the 'acceptable' pixels,
+%              differently than and independently of the slice photometry)
+%            * coordinates of the fitted parabloic arc (one point per
+%              slice)
+%            * photometric value in the slice (for clipping='gaussianfit',
+%              or for other methods if linephot=true)
+%            * standard deviation of the gaussian fitted to the transverse
+%              intensity of the slice (for 'gaussianfit')
+%            * mean sagittal displacement of the slice (for 'gaussianfit')
+%            * a logical array flagging if the fit is considered acceptable
 %    - stripeindices: if requested, a cell with the list of pixels used to
 %                     analize each stripe (discarding intensity outliers)
 %
@@ -67,7 +78,7 @@ function [phot,extsegs,curve,stripeindices]=...
         Args.clipping {mustBeMember(Args.clipping, {'sigma','quantile','gaussianfit'})} ...
              = 'gaussianfit';
         Args.slice_width=10; % pixel units
-        Args.linephot=false;
+        Args.linephot=~false;
         Args.UseMex=true;
     end
     
@@ -84,7 +95,8 @@ function [phot,extsegs,curve,stripeindices]=...
     nsegs=size(segs,2);
     phot=nan(1,nsegs);
     extsegs=nan(size(segs));
-    curve=struct('parfit',nan(3,0),'coord',zeros(2,0),'linephot',[]);
+    curve=struct('parfit',nan(3,0),'coord',zeros(2,0),'linephot',[],...
+                 'transverseSigma',[],'hMean',[],'acceptable',false(0,0));
     if nargout==4
         stripeindices=cell(1,nsegs);
     end
@@ -169,6 +181,9 @@ function [phot,extsegs,curve,stripeindices]=...
                         'rthreshold',Args.sigmaclip);
                 end
                 curve(i).linephot=C(1,:).*C(3,:)*sqrt(2*pi);
+                curve(i).hMean= C(2,:);
+                curve(i).transverseSigma= C(3,:);
+                curve(i).acceptable= C(5,:)==1;
                 scpp=pp(goodindices);
                 smask= false(size(mask));
                 mindexes=find(mask);
@@ -330,10 +345,12 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,x,y,W,Args)
 %              poorer transverse fits than the rest. Default 0.7
 %  'medianclip': discard slices whose fit have A and sigma larger than
 %                medianclip times the respective median. Default 2
-%  'testplot':  plot somethibg for debugging, default false
+%  'testplot':  plot something for debugging, default false
 %
 % Output:
-%   C:           4xM for each slice, (A,sigma,mu_h,r). M is L/Args.slice_width.
+%   C:           5xM for each slice, (A,sigma,mu_h,r,acceptable).
+%                M is L/Args.slice_width. Acceptable is 1, not acceptable
+%                is 0 or NaN.
 % goodindices: logical vector 1xN, true for indices of elements of W which
 %                lead to an acceptable fit (R-square>Args.rthreshold)
 %   tm:  vector of values of the intrinsic segment coordinate, at the
@@ -359,7 +376,7 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,x,y,W,Args)
     D=((X2(1)-X1(1))*(y-X1(2)) - (X2(2)-X1(2))*(x-X1(1)))/L;
 
     num_slices=ceil(L/Args.slice_width);
-    C=NaN(4,num_slices);
+    C=NaN(5,num_slices);
     goodindices=false(size(W));
 
     % for fit
@@ -395,6 +412,7 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,x,y,W,Args)
             C(4,i) = 1 - (SS_res / SS_tot);        % R-squared value
             if C(4,i)>Args.rthreshold
                 goodindices(q)=true;
+                C(5,i)=1;
             end
         catch
             fprintf('no fit for slice %d\n',i)
@@ -409,7 +427,7 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,x,y,W,Args)
     for i=1:num_slices
         q = T>(i-1)/num_slices & T<=i/num_slices;
         if C(1,i)>Args.medianclip*Amedian || C(3,i)>Args.medianclip*Smedian
-            C(:,i)=NaN;
+            C(5,i)=0;
             goodindices(q)=false;
         end
     end
