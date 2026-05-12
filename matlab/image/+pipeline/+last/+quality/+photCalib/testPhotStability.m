@@ -71,6 +71,10 @@ function Result = testPhotStability(Args)
     %          pipeline.last.quality.photCalib.plotPhotScatter(R.MS, 'Modes', {'percrop'});
     %          pipeline.last.quality.photCalib.plotPhotFWHM(R);
     %          pipeline.last.quality.photCalib.plotPhotIntegralT(R.PC);
+    %
+    %          % Restrict to a single observation field (token after '_clear_'):
+    %          R = pipeline.last.quality.photCalib.testPhotStability('DataDir', '~/222625v1', ...
+    %                  'FieldId', '1781');
 
     arguments
         Args.DataDir        = '~/222625v1'
@@ -81,6 +85,8 @@ function Result = testPhotStability(Args)
         Args.ListFields     = {}
         Args.VisitIdx       = []
         Args.FileType       = 'proc'
+        Args.FieldId        = ''      % see pipeline.last.load.loadVisitCatHdr
+        Args.CropID         double {mustBeInteger, mustBeNonnegative} = []
         Args.Modes          = {'percrop'}
         Args.RefCrop        = 10
         Args.Ncrop          = 24
@@ -167,6 +173,8 @@ function Result = testPhotStability(Args)
         'ListFields', Args.ListFields, ...
         'VisitIdx', Args.VisitIdx, ...
         'FileType', Args.FileType, ...
+        'FieldId',  Args.FieldId, ...
+        'CropID',   Args.CropID, ...
         'Verbose', Args.Verbose);
 
     Nvisits = numel(AI);

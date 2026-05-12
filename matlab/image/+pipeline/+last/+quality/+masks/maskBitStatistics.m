@@ -38,6 +38,18 @@ function Report = maskBitStatistics(DataPath, Args)
     %                             (use 'Recursive' instead).
     %            'Recursive'    - Recurse into subdirectories. Used only when
     %                             'VisitPattern' is empty. Default is true.
+    %            'FieldId'      - Keep only files whose AstroFileName.FieldID
+    %                             (the token after '_clear_' in the LAST
+    %                             filename, e.g. '1781' or '346+79') equals
+    %                             this value. Char/string/numeric. Default
+    %                             is '' (no filter). Mismatches dropped with
+    %                             a Verbose-only message.
+    %            'CropID'       - Keep only files whose AstroFileName.CropID
+    %                             slot (3-digit zero-padded crop index)
+    %                             matches. Integer scalar (1..Ncrop);
+    %                             formatted to '%03d' internally for
+    %                             comparison. Default [] (no filter).
+    %                             Combined with FieldId via AND.
     %            'ReportFile'   - Optional file path to save report (.mat).
     %                             Default is '' (no save).
     %            'Verbose'      - Print progress to console. Default is false.
@@ -91,6 +103,11 @@ function Report = maskBitStatistics(DataPath, Args)
     %          ParentPath = '/archimedes/LASTunitTest/2025/04/26/proc';
     %          R = pipeline.last.quality.masks.maskBitStatistics(ParentPath, ...
     %                  'VisitPattern', '*v[0-9]*');
+    %
+    %          % Restrict to a specific observation field (token after
+    %          % '_clear_' in the LAST filename, e.g. '1781' or '346+79'):
+    %          R = pipeline.last.quality.masks.maskBitStatistics(ParentPath, ...
+    %                  'VisitPattern', '*v[0-9]*', 'FieldId', '1781');
 
     arguments
         DataPath                     (1,:) char
@@ -101,6 +118,8 @@ function Report = maskBitStatistics(DataPath, Args)
         Args.KeepPerFileMaps         (1,1) logical = false
         Args.VisitPattern            (1,:) char    = ''
         Args.Recursive               (1,1) logical = true
+        Args.FieldId                              = ''   % keep only files whose AstroFileName.FieldID matches
+        Args.CropID    double {mustBeInteger, mustBeNonnegative} = []  % integer; [] = no filter
         Args.ReportFile              (1,:) char  = ''
         Args.Verbose                 (1,1) logical = false
     end
@@ -156,6 +175,31 @@ function Report = maskBitStatistics(DataPath, Args)
 
     if isempty(Dm)
         error('No mask files found matching %s under %s', Pattern, ScopeStr);
+    end
+
+    % FieldId / CropID filter: drop files whose AstroFileName slots
+    % don't match. Either or both filters can be enabled.
+    if ~isempty(Args.FieldId) || ~isempty(Args.CropID)
+        NBefore   = numel(Dm);
+        FullPaths = arrayfun(@(d) fullfile(d.folder, d.name), Dm, 'Uni', 0);
+        AFN  = AstroFileName(FullPaths);
+        Keep = true(numel(Dm), 1);
+        if ~isempty(Args.FieldId)
+            Keep = Keep & strcmp(string(AFN.FieldID), string(Args.FieldId));
+        end
+        if ~isempty(Args.CropID)
+            Keep = Keep & strcmp(string(AFN.CropID), sprintf('%03d', Args.CropID));
+        end
+        Dm   = Dm(Keep);
+        if Args.Verbose && (NBefore - numel(Dm)) > 0
+            fprintf('FieldId=%s CropID=%s filter: dropped %d/%d mask files\n', ...
+                char(string(Args.FieldId)), char(string(Args.CropID)), ...
+                NBefore - numel(Dm), NBefore);
+        end
+        if isempty(Dm)
+            error('No mask files matching FieldId=%s CropID=%s under %s', ...
+                char(string(Args.FieldId)), char(string(Args.CropID)), ScopeStr);
+        end
     end
 
     Nfiles = numel(Dm);
@@ -359,3 +403,4 @@ function Report = maskBitStatistics(DataPath, Args)
         end
     end
 end
+

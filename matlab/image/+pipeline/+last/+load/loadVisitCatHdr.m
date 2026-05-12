@@ -28,6 +28,19 @@ function AI = loadVisitCatHdr(Args)
     %                          [] (all folders).
     %   --- Common ---
     %            'FileType'  - 'proc' or 'coadd'. Default is 'proc'.
+    %            'FieldId'   - Keep only files whose AstroFileName.FieldID
+    %                          (the token after '_clear_' in the LAST
+    %                          filename, e.g. '1781' or '346+79') equals
+    %                          this value. Char/string/numeric. Default
+    %                          is '' (no filter). Mismatches dropped with
+    %                          a Verbose-only message.
+    %            'CropID'    - Keep only files whose AstroFileName.CropID
+    %                          slot (3-digit zero-padded crop index in
+    %                          the LAST filename, e.g. '014' for crop
+    %                          14) matches. Integer scalar (1..Ncrop);
+    %                          formatted to '%03d' internally for
+    %                          comparison. Default [] (no filter).
+    %                          Combined with FieldId via AND.
     %            'Verbose'   - Print progress. Default is true.
     % Output : - AI cell(Nvisits,1), each element a 1xNcrop AstroImage array
     %            with only CatData + HeaderData populated.
@@ -49,6 +62,11 @@ function AI = loadVisitCatHdr(Args)
     %          % VisitDirs mode — explicit folder list:
     %          AI = pipeline.last.load.loadVisitCatHdr('VisitDirs', ...
     %               ["/path/to/visit1", "/path/to/visit2"], 'FileType', 'coadd');
+    %
+    %          % Restrict to a specific observation field (token after
+    %          % '_clear_' in the LAST filename, e.g. '1781' or '346+79'):
+    %          AI = pipeline.last.load.loadVisitCatHdr('DataDir', '/data/222625v1', ...
+    %                  'FieldId', '1781');
 
     arguments
         Args.DataDir     = ''
@@ -58,6 +76,8 @@ function AI = loadVisitCatHdr(Args)
         Args.ListFields  = {}       % field name(s) to read from ListFile
         Args.VisitIdx    = []       % indices into folder list
         Args.FileType    = 'proc'   % 'proc' | 'coadd'
+        Args.FieldId     = ''       % keep only files whose AstroFileName.FieldID matches
+        Args.CropID      double {mustBeInteger, mustBeNonnegative} = []   % integer 1..Ncrop; [] = no filter
         Args.Verbose logical = true
     end
 
@@ -110,6 +130,9 @@ function AI = loadVisitCatHdr(Args)
                 ImFiles  = decompressBz2(ImBz2, TmpDir);
             end
         end
+
+        [CatFiles, ImFiles] = filterFieldIdCropID(CatFiles, ImFiles, ...
+            Args.FieldId, Args.CropID, Args.Verbose, sprintf('Epoch %d', Iv));
 
         if isempty(CatFiles)
             if Args.Verbose
@@ -199,6 +222,9 @@ function AI = loadFromDataDir(Args)
     AllCatFiles = io.files.filelist(fullfile(Args.DataDir, CatPattern));
     AllImFiles  = io.files.filelist(fullfile(Args.DataDir, ImPattern));
 
+    [AllCatFiles, AllImFiles] = filterFieldIdCropID(AllCatFiles, AllImFiles, ...
+        Args.FieldId, Args.CropID, Args.Verbose, 'DataDir');
+
     % Coadd: one coadd per crop per visit folder — no visit-index filtering
     if strcmpi(Args.FileType, 'coadd')
         if Args.Verbose
@@ -261,6 +287,38 @@ function AI = loadFromDataDir(Args)
             fprintf('  Visit %s: %d crops\n', VStr, numel(CatFiles));
         end
     end
+end
+
+% =========================================================================
+function [CatFiles, ImFiles] = filterFieldIdCropID(CatFiles, ImFiles, FieldId, CropID, Verbose, Tag)
+    % Drop files whose AstroFileName.FieldID and/or CropID do not match.
+    % '' / [] for either argument disables that filter; both can be on.
+    if isempty(FieldId) && isempty(CropID); return; end
+    NCBefore = numel(CatFiles);  NIBefore = numel(ImFiles);
+    [CatFiles] = filterOne(CatFiles, FieldId, CropID);
+    [ImFiles]  = filterOne(ImFiles,  FieldId, CropID);
+    if Verbose
+        NCDrop = NCBefore - numel(CatFiles);
+        NIDrop = NIBefore - numel(ImFiles);
+        if NCDrop > 0 || NIDrop > 0
+            fprintf('  %s: FieldId=%s CropID=%s filter dropped %d/%d Cat, %d/%d Im\n', ...
+                Tag, char(string(FieldId)), char(string(CropID)), ...
+                NCDrop, NCBefore, NIDrop, NIBefore);
+        end
+    end
+end
+
+function Files = filterOne(Files, FieldId, CropID)
+    if isempty(Files); return; end
+    AFN = AstroFileName(Files);
+    Keep = true(numel(Files), 1);
+    if ~isempty(FieldId)
+        Keep = Keep & strcmp(string(AFN.FieldID), string(FieldId));
+    end
+    if ~isempty(CropID)
+        Keep = Keep & strcmp(string(AFN.CropID), sprintf('%03d', CropID));
+    end
+    Files = Files(Keep);
 end
 
 % =========================================================================

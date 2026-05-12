@@ -621,5 +621,21 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     StageCatalog.Atmospheric.SigmaIter = 0;
     StageCatalog.Atmospheric.Description = 'Optimize water vapor and aerosol';
 
+    % Joint linear stage: fits Norm and all 10 cheby1_4_xt Tran2D coefficients
+    % in a single linear LS solve. Norm is absorbed into kx0 by the LS (the two
+    % are perfectly degenerate); after the fit the split is fixed by
+    % Tran2D(0,0) = 0 -- Norm carries the field-centre value, Tran2D ParX is
+    % shifted so the field correction is exactly zero at (Xc, Yc).
+    % FreeParams = 'JOINT_FC' is a sentinel recognised by fitMultiStage.
+    StageCatalog.NormAndTran2D_Linear = struct();
+    StageCatalog.NormAndTran2D_Linear.StageName = 'NormAndTran2D_Linear';
+    StageCatalog.NormAndTran2D_Linear.Method = 'linear';
+    StageCatalog.NormAndTran2D_Linear.FreeParams = 'JOINT_FC';
+    StageCatalog.NormAndTran2D_Linear.SigmaClip = false;
+    StageCatalog.NormAndTran2D_Linear.SigmaThresh = 3.0;
+    StageCatalog.NormAndTran2D_Linear.SigmaIter = 0;
+    StageCatalog.NormAndTran2D_Linear.MinCalibrators = 30;
+    StageCatalog.NormAndTran2D_Linear.Description = 'Joint Norm + Tran2D linear fit, split by Tran2D(0,0)=0';
+
 
  end

@@ -48,8 +48,21 @@
 %   T   = Tap.query(Q,'TapUrl','https://datalab.noirlab.edu/tap','Ofmt','csv','TimeoutSec',120);
 %
 % VLA archive cone search
-%   Q = "SELECT TOP 5000 * FROM tap_schema.obscore WHERE 1=CONTAINS(POINT('ICRS',s_ra,s_dec),CIRCLE('ICRS',82.995,33.148,0.1)) AND t_min > 51000 AND t_min < 61000 ORDER BY t_min";  
-%   T = Tap.query(Q,'TapUrl','https://data-query.nrao.edu/tap','Ofmt','csv','TimeoutSec',120);         
+%   Q = "SELECT TOP 5000 * FROM tap_schema.obscore WHERE 1=CONTAINS(POINT('ICRS',s_ra,s_dec),CIRCLE('ICRS',82.995,33.148,0.1)) AND t_min > 51000 AND t_min < 61000 ORDER BY t_min";
+%   T = Tap.query(Q,'TapUrl','https://data-query.nrao.edu/tap','Ofmt','csv','TimeoutSec',120);
+%
+% NED TAP -- async, in Dec bands to bypass the 1,000,000-row MAXREC cap.
+% NED is not in the TapList; pass TapUrl explicitly.
+% (Used by ~/tmp/NEDz/buildNEDz.m to dump all NED objects with non-NaN z.)
+%   Tap = VO.TopCat;
+%   Url = 'https://ned.ipac.caltech.edu/tap';
+%   for DecLo = -90:10:80
+%       Q = sprintf(['SELECT ra, dec, z, zunc, pretype FROM NEDTAP.objdir ' ...
+%                    'WHERE z IS NOT NULL AND dec >= %g AND dec < %g'], ...
+%                    DecLo, DecLo+10);
+%       Tband = Tap.query(Q, 'TapUrl', Url, 'SyncMode','async', ...
+%                            'TimeoutSec',3600, 'Ofmt','csv');
+%   end
 
 
 

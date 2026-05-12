@@ -37,7 +37,7 @@ function Result = plotPhotScatter(MS, Args)
     %                 returned by pipeline.last.load.loadVisit. No
     %                 'Modes' arg needed — the array is treated as a
     %                 single anonymous mode.
-    %              2) Cell array of MatchedSources (rare).
+    %              2) Cell array of MatchedSources (if available).
     %              3) Struct with mode-named cell fields, MS.(mode){crop}
     %                 = MatchedSources (from matchPhotEpochs or
     %                 pipeline.last.load.loadMergedMat). 'Modes' selects
@@ -95,8 +95,8 @@ function Result = plotPhotScatter(MS, Args)
     %                .CropsAnalyzed - 1xNmodes cell of crop index vectors
     %                .PerCrop       - {Imode}{Iic}.Med .Std
     %                .AllMed,.AllStd - 1xNmodes cell, pooled across crops
-    % Author : D. Kovaleva (Mar 2026; angular support Apr 2026; group layout Apr 2026)
-    % Example: % --- loadVisit users (typical) ----------------------------
+    % Author : D. Kovaleva (Mar 2026)
+    % Example: % --- loadVisit ----------------------------
     %          % Load only the MatchedSources of a visit (skip images/coadd):
     %          VisitDir = '/archimedes/LASTunitTest/2025/04/26/proc/002712v0';
     %          [~, ~, MS] = pipeline.last.load.loadVisit(VisitDir, ...
