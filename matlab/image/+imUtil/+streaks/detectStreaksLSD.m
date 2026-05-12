@@ -77,7 +77,7 @@ function S=detectStreaksLSD(Im,filtIm,Args)
     S.Flux = phot;
     
     for i=1:size(segs,2)
-        S.FitPar(i,:) = parfit(i).parfit';
+        S.FitPar(:,i) = parfit(i).parfit(:);
         S.Curve(i).X = parfit(i).coord(:,2)';
         S.Curve(i).Y = parfit(i).coord(:,1)';
         S.Curve(i).Flux = parfit(i).linephot;
