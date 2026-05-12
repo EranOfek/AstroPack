@@ -1,0 +1,6 @@
+{
+  "action": "filter_lvc",
+  "alert_file": "/home/soc/soc/data/lvc/2026/05/12/S123/preliminary_alert.json",
+  "criteria_file": "/home/soc/soc/config/lvc/default_criteria.json",
+  "output_dir": "/home/soc/soc/runtime/results/lvc/2026/05/12/S123/"
+}

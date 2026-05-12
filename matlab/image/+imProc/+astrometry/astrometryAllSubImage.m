@@ -11,6 +11,8 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
     %            'StartSubImage' - Index of sub image in the input
     %                   AstroImage vector from which to start.
     %                   I.e., will run astrometryCore on this subimage.
+    %                   the central crops are [10 16  9 15] for the old pipeline 
+    %                                     but [10 11 14 15] for the new pipeline
     %            'CCDSEC' - Either a 4 columns matrix of CCDSEC (in the
     %                   original full image) of the subimages contained in
     %                   the vector of sub images.
@@ -102,7 +104,7 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
     arguments
         Obj
 
-        Args.StartSubImage          = [10 16 9 15];
+        Args.StartSubImage          = [10 16 9 15]; % [10 16 9 15] old pipeline [10 11 14 15] new pipeline 
         Args.CCDSEC                 = 'ORIGSEC';
 
         Args.Scale                  = 1.25;  % [arcsec/pix]
