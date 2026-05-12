@@ -21,6 +21,7 @@ function debug_LvcParsedAlert()
     debugFromStruct();
     debugDatetimeHandling();
     debugSaveLoadJson();
+    debugLoadJsonFixtures();
     debugFilterIntegration();
 end
 
@@ -119,6 +120,35 @@ end
 
 % -------------------------------------------------------------------------
 
+function debugLoadJsonFixtures()
+    debugDir = fileparts(mfilename('fullpath'));
+    fixtureDir = fullfile(debugDir, 'data');
+    if ~isfolder(fixtureDir)
+        fixtureDir = fullfile(debugDir, 'sample_alerts');
+    end
+
+    fprintf('\n--- load JSON fixtures from %s ---\n', fixtureDir);
+
+    jsonFiles = dir(fullfile(fixtureDir, '*.json'));
+    assert(~isempty(jsonFiles), 'No LVC alert JSON fixtures found in: %s', fixtureDir);
+
+    for iFile = 1:numel(jsonFiles)
+        filePath = fullfile(jsonFiles(iFile).folder, jsonFiles(iFile).name);
+        alert = ultrasat.alerts_filters.lvc.models.LvcParsedAlert.loadFromJsonFile(filePath);
+
+        assert(isa(alert, 'ultrasat.alerts_filters.lvc.models.LvcParsedAlert'), ...
+            'Fixture "%s" did not load as LvcParsedAlert', jsonFiles(iFile).name);
+        assert(strlength(alert.alert_id) > 0, ...
+            'Fixture "%s" loaded without an alert_id', jsonFiles(iFile).name);
+
+        fprintf('Loaded %s: alert_id="%s", alert_type="%s", prob_bns=%s, far_per_year=%s\n', ...
+            jsonFiles(iFile).name, alert.alert_id, alert.alert_type, ...
+            formatDebugScalar(alert.prob_bns), formatDebugScalar(alert.far_per_year));
+    end
+end
+
+% -------------------------------------------------------------------------
+
 function debugFilterIntegration()
     fprintf('\n--- Integration: LvcParsedAlert + LvcFilterCriteria + lvc_filter_with_criteria ---\n');
     alert = ultrasat.alerts_filters.lvc.models.LvcParsedAlert( ...
@@ -126,4 +156,20 @@ function debugFilterIntegration()
     criteria = ultrasat.alerts_filters.lvc.models.LvcFilterCriteria("bns_min", 0.3, "far_max", 10);
     result = ultrasat.alerts_filters.lvc.filters.lvc_filter_with_criteria(alert, criteria, MsgLogger.getSingleton());
     %fprintf('Filter result: score=%.2f, reasons=%s\n', result.score, strjoin(result.reasons, "; "));
+end
+
+% -------------------------------------------------------------------------
+
+function result = formatDebugScalar(value)
+    if isempty(value)
+        result = '[]';
+    elseif isnumeric(value) && isscalar(value)
+        if isnan(value)
+            result = 'NaN';
+        else
+            result = sprintf('%.3g', value);
+        end
+    else
+        result = char(string(value));
+    end
 end
