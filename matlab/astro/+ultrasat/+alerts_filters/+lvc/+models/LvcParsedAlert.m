@@ -1,10 +1,10 @@
 %==========================================================================
-% Project     : ULTRASAT SOC Alert Parser
-% File        : +alerts/+models/LvcParsedAlert.m
+% Project     : ULTRASAT Incoming Alerts Filter
+% File        : +ultrasat/+alerts_filters/+lvc/+models/LvcParsedAlert.m
 % Author      : Chen Tishler
 % Created     : 09/02/2026
-% Updated     : 09/02/2026
-% Description : Class to hold parsed LVC alert data
+% Updated     : 12/05/2026
+% Description : Class to hold parsed Incoming Alerts alert data
 %==========================================================================
 
 classdef LvcParsedAlert
@@ -120,7 +120,7 @@ classdef LvcParsedAlert
             % Returns:
             %   obj - Object
             data = jsondecode(jsonString);
-            obj = ultrasat.alerts.models.LvcParsedAlert.fromStruct(data);
+            obj = ultrasat.alerts_filters.lvc.models.LvcParsedAlert.fromStruct(data);
         end
 
 
@@ -133,7 +133,7 @@ classdef LvcParsedAlert
             % Returns:
             %   obj - Object
             txt = fileread(file_path);
-            obj = ultrasat.alerts.models.LvcParsedAlert.fromJsonString(txt);
+            obj = ultrasat.alerts_filters.lvc.models.LvcParsedAlert.fromJsonString(txt);
         end
 
 
@@ -145,7 +145,7 @@ classdef LvcParsedAlert
             %
             % Returns:
             %   obj - Object
-            obj = ultrasat.alerts.models.LvcParsedAlert();
+            obj = ultrasat.alerts_filters.lvc.models.LvcParsedAlert();
 
             obj.alert_id = getfield(s, "alert_id", "");
             obj.superevent_id = getfield(s, "superevent_id", "");

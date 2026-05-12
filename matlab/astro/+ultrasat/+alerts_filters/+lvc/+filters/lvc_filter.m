@@ -1,14 +1,14 @@
 %==========================================================================
-% Project     : ULTRASAT Observation Planner
-% File        : ultrasat.api.ClientBase.m
+% Project     : ULTRASAT Incoming Alerts Filter
+% File        : +ultrasat/+alerts_filters/+lvc/+filters/lvc_filter.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
-% Updated     : 06/10/2025
-% Description : Base class for interacting with REST API services.
+% Updated     : 12/05/2026
+% Description : LVC filter implementation entry point.
 %==========================================================================
 
-function result = lvc_filter_simple(alert, logger)
-    % Basic LVC filter without criteria
+function result = lvc_filter(alert, logger)
+    % LVC filter implementation entry point
     %
     % Parameters:
     %   alert - LvcParsedAlert object

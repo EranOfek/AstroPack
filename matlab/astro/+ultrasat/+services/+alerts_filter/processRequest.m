@@ -1,3 +1,12 @@
+%==========================================================================
+% Project     : ULTRASAT Incoming Alerts Filter
+% Filename    : ultrasat/+services/+alerts_filter/processRequest.m
+% Author      : Chen Tishler
+% Created     : 02/11/2025
+% Modified    : 12/05/2026
+% Description : MATLAB service to process AlertsFilter requests using JsonFileIpc
+%==========================================================================
+
 function Output = processRequest(Input)
     % Process AlertsFilter request for ULTRASAT
 
@@ -7,8 +16,11 @@ function Output = processRequest(Input)
     Output.summaryFileName = '';
 
     try
-        if strcmp(Input.action, 'alerts_filter')
-            Output = processAlertsFilter(Input);
+        if strcmp(Input.action, 'health')
+            Output.status  = 'ok';            
+            Output.message = 'health: OK';        
+        elseif strcmp(Input.action, 'filter_lvc')
+            Output = processFilterLvc(Input);
         else
             Output.message = 'processRequest: unknown action';
             Output.status = 'error';
@@ -22,22 +34,44 @@ end
 
 % ===========================================================================
 
-function Output = processAlertsFilter(Input)
+function Output = processFilterLvc(Input)
     % Process AlertsFilter request for ULTRASAT
 
+    % Get the logger
+    logger = MsgLogger.getSingleton();
+
+    % Load the alert from the input file
+    alert = []];
     try
-        % Create helper (if class-based environment, else call directly)
-        runner = ultrasat.planner.TooPlannerRunner();
-        summaryFileName = runner.runFromJson(Params.filename);
-        Result = struct;
-        Result.summaryFileName = summaryFileName;
-        Message = 'TooPlanner: OK';
+        alert = ultrasat.alerts_filters.lvc.models.LvcParsedAlert.loadFromJsonFile(Input.alert_file);
     catch ex
-        Result = struct;
-        Result.summaryFileName = '';
-        Message = sprintf("doProcessToo: error: identifier='%s', message='%s'", ex.identifier, ex.message);
-        io.msgLog(LogLevel.Error, Message);
+        Output = struct;
+        Output.status  = 'error';
+        Output.message = sprintf("processFilterLvc: error: identifier='%s', message='%s'", ex.identifier, ex.message);
+        io.msgLog(LogLevel.Error, Output.message);
+    end
+
+    if isempty(alert)
+        return;
+    end
+
+    try
+        % Set the alert in the input
+        Input.alert = alert;        
+
+        % Process the alert        
+        result = ultrasat.alerts_filters.lvc.filters.lvc_filter(Input, logger);
+        
+        % Return the result
+        Output = struct;
+        Output.status  = 'ok';
+        Output.message = 'processFilterLvc: OK';        
+        Output.result = result;
+    catch ex
+        Output = struct;
+        Output.status  = 'error';
+        Output.message = sprintf("processFilterLvc: error: identifier='%s', message='%s'", ex.identifier, ex.message);
+        io.msgLog(LogLevel.Error, Output.message);
     end
 end
-
 

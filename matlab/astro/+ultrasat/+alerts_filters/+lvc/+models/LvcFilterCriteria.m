@@ -1,10 +1,10 @@
 %==========================================================================
-% Project     : ULTRASAT SOC Alert Parser
-% File        : +alerts/+models/    LvcFilterCriteria.m
+% Project     : ULTRASAT Incoming Alerts Filter
+% File        : +ultrasat/+alerts_filters/+lvc/+models/LvcFilterCriteria.m
 % Author      : Chen Tishler
 % Created     : 09/02/2026
-% Updated     : 09/02/2026  
-% Description : Class to hold LVC filter criteria
+% Updated     : 12/05/2026  
+% Description : Class to hold Incoming Alerts Filter criteria
 %==========================================================================
 
 classdef LvcFilterCriteria
@@ -97,7 +97,7 @@ classdef LvcFilterCriteria
             % Returns:
             %   obj - Object
             data = jsondecode(jsonString);
-            obj = ultrasat.alerts.models.LvcFilterCriteria.fromStruct(data);
+            obj = ultrasat.alerts_filters.lvc.models.LvcFilterCriteria.fromStruct(data);
         end
 
 
@@ -110,7 +110,7 @@ classdef LvcFilterCriteria
             % Returns:
             %   obj - Object
             result = fileread(file_path);
-            obj = ultrasat.alerts.models.LvcFilterCriteria.fromJsonString(result);
+            obj = ultrasat.alerts_filters.lvc.models.LvcFilterCriteria.fromJsonString(result);
         end
 
 
@@ -122,7 +122,7 @@ classdef LvcFilterCriteria
             %
             % Returns:
             %   obj - Object
-            obj = ultrasat.alerts.models.LvcFilterCriteria();
+            obj = ultrasat.alerts_filters.lvc.models.LvcFilterCriteria();
 
             obj.bns_min = getfield(s, "bns_min", 0.0);
             obj.nsbh_min = getfield(s, "nsbh_min", 0.0);
