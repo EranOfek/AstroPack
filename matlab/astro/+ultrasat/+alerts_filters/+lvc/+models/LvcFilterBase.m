@@ -1,10 +1,10 @@
 %==========================================================================
-% Project     : ULTRASAT Observation Planner
+% Project     : ULTRASAT Incoming Alerts Filter
 % File        : +ultrasat/+alerts_filters/+lvc/+models/LvcFilterBase.m
 % Author      : Chen Tishler
 % Created     : 12/05/2026
 % Updated     : 12/05/2026
-% Description : Base class for LVC filter implementations.
+% Description : Base class for Incoming Alerts Filter implementations.
 %==========================================================================
 
 classdef LvcFilterBase

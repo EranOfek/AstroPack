@@ -1,10 +1,10 @@
 %==========================================================================
-% Project     : ULTRASAT SOC Alert Parser
+% Project     : ULTRASAT Incoming Alerts Filter
 % File        : +ultrasat/+alerts_filters/+lvc/+models/LvcFilterCriteria.m
 % Author      : Chen Tishler
 % Created     : 09/02/2026
 % Updated     : 12/05/2026  
-% Description : Class to hold AlertsFilter filter criteria
+% Description : Class to hold Incoming Alerts Filter criteria
 %==========================================================================
 
 classdef LvcFilterCriteria

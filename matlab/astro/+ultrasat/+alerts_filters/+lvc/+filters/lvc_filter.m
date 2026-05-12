@@ -1,14 +1,14 @@
 %==========================================================================
 % Project     : ULTRASAT Incoming Alerts Filter
-% File        : +ultrasat/+alerts_filters/+lvc/+filters/lvc_filter_simple.m
+% File        : +ultrasat/+alerts_filters/+lvc/+filters/lvc_filter.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
 % Updated     : 12/05/2026
-% Description : Simple LVC filter implementation.
+% Description : LVC filter implementation entry point.
 %==========================================================================
 
-function result = lvc_filter_simple(alert, logger)
-    % Simple LVC filter implementation
+function result = lvc_filter(alert, logger)
+    % LVC filter implementation entry point
     %
     % Parameters:
     %   alert - LvcParsedAlert object

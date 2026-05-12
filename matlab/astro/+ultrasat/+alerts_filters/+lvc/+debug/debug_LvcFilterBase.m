@@ -1,5 +1,5 @@
 %==========================================================================
-% Project     : ULTRASAT Observation Planner
+% Project     : ULTRASAT Incoming Alerts Filter
 % File        : +ultrasat/+alerts_filters/+lvc/+debug/debug_LvcFilterBase.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024

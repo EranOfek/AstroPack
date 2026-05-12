@@ -1,6 +1,6 @@
 %==========================================================================
-% Project     : ULTRASAT Observation Planner
-% File        : ultrasat.alerts.filters.lvc_filter_with_criteria.m
+% Project     : ULTRASAT Incoming Alerts Filter
+% File        : +ultrasat/+alerts_filters/+lvc/+filters/lvc_filter_with_criteria.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
 % Updated     : 12/05/2026

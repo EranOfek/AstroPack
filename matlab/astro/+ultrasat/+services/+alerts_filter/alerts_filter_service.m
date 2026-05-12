@@ -1,10 +1,10 @@
 %==========================================================================
-% Project     : ULTRASAT SOC
+% Project     : ULTRASAT Incoming Alerts Filter
 % Filename    : ultrasat/+services/+alerts_filter/alerts_filter_service.m
 % Author      : Chen Tishler    
 % Created     : 02/11/2025
 % Modified    : 10/02/2026
-% Description : MATLAB service to process AlertsFilter requests using JsonFileIpc
+% Description : MATLAB service to process Incoming Alerts Filter requests using JsonFileIpc
 %==========================================================================
 
 function alerts_filter_service()

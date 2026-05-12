@@ -1,5 +1,5 @@
 %==========================================================================
-% Project     : ULTRASAT SOC Alert Parser
+% Project     : ULTRASAT Incoming Alerts Filter
 % File        : +ultrasat/+alerts_filters/+lvc/+debug/debug_LvcFilterCriteria.m
 % Author      : Chen Tishler
 % Created     : 09/02/2026
