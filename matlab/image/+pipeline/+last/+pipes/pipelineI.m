@@ -330,6 +330,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                         if IsForcedPhot(Isub)
                             IsubGood = find(find(IsForcedPhot)==Isub);
 
+                            % May need to update the column names:
                             [~, RA, Dec] = imProc.cat.applyProperMotionSimple(CatForcedPhot(Isub), JD(1), 'OutUnits','rad', 'OutEpochUnits','JD', 'InEpoch','epoch', 'ColPMRA','pmra', 'ColPMDec','pmdec', 'OutUnits','deg');
                             Coo = [RA, Dec];
                             %Coo = CatForcedPhot(IsubGood).getCol({'RA','Dec'}).*RAD;
@@ -348,6 +349,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             else
                 %AllForcedPhot = [];
             end
+            
+
         
             % Sort all catalogs by Dec
             %ProcessingStep = 451;
