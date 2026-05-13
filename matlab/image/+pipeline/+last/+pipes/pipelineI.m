@@ -64,7 +64,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         
         Args.photometricZPArgs             = {};
 
-        Args.ForcedPhotCat               = 'WDEDR3';  % UPDATE
+        Args.ForcedPhotCat               = 'ForcedPhotList';  % UPDATE
         Args.CornersRA                   = {'RA1','RA2','RA3','RA4'};
         Args.CornersDec                  = {'DEC1','DEC2','DEC3','DEC4'};
         Args.MinNstars                   = 50;
@@ -251,6 +251,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
             % Add JD, RA, Dec, IsEdge to streaks data:
             AllSI=imProc.streaks.addSkyCoo(AllSI, 'PopJD',true, 'JD',JD, 'ExpTime',ExpTime);
+
             % populate streak mask:
             AllSI = imProc.streaks.addStreak2Mask(AllSI, 'BitName', Args.BitName, 'SemiWidth',Args.SemiWidth);
 
@@ -320,6 +321,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 if any(IsForcedPhot)
                     CatForcedPhot = imProc.cat.catsHTM_inImage(Args.ForcedPhotCat, AllSI(MidEpoch,IsForcedPhot));  % 0.2
                     
+                      
                     ColNamesFF = AllSI(1).CatData.ColNames;
             
                     %AllFP = AstroCatalog([Nepoch, Nsub]);
@@ -327,7 +329,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                         % for each sub image - run over all epochs
                         if IsForcedPhot(Isub)
                             IsubGood = find(find(IsForcedPhot)==Isub);
-                            Coo = CatForcedPhot(IsubGood).getCol({'RA','Dec'}).*RAD;
+
+                            [~, RA, Dec] = imProc.cat.applyProperMotionSimple(CatForcedPhot(Isub), JD(1), 'OutUnits','rad', 'OutEpochUnits','JD', 'InEpoch','epoch', 'ColPMRA','pmra', 'ColPMDec','pmdec', 'OutUnits','deg');
+                            Coo = [RA, Dec];
+                            %Coo = CatForcedPhot(IsubGood).getCol({'RA','Dec'}).*RAD;
                             %if strcmpi(Args.OutputType, 'concatai')
         
                             if ~isempty(Coo)

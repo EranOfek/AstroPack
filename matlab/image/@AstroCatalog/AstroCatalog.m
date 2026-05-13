@@ -42,8 +42,8 @@ classdef AstroCatalog < AstroTable
         DefNamesY cell                   = {'Y','Y1','Y_IMAGE','YWIN_IMAGE','Y1','Y_PEAK','YPEAK','y','ypos'};
         DefNamesRA cell                  = {'RA','ra','Mean_RA','Median_RA','ALPHA','ALPHAWIN_J2000','ALPHA_J2000','RA_J2000','RAJ2000','RightAsc','RA_ICRS','ra_icrs'};
         DefNamesDec cell                 = {'Dec','dec','DEC','Mean_Dec','Median_Dec','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination','DE_ICRS','de_icrs','Dec_ICRS','dec_icrs'};
-        DefNamesPMRA cell                = {'PMRA'};
-        DefNamesPMDec cell               = {'PMDec'};
+        DefNamesPMRA cell                = {'PMRA','pmra'};
+        DefNamesPMDec cell               = {'PMDec','pmdec'};
         DefNamesRV cell                  = {'RV','radial_velocity'};
         DefNamesPlx cell                 = {'Plx'};
         DefNamesMag cell                 = {'MAG','Mag','PSF_MAG','MAG_PSF','Mag_BP','Mag_G','Mag_RP','MAG_APER_3','MAG_APER_2','MAG_CONV_2','phot_g_mean_mag'};
@@ -574,6 +574,10 @@ classdef AstroCatalog < AstroTable
             % get RA/Dec/PM/Plx/RV from astrometric catalog
             % Input  : - A single element AstroCatalog object.
             %          * ...,key,val,...
+            %            'InColRA' - RA column name. Default is Obj.DefNamesRA
+            %            'InColDec' - Dec column name. Default is Obj.DefNamesDec
+            %            'InColPMRA' - PMRA column name. Default is Obj.DefNamesPMRA
+            %            'InColPMDec' - PMDec column name. Default is Obj.DefNamesPMDec
             %            'OutCooUnits' - Output coo units. Default is 'rad'
             %            'OutPMUnits' - Output PM units. Default is 'mas/yr'
             %            'OutPlxUnits' - Output Plx units. Default is 'mas'
@@ -590,6 +594,10 @@ classdef AstroCatalog < AstroTable
             
             arguments
                 Obj(1,1)
+                Args.InColRA         = Obj.DefNamesRA;
+                Args.InColDec        = Obj.DefNamesDec;
+                Args.InColPMRA       = Obj.DefNamesPMRA;
+                Args.InColPMDec      = Obj.DefNamesPMDec;
                 Args.OutCooUnits     = 'rad';
                 Args.OutPMUnits      = 'mas/yr';
                 Args.OutPlxUnits     = 'mas';
@@ -597,22 +605,22 @@ classdef AstroCatalog < AstroTable
             end
             
             % RA
-            ColInd_RA = colnameDict2ind(Obj, Obj.DefNamesRA);
+            ColInd_RA = colnameDict2ind(Obj, Args.InColRA);
             [RA, Units]  = getCol(Obj, ColInd_RA);
             RA = convert.angular(Units{1}, Args.OutCooUnits, RA);
             
             % Dec
-            ColInd_Dec = colnameDict2ind(Obj, Obj.DefNamesDec);
+            ColInd_Dec = colnameDict2ind(Obj, Args.InColDec);
             [Dec, Units]  = getCol(Obj, ColInd_Dec);
             Dec = convert.angular(Units{1}, Args.OutCooUnits, Dec);
             
             % PM_RA
-            ColInd_PMRA = colnameDict2ind(Obj, Obj.DefNamesPMRA);
+            ColInd_PMRA = colnameDict2ind(Obj, Args.InColPMRA);
             [PMRA, Units]  = getCol(Obj, ColInd_PMRA);
             PMRA = convert.proper_motion(Units{1}, Args.OutPMUnits, PMRA);
             
             % PM_Dec
-            ColInd_PMDec = colnameDict2ind(Obj, Obj.DefNamesPMDec);
+            ColInd_PMDec = colnameDict2ind(Obj, Args.InColPMDec);
             [PMDec, Units]  = getCol(Obj, ColInd_PMDec);
             PMDec = convert.proper_motion(Units{1}, Args.OutPMUnits, PMDec);
             
@@ -623,8 +631,12 @@ classdef AstroCatalog < AstroTable
             
             % RV
             ColInd_RV = colnameDict2ind(Obj, Obj.DefNamesRV);
-            [RV, Units]  = getCol(Obj, ColInd_RV);
-            RV = convert.velocity(Units{1}, Args.OutRVUnits, RV);
+            if isempty(ColInd_RV)
+                RV = zeros(size(RA));
+            else
+                [RV, Units]  = getCol(Obj, ColInd_RV);
+                RV = convert.velocity(Units{1}, Args.OutRVUnits, RV);
+            end
             
         end
         

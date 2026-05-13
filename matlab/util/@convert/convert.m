@@ -1421,7 +1421,7 @@ classdef convert
             %--------------------------------------------------------------------------
 
             switch lower(InType)
-                case {'j','jyear'}
+                case {'j','jy','jyear'}
                     % convert Julian years to JD
                     JD = (Input - 2000).*365.25 + 2451545.0;
                 case 'b'
@@ -1449,7 +1449,7 @@ classdef convert
                 Output = [];
             else
                 switch lower(OutType)
-                    case 'j'
+                    case {'j','jy','jyear'}
                         % convert JD to Julian years
                         Output = 2000 + (JD-2451545.0)./365.25;
                     case 'b'
