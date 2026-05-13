@@ -13,16 +13,21 @@ function Output = processRequest(Input)
     Output = struct;
     Output.message   = 'processAlertsFilter: started';
     Output.status    = 'error';
-    Output.summaryFileName = '';
 
     try
-        if strcmp(Input.action, 'health')
+        if ~isfield(Input, 'action')
+            error('AlertsFilter:MissingAction', 'Missing required field: action');
+        end
+
+        action = string(Input.action);
+
+        if action == "health"
             Output.status  = 'ok';            
             Output.message = 'health: OK';        
-        elseif strcmp(Input.action, 'filter_lvc')
+        elseif action == "filter_lvc"
             Output = processFilterLvc(Input);
         else
-            Output.message = 'processRequest: unknown action';
+            Output.message = sprintf('processRequest: unknown action: %s', action);
             Output.status = 'error';
         end
     catch ex
@@ -40,22 +45,23 @@ function Output = processFilterLvc(Input)
     % Get the logger
     logger = MsgLogger.getSingleton();
 
-    % Load the alert from the input file
-    alert = []];
     try
-        alert = ultrasat.alerts_filters.lvc.models.LvcParsedAlert.loadFromJsonFile(Input.alert_file);
-    catch ex
-        Output = struct;
-        Output.status  = 'error';
-        Output.message = sprintf("processFilterLvc: error: identifier='%s', message='%s'", ex.identifier, ex.message);
-        io.msgLog(LogLevel.Error, Output.message);
-    end
+        if ~isfield(Input, 'alert_file') || isempty(Input.alert_file)
+            error('AlertsFilter:MissingAlertFile', 'Missing required field: alert_file');
+        end
 
-    if isempty(alert)
-        return;
-    end
+        if ~isfield(Input, 'filter') || isempty(Input.filter)
+            Input.filter = 'simple';
+        end
 
-    try
+        alertFile = char(string(Input.alert_file));
+        if ~isfile(alertFile)
+            error('AlertsFilter:AlertFileNotFound', 'Alert file not found: %s', alertFile);
+        end
+
+        logger.info("Loading LVC alert file: %s", alertFile);
+        alert = ultrasat.alerts_filters.lvc.models.LvcParsedAlert.loadFromJsonFile(alertFile);
+
         % Set the alert in the input
         Input.alert = alert;        
 
@@ -66,7 +72,7 @@ function Output = processFilterLvc(Input)
         Output = struct;
         Output.status  = 'ok';
         Output.message = 'processFilterLvc: OK';        
-        Output.result = result;
+        Output.result = result.toStruct();
     catch ex
         Output = struct;
         Output.status  = 'error';
