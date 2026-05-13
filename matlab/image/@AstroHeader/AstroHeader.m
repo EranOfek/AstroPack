@@ -105,6 +105,7 @@ classdef AstroHeader < Component
                 FileNames      = 1;   % name or array size
                 HDU            = 1;
                 Args.UseRegExp(1,1) logical = false;
+                Args.UseMex    = false
             end
             
             if isnumeric(FileNames)
@@ -135,7 +136,11 @@ classdef AstroHeader < Component
             for Ih=1:1:Nh
                 if ~isempty(Obj(Ih).File)
                     Ihdu = min(Ih,Nhdu);
-                    Obj(Ih).Data = FITS.readHeader1(Obj(Ih).File,HDU(Ihdu));
+                    if Args.UseMex
+                        Obj(Ih).Data = io.fits.mex.read_header(Obj(Ih).File, HDU(Ihdu));
+                    else
+                        Obj(Ih).Data = FITS.readHeader1(Obj(Ih).File, HDU(Ihdu));
+                    end
                 end
                 Obj(Ih).KeyDict     = Dictionary.getDict('Header.Synonyms.KeyNames');
                 Obj(Ih).ValDict     = Dictionary.getDict('Header.Synonyms.KeyVal.IMTYPE');
