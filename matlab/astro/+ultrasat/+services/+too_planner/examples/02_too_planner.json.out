@@ -1,0 +1,26 @@
+{
+  "status": "ok",
+  "message": "TooPlannerRunner: OK",
+  "summary_file": "S:/too_planner/output/summary.json",
+  "total_plans_attempted": 2,
+  "total_plans_succeeded": 2,
+  "total_plans_failed": 0,
+  "plans": [
+    {
+      "run_id": "too_01_fast_4_20260129_083853_403",
+      "json_file": "S:/too_planner/output/too_01_fast_4_20260129_083853_403.json",
+      "mat_file": "S:/too_planner/output/too_01_fast_4_20260129_083853_403.mat",
+      "plan_index": 1,
+      "status": "success",
+      "exposures_scheduled": 10
+    },
+    {
+      "run_id": "too_02_deep_100_20260129_083900_123",
+      "json_file": "S:/too_planner/output/too_02_deep_100_20260129_083900_123.json",
+      "mat_file": "S:/too_planner/output/too_02_deep_100_20260129_083900_123.mat",
+      "plan_index": 2,
+      "status": "success",
+      "exposures_scheduled": 50
+    }
+  ]
+}
