@@ -3,7 +3,7 @@
 % Filename    : ultrasat/+services/+too_planner/too_planner_service.m
 % Author      : Chen Tishler
 % Created     : 02/11/2025
-% Modified    : 10/02/2026
+% Modified    : 13/05/2026
 % Description : MATLAB service to process TooPlanner requests using JsonFileIpc
 %==========================================================================
 
@@ -23,12 +23,13 @@ function too_planner_service()
 
     % Set the input path
     InputPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'too_planner', 'input');
-    ProcessedPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'too_planner', 'processed');    
+    ProcessedPath = fullfile(SOC_PATH, 'runtime', 'exchange', 'too_planner', 'processed');
+    WatchdogFileName = fullfile(SOC_PATH, 'runtime', 'exchange', 'too_planner', 'too_planner.watchdog');
 
     % Create the JsonFileIpc object
     io.msgLog(LogLevel.Info, 'creating JsonFileIpc');    
     jsonIpc = ultrasat.services.common.JsonFileIpc('InputPath', InputPath, 'ProcessedPath', ProcessedPath, ...
-        'Callback', @ultrasat.services.too_planner.processRequest);
+        'Callback', @ultrasat.services.too_planner.processRequest, 'WatchdogFileName', WatchdogFileName);
 
     % Blocking loop: process files in the input folder, call processRequest.m for each file
     io.msgLog(LogLevel.Info, 'calling processLoop...');
