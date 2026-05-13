@@ -44,6 +44,12 @@ function R = batchPhotCalib(BaseDir, Args)
     %            .AIIndex    - [1 x Ntotal] index into the per-visit AI array
     %                          (useful for cross-referencing back to files).
     %            .Success    - [1 x Ntotal] logical, .Success per PC.
+    %            .JD         - [1 x Ntotal] Julian Date per PC, taken
+    %                          from the AstroImage header keyword 'JD'
+    %                          and falling back to the LAST filename
+    %                          timestamp (parsed via AstroFileName) when
+    %                          the header value is missing. Useful for
+    %                          sorting observations by time.
     %            .VisitDirs  - {1 x Nvisits} list of full paths processed.
     %            .NTotal, .NSuccess, .NFailed - counts.
     %            .FileType   - echo of Args.FileType.
@@ -72,6 +78,26 @@ function R = batchPhotCalib(BaseDir, Args)
     %              '/archimedes/LASTunitTest/2025', ...
     %              'VisitGlob', '*v[0-9]*', 'Recursive', true, ...
     %              'FileType', 'coadd', 'FieldId', '1781');
+    %
+    %          % Sort all PCs chronologically by JD:
+    %          [~, ord] = sort(R.JD);
+    %          R.PC        = R.PC(ord);
+    %          R.VisitName = R.VisitName(ord);
+    %          R.AIIndex   = R.AIIndex(ord);
+    %          R.Success   = R.Success(ord);
+    %          R.JD        = R.JD(ord);
+    %
+    %          % Restrict to one observing night (JD window):
+    %          J0 = celestial.time.julday([1 6 2025 0 0 0]);   % 2025-06-01 UT
+    %          J1 = J0 + 1;
+    %          K  = R.JD >= J0 & R.JD < J1;
+    %          fprintf('%d PCs in this night\n', sum(K));
+    %
+    %          % Quick light-curve-style plot of a header-derived metric
+    %          % (e.g. PT_RMS) vs time, for one crop only:
+    %          CropMask = (R.AIIndex == 10);
+    %          RMS = arrayfun(@(pc) pc.TransModel.RMS, R.PC(CropMask));
+    %          plot(R.JD(CropMask), RMS, 'o'); xlabel('JD'); ylabel('RMS');
 
     arguments
         BaseDir         {mustBeText}
@@ -277,6 +303,7 @@ function R = batchPhotCalib(BaseDir, Args)
     R.VisitName = [VisitNameCell{:}];
     R.AIIndex   = [AIIndexCell{:}];
     R.Success   = [SuccessCell{:}];
+    R.JD        = [JDCell{:}];        % 1xNTotal, aligned with R.PC
     R.VisitDirs = VisitDirs;
     R.FileType  = Args.FileType;
     R.NTotal    = numel(R.PC);
