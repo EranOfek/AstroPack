@@ -168,6 +168,10 @@ function Result = plotPhotScatter(MS, Args)
         Args.EdgeColor              (1,3) double        = [0.95 0.75 0.25]
         Args.MarkerSize             (1,1) double        = 3
         Args.ShowTrend              logical             = true
+        Args.ShowDots               logical             = true
+        Args.ShowStdBand            logical             = false
+        Args.LinkAxes               (1,:) char ...
+            {mustBeMember(Args.LinkAxes, {'xy','x','y','off'})} = 'y'
         Args.ShowLegend             logical             = true
     end
 
@@ -281,6 +285,7 @@ function renderGroup(QNames, DataByQ, Args, CentralCrops, Nmodes)
     figure('Name', sprintf('Mag vs Std — %s', strjoin(QNames, ' / ')), ...
            'Position', [50, 50, 400*Npanels, 500]);
 
+    AxArr = gobjects(1, Npanels);
     for Im = 1:Nmodes
         for Iqp = 1:numel(QNames)
             Q = QNames{Iqp};
@@ -294,6 +299,7 @@ function renderGroup(QNames, DataByQ, Args, CentralCrops, Nmodes)
                 drawMagPanel(Ax, Q, DataByQ, Im, Args, CentralCrops);
                 title(Ax, Q, 'Interpreter', 'none');
             end
+            AxArr(PanelIdx) = Ax;
         end
     end
     sgtitle(sprintf('Epoch-to-epoch scatter: %s', strjoin(QNames, ' / ')), ...
@@ -301,6 +307,12 @@ function renderGroup(QNames, DataByQ, Args, CentralCrops, Nmodes)
     for Isub = 1:Npanels
         Ax = subplot(1, Npanels, Isub);
         Ax.Position(4) = Ax.Position(4) * 0.88;
+    end
+
+    % Align scales within this group (coupled-panel comparison is
+    % only meaningful when both panels share the same range).
+    if ~strcmpi(Args.LinkAxes, 'off') && Npanels >= 2
+        linkaxes(AxArr, Args.LinkAxes);
     end
 end
 
@@ -463,8 +475,10 @@ function renderCombined(Quantities, DataByQ, Args, CentralCrops)
     Nrows = ceil(N / Ncols);
     figure('Name', sprintf('Mag vs Std — combined (%d quantities)', N), ...
            'Position', [50, 50, 380*Ncols, 350*Nrows]);
+    AxArr = gobjects(1, N);
     for Iq = 1:N
         Ax = subplot(Nrows, Ncols, Iq); hold(Ax, 'on');
+        AxArr(Iq) = Ax;
         FName = matlab.lang.makeValidName(Quantities{Iq});
         D = DataByQ.(FName);
         if D.IsAngular
@@ -476,6 +490,9 @@ function renderCombined(Quantities, DataByQ, Args, CentralCrops)
     end
     sgtitle('Epoch-to-epoch scatter (combined)', 'FontSize', 11, ...
         'Interpreter', 'none');
+    if ~strcmpi(Args.LinkAxes, 'off') && N >= 2
+        linkaxes(AxArr, Args.LinkAxes);
+    end
 end
 
 % =========================================================================
@@ -487,15 +504,17 @@ function drawMagPanel(Ax, QName, DataByQ, Im, Args, CentralCrops)
     if isempty(CropsToUse); return; end
 
     CropCmap = lines(numel(CropsToUse));
-    plotCropDots(Ax, CropsToUse, D.PerCrop{Im}, Args, CropCmap, ...
-        CentralCrops, Args.CentralColor, Args.EdgeColor);
-    if Args.ColorByCrop && Args.ShowLegend
-        addCropLegend(Ax, CropsToUse, D.PerCrop{Im}, CropCmap);
+    if Args.ShowDots
+        plotCropDots(Ax, CropsToUse, D.PerCrop{Im}, Args, CropCmap, ...
+            CentralCrops, Args.CentralColor, Args.EdgeColor);
+        if Args.ColorByCrop && Args.ShowLegend
+            addCropLegend(Ax, CropsToUse, D.PerCrop{Im}, CropCmap);
+        end
     end
     if Args.ShowTrend && ~strcmp(Args.OverlayTrend, 'none') && ~isempty(D.AllMed{Im})
         TrendFun = str2func(['nan' Args.OverlayTrend]);
         drawTrend(Ax, D.AllMed{Im}, D.AllStd{Im}, ...
-            Args.TrendBinWidth, TrendFun, '-', [0 0 0], 2);
+            Args.TrendBinWidth, TrendFun, '-', [0 0 0], 2, Args.ShowStdBand);
     end
     set(Ax, 'YScale', 'log'); box(Ax, 'on'); grid(Ax, 'on');
     xlabel(Ax, 'Median Magnitude', 'Interpreter', 'none');
@@ -511,15 +530,17 @@ function drawAngularPanel(Ax, QName, DataByQ, Im, Args, CentralCrops)
     if isempty(CropsToUse); return; end
 
     CropCmap = lines(numel(CropsToUse));
-    plotCropDots(Ax, CropsToUse, D.PerCrop{Im}, Args, CropCmap, ...
-        CentralCrops, Args.CentralColor, Args.EdgeColor);
-    if Args.ColorByCrop && Args.ShowLegend
-        addCropLegend(Ax, CropsToUse, D.PerCrop{Im}, CropCmap);
+    if Args.ShowDots
+        plotCropDots(Ax, CropsToUse, D.PerCrop{Im}, Args, CropCmap, ...
+            CentralCrops, Args.CentralColor, Args.EdgeColor);
+        if Args.ColorByCrop && Args.ShowLegend
+            addCropLegend(Ax, CropsToUse, D.PerCrop{Im}, CropCmap);
+        end
     end
     if Args.ShowTrend && ~strcmp(Args.OverlayTrend, 'none') && ~isempty(D.AllMed{Im})
         TrendFun = str2func(['nan' Args.OverlayTrend]);
         drawTrend(Ax, D.AllMed{Im}, D.AllStd{Im}, ...
-            Args.TrendBinWidth, TrendFun, '-', [0 0 0], 2);
+            Args.TrendBinWidth, TrendFun, '-', [0 0 0], 2, Args.ShowStdBand);
     end
     set(Ax, 'YScale', 'log'); box(Ax, 'on'); grid(Ax, 'on');
     xlabel(Ax, sprintf('Median %s', D.RefMag), 'Interpreter', 'none');
@@ -529,10 +550,23 @@ function drawAngularPanel(Ax, QName, DataByQ, Im, Args, CentralCrops)
 end
 
 % =========================================================================
-function drawTrend(Ax, MedAll, StdAll, BinWidth, TrendFun, Style, Color, LineWidth)
+function drawTrend(Ax, MedAll, StdAll, BinWidth, TrendFun, Style, Color, LineWidth, ShowStdBand)
+    % R columns: MidBin, count, trend value, per-bin std
     R = timeSeries.bin.binningFast([MedAll(:), StdAll(:)], ...
-        BinWidth, [9 22], {'MidBin', @numel, TrendFun});
+        BinWidth, [9 22], {'MidBin', @numel, TrendFun, @nanstd});
     Valid = R(:,2) >= 5;
+    if ShowStdBand && any(Valid)
+        X  = R(Valid, 1);
+        T  = R(Valid, 3);
+        Sb = R(Valid, 4);
+        % Shaded +-std envelope around the trend (clamped above 0 because
+        % the y axis is log-scaled).
+        Lo = max(T - Sb, eps);
+        Hi = T + Sb;
+        fill([X; flipud(X)], [Lo; flipud(Hi)], Color, ...
+            'EdgeColor', 'none', 'FaceAlpha', 0.18, ...
+            'HandleVisibility', 'off');
+    end
     plot(Ax, R(Valid,1), R(Valid,3), Style, 'Color', Color, 'LineWidth', LineWidth);
 end
 

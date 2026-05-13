@@ -488,6 +488,43 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 stages (1-3) only; stage 4 overwrites
     %                                 ParX with the linear LS fit. 0 disables.
     %                                 Default 0.
+    %            'CalibCatName'     - catsHTM catalog with reference spectra,
+    %                                 forwarded to selectCalibrators.
+    %                                 Default 'GAIADR3spec'.
+    %            'MinSN'            - Lower S/N gate on calibrator candidates.
+    %                                 Default 5.
+    %            'MaxSN'            - Upper S/N gate. Default 1000.
+    %            'FilterBadFlags'   - Apply the FLAGS bitmask filter in
+    %                                 selectCalibrators. Default true.
+    %            'MagColName'       - Magnitude column used for the MagRange
+    %                                 filter and audit delta-mag.
+    %                                 Default 'MAG_APER_3'.
+    %            'SpFluxCol'        - Spectral flux column indices in
+    %                                 CalibCatName as [flux_start, flux_end,
+    %                                 err_start, err_end]. Default
+    %                                 [7, 349, 350, 692] for GAIADR3spec.
+    %            'BadBitNames'      - Cell of bit-name strings flagged as bad
+    %                                 (resolved via BitDictionary
+    %                                 'BitMask.Image.Default').
+    %                                 Default {'Saturated','NaN','Negative',
+    %                                 'CR_DeltaHT','NearEdge'}.
+    %            'AuditCalibrators' - Toggle the step-0 calibrator audit in
+    %                                 selectCalibrators. When false (default)
+    %                                 the call path is unchanged.
+    %            'AuditCatName'     - Gaia photometric catsHTM catalog used to
+    %                                 fetch BP-RP and BP-RP excess factor for
+    %                                 the audit. Default 'GAIADR3'.
+    %            'AuditBPRPExcessFactorMax' - Reject if Gaia counterpart's
+    %                                 phot_bp_rp_excess_factor exceeds this
+    %                                 value. Default 1.3.
+    %            'AuditBPRPMax'     - Reject if Gaia counterpart's bp_rp exceeds
+    %                                 this value. Default 1.5.
+    %            'AuditLASTNearestDist' - Reject if the candidate's nearest LAST
+    %                                 neighbour (self-excluded) lies within this
+    %                                 distance [arcsec]. Default 20.
+    %            'AuditLASTDeltaMag' - Reject if the candidate's nearest LAST
+    %                                 neighbour has |delta-mag| (using
+    %                                 MagColName) below this value. Default 2.
     %            'WeightingMode'    - Weighting mode. Default 'spectral'.
     %            'FluxErrColName'   - Flux error column. Default 'FluxErr'.
     %            'SigmaClipMethod'  - 'median' or 'weighted'. Default 'median'.
@@ -524,6 +561,21 @@ function CalibArgs = predefCalibArgs(Args)
         Args.XPixel           = 1716   % Detector X size [pix]; sets Tran2D centre = XPixel/2
         Args.YPixel           = 1716   % Detector Y size [pix]; sets Tran2D centre = YPixel/2
         Args.Tran2DPerturbStd = 0   % Std-dev for randn-seed of Tran2D ParX (one shot before stage 1); 0 disables
+
+        % Calibrator selection (forwarded to selectCalibrators)
+        Args.CalibCatName     = 'GAIADR3spec'   % catsHTM catalog with reference spectra
+        Args.MinSN            = 5               % Lower S/N gate on calibrator candidates
+        Args.MaxSN            = 1000            % Upper S/N gate
+        Args.FilterBadFlags logical = true      % Apply FLAGS bitmask filter
+        Args.MagColName       = 'MAG_APER_3'    % Mag column for MagRange + audit deltaMag
+        Args.SpFluxCol        = [7, 349, 350, 692]  % [flux_start, flux_end, err_start, err_end]
+        Args.BadBitNames      = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'}
+        Args.AuditCalibrators logical = false   % Toggle step-0 audit (default: keep status quo)
+        Args.AuditCatName     = 'GAIADR3'       % Gaia photometric catalog for the audit
+        Args.AuditBPRPExcessFactorMax = 1.3
+        Args.AuditBPRPMax     = 1.5
+        Args.AuditLASTNearestDist = 20          % arcsec
+        Args.AuditLASTDeltaMag = 2              % mag
 
         % Weighting
         Args.WeightingMode    = 'spectral'  % 'none', 'spectral', 'flux', 'combined'
