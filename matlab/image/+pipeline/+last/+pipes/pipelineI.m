@@ -64,7 +64,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         
         Args.photometricZPArgs             = {};
 
-        Args.ForcedPhotCat               = 'WDEDR3';  % UPDATE
+        Args.ForcedPhotCat               = 'ForcedPhotList'; %'WDEDR3';  % UPDATE
         Args.CornersRA                   = {'RA1','RA2','RA3','RA4'};
         Args.CornersDec                  = {'DEC1','DEC2','DEC3','DEC4'};
         Args.MinNstars                   = 50;
