@@ -331,7 +331,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                             IsubGood = find(find(IsForcedPhot)==Isub);
 
                             % May need to update the column names:
-                            [~, RA, Dec] = imProc.cat.applyProperMotionSimple(CatForcedPhot(Isub), JD(1), 'OutUnits','rad', 'OutEpochUnits','JD', 'InEpoch','epoch', 'ColPMRA','pmra', 'ColPMDec','pmdec', 'OutUnits','deg');
+                            [~, RA, Dec] = imProc.cat.applyProperMotionSimple(CatForcedPhot(Isub), JD(1), 'OutUnits','rad', 'OutEpochUnits','JD', 'InEpoch','epoch', 'ColPMRA','PMRA', 'ColPMDec','PMDec', 'OutUnits','deg');
                             Coo = [RA, Dec];
                             %Coo = CatForcedPhot(IsubGood).getCol({'RA','Dec'}).*RAD;
                             %if strcmpi(Args.OutputType, 'concatai')
