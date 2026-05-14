@@ -499,17 +499,19 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 931;
             if Args.AddKnownAst && AnyCoaddExist
                 % slower with parfor
-                [OnlyMP,~,Coadd(NotIsEmptyCoadd)] = imProc.match.match2solarSystem(Coadd(NotIsEmptyCoadd), 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
+                OnlyMP = AstroCatalog([1, Nsub]);
+                [OnlyMP(NotIsEmptyCoadd),~,Coadd(NotIsEmptyCoadd)] = imProc.match.match2solarSystem(Coadd(NotIsEmptyCoadd), 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
 
                 Nast = OnlyMP.sizeCatalog;
                 if sum(Nast)>0
                     % add CropID, Node, Mount, Cam, ID_COADD:
                     Cols = {'NODENUMB', 'MOUNTNUM', 'CAMNUM', 'ID_COADD'};
-                    StKey = Coadd(1).getStructKey(Cols);
-                    Vals  = struct2array(StKey);
+                    StKey = Coadd.getStructKey(Cols);
+                    
                     AllCols = {'CROPID', Cols{:}};
                     for Isub=1:1:Nsub
                         if Nast(Isub)>0
+                            Vals  = struct2array(StKey(Isub));
                             Nrow = size(OnlyMP(Isub).Catalog,1);
                             OnlyMP(Isub).insertMultiCol(repmat([Isub, Vals], Nrow,1), AllCols, repmat({''},1, numel(AllCols)));
                         end
