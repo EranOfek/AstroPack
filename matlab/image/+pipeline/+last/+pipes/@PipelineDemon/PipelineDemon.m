@@ -2978,6 +2978,8 @@ classdef PipelineDemon < Component
                 Args.RemoveAfterWrite  = false;    % remove the output YYYY/MM/DD/raw/subdir/ folder after writing into it (usefull for multiple tests)
                 Args.StaticRAWDir      = false;    % when NewPath holds a fixed archive (e.g. for testing), process all full groups in order instead of only the most recent
                 Args.DebugMode         = false;
+
+                Args.FailMethod        = 'move';  % 'move'|'report'|'none'
             end
             RAD = 180./pi;
             SEC_DAY = 86400;
@@ -3171,19 +3173,30 @@ classdef PipelineDemon < Component
         
                             if ~Status.PipeI || ~Status.WriteI
                                 % Move images to failed directory:
-                                Obj.moveImagesToFailedDir(RawImageList);
-    
-                                % Write the Status info to the failed
-                                % directory:
-                                PWD = pwd;
-                                cd(Obj.FailedPath);
-                                FailInfoFileName = RawImageList{1};
-                                FailedInfoFileName = strrep(FailedInfoFileName, 'sci_raw_Image', 'sci_raw_Failure');
-                                FailedInfoFileName = strrep(FailedInfoFileName, '.fits', '.mat');
-                                Status.RawImageList = RawImageList;
-                                Status.TableRaw     = TableRaw;
-                                save('-v7.3', FailedInfoFileName, Status)
-                                cd(PWD);
+                                switch Args.FailMethod
+                                    case 'move' 
+                                        Obj.moveImagesToFailedDir(RawImageList);
+            
+                                        % Write the Status info to the failed
+                                        % directory:
+                                        PWD = pwd;
+                                        cd(Obj.FailedPath);
+                                        FailInfoFileName = RawImageList{1};
+                                        FailedInfoFileName = strrep(FailedInfoFileName, 'sci_raw_Image', 'sci_raw_Failure');
+                                        FailedInfoFileName = strrep(FailedInfoFileName, '.fits', '.mat');
+                                        Status.RawImageList = RawImageList;
+                                        Status.TableRaw     = TableRaw;
+                                        save('-v7.3', FailedInfoFileName, Status)
+                                        cd(PWD);
+                                    case 'report'
+
+                                    case 'none'
+                                        % do nothing
+
+                                    otherwise
+                                        error('Unknown FailMethod option %s',Args.FailMethod);
+                                end
+
     
                                 
                             end % if ~Status.PipeI || ~Status.WriteI
