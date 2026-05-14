@@ -22,24 +22,26 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     %
     arguments
         RootDir                = '/mnt/marvin/LAST.01*/';
-        FileNameTemplate       = 'LAST*proc_Cat_1.fits';      
+        FileNameTemplate       = 'LAST*proc_Cat_1.fits*';      
         Args.ProcDirTemplate   = '/proc/*';  
         Args.ProcDirList       = [];
-        Args.Decompress        = true;
-        Args.CompressProcessed = true;
+        Args.Decompress        = false;
+        Args.CompressProcessed = false;
         
         Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
         
-        Args.DbHost = 'euclid';
-        Args.DbName = 'last';   
-        Args.DbUser = 'default';        
+        Args.DbHost            = 'euclid';
+        Args.DbName            = 'last';   
+        Args.DbUser            = 'default';  
+        Args.DbPort            =  9000;
         Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
         
-        Args.Level  = 'proc';
-        Args.DbTable= 'proc_src';         
-        Args.ColNameID = 'id_proc_src';
+        Args.Level             = 'proc';
+        Args.DbTable           = 'proc_src';         
+        Args.ColNameID         = 'id_proc_src';
         
-        Args.RemoteUser = 'euclid';
+        Args.RemoteUser        = 'euclid';
+        Args.DBConnector       = 'legacy'; % 'native' or 'legacy'
     end    
     % create a DB object and connect
     DB          = db.Db;
@@ -49,9 +51,16 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
     PM = PasswordsManager;    
     DB.Password = PM.search(Args.DbName).Pass;
-    DB.Conn;
-    DB.useDB(Args.DbName);
-    fprintf('DB in use: %s\n',DB.showCurrentDB);
+    if strcmpi(Args.DBConnector,'legacy')
+        DB.Conn;
+        DB.useDB(Args.DbName);
+        fprintf('DB in use: %s\n',DB.showCurrentDB);
+    elseif strcmpi(Args.DBConnector,'native')
+        DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
+        DB.query(sprintf('use %s',Args.DbName));
+    else
+        error('Asked for unknown DB connector')
+    end
 %     fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
     % read the column list from the xls template
     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
@@ -98,8 +107,8 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
             end            
             %
             try
-                Cat = AstroCatalog(FileNameTemplate); % read the data
-                AH  = AstroHeader(FileNameTemplate,3);
+                Cat = AstroCatalog(FileNameTemplate,'UseMex',true); % read the data
+                AH  = AstroHeader(FileNameTemplate,3,'UseMex',true);                                               
             catch
                 cd(Dir);
                 fprintf(FIDbrokendata,'%s \n',DataDir);
@@ -129,7 +138,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
                 end
             end
             
-            fprintf('Injecting from %s ..',DataDir);
+            fprintf('Injecting from %s ..',DataDir); tic
             
             % check and add essential KEYWORDS if they are missing                  
             Pname = AH(1).getVal('PROJNAME');
@@ -158,38 +167,56 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
             for Crop=1:Nobj
                     AH(Crop).replaceVal('INGESTION_TIME_JD',JDnow);
             end
-            % prepare file name for the CSV dump 
-            A = AstroFileName;
-            A.ProjName = Pname;
-            A.SubDir   = Subdir;
-            A.Level    = Args.Level; 
-            A.Product  ='Cat';
-            A.FieldID  = AH(1).getVal('FIELDID');
-            A.JD       = AH(1).getVal('JD'); 
-            A.CCDID = 1; A.Counter = 0; A.CropID = 0; 
-            A.FileType = "csv"; A.julday2time;
-            CsvFN = erase(A.genFile,' ');                                                
-
-            [~, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
-                                    'CreateCsv',true,'FileName',CsvFN); % , 'ColNameID',Args.ColNameID);
-            if ~isempty(Error)
-                error('catalog injection failed');
+            
+            if strcmpi(Args.DBConnector,'legacy')
+                % prepare file name for the CSV dump
+                A = AstroFileName;
+                A.ProjName = Pname;
+                A.SubDir   = Subdir;
+                A.Level    = Args.Level;
+                A.Product  ='Cat';
+                A.FieldID  = AH(1).getVal('FIELDID');
+                A.JD       = AH(1).getVal('JD');
+                A.CCDID = 1; A.Counter = 0; A.CropID = 0;
+                A.FileType = "csv"; A.julday2time;
+                CsvFN = erase(A.genFile,' ');
+                
+                [~, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+                    'CreateCsv',true,'FileName',CsvFN,'DBConnector',Args.DBConnector); % , 'ColNameID',Args.ColNameID);
+                
+                if ~isempty(Error)
+                    error('catalog injection failed');
+                end
+                
+                % move the CSV file into the proc catalog and edit the .status file
+                CopyCSV = sprintf('su %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
+                [~, Err.Copy] = system(CopyCSV);
+                UpdateStatus = sprintf('su %s -c "echo ''%s injected into the proc catalog DB'' >> %s/.status"',...
+                    Args.RemoteUser,tools.timeStamp.getTimeStamp,DataDir);
+                [~, Err.Update] = system(UpdateStatus);
+                if isempty(Err.Copy) && isempty(Err.Update)
+                    RemLocalFile = sprintf('rm %s',CsvFN);
+                    [~, Err.RemoveLocal] = system(RemLocalFile);
+                end                
+            else
+%                 Args.DbTable = 'test_src'; %%%%% TEST 
+                [~, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+                    'CreateCsv',false,'DBConnector',Args.DBConnector); 
+                
+                if ~isempty(Error)
+                    error('catalog injection failed');
+                end
+                % edit the .status file
+                UpdateStatus = sprintf('su %s -c "echo ''%s injected into the proc catalog DB'' >> %s/.status"',...
+                    Args.RemoteUser,tools.timeStamp.getTimeStamp,DataDir);
+                [~, Err.Update] = system(UpdateStatus);
             end
-            % copy the CSV file into the proc catalog and edit the .status file
-            CopyCSV = sprintf('su %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
-            [~, Err.Copy] = system(CopyCSV);            
-            UpdateStatus = sprintf('su %s -c "echo ''%s injected into the proc catalog DB'' >> %s/.status"',...
-                                    Args.RemoteUser,tools.timeStamp.getTimeStamp,DataDir);
-            [~, Err.Update] = system(UpdateStatus); 
-            if isempty(Err.Copy) && isempty(Err.Update)
-                RemLocalFile = sprintf('rm %s',CsvFN);
-                [~, Err.RemoveLocal] = system(RemLocalFile);
-            end
-            fprintf(' ..done\n');
+                        
+            fprintf(' ..done in %1.f s\n',toc);
             % compress the data files if requested:
             if Args.CompressProcessed
-                Decompress = sprintf('su %s -c "bzip2 %s/%s"',Args.RemoteUser,DataDir,FileNameTemplate);
-                [~, Err.Decompress] = system(Decompress); 
+                Compress = sprintf('su %s -c "bzip2 %s/%s"',Args.RemoteUser,DataDir,FileNameTemplate);
+                [~, Err.Decompress] = system(Compress); 
             end  
         else
             cd(Dir); 
@@ -199,6 +226,10 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     fclose(FIDnostatus);
     fclose(FIDnodata);
     fclose(FIDbrokendata);
-    % disconnect the DB     
-    DB.disconnectCH_Java;  
+    % disconnect the DB   
+    if strcmpi(Args.DBConnector,'legacy')
+        DB.disconnectCH_Java;
+    else
+        DB.delete;
+    end
 end
