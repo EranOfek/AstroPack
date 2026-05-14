@@ -3191,9 +3191,13 @@ classdef PipelineDemon < Component
                                     case 'report'
                                         FN  = fullfile(Obj.FailedPath, 'report.txt');
                                         FID = fopen(FN,'a');
-                                        fprintf(FID,'== pipelineI failed at %s == \n',datetime);
-                                        fprintf(FID,'RAWImageDir = %s; \n',Obj.NewPath);
-                                        fprintf(FID,'StartImage = %s; \n',RawImageList(1));                                        
+                                        fprintf(FID,'%% == pipelineI failed at %s == \n',datetime);
+                                        fprintf(FID,'%% RAWImageDir: \n');
+                                        fprintf(FID,'%s \n',Obj.NewPath);
+                                        fprintf(FID,'%% StartImage: \n');                                        
+                                        fprintf(FID,'%s \n',RawImageList(1));    
+                                        fprintf(FID,'%% Full input image list: \n');        
+                                        fprintf(FID,'%s \n',RawImageList{:});   
                                         fclose(FID);
                                     case 'none'
                                         % do nothing
