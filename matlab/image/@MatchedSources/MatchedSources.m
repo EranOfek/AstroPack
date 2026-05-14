@@ -4100,72 +4100,75 @@ classdef MatchedSources < Component
             
             
             Nobj = numel(Obj);
-            Result = struct('MinRMS',cell(Nobj,1), 'MagMinRMS',cell(Nobj,1), 'B',cell(Nobj,1), 'InterpB',cell(Nobj,1));
+            [TmpNaN{1:Nobj}] = deal(NaN);
+            Result = struct('MinRMS',TmpNaN.', 'MagMinRMS',TmpNaN.', 'B',cell(Nobj,1), 'InterpB',cell(Nobj,1));
             for Iobj=1:1:Nobj
                 FN = fieldnames(Obj(Iobj).Data);
-                % search for the first FieldX that appears in FN
-                Ind = find(ismember(Args.FieldX, FN),1);
-                if ~isempty(Ind)
-                    FieldX = Args.FieldX{Ind};
-                    
-                    if isempty(Args.FieldY)
-                        FieldY = FieldX;
-                    else
-                        if ischar(Args.FieldY)
-                            Args.FieldY = {Args.FieldY};
+                if ~isempty(FN)
+                    % search for the first FieldX that appears in FN
+                    Ind = find(ismember(Args.FieldX, FN),1);
+                    if ~isempty(Ind)
+                        FieldX = Args.FieldX{Ind};
+                        
+                        if isempty(Args.FieldY)
+                            FieldY = FieldX;
+                        else
+                            if ischar(Args.FieldY)
+                                Args.FieldY = {Args.FieldY};
+                            end
+                            Ind = find(ismember(Args.FieldY, FN),1);
+                            FieldY = Args.FieldY{Ind};
                         end
-                        Ind = find(ismember(Args.FieldY, FN),1);
-                        FieldY = Args.FieldY{Ind};
-                    end
-                    
-                    Mat   = Obj(Iobj).Data.(FieldX);
-                    % axis x - e.g., mean mag
-                    AxisX = Args.MeanFun(Mat, Obj(Iobj).DimEpoch);
-                    
-                    if isempty(Args.FieldY)
-                        AxisY = Args.StdFun(Mat, [], Obj(Iobj).DimEpoch);
-                    else
-                        MatY = Obj.Data.(FieldY);
-                        AxisY = Args.StdFun(MatY, [], Obj(Iobj).DimEpoch);
-                    end
-                    AxisY = AxisY.*Args.FactorRMS;
-                    
-                    if ~isempty(Args.RemoveFlags)
-                        Obj(Iobj).addSrcData;
-                        IndNN          = find(~isnan(Obj(Iobj).SrcData.(Args.FieldFlags)(:)));
-                        BitFlag        = false(Obj(Iobj).Nsrc, 1);
-                        BitFlag(IndNN) = ~imProc.cat.findBit(Obj(Iobj).SrcData.(Args.FieldFlags)(IndNN), Args.RemoveFlags, [], Args.BitDict);
+                        
+                        Mat   = Obj(Iobj).Data.(FieldX);
+                        % axis x - e.g., mean mag
+                        AxisX = Args.MeanFun(Mat, Obj(Iobj).DimEpoch);
+                        
+                        if isempty(Args.FieldY)
+                            AxisY = Args.StdFun(Mat, [], Obj(Iobj).DimEpoch);
+                        else
+                            MatY = Obj(Iobj).Data.(FieldY);
+                            AxisY = Args.StdFun(MatY, [], Obj(Iobj).DimEpoch);
+                        end
+                        AxisY = AxisY.*Args.FactorRMS;
+                        
+                        if ~isempty(Args.RemoveFlags)
+                            Obj(Iobj).addSrcData;
+                            IndNN          = find(~isnan(Obj(Iobj).SrcData.(Args.FieldFlags)(:)));
+                            BitFlag        = false(Obj(Iobj).Nsrc, 1);
+                            BitFlag(IndNN) = ~imProc.cat.findBit(Obj(Iobj).SrcData.(Args.FieldFlags)(IndNN), Args.RemoveFlags, [], Args.BitDict);
+                            
+                            if isempty(Args.UseFlag)
+                                Args.UseFlag = true(Obj(Iobj).Nsrc, 1);
+                            end
+                            Args.UseFlag   = Args.UseFlag(:) & BitFlag(:);
+                        end
                         
                         if isempty(Args.UseFlag)
-                            Args.UseFlag = true(Obj(Iobj).Nsrc, 1);
+                            CleanAxisX = AxisX;
+                            CleanAxisY = AxisY;
+                        else
+                            CleanAxisX = AxisX(Args.UseFlag);
+                            CleanAxisY = AxisY(Args.UseFlag);
                         end
-                        Args.UseFlag   = Args.UseFlag(:) & BitFlag(:);
-                    end
                     
-                    if isempty(Args.UseFlag)
-                        CleanAxisX = AxisX;
-                        CleanAxisY = AxisY;
-                    else
-                        CleanAxisX = AxisX(Args.UseFlag);
-                        CleanAxisY = AxisY(Args.UseFlag);
-                    end
-                
-                    if ~isempty(Args.BinSize)
-                        B = timeSeries.bin.binning([CleanAxisX(:), CleanAxisY(:)], Args.BinSize, [NaN NaN], {'MidBin', @median, @std, @numel});
-                        %if Args.DivideErrBySqrtN
-                        %    plot.errorxy([B(:,1), B(:,2), B(:,3)./sqrt(B(:,4))],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
-                        %else
-                        %    plot.errorxy([B(:,1), B(:,2), B(:,3)],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
-                        %end                
-                    end
-    
-                    B = B(B(:,1)<Args.MaxMag & B(:,2)>1e-4,:);
-                    [Result(Iobj).MinRMS, Ib] = min(B(:,2));
-                    Result(Iobj).MagMinRMS = B(Ib,1);
-                    Result(Iobj).B = B;
-    
-                    if ~isempty(Args.MagInterpEdges)
-                        Result(Iobj).InterpB = [Args.MagInterpEdges(:), interp1(B(:,1),B(:,2), Args.MagInterpEdges(:), 'linear','extrap')];
+                        if ~isempty(Args.BinSize)
+                            B = timeSeries.bin.binning([CleanAxisX(:), CleanAxisY(:)], Args.BinSize, [NaN NaN], {'MidBin', @median, @std, @numel});
+                            %if Args.DivideErrBySqrtN
+                            %    plot.errorxy([B(:,1), B(:,2), B(:,3)./sqrt(B(:,4))],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
+                            %else
+                            %    plot.errorxy([B(:,1), B(:,2), B(:,3)],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
+                            %end                
+                        end
+        
+                        B = B(B(:,1)<Args.MaxMag & B(:,2)>1e-4,:);
+                        [Result(Iobj).MinRMS, Ib] = min(B(:,2));
+                        Result(Iobj).MagMinRMS = B(Ib,1);
+                        Result(Iobj).B = B;
+        
+                        if ~isempty(Args.MagInterpEdges) && ~isempty(B)
+                            Result(Iobj).InterpB = [Args.MagInterpEdges(:), interp1(B(:,1),B(:,2), Args.MagInterpEdges(:), 'linear','extrap')];
+                        end
                     end
                 end
             end
