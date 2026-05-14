@@ -113,14 +113,14 @@ void printValue(char* key, mxArray* valueElement, char* value, size_t valueSize)
             if (floorf(val) == val) 
                 snprintf(value, valueSize, "%.0f.", val);
             else
-                snprintf(value, valueSize, "%.7g", val);
+                snprintf(value, valueSize, "%.7G", val);
         } 
         else if (mxIsDouble(valueElement)) {            
             double val = mxGetScalar(valueElement);
             if (floor(val) == val) 
                 snprintf(value, valueSize, "%.0f.", val);
              else
-                 snprintf(value, valueSize, "%.15g", val);
+                 snprintf(value, valueSize, "%.15G", val);
         }         
         else if (mxIsClass(valueElement, "int8") || mxIsClass(valueElement, "uint8") ||
                  mxIsClass(valueElement, "int16") || mxIsClass(valueElement, "uint16") ||
