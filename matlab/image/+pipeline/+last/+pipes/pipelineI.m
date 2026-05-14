@@ -323,28 +323,22 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                     ColNamesFF = AllSI(find(IsGood==1,1)).CatData.ColNames;
             
                     %AllFP = AstroCatalog([Nepoch, Nsub]);
-                    for Isub=1:1:Nsub
-                        % for each sub image - run over all epochs
-                        if IsForcedPhot(Isub)
-                            IsubGood = find(find(IsForcedPhot)==Isub);
-
+                        % for each sub image where IsForcedPhot is true, run over all the epochs
+                        Ind = find(IsForcedPhot);
+                        for IsubGood = 1:numel(Ind)                            
                             % May need to update the column names:
-                            [~, RA, Dec] = imProc.cat.applyProperMotionSimple(CatForcedPhot(Isub), JD(1), 'OutUnits','rad', 'OutEpochUnits','JD', 'InEpoch','Epoch', 'ColPMRA','PMRA', 'ColPMDec','PMDec', 'OutUnits','deg');
-                            Coo = [RA, Dec];
-                            %Coo = CatForcedPhot(IsubGood).getCol({'RA','Dec'}).*RAD;
-
-                            %if strcmpi(Args.OutputType, 'concatai')
-        
+                            [~, RA, Dec] = imProc.cat.applyProperMotionSimple(CatForcedPhot(IsubGood), JD(1), 'OutUnits','rad', 'OutEpochUnits','JD', 'InEpoch','Epoch', 'ColPMRA','PMRA', 'ColPMDec','PMDec', 'OutUnits','deg');
+                            Coo = [RA, Dec];                            
+                            %if strcmpi(Args.OutputType, 'concatai')       
                             if ~isempty(Coo)
-                                IsGoodEpoch = IsGood(:,Isub);
-                                AllSI(IsGoodEpoch,Isub) = imProc.sources.forcedPhotNew(AllSI(IsGoodEpoch,Isub), 'OutputType','ConcatAI', ...
+                                IsGoodEpoch = IsGood(:,Ind(IsubGood));
+                                AllSI(IsGoodEpoch,Ind(IsubGood)) = imProc.sources.forcedPhotNew(AllSI(IsGoodEpoch,Ind(IsubGood)), ...
+                                    'OutputType','ConcatAI', ...
                                     'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, ...
                                     'ReadColFromHeader',false, 'PsfPhotMethod',Args.PsfPhotMethod, 'ShiftMethod',Args.ShiftMethod, ...
                                     Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
-                            end
-                           
+                            end                           
                         end
-                    end % for Isub=1:1:Nsub
                     %toc
                 end
         
