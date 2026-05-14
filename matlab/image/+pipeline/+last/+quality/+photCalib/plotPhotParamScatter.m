@@ -246,17 +246,22 @@ function Result = plotPhotParamScatter(PC, Args)
 
     ColAll = [0.25 0.25 0.25];
     if Args.FitLine && Nsets == 1
-        if ~isnan(Result.Central.FitSlope) && any(CentralMask)
-            XF = linspace(min(Xs(CentralMask)), max(Xs(CentralMask)), 50);
-            plot(XF, Result.Central.FitSlope*XF + Result.Central.FitIntercept, ...
-                '-', 'Color', ColCentral, 'LineWidth', 1.5, ...
-                'HandleVisibility', 'off');
-        end
-        if ~isnan(Result.Peripheral.FitSlope) && any(~CentralMask)
-            XF = linspace(min(Xs(~CentralMask)), max(Xs(~CentralMask)), 50);
-            plot(XF, Result.Peripheral.FitSlope*XF + Result.Peripheral.FitIntercept, ...
-                '-', 'Color', ColPeriph, 'LineWidth', 1.5, ...
-                'HandleVisibility', 'off');
+        % Per-cohort fit lines only when the user asked for the split;
+        % otherwise draw only the single 'All' line to match the
+        % single-colour dot layout.
+        if Args.SplitCentral
+            if ~isnan(Result.Central.FitSlope) && any(CentralMask)
+                XF = linspace(min(Xs(CentralMask)), max(Xs(CentralMask)), 50);
+                plot(XF, Result.Central.FitSlope*XF + Result.Central.FitIntercept, ...
+                    '-', 'Color', ColCentral, 'LineWidth', 1.5, ...
+                    'HandleVisibility', 'off');
+            end
+            if ~isnan(Result.Peripheral.FitSlope) && any(~CentralMask)
+                XF = linspace(min(Xs(~CentralMask)), max(Xs(~CentralMask)), 50);
+                plot(XF, Result.Peripheral.FitSlope*XF + Result.Peripheral.FitIntercept, ...
+                    '-', 'Color', ColPeriph, 'LineWidth', 1.5, ...
+                    'HandleVisibility', 'off');
+            end
         end
         if ~isnan(Result.All.FitSlope)
             XF = linspace(min(Xs), max(Xs), 50);

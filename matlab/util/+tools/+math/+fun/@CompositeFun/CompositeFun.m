@@ -3381,8 +3381,12 @@ classdef CompositeFun < handle
             %
             % OptimizationSequence format (same as transmissionFit1):
             %   OptSeq(i).StageName - Name of the stage
-            %   OptSeq(i).FreeParams - Struct array with .Function and .Parameter fields
-            %                          Empty [] for field correction stage
+            %   OptSeq(i).FreeParams - Struct array with .Function and .Parameter fields,
+            %                          OR empty [] for the Tran2D-only field-correction
+            %                          stage, OR the char sentinel 'JOINT_FC' for a joint
+            %                          linear Norm + Tran2D stage (Norm is absorbed into
+            %                          kx0 by the LS solve and then split out by setting
+            %                          Tran2D(0,0) = 0).
             %   OptSeq(i).SigmaClip - Enable sigma clipping for this stage
             %   OptSeq(i).SigmaThresh - Threshold for sigma clipping
             %   OptSeq(i).SigmaIter - Number of sigma clipping iterations
@@ -3449,6 +3453,11 @@ classdef CompositeFun < handle
 
             OuterClipHistory = struct('Iter',{},'RMS',{},'NewClipped',{}, ...
                                       'TotalClipped',{},'Converged',{});
+            % Cumulative per-outer-iter per-stage results (length = Niter*Nstages).
+            % Each entry carries an .OuterIter field. Attached to FitResult(1)
+            % after the outer loop so callers (e.g. plotFitQuality) can show
+            % stage evolution across outer clip iterations.
+            AllOuterStages = [];
             if Args.OuterSigmaClip
                 NumOuterIter = max(1, Args.OuterMaxIter);
             else
@@ -3508,19 +3517,23 @@ classdef CompositeFun < handle
                     MinCalibrators = Args.MinCalibrators;
                 end
 
+                % Detect joint Norm + Tran2D linear stage (char sentinel)
+                IsJointFCStage = ischar(FreeParamsStage) && strcmpi(FreeParamsStage, 'JOINT_FC');
+
                 % Detect field correction stage (empty freeparams)
-                IsFieldCorrectionStage = isempty(FreeParamsStage);
+                IsFieldCorrectionStage = ~IsJointFCStage && isempty(FreeParamsStage);
 
                 % Detect Norm-only linear stage (analytical solution)
                 IsNormOnlyLinear = false;
-                if ~IsFieldCorrectionStage && isfield(Stage, 'Method') && strcmp(Stage.Method, 'linear')
+                if ~IsJointFCStage && ~IsFieldCorrectionStage && ...
+                        isfield(Stage, 'Method') && strcmp(Stage.Method, 'linear')
                     % Check if only Norm parameter is being fitted
                     if length(FreeParamsStage) == 1 && strcmp(FreeParamsStage(1).Parameter, 'Norm')
                         IsNormOnlyLinear = true;
                     end
                 end
 
-                if IsFieldCorrectionStage || IsNormOnlyLinear
+                if IsJointFCStage || IsFieldCorrectionStage || IsNormOnlyLinear
                     Method = 'linear';
                 else
                     Method = 'nonlinear';
@@ -3723,6 +3736,183 @@ classdef CompositeFun < handle
                         fprintf('  RMS: %.4f mag, Observations: %d\n', StageRMS, length(CurrentObsNorm));
                     end
 
+                elseif IsJointFCStage
+                    % =============================================================
+                    % JOINT NORM + TRAN2D LINEAR STAGE
+                    % =============================================================
+                    % Norm is perfectly degenerate with kx0 in the linear LS fit:
+                    % both multiply the constant basis function. We hold Norm = 1
+                    % and let the LS solver absorb everything into kx0. After the
+                    % fit, the split is fixed by Tran2D(0, 0) = 0: shift kx0 by
+                    % Delta = Tran2D(0, 0) (involves kx0 - kx2 + kx4 - ky2 + ky4
+                    % for cheby1_4_xt) and set Norm = 10^(-Delta / 2.5). Net
+                    % prediction at every position is preserved.
+                    if ~Obj.UseTran2D || isempty(Obj.Tran2DObj)
+                        Obj.addStatus('fitMultiStage', 'error', ...
+                            'JOINT_FC stage requires UseTran2D = true and a Tran2D object', ...
+                            'CompositeFun:JointFC:NoTran2D');
+                        StageResult = struct();
+                        StageResult.Cost = Inf;
+                        StageResult.RMS = NaN;
+                        StageResult.Residuals = [];
+                        StageResult.WeightedResiduals = [];
+                        StageResult.NCalUsed = length(CurrentObs);
+                        StageResult.NumClipped = 0;
+                        StageResult.KeepMask = true(length(CurrentObs), 1);
+                        StageResult.ConvergedSigmaClip = false;
+                        StageResult.Chi2 = NaN;
+                        StageResult.DOF = NaN;
+                        StageResult.MagErr = [];
+                        StageResult.PredictedFlux = [];
+                    else
+                        Nparams = length(Obj.Tran2DObj.ParX);
+                        if Args.Verbose
+                            fprintf('  Joint linear LS over Norm + Tran2D ParX (%d coeffs)\n', Nparams);
+                        end
+
+                        % Inner sigma clip gated to the FIRST outer iteration only.
+                        % Pattern: initial fit, then up to EffSigmaIter rounds of
+                        % (sigma clip on residuals -> drop outliers -> re-fit).
+                        % Outside outer iter 1, no inner clipping (outer-clip handles it).
+                        if SigmaClip && OuterIter == 1
+                            EffSigmaIter = SigmaIter;
+                        else
+                            EffSigmaIter = 0;
+                        end
+
+                        % Local mutable copies (so inner clipping doesn't disturb
+                        % CurrentObs/X/Y; the post-stage propagation block applies
+                        % StageResult.KeepMask once the stage completes).
+                        LocalObs      = CurrentObs;
+                        LocalX        = CurrentX;
+                        LocalY        = CurrentY;
+                        LocalCostArgs = CurrentCostArgs;
+                        LocalKeepMask = true(length(CurrentObs), 1);
+                        ConvergedSC   = false;
+                        DeltaJ        = NaN;
+                        WeightedResJ  = []; CostJ = NaN; PredFluxJ = [];
+                        ResidualsJ    = []; MagErrJ = [];
+
+                        for IterClip = 0:EffSigmaIter
+                            if ~ConvergedSC
+                                % --- Set Norm=1 and reset ParX before each (re-)fit ---
+                                AllFunParJ = Obj.getAllFunPar();
+                                NormIdxJ = find(strcmp(AllFunParJ.Name, 'Norm'), 1);
+                                AllFunParJ.Val(NormIdxJ) = 1.0;
+                                Obj.setAllFunPar(AllFunParJ);
+                                Obj.Tran2DObj.ParX = zeros(1, Nparams);
+
+                                % BaseResiduals = mag residuals with Norm=1, ParX=0
+                                [~, ~, ~, BaseResidualsJ, BaseMagErrJ] = Obj.costFun(...
+                                    InputValues, LocalObs, LocalCostArgs{:}, ...
+                                    'X', LocalX, 'Y', LocalY);
+
+                                % Linear LS for all 10 ParX coefficients
+                                if ~isempty(BaseMagErrJ) && all(BaseMagErrJ > 0)
+                                    [~, Obj] = Obj.fitPositionPolynomial(LocalX, LocalY, BaseResidualsJ, ...
+                                        'Method', 'lscov', 'ErrMag', BaseMagErrJ, 'Verbose', false);
+                                else
+                                    if IterClip == 0
+                                        Obj.addStatus('fitMultiStage', 'warning', ...
+                                            'JOINT_FC: MagErr unavailable, using unweighted LS', ...
+                                            'CompositeFun:JointFC:Unweighted');
+                                    end
+                                    [~, Obj] = Obj.fitPositionPolynomial(LocalX, LocalY, BaseResidualsJ, ...
+                                        'Verbose', false);
+                                end
+
+                                % Apply Tran2D(0,0) = 0 split
+                                Xc = Obj.Tran2DObj.ParNX(1);
+                                Yc = Obj.Tran2DObj.ParNY(1);
+                                [DeltaJ, ~] = Obj.Tran2DObj.forward([Xc, Yc]);
+                                Obj.Tran2DObj.ParX(1) = Obj.Tran2DObj.ParX(1) - DeltaJ;
+
+                                AllFunParJ = Obj.getAllFunPar();
+                                AllFunParJ.Val(NormIdxJ) = 10^(-DeltaJ / 2.5);
+                                Obj.setAllFunPar(AllFunParJ);
+
+                                % Final residuals on the current local set
+                                [WeightedResJ, CostJ, PredFluxJ, ResidualsJ, MagErrJ] = Obj.costFun(...
+                                    InputValues, LocalObs, LocalCostArgs{:}, ...
+                                    'X', LocalX, 'Y', LocalY);
+
+                                % Inner sigma clip + re-fit on survivors
+                                if IterClip < EffSigmaIter
+                                    [OutlierMaskLocal, ClipInfo] = tools.math.stat.sigmaClip(...
+                                        ResidualsJ, SigmaThresh, ...
+                                        'Method', SigmaClipMethod, 'Errors', MagErrJ);
+                                    NewOutliers = sum(OutlierMaskLocal);
+                                    if ~ClipInfo.Success || NewOutliers == 0
+                                        ConvergedSC = true;
+                                    else
+                                        NRemaining = sum(~OutlierMaskLocal);
+                                        if MinCalibrators > 0 && NRemaining < MinCalibrators
+                                            ConvergedSC = true;
+                                            if Args.Verbose
+                                                fprintf('  Inner sigma clip stopped: would leave %d < %d calibrators\n', ...
+                                                    NRemaining, MinCalibrators);
+                                            end
+                                        else
+                                            KeepLocal = ~OutlierMaskLocal;
+                                            LocalKeepMask(LocalKeepMask) = KeepLocal;
+                                            LocalObs = LocalObs(KeepLocal);
+                                            LocalX = LocalX(KeepLocal);
+                                            LocalY = LocalY(KeepLocal);
+                                            Idx = find(strcmp(LocalCostArgs(1:2:end), 'WeightMatrix'));
+                                            if ~isempty(Idx)
+                                                LocalCostArgs{2*Idx} = LocalCostArgs{2*Idx}(:, KeepLocal);
+                                            end
+                                            Idx = find(strcmp(LocalCostArgs(1:2:end), 'PrecomputedMagErr'));
+                                            if ~isempty(Idx) && ~isempty(LocalCostArgs{2*Idx})
+                                                LocalCostArgs{2*Idx} = LocalCostArgs{2*Idx}(KeepLocal);
+                                            end
+                                            Idx = find(strcmp(LocalCostArgs(1:2:end), 'PrecomputedSpecFluxMatrix'));
+                                            if ~isempty(Idx) && ~isempty(LocalCostArgs{2*Idx})
+                                                LocalCostArgs{2*Idx} = LocalCostArgs{2*Idx}(:, KeepLocal);
+                                            end
+                                            Idx = find(strcmp(LocalCostArgs(1:2:end), 'PerSourceZenithAngles'));
+                                            if ~isempty(Idx) && ~isempty(LocalCostArgs{2*Idx})
+                                                LocalCostArgs{2*Idx} = LocalCostArgs{2*Idx}(KeepLocal);
+                                            end
+                                            if Args.Verbose
+                                                fprintf('  Inner sigma clip iter %d: %d outliers dropped (%.1f sigma)\n', ...
+                                                    IterClip+1, NewOutliers, SigmaThresh);
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+
+                        if Args.Verbose
+                            fprintf('  Tran2D(0,0) shift: %.4f mag -> Norm = %.6g\n', ...
+                                DeltaJ, AllFunParJ.Val(NormIdxJ));
+                        end
+
+                        NCalUsedJ = length(LocalObs);
+                        StageResult = struct();
+                        StageResult.Cost = CostJ;
+                        StageResult.RMS = sqrt(mean(ResidualsJ.^2));
+                        StageResult.Residuals = ResidualsJ;
+                        StageResult.WeightedResiduals = WeightedResJ;
+                        StageResult.NCalUsed = NCalUsedJ;
+                        StageResult.NumClipped = sum(~LocalKeepMask);
+                        StageResult.KeepMask = LocalKeepMask;
+                        StageResult.ConvergedSigmaClip = ConvergedSC;
+                        StageResult.MagErr = MagErrJ;
+                        StageResult.PredictedFlux = PredFluxJ;
+                        if ~isempty(MagErrJ) && all(MagErrJ > 0)
+                            StageResult.Chi2 = sum((ResidualsJ ./ MagErrJ).^2);
+                        else
+                            StageResult.Chi2 = NaN;
+                        end
+                        StageResult.DOF = NCalUsedJ - Nparams;
+
+                        if Args.Verbose
+                            fprintf('  RMS: %.4f mag, Observations: %d\n', StageResult.RMS, NCalUsedJ);
+                        end
+                    end
+
                 elseif IsFieldCorrectionStage
                     % Field correction stage: fit position only
                     [Obj, StageResult] = Obj.fitPar(InputValues, CurrentObs, ...
@@ -3861,6 +4051,18 @@ classdef CompositeFun < handle
             end
             % End of stage loop
 
+                % --- Accumulate this outer iter's stage results ---
+                % Tag each entry with OuterIter (broadcast scalar to all
+                % stages of the current FitResult), then append.
+                if ~isempty(FitResult)
+                    [FitResult.OuterIter] = deal(OuterIter);
+                    if isempty(AllOuterStages)
+                        AllOuterStages = FitResult;
+                    else
+                        AllOuterStages = [AllOuterStages, FitResult]; %#ok<AGROW>
+                    end
+                end
+
                 % --- Outer sigma clip on final stage residuals ---
                 if ~Args.OuterSigmaClip
                     break
@@ -3912,6 +4114,9 @@ classdef CompositeFun < handle
             % Attach OuterClipHistory to FitResult(1) (broadcast as [] to other elements)
             if ~isempty(FitResult)
                 FitResult(1).OuterClipHistory = OuterClipHistory;
+                if ~isempty(AllOuterStages)
+                    FitResult(1).AllOuterStages = AllOuterStages;
+                end
             end
 
             if Args.Verbose

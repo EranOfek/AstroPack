@@ -327,7 +327,12 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                         % for each sub image - run over all epochs
                         if IsForcedPhot(Isub)
                             IsubGood = find(find(IsForcedPhot)==Isub);
-                            Coo = CatForcedPhot(IsubGood).getCol({'RA','Dec'}).*RAD;
+
+                            % May need to update the column names:
+                            [~, RA, Dec] = imProc.cat.applyProperMotionSimple(CatForcedPhot(Isub), JD(1), 'OutUnits','rad', 'OutEpochUnits','JD', 'InEpoch','Epoch', 'ColPMRA','PMRA', 'ColPMDec','PMDec', 'OutUnits','deg');
+                            Coo = [RA, Dec];
+                            %Coo = CatForcedPhot(IsubGood).getCol({'RA','Dec'}).*RAD;
+
                             %if strcmpi(Args.OutputType, 'concatai')
         
                             if ~isempty(Coo)
@@ -430,6 +435,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                           'PsfPhotMethod',Args.PsfPhotMethod,...
                                                           'maskCR_Args',Args.maskCR_Args,...
                                                           'WriteStatHeader',true,...
+                                                          'photometricZP_UpdateMagCols',false,...
                                                           Args.multiIterExtractorArgs{:});
             
               
