@@ -2064,7 +2064,7 @@ classdef AstroHeader < Component
                 else
                     Isel    = setdiff(Vec, II);
                 end
-                Obj.Data = Obj.Data(Isel,:);
+                Obj(Iobj).Data = Obj(Iobj).Data(Isel,:);
             end
         end
     end
