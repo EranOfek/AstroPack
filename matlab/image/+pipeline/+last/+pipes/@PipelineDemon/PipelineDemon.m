@@ -3189,6 +3189,9 @@ classdef PipelineDemon < Component
                                         save('-v7.3', FailedInfoFileName, Status)
                                         cd(PWD);
                                     case 'report'
+                                        if ~isfolder(Obj.FailedPath)
+                                            mkdir(Obj.FailedPath);
+                                        end
                                         FN  = fullfile(Obj.FailedPath, 'report.txt');
                                         FID = fopen(FN,'a');
                                         fprintf(FID,'%% == pipelineI failed at %s == \n',datetime);
