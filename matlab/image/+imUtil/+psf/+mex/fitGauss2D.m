@@ -19,6 +19,9 @@
 % Input  : - Stamp  : 2D single or double image stamp (background subtracted).
 %                     The Gaussian peak must be centred on the stamp.
 %                     Minimum size: 3x3 pixels.
+%          - A threshold. Pixels which flux is below the peak flux
+%            multiplied by this treshold are not used in the fitting.
+%            Default is 1e-3.
 % Output : - Status    : Logical scalar. true if the fit succeeded and
 %                        all parameters are physically valid (sigma > 0.1 px,
 %                        |Rho| < 0.99, finite positive amplitude); false
