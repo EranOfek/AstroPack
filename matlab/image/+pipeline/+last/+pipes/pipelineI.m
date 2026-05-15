@@ -96,10 +96,16 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.DB_Table_Raw                = [];
 
         Args.MatchMethod                 = 'mex'; % 'old'|'mex'
+
+        Args.Status                      = [];
     end
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
 
+    if ~isempty(Args.Status)
+        Status = Args.Status;
+    end
+    
     Status.PipeI   = true;
     Status.ME      = [];
     %ProcessingStep = 11;
