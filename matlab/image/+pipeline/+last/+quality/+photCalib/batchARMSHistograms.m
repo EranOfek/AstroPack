@@ -157,7 +157,7 @@ function Result = batchARMSHistograms(BaseDir, Args)
         Args.RefMag          (1,:) char = 'MAG_APER_3'
         Args.BackgroundMag   (1,1) double = 22
         Args.ARMS_N          (1,1) double {mustBePositive, mustBeInteger} = 20
-        Args.MinEpochs       (1,1) double = 2
+        Args.MinEpochs       (1,1) double = 10
         Args.BadFlags        cell = {'Saturated','NearEdge','Overlap'}
         Args.Mode            (1,:) char = 'percrop'
         Args.Bins                         = 30
@@ -381,6 +381,24 @@ function V = varName(Q)
 end
 
 % =========================================================================
+function U = armsUnit(Q, Args)
+    % Unit string for the ARMS of quantity Q:
+    %   arcsec for angular quantities (std rescaled x3600 x cos Dec),
+    %   mag    for FluxAsMag columns (-2.5*log10) and MAG_* columns,
+    %   ''     otherwise (raw native units, e.g. flux not in FluxAsMag).
+    Qc = char(Q);
+    if ismember(Q, Args.AngularQuantities)
+        U = 'arcsec';
+    elseif ismember(Q, Args.FluxAsMag)
+        U = 'mag';
+    elseif startsWith(upper(Qc), 'MAG')
+        U = 'mag';
+    else
+        U = '';
+    end
+end
+
+% =========================================================================
 function plotARMSHistograms(Result, Args)
     OutDir = char(Args.OutDir);
     if Args.SaveFig && ~exist(OutDir, 'dir'); mkdir(OutDir); end
@@ -419,7 +437,12 @@ function plotARMSHistograms(Result, Args)
                         Cohorts{Ic}, sum(Sel), median(Vals(Sel))));
             end
             grid(Ax, 'on'); box(Ax, 'on');
-            xlabel(Ax, sprintf('ARMS(%s)', Q), 'Interpreter', 'none');
+            U = armsUnit(Q, Args);
+            if isempty(U)
+                xlabel(Ax, sprintf('ARMS(%s)', Q), 'Interpreter', 'none');
+            else
+                xlabel(Ax, sprintf('ARMS(%s) [%s]', Q, U), 'Interpreter', 'none');
+            end
             ylabel(Ax, 'Fraction');
             title(Ax, Q, 'Interpreter', 'none');
             if numel(Cohorts) > 1
