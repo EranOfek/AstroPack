@@ -11,9 +11,14 @@ function compareStabilityMS(MSList, Labels, Args)
     %              quantities (RA / Dec) std is rescaled to arcsec and
     %              for RA additionally multiplied by cos(median Dec).
     %
-    % Input  : - MSList cell of MS structs. Each MS{k}.(Mode){crop} is a
-    %            MatchedSources object (the shape returned by
-    %            matchPhotEpochs / batchPhotStability).
+    % Input  : - MSList cell. Each entry may be any of:
+    %              (a) a 1xNcrop MatchedSources array (direct loadVisit
+    %                  output)
+    %              (b) a cell of MatchedSources (one per crop)
+    %              (c) a legacy mode-keyed struct MS.(Mode){crop} = MS
+    %                  (e.g. returned by matchPhotEpochs /
+    %                  batchPhotStability).
+    %            All entries are normalised internally to shape (c).
     %          - Labels cell of legend labels, one per MSList entry.
     %                    * ...,key,val,...
     %                      'Quantities' - Cell of column names to plot.
@@ -109,6 +114,21 @@ function compareStabilityMS(MSList, Labels, Args)
     %                                     {'FLUX_APER_3','FLUX_PSF'}.
     %                                     Set to {} to keep flux in
     %                                     raw flux units (log axes).
+    %                      'AIcoadd'    - Optional cell of AstroImage
+    %                                     arrays, one per MS in MSList,
+    %                                     each a 1xNcrop array of the
+    %                                     coadds whose headers carry
+    %                                     the photometric ZP. When
+    %                                     non-empty and Q is in
+    %                                     FluxAsMag, the X axis becomes
+    %                                     -2.5*log10(median Flux) + ZP
+    %                                     (ZP from the per-crop coadd
+    %                                     header keyword ZPKey). Std
+    %                                     on Y is unaffected (ZP is a
+    %                                     constant offset per crop).
+    %                                     Default {} (no ZP shift).
+    %                      'ZPKey'      - Header keyword for the ZP
+    %                                     value. Default 'PH_ZP'.
     %                      'LogYQuantities' - Cell of column names
     %                                     whose panel uses log-scale Y
     %                                     (Std axis). Default includes
@@ -146,6 +166,25 @@ function compareStabilityMS(MSList, Labels, Args)
     %                                     filled with MinTicks evenly
     %                                     spaced positions (log-spaced
     %                                     on log axes). Default 2.
+    %                      'ARMS_N'     - Number of lowest per-source
+    %                                     Std values used for the
+    %                                     "asymptotic RMS" estimate.
+    %                                     ARMS = median of the N lowest
+    %                                     STRICTLY-POSITIVE Std values
+    %                                     pooled across all crops of
+    %                                     the MS (exact zeros excluded
+    %                                     as float32 quantization
+    %                                     artifacts), per cohort per
+    %                                     panel quantity, shown in the
+    %                                     legend. Default 20.
+    %                      'BadFlags'   - cell of FLAGS bit names; any
+    %                                     (epoch,source) entry carrying
+    %                                     one of these bits is set to
+    %                                     NaN before the Std reduction
+    %                                     (via MatchedSources.searchFlags).
+    %                                     Default {'Saturated',
+    %                                     'NearEdge','Overlap'}; {}
+    %                                     disables FLAGS filtering.
     % Output : - none (creates one figure).
     % Author : D. Kovaleva (May 2026)
     % Example: % Compare v0 vs v2 stability for the same date:
@@ -307,6 +346,17 @@ function compareStabilityMS(MSList, Labels, Args)
     %          pipeline.last.quality.photCalib.compareStabilityMS( ...
     %                  {R0.MS, R2.MS}, {'v0','v2'}, 'MinTicks', 4);
     %
+    %          % ARMS shown per cohort in the legend; tune the depth
+    %          % and the FLAGS rejection list:
+    %          pipeline.last.quality.photCalib.compareStabilityMS( ...
+    %                  {R0.MS, R2.MS}, {'v0','v2'}, ...
+    %                  'ARMS_N', 30, ...
+    %                  'BadFlags', {'Saturated','NearEdge','Overlap'});
+    %
+    %          % Disable FLAGS filtering (Std on raw photometry):
+    %          pipeline.last.quality.photCalib.compareStabilityMS( ...
+    %                  {R0.MS, R2.MS}, {'v0','v2'}, 'BadFlags', {});
+    %
     %          % Flux panels as instrumental magnitudes (default):
     %          % both axes are mag, so the flux stability lines align
     %          % directly with the MAG_PSF / MAG_APER_3 panels for
@@ -329,6 +379,24 @@ function compareStabilityMS(MSList, Labels, Args)
     %                  {R0.MS, R2.MS}, {'v0','v2'}, ...
     %                  'Quantities', {'FLUX_PSF','FLUX_APER_3'}, ...
     %                  'FluxAsMag', {'FLUX_PSF'});
+    %
+    %          % Flux-as-mag X axis with photometric ZP added from each
+    %          % coadd's FITS header (PH_ZP). Load the coadds once per
+    %          % visit and hand them in alongside MST0/MST2:
+    %          AIcA = pipeline.last.load.loadVisitCatHdr( ...
+    %                  'VisitDirs', "/path/to/v0_visit", 'FileType','coadd');
+    %          AIcB = pipeline.last.load.loadVisitCatHdr( ...
+    %                  'VisitDirs', "/path/to/v2_visit", 'FileType','coadd');
+    %          pipeline.last.quality.photCalib.compareStabilityMS( ...
+    %                  {MST0, MST2}, {'v0','v2'}, ...
+    %                  'AIcoadd', {AIcA{1}, AIcB{1}}, ...
+    %                  'ZPKey',   'PH_ZP');           % default; can omit
+    %
+    %          % Same idea but a non-default header key:
+    %          pipeline.last.quality.photCalib.compareStabilityMS( ...
+    %                  {MST0, MST2}, {'v0','v2'}, ...
+    %                  'AIcoadd', {AIcA{1}, AIcB{1}}, ...
+    %                  'ZPKey',   'MAGZP');
 
     arguments
         MSList                cell
@@ -355,6 +423,15 @@ function compareStabilityMS(MSList, Labels, Args)
         % then plot in mag units on both axes (linear-X, log-Y same as
         % MAG panels). Conversion drops F <= 0 to NaN.
         Args.FluxAsMag        cell   = {'FLUX_APER_3','FLUX_PSF'}
+        % Optional: per-set list of coadd AstroImages from which to read
+        % the ZP for the FluxAsMag conversion. AIcoadd{k} is a 1xNcrop
+        % AstroImage array aligned with the crops of MSList{k}. When
+        % empty (default) no ZP is added — the X axis is the raw
+        % -2.5*log10(median Flux). When provided, the X axis becomes
+        % -2.5*log10(median Flux) + ZP, where ZP comes from
+        % AIcoadd{k}(crop).HeaderData.getVal(ZPKey).
+        Args.AIcoadd          cell   = {}
+        Args.ZPKey            (1,:) char = 'PH_ZP'
         % Y-axis: Std spans a wide range for *every* stability quantity
         % (mag, arcsec, flux), so the default keeps every common panel
         % on log Y. Pass {'FLUX_APER_3','FLUX_PSF'} (or any subset) to
@@ -366,11 +443,31 @@ function compareStabilityMS(MSList, Labels, Args)
         Args.SplitByRow       logical = false
         Args.MaxMedMag        (1,1) double = 20
         Args.MinTicks         (1,1) double {mustBePositive, mustBeInteger} = 1
+        Args.ARMS_N           (1,1) double {mustBePositive, mustBeInteger} = 20
+        Args.BadFlags         cell = {'Saturated','NearEdge','Overlap'}
     end
 
     if numel(Labels) < numel(MSList)
         for K = numel(Labels)+1:numel(MSList)
             Labels{K} = sprintf('set %d', K);
+        end
+    end
+
+    % Normalise each entry in MSList. Accepted shapes per element:
+    %   (1) MatchedSources array     (e.g. direct from loadVisit; 1xNcrop)
+    %   (2) cell of MatchedSources   (e.g. {Ms_crop1, Ms_crop2, ...})
+    %   (3) mode-keyed struct        (legacy: MS.(Mode){crop} = MS)
+    % After this block every entry is shape (3) keyed by Args.Mode.
+    for K = 1:numel(MSList)
+        M = MSList{K};
+        if isa(M, 'MatchedSources')
+            MSList{K} = struct(Args.Mode, {num2cell(M(:).')});
+        elseif iscell(M)
+            MSList{K} = struct(Args.Mode, {M(:).'});
+        elseif ~isstruct(M)
+            error('compareStabilityMS:BadInput', ...
+                ['MSList{%d} must be a MatchedSources array, a cell of ', ...
+                 'MatchedSources, or a mode-keyed struct.'], K);
         end
     end
 
@@ -449,7 +546,11 @@ function compareStabilityMS(MSList, Labels, Args)
         for K = 1:numel(MSList)
             Qk    = QPS{K}{Iq};
             IsAngK = ismember(Qk, Args.AngularQuantities);
-            [Med, Std] = collectMedStd(MSList{K}, Qk, IsAngK, Args);
+            AIcrops = [];
+            if ~isempty(Args.AIcoadd) && K <= numel(Args.AIcoadd)
+                AIcrops = Args.AIcoadd{K};
+            end
+            [Med, Std] = collectMedStd(MSList{K}, Qk, IsAngK, Args, AIcrops);
             if isempty(Med); continue; end
             [Bx, By, Bs, Bn] = binStats(Med, Std, Args.BinWidth, IsLogX);
             DName = Labels{K};
@@ -458,7 +559,18 @@ function compareStabilityMS(MSList, Labels, Args)
             end
             % N reflects sources actually rendered: only those whose
             % median fell in a bin that survived binStats' N>=5 cut.
-            DName = sprintf('%s (N=%d)', DName, sum(Bn));
+            % ARMS = median of the N lowest per-source Std values (the
+            % "asymptotic" / irreducible-floor estimate). Exact zeros
+            % are excluded — std==0 is a float32 quantization artifact
+            % (large RA values stored as single), not a real floor.
+            Sfin = Std(isfinite(Std) & Std > 0);
+            if numel(Sfin) >= Args.ARMS_N
+                Ssort = sort(Sfin);
+                ARMS  = median(Ssort(1:Args.ARMS_N));
+            else
+                ARMS  = NaN;
+            end
+            DName = sprintf('%s (N=%d, ARMS=%.3g)', DName, sum(Bn), ARMS);
             if Args.ShowStdBand && ~isempty(Bx)
                 Lo = max(By - Bs, eps);  Hi = By + Bs;
                 fill([Bx; flipud(Bx)], [Lo; flipud(Hi)], Cmap(K,:), ...
@@ -494,7 +606,11 @@ function compareStabilityMS(MSList, Labels, Args)
             % Escape '_' so TeX renders 'FLUX_PSF' literally (not as a
             % subscript) while still interpreting the log_{10} sub.
             Qe = strrep(Q0, '_', '\_');
-            xlabel(Ax, sprintf('-2.5 log_{10}(median %s) [mag]', Qe), ...
+            ZpSuffix = '';
+            if ~isempty(Args.AIcoadd)
+                ZpSuffix = sprintf(' + ZP (%s)', strrep(Args.ZPKey, '_', '\_'));
+            end
+            xlabel(Ax, sprintf('-2.5 log_{10}(median %s)%s [mag]', Qe, ZpSuffix), ...
                 'Interpreter', 'tex');
             ylabel(Ax, sprintf('Std(-2.5 log_{10}(%s)) [mag]', Qe), ...
                 'Interpreter', 'tex');
@@ -556,8 +672,9 @@ function ensureMinTicks(Ax, N)
 end
 
 % =========================================================================
-function [Med, Std] = collectMedStd(MS, Q, IsAng, Args)
+function [Med, Std] = collectMedStd(MS, Q, IsAng, Args, AIcrops)
     % Pool per-source (median, std) of column Q across all crops of MS.(Mode).
+    if nargin < 5; AIcrops = []; end
     Med = []; Std = [];
     if ~isstruct(MS) || ~isfield(MS, Args.Mode); return; end
     CCell = MS.(Args.Mode);
@@ -566,11 +683,32 @@ function [Med, Std] = collectMedStd(MS, Q, IsAng, Args)
         if isempty(Msi) || ~isfield(Msi.Data, Q); continue; end
         Y = Msi.Data.(Q);
         if isempty(Y); continue; end
+        % Per-epoch FLAGS rejection: NaN out (epoch,source) entries
+        % carrying any of the BadFlags bits before the Std reduction.
+        if ~isempty(Args.BadFlags) && isfield(Msi.Data, 'FLAGS')
+            try
+                Bad = Msi.searchFlags('FlagsList', Args.BadFlags);
+                Y(Bad) = NaN;
+            catch
+            end
+        end
         % Flux-as-mag conversion (per epoch, per source). Non-positive
         % flux values become NaN so median/std see clean magnitudes.
+        % Optional additive ZP from the coadd header (Args.ZPKey,
+        % default 'PH_ZP') shifts X to calibrated magnitudes; doesn't
+        % affect the Std on Y (ZP is constant per crop).
         if ismember(Q, Args.FluxAsMag)
             Y(Y <= 0) = NaN;
             Y = -2.5 * log10(Y);
+            if ~isempty(AIcrops) && Ic <= numel(AIcrops)
+                try
+                    ZP = AIcrops(Ic).HeaderData.getVal(Args.ZPKey);
+                    if isnumeric(ZP) && isscalar(ZP) && isfinite(ZP)
+                        Y = Y + ZP;
+                    end
+                catch
+                end
+            end
         end
         M = median(Y, 1, 'omitnan').';     % column Nsrc x 1
         S = std(Y, 0, 1, 'omitnan').';     % column Nsrc x 1
