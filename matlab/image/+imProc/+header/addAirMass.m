@@ -108,8 +108,9 @@ function [Result, AirMass] = addAirMass(AI, Args)
             for Ilevel=1:1:Nlevel
                 UpixVal(Ilevel) = celestial.healpix.ang2pix(Args.HealpixLevel(Ilevel), Args.Coo(Iai,1), Args.Coo(Iai,2), 'Type',Args.HealpixType, 'CooUnits','rad', 'UniqueID', Args.UniqueID);
             end
-            Data = [{Args.KeyHealpix{:}}.', num2cell(UpixVal)];
-            Result(Iai).HeaderData.insertKey(Data, Inf);
+            %Data = [{Args.KeyHealpix{:}}.', num2cell(UpixVal)];
+            %Result(Iai).HeaderData.insertKey(Data, Inf);
+            Result(Iai).HeaderData.replaceVal({Args.KeyHealpix{:}}.', string(UpixVal));
         end
     end
 

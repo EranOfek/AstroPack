@@ -46,6 +46,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
         Args.SearchStreaksEpoch            = true;  % search streaks in epoch images
         Args.maskCR_Args                   = {'RemoveFromCat',true}; % <-- remove CR
+        Args.MaskHole                      = false;
+        Args.maskHolesArgs                 = {};
         Args.astrometryVisitSubImageArgs   = {};
         Args.forcedPhotArgs                = {};
         %--- pipeline.generic.proc2MatchedSources args ---
@@ -64,7 +66,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         
         Args.photometricZPArgs             = {};
 
-        Args.ForcedPhotCat               = 'WDEDR3';  % UPDATE
+        Args.ForcedPhotCat               = 'ForcedPhotList'; %'WDEDR3';  % UPDATE
         Args.CornersRA                   = {'RA1','RA2','RA3','RA4'};
         Args.CornersDec                  = {'DEC1','DEC2','DEC3','DEC4'};
         Args.MinNstars                   = 50;
@@ -96,10 +98,16 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.DB_Table_Raw                = [];
 
         Args.MatchMethod                 = 'mex'; % 'old'|'mex'
+
+        Args.Status                      = [];
     end
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
 
+    if ~isempty(Args.Status)
+        Status = Args.Status;
+    end
+    
     Status.PipeI   = true;
     Status.ME      = [];
     %ProcessingStep = 11;
@@ -241,6 +249,12 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Consider update TableRaw - No PSF, etc? 
             %TableRaw.BasicCalib(TableRaw.SelectedImages) = true(numel(AI),1); 
         
+            
+            % Mask holes
+            if Args.MaskHole
+                AllSI = imProc.mask.maskHoles(AllSI, Args.maskHolesArgs{:}); % 9s
+            end
+
             % solve astrometry of all images
             %ProcessingStep = 301;
             [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, 'MatchMethod',Args.MatchMethod, Args.astrometryVisitSubImageArgs{:}); % 22s
@@ -320,23 +334,25 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 if any(IsForcedPhot)
                     CatForcedPhot = imProc.cat.catsHTM_inImage(Args.ForcedPhotCat, AllSI(MidEpoch,IsForcedPhot));  % 0.2
                     
-                    ColNamesFF = AllSI(1).CatData.ColNames;
+                    ColNamesFF = AllSI(find(IsGood==1,1)).CatData.ColNames;
             
                     %AllFP = AstroCatalog([Nepoch, Nsub]);
-                    for Isub=1:1:Nsub
-                        % for each sub image - run over all epochs
-                        if IsForcedPhot(Isub)
-                            IsubGood = find(find(IsForcedPhot)==Isub);
-                            Coo = CatForcedPhot(IsubGood).getCol({'RA','Dec'}).*RAD;
-                            %if strcmpi(Args.OutputType, 'concatai')
-        
+                        % for each sub image where IsForcedPhot is true, run over all the epochs
+                        Ind = find(IsForcedPhot);
+                        for IsubGood = 1:numel(Ind)                            
+                            % May need to update the column names:
+                            [~, RA, Dec] = imProc.cat.applyProperMotionSimple(CatForcedPhot(IsubGood), JD(1), 'OutUnits','rad', 'OutEpochUnits','JD', 'InEpoch','Epoch', 'ColPMRA','PMRA', 'ColPMDec','PMDec', 'OutUnits','deg');
+                            Coo = [RA, Dec];                            
+                            %if strcmpi(Args.OutputType, 'concatai')       
                             if ~isempty(Coo)
-                                IsGoodEpoch = IsGood(:,Isub);
-                                AllSI(IsGoodEpoch,Isub) = imProc.sources.forcedPhotNew(AllSI(IsGoodEpoch,Isub), 'OutputType','ConcatAI', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, 'ReadColFromHeader',false, 'PsfPhotMethod',Args.PsfPhotMethod, 'ShiftMethod',Args.ShiftMethod, Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
-                            end
-                           
+                                IsGoodEpoch = IsGood(:,Ind(IsubGood));
+                                AllSI(IsGoodEpoch,Ind(IsubGood)) = imProc.sources.forcedPhotNew(AllSI(IsGoodEpoch,Ind(IsubGood)), ...
+                                    'OutputType','ConcatAI', ...
+                                    'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, ...
+                                    'ReadColFromHeader',false, 'PsfPhotMethod',Args.PsfPhotMethod, 'ShiftMethod',Args.ShiftMethod, ...
+                                    Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
+                            end                           
                         end
-                    end % for Isub=1:1:Nsub
                     %toc
                 end
         
@@ -376,7 +392,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         
             % calculate the photometric rms per crop
             
-            PhotRMS = MS.calcRMS('FieldX','MAG_APER_3');
+            PhotRMS = MS.calcRMS('FieldY','MAG_APER_3');
             Phot_MinRMS    = [PhotRMS.MinRMS];
             Phot_MagMinRMS = [PhotRMS.MagMinRMS];
             
@@ -430,6 +446,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                           'PsfPhotMethod',Args.PsfPhotMethod,...
                                                           'maskCR_Args',Args.maskCR_Args,...
                                                           'WriteStatHeader',true,...
+                                                          'photometricZP_UpdateMagCols',false,...
                                                           Args.multiIterExtractorArgs{:});
             
               
@@ -496,17 +513,19 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 931;
             if Args.AddKnownAst && AnyCoaddExist
                 % slower with parfor
-                [OnlyMP,~,Coadd(NotIsEmptyCoadd)] = imProc.match.match2solarSystem(Coadd(NotIsEmptyCoadd), 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
+                OnlyMP = AstroCatalog([1, Nsub]);
+                [OnlyMP(NotIsEmptyCoadd),~,Coadd(NotIsEmptyCoadd)] = imProc.match.match2solarSystem(Coadd(NotIsEmptyCoadd), 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
 
                 Nast = OnlyMP.sizeCatalog;
                 if sum(Nast)>0
                     % add CropID, Node, Mount, Cam, ID_COADD:
                     Cols = {'NODENUMB', 'MOUNTNUM', 'CAMNUM', 'ID_COADD'};
-                    StKey = Coadd(1).getStructKey(Cols);
-                    Vals  = struct2array(StKey);
+                    StKey = Coadd.getStructKey(Cols);
+                    
                     AllCols = {'CROPID', Cols{:}};
                     for Isub=1:1:Nsub
                         if Nast(Isub)>0
+                            Vals  = struct2array(StKey(Isub));
                             Nrow = size(OnlyMP(Isub).Catalog,1);
                             OnlyMP(Isub).insertMultiCol(repmat([Isub, Vals], Nrow,1), AllCols, repmat({''},1, numel(AllCols)));
                         end

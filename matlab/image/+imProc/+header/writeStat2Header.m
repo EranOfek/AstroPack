@@ -145,8 +145,9 @@ function [AI] = writeStat2Header(AI, Args)
             Data(Idata:Idata+1) = [ScRot.Scale .* ARCSEC_DEG, ScRot.PA_deg];
         end
 
-        Cell = [Cols(:), num2cell(Data)];
-        AI(Iai).HeaderData.insertKey(Cell, 'end');
+        %Cell = [Cols(:), num2cell(Data)];
+        %AI(Iai).HeaderData.insertKey(Cell, 'end');
+        AI(Iai).HeaderData.replaceVal(Cols(:), num2cell(Data));
 
     end
 

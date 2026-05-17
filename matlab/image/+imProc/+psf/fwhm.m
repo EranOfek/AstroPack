@@ -18,6 +18,8 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
     %                   on cumsum to header. Default is true.
     %            'HeaderKey' - Header keyword in which to add the FWHM.
     %                   Default is 'FWHM'.
+    %            'Populate' - Attempt to populate the PSF is fempty.
+    %                   Default is false.
     %            --- Morphology ---
     %            'AddMorphology' - A logical indicating if to add the following morphology info.
     %                   Default is false.
@@ -65,6 +67,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
         Args.DefScale               = 1; % if WCS is empty, then use this scale.
         Args.AddToHeader            = true;
         Args.HeaderKey              = 'FWHM';
+        Args.Populate               = false;
 
         Args.AddMorphology          = false;
         Args.KeyNpeaksPSF           = 'PSF_NPK';
@@ -84,7 +87,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
     Nobj = numel(Obj);
     AllFWHM = zeros(size(Obj));
     for Iobj=1:1:Nobj
-        if isemptyPSF(Obj(Iobj).PSFData)
+        if Args.Populate && isemptyPSF(Obj(Iobj).PSFData)
             % construct the PSF if needed
             if isnan(Obj(Iobj).PSFData.Nstars)
                 [Obj(Iobj)] = imProc.psf.populatePSF(Obj(Iobj), Args.constructPSFArgs{:});
@@ -125,7 +128,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
         
 
             % fit Gaussian to PSF
-            if ~isempty(Args.KeyFitPSF)
+            if ~isempty(Args.KeyFitPSF) && Obj(Iobj).PSFData.Nstars>0
                 [~,~,BestFit] = Obj(Iobj).PSFData.fitFunPSF();
                 % sqrt(BestFit{1}).Par(2)) is the sigma of the Gaussian in
                 % the X direction...

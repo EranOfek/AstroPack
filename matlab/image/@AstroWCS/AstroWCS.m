@@ -219,7 +219,7 @@ classdef AstroWCS < Component
             arguments
                 Obj(1,1)
                 Args.TestNbin                 = 2;
-                Args.RegionalMaxMedianRMS     = 1;     % arcsec OR pix?
+                Args.RegionalMaxMedianRMS     = 1.5;     % arcsec OR pix?
                 Args.RegionalMaxWithNoSrc     = 0;
                 Args.MaxErrorOnMean           = 0.05;  % arcsec OR pix?
                 Args.MinStarsForRegional      = 50;
