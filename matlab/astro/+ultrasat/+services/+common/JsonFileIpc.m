@@ -3,7 +3,7 @@
 % Filename    : ultrasat.services.common.JsonFileIpc.m
 % Author      : Chen Tishler
 % Created     : 02/11/2021
-% Modified    : 10/05/2026
+% Modified    : 17/05/2026
 % Description : JSON file IPC class
 %==========================================================================
 
@@ -216,6 +216,7 @@ classdef JsonFileIpc < Component
                 % Parse JSON from string to struct                    
                 Obj.msgLog(LogLevel.Debug, 'JSON: %s', Text);
                 InputStruct = jsondecode(Text);
+                InputStruct.IpcInputJsonFilename = FileName;
 
                 % Call the callback function
                 try

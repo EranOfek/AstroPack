@@ -107,6 +107,14 @@ function debug_processRequestTooPlanner()
         fprintf('Input (flat):\n');
         disp(Input);
 
+        % Simulate JsonFileIpc: persist request JSON and set IPC path metadata
+        ipcJsonFile = fullfile(workDir, 'too_planner_request.json');
+        jsonText = jsonencode(Input, 'PrettyPrint', true);
+        fid = fopen(ipcJsonFile, 'wt');
+        fwrite(fid, jsonText, 'char');
+        fclose(fid);
+        Input.IpcInputJsonFilename = ipcJsonFile;
+
         fprintf('\nCalling processRequest...\n');
 
         % Call processRequest
@@ -136,6 +144,10 @@ function debug_processRequestTooPlanner()
         if Output.total_plans_succeeded < 1
             error('processRequest: expected at least one successful plan, got %d', ...
                 Output.total_plans_succeeded);
+        end
+        preservedJson = fullfile(output_folder, 'too_planner_request.json');
+        if ~isfile(preservedJson)
+            error('processRequest: expected preserved input JSON: %s', preservedJson);
         end
         fprintf('Test PASSED\n');
     catch ex
