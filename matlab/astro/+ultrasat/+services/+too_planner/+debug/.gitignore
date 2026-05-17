@@ -1,3 +1,6 @@
-*.csv
-*.json
-output/
+output/*
+working_dir/*
+
+!README.md
+!output/README.md
+!working_dir/README.md
