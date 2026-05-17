@@ -3,7 +3,7 @@
 % Filename    : +ultrasat/+services/+too_planner/processRequest.m
 % Author      : Chen Tishler
 % Created     : 02/11/2025
-% Modified    : 13/05/2026
+% Modified    : 17/05/2026
 % Description : MATLAB service to process ToO planner requests (flat JSON API, matching slew_calc pattern)
 %==========================================================================
 
@@ -43,8 +43,9 @@ function Output = processTooPlanner(Input)
     % The Input struct contains the full configuration inline:
     %   .planner_name, .csv_filename, .output_folder, .plans (struct array)
     %
-    % We write it to a temp JSON file because TooPlannerRunner.runFromJson
-    % expects a file path, then parse the summary.json it produces.
+    % Input.IpcInputJsonFilename (set by JsonFileIpc) is the IPC input file path.
+    % That file is copied as-is into output_folder under its original name;
+    % TooPlannerRunner.runFromJson uses the copy, which is kept as an artifact.
 
     try
         % Validate required fields
@@ -57,39 +58,25 @@ function Output = processTooPlanner(Input)
         if ~isfield(Input, 'plans') || isempty(Input.plans)
             error('ToOPlanner:MissingField', 'Missing required field: plans');
         end
-
-        % Build the config struct for TooPlannerRunner (exclude action and timeout)
-        cfg = struct();
-        if isfield(Input, 'planner_name')
-            cfg.planner_name = Input.planner_name;
+        if ~isfield(Input, 'IpcInputJsonFilename') || isempty(Input.IpcInputJsonFilename)
+            error('ToOPlanner:MissingIpcInput', ...
+                'Missing IpcInputJsonFilename; too_planner requests must be processed via JsonFileIpc');
         end
-        cfg.csv_filename  = Input.csv_filename;
-        cfg.output_folder = Input.output_folder;
-        cfg.plans         = Input.plans;
+        if ~isfile(Input.IpcInputJsonFilename)
+            error('ToOPlanner:IpcInputNotFound', ...
+                'IPC input file not found: %s', Input.IpcInputJsonFilename);
+        end
 
-        % Write config to a temp JSON file in the output folder
         if ~isfolder(Input.output_folder)
             mkdir(Input.output_folder);
         end
-        ts = datetime('now', 'TimeZone', 'UTC');
-        tsStr = datestr(ts, 'yyyymmdd_HHMMSS_FFF');
-        tempJsonFile = fullfile(Input.output_folder, ['_request_' tsStr '.json']);
-        jsonText = jsonencode(cfg, 'PrettyPrint', true);
-        fid = fopen(tempJsonFile, 'wt');
-        fwrite(fid, jsonText, 'char');
-        fclose(fid);
 
-        % Run the planner
+        [~, name, ext] = fileparts(Input.IpcInputJsonFilename);
+        destJson = fullfile(Input.output_folder, [name, ext]);
+        copyfile(Input.IpcInputJsonFilename, destJson, 'f');
+
         runner = ultrasat.planner.TooPlannerRunner();
-        summaryFileName = runner.runFromJson(tempJsonFile);
-
-        % Clean up the temp request file
-        try
-            if isfile(tempJsonFile)
-                delete(tempJsonFile);
-            end
-        catch
-        end
+        summaryFileName = runner.runFromJson(destJson);
 
         % Build the output struct
         Output = struct;
@@ -154,6 +141,9 @@ end
 
 
 function p = extractPlanFields(raw)
+    % Extract fields from raw plan struct
+    % and return a struct with only the fields the Python response model expects.
+
     p = struct();
     p.run_id = safeField(raw, 'run_id', '');
     p.json_file = safeField(raw, 'json_file', '');
@@ -161,10 +151,13 @@ function p = extractPlanFields(raw)
     p.plan_index = safeField(raw, 'plan_index', 0);
     p.status = safeField(raw, 'status', 'error');
     p.exposures_scheduled = safeField(raw, 'exposures_scheduled', 0);
+    p.images = safeField(raw, 'images', struct());
 end
 
 
 function val = safeField(s, fieldName, defaultVal)
+    % Get field from struct, return default value if field is empty
+
     if isfield(s, fieldName) && ~isempty(s.(fieldName))
         val = s.(fieldName);
     else

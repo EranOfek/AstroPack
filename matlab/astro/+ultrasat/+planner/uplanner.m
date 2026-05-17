@@ -705,6 +705,11 @@ classdef uplanner < Component
                     'MapFormats', Args.MapFormats, ...
                     'CloseFigures', Args.CloseFigures);        
 
+                % Validate that RA and Dec returned from coverProbMap are not empty
+                if isempty(RA) || isempty(Dec)
+                    error('coverProbMap did not return any targets: RA and/or Dec is empty');
+                end
+           
                 Names = num2cell(1:numel(RA)); % may add "TOOfield.." to the name? 
                 Obj.addUniqTargets(RA, Dec,'Name',Names); 
                 
