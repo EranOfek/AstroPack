@@ -3,7 +3,7 @@
 % File        : ultrasat.planner.debug.debug_TooPlannerRunner.m
 % Author      : Chen Tishler
 % Created     : 19/02/2026
-% Updated     : 19/02/2026
+% Updated     : 17/05/2026
 % Description : Debug function for TooPlannerRunner.
 %               Creates sample CSV + JSON in debug folder, runs runFromJson,
 %               verifies output. Requires SOC_PATH.
