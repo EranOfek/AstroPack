@@ -3,7 +3,7 @@
 % Filename    : +ultrasat/+services/+too_planner/processRequest.m
 % Author      : Chen Tishler
 % Created     : 02/11/2025
-% Modified    : 13/05/2026
+% Modified    : 17/05/2026
 % Description : MATLAB service to process ToO planner requests (flat JSON API, matching slew_calc pattern)
 %==========================================================================
 
@@ -154,6 +154,9 @@ end
 
 
 function p = extractPlanFields(raw)
+    % Extract fields from raw plan struct
+    % and return a struct with only the fields the Python response model expects.
+
     p = struct();
     p.run_id = safeField(raw, 'run_id', '');
     p.json_file = safeField(raw, 'json_file', '');
@@ -161,10 +164,13 @@ function p = extractPlanFields(raw)
     p.plan_index = safeField(raw, 'plan_index', 0);
     p.status = safeField(raw, 'status', 'error');
     p.exposures_scheduled = safeField(raw, 'exposures_scheduled', 0);
+    p.images = safeField(raw, 'images', struct());
 end
 
 
 function val = safeField(s, fieldName, defaultVal)
+    % Get field from struct, return default value if field is empty
+
     if isfield(s, fieldName) && ~isempty(s.(fieldName))
         val = s.(fieldName);
     else
