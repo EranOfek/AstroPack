@@ -46,6 +46,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
         Args.SearchStreaksEpoch            = true;  % search streaks in epoch images
         Args.maskCR_Args                   = {'RemoveFromCat',true}; % <-- remove CR
+        Args.MaskHole                      = false;
+        Args.maskHolesArgs                 = {};
         Args.astrometryVisitSubImageArgs   = {};
         Args.forcedPhotArgs                = {};
         %--- pipeline.generic.proc2MatchedSources args ---
@@ -241,6 +243,12 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Consider update TableRaw - No PSF, etc? 
             %TableRaw.BasicCalib(TableRaw.SelectedImages) = true(numel(AI),1); 
         
+            
+            % Mask holes
+            if Args.MaskHole
+                AllSI = imProc.mask.maskHoles(AllSI, Args.maskHolesArgs{:}); % 9s
+            end
+
             % solve astrometry of all images
             %ProcessingStep = 301;
             [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, 'MatchMethod',Args.MatchMethod, Args.astrometryVisitSubImageArgs{:}); % 22s
