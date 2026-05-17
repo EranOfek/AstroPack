@@ -118,7 +118,8 @@ function [Result, MidJD] = coaddHeader(Obj, Args)
                
                 %'MIDJD',0.5.*(max(VecJD)+min(VecJD)),'Middle time of observations';...
             
-        Result = insertKey(Result, InfoCell, 'end');
+        %Result = insertKey(Result, InfoCell, 'end');
+        Result = Result.replaceVal(InfoCell(:,1), InfoCell(:,2), 'Comment',InfoCell(:,3));
 
         if Args.SumExpTime
             Result = replaceVal(Result, 'EXPTIME', {sum(VecExpTime)});
