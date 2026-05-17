@@ -1,6 +1,32 @@
 function Result = unitTest()
     % unitTest for imUtil.psf package   
 
+
+    %% imUtil.psf.mex.fitGauss2D
+
+    N = 1000;
+    A = rand(N,1).*1.5+1;
+    B = rand(N,1).*0.5+1;
+    Rho = rand(N,1);
+
+    G = imUtil.kernel2.gauss([A,B,Rho]);
+    tic;
+    [a,b,c,d,e,f]=imUtil.psf.mex.fitGauss2D(G, 1e-2);
+    toc
+    tic;
+    for I=1:1:N
+        [R(I),BF] = imUtil.psf.fitFunPSF(G(:,:,I), 'Funs',{@imUtil.kernel2.gauss}, 'Par0',{[2 2 0],[1]}, 'Norm0',[1 1]);
+    end
+    toc
+    Par=reshape([R.Par],4,1000)';
+    % allow for up to 3% results with errors exceeding 0.1
+    if max(sum(abs(   [b,c,d,e] - [ones(N,1), A,B,Rho])>0.1) )./N >0.03
+        error('Problem with imUtil.psf.mex.fitGauss2D');
+    end
+    if max( sum(abs(   [Par] - [ones(N,1), A,B,Rho])>0.1)     )./N > 0.03
+        error('Problem with imUtil.psf.fitFunPSF');
+    end
+
     %% imUtil.psf.stamp2full
 
     K=imUtil.kernel2.gauss(2.*ones(100,1));

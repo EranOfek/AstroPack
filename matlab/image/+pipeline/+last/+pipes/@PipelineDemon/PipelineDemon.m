@@ -2509,7 +2509,7 @@ classdef PipelineDemon < Component
 
             % executing pipelineI
             AllForcedPhot = []; % TEMPORARY / not used
-            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
+            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:},'Status',Status);
             %ProcImageList = TableRaw.FileName;                
             RunTime = etime(clock, Tstart);
             Ntr = size(TableRaw,1);
@@ -3189,6 +3189,9 @@ classdef PipelineDemon < Component
                                         save('-v7.3', FailedInfoFileName, Status)
                                         cd(PWD);
                                     case 'report'
+                                        if ~isfolder(Obj.FailedPath)
+                                            mkdir(Obj.FailedPath);
+                                        end
                                         FN  = fullfile(Obj.FailedPath, 'report.txt');
                                         FID = fopen(FN,'a');
                                         fprintf(FID,'%% == pipelineI failed at %s == \n',datetime);

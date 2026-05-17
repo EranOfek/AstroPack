@@ -151,6 +151,13 @@ classdef PhotCalibTrans < Component
         AirmassColName = 'AIRMASS'          % Column name for per-source airmass in catalog
         PerSourceAirmass logical = false    % Whether per-source airmass was actually used
 
+        % Calibrated-magnitude column naming. Prefix applied as
+        % FLUX_<suffix> -> <MagColPrefix><suffix> by addMag, applyPhotCalibShifts,
+        % calcAperCorr, evaluateLimMag and applyConstBand. Set 'MAG_' to drop the
+        % _AB token and overwrite the instrumental MAG_<suffix> columns in place.
+        % fitPhotCalibTrans stamps this from its MagColPrefix argument.
+        MagColPrefix = 'MAG_AB_'            % Prefix for calibrated MAG column names
+
         % Aperture corrections
         AperCorr = []           % [1 x N_aper] aperture corrections in mag; NaN if calculation failed
         AperCorrColNames = {}   % Cell array of column names where AperCorr applies
@@ -2523,9 +2530,10 @@ classdef PhotCalibTrans < Component
             %                        Default is 'FLUX_APER_3'.
             %            'AperFluxPrefix' - Prefix for identifying flux columns
             %                        in the catalog. Default is 'FLUX_'.
-            %            'AperMagPrefix'  - Prefix for magnitude columns used when
-            %                        CalcCorrType='mag'. Derived by replacing
-            %                        'FLUX_' with this prefix. Default is 'MAG_'.
+            %                        Note: when CalcCorrType='mag', the magnitude
+            %                        columns are located by replacing 'FLUX_'
+            %                        with the object's MagColPrefix property
+            %                        (so it matches whatever prefix addMag used).
             %            'SNColName'      - S/N column name for filtering. Default is 'SN'.
             %            'MinSN'          - Minimum S/N for star selection. Default is 30.
             %            'MaxSN'          - Maximum S/N. Default is Inf.
@@ -2552,7 +2560,6 @@ classdef PhotCalibTrans < Component
                 CatObj
                 Args.RefFluxCol = 'FLUX_APER_3'
                 Args.AperFluxPrefix = 'FLUX_'
-                Args.AperMagPrefix = 'MAG_AB_'       % Prefix for magnitude columns (CalcCorrType='mag')
                 Args.SNColName = 'SN'
                 Args.MinSN = 30
                 Args.MaxSN = Inf
@@ -2624,7 +2631,7 @@ classdef PhotCalibTrans < Component
 
             if UseMag
                 % Derive reference magnitude column from flux column name
-                RefMagCol = strrep(Args.RefFluxCol, 'FLUX_', Args.AperMagPrefix);
+                RefMagCol = strrep(Args.RefFluxCol, 'FLUX_', Obj.MagColPrefix);
                 if ~ismember(RefMagCol, AllColNames)
                     Msg = sprintf('calcAperCorr: %s column not found for mag mode - aperture corrections set to NaN', RefMagCol);
                     Obj.msgLog(LogLevel.Warning, Msg);
@@ -2649,7 +2656,7 @@ classdef PhotCalibTrans < Component
 
                 if UseMag
                     % Read magnitude columns directly
-                    AperMagCol = strrep(AperCols{Iaper}, 'FLUX_', Args.AperMagPrefix);
+                    AperMagCol = strrep(AperCols{Iaper}, 'FLUX_', Obj.MagColPrefix);
                     if ~ismember(AperMagCol, AllColNames)
                         AperCorrVec(Iaper) = NaN;
                         continue;
@@ -2727,10 +2734,10 @@ classdef PhotCalibTrans < Component
             end
 
             % Store results — column names reflect mode:
-            % MAG_<prefix>_* in 'mag' mode, FLUX_* in 'flux' mode.
+            % <MagColPrefix>* in 'mag' mode, FLUX_* in 'flux' mode.
             Obj.AperCorr = AperCorrVec;
             if UseMag
-                Obj.AperCorrColNames = cellfun(@(C) strrep(C, 'FLUX_', Args.AperMagPrefix), ...
+                Obj.AperCorrColNames = cellfun(@(C) strrep(C, 'FLUX_', Obj.MagColPrefix), ...
                     AperCols, 'UniformOutput', false);
             else
                 Obj.AperCorrColNames = AperCols;
@@ -2760,14 +2767,17 @@ classdef PhotCalibTrans < Component
             %                         Error formula: MagErr = 1.086 * FluxErr
             %                         (FLUXERR is the relative flux uncertainty FluxErr/Flux).
             %                         Requires FLUXERR_<suffix> columns in catalog.
-            %                         Column naming: MAG_<System>_<suffix>_ERR.
+            %                         Column naming: <prefix><suffix>_ERR.
             %            'PropagateCalibratedErr' - Propagate calibrated magnitude
             %                         errors. Default is false. Not yet implemented.
             % Output : - AstroCatalog with added calibrated magnitude columns.
-            %                     Column naming: FLUX_<suffix> -> MAG_<System>_<suffix>
-            %                     (e.g., FLUX_APER_3 -> MAG_AB_APER_3)
-            %                     If AddMagErr=true, also: MAG_<System>_<suffix>_ERR
-            %                     (e.g., MAG_AB_APER_3_ERR)
+            %                     Column naming: FLUX_<suffix> -> <prefix><suffix>,
+            %                     where <prefix> is the object's MagColPrefix
+            %                     property (default 'MAG_AB_'; e.g.
+            %                     FLUX_APER_3 -> MAG_AB_APER_3). If MagColPrefix
+            %                     is 'MAG_', the calibrated mags overwrite the
+            %                     instrumental MAG_<suffix> columns in place.
+            %                     If AddMagErr=true, also: <prefix><suffix>_ERR.
             % Author : D. Kovaleva (Jan 2026)
             % Example: Cat = PC.addMag(Cat);
             %          Cat = PC.addMag(Cat, 'FluxColNames', {'FLUX_APER_3', 'FLUX_PSF'});
@@ -2802,8 +2812,12 @@ classdef PhotCalibTrans < Component
                       'Vega magnitude system is not yet implemented.');
             end
 
-            % Build dynamic column prefix: MAG_AB_ or MAG_VEGA_
-            MagPrefix = ['MAG_', Args.MagSystem, '_'];
+            % Column-name prefix for output magnitudes, from the object's
+            % MagColPrefix property. Naming convention only; the magnitude
+            % *system* is set by MagSystem. When MagColPrefix='MAG_' the
+            % calibrated mags overwrite the instrumental MAG_<suffix> columns
+            % (insertCol deletes the existing column first).
+            MagPrefix = Obj.MagColPrefix;
 
             % Get catalog table
             Tab = CatObj.Table;
@@ -2943,7 +2957,6 @@ classdef PhotCalibTrans < Component
             if Args.ApplyConstBand
                 CatObj = Obj.applyConstBand(CatObj, ...
                     'ConstBandParams', Args.ConstBandParams, ...
-                    'MagColPrefix', MagPrefix, ...
                     'OutputMode', Args.ConstBandOutputMode, ...
                     'OutputPrefix', Args.ConstBandPrefix);
             end
@@ -2968,11 +2981,12 @@ classdef PhotCalibTrans < Component
             %                        (e.g., Pressure_mbar, DobsonUnits,
             %                        TauAod500, AngstromExponent, PWV_cm).
             %                        Or path to .mat file containing the struct.
-            %            'MagColPrefix' - Prefix of magnitude columns to
-            %                        convert. Default is 'MAG_AB_'.
             %            'OutputMode' - 'newcol' creates new columns with
             %                        OutputPrefix; 'replace' overwrites the
             %                        original MAG columns. Default is 'newcol'.
+            %                        The magnitude columns to convert are
+            %                        identified by the object's MagColPrefix
+            %                        property.
             %            'OutputPrefix' - Prefix for new columns when
             %                        OutputMode='newcol'. Default is 'MAG_CB_'.
             % Output : - AstroCatalog with constant-band magnitude columns.
@@ -2985,7 +2999,6 @@ classdef PhotCalibTrans < Component
                 Obj
                 CatObj
                 Args.ConstBandParams = []       % Struct or .mat path
-                Args.MagColPrefix = 'MAG_AB_'
                 Args.OutputMode = 'newcol'      % 'newcol' or 'replace'
                 Args.OutputPrefix = 'MAG_CB_'
             end
@@ -3051,8 +3064,12 @@ classdef PhotCalibTrans < Component
             Obj.DeltaZP_CB = DeltaZP;
 
             % --- Apply to magnitude columns ---
+            % Magnitude columns identified by the object's MagColPrefix.
+            % Exclude OutputPrefix columns: when MagColPrefix='MAG_' it would
+            % otherwise also match the 'MAG_CB_' constant-band outputs.
             AllColNames = CatObj.ColNames;
-            MagCols = AllColNames(startsWith(AllColNames, Args.MagColPrefix));
+            MagCols = AllColNames(startsWith(AllColNames, Obj.MagColPrefix) & ...
+                                  ~startsWith(AllColNames, Args.OutputPrefix));
 
             for Ic = 1:numel(MagCols)
                 ColIdx = CatObj.colname2ind(MagCols{Ic});
@@ -3061,7 +3078,7 @@ classdef PhotCalibTrans < Component
                 if strcmpi(Args.OutputMode, 'replace')
                     CatObj.Catalog(:, ColIdx) = MagVals;
                 else
-                    NewColName = strrep(MagCols{Ic}, Args.MagColPrefix, Args.OutputPrefix);
+                    NewColName = strrep(MagCols{Ic}, Obj.MagColPrefix, Args.OutputPrefix);
                     CatObj = CatObj.insertCol(MagVals, Inf, NewColName, {});
                 end
             end
@@ -3151,15 +3168,15 @@ classdef PhotCalibTrans < Component
             % Compute limiting magnitude from calibrated catalog (legacy LIMMAG)
             % Input  : - PhotCalibTrans object.
             %          - AstroCatalog object after addMag (must contain the
-            %            matching FLUXERR_<suffix> and MAG_<system>_<suffix>
-            %            columns derived from FluxColName).
+            %            matching FLUXERR_<suffix> and <MagColPrefix><suffix>
+            %            columns derived from FluxColName; <MagColPrefix> is the
+            %            object's MagColPrefix property).
             %          * ...,key,val,...
             %            'FluxColName' - Flux column name; the matching
             %                            FLUXERR_<suffix> drives the SN ratio
-            %                            and MAG_<system>_<suffix> is fit.
+            %                            and <MagColPrefix><suffix> is fit.
             %                            Default is 'FLUX_APER_3'.
-            %            'MagSystem'   - Magnitude system ('AB' or 'Vega') used
-            %                            to build MAG_<system>_<suffix>.
+            %            'MagSystem'   - Magnitude system ('AB' or 'Vega').
             %                            Default is 'AB'.
             %            'MinSN'       - Lower SN bound for fit window. Default is 5.
             %            'MaxSN'       - Upper SN bound for fit window. Default is 50.
@@ -3204,7 +3221,7 @@ classdef PhotCalibTrans < Component
             end
             Suffix         = Tokens{1};
             FluxErrColName = ['FLUXERR_', Suffix];
-            MagColName     = ['MAG_', Args.MagSystem, '_', Suffix];
+            MagColName     = [Obj.MagColPrefix, Suffix];
 
             AllCols = CatObj.Table.Properties.VariableNames;
             if ~ismember(FluxErrColName, AllCols) || ~ismember(MagColName, AllCols)
@@ -4227,7 +4244,10 @@ classdef PhotCalibTrans < Component
                         end
 
                         if Args.AddMag
-                            MagPrefix = ['MAG_', Args.MagSystem, '_'];
+                            % Naming prefix from the per-crop PC object's
+                            % property — set once at calibration time, travels
+                            % with the object into this per-epoch path.
+                            MagPrefix = PC_c.MagColPrefix;
                             IsFlux    = startsWith(AllColNames, 'FLUX_');
                             FluxColIdx   = find(IsFlux);
                             FluxColNames = AllColNames(IsFlux);

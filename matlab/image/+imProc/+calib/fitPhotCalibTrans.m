@@ -20,6 +20,18 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %                         Default is {'New', 'Ref'}.
     %            'AddMag' - Add calibrated magnitude columns. Default is true.
     %            'MagSystem' - Magnitude system ('AB' or 'Vega'). Default is 'AB'.
+    %            'MagColPrefix' - Prefix for calibrated magnitude column names.
+    %                         FLUX_<suffix> -> <prefix><suffix> (e.g.
+    %                         FLUX_APER_3 -> MAG_AB_APER_3). Pass 'MAG_' to drop
+    %                         the _AB token; the calibrated magnitudes then
+    %                         overwrite the instrumental MAG_<suffix> columns in
+    %                         place (insertCol deletes the old column first).
+    %                         Stamped onto each PC object's MagColPrefix
+    %                         property after calibrate; addMag, calcAperCorr,
+    %                         evaluateLimMag, applyConstBand and the per-epoch
+    %                         applyPhotCalibShifts all read it from there, so
+    %                         write/read sides always agree. Does not affect
+    %                         AB_ZP. Default is 'MAG_AB_'.
     %            'FluxColName' - Flux column name. Default is 'FLUX_APER_3'.
     %            'AddZP' - Add ZP column. Default is true.
     %            'UpdateHeader' - Update header with results. Default is true.
@@ -89,6 +101,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         Args.DiffCalibProps cell = {'New', 'Ref'}
         Args.AddMag logical = true
         Args.MagSystem char = 'AB'
+        Args.MagColPrefix = 'MAG_AB_'   % Prefix for calibrated MAG column names ('MAG_' drops _AB, overwrites instrumental MAG_*)
         Args.FluxColName = 'FLUX_APER_3'
         Args.AddZP logical = true
         Args.UpdateHeader logical = true
@@ -167,6 +180,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                 'CalibArgs', Args.CalibArgs, ...
                 'Verbose', Args.Verbose, 'AddMagErr', Args.AddMagErr, ...
                 'AddMag', Args.AddMag, 'MagSystem', Args.MagSystem, ...
+                'MagColPrefix', Args.MagColPrefix, ...
                 'FluxColName', Args.FluxColName, 'AddZP', Args.AddZP, ...
                 'CalcAperCorr', Args.CalcAperCorr, 'ApplyAperCorr', Args.ApplyAperCorr, ...
                 'EvaluateLimMag', Args.EvaluateLimMag, 'EvaluateBackMag', Args.EvaluateBackMag, ...
@@ -241,6 +255,12 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
             'MagSystem', Args.MagSystem,...
             'match_catsHTMArgs',Args.match_catsHTMArgs,...
             'Verbose', Args.Verbose);
+
+        % Stamp the calibrated-magnitude column-naming prefix onto the PC
+        % object. Every downstream method (addMag, calcAperCorr, evaluateLimMag,
+        % applyConstBand, and the per-epoch applyPhotCalibShifts) reads this
+        % property — set once here, no per-call threading.
+        PC.MagColPrefix = Args.MagColPrefix;
 
         % ----------------------------------------------------------------
         % Post-calibration processing
@@ -351,8 +371,8 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
 
                 % Add magnitude columns if requested (NaN-filled for failed calibration)
                 if Args.AddMag
-                    % Dynamic prefix: MAG_AB_ or MAG_VEGA_
-                    MagPrefix = ['MAG_', Args.MagSystem, '_'];
+                    % Same naming prefix the successful path would have used
+                    MagPrefix = Args.MagColPrefix;
                     % Find FLUX columns and create corresponding magnitude columns
                     ColNames = CatObj.Table.Properties.VariableNames;
                     FluxCols = ColNames(startsWith(ColNames, 'FLUX_APER_') | strcmp(ColNames, 'FLUX_PSF'));
