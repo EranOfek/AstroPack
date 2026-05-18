@@ -12,5 +12,6 @@
 %            and each aperture (column).
 %          - A matrix with aperture area [pix] per image (row) and aperture
 %            (column).
+% Compilation: mex -O CXXFLAGS="\$CXXFLAGS -O3 -std=c++17 -march=native -fopenmp" LDFLAGS="\$LDFLAGS -fopenmp" aper_phot_cube_simple.cpp
 % Author : Eran Ofek (Feb 2026)
 % Example: [AperPhot2, AperArea2] = imUtil.sources.mex.aper_phot_cube_simple(Cube, Bck, X1, Y1, [2 4 6]);

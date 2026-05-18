@@ -140,6 +140,8 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     switch Args.SubPixShift   
         case 'lanczos'
             [Cube] = imUtil.trans.shift_lanczos(Cube, ShiftXY, Args.A, Args.IsCircFilt, Args.PadVal);
+        case 'lanczos3'
+            [Cube] = imUtil.trans.mex.shift_lanczos3(Cube, ShiftXY(:,1), ShiftXY(:,2));
         case 'fft'
             [Cube] = imUtil.trans.shift_fft(Cube, ShiftXY(:,1), ShiftXY(:,2));            
         case 'none'
@@ -147,12 +149,14 @@ function Result = aperPhotCube(Cube, X, Y, Args)
             % need to prepare a new version of MatR2 with the correct
             % positions
             
-            % BUG:
-            %VecX  = X(:) - (1:1:SizeX);
-            %VecY  = Y(:) - (1:1:SizeY);
+            % BUG: because ShiftXY was already shifted to origin of stamp
+            % [-X,...0,...X]
+            VecX  = X(:) - (1:1:SizeX);
+            VecY  = Y(:) - (1:1:SizeY);
             
-            VecX = (1:1:SizeX) - ShiftXY(:,1);
-            VecY = (1:1:SizeY) - ShiftXY(:,2);
+            % [1,...2X]
+            %VecX = (1:1:SizeX) - ShiftXY(:,1);
+            %VecY = (1:1:SizeY) - ShiftXY(:,2);
 
             MatR2 = zeros(SizeY, SizeX, Nim);
             for Iim=1:1:Nim

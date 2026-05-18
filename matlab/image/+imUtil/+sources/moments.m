@@ -248,7 +248,12 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
         if nargout>1
             
             [M2.X2,M2.Y2,M2.XY] = imUtil.sources.mex.mom2_cube(CubeBS, B0, M1.StampX1, M1.StampY1, Args.MaxRadiusM2);
-    
+
+            % debuging - using old moment code with new aper phot
+            % no improvment
+            %[M1o]=imUtil.image.moment2(CubeBS,M1.StampX1, M1.StampY1, 'Annulus',[10 12]);
+            %M1.StampX1 = M1o.X;
+            %M1.StampY1 = M1o.Y;
             
             if nargout>2
                 switch Args.AperPhotMethod

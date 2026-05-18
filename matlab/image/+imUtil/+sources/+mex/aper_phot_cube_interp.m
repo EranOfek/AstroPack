@@ -17,5 +17,6 @@
 %            aperture radius (columns).
 %          - A matrix of aperture area per image slice (rows) and per
 %            aperture radius (columns).
+% Compilation: mex -O CXXFLAGS="\$CXXFLAGS -O3 -std=c++17 -march=native -fopenmp" LDFLAGS="\$LDFLAGS -fopenmp" aper_phot_cube_interp.cpp
 % Author : Eran Ofek (Feb 2026)
 % Example: [AperPhot3, AperArea3]=imUtil.sources.mex.aper_phot_cube_interp(Cube, Bck, X1, Y1);
