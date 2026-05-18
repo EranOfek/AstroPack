@@ -4084,6 +4084,7 @@ classdef MatchedSources < Component
                 
                 Args.MaxMag                   = 18;
                 Args.MagInterpEdges           = (8:0.5:21.5).';
+                Args.MinNbin                  = 4;  % minimum number of bins required in order to calcaulate min rms.
 
                 % add noise curve
                 Args.AperArea                 = pi.*6.^2;
@@ -4162,12 +4163,15 @@ classdef MatchedSources < Component
                         end
         
                         B = B(B(:,1)<Args.MaxMag & B(:,2)>1e-4,:);
-                        [Result(Iobj).MinRMS, Ib] = min(B(:,2));
-                        Result(Iobj).MagMinRMS = B(Ib,1);
-                        Result(Iobj).B = B;
-        
-                        if ~isempty(Args.MagInterpEdges) && ~isempty(B)
-                            Result(Iobj).InterpB = [Args.MagInterpEdges(:), interp1(B(:,1),B(:,2), Args.MagInterpEdges(:), 'linear','extrap')];
+                        
+                        if size(B,1)>=Args.MinNbin
+                            [Result(Iobj).MinRMS, Ib] = min(B(:,2));
+                            Result(Iobj).MagMinRMS = B(Ib,1);
+                            Result(Iobj).B = B;
+            
+                            if ~isempty(Args.MagInterpEdges)
+                                Result(Iobj).InterpB = [Args.MagInterpEdges(:), interp1(B(:,1),B(:,2), Args.MagInterpEdges(:), 'linear','extrap')];
+                            end
                         end
                     end
                 end
