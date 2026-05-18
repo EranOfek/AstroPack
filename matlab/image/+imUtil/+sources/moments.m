@@ -46,8 +46,12 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
     %            'AperPhotType' - Aperture photometry algorithm.
     %                   Options are:
     %                   'interp' - Interpolated circular aperture photometry.
+    %                           Interpolate the pixealted aperture to the
+    %                           data.
+    %                   'interpstamp' - Interpolate the data to the
+    %                           aperture.
     %                   'simple' - Simple circular aperture photometry.
-    %                   Default is 'interp'.
+    %                   Default is 'interpstamp'.
     %            'AperPhotRadius' - Vector of aperture radii in pixels.
     %                   Default is [2 4 6].
     %            'AnnulusRadii' - Two-element vector [Rin Rout] specifying the
@@ -137,7 +141,7 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
 
 
         Args.HalfSize          = 12;
-        Args.AperPhotMethod    = 'interp';  % 'simple'|'interp'
+        Args.AperPhotMethod    = 'interpstamp';  % 'simple'|'interp'|'interpstamp'
         Args.AperRadius        = [2 4 6];
         Args.Annulus           = [10 12];
         Args.MaxIter           = 8;
@@ -248,10 +252,17 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
         if nargout>1
             
             [M2.X2,M2.Y2,M2.XY] = imUtil.sources.mex.mom2_cube(CubeBS, B0, M1.StampX1, M1.StampY1, Args.MaxRadiusM2);
-    
+
+            % debuging - using old moment code with new aper phot
+            % no improvment
+            %[M1o]=imUtil.image.moment2(CubeBS,M1.StampX1, M1.StampY1, 'Annulus',[10 12]);
+            %M1.StampX1 = M1o.X;
+            %M1.StampY1 = M1o.Y;
             
             if nargout>2
                 switch Args.AperPhotMethod
+                    case 'interpstamp'
+                        [Aper.AperPhot, Aper.AperArea] = imUtil.sources.mex.aper_phot_cube_interpstamp(CubeBS, B0, M1.StampX1, M1.StampY1, Args.AperRadius);
                     case 'interp'
                         [Aper.AperPhot, Aper.AperArea] = imUtil.sources.mex.aper_phot_cube_interp(CubeBS, B0, M1.StampX1, M1.StampY1, Args.AperRadius);
                     case 'simple'

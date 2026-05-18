@@ -33,10 +33,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                               'FLUX_XYPEAK', 'FORCED'};
         Args.AperRadius                    = [2, 4, 6];
         Args.Annulus                       = [10 12];
-        Args.MomentsMethod                 = 'mex';  %'legacy'|'mex'
-        Args.AperPhotMethod                = 'interp';  % 'simple'|'interp'
+        Args.MomentsMethod                 = 'mex'; %'mex'; %'mex';  %'legacy'|'mex'
+        Args.AperPhotMethod                = 'simple'; % 'interp';  % 'simple'|'interp'
 
-        Args.ShiftMethod                   = 'lanczos3';  % 'fft'|'lanczos3'
+        Args.ShiftMethod                   = 'lanczos3'; %'lanczos3';  % 'fft'|'lanczos3'
         Args.PsfPhotMethod                 = '2DGN';    % 'legacy'/'old' |'1D'|'2D'|'2DGN'
 
         Args.BitName       = 'Streak';
@@ -52,6 +52,16 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.forcedPhotArgs                = {};
         %--- pipeline.generic.proc2MatchedSources args ---
         Args.proc2MatchedSourcesArgs       = {};
+        Args.MatchedCols                   = {'RA','Dec',...
+                                              'X','Y',...
+                                              'X1','Y1','X2','Y2','XY',...
+                                              'SN','SN_1','SN_2',...
+                                              'MAG_PSF','MAGERR_PSF','PSF_CHI2DOF','FLUX_PSF',...
+                                              'MAG_APER_3','MAGERR_APER_3',...
+                                              'FLUX_APER_3',...
+                                              'FLAGS',...
+                                              'BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS',...
+                                              'FORCED'};
         Args.ColUse                        = 'FORCED';
         Args.AddUnUse                      = true;
         
@@ -390,7 +400,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
             % Merge catalogs
             %ProcessingStep = 501;
-            [MS,ResRelZP] = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse);   % 9.6 s -> 1.3s (with MatchMethod='unify')
+            [MS,ResRelZP] = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse, 'MatchedCols',Args.MatchedCols);   % 9.6 s -> 1.3s (with MatchMethod='unify')
         
             % calculate the photometric rms per crop
             

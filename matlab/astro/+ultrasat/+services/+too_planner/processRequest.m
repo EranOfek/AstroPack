@@ -90,7 +90,7 @@ function Output = processTooPlanner(Input)
 
         % Parse the summary.json to populate rich response fields
         if ~isempty(summaryFileName) && isfile(summaryFileName)
-            Output.summary_file = char(summaryFileName);
+            Output.summary_file = pathForJson(summaryFileName);
             try
                 summaryText = fileread(summaryFileName);
                 summary = jsondecode(summaryText);
@@ -146,12 +146,42 @@ function p = extractPlanFields(raw)
 
     p = struct();
     p.run_id = safeField(raw, 'run_id', '');
-    p.json_file = safeField(raw, 'json_file', '');
-    p.mat_file = safeField(raw, 'mat_file', '');
+    p.json_file = pathForJson(safeField(raw, 'json_file', ''));
+    p.mat_file = pathForJson(safeField(raw, 'mat_file', ''));
     p.plan_index = safeField(raw, 'plan_index', 0);
     p.status = safeField(raw, 'status', 'error');
     p.exposures_scheduled = safeField(raw, 'exposures_scheduled', 0);
-    p.images = safeField(raw, 'images', struct());
+    rawImages = safeField(raw, 'images', struct());
+    if isstruct(rawImages) && ~isempty(fieldnames(rawImages))
+        p.images = normalizeImagesStruct(rawImages);
+    else
+        p.images = struct();
+    end
+end
+
+
+function s = pathForJson(s)
+    % Normalize path separators for JSON IPC output (forward slashes).
+    if isstring(s)
+        s = char(s);
+    end
+    if ischar(s) && ~isempty(s)
+        s = strrep(s, '\', '/');
+    end
+end
+
+
+function img = normalizeImagesStruct(img)
+    % Normalize path fields in plan images struct for JSON IPC output.
+    if ~isstruct(img)
+        return;
+    end
+    for f = fieldnames(img)'
+        v = img.(f{1});
+        if ischar(v) || isstring(v)
+            img.(f{1}) = pathForJson(v);
+        end
+    end
 end
 
 

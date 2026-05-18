@@ -140,7 +140,7 @@ arguments
     Args.CalcBoxPhot logical                           = false;
     Args.CalcWeightedAper logical                      = false;
     %Args.SubPixShiftBeforePhot logical                 = false;
-    Args.SubPixShift                                   = 'fft'; %'fft';   % 'fft' | 'lanczos' | 'none'
+    Args.SubPixShift                                   = 'fft'; %'fft'; %'fft';   % 'fft' | 'lanczos' | 'none'
     Args.Method                                        = 'prod'; % 'devel' 
     
     Args.UseMex logical                                = false;
