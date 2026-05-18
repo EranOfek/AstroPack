@@ -1,135 +1,161 @@
-function plotPhotResiduals(PC, Args)
-    % Plot calibration residuals vs magnitude across all epochs and crops
-    % Description: For each mode, collects calibrator residuals from all
-    %              PhotCalibTrans objects (epochs x crops) and plots residual
-    %              vs magnitude. Overlays a binned trend line.
-    %              Shows magnitude-dependent systematics in the calibration fit.
+function Fig = plotPhotResiduals(PC, Args)
+    % Plot calibrator fit residuals against a chosen quantity.
+    % Description: Pools the used calibrators' residuals from all epochs and
+    %              crops of the supplied PhotCalibTrans objects and plots
+    %              them against the quantity named by 'XAxis'. With
+    %              YStat='residual' it draws a residual scatter with an
+    %              optional binned trend; with YStat='rms' it draws the
+    %              binned residual RMS on a logarithmic y-axis.
     %
-    % Input  : - PC struct with PCcell{Iv}(Ic) PhotCalibTrans arrays
-    %            (from calibratePhotModes .PC output or Result.PC).
-    %            Calibration residuals are identical across modes (same
-    %            underlying percrop fit), so only percrop is plotted.
+    %              Replaces the residual-vs-X family: plotPhotResiduals,
+    %              plotPhotResidualsAirmass, plotPhotResidualsBg,
+    %              plotPhotResidualsVs, plotPhotResidualsXY,
+    %              plotPhotResidualsRMS. (Residual-vs-GAIA-colour remains in
+    %              plotPhotResidualsColor, which needs an external catalogue
+    %              cross-match.)
+    %
+    % Input  : - PC - a PhotCalibTrans array, a cell of such arrays, or a
+    %            struct with a .PC field (anything resolveInput accepts).
     %          * ...,key,val,...
-    %            'CropsToAnalyze' - Crop indices. Default is [] (all).
-    %            'Normalize' - If true, plot Residual/MagErr (normalized).
-    %                          Default is false.
-    %            'MagField'    - Magnitude column for x-axis:
-    %                            'MAG_AB' - calibrated AB mag from SourceData (default).
-    %                            'instrumental' - -2.5*log10(Flux) from SourceData.
-    %                            Or any column name present in SourceData.
-    %            'OverlayTrend'- 'median'|'mean'|'none'. Default is 'median'.
-    %            'TrendBinWidth'- Bin width [mag]. Default is 0.5.
-    %            'YLim'        - Y-axis limits [min max]. Default is [] (auto).
-    % Author : D. Kovaleva (Mar 2026)
-    % Example: pipeline.last.quality.photCalib.plotPhotResiduals(R.PC);
-    %          pipeline.last.quality.photCalib.plotPhotResiduals(R.PC, 'MagField', 'instrumental');
+    %            'XAxis'          - X quantity:
+    %                                 'mag'          - MAG_AB column
+    %                                 'instrumental' - -2.5*log10(Flux)
+    %                                 'airmass'      - PhotCalibTrans.AirMass
+    %                                 'background'   - 1/Flux
+    %                                 <column>       - a SourceData column
+    %                                 'A-B'          - column difference
+    %                               Default 'mag'.
+    %            'YStat'          - 'residual' (scatter + trend) or 'rms'
+    %                               (binned RMS, log y-axis). Default
+    %                               'residual'.
+    %            'CropsToAnalyze' - Crop indices. Default [] (all).
+    %            'Normalize'      - Plot Residual/MagErr. Default false.
+    %            'OverlayTrend'   - 'median' | 'mean' | 'none' binned trend
+    %                               (residual mode). Default 'median'.
+    %            'TrendBinWidth'  - X bin width. Default [] (= X data range /
+    %                               TrendBins).
+    %            'TrendBins'      - Bin count when TrendBinWidth is empty.
+    %                               Default 30.
+    %            'MinCount'       - Minimum calibrators per trend/RMS bin.
+    %                               Default 5.
+    %            'FitLine'        - Overlay a linear fit and report its slope
+    %                               (residual mode). Default false.
+    %            'ShowMedianShift'- Overlay the overall median residual as a
+    %                               horizontal line (residual mode).
+    %                               Default false.
+    %            'YLim'           - Y-axis limits. Default [] (auto).
+    % Output : - Fig - the created figure handle ([] when there is no data).
+    % Author : photCalib package refactor (2026-05)
+    % Example: plotPhotResiduals(R.PC, 'XAxis', 'mag');
+    %          plotPhotResiduals(R.PC, 'XAxis', 'airmass', 'FitLine', true);
+    %          plotPhotResiduals(R.PC, 'XAxis', 'mag', 'YStat', 'rms');
+    %          plotPhotResiduals(R.PC, 'XAxis', 'X-XPEAK');
 
     arguments
         PC
-        Args.CropsToAnalyze = []
-        Args.MagField       = 'MAG_AB'
-        Args.Normalize logical = false  % Plot Residual/MagErr instead of Residual
-        Args.OverlayTrend   = 'median'
-        Args.TrendBinWidth  = 0.5
-        Args.YLim           = []
+        Args.XAxis           {mustBeTextScalar} = 'mag'
+        Args.YStat           {mustBeMember(Args.YStat,{'residual','rms'})} = 'residual'
+        Args.CropsToAnalyze  double  = []
+        Args.Normalize       logical = false
+        Args.OverlayTrend    {mustBeMember(Args.OverlayTrend,{'median','mean','none'})} = 'median'
+        Args.TrendBinWidth            = []
+        Args.TrendBins       (1,1) double = 30
+        Args.MinCount        (1,1) double = 5
+        Args.FitLine         logical = false
+        Args.ShowMedianShift logical = false
+        Args.YLim                    = []
     end
 
-    PCcell = pipeline.last.quality.photCalib.resolvePC(PC);
-    if isempty(PCcell)
+    Fig = [];
+    PCcell = resolveInput(PC);
+    if isempty(PCcell); return; end
+
+    % Map XAxis -> collectResiduals XField + axis label
+    switch lower(Args.XAxis)
+        case 'mag'
+            XField = 'MAG_AB';        XLabel = 'MAG\_AB';
+        case 'instrumental'
+            XField = 'instrumental';  XLabel = '-2.5 log_{10}(Flux)';
+        case 'airmass'
+            XField = 'AirMass';       XLabel = 'Airmass';
+        case 'background'
+            XField = 'InvFlux';       XLabel = '1 / Flux';
+        otherwise
+            XField = Args.XAxis;      XLabel = strrep(Args.XAxis, '_', '\_');
+    end
+
+    D = collectResiduals(PCcell, 'CropsToAnalyze', Args.CropsToAnalyze, ...
+        'XField', XField, 'Normalize', Args.Normalize);
+    if isempty(D.Residual)
+        warning('photCalib:plotPhotResiduals:NoData', ...
+            'No valid residual data for XAxis=%s.', Args.XAxis);
         return;
     end
 
-    figure('Name', 'Calibrator Residuals vs Magnitude', ...
-           'Position', [50, 50, 600, 500]);
-    hold on;
-
-    AllMag = [];
-    AllRes = [];
-
-    Nvisits = numel(PCcell);
-    for Iv = 1:Nvisits
-        if isempty(PCcell{Iv}); continue; end
-
-        CropsToUse = Args.CropsToAnalyze;
-        if isempty(CropsToUse)
-            CropsToUse = 1:numel(PCcell{Iv});
-        end
-
-        for Ic = CropsToUse
-            if Ic > numel(PCcell{Iv}); continue; end
-            PCobj = PCcell{Iv}(Ic);
-            if ~PCobj.Success; continue; end
-            if isempty(PCobj.SourceData); continue; end
-
-            Tab = PCobj.SourceData.Table;
-            ColNames = Tab.Properties.VariableNames;
-            if ~ismember('Residuals', ColNames); continue; end
-
-            % Filter to used calibrators
-            if ismember('Used', ColNames)
-                UsedMask = logical(Tab.Used);
-            else
-                UsedMask = true(height(Tab), 1);
-            end
-
-            Residuals = Tab.Residuals(UsedMask);
-
-            % Normalize by MagErr if requested
-            if Args.Normalize
-                if ~ismember('MagErr', ColNames); continue; end
-                MagErr = Tab.MagErr(UsedMask);
-                Residuals = Residuals ./ MagErr;
-            end
-
-            % Get magnitude for x-axis
-            if strcmp(Args.MagField, 'instrumental')
-                if ~ismember('Flux', ColNames); continue; end
-                Flux = Tab.Flux(UsedMask);
-                Mag = -2.5 * log10(Flux);
-            elseif ismember(Args.MagField, ColNames)
-                Mag = Tab.(Args.MagField)(UsedMask);
-            elseif ismember('Flux', ColNames)
-                % Fallback to instrumental
-                Flux = Tab.Flux(UsedMask);
-                Mag = -2.5 * log10(Flux);
-            else
-                continue;
-            end
-
-            ValidMask = isfinite(Residuals) & isfinite(Mag);
-            AllMag = [AllMag; Mag(ValidMask)];
-            AllRes = [AllRes; Residuals(ValidMask)];
-        end
+    if Args.Normalize
+        YLabel = 'Residual / MagErr';
+    else
+        YLabel = 'Residual [mag]';
     end
 
-    if ~isempty(AllMag)
-        plot(AllMag, AllRes, '.', 'MarkerSize', 5);
+    Xmin = min(D.X);
+    Xmax = max(D.X);
+    if ~isempty(Args.TrendBinWidth)
+        BW = Args.TrendBinWidth;
+    else
+        BW = (Xmax - Xmin) / max(Args.TrendBins, 1);
+    end
+    CanBin = isfinite(BW) && BW > 0 && Xmax > Xmin;
+
+    if strcmp(Args.YStat, 'rms')
+        % --- Binned residual RMS ---------------------------------------
+        Fig = figure('Name', sprintf('Residual RMS vs %s', Args.XAxis), ...
+                     'Position', [50 50 620 500]);
+        hold on;
+        if CanBin
+            T = binnedTrend(D.X, D.Residual, 'BinWidth', BW, ...
+                'Range', [Xmin Xmax], 'Stat', 'median', 'MinCount', Args.MinCount);
+            plot(T.X, T.Std, '-r', 'LineWidth', 2);
+        end
+        set(gca, 'YScale', 'log');
+        YLabel = 'Residual RMS [mag]';
+    else
+        % --- Residual scatter + trend ----------------------------------
+        Fig = figure('Name', sprintf('Residuals vs %s', Args.XAxis), ...
+                     'Position', [50 50 620 500]);
+        hold on;
+        plot(D.X, D.Residual, '.', 'MarkerSize', 3);
         plot(xlim, [0 0], 'k--');
 
-        if ~strcmp(Args.OverlayTrend, 'none')
-            MagRange = [floor(min(AllMag)), ceil(max(AllMag))];
-            TrendFun = str2func(['nan' Args.OverlayTrend]);
-            R = timeSeries.bin.binningFast([AllMag(:), AllRes(:)], ...
-                Args.TrendBinWidth, MagRange, {'MidBin', @numel, TrendFun});
-            ValidBins = R(:,2) >= 5;
-            plot(R(ValidBins,1), R(ValidBins,3), '-r', 'LineWidth', 2);
+        if ~strcmp(Args.OverlayTrend, 'none') && CanBin
+            T = binnedTrend(D.X, D.Residual, 'BinWidth', BW, ...
+                'Range', [Xmin Xmax], 'Stat', Args.OverlayTrend, ...
+                'MinCount', Args.MinCount);
+            plot(T.X, T.Val, '-r', 'LineWidth', 2);
+        end
+
+        if Args.ShowMedianShift
+            MShift = median(D.Residual, 'omitnan');
+            plot(xlim, [MShift MShift], '--m', 'LineWidth', 1.5);
+            text(0.05, 0.95, sprintf('median = %.4f', MShift), ...
+                'Units', 'normalized', 'VerticalAlignment', 'top', ...
+                'FontSize', 10, 'BackgroundColor', 'w');
+        end
+
+        if Args.FitLine
+            Cf = polyfit(D.X, D.Residual, 1);
+            XFit = linspace(Xmin, Xmax, 100);
+            plot(XFit, polyval(Cf, XFit), '-b', 'LineWidth', 2);
+            text(0.05, 0.85, sprintf('slope = %.4g', Cf(1)), ...
+                'Units', 'normalized', 'VerticalAlignment', 'top', ...
+                'FontSize', 10, 'BackgroundColor', 'w');
         end
     end
 
     box on; grid on;
-    if strcmp(Args.MagField, 'instrumental')
-        xlabel('-2.5 log_{10}(Flux)');
-    else
-        xlabel(strrep(Args.MagField, '_', '\_'));
-    end
-    if Args.Normalize
-        ylabel('Residual / MagErr');
-    else
-        ylabel('Residual [mag]');
-    end
-    if ~isempty(Args.YLim)
-        ylim(Args.YLim);
-    end
-    title(sprintf('Calibrator fit residuals (%d calibrators, %d epochs)', ...
-        numel(AllMag), Nvisits));
+    xlabel(XLabel);
+    ylabel(YLabel);
+    if ~isempty(Args.YLim); ylim(Args.YLim); end
+    title(sprintf('Calibrator residuals vs %s (%d calibrators, %d epochs)', ...
+        Args.XAxis, D.NCalib, D.NEpoch));
 end

@@ -14,6 +14,9 @@ function V = resolvePCParam(PCobj, Name)
     %         'DOF' returns TransModel.DOF as-is (currently the last-stage
     %         local DOF; will become the global DOF once PhotCalibTrans
     %         stores it directly).
+    %     (b2) 'IntegralT' - integral transmission (mean fractional
+    %          throughput including Norm), via
+    %          PhotCalibTrans.integralTransmission.
     %     (c) PhotCalibTrans scalar properties (header-derived or metadata):
     %         'AirMass','Temp','Pressure','Humidity','ExpTime','NCoadd',
     %         'ARMS','DeltaZP_CB','Aperture'
@@ -41,6 +44,18 @@ function V = resolvePCParam(PCobj, Name)
     end
 
     V = NaN;
+
+    % integral transmission (derived; mean fractional throughput incl. Norm)
+    if strcmp(Name, 'IntegralT')
+        try
+            T = PCobj.integralTransmission();
+            if isnumeric(T) && isscalar(T)
+                V = T;
+            end
+        catch
+        end
+        return;
+    end
 
     % (a) fitted transmission parameter
     if ~isempty(PCobj.TransModel)
