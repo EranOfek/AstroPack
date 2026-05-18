@@ -2956,6 +2956,10 @@ classdef DemonLAST < Component
                         [FN_Sci] = selectBy(FN_Sci, 'Type', {'sci','science'}, 'CreateNewObj',false);
                         [FN_Sci] = selectBy(FN_Sci, 'Level', 'raw', 'CreateNewObj',false);
 
+                        if Args.CompressedRAW % adjust the file type in the FileNames object
+                            S = string(FN_Sci.FileType) + ".fz";
+                            FN_Sci.FileType = cellstr(S);
+                        end
 
                         % select observations by date
                         FN_JD  = FN_Sci.julday;
