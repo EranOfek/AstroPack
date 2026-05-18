@@ -1,4 +1,6 @@
 % A fast mex for a simple pixelized aperture photometry around position
+%   See also: imUtil.sources.mex.aper_phot_cube_interp
+%             imUtil.sources.mex.aper_phot_cube_interpstamp
 %   The function creates a pixelized aperture around the source position.
 %   The aperture radius are in ascending order and the mex use this fact to
 %   speed up the calculations.

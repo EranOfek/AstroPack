@@ -1,32 +1,35 @@
-// aper_phot_cube_pix_interp.cpp
+// aper_phot_cube_interpstamp.cpp
 //
-// Hybrid patch method (Option #1):
-//   1) Build a small output patch around stamp center with radius B = ceil(Rmax)
-//   2) Shift ONLY that patch using separable Lanczos-3 (horizontal then vertical)
-//   3) Sum shifted pixels inside circular apertures (sorted radii) using bin+prefix sums
+// Method 1 implementation of sub-pixel aperture photometry:
+//   1) Lanczos-3 shift the ENTIRE stamp by (-X1, -Y1) so that the source
+//      lands on the stamp center.
+//   2) Sum pixels of the shifted stamp that fall inside a fixed, hard,
+//      integer-pixel circular aperture centered on the stamp center.
+//   3) Bin+prefix-sum to produce all aperture radii in one pass.
+//
+// Contrast with aper_phot_cube_interp.cpp: that file also uses Method 1,
+// but only shifts a small patch around the stamp center. This version
+// shifts the full stamp. It is conceptually simpler and slightly more
+// robust at the patch edge, at the cost of doing the Lanczos pass over
+// pixels that will not be used.
 //
 // USAGE:
-//   [Flux, Area] = aper_phot_cube_pix_interp(Cube, Back, X1, Y1, AperRadii)
+//   [Flux, Area] = aper_phot_cube_interpstamp(Cube, Back, X1, Y1, AperRadii)
 //
 // INPUTS:
 //   Cube      : MxK or MxKxN, real single/double (background INCLUDED).
-//   Back      : scalar or length-N vector (single/double). Background level per slice.
-//   X1, Y1    : scalar or length-N vector (single/double). Offsets relative to stamp center.
-//               Convention: we shift IMAGE by (-X1,-Y1), equivalent to shifting a fixed mask by (+X1,+Y1).
+//   Back      : scalar or length-N vector. Background level per slice.
+//   X1, Y1    : scalar or length-N vector. Offsets relative to stamp center.
+//               The IMAGE is Lanczos-shifted by (-X1, -Y1), bringing the
+//               source from (cx+X1, cy+Y1) to (cx, cy).
 //   AperRadii : sorted ascending radii vector (single/double).
 //
 // OUTPUTS (double):
-//   Flux : N x Na  background-subtracted aperture sums (ignoring non-finite shifted pixels).
-//   Area : N x Na  effective area = count of finite shifted pixels included.
-//
-// NOTES on NaNs:
-//   - Non-finite values in the SHIFTED patch are ignored in Flux/Area.
-//   - If the input contains NaNs, Lanczos interpolation may propagate NaNs to neighbors;
-//     those affected output pixels will be ignored (rare-case behavior).
+//   Flux : N x Na. Flux(n,a) = sum_{r<=R(a)} shifted_image - Back(n)*Area.
+//   Area : N x Na. Number of finite shifted pixels included.
 //
 // COMPILE:
-//   mex -O CXXFLAGS="\$CXXFLAGS -O3 -std=c++17 -march=native -fopenmp" \
-//       LDFLAGS="\$LDFLAGS -fopenmp" aper_phot_cube_pix_interp.cpp
+//   mex -O CXXFLAGS="\$CXXFLAGS -O3 -std=c++17 -march=native -fopenmp" LDFLAGS="\$LDFLAGS -fopenmp" aper_phot_cube_interpstamp.cpp
 
 #include "mex.h"
 #include <cmath>
@@ -43,7 +46,7 @@
 #include <immintrin.h>
 
 static void die(const char* msg) {
-    mexErrMsgIdAndTxt("aper_phot_cube_pix_interp:err", "%s", msg);
+    mexErrMsgIdAndTxt("aper_phot_cube_interpstamp:err", "%s", msg);
 }
 
 static inline bool isRealSingleOrDouble(const mxArray* A) {
@@ -69,12 +72,11 @@ static inline double lanczos3(double x) {
 }
 
 // Convert shift d into integer shiftInt and fractional frac in [0,1) using t=-d.
-// Matches your existing shifter convention.
 static inline double frac_from_neg_shift(double d, int& shiftInt) {
     const double t = -d;
     const double ft = std::floor(t);
     shiftInt = (int)ft;
-    return t - ft; // [0,1)
+    return t - ft;
 }
 
 static inline void weights_lanczos3(double frac01, double w[TAPS]) {
@@ -186,17 +188,15 @@ static void readRadiiToDouble(const mxArray* A, std::vector<double>& R) {
 
 // -------------- Precompute pixels within Rmax and their "bin" --------------
 struct OutPix {
-    int x;   // 0..K-1
-    int y;   // 0..M-1
-    int bin; // 0..Na-1 (smallest aperture containing this pixel)
+    int x;    // 0..K-1
+    int y;    // 0..M-1
+    int bin;  // 0..Na-1 (smallest aperture containing this pixel)
 };
 
-// Also returns patch bounds [x1..x2],[y1..y2] in 0-based coords.
-static void precompute_outpix_and_patch(
+static void precompute_outpix(
     int M, int K,
     const std::vector<double>& R,
-    std::vector<OutPix>& outpix,
-    int& px1, int& px2, int& py1, int& py2
+    std::vector<OutPix>& outpix
 ) {
     const int Na = (int)R.size();
     std::vector<double> R2((size_t)Na);
@@ -205,12 +205,10 @@ static void precompute_outpix_and_patch(
     const double x0 = 0.5 * ((double)K + 1.0); // MATLAB center (1-based)
     const double y0 = 0.5 * ((double)M + 1.0);
 
-    const double Rmax = R.back();
+    const double Rmax  = R.back();
     const double Rmax2 = Rmax * Rmax;
+    const int    B     = (int)std::ceil(Rmax);
 
-    const int B = (int)std::ceil(Rmax);
-
-    // Patch bounds in MATLAB 1-based coords then to 0-based
     int xMin1 = (int)std::ceil (x0 - (double)B);
     int xMax1 = (int)std::floor(x0 + (double)B);
     int yMin1 = (int)std::ceil (y0 - (double)B);
@@ -221,16 +219,11 @@ static void precompute_outpix_and_patch(
     if (xMax1 > K) xMax1 = K;
     if (yMax1 > M) yMax1 = M;
 
-    px1 = xMin1 - 1;
-    px2 = xMax1 - 1;
-    py1 = yMin1 - 1;
-    py2 = yMax1 - 1;
-
     outpix.clear();
-    outpix.reserve((size_t)((px2 - px1 + 1) * (py2 - py1 + 1)));
+    outpix.reserve((size_t)((xMax1 - xMin1 + 1) * (yMax1 - yMin1 + 1)));
 
     for (int x1 = xMin1; x1 <= xMax1; ++x1) {
-        const double dx = (double)x1 - x0;
+        const double dx  = (double)x1 - x0;
         const double dx2 = dx * dx;
         const int x = x1 - 1;
 
@@ -251,18 +244,13 @@ static void precompute_outpix_and_patch(
     }
 }
 
-// -------------- Shift ONLY the patch (separable) --------------
+// -------------- Whole-stamp separable Lanczos-3 shift --------------
 template <typename T>
-static inline void shift_patch_sep_lanczos3(
-    const T* in, int M, int K,
-    int px1, int px2, int py1, int py2,          // patch bounds (0-based) in OUTPUT
-    double dx, double dy,                         // shift applied to IMAGE
-    std::vector<T>& tmp,                           // tmp buffer (Htmp x Px), column-major
-    std::vector<T>& outPatch                       // out patch (Py x Px), column-major
+static inline void shift_stamp_sep_lanczos3(
+    const T* in, T* out, T* tmp,
+    int M, int K,
+    double dx, double dy
 ) {
-    const int Px = px2 - px1 + 1;
-    const int Py = py2 - py1 + 1;
-
     int sxInt, syInt;
     const double fx = frac_from_neg_shift(dx, sxInt);
     const double fy = frac_from_neg_shift(dy, syInt);
@@ -271,78 +259,48 @@ static inline void shift_patch_sep_lanczos3(
     weights_lanczos3(fx, wx);
     weights_lanczos3(fy, wy);
 
-    // We need tmp rows covering y in [py1+syInt+OFF0 .. py2+syInt+OFF1]
-    int yTmp1 = py1 + syInt + OFF0;
-    int yTmp2 = py2 + syInt + OFF1;
-    if (yTmp1 < 0) yTmp1 = 0;
-    if (yTmp2 > M - 1) yTmp2 = M - 1;
-    const int Htmp = (yTmp2 >= yTmp1) ? (yTmp2 - yTmp1 + 1) : 0;
+    // ---- Horizontal pass: tmp(y, x) = sum_tix wx[tix] * in(y, x + sxInt + (OFF0+tix))
+    for (int x = 0; x < K; ++x) {
+        T* tmpCol = tmp + (mwSize)M * (mwSize)x;
+        zero_vec(tmpCol, M);
 
-    tmp.resize((size_t)Htmp * (size_t)Px);
-    outPatch.resize((size_t)Py * (size_t)Px);
-
-    // ---- Horizontal pass: tmp(y, x_out) = sum wx * in(y, x_in) for y in [yTmp1..yTmp2]
-    for (int xo = 0; xo < Px; ++xo) {
-        const int x = px1 + xo;           // output x in full image (0-based)
-        T* tmpCol = tmp.data() + (size_t)Htmp * (size_t)xo;
-        zero_vec(tmpCol, Htmp);
-
-        const int xbase = x + sxInt;      // x_in base for tap offsets
+        const int xbase = x + sxInt;
 
         for (int tix = 0; tix < TAPS; ++tix) {
-            const int xx = xbase + (OFF0 + tix);  // -2..+3
+            const int xx = xbase + (OFF0 + tix);
             if ((unsigned)xx >= (unsigned)K) continue;
 
             const double w = wx[tix];
             if (w == 0.0) continue;
 
-            const T* inCol = in + (mwSize)M * (mwSize)xx + (mwSize)yTmp1; // segment start
+            const T* inCol = in + (mwSize)M * (mwSize)xx;
 
             if constexpr (std::is_same<T,float>::value) {
-                axpy_f32((float*)tmpCol, (const float*)inCol, Htmp, (float)w);
+                axpy_f32((float*)tmpCol, (const float*)inCol, M, (float)w);
             } else {
-                axpy_f64((double*)tmpCol, (const double*)inCol, Htmp, (double)w);
+                axpy_f64((double*)tmpCol, (const double*)inCol, M, (double)w);
             }
         }
     }
 
-    // ---- Vertical pass: outPatch(y_out, x_out) = sum wy * tmp(y_in, x_out)
-    // y_in = (y_out_full + syInt + offy) mapped into tmp row index by subtracting yTmp1.
-    for (int xo = 0; xo < Px; ++xo) {
-        const T* tmpCol = tmp.data() + (size_t)Htmp * (size_t)xo;
-        T* outCol = outPatch.data() + (size_t)Py * (size_t)xo;
-        zero_vec(outCol, Py);
+    // ---- Vertical pass: out(y, x) = sum_tiy wy[tiy] * tmp(y + syInt + (OFF0+tiy), x)
+    for (int x = 0; x < K; ++x) {
+        const T* tmpCol = tmp + (mwSize)M * (mwSize)x;
+        T*       outCol = out + (mwSize)M * (mwSize)x;
+        zero_vec(outCol, M);
 
         for (int tiy = 0; tiy < TAPS; ++tiy) {
+            const int sh = syInt + (OFF0 + tiy);  // source offset (in - out)
             const double w = wy[tiy];
             if (w == 0.0) continue;
 
-            const int offy = OFF0 + tiy;           // -2..+3
+            int yStart = (sh < 0) ? -sh : 0;
+            int yEnd   = (sh > 0) ? (M - 1 - sh) : (M - 1);
+            if (yEnd < yStart) continue;
 
-            // For output y_full in [py1..py2], y_in = y_full + syInt + offy must be in [yTmp1..yTmp2]
-            // Compute y_full range that satisfies it:
-            int yStartFull = py1;
-            int yEndFull   = py2;
-
-            const int minFull = yTmp1 - (syInt + offy);
-            const int maxFull = yTmp2 - (syInt + offy);
-
-            if (yStartFull < minFull) yStartFull = minFull;
-            if (yEndFull   > maxFull) yEndFull   = maxFull;
-
-            if (yEndFull < yStartFull) continue;
-
-            const int len = yEndFull - yStartFull + 1;
-
-            // Map to patch-local y (0..Py-1)
-            const int dst0 = yStartFull - py1;
-
-            // Map to tmp-local y (0..Htmp-1)
-            const int srcFull0 = yStartFull + syInt + offy;
-            const int src0 = srcFull0 - yTmp1;
-
-            const T* src = tmpCol + src0;
-            T* dst = outCol + dst0;
+            const int len = yEnd - yStart + 1;
+            const T* src = tmpCol + (yStart + sh);
+            T*       dst = outCol + yStart;
 
             if constexpr (std::is_same<T,float>::value) {
                 axpy_f32((float*)dst, (const float*)src, len, (float)w);
@@ -353,26 +311,24 @@ static inline void shift_patch_sep_lanczos3(
     }
 }
 
-// -------------- Main: hybrid patch shift + aperture sum --------------
+// -------------- Main: whole-stamp shift + hard-aperture sum --------------
 template <typename T>
-static void aper_phot_cube_hybrid(
+static void aper_phot_cube_stamp(
     const T* cube, int M, int K, int N,
     const double* Back,
     const double* X1, const double* Y1,
     const std::vector<OutPix>& outpix,
-    int px1, int px2, int py1, int py2,
     int Na,
     double* outFlux, double* outArea   // N x Na, col-major
 ) {
     const mwSize stride = (mwSize)M * (mwSize)K;
-    const int Px = px2 - px1 + 1;
-    const int Py = py2 - py1 + 1;
 
 #if defined(_OPENMP)
     #pragma omp parallel
 #endif
     {
-        std::vector<T> tmp, outPatch;
+        std::vector<T> tmp((size_t)M * (size_t)K);
+        std::vector<T> outStamp((size_t)M * (size_t)K);
         std::vector<double> binFlux((size_t)Na);
         std::vector<double> binArea((size_t)Na);
 
@@ -382,31 +338,26 @@ static void aper_phot_cube_hybrid(
         for (int n = 0; n < N; ++n) {
             const T* in = cube + (mwSize)n * stride;
 
-            // shift IMAGE by (-X1,-Y1) so that fixed-center apertures behave like mask shifted by (+X1,+Y1)
+            // Shift IMAGE by (-X1,-Y1) so the source moves to stamp center.
             const double dx = -X1[n];
             const double dy = -Y1[n];
 
-            // Build shifted patch
-            shift_patch_sep_lanczos3<T>(in, M, K, px1, px2, py1, py2, dx, dy, tmp, outPatch);
+            shift_stamp_sep_lanczos3<T>(in, outStamp.data(), tmp.data(), M, K, dx, dy);
 
             std::fill(binFlux.begin(), binFlux.end(), 0.0);
             std::fill(binArea.begin(), binArea.end(), 0.0);
 
-            // Sum only pixels in circle list (precomputed) using shifted patch values
+            // Sum shifted-stamp values inside the integer-pixel circle.
             for (const auto& p : outpix) {
-                const int xo = p.x - px1;
-                const int yo = p.y - py1;
-                if ((unsigned)xo >= (unsigned)Px || (unsigned)yo >= (unsigned)Py) continue;
-
-                const T vT = outPatch[(size_t)yo + (size_t)Py * (size_t)xo];
+                const T vT = outStamp[(size_t)p.y + (size_t)M * (size_t)p.x];
                 const double v = (double)vT;
 
-                if (!std::isfinite(v)) continue; // ignore NaNs/Infs in shifted values
+                if (!std::isfinite(v)) continue; // ignore NaNs/Infs
                 binFlux[(size_t)p.bin] += v;
                 binArea[(size_t)p.bin] += 1.0;
             }
 
-            // prefix sums and background subtraction
+            // Prefix sums for cumulative apertures + background subtraction.
             double runFlux = 0.0;
             double runArea = 0.0;
             const double b = Back[n];
@@ -424,31 +375,26 @@ static void aper_phot_cube_hybrid(
 // ----------------- Help -----------------
 static void print_help() {
     mexPrintf(
-"aper_phot_cube_pix_interp  Fast aperture photometry with hybrid patch Lanczos-3 shift.\n"
+"aper_phot_cube_interpstamp  Method-1 aperture photometry with whole-stamp Lanczos-3 shift.\n"
 "\n"
 "USAGE:\n"
-"  [Flux, Area] = aper_phot_cube_pix_interp(Cube, Back, X1, Y1, AperRadii)\n"
+"  [Flux, Area] = aper_phot_cube_interpstamp(Cube, Back, X1, Y1, AperRadii)\n"
 "\n"
 "INPUTS:\n"
 "  Cube      : MxK or MxKxN, real single/double (background included).\n"
 "  Back      : scalar or length-N vector. Background per slice.\n"
 "  X1, Y1    : scalar or length-N vector. Offsets relative to stamp center.\n"
-"              Implementation shifts IMAGE by (-X1,-Y1), equivalent to shifting a fixed mask by (+X1,+Y1).\n"
+"              The image is Lanczos-shifted by (-X1, -Y1).\n"
 "  AperRadii : sorted ascending radii vector.\n"
 "\n"
 "OUTPUTS (double):\n"
 "  Flux : N x Na. Flux = sum(shifted finite pixels in aperture) - Back*Area.\n"
-"  Area : N x Na. Area = count of finite shifted pixels included.\n"
+"  Area : N x Na. Count of finite shifted pixels in each aperture.\n"
 "\n"
 "ALGORITHM:\n"
-"  - Precompute pixels inside largest aperture (Rmax) and their smallest-radius bin.\n"
-"  - For each slice, compute ONLY a (2*ceil(Rmax)+1)^2 patch centered on stamp center\n"
-"    using separable Lanczos-3 (horizontal then vertical), with zero padding.\n"
-"  - Sum shifted patch values over circle pixels, then prefix-sum bins to get all radii.\n"
-"\n"
-"NaN/Inf handling:\n"
-"  - Non-finite values in the shifted patch are ignored (do not contribute to Flux/Area).\n"
-"  - Input NaNs may propagate through interpolation; affected shifted pixels are ignored.\n"
+"  - Lanczos-3 shift the ENTIRE stamp by (-X1, -Y1), so the source is at center.\n"
+"  - Sum shifted pixel values inside a fixed integer-pixel circular aperture.\n"
+"  - Prefix-sum across sorted apertures so all radii cost ~one pass.\n"
 "\n"
     );
 }
@@ -457,7 +403,7 @@ static void print_help() {
 extern "C" void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs == 0) { print_help(); return; }
 
-    if (nrhs != 5) die("Usage: [Flux,Area] = aper_phot_cube_pix_interp(Cube, Back, X1, Y1, AperRadii)");
+    if (nrhs != 5) die("Usage: [Flux,Area] = aper_phot_cube_interpstamp(Cube, Back, X1, Y1, AperRadii)");
     if (nlhs != 2) die("Require two outputs: [Flux, Area].");
 
     const mxArray* CubeA = prhs[0];
@@ -485,12 +431,9 @@ extern "C" void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* 
     readRadiiToDouble(RadA, R);
     const int Na = (int)R.size();
 
-    // Precompute circle pixels and patch bounds
     std::vector<OutPix> outpix;
-    int px1, px2, py1, py2;
-    precompute_outpix_and_patch(M, K, R, outpix, px1, px2, py1, py2);
+    precompute_outpix(M, K, R, outpix);
 
-    // Outputs are double matrices N x Na
     plhs[0] = mxCreateDoubleMatrix((mwSize)N, (mwSize)Na, mxREAL);
     plhs[1] = mxCreateDoubleMatrix((mwSize)N, (mwSize)Na, mxREAL);
 
@@ -499,11 +442,11 @@ extern "C" void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* 
 
     if (mxIsDouble(CubeA)) {
         const double* cube = (const double*)mxGetData(CubeA);
-        aper_phot_cube_hybrid<double>(cube, M, K, N, Back.data(), X1.data(), Y1.data(),
-                                      outpix, px1, px2, py1, py2, Na, outFlux, outArea);
+        aper_phot_cube_stamp<double>(cube, M, K, N, Back.data(), X1.data(), Y1.data(),
+                                     outpix, Na, outFlux, outArea);
     } else {
         const float* cube = (const float*)mxGetData(CubeA);
-        aper_phot_cube_hybrid<float>(cube, M, K, N, Back.data(), X1.data(), Y1.data(),
-                                     outpix, px1, px2, py1, py2, Na, outFlux, outArea);
+        aper_phot_cube_stamp<float>(cube, M, K, N, Back.data(), X1.data(), Y1.data(),
+                                    outpix, Na, outFlux, outArea);
     }
 }
