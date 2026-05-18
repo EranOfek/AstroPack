@@ -73,7 +73,7 @@ function [Status, AFN] = saveProductMatchedSources(MS, FileName, Args)
         Args.FileType                 = 'hdf5';
         Args.RealIfComplex logical    = true;
         Args.Type                     = 'single';
-        Args.SkipFields               = [];
+        Args.SkipFields               = ["RA", "Dec", "FLAGS"];
 
         Args.OverWrite logical        = false;
         %Args.WriteTime logical        = false;

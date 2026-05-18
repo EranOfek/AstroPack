@@ -18,8 +18,35 @@ function Result = batchARMSHistograms(BaseDir, Args)
     %              -2.5*log10(Flux) per epoch before the Std reduction.
     %
     % Input  : - BaseDir char/string — parent dir whose subdirectories
-    %            (recursive by default) are searched for visits.
+    %            (recursive by default) are searched for visits. May be
+    %            '' when 'MSData' supplies pre-built MatchedSources
+    %            instead of directory discovery.
     %                    * ...,key,val,...
+    %                      'MSData'        - struct array of pre-built
+    %                                        visit MatchedSources; when
+    %                                        non-empty, directory
+    %                                        discovery is skipped and
+    %                                        BaseDir is ignored. Fields:
+    %                                          .MS     - a MatchedSources
+    %                                                    array / cell /
+    %                                                    mode-keyed struct
+    %                                                    (e.g. the output
+    %                                                    of
+    %                                                    matchVisitEpochs);
+    %                                          .Visit  - char label
+    %                                                    (optional;
+    %                                                    default
+    %                                                    'visitK');
+    %                                          .Cohort - char label
+    %                                                    (optional;
+    %                                                    default
+    %                                                    'prebuilt') used
+    %                                                    to group / colour
+    %                                                    the histograms.
+    %                                        Use this to feed visit MS
+    %                                        carrying columns the merged
+    %                                        products lack (e.g.
+    %                                        FLUX_PSF). Default {} struct.
     %                      'VisitGlob'     - single-cohort pattern,
     %                                        ignored if CompareGlobs is
     %                                        set. Default '*v*'.
@@ -138,9 +165,25 @@ function Result = batchARMSHistograms(BaseDir, Args)
     %                  BaseDir, 'VisitGlob','*v2', ...
     %                  'Quantities',  {'RA','Dec','FLUX_APER_3','MAG_PSF'}, ...
     %                  'PanelGroups', {{'RA','Dec'},{'FLUX_APER_3'},{'MAG_PSF'}});
+    %
+    %          % Pre-built MS (carrying FLUX_PSF) via matchVisitEpochs —
+    %          % the merged products do not store FLUX_PSF, so build the
+    %          % visit MS yourself, then upload it through 'MSData':
+    %          MSData = struct('MS',{},'Visit',{},'Cohort',{});
+    %          for k = 1:numel(VisitPaths)
+    %              M = pipeline.last.quality.photCalib.matchVisitEpochs( ...
+    %                      VisitPaths{k});
+    %              [~,vn] = fileparts(VisitPaths{k});
+    %              MSData(end+1) = struct('MS',M,'Visit',vn,'Cohort','v0');
+    %          end
+    %          R = pipeline.last.quality.photCalib.batchARMSHistograms('', ...
+    %                  'MSData', MSData, ...
+    %                  'Quantities',  {'RA','Dec','FLUX_PSF'}, ...
+    %                  'PanelGroups', {{'RA','Dec'},{'FLUX_PSF'}});
 
     arguments
-        BaseDir              {mustBeText}
+        BaseDir              {mustBeText} = ''
+        Args.MSData          struct       = struct('MS', {}, 'Visit', {}, 'Cohort', {})
         Args.VisitGlob       {mustBeText} = '*v*'
         Args.CompareGlobs    cell         = {}
         Args.CompareLabels   cell         = {}
@@ -167,70 +210,76 @@ function Result = batchARMSHistograms(BaseDir, Args)
         Args.Verbose         logical      = true
     end
 
-    % --- Cohort setup --------------------------------------------------
-    if isempty(Args.CompareGlobs)
-        CohortGlobs  = {char(Args.VisitGlob)};
-        CohortLabels = {char(Args.VisitGlob)};
-    else
-        CohortGlobs  = cellfun(@char, Args.CompareGlobs(:).', 'Uni', 0);
-        if isempty(Args.CompareLabels)
-            CohortLabels = CohortGlobs;
-        else
-            CohortLabels = cellfun(@char, Args.CompareLabels(:).', 'Uni', 0);
-        end
-        if numel(CohortLabels) ~= numel(CohortGlobs)
-            error('batchARMSHistograms:LabelMismatch', ...
-                'CompareLabels must have one entry per CompareGlobs.');
-        end
+    % --- Input mode: pre-built MS upload vs directory discovery -------
+    UseMSData = ~isempty(Args.MSData);
+    if ~UseMSData && isempty(char(BaseDir))
+        error('batchARMSHistograms:NoInput', ...
+            ['Provide BaseDir for directory discovery, or Args.MSData ', ...
+             'with pre-built MatchedSources (e.g. from matchVisitEpochs).']);
     end
-    Ncohorts = numel(CohortGlobs);
+    if UseMSData && ~isfield(Args.MSData, 'MS')
+        error('batchARMSHistograms:BadMSData', ...
+            'Args.MSData must be a struct array with at least an .MS field.');
+    end
 
-    % --- Loop cohorts, build per-row ARMS records ---------------------
     % Accumulate into a cell of scalar structs (all carry the same field
     % set: Cohort/Visit/Crop + one *_ARMS field per quantity), then
     % concatenate at the end.
     RecCell = {};
 
-    for Ic = 1:Ncohorts
-        VD = discoverVisits(char(BaseDir), CohortGlobs{Ic}, Args);
-        if isempty(VD)
-            if Args.Verbose
-                fprintf('  cohort %s: 0 visits under %s\n', CohortLabels{Ic}, BaseDir);
-            end
-            continue;
+    if UseMSData
+        % Pre-built MatchedSources: one struct-array element per visit,
+        % each with .MS plus optional .Visit / .Cohort labels.
+        CLabels = cell(1, numel(Args.MSData));
+        for Im = 1:numel(Args.MSData)
+            Entry      = Args.MSData(Im);
+            Cohort     = fieldOrDefault(Entry, 'Cohort', 'prebuilt');
+            Visit      = fieldOrDefault(Entry, 'Visit',  sprintf('visit%d', Im));
+            CLabels{Im} = Cohort;
+            RecCell    = [RecCell, recordsFromMS(Entry.MS, Cohort, Visit, Args)]; %#ok<AGROW>
         end
+        CohortLabels = unique(CLabels, 'stable');
         if Args.Verbose
-            fprintf('  cohort %s: %d visits\n', CohortLabels{Ic}, numel(VD));
+            fprintf('batchARMSHistograms: %d pre-built visit MS, %d cohort(s)\n', ...
+                numel(Args.MSData), numel(CohortLabels));
         end
-        for Iv = 1:numel(VD)
-            VPath = VD{Iv};
-            MS = loadOneVisitMS(VPath, Args);
-            if isempty(MS); continue; end
-            CCell = normaliseMSToCellOfCrops(MS, Args.Mode);
-            Ncrop = numel(CCell);
-            % FieldId / CropID file-level filter already applied at
-            % discovery — apply CropID at MS level too.
-            if ~isempty(Args.CropID)
-                if Args.CropID <= Ncrop
-                    CCell = CCell(Args.CropID);
-                else
-                    continue;
-                end
+    else
+        % --- Cohort setup ---------------------------------------------
+        if isempty(Args.CompareGlobs)
+            CohortGlobs  = {char(Args.VisitGlob)};
+            CohortLabels = {char(Args.VisitGlob)};
+        else
+            CohortGlobs  = cellfun(@char, Args.CompareGlobs(:).', 'Uni', 0);
+            if isempty(Args.CompareLabels)
+                CohortLabels = CohortGlobs;
+            else
+                CohortLabels = cellfun(@char, Args.CompareLabels(:).', 'Uni', 0);
             end
-            for Cc = 1:numel(CCell)
-                R = struct();
-                R.Cohort = CohortLabels{Ic};
-                [~, R.Visit] = fileparts(VPath);
-                if ~isempty(Args.CropID)
-                    R.Crop = Args.CropID;
-                else
-                    R.Crop = Cc;
+            if numel(CohortLabels) ~= numel(CohortGlobs)
+                error('batchARMSHistograms:LabelMismatch', ...
+                    'CompareLabels must have one entry per CompareGlobs.');
+            end
+        end
+
+        % --- Loop cohorts, build per-row ARMS records -----------------
+        for Ic = 1:numel(CohortGlobs)
+            VD = discoverVisits(char(BaseDir), CohortGlobs{Ic}, Args);
+            if isempty(VD)
+                if Args.Verbose
+                    fprintf('  cohort %s: 0 visits under %s\n', CohortLabels{Ic}, BaseDir);
                 end
-                for Iqq = 1:numel(Args.Quantities)
-                    Q = Args.Quantities{Iqq};
-                    R.(varName(Q)) = cropARMS(CCell{Cc}, Q, Args);
-                end
-                RecCell{end+1} = R; %#ok<AGROW>
+                continue;
+            end
+            if Args.Verbose
+                fprintf('  cohort %s: %d visits\n', CohortLabels{Ic}, numel(VD));
+            end
+            for Iv = 1:numel(VD)
+                VPath = VD{Iv};
+                MS    = loadOneVisitMS(VPath, Args);
+                if isempty(MS); continue; end
+                [~, Visit] = fileparts(VPath);
+                RecCell = [RecCell, ...
+                    recordsFromMS(MS, CohortLabels{Ic}, Visit, Args)]; %#ok<AGROW>
             end
         end
     end
@@ -261,7 +310,14 @@ function Result = batchARMSHistograms(BaseDir, Args)
     end
 
     if Args.Plot && ~isempty(Records)
-        plotARMSHistograms(Result, Args);
+        pipeline.last.quality.photCalib.plotARMSHistograms(Result, ...
+            'PanelGroups',       Args.PanelGroups, ...
+            'GroupColumn',       'Cohort', ...
+            'AngularQuantities', Args.AngularQuantities, ...
+            'FluxAsMag',         Args.FluxAsMag, ...
+            'Bins',              Args.Bins, ...
+            'SaveFig',           Args.SaveFig, ...
+            'OutDir',            Args.OutDir);
     end
 end
 
@@ -381,81 +437,43 @@ function V = varName(Q)
 end
 
 % =========================================================================
-function U = armsUnit(Q, Args)
-    % Unit string for the ARMS of quantity Q:
-    %   arcsec for angular quantities (std rescaled x3600 x cos Dec),
-    %   mag    for FluxAsMag columns (-2.5*log10) and MAG_* columns,
-    %   ''     otherwise (raw native units, e.g. flux not in FluxAsMag).
-    Qc = char(Q);
-    if ismember(Q, Args.AngularQuantities)
-        U = 'arcsec';
-    elseif ismember(Q, Args.FluxAsMag)
-        U = 'mag';
-    elseif startsWith(upper(Qc), 'MAG')
-        U = 'mag';
-    else
-        U = '';
+function Recs = recordsFromMS(MS, Cohort, Visit, Args)
+    % Per-crop ARMS records for one visit's MatchedSources, as a cell of
+    % scalar structs (Cohort/Visit/Crop + one *_ARMS field per quantity).
+    Recs  = {};
+    CCell = normaliseMSToCellOfCrops(MS, Args.Mode);
+    if isempty(CCell); return; end
+    if ~isempty(Args.CropID)
+        if Args.CropID <= numel(CCell)
+            CCell = CCell(Args.CropID);
+        else
+            return;
+        end
+    end
+    for Cc = 1:numel(CCell)
+        R = struct();
+        R.Cohort = Cohort;
+        R.Visit  = Visit;
+        if ~isempty(Args.CropID)
+            R.Crop = Args.CropID;
+        else
+            R.Crop = Cc;
+        end
+        for Iqq = 1:numel(Args.Quantities)
+            Q = Args.Quantities{Iqq};
+            R.(varName(Q)) = cropARMS(CCell{Cc}, Q, Args);
+        end
+        Recs{end+1} = R; %#ok<AGROW>
     end
 end
 
 % =========================================================================
-function plotARMSHistograms(Result, Args)
-    OutDir = char(Args.OutDir);
-    if Args.SaveFig && ~exist(OutDir, 'dir'); mkdir(OutDir); end
-    T = Result.ARMS;
-    Cohorts = unique(T.Cohort, 'stable');
-    Cmap = lines(numel(Cohorts));
-    for Ig = 1:numel(Args.PanelGroups)
-        QGroup = Args.PanelGroups{Ig};
-        Np = numel(QGroup);
-        F = figure('Name', sprintf('ARMS: %s', strjoin(QGroup, ' / ')), ...
-            'Position', [60 60 420*Np 380]);
-        for Ip = 1:Np
-            Ax = subplot(1, Np, Ip); hold(Ax, 'on');
-            Q = QGroup{Ip};
-            Col = varName(Q);
-            if ~ismember(Col, T.Properties.VariableNames); continue; end
-            Vals = T.(Col);
-            Fin  = isfinite(Vals);
-            if ~any(Fin)
-                title(Ax, sprintf('%s (no data)', Q), 'Interpreter','none');
-                continue;
-            end
-            if isscalar(Args.Bins)
-                Edges = linspace(min(Vals(Fin)), max(Vals(Fin)), Args.Bins + 1);
-            else
-                Edges = Args.Bins;
-            end
-            for Ic = 1:numel(Cohorts)
-                Sel = strcmp(T.Cohort, Cohorts{Ic}) & Fin;
-                if ~any(Sel); continue; end
-                histogram(Ax, Vals(Sel), Edges, ...
-                    'FaceColor', Cmap(Ic,:), 'FaceAlpha', 0.55, ...
-                    'EdgeColor', Cmap(Ic,:) * 0.6, 'LineWidth', 0.8, ...
-                    'Normalization', 'probability', ...
-                    'DisplayName', sprintf('%s (N=%d, med=%.3g)', ...
-                        Cohorts{Ic}, sum(Sel), median(Vals(Sel))));
-            end
-            grid(Ax, 'on'); box(Ax, 'on');
-            U = armsUnit(Q, Args);
-            if isempty(U)
-                xlabel(Ax, sprintf('ARMS(%s)', Q), 'Interpreter', 'none');
-            else
-                xlabel(Ax, sprintf('ARMS(%s) [%s]', Q, U), 'Interpreter', 'none');
-            end
-            ylabel(Ax, 'Fraction');
-            title(Ax, Q, 'Interpreter', 'none');
-            if numel(Cohorts) > 1
-                legend(Ax, 'Location', 'best', 'Interpreter', 'none');
-            end
-        end
-        sgtitle(sprintf('ARMS distribution: %s', strjoin(QGroup, ' / ')), ...
-            'Interpreter', 'none');
-        if Args.SaveFig
-            Base = fullfile(OutDir, sprintf('arms_%s', ...
-                matlab.lang.makeValidName(strjoin(QGroup, '_'))));
-            savefig(F, [Base '.fig']);
-            saveas(F, [Base '.png']);
-        end
+function V = fieldOrDefault(S, Name, Default)
+    % Char value of struct field Name, or Default when absent / empty.
+    if isfield(S, Name) && ~isempty(S.(Name))
+        V = char(string(S.(Name)));
+    else
+        V = Default;
     end
 end
+
