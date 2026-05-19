@@ -135,8 +135,8 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
         Args.SN                = [];
         Args.X                 = []; 
         Args.Y                 = [];
-        Args.StampX             = [];
-        Args.StampY             = [];
+        Args.StampX            = [];
+        Args.StampY            = [];
         Args.mexCutout         = true;
 
 
