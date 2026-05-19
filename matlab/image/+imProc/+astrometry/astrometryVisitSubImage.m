@@ -193,7 +193,7 @@ function [ResFit, AI, CatName] = astrometryVisitSubImage(Obj, Args)
     if Nep>1
         % solve all epochs for each sub image
         for Isub=1:1:Nsub          
-            Isub
+            %Isub
             if AI(1,Isub).WCS.Success
                 [ResFit(2:end,Isub), AI(2:end,Isub)] = imProc.astrometry.astrometrySameImage(AI(2:end,Isub),...
                                                                                          'Scale',Args.Scale,...

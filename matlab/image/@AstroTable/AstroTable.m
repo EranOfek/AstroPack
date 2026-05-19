@@ -943,6 +943,7 @@ classdef AstroTable < Component
     methods  % columns get/edit
         function [Result, Units, ColInd] = getCol(Obj, Columns, OutputIsTable, UpdateAstroTable, Args)
             % Get a catalog columns by index or names
+            %   Recomended to use getColMulti instead
             % Input  : - A single element AstroTable object.
             %          - A vector of column indices, or a column name, or a
             %            cell array of column names.
@@ -960,6 +961,10 @@ classdef AstroTable < Component
             %                   Default is NaN.
             %                   This is not using the selectRows function.
             %            'CaseSens' - Case sensetive. Default is true.
+            %            'FillValue' - If column doens't exist, then will
+            %                   fill it with this value.
+            %                   If empty, then fail.
+            %                   Default is [].
             % Output : - A matrix or a table containing the selected
             %            columns.
             %          - A cell array of units corresponding to the
@@ -978,6 +983,7 @@ classdef AstroTable < Component
                 Args.UseDict(1,1) logical          = true;
                 Args.SelectRows                    = NaN;
                 Args.CaseSens                      = true;
+                Args.FillValue                     = [];
             end
                 
             
@@ -985,7 +991,8 @@ classdef AstroTable < Component
 %                 error('FFU: Dictinary is not implemented yet');
 %             end
            
-            ColInd = colname2ind(Obj, Columns, [], 'CaseSens',Args.CaseSens);
+            ColInd = colname2ind(Obj, Columns, Args.FillValue, 'CaseSens',Args.CaseSens);
+           
             if istable(Obj.Catalog)
                 if OutputIsTable
                     Result = Obj.Catalog(:,ColInd);
@@ -1014,7 +1021,7 @@ classdef AstroTable < Component
                     Units = Obj.ColUnits(ColInd);
                 end
             end
-            
+
             if UpdateAstroTable
                 Obj.Catalog = Result;
             end
@@ -1022,6 +1029,43 @@ classdef AstroTable < Component
             if ~isnan(Args.SelectRows)
                 Result = Result(Args.SelectRows, :);
             end
+            
+        end
+
+        function [Data, ColUnits] = getColMulti(Obj, ColName, Args)
+            % Get single or mul;tiple columns from AstroTable
+            %   Also treating non existing columns.
+            % Input  : - 
+            
+
+            arguments
+                Obj
+                ColName
+                Args.FillValue   = NaN;
+                Args.SelectRows  = [];
+                Args.CaseSens    = true;
+                Args.KeepAsTable = false;
+            end
+
+            if isnumeric(ColName)
+                ColInd = ColName;
+            else
+                ColInd = Obj.colname2ind(ColName, Args.FillValue, 'CaseSens',Args.CaseSens);
+            end
+            
+            Ncol = numel(ColInd);
+            Nrow = size(Obj.Catalog, 1);
+            Data = nan(Nrow, Ncol);
+            IsNN = ~isnan(ColInd);
+
+            Data(:,IsNN)   = Obj.Catalog(:,IsNN);
+            ColUnits       = cell(1, Ncol);
+            ColUnits(IsNN) = Obj.ColUnits(IsNN);
+
+            if ~Args.KeepAsTable && istable(Data)
+                Data = table2array(Data);
+            end
+
         end
         
         function Result = getCol2struct(Obj, ColNames, Args)
