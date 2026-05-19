@@ -215,116 +215,124 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         % assume Cube was provided
         Cube = Image;
     end
+
+    if ~isempty(X)
     
-    % Select sources for PSF
-    % select by SN diff
-    Nsrc = size(Cube,3);
-    FlagGoodPsf = true(Nsrc,1);
-    if ~isempty(Args.SNdiff) && size(Args.SN,2)>1 && ~isempty(Args.SN)
-        Flag        = (Args.SN(:,2) - Args.SN(:,1))>Args.SNdiff;
-        FlagGoodPsf = FlagGoodPsf & Flag;
-    end
-    % select by moments
-    if ~isempty(Args.DeltaSigma)
-        %[M1, M2]    = imUtil.image.moment2(Cube, Args.X, Args.Y, 'Annulus',Args.Annulus, Args.moment2Args{:});
-        [M1, M2]    = imUtil.image.moment2(Cube, Xstamp, Ystamp, 'Annulus',Args.Annulus, Args.moment2Args{:});
-        Sigma       = sqrt(abs(M2.X2)+abs(M2.Y2));
-
-        
-
-        %MedSigma    = imUtil.background.modeVar_QuantileHist(Sigma);
-        %FlagGoodPsf = FlagGoodPsf & (Sigma>(MedSigma - Args.DeltaSigma) & Sigma<(MedSigma + Args.DeltaSigma));
-
-        SigmaRange  = quantile(Sigma, Args.SigmaQuantile);
-        FlagGoodPsf = FlagGoodPsf & Sigma>SigmaRange(1) & Sigma<SigmaRange(2);
-
-    else
-        M1 = [];
-        M2 = [];
-    end
-    % select by neighboors
-    if ~isempty(Args.NighRadius)
-        if isempty(Args.X) || isempty(Args.Y)
-            error('For cube input X and Y must be provided');
+        % Select sources for PSF
+        % select by SN diff
+        Nsrc = size(Cube,3);
+        FlagGoodPsf = true(Nsrc,1);
+        if ~isempty(Args.SNdiff) && size(Args.SN,2)>1 && ~isempty(Args.SN)
+            Flag        = (Args.SN(:,2) - Args.SN(:,1))>Args.SNdiff;
+            FlagGoodPsf = FlagGoodPsf & Flag;
         end
-        % if ~issorted(Args.Y)
-        %     error('Args.Y needed to be sorted');
-        % end
-        [MatchedInd] = VO.search.search_sortedY_multi([Args.X, Args.Y], Args.X, Args.Y, Args.NighRadius);
-        FlagGoodPsf    = FlagGoodPsf & ([MatchedInd.Nmatch]==1).';
-    end
-    % select by S/N range
-    if ~isempty(Args.SN)
-        FlagGoodPsf = FlagGoodPsf & (Args.SN(:,2)>Args.RangeSN(1) & Args.SN(:,2)<Args.RangeSN(2));
-    end
+        % select by moments
+        if ~isempty(Args.DeltaSigma)
+            %[M1, M2]    = imUtil.image.moment2(Cube, Args.X, Args.Y, 'Annulus',Args.Annulus, Args.moment2Args{:});
+            [M1, M2]    = imUtil.image.moment2(Cube, Xstamp, Ystamp, 'Annulus',Args.Annulus, Args.moment2Args{:});
+            Sigma       = sqrt(abs(M2.X2)+abs(M2.Y2));
+    
             
-    % FlagGoodPsf contains the good sources
-    NgoodPsf = sum(FlagGoodPsf);
-
-    Result.FlagGoodPsf = FlagGoodPsf;
-    Result.NstrasPsf   = sum(FlagGoodPsf);
-    Result.CatStarsPSF = [Args.X, Args.Y];
-    Result.SN          = Args.SN;
-    Result.M1          = M1;
-    Result.M2          = M2;
-        
-    IndGoodPsf = find(FlagGoodPsf);
     
-    if NgoodPsf>Args.MinNumGoodPsf && nargout>1
-        
-        if ~isempty(Args.Back)
-            % read back at X/Y positions
-            Ind  = imUtil.image.sub2ind_fast(size(Args.Back), round(Args.Y), round(Args.X));
-            %Ind  = imUtil.image.mex.sub2ind_mex(size(Args.Back), round(Args.Y), round(Args.X));
-            Back = Args.Back(Ind(IndGoodPsf));
+            %MedSigma    = imUtil.background.modeVar_QuantileHist(Sigma);
+            %FlagGoodPsf = FlagGoodPsf & (Sigma>(MedSigma - Args.DeltaSigma) & Sigma<(MedSigma + Args.DeltaSigma));
+    
+            SigmaRange  = quantile(Sigma, Args.SigmaQuantile);
+            FlagGoodPsf = FlagGoodPsf & Sigma>SigmaRange(1) & Sigma<SigmaRange(2);
+    
         else
-            Back = Args.Back;
+            M1 = [];
+            M2 = [];
         end
-        %XY = [Args.X, Args.Y];
-        XY = [Xstamp, Ystamp]; %[Args.X, Args.Y];
-        XY = XY(IndGoodPsf,:);
-        
-        % cut the M1.X and M1.Y values for the selected stars to be
-        % employed in imUtil.psf.constructPSF_cutouts below:
-        M1.X = M1.X(FlagGoodPsf);
-        M1.Y = M1.Y(FlagGoodPsf); 
-        
-        [MeanPSF, VarPSF, NimPSF, FlagSelected] = imUtil.psf.constructPSF_cutouts(Cube(:,:,IndGoodPsf), XY,...
-                                                        'Annulus',Args.Annulus,...
-                                                        'ReCenter',true,...
-                                                        'Back',Back,...
-                                                        'SmoothWings',Args.SmoothWings,...
-                                                        'SubAnnulusBack',Args.SubAnnulusBack,...
-                                                        'SumMethod',Args.SumMethod,...
-                                                        'ShiftMethod',Args.ShiftMethod,...
-                                                        'M1',M1,...
-                                                        Args.constructPSF_cutoutsArgs{:});
-                           
-        % convert data type 
-        if ~isempty(Args.DataType)
-            MeanPSF = Args.DataType(MeanPSF);
-            VarPSF  = Args.DataType(VarPSF);
-        end
-
-        %--- PSF cleaning steps ---
-        InnerRad = NaN;
-        if ~isempty(Args.SuppressWidth) && ~isempty(MeanPSF)
-            if Args.SuppressWings
-                [PSF, InnerRad] = imUtil.psf.suppressWings(PSF, 'Fun',Args.SuppressFun, 'FunPars',Args.RadiusPSF, 'Threshold',Args.WingThreshold);
+        % select by neighboors
+        if ~isempty(Args.NighRadius)
+            if isempty(Args.X) || isempty(Args.Y)
+                error('For cube input X and Y must be provided');
             end
-            % suppress edges
-            if Args.SuppressEdges 
-                 MeanPSF = imUtil.psf.suppressEdges(MeanPSF, 'Fun',Args.SuppressFun, 'FunPars', [Args.RadiusPSF-Args.SuppressWidth, Args.RadiusPSF]);
-            end
+            % if ~issorted(Args.Y)
+            %     error('Args.Y needed to be sorted');
+            % end
+            [MatchedInd] = VO.search.search_sortedY_multi([Args.X, Args.Y], Args.X, Args.Y, Args.NighRadius);
+            FlagGoodPsf    = FlagGoodPsf & ([MatchedInd.Nmatch]==1).';
         end
-
-        % cut the stamp and its variance to a given quantile
-        if Args.CropByQuantile
-            [MeanPSF, VarPSF] = imUtil.psf.cropByQuantile(MeanPSF,Args.Quantile,'Variance',VarPSF);
-        end          
+        % select by S/N range
+        if ~isempty(Args.SN)
+            FlagGoodPsf = FlagGoodPsf & (Args.SN(:,2)>Args.RangeSN(1) & Args.SN(:,2)<Args.RangeSN(2));
+        end
+                
+        % FlagGoodPsf contains the good sources
+        NgoodPsf = sum(FlagGoodPsf);
+    
+        Result.FlagGoodPsf = FlagGoodPsf;
+        Result.NstrasPsf   = sum(FlagGoodPsf);
+        Result.CatStarsPSF = [Args.X, Args.Y];
+        Result.SN          = Args.SN;
+        Result.M1          = M1;
+        Result.M2          = M2;
+            
+        IndGoodPsf = find(FlagGoodPsf);
+        
+        if NgoodPsf>Args.MinNumGoodPsf && nargout>1
+            
+            if ~isempty(Args.Back)
+                % read back at X/Y positions
+                Ind  = imUtil.image.sub2ind_fast(size(Args.Back), round(Args.Y), round(Args.X));
+                %Ind  = imUtil.image.mex.sub2ind_mex(size(Args.Back), round(Args.Y), round(Args.X));
+                Back = Args.Back(Ind(IndGoodPsf));
+            else
+                Back = Args.Back;
+            end
+            %XY = [Args.X, Args.Y];
+            XY = [Xstamp, Ystamp]; %[Args.X, Args.Y];
+            XY = XY(IndGoodPsf,:);
+            
+            % cut the M1.X and M1.Y values for the selected stars to be
+            % employed in imUtil.psf.constructPSF_cutouts below:
+            M1.X = M1.X(FlagGoodPsf);
+            M1.Y = M1.Y(FlagGoodPsf); 
+            
+            [MeanPSF, VarPSF, NimPSF, FlagSelected] = imUtil.psf.constructPSF_cutouts(Cube(:,:,IndGoodPsf), XY,...
+                                                            'Annulus',Args.Annulus,...
+                                                            'ReCenter',true,...
+                                                            'Back',Back,...
+                                                            'SmoothWings',Args.SmoothWings,...
+                                                            'SubAnnulusBack',Args.SubAnnulusBack,...
+                                                            'SumMethod',Args.SumMethod,...
+                                                            'ShiftMethod',Args.ShiftMethod,...
+                                                            'M1',M1,...
+                                                            Args.constructPSF_cutoutsArgs{:});
+                               
+            % convert data type 
+            if ~isempty(Args.DataType)
+                MeanPSF = Args.DataType(MeanPSF);
+                VarPSF  = Args.DataType(VarPSF);
+            end
+    
+            %--- PSF cleaning steps ---
+            InnerRad = NaN;
+            if ~isempty(Args.SuppressWidth) && ~isempty(MeanPSF)
+                if Args.SuppressWings
+                    [PSF, InnerRad] = imUtil.psf.suppressWings(PSF, 'Fun',Args.SuppressFun, 'FunPars',Args.RadiusPSF, 'Threshold',Args.WingThreshold);
+                end
+                % suppress edges
+                if Args.SuppressEdges 
+                     MeanPSF = imUtil.psf.suppressEdges(MeanPSF, 'Fun',Args.SuppressFun, 'FunPars', [Args.RadiusPSF-Args.SuppressWidth, Args.RadiusPSF]);
+                end
+            end
+    
+            % cut the stamp and its variance to a given quantile
+            if Args.CropByQuantile
+                [MeanPSF, VarPSF] = imUtil.psf.cropByQuantile(MeanPSF,Args.Quantile,'Variance',VarPSF);
+            end          
+        else
+            %warning('PSF construction failed: did not find enough good PSF stars');
+            MeanPSF = [];
+            VarPSF  = [];
+            NimPSF  = 0;
+        end
 
     else
-        warning('PSF construction failed: did not find enough good PSF stars');
+        %warning('PSF construction failed: did not find enough good PSF stars');
         MeanPSF = [];
         VarPSF  = [];
         NimPSF  = 0;
