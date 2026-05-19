@@ -11,7 +11,7 @@ function [Result, MeanPSF, VarPSF, Nsrc] = buildPSF(Image, Args)
     arguments
         Image
         
-        Args.X                      = [];
+        Args.X                      = []; % always coordinates in image
         Args.Y                      = [];
         Args.SN                     = [];
         Args.Back                   = [];
@@ -21,20 +21,21 @@ function [Result, MeanPSF, VarPSF, Nsrc] = buildPSF(Image, Args)
         Args.RadiusPSF                 = 12;
         Args.Annulus                   = [10 12];
         
-        Args.image2cutoutsArgs cell    = {};
+        Args.image2cutoutsArgs         = {};
         
         %Args.Threshold                 = 5;
         Args.ThresholdPSF              = 20;
         Args.RangeSN                   = [50 1000];
         Args.InitPsf                   = @imUtil.kernel2.gauss;
-        Args.InitPsfArgs cell          = {[0.1;2]};
+        Args.InitPsfArgs               = {[0.1;2]};
         Args.Conn                      = 8;
         Args.CleanSources              = true;
-        Args.cleanSourcesArgs cell     = {};
-        Args.backgroundCubeArgs cell   = {};
+        Args.cleanSourcesArgs          = {};
+        Args.backgroundCubeArgs        = {};
         
+        Args.NeighRadius               = 10;  % if [] not clean for neighboors
+
         Args.SNdiff                    = 0;  % if empty skip
-        Args.moment2Args cell          = {};
         Args.DeltaSigma                = 0.5;   % if empty skip
         Args.SigmaQuantile             = [0.05 0.8];
 
@@ -48,12 +49,14 @@ function [Result, MeanPSF, VarPSF, Nsrc] = buildPSF(Image, Args)
         Args.VarOfMean                 = true;
 
 
+        Args.SuppressFun               = @imUtil.kernel2.cosbell;
+        Args.SuppressThrsehold         = 1e-4;
+        Args.SuppressFunPars           = 3; % or # from edge
         
-        Args.SmoothWings               = true;  % old: psf_zeroConverge  !! set to false
-        Args.SuppressWings             = false; % suppressWings fun      !! set to true;
+        %Args.SmoothWings               = true;  % old: psf_zeroConverge  !! set to false
+        %Args.SuppressWings             = false; % suppressWings fun      !! set to true;
         Args.WingsThreshold            = 1e-4;
         Args.SuppressEdges             = true;  % suppressEdges fun      !! set to false
-        Args.SuppressFun               = @imUtil.kernel2.cosbell;
         Args.SuppressWidth             = 3;
         Args.ShiftMethod               = 'fft'; % 'lacczos3' | 'fft'
 
@@ -97,6 +100,11 @@ function [Result, MeanPSF, VarPSF, Nsrc] = buildPSF(Image, Args)
         Y  = Args.Y(FlagSN);
         SN = Args.SN(FlagSN,:);
 
+        % sort by Y
+        [Y, SI] = sort(Y);
+        X       = X(SI);
+        SN      = SN(SI,:);
+
         if ~isempty(X)
             CutoutRadius = max(Args.RadiusPSF, max(Args.Annulus).*(~isempty(Args.DeltaSigma)));
             [Cube, RoundX, RoundY] = imUtil.cut.image2cutouts(Image, X, Y, CutoutRadius, Args.image2cutoutsArgs{:});
@@ -109,17 +117,11 @@ function [Result, MeanPSF, VarPSF, Nsrc] = buildPSF(Image, Args)
         % Image is already cube of PSFs
         Cube = Image;
         [SizeY, SizeX, Nsrc] = size(Cube);
-        if isempty(Args.X) || isempty(Args.Y)
-            %X = nan(Nsrc,1);
-            %Y = nan(Nsrc,1);
-            Xstamp = (SizeX+1).*0.5;
-            Ystamp = (SizeY+1).*0.5;
-        else
-            %X = Args.X;
-            %Y = Args.Y;
-            Xstamp = X;
-            Ystamp = Y;
-        end
+        
+        X = Args.X;
+        Y = Args.Y;
+        Xstamp = (SizeX+1).*0.5;
+        Ystamp = (SizeY+1).*0.5;
         if isempty(Args.SN)
             SN = nan(Nsrc,1);
         else
@@ -133,6 +135,19 @@ function [Result, MeanPSF, VarPSF, Nsrc] = buildPSF(Image, Args)
 
     % screen by neighboors
     % remove sources which have nearby neighboors 
+    if ~isempty(Args.NeighRadius) && ~isempty(X)
+        % sort by Y
+        [~, NearestRadius] = imUtil.match.mex.matchSelfCatXY(X, Y, Args.NeighRadius, true, false, fale, false);
+
+        IndNeigh = find(isnan(NearestRadius));
+        Xstamp    = Xstamp(IndNeigh);
+        Ystamp    = Ystamp(IndNeigh);
+        X         = X(IndNeigh);
+        Y         = Y(IndNeigh);
+        SN        = SN(IndNeigh,:);
+        Cube      = Cube(:,:,IndNeigh);
+
+    end
 
 
     if Args.SubAnnulusBack
@@ -186,7 +201,14 @@ function [Result, MeanPSF, VarPSF, Nsrc] = buildPSF(Image, Args)
 
 
     % shift stamps to 1st moment
-    Cube = imUtil.trans.mex.shift_lanczos3(Cube, -M1.X, -M1.Y);
+    switch Args.ShiftMethod
+        case 'lanczos3'
+            Cube = imUtil.trans.mex.shift_lanczos3(Cube, -M1.X, -M1.Y);
+        case 'fft'
+            Cube = imUtil.trans.mex.shift_fft(Cube, -M1.X, -M1.Y);
+        otherwise
+            error('Unknown ShiftMethod option');
+    end
 
     % testing that M1.X, M1.Y distributed around 0
     %[M1, M2] = imUtil.sources.moments(Cube, 'SN',SN(:,2), 'StampX',Xstamp, 'StampY',Ystamp, 'X',0, 'Y',0, 'Annulus',Args.Annulus);
@@ -198,6 +220,11 @@ function [Result, MeanPSF, VarPSF, Nsrc] = buildPSF(Image, Args)
     Cube = Cube.*InvNorm;
 
     switch lower(Args.SumMethod)
+        case 'sigclip_mex'
+            %MA=mean(A,3,'omitnan'); SA=std(A,[],3,'omitnan'); Z= (A-MA)./SA;
+            %Flag=Z<-2 | Z>2; A(Flag)=NaN; MA=mean(A,3,'omitnan'); NN=sum(~isnan(A),3);
+            [MeanPSF,N]=tools.math.stat.mex.sigma_clip_cube(A,[2 2]);
+
         case 'sigclip'
             [MeanPSF,VarPSF,FlagGood,GoodCounter] = imUtil.image.mean_sigclip(Cube, 3, Args.mean_sigclipArgs{:});
         case 'mean'
@@ -221,7 +248,10 @@ function [Result, MeanPSF, VarPSF, Nsrc] = buildPSF(Image, Args)
     
 
     % smooth wings
-    [PSF, InnerRad] = imUtil.psf.suppressWings(PSF, Args)
+    [MeanPSF, InnerRad] = imUtil.psf.suppressWings(MeanPSF, 'Fun',Args.SuppressFun,...
+                                                            'Thrsehold',Ags.SupressThreshold,...
+                                                            'FunPars',Args.SuppressFunPars,...
+                                                            'Norm',true);
     
     % fot to analytical function
     % FFU
