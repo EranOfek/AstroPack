@@ -181,6 +181,8 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         Args.Quantile                  = 0.999;
     end
     
+    Result = struct('FlagGoodPsf',[], 'NstrasPsf',0, 'CatStarsPSF', zeros(0,2), 'SN',[], 'M1',[], 'M2',[]);
+    
     if ndims(Image)==2
         % input is an image - search sources
         if isempty(Args.Back) || isempty(Args.Var)

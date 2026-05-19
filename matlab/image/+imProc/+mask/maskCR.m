@@ -76,6 +76,7 @@ function [Result,FlagGood] = maskCR(Obj, Args)
                 % with S/N for dekta function and "point sources"
                 
                 Cols = getColMulti(Obj(Iobj).CatData, {Args.ColX, Args.ColY, Args.SN_1, Args.SN_2});
+               
                 X    = Cols(:,1);
                 Y    = Cols(:,2);
                 SN1  = Cols(:,3);

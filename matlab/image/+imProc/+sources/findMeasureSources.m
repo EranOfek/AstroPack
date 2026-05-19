@@ -318,24 +318,29 @@ function [Result,Streaks] = findMeasureSources(Obj, Args)
             % populate Flags from the Mask image
             if Args.AddFlags
                 XY                   = getXY(Result(Iobj).CatData, 'ColX',Args.ColNamesX, 'ColY',Args.ColNamesY); 
-                % Replace NaN with valid X/Y position
-                XYpeak               = getXY(Result(Iobj).CatData, 'ColX',Args.ColNamesXsec, 'ColY',Args.ColNamesYsec); 
-                [SizeImageY, SizeImageX] = sizeImage(Result(Iobj));
-                Fnan                 = isnan(XY(:,1)) | XY(:,1)<1 | XY(:,2)<1 | XY(:,1)>(SizeImageX-1) | XY(:,2)>(SizeImageY-1);
-                XY(Fnan,:)           = XYpeak(Fnan,:);
-                
-                % need to decide what to do about NaN positions
-                if ~isemptyImage(Result(Iobj).MaskData)
-                    Flags                = bitwise_cutouts(Result(Iobj).MaskData, XY, 'or', 'HalfSize',Args.FlagHalfSize);
+                if ~isempty(XY)
+                    % If no stars then nothing to flag
+                    
+                    % Replace NaN with valid X/Y position
+                    XYpeak               = getXY(Result(Iobj).CatData, 'ColX',Args.ColNamesXsec, 'ColY',Args.ColNamesYsec); 
+                    [SizeImageY, SizeImageX] = sizeImage(Result(Iobj));
+                    Fnan                 = isnan(XY(:,1)) | XY(:,1)<1 | XY(:,2)<1 | XY(:,1)>(SizeImageX-1) | XY(:,2)>(SizeImageY-1);
                    
-                    Flags                = Args.FlagsType(Flags);
-                    Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Flags, Args.FlasgPos, Args.ColNameFlags, {''});
+                    XY(Fnan,:)           = XYpeak(Fnan,:);
                     
-                    % remove sources with bad flags
-                    if ~isempty(Args.BadBitNames)
-                        FlagBad = Result(Iobj).MaskData.Dict.findBit(Flags, Args.BadBitNames, 'Method','any');
-                    
-                        Result(Iobj).CatData.Catalog = Result(Iobj).CatData.Catalog(~FlagBad,:);
+                    % need to decide what to do about NaN positions
+                    if ~isemptyImage(Result(Iobj).MaskData)
+                        Flags                = bitwise_cutouts(Result(Iobj).MaskData, XY, 'or', 'HalfSize',Args.FlagHalfSize);
+                       
+                        Flags                = Args.FlagsType(Flags);
+                        Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Flags, Args.FlasgPos, Args.ColNameFlags, {''});
+                        
+                        % remove sources with bad flags
+                        if ~isempty(Args.BadBitNames)
+                            FlagBad = Result(Iobj).MaskData.Dict.findBit(Flags, Args.BadBitNames, 'Method','any');
+                        
+                            Result(Iobj).CatData.Catalog = Result(Iobj).CatData.Catalog(~FlagBad,:);
+                        end
                     end
                 end
            

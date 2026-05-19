@@ -740,7 +740,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             % with flux of 10^5:
                             %BS_RadProf = io.files.load2('/home/eran/LAST_BrightStar_RadialProfile.mat');
         
-                            ColData = AI.CatData.getCol({'XPEAK','YPEAK','FLUX_APER_3'});
+                            ColData = AI.CatData.getColMulti({'XPEAK','YPEAK','FLUX_APER_3'});
                             % 
                             MinFluxFlag = ColData(:,3)>1e5;
                             X = ColData(MinFluxFlag,1);
