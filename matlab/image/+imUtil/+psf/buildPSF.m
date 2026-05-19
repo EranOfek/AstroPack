@@ -47,7 +47,10 @@ function [Result, MeanPSF, VarPSF, Nsrc] = buildPSF(Image, Args)
         
         Args.SumMethod                 = 'median';
         Args.VarOfMean                 = true;
-
+        Args.SigmaClip                 = [3 3];
+        Args.SigmaClipNiter            = 2;
+        Args.Weighted                  = true;
+        Args.WeightsMaxSN              = 100;
 
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
         Args.SuppressThrsehold         = 1e-4;
@@ -224,6 +227,12 @@ function [Result, MeanPSF, VarPSF, Nsrc] = buildPSF(Image, Args)
             %MA=mean(A,3,'omitnan'); SA=std(A,[],3,'omitnan'); Z= (A-MA)./SA;
             %Flag=Z<-2 | Z>2; A(Flag)=NaN; MA=mean(A,3,'omitnan'); NN=sum(~isnan(A),3);
             [MeanPSF,N]=tools.math.stat.mex.sigma_clip_cube(A,[2 2]);
+            if Args.Weighted
+                Weights = 1./max(SN(:,2), Args.WeightsMaxSN);
+            else
+                Weights = [];
+            end
+            [MeanPSF, N, VarPSF] = tools.math.stat.mex.sigmaClipCubeN(Cube, Args.SigmaClip, Args.SigmaClipNiter, Weights)
 
         case 'sigclip'
             [MeanPSF,VarPSF,FlagGood,GoodCounter] = imUtil.image.mean_sigclip(Cube, 3, Args.mean_sigclipArgs{:});
