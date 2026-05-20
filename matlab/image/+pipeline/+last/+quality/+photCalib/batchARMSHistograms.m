@@ -193,10 +193,10 @@ function Result = batchARMSHistograms(BaseDir, Args)
         Args.ExcludeVisits   {mustBeText} = {}
         Args.LoaderMode      (1,:) char ...
             {mustBeMember(Args.LoaderMode, {'auto','loadVisit','loadMergedMat'})} = 'auto'
-        Args.Quantities      cell = {'RA','Dec','FLUX_APER_3'}
-        Args.PanelGroups     cell = {{'RA','Dec'}, {'FLUX_APER_3'}}
+        Args.Quantities      cell = {'RA','Dec','FLUX_APER_3', 'FLUX_PSF'}
+        Args.PanelGroups     cell = {{'RA','Dec'}, {'FLUX_APER_3', 'FLUX_PSF'}}
         Args.AngularQuantities cell = {'RA','Dec'}
-        Args.FluxAsMag       cell = {'FLUX_PSF','FLUX_APER_3'}
+        Args.FluxAsMag       cell = {'FLUX_APER_3', 'FLUX_PSF'}
         Args.RefMag          (1,:) char = 'MAG_APER_3'
         Args.BackgroundMag   (1,1) double = 22
         Args.ARMS_N          (1,1) double {mustBePositive, mustBeInteger} = 20

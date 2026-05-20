@@ -41,22 +41,23 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
         Args.ColNameID         = 'id_proc_src';
         
         Args.RemoteUser        = 'euclid';
-        Args.DBConnector       = 'legacy'; % 'native' or 'legacy'
+        Args.DBConnector       = 'native'; % 'legacy'; % 'native' or 'legacy'
     end    
-    % create a DB object and connect
-    DB          = db.Db;
-    DB.Host     = Args.DbHost;
-    DB.DbName   = Args.DbName;
-    DB.User     = Args.DbUser;
+    % create a DB object and connect   
     Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-    PM = PasswordsManager;    
-    DB.Password = PM.search(Args.DbName).Pass;
+    PM  = PasswordsManager;    
+    Pwd = PM.search(Args.DbName).Pass;
     if strcmpi(Args.DBConnector,'legacy')
+        DB          = db.Db;
+        DB.Host     = Args.DbHost;
+        DB.DbName   = Args.DbName;
+        DB.User     = Args.DbUser;
+        DB.Password = Pwd;
         DB.Conn;
         DB.useDB(Args.DbName);
         fprintf('DB in use: %s\n',DB.showCurrentDB);
     elseif strcmpi(Args.DBConnector,'native')
-        DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
+        DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd);
         DB.query(sprintf('use %s',Args.DbName));
     else
         error('Asked for unknown DB connector')
@@ -69,7 +70,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     FIDnostatus     = fopen('cat_no_status_dir.txt', 'a');
     FIDnodata       = fopen('cat_no_data_dir.txt', 'a'); 
     FIDbrokendata   = fopen('cat_broken_data_dir.txt', 'a');
-    tic
+    
     % find all the directories according to the template or read from Args
     if isempty(Args.ProcDirList)
         D = dir(fullfile(RootDir, Args.ProcDirTemplate));
@@ -222,7 +223,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
             cd(Dir); 
         end                        
     end
-    toc
+    
     fclose(FIDnostatus);
     fclose(FIDnodata);
     fclose(FIDbrokendata);
