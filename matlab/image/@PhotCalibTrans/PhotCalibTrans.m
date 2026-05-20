@@ -937,11 +937,8 @@ classdef PhotCalibTrans < Component
 
             if ~HasRADec
                 Obj.NoRADec = true;  % Mark that RA/Dec columns are missing
-                Obj.msgLog(LogLevel.Debug, 'selectCalibrators: Catalog missing RA/Dec columns - cannot match calibrators');
-                if Args.Verbose
-                    fprintf('  Warning: Catalog missing RA/Dec columns - cannot match calibrators\n');
-                    fprintf('Calibrator selection complete: 0 matched calibrators.\n\n');
-                end
+                Obj.msgLog(LogLevel.Warning, ...
+                    'selectCalibrators: Catalog missing RA/Dec columns - cannot match calibrators. 0 matched calibrators.');
             end
 
             % ====================================================================
@@ -1074,8 +1071,9 @@ classdef PhotCalibTrans < Component
                 % Check if any sources passed all filters
                 HasGoodMatches = any(GoodMask);
 
-                if ~HasGoodMatches && Args.Verbose
-                    fprintf('  Warning: No sources passed quality filters and have calibrator matches\n');
+                if ~HasGoodMatches
+                    Obj.msgLog(LogLevel.Warning, ...
+                        'selectCalibrators: No sources passed quality filters and have calibrator matches');
                 end
             else
                 HasGoodMatches = false;
@@ -1136,9 +1134,8 @@ classdef PhotCalibTrans < Component
                     Obs_FluxErr = ObsTab.(FluxErrColName);
                 else
                     Obs_FluxErr = sqrt(abs(Obs_Flux));  % Use Poisson approximation
-                    if Args.Verbose
-                        fprintf('  Warning: %s not found, using sqrt(flux) for errors\n', FluxErrColName);
-                    end
+                    Obj.msgLog(LogLevel.Warning, sprintf( ...
+                        'selectCalibrators: %s not found, using sqrt(flux) for errors', FluxErrColName));
                 end
 
                 % ============================================================
@@ -2473,7 +2470,7 @@ classdef PhotCalibTrans < Component
             %   APCOR_A1, APCOR_A2, APCOR_A3, APCOR_PS, APCOR_N keywords
             %   to the FITS header. NaN is written when calculation failed.
             %   On failure (missing columns, too few stars), AperCorr is set
-            %   to NaN and a warning is issued via msgLog and warning().
+            %   to NaN and a warning is issued via msgLog (no stdout).
             % Input  : - PhotCalibTrans object.
             %          - AstroCatalog object with flux/magnitude columns.
             %          * ...,key,val,...
