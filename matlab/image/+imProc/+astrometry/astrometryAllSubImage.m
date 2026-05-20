@@ -104,7 +104,7 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
     arguments
         Obj
 
-        Args.StartSubImage          = [10 16 9 15]; % [10 16 9 15] old pipeline [10 11 14 15] new pipeline 
+        Args.StartSubImage          = [10 11 14 15] % in the old LAST schme: [10 16 9 15]; % [10 16 9 15] old pipeline [10 11 14 15] new pipeline 
         Args.CCDSEC                 = 'ORIGSEC';
 
         Args.Scale                  = 1.25;  % [arcsec/pix]
