@@ -1,5 +1,6 @@
 function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
     % Select stars and construct PSF from image or a cube of selected sources.
+    %   Obsolete: use imUtil.psf.bildPSF instead.
     %   The function can be used to either select good stars for PSF
     %   construction, or to select stars and construct a mean PSF.
     %   The function can start with a cube of sources, or an image from
