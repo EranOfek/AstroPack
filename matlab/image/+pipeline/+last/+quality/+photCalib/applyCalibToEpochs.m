@@ -1,6 +1,8 @@
-function Result = testApplyPhotCalibShifts(Args)
-    % Test applying coadd photometric calibration to individual epochs
-    % Description: Two branches:
+function Result = applyCalibToEpochs(Args)
+    % Apply coadd photometric calibration to individual-epoch images.
+    % Description: Propagation utility (renamed from
+    %              testApplyPhotCalibShifts; the test* prefix was a
+    %              misnomer - it is not a unit test). Two branches:
     %
     %   MULTI-EPOCH (default): Loads coadd PhotCalibTrans and MergedMat
     %   MatchedSources. Computes DeltaZP per crop via lcUtil.zp_meddiff
