@@ -41,7 +41,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
         Args.ColNameID         = 'id_proc_src';
         
         Args.RemoteUser        = 'euclid';
-        Args.DBConnector       = 'legacy'; % 'native' or 'legacy'
+        Args.DBConnector       = 'native'; % 'legacy'; % 'native' or 'legacy'
     end    
     % create a DB object and connect   
     Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
