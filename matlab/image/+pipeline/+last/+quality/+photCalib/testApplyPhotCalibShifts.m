@@ -187,7 +187,7 @@ function Result = testApplyPhotCalibShifts(Args)
     DeltaZPall = cell(1, Args.Ncrop);
 
     for Ic = Args.CropsToAnalyze
-        if Ic > numel(PCarray) || ~PCarray(Ic).Success
+        if Ic > numel(PCarray) || isempty(PCarray(Ic).TransModel)
             if Args.Verbose
                 fprintf('  Crop %02d: coadd PC not available, skipping\n', Ic);
             end
@@ -404,7 +404,7 @@ function Result = runSingleEpoch(Args)
     else
         PCcrop = PCarray(1);
     end
-    if ~PCcrop.Success
+    if isempty(PCcrop.TransModel)
         error('testApplyPhotCalibShifts:BadPC', ...
             'Coadd PC for crop %d is not Success.', Args.CropIdx);
     end

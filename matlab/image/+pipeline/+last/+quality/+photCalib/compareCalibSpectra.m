@@ -61,7 +61,7 @@ function Result = compareCalibSpectra(PC, Args)
     UCells = cell(1, Ncrop);
     Wvl    = [];
     for K = 1:Ncrop
-        if isempty(PC(K).SourceData) || ~PC(K).Success; continue; end
+        if isempty(PC(K).SourceData) || isempty(PC(K).TransModel); continue; end
         if isempty(PC(K).SpecData)  || ~isfield(PC(K).SpecData, 'SpecFluxMatrix')
             continue;
         end

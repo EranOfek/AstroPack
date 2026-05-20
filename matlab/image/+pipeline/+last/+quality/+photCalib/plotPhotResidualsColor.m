@@ -56,7 +56,7 @@ function plotPhotResidualsColor(PC, Args)
         Args.Verbose logical = true
     end
 
-    PCcell = pipeline.last.quality.photCalib.resolvePC(PC);
+    PCcell = resolveInput(PC);
     if isempty(PCcell)
         return;
     end
@@ -85,7 +85,7 @@ function plotPhotResidualsColor(PC, Args)
         for Iv = 1:Nvisits
             if isempty(PCcell{Iv}); continue; end
             if Ic > numel(PCcell{Iv}); continue; end
-            if PCcell{Iv}(Ic).Success && ~isempty(PCcell{Iv}(Ic).SourceData)
+            if ~isempty(PCcell{Iv}(Ic).TransModel) && ~isempty(PCcell{Iv}(Ic).SourceData)
                 RefPCobj = PCcell{Iv}(Ic);
                 break;
             end
@@ -147,7 +147,7 @@ function plotPhotResidualsColor(PC, Args)
             if isempty(PCcell{Iv}); continue; end
             if Ic > numel(PCcell{Iv}); continue; end
             PCobj = PCcell{Iv}(Ic);
-            if ~PCobj.Success || isempty(PCobj.SourceData); continue; end
+            if isempty(PCobj.TransModel) || isempty(PCobj.SourceData); continue; end
 
             TabEp = PCobj.SourceData.Table;
             ColNames = TabEp.Properties.VariableNames;

@@ -115,7 +115,7 @@ function Result = plotPhotParamScatter(PC, Args)
     AnyYfinite = false;
 
     for Is = 1:Nsets
-        PCcell = pipeline.last.quality.photCalib.resolvePC(Sources{Is});
+        PCcell = resolveInput(Sources{Is});
         if isempty(PCcell); continue; end
         for Iv = 1:numel(PCcell)
             if isempty(PCcell{Iv}); continue; end
@@ -126,10 +126,10 @@ function Result = plotPhotParamScatter(PC, Args)
             for Ic = CropsToUse
                 if Ic > numel(PCcell{Iv}); continue; end
                 PCobj = PCcell{Iv}(Ic);
-                if ~PCobj.Success; continue; end
+                if isempty(PCobj.TransModel); continue; end
 
-                XV = pipeline.last.quality.photCalib.resolvePCParam(PCobj, Args.XParam);
-                YV = pipeline.last.quality.photCalib.resolvePCParam(PCobj, Args.YParam);
+                XV = resolvePCParam(PCobj, Args.XParam);
+                YV = resolvePCParam(PCobj, Args.YParam);
                 AnyXfinite = AnyXfinite || isfinite(XV);
                 AnyYfinite = AnyYfinite || isfinite(YV);
                 if ~isfinite(XV) || ~isfinite(YV); continue; end

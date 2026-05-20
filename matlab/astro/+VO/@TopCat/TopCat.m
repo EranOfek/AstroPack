@@ -43,9 +43,19 @@
 %     'TapUrl','https://heasarc.gsfc.nasa.gov/xamin/vo/tap', ...
 %     'Ofmt','csv','TimeoutSec',120);
 %
-% SDSS cone search
+% NOIRLab Data Lab TAP (SDSS DR16 example, no spatial filter -- STILTS OK):
 %   Q   = "SELECT * FROM sdss_dr16.specobjall WHERE snmedian>10 AND subClass LIKE '%WD%'"
 %   T   = Tap.query(Q,'TapUrl','https://datalab.noirlab.edu/tap','Ofmt','csv','TimeoutSec',120);
+%
+% NOIRLab Data Lab TAP -- spatial queries require q3c, and STILTS rejects
+% q3c at the pre-parse step. Bypass STILTS via Method='http' so the raw ADQL
+% reaches NOIRLab, which handles q3c natively. CONTAINS(POINT,CIRCLE) is NOT
+% supported by NOIRLab even though the IVOA spec defines it.
+%   Q = ['SELECT TOP 5 mean_fiber_ra, mean_fiber_dec, z FROM desi_dr1.zpix ' ...
+%        'WHERE z IS NOT NULL AND ' ...
+%        'q3c_radial_query(mean_fiber_ra, mean_fiber_dec, 192.85, 27.13, 2.0)'];
+%   T = Tap.query(Q,'TapUrl','https://datalab.noirlab.edu/tap','Ofmt','csv', ...
+%                   'TimeoutSec',120,'Method','http');
 %
 % VLA archive cone search
 %   Q = "SELECT TOP 5000 * FROM tap_schema.obscore WHERE 1=CONTAINS(POINT('ICRS',s_ra,s_dec),CIRCLE('ICRS',82.995,33.148,0.1)) AND t_min > 51000 AND t_min < 61000 ORDER BY t_min";

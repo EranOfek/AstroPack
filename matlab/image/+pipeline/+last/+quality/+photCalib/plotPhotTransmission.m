@@ -1,163 +1,89 @@
-function plotPhotTransmission(PC, Args)
-    % Plot transmission curves per mode
-    % Description: One panel per mode. For per-epoch modes, shows per-crop
-    %              transmission curves from a selected epoch. For shapeimage
-    %              and perimage, overlays the reference transmission (thick
-    %              black). For visit-level modes, shows the visit-averaged
-    %              transmission with per-crop Norm variations.
+function Fig = plotPhotTransmission(PC, Args)
+    % Plot per-crop transmission curves for one visit (multi-crop aggregator).
+    % Description: For a single epoch, plots each crop's transmission curve
+    %              (from PhotCalibTrans.evaluateTransmission) on one panel,
+    %              with the reference crop optionally highlighted. Companion
+    %              of the per-PhotCalibTrans PhotCalibTrans.plotTransmission
+    %              method: this version aggregates multiple PCs (per crop)
+    %              into a single overlay so spread across the focal plane is
+    %              visible at a glance. Mode-keyed inputs and the legacy
+    %              shapeimage / perimage / perset paths are gone.
     %
-    % Input  : - Struct with .PC.(mode){Iv}(Ic) PhotCalibTrans arrays,
-    %            and optionally .PersetInfo for visit-level modes.
-    %            (Result struct from testPhotCalib or calibratePhotModes.)
+    % Input  : - PC - a PhotCalibTrans array, a cell of arrays (one per
+    %            epoch), or a struct with a .PC field (anything resolveInput
+    %            accepts).
     %          * ...,key,val,...
-    %            'Modes'       - Cell array of modes. Default is {'percrop'}.
-    %            'EpochIdx'    - Which epoch to plot. Default is 1.
-    %            'CropsToAnalyze' - Crop indices. Default is [] (all).
-    %            'RefCrop'     - Reference crop index. Default is 10.
-    % Author : D. Kovaleva (Mar 2026)
-    % Example: pipeline.last.quality.photCalib.plotPhotTransmission(R, 'Modes', {'percrop'});
-    %          pipeline.last.quality.photCalib.plotPhotTransmission(R, ...
-    %              'Modes', {'percrop','shapeimage','perset'});
+    %            'EpochIdx'       - Epoch (visit) index to plot. Default 1.
+    %            'CropsToAnalyze' - Crop indices. Default [] (all).
+    %            'RefCrop'        - Reference crop index. Default 10.
+    %            'HighlightRef'   - Draw the reference-crop curve bold.
+    %                               Default true.
+    %            'Lambda'         - Wavelength grid [Angstrom]. Default []
+    %                               (use the PC's TransWvl).
+    % Output : - Fig - the created figure handle ([] when there is no data).
+    % Author : photCalib package refactor (2026-05)
+    % Example: plotPhotTransmission(R.PC, 'EpochIdx', 1);
+    %          plotPhotTransmission(PCarray, 'RefCrop', 10);
 
     arguments
         PC
-        Args.Modes          = {'percrop'}
-        Args.EpochIdx       = 1
-        Args.CropsToAnalyze = []
-        Args.RefCrop        = 10
+        Args.EpochIdx       (1,1) double {mustBeInteger, mustBePositive} = 1
+        Args.CropsToAnalyze double  = []
+        Args.RefCrop        (1,1) double {mustBeInteger, mustBePositive} = 10
+        Args.HighlightRef   logical = true
+        Args.Lambda                 = []
     end
 
-    Nmodes = numel(Args.Modes);
-    VisitModes = {'perset', 'perset_raw', 'shapeset'};
-    RefModes   = {'shapeimage', 'perimage', 'perimage_raw'};
+    Fig = [];
+    PCcell = resolveInput(PC);
+    if isempty(PCcell); return; end
+    if Args.EpochIdx > numel(PCcell); return; end
 
-    % Resolve input: Result struct, PC struct, or raw PhotCalibTrans array
-    PersetInfo = [];
-    if isstruct(PC) && isfield(PC, 'PC')
-        % Full Result struct
-        if isfield(PC, 'PersetInfo')
-            PersetInfo = PC.PersetInfo;
+    PCvis = PCcell{Args.EpochIdx};
+    if isempty(PCvis); return; end
+
+    Crops = Args.CropsToAnalyze;
+    if isempty(Crops); Crops = 1:numel(PCvis); end
+    Crops = Crops(Crops >= 1 & Crops <= numel(PCvis));
+    if isempty(Crops); return; end
+
+    Lambda = Args.Lambda;
+    if isempty(Lambda)
+        % First PC with a populated TransWvl
+        for K = Crops
+            if ~isempty(PCvis(K).TransModel) && ~isempty(PCvis(K).TransWvl)
+                Lambda = PCvis(K).TransWvl;
+                break;
+            end
         end
-        PCdata = PC.PC;
-    elseif isstruct(PC)
-        % PC struct (with mode fields)
-        PCdata = PC;
-    elseif isa(PC, 'PhotCalibTrans')
-        % Raw PhotCalibTrans array — wrap as percrop
-        PCdata.percrop = {PC};
-    elseif iscell(PC)
-        % Cell array of PhotCalibTrans arrays
-        PCdata.percrop = PC;
-    else
-        return;
     end
+    if isempty(Lambda); return; end
 
-    Angstrom = char(197);
-
-    figure('Name', 'Transmission Curves', ...
-           'Position', [50, 50, 500*Nmodes, 450]);
-
-    for Im = 1:Nmodes
-        Mode = Args.Modes{Im};
-        subplot(1, Nmodes, Im);
-        hold on;
-
-        Iv = Args.EpochIdx;
-        IsVisitMode = ismember(Mode, VisitModes);
-        IsRefMode   = ismember(Mode, RefModes);
-
-        % For visit-level modes, use percrop PCs with PersetInfo
-        if IsVisitMode
-            SourceMode = 'percrop';
-        else
-            SourceMode = Mode;
-        end
-
-        if ~isfield(PCdata, SourceMode) || isempty(PCdata.(SourceMode){Iv})
-            title(sprintf('%s — no data', Mode));
+    Cmap = lines(numel(Crops));
+    Fig  = figure('Name', sprintf('Transmission per crop (epoch %d)', Args.EpochIdx), ...
+                  'Position', [50 50 700 450]);
+    hold on;
+    for Ii = 1:numel(Crops)
+        Ic = Crops(Ii);
+        if isempty(PCvis(Ic).TransModel); continue; end
+        try
+            Trans = PCvis(Ic).evaluateTransmission('Lambda', Lambda);
+        catch
             continue;
         end
-
-        PCvis = PCdata.(SourceMode){Iv};
-        CropsToUse = Args.CropsToAnalyze;
-        if isempty(CropsToUse)
-            CropsToUse = 1:numel(PCvis);
+        LW    = 0.5;
+        Alpha = 0.5;
+        if Args.HighlightRef && Ic == Args.RefCrop
+            LW    = 1.5;
+            Alpha = 1.0;
         end
-
-        Lambda = PCvis(1).TransWvl;
-        Ncrop = numel(CropsToUse);
-        Cmap = lines(Ncrop);
-
-        % Get Norm index (needed for visit-level modes)
-        NormIdx = [];
-        if IsVisitMode || IsRefMode
-            AllFunPar = PCvis(1).TransModel.getAllFunPar();
-            NormIdx = find(strcmp(AllFunPar.Name, 'Norm'));
-        end
-
-        % For visit-level modes, get VisitRefParams
-        VisitRefParams = [];
-        Info = [];
-        if IsVisitMode && ~isempty(PersetInfo) && isfield(PersetInfo, Mode)
-            Info = PersetInfo.(Mode);
-            VisitRefParams = Info.VisitRefParams;
-        end
-
-        % Plot per-crop curves
-        for Iic = 1:Ncrop
-            Ic = CropsToUse(Iic);
-            if Ic > numel(PCvis) || ~PCvis(Ic).Success; continue; end
-
-            if IsVisitMode && ~isempty(VisitRefParams)
-                % Visit-level: evaluate with visit-averaged params
-                CropParams = VisitRefParams;
-                if Info.IsShapeset
-                    % shapeset: use per-crop Norm
-                    CropNorm = PCvis(Ic).TransModel.getAllFunPar();
-                    CropParams(NormIdx) = CropNorm.Val(NormIdx);
-                else
-                    % perset: adjusted Norm to TargetZP
-                    PCvisEval = PCvis(Ic).derivePC(VisitRefParams, ...
-                        'UseRefNorm', true, ...
-                        'NormTran2DToCenter', Info.DoNormTran2D);
-                    ZPvisitBase = PCvisEval.evaluateZP();
-                    if isfinite(ZPvisitBase) && Ic <= numel(Info.TargetZP) && ...
-                       isfinite(Info.TargetZP(Ic))
-                        DeltaZP = Info.TargetZP(Ic) - ZPvisitBase;
-                        CropParams(NormIdx) = VisitRefParams(NormIdx) * 10^(DeltaZP / 2.5);
-                    end
-                end
-                Trans = PCvis(Ic).TransModel.evaluateAllFunParInput(Lambda, CropParams(:)');
-            else
-                % Per-epoch: evaluate each crop's own transmission
-                Trans = PCvis(Ic).evaluateTransmission('Lambda', Lambda);
-            end
-
-            LW = 0.5;
-            Alpha = 0.5;
-            if Ic == Args.RefCrop; LW = 1.5; Alpha = 1; end
-            hLine = plot(Lambda, Trans, 'LineWidth', LW, 'Color', [Cmap(Iic,:) Alpha]);
-        end
-
-        % Overlay reference curve for shapeimage/perimage modes
-        if IsRefMode && Args.RefCrop <= numel(PCvis) && PCvis(Args.RefCrop).Success
-            RefTrans = PCvis(Args.RefCrop).evaluateTransmission('Lambda', Lambda);
-            plot(Lambda, RefTrans, '-k', 'LineWidth', 2.5);
-        end
-
-        % Overlay percrop curves (gray) for visit-level modes for comparison
-        if IsVisitMode
-            for Iic = 1:Ncrop
-                Ic = CropsToUse(Iic);
-                if Ic > numel(PCvis) || ~PCvis(Ic).Success; continue; end
-                PercropTrans = PCvis(Ic).evaluateTransmission('Lambda', Lambda);
-                plot(Lambda, PercropTrans, '-', 'LineWidth', 0.3, 'Color', [0.7 0.7 0.7 0.3]);
-            end
-        end
-
-        box on; grid on;
-        xlabel(['Wavelength [' Angstrom ']']);
-        ylabel('Transmission');
-        title(sprintf('%s (epoch %d, %d crops)', Mode, Args.EpochIdx, Ncrop));
+        plot(Lambda, Trans, 'LineWidth', LW, 'Color', [Cmap(Ii,:) Alpha]);
     end
+
+    box on; grid on;
+    Angstrom = char(197);
+    xlabel(['Wavelength [' Angstrom ']']);
+    ylabel('Transmission');
+    title(sprintf('Transmission per crop (epoch %d, %d crops)', ...
+        Args.EpochIdx, numel(Crops)));
 end

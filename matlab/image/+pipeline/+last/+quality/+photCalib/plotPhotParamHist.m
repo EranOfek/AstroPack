@@ -120,8 +120,8 @@ function [Result, Fig] = plotPhotParamHist(Input, Args)
             for Ic = Crops
                 if Ic > numel(PCcell{Iv}); continue; end
                 PCobj = PCcell{Iv}(Ic);
-                if ~isa(PCobj,'PhotCalibTrans') || ~PCobj.Success; continue; end
-                V = pipeline.last.quality.photCalib.resolvePCParam(PCobj, Args.Param);
+                if ~isa(PCobj,'PhotCalibTrans') || isempty(PCobj.TransModel); continue; end
+                V = resolvePCParam(PCobj, Args.Param);
                 if ~isfinite(V); continue; end
                 Vals(end+1,1)    = V;   %#ok<AGROW>
                 CropID(end+1,1)  = Ic;  %#ok<AGROW>

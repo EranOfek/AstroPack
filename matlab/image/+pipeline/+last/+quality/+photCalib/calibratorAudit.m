@@ -75,7 +75,7 @@ function Result = calibratorAudit(AI, PC, Args)
     % ============================================================
     Cells = cell(1, Ncrop);
     for K = 1:Ncrop
-        if isempty(PC(K).SourceData) || ~PC(K).Success; continue; end
+        if isempty(PC(K).SourceData) || isempty(PC(K).TransModel); continue; end
         T = PC(K).SourceData.Table;
         if ~ismember('Used', T.Properties.VariableNames); continue; end
         T.Crop = repmat(K, height(T), 1);

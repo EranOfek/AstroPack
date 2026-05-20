@@ -65,9 +65,9 @@ function [MCMCResult, PhotCalib] = fitMCMC_PhotCalibTrans(Obj, Args)
 
     if isa(Obj, 'PhotCalibTrans')
         PC = Obj;
-        if ~PC.Success
+        if isempty(PC.TransModel)
             error('imProc:calib:fitMCMC_PhotCalibTrans:NotCalibrated', ...
-                'PhotCalibTrans object has Success=false. Run calibration first.');
+                'PhotCalibTrans object has no TransModel. Run calibration first.');
         end
     elseif isa(Obj, 'AstroImage')
         if Args.RunCalibFirst
@@ -75,7 +75,7 @@ function [MCMCResult, PhotCalib] = fitMCMC_PhotCalibTrans(Obj, Args)
                 fprintf('Running fitPhotCalibTrans on AstroImage...\n');
             end
             [~, PC] = imProc.calib.fitPhotCalibTrans(Obj, Args.CalibArgs{:});
-            if ~PC.Success
+            if isempty(PC.TransModel)
                 error('imProc:calib:fitMCMC_PhotCalibTrans:CalibFailed', ...
                     'Photometric calibration failed. Cannot run MCMC.');
             end

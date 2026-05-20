@@ -32,19 +32,11 @@ function Result = plotPhotScatter(MS, Args)
     %                  than raw RA-coordinate spread).
     %                  The faint cut ('BackgroundMag') is applied on RefMag.
     %
-    % Input  : - MS, in one of three shapes:
-    %              1) MatchedSources array (one element per crop), as
-    %                 returned by pipeline.last.load.loadVisit. No
-    %                 'Modes' arg needed — the array is treated as a
-    %                 single anonymous mode.
-    %              2) Cell array of MatchedSources (if available).
-    %              3) Struct with mode-named cell fields, MS.(mode){crop}
-    %                 = MatchedSources (from matchPhotEpochs or
-    %                 pipeline.last.load.loadMergedMat). 'Modes' selects
-    %                 which fields to plot.
+    % Input  : - MS - a MatchedSources array (one element per crop, e.g.
+    %            from matchEpochs) or a cell of MatchedSources. The legacy
+    %            mode-keyed struct input has been removed; index into it
+    %            (e.g. MS.percrop) before calling.
     %          * ...,key,val,...
-    %            'Modes'        - Cell of MS sub-modes (loadMergedMat path
-    %                             only). Default {'percrop'}.
     %            'QuantityGroups' - Cell of cells of column names. Each
     %                             inner cell is one figure (1+ panels).
     %                             Default = the 3-group preset described
@@ -52,7 +44,6 @@ function Result = plotPhotScatter(MS, Args)
     %            'Quantities'   - Flat cell of column names. When set
     %                             (without QuantityGroups), each quantity
     %                             becomes its own one-panel figure. Default {}.
-    %            'MagFields'    - Legacy alias for 'Quantities'. Default {}.
     %            'AngularQuantities' - Names that should use the angular
     %                             treatment (x = RefMag, std rescaled to
     %                             arcsec). Default {'RA','Dec'}.
@@ -139,16 +130,10 @@ function Result = plotPhotScatter(MS, Args)
     %          R = pipeline.last.quality.photCalib.plotPhotScatter(MS, ...
     %                  'SkipEmptyGroups', false);
     %
-    %          % --- loadMergedMat users (legacy, mode-keyed struct) ------
-    %          MS = pipeline.last.load.loadMergedMat('MergedMatDir', VisitDir);
-    %          pipeline.last.quality.photCalib.plotPhotScatter(MS, ...
-    %                  'Modes', {'percrop'});
 
     arguments
         MS
-        Args.Modes                  cell                = {'percrop'}
         Args.Quantities             cell                = {}
-        Args.MagFields              cell                = {}
         Args.QuantityGroups         cell                = {}
         Args.AngularQuantities      cell                = {'RA', 'Dec'}
         Args.RefMag                 (1,:) char          = 'MAG_APER_3'
@@ -176,19 +161,18 @@ function Result = plotPhotScatter(MS, Args)
     end
 
     % --- Normalize MS input ---------------------------------------------
-    %   1) MatchedSources array (loadVisit) → wrap as single-mode struct
-    %   2) Cell of MatchedSources              → same
-    %   3) Struct with mode fields (loadMergedMat) → use as-is
+    %   Accept a MatchedSources array (one element per crop, e.g. from
+    %   matchEpochs) or a cell of such. Internally wrap as a single-mode
+    %   struct so the per-mode-loop machinery below stays unchanged.
     if isa(MS, 'MatchedSources')
         MS = struct('msdata', {num2cell(MS(:).')});
-        Args.Modes = {'msdata'};
     elseif iscell(MS)
         MS = struct('msdata', {MS(:).'});
-        Args.Modes = {'msdata'};
-    elseif ~isstruct(MS)
+    else
         error('plotPhotScatter:BadInput', ...
-            'MS must be a MatchedSources array, a cell of MatchedSources, or a mode-keyed struct.');
+            'MS must be a MatchedSources array or a cell of MatchedSources.');
     end
+    Args.Modes = {'msdata'};   % internal placeholder; not user-controllable
 
     % --- Resolve quantity groups ----------------------------------------
     %   Priority: explicit QuantityGroups > Quantities flat list > default 3-group
@@ -197,8 +181,6 @@ function Result = plotPhotScatter(MS, Args)
         Groups = Args.QuantityGroups;
     elseif ~isempty(Args.Quantities)
         Groups = cellfun(@(q){{q}}, Args.Quantities);  % one group per quantity
-    elseif ~isempty(Args.MagFields)
-        Groups = cellfun(@(q){{q}}, Args.MagFields);
     else
         Groups = { ...
             {'RA', 'Dec'}, ...

@@ -36,7 +36,7 @@ function V = resolvePCParam(PCobj, Name)
     %          - Name (char) - quantity name (case-sensitive).
     % Output : - V - scalar numeric value, or NaN if unresolved.
     % Author : D. Kovaleva (Apr 2026)
-    % Example: V = pipeline.last.quality.photCalib.resolvePCParam(PC(5), 'Chi2_DOF');
+    % Example: V = resolvePCParam(PC(5), 'Chi2_DOF');   % private helper
 
     arguments
         PCobj   PhotCalibTrans

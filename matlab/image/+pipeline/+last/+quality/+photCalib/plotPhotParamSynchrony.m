@@ -65,7 +65,7 @@ function [Result, Fig] = plotPhotParamSynchrony(PC, Args)
     % Fitted-parameter names available in the model
     AllParNames = {};
     for Ic = 1:Ncrop
-        if PCcell{FirstValid}(Ic).Success
+        if ~isempty(PCcell{FirstValid}(Ic).TransModel)
             P = PCcell{FirstValid}(Ic).TransModel.getAllFunPar();
             AllParNames = P.Name;
             break;
@@ -214,7 +214,7 @@ function [Mat, Ok] = i_quantityMatrix(PCcell, Name, AllParNames, Args, Nvisits, 
             if isempty(PCcell{Iv}); continue; end
             for Ic = 1:min(numel(PCcell{Iv}), Ncrop)
                 PCobj = PCcell{Iv}(Ic);
-                if ~PCobj.Success; continue; end
+                if isempty(PCobj.TransModel); continue; end
                 Lambda = PCobj.TransWvl;
                 P = PCobj.TransModel.getAllFunPar();
                 V = P.Val(:).';
@@ -236,7 +236,7 @@ function [Mat, Ok] = i_quantityMatrix(PCcell, Name, AllParNames, Args, Nvisits, 
         for Iv = 1:Nvisits
             if isempty(PCcell{Iv}); continue; end
             for Ic = 1:min(numel(PCcell{Iv}), Ncrop)
-                if ~PCcell{Iv}(Ic).Success; continue; end
+                if isempty(PCcell{Iv}(Ic).TransModel); continue; end
                 P = PCcell{Iv}(Ic).TransModel.getAllFunPar();
                 Mat(Iv,Ic) = P.Val(PIdx);
             end

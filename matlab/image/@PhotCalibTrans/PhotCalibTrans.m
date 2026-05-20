@@ -19,7 +19,7 @@ classdef PhotCalibTrans < Component
     %   SpecData   - Structure with reference spectral data (calibrator spectra)
     %   SourceData - AstroCatalog with observed calibrator sources (after calibration: Used, Residuals columns)
     %   CalFound   - Flag indicating whether calibrators were found (set by selectCalibrators)
-    %   Success    - Flag indicating successful calibration (set by populateSuccess)
+    %   (No explicit Success flag — non-empty TransModel implies calibration succeeded.)
     %   DeltaZP_CB - Constant-band delta ZP [mag] (set by applyConstBand, written to header as PT_DZP)
     %   LimMag     - Limiting magnitude at SN=LimMagSN [mag] (set by evaluateLimMag, header keyword LIMMAG)
     %   BackMag    - Sky background surface brightness [mag/arcsec^2] (set by evaluateBackMag, header keyword BACKMAG)
@@ -29,10 +29,10 @@ classdef PhotCalibTrans < Component
     %{
      % Create calibration object and perform calibration on AstroImage
      PC = PhotCalibTrans();
-     PC = PC.calibrate(AI);  % metadata read from AI.HeaderData, Success flag set automatically
+     PC = PC.calibrate(AI);  % metadata read from AI.HeaderData
 
-     % Check calibration success
-     if PC.Success
+     % Check calibration success — non-empty TransModel means fit completed
+     if ~isempty(PC.TransModel)
          fprintf('Calibration successful! RMS = %.4f mag\n', PC.TransModel.RMS);
      end
 
@@ -58,7 +58,6 @@ classdef PhotCalibTrans < Component
     %   Core Calibration Methods:
     %     calibrate - Perform transmission-based photometric calibration
     %     selectCalibrators - Select calibrators with reference spectra
-    %     populateSuccess - Evaluate and set Success flag based on calibration quality
     %   Evaluation Methods:
     %     evaluateTransmission - Evaluate transmission at specific positions
     %     integralTransmission - Mean transmission as fraction of 100% throughput
@@ -174,8 +173,7 @@ classdef PhotCalibTrans < Component
         LimMag  = NaN           % Limiting magnitude at SN=LimMagSN [mag] (set by evaluateLimMag)
         BackMag = NaN           % Sky background surface brightness [mag/arcsec^2] (set by evaluateBackMag)
 
-        % Success status
-        Success = false         % Flag indicating successful calibration (set by populateSuccess)
+        % (Success flag removed — callers check ~isempty(TransModel) instead.)
 
         % Fit results by stage (stored after calibration for diagnostics)
         FitResults = []         % Struct array from CompositeFun.fitPar() with per-stage results:
@@ -814,11 +812,8 @@ classdef PhotCalibTrans < Component
                     end
                 end
 
-            % Evaluate success criteria
-            Obj = Obj.populateSuccess('Verbose', Args.Verbose);
-
             % Compute ARMS (bright-star RMS) if requested
-            if Args.N_ARMS > 0 && Obj.Success && ~isempty(Obj.SourceData)
+            if Args.N_ARMS > 0 && ~isempty(Obj.TransModel) && ~isempty(Obj.SourceData)
                 Tab = Obj.SourceData.Table;
                 UsedMask = logical(Tab.Used);
                 FluxUsed = Tab.Flux(UsedMask);
@@ -1255,70 +1250,6 @@ classdef PhotCalibTrans < Component
                 if ismember('Nmatch', CatTab.Properties.VariableNames)
                     Cat = Cat.deleteCol('Nmatch');
                 end
-            end
-        end
-
-        function Obj = populateSuccess(Obj, Args)
-            % Evaluate and set Success flag based on calibration quality criteria
-            % Input  : - PhotCalibTrans object (scalar)
-            %          * ...,key,val,...
-            %            'NCalibMin' - Minimum number of calibrators required. Default is 30.
-            %            'RMSMax' - Maximum allowed RMS [mag]. Default is 0.1.
-            %            'MinCalibRetention' - Minimum fraction of calibrators retained after sigma clipping. Default is 0.8.
-            %            'Verbose' - Enable verbose output. Default is false.
-            % Output : - PhotCalibTrans object with updated Success flag
-            % Author : D. Kovaleva (Jan 2026)
-            % Example: PC = PC.populateSuccess();
-            %          PC = PC.populateSuccess('NCalibMin', 50, 'RMSMax', 0.08, 'MinCalibRetention', 0.75);
-            % Description: Evaluates calibration success based on four criteria:
-            %              1. CalFound = true (calibrators were found)
-            %              2. Number of calibrators >= NCalibMin (default: 30)
-            %              3. RMS <= RMSMax (default: 0.1 mag)
-            %              4. Calibrator retention >= MinCalibRetention (default: 0.8, i.e., 80% retained)
-            %              Sets Obj.Success = true only if all criteria are met.
-
-            arguments
-                Obj
-                Args.NCalibMin = 0   %30
-                Args.RMSMax = 100    %0.1  
-                Args.MinCalibRetention = 0.0 %0.5
-                Args.Verbose logical = false
-            end
-
-            % Evaluate all criteria (Success remains false unless all criteria pass)
-            Obj.Success = false;
-
-            % Criterion 1+2: Check if we have sufficient calibrators (this also implies CalFound = true)
-            HasEnoughCalibrators = false;
-            NCalibInitial = 0;
-            if ~isempty(Obj.SpecData) && ~isempty(Obj.SpecData.Spec)
-                NCalibInitial = size(Obj.SpecData.Spec, 1);
-                HasEnoughCalibrators = (NCalibInitial >= Args.NCalibMin);
-            end
-
-            % Criterion 3: Check if RMS is acceptable
-            HasAcceptableRMS = false;
-            if ~isempty(Obj.TransModel) && ~isempty(Obj.TransModel.RMS) && ~isnan(Obj.TransModel.RMS)
-                HasAcceptableRMS = (Obj.TransModel.RMS <= Args.RMSMax);
-            end
-
-            % Criterion 4: Check if sufficient calibrators survived sigma clipping
-            HasAcceptableRetention = false;
-            if ~isempty(Obj.SourceData) && istable(Obj.SourceData.Catalog) && ismember('Used', Obj.SourceData.Catalog.Properties.VariableNames)
-                NCalibFinal = sum(Obj.SourceData.Catalog.Used);
-                if NCalibInitial > 0
-                    CalibRetention = NCalibFinal / NCalibInitial;
-                    HasAcceptableRetention = (CalibRetention >= Args.MinCalibRetention);
-
-                    if Args.Verbose
-                        fprintf('Calibrator retention: %d/%d = %.1f%%\n', NCalibFinal, NCalibInitial, CalibRetention*100);
-                    end
-                end
-            end
-
-            % Set success only if all criteria are met
-            if HasEnoughCalibrators && HasAcceptableRMS && HasAcceptableRetention
-                Obj.Success = true;
             end
         end
     end
@@ -2091,7 +2022,7 @@ classdef PhotCalibTrans < Component
             % Example: Header = PC.photCalibTransToHeader(Header);
             %          Header = PC.photCalibTransToHeader(Header, 'WriteComments', true);
             % Description: Writes calibration results and fitted parameters to header.
-            %              Keywords: PT_RMS, PT_ARMS, PT_CHI2, PT_DOF, PT_NCALIB, PT_SUCC,
+            %              Keywords: PT_RMS, PT_ARMS, PT_CHI2, PT_DOF, PT_NCALIB,
             %                        PT_AREF, PT_SPEC,
             %                        PT_X_N, PT_X_VY, PT_X_FY (function parameters),
             %                        PT_P_N, PT_P_VY, PT_P_FY (position corrections if UseTran2D=true),
@@ -2115,23 +2046,39 @@ classdef PhotCalibTrans < Component
             % Remove all existing PT_* and APCOR_* keywords to ensure clean ordering
             HeaderObj = HeaderObj.deleteKey({'PT_.*', 'APCOR.*'});
 
+            % Pre-extract scalar values with NaN fallbacks. An uncalibrated PC
+            % (e.g. selectCalibrators failed with missing RA/Dec) has an empty
+            % TransModel — dot-indexing it would error. Header keys still get
+            % written so downstream consumers find them; values are NaN.
+            if isempty(Obj.TransModel)
+                RMSval  = NaN;
+                Chi2val = NaN;
+                DOFval  = NaN;
+            else
+                RMSval  = Obj.TransModel.RMS;
+                Chi2val = Obj.TransModel.Chi2;
+                DOFval  = Obj.TransModel.DOF;
+            end
+
             % General results
-            HeaderObj = HeaderObj.replaceVal('PT_RMS', Obj.TransModel.RMS);
+            HeaderObj = HeaderObj.replaceVal('PT_RMS',  RMSval);
             HeaderObj = HeaderObj.replaceVal('PT_ARMS', Obj.ARMS);
-            HeaderObj = HeaderObj.replaceVal('PT_CHI2', Obj.TransModel.Chi2);
-            HeaderObj = HeaderObj.replaceVal('PT_DOF', Obj.TransModel.DOF);
-            % Use final calibrator count (after sigma clipping) from last stage
+            HeaderObj = HeaderObj.replaceVal('PT_CHI2', Chi2val);
+            HeaderObj = HeaderObj.replaceVal('PT_DOF',  DOFval);
+            % Use final calibrator count (after sigma clipping) from last stage.
+            % NaN when nothing was fit.
             if ~isempty(Obj.FitResults)
                 if numel(Obj.FitResults) > 1
                     NCalFinal = Obj.FitResults(end).NCalUsed;
                 else
                     NCalFinal = Obj.FitResults.NCalUsed;
                 end
-            else
+            elseif ~isempty(Obj.SpecData) && ~isempty(Obj.SpecData.Spec)
                 NCalFinal = size(Obj.SpecData.Spec, 1);  % Fallback to initial
+            else
+                NCalFinal = NaN;
             end
             HeaderObj = HeaderObj.replaceVal('PT_NCALIB', NCalFinal);
-            HeaderObj = HeaderObj.replaceVal('PT_SUCC', Obj.Success);
             HeaderObj = HeaderObj.replaceVal('PT_AREF', 'SMART v2.9.8');
             HeaderObj = HeaderObj.replaceVal('PT_SPEC', 'GaiaDR3');
 
@@ -2141,18 +2088,25 @@ classdef PhotCalibTrans < Component
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_CHI2: Chi-squared of fit';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_DOF: Degrees of freedom';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_NCALIB: Number of calibrators';
-                IComment = IComment + 1; HistoryComments{IComment} = 'PT_SUCC: Calibration success flag';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_AREF: Atmospheric model reference';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_SPEC: Spectra reference';
             end
 
-            % Function parameters
-            Funs = Obj.TransModel.Funs;
-            NFuns = length(Funs);
+            % Function parameters — only writable when TransModel is populated.
+            % An uncalibrated PC writes only the scalar PT_* keys above (as NaN);
+            % the per-function PT_<I>_<V|F><P> keys are skipped because we have
+            % no model structure to enumerate.
+            if isempty(Obj.TransModel)
+                Funs = [];
+                NFuns = 0;
+            else
+                Funs = Obj.TransModel.Funs;
+                NFuns = length(Funs);
+            end
 
-            % Pre-compute fitted parameter names from OptSeq 
+            % Pre-compute fitted parameter names from OptSeq
             FittedParamNames = {};
-            if ~isempty(Obj.TransModel.OptSeq)
+            if ~isempty(Obj.TransModel) && ~isempty(Obj.TransModel.OptSeq)
                 for IStage = 1:length(Obj.TransModel.OptSeq)
                     Stage = Obj.TransModel.OptSeq(IStage);
                     if ischar(Stage.FreeParams) && strcmpi(Stage.FreeParams, 'JOINT_FC')
@@ -2223,8 +2177,9 @@ classdef PhotCalibTrans < Component
                 end
             end
 
-            % Position-dependent corrections (only if UseTran2D = true)
-            if Obj.TransModel.UseTran2D
+            % Position-dependent corrections (only if UseTran2D = true and
+            % a TransModel exists — uncalibrated PCs skip this block).
+            if ~isempty(Obj.TransModel) && Obj.TransModel.UseTran2D
                 % Type
                 HeaderObj = HeaderObj.replaceVal('PT_P_N', Obj.TransModel.NameTran2D);
                 if Args.WriteComments
@@ -2334,9 +2289,6 @@ classdef PhotCalibTrans < Component
             end
             if HeaderObj.isKeyExist('PT_DOF')
                 Obj.TransModel.DOF = HeaderObj.getVal('PT_DOF');
-            end
-            if HeaderObj.isKeyExist('PT_SUCC')
-                Obj.Success = HeaderObj.getVal('PT_SUCC');
             end
 
             % Limiting magnitude and sky surface brightness (legacy keywords)
@@ -3336,7 +3288,7 @@ classdef PhotCalibTrans < Component
             end
 
             fprintf('\n=== PhotCalibTrans Object ===\n');
-            fprintf('Success: %s\n', mat2str(Obj.Success));
+            fprintf('Calibrated: %s\n', mat2str(~isempty(Obj.TransModel)));
 
             if ~isempty(Obj.SpecData)
                 fprintf('Calibrators: %d (min required: %d)\n', size(Obj.SpecData.Spec, 1), Obj.NCalibMin);
@@ -3704,7 +3656,7 @@ classdef PhotCalibTrans < Component
                         AllParams = [];
                         AllWeights = [];
                         for Itmp = 1:Nobj
-                            if Obj(Itmp).Success && Obj(Itmp).TransModel.RMS > 0
+                            if ~isempty(Obj(Itmp).TransModel) && Obj(Itmp).TransModel.RMS > 0
                                 P = Obj(Itmp).TransModel.getAllFunPar();
                                 AllParams = [AllParams; P.Val(:)'];
                                 AllWeights = [AllWeights; 1 ./ Obj(Itmp).TransModel.RMS.^2];
@@ -3714,7 +3666,7 @@ classdef PhotCalibTrans < Component
                             W = AllWeights / sum(AllWeights);
                             RefParamVec = (W' * AllParams)';
                         end
-                    elseif RefIdx >= 1 && RefIdx <= Nobj && Obj(RefIdx).Success
+                    elseif RefIdx >= 1 && RefIdx <= Nobj && ~isempty(Obj(RefIdx).TransModel)
                         RefTransParams = Obj(RefIdx).TransModel.getAllFunPar();
                         RefParamVec = RefTransParams.Val;
                     else
@@ -3733,7 +3685,7 @@ classdef PhotCalibTrans < Component
                 allZP = [];
 
                 for Iobj = 1:Nobj
-                    if ~Obj(Iobj).Success
+                    if isempty(Obj(Iobj).TransModel)
                         continue;
                     end
 
@@ -4172,6 +4124,55 @@ classdef PhotCalibTrans < Component
             for Ic = 1:Ncrop
                 PC_c = Obj(Ic);
 
+                % Guard: crops with no calibration (empty TransModel) — for
+                % example when selectCalibrators failed because the catalog
+                % was missing RA/Dec or per-source X,Y were null. Log a
+                % warning, NaN-fill each epoch's MAG/ZP columns, write NaN
+                % PT_* keys to the header, and skip the rest of this crop.
+                if isempty(PC_c.TransModel)
+                    PC_c.msgLog(LogLevel.Warning, sprintf( ...
+                        'applyPhotCalibShifts: crop %d has no calibration (empty TransModel) - writing NaN to MAG/ZP columns', Ic));
+                    NormPerEpoch(:, Ic) = NaN;
+                    for Ie = 1:Nepoch
+                        AIie = EpochAIs(Ie, Ic);
+                        if isa(AIie, 'AstroImage')
+                            CatObj = AIie.CatData;
+                        else
+                            CatObj = AIie;
+                        end
+                        if ~isempty(CatObj) && ~isempty(CatObj.Catalog)
+                            Nrows  = size(CatObj.Catalog, 1);
+                            NaNcol = nan(Nrows, 1);
+                            if Args.AddZP
+                                ZPColName = [Args.MagSystem, '_ZP'];
+                                CatObj = CatObj.insertCol(NaNcol, Inf, {ZPColName});
+                            end
+                            if Args.AddMag
+                                AllColNames = CatObj.ColNames;
+                                MagPrefix   = PC_c.MagColPrefix;
+                                IsFlux      = startsWith(AllColNames, 'FLUX_');
+                                FluxColNames = AllColNames(IsFlux);
+                                for I = 1:numel(FluxColNames)
+                                    NewMagColName = strrep(FluxColNames{I}, 'FLUX_', MagPrefix);
+                                    CatObj = CatObj.insertCol(NaNcol, Inf, {NewMagColName});
+                                    CatObj = CatObj.insertCol(NaNcol, Inf, {[NewMagColName, '_ERR']});
+                                end
+                            end
+                            if isa(AIie, 'AstroImage')
+                                EpochAIs(Ie, Ic).CatData = CatObj;
+                            else
+                                EpochAIs(Ie, Ic) = CatObj;
+                            end
+                        end
+                        % Header NaN-fill: photCalibTransToHeader is robust
+                        % to empty TransModel and writes scalar PT_* as NaN.
+                        if Args.UpdateHeader && isa(AIie, 'AstroImage') && ~isempty(AIie.HeaderData)
+                            EpochAIs(Ie, Ic).HeaderData = PC_c.photCalibTransToHeader(AIie.HeaderData);
+                        end
+                    end
+                    continue;
+                end
+
                 AllFunPar = PC_c.TransModel.getAllFunPar();
                 NormIdx   = find(strcmp(AllFunPar.Name, 'Norm'), 1);
                 NormOrig  = AllFunPar.Val(NormIdx);
@@ -4321,7 +4322,7 @@ classdef PhotCalibTrans < Component
             %     'aggregate' (default) — robust median/mean across all objects.
             %     'single' — extract from a single object directly (no aggregation).
             %   Optionally saves to .mat file with date in filename.
-            % Input  : - Obj — PhotCalibTrans array (flat). Non-Success objects
+            % Input  : - Obj — PhotCalibTrans array (flat). Failed objects (empty TransModel)
             %            are skipped. If a cell of arrays, flatten first at the
             %            call site: [PC_cell{:}].buildConstBandParams(...).
             %            For Source='single', the first successful object is used.
@@ -4369,7 +4370,7 @@ classdef PhotCalibTrans < Component
                 % Find first successful object
                 PC = [];
                 for Ipc = 1:numel(PCArray)
-                    if PCArray(Ipc).Success && ~isempty(PCArray(Ipc).TransModel)
+                    if ~isempty(PCArray(Ipc).TransModel)
                         PC = PCArray(Ipc);
                         break;
                     end
@@ -4411,7 +4412,7 @@ classdef PhotCalibTrans < Component
 
                 for Ipc = 1:numel(PCArray)
                     PC = PCArray(Ipc);
-                    if ~PC.Success || isempty(PC.TransModel)
+                    if isempty(PC.TransModel)
                         continue;
                     end
 

@@ -228,7 +228,7 @@ function PC = calibrateMulti(AIcell, Args)
             'Verbose', false, CalibArgs{:});
         if Args.Verbose
             fprintf('  Epoch %d: %d/%d success\n', Iv, ...
-                sum([PC_all{Iv}.Success]), numel(PC_all{Iv}));
+                sum(arrayfun(@(pc) ~isempty(pc.TransModel), PC_all{Iv})), numel(PC_all{Iv}));
         end
     end
     PC.percrop = PC_all;

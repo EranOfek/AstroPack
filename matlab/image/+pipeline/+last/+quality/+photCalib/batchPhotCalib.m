@@ -43,7 +43,7 @@ function R = batchPhotCalib(BaseDir, Args)
     %            .VisitName  - {1 x Ntotal} cell of visit subdir names.
     %            .AIIndex    - [1 x Ntotal] index into the per-visit AI array
     %                          (useful for cross-referencing back to files).
-    %            .Success    - [1 x Ntotal] logical, .Success per PC.
+    %            .Success    - [1 x Ntotal] logical, true when PC.TransModel is non-empty.
     %            .JD         - [1 x Ntotal] Julian Date per PC, taken
     %                          from the AstroImage header keyword 'JD'
     %                          and falling back to the LAST filename
@@ -265,7 +265,7 @@ function R = batchPhotCalib(BaseDir, Args)
         PCcell{Iv}        = PCv;
         VisitNameCell{Iv} = repmat({VName}, 1, Nimg);
         AIIndexCell{Iv}   = 1:Nimg;
-        SuccessCell{Iv}   = arrayfun(@(pc) pc.Success, PCv);
+        SuccessCell{Iv}   = arrayfun(@(pc) ~isempty(pc.TransModel), PCv);
 
         % Per-image JD: prefer header keyword 'JD', fall back to the
         % filename timestamp via AstroFileName.julday() when missing.

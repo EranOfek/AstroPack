@@ -23,7 +23,7 @@ function Result = plotPhotParamCompare(PC_A, PC_B, Args)
     %              tagged 'A' instead of 'Range'. Crops with A == 0 in
     %              that fallback path are excluded from the reduction.
     %              The quantity name is resolved via
-    %              pipeline.last.quality.photCalib.resolvePCParam, so
+    %              resolvePCParam (private helper), so
     %              all the usual names work: 'ARMS', 'RMS', 'Chi2',
     %              'Chi2_DOF', 'NCalib', 'NCalibRetention', 'MedResidual',
     %              fitted transmission params (TauAod500, PWV_cm, ...),
@@ -125,8 +125,8 @@ function Result = plotPhotParamCompare(PC_A, PC_B, Args)
     Yv = nan(numel(CropIdx), 1);
     for K = 1:numel(CropIdx)
         Ic = CropIdx(K);
-        Xv(K) = pipeline.last.quality.photCalib.resolvePCParam(PC_A(Ic), Args.Param);
-        Yv(K) = pipeline.last.quality.photCalib.resolvePCParam(PC_B(Ic), Args.Param);
+        Xv(K) = resolvePCParam(PC_A(Ic), Args.Param);
+        Yv(K) = resolvePCParam(PC_B(Ic), Args.Param);
     end
     Cid = CropIdx(:);
 

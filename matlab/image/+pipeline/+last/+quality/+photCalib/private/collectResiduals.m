@@ -46,7 +46,7 @@ function D = collectResiduals(PCcell, Args)
         for Ic = Crops
             if Ic > numel(PCv); continue; end
             PCobj = PCv(Ic);
-            if isempty(PCobj) || ~PCobj.Success; continue; end
+            if isempty(PCobj) || isempty(PCobj.TransModel); continue; end
             if isempty(PCobj.SourceData); continue; end
             Tab = PCobj.SourceData.Table;
             if isempty(Tab); continue; end

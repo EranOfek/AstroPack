@@ -174,7 +174,7 @@ function Result = calibrateVisits(Input, Args)
 
         for Ic = 1:min(numel(PCv), Ncrop)
             PCic = PCv(Ic);
-            Success(Iv,Ic) = PCic.Success;
+            Success(Iv,Ic) = ~isempty(PCic.TransModel);
             try
                 Jv = Res(Ic).HeaderData.getVal('JD');
                 if isnumeric(Jv) && isscalar(Jv) && isfinite(Jv)
@@ -182,7 +182,7 @@ function Result = calibrateVisits(Input, Args)
                 end
             catch
             end
-            if PCic.Success
+            if ~isempty(PCic.TransModel)
                 FitRMS(Iv,Ic)   = PCic.TransModel.RMS;
                 ZPcenter(Iv,Ic) = localCenterZP(PCic);
             end

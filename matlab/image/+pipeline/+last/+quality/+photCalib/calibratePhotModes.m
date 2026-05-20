@@ -129,7 +129,7 @@ function Result = calibratePhotModes(AI, Args)
                 end
 
                 if Args.Verbose
-                    Nsuccess = sum([PC_all{Iv}.Success]);
+                    Nsuccess = sum(arrayfun(@(pc) ~isempty(pc.TransModel), PC_all{Iv}));
                     fprintf('  Epoch %03d: %d/%d success, %.1f s\n', ...
                         Args.Visits(Iv), Nsuccess, Ncrop_v, toc(t0));
                 end
@@ -212,7 +212,7 @@ function Result = calibratePhotModes(AI, Args)
                 Cats_all{Iv} = AstroCatalog.empty(0, Ncrop_v);
 
                 for Ic = 1:Ncrop_v
-                    if ~PC_all{Iv}(Ic).Success
+                    if isempty(PC_all{Iv}(Ic).TransModel)
                         Cats_all{Iv}(Ic) = AstroCatalog;
                         continue;
                     end
@@ -255,7 +255,7 @@ function Result = calibratePhotModes(AI, Args)
     for Iv = 1:NvisitsPC
         if isempty(Result.PC.percrop{Iv}); continue; end
         for Ic = 1:numel(Result.PC.percrop{Iv})
-            if Result.PC.percrop{Iv}(Ic).Success
+            if Result.PC.~isempty(percrop{Iv}(Ic).TransModel)
                 Result.FitRMS(Iv, Ic) = Result.PC.percrop{Iv}(Ic).TransModel.RMS;
                 % ZP at crop center with center-normalized Tran2D (=0 at center):
                 % ZP_base includes Norm but not Tran2D; subtract Tran2D(center)
@@ -347,7 +347,7 @@ function Result = calibratePhotModes(AI, Args)
                 for Ic = CropRange
                     if Ic > numel(Result.PC.percrop{Iv}); continue; end
                     PC_rc = Result.PC.percrop{Iv}(Ic);
-                    if PC_rc.Success && PC_rc.TransModel.RMS > 0
+                    if ~isempty(PC_rc.TransModel) && PC_rc.TransModel.RMS > 0
                         P = PC_rc.TransModel.getAllFunPar();
                         AllParams  = [AllParams; P.Val(:)'];
                         AllWeights = [AllWeights; 1 ./ PC_rc.TransModel.RMS.^2];
@@ -427,7 +427,7 @@ function Result = calibratePhotModes(AI, Args)
                 Cats_all{Iv} = AstroCatalog.empty(0, Ncrop_v);
 
                 for Ic = 1:Ncrop_v
-                    if ~PC_all{Iv}(Ic).Success
+                    if isempty(PC_all{Iv}(Ic).TransModel)
                         Cats_all{Iv}(Ic) = AstroCatalog;
                         continue;
                     end
@@ -515,7 +515,7 @@ function RefParamVec = buildRefParamVec(PCarray, RefCrop)
         AllParams  = [];
         AllWeights = [];
         for Ic = 1:Nobj
-            if PCarray(Ic).Success && PCarray(Ic).TransModel.RMS > 0
+            if ~isempty(PCarray(Ic).TransModel) && PCarray(Ic).TransModel.RMS > 0
                 P = PCarray(Ic).TransModel.getAllFunPar();
                 AllParams  = [AllParams; P.Val(:)'];
                 AllWeights = [AllWeights; 1 ./ PCarray(Ic).TransModel.RMS.^2];
@@ -525,7 +525,7 @@ function RefParamVec = buildRefParamVec(PCarray, RefCrop)
             W = AllWeights / sum(AllWeights);
             RefParamVec = (W' * AllParams)';
         end
-    elseif RefCrop >= 1 && RefCrop <= Nobj && PCarray(RefCrop).Success
+    elseif RefCrop >= 1 && RefCrop <= Nobj && ~isempty(PCarray(RefCrop).TransModel)
         P = PCarray(RefCrop).TransModel.getAllFunPar();
         RefParamVec = P.Val(:);
     end

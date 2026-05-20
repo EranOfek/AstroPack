@@ -266,7 +266,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         % Post-calibration processing
         % ----------------------------------------------------------------
 
-        if PC.Success
+        if ~isempty(PC.TransModel)
             % Add calibrated magnitude (and optionally ZP) columns.
             % AperCorr is NOT yet applied — will be applied below after calcAperCorr.
             if Args.AddMag
@@ -466,11 +466,12 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     % ====================================================================
 
     if Args.Verbose
-        Nsuccess = sum([PhotCalib.Success]);
+        SuccessMask = arrayfun(@(p) ~isempty(p.TransModel), PhotCalib);
+        Nsuccess = sum(SuccessMask);
         fprintf('\n=== CALIBRATION COMPLETE ===\n');
         fprintf('Successful: %d/%d objects\n', Nsuccess, Nobj);
         if Nsuccess > 0
-            RMSvals = [FitRes([PhotCalib.Success]).RMS];
+            RMSvals = [FitRes(SuccessMask).RMS];
             fprintf('RMS range: %.4f - %.4f mag\n', min(RMSvals), max(RMSvals));
         end
     end

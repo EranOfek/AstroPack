@@ -153,7 +153,7 @@ function Mat = i_buildMatrix(Quantity, Cell, Args, Nvisit, Ncrop)
         for Ic = 1:min(numel(El), Ncrop)
             Obj = El(Ic);
             if isa(Obj, 'PhotCalibTrans')
-                if ~Obj.Success; continue; end
+                if isempty(Obj.TransModel); continue; end
                 if strcmpi(Quantity, 'IntegralT')
                     try
                         if isempty(Args.WvlRange)
@@ -165,7 +165,7 @@ function Mat = i_buildMatrix(Quantity, Cell, Args, Nvisit, Ncrop)
                     catch
                     end
                 else
-                    Mat(Iv,Ic) = pipeline.last.quality.photCalib.resolvePCParam( ...
+                    Mat(Iv,Ic) = resolvePCParam( ...
                         Obj, Quantity);
                 end
             elseif isa(Obj, 'AstroImage')

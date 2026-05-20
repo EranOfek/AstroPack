@@ -1,224 +1,133 @@
-function plotPhotStdDiff(MS, Args)
-    % Plot epoch-to-epoch std difference: percrop vs other modes
-    % Description: For each magnitude field, plots Std(percrop)-Std(other)
-    %              vs magnitude. Points > 0 mean the non-percrop mode is better.
-    %              Uses timeSeries.bin.binningFast for trend lines.
+function [Result, Fig] = plotPhotStdDiff(MS, Args)
+    % Plot per-source Std difference between two magnitude fields.
+    % Description: For each crop of a MatchedSources collection, computes
+    %              per source the epoch-to-epoch Std of two named magnitude
+    %              fields and plots their difference Std(FieldA) - Std(FieldB)
+    %              versus the median of FieldA. Positive points mean FieldB
+    %              is better (smaller scatter). An optional binned trend line
+    %              is overlaid. Replaces the legacy mode-difference variant;
+    %              the field-comparison version is what remained useful.
     %
-    % Input  : - MS struct with MS.(mode){crop} = MatchedSources
-    %            (from matchPhotEpochs).
+    % Input  : - MS - a MatchedSources array (one element per crop, e.g.
+    %            from matchEpochs) or a cell of MatchedSources.
     %          * ...,key,val,...
-    %            'Modes'       - Cell array of modes (must include 'percrop').
-    %            'MagFields'   - AB magnitude columns. Default is {'MAG_AB_PSF','MAG_AB_APER_3'}.
-    %            'CropsToAnalyze' - Crop indices. Default is [] (all available).
-    %            'OverlayTrend'- 'median'|'mean'|'none'. Default is 'median'.
-    %            'TrendBinWidth'- Bin width [mag]. Default is 0.5.
-    % Author : D. Kovaleva (Mar 2026)
-    % Example: pipeline.last.quality.photCalib.plotPhotStdDiff(MS, 'Modes', {'percrop','perimage'});
+    %            'FieldA'         - First magnitude field. Required.
+    %            'FieldB'         - Second magnitude field. Required.
+    %            'CropsToAnalyze' - Crop indices to include. Default [] (all).
+    %            'OverlayTrend'   - 'median' | 'mean' | 'none' binned trend.
+    %                               Default 'median'.
+    %            'TrendBinWidth'  - Bin width [mag]. Default 0.5.
+    %            'MinEpochs'      - Drop sources with fewer finite epochs in
+    %                               either field. 0 = no cut. Default 0.
+    %            'MagRange'       - [min max] x-axis range and trend support.
+    %                               Default [9 22].
+    % Output : - Result - struct with .MedMag, .DeltaStd (pooled column
+    %            vectors), .Stats (overall Std-diff summary), .Args.
+    %          - Fig - figure handle ([] when there is no data).
+    % Author : photCalib package refactor (2026-05)
+    % Example: plotPhotStdDiff(MS, 'FieldA','MAG_AB_PSF', 'FieldB','MAG_CB_PSF');
 
     arguments
-        MS struct
-        Args.Modes cell
-        Args.MagFields      = {'MAG_AB_PSF', 'MAG_AB_APER_3'}
-        Args.CompareFields cell = {}  % e.g., {'MAG_AB_PSF','MAG_CB_PSF'} — compare fields within same mode
-        Args.CropsToAnalyze = []
-        Args.OverlayTrend   = 'median'
-        Args.TrendBinWidth  = 0.5
-        Args.MinEpochs      = 0    % Min non-NaN epochs per source; 0 = no filter
+        MS
+        Args.FieldA          {mustBeTextScalar}
+        Args.FieldB          {mustBeTextScalar}
+        Args.CropsToAnalyze  double             = []
+        Args.OverlayTrend    {mustBeMember(Args.OverlayTrend,{'median','mean','none'})} = 'median'
+        Args.TrendBinWidth   (1,1) double       = 0.5
+        Args.MinEpochs       (1,1) double       = 0
+        Args.MagRange        (1,2) double       = [9 22]
     end
 
-    % Two modes: compare modes (original) or compare fields within a mode
-    if ~isempty(Args.CompareFields) && numel(Args.CompareFields) == 2
-        plotFieldDiff(MS, Args);
-        return;
+    Result = struct();
+    Fig    = [];
+
+    % --- Normalize MS to a cell of MatchedSources (one per crop) ------
+    if isa(MS, 'MatchedSources')
+        MSc = num2cell(MS(:).');
+    elseif iscell(MS)
+        MSc = MS(:).';
+    else
+        error('plotPhotStdDiff:BadInput', ...
+            'MS must be a MatchedSources array or a cell of MatchedSources.');
     end
 
-    if ~ismember('percrop', Args.Modes) || ~isfield(MS, 'percrop') || numel(Args.Modes) < 2
-        return;
-    end
+    Crops = Args.CropsToAnalyze;
+    if isempty(Crops); Crops = 1:numel(MSc); end
 
-    OtherModes = setdiff(Args.Modes, {'percrop'}, 'stable');
-    Nother = numel(OtherModes);
-
-    for Imf = 1:numel(Args.MagFields)
-        MagField = Args.MagFields{Imf};
-
-        figure('Name', sprintf('Std difference — %s', MagField), ...
-               'Position', [50, 50, 400*Nother, 500]);
-
-        for Io = 1:Nother
-            Mode = OtherModes{Io};
-            if ~isfield(MS, Mode); continue; end
-            AllMedMag = [];
-            AllDeltaStd = [];
-
-            CropsToUse = Args.CropsToAnalyze;
-            if isempty(CropsToUse)
-                CropsToUse = 1:max(numel(MS.percrop), numel(MS.(Mode)));
-            end
-
-            for Ic = CropsToUse
-                if Ic > numel(MS.percrop) || isempty(MS.percrop{Ic})
-                    continue;
-                end
-                if Ic > numel(MS.(Mode)) || isempty(MS.(Mode){Ic})
-                    continue;
-                end
-
-                MS_pc = MS.percrop{Ic};
-                MS_other = MS.(Mode){Ic};
-
-                if ~isfield(MS_pc.Data, MagField) || ~isfield(MS_other.Data, MagField)
-                    continue;
-                end
-
-                Nsrc = min(MS_pc.Nsrc, MS_other.Nsrc);
-                Mag_pc    = MS_pc.Data.(MagField)(:, 1:Nsrc);
-                Mag_other = MS_other.Data.(MagField)(:, 1:Nsrc);
-
-                % Filter sources with too few valid epochs
-                if Args.MinEpochs > 0
-                    Good = sum(~isnan(Mag_pc), 1) >= Args.MinEpochs & ...
-                           sum(~isnan(Mag_other), 1) >= Args.MinEpochs;
-                    Mag_pc    = Mag_pc(:, Good);
-                    Mag_other = Mag_other(:, Good);
-                end
-
-                Std_pc    = std(Mag_pc, 0, 1, 'omitnan');
-                Std_other = std(Mag_other, 0, 1, 'omitnan');
-                MedMag    = median(Mag_pc, 1, 'omitnan');
-
-                AllMedMag = [AllMedMag, MedMag];
-                AllDeltaStd = [AllDeltaStd, Std_pc - Std_other];
-            end
-
-            subplot(1, Nother, Io);
-            if ~isempty(AllMedMag)
-                plot(AllMedMag, AllDeltaStd, '.', 'MarkerSize', 4);
-                hold on;
-                plot(xlim, [0 0], 'k--');
-                if ~strcmp(Args.OverlayTrend, 'none')
-                    TrendFun = str2func(['nan' Args.OverlayTrend]);
-                    R = timeSeries.bin.binningFast([AllMedMag(:), AllDeltaStd(:)], ...
-                        Args.TrendBinWidth, [9 22], {'MidBin', @numel, TrendFun});
-                    ValidBins = R(:,2) >= 5;
-                    plot(R(ValidBins,1), R(ValidBins,3), '-r', 'LineWidth', 2);
-
-                    % Annotate min/max trend values with reference bin
-                    TrendVals = R(ValidBins, 3);
-                    TrendMags = R(ValidBins, 1);
-                    TrendCounts = R(ValidBins, 2);
-                    if ~isempty(TrendVals)
-                        [MaxVal, MaxIdx] = max(TrendVals);
-                        [MinVal, MinIdx] = min(TrendVals);
-                        text(0.02, 0.97, sprintf('max: %.4f @ mag %.1f (N=%d)\nmin: %.4f @ mag %.1f (N=%d)', ...
-                            MaxVal, TrendMags(MaxIdx), TrendCounts(MaxIdx), ...
-                            MinVal, TrendMags(MinIdx), TrendCounts(MinIdx)), ...
-                            'Units', 'normalized', 'VerticalAlignment', 'top', ...
-                            'FontSize', 8, 'BackgroundColor', 'w');
-                    end
-
-                    % Print bin counts to console
-                    fprintf('  %s vs percrop — %s bins:\n', Mode, MagField);
-                    for Ib = 1:size(R, 1)
-                        if R(Ib, 2) > 0
-                            fprintf('    mag %.1f: N=%d, trend=%.5f\n', R(Ib,1), R(Ib,2), R(Ib,3));
-                        end
-                    end
-                end
-            end
-            box on; grid on;
-            xlabel('Median Magnitude');
-            ylabel(sprintf('Std(percrop) - Std(%s) [mag]', Mode));
-            xlim([9 22]);
-            title(sprintf('percrop - %s  (%d sources)', Mode, numel(AllDeltaStd)));
-        end
-        sgtitle(sprintf('Std difference (>0 = non-percrop better): %s', ...
-            strrep(MagField, '_', '\_')), 'FontSize', 11);
-        % Shrink subplots to make room for sgtitle above Y exponent
-        for Isub = 1:Nother
-            ax = subplot(1, Nother, Isub);
-            ax.Position(4) = ax.Position(4) * 0.92;
-        end
-    end
-end
-
-% =========================================================================
-function plotFieldDiff(MS, Args)
-    % Compare Std of two magnitude fields within the same mode
-    % e.g., Std(MAG_AB_PSF) - Std(MAG_CB_PSF)
-    FieldA = Args.CompareFields{1};
-    FieldB = Args.CompareFields{2};
-    Mode = Args.Modes{1};
-
-    if ~isfield(MS, Mode); return; end
-
-    CropsToUse = Args.CropsToAnalyze;
-    if isempty(CropsToUse)
-        CropsToUse = 1:numel(MS.(Mode));
-    end
-
-    AllMedMag = [];
+    % --- Collect per-source Std(A) - Std(B) and Median(A) -------------
+    AllMedMag   = [];
     AllDeltaStd = [];
-
-    for Ic = CropsToUse
-        if Ic > numel(MS.(Mode)) || isempty(MS.(Mode){Ic}); continue; end
-        MSobj = MS.(Mode){Ic};
-        if ~isfield(MSobj.Data, FieldA) || ~isfield(MSobj.Data, FieldB); continue; end
-
-        MagA = MSobj.Data.(FieldA);
-        MagB = MSobj.Data.(FieldB);
-
+    for Ic = Crops
+        if Ic > numel(MSc) || isempty(MSc{Ic}); continue; end
+        Msi = MSc{Ic};
+        if ~isfield(Msi.Data, Args.FieldA) || ~isfield(Msi.Data, Args.FieldB)
+            continue;
+        end
+        MagA = Msi.Data.(Args.FieldA);
+        MagB = Msi.Data.(Args.FieldB);
         if Args.MinEpochs > 0
-            Good = sum(~isnan(MagA), 1) >= Args.MinEpochs & ...
-                   sum(~isnan(MagB), 1) >= Args.MinEpochs;
+            Good = sum(~isnan(MagA), 1) >= Args.MinEpochs ...
+                 & sum(~isnan(MagB), 1) >= Args.MinEpochs;
             MagA = MagA(:, Good);
             MagB = MagB(:, Good);
         end
-
-        StdA = std(MagA, 0, 1, 'omitnan');
-        StdB = std(MagB, 0, 1, 'omitnan');
+        StdA   = std(MagA, 0, 1, 'omitnan');
+        StdB   = std(MagB, 0, 1, 'omitnan');
         MedMag = median(MagA, 1, 'omitnan');
-
-        AllMedMag = [AllMedMag, MedMag];
-        AllDeltaStd = [AllDeltaStd, StdA - StdB];
+        AllMedMag   = [AllMedMag,   MedMag];      %#ok<AGROW>
+        AllDeltaStd = [AllDeltaStd, StdA - StdB]; %#ok<AGROW>
     end
 
-    % Extract short names for labels (e.g., 'AB' and 'CB')
-    TokA = strsplit(FieldA, '_'); LabelA = TokA{2};
-    TokB = strsplit(FieldB, '_'); LabelB = TokB{2};
-    AperType = strjoin(TokA(3:end), '\_');
+    if isempty(AllMedMag)
+        warning('photCalib:plotPhotStdDiff:NoData', ...
+            'No (%s, %s) pairs found.', Args.FieldA, Args.FieldB);
+        return;
+    end
 
-    figure('Name', sprintf('Std difference — %s vs %s (%s)', LabelA, LabelB, AperType), ...
-           'Position', [50, 50, 600, 500]);
+    % --- Plot ---------------------------------------------------------
+    Fig = figure('Name', sprintf('Std diff: %s vs %s', Args.FieldA, Args.FieldB), ...
+                 'Position', [50 50 700 500]);
+    hold on;
+    plot(AllMedMag, AllDeltaStd, '.', 'MarkerSize', 4);
+    plot(Args.MagRange, [0 0], 'k--');
 
-    if ~isempty(AllMedMag)
-        plot(AllMedMag, AllDeltaStd, '.', 'MarkerSize', 4);
-        hold on;
-        plot(xlim, [0 0], 'k--');
-        if ~strcmp(Args.OverlayTrend, 'none')
-            TrendFun = str2func(['nan' Args.OverlayTrend]);
-            R = timeSeries.bin.binningFast([AllMedMag(:), AllDeltaStd(:)], ...
-                Args.TrendBinWidth, [9 22], {'MidBin', @numel, TrendFun});
-            ValidBins = R(:,2) >= 5;
-            plot(R(ValidBins,1), R(ValidBins,3), '-r', 'LineWidth', 2);
-
-            TrendVals = R(ValidBins, 3);
-            TrendMags = R(ValidBins, 1);
-            TrendCounts = R(ValidBins, 2);
-            if ~isempty(TrendVals)
-                [MaxVal, MaxIdx] = max(TrendVals);
-                [MinVal, MinIdx] = min(TrendVals);
-                text(0.02, 0.97, sprintf('max: %.4f @ mag %.1f (N=%d)\nmin: %.4f @ mag %.1f (N=%d)', ...
-                    MaxVal, TrendMags(MaxIdx), TrendCounts(MaxIdx), ...
-                    MinVal, TrendMags(MinIdx), TrendCounts(MinIdx)), ...
-                    'Units', 'normalized', 'VerticalAlignment', 'top', ...
-                    'FontSize', 8, 'BackgroundColor', 'w');
-            end
+    TrendVals = [];
+    TrendMags = [];
+    TrendCounts = [];
+    if ~strcmp(Args.OverlayTrend, 'none')
+        T = binnedTrend(AllMedMag, AllDeltaStd, ...
+            'BinWidth', Args.TrendBinWidth, 'Range', Args.MagRange, ...
+            'Stat', Args.OverlayTrend, 'MinCount', 5);
+        if ~isempty(T.X)
+            plot(T.X, T.Val, '-r', 'LineWidth', 2);
+            TrendVals   = T.Val;
+            TrendMags   = T.X;
+            TrendCounts = T.Count;
         end
     end
+    if ~isempty(TrendVals)
+        [MaxVal, MaxIdx] = max(TrendVals);
+        [MinVal, MinIdx] = min(TrendVals);
+        text(0.02, 0.97, sprintf( ...
+            'max: %.4f @ mag %.1f (N=%d)\nmin: %.4f @ mag %.1f (N=%d)', ...
+            MaxVal, TrendMags(MaxIdx), TrendCounts(MaxIdx), ...
+            MinVal, TrendMags(MinIdx), TrendCounts(MinIdx)), ...
+            'Units', 'normalized', 'VerticalAlignment', 'top', ...
+            'FontSize', 8, 'BackgroundColor', 'w');
+    end
+
     box on; grid on;
     xlabel('Median Magnitude');
-    ylabel(sprintf('Std(%s) - Std(%s) [mag]', LabelA, LabelB));
-    xlim([9 22]);
-    title(sprintf('%s - %s (%s, %d sources)', LabelA, LabelB, AperType, numel(AllDeltaStd)));
+    ylabel(sprintf('Std(%s) - Std(%s) [mag]', ...
+        strrep(Args.FieldA,'_','\_'), strrep(Args.FieldB,'_','\_')));
+    xlim(Args.MagRange);
+    title(sprintf('%s - %s  (%d sources)', ...
+        strrep(Args.FieldA,'_','\_'), strrep(Args.FieldB,'_','\_'), ...
+        numel(AllDeltaStd)));
+
+    % --- Output -------------------------------------------------------
+    Result.MedMag   = AllMedMag(:);
+    Result.DeltaStd = AllDeltaStd(:);
+    Result.Stats    = statStruct(AllDeltaStd);
+    Result.Args     = Args;
 end
