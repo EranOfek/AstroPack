@@ -172,17 +172,17 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     pos_y = (int*) mxCalloc(num_cuts, sizeof(int));
 
     // Prepare pos array
-    sprintf(s, "Preparing pos, num_cuts: %d", (int)num_cuts);
+    +sprintf(s, "Preparing pos, num_cuts: %d", (int)num_cuts);
     msglog(s);
 
-    for (size_t i=0; i < num_cuts; i++){
+    for (int i=0; i < num_cuts; i++){
 
         // Minus one for conversion btw matlab indices and C indices
         pos_x[i] = (int)round(pos_ptr[num_cuts*0 + i]) - 1;
         pos_y[i] = (int)round(pos_ptr[num_cuts*1 + i]) - 1;
 
         if (debug_bit > 2) {
-            sprintf(s, "pos[%d]: %d, %d", (int)i, pos_x[i], pos_y[i]);
+            sprintf(s, "pos[%d]: %d, %d", i, pos_x[i], pos_y[i]);
             msglog(s);
         }
     }
@@ -320,26 +320,25 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     sprintf(s, "out_array: %p, size: %d, end: %p", (void*)out_array, (int)(num_out_elements * num_bytes), (void*)out_array_end);
     msglog(s);
 
-    // Initialise every output element to pad_value.
-    // For the common case of pad_value == 0 a single memset suffices.
-    // For non-zero pad values each element is written individually because
-    // the byte pattern differs by type (float, double, uint16 …).
-    msglog("Initialising output to pad value");
-    if (pad_value == 0.0) {
-        memset(out_array, 0, num_out_elements * num_bytes);
-    } else {
-        for (int c=0; c < (int)num_cuts; c++) {
-            for (int p=0; p < (int)pages; p++) {
+    // Start by initializing everything to the pad value
+    // @Chen - We can optimize by only setting what is out of range
+    //         Note that the condition below is always true so we always initialize
+    if (pad_value_bytes) {
+        msglog("Copying pad values");
+        for (int c=0; c < num_cuts; c++) {
+            for (int p=0; p < pages; p++) {
                 for (int j=0; j < cut_size; j++) {
                     for (int i=0; i < cut_size; i++) {
-                        int dst_off = (c*cut_size*cut_size*(int)pages + p*cut_size*cut_size + j*cut_size + i) * num_bytes;
-                        memcpy(&out_array[dst_off], &pad_value_bytes, num_bytes);
+                        // Use the one-by-one method for non-zero pad values
+                        // Copy num_bytes to each location
+                        int dst = (c*cut_size*cut_size*pages + p*cut_size*cut_size + j*cut_size + i) * num_bytes;
+                        memcpy(&out_array[dst], &pad_value_bytes, num_bytes);
                     }
                 }
             }
         }
+        msglog("Passed initializing pad");
     }
-    msglog("Output initialised");
 
     unsigned char *src = 0;
     unsigned char *dst = 0;
@@ -350,7 +349,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     msglog(s);
 
     // Process cut by cut
-    for (int c=0; c < (int)num_cuts;  c++){
+    for (int c=0; c < num_cuts;  c++){
 
         if (debug_bit > 0) {
             sprintf(s, "cut #: %d, x: %d, y: %d", c, pos_x[c], pos_y[c]);
@@ -380,25 +379,19 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             }
         }
 
-        // Clamp to the right/bottom image boundary.
-        // When the cutout also straddles the left/top edge (x1 < 0, push_x > 0)
-        // the expression (cols - x1) equals (cols + push_x) which CAN exceed
-        // the original cut_size, causing the j/i loops to write past the end of
-        // the allocated output array.  Capping at cut_size prevents that.
-        if (cut_size_x + x1 + push_x >= (int)cols) {
-            cut_size_x = (int)cols - x1;
-            if (cut_size_x > cut_size) cut_size_x = cut_size;   // never exceed allocation
+        // Make sure x/y values are not larger than array boundary
+        if (cut_size_x + x1 + push_x >= cols) {
+            cut_size_x = cols - x1;
             if (debug_bit > 0) {
                 sprintf(s, "  cut_size_x: %d", cut_size_x);
                 msglog(s);
             }
         }
 
-        if (cut_size_y + y1 + push_y >= (int)rows) {
-            cut_size_y = (int)rows - y1;
-            if (cut_size_y > cut_size) cut_size_y = cut_size;   // never exceed allocation
+        if (cut_size_y + y1 + push_y >= rows) {
+            cut_size_y = rows - y1;
             if (debug_bit > 0) {
-                sprintf(s, "  cut_size_y: %d", cut_size_y);
+                sprintf(s, "  cut_size_y: %d", cut_size_x);
                 msglog(s);
             }
         }
@@ -411,19 +404,18 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         int count = 0;
 
         // Iterate page, cols
-        for (int p=0;  p < (int)pages;  p++) {
+        for (int p=0;  p < pages;  p++) {
 
             // X Axis
             for (int j=push_x;  j < cut_size_x;  j++) {
 
-                // pointer to the start of the valid (non-padded) data in the source column.
-                // y1 + push_y == 0 when the cutout straddles the top edge (y1 < 0), so src
-                // always points to a valid row; the pad rows [0, push_y) keep their fill value.
-                src = &in_array[ ((rows * cols * p) + (x1 * rows) + (j * rows) + y1 + push_y) * num_bytes ];
+                // pointer to the start of the line in the source matrix
+                src = &in_array[ ((rows * cols * p) + (x1 * rows) + (j * rows) + y1 + 0) * num_bytes ];
+                //src = &in_array[ ((rows * cols * p) + (x1 * rows) + (j * rows) + y1 + push_y) * num_bytes ];
 
-                // pointer to the first non-padded row in the destination cutout column.
-                // Rows [0, push_y) were already filled with pad_value above.
-                dst = &out_array[ ((c * cut_size * cut_size * pages) + (p * cut_size * cut_size) + (j * cut_size) + push_y) * num_bytes ];
+                // pointer to the start of the line in the destination cutout
+                dst = &out_array[ ((c * cut_size * cut_size * pages) + (p * cut_size * cut_size) + (j * cut_size) + 0) * num_bytes ];
+                //dst = &out_array[ ((c * cut_size * cut_size * pages) + (p * cut_size * cut_size) + (j * cut_size) + push_y) * num_bytes ];
 
                 // how many bytes need to be copied...
                 N = (cut_size_y - push_y) * num_bytes;
@@ -490,7 +482,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         plhs[1] = mxDuplicateArray(prhs[0]);
         unsigned char *out_array2 = (unsigned char*) mxGetData(plhs[1]);
 
-        for (int c=0;  c < (int)num_cuts;  c++) {
+        for (int c=0;  c < num_cuts;  c++) {
             int x1 = low_corner(pos_x[c], cut_size);
             int y1 = low_corner(pos_y[c], cut_size);
             int cut_size_x = cut_size;
@@ -506,17 +498,15 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
                 push_y = -y1;
             }
 
-            // Same cap as the main copy loop (see comment there).
-            if (cut_size_x+x1+push_x >= (int)cols) {
-                cut_size_x = (int)cols-x1;
-                if (cut_size_x > cut_size) cut_size_x = cut_size;
+            // Make sure x/y values are not larger than array boundary
+            if (cut_size_x+x1+push_x >= cols) {
+                cut_size_x = cols-x1;
             }
-            if (cut_size_y+y1+push_y >= (int)rows) {
-                cut_size_y = (int)rows-y1;
-                if (cut_size_y > cut_size) cut_size_y = cut_size;
+            if (cut_size_y+y1+push_y >=rows) {
+                cut_size_y = rows-y1;
             }
 
-            for (int p=0;  p < (int)pages;  p++) {
+            for (int p=0;  p < pages;  p++) {
                 for (int j=push_x; j<cut_size_x; j++) {
 
                     // pointer to the start of the line in the source matrix
@@ -526,7 +516,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
                     N = (cut_size_y-push_y)*num_bytes;
 
                     // for zero use quick replace (memset)
-                    if (replace_value == 0.0) {
+                    if (replace_value_bytes==0) {
                         memset(src, 0, N);
                     }
                     else {
