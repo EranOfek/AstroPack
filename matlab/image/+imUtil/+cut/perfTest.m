@@ -1,5 +1,18 @@
 function [Result] = perfTest(X, Y, Args)
-    % Perf Test for imUtil.cut
+    % Perf Test for i
+
+    %% imUtil.cut.mex.imageCutouts
+
+    R=rand(1716,1716);
+    X=rand(3000,1).*1716;
+    Y=rand(3000,1).*1716;
+    [a1]=imUtil.cut.mex.imageCutouts(R,X,Y,25);
+    [a]=imUtil.cut.mex.mex_cutout(R,[X Y],25,0,0,0,1);
+    
+    tic;for i=1:100, [a]=imUtil.cut.mex.mex_cutout(R,[X Y],25,0,0,0,1);end,T1=toc;
+    tic;for i=1:100,[a1]=imUtil.cut.mex.imageCutouts(R,X,Y,25);end,T2=toc;
+    fprintf('imUtil.cut.mex.imageCutouts is x %f faster than imUtil.cut.mex.mex_cutout\n',T1./T2);
+
 
     %% imUtil.cut.mex.image2cube
     
