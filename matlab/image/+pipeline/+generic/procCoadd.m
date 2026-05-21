@@ -499,7 +499,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
 
             if Args.FindStars
                 % add PSF FWHM to header - after astrometry, beacuse WCS is needed
-                imProc.psf.fwhm(Coadd(Ifields), 'AddMorphology',true, 'UseLegacy',false, 'DefScale',Args.DefScale);
+                imProc.psf.fwhm(Coadd(Ifields), 'AddMorphology',true, 'AddErr',true, 'UseLegacy',false, 'DefScale',Args.DefScale);
             end
             
            

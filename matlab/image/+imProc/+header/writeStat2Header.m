@@ -71,11 +71,13 @@ function [AI] = writeStat2Header(AI, Args)
     else
         ColMom     = [];
     end
+    
     %if Args.WritePSF
     %    ColsPSF = {Args.KeyFWHM, Args.KeyShapePSF{:}, Args.KeySqrtSumPSF2, Args.KeyMedM2{:}};
     %else
     %    ColsPSF = {};
     %end
+
     if Args.WriteScale
         ColsScale = Args.KeyScaleRot;
     else
