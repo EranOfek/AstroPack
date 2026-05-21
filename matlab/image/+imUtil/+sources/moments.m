@@ -40,6 +40,8 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
     %                   Default is [].
     %            'mexCutout' - Use MEX-based cutout extraction when Image is 2-D.
     %                   Default is true.
+    %            'Cut2D' - If a 2D image is provided, this indicate if to
+    %                   cut it to stamps. Default is true.
     %            'HalfSize' - Half-size of each extracted stamp. Relevant only when
     %                   Image is 2-D. The stamp size is 2*HalfSize+1 pixels.
     %                   Default is 12.
@@ -138,7 +140,7 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
         Args.StampX            = [];
         Args.StampY            = [];
         Args.mexCutout         = true;
-
+        Args.Cut2D             = true;
 
         Args.HalfSize          = 12;
         Args.AperPhotMethod    = 'interpstamp';  % 'simple'|'interp'|'interpstamp'
@@ -166,15 +168,24 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
         else
                 
             % the stamp size is always HalfSize.*2+1 (so odd number)
-            [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, Args.X, Args.Y, Args.HalfSize, 'mexCutout',Args.mexCutout);
-            [Ny, Nx, Nslice] = size(Cube);
-    
+            if Args.Cut2D
+                [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, Args.X, Args.Y, Args.HalfSize, 'mexCutout',Args.mexCutout);
+                [Ny, Nx, Nslice] = size(Cube);
+            else
+                Cube = Image;
+                Nslice = 1;
+                [Ny, Nx] = size(Cube);
+                RoundX = round(Args.X);
+                RoundY = round(Args.Y);
+                
+            end
             X = RoundX;
             Y = RoundY;
     
             % X/Y
             StampX = (Args.X-RoundX) + Args.HalfSize + 1;
             StampY = (Args.Y-RoundY) + Args.HalfSize + 1;
+       
         end
 
     else

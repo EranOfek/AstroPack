@@ -299,7 +299,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % add PSF FWHM to header - after astrometry, beacuse WCS is needed
             %ProcessingStep = 201;
             % This must be done after astrometry as the Scale is used
-            AllSI = imProc.psf.fwhm(AllSI, 'AddMorphology',true, 'AddErr',true, 'UseLegacy',false, 'DefScale',Args.DefScale);
+            AllSI = imProc.psf.fwhm(AllSI, 'AddMorphology',true, 'AddErr',true, 'UseLegacy',true, 'DefScale',Args.DefScale);
                 
             
             % Update Airmass header keyword to based on measured crop center

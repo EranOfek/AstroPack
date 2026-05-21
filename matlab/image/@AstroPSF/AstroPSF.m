@@ -513,7 +513,7 @@ classdef AstroPSF < Component
             %          [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(AP);            
             arguments
                 Obj
-                Args.ReCenter(1,1) logical  = true;
+                Args.ReCenter               = true;
                 Args.CenterPSFxy            = [];
                 Args.Step                   = 1;
                 Args.Level                  = 0.5;
@@ -526,6 +526,7 @@ classdef AstroPSF < Component
                 % use 1st moment to find PSF center
                 M1 = moment2(Obj);
                 Args.CenterPSFxy = [M1.X, M1.Y];
+          
             end
             Nxy = size(Args.CenterPSFxy,1);
             
@@ -609,11 +610,12 @@ classdef AstroPSF < Component
             
             Cube     = images2cube(Obj,'PsfArgs',Args.PsfArgs);
             SizeCube = size(Cube);
-            X = (SizeCube(2)-1).*0.5;
-            Y = (SizeCube(1)-1).*0.5;
+            X = (SizeCube(2)+1).*0.5;
+            Y = (SizeCube(1)+1).*0.5;
             
-            [varargout{1:nargout}] = imUtil.image.moment2(Cube, X, Y, Args.moment2Args{:}, 'SubBack',false);
-            
+            %[varargout{1:nargout}] = imUtil.image.moment2(Cube, X, Y, Args.moment2Args{:}, 'SubBack',false);
+            [varargout{1:nargout}] = imUtil.sources.moments(Cube, 'X',X, 'Y',Y, 'SN',100, Args.moment2Args{:}, 'Cut2D',false);
+
         end
         
         function [FWHM_CumSum, FWHM_Flux] = fwhm(Obj, Args)
