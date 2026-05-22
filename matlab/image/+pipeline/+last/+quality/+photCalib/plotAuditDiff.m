@@ -102,19 +102,17 @@ function Result = plotAuditDiff(AuStrict, AuLoose, Args)
     for I = 1:numel(KeepPlotCols)
         C = KeepPlotCols{I};
         if ~ismember(C, Pool.Properties.VariableNames); continue; end
-        Va = Pool.(C)(BothU);          Va = Va(isfinite(Va));
-        Vb = Pool.(C)(OnlyStrictRej);  Vb = Vb(isfinite(Vb));
-        S.N_BothU         = numel(Va);
-        S.N_OnlyStrictRej = numel(Vb);
-        S.MedBothU         = safeMedian(Va);
-        S.MedOnlyStrictRej = safeMedian(Vb);
-        S.KS_p = NaN; S.MW_p = NaN; S.CliffsDelta = NaN;
-        if numel(Va) >= 5 && numel(Vb) >= 5
-            try [~, S.KS_p] = kstest2(Va, Vb); catch; end
-            try S.MW_p = ranksum(Va, Vb);     catch; end
-            S.CliffsDelta = cliffsDelta(Vb, Va);   % positive = OnlyStrictRej > BothU
-        end
-        Stats.(C) = S;
+        Va = Pool.(C)(BothU);
+        Vb = Pool.(C)(OnlyStrictRej);
+        T  = twoSampleStats(Vb, Va);   % positive CliffsDelta = OnlyStrictRej > BothU
+        Stats.(C) = struct( ...
+            'N_BothU',         T.N_B, ...
+            'N_OnlyStrictRej', T.N_A, ...
+            'MedBothU',         T.Med_B, ...
+            'MedOnlyStrictRej', T.Med_A, ...
+            'KS_p',             T.KS_p, ...
+            'MW_p',             T.MW_p, ...
+            'CliffsDelta',      T.CliffsDelta);
     end
     Result.Stats = Stats;
     Result.Args  = Args;

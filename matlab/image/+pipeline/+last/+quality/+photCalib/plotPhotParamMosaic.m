@@ -178,11 +178,7 @@ function Result = plotPhotParamMosaic(PC, Args)
     end
 
     % --- Central / peripheral classification ----------------------------
-    switch lower(Args.TileOrder)
-        case 'colmajor', CentralCrops = [8 9 10 11 14 15 16 17];
-        case 'rowmajor', CentralCrops = [6 7 10 11 14 15 18 19];
-        otherwise,        CentralCrops = [];
-    end
+    CentralCrops = centralCrops(Args.TileOrder);
     IsCentralCrop = false(1, Args.Ncrop);
     IsCentralCrop(CentralCrops(CentralCrops <= Args.Ncrop)) = true;
 

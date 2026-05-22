@@ -142,11 +142,7 @@ function Result = plotPhotParamCompare(PC_A, PC_B, Args)
     Cid = Cid(Keep);
 
     % --- Central / peripheral classification ----------------------------
-    switch lower(Args.TileOrder)
-        case 'colmajor', CentralCrops = [8 9 10 11 14 15 16 17];
-        case 'rowmajor', CentralCrops = [6 7 10 11 14 15 18 19];
-        otherwise,        CentralCrops = [];
-    end
+    CentralCrops = centralCrops(Args.TileOrder);
     IsCentral = ismember(Cid, CentralCrops);
 
     % --- Comparison statistics ------------------------------------------
