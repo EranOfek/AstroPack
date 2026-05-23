@@ -511,6 +511,15 @@ classdef catsHTM
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2019AJ....157..168D/abstract';
             
             I = I + 1;
+            Data(I).Status   = true;
+            Data(I).iscatsHTM = true;
+            Data(I).Dir      = '/DESI/dr1/';
+            Data(I).Name     = 'DESIdr1';
+            Data(I).Desc     = 'DESI DR1 zpix with non-NaN redshift';
+            Data(I).Ref      = 'DESI Collaboration 2025 (DR1)';
+            Data(I).RefLink  = 'https://ui.adsabs.harvard.edu/abs/2026AJ....171..285D/abstract';
+            
+            I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/FIRST/';
@@ -3036,7 +3045,7 @@ classdef catsHTM
             % Cone earch on local HDF5/HTM catalog
             % Package: @catsHTM
             % Description: Perform a cone search around RA/Dec on a local catalog in
-            %              HDF5 format sorted into HTM.
+            %              HDF5 format soNrted into HTM.
             % Input  : - Catalog name (e.g., 'GAIADR1').
             %            see VO.search.htmcat_names for options.
             %          - J2000.0 R.A. [radians, [H M S], or sexagesimal string].

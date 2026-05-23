@@ -15,8 +15,9 @@ function MS = loadMergedMat(Args)
     % Output : - MS struct with MS.(Mode){Ic} = MatchedSources.
     % Author : D. Kovaleva (Apr 2026)
     % Example: MS = pipeline.last.load.loadMergedMat('MergedMatDir', '~/222635v0');
-    %          pipeline.last.quality.photCalib.plotPhotScatter(MS, 'Modes', {'percrop'}, ...
-    %              'MagFields', {'MAG_PSF','MAG_APER_3'}, 'TwoPanels', false);
+    %          % feed one mode's MS array into the de-moded plotter:
+    %          pipeline.last.quality.photCalib.plotPhotScatter(MS.percrop, ...
+    %              'Quantities', {'MAG_PSF','MAG_APER_3'});
 
     arguments
         Args.MergedMatDir

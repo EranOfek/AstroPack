@@ -100,14 +100,7 @@ function Result = plotPhotParamScatter(PC, Args)
     Nsets = numel(Sources);
 
     % Central crops per tile convention
-    switch lower(Args.TileOrder)
-        case 'colmajor'
-            CentralCrops = [8 9 10 11 14 15 16 17];
-        case 'rowmajor'
-            CentralCrops = [6 7 10 11 14 15 18 19];
-        otherwise
-            CentralCrops = [];
-    end
+    CentralCrops = centralCrops(Args.TileOrder);
 
     % Collect (X,Y) per (epoch, crop) — pooled across sets, with set ID
     Xs = []; Ys = []; Cs = []; Es = []; Ss = [];
