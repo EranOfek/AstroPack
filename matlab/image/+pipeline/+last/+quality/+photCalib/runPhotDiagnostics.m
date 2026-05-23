@@ -18,7 +18,7 @@ function [Result, Fig] = runPhotDiagnostics(Input, Args)
     %                               maps)
     %                'synchrony'    plotPhotParamSynchrony (cross-crop)
     %                'params'       plotPhotParamHist (per-quantity)
-    %                'stability'    plotPhotScatter (Std vs Mag, needs
+    %                'stability'    plotPhotStability (Std vs Mag, needs
     %                               cross-matched MS - auto-enables matching)
     %
     % Input  : - Input - one of:
@@ -226,7 +226,7 @@ function [Result, Fig] = runPhotDiagnostics(Input, Args)
     if any(strcmp(PlotSet,'stability'))
         if isfield(Result,'MS') && ~isempty(Result.MS)
             Fig = i_capture(Fig, @() ...
-                pipeline.last.quality.photCalib.plotPhotScatter(Result.MS, ...
+                pipeline.last.quality.photCalib.plotPhotStability(Result.MS, ...
                     'CropsToAnalyze', Args.CropsToAnalyze));
         else
             warning('photCalib:runPhotDiagnostics:NoMS', ...

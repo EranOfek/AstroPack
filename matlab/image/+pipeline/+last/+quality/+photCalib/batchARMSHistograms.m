@@ -28,8 +28,8 @@ function Result = batchARMSHistograms(BaseDir, Args)
     %                                        discovery is skipped and
     %                                        BaseDir is ignored. Fields:
     %                                          .MS     - a MatchedSources
-    %                                                    array / cell /
-    %                                                    mode-keyed struct
+    %                                                    array or a cell
+    %                                                    of MatchedSources
     %                                                    (e.g. the output
     %                                                    of
     %                                                    matchVisitEpochs);
@@ -115,9 +115,6 @@ function Result = batchARMSHistograms(BaseDir, Args)
     %                                        {'Saturated','NearEdge',
     %                                         'Overlap'}; {} disables
     %                                        FLAGS filtering.
-    %                      'Mode'          - mode field name in the
-    %                                        normalised MS struct.
-    %                                        Default 'percrop'.
     %                      'Bins'          - histogram bin count or
     %                                        explicit edges. Default 30.
     %                      'OutDir'        - directory for saved
@@ -202,7 +199,6 @@ function Result = batchARMSHistograms(BaseDir, Args)
         Args.ARMS_N          (1,1) double {mustBePositive, mustBeInteger} = 20
         Args.MinEpochs       (1,1) double = 10
         Args.BadFlags        cell = {'Saturated','NearEdge','Overlap'}
-        Args.Mode            (1,:) char = 'percrop'
         Args.Bins                         = 30
         Args.OutDir          {mustBeText} = '~/results_ARMS'
         Args.Plot            logical      = true
@@ -373,14 +369,12 @@ function MS = loadOneVisitMS(VPath, Args)
 end
 
 % =========================================================================
-function CCell = normaliseMSToCellOfCrops(MS, Mode)
-    % Accept MatchedSources array, cell of MS, or mode-keyed struct.
+function CCell = normaliseMSToCellOfCrops(MS)
+    % Accept either a MatchedSources array or a cell of MatchedSources.
     if isa(MS, 'MatchedSources')
         CCell = num2cell(MS(:).');
     elseif iscell(MS)
         CCell = MS(:).';
-    elseif isstruct(MS) && isfield(MS, Mode)
-        CCell = MS.(Mode);
     else
         CCell = {};
     end
@@ -441,7 +435,7 @@ function Recs = recordsFromMS(MS, Cohort, Visit, Args)
     % Per-crop ARMS records for one visit's MatchedSources, as a cell of
     % scalar structs (Cohort/Visit/Crop + one *_ARMS field per quantity).
     Recs  = {};
-    CCell = normaliseMSToCellOfCrops(MS, Args.Mode);
+    CCell = normaliseMSToCellOfCrops(MS);
     if isempty(CCell); return; end
     if ~isempty(Args.CropID)
         if Args.CropID <= numel(CCell)

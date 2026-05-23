@@ -704,7 +704,7 @@ classdef catsHTM
             Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/NED/20260512/';
             Data(I).Name = 'NEDz';
-            Data(I).Desc = 'NED objects with non-NaN redshift, 2026-05-12 (HTM Level 7; cols RA, Dec, z, zunc, PretypeCode -- see VO.prep.nedPretypeNames)';
+            Data(I).Desc = 'NED objects with non-NaN redshift, 2026-05-12';
             Data(I).Ref  = 'Helou et al. 1991';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/1991ASSL..171...89H/abstract';
             

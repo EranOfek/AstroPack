@@ -1,4 +1,4 @@
-function Result = plotPhotScatter(MS, Args)
+function Result = plotPhotStability(MS, Args)
     % Plot per-source RMS vs median for one or more catalog quantities
     % Description: For each named quantity Q, collects per source the
     %              median of a reference x-axis column and the std of Q
@@ -33,9 +33,8 @@ function Result = plotPhotScatter(MS, Args)
     %                  The faint cut ('BackgroundMag') is applied on RefMag.
     %
     % Input  : - MS - a MatchedSources array (one element per crop, e.g.
-    %            from matchEpochs) or a cell of MatchedSources. The legacy
-    %            mode-keyed struct input has been removed; index into it
-    %            (e.g. MS.percrop) before calling.
+    %            from matchEpochs or loadMergedMat) or a cell of
+    %            MatchedSources.
     %          * ...,key,val,...
     %            'QuantityGroups' - Cell of cells of column names. Each
     %                             inner cell is one figure (1+ panels).
@@ -50,6 +49,20 @@ function Result = plotPhotScatter(MS, Args)
     %            'RefMag'       - Reference mag column for angular x-axis
     %                             AND for the faint-cut filter on angular
     %                             quantities. Default 'MAG_APER_3'.
+    %            'FluxAsMag'    - Quantity names treated as fluxes and
+    %                             converted to a magnitude before the
+    %                             Std/median reduction:
+    %                               MAG = -2.5*log10(Flux) + ZP
+    %                             where ZP is read per crop from the 'Coadd'
+    %                             image header (keyword 'ZPKey'). Lets a
+    %                             flux column be plotted as a magnitude.
+    %                             Default {'FLUX_PSF','FLUX_APER_3'}.
+    %            'Coadd'        - 1xNcrop AstroImage array (the visit coadd)
+    %                             supplying the per-crop zero-point for
+    %                             FluxAsMag. Required when a plotted
+    %                             quantity is in FluxAsMag. Default [].
+    %            'ZPKey'        - Header keyword read from 'Coadd' for the
+    %                             zero-point. Default 'PH_ZP'.
     %            'LayoutMode'   - 'PerQuantity' (default) | 'Combined'.
     %                             'PerQuantity' opens one figure per group.
     %                             'Combined' opens a single figure with
@@ -68,11 +81,28 @@ function Result = plotPhotScatter(MS, Args)
     %                              column (= the quantity itself for mag
     %                              quantities, RefMag for angular).
     %                              Default 22.
+    %            'MinSN'        - Per-epoch S/N cut: (epoch,source) entries
+    %                             with MS.Data.SN <= MinSN are NaN'd before
+    %                             the Std/median reduction. 0 disables;
+    %                             silently skipped if the MS has no SN
+    %                             field. Default 5.
     %            'ColorByCrop'  - Color sources by crop ID. Default false.
     %            'CentralEdge'  - Distinguish central vs edge crops by
     %                             shade. Default false.
     %            'TileOrder'    - For CentralEdge: 'colmajor'|'rowmajor'.
     %                             Default 'rowmajor'.
+    %            'SplitField'   - Per-source flag field (e.g. 'FORCED').
+    %                             When non-empty, sources are split into two
+    %                             populations (flag == 1 vs not), overplotted
+    %                             in SplitColors, each with its own binned
+    %                             trend; the per-crop dot colouring is
+    %                             bypassed. A source is "flagged" when the
+    %                             field is 1 in >= half its finite epochs.
+    %                             Default '' (off).
+    %            'SplitColors'  - 2x3 RGB [flagged; other]. Default
+    %                             [0.85 0.33 0.10; 0.00 0.45 0.74].
+    %            'SplitLabels'  - {flagged, other} legend labels. Default
+    %                             {'Forced','Other'}.
     % Output : - Result struct with fields:
     %            .Quantities    - 1xK cell of quantity names actually used
     %                             (after empty-group pruning).
@@ -96,38 +126,38 @@ function Result = plotPhotScatter(MS, Args)
     %          % Default 3-group layout: figures for {RA,Dec},
     %          % {MAG_PSF,MAG_APER_3}, and {MAG_AB_PSF,MAG_AB_APER_3}.
     %          % AB group is auto-skipped when MS has no AB columns.
-    %          R = pipeline.last.quality.photCalib.plotPhotScatter(MS);
+    %          R = pipeline.last.quality.photCalib.plotPhotStability(MS);
     %
     %          % Custom grouping — e.g. one figure per quantity:
-    %          R = pipeline.last.quality.photCalib.plotPhotScatter(MS, ...
+    %          R = pipeline.last.quality.photCalib.plotPhotStability(MS, ...
     %                  'QuantityGroups', { ...
     %                      {'MAG_PSF'}, {'MAG_APER_3'}, ...
     %                      {'RA'}, {'Dec'}});
     %
     %          % Or via the flat 'Quantities' shortcut (one figure each):
-    %          R = pipeline.last.quality.photCalib.plotPhotScatter(MS, ...
+    %          R = pipeline.last.quality.photCalib.plotPhotStability(MS, ...
     %                  'Quantities', {'MAG_PSF','MAG_APER_3'});
     %
     %          % All groups in one combined figure (groups flattened):
-    %          R = pipeline.last.quality.photCalib.plotPhotScatter(MS, ...
+    %          R = pipeline.last.quality.photCalib.plotPhotStability(MS, ...
     %                  'LayoutMode', 'Combined');
     %
     %          % Restrict to two crops (e.g. crop 1 and crop 10) and color
     %          % sources by crop:
-    %          R = pipeline.last.quality.photCalib.plotPhotScatter(MS, ...
+    %          R = pipeline.last.quality.photCalib.plotPhotStability(MS, ...
     %                  'CropsToAnalyze', [1 10], 'ColorByCrop', true);
     %
     %          % Tighten the source selection: at least 10 epochs after
     %          % flag filtering, faint cut at MAG_APER_3 = 20:
-    %          R = pipeline.last.quality.photCalib.plotPhotScatter(MS, ...
+    %          R = pipeline.last.quality.photCalib.plotPhotStability(MS, ...
     %                  'MinEpochs', 10, 'BackgroundMag', 20);
     %
     %          % Use MAG_PSF (not MAG_APER_3) as RA/Dec x-axis reference:
-    %          R = pipeline.last.quality.photCalib.plotPhotScatter(MS, ...
+    %          R = pipeline.last.quality.photCalib.plotPhotStability(MS, ...
     %                  'RefMag', 'MAG_PSF');
     %
     %          % Force the AB group to render (even if MS lacks AB columns):
-    %          R = pipeline.last.quality.photCalib.plotPhotScatter(MS, ...
+    %          R = pipeline.last.quality.photCalib.plotPhotStability(MS, ...
     %                  'SkipEmptyGroups', false);
     %
 
@@ -137,15 +167,19 @@ function Result = plotPhotScatter(MS, Args)
         Args.QuantityGroups         cell                = {}
         Args.AngularQuantities      cell                = {'RA', 'Dec'}
         Args.RefMag                 (1,:) char          = 'MAG_APER_3'
+        Args.FluxAsMag              cell                = {'FLUX_PSF','FLUX_APER_3'}
+        Args.Coadd                                      = []
+        Args.ZPKey                  (1,:) char          = 'PH_ZP'
         Args.LayoutMode             (1,:) char ...
             {mustBeMember(Args.LayoutMode, {'PerQuantity','Combined'})} = 'PerQuantity'
         Args.SkipEmptyGroups        logical             = true
         Args.CropsToAnalyze                             = []
         Args.OverlayTrend                               = 'median'
         Args.TrendBinWidth                              = 0.5
-        Args.MinEpochs                                  = 2
+        Args.MinEpochs                                  = 5
         Args.FilterFlags            cell                = {'Saturated', 'NearEdge', 'NaN'}
         Args.BackgroundMag                              = 22
+        Args.MinSN                                      = 5
         Args.ColorByCrop            logical             = false
         Args.CentralEdge            logical             = false
         Args.TileOrder                                  = 'rowmajor'
@@ -158,6 +192,9 @@ function Result = plotPhotScatter(MS, Args)
         Args.LinkAxes               (1,:) char ...
             {mustBeMember(Args.LinkAxes, {'xy','x','y','off'})} = 'y'
         Args.ShowLegend             logical             = true
+        Args.SplitField             (1,:) char          = ''
+        Args.SplitColors            (2,3) double        = [0.85 0.33 0.10; 0.00 0.45 0.74]
+        Args.SplitLabels            cell                = {'Forced','Other'}
     end
 
     % --- Normalize MS input ---------------------------------------------
@@ -169,7 +206,7 @@ function Result = plotPhotScatter(MS, Args)
     elseif iscell(MS)
         MS = struct('msdata', {MS(:).'});
     else
-        error('plotPhotScatter:BadInput', ...
+        error('plotPhotStability:BadInput', ...
             'MS must be a MatchedSources array or a cell of MatchedSources.');
     end
     Args.Modes = {'msdata'};   % internal placeholder; not user-controllable
@@ -190,6 +227,16 @@ function Result = plotPhotScatter(MS, Args)
     end
     % Flat de-duplicated quantity list across groups.
     Quantities = unique([Groups{:}], 'stable');
+
+    % FluxAsMag converts flux -> mag and needs a per-crop zero-point.
+    FluxQ = Quantities(ismember(Quantities, Args.FluxAsMag));
+    if ~isempty(FluxQ) && isempty(Args.Coadd)
+        error('plotPhotStability:NoCoadd', ...
+            ['Quantity %s is in FluxAsMag (flux->mag needs a zero-point) ', ...
+             'but no Coadd was supplied. Pass ''Coadd'' (a 1xNcrop ', ...
+             'AstroImage array) or drop it from FluxAsMag.'], ...
+            strjoin(FluxQ, ', '));
+    end
 
     Nmodes = numel(Args.Modes);
 
@@ -318,6 +365,7 @@ function D = extractQuantity(MS, Q, Args)
     D.PerCrop       = cell(1, Nmodes);
     D.AllMed        = cell(1, Nmodes);
     D.AllStd        = cell(1, Nmodes);
+    D.AllGroup      = cell(1, Nmodes);
 
     for Im = 1:Nmodes
         Mode = Modes{Im};
@@ -332,7 +380,7 @@ function D = extractQuantity(MS, Q, Args)
         D.CropsAnalyzed{Im} = CropsToUse;
 
         PerCropM = cell(numel(CropsToUse), 1);
-        AllM = []; AllS = [];
+        AllM = []; AllS = []; AllG = [];
 
         for Iic = 1:numel(CropsToUse)
             Ic = CropsToUse(Iic);
@@ -348,20 +396,26 @@ function D = extractQuantity(MS, Q, Args)
                 ScaleCosCol = 'Dec';
             end
 
-            S = collectMedStd(MSobj, Q, RefMag, BadEpochMask, Args, ScaleCosCol);
+            % Per-crop zero-point for FluxAsMag (from the coadd header).
+            ZPcrop = cropZP(Args, Ic);
+
+            S = collectMedStd(MSobj, Q, RefMag, BadEpochMask, Args, ...
+                ScaleCosCol, Args.SplitField, ZPcrop);
             if ~isempty(S)
                 if IsAng
                     S.Std = S.Std * 3600;   % deg → arcsec for display
                 end
                 PerCropM{Iic} = S;
-                AllM = [AllM, S.Med]; %#ok<AGROW>
-                AllS = [AllS, S.Std]; %#ok<AGROW>
+                AllM = [AllM, S.Med];   %#ok<AGROW>
+                AllS = [AllS, S.Std];   %#ok<AGROW>
+                AllG = [AllG, S.Group]; %#ok<AGROW>
             end
         end
 
-        D.PerCrop{Im} = PerCropM;
-        D.AllMed{Im}  = AllM;
-        D.AllStd{Im}  = AllS;
+        D.PerCrop{Im}  = PerCropM;
+        D.AllMed{Im}   = AllM;
+        D.AllStd{Im}   = AllS;
+        D.AllGroup{Im} = AllG;
     end
 end
 
@@ -391,17 +445,39 @@ function Mask = buildBadEpochMask(MSobj, SizeRefCol, Args)
 end
 
 % =========================================================================
-function S = collectMedStd(MSobj, YCol, XCol, BadEpochMask, Args, ScaleCosCol)
+function ZP = cropZP(Args, Ic)
+    % Per-crop zero-point read from the Coadd image header (NaN if absent).
+    ZP = NaN;
+    if isempty(Args.Coadd) || Ic > numel(Args.Coadd); return; end
+    try
+        V = Args.Coadd(Ic).HeaderData.getVal(Args.ZPKey);
+        if isnumeric(V) && isscalar(V) && isfinite(V); ZP = V; end
+    catch
+        % header / keyword unavailable - leave ZP = NaN
+    end
+end
+
+% =========================================================================
+function S = collectMedStd(MSobj, YCol, XCol, BadEpochMask, Args, ScaleCosCol, SplitCol, ZP)
     % Per-source median(XCol) and std(YCol) over epochs, with NaN/flag/faint cuts.
     %   Faint cut is applied on XCol (the reference mag), so for angular
     %   quantities (XCol=RefMag) faint sources on RefMag are dropped from
-    %   YCol's statistics too. Tabulated YCol values are never transformed.
+    %   YCol's statistics too.
     %
-    %   Optional 6th argument ScaleCosCol (char): name of a column whose
-    %   per-source median is taken in degrees; the resulting std is then
-    %   multiplied by cos(median ScaleCosCol) for each source. Used for the
-    %   RA -> projected angular separation correction (ScaleCosCol = 'Dec').
+    %   ScaleCosCol (char, optional): column whose per-source median (deg)
+    %   scales the std by its cosine - the RA projected-separation
+    %   correction (ScaleCosCol = 'Dec').
+    %
+    %   SplitCol (char, optional): per-(epoch,source) flag column. When
+    %   given and present, S.Group is a per-source logical (true where the
+    %   flag is 1 in >= half the source's finite epochs), aligned with
+    %   S.Med / S.Std. Empty otherwise.
+    %
+    %   ZP (numeric, optional): per-crop zero-point added when YCol/XCol is
+    %   in Args.FluxAsMag, i.e. MAG = -2.5*log10(Flux) + ZP.
     if nargin < 6, ScaleCosCol = ''; end
+    if nargin < 7, SplitCol    = ''; end
+    if nargin < 8, ZP          = NaN; end
     S = [];
     if ~isfield(MSobj.Data, YCol); return; end
     if ~isfield(MSobj.Data, XCol); return; end
@@ -409,8 +485,27 @@ function S = collectMedStd(MSobj, YCol, XCol, BadEpochMask, Args, ScaleCosCol)
     Y = MSobj.Data.(YCol);
     X = MSobj.Data.(XCol);
 
+    % Flux columns requested as magnitudes: MAG = -2.5*log10(Flux) + ZP,
+    % converted per epoch before any reduction (the zero-point makes Std a
+    % calibrated-magnitude scatter, and the faint cut act in real mag).
+    if ismember(YCol, Args.FluxAsMag)
+        Y(Y <= 0) = NaN;
+        Y = -2.5 * log10(Y) + ZP;
+    end
+    if ismember(XCol, Args.FluxAsMag)
+        X(X <= 0) = NaN;
+        X = -2.5 * log10(X) + ZP;
+    end
+
     Y(BadEpochMask) = NaN;
     X(BadEpochMask) = NaN;
+
+    % Per-epoch S/N cut: drop (epoch,source) entries with SN <= MinSN.
+    if Args.MinSN > 0 && isfield(MSobj.Data, 'SN')
+        BadSN = ~(MSobj.Data.SN > Args.MinSN);
+        Y(BadSN) = NaN;
+        X(BadSN) = NaN;
+    end
 
     BadX = false(size(X));
     if isfinite(Args.BackgroundMag)
@@ -426,11 +521,18 @@ function S = collectMedStd(MSobj, YCol, XCol, BadEpochMask, Args, ScaleCosCol)
         Z(BadX)         = NaN;
     end
 
+    % Per-source split classification (over all epochs, pre-filter).
+    HaveSplit = ~isempty(SplitCol) && isfield(MSobj.Data, SplitCol);
+    if HaveSplit
+        Grp = mean(MSobj.Data.(SplitCol) == 1, 1, 'omitnan') >= 0.5;
+    end
+
     if Args.MinEpochs > 0
         Good = sum(~isnan(Y), 1) >= Args.MinEpochs;
         Y = Y(:, Good);
         X = X(:, Good);
         if HaveScale; Z = Z(:, Good); end
+        if HaveSplit; Grp = Grp(Good); end
     end
 
     S.Med = median(X, 1, 'omitnan');
@@ -439,13 +541,18 @@ function S = collectMedStd(MSobj, YCol, XCol, BadEpochMask, Args, ScaleCosCol)
         MedZ = median(Z, 1, 'omitnan');
         S.Std = S.Std .* cosd(MedZ);
     end
+    if HaveSplit
+        S.Group = logical(Grp);
+    else
+        S.Group = [];
+    end
 end
 
 % =========================================================================
 function renderCombined(Quantities, DataByQ, Args, CentralCrops)
     % One figure with one subplot per quantity (single mode only).
     if numel(Args.Modes) > 1
-        warning('plotPhotScatter:CombinedSingleMode', ...
+        warning('plotPhotStability:CombinedSingleMode', ...
             'LayoutMode=''Combined'' uses the first mode only.');
     end
     N = numel(Quantities);
@@ -481,18 +588,22 @@ function drawMagPanel(Ax, QName, DataByQ, Im, Args, CentralCrops)
     CropsToUse = D.CropsAnalyzed{Im};
     if isempty(CropsToUse); return; end
 
-    CropCmap = lines(numel(CropsToUse));
-    if Args.ShowDots
-        plotCropDots(Ax, CropsToUse, D.PerCrop{Im}, Args, CropCmap, ...
-            CentralCrops, Args.CentralColor, Args.EdgeColor);
-        if Args.ColorByCrop && Args.ShowLegend
-            addCropLegend(Ax, CropsToUse, D.PerCrop{Im}, CropCmap);
+    if ~isempty(Args.SplitField)
+        drawSplitPanel(Ax, D, Im, Args);
+    else
+        CropCmap = lines(numel(CropsToUse));
+        if Args.ShowDots
+            plotCropDots(Ax, CropsToUse, D.PerCrop{Im}, Args, CropCmap, ...
+                CentralCrops, Args.CentralColor, Args.EdgeColor);
+            if Args.ColorByCrop && Args.ShowLegend
+                addCropLegend(Ax, CropsToUse, D.PerCrop{Im}, CropCmap);
+            end
         end
-    end
-    if Args.ShowTrend && ~strcmp(Args.OverlayTrend, 'none') && ~isempty(D.AllMed{Im})
-        TrendFun = str2func(['nan' Args.OverlayTrend]);
-        drawTrend(Ax, D.AllMed{Im}, D.AllStd{Im}, ...
-            Args.TrendBinWidth, TrendFun, '-', [0 0 0], 2, Args.ShowStdBand);
+        if Args.ShowTrend && ~strcmp(Args.OverlayTrend, 'none') && ~isempty(D.AllMed{Im})
+            TrendFun = str2func(['nan' Args.OverlayTrend]);
+            drawTrend(Ax, D.AllMed{Im}, D.AllStd{Im}, ...
+                Args.TrendBinWidth, TrendFun, '-', [0 0 0], 2, Args.ShowStdBand);
+        end
     end
     set(Ax, 'YScale', 'log'); box(Ax, 'on'); grid(Ax, 'on');
     xlabel(Ax, 'Median Magnitude', 'Interpreter', 'none');
@@ -507,24 +618,76 @@ function drawAngularPanel(Ax, QName, DataByQ, Im, Args, CentralCrops)
     CropsToUse = D.CropsAnalyzed{Im};
     if isempty(CropsToUse); return; end
 
-    CropCmap = lines(numel(CropsToUse));
-    if Args.ShowDots
-        plotCropDots(Ax, CropsToUse, D.PerCrop{Im}, Args, CropCmap, ...
-            CentralCrops, Args.CentralColor, Args.EdgeColor);
-        if Args.ColorByCrop && Args.ShowLegend
-            addCropLegend(Ax, CropsToUse, D.PerCrop{Im}, CropCmap);
+    if ~isempty(Args.SplitField)
+        drawSplitPanel(Ax, D, Im, Args);
+    else
+        CropCmap = lines(numel(CropsToUse));
+        if Args.ShowDots
+            plotCropDots(Ax, CropsToUse, D.PerCrop{Im}, Args, CropCmap, ...
+                CentralCrops, Args.CentralColor, Args.EdgeColor);
+            if Args.ColorByCrop && Args.ShowLegend
+                addCropLegend(Ax, CropsToUse, D.PerCrop{Im}, CropCmap);
+            end
         end
-    end
-    if Args.ShowTrend && ~strcmp(Args.OverlayTrend, 'none') && ~isempty(D.AllMed{Im})
-        TrendFun = str2func(['nan' Args.OverlayTrend]);
-        drawTrend(Ax, D.AllMed{Im}, D.AllStd{Im}, ...
-            Args.TrendBinWidth, TrendFun, '-', [0 0 0], 2, Args.ShowStdBand);
+        if Args.ShowTrend && ~strcmp(Args.OverlayTrend, 'none') && ~isempty(D.AllMed{Im})
+            TrendFun = str2func(['nan' Args.OverlayTrend]);
+            drawTrend(Ax, D.AllMed{Im}, D.AllStd{Im}, ...
+                Args.TrendBinWidth, TrendFun, '-', [0 0 0], 2, Args.ShowStdBand);
+        end
     end
     set(Ax, 'YScale', 'log'); box(Ax, 'on'); grid(Ax, 'on');
     xlabel(Ax, sprintf('Median %s', D.RefMag), 'Interpreter', 'none');
     ylabel(Ax, 'Std [arcsec]', 'Interpreter', 'none');
     xlim(Ax, [9 22]);
     title(Ax, QName, 'Interpreter', 'none');
+end
+
+% =========================================================================
+function drawSplitPanel(Ax, D, Im, Args)
+    % Overplot two source populations split by Args.SplitField, each with
+    % its own binned-median trend. Used in place of the per-crop dots when
+    % SplitField is set.
+    Med = D.AllMed{Im};
+    Std = D.AllStd{Im};
+    Grp = D.AllGroup{Im};                 % logical, true = flagged
+    if numel(Grp) ~= numel(Med)
+        % SplitField absent from MS.Data - degrade to one population.
+        warning('plotPhotStability:NoSplitField', ...
+            'SplitField "%s" not found in MS.Data; drawing one group.', ...
+            Args.SplitField);
+        Grp = false(size(Med));
+    end
+    Grp = logical(Grp);
+    Fin = isfinite(Med) & isfinite(Std);   % N counts the plotted (finite) medians
+
+    ColF = Args.SplitColors(1,:);
+    ColO = Args.SplitColors(2,:);
+
+    % "other" drawn first (behind), flagged on top
+    plot(Ax, Med(~Grp), Std(~Grp), '.', 'Color', [ColO 0.5], ...
+        'MarkerSize', Args.MarkerSize, ...
+        'DisplayName', sprintf('%s (N=%d)', Args.SplitLabels{2}, nnz(~Grp & Fin)));
+    plot(Ax, Med(Grp),  Std(Grp),  '.', 'Color', [ColF 0.5], ...
+        'MarkerSize', Args.MarkerSize, ...
+        'DisplayName', sprintf('%s (N=%d)', Args.SplitLabels{1}, nnz(Grp & Fin)));
+
+    if Args.ShowTrend && ~strcmp(Args.OverlayTrend, 'none')
+        To = binnedTrend(Med(~Grp), Std(~Grp), 'BinWidth', Args.TrendBinWidth, ...
+            'Range', [9 22], 'Stat', Args.OverlayTrend, 'MinCount', 5);
+        if ~isempty(To.X)
+            plot(Ax, To.X, To.Val, '-', 'Color', ColO*0.7, 'LineWidth', 2.5, ...
+                'DisplayName', sprintf('%s median', Args.SplitLabels{2}));
+        end
+        Tf = binnedTrend(Med(Grp), Std(Grp), 'BinWidth', Args.TrendBinWidth, ...
+            'Range', [9 22], 'Stat', Args.OverlayTrend, 'MinCount', 5);
+        if ~isempty(Tf.X)
+            plot(Ax, Tf.X, Tf.Val, '-', 'Color', ColF*0.7, 'LineWidth', 2.5, ...
+                'DisplayName', sprintf('%s median', Args.SplitLabels{1}));
+        end
+    end
+    if Args.ShowLegend
+        legend(Ax, 'Location', 'best');
+    end
 end
 
 % =========================================================================

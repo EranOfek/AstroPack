@@ -133,24 +133,9 @@ function Result = plotHeaderScatter(DataPath, Args)
         VisitDirs = string(DataPath);
         Nvisits   = 1;
     else
-        if Args.Recursive
-            Listing = dir(fullfile(char(DataPath), '**', Args.VisitPattern));
-        else
-            Listing = dir(fullfile(char(DataPath), Args.VisitPattern));
-        end
-        Listing = Listing([Listing.isdir] & ~startsWith({Listing.name}, '.'));
-        if isempty(Listing)
-            ScopeStr = char(DataPath);
-            if Args.Recursive; ScopeStr = [ScopeStr ' (recursive)']; end
-            error('plotHeaderScatter:NoVisits', ...
-                'No subdirectories matching "%s" found under %s', ...
-                Args.VisitPattern, ScopeStr);
-        end
-        Nvisits = numel(Listing);
-        VisitDirs = strings(1, Nvisits);
-        for I = 1:Nvisits
-            VisitDirs(I) = string(fullfile(Listing(I).folder, Listing(I).name));
-        end
+        VisitDirs = string(discoverVisits(char(DataPath), ...
+            'VisitGlob', Args.VisitPattern, 'Recursive', Args.Recursive));
+        Nvisits = numel(VisitDirs);
     end
     if Args.Verbose
         fprintf('plotHeaderScatter: %d visit dirs, FileType=%s, %s vs %s\n', ...

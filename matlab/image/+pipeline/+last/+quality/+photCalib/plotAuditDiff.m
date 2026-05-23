@@ -235,18 +235,8 @@ function C = buildCohorts(Names, Masks)
 end
 
 % =========================================================================
-function m = safeMedian(v); if isempty(v); m = NaN; else; m = median(v); end; end
-
-% =========================================================================
-function d = cliffsDelta(a, b)
-    a = a(:); b = b(:);
-    if isempty(a) || isempty(b); d = NaN; return; end
-    R = tiedrank([a; b]);
-    Ra = sum(R(1:numel(a)));
-    n_a = numel(a); n_b = numel(b);
-    U = Ra - n_a * (n_a + 1) / 2;
-    d = 2 * U / (n_a * n_b) - 1;
-end
+% (safeMedian / cliffsDelta locals removed - stats now go through the
+% twoSampleStats private helper.)
 
 % =========================================================================
 function printStats(Stats)

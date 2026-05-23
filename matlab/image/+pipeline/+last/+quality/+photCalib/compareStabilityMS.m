@@ -11,14 +11,11 @@ function compareStabilityMS(MSList, Labels, Args)
     %              quantities (RA / Dec) std is rescaled to arcsec and
     %              for RA additionally multiplied by cos(median Dec).
     %
-    % Input  : - MSList cell. Each entry may be any of:
-    %              (a) a 1xNcrop MatchedSources array (direct loadVisit
-    %                  output)
-    %              (b) a cell of MatchedSources (one per crop)
-    %              (c) a legacy mode-keyed struct MS.(Mode){crop} = MS
-    %                  (e.g. returned by matchPhotEpochs /
-    %                  batchPhotStability).
-    %            All entries are normalised internally to shape (c).
+    % Input  : - MSList cell. Each entry may be either:
+    %              (a) a 1xNcrop MatchedSources array (direct loadVisit /
+    %                  loadMergedMat output), or
+    %              (b) a cell of MatchedSources (one per crop).
+    %            All entries are normalised internally to shape (b).
     %          - Labels cell of legend labels, one per MSList entry.
     %                    * ...,key,val,...
     %                      'Quantities' - Cell of column names to plot.
@@ -40,8 +37,6 @@ function compareStabilityMS(MSList, Labels, Args)
     %                      'AngularQuantities' - Names treated as angular
     %                                     (std rescaled to arcsec).
     %                                     Default {'RA','Dec'}.
-    %                      'Mode'       - Mode field in each MS to use.
-    %                                     Default 'percrop'.
     %                      'RefMag'     - X-axis ref mag for angular
     %                                     quantities. Default
     %                                     'MAG_APER_3'.
@@ -405,7 +400,6 @@ function compareStabilityMS(MSList, Labels, Args)
                                       'MAG_AB_PSF','MAG_AB_APER_3'}
         Args.QuantitiesPerSet cell = {}
         Args.AngularQuantities cell = {'RA','Dec'}
-        Args.Mode             (1,:) char = 'percrop'
         Args.RefMag           (1,:) char = 'MAG_APER_3'
         Args.BinWidth         (1,1) double = 0.5
         Args.MinEpochs        (1,1) double = 2
@@ -453,21 +447,19 @@ function compareStabilityMS(MSList, Labels, Args)
         end
     end
 
-    % Normalise each entry in MSList. Accepted shapes per element:
-    %   (1) MatchedSources array     (e.g. direct from loadVisit; 1xNcrop)
-    %   (2) cell of MatchedSources   (e.g. {Ms_crop1, Ms_crop2, ...})
-    %   (3) mode-keyed struct        (legacy: MS.(Mode){crop} = MS)
-    % After this block every entry is shape (3) keyed by Args.Mode.
+    % Normalise each entry in MSList to a 1xNcrop cell of MatchedSources.
+    %   (1) MatchedSources array     -> num2cell
+    %   (2) cell of MatchedSources   -> kept as-is
     for K = 1:numel(MSList)
         M = MSList{K};
         if isa(M, 'MatchedSources')
-            MSList{K} = struct(Args.Mode, {num2cell(M(:).')});
+            MSList{K} = num2cell(M(:).');
         elseif iscell(M)
-            MSList{K} = struct(Args.Mode, {M(:).'});
-        elseif ~isstruct(M)
+            MSList{K} = M(:).';
+        else
             error('compareStabilityMS:BadInput', ...
-                ['MSList{%d} must be a MatchedSources array, a cell of ', ...
-                 'MatchedSources, or a mode-keyed struct.'], K);
+                ['MSList{%d} must be a MatchedSources array or a cell ', ...
+                 'of MatchedSources.'], K);
         end
     end
 
@@ -672,12 +664,13 @@ function ensureMinTicks(Ax, N)
 end
 
 % =========================================================================
-function [Med, Std] = collectMedStd(MS, Q, IsAng, Args, AIcrops)
-    % Pool per-source (median, std) of column Q across all crops of MS.(Mode).
+function [Med, Std] = collectMedStd(CCell, Q, IsAng, Args, AIcrops)
+    % Pool per-source (median, std) of column Q across all crops in CCell
+    % (a 1xNcrop cell of MatchedSources, as produced by the normalisation
+    % step at the top of compareStabilityMS).
     if nargin < 5; AIcrops = []; end
     Med = []; Std = [];
-    if ~isstruct(MS) || ~isfield(MS, Args.Mode); return; end
-    CCell = MS.(Args.Mode);
+    if ~iscell(CCell); return; end
     for Ic = 1:numel(CCell)
         Msi = CCell{Ic};
         if isempty(Msi) || ~isfield(Msi.Data, Q); continue; end

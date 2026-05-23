@@ -53,7 +53,7 @@ function Report = compareMasksPipelines(OldPath, NewPath, Args)
     arguments
         OldPath
         NewPath
-        Args.FileType          = 'sci_proc';
+        Args.FileType          = 'sci_coadd';
         Args.EdgeOffset        = 5;
         Args.MaxDetailsPerFile = 1000000;
         Args.FieldId           = '';
