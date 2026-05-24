@@ -4152,26 +4152,35 @@ classdef MatchedSources < Component
                             CleanAxisX = AxisX(Args.UseFlag);
                             CleanAxisY = AxisY(Args.UseFlag);
                         end
-                    
-                        if ~isempty(Args.BinSize)
-                            B = timeSeries.bin.binning([CleanAxisX(:), CleanAxisY(:)], Args.BinSize, [NaN NaN], {'MidBin', @median, @std, @numel});
-                            %if Args.DivideErrBySqrtN
-                            %    plot.errorxy([B(:,1), B(:,2), B(:,3)./sqrt(B(:,4))],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
-                            %else
-                            %    plot.errorxy([B(:,1), B(:,2), B(:,3)],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
-                            %end                
-                        end
-        
-                        B = B(B(:,1)<Args.MaxMag & B(:,2)>1e-4,:);
                         
-                        if size(B,1)>=Args.MinNbin
-                            [Result(Iobj).MinRMS, Ib] = min(B(:,2));
-                            Result(Iobj).MagMinRMS = B(Ib,1);
-                            Result(Iobj).B = B;
-            
-                            if ~isempty(Args.MagInterpEdges)
-                                Result(Iobj).InterpB = [Args.MagInterpEdges(:), interp1(B(:,1),B(:,2), Args.MagInterpEdges(:), 'linear','extrap')];
+                        if ~all(isnan(CleanAxisX)) || ~all(isnan(CleanAxisY))
+
+                            if ~isempty(Args.BinSize)
+                                B = timeSeries.bin.binning([CleanAxisX(:), CleanAxisY(:)], Args.BinSize, [NaN NaN], {'MidBin', @median, @std, @numel});
+                                %if Args.DivideErrBySqrtN
+                                %    plot.errorxy([B(:,1), B(:,2), B(:,3)./sqrt(B(:,4))],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
+                                %else
+                                %    plot.errorxy([B(:,1), B(:,2), B(:,3)],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
+                                %end
                             end
+
+                            B = B(B(:,1)<Args.MaxMag & B(:,2)>1e-4,:);
+
+                            if size(B,1)>=Args.MinNbin
+                                [Result(Iobj).MinRMS, Ib] = min(B(:,2));
+                                Result(Iobj).MagMinRMS = B(Ib,1);
+                                Result(Iobj).B = B;
+
+                                if ~isempty(Args.MagInterpEdges)
+                                    Result(Iobj).InterpB = [Args.MagInterpEdges(:), interp1(B(:,1),B(:,2), Args.MagInterpEdges(:), 'linear','extrap')];
+                                end
+                            end
+
+                        else
+                            Result(Iobj).MinRMS    = NaN;
+                            Result(Iobj).MagMinRMS = NaN;
+                            Result(Iobj).B         = NaN;
+                            Result(Iobj).InterpB   = NaN;
                         end
                     end
                 end
