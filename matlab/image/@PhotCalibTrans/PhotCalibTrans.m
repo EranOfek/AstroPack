@@ -2716,7 +2716,10 @@ classdef PhotCalibTrans < Component
             %                         Error formula: MagErr = 1.086 * FluxErr
             %                         (FLUXERR is the relative flux uncertainty FluxErr/Flux).
             %                         Requires FLUXERR_<suffix> columns in catalog.
-            %                         Column naming: <prefix><suffix>_ERR.
+            %                         Column naming: leading 'MAG_' of the
+            %                         calibrated mag column name is replaced
+            %                         with 'MAGERR_' (e.g. MAG_AB_APER_3 ->
+            %                         MAGERR_AB_APER_3, MAG_PSF -> MAGERR_PSF).
             %            'PropagateCalibratedErr' - Propagate calibrated magnitude
             %                         errors. Default is false. Not yet implemented.
             % Output : - AstroCatalog with added calibrated magnitude columns.
@@ -2726,7 +2729,10 @@ classdef PhotCalibTrans < Component
             %                     FLUX_APER_3 -> MAG_AB_APER_3). If MagColPrefix
             %                     is 'MAG_', the calibrated mags overwrite the
             %                     instrumental MAG_<suffix> columns in place.
-            %                     If AddMagErr=true, also: <prefix><suffix>_ERR.
+            %                     If AddMagErr=true, also: MAGERR_<rest> where
+            %                     <rest> is the calibrated mag column name with
+            %                     its leading 'MAG_' stripped (e.g.
+            %                     MAG_AB_APER_3 -> MAGERR_AB_APER_3).
             % Author : D. Kovaleva (Jan 2026)
             % Example: Cat = PC.addMag(Cat);
             %          Cat = PC.addMag(Cat, 'FluxColNames', {'FLUX_APER_3', 'FLUX_PSF'});
@@ -2735,8 +2741,9 @@ classdef PhotCalibTrans < Component
             % Description: Creates new columns with calibrated magnitudes from flux measurements.
             %              Formula: MAG = -2.5*log10(FLUX/ExpTime_eff) + ZP
             %              For each FLUX_<suffix> column, creates MAG_<System>_<suffix> column.
-            %              If AddMagErr=true, also creates MAG_<System>_<suffix>_ERR column
-            %              with error = 1.086 * FLUXERR_<suffix> / FLUX_<suffix>.
+            %              If AddMagErr=true, also creates MAGERR_<System>_<suffix>
+            %              column with error = 1.086 * FLUXERR_<suffix>
+            %              (FLUXERR is the relative flux uncertainty).
             %              Preserves original flux columns.
             %              Applies position-dependent corrections if available.
 
@@ -2875,7 +2882,9 @@ classdef PhotCalibTrans < Component
                     % Derive corresponding flux error column name
                     % e.g., FLUX_APER_3 -> FLUXERR_APER_3
                     FluxErrColName = strrep(FluxColName, 'FLUX_', 'FLUXERR_');
-                    MagErrColName = [NewMagColName, '_ERR'];
+                    % Naming: leading 'MAG_' of NewMagColName -> 'MAGERR_'
+                    % (e.g. MAG_AB_APER_3 -> MAGERR_AB_APER_3, MAG_PSF -> MAGERR_PSF).
+                    MagErrColName = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
 
                     if ismember(FluxErrColName, AllColNames)
                         FluxErr = Tab.(FluxErrColName);
@@ -4151,8 +4160,10 @@ classdef PhotCalibTrans < Component
                                 FluxColNames = AllColNames(IsFlux);
                                 for I = 1:numel(FluxColNames)
                                     NewMagColName = strrep(FluxColNames{I}, 'FLUX_', MagPrefix);
+                                    % Err naming: leading 'MAG_' -> 'MAGERR_'
+                                    MagErrColName = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
                                     CatObj = CatObj.insertCol(NaNcol, Inf, {NewMagColName});
-                                    CatObj = CatObj.insertCol(NaNcol, Inf, {[NewMagColName, '_ERR']});
+                                    CatObj = CatObj.insertCol(NaNcol, Inf, {MagErrColName});
                                 end
                             end
                             if isa(AIie, 'AstroImage')
@@ -4272,13 +4283,18 @@ classdef PhotCalibTrans < Component
                                 CatObj = CatObj.insertCol(Mag, Inf, {NewMagColName});
 
                                 FluxErrCol = strrep(FluxColNames{I}, 'FLUX_', 'FLUXERR_');
-                                MagErrCol  = [NewMagColName, '_ERR'];
+                                % Err naming: leading 'MAG_' of NewMagColName -> 'MAGERR_'
+                                % (e.g. MAG_AB_APER_3 -> MAGERR_AB_APER_3).
+                                MagErrCol  = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
                                 FluxErrIdx = find(strcmp(AllColNames, FluxErrCol), 1);
                                 if ~isempty(FluxErrIdx)
                                     FluxErr = CatObj.Catalog(:, FluxErrIdx);
+                                    % FLUXERR is the relative flux uncertainty
+                                    % (dF/F per LAST source extractor), so
+                                    % MagErr = 1.086 * FLUXERR — no extra /Flux.
                                     MagErr = nan(Nrows, 1);
                                     ValidFlux = Flux_col > 0 & isfinite(Flux_col) & isfinite(FluxErr);
-                                    MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux) ./ Flux_col(ValidFlux);
+                                    MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux);
                                     CatObj = CatObj.insertCol(MagErr, Inf, {MagErrCol});
                                 else
                                     MagErrFallback = strrep(FluxColNames{I}, 'FLUX_', 'MAGERR_');
@@ -4556,8 +4572,10 @@ function DeltaZP = computeDeltaZPfromMS(MS, Nepoch, FluxField, FluxErrField, Ref
         elseif HasFluxErr
             Valid = ValidMask(Ie, :);
             DM = DiffMag(Ie, Valid);
-            MagErr = 1.086 * sqrt((FluxErr(Ie, Valid) ./ Flux(Ie, Valid)).^2 + ...
-                                  (FluxErrRef(Valid) ./ FluxRef(Valid)).^2);
+            % FLUXERR is already the relative flux uncertainty (dF/F),
+            % so the per-DiffMag error is 1.086 * sqrt(eF^2 + eF_ref^2)
+            % with no extra /Flux divisions.
+            MagErr = 1.086 * sqrt(FluxErr(Ie, Valid).^2 + FluxErrRef(Valid).^2);
             DeltaZP(Ie) = tools.math.stat.wmedian(DM(:), MagErr(:), 1);
         else
             DeltaZP(Ie) = median(DiffMag(Ie, ValidMask(Ie, :)), 'omitnan');
