@@ -2877,27 +2877,34 @@ classdef PhotCalibTrans < Component
                 % Insert magnitude column into catalog
                 CatObj = CatObj.insertCol(Mag, Inf, {NewMagColName});
 
-                % Add magnitude error column if requested AND FLUXERR exists
+                % Add magnitude error column if requested. Two error sources
+                % accepted: FLUXERR_<suffix> (preferred), or (for FLUX_PSF
+                % specifically) SN via MagErr = 1.086 / SN. If neither is
+                % present, no MAGERR column is written.
                 if Args.AddMagErr
-                    % Derive corresponding flux error column name
-                    % e.g., FLUX_APER_3 -> FLUXERR_APER_3
                     FluxErrColName = strrep(FluxColName, 'FLUX_', 'FLUXERR_');
+                    MagErrColName  = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
+
                     if ismember(FluxErrColName, AllColNames)
-                        % Naming: leading 'MAG_' of NewMagColName -> 'MAGERR_'
-                        MagErrColName = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
-                        FluxErr = Tab.(FluxErrColName);
-                        % FLUXERR is the relative flux uncertainty (FluxErr/Flux),
-                        % so MagErr = 1.086 * FluxErr (first-order error propagation).
-                        MagErr = nan(Nrows, 1);
+                        % FLUXERR is the relative flux uncertainty (dF/F per
+                        % LAST extractor), so MagErr = 1.086 * FLUXERR.
+                        FluxErr   = Tab.(FluxErrColName);
+                        MagErr    = nan(Nrows, 1);
                         ValidFlux = Flux > 0 & ~isnan(Flux) & ~isnan(FluxErr);
                         MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux);
                         CatObj = CatObj.insertCol(MagErr, Inf, {MagErrColName});
+                    elseif strcmp(FluxColName, 'FLUX_PSF') && ismember('SN', AllColNames)
+                        % PSF special case: LAST has no FLUXERR_PSF; derive
+                        % from SN as MagErr = 1.086 / SN.
+                        SN     = Tab.SN;
+                        MagErr = nan(Nrows, 1);
+                        ValidSN = isfinite(SN) & SN > 0;
+                        MagErr(ValidSN) = 1.086 ./ SN(ValidSN);
+                        CatObj = CatObj.insertCol(MagErr, Inf, {MagErrColName});
                     else
-                        % No FLUXERR column (e.g. FLUX_PSF in LAST) — skip the
-                        % MAGERR insertion entirely. Calibrated mag is still written.
                         Obj.msgLog(LogLevel.Debug, ...
-                            'addMag: %s not in catalog - no MAGERR for %s', ...
-                            FluxErrColName, NewMagColName);
+                            'addMag: no FLUXERR/SN error source for %s - no %s written', ...
+                            FluxColName, MagErrColName);
                     end
                 end
 
@@ -4162,11 +4169,13 @@ classdef PhotCalibTrans < Component
                                 for I = 1:numel(FluxColNames)
                                     NewMagColName = strrep(FluxColNames{I}, 'FLUX_', MagPrefix);
                                     CatObj = CatObj.insertCol(NaNcol, Inf, {NewMagColName});
-                                    % MAGERR written only if matching FLUXERR
-                                    % exists in input (e.g. FLUX_PSF has no
-                                    % FLUXERR_PSF in LAST — no MAGERR_<...>_PSF).
+                                    % MAGERR written when an error source
+                                    % exists: FLUXERR_<suffix> or, for
+                                    % FLUX_PSF, SN.
                                     FluxErrCol = strrep(FluxColNames{I}, 'FLUX_', 'FLUXERR_');
-                                    if any(strcmp(AllColNames, FluxErrCol))
+                                    HasErrSource = any(strcmp(AllColNames, FluxErrCol)) || ...
+                                        (strcmp(FluxColNames{I}, 'FLUX_PSF') && any(strcmp(AllColNames, 'SN')));
+                                    if HasErrSource
                                         MagErrColName = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
                                         CatObj = CatObj.insertCol(NaNcol, Inf, {MagErrColName});
                                     end
@@ -4293,23 +4302,33 @@ classdef PhotCalibTrans < Component
 
                                 CatObj = CatObj.insertCol(Mag, Inf, {NewMagColName});
 
-                                % MAGERR only when FLUXERR is available; no
-                                % fallback to instrumental MAGERR, no NaN-fill.
-                                % (e.g. FLUX_PSF in LAST has no FLUXERR_PSF, so
-                                % no MAGERR_<...>_PSF column is produced.)
+                                % MAGERR source priority:
+                                %   (1) FLUXERR_<suffix> -> MagErr = 1.086 * FLUXERR
+                                %   (2) FLUX_PSF special case -> SN column,
+                                %       MagErr = 1.086 / SN.
+                                % If neither is available, no MAGERR column is
+                                % written (no NaN-fill, no instrumental copy).
                                 FluxErrCol = strrep(FluxColNames{I}, 'FLUX_', 'FLUXERR_');
                                 FluxErrIdx = find(strcmp(AllColNames, FluxErrCol), 1);
                                 if ~isempty(FluxErrIdx)
-                                    % Err naming: leading 'MAG_' -> 'MAGERR_'
                                     MagErrCol = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
                                     FluxErr = CatObj.Catalog(:, FluxErrIdx);
                                     % FLUXERR is the relative flux uncertainty
-                                    % (dF/F per LAST source extractor), so
-                                    % MagErr = 1.086 * FLUXERR — no extra /Flux.
+                                    % (dF/F per LAST source extractor).
                                     MagErr = nan(Nrows, 1);
                                     ValidFlux = Flux_col > 0 & isfinite(Flux_col) & isfinite(FluxErr);
                                     MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux);
                                     CatObj = CatObj.insertCol(MagErr, Inf, {MagErrCol});
+                                elseif strcmp(FluxColNames{I}, 'FLUX_PSF')
+                                    SnIdx = find(strcmp(AllColNames, 'SN'), 1);
+                                    if ~isempty(SnIdx)
+                                        MagErrCol = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
+                                        SN = CatObj.Catalog(:, SnIdx);
+                                        MagErr = nan(Nrows, 1);
+                                        ValidSN = isfinite(SN) & SN > 0;
+                                        MagErr(ValidSN) = 1.086 ./ SN(ValidSN);
+                                        CatObj = CatObj.insertCol(MagErr, Inf, {MagErrCol});
+                                    end
                                 end
                             end
                         end
