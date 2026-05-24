@@ -379,11 +379,15 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                     for iCol = 1:length(FluxCols)
                         NewMagColName = strrep(FluxCols{iCol}, 'FLUX_', MagPrefix);
                         CatObj = CatObj.insertCol(NaNcol, Inf, {NewMagColName});
-                        % Add NaN-filled magnitude error column for uniformity.
-                        % Naming: leading 'MAG_' of NewMagColName -> 'MAGERR_'
-                        % (e.g. MAG_AB_APER_3 -> MAGERR_AB_APER_3, MAG_PSF -> MAGERR_PSF).
-                        MagErrColName = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
-                        CatObj = CatObj.insertCol(NaNcol, Inf, {MagErrColName});
+                        % MAGERR column written only when the matching
+                        % FLUXERR_<suffix> exists in the source catalog
+                        % (e.g. FLUX_PSF has no FLUXERR_PSF in LAST, so no
+                        % MAGERR_<...>_PSF is created).
+                        FluxErrColName = strrep(FluxCols{iCol}, 'FLUX_', 'FLUXERR_');
+                        if ismember(FluxErrColName, ColNames)
+                            MagErrColName = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
+                            CatObj = CatObj.insertCol(NaNcol, Inf, {MagErrColName});
+                        end
                     end
                 end
 
