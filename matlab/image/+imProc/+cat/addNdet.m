@@ -33,8 +33,10 @@ function AI = addNdet(AI, MS, Args)
             MSCat.Catalog  = [median(RAMatched, 1, 'omitnan').', median(DecMatched, 1, 'omitnan').', double(N_DET)];
             MSCat.ColNames = {'RA', 'Dec', 'N_DET'};
             MSCat.ColUnits = {'deg', 'deg', ''};
-            
-            ResInd         = imProc.match.matchInd(AI(Isub), MSCat, 'Sort2', true, 'SearchRadius', Args.SearchRadius);
+            [MSCat, SI]    = MSCat.sortrows('Dec');
+            N_DET          = N_DET(SI);
+
+            ResInd         = imProc.match.matchInd(AI(Isub), MSCat, 'Sort2', false, 'SearchRadius', Args.SearchRadius);
             Flag           = ~isnan(ResInd.Ind);
             NdetCol        = nan(numel(ResInd.Ind), 1);
             NdetCol(Flag)  = N_DET(ResInd.Ind(Flag));

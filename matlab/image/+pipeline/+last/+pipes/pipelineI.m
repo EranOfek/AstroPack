@@ -99,7 +99,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.Cat_addAirMassArgs          = {};
         Args.AddSrcAM                    = true;
         
-        Args.Ndet                        = true;
+        Args.AddNdet                     = true;
         Args.NdetSearchRadius            = 1.5;  % [arcsec]
 
 
@@ -573,7 +573,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             end
             %toc
             if Args.AddNdet
-                Coadd = imProc.cat.addNdet(Coadd, MS, 'NotIsEmptyImages',NotIsEmptyCoadd,SearchRadius',Args.NdetSearchRadius);
+                Coadd = imProc.cat.addNdet(Coadd, MS, 'NotIsEmptyImages',NotIsEmptyCoadd,'SearchRadius',Args.NdetSearchRadius);
             end
         
             % photometric calibration

@@ -205,7 +205,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         
         Args.CatName                            = 'GAIADR3';  % or AstroCatalog
         Args.CatOrigin                          = 'catsHTM';
-        Args.CatRadius                          = 1400;
+        Args.CatRadius                          = 1600;
         Args.CatRadiusUnits                     = 'arcsec'
         Args.Con                                = {};
         

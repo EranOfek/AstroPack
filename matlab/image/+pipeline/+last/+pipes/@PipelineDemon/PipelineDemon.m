@@ -2639,6 +2639,8 @@ classdef PipelineDemon < Component
             Nf = FN_Str.nFiles;
             FN_Str.FileType = repmat("mat",Nf,1);
             FN_Str.Product  = repmat("Streaks",Nf,1);
+            FN_Str.CropID   = 0;
+            FN_Str.Counter  = 0;
             imProc.io.saveProductStreak(AllSI, FN_Str);
 
             % Coadd
