@@ -8,8 +8,12 @@ function [Cube, RoundX, RoundY, X, Y] = image2cutouts(Image, X, Y, MaxRadius, Ar
     %          - Vector of Y coordinates.
     %          - Radius of cutouts. Default is 12.
     %          * ...,key,val,...
-    %            'mexCutout' - use imUtil.cut.mex.mex_cutout.m (true) or
+    %            'mexCutout' - use mex function (true) or
     %                   imUtil.cut.find_within_radius_mat (false).
+    %                   Default is true.
+    %            'mexNew' - If mexCutout is true.
+    %                   Use imUtil.cut.mex.imageCutouts (true)
+    %                   or old imUtil.cut.mex.mex_cutout (false).
     %                   Default is true.
     %            'Circle' - If true, then will set all points outside the radius to NaN.
     %                   Default is false.
@@ -28,6 +32,7 @@ function [Cube, RoundX, RoundY, X, Y] = image2cutouts(Image, X, Y, MaxRadius, Ar
         Y
         MaxRadius                 = 12;
         Args.mexCutout            = true;
+        Args.mexNew               = true;
         Args.Circle               = false;
     end
     
@@ -37,12 +42,18 @@ function [Cube, RoundX, RoundY, X, Y] = image2cutouts(Image, X, Y, MaxRadius, Ar
         % Image is 2D - build a cube of 2D stamps
         %Args.mexCutout = false; %% FFU - BUG
         if Args.mexCutout
-            % Note that the second argument must be a double
-            [Cube] = imUtil.cut.mex.mex_cutout(Image,double([X, Y]),MaxRadius.*2+1);
-            %Cube   = imUtil.cut.mex.imageCutouts(Image, X, Y, MaxRadius.2+1, 0);
-            Cube   = squeeze(Cube);
+            if Args.mexNew
+                [Cube] = imUtil.cut.mex.imageCutouts(Image, X, Y, MaxRadius.*2+1, 0);
+                
+            else
+                % Note that the second argument must be a double
+                [Cube] = imUtil.cut.mex.mex_cutout(Image,double([X, Y]),MaxRadius.*2+1);
+                %Cube   = imUtil.cut.mex.imageCutouts(Image, X, Y, MaxRadius.2+1, 0);
+                Cube   = squeeze(Cube);
+            end
             RoundX = round(X);
             RoundY = round(Y);
+        
         else
             [Cube, RoundX, RoundY] = imUtil.cut.find_within_radius_mat(Image, X, Y, MaxRadius, Args.Circle);
         end

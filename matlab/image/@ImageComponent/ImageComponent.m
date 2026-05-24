@@ -1676,6 +1676,10 @@ classdef ImageComponent < Component
             %            'PadVal' - padding value for cutouts near edge or
             %                   without circular shifts.
             %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.
+            %            'mexNew' - If mexCutout is true.
+            %                   Use imUtil.cut.mex.imageCutouts (true)
+            %                   or old imUtil.cut.mex.mex_cutout (false).
+            %                   Default is true.
             %            'IsCircle' - If true then will pad each cutout
             %                   with NaN outside the HalfSize radius.
             %                   Default is false.
@@ -1705,6 +1709,7 @@ classdef ImageComponent < Component
                 Args.HalfSize               = 8;
                 Args.PadVal                 = NaN;
                 Args.CutAlgo                = 'mex';  % 'mex' | 'wmat'
+                Args.newMex                 = true;
                 Args.IsCircle               = false;
                 Args.Shift(1,1) logical     = false;
                 Args.ShiftAlgo              = 'lanczos3';  % 'fft' | 'lanczos2' | 'lanczos3' | ...
@@ -1719,8 +1724,12 @@ classdef ImageComponent < Component
             Iobj = 1;
             switch lower(Args.CutAlgo)
                 case 'mex'
-                    [CutoutCube] = imUtil.cut.mex.mex_cutout(Obj(Iobj).(Args.DataProp), RoundXY, CutoutSize, Args.PadVal, 0, 0, 1);
-                    CutoutCube   = squeeze(CutoutCube);
+                    if Args.newMex
+                        [CutoutCube] = imUtil.cut.mex.imageCutouts(Obj(Iobj).(Args.DataProp), RoundXY(:,1), RoundXY(:,2), CutoutSize, Args.PadVal);
+                    else
+                        [CutoutCube] = imUtil.cut.mex.mex_cutout(Obj(Iobj).(Args.DataProp), RoundXY, CutoutSize, Args.PadVal, 0, 0, 1);
+                        CutoutCube   = squeeze(CutoutCube);
+                    end
                 case 'wmat'
                     [CutoutCube] = imUtil.cut.find_within_radius_mat(Obj(Iobj).(Args.DataProp), RoundXY(:,1), RoundXY(:,2), Args.HalfSize, Args.IsCircle);
                 otherwise

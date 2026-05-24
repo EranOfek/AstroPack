@@ -1,12 +1,13 @@
 function AI = addNdet(AI, MS, Args)
-    % add to catalog the number of single-exposure detections (Ndet) derived from a matched source object 
+    % Add to catalog the number of single-exposure detections (Ndet) derived from a matched source object 
     %     Optional detailed description
-    % Input  : - an array of AstroImages (e.g., Coadd)
-    %          - the relevant MatchedSource object 
+    % Input  : - An array of AstroImages (e.g., Coadd)
+    %          - The relevant MatchedSource object 
     %          * ...,key,val,... 
-    %          'NotIsEmptyImages' - an optional pre-calculated flag on empty-image input objects 
-    %          'SearchRadius' - (arsec) a search readius for the objects to be consdiered matched 
-    % Output : - 
+    %            'NotIsEmptyImages' - an optional pre-calculated flag on empty-image input objects 
+    %            'SearchRadius' - (arsec) a search readius for the objects to be consdiered matched 
+    % Output : - The updated array of AstroImage, with the Ndet column
+    %            added to the catalogs.
     % Author : A.M. Krassilchtchikov (2026 May) 
     % Example: tic;imProc.cat.addNdet(Coadd,MS,'NotIsEmptyImages',NotIsEmptyCoadd);toc
 

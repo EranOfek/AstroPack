@@ -99,6 +99,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.Cat_addAirMassArgs          = {};
         Args.AddSrcAM                    = true;
         
+        Args.Ndet                        = true;
+        Args.NdetSearchRadius            = 1.5;  % [arcsec]
+
 
         Args.Logger                      = [];
         %Args.Sa
@@ -569,7 +572,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 Coadd(NotIsEmptyCoadd) = imProc.cat.addAirMass(Coadd(NotIsEmptyCoadd), 'JD',JD, Args.Cat_addAirMassArgs{:});
             end
             %toc
-        
+            if Args.AddNdet
+                Coadd = imProc.cat.addNdet(Coadd, MS, 'NotIsEmptyImages',NotIsEmptyCoadd,SearchRadius',Args.NdetSearchRadius);
+            end
         
             % photometric calibration
             %ProcessingStep = 961;
