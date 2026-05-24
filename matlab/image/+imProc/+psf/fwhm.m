@@ -54,9 +54,9 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
     %                   or the new mex version (false).
     %                   Default is true.
     % Output : - The AstroImage object with the populated PSF object and
-    %            FWHM and additional meta data in the header [arcsec].
+    %            FWHE and additional meta data in the header [arcsec].
     %            Also populated are the MED_A [pix], MED_B [pix], MED_TH [deg]
-    %          - FWHM_C.
+    %          - FWHM_C (i.e., FWHE).
     %          - A structure array with all the derived parameters
     % Author : Eran Ofek (Jan 2022)
     % Example: imProc.psf.fwhm(Coadd);
@@ -66,7 +66,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
         Args.Scale                  = [];  % if empty - figure out from WCS
         Args.DefScale               = 1; % if WCS is empty, then use this scale.
         Args.AddToHeader            = true;
-        Args.HeaderKey              = 'FWHM';
+        Args.HeaderKey              = {'FWHE','FWHM'};
         Args.Populate               = false;
 
         Args.AddMorphology          = false;
@@ -115,8 +115,8 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
                 Scale = Args.Scale;
             end
             [FWHM_C, FWHM_H] = Obj(Iobj).PSFData.fwhm('curveArgs',{'Step',1}, 'UseLegacy',Args.UseLegacy);  % see fix in issue #585
-            FWHM_C = FWHM_C.*Scale;
-            FWHM_H = FWHM_H.*Scale;
+            FWHM_C = FWHM_C.*Scale; % FWHE
+            FWHM_H = FWHM_H.*Scale; % FWHM
         else
             % NO PSF - put NaNs in header
             FWHM_C = NaN;
@@ -128,7 +128,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
 
         % add FWHM to header
         if Args.AddToHeader
-            Obj(Iobj).HeaderData.replaceVal(Args.HeaderKey, FWHM_C, 'AddPos',Args.AddPos);
+            Obj(Iobj).HeaderData.replaceVal(Args.HeaderKey, [FWHM_C, FWHM_H], 'AddPos',Args.AddPos);
         
 
             % fit Gaussian to PSF

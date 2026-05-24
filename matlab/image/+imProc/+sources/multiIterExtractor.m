@@ -400,6 +400,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.AddSrcStat2Header         = true;
         Args.KeyNsrc                   = 'NSTARS';
         Args.KeyMedChi2Dof             = 'M_CHI2D';  % median of CHI2DOF over all stars 
+        
 
         Args.SearchStreaks                 = false;
         Args.detectStreaksLSDArgs          = {};
@@ -410,7 +411,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.BS_Prof  = @(Par, R) 10.^polyval(Par,log10(R));
         Args.BS_PL    = 1.5;
         Args.MethodBS = 'prof';
-        
+        Args.BS_ColFlux = 'FLUX_APER_4';
+
         Args.UseMex                        = false;
 
 
@@ -809,7 +811,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             CK = imUtil.kernel2.circ(ceil(2.*FWHM(Iobj)),[15 15]);
                             CK = CK./max(CK,[],'all');
                             EdgesVarMap = repmat(single(0), SizeImage);
-                            ColData = AI.CatData.getCol({'XPEAK','YPEAK','FLUX_APER_3'});
+                            ColData = AI.CatData.getCol({'XPEAK','YPEAK',Args.BS_ColFlux});
                             LinIndex = imUtil.image.sub2ind_fast(SizeImage,ColData(:,2), ColData(:,1));
                             %LinIndex = imUtil.image.mex.sub2ind_mex(SizeImage, ColData(:,2), ColData(:,1));
                             %LinIndex = sub2ind(SizeImage, AI.CatData.Table.YPEAK, AI.CatData.Table.XPEAK);

@@ -24,8 +24,8 @@ function Output = processRequest(Input)
         if action == "health"
             Output.status  = 'ok';            
             Output.message = 'health: OK';        
-        elseif action == "filter_lvc"
-            Output = processFilterLvc(Input);
+        elseif action == "filter_lvk"
+            Output = processFilterLvk(Input);
         else
             Output.message = sprintf('processRequest: unknown action: %s', action);
             Output.status = 'error';
@@ -39,7 +39,7 @@ end
 
 % ===========================================================================
 
-function Output = processFilterLvc(Input)
+function Output = processFilterLvk(Input)
     % Process AlertsFilter request for ULTRASAT
 
     % Get the logger
@@ -59,25 +59,24 @@ function Output = processFilterLvc(Input)
             error('AlertsFilter:AlertFileNotFound', 'Alert file not found: %s', alertFile);
         end
 
-        logger.info("Loading LVC alert file: %s", alertFile);
-        alert = ultrasat.alerts_filters.lvc.models.LvcParsedAlert.loadFromJsonFile(alertFile);
+        logger.info("Loading LVK alert file: %s", alertFile);
+        alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert.loadFromJsonFile(alertFile);
 
         % Set the alert in the input
         Input.alert = alert;        
 
         % Process the alert        
-        result = ultrasat.alerts_filters.lvc.filters.lvc_filter(Input, logger);
+        result = ultrasat.alerts_filters.lvk.filters.lvk_filter(Input, logger);
         
         % Return the result
         Output = struct;
         Output.status  = 'ok';
-        Output.message = 'processFilterLvc: OK';        
+        Output.message = 'processFilterLvk: OK';        
         Output.result = result.toStruct();
     catch ex
         Output = struct;
         Output.status  = 'error';
-        Output.message = sprintf("processFilterLvc: error: identifier='%s', message='%s'", ex.identifier, ex.message);
+        Output.message = sprintf("processFilterLvk: error: identifier='%s', message='%s'", ex.identifier, ex.message);
         io.msgLog(LogLevel.Error, Output.message);
     end
 end
-

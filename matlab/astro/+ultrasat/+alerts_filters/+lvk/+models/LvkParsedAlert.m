@@ -1,14 +1,14 @@
 %==========================================================================
 % Project     : ULTRASAT Incoming Alerts Filter
-% File        : +ultrasat/+alerts_filters/+lvc/+models/LvcParsedAlert.m
+% File        : +ultrasat/+alerts_filters/+lvk/+models/LvkParsedAlert.m
 % Author      : Chen Tishler
 % Created     : 09/02/2026
 % Updated     : 12/05/2026
 % Description : Class to hold parsed Incoming Alerts alert data
 %==========================================================================
 
-classdef LvcParsedAlert
-    % Parsed representation of an LVC alert, normalized by the parser
+classdef LvkParsedAlert
+    % Parsed representation of an Lvk alert, normalized by the parser
     % and shared between Python SOC and MATLAB filters.
 
     properties
@@ -52,18 +52,18 @@ classdef LvcParsedAlert
 
 
     methods  % Constructor
-        function obj = LvcParsedAlert(varargin)
+        function obj = LvkParsedAlert(varargin)
             % Constructor with name=value pairs
             %
             % Example:
-            %   alert = ultrasat.alerts.models.LvcParsedAlert( ...
+            %   alert = ultrasat.alerts.models.LvkParsedAlert( ...
             %       "alert_id", "G12345", ...
             %       "prob_bns", 0.7, ...
             %       "far_per_year", 2.5 ...
             %   );
 
             if mod(nargin, 2) ~= 0
-                error("LvcParsedAlert:Constructor", "Arguments must be name/value pairs");
+                error("LvkParsedAlert:Constructor", "Arguments must be name/value pairs");
             end
 
             % Set properties from name/value pairs
@@ -74,7 +74,7 @@ classdef LvcParsedAlert
                 if isprop(obj, name)
                     obj.(name) = value;
                 else
-                    error("LvcParsedAlert:InvalidProperty", "Unknown property: %s", name);
+                    error("LvkParsedAlert:InvalidProperty", "Unknown property: %s", name);
                 end
             end
         end
@@ -120,7 +120,7 @@ classdef LvcParsedAlert
             % Returns:
             %   obj - Object
             data = jsondecode(jsonString);
-            obj = ultrasat.alerts_filters.lvc.models.LvcParsedAlert.fromStruct(data);
+            obj = ultrasat.alerts_filters.lvk.models.LvkParsedAlert.fromStruct(data);
         end
 
 
@@ -133,7 +133,7 @@ classdef LvcParsedAlert
             % Returns:
             %   obj - Object
             txt = fileread(file_path);
-            obj = ultrasat.alerts_filters.lvc.models.LvcParsedAlert.fromJsonString(txt);
+            obj = ultrasat.alerts_filters.lvk.models.LvkParsedAlert.fromJsonString(txt);
         end
 
 
@@ -145,7 +145,7 @@ classdef LvcParsedAlert
             %
             % Returns:
             %   obj - Object
-            obj = ultrasat.alerts_filters.lvc.models.LvcParsedAlert();
+            obj = ultrasat.alerts_filters.lvk.models.LvkParsedAlert();
 
             obj.alert_id = getfield(s, "alert_id", "");
             obj.superevent_id = getfield(s, "superevent_id", "");

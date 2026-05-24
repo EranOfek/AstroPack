@@ -10,17 +10,17 @@
 function debug_processRequest()
     fprintf('--- Debugging processRequest ---\n');
 
-    debug_processFilterLvc();
+    debug_processFilterLvk();
 end
 
 % -------------------------------------------------------------------------
 
-function debug_processFilterLvc()
+function debug_processFilterLvk()
     
     try
     
     catch ME
-        fprintf('\nException in debug_processFilterLvc: %s\n', ME.message);
+        fprintf('\nException in debug_processFilterLvk: %s\n', ME.message);
         for s = 1:length(ME.stack)
             fprintf('  at %s (line %d)\n', ME.stack(s).name, ME.stack(s).line);
         end
@@ -28,4 +28,3 @@ function debug_processFilterLvc()
     
     fprintf('=== TEST COMPLETE ===\n\n');
 end
-

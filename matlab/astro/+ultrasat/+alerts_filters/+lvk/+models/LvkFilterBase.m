@@ -1,14 +1,14 @@
 %==========================================================================
 % Project     : ULTRASAT Incoming Alerts Filter
-% File        : +ultrasat/+alerts_filters/+lvc/+models/LvcFilterBase.m
+% File        : +ultrasat/+alerts_filters/+lvk/+models/LvkFilterBase.m
 % Author      : Chen Tishler
 % Created     : 12/05/2026
 % Updated     : 12/05/2026
 % Description : Base class for Incoming Alerts Filter implementations.
 %==========================================================================
 
-classdef LvcFilterBase
-    % Base class for LVC filter implementations.
+classdef LvkFilterBase
+    % Base class for Lvk filter implementations.
 
     properties
 
@@ -16,7 +16,7 @@ classdef LvcFilterBase
 
 
     methods
-        function obj = LvcFilterBase()
+        function obj = LvkFilterBase()
             % Constructor
         end
     end

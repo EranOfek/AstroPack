@@ -31,7 +31,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                               'FLUX_APER', 'FLUXERR_APER',...
                                               'MAG_APER', 'MAGERR_APER',...
                                               'FLUX_XYPEAK', 'FORCED'};
-        Args.AperRadius                    = [2, 4, 6];
+        Args.AperRadius                    = [3, 5, 6, 7];
         Args.Annulus                       = [10 12];
         Args.MomentsMethod                 = 'mex'; %'mex'; %'mex';  %'legacy'|'mex'
         Args.AperPhotMethod                = 'simple'; % 'interp';  % 'simple'|'interp'
@@ -57,7 +57,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                               'X1','Y1','X2','Y2','XY',...
                                               'SN','SN_1','SN_2',...
                                               'MAG_PSF','MAGERR_PSF','PSF_CHI2DOF','FLUX_PSF',...
+                                              'MAG_APER_2','MAGERR_APER_2',...
                                               'MAG_APER_3','MAGERR_APER_3',...
+                                              'MAG_APER_4','MAGERR_APER_4',...
                                               'FLUX_APER_3',...
                                               'FLAGS',...
                                               'BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS',...
@@ -97,6 +99,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.Cat_addAirMassArgs          = {};
         Args.AddSrcAM                    = true;
         
+        Args.AddNdet                     = true;
+        Args.NdetSearchRadius            = 1.5;  % [arcsec]
+
 
         Args.Logger                      = [];
         %Args.Sa
@@ -567,7 +572,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 Coadd(NotIsEmptyCoadd) = imProc.cat.addAirMass(Coadd(NotIsEmptyCoadd), 'JD',JD, Args.Cat_addAirMassArgs{:});
             end
             %toc
-        
+            if Args.AddNdet
+                Coadd = imProc.cat.addNdet(Coadd, MS, 'NotIsEmptyImages',NotIsEmptyCoadd,'SearchRadius',Args.NdetSearchRadius);
+            end
         
             % photometric calibration
             %ProcessingStep = 961;

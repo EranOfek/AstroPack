@@ -1,18 +1,18 @@
 %==========================================================================
 % Project     : ULTRASAT Incoming Alerts Filter
-% File        : +ultrasat/+alerts_filters/+lvc/+debug/debug_LvcFilterCriteria.m
+% File        : +ultrasat/+alerts_filters/+lvk/+debug/debug_LvkFilterCriteria.m
 % Author      : Chen Tishler
 % Created     : 09/02/2026
 % Updated     : 12/05/2026
-% Description : Debug script for ultrasat.alerts_filters.lvc.models.LvcFilterCriteria
+% Description : Debug script for ultrasat.alerts_filters.lvk.models.LvkFilterCriteria
 %
-% Run by: ultrasat.alerts_filters.lvc.debug.debug_LvcFilterCriteria()
+% Run by: ultrasat.alerts_filters.lvk.debug.debug_LvkFilterCriteria()
 %==========================================================================
 
-function debug_LvcFilterCriteria()
-    % Debug script for LvcFilterCriteria: constructors, serialization, file I/O.
+function debug_LvkFilterCriteria()
+    % Debug script for LvkFilterCriteria: constructors, serialization, file I/O.
 
-    fprintf('--- Debugging LvcFilterCriteria ---\n');
+    fprintf('--- Debugging LvkFilterCriteria ---\n');
 
     debugDefaultConstructor();
     debugNameValueConstructor();
@@ -27,7 +27,7 @@ end
 
 function debugDefaultConstructor()
     fprintf('\n--- Default constructor ---\n');
-    crit = ultrasat.alerts_filters.lvc.models.LvcFilterCriteria();
+    crit = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria();
     disp(crit);
     fprintf('bns_min=%.2f, far_max=%.2f\n', crit.bns_min, crit.far_max);
 end
@@ -36,7 +36,7 @@ end
 
 function debugNameValueConstructor()
     fprintf('\n--- Name/value constructor ---\n');
-    crit = ultrasat.alerts_filters.lvc.models.LvcFilterCriteria("bns_min", 0.5, "far_max", 10);
+    crit = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria("bns_min", 0.5, "far_max", 10);
     fprintf('bns_min=%.2f, far_max=%.2f\n', crit.bns_min, crit.far_max);
     disp(crit);
 end
@@ -45,7 +45,7 @@ end
 
 function debugToJsonString()
     fprintf('\n--- toJsonString ---\n');
-    crit = ultrasat.alerts_filters.lvc.models.LvcFilterCriteria("bns_min", 0.3, "terrestrial_max", 0.1);
+    crit = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria("bns_min", 0.3, "terrestrial_max", 0.1);
     result = crit.toJsonString();
     disp(result);
 end
@@ -55,7 +55,7 @@ end
 function debugFromJsonStringRoundTrip()
     fprintf('\n--- fromJsonString round-trip ---\n');
     jsonStr = '{"bns_min":0.4,"far_max":5.0,"handle_bursts":false}';
-    crit = ultrasat.alerts_filters.lvc.models.LvcFilterCriteria.fromJsonString(jsonStr);
+    crit = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria.fromJsonString(jsonStr);
     fprintf('After fromJsonString: bns_min=%.2f, far_max=%.2f\n', crit.bns_min, crit.far_max);
     back = crit.toJsonString();
     fprintf('Back to JSON (excerpt): %s\n', back);
@@ -66,7 +66,7 @@ end
 function debugFromStruct()
     fprintf('\n--- fromStruct (subset of fields) ---\n');
     s = struct("bns_min", 0.6, "far_max", 20.0);
-    crit = ultrasat.alerts_filters.lvc.models.LvcFilterCriteria.fromStruct(s);
+    crit = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria.fromStruct(s);
     fprintf('bns_min=%.2f (set), far_max=%.2f (set), bbh_min=%.2f (default)\n', ...
         crit.bns_min, crit.far_max, crit.bbh_min);
 end
@@ -75,10 +75,10 @@ end
 
 function debugSaveLoadJsonFile()
     fprintf('\n--- saveToJsonFile / loadFromJsonFile ---\n');
-    crit = ultrasat.alerts_filters.lvc.models.LvcFilterCriteria("bns_min", 0.7, "nsbh_min", 0.2);
+    crit = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria("bns_min", 0.7, "nsbh_min", 0.2);
     filePath = [tempname(), '.json'];
     crit.saveToJsonFile(filePath);
-    loaded = ultrasat.alerts_filters.lvc.models.LvcFilterCriteria.loadFromJsonFile(filePath);
+    loaded = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria.loadFromJsonFile(filePath);
     delete(filePath);
     assert(crit.bns_min == loaded.bns_min && crit.nsbh_min == loaded.nsbh_min, ...
         'Save/load round-trip failed');
@@ -92,7 +92,7 @@ function debugErrorCases()
 
     % Odd number of constructor args
     try
-        ultrasat.alerts_filters.lvc.models.LvcFilterCriteria("bns_min", 0.5, "far_max");
+        ultrasat.alerts_filters.lvk.models.LvkFilterCriteria("bns_min", 0.5, "far_max");
         fprintf('ERROR: expected error for odd args\n');
     catch e
         fprintf('Expected error (odd args): %s\n', e.message);
@@ -100,7 +100,7 @@ function debugErrorCases()
 
     % Unknown property
     try
-        ultrasat.alerts_filters.lvc.models.LvcFilterCriteria("bns_min", 0.5, "unknown_prop", 1);
+        ultrasat.alerts_filters.lvk.models.LvkFilterCriteria("bns_min", 0.5, "unknown_prop", 1);
         fprintf('ERROR: expected error for unknown property\n');
     catch e
         fprintf('Expected error (unknown property): %s\n', e.message);

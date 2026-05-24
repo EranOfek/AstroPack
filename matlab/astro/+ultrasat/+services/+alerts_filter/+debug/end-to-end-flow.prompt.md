@@ -19,13 +19,13 @@ The architecture is intentionally separated into:
    ultrasat.services.alerts_filter
 
 2. Scientific filtering logic:
-   ultrasat.alerts_filters.lvc
+   ultrasat.alerts_filters.lvk
 
 3. Scientific filter implementations:
-   ultrasat.alerts_filters.lvc.filters
+   ultrasat.alerts_filters.lvk.filters
 
 Scientists should ONLY modify:
-    +alerts_filters/+lvc/+filters
+    +alerts_filters/+lvk/+filters
 
 Scientists should NEVER touch:
     +services
@@ -37,14 +37,14 @@ Scientists should NEVER touch:
 The MATLAB service receives a SMALL JSON request file.
 The request references an alert JSON file on disk.
 The actual alert is loaded into:
-    ultrasat.alerts_filters.lvc.models.LvcParsedAlert
+    ultrasat.alerts_filters.lvk.models.LvkParsedAlert
 
 The service then calls:
-    ultrasat.alerts_filters.lvc.filters.lvc_filter()
+    ultrasat.alerts_filters.lvk.filters.lvk_filter()
 
 which dispatches internally to a concrete filter implementation such as:
-    lvc_filter_simple
-    lvc_filter_with_criteria
+    lvk_filter_simple
+    lvk_filter_with_criteria
 
 ==============================================================================
 IMPORTANT DESIGN RULES
@@ -63,20 +63,20 @@ Do NOT embed huge alert blobs into the IPC request JSON.
 2. FILTERS WORK ON MODELS
 
 The scientific filters should work on:
-    LvcParsedAlert
+    LvkParsedAlert
 NOT on raw JSON.
 
 3. SERVICE LAYER LOADS FILES
 
-processFilterLvc() should:
+processFilterLvk() should:
 - validate request
-- load LvcParsedAlert from alert_file
+- load LvkParsedAlert from alert_file
 - attach alert model into Input.alert
-- call lvc_filter()
+- call lvk_filter()
 
 4. FILTER ENTRY POINT
 
-lvc_filter() is the scientific dispatcher/orchestrator.
+lvk_filter() is the scientific dispatcher/orchestrator.
 It chooses which actual filter implementation to run.
 
 5. KEEP EVERYTHING SIMPLE
@@ -97,7 +97,7 @@ Current goals:
 
 1. Create a complete debug scenario folder:
 
-    C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+services\+alerts_filter\+debug\end_to_end_lvc_simple\
+    C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+services\+alerts_filter\+debug\end_to_end_lvk_simple\
 
 (If you think a slightly better name is more consistent, you may improve it.)
 
@@ -108,7 +108,7 @@ All files must remain for inspection and debugging.
 
 4. Create:
 - input request JSON
-- sample LVC alert JSON
+- sample LVK alert JSON
 - output result JSON
 
 5. Fix all MATLAB code as needed.
@@ -116,10 +116,10 @@ All files must remain for inspection and debugging.
 6. Make the full flow work:
 - request file loaded
 - alert file loaded
-- LvcParsedAlert created
-- lvc_filter called
-- lvc_filter_simple called
-- LvcFilterResult returned
+- LvkParsedAlert created
+- lvk_filter called
+- lvk_filter_simple called
+- LvkFilterResult returned
 - output JSON written
 
 ==============================================================================
@@ -131,7 +131,7 @@ The request JSON should be minimal and contain references only.
 Example concept:
 
 {
-  "action": "filter_lvc",
+  "action": "filter_lvk",
   "filter": "simple",
   "alert_file": "C:/.../sample_alert.json"
 }
@@ -142,15 +142,15 @@ EXPECTED FLOW
 
 processRequest()
     ->
-processFilterLvc()
+processFilterLvk()
     ->
-LvcParsedAlert.loadFromJsonFile()
+LvkParsedAlert.loadFromJsonFile()
     ->
-lvc_filter()
+lvk_filter()
     ->
-lvc_filter_simple()
+lvk_filter_simple()
     ->
-LvcFilterResult
+LvkFilterResult
     ->
 output JSON written
 
@@ -158,17 +158,17 @@ output JSON written
 IMPORTANT CODE REQUIREMENTS
 ==============================================================================
 
-1. Fix lvc_filter.m
+1. Fix lvk_filter.m
 
 It should:
 - receive Input struct
 - extract Input.alert
 - dispatch to:
-    lvc_filter_simple
-    lvc_filter_with_criteria
+    lvk_filter_simple
+    lvk_filter_with_criteria
 
 2. Fully migrate filters to use:
-    LvcFilterResult
+    LvkFilterResult
 
 Remove remaining old struct-based logic.
 

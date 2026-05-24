@@ -18,7 +18,7 @@
     "far_hz": 1.0e-5,
     "far_per_year": 315.0,
   
-    "skymap_path": "/data/lvc/2026/05/12/S2026efgh/skymap.fits",
+    "skymap_path": "/data/lvk/2026/05/12/S2026efgh/skymap.fits",
     "localization_area_deg2": 1200.0,
   
     "instruments": ["H1", "L1"],

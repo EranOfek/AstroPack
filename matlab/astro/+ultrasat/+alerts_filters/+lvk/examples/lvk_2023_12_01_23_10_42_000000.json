@@ -1,0 +1,32 @@
+{
+    "alert_type": "INITIAL",
+    "time_created": "2023-12-01T23:10:42Z",
+    "superevent_id": "MS231201w",
+    "urls": {
+        "gracedb": "https://gracedb.ligo.org/superevents/MS231201w/view/"
+    },
+    "event": {
+        "significant": true,
+        "time": "2023-12-01T22:58:58.659Z",
+        "far": 9.110699364861297e-14,
+        "instruments": ["H1", "L1"],
+        "group": "CBC",
+        "pipeline": "gstlal",
+        "search": "MDC",
+        "properties": {
+            "HasNS": 1.0,
+            "HasRemnant": 1.0,
+            "HasMassGap": 0.0
+        },
+        "classification": {
+            "BNS": 0.9999929348874336,
+            "NSBH": 0.0,
+            "BBH": 0.0,
+            "Terrestrial": 7.065112566409928e-06
+        },
+        "duration": null,
+        "central_frequency": null,
+        "skymap": "..."
+    },
+    "external_coinc": null
+}

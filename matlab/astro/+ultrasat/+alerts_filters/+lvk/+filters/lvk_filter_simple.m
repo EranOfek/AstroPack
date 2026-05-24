@@ -1,27 +1,27 @@
 %==========================================================================
 % Project     : ULTRASAT Incoming Alerts Filter
-% File        : +ultrasat/+alerts_filters/+lvc/+filters/lvc_filter_simple.m
+% File        : +ultrasat/+alerts_filters/+lvk/+filters/lvk_filter_simple.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
 % Updated     : 12/05/2026
-% Description : Simple LVC filter implementation.
+% Description : Simple LVK filter implementation.
 %==========================================================================
 
-function result = lvc_filter_simple(alert, logger)
-    % Simple LVC filter implementation
+function result = lvk_filter_simple(alert, logger)
+    % Simple LVK filter implementation
     %
     % Parameters:
-    %   alert - LvcParsedAlert object
+    %   alert - LvkParsedAlert object
     %   logger - Logger object
     %
     % Returns:
-    %   result - LvcFilterResult
+    %   result - LvkFilterResult
 
     % Log the alert
     logger.info("Filtering alert: %s", alert.alert_id);
 
     % Initialize result
-    result = ultrasat.alerts_filters.lvc.models.LvcFilterResult();
+    result = ultrasat.alerts_filters.lvk.models.LvkFilterResult();
 
     % Add BNS contribution
     if hasFiniteScalar(alert.prob_bns)

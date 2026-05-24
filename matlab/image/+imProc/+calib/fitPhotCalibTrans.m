@@ -101,7 +101,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         Args.DiffCalibProps cell = {'New', 'Ref'}
         Args.AddMag logical = true
         Args.MagSystem char = 'AB'
-        Args.MagColPrefix = 'MAG_AB_'   % Prefix for calibrated MAG column names ('MAG_' drops _AB, overwrites instrumental MAG_*)
+        Args.MagColPrefix = 'MAG_'   % Prefix for calibrated MAG column names ('MAG_' drops _AB, overwrites instrumental MAG_*)
         Args.FluxColName = 'FLUX_APER_3'
         Args.AddZP logical = true
         Args.UpdateHeader logical = true
@@ -379,8 +379,17 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                     for iCol = 1:length(FluxCols)
                         NewMagColName = strrep(FluxCols{iCol}, 'FLUX_', MagPrefix);
                         CatObj = CatObj.insertCol(NaNcol, Inf, {NewMagColName});
-                        % Add NaN-filled magnitude error column for uniformity
-                        CatObj = CatObj.insertCol(NaNcol, Inf, {[NewMagColName, '_ERR']});
+                        % MAGERR column written only when an error source is
+                        % available: matching FLUXERR_<suffix>, or (for
+                        % FLUX_PSF specifically) the SN column from which
+                        % MagErr = 1.086 / SN.
+                        FluxErrColName = strrep(FluxCols{iCol}, 'FLUX_', 'FLUXERR_');
+                        HasErrSource = ismember(FluxErrColName, ColNames) || ...
+                            (strcmp(FluxCols{iCol}, 'FLUX_PSF') && ismember('SN', ColNames));
+                        if HasErrSource
+                            MagErrColName = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
+                            CatObj = CatObj.insertCol(NaNcol, Inf, {MagErrColName});
+                        end
                     end
                 end
 
