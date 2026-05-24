@@ -1,13 +1,13 @@
 %==========================================================================
 % Project     : ULTRASAT Incoming Alerts Filter
-% File        : +ultrasat/+alerts_filters/+lvc/+models/LvcFilterResult.m
+% File        : +ultrasat/+alerts_filters/+lvk/+models/LvkFilterResult.m
 % Author      : Chen Tishler
 % Created     : 12/05/2026
 % Updated     : 12/05/2026
 % Description : Class to hold the result of an Incoming Alerts Filter.
 %==========================================================================
 
-classdef LvcFilterResult
+classdef LvkFilterResult
     properties
         score           double = 0.0;
         class_probs     struct = struct();
@@ -17,7 +17,7 @@ classdef LvcFilterResult
 
 
     methods
-        function obj = LvcFilterResult()
+        function obj = LvkFilterResult()
             % Constructor
         end
 

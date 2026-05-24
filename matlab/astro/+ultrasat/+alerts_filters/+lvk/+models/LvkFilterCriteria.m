@@ -1,13 +1,13 @@
 %==========================================================================
 % Project     : ULTRASAT Incoming Alerts Filter
-% File        : +ultrasat/+alerts_filters/+lvc/+models/LvcFilterCriteria.m
+% File        : +ultrasat/+alerts_filters/+lvk/+models/LvkFilterCriteria.m
 % Author      : Chen Tishler
 % Created     : 09/02/2026
 % Updated     : 12/05/2026  
 % Description : Class to hold Incoming Alerts Filter criteria
 %==========================================================================
 
-classdef LvcFilterCriteria
+classdef LvkFilterCriteria
     properties
         % ---------------------------- Acceptance
         bns_min double = 0.0
@@ -36,14 +36,14 @@ classdef LvcFilterCriteria
     % =================================================================
 
     methods  % Constructor
-        function obj = LvcFilterCriteria(varargin)
+        function obj = LvkFilterCriteria(varargin)
             % Constructor with name=value pairs
             %
             % Example:
-            %   crit = LvcFilterCriteria("bns_min", 0.5, "far_max", 10);
+            %   crit = LvkFilterCriteria("bns_min", 0.5, "far_max", 10);
             %
             if mod(nargin, 2) ~= 0
-                error("LvcFilterCriteria:Constructor", "Arguments must be name/value pairs");
+                error("LvkFilterCriteria:Constructor", "Arguments must be name/value pairs");
             end
 
             % Set properties from name/value pairs
@@ -54,7 +54,7 @@ classdef LvcFilterCriteria
                 if isprop(obj, name)
                     obj.(name) = value;
                 else
-                    error("LvcFilterCriteria:InvalidProperty", "Unknown property: %s", name);
+                    error("LvkFilterCriteria:InvalidProperty", "Unknown property: %s", name);
                 end
             end
         end
@@ -97,7 +97,7 @@ classdef LvcFilterCriteria
             % Returns:
             %   obj - Object
             data = jsondecode(jsonString);
-            obj = ultrasat.alerts_filters.lvc.models.LvcFilterCriteria.fromStruct(data);
+            obj = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria.fromStruct(data);
         end
 
 
@@ -110,7 +110,7 @@ classdef LvcFilterCriteria
             % Returns:
             %   obj - Object
             result = fileread(file_path);
-            obj = ultrasat.alerts_filters.lvc.models.LvcFilterCriteria.fromJsonString(result);
+            obj = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria.fromJsonString(result);
         end
 
 
@@ -122,7 +122,7 @@ classdef LvcFilterCriteria
             %
             % Returns:
             %   obj - Object
-            obj = ultrasat.alerts_filters.lvc.models.LvcFilterCriteria();
+            obj = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria();
 
             obj.bns_min = getfield(s, "bns_min", 0.0);
             obj.nsbh_min = getfield(s, "nsbh_min", 0.0);

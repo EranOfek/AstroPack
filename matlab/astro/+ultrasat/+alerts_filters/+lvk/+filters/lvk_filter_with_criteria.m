@@ -1,28 +1,28 @@
 %==========================================================================
 % Project     : ULTRASAT Incoming Alerts Filter
-% File        : +ultrasat/+alerts_filters/+lvc/+filters/lvc_filter_with_criteria.m
+% File        : +ultrasat/+alerts_filters/+lvk/+filters/lvk_filter_with_criteria.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
 % Updated     : 12/05/2026
-% Description : LVC filter with criteria implementation.
+% Description : LVK filter with criteria implementation.
 %==========================================================================
 
-function result = lvc_filter_with_criteria(alert, criteria, logger)
-    % LVC filter with criteria model
+function result = lvk_filter_with_criteria(alert, criteria, logger)
+    % LVK filter with criteria model
     %
     % Parameters:
-    %   alert - LvcParsedAlert object
-    %   criteria - LvcFilterCriteria object
+    %   alert - LvkParsedAlert object
+    %   criteria - LvkFilterCriteria object
     %   logger - Logger object
     %
     % Returns:
-    %   result - LvcFilterResult
+    %   result - LvkFilterResult
 
     % Log the alert
     logger.info("Filtering alert: %s", alert.alert_id);
 
     % Initialize result
-    result = ultrasat.alerts_filters.lvc.models.LvcFilterResult();
+    result = ultrasat.alerts_filters.lvk.models.LvkFilterResult();
     result.class_probs = struct( ...
         "bns", alert.prob_bns, ...
         "nsbh", alert.prob_nsbh, ...

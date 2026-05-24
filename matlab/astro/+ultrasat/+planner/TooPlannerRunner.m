@@ -6,6 +6,10 @@
 % Updated     : 17/05/2026
 % Description : Runs ULTRASAT TOO planner multiple times from one JSON config.
 %==========================================================================
+%
+% @Todo: Need to handle error cases, such as missing ~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_350_rep1.txt
+%        and more, need per-plan error handling and logging, and return status with message
+%
 
 classdef TooPlannerRunner < ultrasat.api.core.Loggable
     % TooPlannerRunner
