@@ -10,13 +10,16 @@ function [Result] = testPipeline(Args)
     %            'RefPath'          - path to reference images, used by PipelineII (def. '/mnt/euclid/last/data/references/v4/')
     %            'StartImage'       - explicit RAW image filename marking the start of the processed range; overrides 'StartTime' when set (def. a representative LAST filename)
     %            'StartTime'        - start time of the processed interval, as a date vector or JD; ignored if 'StartImage' is set (def. empty)
+    %            'CompressedRAW'    - (logical) the input images are compressed 
     %            'TimeInterval'     - length of the processed time interval, in seconds (def. 420)
+    %            'StopWhenDone'     - do not wait for new RAW images to appear, exit after processing the list     
     %            'MinInGroup'       - minimal number of RAW images in 'RAWImageDir' required to start processing (def. 10)
     %            'RegenCalib'       - regenerate the calibration images locally (def. false)
     %            'PipelineVersion'  - one of the following options (def. 'v1'):
     %                   'v1' - new pipeline.
     %                   'v0' - current (production) pipeline.
     %            'UseParfor'        - use MATLAB parallelization; disabling it may help accurate debugging (def. true)
+    %            'Nworkers'         - number of matlab parallel processes (
     %            'DebugMode'        - run extra tests (e.g., DB injection) not required for a production run (def. false)
     %            'RemoveAfterWrite' - remove pipeline product files after they are written to disk; useful for massive tests (def. false)
     % Output : - filled visit directory Args.LocalPath/YYYY/MM/DD/proc/HHMMSSvXX (XX starting with 0)
@@ -24,7 +27,7 @@ function [Result] = testPipeline(Args)
     % Example: RAWImageDir = '/mnt/marvin/LAST.01.01.01/2025/07/07/raw/';
     %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'StartTime',[8 7 2025 01 28 0],'RemoveAfterWrite',true);
     %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'PipelineVersion','v1', 'StartImage','LAST.01.01.01_20250708.003700.313_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz');
-    %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'LocalPath','/Data/test1000/','StopWhenDone',false);
+    %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'LocalPath','/Data/test1000/','StaticRAWDir',true);
     arguments
         Args.LocalPath         = '~/LASTunitTest/';
         Args.RAWImageDir       = [] 
