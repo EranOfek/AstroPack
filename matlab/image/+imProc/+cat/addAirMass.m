@@ -117,7 +117,7 @@ function [Result, AirMass] = addAirMass(AI, Args)
             Cat = AI(Iai).getCatData();
     
             % Calculate AirMass
-            Coo = Cat.getCol(Args.ColCoo).*Conv;  % read RA, Dec and convert to radians
+            Coo = Cat.getColMulti(Args.ColCoo).*Conv;  % read RA, Dec and convert to radians
             AirMass = celestial.coo.airmass(Args.JD(Iai), Coo(:,1), Coo(:,2), Args.GeoPos);
     
             % insert airmass to catalog
