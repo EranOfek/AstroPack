@@ -46,7 +46,7 @@ function [Result] = testPipeline(Args)
         Args.DebugMode         = false % do some tests (e.g., DB injection) not required for a production phase  
         Args.RemoveAfterWrite  = false % an option to remove pipeline product files after they are written to disk, useful for massive tests
         Args.StaticRAWDir      = false % RAWImageDir is a fixed archive: process all visits in order 
-        Args.forcedPhotArgs    = {'MaxIter', 2, 'MaxStep', 0.05}; % forced photometry arguments (PSF photometry)
+        Args.forcedPhotArgs    = {};   % {'MaxIter', 2, 'MaxStep', 0.05}; % forced photometry arguments (PSF photometry)
     end
     
     % if running without explicit arguments, do nothing
