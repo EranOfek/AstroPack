@@ -473,6 +473,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         
             % Add image ID to coadd images: in: ID_PROC
             NotIsEmptyCoadd = ~Coadd.isemptyImage;
+            NotIsEmptyCat   = ~Coadd.isemptyCatalog;
             JD_Coadd = [ResCoadd(NotIsEmptyCoadd).MidMidJD];
             %Ncoadd   = numel(Coadd);
             %CoaddID  = nan(Ncoadd,1);
@@ -569,11 +570,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 951;
             %tic;
             if Args.AddSrcAM
-                Coadd(NotIsEmptyCoadd) = imProc.cat.addAirMass(Coadd(NotIsEmptyCoadd), 'JD',JD, Args.Cat_addAirMassArgs{:});
+                Coadd(NotIsEmptyCat) = imProc.cat.addAirMass(Coadd(NotIsEmptyCat), 'JD',JD, Args.Cat_addAirMassArgs{:});
             end
             %toc
             if Args.AddNdet
-                Coadd = imProc.cat.addNdet(Coadd, MS, 'NotIsEmptyImages',NotIsEmptyCoadd,'SearchRadius',Args.NdetSearchRadius);
+                Coadd(NotIsEmptyCat) = imProc.cat.addNdet(Coadd(NotIsEmptyCat), MS, 'SearchRadius',Args.NdetSearchRadius);
             end
         
             % photometric calibration
@@ -581,7 +582,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %tic;
             for Isub=1:1:Nsub
                 %[AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub));  % 10s for all in loop
-                if NotIsEmptyCoadd(Isub)
+                if NotIsEmptyCat(Isub)
                     [Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub), ...
                         'UpdateMagCols',false, Args.photometricZPArgs{:});  % 2.4s for all in loop
                 end
