@@ -23,6 +23,7 @@
 % Functionality:
 %       AstroImage - Constructor and image reader for AstroImage class
 %       isemptyImage - Check if data images in AstroImage object are empty
+%       isemptyCatalog - Check if the catalog in AstroImage is empty
 %       sizeImage - Return the size of images in AstroImage object.
 %       astroImage2ImageComponent - Convert an AstroImage data into SciImage, BackImage, etc. objects.
 %       astroImage2AstroCatalog - Convert the CataData in AstroImage object into an AstroCatalog object array.
@@ -87,6 +88,7 @@
 % getStructKey - Get multiple  keys from headers in multiple AstroImage and store in a structure array The keyword search can be exact (UseDict=false), or using a keywords dictionary (UseDict=true).
 % imageIO2AstroImage - Convert an ImageIO object into an AstroImage object
 % isImType - Check if header IMTYPE keyword value equal some type
+% isemptyCatalog - Check if the catalog in AstroImage is empty
 % isemptyImage - Check if data images in AstroImage object are empty
 % julday - Return the Julian day for AstroImage object
 % maskSet - Set the value of a bit in a bit mask (Maskdata) in AstroImage
@@ -1033,13 +1035,29 @@ classdef AstroImage < Component
             %            each image element.
             % Author : Eran Ofek (May 2022)
             % Example: AI=AstroImage; AI.isemptyPSF
-           
+
             Nobj = numel(Obj);
             Result = false(size(Obj));
             for Iobj=1:1:Nobj
                 Result(Iobj) = isempty(Obj(Iobj).PSFData.Data);
             end
-            
+
+        end
+
+        function Result = isemptyCatalog(Obj)
+            % Check if the catalog in AstroImage is empty
+            % Input  : - An AstroImage object (multi elements supported).
+            % Output : - An array of logicals indicating if CatData.Catalog
+            %            is empty in each image element.
+            % Author : A.M. Krassilchtchikov (May 2026)
+            % Example: AI=AstroImage; AI.isemptyCatalog
+
+            Nobj = numel(Obj);
+            Result = false(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = isempty(Obj(Iobj).CatData.Catalog);
+            end
+
         end
     
         function Obj = createMask(Obj, Type)
