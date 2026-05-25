@@ -27,7 +27,7 @@ function [MntSummary,Summary,PerMnt] = polarAlignStatus(Args)
     end
 
     ARCSEC_DEG = 3600;
-[]
+
     if isempty(Args.DB)
         Args.DB = db.Db;
         Args.DB.User = 'last_user';
