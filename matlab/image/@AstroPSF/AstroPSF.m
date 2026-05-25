@@ -645,8 +645,12 @@ classdef AstroPSF < Component
                 Args.ReCenter         = false;
             end
             
-            [FWHM,FWHE]=imUtil.psf.fwhmOfStamp(Obj(1).Data, 'ReCenter',Args.ReCenter);
-
+            if ~isempty(Obj(1).Data)
+                [FWHM,FWHE]=imUtil.psf.fwhmOfStamp(Obj(1).Data, 'ReCenter',Args.ReCenter);
+            else
+                FWHM = NaN;
+                FWHE = NaN; 
+            end
             % if Args.UseLegacy
             %     [~, FWHM_CumSum, FWHM_Flux] = curve_of_growth(Obj,'PsfArgs',Args.PsfArgs,Args.curveArgs{:});
             %     FWHM_CumSum = 2.*FWHM_CumSum;
