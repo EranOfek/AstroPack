@@ -396,13 +396,12 @@ function compareStabilityMS(MSList, Labels, Args)
     arguments
         MSList                cell
         Labels                cell
-        Args.Quantities       cell = {'RA','Dec','MAG_PSF','MAG_APER_3', ...
-                                      'MAG_AB_PSF','MAG_AB_APER_3'}
+        Args.Quantities       cell = {'RA','Dec','MAG_PSF','MAG_APER_3'}
         Args.QuantitiesPerSet cell = {}
         Args.AngularQuantities cell = {'RA','Dec'}
         Args.RefMag           (1,:) char = 'MAG_APER_3'
         Args.BinWidth         (1,1) double = 0.5
-        Args.MinEpochs        (1,1) double = 2
+        Args.MinEpochs        (1,1) double = 5
         Args.ShowStdBand      logical = false
         Args.ShowMedianErrorBand logical = false
         Args.ShowLegend       logical = true

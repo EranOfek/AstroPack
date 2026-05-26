@@ -602,10 +602,10 @@ function CalibArgs = predefCalibArgs(Args)
         Args.BadBitNames      = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'}
         Args.AuditCalibrators logical = false   % Toggle step-0 audit (default: keep status quo)
         Args.AuditCatName     = 'GAIADR3'       % Gaia photometric catalog for the audit
-        Args.AuditBPRPExcessFactorMax = 1.3
-        Args.AuditBPRPMax     = 1.5
-        Args.AuditLASTNearestDist = 20          % arcsec
-        Args.AuditLASTDeltaMag = 2              % mag
+        Args.AuditBPRPExcessFactorMax = 1.7
+        Args.AuditBPRPMax     = 2.0
+        Args.AuditLASTNearestDist = 10          % arcsec
+        Args.AuditLASTDeltaMag = 1              % mag
 
         % Weighting
         Args.WeightingMode    = 'spectral'  % 'none', 'spectral', 'flux', 'combined'

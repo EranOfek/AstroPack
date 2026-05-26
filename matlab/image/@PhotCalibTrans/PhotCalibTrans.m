@@ -3826,19 +3826,34 @@ classdef PhotCalibTrans < Component
                 Args.NewFigure logical = true
             end
 
-            if isempty(Obj.TransModel) || isempty(Obj.TransModel.FitResults)
-                error('PhotCalibTrans:plotCalibrators:NoFitResults', 'Fit results not available');
+            if isempty(Obj.TransModel) || isempty(Obj.SourceData)
+                error('PhotCalibTrans:plotCalibrators:NoFitResults', ...
+                    'Fit results not available (TransModel or SourceData is empty)');
+            end
+            % Use the live Table view directly. getCol routes through
+            % AstroTable.ColNames, which caches the original column list
+            % and doesn't see the Residuals/Used/PredictedFlux columns
+            % that calibrate appends to the table-form Catalog.
+            SDTab = Obj.SourceData.Table;
+            SDCols = SDTab.Properties.VariableNames;
+            if ~ismember('Residuals', SDCols) || ~ismember('Flux', SDCols)
+                error('PhotCalibTrans:plotCalibrators:NoFitResults', ...
+                    'SourceData missing Residuals/Flux columns - run calibrate first');
             end
 
-            % Get observed and predicted values from last fit stage
-            LastStage = Obj.TransModel.FitResults(end);
-            Residuals = LastStage.Residual;  % [N x 1]
+            % Read residuals AND fluxes from SourceData so the two are
+            % index-aligned. Restrict to calibrators kept by sigma
+            % clipping (Used==true) when that column is present.
+            Residuals = SDTab.Residuals;
+            Flux_obs  = SDTab.Flux;
+            if ismember('Used', SDCols)
+                UsedMask  = logical(SDTab.Used);
+                Residuals = Residuals(UsedMask);
+                Flux_obs  = Flux_obs(UsedMask);
+            end
 
-            % Get observed fluxes and convert to instrumental magnitudes
-            Flux_obs = Obj.SourceData.getCol('Flux');
-            MagInst_obs = -2.5 * log10(Flux_obs);
-
-            % Predicted instrumental magnitudes
+            MagInst_obs  = -2.5 * log10(Flux_obs);
+            % Predicted instrumental magnitude (Residual = observed - predicted, mag).
             MagInst_pred = MagInst_obs - Residuals;
 
             % Create figure
@@ -3865,16 +3880,20 @@ classdef PhotCalibTrans < Component
             ylabel('Observed Magnitude');
             axis equal tight;
 
-            % Add statistics to title
-            NumCalib = size(Obj.SpecData.Spec, 1);
+            % Add statistics to title. N_used is the calibrator count
+            % AFTER all filtering and sigma clipping (matches the points
+            % being plotted and the DOF denominator). N_initial is the
+            % raw GAIADR3spec match count for context.
+            NumUsed    = numel(MagInst_obs);
+            NumInitial = size(Obj.SpecData.Spec, 1);
             if ~isempty(Obj.TransModel.Chi2) && ~isempty(Obj.TransModel.DOF)
-                title(sprintf('Calibrators: N=%d, RMS=%.4f mag, Chi2/DOF=%.2f/%d=%.2f', ...
-                    NumCalib, Obj.TransModel.RMS, ...
+                title(sprintf('Calibrators: N_{used}=%d / N_{init}=%d, RMS=%.4f mag, Chi^2/DOF=%.2f/%d=%.2f', ...
+                    NumUsed, NumInitial, Obj.TransModel.RMS, ...
                     Obj.TransModel.Chi2, Obj.TransModel.DOF, ...
                     Obj.TransModel.Chi2/Obj.TransModel.DOF));
             else
-                title(sprintf('Calibrators: N=%d, RMS=%.4f mag', ...
-                    NumCalib, Obj.TransModel.RMS));
+                title(sprintf('Calibrators: N_{used}=%d / N_{init}=%d, RMS=%.4f mag', ...
+                    NumUsed, NumInitial, Obj.TransModel.RMS));
             end
 
             % Add legend
@@ -4613,19 +4632,22 @@ function DoubtfulMask = photCalibTransAuditCalibrators(Cat, Tab, AllColNames, Ha
     % Step-0 audit: reject doubtful calibrator candidates.
     % Returns a [Nsources x 1] logical mask, true for sources to reject.
     %
-    % Rejection rule (OR-combined): Gaia BP-RP excess factor exceeds the
-    % cap, OR Gaia BP-RP exceeds the cap, OR the nearest LAST neighbour
-    % (self-excluded by X/Y proximity within 1 px) is closer than the
-    % distance threshold, OR has |delta-mag| below the magnitude
-    % threshold. Caller decides when to invoke; this helper does the work.
+    % Rejection rule (OR-combined, vectorized over the candidates):
+    %   (a) Gaia BPRPExcessFactor > AuditBPRPExcessFactorMax
+    %   (b) Gaia BP-RP            > AuditBPRPMax
+    %   (c) LAST nearest-neighbour distance < AuditLASTNearestDist [arcsec]
+    %   (d) |LAST nearest-neighbour delta-mag| < AuditLASTDeltaMag
+    % Self-excluded by X/Y proximity (within 1 px) when looking up the
+    % nearest LAST source. Caller decides when to invoke.
 
     Nsources = height(Tab);
     DoubtfulMask = false(Nsources, 1);
 
     CandIdx = find(HasMatchMask);
-    if isempty(CandIdx); return; end
+    Ncand   = numel(CandIdx);
+    if Ncand == 0; return; end
 
-    % ---- Gaia photometric audit ----
+    % ---- Gaia photometric audit (vectorized over candidates) ----
     Sub = AstroCatalog;
     Sub.Catalog  = [Tab.RA(CandIdx), Tab.Dec(CandIdx)];
     Sub.ColNames = {'RA', 'Dec'};
@@ -4634,41 +4656,41 @@ function DoubtfulMask = photCalibTransAuditCalibrators(Cat, Tab, AllColNames, Ha
     try
         [~, ~, ResIndA, CatA] = imProc.match.match_catsHTM(Sub, Args.AuditCatName, ...
             'Radius', Args.SearchRadius, 'RadiusUnits', 'arcsec');
-        AuditNear = ResIndA.Obj2_IndInObj1;
+
+        % AuditNear should be length Ncand; if shorter (shouldn't happen),
+        % pad with NaN so per-candidate indexing stays well-defined.
+        AuditNear = nan(Ncand, 1);
+        N1 = min(Ncand, numel(ResIndA.Obj2_IndInObj1));
+        AuditNear(1:N1) = ResIndA.Obj2_IndInObj1(1:N1);
+        ValidGaia = isfinite(AuditNear);
 
         BPRPCol    = findColIdxLocal(CatA.ColNames, {'bp_rp'});
         BPCol      = findColIdxLocal(CatA.ColNames, {'phot_bp_mean_mag','Mag_BP','MagBP'});
         RPCol      = findColIdxLocal(CatA.ColNames, {'phot_rp_mean_mag','Mag_RP','MagRP'});
         BPRPExcCol = findColIdxLocal(CatA.ColNames, {'phot_bp_rp_excess_factor'});
 
-        NumByGaia = 0;
-        for J = 1:numel(CandIdx)
-            if J > numel(AuditNear) || isnan(AuditNear(J)); continue; end
-            Ni = AuditNear(J);
-
+        BPRPv   = nan(Ncand, 1);
+        BPRPExc = nan(Ncand, 1);
+        if any(ValidGaia)
+            NiSel = AuditNear(ValidGaia);
             if BPRPCol > 0
-                BPRPv = double(CatA.Catalog(Ni, BPRPCol));
+                BPRPv(ValidGaia) = double(CatA.Catalog(NiSel, BPRPCol));
             elseif BPCol > 0 && RPCol > 0
-                BPRPv = double(CatA.Catalog(Ni, BPCol)) - double(CatA.Catalog(Ni, RPCol));
-            else
-                BPRPv = NaN;
+                BPRPv(ValidGaia) = double(CatA.Catalog(NiSel, BPCol)) ...
+                                 - double(CatA.Catalog(NiSel, RPCol));
             end
-
             if BPRPExcCol > 0
-                BPRPExc = double(CatA.Catalog(Ni, BPRPExcCol));
-            else
-                BPRPExc = NaN;
-            end
-
-            if (isfinite(BPRPv)   && BPRPv   > Args.AuditBPRPMax) || ...
-               (isfinite(BPRPExc) && BPRPExc > Args.AuditBPRPExcessFactorMax)
-                DoubtfulMask(CandIdx(J)) = true;
-                NumByGaia = NumByGaia + 1;
+                BPRPExc(ValidGaia) = double(CatA.Catalog(NiSel, BPRPExcCol));
             end
         end
+        GaiaReject = (isfinite(BPRPv)   & BPRPv   > Args.AuditBPRPMax) | ...
+                     (isfinite(BPRPExc) & BPRPExc > Args.AuditBPRPExcessFactorMax);
+        DoubtfulMask(CandIdx(GaiaReject)) = true;
+
         if Args.Verbose
             fprintf('    audit Gaia (%s): %d rejected (BPRP>%.2f or excess>%.2f)\n', ...
-                Args.AuditCatName, NumByGaia, Args.AuditBPRPMax, Args.AuditBPRPExcessFactorMax);
+                Args.AuditCatName, sum(GaiaReject), ...
+                Args.AuditBPRPMax, Args.AuditBPRPExcessFactorMax);
         end
     catch ME
         Obj.msgLog(LogLevel.Warning, ...
@@ -4678,39 +4700,46 @@ function DoubtfulMask = photCalibTransAuditCalibrators(Cat, Tab, AllColNames, Ha
         end
     end
 
-    % ---- LAST nearest-neighbour audit ----
+    % ---- LAST nearest-neighbour audit (fully vectorized) ----
     Required = {'RA', 'Dec', 'X', 'Y', Args.MagColName};
     HaveAll = all(ismember(Required, AllColNames));
     if HaveAll
         ArcsecPerRad = (180/pi) * 3600;
-        AllRArad  = Tab.RA  * pi/180;
-        AllDecrad = Tab.Dec * pi/180;
-        AllX = Tab.X;
-        AllY = Tab.Y;
-        AllMag = Tab.(Args.MagColName);
+        AllRArad  = double(Tab.RA)  * pi/180;
+        AllDecrad = double(Tab.Dec) * pi/180;
+        AllX   = double(Tab.X);
+        AllY   = double(Tab.Y);
+        AllMag = double(Tab.(Args.MagColName));
 
-        NumByLast = 0;
-        for J = 1:numel(CandIdx)
-            I = CandIdx(J);
-            DistAs = celestial.coo.sphere_dist_fast( ...
-                AllRArad(I), AllDecrad(I), AllRArad, AllDecrad) * ArcsecPerRad;
-            % Self-exclusion: within 1 px of (X(I), Y(I))
-            D2 = (AllX - AllX(I)).^2 + (AllY - AllY(I)).^2;
-            DistAs(D2 < 1) = Inf;
+        % [Ncand x Nsources] pairwise distance via implicit broadcasting:
+        % column vectors for candidates, row vectors for all sources.
+        RAcand  = AllRArad(CandIdx);          % [Ncand x 1]
+        Deccand = AllDecrad(CandIdx);
+        Xcand   = AllX(CandIdx);
+        Ycand   = AllY(CandIdx);
+        Magcand = AllMag(CandIdx);
 
-            [NearDist, NearIdx] = min(DistAs);
-            if isfinite(NearDist) && isfinite(AllMag(NearIdx)) && isfinite(AllMag(I))
-                DeltaMag = AllMag(NearIdx) - AllMag(I);
-                if NearDist < Args.AuditLASTNearestDist || ...
-                        abs(DeltaMag) < Args.AuditLASTDeltaMag
-                    if ~DoubtfulMask(I); NumByLast = NumByLast + 1; end
-                    DoubtfulMask(I) = true;
-                end
-            end
-        end
+        DistMat = celestial.coo.sphere_dist_fast( ...
+            RAcand, Deccand, AllRArad.', AllDecrad.') * ArcsecPerRad;
+        % Self-exclusion: within 1 px of the candidate's own (X, Y).
+        D2 = (AllX.' - Xcand).^2 + (AllY.' - Ycand).^2;
+        DistMat(D2 < 1) = Inf;
+
+        [NearDist, NearIdx] = min(DistMat, [], 2);   % [Ncand x 1]
+        NearMag  = AllMag(NearIdx);
+        DeltaMag = abs(NearMag - Magcand);
+
+        ValidLast = isfinite(NearDist) & isfinite(NearMag) & isfinite(Magcand);
+        LastReject = ValidLast & ...
+            (NearDist < Args.AuditLASTNearestDist | DeltaMag < Args.AuditLASTDeltaMag);
+
+        % Count only candidates newly flagged by this stage.
+        NewByLast = LastReject & ~DoubtfulMask(CandIdx);
+        DoubtfulMask(CandIdx(LastReject)) = true;
+
         if Args.Verbose
             fprintf('    audit LAST NN: %d additionally rejected (dist<%.1f arcsec or |dmag|<%.2f)\n', ...
-                NumByLast, Args.AuditLASTNearestDist, Args.AuditLASTDeltaMag);
+                sum(NewByLast), Args.AuditLASTNearestDist, Args.AuditLASTDeltaMag);
         end
     else
         Obj.msgLog(LogLevel.Warning, ...

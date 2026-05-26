@@ -62,6 +62,33 @@ function plotARMSHistograms(Data, Args)
     %          % One combined table, split by its Cohort column:
     %          Tall = vertcat(R1.ARMS, R2.ARMS, R3.ARMS);
     %          pipeline.last.quality.photCalib.plotARMSHistograms(Tall);
+    %
+    %          % Compare V0 vs V1 pipelines on only the visits they share.
+    %          % Visit names differ by a v0/v1 suffix, so a plain
+    %          % intersect/setdiff on ARMS.Visit treats them as disjoint;
+    %          % strip the trailing v\d+ first, then filter both tables:
+    %          B0 = regexprep(string(R0.ARMS.Visit), 'v\d+$', '');
+    %          B1 = regexprep(string(R1.ARMS.Visit), 'v\d+$', '');
+    %          Common = intersect(B0, B1);
+    %          R0ov   = R0.ARMS(ismember(B0, Common), :);
+    %          R1ov   = R1.ARMS(ismember(B1, Common), :);
+    %          pipeline.last.quality.photCalib.plotARMSHistograms( ...
+    %              {R0ov, R1ov}, 'Labels', {'v0','v1'});
+    %
+    %          % If V1 visit IDs were renumbered with an integer offset
+    %          % relative to V0 (V0_id == V1_id + Offset, with Offset 10
+    %          % or 15 in some LAST reprocessings), cast the stripped
+    %          % bases to numeric and align before intersecting:
+    %          Offset = 10;                        % or 15; 0 = no shift
+    %          N0 = double(string(B0));
+    %          N1 = double(string(B1)) + Offset;   % shift V1 onto V0 numbering
+    %          Common = intersect(N0, N1);
+    %          R0ov   = R0.ARMS(ismember(N0, Common), :);
+    %          R1ov   = R1.ARMS(ismember(N1, Common), :);
+    %          pipeline.last.quality.photCalib.plotARMSHistograms( ...
+    %              {R0ov, R1ov}, 'Labels', {'v0','v1'});
+    %          % setdiff(B0,B1) / setdiff(B1,B0) (or setdiff(N0,N1)) for
+    %          % the asymmetric tails.
 
     arguments
         Data

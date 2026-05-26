@@ -92,6 +92,35 @@ function [Result, Fig] = runPhotDiagnostics(Input, Args)
     %                  '/data/2025/07/08', ...
     %                  'Plots', {'stability','synchrony'}, ...
     %                  'OutDir', '~/results', 'SaveFig', true);
+    %
+    %          % Compare V0 vs V1 pipelines on only the visits they share.
+    %          % Visit names typically differ by a trailing v0/v1 suffix,
+    %          % so a plain intersect/setdiff on R.Calib.VisitName treats
+    %          % them as disjoint. Strip the trailing v\d+ first:
+    %          R0 = pipeline.last.quality.photCalib.runPhotDiagnostics(BaseV0);
+    %          R1 = pipeline.last.quality.photCalib.runPhotDiagnostics(BaseV1);
+    %          B0 = regexprep(string(R0.Calib.VisitName), 'v\d+$', '');
+    %          B1 = regexprep(string(R1.Calib.VisitName), 'v\d+$', '');
+    %          Common = intersect(B0, B1);
+    %          Keep0  = ismember(B0, Common);
+    %          Keep1  = ismember(B1, Common);
+    %
+    %          % If V1 visit IDs were renumbered with an integer offset
+    %          % relative to V0 (e.g. V0_id == V1_id + Offset, where
+    %          % Offset is 10 or 15 in some LAST reprocessings), cast the
+    %          % stripped bases to numeric and align before intersecting:
+    %          Offset = 10;                        % or 15; 0 = no shift
+    %          N0 = double(string(B0));
+    %          N1 = double(string(B1)) + Offset;   % shift V1 onto V0 numbering
+    %          Common = intersect(N0, N1);
+    %          Keep0  = ismember(N0, Common);
+    %          Keep1  = ismember(N1, Common);
+    %
+    %          % Use Keep0/Keep1 to subset R*.Calib.PC(Keep*),
+    %          % .JD(Keep*), .VisitName(Keep*), etc., before any
+    %          % cross-pipeline comparison.
+    %          % setdiff(B0,B1) / setdiff(B1,B0) (or setdiff(N0,N1)) for
+    %          % the asymmetric tails.
 
     arguments
         Input

@@ -73,6 +73,24 @@ function Result = batchARMSHistograms(BaseDir, Args)
     %                                        the visit dir, else falls
     %                                        back to loadVisit. Default
     %                                        'auto'.
+    %                      'FileType'      - 'any' | 'proc' | 'coadd'.
+    %                                        When not 'any', applies TWO
+    %                                        filters:
+    %                                        (1) discovered visit dirs
+    %                                            must have '/proc/' or
+    %                                            '/coadd/' as a path
+    %                                            component (matching the
+    %                                            LAST tree where proc and
+    %                                            coadd live as sibling
+    %                                            buckets);
+    %                                        (2) the merged HDF5 file
+    %                                            loaded inside each visit
+    %                                            must contain the literal
+    %                                            token '_proc_' or
+    %                                            '_coadd_' in its name.
+    %                                        Visits failing either filter
+    %                                        are silently skipped (logged
+    %                                        when Verbose). Default 'any'.
     %                      'Quantities'    - cell of column names.
     %                                        Default
     %                                        {'RA','Dec','FLUX_APER_3'}.
@@ -190,6 +208,8 @@ function Result = batchARMSHistograms(BaseDir, Args)
         Args.ExcludeVisits   {mustBeText} = {}
         Args.LoaderMode      (1,:) char ...
             {mustBeMember(Args.LoaderMode, {'auto','loadVisit','loadMergedMat'})} = 'auto'
+        Args.FileType        (1,:) char ...
+            {mustBeMember(Args.FileType, {'any','proc','coadd'})} = 'any'
         Args.Quantities      cell = {'RA','Dec','FLUX_APER_3', 'FLUX_PSF'}
         Args.PanelGroups     cell = {{'RA','Dec'}, {'FLUX_APER_3', 'FLUX_PSF'}}
         Args.AngularQuantities cell = {'RA','Dec'}
@@ -331,6 +351,13 @@ function VD = discoverVisits(BaseDir, Glob, Args)
              | ismember(Paths,    cellstr(string(Args.ExcludeVisits)));
         Paths = Paths(~Drop);
     end
+    % FileType path-bucket filter: keep only visits whose path contains
+    % the matching '/proc/' or '/coadd/' directory component.
+    if ~strcmpi(Args.FileType, 'any')
+        Tag = ['/' lower(Args.FileType) '/'];
+        Keep = contains(Paths, Tag);
+        Paths = Paths(Keep);
+    end
     % FieldId peek per visit dir (one file).
     if ~isempty(Args.FieldId)
         Keep = false(1, numel(Paths));
@@ -351,15 +378,56 @@ end
 % =========================================================================
 function MS = loadOneVisitMS(VPath, Args)
     MS = [];
+
+    % FileType filename-token filter (empty when FileType='any').
+    Tag = '';
+    if ~strcmpi(Args.FileType, 'any')
+        Tag = sprintf('_%s_', lower(Args.FileType));   % '_proc_' or '_coadd_'
+    end
+
+    % Candidate MergedMat HDF5 files in the visit dir, after Tag filter.
+    DM = dir(fullfile(VPath, '*_sci_merged_MergedMat_*.hdf5'));
+    if ~isempty(Tag) && ~isempty(DM)
+        DM = DM(contains({DM.name}, Tag));
+    end
+    HasMerged = ~isempty(DM);
+
     UseMerged = strcmp(Args.LoaderMode, 'loadMergedMat') || ...
-        (strcmp(Args.LoaderMode, 'auto') && ...
-         ~isempty(dir(fullfile(VPath, '*_sci_merged_MergedMat_*.hdf5'))));
+        (strcmp(Args.LoaderMode, 'auto') && HasMerged);
+
     try
         if UseMerged
-            MS = pipeline.last.load.loadMergedMat( ...
+            if ~HasMerged
+                if Args.Verbose
+                    fprintf('  visit %s: no MergedMat HDF5 matching tag %s\n', VPath, Tag);
+                end
+                return;
+            end
+            S = pipeline.last.load.loadMergedMat( ...
                 'MergedMatDir', VPath, 'Verbose', false);
+            if isstruct(S) && isfield(S, 'percrop')
+                MS = S.percrop;                 % cell of MatchedSources
+            else
+                MS = S;
+            end
         else
-            [~, ~, MS] = pipeline.last.load.loadVisit(VPath);
+            % loadVisit's default MS template ('*_sci_merged_MatchedMat_*.hdf5')
+            % is overridden when a tag is requested.
+            if isempty(Tag)
+                [~, ~, MS] = pipeline.last.load.loadVisit(VPath);
+            else
+                Tmpl = sprintf('LAST*%s*MatchedMat*.hdf5', Tag);
+                if isempty(dir(fullfile(VPath, Tmpl)))
+                    Tmpl = sprintf('LAST*MatchedMat*%s*.hdf5', Tag);
+                end
+                if isempty(dir(fullfile(VPath, Tmpl)))
+                    if Args.Verbose
+                        fprintf('  visit %s: no MatchedMat HDF5 matching tag %s\n', VPath, Tag);
+                    end
+                    return;
+                end
+                [~, ~, MS] = pipeline.last.load.loadVisit(VPath, 'TempName_MS', Tmpl);
+            end
         end
     catch ME
         if Args.Verbose

@@ -38,12 +38,38 @@ function [Result, Fig] = plotPhotForcedMatch(MS, Args)
     %                             Default 'FORCED'.
     %            'LogScale'     - Log-log axes. Default true.
     %            'MarkerSize'   - Scatter marker size. Default 4.
+    %            'ColorByNepochs' - Shade each dot in a blue gradient
+    %                             (light = few epochs, dark = many)
+    %                             using the number of finite epochs the
+    %                             FORCED=0 partner has in that Quantity.
+    %                             Switches the panel from a plain scatter
+    %                             to a scatter+colorbar rendering.
+    %                             Default true. Mutually exclusive with
+    %                             HighlightFlag; HighlightFlag wins when
+    %                             both are requested.
+    %            'HighlightFlag'- Char name of a FLAGS bit (e.g. 'Overlap',
+    %                             'NearEdge'). When non-empty, sources
+    %                             whose FORCED=0 partner carries that bit
+    %                             in any epoch are drawn in a separate
+    %                             colour (red) on top of the unflagged
+    %                             population (blue). Silently no-op if
+    %                             the MS lacks a FLAGS field or the bit
+    %                             name isn't in its BitDictionary.
+    %                             Default '' (disabled).
     %            'Verbose'      - Print per-crop pair counts. Default false.
     %
     % Output : - Result - struct with fields:
     %                       .Quantities  cell, copied from input
     %                       .RmsForced   {1,Nq} pooled row vectors over all crops
     %                       .RmsNormal   {1,Nq} pooled row vectors over all crops
+    %                       .NepNormal   {1,Nq} pooled # finite epochs on
+    %                                    the FORCED=0 side (same length as
+    %                                    RmsNormal{Iq})
+    %                       .FlagNormal  {1,Nq} pooled logical row vectors:
+    %                                    true where the FORCED=0 partner
+    %                                    carries the HighlightFlag bit in
+    %                                    any epoch (empty when
+    %                                    HighlightFlag is '')
     %                       .Npairs      [1,Ncrop] paired sources per crop
     %                       .Args        the args struct actually used
     %          - Fig    - figure handle ([] when there is no data).
@@ -68,7 +94,15 @@ function [Result, Fig] = plotPhotForcedMatch(MS, Args)
         Args.ForcedField   {mustBeTextScalar}    = 'FORCED'
         Args.LogScale      logical               = true
         Args.MarkerSize    (1,1) double          = 4
+        Args.ColorByNepochs logical              = true
+        Args.HighlightFlag {mustBeTextScalar}    = ''
         Args.Verbose       logical               = false
+    end
+
+    if ~isempty(Args.HighlightFlag) && Args.ColorByNepochs
+        % HighlightFlag takes precedence; downgrade ColorByNepochs silently
+        % so the two colourings don't fight on the same panel.
+        Args.ColorByNepochs = false;
     end
 
     Result = struct();
@@ -93,6 +127,8 @@ function [Result, Fig] = plotPhotForcedMatch(MS, Args)
 
     RmsF   = repmat({zeros(1,0)}, 1, Nq);
     RmsN   = repmat({zeros(1,0)}, 1, Nq);
+    NepN   = repmat({zeros(1,0)}, 1, Nq);
+    OvlN   = repmat({false(1,0)}, 1, Nq);
     Npairs = zeros(1, numel(MSc));
 
     for Ic = Crops
@@ -158,14 +194,30 @@ function [Result, Fig] = plotPhotForcedMatch(MS, Args)
                     Ic, numel(IdxF), numel(IdxN), Npairs(Ic));
         end
 
+        % Per-source flag status (any epoch): used only when HighlightFlag
+        % is non-empty. Computed once per crop (it doesn't depend on Q).
+        HasFlag = false(1, MSk.Nsrc);
+        if ~isempty(Args.HighlightFlag) && isfield(MSk.Data, 'FLAGS')
+            try
+                BadFlag = MSk.searchFlags('FlagsList', {Args.HighlightFlag});
+                HasFlag = any(BadFlag, 1);
+            catch
+                % Leave HasFlag = false if the bit name is unknown
+            end
+        end
+
         for Iq = 1:Nq
             Q = Args.Quantities{Iq};
             if ~isfield(MSk.Data, Q); continue; end
             Y = MSk.Data.(Q);
             sF = i_stdMinEpochs(Y(:,PairF), Args.MinEpochs);
             sN = i_stdMinEpochs(Y(:,PairN), Args.MinEpochs);
+            nN = sum(isfinite(Y(:,PairN)), 1);   % # finite epochs, FORCED=0 side
+            flN = logical(HasFlag(PairN));       % 1 x numel(PairN)
             RmsF{Iq} = [RmsF{Iq}, sF];
             RmsN{Iq} = [RmsN{Iq}, sN];
+            NepN{Iq} = [NepN{Iq}, nN];
+            OvlN{Iq} = [OvlN{Iq}, flN];
         end
     end
 
@@ -176,24 +228,52 @@ function [Result, Fig] = plotPhotForcedMatch(MS, Args)
         Fig = figure;
         tiledlayout(1, Nq);
         for Iq = 1:Nq
-            nexttile;
+            Ax = nexttile;
             x = RmsN{Iq};  y = RmsF{Iq};
             if Args.LogScale
                 g = isfinite(x) & isfinite(y) & x > 0 & y > 0;
-                loglog(x(g), y(g), '.', 'MarkerSize', Args.MarkerSize);
             else
                 g = isfinite(x) & isfinite(y);
-                plot(x(g), y(g), '.', 'MarkerSize', Args.MarkerSize);
             end
-            hold on;
+            if ~isempty(Args.HighlightFlag) && Iq <= numel(OvlN) && ~isempty(OvlN{Iq})
+                Flagged = OvlN{Iq} & g;
+                Plain   = ~OvlN{Iq} & g;
+                Cblue   = [0.20 0.40 0.80];
+                Cred    = [0.85 0.20 0.10];
+                plot(Ax, x(Plain), y(Plain), '.', 'MarkerSize', Args.MarkerSize, ...
+                    'Color', Cblue, 'DisplayName', sprintf('no %s', Args.HighlightFlag));
+                hold(Ax, 'on');
+                plot(Ax, x(Flagged), y(Flagged), '.', 'MarkerSize', Args.MarkerSize, ...
+                    'Color', Cred,  'DisplayName', Args.HighlightFlag);
+                legend(Ax, 'Location', 'best', 'Interpreter', 'none');
+            elseif Args.ColorByNepochs && Iq <= numel(NepN) && ~isempty(NepN{Iq})
+                ScSize = max(20, Args.MarkerSize.^2 * 4);
+                c      = NepN{Iq};
+                colormap(Ax, i_blueRamp(256));
+                scatter(Ax, x(g), y(g), ScSize, c(g), 'filled');
+                cb = colorbar(Ax);
+                cb.Label.String = '# epochs (FORCED=0)';
+            else
+                plot(Ax, x(g), y(g), '.', 'MarkerSize', Args.MarkerSize);
+            end
+            hold(Ax, 'on');
             if any(g)
                 lims = [min([x(g), y(g)]), max([x(g), y(g)])];
-                plot(lims, lims, 'k--');
+                plot(Ax, lims, lims, 'k--', 'HandleVisibility', 'off');
             end
-            grid on;  axis square;
-            xlabel(sprintf('rms(%s) — FORCED=0', Args.Quantities{Iq}), 'Interpreter', 'none');
-            ylabel(sprintf('rms(%s) — FORCED=1', Args.Quantities{Iq}), 'Interpreter', 'none');
-            title(sprintf('N=%d paired sources', nnz(g)));
+            if Args.LogScale
+                set(Ax, 'XScale', 'log', 'YScale', 'log');
+            end
+            grid(Ax, 'on');  axis(Ax, 'square');
+            xlabel(Ax, sprintf('rms(%s) — FORCED=0', Args.Quantities{Iq}), 'Interpreter', 'none');
+            ylabel(Ax, sprintf('rms(%s) — FORCED=1', Args.Quantities{Iq}), 'Interpreter', 'none');
+            if ~isempty(Args.HighlightFlag) && Iq <= numel(OvlN) && ~isempty(OvlN{Iq})
+                title(Ax, sprintf('N=%d paired (%d %s flagged)', ...
+                    nnz(g), nnz(OvlN{Iq} & g), Args.HighlightFlag), ...
+                    'Interpreter', 'none');
+            else
+                title(Ax, sprintf('N=%d paired sources', nnz(g)));
+            end
         end
         sgtitle(sprintf('Forced vs normal RMS  (MatchRadius=%g", MinSN=%g, SNSide=%s, MinEpochs=%d)', ...
                         Args.MatchRadius, Args.MinSN, Args.SNSide, Args.MinEpochs));
@@ -202,6 +282,8 @@ function [Result, Fig] = plotPhotForcedMatch(MS, Args)
     Result.Quantities = Args.Quantities;
     Result.RmsForced  = RmsF;
     Result.RmsNormal  = RmsN;
+    Result.NepNormal  = NepN;
+    Result.FlagNormal = OvlN;
     Result.Npairs     = Npairs;
     Result.Args       = Args;
 end
@@ -216,4 +298,13 @@ function s = i_stdMinEpochs(Y, MinEp)
     N = sum(isfinite(Y), 1);
     s = std(Y, 0, 1, 'omitnan');
     s(N < MinEp) = NaN;
+end
+
+% -------------------------------------------------------------------------
+function C = i_blueRamp(N)
+    % N-step colormap from pale blue (low) to deep navy (high).
+    if nargin < 1 || isempty(N); N = 256; end
+    C = [linspace(0.85, 0.00, N).', ...   % R
+         linspace(0.92, 0.10, N).', ...   % G
+         linspace(1.00, 0.45, N).'];      % B
 end
