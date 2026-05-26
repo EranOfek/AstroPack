@@ -3707,8 +3707,8 @@ classdef AstroImage < Component
 
         end
 
-        function DataProp = depandentProp2DataProp(Obj, Prop)
-            % Depandent property to data property containing the ImageComponent object.
+        function DataProp = dependentProp2DataProp(Obj, Prop)
+            % Dependent property to data property containing the ImageComponent object.
             %   Given a dependent data property (e.g., 'Image') convert to
             %   property name containing the ImageComponent object (e.g., 'ImageData').
             % Input  : - An AstroImage object.
@@ -3717,7 +3717,7 @@ classdef AstroImage < Component
             %            to the dependent property
             %            (e.g., 'ImageData','BackData','ExpData').
             % Author : Eran Ofek (May 2023)
-            % Example: AI.depandentProp2DataProp('Exp')
+            % Example: AI.dependentProp2DataProp('Exp')
             
             arguments
                 Obj(1,1)
@@ -3754,7 +3754,7 @@ classdef AstroImage < Component
                     SizeProp = Obj(Iobj).sizeImage(Args.ImageProp{Iprop});
                     Scale    = SizeImage./SizeProp;
                     
-                    DataProp = Obj(Iobj).depandentProp2DataProp(Args.ImageProp{Iprop});
+                    DataProp = Obj(Iobj).dependentProp2DataProp(Args.ImageProp{Iprop});
                     %FN = fieldnames(Obj.Relations);
                     %Ind = strcmp(FN, Args.ImageProp{Iprop});
                     %DataProp = Obj.Relations.(FN{Ind});
