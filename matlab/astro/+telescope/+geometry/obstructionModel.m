@@ -1,78 +1,78 @@
 function [Az, WallAlt, TelAlt] = obstructionModel(Itel, Walls, Telescopes, Args)
-    % General sky-obstruction model for a telescope within an enclosure.
-    %
-    % For each azimuth direction the function returns the minimum altitude above
-    % which the sky is unobstructed, considering:
-    %   (1) enclosure walls (with optional linearly-varying height), and
-    %   (2) neighbouring telescope tubes (modelled as cylinders).
-    %
-    % Both wall and telescope obstructions are returned on the same sorted
-    % azimuth grid covering [0, 360) degrees with a uniform step size.
-    %
-    % Input  : - Itel       : Index of the observing telescope in Telescopes.
-    %                         Default: 3.
-    %          - Walls      : Struct array of wall segments. Each element has:
-    %              .Start  [1x2]  (X,Y) position of segment start [m]
-    %              .Stop   [1x2]  (X,Y) position of segment end   [m]
-    %              .Height [1x2]  wall-top height at Start and Stop [m]
-    %                         Height is linearly interpolated along the segment,
-    %                         so [h, h] gives a flat (constant-height) wall.
-    %                         If empty, the LAST observatory default is used.
-    %          - Telescopes : Struct array of telescope descriptors. Each element:
-    %              .Pos       [1x2]  (X,Y) horizontal position [m]
-    %              .HeightCOA        height of centre of axes above floor [m]
-    %              .Diam             tube outer diameter used for obstruction [m]
-    %                         If empty, the LAST observatory default is used.
-    %          * ...,key,val,...
-    %            'Rotation'  Global building rotation: angle of the building's
-    %                        +X axis measured CCW from true East [deg].
-    %                        Default: 5.7 (LAST building).
-    %            'AzStep'    Output azimuth grid step [deg]. Controls resolution
-    %                        of both WallAlt and TelAlt outputs. Default: 0.5.
-    %            'NWallPts'  Number of sample points per wall segment used
-    %                        internally before binning onto the grid.
-    %                        Must satisfy NWallPts >= 360/AzStep to guarantee
-    %                        at least one sample per bin; auto-raised if needed.
-    %                        Default: 1000.
-    %            'Buffer'    Altitude safety buffer added to all obstruction
-    %                        values [deg]. Default: 3.5.
-    %
-    % Output : - Az      [N x 1]  Azimuth grid, sorted, [0 .. 360-AzStep] deg.
-    %                             N = round(360 / AzStep).
-    %          - WallAlt [N x 1]  Wall obstruction altitude on Az grid [deg].
-    %          - TelAlt  [N x 1]  Tel-to-tel obstruction altitude on Az grid [deg].
-    %
-    % Coordinate system
-    %   Building frame: X along building length (≈ East), Y along width (≈ North).
-    %   The building is rotated Rotation degrees CCW from true East.
-    %   Sky azimuth: North = 0 deg, East = 90 deg, clockwise-positive.
-    %   Conversion: AzSky = mod( (90 - Rotation) - atan2d(DY, DX) , 360 )
-    %
-    % Key algorithms
-    %   Wall obstruction (vectorised over all wall sample points):
-    %     DH    = wall-top height - ObsHt   (signed; negative if wall below axis)
-    %     Alpha = atand( DH / D )           signed elevation to wall top
-    %     Beta  = atand( R_obs / Lw )       extra angle from finite tube radius
-    %     Alt   = Alpha + Beta + Buffer
-    %   The formula handles all signs of DH without special-casing:
-    %     DH > 0 -> obstructing wall, Alpha > 0
-    %     DH = 0 -> wall at axis height, Alpha = 0, Beta still non-zero (close
-    %              walls at telescope height can still obstruct via tube radius)
-    %     DH < 0 -> wall below axis, negative Alpha partially cancels Beta
-    %   Scattered wall points are then reduced to the output grid by taking the
-    %   maximum Alt per bin (accumarray) and filling empty bins by circular
-    %   linear interpolation.
-    %
-    %   Tel-to-tel obstruction (analytical closed form, no grid search):
-    %     MaxChi = arcsin( (R_obs + R_block) / Dt )
-    %   Derived by maximising the tangent-line elevation angle between two
-    %   cylinders; the optimum satisfies sin(chi) = (R_obs+R_block)/Dt exactly.
-    %   The azimuth-dependent envelope scales MaxChi by the fractional chord of
-    %   the blocking cylinder intercepted by each look direction.
-    %
-    % Author : Claude + Eran Ofek (May 2025)
-    % Example: [Az,WAlt,TAlt] = telescope.geometry.obstructionModel(3)
-    %          [Az,WAlt,TAlt] = telescope.geometry.obstructionModel(3,[],[],'AzStep',0.1,'Buffer',2)
+% General sky-obstruction model for a telescope within an enclosure.
+%
+% For each azimuth direction the function returns the minimum altitude above
+% which the sky is unobstructed, considering:
+%   (1) enclosure walls (with optional linearly-varying height), and
+%   (2) neighbouring telescope tubes (modelled as cylinders).
+%
+% Both wall and telescope obstructions are returned on the same sorted
+% azimuth grid covering [0, 360) degrees with a uniform step size.
+%
+% Input  : - Itel       : Index of the observing telescope in Telescopes.
+%                         Default: 3.
+%          - Walls      : Struct array of wall segments. Each element has:
+%              .Start  [1x2]  (X,Y) position of segment start [m]
+%              .Stop   [1x2]  (X,Y) position of segment end   [m]
+%              .Height [1x2]  wall-top height at Start and Stop [m]
+%                         Height is linearly interpolated along the segment,
+%                         so [h, h] gives a flat (constant-height) wall.
+%                         If empty, the LAST observatory default is used.
+%          - Telescopes : Struct array of telescope descriptors. Each element:
+%              .Pos       [1x2]  (X,Y) horizontal position [m]
+%              .HeightCOA        height of centre of axes above floor [m]
+%              .Diam             tube outer diameter used for obstruction [m]
+%                         If empty, the LAST observatory default is used.
+%          * ...,key,val,...
+%            'Rotation'  Global building rotation: angle of the building's
+%                        +X axis measured CCW from true East [deg].
+%                        Default: 5.7 (LAST building).
+%            'AzStep'    Output azimuth grid step [deg]. Controls resolution
+%                        of both WallAlt and TelAlt outputs. Default: 0.5.
+%            'NWallPts'  Number of sample points per wall segment used
+%                        internally before binning onto the grid.
+%                        Must satisfy NWallPts >= 360/AzStep to guarantee
+%                        at least one sample per bin; auto-raised if needed.
+%                        Default: 1000.
+%            'Buffer'    Altitude safety buffer added to all obstruction
+%                        values [deg]. Default: 3.5.
+%
+% Output : - Az      [N x 1]  Azimuth grid, sorted, [0 .. 360-AzStep] deg.
+%                             N = round(360 / AzStep).
+%          - WallAlt [N x 1]  Wall obstruction altitude on Az grid [deg].
+%          - TelAlt  [N x 1]  Tel-to-tel obstruction altitude on Az grid [deg].
+%
+% Coordinate system
+%   Building frame: X along building length (≈ East), Y along width (≈ North).
+%   The building is rotated Rotation degrees CCW from true East.
+%   Sky azimuth: North = 0 deg, East = 90 deg, clockwise-positive.
+%   Conversion: AzSky = mod( (90 - Rotation) - atan2d(DY, DX) , 360 )
+%
+% Key algorithms
+%   Wall obstruction (vectorised over all wall sample points):
+%     DH    = wall-top height - ObsHt   (signed; negative if wall below axis)
+%     Alpha = atand( DH / D )           signed elevation to wall top
+%     Beta  = atand( R_obs / Lw )       extra angle from finite tube radius
+%     Alt   = Alpha + Beta + Buffer
+%   The formula handles all signs of DH without special-casing:
+%     DH > 0 -> obstructing wall, Alpha > 0
+%     DH = 0 -> wall at axis height, Alpha = 0, Beta still non-zero (close
+%              walls at telescope height can still obstruct via tube radius)
+%     DH < 0 -> wall below axis, negative Alpha partially cancels Beta
+%   Scattered wall points are then reduced to the output grid by taking the
+%   maximum Alt per bin (accumarray) and filling empty bins by circular
+%   linear interpolation.
+%
+%   Tel-to-tel obstruction (analytical closed form, no grid search):
+%     MaxChi = arcsin( (R_obs + R_block) / Dt )
+%   Derived by maximising the tangent-line elevation angle between two
+%   cylinders; the optimum satisfies sin(chi) = (R_obs+R_block)/Dt exactly.
+%   The azimuth-dependent envelope scales MaxChi by the fractional chord of
+%   the blocking cylinder intercepted by each look direction.
+%
+% Author : (2025)
+% Example: [Az,WAlt,TAlt] = obstructionModel(3)
+%          [Az,WAlt,TAlt] = obstructionModel(3,[],[],'AzStep',0.1,'Buffer',2)
 
     arguments
         Itel                (1,1) double {mustBeInteger, mustBePositive} = 3
@@ -86,7 +86,8 @@ function [Az, WallAlt, TelAlt] = obstructionModel(Itel, Walls, Telescopes, Args)
 
     % ── Fall back to LAST defaults if either input is empty ──────────────────
     if isempty(Walls) || isempty(Telescopes)
-        [Walls, Telescopes] = defaultLAST();
+        [Walls, Telescopes] = newLAST();
+        %[Walls, Telescopes] = defaultLAST();
     end
 
     % ── Common output azimuth grid ────────────────────────────────────────────
@@ -147,8 +148,21 @@ function [Az, WallAlt, TelAlt] = obstructionModel(Itel, Walls, Telescopes, Args)
     end
 
     % ── Vectorised obstruction for all wall sample points ────────────────────
-    DX = WxAll - ObsPos(1);
-    DY = WyAll - ObsPos(2);
+    %
+    % Sign convention for DX, DY  (critical for azimuth correctness)
+    % ---------------------------------------------------------------
+    % The building coordinate system has +X = West and +Y = South.
+    % buildingToSky() expects atan2d( Obs - Wall ):
+    %   (Obs_X - Wall_X) > 0  means Wall_X < Obs_X  =  wall is more East
+    %                         =  observer is LOOKING EAST  -> AzSky ≈ 90°  ✓
+    %   (Obs_Y - Wall_Y) > 0  means Wall_Y < Obs_Y  =  wall is more North
+    %                         =  observer is LOOKING NORTH -> AzSky ≈ 0°   ✓
+    % Using (Wall - Obs) instead would invert all azimuths by 180°.
+    %
+    % Note: D = hypot(DX, DY) is identical for both sign choices, so
+    % only the azimuth—not the altitude—is affected by this convention.
+    DX = ObsPos(1) - WxAll;                % Obs_X - Wall_X  (direction: wall -> obs)
+    DY = ObsPos(2) - WyAll;                % Obs_Y - Wall_Y
     D  = hypot(DX, DY);                    % horizontal distance  [m]
     DH = WhAll - ObsHt;                    % wall top minus telescope axis [m]
     Lw = hypot(DH, D);                     % slant distance to wall top  [m]
@@ -209,8 +223,10 @@ function [Az, WallAlt, TelAlt] = obstructionModel(Itel, Walls, Telescopes, Args)
         BlkR   = Telescopes(Jtel).Diam / 2;
 
         % Horizontal displacement: observer -> blocker
-        DDX = BlkPos(1) - ObsPos(1);
-        DDY = BlkPos(2) - ObsPos(2);
+        % Use (Obs - Blk) so that buildingToSky gives the sky azimuth of the
+        % blocker as seen from the observer (same convention as wall section).
+        DDX = ObsPos(1) - BlkPos(1);       % Obs_X - Blk_X
+        DDY = ObsPos(2) - BlkPos(2);       % Obs_Y - Blk_Y
         Dt  = hypot(DDX, DDY);
 
         % Guard: cylinders must not overlap
@@ -257,17 +273,33 @@ end  % obstructionModel
 % =========================================================================
 
 function AzSky = buildingToSky(AzBuild, Rotation)
-% Convert a standard atan2 angle in the building frame [deg] to sky azimuth.
+% Convert a building-frame atan2 angle to sky azimuth (North=0, CW-positive).
 %
-%   Building frame : +X ≈ East, +Y ≈ North, CCW-positive (mathematical).
-%   Sky azimuth    : North = 0, East = 90, clockwise-positive (astronomical).
+% Building coordinate system
+%   Origin : NE interior corner (East wall meets North wall).
+%   +X axis: points WEST  (X = 0 is the East wall; X increases toward West).
+%   +Y axis: points SOUTH (Y = 0 is the North wall; Y increases toward South).
 %
-%   The building's +X axis is tilted Rotation degrees CCW from true East, so:
-%     AzSky = mod( (90 - Rotation) - AzBuild , 360 )
+% Required input convention
+%   AzBuild = atan2d( Obs_Y - Wall_Y ,  Obs_X - Wall_X )
+%   i.e. the angle of the (Observer minus Feature) vector — NOT (Feature minus
+%   Observer).  Because +X = West and +Y = South, a positive X-component in
+%   (Obs - Wall) means Wall_X < Obs_X, i.e. the wall is more East, so the
+%   observer is looking EAST -> AzSky ≈ 90°.  Passing (Wall - Obs) would
+%   rotate every azimuth by 180°.
 %
-%   Sanity check (Rotation = 0):
-%     +X direction (AzBuild=0)   -> AzSky = 90  (East)  ✓
-%     +Y direction (AzBuild=90)  -> AzSky = 0   (North) ✓
+% Rotation
+%   The physical building is tilted Rotation degrees from the cardinal
+%   directions; this shifts every output azimuth by Rotation degrees.
+%   LAST default: Rotation = 5.7°.
+%
+%   Formula:  AzSky = mod( (90 - Rotation) - AzBuild , 360 )
+%
+% Verification (Rotation = 0):
+%   Wall due East  (Obs_X > Wall_X): AzBuild =   0° -> AzSky =  90° ✓
+%   Wall due North (Obs_Y > Wall_Y): AzBuild =  90° -> AzSky =   0° ✓
+%   Wall due West  (Obs_X < Wall_X): AzBuild = 180° -> AzSky = 270° ✓
+%   Wall due South (Obs_Y < Wall_Y): AzBuild = -90° -> AzSky = 180° ✓
 
     AzSky = mod((90 - Rotation) - AzBuild, 360);
 end
@@ -352,3 +384,76 @@ function [Walls, Telescopes] = defaultLAST()
         Telescopes(It).Pos = [Xpos(It), Ypos(It)];
     end
 end
+
+
+
+function [Walls, Telescopes] = newLAST()
+% Build the new LAST observatory configuration.
+%
+% Physical layout
+%   A rectangular building of internal width BW (N-S) and length BL (E-W).
+%   Full outer length BLw includes end walls.
+%   Twelve telescopes in a 6 (E-W) x 2 (N-S) grid.
+%   Telescope indices use MATLAB column-major order in the 2x6 layout:
+%     Itel=1 : (row 1, col 1)  southernmost N-S, westernmost E-W
+%     Itel=2 : (row 2, col 1)  northernmost N-S, westernmost E-W
+%     ...
+%     Itel=12: (row 2, col 6)  northernmost N-S, easternmost E-W
+
+    % Building dimensions [m]
+    BW  = 6.5;    % internal width  (N-S)
+    BL  = 15.0;    % usable telescope-field length (E-W)
+    BLw = 16.5;    % full outer length including end walls
+
+
+    
+
+    % Telescope array layout
+    NRow = 7;      % columns along E-W
+    NCol = 2;      % rows along N-S
+
+    % Telescope mechanical parameters
+    HeightCOA = 1.2;           % centre-of-axes height above floor [m]
+    Diam      = 2 * 0.63;      % tube diameter [m]  (= 2 * r1 from original)
+
+    % Wall heights [m]
+    HwN = 1.4;   % North
+    HwS = 1.4;   % South
+    HwE = 1.4;   % East
+    HwW = 3.3;   % West  (taller — matches original hwW)
+
+    % Walls struct array (1x4): constant height per wall -> Height(1)==Height(2)
+    Walls = struct( ...
+        'Start',  { [0,   0  ], [0,   BW ], [0,   0  ], [BLw, 0  ] }, ...
+        'Stop',   { [BLw, 0  ], [BLw, BW ], [0,   BW ], [BLw, BW ] }, ...
+        'Height', { [HwN, HwN], [HwS, HwS], [HwE, HwE], [HwW, HwW] });
+    % Wall index: 1=North, 2=South, 3=East, 4=West
+
+    % Telescope positions (column-major, reproducing original Xall(Itel) logic)
+    % First / noth raw
+    X1=[1.25 3.52 3.52+2.1.*(1:5)];
+
+    Y1= 1.08.*ones(1,7);
+    Y1(1) = 1.40;
+    X1(1) = 1.35;
+    % last / south raw
+    X3=[1.25 3.52 3.52+2.1.*(1:5)];
+    Y3 = (6.5-1.08).*ones(1,7);
+    X3(1) = 1.35;
+    Y3(1) = 6.5-1.40;
+    % middle raw
+    X2 = X1(2:end) - 2.1./2;
+    Y2 = 6.5./2 .*ones(1,6);
+
+    Xpos = [X1(:); X3(:); X2(:)];
+    Ypos = [Y1(:); Y3(:); Y2(:)];
+
+
+    Ntel = numel(Xpos);
+    Telescopes = repmat( ...
+        struct('Pos', [], 'HeightCOA', HeightCOA, 'Diam', Diam), 1, Ntel);
+    for It = 1:Ntel
+        Telescopes(It).Pos = [Xpos(It), Ypos(It)];
+    end
+end
+
