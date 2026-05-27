@@ -18,6 +18,8 @@ function [Az, WallAlt, TelAlt] = obstructionModel(Itel, Walls, Telescopes, Args)
 %                         Height is linearly interpolated along the segment,
 %                         so [h, h] gives a flat (constant-height) wall.
 %                         If empty, the LAST observatory default is used.
+%               Coordinate system of walls and telescope is measured from
+%               North East (increasing westward and Southward).
 %          - Telescopes : Struct array of telescope descriptors. Each element:
 %              .Pos       [1x2]  (X,Y) horizontal position [m]
 %              .HeightCOA        height of centre of axes above floor [m]
