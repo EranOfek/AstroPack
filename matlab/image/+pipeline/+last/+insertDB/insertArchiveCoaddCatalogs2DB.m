@@ -226,4 +226,5 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
     else
         DB.delete;
     end
+    fprintf('Ingestion completed. \n');
 end

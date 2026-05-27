@@ -233,4 +233,5 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     else
         DB.delete;
     end
+    fprintf('Ingestion completed. \n');
 end
