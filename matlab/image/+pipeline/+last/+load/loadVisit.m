@@ -43,7 +43,7 @@ function [AllSI, Coadd, MS] = loadVisit(Path, Args)
             error('Images %s not not found',Args.TempName_IndivIm);
         end
         % order
-        if ~isempty(AllSI)
+        if ~isempty(AllSI) && isa(AllSI,'AstroImage')
             St = AllSI.getStructKey({'MIDJD','CROPID','COUNTER'});
             [~,SI] = sortrows([[St.MIDJD].', [St.CROPID].'],[1 2]);
             Nepoch = max([St.COUNTER]);
