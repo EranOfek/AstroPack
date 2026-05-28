@@ -7,7 +7,7 @@
 
 /*
  * MEX function for fast Gaussian profile fitting
- * Input: X1, X2, x, y, W, slice_width, rthreshold, medianclip
+ * Input: X1, X2, Xb1, Xb2, x, y, W, slice_width, rthreshold, medianclip
  * Output: [C, goodindices]
  */
 
@@ -215,10 +215,10 @@ void fitGaussian3Param(const double* D, const double* W, int n,
 }
 
 // Compute median of array (for medianclip)
-double computeMedian(double* arr, int n) {
+double computeMedian(double* arr, int i1, int n) {
     // Filter out NaN values
     std::vector<double> valid;
-    for (int i = 0; i < n; i++) {
+    for (int i = i1; i < n; i++) {
         if (!std::isnan(arr[i])) {
             valid.push_back(arr[i]);
         }
@@ -235,9 +235,9 @@ double computeMedian(double* arr, int n) {
 void mexFunction(int nlhs, mxArray* plhs[], 
                  int nrhs, const mxArray* prhs[]) {
     
-    if (nrhs != 8) {
+    if (nrhs != 10) {
         mexErrMsgIdAndTxt("sliceGaussianProfile_mex:nrhs", 
-                         "Exactly 8 inputs required");
+                         "Exactly 10 inputs required");
     }
     if (nlhs != 2) {
         mexErrMsgIdAndTxt("sliceGaussianProfile_mex:nlhs", 
@@ -247,17 +247,20 @@ void mexFunction(int nlhs, mxArray* plhs[],
     // Input: X1, X2
     double* X1 = (double*)mxGetPr(prhs[0]);
     double* X2 = (double*)mxGetPr(prhs[1]);
+    // Input: Xb1, Xb2
+    double* Xb1 = (double*)mxGetPr(prhs[2]);
+    double* Xb2 = (double*)mxGetPr(prhs[3]);
     
     // Input: x, y, W
-    double* x = (double*)mxGetPr(prhs[2]);
-    mwSize n = std::max(mxGetM(prhs[2]), mxGetN(prhs[2]));
-    double* y = (double*)mxGetPr(prhs[3]);
-    double* W = (double*)mxGetPr(prhs[4]);
+    double* x = (double*)mxGetPr(prhs[4]);
+    mwSize n = std::max(mxGetM(prhs[4]), mxGetN(prhs[4]));
+    double* y = (double*)mxGetPr(prhs[5]);
+    double* W = (double*)mxGetPr(prhs[6]);
     
     // Input: slice_width, rthreshold, medianclip
-    double slice_width = mxGetScalar(prhs[5]);
-    double rthreshold = mxGetScalar(prhs[6]);
-    double medianclip = mxGetScalar(prhs[7]);
+    double slice_width = mxGetScalar(prhs[7]);
+    double rthreshold = mxGetScalar(prhs[8]);
+    double medianclip = mxGetScalar(prhs[9]);
     
     // Compute L and coordinate transforms
     double L = std::sqrt((X2[0] - X1[0]) * (X2[0] - X1[0]) + 
@@ -278,16 +281,25 @@ void mexFunction(int nlhs, mxArray* plhs[],
     // Number of slices
     int M = (int)std::ceil(L / slice_width);
     
+    // slice indices of the base segment extremes
+    int Tb1= ((dX * (Xb1[0] - X1[0]) + dY * (Xb1[1] - X1[1])) / L2) * M;
+    int Tb2= ((dX * (Xb2[0] - X1[0]) + dY * (Xb2[1] - X1[1])) / L2) * M;
+    if (Tb1>Tb2) {
+        int swap=Tb2;
+        Tb2=Tb1;
+        Tb1=swap;
+    }
+    
     double* A_series = new double[M];
     double* sigma_series = new double[M];
     
-    // Output 1: C (4xM)
+    // Output 1: C (5xM)
     plhs[0] = mxCreateDoubleMatrix(5, M, mxREAL);
     double* C = (double*)mxGetPr(plhs[0]);
     
     // Initialize C with NaN
     double nan_val = std::nan("");
-    for (int i = 0; i < 4 * M; i++) {
+    for (int i = 0; i < 5 * M; i++) {
         C[i] = nan_val;
     }
     
@@ -336,8 +348,8 @@ void mexFunction(int nlhs, mxArray* plhs[],
         
     // median clipping and discarding low R loop
     
-    double A_median = computeMedian(A_series, M);
-    double sigma_median = computeMedian(sigma_series, M);
+    double A_median = computeMedian(A_series, Tb1, Tb2);
+    double sigma_median = computeMedian(sigma_series, Tb1, Tb2);
     
     double A, mu, sigma, rsquare;
 

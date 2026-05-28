@@ -170,13 +170,13 @@ function [phot,extsegs,curve,stripeindices]=...
                     % use mex wrapper function in /mex
                     [C,goodindices,tm] = ...
                         imUtil.streaks.mex.sliceGaussianProfile([x1ext,y1ext],...
-                        [x2ext,y2ext],px(mask),py(mask),pp,...
+                        [x2ext,y2ext],[x1,y1],[x2,y2],px(mask),py(mask),pp,...
                         'slice_width',Args.slice_width,...
                         'rthreshold',Args.sigmaclip);
                 else
                     % use private function, at the bottom of this file
                     [C,goodindices,tm] = sliceGaussianProfile([x1ext,y1ext],...
-                        [x2ext,y2ext],px(mask),py(mask),pp,...
+                        [x2ext,y2ext],[x1,y1],[x2,y2],px(mask),py(mask),pp,...
                         'slice_width',Args.slice_width,...
                         'rthreshold',Args.sigmaclip);
                 end
@@ -328,11 +328,12 @@ function [X,Y]=segmentParabolicOffset(X1,X2,C,t)
 end
 
 %%
-function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,x,y,W,Args)
+function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,Xb1,Xb2,x,y,W,Args)
 % divide the rasterized strip in slices, and fit gaussians to the intensity
 %  values W in each slice
 % Input:
-%  X1: [x1,y1]; X2: [x2,y2] of the base segment
+%  X1: [x1ext,y1ext]; X2: [x2ext,y2ext] of the extended segment
+%  Xb1: [x1,y1]; Xb2: [x2,y2] of the base segment
 %  x,y,W: Nx1 vectors
 %  x,y: coordinates in pixels of the pixels belonging to the streak strip
 %  W:   intensity of the pixels
@@ -359,8 +360,10 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,x,y,W,Args)
 %          [X,Y]=segmentParabolicOffset([x1,y1],[x2,y2],curve(i).parfit,tm)
 
     arguments
-        X1
-        X2
+        X1 (1,2) double
+        X2 (1,2) double
+        Xb1 (1,2) double
+        Xb2 (1,2) double
         x
         y
         W double
@@ -378,6 +381,17 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,x,y,W,Args)
     num_slices=ceil(L/Args.slice_width);
     C=NaN(5,num_slices);
     goodindices=false(size(W));
+    
+    % slice indices of the base segment extremes
+    Tb1=num_slices*((X2(1)-X1(1))*(Xb1(1)-X1(1)) + (X2(2)-X1(2))*(Xb1(2)-X1(2)))/L^2;
+    Tb2=num_slices*((X2(1)-X1(1))*(Xb2(1)-X1(1)) + (X2(2)-X1(2))*(Xb2(2)-X1(2)))/L^2;
+    Tb1=max(round(Tb1),1);
+    Tb2=max(round(Tb2),1);
+    if Tb1>Tb2
+        s=Tb2;
+        Tb2=Tb1;
+        Tb1=s;
+    end
 
     % for fit
     %opt=fitoptions('gauss1','Lower',[0 -Args.slice_width, 0],...
@@ -420,8 +434,8 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,x,y,W,Args)
     end
 
     % median amplitude
-    Amedian=median(C(1,:),'omitnan');
-    Smedian=median(C(3,:),'omitnan');
+    Amedian=median(C(1,Tb1:Tb2),'omitnan');
+    Smedian=median(C(3,Tb1:Tb2),'omitnan');
 
     % repeat loop to enforce medianclip on pixel indices
     for i=1:num_slices
