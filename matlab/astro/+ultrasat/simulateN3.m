@@ -90,6 +90,8 @@ function simImage = simulateN3(Args)
     Tab.Teff(Ind) = 5040./Theta(Ind); % 
     Tab.logg(Ind) = 4.5; % assume for all the cases where logg is not known     
     
+    Tab.logg = max(Tab.logg,3.0001); % supergiants are not implemented in astro.stars.tlogg2picklesClass
+
     % deredden the magnitudes (the simulator deals with dereddened values!)
     Filt = AstFilter.get(Args.FiltFam,Args.Filter);
     deltaMag = astro.extinction.extinction(Ebv,Filt.pivot_wl/1e4);
