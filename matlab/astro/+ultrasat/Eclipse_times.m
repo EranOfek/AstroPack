@@ -33,14 +33,14 @@ function [EclipseTimes,inEclipse,tEndEclipse]=Eclipse_times(Args)
     UniqueEclipse = UniqueEclipse.UniqueEclipse; 
 
     inEclipse = false(size(Args.Times));
-    tEndEclipse = NaT(size(Args.Times));
+    tEndEclipse = duration.empty(0,numel(Args.Times));
 
     for i = 1:numel(Args.Times)
         % Check if the provided times are within the eclipse periods
         indEclipse = find(Args.Times(i) >= UniqueEclipse.StartTimeUTCG & Args.Times(i) <= UniqueEclipse.StopTimeUTCG);
         if indEclipse
             inEclipse(i) =true;
-            tEndEclipse(i) = UniqueEclipse.StopTimeUTCG(indEclipse);
+            tEndEclipse(i) = UniqueEclipse.StopTimeUTCG(indEclipse)-Args.Times(i);
         end
     end
 end
