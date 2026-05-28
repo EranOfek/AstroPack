@@ -70,7 +70,7 @@ function Image=interpImageConvPix(Image, X, Y, Args)
             % assume kernel is a matrix
             Kernel = Args.Kernel;
         end
-        SizeKernel = size(Kernel);
+        SizeKernel = size(Kernel,1);
         MaxRadius  = (SizeKernel - 1).*0.5;
     
        
