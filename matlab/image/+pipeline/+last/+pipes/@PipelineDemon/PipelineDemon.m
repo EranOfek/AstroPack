@@ -2578,44 +2578,11 @@ classdef PipelineDemon < Component
                 Obj.writeLog(Status.ME, LogLevel.Info);
 
             end % if Status.PipeI
-
-
-                    
-
-                % Pipeline II
-
-                %Status.PipeII = true;
-
-                % write data products II
-
-                % Status.WriteII = true;
-
-            % catch MEp
-            %     % pipeline failed
-            % 
-            %     RawImageListFinal = [];
-            %     AllSI = [];
-            %     MS    = [];
-            %     Coadd = [];
-            %     OnlyMP = [];
-            %     AllForcedPhot = [];
-            % 
-            %     ErrorMsg = sprintf('Pipeline I failed: %s / funname: %s @ line: %d', MEp.message, MEp.stack(1).name, MEp.stack(1).line);
-            %     Obj.writeLog(ErrorMsg, LogLevel.Error);
-            %     Obj.writeLog(MEp, LogLevel.Info);
-            % 
-            % end % try
-
-
-
         end
 
 
         function [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, JD,Args)
             % Save data products for pipeline I
-
-          
-
 
             % save products
             % Debug: FN_I=AstroFileName.dir('LAST*.fits');
@@ -2734,86 +2701,96 @@ classdef PipelineDemon < Component
             end
             
         end
-
         
-        function transientDetectionPipeline(Obj, Coadd, FN_Proc, UpArgs)
+        function [AD, ADc, TCL1, TCL2] = runPipelineII(Obj, Coadd, FN_Proc, UpArgs)
             % excute transients detection pipeline
 
-            % Run the transients pipeline
-            UpArgs.DoTransientsDetection = true;
-            if Args.DoTransientsDetection 
-                %&& strcmp(tools.os.get_computer, 'last01e')
-                Msg{1} = sprintf('pipeline.DemonLAST - Transients detection / group %d', Igroup);
-                Obj.writeLog(Msg, LogLevel.Info);
+            Msg{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineII start executing pipelineII for visit');
+            Obj.writeLog(Msg, LogLevel.Info);
 
-                % Transients detection
-                try
-                    [~,TransientCutouts, TCL1, TranPipeStatus] = ...
-                        pipeline.last.transients.runTransientsPipe(...
-                            Coadd, 'SavePath',FN_Proc.genPath, 'RefPath',Obj.RefPath, 'SaveProducts',true, ...
-                            'Product',{'Image','Mask','Cat','PSF'},'WriteHeader',[true,false,true,false]);
-                    Obj.writeLog(sprintf('pipeline.DemonLAST / Transients detection - %s', TranPipeStatus), LogLevel.Info);
-                catch MEtran
-                    Msg{1} = sprintf('pipeline.DemonLAST - Transients detection / Failed');
-                    Obj.writeLog(Msg, LogLevel.Info);
-                end
+            [AD, ADc, TCL1, TCL2, StatusPipeII] = pipeline.last.pipes.pipelineII(Coadd, 'RefPath', Obj.RefPath);
+            Obj.writeLog(sprintf('Transients detection - %s', StatusPipeII), LogLevel.Info);
 
+            if StatusPipeII.Success && UpArgs.SendTransientAlerts && ~ADc(1).ImageData.isemptyImage
+                % TODO: This part should move out of pipeII
                 % Match to multi-epochs via DB
-                if exist('TransientCutouts','var')
-                    Msg{1} = sprintf('pipeline.DemonLAST - Transients match multi epoch / group %d', Igroup);
-                    Obj.writeLog(Msg, LogLevel.Info);
-
-                    try
-                        [TransientCutouts, TCL2, MultiEpochStatus] = pipeline.last.transients.matchTransientsToMultiEpochs(...
-                            TransientCutouts, TCL1, 'DbHost', Args.DBHost, 'DB', DB);
-                        Obj.writeLog(sprintf('pipeline.DemonLAST / Transients match multi epoch - %s', MultiEpochStatus), LogLevel.Info);
-                    catch MEtran
-                        Msg{1} = sprintf('pipeline.DemonLAST - Transients match multi epoch / Failed');
-                        Obj.writeLog(Msg, LogLevel.Info);
-                    end
+                try
+                    [ADc, TCL2, MultiEpochStatus] = pipeline.last.transients.matchTransientsToMultiEpochs(...
+                        ADc, TCL1, 'DbHost', UpArgs.DbHost, 'DB', UpArgs.DB);
+                    Obj.writeLog(sprintf('Transients match multi epoch - %s', MultiEpochStatus), LogLevel.Info);
+                catch
+                    Msg{1} = sprintf('Transients match multi epoch / Failed');
+                    Obj.writeLog(Msg, LogLevel.Error);
                 end
-                
-                % Send transients alerts
-                if exist('TransientCutouts','var') && Args.SendTransientAlerts && IsRunningOnLAST
-                    Msg{1} = sprintf('pipeline.DemonLAST - Transients alerting / group %d', Igroup);
-                    Obj.writeLog(Msg, LogLevel.Info);
-                    try
-                        TranAlertStatus = pipeline.last.transients.sendTransientsAlert(TransientCutouts, 'SaveProducts', true, ...
-                                'SavePath', FN_Proc.genPath,'UseLASTtools', true);
-                        Obj.writeLog(sprintf('pipeline.DemonLAST / Transients alerting - %s', TranAlertStatus), LogLevel.Info);
-                    catch MEtran
-                        Msg{1} = sprintf('pipeline.DemonLAST - Alerting / Failed');
-                        Obj.writeLog(Msg, LogLevel.Info);
-                    end
-                end
-                RunTime = etime(clock, Tstart);
-                Msg{1} = sprintf('pipeline.DemonLAST - Transients / RunTime: %.1f', RunTime);
+            
+                Msg{1} = sprintf('Transients alerting');
                 Obj.writeLog(Msg, LogLevel.Info);
-            end
-
-            % Insert transients to the transients' DB (on the fly)
-            if Args.InsertTransients2DB && ~isempty(TCL2)
-                if ~TCL2.isemptyCatalog
-                    Err = [];
-                    try
-                        Err = pipeline.last.insertDB.insertTransients2DB(TCL2, [Coadd.HeaderData],'DbHost',Args.DBHost,'DB',DB);
-                    catch ME
-                        Obj.writeLog(ME, LogLevel.Error);
-                    end
-                    if ~isempty(Err)
-                        Obj.writeLog(Err, LogLevel.Error);
-                    end
-                    RunTime = etime(clock, Tstart);
-                    Msg{1} = sprintf('pipeline.DemonLAST finished injecting transients to the DB for group %d / RunTime: %.1f', Igroup, RunTime);
-                    Obj.writeLog(Msg, LogLevel.Info);
+                try
+                    TranAlertStatus = pipeline.last.transients.sendTransientsAlert(ADc, 'SaveProducts', true, ...
+                            'SavePath', FN_Proc.genPath,'UseLASTtools', true);
+                    Obj.writeLog(sprintf('Transients alerting - %s', TranAlertStatus), LogLevel.Info);
+                catch
+                    Msg{1} = sprintf('Transients alerting / Failed');
+                    Obj.writeLog(Msg, LogLevel.Error);
                 end
             end
-            %
-            RunTime = etime(clock, Tstart); % toc;
 
+            if StatusPipelineII.Sucess
+                saveDataProductsII(Obj, AD, Coadd, TCL1, TCL2, FN_Proc, UpArgs);
+            end
         end
 
+        function saveDataProductsII(Obj, AD, Coadd, TCL1, TCL2, FN_Proc, UpArgs)
+   
+            Nobj = numel(AD);
+    
+            % Save sub-image products
+            if ~isempty(UpArgs.SaveVisitProductII)
+                for Iobj=Nobj:-1:1
+                    FN = FileNames.generateFromFileName(AD(Iobj).New.ImageData.FileName);
+                    % Set AD name
+                    FNad = FN.copy();
+                    FNad.Level = {'coadd.zogyD'};
+                    FNad.FullPath = FN_Proc.genPath;
+                    AD(Iobj).ImageData.FileName = FNad.genFull{1};
+                    
+                    [~,~,~]=imProc.io.writeProduct(AD(Iobj), FNad, ...
+                        'Level', 'coadd.zogyD', 'Product', UpArgs.SaveVisitProductII,...
+                        'WriteHeader', UpArgs.SaveVisitHeaderII,'Overwrite', true);
+                end                
+            end
 
+            % Save TCL1 to disk
+            if UpArgs.SaveTCL1 && ~TCL1.isemptyCatalog
+                FN = FileNames.generateFromFileName(AD(1).New.ImageData.FileName);
+                FN_merged = FN.copy();
+                FN_merged.Level = {'coadd.zogyD'};
+                FN_merged.CropID = 0;
+                FN_merged.Product = {'Cat'};
+                FN_merged.FullPath = FN_Proc.genPath;
+                
+                [~,~,~]=imProc.io.writeProduct(TCL1, FN_merged, ...
+                    'Level', 'coadd.zogyD', 'Product', {'Cat'},...
+                    'WriteHeader', false,'Overwrite', true, 'GetHeaderJD', false, ...
+                    'CropID_FromIndex', false);
+            end
+
+            % Inject TCL2 to DB
+            if UpArgs.InjectTCL2 && ~TCL2.isemptyCatalog
+                Err = [];
+                try
+                    Err = pipeline.last.insertDB.insertTransients2DB( ...
+                        TCL2, [Coadd.HeaderData],'DbHost', UpArgs.DbHost,'DB', UpArgs.DB);
+                catch ME
+                    Obj.writeLog(ME, LogLevel.Error);
+                end
+                if ~isempty(Err)
+                    Obj.writeLog(Err, LogLevel.Error);
+                end
+                Msg{1} = sprintf('Finished injecting transients to the DB.');
+                Obj.writeLog(Msg, LogLevel.Info);
+            end
+        end
 
         function moveImagesToFailedDir(Obj, RawImageList)
             % move images to failed directory
@@ -2899,7 +2876,6 @@ classdef PipelineDemon < Component
                 Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5328};
                 Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
                 
-                Args.InsertTransients2DB = true;
                 Args.DbHost              = '10.23.1.25';
                 Args.DbPort              =  9000;                
                 Args.DbName              = 'last';
@@ -2971,7 +2947,13 @@ classdef PipelineDemon < Component
                 
                 Args.CompressedOutput  = [];                % if empty, write FITS files ('fz' will lead to FITS.fz compression) 
 
-                Args.SendTransientAlerts logical      = true;
+                % -- PipelineII products
+                Args.SaveVisitProductII = {'Image','Mask','Cat','PSF'};
+                Args.SaveVisitHeaderII = [true,false,true,false];
+                Args.SaveTCL1 logical = true;
+                Args.InjectTCL2 logical = true;
+                Args.SendTransientAlerts logical = true;
+
                 %Args.RunAsService logical  = false;
                 
                 Args.UncompressRaw     = false;             % we already know how to read compressed fits.fz, so no need to uncompress
@@ -3009,7 +2991,6 @@ classdef PipelineDemon < Component
             %        IsRunningOnLAST = true;
             %    end
             %end
-
 
             % Stop GUI
             if all(get(0, 'ScreenSize')==1)
@@ -3221,8 +3202,9 @@ classdef PipelineDemon < Component
                                     % call method runPipelineII(Obj, Coadd, FN_I, Args)
                                     % This function create the products and write
                                     % them to the disk
-    
-    
+
+                                    runPipelineII(Obj, Coadd, FN_Proc, UpArgs);
+
                                     Status.PipeII  = true;
                                     Status.WriteII = true;
                                 catch MEs
