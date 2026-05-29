@@ -268,7 +268,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PixelScale double = 1.25
         Args.injectedSrcs double = []
 
-        Args.SoftNChi2Lim = 21.0
+        Args.SoftNChi2Lim double = 21.0
 
         % Negative candidates
         Args.flagNegatives logical = true
@@ -345,7 +345,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.ContaminationMag double = [0.3 0.5]
         Args.ContaminationBackAnnulusMax double = [1.0 3.0]
-        Args.ContaminationStdAnnulusMax double = [4.5 12.0]
+        Args.ContaminationStdAnnulusMax double = [4.5 12 100]
 
         % Extendedness
         Args.flagExtended logical = true
@@ -1088,8 +1088,9 @@ function TranCat = flagNonTransients(Obj, Args)
                 log10(CandFluxes(HasContam) ./ ContaminationFlux(HasContam));
             
             PassesLocalAperLoose = ...
-                (STD_ANNULUS < Args.ContaminationStdAnnulusMax(2)) ...
-                & (abs(BACK_ANNULUS) < Args.ContaminationBackAnnulusMax(2));
+                (STD_ANNULUS < Args.ContaminationStdAnnulusMax(2) ...
+                & (abs(BACK_ANNULUS) < Args.ContaminationBackAnnulusMax(2)) ...
+                | (abs(CandFluxes./STD_ANNULUS) > Args.ContaminationStdAnnulusMax(3)));
 
             PassesContaminationLoose = ...
                 (MagContamination > Args.ContaminationMag(1)) & PassesLocalAperLoose;
