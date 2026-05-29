@@ -842,6 +842,8 @@ classdef AstroZOGY < AstroDiff
                 Args.PopS_delta logical      = true;
                 Args.DeltaWidth              = 0.1;
                 Args.DeltaStampSize          = [1 1];
+                Args.DeltaPunishEdge         = 5;
+                Args.DeltaPunishWeight       = -0.1
                 Args.PopS_ext logical        = true;
                 
                 Args.ExtendedFun function_handle = @imUtil.kernel2.gauss;
@@ -858,7 +860,27 @@ classdef AstroZOGY < AstroDiff
                 if Args.PopS_delta
                     DeltaPSF = imUtil.kernel2.gauss(Args.DeltaWidth, Args.DeltaStampSize);
                     
-                    Obj(Iobj).S_delta = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Obj(Iobj).Image, DeltaPSF);
+                    Nfull = Args.DeltaPunishEdge;
+                    DeltaKernel = zeros(Nfull, Nfull);
+                    
+                    % Insert DeltaPSF at the center
+                    Ninner = Args.DeltaStampSize;
+                    
+                    i0 = floor((Nfull - Ninner(1))/2) + 1;
+                    j0 = floor((Nfull - Ninner(2))/2) + 1;
+                    
+                    i1 = i0 + Ninner(1) - 1;
+                    j1 = j0 + Ninner(2) - 1;
+                    
+                    DeltaKernel(i0:i1, j0:j1) = DeltaPSF;
+                    
+                    % Punish the outer edge
+                    DeltaKernel(1,:)   = Args.DeltaPunishWeight;
+                    DeltaKernel(end,:) = Args.DeltaPunishWeight;
+                    DeltaKernel(:,1)   = Args.DeltaPunishWeight;
+                    DeltaKernel(:,end) = Args.DeltaPunishWeight;
+                    
+                    Obj(Iobj).S_delta = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Obj(Iobj).Image, DeltaKernel);
                 end
 
                 if Args.PopS_ext
