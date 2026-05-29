@@ -27,7 +27,7 @@ function plotPhotParamCorr(PC, Args)
         Args.MarkerSize     = 4
     end
 
-    PCcell = pipeline.last.quality.photCalib.resolvePC(PC);
+    PCcell = resolveInput(PC);
     if isempty(PCcell)
         return;
     end
@@ -45,7 +45,7 @@ function plotPhotParamCorr(PC, Args)
 
     AllParNames = {};
     for Ic = 1:Ncrop
-        if PCcell{FirstValid}(Ic).Success
+        if ~isempty(PCcell{FirstValid}(Ic).TransModel)
             P = PCcell{FirstValid}(Ic).TransModel.getAllFunPar();
             AllParNames = P.Name;
             break;
@@ -74,7 +74,7 @@ function plotPhotParamCorr(PC, Args)
         if isempty(PCcell{Iv}); continue; end
         for Ic = Args.CropsToAnalyze
             if Ic > numel(PCcell{Iv}); continue; end
-            if ~PCcell{Iv}(Ic).Success; continue; end
+            if isempty(PCcell{Iv}(Ic).TransModel); continue; end
             P = PCcell{Iv}(Ic).TransModel.getAllFunPar();
             Vals = P.Val(ParIdx)';
             if all(isfinite(Vals))

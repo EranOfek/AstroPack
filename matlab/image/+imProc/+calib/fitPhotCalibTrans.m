@@ -20,6 +20,18 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %                         Default is {'New', 'Ref'}.
     %            'AddMag' - Add calibrated magnitude columns. Default is true.
     %            'MagSystem' - Magnitude system ('AB' or 'Vega'). Default is 'AB'.
+    %            'MagColPrefix' - Prefix for calibrated magnitude column names.
+    %                         FLUX_<suffix> -> <prefix><suffix> (e.g.
+    %                         FLUX_APER_3 -> MAG_AB_APER_3). Pass 'MAG_' to drop
+    %                         the _AB token; the calibrated magnitudes then
+    %                         overwrite the instrumental MAG_<suffix> columns in
+    %                         place (insertCol deletes the old column first).
+    %                         Stamped onto each PC object's MagColPrefix
+    %                         property after calibrate; addMag, calcAperCorr,
+    %                         evaluateLimMag, applyConstBand and the per-epoch
+    %                         applyPhotCalibShifts all read it from there, so
+    %                         write/read sides always agree. Does not affect
+    %                         AB_ZP. Default is 'MAG_AB_'.
     %            'FluxColName' - Flux column name. Default is 'FLUX_APER_3'.
     %            'AddZP' - Add ZP column. Default is true.
     %            'UpdateHeader' - Update header with results. Default is true.
@@ -89,6 +101,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         Args.DiffCalibProps cell = {'New', 'Ref'}
         Args.AddMag logical = true
         Args.MagSystem char = 'AB'
+        Args.MagColPrefix = 'MAG_'   % Prefix for calibrated MAG column names ('MAG_' drops _AB, overwrites instrumental MAG_*)
         Args.FluxColName = 'FLUX_APER_3'
         Args.AddZP logical = true
         Args.UpdateHeader logical = true
@@ -167,6 +180,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
                 'CalibArgs', Args.CalibArgs, ...
                 'Verbose', Args.Verbose, 'AddMagErr', Args.AddMagErr, ...
                 'AddMag', Args.AddMag, 'MagSystem', Args.MagSystem, ...
+                'MagColPrefix', Args.MagColPrefix, ...
                 'FluxColName', Args.FluxColName, 'AddZP', Args.AddZP, ...
                 'CalcAperCorr', Args.CalcAperCorr, 'ApplyAperCorr', Args.ApplyAperCorr, ...
                 'EvaluateLimMag', Args.EvaluateLimMag, 'EvaluateBackMag', Args.EvaluateBackMag, ...
@@ -242,11 +256,17 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
             'match_catsHTMArgs',Args.match_catsHTMArgs,...
             'Verbose', Args.Verbose);
 
+        % Stamp the calibrated-magnitude column-naming prefix onto the PC
+        % object. Every downstream method (addMag, calcAperCorr, evaluateLimMag,
+        % applyConstBand, and the per-epoch applyPhotCalibShifts) reads this
+        % property — set once here, no per-call threading.
+        PC.MagColPrefix = Args.MagColPrefix;
+
         % ----------------------------------------------------------------
         % Post-calibration processing
         % ----------------------------------------------------------------
 
-        if PC.Success
+        if ~isempty(PC.TransModel)
             % Add calibrated magnitude (and optionally ZP) columns.
             % AperCorr is NOT yet applied — will be applied below after calcAperCorr.
             if Args.AddMag
@@ -351,16 +371,25 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
 
                 % Add magnitude columns if requested (NaN-filled for failed calibration)
                 if Args.AddMag
-                    % Dynamic prefix: MAG_AB_ or MAG_VEGA_
-                    MagPrefix = ['MAG_', Args.MagSystem, '_'];
+                    % Same naming prefix the successful path would have used
+                    MagPrefix = Args.MagColPrefix;
                     % Find FLUX columns and create corresponding magnitude columns
                     ColNames = CatObj.Table.Properties.VariableNames;
                     FluxCols = ColNames(startsWith(ColNames, 'FLUX_APER_') | strcmp(ColNames, 'FLUX_PSF'));
                     for iCol = 1:length(FluxCols)
                         NewMagColName = strrep(FluxCols{iCol}, 'FLUX_', MagPrefix);
                         CatObj = CatObj.insertCol(NaNcol, Inf, {NewMagColName});
-                        % Add NaN-filled magnitude error column for uniformity
-                        CatObj = CatObj.insertCol(NaNcol, Inf, {[NewMagColName, '_ERR']});
+                        % MAGERR column written only when an error source is
+                        % available: matching FLUXERR_<suffix>, or (for
+                        % FLUX_PSF specifically) the SN column from which
+                        % MagErr = 1.086 / SN.
+                        FluxErrColName = strrep(FluxCols{iCol}, 'FLUX_', 'FLUXERR_');
+                        HasErrSource = ismember(FluxErrColName, ColNames) || ...
+                            (strcmp(FluxCols{iCol}, 'FLUX_PSF') && ismember('SN', ColNames));
+                        if HasErrSource
+                            MagErrColName = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
+                            CatObj = CatObj.insertCol(NaNcol, Inf, {MagErrColName});
+                        end
                     end
                 end
 
@@ -446,11 +475,12 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     % ====================================================================
 
     if Args.Verbose
-        Nsuccess = sum([PhotCalib.Success]);
+        SuccessMask = arrayfun(@(p) ~isempty(p.TransModel), PhotCalib);
+        Nsuccess = sum(SuccessMask);
         fprintf('\n=== CALIBRATION COMPLETE ===\n');
         fprintf('Successful: %d/%d objects\n', Nsuccess, Nobj);
         if Nsuccess > 0
-            RMSvals = [FitRes([PhotCalib.Success]).RMS];
+            RMSvals = [FitRes(SuccessMask).RMS];
             fprintf('RMS range: %.4f - %.4f mag\n', min(RMSvals), max(RMSvals));
         end
     end
@@ -488,6 +518,43 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 stages (1-3) only; stage 4 overwrites
     %                                 ParX with the linear LS fit. 0 disables.
     %                                 Default 0.
+    %            'CalibCatName'     - catsHTM catalog with reference spectra,
+    %                                 forwarded to selectCalibrators.
+    %                                 Default 'GAIADR3spec'.
+    %            'MinSN'            - Lower S/N gate on calibrator candidates.
+    %                                 Default 5.
+    %            'MaxSN'            - Upper S/N gate. Default 1000.
+    %            'FilterBadFlags'   - Apply the FLAGS bitmask filter in
+    %                                 selectCalibrators. Default true.
+    %            'MagColName'       - Magnitude column used for the MagRange
+    %                                 filter and audit delta-mag.
+    %                                 Default 'MAG_APER_3'.
+    %            'SpFluxCol'        - Spectral flux column indices in
+    %                                 CalibCatName as [flux_start, flux_end,
+    %                                 err_start, err_end]. Default
+    %                                 [7, 349, 350, 692] for GAIADR3spec.
+    %            'BadBitNames'      - Cell of bit-name strings flagged as bad
+    %                                 (resolved via BitDictionary
+    %                                 'BitMask.Image.Default').
+    %                                 Default {'Saturated','NaN','Negative',
+    %                                 'CR_DeltaHT','NearEdge'}.
+    %            'AuditCalibrators' - Toggle the step-0 calibrator audit in
+    %                                 selectCalibrators. When false (default)
+    %                                 the call path is unchanged.
+    %            'AuditCatName'     - Gaia photometric catsHTM catalog used to
+    %                                 fetch BP-RP and BP-RP excess factor for
+    %                                 the audit. Default 'GAIADR3'.
+    %            'AuditBPRPExcessFactorMax' - Reject if Gaia counterpart's
+    %                                 phot_bp_rp_excess_factor exceeds this
+    %                                 value. Default 1.3.
+    %            'AuditBPRPMax'     - Reject if Gaia counterpart's bp_rp exceeds
+    %                                 this value. Default 1.5.
+    %            'AuditLASTNearestDist' - Reject if the candidate's nearest LAST
+    %                                 neighbour (self-excluded) lies within this
+    %                                 distance [arcsec]. Default 20.
+    %            'AuditLASTDeltaMag' - Reject if the candidate's nearest LAST
+    %                                 neighbour has |delta-mag| (using
+    %                                 MagColName) below this value. Default 2.
     %            'WeightingMode'    - Weighting mode. Default 'spectral'.
     %            'FluxErrColName'   - Flux error column. Default 'FluxErr'.
     %            'SigmaClipMethod'  - 'median' or 'weighted'. Default 'median'.
@@ -524,6 +591,21 @@ function CalibArgs = predefCalibArgs(Args)
         Args.XPixel           = 1716   % Detector X size [pix]; sets Tran2D centre = XPixel/2
         Args.YPixel           = 1716   % Detector Y size [pix]; sets Tran2D centre = YPixel/2
         Args.Tran2DPerturbStd = 0   % Std-dev for randn-seed of Tran2D ParX (one shot before stage 1); 0 disables
+
+        % Calibrator selection (forwarded to selectCalibrators)
+        Args.CalibCatName     = 'GAIADR3spec'   % catsHTM catalog with reference spectra
+        Args.MinSN            = 5               % Lower S/N gate on calibrator candidates
+        Args.MaxSN            = 1000            % Upper S/N gate
+        Args.FilterBadFlags logical = true      % Apply FLAGS bitmask filter
+        Args.MagColName       = 'MAG_APER_3'    % Mag column for MagRange + audit deltaMag
+        Args.SpFluxCol        = [7, 349, 350, 692]  % [flux_start, flux_end, err_start, err_end]
+        Args.BadBitNames      = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'}
+        Args.AuditCalibrators logical = false   % Toggle step-0 audit (default: keep status quo)
+        Args.AuditCatName     = 'GAIADR3'       % Gaia photometric catalog for the audit
+        Args.AuditBPRPExcessFactorMax = 1.7
+        Args.AuditBPRPMax     = 2.0
+        Args.AuditLASTNearestDist = 10          % arcsec
+        Args.AuditLASTDeltaMag = 1              % mag
 
         % Weighting
         Args.WeightingMode    = 'spectral'  % 'none', 'spectral', 'flux', 'combined'

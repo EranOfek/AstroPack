@@ -40,14 +40,20 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
     %                   Default is [].
     %            'mexCutout' - Use MEX-based cutout extraction when Image is 2-D.
     %                   Default is true.
+    %            'Cut2D' - If a 2D image is provided, this indicate if to
+    %                   cut it to stamps. Default is true.
     %            'HalfSize' - Half-size of each extracted stamp. Relevant only when
     %                   Image is 2-D. The stamp size is 2*HalfSize+1 pixels.
     %                   Default is 12.
     %            'AperPhotType' - Aperture photometry algorithm.
     %                   Options are:
     %                   'interp' - Interpolated circular aperture photometry.
+    %                           Interpolate the pixealted aperture to the
+    %                           data.
+    %                   'interpstamp' - Interpolate the data to the
+    %                           aperture.
     %                   'simple' - Simple circular aperture photometry.
-    %                   Default is 'interp'.
+    %                   Default is 'interpstamp'.
     %            'AperPhotRadius' - Vector of aperture radii in pixels.
     %                   Default is [2 4 6].
     %            'AnnulusRadii' - Two-element vector [Rin Rout] specifying the
@@ -131,13 +137,13 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
         Args.SN                = [];
         Args.X                 = []; 
         Args.Y                 = [];
-        Args.StampX             = [];
-        Args.StampY             = [];
+        Args.StampX            = [];
+        Args.StampY            = [];
         Args.mexCutout         = true;
-
+        Args.Cut2D             = true;
 
         Args.HalfSize          = 12;
-        Args.AperPhotMethod    = 'interp';  % 'simple'|'interp'
+        Args.AperPhotMethod    = 'interpstamp';  % 'simple'|'interp'|'interpstamp'
         Args.AperRadius        = [2 4 6];
         Args.Annulus           = [10 12];
         Args.MaxIter           = 8;
@@ -162,15 +168,24 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
         else
                 
             % the stamp size is always HalfSize.*2+1 (so odd number)
-            [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, Args.X, Args.Y, Args.HalfSize, 'mexCutout',Args.mexCutout);
-            [Ny, Nx, Nslice] = size(Cube);
-    
+            if Args.Cut2D
+                [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image, Args.X, Args.Y, Args.HalfSize, 'mexCutout',Args.mexCutout);
+                [Ny, Nx, Nslice] = size(Cube);
+            else
+                Cube = Image;
+                Nslice = 1;
+                [Ny, Nx] = size(Cube);
+                RoundX = round(Args.X);
+                RoundY = round(Args.Y);
+                
+            end
             X = RoundX;
             Y = RoundY;
     
             % X/Y
             StampX = (Args.X-RoundX) + Args.HalfSize + 1;
             StampY = (Args.Y-RoundY) + Args.HalfSize + 1;
+       
         end
 
     else
@@ -248,10 +263,17 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
         if nargout>1
             
             [M2.X2,M2.Y2,M2.XY] = imUtil.sources.mex.mom2_cube(CubeBS, B0, M1.StampX1, M1.StampY1, Args.MaxRadiusM2);
-    
+
+            % debuging - using old moment code with new aper phot
+            % no improvment
+            %[M1o]=imUtil.image.moment2(CubeBS,M1.StampX1, M1.StampY1, 'Annulus',[10 12]);
+            %M1.StampX1 = M1o.X;
+            %M1.StampY1 = M1o.Y;
             
             if nargout>2
                 switch Args.AperPhotMethod
+                    case 'interpstamp'
+                        [Aper.AperPhot, Aper.AperArea] = imUtil.sources.mex.aper_phot_cube_interpstamp(CubeBS, B0, M1.StampX1, M1.StampY1, Args.AperRadius);
                     case 'interp'
                         [Aper.AperPhot, Aper.AperArea] = imUtil.sources.mex.aper_phot_cube_interp(CubeBS, B0, M1.StampX1, M1.StampY1, Args.AperRadius);
                     case 'simple'

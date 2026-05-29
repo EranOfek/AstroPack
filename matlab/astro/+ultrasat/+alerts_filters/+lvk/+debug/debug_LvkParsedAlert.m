@@ -1,0 +1,175 @@
+%==========================================================================
+% Project     : ULTRASAT Incoming Alerts Filter
+% File        : +ultrasat/+alerts_filters/+lvk/+debug/debug_LvkParsedAlert.m
+% Author      : Chen Tishler
+% Created     : 09/02/2026
+% Updated     : 12/05/2026
+% Description : Debug script for ultrasat.alerts_filters.lvk.models.LvkParsedAlert
+%
+% Run by: ultrasat.alerts_filters.lvk.debug.debug_LvkParsedAlert()
+%==========================================================================
+
+function debug_LvkParsedAlert()
+    % Debug script for LvkParsedAlert: constructors, serialization, datetimes, file I/O.
+
+    fprintf('--- Debugging LvkParsedAlert ---\n');
+
+    debugDefaultConstructor();
+    debugNameValueConstructor();
+    debugToJsonString();
+    debugFromJsonStringRoundTrip();
+    debugFromStruct();
+    debugDatetimeHandling();
+    debugSaveLoadJson();
+    debugLoadJsonFixtures();
+    debugFilterIntegration();
+end
+
+% -------------------------------------------------------------------------
+
+function debugDefaultConstructor()
+    fprintf('\n--- Default constructor ---\n');
+    alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert();
+    disp(alert);
+    fprintf('alert_id="%s", prob_bns=%s\n', alert.alert_id, num2str(alert.prob_bns));
+end
+
+% -------------------------------------------------------------------------
+
+function debugNameValueConstructor()
+    fprintf('\n--- Name/value constructor ---\n');
+    alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert( ...
+        "alert_id", "G12345", ...
+        "superevent_id", "S12345", ...
+        "prob_bns", 0.7, ...
+        "far_per_year", 2.5, ...
+        "event_time", "2026-02-09T12:00:00");
+    fprintf('alert_id="%s", prob_bns=%.2f, far_per_year=%.2f\n', ...
+        alert.alert_id, alert.prob_bns, alert.far_per_year);
+    disp(alert.event_time);
+end
+
+% -------------------------------------------------------------------------
+
+function debugToJsonString()
+    fprintf('\n--- toJsonString ---\n');
+    alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert( ...
+        "alert_id", "G99", "prob_bns", 0.5, "skymap_path", "/path/to/skymap.fits");
+    result = alert.toJsonString();
+    disp(result);
+end
+
+% -------------------------------------------------------------------------
+
+function debugFromJsonStringRoundTrip()
+    fprintf('\n--- fromJsonString round-trip ---\n');
+    jsonStr = ['{"alert_id":"G88","prob_bns":0.6,"far_per_year":1.2,', ...
+        '"event_time":"2026-02-09T14:30:00","instruments":["H1","L1"]}'];
+    alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert.fromJsonString(jsonStr);
+    fprintf('After fromJsonString: alert_id="%s", prob_bns=%.2f\n', alert.alert_id, alert.prob_bns);
+    back = alert.toJsonString();
+    fprintf('Back to JSON (excerpt): %s\n', back);
+end
+
+% -------------------------------------------------------------------------
+
+function debugFromStruct()
+    fprintf('\n--- fromStruct (alert_id, event_time, prob_bns, instruments, raw_fields) ---\n');
+    s = struct();
+    s.alert_id = "G77";
+    s.event_time = "2026-02-09T10:00:00";
+    s.prob_bns = 0.8;
+    s.instruments = ["H1", "L1", "V1"];
+    s.raw_fields = struct("extra_key", "extra_value");
+    alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert.fromStruct(s);
+    fprintf('alert_id="%s", prob_bns=%.2f\n', alert.alert_id, alert.prob_bns);
+    fprintf('event_time: %s\n', string(alert.event_time));
+    fprintf('instruments: %s\n', strjoin(alert.instruments, ", "));
+    fprintf('raw_fields.extra_key="%s"\n', alert.raw_fields.extra_key);
+end
+
+% -------------------------------------------------------------------------
+
+function debugDatetimeHandling()
+    fprintf('\n--- Datetime handling (time_created, event_time as ISO strings) ---\n');
+    s = struct();
+    s.time_created = "2026-02-09T08:00:00";
+    s.event_time = "2026-02-09T09:15:30";
+    s.parsed_time = "2026-02-09T09:16:00";
+    alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert.fromStruct(s);
+    fprintf('time_created: %s\n', string(alert.time_created));
+    fprintf('event_time: %s\n', string(alert.event_time));
+    fprintf('parsed_time: %s\n', string(alert.parsed_time));
+    assert(~isnat(alert.event_time), 'event_time should be parsed as datetime');
+end
+
+% -------------------------------------------------------------------------
+
+function debugSaveLoadJson()
+    fprintf('\n--- saveToJsonFile / loadFromJsonFile ---\n');
+    alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert( ...
+        "alert_id", "G66", "prob_bns", 0.55, "far_per_year", 3.0);
+    filePath = [tempname(), '.json'];
+    alert.saveToJsonFile(filePath);
+    loaded = ultrasat.alerts_filters.lvk.models.LvkParsedAlert.loadFromJsonFile(filePath);
+    delete(filePath);
+    assert(loaded.alert_id == alert.alert_id && loaded.prob_bns == alert.prob_bns, ...
+        'Save/load round-trip failed');
+    fprintf('Save/load round-trip OK: alert_id="%s", prob_bns=%.2f\n', loaded.alert_id, loaded.prob_bns);
+end
+
+% -------------------------------------------------------------------------
+
+function debugLoadJsonFixtures()
+    debugDir = fileparts(mfilename('fullpath'));
+    fixtureDir = fullfile(debugDir, 'data');
+    if ~isfolder(fixtureDir)
+        fixtureDir = fullfile(debugDir, 'sample_alerts');
+    end
+
+    fprintf('\n--- load JSON fixtures from %s ---\n', fixtureDir);
+
+    jsonFiles = dir(fullfile(fixtureDir, '*.json'));
+    assert(~isempty(jsonFiles), 'No LVK alert JSON fixtures found in: %s', fixtureDir);
+
+    for iFile = 1:numel(jsonFiles)
+        filePath = fullfile(jsonFiles(iFile).folder, jsonFiles(iFile).name);
+        alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert.loadFromJsonFile(filePath);
+
+        assert(isa(alert, 'ultrasat.alerts_filters.lvk.models.LvkParsedAlert'), ...
+            'Fixture "%s" did not load as LvkParsedAlert', jsonFiles(iFile).name);
+        assert(strlength(alert.alert_id) > 0, ...
+            'Fixture "%s" loaded without an alert_id', jsonFiles(iFile).name);
+
+        fprintf('Loaded %s: alert_id="%s", alert_type="%s", prob_bns=%s, far_per_year=%s\n', ...
+            jsonFiles(iFile).name, alert.alert_id, alert.alert_type, ...
+            formatDebugScalar(alert.prob_bns), formatDebugScalar(alert.far_per_year));
+    end
+end
+
+% -------------------------------------------------------------------------
+
+function debugFilterIntegration()
+    fprintf('\n--- Integration: LvkParsedAlert + LvkFilterCriteria + lvk_filter_with_criteria ---\n');
+    alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert( ...
+        "alert_id", "G55", "prob_bns", 0.6, "prob_nsbh", 0.2, "far_per_year", 5.0);
+    criteria = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria("bns_min", 0.3, "far_max", 10);
+    result = ultrasat.alerts_filters.lvk.filters.lvk_filter_with_criteria(alert, criteria, MsgLogger.getSingleton());
+    %fprintf('Filter result: score=%.2f, reasons=%s\n', result.score, strjoin(result.reasons, "; "));
+end
+
+% -------------------------------------------------------------------------
+
+function result = formatDebugScalar(value)
+    if isempty(value)
+        result = '[]';
+    elseif isnumeric(value) && isscalar(value)
+        if isnan(value)
+            result = 'NaN';
+        else
+            result = sprintf('%.3g', value);
+        end
+    else
+        result = char(string(value));
+    end
+end

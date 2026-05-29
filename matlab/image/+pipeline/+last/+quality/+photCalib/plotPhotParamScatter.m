@@ -100,14 +100,7 @@ function Result = plotPhotParamScatter(PC, Args)
     Nsets = numel(Sources);
 
     % Central crops per tile convention
-    switch lower(Args.TileOrder)
-        case 'colmajor'
-            CentralCrops = [8 9 10 11 14 15 16 17];
-        case 'rowmajor'
-            CentralCrops = [6 7 10 11 14 15 18 19];
-        otherwise
-            CentralCrops = [];
-    end
+    CentralCrops = centralCrops(Args.TileOrder);
 
     % Collect (X,Y) per (epoch, crop) — pooled across sets, with set ID
     Xs = []; Ys = []; Cs = []; Es = []; Ss = [];
@@ -115,7 +108,7 @@ function Result = plotPhotParamScatter(PC, Args)
     AnyYfinite = false;
 
     for Is = 1:Nsets
-        PCcell = pipeline.last.quality.photCalib.resolvePC(Sources{Is});
+        PCcell = resolveInput(Sources{Is});
         if isempty(PCcell); continue; end
         for Iv = 1:numel(PCcell)
             if isempty(PCcell{Iv}); continue; end
@@ -126,10 +119,10 @@ function Result = plotPhotParamScatter(PC, Args)
             for Ic = CropsToUse
                 if Ic > numel(PCcell{Iv}); continue; end
                 PCobj = PCcell{Iv}(Ic);
-                if ~PCobj.Success; continue; end
+                if isempty(PCobj.TransModel); continue; end
 
-                XV = pipeline.last.quality.photCalib.resolvePCParam(PCobj, Args.XParam);
-                YV = pipeline.last.quality.photCalib.resolvePCParam(PCobj, Args.YParam);
+                XV = resolvePCParam(PCobj, Args.XParam);
+                YV = resolvePCParam(PCobj, Args.YParam);
                 AnyXfinite = AnyXfinite || isfinite(XV);
                 AnyYfinite = AnyYfinite || isfinite(YV);
                 if ~isfinite(XV) || ~isfinite(YV); continue; end
@@ -246,17 +239,22 @@ function Result = plotPhotParamScatter(PC, Args)
 
     ColAll = [0.25 0.25 0.25];
     if Args.FitLine && Nsets == 1
-        if ~isnan(Result.Central.FitSlope) && any(CentralMask)
-            XF = linspace(min(Xs(CentralMask)), max(Xs(CentralMask)), 50);
-            plot(XF, Result.Central.FitSlope*XF + Result.Central.FitIntercept, ...
-                '-', 'Color', ColCentral, 'LineWidth', 1.5, ...
-                'HandleVisibility', 'off');
-        end
-        if ~isnan(Result.Peripheral.FitSlope) && any(~CentralMask)
-            XF = linspace(min(Xs(~CentralMask)), max(Xs(~CentralMask)), 50);
-            plot(XF, Result.Peripheral.FitSlope*XF + Result.Peripheral.FitIntercept, ...
-                '-', 'Color', ColPeriph, 'LineWidth', 1.5, ...
-                'HandleVisibility', 'off');
+        % Per-cohort fit lines only when the user asked for the split;
+        % otherwise draw only the single 'All' line to match the
+        % single-colour dot layout.
+        if Args.SplitCentral
+            if ~isnan(Result.Central.FitSlope) && any(CentralMask)
+                XF = linspace(min(Xs(CentralMask)), max(Xs(CentralMask)), 50);
+                plot(XF, Result.Central.FitSlope*XF + Result.Central.FitIntercept, ...
+                    '-', 'Color', ColCentral, 'LineWidth', 1.5, ...
+                    'HandleVisibility', 'off');
+            end
+            if ~isnan(Result.Peripheral.FitSlope) && any(~CentralMask)
+                XF = linspace(min(Xs(~CentralMask)), max(Xs(~CentralMask)), 50);
+                plot(XF, Result.Peripheral.FitSlope*XF + Result.Peripheral.FitIntercept, ...
+                    '-', 'Color', ColPeriph, 'LineWidth', 1.5, ...
+                    'HandleVisibility', 'off');
+            end
         end
         if ~isnan(Result.All.FitSlope)
             XF = linspace(min(Xs), max(Xs), 50);

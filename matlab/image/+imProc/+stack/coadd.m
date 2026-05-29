@@ -456,7 +456,8 @@ function [Result, CoaddN, ImageCube, MidJD, SumExpTime] = coadd(ImObj, Args)
                
         %'MIDJD',0.5.*(max(MidJD)+min(MidJD)),'Middle time of observations';...
             
-        Result.HeaderData = insertKey(Result.HeaderData, InfoCell, 'end');
+        %Result.HeaderData = insertKey(Result.HeaderData, InfoCell, 'end');
+        Result.HeaderData = Result.HeaderData.replaceVal(InfoCell(:,1), InfoCell(:,2), 'Comment',InfoCell(:,3));
 
         SumExpTime = sum(VecExpTime);
         if Args.SumExpTime

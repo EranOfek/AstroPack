@@ -39,7 +39,7 @@ function [PhotData, Shift] = pipelineFastSingle(Image, CI, XY, Args)
 
     % cutouts around selected sources
     % Returns a cube of sources
-    Cube = imUtil.cut.mex.mex_cutout(Image, RoundXY,  StampSize, NaN); 4D   %(0.16s on 3e4 sources)
+    Cube = imUtil.cut.mex.imageCutouts(Image, RoundXY(:,1), RoundXY(:,2),  StampSize, NaN); 4D   %(0.16s on 3e4 sources)
     Cube = squueze(Cube);  % 3D
 
     % annulus back/var estimation

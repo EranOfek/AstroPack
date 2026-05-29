@@ -93,8 +93,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     arguments
         Cube
 
-        Args.PsfPhotMethod = 'legacy';  % 'legacy'/'old' |'1D'|'2D'|'2DGN'
-        Args.ShiftMethod   = 'fft'; % 1 lanczos3, 2-fft
+        Args.PsfPhotMethod = '2DGN' % 'legacy';  % 'legacy'/'old' |'1D'|'2D'|'2DGN'
+        Args.ShiftMethod   = 'lanczos3' % 'fft';     % 1 lanczos3, 2-fft
 
         Args.PSF        = 1.5;  % scalar will generate a Gaussian PSF - normalized to 1
         Args.Std        = [];   % vector or cube

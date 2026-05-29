@@ -1,5 +1,6 @@
 function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     % Given a background-subtracted image and PSF star positions, construct a mean PSF stamp from cutouts
+    %   Obsolete: use imUtil.psf.bildPSF instead.
     % Input  : - A 2-D image, or a cube of cutouts around sources.
     %            If a cube then the image index must be in the 3rd
     %            dimesniosn.

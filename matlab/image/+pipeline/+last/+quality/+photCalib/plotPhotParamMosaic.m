@@ -15,7 +15,7 @@ function Result = plotPhotParamMosaic(PC, Args)
     %              spatial layout in one epoch.
     %
     % Input  : - PC: PhotCalibTrans array (1xNcrop), OR any source
-    %            accepted by pipeline.last.quality.photCalib.resolvePC
+    %            accepted by resolveInput (private helper)
     %            (Result struct, mode-keyed PC struct, etc.). Multi-visit
     %            sources collapse to the first non-empty visit.
     %          * ...,key,val,...
@@ -125,7 +125,7 @@ function Result = plotPhotParamMosaic(PC, Args)
     if isa(PC, 'PhotCalibTrans')
         PCarray = PC(:).';
     else
-        PCcell = pipeline.last.quality.photCalib.resolvePC(PC);
+        PCcell = resolveInput(PC);
         Idx = find(~cellfun(@isempty, PCcell), 1);
         if isempty(Idx)
             error('plotPhotParamMosaic:NoPC', ...
@@ -156,7 +156,7 @@ function Result = plotPhotParamMosaic(PC, Args)
         V = nan(1, Args.Ncrop);
         for K = 1:numel(CropIdx)
             Ic = CropIdx(K);
-            V(Ic) = pipeline.last.quality.photCalib.resolvePCParam( ...
+            V(Ic) = resolvePCParam( ...
                 PCarray(Ic), Names{Iq});
         end
         Values.(Fields{Iq}) = V;
@@ -178,11 +178,7 @@ function Result = plotPhotParamMosaic(PC, Args)
     end
 
     % --- Central / peripheral classification ----------------------------
-    switch lower(Args.TileOrder)
-        case 'colmajor', CentralCrops = [8 9 10 11 14 15 16 17];
-        case 'rowmajor', CentralCrops = [6 7 10 11 14 15 18 19];
-        otherwise,        CentralCrops = [];
-    end
+    CentralCrops = centralCrops(Args.TileOrder);
     IsCentralCrop = false(1, Args.Ncrop);
     IsCentralCrop(CentralCrops(CentralCrops <= Args.Ncrop)) = true;
 

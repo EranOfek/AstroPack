@@ -89,7 +89,7 @@ function debug_prepareForSave()
     
     % You must provide a client here (mock or real)   
     t0 = tic;
-    planner_loaded = planner_loaded.restoreAfterLoad(planner.Mclient);
+    planner_loaded = planner_loaded.restoreAfterLoad('Mclient', planner.Mclient);
     elapsed = toc(t0);
     fprintf('  restoreAfterLoad time: %.3f sec\n', elapsed);
 

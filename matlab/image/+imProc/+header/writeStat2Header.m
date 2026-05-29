@@ -71,11 +71,13 @@ function [AI] = writeStat2Header(AI, Args)
     else
         ColMom     = [];
     end
+    
     %if Args.WritePSF
     %    ColsPSF = {Args.KeyFWHM, Args.KeyShapePSF{:}, Args.KeySqrtSumPSF2, Args.KeyMedM2{:}};
     %else
     %    ColsPSF = {};
     %end
+
     if Args.WriteScale
         ColsScale = Args.KeyScaleRot;
     else
@@ -109,12 +111,12 @@ function [AI] = writeStat2Header(AI, Args)
             if EmptyCat
                 Mag = NaN;
             else
-                Mag = AI(Iai).CatData.getCol(Args.ColMag);
+                Mag = AI(Iai).CatData.getColMulti(Args.ColMag);
             end
             Data(Idata) = quantile(Mag, Args.MagQuantile);
 
             Idata = Idata + 1;
-            Chi2Dof = AI(Iai).CatData.getCol(Args.ColPsfChi2);
+            Chi2Dof = AI(Iai).CatData.getColMulti(Args.ColPsfChi2);
             Data(Idata) = median(Chi2Dof,'all','omitnan');
         end
         % if Args.WritePSF
@@ -132,7 +134,7 @@ function [AI] = writeStat2Header(AI, Args)
             if EmptyCat
                 M2 = [NaN NaN NaN];
             else
-                M2 = AI(Iai).CatData.getCol({Args.ColX2, Args.ColY2, Args.ColXY});
+                M2 = AI(Iai).CatData.getColMulti({Args.ColX2, Args.ColY2, Args.ColXY});
             end
             Data(Idata:Idata+2) = median(M2, 1, 'omitnan');
             Idata = Idata + 2;
@@ -145,8 +147,9 @@ function [AI] = writeStat2Header(AI, Args)
             Data(Idata:Idata+1) = [ScRot.Scale .* ARCSEC_DEG, ScRot.PA_deg];
         end
 
-        Cell = [Cols(:), num2cell(Data)];
-        AI(Iai).HeaderData.insertKey(Cell, 'end');
+        %Cell = [Cols(:), num2cell(Data)];
+        %AI(Iai).HeaderData.insertKey(Cell, 'end');
+        AI(Iai).HeaderData.replaceVal(Cols(:), num2cell(Data));
 
     end
 

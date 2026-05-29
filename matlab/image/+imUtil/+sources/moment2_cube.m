@@ -18,11 +18,13 @@ function [X2, Y2, XY] = moment2_cube(Cube, Back, X1, Y1, Args)
     %          - Vector of 1st Y central moment per slice.
     %          - Iteration at which the estimation converged.
     % Author : Eran Ofek (2026 Feb) 
-    % Example: [X2,Y2,XY]=imUtil.sources.moment1_cube(Cube,[]);
+    % Example: [X2,Y2,XY]=imUtil.sources.moment2_cube(Cube,[]);
 
     arguments
         Cube
         Back                   = 0;
+        X1                     = [];
+        Y1                     = [];
         Args.Method            = 'mex'; %'mex'|'moment1_cibe_mle'|'legacy'
         Args.SN                = 10;
         Args.MaxIter           = 10;

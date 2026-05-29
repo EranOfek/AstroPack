@@ -23,6 +23,7 @@
 % Functionality:
 %       AstroImage - Constructor and image reader for AstroImage class
 %       isemptyImage - Check if data images in AstroImage object are empty
+%       isemptyCatalog - Check if the catalog in AstroImage is empty
 %       sizeImage - Return the size of images in AstroImage object.
 %       astroImage2ImageComponent - Convert an AstroImage data into SciImage, BackImage, etc. objects.
 %       astroImage2AstroCatalog - Convert the CataData in AstroImage object into an AstroCatalog object array.
@@ -87,6 +88,7 @@
 % getStructKey - Get multiple  keys from headers in multiple AstroImage and store in a structure array The keyword search can be exact (UseDict=false), or using a keywords dictionary (UseDict=true).
 % imageIO2AstroImage - Convert an ImageIO object into an AstroImage object
 % isImType - Check if header IMTYPE keyword value equal some type
+% isemptyCatalog - Check if the catalog in AstroImage is empty
 % isemptyImage - Check if data images in AstroImage object are empty
 % julday - Return the Julian day for AstroImage object
 % maskSet - Set the value of a bit in a bit mask (Maskdata) in AstroImage
@@ -1033,13 +1035,29 @@ classdef AstroImage < Component
             %            each image element.
             % Author : Eran Ofek (May 2022)
             % Example: AI=AstroImage; AI.isemptyPSF
-           
+
             Nobj = numel(Obj);
             Result = false(size(Obj));
             for Iobj=1:1:Nobj
                 Result(Iobj) = isempty(Obj(Iobj).PSFData.Data);
             end
-            
+
+        end
+
+        function Result = isemptyCatalog(Obj)
+            % Check if the catalog in AstroImage is empty
+            % Input  : - An AstroImage object (multi elements supported).
+            % Output : - An array of logicals indicating if CatData.Catalog
+            %            is empty in each image element.
+            % Author : A.M. Krassilchtchikov (May 2026)
+            % Example: AI=AstroImage; AI.isemptyCatalog
+
+            Nobj = numel(Obj);
+            Result = false(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = isempty(Obj(Iobj).CatData.Catalog);
+            end
+
         end
     
         function Obj = createMask(Obj, Type)
@@ -3689,8 +3707,8 @@ classdef AstroImage < Component
 
         end
 
-        function DataProp = depandentProp2DataProp(Obj, Prop)
-            % Depandent property to data property containing the ImageComponent object.
+        function DataProp = dependentProp2DataProp(Obj, Prop)
+            % Dependent property to data property containing the ImageComponent object.
             %   Given a dependent data property (e.g., 'Image') convert to
             %   property name containing the ImageComponent object (e.g., 'ImageData').
             % Input  : - An AstroImage object.
@@ -3699,7 +3717,7 @@ classdef AstroImage < Component
             %            to the dependent property
             %            (e.g., 'ImageData','BackData','ExpData').
             % Author : Eran Ofek (May 2023)
-            % Example: AI.depandentProp2DataProp('Exp')
+            % Example: AI.dependentProp2DataProp('Exp')
             
             arguments
                 Obj(1,1)
@@ -3736,7 +3754,7 @@ classdef AstroImage < Component
                     SizeProp = Obj(Iobj).sizeImage(Args.ImageProp{Iprop});
                     Scale    = SizeImage./SizeProp;
                     
-                    DataProp = Obj(Iobj).depandentProp2DataProp(Args.ImageProp{Iprop});
+                    DataProp = Obj(Iobj).dependentProp2DataProp(Args.ImageProp{Iprop});
                     %FN = fieldnames(Obj.Relations);
                     %Ind = strcmp(FN, Args.ImageProp{Iprop});
                     %DataProp = Obj.Relations.(FN{Ind});

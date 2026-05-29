@@ -102,19 +102,17 @@ function Result = plotAuditDiff(AuStrict, AuLoose, Args)
     for I = 1:numel(KeepPlotCols)
         C = KeepPlotCols{I};
         if ~ismember(C, Pool.Properties.VariableNames); continue; end
-        Va = Pool.(C)(BothU);          Va = Va(isfinite(Va));
-        Vb = Pool.(C)(OnlyStrictRej);  Vb = Vb(isfinite(Vb));
-        S.N_BothU         = numel(Va);
-        S.N_OnlyStrictRej = numel(Vb);
-        S.MedBothU         = safeMedian(Va);
-        S.MedOnlyStrictRej = safeMedian(Vb);
-        S.KS_p = NaN; S.MW_p = NaN; S.CliffsDelta = NaN;
-        if numel(Va) >= 5 && numel(Vb) >= 5
-            try [~, S.KS_p] = kstest2(Va, Vb); catch; end
-            try S.MW_p = ranksum(Va, Vb);     catch; end
-            S.CliffsDelta = cliffsDelta(Vb, Va);   % positive = OnlyStrictRej > BothU
-        end
-        Stats.(C) = S;
+        Va = Pool.(C)(BothU);
+        Vb = Pool.(C)(OnlyStrictRej);
+        T  = twoSampleStats(Vb, Va);   % positive CliffsDelta = OnlyStrictRej > BothU
+        Stats.(C) = struct( ...
+            'N_BothU',         T.N_B, ...
+            'N_OnlyStrictRej', T.N_A, ...
+            'MedBothU',         T.Med_B, ...
+            'MedOnlyStrictRej', T.Med_A, ...
+            'KS_p',             T.KS_p, ...
+            'MW_p',             T.MW_p, ...
+            'CliffsDelta',      T.CliffsDelta);
     end
     Result.Stats = Stats;
     Result.Args  = Args;
@@ -237,18 +235,8 @@ function C = buildCohorts(Names, Masks)
 end
 
 % =========================================================================
-function m = safeMedian(v); if isempty(v); m = NaN; else; m = median(v); end; end
-
-% =========================================================================
-function d = cliffsDelta(a, b)
-    a = a(:); b = b(:);
-    if isempty(a) || isempty(b); d = NaN; return; end
-    R = tiedrank([a; b]);
-    Ra = sum(R(1:numel(a)));
-    n_a = numel(a); n_b = numel(b);
-    U = Ra - n_a * (n_a + 1) / 2;
-    d = 2 * U / (n_a * n_b) - 1;
-end
+% (safeMedian / cliffsDelta locals removed - stats now go through the
+% twoSampleStats private helper.)
 
 % =========================================================================
 function printStats(Stats)

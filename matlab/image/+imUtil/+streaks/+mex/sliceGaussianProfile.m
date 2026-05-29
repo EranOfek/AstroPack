@@ -1,8 +1,9 @@
-function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,x,y,W,Args)
+function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,Xb1,Xb2,x,y,W,Args)
 % divide the rasterized strip in slices, and fit gaussians to the intensity
 %  values W in each slice
 % Input:
-%  X1: [x1,y1]; X2: [x2,y2] of the base segment
+%  X1: [x1,y1]; X2: [x2,y2] of the extended segment
+%  Xb1: [xb1,yb1]; Xb2: [xb2,yb2] of the base segment
 %  x,y,W: Nx1 vectors
 %  x,y: coordinates in pixels of the pixels belonging to the streak strip
 %  W:   intensity of the pixels
@@ -34,6 +35,8 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,x,y,W,Args)
 arguments
     X1 (1,2) double
     X2 (1,2) double
+    Xb1 (1,2) double
+    Xb2 (1,2) double
     x (:,1) double
     y (:,1) double
     W (:,1) double
@@ -46,7 +49,7 @@ end
 % Call MEX function for fitting (returns C and goodindices)
 try
     [C, goodindices] = imUtil.streaks.mex.sliceGaussianProfile_mex(X1, X2, ...
-        x, y, W, Args.slice_width, Args.rthreshold,Args.medianclip);
+        Xb1, Xb2, x, y, W, Args.slice_width, Args.rthreshold,Args.medianclip);
 catch ME
     error('MEX function failed. Make sure sliceGaussianProfile_mex is compiled. Error: %s', ME.message);
 end

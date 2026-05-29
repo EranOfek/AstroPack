@@ -90,7 +90,6 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
     %            'DeleteFile',false, 'CreateCsv',true
     % Author : Eran Ofek (2024 Oct) 
     % Example: 
-
     arguments
         Obj
         Args.Header       = [];     % if the object is an AstroCatalog, we need to provide AstroHeader as well 
@@ -132,8 +131,9 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
         Args.CreateCsv logical    = true;
         Args.FileName   = tempname; % If empty, then skip this step (see writetable for more options)
         Args.table2csvArgs = {};
-        Args.DeleteFile logical          = false;  % delete file after Db insertion
+        Args.DeleteFile logical   = false;  % delete file after Db insertion
 
+        Args.DBConnector  = 'legacy'
     end
 
     Nobj = numel(Obj);
@@ -247,8 +247,8 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
     T=db.util.insertHealpixIndex2table(T, 'ColRA',Args.ColRA, 'ColDec',Args.ColDec, 'CooUnits',Args.CooUnits,...
                                           'HealpixType',Args.HealpixType, 'HealpixLevel',Args.HealpixLevel,...
                                           'ColHealpix',Args.ColHealpix, 'UniqueID',Args.UniqueID);
-
-
+                                      
+    % create a csv file on disk
     if Args.CreateCsv
         FileName = erase(Args.FileName,' ');
         db.Db.table2csv(T, 'FileName',FileName, Args.table2csvArgs{:});        
@@ -266,16 +266,26 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
     
         DbTableStr = db.Db.concatDbTable(Args.DbName, Args.DbTable);
 
-        [Error, FileName]=Db.insertCsv(DbTableStr, FileName, 'FileName',FileName, 'DeleteFile',Args.DeleteFile, ...,
-                             'ColumnNames',lower(T.Properties.VariableNames),'table2csvArgs',Args.table2csvArgs);
-        if isempty(Args.Db)
-            Db.disconnectCH_Java % disconnect Java
+        if strcmpi(Args.DBConnector,'legacy')
+            [Error, FileName]=Db.insertCsv(DbTableStr, FileName, 'FileName',FileName, 'DeleteFile',Args.DeleteFile, ...,
+                'ColumnNames',lower(T.Properties.VariableNames),'table2csvArgs',Args.table2csvArgs);
+            if isempty(Args.Db)
+                Db.disconnectCH_Java % disconnect Java
+            end
+        elseif strcmpi(Args.DBConnector,'native')
+            try
+                T.Properties.VariableNames=lower(T.Properties.VariableNames);
+                Db.insert(DbTableStr,T); 
+                Error = []; 
+            catch ME
+                Error = ME.message; 
+            end
+        else
+            error('Asked for unknown DB connector')
         end
     end
 
     if Args.DeleteFile
         delete(Args.FileName);
     end
-
-
 end

@@ -31,12 +31,12 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                               'FLUX_APER', 'FLUXERR_APER',...
                                               'MAG_APER', 'MAGERR_APER',...
                                               'FLUX_XYPEAK', 'FORCED'};
-        Args.AperRadius                    = [2, 4, 6];
+        Args.AperRadius                    = [3, 5, 6, 7];
         Args.Annulus                       = [10 12];
-        Args.MomentsMethod                 = 'mex';  %'legacy'|'mex'
-        Args.AperPhotMethod                = 'interp';  % 'simple'|'interp'
+        Args.MomentsMethod                 = 'mex'; %'mex'; %'mex';  %'legacy'|'mex'
+        Args.AperPhotMethod                = 'simple'; % 'interp';  % 'simple'|'interp'
 
-        Args.ShiftMethod                   = 'lanczos3';  % 'fft'|'lanczos3'
+        Args.ShiftMethod                   = 'lanczos3'; %'lanczos3';  % 'fft'|'lanczos3'
         Args.PsfPhotMethod                 = '2DGN';    % 'legacy'/'old' |'1D'|'2D'|'2DGN'
 
         Args.BitName       = 'Streak';
@@ -46,10 +46,24 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
         Args.SearchStreaksEpoch            = true;  % search streaks in epoch images
         Args.maskCR_Args                   = {'RemoveFromCat',true}; % <-- remove CR
+        Args.MaskHole                      = true;
+        Args.maskHolesArgs                 = {};
         Args.astrometryVisitSubImageArgs   = {};
         Args.forcedPhotArgs                = {};
         %--- pipeline.generic.proc2MatchedSources args ---
         Args.proc2MatchedSourcesArgs       = {};
+        Args.MatchedCols                   = {'RA','Dec',...
+                                              'X','Y',...
+                                              'X1','Y1','X2','Y2','XY',...
+                                              'SN','SN_1','SN_2',...
+                                              'MAG_PSF','MAGERR_PSF','PSF_CHI2DOF','FLUX_PSF',...
+                                              'MAG_APER_2','MAGERR_APER_2',...
+                                              'MAG_APER_3','MAGERR_APER_3',...
+                                              'MAG_APER_4','MAGERR_APER_4',...
+                                              'FLUX_APER_3',...
+                                              'FLAGS',...
+                                              'BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS',...
+                                              'FORCED'};
         Args.ColUse                        = 'FORCED';
         Args.AddUnUse                      = true;
         
@@ -64,7 +78,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         
         Args.photometricZPArgs             = {};
 
-        Args.ForcedPhotCat               = 'WDEDR3';  % UPDATE
+        Args.ForcedPhotCat               = 'ForcedPhotList'; %'WDEDR3';  % UPDATE
         Args.CornersRA                   = {'RA1','RA2','RA3','RA4'};
         Args.CornersDec                  = {'DEC1','DEC2','DEC3','DEC4'};
         Args.MinNstars                   = 50;
@@ -85,6 +99,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.Cat_addAirMassArgs          = {};
         Args.AddSrcAM                    = true;
         
+        Args.AddNdet                     = true;
+        Args.NdetSearchRadius            = 1.5;  % [arcsec]
+
 
         Args.Logger                      = [];
         %Args.Sa
@@ -96,10 +113,16 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.DB_Table_Raw                = [];
 
         Args.MatchMethod                 = 'mex'; % 'old'|'mex'
+
+        Args.Status                      = [];
     end
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
 
+    if ~isempty(Args.Status)
+        Status = Args.Status;
+    end
+    
     Status.PipeI   = true;
     Status.ME      = [];
     %ProcessingStep = 11;
@@ -208,6 +231,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                             'UseMex',Args.UseMex,...
                                                             'backVarArgs',Args.backVarArgs,...
                                                             'AperRadius',Args.AperRadius,...
+                                                            'AperPhotMethod',Args.AperPhotMethod,...
                                                             'Annulus',Args.Annulus,...
                                                             'MomentsMethod',Args.MomentsMethod,...
                                                             'ShiftMethod',Args.ShiftMethod,...
@@ -227,6 +251,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                             'UseMex',Args.UseMex,...
                                                             'backVarArgs',Args.backVarArgs,...
                                                             'AperRadius',Args.AperRadius,...
+                                                            'AperPhotMethod',Args.AperPhotMethod,...
                                                             'Annulus',Args.Annulus,...
                                                             'MomentsMethod',Args.MomentsMethod,...
                                                             'ShiftMethod',Args.ShiftMethod,...
@@ -241,6 +266,12 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Consider update TableRaw - No PSF, etc? 
             %TableRaw.BasicCalib(TableRaw.SelectedImages) = true(numel(AI),1); 
         
+            
+            % Mask holes
+            if Args.MaskHole
+                AllSI = imProc.mask.maskHoles(AllSI, Args.maskHolesArgs{:}); % 9s
+            end
+
             % solve astrometry of all images
             %ProcessingStep = 301;
             [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, 'MatchMethod',Args.MatchMethod, Args.astrometryVisitSubImageArgs{:}); % 22s
@@ -273,7 +304,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % add PSF FWHM to header - after astrometry, beacuse WCS is needed
             %ProcessingStep = 201;
             % This must be done after astrometry as the Scale is used
-            AllSI = imProc.psf.fwhm(AllSI, 'AddMorphology',true, 'UseLegacy',false, 'DefScale',Args.DefScale);
+            AllSI = imProc.psf.fwhm(AllSI, 'AddMorphology',true, 'AddErr',true, 'UseLegacy',true, 'DefScale',Args.DefScale);
                 
             
             % Update Airmass header keyword to based on measured crop center
@@ -320,23 +351,25 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 if any(IsForcedPhot)
                     CatForcedPhot = imProc.cat.catsHTM_inImage(Args.ForcedPhotCat, AllSI(MidEpoch,IsForcedPhot));  % 0.2
                     
-                    ColNamesFF = AllSI(1).CatData.ColNames;
+                    ColNamesFF = AllSI(find(IsGood==1,1)).CatData.ColNames;
             
                     %AllFP = AstroCatalog([Nepoch, Nsub]);
-                    for Isub=1:1:Nsub
-                        % for each sub image - run over all epochs
-                        if IsForcedPhot(Isub)
-                            IsubGood = find(find(IsForcedPhot)==Isub);
-                            Coo = CatForcedPhot(IsubGood).getCol({'RA','Dec'}).*RAD;
-                            %if strcmpi(Args.OutputType, 'concatai')
-        
+                        % for each sub image where IsForcedPhot is true, run over all the epochs
+                        Ind = find(IsForcedPhot);
+                        for IsubGood = 1:numel(Ind)                            
+                            % May need to update the column names:
+                            [~, RA, Dec] = imProc.cat.applyProperMotionSimple(CatForcedPhot(IsubGood), JD(1), 'OutUnits','rad', 'OutEpochUnits','JD', 'InEpoch','Epoch', 'ColPMRA','PMRA', 'ColPMDec','PMDec', 'OutUnits','deg');
+                            Coo = [RA, Dec];                            
+                            %if strcmpi(Args.OutputType, 'concatai')       
                             if ~isempty(Coo)
-                                IsGoodEpoch = IsGood(:,Isub);
-                                AllSI(IsGoodEpoch,Isub) = imProc.sources.forcedPhotNew(AllSI(IsGoodEpoch,Isub), 'OutputType','ConcatAI', 'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, 'ReadColFromHeader',false, 'PsfPhotMethod',Args.PsfPhotMethod, 'ShiftMethod',Args.ShiftMethod, Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
-                            end
-                           
+                                IsGoodEpoch = IsGood(:,Ind(IsubGood));
+                                AllSI(IsGoodEpoch,Ind(IsubGood)) = imProc.sources.forcedPhotNew(AllSI(IsGoodEpoch,Ind(IsubGood)), ...
+                                    'OutputType','ConcatAI', ...
+                                    'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, ...
+                                    'ReadColFromHeader',false, 'PsfPhotMethod',Args.PsfPhotMethod, 'ShiftMethod',Args.ShiftMethod, ...
+                                    Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
+                            end                           
                         end
-                    end % for Isub=1:1:Nsub
                     %toc
                 end
         
@@ -372,11 +405,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
             % Merge catalogs
             %ProcessingStep = 501;
-            [MS,ResRelZP] = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse);   % 9.6 s -> 1.3s (with MatchMethod='unify')
+            [MS,ResRelZP] = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse, 'MatchedCols',Args.MatchedCols);   % 9.6 s -> 1.3s (with MatchMethod='unify')
         
             % calculate the photometric rms per crop
             
-            PhotRMS = MS.calcRMS('FieldX','MAG_APER_3');
+            PhotRMS = MS.calcRMS('FieldY','MAG_APER_3');
             Phot_MinRMS    = [PhotRMS.MinRMS];
             Phot_MagMinRMS = [PhotRMS.MagMinRMS];
             
@@ -430,6 +463,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                           'PsfPhotMethod',Args.PsfPhotMethod,...
                                                           'maskCR_Args',Args.maskCR_Args,...
                                                           'WriteStatHeader',true,...
+                                                          'photometricZP_UpdateMagCols',false,...
                                                           Args.multiIterExtractorArgs{:});
             
               
@@ -439,6 +473,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         
             % Add image ID to coadd images: in: ID_PROC
             NotIsEmptyCoadd = ~Coadd.isemptyImage;
+            NotIsEmptyCat   = ~Coadd.isemptyCatalog;
             JD_Coadd = [ResCoadd(NotIsEmptyCoadd).MidMidJD];
             %Ncoadd   = numel(Coadd);
             %CoaddID  = nan(Ncoadd,1);
@@ -496,17 +531,19 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 931;
             if Args.AddKnownAst && AnyCoaddExist
                 % slower with parfor
-                [OnlyMP,~,Coadd(NotIsEmptyCoadd)] = imProc.match.match2solarSystem(Coadd(NotIsEmptyCoadd), 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
+                OnlyMP = AstroCatalog([1, Nsub]);
+                [OnlyMP(NotIsEmptyCoadd),~,Coadd(NotIsEmptyCoadd)] = imProc.match.match2solarSystem(Coadd(NotIsEmptyCoadd), 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);  % 7 s
 
                 Nast = OnlyMP.sizeCatalog;
                 if sum(Nast)>0
                     % add CropID, Node, Mount, Cam, ID_COADD:
                     Cols = {'NODENUMB', 'MOUNTNUM', 'CAMNUM', 'ID_COADD'};
-                    StKey = Coadd(1).getStructKey(Cols);
-                    Vals  = struct2array(StKey);
+                    StKey = Coadd.getStructKey(Cols);
+                    
                     AllCols = {'CROPID', Cols{:}};
                     for Isub=1:1:Nsub
                         if Nast(Isub)>0
+                            Vals  = struct2array(StKey(Isub));
                             Nrow = size(OnlyMP(Isub).Catalog,1);
                             OnlyMP(Isub).insertMultiCol(repmat([Isub, Vals], Nrow,1), AllCols, repmat({''},1, numel(AllCols)));
                         end
@@ -533,17 +570,19 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 951;
             %tic;
             if Args.AddSrcAM
-                Coadd(NotIsEmptyCoadd) = imProc.cat.addAirMass(Coadd(NotIsEmptyCoadd), 'JD',JD, Args.Cat_addAirMassArgs{:});
+                Coadd(NotIsEmptyCat) = imProc.cat.addAirMass(Coadd(NotIsEmptyCat), 'JD',JD, Args.Cat_addAirMassArgs{:});
             end
             %toc
-        
+            if Args.AddNdet
+                Coadd(NotIsEmptyCat) = imProc.cat.addNdet(Coadd(NotIsEmptyCat), MS, 'SearchRadius',Args.NdetSearchRadius);
+            end
         
             % photometric calibration
             %ProcessingStep = 961;
             %tic;
             for Isub=1:1:Nsub
                 %[AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub));  % 10s for all in loop
-                if NotIsEmptyCoadd(Isub)
+                if NotIsEmptyCat(Isub)
                     [Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub), ...
                         'UpdateMagCols',false, Args.photometricZPArgs{:});  % 2.4s for all in loop
                 end

@@ -53,7 +53,7 @@ function [Result,FlagGood] = xpeak_x1_diff(Obj, Args)
     for Iobj=1:1:Nobj
         % for each image
     
-        Cols = getCol(Obj(Iobj).CatData, {Args.ColXPEAK, Args.ColYPEAK, Args.ColX1, Args.ColY1});
+        Cols = getColMulti(Obj(Iobj).CatData, {Args.ColXPEAK, Args.ColYPEAK, Args.ColX1, Args.ColY1});
         XP    = Cols(:,1);
         YP    = Cols(:,2);
         X1    = Cols(:,3);

@@ -4,6 +4,27 @@ function Result = unitTest()
     
     mex_bitwise_cutouts_unitTest();
     
+    %% imUtil.cut.mex.imageCutouts
+
+    for I=1:1:100
+        R=rand(1716,1716);
+        X=rand(3000,1).*1716;
+        Y=rand(3000,1).*1716;
+        [a1]=imUtil.cut.mex.imageCutouts(R,X,Y,25);
+        [a]=imUtil.cut.mex.mex_cutout(R,[X Y],25,0,0,0,1);
+        if max(abs(squeeze(a)-a1),[],'all')>0
+            error('Problem with imUtil.cut.mex.imageCutouts');
+        end
+    end
+
+    X = -100;
+    Y = 2000;
+    [a1]=imUtil.cut.mex.imageCutouts(R,X,Y,25);
+    if ~all(a1==0)
+        error('Problem with imUtil.cut.mex.imageCutouts / out of bound test');
+    end
+
+
     %% imUtil.cut.mex.image2cube  /  imUtil.cut.mex.cube2image
     VX=(1:1:1716); VY=VX.';
     Im=VX.*1.1+VY.*1.2;

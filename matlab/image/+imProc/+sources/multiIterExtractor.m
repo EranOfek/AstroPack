@@ -1,253 +1,297 @@
 function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     % Source finding and multi-iteration PSF fitting.
-    %   This function find, fit, and subtract sources in SNR bins.
-    %   Starting with the brightest sytars to the faintest stars.
-    %   The outcome is finding more stars then regular source finding.
-    %   The function include the following heuristic step:
-    %   For the stars in the brighteest SNR bin, an extran background and
-    %   noise is added around the stars in order to avoid finding artifacts
-    %   due to the finite size of the PSF.
-    % Input  : - An AstroImage object.
-    %          * ...,key,val,... 
-    %            'ExcludeEmpty' - A logical indicating if to exclude empty
-    %                   images.
-    %                   If true, then will not keep the shape of the output
-    %                   to be the same as the shape of the input.
-    %                   Default is false.
+    %   This function finds, fits, and subtracts sources in S/N bins,
+    %   starting with the brightest stars and proceeding to the faintest.
+    %   The outcome is finding more stars than regular source finding.
+    %   The function includes the following heuristic step: for stars in
+    %   the brightest S/N bin, extra background and noise is injected
+    %   around the stars in order to avoid finding artifacts due to the
+    %   finite size of the PSF / scattered light.
+    % Input  : - An AstroImage object (array allowed).
+    %          * ...,key,val,...
+    %
+    %            --- PSF / photometry method selectors ---
+    %            'MethodPSF' - Method passed to imProc.psf.populatePSF as
+    %                   its 'Method' argument: 'new' | 'legacy' | 'old'.
+    %                   Default is 'new'.
+    %            'SumMethodPSF' - Stamp combination method used inside
+    %                   populatePSF/buildPSF (the 'SumMethod' key):
+    %                   'median' | 'mean' | 'sigclip' | 'sigclip_mex'.
+    %                   Default is 'median'.
+    %            'PsfPhotMethod' - Method forwarded to
+    %                   imProc.sources.psfFitPhot as 'PsfPhotMethod'.
+    %                   Default is 'legacy'.
+    %            'ShiftMethod' - Sub-pixel shift method forwarded to both
+    %                   populatePSF and psfFitPhot. 'lanczos3' | 'fft'.
+    %                   Default is 'lanczos3'.
+    %
+    %            --- Pre-subtraction treatment ---
+    %            'ExcludeEmpty' - If true, exclude AstroImage elements
+    %                   with empty images from processing (and from the
+    %                   output, so the result no longer matches the input
+    %                   shape). Default is false.
     %            'BitDict' - A BitDictionary object for the bit mask image.
-    %                   Default is BitDictionary('BitMask.Image.Default')
-    %            'JD' - A vector of JD of the input images.
-    %                   If empty, then read JD from the header.
+    %                   Default is BitDictionary('BitMask.Image.Default').
+    %            'JD' - Vector of JD values for the input images. If
+    %                   empty, the JD is read from the header.
     %                   Default is [].
-    %            'KeyJD' - Header keyword containing the JD keyword.
-    %                   Will be used only if 'JD' is empty.
-    %                   If empty, then will use the AstroImage/julday
-    %                   method without arguments (i.e., using the header
-    %                   configuration files). Default is [].
-    %            'KeyGain' - Header keyword containing the image Gain
-    %                   information. If gain is not available in the header
-    %                   then set to 1. Default is 'GAIN'.
-    %            'KeyNcoadd' - Like 'KeyGain', but for the number of
-    %                   coadded images. Default is 'NCOADD'.
+    %            'KeyJD' - Header keyword to use when reading JD; only
+    %                   used if 'JD' is empty. If empty, AstroImage/julday
+    %                   uses its header-config defaults. Default is [].
+    %            'KeyGain' - Header keyword for the image Gain. If the
+    %                   keyword is missing, gain is set to 1.
+    %                   Default is 'GAIN'.
+    %            'KeyNcoadd' - Header keyword for the number of coadded
+    %                   images. Default is 'NCOADD'.
     %
-    %            --- Background arguments ---
-    %            'backVarArgs' - A cell array of additional arguments to
-    %                   pass to the background and variance estimation
-    %                   function: imProc.background.backVar.
-    %                   Default is {'Block',[128 128], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',5, 'MaxVal',3000},{}}}
-    %            'ReCalcBackIter' - A list of iterations indices in which
-    %                   to recalculate the background and variance of the image.
+    %            --- Background / variance estimation ---
+    %            'backVarArgs' - Cell of args forwarded to
+    %                   imProc.background.backVar. Default is
+    %                   {'Block',[256 256], 'Method',@imUtil.background.modeVar_LogHist, ...
+    %                    'MethodArgs',{{'MinVal',10, 'MaxVal',6000},{}}}.
+    %            'ReCalcBackIter' - List of iteration indices in which to
+    %                   recompute the background and variance.
     %                   Default is [].
     %
-    %            --- PSF arguments ---
-    %            'ReCalcPsfIter' - A vector of iteration indices in which
-    %                   to re-calculate the PSF from the data. Default is [].
-    %            'UseOriginalPSF' - A logical indicating if to use the PSF
-    %                   already attached to the input AstroImage. If false,
-    %                   then the PSF is re-calculated. This can be forced by
-    %                   'ReCalcPsfIter'. Default is true.
-    %            'populatePSFArgs' - A cell array of additional arguments
-    %                   to pass to imProc.psf.populatePSF when constructing
-    %                   or updating the PSF. Default is
-    %                   {'CropByQuantile',false, 'SuppressWidth',2}.
-    %            'RadiusPSF' - PSF radius in pixels used in the PSF
-    %                   construction and cutouts.
-    %                   This radius should be larger/equal then the outer annulus
-    %                   radius.
+    %            --- PSF measurement ---
+    %            'ReCalcPsfIter' - Iteration indices in which to re-fit
+    %                   the PSF from the data. If UseOriginalPSF=true,
+    %                   there is no need to include iteration 1.
+    %                   Default is [].
+    %            'UseOriginalPSF' - If true, use the PSF already attached
+    %                   to the input AstroImage. Setting it to false (or
+    %                   listing iter 1 in ReCalcPsfIter) forces a rebuild.
+    %                   Default is true.
+    %            'populatePSFArgs' - Extra args forwarded verbatim to
+    %                   imProc.psf.populatePSF on top of the explicit
+    %                   keys also passed there. Default is
+    %                   {'CropByQuantile',false, 'SuppressWidth',3, 'SmoothWings',false}.
+    %            'RadiusPSF' - Half-size [pix] of the cutouts used for
+    %                   PSF construction. Should be >= outer annulus.
     %                   Default is 12.
-    %            'AperRadius' - A vector of aperture radii [pix] used for
+    %            'AperRadius' - Vector of aperture radii [pix] for
     %                   aperture photometry. Default is [2 4 6].
-    %            'Annulus' - Inner and outer radii [pix] of the sky
-    %                   annulus used for local background/variance
-    %                   estimation. Default is [10 12].
+    %            'Annulus' - [Rin, Rout] of the sky background annulus
+    %                   used for local background/variance estimation.
+    %                   Default is [10 12].
+    %            'MomentsMethod' - Implementation used for moment
+    %                   measurements inside findMeasureSources:
+    %                   'legacy' | 'mex'. Default is 'mex'.
+    %            'AperPhotMethod' - Implementation used for aperture
+    %                   photometry inside findMeasureSources:
+    %                   'simple' | 'interp'. Default is 'interp'.
+    %            'MomPar' - Extra key/val cell forwarded to the moments
+    %                   step of findMeasureSources (in addition to the
+    %                   per-iteration MomRadius value). Default is {}.
+    %            'MomRadius' - Vector of radii [pix] used for moment
+    %                   measurements at each iteration. If scalar it is
+    %                   replicated to Niter. Recommended ~1.7*FWHM (for
+    %                   LAST that is ~3.8). Used by MomentsMethod='legacy'.
+    %                   Default is [4].
     %            'ThresholdPSF' - S/N threshold used to select stars for
     %                   PSF construction. Default is 100.
-    %            'RangeSN' - Two-elements vector [SNmin SNmax] specifying
-    %                   the S/N range of stars used for PSF construction.
-    %                   Default is [100 1000].
-    %            'InitPsf' - Function handle that generates the initial PSF
-    %                   model used in populatePSF. Default is
-    %                   @imUtil.kernel2.gauss.
-    %            'InitPsfArgs' - A cell array of arguments to pass to
-    %                   InitPsf when generating the initial PSF model.
-    %                   Default is {[0.1; 1.2]}.
-    %            'ConvFunExtendedPSF' - Function handle that generates an
-    %                   extended PSF component (e.g., scattered light
-    %                   wings) to be convolved with the empirical PSF.
-    %                   Default is @imUtil.kernel2.sersic.
-    %            'ConvFunExtendedPSF_Args' - A cell array of arguments to
-    %                   pass to ConvFunExtendedPSF. Default is {[1 2 1]}.
+    %            'RangeSN' - [SNmin, SNmax] PSF-filter S/N window for
+    %                   stars used by PSF construction.
+    %                   Default is [50 1000].
+    %            'InitPsf' - Function handle producing the initial-guess
+    %                   PSF model used by populatePSF.
+    %                   Default is @imUtil.kernel2.gauss.
+    %            'InitPsfArgs' - Cell of arguments to InitPsf.
+    %                   Default is {[0.1; 1.5]}.
+    %            'ConvFunExtendedPSF' - Function handle producing an
+    %                   extended-wing PSF kernel convolved with the
+    %                   empirical PSF and appended as an extra detection
+    %                   template. Set to [] to disable. Default is
+    %                   @imUtil.kernel2.sersic.
+    %            'ConvFunExtendedPSF_Args' - Args cell for
+    %                   ConvFunExtendedPSF. Default is {[1 2 1]}.
     %
-    %            --- PSF fitting arguments ---
-    %            'MomRadius' - A vector of radii [pix] used for moment
-    %                   measurements at each iteration. If scalar, it is
-    %                   replicated to the number of iterations.
-    %                   Default is [4].
-    %            'psfFitPhotArgs' - A cell array of additional key/val
-    %                   arguments to pass to imProc.sources.psfFitPhot.
-    %                   Default is {}.
-    %            'suppressEdgesArgs' - A cell array of arguments passed to
-    %                   imUtil.psf.suppressEdges in order to taper/suppress
-    %                   the PSF edges. Default is
+    %            --- PSF fitting ---
+    %            'psfFitPhotArgs' - Extra args forwarded to
+    %                   imProc.sources.psfFitPhot. Default is {}.
+    %            'suppressEdgesArgs' - Args forwarded to
+    %                   imUtil.psf.suppressEdges for tapering the PSF
+    %                   edges. Default is
     %                   {'Fun',@imUtil.kernel2.cosbell, 'FunPars',[9 10], 'Norm',true}.
-    %            'UsePSFInterpolant' - A logical indicating if to use an
-    %                   interpolated PSF image instead of the FFT-shifted
-    %                   PSF templates returned by psfFitPhot. Default is false.
-    %            'FitRadius' - A vector specifying the PSF fit radius [pix]
-    %                   for each iteration. If scalar, it is replicated to
-    %                   the number of iterations. Default is [3].
-    %            'MaxIter' - Maximum number of iterations for the PSF fit
-    %                   per source. Default is 8.
-    %            'mexCutout' - A logical indicating if to use the MEX
-    %                   implementation of the image cutout routines where
+    %            'UsePSFInterpolant' - If true, build the per-source
+    %                   shifted PSF via image interpolation
+    %                   (imUtil.trans.shift_interp) rather than using the
+    %                   FFT-shifted templates returned by psfFitPhot.
+    %                   Default is false.
+    %            'FitRadius' - Vector of PSF-fit radii [pix], one per
+    %                   iteration. Scalar inputs are replicated to Niter.
+    %                   Default is [3].
+    %            'MaxIter' - Maximum number of PSF-fit iterations per
+    %                   source. Default is 8.
+    %            'mexCutout' - Use the MEX image-cutout routines where
     %                   available. Default is true.
+    %            'CleanSN' - Minimum PSF-fit S/N for a detection to be
+    %                   retained in the final catalog. If empty, no
+    %                   cleaning is applied. Default is 4.
+    %            'KeyCleanSN' - Catalog column name read for the CleanSN
+    %                   filter. Default is 'SN'.
     %
-    %            --- Source detection arguments ---
-    %            'FindWithEmpiricalPSF' - A logical indicating if to use
-    %                   empirical PSF templates for source detection
-    %                   (true) or to use analytic PSF models defined by
-    %                   'PsfFunPar' (false). Default is true.
-    %            'PsfFunPar' - A cell array containing the parameters of
-    %                   the analytic PSF model used when
-    %                   'FindWithEmpiricalPSF' is false. Default is
-    %                   {[0.1;1.0;1.5]}.
-    %            'Threshold' - A vector of S/N thresholds (in sigma) for
-    %                   the multi-iteration source extraction. The length
-    %                   of this vector defines the number of iterations
-    %                   (from brightest to faintest sources). Default is
-    %                   [500 50 5].
-    %            'ColCell' - A cell array of column names requested from
-    %                   imProc.sources.findMeasureSources and stored in the
-    %                   AstroCatalog, including positions, S/N, background,
-    %                   aperture fluxes and magnitudes. Default is
+    %            --- Source detection ---
+    %            'FindWithEmpiricalPSF' - If true, run source detection
+    %                   with the empirical PSF templates; if false, use
+    %                   the analytic PSF defined by 'PsfFunPar'.
+    %                   Default is true.
+    %            'PsfFunPar' - Parameters of the analytic PSF model used
+    %                   when FindWithEmpiricalPSF=false.
+    %                   Default is {[0.1;1.0;1.5]}.
+    %            'Threshold' - Vector of S/N thresholds (sigma) for the
+    %                   multi-iteration extraction. Its length sets the
+    %                   number of iterations (brightest -> faintest).
+    %                   Default is [500 50 5].
+    %            'ColCell' - Cell of column names requested from
+    %                   imProc.sources.findMeasureSources and stored in
+    %                   the AstroCatalog. Default is
     %                   {'XPEAK','YPEAK', 'X1','Y1','X2','Y2','XY',...
     %                    'SN','BACK_IM','VAR_IM', 'BACK_ANNULUS','STD_ANNULUS',...
-    %                    'FLUX_APER','FLUXERR_APER','MAG_APER','MAGERR_APER'}.
-    %            'ColNamesX' - X column names dictionary from which to get
-    %                   the X position for the flags retrival.
-    %                   Default is AstroCatalog.DefNamesX.
-    %                   Set it to 'X1' to expdite speed.
-    %            'ColNamesY' - Y column names dictionary from which to get
-    %                   the Y position for the flags retrival.
+    %                    'FLUX_APER','FLUXERR_APER','MAG_APER','MAGERR_APER','FLUX_XYPEAK'}.
+    %            'ColNamesX' - X column-name dictionary used for flag
+    %                   retrieval. Default is AstroCatalog.DefNamesX
+    %                   (set to 'X1' to speed things up).
+    %            'ColNamesY' - As ColNamesX for Y.
     %                   Default is AstroCatalog.DefNamesY.
-    %                   Set it to 'Y1' to expdite speed.
     %
-    %            --- Source cleaning and mask arguments ---
-    %            'RemoveEdgeDist' - A scalar specifying the distance from
-    %                   image edges [pix] within which sources are removed.
-    %                   Set to NaN for no removal. Default is 0.
-    %            'FlagCR' - A logical indicating if to flag and remove
-    %                   cosmic rays during source detection/cleaning.
-    %                   Default is true.
-    %            'maskCR_Args' - A cell array of additional arguments to
-    %                   pass to imProc.mask.maskCR when masking CRs.
+    %            --- Source cleaning and mask ---
+    %            'RemoveEdgeDist' - Distance from image edges [pix]
+    %                   within which sources are removed. NaN disables
+    %                   removal. Default is 0.
+    %            'FlagCR' - Flag/remove cosmic rays during source
+    %                   detection/cleaning. Default is true.
+    %            'maskCR_Args' - Extra args to imProc.mask.maskCR.
     %                   Default is {}.
-    %            'FlagDiffXY' - A logical indicating if to flag sources
-    %                   with inconsistent X/Y positions (e.g., due to
-    %                   artifacts). Default is true.
-    %            'maskDiffXY_Args' - A cell array of additional arguments
-    %                   to pass to imProc.mask.xpeak_x1_diff when masking
-    %                   such sources. Default is {}.
+    %            'FlagDiffXY' - Flag sources with inconsistent X/Y
+    %                   positions (centroid vs. peak). Default is true.
+    %            'maskDiffXY_Args' - Extra args to
+    %                   imProc.mask.xpeak_x1_diff. Default is {}.
     %
-    %            --- Add Back/Var noise ---
-    %            'AddBackNoise' - A logical indicating if to add additional
-    %                   scattered light / noise around very bright sources
-    %                   in the first iteration in order to suppress
-    %                   artificial detections in the PSF wings. Default is true.
+    %            --- Bright-star back/var inflation ---
+    %            'AddBackNoise' - Inject extra background/variance around
+    %                   very bright sources in the first iteration in
+    %                   order to suppress spurious detections in the PSF
+    %                   wings. Default is true.
     %            'ScatteredLightFrac' - Fraction of bright-star flux used
-    %                   to construct a scattered light / variance map
-    %                   around very bright sources in the first iteration.
-    %                   Default is 0.05.
+    %                   to construct the legacy scattered-light map
+    %                   (MethodBS='old'). Default is 0.05.
+    %            'MethodBS' - Algorithm used to add scattered light /
+    %                   noise around bright stars: 'prof' (radial
+    %                   profile, default) or 'old' (heuristic
+    %                   Lorentzian+circular convolution).
+    %                   Default is 'prof'.
+    %            'BS_R' - Radii grid [pix] used to sample the bright-star
+    %                   radial profile when MethodBS='prof'.
+    %                   Default is (0:1:1500)+0.1.
+    %            'BS_Par' - Parameter vector forwarded to BS_Prof.
+    %                   Default is [0.57111 -4.1984 4.7473].
+    %            'BS_Prof' - Function handle BS_Prof(BS_Par, BS_R) giving
+    %                   the bright-star radial profile, or a numeric
+    %                   profile vector. The profile is normalized to a
+    %                   reference flux of 1e5 inside the function.
+    %                   Default is @(Par,R) 10.^polyval(Par,log10(R)).
+    %                   The portion inside max(AperRadius) is flattened
+    %                   to avoid double-counting the core.
+    %            'BS_PL' - Power-law index used to scale the radial
+    %                   profile with the source flux relative to 1e5
+    %                   (FluxNorm = (Flux/1e5)^BS_PL). Default is 1.5.
     %
     %            --- Catalog column names ---
-    %            'ColRA' - J2000 RA column name to add to the AstroCatalog
-    %                   object. Default is 'RA'.
-    %            'ColDec' - J2000 Dec column name to add to the
-    %                   AstroCatalog object. Default is 'Dec'.
-    %            'ColPITER' - Column name used to store the PSF iteration
-    %                   index for each extracted source. Default is 'PITER'.
-    %            'RedoUpIter' - A scalar or vector of iteration numbers
-    %                   specifying up to which iteration bright sources are
-    %                   re-measured in a dedicated final step. Default is [1].
-    %            'ColPsfFlux' - AstroCatalog column name containing the PSF
-    %                   flux. This is used only if 'RedoUpIter' is not
-    %                   empty. The new flux estimate is written into this
-    %                   column. Default is 'FLUX_PSF'
-    %            'ColPsfFluxErr' - AstroCatalog column name containing the
-    %                   uncertainty of the PSF flux for the bright-source
-    %                   refinement. Default is 'FLUXERR_PSF'.
-    %            'ColPsfMag' - AstroCatalog column name containing the PSF
-    %                   magnitude for bright sources. Default is 'MAG_PSF'.
-    %            'ColPsfMagErr' - AstroCatalog column name containing the
-    %                   PSF magnitude error for bright sources. Default is
-    %                   'MAGERR_PSF'.
-    %            'ColPsfSN' - AstroCatalog column name containing the PSF
-    %                   based S/N of the bright sources. Default is 'SN'.
-    %            'ColPsfChi2' - AstroCatalog column name containing the
-    %                   reduced chi-square (chi^2/d.o.f.) of the PSF fit
-    %                   for bright sources. Default is 'PSF_CHI2DOF'.
-    %            'ColFlux' - Base AstroCatalog column name for aperture
-    %                   fluxes; individual aperture radii get numeric
-    %                   suffixes (e.g., FLUX_APER_1, FLUX_APER_2, ...).
-    %                   Default is 'FLUX_APER'.
-    %            'ColFluxErr' - Base AstroCatalog column name for aperture
-    %                   flux errors, with numeric suffixes per aperture
-    %                   radius. Default is 'FLUXERR_APER'.
-    %            'ColMag' - Base AstroCatalog column name for aperture
-    %                   magnitudes, with numeric suffixes per aperture
-    %                   radius. Default is 'MAG_APER'.
-    %            'ColMagErr' - Base AstroCatalog column name for aperture
-    %                   magnitude errors, with numeric suffixes per
-    %                   aperture radius. Default is 'MAGERR_APER'.
+    %            'ColRA' - Output catalog column name for J2000 RA.
+    %                   Default is 'RA'.
+    %            'ColDec' - Output catalog column name for J2000 Dec.
+    %                   Default is 'Dec'.
+    %            'ColPITER' - Column name storing the extraction
+    %                   iteration index of each source.
+    %                   Default is 'MITER'.
+    %            'RedoUpIter' - If non-empty, run an additional bright-
+    %                   sources-only refinement step using iterations up
+    %                   to this index. The brightest catalog is then
+    %                   updated with aperture & PSF photometry on the
+    %                   faint-subtracted image. Default is [].
+    %            'ColPsfFlux' - Catalog column for PSF flux (updated by
+    %                   the RedoUpIter refinement). Default is 'FLUX_PSF'.
+    %            'ColPsfFluxErr' - As above for PSF flux error.
+    %                   Default is 'FLUXERR_PSF'.
+    %            'ColPsfMag' - PSF magnitude column. Default is 'MAG_PSF'.
+    %            'ColPsfMagErr' - PSF magnitude-error column.
+    %                   Default is 'MAGERR_PSF'.
+    %            'ColPsfSN' - PSF-fit S/N column. Default is 'SN'.
+    %            'ColPsfChi2' - Reduced chi-square column of the PSF fit
+    %                   (chi^2/d.o.f.). Default is 'PSF_CHI2DOF'.
+    %            'ColFlux' - Base name for aperture-flux columns;
+    %                   numeric suffixes are appended per aperture radius
+    %                   (e.g. FLUX_APER_1, ...). Default is 'FLUX_APER'.
+    %            'ColFluxErr' - Base name for aperture-flux-error columns.
+    %                   Default is 'FLUXERR_APER'.
+    %            'ColMag' - Base name for aperture-magnitude columns.
+    %                   Default is 'MAG_APER'.
+    %            'ColMagErr' - Base name for aperture-magnitude-error
+    %                   columns. Default is 'MAGERR_APER'.
     %
-    %            --- Photometric and scattered light arguments ---
+    %            --- Photometric calibration ---
     %            'ZP' - Photometric zero point used for converting fluxes
-    %                   to (luptitude-like) magnitudes in the PSF and
-    %                   aperture photometry. Default is 25.
+    %                   to luptitude-like magnitudes in PSF and aperture
+    %                   photometry. Default is 25.
     %
-    %            --- Miscellaneous arguments ---
-    %            'AddSkyCoo' - A logical indicating if to add RA,Dec sky
-    %                   coordinates to the final catalogs using the image
-    %                   WCS, when present. Default is true.
-    %            'CreateNewObj' - A logical indicating if to work on a deep
-    %                   copy of the input AstroImage stack (true) or to
-    %                   modify the input objects in-place (false). Default
-    %                   is false.
-    %            'Verbose' - A logical indicating if to print progress and
-    %                   diagnostic information to the screen. Default is false.
-    %            'WriteDs9Regions' - A logical indicating if to write DS9
-    %                   region files with the extracted sources at each
-    %                   iteration. Default is false.
+    %            --- Miscellaneous ---
+    %            'AddSkyCoo' - Add RA, Dec sky coordinates to the final
+    %                   catalog using the AstroImage WCS, if present.
+    %                   Default is true.
+    %            'CreateNewObj' - If true, operate on a deep copy of the
+    %                   input AstroImage stack; if false, modify the
+    %                   input in-place. Default is false.
+    %            'Verbose' - Print progress / diagnostics to the console.
+    %                   Default is false.
+    %            'WriteDs9Regions' - Write DS9 region files with the
+    %                   extracted sources at each iteration.
+    %                   Default is false.
+    %            'AddSrcStat2Header' - Write source-extraction summary
+    %                   keywords (NSTARS, M_CHI2D) into the image header.
+    %                   Default is true.
+    %            'KeyNsrc' - Header keyword used for the number of
+    %                   extracted sources when AddSrcStat2Header=true.
+    %                   Default is 'NSTARS'.
+    %            'KeyMedChi2Dof' - Header keyword used for the median
+    %                   PSF-fit reduced chi-square. Default is 'M_CHI2D'.
+    %
     %            --- Streak detection ---
-    %            'SearchStreaks' - A logical indicating if to search for
-    %                   streaks. Default is false.
-    %            'detectStreaksLSDArgs' - A cell array of arguments to pass
-    %                   to imUtil.streaks.detectStreaksLSD
-    %                   Default is {}.
-    %            ---
-    %            'UseMex' - Default is true.
+    %            'SearchStreaks' - Search for streaks in the first
+    %                   iteration. Default is false.
+    %            'detectStreaksLSDArgs' - Extra args to
+    %                   imUtil.streaks.detectStreaksLSD. Default is {}.
     %
-    % Output : - (Result) An AstroImage array, same size as the
-    %            input Obj, in which the Image, Back, Var, PSF and
-    %            CatData properties are updated by the multi-iteration
-    %            PSF source extraction.
+    %            --- Performance ---
+    %            'UseMex' - Use MEX routines where available.
+    %                   Default is false.
+    %
+    % Output : - (Result) An AstroImage array, same size as the input
+    %            Obj, in which the Image, Back, Var, PSF and CatData
+    %            properties are updated by the multi-iteration PSF source
+    %            extraction.
     %          - (SourceLess) An AstroImage array containing copies of
     %            the input images with the final (last-iteration)
-    %            source-subtracted images stored in the Image
-    %            property. Returned only if requested (nargout>1).
+    %            source-subtracted images stored in the Image property.
+    %            Returned only if requested (nargout>1).
     %          - (SubtractedImage) A numeric cube of size [Ny, Nx, Niter]
     %            containing, for each processed AstroImage, the
-    %            subtracted image after each iteration of the
-    %            algorithm. Returned only if requested (nargout>2).
+    %            subtracted image after each iteration of the algorithm.
+    %            Returned only if requested (nargout>2).
     %
-    % Author : Eran Ofek (2025 Nov) 
-    % Example: [AI1,AI2]=imProc.sources.multiIterExtractor(AI);
+    % Author : Eran Ofek (2025 Nov)
+    % Example: [AI1,AI2] = imProc.sources.multiIterExtractor(AI);
+    %          AI1 = imProc.sources.multiIterExtractor(AI, 'Threshold',[300 30 5]);
+    %          AI1 = imProc.sources.multiIterExtractor(AI, 'MethodBS','old', 'AddBackNoise',true);
 
     arguments
         Obj AstroImage
 
+        Args.SumMethodPSF              = 'median';
+        Args.MethodPSF                 = 'new';
+        Args.ShiftMethod               = 'lanczos3'; % 'lanczos3' | 'fft'
+
         Args.PsfPhotMethod             = 'legacy';
-        Args.ShiftMethod               = 'fft'; % 'lanczos3' | 'fft'
 
         % pre subtraction treatment
         Args.ExcludeEmpty              = false;  % if true, will not keep the shape
@@ -356,6 +400,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.AddSrcStat2Header         = true;
         Args.KeyNsrc                   = 'NSTARS';
         Args.KeyMedChi2Dof             = 'M_CHI2D';  % median of CHI2DOF over all stars 
+        
 
         Args.SearchStreaks                 = false;
         Args.detectStreaksLSDArgs          = {};
@@ -366,7 +411,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.BS_Prof  = @(Par, R) 10.^polyval(Par,log10(R));
         Args.BS_PL    = 1.5;
         Args.MethodBS = 'prof';
-        
+        Args.BS_ColFlux = 'FLUX_APER_4';
+
         Args.UseMex                        = false;
 
 
@@ -432,13 +478,15 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         % redo everything - keep the shape:
         [Result] = imProc.psf.populatePSF(Result,...
                                                    Args.populatePSFArgs{:},...
+                                                   'Method',Args.MethodPSF,...
+                                                   'SumMethod',Args.SumMethodPSF,...
+                                                   'ShiftMethod', Args.ShiftMethod,...
                                                    'RadiusPSF',Args.RadiusPSF,...
                                                    'Annulus',Args.Annulus,...
                                                    'ThresholdPSF',Args.ThresholdPSF,...
                                                    'RangeSN',Args.RangeSN,...
                                                    'InitPsf',Args.InitPsf,...
                                                    'InitPsfArgs',Args.InitPsfArgs,...
-                                                   'ShiftMethod',Args.ShiftMethod,...
                                                    'RePopulatePSF',true);
     end
 
@@ -740,7 +788,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             % with flux of 10^5:
                             %BS_RadProf = io.files.load2('/home/eran/LAST_BrightStar_RadialProfile.mat');
         
-                            ColData = AI.CatData.getCol({'XPEAK','YPEAK','FLUX_APER_3'});
+                            ColData = AI.CatData.getColMulti({'XPEAK','YPEAK','FLUX_APER_3'});
                             % 
                             MinFluxFlag = ColData(:,3)>1e5;
                             X = ColData(MinFluxFlag,1);
@@ -763,7 +811,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             CK = imUtil.kernel2.circ(ceil(2.*FWHM(Iobj)),[15 15]);
                             CK = CK./max(CK,[],'all');
                             EdgesVarMap = repmat(single(0), SizeImage);
-                            ColData = AI.CatData.getCol({'XPEAK','YPEAK','FLUX_APER_3'});
+                            ColData = AI.CatData.getCol({'XPEAK','YPEAK',Args.BS_ColFlux});
                             LinIndex = imUtil.image.sub2ind_fast(SizeImage,ColData(:,2), ColData(:,1));
                             %LinIndex = imUtil.image.mex.sub2ind_mex(SizeImage, ColData(:,2), ColData(:,1));
                             %LinIndex = sub2ind(SizeImage, AI.CatData.Table.YPEAK, AI.CatData.Table.XPEAK);

@@ -1,9 +1,9 @@
 %==========================================================================
 % Project     : ULTRASAT Observation Planner
-% File        : ultrasat.api.Loggable.m
+% File        : +ultrasat/+api/+core/Loggable.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
-% Updated     : 06/10/2025
+% Updated     : 17/05/2026
 % Description : Base class for logging.
 %==========================================================================
 
@@ -51,7 +51,7 @@ classdef Loggable < handle
 
 
         function msglog(obj, varargin)
-            %MSGLOG Logs a formatted message to the console and a log file.
+            % Logs a formatted message to the console and a log file.
             %
             %   Usage:
             %       obj.msglog('Starting process...');
@@ -130,13 +130,24 @@ classdef Loggable < handle
                     (contains(lowerMsg, 'error') && ~contains(lowerMsg, 'no error'))
                 ultrasat.api.utils.LogManager.logError(fullLogEntry);
             end
+        end
 
+
+        function msgLog(obj, Level, varargin)
+            % Compatibility function for Component.msgLog()
+            obj.msglog(varargin{:});
+        end
+
+
+        function msgEx(obj, msg, ME, varargin)
+            % Log exception with message
+            obj.logException(ME, false, varargin{:});
         end
 
 
         function msgex(obj, msg, ME, varargin)
-            % Log exception with message
-            obj.logException(ME, false, varargin{:});
+            % Compatibility function
+            obj.msgEx(msg, ME, varargin{:});
         end
 
 

@@ -65,9 +65,9 @@ function [MCMCResult, PhotCalib] = fitMCMC_PhotCalibTrans(Obj, Args)
 
     if isa(Obj, 'PhotCalibTrans')
         PC = Obj;
-        if ~PC.Success
+        if isempty(PC.TransModel)
             error('imProc:calib:fitMCMC_PhotCalibTrans:NotCalibrated', ...
-                'PhotCalibTrans object has Success=false. Run calibration first.');
+                'PhotCalibTrans object has no TransModel. Run calibration first.');
         end
     elseif isa(Obj, 'AstroImage')
         if Args.RunCalibFirst
@@ -75,7 +75,7 @@ function [MCMCResult, PhotCalib] = fitMCMC_PhotCalibTrans(Obj, Args)
                 fprintf('Running fitPhotCalibTrans on AstroImage...\n');
             end
             [~, PC] = imProc.calib.fitPhotCalibTrans(Obj, Args.CalibArgs{:});
-            if ~PC.Success
+            if isempty(PC.TransModel)
                 error('imProc:calib:fitMCMC_PhotCalibTrans:CalibFailed', ...
                     'Photometric calibration failed. Cannot run MCMC.');
             end
@@ -155,6 +155,18 @@ function [MCMCResult, PhotCalib] = fitMCMC_PhotCalibTrans(Obj, Args)
         StageName = Stage.StageName;
         Method = Stage.Method;
         FreeParams = Stage.FreeParams;
+
+        % Joint Norm + Tran2D linear stage: not yet supported by MCMC -- skip
+        % with a clear notice so the caller knows to handle it externally.
+        if ischar(FreeParams) && strcmpi(FreeParams, 'JOINT_FC')
+            if Args.Verbose
+                fprintf('\n--- Stage %d: %s (Joint Norm + Tran2D linear) ---\n', iStage, StageName);
+                fprintf('Skipping: JOINT_FC stage is not supported by fitMCMC_PhotCalibTrans.\n');
+            end
+            StageResults{iStage} = struct('Skipped', true, 'StageName', StageName, ...
+                'Method', Method, 'IsFieldCorrection', false, 'IsJointFC', true);
+            continue;
+        end
 
         % Skip field correction stages (empty FreeParams) unless IncludeTran2D
         IsFieldCorrection = isempty(FreeParams);

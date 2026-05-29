@@ -38,20 +38,7 @@ function Cat = plotOutliersScatter(AI, MS, Args)
     Mag = MS.Data.(Args.MagField);
 
     % NaN out epochs whose FLAGS match any FilterFlags bit
-    if ~isempty(Args.FilterFlags) && isfield(MS.Data, 'FLAGS')
-        FM = MS.Data.FLAGS;
-        FM(isnan(FM)) = 0;
-        try
-            BD = BitDictionary;
-            Bad = false(size(FM));
-            for Ifl = 1:numel(Args.FilterFlags)
-                [~, ~, BitDec] = BD.name2bit(Args.FilterFlags{Ifl});
-                Bad = Bad | (bitand(uint32(FM), uint32(BitDec)) > 0);
-            end
-            Mag(Bad) = NaN;
-        catch
-        end
-    end
+    Mag(flagBadEpochs(MS, Args.FilterFlags, 'SizeRefField', Args.MagField)) = NaN;
 
     MedMag = median(Mag, 1, 'omitnan');
     StdMag = std(Mag, 0, 1, 'omitnan');

@@ -3,9 +3,13 @@
 % Filename    : ultrasat.planner.TooPlannerRunner.m
 % Author      : Chen Tishler
 % Created     : 29/01/2026
-% Updated     : 19/02/2026
+% Updated     : 17/05/2026
 % Description : Runs ULTRASAT TOO planner multiple times from one JSON config.
 %==========================================================================
+%
+% @Todo: Need to handle error cases, such as missing ~/matlab/data/ULTRASAT/all_sky_grid_charged_particles_350_rep1.txt
+%        and more, need per-plan error handling and logging, and return status with message
+%
 
 classdef TooPlannerRunner < ultrasat.api.core.Loggable
     % TooPlannerRunner
@@ -22,15 +26,19 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
 
     methods
         function Obj = TooPlannerRunner()
+            % Constructor
         end
 
 
         function summaryFileName = runFromJson(Obj, jsonFilename)
-            % runFromJson
+            % Run TOO planner using parameters from JSON config file
             %
             % :param jsonFilename: Path to JSON config file.
             summaryFileName = [];
 
+            Obj.msgLog(LogLevel.Info, 'TooPlannerRunner.runFromJson started: %s', jsonFilename);
+
+            % Load JSON config file
             try
                 cfg = Obj.loadJson(jsonFilename);
             catch Ex
@@ -69,6 +77,7 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             end
 
             % Load probability map once (reused for all plan runs)
+            Obj.msgLog(LogLevel.Info, 'TooPlannerRunner: Loading probability map: %s', csvFile);
             try
                 probMapTable = readtable(csvFile);
             catch Ex
@@ -84,15 +93,19 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             createdPlans = struct('run_id', {}, 'json_file', {}, 'mat_file', {}, 'plan_index', {}, 'status', {}, 'exposures_scheduled', {});
 
             for i = 1:n
+                Obj.msgLog(LogLevel.Info, 'TooPlannerRunner: Running plan %d of %d', i, n);
                 planCfg = cfg.plans(i);
                 planInfo = Obj.runOnePlanSafe(planCfg, probMapTable, outFolder, jsonFilename, i);
                 if ~isempty(planInfo)
                     createdPlans(end+1) = planInfo; %#ok<AGROW>
                 end
             end
+            Obj.msgLog(LogLevel.Info, 'TooPlannerRunner: Running plans completed');
 
             % Create summary JSON file with all created plans
             summaryFileName = Obj.createSummaryJson(outFolder, jsonFilename, createdPlans, n);            
+
+            Obj.msgLog(LogLevel.Info, 'TooPlannerRunner.runFromJson completed: %s', summaryFileName);            
         end
     end
 
@@ -105,12 +118,18 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             % runOnePlanSafe
             %
             % :param planCfg: Plan configuration struct.
-            % :param probMapTable: Probability map table.
+            % :param probMapTable: Probability map table, usually loaded from CSV file.
             % :param outFolder: Path to output folder.
             % :param jsonFilename: Path to JSON file.
             % :param planIndex: Plan index.
             % :return: Struct with plan file information, or empty if failed.
 
+            Obj.msgLog(LogLevel.Info, 'TooPlannerRunner.runOnePlanSafe started: planIndex=%d', planIndex);
+
+            if height(probMapTable) < 1000
+                Obj.msgLog(LogLevel.Warning, 'TooPlannerRunner.runOnePlanSafe: Probability map table has less than 1000 rows, which is likely to be an error. planIndex=%d', planIndex);
+            end
+            
             % Initialize return value
             planInfo = [];
 
@@ -119,7 +138,6 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
 
             try
                 % Build planner object
-                % Build planner
                 upTOO = ultrasat.planner.uplanner('AstPlanner', Obj.PlannerName, 'Type', 'TOO');
 
                 % Get planner parameters from config (with defaults)
@@ -141,7 +159,8 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                     'TOO run %s: MaxTargets=%d MinCoveredProb=%.3f Window=%g[h]', ...
                     runId, upTOO.TOOMaxTargets, upTOO.TOOMinCoveredProb, tooWindowHours);
 
-                % Run planner
+                % Run planner, this can fail if the probability map is too short
+                % It may take a while to run, and in current version may open plots windows
                 upTOO.buildTOO('Verbosity', verbosity, 'DrawMaps', drawMaps, ...
                     'SaveMaps', true, ...
                     'MapOutputDir', outFolder, ...
@@ -149,23 +168,26 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                     'MapFormats', {'png','fig'}, ...
                     'CloseFigures', true);
 
-                % Extract results
-                planTable = upTOO.Plan;  % MATLAB table
+                % Extract results, Plan is a MATLAB table
+                planTable = upTOO.Plan;
 
-                % Write outputs
+                % Prepare struct of metadata and targets for JSON and MAT files
                 meta = Obj.makeMetadata(runId, jsonFilename, planCfg, upTOO, planTable);
 
+                % Convert plan table to targets struct array
                 targets = Obj.planTableToTargets(planTable);
 
+                % Create output JSON and MAT files
                 outJson = fullfile(outFolder, runId + ".json");
                 outMat  = fullfile(outFolder, runId + ".mat");
 
+                % Save JSON and MAT files
                 Obj.savePlanJson(outJson, meta, targets);
                 Obj.savePlannerMat(outMat, upTOO, meta, planCfg);
 
                 Obj.msgLog(LogLevel.Info, 'TOO run %s: done. exposures=%d json=%s', runId, height(planTable), outJson);
 
-                % Return file information with absolute paths
+                % Return struct with plan file information, with absolute paths, so caller can use it
                 planInfo = struct();
                 planInfo.run_id = char(runId);
                 planInfo.json_file = char(Obj.getAbsolutePath(outJson));
@@ -173,11 +195,12 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                 planInfo.plan_index = planIndex;
                 planInfo.status = 'success';
                 planInfo.exposures_scheduled = height(planTable);
-
             catch Ex
                 Obj.msgLog(LogLevel.Error, 'TooPlannerRunner: Plan %d failed (runId=%s): %s', planIndex, runId, Ex.message);
                 % Return empty to indicate failure
             end
+
+            Obj.msgLog(LogLevel.Info, 'TooPlannerRunner.runOnePlanSafe completed: planIndex=%d', planIndex);
         end
 
 
@@ -267,17 +290,22 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             % :param planTable: Plan table.
             % :return: Metadata struct.
 
+            Obj.msgLog(LogLevel.Info, 'TooPlannerRunner.makeMetadata, runId=%s', runId);
+
+            % Create metadata struct
             meta = struct();
             meta.run_id = char(runId);
             meta.created_time_utc = char(Obj.isoFormat(datetime("now","TimeZone","UTC")));
             meta.input_json = char(string(jsonFilename));
 
+            % Create planner struct and add planner name
             meta.planner = struct();
             meta.planner.name = char(Obj.PlannerName);
 
             % Also include the planCfg raw fields for traceability
             meta.plan_cfg = planCfg;
 
+            % Create result struct and add exposures scheduled
             meta.result = struct();
             meta.result.exposures_scheduled = height(planTable);
 
@@ -306,6 +334,8 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             % Convert the planner table into a JSON-friendly struct array.
             % We pick the main columns you likely care about in SOC.
 
+            Obj.msgLog(LogLevel.Info, 'TooPlannerRunner.planTableToTargets, items=%d', height(T));
+
             targets = struct('Name', {}, 'RA', {}, 'Dec', {}, 'Roll', {}, ...
                              'Tiles', {}, 'Tstart_utc', {}, 'Tend_utc', {}, ...
                              'ExpTime_s', {}, 'Nexposures', {}, 'TotalDuration_s', {});
@@ -314,9 +344,11 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                 return;
             end
 
+            % Loop through plan table and convert to targets struct array
             for k = 1:height(T)
                 row = struct();
 
+                % Get values from plan table
                 row.Name = Obj.safeGetTableValue(T, k, 'Name', "");
                 row.RA   = Obj.safeGetTableValue(T, k, 'RA', NaN);
                 row.Dec  = Obj.safeGetTableValue(T, k, 'Dec', NaN);
@@ -348,6 +380,7 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                 totalDur = Obj.safeGetTableValue(T, k, 'TotalDuration', []);
                 row.TotalDuration_s = Obj.durationToSeconds(totalDur);
 
+                % Add to targets struct array
                 targets(end+1) = row; %#ok<AGROW>
             end
         end
@@ -414,6 +447,8 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             % :param meta: Metadata struct.
             % :param targets: Targets struct array.
 
+            Obj.msgLog(LogLevel.Info, 'TooPlannerRunner.savePlanJson: %s', outJson);
+
             % Create payload struct with metadata and targets
             payload = struct();
             payload.metadata = meta;
@@ -442,6 +477,7 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             % :param planCfg: Plan configuration struct.
 
             % Save planner object, metadata, and plan configuration to MAT file
+            Obj.msgLog(LogLevel.Info, 'TooPlannerRunner.savePlannerMat: %s', outMat);
             try
                 save(outMat, 'plannerObj', 'meta', 'planCfg', '-v7.3');
             catch Ex
@@ -461,6 +497,7 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             txt = char(txt);
         end
 
+
         function summaryFileName = createSummaryJson(Obj, outFolder, jsonFilename, createdPlans, totalPlans)
             % createSummaryJson
             %
@@ -471,6 +508,9 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             % :param createdPlans: Struct array with information about created plans.
             % :param totalPlans: Total number of plans that were attempted.
 
+            Obj.msgLog(LogLevel.Info, 'TooPlannerRunner.createSummaryJson started: %s', outFolder);
+
+            % Create summary struct
             summaryFileName = [];
             summary = struct();
             summary.created_time_utc = char(Obj.isoFormat(datetime("now","TimeZone","UTC")));
@@ -485,8 +525,7 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
                 plansList = cell(numel(createdPlans), 1);
                 
                 for i = 1:numel(createdPlans)
-                    p = createdPlans(i);
-                
+                    p = createdPlans(i);                
                     runId = string(p.run_id);
                 
                     % expected image files
@@ -526,7 +565,10 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             catch Ex
                 Obj.msgLog(LogLevel.Error, 'TooPlannerRunner: Failed writing summary JSON %s: %s', summaryFile, Ex.message);
             end
+
+            Obj.msgLog(LogLevel.Info, 'TooPlannerRunner.createSummaryJson completed: %s', summaryFileName);
         end
+
 
         function absPath = getAbsolutePath(~, path)
             % getAbsolutePath
@@ -551,6 +593,7 @@ classdef TooPlannerRunner < ultrasat.api.core.Loggable
             pathChar = char(pathStr);
             isAbsolute = startsWith(pathChar, filesep) || (ispc && length(pathChar) >= 2 && pathChar(2) == ':');
             
+            % If already absolute, return it
             if isAbsolute
                 absPath = pathChar;
             else

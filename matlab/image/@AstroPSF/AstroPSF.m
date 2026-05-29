@@ -513,7 +513,7 @@ classdef AstroPSF < Component
             %          [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(AP);            
             arguments
                 Obj
-                Args.ReCenter(1,1) logical  = true;
+                Args.ReCenter               = true;
                 Args.CenterPSFxy            = [];
                 Args.Step                   = 1;
                 Args.Level                  = 0.5;
@@ -526,6 +526,7 @@ classdef AstroPSF < Component
                 % use 1st moment to find PSF center
                 M1 = moment2(Obj);
                 Args.CenterPSFxy = [M1.X, M1.Y];
+          
             end
             Nxy = size(Args.CenterPSFxy,1);
             
@@ -609,14 +610,15 @@ classdef AstroPSF < Component
             
             Cube     = images2cube(Obj,'PsfArgs',Args.PsfArgs);
             SizeCube = size(Cube);
-            X = (SizeCube(2)-1).*0.5;
-            Y = (SizeCube(1)-1).*0.5;
+            X = (SizeCube(2)+1).*0.5;
+            Y = (SizeCube(1)+1).*0.5;
             
-            [varargout{1:nargout}] = imUtil.image.moment2(Cube, X, Y, Args.moment2Args{:}, 'SubBack',false);
-            
+            %[varargout{1:nargout}] = imUtil.image.moment2(Cube, X, Y, Args.moment2Args{:}, 'SubBack',false);
+            [varargout{1:nargout}] = imUtil.sources.moments(Cube, 'X',X, 'Y',Y, 'SN',100, Args.moment2Args{:}, 'Cut2D',false);
+
         end
         
-        function [FWHM_CumSum, FWHM_Flux] = fwhm(Obj, Args)
+        function [FWHE, FWHM] = fwhm(Obj, Args)
             % Calculate the FWHM of a PSF using the curve of growth
             %   (for alternative method use moment2).
             % Input  : - An AstroPSF object.
@@ -628,7 +630,7 @@ classdef AstroPSF < Component
             %                   There are some differences between the two
             %                   codes.
             %                   Default is false.
-            % Output : - The FWHM calculated from the half cumsum [pix]
+            % Output : - The FWHE calculated from the half cumsum [pix]
             %          - The FWHM calculated from the half peak flux [pix]
             %            radius.
             % Author : Eran Ofek (May 2021)
@@ -639,40 +641,48 @@ classdef AstroPSF < Component
                 Args.PsfArgs          = {};    
                 Args.curveArgs        = {};
                 Args.UseLegacy        = true;
+
+                Args.ReCenter         = false;
             end
             
-            if Args.UseLegacy
-                [~, FWHM_CumSum, FWHM_Flux] = curve_of_growth(Obj,'PsfArgs',Args.PsfArgs,Args.curveArgs{:});
-                FWHM_CumSum = 2.*FWHM_CumSum;
-                FWHM_Flux   = 2.*FWHM_Flux;
+            if ~isempty(Obj(1).Data)
+                [FWHM,FWHE]=imUtil.psf.fwhmOfStamp(Obj(1).Data, 'ReCenter',Args.ReCenter);
             else
-                SizeStamp = size(Obj(1).Data);
-                X0        = (SizeStamp(2) + 1).*0.5;
-                Y0        = (SizeStamp(2) + 1).*0.5;
-                [Rad, Mean, Sum] = imUtil.psf.mex.radialProfile_mex(Obj(1).Data, X0, Y0, floor(X0), 1);
-                EpsVec = (1:1:numel(Mean)).'.*1e-4;
-                
-                CumSum  = cumsum(Sum(:));
-                CumSum  = CumSum./CumSum(end) + EpsVec;
-                Frac = 0.5;
-                if CumSum(1)>=Frac
-                    FWHM_CumSum = 2.*Frac./CumSum(1);
-                else
-                    %interp1(CumSum,Rad,0.5)
-                    FWHM_CumSum = 2.*tools.interp.interp1crossVal(Rad, CumSum, Frac);
-                end
-                if nargout>1
-                    %CumMean = Mean(:);
-                    CumMean = Mean(:)./Mean(1) + EpsVec;
-                    if CumMean(1)<=Frac
-                        % interpolate below the 1st step
-                        FWHM_Flux = 2.*Frac./CumMean(1);
-                    else
-                        FWHM_Flux = 2.*tools.interp.interp1crossVal(Rad, CumSum, Frac);
-                    end
-                end
-                
+                FWHM = NaN;
+                FWHE = NaN; 
             end
+            % if Args.UseLegacy
+            %     [~, FWHM_CumSum, FWHM_Flux] = curve_of_growth(Obj,'PsfArgs',Args.PsfArgs,Args.curveArgs{:});
+            %     FWHM_CumSum = 2.*FWHM_CumSum;
+            %     FWHM_Flux   = 2.*FWHM_Flux;
+            % else
+            %     SizeStamp = size(Obj(1).Data);
+            %     X0        = (SizeStamp(2) + 1).*0.5;
+            %     Y0        = (SizeStamp(2) + 1).*0.5;
+            %     [Rad, Mean, Sum] = imUtil.psf.mex.radialProfile_mex(Obj(1).Data, X0, Y0, floor(X0), 1);
+            %     EpsVec = (1:1:numel(Mean)).'.*1e-4;
+            % 
+            %     CumSum  = cumsum(Sum(:));
+            %     CumSum  = CumSum./CumSum(end) + EpsVec;
+            %     Frac = 0.5;
+            %     if CumSum(1)>=Frac
+            %         FWHM_CumSum = 2.*Frac./CumSum(1);
+            %     else
+            %         %interp1(CumSum,Rad,0.5)
+            %         FWHM_CumSum = 2.*tools.interp.interp1crossVal(Rad, CumSum, Frac);
+            %     end
+            %     if nargout>1
+            %         %CumMean = Mean(:);
+            %         CumMean = Mean(:)./Mean(1) + EpsVec;
+            %         if CumMean(1)<=Frac
+            %             % interpolate below the 1st step
+            %             FWHM_Flux = 2.*Frac./CumMean(1);
+            %         else
+            %             FWHM_Flux = 2.*tools.interp.interp1crossVal(Rad, CumSum, Frac);
+            %         end
+            %     end
+            % 
+            % end
             
         end
         

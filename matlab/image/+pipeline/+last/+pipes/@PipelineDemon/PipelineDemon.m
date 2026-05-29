@@ -2509,7 +2509,7 @@ classdef PipelineDemon < Component
 
             % executing pipelineI
             AllForcedPhot = []; % TEMPORARY / not used
-            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:});
+            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:},'Status',Status);
             %ProcImageList = TableRaw.FileName;                
             RunTime = etime(clock, Tstart);
             Ntr = size(TableRaw,1);
@@ -2639,6 +2639,8 @@ classdef PipelineDemon < Component
             Nf = FN_Str.nFiles;
             FN_Str.FileType = repmat("mat",Nf,1);
             FN_Str.Product  = repmat("Streaks",Nf,1);
+            FN_Str.CropID   = 0;
+            FN_Str.Counter  = 0;
             imProc.io.saveProductStreak(AllSI, FN_Str);
 
             % Coadd
@@ -2978,6 +2980,8 @@ classdef PipelineDemon < Component
                 Args.RemoveAfterWrite  = false;    % remove the output YYYY/MM/DD/raw/subdir/ folder after writing into it (usefull for multiple tests)
                 Args.StaticRAWDir      = false;    % when NewPath holds a fixed archive (e.g. for testing), process all full groups in order instead of only the most recent
                 Args.DebugMode         = false;
+
+                Args.FailMethod        = 'move';  % 'move'|'report'|'none'
             end
             RAD = 180./pi;
             SEC_DAY = 86400;
@@ -3171,19 +3175,42 @@ classdef PipelineDemon < Component
         
                             if ~Status.PipeI || ~Status.WriteI
                                 % Move images to failed directory:
-                                Obj.moveImagesToFailedDir(RawImageList);
-    
-                                % Write the Status info to the failed
-                                % directory:
-                                PWD = pwd;
-                                cd(Obj.FailedPath);
-                                FailInfoFileName = RawImageList{1};
-                                FailedInfoFileName = strrep(FailedInfoFileName, 'sci_raw_Image', 'sci_raw_Failure');
-                                FailedInfoFileName = strrep(FailedInfoFileName, '.fits', '.mat');
-                                Status.RawImageList = RawImageList;
-                                Status.TableRaw     = TableRaw;
-                                save('-v7.3', FailedInfoFileName, Status)
-                                cd(PWD);
+                                switch Args.FailMethod
+                                    case 'move' 
+                                        Obj.moveImagesToFailedDir(RawImageList);
+            
+                                        % Write the Status info to the failed
+                                        % directory:
+                                        PWD = pwd;
+                                        cd(Obj.FailedPath);
+                                        FailInfoFileName = RawImageList{1};
+                                        FailedInfoFileName = strrep(FailedInfoFileName, 'sci_raw_Image', 'sci_raw_Failure');
+                                        FailedInfoFileName = strrep(FailedInfoFileName, '.fits', '.mat');
+                                        Status.RawImageList = RawImageList;
+                                        Status.TableRaw     = TableRaw;
+                                        save('-v7.3', FailedInfoFileName, Status)
+                                        cd(PWD);
+                                    case 'report'
+                                        if ~isfolder(Obj.FailedPath)
+                                            mkdir(Obj.FailedPath);
+                                        end
+                                        FN  = fullfile(Obj.FailedPath, 'report.txt');
+                                        FID = fopen(FN,'a');
+                                        fprintf(FID,'%% == pipelineI failed at %s == \n',datetime);
+                                        fprintf(FID,'%% RAWImageDir: \n');
+                                        fprintf(FID,'%s \n',Obj.NewPath);
+                                        fprintf(FID,'%% StartImage: \n');                                        
+                                        fprintf(FID,'%s \n',RawImageList(1));    
+                                        fprintf(FID,'%% Full input image list: \n');        
+                                        fprintf(FID,'%s \n',RawImageList{:});   
+                                        fclose(FID);
+                                    case 'none'
+                                        % do nothing
+
+                                    otherwise
+                                        error('Unknown FailMethod option %s',Args.FailMethod);
+                                end
+
     
                                 
                             end % if ~Status.PipeI || ~Status.WriteI
@@ -3224,6 +3251,15 @@ classdef PipelineDemon < Component
                                 writeStatus(Obj, RawImageListFinal{1});
                             end
         
+                            % Backup the data
+                            % if Args.Backup
+                            %     BackupPath = FN_Coadd.genPath('Level','proc');
+                            %     BackupPath = strrep(BackupPath,'//','/');
+                            %     BackupStr = sprintf("last-backup --source %s --extra ""--exclude=*/raw --exclude=*_sci_proc_Image_* --exclude=*_sci_proc_Mask_* --exclude=*_sci_proc_PSF_* "" &", BackupPath);
+                            %     system(BackupStr);
+                            %     Msg{1} = sprintf('pipeline.DemonLAST backup started');
+                            %     Obj.writeLog(Msg, LogLevel.Info);
+                            % end
         
                             Msg = sprintf('Pipeline summary status - PipeI: %d, Write: %d, Move: %d', Status.PipeI, Status.WriteI, Status.MoveRaw);
                             Obj.writeLog(Msg, LogLevel.Info);

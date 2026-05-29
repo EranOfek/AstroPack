@@ -105,6 +105,7 @@ classdef AstroHeader < Component
                 FileNames      = 1;   % name or array size
                 HDU            = 1;
                 Args.UseRegExp(1,1) logical = false;
+                Args.UseMex    = false
             end
             
             if isnumeric(FileNames)
@@ -135,7 +136,11 @@ classdef AstroHeader < Component
             for Ih=1:1:Nh
                 if ~isempty(Obj(Ih).File)
                     Ihdu = min(Ih,Nhdu);
-                    Obj(Ih).Data = FITS.readHeader1(Obj(Ih).File,HDU(Ihdu));
+                    if Args.UseMex
+                        Obj(Ih).Data = io.fits.mex.read_header(Obj(Ih).File, HDU(Ihdu));
+                    else
+                        Obj(Ih).Data = FITS.readHeader1(Obj(Ih).File, HDU(Ihdu));
+                    end
                 end
                 Obj(Ih).KeyDict     = Dictionary.getDict('Header.Synonyms.KeyNames');
                 Obj(Ih).ValDict     = Dictionary.getDict('Header.Synonyms.KeyVal.IMTYPE');
@@ -502,7 +507,7 @@ classdef AstroHeader < Component
                     Result = replaceVal(Obj ,Args.ReplaceKeys, Args.ReplaceVals, Args.replaceValArgs{:});
                 end
                 if ~isempty(Args.InsertKeys)
-                    Result = insertKey(Obj ,ArgsInsertKeys, Args.insertKeyArgs{:});
+                    Result = insertKey(Obj ,Args.InsertKeys, Args.insertKeyArgs{:});
                 end
                 if Args.AddHistory
                     HistoryLine = {'HISTORY', sprintf('funUnary with operator: %s',func2str(Operator)),''};
@@ -1420,7 +1425,7 @@ classdef AstroHeader < Component
                     if isempty(Obj(1).TimeDict.FieldNames)
                         % set up to default values
                         Args.FunTimeKeys.Dict.MIDJD     = @(Time,Exp) Time;
-                        Args.FunTimeKeys.Dicr.MIDMJD    = @(Time,Exp) convert.time(Time,'MJD','JD');
+                        Args.FunTimeKeys.Dict.MIDMJD    = @(Time,Exp) convert.time(Time,'MJD','JD');
                         Args.FunTimeKeys.Dict.JD        = @(Time,Exp) Time + 0.5.*Exp./SEC_IN_DAY;
                         Args.FunTimeKeys.Dict.MJD       = @(Time,Exp) convert.time(Time,'MJD','JD') + 0.5.*Exp./SEC_IN_DAY;
                         Args.FunTimeKeys.Dict.DATEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
@@ -1832,7 +1837,7 @@ classdef AstroHeader < Component
                     FlagEmpty = false(Nkeys, 1);
                 end
             
-                CellHeader = Obj(Iobj).Data(~FlagHistory & ~FlagHistory & ~FlagEmpty,:);
+                CellHeader = Obj(Iobj).Data(~FlagHistory & ~FlagEmpty,:);
                 
                 if Args.RemoveNonUnique
                     [~,IU] = unique(CellHeader(:,1));
@@ -2059,7 +2064,7 @@ classdef AstroHeader < Component
                 else
                     Isel    = setdiff(Vec, II);
                 end
-                Obj.Data = Obj.Data(Isel,:);
+                Obj(Iobj).Data = Obj(Iobj).Data(Isel,:);
             end
         end
     end

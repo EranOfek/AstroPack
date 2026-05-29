@@ -1,6 +1,6 @@
 function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     % Coadd a list of processed images, estimate background and find sources in the coadd images.
-    %   The function works on 2-D array of of AstroImage objects in which
+    %   The function works on 2-D array of of AstroImage objects in whichmas
     %   one dimension (default is 1) corresponds to the epoch and the other
     %   to the field (i.e., different field). Each field will be coadded,
     %   so the result is a vector of AstroImage objects which length equal
@@ -440,9 +440,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             if Args.AddMaskSrcNoise
                 Coadd(Ifields) = imProc.mask.maskSourceNoise(Coadd(Ifields), 'Factor',1, 'CreateNewObj',false);
             end
-
-
-            
+         
 
             % Mask pixels with less than X% of the images
             if ~isempty(Args.CoaddLessFrac)
@@ -501,7 +499,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
 
             if Args.FindStars
                 % add PSF FWHM to header - after astrometry, beacuse WCS is needed
-                imProc.psf.fwhm(Coadd(Ifields), 'AddMorphology',true, 'UseLegacy',false, 'DefScale',Args.DefScale);
+                imProc.psf.fwhm(Coadd(Ifields), 'AddMorphology',true, 'AddErr',true, 'UseLegacy',false, 'DefScale',Args.DefScale);
             end
             
            
@@ -517,7 +515,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                                             'CreateNewObj',false,...
                                                                                                             'MagZP',Args.ZP0,...
                                                                                                             'CatName',AstrometricCat,...
-                                                                                                             'UpdateMagCols',Args.photometricZP_UpdateMagCols,...
+                                                                                                            'UpdateMagCols',Args.photometricZP_UpdateMagCols,...
                                                                                                             Args.photometricZPArgs{:});
             end
 

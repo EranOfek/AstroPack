@@ -1,3 +1,4 @@
+
 function Report = maskBitStatistics(DataPath, Args)
     % Per-bit pixel statistics over a set of FITS mask files
     % Description: Recursively scans a directory tree for Mask FITS files

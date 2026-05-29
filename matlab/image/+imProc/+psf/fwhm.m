@@ -18,6 +18,8 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
     %                   on cumsum to header. Default is true.
     %            'HeaderKey' - Header keyword in which to add the FWHM.
     %                   Default is 'FWHM'.
+    %            'Populate' - Attempt to populate the PSF is fempty.
+    %                   Default is false.
     %            --- Morphology ---
     %            'AddMorphology' - A logical indicating if to add the following morphology info.
     %                   Default is false.
@@ -35,7 +37,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
     %            ----
     %            'AddPos' - Position in the hedaer in which to add the FWHM
     %                   keyword. Default is Inf.
-    %            'KeysMom2' - 2nd moment column names in catalog.
+    %            'ColMom2' - 2nd moment column names in catalog.
     %                   Default is {'X2','Y2','XY'}.
     %            'KeyFitPSF' - A four element cell array with header keyword names
     %                   in which to write the Gaussian fitting  results:
@@ -52,9 +54,9 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
     %                   or the new mex version (false).
     %                   Default is true.
     % Output : - The AstroImage object with the populated PSF object and
-    %            FWHM and additional meta data in the header [arcsec].
+    %            FWHE and additional meta data in the header [arcsec].
     %            Also populated are the MED_A [pix], MED_B [pix], MED_TH [deg]
-    %          - FWHM_C.
+    %          - FWHM_C (i.e., FWHE).
     %          - A structure array with all the derived parameters
     % Author : Eran Ofek (Jan 2022)
     % Example: imProc.psf.fwhm(Coadd);
@@ -64,7 +66,8 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
         Args.Scale                  = [];  % if empty - figure out from WCS
         Args.DefScale               = 1; % if WCS is empty, then use this scale.
         Args.AddToHeader            = true;
-        Args.HeaderKey              = 'FWHM';
+        Args.HeaderKey              = {'FWHE','FWHM'};
+        Args.Populate               = false;
 
         Args.AddMorphology          = false;
         Args.KeyNpeaksPSF           = 'PSF_NPK';
@@ -73,18 +76,23 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
 
         Args.AddPos                 = Inf;
         Args.AddMom2                = false; % writing median of stellar moments is not the responsibility of this fun. Instead use: imProc.header.writeStat2Header
-        Args.KeysMom2               = {'X2','Y2','XY'};
+        Args.ColMom2                = {'X2','Y2','XY'};
+        Args.KeyMom2                = {'MED_A','MED_B','MED_TH'};
+
         Args.KeyFitPSF              = {'PSF_FITN','PSF_FITA','PSF_FITB','PSF_FITT'};
         Args.KeyNstars              = 'PSF_NST';
         Args.constructPSFArgs       = {};
         Args.UseLegacy              = true;
+
+        Args.AddErr                 = false;
+        Args.KeyPsfErr              = {'PSF_ERR','PSF_S2'}; % PSF error and sum of PSF square
     end
     ARCSEC_DEG = 3600;    
     
     Nobj = numel(Obj);
     AllFWHM = zeros(size(Obj));
     for Iobj=1:1:Nobj
-        if isemptyPSF(Obj(Iobj).PSFData)
+        if Args.Populate && isemptyPSF(Obj(Iobj).PSFData)
             % construct the PSF if needed
             if isnan(Obj(Iobj).PSFData.Nstars)
                 [Obj(Iobj)] = imProc.psf.populatePSF(Obj(Iobj), Args.constructPSFArgs{:});
@@ -106,10 +114,9 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
             else
                 Scale = Args.Scale;
             end
-            
             [FWHM_C, FWHM_H] = Obj(Iobj).PSFData.fwhm('curveArgs',{'Step',1}, 'UseLegacy',Args.UseLegacy);  % see fix in issue #585
-            FWHM_C = FWHM_C.*Scale;
-            FWHM_H = FWHM_H.*Scale;
+            FWHM_C = FWHM_C.*Scale; % FWHE
+            FWHM_H = FWHM_H.*Scale; % FWHM
         else
             % NO PSF - put NaNs in header
             FWHM_C = NaN;
@@ -121,11 +128,11 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
 
         % add FWHM to header
         if Args.AddToHeader
-            Obj(Iobj).HeaderData.replaceVal(Args.HeaderKey, FWHM_C, 'AddPos',Args.AddPos);
+            Obj(Iobj).HeaderData.replaceVal(Args.HeaderKey, [FWHM_C, FWHM_H], 'AddPos',Args.AddPos);
         
 
             % fit Gaussian to PSF
-            if ~isempty(Args.KeyFitPSF)
+            if ~isempty(Args.KeyFitPSF) && Obj(Iobj).PSFData.Nstars>0
                 [~,~,BestFit] = Obj(Iobj).PSFData.fitFunPSF();
                 % sqrt(BestFit{1}).Par(2)) is the sigma of the Gaussian in
                 % the X direction...
@@ -155,14 +162,28 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
             % add 2nd moment information
             if Args.AddMom2
                 if Obj(Iobj).PSFData.Nstars>0
-                    M2 = Obj(Iobj).CatData.getCol(Args.KeysMom2);
+                    M2 = Obj(Iobj).CatData.getCol(Args.ColMom2);
                     [AB] = imUtil.psf.mom2shape(M2(:,1),M2(:,2),M2(:,3));
                     Med  = median([AB.A, AB.B, AB.Theta],1,'omitnan');
                     Med(3) = Med(3).*180./pi;
                 else
                     Med = nan(1,3);
                 end
-                Obj(Iobj).HeaderData.replaceVal({'MED_A','MED_B','MED_TH'}, Med, 'AddPos',Args.AddPos);
+                Obj(Iobj).HeaderData.replaceVal(Args.KeyMom2, Med, 'AddPos',Args.AddPos);
+            end
+
+            % add PSF variance and sqrt(PSF^2)
+            if Args.AddErr 
+                if ~isempty(Obj(Iobj).PSFData.Data) && ~isempty(Obj(Iobj).PSFData.DataVar)
+                    % The integrated weighted PSF relative error as estimated
+                    % from the variance of the PSF
+                    IntErr  = sqrt(sum(Obj(Iobj).PSFData.DataVar.*Obj(Iobj).PSFData.Data,'all')./sum(Obj(Iobj).PSFData.Data,'all'));
+                    SumPSF2 = sum(Obj(Iobj).PSFData.Data.^2, 'all');
+                else
+                    IntErr  = NaN;
+                    SumPSF2 = NaN;
+                end
+                Obj(Iobj).HeaderData.replaceVal(Args.KeyPsfErr, [IntErr, SumPSF2], 'AddPos',Args.AddPos);
             end
         end
     end    

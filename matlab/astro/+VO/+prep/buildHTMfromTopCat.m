@@ -67,9 +67,17 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
 %            'RadiusFactor'- Cone search radius = RadiusFactor * HTM_side_length.
 %                            Must be >1 to ensure cone fully covers triangle.
 %                            Default is 1.5.
-%            'QueryType'   - Spatial query type: 'cone'|'polygon'.
-%                            Cone is universally supported; polygon is more
-%                            efficient but not all TAP services support it.
+%            'QueryType'   - Spatial query type: 'cone'|'polygon'|'q3c'.
+%                            'cone' (ADQL CONTAINS+POINT+CIRCLE) is the IVOA
+%                            standard and works on most TAP services.
+%                            'polygon' is more efficient but not all services
+%                            support it.
+%                            'q3c' uses q3c_radial_query(ra,dec,RA0,Dec0,Rdeg);
+%                            required by NOIRLab Data Lab and other pgsphere
+%                            backends that don't implement ADQL spatial
+%                            functions. When 'q3c' is chosen, QueryMethod is
+%                            forced to 'http' because STILTS rejects q3c at
+%                            pre-parse.
 %                            Default is 'cone'.
 %            'TimeoutSec'  - Query timeout in seconds. Default is 600.
 %            'MaxRetries'  - Max retries per cell on query failure. Default is 3.
@@ -198,6 +206,41 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     'LocalDir', '~/tmp/',...
     'NumWorkers', 4,...
     'Verbose', true);
+
+   % DESI DR1 zpix via NOIRLab Data Lab TAP -- pgsphere backend, q3c spatial:
+   %   - QueryType='q3c' emits q3c_radial_query(...) instead of CONTAINS(POINT,CIRCLE)
+   %     (NOIRLab does NOT implement ADQL spatial functions)
+   %   - QueryMethod='http' is auto-forced when QueryType='q3c' (STILTS rejects
+   %     q3c locally; raw HTTP sends ADQL to NOIRLab where it parses fine)
+   %   - zwarn promoted to DOUBLE via *1.0 (catsHTM cannot store BIGINT;
+   %     NOIRLab's JSQLParser rejects CAST(... AS DOUBLE))
+   %   - spectype string encoded via CASE WHEN to an integer code
+   %     (STAR=1, QSO=2, GALAXY=3, SKY=8, UNKNOWN=9, else 0)
+   %   - LocalDir-only (TargetDir='') keeps output on the local disk.
+   Cols = strjoin({ ...
+       'mean_fiber_ra AS ra', 'mean_fiber_dec AS dec', ...
+       'mean_mjd', 'chi2', 'tsnr2_lrg', 'tsnr2_lya', 'tsnr2_qso', ...
+       'z', 'zerr', 'zwarn * 1.0 AS zwarn', ...
+       ['CASE spectype WHEN ''STAR'' THEN 1 WHEN ''QSO'' THEN 2 ' ...
+        'WHEN ''GALAXY'' THEN 3 WHEN ''SKY'' THEN 8 ' ...
+        'WHEN ''UNKNOWN'' THEN 9 ELSE 0 END AS spectype']}, ', ');
+   Nsrc = VO.prep.buildHTMfromTopCat('desi_dr1.zpix', ...
+       'TapUrl',           'https://datalab.noirlab.edu/tap', ...
+       'CatName',          'DESIdr1zpix', ...
+       'Columns',          Cols, ...
+       'WhereClause',      'z IS NOT NULL', ...
+       'ColRA',            'ra',            'ColDec',    'dec', ...
+       'ColRASrc',         'mean_fiber_ra', 'ColDecSrc', 'mean_fiber_dec', ...
+       'HTM_Level',        7, ...
+       'TapUnits',         'deg',           'OutUnits',  'rad', ...
+       'LocalDir',         '/home/dana/tmp/DESIdr1zpix', ...
+       'TargetDir',        '', ...
+       'QueryType',        'q3c', ...
+       'QueryMethod',      'http', ...
+       'SyncMode',         'async',         'TimeoutSec', 1800, ...
+       'MaxConeRadiusDeg', 2.5, ...
+       'NumWorkers',       4, ...
+       'Verbose',          true);
 %}
 
     arguments
@@ -223,7 +266,7 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
         Args.DecRange         = [-pi/2, pi/2]   % Dec range to process [rad]
         Args.RARange          = [0, 2*pi]       % RA range to process [rad]
         Args.RadiusFactor     = 1.5         % Cone radius = RadiusFactor * HTM_radius
-        Args.QueryType        = 'cone'      % 'cone'|'polygon'
+        Args.QueryType        = 'cone'      % 'cone'|'polygon'|'q3c' (q3c forces QueryMethod='http')
         Args.TimeoutSec       = 600         % Query timeout in seconds
         Args.MaxRetries       = 3           % Max retries per cell on failure
         Args.RetryPauseSec    = 5           % Pause between retries in seconds
@@ -249,6 +292,14 @@ function Nsrc = buildHTMfromTopCat(TableName, Args)
     end
 
     RAD = constant.RAD;
+
+    % q3c requires Method='http' (STILTS pre-parser rejects q3c).
+    if strcmpi(Args.QueryType, 'q3c') && ~strcmpi(Args.QueryMethod, 'http')
+        if Args.Verbose
+            fprintf('QueryType=q3c: forcing QueryMethod=http (was %s).\n', Args.QueryMethod);
+        end
+        Args.QueryMethod = 'http';
+    end
 
     %----------------------------------------------------------------------
     % 1. INITIALIZATION
@@ -2190,24 +2241,32 @@ function Query = constructSpatialQuery(TableName, Columns, ColRA, ColDec, ...
 
     switch lower(QueryType)
         case 'cone'
-            SpatialClause = sprintf('CIRCLE(''ICRS'',%.8f,%.8f,%.8f)', ...
-                                    CenterRA, CenterDec, RadiusDeg);
+            % ADQL CONTAINS(POINT, CIRCLE) -- IVOA standard
+            SpatialClause = sprintf('1=CONTAINS(POINT(''ICRS'',%s,%s),CIRCLE(''ICRS'',%.8f,%.8f,%.8f))', ...
+                                    ColRA, ColDec, CenterRA, CenterDec, RadiusDeg);
         case 'polygon'
             % HTM triangle vertices (3 points)
-            SpatialClause = sprintf('POLYGON(''ICRS'',%.8f,%.8f,%.8f,%.8f,%.8f,%.8f)', ...
+            SpatialClause = sprintf('1=CONTAINS(POINT(''ICRS'',%s,%s),POLYGON(''ICRS'',%.8f,%.8f,%.8f,%.8f,%.8f,%.8f))', ...
+                                    ColRA, ColDec, ...
                                     HTMCooDeg(1,1), HTMCooDeg(1,2), ...
                                     HTMCooDeg(2,1), HTMCooDeg(2,2), ...
                                     HTMCooDeg(3,1), HTMCooDeg(3,2));
+        case 'q3c'
+            % pgsphere q3c_radial_query returns boolean -- no CONTAINS wrap.
+            % Used by NOIRLab Data Lab; must be sent via Method='http' since
+            % STILTS pre-parser does not accept q3c.
+            SpatialClause = sprintf('q3c_radial_query(%s,%s,%.8f,%.8f,%.8f)', ...
+                                    ColRA, ColDec, CenterRA, CenterDec, RadiusDeg);
         otherwise
-            error('Unknown QueryType: %s. Use ''cone'' or ''polygon''.', QueryType);
+            error('Unknown QueryType: %s. Use ''cone'', ''polygon'', or ''q3c''.', QueryType);
     end
 
     if isempty(WhereClause)
-        Query = sprintf('SELECT %s FROM %s WHERE 1=CONTAINS(POINT(''ICRS'',%s,%s),%s)', ...
-                        Columns, TableName, ColRA, ColDec, SpatialClause);
+        Query = sprintf('SELECT %s FROM %s WHERE %s', ...
+                        Columns, TableName, SpatialClause);
     else
-        Query = sprintf('SELECT %s FROM %s WHERE 1=CONTAINS(POINT(''ICRS'',%s,%s),%s) AND (%s)', ...
-                        Columns, TableName, ColRA, ColDec, SpatialClause, WhereClause);
+        Query = sprintf('SELECT %s FROM %s WHERE %s AND (%s)', ...
+                        Columns, TableName, SpatialClause, WhereClause);
     end
 end
 

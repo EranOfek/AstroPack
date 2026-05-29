@@ -1,5 +1,6 @@
 function Cat=build_obsid_cat(varargin)
 % Construct a catalog of all Chandra observations
+%   Obsolete. use: VO.Chandra.buildChandraObsIDcat
 % Package: VO.Chandra
 % Description: Construct a catalog of all Chandra observations by going
 %              over the entire Chandra image archive.

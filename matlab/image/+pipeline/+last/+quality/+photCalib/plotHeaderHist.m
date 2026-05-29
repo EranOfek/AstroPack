@@ -140,24 +140,9 @@ function Result = plotHeaderHist(Data, Args)
     elseif IsTextInput
         DataPath = char(Data);
         DataPathEcho = DataPath;
-        if Args.Recursive
-            Listing = dir(fullfile(DataPath, '**', Args.VisitPattern));
-        else
-            Listing = dir(fullfile(DataPath, Args.VisitPattern));
-        end
-        Listing = Listing([Listing.isdir] & ~startsWith({Listing.name}, '.'));
-        if isempty(Listing)
-            ScopeStr = DataPath;
-            if Args.Recursive; ScopeStr = [ScopeStr ' (recursive)']; end
-            error('plotHeaderHist:NoVisits', ...
-                'No subdirectories matching "%s" found under %s', ...
-                Args.VisitPattern, ScopeStr);
-        end
-        Nvisits = numel(Listing);
-        VisitDirs = strings(1, Nvisits);
-        for I = 1:Nvisits
-            VisitDirs(I) = string(fullfile(Listing(I).folder, Listing(I).name));
-        end
+        VisitDirs = string(discoverVisits(DataPath, ...
+            'VisitGlob', Args.VisitPattern, 'Recursive', Args.Recursive));
+        Nvisits = numel(VisitDirs);
         AIc = pipeline.last.load.loadVisitCatHdr( ...
             'VisitDirs', VisitDirs, ...
             'FileType',  Args.FileType, ...

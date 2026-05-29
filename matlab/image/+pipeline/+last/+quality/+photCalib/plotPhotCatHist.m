@@ -107,24 +107,9 @@ function Result = plotPhotCatHist(DataPath, Args)
     Ncols = numel(Cols);
 
     % --- Discover visit dirs --------------------------------------------
-    if Args.Recursive
-        Listing = dir(fullfile(char(DataPath), '**', Args.VisitPattern));
-    else
-        Listing = dir(fullfile(char(DataPath), Args.VisitPattern));
-    end
-    Listing = Listing([Listing.isdir] & ~startsWith({Listing.name}, '.'));
-    if isempty(Listing)
-        ScopeStr = char(DataPath);
-        if Args.Recursive; ScopeStr = [ScopeStr ' (recursive)']; end
-        error('plotPhotCatHist:NoVisits', ...
-            'No subdirectories matching "%s" found under %s', ...
-            Args.VisitPattern, ScopeStr);
-    end
-    Nvisits = numel(Listing);
-    VisitDirs = strings(1, Nvisits);
-    for I = 1:Nvisits
-        VisitDirs(I) = string(fullfile(Listing(I).folder, Listing(I).name));
-    end
+    VisitDirs = string(discoverVisits(char(DataPath), ...
+        'VisitGlob', Args.VisitPattern, 'Recursive', Args.Recursive));
+    Nvisits = numel(VisitDirs);
     if Args.Verbose
         fprintf('plotPhotCatHist: %d visit dirs, FileType=%s, Cols={%s}\n', ...
             Nvisits, Args.FileType, strjoin(Cols, ','));

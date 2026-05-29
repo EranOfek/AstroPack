@@ -1,8 +1,11 @@
 % Fast mex for aperture photometry with shifted constant mask
+%   See also: imUtil.sources.mex.aper_phot_cube_interpstamp
+%             imUtil.sources.mex.aper_phot_cube_simple
 %   Perform aperture photometry for sources present in a cube of
 %   images, where the center of each source is slightly different and
 %   provided by the user. The aperture mask is pixelaized, but it is
-%   the same for all sources. This is achived by lanczos3 interpolaing
+%   the same for all sources.
+%   This is achived by lanczos3 interpolaing
 %   the aperture mask to the position of the source.
 %   The sums are calculated directly during the lanczos3 interpolation, and
 %   in a box that bound the mask.
@@ -17,5 +20,6 @@
 %            aperture radius (columns).
 %          - A matrix of aperture area per image slice (rows) and per
 %            aperture radius (columns).
+% Compilation: mex -O CXXFLAGS="\$CXXFLAGS -O3 -std=c++17 -march=native -fopenmp" LDFLAGS="\$LDFLAGS -fopenmp" aper_phot_cube_interp.cpp
 % Author : Eran Ofek (Feb 2026)
 % Example: [AperPhot3, AperArea3]=imUtil.sources.mex.aper_phot_cube_interp(Cube, Bck, X1, Y1);

@@ -24,7 +24,7 @@ function [PSF, InnerRad] = suppressWings(PSF, Args)
     arguments
         PSF
         Args.Fun                     = @imUtil.kernel2.cosbell;
-        Args.Thrsehold                = 1e-4;
+        Args.Threshold                = 1e-4;
         Args.FunPars                 = 3; % or # from edge
         Args.Norm                    = true;
     end
@@ -41,7 +41,7 @@ function [PSF, InnerRad] = suppressWings(PSF, Args)
     else
         % set InnerRadius based on PSF radial profile < Threshold
         [Radius, Mean] = imUtil.psf.mex.radialProfile_mex(PSF);
-        InnerRad = ceil(tools.interp.interp1crossVal(Radius, Mean./max(Mean), Args.Thrsehold, false));
+        InnerRad = ceil(tools.interp.interp1crossVal(Radius, Mean./max(Mean), Args.Threshold, false));
         if numel(Args.FunPars)>1
             % Set FunPars to scalar:
             Args.FunPars = Args.FunPars(2) - Args.FunPars(1);

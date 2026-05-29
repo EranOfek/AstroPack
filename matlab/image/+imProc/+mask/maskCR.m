@@ -75,7 +75,8 @@ function [Result,FlagGood] = maskCR(Obj, Args)
                 % apply hypothesis testing using existing catalog
                 % with S/N for dekta function and "point sources"
                 
-                Cols = getCol(Obj(Iobj).CatData, {Args.ColX, Args.ColY, Args.SN_1, Args.SN_2});
+                Cols = getColMulti(Obj(Iobj).CatData, {Args.ColX, Args.ColY, Args.SN_1, Args.SN_2});
+               
                 X    = Cols(:,1);
                 Y    = Cols(:,2);
                 SN1  = Cols(:,3);

@@ -19,7 +19,7 @@ classdef PhotCalibTrans < Component
     %   SpecData   - Structure with reference spectral data (calibrator spectra)
     %   SourceData - AstroCatalog with observed calibrator sources (after calibration: Used, Residuals columns)
     %   CalFound   - Flag indicating whether calibrators were found (set by selectCalibrators)
-    %   Success    - Flag indicating successful calibration (set by populateSuccess)
+    %   (No explicit Success flag — non-empty TransModel implies calibration succeeded.)
     %   DeltaZP_CB - Constant-band delta ZP [mag] (set by applyConstBand, written to header as PT_DZP)
     %   LimMag     - Limiting magnitude at SN=LimMagSN [mag] (set by evaluateLimMag, header keyword LIMMAG)
     %   BackMag    - Sky background surface brightness [mag/arcsec^2] (set by evaluateBackMag, header keyword BACKMAG)
@@ -29,10 +29,10 @@ classdef PhotCalibTrans < Component
     %{
      % Create calibration object and perform calibration on AstroImage
      PC = PhotCalibTrans();
-     PC = PC.calibrate(AI);  % metadata read from AI.HeaderData, Success flag set automatically
+     PC = PC.calibrate(AI);  % metadata read from AI.HeaderData
 
-     % Check calibration success
-     if PC.Success
+     % Check calibration success — non-empty TransModel means fit completed
+     if ~isempty(PC.TransModel)
          fprintf('Calibration successful! RMS = %.4f mag\n', PC.TransModel.RMS);
      end
 
@@ -58,7 +58,6 @@ classdef PhotCalibTrans < Component
     %   Core Calibration Methods:
     %     calibrate - Perform transmission-based photometric calibration
     %     selectCalibrators - Select calibrators with reference spectra
-    %     populateSuccess - Evaluate and set Success flag based on calibration quality
     %   Evaluation Methods:
     %     evaluateTransmission - Evaluate transmission at specific positions
     %     integralTransmission - Mean transmission as fraction of 100% throughput
@@ -151,6 +150,13 @@ classdef PhotCalibTrans < Component
         AirmassColName = 'AIRMASS'          % Column name for per-source airmass in catalog
         PerSourceAirmass logical = false    % Whether per-source airmass was actually used
 
+        % Calibrated-magnitude column naming. Prefix applied as
+        % FLUX_<suffix> -> <MagColPrefix><suffix> by addMag, applyPhotCalibShifts,
+        % calcAperCorr, evaluateLimMag and applyConstBand. Set 'MAG_' to drop the
+        % _AB token and overwrite the instrumental MAG_<suffix> columns in place.
+        % fitPhotCalibTrans stamps this from its MagColPrefix argument.
+        MagColPrefix = 'MAG_AB_'            % Prefix for calibrated MAG column names
+
         % Aperture corrections
         AperCorr = []           % [1 x N_aper] aperture corrections in mag; NaN if calculation failed
         AperCorrColNames = {}   % Cell array of column names where AperCorr applies
@@ -167,8 +173,7 @@ classdef PhotCalibTrans < Component
         LimMag  = NaN           % Limiting magnitude at SN=LimMagSN [mag] (set by evaluateLimMag)
         BackMag = NaN           % Sky background surface brightness [mag/arcsec^2] (set by evaluateBackMag)
 
-        % Success status
-        Success = false         % Flag indicating successful calibration (set by populateSuccess)
+        % (Success flag removed — callers check ~isempty(TransModel) instead.)
 
         % Fit results by stage (stored after calibration for diagnostics)
         FitResults = []         % Struct array from CompositeFun.fitPar() with per-stage results:
@@ -254,6 +259,34 @@ classdef PhotCalibTrans < Component
             %                               normalisation, ParNX = [XPixel/2, XPixel/2]).
             %                               Default is 1716.
             %            'YPixel'         - Detector Y size in pixels. Default is 1716.
+            %            'CalibCatName'   - catsHTM catalog with reference spectra
+            %                               (forwarded to selectCalibrators).
+            %                               Default is 'GAIADR3spec'.
+            %            'MinSN'          - Lower S/N gate on calibrator candidates.
+            %                               Default is 5.
+            %            'MaxSN'          - Upper S/N gate. Default is 1000.
+            %            'FilterBadFlags' - Apply the FLAGS bitmask filter.
+            %                               Default is true.
+            %            'MagColName'     - Mag column used for MagRange filter
+            %                               and audit delta-mag. Default 'MAG_APER_3'.
+            %            'SpFluxCol'      - Spectral flux column indices in
+            %                               CalibCatName as [flux_start, flux_end,
+            %                               err_start, err_end]. Default
+            %                               [7, 349, 350, 692] for GAIADR3spec.
+            %            'BadBitNames'    - Cell of bit-name strings flagged as
+            %                               bad. Default {'Saturated','NaN',
+            %                               'Negative','CR_DeltaHT','NearEdge'}.
+            %            'AuditCalibrators' - Toggle the step-0 calibrator audit in
+            %                               selectCalibrators. Default is false.
+            %            'AuditCatName'   - Gaia photometric catalog for the audit.
+            %                               Default is 'GAIADR3'.
+            %            'AuditBPRPExcessFactorMax' - BPRP-excess-factor rejection cap.
+            %                               Default is 1.3.
+            %            'AuditBPRPMax'   - BP-RP rejection cap. Default is 1.5.
+            %            'AuditLASTNearestDist' - LAST nearest-neighbour distance
+            %                               rejection threshold [arcsec]. Default is 20.
+            %            'AuditLASTDeltaMag' - LAST nearest-neighbour |delta-mag|
+            %                               rejection threshold. Default is 2.
             %            'Tran2DPerturbStd' - Std-dev for one-shot N(0,std)
             %                               randn-seeding of Tran2D ParX
             %                               before fitPar. Affects stages 1-3
@@ -288,8 +321,8 @@ classdef PhotCalibTrans < Component
                 Args.Lambda           = (3000:20:11000)'
                 Args.SearchRadius     = 2
                 Args.MagRange         = [11.5 16.0]
-                Args.FilterNegFlux logical = false
-                Args.MinSN2           = 0
+                Args.FilterNegFlux logical = true    % LAST default (matches predefCalibArgs)
+                Args.MinSN2           = 10           % LAST default (matches predefCalibArgs)
                 Args.FunListName      = 'DefaultLASTFunList'
                 Args.CustomFunList    = []
                 Args.OptSeqName       = 'LAST_NormLin'
@@ -299,6 +332,20 @@ classdef PhotCalibTrans < Component
                 Args.XPixel           = 1716   % Detector X size [pix]; Tran2D centre = XPixel/2
                 Args.YPixel           = 1716   % Detector Y size [pix]; Tran2D centre = YPixel/2
                 Args.Tran2DPerturbStd = 0      % Std-dev for randn-seed of Tran2D ParX (one shot before stage 1); 0 disables
+                % Calibrator selection knobs forwarded to selectCalibrators
+                Args.CalibCatName     = 'GAIADR3spec'
+                Args.MinSN            = 5                  % Lower S/N gate on calibrator candidates
+                Args.MaxSN            = 1000               % Upper S/N gate
+                Args.FilterBadFlags logical = true         % Apply FLAGS bitmask filter
+                Args.MagColName       = 'MAG_APER_3'       % Mag column for MagRange + audit deltaMag
+                Args.SpFluxCol        = [7, 349, 350, 692] % [flux_start, flux_end, err_start, err_end]
+                Args.BadBitNames      = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'}
+                Args.AuditCalibrators logical = false
+                Args.AuditCatName     = 'GAIADR3'
+                Args.AuditBPRPExcessFactorMax = 1.3
+                Args.AuditBPRPMax     = 1.5
+                Args.AuditLASTNearestDist = 20      % arcsec
+                Args.AuditLASTDeltaMag = 2          % mag
                 Args.WeightingMode    = 'spectral'
                 Args.FluxErrColName   = 'FluxErr'
                 Args.SigmaClipMethod  = 'median'
@@ -481,6 +528,19 @@ classdef PhotCalibTrans < Component
                 'MagRange', Args.MagRange, ...
                 'FilterNegFlux', Args.FilterNegFlux, ...
                 'MinSN2', Args.MinSN2, ...
+                'CalibCatName', Args.CalibCatName, ...
+                'MinSN', Args.MinSN, ...
+                'MaxSN', Args.MaxSN, ...
+                'FilterBadFlags', Args.FilterBadFlags, ...
+                'MagColName', Args.MagColName, ...
+                'SpFluxCol', Args.SpFluxCol, ...
+                'BadBitNames', Args.BadBitNames, ...
+                'AuditCalibrators', Args.AuditCalibrators, ...
+                'AuditCatName', Args.AuditCatName, ...
+                'AuditBPRPExcessFactorMax', Args.AuditBPRPExcessFactorMax, ...
+                'AuditBPRPMax', Args.AuditBPRPMax, ...
+                'AuditLASTNearestDist', Args.AuditLASTNearestDist, ...
+                'AuditLASTDeltaMag', Args.AuditLASTDeltaMag, ...
                 'Verbose', Args.Verbose, ...
                 'match_catsHTMArgs',Args.match_catsHTMArgs);
 
@@ -693,7 +753,17 @@ classdef PhotCalibTrans < Component
 
                         for IStage = 1:length(Obj.TransModel.OptSeq)
                             Stage = Obj.TransModel.OptSeq(IStage);
-                            if ~isempty(Stage.FreeParams)
+                            if ischar(Stage.FreeParams) && strcmpi(Stage.FreeParams, 'JOINT_FC')
+                                % Joint Norm + Tran2D linear stage: counts as
+                                % Norm plus the Tran2D ParX (10 coeffs added
+                                % below via HasFieldCorrection).
+                                if ~any(strcmp(FittedParamNames, 'Norm'))
+                                    FittedParamNames{end+1} = 'Norm'; %#ok<AGROW>
+                                end
+                                if ~isempty(Obj.TransModel.Tran2DObj)
+                                    HasFieldCorrection = true;
+                                end
+                            elseif ~isempty(Stage.FreeParams)
                                 for IFree = 1:length(Stage.FreeParams)
                                     ParamName = Stage.FreeParams(IFree).Parameter;
                                     if ~any(strcmp(FittedParamNames, ParamName))
@@ -742,11 +812,8 @@ classdef PhotCalibTrans < Component
                     end
                 end
 
-            % Evaluate success criteria
-            Obj = Obj.populateSuccess('Verbose', Args.Verbose);
-
             % Compute ARMS (bright-star RMS) if requested
-            if Args.N_ARMS > 0 && Obj.Success && ~isempty(Obj.SourceData)
+            if Args.N_ARMS > 0 && ~isempty(Obj.TransModel) && ~isempty(Obj.SourceData)
                 Tab = Obj.SourceData.Table;
                 UsedMask = logical(Tab.Used);
                 FluxUsed = Tab.Flux(UsedMask);
@@ -786,12 +853,30 @@ classdef PhotCalibTrans < Component
             %                        FluxColName. Default is true.
             %            'MinSN2'   - Minimum SN_2 value for calibrators. Set to 0
             %                        to skip this filter. Default is 10.
+            %            'CalibCatName' - catsHTM catalog containing reference spectra
+            %                        for calibration. Default is 'GAIADR3spec'.
             %            'SpFluxCol' - Spectral flux column indices [flux_start, flux_end, error_start, error_end].
             %                          Default is [7, 349, 350, 692] for Gaia DR3 XP spectra.
             %            'BadBitNames' - A cell array of bad bit mask
             %                   names. Sources with one of these bits are not used
             %                   as calibrators.
             %                   Default is {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'}
+            %            'AuditCalibrators' - Run "step 0" audit that rejects doubtful
+            %                        calibrators after the calibrator-catalog match,
+            %                        before the standard quality filters. Default is false.
+            %            'AuditCatName' - catsHTM Gaia photometric catalog used to fetch
+            %                        BP-RP and BP-RP excess factor for the audit.
+            %                        Default is 'GAIADR3'.
+            %            'AuditBPRPExcessFactorMax' - Reject if the matched Gaia source has
+            %                        phot_bp_rp_excess_factor above this value. Default is 1.3.
+            %            'AuditBPRPMax' - Reject if the matched Gaia source has bp_rp above
+            %                        this value. Default is 1.5.
+            %            'AuditLASTNearestDist' - Reject if the nearest LAST neighbour
+            %                        (self-excluded) lies within this distance [arcsec].
+            %                        Default is 20.
+            %            'AuditLASTDeltaMag' - Reject if the nearest LAST neighbour has
+            %                        |delta-mag| (using MagColName) below this value.
+            %                        Default is 2.
             %            'Verbose' - Enable verbose output. Default is true.
             % Output : - PhotCalibTrans object with populated properties:
             %                  .SpecData - Structure with reference spectral data:
@@ -820,11 +905,19 @@ classdef PhotCalibTrans < Component
                 Args.FilterBadFlags logical = true
                 Args.FluxColName = 'FLUX_APER_3'
                 Args.MagColName = 'MAG_APER_3'
-                Args.FilterNegFlux logical = false    % Remove sources with negative flux
-                Args.MinSN2 = 0                       % Minimum SN_2 for calibrators (0 to skip)
+                Args.FilterNegFlux logical = true     % Remove sources with negative flux (LAST default)
+                Args.MinSN2 = 10                      % Minimum SN_2 for calibrators, 0 to skip (LAST default)
+                Args.CalibCatName = 'GAIADR3spec'    % catsHTM catalog with reference spectra
                 Args.SpFluxCol = [7, 349, 350, 692]   % [flux_start, flux_end, error_start, error_end]
                 Args.BadBitNames     = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'};
                 Args.match_catsHTMArgs = {};
+                % Step-0 audit (off by default; status quo preserved)
+                Args.AuditCalibrators logical = false   % Toggle the audit step
+                Args.AuditCatName = 'GAIADR3'           % Gaia catalog for audit (photometric, not spec)
+                Args.AuditBPRPExcessFactorMax = 1.3
+                Args.AuditBPRPMax = 1.5
+                Args.AuditLASTNearestDist = 20          % arcsec
+                Args.AuditLASTDeltaMag = 2              % mag
                 Args.Verbose logical = false
             end
 
@@ -844,11 +937,8 @@ classdef PhotCalibTrans < Component
 
             if ~HasRADec
                 Obj.NoRADec = true;  % Mark that RA/Dec columns are missing
-                Obj.msgLog(LogLevel.Debug, 'selectCalibrators: Catalog missing RA/Dec columns - cannot match calibrators');
-                if Args.Verbose
-                    fprintf('  Warning: Catalog missing RA/Dec columns - cannot match calibrators\n');
-                    fprintf('Calibrator selection complete: 0 matched calibrators.\n\n');
-                end
+                Obj.msgLog(LogLevel.Warning, ...
+                    'selectCalibrators: Catalog missing RA/Dec columns - cannot match calibrators. 0 matched calibrators.');
             end
 
             % ====================================================================
@@ -860,11 +950,11 @@ classdef PhotCalibTrans < Component
                 % Match all sources with calibrator catalog (default: GAIADR3spec)
                 % Filter matches afterward to avoid indexing issues
                 if Args.Verbose
-                    fprintf('  Matching %d sources with GAIADR3spec (radius=%.1f arcsec)...\n', ...
-                            Nsources_initial, Args.SearchRadius);
+                    fprintf('  Matching %d sources with %s (radius=%.1f arcsec)...\n', ...
+                            Nsources_initial, Args.CalibCatName, Args.SearchRadius);
                 end
 
-                [~, ~, ResInd, CatH] = imProc.match.match_catsHTM(Cat, 'GAIADR3spec', ...
+                [~, ~, ResInd, CatH] = imProc.match.match_catsHTM(Cat, Args.CalibCatName, ...
                                                               'Radius', Args.SearchRadius, ...
                                                               'RadiusUnits', 'arcsec',...
                                                               Args.match_catsHTMArgs{:});
@@ -878,8 +968,29 @@ classdef PhotCalibTrans < Component
             HasMatchMask = ~isnan(CalIdxAll);
 
             if Args.Verbose
-                fprintf('  Found %d/%d sources with Gaia XP matches\n', ...
-                        sum(HasMatchMask), Nsources_initial);
+                fprintf('  Found %d/%d sources with %s matches\n', ...
+                        sum(HasMatchMask), Nsources_initial, Args.CalibCatName);
+            end
+
+            % ====================================================================
+            % STEP 2.5 (OPTIONAL): AUDIT CALIBRATORS (REJECT DOUBTFUL CASES)
+            % ====================================================================
+            % Reject any matched candidate satisfying ANY of:
+            %   (a) Gaia BPRPExcessFactor > AuditBPRPExcessFactorMax
+            %   (b) Gaia BP-RP            > AuditBPRPMax
+            %   (c) LAST nearest-neighbour distance < AuditLASTNearestDist [arcsec]
+            %   (d) |LAST nearest-neighbour delta-mag| < AuditLASTDeltaMag
+            % Self-excluded by X/Y proximity (within 1 px) when looking up the
+            % nearest LAST source.
+            if Args.AuditCalibrators && any(HasMatchMask)
+                DoubtfulMask = photCalibTransAuditCalibrators(Cat, Tab, AllColNames, ...
+                    HasMatchMask, Args, Obj);
+                NumDoubtful = sum(DoubtfulMask);
+                HasMatchMask = HasMatchMask & ~DoubtfulMask;
+                if Args.Verbose
+                    fprintf('  Audit step 0: %d flagged doubtful, %d remain\n', ...
+                            NumDoubtful, sum(HasMatchMask));
+                end
             end
 
             % ====================================================================
@@ -960,8 +1071,9 @@ classdef PhotCalibTrans < Component
                 % Check if any sources passed all filters
                 HasGoodMatches = any(GoodMask);
 
-                if ~HasGoodMatches && Args.Verbose
-                    fprintf('  Warning: No sources passed quality filters and have calibrator matches\n');
+                if ~HasGoodMatches
+                    Obj.msgLog(LogLevel.Warning, ...
+                        'selectCalibrators: No sources passed quality filters and have calibrator matches');
                 end
             else
                 HasGoodMatches = false;
@@ -1022,9 +1134,8 @@ classdef PhotCalibTrans < Component
                     Obs_FluxErr = ObsTab.(FluxErrColName);
                 else
                     Obs_FluxErr = sqrt(abs(Obs_Flux));  % Use Poisson approximation
-                    if Args.Verbose
-                        fprintf('  Warning: %s not found, using sqrt(flux) for errors\n', FluxErrColName);
-                    end
+                    Obj.msgLog(LogLevel.Warning, sprintf( ...
+                        'selectCalibrators: %s not found, using sqrt(flux) for errors', FluxErrColName));
                 end
 
                 % ============================================================
@@ -1136,70 +1247,6 @@ classdef PhotCalibTrans < Component
                 if ismember('Nmatch', CatTab.Properties.VariableNames)
                     Cat = Cat.deleteCol('Nmatch');
                 end
-            end
-        end
-
-        function Obj = populateSuccess(Obj, Args)
-            % Evaluate and set Success flag based on calibration quality criteria
-            % Input  : - PhotCalibTrans object (scalar)
-            %          * ...,key,val,...
-            %            'NCalibMin' - Minimum number of calibrators required. Default is 30.
-            %            'RMSMax' - Maximum allowed RMS [mag]. Default is 0.1.
-            %            'MinCalibRetention' - Minimum fraction of calibrators retained after sigma clipping. Default is 0.8.
-            %            'Verbose' - Enable verbose output. Default is false.
-            % Output : - PhotCalibTrans object with updated Success flag
-            % Author : D. Kovaleva (Jan 2026)
-            % Example: PC = PC.populateSuccess();
-            %          PC = PC.populateSuccess('NCalibMin', 50, 'RMSMax', 0.08, 'MinCalibRetention', 0.75);
-            % Description: Evaluates calibration success based on four criteria:
-            %              1. CalFound = true (calibrators were found)
-            %              2. Number of calibrators >= NCalibMin (default: 30)
-            %              3. RMS <= RMSMax (default: 0.1 mag)
-            %              4. Calibrator retention >= MinCalibRetention (default: 0.8, i.e., 80% retained)
-            %              Sets Obj.Success = true only if all criteria are met.
-
-            arguments
-                Obj
-                Args.NCalibMin = 0   %30
-                Args.RMSMax = 100    %0.1  
-                Args.MinCalibRetention = 0.0 %0.5
-                Args.Verbose logical = false
-            end
-
-            % Evaluate all criteria (Success remains false unless all criteria pass)
-            Obj.Success = false;
-
-            % Criterion 1+2: Check if we have sufficient calibrators (this also implies CalFound = true)
-            HasEnoughCalibrators = false;
-            NCalibInitial = 0;
-            if ~isempty(Obj.SpecData) && ~isempty(Obj.SpecData.Spec)
-                NCalibInitial = size(Obj.SpecData.Spec, 1);
-                HasEnoughCalibrators = (NCalibInitial >= Args.NCalibMin);
-            end
-
-            % Criterion 3: Check if RMS is acceptable
-            HasAcceptableRMS = false;
-            if ~isempty(Obj.TransModel) && ~isempty(Obj.TransModel.RMS) && ~isnan(Obj.TransModel.RMS)
-                HasAcceptableRMS = (Obj.TransModel.RMS <= Args.RMSMax);
-            end
-
-            % Criterion 4: Check if sufficient calibrators survived sigma clipping
-            HasAcceptableRetention = false;
-            if ~isempty(Obj.SourceData) && istable(Obj.SourceData.Catalog) && ismember('Used', Obj.SourceData.Catalog.Properties.VariableNames)
-                NCalibFinal = sum(Obj.SourceData.Catalog.Used);
-                if NCalibInitial > 0
-                    CalibRetention = NCalibFinal / NCalibInitial;
-                    HasAcceptableRetention = (CalibRetention >= Args.MinCalibRetention);
-
-                    if Args.Verbose
-                        fprintf('Calibrator retention: %d/%d = %.1f%%\n', NCalibFinal, NCalibInitial, CalibRetention*100);
-                    end
-                end
-            end
-
-            % Set success only if all criteria are met
-            if HasEnoughCalibrators && HasAcceptableRMS && HasAcceptableRetention
-                Obj.Success = true;
             end
         end
     end
@@ -1653,7 +1700,14 @@ classdef PhotCalibTrans < Component
 
                 for IStage = 1:length(OptSeq)
                     Stage = OptSeq(IStage);
-                    if ~isempty(Stage.FreeParams)
+                    if ischar(Stage.FreeParams) && strcmpi(Stage.FreeParams, 'JOINT_FC')
+                        % Joint Norm + Tran2D linear stage: contributes 'Norm'
+                        % to the named-parameter list (Tran2D ParX handled
+                        % separately via Tran2DObj.ParX).
+                        if ~any(strcmp(FittedParamNames, 'Norm'))
+                            FittedParamNames{end+1} = 'Norm'; %#ok<AGROW>
+                        end
+                    elseif ~isempty(Stage.FreeParams)
                         for IFree = 1:length(Stage.FreeParams)
                             ParamName = Stage.FreeParams(IFree).Parameter;
                             % Add to list if not already present
@@ -1965,7 +2019,7 @@ classdef PhotCalibTrans < Component
             % Example: Header = PC.photCalibTransToHeader(Header);
             %          Header = PC.photCalibTransToHeader(Header, 'WriteComments', true);
             % Description: Writes calibration results and fitted parameters to header.
-            %              Keywords: PT_RMS, PT_ARMS, PT_CHI2, PT_DOF, PT_NCALIB, PT_SUCC,
+            %              Keywords: PT_RMS, PT_ARMS, PT_CHI2, PT_DOF, PT_NCALIB,
             %                        PT_AREF, PT_SPEC,
             %                        PT_X_N, PT_X_VY, PT_X_FY (function parameters),
             %                        PT_P_N, PT_P_VY, PT_P_FY (position corrections if UseTran2D=true),
@@ -1989,23 +2043,39 @@ classdef PhotCalibTrans < Component
             % Remove all existing PT_* and APCOR_* keywords to ensure clean ordering
             HeaderObj = HeaderObj.deleteKey({'PT_.*', 'APCOR.*'});
 
+            % Pre-extract scalar values with NaN fallbacks. An uncalibrated PC
+            % (e.g. selectCalibrators failed with missing RA/Dec) has an empty
+            % TransModel — dot-indexing it would error. Header keys still get
+            % written so downstream consumers find them; values are NaN.
+            if isempty(Obj.TransModel)
+                RMSval  = NaN;
+                Chi2val = NaN;
+                DOFval  = NaN;
+            else
+                RMSval  = Obj.TransModel.RMS;
+                Chi2val = Obj.TransModel.Chi2;
+                DOFval  = Obj.TransModel.DOF;
+            end
+
             % General results
-            HeaderObj = HeaderObj.replaceVal('PT_RMS', Obj.TransModel.RMS);
+            HeaderObj = HeaderObj.replaceVal('PT_RMS',  RMSval);
             HeaderObj = HeaderObj.replaceVal('PT_ARMS', Obj.ARMS);
-            HeaderObj = HeaderObj.replaceVal('PT_CHI2', Obj.TransModel.Chi2);
-            HeaderObj = HeaderObj.replaceVal('PT_DOF', Obj.TransModel.DOF);
-            % Use final calibrator count (after sigma clipping) from last stage
+            HeaderObj = HeaderObj.replaceVal('PT_CHI2', Chi2val);
+            HeaderObj = HeaderObj.replaceVal('PT_DOF',  DOFval);
+            % Use final calibrator count (after sigma clipping) from last stage.
+            % NaN when nothing was fit.
             if ~isempty(Obj.FitResults)
                 if numel(Obj.FitResults) > 1
                     NCalFinal = Obj.FitResults(end).NCalUsed;
                 else
                     NCalFinal = Obj.FitResults.NCalUsed;
                 end
-            else
+            elseif ~isempty(Obj.SpecData) && ~isempty(Obj.SpecData.Spec)
                 NCalFinal = size(Obj.SpecData.Spec, 1);  % Fallback to initial
+            else
+                NCalFinal = NaN;
             end
             HeaderObj = HeaderObj.replaceVal('PT_NCALIB', NCalFinal);
-            HeaderObj = HeaderObj.replaceVal('PT_SUCC', Obj.Success);
             HeaderObj = HeaderObj.replaceVal('PT_AREF', 'SMART v2.9.8');
             HeaderObj = HeaderObj.replaceVal('PT_SPEC', 'GaiaDR3');
 
@@ -2015,21 +2085,33 @@ classdef PhotCalibTrans < Component
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_CHI2: Chi-squared of fit';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_DOF: Degrees of freedom';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_NCALIB: Number of calibrators';
-                IComment = IComment + 1; HistoryComments{IComment} = 'PT_SUCC: Calibration success flag';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_AREF: Atmospheric model reference';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_SPEC: Spectra reference';
             end
 
-            % Function parameters
-            Funs = Obj.TransModel.Funs;
-            NFuns = length(Funs);
+            % Function parameters — only writable when TransModel is populated.
+            % An uncalibrated PC writes only the scalar PT_* keys above (as NaN);
+            % the per-function PT_<I>_<V|F><P> keys are skipped because we have
+            % no model structure to enumerate.
+            if isempty(Obj.TransModel)
+                Funs = [];
+                NFuns = 0;
+            else
+                Funs = Obj.TransModel.Funs;
+                NFuns = length(Funs);
+            end
 
-            % Pre-compute fitted parameter names from OptSeq 
+            % Pre-compute fitted parameter names from OptSeq
             FittedParamNames = {};
-            if ~isempty(Obj.TransModel.OptSeq)
+            if ~isempty(Obj.TransModel) && ~isempty(Obj.TransModel.OptSeq)
                 for IStage = 1:length(Obj.TransModel.OptSeq)
                     Stage = Obj.TransModel.OptSeq(IStage);
-                    if ~isempty(Stage.FreeParams)
+                    if ischar(Stage.FreeParams) && strcmpi(Stage.FreeParams, 'JOINT_FC')
+                        % Joint Norm + Tran2D linear stage: contributes 'Norm'.
+                        if ~any(strcmp(FittedParamNames, 'Norm'))
+                            FittedParamNames{end+1} = 'Norm'; %#ok<AGROW>
+                        end
+                    elseif ~isempty(Stage.FreeParams)
                         for IFree = 1:length(Stage.FreeParams)
                             ParamName = Stage.FreeParams(IFree).Parameter;
                             if ~any(strcmp(FittedParamNames, ParamName))
@@ -2092,8 +2174,9 @@ classdef PhotCalibTrans < Component
                 end
             end
 
-            % Position-dependent corrections (only if UseTran2D = true)
-            if Obj.TransModel.UseTran2D
+            % Position-dependent corrections (only if UseTran2D = true and
+            % a TransModel exists — uncalibrated PCs skip this block).
+            if ~isempty(Obj.TransModel) && Obj.TransModel.UseTran2D
                 % Type
                 HeaderObj = HeaderObj.replaceVal('PT_P_N', Obj.TransModel.NameTran2D);
                 if Args.WriteComments
@@ -2203,9 +2286,6 @@ classdef PhotCalibTrans < Component
             end
             if HeaderObj.isKeyExist('PT_DOF')
                 Obj.TransModel.DOF = HeaderObj.getVal('PT_DOF');
-            end
-            if HeaderObj.isKeyExist('PT_SUCC')
-                Obj.Success = HeaderObj.getVal('PT_SUCC');
             end
 
             % Limiting magnitude and sky surface brightness (legacy keywords)
@@ -2390,7 +2470,7 @@ classdef PhotCalibTrans < Component
             %   APCOR_A1, APCOR_A2, APCOR_A3, APCOR_PS, APCOR_N keywords
             %   to the FITS header. NaN is written when calculation failed.
             %   On failure (missing columns, too few stars), AperCorr is set
-            %   to NaN and a warning is issued via msgLog and warning().
+            %   to NaN and a warning is issued via msgLog (no stdout).
             % Input  : - PhotCalibTrans object.
             %          - AstroCatalog object with flux/magnitude columns.
             %          * ...,key,val,...
@@ -2399,9 +2479,10 @@ classdef PhotCalibTrans < Component
             %                        Default is 'FLUX_APER_3'.
             %            'AperFluxPrefix' - Prefix for identifying flux columns
             %                        in the catalog. Default is 'FLUX_'.
-            %            'AperMagPrefix'  - Prefix for magnitude columns used when
-            %                        CalcCorrType='mag'. Derived by replacing
-            %                        'FLUX_' with this prefix. Default is 'MAG_'.
+            %                        Note: when CalcCorrType='mag', the magnitude
+            %                        columns are located by replacing 'FLUX_'
+            %                        with the object's MagColPrefix property
+            %                        (so it matches whatever prefix addMag used).
             %            'SNColName'      - S/N column name for filtering. Default is 'SN'.
             %            'MinSN'          - Minimum S/N for star selection. Default is 30.
             %            'MaxSN'          - Maximum S/N. Default is Inf.
@@ -2428,7 +2509,6 @@ classdef PhotCalibTrans < Component
                 CatObj
                 Args.RefFluxCol = 'FLUX_APER_3'
                 Args.AperFluxPrefix = 'FLUX_'
-                Args.AperMagPrefix = 'MAG_AB_'       % Prefix for magnitude columns (CalcCorrType='mag')
                 Args.SNColName = 'SN'
                 Args.MinSN = 30
                 Args.MaxSN = Inf
@@ -2500,7 +2580,7 @@ classdef PhotCalibTrans < Component
 
             if UseMag
                 % Derive reference magnitude column from flux column name
-                RefMagCol = strrep(Args.RefFluxCol, 'FLUX_', Args.AperMagPrefix);
+                RefMagCol = strrep(Args.RefFluxCol, 'FLUX_', Obj.MagColPrefix);
                 if ~ismember(RefMagCol, AllColNames)
                     Msg = sprintf('calcAperCorr: %s column not found for mag mode - aperture corrections set to NaN', RefMagCol);
                     Obj.msgLog(LogLevel.Warning, Msg);
@@ -2525,7 +2605,7 @@ classdef PhotCalibTrans < Component
 
                 if UseMag
                     % Read magnitude columns directly
-                    AperMagCol = strrep(AperCols{Iaper}, 'FLUX_', Args.AperMagPrefix);
+                    AperMagCol = strrep(AperCols{Iaper}, 'FLUX_', Obj.MagColPrefix);
                     if ~ismember(AperMagCol, AllColNames)
                         AperCorrVec(Iaper) = NaN;
                         continue;
@@ -2603,10 +2683,10 @@ classdef PhotCalibTrans < Component
             end
 
             % Store results — column names reflect mode:
-            % MAG_<prefix>_* in 'mag' mode, FLUX_* in 'flux' mode.
+            % <MagColPrefix>* in 'mag' mode, FLUX_* in 'flux' mode.
             Obj.AperCorr = AperCorrVec;
             if UseMag
-                Obj.AperCorrColNames = cellfun(@(C) strrep(C, 'FLUX_', Args.AperMagPrefix), ...
+                Obj.AperCorrColNames = cellfun(@(C) strrep(C, 'FLUX_', Obj.MagColPrefix), ...
                     AperCols, 'UniformOutput', false);
             else
                 Obj.AperCorrColNames = AperCols;
@@ -2636,14 +2716,23 @@ classdef PhotCalibTrans < Component
             %                         Error formula: MagErr = 1.086 * FluxErr
             %                         (FLUXERR is the relative flux uncertainty FluxErr/Flux).
             %                         Requires FLUXERR_<suffix> columns in catalog.
-            %                         Column naming: MAG_<System>_<suffix>_ERR.
+            %                         Column naming: leading 'MAG_' of the
+            %                         calibrated mag column name is replaced
+            %                         with 'MAGERR_' (e.g. MAG_AB_APER_3 ->
+            %                         MAGERR_AB_APER_3, MAG_PSF -> MAGERR_PSF).
             %            'PropagateCalibratedErr' - Propagate calibrated magnitude
             %                         errors. Default is false. Not yet implemented.
             % Output : - AstroCatalog with added calibrated magnitude columns.
-            %                     Column naming: FLUX_<suffix> -> MAG_<System>_<suffix>
-            %                     (e.g., FLUX_APER_3 -> MAG_AB_APER_3)
-            %                     If AddMagErr=true, also: MAG_<System>_<suffix>_ERR
-            %                     (e.g., MAG_AB_APER_3_ERR)
+            %                     Column naming: FLUX_<suffix> -> <prefix><suffix>,
+            %                     where <prefix> is the object's MagColPrefix
+            %                     property (default 'MAG_AB_'; e.g.
+            %                     FLUX_APER_3 -> MAG_AB_APER_3). If MagColPrefix
+            %                     is 'MAG_', the calibrated mags overwrite the
+            %                     instrumental MAG_<suffix> columns in place.
+            %                     If AddMagErr=true, also: MAGERR_<rest> where
+            %                     <rest> is the calibrated mag column name with
+            %                     its leading 'MAG_' stripped (e.g.
+            %                     MAG_AB_APER_3 -> MAGERR_AB_APER_3).
             % Author : D. Kovaleva (Jan 2026)
             % Example: Cat = PC.addMag(Cat);
             %          Cat = PC.addMag(Cat, 'FluxColNames', {'FLUX_APER_3', 'FLUX_PSF'});
@@ -2652,8 +2741,9 @@ classdef PhotCalibTrans < Component
             % Description: Creates new columns with calibrated magnitudes from flux measurements.
             %              Formula: MAG = -2.5*log10(FLUX/ExpTime_eff) + ZP
             %              For each FLUX_<suffix> column, creates MAG_<System>_<suffix> column.
-            %              If AddMagErr=true, also creates MAG_<System>_<suffix>_ERR column
-            %              with error = 1.086 * FLUXERR_<suffix> / FLUX_<suffix>.
+            %              If AddMagErr=true, also creates MAGERR_<System>_<suffix>
+            %              column with error = 1.086 * FLUXERR_<suffix>
+            %              (FLUXERR is the relative flux uncertainty).
             %              Preserves original flux columns.
             %              Applies position-dependent corrections if available.
 
@@ -2678,8 +2768,12 @@ classdef PhotCalibTrans < Component
                       'Vega magnitude system is not yet implemented.');
             end
 
-            % Build dynamic column prefix: MAG_AB_ or MAG_VEGA_
-            MagPrefix = ['MAG_', Args.MagSystem, '_'];
+            % Column-name prefix for output magnitudes, from the object's
+            % MagColPrefix property. Naming convention only; the magnitude
+            % *system* is set by MagSystem. When MagColPrefix='MAG_' the
+            % calibrated mags overwrite the instrumental MAG_<suffix> columns
+            % (insertCol deletes the existing column first).
+            MagPrefix = Obj.MagColPrefix;
 
             % Get catalog table
             Tab = CatObj.Table;
@@ -2783,27 +2877,34 @@ classdef PhotCalibTrans < Component
                 % Insert magnitude column into catalog
                 CatObj = CatObj.insertCol(Mag, Inf, {NewMagColName});
 
-                % Add magnitude error column if requested
+                % Add magnitude error column if requested. Two error sources
+                % accepted: FLUXERR_<suffix> (preferred), or (for FLUX_PSF
+                % specifically) SN via MagErr = 1.086 / SN. If neither is
+                % present, no MAGERR column is written.
                 if Args.AddMagErr
-                    % Derive corresponding flux error column name
-                    % e.g., FLUX_APER_3 -> FLUXERR_APER_3
                     FluxErrColName = strrep(FluxColName, 'FLUX_', 'FLUXERR_');
-                    MagErrColName = [NewMagColName, '_ERR'];
+                    MagErrColName  = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
 
                     if ismember(FluxErrColName, AllColNames)
-                        FluxErr = Tab.(FluxErrColName);
-                        % FLUXERR is the relative flux uncertainty (FluxErr/Flux),
-                        % so MagErr = 1.086 * FluxErr (first-order error propagation).
-                        MagErr = nan(Nrows, 1);
+                        % FLUXERR is the relative flux uncertainty (dF/F per
+                        % LAST extractor), so MagErr = 1.086 * FLUXERR.
+                        FluxErr   = Tab.(FluxErrColName);
+                        MagErr    = nan(Nrows, 1);
                         ValidFlux = Flux > 0 & ~isnan(Flux) & ~isnan(FluxErr);
                         MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux);
                         CatObj = CatObj.insertCol(MagErr, Inf, {MagErrColName});
+                    elseif strcmp(FluxColName, 'FLUX_PSF') && ismember('SN', AllColNames)
+                        % PSF special case: LAST has no FLUXERR_PSF; derive
+                        % from SN as MagErr = 1.086 / SN.
+                        SN     = Tab.SN;
+                        MagErr = nan(Nrows, 1);
+                        ValidSN = isfinite(SN) & SN > 0;
+                        MagErr(ValidSN) = 1.086 ./ SN(ValidSN);
+                        CatObj = CatObj.insertCol(MagErr, Inf, {MagErrColName});
                     else
-                        % No flux error column found — insert NaN column
                         Obj.msgLog(LogLevel.Debug, ...
-                            'addMag: Flux error column %s not found - %s set to NaN', ...
-                            FluxErrColName, MagErrColName);
-                        CatObj = CatObj.insertCol(nan(Nrows, 1), Inf, {MagErrColName});
+                            'addMag: no FLUXERR/SN error source for %s - no %s written', ...
+                            FluxColName, MagErrColName);
                     end
                 end
 
@@ -2819,7 +2920,6 @@ classdef PhotCalibTrans < Component
             if Args.ApplyConstBand
                 CatObj = Obj.applyConstBand(CatObj, ...
                     'ConstBandParams', Args.ConstBandParams, ...
-                    'MagColPrefix', MagPrefix, ...
                     'OutputMode', Args.ConstBandOutputMode, ...
                     'OutputPrefix', Args.ConstBandPrefix);
             end
@@ -2844,11 +2944,12 @@ classdef PhotCalibTrans < Component
             %                        (e.g., Pressure_mbar, DobsonUnits,
             %                        TauAod500, AngstromExponent, PWV_cm).
             %                        Or path to .mat file containing the struct.
-            %            'MagColPrefix' - Prefix of magnitude columns to
-            %                        convert. Default is 'MAG_AB_'.
             %            'OutputMode' - 'newcol' creates new columns with
             %                        OutputPrefix; 'replace' overwrites the
             %                        original MAG columns. Default is 'newcol'.
+            %                        The magnitude columns to convert are
+            %                        identified by the object's MagColPrefix
+            %                        property.
             %            'OutputPrefix' - Prefix for new columns when
             %                        OutputMode='newcol'. Default is 'MAG_CB_'.
             % Output : - AstroCatalog with constant-band magnitude columns.
@@ -2861,7 +2962,6 @@ classdef PhotCalibTrans < Component
                 Obj
                 CatObj
                 Args.ConstBandParams = []       % Struct or .mat path
-                Args.MagColPrefix = 'MAG_AB_'
                 Args.OutputMode = 'newcol'      % 'newcol' or 'replace'
                 Args.OutputPrefix = 'MAG_CB_'
             end
@@ -2927,8 +3027,12 @@ classdef PhotCalibTrans < Component
             Obj.DeltaZP_CB = DeltaZP;
 
             % --- Apply to magnitude columns ---
+            % Magnitude columns identified by the object's MagColPrefix.
+            % Exclude OutputPrefix columns: when MagColPrefix='MAG_' it would
+            % otherwise also match the 'MAG_CB_' constant-band outputs.
             AllColNames = CatObj.ColNames;
-            MagCols = AllColNames(startsWith(AllColNames, Args.MagColPrefix));
+            MagCols = AllColNames(startsWith(AllColNames, Obj.MagColPrefix) & ...
+                                  ~startsWith(AllColNames, Args.OutputPrefix));
 
             for Ic = 1:numel(MagCols)
                 ColIdx = CatObj.colname2ind(MagCols{Ic});
@@ -2937,7 +3041,7 @@ classdef PhotCalibTrans < Component
                 if strcmpi(Args.OutputMode, 'replace')
                     CatObj.Catalog(:, ColIdx) = MagVals;
                 else
-                    NewColName = strrep(MagCols{Ic}, Args.MagColPrefix, Args.OutputPrefix);
+                    NewColName = strrep(MagCols{Ic}, Obj.MagColPrefix, Args.OutputPrefix);
                     CatObj = CatObj.insertCol(MagVals, Inf, NewColName, {});
                 end
             end
@@ -3027,15 +3131,15 @@ classdef PhotCalibTrans < Component
             % Compute limiting magnitude from calibrated catalog (legacy LIMMAG)
             % Input  : - PhotCalibTrans object.
             %          - AstroCatalog object after addMag (must contain the
-            %            matching FLUXERR_<suffix> and MAG_<system>_<suffix>
-            %            columns derived from FluxColName).
+            %            matching FLUXERR_<suffix> and <MagColPrefix><suffix>
+            %            columns derived from FluxColName; <MagColPrefix> is the
+            %            object's MagColPrefix property).
             %          * ...,key,val,...
             %            'FluxColName' - Flux column name; the matching
             %                            FLUXERR_<suffix> drives the SN ratio
-            %                            and MAG_<system>_<suffix> is fit.
+            %                            and <MagColPrefix><suffix> is fit.
             %                            Default is 'FLUX_APER_3'.
-            %            'MagSystem'   - Magnitude system ('AB' or 'Vega') used
-            %                            to build MAG_<system>_<suffix>.
+            %            'MagSystem'   - Magnitude system ('AB' or 'Vega').
             %                            Default is 'AB'.
             %            'MinSN'       - Lower SN bound for fit window. Default is 5.
             %            'MaxSN'       - Upper SN bound for fit window. Default is 50.
@@ -3080,7 +3184,7 @@ classdef PhotCalibTrans < Component
             end
             Suffix         = Tokens{1};
             FluxErrColName = ['FLUXERR_', Suffix];
-            MagColName     = ['MAG_', Args.MagSystem, '_', Suffix];
+            MagColName     = [Obj.MagColPrefix, Suffix];
 
             AllCols = CatObj.Table.Properties.VariableNames;
             if ~ismember(FluxErrColName, AllCols) || ~ismember(MagColName, AllCols)
@@ -3195,7 +3299,7 @@ classdef PhotCalibTrans < Component
             end
 
             fprintf('\n=== PhotCalibTrans Object ===\n');
-            fprintf('Success: %s\n', mat2str(Obj.Success));
+            fprintf('Calibrated: %s\n', mat2str(~isempty(Obj.TransModel)));
 
             if ~isempty(Obj.SpecData)
                 fprintf('Calibrators: %d (min required: %d)\n', size(Obj.SpecData.Spec, 1), Obj.NCalibMin);
@@ -3563,7 +3667,7 @@ classdef PhotCalibTrans < Component
                         AllParams = [];
                         AllWeights = [];
                         for Itmp = 1:Nobj
-                            if Obj(Itmp).Success && Obj(Itmp).TransModel.RMS > 0
+                            if ~isempty(Obj(Itmp).TransModel) && Obj(Itmp).TransModel.RMS > 0
                                 P = Obj(Itmp).TransModel.getAllFunPar();
                                 AllParams = [AllParams; P.Val(:)'];
                                 AllWeights = [AllWeights; 1 ./ Obj(Itmp).TransModel.RMS.^2];
@@ -3573,7 +3677,7 @@ classdef PhotCalibTrans < Component
                             W = AllWeights / sum(AllWeights);
                             RefParamVec = (W' * AllParams)';
                         end
-                    elseif RefIdx >= 1 && RefIdx <= Nobj && Obj(RefIdx).Success
+                    elseif RefIdx >= 1 && RefIdx <= Nobj && ~isempty(Obj(RefIdx).TransModel)
                         RefTransParams = Obj(RefIdx).TransModel.getAllFunPar();
                         RefParamVec = RefTransParams.Val;
                     else
@@ -3592,7 +3696,7 @@ classdef PhotCalibTrans < Component
                 allZP = [];
 
                 for Iobj = 1:Nobj
-                    if ~Obj(Iobj).Success
+                    if isempty(Obj(Iobj).TransModel)
                         continue;
                     end
 
@@ -3722,19 +3826,34 @@ classdef PhotCalibTrans < Component
                 Args.NewFigure logical = true
             end
 
-            if isempty(Obj.TransModel) || isempty(Obj.TransModel.FitResults)
-                error('PhotCalibTrans:plotCalibrators:NoFitResults', 'Fit results not available');
+            if isempty(Obj.TransModel) || isempty(Obj.SourceData)
+                error('PhotCalibTrans:plotCalibrators:NoFitResults', ...
+                    'Fit results not available (TransModel or SourceData is empty)');
+            end
+            % Use the live Table view directly. getCol routes through
+            % AstroTable.ColNames, which caches the original column list
+            % and doesn't see the Residuals/Used/PredictedFlux columns
+            % that calibrate appends to the table-form Catalog.
+            SDTab = Obj.SourceData.Table;
+            SDCols = SDTab.Properties.VariableNames;
+            if ~ismember('Residuals', SDCols) || ~ismember('Flux', SDCols)
+                error('PhotCalibTrans:plotCalibrators:NoFitResults', ...
+                    'SourceData missing Residuals/Flux columns - run calibrate first');
             end
 
-            % Get observed and predicted values from last fit stage
-            LastStage = Obj.TransModel.FitResults(end);
-            Residuals = LastStage.Residual;  % [N x 1]
+            % Read residuals AND fluxes from SourceData so the two are
+            % index-aligned. Restrict to calibrators kept by sigma
+            % clipping (Used==true) when that column is present.
+            Residuals = SDTab.Residuals;
+            Flux_obs  = SDTab.Flux;
+            if ismember('Used', SDCols)
+                UsedMask  = logical(SDTab.Used);
+                Residuals = Residuals(UsedMask);
+                Flux_obs  = Flux_obs(UsedMask);
+            end
 
-            % Get observed fluxes and convert to instrumental magnitudes
-            Flux_obs = Obj.SourceData.getCol('Flux');
-            MagInst_obs = -2.5 * log10(Flux_obs);
-
-            % Predicted instrumental magnitudes
+            MagInst_obs  = -2.5 * log10(Flux_obs);
+            % Predicted instrumental magnitude (Residual = observed - predicted, mag).
             MagInst_pred = MagInst_obs - Residuals;
 
             % Create figure
@@ -3761,16 +3880,20 @@ classdef PhotCalibTrans < Component
             ylabel('Observed Magnitude');
             axis equal tight;
 
-            % Add statistics to title
-            NumCalib = size(Obj.SpecData.Spec, 1);
+            % Add statistics to title. N_used is the calibrator count
+            % AFTER all filtering and sigma clipping (matches the points
+            % being plotted and the DOF denominator). N_initial is the
+            % raw GAIADR3spec match count for context.
+            NumUsed    = numel(MagInst_obs);
+            NumInitial = size(Obj.SpecData.Spec, 1);
             if ~isempty(Obj.TransModel.Chi2) && ~isempty(Obj.TransModel.DOF)
-                title(sprintf('Calibrators: N=%d, RMS=%.4f mag, Chi2/DOF=%.2f/%d=%.2f', ...
-                    NumCalib, Obj.TransModel.RMS, ...
+                title(sprintf('Calibrators: N_{used}=%d / N_{init}=%d, RMS=%.4f mag, Chi^2/DOF=%.2f/%d=%.2f', ...
+                    NumUsed, NumInitial, Obj.TransModel.RMS, ...
                     Obj.TransModel.Chi2, Obj.TransModel.DOF, ...
                     Obj.TransModel.Chi2/Obj.TransModel.DOF));
             else
-                title(sprintf('Calibrators: N=%d, RMS=%.4f mag', ...
-                    NumCalib, Obj.TransModel.RMS));
+                title(sprintf('Calibrators: N_{used}=%d / N_{init}=%d, RMS=%.4f mag', ...
+                    NumUsed, NumInitial, Obj.TransModel.RMS));
             end
 
             % Add legend
@@ -3798,21 +3921,52 @@ classdef PhotCalibTrans < Component
                       'Fit results not available. Run calibrate() first.');
             end
 
-            FitRes = Obj.FitResults;
-            Nstages = length(FitRes);
+            % Prefer AllOuterStages (Niter*Nstages flat array) when present,
+            % so the plot shows the per-outer-iteration evolution. Falls back
+            % to the final outer pass's per-stage results otherwise.
+            FitResAll = Obj.FitResults;
+            if isfield(FitResAll, 'AllOuterStages') && ~isempty(FitResAll(1).AllOuterStages)
+                FitRes = FitResAll(1).AllOuterStages;
+            else
+                FitRes = FitResAll;
+            end
+            Npts = length(FitRes);
 
-            % Extract metrics from each stage
-            RMS_stages = zeros(Nstages, 1);
-            Chi2_stages = zeros(Nstages, 1);
-            DOF_stages = zeros(Nstages, 1);
+            % Stage / iteration indices for labeling and boundaries
+            HasIter = isfield(FitRes, 'OuterIter');
+            if HasIter
+                OuterIters = [FitRes.OuterIter];
+                Niter = max(OuterIters);
+                Nstages = Npts / Niter;
+                XLabels = arrayfun(@(K) sprintf('S%d.I%d', ...
+                    mod(K-1, Nstages)+1, OuterIters(K)), 1:Npts, ...
+                    'UniformOutput', false);
+                % Vertical boundaries between iterations (after each block of Nstages)
+                IterBoundaries = (Nstages + 0.5):Nstages:(Npts - 0.5);
+            else
+                Nstages = Npts;
+                Niter = 1;
+                XLabels = arrayfun(@(K) sprintf('S%d', K), 1:Npts, ...
+                    'UniformOutput', false);
+                IterBoundaries = [];
+            end
 
-            for I = 1:Nstages
-                RMS_stages(I) = FitRes(I).RMS;
-                if isfield(FitRes(I), 'Chi2')
-                    Chi2_stages(I) = FitRes(I).Chi2;
+            % Extract per-point metrics
+            RMS_pts        = nan(Npts, 1);
+            WeightedRMS_pts = nan(Npts, 1);
+            Chi2_pts       = nan(Npts, 1);
+            DOF_pts        = nan(Npts, 1);
+            for I = 1:Npts
+                if ~isempty(FitRes(I).RMS); RMS_pts(I) = FitRes(I).RMS; end
+                if isfield(FitRes(I), 'Chi2') && ~isempty(FitRes(I).Chi2)
+                    Chi2_pts(I) = FitRes(I).Chi2;
                 end
-                if isfield(FitRes(I), 'DOF')
-                    DOF_stages(I) = FitRes(I).DOF;
+                if isfield(FitRes(I), 'DOF') && ~isempty(FitRes(I).DOF)
+                    DOF_pts(I) = FitRes(I).DOF;
+                end
+                if isfield(FitRes(I), 'WeightedResiduals') && ~isempty(FitRes(I).WeightedResiduals)
+                    WRes = FitRes(I).WeightedResiduals;
+                    WeightedRMS_pts(I) = sqrt(mean(WRes(:).^2));
                 end
             end
 
@@ -3823,31 +3977,49 @@ classdef PhotCalibTrans < Component
                 Fig = gcf;
             end
 
-            % Subplot 1: RMS evolution
-            subplot(2, 1, 1);
-            plot(1:Nstages, RMS_stages, 'o-', 'LineWidth', 2, 'MarkerSize', 8);
-            grid on;
-            xlabel('Optimization Stage');
-            ylabel('RMS [mag]');
-            title(sprintf('Fit Convergence (N=%d calibrators)', size(Obj.SpecData.Spec, 1)));
-            xticks(1:Nstages);
+            X = 1:Npts;
+            BoundaryColor = [0.5 0.5 0.5];
 
-            % Subplot 2: Chi2/DOF evolution
-            subplot(2, 1, 2);
-            if any(Chi2_stages ~= 0) && any(DOF_stages ~= 0)
-                Chi2PerDOF = Chi2_stages ./ DOF_stages;
-                plot(1:Nstages, Chi2PerDOF, 's-', 'LineWidth', 2, 'MarkerSize', 8);
-                yline(1, 'r--', 'LineWidth', 1.5);  % Ideal Chi2/DOF = 1
-                ylabel('Chi2/DOF');
-                legend('Fit Quality', 'Location', 'best');
-            else
-                plot(1:Nstages, Chi2_stages, 's-', 'LineWidth', 2, 'MarkerSize', 8);
-                ylabel('Chi2');
+            % --- Subplot 1: RMS evolution (unweighted [mag] left, weighted [sigma] right)
+            subplot(2, 1, 1); cla;
+            yyaxis left;
+            plot(X, RMS_pts, 'o-', 'LineWidth', 2, 'MarkerSize', 8); hold on;
+            ylabel('RMS [mag]');
+            yyaxis right;
+            plot(X, WeightedRMS_pts, 's--', 'LineWidth', 1.5, 'MarkerSize', 7);
+            ylabel('Weighted RMS [\sigma]');
+            % Iteration boundary lines (drawn on right axis; they span both)
+            for B = IterBoundaries
+                xline(B, '--', 'Color', BoundaryColor, 'LineWidth', 1.0, ...
+                    'HandleVisibility', 'off');
             end
             grid on;
             xlabel('Optimization Stage');
+            xticks(X); xticklabels(XLabels);
+            title(sprintf('Fit Convergence (N=%d initial calibrators, %d outer iter)', ...
+                size(Obj.SpecData.Spec, 1), Niter));
+            legend({'Unweighted RMS [mag]', 'Weighted RMS [\sigma]'}, 'Location', 'best');
+
+            % --- Subplot 2: Chi2/DOF evolution
+            subplot(2, 1, 2); cla;
+            if any(isfinite(Chi2_pts) & Chi2_pts ~= 0) && any(isfinite(DOF_pts) & DOF_pts ~= 0)
+                Chi2PerDOF = Chi2_pts ./ DOF_pts;
+                plot(X, Chi2PerDOF, 's-', 'LineWidth', 2, 'MarkerSize', 8); hold on;
+                yline(1, 'r--', 'LineWidth', 1.5);
+                ylabel('Chi2/DOF');
+                legend('Fit Quality', 'Location', 'best');
+            else
+                plot(X, Chi2_pts, 's-', 'LineWidth', 2, 'MarkerSize', 8); hold on;
+                ylabel('Chi2');
+            end
+            for B = IterBoundaries
+                xline(B, '--', 'Color', BoundaryColor, 'LineWidth', 1.0, ...
+                    'HandleVisibility', 'off');
+            end
+            grid on;
+            xlabel('Optimization Stage');
+            xticks(X); xticklabels(XLabels);
             title('Goodness of Fit Evolution');
-            xticks(1:Nstages);
         end
     end
 
@@ -3982,6 +4154,67 @@ classdef PhotCalibTrans < Component
             for Ic = 1:Ncrop
                 PC_c = Obj(Ic);
 
+                % Guard: crops with no calibration (empty TransModel) — for
+                % example when selectCalibrators failed because the catalog
+                % was missing RA/Dec or per-source X,Y were null. Log a
+                % warning, NaN-fill each epoch's MAG/ZP columns, write NaN
+                % PT_* keys to the header, and skip the rest of this crop.
+                if isempty(PC_c.TransModel)
+                    PC_c.msgLog(LogLevel.Warning, sprintf( ...
+                        'applyPhotCalibShifts: crop %d has no calibration (empty TransModel) - writing NaN to MAG/ZP columns', Ic));
+                    NormPerEpoch(:, Ic) = NaN;
+                    for Ie = 1:Nepoch
+                        AIie = EpochAIs(Ie, Ic);
+                        if isa(AIie, 'AstroImage')
+                            CatObj = AIie.CatData;
+                        else
+                            CatObj = AIie;
+                        end
+                        if ~isempty(CatObj) && ~isempty(CatObj.Catalog)
+                            Nrows  = size(CatObj.Catalog, 1);
+                            NaNcol = nan(Nrows, 1);
+                            if Args.AddZP
+                                ZPColName = [Args.MagSystem, '_ZP'];
+                                CatObj = CatObj.insertCol(NaNcol, Inf, {ZPColName});
+                            end
+                            if Args.AddMag
+                                AllColNames = CatObj.ColNames;
+                                MagPrefix   = PC_c.MagColPrefix;
+                                IsFlux      = startsWith(AllColNames, 'FLUX_');
+                                FluxColNames = AllColNames(IsFlux);
+                                % FLUX_XYPEAK is the pixel peak value, not a
+                                % photometric flux — skip it.
+                                FluxColNames = FluxColNames(~strcmp(FluxColNames, 'FLUX_XYPEAK'));
+                                for I = 1:numel(FluxColNames)
+                                    NewMagColName = strrep(FluxColNames{I}, 'FLUX_', MagPrefix);
+                                    CatObj = CatObj.insertCol(NaNcol, Inf, {NewMagColName});
+                                    % MAGERR written when an error source
+                                    % exists: FLUXERR_<suffix> or, for
+                                    % FLUX_PSF, SN.
+                                    FluxErrCol = strrep(FluxColNames{I}, 'FLUX_', 'FLUXERR_');
+                                    HasErrSource = any(strcmp(AllColNames, FluxErrCol)) || ...
+                                        (strcmp(FluxColNames{I}, 'FLUX_PSF') && any(strcmp(AllColNames, 'SN')));
+                                    if HasErrSource
+                                        MagErrColName = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
+                                        CatObj = CatObj.insertCol(NaNcol, Inf, {MagErrColName});
+                                    end
+                                end
+                            end
+                            if isa(AIie, 'AstroImage')
+                                EpochAIs(Ie, Ic).CatData = CatObj;
+                            else
+                                EpochAIs(Ie, Ic) = CatObj;
+                            end
+                        end
+                        % Header NaN-fill: photCalibTransToHeader is robust
+                        % to empty TransModel and writes scalar PT_* as NaN.
+                        if Args.UpdateHeader && isa(AIie, 'AstroImage') && ~isempty(AIie.HeaderData)
+                            EpochAIs(Ie, Ic).HeaderData = PC_c.photCalibTransToHeader(AIie.HeaderData);
+                        end
+                    end
+                    continue;
+                end
+
                 AllFunPar = PC_c.TransModel.getAllFunPar();
                 NormIdx   = find(strcmp(AllFunPar.Name, 'Norm'), 1);
                 NormOrig  = AllFunPar.Val(NormIdx);
@@ -4054,10 +4287,18 @@ classdef PhotCalibTrans < Component
                         end
 
                         if Args.AddMag
-                            MagPrefix = ['MAG_', Args.MagSystem, '_'];
+                            % Naming prefix from the per-crop PC object's
+                            % property — set once at calibration time, travels
+                            % with the object into this per-epoch path.
+                            MagPrefix = PC_c.MagColPrefix;
                             IsFlux    = startsWith(AllColNames, 'FLUX_');
                             FluxColIdx   = find(IsFlux);
                             FluxColNames = AllColNames(IsFlux);
+                            % FLUX_XYPEAK is the pixel peak value, not a
+                            % photometric flux — skip it.
+                            KeepMask     = ~strcmp(FluxColNames, 'FLUX_XYPEAK');
+                            FluxColIdx   = FluxColIdx(KeepMask);
+                            FluxColNames = FluxColNames(KeepMask);
                             for I = 1:numel(FluxColNames)
                                 Flux_col = CatObj.Catalog(:, FluxColIdx(I));
                                 Mag = convert.luptitude(Flux_col / ExpTime_epoch, ...
@@ -4080,22 +4321,32 @@ classdef PhotCalibTrans < Component
 
                                 CatObj = CatObj.insertCol(Mag, Inf, {NewMagColName});
 
+                                % MAGERR source priority:
+                                %   (1) FLUXERR_<suffix> -> MagErr = 1.086 * FLUXERR
+                                %   (2) FLUX_PSF special case -> SN column,
+                                %       MagErr = 1.086 / SN.
+                                % If neither is available, no MAGERR column is
+                                % written (no NaN-fill, no instrumental copy).
                                 FluxErrCol = strrep(FluxColNames{I}, 'FLUX_', 'FLUXERR_');
-                                MagErrCol  = [NewMagColName, '_ERR'];
                                 FluxErrIdx = find(strcmp(AllColNames, FluxErrCol), 1);
                                 if ~isempty(FluxErrIdx)
+                                    MagErrCol = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
                                     FluxErr = CatObj.Catalog(:, FluxErrIdx);
+                                    % FLUXERR is the relative flux uncertainty
+                                    % (dF/F per LAST source extractor).
                                     MagErr = nan(Nrows, 1);
                                     ValidFlux = Flux_col > 0 & isfinite(Flux_col) & isfinite(FluxErr);
-                                    MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux) ./ Flux_col(ValidFlux);
+                                    MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux);
                                     CatObj = CatObj.insertCol(MagErr, Inf, {MagErrCol});
-                                else
-                                    MagErrFallback = strrep(FluxColNames{I}, 'FLUX_', 'MAGERR_');
-                                    MagErrIdx = find(strcmp(AllColNames, MagErrFallback), 1);
-                                    if ~isempty(MagErrIdx)
-                                        CatObj = CatObj.insertCol(CatObj.Catalog(:, MagErrIdx), Inf, {MagErrCol});
-                                    else
-                                        CatObj = CatObj.insertCol(nan(Nrows, 1), Inf, {MagErrCol});
+                                elseif strcmp(FluxColNames{I}, 'FLUX_PSF')
+                                    SnIdx = find(strcmp(AllColNames, 'SN'), 1);
+                                    if ~isempty(SnIdx)
+                                        MagErrCol = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
+                                        SN = CatObj.Catalog(:, SnIdx);
+                                        MagErr = nan(Nrows, 1);
+                                        ValidSN = isfinite(SN) & SN > 0;
+                                        MagErr(ValidSN) = 1.086 ./ SN(ValidSN);
+                                        CatObj = CatObj.insertCol(MagErr, Inf, {MagErrCol});
                                     end
                                 end
                             end
@@ -4128,7 +4379,7 @@ classdef PhotCalibTrans < Component
             %     'aggregate' (default) — robust median/mean across all objects.
             %     'single' — extract from a single object directly (no aggregation).
             %   Optionally saves to .mat file with date in filename.
-            % Input  : - Obj — PhotCalibTrans array (flat). Non-Success objects
+            % Input  : - Obj — PhotCalibTrans array (flat). Failed objects (empty TransModel)
             %            are skipped. If a cell of arrays, flatten first at the
             %            call site: [PC_cell{:}].buildConstBandParams(...).
             %            For Source='single', the first successful object is used.
@@ -4176,7 +4427,7 @@ classdef PhotCalibTrans < Component
                 % Find first successful object
                 PC = [];
                 for Ipc = 1:numel(PCArray)
-                    if PCArray(Ipc).Success && ~isempty(PCArray(Ipc).TransModel)
+                    if ~isempty(PCArray(Ipc).TransModel)
                         PC = PCArray(Ipc);
                         break;
                     end
@@ -4218,7 +4469,7 @@ classdef PhotCalibTrans < Component
 
                 for Ipc = 1:numel(PCArray)
                     PC = PCArray(Ipc);
-                    if ~PC.Success || isempty(PC.TransModel)
+                    if isempty(PC.TransModel)
                         continue;
                     end
 
@@ -4365,11 +4616,145 @@ function DeltaZP = computeDeltaZPfromMS(MS, Nepoch, FluxField, FluxErrField, Ref
         elseif HasFluxErr
             Valid = ValidMask(Ie, :);
             DM = DiffMag(Ie, Valid);
-            MagErr = 1.086 * sqrt((FluxErr(Ie, Valid) ./ Flux(Ie, Valid)).^2 + ...
-                                  (FluxErrRef(Valid) ./ FluxRef(Valid)).^2);
+            % FLUXERR is already the relative flux uncertainty (dF/F),
+            % so the per-DiffMag error is 1.086 * sqrt(eF^2 + eF_ref^2)
+            % with no extra /Flux divisions.
+            MagErr = 1.086 * sqrt(FluxErr(Ie, Valid).^2 + FluxErrRef(Valid).^2);
             DeltaZP(Ie) = tools.math.stat.wmedian(DM(:), MagErr(:), 1);
         else
             DeltaZP(Ie) = median(DiffMag(Ie, ValidMask(Ie, :)), 'omitnan');
         end
+    end
+end
+
+% =========================================================================
+function DoubtfulMask = photCalibTransAuditCalibrators(Cat, Tab, AllColNames, HasMatchMask, Args, Obj)
+    % Step-0 audit: reject doubtful calibrator candidates.
+    % Returns a [Nsources x 1] logical mask, true for sources to reject.
+    %
+    % Rejection rule (OR-combined, vectorized over the candidates):
+    %   (a) Gaia BPRPExcessFactor > AuditBPRPExcessFactorMax
+    %   (b) Gaia BP-RP            > AuditBPRPMax
+    %   (c) LAST nearest-neighbour distance < AuditLASTNearestDist [arcsec]
+    %   (d) |LAST nearest-neighbour delta-mag| < AuditLASTDeltaMag
+    % Self-excluded by X/Y proximity (within 1 px) when looking up the
+    % nearest LAST source. Caller decides when to invoke.
+
+    Nsources = height(Tab);
+    DoubtfulMask = false(Nsources, 1);
+
+    CandIdx = find(HasMatchMask);
+    Ncand   = numel(CandIdx);
+    if Ncand == 0; return; end
+
+    % ---- Gaia photometric audit (vectorized over candidates) ----
+    Sub = AstroCatalog;
+    Sub.Catalog  = [Tab.RA(CandIdx), Tab.Dec(CandIdx)];
+    Sub.ColNames = {'RA', 'Dec'};
+    Sub.ColUnits = {'deg', 'deg'};
+
+    try
+        [~, ~, ResIndA, CatA] = imProc.match.match_catsHTM(Sub, Args.AuditCatName, ...
+            'Radius', Args.SearchRadius, 'RadiusUnits', 'arcsec');
+
+        % AuditNear should be length Ncand; if shorter (shouldn't happen),
+        % pad with NaN so per-candidate indexing stays well-defined.
+        AuditNear = nan(Ncand, 1);
+        N1 = min(Ncand, numel(ResIndA.Obj2_IndInObj1));
+        AuditNear(1:N1) = ResIndA.Obj2_IndInObj1(1:N1);
+        ValidGaia = isfinite(AuditNear);
+
+        BPRPCol    = findColIdxLocal(CatA.ColNames, {'bp_rp'});
+        BPCol      = findColIdxLocal(CatA.ColNames, {'phot_bp_mean_mag','Mag_BP','MagBP'});
+        RPCol      = findColIdxLocal(CatA.ColNames, {'phot_rp_mean_mag','Mag_RP','MagRP'});
+        BPRPExcCol = findColIdxLocal(CatA.ColNames, {'phot_bp_rp_excess_factor'});
+
+        BPRPv   = nan(Ncand, 1);
+        BPRPExc = nan(Ncand, 1);
+        if any(ValidGaia)
+            NiSel = AuditNear(ValidGaia);
+            if BPRPCol > 0
+                BPRPv(ValidGaia) = double(CatA.Catalog(NiSel, BPRPCol));
+            elseif BPCol > 0 && RPCol > 0
+                BPRPv(ValidGaia) = double(CatA.Catalog(NiSel, BPCol)) ...
+                                 - double(CatA.Catalog(NiSel, RPCol));
+            end
+            if BPRPExcCol > 0
+                BPRPExc(ValidGaia) = double(CatA.Catalog(NiSel, BPRPExcCol));
+            end
+        end
+        GaiaReject = (isfinite(BPRPv)   & BPRPv   > Args.AuditBPRPMax) | ...
+                     (isfinite(BPRPExc) & BPRPExc > Args.AuditBPRPExcessFactorMax);
+        DoubtfulMask(CandIdx(GaiaReject)) = true;
+
+        if Args.Verbose
+            fprintf('    audit Gaia (%s): %d rejected (BPRP>%.2f or excess>%.2f)\n', ...
+                Args.AuditCatName, sum(GaiaReject), ...
+                Args.AuditBPRPMax, Args.AuditBPRPExcessFactorMax);
+        end
+    catch ME
+        Obj.msgLog(LogLevel.Warning, ...
+            sprintf('selectCalibrators audit: Gaia match failed (%s) - skipping Gaia checks', ME.message));
+        if Args.Verbose
+            fprintf('    audit Gaia: skipped (%s)\n', ME.message);
+        end
+    end
+
+    % ---- LAST nearest-neighbour audit (fully vectorized) ----
+    Required = {'RA', 'Dec', 'X', 'Y', Args.MagColName};
+    HaveAll = all(ismember(Required, AllColNames));
+    if HaveAll
+        ArcsecPerRad = (180/pi) * 3600;
+        AllRArad  = double(Tab.RA)  * pi/180;
+        AllDecrad = double(Tab.Dec) * pi/180;
+        AllX   = double(Tab.X);
+        AllY   = double(Tab.Y);
+        AllMag = double(Tab.(Args.MagColName));
+
+        % [Ncand x Nsources] pairwise distance via implicit broadcasting:
+        % column vectors for candidates, row vectors for all sources.
+        RAcand  = AllRArad(CandIdx);          % [Ncand x 1]
+        Deccand = AllDecrad(CandIdx);
+        Xcand   = AllX(CandIdx);
+        Ycand   = AllY(CandIdx);
+        Magcand = AllMag(CandIdx);
+
+        DistMat = celestial.coo.sphere_dist_fast( ...
+            RAcand, Deccand, AllRArad.', AllDecrad.') * ArcsecPerRad;
+        % Self-exclusion: within 1 px of the candidate's own (X, Y).
+        D2 = (AllX.' - Xcand).^2 + (AllY.' - Ycand).^2;
+        DistMat(D2 < 1) = Inf;
+
+        [NearDist, NearIdx] = min(DistMat, [], 2);   % [Ncand x 1]
+        NearMag  = AllMag(NearIdx);
+        DeltaMag = abs(NearMag - Magcand);
+
+        ValidLast = isfinite(NearDist) & isfinite(NearMag) & isfinite(Magcand);
+        LastReject = ValidLast & ...
+            (NearDist < Args.AuditLASTNearestDist | DeltaMag < Args.AuditLASTDeltaMag);
+
+        % Count only candidates newly flagged by this stage.
+        NewByLast = LastReject & ~DoubtfulMask(CandIdx);
+        DoubtfulMask(CandIdx(LastReject)) = true;
+
+        if Args.Verbose
+            fprintf('    audit LAST NN: %d additionally rejected (dist<%.1f arcsec or |dmag|<%.2f)\n', ...
+                sum(NewByLast), Args.AuditLASTNearestDist, Args.AuditLASTDeltaMag);
+        end
+    else
+        Obj.msgLog(LogLevel.Warning, ...
+            sprintf('selectCalibrators audit: missing column(s) for LAST NN check (need RA, Dec, X, Y, %s) - skipping', Args.MagColName));
+        if Args.Verbose
+            fprintf('    audit LAST NN: skipped (missing columns)\n');
+        end
+    end
+end
+
+% =========================================================================
+function idx = findColIdxLocal(ColNames, Candidates)
+    idx = 0;
+    for I = 1:numel(Candidates)
+        f = find(strcmp(ColNames, Candidates{I}), 1);
+        if ~isempty(f); idx = f; return; end
     end
 end

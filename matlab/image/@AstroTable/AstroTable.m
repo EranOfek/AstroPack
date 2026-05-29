@@ -943,6 +943,7 @@ classdef AstroTable < Component
     methods  % columns get/edit
         function [Result, Units, ColInd] = getCol(Obj, Columns, OutputIsTable, UpdateAstroTable, Args)
             % Get a catalog columns by index or names
+            %   Recomended to use getColMulti instead
             % Input  : - A single element AstroTable object.
             %          - A vector of column indices, or a column name, or a
             %            cell array of column names.
@@ -960,6 +961,10 @@ classdef AstroTable < Component
             %                   Default is NaN.
             %                   This is not using the selectRows function.
             %            'CaseSens' - Case sensetive. Default is true.
+            %            'FillValue' - If column doens't exist, then will
+            %                   fill it with this value.
+            %                   If empty, then fail.
+            %                   Default is [].
             % Output : - A matrix or a table containing the selected
             %            columns.
             %          - A cell array of units corresponding to the
@@ -978,6 +983,7 @@ classdef AstroTable < Component
                 Args.UseDict(1,1) logical          = true;
                 Args.SelectRows                    = NaN;
                 Args.CaseSens                      = true;
+                Args.FillValue                     = [];
             end
                 
             
@@ -985,7 +991,8 @@ classdef AstroTable < Component
 %                 error('FFU: Dictinary is not implemented yet');
 %             end
            
-            ColInd = colname2ind(Obj, Columns, [], 'CaseSens',Args.CaseSens);
+            ColInd = colname2ind(Obj, Columns, Args.FillValue, 'CaseSens',Args.CaseSens);
+           
             if istable(Obj.Catalog)
                 if OutputIsTable
                     Result = Obj.Catalog(:,ColInd);
@@ -1014,7 +1021,7 @@ classdef AstroTable < Component
                     Units = Obj.ColUnits(ColInd);
                 end
             end
-            
+
             if UpdateAstroTable
                 Obj.Catalog = Result;
             end
@@ -1022,6 +1029,87 @@ classdef AstroTable < Component
             if ~isnan(Args.SelectRows)
                 Result = Result(Args.SelectRows, :);
             end
+            
+        end
+
+        function [Data, ColUnits] = getColMulti(Obj, ColName, Args)
+            % Get one or more columns from an AstroTable, with safe handling
+            %   of names that do not exist in the catalog.
+            %   Unlike getCol, when a requested column name is not present in
+            %   the AstroTable the corresponding output column is filled with
+            %   NaN (or the user-specified value) instead of raising an error.
+            % Input  : - A single-element AstroTable object.
+            %          - Column specifier. One of:
+            %             * a numeric vector of column indices, or
+            %             * a char with a single column name, or
+            %             * a cell array (or string array) of column names.
+            %          * ...,key,val,...
+            %            'FillValue'   - Value used by colname2ind when a
+            %                   requested column name is not found in the
+            %                   catalog. The corresponding output column will
+            %                   be filled with NaN in the data and an empty
+            %                   string in the units. If empty, missing names
+            %                   raise an error (see colname2ind).
+            %                   Default is NaN.
+            %            'SelectRows'  - A vector of row indices or logicals
+            %                   selecting which rows to return. If empty,
+            %                   return all rows.
+            %                   Default is [].
+            %            'CaseSens'    - Case-sensitive column-name matching,
+            %                   forwarded to colname2ind.
+            %                   Default is true.
+            %            'KeepAsTable' - If true and the catalog is stored as
+            %                   a MATLAB table, keep the output as a table;
+            %                   otherwise convert it to a numeric array.
+            %                   Default is false.
+            % Output : - Data, an [Nrow x numel(ColName)] matrix (or table if
+            %            KeepAsTable=true) with the requested columns in the
+            %            order given. Columns corresponding to names that do
+            %            not exist in the catalog are returned as NaN.
+            %          - ColUnits, a 1 x numel(ColName) cell array of unit
+            %            strings for the requested columns. Entries that
+            %            correspond to non-existing column names are left
+            %            empty.
+            % Author : Eran Ofek (May 2026)
+            % Example: AT = AstroTable({rand(5,2)},'ColNames',{'a','b'});
+            %          [D, U] = getColMulti(AT, {'a','zz'});  % 'zz' missing -> NaN column
+            %          D2     = getColMulti(AT, [1 2]);
+
+            arguments
+                Obj
+                ColName
+                Args.FillValue   = NaN;
+                Args.SelectRows  = [];
+                Args.CaseSens    = true;
+                Args.KeepAsTable = false;
+            end
+
+            if isnumeric(ColName)
+                ColInd = ColName;
+            else
+                ColInd = Obj.colname2ind(ColName, Args.FillValue, 'CaseSens',Args.CaseSens);
+            end
+            
+            Ncol = numel(ColInd);
+            Nrow = size(Obj.Catalog, 1);
+            Data = nan(Nrow, Ncol);
+            IsNN = ~isnan(ColInd);
+
+            Data(:,IsNN)   = Obj.Catalog(:,ColInd(IsNN));
+
+            ColUnits       = cell(1, Ncol);
+            if ~isempty(Obj.ColUnits)
+                ColUnits(IsNN) = Obj.ColUnits(ColInd(IsNN));
+            end
+
+            if ~Args.KeepAsTable && istable(Data)
+                Data = table2array(Data);
+            end
+
+            if ~isempty(Args.SelectRows)
+                Data = Data(Args.SelectRows,:);
+            end
+
         end
         
         function Result = getCol2struct(Obj, ColNames, Args)
