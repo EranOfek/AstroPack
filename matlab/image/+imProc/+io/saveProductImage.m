@@ -228,9 +228,11 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
                                                  'WriteMethodTables',Args.WriteMethodTables);
     
                     DirCreated = true;
-                    % Update FileName in Obj
+                    % Update FileName in AI for the Image product only
                     %Obj(Iobj).ImageData.FileName = OutFileNames{Iobj};
-                    Obj(Iobj).ImageData.FileName = FileToSave;
+                    if strcmp(Prop, 'Image')
+                        AI(Iobj).ImageData.FileName = FileToSave;
+                    end
     
                 end
             end
