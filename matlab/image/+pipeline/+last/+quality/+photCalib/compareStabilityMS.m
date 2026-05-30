@@ -35,10 +35,22 @@ function compareStabilityMS(MSList, Labels, Args)
     %                                     the same panel. Default {}
     %                                     (use Args.Quantities for all).
     %                      'AngularQuantities' - Names treated as angular
-    %                                     (std rescaled to arcsec).
+    %                                     (x = median(RefMag); y =
+    %                                     std(Q) * 3600 to arcsec; for
+    %                                     RA also * cos(median Dec)).
     %                                     Default {'RA','Dec'}.
-    %                      'RefMag'     - X-axis ref mag for angular
-    %                                     quantities. Default
+    %                      'RefMagXQuantities' - Names plotted as std(Q)
+    %                                     vs median(RefMag) WITHOUT the
+    %                                     arcsec / cos(Dec) rescale
+    %                                     applied to angular quantities.
+    %                                     Use for non-angular quantities
+    %                                     whose stability you want to see
+    %                                     as a function of source
+    %                                     brightness (pixel positions
+    %                                     X1/Y1, FWHM, shape parameters,
+    %                                     etc.). Default {}.
+    %                      'RefMag'     - X-axis ref mag for angular AND
+    %                                     RefMagX quantities. Default
     %                                     'MAG_APER_3'.
     %                      'BinWidth'   - Bin width [mag]. Default 0.5.
     %                      'MinEpochs'  - Min non-NaN epochs per source.
@@ -392,6 +404,15 @@ function compareStabilityMS(MSList, Labels, Args)
     %                  {MST0, MST2}, {'v0','v2'}, ...
     %                  'AIcoadd', {AIcA{1}, AIcB{1}}, ...
     %                  'ZPKey',   'MAGZP');
+    %
+    %          % Compare std(X1), std(Y1) vs median MAG_APER_3 across two
+    %          % pipelines -- pixel-coordinate stability as a function of
+    %          % source brightness (no arcsec rescale, no cos(Dec)):
+    %          pipeline.last.quality.photCalib.compareStabilityMS( ...
+    %                  {MS0, MS1}, {'v0','v1'}, ...
+    %                  'Quantities',        {'X1','Y1'}, ...
+    %                  'RefMagXQuantities', {'X1','Y1'}, ...
+    %                  'MinEpochs', 2);
 
     arguments
         MSList                cell
@@ -399,6 +420,7 @@ function compareStabilityMS(MSList, Labels, Args)
         Args.Quantities       cell = {'RA','Dec','MAG_PSF','MAG_APER_3'}
         Args.QuantitiesPerSet cell = {}
         Args.AngularQuantities cell = {'RA','Dec'}
+        Args.RefMagXQuantities cell = {}     % quantities plotted as Std(Q) vs median(RefMag); like AngularQuantities but without the *3600 arcsec rescale and cos(Dec) projection
         Args.RefMag           (1,:) char = 'MAG_APER_3'
         Args.BinWidth         (1,1) double = 0.5
         Args.MinEpochs        (1,1) double = 5
@@ -526,6 +548,7 @@ function compareStabilityMS(MSList, Labels, Args)
         Q0 = QPS{1}{Iq};
         AllNames = cellfun(@(C) C{Iq}, QPS, 'Uni', 0);
         IsAng = ismember(Q0, Args.AngularQuantities);
+        IsRefMagX = ismember(Q0, Args.RefMagXQuantities);
         % LogX panel if any set's column for this row is a configured
         % LogXQuantity (flux columns by default).
         % Quantities converted to magnitudes lose their log-X / log-Y
@@ -593,6 +616,9 @@ function compareStabilityMS(MSList, Labels, Args)
         if IsAng
             xlabel(Ax, sprintf('Median %s', Args.RefMag), 'Interpreter', 'none');
             ylabel(Ax, 'Std [arcsec]');
+        elseif IsRefMagX
+            xlabel(Ax, sprintf('Median %s', Args.RefMag), 'Interpreter', 'none');
+            ylabel(Ax, sprintf('Std %s', Q0), 'Interpreter', 'none');
         elseif IsFluxAsMag
             % Escape '_' so TeX renders 'FLUX_PSF' literally (not as a
             % subscript) while still interpreting the log_{10} sub.
@@ -706,18 +732,25 @@ function [Med, Std] = collectMedStd(CCell, Q, IsAng, Args, AIcrops)
         S = std(Y, 0, 1, 'omitnan').';     % column Nsrc x 1
         NValid = sum(~isnan(Y), 1).';
         Keep = NValid >= Args.MinEpochs;
-        if IsAng
-            % Faint cut on RefMag for angular quantities, std -> arcsec.
+        % Quantities that use median(RefMag) as their X axis: angular ones
+        % (RA/Dec, with the arcsec/cos(Dec) rescale) plus any quantity the
+        % user listed in RefMagXQuantities (no Y rescale -- e.g. X1/Y1).
+        UseRefMagX = IsAng || ismember(Q, Args.RefMagXQuantities);
+        if UseRefMagX
             if isfield(Msi.Data, Args.RefMag)
                 Rm = median(Msi.Data.(Args.RefMag), 1, 'omitnan').';
-                Keep = Keep & (Rm <= Args.BackgroundMag);
+                if IsAng
+                    Keep = Keep & (Rm <= Args.BackgroundMag);
+                end
             else
                 Rm = M;        % fall back so X is well-defined
             end
-            S = S * 3600;
-            if strcmpi(Q, 'RA') && isfield(Msi.Data, 'Dec')
-                Dm = median(Msi.Data.Dec, 1, 'omitnan').';
-                S  = S .* cosd(Dm);
+            if IsAng
+                S = S * 3600;
+                if strcmpi(Q, 'RA') && isfield(Msi.Data, 'Dec')
+                    Dm = median(Msi.Data.Dec, 1, 'omitnan').';
+                    S  = S .* cosd(Dm);
+                end
             end
             X = Rm;
         else

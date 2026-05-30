@@ -297,6 +297,30 @@ classdef PhotCalibTrans < Component
             %            'FluxErrColName' - Flux error column name. Default is 'FluxErr'.
             %            'SigmaClipMethod'- Sigma clipping method. Default is 'median'.
             %            'FluxErrorNorm'  - Flux error normalization. Default is 0.5.
+            %            'AirmassSource'  - How to obtain the calibration airmass:
+            %                               'header'  -> read AIRMASS keyword
+            %                                            (Obj.AirMass from getStructKey;
+            %                                            current default behaviour).
+            %                               'compute' -> compute the field-centre
+            %                                            airmass via Hardie (1962)
+            %                                            from header RA/DEC/time +
+            %                                            observer location. Mirrors
+            %                                            the Python production
+            %                                            LastCatUtils.get_airmass_from_cat
+            %                                            path (uses celestial.coo.radec2azalt
+            %                                            and celestial.coo.hardie).
+            %                               Default is 'header'.
+            %            'AirmassTimeKey' - Header key used as observation time when
+            %                               AirmassSource='compute':
+            %                               'DATE-OBS' (ISO string, parsed via
+            %                               datetime -> juliandate) | 'JD' | 'MIDJD'.
+            %                               Default is 'DATE-OBS' (matches production).
+            %            'ObsLat'         - Observer latitude [deg]. Default 30.053072
+            %                               (LAST Neot Semadar, per LastCatUtils).
+            %            'ObsLon'         - Observer longitude [deg]. Default 35.040858.
+            %            'ObsHeight'      - Observer height [m]. Default 415.4 (kept
+            %                               for provenance; celestial.coo.radec2azalt
+            %                               does not consume it).
             %            'MagSystem' - Magnitude system ('AB' or 'Vega'). Default is 'AB'.
             %            'Verbose' - Enable verbose output. Default is true.
             % Output : - PhotCalibTrans object with calibration results.
@@ -362,6 +386,18 @@ classdef PhotCalibTrans < Component
                 Args.AirmassColName   = 'AIRMASS'
                 Args.PerSourceAirmass logical = false
 
+                % --- Airmass override: compute from field-centre (RA, Dec, time)
+                % via Hardie (1962), mirroring the Python AbsoluteCalibration /
+                % LastCatUtils.get_airmass_from_cat path. When AirmassSource is
+                % 'compute', the value read from the header AIRMASS key is
+                % discarded and Obj.AirMass is set to the Hardie airmass.
+                % Defaults match the production LAST observatory at Neot Semadar.
+                Args.AirmassSource   (1,:) char = 'header'   % 'header' | 'compute'
+                Args.AirmassTimeKey  (1,:) char = 'DATE-OBS' % 'DATE-OBS' | 'JD' | 'MIDJD'
+                Args.ObsLat          (1,1) double = 30.053072   % deg
+                Args.ObsLon          (1,1) double = 35.040858   % deg
+                Args.ObsHeight       (1,1) double = 415.4       % m (ignored by AstroPack airmass calc)
+
                 % Aperture correction
                 Args.CalcAperCorr logical = true
                 Args.AperCorrMethod   = 'median'    % 'median' or 'weighted'
@@ -397,6 +433,16 @@ classdef PhotCalibTrans < Component
 
             if Args.Verbose
                 fprintf('Step 1: Extracting observation metadata...\n');
+            end
+
+            % Capture a reference to the underlying AstroHeader (if any) so
+            % the airmass-compute branch below can read RA/DEC/time after
+            % the metadata cell-array reassignment.
+            HeaderRef = [];
+            if IsAstroImage
+                HeaderRef = Cat.HeaderData;
+            elseif isa(Metadata, 'AstroHeader')
+                HeaderRef = Metadata;
             end
 
             % Extract metadata as cell array {key1, val1, key2, val2, ...}
@@ -438,6 +484,36 @@ classdef PhotCalibTrans < Component
             if ~isempty(Metadata)
                 MetadataStruct = struct(Metadata{:});
                 Obj.setProps(MetadataStruct);
+            end
+
+            % --- Optional airmass override: compute from field-centre using the
+            % Hardie (1962) polynomial via celestial.coo.radec2azalt (whose
+            % internal call to celestial.coo.hardie uses the exact same
+            % coefficients as the Python production get_hardie_airmass).
+            % The downstream zenith conversion at line ~482 then does
+            % acosd(1/Obj.AirMass), mirroring abscalutils.get_zenith_from_airmass.
+            if strcmpi(Args.AirmassSource, 'compute')
+                if isempty(HeaderRef)
+                    Obj.msgLog(LogLevel.Warning, ...
+                        'calibrate: AirmassSource=compute but no AstroHeader available — keeping header AIRMASS');
+                else
+                    RAhdr  = HeaderRef.getVal('RA');
+                    Dechdr = HeaderRef.getVal('DEC');
+                    JDhdr  = readAirmassTime(HeaderRef, Args.AirmassTimeKey);
+
+                    if isfinite(RAhdr) && isfinite(Dechdr) && isfinite(JDhdr)
+                        [~, ~, AM] = celestial.coo.radec2azalt(JDhdr, RAhdr, Dechdr, ...
+                            'GeoCoo', [Args.ObsLon, Args.ObsLat]);
+                        Obj.AirMass = AM;
+                        if Args.Verbose
+                            fprintf('  AirMass overridden (Hardie) = %.4f\n', AM);
+                        end
+                    else
+                        Obj.msgLog(LogLevel.Warning, sprintf( ...
+                            'calibrate: AirmassSource=compute but RA/DEC/%s missing or NaN — keeping header AIRMASS', ...
+                            Args.AirmassTimeKey));
+                    end
+                end
             end
 
             % Extract catalog (depends on input type)
@@ -4624,6 +4700,41 @@ function DeltaZP = computeDeltaZPfromMS(MS, Nepoch, FluxField, FluxErrField, Ref
         else
             DeltaZP(Ie) = median(DiffMag(Ie, ValidMask(Ie, :)), 'omitnan');
         end
+    end
+end
+
+% =========================================================================
+function JD = readAirmassTime(HeaderObj, TimeKey)
+    % Read a time value from an AstroHeader and return it as a JD (double).
+    % Supported keys: 'DATE-OBS' (ISO string), 'JD', 'MIDJD' (numeric scalars).
+    JD = NaN;
+    if isempty(HeaderObj); return; end
+    switch upper(TimeKey)
+        case {'JD', 'MIDJD'}
+            Val = HeaderObj.getVal(TimeKey);
+            if isnumeric(Val) && isscalar(Val); JD = double(Val); end
+        case 'DATE-OBS'
+            Val = HeaderObj.getVal('DATE-OBS');
+            if ischar(Val) || isstring(Val)
+                try
+                    DT = datetime(string(Val), 'InputFormat', ...
+                        'yyyy-MM-dd''T''HH:mm:ss.SSS', 'TimeZone', 'UTC');
+                    JD = juliandate(DT);
+                catch
+                    % fall back to MATLAB's lenient parser
+                    try
+                        DT = datetime(string(Val), 'TimeZone', 'UTC');
+                        JD = juliandate(DT);
+                    catch
+                        % leave JD as NaN
+                    end
+                end
+            elseif isnumeric(Val) && isscalar(Val)
+                JD = double(Val);  % tolerate numeric DATE-OBS
+            end
+        otherwise
+            error('PhotCalibTrans:calibrate:BadAirmassTimeKey', ...
+                'AirmassTimeKey must be ''DATE-OBS'', ''JD'', or ''MIDJD'' (got ''%s'')', TimeKey);
     end
 end
 

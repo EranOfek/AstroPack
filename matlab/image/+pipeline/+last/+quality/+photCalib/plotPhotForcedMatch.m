@@ -85,7 +85,7 @@ function [Result, Fig] = plotPhotForcedMatch(MS, Args)
         Args.Quantities    cell                  = {'MAG_APER_3','MAG_PSF'}
         Args.MinSN         (1,1) double          = 5
         Args.SNSide        {mustBeMember(Args.SNSide,{'forced','both','none'})} = 'forced'
-        Args.MinEpochs     (1,1) double          = 5
+        Args.MinEpochs     (1,1) double          = 20
         Args.MatchRadius   (1,1) double          = 2
         Args.UniqueNormal  logical               = true
         Args.CropsToAnalyze double               = []
@@ -94,7 +94,7 @@ function [Result, Fig] = plotPhotForcedMatch(MS, Args)
         Args.ForcedField   {mustBeTextScalar}    = 'FORCED'
         Args.LogScale      logical               = true
         Args.MarkerSize    (1,1) double          = 4
-        Args.ColorByNepochs logical              = true
+        Args.ColorByNepochs logical              = false
         Args.HighlightFlag {mustBeTextScalar}    = ''
         Args.Verbose       logical               = false
     end

@@ -38,6 +38,19 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %            'CalibArgs' - Cell array of key-value pairs forwarded to
     %                         PhotCalibTrans.calibrate. Build via local
     %                         predefCalibArgs() or manually. Default is {}.
+    %                         Calibrate arguments commonly threaded here include
+    %                         (see PhotCalibTrans.calibrate for the full list):
+    %                           'UseTran2D', 'OptSeqName', 'AuditCalibrators',
+    %                           'SearchRadius', 'PerSourceAirmass', and the
+    %                           airmass-source override block:
+    %                             'AirmassSource' ('header' | 'compute')
+    %                             'AirmassTimeKey' ('DATE-OBS' | 'JD' | 'MIDJD')
+    %                             'ObsLat' / 'ObsLon' / 'ObsHeight'
+    %                         When AirmassSource='compute', the calibration uses
+    %                         a field-centre Hardie (1962) airmass computed from
+    %                         header RA/DEC/time and observer location (mirrors
+    %                         the Python production LastCatUtils.get_airmass_from_cat
+    %                         path) instead of the header AIRMASS keyword.
     %            'ApplyConstBand' - Apply constant-band correction after
     %                         computing AB magnitudes. Adds MAG_CB_* columns
     %                         (or overwrites MAG_AB_* if ConstBandOutputMode='replace').
@@ -87,6 +100,10 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %          % Per-source airmass mode:
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
     %              'CalibArgs', {'PerSourceAirmass', true});
+    %          % Compute Hardie airmass from header RA/DEC/DATE-OBS instead of
+    %          % reading AIRMASS keyword (matches Python production):
+    %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
+    %              'CalibArgs', {'AirmassSource', 'compute'});
     %          % Emit LIMMAG/BACKMAG from this path (instead of legacy fitPhotCalibMag):
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
     %              'EvaluateLimMag', true, 'EvaluateBackMag', true);

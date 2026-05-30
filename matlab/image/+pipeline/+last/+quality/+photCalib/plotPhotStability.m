@@ -15,10 +15,10 @@ function Result = plotPhotStability(MS, Args)
     %                                                    silently skipped when
     %                                                    SkipEmptyGroups=true)
     %
-    %              Two quantity types:
+    %              Three quantity types:
     %                * Magnitude quantities (anything not in
-    %                  AngularQuantities). x = y = quantity (the classic
-    %                  "mag vs mag-RMS" plot).
+    %                  AngularQuantities or RefMagXQuantities). x = y =
+    %                  quantity (the classic "mag vs mag-RMS" plot).
     %                * Angular quantities (default {'RA','Dec'}). x =
     %                  median(RefMag) (default 'MAG_APER_3'); y =
     %                  std(quantity) computed on the raw tabulated values
@@ -31,6 +31,14 @@ function Result = plotPhotStability(MS, Args)
     %                  projected angular separation on the sky (rather
     %                  than raw RA-coordinate spread).
     %                  The faint cut ('BackgroundMag') is applied on RefMag.
+    %                * RefMagX quantities (default {}; opt-in via
+    %                  'RefMagXQuantities'). Like angular: x =
+    %                  median(RefMag). Unlike angular: y = std(quantity)
+    %                  as-is, with NO arcsec rescale and NO cos(Dec)
+    %                  projection. Use this when std(Q) is plotted as a
+    %                  function of source brightness but Q itself isn't a
+    %                  sky angle (e.g. pixel coordinates X1/Y1, FWHM,
+    %                  shape parameters).
     %
     % Input  : - MS - a MatchedSources array (one element per crop, e.g.
     %            from matchEpochs or loadMergedMat) or a cell of
@@ -45,9 +53,19 @@ function Result = plotPhotStability(MS, Args)
     %                             becomes its own one-panel figure. Default {}.
     %            'AngularQuantities' - Names that should use the angular
     %                             treatment (x = RefMag, std rescaled to
-    %                             arcsec). Default {'RA','Dec'}.
-    %            'RefMag'       - Reference mag column for angular x-axis
-    %                             AND for the faint-cut filter on angular
+    %                             arcsec, RA additionally scaled by
+    %                             cos(Dec)). Default {'RA','Dec'}.
+    %            'RefMagXQuantities' - Names that should be plotted as
+    %                             std(Q) vs median(RefMag) WITHOUT the
+    %                             arcsec / cos(Dec) rescale applied to
+    %                             angular quantities. Use for non-angular
+    %                             quantities whose stability you want to
+    %                             see as a function of source brightness
+    %                             (pixel positions X1/Y1, FWHM, etc.).
+    %                             Default {}.
+    %            'RefMag'       - Reference mag column for the x-axis of
+    %                             angular and RefMagX quantities, AND for
+    %                             the faint-cut filter on angular
     %                             quantities. Default 'MAG_APER_3'.
     %            'FluxAsMag'    - Quantity names treated as fluxes and
     %                             converted to a magnitude before the
@@ -160,12 +178,20 @@ function Result = plotPhotStability(MS, Args)
     %          R = pipeline.last.quality.photCalib.plotPhotStability(MS, ...
     %                  'SkipEmptyGroups', false);
     %
+    %          % Plot std(X1), std(Y1) vs median MAG_APER_3 (no arcsec
+    %          % rescale, no cos(Dec) projection -- pixel-coordinate
+    %          % stability as a function of brightness):
+    %          R = pipeline.last.quality.photCalib.plotPhotStability(MS, ...
+    %                  'QuantityGroups', {{'X1','Y1'}}, ...
+    %                  'RefMagXQuantities', {'X1','Y1'});
+    %
 
     arguments
         MS
         Args.Quantities             cell                = {}
         Args.QuantityGroups         cell                = {}
         Args.AngularQuantities      cell                = {'RA', 'Dec'}
+        Args.RefMagXQuantities      cell                = {}     % quantities plotted as Std(Q) vs median(RefMag); like AngularQuantities but without the *3600 arcsec rescale and cos(Dec) projection
         Args.RefMag                 (1,:) char          = 'MAG_APER_3'
         Args.FluxAsMag              cell                = {'FLUX_PSF','FLUX_APER_3'}
         Args.Coadd                                      = []
@@ -276,7 +302,7 @@ function Result = plotPhotStability(MS, Args)
     end
 
     % --- Pack output -----------------------------------------------------
-    PerQuantity = repmat(struct('Quantity','', 'IsAngular',false, ...
+    PerQuantity = repmat(struct('Quantity','', 'IsAngular',false, 'IsRefMagX',false, ...
         'RefMag','', 'CropsAnalyzed',{cell(1,Nmodes)}, ...
         'PerCrop',{cell(1,Nmodes)}, ...
         'AllMed',{cell(1,Nmodes)}, 'AllStd',{cell(1,Nmodes)}), 1, numel(Quantities));
@@ -285,6 +311,7 @@ function Result = plotPhotStability(MS, Args)
         D = DataByQ.(FName);
         PerQuantity(Iq).Quantity      = D.Quantity;
         PerQuantity(Iq).IsAngular     = D.IsAngular;
+        PerQuantity(Iq).IsRefMagX     = D.IsRefMagX;
         PerQuantity(Iq).RefMag        = D.RefMag;
         PerQuantity(Iq).CropsAnalyzed = D.CropsAnalyzed;
         PerQuantity(Iq).PerCrop       = D.PerCrop;
@@ -318,7 +345,7 @@ function renderGroup(QNames, DataByQ, Args, CentralCrops, Nmodes)
             D = DataByQ.(FName);
             PanelIdx = (Im - 1) * NPanelsPerMode + Iqp;
             Ax = subplot(1, Npanels, PanelIdx); hold(Ax, 'on');
-            if D.IsAngular
+            if D.IsAngular || D.IsRefMagX
                 drawAngularPanel(Ax, Q, DataByQ, Im, Args, CentralCrops);
             else
                 drawMagPanel(Ax, Q, DataByQ, Im, Args, CentralCrops);
@@ -348,8 +375,11 @@ function D = extractQuantity(MS, Q, Args)
     %   quantities, x = y = quantity. Std is computed on raw tabulated
     %   values; for angular quantities it is then rescaled by 3600 (deg
     %   → arcsec) for display.
-    IsAng = ismember(Q, Args.AngularQuantities);
-    if IsAng
+    IsAng     = ismember(Q, Args.AngularQuantities);
+    IsRefMagX = ismember(Q, Args.RefMagXQuantities);
+    % Both IsAngular and IsRefMagX put median(RefMag) on the X axis;
+    % only IsAngular triggers the *3600 / cos(Dec) Y rescale below.
+    if IsAng || IsRefMagX
         RefMag = Args.RefMag;
     else
         RefMag = Q;
@@ -360,6 +390,7 @@ function D = extractQuantity(MS, Q, Args)
 
     D.Quantity      = Q;
     D.IsAngular     = IsAng;
+    D.IsRefMagX     = IsRefMagX;
     D.RefMag        = RefMag;
     D.CropsAnalyzed = cell(1, Nmodes);
     D.PerCrop       = cell(1, Nmodes);
@@ -566,7 +597,7 @@ function renderCombined(Quantities, DataByQ, Args, CentralCrops)
         AxArr(Iq) = Ax;
         FName = matlab.lang.makeValidName(Quantities{Iq});
         D = DataByQ.(FName);
-        if D.IsAngular
+        if D.IsAngular || D.IsRefMagX
             drawAngularPanel(Ax, Quantities{Iq}, DataByQ, 1, Args, CentralCrops);
         else
             drawMagPanel(Ax, Quantities{Iq}, DataByQ, 1, Args, CentralCrops);
@@ -637,7 +668,11 @@ function drawAngularPanel(Ax, QName, DataByQ, Im, Args, CentralCrops)
     end
     set(Ax, 'YScale', 'log'); box(Ax, 'on'); grid(Ax, 'on');
     xlabel(Ax, sprintf('Median %s', D.RefMag), 'Interpreter', 'none');
-    ylabel(Ax, 'Std [arcsec]', 'Interpreter', 'none');
+    if isfield(D, 'IsRefMagX') && D.IsRefMagX
+        ylabel(Ax, sprintf('Std %s', QName), 'Interpreter', 'none');
+    else
+        ylabel(Ax, 'Std [arcsec]', 'Interpreter', 'none');
+    end
     xlim(Ax, [9 22]);
     title(Ax, QName, 'Interpreter', 'none');
 end
