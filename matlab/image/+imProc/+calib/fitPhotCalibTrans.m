@@ -38,6 +38,19 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %            'CalibArgs' - Cell array of key-value pairs forwarded to
     %                         PhotCalibTrans.calibrate. Build via local
     %                         predefCalibArgs() or manually. Default is {}.
+    %                         Calibrate arguments commonly threaded here include
+    %                         (see PhotCalibTrans.calibrate for the full list):
+    %                           'UseTran2D', 'OptSeqName', 'AuditCalibrators',
+    %                           'SearchRadius', 'PerSourceAirmass', and the
+    %                           airmass-source override block:
+    %                             'AirmassSource' ('header' | 'compute')
+    %                             'AirmassTimeKey' ('DATE-OBS' | 'JD' | 'MIDJD')
+    %                             'ObsLat' / 'ObsLon' / 'ObsHeight'
+    %                         When AirmassSource='compute', the calibration uses
+    %                         a field-centre Hardie (1962) airmass computed from
+    %                         header RA/DEC/time and observer location (mirrors
+    %                         the Python production LastCatUtils.get_airmass_from_cat
+    %                         path) instead of the header AIRMASS keyword.
     %            'ApplyConstBand' - Apply constant-band correction after
     %                         computing AB magnitudes. Adds MAG_CB_* columns
     %                         (or overwrites MAG_AB_* if ConstBandOutputMode='replace').
@@ -87,6 +100,10 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %          % Per-source airmass mode:
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
     %              'CalibArgs', {'PerSourceAirmass', true});
+    %          % Compute Hardie airmass from header RA/DEC/DATE-OBS instead of
+    %          % reading AIRMASS keyword (matches Python production):
+    %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
+    %              'CalibArgs', {'AirmassSource', 'compute'});
     %          % Emit LIMMAG/BACKMAG from this path (instead of legacy fitPhotCalibMag):
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
     %              'EvaluateLimMag', true, 'EvaluateBackMag', true);
@@ -561,6 +578,16 @@ function CalibArgs = predefCalibArgs(Args)
     %            'FluxErrorNorm'    - Flux error normalization. Default 0.5.
     %            'AirmassColName'   - Per-source airmass column. Default 'AIRMASS'.
     %            'PerSourceAirmass' - Enable per-source airmass. Default false.
+    %            'AirmassSource'    - 'header' (read AIRMASS keyword; default)
+    %                                 | 'compute' (Hardie 1962 from header
+    %                                 RA/DEC/time + observer location, matching
+    %                                 Python LastCatUtils.get_airmass_from_cat).
+    %            'AirmassTimeKey'   - Header key for observation time when
+    %                                 AirmassSource='compute'. 'DATE-OBS' (default,
+    %                                 matches production), 'JD', or 'MIDJD'.
+    %            'ObsLat'           - Observer latitude [deg]. Default 30.053072.
+    %            'ObsLon'           - Observer longitude [deg]. Default 35.040858.
+    %            'ObsHeight'        - Observer height [m]. Default 415.4.
     %            'AperCorrMethod'   - Aperture corr method. Default 'median'.
     %            'AperCorrSNColName'- S/N column for aper corr. Default 'SN'.
     %            'AperCorrMinSN'    - Min S/N for aper corr. Default 30.
@@ -616,6 +643,16 @@ function CalibArgs = predefCalibArgs(Args)
         % Per-source airmass
         Args.AirmassColName   = 'AIRMASS'   % Column name for per-source airmass
         Args.PerSourceAirmass logical = false  % Enable per-source airmass mode
+
+        % Single-airmass source: 'header' reads AIRMASS keyword,
+        % 'compute' derives a field-centre Hardie (1962) airmass from
+        % header RA/DEC/time + observer location (mirrors Python
+        % LastCatUtils.get_airmass_from_cat). Defaults match LAST Neot Semadar.
+        Args.AirmassSource   (1,:) char = 'header'   % 'header' | 'compute'
+        Args.AirmassTimeKey  (1,:) char = 'DATE-OBS' % 'DATE-OBS' | 'JD' | 'MIDJD'
+        Args.ObsLat          (1,1) double = 30.053072   % deg
+        Args.ObsLon          (1,1) double = 35.040858   % deg
+        Args.ObsHeight       (1,1) double = 415.4       % m
 
         % Aperture correction
         Args.AperCorrMethod   = 'median'    % 'median' or 'weighted'

@@ -39,6 +39,14 @@ function plotARMSHistograms(Data, Args)
     %            'LogXQuantities' - names drawn with a log X axis
     %                               (log-spaced edges, non-positive
     %                               values dropped). Default {}.
+    %            'LogYQuantities' - names drawn with a log Y axis (the
+    %                               counts / probability axis). Useful
+    %                               when the bulk of sources sit in one
+    %                               tall bin and the tail bins vanish on
+    %                               a linear scale. Pass 'all' (or the
+    %                               sentinel '__all__') to apply log Y to
+    %                               every panel regardless of quantity.
+    %                               Default {}.
     %            'Bins'           - bin count or explicit edges.
     %                               Default 30.
     %            'Normalization'  - histogram Normalization. Default
@@ -58,6 +66,12 @@ function plotARMSHistograms(Data, Args)
     %              {Tall0, Tall1}, 'Labels', {'v0','v2'}, ...
     %              'PanelGroups', {{'RA','Dec'},{'FLUX_APER_3'}}, ...
     %              'LogXQuantities', {'RA','Dec'});
+    %
+    %          % Same overlay but with a log Y (counts) axis on every
+    %          % panel -- expose the tail bins:
+    %          pipeline.last.quality.photCalib.plotARMSHistograms( ...
+    %              {Tall0, Tall1}, 'Labels', {'v0','v2'}, ...
+    %              'LogYQuantities', 'all');
     %
     %          % One combined table, split by its Cohort column:
     %          Tall = vertcat(R1.ARMS, R2.ARMS, R3.ARMS);
@@ -99,6 +113,7 @@ function plotARMSHistograms(Data, Args)
         Args.AngularQuantities cell         = {'RA','Dec'}
         Args.FluxAsMag         cell         = {'FLUX_PSF','FLUX_APER_3'}
         Args.LogXQuantities    cell         = {}
+        Args.LogYQuantities    cell         = {}     % names rendered with a log Y axis (counts axis). Use 'all' or {'__all__'} to apply to every panel.
         Args.Bins                           = 30
         Args.Normalization     (1,:) char   = 'probability'
         Args.SaveFig           logical      = false
@@ -171,6 +186,12 @@ function plotARMSHistograms(Data, Args)
                         GroupLabels{Ks}, numel(v), median(v)));
             end
             if IsLog; set(Ax, 'XScale', 'log'); end
+            % Y axis (counts/probability): log when the quantity is in
+            % LogYQuantities, or when the user passed 'all' / '__all__'.
+            ApplyLogY = ismember(Q, Args.LogYQuantities) || ...
+                        any(strcmpi(Args.LogYQuantities, 'all')) || ...
+                        any(strcmp(Args.LogYQuantities, '__all__'));
+            if ApplyLogY; set(Ax, 'YScale', 'log'); end
             grid(Ax, 'on'); box(Ax, 'on');
             U = i_armsUnit(Q, Args);
             if isempty(U)

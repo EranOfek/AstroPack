@@ -63,10 +63,11 @@ function [Result, Fig] = visitSourceStats(MS, Args)
     %          - Fig    - figure handle when Plot=true ([] otherwise).
     % Author : D. Kovaleva (May 2026)
     % Example:
-    %   [~, Coadd] = pipeline.last.load.loadVisit(VisitPath, ...
-    %                   'TempName_IndivIm', [], 'TempName_MS', []);
-    %   MS  = pipeline.last.quality.photCalib.matchEpochs(VisitPath);
-    %   R   = pipeline.last.quality.photCalib.visitSourceStats(MS, ...
+    %   % loadVisit already returns the merged MS -- no need to rebuild it
+    %   % via matchEpochs (which re-runs the cross-match from scratch).
+    %   [~, Coadd, MS] = pipeline.last.load.loadVisit(VisitPath, ...
+    %                       'TempName_IndivIm', []);
+    %   R = pipeline.last.quality.photCalib.visitSourceStats(MS, ...
     %             'Coadd', Coadd, 'Verbose', true, 'Plot', true);
     %   disp(R.Summary);
     %   disp(R.EpochTable);
