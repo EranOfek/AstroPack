@@ -129,6 +129,13 @@ classdef PhotCalibTrans < Component
         Aperture = pi * (0.1397)^2  % Telescope aperture area [m^2] (default: LAST telescope)
         ExpTime = 1             % Exposure time [s]
         NCoadd = 1              % Number of coadded images (default: single image)
+        NFramesPerCoadd = 1     % Number of proc frames each coadd is itself made of.
+                                % Stays 1 for ordinary coadds (the current default
+                                % flow). Set to e.g. 20 when calibrating a *reference*
+                                % image whose EXPTIME is the sum across NCOADD coadds,
+                                % each of which is itself a coadd of NFramesPerCoadd
+                                % proc frames. Used to scale per-frame flux:
+                                %    ExpTime_eff = ExpTime / (NCoadd * NFramesPerCoadd)
 
         % Calibrator information (empty until calibration)
         SpecData = []           % Structure with reference spectral data from selectCalibrators:
@@ -321,6 +328,15 @@ classdef PhotCalibTrans < Component
             %            'ObsHeight'      - Observer height [m]. Default 415.4 (kept
             %                               for provenance; celestial.coo.radec2azalt
             %                               does not consume it).
+            %            'NFramesPerCoadd'- Number of proc frames per coadd. Stays at
+            %                               1 for ordinary coadds. For reference
+            %                               images (header EXPTIME = sum across
+            %                               NCOADD coadds, each itself made of
+            %                               NFramesPerCoadd procs), set to e.g. 20.
+            %                               The downstream effective exposure is
+            %                               ExpTime_eff = ExpTime/(NCoadd*NFramesPerCoadd).
+            %                               Usually injected by fitPhotCalibTrans's
+            %                               IsReference/NProcsPerCoadd args. Default is 1.
             %            'MagSystem' - Magnitude system ('AB' or 'Vega'). Default is 'AB'.
             %            'Verbose' - Enable verbose output. Default is true.
             % Output : - PhotCalibTrans object with calibration results.
@@ -385,6 +401,15 @@ classdef PhotCalibTrans < Component
                 Args.FluxErrorNorm    = 0.5
                 Args.AirmassColName   = 'AIRMASS'
                 Args.PerSourceAirmass logical = false
+
+                % Number of proc frames per coadd. Stays at 1 for ordinary coadds
+                % (where EXPTIME / NCOADD already gives the per-frame exposure).
+                % Set to e.g. 20 when calibrating a reference image whose EXPTIME
+                % is the sum across NCOADD coadds, each itself a coadd of
+                % NFramesPerCoadd proc frames; then
+                %    ExpTime_eff = ExpTime / (NCOADD * NFramesPerCoadd).
+                % fitPhotCalibTrans's IsReference/NProcsPerCoadd args inject this.
+                Args.NFramesPerCoadd (1,1) double {mustBePositive, mustBeInteger} = 1
 
                 % --- Airmass override: compute from field-centre (RA, Dec, time)
                 % via Hardie (1962), mirroring the Python AbsoluteCalibration /
@@ -486,6 +511,13 @@ classdef PhotCalibTrans < Component
                 Obj.setProps(MetadataStruct);
             end
 
+            % Reference-image override: NFramesPerCoadd is caller-driven (not
+            % in the FITS header). The default 1 leaves ordinary coadds at
+            % ExpTime_eff = ExpTime/NCoadd; for reference images the caller
+            % passes NFramesPerCoadd>1 so the per-frame divisor becomes
+            % (NCoadd * NFramesPerCoadd).
+            Obj.NFramesPerCoadd = Args.NFramesPerCoadd;
+
             % --- Optional airmass override: compute from field-centre using the
             % Hardie (1962) polynomial via celestial.coo.radec2azalt (whose
             % internal call to celestial.coo.hardie uses the exact same
@@ -528,6 +560,10 @@ classdef PhotCalibTrans < Component
                 fprintf('  AirMass  = %.2f\n', Obj.AirMass);
                 fprintf('  ExpTime  = %.1f s\n', Obj.ExpTime);
                 fprintf('  NCoadd   = %d\n', Obj.NCoadd);
+                if Obj.NFramesPerCoadd ~= 1
+                    fprintf('  NFramesPerCoadd = %d  ->  ExpTime_eff = %.4f s (reference-image mode)\n', ...
+                        Obj.NFramesPerCoadd, Obj.ExpTime / (Obj.NCoadd * Obj.NFramesPerCoadd));
+                end
                 fprintf('  Temp     = %.1f C\n', Obj.Temp);
                 fprintf('  Pressure = %.1f mbar\n', Obj.Pressure);
             end
@@ -700,8 +736,9 @@ classdef PhotCalibTrans < Component
                     end
                 end
 
-                % Calculate effective exposure time (accounting for coadding)
-                ExpTime_eff = Obj.ExpTime / Obj.NCoadd;
+                % Calculate effective exposure time (accounting for coadding).
+                % NFramesPerCoadd > 1 only for reference images.
+                ExpTime_eff = Obj.ExpTime / (Obj.NCoadd * Obj.NFramesPerCoadd);
 
                 % Pre-compute MagErr for all calibrators (expensive, do once)
                 % This avoids recalculating error propagation on every costFun call
@@ -1657,7 +1694,7 @@ classdef PhotCalibTrans < Component
             end
 
             % Calculate effective exposure time (accounting for coadding)
-            ExpTime_eff = Obj.ExpTime / Obj.NCoadd;
+            ExpTime_eff = Obj.ExpTime / (Obj.NCoadd * Obj.NFramesPerCoadd);
 
             % Ensure column vectors
             Flux = Flux(:);
@@ -1711,7 +1748,7 @@ classdef PhotCalibTrans < Component
             if isempty(Args.CostArgs)
                 X = Obj.SourceData.getCol('X');
                 Y = Obj.SourceData.getCol('Y');
-                ExpTime_eff = Obj.ExpTime / Obj.NCoadd;
+                ExpTime_eff = Obj.ExpTime / (Obj.NCoadd * Obj.NFramesPerCoadd);
                 CostArgs = {'WeightMatrix', Obj.SpecData.Spec', 'TransmissionMode', true, ...
                             'CalibWavelength', Obj.SpecData.SpecWvl, 'ExpTime', ExpTime_eff, ...
                             'Aperture_area_m2', Obj.Aperture, 'X', X, 'Y', Y};
@@ -1891,7 +1928,7 @@ classdef PhotCalibTrans < Component
 
             % Get effective exposure time
             if isempty(Args.ExpTime)
-                ExpTime_eff = Obj.ExpTime / Obj.NCoadd;
+                ExpTime_eff = Obj.ExpTime / (Obj.NCoadd * Obj.NFramesPerCoadd);
             else
                 ExpTime_eff = Args.ExpTime;
             end
@@ -2895,7 +2932,7 @@ classdef PhotCalibTrans < Component
             % Compute ZP once for all flux columns
             Nrows = height(Tab);
             ZP = nan(Nrows, 1);
-            ExpTime_eff = Obj.ExpTime / Obj.NCoadd;
+            ExpTime_eff = Obj.ExpTime / (Obj.NCoadd * Obj.NFramesPerCoadd);
             ValidPosMask = true(Nrows, 1);
             if ~isempty(X)
                 InvalidPos = isnan(X) | isinf(X) | isnan(Y) | isinf(Y);
@@ -4294,7 +4331,7 @@ classdef PhotCalibTrans < Component
                 AllFunPar = PC_c.TransModel.getAllFunPar();
                 NormIdx   = find(strcmp(AllFunPar.Name, 'Norm'), 1);
                 NormOrig  = AllFunPar.Val(NormIdx);
-                ExpTime_coadd = PC_c.ExpTime / PC_c.NCoadd;
+                ExpTime_coadd = PC_c.ExpTime / (PC_c.NCoadd * PC_c.NFramesPerCoadd);
 
                 % Per-crop template header (PT_*/APCOR rows only). Cheaper
                 % per-epoch path: pre-locate the PT_1_V1 (Norm) row so we can

@@ -71,6 +71,16 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %            'LimMagMinSN'     - Lower SN bound for LimMag fit. Default is 5.
     %            'LimMagMaxSN'     - Upper SN bound for LimMag fit. Default is 50.
     %            'LimMagSN'        - SN at which to evaluate LimMag. Default is 5.
+    %            'IsReference'     - Reference-image calibration branch. For a
+    %                         reference image, header EXPTIME is the sum across
+    %                         NCOADD coadds, each itself a coadd of
+    %                         NProcsPerCoadd proc frames. When true,
+    %                         NFramesPerCoadd = NProcsPerCoadd is injected
+    %                         into CalibArgs so PhotCalibTrans computes
+    %                         ExpTime_eff = ExpTime / (NCoadd * NFramesPerCoadd).
+    %                         Default is false (ordinary coadd; NFramesPerCoadd=1).
+    %            'NProcsPerCoadd'  - Number of proc frames per coadd in a reference
+    %                         image. Only used when IsReference=true. Default is 20.
     % Output : - Result - Input object with updated catalog and header.
     %          - PhotCalib - For AstroImage/AstroCatalog: [1 x Nobj] array.
     %                        For AstroDiff/AstroZOGY: [Nobj x Nprops] array
@@ -104,6 +114,9 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %          % reading AIRMASS keyword (matches Python production):
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
     %              'CalibArgs', {'AirmassSource', 'compute'});
+    %          % Reference-image calibration (EXPTIME sums NCOADD coadds of 20 procs each):
+    %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
+    %              'IsReference', true, 'NProcsPerCoadd', 20);
     %          % Emit LIMMAG/BACKMAG from this path (instead of legacy fitPhotCalibMag):
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
     %              'EvaluateLimMag', true, 'EvaluateBackMag', true);
@@ -137,7 +150,17 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         Args.ConstBandParams = []             % Struct or .mat path
         Args.ConstBandOutputMode = 'newcol'   % 'newcol' or 'replace'
         Args.ConstBandPrefix = 'MAG_CB_'      % Prefix for constant-band columns
-        Args.match_catsHTMArgs = {}        
+        Args.match_catsHTMArgs = {}
+
+        % Reference-image branch. For a reference image, the header EXPTIME is
+        % the sum across NCOADD coadds, each of which is itself a coadd of
+        % NProcsPerCoadd proc frames. Enabling IsReference passes
+        % NFramesPerCoadd = NProcsPerCoadd into PhotCalibTrans.calibrate so
+        % that ExpTime_eff = ExpTime / (NCoadd * NFramesPerCoadd). Ordinary
+        % coadds use the default IsReference=false (NFramesPerCoadd stays 1).
+        Args.IsReference     logical = false
+        Args.NProcsPerCoadd  (1,1) double {mustBePositive, mustBeInteger} = 20
+
         Args.Verbose logical = false
     end
 
@@ -154,6 +177,14 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     % Apply predefCalibArgs defaults when no CalibArgs provided
     if isempty(Args.CalibArgs)
         Args.CalibArgs = predefCalibArgs();
+    end
+
+    % Reference-image branch: append NFramesPerCoadd so calibrate (and every
+    % method that derives ExpTime_eff) uses ExpTime / (NCoadd * NProcsPerCoadd).
+    % Appending overrides any earlier NFramesPerCoadd in CalibArgs (last write
+    % wins in the arguments-block resolution at the receiving end).
+    if Args.IsReference
+        Args.CalibArgs = [Args.CalibArgs, {'NFramesPerCoadd', Args.NProcsPerCoadd}];
     end
 
     % ====================================================================
@@ -653,6 +684,10 @@ function CalibArgs = predefCalibArgs(Args)
         Args.ObsLat          (1,1) double = 30.053072   % deg
         Args.ObsLon          (1,1) double = 35.040858   % deg
         Args.ObsHeight       (1,1) double = 415.4       % m
+
+        % Reference-image flag. Stays 1 for ordinary coadds; fitPhotCalibTrans
+        % injects NProcsPerCoadd (default 20) when IsReference=true.
+        Args.NFramesPerCoadd (1,1) double {mustBePositive, mustBeInteger} = 1
 
         % Aperture correction
         Args.AperCorrMethod   = 'median'    % 'median' or 'weighted'
