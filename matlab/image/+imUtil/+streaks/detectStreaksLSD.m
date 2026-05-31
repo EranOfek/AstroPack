@@ -84,7 +84,7 @@ function S=detectStreaksLSD(Im,filtIm,Args)
         S.Curve(i).Hmean = parfit(i).hMean;
         S.Curve(i).TransverseSigma = parfit(i).transverseSigma;
         S.Curve(i).Acceptable = parfit(i).acceptable;
-
+        S.Curve(i).TransversePSF = parfit(i).psf;
     end
     
 end
