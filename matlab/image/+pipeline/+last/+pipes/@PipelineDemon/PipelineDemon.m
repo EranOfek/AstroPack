@@ -2780,7 +2780,7 @@ classdef PipelineDemon < Component
                 Err = [];
                 try
                     Err = pipeline.last.insertDB.insertTransients2DB( ...
-                        TCL2, [Coadd.HeaderData],'DbHost', UpArgs.DbHost,'DB', UpArgs.DB);
+                        TCL2, [Coadd.HeaderData],'DbHost', UpArgs.DbHostTransients,'DB', UpArgs.DB);
                 catch ME
                     Obj.writeLog(ME, LogLevel.Error);
                 end
@@ -3145,9 +3145,9 @@ classdef PipelineDemon < Component
                                 Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
                                 PM = PasswordsManager;    
                                 DB.Password = PM.search(Args.DbName).Pass;                        
-                                Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
-                                Args.DB.query(sprintf('use %s',Args.DbName));
-                                UpArgs.pipelineIArgs = [UpArgs.pipelineIArgs,{'DBobj',Args.DB,'DB_Table_Raw',Args.DB_Table_Raw}];
+                                UpArgs.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
+                                UpArgs.DB.query(sprintf('use %s',Args.DbName));
+                                UpArgs.pipelineIArgs = [UpArgs.pipelineIArgs,{'DBobj',UpArgs.DB,'DB_Table_Raw',Args.DB_Table_Raw}];
                             end %if Args.DebugMode
                             % FFU
         
