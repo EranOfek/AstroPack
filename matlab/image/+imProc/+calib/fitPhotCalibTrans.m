@@ -71,16 +71,28 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %            'LimMagMinSN'     - Lower SN bound for LimMag fit. Default is 5.
     %            'LimMagMaxSN'     - Upper SN bound for LimMag fit. Default is 50.
     %            'LimMagSN'        - SN at which to evaluate LimMag. Default is 5.
-    %            'IsReference'     - Reference-image calibration branch. For a
-    %                         reference image, header EXPTIME is the sum across
-    %                         NCOADD coadds, each itself a coadd of
-    %                         NProcsPerCoadd proc frames. When true,
-    %                         NFramesPerCoadd = NProcsPerCoadd is injected
-    %                         into CalibArgs so PhotCalibTrans computes
-    %                         ExpTime_eff = ExpTime / (NCoadd * NFramesPerCoadd).
-    %                         Default is false (ordinary coadd; NFramesPerCoadd=1).
-    %            'NProcsPerCoadd'  - Number of proc frames per coadd in a reference
-    %                         image. Only used when IsReference=true. Default is 20.
+    %            'IsMeanImages'    - Toggle for images that are themselves a
+    %                         stack of already-coadded frames (e.g. the
+    %                         coadd-of-coadds produced by
+    %                         pipeline.last.coadd.coaddVisits). In such an
+    %                         image, header EXPTIME is the sum of EXPTIMEs
+    %                         of the NCOADD input coadds, and each input
+    %                         coadd is itself a stack of NProcsPerCoadd
+    %                         proc frames. When true, NFramesPerCoadd =
+    %                         NProcsPerCoadd is forwarded to PhotCalibTrans
+    %                         so the per-frame rate becomes
+    %                         ExpTime_eff = EXPTIME / (NCOADD * NProcsPerCoadd)
+    %                         instead of EXPTIME / NCOADD. Default is false
+    %                         (ordinary single-level coadd; NFramesPerCoadd=1).
+    %            'NProcsPerCoadd'  - Proc frames per individual input coadd.
+    %                         Only used when IsMeanImages=true. Default is 20.
+    %            'WriteComputedAirmass' - When true AND AirmassSource='compute'
+    %                         produced a finite Hardie airmass, overwrite the
+    %                         AIRMASS keyword on the source AstroHeader so that
+    %                         downstream FITS writes persist
+    %                         the computed value instead of the original LAST
+    %                         extractor AIRMASS. Silently inert when
+    %                         AirmassSource='header'. Default is false.
     % Output : - Result - Input object with updated catalog and header.
     %          - PhotCalib - For AstroImage/AstroCatalog: [1 x Nobj] array.
     %                        For AstroDiff/AstroZOGY: [Nobj x Nprops] array
@@ -114,9 +126,10 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %          % reading AIRMASS keyword (matches Python production):
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
     %              'CalibArgs', {'AirmassSource', 'compute'});
-    %          % Reference-image calibration (EXPTIME sums NCOADD coadds of 20 procs each):
+    %          % Calibrate a coadd-of-coadds (e.g. coaddVisits output):
+    %          % EXPTIME sums NCOADD input coadds, each itself a coadd of 20 procs.
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
-    %              'IsReference', true, 'NProcsPerCoadd', 20);
+    %              'IsMeanImages', true, 'NProcsPerCoadd', 20);
     %          % Emit LIMMAG/BACKMAG from this path (instead of legacy fitPhotCalibMag):
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
     %              'EvaluateLimMag', true, 'EvaluateBackMag', true);
@@ -135,7 +148,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         Args.FluxColName = 'FLUX_APER_3'
         Args.AddZP logical = true
         Args.UpdateHeader logical = true
-        Args.AddMagErr logical = false
+        Args.AddMagErr logical = true
         Args.CalcAperCorr logical = true
         Args.ApplyAperCorr logical = true
         % Default false because legacy fitPhotCalibMag still writes LIMMAG/BACKMAG.
@@ -152,14 +165,23 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         Args.ConstBandPrefix = 'MAG_CB_'      % Prefix for constant-band columns
         Args.match_catsHTMArgs = {}
 
-        % Reference-image branch. For a reference image, the header EXPTIME is
-        % the sum across NCOADD coadds, each of which is itself a coadd of
-        % NProcsPerCoadd proc frames. Enabling IsReference passes
-        % NFramesPerCoadd = NProcsPerCoadd into PhotCalibTrans.calibrate so
-        % that ExpTime_eff = ExpTime / (NCoadd * NFramesPerCoadd). Ordinary
-        % coadds use the default IsReference=false (NFramesPerCoadd stays 1).
-        Args.IsReference     logical = false
+        % For a stack of already-coadded frames (a coadd-of-coadds; e.g.
+        % the output of pipeline.last.coadd.coaddVisits), header EXPTIME is
+        % the sum of EXPTIMEs of the NCOADD input coadds, and each input
+        % coadd is itself a stack of NProcsPerCoadd proc frames. Enabling
+        % IsMeanImages forwards NFramesPerCoadd = NProcsPerCoadd into
+        % PhotCalibTrans.calibrate so that
+        %   ExpTime_eff = ExpTime / (NCoadd * NFramesPerCoadd).
+        % Ordinary single-level coadds use IsMeanImages=false (NFramesPerCoadd=1).
+        Args.IsMeanImages     logical = false
         Args.NProcsPerCoadd  (1,1) double {mustBePositive, mustBeInteger} = 20
+
+        % When AirmassSource='compute' is in effect (via CalibArgs), also
+        % overwrite the AIRMASS header keyword with the computed Hardie value.
+        % Effective only if the compute branch actually produced a finite
+        % airmass; the header value flows out through downstream FITS writes.
+        % Default false (header AIRMASS preserved).
+        Args.WriteComputedAirmass logical = false
 
         Args.Verbose logical = false
     end
@@ -179,12 +201,18 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         Args.CalibArgs = predefCalibArgs();
     end
 
-    % Reference-image branch: append NFramesPerCoadd so calibrate (and every
+    % IsMeanImages branch: append NFramesPerCoadd so calibrate (and every
     % method that derives ExpTime_eff) uses ExpTime / (NCoadd * NProcsPerCoadd).
     % Appending overrides any earlier NFramesPerCoadd in CalibArgs (last write
     % wins in the arguments-block resolution at the receiving end).
-    if Args.IsReference
+    if Args.IsMeanImages
         Args.CalibArgs = [Args.CalibArgs, {'NFramesPerCoadd', Args.NProcsPerCoadd}];
+    end
+
+    % Optional Hardie-airmass writeback: only meaningful when AirmassSource
+    % is 'compute'. Same last-write-wins forwarding as the reference branch.
+    if Args.WriteComputedAirmass
+        Args.CalibArgs = [Args.CalibArgs, {'WriteComputedAirmass', true}];
     end
 
     % ====================================================================
@@ -685,8 +713,9 @@ function CalibArgs = predefCalibArgs(Args)
         Args.ObsLon          (1,1) double = 35.040858   % deg
         Args.ObsHeight       (1,1) double = 415.4       % m
 
-        % Reference-image flag. Stays 1 for ordinary coadds; fitPhotCalibTrans
-        % injects NProcsPerCoadd (default 20) when IsReference=true.
+        % Stays 1 for ordinary single-level coadds; fitPhotCalibTrans injects
+        % NProcsPerCoadd (default 20) when IsMeanImages=true (image is a stack
+        % of already-coadded frames; see fitPhotCalibTrans IsMeanImages docs).
         Args.NFramesPerCoadd (1,1) double {mustBePositive, mustBeInteger} = 1
 
         % Aperture correction

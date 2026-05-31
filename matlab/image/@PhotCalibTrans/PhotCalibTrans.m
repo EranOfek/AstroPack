@@ -129,12 +129,15 @@ classdef PhotCalibTrans < Component
         Aperture = pi * (0.1397)^2  % Telescope aperture area [m^2] (default: LAST telescope)
         ExpTime = 1             % Exposure time [s]
         NCoadd = 1              % Number of coadded images (default: single image)
-        NFramesPerCoadd = 1     % Number of proc frames each coadd is itself made of.
-                                % Stays 1 for ordinary coadds (the current default
-                                % flow). Set to e.g. 20 when calibrating a *reference*
-                                % image whose EXPTIME is the sum across NCOADD coadds,
-                                % each of which is itself a coadd of NFramesPerCoadd
-                                % proc frames. Used to scale per-frame flux:
+        NFramesPerCoadd = 1     % Number of proc frames per individual input coadd.
+                                % Stays 1 for ordinary single-level coadds. Set to
+                                % e.g. 20 when calibrating an image built by
+                                % stacking already-coadded frames (a coadd-of-coadds,
+                                % such as the output of pipeline.last.coadd.coaddVisits):
+                                % EXPTIME is the sum of EXPTIMEs of NCOADD input
+                                % coadds, and each of those is itself a stack of
+                                % NFramesPerCoadd proc frames. Used to scale flux
+                                % to a per-frame rate:
                                 %    ExpTime_eff = ExpTime / (NCoadd * NFramesPerCoadd)
 
         % Calibrator information (empty until calibration)
@@ -328,15 +331,27 @@ classdef PhotCalibTrans < Component
             %            'ObsHeight'      - Observer height [m]. Default 415.4 (kept
             %                               for provenance; celestial.coo.radec2azalt
             %                               does not consume it).
-            %            'NFramesPerCoadd'- Number of proc frames per coadd. Stays at
-            %                               1 for ordinary coadds. For reference
-            %                               images (header EXPTIME = sum across
-            %                               NCOADD coadds, each itself made of
-            %                               NFramesPerCoadd procs), set to e.g. 20.
-            %                               The downstream effective exposure is
+            %            'WriteComputedAirmass' - When true AND AirmassSource='compute'
+            %                               produced a finite airmass, overwrite the
+            %                               AIRMASS keyword on the source AstroHeader
+            %                               (Cat.HeaderData or Args.Metadata). The
+            %                               header handle is shared with the caller,
+            %                               so downstream FITS writes carry the new
+            %                               value. Inert when AirmassSource='header'.
+            %                               Default is false.
+            %            'NFramesPerCoadd'- Number of proc frames per individual
+            %                               input coadd. Stays at 1 for ordinary
+            %                               single-level coadds. For a coadd-of-
+            %                               coadds (an image built by stacking
+            %                               already-coadded frames; e.g. the
+            %                               output of pipeline.last.coadd.coaddVisits)
+            %                               header EXPTIME sums NCOADD input coadds,
+            %                               each itself made of NFramesPerCoadd
+            %                               procs, so set to e.g. 20. The downstream
+            %                               per-frame effective exposure is
             %                               ExpTime_eff = ExpTime/(NCoadd*NFramesPerCoadd).
             %                               Usually injected by fitPhotCalibTrans's
-            %                               IsReference/NProcsPerCoadd args. Default is 1.
+            %                               IsMeanImages/NProcsPerCoadd args. Default is 1.
             %            'MagSystem' - Magnitude system ('AB' or 'Vega'). Default is 'AB'.
             %            'Verbose' - Enable verbose output. Default is true.
             % Output : - PhotCalibTrans object with calibration results.
@@ -402,13 +417,15 @@ classdef PhotCalibTrans < Component
                 Args.AirmassColName   = 'AIRMASS'
                 Args.PerSourceAirmass logical = false
 
-                % Number of proc frames per coadd. Stays at 1 for ordinary coadds
-                % (where EXPTIME / NCOADD already gives the per-frame exposure).
-                % Set to e.g. 20 when calibrating a reference image whose EXPTIME
-                % is the sum across NCOADD coadds, each itself a coadd of
-                % NFramesPerCoadd proc frames; then
+                % Number of proc frames per individual input coadd. Stays at 1
+                % for ordinary single-level coadds (where EXPTIME / NCOADD already
+                % gives the per-frame exposure). Set to e.g. 20 when calibrating
+                % a coadd-of-coadds (an image built by stacking already-coadded
+                % frames): EXPTIME sums NCOADD input coadds, each itself a stack
+                % of NFramesPerCoadd procs, so
                 %    ExpTime_eff = ExpTime / (NCOADD * NFramesPerCoadd).
-                % fitPhotCalibTrans's IsReference/NProcsPerCoadd args inject this.
+                % Usually injected by fitPhotCalibTrans's IsMeanImages /
+                % NProcsPerCoadd args.
                 Args.NFramesPerCoadd (1,1) double {mustBePositive, mustBeInteger} = 1
 
                 % --- Airmass override: compute from field-centre (RA, Dec, time)
@@ -422,6 +439,12 @@ classdef PhotCalibTrans < Component
                 Args.ObsLat          (1,1) double = 30.053072   % deg
                 Args.ObsLon          (1,1) double = 35.040858   % deg
                 Args.ObsHeight       (1,1) double = 415.4       % m (ignored by AstroPack airmass calc)
+                % When true AND AirmassSource='compute' actually yielded a finite
+                % Hardie airmass, overwrite the AIRMASS keyword on the source
+                % AstroHeader (Cat.HeaderData for AstroImage input, or the
+                % Metadata AstroHeader otherwise). Lets downstream FITS writes
+                % carry the Hardie value instead of the original LAST AIRMASS.
+                Args.WriteComputedAirmass logical = false
 
                 % Aperture correction
                 Args.CalcAperCorr logical = true
@@ -511,10 +534,11 @@ classdef PhotCalibTrans < Component
                 Obj.setProps(MetadataStruct);
             end
 
-            % Reference-image override: NFramesPerCoadd is caller-driven (not
-            % in the FITS header). The default 1 leaves ordinary coadds at
-            % ExpTime_eff = ExpTime/NCoadd; for reference images the caller
-            % passes NFramesPerCoadd>1 so the per-frame divisor becomes
+            % NFramesPerCoadd is caller-driven (not in the FITS header). The
+            % default 1 leaves ordinary single-level coadds at
+            % ExpTime_eff = ExpTime/NCoadd. For an image built by stacking
+            % already-coadded frames (a coadd-of-coadds), the caller passes
+            % NFramesPerCoadd > 1 so the per-frame divisor becomes
             % (NCoadd * NFramesPerCoadd).
             Obj.NFramesPerCoadd = Args.NFramesPerCoadd;
 
@@ -540,6 +564,17 @@ classdef PhotCalibTrans < Component
                         if Args.Verbose
                             fprintf('  AirMass overridden (Hardie) = %.4f\n', AM);
                         end
+                        % Optionally persist the Hardie value back to the
+                        % source header (AstroHeader is a handle class, so
+                        % this updates the underlying AI.HeaderData; any
+                        % later write1 with that header carries the new
+                        % AIRMASS).
+                        if Args.WriteComputedAirmass
+                            HeaderRef.replaceVal('AIRMASS', AM);
+                            if Args.Verbose
+                                fprintf('  AIRMASS header keyword updated to %.4f (Hardie)\n', AM);
+                            end
+                        end
                     else
                         Obj.msgLog(LogLevel.Warning, sprintf( ...
                             'calibrate: AirmassSource=compute but RA/DEC/%s missing or NaN — keeping header AIRMASS', ...
@@ -561,7 +596,7 @@ classdef PhotCalibTrans < Component
                 fprintf('  ExpTime  = %.1f s\n', Obj.ExpTime);
                 fprintf('  NCoadd   = %d\n', Obj.NCoadd);
                 if Obj.NFramesPerCoadd ~= 1
-                    fprintf('  NFramesPerCoadd = %d  ->  ExpTime_eff = %.4f s (reference-image mode)\n', ...
+                    fprintf('  NFramesPerCoadd = %d  ->  ExpTime_eff = %.4f s (coadd-of-coadds mode)\n', ...
                         Obj.NFramesPerCoadd, Obj.ExpTime / (Obj.NCoadd * Obj.NFramesPerCoadd));
                 end
                 fprintf('  Temp     = %.1f C\n', Obj.Temp);
@@ -737,7 +772,7 @@ classdef PhotCalibTrans < Component
                 end
 
                 % Calculate effective exposure time (accounting for coadding).
-                % NFramesPerCoadd > 1 only for reference images.
+                % NFramesPerCoadd > 1 only for coadd-of-coadds inputs.
                 ExpTime_eff = Obj.ExpTime / (Obj.NCoadd * Obj.NFramesPerCoadd);
 
                 % Pre-compute MagErr for all calibrators (expensive, do once)
