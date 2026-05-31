@@ -78,7 +78,7 @@ function [phot,extsegs,curve,stripeindices]=...
         Args.clipping {mustBeMember(Args.clipping, {'sigma','quantile','gaussianfit'})} ...
              = 'gaussianfit';
         Args.slice_width=10; % pixel units
-        Args.linephot=~false;
+        Args.linephot=true;
         Args.UseMex=true;
     end
     

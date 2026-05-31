@@ -308,7 +308,7 @@ void mexFunction(int nlhs, mxArray* plhs[],
     mxLogical* goodindices = (mxLogical*)mxGetData(plhs[1]);
     
     for (mwSize i = 0; i < n; i++) {
-        goodindices[i] = true;
+        goodindices[i] = false;
     }
     
     // Main fitting loop
@@ -374,10 +374,11 @@ void mexFunction(int nlhs, mxArray* plhs[],
 
         // Set goodindices
         if (rsquare < rthreshold || A > medianclip*A_median || sigma > medianclip*sigma_median) {
-            for (int idx : indices) {
-                goodindices[idx] = false;
-            }
             C[slice*5 + 4] = 0; // flag as not acceptable
+        } else {
+            for (int idx : indices) {
+                goodindices[idx] = true;
+            }
         }
     }
 }
