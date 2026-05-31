@@ -2487,7 +2487,7 @@ classdef PipelineDemon < Component
 
 
 
-        function [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot]=runPipelineI(Obj, RawImageList, FN_I, Args)
+        function [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I]=runPipelineI(Obj, RawImageList, FN_I, Args)
             % Reduce + save + error catching a single visit  
             
             arguments
@@ -2709,14 +2709,14 @@ classdef PipelineDemon < Component
             Obj.writeLog(Msg, LogLevel.Info);
 
             [AD, ADc, TCL1, TCL2, StatusPipeII] = pipeline.last.pipes.pipelineII(Coadd, 'RefPath', Obj.RefPath);
-            Obj.writeLog(sprintf('Transients detection - %s', StatusPipeII), LogLevel.Info);
+            Obj.writeLog(sprintf('Transients detection - %s', StatusPipeII.Msg), LogLevel.Info);
 
             if StatusPipeII.Success && UpArgs.SendTransientAlerts && ~ADc(1).ImageData.isemptyImage
                 % TODO: This part should move out of pipeII
                 % Match to multi-epochs via DB
                 try
                     [ADc, TCL2, MultiEpochStatus] = pipeline.last.transients.matchTransientsToMultiEpochs(...
-                        ADc, TCL1, 'DbHost', UpArgs.DbHost, 'DB', UpArgs.DB);
+                        ADc, TCL1, 'DbHost', UpArgs.DbHostTransients, 'DB', UpArgs.DB);
                     Obj.writeLog(sprintf('Transients match multi epoch - %s', MultiEpochStatus), LogLevel.Info);
                 catch
                     Msg{1} = sprintf('Transients match multi epoch / Failed');
@@ -2881,6 +2881,7 @@ classdef PipelineDemon < Component
                 Args.DbName              = 'last';
                 Args.DbUser              = 'default';                
 
+                Args.DbHostTransients    = 'localhost';
                 %% NEW
 
 
@@ -3144,15 +3145,15 @@ classdef PipelineDemon < Component
                                 Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
                                 PM = PasswordsManager;    
                                 DB.Password = PM.search(Args.DbName).Pass;                        
-                                DBclient = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
-                                DBclient.query(sprintf('use %s',Args.DbName));
-                                UpArgs.pipelineIArgs = [UpArgs.pipelineIArgs,{'DBobj',DBclient,'DB_Table_Raw',Args.DB_Table_Raw}];
+                                Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
+                                Args.DB.query(sprintf('use %s',Args.DbName));
+                                UpArgs.pipelineIArgs = [UpArgs.pipelineIArgs,{'DBobj',Args.DB,'DB_Table_Raw',Args.DB_Table_Raw}];
                             end %if Args.DebugMode
                             % FFU
         
         
                             % visit found - start reduction
-                            [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
+                            [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
         
                             if ~Status.PipeI || ~Status.WriteI
                                 % Move images to failed directory:
@@ -3203,7 +3204,8 @@ classdef PipelineDemon < Component
                                     % This function create the products and write
                                     % them to the disk
 
-                                    runPipelineII(Obj, Coadd, FN_Proc, UpArgs);
+                                    % runPipelineII(Obj, Coadd, FN_Proc, UpArgs);
+                                    runPipelineII(Obj, Coadd, FN_I, UpArgs);
 
                                     Status.PipeII  = true;
                                     Status.WriteII = true;
