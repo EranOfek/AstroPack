@@ -95,7 +95,7 @@ function [phot,extsegs,curve,stripeindices]=...
     nsegs=size(segs,2);
     phot=nan(1,nsegs);
     extsegs=nan(size(segs));
-    curve=struct('parfit',nan(3,0),'coord',zeros(2,0),'linephot',[],...
+    curve=struct('parfit',nan(3,0),'coord',zeros(2,0),'psf',[],'linephot',[],...
                  'transverseSigma',[],'hMean',[],'acceptable',false(0,0));
     if nargout==4
         stripeindices=cell(1,nsegs);
@@ -166,17 +166,19 @@ function [phot,extsegs,curve,stripeindices]=...
         switch Args.clipping
             case 'gaussianfit'
                 % exploring slice fits
+                xm=px(mask);
+                ym=py(mask);
                 if Args.UseMex
                     % use mex wrapper function in /mex
                     [C,goodindices,tm] = ...
                         imUtil.streaks.mex.sliceGaussianProfile([x1ext,y1ext],...
-                        [x2ext,y2ext],[x1,y1],[x2,y2],px(mask),py(mask),pp,...
+                        [x2ext,y2ext],[x1,y1],[x2,y2],xm,ym,pp,...
                         'slice_width',Args.slice_width,...
                         'rthreshold',Args.sigmaclip);
                 else
                     % use private function, at the bottom of this file
                     [C,goodindices,tm] = sliceGaussianProfile([x1ext,y1ext],...
-                        [x2ext,y2ext],[x1,y1],[x2,y2],px(mask),py(mask),pp,...
+                        [x2ext,y2ext],[x1,y1],[x2,y2],xm,ym,pp,...
                         'slice_width',Args.slice_width,...
                         'rthreshold',Args.sigmaclip);
                 end
@@ -188,6 +190,7 @@ function [phot,extsegs,curve,stripeindices]=...
                 smask= false(size(mask));
                 mindexes=find(mask);
                 smask(mindexes(goodindices)) = true;
+                curve(i).psf=transversePSF([x1,y1],[x2,y2],xm,ym,pp,offside);
             case 'sigma'
                 % sigma clipped sum (clip only brighter, not darker)
                 smask=mask & im<mpp+Args.sigmaclip*spp;
@@ -456,5 +459,21 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,Xb1,Xb2,x,y,W,Args)
         H(C(4,:)<Args.rthreshold)=NaN;
         plot(tm, H, '-k','LineWidth',2)
         hold off
+    end
+end
+
+%%
+function psf=transversePSF(X1,X2,x,y,W,offside)
+% compute a cumulative streak PSF binning the mediating the sagittal values
+    L=sqrt((X2-X1)*(X2-X1)');
+    T=((X2(1)-X1(1))*(x-X1(1)) + (X2(2)-X1(2))*(y-X1(2)))/L^2;
+    q= T>=0 & T<=1;
+    D=((X2(1)-X1(1))*(y(q)-X1(2)) - (X2(2)-X1(2))*(x(q)-X1(1)))/L;
+    Wq=W(q);
+    psf=nan(1,2*offside+1);
+    % FIXME - -offside<D<offside, but we want zero centered psf -> non
+    %  unitary bins
+    for i=-offside:offside
+        psf(i+offside+1)=median(Wq(D>=i & D<i+1),'omitnan');
     end
 end
