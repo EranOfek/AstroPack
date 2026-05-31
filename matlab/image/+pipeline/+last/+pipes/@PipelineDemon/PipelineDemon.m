@@ -2708,7 +2708,8 @@ classdef PipelineDemon < Component
             Msg{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineII start executing pipelineII for visit');
             Obj.writeLog(Msg, LogLevel.Info);
 
-            [AD, ADc, TCL1, TCL2, StatusPipeII] = pipeline.last.pipes.pipelineII(Coadd, 'RefPath', Obj.RefPath);
+            [AD, ADc, TCL1, TCL2, StatusPipeII] = pipeline.last.pipes.pipelineII(Coadd, 'RefPath', Obj.RefPath,...
+                                                  'MinimumNCoadd',UpArgs.PipelineIIMininumNCoadd);
             Obj.writeLog(sprintf('Transients detection - %s', StatusPipeII.Msg), LogLevel.Info);
 
             if StatusPipeII.Success && UpArgs.SendTransientAlerts && ~ADc(1).ImageData.isemptyImage
@@ -2948,7 +2949,12 @@ classdef PipelineDemon < Component
                 
                 Args.CompressedOutput  = [];                % if empty, write FITS files ('fz' will lead to FITS.fz compression) 
 
+                % -- PipelineII 
+                
+                Args.PipelineIIMininumNCoadd = 10;
+
                 % -- PipelineII products
+
                 Args.SaveVisitProductII = {'Image','Mask','Cat','PSF'};
                 Args.SaveVisitHeaderII = [true,false,true,false];
                 Args.SaveTCL1 logical = true;
@@ -3189,23 +3195,17 @@ classdef PipelineDemon < Component
                                         fclose(FID);
                                     case 'none'
                                         % do nothing
-
                                     otherwise
                                         error('Unknown FailMethod option %s',Args.FailMethod);
                                 end
-
-    
-                                
+                                   
                             end % if ~Status.PipeI || ~Status.WriteI
         
                             if Status.PipeI && Status.WriteI && Status.MoveRaw
                                 % continue to pipeline II
                                 try
                                     % call method runPipelineII(Obj, Coadd, FN_I, Args)
-                                    % This function create the products and write
-                                    % them to the disk
-
-                                    % runPipelineII(Obj, Coadd, FN_Proc, UpArgs);
+                                    % This function creates the products and writes them to the disk                                   
                                     runPipelineII(Obj, Coadd, FN_I, UpArgs);
 
                                     Status.PipeII  = true;
