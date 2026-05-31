@@ -10,9 +10,10 @@
 function Output = processRequest(Input)
     % Process request: dispatch on action (flat JSON, no inner json_text).
     %
-    % Input  : item struct with .action ('health'|'slew'|'slew_batch') and action-specific fields.
+    % Input  : item struct with .action ('health'|'slew'|'slew_batch'|'power_limits') and action-specific fields.
     %            Attitude objects may include .roll (Python Attitude model); slew time is RA/Dec-only — roll is not used.
-    % Output : ApiBaseResponse-style: .status ('ok'|'error'), .message; for 'slew' also .slew, .direct; for 'slew_batch' .results
+    % Output : ApiBaseResponse-style: .status ('ok'|'error'), .message; for 'slew' also .slew, .direct;
+    %            for 'slew_batch' .results; for 'power_limits' also .soft_max_sun_ang_dist, .is_hard, .hard_dur_min
     %
     % Author : Chen Tishler (2021), refactored for flat API (2026)
 
@@ -28,6 +29,8 @@ function Output = processRequest(Input)
             Output = processSlew(Input);
         elseif strcmp(Input.action, 'slew_batch')
             Output = processSlewBatch(Input);
+        elseif strcmp(Input.action, 'power_limits')
+            Output = processPowerLimits(Input);
         else
             Output.status  = 'error';            
             Output.message = 'unknown action';
@@ -121,6 +124,36 @@ function Output = processSlewBatch(Input)
     catch ex
         Output.message = sprintf('MATLAB: processSlewBatch exception: %s', ex.message);
         Output.status  = 'error';
+        io.msgLog(LogLevel.Error, Output.message);
+    end
+end
+
+% ===========================================================================
+
+function Output = processPowerLimits(Input)
+    % Process power_limits request: calculate solar-panel soft/hard limits.
+    % Input:   Input - struct with .times, optional .dod, .coo, .max_ang, .min_ang,
+    %                  .base_dur_min, .max_dod
+    % Output:  Output - struct with .status, .message, .soft_max_sun_ang_dist,
+    %                    .is_hard, .hard_dur_min
+
+    try
+        if ~isfield(Input, 'times') || isempty(Input.times)
+            Output.status = 'error';
+            Output.message = 'processPowerLimits: Missing field "times"';
+            return;
+        end
+
+        res = ultrasat.services.slew_calc.powerLimitsWrapper(Input);
+
+        Output.status = 'ok';
+        Output.message = '';
+        Output.soft_max_sun_ang_dist = res.soft_max_sun_ang_dist;
+        Output.is_hard = res.is_hard;
+        Output.hard_dur_min = res.hard_dur_min;
+    catch ex
+        Output.status = 'error';
+        Output.message = sprintf('MATLAB: processPowerLimits exception: %s', ex.message);
         io.msgLog(LogLevel.Error, Output.message);
     end
 end
