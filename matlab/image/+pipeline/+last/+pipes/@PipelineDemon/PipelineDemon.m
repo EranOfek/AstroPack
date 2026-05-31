@@ -2964,6 +2964,7 @@ classdef PipelineDemon < Component
                 Args.DebugMode         = false;
 
                 Args.FailMethod        = 'move';  % 'move'|'report'|'none'
+                Args.Backup            = false;
             end
             RAD = 180./pi;
             SEC_DAY = 86400;
@@ -3234,14 +3235,14 @@ classdef PipelineDemon < Component
                             end
         
                             % Backup the data
-                            % if Args.Backup
-                            %     BackupPath = FN_Coadd.genPath('Level','proc');
-                            %     BackupPath = strrep(BackupPath,'//','/');
-                            %     BackupStr = sprintf("last-backup --source %s --extra ""--exclude=*/raw --exclude=*_sci_proc_Image_* --exclude=*_sci_proc_Mask_* --exclude=*_sci_proc_PSF_* "" &", BackupPath);
-                            %     system(BackupStr);
-                            %     Msg{1} = sprintf('pipeline.DemonLAST backup started');
-                            %     Obj.writeLog(Msg, LogLevel.Info);
-                            % end
+                            if Args.Backup
+                                BackupPath = FN_I.genPath;
+                                %     BackupPath = strrep(BackupPath,'//','/');
+                                BackupStr = sprintf("last-backup --source %s --extra ""--exclude=*/raw --exclude=*_sci_proc_Image_* --exclude=*_sci_proc_Mask_* --exclude=*_sci_proc_PSF_* "" &", BackupPath);
+                                system(BackupStr);
+                                Msg{1} = sprintf('pipeline.DemonLAST backup started');
+                                Obj.writeLog(Msg, LogLevel.Info);
+                            end
         
                             Msg = sprintf('Pipeline summary status - PipeI: %d, Write: %d, Move: %d', Status.PipeI, Status.WriteI, Status.MoveRaw);
                             Obj.writeLog(Msg, LogLevel.Info);
