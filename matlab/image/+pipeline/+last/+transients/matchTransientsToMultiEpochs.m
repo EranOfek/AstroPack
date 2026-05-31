@@ -102,7 +102,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
     Reported = nan(NTran,1);
     TranCatLevel2 = TranCatLevel2.insertCol(Reported,inf,'Reported','');
 
-    DB.useDB(Args.DbName);
+    % DB.useDB(Args.DbName);
 
     % Get number of positive candidates
     Npos = sum(Flags == 0);
