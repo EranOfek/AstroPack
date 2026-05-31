@@ -61,7 +61,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         Args.SameTelOnly logical = false;
         Args.killDuplicates logical = true;
 
-        Args.MinimumNCoadd = 18;
+        Args.MinimumNCoadd = 18; 
         Args.MaximumCenterOffset = 0.86;
         Args.MinimumOverlapFraction = 0.5;
 
@@ -159,7 +159,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Preload refs
 
     % Get name of New image and search for Ref image via wildcards
-    FN = FileNames.generateFromFileName(New(1).ImageData.FileName);
+    FN = FileNames.generateFromFileName(cellstr(New(1).ImageData.FileName));
     FNref = FN.copy();
 
     % Convert telescope designation to wildcard if Refs from other
@@ -255,7 +255,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         end
 
         % Generate New and Ref filenames properly
-        FN = FileNames.generateFromFileName(New(Iobj).ImageData.FileName);
+        FN = FileNames.generateFromFileName(cellstr(New(Iobj).ImageData.FileName));
         NewName = FN.genFile;
         RefName = FNrref.genFile;
         
