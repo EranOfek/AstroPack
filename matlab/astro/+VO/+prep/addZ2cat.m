@@ -1,10 +1,24 @@
 function [AllZ,Z] = addZ2cat(Cat, Args)
-    % One line description
-    %     Optional detailed description
-    % Input  : - 
-    %          - 
+    % Add redshift to catalog
+    % Input  : - Matrix containing catalog.
+    %            This matrix containis RA and Dec in radians.
     %          * ...,key,val,... 
-    % Output : - 
+    %            'ColRA' - Index of RA column. Default is 1.    
+    %            'ColDec' - Index of Dec column. Default is 2.
+    %            'Radius' - Search radius [arcsec]. Default is 5.
+    %            'ColRadius' - If radius is empty, then will take it from
+    %                   this column index in the catalog.
+    %                   Default is 4.
+    %            'Radius2as' - If Radius is empty, then use this function
+    %                   to convert the radius column in the catalog into arcsec.
+    %                   Default is @(V) 3.*10.^V
+    %            'CatZ'  - Which catsHTM catalogs to use, and the column
+    %                   index of the redshift columns.
+    %                   Default is 'NEDz', 'SpecSDSSDR17' and 'DESIdr1zpix'
+    %
+    % Output : - A amtrix of redshift from which catalog and for each
+    %            source.
+    %          - A vector of best redshift for each source.
     % Author : Eran Ofek (2026 May) 
     % Example: AllZ=VO.prep.addZ2cat(PGC.Cat);
 
@@ -12,7 +26,7 @@ function [AllZ,Z] = addZ2cat(Cat, Args)
         Cat
         Args.ColRA             = 1;
         Args.ColDec            = 2;
-        Args.Radius            = 3;
+        Args.Radius            = 5;
         Args.ColRadius         = 4
         Args.Radius2as         = @(V) 3.*10.^V;
 

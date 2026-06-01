@@ -626,10 +626,10 @@ classdef CompositeFun < handle
                 FunList struct
                 Args.MetadataValues cell = {}
                 Args.OptimizationSequence = []
-                Args.UseTran2D logical = false
+                Args.UseTran2D logical = true
                 Args.Tran2DType = 'cheby1_4_xt'
-                Args.XPixel = 1726
-                Args.YPixel = 1726
+                Args.XPixel = 1716
+                Args.YPixel = 1716
                 Args.Verbose logical = false
             end
 

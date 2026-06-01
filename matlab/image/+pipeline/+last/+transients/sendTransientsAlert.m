@@ -320,7 +320,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
         if ~isempty(Args.SavePath)
 
             % Construct image name
-            FN = FileNames.generateFromFileName(Transient.New.ImageData.FileName);
+            FN = FileNames.generateFromFileName(cellstr(Transient.New.ImageData.FileName));
             ImageFN = FN.copy();
             ImageFN.Level = {'coadd.zogyD'};
             ImageFN.Product = {'Image'};

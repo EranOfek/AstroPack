@@ -2487,7 +2487,7 @@ classdef PipelineDemon < Component
 
 
 
-        function [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot]=runPipelineI(Obj, RawImageList, FN_I, Args)
+        function [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I]=runPipelineI(Obj, RawImageList, FN_I, Args)
             % Reduce + save + error catching a single visit  
             
             arguments
@@ -2708,15 +2708,16 @@ classdef PipelineDemon < Component
             Msg{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineII start executing pipelineII for visit');
             Obj.writeLog(Msg, LogLevel.Info);
 
-            [AD, ADc, TCL1, TCL2, StatusPipeII] = pipeline.last.pipes.pipelineII(Coadd, 'RefPath', Obj.RefPath);
-            Obj.writeLog(sprintf('Transients detection - %s', StatusPipeII), LogLevel.Info);
+            [AD, ADc, TCL1, TCL2, StatusPipeII] = pipeline.last.pipes.pipelineII(Coadd, 'RefPath', Obj.RefPath,...
+                                                  'MinimumNCoadd',UpArgs.PipelineIIMininumNCoadd);
+            Obj.writeLog(sprintf('Transients detection - %s', StatusPipeII.Msg), LogLevel.Info);
 
             if StatusPipeII.Success && UpArgs.SendTransientAlerts && ~ADc(1).ImageData.isemptyImage
                 % TODO: This part should move out of pipeII
                 % Match to multi-epochs via DB
                 try
                     [ADc, TCL2, MultiEpochStatus] = pipeline.last.transients.matchTransientsToMultiEpochs(...
-                        ADc, TCL1, 'DbHost', UpArgs.DbHost, 'DB', UpArgs.DB);
+                        ADc, TCL1, 'DbHost', UpArgs.DbHostTransients, 'DB', UpArgs.DB);
                     Obj.writeLog(sprintf('Transients match multi epoch - %s', MultiEpochStatus), LogLevel.Info);
                 catch
                     Msg{1} = sprintf('Transients match multi epoch / Failed');
@@ -2735,7 +2736,7 @@ classdef PipelineDemon < Component
                 end
             end
 
-            if StatusPipelineII.Sucess
+            if StatusPipeII.Success
                 saveDataProductsII(Obj, AD, Coadd, TCL1, TCL2, FN_Proc, UpArgs);
             end
         end
@@ -2747,7 +2748,7 @@ classdef PipelineDemon < Component
             % Save sub-image products
             if ~isempty(UpArgs.SaveVisitProductII)
                 for Iobj=Nobj:-1:1
-                    FN = FileNames.generateFromFileName(AD(Iobj).New.ImageData.FileName);
+                    FN = FileNames.generateFromFileName(cellstr(AD(Iobj).New.ImageData.FileName));
                     % Set AD name
                     FNad = FN.copy();
                     FNad.Level = {'coadd.zogyD'};
@@ -2762,7 +2763,7 @@ classdef PipelineDemon < Component
 
             % Save TCL1 to disk
             if UpArgs.SaveTCL1 && ~TCL1.isemptyCatalog
-                FN = FileNames.generateFromFileName(AD(1).New.ImageData.FileName);
+                FN = FileNames.generateFromFileName(cellstr(AD(1).New.ImageData.FileName));
                 FN_merged = FN.copy();
                 FN_merged.Level = {'coadd.zogyD'};
                 FN_merged.CropID = 0;
@@ -2780,7 +2781,7 @@ classdef PipelineDemon < Component
                 Err = [];
                 try
                     Err = pipeline.last.insertDB.insertTransients2DB( ...
-                        TCL2, [Coadd.HeaderData],'DbHost', UpArgs.DbHost,'DB', UpArgs.DB);
+                        TCL2, [Coadd.HeaderData],'DbHost', UpArgs.DbHostTransients,'DB', UpArgs.DB);
                 catch ME
                     Obj.writeLog(ME, LogLevel.Error);
                 end
@@ -2881,6 +2882,7 @@ classdef PipelineDemon < Component
                 Args.DbName              = 'last';
                 Args.DbUser              = 'default';                
 
+                Args.DbHostTransients    = 'localhost';
                 %% NEW
 
 
@@ -2947,7 +2949,12 @@ classdef PipelineDemon < Component
                 
                 Args.CompressedOutput  = [];                % if empty, write FITS files ('fz' will lead to FITS.fz compression) 
 
+                % -- PipelineII 
+                
+                Args.PipelineIIMininumNCoadd = 10;
+
                 % -- PipelineII products
+
                 Args.SaveVisitProductII = {'Image','Mask','Cat','PSF'};
                 Args.SaveVisitHeaderII = [true,false,true,false];
                 Args.SaveTCL1 logical = true;
@@ -2964,6 +2971,7 @@ classdef PipelineDemon < Component
                 Args.DebugMode         = false;
 
                 Args.FailMethod        = 'move';  % 'move'|'report'|'none'
+                Args.Backup            = false;
             end
             RAD = 180./pi;
             SEC_DAY = 86400;
@@ -3144,15 +3152,15 @@ classdef PipelineDemon < Component
                                 Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
                                 PM = PasswordsManager;    
                                 DB.Password = PM.search(Args.DbName).Pass;                        
-                                DBclient = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
-                                DBclient.query(sprintf('use %s',Args.DbName));
-                                UpArgs.pipelineIArgs = [UpArgs.pipelineIArgs,{'DBobj',DBclient,'DB_Table_Raw',Args.DB_Table_Raw}];
+                                UpArgs.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
+                                UpArgs.DB.query(sprintf('use %s',Args.DbName));
+                                UpArgs.pipelineIArgs = [UpArgs.pipelineIArgs,{'DBobj',UpArgs.DB,'DB_Table_Raw',Args.DB_Table_Raw}];
                             end %if Args.DebugMode
                             % FFU
         
         
                             % visit found - start reduction
-                            [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
+                            [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
         
                             if ~Status.PipeI || ~Status.WriteI
                                 % Move images to failed directory:
@@ -3187,23 +3195,18 @@ classdef PipelineDemon < Component
                                         fclose(FID);
                                     case 'none'
                                         % do nothing
-
                                     otherwise
                                         error('Unknown FailMethod option %s',Args.FailMethod);
                                 end
-
-    
-                                
+                                   
                             end % if ~Status.PipeI || ~Status.WriteI
         
                             if Status.PipeI && Status.WriteI && Status.MoveRaw
                                 % continue to pipeline II
                                 try
                                     % call method runPipelineII(Obj, Coadd, FN_I, Args)
-                                    % This function create the products and write
-                                    % them to the disk
-
-                                    runPipelineII(Obj, Coadd, FN_Proc, UpArgs);
+                                    % This function creates the products and writes them to the disk                                   
+                                    runPipelineII(Obj, Coadd, FN_I, UpArgs);
 
                                     Status.PipeII  = true;
                                     Status.WriteII = true;
@@ -3219,11 +3222,11 @@ classdef PipelineDemon < Component
                                     save('-v7.3', FailedInfoFileName, Status)
                                     cd(PWD);
                                     Status.PipeII  = false;
-                                    Status.WriteII = false;
-    
+                                    Status.WriteII = false;   
                                 end
-                                
-        
+                            else
+                                Status.PipeII  = false;
+                                Status.WriteII = false;
                             end %if Status.PipeI && Status.WriteI && Status.MoveRaw
           
                                 
@@ -3234,18 +3237,19 @@ classdef PipelineDemon < Component
                             end
         
                             % Backup the data
-                            % if Args.Backup
-                            %     BackupPath = FN_Coadd.genPath('Level','proc');
-                            %     BackupPath = strrep(BackupPath,'//','/');
-                            %     BackupStr = sprintf("last-backup --source %s --extra ""--exclude=*/raw --exclude=*_sci_proc_Image_* --exclude=*_sci_proc_Mask_* --exclude=*_sci_proc_PSF_* "" &", BackupPath);
-                            %     system(BackupStr);
-                            %     Msg{1} = sprintf('pipeline.DemonLAST backup started');
-                            %     Obj.writeLog(Msg, LogLevel.Info);
-                            % end
+                            if Args.Backup
+                                BackupPath = FN_I.genPath;
+                                %     BackupPath = strrep(BackupPath,'//','/');
+                                BackupStr = sprintf("last-backup --source %s --extra ""--exclude=*/raw --exclude=*_sci_proc_Image_* --exclude=*_sci_proc_Mask_* --exclude=*_sci_proc_PSF_* "" &", BackupPath);
+                                system(BackupStr);
+                                Msg{1} = sprintf('pipeline.DemonLAST backup started');
+                                Obj.writeLog(Msg, LogLevel.Info);
+                            end
         
                             Msg = sprintf('Pipeline summary status - PipeI: %d, Write: %d, Move: %d', Status.PipeI, Status.WriteI, Status.MoveRaw);
                             Obj.writeLog(Msg, LogLevel.Info);
-                            
+                            Msg = sprintf('Pipeline summary status - PipeII: %d, Write: %d', Status.PipeII, Status.WriteII);
+                            Obj.writeLog(Msg, LogLevel.Info);                            
         
                             % check if stop loop
                             if Args.StopButton && StopGUI()

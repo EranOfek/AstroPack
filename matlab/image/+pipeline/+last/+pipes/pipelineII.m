@@ -75,6 +75,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         Args.FilterConfigFile = '';
 
         Args.PixScale = 1.25;
+        Args.PrecompKxKySize = [1716, 1716];
 
         Args.InjectedSrcs = [];
         Args.RePopRefPSF = false;
@@ -96,6 +97,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     AD = AstroZOGY();
     ADc = AstroZOGY();
     TCL1 = AstroCatalog();
+    TCL2 = AstroCatalog();
 
     % Some unit conversion parameters
     Rad2Arcsec = 3600.*180./pi; %206265;
@@ -363,7 +365,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Derive Scorr stat image
     AD.subtractionScorr;
     % Derive Z2 stat image
-    AD.translient;
+    AD.translient('PrecompKxKySize',Args.PrecompKxKySize);
 
     % 8: ----- Find and process transients -----
     

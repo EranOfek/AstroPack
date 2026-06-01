@@ -55,12 +55,12 @@ function [Result] = forcedPhotNew(Obj, Args)
         
         Args.MomentMaxIter           = 0;       % 0 - no iterations
         Args.UseMomCoo logical       = false;
-        Args.AperRadius              = [2 4 6];
+        Args.AperRadius              = [3 5 6 7];
         Args.Annulus                 = [10 12];
 
         
         
-        Args.AnnulusRad              = 2;
+        Args.AnnulusRad              = 3;
         Args.backgroundCubeArgs cell = {};
         
         Args.FlagsHalfSize           = 3;
