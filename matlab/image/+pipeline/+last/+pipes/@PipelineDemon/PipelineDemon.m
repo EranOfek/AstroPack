@@ -2736,7 +2736,7 @@ classdef PipelineDemon < Component
                 end
             end
 
-            if StatusPipelineII.Sucess
+            if StatusPipeII.Sucess
                 saveDataProductsII(Obj, AD, Coadd, TCL1, TCL2, FN_Proc, UpArgs);
             end
         end
@@ -2748,7 +2748,7 @@ classdef PipelineDemon < Component
             % Save sub-image products
             if ~isempty(UpArgs.SaveVisitProductII)
                 for Iobj=Nobj:-1:1
-                    FN = FileNames.generateFromFileName(AD(Iobj).New.ImageData.FileName);
+                    FN = FileNames.generateFromFileName(cellstr(AD(Iobj).New.ImageData.FileName));
                     % Set AD name
                     FNad = FN.copy();
                     FNad.Level = {'coadd.zogyD'};
@@ -2763,7 +2763,7 @@ classdef PipelineDemon < Component
 
             % Save TCL1 to disk
             if UpArgs.SaveTCL1 && ~TCL1.isemptyCatalog
-                FN = FileNames.generateFromFileName(AD(1).New.ImageData.FileName);
+                FN = FileNames.generateFromFileName(cellstr(AD(1).New.ImageData.FileName));
                 FN_merged = FN.copy();
                 FN_merged.Level = {'coadd.zogyD'};
                 FN_merged.CropID = 0;
