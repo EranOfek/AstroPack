@@ -122,8 +122,10 @@ function merged=merge_segments(segs,offline,angle,score)
 
     sintol=sin(angle);
 
-    % remove segments with low score
-    segs=segs(:,segs(7,:)>score);
+    if size(segs,1)>=7
+        % remove segments with low score
+        segs=segs(:,segs(7,:)>score);
+    end
 
     % initialize empty merged
     merged=zeros(4,0);
