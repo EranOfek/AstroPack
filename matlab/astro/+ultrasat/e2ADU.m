@@ -7,6 +7,8 @@ function Result = e2ADU(Count, LowGain)
     %        - the low gain flag
     % Output: - an integer number, which can be losslessly converted to a 14-bit binary
     % Author: A.M. Krassilchthcikov (Jul 2023)
+    % Example: Count = [1 100 1e5]; LowGain = [0 0 1];
+    %          R = ultrasat.e2ADU(Count, LowGain)
     arguments
         Count
         LowGain

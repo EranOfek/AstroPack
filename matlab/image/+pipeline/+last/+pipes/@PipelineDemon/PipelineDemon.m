@@ -2708,7 +2708,8 @@ classdef PipelineDemon < Component
             Msg{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineII start executing pipelineII for visit');
             Obj.writeLog(Msg, LogLevel.Info);
 
-            [AD, ADc, TCL1, TCL2, StatusPipeII] = pipeline.last.pipes.pipelineII(Coadd, 'RefPath', Obj.RefPath);
+            [AD, ADc, TCL1, TCL2, StatusPipeII] = pipeline.last.pipes.pipelineII(Coadd, 'RefPath', Obj.RefPath,...
+                                                  'MinimumNCoadd',UpArgs.PipelineIIMininumNCoadd);
             Obj.writeLog(sprintf('Transients detection - %s', StatusPipeII.Msg), LogLevel.Info);
 
             if StatusPipeII.Success && UpArgs.SendTransientAlerts && ~ADc(1).ImageData.isemptyImage
@@ -2735,7 +2736,7 @@ classdef PipelineDemon < Component
                 end
             end
 
-            if StatusPipelineII.Sucess
+            if StatusPipeII.Success
                 saveDataProductsII(Obj, AD, Coadd, TCL1, TCL2, FN_Proc, UpArgs);
             end
         end
@@ -2747,7 +2748,7 @@ classdef PipelineDemon < Component
             % Save sub-image products
             if ~isempty(UpArgs.SaveVisitProductII)
                 for Iobj=Nobj:-1:1
-                    FN = FileNames.generateFromFileName(AD(Iobj).New.ImageData.FileName);
+                    FN = FileNames.generateFromFileName(cellstr(AD(Iobj).New.ImageData.FileName));
                     % Set AD name
                     FNad = FN.copy();
                     FNad.Level = {'coadd.zogyD'};
@@ -2762,7 +2763,7 @@ classdef PipelineDemon < Component
 
             % Save TCL1 to disk
             if UpArgs.SaveTCL1 && ~TCL1.isemptyCatalog
-                FN = FileNames.generateFromFileName(AD(1).New.ImageData.FileName);
+                FN = FileNames.generateFromFileName(cellstr(AD(1).New.ImageData.FileName));
                 FN_merged = FN.copy();
                 FN_merged.Level = {'coadd.zogyD'};
                 FN_merged.CropID = 0;
@@ -2948,7 +2949,12 @@ classdef PipelineDemon < Component
                 
                 Args.CompressedOutput  = [];                % if empty, write FITS files ('fz' will lead to FITS.fz compression) 
 
+                % -- PipelineII 
+                
+                Args.PipelineIIMininumNCoadd = 10;
+
                 % -- PipelineII products
+
                 Args.SaveVisitProductII = {'Image','Mask','Cat','PSF'};
                 Args.SaveVisitHeaderII = [true,false,true,false];
                 Args.SaveTCL1 logical = true;
@@ -3189,23 +3195,17 @@ classdef PipelineDemon < Component
                                         fclose(FID);
                                     case 'none'
                                         % do nothing
-
                                     otherwise
                                         error('Unknown FailMethod option %s',Args.FailMethod);
                                 end
-
-    
-                                
+                                   
                             end % if ~Status.PipeI || ~Status.WriteI
         
                             if Status.PipeI && Status.WriteI && Status.MoveRaw
                                 % continue to pipeline II
                                 try
                                     % call method runPipelineII(Obj, Coadd, FN_I, Args)
-                                    % This function create the products and write
-                                    % them to the disk
-
-                                    % runPipelineII(Obj, Coadd, FN_Proc, UpArgs);
+                                    % This function creates the products and writes them to the disk                                   
                                     runPipelineII(Obj, Coadd, FN_I, UpArgs);
 
                                     Status.PipeII  = true;
@@ -3222,11 +3222,11 @@ classdef PipelineDemon < Component
                                     save('-v7.3', FailedInfoFileName, Status)
                                     cd(PWD);
                                     Status.PipeII  = false;
-                                    Status.WriteII = false;
-    
+                                    Status.WriteII = false;   
                                 end
-                                
-        
+                            else
+                                Status.PipeII  = false;
+                                Status.WriteII = false;
                             end %if Status.PipeI && Status.WriteI && Status.MoveRaw
           
                                 
@@ -3248,7 +3248,8 @@ classdef PipelineDemon < Component
         
                             Msg = sprintf('Pipeline summary status - PipeI: %d, Write: %d, Move: %d', Status.PipeI, Status.WriteI, Status.MoveRaw);
                             Obj.writeLog(Msg, LogLevel.Info);
-                            
+                            Msg = sprintf('Pipeline summary status - PipeII: %d, Write: %d', Status.PipeII, Status.WriteII);
+                            Obj.writeLog(Msg, LogLevel.Info);                            
         
                             % check if stop loop
                             if Args.StopButton && StopGUI()
