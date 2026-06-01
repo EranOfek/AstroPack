@@ -175,6 +175,7 @@ function [phot,extsegs,curve,stripeindices]=...
         pp=im(mask);
         mpp=mean(pp,'omitnan');
         spp=std(pp,'omitnan');
+        hm=[];
         
         % contaminators clipping methods
         switch Args.clipping
@@ -198,6 +199,8 @@ function [phot,extsegs,curve,stripeindices]=...
                 curve(i).hMean= C(2,:);
                 curve(i).transverseSigma= C(3,:);
                 curve(i).acceptable= C(5,:)==1;
+                hm=C(2,:);
+                hm(C(5,:)==0)=NaN;
                 scpp=pp(goodindices);
                 smask= false(size(mask));
                 mindexes=find(mask);
@@ -261,7 +264,8 @@ function [phot,extsegs,curve,stripeindices]=...
                 end
         end
         
-        [X,Y]=segmentParabolicOffset([x1ext,y1ext],[x2ext,y2ext],curve(i).parfit,tm);
+        [X,Y]=segmentParabolicOffset([x1ext,y1ext],[x2ext,y2ext],...
+                           curve(i).parfit,tm, hm);
         curve(i).coord=[X',Y'];
         
         % second pass photometry: only consider the pixels traversed by
@@ -328,7 +332,7 @@ function C = weightedParabolicOffset(X1,X2,x,y,W,testplot)
 end
 
 %%
-function [X,Y]=segmentParabolicOffset(X1,X2,C,t)
+function [X,Y]=segmentParabolicOffset(X1,X2,C,t,h1)
     % generates X,Y points of a parabola offset from a segments, with extremes
     %  X1 and X2
     % The equation of the parabola is
@@ -336,15 +340,20 @@ function [X,Y]=segmentParabolicOffset(X1,X2,C,t)
     % where h(t) is the orthogonal distance from the segment. t is the
     %  intrinsic coordinate, so that h(0) is the distance from X1 and h(1)
     %  that from X2. If omitted, t=linspace(0,1,100)
+    % If h1 is provided, X and Y are computed from h1 instead of from h(t)
+    %  for every point at which h1 is not NaN.
     arguments
         X1 (1,2) double
         X2 (1,2) double
         C (3,1) double
         t (1,:) double = linspace(0,1,100);
+        h1 (1,:) double = [];
     end
 
     L=sqrt((X2-X1)*(X2-X1)');
-    h= C(1)*t.^2 + C(2)*t + C(3);
+    h0= C(1)*t.^2 + C(2)*t + C(3);
+    h=h0;
+    h(~isnan(h1)) = h1(~isnan(h1));
     X = X1(1) + (X2(1)-X1(1))*t - (X2(2)-X1(2))*h/L;
     Y = X1(2) + (X2(2)-X1(2))*t + (X2(1)-X1(1))*h/L;
 end
