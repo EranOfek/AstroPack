@@ -43,7 +43,7 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
     else
         DB = Args.DB;
     end    
-    DB.useDB(Args.DbName);
+    % DB.useDB(Args.DbName); % obviously, we do not need it anymore
     % read the column list from the xls template  
     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Sources','TableName',Args.DbTable);   
     %    
