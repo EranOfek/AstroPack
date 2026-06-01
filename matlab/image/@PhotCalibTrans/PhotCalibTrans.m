@@ -3372,10 +3372,12 @@ classdef PhotCalibTrans < Component
         function Obj = evaluateBackMag(Obj, AI, Args)
             % Compute sky surface brightness from image background (legacy BACKMAG)
             % Input  : - PhotCalibTrans object.
-            %          - AstroImage with populated .Back and WCS.
+            %          - AstroImage with populated WCS.
             %          * ...,key,val,...
-            %            'PixScale' - Pixel scale [arcsec/pixel]. Default is []
+            %            'PixScale' - Pixel scale [arcsec/pixel]. 
             %                         (read from AI.WCS via getScale('arcsec')).
+            %            'backVarArgs' - argument to pass to the background 
+            %            measurement function for the case AI comes w/o AI.Back  
             % Output : - PhotCalibTrans object with Obj.BackMag set (NaN on failure).
             % Author : D. Kovaleva (May 2026)
             % Example: PC = PC.evaluateBackMag(AI);
@@ -3387,15 +3389,14 @@ classdef PhotCalibTrans < Component
             arguments
                 Obj
                 AI
-                Args.PixScale = []
+                Args.PixScale = ['arcsec']
+                Args.backVarArgs = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}};
             end
 
             Obj.BackMag = NaN;
 
-            if ~isa(AI, 'AstroImage') || isempty(AI.Back)
-                Obj.msgLog(LogLevel.Warning, ...
-                    'evaluateBackMag: No AstroImage with Back property - BackMag set to NaN.');
-                return;
+            if isempty(AI.Back)                
+                AI = imProc.background.backVar(AI, Args.backVarArgs{:});                
             end
 
             try
