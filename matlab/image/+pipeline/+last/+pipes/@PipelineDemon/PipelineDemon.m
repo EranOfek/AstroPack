@@ -2736,7 +2736,7 @@ classdef PipelineDemon < Component
                 end
             end
 
-            if StatusPipeII.Sucess
+            if StatusPipeII.Success
                 saveDataProductsII(Obj, AD, Coadd, TCL1, TCL2, FN_Proc, UpArgs);
             end
         end
@@ -3222,11 +3222,11 @@ classdef PipelineDemon < Component
                                     save('-v7.3', FailedInfoFileName, Status)
                                     cd(PWD);
                                     Status.PipeII  = false;
-                                    Status.WriteII = false;
-    
+                                    Status.WriteII = false;   
                                 end
-                                
-        
+                            else
+                                Status.PipeII  = false;
+                                Status.WriteII = false;
                             end %if Status.PipeI && Status.WriteI && Status.MoveRaw
           
                                 
@@ -3248,7 +3248,8 @@ classdef PipelineDemon < Component
         
                             Msg = sprintf('Pipeline summary status - PipeI: %d, Write: %d, Move: %d', Status.PipeI, Status.WriteI, Status.MoveRaw);
                             Obj.writeLog(Msg, LogLevel.Info);
-                            
+                            Msg = sprintf('Pipeline summary status - PipeII: %d, Write: %d', Status.PipeII, Status.WriteII);
+                            Obj.writeLog(Msg, LogLevel.Info);                            
         
                             % check if stop loop
                             if Args.StopButton && StopGUI()
