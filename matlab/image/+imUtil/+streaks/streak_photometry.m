@@ -232,8 +232,7 @@ function [phot,extsegs,curve,stripeindices]=...
         
         % fit a parabola only to the base detected segment (but note that
         %  smask depends on goodindices calculated including the extended segment
-        curve(i).parfit = weightedParabolicOffset([x1,y1],[x2,y2],...
-            xcm,ycm,scpp);
+        curve(i).parfit = weightedParabolicOffset([x1,y1],[x2,y2],xcm,ycm,scpp);
         % offsets at extremes: [curve(i).parfit(3), sum(curve(i).parfit)]
         % max offset:
         %  -curve(i).parfit(2)^2/(4*curve(i).parfit(1)) + curve(i).parfit(3)
