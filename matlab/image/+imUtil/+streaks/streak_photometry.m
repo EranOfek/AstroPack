@@ -44,6 +44,12 @@ function [phot,extsegs,curve,stripeindices]=...
 %              considerably faster. Note: the fitting algorithm in the
 %              mex version is different and can return slightly different
 %              results
+%    'ClipTransversePSF': use only the clipped pixels to build the
+%                         transverse PSF. Returns a cleaner PSF,
+%                         but may return nothing if all streak pixels
+%                         are tagged as bad, and excluded. The default
+%                         is false, to return an useful answer in anomalous
+%                         cases.
 %  Outputs:
 %    - phot: esimated intensity/unit length of each streak
 %    - extseg: [x1e; y1e; x2e; y2e]
@@ -61,6 +67,8 @@ function [phot,extsegs,curve,stripeindices]=...
 %              intensity of the slice (for 'gaussianfit')
 %            * mean sagittal displacement of the slice (for 'gaussianfit')
 %            * a logical array flagging if the fit is considered acceptable
+%            * and empirical transverse PSF of the streak (built using the
+%              median intensity value in pixel-wide bins)
 %    - stripeindices: if requested, a cell with the list of pixels used to
 %                     analize each stripe (discarding intensity outliers)
 %
@@ -77,9 +85,10 @@ function [phot,extsegs,curve,stripeindices]=...
         Args.sigmaclip=[]; % defaults set below according to method
         Args.clipping {mustBeMember(Args.clipping, {'sigma','quantile','gaussianfit'})} ...
              = 'gaussianfit';
-        Args.slice_width=10; % pixel units
+        Args.slice_width=10; % longitudinal streak slice width, pixel units
         Args.linephot=true;
         Args.UseMex=true;
+        Args.ClipTransversePSF = false; 
     end
     
     if isempty(Args.sigmaclip)
@@ -158,6 +167,11 @@ function [phot,extsegs,curve,stripeindices]=...
         
         mask = (d2<offside^2);
         
+        if strcmpi(Args.clipping,'gaussianfit') || ~Args.ClipTransversePSF
+            % do't compute them if not required later
+            xm=px(mask);
+            ym=py(mask);
+        end
         pp=im(mask);
         mpp=mean(pp,'omitnan');
         spp=std(pp,'omitnan');
@@ -166,8 +180,6 @@ function [phot,extsegs,curve,stripeindices]=...
         switch Args.clipping
             case 'gaussianfit'
                 % exploring slice fits
-                xm=px(mask);
-                ym=py(mask);
                 if Args.UseMex
                     % use mex wrapper function in /mex
                     [C,goodindices,tm] = ...
@@ -190,7 +202,6 @@ function [phot,extsegs,curve,stripeindices]=...
                 smask= false(size(mask));
                 mindexes=find(mask);
                 smask(mindexes(goodindices)) = true;
-                curve(i).psf=transversePSF([x1,y1],[x2,y2],xm,ym,pp,offside);
             case 'sigma'
                 % sigma clipped sum (clip only brighter, not darker)
                 smask=mask & im<mpp+Args.sigmaclip*spp;
@@ -200,7 +211,16 @@ function [phot,extsegs,curve,stripeindices]=...
                 smask=mask & im<quantile(pp,Args.sigmaclip);
                 scpp=im(smask);
         end
-        
+
+        xcm=px(smask);
+        ycm=py(smask);
+ 
+        if Args.ClipTransversePSF
+            curve(i).psf=transversePSF([x1,y1],[x2,y2],xcm,ycm,scpp,offside);
+        else
+            curve(i).psf=transversePSF([x1,y1],[x2,y2],xm,ym,pp,offside);
+        end
+
         if nargout==4
             stripeindices{i}=find(smask);
         end
@@ -213,7 +233,7 @@ function [phot,extsegs,curve,stripeindices]=...
         % fit a parabola only to the base detected segment (but note that
         %  smask depends on goodindices calculated including the extended segment
         curve(i).parfit = weightedParabolicOffset([x1,y1],[x2,y2],...
-            px(smask),py(smask),scpp);
+            xcm,ycm,scpp);
         % offsets at extremes: [curve(i).parfit(3), sum(curve(i).parfit)]
         % max offset:
         %  -curve(i).parfit(2)^2/(4*curve(i).parfit(1)) + curve(i).parfit(3)
@@ -464,16 +484,24 @@ end
 
 %%
 function psf=transversePSF(X1,X2,x,y,W,offside)
-% compute a cumulative streak PSF binning the mediating the sagittal values
+% compute a cumulative streak PSF as the median of the intensity 
+%  values in bins between integer sagittal distances
+% the returned PSF has an even number of elements, each one represents
+%  the value between i and i+1, with i=-offside:offside-1
+% Inputs: 
+%  X1: [x1,y1]; X2: [x2,y2] of the base segment
+%  x,y,W: Nx1 vectors
+%  x,y: coordinates in pixels of the pixels belonging to the streak strip
+%  W:   intensity of the pixels
+%  offside: 
+    offside=floor(abs(offside));
     L=sqrt((X2-X1)*(X2-X1)');
     T=((X2(1)-X1(1))*(x-X1(1)) + (X2(2)-X1(2))*(y-X1(2)))/L^2;
     q= T>=0 & T<=1;
     D=((X2(1)-X1(1))*(y(q)-X1(2)) - (X2(2)-X1(2))*(x(q)-X1(1)))/L;
     Wq=W(q);
-    psf=nan(1,2*offside+1);
-    % FIXME - -offside<D<offside, but we want zero centered psf -> non
-    %  unitary bins
-    for i=-offside:offside
+    psf=nan(1,2*offside);
+    for i=-offside:offside-1
         psf(i+offside+1)=median(Wq(D>=i & D<i+1),'omitnan');
     end
 end
