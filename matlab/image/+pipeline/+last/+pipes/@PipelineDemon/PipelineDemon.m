@@ -2736,7 +2736,7 @@ classdef PipelineDemon < Component
                 end
             end
 
-            if StatusPipeII.Sucess
+            if StatusPipeII.Success
                 saveDataProductsII(Obj, AD, Coadd, TCL1, TCL2, FN_Proc, UpArgs);
             end
         end
