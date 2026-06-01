@@ -1,0 +1,71 @@
+---
+description: Python API to MATLAB client verification — sync HTTP clients mirror nova soc/common/clients
+globs: "+api/**"
+alwaysApply: false
+---
+
+# Python API to MATLAB client verification
+
+## Goal
+
+Maintain MATLAB API clients (`+api/+clients/`) as faithful mirrors of Python sync HTTP clients (`soc/common/clients/` in Ultrasat.git nova). Verify via headless debug scripts (`+api/+debug/+clients/`).
+
+## Source of truth
+
+**Python is canonical.** Never invent or rename fields in MATLAB.
+
+| Layer | Python path |
+|-------|-------------|
+| Sync client | `Ultrasat.git/python/prj/nova/soc/common/clients/` |
+| API models | `soc/common/models/.../api/` |
+| Domain models | `soc/common/models/.../domain/` |
+| FastAPI service | `soc/platform/<name>/api.py` or mission paths |
+
+| Layer | MATLAB path |
+|-------|-------------|
+| Clients | `+api/+clients/` |
+| Debug | `+api/+debug/+clients/` |
+| HTTP base | `ClientBase.m`, `ClientFactory.m` |
+
+## Environment
+
+| Variable | Purpose |
+|----------|---------|
+| `SOC_PATH` | Must contain `config/services.json` and `log/` |
+| `SOC_API_KEY` | Sent in `api-key` header by `ClientBase.postRequest` |
+
+`services.json` `mode`: `direct` (per-service ports) or `nginx` (`base_api_url + service_path`).
+
+## MATLAB launcher
+
+```powershell
+& "C:\Matlab\R2025b\bin\matlab.exe" -batch "<statement>" 2>&1 | Tee-Object -FilePath "<run.log>"
+```
+
+Sanity check:
+
+```powershell
+& "C:\Matlab\R2025b\bin\matlab.exe" -batch "ultrasat.api.debug.clients.debug_ClientFactory" 2>&1
+```
+
+## Iteration loop
+
+1. Read Python client + response model first
+2. Confirm MATLAB client sends/reads only those fields
+3. Run matching `debug_*` with `-batch`
+4. Fix MATLAB until struct matches Python contract
+
+## Forbidden
+
+- No guessing API field names or types
+- No GUI changes from this loop
+- No `error()` from client methods — return `struct('status','error','message',...)`
+- Do not add MATLAB methods without a MATLAB caller
+- Never touch `+clients/obsolete/` or `+debug/+clients/obsolete/`
+
+## Common pitfalls
+
+- Constructor argument lists must match the body (no undefined `ApiKey` in constructor if not declared)
+- `-batch` requires AstroPack path via `startup.m`
+- `jsondecode` may collapse single-element arrays to scalar struct
+- Datetimes: `JsonUtils.json2struct` uses `DateTimeUtils.convertStringToDatetime`

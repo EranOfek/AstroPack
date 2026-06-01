@@ -1,0 +1,44 @@
+---
+description: Optional GPU acceleration — CPU reference path always required
+globs: "**/*gpu*,**/*GPU*"
+alwaysApply: false
+---
+
+# GPU optimization
+
+## When to use GPU
+
+- CPU implementation exists
+- Profiling shows benefit
+- Large data-parallel workload
+
+## Architecture
+
+- CPU handles control and logic
+- GPU handles numeric kernels only
+- GPU must be explicit, configurable, detectable at runtime
+
+## Data transfer
+
+- Minimize CPU-GPU transfers
+- Avoid transfers inside loops
+
+## Precision
+
+- CPU is reference implementation
+- Document numerical differences
+
+## Testing
+
+- Code must run with and without GPU
+- Skip GPU paths gracefully if unavailable
+
+## What not to do
+
+- No GPU-only implementations
+- No hidden `gpuArray` conversions
+
+## Output expectations
+
+- Keep GPU code isolated
+- Preserve CPU correctness path

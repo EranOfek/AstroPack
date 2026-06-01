@@ -1,56 +1,70 @@
-# 12_matlab_ultrasat_planner_structure.prompt.md
+---
+description: ULTRASAT planner layering — uplanner, helpers, DataModule, API client, GUI
+globs: "+planner/**"
+alwaysApply: false
+---
 
-ROLE AND CONTEXT
-This file defines the internal structure of the ULTRASAT Planner MATLAB code.
+# ULTRASAT planner structure
 
-The planner is mission-critical and must be cleanly layered.
+## Role and context
 
-HIGH-LEVEL COMPONENTS
-- uplanner core class
+- Defines internal structure of the ULTRASAT Planner MATLAB code (`+planner`).
+- Mission-critical; must be cleanly layered.
+
+## High-level components
+
+- `uplanner` core class
 - Helper classes
 - DataModule class
-- API client
-- App Designer GUI
+- API client (`+api`)
+- App Designer GUI (`+gui`, `+guiutils`)
 
-UPLANNER CORE CLASS
+## uplanner core class
+
 - Contains planning and feasibility logic
 - No UI code
 - No backend communication
 - Deterministic and testable
 
-HELPER CLASSES
+## Helper classes
+
 - Small focused responsibilities
 - Support planner or GUI
 - No UI and no API logic
 
-DATAMODULE
+## DataModule
+
 - Owns planner instance
 - Holds application state
 - Mediates between GUI, planner, and API
 
-API CLIENT
+## API client
+
 - Handles backend communication only
 - No planning logic
 - Replaceable and mockable
 
-APP DESIGNER GUI
+## App Designer GUI
+
 - Thin UI shell
 - Short callbacks
 - Delegates to DataModule
 
-DATA FLOW
+## Data flow
+
+```
 GUI -> DataModule -> uplanner
 GUI -> DataModule -> API client
+```
 
-WHAT NOT TO DO
+## What not to do
+
 - GUI calling planner directly
 - GUI calling API directly
 - Circular dependencies
 - Global state
 
-OUTPUT EXPECTATION FROM THE LLM
-When modifying planner code:
+## Output expectations
+
 - Preserve separation of roles
 - Keep uplanner reusable and testable
-
-END OF FILE

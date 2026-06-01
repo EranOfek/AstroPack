@@ -1,0 +1,62 @@
+---
+description: ClickHouse analytical database usage from MATLAB for pipeline data
+globs: "**/*clickhouse*,**/*ClickHouse*,**/+db/**"
+alwaysApply: false
+---
+
+# ClickHouse pipeline usage
+
+## Role and context
+
+- General principles for using ClickHouse from MATLAB in AstroPack/ULTRASAT pipeline work.
+- ClickHouse is an analytics backend for large-scale astronomical pipeline data.
+
+## High-level system role
+
+ClickHouse is used for:
+
+- Fast querying of large datasets
+- Aggregations over images, sources, detections
+- Time-series and spatial analysis
+- Pipeline monitoring and performance analysis
+
+ClickHouse is NOT used for:
+
+- Transactional state
+- User management
+- Small configuration data
+- Frequent row-by-row updates
+
+## MATLAB role
+
+MATLAB acts as producer/consumer of analytical query results — not schema owner or database server.
+
+## Interaction patterns
+
+**Allowed:** bulk insert, read-only analytical queries, aggregation/filtering in ClickHouse.
+
+**Disallowed:** row-by-row inserts in loops, frequent small updates, emulating relational transactions.
+
+## Query design
+
+- Prefer batch queries over many small queries
+- Push filtering and aggregation into ClickHouse
+- Avoid pulling large raw tables into MATLAB memory unnecessarily
+
+## MATLAB code structure
+
+- ClickHouse access isolated in dedicated helper or service classes
+- Configurable (host, database, credentials)
+- Core scientific logic must not depend directly on ClickHouse APIs
+
+## What not to do
+
+- No hardcoded credentials
+- No schema creation or modification from MATLAB
+- No silent query failures
+
+## Output expectations
+
+- Keep database access isolated
+- Assume large data volumes
+- Ask for schema details if missing

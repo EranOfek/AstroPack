@@ -1,0 +1,50 @@
+---
+description: AstroPack domain map — mature scientific vs ULTRASAT-specific vs obsolete/external
+alwaysApply: true
+---
+
+# Repository domain map and intent
+
+## Role and context
+
+- Explains high-level domain map, intent, history, and boundaries not inferable from structure alone.
+
+## Repository model
+
+- Active production, legacy reference, experimental drafts, external third-party, tests/benchmarks
+- Not all folders are equal in importance
+
+## Primary roots
+
+- `matlab/` — production and near-production code
+- `tests/` — experiments, learning, validation utilities
+
+## Core scientific domains (mature, reusable)
+
+- `astro/`, `image/`, `pipeline/`, `celestial/`, `timeSeries/`, `telescope/`, `VO/`
+- Not ULTRASAT-specific by default
+
+## ULTRASAT-specific domains
+
+- `matlab/astro/+ultrasat/` and related pipeline/util/services
+- Mission-specific assumptions — detailed rules in `+ultrasat/.cursor/rules/`
+
+## Base and infrastructure
+
+- `base/`, `util/`, `io/`, `db/`, `tools/` — cross-cutting, stay generic
+
+## External and obsolete
+
+- `external/` — third-party; do not modify unless intended
+- `obsolete`, `Drafts-*`, `backup-*`, `old` — reference only; do not extend
+
+## What not to do
+
+- Do not refactor legacy/obsolete unless explicitly requested
+- Do not assume all folders follow the same standards
+- Do not modernize external code silently
+
+## Output expectations
+
+- Identify which domain you are touching
+- Ask before crossing domain boundaries
