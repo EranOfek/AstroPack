@@ -23,7 +23,18 @@ classdef PhotCalibTrans < Component
     %   DeltaZP_CB - Constant-band delta ZP [mag] (set by applyConstBand, written to header as PT_DZP)
     %   LimMag     - Limiting magnitude at SN=LimMagSN [mag] (set by evaluateLimMag, header keyword LIMMAG)
     %   BackMag    - Sky background surface brightness [mag/arcsec^2] (set by evaluateBackMag, header keyword BACKMAG)
-    %   AirMass, ExpTime, NCoadd, Temp, Pressure, Humidity, Aperture - Observation metadata
+    %   MagColPrefix - Prefix for calibrated MAG column names (default 'MAG_AB_';
+    %                set 'MAG_' to overwrite instrumental MAG_<suffix> in place)
+    %   AirMass, ExpTime, NCoadd, NFramesPerCoadd, Temp, Pressure, Humidity, Aperture
+    %                - Observation metadata. NFramesPerCoadd>1 only for
+    %                  coadd-of-coadds (e.g. output of pipeline.last.coadd.coaddVisits).
+    %
+    % Dependent Properties:
+    %   ExpTime_eff - Effective per-frame exposure time [s] =
+    %                 ExpTime / (NCoadd * NFramesPerCoadd). Recomputed on
+    %                 every access; never stored. Used as the time-base for
+    %                 every method that applies ZP (calibrate, addMag,
+    %                 evaluateMag, evaluateBackMag, applyPhotCalibShifts).
     %
     % Example:
     %{
@@ -43,8 +54,19 @@ classdef PhotCalibTrans < Component
      % Add calibrated magnitudes to catalog
      Cat = PC.addMag(Cat);
 
-     % Write results to header
+     % Legacy LIMMAG/BACKMAG (set Obj.LimMag, Obj.BackMag; written to header)
+     PC = PC.evaluateLimMag(Cat);
+     PC = PC.evaluateBackMag(AI);    % needs AI.Back populated (or AI.Image fallback) and AI.WCS
+
+     % Write results to header (PT_*, APCOR*, LIMMAG, BACKMAG)
      PC.photCalibTransToHeader(AI.HeaderData);
+
+     % Propagate coadd calibration to per-epoch images (incl. BACKMAG/LIMMAG)
+     %   [Nepoch x Ncrop] EpochAIs, [1 x Ncrop] PC array, DeltaZP from zp_meddiff
+     [EpochAIs, NormPerEpoch, DeltaZP] = PC.applyPhotCalibShifts(EpochAIs, ...
+         'DeltaZP',          DZPmat, ...
+         'PropagateBackMag', true, ...   % requires PC.BackMag finite per crop
+         'PropagateLimMag',  true);      % requires PC.LimMag  finite per crop
 
      % Diagnostic plots
      PC.plotTransmission();
@@ -80,10 +102,12 @@ classdef PhotCalibTrans < Component
     %     evaluateLimMag - Empirical limiting magnitude from polyfit of MAG_AB_* vs log10(SN)
     %                      in window [MinSN, MaxSN], evaluated at SN=LimMagSN. Stores Obj.LimMag.
     %                      NaN on failure (column missing, <3 points, fit error).
-    %     evaluateBackMag - Sky surface brightness via legacy formula
-    %                       ZP - 2.5*log10(MedBack) + 5*log10(PixScale), with ZP=evaluateZP()
-    %                       (scalar, field centre) and MedBack=fast_median(AI.Back(:)).
-    %                       Stores Obj.BackMag. NaN on failure.
+    %     evaluateBackMag - Sky surface brightness in mag/arcsec^2 via
+    %                       ZP - 2.5*log10(MedBack/ExpTime_eff) + 5*log10(PixScale),
+    %                       with ZP=evaluateZP() (scalar, field centre),
+    %                       MedBack=fast_median(AI.Back(:)) (or AI.Image fallback
+    %                       if Back empty) and PixScale from AI.WCS.getScale.
+    %                       Stores Obj.BackMag. NaN on failure (logged via msgLog).
     %     applyConstBand - Apply constant-band correction to AB magnitudes.
     %                      Replaces fitted atmospheric params with global ConstBandParams,
     %                      computes scalar ΔZP per crop. Called by addMag when
@@ -102,8 +126,15 @@ classdef PhotCalibTrans < Component
     %                      images using pre-computed DeltaZP (from zp_meddiff)
     %                      or MatchedSources. Evaluates ZP once per crop,
     %                      shifts per epoch. Accepts [Nepoch × Ncrop] layout.
+    %                      Optionally propagates BACKMAG and LIMMAG to each
+    %                      epoch header (PropagateBackMag / PropagateLimMag);
+    %                      both require the corresponding coadd-level value
+    %                      to have been Evaluate'd at fit time. Per-crop
+    %                      graceful degradation on NaN coadd value (Warning).
     %                      Usage: [AIs, Norms, DZP] = PC.applyPhotCalibShifts(AIs, 'DeltaZP', DZP);
     %                             [AIs, Norms, DZP] = PC.applyPhotCalibShifts(AIs, 'MS', MScell);
+    %                             PC.applyPhotCalibShifts(AIs, 'DeltaZP', DZP, ...
+    %                                 'PropagateBackMag', true, 'PropagateLimMag', true);
     %   Display/Output Methods:
     %     summary - Display photometric calibration summary
     %   Plotting Methods:
@@ -3413,12 +3444,22 @@ classdef PhotCalibTrans < Component
 
             Obj.BackMag = NaN;
 
-            if isempty(AI.Back)                
-                AI = imProc.background.backVar(AI, Args.backVarArgs{:});                
-            end
-
             try
-                MedBack = fast_median(AI.Back(:));
+                % Fast path: MEDBCK already in header (written by imProc.background.backVar).
+                MedBack = NaN;
+                if ~isempty(AI.HeaderData) && AI.HeaderData.isKeyExist('MEDBCK')
+                    HVal = AI.HeaderData.getVal('MEDBCK');
+                    if isnumeric(HVal) && isscalar(HVal) && isfinite(HVal) && HVal > 0
+                        MedBack = HVal;
+                    end
+                end
+                % Fallback: compute background image and take its median.
+                if ~isfinite(MedBack)
+                    if isempty(AI.Back)
+                        AI = imProc.background.backVar(AI, Args.backVarArgs{:});
+                    end
+                    MedBack = fast_median(AI.Back(:));
+                end
                 if ~isfinite(MedBack) || MedBack <= 0
                     Obj.msgLog(LogLevel.Warning, ...
                         'evaluateBackMag: Non-positive median background (%.3g) - BackMag set to NaN.', MedBack);
@@ -4223,12 +4264,72 @@ classdef PhotCalibTrans < Component
             %            'UpdateHeader' - Write PT_* to epoch headers. Default is true.
             %            'MagSystem' - Magnitude system. Default is 'AB'.
             %            'Verbose'   - Print progress. Default is true.
+            %            'PropagateBackMag' - Compute & write BACKMAG to each
+            %                        epoch header [mag/arcsec^2]. Per-epoch
+            %                        formula:
+            %                          BACKMAG = (ZP_base + dZP)
+            %                                  - 2.5*log10(MedBack_ep / ExpTime_ep)
+            %                                  + 5*log10(PixScale_ep)
+            %                        Requires the corresponding coadd-level
+            %                        value to exist (isfinite(PC_c.BackMag));
+            %                        if any crop has NaN BackMag, that crop is
+            %                        skipped with a Warning. Set
+            %                        EvaluateBackMag=true at calibrate/fit time
+            %                        to populate the coadd value first.
+            %                        Default is false.
+            %            'PropagateLimMag' - Compute & write LIMMAG to each
+            %                        epoch header [mag at SN=LimMagSN]. Primary:
+            %                        empirical polyfit of MAG vs log10(SN) on
+            %                        the freshly-calibrated epoch catalog.
+            %                        Fallback when <3 sources in [MinSN, MaxSN]:
+            %                          LIMMAG_ep = PC.LimMag + dZP
+            %                                    - 2.5*log10(sqrt(PC.NCoadd))
+            %                        Requires isfinite(PC_c.LimMag) (i.e. the
+            %                        coadd-level evaluateLimMag must have run);
+            %                        crops with NaN LimMag are skipped with a
+            %                        Warning. Default is false.
+            %            'PixScale'  - Override pixel scale [arcsec/pix] for
+            %                        BACKMAG. If empty, read per-epoch from
+            %                        AIie.WCS.getScale('arcsec'). Default is [].
+            %            'LimMagFluxCol' - FLUX column whose matching FLUXERR
+            %                        drives SN; <MagColPrefix><suffix> is fit
+            %                        for LIMMAG. Default is 'FLUX_APER_3'.
+            %            'LimMagSN'  - SN at which to evaluate limiting
+            %                        magnitude. Default is 5.
+            %            'MinSN'     - Lower SN bound for LIMMAG fit window.
+            %                        Default is 5.
+            %            'MaxSN'     - Upper SN bound for LIMMAG fit window.
+            %                        Default is 50.
+            %            'LimMagMethod' - Method for per-epoch LIMMAG:
+            %                          'auto'       - empirical polyfit with
+            %                                       analytical fallback when
+            %                                       polyfit can't run (default).
+            %                          'empirical'  - empirical only; NaN if
+            %                                       polyfit can't run.
+            %                          'analytical' - skip polyfit, always use
+            %                                       PC.LimMag + dZP - 2.5*log10(sqrt(NCoadd)).
             % Output : - Updated AstroImages with MAG, ZP, header.
+            %            When PropagateBackMag/PropagateLimMag is true, the
+            %            epoch headers also carry BACKMAG/LIMMAG keys.
             %          - [Nepoch × Ncrop] per-epoch Norm values.
             %          - [Nepoch × Ncrop] DeltaZP matrix [mag].
             % Author : D. Kovaleva (Apr 2026)
             % Example: % Multi-crop fast path (instance call):
             %          [AIs, Norms, DZP] = PC.applyPhotCalibShifts(AllSI, 'DeltaZP', ZPdif);
+            %
+            %          % Same plus per-epoch BACKMAG/LIMMAG. Requires the coadd
+            %          % calibration to have set PC.BackMag and PC.LimMag (i.e.
+            %          % fitPhotCalibTrans called with EvaluateBackMag=true and
+            %          % EvaluateLimMag=true). Crops with NaN coadd value are
+            %          % skipped with a Warning.
+            %          [AIs, Norms, DZP] = PC.applyPhotCalibShifts(AllSI, ...
+            %              'DeltaZP',          ZPdif, ...
+            %              'PropagateBackMag', true, ...
+            %              'PropagateLimMag',  true);
+            %
+            %          % Programmatic readback per epoch:
+            %          AIs(1, 5).HeaderData.getVal('BACKMAG')   % mag/arcsec^2
+            %          AIs(1, 5).HeaderData.getVal('LIMMAG')    % mag at SN=5
 
             arguments
                 Obj  PhotCalibTrans
@@ -4245,6 +4346,23 @@ classdef PhotCalibTrans < Component
                 Args.UpdateHeader logical = true
                 Args.MagSystem char = 'AB'
                 Args.Verbose logical = false
+                % --- Per-epoch BACKMAG / LIMMAG propagation (optional) ---
+                % Each Propagate* flag requires the corresponding coadd-level
+                % Evaluate* to have populated PC_c.BackMag / PC_c.LimMag at
+                % fit time. Per-crop graceful degradation: a NaN coadd value
+                % skips that crop with a Warning instead of erroring out.
+                Args.PropagateBackMag logical = false
+                Args.PropagateLimMag  logical = false
+                Args.PixScale         double  = []           % [arcsec/pix] override; [] => AIie.WCS.getScale
+                Args.LimMagFluxCol    char    = 'FLUX_APER_3'   % FLUX_<suffix>; FLUXERR_<suffix> -> SN, <MagColPrefix><suffix> fit
+                Args.LimMagSN         double  = 5
+                Args.MinSN            double  = 5
+                Args.MaxSN            double  = 50
+                % LIMMAG method selector:
+                %   'auto'       - empirical polyfit, analytical fallback if polyfit fails (default)
+                %   'empirical'  - empirical only; NaN if polyfit fails (no fallback)
+                %   'analytical' - analytical formula only; skip polyfit entirely
+                Args.LimMagMethod char {mustBeMember(Args.LimMagMethod, {'auto', 'empirical', 'analytical'})} = 'auto'
             end
 
             % ---- Normalize dimensions ----
@@ -4342,7 +4460,7 @@ classdef PhotCalibTrans < Component
                             NaNcol = nan(Nrows, 1);
                             if Args.AddZP
                                 ZPColName = [Args.MagSystem, '_ZP'];
-                                CatObj = CatObj.insertCol(NaNcol, Inf, {ZPColName});
+                                CatObj = setNumColFast(CatObj, NaNcol, ZPColName);
                             end
                             if Args.AddMag
                                 AllColNames = CatObj.ColNames;
@@ -4354,7 +4472,7 @@ classdef PhotCalibTrans < Component
                                 FluxColNames = FluxColNames(~strcmp(FluxColNames, 'FLUX_XYPEAK'));
                                 for I = 1:numel(FluxColNames)
                                     NewMagColName = strrep(FluxColNames{I}, 'FLUX_', MagPrefix);
-                                    CatObj = CatObj.insertCol(NaNcol, Inf, {NewMagColName});
+                                    CatObj = setNumColFast(CatObj, NaNcol, NewMagColName);
                                     % MAGERR written when an error source
                                     % exists: FLUXERR_<suffix> or, for
                                     % FLUX_PSF, SN.
@@ -4363,7 +4481,7 @@ classdef PhotCalibTrans < Component
                                         (strcmp(FluxColNames{I}, 'FLUX_PSF') && any(strcmp(AllColNames, 'SN')));
                                     if HasErrSource
                                         MagErrColName = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
-                                        CatObj = CatObj.insertCol(NaNcol, Inf, {MagErrColName});
+                                        CatObj = setNumColFast(CatObj, NaNcol, MagErrColName);
                                     end
                                 end
                             end
@@ -4402,6 +4520,20 @@ classdef PhotCalibTrans < Component
                 ZP_base   = PC_c.evaluateZP('MagSystem', Args.MagSystem);
                 HasTran2D = ~isempty(PC_c.TransModel.Tran2DObj) && PC_c.TransModel.UseTran2D;
 
+                % Per-crop gates for BACKMAG / LIMMAG propagation. A NaN
+                % coadd-level value disables propagation for this crop only
+                % (graceful degradation in multi-crop runs).
+                DoPropBackMag = Args.PropagateBackMag && isfinite(PC_c.BackMag);
+                DoPropLimMag  = Args.PropagateLimMag  && isfinite(PC_c.LimMag);
+                if Args.PropagateBackMag && ~isfinite(PC_c.BackMag)
+                    PC_c.msgLog(LogLevel.Warning, sprintf( ...
+                        'applyPhotCalibShifts: crop %d: PropagateBackMag=true but PC.BackMag is NaN (Evaluate it at fit time) - BACKMAG propagation skipped for this crop', Ic));
+                end
+                if Args.PropagateLimMag && ~isfinite(PC_c.LimMag)
+                    PC_c.msgLog(LogLevel.Warning, sprintf( ...
+                        'applyPhotCalibShifts: crop %d: PropagateLimMag=true but PC.LimMag is NaN (Evaluate it at fit time) - LIMMAG propagation skipped for this crop', Ic));
+                end
+
                 if Args.Verbose
                     fprintf('  Crop %02d: ZP_base=%.4f, Norm=%.6f\n', ...
                         Ic, ZP_base, NormOrig);
@@ -4421,7 +4553,9 @@ classdef PhotCalibTrans < Component
                     else
                         CatObj = AIie;
                     end
-                    HasCat = ~isempty(CatObj) && ~isempty(CatObj.Table) && height(CatObj.Table) > 0;
+                    % Direct numeric access: CatObj.Table getter calls array2table
+                    % on numeric Catalog every invocation (AstroTable.m:276).
+                    HasCat = ~isempty(CatObj) && ~isempty(CatObj.Catalog) && size(CatObj.Catalog, 1) > 0;
 
                     ExpTime_epoch = ExpTime_coadd;
                     if isa(AIie, 'AstroImage') && ~isempty(AIie.HeaderData)
@@ -4450,7 +4584,7 @@ classdef PhotCalibTrans < Component
 
                         if Args.AddZP
                             ZPColName = [Args.MagSystem, '_ZP'];
-                            CatObj = CatObj.insertCol(ZP_epoch, Inf, {ZPColName});
+                            CatObj = setNumColFast(CatObj, ZP_epoch, ZPColName);
                         end
 
                         if Args.AddMag
@@ -4486,7 +4620,7 @@ classdef PhotCalibTrans < Component
                                     end
                                 end
 
-                                CatObj = CatObj.insertCol(Mag, Inf, {NewMagColName});
+                                CatObj = setNumColFast(CatObj, Mag, NewMagColName);
 
                                 % MAGERR source priority:
                                 %   (1) FLUXERR_<suffix> -> MagErr = 1.086 * FLUXERR
@@ -4504,7 +4638,7 @@ classdef PhotCalibTrans < Component
                                     MagErr = nan(Nrows, 1);
                                     ValidFlux = Flux_col > 0 & isfinite(Flux_col) & isfinite(FluxErr);
                                     MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux);
-                                    CatObj = CatObj.insertCol(MagErr, Inf, {MagErrCol});
+                                    CatObj = setNumColFast(CatObj, MagErr, MagErrCol);
                                 elseif strcmp(FluxColNames{I}, 'FLUX_PSF')
                                     SnIdx = find(strcmp(AllColNames, 'SN'), 1);
                                     if ~isempty(SnIdx)
@@ -4513,7 +4647,7 @@ classdef PhotCalibTrans < Component
                                         MagErr = nan(Nrows, 1);
                                         ValidSN = isfinite(SN) & SN > 0;
                                         MagErr(ValidSN) = 1.086 ./ SN(ValidSN);
-                                        CatObj = CatObj.insertCol(MagErr, Inf, {MagErrCol});
+                                        CatObj = setNumColFast(CatObj, MagErr, MagErrCol);
                                     end
                                 end
                             end
@@ -4532,6 +4666,107 @@ classdef PhotCalibTrans < Component
                             EpochTemplate{NormRowIdx, 2} = NormNew;
                         end
                         EpochHeader.Data = [EpochHeader.Data; EpochTemplate];
+                    end
+
+                    % --- BACKMAG: scalar sky surface brightness per epoch ---
+                    % Mirrors evaluateBackMag's coadd-level formula but with
+                    % the epoch's own ExpTime, MedBack and PixScale; ZP uses
+                    % the field-centre ZP_base shifted by dZP (no Tran2D).
+                    if DoPropBackMag && isa(AIie, 'AstroImage')
+                        % Fast path: MEDBCK already in epoch header (written by backVar).
+                        MedBack_ep = NaN;
+                        if ~isempty(AIie.HeaderData) && AIie.HeaderData.isKeyExist('MEDBCK')
+                            HVal = AIie.HeaderData.getVal('MEDBCK');
+                            if isnumeric(HVal) && isscalar(HVal) && isfinite(HVal) && HVal > 0
+                                MedBack_ep = HVal;
+                            end
+                        end
+                        % Fallback: take the median over Back image (or Image if Back is empty).
+                        if ~isfinite(MedBack_ep)
+                            BackPix = AIie.Back;
+                            if isempty(BackPix)
+                                BackPix = AIie.Image;
+                            end
+                            if ~isempty(BackPix)
+                                MedBack_ep = fast_median(double(BackPix(:)));
+                            end
+                        end
+
+                        if ~isempty(Args.PixScale)
+                            PixScale_ep = Args.PixScale;
+                        else
+                            try
+                                PixScale_ep = AIie.WCS.getScale('arcsec');
+                            catch
+                                PixScale_ep = NaN;
+                            end
+                        end
+
+                        ZP_epoch_scalar = ZP_base + dZP;
+                        BackMag_ep      = NaN;
+                        if isfinite(MedBack_ep) && MedBack_ep > 0 && ...
+                                isfinite(PixScale_ep) && PixScale_ep > 0 && ...
+                                isfinite(ZP_epoch_scalar) && ...
+                                isfinite(ExpTime_epoch) && ExpTime_epoch > 0
+                            BackMag_ep = ZP_epoch_scalar ...
+                                - 2.5*log10(MedBack_ep / ExpTime_epoch) ...
+                                + 5*log10(PixScale_ep);
+                        end
+
+                        if Args.UpdateHeader && ~isempty(AIie.HeaderData)
+                            EpochAIs(Ie, Ic).HeaderData = ...
+                                EpochAIs(Ie, Ic).HeaderData.replaceVal('BACKMAG', BackMag_ep);
+                        end
+                    end
+
+                    % --- LIMMAG: method selected by Args.LimMagMethod ---
+                    % 'auto'       : empirical polyfit (MAG vs log10(SN), same
+                    %                fit as evaluateLimMag) with analytical
+                    %                fallback when polyfit can't run
+                    %                (<3 sources in SN window, missing columns,
+                    %                or non-finite output).
+                    % 'empirical'  : empirical only; NaN on failure.
+                    % 'analytical' : skip polyfit; scale coadd LimMag by
+                    %                sqrt(NCoadd) and apply dZP.
+                    if DoPropLimMag
+                        LimMag_ep = NaN;
+                        TryEmpirical = strcmpi(Args.LimMagMethod, 'auto') || ...
+                                       strcmpi(Args.LimMagMethod, 'empirical');
+                        UseAnalytical = strcmpi(Args.LimMagMethod, 'analytical');
+                        DoFallback   = strcmpi(Args.LimMagMethod, 'auto');
+
+                        if TryEmpirical
+                            Tokens = regexp(Args.LimMagFluxCol, '^FLUX_(.+)$', 'tokens', 'once');
+                            if HasCat && ~isempty(Tokens)
+                                Suffix         = Tokens{1};
+                                FluxErrColName = ['FLUXERR_', Suffix];
+                                MagColName     = [PC_c.MagColPrefix, Suffix];
+                                EpochColNames  = CatObj.ColNames;
+                                if any(strcmp(EpochColNames, FluxErrColName)) && ...
+                                        any(strcmp(EpochColNames, MagColName))
+                                    FluxErrIdx = find(strcmp(EpochColNames, FluxErrColName), 1);
+                                    MagIdx     = find(strcmp(EpochColNames, MagColName), 1);
+                                    FluxErrCol = CatObj.Catalog(:, FluxErrIdx);
+                                    MagAll     = CatObj.Catalog(:, MagIdx);
+                                    % FLUXERR is relative (dF/F); SN = 1/FLUXERR.
+                                    SNall = 1 ./ FluxErrCol;
+                                    Valid = isfinite(MagAll) & isfinite(SNall) & ...
+                                            SNall > Args.MinSN & SNall < Args.MaxSN;
+                                    if nnz(Valid) >= 3
+                                        Pfit      = polyfit(log10(SNall(Valid)), MagAll(Valid), 1);
+                                        LimMag_ep = polyval(Pfit, log10(Args.LimMagSN));
+                                    end
+                                end
+                            end
+                        end
+                        if (UseAnalytical || (DoFallback && ~isfinite(LimMag_ep))) && PC_c.NCoadd > 0
+                            LimMag_ep = PC_c.LimMag + dZP - 2.5*log10(sqrt(PC_c.NCoadd));
+                        end
+
+                        if Args.UpdateHeader && isa(AIie, 'AstroImage') && ~isempty(AIie.HeaderData)
+                            EpochAIs(Ie, Ic).HeaderData = ...
+                                EpochAIs(Ie, Ic).HeaderData.replaceVal('LIMMAG', LimMag_ep);
+                        end
                     end
                 end
             end
@@ -4958,5 +5193,33 @@ function idx = findColIdxLocal(ColNames, Candidates)
     for I = 1:numel(Candidates)
         f = find(strcmp(ColNames, Candidates{I}), 1);
         if ~isempty(f); idx = f; return; end
+    end
+end
+
+% =========================================================================
+function Obj = setNumColFast(Obj, Data, Name)
+    % Fast specialised version of CatObj.insertCol(Data, Inf, {Name}).
+    %   Caller must guarantee:
+    %     - Obj is a scalar AstroCatalog with Obj.Catalog a numeric matrix
+    %     - Data is a numeric column vector of size(Obj.Catalog, 1) rows
+    %     - Name is a char row vector (NOT a cell)
+    %
+    %   Bypasses the AstroTable.insertCol -> deleteCol -> colname2ind ->
+    %   AstroTable.insertColumn -> array2table dispatch chain (each of those
+    %   parses an arguments block and runs class/size guards every time).
+    %   When Name already exists, replaces the column in place (faster than
+    %   delete-then-append and semantically equivalent for ColName-keyed
+    %   downstream consumers).
+    Idx = find(strcmp(Obj.ColNames, Name), 1);
+    if isempty(Idx)
+        Obj.Catalog  = [Obj.Catalog, Data];
+        Obj.ColNames = [Obj.ColNames, {Name}];
+        if isempty(Obj.ColUnits)
+            Obj.ColUnits = repmat({''}, 1, numel(Obj.ColNames));
+        else
+            Obj.ColUnits = [Obj.ColUnits, {''}];
+        end
+    else
+        Obj.Catalog(:, Idx) = Data;
     end
 end
