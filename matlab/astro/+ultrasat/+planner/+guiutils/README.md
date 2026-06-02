@@ -52,6 +52,23 @@ app.BuildHelper = ultrasat.planner.guiutils.PlannerMainBuildHelper();
 | `PlannerMainStorageHelper.m`               | Loading, saving, duplicating, and closing plans (DB and file) |
 | `PlannerMainSubmitHelper.m`                | Validation and submission of plans |
 | `PlannerMainUniqueTargetsHelper.m`         | Managing Unique Targets (add/edit/delete/load/save) |
+| `PlannerMainValidationHelper.m`          | Running validation and showing ValidationStatus window |
+| `PlannerMainTablesHelper.m`              | CalibObj, RefImages, ExtSurveys, FieldObj tables |
+| `PlannerMainLcsHelper.m`                 | LCS-specific GUI operations |
+| `PlannerMainAllSkyHelper.m`              | All-sky survey GUI operations |
+| `PlannerMainAppHelper.m`                 | App-level initialization hooks |
+
+### Supporting utilities
+
+| Class | Responsibility |
+|-------|----------------|
+| `MainModule.m` | Central application state (DataModule) — owns planner, clients, plan data |
+| `Preferences.m` | User preferences load/save (JSON) |
+| `AppUtils.m` | General app utilities |
+| `FormatUtils.m` | Display formatting |
+| `safeText.m` | Safe UI text from arbitrary values |
+
+Architecture diagram: [[../diagrams/planner_layers.mmd]]
 
 ---
 

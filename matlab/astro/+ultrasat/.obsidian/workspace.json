@@ -4,16 +4,16 @@
     "type": "split",
     "children": [
       {
-        "id": "bfa2e5fc5d5fc237",
+        "id": "a59bcb77643e8b3c",
         "type": "tabs",
         "children": [
           {
-            "id": "b814561bbb4b85c1",
+            "id": "ff1658edc8363135",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "+planner/+debug/input_data/README.md",
+                "file": "+services/+too_planner/README.md",
                 "mode": "source",
                 "source": false
               },
@@ -183,8 +183,17 @@
       "bases:Create new base": false
     }
   },
-  "active": "b814561bbb4b85c1",
+  "active": "ff1658edc8363135",
   "lastOpenFiles": [
-    "+api/README.md"
+    "+services/diagrams/services_overview.mmd",
+    "+services/README.md",
+    "+services/+alerts_filter/README.md",
+    "+planner/diagrams/too_planner_flow.mmd",
+    "+planner/diagrams/planner_layers.mmd",
+    "+planner/+guiutils/README.md",
+    "+planner/+debug/input_data/README.md",
+    "+api/README.md",
+    "+alerts_filters/README.md",
+    "ultrasat.md"
   ]
 }

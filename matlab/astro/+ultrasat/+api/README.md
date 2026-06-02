@@ -1,76 +1,158 @@
-# SOC API
+# SOC API — MATLAB Clients
 
 https://chatgpt.com/c/6756dedd-4c2c-8012-adad-4772c6780623
-
-
 
 ### Links
 
 - https://chatgpt.com/c/6756dedd-4c2c-8012-adad-4772c6780623
-
 - https://chatgpt.com/c/67ab1715-f968-8012-8b0c-af5e8fd8e61f
-
 
 ### Documentation
 
 https://docs.google.com/document/d/1ODzIBimM61pVooufYwQnOLG_k1QfiemzKeZ0UIfo_9Y/edit?usp=sharing
 
+---
 
+## Overview
 
+MATLAB REST clients for the ULTRASAT SOC FastAPI services. Used by the Observation Planner GUI (`MainModule`) to load/save plans, validate targets, manage sessions, and query virtual time.
 
-# ULTRASAT API Module
+**Python is the source of truth.** MATLAB clients mirror `python/prj/nova/soc/common/clients/`. When verifying or extending clients, read the Python client and Pydantic models first.
 
-This folder contains MATLAB source files related to the ULTRASAT API, including mission client implementations, validation simulators, and tracking utilities.
+---
 
 ## Folder Structure
+
 ```
-+ultrasat/
-   +api/                # API-related scripts and simulations
-   ├── sim/             # Contains simulation data
-   ├── .gitignore       # Git ignore file for excluding unnecessary files
-   ├── allFunList.m     # Lists all available functions in the module
-   ├── debug_Mission.m  # Debug script for mission-related operations
-   ├── debug_MissionApiModels.m  # Debug script for mission API models
-   ├── debug_MissionBase.m  # Debug script for mission base functionality
-   ├── debug_MissionClientSim.m  # Debug script for simulated mission client
-   ├── debug_MissionModels.m  # Debugging script for mission models
-   ├── debug_SkyExposureTracker.m  # Debugging tool for sky exposure tracking
-   ├── debug_ValidatorSim.m  # Debugging tool for validation simulator
-   ├── debug_VirtualTime.m  # Debugging tool for virtual time client
-   ├── MissionApiModels.m  # Defines API models for mission operations
-   ├── MissionClient.m  # Client implementation for interacting with mission API
-   ├── MissionClientBase.m  # Base class for mission client functionality
-   ├── MissionClientSim.m  # Simulated mission client for offline testing
-   ├── MissionModels.m  # Defines data structures for mission processing
-   ├── MyRestClient.m  # Example REST client for API interaction
-   ├── MyRestServer.m  # Example REST server implementation
-   ├── PlanData.m  # Stores and manages plan-related data
-   ├── README.md  # Documentation file
-   ├── RestServer1.m  # Placeholder/rest server example
-   ├── SkyExposureTrackerClient.m  # Client for sky exposure tracking
-   ├── SkyExposureTrackerModels.m  # Models for sky exposure tracking
-   ├── ValidatorSim.m  # Validation simulator for testing plan validation
-   ├── VirtualTimeClient.m  # Client for virtual time operations
-   ├── VirtualTimeModels.m  # Models for virtual time management
+matlab/astro/+ultrasat/+api/
+├── +core/
+│   ├── Loggable.m          # Base logging for clients and helpers
+│   └── Config.m            # Configuration handle
+├── +clients/
+│   ├── ClientBase.m        # HTTP POST, api-key header
+│   ├── ClientFactory.m     # Loads $SOC_PATH/config/services.json
+│   ├── PlansManagerClient.m
+│   ├── ScheduleManagerClient.m
+│   ├── NamespaceManagerClient.m
+│   ├── UserManagerClient.m
+│   ├── ValidatorManagerClient.m
+│   ├── VirtualTimeClient.m
+│   ├── UplannerClient.m    # Legacy/remote handle
+│   ├── config/services.json  # Reference copy (live file is under SOC_PATH)
+│   └── obsolete/           # Legacy MissionClient, sim clients — do not extend
+├── +models/
+│   ├── PlanData.m          # Plan DB/API model
+│   └── VirtualTimeModels.m
+├── +utils/
+│   ├── JsonUtils.m
+│   ├── PlanDataUtils.m
+│   ├── DateTimeUtils.m
+│   ├── MatBase64Utils.m
+│   ├── PathUtils.m
+│   └── LogManager.m
+├── +debug/
+│   ├── +clients/           # Headless verification (debug_ClientFactory, ...)
+│   ├── +core/
+│   └── +utils/
+├── docs/
+│   ├── testing_namespace_manager_client.md
+│   └── README.md
+└── obsolete/               # MissionClientInterface — reference only
 ```
 
-## Description
-This directory contains all necessary MATLAB scripts related to 
-mission operations, validation, sky exposure tracking, and virtual time 
-handling for the ULTRASAT Observation Planner GUI.
+---
 
-### Key Components
-- **Mission Client & API** (`MissionClient.m`, `MissionApiModels.m`, etc.)
-- **Validation Simulator** (`ValidatorSim.m`, `debug_ValidatorSim.m`)
-- **Sky Exposure Tracking** (`SkyExposureTrackerClient.m`, `SkyExposureTrackerModels.m`)
-- **Virtual Time Management** (`VirtualTimeClient.m`, `VirtualTimeModels.m`)
-- **Debugging & Testing** (`debug_*.m` files for various components)
+## Key Components
+
+### ClientFactory
+
+Loads `$SOC_PATH/config/services.json` once and resolves service base URLs:
+
+- **`direct` mode** — per-service port from config
+- **`nginx` mode** — `base_api_url + service_path`
+
+Also reads `SOC_API_KEY` for the `api-key` header.
+
+```matlab
+factory = ultrasat.api.clients.ClientFactory();
+url = factory.getServiceBaseUrl('plans_manager');
+client = ultrasat.api.clients.PlansManagerClient('BaseUrl', url, 'ApiKey', factory.getApiKey());
+```
+
+### ClientBase
+
+All active clients extend `ClientBase` → `Loggable`. HTTP goes through `postRequest(endpoint, params)`. Clients return error structs — they do not call `error()`.
+
+### Active clients
+
+| MATLAB client | Python counterpart | Purpose |
+|---------------|-------------------|---------|
+| `PlansManagerClient` | `soc/common/clients/plans_manager.py` | Plan CRUD, MAT upload/download |
+| `ScheduleManagerClient` | `soc/common/clients/schedule_manager.py` | Scheduled targets |
+| `NamespaceManagerClient` | `soc/common/clients/namespace_manager.py` | Namespaces, login context |
+| `UserManagerClient` | `soc/common/clients/user_manager.py` | Users, permissions |
+| `ValidatorManagerClient` | `soc/common/clients/validator_manager.py` | Target validation |
+| `VirtualTimeClient` | `soc/common/clients/virtual_time_manager.py` | Simulation virtual time |
+
+---
+
+## Environment
+
+| Variable | Purpose |
+|----------|---------|
+| `SOC_PATH` | Must contain `config/services.json` and `log/` |
+| `SOC_API_KEY` | API key for all service calls |
+
+Preflight:
+
+```matlab
+ultrasat.api.debug.clients.debug_ClientFactory()
+```
+
+See [[docs/testing_namespace_manager_client|Namespace Manager testing]] for a full walkthrough.
+
+---
 
 ## Usage
-- Run `MissionClient.m` to interact with the mission API.
-- Use `ValidatorSim.m` to simulate validation processes.
-- Utilize `SkyExposureTrackerClient.m` to track exposure times.
-- Refer to debug scripts for testing and troubleshooting.
 
-_Last Updated: 2025-03-18_
+### Typical planner flow (via MainModule)
 
+The GUI never calls clients directly. `MainModule` wires clients after login:
+
+```
+GUI callback → MainModule → PlansManagerClient / ValidatorManagerClient / ...
+```
+
+### Debug verification loop
+
+1. Read Python client + response model in `python/prj/nova/soc/common/models/`
+2. Confirm MATLAB sends/reads only those fields
+3. Run matching `debug_*` script with `-batch`
+4. Fix MATLAB until struct matches Python contract
+
+Example:
+
+```powershell
+matlab -batch "ultrasat.api.debug.clients.debug_PlansManagerClient()"
+```
+
+---
+
+## Python cross-references
+
+| Topic | Path |
+|-------|------|
+| Sync HTTP clients | `python/prj/nova/soc/common/clients/` |
+| API models | `python/prj/nova/soc/common/models/` |
+| FastAPI services | `python/prj/nova/soc/platform/`, `python/prj/nova/soc/mission/` |
+| Env conventions | `python/prj/nova/integration/soc_env_conventions.md` |
+
+---
+
+## What not to use
+
+Files under `+clients/obsolete/` and `+debug/+clients/obsolete/` (MissionApiClient, SimpleFileClient, UserManagerSim, etc.) are legacy reference only. Do not extend them for new work.
+
+---
+
+_Last updated: 2026-06_
