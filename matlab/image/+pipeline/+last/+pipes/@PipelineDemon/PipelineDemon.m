@@ -2312,7 +2312,9 @@ classdef PipelineDemon < Component
             end
             
             PWD = pwd;
-            cd(Obj.CalibPath);
+            if ~isempty(Obj.CalibPath)
+                cd(Obj.CalibPath);
+            end
             if ischar(AI) || isstring(AI)
                 AI = AstroImage.readFileNamesObj(AI);
             else
