@@ -62,6 +62,8 @@ function S=detectStreaksLSD(Im,filtIm,Args)
     segs=imUtil.streaks.mex.lsd_single_scale_mex(Im,Args.Subsample);
     
     segs=merge_segments(segs,[],Args.AngTol);
+    % second pass merging catches corner cases like https://github.com/EranOfek/AstroPack/issues/1040
+    segs=merge_segments(segs,[],2*Args.AngTol);
     
     segs=purge_edge_segments(segs,size(Im),Args.EdgeGuard);
 
@@ -122,8 +124,10 @@ function merged=merge_segments(segs,offline,angle,score)
 
     sintol=sin(angle);
 
-    % remove segments with low score
-    segs=segs(:,segs(7,:)>score);
+    if size(segs,1)>=7
+        % remove segments with low score
+        segs=segs(:,segs(7,:)>score);
+    end
 
     % initialize empty merged
     merged=zeros(4,0);
