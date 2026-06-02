@@ -1,0 +1,56 @@
+---
+description: alerts_filter service end-to-end flow — service vs scientific filter separation
+globs: "+services/+alerts_filter/**,+alerts_filters/**"
+alwaysApply: false
+---
+
+# Alerts filter end-to-end flow
+
+## Goal
+
+Debug and complete the full end-to-end flow of the `alerts_filter` MATLAB service. Follow existing architecture — do not redesign.
+
+## Architecture separation
+
+1. **Service/runtime:** `ultrasat.services.alerts_filter`
+2. **Scientific logic:** `ultrasat.alerts_filters.lvk`
+3. **Filter implementations:** `ultrasat.alerts_filters.lvk.filters`
+
+Scientists modify only `+alerts_filters/+lvk/+filters`.
+
+Scientists never touch `+services`, IPC, runtime loop, or watchdog.
+
+## Design rules
+
+1. **Keep request JSON small** — `action`, `alert_file`, `filter` only; no huge alert blobs in IPC JSON.
+2. **Filters work on models** — `LvkParsedAlert`, not raw JSON.
+3. **Service loads files** — `processFilterLvk()` validates, loads alert, attaches to `Input.alert`, calls `lvk_filter()`.
+4. **Filter entry point** — `lvk_filter()` dispatches to concrete implementations (`lvk_filter_simple`, `lvk_filter_with_criteria`).
+5. **Keep it simple** — no plugin registries, dynamic discovery, or heavy inheritance.
+
+## Expected flow
+
+```
+processRequest() -> processFilterLvk() -> LvkParsedAlert.loadFromJsonFile()
+  -> lvk_filter() -> lvk_filter_simple() -> LvkFilterResult -> output JSON
+```
+
+## Request JSON (minimal)
+
+```json
+{
+  "action": "filter_lvk",
+  "filter": "simple",
+  "alert_file": "C:/.../sample_alert.json"
+}
+```
+
+## Code requirements
+
+- `lvk_filter.m` dispatches on `Input.alert` and filter name
+- Migrate filters to `LvkFilterResult`; remove old struct-based logic
+- Debug scenarios under `+services/+alerts_filter/+debug/` — do not delete files after processing
+
+## When to stop
+
+If ambiguous about request format, output format, filter semantics, or file organization — ask before proceeding.

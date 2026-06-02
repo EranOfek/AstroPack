@@ -1,0 +1,40 @@
+---
+description: MATLAB unit test folder structure mirroring source under MatlabTests
+globs: "**/MatlabTests/**,**/testing/**,**/*Test*.m"
+alwaysApply: false
+---
+
+# Unit tests parallel structure
+
+## Folder structure
+
+- Source: `astropack/Matlab` (or `matlab/`)
+- Tests: `astropack/MatlabTests` — hierarchy mirrors source exactly
+
+## Naming
+
+- Test files start with `Test`
+- One test class per source file
+- Inherit from `matlab.unittest.TestCase`
+
+## Scope
+
+Unit tests cover deterministic functions, core algorithms, data transforms.
+
+Do not unit-test App Designer GUIs, long-running workers, or external services in this pattern.
+
+## File I/O in tests
+
+- Temporary folders only
+- Never depend on production paths
+- Clean up after execution
+
+## Time and randomness
+
+- No wall-clock dependencies
+- Fix random seeds explicitly
+
+## Output expectations
+
+- Prefer clarity over coverage tricks
+- Make failures easy to diagnose

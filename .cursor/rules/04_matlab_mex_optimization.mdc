@@ -1,0 +1,41 @@
+---
+description: MEX performance optimization — controlled escape hatch with MATLAB reference path
+globs: "**/mex/**,**/*mex*,**/MatlabMex/**"
+alwaysApply: false
+---
+
+# MEX optimization
+
+## When to use MEX
+
+- Correct MATLAB implementation exists
+- Profiling shows real bottleneck
+- Vectorization is insufficient
+
+## What belongs in MEX
+
+- Pure numeric computation, tight loops, deterministic kernels
+
+## What does not belong
+
+- File I/O, logging, configuration, GUI, system orchestration
+
+## Architecture
+
+- MATLAB orchestrates; MEX computes
+- MATLAB calls wrapper function, not MEX directly
+
+## Folders
+
+- MEX sources: `astropack/MatlabMex` (or project `mex/`)
+- MATLAB wrappers: corresponding Matlab tree
+
+## Testing
+
+- MATLAB implementation is the reference
+- Compare outputs with defined tolerances
+
+## Output expectations
+
+- Preserve MATLAB reference path
+- Document why MEX is justified

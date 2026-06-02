@@ -1,0 +1,7 @@
+{
+  "status": "ok",
+  "message": "",
+  "soft_max_sun_ang_dist": [131.5, 137.0],
+  "is_hard": [false, true],
+  "hard_dur_min": [null, 45.2]
+}
