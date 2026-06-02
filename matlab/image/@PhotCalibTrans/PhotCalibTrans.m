@@ -199,6 +199,16 @@ classdef PhotCalibTrans < Component
         TransWvl = (3000:20:11000)'   % Transmission wavelength grid [Angstrom] for model evaluation (401 points)
     end
 
+    properties (Dependent)
+        % Effective exposure time per single proc frame [s]:
+        %    ExpTime_eff = ExpTime / (NCoadd * NFramesPerCoadd)
+        % This is the time-base the calibration ZP is referenced to: every
+        % method that applies ZP uses MAG = -2.5*log10(FLUX/ExpTime_eff) + ZP.
+        % Computed on access from ExpTime, NCoadd and NFramesPerCoadd; never
+        % stored, so it cannot go stale.
+        ExpTime_eff
+    end
+
     methods % Constructor
         function Obj = PhotCalibTrans(varargin)
             % Constructor for PhotCalibTrans class
@@ -241,6 +251,14 @@ classdef PhotCalibTrans < Component
                     end
                 end
             end
+        end
+    end
+
+    methods % Dependent-property getters
+        function v = get.ExpTime_eff(Obj)
+            % Effective exposure time per single proc frame [s].
+            % Recomputed on every access from ExpTime, NCoadd and NFramesPerCoadd.
+            v = Obj.ExpTime / (Obj.NCoadd * Obj.NFramesPerCoadd);
         end
     end
 
@@ -597,7 +615,7 @@ classdef PhotCalibTrans < Component
                 fprintf('  NCoadd   = %d\n', Obj.NCoadd);
                 if Obj.NFramesPerCoadd ~= 1
                     fprintf('  NFramesPerCoadd = %d  ->  ExpTime_eff = %.4f s (coadd-of-coadds mode)\n', ...
-                        Obj.NFramesPerCoadd, Obj.ExpTime / (Obj.NCoadd * Obj.NFramesPerCoadd));
+                        Obj.NFramesPerCoadd, Obj.ExpTime_eff);
                 end
                 fprintf('  Temp     = %.1f C\n', Obj.Temp);
                 fprintf('  Pressure = %.1f mbar\n', Obj.Pressure);
@@ -773,7 +791,7 @@ classdef PhotCalibTrans < Component
 
                 % Calculate effective exposure time (accounting for coadding).
                 % NFramesPerCoadd > 1 only for coadd-of-coadds inputs.
-                ExpTime_eff = Obj.ExpTime / (Obj.NCoadd * Obj.NFramesPerCoadd);
+                ExpTime_eff = Obj.ExpTime_eff;
 
                 % Pre-compute MagErr for all calibrators (expensive, do once)
                 % This avoids recalculating error propagation on every costFun call
@@ -1729,7 +1747,7 @@ classdef PhotCalibTrans < Component
             end
 
             % Calculate effective exposure time (accounting for coadding)
-            ExpTime_eff = Obj.ExpTime / (Obj.NCoadd * Obj.NFramesPerCoadd);
+            ExpTime_eff = Obj.ExpTime_eff;
 
             % Ensure column vectors
             Flux = Flux(:);
@@ -1783,7 +1801,7 @@ classdef PhotCalibTrans < Component
             if isempty(Args.CostArgs)
                 X = Obj.SourceData.getCol('X');
                 Y = Obj.SourceData.getCol('Y');
-                ExpTime_eff = Obj.ExpTime / (Obj.NCoadd * Obj.NFramesPerCoadd);
+                ExpTime_eff = Obj.ExpTime_eff;
                 CostArgs = {'WeightMatrix', Obj.SpecData.Spec', 'TransmissionMode', true, ...
                             'CalibWavelength', Obj.SpecData.SpecWvl, 'ExpTime', ExpTime_eff, ...
                             'Aperture_area_m2', Obj.Aperture, 'X', X, 'Y', Y};
@@ -1963,7 +1981,7 @@ classdef PhotCalibTrans < Component
 
             % Get effective exposure time
             if isempty(Args.ExpTime)
-                ExpTime_eff = Obj.ExpTime / (Obj.NCoadd * Obj.NFramesPerCoadd);
+                ExpTime_eff = Obj.ExpTime_eff;
             else
                 ExpTime_eff = Args.ExpTime;
             end
@@ -2967,7 +2985,7 @@ classdef PhotCalibTrans < Component
             % Compute ZP once for all flux columns
             Nrows = height(Tab);
             ZP = nan(Nrows, 1);
-            ExpTime_eff = Obj.ExpTime / (Obj.NCoadd * Obj.NFramesPerCoadd);
+            ExpTime_eff = Obj.ExpTime_eff;
             ValidPosMask = true(Nrows, 1);
             if ~isempty(X)
                 InvalidPos = isnan(X) | isinf(X) | isnan(Y) | isinf(Y);
@@ -3389,7 +3407,7 @@ classdef PhotCalibTrans < Component
             arguments
                 Obj
                 AI
-                Args.PixScale = ['arcsec']
+                Args.PixScale = []        % [] => read from AI.WCS.getScale('arcsec'); otherwise must be a finite positive double [arcsec/pix]
                 Args.backVarArgs = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}};
             end
 
@@ -3418,8 +3436,8 @@ classdef PhotCalibTrans < Component
                     return;
                 end
 
-                ZP = Obj.evaluateZP();   % scalar at field centre
-                Obj.BackMag = ZP - 2.5*log10(MedBack) + 5*log10(PixScale);
+                ZP          = Obj.evaluateZP();        % scalar at field centre (on per-frame-rate scale)
+                Obj.BackMag = ZP - 2.5*log10(MedBack/Obj.ExpTime_eff) + 5*log10(PixScale);
             catch ME
                 Obj.msgLog(LogLevel.Warning, ...
                     'evaluateBackMag: Computation failed (%s) - BackMag set to NaN.', ME.message);
