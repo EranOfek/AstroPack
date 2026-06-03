@@ -8,13 +8,15 @@ classdef ClickHouseClient < handle
     %   options fields:
     %     options.settings   - containers.Map of string->string server settings
     %     options.useragent  - string, custom client name
+    %     options.maxRetries - integer >= 0, retry attempts on query/insert failure (default 3)
     %     options.tls        - struct with fields:
     %       .enabled           logical  (true to enable TLS)
     %       .skip_verification logical  (true to skip cert check, dev only)
     %       .ca_file           string   (path to CA certificate file)
-
+    
     properties (Access = private)
-        ptr (1,1) uint64 = uint64(0)
+        ptr        (1,1) uint64  = uint64(0)
+        maxRetries (1,1) double  = 3
     end
 
     methods
@@ -36,6 +38,13 @@ classdef ClickHouseClient < handle
                 password (1,1) string  = ""
                 options  (1,1) struct  = struct()
             end
+
+            % maxRetries: gates the MATLAB-level catch retry AND configures the
+            % C++ client (SetPingBeforeQuery / SetSendRetries). 0 = fail-fast.
+            if isfield(options, 'maxRetries')
+                obj.maxRetries = options.maxRetries;
+            end
+            options.maxRetries = obj.maxRetries;
 
             % Expand containers.Map settings to cell arrays for MEX
             if isfield(options, 'settings') && isa(options.settings, 'containers.Map')
@@ -64,7 +73,15 @@ classdef ClickHouseClient < handle
             if numel(sql) > 1
                 sql = strjoin(sql, '');
             end
-            s = db.mex.clickhouse_mex('query', obj.ptr, char(sql));
+            try
+                s = db.mex.clickhouse_mex('query', obj.ptr, char(sql));
+            catch ME
+                if obj.maxRetries <= 0
+                    rethrow(ME);
+                end
+                % One retry — SetPingBeforeQuery will reconnect automatically
+                s = db.mex.clickhouse_mex('query', obj.ptr, char(sql));
+            end
             % Handle DDL / zero-column result
             if isempty(fieldnames(s))
                 result = table();
@@ -80,11 +97,14 @@ classdef ClickHouseClient < handle
                 elseif iscell(v) && ~isempty(v) && iscell(v{1})
                     % Array(String): cell of cell-of-char -> cell of string arrays
                     s.(f) = cellfun(@(c) string(c), v, 'UniformOutput', false);
-                elseif iscell(v) && ~isempty(v) && any(cellfun(@ischar, v))
-                    % Nullable(String): cell with char elements (non-null) and [] sentinels (null)
+                elseif iscell(v) && ~isempty(v) && ...
+                    any(cellfun(@(x) ischar(x) || islogical(x), v))
+                    % Nullable(String-like): char (non-null) and false logical sentinel (null).
+                    % The logical sentinel disambiguates from Array(T) typed empty arrays,
+                    % which are numeric (double([]), int8([]), etc.), never logical.
                     arr = strings(size(v));
                     for k = 1:numel(v)
-                        if isnumeric(v{k}) && isempty(v{k})
+                        if islogical(v{k})
                             arr(k) = missing;
                         else
                             arr(k) = string(v{k});
@@ -96,13 +116,31 @@ classdef ClickHouseClient < handle
             result = struct2table(s);
         end
 
-        function insert(obj, tableName, data)
+        function schema = describe(obj, tableName)
+            % describe  Return the table schema (DESCRIBE TABLE result).
+            %   Pass the returned table to insert() as the optional schema
+            %   argument to skip the per-insert DESCRIBE round-trip when
+            %   inserting into the same table repeatedly.
+            arguments
+                obj
+                tableName (1,1) string
+            end
+            schema = obj.query("DESCRIBE TABLE " + tableName);
+        end
+
+        function insert(obj, tableName, data, schema)
             % insert  Insert rows into a ClickHouse table.
             %   data can be a MATLAB table or a scalar struct of arrays.
+            %   schema (optional) — DESCRIBE TABLE result from obj.describe().
+            %   If omitted, it is fetched on demand. Pass it explicitly to
+            %   skip the round-trip on repeated inserts into the same table.
+            %   Must be a table with a 'type' column; anything else throws
+            %   ClickHouse:badSchema.
             arguments
                 obj
                 tableName (1,1) string
                 data
+                schema = []
             end
             if istable(data)
                 data = table2struct(data, 'ToScalar', true);
@@ -124,6 +162,11 @@ classdef ClickHouseClient < handle
                     else
                         data.(f) = cellstr(v);
                     end
+                elseif strcmp(class(v), 'missing')
+                    % Scalar or array of missing → all-null sentinel cell array
+                    c = cell(numel(v), 1);
+                    for k = 1:numel(v), c{k} = []; end
+                    data.(f) = c;
                 elseif ischar(v)
                     data.(f) = cellstr(v);
                 elseif iscell(v)
@@ -151,30 +194,142 @@ classdef ClickHouseClient < handle
                     end
                 end
             end
-            % Query table schema to detect Nullable columns.
-            % ClickHouse (particularly recent versions) rejects a plain ColumnFloat64
-            % inserted into a Nullable(Float64) column. We pass a ch_nullable_hint cell
-            % array of column names so MEX can force-wrap them in ColumnNullable.
-            try
-                desc = obj.query("DESCRIBE TABLE " + tableName);
-                if height(desc) > 0 && ismember('type', desc.Properties.VariableNames)
-                    data_fields = fieldnames(data);
-                    nullable_hint = {};
-                    for i = 1:height(desc)
-                        col_name = char(desc.name(i));
-                        type_str = char(desc.type(i));
-                        if startsWith(type_str, 'Nullable(') && ismember(col_name, data_fields)
-                            nullable_hint{end+1} = col_name; %#ok<AGROW>
+            % Schema source: caller-provided (fast path, skips round-trip) or
+            % fetched on demand. The schema drives MEX-layer type hints —
+            % ClickHouse rejects plain ColumnFloat64 into Nullable(Float64),
+            % needs DateTime64 precision, LowCardinality inner type, etc.
+            if isempty(schema)
+                try
+                    schema = obj.describe(tableName);
+                catch
+                    schema = table();   % silent: proceed without hints
+                end
+            elseif ~istable(schema) || ~ismember('type', schema.Properties.VariableNames)
+                error("ClickHouse:badSchema", ...
+                    "schema must be a table returned by obj.describe(); got class=%s.", ...
+                    class(schema));
+            end
+            if height(schema) > 0
+                desc = schema;
+                data_fields = fieldnames(data);
+                nullable_hint    = {};
+                datetime64_hint  = struct();
+                date_type_hint   = struct();
+                nullable_int_hint = struct();
+                lc_hint          = struct();
+                ipv4_hint        = {};
+                ipv6_hint        = {};
+                enum_hint        = struct();
+                fixedstring_hint = struct();
+                decimal_hint     = struct();
+                for i = 1:height(desc)
+                    col_name = char(desc.name(i));
+                    type_str = char(desc.type(i));
+                    if ~ismember(col_name, data_fields), continue; end
+                    if startsWith(type_str, 'Nullable(')
+                        nullable_hint{end+1} = col_name; %#ok<AGROW>
+                    end
+                    % Detect DateTime64(N) or Nullable(DateTime64(N))
+                    tok = regexp(type_str, 'DateTime64\((\d+)', 'tokens', 'once');
+                    if ~isempty(tok)
+                        datetime64_hint.(col_name) = str2double(tok{1});
+                    end
+                    % Detect Date / Date32 / DateTime (non-DateTime64)
+                    if ~isempty(regexp(type_str, '^(Nullable\()?Date\)?\s*$', 'once')) || ...
+                            strcmp(type_str, 'Date') || strcmp(type_str, 'Nullable(Date)')
+                        date_type_hint.(col_name) = 'Date';
+                    elseif strcmp(type_str, 'Date32') || strcmp(type_str, 'Nullable(Date32)')
+                        date_type_hint.(col_name) = 'Date32';
+                    elseif ~isempty(regexp(type_str, '^(Nullable\()?DateTime(\(|''|\s*$)', 'once')) && ...
+                            isempty(regexp(type_str, 'DateTime64', 'once'))
+                        date_type_hint.(col_name) = 'DateTime';
+                    end
+                    % Detect Nullable(Int*/UInt*) for integer nullable insert
+                    ni_tok = regexp(type_str, '^Nullable\((Int8|Int16|Int32|Int64|UInt8|UInt16|UInt32|UInt64)\)$', 'tokens', 'once');
+                    if ~isempty(ni_tok)
+                        nullable_int_hint.(col_name) = ni_tok{1};
+                    end
+                    % Detect LowCardinality columns
+                    lc_tok = regexp(type_str, '^LowCardinality\((\w+)', 'tokens', 'once');
+                    if ~isempty(lc_tok)
+                        lc_hint.(col_name) = lc_tok{1};
+                    end
+                    % Strip Nullable wrapper for remaining detection
+                    bare_type = regexprep(type_str, '^Nullable\((.+)\)$', '$1');
+                    % IPv4 / IPv6
+                    if strcmp(bare_type, 'IPv4')
+                        ipv4_hint{end+1} = col_name; %#ok<AGROW>
+                    elseif strcmp(bare_type, 'IPv6')
+                        ipv6_hint{end+1} = col_name; %#ok<AGROW>
+                    end
+                    % FixedString(N)
+                    fs_tok = regexp(bare_type, '^FixedString\((\d+)\)$', 'tokens', 'once');
+                    if ~isempty(fs_tok)
+                        fixedstring_hint.(col_name) = str2double(fs_tok{1});
+                    end
+                    % Enum8/Enum16 — store the bare type string for MEX parsing
+                    if startsWith(bare_type, 'Enum8(') || startsWith(bare_type, 'Enum16(')
+                        enum_hint.(col_name) = bare_type;
+                    end
+                    % Decimal32/64/128(S) and Decimal(P,S)
+                    dec_tok = regexp(bare_type, '^Decimal(32|64|128)\((\d+)\)$', 'tokens', 'once');
+                    if ~isempty(dec_tok)
+                        dec_bits = dec_tok{1}; dec_scale = str2double(dec_tok{2});
+                        if strcmp(dec_bits,'32') 
+                            dec_prec = 9;
+                        elseif strcmp(dec_bits,'64') 
+                            dec_prec = 18;
+                        else
+                            dec_prec = 38;
+                        end
+                        decimal_hint.(col_name) = [dec_prec, dec_scale];
+                    else
+                        dec_tok2 = regexp(bare_type, '^Decimal\((\d+),\s*(\d+)\)$', 'tokens', 'once');
+                        if ~isempty(dec_tok2)
+                            decimal_hint.(col_name) = [str2double(dec_tok2{1}), str2double(dec_tok2{2})];
                         end
                     end
-                    if ~isempty(nullable_hint)
-                        data.ch_nullable_hint = nullable_hint;
-                    end
                 end
-            catch
-                % Proceed without hint if DESCRIBE fails (e.g. no SELECT privilege)
+                if ~isempty(nullable_hint)
+                    data.ch_nullable_hint = nullable_hint;
+                end
+                if ~isempty(fieldnames(datetime64_hint))
+                    data.ch_datetime64_hint = datetime64_hint;
+                end
+                if ~isempty(fieldnames(date_type_hint))
+                    data.ch_date_type_hint = date_type_hint;
+                end
+                if ~isempty(fieldnames(nullable_int_hint))
+                    data.ch_nullable_int_hint = nullable_int_hint;
+                end
+                if ~isempty(fieldnames(lc_hint))
+                    data.ch_lc_hint = lc_hint;
+                end
+                if ~isempty(ipv4_hint)
+                    data.ch_ipv4_hint = ipv4_hint;
+                end
+                if ~isempty(ipv6_hint)
+                    data.ch_ipv6_hint = ipv6_hint;
+                end
+                if ~isempty(fieldnames(enum_hint))
+                    data.ch_enum_hint = enum_hint;
+                end
+                if ~isempty(fieldnames(fixedstring_hint))
+                    data.ch_fixedstring_hint = fixedstring_hint;
+                end
+                if ~isempty(fieldnames(decimal_hint))
+                    data.ch_decimal_hint = decimal_hint;
+                end
             end
-            db.mex.clickhouse_mex('insert', obj.ptr, char(tableName), data);
+            try
+                db.mex.clickhouse_mex('insert', obj.ptr, char(tableName), data);
+            catch ME
+                if obj.maxRetries <= 0
+                    rethrow(ME);
+                end
+                % One retry — SetPingBeforeQuery will reconnect automatically
+                db.mex.clickhouse_mex('insert', obj.ptr, char(tableName), data);
+            end
         end
 
         function delete(obj)
@@ -183,6 +338,11 @@ classdef ClickHouseClient < handle
                 db.mex.clickhouse_mex('delete', obj.ptr);
                 obj.ptr = uint64(0);
             end
+        end
+
+        function v = version(~)
+            % version  Return the clickhouse-matlab library version as a string.
+            v = string(db.mex.clickhouse_mex('version'));
         end
     end
 end
