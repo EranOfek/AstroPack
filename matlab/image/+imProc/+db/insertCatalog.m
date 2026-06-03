@@ -134,7 +134,9 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
         Args.DeleteFile logical   = false;  % delete file after Db insertion
 
         Args.DBConnector  = 'legacy'
-        Args.Schema       = []          % if not empty, pass it to the connector 
+        Args.Schema       = []          % if not empty, pass it to the connector
+        Args.MaxBatchLines = 50000;
+        Args.Verbosity    = 0;          % 0: silent; 1: total time; 2: per-batch time
     end
 
     Nobj = numel(Obj);
@@ -275,11 +277,26 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
             end
         elseif strcmpi(Args.DBConnector,'native')
             try
-                T.Properties.VariableNames=lower(T.Properties.VariableNames);
-                Db.insert(DbTableStr,T,Args.Schema); 
-                Error = []; 
+                T.Properties.VariableNames = lower(T.Properties.VariableNames);
+                Nrows    = size(T, 1);
+                Nbatches = ceil(Nrows / Args.MaxBatchLines);
+                TotalTic = tic;
+                for Ibatch = 1:Nbatches
+                    Istart   = (Ibatch-1)*Args.MaxBatchLines + 1;
+                    Iend     = min(Ibatch*Args.MaxBatchLines, Nrows);
+                    BatchTic = tic;
+                    Db.insert(DbTableStr, T(Istart:Iend, :), Args.Schema);
+                    if Args.Verbosity >= 2
+                        fprintf('insertCatalog: batch %d/%d (%d rows) inserted in %.2f s\n', ...
+                            Ibatch, Nbatches, Iend-Istart+1, toc(BatchTic));
+                    end
+                end
+                if Args.Verbosity >= 1
+                    fprintf('insertCatalog: %d rows inserted in %.2f s\n', Nrows, toc(TotalTic));
+                end
+                Error = [];
             catch ME
-                Error = ME.message; 
+                Error = ME.message;
             end
         else
             error('Asked for unknown DB connector')

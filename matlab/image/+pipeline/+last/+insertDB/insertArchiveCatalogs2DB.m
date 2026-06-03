@@ -206,7 +206,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
                 end                
             else
                 [~, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
-                    'CreateCsv',false,'DBConnector',Args.DBConnector,'Schema',Args.Schema); 
+                    'CreateCsv',false,'DBConnector',Args.DBConnector,'Schema',Args.Schema, 'MaxBatchLines',200000,'Verbosity',2); 
                 
                 if ~isempty(Error)
                     error('catalog injection failed');
