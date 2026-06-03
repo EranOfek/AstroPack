@@ -130,7 +130,7 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
         if ~isempty(AD(Iobj).Scorr)
             Indices = sub2ind(size(AD(Iobj).Scorr), XY(:,2),XY(:,1));
             Scorr = AD(Iobj).Scorr(Indices);
-            if Args.applyDSDFcorrection && exist('DSDF','var')
+            if Args.applyDSDFcorrection && exist('DSDF','var') && CandCat.isColumn(Args.GAIA_BpCol)
                 Alpha = AD(Iobj).New.HeaderData.getVal(Args.photColorTermCol);
                 GAIA_Color = CandCat.getCol(Args.GAIA_BpCol) - CandCat.getCol(Args.GAIA_RpCol);
                 ColorCorrection = Alpha.*abs(GAIA_Color - Args.assumedColor).*DSDF;
