@@ -38,8 +38,8 @@ function [Mag, Info] = satelliteMag(Args)
 %            .SN                - Read-noise dominated S/N during CrossTime.
 %            Also includes all input arguments.
 % Author : ChatGPT + Eran Ofek (2026)
-% Example: [Mag, Info] = satelliteMag;
-%          [Mag, Info] = satelliteMag(Albedo=0.2, Radius=1.5, Dist=800e3);
+% Example: [Mag, Info] = celestial.earth.satelliteMag;
+%          [Mag, Info] = celestial.earth.satelliteMag(Albedo=0.2, Radius=1.5, Dist=800e3);
 
 
 

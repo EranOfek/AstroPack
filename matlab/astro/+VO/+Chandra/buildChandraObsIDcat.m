@@ -50,6 +50,8 @@ function Cat = buildChandraObsIDcat(Args)
 %              sequence_num      - Links related observations
 %              grid_name         - Grid grouping name
 %              joint_obs         - Joint-observatory flag
+%              obs_ao_str        - Chandra observing cycle / AO string
+%              category          - Science category, used in old CDA path catN
 % Author : Eran Ofek (May 2026)
 % Example: Cat = VO.Chandra.buildChandraObsIDcat;
 %          Cat = VO.Chandra.buildChandraObsIDcat('Status','archived');
@@ -75,6 +77,7 @@ function Cat = buildChandraObsIDcat(Args)
                'o.start_date, o.public_avail_date, o.exposure_time, '    ...
                'o.exposure_mode, o.event_count, o.event_count_rate, '    ...
                'o.sequence_num, o.grid_name, o.joint_obs'];
+               %'o.obs_ao_str, o.category'];
 
     WhereClause = '';
     if ~isempty(Args.Status)
@@ -152,16 +155,27 @@ function Cat = buildChandraObsIDcat(Args)
     %  file matches the returned table.                                  %
     % ------------------------------------------------------------------ %
     Cat = tools.table.table_cell2string(Cat);
-    NumericCols = {'ra','dec','gal_l','gal_b','exposure_time', ...
-                   'event_count','event_count_rate','obsid','sequence_num'};
-    for Ic = 1:numel(NumericCols)
-        Cn = NumericCols{Ic};
-        if ismember(Cn, Cat.Properties.VariableNames)
-            Cat.(Cn) = str2double(Cat.(Cn));
-        end
-    end
+    % NumericCols = {'ra','dec','gal_l','gal_b','exposure_time', ...
+    %                'event_count','event_count_rate','obsid','sequence_num'};
+    % for Ic = 1:numel(NumericCols)
+    %     Cn = NumericCols{Ic};
+    %     if ismember(Cn, Cat.Properties.VariableNames)
+    %         Cat.(Cn) = str2double(Cat.(Cn));
+    %     end
+    % end
     Cat = renamevars(Cat, 'ra',  'RA');
     Cat = renamevars(Cat, 'dec', 'Dec');
+
+
+    PropNum = Cat.proposal_number;
+    
+    if ~isnumeric(PropNum)
+        PropNum = str2double(string(PropNum));
+    end
+    
+    Cat.AO = floor(PropNum ./ 1e6);
+    Cat.CatNum = floor((PropNum - Cat.AO.*1e6) ./ 1e5);
+
 
     % ------------------------------------------------------------------ %
     %  Optional save                                                      %

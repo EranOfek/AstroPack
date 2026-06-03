@@ -56,6 +56,8 @@ classdef PipelineDemon < Component
         DefRefPath      = 'data/references';   %/last01e/data/refreences'
 
         FieldList       = pipeline.DemonLAST.fieldsListLAST;
+
+        RedisPV         = [];
     end
 
     properties (Hidden, SetAccess=protected, GetAccess=public)
@@ -1164,6 +1166,40 @@ classdef PipelineDemon < Component
                     % do nothing
                 end
             end
+
+        end
+    
+        function updateRedis(Obj, Key, Val, Args)
+            % Update the Redis DB with Key and Val
+            % Input  : - self.
+            %          - Keyword. E.g. 'last03e.pipeline.num_images'
+            %          - Value (string).
+            %          * ...,key,val,...
+            %            'ExpireTime' - Default is 1000 s.
+            % Output : null.
+            % Example: Obj.updateRedis('last03e.pipeline.num_image, sprintf('%d',Nimages));
+
+            arguments
+                Obj
+                Key
+                Val
+                Args.ExpireTime = 1000;
+            end
+
+            % Check if Redis object already exist and alive
+            if isempty(Obj.RedisPV)
+                % Create the Redis object
+                Obj.RedisPV = Redis('localhost', 6379, 'password', 'foobared'); % password probably not needed on last nodes
+            end
+
+            % Check that Redis is connected
+            % FFU
+
+            % Get Unix time
+            UnixTime = posixtime(datetime("now","TimeZone","UTC"));
+                
+            PVstore.hset(Key, 't',UnixTime, 'v',jsonencode(Val));
+            PVstore.expire(Key,Args.ExpireTime);
 
         end
     end
@@ -3100,6 +3136,7 @@ classdef PipelineDemon < Component
                         Msg = sprintf('Waiting for new visit - pause for %f seconds', Args.PauseNotFound);
                         Obj.writeLog(Msg, LogLevel.Info);
                         pause(Args.PauseNotFound);
+
                     else
                         for IndStartGroup = GroupQueue
                             % visit found
@@ -3160,6 +3197,8 @@ classdef PipelineDemon < Component
                             end %if Args.DebugMode
                             % FFU
         
+                            %ProjName = RawImageList{1}(1:13);
+                            %Obj.updateRedis(sprintf('%s.pipeline.waiting_visits',ProjName), numel(FN_Sci_Groups));
         
                             % visit found - start reduction
                             [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
