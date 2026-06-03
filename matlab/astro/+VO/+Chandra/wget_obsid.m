@@ -20,64 +20,121 @@ function URL=wget_obsid(ObsID, Args)
 %     By : Eran O. Ofek                    Jan 2015
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: VO.Chandra.wget_obsid(366)
+%          Cat = VO.Chandra.buildChandraObsIDcat();
+%          VO.Chandra.wget_obsid(366,'Cat',Cat);
+%          VO.Chandra.wget_obsid(Cat.obsid,'Cat',Cat);
 % Reliable: 2
 %--------------------------------------------------------------------------
 
 arguments
     ObsID
     Args.BasePath        = [];
-    Args.Unzip logical   = true;
+    Args.Unzip           = false;
     Args.Npwget          = 10;
     Args.RemoveBase      = 'https://cxc.cfa.harvard.edu/cdaftp/science/';
     
+    Args.Cat             = [];
+    Args.SkipExist       = true;
+    Args.Instrument      = {'ACIS-S','ACIS-I'};
+    %Args.MinExpTime      = 500;
 end
 
-
-Cat = cats.X.ChandraObs;
+PWD = pwd;
+%Cat = cats.X.ChandraObs;
+if isempty(Args.Cat)
+    Cat = VO.Chandra.buildChandraObsIDcat();
+else
+    Cat = Args.Cat;
+end
 
 % Search ObsID
 %Iobs = find([Cat.ObsID]==ObsID);
-Iobs  = find(Cat.Cat.ObsID==ObsID);
+%Iobs  = find(Cat.Cat.ObsID==ObsID);
 %URL  = Cat(Iobs).URL;
-URL   = Cat.Cat.URL{Iobs};
+%URL   = Cat.Cat.URL{Iobs};
 
-[List,IsDir,FileName]=www.r_files_url(URL);
 
+Nobsid = numel(ObsID);
+for I=1:1:Nobsid
+
+    Iobs = find(Cat.obsid==ObsID(I));
     
-PWD = pwd;
-if isempty(Args.BasePath)
-    BasePath = pwd;
-else
-    BasePath = Args.BasePath;
-    cd(BasePath);
-end
-
-
-
-
-RelFiles = regexprep(List, Args.RemoveBase, '');
-Dirs     = fileparts(RelFiles);
-UniqueDirs = unique(Dirs);
-
-Nun = numel(UniqueDirs);
-for Iun=1:1:Nun
-    Flag = strcmp(Dirs, UniqueDirs{Iun});
+    BaseStr = sprintf('ao%02d/cat%d/%d/', Cat.AO(Iobs), Cat.CatNum(Iobs), ObsID(I));
+    % old format
+    %URL = sprintf('%s%s', Args.RemoveBase, BaseStr);
+    % new format
+    URL = sprintf('https://cxc.cfa.harvard.edu/cdaftp/byobsid/%d/%d/', ...
+              mod(Cat.obsid(I), 10), Cat.obsid(I));
+    %e.g., https://cxc.cfa.harvard.edu/cdaftp/science/ao20/cat7/21421/
     
-    cd(BasePath);
-    mkdir(UniqueDirs{Iun});
-    cd(UniqueDirs{Iun});
+    IsInst = ismember(Cat.instrument(Iobs), Args.Instrument);
+    ExpTime = str2double(Cat.exposure_time(Iobs));
+    IsArchived  = Cat.status(Iobs) == "archived";
     
-    www.pwget(List(Flag), '--no-check-certificate -U Mozilla', Args.Npwget);
-    
-    
-    if Args.Unzip
-        pause(30);
-        %gunzip('*.gz');
-        system('gzip -d *.gz');
+    % if numel(char(Cat.start_date(Iobs)))>4    
+    %     if str2double(extractBefore(Cat.start_date(Iobs),5))==2024
+    %         'a'
+    %     end
+    % end
+
+    BaseStrOIF = sprintf('%soif.fits',BaseStr);
+    if isfolder(BaseStr) && isfile(BaseStrOIF)
+        % skip
+        fprintf('%s exist\n',BaseStr)
+    else
+        if IsInst && IsArchived
+
+            fprintf('Downloading to: %s\n',BaseStr);
+
+            [List,IsDir,FileName]=www.r_files_url(URL);
+                
+            cd('/raid/eran/projects/transients/x/chandra/ObsID');
+
+            PWD = pwd;
+            tools.os.cdmkdir(BaseStr);
+
+            BasePath = pwd;
+
+            % if isempty(Args.BasePath)
+            %     BasePath = pwd;
+            % else
+            %     BasePath = Args.BasePath;
+            %     cd(BasePath);
+            % end
+            
+            
+            
+            
+            RelFiles = regexprep(List, Args.RemoveBase, '');
+            Dirs     = fileparts(RelFiles);
+            UniqueDirs = unique(Dirs);
+            UniqueDirsCl = tools.os.removeFirstNdirsKeepLast(UniqueDirs, 7);
+
+            Nun = numel(UniqueDirs);
+            for Iun=1:1:Nun
+                Flag = strcmp(Dirs, UniqueDirs{Iun});
+                
+                cd(BasePath);
+                
+                if ~isempty(UniqueDirsCl{Iun})
+                    mkdir(UniqueDirsCl{Iun});
+                    cd(UniqueDirsCl{Iun});
+                end
+                www.pwget(List(Flag), '--no-check-certificate -U Mozilla', Args.Npwget);
+                
+                
+                if Args.Unzip
+                    pause(30);
+                    %gunzip('*.gz');
+                    system('gzip -d *.gz');
+                end
+            end
+            cd(PWD);
+        end
     end
 end
 
-
+cd(PWD);                        
 
 
 if 1==0
@@ -196,4 +253,3 @@ end
 end
 
 
-cd(PWD);                        
