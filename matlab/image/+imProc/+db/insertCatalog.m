@@ -134,6 +134,7 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
         Args.DeleteFile logical   = false;  % delete file after Db insertion
 
         Args.DBConnector  = 'legacy'
+        Args.Schema       = []          % if not empty, pass it to the connector 
     end
 
     Nobj = numel(Obj);
@@ -275,7 +276,7 @@ function [T,Error,FileName] = insertCatalog(Obj, Args)
         elseif strcmpi(Args.DBConnector,'native')
             try
                 T.Properties.VariableNames=lower(T.Properties.VariableNames);
-                Db.insert(DbTableStr,T); 
+                Db.insert(DbTableStr,T,Args.Schema); 
                 Error = []; 
             catch ME
                 Error = ME.message; 
