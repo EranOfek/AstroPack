@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "+services/+too_planner/README.md",
+                "file": "+api/docs/testing_namespace_manager_client.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "README"
+              "title": "testing_namespace_manager_client"
             }
           }
         ]
@@ -78,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 346.5
   },
   "right": {
     "id": "39809b984c45f8d7",
@@ -185,15 +185,31 @@
   },
   "active": "ff1658edc8363135",
   "lastOpenFiles": [
-    "+services/diagrams/services_overview.mmd",
+    "+planner/README.md",
     "+services/README.md",
+    "+tools/README.md",
+    "+planner/diagrams/planner_layers.mmd",
+    "+api/docs/testing_namespace_manager_client.md",
+    "+api/docs/README.md",
+    "+alerts_filters/README.md",
+    "+planner/+debug/README.md",
+    "+api/README.md",
+    "ultrasat.md",
+    "+services/+too_planner/README.md",
+    "+services/+common/+debug/README.md",
+    "+services/+alerts_filter/+debug/README.md",
+    "+services/+slew_calc/+debug/README.md",
+    "+alerts_filters/+lvk/+models/README.md",
+    "+api/+utils/README.md",
+    "+api/+core/README.md",
+    "+planner/+guiutils/+debug/README.md",
+    "+api/+debug/+clients/README.md",
+    "+planner/data/README.md",
+    "+services/+common/README.md",
+    "+services/diagrams/services_overview.mmd",
     "+services/+alerts_filter/README.md",
     "+planner/diagrams/too_planner_flow.mmd",
-    "+planner/diagrams/planner_layers.mmd",
     "+planner/+guiutils/README.md",
-    "+planner/+debug/input_data/README.md",
-    "+api/README.md",
-    "+alerts_filters/README.md",
-    "ultrasat.md"
+    "+planner/+debug/input_data/README.md"
   ]
 }
