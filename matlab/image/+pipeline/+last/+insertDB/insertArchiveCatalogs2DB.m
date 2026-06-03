@@ -42,6 +42,8 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
         
         Args.RemoteUser        = 'euclid';
         Args.DBConnector       = 'native'; % 'legacy'; % 'native' or 'legacy'
+        Args.Schema            = [];       % the user may input the schema of the DB table 
+                                           % as a matlab table output of the "DESCRIBE TABLE" SQL command
     end    
     % create a DB object and connect   
     Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
@@ -59,6 +61,9 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
     elseif strcmpi(Args.DBConnector,'native')
         DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd);
         DB.query(sprintf('use %s',Args.DbName));
+        if isempty(Args.Schema)
+            Args.Schema = DB.describe(Args.DbTable);
+        end
     else
         error('Asked for unknown DB connector')
     end
@@ -200,9 +205,8 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
                     [~, Err.RemoveLocal] = system(RemLocalFile);
                 end                
             else
-%                 Args.DbTable = 'test_src'; %%%%% TEST 
                 [~, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
-                    'CreateCsv',false,'DBConnector',Args.DBConnector); 
+                    'CreateCsv',false,'DBConnector',Args.DBConnector,'Schema',Args.Schema); 
                 
                 if ~isempty(Error)
                     error('catalog injection failed');

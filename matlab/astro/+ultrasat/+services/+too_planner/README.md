@@ -344,7 +344,7 @@ This is separate from the transient HTTP response.
 ## File
 
 ```text
-soc/matlab_bridges/too_planner_bridge/api.py
+python/prj/nova/soc/matlab_bridges/too_planner_bridge/api.py
 ```
 
 ## Purpose
@@ -418,7 +418,7 @@ Response:
 ## File
 
 ```text
-soc/common/models/matlab_bridges/api/too_planner.py
+python/prj/nova/soc/common/models/matlab_bridges/api/too_planner.py
 ```
 
 ## Purpose
@@ -442,7 +442,7 @@ These models are the formal API contract between:
 ## File
 
 ```text
-soc/common/clients/matlab_bridges/too_planner.py
+python/prj/nova/soc/common/clients/matlab_bridges/too_planner.py
 ```
 
 ## Purpose

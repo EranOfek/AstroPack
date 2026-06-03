@@ -1,0 +1,279 @@
+/* Mermaid View Plugin Styles */
+
+.mermaid-view-container {
+	height: 100%;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+/* Split mode - side by side layout */
+.mermaid-view-container.mermaid-mode-split {
+	flex-direction: row;
+}
+
+.mermaid-mode-split .mermaid-view-source,
+.mermaid-mode-split .mermaid-view-preview {
+	width: 50%;
+	height: 100%;
+}
+
+/* Editor left (default) */
+.mermaid-layout-editor-left .mermaid-view-source {
+	order: 1;
+	border-right: 1px solid var(--background-modifier-border);
+}
+
+.mermaid-layout-editor-left .mermaid-view-preview {
+	order: 2;
+}
+
+/* Editor right */
+.mermaid-layout-editor-right .mermaid-view-source {
+	order: 2;
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+.mermaid-layout-editor-right .mermaid-view-preview {
+	order: 1;
+}
+
+/* Preview Mode - Fullscreen Diagram */
+.mermaid-view-preview {
+	height: 100%;
+	width: 100%;
+	overflow: hidden;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	cursor: grab;
+	position: relative;
+	touch-action: none;
+}
+
+.mermaid-view-preview.mermaid-view-panning {
+	cursor: grabbing;
+}
+
+/* Zoom wrapper for pan/zoom transforms */
+.mermaid-zoom-wrapper {
+	transform-origin: 0 0;
+	will-change: transform;
+}
+
+/* Zoom controls panel - matches Canvas styling */
+.mermaid-zoom-controls {
+	position: absolute;
+	inset-inline-end: var(--size-4-2);
+	top: var(--size-4-2);
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	z-index: 10;
+}
+
+.mermaid-zoom-control-group {
+	border-radius: var(--radius-s);
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	overflow: hidden;
+}
+
+.mermaid-zoom-control-item {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--size-4-2);
+	border-radius: 0;
+	box-shadow: none;
+	cursor: pointer;
+	border-bottom: 1px solid var(--background-modifier-border);
+	color: var(--text-muted);
+	--icon-size: var(--icon-s);
+	--icon-stroke: var(--icon-s-stroke-width);
+}
+
+.mermaid-zoom-control-item:last-child {
+	border-bottom: none;
+}
+
+.mermaid-zoom-control-item:hover {
+	color: var(--text-normal);
+	background-color: var(--interactive-hover);
+}
+
+.mermaid-zoom-control-item svg {
+	width: var(--icon-size);
+	height: var(--icon-size);
+	stroke-width: var(--icon-stroke);
+}
+
+/* Zoom indicator */
+.mermaid-zoom-indicator {
+	position: absolute;
+	bottom: 12px;
+	left: 50%;
+	transform: translateX(-50%);
+	padding: 4px 8px;
+	background-color: var(--background-secondary);
+	border-radius: var(--radius-s);
+	font-size: var(--font-smaller);
+	font-family: var(--font-monospace);
+	color: var(--text-muted);
+	opacity: 0;
+	transition: opacity 150ms ease-in-out;
+	pointer-events: none;
+	z-index: 10;
+}
+
+.mermaid-zoom-indicator.mermaid-zoom-indicator-active {
+	opacity: 1;
+}
+
+.mermaid-view-preview .mermaid {
+	max-width: none;
+	max-height: none;
+}
+
+/* Ensure the rendered SVG doesn't constrain zoom */
+.mermaid-view-preview svg {
+	max-width: none;
+	height: auto;
+}
+
+/* Source Mode - Text Editor */
+.mermaid-view-source {
+	height: 100%;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+.mermaid-view-source .cm-editor {
+	height: 100%;
+	flex: 1;
+}
+
+.mermaid-view-source .cm-scroller {
+	overflow: auto;
+}
+
+/* Error display */
+.mermaid-view-error {
+	color: var(--text-error);
+	padding: 20px;
+	text-align: center;
+	font-family: var(--font-monospace);
+	white-space: pre-wrap;
+}
+
+/* Empty state */
+.mermaid-view-empty {
+	color: var(--text-muted);
+	padding: 20px;
+	text-align: center;
+	font-style: italic;
+}
+
+/* Embedded mermaid diagrams in notes */
+.mermaid-embed {
+	display: flex;
+	justify-content: center;
+	padding: 1em 0;
+}
+
+.mermaid-embed .mermaid {
+	max-width: 100%;
+}
+
+.mermaid-embed svg {
+	max-width: 100%;
+	height: auto;
+}
+
+/* Embedded mermaid diagram wrapper with toolbar */
+.mermaid-diagram-wrapper {
+	position: relative;
+	width: 100%;
+}
+
+/* Zoom container for embedded diagrams */
+.mermaid-zoom-container {
+	overflow: hidden;
+	width: 100%;
+	cursor: grab;
+	touch-action: none;
+}
+
+.mermaid-zoom-container.mermaid-view-panning {
+	cursor: grabbing;
+}
+
+/* Zoom wrapper for embedded diagrams (receives transforms) */
+.mermaid-embedded-zoom-wrapper {
+	transform-origin: 0 0;
+	will-change: transform;
+}
+
+/* Ensure mermaid SVG isn't constrained when zooming */
+.mermaid-embedded-zoom-wrapper .mermaid svg {
+	max-width: none;
+}
+
+/* Toolbar for embedded diagrams */
+.mermaid-toolbar {
+	position: absolute;
+	top: calc(var(--size-4-2) + 28px);
+	inset-inline-end: var(--size-4-2);
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	opacity: 0;
+	transition: opacity 150ms ease-in-out;
+	z-index: 10;
+}
+
+.mermaid-diagram-wrapper:hover .mermaid-toolbar,
+.mermaid-diagram-wrapper.is-mobile .mermaid-toolbar {
+	opacity: 1;
+}
+
+.mermaid-toolbar-group {
+	border-radius: var(--radius-s);
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	overflow: hidden;
+}
+
+.mermaid-toolbar-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--size-4-2);
+	background-color: transparent;
+	border: none;
+	border-bottom: 1px solid var(--background-modifier-border);
+	border-radius: 0;
+	box-shadow: none;
+	cursor: pointer;
+	color: var(--text-muted);
+	--icon-size: var(--icon-s);
+	--icon-stroke: var(--icon-s-stroke-width);
+}
+
+.mermaid-toolbar-button:last-child {
+	border-bottom: none;
+}
+
+.mermaid-toolbar-button:hover {
+	background-color: var(--interactive-hover);
+	color: var(--text-normal);
+}
+
+.mermaid-toolbar-button svg {
+	width: var(--icon-size);
+	height: var(--icon-size);
+	stroke-width: var(--icon-stroke);
+}

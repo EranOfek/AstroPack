@@ -1,0 +1,54 @@
+flowchart TD
+    subgraph root ["+ultrasat package root"]
+        sci["Science utilities<br/>PSF, visibility, usim, zodiac"]
+        tools["+tools<br/>calcSlew, FOV, extinction"]
+    end
+
+    subgraph planner ["+planner"]
+        uplanner["uplanner.m"]
+        gui["+gui<br/>App Designer mlapp"]
+        guiutils["+guiutils<br/>MainModule, PlannerMain* helpers"]
+        webpage["+webpage<br/>HTML export"]
+        pldebug["+debug<br/>debug_Hcs, debug_Too, ..."]
+    end
+
+    subgraph api ["+api"]
+        clients["+clients<br/>ClientBase, ClientFactory"]
+        core["+core<br/>Loggable, Config"]
+        models["+models<br/>PlanData"]
+        utils["+utils<br/>JsonUtils, PathUtils"]
+    end
+
+    subgraph services ["+services"]
+        common["+common<br/>JsonFileIpc"]
+        slew["+slew_calc"]
+        snr["+snr_calc"]
+        too["+too_planner"]
+        alerts_svc["+alerts_filter"]
+    end
+
+    subgraph alerts ["+alerts_filters"]
+        lvk["+lvk<br/>models, filters, debug"]
+    end
+
+    subgraph python ["python/prj/nova/soc"]
+        py_clients["common/clients/"]
+        bridges["matlab_bridges/"]
+        mission["mission/"]
+    end
+
+    gui --> guiutils
+    guiutils --> uplanner
+    guiutils --> clients
+    uplanner --> tools
+    uplanner --> sci
+
+    clients --> py_clients
+    common --> bridges
+    slew --> common
+    snr --> common
+    too --> common
+    alerts_svc --> common
+    alerts_svc --> lvk
+
+    bridges --> mission

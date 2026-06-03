@@ -1,0 +1,29 @@
+flowchart LR
+    subgraph py ["Python bridges"]
+        slew_b["slew_calc_bridge"]
+        snr_b["snr_bridge"]
+        too_b["too_planner_bridge"]
+        alert_b["alerts_filter_bridge"]
+    end
+
+    subgraph ipc ["$SOC_PATH/runtime/exchange"]
+        slew_ipc["slew_calc/input"]
+        snr_ipc["snr/input*"]
+        too_ipc["too_planner/input"]
+        alert_ipc["alerts_filter/input"]
+    end
+
+    subgraph matlab ["MATLAB services"]
+        slew_m["slew_calc_service"]
+        snr_m["snr_calc_service"]
+        too_m["too_planner_service"]
+        alert_m["alerts_filter_service"]
+    end
+
+    slew_b --> slew_ipc --> slew_m
+    snr_b --> snr_ipc --> snr_m
+    too_b --> too_ipc --> too_m
+    alert_b --> alert_ipc --> alert_m
+
+    note1["* SNR legacy path:<br/>$SOC_PATH/snr/input/"]
+    snr_ipc -.-> note1

@@ -1,104 +1,139 @@
 # ULTRASAT Observation Planner GUI
 
-Created: 05/01/2025
-Updated: 22/03/2025
-Author:  Chen Tishler
+Created: 05/01/2025  
+Updated: 22/03/2025  
+Author: Chen Tishler
 
+History / design notes: [[DOC|DOC.md]]  
+User help URLs: [[Help/README|Help/README]]
+
+---
 
 ## Folders
 
-- AstroPack/matlab/astro/+ultrasat/+api
-- AstroPack/matlab/astro/+ultrasat/+planner
-- AstroPack/matlab/astro/+ultrasat/+planner/+gui
+- `matlab/astro/+ultrasat/+api/` — REST clients
+- `matlab/astro/+ultrasat/+planner/` — core planner
+- `matlab/astro/+ultrasat/+planner/+gui/` — App Designer apps (this folder)
+- `matlab/astro/+ultrasat/+planner/+guiutils/` — MainModule and helpers
 
+Architecture: [[../diagrams/planner_layers.mmd]]
 
+---
 
+## Important: `.mlapp` vs `mlapp_source/`
 
-# ULTRASAT Planner GUI
+| Edit here | Read-only snapshot |
+|-----------|-------------------|
+| `*.mlapp` in App Designer | `mlapp_source/*_code.m` |
 
-This folder contains the MATLAB App Designer (.mlapp) applications and related scripts for the ULTRASAT observation planner. The GUI components provide functionalities for managing observation plans, editing parameters, handling targets, validating submissions, and visualizing data.
+**Always edit `.mlapp` files in App Designer.** The `mlapp_source/` folder is exported by `_extract_mlapp_code.bat` for search and code review only.
 
-## Folder Structure
-```
-+ultrasat/
-   +planner/
-      +gui/                # Graphical User Interface for ULTRASAT Planner
-      ├── images/          # Contains images/icons used in the UI
-      ├── README.md        # This documentation file
-```
+---
 
-## Key Components
+## Main application
 
-### **Main Applications**
-- `PlannerMain.mlapp` – Main planner window for managing observation plans.
-- `Login.mlapp` – User authentication window.
-- `NewPlan.mlapp` – Interface for creating a new observation plan.
-- `OpenPlan.mlapp` – Allows users to load and manage existing plans.
-- `PlanParams.mlapp` – Interface for editing plan parameters.
-- `PlanTargets.mlapp` – Displays target details for a plan.
-- `Validate.mlapp` – Validation results and history window.
+| App | Role |
+|-----|------|
+| `PlannerMain.mlapp` | Main planner window — plan management, build, validate, submit |
 
-### **Target & Observation Management**
-- `AddPlanTarget.mlapp` – Interface to add a target to a plan.
-- `AddUniqueTarget.mlapp` – Interface to add a unique target.
-- `PlanTargetParams.mlapp` – Editing target parameters.
-- `UniqueTargets.mlapp` – Displays unique targets list.
-- `UniqueTargetParams.mlapp` – Parameters for unique targets.
+Launch from MATLAB or App Designer. Requires `SOC_PATH`, `SOC_API_KEY`, and usually `ASTROPACK_DATA_PATH`.
 
-### **Loading & Saving**
-- `LoadFromFile.mlapp` – Load observation plan from a file.
-- `LoadFromTextFile.mlapp` – Load targets from a text file.
-- `SavePlanToFile.mlapp` – Save the current plan to a file.
-- `SaveToFile.mlapp` – Save data to a file.
-- `SaveToTextFile.mlapp` – Save targets to a text file.
+---
 
-### **Validation & Status**
-- `BuildStatus.mlapp` – Displays the build status of a plan.
-- `ValidationStatus.mlapp` – Shows validation results.
-- `Submit.mlapp` – Interface for submitting plans.
+## App catalog (current)
 
-### **Visualization**
-- `PlotSkyMap.mlapp` – Displays the sky map of planned observations.
-- `PlotGraphs.mlapp` – Shows graphical analysis of observation data.
+Based on `mlapp_source/` snapshots:
 
-### **System & Preferences**
-- `Settings.mlapp` – User-configurable settings.
-- `UserPreferences.mlapp` – Stores user-specific preferences.
-- `Logger.mlapp` – Logs actions and messages.
-- `MsgBox.mlapp` – Custom message box implementation.
+### Session and system
 
-### **Helper Scripts**
-- `MainModule.m` – Core logic and data management for the planner.
-- `Preferences.m` – Handles user preferences.
-- `debug_MainModule.m` – Debugging tool for `MainModule`.
-- `debug_Preferences.m` – Debugging tool for `Preferences`.
-- `allFunList.m` – Lists available functions in the module.
+| App | Role |
+|-----|------|
+| `Login.mlapp` | User authentication |
+| `Logger.mlapp` | Action/message log |
+| `ErrorLogger.mlapp` | Error log viewer |
+| `About.mlapp` | About dialog |
+| `MsgBox.mlapp` | Custom message box |
+| `UserPreferences.mlapp` | User preferences |
 
-## Usage
-- Launch `PlannerMain.mlapp` to start the application.
-- Use `NewPlan.mlapp` to create a new observation plan.
-- Load existing plans using `OpenPlan.mlapp`.
-- Edit plan parameters and targets via `PlanParams.mlapp` and `PlanTargets.mlapp`.
-- Validate plans using `Validate.mlapp`.
-- Save and load plans using the `SaveToFile.mlapp` and `LoadFromFile.mlapp` utilities.
+### Plan lifecycle
 
-_Last Updated: 2025-03-18_
+| App | Role |
+|-----|------|
+| `NewPlan.mlapp` | Create new plan (HCS/LCS/DDT/AllSS/TOO) |
+| `OpenPlan.mlapp` | Open existing plan from DB |
+| `DuplicatePlan.mlapp` | Duplicate plan |
+| `PlanParams.mlapp` | Edit plan parameters |
+| `PlanHistory.mlapp` | Plan revision history |
+| `PlanTargets.mlapp` | Plan target table |
+| `PlanTargetParams.mlapp` | Single target parameters |
+| `LoadPlanFromFile.mlapp` | Load plan from file |
+| `SavePlanToFile.mlapp` | Save plan to file |
 
+### Unique targets
 
+| App | Role |
+|-----|------|
+| `UniqueTargets.mlapp` | Unique target list |
+| `AddUniqueTarget.mlapp` | Add unique target |
+| `UniqueTargetParams.mlapp` | Unique target parameters |
+| `LoadUniqueTargetsFromFile.mlapp` | Load targets from file |
+| `SaveUniqueTargetsToFile.mlapp` | Save targets to file |
 
+### Build, validate, submit
 
-## Important Source Files
+| App | Role |
+|-----|------|
+| `BuildStatus.mlapp` | Build progress/status |
+| `ValidationStatus.mlapp` | Validation results |
+| `SubmitStatus.mlapp` | Submission status |
+| `ApprovedTargets.mlapp` | Mission-approved targets |
 
-MainModule.m
+### Visualization
 
+| App | Role |
+|-----|------|
+| `PlotSkyMap.mlapp` | Sky map of planned observations |
+| `PlotGraphs.mlapp` | Visibility and analysis graphs |
+| `PlotLcsGraphs.mlapp` | LCS-specific graphs |
+| `LcsTargets.mlapp` | LCS target management |
+
+### Tables and utilities
+
+| App | Role |
+|-----|------|
+| `CalibObjTable.mlapp` | Calibration objects |
+| `RefImagesTable.mlapp` | Reference images |
+| `ExtSurveysTable.mlapp` | External surveys |
+| `FieldObjTable.mlapp` | Field objects |
+| `EnterStartTime.mlapp` | Enter start time |
+| `AdjustGroupStartTime.mlapp` | Adjust group start time |
+
+---
+
+## Helper layer
+
+Logic lives in `+guiutils/`, not in `.mlapp` callbacks:
+
+- `MainModule.m` — central state (DataModule)
+- `PlannerMain*Helper.m` — one helper per functional area
+
+See [[../+guiutils/README|+guiutils README]].
+
+---
 
 ## Testing the planner backend
 
-ultrasat.planner.uplanner.unitTest
+```matlab
+ultrasat.planner.uplanner.unitTest()
+ultrasat.planner.debug.debug_Hcs()
+ultrasat.planner.debug.debug_Too()
+```
 
+CLI guide: [[../../docs/run_matlab_cli]]
 
+---
 
-#  MATLAB App Server - Not being used
+## MATLAB App Server — Not being used
 
 https://chatgpt.com/c/79cae661-1cbd-4263-a0b2-f1b0379d0c27
 
@@ -112,8 +147,11 @@ https://www.mathworks.com/help/matlab/creating_guis/app-designer-startup-functio
 
 https://www.mathworks.com/matlabcentral/answers/447475-adding-folders-to-matlab-search-path-when-installing-app-created-using-app-designer
 
+---
 
-# Class uplanner - Need to be updated
+## Class uplanner — Need to be updated
+
+See `uplanner.m` header for the current method list. The outline below is retained for reference; property defaults may have changed.
 
 	classdef uplanner < Component 
 		% 
@@ -247,4 +285,4 @@ https://www.mathworks.com/matlabcentral/answers/447475-adding-folders-to-matlab-
 			 
 		end
 
-
+_Last updated: 2026-06_

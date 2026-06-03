@@ -1,0 +1,30 @@
+flowchart TB
+    subgraph gui_layer ["GUI layer +gui"]
+        PlannerMain["PlannerMain.mlapp"]
+        Dialogs["Login, NewPlan, PlanParams, ..."]
+    end
+
+    subgraph mediator ["Application state +guiutils"]
+        MainModule["MainModule.m<br/>DataModule pattern"]
+        Helpers["PlannerMain*Helper classes"]
+        GuiHelper["GuiHelper, TableHelper"]
+    end
+
+    subgraph core ["Core logic"]
+        uplanner["uplanner.m<br/>HCS LCS AllSS DDT TOO"]
+        LcsHelper["LcsHelper, AllSSHelper"]
+    end
+
+    subgraph api_layer ["API +api"]
+        Clients["PlansManagerClient<br/>ValidatorManagerClient<br/>..."]
+    end
+
+    PlannerMain --> Helpers
+    Dialogs --> MainModule
+    Helpers --> MainModule
+    MainModule --> uplanner
+    MainModule --> Clients
+    MainModule --> GuiHelper
+    uplanner --> LcsHelper
+
+    note["Forbidden: GUI → uplanner or GUI → Clients directly"]

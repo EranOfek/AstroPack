@@ -1,0 +1,18 @@
+/* Any other .md file */
+.tree-item-self[data-path$=".md"] .tree-item-inner {
+    color: blue !important;
+}
+/* README.md */
+.tree-item-self[data-path$="README.md"] .tree-item-inner {
+    color: navy !important;
+}
+
+/* Mermaid .mmd files */
+.tree-item-self[data-path$=".mmd"] .tree-item-inner {
+    color: purple !important;
+}
+
+/* Mermaid .mmd files */
+.tree-item-self[data-path$=".mermaid"] .tree-item-inner {
+    color: purple !important;
+}
