@@ -42,7 +42,7 @@ function simImage = simulate_ULTRASAT_image (Args)
         Args.OutName        = 'SimImage'; % the output filename template
         Args.MagDistr       = 'GALEX';    % magnitide distribution 'GALEX' empirical distribution 
                                           % or 'art' (artificial) distribution of NumSrc objects/sq.deg. 
-        Args.Temp           = [3500 5800 20000]; % the temperature grid (the source are equally distributed on it)
+        Args.Temp           = [3500 5800 20000]; % the temperature grid (the sources are equally distributed on it)
         Args.NumSrc         = 1000;       % number of objects per square degree (if the distribution is not 'GALEX')
                                           % 10(3)/sq.deg. roughly correspond to the GALEX distribution 
                                           % integrated upto m_NUV = 22.3  
@@ -118,7 +118,8 @@ function simImage = simulate_ULTRASAT_image (Args)
             
             for iMag = 1:1:MagBins                
                 Mag(iMag)  = MagL + (iMag - 1) * Delta_m;                
-                SrcDeg      = 10.^( 0.35 * Mag(iMag) - 4.9 );            % per 1 deg^2 (fitted from the GALEX data)
+%                 SrcDeg      = 10.^( 0.35 * Mag(iMag) - 4.9 );            % per 1 deg^2 (fitted from the GALEX data, Fig. 4 from Bianchi_2007_ApJS_173_659.pdf)
+                SrcDeg      = 10.^( 0.34 * Mag(iMag) - 5.6 );            % per 1 deg^2 (fitted from the GALEX data at |b| > 30, D. Kovaleva 2026)
                 SrcDist(iMag) = ceil( SrcDeg * Delta_m * Args.Size^2 );  % rescaled for Delta_m and Args.Size^2                
             end                         
             NumSrc = sum(SrcDist,'all');            
