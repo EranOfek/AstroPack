@@ -1063,7 +1063,6 @@ classdef AstroDiff < AstroImage
 
                 Args.includeAperturePhot logical = true;
                 Args.include2ndMoments logical = true;
-                Args.include
         
                 Args.includeBitMaskVal logical  = true;
                 Args.BitCutHalfSize             = 3;
