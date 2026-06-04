@@ -75,7 +75,9 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         Args.FilterConfigFile = '';
 
         Args.PixScale = 1.25;
+
         Args.PrecompKxKySize = [1716, 1716];
+        Args.getKxKySizeFromImage logical = true;
 
         Args.InjectedSrcs = [];
         Args.RePopRefPSF = false;
@@ -365,7 +367,16 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Derive Scorr stat image
     AD.subtractionScorr;
     % Derive Z2 stat image
-    AD.translient('PrecompKxKySize',Args.PrecompKxKySize);
+
+    PrecompKxKySize = [];
+
+    if Args.getKxKySizeFromImage
+        [PrecompKxKySize(1), PrecompKxKySize(2)] = AD(1).ImageData.sizeImage;
+    elseif ~isempty(Args.PrecompKxKySize)
+        PrecompKxKySize = Args.PrecompKxKySize;
+    end
+
+    AD.translient('PrecompKxKySize', PrecompKxKySize);
 
     % 8: ----- Find and process transients -----
     

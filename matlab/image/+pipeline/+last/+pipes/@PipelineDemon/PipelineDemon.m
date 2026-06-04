@@ -2342,7 +2342,8 @@ classdef PipelineDemon < Component
                 Args.MedianRange  = [0.95 1.05];
                 Args.RStdRange    = [0.01 0.05];
                 Args.StdRange     = [0 1];
-                Args.MaxNaN       = 40000;
+                Args.MaxNaN       = 1000;
+                Args.OverScanWidth= 24;
                 Args.MaxAbsGrad   = 0.05;
                 Args.MaxNmaxGrad  = 50000;
             end
@@ -2363,7 +2364,7 @@ classdef PipelineDemon < Component
                 Info(Iai).Median  = imProc.stat.median(AI(Iai));
                 Info(Iai).Std     = imProc.stat.std(AI(Iai));
                 Info(Iai).RStd    = imProc.stat.rstd(AI(Iai));
-                Info(Iai).CountNaN = sum(isnan(AI(Iai).Image(:)));
+                Info(Iai).CountNaN = sum(isnan(AI(Iai).Image(Args.OverScanWidth+1:end,:)),'all');
 
                 [Gx] = gradient(AI(Iai).Image);
                 NmaxGrad = sum(abs(Gx(:))>Args.MaxAbsGrad);

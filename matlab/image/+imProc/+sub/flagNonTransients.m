@@ -417,10 +417,19 @@ function TranCat = flagNonTransients(Obj, Args)
 
         N_MAG_PSF = [];
         R_MAG_PSF = [];
+
+        N_FLUX_PSF = [];
+        R_FLUX_PSF = [];
+        D_FLUX_PSF = [];
+
         N_X2 = [];
         N_Y2 = [];
         R_X2 = [];
         R_Y2 = [];
+
+        N_CHI2DOF_Local = [];
+        R_CHI2DOF_Local = [];
+        D_CHI2DOF_Local = [];
 
         % Initialize transients bool
         FilterFlags = zeros(NumCand,1);
@@ -434,26 +443,82 @@ function TranCat = flagNonTransients(Obj, Args)
         R_LIMMAG = Obj(Iobj).Ref.HeaderData.getVal('LIMMAG');
 
         % Get local Chi2
-        N_CHI2DOF_Local = CandCat.getCol('N_PSF_CHI2DOF');
-        R_CHI2DOF_Local = CandCat.getCol('R_PSF_CHI2DOF');
-        D_CHI2DOF_Local = CandCat.getCol('PSF_CHI2DOF');
+        if CandCat.isColumn('N_PSF_CHI2DOF')
+            N_CHI2DOF_Local = CandCat.getCol('N_PSF_CHI2DOF');
+        end
+        if CandCat.isColumn('R_PSF_CHI2DOF')
+            R_CHI2DOF_Local = CandCat.getCol('R_PSF_CHI2DOF');
+        end
+        if CandCat.isColumn('PSF_CHI2DOF')
+            D_CHI2DOF_Local = CandCat.getCol('PSF_CHI2DOF');
+        end
 
         MedDiffVar = median(Obj(Iobj).Var(:));
 
         DgreaterR = []; % object is brighter in D than R
 
-        % N and R PSF magnitudes
+        % PSF magnitudes
         if CandCat.isColumn('N_MAG_PSF')
             N_MAG_PSF = CandCat.getCol('N_MAG_PSF');
         end
         if CandCat.isColumn('R_MAG_PSF')
             R_MAG_PSF = CandCat.getCol('R_MAG_PSF');
-            DgreaterR = R_MAG_PSF > CandCat.getCol('MAG_PSF');
+        end
+        if CandCat.isColumn('MAG_PSF')
+            D_MAG_PSF = CandCat.getCol('MAG_PSF');
         end
 
+        if ~isempty(R_MAG_PSF) && ~isempty(D_MAG_PSF)
+            DgreaterR = R_MAG_PSF > D_MAG_PSF;
+        end
+        
+        % PSF fluxes
+        if CandCat.isColumn('N_FLUX_PSF')
+            N_FLUX_PSF = CandCat.getCol('N_FLUX_PSF');
+        end
+        if CandCat.isColumn('R_FLUX_PSF')
+            R_FLUX_PSF = CandCat.getCol('R_FLUX_PSF');
+        end
+        if CandCat.isColumn('FLUX_PSF')
+            D_FLUX_PSF = CandCat.getCol('FLUX_PSF');
+        end
+
+        % Check if PSF photometry solutions exist
+        D_PSFPhot_isSolved = false;
+        N_PSFPhot_isSolved = false;
+        R_PSFPhot_isSolved = false;
+
+        if ~isempty(D_CHI2DOF_Local) && ~isempty(D_FLUX_PSF) && ~isempty(D_MAG_PSF)
+            D_PSFPhot_isSolved = true;
+        end
+        if ~isempty(N_CHI2DOF_Local) && ~isempty(N_MAG_PSF) && ~isempty(N_FLUX_PSF)
+            N_PSFPhot_isSolved = true;
+        end
+        if ~isempty(R_CHI2DOF_Local) && ~isempty(R_MAG_PSF) && ~isempty(R_FLUX_PSF)
+            R_PSFPhot_isSolved = true;
+        end
+
+        STD_ANNULUS = [];
+        BACK_ANNULUS = [];
+
+        if CandCat.isColumn('STD_ANNULUS')
+            STD_ANNULUS = CandCat.getCol('STD_ANNULUS');
+        end
+
+        if CandCat.isColumn('BACK_ANNULUS')
+            BACK_ANNULUS = CandCat.getCol('BACK_ANNULUS');
+        end
+
+        % Check if annulus solutions exist
+
+        Annulus_isSolved = false;
+        if ~isempty(STD_ANNULUS) && ~isempty(BACK_ANNULUS)
+            Annulus_isSolved = true;
+        end
+        
         IsolatedCand = [];
         R_SN = [];
-        
+
         % Get isolated and blended candidates
         if CandCat.isColumn('R_SN')
             R_SN = CandCat.getCol('R_SN');
@@ -643,7 +708,7 @@ function TranCat = flagNonTransients(Obj, Args)
             FilterFlags = setFilterBit(FilterFlags, BadPixHard, BD_TF, 'BadPixelHard');
         end
 
-        if Args.flagSubVisit
+        if Args.flagSubVisit && N_PSFPhot_isSolved && R_PSFPhot_isSolved
 
             N_FLAGS = Obj(Iobj).New.MaskData.bitwise_cutouts([X, Y], ...
                 'or', 'HalfSize', Args.BadPixSatRad);
@@ -653,8 +718,8 @@ function TranCat = flagNonTransients(Obj, Args)
             N_BadPixSat = BD_IM.findBit(N_FLAGS,'Saturated');
             R_BadPixSat = BD_IM.findBit(R_FLAGS,'Saturated');
 
-            N_hasHighFlux = CandCat.getCol('N_FLUX_PSF') > Args.BadPixSatFlux;
-            R_hasHighFlux = CandCat.getCol('R_FLUX_PSF') > Args.BadPixSatFlux;
+            N_hasHighFlux = N_FLUX_PSF > Args.BadPixSatFlux;
+            R_hasHighFlux = R_FLUX_PSF > Args.BadPixSatFlux;
 
             N_FalseSaturation = (N_BadPixSat & ~R_BadPixSat & ~N_hasHighFlux);
             R_FalseSaturation = (~N_BadPixSat & R_BadPixSat & ~R_hasHighFlux);
@@ -683,10 +748,13 @@ function TranCat = flagNonTransients(Obj, Args)
 
                 BPS_ThresholdIncrement = Args.BPS_DeltaLimit;
 
-                BPSoftOkayChi2(BPinNew) = BPSoftOkayChi2(BPinNew) & ...
-                    (N_CHI2DOF_Local(BPinNew) < Args.SoftNChi2Lim);
-                BPSoftOkayChi2(BPinRef) = BPSoftOkayChi2(BPinRef) & ...
-                    (N_CHI2DOF_Local(BPinRef) < Args.SoftNChi2Lim);
+
+                if N_PSFPhot_isSolved
+                    BPSoftOkayChi2(BPinNew) = BPSoftOkayChi2(BPinNew) & ...
+                        (N_CHI2DOF_Local(BPinNew) < Args.SoftNChi2Lim);
+                    BPSoftOkayChi2(BPinRef) = BPSoftOkayChi2(BPinRef) & ...
+                        (N_CHI2DOF_Local(BPinRef) < Args.SoftNChi2Lim);
+                end
 
                 BPSThresh(BPinNewRef) = BPSThresh(BPinNewRef) ...
                     + BPS_ThresholdIncrement;
@@ -712,7 +780,7 @@ function TranCat = flagNonTransients(Obj, Args)
             
         end
 
-        if Args.flagRefHole && ~isempty(R_SN)
+        if Args.flagRefHole && R_PSFPhot_isSolved
             HoleInRef = (R_SN < 0) & (Score + R_SN < Args.RefHoleThresh);
             
             FilterFlags = setFilterBit(FilterFlags, HoleInRef, BD_TF, 'RefHole');
@@ -732,8 +800,11 @@ function TranCat = flagNonTransients(Obj, Args)
         if Args.flagPeakValley && CandCat.isColumn('PV_DIST')
             PVDist = CandCat.getCol('PV_DIST');
 
-            PVFlagged = (PVDist <= Args.PVDistThresh) ...
-                & (N_CHI2DOF_Local > Args.SoftNChi2Lim);
+            PVFlagged = (PVDist <= Args.PVDistThresh);
+            
+            if ~isempty(N_CHI2DOF_Local)
+                PVFlagged = PVFlagged & (N_CHI2DOF_Local > Args.SoftNChi2Lim);
+            end
 
             FilterFlags = setFilterBit(FilterFlags, PVFlagged, BD_TF, 'PVDist');
         end
@@ -846,7 +917,7 @@ function TranCat = flagNonTransients(Obj, Args)
             FilterFlags = setFilterBit(FilterFlags, ExtendedSource, BD_TF, 'Extended');
         end
 
-        if Args.flagPSFShape
+        if Args.flagPSFShape && D_PSFPhot_isSolved && R_PSFPhot_isSolved && Annulus_isSolved
 
             % This section attempts to identify candidates that are likely 
             % subtraction residuals caused by imperfect PSF reconstruction. 
@@ -1074,10 +1145,6 @@ function TranCat = flagNonTransients(Obj, Args)
 
             TranCat(Iobj) = Obj(Iobj).CatData.insertCol(...
                    ContaminationFlux, 'SCORE', {'FLUX_CONTAM'}, {''});
-            
-            STD_ANNULUS = CandCat.getCol('STD_ANNULUS');
-            BACK_ANNULUS = CandCat.getCol('BACK_ANNULUS');
-            CandFluxes = CandCat.getCol('FLUX_PSF');
 
             % These layered threshold cuts could in principle be replaced by a single
             % multi-dimensional classifier, making this a natural future BDT use case.
@@ -1085,12 +1152,12 @@ function TranCat = flagNonTransients(Obj, Args)
             HasContam = ContaminationFlux > 0;
             MagContamination = inf(NumCand,1);
             MagContamination(HasContam) = ...
-                log10(CandFluxes(HasContam) ./ ContaminationFlux(HasContam));
+                log10(D_FLUX_PSF(HasContam) ./ ContaminationFlux(HasContam));
             
             PassesLocalAperLoose = ...
                 (STD_ANNULUS < Args.ContaminationStdAnnulusMax(2) ...
                 & (abs(BACK_ANNULUS) < Args.ContaminationBackAnnulusMax(2)) ...
-                | (abs(CandFluxes./STD_ANNULUS) > Args.ContaminationStdAnnulusMax(3)));
+                | (abs(D_FLUX_PSF./STD_ANNULUS) > Args.ContaminationStdAnnulusMax(3)));
 
             PassesContaminationLoose = ...
                 (MagContamination > Args.ContaminationMag(1)) & PassesLocalAperLoose;
@@ -1192,7 +1259,7 @@ function TranCat = flagNonTransients(Obj, Args)
         end        
 
         % Apply Chi2 per degrees of freedom criterium.
-        if Args.flagChi2
+        if Args.flagChi2 && N_PSFPhot_isSolved && R_PSFPhot_isSolved && D_PSFPhot_isSolved
 
             % Get global Chi2
             N_CHI2DOF_Global = CandCat.getCol('N_PSF_CHI2DOF_MED');
@@ -1255,7 +1322,7 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         % Flag minor planets as non-transients
-        if Args.flagMP
+        if Args.flagMP && CandCat.isColumn('N_DistMP') && CandCat.isColumn('R_DistMP')
             MinorPlanet = (CandCat.getCol('N_DistMP') < Args.MPDistThresh) | ...
                           (CandCat.getCol('R_DistMP') < Args.MPDistThresh);
 
@@ -1263,7 +1330,7 @@ function TranCat = flagNonTransients(Obj, Args)
             
         end
         
-        if Args.flagVariable
+        if Args.flagVariable && CandCat.isColumn('GAL_DIST') && CandCat.isColumn('STAR_DIST')
             % TODO: Maybe move the catalog matching elsewhere
       
             % Get coordinates center of candidates catalog and radius to

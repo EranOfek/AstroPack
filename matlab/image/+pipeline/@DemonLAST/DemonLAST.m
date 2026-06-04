@@ -2159,7 +2159,7 @@ classdef DemonLAST < Component
 
             arguments
                 Obj
-                Args.FilesList   = '*flat*.fits';
+                Args.FilesList   = '*flat*.fits*';
                 Args.BiasImage   = [];  % if not given use Demon.CI
                 Args.debiasArgs  = {};
                 Args.FlatArgs    = {};
@@ -2403,7 +2403,8 @@ classdef DemonLAST < Component
                 Args.MedianRange  = [0.95 1.05];
                 Args.RStdRange    = [0.01 0.05];
                 Args.StdRange     = [0 1];
-                Args.MaxNaN       = 40000;
+                Args.MaxNaN       = 1000;                
+                Args.OverScanWidth= 24;
                 Args.MaxAbsGrad   = 0.05;
                 Args.MaxNmaxGrad  = 50000;
             end
@@ -2422,7 +2423,7 @@ classdef DemonLAST < Component
                 Info(Iai).Median  = imProc.stat.median(AI(Iai));
                 Info(Iai).Std     = imProc.stat.std(AI(Iai));
                 Info(Iai).RStd    = imProc.stat.rstd(AI(Iai));
-                Info(Iai).CountNaN = sum(isnan(AI(Iai).Image(:)));
+                Info(Iai).CountNaN = sum(isnan(AI(Iai).Image(Args.OverScanWidth+1:end,:)),'all');
 
                 [Gx] = gradient(AI(Iai).Image);
                 NmaxGrad = sum(abs(Gx(:))>Args.MaxAbsGrad);

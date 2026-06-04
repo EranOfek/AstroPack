@@ -374,7 +374,7 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
         
         % Find transients
         AD.findTransients('includePsfFit', false, 'includeAperturePhot', false, ...
-            'include2ndMoment', false, 'includeGradientDir', false);
+            'include2ndMoments', false, 'includeGradientDir', false);
 
         % Measure transients
         AD.measureTransients('applyDSDFcorrection',false);

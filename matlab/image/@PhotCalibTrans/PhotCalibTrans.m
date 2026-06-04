@@ -504,6 +504,11 @@ classdef PhotCalibTrans < Component
                 Args.MagSystem char   = 'AB'
                 Args.N_ARMS           = 20              % N brightest calibrators for ARMS (0=skip)
                 Args.Verbose logical  = false
+
+                % --- Alternate calibrator selection (forwarded to selectCalibrators) ---
+                Args.SelectionMethod char {mustBeMember(Args.SelectionMethod, ...
+                    {'catsHTM','pythonLike'})} = 'catsHTM'
+                Args.UseTAPClassprob logical = false
             end
 
             % Save Metadata argument separately
@@ -718,6 +723,21 @@ classdef PhotCalibTrans < Component
                 fprintf('Selecting calibrators...\n');
             end
 
+            % Obs JD for pythonLike PM propagation: read from HeaderRef when
+            % available; NaN otherwise (selectCalibratorsPythonLike will warn
+            % and skip PM). Cheap when SelectionMethod='catsHTM' (unused).
+            ObsJD = NaN;
+            if ~isempty(HeaderRef) && isa(HeaderRef, 'AstroHeader')
+                try
+                    Tmp = HeaderRef.getVal('JD');
+                    if isnumeric(Tmp) && isscalar(Tmp) && isfinite(Tmp)
+                        ObsJD = Tmp;
+                    end
+                catch
+                    % JD not in header — leave as NaN
+                end
+            end
+
             % Select calibrators (populates Obj.SpecData, Obj.SourceData, Obj.CalFound)
             Obj.selectCalibrators(CurrentCat, ...
                 'SearchRadius', Args.SearchRadius, ...
@@ -737,6 +757,9 @@ classdef PhotCalibTrans < Component
                 'AuditBPRPMax', Args.AuditBPRPMax, ...
                 'AuditLASTNearestDist', Args.AuditLASTNearestDist, ...
                 'AuditLASTDeltaMag', Args.AuditLASTDeltaMag, ...
+                'SelectionMethod', Args.SelectionMethod, ...
+                'UseTAPClassprob', Args.UseTAPClassprob, ...
+                'ObsJD', ObsJD, ...
                 'Verbose', Args.Verbose, ...
                 'match_catsHTMArgs',Args.match_catsHTMArgs);
 
@@ -1074,6 +1097,34 @@ classdef PhotCalibTrans < Component
             %            'AuditLASTDeltaMag' - Reject if the nearest LAST neighbour has
             %                        |delta-mag| (using MagColName) below this value.
             %                        Default is 2.
+            %            'SelectionMethod' - Calibrator-selection recipe:
+            %                        'catsHTM'    - existing path: match against
+            %                                       CalibCatName, apply quality
+            %                                       filters, optional AuditCalibrators.
+            %                                       (Default; preserves status quo.)
+            %                        'pythonLike' - mirror the Python prototype
+            %                                       (matlab/.../Drafts-* GaiaQuery):
+            %                                       parallel matches to
+            %                                       GAIADR3spec + GAIADR3,
+            %                                       proper-motion propagation
+            %                                       from J2016 to ObsJD, Python's
+            %                                       MagRange [12,16], flag set,
+            %                                       SN window (5,1000), and
+            %                                       FLUX_APER_3 / FLUX_PSF > 0.
+            %            'UseTAPClassprob' - Only consulted in 'pythonLike'. When
+            %                        true, runs a Gaia DR3 TAP query (via
+            %                        VO.TopCat) for classprob_dsc_combmod_star>0.9
+            %                        and has_xp_sampled='TRUE' on the field circle
+            %                        of surviving candidates, then keeps only
+            %                        candidates whose J2016 position has a TAP
+            %                        counterpart within 0.5 arcsec. TAP failure
+            %                        (network/timeout) downgrades to a Warning and
+            %                        leaves the rest of the selection intact.
+            %                        Default is false (no online step).
+            %            'ObsJD' - Observation Julian Date for PM propagation in
+            %                        'pythonLike'. Default is NaN (skip PM with a
+            %                        Warning); calibrate() fills this from the
+            %                        image/Metadata header automatically.
             %            'Verbose' - Enable verbose output. Default is true.
             % Output : - PhotCalibTrans object with populated properties:
             %                  .SpecData - Structure with reference spectral data:
@@ -1116,9 +1167,24 @@ classdef PhotCalibTrans < Component
                 Args.AuditLASTNearestDist = 20          % arcsec
                 Args.AuditLASTDeltaMag = 2              % mag
                 Args.Verbose logical = false
+                % Alternate selection recipe (off by default; preserves status quo)
+                Args.SelectionMethod char {mustBeMember(Args.SelectionMethod, ...
+                    {'catsHTM','pythonLike'})} = 'catsHTM'
+                Args.UseTAPClassprob logical = false    % only consulted in 'pythonLike'
+                Args.ObsJD            double  = NaN     % obs JD, drives PM propagation in 'pythonLike'
             end
 
             RAD = constant.RAD;
+
+            % --- Dispatcher ---
+            % 'pythonLike' mirrors the Python prototype (LastCatUtils + GaiaQuery):
+            %   match LAST -> GAIADR3spec AND GAIADR3 in parallel, apply proper-motion
+            %   propagation from J2016 to Args.ObsJD, then apply Python's filter cascade.
+            % Default 'catsHTM' path runs the existing logic unchanged below.
+            if ~strcmpi(Args.SelectionMethod, 'catsHTM')
+                Obj = selectCalibratorsPythonLike(Obj, Cat, Args);
+                return
+            end
 
             % ====================================================================
             % STEP 1: VALIDATE INPUT
@@ -5221,5 +5287,362 @@ function Obj = setNumColFast(Obj, Data, Name)
         end
     else
         Obj.Catalog(:, Idx) = Data;
+    end
+end
+
+% =========================================================================
+function Obj = selectCalibratorsPythonLike(Obj, Cat, Args)
+    % Mirror the Python prototype's calibrator-selection recipe using
+    % only catsHTM (GAIADR3spec + GAIADR3). Public entry point is
+    % PhotCalibTrans/selectCalibrators with SelectionMethod='pythonLike'.
+    %
+    % Pipeline:
+    %   1. Cone-match LAST catalogue to GAIADR3spec (spectra) and to
+    %      GAIADR3 (PM + photometry) within Args.SearchRadius.
+    %   2. Keep only sources with a unique 1-1 match in both catalogues.
+    %   3. Propagate Gaia J2016 positions to Args.ObsJD using GAIADR3
+    %      PMRA/PMDec, re-check the Args.SearchRadius gate.
+    %   4. Apply Python's filter cascade (MagRange via Gaia G mag, FLAGS
+    %      bitmask, SN window, FLUX_<col> > 0, FLUX_PSF > 0).
+    %   5. Optional Args.UseTAPClassprob - placeholder warning until the
+    %      Gaia TAP fallback is wired.
+    %   6. Populate Obj.SpecData / Obj.SourceData / Obj.CalFound exactly
+    %      as the default catsHTM path, so downstream code is unaffected.
+    %
+    % MagRange override semantics: respects the caller's value unless it
+    % is exactly the catsHTM default [11.5 16.0], in which case Python's
+    % [12, 16] applies. MinSN/MaxSN/BadBitNames defaults already match
+    % the Python recipe, so they pass through unchanged. SearchRadius=2
+    % arcsec matches Python's 2*u.arcsec.
+
+    RAD = constant.RAD;
+
+    if isempty(Cat) || isempty(Cat.Table)
+        Obj.msgLog(LogLevel.Warning, ...
+            'selectCalibratorsPythonLike: empty input catalogue');
+        Obj.SourceData = []; Obj.SpecData = []; Obj.CalFound = false;
+        return
+    end
+
+    Tab          = Cat.Table;
+    Nsources     = height(Tab);
+    AllColNames  = Tab.Properties.VariableNames;
+    HasRADec     = ismember('RA', AllColNames) && ismember('Dec', AllColNames);
+
+    if ~HasRADec
+        Obj.NoRADec = true;
+        Obj.msgLog(LogLevel.Warning, ...
+            'selectCalibratorsPythonLike: RA/Dec missing - cannot match');
+        Obj.SourceData = []; Obj.SpecData = []; Obj.CalFound = false;
+        return
+    end
+
+    % --- Resolve Python-recipe defaults (override only if at catsHTM default) ---
+    if isequal(Args.MagRange, [11.5 16.0])
+        MagRange = [12, 16];
+    else
+        MagRange = Args.MagRange;
+    end
+
+    if Args.Verbose
+        fprintf('  [pythonLike] match %d sources to GAIADR3spec + GAIADR3 (radius=%.1f arcsec)...\n', ...
+                Nsources, Args.SearchRadius);
+    end
+
+    % --- Parallel cone matches against the two Gaia catsHTM catalogues ---
+    [~, ~, ResIndS, CatH_S] = imProc.match.match_catsHTM(Cat, 'GAIADR3spec', ...
+        'Radius', Args.SearchRadius, 'RadiusUnits', 'arcsec', Args.match_catsHTMArgs{:});
+    [~, ~, ResIndG, CatH_G] = imProc.match.match_catsHTM(Cat, 'GAIADR3', ...
+        'Radius', Args.SearchRadius, 'RadiusUnits', 'arcsec', Args.match_catsHTMArgs{:});
+
+    SIdx = ResIndS.Obj2_IndInObj1;
+    GIdx = ResIndG.Obj2_IndInObj1;
+    SNm  = ResIndS.Obj2_NmatchObj1;
+    GNm  = ResIndG.Obj2_NmatchObj1;
+
+    % Keep LAST sources with unique 1-1 match in BOTH catalogues
+    HasBoth = ~isnan(SIdx) & ~isnan(GIdx) & (SNm == 1) & (GNm == 1);
+
+    if ~any(HasBoth)
+        Obj.msgLog(LogLevel.Warning, sprintf( ...
+            'selectCalibratorsPythonLike: no LAST sources matched both GAIADR3spec and GAIADR3 within %.1f arcsec', ...
+            Args.SearchRadius));
+        Obj.SourceData = []; Obj.SpecData = []; Obj.CalFound = false;
+        return
+    end
+
+    if Args.Verbose
+        fprintf('  [pythonLike] %d sources matched both catalogues\n', sum(HasBoth));
+    end
+
+    % --- Locate required GAIADR3 columns (case-insensitive synonyms) ---
+    GColNames = CatH_G.ColNames;
+    GRAi      = findColIdxLocal(GColNames, {'RA'});
+    GDeci     = findColIdxLocal(GColNames, {'Dec'});
+    PMRAi     = findColIdxLocal(GColNames, {'PMRA', 'pmra'});
+    PMDeci    = findColIdxLocal(GColNames, {'PMDec', 'pmdec'});
+    GMagi     = findColIdxLocal(GColNames, {'phot_g_mean_mag'});
+
+    if any([GRAi, GDeci, PMRAi, PMDeci] == 0)
+        Obj.msgLog(LogLevel.Warning, ...
+            'selectCalibratorsPythonLike: required GAIADR3 columns missing (RA/Dec/PMRA/PMDec) - skipping PM propagation');
+    end
+
+    % --- PM propagation (always-on per design when ObsJD is available) ---
+    CandIdx = find(HasBoth);
+    Ncand   = numel(CandIdx);
+
+    GR_2016 = double(CatH_G.Catalog(GIdx(CandIdx), GRAi))  .* RAD;  % rad -> deg
+    GD_2016 = double(CatH_G.Catalog(GIdx(CandIdx), GDeci)) .* RAD;
+    PMra    = double(CatH_G.Catalog(GIdx(CandIdx), PMRAi));   % mas/yr
+    PMdec   = double(CatH_G.Catalog(GIdx(CandIdx), PMDeci));  % mas/yr
+    PMra(~isfinite(PMra))   = 0;
+    PMdec(~isfinite(PMdec)) = 0;
+
+    HavePM = isfinite(Args.ObsJD) && PMRAi > 0 && PMDeci > 0;
+    if HavePM
+        % JD -> decimal year via J2000.0 (TT not distinguished from UTC at this precision)
+        Yr_obs = 2000.0 + (Args.ObsJD - 2451545.0) / 365.25;
+        dt_yr  = Yr_obs - 2016.0;
+        % Linear PM propagation - valid to mas precision over decade timescales
+        GR_obs = GR_2016 + (PMra  .* dt_yr) ./ (cosd(GD_2016) .* 3.6e6);
+        GD_obs = GD_2016 + (PMdec .* dt_yr) ./ 3.6e6;
+    else
+        if ~isfinite(Args.ObsJD)
+            Obj.msgLog(LogLevel.Warning, ...
+                'selectCalibratorsPythonLike: ObsJD missing - skipping PM propagation');
+        end
+        GR_obs = GR_2016;
+        GD_obs = GD_2016;
+        dt_yr  = NaN;
+    end
+
+    % Recompute LAST <-> Gaia distance at obs JD; re-filter by SearchRadius
+    LAST_RA  = Tab.RA(CandIdx);
+    LAST_Dec = Tab.Dec(CandIdx);
+    Dist_rad = celestial.coo.sphere_dist_fast( ...
+        deg2rad(GR_obs), deg2rad(GD_obs), ...
+        deg2rad(LAST_RA), deg2rad(LAST_Dec));
+    Dist_arcsec = Dist_rad .* RAD .* 3600;
+
+    GoodMask = Dist_arcsec < Args.SearchRadius;
+
+    if Args.Verbose && HavePM
+        fprintf('  [pythonLike] %d/%d still within %.1f arcsec after PM propagation (dt=%.2f yr)\n', ...
+                sum(GoodMask), Ncand, Args.SearchRadius, dt_yr);
+    end
+
+    % --- Filter cascade (Python recipe) ---
+    %   (a) MagRange via GAIADR3 phot_g_mean_mag (Python uses Gaia G, not LAST)
+    if GMagi > 0
+        GMag = double(CatH_G.Catalog(GIdx(CandIdx), GMagi));
+        GoodMask = GoodMask & (GMag >= MagRange(1)) & (GMag <= MagRange(2));
+    end
+
+    %   (b) Bad FLAGS bitmask
+    if Args.FilterBadFlags && ismember('FLAGS', AllColNames)
+        Flags    = Tab.FLAGS(CandIdx);
+        BadValue = isnan(Flags) | isinf(Flags) | Flags < 0 | Flags ~= floor(Flags);
+        Flags(BadValue) = 0;
+        BD = BitDictionary('BitMask.Image.Default');
+        [~, ~, BadBitMask] = BD.name2bit(Args.BadBitNames);
+        BadFlagsMask = BadValue | bitand(uint32(Flags), uint32(BadBitMask)) > 0;
+        GoodMask = GoodMask & ~BadFlagsMask;
+    end
+
+    %   (c) S/N range from LAST SN column
+    if ismember('SN', AllColNames)
+        SN = Tab.SN(CandIdx);
+        GoodMask = GoodMask & (SN >= Args.MinSN) & (SN <= Args.MaxSN);
+    end
+
+    %   (d) FLUX_<col> > 0 and FLUX_PSF > 0 (Python checks both explicitly)
+    if ismember(Args.FluxColName, AllColNames)
+        F = Tab.(Args.FluxColName)(CandIdx);
+        GoodMask = GoodMask & (F > 0);
+    end
+    if ismember('FLUX_PSF', AllColNames)
+        Fpsf = Tab.FLUX_PSF(CandIdx);
+        GoodMask = GoodMask & (Fpsf > 0);
+    end
+
+    % --- Optional TAP classprob filter (Gaia DR3 via VO.TopCat) ---
+    %   Source IDs in GAIADR3spec catsHTM are stored as single-precision
+    %   floats (downloadPrepSpecGAIA.m:74), so 19-digit Gaia IDs are
+    %   corrupted and cannot serve as a join key with TAP. Instead we run
+    %   a sky-cone TAP query with the classprob>0.9 + has_xp_sampled
+    %   filters baked into the WHERE clause, then keep only candidates
+    %   whose Gaia J2016 position has a TAP-result counterpart within 0.5
+    %   arcsec. Both sides are at J2016, so the match is essentially
+    %   exact up to catsHTM rounding.
+    if Args.UseTAPClassprob && any(GoodMask)
+        try
+            CandLive = find(GoodMask);
+            cRa  = mean(GR_obs(CandLive));
+            cDec = mean(GD_obs(CandLive));
+            % Worst-case angular offset from centre (deg) + small margin
+            Off  = celestial.coo.sphere_dist_fast( ...
+                deg2rad(cRa), deg2rad(cDec), ...
+                deg2rad(GR_obs(CandLive)), deg2rad(GD_obs(CandLive))) .* RAD;
+            Rdeg = max(Off) + 0.05;
+
+            Q = sprintf([ ...
+                'SELECT source_id, ra, dec, classprob_dsc_combmod_star ', ...
+                'FROM gaiadr3.gaia_source ', ...
+                'WHERE 1=CONTAINS(POINT(''ICRS'', ra, dec), ', ...
+                'CIRCLE(''ICRS'', %.6f, %.6f, %.6f)) ', ...
+                'AND has_xp_sampled = ''TRUE'' ', ...
+                'AND classprob_dsc_combmod_star > 0.9'], ...
+                cRa, cDec, Rdeg);
+
+            if Args.Verbose
+                fprintf('  [pythonLike] TAP query: classprob>0.9, has_xp_sampled, circle %.4f deg around (%.4f, %.4f)\n', ...
+                        Rdeg, cRa, cDec);
+            end
+
+            Tap = VO.TopCat();
+            % STILTS backend handles ADQL encoding correctly; auto-falls
+            % back to HTTP if jar is missing (VO.TopCat.query line 239).
+            TapResult = Tap.query(Q, 'Method', 'java', 'TimeoutSec', 120);
+
+            if isempty(TapResult) || height(TapResult) == 0
+                Obj.msgLog(LogLevel.Warning, ...
+                    'selectCalibratorsPythonLike: TAP returned 0 sources with classprob>0.9 - all candidates rejected');
+                GoodMask(:) = false;
+            else
+                % Match TAP rows (J2016) to candidate J2016 positions within 0.5 arcsec.
+                TapRA  = deg2rad(double(TapResult.ra));
+                TapDec = deg2rad(double(TapResult.dec));
+                Cand2016RA  = deg2rad(GR_2016);
+                Cand2016Dec = deg2rad(GD_2016);
+
+                HasTap = false(Ncand, 1);
+                for J = 1:numel(TapRA)
+                    D = celestial.coo.sphere_dist_fast( ...
+                        TapRA(J), TapDec(J), Cand2016RA, Cand2016Dec) .* RAD .* 3600;
+                    HasTap = HasTap | (D < 0.5);
+                end
+                GoodMask = GoodMask & HasTap;
+
+                if Args.Verbose
+                    fprintf('  [pythonLike] TAP classprob filter: %d/%d candidates retained (TAP returned %d sources)\n', ...
+                            sum(GoodMask), numel(CandLive), height(TapResult));
+                end
+            end
+        catch ME
+            Obj.msgLog(LogLevel.Warning, sprintf( ...
+                'selectCalibratorsPythonLike: TAP classprob query failed (%s) - classprob filter NOT applied', ...
+                ME.message));
+        end
+    end
+
+    if ~any(GoodMask)
+        Obj.msgLog(LogLevel.Warning, ...
+            'selectCalibratorsPythonLike: all candidates rejected by filter cascade');
+        Obj.SourceData = []; Obj.SpecData = []; Obj.CalFound = false;
+        return
+    end
+
+    if Args.Verbose
+        fprintf('  [pythonLike] %d sources passed all filters\n', sum(GoodMask));
+    end
+
+    % --- Build outputs (same shape as catsHTM path) ---
+    KeptIdx  = CandIdx(GoodMask);
+    SpecRows = SIdx(KeptIdx);
+
+    SpecArr = CatH_S.Catalog;
+    SpecTab = SpecArr(SpecRows, :);
+
+    FluxIni  = Args.SpFluxCol(1);
+    FluxEnd  = Args.SpFluxCol(2);
+    EFluxIni = Args.SpFluxCol(3);
+    EFluxEnd = Args.SpFluxCol(4);
+
+    SpecFlux = double(SpecTab(:, FluxIni:FluxEnd));    % [N x N_wvl]
+    SpecErr  = double(SpecTab(:, EFluxIni:EFluxEnd));  % [N x N_wvl]
+    Cal_RA   = double(SpecTab(:, 1)) .* RAD;           % rad -> deg
+    Cal_Dec  = double(SpecTab(:, 2)) .* RAD;
+
+    ObsTab   = Tab(KeptIdx, :);
+    Obs_X    = ObsTab.X;
+    Obs_Y    = ObsTab.Y;
+    Obs_RA   = ObsTab.RA;
+    Obs_Dec  = ObsTab.Dec;
+    Obs_Flux = ObsTab.(Args.FluxColName);
+
+    FluxErrColName = strrep(Args.FluxColName, 'FLUX', 'FLUXERR');
+    if ismember(FluxErrColName, AllColNames)
+        Obs_FluxErr = ObsTab.(FluxErrColName);
+    else
+        Obs_FluxErr = sqrt(abs(Obs_Flux));
+        Obj.msgLog(LogLevel.Warning, sprintf( ...
+            'selectCalibratorsPythonLike: %s not found, using sqrt(flux) for errors', ...
+            FluxErrColName));
+    end
+
+    % MatchDistance is the PM-corrected separation [arcsec]
+    DistArcsec = Dist_arcsec(GoodMask);
+    Nmatch     = double(SNm(KeptIdx));   % all 1 by construction; preserved for shape parity
+
+    HasAirmassCol = ismember('AIRMASS', AllColNames);
+    if HasAirmassCol
+        Obs_Airmass = ObsTab.AIRMASS;
+    end
+
+    % Final per-source validity guard (mirrors catsHTM path)
+    InvalidFlux  = isnan(Obs_Flux) | isinf(Obs_Flux) | (Obs_Flux <= 0);
+    InvalidXY    = isnan(Obs_X) | isinf(Obs_X) | isnan(Obs_Y) | isinf(Obs_Y);
+    InvalidRADec = isnan(Obs_RA) | isinf(Obs_RA) | isnan(Obs_Dec) | isinf(Obs_Dec);
+    ValidMask    = ~InvalidFlux & ~InvalidXY & ~InvalidRADec;
+    Nvalid       = sum(ValidMask);
+
+    if Nvalid < numel(Obs_Flux)
+        Obs_X       = Obs_X(ValidMask);
+        Obs_Y       = Obs_Y(ValidMask);
+        Obs_RA      = Obs_RA(ValidMask);
+        Obs_Dec     = Obs_Dec(ValidMask);
+        Obs_Flux    = Obs_Flux(ValidMask);
+        Obs_FluxErr = Obs_FluxErr(ValidMask);
+        DistArcsec  = DistArcsec(ValidMask);
+        Nmatch      = Nmatch(ValidMask);
+        Cal_RA      = Cal_RA(ValidMask);
+        Cal_Dec     = Cal_Dec(ValidMask);
+        SpecFlux    = SpecFlux(ValidMask, :);
+        SpecErr     = SpecErr(ValidMask, :);
+        if HasAirmassCol
+            Obs_Airmass = Obs_Airmass(ValidMask);
+        end
+        if Args.Verbose
+            fprintf('  [pythonLike] data validation: %d/%d kept\n', Nvalid, numel(ValidMask));
+        end
+    end
+
+    if Nvalid == 0
+        Obj.msgLog(LogLevel.Error, ...
+            'selectCalibratorsPythonLike: no valid calibrators remain after data validation');
+        Obj.SourceData = []; Obj.SpecData = []; Obj.CalFound = false;
+        return
+    end
+
+    % Populate SpecData (same struct shape and wavelength grid as catsHTM path)
+    Obj.SpecData         = struct();
+    Obj.SpecData.CalData = struct('RA', Cal_RA, 'Dec', Cal_Dec);
+    Obj.SpecData.SpecWvl = (3360:20:10200)';
+    Obj.SpecData.Spec    = SpecFlux;
+    Obj.SpecData.SpecErr = SpecErr;
+
+    % Populate SourceData (AstroCatalog)
+    SourceTable = table(Obs_Flux, Obs_FluxErr, Obs_X, Obs_Y, Obs_RA, Obs_Dec, ...
+                        DistArcsec, Nmatch, ...
+        'VariableNames', {'Flux', 'FluxErr', 'X', 'Y', 'RA', 'Dec', 'MatchDistance', 'NumMatches'});
+    if HasAirmassCol
+        SourceTable.AIRMASS = Obs_Airmass;
+    end
+    Obj.SourceData = AstroCatalog(SourceTable);
+    Obj.CalFound   = true;
+
+    if Args.Verbose
+        fprintf('  [pythonLike] calibrator selection complete: %d matched\n', Nvalid);
     end
 end
