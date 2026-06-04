@@ -32,6 +32,9 @@ classdef MonitorConfig
     methods (Static)
         function Config = fromFile(ConfigFilename)
             % fromFile  Load configuration from JSON file.
+            %
+            % Example:
+            %   Config = soc.monitor.MonitorConfig.fromFile('C:/SOC/config/monitor_config.json');
             arguments
                 ConfigFilename (1,1) string
             end
@@ -69,6 +72,9 @@ classdef MonitorConfig
 
         function Config = defaultConfig()
             % defaultConfig  Built-in defaults when no config file is provided.
+            %
+            % Example:
+            %   Config = soc.monitor.MonitorConfig.defaultConfig();
             Config = soc.monitor.MonitorConfig();
             if ispc
                 Config.JsonlFolder = "C:/SOC/monitor/jsonl";
@@ -79,6 +85,9 @@ classdef MonitorConfig
 
         function StructOut = toStruct(Config)
             % toStruct  Export configuration as struct for debug display.
+            %
+            % Example:
+            %   S = soc.monitor.MonitorConfig.toStruct(Config);
             StructOut = struct( ...
                 'pipeline_id', char(Config.PipelineId), ...
                 'instance_name', char(Config.InstanceName), ...

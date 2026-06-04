@@ -9,6 +9,9 @@
 
 function image_done(ImageId, Info)
     % image_done  Write image processing done record.
+    %
+    % Example:
+    %   soc.monitor.image_done('img_001', struct());
     arguments
         ImageId (1,1) string
         Info struct = struct()

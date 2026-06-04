@@ -14,6 +14,10 @@ function Record = make_record(Client, Args)
     %          Args   - name-value fields for record_kind, severity, status,
     %                   message, data, and optional top-level fields
     % Output : Record - struct ready for jsonencode
+    %
+    % Example:
+    %   Record = soc.monitor.make_record(Client, record_kind='heartbeat', ...
+    %       severity='info', status='alive', message='Pipeline heartbeat');
     arguments
         Client (1,1) soc.monitor.MonitorClient
         Args.record_kind (1,1) string

@@ -9,6 +9,9 @@
 
 function clickhouse_insert_failed(ImageId, Info)
     % clickhouse_insert_failed  Write ClickHouse insert failed record.
+    %
+    % Example:
+    %   soc.monitor.clickhouse_insert_failed('img_001', struct('error', Msg));
     arguments
         ImageId (1,1) string
         Info struct = struct()

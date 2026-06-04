@@ -9,6 +9,9 @@
 
 function stage_started(ImageId, StageName, Info)
     % stage_started  Write pipeline stage start record.
+    %
+    % Example:
+    %   soc.monitor.stage_started('img_001', 'crop', struct());
     arguments
         ImageId (1,1) string
         StageName (1,1) string

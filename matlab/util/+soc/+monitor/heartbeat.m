@@ -9,6 +9,9 @@
 
 function heartbeat()
     % heartbeat  Write pipeline heartbeat monitoring record.
+    %
+    % Example:
+    %   soc.monitor.heartbeat();
     Client = soc.monitor.get_client();
     Record = soc.monitor.make_record(Client, ...
         record_kind = soc.monitor.MonitorConst.KindHeartbeat, ...

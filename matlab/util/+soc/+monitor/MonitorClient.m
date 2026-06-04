@@ -22,6 +22,9 @@ classdef MonitorClient < handle
     methods
         function obj = MonitorClient(Config)
             % MonitorClient  Construct client from MonitorConfig.
+            %
+            % Example:
+            %   Client = soc.monitor.MonitorClient(Config);
             arguments
                 Config (1,1) soc.monitor.MonitorConfig
             end
@@ -33,6 +36,9 @@ classdef MonitorClient < handle
 
         function Filename = getJsonlFilename(obj)
             % getJsonlFilename  Daily JSONL path for this pipeline instance.
+            %
+            % Example:
+            %   Filename = Client.getJsonlFilename();
             Dt = datetime('now', 'TimeZone', 'UTC');
             DateStr = char(Dt, 'yyyyMMdd');
             BaseName = sprintf('pipeline_monitor_%s_%s_%s.jsonl', ...
@@ -44,6 +50,9 @@ classdef MonitorClient < handle
 
         function writeRecord(obj, Record)
             % writeRecord  Append one JSON line to the JSONL file.
+            %
+            % Example:
+            %   Client.writeRecord(Record);
             if ~obj.Config.WriteEnabled
                 return;
             end
@@ -73,6 +82,9 @@ classdef MonitorClient < handle
     methods (Static)
         function Client = createDefault()
             % createDefault  Client with built-in default configuration.
+            %
+            % Example:
+            %   Client = soc.monitor.MonitorClient.createDefault();
             Config = soc.monitor.MonitorConfig.defaultConfig();
             Client = soc.monitor.MonitorClient(Config);
         end

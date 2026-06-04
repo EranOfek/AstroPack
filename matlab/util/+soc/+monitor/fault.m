@@ -9,6 +9,9 @@
 
 function fault(EventCode, Message, Info)
     % fault  Write fault monitoring record.
+    %
+    % Example:
+    %   soc.monitor.fault('pipeline.stage.failed', 'Stage failed', struct());
     arguments
         EventCode (1,1) string
         Message (1,1) string

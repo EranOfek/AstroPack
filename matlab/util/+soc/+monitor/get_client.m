@@ -14,6 +14,9 @@ function Client = get_client(NewClient)
     %
     % When called with one argument, sets the singleton (used by init/reset).
     % When called with no arguments, returns existing client or creates default.
+    %
+    % Example:
+    %   Client = soc.monitor.get_client();
     persistent TheClient;
 
     if nargin >= 1

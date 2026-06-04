@@ -9,6 +9,9 @@
 
 function image_failed(ImageId, Info)
     % image_failed  Write image processing failed record.
+    %
+    % Example:
+    %   soc.monitor.image_failed('img_001', struct('reason', 'timeout'));
     arguments
         ImageId (1,1) string
         Info struct = struct()

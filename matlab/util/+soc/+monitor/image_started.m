@@ -9,6 +9,9 @@
 
 function image_started(Filename, Info)
     % image_started  Write image processing start record.
+    %
+    % Example:
+    %   soc.monitor.image_started('IMG_001.fits', struct('telescope', 'ULTRASAT'));
     arguments
         Filename (1,1) string
         Info struct = struct()

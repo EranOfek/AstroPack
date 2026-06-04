@@ -9,6 +9,9 @@
 
 function clickhouse_insert_started(ImageId, Info)
     % clickhouse_insert_started  Write ClickHouse insert start record.
+    %
+    % Example:
+    %   soc.monitor.clickhouse_insert_started('img_001', struct('table', 'detections'));
     arguments
         ImageId (1,1) string
         Info struct = struct()

@@ -9,6 +9,9 @@
 
 function stage_done(ImageId, StageName, Info)
     % stage_done  Write pipeline stage done record.
+    %
+    % Example:
+    %   soc.monitor.stage_done('img_001', 'crop', struct('n_stars', 412));
     arguments
         ImageId (1,1) string
         StageName (1,1) string

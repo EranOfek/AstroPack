@@ -9,6 +9,9 @@
 
 function metric(MetricName, MetricValue, MetricUnit, Info)
     % metric  Write metric monitoring record.
+    %
+    % Example:
+    %   soc.monitor.metric('detections_count', 1234, 'count', struct());
     arguments
         MetricName (1,1) string
         MetricValue

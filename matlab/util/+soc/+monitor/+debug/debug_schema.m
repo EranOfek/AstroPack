@@ -8,22 +8,20 @@
 %==========================================================================
 
 function debug_schema()
-    % debug_schema  Validate soc.monitor schema constants and record building.
-    debug();
-end
-
-function debug()
-    % debug  Run all schema debug functions.
+    % debug_schema  Run all schema and record-building debug checks.
+    %
+    % Example:
+    %   soc.monitor.debug.debug_schema();
     fprintf('=== soc.monitor schema debug ===\n\n');
-    debug_func1_constants();
-    debug_func2_utc_timestamp();
-    debug_func3_make_record();
-    debug_func4_validate_record();
+    debug_constants();
+    debug_utc_timestamp();
+    debug_make_record();
+    debug_validate_record();
     fprintf('\n=== soc.monitor schema debug done ===\n');
 end
 
-function debug_func1_constants()
-    fprintf('--- debug_func1_constants ---\n');
+function debug_constants()
+    fprintf('--- debug_constants ---\n');
     fprintf('SchemaVersion: %s\n', soc.monitor.MonitorConst.SchemaVersion);
     fprintf('KindHeartbeat: %s\n', soc.monitor.MonitorConst.KindHeartbeat);
     fprintf('SeverityInfo: %s\n', soc.monitor.MonitorConst.SeverityInfo);
@@ -34,19 +32,19 @@ function debug_func1_constants()
     for I = 1:numel(Clearable)
         fprintf('  %s\n', Clearable{I});
     end
-    fprintf('--- debug_func1_constants done ---\n\n');
+    fprintf('--- debug_constants done ---\n\n');
 end
 
-function debug_func2_utc_timestamp()
-    fprintf('--- debug_func2_utc_timestamp ---\n');
+function debug_utc_timestamp()
+    fprintf('--- debug_utc_timestamp ---\n');
     DtStr = soc.monitor.utc_now_str();
     fprintf('utc_now_str: %s\n', DtStr);
     assert(endsWith(DtStr, 'Z'), 'Timestamp must end with Z');
-    fprintf('--- debug_func2_utc_timestamp done ---\n\n');
+    fprintf('--- debug_utc_timestamp done ---\n\n');
 end
 
-function debug_func3_make_record()
-    fprintf('--- debug_func3_make_record ---\n');
+function debug_make_record()
+    fprintf('--- debug_make_record ---\n');
     soc.monitor.reset();
     Client = soc.monitor.MonitorClient.createDefault();
     Record = soc.monitor.make_record(Client, ...
@@ -57,11 +55,11 @@ function debug_func3_make_record()
     disp(Record);
     JsonLine = jsonencode(Record);
     fprintf('JSON line length: %d\n', strlength(JsonLine));
-    fprintf('--- debug_func3_make_record done ---\n\n');
+    fprintf('--- debug_make_record done ---\n\n');
 end
 
-function debug_func4_validate_record()
-    fprintf('--- debug_func4_validate_record ---\n');
+function debug_validate_record()
+    fprintf('--- debug_validate_record ---\n');
     ValidRecord = struct( ...
         'schema_version', '1.0', ...
         'dt', soc.monitor.utc_now_str(), ...
@@ -78,5 +76,5 @@ function debug_func4_validate_record()
     assert(soc.monitor.MonitorConst.validateRecord(ValidRecord), 'Valid record rejected');
     assert(~soc.monitor.MonitorConst.validateRecord(InvalidRecord), 'Invalid record accepted');
     fprintf('validateRecord: OK\n');
-    fprintf('--- debug_func4_validate_record done ---\n\n');
+    fprintf('--- debug_validate_record done ---\n\n');
 end

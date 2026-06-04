@@ -9,6 +9,9 @@
 
 function stage_failed(ImageId, StageName, Info)
     % stage_failed  Write pipeline stage failed record.
+    %
+    % Example:
+    %   soc.monitor.stage_failed('img_001', 'crop', struct('reason', Msg));
     arguments
         ImageId (1,1) string
         StageName (1,1) string

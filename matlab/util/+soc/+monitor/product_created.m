@@ -9,6 +9,9 @@
 
 function product_created(ImageId, ProductType, ProductFilename, Info)
     % product_created  Write product creation record.
+    %
+    % Example:
+    %   soc.monitor.product_created('img_001', 'catalog', 'out.cat', struct());
     arguments
         ImageId (1,1) string
         ProductType (1,1) string

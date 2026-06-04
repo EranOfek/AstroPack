@@ -87,6 +87,9 @@ classdef MonitorConst
     methods (Static)
         function Codes = clearableEventCodes()
             % clearableEventCodes  Event codes that represent clearable abnormal state.
+            %
+            % Example:
+            %   Codes = soc.monitor.MonitorConst.clearableEventCodes();
             Codes = { ...
                 soc.monitor.MonitorConst.EventHeartbeatTimeout, ...
                 soc.monitor.MonitorConst.EventProcessNotRunning, ...
@@ -101,6 +104,9 @@ classdef MonitorConst
 
         function isValid = validateRecord(Record)
             % validateRecord  Simple required-field validation for a monitoring record.
+            %
+            % Example:
+            %   Ok = soc.monitor.MonitorConst.validateRecord(Record);
             isValid = false;
             RequiredFields = { ...
                 'schema_version', 'dt', 'source', 'pipeline_id', ...

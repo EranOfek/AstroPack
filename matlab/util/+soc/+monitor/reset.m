@@ -9,5 +9,8 @@
 
 function reset()
     % reset  Clear soc.monitor singleton (for tests and debugging).
+    %
+    % Example:
+    %   soc.monitor.reset();
     soc.monitor.get_client([]);
 end

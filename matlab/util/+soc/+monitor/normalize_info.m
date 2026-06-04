@@ -9,6 +9,9 @@
 
 function Info = normalize_info(Info)
     % normalize_info  Ensure monitoring info argument is a struct for data field.
+    %
+    % Example:
+    %   Info = soc.monitor.normalize_info(struct('key', 1));
     if nargin < 1 || isempty(Info)
         Info = struct();
     elseif ~isstruct(Info)

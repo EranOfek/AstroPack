@@ -9,6 +9,9 @@
 
 function log_record(Severity, Message, Info)
     % log_record  Write general log/debug monitoring record.
+    %
+    % Example:
+    %   soc.monitor.log_record('debug', 'Test message', struct());
     arguments
         Severity (1,1) string
         Message (1,1) string

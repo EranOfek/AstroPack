@@ -9,6 +9,9 @@
 
 function clickhouse_insert_done(ImageId, Info)
     % clickhouse_insert_done  Write ClickHouse insert done record.
+    %
+    % Example:
+    %   soc.monitor.clickhouse_insert_done('img_001', struct('rows', 100));
     arguments
         ImageId (1,1) string
         Info struct = struct()

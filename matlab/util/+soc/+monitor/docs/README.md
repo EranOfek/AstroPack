@@ -236,10 +236,41 @@ Monitoring **must not crash the pipeline**. All write paths use `try/catch` insi
 
 ## Debug and testing
 
+Run scripts individually from MATLAB. Each writes to the debug JSONL folder unless noted.
+
+**Recommended starting point for pipeline integrators:**
+
 | Script | Purpose |
 |--------|---------|
-| `soc.monitor.debug.debug_monitor()` | Full client integration (init, lifecycle, fault, reset) |
-| `soc.monitor.debug.debug_schema()` | Constants, timestamps, record validation |
+| `soc.monitor.debug.debug_pipeline_loop()` | Full per-image loop template (stages, product, ClickHouse, error paths) |
+
+**End-to-end and schema:**
+
+| Script | Purpose |
+|--------|---------|
+| `soc.monitor.debug.debug_monitor()` | All scenarios in one run (init through reset + JSONL summary) |
+| `soc.monitor.debug.debug_schema()` | Constants, UTC timestamp, make_record, validateRecord |
+
+**Individual scenarios (run without full debug_monitor):**
+
+| Script | Purpose |
+|--------|---------|
+| `soc.monitor.debug.debug_init()` | Init client and print configuration |
+| `soc.monitor.debug.debug_heartbeat()` | Heartbeat record |
+| `soc.monitor.debug.debug_image_lifecycle()` | image_started, image_done |
+| `soc.monitor.debug.debug_stage_lifecycle()` | stage_started, stage_done |
+| `soc.monitor.debug.debug_fault_metric_log()` | fault, metric, log_record |
+| `soc.monitor.debug.debug_reset()` | reset, re-init, heartbeat |
+| `soc.monitor.debug.debug_clickhouse()` | ClickHouse insert started/done/failed |
+| `soc.monitor.debug.debug_product()` | product_created |
+| `soc.monitor.debug.debug_image_failure()` | stage_failed, fault, image_failed |
+
+**Helpers:**
+
+| Script | Purpose |
+|--------|---------|
+| `soc.monitor.debug.createDebugConfigFile()` | Write temporary debug config JSON |
+| `soc.monitor.debug.printJsonlSummary()` | List debug JSONL files and sample lines |
 
 Debug JSONL output folder (default):
 
