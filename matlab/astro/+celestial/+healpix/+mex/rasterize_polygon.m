@@ -4,9 +4,10 @@
 %                    -L/home/kra/ExternalLib/Healpix_3.83/lib /home/kra/ExternalLib/Healpix_3.83/lib/libhealpix_cxx.a \
 %                    -lstdc++ CXXFLAGS="\$CXXFLAGS -std=c++11"
 % Important: the Healpix library must be compiled with the -fPIX option
-% Input  : - a sky polygin as a 2 x N matrix of RA, Dec
-%          - resolution (arcsec)
-%          - healpix scheme (optional, def. NESTED)
+% Input  : - A sky polygon as a 2 x N matrix of RA, Dec
+%          - Angular resolution in which to return the helpix list inside the
+%            polygon.
+%          - Healpix scheme (optional, def. NESTED)
 % Output : - vector of indexes of the raster pixels of resolution Nside
 %          - the value of Nside calculated from the input resolution in arcsec
 % Author : A.M. Krassilchtchikov (2026 Mar) 
