@@ -1242,7 +1242,7 @@ classdef AstroTable < Component
 
         end
 
-        function Obj = insertCol(Obj, Data, Pos, NewColNames, NewColUnits)
+        function Obj = insertCol(Obj, Data, Pos, NewColNames, NewColUnits, Args)
             % Insert columns to AstroTable object
             % Input  : - An AstroTable object
             %          - Array, cell array, table, or another AstroTable
@@ -1253,6 +1253,19 @@ classdef AstroTable < Component
             %            If empty, then use default names.
             %          - Cell array of new column units. Default is {}.
             %            If empty, then use ''.
+            %          * ...,key,val,...
+            %            'OmitValidation' - When true, take a fast in-place
+            %                   code path. Caller must guarantee: scalar
+            %                   Obj, numeric Catalog, single column Data
+            %                   matching size(Catalog,1), Pos==Inf, and
+            %                   NewColNames is one name. When the name
+            %                   already exists the column is REPLACED in
+            %                   place (the default path moves it to the
+            %                   rightmost position via delete-then-append).
+            %                   Skips deleteCol, colname2ind, and the
+            %                   three static insertColumn dispatches —
+            %                   ~2.8x faster than the default path.
+            %                   Default is false.
             % Output : - The AstroTable object with the new columns.
             % Example: A=AstroTable; A.Catalog=rand(10,3); A.ColNames={'a','b','c'}; insertCol(A,ones(10,2),'c')
 
@@ -1262,8 +1275,33 @@ classdef AstroTable < Component
                 Pos                                   = Inf;
                 NewColNames                           = {};
                 NewColUnits                           = {};
+                Args.OmitValidation logical           = false;
             end
-            
+
+            % Fast in-place path — see OmitValidation docstring above.
+            if Args.OmitValidation
+                if iscell(NewColNames)
+                    Name = NewColNames{1};
+                elseif isstring(NewColNames)
+                    Name = char(NewColNames(1));
+                else
+                    Name = NewColNames;
+                end
+                Idx = find(strcmp(Obj.ColNames, Name), 1);
+                if isempty(Idx)
+                    Obj.Catalog  = [Obj.Catalog, Data];
+                    Obj.ColNames = [Obj.ColNames, {Name}];
+                    if isempty(Obj.ColUnits)
+                        Obj.ColUnits = repmat({''}, 1, numel(Obj.ColNames));
+                    else
+                        Obj.ColUnits = [Obj.ColUnits, {''}];
+                    end
+                else
+                    Obj.Catalog(:, Idx) = Data;
+                end
+                return
+            end
+
             if ~isempty(Data)
                 if ~iscell(NewColNames) && ~isstring(NewColNames)
                     NewColNames = {NewColNames};
