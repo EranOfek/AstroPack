@@ -1,22 +1,24 @@
 {
-  "status": "INFEASIBLE",
-  "wall_time": 0.13735651969909668,
-  "objective": null,
+  "status": "OPTIMAL",
+  "wall_time": 0.35350751876831055,
+  "objective": 212795.0,
+  "set_c_start_ind": 3,
   "counts": {
-    "A": 0,
-    "B": 0,
-    "C": 0,
-    "D": 0
+    "A": 48,
+    "B": 16,
+    "C": 16,
+    "D": 4
   },
-  "max_daily_load": 0,
-  "average_daily_load": 0.0,
-  "validation_passed": 0,
+  "max_daily_load": 11,
+  "average_daily_load": 11.0,
+  "validation_passed": 1,
   "config": {
     "set_a_count": 48,
     "set_b_count": 16,
     "set_c_count": 16,
     "set_d_count": 4,
     "daily_capacity": 11,
+    "set_c_start_ind": 3,
     "time_limit_seconds": 300
   }
 }

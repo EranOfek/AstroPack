@@ -138,6 +138,8 @@ def _build_abc_model(
     if config.use_set_b_division and config.set_b_count > 0:
         for f in feasibility.feasible_b:
             row_vars = []
+            w45_needed: Set[int] = set()
+            w90_needed: Set[int] = set()
             for row in division:
                 w45, w91, w92 = row.w45, row.w90_1, row.w90_2
                 wins = feasibility.feasible_b[f]
@@ -146,11 +148,15 @@ def _build_abc_model(
                         f"b_row_{f}_{row.row_index}"
                     )
                     row_vars.append(b_row[(f, row.row_index)])
+                    w45_needed.add(w45)
+                    w90_needed.add(w91)
+                    w90_needed.add(w92)
             if not row_vars:
                 continue
             b_sel[f] = model.NewBoolVar(f"b_sel_{f}")
-            for w in feasibility.feasible_b[f]:
+            for w in w45_needed:
                 b_daily[(f, w)] = model.NewBoolVar(f"b_daily_{f}_{w}")
+            for w in w90_needed:
                 b_sparse[(f, w)] = model.NewBoolVar(f"b_sparse_{f}_{w}")
     elif config.set_b_count > 0:
         for f, wins in feasibility.feasible_b.items():
@@ -224,24 +230,24 @@ def _build_abc_model(
             rows = [b_row[(f, r.row_index)] for r in division if (f, r.row_index) in b_row]
             model.Add(sum(rows) == sel)
             # Link windows via OR over rows (handles duplicate triples in the table)
-            wins = feasibility.feasible_b.get(f, [])
-            for w in wins:
+            for w in sorted({k[1] for k in b_daily if k[0] == f}):
                 w45_rows = [
                     b_row[(f, r.row_index)]
                     for r in division
                     if (f, r.row_index) in b_row and r.w45 == w
                 ]
+                if w45_rows:
+                    model.Add(b_daily[(f, w)] == sum(w45_rows))
+            for w in sorted({k[1] for k in b_sparse if k[0] == f}):
                 w90_rows = [
                     b_row[(f, r.row_index)]
                     for r in division
                     if (f, r.row_index) in b_row and (r.w90_1 == w or r.w90_2 == w)
                 ]
-                if w45_rows and (f, w) in b_daily:
-                    model.Add(b_daily[(f, w)] == sum(w45_rows))
-                if w90_rows and (f, w) in b_sparse:
+                if w90_rows:
                     model.Add(b_sparse[(f, w)] == sum(w90_rows))
-            for w in wins:
-                if (f, w) in b_daily and (f, w) in b_sparse:
+            for w in sorted({k[1] for k in b_daily if k[0] == f}):
+                if (f, w) in b_sparse:
                     model.Add(b_daily[(f, w)] + b_sparse[(f, w)] <= 1)
         for row in division:
             ri = row.row_index
@@ -402,6 +408,8 @@ def _place_set_d(
                     start_day=win.start_day,
                     end_day=win.end_day,
                     window_index=k,
+                    group_id=301 + placed,
+                    cadence_ind=k,
                 )
             )
             open_counts[k] -= 1

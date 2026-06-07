@@ -21,6 +21,7 @@ from .io import (
     write_schedule_windows,
     write_solver_summary,
     write_validation_report,
+    write_v3_outputs,
 )
 from .solver import build_and_solve_with_branching
 from .validation import build_solver_summary, validate_schedule
@@ -63,6 +64,7 @@ def main(argv: list | None = None) -> int:
 
     write_schedule_windows(result, args.out)
     write_daily_schedule(result, args.out)
+    write_v3_outputs(result, args.out)
     report_df = validate_schedule(result)
     write_validation_report(report_df, args.out)
     summary = build_solver_summary(result, report_df)
