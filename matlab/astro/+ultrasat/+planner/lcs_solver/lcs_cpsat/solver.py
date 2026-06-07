@@ -67,13 +67,14 @@ def _add_window_index_capacity(
     b_sparse: Dict[Tuple[int, int], cp_model.IntVar],
     c_vars: Dict[Tuple[int, int], cp_model.IntVar],
     c_covers: Dict[Tuple[int, int], List[int]],
-) -> None:
+) -> List[cp_model.IntVar]:
     """
     v3 capacity: filled(k) = nA(k) + nB45(k) + n4(k)/4 <= daily_capacity.
 
     Integer form: 4*nA + 4*nB45 + n4 <= 4*daily_capacity, with n4 divisible by 4.
     """
     cap = config.daily_capacity
+    overflow_vars: List[cp_model.IntVar] = []
     for k in range(1, n_inds + 1):
         n_a = [
             var for (f, g, s), var in a_vars.items() if s == k
@@ -86,12 +87,18 @@ def _add_window_index_capacity(
         ]
         n4_terms = n_b90 + n_c
         if n_a or n_b45 or n4_terms:
-            model.Add(4 * sum(n_a) + 4 * sum(n_b45) + sum(n4_terms) <= 4 * cap)
+            load4 = model.NewIntVar(0, 4 * (cap + 50), f"load4_{k}")
+            overflow4 = model.NewIntVar(0, 4 * 50, f"overflow4_{k}")
+            model.Add(load4 == 4 * sum(n_a) + 4 * sum(n_b45) + sum(n4_terms))
+            model.Add(overflow4 >= load4 - 4 * cap)
+            model.Add(overflow4 >= 0)
+            overflow_vars.append(overflow4)
         if n4_terms:
             # n4(k) must be divisible by 4 for sparse interleaving
             n4_sum = model.NewIntVar(0, 200, f"n4_{k}")
             model.Add(n4_sum == sum(n4_terms))
             model.AddModuloEquality(0, n4_sum, 4)
+    return overflow_vars
 
 
 def _build_abc_model(
@@ -125,15 +132,13 @@ def _build_abc_model(
 
     # ---- Set A: shared fixed windows; window_index == slot ----
     a_vars: Dict[Tuple[int, int, int], cp_model.IntVar] = {}
-    a_moved: Dict[Tuple[int, int], cp_model.IntVar] = {}
     if config.set_a_count > 0:
         for f in feasibility.feasible_a:
             for g in range(1, n_groups + 1):
                 for s in range(1, n_slots + 1):
                     if feasibility.feasible_a_gs.get((f, g, s), False):
                         a_vars[(f, g, s)] = model.NewBoolVar(f"a_{f}_{g}_{s}")
-            for w in feasibility.feasible_a.get(f, set()):
-                a_moved[(f, w)] = model.NewBoolVar(f"a_moved_{f}_{w}")
+    a_moved: Dict[Tuple[int, int], cp_model.IntVar] = {}
 
     # ---- Set B ----
     b_sel: Dict[int, cp_model.IntVar] = {}
@@ -178,6 +183,7 @@ def _build_abc_model(
     c_covers: Dict[Tuple[int, int], List[int]] = {}
     start_to_ind = {w.start_day: w.index for w in windows_45}
     valid_super = [sw for sw in super_windows if sw.end_day <= config.last_day]
+    overflow_vars: List[cp_model.IntVar] = []
 
     if config.set_c_count > 0:
         for f in feasibility.feasible_c:
@@ -203,11 +209,6 @@ def _build_abc_model(
         if f in b_sel:
             terms.append(b_sel[f])
         terms.extend(
-            a_moved[(f, w)]
-            for w in {k[1] for k in a_moved if k[0] == f}
-            if (f, w) in a_moved
-        )
-        terms.extend(
             c_vars[(f, sw)]
             for sw in {k[1] for k in c_vars if k[0] == f}
             if (f, sw) in c_vars
@@ -225,11 +226,11 @@ def _build_abc_model(
                     if (f, g, s) in a_vars
                 ]
                 if slot_terms:
-                    model.Add(sum(slot_terms) <= 1)
+                    model.Add(sum(slot_terms) == 1)
+                else:
+                    model.Add(0 == 1)
 
-        model.Add(sum(a_vars.values()) + sum(a_moved.values()) == config.set_a_count)
-        if a_moved:
-            model.Add(sum(a_moved.values()) <= config.set_d_count)
+        model.Add(sum(a_vars.values()) == config.set_a_count)
 
     # ---- Set B counts and structure ----
     if b_sel:
@@ -286,7 +287,7 @@ def _build_abc_model(
 
     # ---- Window-index capacity (v3 filled formula) ----
     if config.use_window_index_capacity:
-        _add_window_index_capacity(
+        overflow_vars = _add_window_index_capacity(
             model, config, n_inds, a_vars, a_moved, b_daily, b_sparse, c_vars, c_covers
         )
     else:
@@ -297,13 +298,10 @@ def _build_abc_model(
 
     # ---- Objective ----
     objective_terms = []
+    for var in overflow_vars:
+        objective_terms.append(var * -1_000_000)
     for (f, g, s), var in a_vars.items():
         slack = feasibility.slack_a_gs.get((f, g, s), 0)
-        obj = slack * config.weight_slack + extinction_scores.get(f, 0) * config.weight_extinction
-        if obj:
-            objective_terms.append(var * obj)
-    for (f, w), var in a_moved.items():
-        slack = feasibility.slack_45.get((f, w), 0)
         obj = slack * config.weight_slack + extinction_scores.get(f, 0) * config.weight_extinction
         if obj:
             objective_terms.append(var * obj)
@@ -519,17 +517,22 @@ def build_and_solve_with_branching(
         """No shift first, then v3 phase-2 single-group rescue shifts."""
         attempts: List[Tuple[int, int]] = [(0, 0)]
         for group in range(1, config.set_a_n_groups + 1):
-            for shift in list(range(-30, 0)) + list(range(1, 31)):
+            for shift in range(1, config.max_set_a_shift_days + 1):
                 attempts.append((group, shift))
         return attempts
 
+    attempts = shift_attempts()
+    total_attempts = max(1, 2 * len(attempts))
+    per_attempt_seconds = max(0.25, config.time_limit_seconds / total_attempts)
+
     for sci in (3, 1):
-        for shifted_group, shift_days in shift_attempts():
+        for shifted_group, shift_days in attempts:
             run_config = replace(
                 config,
                 set_c_start_ind=sci,
                 set_a_shifted_group=shifted_group,
                 set_a_shift_days=shift_days,
+                time_limit_seconds=per_attempt_seconds,
             )
             feasibility = compute_feasibility(
                 fields_df, windows_df, eligibility_df, run_config, windows_1dgap_df

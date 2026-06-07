@@ -161,6 +161,15 @@ def compute_feasibility(
     eligible_abc = set(
         eligibility_df.loc[eligibility_df["eligible_abc"] == 1, "field_id"].astype(int)
     )
+    allowed_a = set(
+        eligibility_df.loc[eligibility_df.get("allowed_set_a", eligibility_df["eligible_abc"]) == 1, "field_id"].astype(int)
+    )
+    allowed_b = set(
+        eligibility_df.loc[eligibility_df.get("allowed_set_b", eligibility_df["eligible_abc"]) == 1, "field_id"].astype(int)
+    )
+    allowed_c = set(
+        eligibility_df.loc[eligibility_df.get("allowed_set_c", eligibility_df["eligible_long_window"]) == 1, "field_id"].astype(int)
+    )
     eligible_long = set(
         eligibility_df.loc[
             eligibility_df["eligible_long_window"] == 1, "field_id"
@@ -211,9 +220,8 @@ def compute_feasibility(
             req_135,
         )
 
-        if field_id in eligible_abc:
+        if field_id in eligible_abc and field_id in allowed_a:
             feasible_a[field_id] = f45
-            feasible_b[field_id] = f45
             for w_idx, val in s45.items():
                 slack_45[(field_id, w_idx)] = val
 
@@ -230,7 +238,12 @@ def compute_feasibility(
                         feasible_a_gs[(field_id, g, s)] = True
                         slack_a_gs[(field_id, g, s)] = slack
 
-        if field_id in eligible_abc and field_id in eligible_long:
+        if field_id in eligible_abc and field_id in allowed_b:
+            feasible_b[field_id] = f45
+            for w_idx, val in s45.items():
+                slack_45[(field_id, w_idx)] = val
+
+        if field_id in eligible_abc and field_id in eligible_long and field_id in allowed_c:
             feasible_c[field_id] = f135
             for w_idx, val in s135.items():
                 slack_135[(field_id, w_idx)] = val

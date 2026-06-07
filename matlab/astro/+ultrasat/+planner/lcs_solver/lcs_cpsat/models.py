@@ -68,6 +68,7 @@ class SolverConfig:
     solve_set_d_separately: bool = True  # stage 2: D into inds_open slack
     set_a_shifted_group: int = 0       # 0 = no shift; 1..6 = v3 phase-2 shifted group
     set_a_shift_days: int = 0          # anchor offset for shifted group
+    max_set_a_shift_days: int = 1      # scan budget: try +1..+N day v3 rescue shifts
 
     @classmethod
     def from_dict(cls, data: dict) -> "SolverConfig":
@@ -138,6 +139,8 @@ class SolverConfig:
             kwargs["set_a_shifted_group"] = data["set_a_shifted_group"]
         if "set_a_shift_days" in data:
             kwargs["set_a_shift_days"] = data["set_a_shift_days"]
+        if "max_set_a_shift_days" in data:
+            kwargs["max_set_a_shift_days"] = data["max_set_a_shift_days"]
         return cls(**kwargs)
 
 

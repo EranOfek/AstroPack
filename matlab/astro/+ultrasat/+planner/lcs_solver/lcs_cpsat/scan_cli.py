@@ -34,6 +34,11 @@ def parse_args(argv: list | None = None) -> argparse.Namespace:
     parser.add_argument("--config", type=Path, default=defaults["config"])
     parser.add_argument("--out", type=Path, default=base_dir / "output" / "scan")
     parser.add_argument("--time-limit", type=int, default=60)
+    parser.add_argument(
+        "--write-full-outputs",
+        action="store_true",
+        help="write full per-plan output folders for feasible plans",
+    )
     return parser.parse_args(argv)
 
 
@@ -58,6 +63,7 @@ def main(argv: list | None = None) -> int:
         out_dir=args.out,
         time_limit_seconds=args.time_limit,
         windows_1dgap_df=windows_1dgap_df,
+        write_full_outputs=args.write_full_outputs,
     )
 
     feasible = index_df[index_df["status"].isin(["OPTIMAL", "FEASIBLE"])]
