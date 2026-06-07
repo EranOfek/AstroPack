@@ -62,6 +62,10 @@ class SolverConfig:
     weight_slack: int = 10
     weight_extinction: int = 1
     num_windows_45: int = 8
+    set_c_start_ind: int = 3          # 3 or 1 — anchors Set C and mirrors Set B division
+    use_window_index_capacity: bool = True  # v3 filled(k) model vs per-calendar-day
+    use_set_b_division: bool = False  # True when ABC n4 divisibility verified with division table
+    solve_set_d_separately: bool = True  # stage 2: D into inds_open slack
 
     @classmethod
     def from_dict(cls, data: dict) -> "SolverConfig":
@@ -120,6 +124,14 @@ class SolverConfig:
             # slot count equals 45-day window count unless overridden
             if "num_windows_45" not in kwargs:
                 kwargs["num_windows_45"] = data["set_a_fields_per_group"]
+        if "set_c_start_ind" in data:
+            kwargs["set_c_start_ind"] = data["set_c_start_ind"]
+        if "use_window_index_capacity" in data:
+            kwargs["use_window_index_capacity"] = data["use_window_index_capacity"]
+        if "use_set_b_division" in data:
+            kwargs["use_set_b_division"] = data["use_set_b_division"]
+        if "solve_set_d_separately" in data:
+            kwargs["solve_set_d_separately"] = data["solve_set_d_separately"]
         return cls(**kwargs)
 
 
@@ -138,6 +150,9 @@ class FeasibilityMaps:
     eligible_abc: Set[int]
     eligible_long: Set[int]
     eligible_d: Set[int]
+    use1dgap: Dict[int, bool] = field(default_factory=dict)
+    feasible_a_gs: Dict[Tuple[int, int, int], bool] = field(default_factory=dict)
+    slack_a_gs: Dict[Tuple[int, int, int], int] = field(default_factory=dict)
 
 
 @dataclass
@@ -151,6 +166,7 @@ class WindowAssignment:
     end_day: int
     window_index: int       # 45-day window or 135-day span index
     group_id: Optional[int] = None  # Set A group (1..6) or B field id
+    cadence_ind: int = 1    # sparse phase slot (mod 4) for B_90 and Set C
     notes: str = ""         # e.g. B_45, B_90
 
 

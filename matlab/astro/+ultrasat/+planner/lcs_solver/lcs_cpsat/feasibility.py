@@ -11,11 +11,12 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 
 from .models import FeasibilityMaps, SolverConfig, WindowDef
+from .v3_rules import set_a_slot_calendar, set_c_super_windows
 
 
 def build_windows_45(config: SolverConfig) -> List[WindowDef]:
@@ -60,11 +61,7 @@ def _covers_interval(
 def _slack_for_interval(
     vis_start: int, vis_end: int, req_start: int, req_end: int
 ) -> int:
-    """
-    Extra visibility days beyond the required interval (both sides).
-
-    Used as a soft objective term — more slack means safer scheduling.
-    """
+    """Extra visibility days beyond the required interval (both sides)."""
     return (req_start - vis_start) + (vis_end - req_end)
 
 
@@ -87,7 +84,6 @@ def _feasible_windows_for_field(
 
     for idx, req_start, req_end in req_intervals:
         best_slack = None
-        # A field may have multiple visibility intervals; pick the best covering one
         for _, row in field_rows.iterrows():
             vs = int(row["vis_start_day"])
             ve = int(row["vis_end_day"])
@@ -101,30 +97,67 @@ def _feasible_windows_for_field(
     return slack, feasible
 
 
+def _windows_df_for_field(
+    field_id: int,
+    windows_strict: pd.DataFrame,
+    windows_1dgap: Optional[pd.DataFrame],
+    use1dgap: Dict[int, bool],
+) -> pd.DataFrame:
+    """Pick strict or 1-day-gap visibility table per field (v3 use1gap)."""
+    if use1dgap.get(field_id, False) and windows_1dgap is not None:
+        return windows_1dgap[windows_1dgap["field_id"] == field_id]
+    return windows_strict[windows_strict["field_id"] == field_id]
+
+
+def _feasible_calendar_interval(
+    field_id: int,
+    req_start: int,
+    req_end: int,
+    windows_strict: pd.DataFrame,
+    windows_1dgap: Optional[pd.DataFrame],
+    use1dgap: Dict[int, bool],
+) -> Optional[int]:
+    """Return slack if field covers [req_start, req_end], else None."""
+    field_rows = _windows_df_for_field(
+        field_id, windows_strict, windows_1dgap, use1dgap
+    )
+    best = None
+    for _, row in field_rows.iterrows():
+        vs = int(row["vis_start_day"])
+        ve = int(row["vis_end_day"])
+        if _covers_interval(vs, ve, req_start, req_end):
+            s = _slack_for_interval(vs, ve, req_start, req_end)
+            if best is None or s > best:
+                best = s
+    return best
+
+
 def compute_feasibility(
     fields_df: pd.DataFrame,
     windows_df: pd.DataFrame,
     eligibility_df: pd.DataFrame,
     config: SolverConfig,
+    windows_1dgap_df: Optional[pd.DataFrame] = None,
 ) -> FeasibilityMaps:
     """
     Precompute all feasible (field, window) pairs before building the CP-SAT model.
 
-    Only pairs that pass eligibility and visibility checks get solver variables.
-
     :param fields_df: field catalog
-    :param windows_df: continuous visibility windows per field
-    :param eligibility_df: eligible_abc / eligible_long_window / eligible_d flags
+    :param windows_df: strict continuous visibility windows
+    :param eligibility_df: eligibility flags (+ optional use1dgap)
     :param config: solver configuration
+    :param windows_1dgap_df: optional 1-day-gap merged windows
     :return: FeasibilityMaps used by solver.py
     """
     windows_45 = build_windows_45(config)
     windows_135 = build_windows_135(windows_45)
+    super_windows = set_c_super_windows(config, windows_45)
 
     req_45 = [(w.index, w.start_day, w.end_day) for w in windows_45]
-    req_135 = list(windows_135)
+    req_135 = [
+        (sw.index, sw.start_day, sw.end_day) for sw in super_windows
+    ]
 
-    # Hard eligibility flags from MATLAB (no set pre-assignment)
     eligible_abc = set(
         eligibility_df.loc[eligibility_df["eligible_abc"] == 1, "field_id"].astype(int)
     )
@@ -138,18 +171,45 @@ def compute_feasibility(
     )
     d_ranked = set(config.d_ranked_fields)
 
+    use1dgap: Dict[int, bool] = {}
+    if "use1dgap" in eligibility_df.columns:
+        for _, row in eligibility_df.iterrows():
+            fid = int(row["field_id"])
+            use1dgap[fid] = bool(int(row["use1dgap"]))
+    elif "max_window_1dgap_days" in eligibility_df.columns:
+        for _, row in eligibility_df.iterrows():
+            fid = int(row["field_id"])
+            strict = int(row.get("max_window_days", 0))
+            gap = int(row["max_window_1dgap_days"])
+            use1dgap[fid] = gap > strict
+
     feasible_a: Dict[int, Set[int]] = {}
     feasible_b: Dict[int, Set[int]] = {}
     feasible_c: Dict[int, Set[int]] = {}
     feasible_d: Dict[int, Set[int]] = {}
+    feasible_a_gs: Dict[Tuple[int, int, int], bool] = {}
+    slack_a_gs: Dict[Tuple[int, int, int], int] = {}
     slack_45: Dict[Tuple[int, int], int] = {}
     slack_135: Dict[Tuple[int, int], int] = {}
 
     field_ids = fields_df["field_id"].astype(int).tolist()
+    n_groups = config.set_a_n_groups
+    n_slots = config.set_a_fields_per_group
 
     for field_id in field_ids:
-        s45, f45 = _feasible_windows_for_field(field_id, windows_df, req_45)
-        s135, f135 = _feasible_windows_for_field(field_id, windows_df, req_135)
+        wdf = _windows_df_for_field(
+            field_id, windows_df, windows_1dgap_df, use1dgap
+        )
+        s45, f45 = _feasible_windows_for_field(
+            field_id,
+            wdf if not wdf.empty else windows_df[windows_df["field_id"] == field_id],
+            req_45,
+        )
+        s135, f135 = _feasible_windows_for_field(
+            field_id,
+            wdf if not wdf.empty else windows_df[windows_df["field_id"] == field_id],
+            req_135,
+        )
 
         if field_id in eligible_abc:
             feasible_a[field_id] = f45
@@ -157,13 +217,24 @@ def compute_feasibility(
             for w_idx, val in s45.items():
                 slack_45[(field_id, w_idx)] = val
 
-        # Set C requires both good extinction and a 135-day visibility span
+            for g in range(1, n_groups + 1):
+                for s in range(1, n_slots + 1):
+                    start, end, _ = set_a_slot_calendar(
+                        config, g, s, windows_45
+                    )
+                    slack = _feasible_calendar_interval(
+                        field_id, start, end,
+                        windows_df, windows_1dgap_df, use1dgap,
+                    )
+                    if slack is not None:
+                        feasible_a_gs[(field_id, g, s)] = True
+                        slack_a_gs[(field_id, g, s)] = slack
+
         if field_id in eligible_abc and field_id in eligible_long:
             feasible_c[field_id] = f135
             for w_idx, val in s135.items():
                 slack_135[(field_id, w_idx)] = val
 
-        # Set D: high-extinction fields from the WG5 ranked list
         if field_id in eligible_d and field_id in d_ranked:
             feasible_d[field_id] = f45
 
@@ -179,4 +250,7 @@ def compute_feasibility(
         eligible_abc=eligible_abc,
         eligible_long=eligible_long,
         eligible_d=eligible_d,
+        use1dgap=use1dgap,
+        feasible_a_gs=feasible_a_gs,
+        slack_a_gs=slack_a_gs,
     )

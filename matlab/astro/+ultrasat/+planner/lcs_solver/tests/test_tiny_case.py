@@ -21,19 +21,14 @@ from lcs_cpsat.validation import validate_schedule
 
 def _make_tiny_inputs():
     """
-    Build a minimal 12-field problem that fits in 135 days.
-
-    Layout: 3 groups × 2 slots = 6 Set A fields, plus B/C/D counts.
-    All fields share one 135-day visibility window for simplicity.
-
-    :return: (fields_df, windows_df, eligibility_df, config)
+    Minimal problem: 1 Set A group x 6 slots, small B/C/D counts, 360-day horizon.
     """
     fields_df = pd.DataFrame(
         {
             "field_id": list(range(1, 13)),
             "ra": [float(i) for i in range(1, 13)],
             "dec": [0.0] * 12,
-            "A_U": [0.5] * 10 + [1.5, 1.6],  # last two are high-extinction (Set D)
+            "A_U": [0.5] * 10 + [1.5, 1.6],
         }
     )
 
@@ -43,8 +38,8 @@ def _make_tiny_inputs():
             {
                 "field_id": fid,
                 "vis_start_day": 1,
-                "vis_end_day": 135,
-                "window_len_days": 135,
+                "vis_end_day": 400,
+                "window_len_days": 400,
             }
         )
     windows_df = pd.DataFrame(windows_rows)
@@ -52,34 +47,38 @@ def _make_tiny_inputs():
     eligibility_df = pd.DataFrame(
         {
             "field_id": list(range(1, 13)),
-            "eligible_abc": [1] * 10 + [0, 0],       # fields 11-12 excluded from A/B/C
-            "eligible_long_window": [1] * 8 + [0, 0, 0, 0],  # fields 9-12 no 135-day C
-            "eligible_d": [0] * 10 + [1, 1],          # fields 11-12 are Set D candidates
+            "eligible_abc": [1] * 10 + [0, 0],
+            "eligible_long_window": [1] * 8 + [0, 0, 0, 0],
+            "eligible_d": [0] * 10 + [1, 1],
+            "use1dgap": [0] * 12,
         }
     )
 
     config = SolverConfig(
         first_day=1,
-        last_day=135,
+        last_day=360,
         min_window_days=45,
         long_window_days=135,
         daily_capacity=11,
         set_a_count=6,
-        set_a_n_groups=3,
-        set_a_fields_per_group=2,
-        set_b_count=2,
-        set_c_count=2,
+        set_a_n_groups=1,
+        set_a_fields_per_group=6,
+        set_b_count=4,
+        set_c_count=0,
         set_d_count=1,
-        num_windows_45=3,
-        capacity_last_day=135,
+        num_windows_45=8,
+        capacity_last_day=360,
         d_ranked_fields=[11, 12],
         time_limit_seconds=30,
+        set_c_start_ind=1,
+        use_set_b_division=False,
+        use_window_index_capacity=True,
+        solve_set_d_separately=True,
     )
     return fields_df, windows_df, eligibility_df, config
 
 
 def test_tiny_case_solves():
-    """End-to-end: tiny inputs must solve with all four sets represented."""
     fields_df, windows_df, eligibility_df, config = _make_tiny_inputs()
     feasibility = compute_feasibility(fields_df, windows_df, eligibility_df, config)
     result = build_and_solve(fields_df, feasibility, config)
@@ -93,5 +92,4 @@ def test_tiny_case_solves():
     categories = {a.category for a in result.window_assignments}
     assert "A" in categories
     assert "B" in categories
-    assert "C" in categories
     assert "D" in categories

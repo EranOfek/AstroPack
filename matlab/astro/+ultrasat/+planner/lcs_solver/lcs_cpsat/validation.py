@@ -18,27 +18,16 @@ import pandas as pd
 
 from .feasibility import build_windows_45
 from .models import DailyObservation, SolverConfig, SolverResult, WindowAssignment
-from .solver import _daily_days_in_window, _sparse_days_in_window
+from .v3_rules import compute_window_occupancy
 
 
 def validate_schedule(result: SolverResult) -> pd.DataFrame:
-    """
-    Run post-solve checks and return a pass/fail report.
-
-    :param result: complete SolverResult from build_and_solve
-    :return: DataFrame with columns check, passed, detail
-    """
+    """Run post-solve checks and return a pass/fail report."""
     config = result.config
     checks: List[dict] = []
 
     def add(check_name: str, passed: bool, detail: str = "") -> None:
-        checks.append(
-            {
-                "check": check_name,
-                "passed": int(passed),
-                "detail": detail,
-            }
-        )
+        checks.append({"check": check_name, "passed": int(passed), "detail": detail})
 
     add("solver_status_optimal_or_feasible", result.status in ("OPTIMAL", "FEASIBLE"), result.status)
     add(
@@ -52,17 +41,27 @@ def validate_schedule(result: SolverResult) -> pd.DataFrame:
     add("set_a_count", categories.get("A", 0) == config.set_a_count, str(categories.get("A", 0)))
     add("set_b_count", _count_b_fields(assignments) == config.set_b_count, str(_count_b_fields(assignments)))
     add("set_c_count", categories.get("C", 0) == config.set_c_count, str(categories.get("C", 0)))
-    add("set_d_count", categories.get("D", 0) == config.set_d_count, str(categories.get("D", 0)))
 
-    # A field must not appear in more than one set (A/B/C/D)
+    d_count = categories.get("D", 0)
+    if config.solve_set_d_separately:
+        add("set_d_count", d_count <= config.set_d_count, str(d_count))
+    else:
+        add("set_d_count", d_count == config.set_d_count, str(d_count))
+
     categories_by_field: dict = defaultdict(set)
     for a in assignments:
         categories_by_field[a.field_id].add(a.category)
     cross_set_dupes = [fid for fid, cats in categories_by_field.items() if len(cats) > 1]
     add("no_duplicate_fields", len(cross_set_dupes) == 0, str(cross_set_dupes))
 
-    capacity_violations = _check_daily_capacity(result.daily_observations, config)
-    add("daily_capacity", len(capacity_violations) == 0, str(capacity_violations[:5]))
+    if config.use_window_index_capacity:
+        win_violations = _check_window_index_capacity(assignments, result)
+        add("window_index_capacity", len(win_violations) == 0, str(win_violations[:5]))
+        div_ok = _check_n4_divisibility(assignments, result)
+        add("n4_divisibility", div_ok, "")
+    else:
+        capacity_violations = _check_daily_capacity(result.daily_observations, config)
+        add("daily_capacity", len(capacity_violations) == 0, str(capacity_violations[:5]))
 
     vis_violations = _check_visibility(assignments, result)
     add("visibility", len(vis_violations) == 0, str(vis_violations[:5]))
@@ -77,13 +76,6 @@ def validate_schedule(result: SolverResult) -> pd.DataFrame:
 
 
 def build_solver_summary(result: SolverResult, report_df: pd.DataFrame) -> dict:
-    """
-    Build solver_summary.json content from result and validation report.
-
-    :param result: solved schedule
-    :param report_df: output of validate_schedule
-    :return: dict ready for JSON serialization
-    """
     daily_loads = Counter(obs.day for obs in result.daily_observations)
     loads = list(daily_loads.values()) if daily_loads else [0]
     categories = Counter(a.category for a in result.window_assignments)
@@ -92,6 +84,7 @@ def build_solver_summary(result: SolverResult, report_df: pd.DataFrame) -> dict:
         "status": result.status,
         "wall_time": result.wall_time_seconds,
         "objective": result.objective_value,
+        "set_c_start_ind": result.config.set_c_start_ind,
         "counts": {
             "A": categories.get("A", 0),
             "B": _count_b_fields(result.window_assignments),
@@ -107,41 +100,67 @@ def build_solver_summary(result: SolverResult, report_df: pd.DataFrame) -> dict:
             "set_c_count": result.config.set_c_count,
             "set_d_count": result.config.set_d_count,
             "daily_capacity": result.config.daily_capacity,
+            "set_c_start_ind": result.config.set_c_start_ind,
             "time_limit_seconds": result.config.time_limit_seconds,
         },
     }
 
 
 def _count_b_fields(assignments: List[WindowAssignment]) -> int:
-    """Count unique fields assigned to Set B (each field has multiple window rows)."""
     return len({a.field_id for a in assignments if a.category == "B"})
 
 
 def _check_daily_capacity(
     observations: List[DailyObservation], config: SolverConfig
 ) -> List[int]:
-    """
-    Find days where observation count exceeds daily_capacity.
-
-    :return: list of violating campaign day numbers
-    """
     loads = Counter(obs.day for obs in observations)
     return [day for day, load in loads.items() if load > config.daily_capacity]
 
 
-def _check_visibility(assignments: List[WindowAssignment], result: SolverResult) -> List[str]:
-    """
-    Verify each assignment's window index is in the precomputed feasibility map.
+def _check_window_index_capacity(
+    assignments: List[WindowAssignment], result: SolverResult
+) -> List[str]:
+    windows_45 = build_windows_45(result.config)
+    _, _, _, _, filled, ok = compute_window_occupancy(
+        [a for a in assignments if a.category != "D"],
+        result.config,
+        windows_45,
+        include_d=False,
+    )
+    if not ok:
+        return ["n4 divisibility failed"]
+    violations = []
+    cap = result.config.daily_capacity
+    for k, load in enumerate(filled, start=1):
+        if load > cap + 1e-9:
+            violations.append(f"ind {k} filled={load:.2f}")
+    return violations
 
-    :return: list of violation description strings
-    """
+
+def _check_n4_divisibility(
+    assignments: List[WindowAssignment], result: SolverResult
+) -> bool:
+    windows_45 = build_windows_45(result.config)
+    _, _, _, _, _, ok = compute_window_occupancy(
+        [a for a in assignments if a.category != "D"],
+        result.config,
+        windows_45,
+        include_d=False,
+    )
+    return ok
+
+
+def _check_visibility(assignments: List[WindowAssignment], result: SolverResult) -> List[str]:
     violations = []
     feasibility = result.feasibility
-    windows_45 = build_windows_45(result.config)
-    span_by_idx = {idx: (s, e) for idx, s, e in feasibility.windows_135}
 
     for item in assignments:
-        if item.category in ("A", "D") or (item.category == "B" and item.cadence == "daily"):
+        if item.category == "A":
+            if not feasibility.feasible_a_gs.get(
+                (item.field_id, item.group_id or 1, item.window_index), False
+            ):
+                violations.append(f"A field {item.field_id} g={item.group_id} s={item.window_index}")
+        elif item.category in ("D",) or (item.category == "B" and item.cadence == "daily"):
             feasible = feasibility.feasible_a.get(item.field_id, set())
             if item.category == "D":
                 feasible = feasibility.feasible_d.get(item.field_id, set())
@@ -159,11 +178,6 @@ def _check_visibility(assignments: List[WindowAssignment], result: SolverResult)
 
 
 def _check_cadence(assignments: List[WindowAssignment], config: SolverConfig) -> List[str]:
-    """
-    Verify Set B fields have exactly 1 daily + 2 sparse window blocks.
-
-    :return: list of violation description strings
-    """
     violations = []
     by_field: dict = defaultdict(list)
     for item in assignments:

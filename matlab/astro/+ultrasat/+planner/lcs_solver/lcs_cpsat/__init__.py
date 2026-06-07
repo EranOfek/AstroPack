@@ -7,17 +7,16 @@
 # Description : ULTRASAT LCS CP-SAT scheduling solver package exports
 # ***************************************************************************
 
-"""
-ULTRASAT LCS CP-SAT scheduling solver.
-
-Public API:
-  - SolverConfig, SolverResult — data models
-  - build_and_solve — single CP-SAT run
-  - scan_lcs_plans — date-range feasibility scan
-"""
+"""ULTRASAT LCS CP-SAT scheduling solver (LcsHelper_v3-aligned)."""
 
 from .models import SolverConfig, SolverResult
 from .scanner import scan_lcs_plans
-from .solver import build_and_solve
+from .solver import build_and_solve, build_and_solve_with_branching
 
-__all__ = ["SolverConfig", "SolverResult", "build_and_solve", "scan_lcs_plans"]
+__all__ = [
+    "SolverConfig",
+    "SolverResult",
+    "build_and_solve",
+    "build_and_solve_with_branching",
+    "scan_lcs_plans",
+]

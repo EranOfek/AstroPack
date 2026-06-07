@@ -59,6 +59,8 @@ def _make_result(
         set_b_count=1,
         set_c_count=1,
         set_d_count=1,
+        use_window_index_capacity=False,
+        solve_set_d_separately=False,
     )
     return SolverResult(
         status="OPTIMAL",

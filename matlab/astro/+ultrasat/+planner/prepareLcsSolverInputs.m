@@ -1,22 +1,31 @@
+% ***************************************************************************
+% Project     : ULTRASAT SOC
+% Filename    : matlab/astro/+ultrasat/+planner/prepareLcsSolverInputs.m
+% Author      : Chen Tishler
+% Created     : 07/06/2026
+% Updated     : 07/06/2026
+% Description : Prepare input files for the LCS CP-SAT Python solver
+% ***************************************************************************
+
 function prepareLcsSolverInputs(Args)
-% Prepare input files for the LCS CP-SAT Python solver
-%
-% Runs LcsHelper visibility computation (calc_vis_matrix + calc_cont_vis_windows)
-% and writes all solver input files to a data/lcs_solver_inputs/ folder.
-% Supports saving/loading a .mat cache to avoid recomputing visibility on re-runs.
-%
-% Output files in OutputDir:
-%   lcs_fields.csv                  - Field catalog (copy of original CSV)
-%   lcs_params.json                 - Scalar solver parameters
-%   lcs_daily_visibility.csv        - Day x field binary visibility matrix
-%   lcs_visibility_windows.csv      - Continuous visibility windows per field (strict)
-%   lcs_visibility_windows_1dgap.csv - Continuous visibility windows (1-day-gap merged)
-%   lcs_field_eligibility.csv       - Hard eligibility flags per field (no set pre-assignment)
-%
-% Example:
-%   ultrasat.planner.prepareLcsSolverInputs();
-%   ultrasat.planner.prepareLcsSolverInputs('StartDate', datetime('2029-02-01'), ...
-%       'LoadCache', false, 'SaveCache', true);
+    % Prepare input files for the LCS CP-SAT Python solver
+    %
+    % Runs LcsHelper_v3 visibility computation (calc_vis_matrix + calc_cont_vis_windows_v2)
+    % and writes all solver input files to a data/lcs_solver_inputs/ folder.
+    % Supports saving/loading a .mat cache to avoid recomputing visibility on re-runs.
+    %
+    % Output files in OutputDir:
+    %   lcs_fields.csv                  - Field catalog (copy of original CSV)
+    %   lcs_params.json                 - Scalar solver parameters
+    %   lcs_daily_visibility.csv        - Day x field binary visibility matrix
+    %   lcs_visibility_windows.csv      - Continuous visibility windows per field (strict)
+    %   lcs_visibility_windows_1dgap.csv - Continuous visibility windows (1-day-gap merged)
+    %   lcs_field_eligibility.csv       - Hard eligibility flags per field (no set pre-assignment)
+    %
+    % Example:
+    %   ultrasat.planner.prepareLcsSolverInputs();
+    %   ultrasat.planner.prepareLcsSolverInputs('StartDate', datetime('2029-02-01'), ...
+    %       'LoadCache', false, 'SaveCache', true);
 
     arguments
         Args.StartDate    = [];     % Campaign start datetime (default: 2029-02-01)
@@ -47,35 +56,41 @@ function prepareLcsSolverInputs(Args)
         fprintf('Created output directory: %s\n', Args.OutputDir);
     end
 
-    % ---- Construct LcsHelper (no computation) ----
-    fprintf('[1/4] Constructing LcsHelper...\n');
-    LCS = ultrasat.planner.LcsHelper('AllSkyTable', Args.FieldsFile, ...
+    % ---- Construct LcsHelper_v3 (visibility only, no schedule) ----
+    fprintf('[1/4] Constructing LcsHelper_v3...\n');
+    LCS = ultrasat.planner.LcsHelper_v3('AllSkyTable', Args.FieldsFile, ...
         'StartDate', Args.StartDate, 'EndDate', Args.EndDate);
 
     % ---- Step 1+2: visibility matrix and windows (with cache) ----
     if Args.LoadCache && isfile(Args.CacheFile)
         fprintf('[2/4] Loading visibility cache from:\n      %s\n', Args.CacheFile);
         C = load(Args.CacheFile);
-        LCS.vis_day_field            = C.vis_day_field;
-        LCS.All_fields_windows       = C.All_fields_windows;
-        LCS.All_fields_windows_1dgap = C.All_fields_windows_1dgap;
+        LCS.vis_day_field = C.vis_day_field;
+        LCS.Cont_visibilty_per_field = C.Cont_visibilty_per_field;
+        LCS.Cont_visibilty_per_field_1dgap = C.Cont_visibilty_per_field_1dgap;
         LCS.Longest_window_per_field = C.Longest_window_per_field;
+        LCS.Longest_window_per_field_1dgap = C.Longest_window_per_field_1dgap;
+        [LCS.All_fields_windows, LCS.All_fields_windows_1dgap, LCS.Longest_window_table] = ...
+            buildWindowTablesFromVis(LCS);
     else
         fprintf('[2/4] Computing visibility matrix (this may take several minutes)...\n');
         LCS.calc_vis_matrix();
 
-        fprintf('      Computing continuous visibility windows...\n');
-        [LCS.All_fields_windows, LCS.All_fields_windows_1dgap, ...
-            LCS.Longest_window_per_field] = LCS.calc_cont_vis_windows();
+        fprintf('      Computing continuous visibility (v3)...\n');
+        LCS.calc_cont_vis_windows_v2();
+        [LCS.All_fields_windows, LCS.All_fields_windows_1dgap, LCS.Longest_window_table] = ...
+            buildWindowTablesFromVis(LCS);
 
         if Args.SaveCache
             fprintf('      Saving visibility cache to:\n      %s\n', Args.CacheFile);
-            vis_day_field            = LCS.vis_day_field;           %#ok<NASGU>
-            All_fields_windows       = LCS.All_fields_windows;      %#ok<NASGU>
-            All_fields_windows_1dgap = LCS.All_fields_windows_1dgap; %#ok<NASGU>
+            vis_day_field = LCS.vis_day_field; %#ok<NASGU>
+            Cont_visibilty_per_field = LCS.Cont_visibilty_per_field; %#ok<NASGU>
+            Cont_visibilty_per_field_1dgap = LCS.Cont_visibilty_per_field_1dgap; %#ok<NASGU>
             Longest_window_per_field = LCS.Longest_window_per_field; %#ok<NASGU>
-            save(Args.CacheFile, 'vis_day_field', 'All_fields_windows', ...
-                'All_fields_windows_1dgap', 'Longest_window_per_field');
+            Longest_window_per_field_1dgap = LCS.Longest_window_per_field_1dgap; %#ok<NASGU>
+            save(Args.CacheFile, 'vis_day_field', 'Cont_visibilty_per_field', ...
+                'Cont_visibilty_per_field_1dgap', 'Longest_window_per_field', ...
+                'Longest_window_per_field_1dgap');
         end
     end
 
@@ -143,6 +158,10 @@ function exportParamsJson(LCS, Args)
     P.earth_min_dist_deg    = 56;
     P.whole_daily_window    = LCS.Whole_daily_window;
     P.allow_1dgap           = LCS.Allow1dgap;
+    P.set_c_start_ind       = 3;
+    P.use_window_index_capacity = true;
+    P.use_set_b_division    = false;
+    P.solve_set_d_separately = true;
 
     JsonStr = jsonencode(P, 'PrettyPrint', true);
     Dst = fullfile(Args.OutputDir, 'lcs_params.json');
@@ -199,13 +218,15 @@ function exportFieldEligibility(LCS, Args)
     % eligible_abc        : max_window >= min_window AND extinction <= max_ext
     % eligible_long_window: max_window >= max_window_cut (required for Sets B or C)
     % eligible_d          : max_window >= min_window AND extinction >  max_ext
-    Lwpf = LCS.Longest_window_per_field;
+    % use1dgap            : v3 flag — use 1-day-gap visibility for this field
+    Lwpf = LCS.Longest_window_table;
 
     EligTable = table();
     EligTable.field_id              = Lwpf.Field;
     EligTable.avg_extinction        = Lwpf.Av_ext;
     EligTable.max_window_days       = Lwpf.max_window;
     EligTable.max_window_1dgap_days = Lwpf.max_window_1dgap;
+    EligTable.use1dgap              = uint8(deriveUse1dgapFlags(LCS));
     EligTable.eligible_abc          = uint8(Lwpf.max_window >= LCS.Min_window ...
                                             & Lwpf.Av_ext   <= LCS.max_ext);
     EligTable.eligible_long_window  = uint8(Lwpf.max_window >= LCS.Max_window_cut);
@@ -215,6 +236,85 @@ function exportFieldEligibility(LCS, Args)
     Dst = fullfile(Args.OutputDir, 'lcs_field_eligibility.csv');
     writetable(EligTable, Dst);
     fprintf('  Wrote lcs_field_eligibility.csv  (%d fields)\n', height(EligTable));
+end
+
+
+function use1gap = deriveUse1dgapFlags(LCS)
+    % Mirror LcsHelper_v3.categorizeFields_v3 use1gap assignment (lines 331-351)
+    N = height(LCS.AllSky);
+    use1gap = false(N, 1);
+    F_A_U     = (LCS.AllSky.A_U)' <= LCS.max_ext;
+    F_minW    = LCS.Longest_window_per_field      >= LCS.Min_window;
+    F_maxWcut = LCS.Longest_window_per_field      >= LCS.Max_window_cut;
+
+    Low_ext_fields = F_A_U & F_minW;
+    if sum(Low_ext_fields) < (LCS.SetAnumel + LCS.SetBnumel + LCS.SetCnumel + 1)
+        F_minW_1dgap   = LCS.Longest_window_per_field_1dgap >= LCS.Min_window;
+        Low_ext_fields = F_A_U & F_minW_1dgap;
+        use1gap(F_minW_1dgap & ~F_minW) = true;
+    end
+
+    Long_low_ext_fields = Low_ext_fields & F_maxWcut;
+    if sum(Long_low_ext_fields) < (LCS.SetBnumel + LCS.SetCnumel)
+        F_maxWcut_1dgap     = LCS.Longest_window_per_field_1dgap >= LCS.Max_window_cut;
+        Long_low_ext_fields = Low_ext_fields & F_maxWcut_1dgap;
+        use1gap(F_maxWcut_1dgap & ~F_maxWcut) = true;
+    end
+end
+
+
+function [All_fields_windows, All_fields_windows_1dgap, Longest_window_table] = buildWindowTablesFromVis(LCS)
+    % Build continuous visibility window tables from vis_day_field (LcsHelper-compatible)
+    Nfields = width(LCS.vis_day_field);
+    d = diff(LCS.vis_day_field(LCS.First_day:LCS.Last_day, :));
+
+    All_fields_windows = [];
+    All_fields_windows_1dgap = [];
+    Longest_window_table = [];
+
+    for i = 1:Nfields
+        vis_start = find(d(:, i) == 1) + LCS.First_day;
+        vis_end = find(d(:, i) == -1) + LCS.First_day - 1;
+
+        curr_field_windows = [];
+        if LCS.vis_day_field(LCS.First_day, i) == 1
+            vis_start = [LCS.First_day; vis_start];
+        end
+        curr_field_windows(:, 3) = vis_start;
+
+        if LCS.vis_day_field(LCS.Last_day, i) == 1
+            vis_end = [vis_end; LCS.Last_day];
+        end
+        curr_field_windows(:, 4) = vis_end;
+        curr_field_windows(:, 5) = curr_field_windows(:, 4) - curr_field_windows(:, 3) + 1;
+        curr_field_windows(:, 1) = LCS.AllSky.Field(i);
+        curr_field_windows(:, 2) = LCS.AllSky.A_U(i);
+
+        curr_field_windows_1dgap = curr_field_windows;
+        F_1dgap = true(height(curr_field_windows_1dgap), 1);
+        for j = height(curr_field_windows_1dgap):-1:2
+            if (curr_field_windows_1dgap(j, 3) - 1) == curr_field_windows_1dgap(j - 1, 4)
+                curr_field_windows_1dgap(j - 1, 4) = curr_field_windows_1dgap(j, 4);
+                F_1dgap(j) = false;
+            end
+        end
+        curr_field_windows_1dgap = curr_field_windows_1dgap(F_1dgap, :);
+        curr_field_windows_1dgap(:, 5) = curr_field_windows_1dgap(:, 4) - curr_field_windows_1dgap(:, 3) + 1;
+
+        All_fields_windows = [All_fields_windows; curr_field_windows]; %#ok<AGROW>
+        All_fields_windows_1dgap = [All_fields_windows_1dgap; curr_field_windows_1dgap]; %#ok<AGROW>
+        Longest_window_table(i, 1) = LCS.AllSky.Field(i);
+        Longest_window_table(i, 2) = LCS.AllSky.A_U(i);
+        Longest_window_table(i, 3) = max(curr_field_windows(:, 5));
+        Longest_window_table(i, 4) = max(curr_field_windows_1dgap(:, 5));
+    end
+
+    All_fields_windows = array2table(All_fields_windows, ...
+        'VariableNames', {'Field', 'Av_ext', 'vis_start', 'vis_end', 'window'});
+    All_fields_windows_1dgap = array2table(All_fields_windows_1dgap, ...
+        'VariableNames', {'Field', 'Av_ext', 'vis_start', 'vis_end', 'window'});
+    Longest_window_table = array2table(Longest_window_table, ...
+        'VariableNames', {'Field', 'Av_ext', 'max_window', 'max_window_1dgap'});
 end
 
 

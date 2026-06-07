@@ -14,31 +14,22 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional
 
 import pandas as pd
 
-from .feasibility import compute_feasibility
 from .models import DailyObservation, SolverConfig, SolverResult
-from .solver import build_and_solve
+from .solver import build_and_solve_with_branching
 
-PLAN_DURATION_DAYS = 360   # 8 × 45-day windows
+PLAN_DURATION_DAYS = 360
 FEASIBLE_STATUSES = {"OPTIMAL", "FEASIBLE"}
 
 
 def _parse_iso_date(value: str) -> date:
-    """Parse ISO date string (YYYY-MM-DD) to date object."""
     return date.fromisoformat(value)
 
 
 def _day_offset_from_ref(plan_start: date, ref_date: date) -> int:
-    """
-    Campaign day index (1-based) for plan_start relative to visibility ref_date.
-
-    :param plan_start: candidate calendar start of the LCS plan
-    :param ref_date: config.start_date — day 1 of the visibility export
-    :return: first_day offset used by the solver
-    """
     return (plan_start - ref_date).days + 1
 
 
@@ -47,42 +38,20 @@ def _obs_datetime(
     obs: DailyObservation,
     config: SolverConfig,
 ) -> datetime:
-    """
-    Convert a campaign-day observation to UTC ISO datetime.
-
-    Slots are spaced by slot_time_days within each daily LCS window.
-
-    :param anchor_date: calendar date for campaign day 1
-    :param obs: one daily observation record
-    :param config: slot timing parameters
-    :return: timezone-aware UTC datetime
-    """
     day_offset = timedelta(days=obs.day - 1)
     slot_seconds = (obs.slot_index - 1) * config.slot_time_days * 86400.0
     window_seconds = config.daily_window_start_time_seconds
     base = datetime(
-        anchor_date.year,
-        anchor_date.month,
-        anchor_date.day,
-        tzinfo=timezone.utc,
+        anchor_date.year, anchor_date.month, anchor_date.day, tzinfo=timezone.utc
     )
     return base + day_offset + timedelta(seconds=window_seconds + slot_seconds)
 
 
 def _plan_filename(plan_start: date) -> str:
-    """Standard filename for one feasible plan CSV."""
     return f"lcs_plan_{plan_start.strftime('%Y%m%d')}.csv"
 
 
 def write_plan_csv(result: SolverResult, plan_start: date, out_path: Path) -> int:
-    """
-    Write one plan CSV with obs_datetime and field_id columns.
-
-    :param result: solved schedule for this start date
-    :param plan_start: calendar start date (for metadata; anchor comes from config)
-    :param out_path: destination CSV path
-    :return: number of observation rows written
-    """
     anchor = _parse_iso_date(result.config.start_date)
     rows = []
     for obs in result.daily_observations:
@@ -100,7 +69,6 @@ def write_plan_csv(result: SolverResult, plan_start: date, out_path: Path) -> in
 
 
 def _iter_scan_dates(scan_start: date, scan_end: date) -> List[date]:
-    """Inclusive list of calendar dates from scan_start to scan_end."""
     dates = []
     current = scan_start
     while current <= scan_end:
@@ -118,23 +86,9 @@ def scan_lcs_plans(
     scan_end_date: str,
     out_dir: Path,
     time_limit_seconds: int | None = None,
+    windows_1dgap_df: Optional[pd.DataFrame] = None,
 ) -> pd.DataFrame:
-    """
-    Scan daily plan start dates; write feasible plans and an index CSV.
-
-    For each candidate start, shifts first_day and capacity_last_day then runs
-    the CP-SAT solver. Feasible plans are saved as lcs_plan_YYYYMMDD.csv.
-
-    :param fields_df: field catalog
-    :param windows_df: visibility windows
-    :param eligibility_df: eligibility flags
-    :param config: base solver config (start_date anchors day 1)
-    :param scan_start_date: first candidate ISO date
-    :param scan_end_date: last candidate ISO date
-    :param out_dir: directory for index and per-plan CSVs
-    :param time_limit_seconds: CP-SAT limit per candidate (overrides config)
-    :return: index DataFrame also written to lcs_plan_index.csv
-    """
+    """Scan daily plan start dates; tries SetC_start_ind 3 then 1 per date."""
     out_dir.mkdir(parents=True, exist_ok=True)
     ref_date = _parse_iso_date(config.start_date)
     scan_start = _parse_iso_date(scan_start_date)
@@ -144,10 +98,11 @@ def scan_lcs_plans(
         raise ValueError("scan_end_date must be on or after scan_start_date")
 
     index_rows: List[dict] = []
-    per_run_limit = time_limit_seconds if time_limit_seconds is not None else config.time_limit_seconds
+    per_run_limit = (
+        time_limit_seconds if time_limit_seconds is not None else config.time_limit_seconds
+    )
 
     for plan_start in _iter_scan_dates(scan_start, scan_end):
-        # Map calendar start to campaign day offset in the visibility export
         first_day = _day_offset_from_ref(plan_start, ref_date)
         last_plan_day = first_day + PLAN_DURATION_DAYS - 1
 
@@ -175,15 +130,19 @@ def scan_lcs_plans(
             )
             continue
 
-        # Shift timeline for this candidate start date
         run_config = replace(
             config,
             first_day=first_day,
             capacity_last_day=last_plan_day,
             time_limit_seconds=per_run_limit,
         )
-        feasibility = compute_feasibility(fields_df, windows_df, eligibility_df, run_config)
-        result = build_and_solve(fields_df, feasibility, run_config)
+        result = build_and_solve_with_branching(
+            fields_df,
+            windows_df,
+            eligibility_df,
+            run_config,
+            windows_1dgap_df,
+        )
 
         if result.status in FEASIBLE_STATUSES:
             plan_file = _plan_filename(plan_start)
@@ -195,7 +154,7 @@ def scan_lcs_plans(
                     "status": result.status,
                     "plan_file": plan_file,
                     "num_observations": num_obs,
-                    "detail": "",
+                    "detail": f"SetC_start_ind={result.config.set_c_start_ind}",
                 }
             )
         else:
