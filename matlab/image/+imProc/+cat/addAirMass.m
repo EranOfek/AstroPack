@@ -120,6 +120,9 @@ function [Result, AirMass] = addAirMass(AI, Args)
             Coo = Cat.getColMulti(Args.ColCoo).*Conv;  % read RA, Dec and convert to radians
             AirMass = celestial.coo.airmass(Args.JD(Iai), Coo(:,1), Coo(:,2), Args.GeoPos);
     
+            %[~,~,AirMass] = celestial.coo.radec2azalt(Args.JD(Iai), Coo(:,1), Coo(:,2), Args.GeoPos, 'InUnits','rad', 'OutEquinoxJD',Args.JD(Iai));
+
+
             % insert airmass to catalog
             Cat.replaceCol(AirMass, Args.ColAM, Inf, '');
     
