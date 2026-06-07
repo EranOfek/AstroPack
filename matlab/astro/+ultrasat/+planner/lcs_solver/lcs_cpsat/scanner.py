@@ -14,14 +14,23 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 
+from .io import (
+    write_daily_schedule,
+    write_schedule_windows,
+    write_solver_summary,
+    write_validation_report,
+    write_v3_outputs,
+)
 from .models import DailyObservation, SolverConfig, SolverResult
 from .solver import build_and_solve_with_branching
+from .validation import build_solver_summary, validate_schedule
 
 PLAN_DURATION_DAYS = 360
+VISIBILITY_HORIZON_DAYS = 420
 FEASIBLE_STATUSES = {"OPTIMAL", "FEASIBLE"}
 
 
@@ -51,6 +60,10 @@ def _plan_filename(plan_start: date) -> str:
     return f"lcs_plan_{plan_start.strftime('%Y%m%d')}.csv"
 
 
+def _plan_dir_name(plan_start: date) -> str:
+    return f"{plan_start.isoformat()}/success"
+
+
 def write_plan_csv(result: SolverResult, plan_start: date, out_path: Path) -> int:
     anchor = _parse_iso_date(result.config.start_date)
     rows = []
@@ -77,6 +90,126 @@ def _iter_scan_dates(scan_start: date, scan_end: date) -> List[date]:
     return dates
 
 
+def _max_clipped_window_by_field(
+    windows_df: pd.DataFrame,
+    field_ids: List[int],
+    first_day: int,
+    last_day: int,
+) -> Dict[int, int]:
+    max_by_field = {field_id: 0 for field_id in field_ids}
+    for _, row in windows_df.iterrows():
+        field_id = int(row["field_id"])
+        start = max(int(row["vis_start_day"]), first_day)
+        end = min(int(row["vis_end_day"]), last_day)
+        if end >= start:
+            max_by_field[field_id] = max(max_by_field.get(field_id, 0), end - start + 1)
+    return max_by_field
+
+
+def build_v3_category_eligibility(
+    fields_df: pd.DataFrame,
+    windows_df: pd.DataFrame,
+    windows_1dgap_df: Optional[pd.DataFrame],
+    config: SolverConfig,
+) -> pd.DataFrame:
+    """
+    Recreate LcsHelper_v3.categorizeFields_v3 for one scanned absolute date.
+
+    The broad MATLAB export may cover many scanned starts. V3, however,
+    categorizes fields inside a fresh 420-day horizon for each start date.
+    This function clips visibility windows to config.first_day..config.last_day
+    and exports allowed_set_a/b/c pools for compute_feasibility().
+    """
+    field_ids = fields_df["field_id"].astype(int).tolist()
+    au_by_field = {
+        int(row["field_id"]): float(row["A_U"])
+        for _, row in fields_df.iterrows()
+    }
+    max_strict = _max_clipped_window_by_field(
+        windows_df, field_ids, config.first_day, config.last_day
+    )
+    if windows_1dgap_df is None:
+        max_1dgap = dict(max_strict)
+    else:
+        max_1dgap = _max_clipped_window_by_field(
+            windows_1dgap_df, field_ids, config.first_day, config.last_day
+        )
+
+    use1gap = {field_id: False for field_id in field_ids}
+    low_ext = {
+        field_id
+        for field_id in field_ids
+        if au_by_field[field_id] <= config.max_extinction
+        and max_strict[field_id] >= config.min_window_days
+    }
+    if len(low_ext) < (
+        config.set_a_count + config.set_b_count + config.set_c_count + 1
+    ):
+        low_ext = {
+            field_id
+            for field_id in field_ids
+            if au_by_field[field_id] <= config.max_extinction
+            and max_1dgap[field_id] >= config.min_window_days
+        }
+        for field_id in low_ext:
+            if max_1dgap[field_id] >= config.min_window_days and max_strict[field_id] < config.min_window_days:
+                use1gap[field_id] = True
+
+    long_low_ext = {
+        field_id
+        for field_id in low_ext
+        if max_strict[field_id] >= config.long_window_days
+    }
+    if len(long_low_ext) < (config.set_b_count + config.set_c_count):
+        long_low_ext = {
+            field_id
+            for field_id in low_ext
+            if max_1dgap[field_id] >= config.long_window_days
+        }
+        for field_id in long_low_ext:
+            if max_1dgap[field_id] >= config.long_window_days and max_strict[field_id] < config.long_window_days:
+                use1gap[field_id] = True
+
+    long_sorted = sorted(long_low_ext, key=lambda fid: (au_by_field[fid], fid))
+    set_b = set(long_sorted[: config.set_b_count])
+    set_c = set(long_sorted[config.set_b_count : config.set_b_count + config.set_c_count])
+    long_leftover = set(long_sorted[config.set_b_count + config.set_c_count :])
+    short_fields = low_ext - long_low_ext
+    set_a = short_fields | long_leftover
+
+    rows = []
+    for field_id in field_ids:
+        rows.append(
+            {
+                "field_id": field_id,
+                "eligible_abc": int(field_id in low_ext),
+                "eligible_long_window": int(field_id in long_low_ext),
+                "eligible_d": int(
+                    au_by_field[field_id] > config.max_extinction
+                    and max_strict[field_id] >= config.min_window_days
+                ),
+                "use1dgap": int(use1gap[field_id]),
+                "allowed_set_a": int(field_id in set_a),
+                "allowed_set_b": int(field_id in set_b),
+                "allowed_set_c": int(field_id in set_c),
+                "max_window_days": max_strict[field_id],
+                "max_window_1dgap_days": max_1dgap[field_id],
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def build_v3_physical_eligibility(
+    fields_df: pd.DataFrame,
+    windows_df: pd.DataFrame,
+    windows_1dgap_df: Optional[pd.DataFrame],
+    config: SolverConfig,
+) -> pd.DataFrame:
+    """Build per-date v3 physical eligibility without freezing A/B/C pools."""
+    elig = build_v3_category_eligibility(fields_df, windows_df, windows_1dgap_df, config)
+    return elig.drop(columns=["allowed_set_a", "allowed_set_b", "allowed_set_c"])
+
+
 def scan_lcs_plans(
     fields_df: pd.DataFrame,
     windows_df: pd.DataFrame,
@@ -87,6 +220,7 @@ def scan_lcs_plans(
     out_dir: Path,
     time_limit_seconds: int | None = None,
     windows_1dgap_df: Optional[pd.DataFrame] = None,
+    write_full_outputs: bool = False,
 ) -> pd.DataFrame:
     """Scan daily plan start dates; tries SetC_start_ind 3 then 1 per date."""
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -112,6 +246,7 @@ def scan_lcs_plans(
                     "plan_start_date": plan_start.isoformat(),
                     "status": "SKIPPED",
                     "plan_file": "",
+                    "plan_dir": "",
                     "num_observations": 0,
                     "detail": "before visibility data start",
                 }
@@ -124,6 +259,7 @@ def scan_lcs_plans(
                     "plan_start_date": plan_start.isoformat(),
                     "status": "SKIPPED",
                     "plan_file": "",
+                    "plan_dir": "",
                     "num_observations": 0,
                     "detail": "plan exceeds visibility horizon",
                 }
@@ -133,13 +269,17 @@ def scan_lcs_plans(
         run_config = replace(
             config,
             first_day=first_day,
+            last_day=first_day + VISIBILITY_HORIZON_DAYS - 1,
             capacity_last_day=last_plan_day,
             time_limit_seconds=per_run_limit,
+        )
+        run_eligibility_df = build_v3_physical_eligibility(
+            fields_df, windows_df, windows_1dgap_df, run_config
         )
         result = build_and_solve_with_branching(
             fields_df,
             windows_df,
-            eligibility_df,
+            run_eligibility_df,
             run_config,
             windows_1dgap_df,
         )
@@ -148,11 +288,26 @@ def scan_lcs_plans(
             plan_file = _plan_filename(plan_start)
             plan_path = out_dir / plan_file
             num_obs = write_plan_csv(result, plan_start, plan_path)
+            plan_dir_name = ""
+            if write_full_outputs:
+                plan_dir_name = _plan_dir_name(plan_start)
+                plan_dir = out_dir / plan_dir_name
+                plan_dir.mkdir(parents=True, exist_ok=True)
+                write_schedule_windows(result, plan_dir)
+                write_daily_schedule(result, plan_dir)
+                write_v3_outputs(result, plan_dir)
+                report_df = validate_schedule(result)
+                write_validation_report(report_df, plan_dir)
+                write_solver_summary(
+                    build_solver_summary(result, report_df),
+                    plan_dir,
+                )
             index_rows.append(
                 {
                     "plan_start_date": plan_start.isoformat(),
                     "status": result.status,
                     "plan_file": plan_file,
+                    "plan_dir": plan_dir_name,
                     "num_observations": num_obs,
                     "detail": f"SetC_start_ind={result.config.set_c_start_ind}",
                 }
@@ -163,6 +318,7 @@ def scan_lcs_plans(
                     "plan_start_date": plan_start.isoformat(),
                     "status": result.status,
                     "plan_file": "",
+                    "plan_dir": "",
                     "num_observations": 0,
                     "detail": "",
                 }

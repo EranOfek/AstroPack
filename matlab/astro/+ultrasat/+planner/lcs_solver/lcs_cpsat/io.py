@@ -164,7 +164,7 @@ def write_solver_summary(summary: dict, out_dir: Path) -> Path:
 def _campaign_day_to_date(config: SolverConfig, day: int) -> str:
     """Convert a 1-based campaign day to an ISO date string."""
     anchor = datetime.strptime(config.start_date, "%Y-%m-%d")
-    return (anchor + timedelta(days=day - config.first_day)).date().isoformat()
+    return (anchor + timedelta(days=day - 1)).date().isoformat()
 
 
 def _assignment_to_v3_row(item: WindowAssignment, config: SolverConfig) -> dict:
