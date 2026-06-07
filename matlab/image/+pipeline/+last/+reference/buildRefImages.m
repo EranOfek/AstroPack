@@ -62,7 +62,7 @@ function [Result] = buildRefImages(RefGrid, Args)
                                  "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
         Args.GroupByFields     = {'mountnum','camnum','jd_start'} % fields employed for grouping images to be stitched separately
         
-        Args.BasePath          = '/mnt/euclid/last/data'; % base path for image retrieval  
+        Args.BasePath          = {'/mnt/euclid/last/data','/euclid/last/data'}; % base path for image retrieval  
         
         Args.ImageQualityFilter = "fwhm < 4"; % a user-supplied filter (to be included directly into the SQL query) 
                        
@@ -97,6 +97,9 @@ function [Result] = buildRefImages(RefGrid, Args)
     RAD = 180/pi;  
     Nref = height(RefGrid); 
            
+    Ibp = find(isfolder(Args.BasePath), 1, 'first');
+    Args.BasePath = Args.BasePath(Ibp);
+
     % loop over the Reference Image grid that has been read above 
     if isempty(Args.RefID)
         RefID = 1:Nref;
