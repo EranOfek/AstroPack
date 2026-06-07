@@ -14,8 +14,6 @@ function [clippedX]=liang_barsky_clipper(Xrect,Xi)
   x2=Xi(3);
   y2=Xi(4);
   
-  clippedX=nan(1,4); % default no clipped segment, unless found
-
   % defining variables
   p1 = -(x2 - x1);
   p2 = -p1;
@@ -73,10 +71,10 @@ function [clippedX]=liang_barsky_clipper(Xrect,Xi)
 
   if u1 > u2
     %fprintf("Line is outside the clipping window!\n");
-    return;
+     clippedX=nan(1,4); % default no clipped segment, unless found
+  else
+      clippedX = [x1 + (x2 - x1) * u1,...
+                  y1 + (y2 - y1) * u1,...
+                  x1 + (x2 - x1) * u2,...
+                  y1 + (y2 - y1) * u2];
   end
-  
-  clippedX(1) = x1 + (x2 - x1) * u1;
-  clippedX(2) = y1 + (y2 - y1) * u1;
-  clippedX(3) = x1 + (x2 - x1) * u2;
-  clippedX(4) = y1 + (y2 - y1) * u2;
