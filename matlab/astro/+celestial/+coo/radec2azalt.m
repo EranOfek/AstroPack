@@ -8,6 +8,13 @@ function [Az, Alt, AM, PA, HA]=radec2azalt(JD, RA, Dec, Args)
     %            'InUnits'  - Input RA/Dec units. Default is 'deg'.
     %            'OutUnits' - Output Az/Alt units. Default is 'deg'.
     %            'LSTType' - 'a' - apparent, or 'm' - mean. Default is 'a'.
+    %            'InEquinoxJD' - The JD of the Equinox of the input RA, Dec.
+    %                   Default is 2451545 (J2000).
+    %            'OutEquinoxJD' - The JD of the Equinox of the output RA,
+    %                   Dec, that will be used to calculate the Az and Alt.
+    %                   This is tyically, the Equinox of date.
+    %                   If [], then ignore and do not precess coordinates.
+    %                   Default is [].
     % Output : - Azimuth.
     %          - Altitude.
     %          - Hardie airmass.
@@ -24,6 +31,9 @@ function [Az, Alt, AM, PA, HA]=radec2azalt(JD, RA, Dec, Args)
         Args.InUnits      = 'deg';
         Args.OutUnits     = 'deg';
         Args.LSTType      = 'a';
+
+        Args.OutEquinoxJD = [];
+        Args.InEquinoxJD  = 2451545;
     end
     RAD = 180./pi;
 
@@ -34,10 +44,21 @@ function [Az, Alt, AM, PA, HA]=radec2azalt(JD, RA, Dec, Args)
     InFactor  = convert.angular(Args.InUnits, 'rad');
     OutFactor = convert.angular('rad', Args.OutUnits);
 
+    RA  = InFactor.*RA;  % [rad]
+    Dec = InFactor.*Dec; % [rad]
+
+    % precess to equinox of date (if needed)
+    if ~isempty(Args.OutEquinoxJD)
+        % Precess RA and Dec to the equinox of date
+        [RA,Dec] = CelCoo.precessCoo(RA, Dec, Args.InEquinoxJD,Args.OutEquinoxJD,...
+                                              'CooUnits','rad','InIsTrue',false,'OutIsTrue',false);
+    end
+
+
     LST = 2.*pi.*celestial.time.lst(JD, Args.GeoCoo(1)./RAD, Args.LSTType);  % [rad]
-    HA = LST - InFactor.*RA;   % [rad]
+    HA = LST - RA;   % [rad]
     Lat = Args.GeoCoo(2)./RAD;
-    [Az,Alt] = celestial.coo.hadec2azalt(HA, Dec.*InFactor, Lat);
+    [Az,Alt] = celestial.coo.hadec2azalt(HA, Dec, Lat);
     
 
     if nargout>2
@@ -46,7 +67,7 @@ function [Az, Alt, AM, PA, HA]=radec2azalt(JD, RA, Dec, Args)
 
         if nargout>3
             % parallactic angle
-            TanQ = sin(HA)./(tan(Lat).*cos(Dec.*InFactor) - sin(Dec.*InFactor).*cos(HA));
+            TanQ = sin(HA)./(tan(Lat).*cos(Dec) - sin(Dec).*cos(HA));
             PA   = atan(TanQ);
 
             PA   = PA.*OutFactor;
