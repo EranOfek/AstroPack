@@ -70,7 +70,7 @@ function [Result] = buildRefImages(RefGrid, Args)
         Args.MinAllowedCoverage = 0.999;  % 0.995; % allowed inaccuracy in the required reference field coverage  
                        
         %Args.CoaddFunction      = @pipeline.generic.procCoadd; 
-        Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[128 128], 'MethodArgs',{'Range',[-50 50]}}
+        Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[128 128], 'MethodArgs',{{'Range',[-50 50]}}}
 
         Args.SubBack            = true;  % don't change unless you understand what you are doing
         Args.StackMethod        = 'wrobust';
