@@ -168,6 +168,9 @@ function validate_LcsHelper_v3()
         fprintf('validate_LcsHelper_v3: ALL CHECKS PASSED\n');
     end
 
+    % ---- Dump results to CSV for inspection ---------------------------------
+    local_dump_results(Obj);
+
     local_log_exit('validate_LcsHelper_v3', TotalFail, TotalPass);
 end
 
@@ -250,6 +253,117 @@ end
 function StartDate = local_validationStartDate()
     % Fixed plan start date for this validation suite: January 5, 2029.
     StartDate = datetime(2029, 1, 5);
+end
+
+
+% =========================================================================
+% RESULTS DUMP (CSV)
+% =========================================================================
+
+function local_dump_results(Obj)
+    % Write LcsHelper_v3 schedule, daily schedule, and Full_windows to CSV
+    % files under +debug/output/ for offline inspection.
+    local_log_enter('local_dump_results');
+
+    if isempty(Obj)
+        fprintf('  [SKIP] Obj is empty – nothing to dump.\n');
+        local_log_exit('local_dump_results');
+        return
+    end
+
+    ThisDir   = fileparts(mfilename('fullpath'));
+    OutputDir = fullfile(ThisDir, 'output');
+    if ~exist(OutputDir, 'dir')
+        mkdir(OutputDir);
+        fprintf('  Created output dir: %s\n', OutputDir);
+    end
+
+    % --- Schedule table ------------------------------------------------------
+    local_dump_schedule(Obj, OutputDir);
+
+    % --- Full_windows table --------------------------------------------------
+    local_dump_full_windows(Obj, OutputDir);
+
+    % --- Daily_schedule matrix -----------------------------------------------
+    local_dump_daily_schedule(Obj, OutputDir);
+
+    fprintf('  All CSV files written to: %s\n', OutputDir);
+    local_log_exit('local_dump_results');
+end
+
+
+function local_dump_schedule(Obj, OutputDir)
+    % Write Obj.Schedule to schedule.csv, sorted by category then field.
+    CsvPath = fullfile(OutputDir, 'schedule.csv');
+    if isempty(Obj.Schedule)
+        fprintf('  [SKIP] Schedule is empty – skipping schedule.csv\n');
+        return
+    end
+
+    T = Obj.Schedule;
+
+    % Add human-readable date columns derived from numeric day offsets.
+    Origin = Obj.StartDate;   % datetime
+    if isdatetime(Origin)
+        T.start_date = cellstr(datestr(Origin + days(T.start - 1), 'yyyy-mm-dd'));
+        T.end_date   = cellstr(datestr(Origin + days(T.end   - 1), 'yyyy-mm-dd'));
+    end
+
+    writetable(T, CsvPath);
+    fprintf('  Written: schedule.csv  (%d rows)\n', height(T));
+end
+
+
+function local_dump_full_windows(Obj, OutputDir)
+    % Write Obj.Full_windows to full_windows.csv.
+    CsvPath = fullfile(OutputDir, 'full_windows.csv');
+    if isempty(Obj.Full_windows)
+        fprintf('  [SKIP] Full_windows is empty – skipping full_windows.csv\n');
+        return
+    end
+
+    T = Obj.Full_windows;
+
+    Origin = Obj.StartDate;
+    if isdatetime(Origin)
+        T.start_date = cellstr(datestr(Origin + days(T.start - 1), 'yyyy-mm-dd'));
+        T.end_date   = cellstr(datestr(Origin + days(T.end   - 1), 'yyyy-mm-dd'));
+    end
+
+    writetable(T, CsvPath);
+    fprintf('  Written: full_windows.csv  (%d rows)\n', height(T));
+end
+
+
+function local_dump_daily_schedule(Obj, OutputDir)
+    % Write Obj.Daily_schedule (day x slot matrix) to daily_schedule.csv.
+    % Rows = calendar days; columns = slot_1 .. slot_N; values = field IDs (NaN = empty).
+    CsvPath = fullfile(OutputDir, 'daily_schedule.csv');
+    if isempty(Obj.Daily_schedule)
+        fprintf('  [SKIP] Daily_schedule is empty – skipping daily_schedule.csv\n');
+        return
+    end
+
+    M    = Obj.Daily_schedule;
+    Ndays = size(M, 1);
+    Nslots = size(M, 2);
+
+    % Build column names: day, date, slot_1..slot_N
+    SlotNames = arrayfun(@(s) sprintf('slot_%d', s), 1:Nslots, 'UniformOutput', false);
+
+    Origin   = Obj.StartDate;
+    DayNums  = (Obj.First_day : Obj.First_day + Ndays - 1)';
+    if isdatetime(Origin)
+        DateStrs = cellstr(datestr(Origin + days(DayNums - 1), 'yyyy-mm-dd'));
+    else
+        DateStrs = num2cell(DayNums);
+    end
+
+    T = array2table(M, 'VariableNames', SlotNames);
+    T = [table(DayNums, DateStrs, 'VariableNames', {'day', 'date'}), T];
+
+    writetable(T, CsvPath);
+    fprintf('  Written: daily_schedule.csv  (%d days x %d slots)\n', Ndays, Nslots);
 end
 
 

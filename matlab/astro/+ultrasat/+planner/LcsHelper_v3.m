@@ -1497,42 +1497,33 @@ end
 
 % ===== local helper functions ========================================
 
-function M = consecutive_trues_cols(LogicalMat)
+function counts = consecutive_trues_cols(M)
     % Length of consecutive true run starting at each row, per column.
-    % M(d,c) = 0 when LogicalMat(d,c) is false; otherwise the count of
-    % consecutive true values from row d downward (used for window checks).
-    [Nrows, Ncols] = size(LogicalMat);
-    M = zeros(Nrows, Ncols);
-    for C = 1:Ncols
-        Col = LogicalMat(:, C);
-        for D = Nrows:-1:1
-            if Col(D)
-                if D == Nrows
-                    M(D, C) = 1;
-                else
-                    M(D, C) = 1 + M(D + 1, C);
-                end
-            end
-        end
+    % counts(i,j) = 0 when M(i,j) is false; otherwise the number of
+    % consecutive true values from row i downward (used for window checks).
+    % Vectorised: processes all columns simultaneously per row.
+    [nRows, nCols] = size(M);
+    counts = zeros(nRows, nCols);
+    counts(nRows, :) = M(nRows, :);
+    for i = nRows-1:-1:1
+        counts(i, :) = M(i, :) .* (1 + counts(i+1, :));
     end
 end
 
 
-function Out = fill_isolated_gaps(LogicalMat)
+function M = fill_isolated_gaps(M)
     % Bridge single-day false gaps between visible days (Allow1dgap rule).
     % Matches LcsHelper v1 window merging when vis_start(j)-1 == vis_end(j-1).
-    Out = LogicalMat;
-    [Nrows, ~] = size(LogicalMat);
-    if Nrows < 3
+    % Finds every [true; false; true] triplet per column and sets the middle
+    % entry to true. Vectorised, no loops.
+    arguments
+        M (:,:) logical
+    end
+    if size(M, 1) < 3
         return
     end
-    for C = 1:size(LogicalMat, 2)
-        for D = 2:Nrows - 1
-            if ~Out(D, C) && Out(D - 1, C) && Out(D + 1, C)
-                Out(D, C) = true;
-            end
-        end
-    end
+    gap = M(1:end-2, :) & ~M(2:end-1, :) & M(3:end, :);
+    M([false(1, size(M,2)); gap; false(1, size(M,2))]) = true;
 end
 
 
