@@ -153,12 +153,17 @@ def _check_n4_divisibility(
 def _check_visibility(assignments: List[WindowAssignment], result: SolverResult) -> List[str]:
     violations = []
     feasibility = result.feasibility
+    config = result.config
 
     for item in assignments:
         if item.category == "A":
-            if not feasibility.feasible_a_gs.get(
-                (item.field_id, item.group_id or 1, item.window_index), False
-            ):
+            if item.group_id is not None and item.group_id > config.set_a_n_groups:
+                ok = item.window_index in feasibility.feasible_a.get(item.field_id, set())
+            else:
+                ok = feasibility.feasible_a_gs.get(
+                    (item.field_id, item.group_id or 1, item.window_index), False
+                )
+            if not ok:
                 violations.append(f"A field {item.field_id} g={item.group_id} s={item.window_index}")
         elif item.category in ("D",) or (item.category == "B" and item.cadence == "daily"):
             feasible = feasibility.feasible_a.get(item.field_id, set())

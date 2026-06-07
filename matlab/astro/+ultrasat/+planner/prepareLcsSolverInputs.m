@@ -29,7 +29,7 @@ function prepareLcsSolverInputs(Args)
     %       'LoadCache', false, 'SaveCache', true);
 
     arguments
-        Args.StartDate    = [];     % Campaign start datetime (default: 2029-02-01)
+        Args.StartDate    = [];     % Campaign start datetime (default: 2029-01-05)
         Args.EndDate      = [];     % Campaign end datetime   (default: StartDate + 420 days)
         Args.FieldsFile   = '';     % Path to fields CSV; default: data/LCS_nonoverlapping_grid_surveys.csv
         Args.OutputDir    = '';     % Output folder; default: <this_file>/../data/lcs_solver_inputs/
@@ -50,6 +50,9 @@ function prepareLcsSolverInputs(Args)
     end
     if isempty(Args.CacheFile)
         Args.CacheFile = fullfile(Args.OutputDir, 'lcs_vis_cache.mat');
+    end
+    if isempty(Args.StartDate)
+        Args.StartDate = datetime(2029, 1, 5);
     end
 
     if ~isfolder(Args.OutputDir)
@@ -133,7 +136,7 @@ function exportParamsJson(LCS, Args)
     P.start_date            = datestr(LCS.StartDate, 'yyyy-mm-dd');
     P.end_date              = datestr(LCS.EndDate,   'yyyy-mm-dd');
     P.num_days              = LCS.Last_day;
-    P.capacity_last_day     = 8 * LCS.Min_window;  % 8 slots x 45 days = 360-day LCS plan
+    P.capacity_last_day     = 8 * LCS.Min_window;  % 8 windows x 45 days = 360-day LCS plan
     P.first_day             = LCS.First_day;
     P.num_fields            = height(LCS.AllSky);
     P.daily_lcs_slots       = LCS.Daily_LCS_slots;
@@ -161,7 +164,7 @@ function exportParamsJson(LCS, Args)
     P.allow_1dgap           = LCS.Allow1dgap;
     P.set_c_start_ind       = 3;
     P.use_window_index_capacity = true;
-    P.use_set_b_division    = false;
+    P.use_set_b_division    = true;
     P.solve_set_d_separately = true;
 
     JsonStr = jsonencode(P, 'PrettyPrint', true);

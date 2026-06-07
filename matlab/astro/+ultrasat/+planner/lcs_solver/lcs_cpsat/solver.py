@@ -62,6 +62,7 @@ def _add_window_index_capacity(
     config: SolverConfig,
     n_inds: int,
     a_vars: Dict[Tuple[int, int, int], cp_model.IntVar],
+    a_moved: Dict[Tuple[int, int], cp_model.IntVar],
     b_daily: Dict[Tuple[int, int], cp_model.IntVar],
     b_sparse: Dict[Tuple[int, int], cp_model.IntVar],
     c_vars: Dict[Tuple[int, int], cp_model.IntVar],
@@ -77,6 +78,7 @@ def _add_window_index_capacity(
         n_a = [
             var for (f, g, s), var in a_vars.items() if s == k
         ]
+        n_a.extend(var for (f, w), var in a_moved.items() if w == k)
         n_b45 = [var for (f, w), var in b_daily.items() if w == k]
         n_b90 = [var for (f, w), var in b_sparse.items() if w == k]
         n_c = [
@@ -99,6 +101,7 @@ def _build_abc_model(
 ) -> Tuple[
     cp_model.CpModel,
     Dict[Tuple[int, int, int], cp_model.IntVar],
+    Dict[Tuple[int, int], cp_model.IntVar],
     Dict[int, cp_model.IntVar],
     Dict[Tuple[int, int], cp_model.IntVar],
     Dict[Tuple[int, int], cp_model.IntVar],
@@ -122,12 +125,15 @@ def _build_abc_model(
 
     # ---- Set A: shared fixed windows; window_index == slot ----
     a_vars: Dict[Tuple[int, int, int], cp_model.IntVar] = {}
+    a_moved: Dict[Tuple[int, int], cp_model.IntVar] = {}
     if config.set_a_count > 0:
         for f in feasibility.feasible_a:
             for g in range(1, n_groups + 1):
                 for s in range(1, n_slots + 1):
                     if feasibility.feasible_a_gs.get((f, g, s), False):
                         a_vars[(f, g, s)] = model.NewBoolVar(f"a_{f}_{g}_{s}")
+            for w in feasibility.feasible_a.get(f, set()):
+                a_moved[(f, w)] = model.NewBoolVar(f"a_moved_{f}_{w}")
 
     # ---- Set B ----
     b_sel: Dict[int, cp_model.IntVar] = {}
@@ -197,6 +203,11 @@ def _build_abc_model(
         if f in b_sel:
             terms.append(b_sel[f])
         terms.extend(
+            a_moved[(f, w)]
+            for w in {k[1] for k in a_moved if k[0] == f}
+            if (f, w) in a_moved
+        )
+        terms.extend(
             c_vars[(f, sw)]
             for sw in {k[1] for k in c_vars if k[0] == f}
             if (f, sw) in c_vars
@@ -214,12 +225,11 @@ def _build_abc_model(
                     if (f, g, s) in a_vars
                 ]
                 if slot_terms:
-                    model.Add(sum(slot_terms) == 1)
-                else:
-                    model.Add(0 == 1)
+                    model.Add(sum(slot_terms) <= 1)
 
-        if a_vars:
-            model.Add(sum(a_vars.values()) == config.set_a_count)
+        model.Add(sum(a_vars.values()) + sum(a_moved.values()) == config.set_a_count)
+        if a_moved:
+            model.Add(sum(a_moved.values()) <= config.set_d_count)
 
     # ---- Set B counts and structure ----
     if b_sel:
@@ -277,7 +287,7 @@ def _build_abc_model(
     # ---- Window-index capacity (v3 filled formula) ----
     if config.use_window_index_capacity:
         _add_window_index_capacity(
-            model, config, n_inds, a_vars, b_daily, b_sparse, c_vars, c_covers
+            model, config, n_inds, a_vars, a_moved, b_daily, b_sparse, c_vars, c_covers
         )
     else:
         _add_calendar_day_capacity(
@@ -289,6 +299,11 @@ def _build_abc_model(
     objective_terms = []
     for (f, g, s), var in a_vars.items():
         slack = feasibility.slack_a_gs.get((f, g, s), 0)
+        obj = slack * config.weight_slack + extinction_scores.get(f, 0) * config.weight_extinction
+        if obj:
+            objective_terms.append(var * obj)
+    for (f, w), var in a_moved.items():
+        slack = feasibility.slack_45.get((f, w), 0)
         obj = slack * config.weight_slack + extinction_scores.get(f, 0) * config.weight_extinction
         if obj:
             objective_terms.append(var * obj)
@@ -314,7 +329,7 @@ def _build_abc_model(
         model.Maximize(sum(objective_terms))
 
     return (
-        model, a_vars, b_sel, b_daily, b_sparse, c_vars, c_covers,
+        model, a_vars, a_moved, b_sel, b_daily, b_sparse, c_vars, c_covers,
         division, valid_super,
     )
 
@@ -388,6 +403,22 @@ def _place_set_d(
     placed = 0
     target = config.set_d_count
 
+    def assign_moved_set_a_group(target_ind: int) -> int:
+        used = {
+            item.group_id
+            for item in abc_assignments
+            if item.category == "A"
+            and item.window_index == target_ind
+            and item.group_id is not None
+        }
+        group = 7
+        while group in used:
+            group += 1
+        return group
+
+    def set_a_flex(field_id: int) -> int:
+        return len(feasibility.feasible_a.get(field_id, set()))
+
     for fid in config.d_ranked_fields:
         if placed >= target:
             break
@@ -415,6 +446,53 @@ def _place_set_d(
             open_counts[k] -= 1
             placed += 1
             break
+        else:
+            best = None
+            for k_setd in sorted(wins):
+                a_rows_here = [
+                    item for item in abc_assignments
+                    if item.category == "A"
+                    and item.window_index == k_setd
+                    and item.group_id != config.set_a_shifted_group
+                ]
+                for item in a_rows_here:
+                    valid_open = [
+                        k_open for k_open, count in open_counts.items()
+                        if count > 0
+                        and k_open in feasibility.feasible_a.get(item.field_id, set())
+                    ]
+                    if not valid_open:
+                        continue
+                    choice = (set_a_flex(item.field_id), k_setd, min(valid_open), item)
+                    if best is None or choice[0:3] < best[0:3]:
+                        best = choice
+
+            if best is None:
+                continue
+
+            _, k_setd, k_open, moved_a = best
+            open_counts[k_open] -= 1
+            moved_win = windows_45[k_open - 1]
+            moved_group = assign_moved_set_a_group(k_open)
+            moved_a.start_day = moved_win.start_day
+            moved_a.end_day = moved_win.end_day
+            moved_a.window_index = k_open
+            moved_a.group_id = moved_group
+
+            d_win = windows_45[k_setd - 1]
+            d_assignments.append(
+                WindowAssignment(
+                    category="D",
+                    field_id=fid,
+                    cadence="daily",
+                    start_day=d_win.start_day,
+                    end_day=d_win.end_day,
+                    window_index=k_setd,
+                    group_id=301 + placed,
+                    cadence_ind=k_setd,
+                )
+            )
+            placed += 1
 
     return d_assignments
 
@@ -427,7 +505,7 @@ def build_and_solve_with_branching(
     windows_1dgap_df: Optional[pd.DataFrame] = None,
 ) -> SolverResult:
     """
-    Try set_c_start_ind in {3, 1} (v3 outer loop) and return first feasible result.
+    Try set_c_start_ind in {3, 1} and Set A single-group shifts (v3 outer loops).
 
     :param windows_1dgap_df: optional 1-day-gap visibility windows
     :return: best SolverResult found
@@ -436,15 +514,34 @@ def build_and_solve_with_branching(
 
     best: Optional[SolverResult] = None
     last_result: Optional[SolverResult] = None
+
+    def shift_attempts() -> List[Tuple[int, int]]:
+        """No shift first, then v3 phase-2 single-group rescue shifts."""
+        attempts: List[Tuple[int, int]] = [(0, 0)]
+        for group in range(1, config.set_a_n_groups + 1):
+            for shift in list(range(-30, 0)) + list(range(1, 31)):
+                attempts.append((group, shift))
+        return attempts
+
     for sci in (3, 1):
-        run_config = replace(config, set_c_start_ind=sci)
-        feasibility = compute_feasibility(
-            fields_df, windows_df, eligibility_df, run_config, windows_1dgap_df
-        )
-        last_result = build_and_solve(fields_df, feasibility, run_config)
-        if last_result.status in ("OPTIMAL", "FEASIBLE"):
-            return last_result
-        best = last_result
+        for shifted_group, shift_days in shift_attempts():
+            run_config = replace(
+                config,
+                set_c_start_ind=sci,
+                set_a_shifted_group=shifted_group,
+                set_a_shift_days=shift_days,
+            )
+            feasibility = compute_feasibility(
+                fields_df, windows_df, eligibility_df, run_config, windows_1dgap_df
+            )
+            last_result = build_and_solve(fields_df, feasibility, run_config)
+            if last_result.status in ("OPTIMAL", "FEASIBLE"):
+                return last_result
+            best = last_result
+            if shifted_group == 0:
+                continue
+            # Stop searching shifts for this sci once we leave the no-shift case
+            # and hit infeasibility only after exhausting... keep searching
     return best if best is not None else last_result  # type: ignore[return-value]
 
 
@@ -468,7 +565,7 @@ def build_and_solve(
         config = replace(config, capacity_last_day=plan_last_day)
 
     (
-        model, a_vars, b_sel, b_daily, b_sparse, c_vars, c_covers,
+        model, a_vars, a_moved, b_sel, b_daily, b_sparse, c_vars, c_covers,
         division, valid_super,
     ) = _build_abc_model(fields_df, feasibility, config)
 
@@ -480,7 +577,7 @@ def build_and_solve(
         objective_value = solver.ObjectiveValue()
 
     abc_assignments, _ = _extract_solution(
-        solver, status, a_vars, b_sel, b_daily, b_sparse, c_vars,
+        solver, status, a_vars, a_moved, b_sel, b_daily, b_sparse, c_vars,
         c_covers, division, valid_super, config, feasibility,
     )
 
@@ -513,6 +610,7 @@ def _extract_solution(
     solver: cp_model.CpSolver,
     status: int,
     a_vars,
+    a_moved,
     b_sel,
     b_daily,
     b_sparse,
@@ -546,11 +644,29 @@ def _extract_solution(
                     group_id=g,
                 )
             )
+    moved_group_counter: Dict[int, int] = defaultdict(int)
+    for (f, w), var in a_moved.items():
+        if solver.Value(var):
+            win = feasibility.windows_45[w - 1]
+            moved_group_counter[w] += 1
+            assignments.append(
+                WindowAssignment(
+                    category="A",
+                    field_id=f,
+                    cadence="daily",
+                    start_day=win.start_day,
+                    end_day=win.end_day,
+                    window_index=w,
+                    group_id=6 + moved_group_counter[w],
+                )
+            )
 
     for f, sel in b_sel.items():
         if not solver.Value(sel):
             continue
-        for w in sorted({k[1] for k in b_daily if k[0] == f}):
+        b_windows = {k[1] for k in b_daily if k[0] == f}
+        b_windows.update(k[1] for k in b_sparse if k[0] == f)
+        for w in sorted(b_windows):
             if (f, w) in b_daily and solver.Value(b_daily[(f, w)]):
                 win = feasibility.windows_45[w - 1]
                 assignments.append(
