@@ -2973,7 +2973,7 @@ classdef PipelineDemon < Component
                 % Save data products
                 Args.SaveEpochProduct  = ["Cat"]; %{[],[],'Cat',[]}; %{'Image','Mask','Cat','PSF'}; % {[],[],'Cat',[]}; %{[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat','PSF'};,  % 'all'
                 Args.SaveVisitProduct  = ["Image","Mask","Cat","PSF"];      % 'all'
-                Args.SaveEpochHeader  = true; %[true, false, false, true];
+                Args.SaveEpochHeader  = [true, false, true, false];
                 Args.SaveVisitHeader  = [true, false, true, false];
 
                 Args.SaveMergedCat     = false;
