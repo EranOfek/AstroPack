@@ -272,7 +272,7 @@ function local_dump_results(Obj)
     end
 
     ThisDir   = fileparts(mfilename('fullpath'));
-    OutputDir = fullfile(ThisDir, 'output');
+    OutputDir = fullfile(ThisDir, 'lcs_v3_output');
     if ~exist(OutputDir, 'dir')
         mkdir(OutputDir);
         fprintf('  Created output dir: %s\n', OutputDir);
@@ -515,10 +515,10 @@ function [nFail, nPass] = local_check_setA(Obj)
         fprintf('  SetA moved rows (group>=7): %d\n', height(Moved));
         CheckFns{end+1} = @() local_assert_all( ...
             'SetA moved rows: start matches Full_windows.start(ind)', ...
-            Moved.start == Obj.Full_windows.start(Moved.ind)'); %#ok<AGROW>
+            Moved.start == Obj.Full_windows.start(Moved.ind)); %#ok<AGROW>
         CheckFns{end+1} = @() local_assert_all( ...
             'SetA moved rows: end matches Full_windows.end(ind)', ...
-            Moved.end == Obj.Full_windows.end(Moved.ind)'); %#ok<AGROW>
+            Moved.end == Obj.Full_windows.end(Moved.ind)); %#ok<AGROW>
     else
         fprintf('  SetA moved rows (group>=7): none\n');
     end
@@ -529,15 +529,18 @@ end
 
 
 function [nFail, nPass] = local_check_setA_group_counts(SchedA, SetANwindows)
-    % Each original SetA group (1..6) must contain exactly 8 placed fields.
+    % Each original SetA group (1..6) must contain at most 8 placed fields.
+    % A group may have fewer than 8 if schedule_SetD_v3 (Case B) moved one of
+    % its fields to a different Full_windows slot; those moved fields appear
+    % with group >= 7. The total of all SetA rows always sums to 48.
     local_log_enter('local_check_setA_group_counts');
     nFail = 0;
     nPass = 0;
     for G = 1:SetANwindows
         nInGroup = sum(SchedA.group == G);
         fprintf('  Group %d: %d fields\n', G, nInGroup);
-        [f, p] = local_assert_equal( ...
-            sprintf('SetA group %d has 8 fields', G), nInGroup, 8);
+        [f, p] = local_assert_max( ...
+            sprintf('SetA group %d has <= 8 fields', G), nInGroup, 8);
         nFail = nFail + f;
         nPass = nPass + p;
     end
@@ -694,8 +697,8 @@ function [nFail, nPass] = local_check_setD(Obj)
         CheckFns{end+1} = @() local_assert_all('SetD group encoding 301..304', ...
             SchedD.group >= 301 & SchedD.group <= 300 + Obj.SetDnumel); %#ok<AGROW>
         CheckFns{end+1} = @() local_assert_all('SetD ind matches Full_windows row', ...
-            SchedD.start == Obj.Full_windows.start(SchedD.ind)' & ...
-            SchedD.end == Obj.Full_windows.end(SchedD.ind)'); %#ok<AGROW>
+            SchedD.start == Obj.Full_windows.start(SchedD.ind) & ...
+            SchedD.end == Obj.Full_windows.end(SchedD.ind)); %#ok<AGROW>
         % group = 300 + slot_in_setD (1..4); ind = Full_windows index (not slot).
         CheckFns{end+1} = @() local_assert_unique( ...
             'SetD unique group slots (301..304)', SchedD.group); %#ok<AGROW>
