@@ -73,6 +73,30 @@ function Obj = local_build_helper()
         'Verbose', false, ...
         'prep_before_schedule', true, ...
         'build_the_schedule', true);
+
+    local_assert_pipeline_complete(Obj);
+end
+
+
+function local_assert_pipeline_complete(Obj)
+    % Fail fast when categorize_then_schedule did not finish successfully.
+    nA = sum(strcmp(Obj.Schedule.category, 'A') & Obj.Schedule.Field > 0);
+    nB = sum(ismember(Obj.Schedule.category, {'B_45', 'B_90'}) & Obj.Schedule.Field > 0);
+    nC = sum(strcmp(Obj.Schedule.category, 'C') & Obj.Schedule.Field > 0);
+
+    PipelineOk = (nA == Obj.SetAnumel) && ...
+                 (nB == 3 * Obj.SetBnumel) && ...
+                 (nC == Obj.SetCnumel) && ...
+                 ~isempty(Obj.Daily_schedule);
+
+    if PipelineOk
+        return
+    end
+
+    error(['validate_LcsHelper_v3: LcsHelper_v3 did not produce a complete schedule.\n' ...
+           '  SetA: %d/%d, SetB rows: %d/%d, SetC: %d/%d, Daily_schedule empty: %d\n' ...
+           '  Check LcsHelper_v3 warnings above (e.g. categorize_then_schedule failure).'], ...
+        nA, Obj.SetAnumel, nB, 3 * Obj.SetBnumel, nC, Obj.SetCnumel, isempty(Obj.Daily_schedule));
 end
 
 

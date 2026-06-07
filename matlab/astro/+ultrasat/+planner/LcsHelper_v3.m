@@ -1497,6 +1497,45 @@ end
 
 % ===== local helper functions ========================================
 
+function M = consecutive_trues_cols(LogicalMat)
+    % Length of consecutive true run starting at each row, per column.
+    % M(d,c) = 0 when LogicalMat(d,c) is false; otherwise the count of
+    % consecutive true values from row d downward (used for window checks).
+    [Nrows, Ncols] = size(LogicalMat);
+    M = zeros(Nrows, Ncols);
+    for C = 1:Ncols
+        Col = LogicalMat(:, C);
+        for D = Nrows:-1:1
+            if Col(D)
+                if D == Nrows
+                    M(D, C) = 1;
+                else
+                    M(D, C) = 1 + M(D + 1, C);
+                end
+            end
+        end
+    end
+end
+
+
+function Out = fill_isolated_gaps(LogicalMat)
+    % Bridge single-day false gaps between visible days (Allow1dgap rule).
+    % Matches LcsHelper v1 window merging when vis_start(j)-1 == vis_end(j-1).
+    Out = LogicalMat;
+    [Nrows, ~] = size(LogicalMat);
+    if Nrows < 3
+        return
+    end
+    for C = 1:size(LogicalMat, 2)
+        for D = 2:Nrows - 1
+            if ~Out(D, C) && Out(D - 1, C) && Out(D + 1, C)
+                Out(D, C) = true;
+            end
+        end
+    end
+end
+
+
 function T = local_make_field_table(field_ids, AllSky_AU, use1gap, longest_strict, longest_1dgap)
     % Build a standard field table from a list of field IDs.
     field_ids = field_ids(:);
