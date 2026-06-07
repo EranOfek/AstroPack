@@ -1497,6 +1497,36 @@ end
 
 % ===== local helper functions ========================================
 
+function counts = consecutive_trues_cols(M)
+    % Length of consecutive true run starting at each row, per column.
+    % counts(i,j) = 0 when M(i,j) is false; otherwise the number of
+    % consecutive true values from row i downward (used for window checks).
+    % Vectorised: processes all columns simultaneously per row.
+    [nRows, nCols] = size(M);
+    counts = zeros(nRows, nCols);
+    counts(nRows, :) = M(nRows, :);
+    for i = nRows-1:-1:1
+        counts(i, :) = M(i, :) .* (1 + counts(i+1, :));
+    end
+end
+
+
+function M = fill_isolated_gaps(M)
+    % Bridge single-day false gaps between visible days (Allow1dgap rule).
+    % Matches LcsHelper v1 window merging when vis_start(j)-1 == vis_end(j-1).
+    % Finds every [true; false; true] triplet per column and sets the middle
+    % entry to true. Vectorised, no loops.
+    arguments
+        M (:,:) logical
+    end
+    if size(M, 1) < 3
+        return
+    end
+    gap = M(1:end-2, :) & ~M(2:end-1, :) & M(3:end, :);
+    M([false(1, size(M,2)); gap; false(1, size(M,2))]) = true;
+end
+
+
 function T = local_make_field_table(field_ids, AllSky_AU, use1gap, longest_strict, longest_1dgap)
     % Build a standard field table from a list of field IDs.
     field_ids = field_ids(:);
