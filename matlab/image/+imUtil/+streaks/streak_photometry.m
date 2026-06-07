@@ -351,12 +351,9 @@ function [X,Y]=segmentParabolicOffset(X1,X2,C,t,h1)
     end
 
     L=sqrt((X2-X1)*(X2-X1)');
-    h0= C(1)*t.^2 + C(2)*t + C(3);
-    if isempty(h1)
-        h=h0;
-    else
-        h=h1;
-    end
+    h= C(1)*t.^2 + C(2)*t + C(3);
+    q=~isnan(h1);
+    h(q) = h1(q);
     X = X1(1) + (X2(1)-X1(1))*t - (X2(2)-X1(2))*h/L;
     Y = X1(2) + (X2(2)-X1(2))*t + (X2(1)-X1(1))*h/L;
 end
