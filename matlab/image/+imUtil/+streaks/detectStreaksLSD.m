@@ -137,6 +137,14 @@ function merged=merge_segments(segs,offline,angle,score)
 
         % pick up the first orphan
         testsegment=segs(1:4,1);
+        s31= segs(3,:)-segs(1,:);
+        s42= segs(4,:)-segs(2,:);
+        t31= testsegment(3)-testsegment(1);
+        t42= testsegment(4)-testsegment(2);
+        st1= segs(1,:)-testsegment(1);
+        st2= segs(2,:)-testsegment(2);
+        s3t1= segs(3,:)-testsegment(1);
+        s4t2= segs(4,:)-testsegment(2);
 
         % find all other segs which are colinear (that will include testsegment
         %  itself):
@@ -145,24 +153,19 @@ function merged=merge_segments(segs,offline,angle,score)
         % - check that the segments are nearly parallel
         % the check could be made slightly more efficient, computing L3 and s2
         %  only for the segments passing the check on s1
-        L1=sqrt((segs(3,:)-segs(1,:)).^2 + (segs(4,:)-segs(2,:)).^2);
-        L2=sqrt((segs(1,:)-testsegment(1)).^2 + (segs(2,:)-testsegment(2)).^2);
+        L1=sqrt(s31.^2 + s42.^2);
+        L2=sqrt(st1.^2 + st2.^2);
         % L2(1) is always 0
-        L3=sqrt((segs(3,:)-testsegment(1)).^2 + (segs(4,:)-testsegment(2)).^2);
-        s1=( (testsegment(3)-testsegment(1))*(testsegment(2)-segs(2,:)) - ...
-            (testsegment(4)-testsegment(2))*(testsegment(1)-segs(1,:)) )./(L1(1)*L2);
+        L3=sqrt(s3t1.^2 + s4t2.^2);
+        s1=( t42*st1 - t31*st2 )./(L1(1)*L2);
         s1(1)=0;
-        s2=( (testsegment(3)-testsegment(1))*(testsegment(2)-segs(4,:)) - ...
-            (testsegment(4)-testsegment(2))*(testsegment(1)-segs(3,:)) )./(L1(1)*L3);
-        s3=( (testsegment(3)-testsegment(1))*(segs(4,:)-segs(2,:)) - ...
-            (testsegment(4)-testsegment(2))*(segs(3,:)-segs(1,:)) )./(L1(1)*L1);
+        s2=( t42*s3t1 -t31*s4t2 )./(L1(1)*L3);
+        s3=( t31*s42 - t42*s31 )./(L1(1)*L1);
         candidates=find(abs(s1)<sintol & abs(s2)<sintol & abs(s3)<sintol);
 
         % project the extremes of each candidate segment on testsegment
-        p1 = segs(1,candidates)*(testsegment(3)-testsegment(1)) + ...
-            segs(2,candidates)*(testsegment(4)-testsegment(2));
-        p2 = segs(3,candidates)*(testsegment(3)-testsegment(1)) + ...
-            segs(4,candidates)*(testsegment(4)-testsegment(2));
+        p1 = segs(1,candidates)*t31 + segs(2,candidates)*t42;
+        p2 = segs(3,candidates)*t31 + segs(4,candidates)*t42;
 
         % reorient candidate segments so that p1<p2 always
         toreverse=(p1>p2);
