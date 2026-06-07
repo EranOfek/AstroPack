@@ -149,13 +149,13 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         % It contains only: TableRaw.SelectedImages
 
         TableRaw = [TableHeader, TableForDB]; 
-        TableRaw.PrepPrepOK = true(size(TableRaw,1), 1);
+        TableRaw.PrePrepOK = true(size(TableRaw,1), 1);
         RawImageList = RawImageList(FlagGoodImages,:);
     catch ME
         Status.PipeI   = false;
         Status.ME      = ME;
         TableRaw.FileName   = string(RawImageList(:));
-        TableRaw.PrepPrepOK = false(numel(RawImageList), 1);
+        TableRaw.PrePrepOK  = false(numel(RawImageList), 1);
         TableRaw.Exception  = true(numel(RawImageList), 1); % Exception in this stage will have PrePrepOK = false
 
         AllSI    = [];
