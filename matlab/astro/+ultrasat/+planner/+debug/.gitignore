@@ -1,5 +1,6 @@
 output/*
 working_dir/*
+lcs_v3_output/*
 
 !README.md
 !output/README.md
