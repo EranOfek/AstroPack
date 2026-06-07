@@ -125,8 +125,8 @@ def build_and_solve(
         model.Add(0 == config.set_d_count)
 
     # ---- Constraint 8: B structure ----
-    for f, wins in feasibility.feasible_b.items():
-        sel = b_sel[f]
+    for f, sel in b_sel.items():
+        wins = feasibility.feasible_b[f]
         daily_terms = [b_daily[(f, w)] for w in wins if (f, w) in b_daily]
         sparse_terms = [b_sparse[(f, w)] for w in wins if (f, w) in b_sparse]
         model.Add(sum(daily_terms) == sel)

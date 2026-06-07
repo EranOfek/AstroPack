@@ -43,6 +43,9 @@ class SolverConfig:
     sparse_cadence: int = 4
     capacity_last_day: int = 360
     time_limit_seconds: int = 300
+    start_date: str = "2029-01-01"
+    daily_window_start_time_seconds: float = 0.0
+    slot_time_days: float = 3 * 300 / 86400
     weight_d_rank: int = 1000
     weight_slack: int = 10
     weight_extinction: int = 1
@@ -83,6 +86,14 @@ class SolverConfig:
             kwargs["weight_extinction"] = data["weight_extinction"]
         if "capacity_last_day" in data:
             kwargs["capacity_last_day"] = data["capacity_last_day"]
+        if "start_date" in data:
+            kwargs["start_date"] = data["start_date"]
+        if "daily_window_start_time_seconds" in data:
+            kwargs["daily_window_start_time_seconds"] = data[
+                "daily_window_start_time_seconds"
+            ]
+        if "slot_time_days" in data:
+            kwargs["slot_time_days"] = data["slot_time_days"]
         return cls(**kwargs)
 
 

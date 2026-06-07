@@ -23,7 +23,7 @@ function prepareLcsSolverInputs(Args)
         Args.EndDate      = [];     % Campaign end datetime   (default: StartDate + 420 days)
         Args.FieldsFile   = '';     % Path to fields CSV; default: data/LCS_nonoverlapping_grid_surveys.csv
         Args.OutputDir    = '';     % Output folder; default: <this_file>/../data/lcs_solver_inputs/
-        Args.SaveCache    = true;   % Save computed visibility to .mat cache after computing
+        Args.SaveCache    = false;  % Save computed visibility to .mat cache after computing
         Args.LoadCache    = true;   % Load from .mat cache if it exists (skip recompute)
         Args.CacheFile    = '';     % Cache file path; default: OutputDir/lcs_vis_cache.mat
     end
@@ -122,6 +122,7 @@ function exportParamsJson(LCS, Args)
     P.num_fields            = height(LCS.AllSky);
     P.daily_lcs_slots       = LCS.Daily_LCS_slots;
     P.slot_time_days        = LCS.SlotTime;
+    P.daily_window_start_time_seconds = seconds(LCS.DailyWindowStartTime);
     P.min_window_days       = LCS.Min_window;
     P.max_window_cut_days   = LCS.Max_window_cut;
     P.max_extinction        = LCS.max_ext;

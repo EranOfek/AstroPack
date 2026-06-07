@@ -11,13 +11,17 @@ cd matlab\astro\+ultrasat\+planner\lcs_solver
 
 ## Prepare inputs (MATLAB)
 
+Regenerate visibility inputs anchored to your scan range start (example: 2029-01-01):
+
 ```matlab
-ultrasat.planner.prepareLcsSolverInputs();
+ultrasat.planner.prepareLcsSolverInputs( ...
+    'StartDate', datetime('2029-01-01'), ...
+    'SaveCache', false);
 ```
 
 Writes CSV/JSON to `../data/lcs_solver_inputs/`.
 
-## Run solver
+## Run solver (single start day)
 
 ```powershell
 .venv\Scripts\python.exe -m lcs_cpsat.cli --out output --time-limit 300
@@ -28,6 +32,27 @@ Outputs in `output/`:
 - `daily_schedule.csv` — day × slot observations (days 1–360)
 - `validation_report.csv`
 - `solver_summary.json`
+
+## Scan plan start dates
+
+Try every candidate start date in a range (daily step) and write one plan CSV per feasible result:
+
+```powershell
+.venv\Scripts\python.exe -m lcs_cpsat.scan_cli `
+  --scan-start 2029-01-01 `
+  --scan-end   2029-03-02 `
+  --time-limit 60 `
+  --out        output/scan/
+```
+
+Outputs in `output/scan/`:
+- `lcs_plan_index.csv` — all scanned start dates with status and plan file name
+- `lcs_plan_YYYYMMDD.csv` — one file per feasible plan with columns:
+  - `obs_datetime` — ISO UTC observation time
+  - `field_id` — target index from `lcs_fields.csv`
+
+Valid scan range with 420-day visibility buffer: plan start day `k` must satisfy `k + 359 <= 420`.
+If MATLAB `start_date` is 2029-01-01, valid starts are roughly **2029-01-01 .. 2029-03-02** (~61 days).
 
 ## Tests
 
