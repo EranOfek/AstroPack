@@ -1,3 +1,12 @@
+# ***************************************************************************
+# Project     : ULTRASAT SOC
+# Filename    : matlab/astro/+ultrasat/+planner/lcs_solver/lcs_cpsat/scanner.py
+# Author      : Chen Tishler
+# Created     : 07/06/2026
+# Modified    : 07/06/2026
+# Description : Scan candidate LCS plan start dates and write per-plan CSV outputs
+# ***************************************************************************
+
 """Scan candidate LCS plan start dates and write per-plan CSV outputs."""
 
 from __future__ import annotations

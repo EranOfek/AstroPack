@@ -1,3 +1,12 @@
+# ***************************************************************************
+# Project     : ULTRASAT SOC
+# Filename    : matlab/astro/+ultrasat/+planner/lcs_solver/lcs_cpsat/feasibility.py
+# Author      : Chen Tishler
+# Created     : 07/06/2026
+# Modified    : 07/06/2026
+# Description : Precompute feasible field-window assignments for LCS CP-SAT
+# ***************************************************************************
+
 """Precompute feasible field-window assignments."""
 
 from __future__ import annotations

@@ -1,9 +1,19 @@
+# ***************************************************************************
+# Project     : ULTRASAT SOC
+# Filename    : matlab/astro/+ultrasat/+planner/lcs_solver/lcs_cpsat/solver.py
+# Author      : Chen Tishler
+# Created     : 07/06/2026
+# Modified    : 07/06/2026
+# Description : CP-SAT model builder and solver for LCS scheduling
+# ***************************************************************************
+
 """CP-SAT model builder and solver for LCS scheduling."""
 
 from __future__ import annotations
 
 import time
 from collections import defaultdict
+from dataclasses import replace
 from typing import Dict, List, Optional, Set, Tuple
 
 import pandas as pd
@@ -57,6 +67,12 @@ def build_and_solve(
     config: SolverConfig,
 ) -> SolverResult:
     """Build the CP-SAT model, solve, and return structured results."""
+    plan_last_day = (
+        config.first_day + config.set_a_fields_per_group * config.min_window_days - 1
+    )
+    if config.capacity_last_day < plan_last_day:
+        config = replace(config, capacity_last_day=plan_last_day)
+
     model = cp_model.CpModel()
     windows_45 = feasibility.windows_45
     windows_135 = feasibility.windows_135
@@ -65,11 +81,15 @@ def build_and_solve(
     extinction_scores = _extinction_score(fields_df, config)
     d_scores = _d_rank_score(config)
 
-    # ---- Decision variables ----
-    a_vars: Dict[Tuple[int, int], cp_model.IntVar] = {}
+    # ---- Set A: 6 groups x 8 slots (v3 layout), one field per (group, slot) ----
+    n_groups = config.set_a_n_groups
+    n_slots = config.set_a_fields_per_group
+    a_vars: Dict[Tuple[int, int, int], cp_model.IntVar] = {}
     for f, wins in feasibility.feasible_a.items():
-        for w in wins:
-            a_vars[(f, w)] = model.NewBoolVar(f"a_{f}_{w}")
+        for g in range(1, n_groups + 1):
+            for s in range(1, n_slots + 1):
+                if s in wins:
+                    a_vars[(f, g, s)] = model.NewBoolVar(f"a_{f}_{g}_{s}")
 
     b_sel: Dict[int, cp_model.IntVar] = {}
     b_daily: Dict[Tuple[int, int], cp_model.IntVar] = {}
@@ -95,7 +115,12 @@ def build_and_solve(
     # ---- Constraint 1: mutual exclusion per field ----
     for f in field_ids:
         terms = []
-        terms.extend(a_vars[(f, w)] for w in feasibility.feasible_a.get(f, []) if (f, w) in a_vars)
+        terms.extend(
+            a_vars[(f, g, s)]
+            for g in range(1, n_groups + 1)
+            for s in range(1, n_slots + 1)
+            if (f, g, s) in a_vars
+        )
         if f in b_sel:
             terms.append(b_sel[f])
         terms.extend(c_vars[(f, w)] for w in feasibility.feasible_c.get(f, []) if (f, w) in c_vars)
@@ -103,7 +128,20 @@ def build_and_solve(
         if terms:
             model.Add(sum(terms) <= 1)
 
-    # ---- Constraints 2-5: set counts ----
+    # ---- Set A: exactly one field per (group, slot) ----
+    for g in range(1, n_groups + 1):
+        for s in range(1, n_slots + 1):
+            slot_terms = [
+                a_vars[(f, g, s)]
+                for f in feasibility.feasible_a
+                if (f, g, s) in a_vars
+            ]
+            if slot_terms:
+                model.Add(sum(slot_terms) == 1)
+            else:
+                model.Add(0 == 1)
+
+    # ---- Constraints 2-5: set counts (A count implied by group x slot) ----
     if a_vars:
         model.Add(sum(a_vars.values()) == config.set_a_count)
     else:
@@ -151,8 +189,8 @@ def build_and_solve(
     # ---- Constraint 11-12: daily capacity ----
     day_vars: Dict[int, List[cp_model.IntVar]] = defaultdict(list)
 
-    for (f, w), var in a_vars.items():
-        win = windows_45[w - 1]
+    for (f, g, s), var in a_vars.items():
+        win = windows_45[s - 1]
         for day in _daily_days_in_window(win.start_day, win.end_day):
             if day <= config.capacity_last_day:
                 day_vars[day].append(var)
@@ -191,8 +229,8 @@ def build_and_solve(
     # ---- Objective ----
     objective_terms = []
 
-    for (f, w), var in a_vars.items():
-        slack = feasibility.slack_45.get((f, w), 0)
+    for (f, g, s), var in a_vars.items():
+        slack = feasibility.slack_45.get((f, s), 0)
         obj = slack * config.weight_slack + extinction_scores.get(f, 0) * config.weight_extinction
         if obj:
             objective_terms.append(var * obj)
@@ -278,9 +316,9 @@ def _extract_solution(
     assignments: List[WindowAssignment] = []
     span_by_idx = {idx: (start, end) for idx, start, end in windows_135}
 
-    for (f, w), var in a_vars.items():
+    for (f, g, s), var in a_vars.items():
         if solver.Value(var):
-            win = windows_45[w - 1]
+            win = windows_45[s - 1]
             assignments.append(
                 WindowAssignment(
                     category="A",
@@ -288,7 +326,8 @@ def _extract_solution(
                     cadence="daily",
                     start_day=win.start_day,
                     end_day=win.end_day,
-                    window_index=w,
+                    window_index=s,
+                    group_id=g,
                 )
             )
 

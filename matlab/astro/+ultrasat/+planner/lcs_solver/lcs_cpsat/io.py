@@ -1,3 +1,12 @@
+# ***************************************************************************
+# Project     : ULTRASAT SOC
+# Filename    : matlab/astro/+ultrasat/+planner/lcs_solver/lcs_cpsat/io.py
+# Author      : Chen Tishler
+# Created     : 07/06/2026
+# Modified    : 07/06/2026
+# Description : CSV and JSON I/O for the LCS CP-SAT solver
+# ***************************************************************************
+
 """CSV/JSON I/O for the LCS CP-SAT solver."""
 
 from __future__ import annotations

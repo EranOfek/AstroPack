@@ -1,3 +1,12 @@
+# ***************************************************************************
+# Project     : ULTRASAT SOC
+# Filename    : matlab/astro/+ultrasat/+planner/lcs_solver/lcs_cpsat/validation.py
+# Author      : Chen Tishler
+# Created     : 07/06/2026
+# Modified    : 07/06/2026
+# Description : Post-solve validation for LCS schedules
+# ***************************************************************************
+
 """Post-solve validation for LCS schedules."""
 
 from __future__ import annotations

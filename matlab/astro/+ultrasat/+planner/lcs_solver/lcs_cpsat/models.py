@@ -1,3 +1,12 @@
+# ***************************************************************************
+# Project     : ULTRASAT SOC
+# Filename    : matlab/astro/+ultrasat/+planner/lcs_solver/lcs_cpsat/models.py
+# Author      : Chen Tishler
+# Created     : 07/06/2026
+# Modified    : 07/06/2026
+# Description : Data models for the LCS CP-SAT solver
+# ***************************************************************************
+
 """Data models for the LCS CP-SAT solver."""
 
 from __future__ import annotations
@@ -31,6 +40,8 @@ class SolverConfig:
     long_window_days: int = 135
     daily_capacity: int = 11
     set_a_count: int = 48
+    set_a_n_groups: int = 6
+    set_a_fields_per_group: int = 8
     set_b_count: int = 16
     set_c_count: int = 16
     set_d_count: int = 4
@@ -94,6 +105,12 @@ class SolverConfig:
             ]
         if "slot_time_days" in data:
             kwargs["slot_time_days"] = data["slot_time_days"]
+        if "set_a_n_groups" in data:
+            kwargs["set_a_n_groups"] = data["set_a_n_groups"]
+        if "set_a_fields_per_group" in data:
+            kwargs["set_a_fields_per_group"] = data["set_a_fields_per_group"]
+            if "num_windows_45" not in kwargs:
+                kwargs["num_windows_45"] = data["set_a_fields_per_group"]
         return cls(**kwargs)
 
 

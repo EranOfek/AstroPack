@@ -1,3 +1,12 @@
+# ***************************************************************************
+# Project     : ULTRASAT SOC
+# Filename    : matlab/astro/+ultrasat/+planner/lcs_solver/tests/test_validation.py
+# Author      : Chen Tishler
+# Created     : 07/06/2026
+# Modified    : 07/06/2026
+# Description : Validation report tests for LCS CP-SAT schedules
+# ***************************************************************************
+
 """Validation report tests."""
 
 from __future__ import annotations

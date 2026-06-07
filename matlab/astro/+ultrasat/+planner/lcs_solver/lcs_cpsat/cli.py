@@ -1,3 +1,12 @@
+# ***************************************************************************
+# Project     : ULTRASAT SOC
+# Filename    : matlab/astro/+ultrasat/+planner/lcs_solver/lcs_cpsat/cli.py
+# Author      : Chen Tishler
+# Created     : 07/06/2026
+# Modified    : 07/06/2026
+# Description : Command-line interface for the LCS CP-SAT solver
+# ***************************************************************************
+
 """Command-line interface for the LCS CP-SAT solver."""
 
 from __future__ import annotations

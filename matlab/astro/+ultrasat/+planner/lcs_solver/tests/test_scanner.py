@@ -1,3 +1,12 @@
+# ***************************************************************************
+# Project     : ULTRASAT SOC
+# Filename    : matlab/astro/+ultrasat/+planner/lcs_solver/tests/test_scanner.py
+# Author      : Chen Tishler
+# Created     : 07/06/2026
+# Modified    : 07/06/2026
+# Description : Tests for the LCS plan date scanner
+# ***************************************************************************
+
 """Tests for the LCS plan date scanner."""
 
 from __future__ import annotations

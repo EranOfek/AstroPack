@@ -117,7 +117,7 @@ function exportParamsJson(LCS, Args)
     P.start_date            = datestr(LCS.StartDate, 'yyyy-mm-dd');
     P.end_date              = datestr(LCS.EndDate,   'yyyy-mm-dd');
     P.num_days              = LCS.Last_day;
-    P.capacity_last_day     = LCS.SetA_Nwindows * LCS.Min_window;  % 360-day LCS plan
+    P.capacity_last_day     = 8 * LCS.Min_window;  % 8 slots x 45 days = 360-day LCS plan
     P.first_day             = LCS.First_day;
     P.num_fields            = height(LCS.AllSky);
     P.daily_lcs_slots       = LCS.Daily_LCS_slots;

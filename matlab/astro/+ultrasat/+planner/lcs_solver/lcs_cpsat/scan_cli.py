@@ -1,3 +1,12 @@
+# ***************************************************************************
+# Project     : ULTRASAT SOC
+# Filename    : matlab/astro/+ultrasat/+planner/lcs_solver/lcs_cpsat/scan_cli.py
+# Author      : Chen Tishler
+# Created     : 07/06/2026
+# Modified    : 07/06/2026
+# Description : CLI for scanning LCS plan start dates over a date range
+# ***************************************************************************
+
 """CLI for scanning LCS plan start dates over a date range."""
 
 from __future__ import annotations

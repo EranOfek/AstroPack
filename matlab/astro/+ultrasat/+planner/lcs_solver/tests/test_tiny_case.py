@@ -1,3 +1,12 @@
+# ***************************************************************************
+# Project     : ULTRASAT SOC
+# Filename    : matlab/astro/+ultrasat/+planner/lcs_solver/tests/test_tiny_case.py
+# Author      : Chen Tishler
+# Created     : 07/06/2026
+# Modified    : 07/06/2026
+# Description : Tiny artificial case smoke test for the LCS CP-SAT solver
+# ***************************************************************************
+
 """Tiny artificial case for smoke testing the CP-SAT solver."""
 
 from __future__ import annotations
@@ -47,7 +56,9 @@ def _make_tiny_inputs():
         min_window_days=45,
         long_window_days=135,
         daily_capacity=11,
-        set_a_count=4,
+        set_a_count=6,
+        set_a_n_groups=3,
+        set_a_fields_per_group=2,
         set_b_count=2,
         set_c_count=2,
         set_d_count=1,
