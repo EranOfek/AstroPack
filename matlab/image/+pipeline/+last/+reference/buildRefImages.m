@@ -58,7 +58,7 @@ function [Result] = buildRefImages(RefGrid, Args)
         Args.DB                = []; % a DB object (auto-generated, if not supplied)
         Args.SearchTable       = 'last.visit_images'; 
         % the list of table columns needed to check the overlaps + filtering + control 
-        Args.Fields            = "id_visit, upix_low, jd_start, midjd, exptime, fieldid, mountnum, camnum, cropid," + ... 
+        Args.Fields            = "id_visit, upix_low, jd_start, midjd, exptime, fieldid, nodenumb, mountnum, camnum, cropid," + ... 
                                  "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
         Args.GroupByFields     = {'mountnum','camnum','jd_start'} % fields employed for grouping images to be stitched separately
         
@@ -252,22 +252,25 @@ function [Result] = buildRefImages(RefGrid, Args)
                     fprintf('Group %d: %d images filtered, dowloading and stitching...',Igroup,Nim);
                 end
             
-                AF = AstroFileName;
-                AF.ProjName = {'LAST', 1, TabGrp.mountnum, TabGrp.camnum};
-                AF.JD = double(TabGrp.jd_start);
-                AF.julday2time;
-                AF.FieldID = TabGrp.fieldid;
-                AF.CropID  = TabGrp.cropid;
-                AF.Counter = 0;
-                AF.Level   = "coadd";
-                AF.CCDID   = 1;
-                AF.SubDir  = TabGrp.subdir;
-                AF.BasePath                = Args.BasePath;
-                AF.BasePathIncludeProjName = true;
-                AF.AddSubDir               = true;
+                % Delete this block after some verification and speed tests
+                % AF = AstroFileName;
+                % AF.ProjName = {'LAST', 1, TabGrp.mountnum, TabGrp.camnum};
+                % AF.JD = double(TabGrp.jd_start);
+                % AF.julday2time;
+                % AF.FieldID = TabGrp.fieldid;
+                % AF.CropID  = TabGrp.cropid;
+                % AF.Counter = 0;
+                % AF.Level   = "coadd";
+                % AF.CCDID   = 1;
+                % AF.SubDir  = TabGrp.subdir;
+                % AF.BasePath                = Args.BasePath;
+                % AF.BasePathIncludeProjName = true;
+                % AF.AddSubDir               = true;
                 
-                AI = AstroImage.readProducts(AF.genFull);
-                
+                %AI = AstroImage.readProducts(AF.genFull);
+
+                AI=pipeline.last.queryDB.loadProducts(TabGrp);
+
                 % check if WCS is present in all the selected crops
                 if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
 %                 if all(arrayfun(@(x) x.WCS.Success, AI))

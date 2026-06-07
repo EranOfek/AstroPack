@@ -111,6 +111,14 @@ Items:
         SearchFile           : ''
         Description          : 'Telescope Transmission'
 
+    LAST:
+        DataName             : 'LAST'
+        SubDir               : 'LAST'
+        URL                  : ['http://data.astropack.org/pipeline/LAST.tar']
+        Size                 : 6
+        SearchFile           : ''
+        Description          : 'LAST Fields IDs and additional parameters'
+
     LASTpipelineUnitTest:
         # The following are cell arrays of entry per dataset
         DataName             : 'LASTpipelineUnitTest'
