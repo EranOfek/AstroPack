@@ -4526,7 +4526,7 @@ classdef PhotCalibTrans < Component
                             NaNcol = nan(Nrows, 1);
                             if Args.AddZP
                                 ZPColName = [Args.MagSystem, '_ZP'];
-                                CatObj = setNumColFast(CatObj, NaNcol, ZPColName);
+                                CatObj = CatObj.insertCol(NaNcol, Inf, ZPColName, {}, 'OmitValidation', true);
                             end
                             if Args.AddMag
                                 AllColNames = CatObj.ColNames;
@@ -4538,7 +4538,7 @@ classdef PhotCalibTrans < Component
                                 FluxColNames = FluxColNames(~strcmp(FluxColNames, 'FLUX_XYPEAK'));
                                 for I = 1:numel(FluxColNames)
                                     NewMagColName = strrep(FluxColNames{I}, 'FLUX_', MagPrefix);
-                                    CatObj = setNumColFast(CatObj, NaNcol, NewMagColName);
+                                    CatObj = CatObj.insertCol(NaNcol, Inf, NewMagColName, {}, 'OmitValidation', true);
                                     % MAGERR written when an error source
                                     % exists: FLUXERR_<suffix> or, for
                                     % FLUX_PSF, SN.
@@ -4547,7 +4547,7 @@ classdef PhotCalibTrans < Component
                                         (strcmp(FluxColNames{I}, 'FLUX_PSF') && any(strcmp(AllColNames, 'SN')));
                                     if HasErrSource
                                         MagErrColName = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
-                                        CatObj = setNumColFast(CatObj, NaNcol, MagErrColName);
+                                        CatObj = CatObj.insertCol(NaNcol, Inf, MagErrColName, {}, 'OmitValidation', true);
                                     end
                                 end
                             end
@@ -4650,7 +4650,7 @@ classdef PhotCalibTrans < Component
 
                         if Args.AddZP
                             ZPColName = [Args.MagSystem, '_ZP'];
-                            CatObj = setNumColFast(CatObj, ZP_epoch, ZPColName);
+                            CatObj = CatObj.insertCol(ZP_epoch, Inf, ZPColName, {}, 'OmitValidation', true);
                         end
 
                         if Args.AddMag
@@ -4686,7 +4686,7 @@ classdef PhotCalibTrans < Component
                                     end
                                 end
 
-                                CatObj = setNumColFast(CatObj, Mag, NewMagColName);
+                                CatObj = CatObj.insertCol(Mag, Inf, NewMagColName, {}, 'OmitValidation', true);
 
                                 % MAGERR source priority:
                                 %   (1) FLUXERR_<suffix> -> MagErr = 1.086 * FLUXERR
@@ -4704,7 +4704,7 @@ classdef PhotCalibTrans < Component
                                     MagErr = nan(Nrows, 1);
                                     ValidFlux = Flux_col > 0 & isfinite(Flux_col) & isfinite(FluxErr);
                                     MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux);
-                                    CatObj = setNumColFast(CatObj, MagErr, MagErrCol);
+                                    CatObj = CatObj.insertCol(MagErr, Inf, MagErrCol, {}, 'OmitValidation', true);
                                 elseif strcmp(FluxColNames{I}, 'FLUX_PSF')
                                     SnIdx = find(strcmp(AllColNames, 'SN'), 1);
                                     if ~isempty(SnIdx)
@@ -4713,7 +4713,7 @@ classdef PhotCalibTrans < Component
                                         MagErr = nan(Nrows, 1);
                                         ValidSN = isfinite(SN) & SN > 0;
                                         MagErr(ValidSN) = 1.086 ./ SN(ValidSN);
-                                        CatObj = setNumColFast(CatObj, MagErr, MagErrCol);
+                                        CatObj = CatObj.insertCol(MagErr, Inf, MagErrCol, {}, 'OmitValidation', true);
                                     end
                                 end
                             end
@@ -5259,34 +5259,6 @@ function idx = findColIdxLocal(ColNames, Candidates)
     for I = 1:numel(Candidates)
         f = find(strcmp(ColNames, Candidates{I}), 1);
         if ~isempty(f); idx = f; return; end
-    end
-end
-
-% =========================================================================
-function Obj = setNumColFast(Obj, Data, Name)
-    % Fast specialised version of CatObj.insertCol(Data, Inf, {Name}).
-    %   Caller must guarantee:
-    %     - Obj is a scalar AstroCatalog with Obj.Catalog a numeric matrix
-    %     - Data is a numeric column vector of size(Obj.Catalog, 1) rows
-    %     - Name is a char row vector (NOT a cell)
-    %
-    %   Bypasses the AstroTable.insertCol -> deleteCol -> colname2ind ->
-    %   AstroTable.insertColumn -> array2table dispatch chain (each of those
-    %   parses an arguments block and runs class/size guards every time).
-    %   When Name already exists, replaces the column in place (faster than
-    %   delete-then-append and semantically equivalent for ColName-keyed
-    %   downstream consumers).
-    Idx = find(strcmp(Obj.ColNames, Name), 1);
-    if isempty(Idx)
-        Obj.Catalog  = [Obj.Catalog, Data];
-        Obj.ColNames = [Obj.ColNames, {Name}];
-        if isempty(Obj.ColUnits)
-            Obj.ColUnits = repmat({''}, 1, numel(Obj.ColNames));
-        else
-            Obj.ColUnits = [Obj.ColUnits, {''}];
-        end
-    else
-        Obj.Catalog(:, Idx) = Data;
     end
 end
 

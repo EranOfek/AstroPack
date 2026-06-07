@@ -317,7 +317,7 @@ function TranCat = flagNonTransients(Obj, Args)
         % D-image artifact filters
         Args.flagRinging logical = true
         Args.flagPeakValley logical = true
-        Args.PVDistThresh double = 10
+        Args.PVDistThresh double = 11.3
 
         % Streak filter
         Args.flagStreak logical = true
@@ -371,7 +371,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagNuclearNoise logical = true
         Args.BrightGalMagThresh double = 17.0
         Args.BrightGalPrcThresh double = 95
-        Args.NuclearDefaultPrcThresh double = 50
+        Args.NuclearDefaultPrcThresh double = 68
         Args.NuclearMagBinWidth double = 0.5
 
         % AstroZOGY
@@ -802,10 +802,6 @@ function TranCat = flagNonTransients(Obj, Args)
 
             PVFlagged = (PVDist <= Args.PVDistThresh);
             
-            if ~isempty(N_CHI2DOF_Local)
-                PVFlagged = PVFlagged & (N_CHI2DOF_Local > Args.SoftNChi2Lim);
-            end
-
             FilterFlags = setFilterBit(FilterFlags, PVFlagged, BD_TF, 'PVDist');
         end
         
@@ -1562,7 +1558,6 @@ function TranCat = flagNonTransients(Obj, Args)
             % Exclude also galaxy matched candidates that are not nuclear.
             ExcludeCand = (GalCand & ~NuclearCand & ~NearStar & abs(Scorr) > 3.0);
             
-
             if ~isempty(IsolatedCand)
                 ExcludeCand = ExcludeCand | IsolatedCand | AmbBlendedCand;
             end
