@@ -514,7 +514,7 @@ classdef catsHTM
             Data(I).Status   = true;
             Data(I).iscatsHTM = true;
             Data(I).Dir      = '/DESI/dr1/';
-            Data(I).Name     = 'DESIdr1';
+            Data(I).Name     = 'DESIdr1zpix';
             Data(I).Desc     = 'DESI DR1 zpix with non-NaN redshift';
             Data(I).Ref      = 'DESI Collaboration 2025 (DR1)';
             Data(I).RefLink  = 'https://ui.adsabs.harvard.edu/abs/2026AJ....171..285D/abstract';
@@ -622,7 +622,7 @@ classdef catsHTM
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/GALEX/DR6Plus7/';
-            Data(I).Name = 'GALEX';
+            Data(I).Name = 'GALEXAIS';
             Data(I).Desc = 'Revised catalog of GALEX Ultraviolet Sources';
             Data(I).Ref  = 'Bianchi et al. 2017';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2017ApJS..230...24B/abstract';
@@ -955,7 +955,7 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/WD/EDR3v0/';
+            Data(I).Dir  = '/WD/WDEDR3/';
             Data(I).Name = 'WDEDR3';
             Data(I).Desc = 'GAIA-EDR3 WD catalog';
             Data(I).Ref  = 'Gentile Fusillo et al. 2021';
@@ -964,7 +964,7 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/WD/EDR3v1/';
+            Data(I).Dir  = '/WD/WDEDR3v1/';
             Data(I).Name = 'WDEDR3maincat';
             Data(I).Desc = 'GAIA-EDR3 WD catalog, all columns';
             Data(I).Ref  = 'Gentile Fusillo et al. 2021';
@@ -1097,44 +1097,64 @@ classdef catsHTM
             
         end
         
-        function catalogs_html(FileName)
+        function catalogs_html(FileName, BaseDir)
             % generate an html table of catalogs
+            % Input  : - FileName for output HTML.
+            %            Default 'catsHTM_catalogs.html'.
+            %          - BaseDir of catsHTM tree on disk; the function
+            %            cd's into BaseDir+Data(I).Dir per catalog before
+            %            calling catsHTM.nsrc (which opens its index file
+            %            by bare filename from cwd). Default
+            %            '/euclid/catsHTM'.
             % Example: catsHTM.catalogs_html
-           
-            if nargin==0
-                FileName = 'catsHTM_catalogs.html';
+            %          catsHTM.catalogs_html('~/tmp/catsHTM_catalogs.html', '/euclid/catsHTM');
+
+            if nargin<2
+                BaseDir = '/euclid/catsHTM';
+                if nargin<1
+                    FileName = 'catsHTM_catalogs.html';
+                end
             end
-            
+
             Data=catsHTM.catalogs;
             Flag = [Data.Status];
             Data = Data(Flag);
             N = numel(Data);
-            
+
             Text = '';
             Text = sprintf('%s <table><tr><th> Name </th> <th> Description</th> <th>wget file</th> <th>checksum</th> <th> Nsrc</th><th>Reference</th> </tr>\n',Text);
+            PWD = pwd;
             for I=1:1:N
-                
-               
-               Data(I).Name
-               
                 if Data(I).iscatsHTM
-                    Nsrc = catsHTM.nsrc(Data(I).Name);
-                    Nsrc = nansum(Nsrc(:,2));
+                    % catsHTM.nsrc opens <Name>_htm.hdf5 by bare filename,
+                    % so cd into the catalog directory first. Catalogs
+                    % whose tree is missing/unreadable on disk fall back
+                    % to NaN instead of killing the whole regen.
+                    CatDir = fullfile(BaseDir, Data(I).Dir);
+                    try
+                        cd(CatDir);
+                        Nsrc = catsHTM.nsrc(Data(I).Name);
+                        Nsrc = nansum(Nsrc(:,2));
+                    catch ME
+                        fprintf('  skip %s: %s\n', Data(I).Name, ME.message);
+                        Nsrc = NaN;
+                    end
+                    cd(PWD);
                 else
                     Nsrc = NaN;
                 end
-                
+
                 WgetFile = sprintf('list.euler.wget.%s',strrep(Data(I).Dir,'/','_'));
                 ChecksumFile = sprintf('list.euler.checksum.%s',strrep(Data(I).Dir,'/','_'));
-                
+
                 Text = sprintf('%s \n <tr><td> %s </td>  <td> %s </td>   <td><a href="./%s">%s</a></td><td><a href="./%s">%s</a></td>    <td> %d </td> <td> <a href="%s">%s</a> </td></tr>',...
                             Text,Data(I).Name,Data(I).Desc,WgetFile,WgetFile,ChecksumFile,ChecksumFile,Nsrc,Data(I).RefLink,Data(I).Ref);
             end
             Text = sprintf('%s </table>\n',Text);
             www.html_page(FileName,{Text},'PageTitle','catsHTM list of catalogs');
-            
+
             %rsync -avx catsHTM_catalogs.html eran@euler1:/var/www/html/data/catsHTM/
-            
+
         end
         
         function create_catalog_lists4wget(Dir,WriteDir)

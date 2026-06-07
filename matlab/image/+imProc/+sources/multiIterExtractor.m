@@ -954,7 +954,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             end
 
             % add RA, Dec from the object's WCS if it is present
-            if Args.AddSkyCoo && ~isempty(Result(Iobj).WCS)
+            if Args.AddSkyCoo && ~isempty(Result(Iobj).WCS) && Result(Iobj).WCS.Success
                 XY        = Result(Iobj).CatData.getXY();
                 [RA, Dec] = Result(Iobj).WCS.xy2sky(XY(:,1), XY(:,2));
                 Result(Iobj).CatData = insertCol(Result(Iobj).CatData, RA, Inf, Args.ColRA, {''});
