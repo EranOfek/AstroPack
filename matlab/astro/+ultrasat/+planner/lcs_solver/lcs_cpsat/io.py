@@ -20,6 +20,7 @@ import pandas as pd
 from .models import SolverConfig, SolverResult, WindowAssignment
 
 
+# Minimum columns expected in each MATLAB-exported input file
 REQUIRED_FIELDS_COLUMNS = {"field_id", "ra", "dec", "A_U"}
 REQUIRED_WINDOWS_COLUMNS = {
     "field_id",
@@ -40,6 +41,13 @@ class InputValidationError(ValueError):
 
 
 def _validate_columns(df: pd.DataFrame, required: set, path: Path) -> None:
+    """
+    Assert all required column names are present.
+
+    :param df: loaded DataFrame
+    :param required: set of expected column names
+    :param path: source path (for error messages)
+    """
     missing = required - set(df.columns)
     if missing:
         raise InputValidationError(
@@ -48,6 +56,12 @@ def _validate_columns(df: pd.DataFrame, required: set, path: Path) -> None:
 
 
 def _normalize_fields_df(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Map legacy MATLAB column names to canonical Python names.
+
+    :param df: raw lcs_fields.csv
+    :return: normalized DataFrame with field_id, ra, dec, A_U
+    """
     rename = {}
     if "Field" in df.columns and "field_id" not in df.columns:
         rename["Field"] = "field_id"
@@ -63,6 +77,12 @@ def _normalize_fields_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _normalize_windows_df(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Map legacy visibility window column names to canonical names.
+
+    :param df: raw lcs_visibility_windows.csv
+    :return: normalized DataFrame
+    """
     rename = {}
     if "window_length" in df.columns and "window_len_days" not in df.columns:
         rename["window_length"] = "window_len_days"
@@ -72,6 +92,12 @@ def _normalize_windows_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_config(config_path: Optional[Path]) -> SolverConfig:
+    """
+    Load SolverConfig from lcs_params.json, or return defaults if missing.
+
+    :param config_path: path to JSON file (may be None)
+    :return: SolverConfig instance
+    """
     if config_path is None or not config_path.exists():
         return SolverConfig()
     with open(config_path, encoding="utf-8") as fh:
@@ -86,7 +112,16 @@ def load_inputs(
     config_path: Optional[Path] = None,
     daily_visibility_path: Optional[Path] = None,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, SolverConfig, Optional[pd.DataFrame]]:
-    """Load and validate solver input files."""
+    """
+    Load and validate all solver input files from MATLAB export.
+
+    :param fields_path: lcs_fields.csv
+    :param windows_path: lcs_visibility_windows.csv
+    :param eligibility_path: lcs_field_eligibility.csv
+    :param config_path: optional lcs_params.json
+    :param daily_visibility_path: optional lcs_daily_visibility.csv
+    :return: (fields_df, windows_df, eligibility_df, config, daily_df)
+    """
     fields_df = _normalize_fields_df(pd.read_csv(fields_path))
     windows_df = _normalize_windows_df(pd.read_csv(windows_path))
     eligibility_df = pd.read_csv(eligibility_path)
@@ -101,6 +136,13 @@ def load_inputs(
 
 
 def write_schedule_windows(result: SolverResult, out_dir: Path) -> Path:
+    """
+    Write window-level assignments to schedule_windows.csv.
+
+    :param result: solved schedule
+    :param out_dir: output directory
+    :return: path to written CSV
+    """
     rows = []
     for item in result.window_assignments:
         rows.append(
@@ -121,6 +163,13 @@ def write_schedule_windows(result: SolverResult, out_dir: Path) -> Path:
 
 
 def write_daily_schedule(result: SolverResult, out_dir: Path) -> Path:
+    """
+    Write per-day slot observations to daily_schedule.csv.
+
+    :param result: solved schedule
+    :param out_dir: output directory
+    :return: path to written CSV
+    """
     rows = [
         {
             "day": obs.day,
@@ -137,12 +186,26 @@ def write_daily_schedule(result: SolverResult, out_dir: Path) -> Path:
 
 
 def write_validation_report(report_df: pd.DataFrame, out_dir: Path) -> Path:
+    """
+    Write validation check results to validation_report.csv.
+
+    :param report_df: output of validate_schedule
+    :param out_dir: output directory
+    :return: path to written CSV
+    """
     out_path = out_dir / "validation_report.csv"
     report_df.to_csv(out_path, index=False)
     return out_path
 
 
 def write_solver_summary(summary: dict, out_dir: Path) -> Path:
+    """
+    Write solver run summary to solver_summary.json.
+
+    :param summary: dict from build_solver_summary
+    :param out_dir: output directory
+    :return: path to written JSON
+    """
     out_path = out_dir / "solver_summary.json"
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(summary, fh, indent=2)
@@ -150,7 +213,12 @@ def write_solver_summary(summary: dict, out_dir: Path) -> Path:
 
 
 def default_input_paths(base_dir: Path) -> dict:
-    """Return default paths relative to lcs_solver directory."""
+    """
+    Return default paths to MATLAB-exported inputs relative to lcs_solver.
+
+    :param base_dir: lcs_solver directory (parent of lcs_cpsat/)
+    :return: dict with keys fields, windows, eligibility, config, daily_visibility
+    """
     data_dir = base_dir.parent / "data" / "lcs_solver_inputs"
     return {
         "fields": data_dir / "lcs_fields.csv",

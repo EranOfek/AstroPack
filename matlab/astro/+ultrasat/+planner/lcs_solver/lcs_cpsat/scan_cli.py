@@ -19,6 +19,12 @@ from .scanner import scan_lcs_plans
 
 
 def parse_args(argv: list | None = None) -> argparse.Namespace:
+    """
+    Parse command-line arguments for the plan date scanner.
+
+    :param argv: optional argument list (defaults to sys.argv)
+    :return: parsed namespace with scan range and paths
+    """
     base_dir = Path(__file__).resolve().parent.parent
     defaults = default_input_paths(base_dir)
 
@@ -75,6 +81,12 @@ def parse_args(argv: list | None = None) -> argparse.Namespace:
 
 
 def main(argv: list | None = None) -> int:
+    """
+    Load inputs and scan all candidate plan start dates in the given range.
+
+    :param argv: optional argument list
+    :return: 0 on success
+    """
     args = parse_args(argv)
 
     fields_df, windows_df, eligibility_df, config, _ = load_inputs(

@@ -28,6 +28,12 @@ from .validation import build_solver_summary, validate_schedule
 
 
 def parse_args(argv: list | None = None) -> argparse.Namespace:
+    """
+    Parse command-line arguments for a single solver run.
+
+    :param argv: optional argument list (defaults to sys.argv)
+    :return: parsed namespace with input/output paths
+    """
     base_dir = Path(__file__).resolve().parent.parent
     defaults = default_input_paths(base_dir)
 
@@ -80,9 +86,16 @@ def parse_args(argv: list | None = None) -> argparse.Namespace:
 
 
 def main(argv: list | None = None) -> int:
+    """
+    Run one LCS CP-SAT solve: load inputs, solve, write outputs.
+
+    :param argv: optional argument list
+    :return: 0 on OPTIMAL/FEASIBLE, 1 otherwise
+    """
     args = parse_args(argv)
     args.out.mkdir(parents=True, exist_ok=True)
 
+    # Load MATLAB-exported CSV/JSON inputs
     fields_df, windows_df, eligibility_df, config, _daily_df = load_inputs(
         args.fields,
         args.windows,
@@ -93,9 +106,11 @@ def main(argv: list | None = None) -> int:
     if args.time_limit is not None:
         config.time_limit_seconds = args.time_limit
 
+    # Precompute feasibility, then build and solve CP-SAT model
     feasibility = compute_feasibility(fields_df, windows_df, eligibility_df, config)
     result = build_and_solve(fields_df, feasibility, config)
 
+    # Write all output artifacts
     write_schedule_windows(result, args.out)
     write_daily_schedule(result, args.out)
     report_df = validate_schedule(result)

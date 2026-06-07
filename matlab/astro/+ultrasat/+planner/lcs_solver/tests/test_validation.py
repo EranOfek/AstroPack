@@ -25,6 +25,7 @@ from lcs_cpsat.validation import validate_schedule
 
 
 def _empty_feasibility() -> FeasibilityMaps:
+    """Minimal FeasibilityMaps stub — validation tests build assignments manually."""
     return FeasibilityMaps(
         windows_45=[WindowDef(1, 1, 45)],
         windows_135=[(1, 1, 135)],
@@ -45,6 +46,14 @@ def _make_result(
     observations,
     config=None,
 ) -> SolverResult:
+    """
+    Build a synthetic SolverResult for validation unit tests.
+
+    :param assignments: list of WindowAssignment
+    :param observations: list of DailyObservation
+    :param config: optional SolverConfig override
+    :return: SolverResult with OPTIMAL status
+    """
     config = config or SolverConfig(
         set_a_count=1,
         set_b_count=1,
@@ -64,6 +73,7 @@ def _make_result(
 
 
 def test_validation_passes_good_schedule():
+    """Well-formed schedule with one field per set should pass all checks."""
     assignments = [
         WindowAssignment("A", 1, "daily", 1, 45, 1),
         WindowAssignment("B", 2, "daily", 1, 45, 1, group_id=2, notes="B_45"),
@@ -85,6 +95,7 @@ def test_validation_passes_good_schedule():
 
 
 def test_validation_catches_capacity_violation():
+    """13 observations on one day exceeds default daily_capacity of 11."""
     assignments = [
         WindowAssignment("A", 1, "daily", 1, 45, 1),
     ]
@@ -97,6 +108,7 @@ def test_validation_catches_capacity_violation():
 
 
 def test_validation_catches_duplicate_fields():
+    """Same field_id in both Set A and Set C must fail no_duplicate_fields."""
     assignments = [
         WindowAssignment("A", 1, "daily", 1, 45, 1),
         WindowAssignment("C", 1, "sparse4", 1, 135, 1),

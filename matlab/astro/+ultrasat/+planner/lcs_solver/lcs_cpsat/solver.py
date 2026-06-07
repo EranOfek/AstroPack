@@ -30,16 +30,29 @@ from .models import (
 
 
 def _extinction_score(fields_df: pd.DataFrame, config: SolverConfig) -> Dict[int, int]:
+    """
+    Integer score per field from extinction headroom (lower A_U is better).
+
+    :param fields_df: must contain field_id and A_U columns
+    :param config: max_extinction threshold
+    :return: field_id -> scaled score for objective
+    """
     scores = {}
     for _, row in fields_df.iterrows():
         fid = int(row["field_id"])
         au = float(row["A_U"])
-        delta = max(0.0, config.max_extinction - au)
+        delta = max(0.0, config.max_extinction - au)  # more headroom -> higher score
         scores[fid] = int(round(delta * 100))
     return scores
 
 
 def _d_rank_score(config: SolverConfig) -> Dict[int, int]:
+    """
+    Rank-based score for Set D fields (earlier in d_ranked_fields is better).
+
+    :param config: d_ranked_fields list and weight_d_rank
+    :return: field_id -> score for objective
+    """
     n = len(config.d_ranked_fields)
     return {
         fid: (n - idx) * config.weight_d_rank
@@ -50,6 +63,13 @@ def _d_rank_score(config: SolverConfig) -> Dict[int, int]:
 def _sparse_days_in_window(
     start_day: int, end_day: int, phase: int, cadence: int
 ) -> Set[int]:
+    """
+    Days within [start_day, end_day] matching sparse cadence (every N days).
+
+    :param phase: offset within the cadence cycle (mod cadence)
+    :param cadence: e.g. 4 for one observation every 4 days
+    :return: set of campaign days
+    """
     days = set()
     for day in range(start_day, end_day + 1):
         if (day - start_day) % cadence == phase % cadence:
@@ -58,6 +78,7 @@ def _sparse_days_in_window(
 
 
 def _daily_days_in_window(start_day: int, end_day: int) -> Set[int]:
+    """All campaign days in a closed interval."""
     return set(range(start_day, end_day + 1))
 
 
@@ -66,7 +87,18 @@ def build_and_solve(
     feasibility: FeasibilityMaps,
     config: SolverConfig,
 ) -> SolverResult:
-    """Build the CP-SAT model, solve, and return structured results."""
+    """
+    Build the CP-SAT model, solve, and return structured results.
+
+    Sets A/B/C/D are encoded as Boolean variables with set-specific constraints.
+    Set A uses a 6×8 group×slot grid (v3 layout): exactly one field per cell.
+
+    :param fields_df: field catalog with extinction values
+    :param feasibility: precomputed feasible (field, window) pairs
+    :param config: campaign and solver parameters
+    :return: SolverResult with assignments, daily obs, and status
+    """
+    # Plan spans 8×45 = 360 days; extend capacity horizon if MATLAB exported less
     plan_last_day = (
         config.first_day + config.set_a_fields_per_group * config.min_window_days - 1
     )
@@ -81,38 +113,41 @@ def build_and_solve(
     extinction_scores = _extinction_score(fields_df, config)
     d_scores = _d_rank_score(config)
 
-    # ---- Set A: 6 groups x 8 slots (v3 layout), one field per (group, slot) ----
+    # ---- Set A: 6 groups × 8 slots (v3 layout), one field per (group, slot) ----
     n_groups = config.set_a_n_groups
     n_slots = config.set_a_fields_per_group
     a_vars: Dict[Tuple[int, int, int], cp_model.IntVar] = {}
     for f, wins in feasibility.feasible_a.items():
         for g in range(1, n_groups + 1):
             for s in range(1, n_slots + 1):
-                if s in wins:
+                if s in wins:  # field f can occupy slot s in group g
                     a_vars[(f, g, s)] = model.NewBoolVar(f"a_{f}_{g}_{s}")
 
+    # ---- Set B: field selected once; each selected field gets 1 daily + 2 sparse windows ----
     b_sel: Dict[int, cp_model.IntVar] = {}
     b_daily: Dict[Tuple[int, int], cp_model.IntVar] = {}
     b_sparse: Dict[Tuple[int, int], cp_model.IntVar] = {}
     for f, wins in feasibility.feasible_b.items():
-        if len(wins) < 3:
+        if len(wins) < 3:  # B needs at least 3 windows (1 daily + 2 sparse)
             continue
         b_sel[f] = model.NewBoolVar(f"b_sel_{f}")
         for w in wins:
             b_daily[(f, w)] = model.NewBoolVar(f"b_daily_{f}_{w}")
             b_sparse[(f, w)] = model.NewBoolVar(f"b_sparse_{f}_{w}")
 
+    # ---- Set C: one 135-day sparse window per selected field ----
     c_vars: Dict[Tuple[int, int], cp_model.IntVar] = {}
     for f, wins in feasibility.feasible_c.items():
         for w135 in wins:
             c_vars[(f, w135)] = model.NewBoolVar(f"c_{f}_{w135}")
 
+    # ---- Set D: one 45-day daily window per selected field ----
     d_vars: Dict[Tuple[int, int], cp_model.IntVar] = {}
     for f, wins in feasibility.feasible_d.items():
         for w in wins:
             d_vars[(f, w)] = model.NewBoolVar(f"d_{f}_{w}")
 
-    # ---- Constraint 1: mutual exclusion per field ----
+    # ---- Constraint 1: each field appears in at most one set ----
     for f in field_ids:
         terms = []
         terms.extend(
@@ -128,7 +163,7 @@ def build_and_solve(
         if terms:
             model.Add(sum(terms) <= 1)
 
-    # ---- Set A: exactly one field per (group, slot) ----
+    # ---- Set A: exactly one field per (group, slot) — the v3 grouping constraint ----
     for g in range(1, n_groups + 1):
         for s in range(1, n_slots + 1):
             slot_terms = [
@@ -139,9 +174,9 @@ def build_and_solve(
             if slot_terms:
                 model.Add(sum(slot_terms) == 1)
             else:
-                model.Add(0 == 1)
+                model.Add(0 == 1)  # infeasible slot — no eligible field
 
-    # ---- Constraints 2-5: set counts (A count implied by group x slot) ----
+    # ---- Set counts: A is implied by group×slot; B/C/D are explicit sums ----
     if a_vars:
         model.Add(sum(a_vars.values()) == config.set_a_count)
     else:
@@ -162,17 +197,18 @@ def build_and_solve(
     else:
         model.Add(0 == config.set_d_count)
 
-    # ---- Constraint 8: B structure ----
+    # ---- Set B structure: 1 daily window + 2 sparse windows per selected field ----
     for f, sel in b_sel.items():
         wins = feasibility.feasible_b[f]
         daily_terms = [b_daily[(f, w)] for w in wins if (f, w) in b_daily]
         sparse_terms = [b_sparse[(f, w)] for w in wins if (f, w) in b_sparse]
-        model.Add(sum(daily_terms) == sel)
-        model.Add(sum(sparse_terms) == 2 * sel)
+        model.Add(sum(daily_terms) == sel)       # exactly 1 daily if selected
+        model.Add(sum(sparse_terms) == 2 * sel)  # exactly 2 sparse if selected
         for w in wins:
             if (f, w) in b_daily:
-                model.Add(b_daily[(f, w)] + b_sparse[(f, w)] <= 1)
+                model.Add(b_daily[(f, w)] + b_sparse[(f, w)] <= 1)  # not both on same window
 
+        # Optional: force 3 consecutive windows when selected (v3 consecutive mode)
         if config.require_b_consecutive:
             triple_vars = []
             for k in range(1, len(windows_45) - 1):
@@ -186,9 +222,10 @@ def build_and_solve(
             if triple_vars:
                 model.Add(sum(triple_vars) == sel)
 
-    # ---- Constraint 11-12: daily capacity ----
+    # ---- Daily capacity: count active fields per campaign day, cap at daily_capacity ----
     day_vars: Dict[int, List[cp_model.IntVar]] = defaultdict(list)
 
+    # Set A: daily cadence across the slot's 45-day window
     for (f, g, s), var in a_vars.items():
         win = windows_45[s - 1]
         for day in _daily_days_in_window(win.start_day, win.end_day):
@@ -226,7 +263,7 @@ def build_and_solve(
         if vars_on_day:
             model.Add(sum(vars_on_day) <= config.daily_capacity)
 
-    # ---- Objective ----
+    # ---- Objective: maximize slack, extinction quality, and D rank ----
     objective_terms = []
 
     for (f, g, s), var in a_vars.items():
@@ -310,6 +347,13 @@ def _extract_solution(
     windows_135,
     config: SolverConfig,
 ) -> Tuple[List[WindowAssignment], List[DailyObservation]]:
+    """
+    Read Boolean variable values from the solved model into assignment records.
+
+    :param solver: CP-SAT solver after Solve()
+    :param status: OR-Tools status code
+    :return: (window_assignments, daily_observations)
+    """
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return [], []
 
@@ -401,7 +445,15 @@ def build_daily_observations(
     assignments: List[WindowAssignment],
     config: SolverConfig,
 ) -> List[DailyObservation]:
-    """Expand window assignments into per-day slot observations."""
+    """
+    Expand window assignments into per-day slot observations.
+
+    Each active field on a day gets a slot_index (1..N) in encounter order.
+
+    :param assignments: solved window assignments
+    :param config: sparse cadence and capacity_last_day
+    :return: flat list of DailyObservation records
+    """
     day_fields: Dict[int, List[Tuple[int, str, str]]] = defaultdict(list)
 
     for item in assignments:

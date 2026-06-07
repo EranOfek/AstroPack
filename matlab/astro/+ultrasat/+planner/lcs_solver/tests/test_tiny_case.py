@@ -20,12 +20,20 @@ from lcs_cpsat.validation import validate_schedule
 
 
 def _make_tiny_inputs():
+    """
+    Build a minimal 12-field problem that fits in 135 days.
+
+    Layout: 3 groups × 2 slots = 6 Set A fields, plus B/C/D counts.
+    All fields share one 135-day visibility window for simplicity.
+
+    :return: (fields_df, windows_df, eligibility_df, config)
+    """
     fields_df = pd.DataFrame(
         {
             "field_id": list(range(1, 13)),
             "ra": [float(i) for i in range(1, 13)],
             "dec": [0.0] * 12,
-            "A_U": [0.5] * 10 + [1.5, 1.6],
+            "A_U": [0.5] * 10 + [1.5, 1.6],  # last two are high-extinction (Set D)
         }
     )
 
@@ -44,9 +52,9 @@ def _make_tiny_inputs():
     eligibility_df = pd.DataFrame(
         {
             "field_id": list(range(1, 13)),
-            "eligible_abc": [1] * 10 + [0, 0],
-            "eligible_long_window": [1] * 8 + [0, 0, 0, 0],
-            "eligible_d": [0] * 10 + [1, 1],
+            "eligible_abc": [1] * 10 + [0, 0],       # fields 11-12 excluded from A/B/C
+            "eligible_long_window": [1] * 8 + [0, 0, 0, 0],  # fields 9-12 no 135-day C
+            "eligible_d": [0] * 10 + [1, 1],          # fields 11-12 are Set D candidates
         }
     )
 
@@ -71,6 +79,7 @@ def _make_tiny_inputs():
 
 
 def test_tiny_case_solves():
+    """End-to-end: tiny inputs must solve with all four sets represented."""
     fields_df, windows_df, eligibility_df, config = _make_tiny_inputs()
     feasibility = compute_feasibility(fields_df, windows_df, eligibility_df, config)
     result = build_and_solve(fields_df, feasibility, config)

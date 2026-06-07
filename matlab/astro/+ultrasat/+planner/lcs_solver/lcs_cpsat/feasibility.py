@@ -19,7 +19,12 @@ from .models import FeasibilityMaps, SolverConfig, WindowDef
 
 
 def build_windows_45(config: SolverConfig) -> List[WindowDef]:
-    """Build fixed 45-day windows starting at first_day."""
+    """
+    Build the fixed 45-day windows W1..Wn on the campaign timeline.
+
+    :param config: solver config with first_day, min_window_days, num_windows_45
+    :return: list of WindowDef, e.g. W1=[1,45], W2=[46,90], ...
+    """
     windows = []
     for idx in range(1, config.num_windows_45 + 1):
         start = config.first_day + (idx - 1) * config.min_window_days
@@ -31,7 +36,12 @@ def build_windows_45(config: SolverConfig) -> List[WindowDef]:
 def build_windows_135(
     windows_45: List[WindowDef],
 ) -> List[Tuple[int, int, int]]:
-    """Build 135-day spans as (index, start_day, end_day)."""
+    """
+    Build overlapping 135-day spans from three consecutive 45-day windows.
+
+    :param windows_45: list of 45-day windows
+    :return: list of (span_index, start_day, end_day), e.g. W1-W3, W2-W4, ...
+    """
     spans = []
     for i in range(len(windows_45) - 2):
         w0 = windows_45[i]
@@ -43,13 +53,18 @@ def build_windows_135(
 def _covers_interval(
     vis_start: int, vis_end: int, req_start: int, req_end: int
 ) -> bool:
+    """True if visibility interval fully covers the required interval."""
     return vis_start <= req_start and vis_end >= req_end
 
 
 def _slack_for_interval(
     vis_start: int, vis_end: int, req_start: int, req_end: int
 ) -> int:
-    """Extra visibility buffer beyond the required interval on both sides."""
+    """
+    Extra visibility days beyond the required interval (both sides).
+
+    Used as a soft objective term — more slack means safer scheduling.
+    """
     return (req_start - vis_start) + (vis_end - req_end)
 
 
@@ -59,9 +74,12 @@ def _feasible_windows_for_field(
     req_intervals: List[Tuple[int, int, int]],
 ) -> Tuple[Dict[int, int], Set[int]]:
     """
-    Return slack per window index and set of feasible window indices.
+    Find which required intervals a field can cover.
 
-    req_intervals: list of (index, req_start, req_end)
+    :param field_id: sky field index
+    :param windows_df: visibility windows from MATLAB
+    :param req_intervals: list of (index, req_start, req_end)
+    :return: (slack_by_index, feasible_index_set)
     """
     field_rows = windows_df[windows_df["field_id"] == field_id]
     slack: Dict[int, int] = {}
@@ -69,6 +87,7 @@ def _feasible_windows_for_field(
 
     for idx, req_start, req_end in req_intervals:
         best_slack = None
+        # A field may have multiple visibility intervals; pick the best covering one
         for _, row in field_rows.iterrows():
             vs = int(row["vis_start_day"])
             ve = int(row["vis_end_day"])
@@ -88,13 +107,24 @@ def compute_feasibility(
     eligibility_df: pd.DataFrame,
     config: SolverConfig,
 ) -> FeasibilityMaps:
-    """Precompute all feasible (field, window) pairs and slack values."""
+    """
+    Precompute all feasible (field, window) pairs before building the CP-SAT model.
+
+    Only pairs that pass eligibility and visibility checks get solver variables.
+
+    :param fields_df: field catalog
+    :param windows_df: continuous visibility windows per field
+    :param eligibility_df: eligible_abc / eligible_long_window / eligible_d flags
+    :param config: solver configuration
+    :return: FeasibilityMaps used by solver.py
+    """
     windows_45 = build_windows_45(config)
     windows_135 = build_windows_135(windows_45)
 
     req_45 = [(w.index, w.start_day, w.end_day) for w in windows_45]
     req_135 = list(windows_135)
 
+    # Hard eligibility flags from MATLAB (no set pre-assignment)
     eligible_abc = set(
         eligibility_df.loc[eligibility_df["eligible_abc"] == 1, "field_id"].astype(int)
     )
@@ -106,7 +136,6 @@ def compute_feasibility(
     eligible_d = set(
         eligibility_df.loc[eligibility_df["eligible_d"] == 1, "field_id"].astype(int)
     )
-
     d_ranked = set(config.d_ranked_fields)
 
     feasible_a: Dict[int, Set[int]] = {}
@@ -128,11 +157,13 @@ def compute_feasibility(
             for w_idx, val in s45.items():
                 slack_45[(field_id, w_idx)] = val
 
+        # Set C requires both good extinction and a 135-day visibility span
         if field_id in eligible_abc and field_id in eligible_long:
             feasible_c[field_id] = f135
             for w_idx, val in s135.items():
                 slack_135[(field_id, w_idx)] = val
 
+        # Set D: high-extinction fields from the WG5 ranked list
         if field_id in eligible_d and field_id in d_ranked:
             feasible_d[field_id] = f45
 

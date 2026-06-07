@@ -6,3 +6,5 @@
 # Modified    : 07/06/2026
 # Description : LCS CP-SAT solver test package
 # ***************************************************************************
+
+"""Unit tests for the LCS CP-SAT solver and scanner."""

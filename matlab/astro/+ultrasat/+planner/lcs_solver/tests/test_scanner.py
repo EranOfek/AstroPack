@@ -22,6 +22,7 @@ from tests.test_tiny_case import _make_tiny_inputs
 
 
 def _empty_feasibility() -> FeasibilityMaps:
+    """Minimal FeasibilityMaps stub for unit tests that skip the solver."""
     return FeasibilityMaps(
         windows_45=[WindowDef(1, 1, 45)],
         windows_135=[(1, 1, 135)],
@@ -38,12 +39,14 @@ def _empty_feasibility() -> FeasibilityMaps:
 
 
 def test_day_offset_from_ref():
+    """Campaign day 1 aligns with ref_date; day 15 is 14 days later."""
     ref = date(2029, 1, 1)
     assert _day_offset_from_ref(date(2029, 1, 1), ref) == 1
     assert _day_offset_from_ref(date(2029, 1, 15), ref) == 15
 
 
 def test_obs_datetime_iso():
+    """Slot 2 on day 1 should be 15 minutes after window start (900 s slot spacing)."""
     config = SolverConfig(
         start_date="2029-01-01",
         daily_window_start_time_seconds=0.0,
@@ -55,6 +58,7 @@ def test_obs_datetime_iso():
 
 
 def test_scan_writes_index(tmp_path: Path):
+    """Scanner must write lcs_plan_index.csv with one row per scanned date."""
     fields_df, windows_df, eligibility_df, config = _make_tiny_inputs()
     config.start_date = "2029-01-01"
     config.last_day = 135

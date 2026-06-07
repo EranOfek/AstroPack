@@ -22,7 +22,12 @@ from .solver import _daily_days_in_window, _sparse_days_in_window
 
 
 def validate_schedule(result: SolverResult) -> pd.DataFrame:
-    """Run validation checks and return a report DataFrame."""
+    """
+    Run post-solve checks and return a pass/fail report.
+
+    :param result: complete SolverResult from build_and_solve
+    :return: DataFrame with columns check, passed, detail
+    """
     config = result.config
     checks: List[dict] = []
 
@@ -49,7 +54,7 @@ def validate_schedule(result: SolverResult) -> pd.DataFrame:
     add("set_c_count", categories.get("C", 0) == config.set_c_count, str(categories.get("C", 0)))
     add("set_d_count", categories.get("D", 0) == config.set_d_count, str(categories.get("D", 0)))
 
-    # Duplicates mean the same field_id appears in more than one set (A/B/C/D).
+    # A field must not appear in more than one set (A/B/C/D)
     categories_by_field: dict = defaultdict(set)
     for a in assignments:
         categories_by_field[a.field_id].add(a.category)
@@ -72,7 +77,13 @@ def validate_schedule(result: SolverResult) -> pd.DataFrame:
 
 
 def build_solver_summary(result: SolverResult, report_df: pd.DataFrame) -> dict:
-    """Build solver_summary.json content."""
+    """
+    Build solver_summary.json content from result and validation report.
+
+    :param result: solved schedule
+    :param report_df: output of validate_schedule
+    :return: dict ready for JSON serialization
+    """
     daily_loads = Counter(obs.day for obs in result.daily_observations)
     loads = list(daily_loads.values()) if daily_loads else [0]
     categories = Counter(a.category for a in result.window_assignments)
@@ -102,17 +113,28 @@ def build_solver_summary(result: SolverResult, report_df: pd.DataFrame) -> dict:
 
 
 def _count_b_fields(assignments: List[WindowAssignment]) -> int:
+    """Count unique fields assigned to Set B (each field has multiple window rows)."""
     return len({a.field_id for a in assignments if a.category == "B"})
 
 
 def _check_daily_capacity(
     observations: List[DailyObservation], config: SolverConfig
 ) -> List[int]:
+    """
+    Find days where observation count exceeds daily_capacity.
+
+    :return: list of violating campaign day numbers
+    """
     loads = Counter(obs.day for obs in observations)
     return [day for day, load in loads.items() if load > config.daily_capacity]
 
 
 def _check_visibility(assignments: List[WindowAssignment], result: SolverResult) -> List[str]:
+    """
+    Verify each assignment's window index is in the precomputed feasibility map.
+
+    :return: list of violation description strings
+    """
     violations = []
     feasibility = result.feasibility
     windows_45 = build_windows_45(result.config)
@@ -137,6 +159,11 @@ def _check_visibility(assignments: List[WindowAssignment], result: SolverResult)
 
 
 def _check_cadence(assignments: List[WindowAssignment], config: SolverConfig) -> List[str]:
+    """
+    Verify Set B fields have exactly 1 daily + 2 sparse window blocks.
+
+    :return: list of violation description strings
+    """
     violations = []
     by_field: dict = defaultdict(list)
     for item in assignments:
