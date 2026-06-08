@@ -932,12 +932,28 @@ function [nFail, nPass] = check_slot_budget(Obj)
 
     CheckFns = {
         @() check_slot_budget_all_inds(nCadence4, FilledABC, Obj.Daily_LCS_slots)
+        @() check_final_slot_usage(FilledWithD, Obj.Daily_LCS_slots)
         @() pass_check(sprintf('Slot occupancy summary: filledABC = [%s], nD = [%s]', ...
             num2str(FilledABC, '%d '), num2str(nD, '%d ')))
     };
 
     [nFail, nPass] = run_checks('Slot budget (11 slots per Full_windows ind)', CheckFns);
     log_exit('check_slot_budget', nFail, nPass);
+end
+
+
+function [nFail, nPass] = check_final_slot_usage(FilledWithD, DailyLcsSlots)
+    log_enter('check_final_slot_usage');
+    nFail = 0;
+    nPass = 0;
+    for K = 1:numel(FilledWithD)
+        [f, p] = assert_max( ...
+            sprintf('Final slot use ind %d: filledABC + nD <= Daily_LCS_slots', K), ...
+            FilledWithD(K), DailyLcsSlots);
+        nFail = nFail + f;
+        nPass = nPass + p;
+    end
+    log_exit('check_final_slot_usage', nFail, nPass);
 end
 
 
@@ -1125,10 +1141,63 @@ function [nFail, nPass] = check_daily_schedule(Obj)
         nObserved = sum(~isnan(Obj.Daily_schedule(:)));
         CheckFns{end+1} = @() assert_true( ...
             'Daily_schedule contains observations', nObserved > 0); %#ok<AGROW>
+        CheckFns{end+1} = @() check_daily_schedule_matches_schedule(Obj); %#ok<AGROW>
     end
 
     [nFail, nPass] = run_checks('Daily schedule matrix', CheckFns);
     log_exit('check_daily_schedule', nFail, nPass);
+end
+
+
+function [nFail, nPass] = check_daily_schedule_matches_schedule(Obj)
+    [nBadDays, FirstBad] = daily_schedule_mismatch_count(Obj);
+    if nBadDays == 0
+        [nFail, nPass] = pass_check('Daily_schedule matches Schedule rows and cadence');
+    else
+        [nFail, nPass] = fail_check('Daily_schedule matches Schedule rows and cadence', ...
+            sprintf('%d day(s) mismatch; first bad day=%d', nBadDays, FirstBad));
+    end
+end
+
+
+function [nBadDays, FirstBad] = daily_schedule_mismatch_count(Obj)
+    Ndays = size(Obj.Daily_schedule, 1);
+    Expected = cell(Ndays, 1);
+    for D = 1:Ndays
+        Expected{D} = [];
+    end
+
+    for R = 1:height(Obj.Schedule)
+        F = Obj.Schedule.Field(R);
+        if F <= 0
+            continue
+        end
+        Cat = Obj.Schedule.category{R};
+        for CurrD = Obj.Schedule.start(R):Obj.Schedule.end(R)
+            if CurrD < Obj.First_day || CurrD > Obj.Last_day
+                continue
+            end
+            if (strcmp(Cat, 'C') || strcmp(Cat, 'B_90')) && ...
+                    mod((CurrD - Obj.Schedule.start(R) + 1), 4) ~= mod(Obj.Schedule.ind(R), 4)
+                continue
+            end
+            Row = CurrD - Obj.First_day + 1;
+            Expected{Row}(end+1) = F; %#ok<AGROW>
+        end
+    end
+
+    nBadDays = 0;
+    FirstBad = NaN;
+    for D = 1:Ndays
+        Actual = Obj.Daily_schedule(D, :);
+        Actual = Actual(~isnan(Actual));
+        if ~isequal(sort(Actual(:)'), sort(Expected{D}(:)'))
+            nBadDays = nBadDays + 1;
+            if isnan(FirstBad)
+                FirstBad = Obj.First_day + D - 1;
+            end
+        end
+    end
 end
 
 

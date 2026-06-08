@@ -20,6 +20,10 @@ SET_D_MAX = 4
 MIN_WINDOW = 45
 DAILY_LCS_SLOTS = 11
 DEFAULT_SETD_RANK = [79, 12, 48, 28, 16, 88, 55, 32, 213, 26]
+SCHEDULE_COLUMNS = {"category", "group", "ind", "start", "end", "Field"}
+WINDOW_COLUMNS = {"start", "end"}
+DAILY_COLUMNS = {"day"}
+VALID_CATEGORIES = {"A", "B_45", "B_90", "C", "D"}
 
 
 def main() -> int:
@@ -39,6 +43,8 @@ def main() -> int:
     windows = read_csv(out_dir / "full_windows.csv")
     daily = read_csv(out_dir / "daily_schedule.csv")
 
+    validate_schema(checks, schedule, windows, daily)
+
     placed = [r for r in schedule if to_int(r.get("Field")) > 0]
     rows_a = [r for r in placed if r.get("category") == "A"]
     rows_b = [r for r in placed if r.get("category") in {"B_45", "B_90"}]
@@ -50,6 +56,12 @@ def main() -> int:
     add(checks, "CSV files exist and have rows", bool(schedule and windows and daily),
         f"schedule={len(schedule)} full_windows={len(windows)} daily={len(daily)}")
     add(checks, "Schedule has placed rows", bool(placed), f"placed={len(placed)}")
+    add(checks, "Schedule categories valid",
+        all(r.get("category") in VALID_CATEGORIES for r in placed),
+        invalid_category_msg(placed))
+    add(checks, "Schedule placed numeric fields valid",
+        all_numeric_fields_valid(placed),
+        invalid_numeric_msg(placed))
 
     add(checks, "SetA field count", len(rows_a) == SET_A_NUM, f"got {len(rows_a)}")
     add(checks, "SetB row count", len(rows_b) == 3 * SET_B_NUM, f"got {len(rows_b)}")
@@ -98,7 +110,7 @@ def main() -> int:
     validate_slot_budget(checks, placed, windows)
     validate_window_bounds(checks, placed, daily)
     validate_cross_set_duplicates(checks, rows_a, rows_b, rows_c, rows_d)
-    validate_daily_schedule(checks, daily)
+    validate_daily_schedule(checks, placed, daily)
     validate_warning_checks(warnings, rows_a, rows_b, rows_c, rows_d)
 
     passed = sum(ok for _, ok, _ in checks)
@@ -142,7 +154,20 @@ def add(checks: list[tuple[str, bool, str]], name: str, ok: bool, detail: str) -
 def to_int(value: object) -> int:
     if value in (None, ""):
         return 0
-    return int(float(str(value)))
+    try:
+        return int(float(str(value)))
+    except (TypeError, ValueError):
+        return 0
+
+
+def is_int_like(value: object) -> bool:
+    if value in (None, ""):
+        return False
+    try:
+        int(float(str(value)))
+        return True
+    except (TypeError, ValueError):
+        return False
 
 
 def window_len(row: dict[str, str]) -> int:
@@ -162,6 +187,26 @@ def duplicate_msg(rows: list[dict[str, str]]) -> str:
     values = [to_int(r["Field"]) for r in rows]
     dupes = [field for field, count in Counter(values).items() if count > 1]
     return "duplicates=" + repr(dupes)
+
+
+def invalid_category_msg(rows: list[dict[str, str]]) -> str:
+    bad = sorted({r.get("category", "") for r in rows if r.get("category") not in VALID_CATEGORIES})
+    return "invalid_categories=" + repr(bad)
+
+
+def all_numeric_fields_valid(rows: list[dict[str, str]]) -> bool:
+    numeric_cols = ("Field", "group", "ind", "start", "end")
+    return all(all(is_int_like(r.get(col)) for col in numeric_cols) for r in rows)
+
+
+def invalid_numeric_msg(rows: list[dict[str, str]]) -> str:
+    numeric_cols = ("Field", "group", "ind", "start", "end")
+    bad = []
+    for idx, row in enumerate(rows, start=1):
+        bad_cols = [col for col in numeric_cols if not is_int_like(row.get(col))]
+        if bad_cols:
+            bad.append(f"row {idx}: {bad_cols}")
+    return "; ".join(bad[:5]) if bad else "all placed numeric columns are integer-like"
 
 
 def bad_count_msg(rows: list[dict[str, str]], pred) -> str:
@@ -236,6 +281,8 @@ def validate_slot_budget(checks: list[tuple[str, bool, str]], placed: list[dict[
         f"nCadence4={n_cadence4}")
     add(checks, "Slot budget filledABC <= 11", all(x <= DAILY_LCS_SLOTS for x in filled_abc),
         f"filledABC={filled_abc} nD={n_d} filled+D={filled_with_d}")
+    add(checks, "Final slot use filledABC+nD <= 11", all(x <= DAILY_LCS_SLOTS for x in filled_with_d),
+        f"filledABC={filled_abc} nD={n_d} filled+D={filled_with_d}")
 
 
 def validate_window_bounds(checks: list[tuple[str, bool, str]], placed: list[dict[str, str]], daily: list[dict[str, str]]) -> None:
@@ -255,7 +302,7 @@ def validate_cross_set_duplicates(checks, rows_a, rows_b, rows_c, rows_d) -> Non
         add(checks, f"No cross-set duplicates {left} vs {right}", not overlap, f"overlap={sorted(overlap)}")
 
 
-def validate_daily_schedule(checks: list[tuple[str, bool, str]], daily: list[dict[str, str]]) -> None:
+def validate_daily_schedule(checks: list[tuple[str, bool, str]], placed: list[dict[str, str]], daily: list[dict[str, str]]) -> None:
     slot_cols = [c for c in daily[0].keys() if c.startswith("slot_")] if daily else []
     observed = 0
     for row in daily:
@@ -265,6 +312,73 @@ def validate_daily_schedule(checks: list[tuple[str, bool, str]], daily: list[dic
     add(checks, "Daily schedule row count", len(daily) > 0, f"rows={len(daily)}")
     add(checks, "Daily schedule slot count", len(slot_cols) == DAILY_LCS_SLOTS, f"slots={len(slot_cols)}")
     add(checks, "Daily schedule contains observations", observed > 0, f"observed={observed}")
+    n_bad, first_bad = daily_schedule_mismatch_count(placed, daily, slot_cols)
+    add(checks, "Daily schedule matches schedule rows and cadence", n_bad == 0,
+        f"bad_days={n_bad} first_bad_day={first_bad}")
+
+
+def validate_schema(
+    checks: list[tuple[str, bool, str]],
+    schedule: list[dict[str, str]],
+    windows: list[dict[str, str]],
+    daily: list[dict[str, str]],
+) -> None:
+    schedule_cols = set(schedule[0].keys()) if schedule else set()
+    window_cols = set(windows[0].keys()) if windows else set()
+    daily_cols = set(daily[0].keys()) if daily else set()
+    slot_cols = {f"slot_{i}" for i in range(1, DAILY_LCS_SLOTS + 1)}
+
+    add(checks, "Schedule CSV required columns", SCHEDULE_COLUMNS <= schedule_cols,
+        f"missing={sorted(SCHEDULE_COLUMNS - schedule_cols)}")
+    add(checks, "Full_windows CSV required columns", WINDOW_COLUMNS <= window_cols,
+        f"missing={sorted(WINDOW_COLUMNS - window_cols)}")
+    add(checks, "Daily_schedule CSV required columns", (DAILY_COLUMNS | slot_cols) <= daily_cols,
+        f"missing={sorted((DAILY_COLUMNS | slot_cols) - daily_cols)}")
+
+
+def daily_schedule_mismatch_count(
+    placed: list[dict[str, str]],
+    daily: list[dict[str, str]],
+    slot_cols: list[str],
+) -> tuple[int, int | None]:
+    if not placed or not daily or len(slot_cols) != DAILY_LCS_SLOTS:
+        return 1, None
+
+    days = [to_int(r["day"]) for r in daily]
+    first_day = min(days)
+    last_day = max(days)
+    expected_by_day: dict[int, Counter[int]] = {day: Counter() for day in days}
+
+    for row in placed:
+        field = to_int(row.get("Field"))
+        cat = row.get("category")
+        start = to_int(row.get("start"))
+        end = to_int(row.get("end"))
+        ind = to_int(row.get("ind"))
+        if field <= 0 or cat not in VALID_CATEGORIES:
+            continue
+        for curr_day in range(start, end + 1):
+            if curr_day < first_day or curr_day > last_day:
+                continue
+            if cat in {"C", "B_90"} and ((curr_day - start + 1) % 4) != (ind % 4):
+                continue
+            expected_by_day.setdefault(curr_day, Counter())[field] += 1
+
+    n_bad = 0
+    first_bad: int | None = None
+    for row in daily:
+        day = to_int(row["day"])
+        actual = Counter()
+        for col in slot_cols:
+            value = row.get(col)
+            if value not in ("", "NaN", "nan", None):
+                actual[to_int(value)] += 1
+        expected = expected_by_day.get(day, Counter())
+        if actual != expected:
+            n_bad += 1
+            if first_bad is None:
+                first_bad = day
+    return n_bad, first_bad
 
 
 def validate_warning_checks(
