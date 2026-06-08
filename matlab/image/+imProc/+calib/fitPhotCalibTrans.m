@@ -71,6 +71,31 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %            'LimMagMinSN'     - Lower SN bound for LimMag fit. Default is 5.
     %            'LimMagMaxSN'     - Upper SN bound for LimMag fit. Default is 50.
     %            'LimMagSN'        - SN at which to evaluate LimMag. Default is 5.
+    %            'SelectionMethod' - Top-level shortcut for the calibrator-
+    %                         selection recipe forwarded into CalibArgs.
+    %                         'catsHTM' (default; existing path) or
+    %                         'pythonLike' (mirror Python GaiaQuery prototype
+    %                         in selectCalibratorsPythonLike). Equivalent to
+    %                         appending {'SelectionMethod', value} to
+    %                         CalibArgs; only forwarded when ~='catsHTM'.
+    %            'UseTAPClassprob' - Top-level shortcut for the optional Gaia
+    %                         DR3 TAP classprob_dsc_combmod_star>0.9 filter
+    %                         in 'pythonLike' selection. Only consulted when
+    %                         SelectionMethod='pythonLike'. Default false.
+    %                         Equivalent to appending {'UseTAPClassprob',
+    %                         true} to CalibArgs; only forwarded when true.
+    %            'UseTypicalX' - Top-level shortcut to forward the
+    %                         'TypicalX' option to lsqnonlin in
+    %                         CompositeFun.fitPar. When true, per-parameter
+    %                         magnitudes are passed to the solver so
+    %                         finite-difference step sizes and stopping
+    %                         tolerances scale to each free parameter's
+    %                         natural magnitude. Useful for the LAST OptSeq
+    %                         whose free parameters span ~5 orders of
+    %                         magnitude in physical units. Default false
+    %                         preserves status-quo solver behaviour;
+    %                         equivalent to appending {'UseTypicalX',true}
+    %                         to CalibArgs and only forwarded when true.
     %            'IsMeanImages'    - Toggle for images that are themselves a
     %                         stack of already-coadded frames (e.g. the
     %                         coadd-of-coadds produced by
@@ -125,6 +150,13 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %          % Compute Hardie airmass from header RA/DEC/DATE-OBS instead of
     %          % reading AIRMASS keyword (matches Python production):
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
+    %              'CalibArgs', {'AirmassSource', 'compute'});
+    %          % Full Python-prototype recipe (pythonLike selection + TAP
+    %          % classprob filter) combined with Hardie airmass via CalibArgs:
+    %          [Result, PC, FR] = imProc.calib.fitPhotCalibTrans(AI, ...
+    %              'CreateNewObj', true, ...
+    %              'SelectionMethod', 'pythonLike', ...
+    %              'UseTAPClassprob', true, ...
     %              'CalibArgs', {'AirmassSource', 'compute'});
     %          % Calibrate a coadd-of-coadds (e.g. coaddVisits output):
     %          % EXPTIME sums NCOADD input coadds, each itself a coadd of 20 procs.
@@ -183,6 +215,22 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         % Default false (header AIRMASS preserved).
         Args.WriteComputedAirmass logical = false
 
+        % Alternate calibrator selection (forwarded into CalibArgs).
+        % Top-level shortcuts so callers can write
+        %   fitPhotCalibTrans(AI, 'SelectionMethod', 'pythonLike',
+        %                         'UseTAPClassprob', true)
+        % without having to wrap them in a CalibArgs cell. Conditionally
+        % appended only when non-default so they don't override an
+        % explicit CalibArgs value the caller already supplied.
+        Args.SelectionMethod char {mustBeMember(Args.SelectionMethod, ...
+            {'catsHTM','pythonLike'})} = 'catsHTM'
+        Args.UseTAPClassprob logical = false
+
+        % Pass per-parameter TypicalX to lsqnonlin. Same conditional-
+        % append pattern as the two above. Default false preserves
+        % status-quo solver behaviour.
+        Args.UseTypicalX logical = false
+
         Args.Verbose logical = false
     end
 
@@ -213,6 +261,19 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     % is 'compute'. Same last-write-wins forwarding as the reference branch.
     if Args.WriteComputedAirmass
         Args.CalibArgs = [Args.CalibArgs, {'WriteComputedAirmass', true}];
+    end
+
+    % Top-level shortcuts for calibrator-selection knobs. Conditionally
+    % appended only when non-default — last-write-wins, so an explicit
+    % value already in CalibArgs gets overridden by the top-level value.
+    if ~strcmpi(Args.SelectionMethod, 'catsHTM')
+        Args.CalibArgs = [Args.CalibArgs, {'SelectionMethod', Args.SelectionMethod}];
+    end
+    if Args.UseTAPClassprob
+        Args.CalibArgs = [Args.CalibArgs, {'UseTAPClassprob', true}];
+    end
+    if Args.UseTypicalX
+        Args.CalibArgs = [Args.CalibArgs, {'UseTypicalX', true}];
     end
 
     % ====================================================================
@@ -692,6 +753,16 @@ function CalibArgs = predefCalibArgs(Args)
         Args.AuditBPRPMax     = 2.0
         Args.AuditLASTNearestDist = 10          % arcsec
         Args.AuditLASTDeltaMag = 1              % mag
+
+        % Alternate calibrator selection (forwarded to selectCalibrators)
+        Args.SelectionMethod char {mustBeMember(Args.SelectionMethod, ...
+            {'catsHTM','pythonLike'})} = 'catsHTM'
+        Args.UseTAPClassprob logical = false
+
+        % Forward to CompositeFun.fitPar -> lsqnonlin TypicalX. Scales
+        % finite-diff steps + stopping tolerances by each free
+        % parameter's natural magnitude. Default false.
+        Args.UseTypicalX logical = false
 
         % Weighting
         Args.WeightingMode    = 'spectral'  % 'none', 'spectral', 'flux', 'combined'

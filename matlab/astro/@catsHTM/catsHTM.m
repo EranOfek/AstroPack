@@ -531,6 +531,15 @@ classdef catsHTM
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
+            Data(I).Dir  = '/ForcedPhotList/';
+            Data(I).Name = 'ForcedPhotList';
+            Data(I).Desc = 'A merge of GAIA WD catalog + AGN + CVs from SIMBAD';
+            Data(I).Ref  = '';
+            Data(I).RefLink = '';
+            
+            I = I + 1;
+            Data(I).Status  = true;
+            Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/GAIA/DR1/';
             Data(I).Name = 'GAIADR1';
             Data(I).Desc = 'GAIA-DR1 catalog';
@@ -644,17 +653,7 @@ classdef catsHTM
             Data(I).Desc = 'GLADE+ galaxy catalog; http://glade.elte.hu/';
             Data(I).Ref  = 'Dalya et al. 2021';
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2022MNRAS.514.1403D/abstract';
-       
-      
-            I = I + 1;
-            Data(I).Status  = true;
-            Data(I).iscatsHTM  = true;
-            Data(I).Dir  = '/ForcedPhotList/';
-            Data(I).Name = 'ForcedPhotList';
-            Data(I).Desc = 'A merge of GAIA WD catalog + AGN + CVs from SIMBAD';
-            Data(I).Ref  = '';
-            Data(I).RefLink = '';
-            
+    
             I = I + 1;
             Data(I).Status  = true;
             Data(I).iscatsHTM  = true;
