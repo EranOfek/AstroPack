@@ -27,6 +27,7 @@ from .models import (
     WindowAssignment,
 )
 from .v3_rules import (
+    compute_window_occupancy,
     compute_inds_open,
     set_a_slot_calendar,
     set_b_division_table,
@@ -401,19 +402,6 @@ def _place_set_d(
     placed = 0
     target = config.set_d_count
 
-    def assign_moved_set_a_group(target_ind: int) -> int:
-        used = {
-            item.group_id
-            for item in abc_assignments
-            if item.category == "A"
-            and item.window_index == target_ind
-            and item.group_id is not None
-        }
-        group = 7
-        while group in used:
-            group += 1
-        return group
-
     def set_a_flex(field_id: int) -> int:
         return len(feasibility.feasible_a.get(field_id, set()))
 
@@ -471,7 +459,7 @@ def _place_set_d(
             _, k_setd, k_open, moved_a = best
             open_counts[k_open] -= 1
             moved_win = windows_45[k_open - 1]
-            moved_group = assign_moved_set_a_group(k_open)
+            moved_group = _assign_moved_set_a_group(abc_assignments, k_open)
             moved_a.start_day = moved_win.start_day
             moved_a.end_day = moved_win.end_day
             moved_a.window_index = k_open
@@ -493,6 +481,97 @@ def _place_set_d(
             placed += 1
 
     return d_assignments
+
+
+def _preclean_set_a_moves(
+    abc_assignments: List[WindowAssignment],
+    feasibility: FeasibilityMaps,
+    config: SolverConfig,
+) -> bool:
+    """
+    Mirror LcsHelper_v3.clean_inds_before_setD.
+
+    If ABC overfills some window indices, move non-shifted SetA rows from those
+    indices into currently open indices where the same field is visible.
+    """
+    windows_45 = feasibility.windows_45
+    n_a, n_b45, n_b90, n_c, filled, ok = compute_window_occupancy(
+        abc_assignments, config, windows_45, include_d=False
+    )
+    if not ok:
+        return False
+
+    inds_open: List[int] = []
+    inds_2move: List[int] = []
+    for k, load in enumerate(filled, start=1):
+        if load < config.daily_capacity:
+            inds_open.extend([k] * int(config.daily_capacity - load))
+        elif load > config.daily_capacity:
+            inds_2move.extend([k] * int(load - config.daily_capacity))
+
+    if not inds_2move:
+        return True
+
+    eligible = [
+        item for item in abc_assignments
+        if item.category == "A"
+        and item.group_id != config.set_a_shifted_group
+        and item.window_index in inds_2move
+    ]
+
+    moves: List[Tuple[WindowAssignment, int]] = []
+    used_rows: Set[int] = set()
+    for src in list(inds_2move):
+        best_idx = None
+        best_dst = None
+        best_flex = None
+        for idx, item in enumerate(eligible):
+            if idx in used_rows or item.window_index != src:
+                continue
+            feasible_targets = [
+                dst for dst in inds_open
+                if dst in feasibility.feasible_a.get(item.field_id, set())
+            ]
+            if not feasible_targets:
+                continue
+            flex = len(feasibility.feasible_a.get(item.field_id, set()))
+            if best_idx is None or (flex, min(feasible_targets), item.field_id) < (
+                best_flex, best_dst, eligible[best_idx].field_id
+            ):
+                best_idx = idx
+                best_dst = min(feasible_targets)
+                best_flex = flex
+        if best_idx is None or best_dst is None:
+            continue
+        used_rows.add(best_idx)
+        inds_open.remove(best_dst)
+        moves.append((eligible[best_idx], best_dst))
+
+    for item, dst in moves:
+        win = windows_45[dst - 1]
+        item.window_index = dst
+        item.start_day = win.start_day
+        item.end_day = win.end_day
+        item.group_id = _assign_moved_set_a_group(abc_assignments, dst)
+
+    _, _, _, _, filled_after, ok_after = compute_window_occupancy(
+        abc_assignments, config, windows_45, include_d=False
+    )
+    return ok_after and all(load <= config.daily_capacity for load in filled_after)
+
+
+def _assign_moved_set_a_group(assignments: List[WindowAssignment], target_ind: int) -> int:
+    used = {
+        item.group_id
+        for item in assignments
+        if item.category == "A"
+        and item.window_index == target_ind
+        and item.group_id is not None
+    }
+    group = 7
+    while group in used:
+        group += 1
+    return group
 
 
 def build_and_solve_with_branching(
@@ -585,10 +664,15 @@ def build_and_solve(
     )
 
     d_assignments: List[WindowAssignment] = []
+    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        if not _preclean_set_a_moves(abc_assignments, feasibility, config):
+            status_name = "INFEASIBLE"
+            abc_assignments = []
+
     if (
         config.solve_set_d_separately
         and config.set_d_count > 0
-        and status in (cp_model.OPTIMAL, cp_model.FEASIBLE)
+        and status_name in ("OPTIMAL", "FEASIBLE")
     ):
         d_assignments = _place_set_d(abc_assignments, fields_df, feasibility, config)
         if len(d_assignments) < config.set_d_count:
