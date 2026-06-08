@@ -28,6 +28,7 @@ classdef PipelineDemon < Component
         CalibPath    = []; %'calib';  % if start with '/' then abs path
         FailedPath   = []; %'failed'; % if start with '/' then abs path
         LogPath      = []; %'log';    % if start with '/' then abs path
+        FocusPath    = []; %'focus';  % if start with '/' then abs path
 
         SciPath      = []; %'science';
 
@@ -53,6 +54,7 @@ classdef PipelineDemon < Component
         DefCalibPath    = 'calib';  % if start with '/' then abs path
         DefFailedPath   = 'failed'; % if start with '/' then abs path
         DefLogPath      = 'log';    % if start with '/' then abs path
+        DefFocusPath    = 'focus';  % if start with '/' then abs path
         DefRefPath      = 'data/references';   %/last01e/data/refreences'
 
         FieldList       = pipeline.DemonLAST.fieldsListLAST;
@@ -182,6 +184,24 @@ classdef PipelineDemon < Component
                     % FailedPath contains relative path (relative to BasePath)
                     Obj.LogPath = fullfile(Obj.BasePath,Obj.LogPath);
                     Result      = Obj.LogPath;
+                end
+            end
+
+        end
+
+        function Result=get.FocusPath(Obj)
+            % getter for FocusPath
+
+            if isempty(Obj.FocusPath)
+                Result = [];
+            else
+                if strcmp(Obj.FocusPath(1),filesep)
+                    % FocusPath contains full dir name
+                    Result = Obj.FocusPath;
+                else
+                    % FocusPath contains relative path (relative to BasePath)
+                    Obj.FocusPath = fullfile(Obj.BasePath,Obj.FocusPath);
+                    Result        = Obj.FocusPath;
                 end
             end
 
@@ -741,7 +761,8 @@ classdef PipelineDemon < Component
                         Obj.CalibPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefCalibPath);
                         Obj.FailedPath = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFailedPath);
                         Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
-                    
+                        Obj.FocusPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFocusPath);
+
                         Obj.RefPath    = sprintf('%s%s%s',tools.os.get_computer, filesep, Obj.DefRefPath);
                     end
                 case 'marvin'
@@ -761,7 +782,8 @@ classdef PipelineDemon < Component
                     Obj.CalibPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefCalibPath);
                     Obj.FailedPath = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFailedPath);
                     Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
-                    
+                    Obj.FocusPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFocusPath);
+
                     Obj.RefPath    = '/lastdata/references/v4';
 
 
@@ -887,6 +909,8 @@ classdef PipelineDemon < Component
             %                   Default is 'calib'.
             %            'FailedPath' - If empty, do not set FailedPath.
             %                   Default is 'failed'.
+            %            'FocusPath' - If empty, do not set FocusPath.
+            %                   Default is 'focus'.
             % Output : - A pipeline.DemonLAST object in which the paths are
             %            updated.
             % Author : Eran Ofek (Apr 2023)
@@ -897,9 +921,10 @@ classdef PipelineDemon < Component
                 Args.NewPath    = 'new';
                 Args.CalibPath  = 'calib';
                 Args.FailedPath = 'failed';
+                Args.FocusPath  = 'focus';
             end
 
-            FIELDS = {'NewPath','CalibPath','FailedPath'};
+            FIELDS = {'NewPath','CalibPath','FailedPath','FocusPath'};
             Nf     = numel(FIELDS);
 
             if ~isempty(BasePath)
@@ -3091,7 +3116,7 @@ classdef PipelineDemon < Component
                 %FN_Foc.FullPath = [];
                 % The empty argument in genPath is required for moving each image to the correct (date) directory. 
                 if FN_Foc.nFiles>0
-                    FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',[], 'DestPath', FN_Foc.genPath([]), 'Level','raw', 'Type','focus');
+                    FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',FN_Foc.genPath([]), 'DestPath', Obj.FocusPath, 'Level','raw', 'Type','focus');
                 end
                 
                 % look for new images

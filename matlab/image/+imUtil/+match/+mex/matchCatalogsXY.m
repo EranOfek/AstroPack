@@ -59,8 +59,9 @@
 %              in ascending order.
 %           9. If List2Sorted is false, the code does not sort catalog 2
 %              internally.
-% Compilation: % mex -R2018a CXXFLAGS='$CXXFLAGS -O3 -std=c++11 -fopenmp' LDFLAGS='$LDFLAGS -fopenmp' matchCatalogsXY.cpp
-%              mex -R2018a CXXFLAGS='$CXXFLAGS -O3 -std=c++17 -march=x86-64 -mtune=generic -fopenmp' LDFLAGS='$LDFLAGS -fopenmp -static-libstdc++ -static-libgcc' matchCatalogsXY.cpp
+% Compilation: % mex CXX=g++-9 -R2018a CXXFLAGS='$CXXFLAGS -O3 -std=c++11 -fopenmp' LDFLAGS='$LDFLAGS -fopenmp' matchCatalogsXY.cpp
+%              % a GLIBC incompatibility issue on other machines with: mex CXX=g++-9 -R2018a CXXFLAGS='$CXXFLAGS -O3 -std=c++17 -march=x86-64 -mtune=generic -fopenmp' LDFLAGS='$LDFLAGS -fopenmp -static-libstdc++ -static-libgcc' matchCatalogsXY.cpp
+%              mex -O CXX=g++-9 CXXFLAGS='$CXXFLAGS -fopenmp -std=c++17' LDFLAGS='$LDFLAGS -fopenmp' matchCatalogsXY.cpp
 % Example:
 %{
         RA1  = [10; 20; 30];
@@ -71,3 +72,4 @@
         RA2 = RA2(SI);
         [Ind1, Ind2, Dist1, Dist2, Nmatch1, Nmatch2] = matchCatalogs(RA1, Dec1, RA2, Dec2, 0.5, true, [], [], true, true);
 %}
+
