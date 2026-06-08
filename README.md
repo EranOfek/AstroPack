@@ -2,7 +2,7 @@
 
 Astronomy, Astrophysics, &amp; Image Processing Software Package
 
-Main Developers: <a href="https://www.weizmann.ac.il/physics/ofek/home">Eran Ofek</a>, Sasha Krassilchtchikov, Chen Tishler, Yossi Shvartzvald, Amir Sharon, Dan Elhanati, Noam Segev
+Main Developers: <a href="https://www.weizmann.ac.il/physics/ofek/home">Eran Ofek</a>, Sasha Krassilchtchikov, Chen Tishler, Yossi Shvartzvald, Amir Sharon, Dan Elhanati, Noam Segev, Dana Kovaleva 
 (Weizmann Institute of Science)
 
 ## Installation:
