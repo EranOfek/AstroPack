@@ -1,4 +1,4 @@
-# AstroPack (a.k.a. MAATv2)
+# AstroPack (a.k.a. MAATv2) 
 
 Astronomy, Astrophysics, &amp; Image Processing Software Package
 
