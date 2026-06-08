@@ -42,7 +42,7 @@ function [Result] = buildRefImages(RefGrid, Args)
     % Author : A.M. Krassilchtchikov (2026 Apr) 
     % Example: load('LAST_refGrid_new.mat'); D = db.Db.connectLASTdb('Pass','*');
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D); % a most general usage  
-    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D,'RefID',[99945 99946]); % a short test
+    %          R=pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D,'RefID',[99945 99946]); % a short test
     arguments
         RefGrid
                                                         
@@ -70,11 +70,12 @@ function [Result] = buildRefImages(RefGrid, Args)
         Args.MinAllowedCoverage = 0.999;  % 0.995; % allowed inaccuracy in the required reference field coverage  
                        
         %Args.CoaddFunction      = @pipeline.generic.procCoadd; 
-        Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[128 128], 'MethodArgs',{{'Range',[-50 50]}}}
+        %Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[128 128], 'MethodArgs',{{'Range',[-50 50]}}}
+        Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[128 128], 'MethodArgs',{{'Range',[-50 50]}, {}} };
 
         Args.SubBack            = true;  % don't change unless you understand what you are doing
         Args.StackMethod        = 'wrobust';
-        Args.StackMethodArgs    = {'coadd_WRobustArgs',{'backVarArgs',{'Method',@imUtil.background.modeVar_Hist}}};     
+        Args.StackMethodArgs    = {}; %{'coadd_WRobustArgs',{'backVarArgs',{'Method',@imUtil.background.modeVar_Hist}}};     
         Args.CoaddFunctionArgs  = {}; % additional arguments to be passed to the coadd function 
         
         Args.PixScale           = 1.25;        
@@ -315,7 +316,8 @@ function [Result] = buildRefImages(RefGrid, Args)
                 %    measure background, find sources, populate PSF
                 RefImage = pipeline.generic.procCoadd(StackImages','WCS',AIref,...
                                     'SubBack',Args.SubBack,...
-                                    'SetBackTo0',true,...
+                                    'SetBackTo0',false,...
+                                    'ReMeasureBack',true, 'ReMeasureVar',true,...
                                     'StackMethod',Args.StackMethod, Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:},...
                                     'backVarArgs',Args.backVarArgs, 'AddMaskSrcNoise',false);
                 
