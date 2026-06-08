@@ -308,9 +308,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 
             
             % Update Airmass header keyword to based on measured crop center
-            %ProcessingStep = 411;
-            [AllSI, AllImagesAirMass] = imProc.header.addAirMass(AllSI, 'JD',JD, 'HealpixType','nested', Args.Header_addAirMassArgs{:}); % 0.3s
-        
+            % Need to precess coordinates to Equnnox of date
+            % The Epoch difference within a visit is small and results in
+            % 1e-10 difference in airmass and hence ignored
+            [AllSI, AllImagesAirMass] = imProc.header.addAirMass(AllSI, 'JD',JD, 'HealpixType','nested', 'EquinoxJD',JD(1,1), Args.Header_addAirMassArgs{:}); % 0.4s for all images
+
             % Individual sub images : quality           
             % astrometry
             %ProcessingStep = 421;
@@ -384,7 +386,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             end
         
             if Args.AddSrcAM
-                AllSI = imProc.cat.addAirMass(AllSI, 'JD',JD, 'IsGood',IsGood, Args.Cat_addAirMassArgs{:});
+                AllSI = imProc.cat.addAirMass(AllSI, 'JD',JD, 'IsGood',IsGood, 'EquinoxJD',JD(1), Args.Cat_addAirMassArgs{:});
             end
 
             % match external / too expensive
@@ -474,7 +476,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Add image ID to coadd images: in: ID_PROC
             NotIsEmptyCoadd = ~Coadd.isemptyImage;
             NotIsEmptyCat   = ~Coadd.isemptyCatalog;
-            JD_Coadd = [ResCoadd(NotIsEmptyCoadd).MidMidJD];
+            JD_Coadd = [ResCoadd(NotIsEmptyCoadd).WMeanJD];
             %Ncoadd   = numel(Coadd);
             %CoaddID  = nan(Ncoadd,1);
             %[Coadd(NotIsEmptyCoadd), CoaddID(NotIsEmptyCoadd)]
@@ -488,7 +490,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             AnyCoaddExist = any(NotIsEmptyCoadd);
             if AnyCoaddExist
                 % Add airmass + UPIX to header
-                [Coadd(NotIsEmptyCoadd)] = imProc.header.addAirMass(Coadd(NotIsEmptyCoadd), 'JD',JD_Coadd, 'HealpixType','nested', Args.Header_addAirMassArgs{:}); % 0.3s
+                % All Coadd images have the same epoch (roughly)
+                [Coadd(NotIsEmptyCoadd)] = imProc.header.addAirMass(Coadd(NotIsEmptyCoadd), 'JD',JD_Coadd, 'HealpixType','nested', Args.Header_addAirMassArgs{:}, 'EquinoxJD',JD_Coadd(1)); % 0.3s
 
 
                 % Add relphot rms to Coadd header:
@@ -570,7 +573,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 951;
             %tic;
             if Args.AddSrcAM
-                Coadd(NotIsEmptyCat) = imProc.cat.addAirMass(Coadd(NotIsEmptyCat), 'JD',JD, Args.Cat_addAirMassArgs{:});
+                Coadd(NotIsEmptyCat) = imProc.cat.addAirMass(Coadd(NotIsEmptyCat), 'JD',JD, 'EquinoxJD',JD(1), Args.Cat_addAirMassArgs{:});
             end
             %toc
             if Args.AddNdet

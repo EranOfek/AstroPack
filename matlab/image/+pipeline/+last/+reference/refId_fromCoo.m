@@ -22,10 +22,11 @@ function [Ind, Dist] = refId_fromCoo(RA, Dec, Args)
     %            requested coordinates.
     % Author : Eran Ofek (2026 Jun) 
     % Example: Ind=pipeline.last.reference.refId_fromCoo(1,1)
+    %          Ind=pipeline.last.reference.refId_fromCoo('M51')
 
     arguments
         RA
-        Dec
+        Dec                    = [];
         Args.RefTable          = [];
         Args.RefTableName      = 'LAST_RefIm_Grid.mat';
 

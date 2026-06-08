@@ -3,6 +3,9 @@ function [Result, AirMass] = addAirMass(AI, Args)
     %   Optionally also add healpix information.
     % Input  : - An AstroImage object.
     %          * ...,key,val,... 
+    %            'EquinoxJD' - Scalae JD of the Equinox to which to precess
+    %                   the coordinates to. If empty, then ignore
+    %                   precession. Default is [].
     %            'IsGood' - An array of logical flags indicating if to add
     %                   airmass for the specific image.
     %                   If empty, them true for all image.
@@ -54,6 +57,7 @@ function [Result, AirMass] = addAirMass(AI, Args)
 
     arguments
         AI
+        Args.EquinoxJD         = [];
         Args.IsGood            = [];
         Args.ColAM             = 'AIRMASS'
         Args.JD                = [];
@@ -72,6 +76,8 @@ function [Result, AirMass] = addAirMass(AI, Args)
         Args.UseDict           = false;
         Args.CreateNewObj      = false;
     end
+    RAD = 180./pi;
+
     Nlevel = numel(Args.HealpixLevel);
 
     if Args.CreateNewObj
@@ -118,9 +124,13 @@ function [Result, AirMass] = addAirMass(AI, Args)
     
             % Calculate AirMass
             Coo = Cat.getColMulti(Args.ColCoo).*Conv;  % read RA, Dec and convert to radians
-            AirMass = celestial.coo.airmass(Args.JD(Iai), Coo(:,1), Coo(:,2), Args.GeoPos);
-    
-            %[~,~,AirMass] = celestial.coo.radec2azalt(Args.JD(Iai), Coo(:,1), Coo(:,2), Args.GeoPos, 'InUnits','rad', 'OutEquinoxJD',Args.JD(Iai));
+            if isempty(Args.EquinoxJD)
+                AirMass = celestial.coo.airmass(Args.JD(Iai), Coo(:,1), Coo(:,2), Args.GeoPos);
+            else
+                % precess coordinates from J2000 to Equinox of date:
+                [~,~,AirMass] = celestial.coo.radec2azalt(Args.JD(Iai), Coo(:,1), Coo(:,2), 'GeoCoo',Args.GeoPos.*RAD, 'InUnits','rad', 'OutEquinoxJD',Args.EquinoxJD);
+            end
+            
 
 
             % insert airmass to catalog

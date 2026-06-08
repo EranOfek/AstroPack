@@ -1,8 +1,13 @@
 function [Result, AirMass] = addAirMass(AI, Args)
     % Add/update airmass keyword to AstroImage header based on time and position.
+    %   Note that if Precess is true then the function works
+    %   only if all the images were taken at the same time.
     %   Optionally also add healpix information.
     % Input  : - An AstroImage object.
     %          * ...,key,val,... 
+    %            'EquinoxJD' - Scalar JD of the output Equinox.
+    %                   If empty, then do not precess.
+    %                   Default is [].
     %            'KeyAM' - Header keyword name in which to store (or
     %                   replace) the calculated airmass.
     %            'JD' - A vector/scalar of JD (one per image, or scalar) to
@@ -50,6 +55,7 @@ function [Result, AirMass] = addAirMass(AI, Args)
 
     arguments
         AI
+        Args.EquinoxJD         = []; 
         Args.KeyAM             = 'AIRMASS'
         Args.JD                = [];
         Args.KeyJD             = 'MIDJD';
@@ -67,6 +73,8 @@ function [Result, AirMass] = addAirMass(AI, Args)
         Args.UseDict           = false;
         Args.CreateNewObj      = false;
     end
+    RAD = 180./pi;
+
     Nlevel = numel(Args.HealpixLevel);
 
     if Args.CreateNewObj
@@ -96,7 +104,16 @@ function [Result, AirMass] = addAirMass(AI, Args)
     Args.GeoPos(1:2) = Args.GeoPos(1:2).*Conv; 
     
     % calculate Hardie airmass
-    AirMass = celestial.coo.airmass(Args.JD(:), Args.Coo(:,1), Args.Coo(:,2), Args.GeoPos);
+    if isempty(Args.EquinoxJD)
+        % Neglect precession
+        AirMass = celestial.coo.airmass(Args.JD(:), Args.Coo(:,1), Args.Coo(:,2), Args.GeoPos);
+    else
+        % precess coordinates from J2000 to Equinox of date:
+        [~,~,AirMass] = celestial.coo.radec2azalt(Args.JD(:), Args.Coo(:,1), Args.Coo(:,2), 'GeoCoo',Args.GeoPos.*RAD, 'InUnits','rad', 'OutEquinoxJD',Args.EquinoxJD);
+    end
+    
+    
+
 
     for Iai=1:1:Nai
         

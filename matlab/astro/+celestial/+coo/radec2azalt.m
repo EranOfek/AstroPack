@@ -33,7 +33,7 @@ function [Az, Alt, AM, PA, HA]=radec2azalt(JD, RA, Dec, Args)
         Args.LSTType      = 'a';
 
         Args.OutEquinoxJD = [];
-        Args.InEquinoxJD  = 2451545;
+        Args.InEquinoxJD(1,1)  = 2451545;
     end
     RAD = 180./pi;
 
