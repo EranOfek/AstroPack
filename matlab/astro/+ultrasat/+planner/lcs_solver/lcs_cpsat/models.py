@@ -64,8 +64,11 @@ class SolverConfig:
     num_windows_45: int = 8
     set_c_start_ind: int = 3          # 3 or 1 — anchors Set C and mirrors Set B division
     use_window_index_capacity: bool = True  # v3 filled(k) model vs per-calendar-day
-    use_set_b_division: bool = False  # True when ABC n4 divisibility verified with division table
+    use_set_b_division: bool = False  # True locks B to v3 division table (often over-constrains)
     solve_set_d_separately: bool = True  # stage 2: D into inds_open slack
+    set_a_shifted_group: int = 0       # 0 = no shift; 1..6 = v3 phase-2 shifted group
+    set_a_shift_days: int = 0          # anchor offset for shifted group
+    max_set_a_shift_days: int = 1      # scan budget: try +1..+N day v3 rescue shifts
 
     @classmethod
     def from_dict(cls, data: dict) -> "SolverConfig":
@@ -132,6 +135,12 @@ class SolverConfig:
             kwargs["use_set_b_division"] = data["use_set_b_division"]
         if "solve_set_d_separately" in data:
             kwargs["solve_set_d_separately"] = data["solve_set_d_separately"]
+        if "set_a_shifted_group" in data:
+            kwargs["set_a_shifted_group"] = data["set_a_shifted_group"]
+        if "set_a_shift_days" in data:
+            kwargs["set_a_shift_days"] = data["set_a_shift_days"]
+        if "max_set_a_shift_days" in data:
+            kwargs["max_set_a_shift_days"] = data["max_set_a_shift_days"]
         return cls(**kwargs)
 
 

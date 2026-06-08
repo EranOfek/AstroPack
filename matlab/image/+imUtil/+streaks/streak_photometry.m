@@ -165,7 +165,7 @@ function [phot,extsegs,curve,stripeindices]=...
         
         d2=(sx-px).^2+(sy-py).^2;
         
-        mask = (d2<offside^2);
+        mask = (d2<offside^2) & ~isnan(im);
         
         if strcmpi(Args.clipping,'gaussianfit') || ~Args.ClipTransversePSF
             % do't compute them if not required later
@@ -173,8 +173,8 @@ function [phot,extsegs,curve,stripeindices]=...
             ym=py(mask);
         end
         pp=im(mask);
-        mpp=mean(pp,'omitnan');
-        spp=std(pp,'omitnan');
+        mpp=mean(pp);
+        spp=std(pp);
         hm=[];
         
         % contaminators clipping methods
@@ -228,7 +228,7 @@ function [phot,extsegs,curve,stripeindices]=...
             stripeindices{i}=find(smask);
         end
         
-        phot(i)= numel(pp)* mean(scpp,'omitnan')/Lext;
+        phot(i)= numel(pp)* mean(scpp)/Lext;
         % why not this (which as of now gives results farther from
         %  implanted)?
         %phot(i)=median(scpp)*numel(pp)/Lext;
@@ -256,7 +256,7 @@ function [phot,extsegs,curve,stripeindices]=...
                         scppk=scpp(qs);
                         if ~isempty(scppk)
                             curve(i).linephot(k)=...
-                                numel(ppk)* mean(scppk,'omitnan')/Args.slice_width;
+                                numel(ppk)* mean(scppk)/Args.slice_width;
                         else
                             curve(i).linephot(k)=NaN;
                         end
@@ -306,7 +306,7 @@ function C = weightedParabolicOffset(X1,X2,x,y,W,testplot)
     end
 
     % check that W has no NaNs and exclude them if it has
-    Wnan=find(isnan(W));
+    Wnan=find(isnan(W),1);
     if ~isempty(Wnan)
         W(Wnan)=[];
         x(Wnan)=[];
@@ -351,9 +351,9 @@ function [X,Y]=segmentParabolicOffset(X1,X2,C,t,h1)
     end
 
     L=sqrt((X2-X1)*(X2-X1)');
-    h0= C(1)*t.^2 + C(2)*t + C(3);
-    h=h0;
-    h(~isnan(h1)) = h1(~isnan(h1));
+    h= C(1)*t.^2 + C(2)*t + C(3);
+    q=~isnan(h1);
+    h(q) = h1(q);
     X = X1(1) + (X2(1)-X1(1))*t - (X2(2)-X1(2))*h/L;
     Y = X1(2) + (X2(2)-X1(2))*t + (X2(1)-X1(1))*h/L;
 end

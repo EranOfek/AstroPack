@@ -1,5 +1,6 @@
 function [AirMass,AzAlt,HA]=airmass(JD,RA,Dec,ObsCoo)
 % Airmass from time and object and observer position
+%   Obsolete: use instead: celestial.coo.radec2azalt
 % Package: celestial.coo
 % Description: Given the JD, object celestial coordinates, and observer
 %              Geodetic coordinates, calculating the airmass of the
@@ -21,10 +22,16 @@ function [AirMass,AzAlt,HA]=airmass(JD,RA,Dec,ObsCoo)
 % Reliable: 2
 %--------------------------------------------------------------------------
 
+%RAD = 180./pi;
+
 RA  = celestial.coo.convertdms(RA,'gH','r');
 Dec = celestial.coo.convertdms(Dec,'gD','R');
 
 AzAlt = celestial.coo.horiz_coo([RA, Dec],JD, ObsCoo,'h');   
+
+%[Az, Alt, AM, ParAng]=celestial.coo.radec2azalt(2451545+90,RA,Dec,'GeoCoo',ObsCoo.*RAD);
+
+
 AirMass = celestial.coo.hardie(pi./2 - AzAlt(:,2));
 
 if (nargout>2)

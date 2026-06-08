@@ -5,6 +5,7 @@
 % Created     : 07/06/2026
 % Updated     : 07/06/2026
 % Description : Prepare input files for the LCS CP-SAT Python solver
+% Run by      : ultrasat.planner.prepareLcsSolverInputs()
 % ***************************************************************************
 
 function prepareLcsSolverInputs(Args)
@@ -28,7 +29,7 @@ function prepareLcsSolverInputs(Args)
     %       'LoadCache', false, 'SaveCache', true);
 
     arguments
-        Args.StartDate    = [];     % Campaign start datetime (default: 2029-02-01)
+        Args.StartDate    = [];     % Campaign start datetime (default: 2029-01-05)
         Args.EndDate      = [];     % Campaign end datetime   (default: StartDate + 420 days)
         Args.FieldsFile   = '';     % Path to fields CSV; default: data/LCS_nonoverlapping_grid_surveys.csv
         Args.OutputDir    = '';     % Output folder; default: <this_file>/../data/lcs_solver_inputs/
@@ -50,6 +51,9 @@ function prepareLcsSolverInputs(Args)
     if isempty(Args.CacheFile)
         Args.CacheFile = fullfile(Args.OutputDir, 'lcs_vis_cache.mat');
     end
+    if isempty(Args.StartDate)
+        Args.StartDate = datetime(2029, 1, 5);
+    end
 
     if ~isfolder(Args.OutputDir)
         mkdir(Args.OutputDir);
@@ -70,7 +74,7 @@ function prepareLcsSolverInputs(Args)
         LCS.Cont_visibilty_per_field_1dgap = C.Cont_visibilty_per_field_1dgap;
         LCS.Longest_window_per_field = C.Longest_window_per_field;
         LCS.Longest_window_per_field_1dgap = C.Longest_window_per_field_1dgap;
-        [LCS.All_fields_windows, LCS.All_fields_windows_1dgap, LCS.Longest_window_table] = ...
+        [All_fields_windows, All_fields_windows_1dgap, Longest_window_table] = ...
             buildWindowTablesFromVis(LCS);
     else
         fprintf('[2/4] Computing visibility matrix (this may take several minutes)...\n');
@@ -78,7 +82,7 @@ function prepareLcsSolverInputs(Args)
 
         fprintf('      Computing continuous visibility (v3)...\n');
         LCS.calc_cont_vis_windows_v2();
-        [LCS.All_fields_windows, LCS.All_fields_windows_1dgap, LCS.Longest_window_table] = ...
+        [All_fields_windows, All_fields_windows_1dgap, Longest_window_table] = ...
             buildWindowTablesFromVis(LCS);
 
         if Args.SaveCache
@@ -100,8 +104,8 @@ function prepareLcsSolverInputs(Args)
     exportFieldsCsv(LCS, Args);
     exportParamsJson(LCS, Args);
     exportDailyVisibility(LCS, Args);
-    exportVisibilityWindows(LCS, Args);
-    exportFieldEligibility(LCS, Args);
+    exportVisibilityWindows(All_fields_windows, All_fields_windows_1dgap, Args);
+    exportFieldEligibility(LCS, Longest_window_table, Args);
 
     fprintf('[4/4] Done. Files written to:\n      %s\n', Args.OutputDir);
     listOutputFiles(Args.OutputDir);
@@ -132,7 +136,7 @@ function exportParamsJson(LCS, Args)
     P.start_date            = datestr(LCS.StartDate, 'yyyy-mm-dd');
     P.end_date              = datestr(LCS.EndDate,   'yyyy-mm-dd');
     P.num_days              = LCS.Last_day;
-    P.capacity_last_day     = 8 * LCS.Min_window;  % 8 slots x 45 days = 360-day LCS plan
+    P.capacity_last_day     = 8 * LCS.Min_window;  % 8 windows x 45 days = 360-day LCS plan
     P.first_day             = LCS.First_day;
     P.num_fields            = height(LCS.AllSky);
     P.daily_lcs_slots       = LCS.Daily_LCS_slots;
@@ -160,7 +164,7 @@ function exportParamsJson(LCS, Args)
     P.allow_1dgap           = LCS.Allow1dgap;
     P.set_c_start_ind       = 3;
     P.use_window_index_capacity = true;
-    P.use_set_b_division    = false;
+    P.use_set_b_division    = true;
     P.solve_set_d_separately = true;
 
     JsonStr = jsonencode(P, 'PrettyPrint', true);
@@ -191,20 +195,19 @@ function exportDailyVisibility(LCS, Args)
 end
 
 
-function exportVisibilityWindows(LCS, Args)
+function exportVisibilityWindows(All_fields_windows, All_fields_windows_1dgap, Args)
     % Export strict and 1-day-gap visibility windows
-    ColMap = {'Field','Av_ext','vis_start','vis_end','window'};
     NewNames = {'field_id','avg_extinction','vis_start_day','vis_end_day','window_len_days'};
 
     % Strict windows
-    WStrict = LCS.All_fields_windows;
+    WStrict = All_fields_windows;
     WStrict.Properties.VariableNames = NewNames;
     Dst1 = fullfile(Args.OutputDir, 'lcs_visibility_windows.csv');
     writetable(WStrict, Dst1);
     fprintf('  Wrote lcs_visibility_windows.csv  (%d windows)\n', height(WStrict));
 
     % 1-day-gap merged windows
-    W1gap = LCS.All_fields_windows_1dgap;
+    W1gap = All_fields_windows_1dgap;
     W1gap.Properties.VariableNames = NewNames;
     Dst2 = fullfile(Args.OutputDir, 'lcs_visibility_windows_1dgap.csv');
     writetable(W1gap, Dst2);
@@ -212,14 +215,14 @@ function exportVisibilityWindows(LCS, Args)
 end
 
 
-function exportFieldEligibility(LCS, Args)
+function exportFieldEligibility(LCS, Longest_window_table, Args)
     % Derive hard physical eligibility flags per field (no heuristic set pre-assignment)
     %
     % eligible_abc        : max_window >= min_window AND extinction <= max_ext
     % eligible_long_window: max_window >= max_window_cut (required for Sets B or C)
     % eligible_d          : max_window >= min_window AND extinction >  max_ext
     % use1dgap            : v3 flag — use 1-day-gap visibility for this field
-    Lwpf = LCS.Longest_window_table;
+    Lwpf = Longest_window_table;
 
     EligTable = table();
     EligTable.field_id              = Lwpf.Field;

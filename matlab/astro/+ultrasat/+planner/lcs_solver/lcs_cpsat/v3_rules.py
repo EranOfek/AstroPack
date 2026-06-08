@@ -63,22 +63,38 @@ def set_b_division_table(set_c_start_ind: int) -> List[SetBDivisionRow]:
     ]
 
 
+def set_a_group_anchors(config: SolverConfig) -> List[int]:
+    """
+    Per-group anchor days for Set A (LcsHelper_v3 schedule_SetA_v3 phase 2).
+
+    All groups start at first_day except one optional shifted group.
+    """
+    ref = config.first_day
+    anchors = [ref] * config.set_a_n_groups
+    sg = config.set_a_shifted_group
+    sh = config.set_a_shift_days
+    if 1 <= sg <= config.set_a_n_groups and sh != 0:
+        anchors[sg - 1] = ref + sh
+    return anchors
+
+
 def set_a_slot_calendar(
-    config: SolverConfig, group: int, slot: int, windows_45: Optional[List] = None
+    config: SolverConfig,
+    group: int,
+    slot: int,
+    windows_45: Optional[List] = None,
 ) -> Tuple[int, int, int]:
     """
-    Calendar interval and window index for Set A group g, slot s.
+    Calendar interval and slot index for Set A group g, slot s.
 
-    Groups share the same fixed 45-day window grid (W1..W8); group g is a
-    capacity cohort label. nA(k) counts all groups with slot index k.
+    Uses per-group anchors (v3 phase-2 rescue). Capacity counts by slot index.
 
     :return: (start_day, end_day, window_index)
     """
-    if windows_45 is not None and 1 <= slot <= len(windows_45):
-        w = windows_45[slot - 1]
-        return w.start_day, w.end_day, slot
+    del windows_45  # slot index is the v3 ind; calendar comes from anchors
     l_win = config.min_window_days
-    start = config.first_day + (slot - 1) * l_win
+    anchors = set_a_group_anchors(config)
+    start = anchors[group - 1] + (slot - 1) * l_win
     end = start + l_win - 1
     return start, end, slot
 

@@ -12,12 +12,14 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from .models import SolverConfig, SolverResult
+from .feasibility import build_windows_45
+from .models import SolverConfig, SolverResult, WindowAssignment
 
 
 REQUIRED_FIELDS_COLUMNS = {"field_id", "ra", "dec", "A_U"}
@@ -157,6 +159,102 @@ def write_solver_summary(summary: dict, out_dir: Path) -> Path:
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(summary, fh, indent=2)
     return out_path
+
+
+def _campaign_day_to_date(config: SolverConfig, day: int) -> str:
+    """Convert a 1-based campaign day to an ISO date string."""
+    anchor = datetime.strptime(config.start_date, "%Y-%m-%d")
+    return (anchor + timedelta(days=day - 1)).date().isoformat()
+
+
+def _assignment_to_v3_row(item: WindowAssignment, config: SolverConfig) -> dict:
+    """Map one WindowAssignment to LcsHelper_v3 schedule.csv columns."""
+    if item.category == "A":
+        category = "A"
+        group = item.group_id
+        ind = item.window_index
+    elif item.category == "B":
+        category = item.notes or "B"
+        group = item.group_id
+        ind = item.cadence_ind
+    elif item.category == "C":
+        category = "C"
+        group = item.group_id
+        ind = item.cadence_ind
+    else:
+        category = "D"
+        group = item.group_id
+        ind = item.cadence_ind or item.window_index
+
+    return {
+        "category": category,
+        "group": group,
+        "ind": ind,
+        "start": item.start_day,
+        "end": item.end_day,
+        "Field": item.field_id,
+        "start_date": _campaign_day_to_date(config, item.start_day),
+        "end_date": _campaign_day_to_date(config, item.end_day),
+    }
+
+
+def write_v3_schedule(result: SolverResult, out_dir: Path) -> Path:
+    """Write schedule.csv in LcsHelper_v3 column layout."""
+    rows = [_assignment_to_v3_row(item, result.config) for item in result.window_assignments]
+    out_path = out_dir / "schedule.csv"
+    pd.DataFrame(rows).to_csv(out_path, index=False)
+    return out_path
+
+
+def write_v3_full_windows(result: SolverResult, out_dir: Path) -> Path:
+    """Write full_windows.csv matching validate_LcsHelper_v3 output."""
+    windows = build_windows_45(result.config)
+    rows = [
+        {
+            "start": w.start_day,
+            "end": w.end_day,
+            "start_date": _campaign_day_to_date(result.config, w.start_day),
+            "end_date": _campaign_day_to_date(result.config, w.end_day),
+        }
+        for w in windows
+    ]
+    out_path = out_dir / "full_windows.csv"
+    pd.DataFrame(rows).to_csv(out_path, index=False)
+    return out_path
+
+
+def write_v3_daily_schedule(result: SolverResult, out_dir: Path) -> Path:
+    """Write daily_schedule.csv as day x slot matrix (LcsHelper_v3 layout)."""
+    config = result.config
+    num_days = config.last_day - config.first_day + 1
+    num_slots = config.daily_capacity
+    slot_cols = [f"slot_{i}" for i in range(1, num_slots + 1)]
+
+    day_slots: Dict[int, Dict[int, int]] = {
+        day: {} for day in range(config.first_day, config.last_day + 1)
+    }
+    for obs in result.daily_observations:
+        day_slots[obs.day][obs.slot_index] = obs.field_id
+
+    rows: List[dict] = []
+    for day in range(config.first_day, config.last_day + 1):
+        row = {"day": day, "date": _campaign_day_to_date(config, day)}
+        for slot_idx, col in enumerate(slot_cols, start=1):
+            row[col] = day_slots[day].get(slot_idx, "")
+        rows.append(row)
+
+    out_path = out_dir / "daily_schedule_v3.csv"
+    pd.DataFrame(rows).to_csv(out_path, index=False)
+    return out_path
+
+
+def write_v3_outputs(result: SolverResult, out_dir: Path) -> dict:
+    """Write all LcsHelper_v3-compatible CSV artifacts."""
+    return {
+        "schedule": write_v3_schedule(result, out_dir),
+        "full_windows": write_v3_full_windows(result, out_dir),
+        "daily_schedule_v3": write_v3_daily_schedule(result, out_dir),
+    }
 
 
 def default_input_paths(base_dir: Path) -> dict:

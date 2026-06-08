@@ -22,13 +22,14 @@ from lcs_cpsat.v3_rules import (
 
 
 def test_set_a_shared_windows():
-    from lcs_cpsat.feasibility import build_windows_45
-
-    config = SolverConfig(first_day=1, set_a_n_groups=6, set_a_fields_per_group=8)
-    windows = build_windows_45(config)
-    s1, _, _ = set_a_slot_calendar(config, 1, 1, windows)
-    s2, _, _ = set_a_slot_calendar(config, 2, 1, windows)
-    assert s1 == s2 == 1
+    config = SolverConfig(
+        first_day=1, set_a_n_groups=6, set_a_fields_per_group=8,
+        set_a_shifted_group=1, set_a_shift_days=1,
+    )
+    s1, _, _ = set_a_slot_calendar(config, 1, 1)
+    s2, _, _ = set_a_slot_calendar(config, 2, 1)
+    assert s1 == 2
+    assert s2 == 1
 
 
 def test_set_b_division_mirror():
