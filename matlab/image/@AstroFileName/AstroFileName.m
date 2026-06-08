@@ -3174,7 +3174,7 @@ classdef AstroFileName < Component
                 % selectBy keys - do not modify the input object
                 for Iks=1:1:Nks
                     if ~isempty(Args.(KEYS_SELECT{Iks}))
-                        Obj = Obj.selectBy(KEYS_SELECT{Iks}, Args.(KEYS_SELECT{Iks}), 'CreateNewObj',true, 'SelectNotVal',false);
+                        Obj = Obj.selectByPropVal(KEYS_SELECT{Iks}, Args.(KEYS_SELECT{Iks}), 'CreateNewObj',true, 'SelectNot',false);
                     end
                 end
 
