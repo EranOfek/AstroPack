@@ -177,6 +177,11 @@ def _build_abc_model(
     b_daily: Dict[Tuple[int, int], cp_model.IntVar] = {}
     b_sparse: Dict[Tuple[int, int], cp_model.IntVar] = {}
     b_row: Dict[Tuple[int, int], cp_model.IntVar] = {}
+    # Non-division mode: a Set B field must occupy one consecutive 135-day block
+    # B_k = (W_k, W_{k+1}, W_{k+2}).  b_block[(f, k)] selects that block; the
+    # windows actually used are then forced to be exactly the block's 3 windows.
+    b_block: Dict[Tuple[int, int], cp_model.IntVar] = {}
+    b_block_windows: Dict[int, Set[int]] = {}
 
     if config.use_set_b_division and config.set_b_count > 0:
         for f in feasibility.feasible_b:
@@ -203,10 +208,19 @@ def _build_abc_model(
                 b_sparse[(f, w)] = model.NewBoolVar(f"b_sparse_{f}_{w}")
     elif config.set_b_count > 0:
         for f, wins in feasibility.feasible_b.items():
-            if len(wins) < 3:
+            # Only consecutive 135-day blocks the field continuously covers are
+            # allowed (v4 Set B geometry).  Skip fields with no feasible block.
+            blocks = sorted(feasibility.feasible_block.get(f, set()))
+            if not blocks:
                 continue
+            block_wins: Set[int] = set()
+            for k in blocks:
+                block_wins.update((k, k + 1, k + 2))
+            b_block_windows[f] = block_wins
             b_sel[f] = model.NewBoolVar(f"b_sel_{f}")
-            for w in wins:
+            for k in blocks:
+                b_block[(f, k)] = model.NewBoolVar(f"b_block_{f}_{k}")
+            for w in sorted(block_wins):
                 b_daily[(f, w)] = model.NewBoolVar(f"b_daily_{f}_{w}")
                 b_sparse[(f, w)] = model.NewBoolVar(f"b_sparse_{f}_{w}")
 
@@ -310,7 +324,7 @@ def _build_abc_model(
                 model.Add(sum(row_terms) == 1)
     else:
         for f, sel in b_sel.items():
-            wins = feasibility.feasible_b[f]
+            wins = sorted(b_block_windows.get(f, set()))
             daily_terms = [b_daily[(f, w)] for w in wins if (f, w) in b_daily]
             sparse_terms = [b_sparse[(f, w)] for w in wins if (f, w) in b_sparse]
             model.Add(sum(daily_terms) == sel)
@@ -318,6 +332,21 @@ def _build_abc_model(
             for w in wins:
                 if (f, w) in b_daily:
                     model.Add(b_daily[(f, w)] + b_sparse[(f, w)] <= 1)
+
+            # Exactly one consecutive block is chosen iff the field is selected.
+            block_terms = [b_block[(f, k)] for k in range(1, len(windows_45) - 1) if (f, k) in b_block]
+            model.Add(sum(block_terms) == sel)
+
+            # When block k is chosen, all three of its windows must be active
+            # (one daily + two sparse).  Combined with the counts above this
+            # forces the field onto exactly the consecutive triple (W_k,W_k+1,W_k+2),
+            # i.e. a 135-day span — the v4 Set B requirement.
+            for k in range(1, len(windows_45) - 1):
+                if (f, k) not in b_block:
+                    continue
+                for w in (k, k + 1, k + 2):
+                    if (f, w) in b_daily:
+                        model.Add(b_daily[(f, w)] + b_sparse[(f, w)] >= b_block[(f, k)])
 
     # ---- Set C: 16 fields, 8 per super-window ----
     if c_vars and config.set_c_count > 0:

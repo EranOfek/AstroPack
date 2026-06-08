@@ -24,7 +24,7 @@ from typing import Dict, List, Optional
 import pandas as pd
 
 from .io import (
-    write_daily_schedule,
+    write_daily_observations,
     write_schedule_windows,
     write_solver_summary,
     write_validation_report,
@@ -318,7 +318,7 @@ def scan_lcs_plans(
                 plan_dir = out_dir / plan_dir_name
                 plan_dir.mkdir(parents=True, exist_ok=True)
                 write_schedule_windows(result, plan_dir)
-                write_daily_schedule(result, plan_dir)
+                write_daily_observations(result, plan_dir)
                 write_v3_outputs(result, plan_dir)
                 report_df = validate_schedule(result)
                 write_validation_report(report_df, plan_dir)

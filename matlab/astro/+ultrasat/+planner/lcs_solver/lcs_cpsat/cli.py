@@ -22,7 +22,7 @@ from pathlib import Path
 from .io import (
     default_input_paths,
     load_inputs,
-    write_daily_schedule,
+    write_daily_observations,
     write_schedule_windows,
     write_solver_summary,
     write_validation_report,
@@ -76,7 +76,7 @@ def main(argv: list | None = None) -> int:
     # Write both Python-native and MATLAB/v3-compatible outputs so the same run
     # can be inspected by humans and compared against helper-generated plans.
     write_schedule_windows(result, args.out)
-    write_daily_schedule(result, args.out)
+    write_daily_observations(result, args.out)
     write_v3_outputs(result, args.out)
     report_df = validate_schedule(result)
     write_validation_report(report_df, args.out)
