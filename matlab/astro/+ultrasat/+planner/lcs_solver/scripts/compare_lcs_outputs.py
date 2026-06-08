@@ -8,7 +8,16 @@
 # Description : Compare helper scan outputs with CP-SAT solver outputs
 # ***************************************************************************
 
-"""Compare two LCS scan output folders and write LLM-friendly reports."""
+"""Compare two LCS scan output folders and write LLM-friendly reports.
+
+The comparison has two levels:
+
+* fast mode compares which dates have success folders / feasible index rows;
+* detailed mode compares the per-date observation content and summary shapes.
+
+The reports are deliberately plain CSV/JSON/text so another engineer or LLM can
+use them during solver-fixing iterations.
+"""
 
 from __future__ import annotations
 
@@ -24,6 +33,7 @@ FEASIBLE = {"FEASIBLE", "OPTIMAL"}
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse helper-folder, solver-folder, and report-output arguments."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("helper_folder", type=Path)
     parser.add_argument("solver_folder", type=Path)
@@ -33,6 +43,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Compare two scan output trees and write summary/detail reports."""
     args = parse_args(argv)
     helper = args.helper_folder.resolve()
     solver = args.solver_folder.resolve()
@@ -41,6 +52,9 @@ def main(argv: list[str] | None = None) -> int:
 
     helper_index = read_index(helper)
     solver_index = read_index(solver)
+    # The fast comparison is based on dates only.  It is cheap and catches the
+    # biggest mismatch first: one side thinks a date is feasible and the other
+    # side does not.
     helper_dates = discover_success_dates(helper, helper_index)
     solver_dates = discover_success_dates(solver, solver_index)
 
@@ -66,6 +80,8 @@ def main(argv: list[str] | None = None) -> int:
             "detail": "",
         }
         if not args.skip_details and plan_date in common_dates:
+            # Detailed comparison is only meaningful when both sides have a
+            # success folder for the same date.
             detail = compare_date_outputs(helper, solver, plan_date)
             row.update(detail)
         rows.append(row)
@@ -95,6 +111,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def read_index(folder: Path) -> dict[str, dict[str, str]]:
+    """Read lcs_plan_index.csv into a date-keyed dictionary."""
     path = folder / "lcs_plan_index.csv"
     if not path.exists():
         return {}
@@ -103,6 +120,7 @@ def read_index(folder: Path) -> dict[str, dict[str, str]]:
 
 
 def discover_success_dates(folder: Path, index: dict[str, dict[str, str]]) -> set[str]:
+    """Find feasible dates from index rows and yyyy-mm-dd/success folders."""
     dates = {
         date
         for date, row in index.items()
@@ -116,10 +134,12 @@ def discover_success_dates(folder: Path, index: dict[str, dict[str, str]]) -> se
 
 
 def is_feasible(status: object) -> bool:
+    """Return True for statuses considered successful by helper or solver."""
     return str(status).upper() in FEASIBLE
 
 
 def int_or_zero(value: object) -> int:
+    """Parse numeric CSV values defensively, using zero for blanks/bad values."""
     try:
         return int(float(str(value)))
     except (TypeError, ValueError):
@@ -127,6 +147,7 @@ def int_or_zero(value: object) -> int:
 
 
 def fast_relation(plan_date: str, helper_dates: set[str], solver_dates: set[str]) -> str:
+    """Classify date-level agreement before reading heavy per-date content."""
     if plan_date in helper_dates and plan_date in solver_dates:
         return "match_success_folder"
     if plan_date in helper_dates:
@@ -137,6 +158,7 @@ def fast_relation(plan_date: str, helper_dates: set[str], solver_dates: set[str]
 
 
 def compare_date_outputs(helper: Path, solver: Path, plan_date: str) -> dict[str, str]:
+    """Compare detailed per-date outputs for one date present on both sides."""
     h_dir = helper / plan_date / "success"
     s_dir = solver / plan_date / "success"
     details: list[str] = []
@@ -145,6 +167,8 @@ def compare_date_outputs(helper: Path, solver: Path, plan_date: str) -> dict[str
     h_obs = read_observation_rows(find_plan_csv(h_dir, plan_date))
     s_obs = read_observation_rows(find_plan_csv(s_dir, plan_date))
     if h_obs != s_obs:
+        # Observation rows are compared as sets of (datetime, field_id).  This
+        # ignores CSV row order but still catches missing or extra observations.
         relation = "content_mismatch"
         details.append(f"observation_rows helper={len(h_obs)} solver={len(s_obs)} intersection={len(h_obs & s_obs)}")
 
@@ -169,6 +193,7 @@ def compare_date_outputs(helper: Path, solver: Path, plan_date: str) -> dict[str
 
 
 def find_plan_csv(plan_dir: Path, plan_date: str) -> Path:
+    """Find the primary lcs_plan_YYYYMMDD.csv in a success folder."""
     stamp = plan_date.replace("-", "")
     preferred = plan_dir / f"lcs_plan_{stamp}.csv"
     if preferred.exists():
@@ -178,6 +203,7 @@ def find_plan_csv(plan_dir: Path, plan_date: str) -> Path:
 
 
 def read_observation_rows(path: Path) -> set[tuple[str, str]]:
+    """Read observation timestamp/field pairs from a plan CSV."""
     if not path.exists():
         return set()
     with path.open(newline="", encoding="utf-8-sig") as f:
@@ -189,6 +215,7 @@ def read_observation_rows(path: Path) -> set[tuple[str, str]]:
 
 
 def daily_shape_and_count(path: Path) -> dict[str, int]:
+    """Return daily_schedule shape and observed slot count for comparison."""
     if not path.exists():
         return {"rows": 0, "slots": 0, "observed": 0}
     with path.open(newline="", encoding="utf-8-sig") as f:
@@ -203,12 +230,14 @@ def daily_shape_and_count(path: Path) -> dict[str, int]:
 
 
 def read_json(path: Path) -> dict[str, Any]:
+    """Read a JSON file, returning an empty dict when it is absent."""
     if not path.exists():
         return {}
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
+    """Write a list of dictionaries as CSV with stable header order."""
     if not rows:
         path.write_text("", encoding="utf-8")
         return
@@ -219,6 +248,7 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def write_text_report(path: Path, summary: dict[str, Any], rows: list[dict[str, Any]]) -> None:
+    """Write a concise human-readable mismatch report."""
     lines = [
         "LCS output comparison",
         f"helper_folder: {summary['helper_folder']}",

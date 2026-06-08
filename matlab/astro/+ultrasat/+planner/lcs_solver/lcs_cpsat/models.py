@@ -7,7 +7,13 @@
 # Description : Data models for the LCS CP-SAT solver
 # ***************************************************************************
 
-"""Data models for the LCS CP-SAT solver."""
+"""Data models for the LCS CP-SAT solver.
+
+The rest of the package passes these dataclasses around instead of loose
+dictionaries.  That makes the solver easier to read: configuration, feasibility
+maps, selected assignments, daily observations, and final results each have one
+well-defined shape.
+"""
 
 from __future__ import annotations
 
@@ -33,7 +39,12 @@ class WindowDef:
 
 @dataclass
 class SolverConfig:
-    """Campaign parameters and CP-SAT solver settings."""
+    """Campaign parameters and CP-SAT solver settings.
+
+    Most fields are direct translations of the MATLAB LCS helper constants.
+    CP-SAT itself only sees these values after solver.py turns them into
+    variables, constraints, and objective terms.
+    """
 
     first_day: int = 1
     last_day: int = 420
@@ -79,6 +90,8 @@ class SolverConfig:
         :return: SolverConfig with MATLAB key names mapped to Python fields
         """
         # Map Python field names to keys in lcs_params.json
+        # The exported JSON uses MATLAB names.  Keeping the mapping explicit
+        # avoids hiding naming differences behind dynamic attribute tricks.
         mapping = {
             "first_day": "first_day",
             "last_day": "num_days",
@@ -146,7 +159,12 @@ class SolverConfig:
 
 @dataclass
 class FeasibilityMaps:
-    """Precomputed (field, window) feasibility used to prune CP-SAT variables."""
+    """Precomputed (field, window) feasibility used to prune CP-SAT variables.
+
+    These maps are a major performance step.  If a field cannot cover a window,
+    solver.py never creates the corresponding BoolVar, so CP-SAT has fewer
+    decisions to search over.
+    """
 
     windows_45: List[WindowDef]
     windows_135: List[Tuple[int, int, int]]  # (span_idx, start_day, end_day)
@@ -166,7 +184,11 @@ class FeasibilityMaps:
 
 @dataclass
 class WindowAssignment:
-    """One field assigned to a time window in a specific set (A/B/C/D)."""
+    """One field assigned to a time window in a specific set (A/B/C/D).
+
+    This is the normalized internal schedule row.  I/O code later converts it
+    either to solver-native CSVs or to the v3 MATLAB-style schedule CSV.
+    """
 
     category: str           # A, B, C, or D
     field_id: int
@@ -181,7 +203,11 @@ class WindowAssignment:
 
 @dataclass
 class DailyObservation:
-    """One target observation on a campaign day and LCS slot."""
+    """One target observation on a campaign day and LCS slot.
+
+    Window assignments are compact, but final plans need actual per-day slots.
+    solver.build_daily_observations expands assignments into this row type.
+    """
 
     day: int
     slot_index: int         # 1..11 within the daily LCS window
@@ -192,7 +218,11 @@ class DailyObservation:
 
 @dataclass
 class SolverResult:
-    """Complete output from one CP-SAT solve run."""
+    """Complete output from one CP-SAT solve run.
+
+    The result deliberately keeps both raw inputs and derived feasibility maps
+    so validation can explain why a selected assignment is or is not legal.
+    """
 
     status: str             # OPTIMAL, FEASIBLE, INFEASIBLE, ...
     objective_value: Optional[float]

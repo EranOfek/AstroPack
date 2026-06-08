@@ -8,7 +8,12 @@
 # Description : Standalone CP-SAT yearly scan writer
 # ***************************************************************************
 
-"""Scan a full calendar year with the CP-SAT LCS solver."""
+"""Scan a full calendar year with the CP-SAT LCS solver.
+
+This is a convenience wrapper around lcs_cpsat.scanner.scan_lcs_plans.  It sets
+year-based defaults so users can run a full 2029 scan without remembering the
+lower-level scan-start/scan-end paths.
+"""
 
 from __future__ import annotations
 
@@ -24,22 +29,27 @@ from lcs_cpsat.scanner import FEASIBLE_STATUSES, scan_lcs_plans
 
 
 def _solver_dir() -> Path:
+    """Return the lcs_solver root directory."""
     return Path(__file__).resolve().parents[1]
 
 
 def _planner_dir() -> Path:
+    """Return the planner package directory that owns data/lcs_solver_inputs."""
     return Path(__file__).resolve().parents[2]
 
 
 def _default_input_dir() -> Path:
+    """Return the default MATLAB-exported solver input directory."""
     return _planner_dir() / "data" / "lcs_solver_inputs"
 
 
 def _default_output_dir(year: int) -> Path:
+    """Return the default output folder for a yearly CP-SAT scan."""
     return _solver_dir() / "output" / "scans" / str(year)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse yearly scan command-line arguments."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--year", type=int, default=2029)
     parser.add_argument("--scan-start", default=None)
@@ -52,9 +62,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run a CP-SAT scan for a year or explicit date range."""
     args = parse_args(argv)
     input_dir = args.input_dir or _default_input_dir()
     out_dir = args.out or _default_output_dir(args.year)
+    # The default scan range is the complete calendar year, but explicit dates
+    # are allowed for smoke tests or partial reruns.
     scan_start = args.scan_start or f"{args.year:04d}-01-01"
     scan_end = args.scan_end or f"{args.year:04d}-12-31"
 
@@ -66,6 +79,8 @@ def main(argv: list[str] | None = None) -> int:
 
     missing = [p for p in [fields, windows, windows_1dgap, elig, config] if not p.exists()]
     if missing:
+        # The solver cannot derive visibility itself; MATLAB must export these
+        # tables first.
         raise FileNotFoundError(
             "Missing CP-SAT input files; prepare solver inputs first: "
             + ", ".join(str(p) for p in missing)
@@ -83,6 +98,8 @@ def main(argv: list[str] | None = None) -> int:
         max_set_a_shift_days=args.max_set_a_shift_days,
     )
 
+    # write_full_outputs=True creates per-date success folders comparable to
+    # helper scan outputs, which makes later v3/v4/solver comparisons possible.
     index_df = scan_lcs_plans(
         fields_df,
         windows_df,

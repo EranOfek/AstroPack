@@ -7,7 +7,12 @@
 # Description : LcsHelper_v3 scheduling rules (geometry, division table, capacity)
 # ***************************************************************************
 
-"""LcsHelper_v3 scheduling rules shared by solver and validation."""
+"""LcsHelper_v3 scheduling rules shared by solver and validation.
+
+This file keeps the MATLAB v3 scheduling arithmetic in small Python helpers.
+The solver uses these helpers while building constraints, and validation uses
+the same helpers to re-check the result after solving.
+"""
 
 from __future__ import annotations
 
@@ -18,6 +23,8 @@ from .models import SolverConfig, WindowAssignment, WindowDef
 
 
 # Set B division table from LcsHelper_v3.local_setB_division (SetC_start_ind == 3)
+# Each row says where one Set B field gets its one daily 45-day block and its
+# two sparse 45-day blocks.  The table is mirrored when SetC_start_ind == 1.
 SETB_W45_BASE = [1, 1, 1, 1, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8]
 SETB_W90_1_BASE = [2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 7, 7, 6, 6, 6, 6]
 SETB_W90_2_BASE = [3, 3, 3, 3, 4, 4, 2, 2, 4, 4, 8, 8, 8, 8, 7, 7]
@@ -52,6 +59,8 @@ def set_b_division_table(set_c_start_ind: int) -> List[SetBDivisionRow]:
     if set_c_start_ind == 3:
         w45, w90_1, w90_2 = SETB_W45_BASE, SETB_W90_1_BASE, SETB_W90_2_BASE
     elif set_c_start_ind == 1:
+        # MATLAB mirrors the base table across the eight 45-day windows using
+        # 9 - window_index, so W1 becomes W8, W2 becomes W7, and so on.
         w45 = [9 - x for x in SETB_W45_BASE]
         w90_1 = [9 - x for x in SETB_W90_1_BASE]
         w90_2 = [9 - x for x in SETB_W90_2_BASE]
@@ -74,6 +83,8 @@ def set_a_group_anchors(config: SolverConfig) -> List[int]:
     sg = config.set_a_shifted_group
     sh = config.set_a_shift_days
     if 1 <= sg <= config.set_a_n_groups and sh != 0:
+        # Only one Set A group is shifted in a branch.  The outer solver loop
+        # tries possible shifts when the no-shift geometry is infeasible.
         anchors[sg - 1] = ref + sh
     return anchors
 
@@ -133,6 +144,8 @@ def sparse_days_for_ind(
     phase = cadence_ind % cadence
     days: Set[int] = set()
     for day in range(start_day, end_day + 1):
+        # This is the exact v3 sparse cadence rule.  It is used for B_90 and C
+        # when expanding compact window assignments into daily observations.
         if (day - start_day + 1) % cadence == phase:
             days.add(day)
     return days
@@ -158,6 +171,8 @@ def compute_window_occupancy(
     start_to_ind = {w.start_day: w.index for w in windows_45}
 
     for item in assignments:
+        # Count each selected assignment in the 45-day index where it consumes
+        # capacity.  Long Set C rows cover three consecutive 45-day indices.
         if item.category == "A":
             k = item.window_index
             if 1 <= k <= n_inds:
@@ -183,6 +198,8 @@ def compute_window_occupancy(
 
     n4 = [n_b90[i] + n_c[i] for i in range(n_inds)]
     divisibility_ok = all(v % 4 == 0 for v in n4)
+    # Sparse rows are interleaved across four cadence phases, so four sparse
+    # rows consume one daily slot in the v3 filled(k) accounting.
     filled = [
         n_a[i] + n_b45[i] + n4[i] / 4.0
         for i in range(n_inds)

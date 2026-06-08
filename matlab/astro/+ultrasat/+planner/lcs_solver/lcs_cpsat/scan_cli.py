@@ -7,7 +7,11 @@
 # Description : CLI for scanning LCS plan start dates over a date range
 # ***************************************************************************
 
-"""CLI for scanning LCS plan start dates over a date range."""
+"""CLI for scanning LCS plan start dates over a date range.
+
+This entry point is a package-level scanner.  The standalone script in
+scripts/scan_cpsat_year.py wraps the same scanner with year-oriented defaults.
+"""
 
 from __future__ import annotations
 
@@ -19,6 +23,7 @@ from .scanner import scan_lcs_plans
 
 
 def parse_args(argv: list | None = None) -> argparse.Namespace:
+    """Parse command-line arguments for a date-range scan."""
     base_dir = Path(__file__).resolve().parent.parent
     defaults = default_input_paths(base_dir)
 
@@ -43,8 +48,11 @@ def parse_args(argv: list | None = None) -> argparse.Namespace:
 
 
 def main(argv: list | None = None) -> int:
+    """Load inputs, run the date scan, print a short summary, and exit."""
     args = parse_args(argv)
 
+    # The scanner recomputes per-date eligibility, but it still needs the broad
+    # input tables exported by MATLAB as its source of visibility truth.
     fields_df, windows_df, eligibility_df, config, _, windows_1dgap_df = load_inputs(
         args.fields,
         args.windows,
@@ -53,6 +61,7 @@ def main(argv: list | None = None) -> int:
         windows_1dgap_path=args.windows_1dgap,
     )
 
+    # scan_lcs_plans writes lcs_plan_index.csv and optional per-date outputs.
     index_df = scan_lcs_plans(
         fields_df,
         windows_df,

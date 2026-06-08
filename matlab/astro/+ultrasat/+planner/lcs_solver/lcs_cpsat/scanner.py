@@ -7,7 +7,12 @@
 # Description : Scan candidate LCS plan start dates and write per-plan CSV outputs
 # ***************************************************************************
 
-"""Scan candidate LCS plan start dates and write per-plan CSV outputs."""
+"""Scan candidate LCS plan start dates and write per-plan CSV outputs.
+
+The single-plan solver works in campaign-day coordinates.  The scanner repeats
+that solve for many calendar start dates by converting each date into the
+corresponding campaign-day offset, then writes an index of feasible starts.
+"""
 
 from __future__ import annotations
 
@@ -35,10 +40,12 @@ FEASIBLE_STATUSES = {"OPTIMAL", "FEASIBLE"}
 
 
 def _parse_iso_date(value: str) -> date:
+    """Parse an ISO yyyy-mm-dd string into a date object."""
     return date.fromisoformat(value)
 
 
 def _day_offset_from_ref(plan_start: date, ref_date: date) -> int:
+    """Convert a calendar start date into the solver's 1-based day number."""
     return (plan_start - ref_date).days + 1
 
 
@@ -47,6 +54,7 @@ def _obs_datetime(
     obs: DailyObservation,
     config: SolverConfig,
 ) -> datetime:
+    """Convert a daily observation into an absolute UTC observation timestamp."""
     day_offset = timedelta(days=obs.day - 1)
     slot_seconds = (obs.slot_index - 1) * config.slot_time_days * 86400.0
     window_seconds = config.daily_window_start_time_seconds
@@ -57,14 +65,17 @@ def _obs_datetime(
 
 
 def _plan_filename(plan_start: date) -> str:
+    """Return the compact per-plan CSV filename used by yearly scans."""
     return f"lcs_plan_{plan_start.strftime('%Y%m%d')}.csv"
 
 
 def _plan_dir_name(plan_start: date) -> str:
+    """Return the helper-compatible success folder name for full outputs."""
     return f"{plan_start.isoformat()}/success"
 
 
 def write_plan_csv(result: SolverResult, plan_start: date, out_path: Path) -> int:
+    """Write the minimal observation-time CSV for one feasible scanned plan."""
     anchor = _parse_iso_date(result.config.start_date)
     rows = []
     for obs in result.daily_observations:
@@ -82,6 +93,7 @@ def write_plan_csv(result: SolverResult, plan_start: date, out_path: Path) -> in
 
 
 def _iter_scan_dates(scan_start: date, scan_end: date) -> List[date]:
+    """Return every calendar date in the inclusive scan range."""
     dates = []
     current = scan_start
     while current <= scan_end:
@@ -96,6 +108,7 @@ def _max_clipped_window_by_field(
     first_day: int,
     last_day: int,
 ) -> Dict[int, int]:
+    """Return each field's longest visibility window after horizon clipping."""
     max_by_field = {field_id: 0 for field_id in field_ids}
     for _, row in windows_df.iterrows():
         field_id = int(row["field_id"])
@@ -125,6 +138,8 @@ def build_v3_category_eligibility(
         int(row["field_id"]): float(row["A_U"])
         for _, row in fields_df.iterrows()
     }
+    # For a scan, visibility must be evaluated inside the shifted 420-day
+    # horizon of the candidate plan start, not the original export horizon.
     max_strict = _max_clipped_window_by_field(
         windows_df, field_ids, config.first_day, config.last_day
     )
@@ -136,6 +151,8 @@ def build_v3_category_eligibility(
         )
 
     use1gap = {field_id: False for field_id in field_ids}
+    # First build the low-extinction pool with strict visibility.  If there are
+    # not enough fields, v3 permits one-day-gap merged windows as a rescue.
     low_ext = {
         field_id
         for field_id in field_ids
@@ -171,6 +188,8 @@ def build_v3_category_eligibility(
                 use1gap[field_id] = True
 
     long_sorted = sorted(long_low_ext, key=lambda fid: (au_by_field[fid], fid))
+    # V3 partitions long low-extinction fields by extinction rank: early fields
+    # go to B, next fields go to C, and the remaining long fields can feed A.
     set_b = set(long_sorted[: config.set_b_count])
     set_c = set(long_sorted[config.set_b_count : config.set_b_count + config.set_c_count])
     long_leftover = set(long_sorted[config.set_b_count + config.set_c_count :])
@@ -222,7 +241,7 @@ def scan_lcs_plans(
     windows_1dgap_df: Optional[pd.DataFrame] = None,
     write_full_outputs: bool = False,
 ) -> pd.DataFrame:
-    """Scan daily plan start dates; tries SetC_start_ind 3 then 1 per date."""
+    """Scan daily plan start dates and write an index plus feasible plan files."""
     out_dir.mkdir(parents=True, exist_ok=True)
     ref_date = _parse_iso_date(config.start_date)
     scan_start = _parse_iso_date(scan_start_date)
@@ -237,6 +256,7 @@ def scan_lcs_plans(
     )
 
     for plan_start in _iter_scan_dates(scan_start, scan_end):
+        # Shift the solver horizon so day 1 is the candidate plan start.
         first_day = _day_offset_from_ref(plan_start, ref_date)
         last_plan_day = first_day + PLAN_DURATION_DAYS - 1
 
@@ -276,6 +296,8 @@ def scan_lcs_plans(
         run_eligibility_df = build_v3_physical_eligibility(
             fields_df, windows_df, windows_1dgap_df, run_config
         )
+        # Each date is an independent solve.  The solver handles Set C branch
+        # attempts and Set A rescue shifts internally.
         result = build_and_solve_with_branching(
             fields_df,
             windows_df,
@@ -285,6 +307,8 @@ def scan_lcs_plans(
         )
 
         if result.status in FEASIBLE_STATUSES:
+            # Minimal output is a timestamp/field CSV plus the yearly index.
+            # Full output additionally writes helper-style per-day folders.
             plan_file = _plan_filename(plan_start)
             plan_path = out_dir / plan_file
             num_obs = write_plan_csv(result, plan_start, plan_path)

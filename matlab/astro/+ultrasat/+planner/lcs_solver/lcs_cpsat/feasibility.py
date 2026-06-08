@@ -7,7 +7,13 @@
 # Description : Precompute feasible field-window assignments for LCS CP-SAT
 # ***************************************************************************
 
-"""Precompute feasible field-window assignments."""
+"""Precompute feasible field-window assignments.
+
+CP-SAT works best when impossible choices are removed before model building.
+This module reads visibility windows and eligibility flags, then produces maps
+such as "field 18 can be used in 45-day windows {1, 2, 3}".  solver.py uses
+those maps to create only meaningful Boolean variables.
+"""
 
 from __future__ import annotations
 
@@ -61,7 +67,7 @@ def _covers_interval(
 def _slack_for_interval(
     vis_start: int, vis_end: int, req_start: int, req_end: int
 ) -> int:
-    """Extra visibility days beyond the required interval (both sides)."""
+    """Extra visibility days beyond the required interval on both sides."""
     return (req_start - vis_start) + (vis_end - req_end)
 
 
@@ -83,6 +89,9 @@ def _feasible_windows_for_field(
     feasible: Set[int] = set()
 
     for idx, req_start, req_end in req_intervals:
+        # A field can have multiple visibility windows.  We only need one that
+        # fully covers the requested schedule interval; if several cover it,
+        # keep the best slack so the objective can prefer more margin.
         best_slack = None
         for _, row in field_rows.iterrows():
             vs = int(row["vis_start_day"])
@@ -153,6 +162,8 @@ def compute_feasibility(
     windows_135 = build_windows_135(windows_45)
     super_windows = set_c_super_windows(config, windows_45)
 
+    # Required intervals are expressed as simple day ranges.  Later code maps
+    # them to Set A/B/C/D according to category-specific rules.
     req_45 = [(w.index, w.start_day, w.end_day) for w in windows_45]
     req_135 = [
         (sw.index, sw.start_day, sw.end_day) for sw in super_windows
@@ -161,6 +172,8 @@ def compute_feasibility(
     eligible_abc = set(
         eligibility_df.loc[eligibility_df["eligible_abc"] == 1, "field_id"].astype(int)
     )
+    # The allowed_set_* columns are optional refinements from the v3 scanner.
+    # If they are absent, fall back to the broader physical eligibility flags.
     allowed_a = set(
         eligibility_df.loc[eligibility_df.get("allowed_set_a", eligibility_df["eligible_abc"]) == 1, "field_id"].astype(int)
     )
@@ -182,6 +195,8 @@ def compute_feasibility(
 
     use1dgap: Dict[int, bool] = {}
     if "use1dgap" in eligibility_df.columns:
+        # MATLAB can mark fields whose visibility is acceptable only after the
+        # one-day-gap merge.  That choice is tracked per field, not globally.
         for _, row in eligibility_df.iterrows():
             fid = int(row["field_id"])
             use1dgap[fid] = bool(int(row["use1dgap"]))
@@ -206,6 +221,8 @@ def compute_feasibility(
     n_slots = config.set_a_fields_per_group
 
     for field_id in field_ids:
+        # First compute generic 45-day and 135-day feasibility.  The same
+        # 45-day map is reused by Set A, Set B, and Set D.
         wdf = _windows_df_for_field(
             field_id, windows_df, windows_1dgap_df, use1dgap
         )
@@ -225,6 +242,8 @@ def compute_feasibility(
             for w_idx, val in s45.items():
                 slack_45[(field_id, w_idx)] = val
 
+            # Set A can use shifted group anchors, so feasibility must be
+            # checked for the concrete (field, group, slot) calendar interval.
             for g in range(1, n_groups + 1):
                 for s in range(1, n_slots + 1):
                     start, end, _ = set_a_slot_calendar(

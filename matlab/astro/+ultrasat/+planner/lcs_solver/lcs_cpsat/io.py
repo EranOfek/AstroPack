@@ -7,7 +7,16 @@
 # Description : CSV and JSON I/O for the LCS CP-SAT solver
 # ***************************************************************************
 
-"""CSV/JSON I/O for the LCS CP-SAT solver."""
+"""CSV/JSON I/O for the LCS CP-SAT solver.
+
+The solver has two output styles:
+
+* normalized solver-native CSVs, useful for debugging Python internals;
+* v3-compatible CSVs, useful for comparing against MATLAB helper outputs.
+
+This module keeps those conversions in one place so solver.py can stay focused
+on optimization rather than file formats.
+"""
 
 from __future__ import annotations
 
@@ -42,6 +51,7 @@ class InputValidationError(ValueError):
 
 
 def _validate_columns(df: pd.DataFrame, required: set, path: Path) -> None:
+    """Fail early if an input table does not have the columns the solver needs."""
     missing = required - set(df.columns)
     if missing:
         raise InputValidationError(
@@ -50,6 +60,7 @@ def _validate_columns(df: pd.DataFrame, required: set, path: Path) -> None:
 
 
 def _normalize_fields_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Accept MATLAB-style field column names and normalize them for Python."""
     rename = {}
     if "Field" in df.columns and "field_id" not in df.columns:
         rename["Field"] = "field_id"
@@ -65,6 +76,7 @@ def _normalize_fields_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _normalize_windows_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Accept visibility-window aliases and normalize them for Python."""
     rename = {}
     if "window_length" in df.columns and "window_len_days" not in df.columns:
         rename["window_length"] = "window_len_days"
@@ -74,6 +86,7 @@ def _normalize_windows_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_config(config_path: Optional[Path]) -> SolverConfig:
+    """Load JSON solver configuration, or return defaults when no file exists."""
     if config_path is None or not config_path.exists():
         return SolverConfig()
     with open(config_path, encoding="utf-8") as fh:
@@ -112,6 +125,7 @@ def load_inputs(
 
 
 def write_schedule_windows(result: SolverResult, out_dir: Path) -> Path:
+    """Write normalized one-row-per-window-assignment solver output."""
     rows = []
     for item in result.window_assignments:
         rows.append(
@@ -133,6 +147,7 @@ def write_schedule_windows(result: SolverResult, out_dir: Path) -> Path:
 
 
 def write_daily_schedule(result: SolverResult, out_dir: Path) -> Path:
+    """Write normalized one-row-per-observation solver output."""
     rows = [
         {
             "day": obs.day,
@@ -149,12 +164,14 @@ def write_daily_schedule(result: SolverResult, out_dir: Path) -> Path:
 
 
 def write_validation_report(report_df: pd.DataFrame, out_dir: Path) -> Path:
+    """Write the post-solve validation DataFrame as CSV."""
     out_path = out_dir / "validation_report.csv"
     report_df.to_csv(out_path, index=False)
     return out_path
 
 
 def write_solver_summary(summary: dict, out_dir: Path) -> Path:
+    """Write a compact JSON summary for humans, scripts, and LLM comparisons."""
     out_path = out_dir / "solver_summary.json"
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(summary, fh, indent=2)
@@ -169,6 +186,8 @@ def _campaign_day_to_date(config: SolverConfig, day: int) -> str:
 
 def _assignment_to_v3_row(item: WindowAssignment, config: SolverConfig) -> dict:
     """Map one WindowAssignment to LcsHelper_v3 schedule.csv columns."""
+    # MATLAB uses category strings B_45 and B_90 in schedule.csv.  Internally
+    # the Python solver stores both as category "B" plus cadence/notes.
     if item.category == "A":
         category = "A"
         group = item.group_id
@@ -234,6 +253,8 @@ def write_v3_daily_schedule(result: SolverResult, out_dir: Path) -> Path:
         day: {} for day in range(config.first_day, config.last_day + 1)
     }
     for obs in result.daily_observations:
+        # Convert the normalized observation list into the MATLAB-style matrix:
+        # one row per day, one column per LCS slot.
         day_slots[obs.day][obs.slot_index] = obs.field_id
 
     rows: List[dict] = []
@@ -258,6 +279,7 @@ def write_v3_outputs(result: SolverResult, out_dir: Path) -> dict:
 
 
 def default_input_paths(base_dir: Path) -> dict:
+    """Return the default MATLAB-exported solver input bundle paths."""
     data_dir = base_dir.parent / "data" / "lcs_solver_inputs"
     return {
         "fields": data_dir / "lcs_fields.csv",

@@ -7,7 +7,17 @@
 # Description : CP-SAT model builder and solver for LCS scheduling
 # ***************************************************************************
 
-"""CP-SAT model builder and solver for LCS scheduling (LcsHelper_v3-aligned)."""
+"""CP-SAT model builder and solver for LCS scheduling (LcsHelper_v3-aligned).
+
+This module is the heart of the Python solver.  It translates the LCS planning
+rules into a CP-SAT model:
+
+* Boolean variables mean "choose this field/window/set assignment".
+* Constraints describe what a legal schedule must satisfy.
+* The objective gives CP-SAT a preference among legal schedules.
+* After Sets A/B/C are solved, Set D is placed greedily into remaining slack to
+  mirror the MATLAB v3 helper behavior.
+"""
 
 from __future__ import annotations
 
@@ -37,16 +47,20 @@ from .v3_rules import (
 
 
 def _extinction_score(fields_df: pd.DataFrame, config: SolverConfig) -> Dict[int, int]:
+    """Convert extinction margin into an integer objective score per field."""
     scores = {}
     for _, row in fields_df.iterrows():
         fid = int(row["field_id"])
         au = float(row["A_U"])
+        # A lower A_U is better.  CP-SAT objectives are integer expressions, so
+        # scale the floating margin into a small integer reward.
         delta = max(0.0, config.max_extinction - au)
         scores[fid] = int(round(delta * 100))
     return scores
 
 
 def _d_rank_score(config: SolverConfig) -> Dict[int, int]:
+    """Return Set D priority scores, highest for the first ranked field."""
     n = len(config.d_ranked_fields)
     return {
         fid: (n - idx) * config.weight_d_rank
@@ -55,6 +69,7 @@ def _d_rank_score(config: SolverConfig) -> Dict[int, int]:
 
 
 def _daily_days_in_window(start_day: int, end_day: int) -> Set[int]:
+    """Return every campaign day in an inclusive daily-observation window."""
     return set(range(start_day, end_day + 1))
 
 
@@ -77,6 +92,8 @@ def _add_window_index_capacity(
     cap = config.daily_capacity
     overflow_vars: List[cp_model.IntVar] = []
     for k in range(1, n_inds + 1):
+        # Collect all Boolean decisions that consume capacity in this 45-day
+        # window index.  Each list element is 0/1 after the solver chooses it.
         n_a = [
             var for (f, g, s), var in a_vars.items() if s == k
         ]
@@ -88,6 +105,9 @@ def _add_window_index_capacity(
         ]
         n4_terms = n_b90 + n_c
         if n_a or n_b45 or n4_terms:
+            # CP-SAT handles integers exactly.  Multiplying the filled formula
+            # by 4 avoids fractions while preserving the v3 capacity rule:
+            # filled = nA + nB45 + (nB90+nC)/4.
             load4 = model.NewIntVar(0, 4 * (cap + 50), f"load4_{k}")
             overflow4 = model.NewIntVar(0, 4 * 50, f"overflow4_{k}")
             model.Add(load4 == 4 * sum(n_a) + 4 * sum(n_b45) + sum(n4_terms))
@@ -119,7 +139,13 @@ def _build_abc_model(
     List,
     List,
 ]:
-    """Build CP-SAT model for Sets A, B, C (no Set D)."""
+    """Build the CP-SAT model for Sets A, B, and C.
+
+    Set D is intentionally not modeled here.  MATLAB v3 places D after the
+    A/B/C schedule exists, so this solver keeps the same two-stage structure.
+    The returned dictionaries preserve the variable names needed later to
+    extract the selected assignments.
+    """
     model = cp_model.CpModel()
     windows_45 = feasibility.windows_45
     n_groups = config.set_a_n_groups
@@ -132,6 +158,9 @@ def _build_abc_model(
     super_windows = set_c_super_windows(config, windows_45)
 
     # ---- Set A: shared fixed windows; window_index == slot ----
+    # a_vars[(field, group, slot)] is True exactly when that field is selected
+    # for a Set A group/slot.  We only create variables for feasible triples,
+    # which keeps the CP-SAT model much smaller than "all fields x all slots".
     a_vars: Dict[Tuple[int, int, int], cp_model.IntVar] = {}
     if config.set_a_count > 0:
         for f in feasibility.feasible_a:
@@ -142,6 +171,8 @@ def _build_abc_model(
     a_moved: Dict[Tuple[int, int], cp_model.IntVar] = {}
 
     # ---- Set B ----
+    # b_sel[field] says the field is selected for Set B.  b_daily and b_sparse
+    # are the actual 45-day rows: one daily B_45 row and two sparse B_90 rows.
     b_sel: Dict[int, cp_model.IntVar] = {}
     b_daily: Dict[Tuple[int, int], cp_model.IntVar] = {}
     b_sparse: Dict[Tuple[int, int], cp_model.IntVar] = {}
@@ -180,6 +211,9 @@ def _build_abc_model(
                 b_sparse[(f, w)] = model.NewBoolVar(f"b_sparse_{f}_{w}")
 
     # ---- Set C: two fixed super-windows ----
+    # c_vars[(field, super_window)] chooses a long 135-day Set C placement.
+    # c_covers maps that long placement back to the 45-day indices it consumes
+    # in the v3 filled(k) capacity calculation.
     c_vars: Dict[Tuple[int, int], cp_model.IntVar] = {}
     c_covers: Dict[Tuple[int, int], List[int]] = {}
     start_to_ind = {w.start_day: w.index for w in windows_45}
@@ -200,6 +234,8 @@ def _build_abc_model(
                         c_covers[(f, sw.index)] = []
 
     # ---- Field uniqueness (A/B/C only) ----
+    # A field can be used in at most one logical set.  This is a classic CP-SAT
+    # "at most one" constraint over all variables involving the same field.
     for f in field_ids:
         terms = list(
             a_vars[(f, g, s)]
@@ -218,6 +254,9 @@ def _build_abc_model(
             model.Add(sum(terms) <= 1)
 
     # ---- Set A: one field per (group, slot) on shared fixed windows ----
+    # The equality forces every Set A slot to be filled, not merely optional.
+    # If no feasible field exists for a slot, Add(0 == 1) makes the whole model
+    # infeasible, which is the right answer for that branch.
     if config.set_a_count > 0:
         for g in range(1, n_groups + 1):
             for s in range(1, n_slots + 1):
@@ -234,6 +273,9 @@ def _build_abc_model(
         model.Add(sum(a_vars.values()) == config.set_a_count)
 
     # ---- Set B counts and structure ----
+    # In division-table mode, choosing a row implies exactly one B_45 window and
+    # two B_90 windows.  The linking constraints make the window variables equal
+    # to the OR/sum of all selected division rows that use that window.
     if b_sel:
         model.Add(sum(b_sel.values()) == config.set_b_count)
 
@@ -298,6 +340,9 @@ def _build_abc_model(
         )
 
     # ---- Objective ----
+    # CP-SAT first satisfies hard constraints.  The objective only ranks legal
+    # solutions.  Overflow is punished heavily so capacity-respecting solutions
+    # dominate smaller slack/extinction preferences.
     objective_terms = []
     for var in overflow_vars:
         objective_terms.append(var * -1_000_000)
@@ -337,7 +382,7 @@ def _add_calendar_day_capacity(
     model, config, a_vars, b_daily, b_sparse, c_vars, c_covers,
     windows_45, super_windows,
 ) -> None:
-    """Legacy per-calendar-day capacity (for tiny tests / fallback)."""
+    """Legacy per-calendar-day capacity model for tiny tests or fallback runs."""
     day_vars: Dict[int, List[cp_model.IntVar]] = defaultdict(list)
     sw_by_idx = {sw.index: sw for sw in super_windows}
 
@@ -371,6 +416,7 @@ def _add_calendar_day_capacity(
 
 
 def _solve_model(model: cp_model.CpModel, config: SolverConfig) -> Tuple[int, cp_model.CpSolver, float]:
+    """Run OR-Tools CP-SAT and return raw status, solver object, and wall time."""
     solver = cp_model.CpSolver()
     solver.parameters.max_time_in_seconds = config.time_limit_seconds
     t0 = time.time()
@@ -403,9 +449,11 @@ def _place_set_d(
     target = config.set_d_count
 
     def set_a_flex(field_id: int) -> int:
+        """Number of Set A windows where a field can move; lower means less flexible."""
         return len(feasibility.feasible_a.get(field_id, set()))
 
     for fid in config.d_ranked_fields:
+        # First try the simple MATLAB path: place D into an already-open index.
         if placed >= target:
             break
         if fid not in feasibility.feasible_d:
@@ -433,6 +481,8 @@ def _place_set_d(
             placed += 1
             break
         else:
+            # If D cannot fit directly, mirror the v3 rescue behavior: move one
+            # compatible Set A row from the desired D index into an open index.
             best = None
             for k_setd in sorted(wins):
                 a_rows_here = [
@@ -561,6 +611,7 @@ def _preclean_set_a_moves(
 
 
 def _assign_moved_set_a_group(assignments: List[WindowAssignment], target_ind: int) -> int:
+    """Pick the first unused shifted Set A group number for a moved row."""
     used = {
         item.group_id
         for item in assignments
@@ -606,6 +657,8 @@ def build_and_solve_with_branching(
 
     for sci in (3, 1):
         for shifted_group, shift_days in attempts:
+            # Each branch is a complete CP-SAT solve with a slightly different
+            # v3-compatible schedule geometry.  The first feasible branch wins.
             run_config = replace(
                 config,
                 set_c_start_ind=sci,
@@ -708,6 +761,7 @@ def _extract_solution(
     config: SolverConfig,
     feasibility: FeasibilityMaps,
 ) -> Tuple[List[WindowAssignment], List[DailyObservation]]:
+    """Convert selected CP-SAT Boolean variables into schedule assignments."""
     if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
         return [], []
 
@@ -715,6 +769,7 @@ def _extract_solution(
     sw_by_idx = {sw.index: sw for sw in super_windows}
     b90_ind_counter: Dict[int, int] = defaultdict(int)
 
+    # Read Set A decisions.  solver.Value(var) is 1 only for selected BoolVars.
     for (f, g, s), var in a_vars.items():
         if solver.Value(var):
             start, end, wind = set_a_slot_calendar(
@@ -748,6 +803,8 @@ def _extract_solution(
                 )
             )
 
+    # Read Set B decisions and emit separate B_45/B_90 rows.  The notes field is
+    # important because the v3-compatible CSV writer maps it back to categories.
     for f, sel in b_sel.items():
         if not solver.Value(sel):
             continue
@@ -785,6 +842,8 @@ def _extract_solution(
                     )
                 )
 
+    # Read Set C decisions.  The cadence index is assigned per super-window so
+    # sparse observations can be expanded with the v3 modulo rule.
     c_ind_counter: Dict[int, int] = defaultdict(int)
     for (f, sw_idx), var in c_vars.items():
         if solver.Value(var):
