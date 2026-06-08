@@ -7,7 +7,12 @@
 # Description : Post-solve validation for LCS schedules
 # ***************************************************************************
 
-"""Post-solve validation for LCS schedules."""
+"""Post-solve validation for LCS schedules.
+
+CP-SAT should only return legal schedules, but validation is still important:
+it catches modeling mistakes, extraction bugs, and future changes that drift
+away from the MATLAB v3 rules.
+"""
 
 from __future__ import annotations
 
@@ -22,13 +27,16 @@ from .v3_rules import compute_window_occupancy
 
 
 def validate_schedule(result: SolverResult) -> pd.DataFrame:
-    """Run post-solve checks and return a pass/fail report."""
+    """Run post-solve checks and return a pass/fail report DataFrame."""
     config = result.config
     checks: List[dict] = []
 
     def add(check_name: str, passed: bool, detail: str = "") -> None:
+        """Append one validation row using integer pass/fail for CSV stability."""
         checks.append({"check": check_name, "passed": int(passed), "detail": detail})
 
+    # Status and objective checks establish whether the solver actually found a
+    # usable solution before we inspect the schedule content.
     add("solver_status_optimal_or_feasible", result.status in ("OPTIMAL", "FEASIBLE"), result.status)
     add(
         "objective_recorded",
@@ -38,6 +46,7 @@ def validate_schedule(result: SolverResult) -> pd.DataFrame:
 
     assignments = result.window_assignments
     categories = Counter(a.category for a in assignments)
+    # Count checks verify the high-level survey composition.
     add("set_a_count", categories.get("A", 0) == config.set_a_count, str(categories.get("A", 0)))
     add("set_b_count", _count_b_fields(assignments) == config.set_b_count, str(_count_b_fields(assignments)))
     add("set_c_count", categories.get("C", 0) == config.set_c_count, str(categories.get("C", 0)))
@@ -51,10 +60,13 @@ def validate_schedule(result: SolverResult) -> pd.DataFrame:
     categories_by_field: dict = defaultdict(set)
     for a in assignments:
         categories_by_field[a.field_id].add(a.category)
+    # Field reuse across sets is not allowed; this catches duplicated targets
+    # even if every individual set has the right count.
     cross_set_dupes = [fid for fid, cats in categories_by_field.items() if len(cats) > 1]
     add("no_duplicate_fields", len(cross_set_dupes) == 0, str(cross_set_dupes))
 
     if config.use_window_index_capacity:
+        # This is the v3 capacity model used by the real solver path.
         win_violations = _check_window_index_capacity(assignments, result)
         add("window_index_capacity", len(win_violations) == 0, str(win_violations[:5]))
         div_ok = _check_n4_divisibility(assignments, result)
@@ -76,6 +88,7 @@ def validate_schedule(result: SolverResult) -> pd.DataFrame:
 
 
 def build_solver_summary(result: SolverResult, report_df: pd.DataFrame) -> dict:
+    """Build a compact machine-readable summary of solve and validation status."""
     daily_loads = Counter(obs.day for obs in result.daily_observations)
     loads = list(daily_loads.values()) if daily_loads else [0]
     categories = Counter(a.category for a in result.window_assignments)
@@ -107,12 +120,14 @@ def build_solver_summary(result: SolverResult, report_df: pd.DataFrame) -> dict:
 
 
 def _count_b_fields(assignments: List[WindowAssignment]) -> int:
+    """Count distinct Set B fields, not Set B rows."""
     return len({a.field_id for a in assignments if a.category == "B"})
 
 
 def _check_daily_capacity(
     observations: List[DailyObservation], config: SolverConfig
 ) -> List[int]:
+    """Return days whose expanded observation count exceeds daily capacity."""
     loads = Counter(obs.day for obs in observations)
     return [day for day, load in loads.items() if load > config.daily_capacity]
 
@@ -120,6 +135,7 @@ def _check_daily_capacity(
 def _check_window_index_capacity(
     assignments: List[WindowAssignment], result: SolverResult
 ) -> List[str]:
+    """Return v3 filled(k) capacity violations for compact window assignments."""
     windows_45 = build_windows_45(result.config)
     _, _, _, _, filled, ok = compute_window_occupancy(
         [a for a in assignments if a.category != "D"],
@@ -140,6 +156,7 @@ def _check_window_index_capacity(
 def _check_n4_divisibility(
     assignments: List[WindowAssignment], result: SolverResult
 ) -> bool:
+    """Return whether the B_90+C sparse pool is divisible by four everywhere."""
     windows_45 = build_windows_45(result.config)
     _, _, _, _, _, ok = compute_window_occupancy(
         [a for a in assignments if a.category != "D"],
@@ -151,11 +168,15 @@ def _check_n4_divisibility(
 
 
 def _check_visibility(assignments: List[WindowAssignment], result: SolverResult) -> List[str]:
+    """Return assignments that do not match the precomputed feasibility maps."""
     violations = []
     feasibility = result.feasibility
     config = result.config
 
     for item in assignments:
+        # Each set has slightly different feasibility keys.  For example, Set A
+        # normally validates by (field, group, slot), while moved Set A rows
+        # validate by the destination 45-day window index.
         if item.category == "A":
             if item.group_id is not None and item.group_id > config.set_a_n_groups:
                 ok = item.window_index in feasibility.feasible_a.get(item.field_id, set())
@@ -183,6 +204,7 @@ def _check_visibility(assignments: List[WindowAssignment], result: SolverResult)
 
 
 def _check_cadence(assignments: List[WindowAssignment], config: SolverConfig) -> List[str]:
+    """Return Set B fields that do not have the required 1 daily + 2 sparse rows."""
     violations = []
     by_field: dict = defaultdict(list)
     for item in assignments:

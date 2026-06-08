@@ -7,7 +7,11 @@
 # Description : ULTRASAT LCS CP-SAT scheduling solver package exports
 # ***************************************************************************
 
-"""ULTRASAT LCS CP-SAT scheduling solver (LcsHelper_v3-aligned)."""
+"""ULTRASAT LCS CP-SAT scheduling solver (LcsHelper_v3-aligned).
+
+Only the main public objects are exported here.  Most users should call the CLI
+modules or import build_and_solve_with_branching / scan_lcs_plans directly.
+"""
 
 from .models import SolverConfig, SolverResult
 from .scanner import scan_lcs_plans

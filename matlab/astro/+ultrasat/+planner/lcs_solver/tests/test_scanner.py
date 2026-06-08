@@ -7,7 +7,12 @@
 # Description : Tests for the LCS plan date scanner
 # ***************************************************************************
 
-"""Tests for the LCS plan date scanner."""
+"""Tests for the LCS plan date scanner.
+
+The scanner converts calendar dates into campaign-day offsets, writes absolute
+observation timestamps, and produces a per-date index.  These tests exercise
+those pieces with tiny inputs so they run quickly.
+"""
 
 from __future__ import annotations
 
@@ -50,6 +55,8 @@ def test_obs_datetime_iso():
     config = SolverConfig(
         start_date="2029-01-01",
         daily_window_start_time_seconds=0.0,
+        # slot_time_days is stored in days, so 900 seconds must be divided by
+        # the number of seconds in a day.
         slot_time_days=900.0 / 86400.0,
     )
     obs = DailyObservation(day=1, slot_index=2, field_id=7, category="A", cadence="daily")
@@ -59,6 +66,8 @@ def test_obs_datetime_iso():
 
 def test_scan_writes_index(tmp_path: Path):
     """Scanner must write lcs_plan_index.csv with one row per scanned date."""
+    # Reuse the tiny artificial solver input instead of full mission data.  This
+    # keeps the scanner test fast while still going through scan_lcs_plans().
     fields_df, windows_df, eligibility_df, config = _make_tiny_inputs()
     config.start_date = "2029-01-01"
     config.last_day = 135
@@ -74,6 +83,8 @@ def test_scan_writes_index(tmp_path: Path):
         time_limit_seconds=30,
     )
 
+    # The test does not require any specific date to be feasible; it only checks
+    # the scanner contract: one output index file and one row per requested date.
     assert (tmp_path / "lcs_plan_index.csv").exists()
     assert len(index_df) == 3
     assert "plan_start_date" in index_df.columns
