@@ -32,7 +32,7 @@ function [Mode,Var,Method] = modeVar_Hist(Array, Args)
     arguments
         Array
         Args.Range             = [-50 5050];
-        Args.NinBin            = 1000;
+        Args.NinBin            = 50;
         Args.ApplyCeil         = true;
         Args.NptFit            = 5;
         Args.Fit               = true;
