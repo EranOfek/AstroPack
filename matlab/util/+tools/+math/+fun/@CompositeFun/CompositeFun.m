@@ -2789,6 +2789,14 @@ classdef CompositeFun < handle
                 Args.OuterMinNewClipped = 1           % stop when fewer new outliers in an iter
                 Args.ValInp logical = true
                 Args.Verbose logical = false
+                % Pass per-parameter magnitudes to lsqnonlin via the
+                % 'TypicalX' option so finite-difference step sizes and
+                % stopping tolerances scale to each parameter's natural
+                % magnitude. Useful for the LAST OptSeq because free
+                % parameters span ~5 orders of magnitude in units
+                % (Norm~1, Tran2D~0.01, Pressure~965). Default false
+                % preserves status-quo behaviour.
+                Args.UseTypicalX logical = false
             end
 
             % Initialize FitResult with failure values for early return on validation error
@@ -3071,13 +3079,33 @@ classdef CompositeFun < handle
                             Y_target = zeros(NumCurrent, 1);
                             Sigma_weights = ones(NumCurrent, 1);
 
+                            % Optional per-parameter TypicalX hint. Magnitudes
+                            % come from each parameter's default value
+                            % (AllFunPar.Val at fit start, i.e. the values
+                            % set by addFun's 'Par' option for that
+                            % function). For parameters whose default is
+                            % zero (e.g. Tran2D coefficients) we use 1 as a
+                            % safety floor because lsqnonlin requires
+                            % TypicalX > 0. Sized to the FREE-parameter
+                            % subset (lsqNonLinWithFixed slices Lb/Ub by
+                            % FitMask before calling lsqnonlin).
+                            OptsLocal = OptimOpts;
+                            if Args.UseTypicalX
+                                Mag = abs(CurrentTransParams);
+                                Mag(Mag == 0 | ~isfinite(Mag)) = 1;
+                                TypX = Mag(FitMask);
+                                if ~isempty(TypX)
+                                    OptsLocal = optimoptions(OptimOpts, 'TypicalX', TypX);
+                                end
+                            end
+
                             [OptTransParams, ~, MinimizerInfo] = tools.math.fit.lsqNonLinWithFixed(...
                                 X_dummy, Y_target, Sigma_weights, ModelFun, ...
                                 'InitPar', CurrentTransParams, ...
                                 'FitPar', FitMask, ...
                                 'Lb', AllFunPar.Min, ...
                                 'Ub', AllFunPar.Max, ...
-                                'Opts', OptimOpts);
+                                'Opts', OptsLocal);
 
                             AllFunPar.Val = OptTransParams;
                             Obj.setAllFunPar(AllFunPar);
@@ -3927,6 +3955,7 @@ classdef CompositeFun < handle
                         'MinCalibrators', MinCalibrators, ...
                         'OptimizationSequence', Stages(IStage), ...
                         'OptimOptions', OptimOpts, ...
+                        'UseTypicalX', Args.UseTypicalX, ...
                         'Verbose', Args.Verbose);
                 else
                     % Transmission parameter stage: set FitPar flags for specified parameters
@@ -3982,6 +4011,7 @@ classdef CompositeFun < handle
                             'MinCalibrators', MinCalibrators, ...
                             'OptimizationSequence', Stages(IStage), ...
                             'OptimOptions', OptimOpts, ...
+                            'UseTypicalX', Args.UseTypicalX, ...
                             'Verbose', Args.Verbose);
                     end
                 end
