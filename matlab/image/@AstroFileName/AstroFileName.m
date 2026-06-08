@@ -3169,7 +3169,7 @@ classdef AstroFileName < Component
             KEYS_SELECT = {'Product','Type','Level'};
             Nks         = numel(KEYS_SELECT);
 
-            if ~strcmp(Args.Operator, 'keep') && nfiles(Obj)>0
+            if ~strcmp(Args.Operator, 'keep') && nFiles(Obj)>0
 
                 % selectBy keys - do not modify the input object
                 for Iks=1:1:Nks
