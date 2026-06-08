@@ -61,7 +61,8 @@
 %           9. If List2Sorted is false, the code does not sort catalog 2
 %              internally.
 % Compilation: %mex -R2018a CXXFLAGS='$CXXFLAGS -O3 -std=c++11 -fopenmp' LDFLAGS='$LDFLAGS -fopenmp' matchCatalogs.cpp
-%              mex -R2018a CXXFLAGS='$CXXFLAGS -O3 -std=c++17 -march=x86-64 -mtune=generic -fopenmp' LDFLAGS='$LDFLAGS -fopenmp -static-libstdc++ -static-libgcc' matchCatalogs.cpp
+%              %  a GLIBC incompatibility issue on other machines with: mex -R2018a CXXFLAGS='$CXXFLAGS -O3 -std=c++17 -march=x86-64 -mtune=generic -fopenmp' LDFLAGS='$LDFLAGS -fopenmp -static-libstdc++ -static-libgcc' matchCatalogs.cpp
+%              mex -O CXX=g++-9 CXXFLAGS='$CXXFLAGS -fopenmp -std=c++17' LDFLAGS='$LDFLAGS -fopenmp' matchCatalogs.cpp
 % Example:
 %{
         RA1  = [10; 20; 30];
