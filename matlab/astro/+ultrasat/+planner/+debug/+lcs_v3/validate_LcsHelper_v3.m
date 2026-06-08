@@ -1,6 +1,6 @@
 %==========================================================================
 % Project     : ULTRASAT Observation Planner
-% File        : ultrasat.planner.debug.validate_LcsHelper_v3.m
+% File        : ultrasat.planner.debug.lcs_v3.validate_LcsHelper_v3.m
 % Author      : Chen Tishler
 % Created     : 07/06/2026
 % Updated     : 07/06/2026
@@ -8,7 +8,7 @@
 %               rules (Sets A/B/C/D, 45-day windows, slot budget, etc.).
 %               Runs all checks to completion; prints PASS/FAIL for each
 %               rule without stopping on the first failure.
-% Run by      : ultrasat.planner.debug.validate_LcsHelper_v3()
+% Run by      : ultrasat.planner.debug.lcs_v3.validate_LcsHelper_v3()
 %
 % Plan start date: January 5, 2029.
 %==========================================================================
@@ -77,11 +77,11 @@
 % 7. SLOT BUDGET (check_slot_budget)
 %    Window-index occupancy mirrors LcsHelper_v3 filled(k) convention;
 %    SetD rows are excluded from occupancy (placed into open slack).
-%      filled(k) = nA(k) + nB45(k) + n4(k)/4  <= Daily_LCS_slots (11)
-%      n4(k) = nB90(k) + nC(k)
+%      filledABC(k) = nA(k) + nB45(k) + nCadence4(k)/4  <= Daily_LCS_slots (11)
+%      nCadence4(k) = nB90(k) + nC(k)
 %    Per Full_windows index k:
-%    - n4(k) is divisible by 4
-%    - filled(k) <= 11
+%    - nCadence4(k) is divisible by 4
+%    - filledABC(k) <= 11
 %    - Informational summary of per-ind occupancy vectors
 %
 % 8. WINDOW BOUNDS (check_window_bounds)
@@ -160,7 +160,8 @@ function validate_LcsHelper_v3()
 
     % ---- Final summary (informational only; no error() thrown) ----------
     fprintf('\n========== SUMMARY ==========\n');
-    fprintf('%d checks passed, %d failed\n', TotalPass, TotalFail);
+    TotalWarn = check_warnings(Obj);
+    fprintf('%d checks passed, %d failed, %d warnings\n', TotalPass, TotalFail, TotalWarn);
 
     if TotalFail > 0
         fprintf('validate_LcsHelper_v3: VALIDATION FAILED\n');
@@ -252,7 +253,7 @@ function GridFile = gridFile()
     % mfilename('fullpath') so the validation is self-contained and
     % portable across machines.
     ThisDir  = fileparts(mfilename('fullpath'));
-    GridFile = fullfile(ThisDir, '..', 'data', 'LCS_nonoverlapping_grid_surveys.csv');
+    GridFile = fullfile(ThisDir, '..', '..', 'data', 'LCS_nonoverlapping_grid_surveys.csv');
     if ~isfile(GridFile)
         warning('validate_LcsHelper_v3:gridFileNotFound', ...
             'Grid file not found: %s', GridFile);
@@ -272,7 +273,7 @@ end
 
 function dump_results(Obj)
     % Write LcsHelper_v3 schedule, daily schedule, and Full_windows to CSV
-    % files under +debug/lcs_v3_output/ for offline inspection.
+    % files under +debug/+lcs_v3/output/validation/ for offline inspection.
     log_enter('dump_results');
 
     if isempty(Obj)
@@ -282,7 +283,7 @@ function dump_results(Obj)
     end
 
     ThisDir   = fileparts(mfilename('fullpath'));
-    OutputDir = fullfile(ThisDir, 'lcs_v3_output');
+    OutputDir = fullfile(ThisDir, 'output', 'validation');
     if ~exist(OutputDir, 'dir')
         mkdir(OutputDir);
         fprintf('  Created output dir: %s\n', OutputDir);
@@ -374,6 +375,119 @@ function dump_daily_schedule(Obj, OutputDir)
 
     writetable(T, CsvPath);
     fprintf('  Written: daily_schedule.csv  (%d days x %d slots)\n', Ndays, Nslots);
+end
+
+
+% =========================================================================
+% WARNING-ONLY CHECKS
+% =========================================================================
+
+function nWarn = check_warnings(Obj)
+    log_enter('check_warnings');
+    nWarn = 0;
+    nWarn = nWarn + warn_long_field_extinction_ranking(Obj);
+    nWarn = nWarn + warn_setD_ranking(Obj);
+    fprintf('  Warning checks: %d warning(s)\n', nWarn);
+    log_exit('check_warnings');
+end
+
+
+function nWarn = warn_long_field_extinction_ranking(Obj)
+    nWarn = 0;
+    if isempty(Obj) || isempty(Obj.SetB_fields) || isempty(Obj.SetC_fields)
+        nWarn = warning_check('Long-field extinction ranking', false, ...
+            'SetB/SetC field tables are missing');
+        return
+    end
+
+    LongA = table();
+    if ~isempty(Obj.SetA_fields) && ismember('max_window', Obj.SetA_fields.Properties.VariableNames)
+        LongA = Obj.SetA_fields(Obj.SetA_fields.max_window >= Obj.Max_window_cut, :);
+    end
+
+    MaxB = max(Obj.SetB_fields.Av_ext);
+    MinC = min(Obj.SetC_fields.Av_ext);
+    if MaxB > MinC
+        nWarn = nWarn + warning_check('Long-field extinction ranking: SetB before SetC', false, ...
+            sprintf('max SetB Av_ext %.4g > min SetC Av_ext %.4g', MaxB, MinC));
+    else
+        nWarn = nWarn + warning_check('Long-field extinction ranking: SetB before SetC', true, ...
+            sprintf('max SetB Av_ext %.4g <= min SetC Av_ext %.4g', MaxB, MinC));
+    end
+
+    if ~isempty(LongA)
+        MaxC = max(Obj.SetC_fields.Av_ext);
+        MinLongA = min(LongA.Av_ext);
+        if MaxC > MinLongA
+            nWarn = nWarn + warning_check('Long-field extinction ranking: SetC before long SetA', false, ...
+                sprintf('max SetC Av_ext %.4g > min long SetA Av_ext %.4g', MaxC, MinLongA));
+        else
+            nWarn = nWarn + warning_check('Long-field extinction ranking: SetC before long SetA', true, ...
+                sprintf('max SetC Av_ext %.4g <= min long SetA Av_ext %.4g', MaxC, MinLongA));
+        end
+    else
+        nWarn = nWarn + warning_check('Long-field extinction ranking: long SetA present', false, ...
+            'no long SetA rows found to compare');
+    end
+end
+
+
+function nWarn = warn_setD_ranking(Obj)
+    nWarn = 0;
+    SchedD = Obj.Schedule(strcmp(Obj.Schedule.category, 'D') & Obj.Schedule.Field > 0, :);
+    if isempty(SchedD)
+        nWarn = nWarn + warning_check('SetD ranking', true, 'no SetD rows placed');
+        return
+    end
+    if isempty(Obj.SetD_ranked_fields) || ~ismember('Field', Obj.SetD_ranked_fields.Properties.VariableNames)
+        nWarn = nWarn + warning_check('SetD ranking', false, 'SetD_ranked_fields is missing');
+        return
+    end
+
+    SchedD = sortrows(SchedD, 'group');
+    RankFields = Obj.SetD_ranked_fields.Field(:)';
+    RankPos = nan(1, height(SchedD));
+    for I = 1:height(SchedD)
+        Pos = find(RankFields == SchedD.Field(I), 1);
+        if ~isempty(Pos)
+            RankPos(I) = Pos;
+        end
+    end
+
+    if any(isnan(RankPos))
+        nWarn = nWarn + warning_check('SetD ranking: placed fields in rank list', false, ...
+            sprintf('placed=%s rank=%s', mat2str(SchedD.Field'), mat2str(RankFields)));
+    else
+        nWarn = nWarn + warning_check('SetD ranking: placed fields in rank list', true, ...
+            sprintf('rank positions=%s', mat2str(RankPos)));
+    end
+
+    if all(~isnan(RankPos)) && any(diff(RankPos) < 0)
+        nWarn = nWarn + warning_check('SetD ranking: selected order follows rank order', false, ...
+            sprintf('rank positions=%s', mat2str(RankPos)));
+    else
+        nWarn = nWarn + warning_check('SetD ranking: selected order follows rank order', true, ...
+            sprintf('rank positions=%s', mat2str(RankPos)));
+    end
+
+    if all(~isnan(RankPos)) && max(RankPos) > height(SchedD)
+        nWarn = nWarn + warning_check('SetD ranking: earlier ranked fields skipped', false, ...
+            sprintf('selected rank positions=%s', mat2str(RankPos)));
+    else
+        nWarn = nWarn + warning_check('SetD ranking: earlier ranked fields skipped', true, ...
+            sprintf('selected rank positions=%s', mat2str(RankPos)));
+    end
+end
+
+
+function nWarn = warning_check(CheckName, IsOk, Msg)
+    if IsOk
+        fprintf('  [WARN-OK] %s: %s\n', CheckName, Msg);
+        nWarn = 0;
+    else
+        fprintf('  [WARN] %s: %s\n', CheckName, Msg);
+        nWarn = 1;
+    end
 end
 
 
@@ -564,6 +678,23 @@ function [nFail, nPass] = check_setA_group_counts(SchedA, SetANwindows)
         nFail = nFail + f;
         nPass = nPass + p;
     end
+    MovedGroups = unique(SchedA.group(SchedA.group > SetANwindows));
+    if isempty(MovedGroups)
+        fprintf('  Moved groups: none\n');
+    else
+        for G = MovedGroups(:)'
+            nInGroup = sum(SchedA.group == G);
+            fprintf('  Moved group %d: %d fields\n', G, nInGroup);
+        end
+        [f, p] = assert_unique('SetA moved rows have unique group/ind slots', ...
+            SchedA.group(SchedA.group > SetANwindows) * 1000 + SchedA.ind(SchedA.group > SetANwindows));
+        nFail = nFail + f;
+        nPass = nPass + p;
+    end
+    [f, p] = assert_equal('SetA group accounting includes all rows', ...
+        sum(ismember(SchedA.group, [1:SetANwindows, MovedGroups(:)'])), height(SchedA));
+    nFail = nFail + f;
+    nPass = nPass + p;
     log_exit('check_setA_group_counts', nFail, nPass);
 end
 
@@ -756,31 +887,34 @@ end
 
 
 % =========================================================================
-% SLOT BUDGET  (filled(k) <= 11, n4 divisible by 4)
+% SLOT BUDGET  (filled(k) <= 11, 4-day cadence pool divisible by 4)
 % =========================================================================
 
 function [nFail, nPass] = check_slot_budget(Obj)
     % Replicate LcsHelper_v3 slot-budget convention:
-    %   filled(k) = nA(k) + nB45(k) + n4(k)/4  <= Daily_LCS_slots (11)
-    %   n4(k) = nB90(k) + nC(k) must be divisible by 4.
-    % SetD rows are excluded (placed into open slots after A/B/C balance).
+    %   filledABC(k) = nA(k) + nB45(k) + nCadence4(k)/4  <= Daily_LCS_slots (11)
+    %   nCadence4(k) = nB90(k) + nC(k) must be divisible by 4.
+    % SetD rows are counted separately because they are placed into open slack
+    % after A/B/C balancing.
     log_enter('check_slot_budget');
 
-    [nA, nB45, nB90, nC, n4, Filled] = compute_slot_occupancy( ...
+    [nA, nB45, nB90, nC, nD, nCadence4, FilledABC, FilledWithD] = compute_slot_occupancy( ...
         Obj.Schedule, Obj.Full_windows);
 
-    fprintf('  Per-ind slot occupancy (ind 1..%d):\n', numel(Filled));
-    fprintf('    nA   = [%s]\n', num2str(nA, '%d '));
-    fprintf('    nB45 = [%s]\n', num2str(nB45, '%d '));
-    fprintf('    nB90 = [%s]\n', num2str(nB90, '%d '));
-    fprintf('    nC   = [%s]\n', num2str(nC, '%d '));
-    fprintf('    n4   = [%s]\n', num2str(n4, '%d '));
-    fprintf('    filled = [%s]  (limit %d)\n', num2str(Filled, '%.2f '), Obj.Daily_LCS_slots);
+    fprintf('  Per-ind slot occupancy (ind 1..%d):\n', numel(FilledABC));
+    fprintf('    nA         = [%s]\n', num2str(nA, '%d '));
+    fprintf('    nB45       = [%s]\n', num2str(nB45, '%d '));
+    fprintf('    nB90       = [%s]\n', num2str(nB90, '%d '));
+    fprintf('    nC         = [%s]\n', num2str(nC, '%d '));
+    fprintf('    nCadence4  = [%s]  (B_90 + C)\n', num2str(nCadence4, '%d '));
+    fprintf('    filledABC  = [%s]  (limit %d before SetD)\n', num2str(FilledABC, '%.2f '), Obj.Daily_LCS_slots);
+    fprintf('    nD         = [%s]\n', num2str(nD, '%d '));
+    fprintf('    filled+D   = [%s]  (informational final use)\n', num2str(FilledWithD, '%.2f '));
 
     CheckFns = {
-        @() check_slot_budget_all_inds(n4, Filled, Obj.Daily_LCS_slots)
-        @() pass_check(sprintf('Slot occupancy summary: filled = [%s]', ...
-            num2str(Filled, '%d ')))
+        @() check_slot_budget_all_inds(nCadence4, FilledABC, Obj.Daily_LCS_slots)
+        @() pass_check(sprintf('Slot occupancy summary: filledABC = [%s], nD = [%s]', ...
+            num2str(FilledABC, '%d '), num2str(nD, '%d ')))
     };
 
     [nFail, nPass] = run_checks('Slot budget (11 slots per Full_windows ind)', CheckFns);
@@ -788,24 +922,24 @@ function [nFail, nPass] = check_slot_budget(Obj)
 end
 
 
-function [nFail, nPass] = check_slot_budget_all_inds(n4, Filled, DailyLcsSlots)
+function [nFail, nPass] = check_slot_budget_all_inds(nCadence4, FilledABC, DailyLcsSlots)
     % Per-ind slot budget checks (loop in a function to avoid closure issues).
     log_enter('check_slot_budget_all_inds');
     nFail = 0;
     nPass = 0;
-    Ninds = numel(Filled);
+    Ninds = numel(FilledABC);
 
     % K is a Full_windows index (1..Ninds). Two independent constraints:
-    %   1) n4(K) must be divisible by 4 (B_90 + C rows consume slots in
-    %      groups of 4 via the n4/4 term in the filled formula).
-    %   2) filled(K) must not exceed the daily LCS slot limit (11).
+    %   1) nCadence4(K) must be divisible by 4 (B_90 + C rows consume slots
+    %      in groups of 4 via the nCadence4/4 term in the filled formula).
+    %   2) filledABC(K) must not exceed the daily LCS slot limit (11).
     for K = 1:Ninds
         [f, p] = assert_divisible( ...
-            sprintf('Slot budget ind %d: n4 divisible by 4', K), n4(K), 4);
+            sprintf('Slot budget ind %d: nCadence4 divisible by 4', K), nCadence4(K), 4);
         nFail = nFail + f; nPass = nPass + p;
         [f, p] = assert_max( ...
-            sprintf('Slot budget ind %d: filled <= Daily_LCS_slots', K), ...
-            Filled(K), DailyLcsSlots);
+            sprintf('Slot budget ind %d: filledABC <= Daily_LCS_slots', K), ...
+            FilledABC(K), DailyLcsSlots);
         nFail = nFail + f; nPass = nPass + p;
     end
 
@@ -813,13 +947,13 @@ function [nFail, nPass] = check_slot_budget_all_inds(n4, Filled, DailyLcsSlots)
 end
 
 
-function [nA, nB45, nB90, nC, n4, Filled] = compute_slot_occupancy(Schedule, Full_windows)
+function [nA, nB45, nB90, nC, nD, nCadence4, FilledABC, FilledWithD] = compute_slot_occupancy(Schedule, Full_windows)
     % Mirror the slot-occupancy computation in LcsHelper_v3.m.
     %
     % For each Full_windows index k, counts how many schedule rows occupy
     % that window and computes the effective slot load:
-    %   filled(k) = nA(k) + nB45(k) + n4(k)/4
-    % where n4(k) = nB90(k) + nC(k).
+    %   filledABC(k) = nA(k) + nB45(k) + nCadence4(k)/4
+    % where nCadence4(k) = nB90(k) + nC(k).
     %
     % SetD rows are intentionally excluded: they are placed into open slack
     % after A/B/C balance and do not contribute to the filled budget.
@@ -828,6 +962,7 @@ function [nA, nB45, nB90, nC, n4, Filled] = compute_slot_occupancy(Schedule, Ful
     nB45 = zeros(1, Ninds);
     nB90 = zeros(1, Ninds);
     nC   = zeros(1, Ninds);
+    nD   = zeros(1, Ninds);
 
     for R = 1:height(Schedule)
         Cat = Schedule.category{R};
@@ -861,13 +996,17 @@ function [nA, nB45, nB90, nC, n4, Filled] = compute_slot_occupancy(Schedule, Ful
             for Kk = StartInd:min(StartInd + 2, Ninds)
                 nC(Kk) = nC(Kk) + 1;
             end
+        elseif strcmp(Cat, 'D')
+            if Ind >= 1 && Ind <= Ninds
+                nD(Ind) = nD(Ind) + 1;
+            end
         end
-        % SetD: intentionally ignored (same as LcsHelper_v3)
     end
 
-    % n4 counts low-cadence rows (B_90 + C); each group of 4 consumes 1 slot
-    n4 = nB90 + nC;
-    Filled = nA + nB45 + n4 / 4;
+    % nCadence4 counts low-cadence rows (B_90 + C); each group of 4 consumes 1 slot.
+    nCadence4 = nB90 + nC;
+    FilledABC = nA + nB45 + nCadence4 / 4;
+    FilledWithD = FilledABC + nD;
 end
 
 

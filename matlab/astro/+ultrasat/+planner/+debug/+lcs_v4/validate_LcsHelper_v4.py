@@ -2,7 +2,7 @@
 """Validate CSV output from validate_LcsHelper_v4.m.
 
 This script does not call MATLAB. It validates the CSV files written under
-+debug/lcs_v4_output and writes a concise text report in the same directory.
++debug/+lcs_v4/output/validation and writes a concise text report in the same directory.
 """
 
 from __future__ import annotations
@@ -19,19 +19,21 @@ SET_C_NUM = 16
 SET_D_MAX = 4
 MIN_WINDOW = 45
 DAILY_LCS_SLOTS = 11
+DEFAULT_SETD_RANK = [79, 12, 48, 28, 16, 88, 55, 32, 213, 26]
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output-dir",
-        default=str(Path(__file__).resolve().parent / "lcs_v4_output"),
+        default=str(Path(__file__).resolve().parent / "output" / "validation"),
         help="Directory containing schedule.csv, full_windows.csv, and daily_schedule.csv.",
     )
     args = parser.parse_args()
 
     out_dir = Path(args.output_dir)
     checks: list[tuple[str, bool, str]] = []
+    warnings: list[tuple[str, bool, str]] = []
 
     schedule = read_csv(out_dir / "schedule.csv")
     windows = read_csv(out_dir / "full_windows.csv")
@@ -65,8 +67,9 @@ def main() -> int:
 
     add(checks, "SetB rows are 45 days", all(window_len(r) == MIN_WINDOW for r in rows_b),
         bad_count_msg(rows_b, lambda r: window_len(r) == MIN_WINDOW))
-    add(checks, "SetB rows align with full windows", align_with_windows(rows_b, windows),
-        "one or more SetB rows do not match full_windows boundaries")
+    setb_aligned = align_with_windows(rows_b, windows)
+    add(checks, "SetB rows align with full windows", setb_aligned,
+        "all rows align" if setb_aligned else "one or more SetB rows do not match full_windows boundaries")
     validate_setb_fields(checks, rows_b)
 
     add(checks, "SetC unique fields", unique_fields(rows_c), duplicate_msg(rows_c))
@@ -75,9 +78,9 @@ def main() -> int:
     add(checks, "SetC groups are v4 block groups",
         all(11 <= to_int(r["group"]) <= 16 for r in rows_c),
         bad_count_msg(rows_c, lambda r: 11 <= to_int(r["group"]) <= 16))
-    add(checks, "SetC starts align with full windows",
-        all(to_int(r["start"]) in {to_int(w["start"]) for w in windows} for r in rows_c),
-        "one or more SetC starts are not full window starts")
+    setc_starts_align = all(to_int(r["start"]) in {to_int(w["start"]) for w in windows} for r in rows_c)
+    add(checks, "SetC starts align with full windows", setc_starts_align,
+        "all starts align" if setc_starts_align else "one or more SetC starts are not full window starts")
     add(checks, "SetC local ind range",
         all(1 <= to_int(r["ind"]) <= 8 for r in rows_c),
         bad_count_msg(rows_c, lambda r: 1 <= to_int(r["ind"]) <= 8))
@@ -88,20 +91,34 @@ def main() -> int:
             bad_count_msg(rows_d, lambda r: window_len(r) == MIN_WINDOW))
         add(checks, "SetD group encoding", all(301 <= to_int(r["group"]) <= 304 for r in rows_d),
             bad_count_msg(rows_d, lambda r: 301 <= to_int(r["group"]) <= 304))
-        add(checks, "SetD unique slots", len({to_int(r["group"]) for r in rows_d}) == len(rows_d),
-            "duplicate SetD group slot")
+        setd_unique_slots = len({to_int(r["group"]) for r in rows_d}) == len(rows_d)
+        add(checks, "SetD unique slots", setd_unique_slots,
+            "all SetD group slots unique" if setd_unique_slots else "duplicate SetD group slot")
 
     validate_slot_budget(checks, placed, windows)
     validate_window_bounds(checks, placed, daily)
     validate_cross_set_duplicates(checks, rows_a, rows_b, rows_c, rows_d)
     validate_daily_schedule(checks, daily)
+    validate_warning_checks(warnings, rows_a, rows_b, rows_c, rows_d)
 
     passed = sum(ok for _, ok, _ in checks)
     failed = len(checks) - passed
-    lines = [f"validate_LcsHelper_v4.py report", f"checks passed: {passed}", f"checks failed: {failed}", ""]
+    warning_count = sum(not ok for _, ok, _ in warnings)
+    lines = [
+        f"validate_LcsHelper_v4.py report",
+        f"checks passed: {passed}",
+        f"checks failed: {failed}",
+        f"warnings: {warning_count}",
+        "",
+    ]
     for name, ok, detail in checks:
         status = "PASS" if ok else "FAIL"
         lines.append(f"[{status}] {name}: {detail}")
+    if warnings:
+        lines.append("")
+        for name, ok, detail in warnings:
+            status = "WARN-OK" if ok else "WARN"
+            lines.append(f"[{status}] {name}: {detail}")
 
     report_path = out_dir / "validate_LcsHelper_v4_py_report.txt"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -191,6 +208,7 @@ def validate_slot_budget(checks: list[tuple[str, bool, str]], placed: list[dict[
     n_b45 = [0] * ninds
     n_b90 = [0] * ninds
     n_c = [0] * ninds
+    n_d = [0] * ninds
     start_to_ind = {to_int(w["start"]): i for i, w in enumerate(windows)}
 
     for row in placed:
@@ -208,11 +226,16 @@ def validate_slot_budget(checks: list[tuple[str, bool, str]], placed: list[dict[
             if start_ind is not None:
                 for i in range(start_ind, min(start_ind + 3, ninds)):
                     n_c[i] += 1
+        elif cat == "D" and 1 <= ind <= ninds:
+            n_d[ind - 1] += 1
 
-    n4 = [b90 + c for b90, c in zip(n_b90, n_c)]
-    filled = [a + b45 + x / 4 for a, b45, x in zip(n_a, n_b45, n4)]
-    add(checks, "Slot budget n4 divisible by 4", all(x % 4 == 0 for x in n4), f"n4={n4}")
-    add(checks, "Slot budget filled <= 11", all(x <= DAILY_LCS_SLOTS for x in filled), f"filled={filled}")
+    n_cadence4 = [b90 + c for b90, c in zip(n_b90, n_c)]
+    filled_abc = [a + b45 + x / 4 for a, b45, x in zip(n_a, n_b45, n_cadence4)]
+    filled_with_d = [abc + d for abc, d in zip(filled_abc, n_d)]
+    add(checks, "Slot budget nCadence4 divisible by 4", all(x % 4 == 0 for x in n_cadence4),
+        f"nCadence4={n_cadence4}")
+    add(checks, "Slot budget filledABC <= 11", all(x <= DAILY_LCS_SLOTS for x in filled_abc),
+        f"filledABC={filled_abc} nD={n_d} filled+D={filled_with_d}")
 
 
 def validate_window_bounds(checks: list[tuple[str, bool, str]], placed: list[dict[str, str]], daily: list[dict[str, str]]) -> None:
@@ -242,6 +265,46 @@ def validate_daily_schedule(checks: list[tuple[str, bool, str]], daily: list[dic
     add(checks, "Daily schedule row count", len(daily) > 0, f"rows={len(daily)}")
     add(checks, "Daily schedule slot count", len(slot_cols) == DAILY_LCS_SLOTS, f"slots={len(slot_cols)}")
     add(checks, "Daily schedule contains observations", observed > 0, f"observed={observed}")
+
+
+def validate_warning_checks(
+    warnings: list[tuple[str, bool, str]],
+    rows_a: list[dict[str, str]],
+    rows_b: list[dict[str, str]],
+    rows_c: list[dict[str, str]],
+    rows_d: list[dict[str, str]],
+) -> None:
+    moved = [r for r in rows_a if to_int(r["group"]) > 6]
+    if moved:
+        slots = {(to_int(r["group"]), to_int(r["ind"])) for r in moved}
+        add(warnings, "SetA moved group accounting", len(slots) == len(moved),
+            f"moved_rows={len(moved)} moved_slots={sorted(slots)}")
+    else:
+        add(warnings, "SetA moved group accounting", True, "no moved SetA rows")
+
+    add(warnings, "Long-field extinction ranking", False,
+        "not available from CSV output; MATLAB validator has object field tables")
+
+    if not rows_d:
+        add(warnings, "SetD ranking", True, "no SetD rows")
+        return
+    rows_d_sorted = sorted(rows_d, key=lambda r: to_int(r["group"]))
+    positions = []
+    missing = []
+    for row in rows_d_sorted:
+        field = to_int(row["Field"])
+        try:
+            positions.append(DEFAULT_SETD_RANK.index(field) + 1)
+        except ValueError:
+            missing.append(field)
+    add(warnings, "SetD ranking fields in default rank list", not missing,
+        f"missing={missing} rank_positions={positions}")
+    add(warnings, "SetD ranking selected order follows rank order",
+        not missing and all(b >= a for a, b in zip(positions, positions[1:])),
+        f"rank_positions={positions}")
+    add(warnings, "SetD ranking earlier fields skipped",
+        not missing and (max(positions, default=0) <= len(rows_d_sorted)),
+        f"rank_positions={positions}")
 
 
 if __name__ == "__main__":
