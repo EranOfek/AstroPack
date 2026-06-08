@@ -30,10 +30,10 @@
 //   1->2 matching is calculated, and the reverse 2->1 matching is skipped.
 //
 // Compile example on Linux:
-//   mex -R2018a CXXFLAGS="$CXXFLAGS -O3 -std=c++11" matchCatalogsXY.cpp
+//   mex CXX=g++-9 -R2018a CXXFLAGS="$CXXFLAGS -O3 -std=c++11" matchCatalogsXY.cpp
 //
 // With OpenMP (Linux):
-//   mex -R2018a CXXFLAGS="$CXXFLAGS -O3 -std=c++11 -fopenmp" LDFLAGS="$LDFLAGS -fopenmp" matchCatalogsXY.cpp
+//   mex CXX=g++-9 -R2018a CXXFLAGS="$CXXFLAGS -O3 -std=c++11 -fopenmp" LDFLAGS="$LDFLAGS -fopenmp" matchCatalogsXY.cpp
 
 namespace {
 
