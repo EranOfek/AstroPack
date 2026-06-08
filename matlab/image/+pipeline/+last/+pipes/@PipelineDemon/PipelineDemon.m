@@ -761,7 +761,8 @@ classdef PipelineDemon < Component
                         Obj.CalibPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefCalibPath);
                         Obj.FailedPath = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFailedPath);
                         Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
-                    
+                        Obj.FocusPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFocusPath);
+
                         Obj.RefPath    = sprintf('%s%s%s',tools.os.get_computer, filesep, Obj.DefRefPath);
                     end
                 case 'marvin'
@@ -781,7 +782,8 @@ classdef PipelineDemon < Component
                     Obj.CalibPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefCalibPath);
                     Obj.FailedPath = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFailedPath);
                     Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
-                    
+                    Obj.FocusPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFocusPath);
+
                     Obj.RefPath    = '/lastdata/references/v4';
 
 
@@ -907,6 +909,8 @@ classdef PipelineDemon < Component
             %                   Default is 'calib'.
             %            'FailedPath' - If empty, do not set FailedPath.
             %                   Default is 'failed'.
+            %            'FocusPath' - If empty, do not set FocusPath.
+            %                   Default is 'focus'.
             % Output : - A pipeline.DemonLAST object in which the paths are
             %            updated.
             % Author : Eran Ofek (Apr 2023)
@@ -917,9 +921,10 @@ classdef PipelineDemon < Component
                 Args.NewPath    = 'new';
                 Args.CalibPath  = 'calib';
                 Args.FailedPath = 'failed';
+                Args.FocusPath  = 'focus';
             end
 
-            FIELDS = {'NewPath','CalibPath','FailedPath'};
+            FIELDS = {'NewPath','CalibPath','FailedPath','FocusPath'};
             Nf     = numel(FIELDS);
 
             if ~isempty(BasePath)
