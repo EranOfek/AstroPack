@@ -17,7 +17,8 @@ function [Result] = run_AstrometryNet(Input, Args)
     %                   Default 'solve-field'.
     %            'ConfigFile' - --config path. If empty solve-field uses
     %                   its system default. Default ''.
-    %            'Scale' - [low high] pixel scale. Default [].
+    %            'Scale' - Pixel scale prior. Either [low high] or a
+    %                   scalar (treated as +/- 5%). Default [].
     %            'ScaleUnits' - 'arcsecperpix' (default), 'arcminwidth',
     %                   'degwidth', 'focalmm'.
     %            'RA','Dec','Radius' - approximate centre + search
@@ -131,7 +132,12 @@ function [Result] = run_AstrometryNet(Input, Args)
     if ~isempty(Args.ConfigFile)
         Cmd = sprintf('%s --config ''%s''', Cmd, Args.ConfigFile);
     end
-    if numel(Args.Scale) == 2
+    if isscalar(Args.Scale)
+        ScaleLow  = 0.95 * Args.Scale;
+        ScaleHigh = 1.05 * Args.Scale;
+        Cmd = sprintf('%s --scale-low %g --scale-high %g --scale-units %s', ...
+                      Cmd, ScaleLow, ScaleHigh, Args.ScaleUnits);
+    elseif numel(Args.Scale) == 2
         Cmd = sprintf('%s --scale-low %g --scale-high %g --scale-units %s', ...
                       Cmd, Args.Scale(1), Args.Scale(2), Args.ScaleUnits);
     end
@@ -175,7 +181,7 @@ function writeXYList(Path, X, Y, Flux)
         delete(Path);
     end
     F = fits.createFile(Path);
-    fits.createImg(F, 'byte_img', [0 0]);   % empty primary HDU
+    fits.createImg(F, 'byte_img', [1 1]);   % minimal primary HDU
     if isempty(Flux)
         Names = {'X','Y'};
         Forms = {'1E','1E'};

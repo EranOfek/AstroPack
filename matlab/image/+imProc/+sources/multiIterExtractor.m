@@ -407,16 +407,23 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
 
         % Bright stars back/var adjustment:
         Args.BS_R     = (0:1:1500)+0.1;
+        Args.BS_BackMaxR  = 1501;
         Args.BS_Par   = [0.57111      -4.1984       4.7473];
         Args.BS_Prof  = @(Par, R) 10.^polyval(Par,log10(R));
         Args.BS_PL    = 1.5;
         Args.MethodBS = 'prof';
         Args.BS_ColFlux = 'FLUX_APER_4';
-
+        Args.IsBackSub   = false;   % If true, will not estimate the VarFactor empirically.
+        Args.AddExtraBack   = true;
+        Args.AddExtraVar    = true;
+        Args.NcoaddFactor   = 1;
+        
         Args.UseMex                        = false;
 
 
     end
+
+    %Args.BS_R = Args.BS_R(Args.BS_R<Args.BS_MaxR);
 
     if isa(Args.BS_Prof, 'function_handle')
         BS_RadProf = Args.BS_Prof(Args.BS_Par, Args.BS_R);
@@ -797,9 +804,24 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             FluxNorm = (Flux./1e5).^Args.BS_PL;
                             % 
                             MaxRadiusF = repmat(MaxRadius,size(X));
-                            VarFactor   = AI.VarData.Data(1)./AI.BackData.Data(1); %   <1./(Ncoadd.*Gain) or use AI.VarData.Data(1)./AI.BackData.Data(1)>
-                            AI.BackData.Data = imUtil.art.mex.addBrightSourceProfile(AI.BackData.Data, X, Y, FluxNorm, MaxRadiusF, BS_RadProf);
-                            AI.VarData.Data  = imUtil.art.mex.addBrightSourceProfile(AI.VarData.Data, X, Y, FluxNorm.*VarFactor, MaxRadiusF, BS_RadProf);
+
+                            %When the image is background subtracted this
+                            %has no meaning
+                            % This has meaning only when gain=1.
+                            if Args.IsBackSub
+                                VarFactor = 1./(Ncoadd.*Args.NcoaddFactor);
+                            else
+                                % Image is NOT background subtracted
+                                % can estimate the VarFactor empirically
+                                VarFactor   = (AI.VarData.Data(1)./AI.BackData.Data(1)).^2; %   <1./(Ncoadd.*Gain) or use AI.VarData.Data(1)./AI.BackData.Data(1)>
+                            end
+                            %VarFactor   = 1./(20.*Ncoadd.*Gain);
+                            if Args.AddExtraBack
+                                AI.BackData.Data = imUtil.art.mex.addBrightSourceProfile(AI.BackData.Data, X, Y, FluxNorm, Args.BS_BackMaxR.*ones(size(MaxRadiusF)), BS_RadProf);
+                            end
+                            if Args.AddExtraVar
+                                AI.VarData.Data  = imUtil.art.mex.addBrightSourceProfile(AI.VarData.Data, X, Y, FluxNorm.*VarFactor, MaxRadiusF, BS_RadProf); %./Args.BS_Ncoadd;
+                            end
         
                             %toc
 
