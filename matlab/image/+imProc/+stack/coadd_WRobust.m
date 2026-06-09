@@ -116,6 +116,7 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
         Args.StdMethod       = 3;
         Args.CoaddUseMex     = true;
         Args.AddBack         = true;
+        Args.CalcVar         = false;  % If false then propagate Var
         Args.backVarArgs     = {};
 
         %--- Mask ---
@@ -193,7 +194,13 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
 
 
     if Args.AddBack
-        Result.BackData.Data = imUtil.background.backVar(Result.ImageData.Data, Args.backVarArgs{:});
+        if Args.CalcVar
+            [Result.BackData.Data, Result.VarData.Data] = imUtil.background.backVar(Result.ImageData.Data, Args.backVarArgs{:});
+        else
+            % Var is arriving from the Var propagation of the individual
+            % images
+            Result.BackData.Data = imUtil.background.backVar(Result.ImageData.Data, Args.backVarArgs{:});
+        end
     end
 
     % coadd mask

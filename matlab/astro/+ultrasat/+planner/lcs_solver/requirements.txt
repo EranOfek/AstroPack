@@ -1,0 +1,4 @@
+ortools>=9.7
+pandas>=2.0
+matplotlib>=3.7
+pytest>=7.0

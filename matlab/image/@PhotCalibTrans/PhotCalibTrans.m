@@ -463,6 +463,11 @@ classdef PhotCalibTrans < Component
                 Args.OuterMaxIter     = 5
                 Args.OuterMinNewClipped = 1
                 Args.FluxErrorNorm    = 0.5
+                % Forward to CompositeFun.fitPar -> lsqnonlin TypicalX.
+                % Scales finite-diff steps + stopping tolerances by each
+                % free parameter's natural magnitude. Default false
+                % preserves current optimizer behaviour.
+                Args.UseTypicalX logical = false
                 Args.AirmassColName   = 'AIRMASS'
                 Args.PerSourceAirmass logical = false
 
@@ -488,6 +493,13 @@ classdef PhotCalibTrans < Component
                 Args.ObsLat          (1,1) double = 30.053072   % deg
                 Args.ObsLon          (1,1) double = 35.040858   % deg
                 Args.ObsHeight       (1,1) double = 415.4       % m (ignored by AstroPack airmass calc)
+                % Apply the ICRS->apparent-of-date transformation (precession +
+                % nutation + annual aberration) to header RA/Dec before computing
+                % Hardie airmass via radec2azalt. Matches Python astropy's
+                % SkyCoord(ICRS).transform_to(AltAz) chain; closes a ~1 milli-
+                % airmass gap at sec(z)~1.7. Only consulted when AirmassSource='compute'.
+                % Set false to recover the legacy pure-spherical-trig behaviour.
+                Args.ApplyApparentPlace logical = true
                 % When true AND AirmassSource='compute' actually yielded a finite
                 % Hardie airmass, overwrite the AIRMASS keyword on the source
                 % AstroHeader (Cat.HeaderData for AstroImage input, or the
@@ -612,11 +624,45 @@ classdef PhotCalibTrans < Component
                     JDhdr  = readAirmassTime(HeaderRef, Args.AirmassTimeKey);
 
                     if isfinite(RAhdr) && isfinite(Dechdr) && isfinite(JDhdr)
-                        [~, ~, AM] = celestial.coo.radec2azalt(JDhdr, RAhdr, Dechdr, ...
+                        % Optionally apply ICRS->apparent-of-date (annual
+                        % aberration + precession + nutation), mirroring
+                        % Python astropy's SkyCoord(ICRS).transform_to(AltAz)
+                        % chain. Uses INPOP-free helpers:
+                        %   celestial.coo.aberration       (Ron & Vondrak 1986)
+                        %   celestial.convert.precessCoo   (OutMean=false => incl. nutation)
+                        % No refraction step (matches astropy default).
+                        if Args.ApplyApparentPlace
+                            try
+                                RA_rad  = RAhdr  * pi/180;
+                                Dec_rad = Dechdr * pi/180;
+                                % Aberration (Ron & Vondrak via Earth geocentric velocity)
+                                Aber = celestial.coo.aberration([RA_rad, Dec_rad], JDhdr);
+                                RA_a_deg  = Aber(1,1) * 180/pi;
+                                Dec_a_deg = Aber(1,2) * 180/pi;
+                                % Precess J2000 -> true equinox of date (OutMean=false includes nutation)
+                                [RA_use, Dec_use] = celestial.convert.precessCoo( ...
+                                    RA_a_deg, Dec_a_deg, ...
+                                    'InEquinox',  2451545.5, 'InMean',  true, ...
+                                    'OutEquinox', JDhdr,     'OutMean', false, ...
+                                    'InUnits',   'deg',      'OutUnits','deg');
+                            catch ME
+                                Obj.msgLog(LogLevel.Warning, sprintf( ...
+                                    'calibrate: ApplyApparentPlace failed (%s) - falling back to raw header RA/Dec', ...
+                                    ME.message));
+                                RA_use  = RAhdr;
+                                Dec_use = Dechdr;
+                            end
+                        else
+                            RA_use  = RAhdr;
+                            Dec_use = Dechdr;
+                        end
+
+                        [~, ~, AM] = celestial.coo.radec2azalt(JDhdr, RA_use, Dec_use, ...
                             'GeoCoo', [Args.ObsLon, Args.ObsLat]);
                         Obj.AirMass = AM;
                         if Args.Verbose
-                            fprintf('  AirMass overridden (Hardie) = %.4f\n', AM);
+                            fprintf('  AirMass overridden (Hardie) = %.4f (ApparentPlace=%d)\n', ...
+                                    AM, Args.ApplyApparentPlace);
                         end
                         % Optionally persist the Hardie value back to the
                         % source header (AstroHeader is a handle class, so
@@ -905,6 +951,7 @@ classdef PhotCalibTrans < Component
                     'OuterStdFunc',       Args.OuterStdFunc, ...
                     'OuterMaxIter',       Args.OuterMaxIter, ...
                     'OuterMinNewClipped', Args.OuterMinNewClipped, ...
+                    'UseTypicalX',        Args.UseTypicalX, ...
                     'Verbose', Args.Verbose);
 
                 % Store fitted model and fit results
@@ -4526,7 +4573,7 @@ classdef PhotCalibTrans < Component
                             NaNcol = nan(Nrows, 1);
                             if Args.AddZP
                                 ZPColName = [Args.MagSystem, '_ZP'];
-                                CatObj = setNumColFast(CatObj, NaNcol, ZPColName);
+                                CatObj = CatObj.insertCol(NaNcol, Inf, ZPColName, {}, 'OmitValidation', true);
                             end
                             if Args.AddMag
                                 AllColNames = CatObj.ColNames;
@@ -4538,7 +4585,7 @@ classdef PhotCalibTrans < Component
                                 FluxColNames = FluxColNames(~strcmp(FluxColNames, 'FLUX_XYPEAK'));
                                 for I = 1:numel(FluxColNames)
                                     NewMagColName = strrep(FluxColNames{I}, 'FLUX_', MagPrefix);
-                                    CatObj = setNumColFast(CatObj, NaNcol, NewMagColName);
+                                    CatObj = CatObj.insertCol(NaNcol, Inf, NewMagColName, {}, 'OmitValidation', true);
                                     % MAGERR written when an error source
                                     % exists: FLUXERR_<suffix> or, for
                                     % FLUX_PSF, SN.
@@ -4547,7 +4594,7 @@ classdef PhotCalibTrans < Component
                                         (strcmp(FluxColNames{I}, 'FLUX_PSF') && any(strcmp(AllColNames, 'SN')));
                                     if HasErrSource
                                         MagErrColName = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
-                                        CatObj = setNumColFast(CatObj, NaNcol, MagErrColName);
+                                        CatObj = CatObj.insertCol(NaNcol, Inf, MagErrColName, {}, 'OmitValidation', true);
                                     end
                                 end
                             end
@@ -4650,7 +4697,7 @@ classdef PhotCalibTrans < Component
 
                         if Args.AddZP
                             ZPColName = [Args.MagSystem, '_ZP'];
-                            CatObj = setNumColFast(CatObj, ZP_epoch, ZPColName);
+                            CatObj = CatObj.insertCol(ZP_epoch, Inf, ZPColName, {}, 'OmitValidation', true);
                         end
 
                         if Args.AddMag
@@ -4686,7 +4733,7 @@ classdef PhotCalibTrans < Component
                                     end
                                 end
 
-                                CatObj = setNumColFast(CatObj, Mag, NewMagColName);
+                                CatObj = CatObj.insertCol(Mag, Inf, NewMagColName, {}, 'OmitValidation', true);
 
                                 % MAGERR source priority:
                                 %   (1) FLUXERR_<suffix> -> MagErr = 1.086 * FLUXERR
@@ -4704,7 +4751,7 @@ classdef PhotCalibTrans < Component
                                     MagErr = nan(Nrows, 1);
                                     ValidFlux = Flux_col > 0 & isfinite(Flux_col) & isfinite(FluxErr);
                                     MagErr(ValidFlux) = 1.086 .* FluxErr(ValidFlux);
-                                    CatObj = setNumColFast(CatObj, MagErr, MagErrCol);
+                                    CatObj = CatObj.insertCol(MagErr, Inf, MagErrCol, {}, 'OmitValidation', true);
                                 elseif strcmp(FluxColNames{I}, 'FLUX_PSF')
                                     SnIdx = find(strcmp(AllColNames, 'SN'), 1);
                                     if ~isempty(SnIdx)
@@ -4713,7 +4760,7 @@ classdef PhotCalibTrans < Component
                                         MagErr = nan(Nrows, 1);
                                         ValidSN = isfinite(SN) & SN > 0;
                                         MagErr(ValidSN) = 1.086 ./ SN(ValidSN);
-                                        CatObj = setNumColFast(CatObj, MagErr, MagErrCol);
+                                        CatObj = CatObj.insertCol(MagErr, Inf, MagErrCol, {}, 'OmitValidation', true);
                                     end
                                 end
                             end
@@ -5263,34 +5310,6 @@ function idx = findColIdxLocal(ColNames, Candidates)
 end
 
 % =========================================================================
-function Obj = setNumColFast(Obj, Data, Name)
-    % Fast specialised version of CatObj.insertCol(Data, Inf, {Name}).
-    %   Caller must guarantee:
-    %     - Obj is a scalar AstroCatalog with Obj.Catalog a numeric matrix
-    %     - Data is a numeric column vector of size(Obj.Catalog, 1) rows
-    %     - Name is a char row vector (NOT a cell)
-    %
-    %   Bypasses the AstroTable.insertCol -> deleteCol -> colname2ind ->
-    %   AstroTable.insertColumn -> array2table dispatch chain (each of those
-    %   parses an arguments block and runs class/size guards every time).
-    %   When Name already exists, replaces the column in place (faster than
-    %   delete-then-append and semantically equivalent for ColName-keyed
-    %   downstream consumers).
-    Idx = find(strcmp(Obj.ColNames, Name), 1);
-    if isempty(Idx)
-        Obj.Catalog  = [Obj.Catalog, Data];
-        Obj.ColNames = [Obj.ColNames, {Name}];
-        if isempty(Obj.ColUnits)
-            Obj.ColUnits = repmat({''}, 1, numel(Obj.ColNames));
-        else
-            Obj.ColUnits = [Obj.ColUnits, {''}];
-        end
-    else
-        Obj.Catalog(:, Idx) = Data;
-    end
-end
-
-% =========================================================================
 function Obj = selectCalibratorsPythonLike(Obj, Cat, Args)
     % Mirror the Python prototype's calibrator-selection recipe using
     % only catsHTM (GAIADR3spec + GAIADR3). Public entry point is
@@ -5299,13 +5318,17 @@ function Obj = selectCalibratorsPythonLike(Obj, Cat, Args)
     % Pipeline:
     %   1. Cone-match LAST catalogue to GAIADR3spec (spectra) and to
     %      GAIADR3 (PM + photometry) within Args.SearchRadius.
-    %   2. Keep only sources with a unique 1-1 match in both catalogues.
+    %   2. Keep sources with a unique 1-1 match in GAIADR3spec AND any
+    %      positional hit in GAIADR3. (GAIADR3spec is implicitly the
+    %      XP-sampled subset of Gaia DR3, so uniqueness on it acts as
+    %      Python's `has_xp_sampled=TRUE AND G in [12,16]` pre-filter +
+    %      unique-1-1 check on the filtered set. A faint non-XP blender
+    %      in GAIADR3 within SearchRadius does NOT cause rejection.)
     %   3. Propagate Gaia J2016 positions to Args.ObsJD using GAIADR3
     %      PMRA/PMDec, re-check the Args.SearchRadius gate.
-    %   4. Apply Python's filter cascade (MagRange via Gaia G mag, FLAGS
+    %   4. Apply Python's filters (MagRange via Gaia G mag, FLAGS
     %      bitmask, SN window, FLUX_<col> > 0, FLUX_PSF > 0).
-    %   5. Optional Args.UseTAPClassprob - placeholder warning until the
-    %      Gaia TAP fallback is wired.
+    %   5. Optional Args.UseTAPClassprob 
     %   6. Populate Obj.SpecData / Obj.SourceData / Obj.CalFound exactly
     %      as the default catsHTM path, so downstream code is unaffected.
     %
@@ -5360,8 +5383,18 @@ function Obj = selectCalibratorsPythonLike(Obj, Cat, Args)
     SNm  = ResIndS.Obj2_NmatchObj1;
     GNm  = ResIndG.Obj2_NmatchObj1;
 
-    % Keep LAST sources with unique 1-1 match in BOTH catalogues
-    HasBoth = ~isnan(SIdx) & ~isnan(GIdx) & (SNm == 1) & (GNm == 1);
+    % Keep LAST sources with unique 1-1 match in GAIADR3spec, plus a
+    % positional hit (any multiplicity) in GAIADR3.
+    %   Uniqueness is enforced ONLY on GAIADR3spec: that catalog is the
+    %   XP-sampled subset of Gaia DR3, so a "1 in spec" match is implicitly
+    %   filtered to XP-available, G ~< 17.6 sources -- matching Python's
+    %   prototype (`has_xp_sampled = TRUE AND phot_g_mean_mag BETWEEN 12 AND 16`
+    %   pre-filter + unique-1-1 check on the filtered set).
+    %   We still require GIdx to be set (for PM and photometry) but no
+    %   longer reject when a faint non-XP blender is the second GAIADR3
+    %   neighbour within SearchRadius. Empirically this recovers the
+    %   `BLENDED in GAIADR3 (2)` rejections that Python keeps.
+    HasBoth = ~isnan(SIdx) & ~isnan(GIdx) & (SNm == 1);
 
     if ~any(HasBoth)
         Obj.msgLog(LogLevel.Warning, sprintf( ...

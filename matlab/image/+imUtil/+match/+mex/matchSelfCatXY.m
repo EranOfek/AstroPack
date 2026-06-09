@@ -41,7 +41,7 @@
 %            'Dist' - Distances of all matches. Units follow IsUnitsDeg.
 %            This output is calculated only if requested.
 % Author : ChatGPT + Eran Ofek (Apr 2026)
-% Compilation: mex -O CXXFLAGS='$CXXFLAGS -fopenmp -std=c++17' LDFLAGS='$LDFLAGS -fopenmp' matchSelfCatXY.cpp
+% Compilation: mex -O CXX=g++-9 CXXFLAGS='$CXXFLAGS -fopenmp -std=c++17' LDFLAGS='$LDFLAGS -fopenmp' matchSelfCatXY.cpp
 % Example: 
 %{
             RA1  = rand(10000,1).*2.*pi;

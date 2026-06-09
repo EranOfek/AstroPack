@@ -159,8 +159,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.registerArgs                     = {};
         Args.DataProp                         = {'ImageData','BackData','VarData','MaskData'};
         Args.SubBack                          = true;  % false is useful for visit coaddition, for general coaddition use true.
+        
         Args.SetBackTo0                       = true; % if SubBack=true and SetBackTo0 then set back to 0.
-        Args.ReMeasureBackVar                 = true; % if SetBackT0=false and this is true than remeasure back and var
+        %Args.ReMeasureBackVar                 = true; % if SetBackT0=false and this is true than remeasure back and var
+        Args.ReMeasureBack                    = true;
+        Args.ReMeasureVar                     = true;
+        %Args.PropagateVar                     = false; % propagate variance from coaddition.
 
         %Args.UseShift logical                 = true;
         %Args.UseInterp2 logical               = true;
@@ -182,7 +186,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         
         %Args.backgroundArgs cell              = {};
         %Args.BackSubSizeXY                    = [128 128];
-        Args.backVarArgs                      = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[128 128]}
+        Args.backVarArgs                      = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256]}
         Args.findMeasureSourcesArgs cell      = {};
         Args.maskCR_Args                      = {};
         Args.ColCell cell                     = {'XPEAK','YPEAK',...
@@ -319,7 +323,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         PreAllocCube = [];
     end
         
-    ResultCoadd = struct('MidJD',cell(Nfields,1), 'MidMidJD',cell(Nfields,1), 'CoaddN',cell(Nfields,1), 'AstrometricFit',cell(Nfields,1), 'ZP',cell(Nfields,1), 'PhotCat',cell(Nfields,1), 'TransFit',cell(Nfields,1));
+    ResultCoadd = struct('WMeanJD',cell(Nfields,1), 'IndivMidJD',cell(Nfields,1), 'CoaddN',cell(Nfields,1), 'AstrometricFit',cell(Nfields,1), 'ZP',cell(Nfields,1), 'PhotCat',cell(Nfields,1), 'TransFit',cell(Nfields,1));
     
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
     for Ifields=1:1:Nfields
@@ -374,13 +378,15 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % 2. RegisteredImages has no header so no JD...
 
             %Args.StackMethod = 'sigmaclip';
+            
+
             switch Args.StackMethod
                 case 'wrobust'
                     % RegisteredImages contains also the Back and Var
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:}, 'backVarArgs',Args.backVarArgs);
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:}, 'AddBack', Args.ReMeasureBack, 'CalcVar',Args.ReMeasureVar, 'backVarArgs',Args.backVarArgs);
                    
                 case 'proper'
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:}, 'backVarArgs',Args.backVarArgs);
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:}, 'AddBack',Args.ReMeasureBack, 'backVarArgs',Args.backVarArgs);
 
                 case 'sigmaclip'
                     % obsolete channel
@@ -403,14 +409,14 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 end
             end
 
-
             if Args.SetBackTo0 && Args.SubBack
                 Coadd(Ifields).BackData.Data = zeros(size(Coadd(Ifields).ImageData.Data), 'like',Coadd(Ifields).ImageData.Data);
             end
-        
-            if ~Args.SetBackTo0 && Args.ReMeasureBackVar
-                Coadd(Ifields) = imProc.background.backVar(Coadd(Ifields), Args.backVarArgs{:});                
-            end
+
+
+            % if Args.ReMeasureBack
+            %     Coadd(Ifields) = imProc.background.backVar(Coadd(Ifields), 'ReCalc',true, Args.backVarArgs{:});                
+            % end
 
             if Args.CorrectVarByNcoadd
                 MeanN = mean(ResultCoadd(Ifields).CoaddN(:));

@@ -42,7 +42,7 @@ function [Result] = buildRefImages(RefGrid, Args)
     % Author : A.M. Krassilchtchikov (2026 Apr) 
     % Example: load('LAST_refGrid_new.mat'); D = db.Db.connectLASTdb('Pass','*');
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D); % a most general usage  
-    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D,'RefID',[99945 99946]); % a short test
+    %          R=pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D,'RefID',[99945 99946]); % a short test
     arguments
         RefGrid
                                                         
@@ -58,11 +58,11 @@ function [Result] = buildRefImages(RefGrid, Args)
         Args.DB                = []; % a DB object (auto-generated, if not supplied)
         Args.SearchTable       = 'last.visit_images'; 
         % the list of table columns needed to check the overlaps + filtering + control 
-        Args.Fields            = "id_visit, upix_low, jd_start, midjd, exptime, fieldid, mountnum, camnum, cropid," + ... 
+        Args.Fields            = "id_visit, upix_low, jd_start, midjd, exptime, fieldid, nodenumb, mountnum, camnum, cropid," + ... 
                                  "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
         Args.GroupByFields     = {'mountnum','camnum','jd_start'} % fields employed for grouping images to be stitched separately
         
-        Args.BasePath          = '/mnt/euclid/last/data'; % base path for image retrieval  
+        Args.BasePath          = {'/mnt/euclid/last/data','/euclid/last/data'}; % base path for image retrieval  
         
         Args.ImageQualityFilter = "fwhm < 4"; % a user-supplied filter (to be included directly into the SQL query) 
                        
@@ -70,16 +70,17 @@ function [Result] = buildRefImages(RefGrid, Args)
         Args.MinAllowedCoverage = 0.999;  % 0.995; % allowed inaccuracy in the required reference field coverage  
                        
         %Args.CoaddFunction      = @pipeline.generic.procCoadd; 
-        Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[128 128], 'MethodArgs',{'Range',[-50 50]}}
+        %Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[128 128], 'MethodArgs',{{'Range',[-50 50]}}}
+        Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[128 128], 'MethodArgs',{{'Range',[-50 50]}, {}} };
 
         Args.SubBack            = true;  % don't change unless you understand what you are doing
         Args.StackMethod        = 'wrobust';
-        Args.StackMethodArgs    = {'coadd_WRobustArgs',{'backVarArgs',{'Method',@imUtil.background.modeVar_Hist}}};     
+        Args.StackMethodArgs    = {}; %{'coadd_WRobustArgs',{'backVarArgs',{'Method',@imUtil.background.modeVar_Hist}}};     
         Args.CoaddFunctionArgs  = {}; % additional arguments to be passed to the coadd function 
         
         Args.PixScale           = 1.25;        
         
-        Args.Write2Disk         = true
+        Args.Write2Disk         = true;
         Args.OutputDir          = '~/NewRef/';        
         Args.WriteProp          = ["Image","Cat","Mask","PSF"];
         
@@ -91,12 +92,15 @@ function [Result] = buildRefImages(RefGrid, Args)
         Args.DbName             = 'last_ro'
         Args.AstroDBPassFile    = '~/.astropack/Passwords.yml';
         
-        Args.Verbose            = 2; % from 0 (mute) to 2 (maximal)
+        Args.Verbose            = 0; % from 0 (mute) to 2 (maximal)
     end
     % 
     RAD = 180/pi;  
     Nref = height(RefGrid); 
            
+    Ibp = find(isfolder(Args.BasePath), 1, 'first');
+    Args.BasePath = Args.BasePath(Ibp);
+
     % loop over the Reference Image grid that has been read above 
     if isempty(Args.RefID)
         RefID = 1:Nref;
@@ -105,12 +109,14 @@ function [Result] = buildRefImages(RefGrid, Args)
     end
     
     % the main loop over the reference grid 
+    K = 0;
     for Iref = RefID
-        
+        K = K + 1;
+
+        if Args.Verbose > 0
             tstart = tic;
-            if Args.Verbose > 0
-                cprintf('blue','Starting to build a reference image for field %d of %d at RA %.2f Dec %.2f \n',Iref,Nref,RefGrid.RA(Iref),RefGrid.Dec(Iref));
-            end
+            cprintf('blue','Starting to build a reference image for field %d of %d at RA %.2f Dec %.2f \n',Iref,Nref,RefGrid.RA(Iref),RefGrid.Dec(Iref));
+        end
             
         % read or build the WCS of the target reference image
         if ~isempty(Args.PrebuiltRefWCS)
@@ -185,9 +191,9 @@ function [Result] = buildRefImages(RefGrid, Args)
             [Grp, ~]    = findgroups(GroupFields);                       
             
             Ngroup   = max(Grp);
-                    if Args.Verbose > 0              
-                        fprintf('%d groups of images found\n',Ngroup);
-                    end
+            if Args.Verbose > 0              
+                fprintf('%d groups of images found\n',Ngroup);
+            end
             %
             StackImages = [];
             
@@ -195,9 +201,10 @@ function [Result] = buildRefImages(RefGrid, Args)
                 
                 TabGrp  = T(Grp == Igroup, :);               
                 Nim     = height(TabGrp);
-                    if Args.Verbose > 1
-                        fprintf('Group %d: %d images found in the DB \n',Igroup,Nim);
-                    end
+
+                if Args.Verbose > 1
+                    fprintf('Group %d: %d images found in the DB \n',Igroup,Nim);
+                end
                 
                 % 2. select exposures by specific obs. time, mount, telescope, time span, etc.
                 %
@@ -211,10 +218,10 @@ function [Result] = buildRefImages(RefGrid, Args)
                 % T2 = T2(quality condition,:)
                 
                 Nim = height(TabGrp);
-                    if Args.Verbose > 1
-                        fprintf('Group %d: %d images selected according to the time and quality criteria \n',Igroup,Nim);
-                    end
-                
+                if Args.Verbose > 1
+                    fprintf('Group %d: %d images selected according to the time and quality criteria \n',Igroup,Nim);
+                end
+            
                 % if the total coverage is incomplete, skip to the next epoch
                 Coverage = []; RasterC = []; Icrop = 1;
                 while Icrop < height(TabGrp)+1 % merge the rasters of all the crops involved
@@ -242,26 +249,29 @@ function [Result] = buildRefImages(RefGrid, Args)
                 end
                 
                 % 4.1 retrieve the crop images
-                    if Args.Verbose > 0
-                        fprintf('Group %d: %d images filtered, dowloading and stitching...',Igroup,Nim);
-                    end
+                if Args.Verbose > 0
+                    fprintf('Group %d: %d images filtered, dowloading and stitching...',Igroup,Nim);
+                end
+            
+                % Delete this block after some verification and speed tests
+                % AF = AstroFileName;
+                % AF.ProjName = {'LAST', 1, TabGrp.mountnum, TabGrp.camnum};
+                % AF.JD = double(TabGrp.jd_start);
+                % AF.julday2time;
+                % AF.FieldID = TabGrp.fieldid;
+                % AF.CropID  = TabGrp.cropid;
+                % AF.Counter = 0;
+                % AF.Level   = "coadd";
+                % AF.CCDID   = 1;
+                % AF.SubDir  = TabGrp.subdir;
+                % AF.BasePath                = Args.BasePath;
+                % AF.BasePathIncludeProjName = true;
+                % AF.AddSubDir               = true;
                 
-                AF = AstroFileName;
-                AF.ProjName = {'LAST', 1, TabGrp.mountnum, TabGrp.camnum};
-                AF.JD = double(TabGrp.jd_start);
-                AF.julday2time;
-                AF.FieldID = TabGrp.fieldid;
-                AF.CropID  = TabGrp.cropid;
-                AF.Counter = 0;
-                AF.Level   = "coadd";
-                AF.CCDID   = 1;
-                AF.SubDir  = TabGrp.subdir;
-                AF.BasePath                = Args.BasePath;
-                AF.BasePathIncludeProjName = true;
-                AF.AddSubDir               = true;
-                
-                AI = AstroImage.readProducts(AF.genFull);
-                
+                %AI = AstroImage.readProducts(AF.genFull);
+
+                AI=pipeline.last.queryDB.loadProducts(TabGrp);
+
                 % check if WCS is present in all the selected crops
                 if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
 %                 if all(arrayfun(@(x) x.WCS.Success, AI))
@@ -293,49 +303,51 @@ function [Result] = buildRefImages(RefGrid, Args)
             
             % do the stacking 
             if isempty(StackImages)
-                    if Args.Verbose > 0
-                        cprintf('err','No images have been qualified for the field %d, skipping to the next field..\n',Iref);
-                    end                
+                if Args.Verbose > 0
+                    cprintf('err','No images have been qualified for the field %d, skipping to the next field..\n',Iref);
+                end                
             else
-                    if Args.Verbose > 0
-                        cprintf('blue','Coadding %d groups \n',numel(StackImages));
+                if Args.Verbose > 0
+                    cprintf('blue','Coadding %d groups \n',numel(StackImages));
+                end
+                
+                % 5. coadd the epochs from different groups of images (e.g., telescopes and cameras)
+                %    rotate, align, and cut the merged crops to the ref. coordinates
+                %    measure background, find sources, populate PSF
+                RefImage = pipeline.generic.procCoadd(StackImages','WCS',AIref,...
+                                    'SubBack',Args.SubBack,...
+                                    'SetBackTo0',false,...
+                                    'ReMeasureBack',true, 'ReMeasureVar',true,...
+                                    'StackMethod',Args.StackMethod, Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:},...
+                                    'backVarArgs',Args.backVarArgs, 'AddMaskSrcNoise',false);
+                
+                % 5a. add the ID_REF keyword
+                RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MOUNTNUM', 0);
+                RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'CAMNUM', 0);
+                JD = RefImage.getStructKey('MIDJD').MIDJD;
+                [RefImage,~] = imProc.db.generateImageID(RefImage,'KeyID','ID_REF','JD',JD);
+                
+                % 6. save the new reference image and its catalog, mask, and PSF to the disk
+                if Args.Write2Disk
+                    for Iprop=1:numel(Args.WriteProp)
+                        FN = sprintf('%s/LAST_clear_%d_sci_ref_%s_1.fits',Args.OutputDir,Iref,Args.WriteProp(Iprop));
+                        RefImage.write1(FN, Args.WriteProp(Iprop), 'OverWrite', true, 'MkDir', true);
                     end
-                    
-                    % 5. coadd the epochs from different groups of images (e.g., telescopes and cameras)
-                    %    rotate, align, and cut the merged crops to the ref. coordinates
-                    %    measure background, find sources, populate PSF
-                    RefImage = pipeline.generic.procCoadd(StackImages','WCS',AIref,...
-                                        'SubBack',Args.SubBack,...
-                                        'SetBackTo0',true,...
-                                        'StackMethod',Args.StackMethod, Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:},...
-                                        'backVarArgs',Args.backVarArgs, 'AddMaskSrcNoise',false);
-                    
-                    % 5a. add the ID_REF keyword
-                    RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MOUNTNUM', 0);
-                    RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'CAMNUM', 0);
-                    JD = RefImage.getStructKey('MIDJD').MIDJD;
-                    [RefImage,~] = imProc.db.generateImageID(RefImage,'KeyID','ID_REF','JD',JD);
-                    
-                    % 6. save the new reference image and its catalog, mask, and PSF to the disk
-                    if Args.Write2Disk
-                        for Iprop=1:numel(Args.WriteProp)
-                            FN = sprintf('%s/LAST_clear_%d_sci_ref_%s_1.fits',Args.OutputDir,Iref,Args.WriteProp(Iprop));
-                            RefImage.write1(FN, Args.WriteProp(Iprop), 'OverWrite', true, 'MkDir', true);
-                        end
-                    end
-                    
-                    % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)
-                    %    write the reference image catalog to the reference image catalog table of the DB
-                    
-                    
-                        if Args.Verbose > 0
-                            fprintf('Finished building a reference image for field %d: %d epochs stacked in %.1f s\n',...
-                                Iref, RefImage.HeaderData.Key.NCOADD,toc(tstart));
-                        end
-            end
+                end
+                
+                % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)
+                %    write the reference image catalog to the reference image catalog table of the DB
+                
+            
+                if Args.Verbose > 0
+                    fprintf('Finished building a reference image for field %d: %d epochs stacked in %.1f s\n',...
+                        Iref, RefImage.HeaderData.Key.NCOADD,toc(tstart));
+                end
+            end % if isempty(StackImages)
         end % for the particular reference grid position we have some coadds to build on        
-    end % reference image grid
-    Result = RefImage;
+        Result(K) = RefImage;
+    end % for Iref = RefID / reference image grid
+    
 end 
 
 

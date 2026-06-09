@@ -56,7 +56,7 @@ function [Result] = install_SExtractor(Args)
 
     switch PM
         case 'apt'
-            Cmd = 'sudo apt update && sudo apt install -y source-extractor';
+            Cmd = 'sudo apt install -y source-extractor';
         case {'dnf','yum'}
             Cmd = sprintf('sudo %s install -y sextractor', PM);
         case 'brew'
