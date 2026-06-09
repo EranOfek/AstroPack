@@ -334,7 +334,7 @@ function TranCat = flagNonTransients(Obj, Args)
         % N-image PSF shape
         Args.flagPSFShape logical = true
         Args.SecondMomSoftLim double = 1.4
-        Args.SecondMomHardLim double = [5.0 3.0]
+        Args.SecondMomHardLim double = [3.0 4.5 7.0]
 
         % Contamination logic
         Args.ContaminationBackRatio double = 0.1
@@ -579,8 +579,8 @@ function TranCat = flagNonTransients(Obj, Args)
         HasRX2Y2 = ~isempty(R_X2) && ~isempty(R_Y2);
 
         if HasRX2Y2
-            R_GoodPSF = ((R_X2 + R_Y2) < Args.SecondMomHardLim(1)) ...
-                | (max(R_X2, R_Y2) < Args.SecondMomHardLim(2));
+            R_GoodPSF = ((R_X2 + R_Y2) < Args.SecondMomHardLim(2)) ...
+                | (max(R_X2, R_Y2) < Args.SecondMomHardLim(1));
         end
 
         % Based on sigma in arcsec.
@@ -1165,12 +1165,14 @@ function TranCat = flagNonTransients(Obj, Args)
             % Identify candidates with very poor N-image PSF shape.
             % These candidates are only retained if they satisfy the strictest
             % contamination and local-background conditions.
-            N_VeryPoorPSF = ((N_X2 + N_Y2) >= Args.SecondMomHardLim(1)) ...
-                & (max(N_X2,N_Y2) >= Args.SecondMomHardLim(2));
+            N_VeryPoorPSF = ((max(N_X2,N_Y2) >= Args.SecondMomHardLim(1)) ...
+                & ((N_X2 + N_Y2) >= Args.SecondMomHardLim(2)));
+
+            N_NotSalvagablePSF = (N_X2 + N_Y2) >= Args.SecondMomHardLim(3);
 
             PassesContaminationStrict = ...
                 ~N_VeryPoorPSF ...
-                | ((MagContamination > Args.ContaminationMag(2)) & PassesLocalAperStrict);
+                | ((MagContamination > Args.ContaminationMag(2)) & PassesLocalAperStrict & ~N_NotSalvagablePSF);
 
             % Final decision: require a reasonably clean local environment, pass the
             % contamination test appropriate to the N-image PSF quality, and satisfy
