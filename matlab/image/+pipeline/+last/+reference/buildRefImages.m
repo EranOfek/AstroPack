@@ -40,7 +40,8 @@ function [Result] = buildRefImages(RefGrid, Args)
     % Output : - an AstroImage object for the last reference ID from the input list 
     %          - reference image files (Image, Mask, PSF, Cat) written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2026 Apr) 
-    % Example: load('LAST_refGrid_new.mat'); D = db.Db.connectLASTdb('Pass','*');
+    % Example: load('LAST_refGrid_new.mat'); 
+    %          D = db.Db.connectLASTdb('Pass','*');
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D); % a most general usage  
     %          R=pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D,'RefID',[99945 99946]); % a short test
     arguments
@@ -99,6 +100,15 @@ function [Result] = buildRefImages(RefGrid, Args)
     end
     % 
     RAD = 180/pi;  
+
+    % make a connection to the image DB
+    if isempty(Args.DB)
+        Configuration.getSingleton().loadFile(Args.AstroDBPassFile);
+        PM = PasswordsManager;
+        Db.Password = PM.search(Args.DbName).Pass;
+        Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Db.Password);
+    end
+
     Nref = height(RefGrid); 
            
     Ibp = find(isfolder(Args.BasePath), 1, 'first');
@@ -170,13 +180,7 @@ function [Result] = buildRefImages(RefGrid, Args)
             W = strcat("(",W,") and ",Args.ImageQualityFilter); 
         end
         
-        % send the query and retrieve a table of image characteristics 
-        if isempty(Args.DB)
-            Configuration.getSingleton().loadFile(Args.AstroDBPassFile);                       
-            PM = PasswordsManager;
-            Db.Password = PM.search(Args.DbName).Pass; 
-            Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Db.Password);            
-        end
+        % send the query and retrieve a table of image characteristics        
         T = Args.DB.query(strcat(Q,W)); 
         
         if isempty(T)
@@ -256,24 +260,25 @@ function [Result] = buildRefImages(RefGrid, Args)
                     fprintf('Group %d: %d images filtered, dowloading and stitching...',Igroup,Nim);
                 end
             
-                % Delete this block after some verification and speed tests
-                % AF = AstroFileName;
-                % AF.ProjName = {'LAST', 1, TabGrp.mountnum, TabGrp.camnum};
-                % AF.JD = double(TabGrp.jd_start);
-                % AF.julday2time;
-                % AF.FieldID = TabGrp.fieldid;
-                % AF.CropID  = TabGrp.cropid;
-                % AF.Counter = 0;
-                % AF.Level   = "coadd";
-                % AF.CCDID   = 1;
-                % AF.SubDir  = TabGrp.subdir;
-                % AF.BasePath                = Args.BasePath;
-                % AF.BasePathIncludeProjName = true;
-                % AF.AddSubDir               = true;
+                % Replace this block after verification 
+                AF = AstroFileName;
+                AF.ProjName = {'LAST', 1, TabGrp.mountnum, TabGrp.camnum};
+                AF.JD = double(TabGrp.jd_start);
+                AF.julday2time;
+                AF.FieldID = TabGrp.fieldid;
+                AF.CropID  = TabGrp.cropid;
+                AF.Counter = 0;
+                AF.Level   = "coadd";
+                AF.CCDID   = 1;
+                AF.SubDir  = TabGrp.subdir;
+                AF.BasePath                = Args.BasePath;
+                AF.BasePathIncludeProjName = true;
+                AF.AddSubDir               = true;
                 
-                %AI = AstroImage.readProducts(AF.genFull);
-
-                AI=pipeline.last.queryDB.loadProducts(TabGrp);
+                AI = AstroImage.readProducts(AF.genFull);
+                
+                % for:
+%                 AI=pipeline.last.queryDB.loadProducts(TabGrp); % does not load anything ?                
 
                 % check if WCS is present in all the selected crops
                 if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
@@ -327,7 +332,7 @@ function [Result] = buildRefImages(RefGrid, Args)
                                     'AddExtraBack',false,...
                                     'AddExtraVar',true,...
                                     'ZP','PH_ZP',...
-                                    'NcoaddFactor',20,...
+                                    'NcoaddFactor',1,...
                                     'CleanSN',5,...
                                     'StackMethod',Args.StackMethod, Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:},...
                                     'backVarArgs',Args.backVarArgs, 'AddMaskSrcNoise',false);
