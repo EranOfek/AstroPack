@@ -1,4 +1,4 @@
-function [Status, AFN] = saveProductMat(ToSave, FileName, Args)
+function [Status, AFN] = saveProductMat(Product, FileName, Args)
     % Save products into a MAT file.
     % Input  : - Any matlab object.
     %          - Either a string/cell array of Nfile X Nprod
@@ -49,7 +49,8 @@ function [Status, AFN] = saveProductMat(ToSave, FileName, Args)
     %            'OverWrite' - Default is false.
     %            'SanifyPath' - A logical. true can be time-consuming.
     %                   Default is false.
-    %            'Product' - Default is 'MergedMat'.
+    %            'ProductType' - Default is 'MergedMat'.
+    %            'SavedProductName' - the name of the variable to be written into a mat file 
     % Output : - Status cell array containing an error message for each
     %            failed file.
     %          - An updated AstroFileName object (if included in input).
@@ -59,7 +60,7 @@ function [Status, AFN] = saveProductMat(ToSave, FileName, Args)
 
 
     arguments
-        ToSave
+        Product
         FileName
         %Args.OutProduct        = ["Image", "Mask", "PSF", "Cat"];
         %Args.WriteHeader       = [true, false, false, true];
@@ -79,13 +80,13 @@ function [Status, AFN] = saveProductMat(ToSave, FileName, Args)
         %Args.WriteTime logical        = false;
         Args.SanifyPath               = false; 
 
-        Args.Product                  = [];
+        Args.ProductType                  = [];
 
         %Args.WriteMethodImages        = 'Simple';    % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
         %Args.WriteMethodTables        = 'Standard';  % can be 'Standard' or 'MexHeader'
         %Args.WriteMethodImages = 'ThreadedMex';     % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
         %Args.WriteMethodTables = 'MexHeader';       % can be 'Standard' or 'MexHeader'  
-
+        Args.SavedProductName        = [];      
     end    
 
     if isa(FileName, 'AstroFileName')
@@ -101,7 +102,7 @@ function [Status, AFN] = saveProductMat(ToSave, FileName, Args)
                                                      'CreateNewObj',true);
         Nim = numel(FileListImage);
         FileList = strings(Nim, 1);
-        FileList = FileName.genFile('Product',Args.Product);
+        FileList = FileName.genFile('Product',Args.ProductType);
         if ischar(AFN.FileType)
             FileType = AFN.FileType;
         else
@@ -151,7 +152,7 @@ function [Status, AFN] = saveProductMat(ToSave, FileName, Args)
     %    FileToSave = join([PathList(Ipath), filesep, FileList{Iobj}],"",2);
     %end
    
-    if isempty(ToSave)
+    if isempty(Product)
     % Data = AI(Iobj).(Args.OutProduct{Iprod});
     % if isempty(Data)
         % Image is empty
@@ -161,10 +162,14 @@ function [Status, AFN] = saveProductMat(ToSave, FileName, Args)
     else
         PWD = pwd;
         cd(PathList);
-        save(FileToSave, "ToSave", '-v7.3');
+        if isempty(Args.SavedProductName)
+            Args.SavedProductName = 'Product'; 
+        else
+            eval([Args.SavedProductName ' = Product;']);
+        end
+        save(FileToSave, Args.SavedProductName, '-v7.3');
         cd(PWD);
 
     end
     
-
 end

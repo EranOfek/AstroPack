@@ -2702,7 +2702,7 @@ classdef PipelineDemon < Component
                 FN_A.FileType = 'mat';
                 AI_tmp = AstroImage;
                 AI_tmp.CatData = OnlyMP;
-                imProc.io.saveProductMat(AI_tmp, FN_A, 'BasePath',Obj.BasePath);
+                imProc.io.saveProductMat(AI_tmp, FN_A, 'BasePath',Obj.BasePath,'SavedProductName','Asteroids');
             else
                 FN_A = [];
             end
@@ -2730,7 +2730,7 @@ classdef PipelineDemon < Component
                 FN_Raw.Product  = "Cat";
                 FN_Raw.Counter  = 0;
                 FN_Raw.CropID   = 0;
-                [~,FN_Raw] = imProc.io.saveProductMat(TableRaw, FN_Raw, 'BasePath',Obj.BasePath);
+                [~,FN_Raw] = imProc.io.saveProductMat(TableRaw, FN_Raw, 'BasePath',Obj.BasePath,'SavedProductName','StatusRAW');
             else
                 FN_Raw = [];
             end
