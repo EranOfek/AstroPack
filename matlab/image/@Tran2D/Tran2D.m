@@ -153,6 +153,11 @@ classdef Tran2D < Base
         FitData        % a general structure to store errors and residuals of best fit
         ParNX       = [0 1];
         ParNY       = [0 1];
+        SignConstraint = []  % per-ParX sign constraint vector ([] | -1/0/+1 per coef).
+                             % 0 = unconstrained; -1 = coef <= 0; +1 = coef >= 0.
+                             % Honored in fitDesignMatrix. Populated by the
+                             % constructor for basis names ending in
+                             % '_constrainedXY'.
     end
     
     properties (Constant)
@@ -205,6 +210,14 @@ classdef Tran2D < Base
                 AstC(Iarg).PolyX_Ydeg = PolyX_Ydeg;
                 AstC(Iarg).PolyY_Xdeg = PolyY_Xdeg;
                 AstC(Iarg).PolyY_Ydeg = PolyY_Ydeg;
+
+                % Populate SignConstraint based on basis name.
+                % Convention: cross-term (last coef) constrained to <= 0,
+                % matching the kxy = -p^2 reparameterisation used by
+                % external references with a one-sided cross-term.
+                if ischar(varargin{Iarg}) && strcmpi(varargin{Iarg}, 'cheby1_4_xt_constrainedXY')
+                    AstC(Iarg).SignConstraint = [0 0 0 0 0 0 0 0 0 -1];
+                end
             end
                 
         end
@@ -409,6 +422,37 @@ classdef Tran2D < Base
                     FunY        = FunX;
 
                     % Polynomial degree vectors (approximate for cross-term)
+                    PolyX_Xdeg  = [0 1 2 3 4 0 0 0 0 1];
+                    PolyX_Ydeg  = [0 0 0 0 0 1 2 3 4 1];
+                    PolyY_Xdeg  = [0 1 2 3 4 0 0 0 0 1];
+                    PolyY_Ydeg  = [0 0 0 0 0 1 2 3 4 1];
+
+                case 'cheby1_4_xt_constrainedxy'
+                    % Same basis as 'cheby1_4_xt', but with a one-sided sign
+                    % constraint on the cross-term coefficient kxy (ParX(10)).
+                    % The constraint kxy <= 0 mirrors a kxy = -p^2 reparameterisation
+                    % without going nonlinear: the LS solver lands at kxy = 0 (with
+                    % the other 9 coefficients refit) whenever the unconstrained
+                    % optimum would have kxy > 0.
+                    %
+                    % SignConstraint convention (per coefficient):
+                    %    0  - unconstrained
+                    %   -1  - coefficient forced <= 0
+                    %   +1  - coefficient forced >= 0
+                    %
+                    % Populated by the constructor based on the basis name.
+                    ColCell     = {'x','y','c','AM','PA'};
+                    FunX        = {@(x,y,c,AM,PA) ones(size(x)),...
+                                   @(x,y,c,AM,PA) x,...
+                                   @(x,y,c,AM,PA) 2.*x.^2-1,...
+                                   @(x,y,c,AM,PA) 4.*x.^3 - 3.*x,...
+                                   @(x,y,c,AM,PA) 8.*x.^4 - 8.*x.^2 + 1,...
+                                   @(x,y,c,AM,PA) y,...
+                                   @(x,y,c,AM,PA) 2.*y.^2-1,...
+                                   @(x,y,c,AM,PA) 4.*y.^3 - 3.*y,...
+                                   @(x,y,c,AM,PA) 8.*y.^4 - 8.*y.^2 + 1,...
+                                   @(x,y,c,AM,PA) x.*y};
+                    FunY        = FunX;
                     PolyX_Xdeg  = [0 1 2 3 4 0 0 0 0 1];
                     PolyX_Ydeg  = [0 0 0 0 0 1 2 3 4 1];
                     PolyY_Xdeg  = [0 1 2 3 4 0 0 0 0 1];
@@ -811,13 +855,45 @@ classdef Tran2D < Base
                     if isempty(Args.ErrY)
                         Args.ErrY = ones(Ny,1);
                     end
-                    
+
                     [ParX, ErrParX] = lscov(Hx, X, 1./(Args.ErrX.^2) );
                     [ParY, ErrParY] = lscov(Hy, Y, 1./(Args.ErrY.^2) );
                 otherwise
                     error('Unknown Method option');
             end
-            
+
+            % Enforce one-sided sign constraints on ParX coefficients.
+            % For each coefficient i with SignConstraint(i) ~= 0 whose fitted
+            % sign disagrees, drop column i from Hx, refit the reduced basis,
+            % and pin ParX(i) = 0. For a single active linear inequality this
+            % is the exact KKT solution; with multiple violated constraints we
+            % iterate until the active set is stable. ParY is left untouched
+            % (the constraint is on the magnitude polynomial ParX).
+            SC = Obj.SignConstraint;
+            if ~isempty(SC) && numel(SC) == numel(ParX) && any(SC ~= 0)
+                Pinned = false(size(ParX(:)));
+                for IterSC = 1:numel(SC)
+                    Active = SC(:) ~= 0 & ~Pinned & (sign(ParX(:)) == -sign(SC(:))) & ParX(:) ~= 0;
+                    if ~any(Active)
+                        break
+                    end
+                    Pinned = Pinned | Active;
+                    KeepCols = ~Pinned;
+                    Hx_red = Hx(:, KeepCols);
+                    switch Args.Method
+                        case '\'
+                            ParX_red = Hx_red\X;
+                            ErrParX_red = nan(size(ParX_red));
+                        case 'lscov'
+                            [ParX_red, ErrParX_red] = lscov(Hx_red, X, 1./(Args.ErrX.^2));
+                    end
+                    ParX = zeros(numel(SC),1);
+                    ParX(KeepCols) = ParX_red;
+                    ErrParX = nan(numel(SC),1);
+                    ErrParX(KeepCols) = ErrParX_red;
+                end
+            end
+
             Result.ParX     = ParX;
             Result.ParY     = ParY;
             Result.ErrParX  = ErrParX;

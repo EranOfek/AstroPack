@@ -493,13 +493,28 @@ classdef PhotCalibTrans < Component
                 Args.ObsLat          (1,1) double = 30.053072   % deg
                 Args.ObsLon          (1,1) double = 35.040858   % deg
                 Args.ObsHeight       (1,1) double = 415.4       % m (ignored by AstroPack airmass calc)
-                % Apply the ICRS->apparent-of-date transformation (precession +
-                % nutation + annual aberration) to header RA/Dec before computing
-                % Hardie airmass via radec2azalt. Matches Python astropy's
-                % SkyCoord(ICRS).transform_to(AltAz) chain; closes a ~1 milli-
-                % airmass gap at sec(z)~1.7. Only consulted when AirmassSource='compute'.
+                % Apply the ICRS->apparent-of-date transformation to header RA/Dec
+                % before computing Hardie airmass. Precession (mean equinox of date)
+                % is run by celestial.coo.radec2azalt via its InEquinoxJD/OutEquinoxJD
+                % args. Matches the pipeline imProc.header.addAirMass precession path.
                 % Set false to recover the legacy pure-spherical-trig behaviour.
+                % Only consulted when AirmassSource='compute'.
                 Args.ApplyApparentPlace logical = true
+                % Apply annual aberration (Ron & Vondrak 1986) before
+                % radec2azalt's precession. ~20 arcsec max; closes ~0.3 milli-
+                % airmass gap vs Python at sec(z)~1.7 on top of precession.
+                % Only consulted when ApplyApparentPlace=true.
+                Args.ApplyAberration logical = true
+                % Include nutation. When true (and ApplyApparentPlace=true),
+                % the precession step is performed by celestial.convert.precessCoo
+                % with OutMean=false (mean->TRUE equinox of date, i.e.
+                % precession+nutation). When false, radec2azalt's
+                % InEquinoxJD/OutEquinoxJD path is used (mean->mean equinox,
+                % precession only, matches the upstream imProc.header.addAirMass
+                % path). Nutation adds ~9 arcsec maximum (a fraction of a
+                % milli-airmass at sec(z)~2). Only consulted when
+                % ApplyApparentPlace=true.
+                Args.ApplyNutation logical = false
                 % When true AND AirmassSource='compute' actually yielded a finite
                 % Hardie airmass, overwrite the AIRMASS keyword on the source
                 % AstroHeader (Cat.HeaderData for AstroImage input, or the
@@ -624,45 +639,61 @@ classdef PhotCalibTrans < Component
                     JDhdr  = readAirmassTime(HeaderRef, Args.AirmassTimeKey);
 
                     if isfinite(RAhdr) && isfinite(Dechdr) && isfinite(JDhdr)
-                        % Optionally apply ICRS->apparent-of-date (annual
-                        % aberration + precession + nutation), mirroring
-                        % Python astropy's SkyCoord(ICRS).transform_to(AltAz)
-                        % chain. Uses INPOP-free helpers:
-                        %   celestial.coo.aberration       (Ron & Vondrak 1986)
-                        %   celestial.convert.precessCoo   (OutMean=false => incl. nutation)
-                        % No refraction step (matches astropy default).
-                        if Args.ApplyApparentPlace
-                            try
-                                RA_rad  = RAhdr  * pi/180;
-                                Dec_rad = Dechdr * pi/180;
-                                % Aberration (Ron & Vondrak via Earth geocentric velocity)
-                                Aber = celestial.coo.aberration([RA_rad, Dec_rad], JDhdr);
-                                RA_a_deg  = Aber(1,1) * 180/pi;
-                                Dec_a_deg = Aber(1,2) * 180/pi;
-                                % Precess J2000 -> true equinox of date (OutMean=false includes nutation)
-                                [RA_use, Dec_use] = celestial.convert.precessCoo( ...
-                                    RA_a_deg, Dec_a_deg, ...
+                        % Apply ICRS->apparent-of-date chain mirroring Python
+                        % astropy's SkyCoord(ICRS).transform_to(AltAz):
+                        %   * Optional annual aberration (Ron & Vondrak 1986)
+                        %     via celestial.coo.aberration (INPOP-free).
+                        %   * Precession step: when ApplyNutation=false (default),
+                        %     celestial.coo.radec2azalt's InEquinoxJD/OutEquinoxJD
+                        %     args (mean->mean, no nutation; matches pipeline
+                        %     imProc.header.addAirMass). When ApplyNutation=true,
+                        %     celestial.convert.precessCoo with OutMean=false
+                        %     (mean->TRUE equinox of date, adds nutation).
+                        % No refraction (matches astropy default with pressure unset).
+                        try
+                            RA_in  = RAhdr;
+                            Dec_in = Dechdr;
+                            if Args.ApplyApparentPlace && Args.ApplyAberration
+                                Aber = celestial.coo.aberration( ...
+                                    [RAhdr*pi/180, Dechdr*pi/180], JDhdr);
+                                RA_in  = Aber(1,1) * 180/pi;
+                                Dec_in = Aber(1,2) * 180/pi;
+                            end
+                            if Args.ApplyApparentPlace && Args.ApplyNutation
+                                % Precession + nutation -> true equinox of date.
+                                [RA_app, Dec_app] = celestial.convert.precessCoo( ...
+                                    RA_in, Dec_in, ...
                                     'InEquinox',  2451545.5, 'InMean',  true, ...
                                     'OutEquinox', JDhdr,     'OutMean', false, ...
-                                    'InUnits',   'deg',      'OutUnits','deg');
-                            catch ME
-                                Obj.msgLog(LogLevel.Warning, sprintf( ...
-                                    'calibrate: ApplyApparentPlace failed (%s) - falling back to raw header RA/Dec', ...
-                                    ME.message));
-                                RA_use  = RAhdr;
-                                Dec_use = Dechdr;
+                                    'InUnits',    'deg',     'OutUnits','deg');
+                                [~, ~, AM] = celestial.coo.radec2azalt( ...
+                                    JDhdr, RA_app, Dec_app, ...
+                                    'GeoCoo', [Args.ObsLon, Args.ObsLat]);
+                            elseif Args.ApplyApparentPlace
+                                % Precession only (mean->mean), via radec2azalt.
+                                [~, ~, AM] = celestial.coo.radec2azalt( ...
+                                    JDhdr, RA_in, Dec_in, ...
+                                    'GeoCoo',       [Args.ObsLon, Args.ObsLat], ...
+                                    'InEquinoxJD',  2451545, ...
+                                    'OutEquinoxJD', JDhdr);
+                            else
+                                % Legacy: pure spherical trig, no apparent-place transform.
+                                [~, ~, AM] = celestial.coo.radec2azalt( ...
+                                    JDhdr, RA_in, Dec_in, ...
+                                    'GeoCoo', [Args.ObsLon, Args.ObsLat]);
                             end
-                        else
-                            RA_use  = RAhdr;
-                            Dec_use = Dechdr;
+                        catch ME
+                            Obj.msgLog(LogLevel.Warning, sprintf( ...
+                                'calibrate: airmass apparent-place chain failed (%s) - falling back to legacy radec2azalt', ...
+                                ME.message));
+                            [~, ~, AM] = celestial.coo.radec2azalt( ...
+                                JDhdr, RAhdr, Dechdr, ...
+                                'GeoCoo', [Args.ObsLon, Args.ObsLat]);
                         end
-
-                        [~, ~, AM] = celestial.coo.radec2azalt(JDhdr, RA_use, Dec_use, ...
-                            'GeoCoo', [Args.ObsLon, Args.ObsLat]);
                         Obj.AirMass = AM;
                         if Args.Verbose
-                            fprintf('  AirMass overridden (Hardie) = %.4f (ApparentPlace=%d)\n', ...
-                                    AM, Args.ApplyApparentPlace);
+                            fprintf('  AirMass overridden (Hardie) = %.4f (ApparentPlace=%d, Aberration=%d, Nutation=%d)\n', ...
+                                    AM, Args.ApplyApparentPlace, Args.ApplyAberration, Args.ApplyNutation);
                         end
                         % Optionally persist the Hardie value back to the
                         % source header (AstroHeader is a handle class, so
@@ -3662,7 +3693,7 @@ classdef PhotCalibTrans < Component
 
     
     methods % Plotting methods
-        function Fig = plotTransmission(Obj, Args)
+        function [Fig, IntTrans] = plotTransmission(Obj, Args)
             % Plot total system transmission curves for scalar or array of objects
             % Input  : - PhotCalibTrans object (scalar or array).
             %          * ...,key,val,...
@@ -3675,10 +3706,14 @@ classdef PhotCalibTrans < Component
             %                          transmission. When set, integral T is normalized
             %                          so that T(RefCrop)=1. Default is [] (absolute).
             % Output : - Figure handle.
+            %          - [N x 1] integral transmission values (one per object),
+            %            in absolute units (same as Obj.integralTransmission()).
+            %            For relative integrals divide by IntTrans(RefCrop)
+            %            externally.
             % Author : D. Kovaleva (Feb 2026)
             % Example: PC.plotTransmission();
             %          PC.plotTransmission('Layout', 'subplots');
-            %          PC.plotTransmission('RefCrop', 10);
+            %          [Fig, IntTrans] = PC.plotTransmission('RefCrop', 10);
 
             arguments
                 Obj
