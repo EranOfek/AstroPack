@@ -32,7 +32,7 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
         Args.KeyID     = 'id_new_im'; % 'id_visit_im' ???  
         Args.ColNameID = 'id_diff_src';    
 
-        Args.DBConnector  = 'legacy';
+        Args.DBConnector  =  'native'; % 'legacy';
     end    
     % create a DB object and connect or use a preloaded object with connection
     if isempty(Args.DB)        
@@ -81,11 +81,16 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
         CatByCrop(Icrop).Table = Cat.Table(CurrentCrops, :); % select the lines by cropid
         HeadByCrop(Icrop) = Headers(HeaderCrop == CropID(Icrop)); % for each cropid read the appropriate header
     end
-    %    
-    CsvFN = sprintf('/tmp/tempDBinsert%.20f.csv',rand); % temporary csv file name
-    %
-    [~, Error,~]=imProc.db.insertCatalog(CatByCrop,'Header',HeadByCrop,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
-        'CreateCsv',true,'FileName',CsvFN,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID,'DeleteFile',1,'DBConnector',Args.DBConnector);
+    %        
+    if strcmpi(Args.DBConnector,'legacy')      
+        CsvFN = sprintf('/tmp/tempDBinsert%.20f.csv',rand); % temporary csv file name
+        [~, Error,~]=imProc.db.insertCatalog(CatByCrop,'Header',HeadByCrop,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+            'CreateCsv',true,'FileName',CsvFN,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID,'DeleteFile',1,'DBConnector',Args.DBConnector);
+    else
+        [~, Error,~]=imProc.db.insertCatalog(CatByCrop,'Header',HeadByCrop,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+            'CreateCsv',false,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID,'DBConnector',Args.DBConnector);
+    end
+    
     if ~isempty(Error)
         Result = Error;
     else
