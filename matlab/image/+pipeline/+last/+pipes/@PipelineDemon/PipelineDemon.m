@@ -2960,17 +2960,16 @@ classdef PipelineDemon < Component
                 Args.CalibPath     = [];
                 Args.RefPath       = '/lastdata/references/v4';
 
-                Args.Insert2DB         = false;              % Insert images data to LAST DB or prepare CSV dumps for further insertion
-                Args.DB                = [];
+                Args.ConnectDB     = true;    % get a DB connector (e.g., for multiepoch matching of PipeII)
+                Args.Insert2DB     = false;   % Insert images data to LAST DB or prepare CSV dumps for further insertion
+                Args.DB            = [];
 
                 Args.SelectKnownAsteroid logical      = true;
                 Args.GeoPos                           = [];    %[Lon (rad), Lat (rad), Height (m)].
                 Args.OrbEl                            = [];
                 Args.INPOP                            = [];
                 Args.AsteroidSearchRadius             = 10;
-                        
-                
-
+                                        
                 Args.StartJD       = 0;           % refers only to Science observations: JD, or [D M Y]
                 Args.EndJD         = Inf;         % if <0, then this is the number of nighst to reduce after StarJD
                 
@@ -3075,6 +3074,15 @@ classdef PipelineDemon < Component
                 [StopGUI, Hstop]  = tools.gui.stopButton('Msg',GUI_Text);
             end
             
+            % connect a DB  
+            if Args.ConnectDB
+                Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+                PM = PasswordsManager;
+                DB.Password = PM.search(Args.DbName).Pass;
+                Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
+                Args.DB.query(sprintf('use %s',Args.DbName));
+                % Args.pipelineIArgs = [Args.pipelineIArgs,{'DBobj',Args.DB,'DB_Table_Raw',Args.DB_Table_Raw}];
+            end
 
             % loop indefently
             JDlastCalib = 0;
@@ -3116,7 +3124,7 @@ classdef PipelineDemon < Component
                 %FN_Foc.FullPath = [];
                 % The empty argument in genPath is required for moving each image to the correct (date) directory. 
                 if FN_Foc.nFiles>0
-                    FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',FN_Foc.genPath([]), 'DestPath', Obj.FocusPath, 'Level','raw', 'Type','focus');
+%                    FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',FN_Foc.genPath([]), 'DestPath', Obj.FocusPath, 'Level','raw', 'Type','focus');
                 end
                 
                 % look for new images
@@ -3210,17 +3218,7 @@ classdef PipelineDemon < Component
                                 Msg = 'Reload calibration files';
                                 Obj.writeLog(Msg, LogLevel.Info);
                             end % if abs(JDgr-JDlastCalib)>Args.ReloadCalibTimeDiff
-        
-                            % prepare to insert data into the DB, in particular,
-                            % to insert raw images' header data (this is done in pipeline.last.pipes.pipelineI) 
-                            if Args.DebugMode
-                                Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-                                PM = PasswordsManager;    
-                                DB.Password = PM.search(Args.DbName).Pass;                        
-                                UpArgs.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
-                                UpArgs.DB.query(sprintf('use %s',Args.DbName));
-                                UpArgs.pipelineIArgs = [UpArgs.pipelineIArgs,{'DBobj',UpArgs.DB,'DB_Table_Raw',Args.DB_Table_Raw}];
-                            end %if Args.DebugMode
+                            
                             % FFU
         
                             %ProjName = RawImageList{1}(1:13);
