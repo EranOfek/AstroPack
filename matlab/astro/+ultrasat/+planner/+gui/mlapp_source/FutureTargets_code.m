@@ -1,4 +1,4 @@
-classdef ApprovedTargets < matlab.apps.AppBase
+classdef FutureTargets < matlab.apps.AppBase
 
     % Properties that correspond to app components
     properties (Access = public)
@@ -69,7 +69,6 @@ classdef ApprovedTargets < matlab.apps.AppBase
 
             % Create Panel_4
             app.Panel_4 = uipanel(app.UIFigure);
-            app.Panel_4.BorderColor = [0.4902 0.4902 0.4902];
             app.Panel_4.TitlePosition = 'centertop';
             app.Panel_4.BackgroundColor = [0.9412 0.9412 0.9412];
             app.Panel_4.Position = [14 11 1065 559];
@@ -90,7 +89,7 @@ classdef ApprovedTargets < matlab.apps.AppBase
     methods (Access = public)
 
         % Construct app
-        function app = ApprovedTargets(varargin)
+        function app = FutureTargets(varargin)
 
             % Create UIFigure and components
             createComponents(app)

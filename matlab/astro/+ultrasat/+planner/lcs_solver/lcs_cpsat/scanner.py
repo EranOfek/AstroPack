@@ -16,6 +16,7 @@ corresponding campaign-day offset, then writes an index of feasible starts.
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -81,7 +82,11 @@ def write_plan_csv(result: SolverResult, plan_start: date, out_path: Path) -> in
     for obs in result.daily_observations:
         rows.append(
             {
-                "obs_datetime": _obs_datetime(anchor, obs, result.config).isoformat(),
+                # Match the v4 MATLAB observation format: yyyy-mm-ddTHH:MM:SS,
+                # no timezone suffix (writeObservationList in scan_Lcs_v4.m).
+                "obs_datetime": _obs_datetime(anchor, obs, result.config).strftime(
+                    "%Y-%m-%dT%H:%M:%S"
+                ),
                 "field_id": obs.field_id,
             }
         )
@@ -90,6 +95,47 @@ def write_plan_csv(result: SolverResult, plan_start: date, out_path: Path) -> in
         df = df.sort_values("obs_datetime").reset_index(drop=True)
     df.to_csv(out_path, index=False)
     return len(df)
+
+
+def write_v4_summary(result: SolverResult, plan_start: date, plan_dir: Path) -> Path:
+    """Write a per-plan ``summary.json`` matching the v4 scan_Lcs_v4.m schema.
+
+    Keys mirror ``summarizeV4`` so ``compare_lcs_outputs.py`` can compare
+    ``num_observations`` / ``daily_schedule_rows`` / ``daily_schedule_slots``
+    directly.  ``variant_used`` is 0 here: the CP-SAT solver is not variant
+    based (the field is kept only for format parity with v4).
+    """
+    n_a = n_b_rows = n_c = n_d = 0
+    b_fields: set[int] = set()
+    for item in result.window_assignments:
+        if item.field_id <= 0:
+            continue
+        if item.category == "A":
+            n_a += 1
+        elif item.category == "B":
+            n_b_rows += 1
+            b_fields.add(item.field_id)
+        elif item.category == "C":
+            n_c += 1
+        elif item.category == "D":
+            n_d += 1
+
+    config = result.config
+    summary = {
+        "nA": n_a,
+        "nB_rows": n_b_rows,
+        "nB_fields": len(b_fields),
+        "nC": n_c,
+        "nD": n_d,
+        "variant_used": 0,
+        "num_observations": len(result.daily_observations),
+        "daily_schedule_rows": config.last_day - config.first_day + 1,
+        "daily_schedule_slots": config.daily_capacity,
+        "start_date": plan_start.isoformat(),
+    }
+    out_path = plan_dir / "summary.json"
+    out_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    return out_path
 
 
 def _iter_scan_dates(scan_start: date, scan_end: date) -> List[date]:
@@ -320,6 +366,10 @@ def scan_lcs_plans(
                 write_schedule_windows(result, plan_dir)
                 write_daily_observations(result, plan_dir)
                 write_v3_outputs(result, plan_dir)
+                # v4-format artifacts inside the success folder so the v4
+                # validator and compare_lcs_outputs.py can consume it directly.
+                write_plan_csv(result, plan_start, plan_dir / plan_file)
+                write_v4_summary(result, plan_start, plan_dir)
                 report_df = validate_schedule(result)
                 write_validation_report(report_df, plan_dir)
                 write_solver_summary(
