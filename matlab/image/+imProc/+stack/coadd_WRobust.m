@@ -118,6 +118,7 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
         Args.AddBack         = true;
         Args.CalcVar         = false;  % If false then propagate Var
         Args.backVarArgs     = {};
+        Args.FWHM            = []; % if given, then will be used as weight: 1/(Var*FWHM)
 
         %--- Mask ---
         Args.AddMask         = true;
@@ -172,6 +173,12 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
     if ~strcmp(class(ImageCube), class(Var))
         Var = cast(Var, 'like',ImageCube);
     end
+
+    if ~isempty(Args.FWHM)
+        Var = Var.*FWHM;
+    end
+    
+    Var = Var./mean(Var);
 
     % flux matching parameters
     if isempty(Args.ZP)
