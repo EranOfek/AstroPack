@@ -312,13 +312,13 @@ The solver writes both internal and v3-style outputs.
 Internal outputs:
 
 - `schedule_windows.csv`
-- `daily_schedule.csv`
+- `daily_observations.csv`
 
-V3-style outputs:
+MATLAB-style outputs:
 
 - `schedule.csv`
 - `full_windows.csv`
-- `daily_schedule_v3.csv`
+- `daily_schedule.csv` (day x slot matrix; read by the validators)
 
 Diagnostics:
 
@@ -403,7 +403,7 @@ Then inspect:
 output_fixed/solver_summary.json
 output_fixed/validation_report.csv
 output_fixed/schedule.csv
-output_fixed/daily_schedule_v3.csv
+output_fixed/daily_schedule.csv
 ```
 
 For a full input refresh:

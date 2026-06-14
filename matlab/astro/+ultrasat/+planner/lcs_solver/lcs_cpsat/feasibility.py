@@ -168,6 +168,13 @@ def compute_feasibility(
     req_135 = [
         (sw.index, sw.start_day, sw.end_day) for sw in super_windows
     ]
+    # The six consecutive 135-day blocks B_k = (W_k, W_{k+1}, W_{k+2}), k = 1..n-2.
+    # A field is "block-feasible" for k when one continuous visibility window
+    # covers the whole block; this is the v4 requirement for Set B / Set C.
+    req_blocks = [
+        (k, windows_45[k - 1].start_day, windows_45[k + 1].end_day)
+        for k in range(1, len(windows_45) - 1)
+    ]
 
     eligible_abc = set(
         eligibility_df.loc[eligibility_df["eligible_abc"] == 1, "field_id"].astype(int)
@@ -211,6 +218,7 @@ def compute_feasibility(
     feasible_b: Dict[int, Set[int]] = {}
     feasible_c: Dict[int, Set[int]] = {}
     feasible_d: Dict[int, Set[int]] = {}
+    feasible_block: Dict[int, Set[int]] = {}
     feasible_a_gs: Dict[Tuple[int, int, int], bool] = {}
     slack_a_gs: Dict[Tuple[int, int, int], int] = {}
     slack_45: Dict[Tuple[int, int], int] = {}
@@ -236,6 +244,11 @@ def compute_feasibility(
             wdf if not wdf.empty else windows_df[windows_df["field_id"] == field_id],
             req_135,
         )
+        _sblk, fblk = _feasible_windows_for_field(
+            field_id,
+            wdf if not wdf.empty else windows_df[windows_df["field_id"] == field_id],
+            req_blocks,
+        )
 
         if field_id in eligible_abc and field_id in allowed_a:
             feasible_a[field_id] = f45
@@ -259,6 +272,7 @@ def compute_feasibility(
 
         if field_id in eligible_abc and field_id in allowed_b:
             feasible_b[field_id] = f45
+            feasible_block[field_id] = fblk
             for w_idx, val in s45.items():
                 slack_45[(field_id, w_idx)] = val
 
@@ -285,4 +299,5 @@ def compute_feasibility(
         use1dgap=use1dgap,
         feasible_a_gs=feasible_a_gs,
         slack_a_gs=slack_a_gs,
+        feasible_block=feasible_block,
     )

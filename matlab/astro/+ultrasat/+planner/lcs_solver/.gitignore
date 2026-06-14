@@ -2,7 +2,7 @@
 *.pyc
 
 output/
-output_current/
-output_fixed/
+output_*/
+
 
 

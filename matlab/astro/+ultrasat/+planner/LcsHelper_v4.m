@@ -1,3 +1,15 @@
+%==========================================================================
+% Project     : ULTRASAT Observation Planner
+% File        : ultrasat.planner.LcsHelper_v4.m
+% Author      : Chen Tishler
+% Created     : 07/06/2026
+% Updated     : 10/06/2026
+% Description : ULTRASAT Low Cadence Survey planner helper (variant-based).
+%               Companion files (same sort group):
+%                 LcsHelper_v4_findPlans.m
+%                 LcsHelper_v4_validate.m
+%                 LcsHelper_v4_validateScanOutputs.m
+%==========================================================================
 % LcsHelper_v4 - ULTRASAT Low Cadence Survey planner helper (variant-based).
 %
 % Pipeline:
@@ -149,8 +161,9 @@ classdef LcsHelper_v4 < Component
                 Args.AllSkyTable = '~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid_surveys.csv';
                 Args.DailyWindowStartTime duration = duration.empty;
 
-                Args.prep_before_schedule = false;
-                Args.build_the_schedule   = false;
+                Args.prep_before_schedule    = false;
+                Args.build_the_schedule      = false;
+                Args.validate_after_schedule = true;
 
                 Args.Whole_daily_window = false;
                 Args.Allow1dgap         = false;
@@ -196,6 +209,13 @@ classdef LcsHelper_v4 < Component
                 Obj.prepTablesBeforeSchedule;
                 if Args.build_the_schedule
                     Obj.categorize_then_schedule;
+                    if Args.validate_after_schedule
+                        [nFail, ~] = ultrasat.planner.LcsHelper_v4_validate(Obj, ...
+                            'Verbose', false, 'DumpCsv', false);
+                        if nFail > 0
+                            error('LcsHelper_v4: schedule validation failed (%d check(s) failed)', nFail);
+                        end
+                    end
                 end
             end
         end

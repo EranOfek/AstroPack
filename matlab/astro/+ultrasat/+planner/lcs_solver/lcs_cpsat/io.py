@@ -146,8 +146,13 @@ def write_schedule_windows(result: SolverResult, out_dir: Path) -> Path:
     return out_path
 
 
-def write_daily_schedule(result: SolverResult, out_dir: Path) -> Path:
-    """Write normalized one-row-per-observation solver output."""
+def write_daily_observations(result: SolverResult, out_dir: Path) -> Path:
+    """Write normalized one-row-per-observation solver output.
+
+    This is the Python-native debug view (one row per observed field/slot).
+    The MATLAB-style day x slot matrix consumed by validators lives in
+    ``daily_schedule.csv`` (see :func:`write_daily_schedule_matrix`).
+    """
     rows = [
         {
             "day": obs.day,
@@ -158,7 +163,7 @@ def write_daily_schedule(result: SolverResult, out_dir: Path) -> Path:
         }
         for obs in result.daily_observations
     ]
-    out_path = out_dir / "daily_schedule.csv"
+    out_path = out_dir / "daily_observations.csv"
     pd.DataFrame(rows).to_csv(out_path, index=False)
     return out_path
 
@@ -242,8 +247,15 @@ def write_v3_full_windows(result: SolverResult, out_dir: Path) -> Path:
     return out_path
 
 
-def write_v3_daily_schedule(result: SolverResult, out_dir: Path) -> Path:
-    """Write daily_schedule.csv as day x slot matrix (LcsHelper_v3 layout)."""
+def write_daily_schedule_matrix(result: SolverResult, out_dir: Path) -> Path:
+    """Write daily_schedule.csv as a day x slot matrix.
+
+    This is the canonical day x slot matrix (columns ``day, date, slot_1 ..
+    slot_N``) that the MATLAB-side validators (``validate_LcsHelper_v4.py``)
+    and ``scripts/compare_lcs_outputs.py`` read.  Field IDs (or empty) fill the
+    slot columns; slot ordering within a day is irrelevant to the validators,
+    which compare the per-day field multiset.
+    """
     config = result.config
     num_days = config.last_day - config.first_day + 1
     num_slots = config.daily_capacity
@@ -264,17 +276,17 @@ def write_v3_daily_schedule(result: SolverResult, out_dir: Path) -> Path:
             row[col] = day_slots[day].get(slot_idx, "")
         rows.append(row)
 
-    out_path = out_dir / "daily_schedule_v3.csv"
+    out_path = out_dir / "daily_schedule.csv"
     pd.DataFrame(rows).to_csv(out_path, index=False)
     return out_path
 
 
 def write_v3_outputs(result: SolverResult, out_dir: Path) -> dict:
-    """Write all LcsHelper_v3-compatible CSV artifacts."""
+    """Write all MATLAB-compatible CSV artifacts (schedule, windows, daily matrix)."""
     return {
         "schedule": write_v3_schedule(result, out_dir),
         "full_windows": write_v3_full_windows(result, out_dir),
-        "daily_schedule_v3": write_v3_daily_schedule(result, out_dir),
+        "daily_schedule": write_daily_schedule_matrix(result, out_dir),
     }
 
 

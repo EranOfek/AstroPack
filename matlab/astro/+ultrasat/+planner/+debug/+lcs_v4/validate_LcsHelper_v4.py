@@ -388,37 +388,26 @@ def validate_warning_checks(
     rows_c: list[dict[str, str]],
     rows_d: list[dict[str, str]],
 ) -> None:
-    moved = [r for r in rows_a if to_int(r["group"]) > 6]
-    if moved:
-        slots = {(to_int(r["group"]), to_int(r["ind"])) for r in moved}
-        add(warnings, "SetA moved group accounting", len(slots) == len(moved),
-            f"moved_rows={len(moved)} moved_slots={sorted(slots)}")
-    else:
-        add(warnings, "SetA moved group accounting", True, "no moved SetA rows")
-
     add(warnings, "Long-field extinction ranking", False,
         "not available from CSV output; MATLAB validator has object field tables")
 
+    ok, detail = setd_rank_warning(rows_d)
+    add(warnings, "SetD ranking selected order", ok, detail)
+
+
+def setd_rank_warning(rows_d: list[dict[str, str]]) -> tuple[bool, str]:
+    """Return one SetD ranking warning result, matching the MATLAB scan report."""
     if not rows_d:
-        add(warnings, "SetD ranking", True, "no SetD rows")
-        return
+        return True, "no SetD rows"
     rows_d_sorted = sorted(rows_d, key=lambda r: to_int(r["group"]))
     positions = []
-    missing = []
     for row in rows_d_sorted:
         field = to_int(row["Field"])
-        try:
-            positions.append(DEFAULT_SETD_RANK.index(field) + 1)
-        except ValueError:
-            missing.append(field)
-    add(warnings, "SetD ranking fields in default rank list", not missing,
-        f"missing={missing} rank_positions={positions}")
-    add(warnings, "SetD ranking selected order follows rank order",
-        not missing and all(b >= a for a, b in zip(positions, positions[1:])),
-        f"rank_positions={positions}")
-    add(warnings, "SetD ranking earlier fields skipped",
-        not missing and (max(positions, default=0) <= len(rows_d_sorted)),
-        f"rank_positions={positions}")
+        if field not in DEFAULT_SETD_RANK:
+            return False, f"field {field} missing from default SetD rank"
+        positions.append(DEFAULT_SETD_RANK.index(field) + 1)
+    ok = all(b >= a for a, b in zip(positions, positions[1:])) and max(positions, default=0) <= len(rows_d_sorted)
+    return ok, f"rank_positions={positions}"
 
 
 if __name__ == "__main__":

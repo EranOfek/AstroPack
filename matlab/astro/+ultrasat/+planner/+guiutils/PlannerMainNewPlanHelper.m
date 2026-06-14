@@ -182,6 +182,10 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
             app.MainModule.setPlanner(upLCS);
             app.setModified('doCreateNewPlanLCS');
             app.PlanParamsHelper.updatePlanParams(app);
+
+            % Load LCS unique targets from file
+            obj.loadLcsUniqueTargetsFromFile(app);
+
             %app.debugSave('upLCS.mat', app.MainModule.Planner);
             app.msglog('doCreateNewPlanLCS done');
         end
@@ -253,6 +257,34 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
             app.PlanParamsHelper.updatePlanParams(app);
             %app.debugSave('upLCS.mat', app.MainModule.Planner);
             app.msglog('doCreateNewPlanAllSS done');
+        end
+
+
+        function loadLcsUniqueTargetsFromFile(obj, app)
+            % Load LCS unique targets from LCS_nonoverlapping_grid_surveys.csv
+            app.msglog('loadLcsUniqueTargetsFromFile started');
+
+            FileName = fullfile(app.MainModule.BaseDataDir, 'LCS_nonoverlapping_grid_surveys.csv');
+            if ~isfile(FileName)
+                PlannerDir = fileparts(mfilename('fullpath'));
+                FileName = fullfile(PlannerDir, '..', 'data', 'LCS_nonoverlapping_grid_surveys.csv');
+            end
+
+            if ~isfile(FileName)
+                app.msglog('loadLcsUniqueTargetsFromFile: file not found: %s', FileName);
+                return;
+            end
+
+            try
+                LCS_grid = readtable(FileName);
+                app.MainModule.Planner.addUniqTargets(LCS_grid.RA, LCS_grid.Dec, ...
+                    'Name', num2cell(LCS_grid.Field));
+                app.setModified('loadLcsUniqueTargetsFromFile');
+                app.msglog(sprintf('loadLcsUniqueTargetsFromFile: loaded %d targets from %s', ...
+                    height(LCS_grid), FileName));
+            catch ME
+                app.msgex('loadLcsUniqueTargetsFromFile', ME);
+            end
         end
 
         % =================================================================
