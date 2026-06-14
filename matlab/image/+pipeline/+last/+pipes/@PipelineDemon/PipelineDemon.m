@@ -2845,7 +2845,7 @@ classdef PipelineDemon < Component
                 Err = [];
                 try
                     Err = pipeline.last.insertDB.insertTransients2DB( ...
-                        TCL2, [Coadd.HeaderData],'DbHost', UpArgs.DbHostTransients,'DB', UpArgs.DB,'DBConnector',Args.DBConnector);
+                        TCL2, [Coadd.HeaderData],'DbHost', UpArgs.DbHostTransients,'DB', UpArgs.DB,'DBConnector',UpArgs.DBConnector);
                 catch ME
                     Obj.writeLog(ME, LogLevel.Error);
                 end
