@@ -1,9 +1,9 @@
 %==========================================================================
 % Project     : ULTRASAT Observation Planner
 % File        : ultrasat.planner.LcsHelper_v4.m
-% Author      : Chen Tishler
+% Author      : Yossi Shvartzvald
 % Created     : 07/06/2026
-% Updated     : 10/06/2026
+% Updated     : 14/06/2026
 % Description : ULTRASAT Low Cadence Survey planner helper (variant-based).
 %               Companion files (same sort group):
 %                 LcsHelper_v4_findPlans.m
@@ -35,76 +35,131 @@
 %   - SetA shift rescue, SetD pre-clean + Case A/B/C, calcDailySchedule
 %     are inherited from v3 unchanged (just renamed).
 
+%==========================================================================
+% FUNCTION CALL TREE
+%--------------------------------------------------------------------------
+% LcsHelper_v4()                        [constructor]
+%   prepTablesBeforeSchedule()
+%     calc_vis_matrix()
+%     calc_cont_vis_windows_v2()
+%     categorizeFields_v4()
+%       local_make_field_table()
+%
+%   categorize_then_schedule()
+%     categorizeFields_v4()
+%       local_make_field_table()
+%     schedule_SetA_v4()
+%       local_match_setA()
+%     schedule_SetC_v4()
+%       matchpairs()  [MATLAB built-in]
+%     schedule_SetB_v4()
+%       matchpairs()  [MATLAB built-in]
+%     shuffle_on_failure()
+%       swap_out_setB()
+%       swap_out_setC()
+%       swap_setA_long_to_C_or_B()
+%     schedule_SetD_v4()
+%       clean_inds_before_setD()
+%         local_compute_slot_occupancy()
+%         local_apply_setA_moves()
+%           local_assign_moved_setA_group()
+%       local_commit_setD()
+%     calcDailySchedule()
+%     LcsHelper_v4_validate()           [external companion file]
+%
+%   plotSchedule()                      [visual inspection, not scheduling]
+%   plotCatB()                          [visual inspection, not scheduling]
+%
+% LOCAL HELPERS (file-scope)
+%   local_make_field_table()
+%   local_match_setA()
+%   local_pick_most_common_unplaced()
+%     local_unplaced_winner()
+%   local_unplaced_winner()
+%   local_compute_slot_occupancy()
+%   local_apply_setA_moves()
+%     local_assign_moved_setA_group()
+%   local_assign_moved_setA_group()
+%   local_commit_setD()
+%   consecutive_trues_cols()
+%   fill_isolated_gaps()
+%
+% EXTERNAL COMPANION FILES (same sort group)
+%   LcsHelper_v4_findPlans.m
+%   LcsHelper_v4_validate.m
+%   LcsHelper_v4_validateScanOutputs.m
+%==========================================================================
+
 classdef LcsHelper_v4 < Component
 
     % ========================== PUBLIC PROPERTIES ==========================
     properties(Access = public)
 
         % Configurations
-        Whole_daily_window = false;
-        Allow1dgap         = false;
-        Verbose            = false;   % if true, diagnostic prints are emitted
+        Whole_daily_window = false;                                    % true = field must be visible in ALL daily slots; false = ANY slot
+        Allow1dgap         = false;                                    % true = allow a single 1-day gap when measuring continuous windows
+        Verbose            = false;                                    % if true, diagnostic prints are emitted
 
         % Definitions
-        AllSky      table
+        AllSky      table                                              % full-sky field catalogue table (columns: Field, RA, Dec, A_U)
 
-        StartDate datetime  = '2029-02-01 00:00:00';
-        EndDate datetime  ;
-        First_day = 1;
-        Last_day  = 420;
+        StartDate datetime  = '2029-02-01 00:00:00';                   % mission start date; day-1 anchor for all day offsets
+        EndDate datetime  ;                                            % mission end date; computed as StartDate+Last_day when not supplied
+        First_day = 1;                                                 % first planning day index (offset from StartDate)
+        Last_day  = 420;                                               % last planning day index; derived from EndDate when EndDate is given
 
-        DailyWindowStartTime duration =  duration(00,00,00);
+        DailyWindowStartTime duration =  duration(00,00,00);           % UTC time-of-day offset added when converting day indices to JD
 
-        Daily_LCS_slots = 11;
-        SlotTime        = 3*300/60/60/24;   % [days]
+        Daily_LCS_slots = 11;                                          % number of LCS observation slots available per day
+        SlotTime        = 3*300/60/60/24;                              % duration of one observation slot [days] (3 x 300 s)
 
-        Min_window     = 45;
-        Max_window_cut = 135;
-        max_ext        = 1;
+        Min_window     = 45;                                           % minimum continuous visibility window a field must have [days]; block length L
+        Max_window_cut = 135;                                          % minimum window to qualify a field for SetB or SetC [days]
+        max_ext        = 1;                                            % maximum UV extinction A_U allowed for the "low extinction" pool
 
-        SetAnumel = 48;
-        SetBnumel = 16;
-        SetCnumel = 16;
-        SetDnumel = 4;
+        SetAnumel = 48;                                                % target cardinality of Set A (48 fields)
+        SetBnumel = 16;                                                % target cardinality of Set B (16 fields)
+        SetCnumel = 16;                                                % target cardinality of Set C (16 fields)
+        SetDnumel = 4;                                                 % target cardinality of Set D (4 fields)
 
-        SetA_Nwindows = 6;
+        SetA_Nwindows = 6;                                             % number of 45-day windows (groups 1..6) allocated to Set A
 
         % Intermediate results
-        Nominal_windows table
-        Full_windows    table
+        Nominal_windows table                                          % 8-row table of nominal window start/end day indices
+        Full_windows    table                                          % adjusted window table used for actual scheduling (anchored at First_day)
 
-        vis_day_field        logical
-        vis3d_slot_day_field logical
-        vis2d_day_field_ALL  logical
-        vis2d_day_field_ANY  logical
+        vis_day_field        logical                                    % [NumDays x NFields] logical: daily visibility (ALL or ANY per Whole_daily_window)
+        vis3d_slot_day_field logical                                    % [Nslots x NumDays x NFields] logical: per-slot/day/field visibility bitmap
+        vis2d_day_field_ALL  logical                                    % [NumDays x NFields] logical: true iff ALL slots are visible on that day
+        vis2d_day_field_ANY  logical                                    % [NumDays x NFields] logical: true iff ANY slot is visible on that day
 
-        Cont_visibilty_per_field        double
-        Longest_window_per_field        double
-        Cont_visibilty_per_field_1dgap  double
-        Longest_window_per_field_1dgap  double
+        Cont_visibilty_per_field        double                          % [NumDays x NFields] forward run-length of consecutive visible days
+        Longest_window_per_field        double                          % [1 x NFields] maximum continuous visibility window per field [days]
+        Cont_visibilty_per_field_1dgap  double                          % same as above but with isolated 1-day gaps filled in
+        Longest_window_per_field_1dgap  double                          % maximum continuous window with 1-day gap tolerance [days]
 
-        SetA_fields  table
-        SetB_fields  table
-        SetC_fields  table
+        SetA_fields  table                                             % candidate table for Set A, sorted by max_window ascending
+        SetB_fields  table                                             % candidate table for Set B, sorted by max_window ascending
+        SetC_fields  table                                             % candidate table for Set C, sorted by max_window ascending
 
         % Long-extinction "leftovers" not yet in SetA/B/C, kept for shuffling
-        Long_leftover_fields  table
+        Long_leftover_fields  table                                    % long-window fields not assigned to SetB/SetC; shuffling candidate pool
 
         % Tracks which SetA group was shifted by schedule_SetA_v4 (0 if none)
-        SetA_shifted_group  double = 0
+        SetA_shifted_group  double = 0                                 % group index shifted by schedule_SetA_v4 for rescue (0 = none)
 
         % Which variant (1..4) of the optimal SetB/SetC configurations
         % succeeded (0 if no schedule was found).
-        Variant_used  double = 0
+        Variant_used  double = 0                                       % winning variant index 1..4; 0 if no feasible schedule was found
 
         % SetD bookkeeping (populated by schedule_SetD_v4)
-        SetD_ranked_fields  table
-        inds_open    = []   % list (with repetition) of inds with free slots
-        inds_2move   = []   % list (with repetition) of inds with over-full slots
+        SetD_ranked_fields  table                                      % ranked SetD candidate table with placement results (scheduled, ind)
+        inds_open    = []                                              % list (with repetition) of window indices that still have free daily slots
+        inds_2move   = []                                              % list (with repetition) of inds with over-full slots
 
         % Final schedules
-        Schedule        table
-        Daily_schedule
+        Schedule        table                                          % final schedule table (columns: category, group, ind, start, end, Field)
+        Daily_schedule                                                 % [NumDays x Daily_LCS_slots] observed field IDs per day/slot (NaN = empty)
     end
 
     % ========================== CONSTANT VARIANTS ==========================
@@ -121,7 +176,7 @@ classdef LcsHelper_v4 < Component
         %   ones_at(k, w) - among B_blocks(k) fields, how many have their
         %                 "1"-window (the W45 sub-block) at window W_w.
         %                 Must satisfy sum_w ones_at(k, w) = B_blocks(k).
-        Variants = struct(...
+        Variants = struct( ...                                          % struct array of the 4 optimal SetB/SetC window-configuration variants
             'name',     {'Optimal_1', 'Optimal_2', 'Optimal_3', 'Optimal_4'}, ...
             'C_blocks', {[4 4 0 0 4 4], [0 4 4 4 4 0], [4 4 0 4 4 0], [0 4 4 0 4 4]}, ...
             'B_blocks', {[4 2 2 2 2 4], [4 3 1 1 3 4], [4 2 2 2 2 4], [4 2 2 2 2 4]}, ...
@@ -155,19 +210,37 @@ classdef LcsHelper_v4 < Component
     % ========================== CONSTRUCTOR ==========================
     methods
         function Obj = LcsHelper_v4(Args)
+            % LcsHelper_v4 - Construct and optionally run the LCS v4 scheduling pipeline.
+            %
+            %   Obj = LcsHelper_v4()
+            %       Create a helper object with all default parameters. No computation
+            %       is triggered until the caller invokes prepTablesBeforeSchedule()
+            %       and categorize_then_schedule() explicitly.
+            %
+            %   Obj = LcsHelper_v4('Name', Value, ...)
+            %       As above with one or more name-value options (see Args below).
+            %
+            % Typical usage:
+            %   h = LcsHelper_v4('StartDate', datetime('2029-02-01'), ...
+            %                    'prep_before_schedule', true, ...
+            %                    'build_the_schedule',   true);
+            %
+            % After construction:
+            %   h.plotSchedule();
+            %   h.calcDailySchedule();
             arguments
-                Args.StartDate  = [];
-                Args.EndDate    = [];
-                Args.AllSkyTable = '~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid_surveys.csv';
-                Args.DailyWindowStartTime duration = duration.empty;
+                Args.StartDate  = [];                                    % mission start date; shifts to midnight if time component is present
+                Args.EndDate    = [];                                    % mission end date; if empty, derived as StartDate + Last_day
+                Args.AllSkyTable = '~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid_surveys.csv';  % path to CSV or a pre-loaded table with columns RA, Dec, A_U
+                Args.DailyWindowStartTime duration = duration.empty;     % UTC time-of-day offset for daily visibility slot JD computation
 
-                Args.prep_before_schedule    = false;
-                Args.build_the_schedule      = false;
-                Args.validate_after_schedule = true;
+                Args.prep_before_schedule    = false;                    % if true, call prepTablesBeforeSchedule() in the constructor
+                Args.build_the_schedule      = false;                    % if true (and prep=true), call categorize_then_schedule() too
+                Args.validate_after_schedule = true;                       % if true (and build=true), run LcsHelper_v4_validate and error on failure
 
-                Args.Whole_daily_window = false;
-                Args.Allow1dgap         = false;
-                Args.Verbose            = false;
+                Args.Whole_daily_window = false;                           % passed to Obj.Whole_daily_window (see property comment)
+                Args.Allow1dgap         = false;                           % passed to Obj.Allow1dgap (see property comment)
+                Args.Verbose            = false;                           % passed to Obj.Verbose; enables diagnostic fprintf output
             end
 
             if ~isempty(Args.StartDate)
