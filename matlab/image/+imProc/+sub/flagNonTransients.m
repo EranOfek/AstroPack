@@ -268,7 +268,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PixelScale double = 1.25
         Args.injectedSrcs double = []
 
-        Args.SoftNChi2Lim double = 21.0
+        Args.SoftNChi2Lim double = 5.0
 
         % Negative candidates
         Args.flagNegatives logical = true
