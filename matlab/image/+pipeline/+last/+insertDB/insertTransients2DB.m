@@ -32,7 +32,7 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
         Args.KeyID     = 'id_new_im'; % 'id_visit_im' ???  
         Args.ColNameID = 'id_diff_src';    
 
-        Args.DBConnector  =  'native'; % 'legacy';
+        Args.DBConnector  =  'legacy'; % 'native'; % 'legacy';
     end    
     % create a DB object and connect or use a preloaded object with connection
     if isempty(Args.DB)        
