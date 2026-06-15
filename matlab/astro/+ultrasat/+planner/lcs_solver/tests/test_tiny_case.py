@@ -113,3 +113,29 @@ def test_tiny_case_solves():
     assert "A" in categories
     assert "B" in categories
     assert "D" in categories
+
+
+def test_set_b_fields_occupy_consecutive_135_day_blocks():
+    """Each Set B field must span exactly one consecutive 3-window block.
+
+    This is the v4 geometry guarantee (135-day span) enforced by the block
+    constraint in the non-division Set B model, independent of CP-SAT's freedom
+    to choose which fields/windows to use.
+    """
+    fields_df, windows_df, eligibility_df, config = _make_tiny_inputs()
+    feasibility = compute_feasibility(fields_df, windows_df, eligibility_df, config)
+    result = build_and_solve(fields_df, feasibility, config)
+    assert result.status in ("OPTIMAL", "FEASIBLE")
+
+    windows_by_field: dict[int, list[int]] = {}
+    for a in result.window_assignments:
+        if a.category == "B":
+            windows_by_field.setdefault(a.field_id, []).append(a.window_index)
+
+    assert len(windows_by_field) == config.set_b_count
+    for field_id, wins in windows_by_field.items():
+        wins = sorted(wins)
+        # 1 B_45 + 2 B_90 = three rows on three distinct, consecutive windows.
+        assert len(wins) == 3, f"field {field_id}: {wins}"
+        assert len(set(wins)) == 3, f"field {field_id}: {wins}"
+        assert wins[2] - wins[0] == 2, f"field {field_id} not consecutive: {wins}"

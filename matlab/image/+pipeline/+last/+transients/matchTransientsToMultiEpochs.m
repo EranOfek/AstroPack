@@ -45,6 +45,8 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
         Args.DbName = 'last';   
         Args.DbUser = 'default';
         Args.DbPass = ''; 
+
+        Args.SingleEpochThresh = 7.5;
     end
     
     Status = 'Uncontrolled exit.';
@@ -125,6 +127,13 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
 
     DBQueryFails = 0;
 
+
+    if numel(ADc) ~= Npos
+        Status = sprintf(['Number of ADc cutouts (%d) does not match number ', ...
+            'of passing candidates (%d).'], numel(ADc), Npos);
+        return
+    end
+
     % Construct multi-epoch catalog for each passing candidate
     % loop over cutout candidates
     for Ipos = 1:1:Npos
@@ -136,10 +145,22 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
         CropID0 = TC.getCol('CROPID');
         JD = TC.getCol('JD');
 
-        % Get RADec of cutout candidate and find its index in the catalog
-        RATran = TC.getCol('RA');
+        % Get RA/Dec of cutout candidate and find its row in the filtered catalog.
+        RATran  = TC.getCol('RA');
         DecTran = TC.getCol('Dec');
-        OrigRow = OrigRows(RAInCat == RATran & DecInCat == DecInCat);
+        
+        CatDist = celestial.coo.sphere_dist(RAInCat, DecInCat, RATran, DecTran, 'deg');
+        CatDist = CatDist .* Rad2Arcsec;
+        
+        [MinCatDist, BestCatInd] = min(CatDist);
+        
+        if MinCatDist > Args.SearchRad
+            % This ADc candidate does not correspond to any passing row in TranCatLevel2.
+            % Skip it rather than updating the wrong catalog row.
+            continue
+        end
+        
+        OrigRow = OrigRows(BestCatInd);
 
         % Get the field ID of the candidate. Strip the dot extension if
         % there is one.
@@ -161,24 +182,15 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
 
         % Look back a number of days
         JDBack = JD - Args.LookBackJD;
-        JDBackStr = sprintf('%d',JDBack);
+        JDBackStr = sprintf('%.8f',JDBack);
 
         % DB query for candidates in the same field sub-image
         SearchCMD = strcat("SELECT * FROM last.diff_src WHERE mountnum=",MountStr,...
             " AND camnum=",CameraStr," AND object=",ObjectStr,...
             " AND cropid=",CropIDStr," AND jd >",JDBackStr);
         TranDB = DB.query(SearchCMD);
-
-
-        HighSelf = ADc(Ipos).CatData.getCol('SCORE') >= 7.5;
-    
-        CleanSelf = ...
-            (ADc(Ipos).CatData.getCol('N_NEIGH') < 1) &...
-            (ADc(Ipos).CatData.getCol('S_CORR') > 3) & ...
-            (ADc(Ipos).CatData.getCol('SCORE') > ADc(Ipos).CatData.getCol('SN_ext1'));
-    
-        PassingMatches = sum(HighSelf | CleanSelf);
-        
+   
+        PassingMatches = sum(isPassingCandidate(ADc(Ipos).CatData, Args.SingleEpochThresh));
 
         if ~isempty(TranDB)
             % Get RADec of found candidates and match to current candidate via
@@ -195,7 +207,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
             JdDiff0 = abs(MatchDB.jd - JD);
             MatchDB = MatchDB(JdDiff0 > TimeThr,:);
     
-            if size(MatchDB,1)>1
+            if size(MatchDB,1)>0
                 MatchJDs = MatchDB.jd;
                 NumMatches = numel(MatchJDs);
                 KeepMask = false(size(MatchJDs));
@@ -230,17 +242,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
                 ADc(Ipos).AlreadyReported = 1;
             end
 
-            PositiveMatches = (MatchDB.flags_transient == 0);
-
-            HighMatches = MatchDB.score >= 7.5;
-            CleanMatches = ...
-                (log10(MatchDB.flux_psf/MatchDB.flux_contam) > 0.5) &...
-                (MatchDB.n_neigh < 1) &...
-                (MatchDB.s_corr > 3.0) & ...
-                (MatchDB.score > MatchDB.sn_ext1);
-
-            PassingMatches = PassingMatches + ...
-                sum(PositiveMatches & (HighMatches | CleanMatches));
+            PassingMatches = PassingMatches + sum(isPassingDBMatch(MatchDB, Args.SingleEpochThresh));
         else
             MatchJDs = [];
             DBQueryFails = DBQueryFails + 1;
@@ -251,7 +253,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
         % should probably move elsewhere in the future.
         Score = ADc(Ipos).CatData.getCol('SCORE');
 
-        if (PassingMatches > 1) || (Score >= 7.5)
+        if (PassingMatches > 1) || (Score >= Args.SingleEpochThresh)
             UTCNow = datetime('now', 'TimeZone', 'UTC');
             JDNow = juliandate(UTCNow);
             ADc(Ipos).CatData.replaceCol(JDNow, 'Reported');
@@ -335,4 +337,48 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
             DBQueryFails, Npos);
     end
     
+end
+
+function IsPassing = isPassingCandidate(CatData, SingleEpochThresh, Args)
+    arguments
+        CatData
+        SingleEpochThresh (1,1) double = 7.5
+
+        Args.MaxDensityThresh (1,1) double = 0.1;
+        Args.MinScorrThresh (1,1) double = 3.0;
+    end
+
+    Score = CatData.getCol('SCORE');
+
+    IsHigh = Score >= SingleEpochThresh;
+
+    IsClean = ...
+        (CatData.getCol('DENSITY') < Args.MaxDensityThresh) & ...
+        (CatData.getCol('S_CORR') > Args.MinScorrThresh) & ...
+        (Score > CatData.getCol('SN_ext1'));
+
+    IsPassing = IsHigh | IsClean;
+end
+
+function IsPassing = isPassingDBMatch(MatchDB, SingleEpochThresh, Args)
+    arguments
+        MatchDB table
+        SingleEpochThresh (1,1) double = 7.5
+
+        Args.MaxMagContamThresh (1,1) double = 0.5;
+        Args.MaxDensityThresh (1,1) double = 0.1;
+        Args.MinScorrThresh (1,1) double = 3.0;
+    end
+
+    Positive = MatchDB.flags_transient == 0;
+
+    IsHigh = MatchDB.score >= SingleEpochThresh;
+
+    IsClean = ...
+        (log10(MatchDB.flux_psf ./ MatchDB.flux_contam) > Args.MaxMagContamThresh) & ...
+        (MatchDB.density < Args.MaxDensityThresh) & ...
+        (MatchDB.s_corr > Args.MinScorrThresh) & ...
+        (MatchDB.score > MatchDB.sn_ext1);
+
+    IsPassing = Positive & (IsHigh | IsClean);
 end

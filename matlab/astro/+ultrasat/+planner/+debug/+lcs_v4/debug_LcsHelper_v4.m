@@ -1,6 +1,6 @@
 %==========================================================================
 % Project     : ULTRASAT Observation Planner
-% File        : ultrasat.planner.debug.debug_LcsHelper_v4.m
+% File        : ultrasat.planner.debug.lcs_v4.debug_LcsHelper_v4.m
 % Author      : Chen Tishler
 % Created     : 07/06/2026
 % Updated     : 07/06/2026

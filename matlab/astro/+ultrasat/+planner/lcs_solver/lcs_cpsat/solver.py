@@ -41,7 +41,6 @@ from .v3_rules import (
     compute_inds_open,
     set_a_slot_calendar,
     set_b_division_table,
-    set_c_super_windows,
     sparse_days_for_ind,
 )
 
@@ -155,7 +154,6 @@ def _build_abc_model(
     field_ids = fields_df["field_id"].astype(int).tolist()
     extinction_scores = _extinction_score(fields_df, config)
     division = set_b_division_table(config.set_c_start_ind) if config.use_set_b_division else []
-    super_windows = set_c_super_windows(config, windows_45)
 
     # ---- Set A: shared fixed windows; window_index == slot ----
     # a_vars[(field, group, slot)] is True exactly when that field is selected
@@ -177,6 +175,11 @@ def _build_abc_model(
     b_daily: Dict[Tuple[int, int], cp_model.IntVar] = {}
     b_sparse: Dict[Tuple[int, int], cp_model.IntVar] = {}
     b_row: Dict[Tuple[int, int], cp_model.IntVar] = {}
+    # Non-division mode: a Set B field must occupy one consecutive 135-day block
+    # B_k = (W_k, W_{k+1}, W_{k+2}).  b_block[(f, k)] selects that block; the
+    # windows actually used are then forced to be exactly the block's 3 windows.
+    b_block: Dict[Tuple[int, int], cp_model.IntVar] = {}
+    b_block_windows: Dict[int, Set[int]] = {}
 
     if config.use_set_b_division and config.set_b_count > 0:
         for f in feasibility.feasible_b:
@@ -203,35 +206,38 @@ def _build_abc_model(
                 b_sparse[(f, w)] = model.NewBoolVar(f"b_sparse_{f}_{w}")
     elif config.set_b_count > 0:
         for f, wins in feasibility.feasible_b.items():
-            if len(wins) < 3:
+            # Only consecutive 135-day blocks the field continuously covers are
+            # allowed (v4 Set B geometry).  Skip fields with no feasible block.
+            blocks = sorted(feasibility.feasible_block.get(f, set()))
+            if not blocks:
                 continue
+            block_wins: Set[int] = set()
+            for k in blocks:
+                block_wins.update((k, k + 1, k + 2))
+            b_block_windows[f] = block_wins
             b_sel[f] = model.NewBoolVar(f"b_sel_{f}")
-            for w in wins:
+            for k in blocks:
+                b_block[(f, k)] = model.NewBoolVar(f"b_block_{f}_{k}")
+            for w in sorted(block_wins):
                 b_daily[(f, w)] = model.NewBoolVar(f"b_daily_{f}_{w}")
                 b_sparse[(f, w)] = model.NewBoolVar(f"b_sparse_{f}_{w}")
 
-    # ---- Set C: two fixed super-windows ----
-    # c_vars[(field, super_window)] chooses a long 135-day Set C placement.
-    # c_covers maps that long placement back to the 45-day indices it consumes
-    # in the v3 filled(k) capacity calculation.
+    # ---- Set C: 6 flexible consecutive 135-day blocks (v4 geometry) ----
+    # c_vars[(field, block_k)] chooses a 135-day Set C placement on block k,
+    # which spans windows k, k+1, k+2.  c_covers maps that block back to the
+    # three 45-day window indices it consumes in the capacity calculation.
     c_vars: Dict[Tuple[int, int], cp_model.IntVar] = {}
     c_covers: Dict[Tuple[int, int], List[int]] = {}
-    start_to_ind = {w.start_day: w.index for w in windows_45}
-    valid_super = [sw for sw in super_windows if sw.end_day <= config.last_day]
     overflow_vars: List[cp_model.IntVar] = []
 
     if config.set_c_count > 0:
-        for f in feasibility.feasible_c:
-            for sw in valid_super:
-                if sw.index in feasibility.feasible_c.get(f, set()):
-                    c_vars[(f, sw.index)] = model.NewBoolVar(f"c_{f}_{sw.index}")
-                    si = start_to_ind.get(sw.start_day)
-                    if si is not None:
-                        c_covers[(f, sw.index)] = list(
-                            range(si, min(si + 3, n_inds + 1))
-                        )
-                    else:
-                        c_covers[(f, sw.index)] = []
+        for f, blocks in feasibility.feasible_block.items():
+            if f not in feasibility.eligible_long:
+                continue  # only long-window eligible fields may be in Set C
+            for k in sorted(blocks):
+                if k + 2 <= n_inds:  # block k needs windows k, k+1, k+2
+                    c_vars[(f, k)] = model.NewBoolVar(f"c_{f}_{k}")
+                    c_covers[(f, k)] = [k, k + 1, k + 2]
 
     # ---- Field uniqueness (A/B/C only) ----
     # A field can be used in at most one logical set.  This is a classic CP-SAT
@@ -310,7 +316,7 @@ def _build_abc_model(
                 model.Add(sum(row_terms) == 1)
     else:
         for f, sel in b_sel.items():
-            wins = feasibility.feasible_b[f]
+            wins = sorted(b_block_windows.get(f, set()))
             daily_terms = [b_daily[(f, w)] for w in wins if (f, w) in b_daily]
             sparse_terms = [b_sparse[(f, w)] for w in wins if (f, w) in b_sparse]
             model.Add(sum(daily_terms) == sel)
@@ -319,14 +325,24 @@ def _build_abc_model(
                 if (f, w) in b_daily:
                     model.Add(b_daily[(f, w)] + b_sparse[(f, w)] <= 1)
 
-    # ---- Set C: 16 fields, 8 per super-window ----
+            # Exactly one consecutive block is chosen iff the field is selected.
+            block_terms = [b_block[(f, k)] for k in range(1, len(windows_45) - 1) if (f, k) in b_block]
+            model.Add(sum(block_terms) == sel)
+
+            # When block k is chosen, all three of its windows must be active
+            # (one daily + two sparse).  Combined with the counts above this
+            # forces the field onto exactly the consecutive triple (W_k,W_k+1,W_k+2),
+            # i.e. a 135-day span — the v4 Set B requirement.
+            for k in range(1, len(windows_45) - 1):
+                if (f, k) not in b_block:
+                    continue
+                for w in (k, k + 1, k + 2):
+                    if (f, w) in b_daily:
+                        model.Add(b_daily[(f, w)] + b_sparse[(f, w)] >= b_block[(f, k)])
+
+    # ---- Set C: total count only; CP-SAT distributes freely across blocks ----
     if c_vars and config.set_c_count > 0:
         model.Add(sum(c_vars.values()) == config.set_c_count)
-        for sw in valid_super:
-            sw_terms = [c_vars[(f, sw.index)] for f in feasibility.feasible_c if (f, sw.index) in c_vars]
-            if sw_terms:
-                per_sw = config.set_c_count // max(len(valid_super), 1)
-                model.Add(sum(sw_terms) == per_sw)
 
     # ---- Window-index capacity (v3 filled formula) ----
     if config.use_window_index_capacity:
@@ -336,7 +352,7 @@ def _build_abc_model(
     else:
         _add_calendar_day_capacity(
             model, config, a_vars, b_daily, b_sparse, c_vars, c_covers,
-            windows_45, valid_super,
+            windows_45,
         )
 
     # ---- Objective ----
@@ -352,9 +368,8 @@ def _build_abc_model(
         if obj:
             objective_terms.append(var * obj)
 
-    for (f, sw), var in c_vars.items():
-        slack = feasibility.slack_135.get((f, sw), 0)
-        obj = slack * config.weight_slack + extinction_scores.get(f, 0) * config.weight_extinction
+    for (f, _k), var in c_vars.items():
+        obj = extinction_scores.get(f, 0) * config.weight_extinction
         if obj:
             objective_terms.append(var * obj)
 
@@ -374,17 +389,16 @@ def _build_abc_model(
 
     return (
         model, a_vars, a_moved, b_sel, b_daily, b_sparse, c_vars, c_covers,
-        division, valid_super,
+        division,
     )
 
 
 def _add_calendar_day_capacity(
     model, config, a_vars, b_daily, b_sparse, c_vars, c_covers,
-    windows_45, super_windows,
+    windows_45,
 ) -> None:
     """Legacy per-calendar-day capacity model for tiny tests or fallback runs."""
     day_vars: Dict[int, List[cp_model.IntVar]] = defaultdict(list)
-    sw_by_idx = {sw.index: sw for sw in super_windows}
 
     for (f, g, s), var in a_vars.items():
         start, end, _ = set_a_slot_calendar(config, g, s, windows_45)
@@ -404,9 +418,10 @@ def _add_calendar_day_capacity(
             if day <= config.capacity_last_day:
                 day_vars[day].append(var)
 
-    for (f, sw_idx), var in c_vars.items():
-        sw = sw_by_idx[sw_idx]
-        for day in range(sw.start_day, sw.end_day + 1):
+    for (f, k), var in c_vars.items():
+        start = windows_45[k - 1].start_day
+        end = windows_45[k + 1].end_day
+        for day in range(start, end + 1):
             if day <= config.capacity_last_day:
                 day_vars[day].append(var)
 
@@ -701,7 +716,7 @@ def build_and_solve(
 
     (
         model, a_vars, a_moved, b_sel, b_daily, b_sparse, c_vars, c_covers,
-        division, valid_super,
+        division,
     ) = _build_abc_model(fields_df, feasibility, config)
 
     status, solver, wall_time = _solve_model(model, config)
@@ -713,7 +728,7 @@ def build_and_solve(
 
     abc_assignments, _ = _extract_solution(
         solver, status, a_vars, a_moved, b_sel, b_daily, b_sparse, c_vars,
-        c_covers, division, valid_super, config, feasibility,
+        c_covers, division, config, feasibility,
     )
 
     d_assignments: List[WindowAssignment] = []
@@ -757,7 +772,6 @@ def _extract_solution(
     c_vars,
     c_covers,
     division,
-    super_windows,
     config: SolverConfig,
     feasibility: FeasibilityMaps,
 ) -> Tuple[List[WindowAssignment], List[DailyObservation]]:
@@ -766,7 +780,6 @@ def _extract_solution(
         return [], []
 
     assignments: List[WindowAssignment] = []
-    sw_by_idx = {sw.index: sw for sw in super_windows}
     b90_ind_counter: Dict[int, int] = defaultdict(int)
 
     # Read Set A decisions.  solver.Value(var) is 1 only for selected BoolVars.
@@ -842,23 +855,24 @@ def _extract_solution(
                     )
                 )
 
-    # Read Set C decisions.  The cadence index is assigned per super-window so
-    # sparse observations can be expanded with the v3 modulo rule.
+    # Read Set C decisions.  Each field occupies one consecutive 3-window block k.
+    # group = 10+k; cadence_ind is sequential within each block (for sparse phasing).
     c_ind_counter: Dict[int, int] = defaultdict(int)
-    for (f, sw_idx), var in c_vars.items():
+    for (f, k), var in c_vars.items():
         if solver.Value(var):
-            sw = sw_by_idx[sw_idx]
-            c_ind_counter[sw_idx] += 1
+            start = feasibility.windows_45[k - 1].start_day
+            end = feasibility.windows_45[k + 1].end_day
+            c_ind_counter[k] += 1
             assignments.append(
                 WindowAssignment(
                     category="C",
                     field_id=f,
                     cadence="sparse4",
-                    start_day=sw.start_day,
-                    end_day=sw.end_day,
-                    window_index=sw_idx,
-                    group_id=10 + sw_idx,
-                    cadence_ind=c_ind_counter[sw_idx],
+                    start_day=start,
+                    end_day=end,
+                    window_index=k,
+                    group_id=10 + k,
+                    cadence_ind=c_ind_counter[k],
                 )
             )
 
@@ -884,7 +898,7 @@ def build_daily_observations(
                 config.sparse_cadence,
             )
         for day in sorted(days):
-            if day <= config.capacity_last_day:
+            if day <= config.last_day:
                 day_fields[day].append((item.field_id, item.category, item.cadence))
 
     observations: List[DailyObservation] = []

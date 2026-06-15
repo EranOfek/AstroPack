@@ -180,6 +180,10 @@ class FeasibilityMaps:
     use1dgap: Dict[int, bool] = field(default_factory=dict)
     feasible_a_gs: Dict[Tuple[int, int, int], bool] = field(default_factory=dict)
     slack_a_gs: Dict[Tuple[int, int, int], int] = field(default_factory=dict)
+    # field_id -> set of 135-day block start indices k (block = windows k,k+1,k+2)
+    # the field continuously covers. Used to force v4 SetB onto a consecutive
+    # 3-window block (and shared with the 135-day Set C/B geometry).
+    feasible_block: Dict[int, Set[int]] = field(default_factory=dict)
 
 
 @dataclass

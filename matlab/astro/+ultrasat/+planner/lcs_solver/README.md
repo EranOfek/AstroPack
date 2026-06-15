@@ -69,12 +69,13 @@ Important defaults:
 
 Main outputs:
 
-- `schedule.csv` - v3-style schedule table with `category, group, ind, start, end, Field`.
+- `schedule.csv` - schedule table with `category, group, ind, start, end, Field`.
 - `full_windows.csv` - the eight 45-day windows with calendar dates.
-- `daily_schedule_v3.csv` - v3-style day x slot matrix.
+- `daily_schedule.csv` - day x slot matrix (`day, date, slot_1 .. slot_11`). This is
+  the canonical matrix consumed by `validate_LcsHelper_v4.py` and `compare_lcs_outputs.py`.
 - `schedule_windows.csv` - normalized internal assignment table.
-- `daily_schedule.csv` - normalized day/slot observations.
-- `validation_report.csv` - pass/fail checks for v3-compatible rules.
+- `daily_observations.csv` - normalized one-row-per-observation debug view.
+- `validation_report.csv` - pass/fail checks for the schedule rules.
 - `solver_summary.json` - status, timing, counts, and validation summary.
 
 Expected fixed-result shape for the bundled inputs:
