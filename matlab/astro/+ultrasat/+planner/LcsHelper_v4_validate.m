@@ -263,7 +263,7 @@ end
 
 function GridFile = gridFile()
     ThisDir  = fileparts(mfilename('fullpath'));
-    GridFile = fullfile(ThisDir, 'data', 'LCS_nonoverlapping_grid_surveys.csv');
+    GridFile = fullfile(ThisDir, 'data', 'LCS_fields.csv');
     if ~isfile(GridFile)
         warning('LcsHelper_v4_validate:gridFileNotFound', ...
             'Grid file not found: %s', GridFile);

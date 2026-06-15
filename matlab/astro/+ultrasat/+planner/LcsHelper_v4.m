@@ -231,7 +231,7 @@ classdef LcsHelper_v4 < Component
             arguments
                 Args.StartDate  = [];                                    % mission start date; shifts to midnight if time component is present
                 Args.EndDate    = [];                                    % mission end date; if empty, derived as StartDate + Last_day
-                Args.AllSkyTable = '~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid_surveys.csv';  % path to CSV or a pre-loaded table with columns RA, Dec, A_U
+                Args.AllSkyTable = '~/matlab/data/ULTRASAT/LCS_fields.csv';  % path to CSV or a pre-loaded table with columns RA, Dec, A_U
                 Args.DailyWindowStartTime duration = duration.empty;     % UTC time-of-day offset for daily visibility slot JD computation
 
                 Args.prep_before_schedule    = false;                    % if true, call prepTablesBeforeSchedule() in the constructor

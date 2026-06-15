@@ -27,7 +27,7 @@ function debug_LcsHelper_v4_validateNegative()
     % ---- Build one valid plan (shared by all sub-tests) ------------------
     fprintf('Building valid plan (2029-01-05)...\n');
     ThisDir = fileparts(mfilename('fullpath'));
-    CsvFile = fullfile(ThisDir, '..', '..', 'data', 'LCS_nonoverlapping_grid_surveys.csv');
+    CsvFile = fullfile(ThisDir, '..', '..', 'data', 'LCS_fields.csv');
 
     Obj = ultrasat.planner.LcsHelper_v4( ...
         'StartDate',           datetime(2029, 1, 5), ...

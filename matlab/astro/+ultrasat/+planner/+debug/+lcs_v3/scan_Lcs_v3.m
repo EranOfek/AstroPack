@@ -263,7 +263,7 @@ end
 
 
 function GridFile = defaultGridFile(PlannerDir)
-    LocalGrid = fullfile(PlannerDir, 'data', 'LCS_nonoverlapping_grid_surveys.csv');
+    LocalGrid = fullfile(PlannerDir, 'data', 'LCS_fields.csv');
     if isfile(LocalGrid)
         GridFile = LocalGrid;
         return;
@@ -271,7 +271,7 @@ function GridFile = defaultGridFile(PlannerDir)
 
     EnvPath = getenv('ASTROPACK_DATA_PATH');
     if ~isempty(EnvPath)
-        EnvGrid = fullfile(EnvPath, 'ULTRASAT', 'LCS_nonoverlapping_grid_surveys.csv');
+        EnvGrid = fullfile(EnvPath, 'ULTRASAT', 'LCS_fields.csv');
         if isfile(EnvGrid)
             GridFile = EnvGrid;
             return;

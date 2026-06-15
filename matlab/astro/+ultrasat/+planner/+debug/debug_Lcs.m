@@ -35,7 +35,7 @@ function debug_Lcs_buildLCS1()
     upLCS.EndTime = upLCS.StartTime + caldays(420);
     upLCS.DailyWindowStartTime = duration('00:00:00');
 
-    gridFile = fullfile(upLCS.BaseDataDir, 'LCS_nonoverlapping_grid_surveys.csv');
+    gridFile = fullfile(upLCS.BaseDataDir, 'LCS_fields.csv');
     if ~isfile(gridFile)
         error('debug_Lcs_buildLCS1: grid file not found: %s', gridFile);
     end

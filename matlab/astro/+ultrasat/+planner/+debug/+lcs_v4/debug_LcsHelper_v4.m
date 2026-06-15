@@ -122,7 +122,7 @@ end
 
 function gridFile = debug_lcsHelperV4_gridFile()
     gridFile = fullfile(getenv('ASTROPACK_DATA_PATH'), ...
-        'ULTRASAT', 'LCS_nonoverlapping_grid_surveys.csv');
+        'ULTRASAT', 'LCS_fields.csv');
     if ~isfile(gridFile)
         error('debug_LcsHelper_v4: grid file not found: %s', gridFile);
     end

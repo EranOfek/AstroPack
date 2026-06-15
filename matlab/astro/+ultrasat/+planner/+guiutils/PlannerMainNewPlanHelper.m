@@ -159,6 +159,10 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
             app.MainModule.setPlanner(upHCS);
             app.setModified('doCreateNewPlanHCS');
             app.PlanParamsHelper.updatePlanParams(app);
+
+            % Load HCS unique targets from file
+            obj.loadUniqueTargetsFromDataFile(app, 'HCS_fields.csv', 'Name', 'loadHcsUniqueTargetsFromFile');
+
             %app.debugSave('upHCS.mat', app.MainModule.Planner);
             app.msglog('doCreateNewPlanHCS done');
         end
@@ -184,7 +188,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
             app.PlanParamsHelper.updatePlanParams(app);
 
             % Load LCS unique targets from file
-            obj.loadLcsUniqueTargetsFromFile(app);
+            obj.loadUniqueTargetsFromDataFile(app, 'LCS_fields.csv', 'Field', 'loadLcsUniqueTargetsFromFile');
 
             %app.debugSave('upLCS.mat', app.MainModule.Planner);
             app.msglog('doCreateNewPlanLCS done');
@@ -260,30 +264,38 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
         end
 
 
-        function loadLcsUniqueTargetsFromFile(obj, app)
-            % Load LCS unique targets from LCS_nonoverlapping_grid_surveys.csv
-            app.msglog('loadLcsUniqueTargetsFromFile started');
-
-            FileName = fullfile(app.MainModule.BaseDataDir, 'LCS_nonoverlapping_grid_surveys.csv');
+        function FileName = resolvePlannerDataFile(obj, app, BaseName)
+            % Resolve planner data file from BaseDataDir or repo +planner/data/
+            FileName = fullfile(app.MainModule.BaseDataDir, BaseName);
             if ~isfile(FileName)
                 PlannerDir = fileparts(mfilename('fullpath'));
-                FileName = fullfile(PlannerDir, '..', 'data', 'LCS_nonoverlapping_grid_surveys.csv');
+                FileName = fullfile(PlannerDir, '..', 'data', BaseName);
             end
+        end
 
+
+        function loadUniqueTargetsFromDataFile(obj, app, BaseName, NameColumn, LogTag)
+            % Load unique targets from a CSV in +planner/data/ or BaseDataDir
+            app.msglog(sprintf('%s started', LogTag));
+
+            FileName = obj.resolvePlannerDataFile(app, BaseName);
             if ~isfile(FileName)
-                app.msglog('loadLcsUniqueTargetsFromFile: file not found: %s', FileName);
+                app.msglog(sprintf('%s: file not found: %s', LogTag, FileName));
                 return;
             end
 
             try
-                LCS_grid = readtable(FileName);
-                app.MainModule.Planner.addUniqTargets(LCS_grid.RA, LCS_grid.Dec, ...
-                    'Name', num2cell(LCS_grid.Field));
-                app.setModified('loadLcsUniqueTargetsFromFile');
-                app.msglog(sprintf('loadLcsUniqueTargetsFromFile: loaded %d targets from %s', ...
-                    height(LCS_grid), FileName));
+                Grid = readtable(FileName);
+                if strcmp(NameColumn, 'Name')
+                    Names = Grid.Name;
+                else
+                    Names = num2cell(Grid.(NameColumn));
+                end
+                app.MainModule.Planner.addUniqTargets(Grid.RA, Grid.Dec, 'Name', Names);
+                app.setModified(LogTag);
+                app.msglog(sprintf('%s: loaded %d targets from %s', LogTag, height(Grid), FileName));
             catch ME
-                app.msgex('loadLcsUniqueTargetsFromFile', ME);
+                app.msgex(LogTag, ME);
             end
         end
 
