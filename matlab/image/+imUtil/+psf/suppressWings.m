@@ -51,7 +51,7 @@ function [PSF, InnerRad, ExtendedPSF] = suppressWings(PSF, Args)
         end
     else
         % set InnerRadius based on PSF radial profile < Threshold
-        [Radius, Mean] = imUtil.psf.mex.radialProfile_mex(PSF);
+        [Radius, Mean] = imUtil.psf.mex.radialProfile_mex(PSF, HalfSize+1, HalfSize+1, HalfSize);
         InnerRad = ceil(tools.interp.interp1crossVal(Radius, Mean./max(Mean), Args.Threshold, false));
         if numel(Args.FunPars)>1
             % Set FunPars to scalar:
