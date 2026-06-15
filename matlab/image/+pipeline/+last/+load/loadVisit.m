@@ -27,6 +27,7 @@ function [AllSI, Coadd, MS] = loadVisit(Path, Args)
         Args.TempName_MS       = 'LAST*_sci_merged_MatchedMat_*.hdf5';
         Args.GenError          = false;
         Args.PipelineVer       = 'v0';
+        Args.Ncrop             = 24;
     end
 
     PWD = pwd;
@@ -59,11 +60,17 @@ function [AllSI, Coadd, MS] = loadVisit(Path, Args)
         end
     end
 
-    % loadd coadd images
+    % load coadd images
     if isempty(Args.TempName_Coadd)
         Coadd = [];
     else
         Coadd = pipeline.last.load.directLoad(Args.TempName_Coadd);
+        if ~isempty(Coadd) && isa(Coadd, 'AstroImage') && Args.Ncrop > 0
+            StC = Coadd.getStructKey({'CROPID'});
+            CoaddFull = AstroImage([1, Args.Ncrop]);
+            CoaddFull([StC.CROPID]) = Coadd;
+            Coadd = CoaddFull;
+        end
     end
 
     % load MS
@@ -71,6 +78,13 @@ function [AllSI, Coadd, MS] = loadVisit(Path, Args)
         MS = [];
     else
         MS = pipeline.last.load.directLoad(Args.TempName_MS);
+        if ~isempty(MS) && isa(MS, 'MatchedSources') && Args.Ncrop > 0
+            IP = ImagePath.parseFileName({MS.FileName});
+            CropIds = str2double({IP.CropID});
+            MSFull(1, Args.Ncrop) = MatchedSources;
+            MSFull(CropIds) = MS;
+            MS = MSFull;
+        end
     end
 
     cd(PWD);
