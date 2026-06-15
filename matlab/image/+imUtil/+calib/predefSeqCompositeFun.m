@@ -120,7 +120,7 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         % --- Normalization ---
         Args.Norm                 = 0.5
         Args.Norm_Min             = 0.001
-        Args.Norm_Max             = 1.0
+        Args.Norm_Max             = 10.0
 
         % --- Ozone ---
         Args.DobsonUnits          = 300
