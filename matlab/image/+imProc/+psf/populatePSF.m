@@ -349,6 +349,7 @@ function [Obj,Result]=populatePSF(Obj, Args)
                     Obj(Iobj).PSFData.Data   = MeanPSF;
                     Obj(Iobj).PSFData.Var    = VarPSF;
                     Obj(Iobj).PSFData.Nstars = NimPSF;
+                    Obj(Iobj).PSFData.SuppressRad = Result(Iobj).SuppressRad;
                 end        
 
             case 'legacy'

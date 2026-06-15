@@ -189,7 +189,7 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
 
     
 
-    Result = struct('StartNsrc',0, 'Nsrc',0, 'SN',[], 'X',[], 'Y',[], 'M1',[], 'M2',[]);
+    Result = struct('StartNsrc',0, 'Nsrc',0, 'SN',[], 'X',[], 'Y',[], 'M1',[], 'M2',[], 'SuppressRad',[]);
 
     if ismatrix(Image)
         if isempty(Args.X) || isempty(Args.Y) || isempty(Args.SN)
@@ -421,12 +421,17 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
                                                                 'Threshold',Args.SuppressThreshold,...
                                                                 'FunPars',Args.SuppressFunPars,...
                                                                 'Norm',true);
+
         end
-        % fot to analytical function
+        Result.SuppressRad = InnerRad;
+
+        % fit to analytical function
         % FFU
+        
 
     else
         Result.Nsrc = 0;
+        Result.SuppressRad = NaN;
         Result.SN   = SN;
         Result.X    = X;
         Result.Y    = Y;

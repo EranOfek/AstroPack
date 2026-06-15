@@ -61,6 +61,7 @@ classdef AstroPSF < Component
         FWHM              = [];     % can be defined for some "average" stamp
         FluxContainmentRadius = []; % can be defined for some "average" stamp  
         Nstars            = NaN;    % if Nstars=NaN, then PSF wasn't constructed yet 
+        SuppressRad       = NaN;
     end
     
     methods % Constructor
