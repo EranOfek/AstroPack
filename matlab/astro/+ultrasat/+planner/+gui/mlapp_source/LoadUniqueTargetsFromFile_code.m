@@ -145,17 +145,17 @@ classdef LoadUniqueTargetsFromFile < matlab.apps.AppBase
 
         % Button pushed function: HighCadenceFieldsButton
         function HighCadenceFieldsButtonPushed(app, event)
-             app.loadDataFile('HCS_fields.txt');
+             app.loadDataFile('HCS_fields.csv');
         end
 
         % Button pushed function: LowCadenceFieldsButton
         function LowCadenceFieldsButtonPushed(app, event)
-            app.loadDataFile('LCS_grid.txt');
+            app.loadDataFile('LCS_fields.csv');
         end
 
         % Button pushed function: AllSSFieldsButton
         function AllSSFieldsButtonPushed(app, event)
-            app.loadDataFile('AllSS_grid_361.txt');
+            app.loadDataFile('AllSS_fields.csv');
         end
     end
 

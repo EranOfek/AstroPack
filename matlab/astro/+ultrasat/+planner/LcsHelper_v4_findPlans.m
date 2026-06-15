@@ -3,6 +3,7 @@
 % File        : ultrasat.planner.LcsHelper_v4_findPlans.m
 % Author      : Chen Tishler
 % Created     : 10/06/2026
+% Modified    : 15/06/2026
 % Description : Find feasible LCS v4 plans centered on a given start date.
 %
 %   Scans outward from StartDate — first forward (offset 0, +1, +2, ...),

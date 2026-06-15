@@ -57,7 +57,7 @@ classdef LcsFields < matlab.apps.AppBase
             app.MainModule.MainApp.showHelp('lcs_targets');
         end
 
-        % Callback function: not associated with a component
+        % Callback function
         function HelpButtonPushed2(app, event)
             
         end
@@ -65,18 +65,18 @@ classdef LcsFields < matlab.apps.AppBase
         % Selection changed function: UITableGroupSummary
         function UITableGroupSummarySelectionChanged(app, event)
             selection = app.UITableGroupSummary.Selection;
-            % Group selected - update table of fields 
+            app.MainModule.MainApp.LcsHelper.onGroupSummarySelectionChanged(app.MainModule.MainApp, app, selection);
         end
 
         % Selection changed function: UITableGroupFields
         function UITableGroupFieldsSelectionChanged(app, event)
             selection = app.UITableGroupFields.Selection;
-            % Field seleted - update field details and dates of this field
+            app.MainModule.MainApp.LcsHelper.onGroupFieldsSelectionChanged(app.MainModule.MainApp, app, selection);
         end
 
         % Selection changed function: UITableFieldDates
         function UITableFieldDatesSelectionChanged(app, event)
-            selection = app.UITableFieldDates.Selection;
+            %selection = app.UITableFieldDates.Selection;
             %
         end
     end
