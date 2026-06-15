@@ -290,7 +290,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagBadPix_Soft logical = true
         Args.BadPix_Soft cell = {'DarkHighVal', 'CR_DeltaHT'}
         Args.BPS_PSFLimit double = -2.797
-        Args.BPS_DeltaLimit double = 2.996
+        Args.BPS_DeltaLimit double = 0.383
 
         % Holes in the reference filters
         Args.flagRefHole logical = true;
