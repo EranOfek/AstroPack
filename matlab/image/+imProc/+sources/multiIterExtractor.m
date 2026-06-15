@@ -733,8 +733,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                     [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, ...
                                                                                 'Recenter', false,'PositivePSF',false, 'FunEdge',[]);
                    
-                    SourceImage(:,:,Iiter)       = imUtil.art.addSources(repmat(single(0), SizeImage), permute(CubePSF,[2,1,3]),XY,...
-                                                                                'Oversample',[],'Subtract',false);  
+                    SourceImage(:,:,Iiter)       = imUtil.art.addSources(repmat(single(0), SizeImage), CubePSF, XY,...
+                                                                                'Oversample',[],'Subtract',false);
                     SumSourceImage = SumSourceImage + SourceImage(:,:,Iiter);
                 end
                 Subtracted                   = AI.ImageData.Image - SourceImage(:,:,Iiter);  
