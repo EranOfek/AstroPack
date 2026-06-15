@@ -141,7 +141,7 @@ classdef uplanner < Component
         LCS_obj         ultrasat.planner.LcsHelper       % Object of class LCSHelper
         
         % ------------ AllSS Properties ------------
-        AllSSgridFile                   = 'AllSS_grid_361.txt'; % the default AllSS grid
+        AllSSgridFile                   = 'AllSS_fields.csv'; % the default AllSS grid
         PointTypeCriterion              = 'b';              % 'b' -- by the Galactic latitute or 'a_u' -- by the A_U (ULTRASAT band extinction) 
         AllSSHighLatThresh              = 30;               % |b| [deg]
         HighLatVisits                   =  4;               % 1 visit = 3 x 300 s 
