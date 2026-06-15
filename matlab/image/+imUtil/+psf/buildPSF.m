@@ -1,4 +1,4 @@
-function [Result, MeanPSF, VarPSF, Nsrc] = buildPSF(Image, Args)
+function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
     % Build a master PSF from an image (or a cube of stamps).
     %   Given a 2D image or a 3D cube of stellar stamps, construct a master
     %   PSF by stacking sub-pixel-shifted, normalized cutouts of stars.
@@ -129,6 +129,8 @@ function [Result, MeanPSF, VarPSF, Nsrc] = buildPSF(Image, Args)
     %            variance of the mean. Returns [] if no sources survive.
     %          - Nsrc, the final number of sources contributing to the
     %            master PSF (== Result.Nsrc).
+    %          - Extended PSF with power law wings instead of supressed
+    %            wings.
     % Author : Eran Ofek (2026 May)
     % Example: imUtil.psf.buildPSF(AI.Image);
     %          [Result, P] = imUtil.psf.buildPSF(AI.Image, 'SumMethod','sigclip_mex');
@@ -181,12 +183,13 @@ function [Result, MeanPSF, VarPSF, Nsrc] = buildPSF(Image, Args)
         Args.SuppressThreshold         = 1e-4;
         Args.SuppressFunPars           = 3; % or # from edge
         
-     
+        Args.ExtendedSize              = [1501 1501];
+        Args.Alpha                     = 1;
     end
 
     
 
-    Result = struct('StartNsrc',0, 'Nsrc',0, 'SN',[], 'X',[], 'Y',[], 'M1',[], 'M2',[]);
+    Result = struct('StartNsrc',0, 'Nsrc',0, 'SN',[], 'X',[], 'Y',[], 'M1',[], 'M2',[], 'SuppressRad',[]);
 
     if ismatrix(Image)
         if isempty(Args.X) || isempty(Args.Y) || isempty(Args.SN)
@@ -406,16 +409,29 @@ function [Result, MeanPSF, VarPSF, Nsrc] = buildPSF(Image, Args)
 
 
         % smooth wings
-        [MeanPSF, InnerRad] = imUtil.psf.suppressWings(MeanPSF, 'Fun',Args.SuppressFun,...
+        if nargout>4
+            [MeanPSF, InnerRad,ExtendedPSF] = imUtil.psf.suppressWings(MeanPSF, 'Fun',Args.SuppressFun,...
+                                                                'Threshold',Args.SuppressThreshold,...
+                                                                'FunPars',Args.SuppressFunPars,...
+                                                                'Norm',true,...
+                                                                'ExtendedSize',Args.ExtendedSize,...
+                                                                'Alpha',Args.Alpha);
+        else
+            [MeanPSF, InnerRad] = imUtil.psf.suppressWings(MeanPSF, 'Fun',Args.SuppressFun,...
                                                                 'Threshold',Args.SuppressThreshold,...
                                                                 'FunPars',Args.SuppressFunPars,...
                                                                 'Norm',true);
-        
-        % fot to analytical function
+
+        end
+        Result.SuppressRad = InnerRad;
+
+        % fit to analytical function
         % FFU
+        
 
     else
         Result.Nsrc = 0;
+        Result.SuppressRad = NaN;
         Result.SN   = SN;
         Result.X    = X;
         Result.Y    = Y;

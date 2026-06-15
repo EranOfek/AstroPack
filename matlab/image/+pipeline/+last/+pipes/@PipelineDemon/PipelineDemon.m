@@ -2845,7 +2845,7 @@ classdef PipelineDemon < Component
                 Err = [];
                 try
                     Err = pipeline.last.insertDB.insertTransients2DB( ...
-                        TCL2, [Coadd.HeaderData],'DbHost', UpArgs.DbHostTransients,'DB', UpArgs.DB);
+                        TCL2, [Coadd.HeaderData],'DbHost', UpArgs.DbHostTransients,'DB', UpArgs.DB,'DBConnector',UpArgs.DBConnector);
                 catch ME
                     Obj.writeLog(ME, LogLevel.Error);
                 end
@@ -2961,6 +2961,7 @@ classdef PipelineDemon < Component
                 Args.RefPath       = '/lastdata/references/v4';
 
                 Args.ConnectDB     = true;    % get a DB connector (e.g., for multiepoch matching of PipeII)
+                Args.DBConnector   = 'legacy'; 
                 Args.Insert2DB     = false;   % Insert images data to LAST DB or prepare CSV dumps for further insertion
                 Args.DB            = [];
 
@@ -3079,8 +3080,12 @@ classdef PipelineDemon < Component
                 Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
                 PM = PasswordsManager;
                 DB.Password = PM.search(Args.DbName).Pass;
-                Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
-                Args.DB.query(sprintf('use %s',Args.DbName));
+                if strcmpi(Args.DBConnector,'native')
+                    Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
+                    Args.DB.query(sprintf('use %s',Args.DbName));
+                else                    
+                    Args.DB = db.Db.connectLASTdb('User',Args.DbUser,'Pass',DB.Password);                    
+                end
                 % Args.pipelineIArgs = [Args.pipelineIArgs,{'DBobj',Args.DB,'DB_Table_Raw',Args.DB_Table_Raw}];
             end
 

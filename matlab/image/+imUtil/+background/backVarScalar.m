@@ -62,6 +62,7 @@ function [Back, Var] = backVarScalar(Image, Args)
             % call function that returns two outputs
             if isempty(Args.Dilute)
                 [Back, Var] = Args.Method(Image(:), Args.MethodArgs{1}{:});
+               
             else
                 % note that at this stage: tools.array.mex.diluteArray is
                 % not fast enough
