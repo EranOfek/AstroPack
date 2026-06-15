@@ -12,7 +12,8 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
     %            'BackArgs' - A cell array of additional input arguments to
     %                   pass to the imProc.background.backVar function.
     %                   This function will be used if the Back property is
-    %                   not populated.
+    %                   not populated. Not to be confused with
+    %                   'backVarArgs'. Default is {}.
     %            'ScalarVar' - Logical indicating if to replace the
     %                   variance image of each input image by a scalar
     %                   variance estimated from the mean variance over the
@@ -178,7 +179,8 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
         Var = Var.*FWHM;
     end
     
-    Var = Var./mean(Var);
+    % Not needed:
+    %Var = Var./mean(Var);
 
     % flux matching parameters
     if isempty(Args.ZP)
@@ -193,6 +195,8 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
 
     % create AstroImage for results
     Result = AstroImage;
+
+    % I suspect we need to scale FluxMatch by the number of images...
 
     % coadd
     [Result.ImageData.Data, Result.VarData.Data, CoaddN] = imUtil.stack.wcoaddRobust(ImageCube, BackCube, 'Var',Var, 'F',FluxMatch, 'ZP',[],'ZP0',[],...

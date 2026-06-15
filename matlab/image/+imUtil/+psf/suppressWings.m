@@ -1,4 +1,4 @@
-function [PSF, InnerRad] = suppressWings(PSF, Args)
+function [PSF, InnerRad, ExtendedPSF] = suppressWings(PSF, Args)
     % Suppress PSF wings by a cosbell with inner radius set dynamically from radial profile.
     % Input  : - PSF stamp.
     %          * ...,key,val,... 
@@ -16,8 +16,16 @@ function [PSF, InnerRad] = suppressWings(PSF, Args)
     %            'Norm' - A logical indicating if to normalize the
     %                   sum of the PSF to 1.
     %                   Default is true.
+    %             
+    %            'Alpha' - Power-law index. Tail is proportional to r^(-Alpha).
+    %                      Default is 1.
+    %            'ExtendedSize' - The X,Y size of the extended power-law
+    %                   wings PSF. Default is [1501 1501].
     % Output : - A PSF with suprressed wings.
     %          - Chosen inner radius.
+    %          - Optioanl output argument containing an extended version of
+    %            the PSF, where insted of supressing the wings replacing them
+    %            with a power law extension using imUtil.psf.extendPsfPowerLaw
     % Author : Eran Ofek (2026 Apr) 
     % Example: [PSF, InnerRad] = imUtil.psf.suppressWings(PSF, Args)
 
@@ -27,6 +35,9 @@ function [PSF, InnerRad] = suppressWings(PSF, Args)
         Args.Threshold                = 1e-4;
         Args.FunPars                 = 3; % or # from edge
         Args.Norm                    = true;
+
+        Args.Alpha                   = 1;
+        Args.ExtendedSize           = [1501 1501];
     end
 
     Size = size(PSF);
@@ -47,6 +58,11 @@ function [PSF, InnerRad] = suppressWings(PSF, Args)
             Args.FunPars = Args.FunPars(2) - Args.FunPars(1);
         end
         Args.FunPars = [InnerRad, min(HalfSize, InnerRad+Args.FunPars)];
+    end
+
+    if nargout>2
+        % Return also extend PSF with power law wings
+        ExtendedPSF = imUtil.psf.extendPsfPowerLaw(PSF, Args.ExtendedSize, 'Alpha',Args.Alpha);
     end
 
     InnerRad = Args.FunPars(1);

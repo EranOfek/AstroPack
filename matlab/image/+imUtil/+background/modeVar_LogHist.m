@@ -97,6 +97,9 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     if ~isempty(Args.MinVal) || ~isempty(Args.MaxVal)
         Array = Array(Array>Args.MinVal & Array<Args.MaxVal);
     end
+
+    % Remove NaNs
+    Array = Array(~isnan(Array));
     
     
     % remove lower/upper quantile
@@ -123,7 +126,7 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     BinSize   = Range./Nbin;
 
     if Args.UseMex
-        Nbin = round((Range + 2.*BinSize)./BinSize);       
+        Nbin = round((Range + 2.*BinSize)./BinSize);    
         [Nhist,Edges,BinCenter] = tools.hist.mex.hist1reg_mex(LogArray, double([Min, Max+2.*BinSize]), Nbin, single(1), false);
        
     else

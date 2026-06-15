@@ -49,6 +49,7 @@ classdef AstroPSF < Component
     properties (SetAccess = public)
         DataPSF           = [];    % parameters of a PSF-generating function or a data cube, where the first 2 dimensions are the PSF image stamp (X, Y)
         DataVar           = [];    % variance 
+        DataExtended      = [];
         Scale             = [1 1]; % pixel oversampling in X and Y (may be different) 
         FunPSF            = {};    % a list of PSF-generating functions (additive components)
         FunPars           = {};    % PSF functions parameters
