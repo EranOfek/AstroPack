@@ -153,6 +153,64 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
             app.showModal(app.BuildStatusApp);
         end
 
+
+        function IsOk = checkLcsStartDate(obj, app, upLCS)
+            % Check LCS start date feasibility; offer alternatives via LcsStartTimes dialog
+            IsOk = false;
+            app.msglog('checkLcsStartDate started');
+
+            StartDate = dateshift(upLCS.StartTime, 'start', 'day');
+            if obj.isLcsStartDateFeasible(app, StartDate)
+                app.msglog('checkLcsStartDate: start date is feasible');
+                IsOk = true;
+                return;
+            end
+
+            app.closePleaseWait();
+            app.showPleaseWait('Searching for alternative LCS start dates...');
+
+            try
+                Plans = ultrasat.planner.LcsHelper_v4_findPlans(StartDate, 2, 'Verbose', false);
+                FeasibleMask = strcmp(Plans.status, 'FEASIBLE');
+                Plans = Plans(FeasibleMask, :);
+
+                if isempty(Plans) || height(Plans) == 0
+                    app.closePleaseWait();
+                    app.AppUtils.msgError('No feasible alternative LCS start dates found near the selected start date.');
+                    return;
+                end
+
+                app.closePleaseWait();
+                Status = obj.showLcsStartTimesDialog(app, Plans);
+                if ~strcmp(Status, 'Ok')
+                    return;
+                end
+
+                RowIndex = obj.LcsStartTimesApp.UITable.Selection;
+                if isempty(RowIndex) || RowIndex < 1
+                    app.AppUtils.msgError('Please select an alternative start date from the list.');
+                    return;
+                end
+
+                DisplayData = obj.LcsStartTimesApp.UITable.Data;
+                if RowIndex > height(DisplayData)
+                    app.AppUtils.msgError('Invalid row selection.');
+                    return;
+                end
+
+                PlanStartDate = string(DisplayData.plan_start_date(RowIndex));
+                upLCS.StartTime = datetime(PlanStartDate) + upLCS.DailyWindowStartTime;
+                app.setModified('checkLcsStartDate');
+                app.PlanParamsHelper.updatePlanParams(app);
+                IsOk = true;
+            catch ME
+                app.closePleaseWait();
+                app.msgex('checkLcsStartDate', ME);
+            end
+
+            app.msglog('checkLcsStartDate done');
+        end
+
     end
 
     % =====================================================================
@@ -209,16 +267,17 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
                 return;
             end
 
-            StartDate = dateshift(upLCS.StartTime, 'start', 'day');
-            if ~obj.isLcsStartDateFeasible(app, StartDate)
-                BuildOk = obj.retryLcsBuildWithAlternativeStart(app, upLCS, SelectedRows, StartDate);
-            else
-                upLCS.buildLCS1('TargetList', SelectedRows);
-                if height(upLCS.Plan) == 0
-                    BuildOk = obj.retryLcsBuildWithAlternativeStart(app, upLCS, SelectedRows, StartDate);
-                else
-                    BuildOk = true;
-                end
+            if ~obj.checkLcsStartDate(app, upLCS)
+                return;
+            end
+
+            app.closePleaseWait();
+            app.showPleaseWait('Building your plan... expected duration: up to ~30 seconds.');
+            upLCS.buildLCS1('TargetList', SelectedRows);
+            BuildOk = height(upLCS.Plan) > 0;
+
+            if ~BuildOk
+                app.AppUtils.msgError('Build failed for the selected start date.');
             end
 
             if BuildOk
@@ -347,61 +406,6 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
                 end
             catch ME
                 app.msgex('isLcsStartDateFeasible', ME);
-            end
-        end
-
-
-        function BuildOk = retryLcsBuildWithAlternativeStart(obj, app, upLCS, SelectedRows, StartDate)
-            % Find alternative LCS start dates and retry build after user selection
-            BuildOk = false;
-            app.msglog('retryLcsBuildWithAlternativeStart started');
-
-            app.closePleaseWait();
-            app.showPleaseWait('Searching for alternative LCS start dates...');
-
-            try
-                Plans = ultrasat.planner.LcsHelper_v4_findPlans(StartDate, 2, 'Verbose', false);
-                FeasibleMask = strcmp(Plans.status, 'FEASIBLE');
-                Plans = Plans(FeasibleMask, :);
-
-                if isempty(Plans) || height(Plans) == 0
-                    app.closePleaseWait();
-                    app.AppUtils.msgError('No feasible alternative LCS start dates found near the selected start date.');
-                    return;
-                end
-
-                app.closePleaseWait();
-                Status = obj.showLcsStartTimesDialog(app, Plans);
-                if ~strcmp(Status, 'Ok')
-                    return;
-                end
-
-                RowIndex = obj.LcsStartTimesApp.UITable.Selection;
-                if isempty(RowIndex) || RowIndex < 1
-                    app.AppUtils.msgError('Please select an alternative start date from the list.');
-                    return;
-                end
-
-                DisplayData = obj.LcsStartTimesApp.UITable.Data;
-                if RowIndex > height(DisplayData)
-                    app.AppUtils.msgError('Invalid row selection.');
-                    return;
-                end
-
-                PlanStartDate = string(DisplayData.plan_start_date(RowIndex));
-                upLCS.StartTime = datetime(PlanStartDate) + upLCS.DailyWindowStartTime;
-                app.setModified('retryLcsBuildWithAlternativeStart');
-                app.PlanParamsHelper.updatePlanParams(app);
-
-                app.showPleaseWait('Building your plan... expected duration: up to ~30 seconds.');
-                upLCS.buildLCS1('TargetList', SelectedRows);
-                BuildOk = height(upLCS.Plan) > 0;
-
-                if ~BuildOk
-                    app.AppUtils.msgError('Build failed for the selected alternative start date.');
-                end
-            catch ME
-                app.msgex('retryLcsBuildWithAlternativeStart', ME);
             end
         end
 

@@ -564,6 +564,10 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.core.Loggable
                     Planner.DailyWindowMaxDuration = NewDailyWindowMaxDuration;
                 end
 
+                % At this point Planner.StartTime was already set by doApplyPlanParamsCommon.
+                % For LCS, validate the date and offer alternatives if needed.
+                app.BuildHelper.checkLcsStartDate(app, Planner);
+
                 % Success
                 Result = true;
             catch ME
