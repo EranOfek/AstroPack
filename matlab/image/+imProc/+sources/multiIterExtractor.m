@@ -740,8 +740,10 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                     [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, ...
                                                                                 'Recenter', false,'PositivePSF',false, 'FunEdge',[]);
                    
-                    SourceImage(:,:,Iiter)       = imUtil.art.addSources(zeros(SizeImage, 'single'), permute(CubePSF,[2,1,3]),XY,...
-                                                                                'Oversample',[],'Subtract',false);  
+                    %SourceImage(:,:,Iiter)       = imUtil.art.addSources(zeros(SizeImage, 'single'), permute(CubePSF,[2,1,3]),XY,...
+                    %                                                            'Oversample',[],'Subtract',false);  
+                    SourceImage(:,:,Iiter)       = imUtil.art.addSources(zeros(SizeImage, 'single'), CubePSF, XY,...
+                                                                                'Oversample',[],'Subtract',false);
 
                     % add wings around bright stars
                     % if Iiter==1
@@ -756,6 +758,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                     %     SourceImage(:,:,Iiter) = imUtil.art.mex.addBrightSourceProfile(SourceImage(:,:,Iiter), X, Y, FluxNorm, Args.BS_BackMaxR.*ones(size(FluxNorm)), BS_RadProf);
                     % 
                     % end
+
                     SumSourceImage = SumSourceImage + SourceImage(:,:,Iiter);
                 end
                 Subtracted                   = AI.ImageData.Image - SourceImage(:,:,Iiter);  

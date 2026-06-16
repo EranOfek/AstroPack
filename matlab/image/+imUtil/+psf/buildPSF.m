@@ -421,7 +421,7 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
                                                                 'Threshold',Args.SuppressThreshold,...
                                                                 'FunPars',Args.SuppressFunPars,...
                                                                 'Norm',true);
-
+            ExtendedPSF = [];
         end
         Result.SuppressRad = InnerRad;
 
@@ -437,6 +437,8 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
         Result.Y    = Y;
         MeanPSF = [];
         VarPSF  = [];
+        Nsrc    = 0;
+        ExtendedPSF = [];
     end
 
 end
