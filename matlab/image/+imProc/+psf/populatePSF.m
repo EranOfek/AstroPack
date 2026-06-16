@@ -200,7 +200,7 @@ function [Obj,Result]=populatePSF(Obj, Args)
 
         % --- wing suppression ---
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
-        Args.WingsThreshold            = 1e-4;       % legacy name -> buildPSF 'SuppressThreshold'
+        Args.WingsThreshold            = 1e-3; %1e-4;       % legacy name -> buildPSF 'SuppressThreshold'
         Args.SuppressWidth             = 3;          % legacy name -> buildPSF 'SuppressFunPars'
 
         % --- legacy / no-op options (kept for backward compatibility) ---

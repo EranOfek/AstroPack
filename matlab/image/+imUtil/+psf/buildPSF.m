@@ -180,7 +180,7 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
         Args.mean_sigclipArgs          = {};
 
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
-        Args.SuppressThreshold         = 1e-4;
+        Args.SuppressThreshold         = 1e-3;
         Args.SuppressFunPars           = 3; % or # from edge
         
         Args.ExtendedSize              = [1501 1501];

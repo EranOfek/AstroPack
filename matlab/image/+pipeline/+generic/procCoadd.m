@@ -213,10 +213,10 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.AperRadius                       = [2, 4, 6];
         Args.Annulus                          = [10 12];
         Args.MomentsMethod                    = 'mex';  %'legacy'|'mex'
-        Args.AperPhotMethod                   = 'interp';  % 'simple'|'interp'
+        Args.AperPhotMethod                   = 'simple'; %'interp';  % 'simple'|'interp'
 
-        Args.PsfPhotMethod                    = 'legacy';
-        Args.ShiftMethod                      = 'fft'; % 'lanczos3' | 'fft'
+        Args.PsfPhotMethod                    = '2DGN'; %'legacy';
+        Args.ShiftMethod                      = 'lanczos3'; % 'lanczos3' | 'fft'
 
         Args.RefineAstrometry                 = true;
         Args.astrometryRefineArgs cell        = {};
