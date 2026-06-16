@@ -422,7 +422,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
 
 
         %--- Extednded PSF ---
-        Args.PopExtended               = true;
+        Args.PopExtended               = false;
         Args.ExtendedSize              = [1501 1501];
         Args.Alpha                     = 1;
     end
@@ -717,7 +717,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 
                 % use either a) interpolation (experimental) or b) FFT shift (obtained above as Res.ShiftedPSF) + edge suppression
                 if Args.UsePSFInterpolant
-                    ShiftedPSF = imUtil.trans.shift_interp(AI.SPFData.Data, Res.DX, Res.DY, 'Norm',true);
+                    ShiftedPSF = imUtil.trans.shift_interp(AI.PSFData.Data, Res.DX, Res.DY, 'Norm',true);
                     
                 else
                     if isempty(Res)
@@ -734,7 +734,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 % 2. subtract the source image from the current image
                 if isempty(ShiftedPSF)
                     % deals with no stars found in iteration
-                    SourceImage(:,:,Iiter) = repmat(single(0), SizeImage);
+                    SourceImage(:,:,Iiter) = zeros(SizeImage, 'single');
                 else
     
                     [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, ...
@@ -742,6 +742,20 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                    
                     SourceImage(:,:,Iiter)       = imUtil.art.addSources(zeros(SizeImage, 'single'), permute(CubePSF,[2,1,3]),XY,...
                                                                                 'Oversample',[],'Subtract',false);  
+
+                    % add wings around bright stars
+                    % if Iiter==1
+                    %     ColData = AI.CatData.getColMulti({'XPEAK','YPEAK','FLUX_APER_3'});
+                    %     % 
+                    %     MinFluxFlag = ColData(:,3)>1e5;
+                    %     X = ColData(MinFluxFlag,1);
+                    %     Y = ColData(MinFluxFlag,2);
+                    %     FluxAtR = imUtil.sources.mex.fluxAtRadius(AI.ImageData.Data, [X, Y], [10 12]);
+                    %     [~,Ir]  = min(abs(Args.BS_R-10));
+                    %     FluxNorm = FluxAtR./BS_RadProf(Ir);
+                    %     SourceImage(:,:,Iiter) = imUtil.art.mex.addBrightSourceProfile(SourceImage(:,:,Iiter), X, Y, FluxNorm, Args.BS_BackMaxR.*ones(size(FluxNorm)), BS_RadProf);
+                    % 
+                    % end
                     SumSourceImage = SumSourceImage + SourceImage(:,:,Iiter);
                 end
                 Subtracted                   = AI.ImageData.Image - SourceImage(:,:,Iiter);  
@@ -784,7 +798,16 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 % extended and the star edges are not subtracted
                 AI.VarData.Image  = AI.VarData.Image  + SumSourceImage./(Ncoadd.*Gain);
                 AI.BackData.Image = AI.BackData.Image + SumSourceImage;  
-    
+                % if Iiter==1
+                %     if Args.IsBackSub
+                %         VarFactor = 1./(Ncoadd.*Args.NcoaddFactor);
+                %     else
+                %         % Image is NOT background subtracted
+                %         % can estimate the VarFactor empirically
+                %         VarFactor   = (AI.VarData.Data(1)./AI.BackData.Data(1)).^2; %   <1./(Ncoadd.*Gain) or use AI.VarData.Data(1)./AI.BackData.Data(1)>
+                %     end
+                %     AI.VarData.Image  = imUtil.art.mex.addBrightSourceProfile(AI.VarData.Data, X, Y, FluxNorm.*VarFactor, 1501.*ones(size(FluxNorm)), BS_RadProf); %./Args.BS_Ncoadd;
+                % end
     
                 if Iiter==1 && Args.AddBackNoise
                     % Add noise/back around bright sources
@@ -811,6 +834,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             FluxNorm = (Flux./1e5).^Args.BS_PL;
                             % 
                             MaxRadiusF = repmat(MaxRadius,size(X));
+                            
 
                             %When the image is background subtracted this
                             %has no meaning
