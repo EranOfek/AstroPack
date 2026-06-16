@@ -247,8 +247,9 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
                     for Ifn=1:1:numel(FieldName)
                         ResZP(Ifields).(FieldName{Ifn})(FlagGood)  = ResZP0(Ifields).(FieldName{Ifn});
                         ResZP(Ifields).(FieldName{Ifn})(~FlagGood) = NaN;
-                    end
-
+                    end 
+                else
+                    ResZP(Ifields) = ResZP0(Ifields);
                 end
             else
                 ResZP = [];
