@@ -1,4 +1,4 @@
-function PixRanges = coneSearch2PixRanges(RA, Dec, SearchRadius, NSideCat)
+function PixRanges = coneSearch2PixRanges(RA, Dec, SearchRadius, NSideCat, Args)
     % coneSearch2PixRanges  Convert cone search to HEALPix nested pixel ranges.
     % Package: celestial.healpix
     % Description: Given a cone-search center and radius, choose a HEALPix
@@ -11,6 +11,8 @@ function PixRanges = coneSearch2PixRanges(RA, Dec, SearchRadius, NSideCat)
     %          - Declination [radians].
     %          - Search radius [radians].
     %          - Catalog HEALPix NSide.
+    %          * ...,key,val,... 
+    %          'Algo' - search algorithm: 'neighb' or 'cone' 
     % Output : - An array of [Npix x 2] ranges of nested pixel IDs at NSideCat.
     %            The first column is the low end of the range, and the second
     %            column is the high end of the range.
@@ -26,7 +28,10 @@ function PixRanges = coneSearch2PixRanges(RA, Dec, SearchRadius, NSideCat)
         Dec
         SearchRadius
         NSideCat
+        Args.Algo = 'neighb';  % 'neighb' or 'cone'
     end
+    
+    RAD = 180/pi;
     
     if ~isPowerOfTwo(NSideCat)
         error('NSideCat must be a positive power of 2.');
@@ -47,18 +52,26 @@ function PixRanges = coneSearch2PixRanges(RA, Dec, SearchRadius, NSideCat)
     %   1/NSideSearch >= SearchRadius
     %
     % but never larger than NSideCat.
-    NSideSearch = 2.^floor(log2(1./SearchRadius));
+    NSideSearch = 2.^floor(log2(1./SearchRadius));  % actually, it should be 2.^floor(log2(sqrt(3)/SearchRadius));
     NSideSearch = max(NSideSearch, 1);
     NSideSearch = min(NSideSearch, NSideCat);
     
-    % Central pixel at the search NSide
-    PixSearch = celestial.healpix.ang2pix(NSideSearch, RA, Dec, ...
-        'Type', 'nested', ...
-        'CooUnits', 'rad');
-    
-    % Find neighbors, including the central pixel
-    PixList = celestial.healpix.findNeighbors(NSideSearch, PixSearch, ...
-        'IncludeSelf', true);
+    if strcmpi(Args.Algo,'neighb')        
+        % Central pixel at the search NSide
+        PixSearch = celestial.healpix.ang2pix(NSideSearch, RA, Dec, ...
+            'Type', 'nested', ...
+            'CooUnits', 'rad');
+        
+        % Find neighbors, including the central pixel
+        PixList = celestial.healpix.findNeighbors(NSideSearch, PixSearch, ...
+            'IncludeSelf', true);
+        
+    elseif strcmpi(Args.Algo,'cone')        
+        PixList = celestial.healpix.mex.coneSearch(NSideSearch,RA*RAD,Dec*RAD,SearchRadius*RAD);
+        
+    else
+        error('Unknown algorithm')
+    end
     
     % Remove duplicates.
     % In some special HEALPix locations, one neighbor may appear twice.
@@ -73,7 +86,6 @@ function PixRanges = coneSearch2PixRanges(RA, Dec, SearchRadius, NSideCat)
     High = Low + Nchild - 1;
     
     PixRanges = int64([Low, High]);
-
 end
 
 
