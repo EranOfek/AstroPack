@@ -233,7 +233,7 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
             % relative photometry
             if Args.RelPhot
     
-                [ResZP(Ifields), MatchedS(Ifields)] = lcUtil.relZPfit(MatchedS(Ifields),...
+                [ResZP0(Ifields), MatchedS(Ifields)] = lcUtil.relZPfit(MatchedS(Ifields),...
                                                                    Args.zp_meddiffArgs{:},...
                                                                    Args.zp_lsqArgs{:},...
                                                                    'RelPhotAlgo',Args.RelPhotAlgo,...
@@ -243,9 +243,9 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
                                                                    'Operator',@minus);
                 % check that all epochs exist
                 if ~all(FlagGood)
-                    FieldName = fieldnames(ResZP(Ifields)); % {'FitZP','FitStdZP','FitErrZP','Nsrc'};
+                    FieldName = fieldnames(ResZP0(Ifields)); % {'FitZP','FitStdZP','FitErrZP','Nsrc'};
                     for Ifn=1:1:numel(FieldName)
-                        ResZP(Ifields).(FieldName{Ifn})(FlagGood)  = ResZP(Ifields).(FieldName{Ifn});
+                        ResZP(Ifields).(FieldName{Ifn})(FlagGood)  = ResZP0(Ifields).(FieldName{Ifn});
                         ResZP(Ifields).(FieldName{Ifn})(~FlagGood) = NaN;
                     end
 

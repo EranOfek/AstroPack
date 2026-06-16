@@ -125,9 +125,9 @@ function Image = addSources(Image, SrcPSF, XY, Args)
         end
         %
         if iscell(SrcPSF)
-            S = SrcPSF{Isrc}';
+            S = SrcPSF{Isrc};
         else
-            S = SrcPSF(:,:,Isrc)';
+            S = SrcPSF(:,:,Isrc);
         end
         % this is the main injection line:
         SrcImage(X1:X2,Y1:Y2) = SrcImage(X1:X2,Y1:Y2) + S(X11:X21,Y11:Y21);

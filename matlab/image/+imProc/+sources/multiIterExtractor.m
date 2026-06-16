@@ -410,17 +410,21 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.BS_BackMaxR  = 1501;
         Args.BS_Par   = [0.57111      -4.1984       4.7473];
         Args.BS_Prof  = @(Par, R) 10.^polyval(Par,log10(R));
-        Args.BS_PL    = 1.5;
+        Args.BS_PL    = 1.0;
         Args.MethodBS = 'prof';
         Args.BS_ColFlux = 'FLUX_APER_4';
         Args.IsBackSub   = false;   % If true, will not estimate the VarFactor empirically.
         Args.AddExtraBack   = true;
         Args.AddExtraVar    = true;
         Args.NcoaddFactor   = 1;
-        
+
         Args.UseMex                        = false;
 
 
+        %--- Extednded PSF ---
+        Args.PopExtended               = true;
+        Args.ExtendedSize              = [1501 1501];
+        Args.Alpha                     = 1;
     end
 
     %Args.BS_R = Args.BS_R(Args.BS_R<Args.BS_MaxR);
@@ -429,7 +433,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         BS_RadProf = Args.BS_Prof(Args.BS_Par, Args.BS_R);
         %loglog(R,10.^polyval([Par],log10(R)))
         
-        Ibsr = find(Args.BS_R<max(Args.AperRadius),1,'last');
+        Ibsr = find(Args.BS_R<1, 1, 'last'); %min(Args.AperRadius),1,'last');
         BS_RadProf(1:Ibsr-1) = BS_RadProf(Ibsr);
         %Fbs = BS_RadProf>1e6;
         %BS_RadProf(Fbs) = 1e6;
@@ -494,7 +498,10 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                    'RangeSN',Args.RangeSN,...
                                                    'InitPsf',Args.InitPsf,...
                                                    'InitPsfArgs',Args.InitPsfArgs,...
-                                                   'RePopulatePSF',true);
+                                                   'RePopulatePSF',true,...
+                                                   'PopExtended',Args.PopExtended,...
+                                                   'ExtendedSize',Args.ExtendedSize,...
+                                                   'Alpha',Args.Alpha);
     end
 
 
@@ -731,10 +738,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 else
     
                     [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, ...
-                                                                                'Recenter', false,'PositivePSF',false, 'FunEdge',[]);
-                   
-                    SourceImage(:,:,Iiter)       = imUtil.art.addSources(repmat(single(0), SizeImage), permute(CubePSF,[2,1,3]),XY,...
-                                                                                'Oversample',[],'Subtract',false);  
+                                                                                'Recenter', false,'PositivePSF',false, 'FunEdge',[]);                   
+                    SourceImage(:,:,Iiter)       = imUtil.art.addSources(repmat(single(0), SizeImage), CubePSF, XY,...
+                                                                                'Oversample',[],'Subtract',false);
                     SumSourceImage = SumSourceImage + SourceImage(:,:,Iiter);
                 end
                 Subtracted                   = AI.ImageData.Image - SourceImage(:,:,Iiter);  
@@ -847,6 +853,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             AI.VarData.Image  = AI.VarData.Image  + ConvBright./(Ncoadd.*Gain) + ConvCore;
                             AI.BackData.Image = AI.BackData.Image + ConvBright + ConvCore;
                             % toc
+                        case 'none'
+                            % do nothing
                         
                         otherwise
                             error('Uknown BrightStarsAlgo option');
