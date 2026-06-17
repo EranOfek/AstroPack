@@ -312,7 +312,7 @@ function [Result] = buildRefImages(RefGrid, Args)
             end % groups (epochs + telescopes)
             
             % do the stacking 
-            if isempty(StackImages)
+            if isempty(StackImages) || numel(StackImages)<2
                 if Args.Verbose > 0
                     cprintf('err','No images have been qualified for the field %d, skipping to the next field..\n',Iref);
                 end  
