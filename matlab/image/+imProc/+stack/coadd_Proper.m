@@ -180,7 +180,7 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
     
 
     if Args.AddBack
-        [Result.BackData.Data, Result.VarData.Data] = imUtil.background.backVar(Result.ImageData.Data, Args.FinalBackArgs{:});
+        [Result.BackData.Data, Result.VarData.Data, BackSmall, VarSmall] = imUtil.background.backVar(Result.ImageData.Data, Args.FinalBackArgs{:});
     end
 
     % coadd mask
@@ -206,5 +206,12 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
                                                       'CoaddN',CoaddN,...
                                                       'KeyExpTime',Args.KeyExpTime);
 
+    % Update back/var statistics in the header from the newly computed coadd background
+    if Args.AddBack
+        BckKeys = {'MEANBCK','MEDBCK','STDBCK','MINBCK','MAXBCK'};
+        BckVals = {mean(BackSmall,'all'), fast_median(BackSmall(:)), std(BackSmall,[],'all'), min(BackSmall,[],'all'), max(BackSmall,[],'all')};
+        Result.HeaderData.replaceVal(BckKeys, BckVals);
+        Result.HeaderData.replaceVal({'MEANVAR','MEDVAR'}, {mean(VarSmall,'all'), fast_median(VarSmall(:))});
+    end
 
 end
