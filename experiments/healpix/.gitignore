@@ -1,0 +1,22 @@
+
+# Archives
+*.zip
+
+# Python virtual environment
+.venv/
+
+# Python cache / test artifacts
+__pycache__/
+.pytest_cache/
+*.pyc
+
+# MATLAB MEX compiled binaries
+*.mexa64
+*.mexw64
+
+# Editor backup files
+*.cpp~
+
+
++healpix-2026-06-17/
+
