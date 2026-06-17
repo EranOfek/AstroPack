@@ -206,11 +206,10 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
 
     if Args.AddBack
         if Args.CalcVar
-            [Result.BackData.Data, Result.VarData.Data] = imUtil.background.backVar(Result.ImageData.Data, Args.backVarArgs{:});
+            [Result.BackData.Data, Result.VarData.Data, BackSmall, VarSmall] = imUtil.background.backVar(Result.ImageData.Data, Args.backVarArgs{:});
         else
-            % Var is arriving from the Var propagation of the individual
-            % images
-            Result.BackData.Data = imUtil.background.backVar(Result.ImageData.Data, Args.backVarArgs{:});
+            % Var is arriving from the Var propagation of the individual images
+            [Result.BackData.Data, ~, BackSmall] = imUtil.background.backVar(Result.ImageData.Data, Args.backVarArgs{:});
         end
     end
 
@@ -236,5 +235,14 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
                                                       'CoaddN',CoaddN,...
                                                       'KeyExpTime',Args.KeyExpTime);
 
+    % Update back/var statistics in the header from the newly computed coadd background
+    if Args.AddBack
+        BckKeys = {'MEANBCK','MEDBCK','STDBCK','MINBCK','MAXBCK'};
+        BckVals = {mean(BackSmall,'all'), fast_median(BackSmall(:)), std(BackSmall,[],'all'), min(BackSmall,[],'all'), max(BackSmall,[],'all')};
+        Result.HeaderData.replaceVal(BckKeys, BckVals);
+        if Args.CalcVar
+            Result.HeaderData.replaceVal({'MEANVAR','MEDVAR'}, {mean(VarSmall,'all'), fast_median(VarSmall(:))});
+        end
+    end
 
 end
