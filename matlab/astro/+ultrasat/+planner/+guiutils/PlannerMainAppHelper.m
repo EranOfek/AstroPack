@@ -1,14 +1,18 @@
 %==========================================================================
 % Project     : ULTRASAT Planner
-% File        : +planner/+guiutils/PlannerMainApprovedTargetsHelper.m
+% File        : +planner/+guiutils/PlannerMainAppHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
 % Updated     : 21/10/2025
-% Description : Application level helper for Main Planner
+% Description : App Helper for Main Planner
 %==========================================================================
 
 classdef PlannerMainAppHelper < ultrasat.api.core.Loggable
     % Helper class for PlannerMain.mlapp
+    %
+    % Shell/stub placeholder for application-level PlannerMain behaviors that do not
+    % belong in a domain-specific helper (startup, global app state, cross-cutting UI).
+    % No methods implemented yet.
     %
     % All methods require the PlannerMain instance as the first argument, named 'app'.
     % This is NOT implicit: even when calling from PlannerMain.mlapp, pass 'app'

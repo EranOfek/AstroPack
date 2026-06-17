@@ -169,32 +169,34 @@ classdef PlannerMainApprovedTargetsHelper < ultrasat.api.core.Loggable
 
 
         function showOverriddenApprovedTargets(obj, app, PlanTargetIndex)
-            % Update the display with list of approved targets that are overridden by the given target
+            % Highlight approved targets that overlap the selected plan target
+            % Refreshes the approved-targets table, then marks conflicting rows in light red.
+            % :param PlanTargetIndex: row index in Planner.Plan for the selected target
 
             app.msglog(sprintf('showOverriddenApprovedTargets: %d', PlanTargetIndex));
             if ~app.hasPlanner(), return; end
 
-            % Show the list of approved targets
+            % Refresh full approved-targets table first (clears any prior row styles)
             obj.showApprovedTargets(app);
 
-            % Get the selected target as struct
+            % Resolve selected plan target from Planner.Plan
             PlanTarget = app.getSelectedTableRowAsStruct(app.MainModule.Planner.Plan, PlanTargetIndex);
             if isempty(PlanTarget)
                 return;
             end
 
-            % Get list of overlap targets.
-            % Planner.Plan.OverlapTargets contains list of indexes of
-            % overlapped targets, this is calculated by the Planner object.
+            % Overlap highlighting: read OverlapTargets from the plan target struct.
+            % OverlapTargets holds row indexes into MissionApprovedPlan for time/field
+            % conflicts; indexes are computed by uplanner during planning/build.
             try
                 Targets = PlanTarget.OverlapTargets;
                 if ~isempty(Targets)
 
-                    % Mark the rows in light red color - [1, 0.6, 0.6]
+                    % Apply light-red row background to each overlapping approved target
                     Style = uistyle("BackgroundColor", [1, 0.6, 0.6]);
                     addStyle(app.UITableApprovedTargets, Style, "row", Targets);
 
-                    % Scroll table to the selected row
+                    % Scroll table so the first overlapping row is visible
                     scroll(app.UITableApprovedTargets, "row", Targets(1));
                 end
             catch ME

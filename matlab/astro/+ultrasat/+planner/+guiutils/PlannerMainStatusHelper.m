@@ -38,7 +38,8 @@ classdef PlannerMainStatusHelper < ultrasat.api.core.Loggable
         % =================================================================
 
         function applyPlanStatus(obj, app)
-            %
+            % Sync GUI read-only mode with PlanData.status
+            % Only draft (or empty) plans are editable; submitted/other statuses lock the UI.
 
             if app.hasPlanner()
                 PlanData = app.MainModule.PlanData;
@@ -135,7 +136,9 @@ classdef PlannerMainStatusHelper < ultrasat.api.core.Loggable
 
 
         function updateStatus(obj, app)
-            % @Todo - ??
+            % Refresh all status panel fields from MainModule and Planner metadata
+            % Updates StatusTextArea, build/validation/submit timestamps and short statuses,
+            % and the top banner when plan status is 'submitted'.
 
             app.msglog('updateStatus');
             app.setStatusField(app.StatusTextArea, app.MainModule.CurrentStatus, app.MainModule.StatusText);
@@ -149,7 +152,7 @@ classdef PlannerMainStatusHelper < ultrasat.api.core.Loggable
                 app.ValidationTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Planner.ValidatedTime);
                 app.SubmitTimeEditField.Value = ultrasat.planner.guiutils.FormatUtils.DateTime2Str(Planner.SubmittedTime);
 
-                %
+                % Short status fields from PlanData metadata (BuildStatus, ValidationStatus, SubmitStatus)
                 app.setStatusField(app.BuildShortStatusEditField, PlanData.metadata.BuildStatus.Status, PlanData.metadata.BuildStatus.Status);
                 app.setStatusField(app.ValidationShortStatusEditField, PlanData.metadata.ValidationStatus.Status, PlanData.metadata.ValidationStatus.Status);
                 app.setStatusField(app.SubmitShortStatusEditField, PlanData.metadata.SubmitStatus.Status, PlanData.metadata.SubmitStatus.Status);

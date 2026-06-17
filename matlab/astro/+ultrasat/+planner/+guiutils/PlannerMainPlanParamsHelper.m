@@ -137,7 +137,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.core.Loggable
 
 
         function Result = applyPlanParams(obj, app, ParamsApp)
-            % Apply plan parameters in current planner from PlanParams app, called from showPlanParamsWindow
+            % Apply PlanParams dialog values to Planner; dispatch by plan type after common fields
 
             app.msglog('applyPlanParams');
             Result = false;
@@ -146,12 +146,12 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.core.Loggable
             % Create AppUtils instance for PlanParams app
             AppUtils = ultrasat.planner.guiutils.AppUtils(app.MainModule, ParamsApp);
             try
-                % Apply common parameters
+                % Apply shared plan parameters (title, times, tiles, check times, etc.)
                 if ~obj.doApplyPlanParamsCommon(app, ParamsApp)
                     return;
                 end
 
-                % Apply HCS parameters
+                % Dispatch type-specific parameters after common fields succeed
                 if strcmp(Planner.Type, 'HCS')
                     if ~obj.doApplyPlanParamsHCS(app, ParamsApp)
                         return;
@@ -287,7 +287,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.core.Loggable
                 ParamsApp.ExposureEditField.Value = num2str(seconds(Planner.Exptime));
                 ParamsApp.EpochsPerVisitEditField.Value = num2str(Planner.DefEpochsPerVisit);
 
-                % Assign tile checkboxes
+                % Assign tile checkboxes from Planner.Tiles char string ('1','2',...)
                 tileNumbers = '1234';
                 checkBoxes = [ParamsApp.Tile1CheckBox, ParamsApp.Tile2CheckBox, ParamsApp.Tile3CheckBox, ParamsApp.Tile4CheckBox];
 
@@ -399,7 +399,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.core.Loggable
         % =================================================================
 
         function Result = doApplyPlanParamsCommon(obj, app, ParamsApp)
-            % Apply plan parameters for all plan types
+            % Apply plan parameters shared by all plan types (title, times, tiles, system constants)
 
             app.msglog('doApplyPlanParamsAll');
             Result = false;
@@ -456,7 +456,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.core.Loggable
                     Planner.Exptime = seconds(NewExposureTime);
                 end
 
-                % --------------------------------- Tiles
+                % Assemble selectedTiles char from four tile checkboxes (Planner.Tiles is char, not numeric)
                 tileNumbers = '1234';
                 checkBoxes = [ParamsApp.Tile1CheckBox, ParamsApp.Tile2CheckBox, ParamsApp.Tile3CheckBox, ParamsApp.Tile4CheckBox];
                 
@@ -584,14 +584,14 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.core.Loggable
         % ======================================================= AllSS        
 
         function Result = doApplyPlanParamsAllSS(obj, app, ParamsApp)
-            % Apply plan parameters for AllSS
+            % Apply AllSS-specific daily window, galactic lat threshold, and visit counts
 
             app.msglog('doApplyPlanParamsAllSS');
             Result = false;
             Planner = app.MainModule.Planner;            
             AppUtils = ultrasat.planner.guiutils.AppUtils(app.MainModule, ParamsApp);
             try
-                % --------------------------------- DailyWindowStartTime (datetime) 
+                % AllSS daily window start (datetime) and max duration (duration)
                 NewDailyWindowStartTime = app.MainModule.GuiHelper.getFieldDateTime(ParamsApp.AllSkyDailyWindowStartTimeEditField.Value);
                 if isempty(NewDailyWindowStartTime)
                     app.msglog('applyPlanParams: Invalid DailyWindowStartTime');
@@ -615,7 +615,7 @@ classdef PlannerMainPlanParamsHelper < ultrasat.api.core.Loggable
                     Planner.DailyWindowMaxDuration = NewDailyWindowMaxDuration;
                 end
 
-                % --------------------------------- AllSSHighLatThresh (degrees)
+                % Galactic latitude threshold and low/high-lat visit counts
                 NewAllSSHighLatThresh = app.MainModule.GuiHelper.getFieldNum(ParamsApp.AllSkyGalacticLatThresholdEditField.Value);
                 if isnan(NewAllSSHighLatThresh) || NewAllSSHighLatThresh <= 0 || NewAllSSHighLatThresh > 180
                     app.msglog('applyPlanParams: Invalid AllSSHighLatThresh');

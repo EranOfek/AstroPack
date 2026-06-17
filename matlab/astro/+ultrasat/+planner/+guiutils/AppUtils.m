@@ -65,7 +65,7 @@ classdef AppUtils < ultrasat.api.core.Loggable
 
 
         function msgDebug(obj, Msg, Title)
-            % Show debug message
+            % Show debug message (currently a no-op placeholder)
 
             % Default title
             if nargin < 3
@@ -83,6 +83,7 @@ classdef AppUtils < ultrasat.api.core.Loggable
                 Title = 'Confirmation';
             end
 
+            % Ensure parent figure is visible and responsive before modal dialog
 			drawnow;  % allow UI updates
 			figure(obj.App.UIFigure);  % ensure in front
 			

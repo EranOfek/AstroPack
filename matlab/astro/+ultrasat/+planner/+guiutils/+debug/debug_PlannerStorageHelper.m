@@ -1,15 +1,16 @@
 %==========================================================================
-% Project     : ULTRASAT Observation Planner
-% File        : ultrasat.planner.guiutils.debug.debug_PlannerStorageHelper.m
+% Project     : ULTRASAT Planner
+% File        : +planner/+guiutils/+debug/debug_PlannerStorageHelper.m
 % Author      : Chen Tishler
 % Created     : 18/02/2026
-% Updated     : 26/02/2026
+% Updated     : 17/06/2026
 % Description : Debug PlannerMainStorageHelper - tests all storage helper
 %               functions (getPlansListToUITable, openPlan, savePlan, closePlan,
 %               doClosePlan, savePlanToFile, loadPlanFromFile, duplicatePlan).
 %==========================================================================
 
 function debug_PlannerStorageHelper()
+    % Headless exercise of PlannerMainStorageHelper save/load/open/close flows.
     fprintf('========== DEBUG PLANNER STORAGE HELPER ==========\n');
 
     [app, helper] = createMockApp();
@@ -48,6 +49,7 @@ end
 
 
 function debug_deletePlan(helper, app)
+    % Invoke deletePlan stub and report success or failure.
     fprintf('\n--- 8. deletePlan ---\n');
     try
         helper.deletePlan(app);
@@ -100,6 +102,7 @@ end
 
 
 function debug_getPlansListToUITable(helper, app)
+    % Fetch plans list from API and populate mock UITable via TableHelper.
     fprintf('\n--- 1. getPlansListToUITable ---\n');
     try
         helper.getPlansListToUITable(app, [], [], [], app.UITable);
@@ -111,6 +114,7 @@ end
 
 
 function savedPk = debug_savePlan(helper, app)
+    % Build minimal HCS plan and persist it through savePlan.
     fprintf('\n--- 2. savePlan ---\n');
     savedPk = [];
     try
@@ -133,6 +137,7 @@ end
 
 
 function debug_openPlanFlow(helper, app, pk)
+    % Load plan metadata and planner mat from API, then call doOpenPlan.
     fprintf('\n--- 3. openPlan flow (getPlan + getMatlabMat + doOpenPlan) ---\n');
     try
         % Simulate load: getPlan, getMatlabMat, build PlanData, doOpenPlan
@@ -163,6 +168,7 @@ end
 
 
 function debug_doClosePlan(helper, app)
+    % Clear MainModule plan state via doClosePlan.
     fprintf('\n--- 4. doClosePlan ---\n');
     try
         helper.doClosePlan(app);
@@ -174,6 +180,7 @@ end
 
 
 function debug_savePlanToFile(app)
+    % Write PlanData to a temporary local .mat file for load testing.
     fprintf('\n--- 5. savePlanToFile ---\n');
     try
         [PlanData, ~] = createMinimalPlan();
@@ -192,6 +199,7 @@ end
 
 
 function debug_loadPlanFromFile(app)
+    % Reload PlanData from the temp file written by debug_savePlanToFile.
     fprintf('\n--- 6. loadPlanFromFile ---\n');
     try
         fname = debugPlanFileName();
@@ -209,6 +217,7 @@ end
 
 
 function debug_duplicatePlan(app)
+    % Simulate duplicatePlan by clearing pk/history on loaded PlanData.
     fprintf('\n--- 7. duplicatePlan ---\n');
     try
         if ~app.hasPlanner()
@@ -237,6 +246,7 @@ end
 
 
 function [PlanData, upHCS] = createMinimalPlan()
+    % Build a small HCS uplanner instance wrapped in PlanData.
     BaseDataDir = getBaseDataDir();
     PlanData = ultrasat.api.models.PlanData();
     StartTime = datetime(2028, 1, 1, 'TimeZone', 'UTC');
@@ -251,6 +261,7 @@ end
 
 
 function out = debugPlanFileName(fname)
+    % Persist temp plan file path between save and load debug steps.
     persistent stored
     if nargin > 0
         stored = fname;
@@ -262,6 +273,7 @@ end
 
 
 function BaseDataDir = getBaseDataDir()
+    % Resolve ULTRASAT base data directory from MainModule or env fallback.
     try
         MainModule = ultrasat.planner.guiutils.MainModule();
         BaseDataDir = MainModule.BaseDataDir;

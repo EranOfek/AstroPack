@@ -31,7 +31,7 @@ function prepareLcsSolverInputs(Args)
     arguments
         Args.StartDate    = [];     % Campaign start datetime (default: 2029-01-05)
         Args.EndDate      = [];     % Campaign end datetime   (default: StartDate + 420 days)
-        Args.FieldsFile   = '';     % Path to fields CSV; default: data/LCS_nonoverlapping_grid_surveys.csv
+        Args.FieldsFile   = '';     % Path to fields CSV; default: data/LCS_fields.csv
         Args.OutputDir    = '';     % Output folder; default: <this_file>/../data/lcs_solver_inputs/
         Args.SaveCache    = false;  % Save computed visibility to .mat cache after computing
         Args.LoadCache    = true;   % Load from .mat cache if it exists (skip recompute)
@@ -46,7 +46,7 @@ function prepareLcsSolverInputs(Args)
         Args.OutputDir = fullfile(DataDir, 'lcs_solver_inputs');
     end
     if isempty(Args.FieldsFile)
-        Args.FieldsFile = fullfile(DataDir, 'LCS_nonoverlapping_grid_surveys.csv');
+        Args.FieldsFile = fullfile(DataDir, 'LCS_fields.csv');
     end
     if isempty(Args.CacheFile)
         Args.CacheFile = fullfile(Args.OutputDir, 'lcs_vis_cache.mat');

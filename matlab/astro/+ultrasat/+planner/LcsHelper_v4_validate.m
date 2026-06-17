@@ -119,6 +119,11 @@
 %==========================================================================
 
 function [nFail, nPass] = LcsHelper_v4_validate(Obj, Args)
+    % Run all LCS v4 validation checks and return pass/fail counts.
+    %
+    % Standalone mode (Obj empty): builds a fresh LcsHelper_v4 and dumps CSV.
+    % Object mode: validates the supplied Obj; DumpCsv is optional.
+    % All 10 check sections run to completion regardless of intermediate failures.
     arguments
         Obj = []
         Args.Verbose logical = true
@@ -129,6 +134,7 @@ function [nFail, nPass] = LcsHelper_v4_validate(Obj, Args)
 
     log_enter('LcsHelper_v4_validate');
 
+    % Standalone mode: build a fresh planner and always dump CSV results
     if StandaloneMode
         Obj = build_helper();
         Args.DumpCsv = true;
@@ -157,7 +163,7 @@ function [nFail, nPass] = LcsHelper_v4_validate(Obj, Args)
         end
     end
 
-    % ---- Run every validation section (never stop early) ----------------
+    % Run every validation section (never stop early on first failure)
     TotalFail = 0;
     TotalPass = 0;
 
@@ -206,11 +212,13 @@ end
 % =========================================================================
 
 function log_enter(FuncName)
+    % Print function entry banner for traceability
     fprintf('\n>> ENTER %s\n', FuncName);
 end
 
 
 function log_exit(FuncName, nFail, nPass)
+    % Print function exit banner with optional pass/fail counts
     if nargin >= 3
         fprintf('<< EXIT  %s  (%d passed, %d failed)\n', FuncName, nPass, nFail);
     else
@@ -224,6 +232,10 @@ end
 % =========================================================================
 
 function Obj = build_helper()
+    % Build LcsHelper_v4 for standalone validation runs.
+    %
+    % Uses validationStartDate (Jan 5, 2029) and bundled LCS_fields.csv.
+    % Runs full pipeline: prep_before_schedule + build_the_schedule.
     log_enter('build_helper');
 
     Obj = [];
@@ -262,8 +274,9 @@ end
 
 
 function GridFile = gridFile()
+    % Return path to bundled LCS_fields.csv in planner data directory
     ThisDir  = fileparts(mfilename('fullpath'));
-    GridFile = fullfile(ThisDir, 'data', 'LCS_nonoverlapping_grid_surveys.csv');
+    GridFile = fullfile(ThisDir, 'data', 'LCS_fields.csv');
     if ~isfile(GridFile)
         warning('LcsHelper_v4_validate:gridFileNotFound', ...
             'Grid file not found: %s', GridFile);
@@ -272,6 +285,7 @@ end
 
 
 function StartDate = validationStartDate()
+    % Fixed reference start date for standalone validation runs
     StartDate = datetime(2029, 1, 5);
 end
 
@@ -281,6 +295,9 @@ end
 % =========================================================================
 
 function dump_results(Obj)
+    % Write validation CSV outputs to planner/output/validation/.
+    %
+    % Produces schedule.csv, full_windows.csv, and daily_schedule.csv.
     log_enter('dump_results');
 
     if isempty(Obj)
@@ -306,6 +323,7 @@ end
 
 
 function dump_schedule(Obj, OutputDir)
+    % Export Schedule table with human-readable start/end dates
     CsvPath = fullfile(OutputDir, 'schedule.csv');
     if isempty(Obj.Schedule)
         fprintf('  [SKIP] Schedule is empty – skipping schedule.csv\n');
@@ -325,6 +343,7 @@ end
 
 
 function dump_full_windows(Obj, OutputDir)
+    % Export Full_windows table with calendar start_date/end_date columns added.
     CsvPath = fullfile(OutputDir, 'full_windows.csv');
     if isempty(Obj.Full_windows)
         fprintf('  [SKIP] Full_windows is empty – skipping full_windows.csv\n');
@@ -344,6 +363,7 @@ end
 
 
 function dump_daily_schedule(Obj, OutputDir)
+    % Export Daily_schedule matrix as day x slot CSV with date column
     CsvPath = fullfile(OutputDir, 'daily_schedule.csv');
     if isempty(Obj.Daily_schedule)
         fprintf('  [SKIP] Daily_schedule is empty – skipping daily_schedule.csv\n');
@@ -377,6 +397,7 @@ end
 % =========================================================================
 
 function nWarn = check_warnings(Obj)
+    % Run warning-only checks (ranking heuristics, not hard failures)
     log_enter('check_warnings');
     nWarn = 0;
     nWarn = nWarn + warn_long_field_extinction_ranking(Obj);
@@ -387,6 +408,10 @@ end
 
 
 function nWarn = warn_long_field_extinction_ranking(Obj)
+    % Warn when Av_ext ordering deviates from expected SetB < SetC < long SetA.
+    %
+    % Expected priority: SetB fields have lower extinction than SetC, and SetC
+    % lower than long-window SetA fields (max_window >= Max_window_cut).
     nWarn = 0;
     if isempty(Obj) || isempty(Obj.SetB_fields) || isempty(Obj.SetC_fields)
         nWarn = warning_check('Long-field extinction ranking', false, ...
@@ -427,6 +452,9 @@ end
 
 
 function nWarn = warn_setD_ranking(Obj)
+    % Warn when placed SetD fields skip higher-priority ranked candidates.
+    %
+    % Compares placed SetD field IDs against SetD_ranked_fields priority list.
     nWarn = 0;
     SchedD = Obj.Schedule(strcmp(Obj.Schedule.category, 'D') & Obj.Schedule.Field > 0, :);
     if isempty(SchedD)
@@ -475,6 +503,7 @@ end
 
 
 function nWarn = warning_check(CheckName, IsOk, Msg)
+    % Print a warning message and return 0 (ok) or 1 (warning)
     if IsOk
         fprintf('  [WARN-OK] %s: %s\n', CheckName, Msg);
         nWarn = 0;
@@ -490,6 +519,7 @@ end
 % =========================================================================
 
 function [nFail, nPass] = pass_check(CheckName)
+    % Record one passing check and print PASS line
     fprintf('  [PASS] %s\n', CheckName);
     nFail = 0;
     nPass = 1;
@@ -497,6 +527,7 @@ end
 
 
 function [nFail, nPass] = fail_check(CheckName, Msg)
+    % Record one failing check and print FAIL line with message
     fprintf('  [FAIL] %s: %s\n', CheckName, Msg);
     nFail = 1;
     nPass = 0;
@@ -504,6 +535,7 @@ end
 
 
 function [nFail, nPass] = run_checks(SectionName, CheckFns)
+    % Run a list of check function handles and aggregate pass/fail counts
     log_enter(SectionName);
     nFail = 0;
     nPass = 0;
@@ -521,6 +553,9 @@ end
 % =========================================================================
 
 function [nFail, nPass] = check_pipeline_complete(Obj)
+    % Verify pipeline produced a non-empty schedule with expected set counts.
+    %
+    % Checks SetA/SetB/SetC row counts and that Daily_schedule was built.
     log_enter('check_pipeline_complete');
 
     nFail = 0;
@@ -563,6 +598,9 @@ end
 % =========================================================================
 
 function [nFail, nPass] = check_field_counts(Obj)
+    % Verify per-set placed counts match formal LCS quotas.
+    %
+    % SetA/SetC: field count; SetB: row count (3 per field); SetD: max 4 fields.
     log_enter('check_field_counts');
 
     MaskA = strcmp(Obj.Schedule.category, 'A') & Obj.Schedule.Field > 0;
@@ -594,8 +632,13 @@ end
 % =========================================================================
 
 function [nFail, nPass] = check_setA(Obj)
+    % Validate SetA placement rules (48 fields in 45-day windows).
+    %
+    % SetA fields occupy groups 1..6 (8 fields each). Rows bumped to group>=7
+    % were relocated by SetD pre-clean and must align with Full_windows boundaries.
     log_enter('check_setA');
 
+    % Only placed rows (Field > 0) participate in validation
     SchedA = Obj.Schedule(strcmp(Obj.Schedule.category, 'A') & Obj.Schedule.Field > 0, :);
     L = Obj.Min_window;
 
@@ -604,18 +647,22 @@ function [nFail, nPass] = check_setA(Obj)
         fprintf('  SetA groups present: %s\n', mat2str(unique(SchedA.group)'));
     end
 
+    % Core SetA invariants: unique fields and fixed 45-day window length
     CheckFns = {
         @() assert_unique('SetA unique field IDs', SchedA.Field)
         @() assert_all('SetA window length = Min_window (45d)', ...
             SchedA.end - SchedA.start + 1 == L)
     };
 
+    % Per-group accounting (canonical groups 1..N and moved overflow groups)
     CheckFns{end+1} = @() check_setA_group_counts(SchedA, Obj.SetA_Nwindows); %#ok<AGROW>
 
+    % Rows bumped to group>=7 were moved by SetD pre-clean; must align with Full_windows
     MovedMask = SchedA.group >= 7;
     if any(MovedMask)
         Moved = SchedA(MovedMask, :);
         fprintf('  SetA moved rows (group>=7): %d\n', height(Moved));
+        % Moved rows must match the Full_windows row referenced by ind
         CheckFns{end+1} = @() assert_all( ...
             'SetA moved rows: start matches Full_windows.start(ind)', ...
             Moved.start == Obj.Full_windows.start(Moved.ind)); %#ok<AGROW>
@@ -632,10 +679,20 @@ end
 
 
 function [nFail, nPass] = check_setA_group_counts(SchedA, SetANwindows)
+    % Validate SetA group accounting: canonical groups 1..N and moved overflow groups.
+    %
+    % Canonical groups (1..SetANwindows) may hold at most 8 fields each.
+    % Rows with group > SetANwindows were relocated by SetD pre-clean into
+    % Full_windows slots; their (group, ind) pairs must be unique.
+    %
+    % Inputs:
+    %   SchedA        - placed SetA schedule rows (Field > 0)
+    %   SetANwindows  - number of canonical SetA groups (typically 6)
     log_enter('check_setA_group_counts');
     nFail = 0;
     nPass = 0;
 
+    % --- Canonical groups: each group 1..N must have <= 8 fields ---
     for G = 1:SetANwindows
         nInGroup = sum(SchedA.group == G);
         fprintf('  Group %d: %d fields\n', G, nInGroup);
@@ -644,6 +701,8 @@ function [nFail, nPass] = check_setA_group_counts(SchedA, SetANwindows)
         nFail = nFail + f;
         nPass = nPass + p;
     end
+
+    % --- Moved groups (group > N): informational counts + slot uniqueness ---
     MovedGroups = unique(SchedA.group(SchedA.group > SetANwindows));
     if isempty(MovedGroups)
         fprintf('  Moved groups: none\n');
@@ -652,11 +711,14 @@ function [nFail, nPass] = check_setA_group_counts(SchedA, SetANwindows)
             nInGroup = sum(SchedA.group == G);
             fprintf('  Moved group %d: %d fields\n', G, nInGroup);
         end
+        % Composite key group*1000+ind detects duplicate slot assignments
         [f, p] = assert_unique('SetA moved rows have unique group/ind slots', ...
             SchedA.group(SchedA.group > SetANwindows) * 1000 + SchedA.ind(SchedA.group > SetANwindows));
         nFail = nFail + f;
         nPass = nPass + p;
     end
+
+    % --- Every row must belong to a canonical or moved group ---
     [f, p] = assert_equal('SetA group accounting includes all rows', ...
         sum(ismember(SchedA.group, [1:SetANwindows, MovedGroups(:)'])), height(SchedA));
     nFail = nFail + f;
@@ -670,6 +732,10 @@ end
 % =========================================================================
 
 function [nFail, nPass] = check_setB(Obj)
+    % Validate SetB: 16 fields x 3 rows (1x B_45 + 2x B_90) over 135-day pattern.
+    %
+    % Each field spans three distinct 45-day Full_windows; row boundaries must
+    % align with Full_windows start/end columns.
     log_enter('check_setB');
 
     SchedB = Obj.Schedule(ismember(Obj.Schedule.category, {'B_45', 'B_90'}) & ...
@@ -680,6 +746,7 @@ function [nFail, nPass] = check_setB(Obj)
     fprintf('  SetB schedule rows: %d\n', height(SchedB));
     fprintf('  SetB unique fields : %d\n', numel(unique(SchedB.Field)));
 
+    % Global SetB checks before per-field validation
     CheckFns = {
         @() assert_all('SetB row window length = 45d', ...
             SchedB.end - SchedB.start + 1 == L)
@@ -699,6 +766,12 @@ end
 
 
 function [nFail, nPass] = check_setB_all_fields(SchedB, L, Ninds)
+    % Per-field SetB validation: exactly 1 B_45, 2 B_90, 3 windows, 135-day span.
+    %
+    % Inputs:
+    %   SchedB - all placed SetB rows (B_45 and B_90 categories)
+    %   L      - Min_window (45 days)
+    %   Ninds  - number of Full_windows indices
     log_enter('check_setB_all_fields');
     nFail = 0;
     nPass = 0;
@@ -709,20 +782,26 @@ function [nFail, nPass] = check_setB_all_fields(SchedB, L, Ninds)
         nB45 = sum(strcmp(Rows.category, 'B_45'));
         nB90 = sum(strcmp(Rows.category, 'B_90'));
         FwInds = setB_fwInds(Rows);
+        % Span from earliest to latest start, plus one 45-day window length (= 135d total)
         SpanDays = max(Rows.start) - min(Rows.start) + L;
 
+        % Each field contributes exactly one B_45 row
         [f, p] = assert_equal(sprintf('SetB field %d: 1 B_45 row', F), nB45, 1);
         nFail = nFail + f; nPass = nPass + p;
+        % Each field contributes exactly two B_90 rows (4-day cadence windows)
         [f, p] = assert_equal(sprintf('SetB field %d: 2 B_90 rows', F), nB90, 2);
         nFail = nFail + f; nPass = nPass + p;
+        % Three rows must map to three distinct Full_windows indices
         [f, p] = assert_equal( ...
             sprintf('SetB field %d: 3 distinct Full_windows inds', F), ...
             numel(unique(FwInds)), 3);
         nFail = nFail + f; nPass = nPass + p;
+        % Decoded indices must be within valid Full_windows range
         [f, p] = assert_all( ...
             sprintf('SetB field %d: fw_inds in 1..%d', F, Ninds), ...
             FwInds >= 1 & FwInds <= Ninds);
         nFail = nFail + f; nPass = nPass + p;
+        % Earliest-to-latest start span covers three Min_window blocks (135 days)
         [f, p] = assert_equal( ...
             sprintf('SetB field %d: 135-day span', F), SpanDays, 3 * L);
         nFail = nFail + f; nPass = nPass + p;
@@ -733,6 +812,11 @@ end
 
 
 function FwInds = setB_fwInds(Rows)
+    % Decode SetB group column to Full_windows index.
+    %
+    % Encoding convention:
+    %   B_45 rows: group = 100 + Full_windows index
+    %   B_90 rows: group = 200 + Full_windows index
     FwInds = zeros(height(Rows), 1);
     for R = 1:height(Rows)
         if strcmp(Rows.category{R}, 'B_45')
@@ -749,6 +833,10 @@ end
 % =========================================================================
 
 function [nFail, nPass] = check_setC(Obj)
+    % Validate SetC: 16 fields in 135-day super-windows with 4-day cadence.
+    %
+    % SetC groups are 11/12 (variant-driven). Each row spans 3*Min_window days
+    % and must start at a variant block anchor; ind is the cadence slot (1..8).
     log_enter('check_setC');
 
     SchedC = Obj.Schedule(strcmp(Obj.Schedule.category, 'C') & Obj.Schedule.Field > 0, :);
@@ -759,8 +847,10 @@ function [nFail, nPass] = check_setC(Obj)
         ExpectedStarts = [];
         ExpectedCounts = [];
     else
+        % Derive expected SetC groups (11/12) and counts from selected variant C_blocks
         CBlocks = Obj.Variants(Obj.Variant_used).C_blocks;
         ActiveBlocks = find(CBlocks > 0);
+        % Group numbering: block index k maps to group 10+k (e.g. blocks 1,2 -> groups 11,12)
         ExpectedGroups = 10 + ActiveBlocks;
         ExpectedStarts = Obj.Full_windows.start(ActiveBlocks);
         ExpectedCounts = CBlocks(ActiveBlocks);
@@ -770,6 +860,7 @@ function [nFail, nPass] = check_setC(Obj)
     fprintf('  SetC expected groups: %s\n', mat2str(ExpectedGroups));
     fprintf('  SetC placed fields: %d\n', height(SchedC));
 
+    % Build check functions for SetC validation
     CheckFns = {
         @() assert_unique('SetC unique field IDs', SchedC.Field)
         @() assert_all('SetC window length = 135d', ...
@@ -784,12 +875,16 @@ function [nFail, nPass] = check_setC(Obj)
             SchedC.ind >= 1 & SchedC.ind <= 8)
     };
 
+    % Run checks and log results
     [nFail, nPass] = run_checks('Set C (v4 variant 135-day blocks)', CheckFns);
     log_exit('check_setC', nFail, nPass);
 end
 
 
 function [nFail, nPass] = check_setC_variant_group_counts(SchedC, ExpectedGroups, ExpectedCounts)
+    % Verify each active SetC variant group has the expected field count.
+    %
+    % ExpectedCounts comes from Variants(Variant_used).C_blocks for active blocks.
     log_enter('check_setC_variant_group_counts');
     nFail = 0;
     nPass = 0;
@@ -810,6 +905,10 @@ end
 % =========================================================================
 
 function [nFail, nPass] = check_setD(Obj)
+    % Validate SetD: up to 4 optional high-priority fields in open Full_windows slots.
+    %
+    % When placed, each SetD row uses group 301..304 (300 + slot 1..4), spans
+    % 45 days, and start/end must match Full_windows(ind).
     log_enter('check_setD');
 
     SchedD = Obj.Schedule(strcmp(Obj.Schedule.category, 'D') & Obj.Schedule.Field > 0, :);
@@ -821,16 +920,20 @@ function [nFail, nPass] = check_setD(Obj)
         fprintf('  SetD groups     : %s\n', mat2str(SchedD.group'));
     end
 
+    % Always check count cap (SetD is optional; zero rows is valid)
     CheckFns = {
         @() assert_max('SetD placed field count', height(SchedD), Obj.SetDnumel)
     };
 
+    % Detailed checks only when at least one SetD field was placed
     if height(SchedD) > 0
         CheckFns{end+1} = @() assert_unique('SetD unique field IDs', SchedD.Field); %#ok<AGROW>
         CheckFns{end+1} = @() assert_all('SetD window length = 45d', ...
             SchedD.end - SchedD.start + 1 == L); %#ok<AGROW>
+        % Group column encodes slot number: 301 = slot 1, 302 = slot 2, etc.
         CheckFns{end+1} = @() assert_all('SetD group encoding 301..304', ...
             SchedD.group >= 301 & SchedD.group <= 300 + Obj.SetDnumel); %#ok<AGROW>
+        % ind references the Full_windows row used for this placement
         CheckFns{end+1} = @() assert_all('SetD ind matches Full_windows row', ...
             SchedD.start == Obj.Full_windows.start(SchedD.ind) & ...
             SchedD.end == Obj.Full_windows.end(SchedD.ind)); %#ok<AGROW>
@@ -838,6 +941,7 @@ function [nFail, nPass] = check_setD(Obj)
             'SetD unique group slots (301..304)', SchedD.group); %#ok<AGROW>
     end
 
+    % Run checks and log results
     [nFail, nPass] = run_checks('Set D (up to 4 fields, 45d)', CheckFns);
     log_exit('check_setD', nFail, nPass);
 end
@@ -848,6 +952,11 @@ end
 % =========================================================================
 
 function [nFail, nPass] = check_slot_budget(Obj)
+    % Validate per-Full_windows slot occupancy against Daily_LCS_slots (11).
+    %
+    % Slot formula (SetD excluded from ABC budget; placed into open slack):
+    %   nCadence4(k) = nB90(k) + nC(k)
+    %   filledABC(k) = nA(k) + nB45(k) + nCadence4(k)/4  <= 11
     log_enter('check_slot_budget');
 
     [nA, nB45, nB90, nC, nD, nCadence4, FilledABC, FilledWithD] = compute_slot_occupancy( ...
@@ -863,6 +972,7 @@ function [nFail, nPass] = check_slot_budget(Obj)
     fprintf('    nD         = [%s]\n', num2str(nD, '%d '));
     fprintf('    filled+D   = [%s]  (informational final use)\n', num2str(FilledWithD, '%.2f '));
 
+    % Build check functions for slot budget validation
     CheckFns = {
         @() check_slot_budget_all_inds(nCadence4, FilledABC, Obj.Daily_LCS_slots)
         @() check_final_slot_usage(FilledWithD, Obj.Daily_LCS_slots)
@@ -870,12 +980,16 @@ function [nFail, nPass] = check_slot_budget(Obj)
             num2str(FilledABC, '%d '), num2str(nD, '%d ')))
     };
 
+    % Run checks and log results
     [nFail, nPass] = run_checks('Slot budget (11 slots per Full_windows ind)', CheckFns);
     log_exit('check_slot_budget', nFail, nPass);
 end
 
 
 function [nFail, nPass] = check_final_slot_usage(FilledWithD, DailyLcsSlots)
+    % Verify filledABC + nD does not exceed slot limit at any Full_windows index.
+    %
+    % Informational check: SetD rows fill slack after A/B/C budget is satisfied.
     log_enter('check_final_slot_usage');
     nFail = 0;
     nPass = 0;
@@ -891,15 +1005,20 @@ end
 
 
 function [nFail, nPass] = check_slot_budget_all_inds(nCadence4, FilledABC, DailyLcsSlots)
+    % Per Full_windows index: nCadence4 divisible by 4 and filledABC <= limit.
+    %
+    % Divisibility ensures cadence-4 rows (B_90 + C) consume whole slot fractions.
     log_enter('check_slot_budget_all_inds');
     nFail = 0;
     nPass = 0;
     Ninds = numel(FilledABC);
 
     for K = 1:Ninds
+        % Cadence rows must pack evenly into slot units (each unit = 4 cadence days)
         [f, p] = assert_divisible( ...
             sprintf('Slot budget ind %d: nCadence4 divisible by 4', K), nCadence4(K), 4);
         nFail = nFail + f; nPass = nPass + p;
+        % ABC budget (before SetD) must not exceed daily slot capacity
         [f, p] = assert_max( ...
             sprintf('Slot budget ind %d: filledABC <= Daily_LCS_slots', K), ...
             FilledABC(K), DailyLcsSlots);
@@ -911,6 +1030,10 @@ end
 
 
 function [nA, nB45, nB90, nC, nD, nCadence4, FilledABC, FilledWithD] = compute_slot_occupancy(Schedule, Full_windows)
+    % Compute per-Full_windows slot occupancy vectors from schedule rows.
+    %
+    % Returns count vectors indexed by Full_windows row (ind), plus derived
+    % filledABC and filledWithD using LcsHelper_v4 filled(k) convention.
     Ninds = height(Full_windows);
     nA   = zeros(1, Ninds);
     nB45 = zeros(1, Ninds);
@@ -924,20 +1047,24 @@ function [nA, nB45, nB90, nC, nD, nCadence4, FilledABC, FilledWithD] = compute_s
         Grp = Schedule.group(R);
 
         if strcmp(Cat, 'A')
+            % SetA: ind directly references the Full_windows index
             if Ind >= 1 && Ind <= Ninds
                 nA(Ind) = nA(Ind) + 1;
             end
         elseif strcmp(Cat, 'B_45')
+            % B_45: group = 100 + Full_windows index
             FwInd = Grp - 100;
             if FwInd >= 1 && FwInd <= Ninds
                 nB45(FwInd) = nB45(FwInd) + 1;
             end
         elseif strcmp(Cat, 'B_90')
+            % B_90: group = 200 + Full_windows index
             FwInd = Grp - 200;
             if FwInd >= 1 && FwInd <= Ninds
                 nB90(FwInd) = nB90(FwInd) + 1;
             end
         elseif strcmp(Cat, 'C')
+            % SetC spans 135d = 3 consecutive 45d Full_windows blocks
             StartInd = find(Full_windows.start == Schedule.start(R), 1);
             if isempty(StartInd)
                 continue
@@ -946,12 +1073,14 @@ function [nA, nB45, nB90, nC, nD, nCadence4, FilledABC, FilledWithD] = compute_s
                 nC(Kk) = nC(Kk) + 1;
             end
         elseif strcmp(Cat, 'D')
+            % SetD: counted separately (fills slack, not part of ABC budget)
             if Ind >= 1 && Ind <= Ninds
                 nD(Ind) = nD(Ind) + 1;
             end
         end
     end
 
+    % Slot budget formulas (mirrors LcsHelper_v4 filled(k) convention)
     nCadence4 = nB90 + nC;
     FilledABC = nA + nB45 + nCadence4 / 4;
     FilledWithD = FilledABC + nD;
@@ -963,12 +1092,17 @@ end
 % =========================================================================
 
 function [nFail, nPass] = check_window_bounds(Obj)
+    % Verify all placed schedule rows lie within the planning horizon.
+    %
+    % Horizon is [First_day, Last_day] in day-index coordinates.
     log_enter('check_window_bounds');
 
+    % Get placed schedule rows (Field > 0)
     Placed = Obj.Schedule(Obj.Schedule.Field > 0, :);
     fprintf('  Horizon: day %d .. %d\n', Obj.First_day, Obj.Last_day);
     fprintf('  Placed schedule rows: %d\n', height(Placed));
 
+    % If no placed schedule rows, return failure
     if isempty(Placed)
         [nFail, nPass] = run_checks('Window bounds [First_day, Last_day]', {
             @() fail_check('Window bounds', 'no placed schedule rows to check')
@@ -980,6 +1114,7 @@ function [nFail, nPass] = check_window_bounds(Obj)
     fprintf('  start range: %d .. %d\n', min(Placed.start), max(Placed.start));
     fprintf('  end range  : %d .. %d\n', min(Placed.end), max(Placed.end));
 
+    % Build check functions for window bounds
     CheckFns = {
         @() assert_min('All rows: start >= First_day', ...
             min(Placed.start), Obj.First_day)
@@ -987,6 +1122,7 @@ function [nFail, nPass] = check_window_bounds(Obj)
             max(Placed.end), Obj.Last_day)
     };
 
+    % Run checks and log results
     [nFail, nPass] = run_checks('Window bounds [First_day, Last_day]', CheckFns);
     log_exit('check_window_bounds', nFail, nPass);
 end
@@ -997,8 +1133,12 @@ end
 % =========================================================================
 
 function [nFail, nPass] = check_no_duplicates(Obj)
+    % Verify each field ID appears in at most one set (A, B, C, or D).
+    %
+    % Checks all six pairwise set combinations for overlapping field IDs.
     log_enter('check_no_duplicates');
 
+    % Get unique field IDs for each set category
     FieldsA = unique(Obj.Schedule.Field(strcmp(Obj.Schedule.category, 'A') & Obj.Schedule.Field > 0));
     FieldsB = unique(Obj.Schedule.Field(ismember(Obj.Schedule.category, {'B_45', 'B_90'}) & Obj.Schedule.Field > 0));
     FieldsC = unique(Obj.Schedule.Field(strcmp(Obj.Schedule.category, 'C') & Obj.Schedule.Field > 0));
@@ -1007,6 +1147,7 @@ function [nFail, nPass] = check_no_duplicates(Obj)
     fprintf('  Unique fields: A=%d, B=%d, C=%d, D=%d\n', ...
         numel(FieldsA), numel(FieldsB), numel(FieldsC), numel(FieldsD));
 
+    % Build check functions for each set category pair
     CheckFns = {
         @() assert_disjoint('SetA vs SetB field IDs', FieldsA, FieldsB)
         @() assert_disjoint('SetA vs SetC field IDs', FieldsA, FieldsC)
@@ -1016,6 +1157,7 @@ function [nFail, nPass] = check_no_duplicates(Obj)
         @() assert_disjoint('SetC vs SetD field IDs', FieldsC, FieldsD)
     };
 
+    % Run checks and log results
     [nFail, nPass] = run_checks('No cross-set field duplicates', CheckFns);
     log_exit('check_no_duplicates', nFail, nPass);
 end
@@ -1026,11 +1168,17 @@ end
 % =========================================================================
 
 function [nFail, nPass] = check_daily_schedule(Obj)
+    % Validate Daily_schedule matrix shape and consistency with Schedule.
+    %
+    % Expected size: (Last_day - First_day + 1) rows x Daily_LCS_slots (11) columns.
+    % When non-empty, also verifies field-day multiset matches Schedule rows.
     log_enter('check_daily_schedule');
 
+    % Expected number of rows and columns in Daily_schedule
     ExpectedRows = Obj.Last_day - Obj.First_day + 1;
     ExpectedCols = Obj.Daily_LCS_slots;
 
+    % If Daily_schedule is empty, print a message
     if isempty(Obj.Daily_schedule)
         fprintf('  Daily_schedule: (empty)\n');
     else
@@ -1039,6 +1187,7 @@ function [nFail, nPass] = check_daily_schedule(Obj)
         fprintf('  Observed field-days: %d\n', sum(~isnan(Obj.Daily_schedule(:))));
     end
 
+    % Verify Daily_schedule is not empty, has the correct number of rows and columns
     CheckFns = {
         @() assert_true('Daily_schedule is not empty', ~isempty(Obj.Daily_schedule))
         @() assert_equal('Daily_schedule row count', ...
@@ -1047,6 +1196,7 @@ function [nFail, nPass] = check_daily_schedule(Obj)
             size(Obj.Daily_schedule, 2), ExpectedCols)
     };
 
+    % Verify Daily_schedule contains observations and matches Schedule rows and cadence
     if ~isempty(Obj.Daily_schedule)
         nObserved = sum(~isnan(Obj.Daily_schedule(:)));
         CheckFns{end+1} = @() assert_true( ...
@@ -1060,6 +1210,7 @@ end
 
 
 function [nFail, nPass] = check_daily_schedule_matches_schedule(Obj)
+    % Wrapper: pass if Daily_schedule multiset matches Schedule on every day.
     [nBadDays, FirstBad] = daily_schedule_mismatch_count(Obj);
     if nBadDays == 0
         [nFail, nPass] = pass_check('Daily_schedule matches Schedule rows and cadence');
@@ -1071,12 +1222,17 @@ end
 
 
 function [nBadDays, FirstBad] = daily_schedule_mismatch_count(Obj)
+    % Count days where Daily_schedule field multiset differs from Schedule expectation.
+    %
+    % Builds an expected field list per day by expanding each Schedule row across
+    % its [start, end] range, applying 4-day cadence filtering for C and B_90.
     Ndays = size(Obj.Daily_schedule, 1);
     Expected = cell(Ndays, 1);
     for D = 1:Ndays
         Expected{D} = [];
     end
 
+    % Expand each placed schedule row into per-day expected field IDs
     for R = 1:height(Obj.Schedule)
         F = Obj.Schedule.Field(R);
         if F <= 0
@@ -1087,6 +1243,7 @@ function [nBadDays, FirstBad] = daily_schedule_mismatch_count(Obj)
             if CurrD < Obj.First_day || CurrD > Obj.Last_day
                 continue
             end
+            % C and B_90 use 4-day cadence: only active on matching phase days
             if (strcmp(Cat, 'C') || strcmp(Cat, 'B_90')) && ...
                     mod((CurrD - Obj.Schedule.start(R) + 1), 4) ~= mod(Obj.Schedule.ind(R), 4)
                 continue
@@ -1096,6 +1253,7 @@ function [nBadDays, FirstBad] = daily_schedule_mismatch_count(Obj)
         end
     end
 
+    % Compare sorted multisets day-by-day (order within a day does not matter)
     nBadDays = 0;
     FirstBad = NaN;
     for D = 1:Ndays
@@ -1116,6 +1274,7 @@ end
 % =========================================================================
 
 function [nFail, nPass] = assert_equal(CheckName, Actual, Expected)
+    % Assert Actual equals Expected and record pass/fail
     if isequal(Actual, Expected)
         [nFail, nPass] = pass_check(CheckName);
     else
@@ -1126,6 +1285,7 @@ end
 
 
 function [nFail, nPass] = assert_max(CheckName, Actual, Limit)
+    % Assert Actual <= Limit and record pass/fail
     if Actual <= Limit
         [nFail, nPass] = pass_check(CheckName);
     else
@@ -1136,6 +1296,7 @@ end
 
 
 function [nFail, nPass] = assert_min(CheckName, Actual, Limit)
+    % Assert Actual >= Limit and record pass/fail
     if Actual >= Limit
         [nFail, nPass] = pass_check(CheckName);
     else
@@ -1146,6 +1307,7 @@ end
 
 
 function [nFail, nPass] = assert_true(CheckName, Condition)
+    % Assert Condition is true and record pass/fail
     if Condition
         [nFail, nPass] = pass_check(CheckName);
     else
@@ -1155,6 +1317,7 @@ end
 
 
 function [nFail, nPass] = assert_all(CheckName, Mask)
+    % Assert all elements of logical Mask are true and record pass/fail
     if isempty(Mask)
         [nFail, nPass] = fail_check(CheckName, 'no data to check');
         return
@@ -1169,6 +1332,7 @@ end
 
 
 function [nFail, nPass] = assert_unique(CheckName, Values)
+    % Assert all Values are unique and record pass/fail
     Values = Values(:);
     if isempty(Values)
         [nFail, nPass] = fail_check(CheckName, 'no values to check');
@@ -1184,6 +1348,7 @@ end
 
 
 function [nFail, nPass] = assert_disjoint(CheckName, A, B)
+    % Assert sets A and B have no overlapping values and record pass/fail
     Overlap = intersect(A(:), B(:));
     if isempty(Overlap)
         [nFail, nPass] = pass_check(CheckName);
@@ -1195,6 +1360,7 @@ end
 
 
 function [nFail, nPass] = assert_divisible(CheckName, Value, Divisor)
+    % Assert Value is divisible by Divisor and record pass/fail
     if mod(Value, Divisor) == 0
         [nFail, nPass] = pass_check(CheckName);
     else
@@ -1205,6 +1371,7 @@ end
 
 
 function S = fmt(X)
+    % Format scalar or array value for assertion failure messages
     if isscalar(X)
         S = num2str(X);
     else

@@ -28,6 +28,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
 
     properties (Access = private)
         LcsStartTimesApp
+        LastLcsStartCheckStatus = ''
     end
 
     methods (Access = public)
@@ -59,9 +60,10 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
                 end
             end
 
-            % Save current plan, if build fails we will restore it
+            % Save current plan snapshot before clearing; restore on failure
             SavedPlan = app.MainModule.Planner.Plan;
             BuildOk = false;
+            obj.LastLcsStartCheckStatus = '';
 
             % Clear plan if it is not DDT
             if  ~strcmp(PlanType, 'DDT')
@@ -75,7 +77,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
                 app.updateStatus();
                 app.msglog(sprintf('build: PlanType: %s', PlanType));
 
-                % Call the designated function according to PlanType
+                % Dispatch build by plan type
                 switch PlanType
                     case 'HCS',  BuildOk = obj.doBuildHCS(app);
                     case 'LCS',  BuildOk = obj.doBuildLCS(app);
@@ -97,15 +99,29 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
             % Close the "Please Wait" dialog
             app.closePleaseWait();
 
-            % Restore current plan if build failed
+            % Restore previous plan on build failure; LCS has special start-date outcomes
             if ~BuildOk
-                app.msglog('build: Build failed, restoring previous plan.');
-                app.MainModule.AppUtils.msgOk('Build failed, restoring previous plan', 'Build Failed');
+                LcsStartStatus = obj.LastLcsStartCheckStatus;
+                obj.LastLcsStartCheckStatus = '';
 
-                % Restore the previous plan (only for DDT)
-                if strcmp(PlanType, 'DDT')
+                if strcmp(PlanType, 'LCS') && strcmp(LcsStartStatus, 'updated')
+                    % Start date changed: restore plan and require user to rebuild
                     app.MainModule.Planner.Plan = SavedPlan;
-                    app.msglog('build: Restored previous plan');
+                    app.msglog('build: LCS start date updated; user must click Build again.');
+                    app.MainModule.AppUtils.msgOk('LCS start date updated. Click Build again.', 'LCS Start Date');
+                elseif strcmp(PlanType, 'LCS') && strcmp(LcsStartStatus, 'aborted')
+                    % User cancelled alternative start date: restore plan silently
+                    app.MainModule.Planner.Plan = SavedPlan;
+                    app.msglog('build: LCS build aborted (start date check).');
+                else
+                    app.msglog('build: Build failed, restoring previous plan.');
+                    app.MainModule.AppUtils.msgOk('Build failed, restoring previous plan', 'Build Failed');
+
+                    % Restore the previous plan (only for DDT)
+                    if strcmp(PlanType, 'DDT')
+                        app.MainModule.Planner.Plan = SavedPlan;
+                        app.msglog('build: Restored previous plan');
+                    end
                 end
                 return;
             end
@@ -151,6 +167,78 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
             % app.BuildStatusApp.setData(app.MainModule.PlanData.getStatus());
 
             app.showModal(app.BuildStatusApp);
+        end
+
+
+        function Status = checkLcsStartDate(obj, app, upLCS)
+            % Check LCS start date feasibility on Build; offer alternatives via LcsStartTimes dialog
+            % Returns 'feasible', 'updated', or 'aborted'
+            Status = 'aborted';
+            app.msglog('checkLcsStartDate started');
+
+            StartDate = dateshift(upLCS.StartTime, 'start', 'day');
+
+            % Fast path: current start date is feasible at offset 0
+            if obj.isLcsStartDateFeasible(app, StartDate)
+                app.msglog('checkLcsStartDate: start date is feasible');
+                Status = 'feasible';
+                return;
+            end
+
+            % Show "Please Wait" dialog
+            app.closePleaseWait();
+            app.showPleaseWait('Searching for alternative LCS start dates...');
+
+            try
+                % Search nearby dates for FEASIBLE LCS v4 plan starts via LcsHelper_v4
+                Plans = ultrasat.planner.LcsHelper_v4_findPlans(StartDate, 2, 'Verbose', false);
+                FeasibleMask = strcmp(Plans.status, 'FEASIBLE');
+                Plans = Plans(FeasibleMask, :);
+
+                % No feasible alternative start dates found
+                if isempty(Plans) || height(Plans) == 0
+                    app.closePleaseWait();
+                    app.AppUtils.msgError('No feasible alternative LCS start dates found near the selected start date.');
+                    return;
+                end
+
+                % Show LcsStartTimes dialog
+                app.closePleaseWait();
+                DialogStatus = obj.showLcsStartTimesDialog(app, Plans);
+                if ~strcmp(DialogStatus, 'Ok')
+                    return;
+                end
+
+                % Get selected row index
+                RowIndex = obj.LcsStartTimesApp.UITable.Selection;
+                if isempty(RowIndex) || RowIndex < 1
+                    app.AppUtils.msgError('Please select an alternative start date from the list.');
+                    return;
+                end
+
+                % Get selected row data
+                DisplayData = obj.LcsStartTimesApp.UITable.Data;
+                if RowIndex > height(DisplayData)
+                    app.AppUtils.msgError('Invalid row selection.');
+                    return;
+                end
+
+                % Get selected plan start date and duration
+                PlanStartDate = string(DisplayData.plan_start_date(RowIndex));
+                Duration = upLCS.EndTime - upLCS.StartTime;
+
+                % Apply chosen alternative start date; preserve plan duration
+                upLCS.StartTime = datetime(PlanStartDate) + upLCS.DailyWindowStartTime;
+                upLCS.EndTime = upLCS.StartTime + Duration;
+                app.setModified('checkLcsStartDate');
+                app.PlanParamsHelper.updatePlanParams(app);
+                Status = 'updated';
+            catch ME
+                app.closePleaseWait();
+                app.msgex('checkLcsStartDate', ME);
+            end
+
+            app.msglog('checkLcsStartDate done');
         end
 
     end
@@ -204,21 +292,28 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
             % Get list of the selected rows with 'Order' column set (or all if none of them has Order set)
             SelectedRows = obj.getUniqueTargetsIndexByOrderColumn(app, app.UITableUniqueTargets.Data);
 
+            % No targets selected for LCS build
             if isempty(SelectedRows)
                 app.AppUtils.msgError('No targets selected for LCS build.');
                 return;
             end
 
-            StartDate = dateshift(upLCS.StartTime, 'start', 'day');
-            if ~obj.isLcsStartDateFeasible(app, StartDate)
-                BuildOk = obj.retryLcsBuildWithAlternativeStart(app, upLCS, SelectedRows, StartDate);
-            else
-                upLCS.buildLCS1('TargetList', SelectedRows);
-                if height(upLCS.Plan) == 0
-                    BuildOk = obj.retryLcsBuildWithAlternativeStart(app, upLCS, SelectedRows, StartDate);
-                else
-                    BuildOk = true;
-                end
+            StartStatus = obj.checkLcsStartDate(app, upLCS);
+            app.msglog(sprintf('doBuildLCS: StartStatus: %s', StartStatus));
+
+            % Defer build when start date was updated or user aborted the dialog
+            if ~strcmp(StartStatus, 'feasible')
+                obj.LastLcsStartCheckStatus = StartStatus;
+                return;
+            end
+
+            app.closePleaseWait();
+            app.showPleaseWait('Building your plan... expected duration: up to ~30 seconds.');
+            upLCS.buildLCS1('TargetList', SelectedRows);
+            BuildOk = height(upLCS.Plan) > 0;
+
+            if ~BuildOk
+                app.AppUtils.msgError('Build failed for the selected start date.');
             end
 
             if BuildOk
@@ -351,66 +446,14 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
         end
 
 
-        function BuildOk = retryLcsBuildWithAlternativeStart(obj, app, upLCS, SelectedRows, StartDate)
-            % Find alternative LCS start dates and retry build after user selection
-            BuildOk = false;
-            app.msglog('retryLcsBuildWithAlternativeStart started');
-
-            app.closePleaseWait();
-            app.showPleaseWait('Searching for alternative LCS start dates...');
-
-            try
-                Plans = ultrasat.planner.LcsHelper_v4_findPlans(StartDate, 2, 'Verbose', false);
-                FeasibleMask = strcmp(Plans.status, 'FEASIBLE');
-                Plans = Plans(FeasibleMask, :);
-
-                if isempty(Plans) || height(Plans) == 0
-                    app.closePleaseWait();
-                    app.AppUtils.msgError('No feasible alternative LCS start dates found near the selected start date.');
-                    return;
-                end
-
-                app.closePleaseWait();
-                Status = obj.showLcsStartTimesDialog(app, Plans);
-                if ~strcmp(Status, 'Ok')
-                    return;
-                end
-
-                RowIndex = obj.LcsStartTimesApp.UITable.Selection;
-                if isempty(RowIndex) || RowIndex < 1
-                    app.AppUtils.msgError('Please select an alternative start date from the list.');
-                    return;
-                end
-
-                DisplayData = obj.LcsStartTimesApp.UITable.Data;
-                if RowIndex > height(DisplayData)
-                    app.AppUtils.msgError('Invalid row selection.');
-                    return;
-                end
-
-                PlanStartDate = string(DisplayData.plan_start_date(RowIndex));
-                upLCS.StartTime = datetime(PlanStartDate) + upLCS.DailyWindowStartTime;
-                app.setModified('retryLcsBuildWithAlternativeStart');
-                app.PlanParamsHelper.updatePlanParams(app);
-
-                app.showPleaseWait('Building your plan... expected duration: up to ~30 seconds.');
-                upLCS.buildLCS1('TargetList', SelectedRows);
-                BuildOk = height(upLCS.Plan) > 0;
-
-                if ~BuildOk
-                    app.AppUtils.msgError('Build failed for the selected alternative start date.');
-                end
-            catch ME
-                app.msgex('retryLcsBuildWithAlternativeStart', ME);
-            end
-        end
-
-
         function Status = showLcsStartTimesDialog(obj, app, PlansTable)
             % Show LcsStartTimes modal with feasible alternative start dates
             if isempty(obj.LcsStartTimesApp) || ~isvalid(obj.LcsStartTimesApp)
                 obj.LcsStartTimesApp = ultrasat.planner.gui.LcsStartTimes(app.MainModule);
             end
+
+            obj.LcsStartTimesApp.EnterfilenametoloadfromfileorpastetextbelowLabel_2.Text = ...
+                'Please choose an alternative start date, then click Build again.';
 
             DisplayData = PlansTable(:, {'plan_start_date', 'offset_days', 'num_observations', ...
                 'nA', 'nB', 'nC', 'nD', 'variant_used'});
@@ -427,10 +470,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
         % =================================================================
 
         function Result = getUniqueTargetsIndexByOrderColumn(obj, app, Data)
-            % Returns the row indices sorted by 'Order' column.
-            % If only one row exists, returns 1.
-            % If only one row has a non-empty 'Order' value, returns its index.
-            % Otherwise, returns indices of rows with non-empty 'Order', sorted by value.
+            % Resolve build target indices from Order column; fallback to row order when empty
 
             try
                 if isempty(Data)
@@ -457,7 +497,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
                     return;
                 end
 
-                % Handle case: all values are invalid or non-numeric
+                % Fallback: no valid Order values — use sequential row indices 1..N
                 validNumbers = str2double(trimmedOrder(isValid));
                 if all(isnan(validNumbers))
                     OrderColumn = string(1:height(Data))';

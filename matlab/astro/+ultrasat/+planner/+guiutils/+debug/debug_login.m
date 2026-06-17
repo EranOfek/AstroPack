@@ -3,10 +3,9 @@
 % File        : +planner/+guiutils/+debug/debug_login.m
 % Author      : Chen Tishler
 % Created     : 26/04/2026
-% Description : Tests the full login flow at three levels:
-%                 1. NamespaceManagerClient - fetch available namespaces
-%                 2. UserManagerClient      - login/logout directly
-%                 3. MainModule.login()     - end-to-end path used by the GUI
+% Updated     : 17/06/2026
+% Description : Debug login flow via NamespaceManager, UserManager, and MainModule.
+%==========================================================================
 %
 % Run:
 %   ultrasat.planner.guiutils.debug.debug_login()
@@ -15,9 +14,9 @@
 %   SOC_PATH    - must point to a SOC deployment with config/services.json
 %   SOC_API_KEY - must be set
 %   Services namespace_manager and user_manager must be reachable.
-%==========================================================================
 
 function debug_login()
+    % Run three-tier login tests and print aggregate pass/fail counts.
 
     fprintf('\n========================================\n');
     fprintf('debug_login: start\n');
@@ -26,14 +25,17 @@ function debug_login()
     passed = 0;
     failed = 0;
 
+    % --- Step 1: NamespaceManagerClient ---
     [p, f] = test_namespace_client();
     passed = passed + p;
     failed = failed + f;
 
+    % --- Step 2: UserManagerClient ---
     [p, f] = test_user_client();
     passed = passed + p;
     failed = failed + f;
 
+    % --- Step 3: MainModule.login (GUI path) ---
     [p, f] = test_main_module_login();
     passed = passed + p;
     failed = failed + f;
@@ -47,9 +49,7 @@ end
 % =========================================================================
 
 function [passed, failed] = test_namespace_client()
-    % Test NamespaceManagerClient directly.
-    % Verifies that ClientFactory can resolve the namespace_manager URL and
-    % that getNamespaceList() returns a non-empty display_list.
+    % Verify ClientFactory URL resolution and getNamespaceList response.
 
     fprintf('--- [1] NamespaceManagerClient ---\n');
     passed = 0;
@@ -94,8 +94,7 @@ end
 % =========================================================================
 
 function [passed, failed] = test_user_client()
-    % Test UserManagerClient directly (no MainModule involved).
-    % Tests: correct login, logout, wrong-password rejection.
+    % Exercise UserManagerClient login, logout, and wrong-password rejection.
 
     fprintf('--- [2] UserManagerClient ---\n');
     passed = 0;
@@ -170,12 +169,7 @@ end
 % =========================================================================
 
 function [passed, failed] = test_main_module_login()
-    % Test MainModule.login() / logout() - the exact code path invoked by
-    % the Login.mlapp GUI when the user clicks the Login button.
-    %
-    % Login.mlapp calls:  app.MainModule.login(UserName, Password, Namespace)
-    % where Namespace is the selected item from EnvironmentDropDown
-    % (format: 'namespace_id:Display Name').
+    % Exercise MainModule.login/logout using the same path as Login.mlapp.
 
     fprintf('--- [3] MainModule login/logout (GUI path) ---\n');
     passed = 0;
@@ -280,6 +274,7 @@ end
 % =========================================================================
 
 function result_check(ok, message)
+    % Print [PASS] or [FAIL] for a single assertion result.
     if ok
         fprintf('[PASS] %s\n', message);
     else
@@ -289,6 +284,7 @@ end
 
 
 function val = safe_str(s, field)
+    % Return struct field as char, or '(n/a)' when missing or empty.
     if isfield(s, field) && ~isempty(s.(field))
         v = s.(field);
         if ischar(v)
@@ -303,6 +299,7 @@ end
 
 
 function val = safe_char(v)
+    % Coerce value to char for fprintf, using '(empty)' when absent.
     if isempty(v)
         val = '(empty)';
     elseif ischar(v)

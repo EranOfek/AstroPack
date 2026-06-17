@@ -115,7 +115,7 @@ Location: [`+planner/+debug/`](../+planner/+debug/)
 | HCS | `ultrasat.planner.debug.debug_Hcs()` | None (in-memory targets) |
 | DDT | `ultrasat.planner.debug.debug_Ddt()` | None |
 | TOO | `ultrasat.planner.debug.debug_Too()` | Minimal path: none; prob-map: `+debug/input_data/lvc_2024_04_01_00_40_58_000000.csv` |
-| LCS | `ultrasat.planner.debug.debug_Lcs()` | `ASTROPACK_DATA_PATH/ULTRASAT/LCS_nonoverlapping_grid_surveys.csv`, `LCS_nonoverlapping_grid.csv`; optional `api_response.mat` |
+| LCS | `ultrasat.planner.debug.debug_Lcs()` | `ASTROPACK_DATA_PATH/ULTRASAT/LCS_fields.csv`, `LCS_nonoverlapping_grid.csv`; optional `api_response.mat` |
 | AllSS | `ultrasat.planner.debug.debug_AllSs()` | `constructGrid`: grid file via `BaseDataDir`; builds: `alss_uniq_targ.mat` |
 
 ### HCS

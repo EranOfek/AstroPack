@@ -161,7 +161,7 @@ classdef TableHelper < ultrasat.api.core.Loggable
         end
 
         % =================================================================
-        %
+        %                     Table display helpers
         % =================================================================
 
         function tbl = convertTableDatetimeToString(obj, tbl)
@@ -288,7 +288,7 @@ classdef TableHelper < ultrasat.api.core.Loggable
             allFields = unique(allFields);
             S = repmat(struct(), n, 1);
 
-            % Extract values per row
+            % Build one struct per plan row, keeping only scalar top-level fields
             for i = 1:n
                 try
                     p = getPlan(i);
@@ -306,6 +306,7 @@ classdef TableHelper < ultrasat.api.core.Loggable
                                     S(i).(fld) = val; % char OK
                                 elseif (isstring(val) || islogical(val) || isnumeric(val) ...
                                         || isdatetime(val) || isduration(val)) && isscalar(val)
+                                    % Nested structs/cell arrays are skipped (stored as [])
                                     S(i).(fld) = val; % scalar OK
                                 else
                                     S(i).(fld) = [];
@@ -411,7 +412,7 @@ classdef TableHelper < ultrasat.api.core.Loggable
         % =================================================================
 
         function sortState = getUITableSortState(obj, app, event)
-            % Initialize with default values
+            % Read current UITable sort column and direction from DisplayDataChanged event
             % Call from DisplayDataChanged callback by sortState = app.getCurrentSortState(app, event);
             sortState = struct('Variable', '', 'Direction', 'none', 'ColumnIdx', []);            
             try

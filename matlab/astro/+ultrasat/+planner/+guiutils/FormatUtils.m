@@ -67,8 +67,7 @@ classdef FormatUtils < handle
 
 
         function Result = ra2Str(Value)
-            % Convert RA to string
-            % @Todo - need to support sexa, etc.
+            % Convert RA (degrees) to string; @Todo - need to support sexa, etc.
             if ~isempty(Value)
                 Result = sprintf('%f', Value);
             else
@@ -78,8 +77,7 @@ classdef FormatUtils < handle
 
 
         function Result = dec2Str(Value)
-            % Convert Dec to string
-            % @Todo - need to support sexa, etc.
+            % Convert Dec (degrees) to string; @Todo - need to support sexa, etc.
             if ~isempty(Value)
                 Result = sprintf('%f', Value);
             else
