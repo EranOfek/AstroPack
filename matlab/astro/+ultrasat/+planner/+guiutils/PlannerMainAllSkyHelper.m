@@ -1,14 +1,18 @@
 %==========================================================================
 % Project     : ULTRASAT Planner
-% File        : +planner/+guiutils/PlannerMainPlanTargetsHelper.m
+% File        : +planner/+guiutils/PlannerMainAllSkyHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 11/11/2025
-% Description : Plan Targets Helper for Main Planner
+% Updated     : 17/06/2026
+% Description : All Sky Helper for Main Planner
+%               (Future All-Sky planning UI integration - @Yossi ...)
 %==========================================================================
 
 classdef PlannerMainAllSkyHelper < ultrasat.api.core.Loggable
     % Helper class for PlannerMain.mlapp
+    %
+    % Shell/stub placeholder for future All-Sky planning UI integration.
+    % No methods implemented yet; reserved for All-Sky-specific callbacks and display logic.
     %
     % All methods require the PlannerMain instance as the first argument, named 'app'.
     % This is NOT implicit: even when calling from PlannerMain.mlapp, pass 'app'

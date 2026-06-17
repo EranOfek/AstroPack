@@ -171,22 +171,22 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
 
 
         function Summary = buildGroupSummaryTable(obj, Planner)
-            % Build summary table from Planner LCS_obj schedule
+            % Aggregate LCS schedule rows into one summary row per base group letter
             Schedule = Planner.LCS_obj.Schedule;
             Plan = Planner.Plan;
 
-            % Get categories and number of rows
+            % Parallel arrays: schedule category label and field ID per row
             Categories = string(Schedule.category);
             NumRows = height(Schedule);
 
-            % Reduce each category string to its "base" group letter (prefix before '_')
+            % Map category strings (e.g. 'A_xxx') to base group letter ('A')
             BaseGroups = strings(NumRows, 1);
             for K = 1:NumRows
                 BaseGroups(K) = obj.baseCategoryLetter(Categories(K));
             end
             FieldIds = Schedule.Field;
 
-            % Compute stable unique groups for display order (as they appear in the schedule)
+            % Preserve first-seen group order from the schedule (not alphabetical)
             UniqueGroups = unique(BaseGroups, 'stable');
             NumGroups = numel(UniqueGroups);
             GroupCol = strings(NumGroups, 1);
@@ -194,11 +194,12 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
             StartDateCol = strings(NumGroups, 1);
             EndDateCol = strings(NumGroups, 1);
 
-            % Build summary table
+            % One summary row per group: field count + plan date span
             for I = 1:NumGroups
                 GroupLetter = UniqueGroups(I);
                 Mask = BaseGroups == GroupLetter;
                 FieldIdsInGroup = unique(FieldIds(Mask));
+                % fieldNamesForIds applies AllSky -> UniqTarg -> raw ID fallback
                 FieldNames = obj.fieldNamesForIds(Planner, FieldIdsInGroup);
 
                 % Aggregate per-group statistics: number of unique fields + date range in the plan
@@ -322,18 +323,18 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
 
 
         function Names = fieldNamesForIds(obj, Planner, fieldIds)
-            % Resolve field IDs to user-facing field names (best-effort fallbacks)
+            % Resolve LCS field IDs to display names with three-tier fallback chain
             if isempty(fieldIds)
                 Names = strings(0, 1);
                 return;
             end
 
-            % Get AllSky table and number of field IDs
+            % AllSky is the primary lookup table for field ID -> name
             AllSky = Planner.LCS_obj.AllSky;
             NumIds = numel(fieldIds);
             Names = strings(NumIds, 1);
 
-            % Build names for each field ID
+            % Resolve each ID: AllSky.Name -> UniqTarg.Name -> raw Field value
             for I = 1:NumIds
                 FieldId = fieldIds(I);
                 RowIdx = find(AllSky.Field == FieldId, 1);

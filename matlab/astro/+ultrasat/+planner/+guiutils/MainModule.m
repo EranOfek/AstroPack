@@ -29,14 +29,14 @@ classdef MainModule < ultrasat.api.core.Loggable
         ScheduleClient          % ScheduleManagerClient instance
         PlansClient             % PlansManagerClient instance
         ValidatorClient         % ValidatorManagerClient instance
-        VirtualTimeClient       %
+        VirtualTimeClient       % VirtualTimeManagerClient instance (optional)
 
         % Status
         StatusText              % Status text for display
         CurrentStatus           % 'OK', 'Error', 'Warning'
-        IsVirtualTime           %
+        IsVirtualTime           % True when connected to a simulator namespace with virtual time
 
-        %
+        % Plan session state and local paths
         Modified = false;       % True after data is being modified
         AfterBuild = false;     % True after build is completed
         PlannerPath             % Path to Planner folder
@@ -57,6 +57,7 @@ classdef MainModule < ultrasat.api.core.Loggable
 
             obj.LogPrefix = 'MainModule';
 
+            % Resolve data paths for current O/S (Windows uses ASTROPACK_DATA_PATH)
             % @Future - Need to fix it on linux? or keep it like this?
             obj.BaseDataDir = '~/matlab/data/ULTRASAT/';
             obj.PlannerPath = '~/matlab/data/ULTRASAT/Planner/';
@@ -78,7 +79,7 @@ classdef MainModule < ultrasat.api.core.Loggable
             obj.Preferences = ultrasat.planner.guiutils.Preferences(obj.PreferencesFileName);
             obj.Preferences.load();
 
-            % Setup clients
+            % Create REST API clients via ClientFactory (URLs from services.json)
             factory = ultrasat.api.clients.ClientFactory();
             url = factory.getServiceBaseUrl('namespace_manager');
             obj.NamespaceClient = ultrasat.api.clients.NamespaceManagerClient(url);
@@ -95,10 +96,10 @@ classdef MainModule < ultrasat.api.core.Loggable
             url = factory.getServiceBaseUrl('validator_manager');
             obj.ValidatorClient = ultrasat.api.clients.ValidatorManagerClient(url);
 
-            % VirtualTime
+            % Virtual time is off until a simulator namespace is selected
             obj.IsVirtualTime = false;
 
-            % Get the list of namespaces
+            % Bootstrap namespace list from API (auto-select when only one exists)
             response = obj.NamespaceClient.getNamespaceList();
             if isfield(response, 'namespaces') && ~isempty(response.namespaces)
                 obj.NamespaceDisplayList = response.display_list;
@@ -127,12 +128,12 @@ classdef MainModule < ultrasat.api.core.Loggable
 
             Result = false;
 
-            % Clear UserName and NamespaceId
+            % Reset session identity before attempting login
             obj.UserName = [];
             obj.NamespaceId = [];
             ANamespaceId = obj.GuiHelper.extractNameFromDisplayString(Namespace);
 
-            % Try to login
+            % Call user_manager API
             try
               response = obj.UserClient.login(UserName, Password, ANamespaceId);
             catch ME
@@ -140,13 +141,13 @@ classdef MainModule < ultrasat.api.core.Loggable
                 return;
             end
 
-            % Check if login was successful
+            % Validate response shape before reading ok flag
             if ~isstruct(response) || ~isfield(response, 'ok')
                 obj.setStatus('Error', 'Invalid login response');
                 return;
             end
 
-            % If login was successful, set UserName, NamespaceId and NamespaceDisplay
+            % On success, store session identity and propagate namespace to clients
             if response.ok
                 obj.UserName = UserName;
                 obj.NamespaceId = ANamespaceId;
@@ -216,6 +217,7 @@ classdef MainModule < ultrasat.api.core.Loggable
 
 
         function uplannerClient = createUplannerClient(obj)
+            % Create API adapter wired to Plans, Schedule, and Validator clients
             uplannerClient = ultrasat.api.clients.UplannerClient( obj.PlansClient, obj.ScheduleClient, obj.ValidatorClient );            
         end
 
@@ -275,7 +277,7 @@ classdef MainModule < ultrasat.api.core.Loggable
         end
 
         % =================================================================
-        %
+        %                           PlanData lifecycle
         % =================================================================
 
         function createPlanData(obj)
@@ -294,7 +296,7 @@ classdef MainModule < ultrasat.api.core.Loggable
 
 
         function clearData(obj)
-            %
+            % Reset planner session: clear Planner, PlanData, status, and flags
 
             % Clear planner-related data
             obj.Planner = [];

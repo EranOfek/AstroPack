@@ -39,17 +39,24 @@ classdef PlannerMainSubmitHelper < ultrasat.api.core.Loggable
 
         function submit(obj, app)
             % Submit plan by sending it to Mission Control service
+            % Gate sequence (each step returns early on failure):
+            %   1. Planner must exist
+            %   2. Plan must be editable (not read-only)
+            %   3. User must be logged in
+            %   4. Unsaved changes must be saved first (backend reads plan from DB)
+            %   5. Plan should be validated (user may override with confirmation)
+            %   6. Final user confirmation before backend submit
             % Debug: see files in D:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\sim
             app.msglog('submit');
             if ~app.hasPlanner(), return; end
 
-            % Submit is not allowed when plan is read-only
+            % Gate 2: submit is not allowed when plan is read-only
             if ~app.isEditableMsg(), return; end
 
-            % Submit is not allowed when not logged-in
+            % Gate 3: submit is not allowed when not logged-in
             if ~app.SessionHelper.isLogin(app, true), return; end
 
-            % Must save before submit, because backend need to access the
+            % Gate 4: must save before submit, because backend need to access the
             % plan in the database.
             if app.MainModule.Modified
                 if ~strcmp(app.AppUtils.askYesNo('The plan has been modified and not saved. You must save it before submitting. Do you want to save your changes?', 'Confirm'), 'Yes')
@@ -58,20 +65,21 @@ classdef PlannerMainSubmitHelper < ultrasat.api.core.Loggable
                 app.StorageHelper.savePlan(app);
             end
 
+            % Gate 5: warn when plan is not validated; user may still proceed
             if ~app.MainModule.Planner.Validated
                 if ~strcmp(app.AppUtils.askYesNo('The plan is not validated, or validation was not successful. Are you sure you want to submit this plan?', 'Confirm'), 'Yes')
                     return;
                 end
             end
 
-            % Ask user for confirmation
+            % Gate 6: final confirmation before sending to Mission Control
             if ~strcmp(app.AppUtils.askYesNo('Submit this plan to Mission Control? Are you sure?', 'Confirm'), 'Yes')
                 return;
             end
 
             app.showPleaseWait('Submitting your plan. This may take a while. Please wait...');
             try
-                % Send submit request to backend, uplanner.submit() calls MissionClient.submitPlan().
+                % Send submit request to backend; uplanner.submit() calls MissionClient.submitPlan()
                 app.addHistory('submit');                
                 app.MainModule.Planner.submit();
                 app.MainModule.PlanData.setStatus('SubmitStatus', 'OK');

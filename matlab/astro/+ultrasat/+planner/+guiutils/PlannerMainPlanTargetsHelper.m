@@ -132,7 +132,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.core.Loggable
 
 
         function adjustGroupStartTime(obj, app)
-            % Adjust group of targets with adjustGroupStartTime()
+            % Open AdjustGroupStartTime dialog and apply relative/shift/start-time mode
 
             app.msglog('adjustGroupStartTime');
             if ~app.hasPlanner(), return; end
@@ -145,14 +145,14 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.core.Loggable
             end
 
             try
-                % Prepae data
+                % Build group dropdown: 'All' plus each distinct Plan.Group value
                 Planner = app.MainModule.Planner;
                 uniqueGroups = unique(app.MainModule.Planner.Plan.Group);
                 groupItems = cellstr(string(uniqueGroups));
                 groupItems = ['All'; groupItems];
                 app.AdjustGroupStartTimeApp.GroupDropDown.Items = groupItems;
 
-                % Enable/disable options according to the existance of Approved Targets list
+                % Relative mode needs MissionApprovedPlan as reference; otherwise force Shift
                 if height(Planner.MissionApprovedPlan) == 0
                     app.AdjustGroupStartTimeApp.RelativeButton.Enable = 'off';
                     app.AdjustGroupStartTimeApp.ShiftTimeButton.Value = true;
@@ -163,7 +163,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.core.Loggable
 
                 % Show app
                 if strcmp(app.showModal(app.AdjustGroupStartTimeApp), 'OK')
-                    % Apply
+                    % Dispatch to planner.adjustGroupStartTime by selected mode
                     GroupList = app.AdjustGroupStartTimeApp.GroupList;
                     if strcmp(app.AdjustGroupStartTimeApp.Mode, 'Relative')
                         app.msglog('adjustGroupStartTime: Relative');
@@ -187,7 +187,7 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.core.Loggable
 		% =================================================================
 
         function showPlanTargets(obj, app)
-            % Update the display of Plan Targets table
+            % Refresh Plan Targets table with Index column and ValidationStatus colors
 
             app.msglog('showPlanTargets');
             if ~app.hasPlanner()
@@ -220,11 +220,10 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.core.Loggable
                     app.UITablePlanTargets.ColumnName = Data.Properties.VariableNames;
                 end
 
-                % --- Apply text color styling to the 'ValidationStatus' column ---
-                % Find the column index for 'ValidationStatus'
+                % Per-cell ValidationStatus styling (color keyed by status text)
                 colIdx = find(strcmp(Data.Properties.VariableNames, 'ValidationStatus'), 1);
                 if ~isempty(colIdx) % Ensure the column exists
-                    % Apply styles row by row based on the ValidationStatus value
+                    % One uistyle per row; GuiHelper maps status string to foreground color
                     for row = 1:height(Data)
                         status = string(Data{row, colIdx}); % Read status as string
                         style = app.MainModule.GuiHelper.getValidationStatusStyle(status);
@@ -397,32 +396,32 @@ classdef PlannerMainPlanTargetsHelper < ultrasat.api.core.Loggable
 
 
         function applyPlanTargetParams(obj, app, Index, ParamsApp)
-            % Apply plan parameters from dialog to plan
+            % Apply editable dialog fields to one plan row via editPlanRow
 
             app.msglog('applyPlanTargetParams');
             try
                 Plan = app.MainModule.Planner.Plan;
 
-                % Get editable parameters and apply - Currently there are 3 editable paramters
+                % Read the three user-editable fields from PlanTargetParamsApp
                 ExpTime = seconds(ParamsApp.ExposureTimeEditField.Value);
                 Nexposures = ParamsApp.EpochsPerVisitEditField.Value;
                 Tiles = app.GuiHelper.getTilesFromCheckboxes(ParamsApp);
 
-                % Send editPlanRow() only the modified values
+                % Sentinel values tell editPlanRow to skip unchanged fields
                 if ExpTime == Plan.ExpTime(Index)
-                    ExpTime = seconds(inf);
+                    ExpTime = seconds(inf);   % inf = leave ExpTime unchanged
                 end
                 if Nexposures == Plan.Nexposures(Index)
-                    Nexposures = [];
+                    Nexposures = [];          % [] = leave Nexposures unchanged
                 end
                 if strcmp(Tiles, Plan.Tiles(Index))
-                    Tiles = [];
+                    Tiles = [];               % [] = leave Tiles unchanged
                 end
 
                 % Update plan target
                 app.MainModule.Planner.editPlanRow(Index, 'ExpTime', ExpTime, 'Tiles', Tiles, 'Nexposures', Nexposures);
 
-                %
+                % Re-validate plan consistency after the edit
                 if app.PlanParamsHelper.checkPlanSelfConsistency(app)
                     app.msglog('applyPlanTargetParams: success');
                 end

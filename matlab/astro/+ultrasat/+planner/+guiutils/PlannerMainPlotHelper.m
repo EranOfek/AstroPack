@@ -57,7 +57,8 @@ classdef PlannerMainPlotHelper < ultrasat.api.core.Loggable
         % =================================================================
 
         function showSkyMapPlot(obj, app)
-            % Update GUI plot with SkyMap
+            % Redraw embedded and standalone skymap axes from current checkbox flags
+
             app.msglog('showSkyMapPlot');
 
             % No planner object - just clear
@@ -280,18 +281,19 @@ classdef PlannerMainPlotHelper < ultrasat.api.core.Loggable
     methods (Access = private)
 
         function doPlotSkyMap(obj, app, AxesHandle)
-            % Plot SkyMap on the specified Axes (embedded or stand-alone)
+            % Render skymap on given axes using checkbox layer flags
             app.msglog('doPlotSkyMap');
             try
                 Planner = app.MainModule.Planner;
                 cla(AxesHandle, 'reset');
+                % Each flag toggles one plotMapPlan overlay layer
                 Planner.plotMapPlan('AxesHandle', AxesHandle, ...
-                    'disp_uniqTarg', app.PlotFlagUniqueCheckBox.Value, ...
-                    'disp_plan',  app.PlotFlagPlanCheckBox.Value, ...
-                    'ExtinctionMap',   app.PlotFlagExtinctionCheckBox.Value, ...
-                    'CalObjMap', app.PlotFlagCalibrationCheckBox.Value, ...
-                    'disp_MissAprvPlan', app.PlotFlagApprovedCheckBox.Value, ...
-                    'vis_at_time_map', app.PlotFlagVisibleCheckBox.Value);  % , ...
+                    'disp_uniqTarg', app.PlotFlagUniqueCheckBox.Value, ...      % unique targets
+                    'disp_plan',  app.PlotFlagPlanCheckBox.Value, ...           % plan targets
+                    'ExtinctionMap',   app.PlotFlagExtinctionCheckBox.Value, ... % extinction map
+                    'CalObjMap', app.PlotFlagCalibrationCheckBox.Value, ...       % calibration objects
+                    'disp_MissAprvPlan', app.PlotFlagApprovedCheckBox.Value, ... % mission-approved plan
+                    'vis_at_time_map', app.PlotFlagVisibleCheckBox.Value);  % , ... % visibility at time
 
                     % @TODO: Currently not implemented:
 
@@ -310,7 +312,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.core.Loggable
 
 
         function Result = hasData(obj, app)
-            % Check if there is data in the Planner (UniqTarg and Plan tables)
+            % True when planner exists with UniqTarg rows OR Plan rows (note && before ||)
             Result = app.hasPlanner() && (height(app.MainModule.Planner.UniqTarg) > 0) || (height(app.MainModule.Planner.Plan) > 0);
         end
 
