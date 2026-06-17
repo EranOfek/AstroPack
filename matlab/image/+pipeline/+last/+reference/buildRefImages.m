@@ -315,7 +315,8 @@ function [Result] = buildRefImages(RefGrid, Args)
             if isempty(StackImages)
                 if Args.Verbose > 0
                     cprintf('err','No images have been qualified for the field %d, skipping to the next field..\n',Iref);
-                end                
+                end  
+                RefImage = AstroImage; % empty
             else
                 if Args.Verbose > 0
                     cprintf('blue','Coadding %d groups \n',numel(StackImages));
