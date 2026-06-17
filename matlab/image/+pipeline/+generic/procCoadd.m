@@ -163,7 +163,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.SetBackTo0                       = true; % if SubBack=true and SetBackTo0 then set back to 0.
         %Args.ReMeasureBackVar                 = true; % if SetBackT0=false and this is true than remeasure back and var
         Args.ReMeasureBack                    = true;
-        Args.ReMeasureVar                     = true;
+        %Args.ReMeasureVar                     = true;
         %Args.PropagateVar                     = false; % propagate variance from coaddition.
 
         %Args.UseShift logical                 = true;
@@ -402,7 +402,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             switch Args.StackMethod
                 case 'wrobust'
                     % RegisteredImages contains also the Back and Var
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:}, 'AddBack', Args.ReMeasureBack, 'CalcVar',Args.ReMeasureVar, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:}, 'AddBack', Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
                    
                 case 'proper'
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:}, 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
