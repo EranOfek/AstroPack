@@ -188,6 +188,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.UseWidth logical          = false;
        
         Args.UseMex                    = true;
+
+        Args.AddBackMag                = true;  % add BackMag to header; if false then add NaN
     end
     
     if Args.CreateNewObj
@@ -594,18 +596,22 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 % LIMMAG
                 % BACKMAG
 
-                MedBack = fast_median(Result(Iobj).Back(:));   %, 'all', 'omitnan');
-                if isempty(Args.PixScale)
-                    % try to read pixel scale from WCS
-                    if isa(Obj, 'AstroImage')
-                        PixScale = Obj(Iobj).WCS.getScale('arcsec');
+                if Args.AddBackMag
+                    MedBack = fast_median(Result(Iobj).Back(:));   %, 'all', 'omitnan');
+                    if isempty(Args.PixScale)
+                        % try to read pixel scale from WCS
+                        if isa(Obj, 'AstroImage')
+                            PixScale = Obj(Iobj).WCS.getScale('arcsec');
+                        else
+                            error('Can not get pixel scale - either provide it, or use AstroImage with WCS data');
+                        end
                     else
-                        error('Can not get pixel scale - either provide it, or use AstroImage with WCS data');
+                        PixScale = Args.PixScale;
                     end
+                    ResFit(Iobj).BackMag = ResFit(Iobj).ZP - 2.5.*log10(MedBack) + 5.*log10(PixScale);  % per aecsec^2
                 else
-                    PixScale = Args.PixScale;
+                    ResFit(Iobj).BackMag = NaN;
                 end
-                ResFit(Iobj).BackMag = ResFit(Iobj).ZP - 2.5.*log10(MedBack) + 5.*log10(PixScale);  % per aecsec^2
                 
                 if Args.ColorOrder==1 && ~Args.UseWidth
                     Keys = {'PH_ZP','PH_COL1','PH_MEDC','PH_RMS','PH_NSRC','PH_MAGSY','LIMMAG','BACKMAG','PH_MAGT','PH_MAGTE'};

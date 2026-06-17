@@ -238,6 +238,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.photometricZP_UpdateMagCols      = false;
         Args.PhotCalibTrans                   = true;  % execute transmission fit calibratio
 
+        Args.AddLimMag                        = false;
+        Args.LimMagArgs                       = {};
+        Args.AddBackMag                       = false;
+        Args.KeyZP                            = 'PT_ZP';
+        Args.BackMagArgs                      = {};
+
         %Args.RemoveHighBackImages logical     = true;   % remove images which background differ from median back by 'HighBackNsigma' sigma
         Args.HighBackNsigma                   = 3;
         
@@ -548,7 +554,6 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             if Args.PhotCalibTrans && Coadd(Ifields).WCS.Success
                 [Coadd, PC, ResultCoadd(Ifields).TransFit] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
             end
-         
 
             % write stat data to header: Nstars, PSF, Scale, Rotation,...
             % background, var: written as part of the background estimation
@@ -556,6 +561,14 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             if Args.WriteStatHeader
                 Coadd(Ifields) = imProc.header.writeStat2Header(Coadd(Ifields), 'WriteBack',false);
             end
+
+            if Args.AddLimMag
+                [Coadd] = imProc.calib.limmag(Coadd, Args.LimMagArgs{:});
+            end
+            if Args.AddBackMag
+                [Coadd] = imProc.calib.backmag(Coadd, 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); 
+            end
+
 
         end % if Ngood>=Args.MinNumCoadd || Ngood==Nepoch
     end % for Ifields=1:1:Nfields

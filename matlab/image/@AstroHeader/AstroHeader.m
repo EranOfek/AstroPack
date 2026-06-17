@@ -538,15 +538,20 @@ classdef AstroHeader < Component
             % Get header keyword value / simple version (no synonyms and conversions).
             % Inpuut : - self.
             %          - Key name.
-            % Output : - Value
+            % Output : - Value (NaN if not exist).
             %          - Comment
             % Author : Eran Ofek (Jun 2025)
             % Example: AH.getValSimple(AH,'EXPTIME')
 
             Ind = find(strcmp(Obj.Data(:,1), Key));
-            Val  = Obj.Data{Ind,2};
-            if nargout>1
-                Comment = Obj.Data{Ind,3};
+            if isempty(Ind)
+                Val = NaN;
+                Comment = '';
+            else
+                Val  = Obj.Data{Ind,2};
+                if nargout>1
+                    Comment = Obj.Data{Ind,3};
+                end
             end
         end
 
