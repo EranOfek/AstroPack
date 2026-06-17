@@ -133,7 +133,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
 
             % fit Gaussian to PSF
             if ~isempty(Args.KeyFitPSF) && Obj(Iobj).PSFData.Nstars>0
-                [~,~,BestFit] = Obj(Iobj).PSFData.fitFunPSF();
+                [~,~,BestFit] = Obj(Iobj).PSFData.fitFunPSF;
                 % sqrt(BestFit{1}).Par(2)) is the sigma of the Gaussian in
                 % the X direction...
                 [A, B, Theta] = imUtil.psf.gaussianSigma2SemiAxis(sqrt(BestFit{1}.Par(2)), sqrt(BestFit{1}.Par(3)), BestFit{1}.Par(4));

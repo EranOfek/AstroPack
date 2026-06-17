@@ -443,9 +443,9 @@ classdef AstroPSF < Component
                 Args.Par0      = {[2 2 0]};
                 Args.Norm0     = [1];
                 Args.PosXY     = [];
-                Args.LB        = [];
-                Args.UB        = [];
-                Args.CreateNewObj logical = false;
+                Args.LB        = [0, 0.2, 0.2, -0.99];
+                Args.UB        = [Inf, 20, 20, 0.99];
+                Args.CreateNewObj = false;
                 Args.ReplaceStamp = false;
                 Args.LsqOptions = optimoptions('lsqcurvefit');                
             end
