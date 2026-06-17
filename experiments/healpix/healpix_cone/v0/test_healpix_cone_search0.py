@@ -91,12 +91,12 @@ class TestBestNside:
             _best_nside_for_radius(-1.0)
 
     def test_known_values(self):
-        # sqrt(3)/NSide >= radius_rad  → NSide <= sqrt(3)/radius_rad
-        # For radius=1° = 0.01745 rad  → ideal ≈ 99.4 → largest pow2 ≤ 99 → 64
+        # Default mode is "conservative": ideal = 1/radius_rad
+        # For radius=1° = 0.01745 rad  → ideal = 57.3 → largest pow2 ≤ 57 → 32
         ns = _best_nside_for_radius(1.0)
-        assert ns == 64
+        assert ns == 32
 
-        # For radius=0.1° = 0.001745 rad → ideal ≈ 994 → 512
+        # For radius=0.1° = 0.001745 rad → ideal = 572.9 → 512
         ns = _best_nside_for_radius(0.1)
         assert ns == 512
 

@@ -1,3 +1,12 @@
+# ***************************************************************************
+# Project     : AstroPack
+# Filename    : test_healpix_cone_search.py
+# Author      : Chen Tishler
+# Created     : 17/06/2026
+# Modified    : 17/06/2026
+# Description : Comprehensive pytest suite for healpix_cone_search.py
+# ***************************************************************************
+
 """
 test_healpix_cone_search.py
 ===========================
