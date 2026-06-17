@@ -138,7 +138,7 @@ classdef uplanner < Component
         DailyWindowStartTime    duration =  duration(00,00,00); % [hrs]   
         DailyWindowMaxDuration  duration =  hours(3);           % [hrs]
 
-        LCS_obj         ultrasat.planner.LcsHelper       % Object of class LCSHelper
+        LCS_obj         ultrasat.planner.LcsHelper_v4       % Object of class LCSHelper
         
         % ------------ AllSS Properties ------------
         AllSSgridFile                   = 'AllSS_fields.csv'; % the default AllSS grid

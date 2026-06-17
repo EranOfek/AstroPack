@@ -287,6 +287,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
                 return;
             end
 
+            app.showPleaseWait('Loading unique targets... expected duration: up to ~30 seconds.');
             try
                 Grid = readtable(FileName);
                 if strcmp(NameColumn, 'Name')
@@ -300,6 +301,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
             catch ME
                 app.msgex(LogTag, ME);
             end
+            app.closePleaseWait();
         end
 
         % =================================================================
