@@ -155,7 +155,7 @@ classdef Preferences < ultrasat.api.core.Loggable
                 return;
             end
 
-            % Update object properties safely
+            % Update object properties from decoded JSON (each field optional)
             try
                 if isfield(dataStruct, 'UserName'), obj.UserName = dataStruct.UserName; end
                 if isfield(dataStruct, 'UniqueTargetsFileName'), obj.UniqueTargetsFileName = dataStruct.UniqueTargetsFileName; end

@@ -71,7 +71,6 @@ function [Result] = backVar(Obj, Args)
     %          AI=imProc.background.backVar(AI, 'Block',256, 'Method',{@median, @var}, 'ReCalc',true);
     %          AI=imProc.background.backVar(AI, 'SubBack',true);
 
-
     arguments
         Obj
 
@@ -137,7 +136,7 @@ function [Result] = backVar(Obj, Args)
             Result(Iobj).BackData.Image = Back;
             Result(Iobj).VarData.Image  = Var;
     
-            % subtract
+            % subtract background 
             if Args.SubBack
                 Result(Iobj).ImageData.Image = Result(Iobj).ImageData.Image - Back;
             end
@@ -166,5 +165,4 @@ function [Result] = backVar(Obj, Args)
             end % if ~isempty(Args.AddHeaderInfo)
         end % if isempty(Result(Iobj).BackData.Image) || Args.ReCalc
     end % for Iobj=1:1:Nobj
-
 end

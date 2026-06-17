@@ -180,7 +180,7 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
     
 
     if Args.AddBack
-        [Result.BackData.Data, Result.VarData.Data] = imUtil.background.backVar(Result.ImageData.Data, Args.FinalBackArgs{:});
+        Result = imProc.background.backVar(Result, Args.FinalBackArgs{:});
     end
 
     % coadd mask
@@ -191,9 +191,7 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
         % update Mask to NaN for pixels in which CoaddN<Nim
         Result.MaskData.maskSet(CoaddN<Nim, Args.KeyNaN);
         % Update CoaddLessImages
-        Result.MaskData.maskSet( CoaddN<(Args.FracCoaddLess.*Nim), Args.KeyCoaddLess);
-       
-
+        Result.MaskData.maskSet( CoaddN<(Args.FracCoaddLess.*Nim), Args.KeyCoaddLess);       
     end
 
     % Update header:
@@ -204,7 +202,5 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
                                                       'UpdateImagePathKeys',Args.UpdateImagePathKeys,...
                                                       'StackMethod',StackMethod,...
                                                       'CoaddN',CoaddN,...
-                                                      'KeyExpTime',Args.KeyExpTime);
-
-
+                                                      'KeyExpTime',Args.KeyExpTime);    
 end

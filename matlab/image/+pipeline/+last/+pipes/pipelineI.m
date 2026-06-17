@@ -78,6 +78,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         
         Args.photometricZPArgs             = {};
 
+        Args.LimMagArgs                    = {};
+        Args.BackMagArgs                   = {};
+        Args.KeyZP                         = 'PH_ZP'; % Need to change to 'PT_ZP'
+
         Args.ForcedPhotCat               = 'ForcedPhotList'; %'WDEDR3';  % UPDATE
         Args.CornersRA                   = {'RA1','RA2','RA3','RA4'};
         Args.CornersDec                  = {'DEC1','DEC2','DEC3','DEC4'};
@@ -399,8 +403,12 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 701;
             %tic;
             for Isub=1:1:Nsub
-                [AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub), ...
-                    'UpdateMagCols',false, Args.photometricZPArgs{:});  % 10s for all in loop
+                % add old photometric calibration
+                % do not add LimMag and BackMag to header
+                [AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub),...
+                                            'AddBackMag',false,...
+                                            'LimMagSN',[],...
+                                            'UpdateMagCols',false, Args.photometricZPArgs{:});  % 10s for all in loop
                 %[Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub));  % 2.4s for all in loop
             end
             %toc
@@ -445,8 +453,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                           'DefScale',Args.DefScale,...
                                                           'SubBack',false,...
                                                           'SetBackTo0',false,...
-                                                          'ReMeasureBack',true,...
-                                                          'ReMeasureVar',true,...
+                                                          'ReMeasureBack',true,...                                                          
                                                           'CatName',CatName,...
                                                           'ShiftXY',ShiftInfo,...
                                                           'IsGood',IsGood,...
@@ -587,8 +594,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             for Isub=1:1:Nsub
                 %[AllSI(:,Isub), ZP] = imProc.calib.photometricZP(AllSI(:,Isub), 'CatName',CatName(Isub));  % 10s for all in loop
                 if NotIsEmptyCat(Isub)
+                    % do not add LimMag and BackMag to header
                     [Coadd(Isub), ZP]   = imProc.calib.photometricZP(Coadd(Isub), 'CatName',CatName(Isub), ...
-                        'UpdateMagCols',false, Args.photometricZPArgs{:});  % 2.4s for all in loop
+                                            'AddBackMag',false,...
+                                            'LimMagSN',[],...
+                                            'UpdateMagCols',false, Args.photometricZPArgs{:});  % 2.4s for all in loop
                 end
             end
             %toc
@@ -612,6 +622,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 % toc
             end
 
+            % Add LimMag and BackMag
+            [AllSI] = imProc.calib.limmag(AllSI, Args.LimMagArgs{:});  % 0.3s
+            [AllSI] = imProc.calib.backmag(AllSI, 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); % 0.2s
+            [Coadd] = imProc.calib.limmag(Coadd, Args.LimMagArgs{:});  
+            [Coadd] = imProc.calib.backmag(Coadd, 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); 
 
             
             % Finish

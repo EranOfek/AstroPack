@@ -13,7 +13,7 @@ function debug_prepareForSave()
     fprintf('--- analyzePlannerSize - after creation ---');
     ultrasat.planner.analyzePlannerSize(upLCS);
     
-    LCS_grid = readtable(fullfile(upLCS.BaseDataDir,'LCS_nonoverlapping_grid_surveys.csv'));
+    LCS_grid = readtable(fullfile(upLCS.BaseDataDir,'LCS_fields.csv'));
     upLCS.addUniqTargets(LCS_grid.RA,LCS_grid.Dec,'Name',num2cell(LCS_grid.Field));
 
     fprintf('--- analyzePlannerSize - after addUniqTargets ---');

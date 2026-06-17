@@ -37,7 +37,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
         % =================================================================
 
         function createNewPlan(obj, app)
-            % Create new plan
+            % Show NewPlan dialog and create uplanner instance for selected plan type
             app.msglog('createNewPlan');
 
             % Ask user confirmation if there are unsaved changes
@@ -80,7 +80,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
                 app.msgex('createNewPlan', ME);
             end
 
-            %
+            % Refresh toolbar buttons after create flow completes
             app.SessionHelper.setButtons(app);
         end
 
@@ -97,6 +97,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
         % =================================================================
 
         function doCreateNewPlan(obj, app)
+            % Instantiate uplanner by PlanType from NewPlanApp and initialize GUI state
 
             % Create new plan according to parameters in app.NewPlanApp
             PlanType = app.NewPlanApp.PlanType;
@@ -109,13 +110,13 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
             StartTime = app.MainModule.GuiHelper.getFieldDateTime( app.NewPlanApp.StartTimeEditField.Value );
             EndTime = app.MainModule.GuiHelper.getFieldDateTime( app.NewPlanApp.EndTimeEditField.Value );
 
-            % Call the designated function according to PlanType
+            % Dispatch uplanner construction by selected plan type
             switch PlanType
-                case 'HCS',   obj.doCreateNewPlanHCS(app, StartTime, EndTime);
-                case 'LCS',   obj.doCreateNewPlanLCS(app, StartTime, EndTime);
-                case 'DDT',   obj.doCreateNewPlanDDT(app, StartTime, EndTime);
-                case 'AllSS', obj.doCreateNewPlanAllSS(app, StartTime, EndTime);
-                case 'TOO',   obj.doCreateNewPlanTOO(app, StartTime, EndTime);
+                case 'HCS',   obj.doCreateNewPlanHCS(app, StartTime, EndTime);   % Host-Coordinated Survey
+                case 'LCS',   obj.doCreateNewPlanLCS(app, StartTime, EndTime);   % Large Coordinated Survey
+                case 'DDT',   obj.doCreateNewPlanDDT(app, StartTime, EndTime);   % Director's Discretionary Time
+                case 'AllSS', obj.doCreateNewPlanAllSS(app, StartTime, EndTime); % All-Sky Survey
+                case 'TOO',   obj.doCreateNewPlanTOO(app, StartTime, EndTime);   % Target of Opportunity
                 otherwise
                     app.msglog(sprintf('doCreateNewPlan: Unknown PlanType: %s', PlanType));
             end
@@ -159,6 +160,10 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
             app.MainModule.setPlanner(upHCS);
             app.setModified('doCreateNewPlanHCS');
             app.PlanParamsHelper.updatePlanParams(app);
+
+            % Load HCS unique targets from file
+            obj.loadUniqueTargetsFromDataFile(app, 'HCS_fields.csv', 'Name', 'loadHcsUniqueTargetsFromFile');
+
             %app.debugSave('upHCS.mat', app.MainModule.Planner);
             app.msglog('doCreateNewPlanHCS done');
         end
@@ -184,7 +189,7 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
             app.PlanParamsHelper.updatePlanParams(app);
 
             % Load LCS unique targets from file
-            obj.loadLcsUniqueTargetsFromFile(app);
+            obj.loadUniqueTargetsFromDataFile(app, 'LCS_fields.csv', 'Field', 'loadLcsUniqueTargetsFromFile');
 
             %app.debugSave('upLCS.mat', app.MainModule.Planner);
             app.msglog('doCreateNewPlanLCS done');
@@ -260,31 +265,41 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
         end
 
 
-        function loadLcsUniqueTargetsFromFile(obj, app)
-            % Load LCS unique targets from LCS_nonoverlapping_grid_surveys.csv
-            app.msglog('loadLcsUniqueTargetsFromFile started');
-
-            FileName = fullfile(app.MainModule.BaseDataDir, 'LCS_nonoverlapping_grid_surveys.csv');
+        function FileName = resolvePlannerDataFile(obj, app, BaseName)
+            % Resolve planner data file from BaseDataDir or repo +planner/data/
+            FileName = fullfile(app.MainModule.BaseDataDir, BaseName);
             if ~isfile(FileName)
                 PlannerDir = fileparts(mfilename('fullpath'));
-                FileName = fullfile(PlannerDir, '..', 'data', 'LCS_nonoverlapping_grid_surveys.csv');
+                FileName = fullfile(PlannerDir, '..', 'data', BaseName);
             end
+        end
 
+
+        function loadUniqueTargetsFromDataFile(obj, app, BaseName, NameColumn, LogTag)
+            % Load unique targets from a CSV in +planner/data/ or BaseDataDir
+            app.msglog(sprintf('%s started', LogTag));
+
+            FileName = obj.resolvePlannerDataFile(app, BaseName);
             if ~isfile(FileName)
-                app.msglog('loadLcsUniqueTargetsFromFile: file not found: %s', FileName);
+                app.msglog(sprintf('%s: file not found: %s', LogTag, FileName));
                 return;
             end
 
+            app.showPleaseWait('Loading unique targets... expected duration: up to ~30 seconds.');
             try
-                LCS_grid = readtable(FileName);
-                app.MainModule.Planner.addUniqTargets(LCS_grid.RA, LCS_grid.Dec, ...
-                    'Name', num2cell(LCS_grid.Field));
-                app.setModified('loadLcsUniqueTargetsFromFile');
-                app.msglog(sprintf('loadLcsUniqueTargetsFromFile: loaded %d targets from %s', ...
-                    height(LCS_grid), FileName));
+                Grid = readtable(FileName);
+                if strcmp(NameColumn, 'Name')
+                    Names = Grid.Name;
+                else
+                    Names = num2cell(Grid.(NameColumn));
+                end
+                app.MainModule.Planner.addUniqTargets(Grid.RA, Grid.Dec, 'Name', Names);
+                app.setModified(LogTag);
+                app.msglog(sprintf('%s: loaded %d targets from %s', LogTag, height(Grid), FileName));
             catch ME
-                app.msgex('loadLcsUniqueTargetsFromFile', ME);
+                app.msgex(LogTag, ME);
             end
+            app.closePleaseWait();
         end
 
         % =================================================================

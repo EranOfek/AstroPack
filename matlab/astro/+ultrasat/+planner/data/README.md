@@ -10,41 +10,48 @@ See [[../+debug/README|+debug README]] for test invocation.
 
 | File | Format | Used by |
 |------|--------|---------|
-| `AllSS_grid_361.txt` | CSV: `Name, RA, Dec` — 361 AllSS pointings | AllSS grid construction, `constructAllSSgrid` |
-| `HCS_fields.txt` | HCS field list | HCS plan building, `debug_Hcs` |
-| `LCS_grid.txt` | LCS pointing grid (primary) | LCS scheduling |
-| `LCS_grid0.txt` | LCS grid variant 0 | Alternate / historical grid |
-| `LCS_grid1.txt` | LCS grid variant 1 | Alternate / historical grid |
-| `fix_lcs.py` | Python one-off script | Generated or corrected LCS grid data |
+| `HCS_fields.csv` | CSV: `Name, RA, Dec` — HCS survey fields | New HCS plan auto-load, HCS build |
+| `LCS_fields.csv` | CSV: `Field, RA, Dec, ...` — LCS field grid | New LCS plan auto-load, LCS scheduling (`LcsHelper_v4`, etc.) |
+| `AllSS_fields.csv` | CSV: `Name, RA, Dec` — AllSS pointings | AllSS grid construction |
+| `obsolete/` | Legacy grids and scripts | Reference only (`LCS_grid*.txt`, `fix_lcs.py`) |
 
 ---
 
-## `AllSS_grid_361.txt`
+## `HCS_fields.csv`
 
-Example rows:
+High Cadence Survey field list. Loaded automatically when creating a new HCS plan in the GUI.
+
+Example:
 
 ```
-Name, RA, Dec
-AllSS_1, 2.974459e+02, 8.599501e+01
-AllSS_2, 9.221792e+01, 8.225064e+01
-...
+Name,RA,Dec
+"HCS_S1",67,-59
 ```
 
-361 named pointings covering the all-sky survey grid.
+---
+
+## `LCS_fields.csv`
+
+Long Cadence Survey field grid (formerly `LCS_nonoverlapping_grid_surveys.csv`). Loaded automatically when creating a new LCS plan in the GUI.
+
+Example:
+
+```
+Field,RA,Dec,V180,V45,...
+1,54.18,-86.81,1,1,...
+```
 
 ---
 
-## `HCS_fields.txt`
+## `AllSS_fields.csv`
 
-List of HCS survey fields (coordinates / names) used when building High Cadence Survey plans.
+All-sky survey pointing grid (361 fields).
 
 ---
 
-## `LCS_grid*.txt`
+## `obsolete/`
 
-LCS (Long Cadence Survey) pointing grids. Multiple versions exist for iteration during grid design. `LCS_grid.txt` is the primary file referenced by planner code.
-
-`fix_lcs.py` — utility script used during grid maintenance; not part of the runtime planner loop.
+Historical LCS grid iterations (`LCS_grid.txt`, `LCS_grid0.txt`, `LCS_grid1.txt`) and maintenance scripts. Not used by the current planner runtime.
 
 ---
 
@@ -56,7 +63,7 @@ Planner and debug scripts call `debug_ensureDataPath()` or equivalent, which exp
 $ASTROPACK_DATA_PATH/ULTRASAT/
 ```
 
-to contain ULTRASAT-specific catalogs, grids, and probability maps (e.g. TOO CSV fixtures in `+debug/input_data/`).
+to contain ULTRASAT-specific catalogs and grids (e.g. `LCS_fields.csv`, `HCS_fields.csv`).
 
 Preflight (PowerShell):
 

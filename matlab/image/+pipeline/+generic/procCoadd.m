@@ -163,7 +163,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.SetBackTo0                       = true; % if SubBack=true and SetBackTo0 then set back to 0.
         %Args.ReMeasureBackVar                 = true; % if SetBackT0=false and this is true than remeasure back and var
         Args.ReMeasureBack                    = true;
-        Args.ReMeasureVar                     = true;
+        %Args.ReMeasureVar                     = true; % now it is always remeasured during coadd_WRobust  
         %Args.PropagateVar                     = false; % propagate variance from coaddition.
 
         %Args.UseShift logical                 = true;
@@ -237,6 +237,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.photometricZPArgs                = {}; 
         Args.photometricZP_UpdateMagCols      = false;
         Args.PhotCalibTrans                   = true;  % execute transmission fit calibratio
+
+        Args.AddLimMag                        = false;
+        Args.LimMagArgs                       = {};
+        Args.AddBackMag                       = false;
+        Args.KeyZP                            = 'PT_ZP';
+        Args.BackMagArgs                      = {};
 
         %Args.RemoveHighBackImages logical     = true;   % remove images which background differ from median back by 'HighBackNsigma' sigma
         Args.HighBackNsigma                   = 3;
@@ -396,7 +402,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             switch Args.StackMethod
                 case 'wrobust'
                     % RegisteredImages contains also the Back and Var
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:}, 'AddBack', Args.ReMeasureBack, 'CalcVar',Args.ReMeasureVar, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:}, 'AddBack', Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
                    
                 case 'proper'
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:}, 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
@@ -471,7 +477,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             
             %Ifields
             if Args.FindStars
-                [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), ...
+              [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), ...
                                                     Args.multiIterExtractorArgs{:},...
                                                     'maskCR_Args',Args.maskCR_Args,...
                                                     'AperRadius',Args.AperRadius,...
@@ -548,7 +554,6 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             if Args.PhotCalibTrans && Coadd(Ifields).WCS.Success
                 [Coadd, PC, ResultCoadd(Ifields).TransFit] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
             end
-         
 
             % write stat data to header: Nstars, PSF, Scale, Rotation,...
             % background, var: written as part of the background estimation
@@ -556,6 +561,14 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             if Args.WriteStatHeader
                 Coadd(Ifields) = imProc.header.writeStat2Header(Coadd(Ifields), 'WriteBack',false);
             end
+
+            if Args.AddLimMag
+                [Coadd] = imProc.calib.limmag(Coadd, Args.LimMagArgs{:});
+            end
+            if Args.AddBackMag
+                [Coadd] = imProc.calib.backmag(Coadd, 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); 
+            end
+
 
         end % if Ngood>=Args.MinNumCoadd || Ngood==Nepoch
     end % for Ifields=1:1:Nfields

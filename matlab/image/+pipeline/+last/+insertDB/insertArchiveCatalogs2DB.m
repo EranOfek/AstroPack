@@ -42,6 +42,7 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
         
         Args.RemoteUser        = 'euclid';
         Args.DBConnector       = 'native'; % 'legacy'; % 'native' or 'legacy'
+        Args.ConnectorOpts     = struct('compression', db.mex.Compression.ZSTD);
         Args.Schema            = [];       % the user may input the schema of the DB table 
                                            % as a matlab table output of the "DESCRIBE TABLE" SQL command
     end    
@@ -58,8 +59,8 @@ function [Result] = insertArchiveCatalogs2DB(RootDir, FileNameTemplate, Args)
         DB.Conn;
         DB.useDB(Args.DbName);
         fprintf('DB in use: %s\n',DB.showCurrentDB);
-    elseif strcmpi(Args.DBConnector,'native')
-        DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd);
+    elseif strcmpi(Args.DBConnector,'native')        
+        DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd, Args.ConnectorOpts);
         DB.query(sprintf('use %s',Args.DbName));
         if isempty(Args.Schema)
             Args.Schema = DB.describe(Args.DbTable);

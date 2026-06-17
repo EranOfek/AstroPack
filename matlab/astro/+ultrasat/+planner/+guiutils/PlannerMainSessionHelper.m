@@ -144,15 +144,12 @@ classdef PlannerMainSessionHelper < ultrasat.api.core.Loggable
 
    
         function setButtons(obj, app)
-            % Enable/disable buttons and menu options based on login status and plan state.
-            %
-            % Login-dependent controls require a valid connection.
-            % Plan-dependent controls require an active loaded plan.
+            % Set Enable='on'/'off' for all menus, toolbar, and panel controls, based on login status and plan status
         
             isLoggedIn = obj.isLogin(app);
             hasPlan    = app.hasPlanner();
         
-            % === File Menu ===
+            % === File Menu === (login gates New/Open; plan gates Save/Close/Delete)
             app.NewMenu.Enable               = obj.bool2str(isLoggedIn);
             app.OpenMenu.Enable              = obj.bool2str(isLoggedIn);
             app.SaveMenu.Enable              = obj.bool2str(hasPlan);
@@ -165,7 +162,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.core.Loggable
             app.DisconnectLogoutMenu.Enable  = obj.bool2str(isLoggedIn);
             app.ExitPlannerMenu.Enable       = 'on';
         
-            % === Targets Menu ===
+            % === Targets Menu === (all entries require a loaded plan)
             app.AddUniqueTargetMenu.Enable        = obj.bool2str(hasPlan);
             app.EditUniqueTargetMenu.Enable       = obj.bool2str(hasPlan);
             app.DeleteUniqueTargetMenu.Enable     = obj.bool2str(hasPlan);
@@ -174,7 +171,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.core.Loggable
             app.SaveUniqueTargetsToFileMenu.Enable= obj.bool2str(hasPlan);
             app.LoadUniqueTargetsFromFileMenu.Enable = obj.bool2str(hasPlan);
         
-            % === Plan Menu ===
+            % === Plan Menu === (Validate/Submit need login AND plan)
             app.EditPlanTargetMenu.Enable        = obj.bool2str(hasPlan);
             app.DeletePlanTargetMenu.Enable      = obj.bool2str(hasPlan);
             app.ClearAllPlanTargetsMenu.Enable   = obj.bool2str(hasPlan);
@@ -187,12 +184,12 @@ classdef PlannerMainSessionHelper < ultrasat.api.core.Loggable
 
             app.RefreshMenu.Enable               = obj.bool2str(hasPlan);        
         
-            % === Plots Menu ===
+            % === Plots Menu === (view/clear plots; plan required)
             app.ViewSkyMapPlotWindowMenu.Enable  = obj.bool2str(hasPlan);
             app.ViewGraphsPlotWindowMenu.Enable  = obj.bool2str(hasPlan);
             app.ClearPlotsMenu.Enable            = obj.bool2str(hasPlan);
         
-            % === Toolbar Buttons ===
+            % === Toolbar Buttons === (mirror File/Plan actions; SNR/Help always on)
             app.NewButton.Enable         = obj.bool2str(isLoggedIn);
             app.OpenButton.Enable        = obj.bool2str(isLoggedIn);
             app.SaveButton.Enable        = obj.bool2str(hasPlan);
@@ -206,14 +203,14 @@ classdef PlannerMainSessionHelper < ultrasat.api.core.Loggable
             app.HelpButton.Enable        = 'on';
             app.QAButton.Enable          = 'on';
         
-            % === Target Panels ===
+            % === Target Panels === (unique-target CRUD buttons; plan required)
             app.AddUniqueTargetButton.Enable     = obj.bool2str(hasPlan);
             app.EditUniqueTargetButton.Enable    = obj.bool2str(hasPlan);
             app.LoadUniqueTargetsButton.Enable   = obj.bool2str(hasPlan); % Load Unique Targets
             app.EditPlanTargetButton_4.Enable    = obj.bool2str(hasPlan); % Delete
             app.EditPlanTargetButton_5.Enable    = obj.bool2str(hasPlan); % Clear All
         
-            % === Plan Panel ===
+            % === Plan Panel === (build/check/edit plan-target actions)
             app.BuildButton.Enable               = obj.bool2str(hasPlan);
             app.CheckPlanTargetsButton.Enable    = obj.bool2str(hasPlan);
             app.EditPlanTargetButton.Enable      = obj.bool2str(hasPlan);
@@ -221,11 +218,11 @@ classdef PlannerMainSessionHelper < ultrasat.api.core.Loggable
             app.EditPlanTargetButton_3.Enable    = obj.bool2str(hasPlan);
             app.EditPlanTargetButton_6.Enable    = obj.bool2str(hasPlan);
         
-            % === Approved Targets Panel ===
+            % === Approved Targets Panel === (refresh approved-target lists)
             app.RefreshApprovedTargetsButton.Enable   = obj.bool2str(hasPlan);
             app.RefreshApprovedTargetsButton_3.Enable = obj.bool2str(hasPlan);
         
-            % === Plots ===
+            % === Plots === (skymap update + layer visibility checkboxes)
             app.UpdateSkyMapButton.Enable       = obj.bool2str(hasPlan);
             app.PlotFlagUniqueCheckBox.Enable   = obj.bool2str(hasPlan);
             app.PlotFlagPlanCheckBox.Enable     = obj.bool2str(hasPlan);
@@ -233,7 +230,7 @@ classdef PlannerMainSessionHelper < ultrasat.api.core.Loggable
             app.PlotFlagCalibrationCheckBox.Enable = obj.bool2str(hasPlan);
             app.PlotFlagExtinctionCheckBox.Enable  = obj.bool2str(hasPlan);
         
-            % === Status tab ===
+            % === Status tab === (build/validation/submit status viewers)
             app.BuildStatusButton.Enable     = obj.bool2str(hasPlan);
             app.ValidationStatusButton.Enable= obj.bool2str(hasPlan);
             app.SubmitStatusButton.Enable    = obj.bool2str(hasPlan);        

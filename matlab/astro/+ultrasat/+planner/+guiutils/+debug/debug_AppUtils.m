@@ -1,29 +1,21 @@
 %==========================================================================
-% ULTRASAT Planner
-%
-% File:   AppUtils.m
-% Author: Chen Tishler
-% Created: 07/01/2025
-% Updated: 02/09/2025
-%
+% Project     : ULTRASAT Planner
+% File        : +planner/+guiutils/+debug/debug_AppUtils.m
+% Author      : Chen Tishler
+% Created     : 07/01/2025
+% Updated     : 17/06/2026
+% Description : Interactive debug script for AppUtils dialog and log helpers.
 %==========================================================================
 
 function debug_AppUtils()
-    %DEBUG_APPUTILS Test script for the AppUtils class.
-    %   This script tests the various message and dialog functions.
-    %   Since these functions require a parent UI Figure, this script:
-    %   1. Creates a simple, temporary UI Figure.
-    %   2. Creates a mock "MainModule" and "App" structure to satisfy dependencies.
-    %   3. Instantiates AppUtils with the mock objects.
-    %   4. Calls each dialog function, requiring user interaction.
-    %   5. Displays the result of the user's choice in the command window.
+    % Exercise AppUtils logging and ask* dialog helpers with a mock UI parent.
 
     fprintf('============================================\n');
     fprintf('Starting interactive debug script for AppUtils\n');
     fprintf('Time: %s (Israel Daylight Time)\n', datestr(now));
     fprintf('============================================\n\n');
     
-    % --- Setup: Create a mock UI environment ---
+    % --- Step 1: Create mock UI environment ---
     fprintf('--- Step 1: Creating a temporary UI Figure for testing ---\n');
     
     % Create a simple figure to act as the parent for dialogs.
@@ -45,9 +37,7 @@ function debug_AppUtils()
         return;
     end
     
-    % --- Test Suite: Call each function ---
-    % The script will pause at each step for user interaction.
-    
+    % --- Step 2: Logging ---
     fprintf('--- Step 2: Testing logging ---\n');
     utils.msglog('This is a test log message.');
     fprintf('  [COMPLETE] Check command window for the log message.\n\n');
@@ -56,27 +46,31 @@ function debug_AppUtils()
     % which is not provided. We will skip these and focus on the 'ask' functions
     % that use standard MATLAB dialogs.
     
+    % --- Step 3: Yes/No dialog ---
     fprintf('--- Step 3: Testing askYesNo ---\n');
     fprintf('--> Please click "Yes" or "No" in the dialog box...\n');
     result_yesno = utils.askYesNo('Do you want to proceed?', 'Test Yes/No');
     fprintf('  [RESULT] You clicked: %s\n\n', result_yesno);
     
+    % --- Step 4: Yes/No/Cancel dialog ---
     fprintf('--- Step 4: Testing askYesNoCancel ---\n');
     fprintf('--> Please click a button in the dialog box...\n');
     result_ync = utils.askYesNoCancel('Do you want to save changes?', 'Test Yes/No/Cancel');
     fprintf('  [RESULT] You clicked: %s\n\n', result_ync);
     
+    % --- Step 5: Save/Discard dialog ---
     fprintf('--- Step 5: Testing askSaveDiscard ---\n');
     fprintf('--> Please click a button in the dialog box...\n');
     result_sd = utils.askSaveDiscard('Unsaved changes will be lost.', 'Test Save/Discard');
     fprintf('  [RESULT] You clicked: %s\n\n', result_sd);
 
+    % --- Step 6: Save/Discard/Cancel dialog ---
     fprintf('--- Step 6: Testing askSaveDiscardCancel ---\n');
     fprintf('--> Please click a button in the dialog box...\n');
     result_sdc = utils.askSaveDiscardCancel('Save changes before closing?', 'Test Save/Discard/Cancel');
     fprintf('  [RESULT] You clicked: %s\n\n', result_sdc);
     
-    % --- Cleanup ---
+    % --- Step 7: Cleanup ---
     fprintf('--- Step 7: Cleaning up ---\n');
     if isvalid(testFig)
         delete(testFig);

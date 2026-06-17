@@ -123,7 +123,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
 
 
         function deleteUniqueTarget(obj, app)
-            % Delete the selected Unique-Target row in the grid with delUniqTarg()
+            % Delete selected unique target; abort if referenced in plan unless user confirms cascade
             app.msglog('deleteUniqueTarget');
             if ~app.hasPlanner(), return; end
             if ~app.isEditableMsg(), return; end
@@ -141,17 +141,16 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
             end
 
             app.setModified('deleteUniqueTarget');
+            % First attempt: abort if unique target is referenced by plan targets
             try
-                % Try to delete unique target, catch exception if it is being used in the plan
                 app.MainModule.Planner.delUniqTarg(Index, 'abort_if_in_plan', true);
             catch ME
-                % Unique target is being used in plan, ask user to confirm deleting the unique target and all targets that use it
                 app.msgex('delUniqTarg', ME);
 
-                % Ask user to confirm deleting the unique target and all targets that use it
+                % Target in use: offer cascade delete of plan targets that reference it
                 if strcmp(app.AppUtils.askYesNo(sprintf('Unique target is used, deleting it will delete plan targets. Are you sure (%s)?', Name), 'Confirm'), 'Yes')
 
-                    % Force deleting the unique target and all targets that use it
+                    % Retry with abort_if_in_plan=false to remove dependent plan targets
                     try
                         app.MainModule.Planner.delUniqTarg(Index, 'abort_if_in_plan', false);
                     catch ME
@@ -299,8 +298,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
 		% =================================================================
 
         function showUniqueTargets(obj, app)
-            % Helper: Update the Unique Targets GUI table with data from Planner
-            % Update the display of Unique Targets table
+            % Refresh Unique Targets UITable from Planner.UniqTarg with display columns
             app.msglog('showUniqueTargets');
             if ~app.hasPlanner()
                 app.UITableUniqueTargets.Data = [];
@@ -328,8 +326,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
             Data = app.MainModule.TableHelper.replaceArrayColumnWithItsLength(Data, 'RefImageIDs');
             Data = app.MainModule.TableHelper.replaceArrayColumnWithItsLength(Data, 'ExtSurveys');
 
-            % -------------------------------------------------
-            % Replace 'FieldObj' column in Data with the total length of all cell arrays in the struct for each row
+            % Aggregate FieldObj struct per row: sum numel of all cell-array fields for display
             if ismember('FieldObj', Data.Properties.VariableNames)
                 lengths = zeros(height(Data), 1);
                 for i = 1:height(Data)
@@ -362,13 +359,13 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
             end
             % -------------------------------------------------
 
-            % Add 'Order' column
+            % Order column: user-editable build sequence (empty until user sorts or enters values)
             Data = addvars(Data, repmat("", height(Data), 1), 'Before', 1, 'NewVariableNames', 'Order');
 
-            % Add Index column with the row number
+            % Index column: stable planner row index (maps display row back to UniqTarg)
             Data = addvars(Data, (1:height(Data))', 'Before', 2, 'NewVariableNames', 'Index');
 
-            % Make only the first column editable, others non-editable
+            % Only Order column is editable; Index and data columns are read-only
             nColumns = width(Data);
             editableArray = false(1, nColumns);
             editableArray(1) = true;
@@ -390,7 +387,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
                 app.UITableUniqueTargets.ColumnName = Data.Properties.VariableNames;
             end
 
-            % Extract unique values from the 'obj' column of the table
+            % Sync GraphPlot dropdown with unique target names, preserving prior selection when valid
             Values = unique(app.MainModule.Planner.UniqTarg.Name, 'stable');
             if isempty(Values)
                 app.GraphPlotUniqueTargetDropDown.Items = {};
@@ -434,12 +431,11 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
 
 
         function setOrderColumnByGridSort(obj, app)
-            % Set the 'Order' column of the Unique Targets table by the grid sort
-            % Note: Any write to UITable.Data resets sorting. Always.
+            % Fill Order column from current DisplayData row order (write resets UITable sort)
             app.msglog('setOrderColumnByGridSort');
             if ~app.hasPlanner(), return; end
             try
-                % Set the 'Order' column to the row number of the current sorted table
+                % Number rows 1..N in visible sort order via DisplayData
                 if any(strcmp('Order', app.UITableUniqueTargets.Data.Properties.VariableNames))
                     Data = app.UITableUniqueTargets.DisplayData;
                     Data.Order = string((1:height(Data))');
@@ -454,8 +450,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
 
 
         function clearOrderColumn(obj, app)
-            % Clear the 'Order' column of the Unique Targets table
-            % Note: Any write to UITable.Data resets sorting. Always.
+            % Clear all Order values to empty strings (write resets UITable sort)
             app.msglog('clearOrderColumn');
             if ~app.hasPlanner(), return; end
             try
@@ -472,7 +467,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
         % =================================================================
 
         function updateUniqueTargetPlotsAndTables(obj, app)
-            % Update the plots and tables of the selected unique target
+            % Refresh graph plots and satellite tables for the selected unique target
             app.msglog('clearOrderColumn');
             if ~app.hasPlanner(), return; end
             try
@@ -648,14 +643,13 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
 
 
         function row = getRowByIndex(obj, app, UniqueTargetIndex)
-            % Returns the *visible* row index in the UITable that corresponds
-            % to the given unique target index.
+            % Map planner UniqTarg index to visible UITable row via Index column
         
             row = [];    
             try
                 Data = app.UITableUniqueTargets.Data;   % sorted displayed table
         
-                % Must have Index column
+                % Index column links planner row to current grid sort order
                 if ~ismember("Index", Data.Properties.VariableNames)
                     app.msglog("getRowByIndex: 'Index' column missing in grid.");
                     return;
@@ -716,7 +710,7 @@ classdef PlannerMainUniqueTargetsHelper < ultrasat.api.core.Loggable
 		% =================================================================
 
         function setUniqueTargetParamsFields(obj, app, UniqTarg, Index, ParamsApp)
-            % Helper: Set field values - Currently there are 9 fields for Unique Target
+            % Populate UniqueTargetParams dialog fields from UniqTarg row at Index
             try
                 ParamsApp.UniqueTargetIndexEditField.Value = int2str(Index);
 
