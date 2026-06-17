@@ -706,10 +706,10 @@ classdef Tran2D < Base
             if Args.Normalize
                 if iscell(Coo)
                     Xref = TC.FunNX(Coo{1},TC.ParNX(1),TC.ParNX(2));
-                    Yref = TC.FunNX(Coo{2},TC.ParNY(1),TC.ParNY(2));
+                    Yref = TC.FunNY(Coo{2},TC.ParNY(1),TC.ParNY(2));
                 else
                     Xref = TC.FunNX(Coo(:,1),TC.ParNX(1),TC.ParNX(2));
-                    Yref = TC.FunNX(Coo(:,2),TC.ParNY(1),TC.ParNY(2));
+                    Yref = TC.FunNY(Coo(:,2),TC.ParNY(1),TC.ParNY(2));
                 end
                 Coo = [Xref(:), Yref(:)];
             end

@@ -136,9 +136,10 @@ function Result = zp_meddiff(MS, Args)
             else
                 Result(Ims).FitZP(FlagGoodEpoch)    = median(DiffMagEpoch, 2, 'omitnan');
             end            
-            Result(Ims).FitStdZP = std(DiffMagEpoch, [], 2, 'omitnan');
+            Result(Ims).FitStdZP(FlagGoodEpoch) = std(DiffMagEpoch, [], 2, 'omitnan');
         end
         Result(Ims).FitZP(~FlagGoodEpoch)   = NaN;
+        Result(Ims).FitStdZP(~FlagGoodEpoch)= NaN;
         
         Result(Ims).FitErrZP = Result(Ims).FitStdZP./sqrt(Nsrc);
         Result(Ims).Nsrc     = Nsrc;

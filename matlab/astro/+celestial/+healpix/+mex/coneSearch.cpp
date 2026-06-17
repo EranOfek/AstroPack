@@ -16,8 +16,8 @@ void mexFunction(int nlhs, mxArray *plhs[],
                  int nrhs, const mxArray *prhs[])
 {
     if (nrhs < 4)
-        mexErrMsgTxt("Usage: pix = celestial.healpix.mex.coneSearch(nside, ra, dec, radius_deg, [scheme]) \n" 
-                "or [pix, pixlon, pixlat] = celestial.healpix.mex.coneSearch(nside, ra, dec, radius_deg, [scheme])"
+        mexErrMsgTxt("Usage: pix = celestial.healpix.mex.coneSearch(nside, ra, dec, radius_deg, [inclusive], [scheme]) \n"
+                "or [pix, pixlon, pixlat] = celestial.healpix.mex.coneSearch(nside, ra, dec, radius_deg, [inclusive], [scheme])"
                 );
 
     // Inputs
@@ -25,10 +25,30 @@ void mexFunction(int nlhs, mxArray *plhs[],
     double ra  = mxGetScalar(prhs[1]);
     double dec = mxGetScalar(prhs[2]);
     double radius_deg = mxGetScalar(prhs[3]);
-    
-    Healpix_Ordering_Scheme scheme = NEST;
+
+    // Optional arg 5: search mode (default: 'inclusive').
+    // 'inclusive' -> all pixels overlapping the cone (query_disc_inclusive)
+    // 'exclusive' -> only pixels whose centers lie inside the cone (query_disc)
+    bool inclusive = true;
     if (nrhs >= 5) {
+        if (!mxIsChar(prhs[4]))
+            mexErrMsgTxt("The 5th argument (search mode) must be the string 'inclusive' or 'exclusive'");
         char* str = mxArrayToString(prhs[4]);
+        if (strcmp(str, "exclusive") == 0)
+            inclusive = false;
+        else if (strcmp(str, "inclusive") == 0)
+            inclusive = true;
+        else {
+            mxFree(str);
+            mexErrMsgTxt("The 5th argument (search mode) must be the string 'inclusive' or 'exclusive'");
+        }
+        mxFree(str);
+    }
+
+    // Optional arg 6: ordering scheme (default: NEST)
+    Healpix_Ordering_Scheme scheme = NEST;
+    if (nrhs >= 6) {
+        char* str = mxArrayToString(prhs[5]);
         if (strcmp(str, "RING") == 0)
             scheme = RING;
         mxFree(str);
@@ -48,7 +68,10 @@ void mexFunction(int nlhs, mxArray *plhs[],
 
     // Query
     std::vector<int64> pixels;
-    hp.query_disc_inclusive(center, radius, pixels);
+    if (inclusive)
+        hp.query_disc_inclusive(center, radius, pixels);
+    else
+        hp.query_disc(center, radius, pixels);
     
     mwSize npix = pixels.size();
     

@@ -258,9 +258,13 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     end
 
     % Optional Hardie-airmass writeback: only meaningful when AirmassSource
-    % is 'compute'. Same last-write-wins forwarding as the reference branch.
+    % is 'compute', so also force AirmassSource='compute' to keep the flag
+    % self-consistent (otherwise the compute branch never fires and the
+    % writeback is silently a no-op). Same last-write-wins forwarding as
+    % the reference branch.
     if Args.WriteComputedAirmass
-        Args.CalibArgs = [Args.CalibArgs, {'WriteComputedAirmass', true}];
+        Args.CalibArgs = [Args.CalibArgs, ...
+            {'WriteComputedAirmass', true, 'AirmassSource', 'compute'}];
     end
 
     % Top-level shortcuts for calibrator-selection knobs. Conditionally

@@ -187,6 +187,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         %Args.backgroundArgs cell              = {};
         %Args.BackSubSizeXY                    = [128 128];
         Args.backVarArgs                      = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256]}
+        Args.backVarIndivArgs                 = {}; % if empty use the same as backVarArgs   {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256]}
+
         Args.findMeasureSourcesArgs cell      = {};
         Args.maskCR_Args                      = {};
         Args.ColCell cell                     = {'XPEAK','YPEAK',...
@@ -211,10 +213,10 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.AperRadius                       = [2, 4, 6];
         Args.Annulus                          = [10 12];
         Args.MomentsMethod                    = 'mex';  %'legacy'|'mex'
-        Args.AperPhotMethod                   = 'interp';  % 'simple'|'interp'
+        Args.AperPhotMethod                   = 'simple'; %'interp';  % 'simple'|'interp'
 
-        Args.PsfPhotMethod                    = 'legacy';
-        Args.ShiftMethod                      = 'fft'; % 'lanczos3' | 'fft'
+        Args.PsfPhotMethod                    = '2DGN'; %'legacy';
+        Args.ShiftMethod                      = 'lanczos3'; % 'lanczos3' | 'fft'
 
         Args.RefineAstrometry                 = true;
         Args.astrometryRefineArgs cell        = {};
@@ -267,6 +269,10 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     
     SEC_DAY = 86400;
     
+    if isempty(Args.backVarIndivArgs)
+        Args.backVarIndivArgs = Args.backVarArgs;
+    end
+
     if Args.EpochDim==2
         % transpose in order to make the epochs in the 1st dimension
         AllSI = AllSI.';
@@ -390,10 +396,10 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             switch Args.StackMethod
                 case 'wrobust'
                     % RegisteredImages contains also the Back and Var
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:}, 'AddBack', Args.ReMeasureBack, 'CalcVar',Args.ReMeasureVar, 'backVarArgs',Args.backVarArgs);
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:}, 'AddBack', Args.ReMeasureBack, 'CalcVar',Args.ReMeasureVar, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
                    
                 case 'proper'
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:}, 'AddBack',Args.ReMeasureBack, 'backVarArgs',Args.backVarArgs);
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:}, 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
 
                 case 'sigmaclip'
                     % obsolete channel
@@ -465,7 +471,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             
             %Ifields
             if Args.FindStars
-                [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), ...
+              [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), ...
                                                     Args.multiIterExtractorArgs{:},...
                                                     'maskCR_Args',Args.maskCR_Args,...
                                                     'AperRadius',Args.AperRadius,...

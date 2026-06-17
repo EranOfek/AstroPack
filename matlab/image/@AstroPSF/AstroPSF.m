@@ -49,6 +49,7 @@ classdef AstroPSF < Component
     properties (SetAccess = public)
         DataPSF           = [];    % parameters of a PSF-generating function or a data cube, where the first 2 dimensions are the PSF image stamp (X, Y)
         DataVar           = [];    % variance 
+        DataExtended      = [];
         Scale             = [1 1]; % pixel oversampling in X and Y (may be different) 
         FunPSF            = {};    % a list of PSF-generating functions (additive components)
         FunPars           = {};    % PSF functions parameters
@@ -60,6 +61,7 @@ classdef AstroPSF < Component
         FWHM              = [];     % can be defined for some "average" stamp
         FluxContainmentRadius = []; % can be defined for some "average" stamp  
         Nstars            = NaN;    % if Nstars=NaN, then PSF wasn't constructed yet 
+        SuppressRad       = NaN;
     end
     
     methods % Constructor
@@ -441,9 +443,9 @@ classdef AstroPSF < Component
                 Args.Par0      = {[2 2 0]};
                 Args.Norm0     = [1];
                 Args.PosXY     = [];
-                Args.LB        = [];
-                Args.UB        = [];
-                Args.CreateNewObj logical = false;
+                Args.LB        = [0, 0.2, 0.2, -0.99];
+                Args.UB        = [Inf, 20, 20, 0.99];
+                Args.CreateNewObj = false;
                 Args.ReplaceStamp = false;
                 Args.LsqOptions = optimoptions('lsqcurvefit');                
             end

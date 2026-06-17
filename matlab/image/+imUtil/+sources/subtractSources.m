@@ -121,8 +121,7 @@ function [SubtractedImage, SourceImage] = subtractSources(Image, PSF, Args)
     [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [RoundY RoundX], Flux, ...
                                                                         'Recenter', false, 'PositivePSF',true);
     SizeImage = size(Image);
-    % Can we avoid the permute? may be expensive?
-    SourceImage             = imUtil.art.addSources(repmat(0,SizeImage), permute(CubePSF,[2,1,3]),XY,...
+    SourceImage             = imUtil.art.addSources(repmat(0,SizeImage), CubePSF, XY,...
                                                                         'Oversample',[], 'Subtract',false);           
     SubtractedImage         = Image - SourceImage;  
     
