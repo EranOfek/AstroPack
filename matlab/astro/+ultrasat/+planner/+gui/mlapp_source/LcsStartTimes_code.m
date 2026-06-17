@@ -3,8 +3,8 @@ classdef LcsStartTimes < matlab.apps.AppBase
     % Properties that correspond to app components
     properties (Access = public)
         UIFigure                     matlab.ui.Figure
-        EnterfilenametoloadfromfileorpastetextbelowLabel_2  matlab.ui.control.Label
-        EnterfilenametoloadfromfileorpastetextbelowLabel  matlab.ui.control.Label
+        Title2                       matlab.ui.control.Label
+        Title1                       matlab.ui.control.Label
         Panel_6                      matlab.ui.container.Panel
         HelpButton                   matlab.ui.control.Button
         CancelButton                 matlab.ui.control.Button
@@ -153,25 +153,25 @@ classdef LcsStartTimes < matlab.apps.AppBase
             app.HelpButton.Position = [340 9 85 39];
             app.HelpButton.Text = 'Help';
 
-            % Create EnterfilenametoloadfromfileorpastetextbelowLabel
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel = uilabel(app.UIFigure);
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel.BackgroundColor = [1 1 0.549];
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel.HorizontalAlignment = 'center';
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel.FontSize = 16;
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel.FontWeight = 'bold';
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel.FontColor = [1 0 0];
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel.Position = [16 491 541 35];
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel.Text = 'LCS cannot be scheduled on the selected start date.';
+            % Create Title1
+            app.Title1 = uilabel(app.UIFigure);
+            app.Title1.BackgroundColor = [1 1 0.549];
+            app.Title1.HorizontalAlignment = 'center';
+            app.Title1.FontSize = 16;
+            app.Title1.FontWeight = 'bold';
+            app.Title1.FontColor = [1 0 0];
+            app.Title1.Position = [16 491 541 35];
+            app.Title1.Text = 'LCS cannot be scheduled on the selected start date.';
 
-            % Create EnterfilenametoloadfromfileorpastetextbelowLabel_2
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2 = uilabel(app.UIFigure);
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.BackgroundColor = [1 1 0.549];
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.HorizontalAlignment = 'center';
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.FontSize = 16;
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.FontWeight = 'bold';
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.FontColor = [0.102 0.102 0.4];
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.Position = [15 449 542 35];
-            app.EnterfilenametoloadfromfileorpastetextbelowLabel_2.Text = 'Please choose an alternative start date from the list below.';
+            % Create Title2
+            app.Title2 = uilabel(app.UIFigure);
+            app.Title2.BackgroundColor = [1 1 0.549];
+            app.Title2.HorizontalAlignment = 'center';
+            app.Title2.FontSize = 16;
+            app.Title2.FontWeight = 'bold';
+            app.Title2.FontColor = [0.102 0.102 0.4];
+            app.Title2.Position = [15 449 542 35];
+            app.Title2.Text = 'Please choose an alternative start date, then click Build again.';
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';

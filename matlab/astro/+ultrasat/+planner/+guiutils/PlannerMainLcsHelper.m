@@ -78,8 +78,8 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
                 return;
             end
 
-            % Validate selection
-            selection = selection(selection >= 1 & selection <= height(SummaryData));
+            % Validate selection (UITable.Selection is n-by-2 [row, col])
+            selection = obj.rowIndicesFromTableSelection(selection, height(SummaryData));
             if isempty(selection)
                 return;
             end
@@ -106,8 +106,13 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
                 return;
             end
 
-            % Validate selection
-            RowIndex = selection(1);
+            % Validate selection (UITable.Selection is n-by-2 [row, col])
+            RowIndices = obj.rowIndicesFromTableSelection(selection, height(FieldsData));
+            if isempty(RowIndices)
+                obj.clearFieldDetailsPanel(lcsApp);
+                return;
+            end
+            RowIndex = RowIndices(1);
             if RowIndex < 1 || RowIndex > height(FieldsData)
                 obj.clearFieldDetailsPanel(lcsApp);
                 return;
@@ -129,6 +134,21 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
     % =================================================================
 
     methods (Access = private)
+
+        function RowIndices = rowIndicesFromTableSelection(obj, selection, maxRow)
+            % Extract unique valid row indices from UITable.Selection (n-by-2)
+            RowIndices = [];
+            if isempty(selection)
+                return;
+            end
+            if size(selection, 2) >= 1
+                RowIndices = selection(:, 1);
+            else
+                RowIndices = selection(:);
+            end
+            RowIndices = unique(RowIndices(RowIndices >= 1 & RowIndices <= maxRow));
+        end
+
 
         function Result = hasLcsData(obj, app)
             % Check if there is LCS data in the Planner

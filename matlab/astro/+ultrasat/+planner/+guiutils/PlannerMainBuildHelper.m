@@ -28,6 +28,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
 
     properties (Access = private)
         LcsStartTimesApp
+        LastLcsStartCheckStatus = ''
     end
 
     methods (Access = public)
@@ -62,6 +63,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
             % Save current plan, if build fails we will restore it
             SavedPlan = app.MainModule.Planner.Plan;
             BuildOk = false;
+            obj.LastLcsStartCheckStatus = '';
 
             % Clear plan if it is not DDT
             if  ~strcmp(PlanType, 'DDT')
@@ -99,13 +101,25 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
 
             % Restore current plan if build failed
             if ~BuildOk
-                app.msglog('build: Build failed, restoring previous plan.');
-                app.MainModule.AppUtils.msgOk('Build failed, restoring previous plan', 'Build Failed');
+                LcsStartStatus = obj.LastLcsStartCheckStatus;
+                obj.LastLcsStartCheckStatus = '';
 
-                % Restore the previous plan (only for DDT)
-                if strcmp(PlanType, 'DDT')
+                if strcmp(PlanType, 'LCS') && strcmp(LcsStartStatus, 'updated')
                     app.MainModule.Planner.Plan = SavedPlan;
-                    app.msglog('build: Restored previous plan');
+                    app.msglog('build: LCS start date updated; user must click Build again.');
+                    app.MainModule.AppUtils.msgOk('LCS start date updated. Click Build again.', 'LCS Start Date');
+                elseif strcmp(PlanType, 'LCS') && strcmp(LcsStartStatus, 'aborted')
+                    app.MainModule.Planner.Plan = SavedPlan;
+                    app.msglog('build: LCS build aborted (start date check).');
+                else
+                    app.msglog('build: Build failed, restoring previous plan.');
+                    app.MainModule.AppUtils.msgOk('Build failed, restoring previous plan', 'Build Failed');
+
+                    % Restore the previous plan (only for DDT)
+                    if strcmp(PlanType, 'DDT')
+                        app.MainModule.Planner.Plan = SavedPlan;
+                        app.msglog('build: Restored previous plan');
+                    end
                 end
                 return;
             end
@@ -154,15 +168,16 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
         end
 
 
-        function IsOk = checkLcsStartDate(obj, app, upLCS)
-            % Check LCS start date feasibility; offer alternatives via LcsStartTimes dialog
-            IsOk = false;
+        function Status = checkLcsStartDate(obj, app, upLCS)
+            % Check LCS start date feasibility on Build; offer alternatives via LcsStartTimes dialog
+            % Returns 'feasible', 'updated', or 'aborted'
+            Status = 'aborted';
             app.msglog('checkLcsStartDate started');
 
             StartDate = dateshift(upLCS.StartTime, 'start', 'day');
             if obj.isLcsStartDateFeasible(app, StartDate)
                 app.msglog('checkLcsStartDate: start date is feasible');
-                IsOk = true;
+                Status = 'feasible';
                 return;
             end
 
@@ -181,8 +196,8 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
                 end
 
                 app.closePleaseWait();
-                Status = obj.showLcsStartTimesDialog(app, Plans);
-                if ~strcmp(Status, 'Ok')
+                DialogStatus = obj.showLcsStartTimesDialog(app, Plans);
+                if ~strcmp(DialogStatus, 'Ok')
                     return;
                 end
 
@@ -199,10 +214,12 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
                 end
 
                 PlanStartDate = string(DisplayData.plan_start_date(RowIndex));
+                Duration = upLCS.EndTime - upLCS.StartTime;
                 upLCS.StartTime = datetime(PlanStartDate) + upLCS.DailyWindowStartTime;
+                upLCS.EndTime = upLCS.StartTime + Duration;
                 app.setModified('checkLcsStartDate');
                 app.PlanParamsHelper.updatePlanParams(app);
-                IsOk = true;
+                Status = 'updated';
             catch ME
                 app.closePleaseWait();
                 app.msgex('checkLcsStartDate', ME);
@@ -267,7 +284,9 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
                 return;
             end
 
-            if ~obj.checkLcsStartDate(app, upLCS)
+            StartStatus = obj.checkLcsStartDate(app, upLCS);
+            if ~strcmp(StartStatus, 'feasible')
+                obj.LastLcsStartCheckStatus = StartStatus;
                 return;
             end
 
@@ -415,6 +434,9 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
             if isempty(obj.LcsStartTimesApp) || ~isvalid(obj.LcsStartTimesApp)
                 obj.LcsStartTimesApp = ultrasat.planner.gui.LcsStartTimes(app.MainModule);
             end
+
+            obj.LcsStartTimesApp.EnterfilenametoloadfromfileorpastetextbelowLabel_2.Text = ...
+                'Please choose an alternative start date, then click Build again.';
 
             DisplayData = PlansTable(:, {'plan_start_date', 'offset_days', 'num_observations', ...
                 'nA', 'nB', 'nC', 'nD', 'variant_used'});

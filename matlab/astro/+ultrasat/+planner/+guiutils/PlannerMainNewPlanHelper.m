@@ -180,9 +180,6 @@ classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
                 'StartTime', StartTime, 'EndTime', EndTime, ...
                 'BaseDataDir', app.MainModule.BaseDataDir);
 
-            % Check LCS start date feasibility; offer alternatives if needed
-            app.BuildHelper.checkLcsStartDate(app, upLCS);
-
             % Set planner data from the create dialog: PlanTitle, StartTime, EndTime
             obj.setNewPlanDataFromCreateDialog(app, upLCS);
 
