@@ -1,33 +1,25 @@
 %==========================================================================
-% ULTRASAT Planner
-%
-% File:   +planner/+gui/Preferences.m
-% Author:  Chen Tishler
-% Created: 20/01/2025
-% Updated: 20/03/2025
-% Title:   
+% Project     : ULTRASAT Planner
+% File        : +planner/+guiutils/+debug/debug_Preferences.m
+% Author      : Chen Tishler
+% Created     : 20/01/2025
+% Updated     : 17/06/2026
+% Description : Debug Preferences save/load round-trip to temporary JSON file.
 %==========================================================================
 
 function debug_Preferences()
-    % Test script for the Preferences class.
-    %   This script tests the save and load functionality by:
-    %   1. Creating a Preferences object and populating its properties.
-    %   2. Saving the object's state to a temporary JSON file.
-    %   3. Creating a new, empty Preferences object.
-    %   4. Loading the state from the JSON file into the new object.
-    %   5. Comparing the properties to ensure they match.
+    % Exercise Preferences save, load, and property equality verification.
 
     fprintf('============================================\n');
     fprintf('Starting debug script for Preferences class\n');
     fprintf('Time: %s (Israel Daylight Time)\n', datestr(now));
     fprintf('============================================\n\n');
 
-    % --- Setup ---
-    % Define a temporary file for the preferences.
+    % --- Step 1: Setup temporary preferences file ---
     prefsFilePath = fullfile(tempdir, 'user_preferences_test.json');
     fprintf('Using temporary preferences file: %s\n\n', prefsFilePath);
     
-    % --- Test 1: Create and Save Preferences ---
+    % --- Step 2: Create and save populated Preferences ---
     fprintf('--- Step 1: Creating and populating a Preferences object ---\n');
     
     % Create the first instance.
@@ -64,7 +56,7 @@ function debug_Preferences()
         return;
     end
 
-    % --- Test 2: Load Preferences ---
+    % --- Step 3: Load into fresh Preferences instance ---
     fprintf('\n--- Step 3: Creating a new, empty Preferences object ---\n');
     
     % Create a second, empty instance to load data into.
@@ -85,7 +77,7 @@ function debug_Preferences()
     fprintf('Object properties after loading:\n');
     disp(prefs_to_load);
 
-    % --- Test 3: Verification ---
+    % --- Step 4: Verify loaded properties match saved values ---
     fprintf('\n--- Step 5: Verifying loaded data ---\n');
     
     is_match = strcmp(prefs_to_save.UserName, prefs_to_load.UserName) && ...
@@ -98,7 +90,7 @@ function debug_Preferences()
         fprintf('  [FAIL] Loaded properties DO NOT match the original properties.\n');
     end
 
-    % --- Cleanup ---
+    % --- Step 5: Cleanup ---
     cleanup(prefsFilePath);
     
     fprintf('\n============================================\n');
@@ -108,7 +100,7 @@ end
 
 
 function cleanup(filePath)
-    % Deletes the temporary file.
+    % Delete temporary preferences JSON file when present.
     fprintf('\n--- Cleaning up temporary file ---\n');
     if isfile(filePath)
         delete(filePath);

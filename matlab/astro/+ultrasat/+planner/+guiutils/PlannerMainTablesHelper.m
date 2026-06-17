@@ -269,7 +269,8 @@ classdef PlannerMainTablesHelper < ultrasat.api.core.Loggable
         
         
         function updateFieldObjTable(obj, app)
-            % Update the FieldObjTable with the selected unique target and table name.
+            % Refresh FieldObjTable dropdown data and five sub-table row counters
+
             app.msglog('updateFieldObjTable');
             if ~obj.hasData(app), return; end
             if isempty(app.FieldObjTableApp) || ~isvalid(app.FieldObjTableApp)
@@ -292,22 +293,23 @@ classdef PlannerMainTablesHelper < ultrasat.api.core.Loggable
                 % Get field objects table for the selected unique target and table name
                 Data = app.MainModule.Planner.getFieldObjForTarget(UniqueTargetIndex, SelectedTableName);
 
-                % Update FieldObj counters in the UI
+                % Refresh row-count badges for all five FieldObj sub-tables
                 FieldNames = {'TransPlanets','MassiveStars','Clusters','Blazars','Small'};
 
+                % Each type has a matching EditField (e.g. BlazarsEditField) in FieldObjTableApp
                 for k = 1:numel(FieldNames)
                     fname = FieldNames{k};
 
-                    % Get corresponding EditField name
+                    % UI property name mirrors the planner table name + 'EditField'
                     editName = [fname 'EditField'];
 
                     % Defensive check (in case UI changes)
                     if isprop(app.FieldObjTableApp, editName)
 
-                        % Get table for this field
+                        % Fetch that sub-table independently of the dropdown selection
                         T = app.MainModule.Planner.getFieldObjForTarget(UniqueTargetIndex, fname);
 
-                        % Set value to number of rows
+                        % Show height(T) as the counter next to the dropdown
                         app.FieldObjTableApp.(editName).Value = sprintf('%d', height(T));
                     end
                 end

@@ -253,7 +253,7 @@ function GridFile = gridFile()
     % mfilename('fullpath') so the validation is self-contained and
     % portable across machines.
     ThisDir  = fileparts(mfilename('fullpath'));
-    GridFile = fullfile(ThisDir, '..', '..', 'data', 'LCS_nonoverlapping_grid_surveys.csv');
+    GridFile = fullfile(ThisDir, '..', '..', 'data', 'LCS_fields.csv');
     if ~isfile(GridFile)
         warning('validate_LcsHelper_v3:gridFileNotFound', ...
             'Grid file not found: %s', GridFile);

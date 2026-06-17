@@ -1,23 +1,34 @@
+%==========================================================================
+% Project     : ULTRASAT Planner
+% File        : +planner/+guiutils/+debug/debug_MainModule.m
+% Author      : Chen Tishler
+% Created     : 07/01/2025
+% Updated     : 17/06/2026
+% Description : Debug MainModule construction and interactive login/logout.
+%==========================================================================
+
 function debug_MainModule()
+    % Construct MainModule and run login/logout smoke tests.
 
     fprintf('Testing MainModule class...\n');
 
-    % Create an instance of MainModule
+    % --- Step 1: Construct MainModule ---
     mainModule = ultrasat.planner.guiutils.MainModule();
     fprintf('MainModule instance created successfully.\n');
 
-    % Debug login
+    % --- Step 2: Login/logout smoke tests ---
     debug_login(mainModule);
 end
 
 
 function debug_login(mainModule)
+    % Exercise correct login, logout, wrong password, and no-op logout paths.
 
-    % Display the NamespaceDisplayList
+    % --- Step 2a: List available namespaces ---
     disp('Available namespaces:');
     disp(mainModule.NamespaceDisplayList);
 
-    % Try logging in with correct password ("1234" assumed demo pass)
+    % --- Step 2b: Login with correct credentials ---
     fprintf('Trying to login with correct password...\n');
     ok = mainModule.login('chen', '123', mainModule.NamespaceDisplayList{1});
     if ok
@@ -26,7 +37,7 @@ function debug_login(mainModule)
         disp('Login with correct password failed.');
     end
 
-    % Try logging out
+    % --- Step 2c: Logout after successful login ---
     fprintf('Trying to logout...\n');
     logoutResult = mainModule.logout();
     if logoutResult
@@ -35,7 +46,7 @@ function debug_login(mainModule)
         disp('Logout failed.');
     end
 
-    % Try logging in with a wrong password
+    % --- Step 2d: Reject wrong password ---
     fprintf('Trying to login with WRONG password...\n');
     ok_wrong = mainModule.login('chen', 'wrong_pass', mainModule.NamespaceDisplayList{1});
     if ok_wrong
@@ -44,7 +55,7 @@ function debug_login(mainModule)
         disp('Login with WRONG password failed (expected).');
     end
 
-    % Try logging out again
+    % --- Step 2e: Logout when not logged in ---
     fprintf('Trying to logout after failed login...\n');
     logoutResult2 = mainModule.logout();
     if logoutResult2
@@ -54,4 +65,3 @@ function debug_login(mainModule)
     end
 
 end
-

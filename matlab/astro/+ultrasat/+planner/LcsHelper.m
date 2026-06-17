@@ -90,7 +90,7 @@ classdef LcsHelper < Component
                 %UPlanner               		%
                 Args.StartDate = [];             % 
                 Args.EndDate = [];             % 
-                Args.AllSkyTable = '~/matlab/data/ULTRASAT/LCS_nonoverlapping_grid_surveys.csv';
+                Args.AllSkyTable = '~/matlab/data/ULTRASAT/LCS_fields.csv';
 
                 Args.DailyWindowStartTime duration = duration.empty;
 

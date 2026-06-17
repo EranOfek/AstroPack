@@ -155,6 +155,7 @@ classdef PlannerMain < matlab.apps.AppBase
         AddUniqueTargetButton           matlab.ui.control.Button
         UITableUniqueTargets            matlab.ui.control.Table
         PanelToolbar                    matlab.ui.container.Panel
+        LCSFieldsButton                 matlab.ui.control.Button
         LCSPlotsButton                  matlab.ui.control.Button
         HelpButton                      matlab.ui.control.Button
         QAButton                        matlab.ui.control.Button
@@ -198,6 +199,8 @@ classdef PlannerMain < matlab.apps.AppBase
         DuplicatePlanApp                        %
         EnterStartTimeApp                       %
         ErrorLoggerApp                          %                
+        LcsFieldsApp                            %
+        LcsStartTimesApp                        %
         LoadPlanFromFileApp                     % Load file from disk
         LoadUniqueTargetsFromFileApp            % Load from text file        
         LoggerApp                               %
@@ -234,6 +237,7 @@ classdef PlannerMain < matlab.apps.AppBase
         AppHelper                               % PlannerMainAppHelper                
         ApprovedTargetsHelper                   % PlannerMainApprovedTargetsHelper        
         BuildHelper                             % PlannerMainBuildHelper
+        LcsHelper                               % PlannerMainLcsHelper
         NewPlanHelper                           % PlannerMainNewPlanHelper        
         PlanParamsHelper                        % PlannerMainPlanParamsHelper
         PlanTargetsHelper                       % PlannerMainPlanTargetsHelper
@@ -292,6 +296,7 @@ classdef PlannerMain < matlab.apps.AppBase
             app.AppHelper               = ultrasat.planner.guiutils.PlannerMainAppHelper();            
             app.ApprovedTargetsHelper   = ultrasat.planner.guiutils.PlannerMainApprovedTargetsHelper();
             app.BuildHelper             = ultrasat.planner.guiutils.PlannerMainBuildHelper();
+            app.LcsHelper               = ultrasat.planner.guiutils.PlannerMainLcsHelper();
             app.NewPlanHelper           = ultrasat.planner.guiutils.PlannerMainNewPlanHelper();
             app.PlanParamsHelper        = ultrasat.planner.guiutils.PlannerMainPlanParamsHelper();
             app.PlanTargetsHelper       = ultrasat.planner.guiutils.PlannerMainPlanTargetsHelper();            
@@ -1250,6 +1255,11 @@ classdef PlannerMain < matlab.apps.AppBase
         function LCSPlotsButtonPushed(app, event)
             app.PlotHelper.showLcsGraphsWindow(app);
         end
+
+        % Button pushed function: LCSFieldsButton
+        function LCSFieldsButtonPushed(app, event)
+            app.LcsHelper.showLcsFields(app);
+        end
     end
 
     % Component initialization
@@ -1596,8 +1606,15 @@ classdef PlannerMain < matlab.apps.AppBase
             app.LCSPlotsButton = uibutton(app.PanelToolbar, 'push');
             app.LCSPlotsButton.ButtonPushedFcn = createCallbackFcn(app, @LCSPlotsButtonPushed, true);
             app.LCSPlotsButton.Tooltip = {'Show LCS plots window'};
-            app.LCSPlotsButton.Position = [1105 8 88 30];
+            app.LCSPlotsButton.Position = [1202 8 88 30];
             app.LCSPlotsButton.Text = 'LCS Plots';
+
+            % Create LCSFieldsButton
+            app.LCSFieldsButton = uibutton(app.PanelToolbar, 'push');
+            app.LCSFieldsButton.ButtonPushedFcn = createCallbackFcn(app, @LCSFieldsButtonPushed, true);
+            app.LCSFieldsButton.Tooltip = {'Show LCS plots window'};
+            app.LCSFieldsButton.Position = [1103 8 88 30];
+            app.LCSFieldsButton.Text = 'LCS Fields';
 
             % Create UniqueTargetsPanel
             app.UniqueTargetsPanel = uipanel(app.UIFigure);

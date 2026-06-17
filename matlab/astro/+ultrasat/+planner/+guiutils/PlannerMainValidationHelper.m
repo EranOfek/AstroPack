@@ -4,7 +4,7 @@
 % Author      : Chen Tishler
 % Created     : 07/01/2025
 % Updated     : 11/11/2025
-% Description : Submit Helper for Main Planner (Submit & Validation)
+% Description : Validation Helper for Main Planner
 %==========================================================================
 % @TODO - Check again code review especially for submi()
 
@@ -39,13 +39,18 @@ classdef PlannerMainValidationHelper < ultrasat.api.core.Loggable
 
         function validate(obj, app)
             % Validate plan by sending it to the Validation service
+            % Gate sequence (each step returns early on failure):
+            %   1. Planner must exist
+            %   2. Plan must be editable (not read-only)
+            %   3. User must be logged in
+            %   4. Run uplanner.validate() and update ValidationStatus metadata
             app.msglog('validate');
             if ~app.hasPlanner(), return; end
 
-            % Validation is not allowed when plan is read-only
+            % Gate 2: validation is not allowed when plan is read-only
             if ~app.isEditableMsg(), return; end
 
-            % Validation is not allowed when not logged-in
+            % Gate 3: validation is not allowed when not logged-in
             if ~app.SessionHelper.isLogin(app, true), return; end
 
             % Ask user to confirm - currently not
@@ -56,7 +61,7 @@ classdef PlannerMainValidationHelper < ultrasat.api.core.Loggable
             % Temporary for now
             app.AppUtils.msgOk('Validation is not working yet, as IAI side is not ready yet.  Artificially changing the status to validated for now.');
 
-            % Start validation
+            % Gate 4: call backend validation and record outcome in PlanData
             app.showPleaseWait('Validating your plan. This make take a while. Please wait...');
             try
                 app.MainModule.PlanData.addHistory('validation started');
@@ -174,21 +179,23 @@ classdef PlannerMainValidationHelper < ultrasat.api.core.Loggable
 
 
         function showValidationResponse(obj, app, Response)
-            % Update Validation app with details from response
+            % Populate ValidationStatus app from one validation response struct
+            % :param Response: single entry from PlanData.metadata.ValidationResponse
+            % Updates summary fields, raw JSON/HTML detail panes, and per-target status table.
             try
-                % Reset fields to avoid stale data
+                % Reset summary fields to avoid stale data from a prior selection
                 app.ValidationStatusApp.StartedEditField.Value = Response.validation_time;
                 app.ValidationStatusApp.ElapsedEditField.Value = '';
                 app.ValidationStatusApp.StatusEditField.Value = Response.status;
                 app.ValidationStatusApp.StatusEditField.BackgroundColor = app.MainModule.GuiHelper.getValidationStatusBackgroundColor(Response.status);
 
-                % Convert Response to JSON and HTML for display
+                % Render full response as plain JSON (TextArea) and syntax-highlighted HTML
                 ResponseText = jsonencode(Response, 'PrettyPrint', true);
                 app.ValidationStatusApp.TextArea.Value = ResponseText;
                 Html = ultrasat.planner.guiutils.FormatUtils.jsonToHtml(Response);
                 app.ValidationStatusApp.HTML.HTMLSource = Html;
 
-                % Ensure targets exist in Response before converting to table
+                % Per-target results: populate UITable when Response.task.targets exists
                 if isfield(Response, 'task') && isfield(Response.task, 'targets') && ~isempty(Response.task.targets)
                     Data = struct2table(Response.task.targets, 'AsArray', true);
                     app.ValidationStatusApp.UITable.Data = Data;
@@ -200,7 +207,7 @@ classdef PlannerMainValidationHelper < ultrasat.api.core.Loggable
 
                     colIdx = find(strcmp(Data.Properties.VariableNames, 'status'), 1);
                     if ~isempty(colIdx) % Ensure the column exists
-                        % Apply styles row by row based on the status value
+                        % Color-code each target row by validation status value
                         for row = 1:height(Data)
                             status = string(Data{row, colIdx}); % Read status as string
                             style = app.MainModule.GuiHelper.getValidationStatusStyle(status);

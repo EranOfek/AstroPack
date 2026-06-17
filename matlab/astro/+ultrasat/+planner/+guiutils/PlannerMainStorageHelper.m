@@ -38,12 +38,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
         % =================================================================
 
         function getPlansListToUITable(obj, app, start_time, end_time, title_subtext, UITable)
-            % Retrieves a filtered list of observation plans from the API.
-            %
-            % - Reads filter parameters from the UI fields.
-            % - Sends a request to the API client to fetch plans.
-            % - Updates the table with the retrieved plans or clears it if no results are found.
-            % - Displays an alert if the request fails.
+            % Fetch filtered plans from API and populate UITable sorted by updated/created time
            
             % Convert empty fields to [] so API gets empty values if not provided
             if isempty(start_time)
@@ -78,10 +73,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                 Data = app.MainModule.TableHelper.selectTableColumns(Data, ...
                     {'pk', 'plan_type', 'ast_planner', 'title','status', 'created_time', 'updated_time', 'start_time', 'end_time'});
 
-                % Sort table by updated_time or created_time
-                % Safely detect if all updated_time cells are empty
-                
-                % Convert updated_time cells into strings (empty cells become "")
+                % Sort by updated_time desc; fall back to created_time when all updated_time empty
                 update_str = cell(size(Data.updated_time));
                 for i = 1:numel(Data.updated_time)
                     if isempty(Data.updated_time{i})
@@ -112,7 +104,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
 
 
         function openPlan(obj, app)
-            % Load plan from database, requires login and server connection
+            % Open plan from DB via PlansClient; deserialize planner from base64 matlab_mat
             app.msglog('openPlan');
 
             % User is not connected, suggset to load plan from local file
@@ -152,10 +144,10 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                         matResp = app.MainModule.PlansClient.getMatlabMat(Pk);
                         if matResp.ok && isfield(matResp, 'data') && ~isempty(matResp.data)
 
-                            % Deserialize
+                            % Deserialize uplanner from base64 blob and restore post-load state
                             PlanData.planner = ultrasat.api.utils.MatBase64Utils.base64ToMat(matResp.data, 'planner');
 
-                            % Reconstruct uplanner.Vis and set Mclient
+                            % Reattach Vis and Mclient after load (not serialized)
                             mclient = app.MainModule.createUplannerClient();
                             PlanData.planner.restoreAfterLoad('Mclient', mclient, 'BaseDataDir', app.MainModule.BaseDataDir);
                         end
@@ -177,7 +169,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
 
 
         function doOpenPlan(obj, app, PlanData)
-            % called from openPlan()
+            % Load PlanData into MainModule; handle AstPlanner mismatch via duplicate or read-only
             app.msglog(sprintf('doOpenPlan: %d', PlanData.pk));
 
             % Check active planner user name
@@ -200,7 +192,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
 
 
         function savePlan(obj, app)
-            % Save current plan to database, requires login and server connection
+            % Save PlanData struct and serialized planner to DB via PlansClient
             app.msglog('savePlan');
             if ~app.hasPlanner(), return; end
 
@@ -233,7 +225,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                     if isfield(resp, 'data') && ~isempty(resp.data)
                         oldPk = app.MainModule.PlanData.pk;
                         savedPk = resp.data;
-                        % Only allow pk to be updated from 0 (unsaved) to positive, or persist the current positive pk.
+                        % pk rules: assign on first save (0->positive); never overwrite existing positive pk
                         if (isempty(oldPk) ||  (oldPk == 0)) && savedPk > 0
                             app.MainModule.PlanData.pk = savedPk;
                             app.MainModule.Planner.Pk = savedPk;
@@ -248,7 +240,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
                             end
                         end
 
-                        % Clone and prepare
+                        % Clone planner, prepare for save, serialize to base64 for matlab_mat endpoint
                         planner_copy = app.MainModule.Planner.clone();
                         planner_copy.prepareForSave();
 
@@ -280,7 +272,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
 
 
         function closePlan(obj, app)
-            %
+            % Close current plan; prompt Save/Discard/Cancel when modified
             app.msglog('closePlan');
             if app.MainModule.Modified
                 % Ask user to save current modified plan or to discard it
@@ -300,7 +292,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
 
 
         function doClosePlan(obj, app)
-            %
+            % Clear MainModule state and refresh UI to empty-plan view
             app.msglog('doClosePlan');
             app.MainModule.clearData();
 
@@ -311,7 +303,7 @@ classdef PlannerMainStorageHelper < ultrasat.api.core.Loggable
 
 
         function deletePlan(obj, app)
-            %
+            % Delete current plan from DB; @Todo - not yet implemented
             app.msglog('deletePlan');
             if app.MainModule.Modified
                 % Ask user to save current modified plan or to discard it

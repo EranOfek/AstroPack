@@ -72,7 +72,7 @@ classdef GuiHelper < ultrasat.api.core.Loggable
         %------------------------------------------------------------------
 
         function setStatusField(obj, app, EditField, Status, StatusText)
-            % Set the background color of the EditField based on the Status value: "", "approved", "warning", "failed"
+            % Set status EditField text and background color from Status severity
 
             if isempty(StatusText)
                 StatusText = '';
@@ -472,7 +472,7 @@ classdef GuiHelper < ultrasat.api.core.Loggable
         end
 
         % =================================================================
-        %
+        %                     Display-string parsing
         % =================================================================
 
         function name = extractNameFromDisplayString(obj, displayStr)
@@ -566,7 +566,7 @@ classdef GuiHelper < ultrasat.api.core.Loggable
         end
 
         % =================================================================
-        %
+        %                     Modal dialog helpers
         % =================================================================
 
         function Status = showModal(obj, app, FormApp)
@@ -609,7 +609,7 @@ classdef GuiHelper < ultrasat.api.core.Loggable
 
 
         function copyUITable(obj, SourceUITable, TargetUITable)
-            % Copies data, column names, editability settings, and styles from SourceUITable to TargetUITable
+            % Copy UITable data, columns, editability, sort flags, and row styles
 
             % Copy table data
             TargetUITable.Data = SourceUITable.Data;
@@ -631,7 +631,7 @@ classdef GuiHelper < ultrasat.api.core.Loggable
 
             % addStyle(app.UITableApprovedTarget, Style, "row", Targets);
 
-            % Apply styles to TargetUITable
+            % Replay each StyleConfiguration from source onto target rows/columns
             for i = 1:height(styles)
                 addStyle(TargetUITable, styles.Style(i), string(styles.Target(i)), styles.TargetIndex{i});
             end

@@ -1,0 +1,19 @@
+# healpix_cone_search requirements
+# Linux: healpy is preferred (C extension, fast)
+# Windows: astropy-healpix (no C compiler needed)
+#
+# Install on Linux:
+#   pip install -r requirements.txt
+#
+# Install on Windows:
+#   pip install astropy astropy-healpix numpy pytest
+
+numpy>=1.24
+pytest>=7.0
+
+# Linux primary backend
+healpy>=1.16; sys_platform != "win32"
+
+# Windows primary backend (also works as Linux fallback)
+astropy>=5.0
+astropy-healpix>=0.7
