@@ -340,6 +340,13 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     AD = AD(:, NonEmptyCell);
     Nobj = numel(AD);
     
+    % 6: ----- Fill New and Ref estimates -----
+
+    % Estimate backround and variance of New and Ref
+    AD.estimateBackVar;
+    % Estimate zero points
+    AD.estimateFnFr;
+
     % Register New and Ref
     AD.register;
 
@@ -371,13 +378,6 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
 
     % Remember new number of AstroDiffs
     Nobj = numel(AD);
-
-    % 6: ----- Fill New and Ref estimates -----
-
-    % Estimate backround and variance of New and Ref
-    AD.estimateBackVar;
-    % Estimate zero points
-    AD.estimateFnFr;
 
     % 7: ----- Produce subtraction images -----
     
