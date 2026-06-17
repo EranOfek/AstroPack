@@ -163,7 +163,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.SetBackTo0                       = true; % if SubBack=true and SetBackTo0 then set back to 0.
         %Args.ReMeasureBackVar                 = true; % if SetBackT0=false and this is true than remeasure back and var
         Args.ReMeasureBack                    = true;
-        %Args.ReMeasureVar                     = true;
+        %Args.ReMeasureVar                     = true; % now it is always remeasured during coadd_WRobust  
         %Args.PropagateVar                     = false; % propagate variance from coaddition.
 
         %Args.UseShift logical                 = true;
