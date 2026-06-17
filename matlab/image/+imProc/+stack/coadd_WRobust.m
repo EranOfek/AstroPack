@@ -100,7 +100,6 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
     %                   'ZP0', 25);
     % See also: imUtil.stack.wcoaddRobust, imProc.image.images2cube,
     %           imProc.stack.coaddHeader, imProc.background.backVar
-
     arguments
         Obj   % AstroImage, AstroDiff, AstroZOGY
         Args.SubBack         = true;
@@ -117,7 +116,6 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
         Args.StdMethod       = 3;
         Args.CoaddUseMex     = true;
         Args.AddBack         = true;
-        Args.CalcVar         = false;  % If false then propagate Var
         Args.backVarArgs     = {};
         Args.FWHM            = []; % if given, then will be used as weight: 1/(Var*FWHM)
 
@@ -202,15 +200,9 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
     [Result.ImageData.Data, Result.VarData.Data, CoaddN] = imUtil.stack.wcoaddRobust(ImageCube, BackCube, 'Var',Var, 'F',FluxMatch, 'ZP',[],'ZP0',[],...
                                                                        'RemoveMinMax',Args.RemoveMinMax,'Niter',Args.Niter,'SigmaClip',Args.SigmaClip, 'StdMethod',Args.StdMethod,...
                                                                        'UseMex',Args.CoaddUseMex);
-
-
+    % measure background and variance
     if Args.AddBack
-        if Args.CalcVar
-            [Result.BackData.Data, Result.VarData.Data, BackSmall, VarSmall] = imUtil.background.backVar(Result.ImageData.Data, Args.backVarArgs{:});
-        else
-            % Var is arriving from the Var propagation of the individual images
-            [Result.BackData.Data, ~, BackSmall] = imUtil.background.backVar(Result.ImageData.Data, Args.backVarArgs{:});
-        end
+        Result = imProc.background.backVar(Result, Args.backVarArgs{:});
     end
 
     % coadd mask
@@ -225,7 +217,7 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
        
     end
 
-    % Update header:
+    % update additional header values:
     [Result.HeaderData, MidJD] = imProc.stack.coaddHeader(Obj, 'HeaderCopy1', Args.HeaderCopy1,...
                                                       'NewHeader',Args.NewHeader,...
                                                       'UpdateTimes',Args.UpdateTimes,...
@@ -234,15 +226,4 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
                                                       'StackMethod',StackMethod,...
                                                       'CoaddN',CoaddN,...
                                                       'KeyExpTime',Args.KeyExpTime);
-
-    % Update back/var statistics in the header from the newly computed coadd background
-    if Args.AddBack
-        BckKeys = {'MEANBCK','MEDBCK','STDBCK','MINBCK','MAXBCK'};
-        BckVals = {mean(BackSmall,'all'), fast_median(BackSmall(:)), std(BackSmall,[],'all'), min(BackSmall,[],'all'), max(BackSmall,[],'all')};
-        Result.HeaderData.replaceVal(BckKeys, BckVals);
-        if Args.CalcVar
-            Result.HeaderData.replaceVal({'MEANVAR','MEDVAR'}, {mean(VarSmall,'all'), fast_median(VarSmall(:))});
-        end
-    end
-
 end
