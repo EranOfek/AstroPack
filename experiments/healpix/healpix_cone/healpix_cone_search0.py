@@ -197,62 +197,25 @@ class PixelRanges:
 # Core helpers
 # ---------------------------------------------------------------------------
 
-def _best_nside_for_radius(radius_deg: float,
-                           mode: str = "conservative") -> int:
+def _best_nside_for_radius(radius_deg: float) -> int:
     """
-    Choose the best NSide (power of 2) for a given search radius.
+    Choose the largest NSide (power of 2) whose pixel size ≈ radius.
 
-    Three modes (all cap at NSIDE_CAT):
+    HEALPix pixel "radius" (centre-to-vertex) ≈ sqrt(3)/NSide  [radians].
+    We want:  sqrt(3)/NSide ≈ radius_rad
+              NSide ≈ sqrt(3)/radius_rad
 
-    "conservative"  [DEFAULT - Eran's preference]
-        pixel_size ~ 1/NSide [rad]. We want pixel_size >= radius, so:
-            NSide <= 1/radius_rad
-        Result: deliberately coarse - pixel bigger than cone, so centre+
-        neighbours is guaranteed to fully envelope the search area.
-        "Look wider, don't miss anything."
-
-    "area"
-        Match pixel area to cone area:
-            pixel area = pi/(3*NSide^2), cone area = pi*r^2
-            Set equal -> NSide = 1/(sqrt(3)*r)
-        Even coarser than "conservative" for most radii.
-
-    "circumradius"
-        pixel circumradius ~ sqrt(3)/NSide [rad]. Tightest coverage:
-            NSide <= sqrt(3)/radius_rad
-        Finer NSide -> tighter pixel grid -> fewer false positives,
-        but risks the 3x3 neighbour box not fully covering the cone
-        at its corners if the geometry is tight.
-
-    Parameters
-    ----------
-    radius_deg : float  - search radius in degrees (> 0)
-    mode       : str    - "conservative" | "area" | "circumradius"
-
-    Returns
-    -------
-    int - NSide value (power of 2, 1 ... NSIDE_CAT)
+    Take the largest power-of-2 that does NOT exceed that value,
+    capped at NSIDE_CAT.
     """
     radius_rad = math.radians(radius_deg)
     if radius_rad <= 0:
         raise ValueError("radius_deg must be > 0")
-
-    if mode == "conservative":
-        # NSide <= 1/radius_rad  (Eran's preferred formula)
-        ideal = 1.0 / radius_rad
-    elif mode == "area":
-        # NSide <= 1/(sqrt(3)*radius_rad)  - area matching
-        ideal = 1.0 / (math.sqrt(3.0) * radius_rad)
-    elif mode == "circumradius":
-        # NSide <= sqrt(3)/radius_rad  - pixel circumradius
-        ideal = math.sqrt(3.0) / radius_rad
-    else:
-        raise ValueError(f"Unknown mode '{mode}'. "
-                         f"Choose 'conservative', 'area', or 'circumradius'.")
-
-    level = int(math.floor(math.log2(ideal)))
-    level = max(level, 0)
-    nside = min(2 ** level, NSIDE_CAT)
+    ideal     = math.sqrt(3.0) / radius_rad
+    level     = int(math.floor(math.log2(ideal)))
+    level     = max(level, 0)
+    nside     = 2 ** level
+    nside     = min(nside, NSIDE_CAT)
     return int(nside)
 
 
@@ -306,7 +269,6 @@ def cone_to_pixel_ranges(
     dec_deg: float,
     radius_deg: float,
     algo: Algo = Algo.CONE,
-    nside_mode: str = "conservative",
 ) -> PixelRanges:
     """
     Convert a cone search (ra, dec, radius) to pixel ranges at level 16.
@@ -316,12 +278,7 @@ def cone_to_pixel_ranges(
     ra_deg      : Right ascension in degrees [0, 360).
     dec_deg     : Declination in degrees [-90, 90].
     radius_deg  : Search radius in degrees > 0.
-    algo        : Algo.CONE (fewer ranges) or Algo.NEIGHBOR (always <= 9).
-    nside_mode  : NSide selection strategy:
-                  "conservative" (default, Eran's preference) - coarser,
-                      never miss anything.
-                  "area"         - coarsest, matches cone area to pixel area.
-                  "circumradius" - finest, tightest coverage.
+    algo        : Algo.CONE (fewer ranges) or Algo.NEIGHBOR (always ≤ 9).
 
     Returns
     -------
@@ -335,7 +292,7 @@ def cone_to_pixel_ranges(
         raise ValueError(f"radius_deg must be > 0, got {radius_deg}")
 
     backend      = get_backend()
-    nside_search = _best_nside_for_radius(radius_deg, mode=nside_mode)
+    nside_search = _best_nside_for_radius(radius_deg)
 
     if algo == Algo.NEIGHBOR:
         center_pix = backend.ang2pix_nested(nside_search, ra_deg, dec_deg)
@@ -500,7 +457,7 @@ def cone_search_sql_full(
 
 def debug_best_nside():
     print("\n" + "=" * 60)
-    print("DEBUG: _best_nside_for_radius() — all three modes")
+    print("DEBUG: _best_nside_for_radius()")
     print("=" * 60)
     cases = [
         ("tiny  0.001°",  0.001),
@@ -510,21 +467,11 @@ def debug_best_nside():
         ("large 5°",      5.0),
         ("huge  45°",    45.0),
     ]
-    modes = ["conservative", "area", "circumradius"]
-    header = f"  {'radius':<16}" + "".join(f"{'NSide_'+m:>20}" for m in modes)
-    print(header)
-    print("  " + "-" * (16 + 20 * len(modes)))
     for label, r in cases:
-        row = f"  {label:<16}"
-        for m in modes:
-            ns = _best_nside_for_radius(r, mode=m)
-            pix_deg = math.degrees(math.sqrt(3) / ns)
-            row += f"  {ns:>6d} ({pix_deg:.3f}°)"
-        print(row)
-    print()
-    print("  NOTE: 'conservative' = Eran's preferred formula (1/r)")
-    print("        'area'         = area-matching (1/(sqrt(3)*r))  — coarsest")
-    print("        'circumradius' = circumradius  (sqrt(3)/r)      — finest")
+        ns = _best_nside_for_radius(r)
+        pix_size_deg = math.degrees(math.sqrt(3) / ns)
+        print(f"  radius={label:15s} → NSideSearch={ns:6d}  "
+              f"(pixel size ≈ {pix_size_deg:.4f}°)")
 
 
 def debug_pixel_ranges_neighbor():

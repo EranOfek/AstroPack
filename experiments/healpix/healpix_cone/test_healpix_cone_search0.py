@@ -72,17 +72,13 @@ class TestBestNside:
         assert ns >= 1
 
     def test_pixel_size_covers_radius(self):
-        """
-        Conservative mode: pixel size (1/NSide) must be >= search radius.
-        i.e. the pixel is always LARGER than the search cone.
-        """
+        """Pixel size at NSideSearch must be >= radius (conservative)."""
         for r_deg in [0.01, 0.1, 0.5, 1.0, 2.0, 5.0]:
-            ns    = _best_nside_for_radius(r_deg, mode="conservative")
+            ns   = _best_nside_for_radius(r_deg)
             r_rad = math.radians(r_deg)
-            # conservative formula: 1/NSide >= radius_rad
-            pix_size_rad = 1.0 / ns
-            assert pix_size_rad >= r_rad, (
-                f"radius={r_deg}° NSide={ns}: 1/NSide={math.degrees(pix_size_rad):.4f}° "
+            pix_radius_rad = math.sqrt(3) / ns
+            assert pix_radius_rad >= r_rad, (
+                f"radius={r_deg}° NSide={ns}: pixel radius {math.degrees(pix_radius_rad):.4f}° "
                 f"< search radius {r_deg}°"
             )
 
@@ -94,45 +90,15 @@ class TestBestNside:
         with pytest.raises(ValueError):
             _best_nside_for_radius(-1.0)
 
-    def test_known_values_conservative(self):
-        # conservative: NSide <= 1/radius_rad
-        # R=1° = 0.017453 rad → 1/r = 57.3 → floor(log2) = 5 → NSide = 32
-        ns = _best_nside_for_radius(1.0, mode="conservative")
-        assert ns == 32
-
-        # R=0.1° = 0.001745 rad → 1/r = 572.9 → floor(log2) = 9 → 512
-        ns = _best_nside_for_radius(0.1, mode="conservative")
-        assert ns == 512
-
-    def test_known_values_area(self):
-        # area: NSide <= 1/(sqrt(3)*radius_rad)
-        # R=1° → 1/(sqrt(3)*0.017453) = 33.1 → floor(log2)=5 → 32
-        ns = _best_nside_for_radius(1.0, mode="area")
-        assert ns == 32
-
-    def test_known_values_circumradius(self):
-        # circumradius: NSide <= sqrt(3)/radius_rad
-        # R=1° → sqrt(3)/0.017453 = 99.3 → floor(log2)=6 → 64
-        ns = _best_nside_for_radius(1.0, mode="circumradius")
+    def test_known_values(self):
+        # sqrt(3)/NSide >= radius_rad  → NSide <= sqrt(3)/radius_rad
+        # For radius=1° = 0.01745 rad  → ideal ≈ 99.4 → largest pow2 ≤ 99 → 64
+        ns = _best_nside_for_radius(1.0)
         assert ns == 64
 
-    def test_circumradius_finer_than_conservative(self):
-        """circumradius always gives >= NSide compared to conservative."""
-        for r in [0.01, 0.1, 0.5, 1.0, 5.0]:
-            ns_cons = _best_nside_for_radius(r, mode="conservative")
-            ns_circ = _best_nside_for_radius(r, mode="circumradius")
-            assert ns_circ >= ns_cons
-
-    def test_area_coarsest(self):
-        """area mode always gives <= NSide compared to conservative."""
-        for r in [0.01, 0.1, 0.5, 1.0, 5.0]:
-            ns_cons = _best_nside_for_radius(r, mode="conservative")
-            ns_area = _best_nside_for_radius(r, mode="area")
-            assert ns_area <= ns_cons
-
-    def test_invalid_mode(self):
-        with pytest.raises(ValueError, match="mode"):
-            _best_nside_for_radius(1.0, mode="badmode")
+        # For radius=0.1° = 0.001745 rad → ideal ≈ 994 → 512
+        ns = _best_nside_for_radius(0.1)
+        assert ns == 512
 
 
 # ---------------------------------------------------------------------------
@@ -236,7 +202,7 @@ class TestConeToPixelRangesNeighbor:
 
     def test_nside_search_correct(self):
         pr = cone_to_pixel_ranges(0.0, 0.0, 1.0, algo=Algo.NEIGHBOR)
-        assert pr.nside_search == _best_nside_for_radius(1.0, mode="conservative")
+        assert pr.nside_search == _best_nside_for_radius(1.0)
 
     def test_all_range_ids_valid(self):
         pr = cone_to_pixel_ranges(45.0, 30.0, 1.0, algo=Algo.NEIGHBOR)
