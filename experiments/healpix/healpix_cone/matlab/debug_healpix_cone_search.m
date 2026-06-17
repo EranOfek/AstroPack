@@ -52,8 +52,8 @@ function debugBestNside()
     Modes = ["conservative", "area", "circumradius"];
 
     Header = sprintf('  %-16s', 'radius');
-    for M = Modes
-        Header = Header + sprintf('%20s', 'NSide_' + M);
+    for M = 1:numel(Modes)
+        Header = [Header, sprintf('%20s', ['NSide_', char(Modes(M))])]; %#ok<AGROW>
     end
     fprintf('%s\n', Header);
     fprintf('  %s\n', repmat('-', 1, 16 + 20 * numel(Modes)));
@@ -62,13 +62,13 @@ function debugBestNside()
         Label = Cases{I, 1};
         R = Cases{I, 2};
         Row = sprintf('  %-16s', Label);
-        for M = Modes
-            Ns = HealpixConeSearch.bestNsideForRadius(R, M);
+        for M = 1:numel(Modes)
+            Ns = HealpixConeSearch.bestNsideForRadius(R, Modes(M));
             % pixel circumradius in degrees: sqrt(3)/NSide radians converted to degrees.
             % This is the angular distance from pixel centre to corner — the worst-case
             % separation between a point and its pixel boundary.
             PixDeg = rad2deg(sqrt(3) / Ns);
-            Row = Row + sprintf('  %6d (%.3f°)', Ns, PixDeg);
+            Row = [Row, sprintf('  %6d (%.3f°)', Ns, PixDeg)]; %#ok<AGROW>
         end
         fprintf('%s\n', Row);
     end
@@ -153,24 +153,24 @@ function debugSqlOutput()
 
     for AlgoVal = [Algo.CONE, Algo.NEIGHBOR]
         fprintf('\n--- algo=%s ---\n', char(AlgoVal));
+        % cosine mode: pre-computes direction cosines in MATLAB, so ClickHouse
+        % only evaluates a dot product (3 muls + 2 adds) — no trig per row.
         [Sql, Pf] = HealpixConeSearch.coneSearchSql(254.0, 64.0, 1.0, ...
             'proc_src', 'upix_high', ...
             'Algo', AlgoVal, ...
             'PostFilter', true, ...
-            % cosine mode: pre-computes direction cosines in MATLAB, so ClickHouse
-            % only evaluates a dot product (3 muls + 2 adds) — no trig per row.
             'PostFilterMode', 'cosine');
         fprintf('%s\n', Sql);
         fprintf('%s\n', Pf);
     end
 
     fprintf('\n--- greatcircle post-filter ---\n');
+    % greatcircle mode: uses the ClickHouse built-in greatCircleAngle() function.
+    % More readable and avoids needing cx/cy/cz columns in the table, but
+    % requires a trig call per row inside ClickHouse.
     [Sql, Pf] = HealpixConeSearch.coneSearchSql(254.0, 64.0, 1.0, ...
         'proc_src', 'upix_high', ...
         'PostFilter', true, ...
-        % greatcircle mode: uses the ClickHouse built-in greatCircleAngle() function.
-        % More readable and avoids needing cx/cy/cz columns in the table, but
-        % requires a trig call per row inside ClickHouse.
         'PostFilterMode', 'greatcircle');
     fprintf('%s\n', Sql);
     fprintf('%s\n', Pf);

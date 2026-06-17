@@ -95,7 +95,7 @@ classdef HealpixConeSearch
             Level = floor(log2(Ideal));
             Level = max(Level, 0);               % guard against radius > 1 radian (huge)
             Nside = min(2^Level, HealpixConeSearch.NSIDE_CAT);  % never exceed the catalogue resolution
-            Nside = int32(Nside);
+            Nside = double(Nside);
         end
 
         function Ranges = pixelsToRanges(Pixels, NSideSearch)
@@ -180,7 +180,7 @@ classdef HealpixConeSearch
                     'radius_deg must be > 0, got %g', RadiusDeg);
             end
 
-            Backend = Backend.getBackend();
+            HpBackend = Backend.getBackend();
             % Choose a coarse NSide whose pixel size matches (or exceeds) the search radius.
             % Searching at this coarser resolution first dramatically reduces the number
             % of pixels we need to expand into fine-level ranges.
@@ -190,18 +190,18 @@ classdef HealpixConeSearch
                 % Identify the central coarse pixel, then grab its 8 neighbours.
                 % The 3x3 block is guaranteed to contain the full cone when nside_mode
                 % is "conservative" (pixel size >= cone radius).
-                CenterPix = Backend.ang2pixNested(NSideSearch, RaDeg, DecDeg);
-                PixList = Backend.neighboursNested(NSideSearch, CenterPix);
+                CenterPix = HpBackend.ang2pixNested(NSideSearch, RaDeg, DecDeg);
+                PixList = HpBackend.neighboursNested(NSideSearch, CenterPix);
 
             elseif AlgoVal == Algo.CONE
                 % Ask the backend to find all coarse pixels whose centres are inside
                 % the search cone.  This is tighter than the 3x3 NEIGHBOR block,
                 % especially for small radii near pixel boundaries.
-                PixList = Backend.queryDiscNested(NSideSearch, RaDeg, DecDeg, RadiusDeg);
+                PixList = HpBackend.queryDiscNested(NSideSearch, RaDeg, DecDeg, RadiusDeg);
                 if isempty(PixList)
                     % The cone is smaller than a single coarse pixel — no centres fall
                     % inside it.  Fall back to the one pixel that contains the point.
-                    CenterPix = Backend.ang2pixNested(NSideSearch, RaDeg, DecDeg);
+                    CenterPix = HpBackend.ang2pixNested(NSideSearch, RaDeg, DecDeg);
                     PixList = int64(CenterPix);
                 end
             else
@@ -273,16 +273,16 @@ classdef HealpixConeSearch
             % against any sorted / index-structured MergeTree table.
             WhereHealpix = strjoin(RangeClauses, newline + "   OR ");
 
-            Sql = sprintf(['SELECT %s\n' ...
+            Sql = string(sprintf(['SELECT %s\n' ...
                            'FROM %s\n' ...
                            'WHERE (\n' ...
                            '   %s\n' ...
-                           ')'], Args.ExtraColumns, Table, WhereHealpix);
+                           ')'], Args.ExtraColumns, Table, WhereHealpix));
 
             % --- post-filter fragment ---
             % The healpix ranges over-approximate the cone (pixel granularity).
             % A post-filter removes the false positives and delivers an exact result.
-            Pf = '';
+            Pf = string.empty(0, 1);
             if Args.PostFilter
                 RRad = deg2rad(RadiusDeg);
 
@@ -294,20 +294,20 @@ classdef HealpixConeSearch
                         % arithmetic — no trig — which is faster than greatCircleAngle().
                         [Cx, Cy, Cz] = HealpixConeSearch.directionCosines(RaDeg, DecDeg);
                         CosR = cos(RRad);
-                        Pf = sprintf([ ...
+                        Pf = string(sprintf([ ...
                             '-- Exact cone post-filter (dot product, no trig at query time)\n' ...
                             '-- Add this to the WHERE clause of the healpix range query:\n' ...
                             'AND (%s * %.17g + %s * %.17g + %s * %.17g >= %.17g)'], ...
-                            Args.CxCol, Cx, Args.CyCol, Cy, Args.CzCol, Cz, CosR);
+                            Args.CxCol, Cx, Args.CyCol, Cy, Args.CzCol, Cz, CosR));
 
                     case "greatcircle"
                         % ClickHouse built-in great-circle distance function.
                         % More readable than the cosine form but requires a trig call per row.
-                        Pf = sprintf([ ...
+                        Pf = string(sprintf([ ...
                             '-- Exact cone post-filter (ClickHouse greatCircleAngle)\n' ...
                             '-- Add this to the WHERE clause of the healpix range query:\n' ...
                             'AND (greatCircleAngle(%s, %s, %.10g, %.10g) <= %.10g)'], ...
-                            Args.RaCol, Args.DecCol, RaDeg, DecDeg, RadiusDeg);
+                            Args.RaCol, Args.DecCol, RaDeg, DecDeg, RadiusDeg));
 
                     otherwise
                         error('HealpixConeSearch:UnknownPostFilterMode', ...

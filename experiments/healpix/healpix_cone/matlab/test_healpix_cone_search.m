@@ -55,12 +55,12 @@ classdef test_healpix_cone_search < matlab.unittest.TestCase
 
         function testBestNsideRaisesOnZeroRadius(testCase)
             testCase.verifyError(@() HealpixConeSearch.bestNsideForRadius(0.0), ...
-                'MATLAB:validator:mustBePositive');
+                'MATLAB:validators:mustBePositive');
         end
 
         function testBestNsideRaisesOnNegativeRadius(testCase)
             testCase.verifyError(@() HealpixConeSearch.bestNsideForRadius(-1.0), ...
-                'MATLAB:validator:mustBePositive');
+                'MATLAB:validators:mustBePositive');
         end
 
         function testBestNsideKnownValuesConservative(testCase)
@@ -136,8 +136,8 @@ classdef test_healpix_cone_search < matlab.unittest.TestCase
             Ranges = HealpixConeSearch.pixelsToRanges(Pix, NSideS);
             Lo = Ranges(1, 1);
             Hi = Ranges(1, 2);
-            testCase.verifyEqual(Hi - Lo + 1, 16);
-            testCase.verifyEqual(Lo, 5 * 16);
+            testCase.verifyEqual(double(Hi - Lo + 1), 16);
+            testCase.verifyEqual(double(Lo), 80);
         end
 
         function testPixelsToRangesAllIdsWithinBounds(testCase)
@@ -230,10 +230,10 @@ classdef test_healpix_cone_search < matlab.unittest.TestCase
         end
 
         function testNeighborCenterPixelCovered(testCase)
-            Backend = Backend.getBackend();
+            HpBackend = Backend.getBackend();
             Ra = 254.0; Dec = 64.0; R = 1.0;
             Pr = HealpixConeSearch.coneToPixelRanges(Ra, Dec, R, Algo.NEIGHBOR);
-            CenterPix = Backend.ang2pixNested(HealpixConeSearch.NSIDE_CAT, Ra, Dec);
+            CenterPix = HpBackend.ang2pixNested(HealpixConeSearch.NSIDE_CAT, Ra, Dec);
             testCase.verifyTrue(rangesCoverPixel(Pr.Ranges, CenterPix), ...
                 sprintf('Center pixel %d not in ranges', CenterPix));
         end
@@ -263,10 +263,10 @@ classdef test_healpix_cone_search < matlab.unittest.TestCase
         end
 
         function testConeCenterPixelCovered(testCase)
-            Backend = Backend.getBackend();
+            HpBackend = Backend.getBackend();
             Ra = 254.0; Dec = 64.0; R = 1.0;
             Pr = HealpixConeSearch.coneToPixelRanges(Ra, Dec, R, Algo.CONE);
-            CenterPix = Backend.ang2pixNested(HealpixConeSearch.NSIDE_CAT, Ra, Dec);
+            CenterPix = HpBackend.ang2pixNested(HealpixConeSearch.NSIDE_CAT, Ra, Dec);
             testCase.verifyTrue(rangesCoverPixel(Pr.Ranges, CenterPix));
         end
 
@@ -428,9 +428,9 @@ classdef test_healpix_cone_search < matlab.unittest.TestCase
         function testDirectionCosinesDotProductIsCosDistance(testCase)
             Pairs = [0, 0, 1, 0; 45, 30, 50, 35; 254, 64, 256, 65];
             for I = 1:size(Pairs, 1)
-                C1 = HealpixConeSearch.directionCosines(Pairs(I,1), Pairs(I,2));
-                C2 = HealpixConeSearch.directionCosines(Pairs(I,3), Pairs(I,4));
-                Dot = C1(1)*C2(1) + C1(2)*C2(2) + C1(3)*C2(3);
+                [C1x, C1y, C1z] = HealpixConeSearch.directionCosines(Pairs(I,1), Pairs(I,2));
+                [C2x, C2y, C2z] = HealpixConeSearch.directionCosines(Pairs(I,3), Pairs(I,4));
+                Dot = C1x*C2x + C1y*C2y + C1z*C2z;
                 D = sphereDistDeg(Pairs(I,1), Pairs(I,2), Pairs(I,3), Pairs(I,4));
                 testCase.verifyEqual(Dot, cos(deg2rad(D)), 'AbsTol', 1e-10);
             end
@@ -485,7 +485,7 @@ classdef test_healpix_cone_search < matlab.unittest.TestCase
         function testPostFilterNoneWhenDisabled(testCase)
             [~, Pf] = HealpixConeSearch.coneSearchSql(254.0, 64.0, 1.0, ...
                 't', 'c', 'PostFilter', false);
-            testCase.verifyEqual(Pf, '');
+            testCase.verifyTrue(isempty(Pf));
         end
 
         function testPostFilterCosineContainsAnd(testCase)
@@ -603,29 +603,29 @@ classdef test_healpix_cone_search < matlab.unittest.TestCase
         % -------------------------------------------------------------------
 
         function testBackendLoads(testCase)
-            B = Backend.getBackend();
-            testCase.verifyNotEmpty(B);
-            testCase.verifyEqual(B.Name, 'celestial.healpix');
+            HpBackend = Backend.getBackend();
+            testCase.verifyNotEmpty(HpBackend);
+            testCase.verifyEqual(HpBackend.Name, 'celestial.healpix');
         end
 
         function testBackendAng2pixRoundTrip(testCase)
-            B = Backend.getBackend();
+            HpBackend = Backend.getBackend();
             Ra = 123.456; Dec = -34.567;
-            Pix = B.ang2pixNested(HealpixConeSearch.NSIDE_CAT, Ra, Dec);
-            [Ra2, Dec2] = B.pix2angNested(HealpixConeSearch.NSIDE_CAT, Pix);
+            Pix = HpBackend.ang2pixNested(HealpixConeSearch.NSIDE_CAT, Ra, Dec);
+            [Ra2, Dec2] = HpBackend.pix2angNested(HealpixConeSearch.NSIDE_CAT, Pix);
             testCase.verifyLessThan(sphereDistDeg(Ra, Dec, Ra2, Dec2), 0.01);
         end
 
         function testBackendNeighboursReturnsArray(testCase)
-            B = Backend.getBackend();
-            Pix = B.ang2pixNested(64, 45.0, 30.0);
-            Nb = B.neighboursNested(64, Pix);
+            HpBackend = Backend.getBackend();
+            Pix = HpBackend.ang2pixNested(64, 45.0, 30.0);
+            Nb = HpBackend.neighboursNested(64, Pix);
             testCase.verifyGreaterThanOrEqual(numel(Nb), 1);
         end
 
         function testBackendQueryDiscReturnsArray(testCase)
-            B = Backend.getBackend();
-            Pix = B.queryDiscNested(64, 45.0, 30.0, 1.0);
+            HpBackend = Backend.getBackend();
+            Pix = HpBackend.queryDiscNested(64, 45.0, 30.0, 1.0);
             testCase.verifyNotEmpty(Pix);
         end
 
@@ -667,8 +667,8 @@ function D = sphereDistDeg(Ra1, Dec1, Ra2, Dec2)
 end
 
 function [RaDeg, DecDeg] = pixCenter(Nside, Pix)
-    B = Backend.getBackend();
-    [RaDeg, DecDeg] = B.pix2angNested(Nside, int64(Pix));
+    HpBackend = Backend.getBackend();
+    [RaDeg, DecDeg] = HpBackend.pix2angNested(Nside, int64(Pix));
 end
 
 function Flag = rangesCoverPixel(Ranges, PixId)
