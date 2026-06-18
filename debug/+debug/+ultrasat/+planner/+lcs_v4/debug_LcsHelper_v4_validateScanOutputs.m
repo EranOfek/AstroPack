@@ -12,5 +12,17 @@
 %==========================================================================
 
 function debug_LcsHelper_v4_validateScanOutputs(varargin)
-    ultrasat.planner.LcsHelper_v4_validateScanOutputs(varargin{:});
+    P = inputParser;
+    addParameter(P, 'Year', 2029);
+    addParameter(P, 'ScanDir', '');
+    parse(P, varargin{:});
+
+    ScanDir = P.Results.ScanDir;
+    if isempty(ScanDir)
+        ThisDir = fileparts(mfilename('fullpath'));
+        ScanDir = fullfile(ThisDir, 'output', 'scans', num2str(P.Results.Year));
+    end
+
+    ultrasat.planner.LcsHelper_v4_validateScanOutputs( ...
+        'Year', P.Results.Year, 'ScanDir', ScanDir);
 end
