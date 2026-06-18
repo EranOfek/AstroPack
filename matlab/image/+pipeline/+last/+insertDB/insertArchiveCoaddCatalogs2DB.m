@@ -45,6 +45,9 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
         
         Args.RemoteUser  = 'euclid';
         Args.DBConnector = 'native'; % 'legacy'; % 'native' or 'legacy'
+        Args.ConnectorOpts = struct('compression', db.mex.Compression.ZSTD);
+        Args.Schema        = [];       % the user may input the schema of the DB table 
+                                           % as a matlab table output of the "DESCRIBE TABLE" SQL command
     end    
     % create a DB object and connect
     Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
@@ -60,8 +63,11 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
         DB.useDB(Args.DbName);
         fprintf('DB in use: %s\n',DB.showCurrentDB);
     elseif strcmpi(Args.DBConnector,'native')
-        DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd);
+        DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd, Args.ConnectorOpts);
         DB.query(sprintf('use %s',Args.DbName));
+        if isempty(Args.Schema)
+            Args.Schema = DB.describe(Args.DbTable);
+        end
     else
         error('Asked for unknown DB connector')
     end
@@ -182,7 +188,7 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
                     error('exiting because of an unrecoverable error');
                     %                 continue
                 end
-                % copy the CSV file into the proc catalog and edit the .status file
+                % move the CSV file into the proc catalog and edit the .status file
                 if Args.UpdateStatus
                     CopyCSV = sprintf('su %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
                     [~, Err.Copy] = system(CopyCSV);
@@ -196,8 +202,8 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
                 end
             else
                 [~, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
-                    'CreateCsv',false,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID,'DBConnector',Args.DBConnector);
-                
+                    'CreateCsv',false,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID,'DBConnector',Args.DBConnector,...
+                    'Schema',Args.Schema, 'MaxBatchLines',200000,'Verbosity',1);                               
                 if ~isempty(Error)
                     error('catalog injection failed');
                 end
