@@ -303,6 +303,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
 
         % background and variance measurement:
         Args.backVarArgs               = {'Block',[256 256], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',10, 'MaxVal',6000},{}}};
+        Args.UpdateHeaderDataBkgVar    = false;
         Args.ReCalcBackIter            = []; % list of iterations in which to re-calc the background. If 1, recalc also in the begining.
 
         % measure PSF
@@ -477,7 +478,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     FlagBack = ReCalcBackIter1 | Result.isemptyProperty('Back') | Result.isemptyProperty('Var');
     if any(FlagBack)
         % redo everything - will keep the shape
-        Result = imProc.background.backVar(Result, Args.backVarArgs{:});
+        Result = imProc.background.backVar(Result, 'AddHeaderInfo', Args.UpdateHeaderDataBkgVar, Args.backVarArgs{:});
     end
     
     % measure PSF if it does not exist or if the user requested to re-calc
@@ -794,7 +795,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 ReCalcBackIterI = any(Args.ReCalcBackIter==Iiter); % re-calc backgroun in Iiter iteration
                 if ReCalcBackIterI
                     FlagBack         = ReCalcBackIterI | Result.isemptyProperty('Back') | Result.isemptyProperty('Var');
-                    Result(FlagBack) = imProc.background.backVar(Result, Args.backVarArgs{:});
+                    Result(FlagBack) = imProc.background.backVar(Result, 'AddHeaderInfo', Args.UpdateHeaderDataBkgVar, Args.backVarArgs{:});
                 end
                 
                 % add local variance from the sources revealed at all the previous iterations
