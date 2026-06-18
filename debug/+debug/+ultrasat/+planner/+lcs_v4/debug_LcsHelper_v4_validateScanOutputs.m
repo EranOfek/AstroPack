@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+planner/+lcs_v4/debug_LcsHelper_v4_validateScanOutputs.m
 % Author      : Chen Tishler
 % Created     : 07/06/2026
-% Updated     : 10/06/2026
+% Updated     : 11/06/2026
 % Description : Thin wrapper — scan-output validator moved to
 %               ultrasat.planner.LcsHelper_v4_validateScanOutputs.
 %

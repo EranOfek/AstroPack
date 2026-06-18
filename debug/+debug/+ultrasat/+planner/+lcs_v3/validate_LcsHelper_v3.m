@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+planner/+lcs_v3/validate_LcsHelper_v3.m
 % Author      : Chen Tishler
 % Created     : 07/06/2026
-% Updated     : 07/06/2026
+% Updated     : 15/06/2026
 % Description : Validate LcsHelper_v3 schedule output against formal LCS
 %               rules (Sets A/B/C/D, 45-day windows, slot budget, etc.).
 %               Runs all checks to completion; prints PASS/FAIL for each

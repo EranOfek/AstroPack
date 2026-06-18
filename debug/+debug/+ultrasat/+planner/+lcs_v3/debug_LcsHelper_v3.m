@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+planner/+lcs_v3/debug_LcsHelper_v3.m
 % Author      : Chen Tishler
 % Created     : 07/06/2026
-% Updated     : 07/06/2026
+% Updated     : 15/06/2026
 % Description : End-to-end debug for LcsHelper_v3 (full pipeline, no SetD,
 %               and plotting). Plan start date: 2029-05-01.
 %

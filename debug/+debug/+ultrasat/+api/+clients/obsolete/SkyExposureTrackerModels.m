@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+api/+clients/obsolete/SkyExposureTrackerModels.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
-% Updated     : 21/09/2025
+% Updated     : 19/02/2026
 % Description : Factory for creating SkyExposureTracker models.
 %
 % Run by      : debug.ultrasat.api.clients.SkyExposureTrackerModels()

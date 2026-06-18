@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+alerts_filters/+lvk/debug_LvkFilterResult.m
 % Author      : Chen Tishler
 % Created     : 12/05/2026
-% Updated     : 12/05/2026
+% Updated     : 24/05/2026
 % Description : Debug script for ultrasat.alerts_filters.lvk.models.LvkFilterResult
 %
 % Run by      : debug.ultrasat.alerts_filters.lvk.debug_LvkFilterResult()

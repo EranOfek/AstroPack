@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+planner/+lcs_v3/debug_LcsHelper_v3_steps.m
 % Author      : Chen Tishler
 % Created     : 07/06/2026
-% Updated     : 07/06/2026
+% Updated     : 15/06/2026
 % Description : Step-by-step debug for LcsHelper_v3 pipeline methods.
 %
 % Run by      : debug.ultrasat.planner.lcs_v3.debug_LcsHelper_v3_steps()

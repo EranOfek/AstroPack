@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+api/+core/debug_Loggable.m
 % Author      : Chen Tishler
 % Created     : 01/12/2024
-% Updated     : 11/02/2025
+% Updated     : 18/02/2026
 % Description : Debugging function for Loggable class.
 %
 % Run by      : debug.ultrasat.api.core.debug_Loggable()

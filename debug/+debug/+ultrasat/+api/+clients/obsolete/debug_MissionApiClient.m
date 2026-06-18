@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+api/+clients/obsolete/debug_MissionApiClient.m
 % Author      : Chen Tishler
 % Created     : 24/03/2025
-% Updated     : 24/03/2025
+% Updated     : 19/02/2026
 % Description : Debugging function for MissionApiClient (FastAPI plans_manager).
 %
 % Run by      : debug.ultrasat.api.clients.debug_MissionApiClient()

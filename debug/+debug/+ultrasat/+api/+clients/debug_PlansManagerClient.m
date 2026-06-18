@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+api/+clients/debug_PlansManagerClient.m
 % Author      : Chen Tishler
 % Created     : 18/02/2026
-% Updated     : 26/02/2026
+% Updated     : 05/05/2026
 % Description : Debug PlansManagerClient methods one by one (getPlansList,
 %               getPlan, savePlan, getMatlabMat, saveMatlabMat).
 %

@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+planner/+lcs_v4/debug_LcsHelper_v4_steps.m
 % Author      : Chen Tishler
 % Created     : 07/06/2026
-% Updated     : 07/06/2026
+% Updated     : 15/06/2026
 % Description : Step-by-step debug for LcsHelper_v4 pipeline methods.
 %               Plan start date: 2029-05-01.
 %

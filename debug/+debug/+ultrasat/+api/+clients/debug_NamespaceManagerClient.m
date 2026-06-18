@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+api/+clients/debug_NamespaceManagerClient.m
 % Author      : Chen Tishler
 % Created     : 18/02/2026
-% Updated     : 18/02/2026
+% Updated     : 03/05/2026
 % Description : Debug function for NamespaceManagerClient.
 %
 % Run by      : debug.ultrasat.api.clients.debug_NamespaceManagerClient()

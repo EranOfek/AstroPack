@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+planner/+lcs_v3/scan_Lcs_v3.m
 % Author      : Chen Tishler
 % Created     : 08/06/2026
-% Updated     : 08/06/2026
+% Updated     : 15/06/2026
 % Description : Scan LCS start dates with LcsHelper_v3 only.
 %
 % Run by      : debug.ultrasat.planner.lcs_v3.scan_Lcs_v3()

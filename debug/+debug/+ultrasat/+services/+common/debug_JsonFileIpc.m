@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+services/+common/debug_JsonFileIpc.m
 % Author      : Chen Tishler
 % Created     : 05/02/2026
-% Modified    : 10/02/2026
+% Modified    : 07/05/2026
 % Description : Debug JsonFileIpc class
 %
 % Run by      : debug.ultrasat.services.common.debug_JsonFileIpc()

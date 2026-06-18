@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+planner/debug_Lcs.m
 % Author      : Chen Tishler
 % Created     : 31/05/2026
-% Updated     : 31/05/2026
+% Updated     : 15/06/2026
 % Description : Step-by-step debug for LCS (Low Cadence Survey) plans.
 %               Code paths mirror uplanner.unitTest LCS block.
 %               HCS must be built before retrieveApproved (LCS depends on HCS).

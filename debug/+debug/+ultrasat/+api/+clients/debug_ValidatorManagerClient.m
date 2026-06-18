@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+api/+clients/debug_ValidatorManagerClient.m
 % Author      : Chen Tishler
 % Created     : 19/02/2026
-% Updated     : 19/02/2026
+% Updated     : 22/02/2026
 % Description : Debugging function for ValidatorManagerClient.
 %
 % Run by      : debug.ultrasat.api.clients.debug_ValidatorManagerClient()
