@@ -2493,8 +2493,31 @@ classdef CompositeFun < handle
                 %   Position corrections:  [NCalUsed x Ninput]
                 %   Single airmass:        [Ninput x 1]
                 if ~isempty(Args.PerSourceZenithAngles)
+                    if ~isequal(size(SpecFluxMatrix), size(ModelOutput))
+                        fprintf(2, ['[costFun DIAG] PerSourceZenithAngles branch: shape mismatch\n', ...
+                                    '  size(SpecFluxMatrix) = %s    size(ModelOutput) = %s\n', ...
+                                    '  NCalUsed=%d  Ninput=%d  |X|=%d  |Y|=%d  |PSZA|=%d\n'], ...
+                            mat2str(size(SpecFluxMatrix)), mat2str(size(ModelOutput)), ...
+                            NCalUsed, Ninput, length(Args.X), length(Args.Y), ...
+                            length(Args.PerSourceZenithAngles));
+                    end
                     TransmittedSpectra = SpecFluxMatrix .* ModelOutput;   % [Ninput x NCalUsed]
                 elseif UsePositionCorrections
+                    if size(SpecFluxMatrix, 1) ~= size(ModelOutput, 2) || size(SpecFluxMatrix, 2) ~= size(ModelOutput, 1)
+                        fprintf(2, ['[costFun DIAG] UsePositionCorrections branch: shape mismatch\n', ...
+                                    '  size(SpecFluxMatrix) = %s    size(ModelOutput) = %s\n', ...
+                                    '  size(ModelOutput'''') = %s\n', ...
+                                    '  NCalUsed=%d  Ninput=%d  |X|=%d  |Y|=%d  |ObsVal|=%d\n'], ...
+                            mat2str(size(SpecFluxMatrix)), mat2str(size(ModelOutput)), ...
+                            mat2str(size(ModelOutput')), ...
+                            NCalUsed, Ninput, length(Args.X), length(Args.Y), ...
+                            length(ObservedValues));
+                        if Obj.UseTran2D && ~isempty(Obj.Tran2DObj)
+                            fprintf(2, '  Tran2DObj.ParX size = %s, first few = %s\n', ...
+                                mat2str(size(Obj.Tran2DObj.ParX)), ...
+                                mat2str(Obj.Tran2DObj.ParX(1:min(3, numel(Obj.Tran2DObj.ParX))), 4));
+                        end
+                    end
                     TransmittedSpectra = SpecFluxMatrix .* ModelOutput';  % [Ninput x NCalUsed]
                 else
                     TransmittedSpectra = SpecFluxMatrix .* ModelOutput;   % [Ninput x NCalUsed] via broadcast
@@ -2803,6 +2826,12 @@ classdef CompositeFun < handle
                 % (Norm~1, Tran2D~0.01, Pressure~965). Default false
                 % preserves status-quo behaviour.
                 Args.UseTypicalX logical = false
+                % Forwarded to fitMultiStage's NONLIN_FC handler so it
+                % can seed the LM initial guess for the 10 FC coefs at
+                % stage 4 entry only. Ignored in single-stage mode and
+                % when no NONLIN_FC stage is in the OptSeq.
+                Args.Tran2DPerturbStd (1,1) double = 0
+                Args.Tran2DRngSeed    (1,1) double = 6
             end
 
             % Initialize FitResult with failure values for early return on validation error
@@ -3565,12 +3594,17 @@ classdef CompositeFun < handle
                 % Detect joint Norm + Tran2D linear stage (char sentinel)
                 IsJointFCStage = ischar(FreeParamsStage) && strcmpi(FreeParamsStage, 'JOINT_FC');
 
+                % Detect joint nonlinear FC stage (char sentinel, Simone-style
+                % lsqnonlin over the 10 Tran2D ParX coefs with kxy^2 substitution
+                % on the 10th slot).
+                IsNonlinFCStage = ischar(FreeParamsStage) && strcmpi(FreeParamsStage, 'NONLIN_FC');
+
                 % Detect field correction stage (empty freeparams)
-                IsFieldCorrectionStage = ~IsJointFCStage && isempty(FreeParamsStage);
+                IsFieldCorrectionStage = ~IsJointFCStage && ~IsNonlinFCStage && isempty(FreeParamsStage);
 
                 % Detect Norm-only linear stage (analytical solution)
                 IsNormOnlyLinear = false;
-                if ~IsJointFCStage && ~IsFieldCorrectionStage && ...
+                if ~IsJointFCStage && ~IsNonlinFCStage && ~IsFieldCorrectionStage && ...
                         isfield(Stage, 'Method') && strcmp(Stage.Method, 'linear')
                     % Check if only Norm parameter is being fitted
                     if length(FreeParamsStage) == 1 && strcmp(FreeParamsStage(1).Parameter, 'Norm')
@@ -3580,6 +3614,8 @@ classdef CompositeFun < handle
 
                 if IsJointFCStage || IsFieldCorrectionStage || IsNormOnlyLinear
                     Method = 'linear';
+                elseif IsNonlinFCStage
+                    Method = 'nonlinear_FC';
                 else
                     Method = 'nonlinear';
                 end
@@ -3962,6 +3998,155 @@ classdef CompositeFun < handle
                         end
                     end
 
+                elseif IsNonlinFCStage
+                    % =============================================================
+                    % NONLIN_FC: joint nonlinear lsqnonlin over the 10 Tran2D
+                    % ParX coefs, with kxy^2 substitution on the 10th slot
+                    % (Simone's parameterisation: model carries -kxy_raw^2 * x*y,
+                    % so the effective cross-coef in MATLAB ParX is always <= 0).
+                    %
+                    % Norm + QE_Center are held fixed at their pre-stage values
+                    % (set by stages 1-3). The seed of the LM initial guess is
+                    % randn(1, 10) * Args.Tran2DPerturbStd, with rng seeded once
+                    % at stage entry via Args.Tran2DRngSeed (mirrors Simone's
+                    % np.random.seed(6) discipline). Outer-loop sigma clipping
+                    % follows the same pattern as JOINT_FC.
+                    % =============================================================
+                    if ~Obj.UseTran2D || isempty(Obj.Tran2DObj)
+                        Obj.addStatus('fitMultiStage', 'error', ...
+                            'NONLIN_FC stage requires UseTran2D = true and a Tran2D object', ...
+                            'CompositeFun:NonlinFC:NoTran2D');
+                        StageResult = struct();
+                        StageResult.Cost = Inf;
+                        StageResult.RMS = NaN;
+                        StageResult.Residuals = [];
+                        StageResult.WeightedResiduals = [];
+                        StageResult.NCalUsed = length(CurrentObs);
+                        StageResult.NumClipped = 0;
+                        StageResult.KeepMask = true(length(CurrentObs), 1);
+                        StageResult.ConvergedSigmaClip = false;
+                        StageResult.Chi2 = NaN;
+                        StageResult.DOF = NaN;
+                        StageResult.MagErr = [];
+                        StageResult.PredictedFlux = [];
+                    else
+                        Nparams = length(Obj.Tran2DObj.ParX);
+
+                        % Seed RNG once at stage entry (Simone parity) and build
+                        % the LM initial guess for all 10 free coefs.
+                        if isfield(Args, 'Tran2DRngSeed')
+                            rng(Args.Tran2DRngSeed);
+                        end
+                        if isfield(Args, 'Tran2DPerturbStd') && Args.Tran2DPerturbStd > 0
+                            FreeInit = randn(1, Nparams) * Args.Tran2DPerturbStd;
+                        else
+                            FreeInit = zeros(1, Nparams);
+                        end
+
+                        if Args.Verbose
+                            fprintf('  NONLIN_FC: lsqnonlin over %d FC coefs, perturbStd=%.3f\n', ...
+                                Nparams, Args.Tran2DPerturbStd);
+                        end
+
+                        % Inner sigma clip on first outer iter only (mirrors JOINT_FC)
+                        if SigmaClip && OuterIter == 1
+                            EffSigmaIter = SigmaIter;
+                        else
+                            EffSigmaIter = 0;
+                        end
+
+                        % Local mutable copies for inner clipping
+                        LocalObs      = CurrentObs;
+                        LocalX        = CurrentX;
+                        LocalY        = CurrentY;
+                        LocalCostArgs = CurrentCostArgs;
+                        LocalKeepMask = true(length(CurrentObs), 1);
+                        ConvergedSC   = false;
+                        WeightedResN  = []; CostN = NaN; PredFluxN = [];
+                        ResidualsN    = []; MagErrN = [];
+
+                        FreeCur = FreeInit;
+
+                        for IterClip = 0:EffSigmaIter
+                            if ~ConvergedSC
+                                % Cost wrapper: apply kxy^2 substitution, sync
+                                % Tran2DObj.ParX, return weighted residuals.
+                                CostFnN = @(fv) localNonlinFCCost(fv, Obj, ...
+                                    InputValues, LocalObs, LocalCostArgs, LocalX, LocalY);
+
+                                FreeCur = lsqnonlin(CostFnN, FreeCur, [], [], OptimOpts);
+
+                                % Sync Tran2DObj.ParX to effective values
+                                Eff = FreeCur(:).';
+                                Eff(end) = -FreeCur(end)^2;       % kxy_M = -kxy_raw^2
+                                Obj.Tran2DObj.ParX = Eff;
+
+                                % Final residuals on the current local set
+                                [WeightedResN, CostN, PredFluxN, ResidualsN, MagErrN] = Obj.costFun(...
+                                    InputValues, LocalObs, LocalCostArgs{:}, ...
+                                    'X', LocalX, 'Y', LocalY);
+
+                                if IterClip < EffSigmaIter
+                                    [OutlierMaskLocal, ClipInfo] = tools.math.stat.sigmaClip(...
+                                        ResidualsN, SigmaThresh, ...
+                                        'Method', SigmaClipMethod, ...
+                                        'StdFunc', SigmaStdFunc, ...
+                                        'Errors', MagErrN);
+                                    NewOutliers = sum(OutlierMaskLocal);
+                                    if ~ClipInfo.Success || NewOutliers == 0
+                                        ConvergedSC = true;
+                                    else
+                                        NRemaining = sum(~OutlierMaskLocal);
+                                        if MinCalibrators > 0 && NRemaining < MinCalibrators
+                                            ConvergedSC = true;
+                                            if Args.Verbose
+                                                fprintf('  Inner sigma clip stopped: would leave %d < %d calibrators\n', ...
+                                                    NRemaining, MinCalibrators);
+                                            end
+                                        else
+                                            KeepLocal = ~OutlierMaskLocal;
+                                            LocalKeepMask(LocalKeepMask) = KeepLocal;
+                                            LocalObs = LocalObs(KeepLocal);
+                                            LocalX = LocalX(KeepLocal);
+                                            LocalY = LocalY(KeepLocal);
+                                            % Drop the same rows from any
+                                            % per-source columns in CostArgs
+                                            % (mirrors JOINT_FC's downsampling
+                                            % so weights stay aligned).
+                                            LocalCostArgs = localDownsampleCostArgs(LocalCostArgs, KeepLocal);
+                                        end
+                                    end
+                                else
+                                    ConvergedSC = true;
+                                end
+                            end
+                        end
+
+                        NCalUsedN = length(LocalObs);
+                        StageResult = struct();
+                        StageResult.Cost = CostN;
+                        StageResult.RMS = sqrt(mean(ResidualsN.^2));
+                        StageResult.Residuals = ResidualsN;
+                        StageResult.WeightedResiduals = WeightedResN;
+                        StageResult.NCalUsed = NCalUsedN;
+                        StageResult.NumClipped = sum(~LocalKeepMask);
+                        StageResult.KeepMask = LocalKeepMask;
+                        StageResult.ConvergedSigmaClip = ConvergedSC;
+                        StageResult.MagErr = MagErrN;
+                        StageResult.PredictedFlux = PredFluxN;
+                        if ~isempty(MagErrN) && all(MagErrN > 0)
+                            StageResult.Chi2 = sum((ResidualsN ./ MagErrN).^2);
+                        else
+                            StageResult.Chi2 = NaN;
+                        end
+                        StageResult.DOF = NCalUsedN - Nparams;
+
+                        if Args.Verbose
+                            fprintf('  RMS: %.4f mag, Observations: %d   (kxy_raw=%+.4f -> kxy_M=%+.4f)\n', ...
+                                StageResult.RMS, NCalUsedN, FreeCur(end), -FreeCur(end)^2);
+                        end
+                    end
+
                 elseif IsFieldCorrectionStage
                     % Field correction stage: fit position only
                     [Obj, StageResult] = Obj.fitPar(InputValues, CurrentObs, ...
@@ -4178,4 +4363,51 @@ classdef CompositeFun < handle
         end
     end
 
+end
+
+% =====================================================================
+% File-scope local helpers used by the NONLIN_FC stage of fitMultiStage.
+% =====================================================================
+
+function r = localNonlinFCCost(fv, ObjH, InputValues, ObsLocal, CostArgsLocal, XLocal, YLocal)
+    % Cost wrapper for lsqnonlin: free vector fv carries [kx0, kx, kx2, kx3,
+    % kx4, ky, ky2, ky3, ky4, kxy_raw]. The 10th slot is squared and sign-flipped
+    % into Tran2DObj.ParX(10) = -kxy_raw^2 so the effective MATLAB cross-coef
+    % is always <= 0 (mirroring Simone's kxy_S^2 >= 0 after sign flip).
+    %
+    % ObjH is a handle reference to the CompositeFun; mutating Tran2DObj.ParX
+    % here is observed by costFun (which evaluates the model with the new ParX).
+    Eff = fv(:).';
+    Eff(end) = -fv(end)^2;
+    ObjH.Tran2DObj.ParX = Eff;
+    [WeightedRes, ~, ~, ~, ~] = ObjH.costFun(InputValues, ObsLocal, ...
+        CostArgsLocal{:}, 'X', XLocal, 'Y', YLocal);
+    r = WeightedRes(:);
+end
+
+function CostArgsOut = localDownsampleCostArgs(CostArgsIn, KeepRows)
+    % Drop clipped calibrators from the per-source CostArgs entries used by
+    % TransmissionMode. WeightMatrix is [N_SpecWvl x N_obs] and
+    % PrecomputedSpecFluxMatrix is [N_input x N_obs] — the calibrator
+    % index is the SECOND dim, so both are sliced on columns. The two
+    % vector entries (PrecomputedMagErr, PerSourceZenithAngles) are
+    % sliced as 1-D index masks. Mirrors the orientations used by the
+    % post-stage downsample block in fitMultiStage.
+    CostArgsOut = CostArgsIn;
+    Idx = find(strcmp(CostArgsOut(1:2:end), 'WeightMatrix'));
+    if ~isempty(Idx) && ~isempty(CostArgsOut{2*Idx})
+        CostArgsOut{2*Idx} = CostArgsOut{2*Idx}(:, KeepRows);
+    end
+    Idx = find(strcmp(CostArgsOut(1:2:end), 'PrecomputedMagErr'));
+    if ~isempty(Idx) && ~isempty(CostArgsOut{2*Idx})
+        CostArgsOut{2*Idx} = CostArgsOut{2*Idx}(KeepRows);
+    end
+    Idx = find(strcmp(CostArgsOut(1:2:end), 'PrecomputedSpecFluxMatrix'));
+    if ~isempty(Idx) && ~isempty(CostArgsOut{2*Idx})
+        CostArgsOut{2*Idx} = CostArgsOut{2*Idx}(:, KeepRows);
+    end
+    Idx = find(strcmp(CostArgsOut(1:2:end), 'PerSourceZenithAngles'));
+    if ~isempty(Idx) && ~isempty(CostArgsOut{2*Idx})
+        CostArgsOut{2*Idx} = CostArgsOut{2*Idx}(KeepRows);
+    end
 end
