@@ -13,7 +13,7 @@ IPC overview: [[../diagrams/services_overview.mmd]] · [[../../diagrams/ipc_flow
 | `JsonFileIpc.m` | Generic JSON file IPC loop |
 | `setLogFile.m` | Configure log file for deployed workers |
 | `runDeployedBootstrap.m` | Path bootstrap for MCR-deployed executables |
-| `+debug/debug_JsonFileIpc.m` | IPC unit debug |
+| `+debug/+ultrasat/+services/+common/debug_JsonFileIpc.m` | IPC unit debug |
 
 ---
 
@@ -67,7 +67,7 @@ Rules:
 | `tick()` | Process one polling cycle (testing) |
 | `processSingleInputFile()` | Process one file by path |
 
-Debug: [[+debug/README|+debug README]]
+Debug: [[../../../../debug/+debug/+ultrasat/+services/+common/README|common debug README]]
 
 ---
 

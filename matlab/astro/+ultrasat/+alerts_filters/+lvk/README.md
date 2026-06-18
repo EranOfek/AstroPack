@@ -19,7 +19,7 @@ Service wrapper: [[../../+services/+alerts_filter/README|+services/+alerts_filte
 │   ├── lvk_filter.m          Entry point — dispatches by filter name
 │   ├── lvk_filter_simple.m   FAR / classification scoring
 │   └── lvk_filter_with_criteria.m  Criteria-driven rules
-├── +debug/
+├── (debug scripts)  → +debug/+ultrasat/+alerts_filters/+lvk/
 │   ├── debug_lvk_filter*.m
 │   └── sample_alerts/        Example JSON alerts
 └── doc/
@@ -70,7 +70,7 @@ See [[+filters/README|+filters README]] for dispatch details.
 
 ## Debug
 
-Sample alerts in `+debug/sample_alerts/`:
+Sample alerts in `+debug/+ultrasat/+alerts_filters/+lvk/sample_alerts/`:
 
 - `lvk_alert_bns_good.json`
 - `lvk_alert_high_far.json`

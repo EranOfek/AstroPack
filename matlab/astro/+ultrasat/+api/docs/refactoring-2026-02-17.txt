@@ -65,9 +65,9 @@ Create folders if missing:
 +ultrasat/+api/+clients
 +ultrasat/+api/+utils
 +ultrasat/+api/obsolete
-+ultrasat/+api/+debug/+models
-+ultrasat/+api/+debug/+clients
-+ultrasat/+api/+debug/+utils
++ultrasat/+api/+clients  (production)
+debug/+debug/+ultrasat/+api/+clients
+debug/+debug/+ultrasat/+api/+utils
 
 -----------------------------------------------------------------------
 PHASE 3 - SPLIT CLIENTS BY SERVICE (MATCH PYTHON)
@@ -204,7 +204,7 @@ Template:
 %==========================================================================
 %
 % Debug function for ultrasat.api.ApiUtils class
-% Run by: ultrasat.api.debug_ApiUtils()
+% Run by: debug.ultrasat.api.utils.debug_PathUtils()
 %
 
 function debug_ApiUtils()
@@ -230,7 +230,7 @@ end
 
 Rules:
 - The first function name MUST match the filename.
-- The file must be runnable as ultrasat.api.debug_XYZ()
+- The file must be runnable as debug.ultrasat.api.<subpackage>.debug_XYZ()
 - Sub-tests must be local functions in the same file.
 - Debug files may use real API clients.
 - Debug files must NOT use JSON simulation.

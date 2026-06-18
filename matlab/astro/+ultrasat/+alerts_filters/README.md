@@ -11,7 +11,7 @@ Science-side package for parsing and filtering incoming alerts (currently LVK gr
 | Service / IPC | `+services/+alerts_filter/` | Platform / ops |
 | Models | `+lvk/+models/` | Shared schema |
 | Filters | `+lvk/+filters/` | Scientists |
-| Debug / fixtures | `+lvk/+debug/` | Developers |
+| Debug / fixtures | `+debug/+ultrasat/+alerts_filters/+lvk/` | Developers |
 
 Scientists modify **only** `+lvk/+filters/`. Never touch the service loop, IPC, or watchdog.
 
@@ -24,7 +24,7 @@ Scientists modify **only** `+lvk/+filters/`. Never touch the service loop, IPC, 
 └── +lvk/
     ├── +models/     LvkParsedAlert, LvkFilterCriteria, LvkFilterResult, LvkFilterBase
     ├── +filters/    lvk_filter, lvk_filter_simple, lvk_filter_with_criteria
-    ├── +debug/      debug scripts + sample_alerts/
+    ├── (debug scripts)  → +debug/+ultrasat/+alerts_filters/+lvk/
     └── doc/         LVK format reference
 ```
 

@@ -50,15 +50,13 @@ matlab/astro/+ultrasat/+api/
 │   ├── MatBase64Utils.m
 │   ├── PathUtils.m
 │   └── LogManager.m
-├── +debug/
-│   ├── +clients/           # Headless verification (debug_ClientFactory, ...)
-│   ├── +core/
-│   └── +utils/
 ├── docs/
 │   ├── testing_namespace_manager_client.md
 │   └── README.md
 └── obsolete/               # MissionClientInterface — reference only
 ```
+
+Headless debug scripts: `+debug/+ultrasat/+api/+clients/` (see [debug/CLAUDE.md](../../../../debug/CLAUDE.md)).
 
 ---
 
@@ -151,7 +149,7 @@ matlab -batch "ultrasat.api.debug.clients.debug_PlansManagerClient()"
 
 ## What not to use
 
-Files under `+clients/obsolete/` and `+debug/+clients/obsolete/` (MissionApiClient, SimpleFileClient, UserManagerSim, etc.) are legacy reference only. Do not extend them for new work.
+Files under `+clients/obsolete/` and `+debug/+ultrasat/+api/+clients/obsolete/` (MissionApiClient, SimpleFileClient, UserManagerSim, etc.) are legacy reference only. Do not extend them for new work.
 
 ---
 

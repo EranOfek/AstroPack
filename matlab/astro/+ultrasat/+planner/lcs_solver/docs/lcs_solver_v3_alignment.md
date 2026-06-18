@@ -14,10 +14,10 @@ MATLAB reference:
 
 - `../LcsHelper_v3.m`
 - `../prepareLcsSolverInputs.m`
-- `../+debug/validate_LcsHelper_v3.m`
-- `../+debug/lcs_v3_output/schedule.csv`
-- `../+debug/lcs_v3_output/full_windows.csv`
-- `../+debug/lcs_v3_output/daily_schedule.csv`
+- `+debug/+ultrasat/+planner/+lcs_v3/validate_LcsHelper_v3.m`
+- `+debug/+ultrasat/+planner/+lcs_v3/output/schedule.csv`
+- `+debug/+ultrasat/+planner/+lcs_v3/output/full_windows.csv`
+- `+debug/+ultrasat/+planner/+lcs_v3/output/daily_schedule.csv`
 
 Python solver:
 

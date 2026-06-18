@@ -45,7 +45,7 @@ Bridge overview: `python/prj/nova/soc/matlab_bridges/README.md`
 | `JsonFileIpc.m` | Generic file-IPC loop (poll, callback, response, archive, watchdog) |
 | `setLogFile.m` | Set log file path for deployed workers |
 | `runDeployedBootstrap.m` | Path bootstrap for MCR-deployed executables |
-| `+debug/debug_JsonFileIpc.m` | IPC unit debug |
+| `+debug/+ultrasat/+services/+common/debug_JsonFileIpc.m` | IPC unit debug |
 
 ---
 

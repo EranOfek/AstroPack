@@ -1,4 +1,4 @@
----
+﻿---
 description: alerts_filter service end-to-end flow — service vs scientific filter separation
 globs: "+services/+alerts_filter/**,+alerts_filters/**"
 alwaysApply: false
@@ -49,7 +49,7 @@ processRequest() -> processFilterLvk() -> LvkParsedAlert.loadFromJsonFile()
 
 - `lvk_filter.m` dispatches on `Input.alert` and filter name
 - Migrate filters to `LvkFilterResult`; remove old struct-based logic
-- Debug scenarios under `+services/+alerts_filter/+debug/` — do not delete files after processing
+- Debug scenarios under `+debug/+ultrasat/+services/+alerts_filter/` — do not delete files after processing
 
 ## When to stop
 

@@ -1,4 +1,4 @@
-# ULTRASAT Planning Tools
+﻿# ULTRASAT Planning Tools
 
 Small focused utilities used by the observation planner (`+planner/uplanner.m`) and MATLAB services (notably slew calculation).
 
@@ -58,8 +58,8 @@ Some mission physics live at `+ultrasat/` root (not in `+tools/`):
 Slew wrappers:
 
 ```matlab
-ultrasat.services.slew_calc.debug.debug_calcSlewWrapper()
-ultrasat.services.slew_calc.debug.debug_processRequest()
+debug.ultrasat.services.slew_calc.debug_calcSlewWrapper()
+debug.ultrasat.services.slew_calc.debug_processRequest()
 ```
 
 ---

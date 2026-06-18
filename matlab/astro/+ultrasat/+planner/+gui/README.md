@@ -1,4 +1,4 @@
-# ULTRASAT Observation Planner GUI
+﻿# ULTRASAT Observation Planner GUI
 
 Created: 05/01/2025  
 Updated: 22/03/2025  
@@ -125,8 +125,8 @@ See [[../+guiutils/README|+guiutils README]].
 
 ```matlab
 ultrasat.planner.uplanner.unitTest()
-ultrasat.planner.debug.debug_Hcs()
-ultrasat.planner.debug.debug_Too()
+debug.ultrasat.planner.debug_Hcs()
+debug.ultrasat.planner.debug_Too()
 ```
 
 CLI guide: [[../../docs/run_matlab_cli]]

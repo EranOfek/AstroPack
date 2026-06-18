@@ -26,8 +26,7 @@ files under `debug/`. Read this before generating or moving any debug code.
 3. **File name = primary function name** (without `.m`), prefixed with `debug_`.
 4. **Production code must never depend on anything in `debug/`.** Dependencies point one
    way: `debug/` -> `matlab/`, never the reverse.
-5. **No hardcoded absolute paths.** Resolve data via the file's own location, an
-   environment variable, or `@Configuration` (see Section 6).
+5. **No hardcoded absolute paths.** Use `ASTROPACK_PATH` (repo root) or `ASTROPACK_DATA_PATH` for production resources; use `fileparts(mfilename('fullpath'))` only for co-located debug fixtures (see Section 5).
 
 ---
 
@@ -64,9 +63,12 @@ debug/                <- addpath root (must be on the MATLAB path)
 
 | Source folder | Source package path | Debug folder | Call path |
 |---------------|---------------------|--------------|-----------|
-| `matlab/astro/+ultrasat/+services/+common` | `ultrasat.services.common` | `debug/+debug/+ultrasat/+services/+common` | `debug.ultrasat.services.common.debug_X()` |
-| `matlab/astro/+ultrasat/+planner/+guiutils` | `ultrasat.planner.guiutils` | `debug/+debug/+ultrasat/+planner/+guiutils` | `debug.ultrasat.planner.guiutils.debug_X()` |
-| `matlab/astro/+celestial/+healpix` | `celestial.healpix` | `debug/+debug/+celestial/+healpix` | `debug.celestial.healpix.debug_X()` |
+| `matlab/astro/+ultrasat/+services/+common` | `ultrasat.services.common` | `+debug/+ultrasat/+services/+common` | `debug.ultrasat.services.common.debug_X()` |
+| `matlab/astro/+ultrasat/+planner/+guiutils` | `ultrasat.planner.guiutils` | `+debug/+ultrasat/+planner/+guiutils` | `debug.ultrasat.planner.guiutils.debug_X()` |
+| `matlab/astro/+celestial/+healpix` | `celestial.healpix` | `+debug/+celestial/+healpix` | `debug.celestial.healpix.debug_X()` |
+
+Documented paths start at `+debug/`; on disk, prepend the repo addpath root `debug/` (e.g.
+`+debug/+ultrasat/+planner/` → `debug/+debug/+ultrasat/+planner/`).
 
 ### Do NOT
 
@@ -74,12 +76,18 @@ debug/                <- addpath root (must be on the MATLAB path)
   of any call path. `debug.astro.ultrasat.planner...` is **wrong**.
 - **Do NOT keep a `+debug` leaf folder** under the mirrored package. The single `+debug`
   package is at the top only. A source folder `.../+common/+debug/` becomes
-  `debug/+debug/+ultrasat/+services/+common/` (the leaf `+debug` is removed and replaced
-  by the top-level `+debug` prefix).
+  `+debug/+ultrasat/+services/+common/` (the leaf `+debug` is removed and replaced by the
+  top-level `+debug` prefix).
 
 ### Reference subtree
 
-`debug/+debug/+celestial/+healpix/` is the canonical example. Match its structure.
+`+debug/+celestial/+healpix/` is the canonical example. Match its structure.
+
+### Paths in documentation
+
+- READMEs and guides: use `+debug/+ultrasat/...` (same as the `Filename` header in `.m` files).
+- MATLAB calls: use `debug.ultrasat...`.
+- Markdown/wiki link **targets** may keep full relative filesystem paths (`../../../../debug/+debug/...`) so links resolve on disk.
 
 ---
 
@@ -87,11 +95,13 @@ debug/                <- addpath root (must be on the MATLAB path)
 
 ```matlab
 function debug_<Name>()
-    % debug_<Name>  One-line description of what this driver exercises.
-    % Package    : debug.<source.package.path>
-    % Description: Slightly longer description of what is demonstrated/smoke-tested.
-    % Author     : <Name> (<Mon Year>)
-    % Run by     : debug.<source.package.path>.debug_<Name>
+    %==========================================================================
+    % Project     : ...
+    % Filename    : +debug/+ultrasat/<package-segments>/debug_<Name>.m
+    % Author      : ...
+    % Description : What this driver exercises.
+    % Run by      : debug.ultrasat.<package>.debug_<Name>()
+    %==========================================================================
     fprintf('\n========== DEBUG <NAME> ==========\n');
 
     debug_caseOne();
@@ -117,7 +127,9 @@ end
 | Rule | Detail |
 |------|--------|
 | Primary function | `debug_<Name>` matching the filename exactly |
-| Header | `Package`, `Description`, `Author`, `Run by` lines (the `Run by` is the full `debug.*` call) |
+| Block header | Use `%====` banner; include `Filename`, `Description`, `Run by` |
+| `Filename` | Package-relative path starting at `+debug` — **omit** the filesystem addpath root (`debug/` before `+debug`). Example: `+debug/+ultrasat/+planner/debug_Hcs.m`. Do **not** use the MATLAB call namespace (`debug.ultrasat...`) here. |
+| `Run by` | **Mandatory.** Place as the last header line before the closing `%====`, after all `Description` lines (including continuations). Value is the full call: `debug.ultrasat.<package>.debug_<Name>()` |
 | Output | Print clear progress with `fprintf`; banner start/end lines help when run via `-batch` |
 | Robustness | Wrap individual cases in `try/catch` so one failure does not abort the whole driver |
 | Same-package calls | Call sibling debug helpers **unqualified** (they share the package); call production code **fully qualified** (`ultrasat.planner.uplanner(...)`) |
@@ -147,10 +159,21 @@ whenever you relocate a debug folder, so the self-relative loads keep working.
 Production data does **not** move into `debug/`. Never reach it with fragile `..` hops out
 of the debug tree — those break the moment a file moves. Instead:
 
-- Prefer the environment variable / config the production code already uses, e.g.
-  `getenv('ASTROPACK_DATA_PATH')` or `@Configuration`.
-- If you must compute it, derive the repo/`matlab` root explicitly and build an absolute
-  path from there, rather than chaining `fullfile(ThisDir, '..', '..', ...)` into `matlab/`.
+- **Repo root:** use `getenv('ASTROPACK_PATH')` (must be set to the AstroPack repository root). Always check for empty and `error(...)` if unset.
+- **Bundled data:** use `getenv('ASTROPACK_DATA_PATH')` or `@Configuration`, same as production code.
+- **Co-located debug fixtures:** keep using `fileparts(mfilename('fullpath'))` for files inside the debug folder (`input_data/`, `working_dir/`, `sample_alerts/`).
+
+Example reaching production `+planner/data`:
+
+```matlab
+RepoRoot = getenv('ASTROPACK_PATH');
+if isempty(RepoRoot)
+    error('ASTROPACK_PATH is not set');
+end
+GridFile = fullfile(RepoRoot, 'matlab', 'astro', '+ultrasat', '+planner', 'data', 'LCS_fields.csv');
+```
+
+Do **not** chain `fileparts(mfilename('fullpath'))` to walk up to the repo root.
 
 ---
 
@@ -174,11 +197,10 @@ line) if not already present.
 1. Move the **entire** folder contents (`.m`, README, fixtures, `.py`, `obsolete/`) so
    adjacency is preserved.
 2. Apply the placement rule in Section 3 (strip addpath roots, drop the leaf `+debug`).
-3. Update headers (`File`, `Run by`, `Package`, usage `%` lines) to the new `debug.*` path.
+3. Update headers (`Filename`, `Run by`, usage `%` lines) to the new `debug.*` path. `Filename` uses `+debug/+ultrasat/...` (no leading `debug/`).
 4. Update any **fully-qualified** runtime calls (e.g. RENAMED shim files) to the new path;
    unqualified same-package calls need no change.
-5. Re-fix location-sensitive paths (Section 5): `fileparts`-depth counts, `..` hops, and
-   any reference that used to reach into the production tree.
+5. Re-fix location-sensitive paths (Section 5): use `ASTROPACK_PATH` for production resources under `matlab/`; keep `mfilename` only for co-located fixtures.
 6. Update docs that reference the old namespace (root `CLAUDE.md`, package `README.md`s,
    `docs/run_matlab_cli.md`).
 
@@ -186,10 +208,10 @@ line) if not already present.
 
 ## 8. Quick Checklist Before Submitting a Debug File
 
-- [ ] Lives at `debug/+debug/<package-segments-only>/` (no `astro`, no leaf `+debug`).
+- [ ] Documented path is `+debug/<package-segments-only>/` (no `astro`, no leaf `+debug`); physical location is repo `debug/` + that path.
 - [ ] File name is `debug_<Name>.m`; primary function matches.
-- [ ] Header has `Package`, `Description`, `Author`, `Run by`.
+- [ ] Header has `Filename` (`+debug/+ultrasat/...`), `Description`, and `Run by` (last line before closing `%====`).
 - [ ] Calls production code fully qualified; calls siblings unqualified.
 - [ ] Fixtures live inside the folder and load via `fileparts(mfilename('fullpath'))`.
-- [ ] No fragile `..` paths into `matlab/`; production data via env/config.
+- [ ] Production paths via `ASTROPACK_PATH` / `ASTROPACK_DATA_PATH`; no `fileparts` depth chains into `matlab/`.
 - [ ] Runs cleanly via `debug.<path>.debug_<Name>()` with `debug/` on the path.

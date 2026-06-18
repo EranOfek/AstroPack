@@ -70,7 +70,7 @@ Model class: `+models/LvkParsedAlert.m`
 
 ## Example (minimal good BNS alert)
 
-See `+debug/sample_alerts/lvk_alert_bns_good.json`:
+See `+debug/+ultrasat/+alerts_filters/+lvk/sample_alerts/lvk_alert_bns_good.json`:
 
 ```json
 {

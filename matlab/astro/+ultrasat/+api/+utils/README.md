@@ -1,4 +1,4 @@
-# API Utility Classes
+﻿# API Utility Classes
 
 Static helper classes for JSON, datetime, path, and plan conversions. Used by `+clients/`, `MainModule`, and debug scripts.
 
@@ -47,8 +47,8 @@ Used by `PlansManagerClient` for uploading/downloading `.mat` plan snapshots thr
 ## Debug
 
 ```matlab
-ultrasat.api.debug.utils.debug_parseIsoDatetime()
-ultrasat.api.debug.utils.debug_PathUtils()
+debug.ultrasat.api.utils.debug_parseIsoDatetime()
+debug.ultrasat.api.utils.debug_PathUtils()
 ```
 
 ---
