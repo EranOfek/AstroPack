@@ -436,6 +436,7 @@ classdef PhotCalibTrans < Component
                 Args.XPixel           = 1716   % Detector X size [pix]; Tran2D centre = XPixel/2
                 Args.YPixel           = 1716   % Detector Y size [pix]; Tran2D centre = YPixel/2
                 Args.Tran2DPerturbStd = 0      % Std-dev for randn-seed of Tran2D ParX (one shot before stage 1); 0 disables
+                Args.Tran2DRngSeed (1,1) double = 6   % rng seed mirrored from Simone's np.random.seed(6); used when OptSeq stage method is NONLIN_FC
                 % Calibrator selection knobs forwarded to selectCalibrators
                 Args.CalibCatName     = 'GAIADR3spec'
                 Args.MinSN            = 5                  % Lower S/N gate on calibrator candidates
@@ -962,8 +963,23 @@ classdef PhotCalibTrans < Component
                 % is determined by the data. The perturbation propagates only
                 % via the calibrator subset (sigma-clipping in stages 1 & 3) and
                 % via Norm / QE_Center fitted on shifted residuals.
+                %
+                % EXCEPTION: when the OptSeq contains a NONLIN_FC stage (joint
+                % nonlinear FC fit, Simone-style), the perturbation must NOT
+                % affect stages 1-3 — it is applied locally inside the NONLIN_FC
+                % handler so it only seeds the LM initial guess for stage 4.
+                OptSeqHasNonlinFC = false;
+                if ~isempty(Obj.TransModel.OptSeq)
+                    for IStageCheck = 1:numel(Obj.TransModel.OptSeq)
+                        FP = Obj.TransModel.OptSeq(IStageCheck).FreeParams;
+                        if ischar(FP) && strcmpi(FP, 'NONLIN_FC')
+                            OptSeqHasNonlinFC = true;
+                            break;
+                        end
+                    end
+                end
                 if Args.Tran2DPerturbStd > 0 && Obj.TransModel.UseTran2D && ...
-                        ~isempty(Obj.TransModel.Tran2DObj)
+                        ~isempty(Obj.TransModel.Tran2DObj) && ~OptSeqHasNonlinFC
                     Nparams = numel(Obj.TransModel.Tran2DObj.ParX);
                     Obj.TransModel.Tran2DObj.ParX = randn(1, Nparams) * Args.Tran2DPerturbStd;
                     if Args.Verbose
@@ -983,6 +999,8 @@ classdef PhotCalibTrans < Component
                     'OuterMaxIter',       Args.OuterMaxIter, ...
                     'OuterMinNewClipped', Args.OuterMinNewClipped, ...
                     'UseTypicalX',        Args.UseTypicalX, ...
+                    'Tran2DPerturbStd',   Args.Tran2DPerturbStd, ...
+                    'Tran2DRngSeed',      Args.Tran2DRngSeed, ...
                     'Verbose', Args.Verbose);
 
                 % Store fitted model and fit results
@@ -1058,6 +1076,15 @@ classdef PhotCalibTrans < Component
                                 if ~any(strcmp(FittedParamNames, 'Norm'))
                                     FittedParamNames{end+1} = 'Norm'; %#ok<AGROW>
                                 end
+                                if ~isempty(Obj.TransModel.Tran2DObj)
+                                    HasFieldCorrection = true;
+                                end
+                            elseif ischar(Stage.FreeParams) && strcmpi(Stage.FreeParams, 'NONLIN_FC')
+                                % Joint nonlinear Tran2D stage (Simone-style):
+                                % fits only the 10 Tran2D ParX coeffs (added
+                                % below via HasFieldCorrection). Norm is held
+                                % fixed at the pre-stage value, so no Norm
+                                % contribution to DOF here.
                                 if ~isempty(Obj.TransModel.Tran2DObj)
                                     HasFieldCorrection = true;
                                 end

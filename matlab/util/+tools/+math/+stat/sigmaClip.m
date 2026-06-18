@@ -1,25 +1,31 @@
 function [OutlierMask, Info] = sigmaClip(Residuals, SigmaThresh, Args)
     % Sigma clipping of residuals, method can be selected from
-    % 'median'/'weighted'
+    % 'median'/'median_signed'/'weighted'
     % Package: tools.math.stat
     % Description: Identifies outliers in a residual vector using sigma
-    %              clipping. Two methods are supported:
-    %              'weighted' - Threshold on error-normalized residuals:
-    %                           |r_i / sigma_i| > SigmaThresh
-    %              'median'   - Astropy-style iterative clipping on absolute
-    %                           residuals: |abs(r_i) - median| > N * std
-    %                           Replicates astropy.stats.sigma_clip with
-    %                           cenfunc='median', stdfunc='std', maxiters=5.
+    %              clipping. Three methods are supported:
+    %              'weighted'      - Threshold on error-normalized residuals:
+    %                                |r_i / sigma_i| > SigmaThresh
+    %              'median'        - Iterative clipping on absolute residuals:
+    %                                |abs(r_i) - median(|r|)| > N * scale(|r|)
+    %              'median_signed' - Astropy-style iterative clipping on
+    %                                signed residuals:
+    %                                |r_i - median(r)| > N * scale(r)
+    %                                Replicates astropy.stats.sigma_clip with
+    %                                cenfunc='median', stdfunc='std',
+    %                                maxiters=5.
     %              On any error, returns no-outlier mask and a warning
     %              (pipeline-safe: never throws).
     % Input  :  - Residual vector [N x 1] (signed, in magnitudes)
     %           - Sigma threshold for clipping (e.g., 3.0)
     %          * ...,key,val,...
     %            'Method'  - Clipping method:
-    %                        'weighted' - |r_i / Errors_i| > SigmaThresh
-    %                        'median'   - Iterative median+std on abs(residuals)
-    %                                     (default)
-    %            'StdFunc' - Scale function for 'median' method:
+    %                        'weighted'      - |r_i / Errors_i| > SigmaThresh
+    %                        'median'        - Iterative on abs(residuals)
+    %                                          (default)
+    %                        'median_signed' - Iterative on signed residuals
+    %                                          (astropy parity)
+    %            'StdFunc' - Scale function for 'median'/'median_signed':
     %                        'mad_std' - 1.4826 * MAD (robust scale; default)
     %                        'std'     - sample std (matches astropy default)
     %                        Ignored for 'weighted' method.
@@ -103,6 +109,47 @@ function [OutlierMask, Info] = sigmaClip(Residuals, SigmaThresh, Args)
                                 Scale = std(ValidData);
                         end
                         NewClipMask = abs(AbsRes - Center) > SigmaThresh * Scale;
+                        IterDone = Iter;
+                        if isequal(NewClipMask, ClipMask)
+                            Converged = true;
+                        end
+                        ClipMask = NewClipMask;
+                    end
+                end
+                OutlierMask = ClipMask;
+                Info.Center = Center;
+                Info.Scale = Scale;
+                Info.NumIter = IterDone;
+                Performed = true;
+
+            case 'median_signed'
+                % astropy.stats.sigma_clip parity:
+                % operate on SIGNED residuals, not |residuals|.
+                % Iterates center=median, scale=std (or mad_std) over the
+                % currently-unmasked points; clip mask grows until either
+                % nothing new is flagged or MaxIter reached.
+                SigRes = Residuals;
+                ClipMask = false(size(SigRes));
+                Converged = false;
+                Center = NaN;
+                Scale = NaN;
+                IterDone = 0;
+
+                for Iter = 1:Args.MaxIter
+                    if ~Converged
+                        ValidData = SigRes(~ClipMask);
+                        Center = median(ValidData);
+                        switch Args.StdFunc
+                            case 'std'
+                                Scale = std(ValidData);
+                            case 'mad_std'
+                                Scale = 1.4826 * median(abs(ValidData - median(ValidData)));
+                            otherwise
+                                warning('sigmaClip:UnknownStdFunc', ...
+                                    'Unknown StdFunc ''%s''; falling back to std', Args.StdFunc);
+                                Scale = std(ValidData);
+                        end
+                        NewClipMask = abs(SigRes - Center) > SigmaThresh * Scale;
                         IterDone = Iter;
                         if isequal(NewClipMask, ClipMask)
                             Converged = true;
