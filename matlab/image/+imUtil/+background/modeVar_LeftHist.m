@@ -1,5 +1,6 @@
 function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
     % Estimate the global image background mode and variance via a left-flank fit.
+    % See also: imUtil.background.mex.modeVar_LeftHist
     %   Estimate the background level B of an image whose pixel histogram is a
     %   Gaussian sky contaminated on its positive (right) side by sources. The
     %   estimator locates the histogram peak, then fits the peak plus the
@@ -46,6 +47,7 @@ function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
     %            'MinBins' - Minimum number of populated bins in the fit window
     %                     required to attempt the fit, else fallback.
     %                     Default is 5.
+    %            'UseMex' - Use mex version. Default is true.
     % Output : - Back : Estimated background level B (targets B). From the
     %                   fixed-sigma linear location fit (orthogonal to width).
     %          - Var  : Background noise variance, measured in the decoupled
@@ -75,6 +77,24 @@ function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
         Args.SmoothBins         = 3
         Args.Niter              = 1
         Args.MinBins            = 5
+        Args.UseMex             = true;
+    end
+
+
+    if Args.UseMex
+         [Back, Var, Info] = imUtil.background.mex.modeVar_LeftHist(Image, ...
+                'VarianceRatio', Args.VarianceRatio, ...
+                'BinFactor',     Args.BinFactor, ...
+                'RangeLo',       Args.RangeLo, ...
+                'RangeHi',       Args.RangeHi, ...
+                'WinLo',         Args.WinLo, ...
+                'WinHi',         Args.WinHi, ...
+                'SmoothBins',    Args.SmoothBins, ...
+                'Niter',         Args.Niter, ...
+                'MinBins',       Args.MinBins, ...
+                'FastMedian',    double(Args.FastMedian), ...
+                'OS',            Args.OS);
+         return;
     end
 
     % --- prepare the sample -------------------------------------------------
