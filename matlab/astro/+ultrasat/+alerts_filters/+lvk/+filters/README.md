@@ -71,7 +71,7 @@ criteria = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria();
 
 1. Add `lvk_filter_myname.m` in this folder
 2. Add a `case` in `lvk_filter.m` switch
-3. Add debug script in `+debug/debug_lvk_filter_myname.m`
+3. Add debug script in `+debug/+ultrasat/+alerts_filters/+lvk/debug_lvk_filter_myname.m`
 4. Add sample alert JSON if needed
 5. Do **not** change `+services/+alerts_filter/` unless IPC contract changes
 
@@ -80,12 +80,12 @@ criteria = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria();
 ## Debug
 
 ```matlab
-ultrasat.alerts_filters.lvk.debug.debug_lvk_filter()
-ultrasat.alerts_filters.lvk.debug.debug_lvk_filter_simple()
-ultrasat.alerts_filters.lvk.debug.debug_lvk_filter_with_criteria()
+debug.ultrasat.alerts_filters.lvk.debug_lvk_filter()
+debug.ultrasat.alerts_filters.lvk.debug_lvk_filter_simple()
+debug.ultrasat.alerts_filters.lvk.debug_lvk_filter_with_criteria()
 ```
 
-Fixtures: `+debug/sample_alerts/`
+Fixtures: `+debug/+ultrasat/+alerts_filters/+lvk/sample_alerts/`
 
 ---
 

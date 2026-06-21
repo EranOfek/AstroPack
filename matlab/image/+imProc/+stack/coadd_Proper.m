@@ -180,7 +180,7 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
     
 
     if Args.AddBack
-        [Result.BackData.Data, Result.VarData.Data, BackSmall, VarSmall] = imUtil.background.backVar(Result.ImageData.Data, Args.FinalBackArgs{:});
+        Result = imProc.background.backVar(Result, Args.FinalBackArgs{:});
     end
 
     % coadd mask
@@ -191,9 +191,7 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
         % update Mask to NaN for pixels in which CoaddN<Nim
         Result.MaskData.maskSet(CoaddN<Nim, Args.KeyNaN);
         % Update CoaddLessImages
-        Result.MaskData.maskSet( CoaddN<(Args.FracCoaddLess.*Nim), Args.KeyCoaddLess);
-       
-
+        Result.MaskData.maskSet( CoaddN<(Args.FracCoaddLess.*Nim), Args.KeyCoaddLess);       
     end
 
     % Update header:
@@ -204,14 +202,5 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
                                                       'UpdateImagePathKeys',Args.UpdateImagePathKeys,...
                                                       'StackMethod',StackMethod,...
                                                       'CoaddN',CoaddN,...
-                                                      'KeyExpTime',Args.KeyExpTime);
-
-    % Update back/var statistics in the header from the newly computed coadd background
-    if Args.AddBack
-        BckKeys = {'MEANBCK','MEDBCK','STDBCK','MINBCK','MAXBCK'};
-        BckVals = {mean(BackSmall,'all'), fast_median(BackSmall(:)), std(BackSmall,[],'all'), min(BackSmall,[],'all'), max(BackSmall,[],'all')};
-        Result.HeaderData.replaceVal(BckKeys, BckVals);
-        Result.HeaderData.replaceVal({'MEANVAR','MEDVAR'}, {mean(VarSmall,'all'), fast_median(VarSmall(:))});
-    end
-
+                                                      'KeyExpTime',Args.KeyExpTime);    
 end

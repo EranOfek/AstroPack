@@ -1,4 +1,4 @@
-# CLAUDE.md 
+﻿# CLAUDE.md 
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -14,12 +14,12 @@ Tests are function-based (`return functiontests(localfunctions)`), not class-bas
 
 ## Running Debug Scripts
 
-Debug scripts follow the convention `debug_<ClassName>.m` in a `+debug/` sub-package alongside the source they test. Run them directly from MATLAB:
+Debug scripts follow the convention `debug_<ClassName>.m` under `+debug/+ultrasat/` (see [debug/CLAUDE.md](debug/CLAUDE.md)). Run them directly from MATLAB:
 
 ```matlab
-ultrasat.api.debug.clients.debug_NamespaceManagerClient()
-ultrasat.api.debug.clients.debug_ClientFactory()
-ultrasat.planner.guiutils.debug.debug_MainModule()
+debug.ultrasat.api.clients.debug_NamespaceManagerClient()
+debug.ultrasat.api.clients.debug_ClientFactory()
+debug.ultrasat.planner.guiutils.debug_MainModule()
 ```
 
 ## Environment Variables

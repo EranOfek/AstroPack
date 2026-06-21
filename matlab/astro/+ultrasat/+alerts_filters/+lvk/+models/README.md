@@ -86,14 +86,14 @@ Minimal base class for filter implementations. Extend for new filter types if ne
 
 ## Sample data
 
-Fixtures: `+debug/sample_alerts/` (e.g. `lvk_alert_bns_good.json`)
+Fixtures: `+debug/+ultrasat/+alerts_filters/+lvk/sample_alerts/` (e.g. `lvk_alert_bns_good.json`)
 
 Debug:
 
 ```matlab
-ultrasat.alerts_filters.lvk.debug.debug_LvkParsedAlert()
-ultrasat.alerts_filters.lvk.debug.debug_LvkFilterCriteria()
-ultrasat.alerts_filters.lvk.debug.debug_LvkFilterResult()
+debug.ultrasat.alerts_filters.lvk.debug_LvkParsedAlert()
+debug.ultrasat.alerts_filters.lvk.debug_LvkFilterCriteria()
+debug.ultrasat.alerts_filters.lvk.debug_LvkFilterResult()
 ```
 
 ---

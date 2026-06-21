@@ -72,19 +72,19 @@ Planner scripts call `debug_ensureDataPath()` and may set a fallback if the vari
 ### Package function (debug script top function)
 
 ```powershell
-& "C:\Matlab\R2025b\bin\matlab.exe" -batch "ultrasat.planner.debug.debug_Hcs()" 2>&1
+& "C:\Matlab\R2025b\bin\matlab.exe" -batch "debug.ultrasat.planner.debug_Hcs()" 2>&1
 ```
 
 Omit `()` only when the function takes no arguments and you use the form without parens (both work for zero-arg functions):
 
 ```powershell
-& "C:\Matlab\R2025b\bin\matlab.exe" -batch "ultrasat.api.debug.clients.debug_ClientFactory" 2>&1
+& "C:\Matlab\R2025b\bin\matlab.exe" -batch "debug.ultrasat.api.clients.debug_ClientFactory" 2>&1
 ```
 
 ### Interactive MATLAB (same statement)
 
 ```matlab
-ultrasat.planner.debug.debug_Hcs()
+debug.ultrasat.planner.debug_Hcs()
 ```
 
 ### Unit tests (repo `tests/` tree)
@@ -101,29 +101,29 @@ ultrasat.planner.debug.debug_Hcs()
 2. Always redirect with **`2>&1`** so errors appear in the terminal log.
 3. Read the **full** console output before reporting success or failure.
 4. Do not use **`-nodisplay -nojvm`** unless you also add AstroPack to the path manually.
-5. Prefer **`Tee-Object`** to a log under the repo or `+debug/working_dir/` for long runs.
-6. Do not edit [`unitTest.m`](../+planner/unitTest.m) when validating planner behavior — use `+planner/+debug/debug_*.m` instead.
+5. Prefer **`Tee-Object`** to a log under the repo or `+debug/+ultrasat/+planner/working_dir/` for long runs.
+6. Do not edit [`unitTest.m`](../+planner/unitTest.m) when validating planner behavior — use `+debug/+ultrasat/+planner/debug_*.m` instead.
 
 ---
 
 ## Observation planner debug scripts
 
-Location: [`+planner/+debug/`](../+planner/+debug/)
+Location: [`+debug/+ultrasat/+planner/`](../../../../debug/+debug/+ultrasat/+planner/)
 
 | Script | Run command | External data |
 |--------|-------------|---------------|
-| HCS | `ultrasat.planner.debug.debug_Hcs()` | None (in-memory targets) |
-| DDT | `ultrasat.planner.debug.debug_Ddt()` | None |
-| TOO | `ultrasat.planner.debug.debug_Too()` | Minimal path: none; prob-map: `+debug/input_data/lvc_2024_04_01_00_40_58_000000.csv` |
-| LCS | `ultrasat.planner.debug.debug_Lcs()` | `ASTROPACK_DATA_PATH/ULTRASAT/LCS_fields.csv`, `LCS_nonoverlapping_grid.csv`; optional `api_response.mat` |
-| AllSS | `ultrasat.planner.debug.debug_AllSs()` | `constructGrid`: grid file via `BaseDataDir`; builds: `alss_uniq_targ.mat` |
+| HCS | `debug.ultrasat.planner.debug_Hcs()` | None (in-memory targets) |
+| DDT | `debug.ultrasat.planner.debug_Ddt()` | None |
+| TOO | `debug.ultrasat.planner.debug_Too()` | Minimal path: none; prob-map: `+debug/+ultrasat/+planner/input_data/lvc_2024_04_01_00_40_58_000000.csv` |
+| LCS | `debug.ultrasat.planner.debug_Lcs()` | `ASTROPACK_DATA_PATH/ULTRASAT/LCS_fields.csv`, `LCS_nonoverlapping_grid.csv`; optional `api_response.mat` |
+| AllSS | `debug.ultrasat.planner.debug_AllSs()` | `constructGrid`: grid file via `BaseDataDir`; builds: `alss_uniq_targ.mat` |
 
 ### HCS
 
 ```powershell
 cd C:\Ultrasat\AstroPack
-& "C:\Matlab\R2025b\bin\matlab.exe" -batch "ultrasat.planner.debug.debug_Hcs()" 2>&1 |
-    Tee-Object -FilePath "matlab\astro\+ultrasat\+planner\+debug\working_dir\debug_Hcs_run.log"
+& "C:\Matlab\R2025b\bin\matlab.exe" -batch "debug.ultrasat.planner.debug_Hcs()" 2>&1 |
+    Tee-Object -FilePath "debug\+debug\+ultrasat\+planner\working_dir\debug_Hcs_run.log"
 ```
 
 Sub-tests: `debug_Hcs_basic`, `debug_Hcs_inspect`, `debug_Hcs_customExptime`.
@@ -131,8 +131,8 @@ Sub-tests: `debug_Hcs_basic`, `debug_Hcs_inspect`, `debug_Hcs_customExptime`.
 ### DDT
 
 ```powershell
-& "C:\Matlab\R2025b\bin\matlab.exe" -batch "ultrasat.planner.debug.debug_Ddt()" 2>&1 |
-    Tee-Object -FilePath "matlab\astro\+ultrasat\+planner\+debug\working_dir\debug_Ddt_run.log"
+& "C:\Matlab\R2025b\bin\matlab.exe" -batch "debug.ultrasat.planner.debug_Ddt()" 2>&1 |
+    Tee-Object -FilePath "debug\+debug\+ultrasat\+planner\working_dir\debug_Ddt_run.log"
 ```
 
 Sub-tests: `debug_Ddt_basic`, `debug_Ddt_multipleGroups`, `debug_Ddt_inspect`.
@@ -140,8 +140,8 @@ Sub-tests: `debug_Ddt_basic`, `debug_Ddt_multipleGroups`, `debug_Ddt_inspect`.
 ### TOO
 
 ```powershell
-& "C:\Matlab\R2025b\bin\matlab.exe" -batch "ultrasat.planner.debug.debug_Too()" 2>&1 |
-    Tee-Object -FilePath "matlab\astro\+ultrasat\+planner\+debug\working_dir\debug_Too_run.log"
+& "C:\Matlab\R2025b\bin\matlab.exe" -batch "debug.ultrasat.planner.debug_Too()" 2>&1 |
+    Tee-Object -FilePath "debug\+debug\+ultrasat\+planner\working_dir\debug_Too_run.log"
 ```
 
 Sub-tests: `debug_Too_minimal` (always); `debug_Too_withProbMap`, `debug_Too_highCoverage` (skip with warning if CSV missing).
@@ -149,8 +149,8 @@ Sub-tests: `debug_Too_minimal` (always); `debug_Too_withProbMap`, `debug_Too_hig
 ### LCS
 
 ```powershell
-& "C:\Matlab\R2025b\bin\matlab.exe" -batch "ultrasat.planner.debug.debug_Lcs()" 2>&1 |
-    Tee-Object -FilePath "matlab\astro\+ultrasat\+planner\+debug\working_dir\debug_Lcs_run.log"
+& "C:\Matlab\R2025b\bin\matlab.exe" -batch "debug.ultrasat.planner.debug_Lcs()" 2>&1 |
+    Tee-Object -FilePath "debug\+debug\+ultrasat\+planner\working_dir\debug_Lcs_run.log"
 ```
 
 Sub-tests: `debug_Lcs_buildLCS1`, `debug_Lcs_buildLCS_legacy`, `debug_Lcs_retrieveApproved`, `debug_Lcs_editAndDelete`.
@@ -158,8 +158,8 @@ Sub-tests: `debug_Lcs_buildLCS1`, `debug_Lcs_buildLCS_legacy`, `debug_Lcs_retrie
 ### AllSS (All-Sky)
 
 ```powershell
-& "C:\Matlab\R2025b\bin\matlab.exe" -batch "ultrasat.planner.debug.debug_AllSs()" 2>&1 |
-    Tee-Object -FilePath "matlab\astro\+ultrasat\+planner\+debug\working_dir\debug_AllSs_run.log"
+& "C:\Matlab\R2025b\bin\matlab.exe" -batch "debug.ultrasat.planner.debug_AllSs()" 2>&1 |
+    Tee-Object -FilePath "debug\+debug\+ultrasat\+planner\working_dir\debug_AllSs_run.log"
 ```
 
 Sub-tests: `debug_AllSs_constructGrid` (no mat file); `debug_AllSs_buildWeekly`, `debug_AllSs_buildSemester` (need `alss_uniq_targ.mat`).
@@ -168,11 +168,11 @@ Sub-tests: `debug_AllSs_constructGrid` (no mat file); `debug_AllSs_buildWeekly`,
 
 ```powershell
 $matlab = "C:\Matlab\R2025b\bin\matlab.exe"
-$logDir = "C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+planner\+debug\working_dir"
+$logDir = "C:\Ultrasat\AstroPack\debug\+debug\+ultrasat\+planner\working_dir"
 @("debug_Hcs","debug_Ddt","debug_Too","debug_Lcs","debug_AllSs") | ForEach-Object {
     $name = $_
     Write-Host "========== $name =========="
-    & $matlab -batch "ultrasat.planner.debug.${name}()" 2>&1 |
+    & $matlab -batch "debug.ultrasat.planner.${name}()" 2>&1 |
         Tee-Object -FilePath (Join-Path $logDir "${name}_run.log")
 }
 ```
@@ -182,7 +182,7 @@ $logDir = "C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+planner\+debug\working_
 ## API client debug (sanity check)
 
 ```powershell
-& "C:\Matlab\R2025b\bin\matlab.exe" -batch "ultrasat.api.debug.clients.debug_ClientFactory" 2>&1
+& "C:\Matlab\R2025b\bin\matlab.exe" -batch "debug.ultrasat.api.clients.debug_ClientFactory" 2>&1
 ```
 
 Requires `SOC_PATH` and `SOC_API_KEY`. See [01_python_api_matlab_client.prompt.md](../01_python_api_matlab_client.prompt.md).
@@ -194,7 +194,7 @@ Requires `SOC_PATH` and `SOC_API_KEY`. See [01_python_api_matlab_client.prompt.m
 | Issue | Cause | Fix |
 |-------|--------|-----|
 | `Unrecognized function or variable 'ultrasat...'` | Path not set | Ensure `startup.m` adds `AstroPack\matlab`; or `-batch "addpath(genpath('C:\Ultrasat\AstroPack\matlab')); ultrasat...."` |
-| Empty or skipped TOO prob-map tests | CSV not in `+debug/input_data/` | Copy `lvc_2024_04_01_00_40_58_000000.csv` from `ULTRASAT/` data folder |
+| Empty or skipped TOO prob-map tests | CSV not in planner debug fixtures | Copy `lvc_2024_04_01_00_40_58_000000.csv` into `+debug/+ultrasat/+planner/input_data/` |
 | LCS / AllSS errors on grid files | `ASTROPACK_DATA_PATH` wrong | Point to folder containing `ULTRASAT\*.csv` / `*.mat` |
 | `-nodisplay -nojvm` | Bypasses normal startup | Do not use for AstroPack debug unless you add path yourself |
 | Long run, no visible output | Buffering | Use `Tee-Object`; wait for process exit |
@@ -203,12 +203,12 @@ Requires `SOC_PATH` and `SOC_API_KEY`. See [01_python_api_matlab_client.prompt.m
 
 ## Debug script convention
 
-- Filename: `debug_<Name>.m` in a `+debug/` package next to the code under test.
+- Filename: `debug_<Name>.m` under `+debug/+ultrasat/` (see [debug/CLAUDE.md](../../../../debug/CLAUDE.md)), mirroring the source package path.
 - Top function orchestrates; sub-functions `debug_<Name>_<scenario>` are runnable alone (cursor + F9 in MATLAB Editor).
-- Run from CLI: `ultrasat.<package>.debug.debug_<Name>()`
+- Run from CLI: `debug.<package>.debug_<Name>()`
 
 Example locations:
 
-- `+ultrasat/+planner/+debug/` — planner plan types (HCS, LCS, DDT, TOO, AllSS)
-- `+ultrasat/+api/+debug/+clients/` — REST clients
-- `+ultrasat/+alerts_filters/+lvk/+debug/` — LVK alert filters
+- `+debug/+ultrasat/+planner/` — planner plan types (HCS, LCS, DDT, TOO, AllSS)
+- `+debug/+ultrasat/+api/+clients/` — REST clients
+- `+debug/+ultrasat/+alerts_filters/+lvk/` — LVK alert filters

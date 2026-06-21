@@ -306,7 +306,7 @@ classdef AstroDiff < AstroImage
                             MeanN = Obj(Iobj).BackN;
                             MeanR = Obj(Iobj).BackR;
                             SigN = Obj(Iobj).SigmaN;
-                            SigR =  Obj(Iobj).SigmaR;
+                            SigR = Obj(Iobj).SigmaR;
 
                             [XSizeN,YSizeN] = Obj(Iobj).New.sizeImage();
                             [XSizeR,YSizeR] = Obj(Iobj).Ref.sizeImage();
@@ -318,6 +318,13 @@ classdef AstroDiff < AstroImage
 
                             Obj(Iobj).New.Image(NaNMaskN) = SimBackN(NaNMaskN);
                             Obj(Iobj).Ref.Image(NaNMaskR) = SimBackR(NaNMaskR);
+
+                            Obj(Iobj).New.Back(NaNMaskN) = MeanN;
+                            Obj(Iobj).New.Var(NaNMaskN) = Obj(Iobj).VarN;
+
+                            Obj(Iobj).Ref.Back(NaNMaskR) = MeanR;
+                            Obj(Iobj).Ref.Var(NaNMaskR) = Obj(Iobj).VarR;
+
                             continue
                     end
                 else
@@ -549,7 +556,7 @@ classdef AstroDiff < AstroImage
 
                 Args.InterpMethod             = 'cubic';  % 'makima'
                 Args.InterpMethodMask         = 'nearest';
-                Args.DataProp                 = {'Image','Mask'};
+                Args.DataProp                 = {'Image','Mask','Back','Var'};
                 Args.ExtrapVal                = NaN;
                 Args.CopyPSF logical          = true;
                 Args.CopyWCS logical          = true;
@@ -906,8 +913,12 @@ classdef AstroDiff < AstroImage
                 Args.BackFun                     = @imUtil.background.modeVar_LogHist; %@median;
                 Args.BackFunPar cell             = {'MinVal',30, 'MaxVal',7000}; %{[1 2]};  % 5000 is the max vab. allowed in LAST images
 
+                Args.BackFunRef                  = @imUtil.background.modeVar_Hist;
+                Args.BackFunParRef cell          = {'Range', [-50,50]};
+
                 Args.VarFun                      = []; %@imUtil.background.rvar; % [];
                 Args.VarFunPar cell              = {};
+
                 Args.MeanVarFun function_handle   = @tools.math.stat.nanmean;
                 Args.SubSizeXY                   = [];
                 Args.Overlap                     = 16;
@@ -937,14 +948,11 @@ classdef AstroDiff < AstroImage
                     else
                         % populate Back and Var images of New image:
 
-                        Obj(Iobj).New = imProc.background.background(...
-                            Obj(Iobj).New, 'BackFun',Args.BackFun,...
-                            'BackFunPar',Args.BackFunPar,...
-                            'VarFun',Args.VarFun,...
-                            'VarFunPar',Args.VarFunPar,...
-                            'SubSizeXY',Args.SubSizeXY,...
-                            'Overlap',Args.Overlap,...
-                            'SubBack',false);
+                        Obj(Iobj).New = imProc.background.backVar(...
+                            Obj(Iobj).New, 'Method',Args.BackFun,...
+                            'MethodArgs',{{Args.BackFunPar},{Args.VarFunPar}},...
+                            'Block',Args.SubSizeXY, 'Overlap', Args.Overlap...
+                            );
                     end
                 end
 
@@ -952,18 +960,13 @@ classdef AstroDiff < AstroImage
                 if any(isemptyImage(Obj(Iobj).Ref, {'Back','Var'}), 'all')
                     % Ref image: Back or Var properties are empty
                     if Obj(Iobj).RefIsBackgroundSubtracted
-                            % Ref is background subtracted - use simple
-                            % methods:
-                            [ImageSizeX,ImageSizeY] = Obj(Iobj).Ref.sizeImage;
-                            
-                            Obj(Iobj).Ref.Back = zeros(ImageSizeX, ImageSizeY);
-                            
-                            RefImage = Obj(Iobj).Ref.Image;
-                            NonNanRefImage = RefImage(~isnan(RefImage));
-                            
-                            Obj(Iobj).Ref.Var = repmat(...
-                                imUtil.background.rvar(NonNanRefImage),...
-                                ImageSizeX, ImageSizeY);
+                            % Ref is background subtracted 
+
+                            Obj(Iobj).Ref = imProc.background.backVar(...
+                                Obj(Iobj).Ref, 'Method',Args.BackFunRef,...
+                                'MethodArgs',{Args.BackFunParRef,{}},...
+                                'Block', Args.SubSizeXY,'Overlap',Args.Overlap);
+
                     else
                         if (Args.useHeaderVal && Obj(Iobj).Ref.HeaderData.isKeyExist(Args.HeaderBackKey) ...
                                 && Obj(Iobj).Ref.HeaderData.isKeyExist(Args.HeaderVarKey))
@@ -977,14 +980,11 @@ classdef AstroDiff < AstroImage
                                 ImageSizeX, ImageSizeY);
                         else
                             % Calculate background:
-                            Obj(Iobj).Ref = imProc.background.background(...
-                                Obj(Iobj).Ref, 'BackFun',Args.BackFun,...
-                                'BackFunPar',Args.BackFunPar,...
-                                'VarFun',Args.VarFun,...
-                                'VarFunPar',Args.VarFunPar,...
-                                'SubSizeXY',Args.SubSizeXY,...
-                                'Overlap',Args.Overlap,...
-                                'SubBack',false);
+                            Obj(Iobj).Ref = imProc.background.backVar(...
+                                Obj(Iobj).Ref, 'Method',Args.BackFun,...
+                                'MethodArgs',{{Args.BackFunPar},{Args.VarFunPar}},...
+                                'Block',Args.SubSizeXY, 'Overlap', Args.Overlap...
+                                );
                         end
                     end
                 end

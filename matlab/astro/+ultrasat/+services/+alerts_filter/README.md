@@ -19,7 +19,7 @@ Python bridge: `python/prj/nova/soc/matlab_bridges/alerts_filter_bridge/`
 |------|------|
 | `alerts_filter_service.m` | Entry — creates `JsonFileIpc`, calls `processLoop` |
 | `processRequest.m` | Dispatches `health`, `filter_lvk` |
-| `+debug/debug_processRequest.m` | Headless test scenarios |
+| `+debug/+ultrasat/+services/+alerts_filter/debug_processRequest.m` | Headless test scenarios |
 
 ---
 
@@ -98,10 +98,10 @@ ultrasat.services.alerts_filter.alerts_filter_service()
 Debug:
 
 ```matlab
-ultrasat.services.alerts_filter.debug.debug_processRequest()
+debug.ultrasat.services.alerts_filter.debug_processRequest()
 ```
 
-Sample alerts: `+alerts_filters/+lvk/+debug/sample_alerts/`
+Sample alerts: `+debug/+ultrasat/+alerts_filters/+lvk/sample_alerts/`
 
 ---
 

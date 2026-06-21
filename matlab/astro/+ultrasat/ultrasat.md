@@ -31,7 +31,7 @@ Architecture diagram: `matlab/astro/+ultrasat/diagrams/architecture_overview.mmd
 - **`+gui/`** — App Designer `.mlapp` shells (edit `.mlapp`, not `mlapp_source/`)
 - **`+guiutils/`** — `MainModule` (DataModule) and `PlannerMain*` helpers
 - **`+webpage/`** — HTML plan/target export from templates
-- **`+debug/`** — Headless debug scripts for planner modes
+- **`+debug/+ultrasat/` (see [debug/CLAUDE.md](../../../debug/CLAUDE.md))** — Headless debug scripts for planner modes
 
 Docs: [[+planner/+guiutils/README|+guiutils README]] · [[+planner/+gui/README|+gui README]] · [[+planner/+webpage/README|+webpage README]]
 
@@ -94,10 +94,10 @@ ultrasat.planner.unitTest      % planner core
 ### Debug scripts (headless)
 
 ```matlab
-ultrasat.planner.debug.debug_Hcs()
-ultrasat.planner.debug.debug_TooPlannerRunner()
-ultrasat.api.debug.clients.debug_ClientFactory()
-ultrasat.services.alerts_filter.debug.debug_processRequest()
+debug.ultrasat.planner.debug_Hcs()
+debug.ultrasat.planner.debug_TooPlannerRunner()
+debug.ultrasat.api.clients.debug_ClientFactory()
+debug.ultrasat.services.alerts_filter.debug_processRequest()
 ```
 
 CLI patterns: [[docs/run_matlab_cli]]

@@ -4,7 +4,7 @@ Python OR-Tools CP-SAT scheduler for the ULTRASAT Low Cadence Survey (LCS).
 
 The solver uses visibility and field data exported from `LcsHelper_v3.m` and
 builds an optimization model that follows the same scheduling rules validated by
-`+debug/validate_LcsHelper_v3.m`.
+`+debug/+ultrasat/+planner/+lcs_v3/validate_LcsHelper_v3.m`.
 
 For the detailed model explanation, read:
 
@@ -127,7 +127,7 @@ for day 360.
 The MATLAB reference validator is:
 
 ```matlab
-ultrasat.planner.debug.validate_LcsHelper_v3()
+debug.ultrasat.planner.lcs_v3.validate_LcsHelper_v3()
 ```
 
 The Python validation mirrors the same major checks:

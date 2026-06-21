@@ -1,4 +1,4 @@
----
+﻿---
 description: Python API to MATLAB client verification — sync HTTP clients mirror nova soc/common/clients
 globs: "+api/**"
 alwaysApply: false
@@ -8,7 +8,7 @@ alwaysApply: false
 
 ## Goal
 
-Maintain MATLAB API clients (`+api/+clients/`) as faithful mirrors of Python sync HTTP clients (`soc/common/clients/` in Ultrasat.git nova). Verify via headless debug scripts (`+api/+debug/+clients/`).
+Maintain MATLAB API clients (`+api/+clients/`) as faithful mirrors of Python sync HTTP clients (`soc/common/clients/` in Ultrasat.git nova). Verify via headless debug scripts (`+debug/+ultrasat/+api/+clients/`).
 
 ## Source of truth
 
@@ -24,7 +24,7 @@ Maintain MATLAB API clients (`+api/+clients/`) as faithful mirrors of Python syn
 | Layer | MATLAB path |
 |-------|-------------|
 | Clients | `+api/+clients/` |
-| Debug | `+api/+debug/+clients/` |
+| Debug | `+debug/+ultrasat/+api/+clients/` |
 | HTTP base | `ClientBase.m`, `ClientFactory.m` |
 
 ## Environment
@@ -45,7 +45,7 @@ Maintain MATLAB API clients (`+api/+clients/`) as faithful mirrors of Python syn
 Sanity check:
 
 ```powershell
-& "C:\Matlab\R2025b\bin\matlab.exe" -batch "ultrasat.api.debug.clients.debug_ClientFactory" 2>&1
+& "C:\Matlab\R2025b\bin\matlab.exe" -batch "debug.ultrasat.api.clients.debug_ClientFactory" 2>&1
 ```
 
 ## Iteration loop
@@ -61,7 +61,7 @@ Sanity check:
 - No GUI changes from this loop
 - No `error()` from client methods — return `struct('status','error','message',...)`
 - Do not add MATLAB methods without a MATLAB caller
-- Never touch `+clients/obsolete/` or `+debug/+clients/obsolete/`
+- Never touch `+clients/obsolete/` or `+debug/+ultrasat/+api/+clients/obsolete/`
 
 ## Common pitfalls
 

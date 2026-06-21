@@ -31,7 +31,7 @@ Use this template:
 %==========================================================================
 % ULTRASAT
 %
-% File:        debug_ApiUtils.m
+% Filename:    debug_ApiUtils.m
 % Author:      Chen Tishler
 % Created:     DD/MM/YYYY
 % Updated:     DD/MM/YYYY
@@ -39,7 +39,7 @@ Use this template:
 %==========================================================================
 %
 % Debug function for ultrasat.api.ApiUtils class
-% Run by: ultrasat.api.debug_ApiUtils()
+% Run by: debug.ultrasat.api.utils.debug_PathUtils()
 %
 
 function debug_ApiUtils()

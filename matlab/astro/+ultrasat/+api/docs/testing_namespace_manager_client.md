@@ -11,7 +11,7 @@ This document describes how to test the MATLAB `NamespaceManagerClient` against 
 | File | Purpose |
 |------|---------|
 | `+clients/NamespaceManagerClient.m` | MATLAB client — only `getNamespaceList()` |
-| `+debug/+clients/debug_NamespaceManagerClient.m` | Debug script to run against the server |
+| `+debug/+ultrasat/+api/+clients/debug_NamespaceManagerClient.m` | Debug script to run against the server |
 | `python/prj/nova/soc/platform/namespace_manager/api.py` | Server-side FastAPI (reference) |
 | `python/prj/nova/debug/platform/namespace_manager/debug_namespace_manager.html` | Browser debug console (reference) |
 
@@ -107,7 +107,7 @@ curl -X POST http://socsrv/api/namespace-manager/get-namespaces \
 2. Get the Python API file path (e.g. `soc/platform/<service>/api.py`).
 3. Read both files to understand endpoints and request/response shapes.
 4. Check the MATLAB client (`+clients/<Service>Client.m`) covers the needed endpoints.
-5. Check/update the debug script (`+debug/+clients/debug_<Service>Client.m`).
+5. Check/update the debug script (`+debug/+ultrasat/+api/+clients/debug_<Service>Client.m`).
 6. Curl-test each endpoint to confirm the server is up and check response shape.
 7. Run: `"C:\Matlab\R2025b\bin\win64\MATLAB.exe" -batch "ultrasat.api.debug.clients.debug_<Service>Client()"`
 8. Compare MATLAB output to curl output — they should match.

@@ -1,6 +1,6 @@
 # ULTRASAT Observation Planner — Core
 
-Core planning logic for the ULTRASAT Observation Planner. No GUI or HTTP code here — used by the GUI (`+guiutils/MainModule`), debug scripts (`+debug/`), and the TOO service (`TooPlannerRunner`).
+Core planning logic for the ULTRASAT Observation Planner. No GUI or HTTP code here — used by the GUI (`+guiutils/MainModule`), debug scripts (`+debug/+ultrasat/+planner/`; see [debug/CLAUDE.md](../../../../debug/CLAUDE.md)), and the TOO service (`TooPlannerRunner`).
 
 Architecture: [[diagrams/planner_layers.mmd]]
 
@@ -55,7 +55,7 @@ Key properties: `Plan` (target table), `UniqTargList`, `Vis` (visibility), `Miss
 Runs one or more TOO plans from a single JSON configuration. Used by:
 
 - `+services/+too_planner/processRequest.m`
-- `+debug/debug_TooPlannerRunner.m`
+- `+debug/+ultrasat/+planner/debug_TooPlannerRunner.m`
 
 Design: **fail-safe** — one failed plan does not stop others. Outputs per plan: JSON, MAT, PNG/FIG maps, plus `summary.json`.
 
@@ -83,13 +83,13 @@ ultrasat.planner.unitTest()
 
 ## Debug scripts
 
-Headless step-by-step tests for each plan type: [[+debug/README|+debug README]]
+Headless step-by-step tests for each plan type: [[../../../../debug/+debug/+ultrasat/+planner/README|planner debug README]]
 
 ```matlab
-ultrasat.planner.debug.debug_Hcs()
-ultrasat.planner.debug.debug_Lcs()
-ultrasat.planner.debug.debug_Too()
-ultrasat.planner.debug.debug_TooPlannerRunner()
+debug.ultrasat.planner.debug_Hcs()
+debug.ultrasat.planner.debug_Lcs()
+debug.ultrasat.planner.debug_Too()
+debug.ultrasat.planner.debug_TooPlannerRunner()
 ```
 
 Requires `ASTROPACK_DATA_PATH`. CLI patterns: [[../docs/run_matlab_cli|run_matlab_cli]].

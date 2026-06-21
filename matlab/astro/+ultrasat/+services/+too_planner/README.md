@@ -1,4 +1,4 @@
-# ULTRASAT ToO Planner MATLAB Service
+﻿# ULTRASAT ToO Planner MATLAB Service
 
 ## Overview
 
@@ -514,7 +514,7 @@ The bridge acts as:
 ## File
 
 ```text
-ultrasat.planner.debug.debug_TooPlannerRunner
+debug.ultrasat.planner.debug_TooPlannerRunner
 ```
 
 ## Includes
