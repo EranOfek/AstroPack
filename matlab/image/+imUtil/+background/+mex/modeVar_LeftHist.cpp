@@ -25,7 +25,8 @@
  *
  * Build (Linux/macOS, gcc/clang, OpenMP):
  *   mex -R2018a CXXFLAGS='$CXXFLAGS -O3 -march=native -fopenmp' ...
- *       LDFLAGS='$LDFLAGS -fopenmp' modeVar_LeftHist_mex.cpp
+ *       LDFLAGS='$LDFLAGS -fopenmp' modeVar_LeftHist.cpp  %% leads to GLIBC incompatibilty 
+ *   mex -O CXX=g++-9 CXXFLAGS='$CXXFLAGS -fopenmp -std=c++17' LDFLAGS='$LDFLAGS -fopenmp' modeVar_LeftHist.cpp
  * Build (Windows, MSVC):
  *   mex -R2018a COMPFLAGS='$COMPFLAGS /O2 /openmp' modeVar_LeftHist_mex.cpp
  *
