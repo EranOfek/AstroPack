@@ -17,7 +17,8 @@
 %   pure-MATLAB fallback selectable via 'UseMex' (or used automatically if
 %   the MEX is not on the path). Build the MEX with, e.g.:
 %     mex -R2018a CXXFLAGS='$CXXFLAGS -O3 -march=native -fopenmp' ...
-%         LDFLAGS='$LDFLAGS -fopenmp' modeVar_LeftHist.cpp
+%         LDFLAGS='$LDFLAGS -fopenmp' modeVar_LeftHist.cpp %% This leads to GLIBC incompatibility, a better was is: 
+%     mex -O CXX=g++-9 CXXFLAGS='$CXXFLAGS -fopenmp -std=c++17' LDFLAGS='$LDFLAGS -fopenmp' modeVar_LeftHist.cpp
 %
 % Input  : - Image : A 2-D image (or any numeric array). Non-finite pixels
 %                     are ignored. MEX path supports double/single/uint16/
