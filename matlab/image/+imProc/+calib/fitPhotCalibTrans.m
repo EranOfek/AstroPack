@@ -1,4 +1,4 @@
-function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
+function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, Args)
     % Transmission-based absolute photometric calibration wrapper
     % Description: Wrapper function for PhotCalibTrans class that performs
     %              transmission-based photometric calibration on a vector of
@@ -118,6 +118,40 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %                         the computed value instead of the original LAST
     %                         extractor AIRMASS. Silently inert when
     %                         AirmassSource='header'. Default is false.
+    %            'CollectCalibTrajectory' - Opt-in: record one calibrator-list
+    %                         snapshot per inner sigma-clip iteration across
+    %                         every stage of the multi-stage fit. When true,
+    %                         the 4th output `CalibTrajectory` (a FLAT struct
+    %                         array) is populated; entries from all input
+    %                         objects are concatenated, each stamped with
+    %                         ObjectIndex (= input index). For the common
+    %                         Nobj=1 case CalibTrajectory IS the per-iter
+    %                         snapshot struct array directly (no wrapping).
+    %                         Each entry carries ObjectIndex, StageIndex,
+    %                         StageName, IterIndex (inner-iter within stage,
+    %                         starting at 1), OuterIter (outer sigma-clip
+    %                         iteration, 1 when OuterSigmaClip is off),
+    %                         NumClipped (this iter's new outliers),
+    %                         NumRemaining (survivors after this iter), RMS,
+    %                         and SourceData — an AstroCatalog with all
+    %                         original calibrator rows preserved and:
+    %                            .Used       - true for current survivors
+    %                            .Residuals  - current residual for survivors,
+    %                                          LAST-KNOWN residual for
+    %                                          calibrators discarded earlier
+    %                                          in THIS stage (i.e. the
+    %                                          residual at the moment of
+    %                                          discard), and NaN for
+    %                                          calibrators clipped in an
+    %                                          earlier stage (never entered
+    %                                          this stage's pool).
+    %                            .PredictedFlux / .MagErr - same semantics.
+    %                         Plumbed through to PhotCalibTrans.calibrate
+    %                         which assembles the per-snap catalog and
+    %                         stores it on PC.CalibTrajectory (without
+    %                         ObjectIndex — that's stamped at the wrapper
+    %                         level). Default false (no extra work, no
+    %                         memory cost).
     % Output : - Result - Input object with updated catalog and header.
     %          - PhotCalib - For AstroImage/AstroCatalog: [1 x Nobj] array.
     %                        For AstroDiff/AstroZOGY: [Nobj x Nprops] array
@@ -126,6 +160,17 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %                     For AstroDiff/AstroZOGY: [Nobj x Nprops] struct array.
     %                     Fields: .RMS, .Residuals, .NCalUsed, .NumClipped,
     %                             .Chi2, .StatusLog
+    %          - CalibTrajectory - Flat struct array of per-inner-iter
+    %                     snapshots concatenated across all input objects.
+    %                     Empty (length 0) unless CollectCalibTrajectory=true.
+    %                     Fields: .ObjectIndex (= input index, useful when
+    %                     Nobj>1), .StageIndex, .StageName, .IterIndex,
+    %                     .OuterIter, .NumClipped, .NumRemaining, .RMS,
+    %                     .SourceData (AstroCatalog with Used/Residuals/
+    %                     PredictedFlux columns). For Nobj=1 this IS the
+    %                     snapshot list directly (no wrapping); for
+    %                     Nobj>1 filter via [CalibTrajectory.ObjectIndex].
+    %                     See CollectCalibTrajectory above.
     % Author : D. Kovaleva (Jan 2026)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example: AI = io.files.load2('LAST_image.mat');
@@ -165,6 +210,22 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
     %          % Emit LIMMAG/BACKMAG from this path (instead of legacy fitPhotCalibMag):
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
     %              'EvaluateLimMag', true, 'EvaluateBackMag', true);
+    %          % Collect per-inner-iter calibrator trajectory (4th output);
+    %          % Traj is a flat struct array — one entry per snap:
+    %          [Result, PC, FitRes, Traj] = imProc.calib.fitPhotCalibTrans(AI, ...
+    %              'CollectCalibTrajectory', true);
+    %          fprintf('Captured %d snapshots\n', numel(Traj));
+    %          for k = 1:numel(Traj)
+    %              fprintf('Stage %d (%s) iter %d outer %d: kept %d, clipped %d, RMS=%.4f\n', ...
+    %                  Traj(k).StageIndex, Traj(k).StageName, ...
+    %                  Traj(k).IterIndex, Traj(k).OuterIter, ...
+    %                  Traj(k).NumRemaining, Traj(k).NumClipped, Traj(k).RMS);
+    %          end
+    %          % Inspect surviving calibrators at snap k:
+    %          Tab_k = Traj(k).SourceData.Table;
+    %          Survivors_k = Tab_k(Tab_k.Used, :);
+    %          % Multi-input (Nobj>1): filter snaps for image 2:
+    %          % Traj_img2 = Traj([Traj.ObjectIndex] == 2);
 
     arguments
         Obj  % AstroImage, AstroCatalog, AstroDiff, or AstroZOGY
@@ -230,6 +291,17 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
         % append pattern as the two above. Default false preserves
         % status-quo solver behaviour.
         Args.UseTypicalX logical = false
+
+        % Opt-in: record one calibrator-list snapshot per inner sigma-clip
+        % iteration across every stage of the fit. When true, the 4th
+        % output `CalibTrajectory` is populated as a cell array (one entry
+        % per input object) of struct arrays — each struct carries
+        % StageIndex, StageName, IterIndex, OuterIter, NumClipped,
+        % NumRemaining, RMS, and SourceData (an AstroCatalog with all
+        % original calibrator rows + Used/Residuals/PredictedFlux columns
+        % tracking the state at that iter). Plumbed through to
+        % PhotCalibTrans.calibrate which assembles the per-snap catalog.
+        Args.CollectCalibTrajectory logical = false
 
         Args.Verbose logical = false
     end
@@ -319,6 +391,7 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
             % Recursive call — calibrate as regular AstroImage array
             [Images, PC_prop, FR_prop] = imProc.calib.fitPhotCalibTrans(Images, ...
                 'CalibArgs', Args.CalibArgs, ...
+                'CollectCalibTrajectory', Args.CollectCalibTrajectory, ...
                 'Verbose', Args.Verbose, 'AddMagErr', Args.AddMagErr, ...
                 'AddMag', Args.AddMag, 'MagSystem', Args.MagSystem, ...
                 'MagColPrefix', Args.MagColPrefix, ...
@@ -375,6 +448,16 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
             'Message', {}, 'Identifier', {}, 'Timestamp', {});
     end
 
+    % Initialize CalibTrajectory as a FLAT struct array — snapshots from
+    % all input objects are concatenated and each carries an .ObjectIndex
+    % field so multi-input calls can filter by object. For the common
+    % Nobj=1 case this is just the per-iter snapshot struct array directly
+    % (no cell wrapping). Stays empty unless CollectCalibTrajectory=true.
+    CalibTrajectory = repmat(struct( ...
+        'ObjectIndex', 0, 'StageIndex', 0, 'StageName', '', ...
+        'IterIndex', 0, 'OuterIter', 0, 'NumClipped', 0, ...
+        'NumRemaining', 0, 'RMS', NaN, 'SourceData', AstroCatalog), 1, 0);
+
     % ====================================================================
     % LOOP OVER OBJECTS
     % ====================================================================
@@ -395,7 +478,24 @@ function [Result, PhotCalib, FitRes] = fitPhotCalibTrans(Obj, Args)
             'CalcAperCorr', Args.CalcAperCorr, ...
             'MagSystem', Args.MagSystem,...
             'match_catsHTMArgs',Args.match_catsHTMArgs,...
+            'CollectCalibTrajectory', Args.CollectCalibTrajectory, ...
             'Verbose', Args.Verbose);
+
+        % Append per-object trajectory to the flat struct array (empty
+        % unless opt-in and the fit produced snapshots). Each entry is
+        % stamped with ObjectIndex=Iobj so multi-object callers can
+        % filter, e.g. CalibTrajectory([CalibTrajectory.ObjectIndex]==2).
+        if Args.CollectCalibTrajectory && ~isempty(PC.CalibTrajectory)
+            ObjSnaps = PC.CalibTrajectory;
+            for IS = 1:numel(ObjSnaps)
+                ObjSnaps(IS).ObjectIndex = Iobj;
+            end
+            if isempty(CalibTrajectory)
+                CalibTrajectory = ObjSnaps;
+            else
+                CalibTrajectory = [CalibTrajectory, ObjSnaps]; %#ok<AGROW>
+            end
+        end
 
         % Stamp the calibrated-magnitude column-naming prefix onto the PC
         % object. Every downstream method (addMag, calcAperCorr, evaluateLimMag,

@@ -101,8 +101,16 @@ function Result = waterTransmission(Lambda, ParamMatrix, Args)
         error('Pressure values must be positive');
     end
 
-    % Get all H2O coefficients interpolated to Lambda wavelengths
-    H2O_Data = Args.AbsorptionData.getH2OCoefficients(Lambda);
+    % Get raw H2O coefficient arrays on the native ~1 nm SMARTS grid.
+    % All Bw/Bm/Bmw/Bp/tauw arithmetic below runs on this grid (where
+    % ifit* are exact integers and water-line peaks are preserved); the
+    % final tauw is linearly interpolated to the caller's Lambda before
+    % exp(). Mirrors Simone's Python reference (SMARTS/dast lineage) and
+    % removes the order-of-operations error that survives when
+    % coefficients are first resampled to a coarse target grid.
+    H2O_Data  = Args.AbsorptionData.getH2ORaw();
+    RawWvl_nm = H2O_Data.wavelength_nm;
+    Lambda_nm = Lambda(:) / 10;
 
     % Calculate airmasses for all zenith angles at once (vectorized)
     Airmasses = astro.transmission.airmassSMARTS(ZenithAngles);
@@ -256,9 +264,13 @@ function Result = waterTransmission(Lambda, ParamMatrix, Args)
             Bp_s((abs(Qp) < 1e-5) | abs_neg) = 1;
             Bp_s = max(0.3, min(1.7, Bp_s));
 
-            % Final Optical Depth and Transmission
+            % Final Optical Depth on the raw SMARTS grid, then linearly
+            % interpolate to the caller's Lambda before exp(). Wavelengths
+            % outside the raw H2O grid get tau=0 (i.e. T=1), matching
+            % Simone's interp1d(fill_value=0).
             Pwm = (Pw_ * Am_).^0.9426;
-            TauWater = Bmw .* Bp_s .* H2O_Data.absorption * Pwm;
+            TauWater_raw = Bmw .* Bp_s .* H2O_Data.absorption * Pwm;
+            TauWater = interp1(RawWvl_nm, TauWater_raw, Lambda_nm, 'linear', 0);
             GroupResult(:, js) = exp(-TauWater);
         end
 

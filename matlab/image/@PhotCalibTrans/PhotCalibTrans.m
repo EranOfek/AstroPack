@@ -228,6 +228,15 @@ classdef PhotCalibTrans < Component
     properties
         % Wavelength grid for transmission evaluation (20 Angstrom step)
         TransWvl = (3000:20:11000)'   % Transmission wavelength grid [Angstrom] for model evaluation (401 points)
+
+        % Per-inner-sigma-clip-iteration calibrator snapshots, opt-in via
+        % calibrate's CollectCalibTrajectory arg. Struct array; each entry
+        % carries StageIndex, StageName, IterIndex, OuterIter, NumClipped
+        % (this iter), NumRemaining, RMS, and SourceData — an AstroCatalog
+        % holding ALL original calibrator rows with a Used column tracking
+        % survivors at that iter and Residuals/PredictedFlux/MagErr
+        % populated where Used=true (NaN where Used=false). Default empty.
+        CalibTrajectory = []
     end
 
     properties (Dependent)
@@ -402,15 +411,65 @@ classdef PhotCalibTrans < Component
             %                               Usually injected by fitPhotCalibTrans's
             %                               IsMeanImages/NProcsPerCoadd args. Default is 1.
             %            'MagSystem' - Magnitude system ('AB' or 'Vega'). Default is 'AB'.
+            %            'CollectCalibTrajectory' - Opt-in: record one
+            %                               calibrator-list snapshot per inner
+            %                               sigma-clip iteration of every stage
+            %                               (single-stage fitPar branches plus
+            %                               the inline IsNormOnlyLinear /
+            %                               IsJointFCStage / IsNonlinFCStage
+            %                               handlers in fitMultiStage). When
+            %                               true, after the fit completes the
+            %                               trajectory is assembled from
+            %                               FitResult(:).IterSnapshots into a
+            %                               struct array stored on
+            %                               Obj.CalibTrajectory. Each entry:
+            %                               .StageIndex, .StageName, .IterIndex
+            %                               (inner-iter, from 1), .OuterIter
+            %                               (outer sigma-clip iter, 1 when
+            %                               OuterSigmaClip=false), .NumClipped
+            %                               (this iter), .NumRemaining, .RMS,
+            %                               and .SourceData — an AstroCatalog
+            %                               with ALL original calibrator rows
+            %                               preserved. Per-row columns:
+            %                                  Used  - true iff currently in
+            %                                          the survivor set.
+            %                                  Residuals - current residual
+            %                                          for survivors; the
+            %                                          LAST-KNOWN residual
+            %                                          (i.e. residual at the
+            %                                          moment of discard) for
+            %                                          calibrators discarded
+            %                                          earlier in THIS stage;
+            %                                          NaN for calibrators
+            %                                          discarded in earlier
+            %                                          stages (never entered
+            %                                          this stage's pool).
+            %                                  PredictedFlux / MagErr - same
+            %                                          three-way semantics.
+            %                               Default false (no extra work;
+            %                               CalibTrajectory stays empty).
             %            'Verbose' - Enable verbose output. Default is true.
             % Output : - PhotCalibTrans object with calibration results.
-            %                  SourceData catalog includes: Used, Residuals, MAG_<System>, PredictedFlux, MagErr
+            %                  SourceData catalog includes: Used, Residuals,
+            %                                   MAG_<System>, PredictedFlux, MagErr.
+            %                  When CollectCalibTrajectory=true, also populates
+            %                  Obj.CalibTrajectory (struct array, one entry per
+            %                  inner sigma-clip iter; see arg description).
             % Author : D. Kovaleva (Jan 2026)
             % Reference: Garrappa et al. 2025, A&A 699, A50.
             % Example: PC = PhotCalibTrans();
             %          PC = PC.calibrate(AI);
             %          % With custom settings:
             %          PC = PC.calibrate(AI, 'UseTran2D', false, 'SearchRadius', 3);
+            %          % Capture per-inner-iter calibrator trajectory:
+            %          PC = PC.calibrate(AI, 'CollectCalibTrajectory', true);
+            %          Snaps = PC.CalibTrajectory;
+            %          fprintf('captured %d snapshots\n', numel(Snaps));
+            %          % Survivors at final inner iter of stage 4:
+            %          Mask = [Snaps.StageIndex] == 4;
+            %          last4 = find(Mask, 1, 'last');
+            %          Tab = Snaps(last4).SourceData.Table;
+            %          Survivors = Tab(Tab.Used, :);
             arguments
                 Obj
                 Cat                    % AstroImage or AstroCatalog
@@ -437,6 +496,15 @@ classdef PhotCalibTrans < Component
                 Args.YPixel           = 1716   % Detector Y size [pix]; Tran2D centre = YPixel/2
                 Args.Tran2DPerturbStd = 0      % Std-dev for randn-seed of Tran2D ParX (one shot before stage 1); 0 disables
                 Args.Tran2DRngSeed (1,1) double = 6   % rng seed mirrored from Simone's np.random.seed(6); used when OptSeq stage method is NONLIN_FC
+                % Opt-in: record one snapshot per inner sigma-clip iteration
+                % across every stage. Snapshots are assembled from the
+                % fit's per-stage IterSnapshots (length NCalibTotal masks
+                % plus current Residuals/PredictedFlux/MagErr on the
+                % survivors) into a full-row SourceData AstroCatalog per
+                % snap, and the struct array is stored on
+                % Obj.CalibTrajectory after the fit completes. Default
+                % false (no extra work, no memory cost).
+                Args.CollectCalibTrajectory logical = false
                 % Calibrator selection knobs forwarded to selectCalibrators
                 Args.CalibCatName     = 'GAIADR3spec'
                 Args.MinSN            = 5                  % Lower S/N gate on calibrator candidates
@@ -1001,11 +1069,72 @@ classdef PhotCalibTrans < Component
                     'UseTypicalX',        Args.UseTypicalX, ...
                     'Tran2DPerturbStd',   Args.Tran2DPerturbStd, ...
                     'Tran2DRngSeed',      Args.Tran2DRngSeed, ...
+                    'CollectCalibTrajectory', Args.CollectCalibTrajectory, ...
                     'Verbose', Args.Verbose);
 
                 % Store fitted model and fit results
                 Obj.TransModel = Model;
                 Obj.FitResults = FitResult;
+
+                % Assemble per-inner-iter calibrator-trajectory snapshots
+                % from FitResult(IStage).IterSnapshots into a flat struct
+                % array on Obj.CalibTrajectory. Each entry carries a full
+                % SourceData AstroCatalog with Used/Residuals/PredictedFlux
+                % populated at that iteration. Opt-in: only runs when the
+                % flag is true AND the fit produced IterSnapshots.
+                Obj.CalibTrajectory = [];
+                if Args.CollectCalibTrajectory && isstruct(FitResult) && ~isempty(FitResult)
+                    if ~isempty(Obj.SourceData) && ~isempty(Obj.SourceData.Table)
+                        BaseTable = Obj.SourceData.Table;
+                        NCalibTot = height(BaseTable);
+                        TrajAccum = repmat(struct( ...
+                            'StageIndex', 0, 'StageName', '', 'IterIndex', 0, ...
+                            'OuterIter', 0, 'NumClipped', 0, 'NumRemaining', 0, ...
+                            'RMS', NaN, 'SourceData', AstroCatalog), 1, 0);
+                        for IS = 1:numel(FitResult)
+                            if ~isfield(FitResult(IS), 'IterSnapshots') || isempty(FitResult(IS).IterSnapshots)
+                                continue;
+                            end
+                            for IK = 1:numel(FitResult(IS).IterSnapshots)
+                                Snap = FitResult(IS).IterSnapshots(IK);
+                                if numel(Snap.KeepMask) ~= NCalibTot
+                                    Obj.msgLog(LogLevel.Warning, sprintf( ...
+                                        'CalibTrajectory: stage %d iter %d KeepMask length %d != NCalib %d — skipping', ...
+                                        IS, IK, numel(Snap.KeepMask), NCalibTot));
+                                    continue;
+                                end
+                                SnapTable = BaseTable;
+                                UsedCol = logical(Snap.KeepMask(:));
+                                SnapTable.Used = UsedCol;
+                                % Snap.Residuals/PredictedFlux now arrive
+                                % already length NCalibTot from
+                                % fitMultiStage's post-stage scatter:
+                                %   - current survivors carry this iter's value
+                                %   - calibrators discarded EARLIER in this
+                                %     stage carry their last-known residual
+                                %     (the "residual at discard" diagnostic)
+                                %   - calibrators clipped in EARLIER stages
+                                %     stay NaN (they never entered this stage)
+                                SnapTable.Residuals     = Snap.Residuals(:);
+                                SnapTable.PredictedFlux = Snap.PredictedFlux(:);
+                                if isfield(Snap, 'MagErr') && ~isempty(Snap.MagErr) && numel(Snap.MagErr) == NCalibTot
+                                    SnapTable.MagErr = Snap.MagErr(:);
+                                end
+                                Entry = struct();
+                                Entry.StageIndex   = Snap.StageIndex;
+                                Entry.StageName    = Snap.StageName;
+                                Entry.IterIndex    = Snap.IterIndex;
+                                Entry.OuterIter    = Snap.OuterIter;
+                                Entry.NumClipped   = Snap.NumClipped;
+                                Entry.NumRemaining = Snap.NumRemaining;
+                                Entry.RMS          = Snap.RMS;
+                                Entry.SourceData   = AstroCatalog(SnapTable);
+                                TrajAccum(end+1) = Entry; %#ok<AGROW>
+                            end
+                        end
+                        Obj.CalibTrajectory = TrajAccum;
+                    end
+                end
 
                 % Add Used and Residuals columns to SourceData
                 % Get final KeepMask and Residuals (from last stage if multi-stage)
@@ -2075,6 +2204,10 @@ classdef PhotCalibTrans < Component
                         if ~any(strcmp(FittedParamNames, 'Norm'))
                             FittedParamNames{end+1} = 'Norm'; %#ok<AGROW>
                         end
+                    elseif ischar(Stage.FreeParams) && strcmpi(Stage.FreeParams, 'NONLIN_FC')
+                        % Joint nonlinear Tran2D stage (Simone-style): fits
+                        % only the 10 Tran2D ParX coeffs (handled separately
+                        % via Tran2DObj.ParX). No named-parameter contribution.
                     elseif ~isempty(Stage.FreeParams)
                         for IFree = 1:length(Stage.FreeParams)
                             ParamName = Stage.FreeParams(IFree).Parameter;
@@ -2479,6 +2612,9 @@ classdef PhotCalibTrans < Component
                         if ~any(strcmp(FittedParamNames, 'Norm'))
                             FittedParamNames{end+1} = 'Norm'; %#ok<AGROW>
                         end
+                    elseif ischar(Stage.FreeParams) && strcmpi(Stage.FreeParams, 'NONLIN_FC')
+                        % Joint nonlinear Tran2D stage: only the 10 Tran2D
+                        % ParX coeffs are fitted; no named parameter.
                     elseif ~isempty(Stage.FreeParams)
                         for IFree = 1:length(Stage.FreeParams)
                             ParamName = Stage.FreeParams(IFree).Parameter;
