@@ -77,6 +77,8 @@ function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
         Args.SmoothBins         = 3
         Args.Niter              = 1
         Args.MinBins            = 5
+        Args.FastMedian         = true;
+        Args.OS                 = 'linux';
         Args.UseMex             = true;
     end
 
