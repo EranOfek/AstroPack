@@ -74,10 +74,11 @@ function [Result] = buildRefImages(RefGrid, Args)
         %Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[128 128], 'MethodArgs',{{'Range',[-50 50]}}}
         %Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[256 256], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',100}, {}} };
         Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[128 128], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',50}, {}} };
+        %Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',50}, {}} };
         %Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[256 256], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',100}, {}} };
         Args.backVarIndivArgs   =  {'Method',@imUtil.background.modeVar_LogHist, 'Block',[], 'MethodArgs',{{},{}}};
 
-        Args.Threshold          = [500 50 4];
+        Args.Threshold          = [500 100 50 20 4];
 
         Args.SubBack            = true;  % don't change unless you understand what you are doing
         Args.StackMethod        = 'wrobust';
@@ -254,6 +255,7 @@ function [Result] = buildRefImages(RefGrid, Args)
                     if Args.Verbose > 1
                         fprintf('Incomplete coverage of %.4f, epoch %d is skipped\n', CoverageAll, Igroup);
                     end
+                    RefImage = AstroImage; % empty
                     continue % to the next epoch
                 end
                 
@@ -288,6 +290,7 @@ function [Result] = buildRefImages(RefGrid, Args)
                     if Args.Verbose > 0
                         cprintf('red','\nWCS is not correct in one or several crops, skipping the epoch %d\n',Igroup);
                     end
+                    RefImage = AstroImage; % empty
                     continue
                 end
                 
@@ -329,7 +332,7 @@ function [Result] = buildRefImages(RefGrid, Args)
                                     'SubBack',Args.SubBack,...
                                     'SetBackTo0',false,...
                                     'ReMeasureBack',true,...
-                                    'ReMeasureVar',true,...
+                                    'ReMeasureVar',false,...
                                     'Threshold',Args.Threshold,...
                                     'AddBackNoise',true,...
                                     'BS_BackMaxR',1501,...

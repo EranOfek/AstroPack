@@ -114,7 +114,7 @@ function plotPhotParamCorr(PC, Args)
                 % Diagonal: histogram
                 histogram(ParData(:, Irow), 30, 'FaceColor', [0.5 0.5 0.5]);
                 if Irow == 1
-                    title(ParLabels{Icol});
+                    ylabel(ParLabels{Icol});
                 end
             else
                 % Off-diagonal: scatter

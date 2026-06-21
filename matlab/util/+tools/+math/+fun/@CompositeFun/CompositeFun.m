@@ -2726,6 +2726,38 @@ classdef CompositeFun < handle
             %                   .Description - Description of the stage
             %                   Default is [] (single-stage mode if Obj.OptSeq is also empty).
             %            'ValInp' - Boolean flag for validation of inputs and setup. Default is true.
+            %            'Tran2DPerturbStd' - Std-dev for one-shot N(0,std) randn-seeding of
+            %                   Tran2D ParX before stage 1; 0 disables. Forwarded to
+            %                   fitMultiStage's NONLIN_FC handler (where it seeds the LM
+            %                   initial guess for the 10 FC coeffs at stage 4 entry only).
+            %                   Default is 0.
+            %            'Tran2DRngSeed' - rng seed for the Tran2DPerturbStd seeding (mirrors
+            %                   Simone's np.random.seed(6)). Default is 6.
+            %            'CollectCalibTrajectory' - Opt-in: record one per-iter snapshot in
+            %                   the sigma-clipping loop. In single-stage mode each snapshot
+            %                   is appended to FitResult.IterSnapshots; in multi-stage mode
+            %                   each stage's snapshots are attached to FitResult(IStage).
+            %                   IterSnapshots after fitMultiStage translates the per-snap
+            %                   arrays from stage-entry local frame to fitMultiStage's
+            %                   global frame and stamps StageIndex, StageName, OuterIter.
+            %                   Each snapshot carries IterIndex (1-based inner iter),
+            %                   plus four FULL-LENGTH arrays (length NCalUsedInitial in
+            %                   single-stage; length NCalUsedInitial of the outer
+            %                   fitMultiStage call after translation):
+            %                       KeepMask      - true iff currently in survivor set
+            %                       Residuals     - this iter's residual for survivors,
+            %                                       LAST-KNOWN residual for calibrators
+            %                                       discarded earlier in this stage (the
+            %                                       residual at the moment of discard),
+            %                                       NaN for calibrators clipped before
+            %                                       this stage started (multi-stage only).
+            %                       PredictedFlux - same three-way semantics
+            %                       MagErr        - same three-way semantics
+            %                   Plus scalar fields NumClipped (this iter's new outliers),
+            %                   NumRemaining (= sum(KeepMask)), RMS. PhotCalibTrans.
+            %                   calibrate assembles the per-snap full-row SourceData
+            %                   catalog from these snapshots. Default is false
+            %                   (accumulator stays empty, zero overhead).
             %            'Verbose' - Enable verbose output. Default is false.
             % Output : - Obj - Updated CompositeFun object with fitted parameters
             %                   Also sets Obj.Chi2 and Obj.DOF from the final fit.
@@ -2743,10 +2775,20 @@ classdef CompositeFun < handle
             %                     .DOF - Degrees of freedom
             %                     .MagErr - Magnitude errors
             %                     .PredictedFlux - Model-predicted flux values
+            %                     .IterSnapshots - struct array of per-inner-iter
+            %                                 snapshots (empty unless
+            %                                 CollectCalibTrajectory=true). Each:
+            %                                 .IterIndex .KeepMask .Residuals
+            %                                 .PredictedFlux .MagErr .NumClipped
+            %                                 .NumRemaining .RMS.
             %                   Multi-stage mode: Array of structs with per-stage results
             %                     FitResult(i).StageName, .Method, .Cost, .RMS, .Residuals,
             %                     .NCalUsed, .NumClipped, .IsFieldCorrection, .Chi2, .DOF,
-            %                     .MagErr, .PredictedFlux
+            %                     .MagErr, .PredictedFlux, .IterSnapshots
+            %                     The IterSnapshots field is empty unless
+            %                     CollectCalibTrajectory=true; when populated, each snap
+            %                     also carries .StageIndex, .StageName, .OuterIter (with
+            %                     KeepMask in the global NCalUsedInitial frame).
             % Author : D. Kovaleva (Dec 2025)
             % Example: % Example 1: Simple single-stage fit
             %          Model = tools.math.fun.CompositeFun.model(FunList);
@@ -2783,6 +2825,20 @@ classdef CompositeFun < handle
             %          % FitResult is an array: FitResult(1) for Stage 1, FitResult(2) for Stage 2
             %          fprintf('Stage 1 RMS: %.4f mag\n', FitResult(1).RMS);
             %          fprintf('Stage 2 RMS: %.4f mag\n', FitResult(2).RMS);
+            %
+            %          % Example 4: Per-inner-iter calibrator trajectory
+            %          [Model, FitResult] = Model.fitPar(Lambda, ObsFlux, ...
+            %              'CostArgs', CostArgs, 'X', X, 'Y', Y, ...
+            %              'OptimizationSequence', OptSeq, ...
+            %              'CollectCalibTrajectory', true);
+            %          % Multi-stage: FitResult(IStage).IterSnapshots is a
+            %          % struct array of snapshots from that stage; each snap
+            %          % has StageIndex/StageName/IterIndex/OuterIter and a
+            %          % KeepMask in the original NCalUsedInitial frame.
+            %          for IS = 1:numel(FitResult)
+            %              Snaps = FitResult(IS).IterSnapshots;
+            %              fprintf('Stage %d: %d inner-iter snapshots\n', IS, numel(Snaps));
+            %          end
 
             arguments
                 Obj
@@ -2832,6 +2888,16 @@ classdef CompositeFun < handle
                 % when no NONLIN_FC stage is in the OptSeq.
                 Args.Tran2DPerturbStd (1,1) double = 0
                 Args.Tran2DRngSeed    (1,1) double = 6
+                % Opt-in: record one snapshot per inner sigma-clip iteration
+                % across every stage. Snapshots are attached to
+                % FitResult.IterSnapshots (single-stage) or
+                % FitResult(IStage).IterSnapshots (multi-stage). Each snap
+                % carries KeepMask (in fitPar's local frame), Residuals/
+                % PredictedFlux/MagErr (length sum(KeepMask)), and per-iter
+                % counts. PhotCalibTrans.calibrate translates KeepMask back
+                % to the original SourceData row order and assembles a full
+                % AstroCatalog snapshot per iteration.
+                Args.CollectCalibTrajectory logical = false
             end
 
             % Initialize FitResult with failure values for early return on validation error
@@ -2979,6 +3045,32 @@ classdef CompositeFun < handle
             % Matches Python fit_transmission: 1 initial fit + N clip-refit cycles
             NumIterations = 1 + Args.SigmaClip * Args.SigmaIter;
             ConvergedSigmaClip = false;
+
+            % Per-iter snapshot accumulator (opt-in). Records the survivor
+            % set + the rolling-update residuals after each clip+refit pass.
+            % KeepMask, Residuals, PredictedFlux, MagErr are ALL length
+            % NCalUsedInitial. Discarded calibrators carry their LAST-KNOWN
+            % residual (the one they had at the iter before being clipped),
+            % which is the natural "residual at discard" diagnostic.
+            % Caller (fitMultiStage) translates the local frame to the global
+            % SourceData frame when assembling per-snap catalogs.
+            IterSnapshots = repmat(struct( ...
+                'IterIndex', 0, 'KeepMask', [], 'Residuals', [], ...
+                'PredictedFlux', [], 'MagErr', [], 'NumClipped', 0, ...
+                'NumRemaining', 0, 'RMS', NaN), 1, 0);
+            PrevNumClipped = 0;  % cumulative # clipped at start of each iter
+
+            % Rolling buffers (length NCalUsedInitial). Each entry holds
+            % the latest residual/predicted-flux/MagErr that calibrator i
+            % had while it was still in the survivor set. Updated by
+            % scatter at CurrentIndices after each costFun call; once a
+            % calibrator is clipped, its slot is never overwritten again
+            % within this fitPar call.
+            if Args.CollectCalibTrajectory
+                AllResid    = nan(NCalUsedInitial, 1);
+                AllPredFlux = nan(NCalUsedInitial, 1);
+                AllMagErr   = nan(NCalUsedInitial, 1);
+            end
 
             for Iter = 1:NumIterations
                 if ~ConvergedSigmaClip
@@ -3191,6 +3283,33 @@ classdef CompositeFun < handle
                         if Args.Verbose
                             fprintf('Current RMS: %.4f, NCalUsed: %d\n', StageRMS, length(UnweightedResiduals));
                         end
+
+                        % Per-iter snapshot (opt-in). Refresh rolling
+                        % buffers at the current survivor indices BEFORE
+                        % snapshotting so each snap holds last-known
+                        % residual for every calibrator that ever entered
+                        % the fit (current survivors get this iter's
+                        % residual; just-discarded carry their pre-clip
+                        % residual untouched).
+                        if Args.CollectCalibTrajectory
+                            AllResid(CurrentIndices)    = UnweightedResiduals(:);
+                            AllPredFlux(CurrentIndices) = PredictedFlux(:);
+                            if ~isempty(MagErr)
+                                AllMagErr(CurrentIndices) = MagErr(:);
+                            end
+                            TotalClippedNow = NCalUsedInitial - sum(KeepMask);
+                            Snap = struct();
+                            Snap.IterIndex     = Iter;
+                            Snap.KeepMask      = KeepMask;
+                            Snap.Residuals     = AllResid;
+                            Snap.PredictedFlux = AllPredFlux;
+                            Snap.MagErr        = AllMagErr;
+                            Snap.NumClipped    = TotalClippedNow - PrevNumClipped;  % this-iter clips
+                            Snap.NumRemaining  = sum(KeepMask);
+                            Snap.RMS           = StageRMS;
+                            IterSnapshots(end+1) = Snap;   %#ok<AGROW>
+                            PrevNumClipped = TotalClippedNow;
+                        end
                     end
                 end
             end
@@ -3232,6 +3351,7 @@ classdef CompositeFun < handle
             FitResult.DOF = StageDOF;
             FitResult.MagErr = MagErr;  % Magnitude errors from error propagation
             FitResult.PredictedFlux = PredictedFlux;  % Model-predicted flux for calibrators
+            FitResult.IterSnapshots = IterSnapshots;  % per-inner-iter snapshots (empty unless CollectCalibTrajectory)
 
             if Args.Verbose
                 fprintf('\nTransmission optimization complete\n');
@@ -3451,13 +3571,30 @@ classdef CompositeFun < handle
             %                          stage, OR the char sentinel 'JOINT_FC' for a joint
             %                          linear Norm + Tran2D stage (Norm is absorbed into
             %                          kx0 by the LS solve and then split out by setting
-            %                          Tran2D(0,0) = 0).
+            %                          Tran2D(0,0) = 0), OR 'NONLIN_FC' for the Simone-
+            %                          style joint nonlinear lsqnonlin fit of the 10 Tran2D
+            %                          ParX coefficients with kxy^2 substitution.
             %   OptSeq(i).SigmaClip - Enable sigma clipping for this stage
             %   OptSeq(i).SigmaThresh - Threshold for sigma clipping
             %   OptSeq(i).SigmaIter - Number of sigma clipping iterations
             %   OptSeq(i).SigmaClipMethod - 'median' or 'weighted' (defaults to Args.SigmaClipMethod)
             %   OptSeq(i).MinCalibrators - Min calibrators to keep (defaults to Args.MinCalibrators)
             %   OptSeq(i).Description - Description of the stage
+            %
+            % Notes:
+            %  - When Args.OuterSigmaClip is true, the stage sequence is re-run
+            %    on survivors after a robust outer sigma clip on the final
+            %    stage's residuals; FitResult(1).OuterClipHistory tracks each
+            %    outer pass. Per-stage results carry .OuterIter when the outer
+            %    loop fires (else 1).
+            %  - When Args.CollectCalibTrajectory is true, each stage's inner-
+            %    sigma-clip iterations are recorded as struct-array snapshots
+            %    on FitResult(IStage).IterSnapshots. Each snap carries
+            %    .StageIndex/.StageName/.IterIndex/.OuterIter plus a KeepMask
+            %    in the original NCalUsedInitial frame and the iter's
+            %    Residuals/PredictedFlux/MagErr/NumClipped/NumRemaining/RMS.
+            %    PhotCalibTrans.calibrate consumes these to build per-iter
+            %    SourceData snapshots.
             % Author : D. Kovaleva (Nov 2025)
 
             % Use stored Obj.OptSeq directly (already set by fitPar)
@@ -3565,6 +3702,12 @@ classdef CompositeFun < handle
             for IStage = 1:NumStages
                 Stage = Stages(IStage);
                 StageName = Stage.StageName;
+                % Snapshot CurrentIndices at stage entry: maps positions in
+                % the stage's local frame (length = length(CurrentObs) now)
+                % to the global frame (length NCalUsedInitial). Used after
+                % StageResult is built to translate StageResult.IterSnapshots
+                % KeepMasks back into the global SourceData row order.
+                StageEntryIndices = CurrentIndices;  %#ok<NASGU>
                 FreeParamsStage = Stage.FreeParams;
                 SigmaClip = Stage.SigmaClip;
                 SigmaThresh = Stage.SigmaThresh;
@@ -3651,6 +3794,25 @@ classdef CompositeFun < handle
                     CurrentCostArgsNorm = CurrentCostArgs;
                     KeepMaskNorm = true(length(CurrentObs), 1);
                     ConvergedNorm = false;
+
+                    % Per-iter snapshot accumulator (opt-in). KeepMask
+                    % field is in stage-entry frame (length(CurrentObs));
+                    % the post-stage block translates it to global frame.
+                    LocalIterSnapshots = repmat(struct( ...
+                        'IterIndex', 0, 'KeepMask', [], 'Residuals', [], ...
+                        'PredictedFlux', [], 'MagErr', [], 'NumClipped', 0, ...
+                        'NumRemaining', 0, 'RMS', NaN), 1, 0);
+                    LocalPrevClipped = 0;
+
+                    % Rolling buffers (length stage-entry count).
+                    % Discarded-within-stage entries keep their last-known
+                    % residual; current survivors get refreshed each iter.
+                    if Args.CollectCalibTrajectory
+                        NEntryNorm    = length(CurrentObs);
+                        AllResidStage    = nan(NEntryNorm, 1);
+                        AllPredFluxStage = nan(NEntryNorm, 1);
+                        AllMagErrStage   = nan(NEntryNorm, 1);
+                    end
 
                     for IterNorm = 1:NumIterNorm
                         if ~ConvergedNorm
@@ -3782,6 +3944,37 @@ classdef CompositeFun < handle
                                 if Args.Verbose
                                     fprintf('  Norm = %.6f (analytical, weighted)\n', Norm_opt);
                                 end
+
+                                % Per-iter snapshot (opt-in). Scatter the
+                                % current survivors' values into the
+                                % stage-entry-frame rolling buffers, then
+                                % snapshot the full buffers. Discarded
+                                % entries within this stage carry their
+                                % last-known values; never-cleared NaN
+                                % means the slot never had a costFun call
+                                % (only possible if the stage entry set
+                                % was already smaller than full).
+                                if Args.CollectCalibTrajectory
+                                    SurvIdx = find(KeepMaskNorm);
+                                    PredFluxIter = CurrentObsNorm .* 10.^(Residuals / 2.5);
+                                    AllResidStage(SurvIdx)    = Residuals(:);
+                                    AllPredFluxStage(SurvIdx) = PredFluxIter(:);
+                                    if ~isempty(MagErr_base)
+                                        AllMagErrStage(SurvIdx) = MagErr_base(:);
+                                    end
+                                    TotalClippedNow = sum(~KeepMaskNorm);
+                                    Snap = struct();
+                                    Snap.IterIndex     = IterNorm;
+                                    Snap.KeepMask      = KeepMaskNorm;
+                                    Snap.Residuals     = AllResidStage;
+                                    Snap.PredictedFlux = AllPredFluxStage;
+                                    Snap.MagErr        = AllMagErrStage;
+                                    Snap.NumClipped    = TotalClippedNow - LocalPrevClipped;
+                                    Snap.NumRemaining  = sum(KeepMaskNorm);
+                                    Snap.RMS           = std(Residuals);
+                                    LocalIterSnapshots(end+1) = Snap;   %#ok<AGROW>
+                                    LocalPrevClipped = TotalClippedNow;
+                                end
                             end
                         end
                     end
@@ -3814,6 +4007,7 @@ classdef CompositeFun < handle
                     % PredictedFlux derived analytically from Residuals (= DiffMag at optimal Norm):
                     %   DiffMag = 2.5 * log10(PredictedFlux / ObservedValues)
                     StageResult.PredictedFlux = CurrentObsNorm .* 10.^(Residuals / 2.5);
+                    StageResult.IterSnapshots = LocalIterSnapshots;
 
                     if Args.Verbose
                         fprintf('  RMS: %.4f mag, Observations: %d\n', StageRMS, length(CurrentObsNorm));
@@ -3847,6 +4041,7 @@ classdef CompositeFun < handle
                         StageResult.DOF = NaN;
                         StageResult.MagErr = [];
                         StageResult.PredictedFlux = [];
+                        StageResult.IterSnapshots = [];
                     else
                         Nparams = length(Obj.Tran2DObj.ParX);
                         if Args.Verbose
@@ -3875,6 +4070,24 @@ classdef CompositeFun < handle
                         DeltaJ        = NaN;
                         WeightedResJ  = []; CostJ = NaN; PredFluxJ = [];
                         ResidualsJ    = []; MagErrJ = [];
+
+                        % Per-iter snapshot accumulator (opt-in). KeepMask
+                        % is in stage-entry frame; post-stage block translates.
+                        LocalIterSnapshots = repmat(struct( ...
+                            'IterIndex', 0, 'KeepMask', [], 'Residuals', [], ...
+                            'PredictedFlux', [], 'MagErr', [], 'NumClipped', 0, ...
+                            'NumRemaining', 0, 'RMS', NaN), 1, 0);
+                        LocalPrevClipped = 0;
+
+                        % Rolling buffers, length stage-entry. Discarded
+                        % calibrators within the stage keep their last-known
+                        % residual; current survivors get refreshed each iter.
+                        if Args.CollectCalibTrajectory
+                            NEntryJ = length(CurrentObs);
+                            AllResidStage    = nan(NEntryJ, 1);
+                            AllPredFluxStage = nan(NEntryJ, 1);
+                            AllMagErrStage   = nan(NEntryJ, 1);
+                        end
 
                         for IterClip = 0:EffSigmaIter
                             if ~ConvergedSC
@@ -3918,6 +4131,31 @@ classdef CompositeFun < handle
                                 [WeightedResJ, CostJ, PredFluxJ, ResidualsJ, MagErrJ] = Obj.costFun(...
                                     InputValues, LocalObs, LocalCostArgs{:}, ...
                                     'X', LocalX, 'Y', LocalY);
+
+                                % Per-iter snapshot (opt-in). Scatter
+                                % current survivors' values into the
+                                % stage-entry-frame rolling buffers, then
+                                % snapshot the full buffers.
+                                if Args.CollectCalibTrajectory
+                                    SurvIdx = find(LocalKeepMask);
+                                    AllResidStage(SurvIdx)    = ResidualsJ(:);
+                                    AllPredFluxStage(SurvIdx) = PredFluxJ(:);
+                                    if ~isempty(MagErrJ)
+                                        AllMagErrStage(SurvIdx) = MagErrJ(:);
+                                    end
+                                    TotalClippedNow = sum(~LocalKeepMask);
+                                    Snap = struct();
+                                    Snap.IterIndex     = IterClip + 1;
+                                    Snap.KeepMask      = LocalKeepMask;
+                                    Snap.Residuals     = AllResidStage;
+                                    Snap.PredictedFlux = AllPredFluxStage;
+                                    Snap.MagErr        = AllMagErrStage;
+                                    Snap.NumClipped    = TotalClippedNow - LocalPrevClipped;
+                                    Snap.NumRemaining  = sum(LocalKeepMask);
+                                    Snap.RMS           = sqrt(mean(ResidualsJ.^2));
+                                    LocalIterSnapshots(end+1) = Snap;   %#ok<AGROW>
+                                    LocalPrevClipped = TotalClippedNow;
+                                end
 
                                 % Inner sigma clip + re-fit on survivors
                                 if IterClip < EffSigmaIter
@@ -3992,6 +4230,7 @@ classdef CompositeFun < handle
                             StageResult.Chi2 = NaN;
                         end
                         StageResult.DOF = NCalUsedJ - Nparams;
+                        StageResult.IterSnapshots = LocalIterSnapshots;
 
                         if Args.Verbose
                             fprintf('  RMS: %.4f mag, Observations: %d\n', StageResult.RMS, NCalUsedJ);
@@ -4029,6 +4268,7 @@ classdef CompositeFun < handle
                         StageResult.DOF = NaN;
                         StageResult.MagErr = [];
                         StageResult.PredictedFlux = [];
+                        StageResult.IterSnapshots = [];
                     else
                         Nparams = length(Obj.Tran2DObj.ParX);
 
@@ -4065,6 +4305,23 @@ classdef CompositeFun < handle
                         WeightedResN  = []; CostN = NaN; PredFluxN = [];
                         ResidualsN    = []; MagErrN = [];
 
+                        % Per-iter snapshot accumulator (opt-in)
+                        LocalIterSnapshots = repmat(struct( ...
+                            'IterIndex', 0, 'KeepMask', [], 'Residuals', [], ...
+                            'PredictedFlux', [], 'MagErr', [], 'NumClipped', 0, ...
+                            'NumRemaining', 0, 'RMS', NaN), 1, 0);
+                        LocalPrevClipped = 0;
+
+                        % Rolling buffers, length stage-entry. Discarded
+                        % calibrators within the stage keep their last-known
+                        % residual; current survivors get refreshed each iter.
+                        if Args.CollectCalibTrajectory
+                            NEntryN = length(CurrentObs);
+                            AllResidStage    = nan(NEntryN, 1);
+                            AllPredFluxStage = nan(NEntryN, 1);
+                            AllMagErrStage   = nan(NEntryN, 1);
+                        end
+
                         FreeCur = FreeInit;
 
                         for IterClip = 0:EffSigmaIter
@@ -4085,6 +4342,30 @@ classdef CompositeFun < handle
                                 [WeightedResN, CostN, PredFluxN, ResidualsN, MagErrN] = Obj.costFun(...
                                     InputValues, LocalObs, LocalCostArgs{:}, ...
                                     'X', LocalX, 'Y', LocalY);
+
+                                % Per-iter snapshot (opt-in). Scatter
+                                % current survivors' values into stage-
+                                % entry-frame rolling buffers, then snap.
+                                if Args.CollectCalibTrajectory
+                                    SurvIdx = find(LocalKeepMask);
+                                    AllResidStage(SurvIdx)    = ResidualsN(:);
+                                    AllPredFluxStage(SurvIdx) = PredFluxN(:);
+                                    if ~isempty(MagErrN)
+                                        AllMagErrStage(SurvIdx) = MagErrN(:);
+                                    end
+                                    TotalClippedNow = sum(~LocalKeepMask);
+                                    Snap = struct();
+                                    Snap.IterIndex     = IterClip + 1;
+                                    Snap.KeepMask      = LocalKeepMask;
+                                    Snap.Residuals     = AllResidStage;
+                                    Snap.PredictedFlux = AllPredFluxStage;
+                                    Snap.MagErr        = AllMagErrStage;
+                                    Snap.NumClipped    = TotalClippedNow - LocalPrevClipped;
+                                    Snap.NumRemaining  = sum(LocalKeepMask);
+                                    Snap.RMS           = sqrt(mean(ResidualsN.^2));
+                                    LocalIterSnapshots(end+1) = Snap;   %#ok<AGROW>
+                                    LocalPrevClipped = TotalClippedNow;
+                                end
 
                                 if IterClip < EffSigmaIter
                                     [OutlierMaskLocal, ClipInfo] = tools.math.stat.sigmaClip(...
@@ -4140,6 +4421,7 @@ classdef CompositeFun < handle
                             StageResult.Chi2 = NaN;
                         end
                         StageResult.DOF = NCalUsedN - Nparams;
+                        StageResult.IterSnapshots = LocalIterSnapshots;
 
                         if Args.Verbose
                             fprintf('  RMS: %.4f mag, Observations: %d   (kxy_raw=%+.4f -> kxy_M=%+.4f)\n', ...
@@ -4163,6 +4445,7 @@ classdef CompositeFun < handle
                         'OptimizationSequence', Stages(IStage), ...
                         'OptimOptions', OptimOpts, ...
                         'UseTypicalX', Args.UseTypicalX, ...
+                        'CollectCalibTrajectory', Args.CollectCalibTrajectory, ...
                         'Verbose', Args.Verbose);
                 else
                     % Transmission parameter stage: set FitPar flags for specified parameters
@@ -4201,6 +4484,7 @@ classdef CompositeFun < handle
                         StageResult.DOF = NaN;
                         StageResult.MagErr = [];
                         StageResult.PredictedFlux = [];
+                        StageResult.IterSnapshots = [];
                     else
                         % Apply FitPar flags
                         Obj.setAllFunPar(AllFunPar);
@@ -4220,6 +4504,7 @@ classdef CompositeFun < handle
                             'OptimizationSequence', Stages(IStage), ...
                             'OptimOptions', OptimOpts, ...
                             'UseTypicalX', Args.UseTypicalX, ...
+                            'CollectCalibTrajectory', Args.CollectCalibTrajectory, ...
                             'Verbose', Args.Verbose);
                     end
                 end
@@ -4280,6 +4565,40 @@ classdef CompositeFun < handle
                 FitResult(IStage).DOF = StageResult.DOF;
                 FitResult(IStage).MagErr = StageResult.MagErr;  % Magnitude errors from error propagation
                 FitResult(IStage).PredictedFlux = StageResult.PredictedFlux;  % Model-predicted flux
+
+                % Translate per-iter snapshots from stage-entry local frame
+                % to the global (original SourceData) frame, and stamp
+                % StageIndex / StageName / OuterIter. StageEntryIndices
+                % captured above maps stage-entry positions to original
+                % SourceData rows. Residuals/PredictedFlux/MagErr arrive
+                % length(stage-entry); we scatter them into NCalUsedInitial
+                % slots — calibrators not in this stage's entry pool
+                % (i.e. clipped in earlier stages) stay NaN.
+                if Args.CollectCalibTrajectory && isfield(StageResult, 'IterSnapshots') && ~isempty(StageResult.IterSnapshots)
+                    Snaps = StageResult.IterSnapshots;
+                    for k = 1:numel(Snaps)
+                        LocalKeep = Snaps(k).KeepMask;
+                        GlobalKeep = false(NCalUsedInitial, 1);
+                        GlobalKeep(StageEntryIndices(LocalKeep)) = true;
+                        % Scatter rolling-buffer arrays into global frame.
+                        GlobalResid = nan(NCalUsedInitial, 1);
+                        GlobalPF    = nan(NCalUsedInitial, 1);
+                        GlobalME    = nan(NCalUsedInitial, 1);
+                        GlobalResid(StageEntryIndices) = Snaps(k).Residuals;
+                        GlobalPF(StageEntryIndices)    = Snaps(k).PredictedFlux;
+                        GlobalME(StageEntryIndices)    = Snaps(k).MagErr;
+                        Snaps(k).KeepMask      = GlobalKeep;
+                        Snaps(k).Residuals     = GlobalResid;
+                        Snaps(k).PredictedFlux = GlobalPF;
+                        Snaps(k).MagErr        = GlobalME;
+                        Snaps(k).StageIndex = IStage;
+                        Snaps(k).StageName  = StageName;
+                        Snaps(k).OuterIter  = OuterIter;
+                    end
+                    FitResult(IStage).IterSnapshots = Snaps;
+                else
+                    FitResult(IStage).IterSnapshots = [];
+                end
 
                 if Args.Verbose
                     fprintf('Stage complete: RMS=%.4f mag, NCalUsed=%d\n', ...

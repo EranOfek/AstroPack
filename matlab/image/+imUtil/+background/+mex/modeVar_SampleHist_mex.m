@@ -21,5 +21,8 @@
 %                   estimate is based on the median and normalized MAD.
 %
 % Author : ChatGPT + Eran Ofek (Apr 2026)
-% Complation: mex -O CXXFLAGS='$CXXFLAGS -O3 -fopenmp -DNDEBUG -march=native' LDFLAGS='$LDFLAGS -fopenmp' modeVar_SampleHist_mex.cpp
+% Complation: mex -O CXX=g++-9 CXXFLAGS='$CXXFLAGS -fopenmp -std=c++17' LDFLAGS='$LDFLAGS -fopenmp' modeVar_SampleHist_mex.cpp
+%             (mex -O CXXFLAGS='$CXXFLAGS -O3 -fopenmp -DNDEBUG
+%             -march=native' LDFLAGS='$LDFLAGS -fopenmp'
+%             modeVar_SampleHist_mex.cpp leads to GLIBC incompatibility)
 % Example: [m,v]=modeVar_SampleHist_mex(Im); 
