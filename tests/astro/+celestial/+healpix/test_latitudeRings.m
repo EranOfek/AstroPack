@@ -23,7 +23,7 @@ function testLatitudesMonotonicAndBounded(testCase)
     testCase.verifyGreaterThanOrEqual(Lat, -pi/2);
     testCase.verifyEqual(Lat(1), pi/2, 'AbsTol', 1e-12);
     testCase.verifyEqual(Lat(end), -pi/2, 'AbsTol', 1e-12);
-    testCase.verifyEqual(diff(Lat) <= 0, true(1, numel(Lat) - 1));
+    testCase.verifyTrue(all(diff(Lat) <= 0), 'Latitudes must be monotonically non-increasing.');
 end
 
 function testPolesHaveZeroPixels(testCase)
@@ -46,5 +46,5 @@ function testEquatorialRingHasFullCount(testCase)
     NSide = 8;
     [~, Npix] = celestial.healpix.latitudeRings(NSide);
     Equatorial = Npix(NSide + 1 : 3 * NSide);
-    testCase.verifyEqual(Equatorial, 4 * NSide);
+    testCase.verifyTrue(all(Equatorial == 4 * NSide), 'Equatorial rings must each hold 4*NSide pixels.');
 end

@@ -15,7 +15,7 @@ function testPixBoundriesAlwaysErrors(testCase)
     Pix = 197;
     testCase.verifyError( ...
         @() celestial.healpix.pixBoundries(NSide, Pix, 'nested'), ...
-        'MATLAB:error');
+        ?MException);
 end
 
 function testIsInsideErrorsViaPixBoundries(testCase)
@@ -26,5 +26,5 @@ function testIsInsideErrorsViaPixBoundries(testCase)
     Lat = 0.5;
     testCase.verifyError( ...
         @() celestial.healpix.isInside(NSide, Pix, Lon, Lat, 'Type', 'nested'), ...
-        'MATLAB:error');
+        ?MException);
 end

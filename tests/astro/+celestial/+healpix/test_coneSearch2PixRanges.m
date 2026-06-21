@@ -8,7 +8,7 @@ end
 
 function testNeighbAlgoOutputShape(testCase)
     % Default 'neighb' algo returns inclusive int64 [N x 2] ranges.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
 
     RA = 1.0;
     Dec = 0.5;
@@ -23,7 +23,7 @@ end
 
 function testRangeWidthMatchesChildCount(testCase)
     % Each range spans (NSideCat/NSideSearch)^2 nested child pixels.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
 
     RA = 1.0;
     Dec = 0.5;
@@ -35,12 +35,12 @@ function testRangeWidthMatchesChildCount(testCase)
     NSideSearch = min(max(NSideSearch, 1), NSideCat);
     ExpectedWidth = (NSideCat / NSideSearch)^2;
     Widths = double(PixRanges(:, 2) - PixRanges(:, 1) + 1);
-    testCase.verifyEqual(Widths, ExpectedWidth);
+    testCase.verifyTrue(all(Widths == ExpectedWidth), 'All pixel ranges must have the expected width.');
 end
 
 function testCentralCatalogPixelCovered(testCase)
     % Catalog pixel at center lies inside one returned range.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
 
     RA = 0.5;
     Dec = 0.25;
@@ -54,8 +54,8 @@ end
 
 function testConeAlgoWhenExternalMexAvailable(testCase)
     % 'cone' algorithm uses mex.coneSearch when the external MEX exists.
-    HealpixTestHelper.assumeMex(testCase, 'coneSearch');
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeMex(testCase, 'coneSearch');
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
 
     RA = 1.0;
     Dec = 0.5;
@@ -70,13 +70,13 @@ function testNonPowerOfTwoCatalogErrors(testCase)
     % NSideCat must be a power of two.
     testCase.verifyError( ...
         @() celestial.healpix.coneSearch2PixRanges(1, 0, 0.01, 6), ...
-        'MATLAB:error');
+        ?MException);
 end
 
 function testNonScalarCenterErrors(testCase)
     % RA, Dec, and SearchRadius must be scalars.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
     testCase.verifyError( ...
         @() celestial.healpix.coneSearch2PixRanges([1, 2], 0.5, 0.01, 2^16), ...
-        'MATLAB:error');
+        ?MException);
 end

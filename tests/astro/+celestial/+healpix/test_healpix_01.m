@@ -1,42 +1,49 @@
-function Result = unitTest()
-    % unitTest for celestial.healpix
-    
-	%io.msgStyle(LogLevel.Test, '@start', 'test started');
-    RAD = 180./pi;
-        
-    % test celestial.healpix.ang2pix and celestial.healpix.pix2ang
-        
-    
-    % cone search
-    RA  = 200.67; % 50.; 
-    Dec = 50.4; % 30.;
-    Nside = 2^8; % 16;
-    Rad   = 10; %deg
-    
-    R1 = celestial.healpix.coneSearchRecur(Nside,RA,Dec,Rad,'RadiusUnits','deg','CooUnits','deg');
-    R2 = celestial.healpix.coneSearch(Nside,RA,Dec,Rad,'RadiusUnits','deg','CooUnits','deg');    
-%     R2 = celestial.healpix.coneSearch(Nside,RA/RAD,Dec/RAD,Rad/RAD);
-    
-    [Lon1, Lat1] = celestial.healpix.pix2ang(Nside, R1, 'CooUnits','deg');
-    [Lon2, Lat2] = celestial.healpix.pix2ang(Nside, R2, 'CooUnits','deg');
-     
-    figure(1); clf; hold off
-    plot(RA,Dec,'+','Color','black','LineWidth',3);
-    xlabel 'RA'; ylabel 'Dec'
-    hold on    
-    plot(Lon1,Lat1,'*','Color','red');
-    plot(Lon2,Lat2,'o','Color','blue');
-    
-    try
-        Command = sprintf('python3 ~/matlab/AstroPack/matlab/astro/+celestial/+healpix/healpix_cone_search.py %d %.2f %.2f %.2f', Nside, RA, Dec, Rad);
-        [Status, R00] = system(Command);    
-        R0 = unique(str2num(R00));
-        [Lon0, Lat0] = celestial.healpix.pix2ang(Nside, R0, 'CooUnits','deg');
-        plot(Lon0,Lat0,'d','Color','cyan','LineWidth',1);
-    catch
-        fprintf('astropy error: %s \n',Status);
-    end
-    
-    Result = true;
-	%io.msgStyle(LogLevel.Test, '@passed', 'test passed');
+function tests = test_healpix_01
+    % Integration smoke test for celestial.healpix cone search functions.
+    %
+    % Converted from the original unitTest.m script. Tests that coneSearchRecur
+    % and coneSearch return non-empty, consistent results.
+
+    tests = functiontests(localfunctions);
+end
+
+%% Test Functions
+
+function testConeSearchIntegration(testCase)
+    % coneSearch and coneSearchRecur return non-empty pixel lists.
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeMappingToolbox(testCase);
+
+    RA    = 200.67;
+    Dec   = 50.4;
+    NSide = 2^8;
+    Rad   = 10;
+
+    R1 = celestial.healpix.coneSearchRecur(NSide, RA, Dec, Rad, ...
+        'RadiusUnits', 'deg', 'CooUnits', 'deg');
+    R2 = celestial.healpix.coneSearch(NSide, RA, Dec, Rad, ...
+        'RadiusUnits', 'deg', 'CooUnits', 'deg');
+
+    testCase.verifyGreaterThan(numel(R1), 0, 'coneSearchRecur returned empty result.');
+    testCase.verifyGreaterThan(numel(R2), 0, 'coneSearch returned empty result.');
+end
+
+function testConeSearchOverlap(testCase)
+    % coneSearchRecur and coneSearch share substantial pixel overlap.
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeMappingToolbox(testCase);
+
+    RA    = 200.67;
+    Dec   = 50.4;
+    NSide = 2^8;
+    Rad   = 10;
+
+    R1 = celestial.healpix.coneSearchRecur(NSide, RA, Dec, Rad, ...
+        'RadiusUnits', 'deg', 'CooUnits', 'deg');
+    R2 = celestial.healpix.coneSearch(NSide, RA, Dec, Rad, ...
+        'RadiusUnits', 'deg', 'CooUnits', 'deg');
+
+    Overlap = numel(intersect(int64(R1), int64(R2)));
+    testCase.verifyGreaterThan(Overlap, 0.5 * min(numel(R1), numel(R2)), ...
+        'coneSearchRecur and coneSearch results have insufficient overlap.');
 end

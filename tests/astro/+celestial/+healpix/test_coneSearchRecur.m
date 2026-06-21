@@ -8,7 +8,7 @@ end
 
 function testReturnsNonEmptyUniqueSet(testCase)
     % Recursive search returns unique pixel indices.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
 
     NSide = 2^8;
     Lon = deg2rad(200.67);
@@ -21,8 +21,8 @@ end
 
 function testOverlapsFastConeSearch(testCase)
     % Recursive and annulus-based coneSearch share most pixels.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
-    HealpixTestHelper.assumeMappingToolbox(testCase);
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeMappingToolbox(testCase);
 
     NSide = 2^8;
     RA = 200.67;
@@ -40,7 +40,7 @@ end
 
 function testCentersWithinExpandedRadius(testCase)
     % Returned pixel centers lie within Radius + enclosing pixel radius.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
 
     NSide = 64;
     Lon = 1.2;
@@ -55,7 +55,7 @@ end
 
 function testDegreeUnits(testCase)
     % Degree inputs match radian inputs after unit conversion.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
 
     NSide = 32;
     RA = 100.0;

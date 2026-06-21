@@ -28,7 +28,7 @@ function testFullIdPath(testCase)
     % FullID input returns FullID child range at higher NSide.
     FullId = 4 * 8^2 + 5;
     [Low, High] = celestial.healpix.convertHealPix2highNsideNested([], FullId, 2^16);
-    testCase.verifyGreaterThanOrEqual(Low, 4 * 2^16^2);
+    testCase.verifyGreaterThanOrEqual(Low, 4 * (2^16)^2);
     testCase.verifyGreaterThanOrEqual(High, Low);
 end
 
@@ -36,12 +36,12 @@ function testNewNSideLessThanOldErrors(testCase)
     % This function only upgrades resolution.
     testCase.verifyError( ...
         @() celestial.healpix.convertHealPix2highNsideNested(16, 0, 8), ...
-        'MATLAB:error');
+        ?MException);
 end
 
 function testNonPowerOfTwoNewNSideErrors(testCase)
     % NewNSide must be a positive power of two.
     testCase.verifyError( ...
         @() celestial.healpix.convertHealPix2highNsideNested(8, 0, 12), ...
-        'MATLAB:error');
+        ?MException);
 end
