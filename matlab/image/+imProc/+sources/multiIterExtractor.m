@@ -329,7 +329,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         % PSF fitting
         
         Args.psfFitPhotArgs            = {};
-        Args.suppressEdgesArgs         = {'Fun',@imUtil.kernel2.cosbell, 'FunPars', [9, 10], 'Norm', true};
+        %Args.suppressEdgesArgs         = {'Fun',@imUtil.kernel2.cosbell, 'FunPars', [9, 10], 'Norm', true};
         Args.UsePSFInterpolant         = false;
         Args.FitRadius                 = [3];% PSF fit radius at each iteration
         Args.MaxIter                   = 8;

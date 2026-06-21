@@ -30,6 +30,13 @@ function [Result] = backVar(Obj, Args)
     %            'Dilute' - Dilute the array by this factor. If empty, do
     %                   not dilute. Note some functions (e.g., @modeVar_LogHist)
     %                   has internal dilution arguments. Default is {}.
+    %
+    %            'PoissVar' - If true, then calculate variance assuming
+    %                   noise is Poissonian, with RN2 and Ncoadd.
+    %                   Default is false.
+    %            'Ncoadd' - Number of coadd images, used if PoissVar is
+    %                   true. Default is 1.
+    %
     %            --- Blocks and full image ---
     %            'Block' - If empty, calculate the global back/var of the
     %                   image. Alternatively, a [X, Y] (scalar will be
@@ -78,6 +85,9 @@ function [Result] = backVar(Obj, Args)
         Args.MethodArgs = {{},{}};
         Args.RN2        = 12;  % RN^2 - required by 'poiss' | header keyword
         Args.Dilute     = [];   % be careful of double diluting
+
+        Args.PoissVar   = false;   % Calculate variance assuming Poisson noise
+        Args.Ncoadd     = 1;  % for Poisson noise calculations
 
         Args.Block      = [];   % [X, Y]
         Args.Overlap    = [32 32];
@@ -134,7 +144,14 @@ function [Result] = backVar(Obj, Args)
                                                  'ExtendFull',Args.ExtendFull);
             % store
             Result(Iobj).BackData.Image = Back;
+
+            if Args.PoissVar
+                % assume Var is poisson from Back
+                Var      = (Back + Args.RN2)./Args.Ncoadd;
+                VarSmall = (BackSmall + Args.RN2)./Args.Ncoadd;
+            end
             Result(Iobj).VarData.Image  = Var;
+            
     
             % subtract background 
             if Args.SubBack

@@ -108,6 +108,11 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
         Args.CCDSEC          = [];
         Args.ZP              = [];  % if empty use equal flux matching
         Args.ZP0             = 25;
+
+        %--- Background variance calculation
+        %Args.PoissVar        = false;
+        Args.Ncoadd          = 1;
+        %Args.RN2             = 12;
         
         %--- coadd ---
         Args.RemoveMinMax    = true;
@@ -202,7 +207,7 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
                                                                        'UseMex',Args.CoaddUseMex);
     % measure background and variance
     if Args.AddBack
-        Result = imProc.background.backVar(Result, Args.backVarArgs{:});
+        Result = imProc.background.backVar(Result, Args.backVarArgs{:}, 'Ncoadd',Args.Ncoadd); %, 'PoissVar',Args.PoissVar', 'Ncoadd',Args.Ncoadd, 'RN2',Args.RN2);
     end
 
     % coadd mask

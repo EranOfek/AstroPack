@@ -8,7 +8,7 @@ function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
     %   To avoid a covariance between the estimated peak and width (which an
     %   asymmetric window induces in a joint Gaussian fit, opening a pathway for
     %   width errors to bias the location), the width is NOT a fit parameter:
-    %   under background-limited noise it is fixed by Sigma0^2 = B/VarianceRatio.
+    %   under background-limited noise it is fixed by Sigma0^2 = (B+RN2)/VarianceRatio.
     %   The known curvature is subtracted from log-counts and the location is a
     %   weighted LINEAR regression on the left flank (z = logN + xx^2/(2 Sigma0^2)
     %   = c + s*xx, peak at M0 + s*Sigma0^2), so the peak is orthogonal to the
@@ -24,10 +24,14 @@ function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
     % Input  : - Image : A 2-D image (or any numeric array). Non-finite
     %                     pixels are ignored.
     %          * ...,key,val,...
-    %            'VarianceRatio' - Ratio B/Var(noise) (i.e. the gain), so the
-    %                     noise variance is Sigma0^2 = B/VarianceRatio. For a
-    %                     pure background-limited Poisson image in photons this
-    %                     is 1. Default is 1.
+    %            'VarianceRatio' - Ratio (B+RN2)/Var(noise) (i.e. the gain), so
+    %                     the noise variance is Sigma0^2 = (B+RN2)/VarianceRatio.
+    %                     For a pure background-limited Poisson image in photons
+    %                     this is 1. Default is 1.
+    %            'RN2'    - Read-noise squared, in the same units as B (i.e. such
+    %                     that (B+RN2)/VarianceRatio is the noise variance in
+    %                     image-units^2). Adds a noise floor so the working scale
+    %                     stays well-defined as B -> 0. Default is 12.
     %            'BinFactor' - Histogram bin width in units of Sigma0.
     %                     Default is 0.2 (~5 bins per sigma).
     %            'RangeLo' - Lower histogram extent in units of Sigma0 below
@@ -57,8 +61,8 @@ function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
     %          - Info : Structure with diagnostics:
     %                   .Method ('fit' or 'fallback'), .Mode (raw histogram
     %                   peak), .Sigma0 (final working scale), .VarPred
-    %                   (=Back/VarianceRatio), .Npix, .Nbins (used in fit),
-    %                   .Niter, .Median, .Mean.
+    %                   (=(Back+RN2)/VarianceRatio), .Npix, .Nbins (used in
+    %                   fit), .Niter, .Median, .Mean.
     % Author : Claude + Eran Ofek (Jun 2026)
     % Example: Image = 1000 + sqrt(1000)*randn(1024,1024);
     %          [Back,Var,Info] = imUtil.background.modeVar_LeftHist(Image);
@@ -69,6 +73,7 @@ function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
     arguments
         Image
         Args.VarianceRatio      = 1
+        Args.RN2                = 12        % read-noise squared (same units as B)
         Args.BinFactor          = 0.2
         Args.RangeLo            = 5
         Args.RangeHi            = 5
@@ -79,13 +84,14 @@ function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
         Args.MinBins            = 5
         Args.FastMedian         = true;
         Args.OS                 = 'linux';
-        Args.UseMex             = true;
+        Args.UseMex             = false;
     end
 
 
     if Args.UseMex
          [Back, Var, Info] = imUtil.background.mex.modeVar_LeftHist(Image, ...
                 'VarianceRatio', Args.VarianceRatio, ...
+                'RN2',           Args.RN2, ...
                 'BinFactor',     Args.BinFactor, ...
                 'RangeLo',       Args.RangeLo, ...
                 'RangeHi',       Args.RangeHi, ...
@@ -111,7 +117,7 @@ function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
     % Working scale from the physics (background-limited). If the provisional
     % level is non-positive (e.g. background-subtracted data), fall back to a
     % left-side MAD which only uses the clean half of the distribution.
-    Sigma0 = local_scale(X, MedX, Args.VarianceRatio);
+    Sigma0 = local_scale(X, MedX, Args.VarianceRatio, Args.RN2);
 
     Center   = MedX;
     Method   = 'fallback';
@@ -124,7 +130,7 @@ function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
     CountKeep= [];
 
     % --- iterate: histogram -> peak -> fixed-sigma linear location fit -------
-    % Sigma is NOT a fit parameter (it is set by Sigma0^2 = B/VarianceRatio),
+    % Sigma is NOT a fit parameter (it is set by Sigma0^2 = (B+RN2)/VarianceRatio),
     % so the location (slope) is orthogonal to the width by construction; there
     % is no peak/sigma covariance. The known curvature is subtracted and the
     % left flank is regressed linearly: z = logN + xx^2/(2 Sigma0^2) = c + s*xx,
@@ -185,7 +191,7 @@ function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
 
         % Refine: recenter and rescale Sigma0 from the new level (decoupled).
         Center = BackFit;
-        Sigma0 = local_scale(X, BackFit, Args.VarianceRatio);
+        Sigma0 = local_scale(X, BackFit, Args.VarianceRatio, Args.RN2);
     end
 
     % --- decoupled variance measurement (peak fixed) ------------------------
@@ -211,10 +217,10 @@ function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
     % --- fallback for ill-conditioned / clean fields ------------------------
     if ~strcmp(Method, 'fit') || ~isfinite(BackFit)
         Method  = 'fallback';
-        BackFit = 2.5.*MedX - 1.5.*MeanX;                    % SExtractor mode
-        VarFit  = max(BackFit, 0) ./ Args.VarianceRatio;     % predicted variance
+        BackFit = 2.5.*MedX - 1.5.*MeanX;                              % SExtractor mode
+        VarFit  = max(BackFit + Args.RN2, 0) ./ Args.VarianceRatio;   % predicted variance
     elseif ~isfinite(VarFit)
-        VarFit  = max(BackFit, 0) ./ Args.VarianceRatio;     % Var stage failed
+        VarFit  = max(BackFit + Args.RN2, 0) ./ Args.VarianceRatio;   % Var stage failed
     end
 
     % --- outputs ------------------------------------------------------------
@@ -225,7 +231,7 @@ function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
     Info.Method   = Method;
     Info.Mode     = ModeRaw;
     Info.Sigma0   = Sigma0;
-    Info.VarPred  = max(Back, 0) ./ Args.VarianceRatio;      % from level + VR
+    Info.VarPred  = max(Back + Args.RN2, 0) ./ Args.VarianceRatio;    % from level + RN2 + VR
     Info.Npix     = Npix;
     Info.Nbins    = NbinsUse;
     Info.Niter    = Args.Niter;
@@ -234,11 +240,11 @@ function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
 end
 
 % ------------------------------------------------------------------------
-function S0 = local_scale(X, Level, VarianceRatio)
-    % Working scale: from the background-limited relation Sigma0^2=B/VR when
-    % the level is positive, else a left-side (clean half) MAD.
-    if Level > 0
-        S0 = sqrt(Level ./ VarianceRatio);
+function S0 = local_scale(X, Level, VarianceRatio, RN2)
+    % Working scale: from the noise model Sigma0^2=(B+RN2)/VR when the argument
+    % is positive, else a left-side (clean half) MAD.
+    if (Level + RN2) > 0
+        S0 = sqrt((Level + RN2) ./ VarianceRatio);
     else
         Xl = X(X < Level);
         if numel(Xl) >= 5

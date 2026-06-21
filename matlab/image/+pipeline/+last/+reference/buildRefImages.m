@@ -1,4 +1,4 @@
-function [Result] = buildRefImages(RefGrid, Args)
+function [Result,Info] = buildRefImages(RefGrid, Args)
     % given a grid of reference images, build them from proc/coadd images
     %     employs proc/coadd image DB     
     %
@@ -124,6 +124,9 @@ function [Result] = buildRefImages(RefGrid, Args)
         RefID = Args.RefID;
     end
     
+    Info.CounterBadWCS  = 0;
+    Info.CounterGoodWCS = 0;
+
     % the main loop over the reference grid 
     K = 0;
     for Iref = RefID
@@ -185,6 +188,7 @@ function [Result] = buildRefImages(RefGrid, Args)
         
         % send the query and retrieve a table of image characteristics        
         T = Args.DB.query(strcat(Q,W)); 
+        
         
         if isempty(T)
             if Args.Verbose > 0
@@ -256,7 +260,7 @@ function [Result] = buildRefImages(RefGrid, Args)
                         fprintf('Incomplete coverage of %.4f, epoch %d is skipped\n', CoverageAll, Igroup);
                     end
                     RefImage = AstroImage; % empty
-                    continue % to the next epoch
+                    continue % to the next epoch                    
                 end
                 
                 % 4.1 retrieve the crop images
@@ -286,12 +290,15 @@ function [Result] = buildRefImages(RefGrid, Args)
 
                 % check if WCS is present in all the selected crops
                 if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
+                    Info(K).CounterBadWCS = Info(K).CounterBadWCS + 1;
 %                 if all(arrayfun(@(x) x.WCS.Success, AI))
                     if Args.Verbose > 0
                         cprintf('red','\nWCS is not correct in one or several crops, skipping the epoch %d\n',Igroup);
                     end
                     RefImage = AstroImage; % empty
-                    continue
+                    continue;
+                else
+                    Info(K).CounterGoodWCS = Info(K).CounterGoodWCS + 1;
                 end
                 
                 % 4.2 stitch the set of covering crops
