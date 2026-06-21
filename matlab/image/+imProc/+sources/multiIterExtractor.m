@@ -795,7 +795,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 ReCalcBackIterI = any(Args.ReCalcBackIter==Iiter); % re-calc backgroun in Iiter iteration
                 if ReCalcBackIterI
                     FlagBack         = ReCalcBackIterI | Result.isemptyProperty('Back') | Result.isemptyProperty('Var');
-                    Result(FlagBack) = imProc.background.backVar(Result, 'AddHeaderInfo', Args.UpdateHeaderDataBkgVar, Args.backVarArgs{:});
+                    Result(FlagBack) = imProc.background.backVar(Result(FlagBack), Args.backVarArgs{:}, 'ReCalc',true);
+                    %Result(FlagBack) = imProc.background.backVar(Result, 'AddHeaderInfo', Args.UpdateHeaderDataBkgVar, Args.backVarArgs{:});
                 end
                 
                 % add local variance from the sources revealed at all the previous iterations
