@@ -29,6 +29,7 @@ function Result = LcsHelper_v4_validate(Obj, Args)
         Args.PrintToConsole logical = true
     end
 
+    % Create a validator object and run it
     V = ultrasat.planner.LcsHelper_v4Validator(Obj, Args);
     V.run();
     Result = V.Result;
