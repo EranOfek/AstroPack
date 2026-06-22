@@ -404,8 +404,10 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             switch Args.StackMethod
                 case 'wrobust'
                     % RegisteredImages contains also the Back and Var
+                    % Ncoadd is Nimages-3 because of one dof for mode
+                    % estimation, and 2 fir min/max rejection
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:}, 'AddBack', Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs, ...
-                                                            'Ncoadd',numel(RegisteredImages));
+                                                            'Ncoadd',numel(RegisteredImages)-3);
                     %'PoissVar',Args.PoissVar', 'RN2',Args.RN2, ...
                         
                    

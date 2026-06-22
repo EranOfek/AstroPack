@@ -74,11 +74,11 @@ function [Back, Var, Info] = modeVar_LeftHist(Image, Args)
         Image
         Args.VarianceRatio      = 1
         Args.RN2                = 12        % read-noise squared (same units as B)
-        Args.BinFactor          = 0.2
-        Args.RangeLo            = 5
-        Args.RangeHi            = 5
+        Args.BinFactor          = 0.15
+        Args.RangeLo            = 5; %7
+        Args.RangeHi            = 5; %7
         Args.WinLo              = 3
-        Args.WinHi              = 0.5
+        Args.WinHi              = 1; %0.5
         Args.SmoothBins         = 3
         Args.Niter              = 1
         Args.MinBins            = 5

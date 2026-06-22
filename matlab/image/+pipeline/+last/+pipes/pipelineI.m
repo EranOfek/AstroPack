@@ -21,10 +21,14 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.ListCenters                   = [];
         Args.NewNoOverlap                  = [];
 
-        Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
-        %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LeftHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',12, 'MethodArgs',{{'VarianceRatio',1},{}}}; % both for single epoch and coadd
-        Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
-        %Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LeftHist, 'Block',[256 256], 'PoissVar',true, 'RN2',12, 'MethodArgs',{{'VarianceRatio',1},{}}}; % both for single epoch and coadd
+        %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+        %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LeftHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}},{}}}; % both for single epoch and coadd
+        %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+        Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+        %Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+        %Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LeftHist, 'Block',[256 256], 'PoissVar',true, 'RN2',13, 'MethodArgs',{{'VarianceRatio',1},{}}}; % both for single epoch and coadd
+        %Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+        Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
 
         Args.ColCell                       = {'XPEAK','YPEAK',...
                                               'X1', 'Y1',...
