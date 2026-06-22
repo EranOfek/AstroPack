@@ -10,6 +10,8 @@
 %==========================================================================
 
 function debug_LvkFilterResult()
+    % Run default-constructor smoke test for LvkFilterResult.
+
     fprintf('--- Debugging LvkFilterResult ---\n');
 
     debugDefaultConstructor();    
@@ -18,6 +20,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugDefaultConstructor()
+    % Instantiate LvkFilterResult with defaults and display field values.
+
     fprintf('\n--- Default constructor ---\n');
     result = ultrasat.alerts_filters.lvk.models.LvkFilterResult();
     disp(result);

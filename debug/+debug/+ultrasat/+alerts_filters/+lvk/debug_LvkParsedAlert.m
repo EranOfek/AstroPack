@@ -28,6 +28,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugDefaultConstructor()
+    % Instantiate LvkParsedAlert with defaults and display key fields.
+
     fprintf('\n--- Default constructor ---\n');
     alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert();
     disp(alert);
@@ -37,6 +39,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugNameValueConstructor()
+    % Build alert via name/value pairs and verify parsed event_time.
+
     fprintf('\n--- Name/value constructor ---\n');
     alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert( ...
         "alert_id", "G12345", ...
@@ -52,6 +56,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugToJsonString()
+    % Serialize a populated alert to JSON and display the result.
+
     fprintf('\n--- toJsonString ---\n');
     alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert( ...
         "alert_id", "G99", "prob_bns", 0.5, "skymap_path", "/path/to/skymap.fits");
@@ -62,6 +68,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugFromJsonStringRoundTrip()
+    % Parse JSON into alert, then serialize back and print excerpt.
+
     fprintf('\n--- fromJsonString round-trip ---\n');
     jsonStr = ['{"alert_id":"G88","prob_bns":0.6,"far_per_year":1.2,', ...
         '"event_time":"2026-02-09T14:30:00","instruments":["H1","L1"]}'];
@@ -74,6 +82,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugFromStruct()
+    % Build alert from struct with subset of fields including raw_fields.
+
     fprintf('\n--- fromStruct (alert_id, event_time, prob_bns, instruments, raw_fields) ---\n');
     s = struct();
     s.alert_id = "G77";
@@ -91,6 +101,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugDatetimeHandling()
+    % Verify ISO datetime strings are parsed into datetime objects.
+
     fprintf('\n--- Datetime handling (time_created, event_time as ISO strings) ---\n');
     s = struct();
     s.time_created = "2026-02-09T08:00:00";
@@ -106,6 +118,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugSaveLoadJson()
+    % Round-trip alert through temp JSON file and assert field equality.
+
     fprintf('\n--- saveToJsonFile / loadFromJsonFile ---\n');
     alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert( ...
         "alert_id", "G66", "prob_bns", 0.55, "far_per_year", 3.0);
@@ -121,9 +135,12 @@ end
 % -------------------------------------------------------------------------
 
 function debugLoadJsonFixtures()
+    % Load every *.json fixture from data/ or sample_alerts/ and validate fields.
+
     debugDir = fileparts(mfilename('fullpath'));
     fixtureDir = fullfile(debugDir, 'data');
     if ~isfolder(fixtureDir)
+        % Fallback directory name when data/ is absent.
         fixtureDir = fullfile(debugDir, 'sample_alerts');
     end
 
@@ -150,6 +167,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugFilterIntegration()
+    % End-to-end: alert + criteria passed to lvk_filter_with_criteria.
+
     fprintf('\n--- Integration: LvkParsedAlert + LvkFilterCriteria + lvk_filter_with_criteria ---\n');
     alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert( ...
         "alert_id", "G55", "prob_bns", 0.6, "prob_nsbh", 0.2, "far_per_year", 5.0);
@@ -161,6 +180,8 @@ end
 % -------------------------------------------------------------------------
 
 function result = formatDebugScalar(value)
+    % Format numeric/scalar for fprintf; empty -> '[]', NaN -> 'NaN'.
+
     if isempty(value)
         result = '[]';
     elseif isnumeric(value) && isscalar(value)

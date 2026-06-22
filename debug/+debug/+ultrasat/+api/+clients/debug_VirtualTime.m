@@ -10,6 +10,8 @@
 %==========================================================================
 
 function debug_VirtualTime()
+    % Run VirtualTimeClient start/pause/getState against local service.
+
     %debugVirtualTimeModels();
     debugVirtualTimeClient();
 end
@@ -17,6 +19,11 @@ end
 
 function debugVirtualTimeClient()
     % debugVirtualTimeClient - Test the VirtualTimeClient functionality
+    %
+    % Tests:
+    %   1. start() with valid params
+    %   2. pause() with no params
+    %   3. getState() to verify current state
 
     % Define API URL and create client
     apiUrl = 'http://localhost:8203';

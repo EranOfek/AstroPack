@@ -3,6 +3,7 @@
 % Filename    : +debug/+ultrasat/+planner/+lcs_v4/debug_LcsHelper_v4_validateNegative.m
 % Author      : Chen Tishler
 % Created     : 10/06/2026
+% Updated     : 22/06/2026
 % Description : Adversarial / negative tests for LcsHelper_v4_validate.
 %               Builds one valid plan (Jan 5, 2029), then deliberately
 %               corrupts specific aspects of Schedule or Daily_schedule in
@@ -20,6 +21,7 @@
 %==========================================================================
 
 function debug_LcsHelper_v4_validateNegative()
+    % Build a valid plan, corrupt it in 10 ways, and assert validator catches each.
 
     fprintf('\n========== DEBUG LcsHelper_v4_validateNegative ==========\n');
 
@@ -32,6 +34,7 @@ function debug_LcsHelper_v4_validateNegative()
     end
     CsvFile = fullfile(RepoRoot, 'matlab', 'astro', '+ultrasat', '+planner', 'data', 'LCS_fields.csv');
 
+    % Build LcsHelper_v4 object
     Obj = ultrasat.planner.LcsHelper_v4( ...
         'StartDate',           datetime(2029, 1, 5), ...
         'AllSkyTable',         CsvFile, ...
@@ -87,7 +90,7 @@ function debug_LcsHelper_v4_validateNegative()
     for T = 1:NTests
         Name = TestNames{T};
         fprintf('[NEG %2d/%d] %-35s ... ', T, NTests, Name);
-        nFail = TestFns{T}();
+        nFail = TestFns{T}();  % corrupt → validate → restore
         if nFail > 0
             fprintf('caught (nFail=%d)  [OK]\n', nFail);
             nCaught = nCaught + 1;

@@ -10,12 +10,15 @@
 %==========================================================================
 
 function debug_Mission()
-    debugGetApprovedTargets();
+    % Entry point — currently runs getApprovedTargets smoke test only.
+
+    % Test getApprovedTargets
+        debugGetApprovedTargets();
 end
 
 
 function debugGetApprovedTargets()
-    % debugGetApprovedTargets
+    % Call MissionClient.getApprovedTargets and inspect response/targets table.
 
     % Define API URL and create client (will be fetched from Env)
     % TODO: target not found - ultrasat.api.MissionClient does not exist

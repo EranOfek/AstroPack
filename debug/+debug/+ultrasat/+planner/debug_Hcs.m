@@ -10,13 +10,20 @@
 %==========================================================================
 
 function debug_Hcs()
+    % Step-by-step HCS planner smoke tests mirroring uplanner.unitTest.
 
     fprintf('========== DEBUG HCS PLANNER ==========\n');
 
+    % --- Step 1: Ensure data path ---
     debug_ensureDataPath();
 
+    % --- Step 2: Basic single-target build ---
     debug_Hcs_basic();
+
+    % --- Step 3: Inspect plan properties ---
     debug_Hcs_inspect();
+
+    % --- Step 4: Extended window exposure scaling ---
     debug_Hcs_customExptime();
 
     fprintf('========== DEBUG HCS PLANNER DONE ==========\n');
@@ -24,7 +31,7 @@ end
 
 
 function debug_Hcs_basic()
-    % Minimal HCS build: single target, 6-month window (from unitTest)
+    % Minimal HCS build: single target, 6-month window (from unitTest).
 
     fprintf('\n--- debug_Hcs_basic ---\n');
 
@@ -40,7 +47,7 @@ end
 
 
 function debug_Hcs_inspect()
-    % Build HCS and print key plan properties for interactive inspection
+    % Build HCS and print key plan properties for interactive inspection.
 
     fprintf('\n--- debug_Hcs_inspect ---\n');
 
@@ -69,7 +76,7 @@ end
 
 
 function debug_Hcs_customExptime()
-    % Extended 12-month window to verify exposure count scaling
+    % Extended 12-month window to verify exposure count scaling.
 
     fprintf('\n--- debug_Hcs_customExptime ---\n');
 
@@ -91,7 +98,7 @@ end
 
 
 function T = debug_sampleFieldsTable()
-    % Shared 3-field sample table used across planner debug scripts
+    % Shared 3-field sample table used across planner debug scripts.
 
     T = table({'S1', 'N2', 'N3'}', [67, 215, 254]', [-59, 60, 64]', ...
         'VariableNames', {'Name', 'RA', 'Dec'}, 'RowNames', {'S1', 'N2', 'N3'});
@@ -99,7 +106,7 @@ end
 
 
 function debug_ensureDataPath()
-    % ASTROPACK_DATA_PATH required by uplanner BaseDataDir
+    % Set ASTROPACK_DATA_PATH fallback when unset (required by uplanner BaseDataDir).
 
     if ~isempty(getenv('ASTROPACK_DATA_PATH'))
         return;

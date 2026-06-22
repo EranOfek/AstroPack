@@ -100,6 +100,7 @@ function debug_Preferences()
     fprintf('============================================\n');
 end
 
+% -------------------------------------------------------------------------
 
 function cleanup(filePath)
     % Delete temporary preferences JSON file when present.

@@ -14,6 +14,7 @@ function debug_LvkFilterCriteria()
 
     fprintf('--- Debugging LvkFilterCriteria ---\n');
 
+    % Debug constructors, serialization, file I/O, and error cases
     debugDefaultConstructor();
     debugNameValueConstructor();
     debugToJsonString();
@@ -26,6 +27,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugDefaultConstructor()
+    % Instantiate LvkFilterCriteria with defaults and display thresholds.
+
     fprintf('\n--- Default constructor ---\n');
     crit = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria();
     disp(crit);
@@ -35,6 +38,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugNameValueConstructor()
+    % Build criteria via name/value pairs and verify stored thresholds.
+
     fprintf('\n--- Name/value constructor ---\n');
     crit = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria("bns_min", 0.5, "far_max", 10);
     fprintf('bns_min=%.2f, far_max=%.2f\n', crit.bns_min, crit.far_max);
@@ -44,6 +49,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugToJsonString()
+    % Serialize criteria with selected fields to JSON.
+
     fprintf('\n--- toJsonString ---\n');
     crit = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria("bns_min", 0.3, "terrestrial_max", 0.1);
     result = crit.toJsonString();
@@ -53,6 +60,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugFromJsonStringRoundTrip()
+    % Parse JSON into criteria, then serialize back and print excerpt.
+
     fprintf('\n--- fromJsonString round-trip ---\n');
     jsonStr = '{"bns_min":0.4,"far_max":5.0,"handle_bursts":false}';
     crit = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria.fromJsonString(jsonStr);
@@ -64,6 +73,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugFromStruct()
+    % Build criteria from struct subset; unset fields keep defaults.
+
     fprintf('\n--- fromStruct (subset of fields) ---\n');
     s = struct("bns_min", 0.6, "far_max", 20.0);
     crit = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria.fromStruct(s);
@@ -74,6 +85,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugSaveLoadJsonFile()
+    % Round-trip criteria through temp JSON file and assert field equality.
+
     fprintf('\n--- saveToJsonFile / loadFromJsonFile ---\n');
     crit = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria("bns_min", 0.7, "nsbh_min", 0.2);
     filePath = [tempname(), '.json'];
@@ -88,6 +101,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugErrorCases()
+    % Verify constructor rejects odd arg count and unknown property names.
+
     fprintf('\n--- Error cases ---\n');
 
     % Odd number of constructor args

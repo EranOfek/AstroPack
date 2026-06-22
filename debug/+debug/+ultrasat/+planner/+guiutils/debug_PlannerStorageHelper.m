@@ -17,38 +17,39 @@ function debug_PlannerStorageHelper()
 
     [app, helper] = createMockApp();
 
-    % 1. getPlansListToUITable - fetch plans list and populate table
+    % --- Step 1: Fetch plans list into UITable ---
     debug_getPlansListToUITable(helper, app);
 
-    % 2. savePlan - save plan to database (creates plan for subsequent tests)
+    % --- Step 2: Save plan to database (creates pk for later steps) ---
     savedPk = debug_savePlan(helper, app);
     if isempty(savedPk)
         fprintf('savePlan failed, some tests will be skipped\n');
     end
 
-    % 3. openPlan flow - getPlan + getMatlabMat, build PlanData, doOpenPlan
+    % --- Step 3: Open plan from API (getPlan + getMatlabMat + doOpenPlan) ---
     if ~isempty(savedPk)
         debug_openPlanFlow(helper, app, savedPk);
     end
 
-    % 4. doClosePlan - clear MainModule data
+    % --- Step 4: Close plan and clear MainModule state ---
     debug_doClosePlan(helper, app);
 
-    % 5. savePlanToFile - save PlanData to local .mat file
+    % --- Step 5: Save PlanData to local .mat file ---
     debug_savePlanToFile(app);
 
-    % 6. loadPlanFromFile - load PlanData from local .mat file
+    % --- Step 6: Load PlanData from local .mat file ---
     debug_loadPlanFromFile(app);
 
-    % 7. duplicatePlan - reset pk, history, etc. (needs plan loaded first)
+    % --- Step 7: Duplicate plan (reset pk/history) ---
     debug_duplicatePlan(app);
 
-    % 8. deletePlan - stub, log only
+    % --- Step 8: deletePlan stub ---
     debug_deletePlan(helper, app);
 
     fprintf('========== DEBUG PLANNER STORAGE HELPER DONE ==========\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_deletePlan(helper, app)
     % Invoke deletePlan stub and report success or failure.
@@ -61,13 +62,14 @@ function debug_deletePlan(helper, app)
     end
 end
 
+% -------------------------------------------------------------------------
 
 function [app, helper] = createMockApp()
     % Create minimal mock app and helper for headless testing.
     MainModule = ultrasat.planner.guiutils.MainModule();
     factory = ultrasat.api.clients.ClientFactory();
     MainModule.PlansClient = ultrasat.api.clients.PlansManagerClient(factory.getServiceBaseUrl('plans_manager'));
-    MainModule.PlansClient.Namespace = 'dev';
+    MainModule.PlansClient.Namespace = 'dev'; % dev namespace for non-destructive API tests
     MainModule.TableHelper = ultrasat.planner.guiutils.TableHelper();
 
     app = struct();
@@ -92,7 +94,7 @@ function [app, helper] = createMockApp()
     app.SessionHelper = struct('isLogin', @(~) true, 'setButtons', @(varargin) []);
     app.hasPlanner = @() ~isempty(app.MainModule.Planner);
     app.needSave = @(varargin) true;
-    app.showModal = @(a) '';  % Return empty to skip modal
+    app.showModal = @(a) ''; % empty -> skip DuplicatePlan modal in duplicatePlan test
     app.showPleaseWait = @(varargin) [];
     app.closePleaseWait = @() [];
 
@@ -102,6 +104,7 @@ function [app, helper] = createMockApp()
     helper = ultrasat.planner.guiutils.PlannerMainStorageHelper();
 end
 
+% -------------------------------------------------------------------------
 
 function debug_getPlansListToUITable(helper, app)
     % Fetch plans list from API and populate mock UITable via TableHelper.
@@ -114,6 +117,7 @@ function debug_getPlansListToUITable(helper, app)
     end
 end
 
+% -------------------------------------------------------------------------
 
 function savedPk = debug_savePlan(helper, app)
     % Build minimal HCS plan and persist it through savePlan.
@@ -137,12 +141,13 @@ function savedPk = debug_savePlan(helper, app)
     end
 end
 
+% -------------------------------------------------------------------------
 
 function debug_openPlanFlow(helper, app, pk)
     % Load plan metadata and planner mat from API, then call doOpenPlan.
     fprintf('\n--- 3. openPlan flow (getPlan + getMatlabMat + doOpenPlan) ---\n');
     try
-        % Simulate load: getPlan, getMatlabMat, build PlanData, doOpenPlan
+        % Mirror PlannerMain openPlan: metadata first, then base64 planner mat.
         app.MainModule.clearData();
 
         resp = app.MainModule.PlansClient.getPlan(pk);
@@ -168,6 +173,7 @@ function debug_openPlanFlow(helper, app, pk)
     end
 end
 
+% -------------------------------------------------------------------------
 
 function debug_doClosePlan(helper, app)
     % Clear MainModule plan state via doClosePlan.
@@ -180,6 +186,7 @@ function debug_doClosePlan(helper, app)
     end
 end
 
+% -------------------------------------------------------------------------
 
 function debug_savePlanToFile(app)
     % Write PlanData to a temporary local .mat file for load testing.
@@ -193,12 +200,13 @@ function debug_savePlanToFile(app)
         save(fname, 'PlanData');
         fprintf('ok, saved to %s\n', fname);
 
-        debugPlanFileName(fname);
+        debugPlanFileName(fname); % stash path for debug_loadPlanFromFile
     catch ME
         fprintf('failed: %s\n', ME.message);
     end
 end
 
+% -------------------------------------------------------------------------
 
 function debug_loadPlanFromFile(app)
     % Reload PlanData from the temp file written by debug_savePlanToFile.
@@ -217,6 +225,7 @@ function debug_loadPlanFromFile(app)
     end
 end
 
+% -------------------------------------------------------------------------
 
 function debug_duplicatePlan(app)
     % Simulate duplicatePlan by clearing pk/history on loaded PlanData.
@@ -226,7 +235,7 @@ function debug_duplicatePlan(app)
             fprintf('skip (no planner loaded)\n');
             return;
         end
-        % Bypass modal: simulate DuplicatePlan flow
+        % Replicate DuplicatePlan.mlapp logic without launching the modal.
         PlanData = app.MainModule.PlanData;
         Planner = app.MainModule.Planner;
         OldPk = PlanData.pk;
@@ -246,6 +255,7 @@ function debug_duplicatePlan(app)
     end
 end
 
+% -------------------------------------------------------------------------
 
 function [PlanData, upHCS] = createMinimalPlan()
     % Build a small HCS uplanner instance wrapped in PlanData.
@@ -261,6 +271,7 @@ function [PlanData, upHCS] = createMinimalPlan()
     ultrasat.api.utils.PlanDataUtils.syncFromPlanner(PlanData, upHCS);
 end
 
+% -------------------------------------------------------------------------
 
 function out = debugPlanFileName(fname)
     % Persist temp plan file path between save and load debug steps.
@@ -273,6 +284,7 @@ function out = debugPlanFileName(fname)
     end
 end
 
+% -------------------------------------------------------------------------
 
 function BaseDataDir = getBaseDataDir()
     % Resolve ULTRASAT base data directory from MainModule or env fallback.

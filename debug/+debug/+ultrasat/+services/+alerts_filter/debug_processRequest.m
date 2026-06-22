@@ -10,6 +10,8 @@
 %==========================================================================
 
 function debug_processRequest()
+    % Debug script for alerts_filter processRequest: filter_lvk action via flat API.
+
     fprintf('--- Debugging processRequest ---\n');
 
     debug_processFilterLvk();
@@ -18,15 +20,17 @@ end
 % -------------------------------------------------------------------------
 
 function debug_processFilterLvk()
-    
+    % Exercise processRequest with action=filter_lvk; load alert file and run filter.
+
     try
-    
+        % Placeholder for filter_lvk request: action, alert_file, optional filter name.
+
     catch ME
         fprintf('\nException in debug_processFilterLvk: %s\n', ME.message);
         for s = 1:length(ME.stack)
             fprintf('  at %s (line %d)\n', ME.stack(s).name, ME.stack(s).line);
         end
     end
-    
+
     fprintf('=== TEST COMPLETE ===\n\n');
 end

@@ -12,9 +12,11 @@
 %==========================================================================
 
 function debug_AllPlanTypes()
+    % Run HCS, LCS, DDT, and TOO debug drivers in sequence.
 
     fprintf('\n========== DEBUG ALL PLAN TYPES ==========\n');
 
+    % --- Step 1: Ensure data path ---
     debug_ensureDataPath();
 
     Steps = {
@@ -28,6 +30,7 @@ function debug_AllPlanTypes()
     nOk = 0;
     nFail = 0;
 
+    % --- Step 2: Run each plan-type driver ---
     for k = 1:size(Steps, 1)
         PlanType = Steps{k, 1};
         StepFn = Steps{k, 2};
@@ -52,7 +55,7 @@ end
 
 
 function debug_ensureDataPath()
-    % ASTROPACK_DATA_PATH required by uplanner BaseDataDir
+    % Set ASTROPACK_DATA_PATH fallback when unset (required by uplanner BaseDataDir).
 
     if ~isempty(getenv('ASTROPACK_DATA_PATH'))
         return;

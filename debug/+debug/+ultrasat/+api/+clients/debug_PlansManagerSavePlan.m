@@ -11,6 +11,8 @@
 %==========================================================================
 
 function debug_PlansManagerSavePlan()
+    % Save HCS plans with 0, 1, and 2 targets via savePlan.
+
     fprintf('========== DEBUG SAVE PLAN ==========\n');
 
     factory = ultrasat.api.clients.ClientFactory();
@@ -121,6 +123,8 @@ end
 
 
 function s = debug_getStatus(response)
+    % Return response.status or empty char when field is absent.
+
     if isfield(response, 'status')
         s = response.status;
     else
@@ -130,6 +134,8 @@ end
 
 
 function BaseDataDir = getBaseDataDir()
+    % Resolve ULTRASAT data dir from ASTROPACK_DATA_PATH env var.
+
     if ispc
         BaseDataDir = fullfile(getenv('ASTROPACK_DATA_PATH'), 'ULTRASAT');
     else

@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+planner/+lcs_v4/debug_LcsHelper_v4_validate.m
 % Author      : Chen Tishler
 % Created     : 07/06/2026
-% Updated     : 21/06/2026
+% Updated     : 22/06/2026
 % Description : Debug driver for ultrasat.planner.LcsHelper_v4_validate.
 %               Asserts captured Report is returned, non-empty, and that a
 %               valid baseline plan has warnings separated from hard failures.
@@ -13,12 +13,14 @@
 %==========================================================================
 
 function debug_LcsHelper_v4_validate()
+    % Run capture, baseline, and standalone validation smoke tests.
 
     fprintf('\n========== DEBUG LcsHelper_v4_validate ==========\n');
 
     nOk = 0;
     nFail = 0;
 
+    % --- Test suite ---
     Tests = {
         'captureReport',        @debug_validate_captureReport
         'warningsOnlyBaseline', @debug_validate_warningsOnlyBaseline
@@ -49,6 +51,7 @@ function debug_LcsHelper_v4_validate()
     end
 end
 
+% -------------------------------------------------------------------------
 
 function debug_validate_captureReport()
     % Assert Capture returns non-empty Report and scalar counts.
@@ -74,6 +77,7 @@ function debug_validate_captureReport()
         Counts.nFailLines, Counts.nWarnLines);
 end
 
+% -------------------------------------------------------------------------
 
 function debug_validate_warningsOnlyBaseline()
     % Valid Jan 5 plan: hard checks pass; warnings may be present but no [FAIL] lines.
@@ -113,6 +117,7 @@ function debug_validate_warningsOnlyBaseline()
         R.nFail, R.nWarn, Counts.nFailLines, Counts.nWarnLines);
 end
 
+% -------------------------------------------------------------------------
 
 function debug_validate_standaloneSmoke()
     % Full standalone validation (build Jan 5 2029 + CSV dump) for manual inspection.
@@ -123,6 +128,7 @@ function debug_validate_standaloneSmoke()
         R.nFail, R.nPass, R.nWarn, R.Status);
 end
 
+% -------------------------------------------------------------------------
 
 function Obj = debug_buildValidPlan()
     % Build one valid LcsHelper_v4 plan (Jan 5 2029) shared by capture tests.
@@ -149,6 +155,7 @@ function Obj = debug_buildValidPlan()
     end
 end
 
+% -------------------------------------------------------------------------
 
 function Counts = debug_countReportMarkers(Report)
     % Count [FAIL], [WARN] (excluding [WARN-OK]), and [PASS] lines in captured report.

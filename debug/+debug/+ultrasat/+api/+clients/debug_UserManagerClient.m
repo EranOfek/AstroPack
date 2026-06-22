@@ -11,10 +11,16 @@
 %==========================================================================
 
 function debug_UserManagerClient()
+    % Exercise login/logout via UserManagerClient (correct and wrong password).
+
+    % Create a factory and get the base URL for the user manager service
     factory = ultrasat.api.clients.ClientFactory();
     baseUrl = factory.getServiceBaseUrl('user_manager', 'nginx');
+
+    % Create a user manager client and test login/logout
     client = ultrasat.api.clients.UserManagerClient(baseUrl);
 
+    % --- Login with valid credentials ---
     fprintf('Testing login (user: chen, password: 123)...\n');
     loginResponse = client.login('chen', '123', 'OPER');
     disp(loginResponse);
@@ -23,10 +29,12 @@ function debug_UserManagerClient()
         disp(loginResponse.data);
     end
 
+    % --- Logout ---
     fprintf('\nTesting logout (user: chen)...\n');
     logoutResponse = client.logout('chen');
     disp(logoutResponse);
 
+    % --- Login with wrong password (must fail) ---
     fprintf('Testing login (user: chen, password: wrong)...\n');
     loginResponse = client.login('chen', 'wrong', 'OPER');
     disp(loginResponse);

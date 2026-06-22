@@ -10,6 +10,8 @@
 %==========================================================================
 
 function debug_ValidatorManagerClient()
+    % Run healthCheck and validateTargets scenarios against validator_manager service.
+
     fprintf('========== DEBUG VALIDATOR MANAGER CLIENT ==========\n');
 
     try
@@ -36,6 +38,8 @@ end
 
 
 function debug_healthCheck(client)
+    % Ping validator_manager health endpoint.
+
     fprintf('\n--- debug_healthCheck ---\n');
     try
         result = client.healthCheck();
@@ -47,6 +51,8 @@ end
 
 
 function debug_validateTargets(client)
+    % Submit three valid sample targets and print task metadata.
+
     fprintf('\n--- debug_validateTargets ---\n');
     targets = createSampleTargets();
     try
@@ -67,6 +73,8 @@ end
 
 
 function debug_validateTargetsInvalidCoords(client)
+    % Submit out-of-bounds RA/Dec; expect validation failure.
+
     fprintf('\n--- debug_validateTargetsInvalidCoords ---\n');
     targets = createInvalidCoordTargets();
     try
@@ -86,6 +94,8 @@ end
 
 
 function debug_validateTargetsEmpty(client)
+    % Submit empty targets array; expect validation failure.
+
     fprintf('\n--- debug_validateTargetsEmpty ---\n');
     targets = struct('coord_ra', {}, 'coord_dec', {}, 'tiles', {}, 'exposure', {}, 'image_count', {}, 'start_time', {});
     try
@@ -105,6 +115,8 @@ end
 
 
 function debug_validateTargetsNegativeExposure(client)
+    % Submit target with negative exposure; expect validation failure.
+
     fprintf('\n--- debug_validateTargetsNegativeExposure ---\n');
     targets = createNegativeExposureTargets();
     try
@@ -184,6 +196,8 @@ end
 
 
 function s = debug_getStatus(response)
+    % Return response.status or empty char when field is absent.
+
     if isfield(response, 'status')
         s = response.status;
     else
@@ -193,6 +207,8 @@ end
 
 
 function v = debug_getField(s, fld, default)
+    % Safe struct field read with default when field is missing.
+
     if isstruct(s) && isfield(s, fld)
         v = s.(fld);
     else

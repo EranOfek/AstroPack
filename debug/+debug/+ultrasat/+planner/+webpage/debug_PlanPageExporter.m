@@ -10,16 +10,20 @@
 %==========================================================================
 
 function debug_PlanPageExporter()
+    % Run both PlanWebPageExporter scenarios: images-only and images+tables.
+
     debug_PlanWebPageExporterWithImages();
     debug_PlanWebPageExporterWithImagesAndTables();
 end
 
+% -------------------------------------------------------------------------
 
 function debug_PlanWebPageExporterWithImages()
+    % Exercise template_01 placeholders: six figure slots, values, notes, JSON, S3 upload.
 
     planId = '42';
-    
-    % Get current file directory and create export folder under it
+
+    % --- Setup export folder and production template path ---
     currentDir = fileparts(mfilename('fullpath'));
     repoRoot = getenv('ASTROPACK_PATH');
     if isempty(repoRoot)
@@ -30,23 +34,21 @@ function debug_PlanWebPageExporterWithImages()
     if ~exist(baseFolder, 'dir')
         mkdir(baseFolder);
     end
-    
-    % Template file path in production +webpage folder
+
     templateFile = fullfile(webpageDir, 'templates', 'plan_template_01.html');
 
-    % Create exporter instance with plan ID, output folder, and HTML template
     exporter = ultrasat.planner.webpage.PlanWebPageExporter(planId, baseFolder, templateFile);
 
-    % Add your six key figures
+    % --- Add six template-mapped figure images ---
     for i = 1:6
         f = figure('Visible', 'off');
         plot(rand(1,10));
         title(sprintf("Figure %d", i));
-        % Add image tag based on template placeholders
+        % Tags must match {{img_*}} placeholders in plan_template_01.html.
         switch i
             case 1
                 tag = 'img_plan_params';
-            case 2 
+            case 2
                 tag = 'img_unique_targets';
             case 3
                 tag = 'img_plan';
@@ -61,43 +63,40 @@ function debug_PlanWebPageExporterWithImages()
         close(f);
     end
 
-    % Add some example values
+    % --- Scalar values, notes, JSON blocks, and persistent tags ---
     exporter = exporter.addValue('value_targets', '10');
     exporter = exporter.addValue('value_parameters', '20');
 
-    % Add some example notes
     exporter = exporter.addPersistentNote('This is a note');
 
-    % Add some example JSON blocks
     jsonBlock = struct('name', 'John', 'age', 30, 'city', 'New York');
-    exporter = exporter.addJsonBlock('json_targets', jsonBlock);    
+    exporter = exporter.addJsonBlock('json_targets', jsonBlock);
 
-    % Add some example persistent tags
     exporter = exporter.addPersistentTag('persistent_targets', '10');
     exporter = exporter.addPersistentTag('persistent_parameters', '20');
 
-    % Generate HTML from template
+    % --- Generate, save, preview, and upload ---
     exporter = exporter.generateHtmlFromTemplate();
 
-    % Save
     exporter.saveHtml();
 
-    % Store to DB
-    %exporter.zipFolder();    
+    % Store to DB (optional - requires zip pipeline)
+    %exporter.zipFolder();
     %zipBytes = exporter.getZipAsBytes();
 
-    % Preview locally (optional)
     exporter.previewInBrowser();
 
     exporter.upload_to_s3('ultrasat-planner-webpages', 'test');
 end
 
-
+% -------------------------------------------------------------------------
 
 function debug_PlanWebPageExporterWithImagesAndTables()
+    % Exercise template_02 with table placeholders and enableTables constructor flag.
+
     planId = '43';
-    
-    % Get current file directory and create export folder under it
+
+    % --- Setup export folder and production template path ---
     currentDir = fileparts(mfilename('fullpath'));
     repoRoot = getenv('ASTROPACK_PATH');
     if isempty(repoRoot)
@@ -108,27 +107,26 @@ function debug_PlanWebPageExporterWithImagesAndTables()
     if ~exist(baseFolder, 'dir')
         mkdir(baseFolder);
     end
-    
-    % Template file path in production +webpage folder
+
     templateFile = fullfile(webpageDir, 'templates', 'plan_template_02.html');
 
-    % Create exporter instance with plan ID, output folder, and HTML template
+    % Fourth arg true -> exporter renders {{table_*}} placeholders as HTML tables.
     exporter = ultrasat.planner.webpage.PlanWebPageExporter(planId, baseFolder, templateFile, true);
 
-    % Add some example figures
+    % --- Add two template-mapped figures ---
     f1 = figure('Visible', 'off');
     plot(rand(1,10));
     title('Plan Parameters');
     exporter = exporter.addFigureAsImage(f1, 'img_plan_params');
     close(f1);
 
-    f2 = figure('Visible', 'off'); 
+    f2 = figure('Visible', 'off');
     plot(rand(1,10));
     title('Unique Targets');
     exporter = exporter.addFigureAsImage(f2, 'img_unique_targets');
     close(f2);
 
-    % Add some example tables
+    % --- Add tables bound to template placeholders ---
     targetsTable = table(...
         [1;2;3], ...
         ["Target A";"Target B";"Target C"], ...
@@ -142,16 +140,14 @@ function debug_PlanWebPageExporterWithImagesAndTables()
         'VariableNames', {'Parameter', 'Value'});
     exporter = exporter.addTable(paramsTable, 'table_parameters');
 
-    % Generate HTML from template
+    % --- Generate, save, and preview ---
     exporter = exporter.generateHtmlFromTemplate();
 
-    % Save and zip it
     exporter.saveHtml();
 
-    % Store to DB
-    %exporter.zipFolder();   
+    % Store to DB (optional - requires zip pipeline)
+    %exporter.zipFolder();
     %zipBytes = exporter.getZipAsBytes();
 
-    % Preview locally (optional)
     exporter.previewInBrowser();
 end

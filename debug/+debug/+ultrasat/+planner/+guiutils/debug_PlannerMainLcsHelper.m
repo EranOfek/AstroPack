@@ -36,6 +36,7 @@ function debug_PlannerMainLcsHelper()
     debug_prepareForSaveKeepsLcsObj(Planner);
     debug_loadRoundtripKeepsLcsData(Helper, Planner);
 
+    % --- Cleanup headless UI figure ---
     if isfield(LcsApp, 'UIFigure') && isvalid(LcsApp.UIFigure)
         delete(LcsApp.UIFigure);
     end
@@ -43,12 +44,14 @@ function debug_PlannerMainLcsHelper()
     fprintf('========== DEBUG PLANNER MAIN LCS HELPER DONE ==========\n');
 end
 
+% -------------------------------------------------------------------------
 
 function Planner = debug_buildLcsPlanner()
     % Build an LCS uplanner from LCS_fields.csv for table fixture data.
 
     fprintf('\n--- debug_buildLcsPlanner ---\n');
 
+    % Fallback when ASTROPACK_DATA_PATH unset (typical in bare debug sessions).
     if isempty(getenv('ASTROPACK_DATA_PATH'))
         RepoRoot = getenv('ASTROPACK_PATH');
         if isempty(RepoRoot)
@@ -82,6 +85,7 @@ function Planner = debug_buildLcsPlanner()
     fprintf('debug_buildLcsPlanner: OK\n');
 end
 
+% -------------------------------------------------------------------------
 
 function [App, LcsApp] = createMockLcsApp(Planner)
     % Create headless App/LcsApp structs with off-screen UITable widgets.
@@ -91,10 +95,10 @@ function [App, LcsApp] = createMockLcsApp(Planner)
 
     App = struct();
     App.MainModule = MainModule;
-    App.msglog = @(varargin) [];
+    App.msglog = @(varargin) []; % suppress GUI logging during headless run
     App.hasPlanner = @() ~isempty(App.MainModule.Planner);
 
-    Fig = uifigure('Visible', 'off');
+    Fig = uifigure('Visible', 'off'); % UITable requires a parent figure even when hidden
     LcsApp = struct();
     LcsApp.UIFigure = Fig;
     LcsApp.UITableGroupSummary = uitable(Fig, 'Visible', 'off', 'Position', [1 1 100 50]);
@@ -102,6 +106,7 @@ function [App, LcsApp] = createMockLcsApp(Planner)
     LcsApp.UITableFieldDates = uitable(Fig, 'Visible', 'off', 'Position', [1 1 100 50]);
 end
 
+% -------------------------------------------------------------------------
 
 function debug_populateGroupSummary(Helper, App, LcsApp)
     % Verify populateGroupSummary fills UITableGroupSummary with expected columns.
@@ -119,6 +124,7 @@ function debug_populateGroupSummary(Helper, App, LcsApp)
     fprintf('debug_populateGroupSummary: OK\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_groupSummarySingleSelect(Helper, App, LcsApp)
     % Verify single group selection populates UITableGroupFields.
@@ -138,6 +144,7 @@ function debug_groupSummarySingleSelect(Helper, App, LcsApp)
     fprintf('debug_groupSummarySingleSelect: OK\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_groupSummaryMultiSelect(Helper, App, LcsApp)
     % Verify multi-select returns stable union of fields across groups.
@@ -155,6 +162,7 @@ function debug_groupSummaryMultiSelect(Helper, App, LcsApp)
     Helper.onGroupSummarySelectionChanged(App, LcsApp, [RowA, 1; RowB, 1]);
     FieldsUnion = LcsApp.UITableGroupFields.Data;
 
+    % Re-select each group alone to build expected union for comparison.
     Helper.onGroupSummarySelectionChanged(App, LcsApp, [RowA, 1]);
     FieldsA = LcsApp.UITableGroupFields.Data;
     Helper.onGroupSummarySelectionChanged(App, LcsApp, [RowB, 1]);
@@ -168,6 +176,7 @@ function debug_groupSummaryMultiSelect(Helper, App, LcsApp)
     fprintf('debug_groupSummaryMultiSelect: OK\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_groupFieldsSelect(Helper, App, LcsApp)
     % Verify field selection populates UITableFieldDates observation rows.
@@ -192,6 +201,7 @@ function debug_groupFieldsSelect(Helper, App, LcsApp)
     fprintf('debug_groupFieldsSelect: OK\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_prepareForSaveKeepsLcsObj(Planner)
     % Verify cloned planner keeps LCS_obj.Schedule after prepareForSave.
@@ -209,14 +219,16 @@ function debug_prepareForSaveKeepsLcsObj(Planner)
     fprintf('debug_prepareForSaveKeepsLcsObj: OK\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_loadRoundtripKeepsLcsData(Helper, Planner)
+    % Verify byte-stream save/load roundtrip preserves LCS_obj and table population.
 
     fprintf('\n--- debug_loadRoundtripKeepsLcsData ---\n');
 
     Saved = Planner.clone();
     Saved.prepareForSave();
-    Loaded = getArrayFromByteStream(getByteStreamFromArray(Saved));
+    Loaded = getArrayFromByteStream(getByteStreamFromArray(Saved)); % simulates PlansManager mat persistence
 
     assert(~isempty(Loaded.LCS_obj), 'LCS_obj lost after save/load roundtrip');
     assert(height(Loaded.LCS_obj.Schedule) > 0, 'Schedule empty after roundtrip');
