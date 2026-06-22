@@ -273,6 +273,7 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
                 AF.ProjName = {'LAST', 1, TabGrp.mountnum, TabGrp.camnum};
                 AF.JD = double(TabGrp.jd_start);
                 AF.julday2time;
+                AF.Time = extractBefore(AF.Time, ".") + "." + TabGrp.filetime; % repair the last digits from 'filetime'
                 AF.FieldID = TabGrp.fieldid;
                 AF.CropID  = TabGrp.cropid;
                 AF.Counter = 0;
