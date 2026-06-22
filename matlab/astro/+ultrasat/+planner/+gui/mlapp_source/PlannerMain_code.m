@@ -1093,6 +1093,8 @@ classdef PlannerMain < matlab.apps.AppBase
             if ~isempty(app.MainModule.Planner)
                 app.MainModule.Planner.Title = value;
                 app.msglog(sprintf('PlanTitleEditFieldValueChanged: %s', value));
+
+                app.setModified('Plan title modified');
             end
         end
 

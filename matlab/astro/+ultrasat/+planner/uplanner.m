@@ -538,12 +538,13 @@ classdef uplanner < Component
             DailySchedule = Obj.LCS_obj.Daily_schedule;
 
             % Find the days with targets
-            Days = find(~all(isnan(DailySchedule),2));
+            Days = find(~all(isnan(DailySchedule), 2));
 
             % Loop over the days with targets and schedule the targets
             for CurrGroup = 1:numel(Days)
                 % Calculate the start time of the current group
-                CurrStartTime = Obj.LCS_obj.StartDate + Obj.LCS_obj.DailyWindowStartTime + (Days(CurrGroup)-1);
+                % - days(1) is required because in DailySchedule 1 refers to first day of the plan
+                CurrStartTime = Obj.LCS_obj.StartDate + Obj.LCS_obj.DailyWindowStartTime - days(1) + (Days(CurrGroup)-1);
                 DailyTargets = DailySchedule(CurrGroup,~isnan(DailySchedule(Days(CurrGroup),:)));
 
                 % TODO - ordering?                
@@ -556,7 +557,7 @@ classdef uplanner < Component
         
         %
         function buildLCS(Obj,Args)
-            % BuildLCS (v0)
+            % BuildLCS (v0) - NOT USED ANYMORE, REPLACED BY buildLCS1
             % Build a plan for a Targetlist of LCS fields. If a list is not provided, uses all targets in the unique target list.
             % Fill in a daily window of observations and move to the next day. 
             % All relevant parameters should be set before calling this function

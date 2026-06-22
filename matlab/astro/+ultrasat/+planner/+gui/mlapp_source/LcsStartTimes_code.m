@@ -29,6 +29,7 @@ classdef LcsStartTimes < matlab.apps.AppBase
 
     properties (Access = public)
         MainModule      % Reference to the main application module
+        Status          % Status of the operation, e.g., 'Cancel' or 'Ok'
     end
     
 
@@ -96,7 +97,7 @@ classdef LcsStartTimes < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 574 581];
+            app.UIFigure.Position = [100 100 1209 581];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create Panel_2
@@ -104,21 +105,21 @@ classdef LcsStartTimes < matlab.apps.AppBase
             app.Panel_2.BorderColor = [0.651 0.651 0.651];
             app.Panel_2.HighlightColor = [0.651 0.651 0.651];
             app.Panel_2.BackgroundColor = [0.749 0.851 0.949];
-            app.Panel_2.Position = [14 542 542 30];
+            app.Panel_2.Position = [14 542 1189 30];
 
             % Create SuggestedLCSStartTimesLabel
             app.SuggestedLCSStartTimesLabel = uilabel(app.Panel_2);
             app.SuggestedLCSStartTimesLabel.HorizontalAlignment = 'center';
             app.SuggestedLCSStartTimesLabel.FontSize = 18;
             app.SuggestedLCSStartTimesLabel.FontWeight = 'bold';
-            app.SuggestedLCSStartTimesLabel.Position = [14 1 519 27];
+            app.SuggestedLCSStartTimesLabel.Position = [14 1 1166 27];
             app.SuggestedLCSStartTimesLabel.Text = 'Suggested LCS Start Times';
 
             % Create Panel_4
             app.Panel_4 = uipanel(app.UIFigure);
             app.Panel_4.TitlePosition = 'centertop';
             app.Panel_4.BackgroundColor = [0.902 0.902 0.902];
-            app.Panel_4.Position = [20 84 536 347];
+            app.Panel_4.Position = [20 84 1183 352];
 
             % Create UITable
             app.UITable = uitable(app.Panel_4);
@@ -126,31 +127,31 @@ classdef LcsStartTimes < matlab.apps.AppBase
             app.UITable.RowName = {};
             app.UITable.ColumnEditable = true;
             app.UITable.FontSize = 10;
-            app.UITable.Position = [11 11 516 322];
+            app.UITable.Position = [11 16 1163 322];
 
             % Create Panel_6
             app.Panel_6 = uipanel(app.UIFigure);
             app.Panel_6.BackgroundColor = [0.8 0.8 0.8];
-            app.Panel_6.Position = [21 14 536 57];
+            app.Panel_6.Position = [21 14 1182 57];
 
             % Create OKButton
             app.OKButton = uibutton(app.Panel_6, 'push');
             app.OKButton.ButtonPushedFcn = createCallbackFcn(app, @OKButtonPushed, true);
             app.OKButton.FontWeight = 'bold';
             app.OKButton.FontColor = [0 0 1];
-            app.OKButton.Position = [105 9 85 39];
+            app.OKButton.Position = [471 9 85 39];
             app.OKButton.Text = 'OK';
 
             % Create CancelButton
             app.CancelButton = uibutton(app.Panel_6, 'push');
             app.CancelButton.ButtonPushedFcn = createCallbackFcn(app, @CancelButtonPushed, true);
-            app.CancelButton.Position = [224 9 85 39];
+            app.CancelButton.Position = [590 9 85 39];
             app.CancelButton.Text = 'Cancel';
 
             % Create HelpButton
             app.HelpButton = uibutton(app.Panel_6, 'push');
             app.HelpButton.ButtonPushedFcn = createCallbackFcn(app, @HelpButtonPushed, true);
-            app.HelpButton.Position = [340 9 85 39];
+            app.HelpButton.Position = [717 9 85 39];
             app.HelpButton.Text = 'Help';
 
             % Create Title1
@@ -160,7 +161,7 @@ classdef LcsStartTimes < matlab.apps.AppBase
             app.Title1.FontSize = 16;
             app.Title1.FontWeight = 'bold';
             app.Title1.FontColor = [1 0 0];
-            app.Title1.Position = [16 491 541 35];
+            app.Title1.Position = [16 491 1178 35];
             app.Title1.Text = 'LCS cannot be scheduled on the selected start date.';
 
             % Create Title2
@@ -170,7 +171,7 @@ classdef LcsStartTimes < matlab.apps.AppBase
             app.Title2.FontSize = 16;
             app.Title2.FontWeight = 'bold';
             app.Title2.FontColor = [0.102 0.102 0.4];
-            app.Title2.Position = [15 449 542 35];
+            app.Title2.Position = [15 449 1179 35];
             app.Title2.Text = 'Please choose an alternative start date, then click Build again.';
 
             % Show the figure after all components are created
