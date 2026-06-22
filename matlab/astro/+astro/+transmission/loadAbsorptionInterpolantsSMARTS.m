@@ -101,13 +101,6 @@ function AbsData = loadAbsorptionInterpolantsSMARTS(Args)
     % Add method to get full H2O coefficient structure for complex calculations
     AbsData.getH2OCoefficients = @(Lambda) getH2OAllCoefficients(Abs_Interpolants, Lambda);
 
-    % Raw H2O arrays on the native ~1 nm SMARTS grid. waterTransmission.m
-    % uses this to run Bw/Bm/Bmw/Bp/tauw at native resolution then
-    % linearly interpolate the final tauw to the caller's Lambda — mirrors
-    % the SMARTS / Simone reference and avoids the order-of-operations
-    % error of evaluating coefficients on a coarse target grid.
-    AbsData.getH2ORaw = @() getH2ORawData(Abs_Interpolants);
-
     % Also store the interpolants directly for direct access if needed
     AbsData.Interpolants = Abs_Interpolants;
 
@@ -140,22 +133,6 @@ function Values = interpolateSpecies(Interpolants, Species, Lambda)
         % For other species, use standard single interpolant
         Values = Interpolants.(Species)(Lambda_nm);
     end
-end
-
-function Raw = getH2ORawData(Interpolants)
-    % Return raw SMARTS H2O arrays on the native (~1 nm) wavelength grid.
-    % Wavelength is in nm. All other fields are column vectors of the
-    % same length, parsed verbatim from Abs_H2O.dat. Intended for use by
-    % waterTransmission.m which runs the Bw/Bm/Bmw/Bp/tauw arithmetic on
-    % this grid and interpolates the final tauw to the caller's Lambda.
-    if ~isfield(Interpolants, 'H2O')
-        error('H2O interpolants not available');
-    end
-    if ~isstruct(Interpolants.H2O) || ~isfield(Interpolants.H2O, 'Raw')
-        error(['H2O interpolants lack the Raw substruct. ', ...
-               'Regenerate Abs_H2O.mat via createAbsorptionInterpolants.']);
-    end
-    Raw = Interpolants.H2O.Raw;
 end
 
 function H2O_Data = getH2OAllCoefficients(Interpolants, Lambda)

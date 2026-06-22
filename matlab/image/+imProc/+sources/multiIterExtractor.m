@@ -329,7 +329,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         % PSF fitting
         
         Args.psfFitPhotArgs            = {};
-        Args.suppressEdgesArgs         = {'Fun',@imUtil.kernel2.cosbell, 'FunPars', [9, 10], 'Norm', true};
+        %Args.suppressEdgesArgs         = {'Fun',@imUtil.kernel2.cosbell, 'FunPars', [9, 10], 'Norm', true};
         Args.UsePSFInterpolant         = false;
         Args.FitRadius                 = [3];% PSF fit radius at each iteration
         Args.MaxIter                   = 8;
@@ -761,10 +761,16 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                     % 
                     % end
 
+                    %!!!!
+                    %if Iiter>1
                     SumSourceImage = SumSourceImage + SourceImage(:,:,Iiter);
+                    %end
                 end
+                %!!!!
+                %if Iiter>1
                 Subtracted                   = AI.ImageData.Image - SourceImage(:,:,Iiter);  
-                
+                AI.Image                     = Subtracted; % replace the image with the subtracted image
+                %end
                 
                 % optionaly set pixels with Mask > 0 to the background values (in practice this does not influence the result?)
                 %if Args.RemoveMasked
@@ -781,11 +787,12 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             
                 Cat(Iiter)                   = AI.CatData; 
                 
+
                 % add PITER to catalog
                 Nsrc = size(Cat(Iiter).Catalog, 1);
                 Cat(Iiter).insertCol(Iiter.*ones(Nsrc,1),Inf, Args.ColPITER,'');
                 
-                AI.Image                     = Subtracted; % replace the image with the subtracted image
+                
                 
                 if ExtraOutput
                     SubtractedImage(:,:,Iiter)   = Subtracted; % populate the array of subtracted images 
@@ -802,8 +809,11 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 % add local variance from the sources revealed at all the previous iterations
                 % This is not enough - for bright stars the PSF is more
                 % extended and the star edges are not subtracted
+                
+                %!!!!
                 AI.VarData.Image  = AI.VarData.Image  + SumSourceImage./(Ncoadd.*Gain);
                 AI.BackData.Image = AI.BackData.Image + SumSourceImage;  
+
                 % if Iiter==1
                 %     if Args.IsBackSub
                 %         VarFactor = 1./(Ncoadd.*Args.NcoaddFactor);
@@ -814,7 +824,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 %     end
                 %     AI.VarData.Image  = imUtil.art.mex.addBrightSourceProfile(AI.VarData.Data, X, Y, FluxNorm.*VarFactor, 1501.*ones(size(FluxNorm)), BS_RadProf); %./Args.BS_Ncoadd;
                 % end
-    
+
+                %!!!!
+                %Args.AddBackNoise = false;
                 if Iiter==1 && Args.AddBackNoise
                     % Add noise/back around bright sources
                     %GK = imUtil.kernel2.gauss(FWHM);

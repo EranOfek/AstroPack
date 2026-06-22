@@ -3,14 +3,17 @@
  *
  * Fast MEX twin of modeVar_LeftHist.m: estimate the global image background
  * level (mode) and its noise variance from the left flank of the pixel
- * histogram, with the width fixed by Sigma0^2 = B/VarianceRatio so the peak
- * is orthogonal to the width (no peak/sigma covariance).
+ * histogram, with the width fixed by Sigma0^2 = (B+RN2)/VarianceRatio so the
+ * peak is orthogonal to the width (no peak/sigma covariance).
  *
  * Calling convention (identical to the .m):
  *   [Back, Var, Info] = modeVar_LeftHist_mex(Image, 'Name', Value, ...)
- *   Names: VarianceRatio BinFactor RangeLo RangeHi WinLo WinHi
+ *   Names: VarianceRatio RN2 BinFactor RangeLo RangeHi WinLo WinHi
  *          SmoothBins Niter MinBins FastMedian OS   (all numeric scalars)
  *
+ *   RN2 (default 12): read-noise squared, in the same units as B (i.e. such
+ *       that (B+RN2)/VarianceRatio is the noise variance in image-units^2). It
+ *       adds a noise floor so the working scale stays well-defined as B -> 0.
  *   FastMedian (default 1): use the fast single-pass core (one fused O(N) pass,
  *       no data copy, no full-array selection; the median/seed come from a fine
  *       histogram). Set 0 for the exact core (nth_element median, bit-faithful
@@ -61,6 +64,7 @@
 /* ------------------------------- options -------------------------------- */
 struct Opts {
     double VarianceRatio = 1.0;
+    double RN2           = 12.0; // read-noise squared (same units as B)
     double BinFactor     = 0.2;
     double RangeLo       = 5.0;
     double RangeHi       = 5.0;
@@ -115,10 +119,11 @@ static double median_inplace(T* a, size_t m) {
     return 0.5 * (lower + upper);
 }
 
-// Working scale: Sigma0^2 = Level/VR when Level>0, else a left-side MAD.
+// Working scale: Sigma0^2 = (Level+RN2)/VR when (Level+RN2)>0, else a
+// left-side MAD.
 template <typename T>
-static double local_scale(const T* a, size_t m, double Level, double VR) {
-    if (Level > 0.0) return std::sqrt(Level / VR);
+static double local_scale(const T* a, size_t m, double Level, double VR, double RN2) {
+    if (Level + RN2 > 0.0) return std::sqrt((Level + RN2) / VR);
     std::vector<double> left;
     left.reserve(m / 2 + 1);
     for (size_t i = 0; i < m; ++i) {
@@ -190,9 +195,10 @@ static int run_core(const T* d, size_t n, const Opts& o, Result& R) {
     const double mean = sum / (double)c;
     const double med  = median_inplace(buf.data(), c);   // reorders buf (ok)
 
-    const double VR = o.VarianceRatio;
+    const double VR  = o.VarianceRatio;
+    const double RN2 = o.RN2;
     double Center = med;
-    double Sigma0 = local_scale(buf.data(), c, med, VR);
+    double Sigma0 = local_scale(buf.data(), c, med, VR, RN2);
 
     bool   isFit   = false;
     double Back    = NAN;
@@ -265,7 +271,7 @@ static int run_core(const T* d, size_t n, const Opts& o, Result& R) {
         winXc  = wx;  winN = wn;                          // keep for Var stage
 
         Center = Back;
-        Sigma0 = local_scale(buf.data(), c, Back, VR);
+        Sigma0 = local_scale(buf.data(), c, Back, VR, RN2);
     }
 
     // Decoupled variance: peak fixed, regress log(N) on (Xc-Back)^2.
@@ -295,16 +301,16 @@ static int run_core(const T* d, size_t n, const Opts& o, Result& R) {
     // Fallback / completion.
     if (!isFit || !std::isfinite(Back)) {
         Back   = 2.5 * med - 1.5 * mean;                  // SExtractor mode
-        Var    = std::fmax(Back, 0.0) / VR;
+        Var    = std::fmax(Back + RN2, 0.0) / VR;
         isFit  = false;
     } else if (!std::isfinite(Var)) {
-        Var    = std::fmax(Back, 0.0) / VR;
+        Var    = std::fmax(Back + RN2, 0.0) / VR;
     }
 
     R.Back    = Back;
     R.Var     = Var;
     R.Sigma0  = Sigma0;
-    R.VarPred = std::fmax(Back, 0.0) / VR;
+    R.VarPred = std::fmax(Back + RN2, 0.0) / VR;
     R.Mode    = ModeRaw;
     R.Median  = med;
     R.Mean    = mean;
@@ -325,7 +331,8 @@ static int run_core(const T* d, size_t n, const Opts& o, Result& R) {
 // with a wider range or use the exact core).
 template <typename T>
 static int run_fast(const T* d, size_t n, const Opts& o, double pad, Result& R) {
-    const double VR = o.VarianceRatio;
+    const double VR  = o.VarianceRatio;
+    const double RN2 = o.RN2;
 
     // (1) subsample for a provisional center C0 and scale S0 (sets the range).
     const size_t target = 20000;
@@ -339,8 +346,8 @@ static int run_fast(const T* d, size_t n, const Opts& o, double pad, Result& R) 
     std::nth_element(samp.begin(), samp.begin() + sm, samp.end());
     double C0 = samp[sm];
     double S0;
-    if (C0 > 0.0) S0 = std::sqrt(C0 / VR);
-    else {                                              // sample MAD if C0<=0
+    if (C0 + RN2 > 0.0) S0 = std::sqrt((C0 + RN2) / VR);
+    else {                                              // sample MAD if C0+RN2<=0
         std::vector<double> a(samp.size());
         for (size_t i = 0; i < samp.size(); ++i) a[i] = std::fabs(samp[i] - C0);
         size_t mm = a.size() / 2;
@@ -458,7 +465,7 @@ static int run_fast(const T* d, size_t n, const Opts& o, double pad, Result& R) 
         if (!(std::isfinite(CandBack) && CandBack >= Lo && CandBack <= Hi)) break;
 
         Back   = CandBack; isFit = true; winXc = wx; winN = wn;
-        Center = Back; Sig = (Back > 0.0) ? std::sqrt(Back / VR) : S0;
+        Center = Back; Sig = (Back + RN2 > 0.0) ? std::sqrt((Back + RN2) / VR) : S0;
     }
 
     // Decoupled variance (peak fixed): regress log(N) on (Xc-Back)^2.
@@ -477,15 +484,15 @@ static int run_fast(const T* d, size_t n, const Opts& o, double pad, Result& R) 
             if (Q > 0.0 && std::isfinite(Q)) Var = 1.0 / (2.0 * Q); }
     }
     if (!isFit || !std::isfinite(Back)) {
-        Back = 2.5 * med - 1.5 * mean; Var = std::fmax(Back, 0.0) / VR; isFit = false;
+        Back = 2.5 * med - 1.5 * mean; Var = std::fmax(Back + RN2, 0.0) / VR; isFit = false;
     } else if (!std::isfinite(Var)) {
-        Var = std::fmax(Back, 0.0) / VR;
+        Var = std::fmax(Back + RN2, 0.0) / VR;
     }
 
     R.Back    = Back;
     R.Var     = Var;
     R.Sigma0  = Sig;
-    R.VarPred = std::fmax(Back, 0.0) / VR;
+    R.VarPred = std::fmax(Back + RN2, 0.0) / VR;
     R.Mode    = ModeRaw;
     R.Median  = med;
     R.Mean    = mean;
@@ -529,6 +536,7 @@ static void parse_opts(int nrhs, const mxArray* prhs[], Opts& o) {
         char name[64]; mxGetString(prhs[i], name, sizeof(name));
         double v = mxGetScalar(prhs[i + 1]);
         if      (ieq(name, "VarianceRatio")) o.VarianceRatio = v;
+        else if (ieq(name, "RN2"))           o.RN2           = v;
         else if (ieq(name, "BinFactor"))     o.BinFactor     = v;
         else if (ieq(name, "RangeLo"))       o.RangeLo       = v;
         else if (ieq(name, "RangeHi"))       o.RangeHi       = v;
@@ -611,7 +619,7 @@ int main() {
     Opts o; Result R;
     run(img.data(), N, o, R);
     std::printf("Back   = %.3f (true B = %.1f)\n", R.Back, B);
-    std::printf("Var    = %.3f (VarPred = %.3f, true = %.1f)\n",
+    std::printf("Var    = %.3f (VarPred = %.3f, true noise var = %.1f)\n",
                 R.Var, R.VarPred, B);
     std::printf("Mode   = %.3f  Median = %.3f  Mean = %.3f\n",
                 R.Mode, R.Median, R.Mean);

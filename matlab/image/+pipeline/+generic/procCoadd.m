@@ -188,6 +188,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         %Args.BackSubSizeXY                    = [128 128];
         Args.backVarArgs                      = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256]}
         Args.backVarIndivArgs                 = {}; % if empty use the same as backVarArgs   {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256]}
+        %Args.PoissVar                         = false;  % Assume Poisson noise for coadd image Var
+        %Args.RN2                              = 12;  % RN^2 for Poissnon noise var calculation
 
         Args.findMeasureSourcesArgs cell      = {};
         Args.maskCR_Args                      = {};
@@ -402,7 +404,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             switch Args.StackMethod
                 case 'wrobust'
                     % RegisteredImages contains also the Back and Var
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:}, 'AddBack', Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
+                    % Ncoadd is Nimages-3 because of one dof for mode
+                    % estimation, and 2 fir min/max rejection
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:}, 'AddBack', Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs, ...
+                                                            'Ncoadd',numel(RegisteredImages)-3);
+                    %'PoissVar',Args.PoissVar', 'RN2',Args.RN2, ...
+                        
                    
                 case 'proper'
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:}, 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
