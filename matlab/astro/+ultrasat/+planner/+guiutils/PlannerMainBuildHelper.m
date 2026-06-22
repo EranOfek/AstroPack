@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainBuildHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 23/04/2026
+% Updated     : 21/06/2026
 % Description : Build Helper for Main Planner
 %==========================================================================
 
@@ -176,6 +176,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
             Status = 'aborted';
             app.msglog('checkLcsStartDate started');
 
+            % Adjust upLCS.StartTime to the beginning of the day
             StartDate = dateshift(upLCS.StartTime, 'start', 'day');
 
             % Fast path: current start date is feasible at offset 0
@@ -191,7 +192,8 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
 
             try
                 % Search nearby dates for FEASIBLE LCS v4 plan starts via LcsHelper_v4
-                Plans = ultrasat.planner.LcsHelper_v4_findPlans(StartDate, 2, 'Verbose', false);
+                DaysToSearch = 2;
+                Plans = ultrasat.planner.LcsHelper_v4_findPlans(StartDate, DaysToSearch, 'Verbose', false);
                 FeasibleMask = strcmp(Plans.status, 'FEASIBLE');
                 Plans = Plans(FeasibleMask, :);
 
@@ -292,10 +294,10 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
             % Get list of the selected rows with 'Order' column set (or all if none of them has Order set)
             SelectedRows = obj.getUniqueTargetsIndexByOrderColumn(app, app.UITableUniqueTargets.Data);
 
-            % No targets selected for LCS build
+            % If a target list is not provided, uplanner will use all targets
             if isempty(SelectedRows)
-                app.AppUtils.msgError('No targets selected for LCS build.');
-                return;
+                %app.AppUtils.msgError('No targets selected for LCS build.');
+                %return;
             end
 
             StartStatus = obj.checkLcsStartDate(app, upLCS);
@@ -320,6 +322,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
                 app.addHistory('BuildLCS Ok');
                 obj.setBuildStatus(app, 'OK');
                 app.MainModule.setStatus('OK', 'Build LCS completed successfully');
+                obj.logLcsValidationReport(app, upLCS);
             end
 
             app.msglog('doBuildLCS done');
@@ -431,12 +434,67 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
         %                         LCS START DATE HELPERS
         % =================================================================
 
+        function logLcsValidationReport(obj, app, upLCS)
+            % Push LCS v4 validation report from LCS_obj to the message window
+            if isempty(upLCS) || ~isprop(upLCS, 'LCS_obj') || isempty(upLCS.LCS_obj)
+                return
+            end
+            LcsObj = upLCS.LCS_obj;
+            if isempty(LcsObj.Validation) || isempty(LcsObj.Validation.Result)
+                return
+            end
+            R = LcsObj.Validation.Result;
+            if isempty(R.Report)
+                return
+            end
+            app.msglog(R.Report);
+
+            if R.failed()
+                FailText = R.FailReport;
+                if isempty(FailText)
+                    FailText = R.Report;
+                end
+                PopupMsg = obj.formatLcsValidationPopupMessage(FailText, R.nFail, R.nWarn, 'error');
+                app.AppUtils.msgError(PopupMsg, 'LCS Plan Validation');
+            elseif R.hasWarnings()
+                WarnText = R.WarnReport;
+                if isempty(WarnText)
+                    WarnText = R.Report;
+                end
+                PopupMsg = obj.formatLcsValidationPopupMessage(WarnText, R.nFail, R.nWarn, 'warning');
+                app.AppUtils.msgOk(PopupMsg, 'LCS Plan Validation');
+            end
+        end
+
+
+        function PopupMsg = formatLcsValidationPopupMessage(obj, BodyText, nFail, nWarn, Mode)
+            % Format validation text for MsgBox TextArea (cell array of lines)
+            Preamble = {
+                'LCS plan validation (experimental).'
+                'This automated checker is not yet 100% certain to be correct.'
+                'Review all results below before relying on the built plan.'
+                ''
+            };
+            if strcmp(Mode, 'error')
+                Preamble{end+1} = sprintf('Validation failed: %d check(s) failed, %d warning(s).', nFail, nWarn);
+            else
+                Preamble{end+1} = sprintf('Validation passed with %d warning(s).', nWarn);
+            end
+            Preamble{end+1} = '';
+            BodyLines = cellstr(splitlines(string(BodyText)));
+            PopupMsg = [Preamble(:); BodyLines(:)];
+        end
+
+
         function IsFeasible = isLcsStartDateFeasible(obj, app, StartDate)
             % Return true if StartDate is a feasible LCS v4 plan start (offset 0)
             IsFeasible = false;
             try
+                % Find a feasible LCS v4 plan on StartDate
                 Plans = ultrasat.planner.LcsHelper_v4_findPlans(StartDate, 1, ...
                     'MaxRadius', 0, 'Verbose', false);
+
+                % Found on StartDate, check if it is feasible and offset 0
                 if height(Plans) > 0
                     IsFeasible = strcmp(Plans.status(1), 'FEASIBLE') && Plans.offset_days(1) == 0;
                 end
@@ -452,8 +510,8 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
                 obj.LcsStartTimesApp = ultrasat.planner.gui.LcsStartTimes(app.MainModule);
             end
 
-            obj.LcsStartTimesApp.EnterfilenametoloadfromfileorpastetextbelowLabel_2.Text = ...
-                'Please choose an alternative start date, then click Build again.';
+            %obj.LcsStartTimesApp.EnterfilenametoloadfromfileorpastetextbelowLabel_2.Text = ...
+            %    'Please choose an alternative start date, then click Build again.';
 
             DisplayData = PlansTable(:, {'plan_start_date', 'offset_days', 'num_observations', ...
                 'nA', 'nB', 'nC', 'nD', 'variant_used'});
