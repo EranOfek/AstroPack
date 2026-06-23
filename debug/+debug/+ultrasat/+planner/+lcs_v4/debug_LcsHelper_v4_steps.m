@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+planner/+lcs_v4/debug_LcsHelper_v4_steps.m
 % Author      : Chen Tishler
 % Created     : 07/06/2026
-% Updated     : 15/06/2026
+% Updated     : 22/06/2026
 % Description : Step-by-step debug for LcsHelper_v4 pipeline methods.
 %               Plan start date: 2029-05-01.
 %
@@ -11,11 +11,14 @@
 %==========================================================================
 
 function debug_LcsHelper_v4_steps()
+    % Exercise each LcsHelper_v4 pipeline stage in isolation (2029-05-01).
 
     fprintf('========== DEBUG LcsHelper_v4 STEPS ==========\n');
 
+    % --- Ensure ASTROPACK_DATA_PATH is set ---
     debug_ensureDataPath();
 
+    % --- Sub-tests (pipeline order) ---
     debug_LcsHelper_v4_visMatrix();
     debug_LcsHelper_v4_contVis();
     debug_LcsHelper_v4_categorize();
@@ -24,9 +27,10 @@ function debug_LcsHelper_v4_steps()
     fprintf('========== DEBUG LcsHelper_v4 STEPS DONE ==========\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_LcsHelper_v4_visMatrix()
-    % Step 1: calc_vis_matrix
+    % Step 1: calc_vis_matrix.
 
     fprintf('\n--- debug_LcsHelper_v4_visMatrix ---\n');
 
@@ -39,9 +43,10 @@ function debug_LcsHelper_v4_visMatrix()
     fprintf('debug_LcsHelper_v4_visMatrix: OK\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_LcsHelper_v4_contVis()
-    % Step 2: calc_cont_vis_windows_v2
+    % Step 2: calc_cont_vis_windows_v2 (requires vis matrix).
 
     fprintf('\n--- debug_LcsHelper_v4_contVis ---\n');
 
@@ -57,9 +62,10 @@ function debug_LcsHelper_v4_contVis()
     fprintf('debug_LcsHelper_v4_contVis: OK\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_LcsHelper_v4_categorize()
-    % Step 3: prepTablesBeforeSchedule (vis + cont vis + categorize)
+    % Step 3: prepTablesBeforeSchedule (vis + cont vis + categorize).
 
     fprintf('\n--- debug_LcsHelper_v4_categorize ---\n');
 
@@ -74,6 +80,7 @@ function debug_LcsHelper_v4_categorize()
         height(Obj.SetC_fields), Obj.SetCnumel);
     fprintf('Long_leftover fields: %d\n', height(Obj.Long_leftover_fields));
 
+    % --- Assert set sizes match configured numel ---
     if height(Obj.SetA_fields) ~= Obj.SetAnumel
         error('debug_LcsHelper_v4_categorize: SetA count mismatch');
     end
@@ -87,9 +94,10 @@ function debug_LcsHelper_v4_categorize()
     fprintf('debug_LcsHelper_v4_categorize: OK\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_LcsHelper_v4_scheduleSteps()
-    % Steps 4-8: schedule SetA/C/B/D and build daily schedule
+    % Steps 4-8: schedule SetA/C/B/D and build daily schedule.
 
     fprintf('\n--- debug_LcsHelper_v4_scheduleSteps ---\n');
 
@@ -98,6 +106,7 @@ function debug_LcsHelper_v4_scheduleSteps()
 
     Obj.Schedule = table();
 
+    % --- Step 4: SetA ---
     [okA, unplacedA] = Obj.schedule_SetA_v4();
     if ~okA
         error('debug_LcsHelper_v4_scheduleSteps: schedule_SetA_v4 failed; unplaced=%s', ...
@@ -106,6 +115,7 @@ function debug_LcsHelper_v4_scheduleSteps()
     fprintf('schedule_SetA_v4: OK (%d rows)\n', ...
         sum(strcmp(Obj.Schedule.category, 'A') & Obj.Schedule.Field > 0));
 
+    % --- Steps 5-6: try variants until SetC + SetB both place ---
     BaseSchedule = Obj.Schedule;
     okVariant = false;
     unplacedC = [];
@@ -132,10 +142,12 @@ function debug_LcsHelper_v4_scheduleSteps()
         sum(strcmp(Obj.Schedule.category, 'C') & Obj.Schedule.Field > 0), ...
         sum(ismember(Obj.Schedule.category, {'B_45', 'B_90'}) & Obj.Schedule.Field > 0));
 
+    % --- Step 7: SetD (optional leftovers) ---
     Obj.schedule_SetD_v4();
     nD = sum(strcmp(Obj.Schedule.category, 'D') & Obj.Schedule.Field > 0);
     fprintf('schedule_SetD_v4: %d/%d placed\n', nD, Obj.SetDnumel);
 
+    % --- Step 8: daily schedule matrix ---
     Obj.calcDailySchedule();
     if isempty(Obj.Daily_schedule)
         error('debug_LcsHelper_v4_scheduleSteps: Daily_schedule is empty');
@@ -146,16 +158,22 @@ function debug_LcsHelper_v4_scheduleSteps()
     fprintf('debug_LcsHelper_v4_scheduleSteps: OK\n');
 end
 
+% -------------------------------------------------------------------------
 
 function Obj = debug_lcsHelperV4_newHelper(Verbose)
+    % Construct LcsHelper_v4 for 2029-05-01 without auto-scheduling.
+
     Obj = ultrasat.planner.LcsHelper_v4( ...
         'StartDate', datetime('2029-05-01'), ...
         'AllSkyTable', debug_lcsHelperV4_gridFile(), ...
         'Verbose', Verbose);
 end
 
+% -------------------------------------------------------------------------
 
 function gridFile = debug_lcsHelperV4_gridFile()
+    % Resolve LCS all-sky grid CSV from ASTROPACK_DATA_PATH.
+
     gridFile = fullfile(getenv('ASTROPACK_DATA_PATH'), ...
         'ULTRASAT', 'LCS_fields.csv');
     if ~isfile(gridFile)
@@ -163,8 +181,11 @@ function gridFile = debug_lcsHelperV4_gridFile()
     end
 end
 
+% -------------------------------------------------------------------------
 
 function debug_ensureDataPath()
+    % Set ASTROPACK_DATA_PATH to a local fallback when unset.
+
     if ~isempty(getenv('ASTROPACK_DATA_PATH'))
         return;
     end

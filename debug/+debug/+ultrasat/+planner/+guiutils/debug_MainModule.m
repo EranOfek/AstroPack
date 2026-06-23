@@ -22,6 +22,7 @@ function debug_MainModule()
     debug_login(mainModule);
 end
 
+% -------------------------------------------------------------------------
 
 function debug_login(mainModule)
     % Exercise correct login, logout, wrong password, and no-op logout paths.

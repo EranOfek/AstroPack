@@ -9,19 +9,7 @@
 % Run by      : debug.ultrasat.api.utils.debug_parseIsoDatetime()
 %==========================================================================
 function debug_parseIsoDatetime()
-% Development and regression test suite for parseIsoDatetime.m
-%
-%   Run this file (F5) or call it from command window to verify
-%   that parseIsoDatetime handles intended ISO 8601 variants correctly.
-%
-%   Features:
-%     - Realistic and edge cases
-%     - Pass/fail reporting with simple text
-%     - Uses try + assert-like comparison
-%     - Shows expected vs actual result on failure
-%
-%   Author:     Chen Tishler (adapted & extended)
-%   Last update: 2026-02-10
+    % Regression test suite for DateTimeUtils.parseIsoDateTime ISO 8601 parsing.
 
     clc;
     disp('============================================================');
@@ -29,7 +17,7 @@ function debug_parseIsoDatetime()
     disp('============================================================');
     disp(' ');
 
-    % Make sure the function exists on path
+    % --- Step 1: Verify function on path ---
     if ~exist('parseIsoDatetime', 'file')
         error('Cannot find parseIsoDatetime.m on current path');
     end
@@ -52,6 +40,7 @@ function debug_parseIsoDatetime()
 
     fprintf('Running %d test cases ...\n\n', nTests);
 
+    % --- Step 2: Run test cases ---
     for i = 1:nTests
         tc = testCases{i};
 
@@ -85,6 +74,7 @@ function debug_parseIsoDatetime()
         end
     end
 
+    % --- Step 3: Print summary ---
     fprintf('\n');
     disp('============================================================');
     disp('  Summary');

@@ -11,6 +11,8 @@
 %==========================================================================
 
 function debug_PlansManagerSaveLoadMatlabMat()
+    % Save plan+mat, reload mat, and verify uplanner round-trip fields.
+
     fprintf('========== DEBUG SAVE/LOAD MATLAB MAT ==========\n');
     factory = ultrasat.api.clients.ClientFactory();
     baseUrl = factory.getServiceBaseUrl('plans_manager');
@@ -41,6 +43,8 @@ end
 
 
 function savedPk = debug_savePlanAndMat(client, PlanData)
+    % Insert plan, then upload base64-encoded planner mat for returned pk.
+
     planStruct = PlanData.toStruct();
     resp = client.savePlan(planStruct);
     if ~resp.ok || ~isfield(resp, 'data') || isempty(resp.data)
@@ -56,6 +60,8 @@ end
 
 
 function debug_loadAndVerifyMat(client, pk, originalPlanner)
+    % Load mat by pk and compare Type/AstPlanner/StartTime/EndTime to original.
+
     resp = client.getMatlabMat(pk);
     if ~resp.ok || ~isfield(resp, 'data') || isempty(resp.data)
         fprintf('getMatlabMat failed\n');

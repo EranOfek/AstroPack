@@ -8,8 +8,8 @@ end
 
 function testReturnsUniquePixels(testCase)
     % Result is a column vector of unique pixel indices.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
-    HealpixTestHelper.assumeMappingToolbox(testCase);
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeMappingToolbox(testCase);
 
     NSide = 2^8;
     Lon = deg2rad(200.67);
@@ -22,8 +22,8 @@ end
 
 function testCentralPixelIncluded(testCase)
     % Cone center maps to a pixel that appears in the search result.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
-    HealpixTestHelper.assumeMappingToolbox(testCase);
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeMappingToolbox(testCase);
 
     NSide = 64;
     Lon = 1.0;
@@ -36,8 +36,8 @@ end
 
 function testPixelCentersWithinExpandedRadius(testCase)
     % All returned centers lie within Radius + pixel radius.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
-    HealpixTestHelper.assumeMappingToolbox(testCase);
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeMappingToolbox(testCase);
 
     NSide = 32;
     Lon = 0.8;
@@ -52,8 +52,8 @@ end
 
 function testDegreeUnits(testCase)
     % CooUnits and RadiusUnits 'deg' match radian equivalent search.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
-    HealpixTestHelper.assumeMappingToolbox(testCase);
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeMappingToolbox(testCase);
 
     NSide = 128;
     RA = 200.67;

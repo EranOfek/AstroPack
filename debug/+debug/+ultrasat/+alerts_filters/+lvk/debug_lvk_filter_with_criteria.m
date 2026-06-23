@@ -14,8 +14,10 @@ function debug_lvk_filter_with_criteria()
 
     fprintf('--- Debugging lvk_filter_with_criteria ---\n');
 
+    % Shared logger instance required by lvk_filter_with_criteria.
     logger = MsgLogger.getSingleton();
 
+    % Debug scenarios
     debugScenarioBNS(logger);
     debugScenarioTerrestrial(logger);
     debugScenarioFAR(logger);
@@ -25,6 +27,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugScenarioBNS(logger)
+    % BNS/NSBH above criteria thresholds; alert should pass with positive score.
+
     fprintf('\n--- Scenario 1: BNS/NSBH above thresholds ---\n');
     alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert( ...
         "alert_id", "G-BNS", "prob_bns", 0.6, "prob_nsbh", 0.3, "far_per_year", 5.0);
@@ -40,6 +44,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugScenarioTerrestrial(logger)
+    % High terrestrial probability exceeds criteria; expect rejection flag.
+
     fprintf('\n--- Scenario 2: Terrestrial rejection ---\n');
     alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert( ...
         "alert_id", "G-TERR", "prob_bns", 0.4, "prob_terrestrial", 0.9);
@@ -55,6 +61,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugScenarioFAR(logger)
+    % FAR above criteria far_max; expect rejected_far flag.
+
     fprintf('\n--- Scenario 3: FAR rejection ---\n');
     alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert( ...
         "alert_id", "G-FAR", "prob_bns", 0.5, "far_per_year", 100.0);
@@ -70,6 +78,8 @@ end
 % -------------------------------------------------------------------------
 
 function debugScenarioMinimal(logger)
+    % Empty alert with default criteria; exercise baseline filter behavior.
+
     fprintf('\n--- Scenario 4: Empty / minimal alert ---\n');
     alert = ultrasat.alerts_filters.lvk.models.LvkParsedAlert("alert_id", "G-MIN");
     criteria = ultrasat.alerts_filters.lvk.models.LvkFilterCriteria();

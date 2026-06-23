@@ -23,6 +23,7 @@ function debug_plannerWorkflow(client)
     fprintf('========== DEBUG PLANNER WORKFLOW (FULL ROUND-TRIP) ==========\n');
 
     try
+        % Run the workflow and get the saved pk, original plan struct, and original planner
         [savedPk, originalPlanStruct, originalPlanner] = runWorkflow(client);
         if isempty(savedPk)
             fprintf('Workflow failed at save step\n');
@@ -43,6 +44,7 @@ function debug_plannerWorkflow(client)
         end
         loadedPlan = planResp.data;
 
+        % Get the matlab mat from the plans manager service
         matResp = client.getMatlabMat(savedPk);
         loadedPlanner = [];
         if matResp.ok && isfield(matResp, 'data') && ~isempty(matResp.data)
@@ -60,6 +62,8 @@ end
 
 
 function [savedPk, planStruct, upHCS] = runWorkflow(client)
+    % Three-step save workflow: empty plan, +1 target built, +2nd target in struct.
+
     savedPk = [];
     planStruct = [];
     upHCS = [];
@@ -74,8 +78,11 @@ function [savedPk, planStruct, upHCS] = runWorkflow(client)
     upHCS = ultrasat.planner.uplanner('AstPlanner', 'debug_user', 'Type', 'HCS', ...
         'StartTime', StartTime, 'EndTime', EndTime, 'BaseDataDir', BaseDataDir);
     PlanData.planner = upHCS;
+
+    % Sync the uplanner HCS to the PlanData
     ultrasat.api.utils.PlanDataUtils.syncFromPlanner(PlanData, upHCS);
 
+    % Convert the PlanData to a plan struct
     planStruct = PlanData.toStruct();
 
     resp = client.savePlan(planStruct);
@@ -93,6 +100,8 @@ function [savedPk, planStruct, upHCS] = runWorkflow(client)
     fprintf('\n--- Step 2: Add 1 target, build, save ---\n');
     upHCS.addUniqTargets(215, 60, 'Name', 'target1');
     upHCS.buildHCS('HCS_UniqTarg', 1);
+
+    % Sync the uplanner HCS to the PlanData
     PlanData.planner = upHCS;
     ultrasat.api.utils.PlanDataUtils.syncFromPlanner(PlanData, upHCS);
 
@@ -140,7 +149,8 @@ end
 
 
 function comparePlans(original, loaded, originalPlanner, loadedPlanner)
-    % Compare plan fields
+    % Compare plan struct fields and uplanner mat after load round-trip.
+
     planOk = true;
     if ~isequal(debug_getField(original, 'plan_type', ''), debug_getField(loaded, 'plan_type', ''))
         fprintf('MISMATCH plan_type: %s vs %s\n', debug_getField(original, 'plan_type', ''), debug_getField(loaded, 'plan_type', ''));
@@ -178,6 +188,8 @@ end
 
 
 function n = numelTargets(s)
+    % Count targets in plan struct (cell or struct array).
+
     if ~isfield(s, 'targets') || isempty(s.targets)
         n = 0;
     elseif iscell(s.targets)
@@ -189,6 +201,8 @@ end
 
 
 function v = debug_getField(s, fld, default)
+    % Safe struct field read with default when field is missing.
+
     if isfield(s, fld)
         v = s.(fld);
     else
@@ -198,6 +212,8 @@ end
 
 
 function v = iif(cond, a, b)
+    % Inline conditional: return a when cond is true, else b.
+
     if cond
         v = a;
     else
@@ -207,6 +223,8 @@ end
 
 
 function BaseDataDir = getBaseDataDir()
+    % Resolve ULTRASAT data dir via MainModule or ASTROPACK_DATA_PATH fallback.
+
     try
         MainModule = ultrasat.planner.guiutils.MainModule();
         BaseDataDir = MainModule.BaseDataDir;

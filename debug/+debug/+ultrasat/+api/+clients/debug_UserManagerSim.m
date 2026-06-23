@@ -206,7 +206,8 @@ function test_IsAllowed_method(userManager)
 end
 
 function test_IsAllowed_single(manager, action, item, expected)
-    % Helper function to test a single IsAllowed call
+    % Helper: call IsAllowed once and compare result to expected boolean.
+
     try
         [isAllowed, msg] = manager.IsAllowed(action, item);
         if isAllowed == expected

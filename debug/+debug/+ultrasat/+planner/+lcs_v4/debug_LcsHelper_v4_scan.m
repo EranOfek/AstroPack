@@ -3,7 +3,7 @@
 % Filename    : +debug/+ultrasat/+planner/+lcs_v4/debug_LcsHelper_v4_scan.m
 % Author      : Chen Tishler
 % Created     : 08/06/2026
-% Updated     : 15/06/2026
+% Updated     : 22/06/2026
 % Description : Scan LCS start dates with LcsHelper_v4 only.
 %
 % Useful shorter test:
@@ -16,6 +16,8 @@
 %==========================================================================
 
 function debug_LcsHelper_v4_scan(Args)
+    % Scan a date range, build LCS plans, and write per-date outputs plus index CSV.
+
     arguments
         Args.Year double = 2029
         Args.ScanStart datetime = NaT
@@ -25,6 +27,7 @@ function debug_LcsHelper_v4_scan(Args)
         Args.ContinueOnError logical = true
     end
 
+    % --- Resolve paths and defaults ---
     ThisDir = fileparts(mfilename('fullpath'));
     RepoRoot = getenv('ASTROPACK_PATH');
     if isempty(RepoRoot)
@@ -53,6 +56,7 @@ function debug_LcsHelper_v4_scan(Args)
     fprintf('Output dir : %s\n', Args.OutputDir);
     fprintf('Grid file  : %s\n', Args.GridFile);
 
+    % --- Iterate over each candidate start date ---
     Dates = scanDates(Args.ScanStart, Args.ScanEnd);
     Rows = repmat(emptyIndexRow(), numel(Dates), 1);
 
@@ -62,12 +66,14 @@ function debug_LcsHelper_v4_scan(Args)
         fprintf('[v4 %3d/%3d] %s\n', I, numel(Dates), isoDate(D));
 
         try
+            % --- Build plan for this start date (no inline validation) ---
             Obj = ultrasat.planner.LcsHelper_v4( ...
                 'StartDate', D, ...
                 'AllSkyTable', Args.GridFile, ...
                 'Verbose', false, ...
                 'prep_before_schedule', true, ...
-                'build_the_schedule', true);
+                'build_the_schedule', true, ...
+                'validate_after_schedule', false);
 
             Summary = summarizeV4(Obj);
             IsFeasible = isV4Feasible(Obj, Summary);
@@ -78,6 +84,7 @@ function debug_LcsHelper_v4_scan(Args)
             Rows(I).detail = sprintf('A=%d B=%d C=%d D=%d Variant_used=%d', ...
                 Summary.nA, Summary.nB_fields, Summary.nC, Summary.nD, Summary.variant_used);
 
+            % --- Dump CSV/JSON artifacts for feasible plans ---
             if IsFeasible
                 PlanDir = fullfile(Args.OutputDir, isoDate(D), 'success');
                 ensureDir(PlanDir);
@@ -97,6 +104,7 @@ function debug_LcsHelper_v4_scan(Args)
         end
     end
 
+    % --- Write scan index and print summary ---
     Index = struct2table(Rows, 'AsArray', true);
     IndexPath = fullfile(Args.OutputDir, 'lcs_plan_index.csv');
     writetable(Index, IndexPath);
@@ -105,8 +113,11 @@ function debug_LcsHelper_v4_scan(Args)
     fprintf('========== LCS v4 scan DONE ==========\n');
 end
 
+% -------------------------------------------------------------------------
 
 function dumpV4Plan(Obj, StartDate, PlanDir)
+    % Write schedule, windows, daily matrix, observation list, and summary JSON.
+
     Schedule = Obj.Schedule;
     if ~isempty(Schedule)
         Schedule.start_date = cellstr(datestr(StartDate + days(Schedule.start - 1), 'yyyy-mm-dd'));
@@ -129,8 +140,11 @@ function dumpV4Plan(Obj, StartDate, PlanDir)
     writeJson(fullfile(PlanDir, 'summary.json'), Summary);
 end
 
+% -------------------------------------------------------------------------
 
 function writeDailyScheduleMatrix(Obj, StartDate, CsvPath)
+    % Export Daily_schedule matrix with day index and calendar date columns.
+
     M = Obj.Daily_schedule;
     Ndays = size(M, 1);
     Nslots = size(M, 2);
@@ -142,8 +156,11 @@ function writeDailyScheduleMatrix(Obj, StartDate, CsvPath)
     writetable(T, CsvPath);
 end
 
+% -------------------------------------------------------------------------
 
 function writeObservationList(Obj, StartDate, CsvPath)
+    % Flatten non-NaN Daily_schedule cells into obs_datetime / field_id rows.
+
     M = Obj.Daily_schedule;
     ObsDatetime = {};
     FieldId = [];
@@ -164,8 +181,11 @@ function writeObservationList(Obj, StartDate, CsvPath)
     writetable(Tobs, CsvPath);
 end
 
+% -------------------------------------------------------------------------
 
 function Summary = summarizeV4(Obj)
+    % Count placed fields per category and daily-schedule observation slots.
+
     MaskA = strcmp(Obj.Schedule.category, 'A') & Obj.Schedule.Field > 0;
     MaskB = ismember(Obj.Schedule.category, {'B_45', 'B_90'}) & Obj.Schedule.Field > 0;
     MaskC = strcmp(Obj.Schedule.category, 'C') & Obj.Schedule.Field > 0;
@@ -183,8 +203,11 @@ function Summary = summarizeV4(Obj)
     Summary.daily_schedule_slots = size(Obj.Daily_schedule, 2);
 end
 
+% -------------------------------------------------------------------------
 
 function IsOk = isV4Feasible(Obj, Summary)
+    % Heuristic feasibility check matching expected set sizes and variant.
+
     IsOk = ~isempty(Obj.Schedule) && ~isempty(Obj.Daily_schedule) && ...
         Summary.nA == Obj.SetAnumel && ...
         Summary.nB_rows == 3 * Obj.SetBnumel && ...
@@ -194,8 +217,11 @@ function IsOk = isV4Feasible(Obj, Summary)
         Summary.variant_used > 0;
 end
 
+% -------------------------------------------------------------------------
 
 function printScanSummary(Index)
+    % Print count and gap statistics for FEASIBLE scan dates.
+
     IsFeasible = strcmp(Index.status, 'FEASIBLE');
     Dates = datetime(Index.plan_start_date(IsFeasible), 'InputFormat', 'yyyy-MM-dd');
     fprintf('Feasible dates: %d\n', numel(Dates));
@@ -217,14 +243,20 @@ function printScanSummary(Index)
     end
 end
 
+% -------------------------------------------------------------------------
 
 function Dates = scanDates(ScanStart, ScanEnd)
+    % Inclusive list of calendar dates from ScanStart through ScanEnd.
+
     N = days(ScanEnd - ScanStart) + 1;
     Dates = ScanStart + days(0:(N - 1));
 end
 
+% -------------------------------------------------------------------------
 
 function Row = emptyIndexRow()
+    % Default struct template for one lcs_plan_index.csv row.
+
     Row = struct( ...
         'plan_start_date', '', ...
         'status', '', ...
@@ -234,25 +266,37 @@ function Row = emptyIndexRow()
         'detail', '');
 end
 
+% -------------------------------------------------------------------------
 
 function ensureDir(PathName)
+    % Create directory when missing.
+
     if ~isfolder(PathName)
         mkdir(PathName);
     end
 end
 
+% -------------------------------------------------------------------------
 
 function S = isoDate(D)
+    % Format datetime as yyyy-mm-dd string.
+
     S = datestr(D, 'yyyy-mm-dd');
 end
 
+% -------------------------------------------------------------------------
 
 function S = dateStamp(D)
+    % Format datetime as yyyymmdd string (for filenames).
+
     S = datestr(D, 'yyyymmdd');
 end
 
+% -------------------------------------------------------------------------
 
 function Value = ternary(Cond, A, B)
+    % Inline if/else for struct field assignment.
+
     if Cond
         Value = A;
     else
@@ -260,8 +304,11 @@ function Value = ternary(Cond, A, B)
     end
 end
 
+% -------------------------------------------------------------------------
 
 function writeJson(PathName, Data)
+    % Write struct as pretty-printed JSON to disk.
+
     Fid = fopen(PathName, 'w');
     if Fid < 0
         error('writeJson: cannot open file: %s', PathName);
@@ -271,8 +318,11 @@ function writeJson(PathName, Data)
     delete(Cleaner);
 end
 
+% -------------------------------------------------------------------------
 
 function GridFile = defaultGridFile(PlannerDir)
+    % Resolve LCS grid CSV from planner data dir or ASTROPACK_DATA_PATH.
+
     LocalGrid = fullfile(PlannerDir, 'data', 'LCS_fields.csv');
     if isfile(LocalGrid)
         GridFile = LocalGrid;

@@ -3,6 +3,7 @@
 % Filename    : +debug/+ultrasat/+planner/+lcs_v4/debug_LcsHelper_v4_validateNegative.m
 % Author      : Chen Tishler
 % Created     : 10/06/2026
+% Updated     : 22/06/2026
 % Description : Adversarial / negative tests for LcsHelper_v4_validate.
 %               Builds one valid plan (Jan 5, 2029), then deliberately
 %               corrupts specific aspects of Schedule or Daily_schedule in
@@ -20,6 +21,7 @@
 %==========================================================================
 
 function debug_LcsHelper_v4_validateNegative()
+    % Build a valid plan, corrupt it in 10 ways, and assert validator catches each.
 
     fprintf('\n========== DEBUG LcsHelper_v4_validateNegative ==========\n');
 
@@ -32,6 +34,7 @@ function debug_LcsHelper_v4_validateNegative()
     end
     CsvFile = fullfile(RepoRoot, 'matlab', 'astro', '+ultrasat', '+planner', 'data', 'LCS_fields.csv');
 
+    % Build LcsHelper_v4 object
     Obj = ultrasat.planner.LcsHelper_v4( ...
         'StartDate',           datetime(2029, 1, 5), ...
         'AllSkyTable',         CsvFile, ...
@@ -46,9 +49,9 @@ function debug_LcsHelper_v4_validateNegative()
     fprintf('  done  (Schedule: %d rows, variant: %d)\n\n', height(Obj.Schedule), Obj.Variant_used);
 
     % ---- Baseline: valid plan must already pass all checks ---------------
-    [nFail0, ~] = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
-    if nFail0 > 0
-        fprintf('[ERROR] Baseline plan already fails validation (%d failures).\n', nFail0);
+    R0 = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    if R0.nFail > 0
+        fprintf('[ERROR] Baseline plan already fails validation (%d failures).\n', R0.nFail);
         fprintf('        Adversarial tests require a valid starting plan.\n');
         return
     end
@@ -87,7 +90,7 @@ function debug_LcsHelper_v4_validateNegative()
     for T = 1:NTests
         Name = TestNames{T};
         fprintf('[NEG %2d/%d] %-35s ... ', T, NTests, Name);
-        nFail = TestFns{T}();
+        nFail = TestFns{T}();  % corrupt → validate → restore
         if nFail > 0
             fprintf('caught (nFail=%d)  [OK]\n', nFail);
             nCaught = nCaught + 1;
@@ -117,7 +120,8 @@ end
 function nFail = adv_setA_missing_rows(Obj)
     Orig = Obj.Schedule;
     Obj.Schedule = Obj.Schedule(~strcmp(Obj.Schedule.category, 'A'), :);
-    [nFail, ~] = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    R = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    nFail = R.nFail;
     Obj.Schedule = Orig;
 end
 
@@ -132,7 +136,8 @@ function nFail = adv_setA_duplicate_field(Obj)
         S.Field(IdxA(2)) = S.Field(IdxA(1));
     end
     Obj.Schedule = S;
-    [nFail, ~] = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    R = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    nFail = R.nFail;
     Obj.Schedule = Orig;
 end
 
@@ -145,7 +150,8 @@ function nFail = adv_setA_wrong_window_length(Obj)
     IdxA = find(strcmp(S.category, 'A') & S.Field > 0, 1);
     S.end(IdxA) = S.start(IdxA) + 99;
     Obj.Schedule = S;
-    [nFail, ~] = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    R = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    nFail = R.nFail;
     Obj.Schedule = Orig;
 end
 
@@ -161,7 +167,8 @@ function nFail = adv_setB_wrong_span(Obj)
     S.start(IdxB45) = S.start(IdxB45) - 46;
     S.end(IdxB45)   = S.end(IdxB45)   - 46;
     Obj.Schedule = S;
-    [nFail, ~] = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    R = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    nFail = R.nFail;
     Obj.Schedule = Orig;
 end
 
@@ -174,7 +181,8 @@ function nFail = adv_setC_wrong_group(Obj)
     IdxC = find(strcmp(S.category, 'C') & S.Field > 0, 1);
     S.group(IdxC) = 99;
     Obj.Schedule = S;
-    [nFail, ~] = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    R = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    nFail = R.nFail;
     Obj.Schedule = Orig;
 end
 
@@ -188,7 +196,8 @@ function nFail = adv_cross_set_duplicate(Obj)
     IdxC = find(strcmp(S.category, 'C') & S.Field > 0, 1);
     S.Field(IdxC) = S.Field(IdxA);
     Obj.Schedule = S;
-    [nFail, ~] = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    R = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    nFail = R.nFail;
     Obj.Schedule = Orig;
 end
 
@@ -202,7 +211,8 @@ function nFail = adv_slot_budget_overflow(Obj)
     MaskA2 = strcmp(S.category, 'A') & S.Field > 0 & S.ind == 2;
     S.ind(MaskA2) = 1;
     Obj.Schedule = S;
-    [nFail, ~] = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    R = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    nFail = R.nFail;
     Obj.Schedule = Orig;
 end
 
@@ -218,7 +228,8 @@ function nFail = adv_slot_budget_indivisible(Obj)
         S.group(IdxB90) = 201;
     end
     Obj.Schedule = S;
-    [nFail, ~] = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    R = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    nFail = R.nFail;
     Obj.Schedule = Orig;
 end
 
@@ -231,7 +242,8 @@ function nFail = adv_window_out_of_bounds(Obj)
     IdxPlaced = find(S.Field > 0, 1);
     S.start(IdxPlaced) = Obj.First_day - 5;
     Obj.Schedule = S;
-    [nFail, ~] = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    R = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    nFail = R.nFail;
     Obj.Schedule = Orig;
 end
 
@@ -246,6 +258,7 @@ function nFail = adv_daily_schedule_mismatch(Obj)
         DS(r, c) = 99999;
     end
     Obj.Daily_schedule = DS;
-    [nFail, ~] = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    R = ultrasat.planner.LcsHelper_v4_validate(Obj, 'Verbose', false, 'DumpCsv', false);
+    nFail = R.nFail;
     Obj.Daily_schedule = OrigDS;
 end

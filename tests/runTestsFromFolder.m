@@ -1,3 +1,12 @@
+%==========================================================================
+% Project     : AstroPack
+% Filename    : tests/runTestsFromFolder.m
+% Author      : Chen Tishler
+% Created     : 01/12/2024
+% Updated     : 11/02/2025
+% Description : Function to run tests from a given top-level folder and log results
+%==========================================================================
+%
 % https://chatgpt.com/c/a3cbb7bb-fb14-4d79-bfe8-dfd600a7a67b
 % https://www.mathworks.com/help/matlab/matlab_prog/run-tests-for-various-workflows.html
 
@@ -9,10 +18,10 @@ function runTestsFromFolder(folder, logFileName)
     %   - logFileName: The name of the log file where test results will be written
     %
     % Example usage:
-    %   runTestsFromFolder('C:\Ultrasat\AstroPack\tests', 'TestResults.log');
+    %   runTestsFromFolder('C:/Ultrasat/AstroPack/tests', 'TestResults.log');
     
-    %folder = 'C:\Ultrasat\AstroPack\tests';
-    %logFileName = 'C:\Ultrasat\AstroPack\tests\log1.log';
+    %folder = 'C:/Ultrasat/AstroPack/tests';
+    %logFileName = 'C:/Ultrasat/AstroPack/tests/log1.log';
 
     % Create a test suite from the specified folder
     

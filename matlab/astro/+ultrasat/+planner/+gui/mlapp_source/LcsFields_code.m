@@ -89,7 +89,7 @@ classdef LcsFields < matlab.apps.AppBase
 
             % Create UIFigure and hide until all components are created
             app.UIFigure = uifigure('Visible', 'off');
-            app.UIFigure.Position = [100 100 1323 717];
+            app.UIFigure.Position = [100 100 1318 717];
             app.UIFigure.Name = 'MATLAB App';
 
             % Create Panel_2
@@ -97,7 +97,7 @@ classdef LcsFields < matlab.apps.AppBase
             app.Panel_2.BorderColor = [0.651 0.651 0.651];
             app.Panel_2.HighlightColor = [0.651 0.651 0.651];
             app.Panel_2.BackgroundColor = [0.749 0.851 0.949];
-            app.Panel_2.Position = [14 678 1303 30];
+            app.Panel_2.Position = [14 678 1294 30];
 
             % Create LCSFieldsLabel
             app.LCSFieldsLabel = uilabel(app.Panel_2);
@@ -127,7 +127,7 @@ classdef LcsFields < matlab.apps.AppBase
             app.UITableGroupFields.ColumnEditable = true;
             app.UITableGroupFields.SelectionChangedFcn = createCallbackFcn(app, @UITableGroupFieldsSelectionChanged, true);
             app.UITableGroupFields.FontSize = 10;
-            app.UITableGroupFields.Position = [11 89 902 359];
+            app.UITableGroupFields.Position = [11 12 902 436];
 
             % Create GroupFieldsLabel
             app.GroupFieldsLabel = uilabel(app.Panel_4);

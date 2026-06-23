@@ -10,12 +10,19 @@
 %==========================================================================
 
 function debug_NamespaceManagerClient()
+    % Fetch namespace list via ClientFactory + NamespaceManagerClient.
+
+    % Create a factory and get the base URL for the namespace manager service
     factory = ultrasat.api.clients.ClientFactory();
     baseUrl = factory.getServiceBaseUrl('namespace_manager', 'nginx');
+
+    % Create a namespace manager client and get the namespace list
     client = ultrasat.api.clients.NamespaceManagerClient(baseUrl);
     response = client.getNamespaceList();
     disp(response);
     fprintf('Namespaces:\n');
+
+    % Check if the response contains a 'namespaces' field and it is not empty
     if isfield(response, 'namespaces') && ~isempty(response.namespaces)
         % Convert the list of namespaces (likely struct array) to a table and display all fields
         namespacesTable = struct2table(response.namespaces);

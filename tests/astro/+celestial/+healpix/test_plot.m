@@ -8,8 +8,8 @@ end
 
 function testPlotSmokeInvisibleFigure(testCase)
     % plot() runs without error and closes the figure it creates.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
-    HealpixTestHelper.assumeFunctionExists(testCase, 'plot.skyCircles');
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeFunctionExists(testCase, 'plot.skyCircles');
 
     % Mapping Toolbox axesm is required by plot when PlotOnMap=true.
     if exist('axesm', 'file') ~= 2
@@ -31,8 +31,8 @@ end
 
 function testPlotFlatMode(testCase)
     % PlotOnMap=false uses flat axes (no axesm).
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
-    HealpixTestHelper.assumeFunctionExists(testCase, 'plot.skyCircles');
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeFunctionExists(testCase, 'plot.skyCircles');
 
     Pix = 100;
     NSide = 64;

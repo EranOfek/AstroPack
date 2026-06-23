@@ -7,12 +7,12 @@ function debug_Healpix()
     % Run by: debug.celestial.healpix.debug_Healpix
     fprintf('========== DEBUG HEALPIX ==========\n');
 
-    debug_HealpixBasics();
-    debug_HealpixIndexing();
-    debug_HealpixAngConversion();
-    debug_HealpixNeighbors();
-    debug_HealpixConeSearch();
-    debug_HealpixGeometry();
+    debug.celestial.healpix.debug_HealpixBasics();
+    debug.celestial.healpix.debug_HealpixIndexing();
+    debug.celestial.healpix.debug_HealpixAngConversion();
+    debug.celestial.healpix.debug_HealpixNeighbors();
+    debug.celestial.healpix.debug_HealpixConeSearch();
+    debug.celestial.healpix.debug_HealpixGeometry();
 
     fprintf('========== DEBUG HEALPIX DONE ==========\n');
 end

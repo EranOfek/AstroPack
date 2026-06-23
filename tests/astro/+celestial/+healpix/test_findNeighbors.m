@@ -34,9 +34,9 @@ end
 function testNeighborAngularDistance(testCase)
     % Neighbor centers lie within a few pixel radii of the source center.
     % Requires pix2ang MEX for coordinate lookup.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
 
-    NSide = 256;
+    NSide = 2^16;
     Pix = int64(1:1000);
     Neigh = celestial.healpix.findNeighbors(NSide, Pix);
     [Lon0, Lat0] = celestial.healpix.pix2ang(NSide, Pix);
@@ -58,8 +58,8 @@ end
 
 function testMatchesMexNeighborsWhenAvailable(testCase)
     % MATLAB findNeighbors agrees with mex.neighbors_nested when compiled.
-    HealpixTestHelper.assumeMex(testCase, 'neighbors_nested');
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeMex(testCase, 'neighbors_nested');
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
 
     NSide = 256;
     Pix = int64(1:500);

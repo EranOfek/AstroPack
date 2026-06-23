@@ -12,7 +12,7 @@
 function debug_calcSlewWrapper()
     % Debug function for calcSlewWrapper
 
-    % Direct calll to calcSlew
+    % Direct call to calcSlew function
     jd = celestial.time.julday('2029-01-01T00:00:00Z');
     [T_sec,DirectSlewBool] = ultrasat.tools.calcSlew(0,0, -pi,0, 'JD', jd);
     fprintf('T_sec: %f, DirectSlewBool: %d\n', T_sec, DirectSlewBool);

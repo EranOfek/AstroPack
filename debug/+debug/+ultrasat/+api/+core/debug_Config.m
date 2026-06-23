@@ -10,8 +10,11 @@
 %==========================================================================
 
 function debug_Config()
-    % debug_Config - Tests the configuration of the API
+    % Verify Config.getApiConfig returns API configuration struct.
+
     fprintf('--- Testing Configuration ---\n');
+
+    % --- Step 1: Load API config ---
     config = ultrasat.api.core.Config.getApiConfig();
     fprintf('  [SUCCESS] Configuration returned.\n');
 
@@ -19,4 +22,3 @@ function debug_Config()
 
     fprintf('----------------------------------------\n\n');
 end
-

@@ -13,6 +13,8 @@ function debug_lvk_filter()
     % Debug script for lvk_filter: mock logger and several scenarios.
 
     fprintf('--- Debugging lvk_filter_simple ---\n');
+    
+    % Shared logger instance required by lvk_filter entry points.
     logger = MsgLogger.getSingleton();
 
 

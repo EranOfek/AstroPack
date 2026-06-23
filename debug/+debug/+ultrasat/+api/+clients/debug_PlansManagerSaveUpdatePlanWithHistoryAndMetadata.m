@@ -12,8 +12,11 @@
 %==========================================================================
 
 function debug_PlansManagerSaveUpdatePlanWithHistoryAndMetadata()
+    % Save/update plans with empty vs populated metadata and history.
+
     fprintf('========== DEBUG SAVE/UPDATE PLAN (metadata & history) ==========\n');
 
+    % Create a factory and get the base URL for the plans manager service
     factory = ultrasat.api.clients.ClientFactory();
     baseUrl = factory.getServiceBaseUrl('plans_manager');
     client = ultrasat.api.clients.PlansManagerClient(baseUrl);
@@ -29,13 +32,23 @@ end
 function [PlanData, upHCS] = debug_createPlannerPlanData()
     % Create uplanner HCS + PlanData (RA=215, Dec=60, 1 Jan 2028 - 31 Jul 2028).
     BaseDataDir = getBaseDataDir();
+
+    % Create a PlanData object
     PlanData = ultrasat.api.models.PlanData();
+
+    % Create a start and end time for the uplanner HCS
     StartTime = datetime(2028, 1, 1, 'TimeZone', 'UTC');
     EndTime = datetime(2028, 7, 31, 'TimeZone', 'UTC');
+
+    % Create a uplanner HCS with the given start and end times and base data directory
     upHCS = ultrasat.planner.uplanner('AstPlanner', 'debug_user', 'Type', 'HCS', ...
         'StartTime', StartTime, 'EndTime', EndTime, ...
         'BaseDataDir', BaseDataDir);
+
+    % Add a unique target to the uplanner HCS
     upHCS.addUniqTargets(215, 60, 'Name', 'debug_target');
+
+    % Build the uplanner HCS
     upHCS.buildHCS('HCS_UniqTarg', 1);
     PlanData.planner = upHCS;
     ultrasat.api.utils.PlanDataUtils.syncFromPlanner(PlanData, upHCS);
@@ -129,14 +142,25 @@ function debug_roundTripCheck(client, planPk, scenarioName)
     % Fetch plan and verify metadata and history fields are present.
     fprintf('Round-trip check [%s]: getPlan pk=%d ...\n', scenarioName, planPk);
     try
+        % Get the plan from the plans manager service
         resp = client.getPlan(planPk);
+
+        % Check if the response is ok and if the data field is present and not empty
         if ~resp.ok || ~isfield(resp, 'data') || isempty(resp.data)
             fprintf('  getPlan failed\n');
             return;
         end
+
+        % Get the plan data
         plan = resp.data;
+
+        % Check if the metadata field is present and not empty
         hasMeta = isfield(plan, 'metadata') && ~isempty(plan.metadata);
+
+        % Check if the history field is present
         hasHist = isfield(plan, 'history');
+
+        % Print the metadata and history fields
         fprintf('  metadata present: %d, history present: %d\n', hasMeta, hasHist);
         if hasMeta
             fprintf('  metadata fields: %s\n', strjoin(fieldnames(plan.metadata), ', '));
@@ -152,6 +176,8 @@ end
 
 
 function s = debug_getStatus(response)
+    % Return response.status or empty char when field is absent.
+
     if isfield(response, 'status')
         s = response.status;
     else
@@ -161,6 +187,8 @@ end
 
 
 function BaseDataDir = getBaseDataDir()
+    % Resolve ULTRASAT data dir from ASTROPACK_DATA_PATH env var.
+
     if ispc
         BaseDataDir = fullfile(getenv('ASTROPACK_DATA_PATH'), 'ULTRASAT');
     else
