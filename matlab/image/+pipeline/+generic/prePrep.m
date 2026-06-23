@@ -289,6 +289,9 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     % update header with SoftVersion keyword
     if Args.AddGitVersion
         VerString = tools.git.getVersion;
+        % remove non ascii characters:
+        Bad = double(char(VerString)) > 127;
+        VerString(Bad) = ' ';
         AI.setKeyVal(Args.KeySoftVer,VerString);
     end
     

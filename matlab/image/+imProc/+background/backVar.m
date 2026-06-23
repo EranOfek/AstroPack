@@ -147,8 +147,8 @@ function [Result] = backVar(Obj, Args)
 
             if Args.PoissVar
                 % assume Var is poisson from Back
-                Var      = (Back + Args.RN2)./Args.Ncoadd;
-                VarSmall = (BackSmall + Args.RN2)./Args.Ncoadd;
+                Var      = (Back + Args.RN2(Iobj))./Args.Ncoadd;
+                VarSmall = (BackSmall + Args.RN2(Iobj))./Args.Ncoadd;
             end
             Result(Iobj).VarData.Image  = Var;
             

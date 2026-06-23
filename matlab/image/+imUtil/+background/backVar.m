@@ -89,6 +89,8 @@ function [Back, Var, BackSmall, VarSmall] = backVar(Image, Args)
     if isempty(Args.Block) && isempty(Args.CCDSEC)
         [BackSmall, VarSmall] = imUtil.background.backVarScalar(Image, 'Method', Args.Method, 'MethodArgs',Args.MethodArgs, 'RN2',Args.RN2, 'Dilute',Args.Dilute);
         Size            = size(Image);
+        BackSmall       = cast(BackSmall, 'like',Image);
+        VarSmall        = cast(VarSmall, 'like',Image);
         %CCDSEC          = [1 Size(2) 1 Size(1)];
         %Center          = fliplr(Size).*0.5;
         %NooverlapCCDSEC = CCDSEC;
