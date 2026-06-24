@@ -3,6 +3,7 @@ classdef LcsStartTimes < matlab.apps.AppBase
     % Properties that correspond to app components
     properties (Access = public)
         UIFigure                     matlab.ui.Figure
+        Title3                       matlab.ui.control.Label
         Title2                       matlab.ui.control.Label
         Title1                       matlab.ui.control.Label
         Panel_6                      matlab.ui.container.Panel
@@ -119,7 +120,7 @@ classdef LcsStartTimes < matlab.apps.AppBase
             app.Panel_4 = uipanel(app.UIFigure);
             app.Panel_4.TitlePosition = 'centertop';
             app.Panel_4.BackgroundColor = [0.902 0.902 0.902];
-            app.Panel_4.Position = [20 84 1183 352];
+            app.Panel_4.Position = [20 84 1183 341];
 
             % Create UITable
             app.UITable = uitable(app.Panel_4);
@@ -127,7 +128,7 @@ classdef LcsStartTimes < matlab.apps.AppBase
             app.UITable.RowName = {};
             app.UITable.ColumnEditable = true;
             app.UITable.FontSize = 10;
-            app.UITable.Position = [11 16 1163 322];
+            app.UITable.Position = [11 5 1163 325];
 
             % Create Panel_6
             app.Panel_6 = uipanel(app.UIFigure);
@@ -139,7 +140,7 @@ classdef LcsStartTimes < matlab.apps.AppBase
             app.OKButton.ButtonPushedFcn = createCallbackFcn(app, @OKButtonPushed, true);
             app.OKButton.FontWeight = 'bold';
             app.OKButton.FontColor = [0 0 1];
-            app.OKButton.Position = [471 9 85 39];
+            app.OKButton.Position = [463 9 85 39];
             app.OKButton.Text = 'OK';
 
             % Create CancelButton
@@ -161,8 +162,8 @@ classdef LcsStartTimes < matlab.apps.AppBase
             app.Title1.FontSize = 16;
             app.Title1.FontWeight = 'bold';
             app.Title1.FontColor = [1 0 0];
-            app.Title1.Position = [16 491 1178 35];
-            app.Title1.Text = 'LCS cannot be scheduled on the selected start date.';
+            app.Title1.Position = [16 505 1178 28];
+            app.Title1.Text = 'LCS cannot be scheduled on the requested start date:';
 
             % Create Title2
             app.Title2 = uilabel(app.UIFigure);
@@ -171,8 +172,18 @@ classdef LcsStartTimes < matlab.apps.AppBase
             app.Title2.FontSize = 16;
             app.Title2.FontWeight = 'bold';
             app.Title2.FontColor = [0.102 0.102 0.4];
-            app.Title2.Position = [15 449 1179 35];
-            app.Title2.Text = 'Please choose an alternative start date, then click Build again.';
+            app.Title2.Position = [15 472 1179 28];
+            app.Title2.Text = 'After searching, these are the nearest available start date options found.';
+
+            % Create Title3
+            app.Title3 = uilabel(app.UIFigure);
+            app.Title3.BackgroundColor = [1 1 0.549];
+            app.Title3.HorizontalAlignment = 'center';
+            app.Title3.FontSize = 16;
+            app.Title3.FontWeight = 'bold';
+            app.Title3.FontColor = [0.102 0.102 0.4];
+            app.Title3.Position = [16 440 1179 26];
+            app.Title3.Text = 'Please choose an alternative start date from the list and click Ok.';
 
             % Show the figure after all components are created
             app.UIFigure.Visible = 'on';
