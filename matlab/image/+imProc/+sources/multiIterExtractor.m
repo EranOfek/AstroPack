@@ -739,7 +739,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 else
     
                     [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, ...
-                                                                                'Recenter', false,'PositivePSF',false, 'FunEdge',[]);
+                                                                                'Recenter', false,'PositivePSF',false);
                    
                     %CubePSF = imUtil.psf.mex.cosbellTaper(CubePSF,[9 11]);
                     %SourceImage(:,:,Iiter)       = imUtil.art.addSources(zeros(SizeImage, 'single'), permute(CubePSF,[2,1,3]),XY,...
