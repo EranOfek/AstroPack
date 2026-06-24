@@ -187,6 +187,11 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
                 return;
             end
 
+            % Inform user that the requested date is not feasible
+            app.AppUtils.msgOk( ...
+                'LCS cannot be scheduled on the requested start date. Click OK to search for alternative start dates.', ...
+                'Cannot Schedule LCS');
+
             % Show "Please Wait" dialog
             app.closePleaseWait();
             app.showPleaseWait('Searching for alternative LCS start dates...');
@@ -207,7 +212,7 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
 
                 % Show LcsStartTimes dialog
                 app.closePleaseWait();
-                DialogStatus = obj.showLcsStartTimesDialog(app, Plans);
+                DialogStatus = obj.showLcsStartTimesDialog(app, Plans, StartDate);
                 if ~strcmp(DialogStatus, 'Ok')
                     return;
                 end
@@ -510,11 +515,15 @@ classdef PlannerMainBuildHelper < ultrasat.api.core.Loggable
         end
 
 
-        function Status = showLcsStartTimesDialog(obj, app, PlansTable)
+        function Status = showLcsStartTimesDialog(obj, app, PlansTable, StartDate)
             % Show LcsStartTimes modal with feasible alternative start dates
             if isempty(app.LcsStartTimesApp) || ~isvalid(app.LcsStartTimesApp)
                 app.LcsStartTimesApp = ultrasat.planner.gui.LcsStartTimes(app.MainModule);
             end
+
+            DateStr = string(StartDate, 'yyyy-MM-dd');
+            app.LcsStartTimesApp.Title1.Text = ...
+                ['LCS cannot be scheduled on the requested start date: ' char(DateStr)];
 
             DisplayData = PlansTable(:, {'plan_start_date', 'offset_days', 'num_observations', ...
                 'nA', 'nB', 'nC', 'nD', 'variant_used'});

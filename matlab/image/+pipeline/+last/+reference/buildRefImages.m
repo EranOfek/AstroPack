@@ -209,9 +209,11 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
                 fprintf('%d groups of images found\n',Ngroup);
             end
             %
-            StackImages = [];
+            StackImages    = [];
+            AstrometricCat = [];  % fetched once per field, reused across groups
+            PhotCat        = [];
             Info(K).NimagesFootprint = size(T,1);
-            
+
             for Igroup = 1:Ngroup % loop by sets of epoch + telescope
                 
                 TabGrp  = T(Grp == Igroup, :);               
@@ -305,7 +307,9 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
                 
                 % 4.2 stitch the set of covering crops
                 %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
-                StitchedImage = imProc.stack.stitchCrops(AI,'UpdateWCS',true,'UpdateZP',true);
+                [StitchedImage, AstrometricCat, PhotCat] = imProc.stack.stitchCrops(AI, ...
+                    'UpdateWCS',true,'UpdateZP',true, ...
+                    'AstrometricCat',AstrometricCat,'PhotCat',PhotCat);
                 
                 if isnan(julday(StitchedImage))
                     StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabGrp.jd_start(Igroup));
