@@ -109,6 +109,8 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
     %                   Default is 1e-4.
     %            'SuppressFunPars' - Parameters for SuppressFun (e.g. the
     %                   number of pixels from the edge). Default is 3.
+    %            'FitAnalytical' - Fit PSF with analytic function and
+    %                   use it. Default is false.
     % Output : - Result, a struct with the following fields:
     %            .StartNsrc - Number of sources entering the pipeline
     %                         (after the initial SN cut and stamping).
@@ -185,6 +187,8 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
         
         Args.ExtendedSize              = [1501 1501];
         Args.Alpha                     = 1;
+
+        Args.FitAnalytical             = false;
     end
 
     
@@ -407,6 +411,13 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
         Result.M1   = M1;
         Result.M2   = M2;
 
+        % fit to analytical function
+        % FFU
+        if Args.FitAnalytical
+            [R, MeanPSF] = imUtil.psf.fitFunPSF(MeanPSF, 'Funs',{@imUtil.kernel2.gauss, @imUtil.kernel2.lorentzian}, 'Par0',{[2 2 0],[1]}, 'Norm0',[1 1]);
+            Args.SuppressThreshold = [];
+        end
+
 
         % smooth wings
         if nargout>4
@@ -425,8 +436,6 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
         end
         Result.SuppressRad = InnerRad;
 
-        % fit to analytical function
-        % FFU
         
 
     else

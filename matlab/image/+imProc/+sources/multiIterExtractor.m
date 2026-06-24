@@ -850,7 +850,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             Y = ColData(MinFluxFlag,2);
                             Flux = ColData(MinFluxFlag,3);
                             FW   = (Result(Iobj).PSFData.fwhm./3.0).^(-2); % try to take into account PSF and saturation...
-                            FluxNorm = 0.5.*FW.*(Flux./1e5).^Args.BS_PL;
+                            FluxNorm = FW.*(Flux./1e5).^Args.BS_PL;
                             % 
                             MaxRadiusF = repmat(MaxRadius,size(X));
                             
