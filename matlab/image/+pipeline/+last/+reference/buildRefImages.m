@@ -232,6 +232,7 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
             end
             %
             StackImages = [];
+            Info(K).NimagesFootprint = size(T,1);
 
             for Igroup = 1:Ngroup % loop by sets of epoch + telescope
                 
