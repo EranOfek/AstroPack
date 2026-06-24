@@ -322,8 +322,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.RangeSN                   = [50 1000];
         Args.InitPsf                   = @imUtil.kernel2.gauss
         Args.InitPsfArgs cell          = {[0.1; 1.5]}; %{[0.1;1.0;1.5]};  
-        Args.ConvFunExtendedPSF        = @imUtil.kernel2.sersic;
-        Args.ConvFunExtendedPSF_Args   = {[1 2 1]}; 
+        Args.ConvFunExtendedPSF        = []; %@imUtil.kernel2.sersic;
+        Args.ConvFunExtendedPSF_Args   = {[0.5 2 1]}; 
         
         
         % PSF fitting
@@ -504,7 +504,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                    'ExtendedSize',Args.ExtendedSize,...
                                                    'Alpha',Args.Alpha);
     end
-
+    
 
 
     % delete the object's input catalog 
@@ -849,7 +849,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             X = ColData(MinFluxFlag,1);
                             Y = ColData(MinFluxFlag,2);
                             Flux = ColData(MinFluxFlag,3);
-                            FluxNorm = (Flux./1e5).^Args.BS_PL;
+                            FW   = (Result(Iobj).PSFData.fwhm./3.0).^(-2); % try to take into account PSF and saturation...
+                            FluxNorm = 0.5.*FW.*(Flux./1e5).^Args.BS_PL;
                             % 
                             MaxRadiusF = repmat(MaxRadius,size(X));
                             
@@ -858,7 +859,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             %has no meaning
                             % This has meaning only when gain=1.
                             if Args.IsBackSub
-                                VarFactor = 1./(Ncoadd.*Args.NcoaddFactor);
+                                VarFactor = 1./((Ncoadd-3).*Args.NcoaddFactor);
                             else
                                 % Image is NOT background subtracted
                                 % can estimate the VarFactor empirically
