@@ -36,8 +36,14 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
     %         'DbName'               - DB name used to look up the password in the AstroPack passwords file (def. 'last_ro')
     %         'AstroDBPassFile'      - path to the AstroPack YAML passwords file (def. '~/.astropack/Passwords.yml')
     %         'Verbose'              - verbosity level: 0 (mute), 1, 2 (maximal) (def. 2)
+    %         'AstrometricCatRad'    - cone radius [deg] for pre-fetching astrometric/photometric
+    %                    reference catalogs once per field (def. 1)
+    %         'AstrometricCatMagRange' - [min max] magnitude range for the astrometric catalog (def. [12 19.5])
+    %         'AstrometricCatPlxRange' - [min max] parallax range [mas] for the astrometric catalog (def. [-Inf 50])
+    %         'PhotCatMagRange'       - [min max] magnitude range for the photometric catalog (def. [13 21.5])
+    %         'PhotCatPlxRange'       - [min max] parallax range [mas] for the photometric catalog (def. [0.1 100])
     %
-    % Output : - an AstroImage object for the last reference ID from the input list 
+    % Output : - an AstroImage object for the last reference ID from the input list
     %          - reference image files (Image, Mask, PSF, Cat) written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2026 Apr) 
     % Example: load('LAST_refGrid_new.mat'); 
@@ -99,7 +105,12 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
         Args.DbName             = 'last_ro'
         Args.AstroDBPassFile    = '~/.astropack/Passwords.yml';
         
-        Args.Verbose            = 0; % from 0 (mute) to 2 (maximal)
+        Args.Verbose               = 0; % from 0 (mute) to 2 (maximal)
+        Args.AstrometricCatRad     = 1;           % [deg] cone radius for pre-fetching reference catalogs
+        Args.AstrometricCatMagRange = [12 19.5];  % magnitude range for the astrometric catalog
+        Args.AstrometricCatPlxRange = [-Inf 50];  % parallax range [mas] for the astrometric catalog
+        Args.PhotCatMagRange        = [13 21.5];  % magnitude range for the photometric catalog
+        Args.PhotCatPlxRange        = [0.1 100];  % parallax range [mas] for the photometric catalog
     end
     % 
     RAD = 180/pi;  
@@ -198,7 +209,18 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
             if Args.Verbose > 0
                 fprintf('%d images found in the DB to build reference #%d at %.2f, %.2f \n',height(T), Iref, RefGrid.RA(Iref), RefGrid.Dec(Iref));
             end
-            
+
+            % pre-fetch reference catalogs once for this field (shared across all groups)
+            if Args.Verbose > 1
+                fprintf('Pre-fetching astrometric and photometric catalogs (r=%.1f deg)...\n', Args.AstrometricCatRad);
+            end
+            AstrometricCat = imProc.cat.getAstrometricCatalog(RefGrid.RA(Iref), RefGrid.Dec(Iref), ...
+                'Radius',Args.AstrometricCatRad,'RadiusUnits','deg','OutUnits','rad',...
+                'RangeMag',Args.AstrometricCatMagRange,'RangePlx',Args.AstrometricCatPlxRange);
+            PhotCat = imProc.cat.getAstrometricCatalog(RefGrid.RA(Iref), RefGrid.Dec(Iref), ...
+                'Radius',Args.AstrometricCatRad,'RadiusUnits','deg','OutUnits','rad',...
+                'RangeMag',Args.PhotCatMagRange,'RangePlx',Args.PhotCatPlxRange);
+
             % identify sets of subimages from the same epoch and telescope to be stitched
             T = sortrows(T, Args.GroupByFields);            
             GroupFields = T(:, Args.GroupByFields);
@@ -209,9 +231,7 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
                 fprintf('%d groups of images found\n',Ngroup);
             end
             %
-            StackImages    = [];
-            AstrometricCat = [];  % fetched once per field, reused across groups
-            PhotCat        = [];
+            StackImages = [];
 
             for Igroup = 1:Ngroup % loop by sets of epoch + telescope
                 
@@ -306,7 +326,7 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
                 
                 % 4.2 stitch the set of covering crops
                 %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
-                [StitchedImage, AstrometricCat, PhotCat] = imProc.stack.stitchCrops(AI, ...
+                StitchedImage = imProc.stack.stitchCrops(AI, ...
                     'UpdateWCS',true,'UpdateZP',true, ...
                     'AstrometricCat',AstrometricCat,'PhotCat',PhotCat);
                 
