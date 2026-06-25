@@ -408,6 +408,13 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 AllSI = imProc.cat.addAirMass(AllSI, 'JD',JD, 'IsGood',IsGood, 'EquinoxJD',JD(1), Args.Cat_addAirMassArgs{:});
             end
 
+            % Add XFULL/YFULL
+            [~,AllSI] = imProc.cat.addXYfull(AllSI);
+
+            % Add LimMag and BackMag
+            [AllSI] = imProc.calib.limmag(AllSI, Args.LimMagArgs{:});  % 0.3s
+            [AllSI] = imProc.calib.backmag(AllSI, 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); % 0.2s
+
             % match external / too expensive
             %if Args.matchExternal_Indiv
             %    % current default is true - do we want this?
@@ -639,10 +646,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             end
 
             % Add LimMag and BackMag
-            [AllSI] = imProc.calib.limmag(AllSI, Args.LimMagArgs{:});  % 0.3s
-            [AllSI] = imProc.calib.backmag(AllSI, 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); % 0.2s
             [Coadd(NotIsEmptyCat)] = imProc.calib.limmag(Coadd(NotIsEmptyCat), Args.LimMagArgs{:});  
-            [Coadd(NotIsEmptyCat)] = imProc.calib.backmag(Coadd(NotIsEmptyCat), 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); 
+            [Coadd(NotIsEmptyCat)] = imProc.calib.backmag(Coadd(NotIsEmptyCat), 'KeyZP',Args.KeyZP, Args.BackMagArgs{:});             
+            % Add XFULL/YFULL
+            [~,Coadd(NotIsEmptyCat)] = imProc.cat.addXYfull(Coadd(NotIsEmptyCat));
 
             
             % Finish
