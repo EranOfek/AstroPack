@@ -460,6 +460,12 @@ function compareStabilityMS(MSList, Labels, Args)
         Args.MinTicks         (1,1) double {mustBePositive, mustBeInteger} = 1
         Args.ARMS_N           (1,1) double {mustBePositive, mustBeInteger} = 20
         Args.BadFlags         cell = {'Saturated','NearEdge','Overlap'}
+        Args.StdMethod        (1,:) char {mustBeMember(Args.StdMethod, {'plain','robust'})} = 'plain'
+        % Per-source scatter estimator used for both the curve and the
+        % per-bin envelope (ShowStdBand):
+        %   'plain'  -> std(Y, 0, 1, 'omitnan')                       (default, back-compat)
+        %   'robust' -> 1.4826 * median(|Y - median(Y)|, 'omitnan')   (MAD-based)
+        % ARMS inherits this choice automatically.
     end
 
     if numel(Labels) < numel(MSList)
@@ -566,7 +572,7 @@ function compareStabilityMS(MSList, Labels, Args)
             end
             [Med, Std] = collectMedStd(MSList{K}, Qk, IsAngK, Args, AIcrops);
             if isempty(Med); continue; end
-            [Bx, By, Bs, Bn] = binStats(Med, Std, Args.BinWidth, IsLogX);
+            [Bx, By, Bs, Bn] = binStats(Med, Std, Args.BinWidth, IsLogX, Args.StdMethod);
             DName = Labels{K};
             if ~strcmp(Qk, Q0)
                 DName = sprintf('%s [%s]', Labels{K}, Qk);   % name differs from panel default
@@ -584,7 +590,7 @@ function compareStabilityMS(MSList, Labels, Args)
             else
                 ARMS  = NaN;
             end
-            DName = sprintf('%s (N=%d, ARMS=%.3g)', DName, sum(Bn), ARMS);
+            DName = sprintf('%s (ARMS=%.3g)', DName, ARMS);
             if Args.ShowStdBand && ~isempty(Bx)
                 Lo = max(By - Bs, eps);  Hi = By + Bs;
                 fill([Bx; flipud(Bx)], [Lo; flipud(Hi)], Cmap(K,:), ...
@@ -729,7 +735,13 @@ function [Med, Std] = collectMedStd(CCell, Q, IsAng, Args, AIcrops)
             end
         end
         M = median(Y, 1, 'omitnan').';     % column Nsrc x 1
-        S = std(Y, 0, 1, 'omitnan').';     % column Nsrc x 1
+        % Per-source scatter: plain sample std (default) or 1.4826*MAD ('robust').
+        switch lower(Args.StdMethod)
+            case 'robust'
+                S = (1.4826 * median(abs(Y - M.'), 1, 'omitnan')).';  % column Nsrc x 1
+            otherwise
+                S = std(Y, 0, 1, 'omitnan').';                         % column Nsrc x 1
+        end
         NValid = sum(~isnan(Y), 1).';
         Keep = NValid >= Args.MinEpochs;
         % Quantities that use median(RefMag) as their X axis: angular ones
@@ -762,8 +774,9 @@ function [Med, Std] = collectMedStd(CCell, Q, IsAng, Args, AIcrops)
 end
 
 % =========================================================================
-function [Bx, By, Bs, Bn] = binStats(X, Y, BinWidth, IsLog)
-    if nargin < 4; IsLog = false; end
+function [Bx, By, Bs, Bn] = binStats(X, Y, BinWidth, IsLog, StdMethod)
+    if nargin < 4 || isempty(IsLog);     IsLog     = false;    end
+    if nargin < 5 || isempty(StdMethod); StdMethod = 'plain';  end
     Bx = []; By = []; Bs = []; Bn = [];
     if isempty(X); return; end
     X = X(:); Y = Y(:);
@@ -793,7 +806,11 @@ function [Bx, By, Bs, Bn] = binStats(X, Y, BinWidth, IsLog)
             Bx(I) = 0.5 * (Edges(I) + Edges(I+1));    % arithmetic mean
         end
         By(I) = median(Y(Sel));
-        Bs(I) = std(Y(Sel));
+        if strcmpi(StdMethod, 'robust')
+            Bs(I) = 1.4826 * median(abs(Y(Sel) - By(I)));
+        else
+            Bs(I) = std(Y(Sel));
+        end
         Bn(I) = N(I);
     end
     Keep = ~isnan(By);

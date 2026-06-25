@@ -34,7 +34,8 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     %                                     LAST_NormLin_OrphanOuter, LAST_NormLin_OuterClip_FixPWV,
     %                                     LAST_NormLin_OuterClip_FixTau,
     %                                     LAST_Joint_OuterClip,
-    %                                     LAST_Joint_OuterClip_S1Clip
+    %                                     LAST_Joint_OuterClip_S1Clip,
+    %                                     LAST_Joint_2Iter
     %                          Note: StageCatalog.DefaultLAST is a 6-stage sequence from Garrappa et al. (2025):
     %                                [NormOnly_Initial, NormAndCenter, OrphanClip,
     %                                 FieldCorrection_Adapted, Normalization_Refined, Atmospheric]
@@ -63,6 +64,15 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
     %                                except stage 1 also performs one 3-sigma inner clip + refit, gated
     %                                to outer iter 1 only by fitMultiStage's JOINT_FC branch (outer iter
     %                                2 skips the inner clip; the outer sigma clip handles iter-2 cleanup).
+    %                                LAST_Joint_2Iter is a 2-stage sequence that fits Norm+Tran2D
+    %                                jointly in stage 1 (JOINT_FC linear LS) and Center+TauAod500+
+    %                                PWV_cm in stage 2 (single nonlinear lsqnonlin). All internal sigma
+    %                                clipping disabled. Pair with OuterSigmaClip=true, OuterMaxIter=2,
+    %                                OuterSigmaThresh=3, OuterStdFunc='std', and (optionally)
+    %                                WeightedOuterIters=[false true] in CalibArgs to run iter 1
+    %                                unweighted (uniform weights) and iter 2 with the per-source
+    %                                MagErr weights (WeightingMode='combined' gives the recommended
+    %                                inst+spectral quadrature).
     % Author   : D. Kovaleva (Dec 2025)
     % Reference: Garrappa et al. 2025, A&A 699, A50.
     % Example:
@@ -116,6 +126,14 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         Args.Temperature_C        = 15
         Args.Temperature_C_Min    = 0
         Args.Temperature_C_Max    = 50
+
+        % --- CO2 (UMG abundance scalar; metadata, never fitted) ---
+        % Default 395 ppm matches the SMARTS/dast reference (Simone parity).
+        % Surfaced here so callers can override per-image without poking
+        % umgTransmission's positional ParamMatrix from outside CompositeFun.
+        Args.Co2_ppm              = 395
+        Args.Co2_ppm_Min          = 350
+        Args.Co2_ppm_Max          = 500
 
         % --- Normalization ---
         Args.Norm                 = 0.5
@@ -248,20 +266,21 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         'Max', {Args.ZenithAngle_deg_Max, Args.PWV_cm_Max, Args.Pressure_mbar_Max});
 
     % Uniformly Mixed Gases (UMG) transmission
-    % Parameters: [ZenithAngle_deg, Temperature_C, Pressure_mbar]
-    % Note: All are metadata (not fitted)
+    % Parameters: [ZenithAngle_deg, Temperature_C, Pressure_mbar, Co2_ppm]
+    % Note: All are metadata (not fitted). Co2_ppm surfaced June 2026 so the
+    % CO2 abundance can be tuned per image without editing umgTransmission.
     FunCatalog.UMG = struct();
     FunCatalog.UMG.Name = 'UMG';
     FunCatalog.UMG.Handle = '@astro.transmission.umgTransmission';
     FunCatalog.UMG.HandleType = 'named';
-    FunCatalog.UMG.Params = [Args.ZenithAngle_deg, Args.Temperature_C, Args.Pressure_mbar];
-    FunCatalog.UMG.FitPar = [false, false, false];  % Don't fit any parameters
+    FunCatalog.UMG.Params = [Args.ZenithAngle_deg, Args.Temperature_C, Args.Pressure_mbar, Args.Co2_ppm];
+    FunCatalog.UMG.FitPar = [false, false, false, false];  % Don't fit any parameters
 
     FunCatalog.UMG.ParamInfo = struct(...
-        'Name', {'ZenithAngle_deg', 'Temperature_C', 'Pressure_mbar'}, ...
-        'Description', {'Zenith angle [deg]', 'Temperature [C]', 'Atmospheric pressure [mbar]'}, ...
-        'Min', {Args.ZenithAngle_deg_Min, Args.Temperature_C_Min, Args.Pressure_mbar_Min}, ...
-        'Max', {Args.ZenithAngle_deg_Max, Args.Temperature_C_Max, Args.Pressure_mbar_Max});
+        'Name', {'ZenithAngle_deg', 'Temperature_C', 'Pressure_mbar', 'Co2_ppm'}, ...
+        'Description', {'Zenith angle [deg]', 'Temperature [C]', 'Atmospheric pressure [mbar]', 'CO2 abundance [ppm]'}, ...
+        'Min', {Args.ZenithAngle_deg_Min, Args.Temperature_C_Min, Args.Pressure_mbar_Min, Args.Co2_ppm_Min}, ...
+        'Max', {Args.ZenithAngle_deg_Max, Args.Temperature_C_Max, Args.Pressure_mbar_Max, Args.Co2_ppm_Max});
 
     %% ====================================================================
     %% FIXED TELESCOPE TRANSMISSION (combined: Mirror * Corrector * QE_Legendre)
@@ -452,10 +471,19 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
                         'Field corrections (joint nonlinear lsqnonlin, Simone kxy^2 parameterisation)', ...
                         'Refine normalization (analytical)', 'Optimize water vapor and aerosol'});
 
-    % LAST_NormLin variant with astropy-style sigma clipping everywhere:
-    % SigmaStdFunc='std' on every stage. Pair with SigmaClipMethod='median_signed'
-    % at the calibrate level for full astropy.stats.sigma_clip parity
-    % (median+std on signed residuals, up to 5 inner iterations).
+    % LAST_NormLin variant with Simone/LAST-Python-parity sigma clipping on
+    % every stage. Each clipping stage carries an explicit per-stage
+    % SigmaClipMethod='median' and SigmaStdFunc='std', so the OptSeq is
+    % self-consistent: the user does NOT need to pass SigmaClipMethod at the
+    % calibrate level — fitMultiStage reads it off the Stage struct directly.
+    % The 'median' choice mirrors Simone's `ResidFunc(..., magres=True)`
+    % which feeds np.abs(data-model) into astropy.stats.sigma_clip
+    % (cenfunc='median', stdfunc='std', maxiters=5) — i.e. astropy iteration
+    % on |r| rather than signed r. See tools.math.stat.sigmaClip docstring
+    % for the math (note: this is MORE AGGRESSIVE than the nominal SigmaThresh
+    % suggests — effective single-sided cut on the signed scale is ~2.48 sigma
+    % at SigmaThresh=3 because median(|r|) ≈ 0.6745 sigma and std(|r|) ≈
+    % 0.6028 sigma for a Gaussian).
     % All other fields verbatim from LAST_NormLin (3-stage outer iteration on
     % the clipping stages 1/3/4, same SigmaThresh, same MinCalibrators).
     StageCatalog.LAST_NormLin_Astropy = struct(...
@@ -471,10 +499,11 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         'SigmaThresh', {3.0, 3.0, 3.0, 2.0, 3.0, 3.0}, ...
         'SigmaIter', {3, 0, 1, 3, 0, 0}, ...
         'MinCalibrators', {30, 0, 30, 30, 0, 0}, ...
+        'SigmaClipMethod', {'median', 'median', 'median', 'median', 'median', 'median'}, ...   % Simone/LAST-Python parity: astropy clip on |r|, not signed r
         'SigmaStdFunc', {'std', 'std', 'std', 'std', 'std', 'std'}, ...   % astropy-style: sample std on every clipping stage
-        'Description', {'Initial normalization (astropy clip)', 'Optimize normalization and QE center', ...
-                        'Outlier removal after QE fitting (astropy clip)', ...
-                        'Field corrections (astropy clip)', 'Refine normalization (analytical)', 'Optimize water vapor and aerosol'});
+        'Description', {'Initial normalization (astropy clip on |r|)', 'Optimize normalization and QE center', ...
+                        'Outlier removal after QE fitting (astropy clip on |r|)', ...
+                        'Field corrections (astropy clip on |r|)', 'Refine normalization (analytical)', 'Optimize water vapor and aerosol'});
 
     % LAST_NormLin variant with Water PWV_cm fixed at its initial value
     % (Args.PWV_cm, default 1.4 cm). Atmospheric stage fits only Aerosol TauAod500.
@@ -623,6 +652,37 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
                         'Optimize normalization and QE center', ...
                         'Optimize water vapor and aerosol', ...
                         'Refine normalization (analytical)'});
+
+    % Compact 2-stage outer-clipped sequence designed for the two-pass
+    % (unweighted -> sigma-clip -> weighted) workflow:
+    %   Stage 1 (linear)    : NormAndTran2D_Linear (JOINT_FC) -- joint linear LS over
+    %                         Normalization Norm + 10 cheby1_4_xt Tran2D coefficients,
+    %                         split by Tran2D(0,0) = 0 (Norm <- field-centre value,
+    %                         ParX shifted so the field correction is zero at (Xc, Yc)).
+    %   Stage 2 (nonlinear) : single lsqnonlin over QE_SkewedGaussian.Center_Ang,
+    %                         Aerosol.TauAod500, and Water.PWV_cm.
+    % All internal sigma clipping disabled (the single 3-sigma cleanup happens in
+    % the outer loop between iterations 1 and 2).
+    % Run with:
+    %     'OuterSigmaClip', true, 'OuterMaxIter', 2,
+    %     'OuterSigmaThresh', 3.0, 'OuterStdFunc', 'std',
+    %     'WeightingMode', 'combined', 'WeightedOuterIters', [false true].
+    % Iter 1 runs on the full calibrator pool with uniform weights, the outer
+    % clip removes 3-sigma outliers on the signed residuals, and iter 2 refits
+    % the same two stages on survivors with per-source MagErr weights
+    % (sqrt((1.086 * FluxErr)^2 + MagErr_spectral^2) in 'combined' mode).
+    StageCatalog.LAST_Joint_2Iter = struct(...
+        'StageName',    {'NormAndTran2D_Linear', 'CenterAerosolWater'}, ...
+        'Method',       {'linear', 'nonlinear'}, ...
+        'FreeParams',   {'JOINT_FC', ...
+                         struct('Function',  {'QE_SkewedGaussian', 'Aerosol',   'Water'}, ...
+                                'Parameter', {'Center_Ang',        'TauAod500', 'PWV_cm'})}, ...
+        'SigmaClip',    {false, false}, ...
+        'SigmaThresh',  {3.0, 3.0}, ...
+        'SigmaIter',    {0, 0}, ...
+        'MinCalibrators', {30, 30}, ...
+        'Description',  {'Joint Norm + Tran2D linear fit, split by Tran2D(0,0)=0', ...
+                         'Optimize QE center, aerosol AOD500, and water PWV (single lsqnonlin)'});
 
     % Mirror variant of LAST_NormLin_OuterClip_FixPWV with the opposite parameter
     % held fixed: Aerosol TauAod500 stays at its initial value (Args.TauAod500,

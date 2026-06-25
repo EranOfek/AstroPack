@@ -295,6 +295,16 @@ classdef Tran2D < Base
             %                   of the 3rd degree.
             %            'cheby1_4' -  Fitsr kind Chebyshev polynomials
             %                   of the 4th degree.
+            %            'cheby1_3_xt' - First kind Chebyshev polynomials
+            %                   of the 3rd degree with cross-term (8 parameters).
+            %                   Reduced-order analogue of 'cheby1_4_xt':
+            %                   X: kx0*T0 + kx*T1 + kx2*T2 + kx3*T3 (4 params)
+            %                   Y: ky*T1 + ky2*T2 + ky3*T3 (3 params, ky0=0)
+            %                   Cross: kxy*T1(x)*T1(y) (1 param).
+            %                   (Note: a '_xt' variant at order 2 would
+            %                   coincide with 'cheby1_2' modulo a slot
+            %                   permutation — same column space — so no
+            %                   'cheby1_2_xt' is defined; use 'cheby1_2'.)
             %            'cheby1_4_xt' - First kind Chebyshev polynomials
             %                   of the 4th degree with cross-term (10 parameters).
             %                   LAST telescope field correction formulation:
@@ -387,6 +397,40 @@ classdef Tran2D < Base
                                       @(x,y,c,AM,PA) (2.*x.^2-1).*(2.*y.^2-1)};
 
                     FunY        = FunX;
+                case 'cheby1_3_xt'
+                    % Chebyshev polynomials of the first kind, order 3, with cross-term
+                    % Reduced-order analogue of 'cheby1_4_xt' (drops T4 in both axes).
+                    % Added by D. Kovaleva (Jun 2026)
+                    %
+                    % Formulation:
+                    %   X-axis: kx0*T0(x) + kx*T1(x) + kx2*T2(x) + kx3*T3(x)              [4 params]
+                    %   Y-axis: 0*T0(y) + ky*T1(y) + ky2*T2(y) + ky3*T3(y)                [3 params]
+                    %           (ky0 is hardcoded to zero, matching cheby1_4_xt convention)
+                    %   Cross:  kxy*T1(x)*T1(y)                                            [1 param]
+                    %   Total: 8 parameters
+                    %
+                    % Parameter order: [kx0, kx, kx2, kx3, ky, ky2, ky3, kxy]
+                    %
+                    % Note: Coordinates should be normalized to [-1, 1] using ParNX, ParNY
+                    %       (same convention as 'cheby1_4_xt'; for LAST detector
+                    %       ParNX = [863, 863]; ParNY = [863, 863]).
+
+                    ColCell     = {'x','y','c','AM','PA'};
+                    FunX        = {@(x,y,c,AM,PA) ones(size(x)),...           % 1: kx0 * T0(x)
+                                   @(x,y,c,AM,PA) x,...                        % 2: kx  * T1(x)
+                                   @(x,y,c,AM,PA) 2.*x.^2-1,...                % 3: kx2 * T2(x)
+                                   @(x,y,c,AM,PA) 4.*x.^3 - 3.*x,...           % 4: kx3 * T3(x)
+                                   @(x,y,c,AM,PA) y,...                        % 5: ky  * T1(y)
+                                   @(x,y,c,AM,PA) 2.*y.^2-1,...                % 6: ky2 * T2(y)
+                                   @(x,y,c,AM,PA) 4.*y.^3 - 3.*y,...           % 7: ky3 * T3(y)
+                                   @(x,y,c,AM,PA) x.*y};                       % 8: kxy * T1(x)*T1(y)
+                    FunY        = FunX;
+
+                    PolyX_Xdeg  = [0 1 2 3 0 0 0 1];
+                    PolyX_Ydeg  = [0 0 0 0 1 2 3 1];
+                    PolyY_Xdeg  = [0 1 2 3 0 0 0 1];
+                    PolyY_Ydeg  = [0 0 0 0 1 2 3 1];
+
                 case 'cheby1_4_xt'
                     % Chebyshev polynomials of the first kind, order 4, with cross-term
                     % LAST telescope field correction formulation
