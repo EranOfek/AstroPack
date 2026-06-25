@@ -182,7 +182,10 @@ classdef PhotCalibTrans < Component
 
         SourceData = []         % AstroCatalog with observed calibrator sources from selectCalibrators:
                                 %   Catalog table columns: Flux, FluxErr, X, Y, RA, Dec, MatchDistance, NumMatches
-                                %   After calibration: Used, Residuals, MAG_<System>, PredictedFlux, MagErr
+                                %   When PerSourceAirmass=true: + AIRMASS
+                                %   When AttachBP_RP=true (calibrate default): + BP_RP, MAG_BP, MAG_RP
+                                %       (from extra catsHTM match against AuditCatName; NaN where unmatched)
+                                %   After calibration: + Used, Residuals, MAG_<System>, PredictedFlux, MagErr
 
         CalFound = false        % Flag indicating whether calibrators were found (set by selectCalibrators)
         NoRADec = false         % Flag indicating RA/Dec columns missing (set by selectCalibrators)
@@ -197,6 +200,16 @@ classdef PhotCalibTrans < Component
         % _AB token and overwrite the instrumental MAG_<suffix> columns in place.
         % fitPhotCalibTrans stamps this from its MagColPrefix argument.
         MagColPrefix = 'MAG_AB_'            % Prefix for calibrated MAG column names
+
+        % Reference spectrum slope for target-mag conversion. The transmission
+        % is integrated against F_nu(lambda) = (lambda / RefSpecPivot)^RefSpecSlope
+        % when evaluateZP / evaluateMag compute calibrated mags. Default is the
+        % AB-flat reference (slope = 0); negative values lean blue, positive red.
+        % Only the *target-mag conversion* is affected — the calibration fit
+        % itself uses the calibrators' true Gaia DR3 spectra (SpecData).
+        % fitPhotCalibTrans stamps both from its RefSpecSlope / RefSpecPivot args.
+        RefSpecSlope = 0                    % Slope alpha for F_nu reference spectrum
+        RefSpecPivot = 5500                 % Pivot wavelength [Angstrom]
 
         % Aperture corrections
         AperCorr = []           % [1 x N_aper] aperture corrections in mag; NaN if calculation failed
@@ -235,7 +248,10 @@ classdef PhotCalibTrans < Component
         % (this iter), NumRemaining, RMS, and SourceData — an AstroCatalog
         % holding ALL original calibrator rows with a Used column tracking
         % survivors at that iter and Residuals/PredictedFlux/MagErr
-        % populated where Used=true (NaN where Used=false). Default empty.
+        % populated where Used=true (NaN where Used=false). The snap's
+        % SourceData table inherits every column of the live
+        % Obj.SourceData.Table at snap time, including BP_RP/MAG_BP/MAG_RP
+        % when AttachBP_RP=true. Default empty.
         CalibTrajectory = []
     end
 
@@ -355,6 +371,18 @@ classdef PhotCalibTrans < Component
             %                               rejection threshold [arcsec]. Default is 20.
             %            'AuditLASTDeltaMag' - LAST nearest-neighbour |delta-mag|
             %                               rejection threshold. Default is 2.
+            %            'AttachBP_RP'    - Attach Gaia BP_RP, MAG_BP, MAG_RP
+            %                               columns to SourceData via one extra
+            %                               catsHTM match against AuditCatName
+            %                               (default 'GAIADR3'). Independent of
+            %                               AuditCalibrators - the match runs on
+            %                               the post-filter calibrator pool.
+            %                               Failure-safe: NaN-fills the three
+            %                               columns on match error and logs a
+            %                               Warning. The columns are inherited
+            %                               by every CalibTrajectory snapshot's
+            %                               SourceData (no extra plumbing).
+            %                               Default is true.
             %            'Tran2DPerturbStd' - Std-dev for one-shot N(0,std)
             %                               randn-seeding of Tran2D ParX
             %                               before fitPar. Affects stages 1-3
@@ -363,7 +391,58 @@ classdef PhotCalibTrans < Component
             %                               Default is 0.
             %            'WeightingMode'  - Weighting mode. Default is 'spectral'.
             %            'FluxErrColName' - Flux error column name. Default is 'FluxErr'.
-            %            'SigmaClipMethod'- Sigma clipping method. Default is 'median'.
+            %            'SigmaClipMethod'- Sigma-clipping method forwarded to
+            %                               tools.math.stat.sigmaClip via
+            %                               CompositeFun.fitPar / fitMultiStage.
+            %                               Default 'median'. Three options:
+            %                                 'median'        - astropy iteration
+            %                                                   on abs(residuals).
+            %                                                   Matches LAST/
+            %                                                   Python production
+            %                                                   (Simone feeds
+            %                                                   np.abs(data-
+            %                                                   model) into
+            %                                                   astropy.stats.
+            %                                                   sigma_clip).
+            %                                                   More aggressive
+            %                                                   than its nominal
+            %                                                   threshold: at
+            %                                                   SigmaThresh=3
+            %                                                   the effective
+            %                                                   single-sided cut
+            %                                                   is ~2.48 sigma
+            %                                                   on the signed
+            %                                                   scale (because
+            %                                                   median(|r|) ≈
+            %                                                   0.6745 sigma,
+            %                                                   std(|r|) ≈
+            %                                                   0.6028 sigma).
+            %                                 'median_signed' - astropy iteration
+            %                                                   on signed
+            %                                                   residuals;
+            %                                                   canonical
+            %                                                   N-sigma clip
+            %                                                   where
+            %                                                   SigmaThresh
+            %                                                   literally means
+            %                                                   N sigma on the
+            %                                                   signed residual
+            %                                                   distribution.
+            %                                                   Equivalent to
+            %                                                   astropy.stats.
+            %                                                   sigma_clip(r,
+            %                                                   cenfunc='median',
+            %                                                   stdfunc='std',
+            %                                                   maxiters=
+            %                                                   MaxIter) on the
+            %                                                   SIGNED r.
+            %                                 'weighted'      - single-shot
+            %                                                   test |r_i /
+            %                                                   sigma_i| >
+            %                                                   SigmaThresh.
+            %                               See tools.math.stat.sigmaClip header
+            %                               for the math and the StdFunc
+            %                               ('mad_std' vs 'std') option.
             %            'FluxErrorNorm'  - Flux error normalization. Default is 0.5.
             %            'AirmassSource'  - How to obtain the calibration airmass:
             %                               'header'  -> read AIRMASS keyword
@@ -446,12 +525,23 @@ classdef PhotCalibTrans < Component
             %                                          this stage's pool).
             %                                  PredictedFlux / MagErr - same
             %                                          three-way semantics.
+            %                               Plus all columns from the live
+            %                               Obj.SourceData.Table (which the
+            %                               SnapTable is built from): Flux,
+            %                               FluxErr, X, Y, RA, Dec,
+            %                               MatchDistance, NumMatches, optional
+            %                               AIRMASS, and BP_RP/MAG_BP/MAG_RP
+            %                               when AttachBP_RP=true.
             %                               Default false (no extra work;
             %                               CalibTrajectory stays empty).
             %            'Verbose' - Enable verbose output. Default is true.
             % Output : - PhotCalibTrans object with calibration results.
             %                  SourceData catalog includes: Used, Residuals,
             %                                   MAG_<System>, PredictedFlux, MagErr.
+            %                  When AttachBP_RP=true (default), SourceData also
+            %                  carries Gaia BP_RP, MAG_BP, MAG_RP columns (NaN
+            %                  for sources unmatched in AuditCatName); these are
+            %                  also inherited by every CalibTrajectory snapshot.
             %                  When CollectCalibTrajectory=true, also populates
             %                  Obj.CalibTrajectory (struct array, one entry per
             %                  inner sigma-clip iter; see arg description).
@@ -519,9 +609,14 @@ classdef PhotCalibTrans < Component
                 Args.AuditBPRPMax     = 1.5
                 Args.AuditLASTNearestDist = 20      % arcsec
                 Args.AuditLASTDeltaMag = 2          % mag
+                % Attach Gaia BP_RP, MAG_BP, MAG_RP to SourceData (and to
+                % every CalibTrajectory snapshot's SourceData, which inherits
+                % the base table). One extra catsHTM match against
+                % Args.AuditCatName. Default true; pass false to skip.
+                Args.AttachBP_RP logical = true
                 Args.WeightingMode    = 'spectral'
                 Args.FluxErrColName   = 'FluxErr'
-                Args.SigmaClipMethod  = 'median'
+                Args.SigmaClipMethod  = 'median'    % 'median' | 'median_signed' | 'weighted' — see header doc + tools.math.stat.sigmaClip
                 % Outer clip-and-refit loop (passed through to fitPar/fitMultiStage).
                 % When OuterSigmaClip=true, full stage loop is run repeatedly,
                 % applying a single sigma clip on the final residuals between
@@ -903,6 +998,7 @@ classdef PhotCalibTrans < Component
                 'AuditBPRPMax', Args.AuditBPRPMax, ...
                 'AuditLASTNearestDist', Args.AuditLASTNearestDist, ...
                 'AuditLASTDeltaMag', Args.AuditLASTDeltaMag, ...
+                'AttachBP_RP', Args.AttachBP_RP, ...
                 'SelectionMethod', Args.SelectionMethod, ...
                 'UseTAPClassprob', Args.UseTAPClassprob, ...
                 'ObsJD', ObsJD, ...
@@ -1331,6 +1427,18 @@ classdef PhotCalibTrans < Component
             %            'AuditLASTDeltaMag' - Reject if the nearest LAST neighbour has
             %                        |delta-mag| (using MagColName) below this value.
             %                        Default is 2.
+            %            'AttachBP_RP' - Attach Gaia BP_RP, MAG_BP, MAG_RP columns
+            %                        to SourceData after the calibrator pool is
+            %                        finalized. Costs one extra catsHTM match
+            %                        against AuditCatName (default 'GAIADR3').
+            %                        Independent of AuditCalibrators - the match
+            %                        is on the post-filter pool, not the pre-
+            %                        filter candidates. Failure-safe: on any
+            %                        match error, logs a Warning and fills the
+            %                        three columns with NaN. Inherited by every
+            %                        CalibTrajectory snapshot's SourceData
+            %                        (snap SnapTable is built from the live
+            %                        Obj.SourceData.Table). Default is true.
             %            'SelectionMethod' - Calibrator-selection recipe:
             %                        'catsHTM'    - existing path: match against
             %                                       CalibCatName, apply quality
@@ -1366,8 +1474,22 @@ classdef PhotCalibTrans < Component
             %                    .SpecWvl [N_wvl x 1] - Wavelength grid [Angstrom]
             %                    .Spec [N_calib x N_wvl] - Calibrator spectra flux
             %                    .SpecErr [N_calib x N_wvl] - Calibrator spectra flux errors
-            %                  .SourceData - AstroCatalog with observed calibrator sources
-            %                    (columns: Flux, FluxErr, X, Y, RA, Dec, MatchDistance, NumMatches)
+            %                  .SourceData - AstroCatalog with observed calibrator sources.
+            %                    Columns:
+            %                      Flux, FluxErr, X, Y, RA, Dec  - per-source
+            %                                                      observed
+            %                                                      quantities
+            %                      MatchDistance, NumMatches    - catalog-match
+            %                                                      diagnostics
+            %                      AIRMASS (if PerSourceAirmass) - per-source AM
+            %                      BP_RP, MAG_BP, MAG_RP (if AttachBP_RP=true)
+            %                                                    - Gaia colour
+            %                                                      from extra
+            %                                                      AuditCatName
+            %                                                      match; NaN
+            %                                                      where the
+            %                                                      Gaia match
+            %                                                      missed
             %                  .CalFound - true if length(SourceData) > 0
             % Author : D. Kovaleva (Jan 2026)
             % Example: PC = PC.selectCalibrators(Cat);
@@ -1400,6 +1522,12 @@ classdef PhotCalibTrans < Component
                 Args.AuditBPRPMax = 1.5
                 Args.AuditLASTNearestDist = 20          % arcsec
                 Args.AuditLASTDeltaMag = 2              % mag
+                % Attach BP_RP, MAG_BP, MAG_RP columns to SourceData via a
+                % cheap extra match against AuditCatName (default 'GAIADR3').
+                % Inherited automatically by every CalibTrajectory snapshot
+                % (which builds its SnapTable from Obj.SourceData.Table).
+                % Default true; pass false to skip the extra catsHTM call.
+                Args.AttachBP_RP logical = true
                 Args.Verbose logical = false
                 % Alternate selection recipe (off by default; preserves status quo)
                 Args.SelectionMethod char {mustBeMember(Args.SelectionMethod, ...
@@ -1720,6 +1848,13 @@ classdef PhotCalibTrans < Component
                 if HasAirmassCol
                     SourceTable.AIRMASS = Obs_Airmass;
                 end
+                if Args.AttachBP_RP
+                    [BPRPv, BPv, RPv] = fetchGaiaBPRP_(Obs_RA, Obs_Dec, ...
+                        Args.AuditCatName, Args.SearchRadius, Obj);
+                    SourceTable.BP_RP  = BPRPv;
+                    SourceTable.MAG_BP = BPv;
+                    SourceTable.MAG_RP = RPv;
+                end
                 Obj.SourceData = AstroCatalog(SourceTable);
 
                 % Set CalFound flag
@@ -1970,11 +2105,12 @@ classdef PhotCalibTrans < Component
                 % Evaluate per-source transmission: [N_wvl x N_pos]
                 TransPerSource = Obj.TransModel.evaluateAllFunParInput(Lambda, PerSourceParams);
 
-                % Create flat Fnu spectrum for AB zero-point
-                FlatSpectrum = Fnu * ones(size(Lambda));  % [N_lambda x 1]
+                % Reference F_nu spectrum: power law (lambda/pivot)^slope.
+                % Slope = 0 (default) reduces to the AB-flat reference.
+                RefSpectrum = Fnu * (Lambda(:) / Obj.RefSpecPivot) .^ Obj.RefSpecSlope;  % [N_lambda x 1]
 
                 % Apply transmission per source: [N_wvl x N_pos] .* [N_wvl x 1]
-                SpecTrans = TransPerSource .* FlatSpectrum;  % [N_wvl x N_pos]
+                SpecTrans = TransPerSource .* RefSpectrum;  % [N_wvl x N_pos]
 
                 % Divide by Lambda for integration
                 Integrand = SpecTrans ./ Lambda;  % [N_wvl x N_pos]
@@ -2000,11 +2136,12 @@ classdef PhotCalibTrans < Component
                 TransBase = Obj.TransModel.evaluateAllFunParInput(Lambda);
                 TransBase = TransBase(:)';  % Row vector [1 x N_lambda]
 
-                % Create flat Fnu spectrum for AB zero-point
-                FlatSpectrum = Fnu * ones(size(Lambda));  % [N_lambda x 1]
+                % Reference F_nu spectrum: power law (lambda/pivot)^slope.
+                % Slope = 0 (default) reduces to the AB-flat reference.
+                RefSpectrum = Fnu * (Lambda(:) / Obj.RefSpecPivot) .^ Obj.RefSpecSlope;  % [N_lambda x 1]
 
-                % Apply transmission: multiply by FlatSpectrum
-                SpecTrans = TransBase .* FlatSpectrum';  % [1 x N_lambda]
+                % Apply transmission: multiply by reference spectrum
+                SpecTrans = TransBase .* RefSpectrum';  % [1 x N_lambda]
 
                 % Multiply by Lambda for integration
                 Integrand = SpecTrans ./ Lambda';  % [1 x N_lambda]
@@ -2579,6 +2716,8 @@ classdef PhotCalibTrans < Component
             HeaderObj = HeaderObj.replaceVal('PT_NCALIB', NCalFinal);
             HeaderObj = HeaderObj.replaceVal('PT_AREF', 'SMART v2.9.8');
             HeaderObj = HeaderObj.replaceVal('PT_SPEC', 'GaiaDR3');
+            HeaderObj = HeaderObj.replaceVal('PT_REFSL', Obj.RefSpecSlope);
+            HeaderObj = HeaderObj.replaceVal('PT_REFPV', Obj.RefSpecPivot);
 
             if Args.WriteComments
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_RMS: RMS of calibration fit [mag]';
@@ -2588,6 +2727,8 @@ classdef PhotCalibTrans < Component
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_NCALIB: Number of calibrators';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_AREF: Atmospheric model reference';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_SPEC: Spectra reference';
+                IComment = IComment + 1; HistoryComments{IComment} = 'PT_REFSL: Ref spectrum F_nu slope (lambda/PT_REFPV)^slope';
+                IComment = IComment + 1; HistoryComments{IComment} = 'PT_REFPV: Ref spectrum pivot wavelength [Angstrom]';
             end
 
             % Function parameters — only writable when TransModel is populated.
@@ -2798,6 +2939,15 @@ classdef PhotCalibTrans < Component
             end
             if HeaderObj.isKeyExist('BACKMAG')
                 Obj.BackMag = HeaderObj.getVal('BACKMAG');
+            end
+
+            % Reference-spectrum slope / pivot (default to AB-flat if absent
+            % so headers written before this convention still load cleanly).
+            if HeaderObj.isKeyExist('PT_REFSL')
+                Obj.RefSpecSlope = HeaderObj.getVal('PT_REFSL');
+            end
+            if HeaderObj.isKeyExist('PT_REFPV')
+                Obj.RefSpecPivot = HeaderObj.getVal('PT_REFPV');
             end
 
             % Observation metadata - read from standard FITS keywords if available
@@ -4068,7 +4218,7 @@ classdef PhotCalibTrans < Component
             end
         end
 
-        function Fig = plotZPMap(Obj, Args)
+        function [Fig, ZPTable] = plotZPMap(Obj, Args)
             % Plot 2D map of position-dependent zero point corrections
             % For scalar input: plots single crop ZP map.
             % For array input: plots seamless mosaic across all crops
@@ -4097,7 +4247,23 @@ classdef PhotCalibTrans < Component
             %                        'colmajor' (old pipeline) - bottom-to-top, column by column.
             %                        'rowmajor' (new pipeline) - left-to-right, row by row.
             %                        Default is 'rowmajor'.
-            % Output : - Figure handle
+            % Output : - Fig: figure handle.
+            %          - ZPTable: the (X, Y, ZP) sample table that backs the
+            %                     plot. Single-crop mode returns columns
+            %                     {X, Y, ZP} (one row per grid point in the
+            %                     local crop coordinate system); mosaic mode
+            %                     returns {CropID, LocalX, LocalY, X, Y, ZP}
+            %                     where (LocalX, LocalY) is the in-crop
+            %                     position used to call evaluateZP and
+            %                     (X, Y) is the global mosaic-frame position
+            %                     (LocalX + (Col-1)*Nx, LocalY + (Row-1)*Ny).
+            %                     The ZP column carries the same values fed
+            %                     to scatteredInterpolant — the imagesc grid
+            %                     is then derived from interpolating this
+            %                     table onto (XvecG, YvecG). NaN ZP rows are
+            %                     dropped, matching the plot's Valid filter.
+            %                     Request as `[~, ZPTable] = PC.plotZPMap()`
+            %                     to skip the plot side-effect via NewFigure.
             % Author : D. Kovaleva (Dec 2025, Mar 2026)
             % Example: PC(5).plotZPMap();                          % single crop
             %          PC.plotZPMap();                              % mosaic, percrop
@@ -4105,6 +4271,9 @@ classdef PhotCalibTrans < Component
             %          PC.plotZPMap('PhotSys', 'refzp_raw', 'RefCrop', 0); % mosaic, weighted mean, raw
             %          PC.plotZPMap('SmoothSigma', 0);             % mosaic, no smoothing
             %          PC.plotZPMap('TileOrder', 'rowmajor');       % mosaic, new pipeline tiling
+            %          % Capture the underlying (X,Y,ZP) sample table:
+            %          [Fig, T] = PC.plotZPMap();
+            %          fprintf('Median mosaic ZP = %.3f mag\n', median(T.ZP));
 
             arguments
                 Obj
@@ -4142,6 +4311,10 @@ classdef PhotCalibTrans < Component
 
                 ZP = Obj.evaluateZP('X', Xgrid(:), 'Y', Ygrid(:));
                 ZPgrid = reshape(ZP, Args.GridSize(2), Args.GridSize(1));
+
+                % Sample table backing the imagesc grid (single-crop)
+                ZPTable = table(Xgrid(:), Ygrid(:), ZP(:), ...
+                    'VariableNames', {'X', 'Y', 'ZP'});
 
                 if Args.NewFigure
                     Fig = figure;
@@ -4213,6 +4386,9 @@ classdef PhotCalibTrans < Component
                 allX = [];
                 allY = [];
                 allZP = [];
+                allCropID = [];
+                allLocalX = [];
+                allLocalY = [];
 
                 for Iobj = 1:Nobj
                     if isempty(Obj(Iobj).TransModel)
@@ -4239,10 +4415,14 @@ classdef PhotCalibTrans < Component
 
                     X_global = Xgrid(:) + (Col - 1) * Nx;
                     Y_global = Ygrid(:) + (Row - 1) * Ny;
+                    Npts = numel(ZP);
 
                     allX = [allX; X_global];
                     allY = [allY; Y_global];
                     allZP = [allZP; ZP(:)];
+                    allCropID = [allCropID; repmat(CropID, Npts, 1)];
+                    allLocalX = [allLocalX; Xgrid(:)];
+                    allLocalY = [allLocalY; Ygrid(:)];
                 end
 
                 if isempty(allZP)
@@ -4254,6 +4434,13 @@ classdef PhotCalibTrans < Component
                 allX = allX(Valid);
                 allY = allY(Valid);
                 allZP = allZP(Valid);
+                allCropID = allCropID(Valid);
+                allLocalX = allLocalX(Valid);
+                allLocalY = allLocalY(Valid);
+
+                % Sample table backing the scatteredInterpolant (mosaic)
+                ZPTable = table(allCropID, allLocalX, allLocalY, allX, allY, allZP, ...
+                    'VariableNames', {'CropID', 'LocalX', 'LocalY', 'X', 'Y', 'ZP'});
 
                 if isempty(Args.CLim)
                     Args.CLim = [prctile(allZP, 1), prctile(allZP, 99)];
@@ -5508,6 +5695,63 @@ function idx = findColIdxLocal(ColNames, Candidates)
 end
 
 % =========================================================================
+function [BPRPv, BPv, RPv] = fetchGaiaBPRP_(RA_deg, Dec_deg, AuditCatName, SearchRadius_arcsec, Obj)
+    % Match candidate calibrators against the photometric Gaia catsHTM
+    % catalog and return per-source BP-RP, BP and RP magnitudes (NaN
+    % padded for un-matched candidates). Used by selectCalibrators and
+    % selectCalibratorsPythonLike to attach Gaia colour columns to
+    % SourceData (and downstream, to every CalibTrajectory snapshot).
+    %
+    % Safe under failure: on any error, logs a warning via Obj.msgLog
+    % and returns all-NaN vectors. Caller is responsible for skipping
+    % when AttachBP_RP=false.
+    Ncand = numel(RA_deg);
+    BPRPv = nan(Ncand, 1);
+    BPv   = nan(Ncand, 1);
+    RPv   = nan(Ncand, 1);
+    if Ncand == 0
+        return;
+    end
+
+    Sub = AstroCatalog;
+    Sub.Catalog  = [double(RA_deg(:)), double(Dec_deg(:))];
+    Sub.ColNames = {'RA', 'Dec'};
+    Sub.ColUnits = {'deg', 'deg'};
+
+    try
+        [~, ~, ResIndA, CatA] = imProc.match.match_catsHTM(Sub, AuditCatName, ...
+            'Radius', SearchRadius_arcsec, 'RadiusUnits', 'arcsec');
+
+        Near = nan(Ncand, 1);
+        N1   = min(Ncand, numel(ResIndA.Obj2_IndInObj1));
+        Near(1:N1) = ResIndA.Obj2_IndInObj1(1:N1);
+        Valid = isfinite(Near);
+        if ~any(Valid); return; end
+
+        BPRPCol = findColIdxLocal(CatA.ColNames, {'bp_rp'});
+        BPCol   = findColIdxLocal(CatA.ColNames, {'phot_bp_mean_mag','Mag_BP','MagBP'});
+        RPCol   = findColIdxLocal(CatA.ColNames, {'phot_rp_mean_mag','Mag_RP','MagRP'});
+
+        NiSel = Near(Valid);
+        if BPCol > 0
+            BPv(Valid) = double(CatA.Catalog(NiSel, BPCol));
+        end
+        if RPCol > 0
+            RPv(Valid) = double(CatA.Catalog(NiSel, RPCol));
+        end
+        if BPRPCol > 0
+            BPRPv(Valid) = double(CatA.Catalog(NiSel, BPRPCol));
+        elseif BPCol > 0 && RPCol > 0
+            BPRPv(Valid) = BPv(Valid) - RPv(Valid);
+        end
+    catch ME
+        Obj.msgLog(LogLevel.Warning, sprintf( ...
+            'fetchGaiaBPRP_: Gaia (%s) match failed (%s) - BP_RP/MAG_BP/MAG_RP set to NaN', ...
+            AuditCatName, ME.message));
+    end
+end
+
+% =========================================================================
 function Obj = selectCalibratorsPythonLike(Obj, Cat, Args)
     % Mirror the Python prototype's calibrator-selection recipe using
     % only catsHTM (GAIADR3spec + GAIADR3). Public entry point is
@@ -5869,6 +6113,13 @@ function Obj = selectCalibratorsPythonLike(Obj, Cat, Args)
         'VariableNames', {'Flux', 'FluxErr', 'X', 'Y', 'RA', 'Dec', 'MatchDistance', 'NumMatches'});
     if HasAirmassCol
         SourceTable.AIRMASS = Obs_Airmass;
+    end
+    if Args.AttachBP_RP
+        [BPRPv, BPv, RPv] = fetchGaiaBPRP_(Obs_RA, Obs_Dec, ...
+            Args.AuditCatName, Args.SearchRadius, Obj);
+        SourceTable.BP_RP  = BPRPv;
+        SourceTable.MAG_BP = BPv;
+        SourceTable.MAG_RP = RPv;
     end
     Obj.SourceData = AstroCatalog(SourceTable);
     Obj.CalFound   = true;

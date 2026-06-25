@@ -46,6 +46,46 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %                             'AirmassSource' ('header' | 'compute')
     %                             'AirmassTimeKey' ('DATE-OBS' | 'JD' | 'MIDJD')
     %                             'ObsLat' / 'ObsLon' / 'ObsHeight'
+    %                         Gaia colour columns:
+    %                           'AttachBP_RP' (default true) - attaches BP_RP,
+    %                             MAG_BP, MAG_RP columns to SourceData via one
+    %                             extra catsHTM match against AuditCatName
+    %                             (default 'GAIADR3'). Inherited by every
+    %                             CalibTrajectory snapshot's SourceData (no
+    %                             extra plumbing). NaN-filled where the Gaia
+    %                             match misses. Pass 'AttachBP_RP', false via
+    %                             CalibArgs to skip the extra match.
+    %                         Sigma-clipping inside the fit is governed by
+    %                         CalibArgs entry 'SigmaClipMethod' (default
+    %                         'median'). Three options forwarded to
+    %                         tools.math.stat.sigmaClip:
+    %                           'median'        - astropy iteration on
+    %                                             abs(residuals); matches
+    %                                             LAST/Python production
+    %                                             (Simone feeds np.abs(
+    %                                             data-model) into astropy.
+    %                                             stats.sigma_clip). Effective
+    %                                             single-sided cut on the
+    %                                             signed scale is ~2.48 sigma
+    %                                             at SigmaThresh=3 because
+    %                                             median(|r|) ≈ 0.6745 sigma,
+    %                                             std(|r|) ≈ 0.6028 sigma.
+    %                           'median_signed' - astropy iteration on signed
+    %                                             residuals; canonical
+    %                                             N-sigma clip where
+    %                                             SigmaThresh literally
+    %                                             means N sigma on the
+    %                                             signed distribution.
+    %                                             Equivalent to astropy.
+    %                                             stats.sigma_clip(r,
+    %                                             cenfunc='median',
+    %                                             stdfunc='std', maxiters=
+    %                                             MaxIter) on SIGNED r.
+    %                           'weighted'      - single-shot |r_i / sigma_i|
+    %                                             > SigmaThresh, no iteration.
+    %                         See tools.math.stat.sigmaClip and
+    %                         PhotCalibTrans.calibrate for the full math and
+    %                         the StdFunc ('mad_std' vs 'std') option.
     %                         When AirmassSource='compute', the calibration uses
     %                         a field-centre Hardie (1962) airmass computed from
     %                         header RA/DEC/time and observer location (mirrors
@@ -146,6 +186,10 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %                                          earlier stage (never entered
     %                                          this stage's pool).
     %                            .PredictedFlux / .MagErr - same semantics.
+    %                         Plus every column from the live Obj.SourceData
+    %                         at snap time (Flux, FluxErr, X, Y, RA, Dec,
+    %                         MatchDistance, NumMatches, optional AIRMASS,
+    %                         and BP_RP/MAG_BP/MAG_RP when AttachBP_RP=true).
     %                         Plumbed through to PhotCalibTrans.calibrate
     %                         which assembles the per-snap catalog and
     %                         stores it on PC.CalibTrajectory (without
@@ -238,6 +282,11 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.AddMag logical = true
         Args.MagSystem char = 'AB'
         Args.MagColPrefix = 'MAG_'   % Prefix for calibrated MAG column names ('MAG_' drops _AB, overwrites instrumental MAG_*)
+        Args.RefSpecSlope (1,1) double = 0      % Slope alpha of the F_nu reference spectrum (lambda/pivot)^alpha
+                                                % used by evaluateZP/evaluateMag for the
+                                                % target-mag conversion. 0 = AB-flat (back-compat).
+                                                % Negative -> blue, positive -> red.
+        Args.RefSpecPivot (1,1) double = 5500   % Pivot wavelength [Angstrom] for the slope normalization
         Args.FluxColName = 'FLUX_APER_3'
         Args.AddZP logical = true
         Args.UpdateHeader logical = true
@@ -502,6 +551,11 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % applyConstBand, and the per-epoch applyPhotCalibShifts) reads this
         % property — set once here, no per-call threading.
         PC.MagColPrefix = Args.MagColPrefix;
+
+        % Same convention for the reference-spectrum slope and pivot: stamp
+        % once onto the PC so evaluateZP / evaluateMag pick them up.
+        PC.RefSpecSlope = Args.RefSpecSlope;
+        PC.RefSpecPivot = Args.RefSpecPivot;
 
         % ----------------------------------------------------------------
         % Post-calibration processing
@@ -798,7 +852,44 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 MagColName) below this value. Default 2.
     %            'WeightingMode'    - Weighting mode. Default 'spectral'.
     %            'FluxErrColName'   - Flux error column. Default 'FluxErr'.
-    %            'SigmaClipMethod'  - 'median' or 'weighted'. Default 'median'.
+    %            'SigmaClipMethod'  - Sigma-clipping method forwarded to
+    %                                 tools.math.stat.sigmaClip. Default 'median'.
+    %                                 Three options:
+    %                                   'median'        - astropy iteration on
+    %                                                     abs(residuals); matches
+    %                                                     LAST/Python production
+    %                                                     (Simone's pipeline feeds
+    %                                                     np.abs(data-model) into
+    %                                                     astropy.stats.sigma_clip).
+    %                                                     More aggressive than its
+    %                                                     nominal threshold: at
+    %                                                     SigmaThresh=3 the
+    %                                                     effective single-sided
+    %                                                     cut is ~2.48 sigma on
+    %                                                     the signed scale,
+    %                                                     because median(|r|) ≈
+    %                                                     0.6745 sigma and
+    %                                                     std(|r|) ≈ 0.6028 sigma
+    %                                                     for a Gaussian.
+    %                                   'median_signed' - astropy iteration on
+    %                                                     signed residuals;
+    %                                                     canonical N-sigma clip
+    %                                                     where SigmaThresh
+    %                                                     literally means N
+    %                                                     sigma. Equivalent to
+    %                                                     calling astropy.sigma_
+    %                                                     clip(r, cenfunc=
+    %                                                     'median', stdfunc=
+    %                                                     'std', maxiters=
+    %                                                     MaxIter) on the SIGNED
+    %                                                     residuals.
+    %                                   'weighted'      - single-shot test
+    %                                                     |r_i / sigma_i| >
+    %                                                     SigmaThresh; needs
+    %                                                     per-source errors.
+    %                                 See tools.math.stat.sigmaClip docstring
+    %                                 for the full mathematical description and
+    %                                 the StdFunc ('mad_std' vs 'std') option.
     %            'FluxErrorNorm'    - Flux error normalization. Default 0.5.
     %            'AirmassColName'   - Per-source airmass column. Default 'AIRMASS'.
     %            'PerSourceAirmass' - Enable per-source airmass. Default false.
@@ -871,7 +962,7 @@ function CalibArgs = predefCalibArgs(Args)
         % Weighting
         Args.WeightingMode    = 'spectral'  % 'none', 'spectral', 'flux', 'combined'
         Args.FluxErrColName   = 'FluxErr'
-        Args.SigmaClipMethod  = 'median'    % 'median' or 'weighted'
+        Args.SigmaClipMethod  = 'median'    % 'median' | 'median_signed' | 'weighted' — see header doc
         Args.FluxErrorNorm    = 0.5
 
         % Per-source airmass
