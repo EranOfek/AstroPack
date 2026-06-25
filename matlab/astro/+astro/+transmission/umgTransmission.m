@@ -39,6 +39,15 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
         Args.UsePersistentCache logical = true  % Enable/disable persistent cache
         Args.Tolerance = 1e-12                  % Parameter comparison tolerance
         Args.GetArgNames logical = false        % Return ArgNames structure instead of calculating
+        % CO2 atmospheric concentration in ppm. Default 395 matches the
+        % SMARTS/dast Python reference (Simone's UMGTransmittance.__init__
+        % default `co2_ppm=395.`) for byte-identical transmission parity.
+        % Previously hardcoded to 420 ("modern atmospheric CO2"), which
+        % produced systematic ~80 ppm positive dtrans at 1036-1068 nm
+        % (CO2's near-IR band edge inside LAST bandpass) — 6.3% relative
+        % over-attenuation in MATLAB's CO2 channel. If you need a different
+        % CO2 value for a specific epoch, pass it explicitly via this arg.
+        Args.Co2_ppm  = 395                     % CO2 concentration [ppm], Simone parity
     end
     
     % Return ArgNames structure if requested
@@ -73,8 +82,8 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
         error('ParamMatrix must have 3 columns: [ZenithAngle_deg, Temperature_C, Pressure_mbar]');
     end
 
-    % Fixed constants for UMG calculations
-    Co2_ppm = 420;  % Modern atmospheric CO2 concentration
+    % CO2 concentration in ppm — pulled from Args (default 395, Simone parity).
+    Co2_ppm = Args.Co2_ppm;
 %    With_trace_gases = true;  % Always include trace gases
 
     % Extract parameters
@@ -133,11 +142,23 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
         Am_no2  = Airmasses.no2(Mask)';
         Am_so2  = Airmasses.so2(Mask)';
         Am_hno3 = Airmasses.hno3(Mask)';
-        Am_no3  = Am_no;    % Use NO airmass for NO3
-        Am_hno2 = Am_hno3;  % Use HNO3 airmass for HNO2
-        Am_ch2o = Am_co;    % Use CO airmass for CH2O
-        Am_bro  = Am_o2;    % Use O2 airmass for BrO
-        Am_clno = Am_no;    % Use NO airmass for ClNO
+        % Trace-gas airmass aliases — match SMARTS / Simone's Python
+        % (atmospheric_models.py Airmass_from_SMARTS coefs dict):
+        %   coefs['no3']  = coefs['no2'].copy()
+        %   coefs['bro']  = coefs['o3'].copy()    (i.e. 'ozone' field here)
+        %   coefs['ch2o'] = coefs['n2o'].copy()
+        %   coefs['hno2'] = coefs['hno3'].copy()
+        %   coefs['clno'] = coefs['no2'].copy()
+        % Previously NO3, BrO, CH2O, ClNO used the wrong aliases
+        % (NO, O2, CO, NO respectively), producing a ~2800 ppm AM mismatch
+        % per species that translated into ~10-50 ppm transmission error in
+        % the Chappuis-band region (550-700 nm) where NO3 has its strong
+        % visible absorption band (σ ≈ 70-190 cm⁻¹). Fixed June 2026.
+        Am_no3  = Am_no2;
+        Am_hno2 = Am_hno3;
+        Am_ch2o = Am_n2o;
+        Am_bro  = Airmasses.ozone(Mask)';
+        Am_clno = Am_no2;
 
         % Pre-compute all abundance factors (scalar, same for all sources in group)
         Abundance_o2  = 1.67766e5 * Pp0;

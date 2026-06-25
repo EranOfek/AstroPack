@@ -452,10 +452,19 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
                         'Field corrections (joint nonlinear lsqnonlin, Simone kxy^2 parameterisation)', ...
                         'Refine normalization (analytical)', 'Optimize water vapor and aerosol'});
 
-    % LAST_NormLin variant with astropy-style sigma clipping everywhere:
-    % SigmaStdFunc='std' on every stage. Pair with SigmaClipMethod='median_signed'
-    % at the calibrate level for full astropy.stats.sigma_clip parity
-    % (median+std on signed residuals, up to 5 inner iterations).
+    % LAST_NormLin variant with Simone/LAST-Python-parity sigma clipping on
+    % every stage. Each clipping stage carries an explicit per-stage
+    % SigmaClipMethod='median' and SigmaStdFunc='std', so the OptSeq is
+    % self-consistent: the user does NOT need to pass SigmaClipMethod at the
+    % calibrate level — fitMultiStage reads it off the Stage struct directly.
+    % The 'median' choice mirrors Simone's `ResidFunc(..., magres=True)`
+    % which feeds np.abs(data-model) into astropy.stats.sigma_clip
+    % (cenfunc='median', stdfunc='std', maxiters=5) — i.e. astropy iteration
+    % on |r| rather than signed r. See tools.math.stat.sigmaClip docstring
+    % for the math (note: this is MORE AGGRESSIVE than the nominal SigmaThresh
+    % suggests — effective single-sided cut on the signed scale is ~2.48 sigma
+    % at SigmaThresh=3 because median(|r|) ≈ 0.6745 sigma and std(|r|) ≈
+    % 0.6028 sigma for a Gaussian).
     % All other fields verbatim from LAST_NormLin (3-stage outer iteration on
     % the clipping stages 1/3/4, same SigmaThresh, same MinCalibrators).
     StageCatalog.LAST_NormLin_Astropy = struct(...
@@ -471,10 +480,11 @@ function [FunCatalog, StageCatalog] = predefSeqCompositeFun(Args)
         'SigmaThresh', {3.0, 3.0, 3.0, 2.0, 3.0, 3.0}, ...
         'SigmaIter', {3, 0, 1, 3, 0, 0}, ...
         'MinCalibrators', {30, 0, 30, 30, 0, 0}, ...
+        'SigmaClipMethod', {'median', 'median', 'median', 'median', 'median', 'median'}, ...   % Simone/LAST-Python parity: astropy clip on |r|, not signed r
         'SigmaStdFunc', {'std', 'std', 'std', 'std', 'std', 'std'}, ...   % astropy-style: sample std on every clipping stage
-        'Description', {'Initial normalization (astropy clip)', 'Optimize normalization and QE center', ...
-                        'Outlier removal after QE fitting (astropy clip)', ...
-                        'Field corrections (astropy clip)', 'Refine normalization (analytical)', 'Optimize water vapor and aerosol'});
+        'Description', {'Initial normalization (astropy clip on |r|)', 'Optimize normalization and QE center', ...
+                        'Outlier removal after QE fitting (astropy clip on |r|)', ...
+                        'Field corrections (astropy clip on |r|)', 'Refine normalization (analytical)', 'Optimize water vapor and aerosol'});
 
     % LAST_NormLin variant with Water PWV_cm fixed at its initial value
     % (Args.PWV_cm, default 1.4 cm). Atmospheric stage fits only Aerosol TauAod500.

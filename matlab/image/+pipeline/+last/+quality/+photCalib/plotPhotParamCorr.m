@@ -24,7 +24,7 @@ function plotPhotParamCorr(PC, Args)
         Args.ParamNames     = {'TauAod500', 'PWV_cm', 'Center_Ang', 'Norm'}
         Args.CropsToAnalyze = []
         Args.ColorByCrop logical = false
-        Args.MarkerSize     = 4
+        Args.MarkerSize     = 10
     end
 
     PCcell = resolveInput(PC);
@@ -112,7 +112,7 @@ function plotPhotParamCorr(PC, Args)
 
             if Irow == Icol
                 % Diagonal: histogram
-                histogram(ParData(:, Irow), 30, 'FaceColor', [0.5 0.5 0.5]);
+                hist(ParData(:, Irow), 11, 'FaceColor', [0.5 0.5 0.5]);
                 if Irow == 1
                     ylabel(ParLabels{Icol});
                 end
