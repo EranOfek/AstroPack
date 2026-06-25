@@ -181,6 +181,8 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
         Args.WeightsMaxSN              = 100;
         Args.mean_sigclipArgs          = {};
 
+        Args.WingsMethod               = 'analytic';
+        Args.WingsPowerLaw             = 2;
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
         Args.SuppressThreshold         = 1e-3;
         Args.SuppressFunPars           = 3; % or # from edge
@@ -418,23 +420,39 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
             Args.SuppressThreshold = [];
         end
 
-
-        % smooth wings
-        if nargout>4
-            [MeanPSF, InnerRad,ExtendedPSF] = imUtil.psf.suppressWings(MeanPSF, 'Fun',Args.SuppressFun,...
+        
+        switch Args.WingsMethod
+            case 'analytic'
+                InnerRadius = imUtil.psf.radiusAtFraction(MeanPSF, Args.SuppressThreshold);
+                OuterRadius  = min(InnerRadius + 3, (size(MeanPSF,1)-1).*0.5);
+                MeanPSF = imUtil.psf.addWings2PSF(MeanPSF, Args.WingsPowerLaw, InnerRadius, OuterRadius);
+            case  'cosbell'
+                [MeanPSF, InnerRadius] = imUtil.psf.suppressWings(MeanPSF, 'Fun',Args.SuppressFun,...
                                                                 'Threshold',Args.SuppressThreshold,...
                                                                 'FunPars',Args.SuppressFunPars,...
                                                                 'Norm',true,...
                                                                 'ExtendedSize',Args.ExtendedSize,...
                                                                 'Alpha',Args.Alpha);
-        else
-            [MeanPSF, InnerRad] = imUtil.psf.suppressWings(MeanPSF, 'Fun',Args.SuppressFun,...
-                                                                'Threshold',Args.SuppressThreshold,...
-                                                                'FunPars',Args.SuppressFunPars,...
-                                                                'Norm',true);
-            ExtendedPSF = [];
+            otherwise
+                error('Unknown WingsMethod option');
         end
-        Result.SuppressRad = InnerRad;
+
+        % smooth wings
+        % if nargout>4
+        %     [MeanPSF, InnerRad,ExtendedPSF] = imUtil.psf.suppressWings(MeanPSF, 'Fun',Args.SuppressFun,...
+        %                                                         'Threshold',Args.SuppressThreshold,...
+        %                                                         'FunPars',Args.SuppressFunPars,...
+        %                                                         'Norm',true,...
+        %                                                         'ExtendedSize',Args.ExtendedSize,...
+        %                                                         'Alpha',Args.Alpha);
+        % else
+        %     [MeanPSF, InnerRad] = imUtil.psf.suppressWings(MeanPSF, 'Fun',Args.SuppressFun,...
+        %                                                         'Threshold',Args.SuppressThreshold,...
+        %                                                         'FunPars',Args.SuppressFunPars,...
+        %                                                         'Norm',true);
+        %     ExtendedPSF = [];
+        % end
+        Result.SuppressRad = InnerRadius;
 
         
 
