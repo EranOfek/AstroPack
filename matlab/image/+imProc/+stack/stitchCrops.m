@@ -151,14 +151,7 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     Result.HeaderData = replaceVal(Result.HeaderData, 'EXPTIME', MeanExp);
 
     % add some keywords from the first crop:
-    Node  = AI(1).getStructKey('NODENUMB').NODENUMB;
-    Mount = AI(1).getStructKey('MOUNTNUM').MOUNTNUM;
-    Camera= AI(1).getStructKey('CAMNUM').CAMNUM;
-    Imtype= AI(1).getStructKey('IMTYPE').IMTYPE;
-    Ncoadd= AI(1).getStructKey('NCOADD').NCOADD;
-    Result.HeaderData = replaceVal(Result.HeaderData, 'NODENUMB', Node);
-    Result.HeaderData = replaceVal(Result.HeaderData, 'MOUNTNUM', Mount);
-    Result.HeaderData = replaceVal(Result.HeaderData, 'CAMNUM'  , Camera);
-    Result.HeaderData = replaceVal(Result.HeaderData, 'IMTYPE'  , Imtype);
-    Result.HeaderData = replaceVal(Result.HeaderData, 'NCOADD'  , Ncoadd);
+    Keys = {'NODENUMB','MOUNTNUM','CAMNUM','IMTYPE','NCOADD'};
+    Vals = cellfun(@(k) AI(1).HeaderData.getVal(k), Keys, 'UniformOutput', false);
+    Result.HeaderData = replaceVal(Result.HeaderData, Keys, Vals);
 end
