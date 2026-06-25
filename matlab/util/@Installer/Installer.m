@@ -77,6 +77,11 @@ classdef Installer < Component
             %            'Delete' - A logical indicating if to delete
             %                   data before installation.
             %                   Default is true.
+            %            'UseNFS' - If true, copy uncompressed data from the
+            %                   local NFS mount (/euclid/matlab_data or
+            %                   /mnt/euclid/matlab_data) instead of
+            %                   downloading from the web.
+            %                   Default is false.
             %            'Npwget' - Number of parallel wget. Default is 10.
             %            'wgetPars' - A cell array of additional wget
             %                   arguments. Default is '--quiet --timeout=10 --output-file=/dev/null --user-agent=Mozilla --no-check-certificate'.
@@ -85,12 +90,14 @@ classdef Installer < Component
             %          I.install            % install all
             %          I.install(5)         % install the 5th data name: PicklesStellarSpec
             %          I.install('Time');   % install the Time data name
-            %          I.install({'Time','MinorPlanets'})           
-            
+            %          I.install({'Time','MinorPlanets'})
+            %          I.install({'cats'}, 'UseNFS', true)  % copy from NFS
+
             arguments
                 Obj
                 DataName                  = {};
                 Args.Delete(1,1) logical  = true;
+                Args.UseNFS(1,1) logical  = false;
                 Args.Npwget               = 10;
                 Args.wgetPars             = '--quiet --timeout=10 --output-file=/dev/null --user-agent=Mozilla --no-check-certificate';
             end
@@ -116,7 +123,7 @@ classdef Installer < Component
                 if isfield(Obj.Items, Name)
                     Item = Obj.Items.(Name);                                                                         
                     try
-                        Obj.installSingle(Item, 'Delete',Args.Delete, 'Npwget',Args.Npwget, 'wgetPars',Args.wgetPars);
+                        Obj.installSingle(Item, 'Delete',Args.Delete, 'UseNFS',Args.UseNFS, 'Npwget',Args.Npwget, 'wgetPars',Args.wgetPars);
                     catch
                         io.msgLog(LogLevel.Error, 'installSingle failed: %s', Name);
                     end
@@ -139,113 +146,136 @@ classdef Installer < Component
             % Install single DataName (utility function for install)
             % Input  : - A structure with the DataName, SubDir, URL,
             %            SearchFile fields for the data to install
+            %          * ...,key,val,...
+            %            'Delete'  - Delete destination contents before install. Default is true.
+            %            'UseNFS'  - Copy from NFS instead of downloading. Default is false.
+            %            'Npwget'  - Number of parallel wget. Default is 10.
+            %            'wgetPars' - wget arguments string.
             % Author : Eran Ofek (Sep 2021)
-            % @Todo: Why static???
-        
+
             arguments
                 Obj
                 DataStruct
                 Args.Delete(1,1) logical  = true;
+                Args.UseNFS(1,1) logical  = false;
                 Args.Npwget               = 10;
                 Args.wgetPars             = '-q -o /dev/null -U Mozilla --no-check-certificate';
             end
-            
-            % Create folder if not exist
+
+            % Create destination folder if needed
             PWD = pwd;
-            Dir = Obj.getDataDir(DataStruct);          
+            Dir = Obj.getDataDir(DataStruct);
             if ~isfolder(Dir)
                 io.msgLog(LogLevel.Info, 'creating folder: %s', Dir);
                 mkdir(Dir);
-            end            
-            cd(Dir);
-       
-            %
-            PartsURL = regexp(DataStruct.URL,'/','split');
-            Nfile    = numel(DataStruct.URL);
-            if Nfile==1
-                % check if file is index.html
-                switch lower(PartsURL{1}{end})
-                    case {'index.html', 'index.htm'}
-                        % get all files in dir
-
-                        [List, IsDir, FileName] = www.find_urls(DataStruct.URL{1}, 'match', DataStruct.SearchFile);
-                        List     = List(~IsDir);
-                        FileName = FileName(~IsDir);
-                    otherwise
-                        % direct file loading
-                        List     = DataStruct.URL;  % cell
-                        FileName = PartsURL{1}{end};
-                end
-            else
-                % retrieve individual files (index.html is not supported)
-                List     = DataStruct.URL;
-                FileName = '*';
             end
-            
-            if numel(List) > 0
-                % delete content before reload
+            cd(Dir);
+
+            if Args.UseNFS
+                % ---- NFS copy path ----
+                NFSBase = Installer.findNFSBase();
+                if isempty(NFSBase)
+                    io.msgLog(LogLevel.Error, 'installSingle: no accessible NFS base path found');
+                    cd(PWD);
+                    return;
+                end
+                NFSSrc = fullfile(NFSBase, DataStruct.SubDir);
+                if ~isfolder(NFSSrc)
+                    io.msgLog(LogLevel.Error, 'installSingle: NFS source not found: %s', NFSSrc);
+                    cd(PWD);
+                    return;
+                end
                 if Args.Delete
-                    io.msgLog(LogLevel.Info, 'deleting content before reload: %s/*', pwd);
-                    delete('*');
+                    io.msgLog(LogLevel.Info, 'deleting content before NFS copy: %s/*', Dir);
+                    delete(fullfile(Dir, '*'));
                 end
+                io.msgLog(LogLevel.Info, 'copying from NFS: %s -> %s', NFSSrc, Dir);
+                [Status, Msg] = system(sprintf("cp -r %s/* %s/", NFSSrc, Dir));
+                if Status ~= 0
+                    io.msgLog(LogLevel.Error, 'NFS copy failed: %s', Msg);
+                    return;
+                end
+
+            else
+                % ---- Web download path (original) ----
+                PartsURL = regexp(DataStruct.URL,'/','split');
+                Nfile    = numel(DataStruct.URL);
+                if Nfile==1
+                    switch lower(PartsURL{1}{end})
+                        case {'index.html', 'index.htm'}
+                            [List, IsDir, FileName] = www.find_urls(DataStruct.URL{1}, 'match', DataStruct.SearchFile);
+                            List     = List(~IsDir);
+                            FileName = FileName(~IsDir);
+                        otherwise
+                            List     = DataStruct.URL;
+                            FileName = PartsURL{1}{end};
+                    end
+                else
+                    List     = DataStruct.URL;
+                    FileName = '*';
+                end
+
                 if numel(List) > 0
+                    if Args.Delete
+                        io.msgLog(LogLevel.Info, 'deleting content before reload: %s/*', pwd);
+                        delete('*');
+                    end
                     io.msgLog(LogLevel.Info, 'pwget: %d item(s) - %s', numel(List), List{1});
-                end
-                
-                try
-                    www.pwget(List, Args.wgetPars, Args.Npwget);
-                catch
-                    io.msgLog(LogLevel.Error, 'www.pwget exception: %s', List{:});
-                end
-                
-                % Wait for completion
-                pause(5);
-                io.files.files_arrived([], 10);
-                
-                % Extract files
-                F = dir('*.gz');
-                for I=1:1:numel(F)
-                    io.msgLog(LogLevel.Info, 'gunzip: %s in %s', F(I).name, pwd);
-                    gunzip(F(I).name);
-                end
-                F = dir('*.tar');
-                for I=1:1:numel(F)
-                    io.msgLog(LogLevel.Info, 'untar: %s in %s', F(I).name, pwd);
-                    untar(F(I).name);
-                end
-                F = dir('*.tar.Z');
-                for I=1:1:numel(F)
-                    io.msgLog(LogLevel.Info, 'untar: %s in %s', F(I).name, pwd);
-                    system('uncompress *.Z');
-                    untar(F(I).name);
-                end
-                F = dir('*.zip');
-                for I=1:1:numel(F)
-                    io.msgLog(LogLevel.Info, 'unzip: %s in %s', F(I).name, pwd);
-                    unzip(F(I).name);
-                    if strcmp(DataStruct.DataName,'Starlib23')
-                        !mv */* .; 
-                        !rmdir specs_513_fits;
+
+                    try
+                        www.pwget(List, Args.wgetPars, Args.Npwget);
+                    catch
+                        io.msgLog(LogLevel.Error, 'www.pwget exception: %s', List{:});
+                    end
+
+                    % Wait for completion
+                    pause(5);
+                    io.files.files_arrived([], 10);
+
+                    % Extract files
+                    F = dir('*.gz');
+                    for I=1:1:numel(F)
+                        io.msgLog(LogLevel.Info, 'gunzip: %s in %s', F(I).name, pwd);
+                        gunzip(F(I).name);
+                    end
+                    F = dir('*.tar');
+                    for I=1:1:numel(F)
+                        io.msgLog(LogLevel.Info, 'untar: %s in %s', F(I).name, pwd);
+                        untar(F(I).name);
+                    end
+                    F = dir('*.tar.Z');
+                    for I=1:1:numel(F)
+                        io.msgLog(LogLevel.Info, 'untar: %s in %s', F(I).name, pwd);
+                        system('uncompress *.Z');
+                        untar(F(I).name);
+                    end
+                    F = dir('*.zip');
+                    for I=1:1:numel(F)
+                        io.msgLog(LogLevel.Info, 'unzip: %s in %s', F(I).name, pwd);
+                        unzip(F(I).name);
+                        if strcmp(DataStruct.DataName,'Starlib23')
+                            !mv */* .;
+                            !rmdir specs_513_fits;
+                        end
+                    end
+
+                    % Delete original archives
+                    try
+                        io.msgLog(LogLevel.Info, 'deleting %s/*.gz', pwd);
+                        delete('*.gz');
+                    end
+                    try
+                        io.msgLog(LogLevel.Info, 'deleting %s/*.tar', pwd);
+                        delete('*.tar');
+                    end
+                    try
+                        io.msgLog(LogLevel.Info, 'deleting %s/*.zip', pwd);
+                        delete('*.zip');
                     end
                 end
-
-                
-                % Delete original archives                
-                try
-                    io.msgLog(LogLevel.Info, 'deleting %s/*.gz', pwd);
-                    delete('*.gz');
-                end
-                try
-                    io.msgLog(LogLevel.Info, 'deleting %s/*.tar', pwd);
-                    delete('*.tar');
-                end
-                try
-                    io.msgLog(LogLevel.Info, 'deleting %s/*.zip', pwd);
-                    delete('*.zip');
-                end
             end
+
             cd(PWD);
-            
         end
         
         function Result = seeAvailableData(Obj)
@@ -570,10 +600,24 @@ classdef Installer < Component
 
             Result = fileparts(mfilename('fullpath'));
             Result = sprintf('%s%s..%s..%s..%s..%sdata',Result, filesep, filesep, filesep, filesep, filesep);
-            
-        end    
 
-    
+        end
+
+        function NFSBase = findNFSBase()
+            % Return the first accessible NFS base path, or [] if none found.
+            % Checks /euclid/matlab_data and /mnt/euclid/matlab_data in order.
+            % Example: NFSBase = Installer.findNFSBase()
+
+            Candidates = {'/euclid/matlab_data', '/mnt/euclid/matlab_data'};
+            NFSBase = [];
+            for I = 1:numel(Candidates)
+                if isfolder(Candidates{I})
+                    NFSBase = Candidates{I};
+                    return;
+                end
+            end
+        end
+
     end
   	
     methods (Static)  % compile mex files
