@@ -3,7 +3,13 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
     % Input  : - Lambda (double array): Wavelength array in Angstrom.
     %            If GetArgNames flag is true, returns ArgNames structure for parameters.
     %          - ParamMatrix (double matrix): Parameter matrix where each row is
-    %            [ZenithAngle_deg, Temperature_C, Pressure_mbar].
+    %            [ZenithAngle_deg, Temperature_C, Pressure_mbar, Co2_ppm].
+    %            Co2_ppm default 395 matches the SMARTS/dast Python reference
+    %            (Simone's UMGTransmittance.__init__ default `co2_ppm=395.`);
+    %            previously hardcoded inline at 420 ("modern atmospheric CO2"),
+    %            which produced systematic ~80 ppm positive dtrans at
+    %            1036-1068 nm (CO2 near-IR band inside LAST bandpass).
+    %            Pass per-row CO2 if you have epoch-specific values.
     %          * ...,key,val,...
     %            'AbsorptionData' - Pre-loaded AbsorptionData object for fast interpolation.
     %                              lsDefault is [].
@@ -19,7 +25,7 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
     % Reference: Gueymard, C. A. (2019). Solar Energy, 187, 233-253.
     % Example: % Basic usage:
     %          Lambda = linspace(3000, 11000, 401)';
-    %          ParamMatrix = [45, 15, 1013; 60, 25, 950; 30, 5, 1020];  % Multiple parameter sets
+    %          ParamMatrix = [45, 15, 1013, 395; 60, 25, 950, 395; 30, 5, 1020, 410];
     %          Result = astro.transmission.umgTransmission(Lambda, ParamMatrix);
     %          AbsData = astro.transmission.loadAbsorptionInterpolantsSMARTS();
     %          Result = astro.transmission.umgTransmission(Lambda, ParamMatrix, 'AbsorptionData', AbsData);
@@ -29,33 +35,24 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
     %
     %          % Usage with CompositeFun:
     %          Model = tools.math.fun.CompositeFun();
-    %          Model.addFun('UMG gases', @astro.transmission.umgTransmission, [], 'Par', [45, 15, 1013]);
+    %          Model.addFun('UMG gases', @astro.transmission.umgTransmission, [], 'Par', [45, 15, 1013, 395]);
 
     arguments
         Lambda        = linspace(3000,11000,401)'
-        ParamMatrix   = [30, 15, 965]           % [ZenithAngle_deg, Temperature_C, Pressure_mbar]
+        ParamMatrix   = [30, 15, 965, 395]      % [ZenithAngle_deg, Temperature_C, Pressure_mbar, Co2_ppm]
         Args.AbsorptionData = []
         Args.Return = []
         Args.UsePersistentCache logical = true  % Enable/disable persistent cache
         Args.Tolerance = 1e-12                  % Parameter comparison tolerance
         Args.GetArgNames logical = false        % Return ArgNames structure instead of calculating
-        % CO2 atmospheric concentration in ppm. Default 395 matches the
-        % SMARTS/dast Python reference (Simone's UMGTransmittance.__init__
-        % default `co2_ppm=395.`) for byte-identical transmission parity.
-        % Previously hardcoded to 420 ("modern atmospheric CO2"), which
-        % produced systematic ~80 ppm positive dtrans at 1036-1068 nm
-        % (CO2's near-IR band edge inside LAST bandpass) — 6.3% relative
-        % over-attenuation in MATLAB's CO2 channel. If you need a different
-        % CO2 value for a specific epoch, pass it explicitly via this arg.
-        Args.Co2_ppm  = 395                     % CO2 concentration [ppm], Simone parity
     end
     
     % Return ArgNames structure if requested
     if Args.GetArgNames
-        Result = struct('Name', {1, 2, 3}, ...
-                       'Description', {'ZenithAngle_deg', 'Temperature_C', 'Pressure_mbar'}, ...
-                       'Min', {0, -50, 800}, ...
-                       'Max', {90, 50, 1100});
+        Result = struct('Name', {1, 2, 3, 4}, ...
+                       'Description', {'ZenithAngle_deg', 'Temperature_C', 'Pressure_mbar', 'Co2_ppm'}, ...
+                       'Min', {0, -50, 800, 350}, ...
+                       'Max', {90, 50, 1100, 500});
         return;
     end
 
@@ -78,18 +75,15 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
     end
 
     % Validate input dimensions
-    if size(ParamMatrix, 2) ~= 3
-        error('ParamMatrix must have 3 columns: [ZenithAngle_deg, Temperature_C, Pressure_mbar]');
+    if size(ParamMatrix, 2) ~= 4
+        error('ParamMatrix must have 4 columns: [ZenithAngle_deg, Temperature_C, Pressure_mbar, Co2_ppm]');
     end
-
-    % CO2 concentration in ppm — pulled from Args (default 395, Simone parity).
-    Co2_ppm = Args.Co2_ppm;
-%    With_trace_gases = true;  % Always include trace gases
 
     % Extract parameters
     ZenithAngles = ParamMatrix(:, 1);  % Column vector
     Temperatures = ParamMatrix(:, 2);  % Column vector (Celsius)
-    Pressures = ParamMatrix(:, 3);     % Column vector (mbar)
+    Pressures    = ParamMatrix(:, 3);  % Column vector (mbar)
+    Co2_ppms     = ParamMatrix(:, 4);  % Column vector (ppm) — Simone parity default 395
     NumParamSets = size(ParamMatrix, 1);
     NumWavelengths = length(Lambda);
     
@@ -111,9 +105,9 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
     % Calculate airmasses for all zenith angles at once (vectorized)
     Airmasses = astro.transmission.airmassSMARTS(ZenithAngles);
 
-    % Group by unique (Temperature, Pressure) pairs to avoid redundant
-    % getInterpolated calls and abundance calculations
-    NonZA = [Temperatures, Pressures];
+    % Group by unique (Temperature, Pressure, Co2_ppm) triples to avoid
+    % redundant getInterpolated calls and abundance calculations.
+    NonZA = [Temperatures, Pressures, Co2_ppms];
     [UniqNonZA, ~, Ic] = unique(NonZA, 'rows');
 
     Result = zeros(NumWavelengths, NumParamSets);
@@ -121,8 +115,9 @@ function Result = umgTransmission(Lambda, ParamMatrix, Args)
     for ig = 1:size(UniqNonZA, 1)
         Mask = (Ic == ig);
 
-        Tair = UniqNonZA(ig, 1);
+        Tair     = UniqNonZA(ig, 1);
         Pressure = UniqNonZA(ig, 2);
+        Co2_ppm  = UniqNonZA(ig, 3);
 
         % Convert temperature and normalize pressure/temperature
         Tair_kelvin = Tair + 273.15;
