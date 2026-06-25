@@ -77,11 +77,10 @@ classdef Installer < Component
             %            'Delete' - A logical indicating if to delete
             %                   data before installation.
             %                   Default is true.
-            %            'UseNFS' - If true, copy uncompressed data from the
+            %            'Server' - Source server: 'aws' (default) downloads from the
+            %                   web; 'euclid' copies uncompressed data from the
             %                   local NFS mount (/euclid/matlab_data or
-            %                   /mnt/euclid/matlab_data) instead of
-            %                   downloading from the web.
-            %                   Default is false.
+            %                   /mnt/euclid/matlab_data), skipping decompression.
             %            'Npwget' - Number of parallel wget. Default is 10.
             %            'wgetPars' - A cell array of additional wget
             %                   arguments. Default is '--quiet --timeout=10 --output-file=/dev/null --user-agent=Mozilla --no-check-certificate'.
@@ -91,13 +90,13 @@ classdef Installer < Component
             %          I.install(5)         % install the 5th data name: PicklesStellarSpec
             %          I.install('Time');   % install the Time data name
             %          I.install({'Time','MinorPlanets'})
-            %          I.install({'cats'}, 'UseNFS', true)  % copy from NFS
+            %          I.install({'cats'}, 'Server','euclid')  % copy from NFS
 
             arguments
                 Obj
                 DataName                  = {};
                 Args.Delete(1,1) logical  = true;
-                Args.UseNFS(1,1) logical  = false;
+                Args.Server               = 'aws';
                 Args.Npwget               = 10;
                 Args.wgetPars             = '--quiet --timeout=10 --output-file=/dev/null --user-agent=Mozilla --no-check-certificate';
             end
@@ -123,7 +122,7 @@ classdef Installer < Component
                 if isfield(Obj.Items, Name)
                     Item = Obj.Items.(Name);                                                                         
                     try
-                        Obj.installSingle(Item, 'Delete',Args.Delete, 'UseNFS',Args.UseNFS, 'Npwget',Args.Npwget, 'wgetPars',Args.wgetPars);
+                        Obj.installSingle(Item, 'Delete',Args.Delete, 'Server',Args.Server, 'Npwget',Args.Npwget, 'wgetPars',Args.wgetPars);
                     catch
                         io.msgLog(LogLevel.Error, 'installSingle failed: %s', Name);
                     end
@@ -148,7 +147,8 @@ classdef Installer < Component
             %            SearchFile fields for the data to install
             %          * ...,key,val,...
             %            'Delete'  - Delete destination contents before install. Default is true.
-            %            'UseNFS'  - Copy from NFS instead of downloading. Default is false.
+            %            'Server'  - 'aws' (default) downloads from the web;
+            %                        'euclid' copies from local NFS mount.
             %            'Npwget'  - Number of parallel wget. Default is 10.
             %            'wgetPars' - wget arguments string.
             % Author : Eran Ofek (Sep 2021)
@@ -157,7 +157,7 @@ classdef Installer < Component
                 Obj
                 DataStruct
                 Args.Delete(1,1) logical  = true;
-                Args.UseNFS(1,1) logical  = false;
+                Args.Server               = 'aws';
                 Args.Npwget               = 10;
                 Args.wgetPars             = '-q -o /dev/null -U Mozilla --no-check-certificate';
             end
@@ -171,7 +171,7 @@ classdef Installer < Component
             end
             cd(Dir);
 
-            if Args.UseNFS
+            if strcmpi(Args.Server, 'euclid')
                 % ---- NFS copy path ----
                 NFSBase = Installer.findNFSBase();
                 if isempty(NFSBase)
