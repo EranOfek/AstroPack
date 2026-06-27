@@ -321,7 +321,7 @@ classdef CelCoo < matlab.mixin.Copyable
             else
                 EpochType = 'J';
             end
-            Obj.Epoch = Epocj;
+            Obj.Epoch = Epoch;
 
         end
 
@@ -350,7 +350,7 @@ classdef CelCoo < matlab.mixin.Copyable
             else
                 EpochType = 'J';
             end
-            Obj.Epoch = Epocj;
+            Obj.Equinox = Epoch;
 
         end
 
@@ -883,10 +883,7 @@ classdef CelCoo < matlab.mixin.Copyable
             RA  = Obj.RA;
             Dec = Obj.Dec;
             if isempty(RA) || isempty(Dec)
-                Rise   = [];
-                Set    = [];
-                RiseAz = [];
-                SetAz  = [];
+                [varargout{1:nargout}] = deal([]);
                 return;
             end
             if ~isequal(size(RA), size(Dec))
@@ -1440,9 +1437,9 @@ classdef CelCoo < matlab.mixin.Copyable
 
             % equation of time [min]
             [Sun.RA,Sun.Dec,~,~,Sun.EqOfTime]=celestial.SolarSys.suncoo(JD, 'a');
-            [Sun.Az, Sun.Alt] = celestial.coo.radec2azalt(JD, Sun.RA, Sun.Dec,'GeoCoo',Obj.GeoCoo(1:2)./RAD, 'InUnits','rad', 'OutUnits','rad','LSTType','m');
-            [~, Alt2] = celestial.coo.radec2azalt(JD+0.01./1440, Sun.RA, Sun.Dec,'GeoCoo',Obj.GeoCoo(1:2)./RAD, 'InUnits','rad', 'OutUnits','rad','LSTType','m');
-            Sun.SltDir = sign(Alt2-Sun.Alt);
+            [Sun.Az, Sun.Alt] = celestial.coo.radec2azalt(JD, Sun.RA, Sun.Dec,'GeoCoo',Args.GeoCoo(1:2)./RAD, 'InUnits','rad', 'OutUnits','rad','LSTType','m');
+            [~, Alt2] = celestial.coo.radec2azalt(JD+0.01./1440, Sun.RA, Sun.Dec,'GeoCoo',Args.GeoCoo(1:2)./RAD, 'InUnits','rad', 'OutUnits','rad','LSTType','m');
+            Sun.AltDir = sign(Alt2-Sun.Alt);
 
             Conv = convert.angular('rad',Args.OutUnits);
 
@@ -1503,7 +1500,7 @@ classdef CelCoo < matlab.mixin.Copyable
             end
 
             [Moon.RA,Moon.Dec]=celestial.SolarSys.mooncool(JD, Args.GeoCoo(1:2)./RAD, 'b');
-            [Moon.Az, Moon.Alt] = celestial.coo.radec2azalt(JD, Moon.RA, Moon.Dec,'GeoCoo',Obj.GeoCoo(1:2)./RAD, 'InUnits','rad', 'OutUnits','rad','LSTType','m');
+            [Moon.Az, Moon.Alt] = celestial.coo.radec2azalt(JD, Moon.RA, Moon.Dec,'GeoCoo',Args.GeoCoo(1:2)./RAD, 'InUnits','rad', 'OutUnits','rad','LSTType','m');
             
             Conv = convert.angular('rad',Args.OutUnits);
 
