@@ -57,6 +57,9 @@ function [XYfull, Result] = addXYfull(Obj, Args)
     NewColUnits = {'',''};
 
     Nobj = numel(Obj);
+    if Nobj < 1
+        XYfull = [];
+    end
     for Iobj=1:1:Nobj
         CCDSEC = Result(Iobj).HeaderData.getVal(Args.KeyCCDSEC, 'UseDict',false);
         CCDSEC = imUtil.ccdsec.ccdsecStr2num(CCDSEC);
