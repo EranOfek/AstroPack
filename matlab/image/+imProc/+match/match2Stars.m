@@ -435,6 +435,11 @@ function [Matches, Distances, MatchedBpMags, MatchedRpMags, MatchProb] = matchSt
             ExtraPenalty(QsoFlag) = ExtraPenalty(QsoFlag) .* QsoPenalty;
             ExtraPenalty(GalaxyFlag) = ExtraPenalty(GalaxyFlag) .* GalaxyPenalty;
 
+            % Strong stellar astrometry overrides Gaia extragalactic candidate flags.
+            StrongAstrometry = (PlxSig > 5) | (MuSig > 5);
+            
+            ExtraPenalty(StrongAstrometry) = 1;
+
             % Combined score
             ProbGood = Pdist .* ...
                 (AstroWeightFloor + (1 - AstroWeightFloor) .* Pastro) .* ...
