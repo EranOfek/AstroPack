@@ -279,72 +279,69 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
                 
                 CoverageAll = sum(ismember(Raster0, RasterC))/numel(Raster0);
                 if CoverageAll < Args.MinAllowedCoverage
+                    % incomplete coverage: skip this epoch
                     if Args.Verbose > 1
                         fprintf('Incomplete coverage of %.4f, epoch %d is skipped\n', CoverageAll, Igroup);
                     end
-                    RefImage = AstroImage; % empty
-                    continue % to the next epoch                    
-                end
-                
-                % 4.1 retrieve the crop images
-                if Args.Verbose > 0
-                    fprintf('Group %d: %d images filtered, dowloading and stitching...',Igroup,Nim);
-                end
-            
-                % Replace this block after verification 
-                AF = AstroFileName;
-                AF.ProjName = {'LAST', 1, TabGrp.mountnum, TabGrp.camnum};
-                AF.JD = double(TabGrp.jd_start);
-                AF.julday2time;
-                AF.Time = extractBefore(AF.Time, ".") + "." + TabGrp.filetime; % repair the last digits from 'filetime'
-                AF.FieldID = TabGrp.fieldid;
-                AF.CropID  = TabGrp.cropid;
-                AF.Counter = 0;
-                AF.Level   = "coadd";
-                AF.CCDID   = 1;
-                AF.SubDir  = TabGrp.subdir;
-                AF.BasePath                = Args.BasePath;
-                AF.BasePathIncludeProjName = true;
-                AF.AddSubDir               = true;
-                
-                AI = AstroImage.readProducts(AF.genFull);
-                
-                % for:
-%                 AI=pipeline.last.queryDB.loadProducts(TabGrp); % does not load anything ?                
-
-                % check if WCS is present in all the selected crops
-                if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
-                    Info(K).CounterBadWCS = Info(K).CounterBadWCS + 1;
-%                 if all(arrayfun(@(x) x.WCS.Success, AI))
+                else
+                    % 4.1 retrieve the crop images
                     if Args.Verbose > 0
-                        cprintf('red','\nWCS is not correct in one or several crops, skipping the epoch %d\n',Igroup);
+                        fprintf('Group %d: %d images filtered, dowloading and stitching...',Igroup,Nim);
                     end
-                    RefImage = AstroImage; % empty
-                    continue;
-                else
-                    Info(K).CounterGoodWCS = Info(K).CounterGoodWCS + 1;
+
+                    % Replace this block after verification
+                    AF = AstroFileName;
+                    AF.ProjName = {'LAST', 1, TabGrp.mountnum, TabGrp.camnum};
+                    AF.JD = double(TabGrp.jd_start);
+                    AF.julday2time;
+                    AF.Time = extractBefore(AF.Time, ".") + "." + TabGrp.filetime; % repair the last digits from 'filetime'
+                    AF.FieldID = TabGrp.fieldid;
+                    AF.CropID  = TabGrp.cropid;
+                    AF.Counter = 0;
+                    AF.Level   = "coadd";
+                    AF.CCDID   = 1;
+                    AF.SubDir  = TabGrp.subdir;
+                    AF.BasePath                = Args.BasePath;
+                    AF.BasePathIncludeProjName = true;
+                    AF.AddSubDir               = true;
+
+                    AI = AstroImage.readProducts(AF.genFull);
+
+                    % for:
+%                     AI=pipeline.last.queryDB.loadProducts(TabGrp); % does not load anything ?
+
+                    % check if WCS is present in all the selected crops
+                    if any(isnan(arrayfun(@(x) x.WCS.PhiP, AI)))
+                        % bad WCS in one or several crops: skip this epoch
+                        Info(K).CounterBadWCS = Info(K).CounterBadWCS + 1;
+                        if Args.Verbose > 0
+                            cprintf('red','\nWCS is not correct in one or several crops, skipping the epoch %d\n',Igroup);
+                        end
+                    else
+                        Info(K).CounterGoodWCS = Info(K).CounterGoodWCS + 1;
+
+                        % 4.2 stitch the set of covering crops
+                        %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
+                        StitchedImage = imProc.stack.stitchCrops(AI, ...
+                            'UpdateWCS',true,'UpdateZP',true, ...
+                            'AstrometricCat',AstrometricCat,'PhotCat',PhotCat);
+
+                        if isnan(julday(StitchedImage))
+                            StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabGrp.jd_start(Igroup));
+                        end
+
+                        if Args.Verbose > 0
+                            fprintf(' done \n');
+                        end
+
+                        % add the images to the stack
+                        if exist('StackImages','var')
+                            StackImages = [StackImages StitchedImage];
+                        else
+                            StackImages = StitchedImage;
+                        end
+                    end
                 end
-                
-                % 4.2 stitch the set of covering crops
-                %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
-                StitchedImage = imProc.stack.stitchCrops(AI, ...
-                    'UpdateWCS',true,'UpdateZP',true, ...
-                    'AstrometricCat',AstrometricCat,'PhotCat',PhotCat);
-                
-                if isnan(julday(StitchedImage))
-                    StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabGrp.jd_start(Igroup));
-                end
-                
-                if Args.Verbose > 0
-                    fprintf(' done \n');
-                end
-                
-                % add the images to the stack
-                if exist('StackImages','var')
-                    StackImages = [StackImages StitchedImage];
-                else
-                    StackImages = StitchedImage;
-                end                                  
             end % groups (epochs + telescopes)
             
             % do the stacking 
