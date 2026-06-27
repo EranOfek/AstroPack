@@ -110,6 +110,11 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
         Result.Mask(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)  = AIc.Mask;
     end
 
+    % the crop NearEdge and Overlap flags are meaningless after stitching
+    AllPix = true(Ny,Nx);
+    Result.MaskData = Result.MaskData.maskSet(AllPix, 'NearEdge', 0);
+    Result.MaskData = Result.MaskData.maskSet(AllPix, 'Overlap',  0);
+
     % merge the catalogs:
     Result.CatData = merge(MCat);
     Result.CatData.JD = MCat(1).julday;
