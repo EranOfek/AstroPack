@@ -843,14 +843,17 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             % with flux of 10^5:
                             %BS_RadProf = io.files.load2('/home/eran/LAST_BrightStar_RadialProfile.mat');
         
-                            ColData = AI.CatData.getColMulti({'XPEAK','YPEAK','FLUX_APER_3'});
+                            ColData = AI.CatData.getColMulti({'XPEAK','YPEAK','FLUX_APER_3','FLUX_APER_4'});
                             % 
-                            MinFluxFlag = ColData(:,3)>1e5;
+                            FluxAnnulus = ColData(:,4) - ColData(:,3);
+                            %MinFluxFlag = ColData(:,3)>1e5;
+                            MinFluxFlag = FluxAnnulus>3e3; 
                             X = ColData(MinFluxFlag,1);
                             Y = ColData(MinFluxFlag,2);
-                            Flux = ColData(MinFluxFlag,3);
-                            FW   = (Result(Iobj).PSFData.fwhm./3.0).^(-2); % try to take into account PSF and saturation...
-                            FluxNorm = FW.*(Flux./1e5).^Args.BS_PL;
+                            %Flux = ColData(MinFluxFlag,3);
+                            %FW   = (Result(Iobj).PSFData.fwhm./3.0).^(-2); % try to take into account PSF and saturation...
+                            %FluxNorm = FW.*(Flux./1e5).^Args.BS_PL;
+                            FluxNorm = FluxAnnulus(MinFluxFlag)./3e3;
                             % 
                             MaxRadiusF = repmat(MaxRadius,size(X));
                             
