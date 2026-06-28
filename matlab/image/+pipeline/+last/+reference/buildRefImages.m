@@ -91,7 +91,8 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
         Args.StackMethodArgs    = {}; %{'coadd_WRobustArgs',{'backVarArgs',{'Method',@imUtil.background.modeVar_Hist}}};     
         Args.CoaddFunctionArgs  = {}; % additional arguments to be passed to the coadd function 
         
-        Args.PixScale           = 1.25;        
+        Args.PixScale           = 1.25;
+        Args.EdgeDist           = 10;  % [pix] distance from the frame edge to flag with the NearEdge mask bit
         
         Args.Write2Disk         = true;
         Args.OutputDir          = '~/NewRef/';        
@@ -380,9 +381,11 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
                                     'KeyZP','PH_ZP',...
                                     'BackMagArgs',{});
 
-                
+                % 5a. flag the frame edges of the coadded/warped reference image
+                EdgeFlag = imUtil.ccdsec.selectNearEdges(size(RefImage.Image), Args.EdgeDist);
+                RefImage.MaskData = RefImage.MaskData.maskSet(EdgeFlag, 'NearEdge', 1);
 
-                % 5a. add the ID_REF keyword
+                % 5b. add the ID_REF keyword
                 RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MOUNTNUM', 0);
                 RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'CAMNUM', 0);
                 JD = RefImage.getStructKey('MIDJD').MIDJD;
