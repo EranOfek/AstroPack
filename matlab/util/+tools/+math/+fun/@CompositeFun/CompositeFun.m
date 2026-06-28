@@ -2985,7 +2985,10 @@ classdef CompositeFun < handle
                 end
             end
 
-            % Setup optimization options for nonlinear solver
+            % Setup optimization options for nonlinear solver.
+            % Tolerances match scipy.optimize.leastsq defaults (ftol=xtol=1.49e-8)
+            % for Simone-pipeline parity; MATLAB defaults of 1e-6 on Step/Optimality
+            % halt in the flat Norm-Center valley and produce image-dependent Center scatter.
             if isempty(Args.OptimOptions)
                 if Args.Verbose
                     DisplayOpt = 'iter';
@@ -2993,7 +2996,10 @@ classdef CompositeFun < handle
                     DisplayOpt = 'off';
                 end
                 OptimOpts = optimoptions('lsqnonlin', 'Display', DisplayOpt, ...
-                    'MaxIterations', 1000, 'FunctionTolerance', 1e-8);
+                    'MaxIterations', 1000, ...
+                    'FunctionTolerance',   1.49e-8, ...
+                    'StepTolerance',       1.49e-8, ...
+                    'OptimalityTolerance', 1e-10);
             else
                 OptimOpts = Args.OptimOptions;
             end
@@ -3625,7 +3631,10 @@ classdef CompositeFun < handle
             GlobalKeepMask = true(NCalUsedInitial, 1);
             CurrentIndices = (1:NCalUsedInitial)';
 
-            % Setup optimization options once for all stages (avoid repeated optimoptions calls)
+            % Setup optimization options once for all stages (avoid repeated optimoptions calls).
+            % Tolerances match scipy.optimize.leastsq defaults (ftol=xtol=1.49e-8)
+            % for Simone-pipeline parity; MATLAB defaults of 1e-6 on Step/Optimality
+            % halt in the flat Norm-Center valley and produce image-dependent Center scatter.
             if isempty(Args.OptimOptions)
                 if Args.Verbose
                     DisplayOpt = 'iter';
@@ -3633,7 +3642,10 @@ classdef CompositeFun < handle
                     DisplayOpt = 'off';
                 end
                 OptimOpts = optimoptions('lsqnonlin', 'Display', DisplayOpt, ...
-                    'MaxIterations', 1000, 'FunctionTolerance', 1e-8);
+                    'MaxIterations', 1000, ...
+                    'FunctionTolerance',   1.49e-8, ...
+                    'StepTolerance',       1.49e-8, ...
+                    'OptimalityTolerance', 1e-10);
             else
                 OptimOpts = Args.OptimOptions;
             end

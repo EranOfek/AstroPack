@@ -23,7 +23,7 @@
 % get_nsrc - Count number of sources over all HTM in HDF5 files Package: @catsHTM
 % getNsrcMeta - Count sources per HTM cell from HDF5 metadata only. Package: @catsHTM Description: Same output as catsHTM.get_nsrc but reads each dataset's row count from h5info dataspace dimensions instead of loading data with h5read. (Author: Dana Kovaleva, Mar 2026)
 % htm_search_cone - Search for all HTM leafs interscting a small circle (cone search) Package: @catsHTM Description: Search for all HTM leafs interscting a small circle (i.e., cone search).
-% insertColumn - Insert a new column into every HTM cell of a catsHTM catalog. Package: @catsHTM Description: Adds a single new column by rewriting every htm_<id> dataset and updating the ColCell .mat file. Auto-shifts SortCol if inserted at or before its position. (Author: Dana Kovaleva, May 2026)
+% insertColumns - Insert one or more new columns into every HTM cell of a catsHTM catalog. Package: @catsHTM Description: Adds a contiguous block of new columns in a single pass by rewriting every htm_<id> dataset and updating the ColCell .mat file. Auto-shifts SortCol if inserted at or before its position. insertColumn is a single-column alias. (Author: Dana Kovaleva, May 2026)
 % load_1htm - Load a single tile of HDF5/HTM catalog Package: @catsHTM Description: Load a single HTM tile of HDF5/HTM catalog based on its HTM index. This is slower relative to catsHTM.load_cat,
 % load_cat - Load catalog stored in an HDF5 file Package: @catsHTM Description: Load catalog stored in an HDF5 file. Given a a catalog in HDF5 file created by HDF5.save_cat, load the catalog. The catalog is
 % load_cat_edge - Load and concat HDF5/HTM catalog and its edge catalog Package: @catsHTM Description: Load and concat HDF5/HTM catalog and its edge catalog
@@ -2418,24 +2418,32 @@ classdef catsHTM
         end
 
 
-        function Result = insertColumn(CatName, ColName, ColUnit, OutDir, Args)
-            % Insert a new column into every HTM cell of a catsHTM catalog.
+        function Result = insertColumns(CatName, ColName, ColUnit, OutDir, Args)
+            % Insert one or more new columns into every HTM cell of a catsHTM catalog.
             % Package: @catsHTM
-            % Description: Adds a single new column to a catsHTM catalog by
-            %              rewriting every htm_<id> dataset and updating
+            % Description: Adds one or more new columns to a catsHTM catalog
+            %              by rewriting every htm_<id> dataset and updating
             %              the ColCell .mat file. The source catalog at
             %              BaseDir is read but never modified; modified
             %              files are written under OutDir. The HTM index
             %              file is unchanged (Nsrc per cell does not change).
             %
-            %              SortCol is auto-shifted if the new column is
+            %              Multiple columns are inserted as one contiguous
+            %              block in a SINGLE pass over the catalog (every
+            %              data file is copied/rewritten only once) - avoid
+            %              calling this once per column when the per-row
+            %              payload is large (e.g. spectral catalogs).
+            %
+            %              SortCol is auto-shifted if the new block is
             %              inserted at or before its current position.
             %
             % Input  : - CatName  : Catalog name (e.g., 'ForcedPhotList').
-            %          - ColName  : Name for the new column (must be unique
-            %                       within the catalog).
-            %          - ColUnit  : Unit string for the new column (e.g.,
-            %                       'day', 'mag', '').
+            %          - ColName  : Name for the new column (char), or a
+            %                       cellstr of names for multi-column insert.
+            %                       Each must be unique within the catalog.
+            %          - ColUnit  : Unit string (char) applied to all new
+            %                       columns, or a cellstr matching ColName
+            %                       element-by-element (e.g. 'day','mag','').
             %          - OutDir   : Writable directory mirroring BaseDir.
             %                    * ...,key,val,...
             %                      'BaseDir'         - Source catsHTM root, read-only.
@@ -2443,17 +2451,27 @@ classdef catsHTM
             %                              or '/euclid/catsHTM'.
             %                       'CatRelDir'       - Catalog subdir under BaseDir.
             %                              Default looked up from registry.
-            %                       'FillValue'       - Scalar fill (default 0) OR a
+            %                       'FillValue'       - Scalar fill (default 0,
+            %                              broadcast to all new columns) OR a
             %                              function handle of the form
-            %                              @(M) Vec where M is the existing
+            %                              @(M) Block where M is the existing
             %                              [Nrows x Ncol] cell matrix and
-            %                              Vec is the [Nrows x 1] new column.
+            %                              Block is the [Nrows x K] new-column
+            %                              block (K = number of names; a
+            %                              [Nrows x 1] vector is accepted when
+            %                              K==1).
             %                       'Position'        - 'end' (default) or numeric
-            %                              insert index in 1..Ncol+1.
+            %                              insert index in 1..Ncol+1 (start of
+            %                              the new block).
             %                       'SortCol'         - Existing SortCol (default 2 = Dec).
             %                              Auto-shifted on insert.
             %                       'StepRows'        - Default 30.
             %                       'NfilesInHDF'     - Default 100.
+            %                       'SkipExisting'    - Resume mode. Skip a source
+            %                              data file whose OutDir copy already has
+            %                              every htm cell at the post-insert column
+            %                              count; partially written or old-width
+            %                              files are reprocessed. Default false.
             %                       'DryRun'          - List affected files, no writes.
             %                              Default false.
             %                       'Verbose'         - Print progress. Default false.
@@ -2466,13 +2484,18 @@ classdef catsHTM
             %            .NewSortCol      - SortCol position after insert
             % Author : Dana Kovaleva (May 2026)
             % Example:
-            %   R = catsHTM.insertColumn('ForcedPhotList', 'JD_Added', 'day', ...
-            %                            '~/tmp/cats_mod', 'FillValue', 0);
+            %   % single column (or use the insertColumn alias):
+            %   R = catsHTM.insertColumns('ForcedPhotList', 'JD_Added', 'day', ...
+            %                             '~/tmp/cats_mod', 'FillValue', 0);
+            %   % block of columns from a per-cell function, one pass:
+            %   R = catsHTM.insertColumns('GAIADR3spec', {'PMRA','PMDec'}, ...
+            %                             {'mas/yr','mas/yr'}, '~/tmp/cats_mod', ...
+            %                             'FillValue', @(M) lookupBlock(M(:,1:2)));
 
             arguments
                 CatName            (1,:) char
-                ColName            (1,:) char
-                ColUnit            (1,:) char
+                ColName
+                ColUnit
                 OutDir             (1,:) char
                 Args.BaseDir       (1,:) char    = ''
                 Args.CatRelDir     (1,:) char    = ''
@@ -2481,6 +2504,7 @@ classdef catsHTM
                 Args.SortCol       (1,1) double  = 2
                 Args.StepRows      (1,1) double  = 30
                 Args.NfilesInHDF   (1,1) double  = 100
+                Args.SkipExisting  (1,1) logical = false
                 Args.DryRun        (1,1) logical = false
                 Args.Verbose       (1,1) logical = false
             end
@@ -2499,19 +2523,50 @@ classdef catsHTM
             % Existing ColCell / ColUnits
             [ColCell, ColUnits] = catsHTM.load_colcell_from_dir(SrcDir, CatName);
             Ncol = numel(ColCell);
-            if any(strcmp(ColCell, ColName))
-                error('catsHTM:insertColumn:DuplicateName', ...
-                    'Column "%s" already exists in catalog %s.', ColName, CatName);
+
+            % Normalize ColName/ColUnit to cellstr (accept a single char
+            % name or a cellstr of names for multi-column insertion).
+            if ischar(ColName)
+                NewNames = {ColName};
+            elseif isstring(ColName)
+                NewNames = cellstr(ColName(:).');
+            else
+                NewNames = ColName(:).';   % assume cellstr
             end
+            Knew = numel(NewNames);
+            if ischar(ColUnit)
+                NewUnits = repmat({ColUnit}, 1, Knew);
+            elseif isstring(ColUnit)
+                NewUnits = cellstr(ColUnit(:).');
+            else
+                NewUnits = ColUnit(:).';   % assume cellstr
+            end
+            if numel(NewUnits) ~= Knew
+                error('catsHTM:insertColumn:UnitCountMismatch', ...
+                    'ColUnit must be a single unit or match the %d column name(s).', Knew);
+            end
+
+            % Duplicate-name checks (vs existing columns, and within new set)
+            for In = 1:Knew
+                if any(strcmp(ColCell, NewNames{In}))
+                    error('catsHTM:insertColumn:DuplicateName', ...
+                        'Column "%s" already exists in catalog %s.', NewNames{In}, CatName);
+                end
+            end
+            if numel(unique(NewNames)) ~= Knew
+                error('catsHTM:insertColumn:DuplicateNewName', ...
+                    'Duplicate names within the requested new columns.');
+            end
+
             if isempty(ColUnits)
                 ColUnits = repmat({''}, 1, Ncol);
             elseif numel(ColUnits) < Ncol
                 ColUnits = [ColUnits(:).', repmat({''}, 1, Ncol - numel(ColUnits))];
             end
 
-            % Position
+            % Position (start index of the inserted block)
             if (ischar(Args.Position) || isstring(Args.Position))
-                if ~strcmpi(char(Args.Position), 'end')
+                if ~strcmpi(Args.Position, 'end')
                     error('catsHTM:insertColumn:BadPosition', ...
                         'Position must be ''end'' or a numeric index in 1..Ncol+1.');
                 end
@@ -2524,13 +2579,13 @@ classdef catsHTM
                 end
             end
 
-            NewColCell  = [ColCell(1:Pos-1), {ColName}, ColCell(Pos:end)];
-            NewColUnits = [ColUnits(1:Pos-1), {ColUnit}, ColUnits(Pos:end)];
+            NewColCell  = [ColCell(1:Pos-1), NewNames, ColCell(Pos:end)];
+            NewColUnits = [ColUnits(1:Pos-1), NewUnits, ColUnits(Pos:end)];
 
-            % Auto-shift SortCol
+            % Auto-shift SortCol if the new block is inserted at/before it
             NewSortCol = Args.SortCol;
             if Pos <= Args.SortCol
-                NewSortCol = Args.SortCol + 1;
+                NewSortCol = Args.SortCol + Knew;
             end
 
             % Iterate over all data files in BaseDir
@@ -2557,8 +2612,39 @@ classdef catsHTM
                     continue;
                 end
 
+                % Resume: skip a source file whose OutDir copy already has
+                % every htm cell at the post-insert column count.
+                if Args.SkipExisting && ~Args.DryRun && isfile(DstFile)
+                    InfoD = h5info(DstFile);
+                    NmD   = {InfoD.Datasets.Name};
+                    IndHD = find(cellfun(@numel, strfind(NmD, '_')) == 1);
+                    DoneF = ~isempty(IndHD);
+                    for Iq = 1:numel(IndHD)
+                        Sz = InfoD.Datasets(IndHD(Iq)).Dataspace.Size;
+                        if ~any(Sz == numel(NewColCell))
+                            DoneF = false;
+                        end
+                    end
+                    if DoneF
+                        DirtyFiles(DstFile) = true;   % keep so index is rewritten
+                        if Args.Verbose
+                            fprintf('  %s: already complete - skipped (resume)\n', Files(If).name);
+                        end
+                        continue;
+                    end
+                end
+
+                % Write the OutDir file FRESH (no copyfile). Every htm cell
+                % in the file is rewritten with the new column block, so
+                % copying the source first (then overwriting every dataset)
+                % is pure I/O waste - costly for fat catalogs on NFS. catsHTM
+                % data files hold only htm_<id>/_Ind datasets (all rewritten
+                % here), so nothing is lost. Start from a clean DstFile so
+                % save_cat's H5D.create does not hit pre-existing datasets.
                 if ~Args.DryRun && ~DirtyFiles.isKey(DstFile)
-                    copyfile(SrcFile, DstFile);
+                    if isfile(DstFile)
+                        delete(DstFile);
+                    end
                     DirtyFiles(DstFile) = true;
                 end
 
@@ -2568,22 +2654,22 @@ classdef catsHTM
                     Nrows = size(Cat, 1);
 
                     if IsFunFill
-                        FillVec = Args.FillValue(Cat);
-                        FillVec = FillVec(:);
-                        if numel(FillVec) ~= Nrows
+                        FillBlock = Args.FillValue(Cat);
+                        if Knew == 1
+                            FillBlock = FillBlock(:);
+                        end
+                        if ~isequal(size(FillBlock), [Nrows, Knew])
                             error('catsHTM:insertColumn:FillSizeMismatch', ...
-                                'FillValue function returned %d values for %d rows in %s.', ...
-                                numel(FillVec), Nrows, DataSetName);
+                                'FillValue function returned a %dx%d block; expected %dx%d in %s.', ...
+                                size(FillBlock,1), size(FillBlock,2), Nrows, Knew, DataSetName);
                         end
                     else
-                        FillVec = repmat(Args.FillValue, Nrows, 1);
+                        FillBlock = repmat(Args.FillValue, Nrows, Knew);
                     end
 
-                    NewCat = [Cat(:, 1:Pos-1), FillVec, Cat(:, Pos:end)];
+                    NewCat = [Cat(:, 1:Pos-1), FillBlock, Cat(:, Pos:end)];
 
                     if ~Args.DryRun
-                        catsHTM.delete_dataset(DstFile, ['/' DataSetName]);
-                        catsHTM.delete_dataset(DstFile, ['/' DataSetName '_Ind']);
                         catsHTM.save_cat(DstFile, DataSetName, NewCat, NewSortCol, Args.StepRows);
                     end
 
@@ -2606,6 +2692,17 @@ classdef catsHTM
                 DirtyFiles(ColCellFile) = true;
             end
 
+            % HTM index .hdf5: unchanged by a column add (same Nsrc / HTM
+            % structure), so copy it from BaseDir so OutDir is a complete,
+            % queryable catalog.
+            [IndexFileName, ~] = catsHTM.get_index_filename(CatName);
+            SrcIndex = fullfile(SrcDir, IndexFileName);
+            DstIndex = fullfile(DstDir, IndexFileName);
+            if ~Args.DryRun && isfile(SrcIndex) && ~isfile(DstIndex)
+                copyfile(SrcIndex, DstIndex);
+                DirtyFiles(DstIndex) = true;
+            end
+
             FilesAbs = DirtyFiles.keys;
             ModifiedFiles = cell(numel(FilesAbs), 1);
             for If = 1:numel(FilesAbs)
@@ -2621,14 +2718,30 @@ classdef catsHTM
                 'NewSortCol',     NewSortCol);
 
             if Args.Verbose
-                fprintf('insertColumn: added "%s" at position %d across %d cell(s), %d row(s)%s\n', ...
-                    ColName, Pos, CellsTouched, RowsTouched, ...
+                fprintf('insertColumns: added %d column(s) [%s] at position %d across %d cell(s), %d row(s)%s\n', ...
+                    Knew, strjoin(NewNames, ', '), Pos, CellsTouched, RowsTouched, ...
                     repmat(' (dry-run)', 1, double(Args.DryRun)));
                 fprintf('  Files written under %s:\n', OutDir);
                 for If = 1:numel(ModifiedFiles)
                     fprintf('    %s\n', ModifiedFiles{If});
                 end
             end
+        end
+
+
+        function Result = insertColumn(CatName, ColName, ColUnit, OutDir, varargin)
+            % Single-column alias for catsHTM.insertColumns (backward compatible).
+            % Package: @catsHTM
+            % Description: Thin wrapper kept for backward compatibility.
+            %              insertColumns is the primary implementation and
+            %              accepts either a single column (char name/unit)
+            %              or a block (cellstr names/units) in one pass.
+            % Input  : - See catsHTM.insertColumns. ColName/ColUnit are
+            %            typically a single char here, but cellstr is also
+            %            forwarded unchanged.
+            % Output : - Result struct from catsHTM.insertColumns.
+            % Example: R = catsHTM.insertColumn('ForcedPhotList','JD_Added','day','~/tmp/cats_mod');
+            Result = catsHTM.insertColumns(CatName, ColName, ColUnit, OutDir, varargin{:});
         end
 
 
