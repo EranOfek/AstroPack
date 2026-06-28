@@ -173,11 +173,8 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
         
         % 1. find the overlapping coadd proc or single-epoch proc images (determined by Args.SearchTable)
         Q = sprintf("select %s from %s where",Args.Fields, Args.SearchTable);
-        W = " 1<0";
-        for Ipix=1:numel(UpixLow)
-            Wp = sprintf(" or toString(upix_low) = toString(%s)",string(UpixLow(Ipix)));
-            W  = strcat(W,Wp);
-        end
+        PixList = strjoin("toString(" + string(UpixLow(:)).' + ")", ", ");
+        W = sprintf(" toString(upix_low) IN (%s)", PixList);
         
         % add image quality filter
         if ~isempty(Args.ImageQualityFilter)
