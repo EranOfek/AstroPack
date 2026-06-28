@@ -111,9 +111,13 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     end
 
     % the crop NearEdge and Overlap flags are meaningless after stitching
-    AllPix = true(Ny,Nx);
-    Result.MaskData = Result.MaskData.maskSet(AllPix, 'NearEdge', 0);
-    Result.MaskData = Result.MaskData.maskSet(AllPix, 'Overlap',  0);
+    %AllPix = true(Ny,Nx);
+    FF=Result.MaskData.findBit('NearEdge');
+    Result.MaskData = Result.MaskData.maskSet(FF, 'NearEdge',0);
+    FF=Result.MaskData.findBit('Overlap');
+    Result.MaskData = Result.MaskData.maskSet(FF, 'Overlap',0);
+    %Result.MaskData = Result.MaskData.maskSet(AllPix, 'NearEdge', 0);
+    %Result.MaskData = Result.MaskData.maskSet(AllPix, 'Overlap',  0);
 
     % merge the catalogs:
     Result.CatData = merge(MCat);
