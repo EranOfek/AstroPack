@@ -24,11 +24,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
         %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LeftHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}},{}}}; % both for single epoch and coadd
         %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
-        Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+        Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[512 512], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
         %Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
         %Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LeftHist, 'Block',[256 256], 'PoissVar',true, 'RN2',13, 'MethodArgs',{{'VarianceRatio',1},{}}}; % both for single epoch and coadd
         %Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
-        Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+        Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[512 512], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
 
         Args.Threshold                     = [500 50 4]; %[500 50 20 4];
         Args.ColCell                       = {'XPEAK','YPEAK',...
@@ -655,7 +655,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Add PSF fraction to header
             [~,Coadd(NotIsEmptyCat)] = imProc.psf.aperFrac(Coadd(NotIsEmptyCat), 'AperRadius',Args.AperRadius);
             
-            
+
             % Finish
             %ProcessingStep = 1000;
         catch ME
