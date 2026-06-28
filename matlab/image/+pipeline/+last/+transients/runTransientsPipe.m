@@ -93,6 +93,8 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         Args.InjectedSrcs = [];
         Args.RePopRefPSF = false;
         Args.RePopNewPSF = false;
+
+        Args.applyCalibration logical = true;
     end
 
     % 1: ----- Set default arguments -----
@@ -346,6 +348,23 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     AD.estimateBackVar;
     % Estimate zero points
     AD.estimateFnFr;
+
+    if Args.applyCalibration
+        for IObj = Nobj:-1:1
+
+            if ~AD(Iobj).Ref.HeaderData.isKeyExist('PT_SPEC')
+                if AD(Iobj).RefIsBackgroundSubtracted
+                    [AD(Iobj).Ref, AD(Iobj).PC_Ref] = imProc.calib.fitPhotCalibTrans(AD(Iobj).Ref, 'IsMeanImages', true);
+                else
+                    [AD(Iobj).Ref, AD(Iobj).PC_Ref] = imProc.calib.fitPhotCalibTrans(AD(Iobj).Ref, 'IsMeanImages', false);
+                end
+            end
+
+            if ~AD(Iobj).New.HeaderData.isKeyExist('PT_SPEC')
+                [AD(Iobj).New, AD(Iobj).PC_New] = imProc.calib.fitPhotCalibTrans(AD(Iobj).New, 'IsMeanImages', false);
+            end
+        end
+    end
 
     % Register New and Ref
     AD.register;
@@ -748,6 +767,11 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         end
     end
     
+
+    if Args.applyCalibration
+        AD.calibrateTransients;
+    end
+
     % 9: ----- Create output products -----
 
     % Create a merged catalog, holding all candidates in the individual AD
