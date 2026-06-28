@@ -184,7 +184,7 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
         Args.WingsMethod               = 'analytic';
         Args.WingsPowerLaw             = 2;
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
-        Args.SuppressThreshold         = 1e-3;
+        Args.SuppressThreshold         = 1e-2;
         Args.SuppressFunPars           = 3; % or # from edge
         
         Args.ExtendedSize              = [1501 1501];
@@ -420,22 +420,15 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
             Args.SuppressThreshold = [];
         end
 
-        
-        switch Args.WingsMethod
-            case 'analytic'
-                InnerRadius = imUtil.psf.radiusAtFraction(MeanPSF, Args.SuppressThreshold);
-                OuterRadius  = min(InnerRadius + 3, (size(MeanPSF,1)-1).*0.5);
-                MeanPSF = imUtil.psf.addWings2PSF(MeanPSF, Args.WingsPowerLaw, InnerRadius, OuterRadius);
-            case  'cosbell'
-                [MeanPSF, InnerRadius] = imUtil.psf.suppressWings(MeanPSF, 'Fun',Args.SuppressFun,...
-                                                                'Threshold',Args.SuppressThreshold,...
-                                                                'FunPars',Args.SuppressFunPars,...
-                                                                'Norm',true,...
-                                                                'ExtendedSize',Args.ExtendedSize,...
-                                                                'Alpha',Args.Alpha);
-            otherwise
-                error('Unknown WingsMethod option');
-        end
+        [MeanPSF,InnerRadius] = imUtil.psf.wingsFix(MeanPSF, 'WingsMethod',Args.WingsMethod,...
+                                                             'SuppressThreshold',Args.SuppressThreshold,...
+                                                             'WingsPowerLaw',Args.WingsPowerLaw,...
+                                                             'SuppressFun',Args.SuppressFun,...
+                                                             'SuppressFunPars',Args.SuppressFunPars,...
+                                                             'ExtendedSize',Args.ExtendedSize);
+
+
+
 
         % smooth wings
         % if nargout>4

@@ -10,7 +10,7 @@ function [NewPSF, Amp] = addWings2PSF(PSF, Alpha, R1, R2, Norm, Rmax, Cx, Cy, Am
     % Input  : - PSF matrix (2D, real). The core may be asymmetric and is kept
     %            unchanged for r<=R1.
     %          - Alpha. The wing power-law index, W=Amp.*r.^(-Alpha), Alpha>0.
-    %            Default is 2.5.
+    %            Default is 2.0.
     %          - R1. Inner radius of the transition annulus [pix]. For r<=R1 the
     %            measured PSF is used unchanged.
     %            Default is 0.50.*Rgrid, where Rgrid=(min(size(PSF))-1)./2.
@@ -39,7 +39,7 @@ function [NewPSF, Amp] = addWings2PSF(PSF, Alpha, R1, R2, Norm, Rmax, Cx, Cy, Am
 
     arguments
         PSF   
-        Alpha    = 2.5
+        Alpha    = 2.0
         R1       = 0.25*(min(size(PSF)) - 1)
         R2       = 0.40*(min(size(PSF)) - 1)
         Norm     = true
