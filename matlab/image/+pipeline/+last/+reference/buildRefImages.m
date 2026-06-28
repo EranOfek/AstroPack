@@ -1,12 +1,15 @@
-function [Result,Info] = buildRefImages(RefGrid, Args)
+function [Result,Info] = buildRefImages(RefID, Args)
     % given a grid of reference images, build them from proc/coadd images
     %     employs proc/coadd image DB     
     %
-    % Input  : - a grid of reference images: coordinates of image centers and corners (RA0, Dec0, RA1-RA4, Dec1-Dec4)
-    %
+    % Input  : - Reference ID. Default is 146446 (M51 field).
+    %            If empty, then create ID of all images.
     %          * ...,key,val,...
-    %
-    %         'RefID'                - a vector of reference image IDs to be built (def. empty = all)
+    %            'RefTable' - A table with gid of reference images: coordinates of image
+    %                   centers and corners (RA0, Dec0, RA1-RA4, Dec1-Dec4).
+    %                   If empty, then load file in 'RefTableName' arg.
+    %            'RefTableName'    - File containing the Reference IDs.
+    %                   Default is 'LAST_RefIm_Grid.mat'.
     %         'PrebuiltRefWCS'       - if not empty, use an array of pre-built WCS, e.g., from the RefGrid object (def. empty)
     %         'Naxis1'               - the pixel size of a reference image, X axis (def. 1716)
     %         'Naxis2'               - the pixel size of a reference image, Y axis (def. 1716)
@@ -51,9 +54,10 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D); % a most general usage  
     %          R=pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D,'RefID',[99945 99946]); % a short test
     arguments
-        RefGrid
-                                                        
-        Args.RefID             = []; % e.g., [120000 120001] or [120000:120020]; input range of ref. image numbers  
+        RefID                  = 146446;
+        Args.RefTable          = [];
+        Args.RefTableName      = 'LAST_RefIm_Grid.mat';                                               
+        %Args.RefID             = []; % e.g., [120000 120001] or [120000:120020]; input range of ref. image numbers  
         
         Args.PrebuiltRefWCS    = [];    % use an array of pre-built WCS (e.g., from the RefGrid object)
         Args.Naxis1            = 1716;  % the pixel size of a reference image   
@@ -124,16 +128,21 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
         Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Db.Password);
     end
 
+    if isempty(Args.RefTable)
+        RefGrid = io.files.load2(Args.RefTableName);
+    else
+        RefGrid = Args.RefGrid;
+    end
     Nref = height(RefGrid); 
            
     Ibp = find(isfolder(Args.BasePath), 1, 'first');
     Args.BasePath = Args.BasePath(Ibp);
 
     % loop over the Reference Image grid that has been read above 
-    if isempty(Args.RefID)
+    if isempty(RefID)
         RefID = 1:Nref;
     else
-        RefID = Args.RefID;
+        RefID = RefID;
     end
     
     Info.CounterBadWCS  = 0;

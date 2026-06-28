@@ -414,6 +414,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Add LimMag and BackMag
             [AllSI] = imProc.calib.limmag(AllSI, Args.LimMagArgs{:});  % 0.3s
             [AllSI] = imProc.calib.backmag(AllSI, 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); % 0.2s
+            % Add PSF fraction to header
+            [~,AllSI] = imProc.psf.aperFrac(AllSI, 'AperRadius',Args.AperRadius);
 
             % match external / too expensive
             %if Args.matchExternal_Indiv
@@ -650,7 +652,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             [Coadd(NotIsEmptyCat)] = imProc.calib.backmag(Coadd(NotIsEmptyCat), 'KeyZP',Args.KeyZP, Args.BackMagArgs{:});             
             % Add XFULL/YFULL
             [~,Coadd(NotIsEmptyCat)] = imProc.cat.addXYfull(Coadd(NotIsEmptyCat));
-
+            % Add PSF fraction to header
+            [~,Coadd(NotIsEmptyCat)] = imProc.psf.aperFrac(Coadd(NotIsEmptyCat), 'AperRadius',Args.AperRadius);
+            
             
             % Finish
             %ProcessingStep = 1000;
