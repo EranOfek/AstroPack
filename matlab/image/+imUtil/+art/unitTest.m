@@ -51,7 +51,7 @@ function Result = unitTest()
         
         % create a list of shifted and resampled fluxed PSF stamps
         [CubePSF, XY] = imUtil.art.createSourceCube(PSF, X1Y1, Flux, 'Recenter', true, ...
-            'RecenterMethod','fft','Oversample', Oversample, 'PositivePSF', true);
+            'RecenterMethod','fft','Oversample', Oversample, 'FixPSFWings', true);
         
         % create an empty image
         Image0 = repmat(0,Nx,Ny);
@@ -269,7 +269,7 @@ function Result = FitRestoreSubtract(AI, Args)
     end
 
     % construct and inject sources
-    [CubePSF, XY] = imUtil.art.createSourceCube(SPSF, [Res.RoundY Res.RoundX], Res.Flux, 'Recenter', false,'PositivePSF',true);
+    [CubePSF, XY] = imUtil.art.createSourceCube(SPSF, [Res.RoundY Res.RoundX], Res.Flux, 'Recenter', false,'FixPSFWings',true);
     ImageSrc = imUtil.art.addSources(repmat(0,size(AI.Image)),CubePSF,XY,'Oversample',[],'Subtract',false);
 %     ImageSrcBack = imUtil.art.addBackground(ImageSrc, AI.Back, 'Subtract', false);    % for testing, do not use it further 
     % make a difference image    

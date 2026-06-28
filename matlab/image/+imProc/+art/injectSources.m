@@ -17,7 +17,7 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Mag, Args)
     %        'Oversample'- oversampling of the input PSF stamps (2 means the PSF is 2 times finer than the image pixel) 
     %        'RotAngle'  - rotation angle(s) of the input PSF stamps [deg]
     %        'Recenter'  - true (def.) whether to fft-shift the source PSF according to their subpixel positions
-    %        'PositivePSF'   - false (def.) whether to improve PSF wings (see imUtil.art.createSourceCube)
+    %        'FixPSFWings'   - false (def.) whether to improve PSF wings (see imUtil.art.createSourceCube)
     %        'AddBackground' - false (def.) whether to add background to the image 
     %        'SubtractBackground' - false (def.) if true, subtract background instead of adding it 
     %        'Back'     - single value or an background image
@@ -27,7 +27,7 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Mag, Args)
     % Output : - the AstroImage stack with added or subtracted source stamps and merged catalogs 
     %          - a catalog of injected sources 
     % Author : A.M. Krassilchtchikov (2024 Jun) 
-    % Example: [AI, InjectedCat] = imProc.art.injectSources(AI0, Cat, PSF, Flux, 'PositivePSF', true)
+    % Example: [AI, InjectedCat] = imProc.art.injectSources(AI0, Cat, PSF, Flux, 'FixPSFWings', true)
     %
     arguments
         AI0
@@ -46,7 +46,7 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Mag, Args)
         Args.Oversample               = [];
         Args.RotAngle                 = [];
         Args.Recenter     logical     = true;
-        Args.PositivePSF  logical     = false;
+        Args.FixPSFWings  logical     = false;
         
         Args.AddBackground            = false;
         Args.SubtractBackground       = false;
@@ -94,7 +94,7 @@ function [AI, InjectedCat] = injectSources(AI0, Cat, PSF, Flux, Mag, Args)
     end
     [CubePSF, XY] = imUtil.art.createSourceCube(PSF, X1Y1, Flux, ...
                         'Recenter', Args.Recenter, 'Oversample', Args.Oversample, ...
-                        'RotAngle', Args.RotAngle, 'PositivePSF', Args.PositivePSF);
+                        'RotAngle', Args.RotAngle, 'FixPSFWings', Args.FixPSFWings);
 
     % loop over input AI objects
     for Iobj = 1:numel(AI)

@@ -12,20 +12,18 @@ function [CubePSF, XY] = createSourceCube(PSF0, X1Y1, Flux, Args)
     %          'Recenter' - true (shift the stamps according to X1Y1) or
     %                       false (just round the X1Y1 values to XY and do not shift the PSF)
     %          'RecenterMethod' - 'lanczos' (default), 'fft', or 'nearest'; usually 'nearest' goes with Oversampling > 1
-    %          'PositivePSF' - logical, whether to suppress PSF wings via imUtil.psf.suppressWings
-    %          'SuppressWingsArgs' - cell array of key/val arguments passed to imUtil.psf.suppressWings.
-    %                    Default is {'Threshold',1e-3}.
+    %          'FixPSFWings' - logical, whether to suppress PSF wings 
     %          'EmptyPSFsize' - size of the output empty PSF for the case when an empty PSF was given at input
     % Output : - a cube / cell array of shifted, rescaled and fluxed PSF stamps
     %          - a 2-column (X, Y) table of whole pixel injection positions
     % Author : A.M. Krassilchtchikov (2024 May)
     % Example: for i = 1:10; P(:,:,i) = imUtil.kernel2.gauss([4 4 0],[24 24]) + 1e-2*rand(24,24); end
     %          X1Y1 = 100.*rand(10,2); Flux = 100.*rand(10,1);
-    %          [CubePSF, XY] = imUtil.art.createSourceCube(P, X1Y1, Flux, 'Recenter', false, 'Oversample', 3, 'PositivePSF', true);
+    %          [CubePSF, XY] = imUtil.art.createSourceCube(P, X1Y1, Flux, 'Recenter', false, 'Oversample', 3, 'FixPSFWings', true);
     %
     %          for i = 1:3; P{i} = imUtil.kernel2.gauss([4 4 0],[21+3*i 21+3*i]) + 1e-2*rand(21+3*i,21+3*i); end
     %          X1Y1 = 100.*rand(3,2); Flux = 100.*rand(3,1);
-    %          [CubePSF, XY] = imUtil.art.createSourceCube(P, X1Y1, Flux, 'Recenter', false, 'Oversample', 3, 'PositivePSF', true);
+    %          [CubePSF, XY] = imUtil.art.createSourceCube(P, X1Y1, Flux, 'Recenter', false, 'Oversample', 3, 'FixPSFWings', true);
     arguments
         PSF0
         X1Y1
@@ -34,8 +32,13 @@ function [CubePSF, XY] = createSourceCube(PSF0, X1Y1, Flux, Args)
         Args.RotAngle            = [];
         Args.Recenter    logical = true;
         Args.RecenterMethod      = 'lanczos';  % lanczos, fft, or nearest
-        Args.PositivePSF logical = false;
-        Args.SuppressWingsArgs   = {'Threshold', 1e-3};
+        
+        Args.FixPSFWings   logical  = false;
+        Args.WingsMethod         = 'analytic';
+        Args.WingsPowerLaw       = 2;
+        Args.SuppressFun         = @imUtil.kernel2.cosbell;
+        Args.SuppressThreshold   = 1e-3;
+        Args.SuppressFunPars     = 3; % or # from edge
         Args.EmptyPSFsize        = [25 25];
     end
 
@@ -80,14 +83,26 @@ function [CubePSF, XY] = createSourceCube(PSF0, X1Y1, Flux, Args)
     end
 
     % suppress PSF wings
-    if Args.PositivePSF
+    if Args.FixPSFWings
         if iscell(PSF)
             for Isrc = 1:Nsrc
-                PSF{Isrc} = imUtil.psf.suppressWings(PSF{Isrc}, Args.SuppressWingsArgs{:});
+%                 PSF{Isrc} = imUtil.psf.suppressWings(PSF{Isrc}, Args.SuppressWingsArgs{:});
+                [PSF{Isrc},~] = imUtil.psf.wingsFix(PSF{Isrc},'WingsMethod',Args.WingsMethod,...
+                                                             'SuppressThreshold',Args.SuppressThreshold,...
+                                                             'WingsPowerLaw',Args.WingsPowerLaw,...
+                                                             'SuppressFun',Args.SuppressFun,...
+                                                             'SuppressFunPars',Args.SuppressFunPars,...
+                                                             'ExtendedSize',Args.ExtendedSize);
             end
         else
             for Isrc = 1:Nsrc
-                PSF(:,:,Isrc) = imUtil.psf.suppressWings(PSF(:,:,Isrc), Args.SuppressWingsArgs{:});
+%                 PSF(:,:,Isrc) = imUtil.psf.suppressWings(PSF(:,:,Isrc), Args.SuppressWingsArgs{:});
+                [PSF(:,:,Isrc),~] = imUtil.psf.wingsFix(PSF(:,:,Isrc),'WingsMethod',Args.WingsMethod,...
+                                                             'SuppressThreshold',Args.SuppressThreshold,...
+                                                             'WingsPowerLaw',Args.WingsPowerLaw,...
+                                                             'SuppressFun',Args.SuppressFun,...
+                                                             'SuppressFunPars',Args.SuppressFunPars,...
+                                                             'ExtendedSize',Args.ExtendedSize);
             end
         end
     end

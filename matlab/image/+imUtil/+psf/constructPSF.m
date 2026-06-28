@@ -166,15 +166,18 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
         
         Args.constructPSF_cutoutsArgs cell = {};
         Args.SumMethod                 = 'median';
-        
-        
+                
         Args.SmoothWings               = true;  % old: psf_zeroConverge  !! set to false
-        Args.SuppressWings             = false; % suppressWings fun      !! set to true;
-        Args.WingsThreshold            = 1e-4;
-        Args.SuppressEdges             = true;  % suppressEdges fun      !! set to false
-        Args.SuppressFun               = @imUtil.kernel2.cosbell;
+        Args.SuppressWings             = false; % suppressWings fun      !! set to true;        
+        Args.SuppressEdges             = true;  % suppressEdges fun      !! set to false       
         Args.SuppressWidth             = 3;
         Args.ShiftMethod               = 'fft'; % 'lacczos3' | 'fft'
+        
+        Args.WingsMethod               = 'analytic';
+        Args.WingsPowerLaw             = 2;
+        Args.SuppressFun               = @imUtil.kernel2.cosbell;
+        Args.SuppressThreshold         = 1e-2;
+        Args.SuppressFunPars           = 3; % or # from edge
 
         Args.DataType                  = []; % or '@single', '@double',...
         
@@ -314,7 +317,14 @@ function [Result, MeanPSF, VarPSF, NimPSF] = constructPSF(Image, Args)
             InnerRad = NaN;
             if ~isempty(Args.SuppressWidth) && ~isempty(MeanPSF)
                 if Args.SuppressWings
-                    [PSF, InnerRad] = imUtil.psf.suppressWings(PSF, 'Fun',Args.SuppressFun, 'FunPars',Args.RadiusPSF, 'Threshold',Args.WingThreshold);
+%                     [PSF, InnerRad] = imUtil.psf.suppressWings(PSF, 'Fun',Args.SuppressFun, 'FunPars',Args.RadiusPSF, 'Threshold',Args.WingThreshold);
+                    [PSF, InnerRad] = imUtil.psf.wingsFix(PSF, 'WingsMethod',Args.WingsMethod,...
+                                                             'SuppressThreshold',Args.SuppressThreshold,...
+                                                             'WingsPowerLaw',Args.WingsPowerLaw,...
+                                                             'SuppressFun',Args.SuppressFun,...
+                                                             'SuppressFunPars',Args.SuppressFunPars,...
+                                                             'ExtendedSize',Args.ExtendedSize);
+                    
                 end
                 % suppress edges
                 if Args.SuppressEdges 

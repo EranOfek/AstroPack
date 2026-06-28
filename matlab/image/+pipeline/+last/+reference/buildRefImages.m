@@ -108,14 +108,15 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.DbPort             = 9000;
         Args.DbUser             = 'last_user'
         Args.DbName             = 'last_ro'
-        Args.AstroDBPassFile    = '~/.astropack/Passwords.yml';
-        
-        Args.Verbose               = 0; % from 0 (mute) to 2 (maximal)
+        Args.AstroDBPassFile    = '~/matlab/AstroPack/config/local/Passwords.yml'; % '~/.astropack/Passwords.yml';
+                
         Args.AstrometricCatRad     = 1;           % [deg] cone radius for pre-fetching reference catalogs
         Args.AstrometricCatMagRange = [12 19.5];  % magnitude range for the astrometric catalog
         Args.AstrometricCatPlxRange = [-Inf 50];  % parallax range [mas] for the astrometric catalog
         Args.PhotCatMagRange        = [13 21.5];  % magnitude range for the photometric catalog
         Args.PhotCatPlxRange        = [0.1 100];  % parallax range [mas] for the photometric catalog
+        
+        Args.Verbose               = 0; % from 0 (mute) to 2 (maximal)
     end
     % 
     RAD = 180/pi;  
