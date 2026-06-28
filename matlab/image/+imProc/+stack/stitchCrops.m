@@ -106,8 +106,8 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
             MCat(Icrop).Catalog(:,IndY) = MCat(Icrop).Catalog(:,IndY) + CatShiftY(Icrop) + YUmin - 1;
         end
 
-        Result.Image(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.Image;
-        Result.Mask(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)  = AIc.Mask;
+        Result.ImageData.Data(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.ImageData.Data;
+        Result.MaskData.Data(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)  = AIc.MaskData.Data;
     end
 
     % the crop NearEdge and Overlap flags are meaningless after stitching
