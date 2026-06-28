@@ -167,31 +167,14 @@ function [Result,Info] = buildRefImages(RefGrid, Args)
         
         % 0. build the ref polygon to be covered and find the healpix coverage
         P0 = [RefGrid.RA1(Iref), RefGrid.Dec1(Iref); RefGrid.RA2(Iref), RefGrid.Dec2(Iref); ...
-              RefGrid.RA3(Iref), RefGrid.Dec3(Iref); RefGrid.RA4(Iref), RefGrid.Dec4(Iref)];
-        [Raster0, NsideRaster] = celestial.healpix.mex.rasterize_polygon(P0, Args.RasterResolution); 
-        
-        % find the center and neighbors at the search resolution Args.NsideSearch
-        UpixCenter = celestial.healpix.ang2pix(Args.NsideSearch, RefGrid.RA(Iref)/RAD, RefGrid.Dec(Iref)/RAD);
-        UpixNeighb = celestial.healpix.mex.neighbors_nested(Args.NsideSearch,UpixCenter); 
-        
-        % translate the center and the neighbors to Args.NsideLow (as in the image table of the DB)
-        UpixCenterLow = celestial.healpix.increasePixelResolution(UpixCenter, Args.NsideSearch, Args.NsideLow);
-        UpixNeighbLow = celestial.healpix.increasePixelResolution(UpixNeighb, Args.NsideSearch, Args.NsideLow);
-        % convert to UNIQ:
-        UpixCenterLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixCenterLow);
-        UpixNeighbLow = celestial.healpix.pix2uniqueId(Args.NsideLow, UpixNeighbLow);
+              RefGrid.RA3(Iref), RefGrid.Dec3(Iref); RefGrid.RA4(Iref), RefGrid.Dec4(Iref)]; 
+        [UpixLow, Raster0] = celestial.healpix.pixCoversPolygon(P0, 'RA0',RefGrid.RA(Iref), 'Dec0',RefGrid.Dec(Iref), ...
+            'RasterResolution',Args.RasterResolution, 'NsideSearch',Args.NsideSearch, 'NsideLow',Args.NsideLow);
         
         % 1. find the overlapping coadd proc or single-epoch proc images (determined by Args.SearchTable)
         Q = sprintf("select %s from %s where",Args.Fields, Args.SearchTable);
-        W = " 1<0";
-        for Icen=1:numel(UpixCenterLow)
-            Wc = sprintf(" or toString(upix_low) = toString(%s)",string(UpixCenterLow(Icen)));
-            W  = strcat(W,Wc);
-        end
-        for Inei=1:numel(UpixNeighbLow)
-            Wn = sprintf(" or toString(upix_low) = toString(%s)",string(UpixNeighbLow(Inei)));
-            W = strcat(W,Wn);
-        end
+        PixList = strjoin("toString(" + string(UpixLow(:)).' + ")", ", ");
+        W = sprintf(" toString(upix_low) IN (%s)", PixList);
         
         % add image quality filter
         if ~isempty(Args.ImageQualityFilter)
