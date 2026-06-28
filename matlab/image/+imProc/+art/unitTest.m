@@ -17,7 +17,7 @@ function Result = unitTest()
     fprintf('Original sources: %d\n',height(AI0.CatData.Catalog))
     
     % NB! X and Y coordinates in the Cat should be transposed! 
-    [AI, InjectedCat] = imProc.art.injectSources(AI0, Cat, PSF, Flux, 'PositivePSF', true,'CreateNewObj',true,'UpdateCat',true);     
+    [AI, InjectedCat] = imProc.art.injectSources(AI0, Cat, PSF, Flux, 'FixPSFWings', true,'CreateNewObj',true,'UpdateCat',true);     
     
     fprintf('Added sources: %d\n',height(InjectedCat.Catalog))
     fprintf('Total sources: %d\n',height(AI.CatData.Catalog))

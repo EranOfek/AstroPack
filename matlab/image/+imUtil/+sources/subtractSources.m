@@ -119,7 +119,7 @@ function [SubtractedImage, SourceImage] = subtractSources(Image, PSF, Args)
     % 1. construct a source image
     % 2. subtract the source image from the current image
     [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [RoundY RoundX], Flux, ...
-                                                                        'Recenter', false, 'PositivePSF',true);
+                                                                        'Recenter', false, 'FixPSFWings',true);
     SizeImage = size(Image);
     SourceImage             = imUtil.art.addSources(repmat(0,SizeImage), CubePSF, XY,...
                                                                         'Oversample',[], 'Subtract',false);           
