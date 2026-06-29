@@ -3262,7 +3262,7 @@ classdef PipelineDemon < Component
                             % visit found - start reduction
                             if ~isempty(PipeName)
                                 PipeStatus = sprintf('Reducing visit %s',RawImageList{1});
-                                Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus);
+                                Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus,'UpdateRedis',Args.UpdateRedis);
                             end
                                         
                             [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
