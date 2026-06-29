@@ -26,6 +26,8 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
         Args.UpdateZP                = false;
         Args.AstrometricCat          = [];
         Args.PhotCat                 = [];
+
+        Args.MatchMethod             = 'mex';  % 'mex'|'old'
     end
 
     AstrometricCat = [];
@@ -133,7 +135,9 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
             AstCatArg = {'CatName', Args.AstrometricCat};
         end
         [FitRes, Result.CatData, AstrometricCat] = imProc.astrometry.astrometryRefine(...
-            Result.CatData, 'RA',RA0, 'Dec',Dec0, AstCatArg{:});
+                                                        Result.CatData, 'RA',RA0, 'Dec',Dec0,...
+                                                        'MatchMethod',Args.MatchMethod,...
+                                                        AstCatArg{:});
         Result.WCS         = FitRes.WCS;
         Result.WCS.Tran2D  = FitRes.Tran;
         Result.WCS.ResFit  = FitRes.ResFit;
