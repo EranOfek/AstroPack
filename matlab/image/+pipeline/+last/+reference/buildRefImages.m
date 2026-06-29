@@ -208,12 +208,14 @@ function [Result,Info] = buildRefImages(RefID, Args)
             if Args.Verbose > 1
                 fprintf('Pre-fetching astrometric and photometric catalogs (r=%.1f deg)...\n', Args.AstrometricCatRad);
             end
-            AstrometricCat = imProc.cat.getAstrometricCatalog(RefGrid.RA(Iref), RefGrid.Dec(Iref), ...
-                'Radius',Args.AstrometricCatRad,'RadiusUnits','deg','OutUnits','rad',...
-                'RangeMag',Args.AstrometricCatMagRange,'RangePlx',Args.AstrometricCatPlxRange);
-            PhotCat = imProc.cat.getAstrometricCatalog(RefGrid.RA(Iref), RefGrid.Dec(Iref), ...
-                'Radius',Args.AstrometricCatRad,'RadiusUnits','deg','OutUnits','rad',...
-                'RangeMag',Args.PhotCatMagRange,'RangePlx',Args.PhotCatPlxRange);
+            RawMagRange = [min(Args.AstrometricCatMagRange(1), Args.PhotCatMagRange(1)), max(Args.AstrometricCatMagRange(2), Args.PhotCatMagRange(2))];
+            RawPlxRange = [min(Args.AstrometricCatPlxRange(1), Args.PhotCatPlxRange(1)), max(Args.AstrometricCatPlxRange(2), Args.PhotCatPlxRange(2))];
+            FullCat = imProc.cat.getAstrometricCatalog(RefGrid.RA(Iref), RefGrid.Dec(Iref), ...
+                'Radius',Args.AstrometricCatRad,'RadiusUnits','deg','OutUnits','rad', 'RangeMag',RawMagRange,'RangePlx',RawPlxRange);
+            AstrometricCat = queryRange(FullCat, {'phot_bp_mean_mag','phot_g_mean_mag'}, Args.AstrometricCatMagRange, ...
+                'Plx', Args.AstrometricCatPlxRange); 
+            PhotCat        = queryRange(FullCat, {'phot_bp_mean_mag','phot_g_mean_mag'}, Args.PhotCatMagRange, ...
+                'Plx', Args.PhotCatPlxRange); 
 
             % identify sets of subimages from the same epoch and telescope to be stitched
             T = sortrows(T, Args.GroupByFields);            
@@ -406,5 +408,3 @@ function [Result,Info] = buildRefImages(RefID, Args)
     end % for Iref = RefID / reference image grid
     
 end 
-
-
