@@ -2918,12 +2918,10 @@ classdef PipelineDemon < Component
 
                 Args.pipelineIArgs  = {'UseParfor',true};
 
-                Args.StopWhenDone logical = false;   % If true, then will not look for new images (i.e., images that were created after the function started)
-                
-                
-
-                Args.FocusTreatment  = 'move';           % 'move'|'keep'|'delete' 
-                
+                Args.StopWhenDone logical = false;   % if true, will not look for new images (i.e., images that were created after the function started)
+                                
+                Args.CleanNewDir     = true;         % if true, remove files with zero size and day-time images from the new dir               
+                Args.FocusTreatment  = 'move';       % 'move'|'keep'|'delete'                 
 
                 Args.MinNumImageVisit  = 10;
                 Args.PauseDay          = 100;
@@ -3055,7 +3053,9 @@ classdef PipelineDemon < Component
 
             % clean Files from NewPath
             % remove files with zero size and day-time images:
-            Obj.cleanNewDir;
+            if Args.CleanNewDir
+                Obj.cleanNewDir;
+            end
 
             %IsRunningOnLAST = false;
             %if numel(Args.HostName)>=4
@@ -3129,7 +3129,7 @@ classdef PipelineDemon < Component
                 %FN_Foc.FullPath = [];
                 % The empty argument in genPath is required for moving each image to the correct (date) directory. 
                 if FN_Foc.nFiles>0
-%                    FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',FN_Foc.genPath([]), 'DestPath', Obj.FocusPath, 'Level','raw', 'Type','focus');
+                   FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',FN_Foc.genPath([]), 'DestPath', Obj.FocusPath, 'Level','raw', 'Type','focus');
                 end
                 
                 % look for new images
