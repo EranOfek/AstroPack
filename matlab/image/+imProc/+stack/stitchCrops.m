@@ -11,11 +11,17 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     %         'PhotCat'   - an AstroCatalog to pass to photometricZP as CatName,
     %                    skipping the catsHTM query. If empty, the catalog is fetched.
     %                    Default is [].
+    %         'PhotZPMethod' - method to determine the photometric ZP when UpdateZP is true:
+    %                    'photometricZP' - call imProc.calib.photometricZP (default).
+    %                    'header' - read KeyPH_ZP from input crop headers and take the mean.
+    %         'KeyPH_ZP' - cell array of header keyword synonyms for the ZP, tried in order.
+    %                    Used only when PhotZPMethod is 'header'. Default is {'PH_ZP','PT_ZP'}.
     % Output : - a stitched AstroImage with a merged catalog and updated WCS
     %          - AstroCatalog used for astrometry ([] if UpdateWCS is false)
-    %          - AstroCatalog used for photometry ([] if UpdateZP is false)
+    %          - AstroCatalog used for photometry ([] if UpdateZP is false or PhotZPMethod is 'header')
     % Author : A.M. Krassilchtchikov (2026 Jan)
     % Example: [AIs, AstCat, PhCat] = imProc.stack.stitchCrops(AI,'UpdateWCS',true,'UpdateZP',true)
+    %          [AIs] = imProc.stack.stitchCrops(AI,'UpdateZP',true,'PhotZPMethod','header')
     %
     arguments
         AI
@@ -26,6 +32,8 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
         Args.UpdateZP                = false;
         Args.AstrometricCat          = [];
         Args.PhotCat                 = [];
+        Args.PhotZPMethod            = 'photometricZP';  % 'photometricZP'|'header'
+        Args.KeyPH_ZP cell           = {'PH_ZP','PT_ZP'};
 
         Args.MatchMethod             = 'mex';  % 'mex'|'old'
     end
@@ -147,12 +155,25 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
 
     % calculate a new photometric ZP
     if Args.UpdateZP
-        if isempty(Args.PhotCat)
-            PhCatArg = {};
-        else
-            PhCatArg = {'CatName', Args.PhotCat};
+        switch lower(Args.PhotZPMethod)
+            case 'photometriczp'
+                if isempty(Args.PhotCat)
+                    PhCatArg = {};
+                else
+                    PhCatArg = {'CatName', Args.PhotCat};
+                end
+                [Result, ~, PhotCat] = imProc.calib.photometricZP(Result, PhCatArg{:});
+            case 'header'
+                ZP_vals = NaN(Ncrop, 1);
+                for Icrop = 1:Ncrop
+                    ZP_vals(Icrop) = AI(Icrop).HeaderData.getVal(Args.KeyPH_ZP);
+                end
+                MeanZP = mean(ZP_vals, 'omitnan');
+                Result.HeaderData = replaceVal(Result.HeaderData, Args.KeyPH_ZP{1}, MeanZP);
+                Result.HeaderData = replaceVal(Result.HeaderData, Args.KeyPH_ZP{2}, MeanZP);
+            otherwise
+                error('Unknown PhotZPMethod: %s', Args.PhotZPMethod);
         end
-        [Result, ~, PhotCat] = imProc.calib.photometricZP(Result, PhCatArg{:});
     end
 
     % add a mean JD (should be the same, but still):
