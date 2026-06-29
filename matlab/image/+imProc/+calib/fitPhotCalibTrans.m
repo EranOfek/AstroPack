@@ -221,6 +221,18 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %          % All LAST defaults (no CalibArgs needed):
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI);
     %          fprintf('NCalUsed=%d, RMS=%.4f\n', FitRes.NCalUsed, FitRes.RMS);
+    %          % LAST_Joint_2Iter recipe: 2-stage OptSeq, two outer iterations
+    %          % (iter 1 unweighted, iter 2 weighted with combined MagErr),
+    %          % single 3-sigma signed clip between iterations:
+    %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
+    %              'CalibArgs', { ...
+    %                  'OptSeqName',         'LAST_Joint_2Iter', ...
+    %                  'WeightingMode',      'combined', ...
+    %                  'WeightedOuterIters', [false true], ...
+    %                  'OuterSigmaClip',     true, ...
+    %                  'OuterMaxIter',       2, ...
+    %                  'OuterSigmaThresh',   3.0, ...
+    %                  'OuterStdFunc',       'std' });
     %          % Override specific calibrate settings:
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
     %              'CalibArgs', {'UseTran2D', false});
@@ -276,6 +288,11 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
 
         % Calibration config forwarded to calibrate (cell array of key-value pairs)
         Args.CalibArgs cell = {}
+        Args.JointVisit logical = false   % If true, run per-crop loop, then refine
+                                          % with PhotCalibTrans.fitJointVisit (joint
+                                          % LS over pooled calibrators: 1 Norm + 10
+                                          % field-frame Tran2D coefs). Default false
+                                          % preserves per-crop status quo.
 
         Args.CreateNewObj logical = false
         Args.DiffCalibProps cell = {'New', 'Ref'}
@@ -287,6 +304,10 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                                                 % target-mag conversion. 0 = AB-flat (back-compat).
                                                 % Negative -> blue, positive -> red.
         Args.RefSpecPivot (1,1) double = 5500   % Pivot wavelength [Angstrom] for the slope normalization
+        Args.Co2_ppm (1,1) double = 395         % CO2 abundance [ppm] threaded into PhotCalibTrans.calibrate
+        % -> predefSeqCompositeFun -> UMG.Par(4). Default 395 = Simone parity.
+        % Forwarded conditionally (only when not 395) to preserve last-write-
+        % wins precedence for any 'Co2_ppm' the caller already put in CalibArgs.
         Args.FluxColName = 'FLUX_APER_3'
         Args.AddZP logical = true
         Args.UpdateHeader logical = true
@@ -393,6 +414,9 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     % value already in CalibArgs gets overridden by the top-level value.
     if ~strcmpi(Args.SelectionMethod, 'catsHTM')
         Args.CalibArgs = [Args.CalibArgs, {'SelectionMethod', Args.SelectionMethod}];
+    end
+    if Args.Co2_ppm ~= 395
+        Args.CalibArgs = [Args.CalibArgs, {'Co2_ppm', Args.Co2_ppm}];
     end
     if Args.UseTAPClassprob
         Args.CalibArgs = [Args.CalibArgs, {'UseTAPClassprob', true}];
@@ -765,6 +789,44 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         PhotCalib(Iobj) = PC;
     end
   %toc
+
+    % ====================================================================
+    % OPTIONAL: JOINT-VISIT REFINEMENT (Phase 2c MVP)
+    % ====================================================================
+    % After per-crop fits, pool calibrators across all crops and run one
+    % joint LS for a single Norm + 10 field-frame Tran2D coefs. Overwrites
+    % each PhotCalib(i).TransModel in place.
+    if Args.JointVisit && IsAstroImage && Nobj > 1
+        try
+            if Args.Verbose
+                fprintf('\n=== JOINT-VISIT REFINEMENT (%d crops) ===\n', Nobj);
+            end
+            [PhotCalib, JointResult] = PhotCalibTrans.fitJointVisit( ...
+                PhotCalib, Result, ...
+                'CalibArgs', Args.CalibArgs, ...
+                'Verbose',   Args.Verbose);
+            % Stash joint diagnostics on the first FitRes entry so callers
+            % can recover (Norm, Tran2DCoefs, FieldTran2DObj, FitInfo, Pool)
+            % without changing the FitRes shape.
+            FitRes(1).JointVisitResult = JointResult;
+        catch ME
+            % Loud, multi-line warning so it doesn't get lost in Verbose output.
+            fprintf(2, '\n***********************************************************\n');
+            fprintf(2, '* JointVisit refinement FAILED. Returning per-crop result. *\n');
+            fprintf(2, '* Reason: %s\n', ME.message);
+            if ~isempty(ME.stack)
+                fprintf(2, '* At: %s (line %d)\n', ME.stack(1).name, ME.stack(1).line);
+            end
+            fprintf(2, '***********************************************************\n\n');
+            warning('imProc:fitPhotCalibTrans:JointVisitFailed', ...
+                'Joint-visit refinement failed (%s) - returning per-crop fit.', ...
+                ME.message);
+        end
+    elseif Args.JointVisit && Nobj <= 1
+        warning('imProc:fitPhotCalibTrans:JointVisitSingleCrop', ...
+            'JointVisit=true but Nobj=%d (need >=2 crops). Skipping joint refinement.', Nobj);
+    end
+
     % ====================================================================
     % SUMMARY
     % ====================================================================
@@ -912,6 +974,16 @@ function CalibArgs = predefCalibArgs(Args)
     % Example: CalibArgs = predefCalibArgs();
     %          CalibArgs = predefCalibArgs('SearchRadius', 3);
     %          CalibArgs = predefCalibArgs('FilterNegFlux', false, 'MinSN2', 0);
+    %          % LAST_Joint_2Iter recipe (iter 1 unweighted, iter 2 'combined'
+    %          % weighted, single 3-sigma signed outer clip between):
+    %          CalibArgs = predefCalibArgs( ...
+    %              'OptSeqName',         'LAST_Joint_2Iter', ...
+    %              'WeightingMode',      'combined', ...
+    %              'WeightedOuterIters', [false true], ...
+    %              'OuterSigmaClip',     true, ...
+    %              'OuterMaxIter',       2, ...
+    %              'OuterSigmaThresh',   3.0, ...
+    %              'OuterStdFunc',       'std');
 
     arguments
         % Wavelength grid
@@ -964,6 +1036,10 @@ function CalibArgs = predefCalibArgs(Args)
         Args.FluxErrColName   = 'FluxErr'
         Args.SigmaClipMethod  = 'median'    % 'median' | 'median_signed' | 'weighted' — see header doc
         Args.FluxErrorNorm    = 0.5
+        % Per-outer-iter weighting toggle. Empty (default) leaves every iter
+        % weighted; non-empty must be a logical vector of length OuterMaxIter,
+        % e.g. [false true] with OuterMaxIter=2 for the LAST_Joint_2Iter recipe.
+        Args.WeightedOuterIters = []
 
         % Per-source airmass
         Args.AirmassColName   = 'AIRMASS'   % Column name for per-source airmass

@@ -48,6 +48,9 @@ classdef AstroDiff < AstroImage
         SigmaN
         SigmaR
 
+        PC_New
+        PC_Ref
+
         % Gabor SN of difference image
         GaborSN
 
@@ -1165,7 +1168,35 @@ classdef AstroDiff < AstroImage
                     );
             end
         end
+
+        function Obj = calibrateTransients(Obj, Args)
+            arguments
+                Obj
         
+                Args.ConfigFile char = ''
+        
+                Args.FlagCol char = 'FLAGS_TRANSIENT'
+        
+                Args.ScoreCol char = 'SCORE'
+                Args.ScorrCol char = 'S_CORR'
+        
+                Args.FluxCol char = 'FLUX_PSF'
+                Args.FluxErrCol char = 'FLUXERR_PSF'
+                Args.MagCol char = 'MAG_PSF'
+                Args.MagErrCol char = 'MAGERR_PSF'
+        
+                Args.CropHalfSize double = 100
+                Args.BoxHalfSize double = 1
+        
+                Args.MinAperCorrStars double = 10
+                Args.PreferredAperCorrCol string = "MAG_PSF"
+                Args.N_AV_EXPTIME double = 20
+            end
+        
+            ArgsCell = namedargs2cell(Args);
+            Obj = imProc.sub.calibrateTransients(Obj, ArgsCell{:});
+        end
+
         function [TranCat, NonTranCat] = splitNonTransients(Obj)
             %{
             Split transients from likely non-transients into two AstroCat outputs.
