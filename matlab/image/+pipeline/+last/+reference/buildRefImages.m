@@ -301,7 +301,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                     AF.BasePathIncludeProjName = true;
                     AF.AddSubDir               = true;
 
-                    AI = AstroImage.readProducts(AF.genFull);
+                    AI = AstroImage.readProducts(AF.genFull, 'UseMex', true);
 
                     % for:
 %                     AI=pipeline.last.queryDB.loadProducts(TabGrp); % does not load anything ?
