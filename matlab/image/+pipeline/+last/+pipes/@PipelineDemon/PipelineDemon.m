@@ -1200,6 +1200,7 @@ classdef PipelineDemon < Component
             %          - Keyword. E.g. 'last03e.pipeline.num_images'
             %          - Value (string).
             %          * ...,key,val,...
+            %            'UpdateRedis' - Operate if true. Default is true.
             %            'ExpireTime' - Default is 1000 s.
             % Output : null.
             % Example: Obj.updateRedis('last03e.pipeline.num_image, sprintf('%d',Nimages));
@@ -1208,23 +1209,26 @@ classdef PipelineDemon < Component
                 Obj
                 Key
                 Val
-                Args.ExpireTime = 1000;
+                Args.UpdateRedis = true;
+                Args.ExpireTime  = 1000;
             end
 
-            % Check if Redis object already exist and alive
-            if isempty(Obj.RedisPV)
-                % Create the Redis object
-                Obj.RedisPV = Redis('localhost', 6379, 'password', 'foobared'); % password probably not needed on last nodes
+            if Args.UpdateRedis
+                % Check if Redis object already exist and alive
+                if isempty(Obj.RedisPV)
+                    % Create the Redis object
+                    Obj.RedisPV = Redis('localhost', 6379, 'password', 'foobared'); % password probably not needed on last nodes
+                end
+    
+                % Check that Redis is connected
+                % FFU
+    
+                % Get Unix time
+                UnixTime = posixtime(datetime("now","TimeZone","UTC"));
+                    
+                PVstore.hset(Key, 't',UnixTime, 'v',jsonencode(Val));
+                PVstore.expire(Key,Args.ExpireTime);
             end
-
-            % Check that Redis is connected
-            % FFU
-
-            % Get Unix time
-            UnixTime = posixtime(datetime("now","TimeZone","UTC"));
-                
-            PVstore.hset(Key, 't',UnixTime, 'v',jsonencode(Val));
-            PVstore.expire(Key,Args.ExpireTime);
 
         end
     end
@@ -3034,7 +3038,13 @@ classdef PipelineDemon < Component
 
                 Args.FailMethod        = 'move';  % 'move'|'report'|'none'
                 Args.Backup            = false;
+
+                Args.UpdateRedis       = false;
             end
+            PipeName   = [];
+            PipeStatus = 'Entered Demon';
+            %Obj.updateRedis('last03e.pipeline.num_image, sprintf('%d',Nimages));
+
             RAD = 180./pi;
             SEC_DAY = 86400;
             
@@ -3094,6 +3104,11 @@ classdef PipelineDemon < Component
             Cont = true;
             MainLoopCounter = 0;
             while Cont
+                if ~isempty(PipeName)
+                    PipeStatus = 'In inf loop';
+                    Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus);
+                end
+
                 MainLoopCounter = MainLoopCounter + 1;
                 % Notify watchdog that process is running 
                 tools.systemd.mex.notify_watchdog;
@@ -3137,7 +3152,11 @@ classdef PipelineDemon < Component
                 FN_Sci.JD=FN_Sci.julday;
                
                 if FN_Sci.nFiles>Args.MinInGroup
-
+                    if ~isempty(PipeName)
+                        PipeStatus = sprintf('Found %d files to reduce',FN_Sci.nFiles);
+                        Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus);
+                    end
+                    
                     % select observations by date
                     [FN_Sci] = FN_Sci.selectByDate(Args.StartJD, Args.EndJD, 'CreateNewObj',false);
                     FN_Sci   = FN_Sci.sortBy('JD', 'Direction', Args.SortDirection, 'CreateNewObj',false);  % sort by JD
@@ -3176,6 +3195,11 @@ classdef PipelineDemon < Component
                         Obj.writeLog(Msg, LogLevel.Info);
                         pause(Args.PauseNotFound);
 
+                        if ~isempty(PipeName)
+                            PipeStatus = 'Waiting for new visit';
+                            Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus);
+                        end
+                        
                     else
                         for IndStartGroup = GroupQueue
                             % visit found
@@ -3198,6 +3222,12 @@ classdef PipelineDemon < Component
                             
                             RawImageList   = FN_Sci_Groups(IndStartGroup).genFile();
                             NimagesInVisit = numel(RawImageList);
+
+                            if isempty(PipeName)
+                                TmpSplit = split(RawImageList{1},'_');
+                                PipeName = TmpSplit{1};
+                            end
+                            
         
                             % log
                             MsgV{1} = sprintf('New visit found - Number of images in visit: %d', NimagesInVisit);
@@ -3230,6 +3260,11 @@ classdef PipelineDemon < Component
                             %Obj.updateRedis(sprintf('%s.pipeline.waiting_visits',ProjName), numel(FN_Sci_Groups));
         
                             % visit found - start reduction
+                            if ~isempty(PipeName)
+                                PipeStatus = sprintf('Reducing visit %s',RawImageList{1});
+                                Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus);
+                            end
+                                        
                             [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
         
                             if ~Status.PipeI || ~Status.WriteI
