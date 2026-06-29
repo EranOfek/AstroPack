@@ -85,17 +85,24 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
     Destination = cell(1, Nfile);
     for Ifile=1:1:Nfile
         if isempty(SourcePath)
-            Source      = sprintf('%s', SourceFiles{Ifile});
+            Source = SourceFiles{Ifile};
+        elseif iscell(SourcePath)
+            Source = fullfile(SourcePath{Ifile}, SourceFiles{Ifile});
+        elseif isstring(SourcePath) && numel(SourcePath) > 1
+            % genPath([]) returns a per-file string array; index it correctly
+            Source = fullfile(char(SourcePath(Ifile)), SourceFiles{Ifile});
         else
-            Source      = sprintf('%s%s%s', SourcePath, filesep, SourceFiles{Ifile});
+            Source = fullfile(char(SourcePath), SourceFiles{Ifile});
         end
         if DestPathInFile
             Destination{Ifile} = DestFiles{Ifile};
         else
             if iscell(DestPath)
-                Destination{Ifile} = sprintf('%s%s%s', DestPath{Ifile}, filesep, DestFiles{Ifile});
+                Destination{Ifile} = fullfile(DestPath{Ifile}, DestFiles{Ifile});
+            elseif isstring(DestPath) && numel(DestPath) > 1
+                Destination{Ifile} = fullfile(char(DestPath(Ifile)), DestFiles{Ifile});
             else
-                Destination{Ifile} = sprintf('%s%s%s', DestPath, filesep, DestFiles{Ifile});
+                Destination{Ifile} = fullfile(char(DestPath), DestFiles{Ifile});
             end
         end
         % make sure diirectory exist
