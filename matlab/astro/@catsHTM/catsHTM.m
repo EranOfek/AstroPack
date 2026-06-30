@@ -2745,6 +2745,88 @@ classdef catsHTM
         end
 
 
+        function Result = renameCat(SrcName, DstName, CatDir, Args)
+            % Rename a catsHTM catalog in place (file names + index variable).
+            % Package: @catsHTM
+            % Description: Rename all files of a catsHTM catalog located in a
+            %              single directory from <SrcName>_* to <DstName>_*.
+            %              Data files (<Src>_htm_<id>.hdf5) and the ColCell
+            %              .mat are just renamed (their contents are catalog-
+            %              name-independent: datasets are 'htm_<id>'/'_Ind',
+            %              the .mat holds ColCell/ColUnits). The HTM index
+            %              file holds an internal dataset '<Src>_HTM', so it
+            %              is rewritten as '<Dst>_HTM' (and the old index
+            %              removed). No /euclid-style registry update is done.
+            % Input  : - Source catalog name (e.g., 'GAIADR3spec').
+            %          - Destination catalog name (e.g., 'GAIADR3specplus').
+            %          - Directory holding the <Src>_* files (e.g.
+            %            '/home/dana/tmp/GAIADR3spec_merged/GAIA/DR3spec').
+            %          * ...,key,val,...
+            %            'DryRun'  - List actions without renaming. Default false.
+            %            'Verbose' - Print progress. Default false.
+            % Output : - Result struct: .DataFiles (count), .Index (logical),
+            %            .ColCell (logical), .CatDir.
+            % Author : Dana Kovaleva (Jun 2026)
+            % Example:
+            %   catsHTM.renameCat('GAIADR3spec','GAIADR3specplus', ...
+            %       '/home/dana/tmp/GAIADR3spec_merged/GAIA/DR3spec','Verbose',true);
+            arguments
+                SrcName       (1,:) char
+                DstName       (1,:) char
+                CatDir        (1,:) char
+                Args.DryRun   (1,1) logical = false
+                Args.Verbose  (1,1) logical = false
+            end
+
+            if ~isfolder(CatDir)
+                error('catsHTM:renameCat:NoDir', 'Directory not found: %s', CatDir);
+            end
+
+            % --- Data files: <Src>_htm_<id>.hdf5 -> <Dst>_htm_<id>.hdf5 -----
+            Files  = dir(fullfile(CatDir, sprintf('%s_htm_*.hdf5', SrcName)));
+            Ndata  = 0;
+            for If = 1:numel(Files)
+                OldF = fullfile(CatDir, Files(If).name);
+                NewN = strrep(Files(If).name, [SrcName '_htm_'], [DstName '_htm_']);
+                NewF = fullfile(CatDir, NewN);
+                if ~Args.DryRun
+                    movefile(OldF, NewF);
+                end
+                Ndata = Ndata + 1;
+            end
+
+            % --- ColCell .mat -----------------------------------------------
+            SrcMat = fullfile(CatDir, sprintf('%s_htmColCell.mat', SrcName));
+            DstMat = fullfile(CatDir, sprintf('%s_htmColCell.mat', DstName));
+            HasMat = isfile(SrcMat);
+            if HasMat && ~Args.DryRun
+                movefile(SrcMat, DstMat);
+            end
+
+            % --- Index file: rewrite internal '<Src>_HTM' as '<Dst>_HTM' ----
+            SrcIdx = fullfile(CatDir, sprintf('%s_htm.hdf5', SrcName));
+            DstIdx = fullfile(CatDir, sprintf('%s_htm.hdf5', DstName));
+            HasIdx = isfile(SrcIdx);
+            if HasIdx && ~Args.DryRun
+                DataHTM = HDF5.load(SrcIdx, sprintf('%s_HTM', SrcName));
+                if isfile(DstIdx)
+                    delete(DstIdx);
+                end
+                HDF5.save(DataHTM, DstIdx, sprintf('/%s_HTM', DstName));
+                delete(SrcIdx);
+            end
+
+            Result = struct('DataFiles', Ndata, 'Index', HasIdx, ...
+                            'ColCell', HasMat, 'CatDir', CatDir);
+
+            if Args.Verbose
+                fprintf('renameCat: %s -> %s in %s%s\n', SrcName, DstName, CatDir, ...
+                    repmat(' (dry-run)', 1, double(Args.DryRun)));
+                fprintf('  data files: %d, index: %d, colcell: %d\n', Ndata, HasIdx, HasMat);
+            end
+        end
+
+
         function Result = removeColumn(CatName, ColName, OutDir, Args)
             % Remove a column from every HTM cell of a catsHTM catalog.
             % Package: @catsHTM

@@ -3106,7 +3106,7 @@ classdef PipelineDemon < Component
             while Cont
                 if ~isempty(PipeName)
                     PipeStatus = 'In inf loop';
-                    Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus);
+                    Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus,'UpdateRedis',Args.UpdateRedis);
                 end
 
                 MainLoopCounter = MainLoopCounter + 1;
@@ -3154,7 +3154,7 @@ classdef PipelineDemon < Component
                 if FN_Sci.nFiles>Args.MinInGroup
                     if ~isempty(PipeName)
                         PipeStatus = sprintf('Found %d files to reduce',FN_Sci.nFiles);
-                        Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus);
+                        Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus, 'UpdateRedis',Args.UpdateRedis);
                     end
                     
                     % select observations by date
@@ -3197,7 +3197,7 @@ classdef PipelineDemon < Component
 
                         if ~isempty(PipeName)
                             PipeStatus = 'Waiting for new visit';
-                            Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus);
+                            Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus, 'UpdateRedis',Args.UpdateRedis);
                         end
                         
                     else
@@ -3262,7 +3262,7 @@ classdef PipelineDemon < Component
                             % visit found - start reduction
                             if ~isempty(PipeName)
                                 PipeStatus = sprintf('Reducing visit %s',RawImageList{1});
-                                Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus);
+                                Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus,'UpdateRedis',Args.UpdateRedis);
                             end
                                         
                             [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
