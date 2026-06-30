@@ -260,7 +260,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                 while Icrop < height(TabGrp)+1 % merge the rasters of all the crops involved
                     CropPoly = double([TabGrp.ra1(Icrop), TabGrp.dec1(Icrop); TabGrp.ra2(Icrop), TabGrp.dec2(Icrop); ...
                         TabGrp.ra3(Icrop), TabGrp.dec3(Icrop); TabGrp.ra4(Icrop), TabGrp.dec4(Icrop)]);
-                    Raster = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution);                         
+                    Raster = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution,'arcsec');                         
                     % if this crop does not overlap with the reference region, deselect it
                     Coverage(Icrop) = sum(ismember(Raster,Raster0));
                     if Coverage(Icrop) < 1
