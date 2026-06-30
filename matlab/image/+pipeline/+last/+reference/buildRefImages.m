@@ -10,7 +10,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %                   If empty, then load file in 'RefTableName' arg.
     %            'RefTableName'    - File containing the Reference IDs.
     %                   Default is 'LAST_RefIm_Grid.mat'.
-    %         'PrebuiltRefWCS'       - if not empty, use an array of pre-built WCS, e.g., from the RefGrid object (def. empty)
+    %         'RefWCS'               - if not empty, use an array of pre-built WCS, e.g., from the RefGrid object (def. empty)
     %         'Naxis1'               - the pixel size of a reference image, X axis (def. 1716)
     %         'Naxis2'               - the pixel size of a reference image, Y axis (def. 1716)
     %         'NsideSearch'          - the healpix Nside at which overlapping regions are searched; coarser than the DB table by one step (def. 2^7)
@@ -22,7 +22,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %         'BasePath'             - base path for retrieving the input crop images (def. '/mnt/euclid/last/data')
     %         'ImageQualityFilter'   - a user-supplied quality filter injected directly into the SQL query (def. "fwhm < 4")
     %         'RasterResolution'     - polygon rasterization step, in arcsec (def. 3)
-    %         'MinAllowedCoverage'   - minimum fractional coverage of the reference field required to accept a group (def. 0.999)
+    %         'MinCoverage'          - minimum fractional coverage of the reference field required to accept a group (def. 0.999)
     %         'CoaddFunction'        - function handle used to coadd the per-group stitched images (def. @pipeline.generic.procCoadd)
     %         'SubBack'              - subtract the background in the coaddition step (def. true)
     %         'StackMethod'          - stacking method passed to the coadd function (def. 'wrobust')
@@ -59,7 +59,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.RefTableName      = 'LAST_RefIm_Grid.mat';                                               
         %Args.RefID             = []; % e.g., [120000 120001] or [120000:120020]; input range of ref. image numbers  
         
-        Args.PrebuiltRefWCS    = [];    % use an array of pre-built WCS (e.g., from the RefGrid object)
+        Args.RefWCS            = [];    % use an array of pre-built WCS (e.g., from the RefGrid object)
         Args.Naxis1            = 1716;  % the pixel size of a reference image   
         Args.Naxis2            = 1716;  % NOTE that it was reduced to 1716 from 1726, while the grid was built for 1726 x 1726    
 
@@ -77,8 +77,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
         
         Args.ImageQualityFilter = "fwhm < 4"; % a user-supplied filter (to be included directly into the SQL query) 
                        
-        Args.RasterResolution   = 3;    % arcsec
-        Args.MinAllowedCoverage = 0.999;  % 0.995; % allowed inaccuracy in the required reference field coverage  
+        Args.RasterResolution   = 3;     % arcsec
+        Args.MinCoverage        = 0.999; % 0.995; % allowed inaccuracy in the required reference field coverage  
                        
         %Args.CoaddFunction      = @pipeline.generic.procCoadd; 
         %Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[128 128], 'MethodArgs',{{'Range',[-50 50]}}}
@@ -160,8 +160,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
         end
             
         % read or build the WCS of the target reference image
-        if ~isempty(Args.PrebuiltRefWCS)
-            RefWCS = Args.PrebuiltRefWCS(Iref);
+        if ~isempty(Args.RefWCS)
+            RefWCS = Args.RefWCS(Iref);
         else
             RefWCS = AstroWCS.buildSimpleWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
                 'PixScale',Args.PixScale); 
@@ -274,7 +274,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                 Nim = height(TabGrp);
                 
                 CoverageAll = sum(ismember(Raster0, RasterC))/numel(Raster0);
-                if CoverageAll < Args.MinAllowedCoverage
+                if CoverageAll < Args.MinCoverage
                     % incomplete coverage: skip this epoch
                     if Args.Verbose > 1
                         fprintf('Incomplete coverage of %.4f, epoch %d is skipped\n', CoverageAll, Igroup);
