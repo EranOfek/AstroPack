@@ -212,7 +212,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
        
 
         Args.multiIterExtractorArgs           = {};
-        Args.AperRadius                       = [2, 4, 6];
+        Args.AperRadius                       = [3, 5, 6, 7];
         Args.Annulus                          = [10 12];
         Args.MomentsMethod                    = 'mex';  %'legacy'|'mex'
         Args.AperPhotMethod                   = 'simple'; %'interp';  % 'simple'|'interp'
