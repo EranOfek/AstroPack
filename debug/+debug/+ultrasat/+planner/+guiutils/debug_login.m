@@ -45,7 +45,7 @@ function debug_login()
 end
 
 
-% =========================================================================
+% -------------------------------------------------------------------------
 
 function [passed, failed] = test_namespace_client()
     % Verify ClientFactory URL resolution and getNamespaceList response.
@@ -65,10 +65,10 @@ function [passed, failed] = test_namespace_client()
         if isfield(response, 'namespaces') && ~isempty(response.namespaces)
             fprintf('  Namespaces returned: %d\n', numel(response.namespaces));
             try
-                t = struct2table(response.namespaces);
+                t = struct2table(response.namespaces); % uniform display when struct array is regular
                 disp(t);
             catch
-                disp(response.namespaces);
+                disp(response.namespaces); % fallback for irregular struct shapes
             end
             fprintf('  display_list:\n');
             for i = 1:numel(response.display_list)
@@ -90,7 +90,7 @@ function [passed, failed] = test_namespace_client()
 end
 
 
-% =========================================================================
+% -------------------------------------------------------------------------
 
 function [passed, failed] = test_user_client()
     % Exercise UserManagerClient login, logout, and wrong-password rejection.
@@ -165,7 +165,7 @@ function [passed, failed] = test_user_client()
 end
 
 
-% =========================================================================
+% -------------------------------------------------------------------------
 
 function [passed, failed] = test_main_module_login()
     % Exercise MainModule.login/logout using the same path as Login.mlapp.
@@ -268,9 +268,9 @@ function [passed, failed] = test_main_module_login()
 end
 
 
-% =========================================================================
+% -------------------------------------------------------------------------
 % Helpers
-% =========================================================================
+% -------------------------------------------------------------------------
 
 function result_check(ok, message)
     % Print [PASS] or [FAIL] for a single assertion result.

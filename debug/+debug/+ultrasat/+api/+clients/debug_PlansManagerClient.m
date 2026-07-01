@@ -11,8 +11,11 @@
 %==========================================================================
 
 function debug_PlansManagerClient()
+    % Exercise PlansManagerClient CRUD methods in sequence.
+
     fprintf('========== DEBUG PLANS MANAGER CLIENT ==========\n');
 
+    % Create a factory and get the base URL for the plans manager service
     factory = ultrasat.api.clients.ClientFactory();
     baseUrl = factory.getServiceBaseUrl('plans_manager', 'nginx');
     client = ultrasat.api.clients.PlansManagerClient(baseUrl);
@@ -43,6 +46,8 @@ end
 
 
 function debug_getPlansList(client)
+    % Call getPlansList and print count plus first plan pk.
+
     fprintf('\n--- 1. getPlansList ---\n');
     resp = client.getPlansList([], [], [], []);
     fprintf('ok=%d, status=%s\n', resp.ok, sget(resp, 'status'));
@@ -58,6 +63,8 @@ end
 
 
 function pk = debug_getFirstPkFromList(client)
+    % Return pk of first plan from getPlansList, or [] when list is empty.
+
     pk = [];
     resp = client.getPlansList([], [], [], []);
     if resp.ok && isfield(resp, 'plans') && ~isempty(resp.plans)
@@ -69,6 +76,8 @@ end
 
 
 function debug_getPlan(client, pk)
+    % Fetch single plan by pk and print title/target count.
+
     fprintf('\n--- 3. getPlan ---\n');
     if isempty(pk)
         fprintf('skip (no pk)\n');
@@ -87,6 +96,8 @@ end
 
 
 function savedPk = debug_savePlan(client)
+    % Build minimal HCS plan and save via savePlan; return new pk.
+
     fprintf('\n--- 2. savePlan ---\n');
     try
         [PlanData, ~] = debug_createMinimalPlan();
@@ -110,6 +121,8 @@ end
 
 
 function debug_getMatlabMat(client, pk)
+    % Fetch base64 mat blob for pk and print data length.
+
     fprintf('\n--- 5. getMatlabMat ---\n');
     if isempty(pk)
         fprintf('skip (no pk)\n');
@@ -126,6 +139,8 @@ end
 
 
 function debug_saveMatlabMat(client, pk)
+    % Encode minimal planner to base64 and upload via saveMatlabMat.
+
     fprintf('\n--- 4. saveMatlabMat ---\n');
     if isempty(pk)
         fprintf('skip (no pk)\n');
@@ -159,18 +174,24 @@ end
 
 
 function v = sget(s, fld, default)
+    % Safe struct field read with default when field is missing.
+
     if nargin < 3, default = ''; end
     if isfield(s, fld), v = s.(fld); else, v = default; end
 end
 
 
 function v = fget(s, fld, default)
+    % Safe struct field read with default when field is missing.
+
     if nargin < 3, default = ''; end
     if isfield(s, fld), v = s.(fld); else, v = default; end
 end
 
 
 function n = numelTargets(s)
+    % Count targets in plan struct (cell or struct array).
+
     if ~isfield(s, 'targets') || isempty(s.targets)
         n = 0;
     elseif iscell(s.targets)
@@ -182,11 +203,15 @@ end
 
 
 function v = iif(cond, a, b)
+    % Inline conditional: return a when cond is true, else b.
+
     if cond, v = a; else, v = b; end
 end
 
 
 function BaseDataDir = getBaseDataDir()
+    % Resolve ULTRASAT data dir via MainModule or ASTROPACK_DATA_PATH fallback.
+
     try
         MainModule = ultrasat.planner.guiutils.MainModule();
         BaseDataDir = MainModule.BaseDataDir;

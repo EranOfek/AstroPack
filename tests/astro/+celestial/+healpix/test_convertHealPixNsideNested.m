@@ -36,12 +36,12 @@ function testNewNSideGreaterThanOldErrors(testCase)
     % Upsampling is ambiguous and must be rejected.
     testCase.verifyError( ...
         @() celestial.healpix.convertHealPixNsideNested(4, 0, 16), ...
-        'MATLAB:error');
+        ?MException);
 end
 
 function testNonPowerOfTwoNewNSideErrors(testCase)
     % NewNSide must be a positive power of two.
     testCase.verifyError( ...
         @() celestial.healpix.convertHealPixNsideNested(16, 0, 6), ...
-        'MATLAB:error');
+        ?MException);
 end

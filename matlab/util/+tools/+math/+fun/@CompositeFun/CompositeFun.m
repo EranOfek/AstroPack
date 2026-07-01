@@ -2872,6 +2872,14 @@ classdef CompositeFun < handle
                 Args.OuterStdFunc = 'mad_std'         % 'mad_std' (robust) | 'std'
                 Args.OuterMaxIter = 5
                 Args.OuterMinNewClipped = 1           % stop when fewer new outliers in an iter
+                % Per-outer-iter weighting toggle. When non-empty, must be a
+                % logical vector with length = OuterMaxIter; each entry decides
+                % whether the corresponding outer iteration runs with the per-
+                % source PrecomputedMagErr weights (true) or with uniform
+                % weights (false). Forwarded verbatim to fitMultiStage.
+                % Empty (default) preserves status quo (every iter weighted
+                % when PrecomputedMagErr is supplied).
+                Args.WeightedOuterIters = []
                 Args.ValInp logical = true
                 Args.Verbose logical = false
                 % Pass per-parameter magnitudes to lsqnonlin via the
@@ -2977,7 +2985,10 @@ classdef CompositeFun < handle
                 end
             end
 
-            % Setup optimization options for nonlinear solver
+            % Setup optimization options for nonlinear solver.
+            % Tolerances match scipy.optimize.leastsq defaults (ftol=xtol=1.49e-8)
+            % for Simone-pipeline parity; MATLAB defaults of 1e-6 on Step/Optimality
+            % halt in the flat Norm-Center valley and produce image-dependent Center scatter.
             if isempty(Args.OptimOptions)
                 if Args.Verbose
                     DisplayOpt = 'iter';
@@ -2985,7 +2996,10 @@ classdef CompositeFun < handle
                     DisplayOpt = 'off';
                 end
                 OptimOpts = optimoptions('lsqnonlin', 'Display', DisplayOpt, ...
-                    'MaxIterations', 1000, 'FunctionTolerance', 1e-8);
+                    'MaxIterations', 1000, ...
+                    'FunctionTolerance',   1.49e-8, ...
+                    'StepTolerance',       1.49e-8, ...
+                    'OptimalityTolerance', 1e-10);
             else
                 OptimOpts = Args.OptimOptions;
             end
@@ -3617,7 +3631,10 @@ classdef CompositeFun < handle
             GlobalKeepMask = true(NCalUsedInitial, 1);
             CurrentIndices = (1:NCalUsedInitial)';
 
-            % Setup optimization options once for all stages (avoid repeated optimoptions calls)
+            % Setup optimization options once for all stages (avoid repeated optimoptions calls).
+            % Tolerances match scipy.optimize.leastsq defaults (ftol=xtol=1.49e-8)
+            % for Simone-pipeline parity; MATLAB defaults of 1e-6 on Step/Optimality
+            % halt in the flat Norm-Center valley and produce image-dependent Center scatter.
             if isempty(Args.OptimOptions)
                 if Args.Verbose
                     DisplayOpt = 'iter';
@@ -3625,7 +3642,10 @@ classdef CompositeFun < handle
                     DisplayOpt = 'off';
                 end
                 OptimOpts = optimoptions('lsqnonlin', 'Display', DisplayOpt, ...
-                    'MaxIterations', 1000, 'FunctionTolerance', 1e-8);
+                    'MaxIterations', 1000, ...
+                    'FunctionTolerance',   1.49e-8, ...
+                    'StepTolerance',       1.49e-8, ...
+                    'OptimalityTolerance', 1e-10);
             else
                 OptimOpts = Args.OptimOptions;
             end
@@ -3666,6 +3686,25 @@ classdef CompositeFun < handle
                 NumOuterIter = 1;
             end
 
+            % Per-outer-iter weighting toggle. Strict length match required.
+            % An entry == false means: wipe PrecomputedMagErr to [] for that
+            % iter so every stage runs unweighted (costFun and the JOINT_FC /
+            % nonlinear stage handlers all treat empty PrecomputedMagErr as
+            % the unweighted branch). On a true entry, leave CurrentCostArgs
+            % alone -- iter 1 keeps the full precomputed vector that came in
+            % via Args.CostArgs; iter >= 2 has already been re-subset above.
+            if ~isempty(Args.WeightedOuterIters)
+                if ~islogical(Args.WeightedOuterIters)
+                    Args.WeightedOuterIters = logical(Args.WeightedOuterIters);
+                end
+                if numel(Args.WeightedOuterIters) ~= NumOuterIter
+                    error('CompositeFun:fitMultiStage:WeightedOuterItersLength', ...
+                        ['WeightedOuterIters has length %d but OuterMaxIter=%d ', ...
+                         '(expected one logical entry per outer iteration).'], ...
+                        numel(Args.WeightedOuterIters), NumOuterIter);
+                end
+            end
+
             for OuterIter = 1:NumOuterIter
                 if OuterIter > 1
                     % Re-subset Current* from full-N originals using updated GlobalKeepMask.
@@ -3696,6 +3735,23 @@ classdef CompositeFun < handle
                     FitResult = struct('StageName', {}, 'Method', {}, 'Cost', {}, 'RMS', {}, ...
                                        'Residuals', {}, 'NCalUsed', {}, 'NumClipped', {}, 'KeepMask', {}, ...
                                        'IsFieldCorrection', {}, 'Chi2', {}, 'DOF', {});
+                end
+
+                % Per-outer-iter unweighted override: wipe PrecomputedMagErr
+                % to [] before any stage runs in this iteration. Stage handlers
+                % treat empty MagErr as uniform weights (verified in costFun
+                % and the JOINT_FC / non-linear stage branches). A true entry
+                % leaves CurrentCostArgs alone (its PrecomputedMagErr is the
+                % full vector at iter 1, or already subset by GlobalKeepMask
+                % at iter >= 2).
+                if ~isempty(Args.WeightedOuterIters) && ~Args.WeightedOuterIters(OuterIter)
+                    Idx = find(strcmp(CurrentCostArgs(1:2:end), 'PrecomputedMagErr'));
+                    if ~isempty(Idx)
+                        CurrentCostArgs{2*Idx} = [];
+                    end
+                    if Args.Verbose
+                        fprintf('  [WeightedOuterIters] OuterIter %d: weights disabled (uniform)\n', OuterIter);
+                    end
                 end
 
             % Loop through optimization stages

@@ -3,7 +3,7 @@
 % File        : ultrasat.planner.LcsHelper_v4.m
 % Author      : Yossi Shvartzvald
 % Created     : 07/06/2026
-% Updated     : 14/06/2026
+% Updated     : 21/06/2026
 % Description : ULTRASAT Low Cadence Survey planner helper (variant-based).
 %               Companion files (same sort group):
 %                 LcsHelper_v4_findPlans.m
@@ -160,6 +160,9 @@ classdef LcsHelper_v4 < Component
         % Final schedules
         Schedule        table                                          % final schedule table (columns: category, group, ind, start, end, Field)
         Daily_schedule                                                 % [NumDays x Daily_LCS_slots] observed field IDs per day/slot (NaN = empty)
+
+        % Validation (populated when validate_after_schedule runs in constructor)
+        Validation  % ultrasat.planner.LcsHelper_v4Validator (empty until validated)
     end
 
     % ========================== CONSTANT VARIANTS ==========================
@@ -236,17 +239,19 @@ classdef LcsHelper_v4 < Component
 
                 Args.prep_before_schedule    = false;                    % if true, call prepTablesBeforeSchedule() in the constructor
                 Args.build_the_schedule      = false;                    % if true (and prep=true), call categorize_then_schedule() too
-                Args.validate_after_schedule = true;                       % if true (and build=true), run LcsHelper_v4_validate and error on failure
+                Args.validate_after_schedule = true;                     % if true (and build=true), run LcsHelper_v4_validate and error on failure
 
-                Args.Whole_daily_window = false;                           % passed to Obj.Whole_daily_window (see property comment)
-                Args.Allow1dgap         = false;                           % passed to Obj.Allow1dgap (see property comment)
-                Args.Verbose            = false;                           % passed to Obj.Verbose; enables diagnostic fprintf output
+                Args.Whole_daily_window = false;                         % passed to Obj.Whole_daily_window (see property comment)
+                Args.Allow1dgap         = false;                         % passed to Obj.Allow1dgap (see property comment)
+                Args.Verbose            = false;                         % passed to Obj.Verbose; enables diagnostic fprintf output
             end
 
+            % Set the start date
             if ~isempty(Args.StartDate)
                 Obj.StartDate = dateshift(Args.StartDate, 'start', 'day');
             end
 
+            % Set the end date if provided, otherwise set it to the start date plus the last day
             if isempty(Args.EndDate)
                 Obj.EndDate = Obj.StartDate + Obj.Last_day;
             else
@@ -254,10 +259,12 @@ classdef LcsHelper_v4 < Component
                 Obj.Last_day = days(Obj.EndDate - Obj.StartDate);
             end
 
+            % Set the daily window start time if provided
             if ~isempty(Args.DailyWindowStartTime)
                 Obj.DailyWindowStartTime = Args.DailyWindowStartTime;
             end
 
+            % Read the all sky table if provided (as filename or table)
             if ischar(Args.AllSkyTable)
                 Obj.AllSky = readtable(Args.AllSkyTable);
                 AU_ind = find(Obj.AllSky.Properties.VariableNames == "AU");
@@ -274,19 +281,29 @@ classdef LcsHelper_v4 < Component
                 Obj.AllSky.A_U   = Args.AllSkyTable.A_U;
             end
 
+            % Set the whole daily window flag if provided
             Obj.Whole_daily_window = Args.Whole_daily_window;
             Obj.Allow1dgap         = Args.Allow1dgap;
             Obj.Verbose            = Args.Verbose;
 
+            % Prep tables before schedule
             if Args.prep_before_schedule
-                Obj.prepTablesBeforeSchedule;
+                Obj.prepTablesBeforeSchedule();
+
+                % Build the schedule
                 if Args.build_the_schedule
-                    Obj.categorize_then_schedule;
+                    Obj.categorize_then_schedule();
+
+                    % Validate the schedule
                     if Args.validate_after_schedule
-                        [nFail, ~] = ultrasat.planner.LcsHelper_v4_validate(Obj, ...
-                            'Verbose', false, 'DumpCsv', false);
-                        if nFail > 0
-                            error('LcsHelper_v4: schedule validation failed (%d check(s) failed)', nFail);
+                        Obj.Validation = ultrasat.planner.LcsHelper_v4Validator(Obj, ...
+                            'Verbose', false, 'DumpCsv', false, ...
+                            'Capture', true, 'PrintToConsole', true);
+                        Obj.Validation.run();
+
+                        % If validation failed, throw an error
+                        if Obj.Validation.Result.failed()
+                            %error('LcsHelper_v4: schedule validation failed (%d check(s) failed)', Obj.Validation.Result.nFail);
                         end
                     end
                 end

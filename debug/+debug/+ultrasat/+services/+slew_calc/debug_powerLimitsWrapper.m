@@ -10,12 +10,17 @@
 %==========================================================================
 
 function debug_powerLimitsWrapper()
+    % Debug powerLimitsWrapper directly and via processRequest power_limits action.
+
     debug_powerLimitsWrapperDirect();
     debug_processRequestPowerLimits();
 end
 
+% -------------------------------------------------------------------------
 
 function debug_powerLimitsWrapperDirect()
+    % Call powerLimitsWrapper with and without optional coo field.
+
     RAD = pi / 180;
     N1 = [220 * RAD, 0 * RAD];
     S1 = [42 * RAD, -66 * RAD];
@@ -30,6 +35,7 @@ function debug_powerLimitsWrapperDirect()
     Result = ultrasat.services.slew_calc.powerLimitsWrapper(Input);
     disp(Result);
 
+    % Without coo: wrapper uses default sun-angle limits only
     InputNoCoo = struct('times', {{'2031-03-20T05:03:02Z'}});
     ResultNoCoo = ultrasat.services.slew_calc.powerLimitsWrapper(InputNoCoo);
     fprintf('Without coo: soft_max_sun_ang_dist = [');
@@ -37,8 +43,11 @@ function debug_powerLimitsWrapperDirect()
     fprintf(' ]\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_processRequestPowerLimits()
+    % Route power_limits action through processRequest and validate output fields.
+
     RAD = pi / 180;
     Coo = [[220 * RAD, 0 * RAD]; [42 * RAD, -66 * RAD]];
 

@@ -11,6 +11,7 @@
 %==========================================================================
 
 function debug_LvkFilterBase()
+    % Stub entry point for LvkFilterBase — extend with constructor/scenario tests.
 
     fprintf('--- Debugging LvkFilterBase ---\n');
 

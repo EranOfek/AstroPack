@@ -138,7 +138,7 @@ classdef uplanner < Component
         DailyWindowStartTime    duration =  duration(00,00,00); % [hrs]   
         DailyWindowMaxDuration  duration =  hours(3);           % [hrs]
 
-        LCS_obj         ultrasat.planner.LcsHelper_v4       % Object of class LCSHelper
+        LCS_obj = [];  % Object of class LcsHelper_v4, empty by default
         
         % ------------ AllSS Properties ------------
         AllSSgridFile                   = 'AllSS_fields.csv'; % the default AllSS grid
@@ -524,40 +524,40 @@ classdef uplanner < Component
             end
             Obj.StartTime = CurrStartTime;
                 
-            % Create the LCS helper object (see LcsHelper_v4.m)
-            Obj.LCS_obj = ultrasat.planner.LcsHelper_v4('AllSkyTable', ...
-                Obj.UniqTarg(Args.TargetList,:),...
-                'StartDate',Obj.StartTime,'EndDate',Obj.EndTime,...
-                'DailyWindowStartTime',Obj.DailyWindowStartTime,...
-                'prep_before_schedule',true,'build_the_schedule',true);
+            % Clear any previous object and create a new one
+            Obj.LCS_obj = [];
 
-            % Legacy (LcsHelper v1):
-            % Obj.LCS_obj = ultrasat.planner.LcsHelper('AllSkyTable', ...
-            %     Obj.UniqTarg(Args.TargetList,:),...
-            %     'StartDate',Obj.StartTime,'EndDate',Obj.EndTime,...
-            %     'DailyWindowStartTime',Obj.DailyWindowStartTime,...
-            %     'prep_before_schedule',true,'build_the_schedule',true);
+            % Create the LCS helper object (see LcsHelper_v4.m), this may throw an error if the schedule is not valid
+            Obj.LCS_obj = ultrasat.planner.LcsHelper_v4('AllSkyTable', ...
+                Obj.UniqTarg(Args.TargetList,:), ...
+                'StartDate',Obj.StartTime, 'EndDate',Obj.EndTime ,...
+                'DailyWindowStartTime', Obj.DailyWindowStartTime, ...
+                'prep_before_schedule',true, 'build_the_schedule',true);
 
             % Get the daily schedule from the LCS helper object
             DailySchedule = Obj.LCS_obj.Daily_schedule;
 
             % Find the days with targets
-            Days = find(~all(isnan(DailySchedule),2));
+            Days = find(~all(isnan(DailySchedule), 2));
 
             % Loop over the days with targets and schedule the targets
             for CurrGroup = 1:numel(Days)
                 % Calculate the start time of the current group
-                CurrStartTime = Obj.LCS_obj.StartDate + Obj.LCS_obj.DailyWindowStartTime + (Days(CurrGroup)-1);
+                % - days(1) is required because in DailySchedule 1 refers to first day of the plan
+                CurrStartTime = Obj.LCS_obj.StartDate + Obj.LCS_obj.DailyWindowStartTime - days(1) + (Days(CurrGroup)-1);
                 DailyTargets = DailySchedule(CurrGroup,~isnan(DailySchedule(Days(CurrGroup),:)));
 
                 % TODO - ordering?                
                 Obj.scheduleTargets(Args.TargetList(DailyTargets),CurrStartTime,'Group',CurrGroup);
             end
+
+            % Set plan end time for 360 days from the start time
+            Obj.EndTime = Obj.StartTime + days(360);
         end
         
         %
         function buildLCS(Obj,Args)
-            % BuildLCS (v0)
+            % BuildLCS (v0) - NOT USED ANYMORE, REPLACED BY buildLCS1
             % Build a plan for a Targetlist of LCS fields. If a list is not provided, uses all targets in the unique target list.
             % Fill in a daily window of observations and move to the next day. 
             % All relevant parameters should be set before calling this function

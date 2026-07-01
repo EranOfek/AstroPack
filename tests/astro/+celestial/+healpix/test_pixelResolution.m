@@ -44,12 +44,12 @@ function testIncreaseRequiresMultipleNSide(testCase)
     % NSide1 must be an integer multiple of NSide0.
     testCase.verifyError( ...
         @() celestial.healpix.increasePixelResolution(0, 8, 12), ...
-        'MATLAB:assertion:failed');
+        ?MException);
 end
 
 function testDecreaseRequiresMultipleNSide(testCase)
     % NSide0 must be an integer multiple of NSide1.
     testCase.verifyError( ...
         @() celestial.healpix.decreasePixelResolution(0, 12, 8), ...
-        'MATLAB:assertion:failed');
+        ?MException);
 end

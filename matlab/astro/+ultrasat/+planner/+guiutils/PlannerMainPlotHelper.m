@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainPlotHelper.m
 % Author      : Chen Tishler
 % Created     : 07/01/2025
-% Updated     : 26/12/2025
+% Updated     : 21/06/2026
 % Description : Plot Helper for Main Planner
 %==========================================================================
 
@@ -231,7 +231,9 @@ classdef PlannerMainPlotHelper < ultrasat.api.core.Loggable
         
         function showLcsGraphsWindow(obj, app)
             % Show the LCS plots window (new verion of LCS, 02/2026)
+            app.msglog('showLcsGraphsWindow');
 
+            % No planner object - just clear the graphs
             if ~obj.hasData(app), return; end
             Planner = app.MainModule.Planner;
             if isempty(Planner.LCS_obj), return; end
@@ -255,15 +257,18 @@ classdef PlannerMainPlotHelper < ultrasat.api.core.Loggable
             % Clear
             cla(LcsPlotsApp.AxesGraphsPlot, 'reset');            
 
+            % No planner object - just clear the graphs
             if ~obj.hasData(app), return; end
             Planner = app.MainModule.Planner;
             if isempty(Planner.LCS_obj), return; end
 
             % Refresh plot according to selected plot            
             try
+                % Plot Schedule
                 if LcsPlotsApp.ScheduleButton.Value
                     Planner.LCS_obj.plotSchedule('AxesHandle', LcsPlotsApp.AxesGraphsPlot);
 
+                % Plot CatB
                 elseif LcsPlotsApp.CatBButton.Value
                     Planner.LCS_obj.plotCatB('AxesHandle', LcsPlotsApp.AxesGraphsPlot);
                 end
@@ -286,6 +291,7 @@ classdef PlannerMainPlotHelper < ultrasat.api.core.Loggable
             try
                 Planner = app.MainModule.Planner;
                 cla(AxesHandle, 'reset');
+                
                 % Each flag toggles one plotMapPlan overlay layer
                 Planner.plotMapPlan('AxesHandle', AxesHandle, ...
                     'disp_uniqTarg', app.PlotFlagUniqueCheckBox.Value, ...      % unique targets

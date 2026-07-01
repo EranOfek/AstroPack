@@ -10,13 +10,20 @@
 %==========================================================================
 
 function debug_Ddt()
+    % Step-by-step DDT planner smoke tests mirroring uplanner.unitTest.
 
     fprintf('========== DEBUG DDT PLANNER ==========\n');
 
+    % --- Step 1: Ensure data path ---
     debug_ensureDataPath();
 
+    % --- Step 2: Basic single-group build ---
     debug_Ddt_basic();
+
+    % --- Step 3: Multiple groups on different start times ---
     debug_Ddt_multipleGroups();
+
+    % --- Step 4: Inspect plan summary ---
     debug_Ddt_inspect();
 
     fprintf('========== DEBUG DDT PLANNER DONE ==========\n');
@@ -24,7 +31,7 @@ end
 
 
 function debug_Ddt_basic()
-    % Single DDT group with two targets (from unitTest)
+    % Single DDT group with two targets (from unitTest).
 
     fprintf('\n--- debug_Ddt_basic ---\n');
 
@@ -39,7 +46,7 @@ end
 
 
 function debug_Ddt_multipleGroups()
-    % Two groups on different start times (from unitTest)
+    % Two groups on different start times (from unitTest).
 
     fprintf('\n--- debug_Ddt_multipleGroups ---\n');
 
@@ -61,7 +68,7 @@ end
 
 
 function debug_Ddt_inspect()
-    % Build two groups and print plan summary
+    % Build two groups and print plan summary.
 
     fprintf('\n--- debug_Ddt_inspect ---\n');
 
@@ -90,12 +97,16 @@ end
 
 
 function T = debug_sampleFieldsTable()
+    % Shared 3-field sample table used across planner debug scripts.
+
     T = table({'S1', 'N2', 'N3'}', [67, 215, 254]', [-59, 60, 64]', ...
         'VariableNames', {'Name', 'RA', 'Dec'}, 'RowNames', {'S1', 'N2', 'N3'});
 end
 
 
 function debug_ensureDataPath()
+    % Set ASTROPACK_DATA_PATH fallback when unset.
+
     if ~isempty(getenv('ASTROPACK_DATA_PATH'))
         return;
     end

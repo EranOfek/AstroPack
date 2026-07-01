@@ -1,21 +1,21 @@
 function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
     % Resample a PSF stack / cell array downto Oversampling = 1, make it odd-sized, rotate and shift
     %     NB: after all the operations, some small negative values may appear at the borders
-    %         one may need to employ imUtil.psf.suppressEdges 
-    % Input  : - a 3D PSF array with the source index in the 3rd dimension or a cell-array of 2D PSFs 
+    %         one may need to employ imUtil.psf.suppressEdges
+    % Input  : - a 3D PSF array with the source index in the 3rd dimension or a cell-array of 2D PSFs
     %          - an 2-column array of XY subpixel shifts
-    %          - a vector of oversampling factors (e.g. Oversample = 3 means 
+    %          - a vector of oversampling factors (e.g. Oversample = 3 means
     %            that the PSF grid is 3 times finer than that of the detector)
     %          - a vector of rotation angles [deg]
-    %          * ...,key,val,... 
-    %         'Recenter' - true/false whether to fftshift the PSFs on the subpixel size 
-    %         'RecenterMethod' - 'fft' or 'nearest'; usually 'nearest' goes with Oversmapling > 1
-    %         'Renorm'   - true/false whether to renormalize the stamps 
+    %          * ...,key,val,...
+    %         'Recenter' - true/false whether to shift the PSFs on the subpixel scale
+    %         'RecenterMethod' - 'lanczos' (default), 'fft', or 'nearest'; usually 'nearest' goes with Oversampling > 1
+    %         'Renorm'   - true/false whether to renormalize the stamps
     %         'ForceOdd' - false/true whether to make the even-sized stamps odd-sized
     % Output : - a stack or a cell array of resampled and shifted PSFs
     % Author : A.M. Krassilchtchikov (2024 May)
     % Example:  for i = 1:4; P(:,:,i) = imUtil.kernel2.gauss([2 2 0],[12 12]) + 1e-2*rand(12,12); end
-    %           Shift = rand(4,2); Oversample = 3; 
+    %           Shift = rand(4,2); Oversample = 3;
     %           imUtil.psf.shiftResampleRotate(P, Shift, Oversample, 'ForceOdd', true);
     arguments
         PSF
@@ -23,45 +23,45 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
         Oversample             = 0;
         RotAngle               = [];      % [deg] counterclockwise
         Args.Recenter logical  = true;
-        Args.RecenterMethod    = 'fft';   % fft or nearest
-        Args.Renorm   logical  = true;        
+        Args.RecenterMethod    = 'lanczos';   % lanczos, fft, or nearest
+        Args.Renorm   logical  = true;
         Args.ForceOdd logical  = false;
     end
-    %  
+    %
     if ~iscell(PSF)
         NumPsf = size(PSF,3);
     else
         NumPsf = numel(PSF);
-    end   
-    %
-    if ~isempty(RotAngle) && numel(RotAngle) < NumPsf 
-        RotAngle = repmat(RotAngle(1),1,NumPsf); 
     end
     %
-    if ~iscell(PSF) % if the PSFs are in an 3D array (hence they are of the same dimensions)        
-        % rotate      
-        if any( abs(RotAngle) > 1 & abs(RotAngle-360) > 1 ) 
+    if ~isempty(RotAngle) && numel(RotAngle) < NumPsf
+        RotAngle = repmat(RotAngle(1),1,NumPsf);
+    end
+    %
+    if ~iscell(PSF) % if the PSFs are in an 3D array (hence they are of the same dimensions)
+        % rotate
+        if any( abs(RotAngle) > 1 & abs(RotAngle-360) > 1 )
             M = size(PSF,1);
             M1 = ceil(M * abs(cosd(RotAngle)) + M * abs(sind(RotAngle)) ); % the sizes of rotated images
             MaxSize = max(M1); RotPSF  = zeros(MaxSize,MaxSize,NumPsf);
             for Isrc = 1:1:NumPsf
-                X1   = ceil(MaxSize/2-M1(Isrc)/2)+1; % the position of the lower left corner 
-                RotPSF(X1:X1+M1(Isrc)-1,X1:X1+M1(Isrc)-1,Isrc) = imrotate(PSF(:,:,Isrc), RotAngle(Isrc), 'bilinear', 'loose');                      
+                X1   = ceil(MaxSize/2-M1(Isrc)/2)+1; % the position of the lower left corner
+                RotPSF(X1:X1+M1(Isrc)-1,X1:X1+M1(Isrc)-1,Isrc) = imrotate(PSF(:,:,Isrc), RotAngle(Isrc), 'bilinear', 'loose');
             end
-            PSF = RotPSF; 
+            PSF = RotPSF;
         end
         % rescale, but do not normalize as of yet
         % NB: will work only with Oversample = scalar or a 2-element vector,
         % i.e. the same oversampling factors for all the PSFs
-        if ~isempty(Oversample) && all(Oversample > 0) 
+        if ~isempty(Oversample) && all(Oversample > 0)
             if numel(Oversample) < 2
                 Oversample(2) = Oversample(1);
             end
-            if Args.Recenter && strcmpi(Args.RecenterMethod,'nearest') 
-                % need to check the following block and, probably, make it faster and more compact                 
-                ShiftX = round(Shift(:,1) * Oversample(1)); % to the scale of the oversampled PSF 
+            if Args.Recenter && strcmpi(Args.RecenterMethod,'nearest')
+                % need to check the following block and, probably, make it faster and more compact
+                ShiftX = round(Shift(:,1) * Oversample(1)); % to the scale of the oversampled PSF
                 ShiftY = round(Shift(:,2) * Oversample(2));
-                ShiftedPSF = zeros(size(PSF)); 
+                ShiftedPSF = zeros(size(PSF));
                 for Ipsf = 1:NumPsf
                     if ShiftX(Ipsf) > 0
                         ShiftedPSF(:, ShiftX(Ipsf)+1:end, Ipsf) = PSF(:, 1:end-ShiftX(Ipsf), Ipsf);
@@ -76,29 +76,33 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
                         ShiftedPSF(end+ShiftY(Ipsf)+1:end, :, Ipsf) = 0;
                     end
                 end
-                PSF = ShiftedPSF; 
+                PSF = ShiftedPSF;
             end
             PSF = imUtil.psf.oversampling(PSF, Oversample, 1,'ReNorm',false,'InterpMethod','bilinear');
-        end        
+        end
         % force odd size (currently for square stamps only!)
         if Args.ForceOdd
             if rem( size(PSF,1), 2 ) == 0
                 PSF = padarray(PSF, [1, 1], 0, 'post');
                 PSF = imUtil.trans.shift_fft(PSF, 0.5, 0.5);
             end
-        end        
-        % fft shift (usually, on subpixel scales) 
-        if Args.Recenter && strcmpi(Args.RecenterMethod,'fft') 
-            PSF = imUtil.trans.shift_fft(PSF, Shift(:,1), Shift(:,2));
-        end        
+        end
+        % shift on subpixel scale
+        if Args.Recenter
+            if strcmpi(Args.RecenterMethod,'fft')
+                PSF = imUtil.trans.shift_fft(PSF, Shift(:,1), Shift(:,2));
+            elseif strcmpi(Args.RecenterMethod,'lanczos')
+                PSF = imUtil.trans.shift_lanczos(PSF, Shift);
+            end
+        end
         % normalize
         if Args.Renorm
             PSF = imUtil.psf.normPSF(PSF);
-        end        
-    else % if the PSF stack is a cell array, we are do work one by one
+        end
+    else % if the PSF stack is a cell array, we are to work one by one
         for Ipsf = 1:NumPsf
             % rotate
-            if any( abs(RotAngle) > 1 & abs(RotAngle-360) > 1 )               
+            if any( abs(RotAngle) > 1 & abs(RotAngle-360) > 1 )
                 PSF{Ipsf} = imrotate(PSF{Ipsf}, RotAngle{Ipsf}, 'bilinear', 'loose');
             end
             % rescale
@@ -112,14 +116,18 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
                     PSF{Ipsf} = imUtil.trans.shift_fft(PSF{Ipsf}, 0.5, 0.5);
                 end
             end
-            % shift
-            if Args.Recenter && strcmpi(Args.RecenterMethod,'fft') 
-                if numel(Shift) == 2 
-                    ShiftX = Shift(1); ShiftY = Shift(2); 
+            % shift on subpixel scale
+            if Args.Recenter
+                if numel(Shift) == 2
+                    ShiftXY = Shift(1,:);
                 else
-                    ShiftX = Shift(Ipsf,1); ShiftY = Shift(Ipsf,2);
+                    ShiftXY = Shift(Ipsf,:);
                 end
-                PSF{Ipsf} = imUtil.trans.shift_fft(PSF{Ipsf}, ShiftX, ShiftY);
+                if strcmpi(Args.RecenterMethod,'fft')
+                    PSF{Ipsf} = imUtil.trans.shift_fft(PSF{Ipsf}, ShiftXY(1), ShiftXY(2));
+                elseif strcmpi(Args.RecenterMethod,'lanczos')
+                    PSF{Ipsf} = imUtil.trans.shift_lanczos(PSF{Ipsf}, ShiftXY);
+                end
             end
             % normalize
             if Args.Renorm

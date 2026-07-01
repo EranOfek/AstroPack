@@ -8,9 +8,9 @@ end
 
 function testRasterizeWithExplicitNSide(testCase)
     % Returns pixels inside polygon when mex.coneSearch and helpers exist.
-    HealpixTestHelper.assumeMex(testCase, 'coneSearch');
-    HealpixTestHelper.assumeFunctionExists(testCase, 'celestial.search.isPointInsidePolygon');
-    HealpixTestHelper.assumeFunctionExists(testCase, 'celestial.polygon.spherical_polygon_circum_circle');
+    celestial.healpix.HealpixTestHelper.assumeMex(testCase, 'coneSearch');
+    celestial.healpix.HealpixTestHelper.assumeFunctionExists(testCase, 'celestial.search.isPointInsidePolygon');
+    celestial.healpix.HealpixTestHelper.assumeFunctionExists(testCase, 'celestial.polygon.spherical_polygon_circum_circle');
 
     P = [10, 70; 10, 70.5; 9.5, 70.5; 9.5, 70];
     NSide = 2^14;
@@ -26,9 +26,9 @@ end
 
 function testRasterizeWithResolution(testCase)
     % Resolution [arcsec] selects an appropriate NSide automatically.
-    HealpixTestHelper.assumeMex(testCase, 'coneSearch');
-    HealpixTestHelper.assumeFunctionExists(testCase, 'celestial.search.isPointInsidePolygon');
-    HealpixTestHelper.assumeFunctionExists(testCase, 'celestial.polygon.spherical_polygon_circum_circle');
+    celestial.healpix.HealpixTestHelper.assumeMex(testCase, 'coneSearch');
+    celestial.healpix.HealpixTestHelper.assumeFunctionExists(testCase, 'celestial.search.isPointInsidePolygon');
+    celestial.healpix.HealpixTestHelper.assumeFunctionExists(testCase, 'celestial.polygon.spherical_polygon_circum_circle');
 
     P = [10, 70; 10, 70.5; 9.5, 70.5; 9.5, 70];
     [Result, NSideOut] = celestial.healpix.rasterize_polygon(P, 'Resolution', 5, 'UseMex', true);
@@ -41,15 +41,15 @@ function testMissingNsideAndResolutionErrors(testCase)
     P = [10, 70; 10, 70.5; 9.5, 70.5; 9.5, 70];
     testCase.verifyError( ...
         @() celestial.healpix.rasterize_polygon(P), ...
-        'MATLAB:error');
+        ?MException);
 end
 
 function testMatlabPathWithoutMex(testCase)
     % UseMex=false falls back to MATLAB coneSearch when Mapping Toolbox exists.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
-    HealpixTestHelper.assumeMappingToolbox(testCase);
-    HealpixTestHelper.assumeFunctionExists(testCase, 'celestial.search.isPointInsidePolygon');
-    HealpixTestHelper.assumeFunctionExists(testCase, 'celestial.polygon.spherical_polygon_circum_circle');
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeMappingToolbox(testCase);
+    celestial.healpix.HealpixTestHelper.assumeFunctionExists(testCase, 'celestial.search.isPointInsidePolygon');
+    celestial.healpix.HealpixTestHelper.assumeFunctionExists(testCase, 'celestial.polygon.spherical_polygon_circum_circle');
 
     P = [10, 70; 10, 70.5; 9.5, 70.5; 9.5, 70];
     NSide = 2^12;

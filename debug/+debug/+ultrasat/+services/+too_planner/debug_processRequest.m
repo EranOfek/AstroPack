@@ -12,8 +12,9 @@
 %==========================================================================
 
 function debug_processRequest()
+    % Debug too_planner processRequest: health check and full too_planner run.
 
-    % Get SOC_PATH environment variable
+    % --- Ensure SOC_PATH is set for service config ---
     socPath = getenv('SOC_PATH');
     if isempty(socPath)
         fprintf('SOC_PATH not set. Setting fallback for local testing...\n');
@@ -24,7 +25,7 @@ function debug_processRequest()
         end
     end
 
-    % Get ASTROPACK_DATA_PATH environment variable
+    % --- Ensure ASTROPACK_DATA_PATH is set for planner data ---
     dataPath = getenv('ASTROPACK_DATA_PATH');
     if isempty(dataPath)
         fprintf('ASTROPACK_DATA_PATH not set. Using fallback for local testing...\n');
@@ -35,15 +36,15 @@ function debug_processRequest()
         end
     end
 
-    % Run tests
     debug_processRequestHealth();
     debug_processRequestTooPlanner();
 end
 
+% -------------------------------------------------------------------------
 
 function debug_processRequestHealth()
-    % Run health test
-    
+    % Lightweight health action: expect status=ok with no planner execution.
+
     fprintf('\n=== TOO Planner: Health Test ===\n');
     try
         % Create input struct
@@ -69,12 +70,14 @@ function debug_processRequestHealth()
     fprintf('=== TEST COMPLETE ===\n\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_processRequestTooPlanner()
-    % Run TOO Planner: Plan Test (flat API)
+    % Full too_planner run with LVC fixture, IPC JSON persistence, and output validation.
+
     fprintf('\n=== TOO Planner: Plan Test (flat API) ===\n');
     try
-        % Prepare working directory and output folder
+        % --- Prepare working directory and output folder ---
         baseDir = fileparts(mfilename('fullpath'));
         workDir = fullfile(baseDir, 'working_dir');
         output_folder = fullfile(workDir, 'output');
@@ -85,10 +88,10 @@ function debug_processRequestTooPlanner()
             mkdir(output_folder);
         end
 
-        % Get LVC CSV file, using same csv file as in TooPlannerRunner test
+        % --- Resolve LVC CSV fixture (same file as TooPlannerRunner test) ---
         csv_filename = debug_getLvcCsvPath();
 
-        % Create input struct
+        % --- Build flat too_planner request struct ---
         Input = struct( ...
             'action', 'too_planner', ...
             'planner_name', 'AK', ...
@@ -108,7 +111,7 @@ function debug_processRequestTooPlanner()
         fprintf('Input (flat):\n');
         disp(Input);
 
-        % Simulate JsonFileIpc: persist request JSON and set IPC path metadata
+        % --- Simulate JsonFileIpc: persist request JSON and set IPC path metadata ---
         ipcJsonFile = fullfile(workDir, 'too_planner_request.json');
         jsonText = jsonencode(Input, 'PrettyPrint', true);
         fid = fopen(ipcJsonFile, 'wt');
@@ -118,10 +121,9 @@ function debug_processRequestTooPlanner()
 
         fprintf('\nCalling processRequest...\n');
 
-        % Call processRequest
         Output = ultrasat.services.too_planner.processRequest(Input);
 
-        % Display output
+        % --- Display summary and per-plan results ---
         fprintf('status                : %s\n', Output.status);
         fprintf('message               : %s\n', Output.message);
         fprintf('summary_file          : %s\n', Output.summary_file);
@@ -139,6 +141,7 @@ function debug_processRequestTooPlanner()
             end
         end
 
+        % --- Assert success and preserved input JSON in output folder ---
         if ~strcmp(Output.status, 'ok')
             error('processRequest returned non-ok status: %s', Output.status);
         end
@@ -160,10 +163,11 @@ function debug_processRequestTooPlanner()
     fprintf('=== TEST COMPLETE ===\n\n');
 end
 
+% -------------------------------------------------------------------------
 
 function csvPath = debug_getLvcCsvPath()
-    % Get LVC CSV file path, using same csv file as in TooPlannerRunner test
-    
+    % Resolve LVC CSV fixture under debug/+debug/+ultrasat/+planner/input_data/.
+
     baseDir = fileparts(mfilename('fullpath'));
     plannerDebugDir = fullfile(baseDir, '..', '..', '+planner');
     csvPath = fullfile(plannerDebugDir, 'input_data', 'lvc_2024_04_01_00_40_58_000000.csv');

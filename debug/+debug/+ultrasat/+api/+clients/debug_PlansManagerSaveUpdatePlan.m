@@ -11,6 +11,8 @@
 %==========================================================================
 
 function debug_PlansManagerSaveUpdatePlan()
+    % Save HCS plan then update title/targets and save again with same pk.
+
     fprintf('========== DEBUG SAVE/UPDATE PLAN ==========\n');
 
     factory = ultrasat.api.clients.ClientFactory();
@@ -26,15 +28,29 @@ end
 
 function [PlanData, upHCS] = debug_createPlannerPlanData()
     % Create uplanner HCS + PlanData (RA=215, Dec=60, 1 Jan 2028 - 31 Jul 2028).
+
+    % Resolve the base data directory from the ASTROPACK_DATA_PATH environment variable
     BaseDataDir = getBaseDataDir();
+
+    % Create a PlanData object
     PlanData = ultrasat.api.models.PlanData();
+
+    % Create a start and end time for the uplanner HCS
     StartTime = datetime(2028, 1, 1, 'TimeZone', 'UTC');
     EndTime = datetime(2028, 7, 31, 'TimeZone', 'UTC');
+
+    % Create a uplanner HCS with the given start and end times and base data directory
     upHCS = ultrasat.planner.uplanner('AstPlanner', 'debug_user', 'Type', 'HCS', ...
         'StartTime', StartTime, 'EndTime', EndTime, ...
         'BaseDataDir', BaseDataDir);
+
+    % Add a unique target to the uplanner HCS
     upHCS.addUniqTargets(215, 60, 'Name', 'debug_target');
+
+    % Build the uplanner HCS
     upHCS.buildHCS('HCS_UniqTarg', 1);
+
+    % Sync the uplanner HCS to the PlanData
     PlanData.planner = upHCS;
     ultrasat.api.utils.PlanDataUtils.syncFromPlanner(PlanData, upHCS);
 end
@@ -49,6 +65,7 @@ function debug_saveThenUpdatePlan(client)
         % Step 1: Save (insert)
         planStruct = PlanData.toStruct();
 
+        % Save the plan
         resp = client.savePlan(planStruct);
         fprintf('Step 1 savePlan: ok=%d, status=%s\n', resp.ok, debug_getStatus(resp));
         if ~resp.ok || ~isfield(resp, 'data') || isempty(resp.data)
@@ -63,7 +80,7 @@ function debug_saveThenUpdatePlan(client)
         planStruct.title = 'updated_debug_plan';
         planStruct.status = 'draft';
 
-        % Modify targets array
+        % Modify targets array if it is not empty
         if ~isempty(planStruct.targets)
             t = planStruct.targets;
             if iscell(t)
@@ -96,6 +113,8 @@ end
 
 
 function s = debug_getStatus(response)
+    % Return response.status or empty char when field is absent.
+
     if isfield(response, 'status')
         s = response.status;
     else
@@ -105,6 +124,8 @@ end
 
 
 function BaseDataDir = getBaseDataDir()
+    % Resolve ULTRASAT data dir from ASTROPACK_DATA_PATH env var.
+
     if ispc
         BaseDataDir = fullfile(getenv('ASTROPACK_DATA_PATH'), 'ULTRASAT');
     else

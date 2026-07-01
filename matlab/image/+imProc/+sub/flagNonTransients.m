@@ -284,7 +284,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Hard bad-pixel filters
         Args.flagBadPix_Hard logical = true
-        Args.BadPix_Hard cell = {'Interpolated','NaN','NearEdge','Hole','Negative'}
+        Args.BadPix_Hard cell = {'Interpolated','NaN','NearEdge','Hole','Negative', 'CR_DeltaHT'}
 
         % Soft bad-pixel filters
         Args.flagBadPix_Soft logical = true

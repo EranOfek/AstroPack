@@ -109,6 +109,8 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
     %                   Default is 1e-4.
     %            'SuppressFunPars' - Parameters for SuppressFun (e.g. the
     %                   number of pixels from the edge). Default is 3.
+    %            'FitAnalytical' - Fit PSF with analytic function and
+    %                   use it. Default is false.
     % Output : - Result, a struct with the following fields:
     %            .StartNsrc - Number of sources entering the pipeline
     %                         (after the initial SN cut and stamping).
@@ -179,12 +181,16 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
         Args.WeightsMaxSN              = 100;
         Args.mean_sigclipArgs          = {};
 
+        Args.WingsMethod               = 'analytic';
+        Args.WingsPowerLaw             = 2;
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
-        Args.SuppressThreshold         = 1e-3;
+        Args.SuppressThreshold         = 1e-2;
         Args.SuppressFunPars           = 3; % or # from edge
         
         Args.ExtendedSize              = [1501 1501];
         Args.Alpha                     = 1;
+
+        Args.FitAnalytical             = false;
     end
 
     
@@ -407,26 +413,40 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
         Result.M1   = M1;
         Result.M2   = M2;
 
-
-        % smooth wings
-        if nargout>4
-            [MeanPSF, InnerRad,ExtendedPSF] = imUtil.psf.suppressWings(MeanPSF, 'Fun',Args.SuppressFun,...
-                                                                'Threshold',Args.SuppressThreshold,...
-                                                                'FunPars',Args.SuppressFunPars,...
-                                                                'Norm',true,...
-                                                                'ExtendedSize',Args.ExtendedSize,...
-                                                                'Alpha',Args.Alpha);
-        else
-            [MeanPSF, InnerRad] = imUtil.psf.suppressWings(MeanPSF, 'Fun',Args.SuppressFun,...
-                                                                'Threshold',Args.SuppressThreshold,...
-                                                                'FunPars',Args.SuppressFunPars,...
-                                                                'Norm',true);
-            ExtendedPSF = [];
-        end
-        Result.SuppressRad = InnerRad;
-
         % fit to analytical function
         % FFU
+        if Args.FitAnalytical
+            [R, MeanPSF] = imUtil.psf.fitFunPSF(MeanPSF, 'Funs',{@imUtil.kernel2.gauss, @imUtil.kernel2.lorentzian}, 'Par0',{[2 2 0],[1]}, 'Norm0',[1 1]);
+            Args.SuppressThreshold = [];
+        end
+
+        [MeanPSF,InnerRadius] = imUtil.psf.wingsFix(MeanPSF, 'WingsMethod',Args.WingsMethod,...
+                                                             'SuppressThreshold',Args.SuppressThreshold,...
+                                                             'WingsPowerLaw',Args.WingsPowerLaw,...
+                                                             'SuppressFun',Args.SuppressFun,...
+                                                             'SuppressFunPars',Args.SuppressFunPars,...
+                                                             'ExtendedSize',Args.ExtendedSize);
+
+
+
+
+        % smooth wings
+        % if nargout>4
+        %     [MeanPSF, InnerRad,ExtendedPSF] = imUtil.psf.suppressWings(MeanPSF, 'Fun',Args.SuppressFun,...
+        %                                                         'Threshold',Args.SuppressThreshold,...
+        %                                                         'FunPars',Args.SuppressFunPars,...
+        %                                                         'Norm',true,...
+        %                                                         'ExtendedSize',Args.ExtendedSize,...
+        %                                                         'Alpha',Args.Alpha);
+        % else
+        %     [MeanPSF, InnerRad] = imUtil.psf.suppressWings(MeanPSF, 'Fun',Args.SuppressFun,...
+        %                                                         'Threshold',Args.SuppressThreshold,...
+        %                                                         'FunPars',Args.SuppressFunPars,...
+        %                                                         'Norm',true);
+        %     ExtendedPSF = [];
+        % end
+        Result.SuppressRad = InnerRadius;
+
         
 
     else

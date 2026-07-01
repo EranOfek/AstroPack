@@ -130,10 +130,28 @@ function [Result] = backVar(Obj, Args)
         Args.RN2 = [HeadVal.(Args.RN2)].^2;
     end
     
+    if isa(Args.Method, 'function_handle')
+        StrMethod = func2str(Args.Method);
+    else
+        if iscell(Args.Method)
+            StrMethod = 'cell';
+        else
+            StrMethod = Args.Method;
+        end
+    end
+
     for Iobj=1:1:Nobj
         if isempty(Result(Iobj).(Args.BackProp).(Args.BackPropIn)) || Args.ReCalc
             
-            [Back,Var,BackSmall,VarSmall]=imUtil.background.backVar(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn),...
+            switch StrMethod
+                case 'backBertin'
+                    [Back, Var, BackSmall, VarSmall] = imUtil.background.mex.backBertin(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn), Args.MethodArgs{:});
+
+                case 'backBertinLowerRMS'
+                    [Back, Var, BackSmall, VarSmall] = imUtil.background.mex.backBertinLowerRMS(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn), Args.MethodArgs{:});
+
+                otherwise
+                    [Back,Var,BackSmall,VarSmall]=imUtil.background.backVar(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn),...
                                                  'Method',Args.Method,...
                                                  'MethodArgs',Args.MethodArgs,...
                                                  'RN2',Args.RN2(Iobj),...
@@ -142,13 +160,16 @@ function [Result] = backVar(Obj, Args)
                                                  'Overlap',Args.Overlap,...
                                                  'CCDSEC',Args.CCDSEC,...
                                                  'ExtendFull',Args.ExtendFull);
+            end
+            
+
             % store
             Result(Iobj).BackData.Image = Back;
 
             if Args.PoissVar
                 % assume Var is poisson from Back
-                Var      = (Back + Args.RN2)./Args.Ncoadd;
-                VarSmall = (BackSmall + Args.RN2)./Args.Ncoadd;
+                Var      = (Back + Args.RN2(Iobj))./Args.Ncoadd;
+                VarSmall = (BackSmall + Args.RN2(Iobj))./Args.Ncoadd;
             end
             Result(Iobj).VarData.Image  = Var;
             

@@ -311,7 +311,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.UseOriginalPSF logical    = true;   % use the PSF already attached to the input AstroImage
         Args.populatePSFArgs cell      = {'CropByQuantile',false, 'SuppressWidth',3, 'SmoothWings',false}; % {'CropByQuantile',true,'Quantile',0.5}
         Args.RadiusPSF                 = 12;
-        Args.AperRadius                = [2, 4, 6];
+        Args.AperRadius                = [3, 5, 6, 7];
         Args.Annulus                   = [10 12];
         Args.MomentsMethod             = 'mex';  %'legacy'|'mex'
         Args.AperPhotMethod            = 'interp';  % 'simple'|'interp'
@@ -322,8 +322,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.RangeSN                   = [50 1000];
         Args.InitPsf                   = @imUtil.kernel2.gauss
         Args.InitPsfArgs cell          = {[0.1; 1.5]}; %{[0.1;1.0;1.5]};  
-        Args.ConvFunExtendedPSF        = @imUtil.kernel2.sersic;
-        Args.ConvFunExtendedPSF_Args   = {[1 2 1]}; 
+        Args.ConvFunExtendedPSF        = []; %@imUtil.kernel2.sersic;
+        Args.ConvFunExtendedPSF_Args   = {[0.5 2 1]}; 
         
         
         % PSF fitting
@@ -504,7 +504,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                    'ExtendedSize',Args.ExtendedSize,...
                                                    'Alpha',Args.Alpha);
     end
-
+    
 
 
     % delete the object's input catalog 
@@ -739,7 +739,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 else
     
                     [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, ...
-                                                                                'Recenter', false,'PositivePSF',false, 'FunEdge',[]);
+                                                                                'Recenter', false,'FixPSFWings',false);
                    
                     %CubePSF = imUtil.psf.mex.cosbellTaper(CubePSF,[9 11]);
                     %SourceImage(:,:,Iiter)       = imUtil.art.addSources(zeros(SizeImage, 'single'), permute(CubePSF,[2,1,3]),XY,...
@@ -761,10 +761,16 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                     % 
                     % end
 
+                    %!!!!
+                    %if Iiter>1
                     SumSourceImage = SumSourceImage + SourceImage(:,:,Iiter);
+                    %end
                 end
+                %!!!!
+                %if Iiter>1
                 Subtracted                   = AI.ImageData.Image - SourceImage(:,:,Iiter);  
-                
+                AI.Image                     = Subtracted; % replace the image with the subtracted image
+                %end
                 
                 % optionaly set pixels with Mask > 0 to the background values (in practice this does not influence the result?)
                 %if Args.RemoveMasked
@@ -781,11 +787,12 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             
                 Cat(Iiter)                   = AI.CatData; 
                 
+
                 % add PITER to catalog
                 Nsrc = size(Cat(Iiter).Catalog, 1);
                 Cat(Iiter).insertCol(Iiter.*ones(Nsrc,1),Inf, Args.ColPITER,'');
                 
-                AI.Image                     = Subtracted; % replace the image with the subtracted image
+                
                 
                 if ExtraOutput
                     SubtractedImage(:,:,Iiter)   = Subtracted; % populate the array of subtracted images 
@@ -802,8 +809,11 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 % add local variance from the sources revealed at all the previous iterations
                 % This is not enough - for bright stars the PSF is more
                 % extended and the star edges are not subtracted
+                
+                %!!!!
                 AI.VarData.Image  = AI.VarData.Image  + SumSourceImage./(Ncoadd.*Gain);
                 AI.BackData.Image = AI.BackData.Image + SumSourceImage;  
+
                 % if Iiter==1
                 %     if Args.IsBackSub
                 %         VarFactor = 1./(Ncoadd.*Args.NcoaddFactor);
@@ -814,7 +824,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 %     end
                 %     AI.VarData.Image  = imUtil.art.mex.addBrightSourceProfile(AI.VarData.Data, X, Y, FluxNorm.*VarFactor, 1501.*ones(size(FluxNorm)), BS_RadProf); %./Args.BS_Ncoadd;
                 % end
-    
+
+                %!!!!
+                %Args.AddBackNoise = false;
                 if Iiter==1 && Args.AddBackNoise
                     % Add noise/back around bright sources
                     %GK = imUtil.kernel2.gauss(FWHM);
@@ -831,13 +843,17 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             % with flux of 10^5:
                             %BS_RadProf = io.files.load2('/home/eran/LAST_BrightStar_RadialProfile.mat');
         
-                            ColData = AI.CatData.getColMulti({'XPEAK','YPEAK','FLUX_APER_3'});
+                            ColData = AI.CatData.getColMulti({'XPEAK','YPEAK','FLUX_APER_3','FLUX_APER_4'});
                             % 
-                            MinFluxFlag = ColData(:,3)>1e5;
+                            FluxAnnulus = ColData(:,4) - ColData(:,3);
+                            %MinFluxFlag = ColData(:,3)>1e5;
+                            MinFluxFlag = FluxAnnulus>3e3; 
                             X = ColData(MinFluxFlag,1);
                             Y = ColData(MinFluxFlag,2);
-                            Flux = ColData(MinFluxFlag,3);
-                            FluxNorm = (Flux./1e5).^Args.BS_PL;
+                            %Flux = ColData(MinFluxFlag,3);
+                            %FW   = (Result(Iobj).PSFData.fwhm./3.0).^(-2); % try to take into account PSF and saturation...
+                            %FluxNorm = FW.*(Flux./1e5).^Args.BS_PL;
+                            FluxNorm = FluxAnnulus(MinFluxFlag)./5e3;
                             % 
                             MaxRadiusF = repmat(MaxRadius,size(X));
                             
@@ -846,7 +862,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             %has no meaning
                             % This has meaning only when gain=1.
                             if Args.IsBackSub
-                                VarFactor = 1./(Ncoadd.*Args.NcoaddFactor);
+                                VarFactor = 1./((Ncoadd-3).*Args.NcoaddFactor);
                             else
                                 % Image is NOT background subtracted
                                 % can estimate the VarFactor empirically

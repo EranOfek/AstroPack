@@ -709,14 +709,21 @@ classdef constant
         end % constant.P0 function         
         
         function [Const,Units,Error,Form]=Loschmidt(System)
-            % The Loschmidt constant at T0 = 273.15 K, p0 = 101.325 kPa  
+            % The Loschmidt constant at T0 = 273.15 K, p0 = 101.325 kPa
             % Package: @constant
             % Description: Return the value of the Loschmidt constant
+            %              CODATA 2018: n0 = 2.6867811(15) x 10^25 m^-3
+            %              (= 2.6867811 x 10^19 cm^-3)
+            %              NOTE: previously had a transposed-digit typo
+            %              (2.68678011 instead of 2.6867811) — fixed June
+            %              2026. The typo was 0.37 ppm low and matched
+            %              SMARTS / dast / Simone's Python code byte-for-byte
+            %              once corrected.
             % Input  : - System: 'cgs'|'SI'. Default is 'cgs'.
             % Output : - The value of the constant
             %          - Units
             %          - Relative Error
-            %          - Formula            
+            %          - Formula
             if (nargin==0)
                 System = true;
             else
@@ -727,17 +734,17 @@ classdef constant
                 end
             end
             if (System)
-                % cgs
-                Const = 2.68678011e19;
+                % cgs (CODATA 2018)
+                Const = 2.6867811e19;
                 Units = 'cm^-3';
             else
-                % SI
-                Const = 2.68678011e25;
+                % SI (CODATA 2018)
+                Const = 2.6867811e25;
                 Units = 'm^-3';
             end
             Error = NaN;
             Form  = 'p0/(kB*T0)';
-              
+
         end % constant.Loschmidt function
         
         function [Const,Units,Error,Form]=R(System)

@@ -46,6 +46,46 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %                             'AirmassSource' ('header' | 'compute')
     %                             'AirmassTimeKey' ('DATE-OBS' | 'JD' | 'MIDJD')
     %                             'ObsLat' / 'ObsLon' / 'ObsHeight'
+    %                         Gaia colour columns:
+    %                           'AttachBP_RP' (default true) - attaches BP_RP,
+    %                             MAG_BP, MAG_RP columns to SourceData via one
+    %                             extra catsHTM match against AuditCatName
+    %                             (default 'GAIADR3'). Inherited by every
+    %                             CalibTrajectory snapshot's SourceData (no
+    %                             extra plumbing). NaN-filled where the Gaia
+    %                             match misses. Pass 'AttachBP_RP', false via
+    %                             CalibArgs to skip the extra match.
+    %                         Sigma-clipping inside the fit is governed by
+    %                         CalibArgs entry 'SigmaClipMethod' (default
+    %                         'median'). Three options forwarded to
+    %                         tools.math.stat.sigmaClip:
+    %                           'median'        - astropy iteration on
+    %                                             abs(residuals); matches
+    %                                             LAST/Python production
+    %                                             (Simone feeds np.abs(
+    %                                             data-model) into astropy.
+    %                                             stats.sigma_clip). Effective
+    %                                             single-sided cut on the
+    %                                             signed scale is ~2.48 sigma
+    %                                             at SigmaThresh=3 because
+    %                                             median(|r|) ≈ 0.6745 sigma,
+    %                                             std(|r|) ≈ 0.6028 sigma.
+    %                           'median_signed' - astropy iteration on signed
+    %                                             residuals; canonical
+    %                                             N-sigma clip where
+    %                                             SigmaThresh literally
+    %                                             means N sigma on the
+    %                                             signed distribution.
+    %                                             Equivalent to astropy.
+    %                                             stats.sigma_clip(r,
+    %                                             cenfunc='median',
+    %                                             stdfunc='std', maxiters=
+    %                                             MaxIter) on SIGNED r.
+    %                           'weighted'      - single-shot |r_i / sigma_i|
+    %                                             > SigmaThresh, no iteration.
+    %                         See tools.math.stat.sigmaClip and
+    %                         PhotCalibTrans.calibrate for the full math and
+    %                         the StdFunc ('mad_std' vs 'std') option.
     %                         When AirmassSource='compute', the calibration uses
     %                         a field-centre Hardie (1962) airmass computed from
     %                         header RA/DEC/time and observer location (mirrors
@@ -146,6 +186,10 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %                                          earlier stage (never entered
     %                                          this stage's pool).
     %                            .PredictedFlux / .MagErr - same semantics.
+    %                         Plus every column from the live Obj.SourceData
+    %                         at snap time (Flux, FluxErr, X, Y, RA, Dec,
+    %                         MatchDistance, NumMatches, optional AIRMASS,
+    %                         and BP_RP/MAG_BP/MAG_RP when AttachBP_RP=true).
     %                         Plumbed through to PhotCalibTrans.calibrate
     %                         which assembles the per-snap catalog and
     %                         stores it on PC.CalibTrajectory (without
@@ -177,6 +221,18 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %          % All LAST defaults (no CalibArgs needed):
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI);
     %          fprintf('NCalUsed=%d, RMS=%.4f\n', FitRes.NCalUsed, FitRes.RMS);
+    %          % LAST_Joint_2Iter recipe: 2-stage OptSeq, two outer iterations
+    %          % (iter 1 unweighted, iter 2 weighted with combined MagErr),
+    %          % single 3-sigma signed clip between iterations:
+    %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
+    %              'CalibArgs', { ...
+    %                  'OptSeqName',         'LAST_Joint_2Iter', ...
+    %                  'WeightingMode',      'combined', ...
+    %                  'WeightedOuterIters', [false true], ...
+    %                  'OuterSigmaClip',     true, ...
+    %                  'OuterMaxIter',       2, ...
+    %                  'OuterSigmaThresh',   3.0, ...
+    %                  'OuterStdFunc',       'std' });
     %          % Override specific calibrate settings:
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
     %              'CalibArgs', {'UseTran2D', false});
@@ -232,12 +288,26 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
 
         % Calibration config forwarded to calibrate (cell array of key-value pairs)
         Args.CalibArgs cell = {}
+        Args.JointVisit logical = false   % If true, run per-crop loop, then refine
+                                          % with PhotCalibTrans.fitJointVisit (joint
+                                          % LS over pooled calibrators: 1 Norm + 10
+                                          % field-frame Tran2D coefs). Default false
+                                          % preserves per-crop status quo.
 
         Args.CreateNewObj logical = false
         Args.DiffCalibProps cell = {'New', 'Ref'}
         Args.AddMag logical = true
         Args.MagSystem char = 'AB'
         Args.MagColPrefix = 'MAG_'   % Prefix for calibrated MAG column names ('MAG_' drops _AB, overwrites instrumental MAG_*)
+        Args.RefSpecSlope (1,1) double = 0      % Slope alpha of the F_nu reference spectrum (lambda/pivot)^alpha
+                                                % used by evaluateZP/evaluateMag for the
+                                                % target-mag conversion. 0 = AB-flat (back-compat).
+                                                % Negative -> blue, positive -> red.
+        Args.RefSpecPivot (1,1) double = 5500   % Pivot wavelength [Angstrom] for the slope normalization
+        Args.Co2_ppm (1,1) double = 395         % CO2 abundance [ppm] threaded into PhotCalibTrans.calibrate
+        % -> predefSeqCompositeFun -> UMG.Par(4). Default 395 = Simone parity.
+        % Forwarded conditionally (only when not 395) to preserve last-write-
+        % wins precedence for any 'Co2_ppm' the caller already put in CalibArgs.
         Args.FluxColName = 'FLUX_APER_3'
         Args.AddZP logical = true
         Args.UpdateHeader logical = true
@@ -344,6 +414,9 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     % value already in CalibArgs gets overridden by the top-level value.
     if ~strcmpi(Args.SelectionMethod, 'catsHTM')
         Args.CalibArgs = [Args.CalibArgs, {'SelectionMethod', Args.SelectionMethod}];
+    end
+    if Args.Co2_ppm ~= 395
+        Args.CalibArgs = [Args.CalibArgs, {'Co2_ppm', Args.Co2_ppm}];
     end
     if Args.UseTAPClassprob
         Args.CalibArgs = [Args.CalibArgs, {'UseTAPClassprob', true}];
@@ -502,6 +575,11 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % applyConstBand, and the per-epoch applyPhotCalibShifts) reads this
         % property — set once here, no per-call threading.
         PC.MagColPrefix = Args.MagColPrefix;
+
+        % Same convention for the reference-spectrum slope and pivot: stamp
+        % once onto the PC so evaluateZP / evaluateMag pick them up.
+        PC.RefSpecSlope = Args.RefSpecSlope;
+        PC.RefSpecPivot = Args.RefSpecPivot;
 
         % ----------------------------------------------------------------
         % Post-calibration processing
@@ -711,6 +789,44 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         PhotCalib(Iobj) = PC;
     end
   %toc
+
+    % ====================================================================
+    % OPTIONAL: JOINT-VISIT REFINEMENT (Phase 2c MVP)
+    % ====================================================================
+    % After per-crop fits, pool calibrators across all crops and run one
+    % joint LS for a single Norm + 10 field-frame Tran2D coefs. Overwrites
+    % each PhotCalib(i).TransModel in place.
+    if Args.JointVisit && IsAstroImage && Nobj > 1
+        try
+            if Args.Verbose
+                fprintf('\n=== JOINT-VISIT REFINEMENT (%d crops) ===\n', Nobj);
+            end
+            [PhotCalib, JointResult] = PhotCalibTrans.fitJointVisit( ...
+                PhotCalib, Result, ...
+                'CalibArgs', Args.CalibArgs, ...
+                'Verbose',   Args.Verbose);
+            % Stash joint diagnostics on the first FitRes entry so callers
+            % can recover (Norm, Tran2DCoefs, FieldTran2DObj, FitInfo, Pool)
+            % without changing the FitRes shape.
+            FitRes(1).JointVisitResult = JointResult;
+        catch ME
+            % Loud, multi-line warning so it doesn't get lost in Verbose output.
+            fprintf(2, '\n***********************************************************\n');
+            fprintf(2, '* JointVisit refinement FAILED. Returning per-crop result. *\n');
+            fprintf(2, '* Reason: %s\n', ME.message);
+            if ~isempty(ME.stack)
+                fprintf(2, '* At: %s (line %d)\n', ME.stack(1).name, ME.stack(1).line);
+            end
+            fprintf(2, '***********************************************************\n\n');
+            warning('imProc:fitPhotCalibTrans:JointVisitFailed', ...
+                'Joint-visit refinement failed (%s) - returning per-crop fit.', ...
+                ME.message);
+        end
+    elseif Args.JointVisit && Nobj <= 1
+        warning('imProc:fitPhotCalibTrans:JointVisitSingleCrop', ...
+            'JointVisit=true but Nobj=%d (need >=2 crops). Skipping joint refinement.', Nobj);
+    end
+
     % ====================================================================
     % SUMMARY
     % ====================================================================
@@ -798,7 +914,44 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 MagColName) below this value. Default 2.
     %            'WeightingMode'    - Weighting mode. Default 'spectral'.
     %            'FluxErrColName'   - Flux error column. Default 'FluxErr'.
-    %            'SigmaClipMethod'  - 'median' or 'weighted'. Default 'median'.
+    %            'SigmaClipMethod'  - Sigma-clipping method forwarded to
+    %                                 tools.math.stat.sigmaClip. Default 'median'.
+    %                                 Three options:
+    %                                   'median'        - astropy iteration on
+    %                                                     abs(residuals); matches
+    %                                                     LAST/Python production
+    %                                                     (Simone's pipeline feeds
+    %                                                     np.abs(data-model) into
+    %                                                     astropy.stats.sigma_clip).
+    %                                                     More aggressive than its
+    %                                                     nominal threshold: at
+    %                                                     SigmaThresh=3 the
+    %                                                     effective single-sided
+    %                                                     cut is ~2.48 sigma on
+    %                                                     the signed scale,
+    %                                                     because median(|r|) ≈
+    %                                                     0.6745 sigma and
+    %                                                     std(|r|) ≈ 0.6028 sigma
+    %                                                     for a Gaussian.
+    %                                   'median_signed' - astropy iteration on
+    %                                                     signed residuals;
+    %                                                     canonical N-sigma clip
+    %                                                     where SigmaThresh
+    %                                                     literally means N
+    %                                                     sigma. Equivalent to
+    %                                                     calling astropy.sigma_
+    %                                                     clip(r, cenfunc=
+    %                                                     'median', stdfunc=
+    %                                                     'std', maxiters=
+    %                                                     MaxIter) on the SIGNED
+    %                                                     residuals.
+    %                                   'weighted'      - single-shot test
+    %                                                     |r_i / sigma_i| >
+    %                                                     SigmaThresh; needs
+    %                                                     per-source errors.
+    %                                 See tools.math.stat.sigmaClip docstring
+    %                                 for the full mathematical description and
+    %                                 the StdFunc ('mad_std' vs 'std') option.
     %            'FluxErrorNorm'    - Flux error normalization. Default 0.5.
     %            'AirmassColName'   - Per-source airmass column. Default 'AIRMASS'.
     %            'PerSourceAirmass' - Enable per-source airmass. Default false.
@@ -821,6 +974,16 @@ function CalibArgs = predefCalibArgs(Args)
     % Example: CalibArgs = predefCalibArgs();
     %          CalibArgs = predefCalibArgs('SearchRadius', 3);
     %          CalibArgs = predefCalibArgs('FilterNegFlux', false, 'MinSN2', 0);
+    %          % LAST_Joint_2Iter recipe (iter 1 unweighted, iter 2 'combined'
+    %          % weighted, single 3-sigma signed outer clip between):
+    %          CalibArgs = predefCalibArgs( ...
+    %              'OptSeqName',         'LAST_Joint_2Iter', ...
+    %              'WeightingMode',      'combined', ...
+    %              'WeightedOuterIters', [false true], ...
+    %              'OuterSigmaClip',     true, ...
+    %              'OuterMaxIter',       2, ...
+    %              'OuterSigmaThresh',   3.0, ...
+    %              'OuterStdFunc',       'std');
 
     arguments
         % Wavelength grid
@@ -871,8 +1034,12 @@ function CalibArgs = predefCalibArgs(Args)
         % Weighting
         Args.WeightingMode    = 'spectral'  % 'none', 'spectral', 'flux', 'combined'
         Args.FluxErrColName   = 'FluxErr'
-        Args.SigmaClipMethod  = 'median'    % 'median' or 'weighted'
+        Args.SigmaClipMethod  = 'median'    % 'median' | 'median_signed' | 'weighted' — see header doc
         Args.FluxErrorNorm    = 0.5
+        % Per-outer-iter weighting toggle. Empty (default) leaves every iter
+        % weighted; non-empty must be a logical vector of length OuterMaxIter,
+        % e.g. [false true] with OuterMaxIter=2 for the LAST_Joint_2Iter recipe.
+        Args.WeightedOuterIters = []
 
         % Per-source airmass
         Args.AirmassColName   = 'AIRMASS'   % Column name for per-source airmass

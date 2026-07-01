@@ -21,11 +21,16 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.ListCenters                   = [];
         Args.NewNoOverlap                  = [];
 
-        Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
-        %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LeftHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',12, 'MethodArgs',{{'VarianceRatio',1},{}}}; % both for single epoch and coadd
-        Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
-        %Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LeftHist, 'Block',[256 256], 'PoissVar',true, 'RN2',12, 'MethodArgs',{{'VarianceRatio',1},{}}}; % both for single epoch and coadd
+        %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+        %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LeftHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}},{}}}; % both for single epoch and coadd
+        %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+        Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[512 512], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+        %Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+        %Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LeftHist, 'Block',[256 256], 'PoissVar',true, 'RN2',13, 'MethodArgs',{{'VarianceRatio',1},{}}}; % both for single epoch and coadd
+        %Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
+        Args.backVarCoaddArgs              = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[512 512], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
 
+        Args.Threshold                     = [500 50 4]; %[500 50 20 4];
         Args.ColCell                       = {'XPEAK','YPEAK',...
                                               'X1', 'Y1',...
                                               'X2','Y2','XY',...
@@ -55,6 +60,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.forcedPhotArgs                = {};
         %--- pipeline.generic.proc2MatchedSources args ---
         Args.proc2MatchedSourcesArgs       = {};
+
+
         Args.MatchedCols                   = {'RA','Dec',...
                                               'X','Y',...
                                               'X1','Y1','X2','Y2','XY',...
@@ -248,6 +255,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                             'PsfPhotMethod',Args.PsfPhotMethod,...
                                                             'maskCR_Args',Args.maskCR_Args,...
                                                             'SearchStreaks',Args.SearchStreaksEpoch,...
+                                                            'Threshold',Args.Threshold,...
                                                             'AddSkyCoo',false);  % 466 s (with UseMex=false)
                
             else
@@ -268,6 +276,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                             'PsfPhotMethod',Args.PsfPhotMethod,...
                                                             'maskCR_Args',Args.maskCR_Args,...
                                                             'SearchStreaks',Args.SearchStreaksEpoch,...
+                                                            'Threshold',Args.Threshold,...
                                                             'AddSkyCoo',false);  % 119 s (on 16 cores): 169s -> 135s (with UseMex=true)
                 end
                 %toc
@@ -399,6 +408,15 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 AllSI = imProc.cat.addAirMass(AllSI, 'JD',JD, 'IsGood',IsGood, 'EquinoxJD',JD(1), Args.Cat_addAirMassArgs{:});
             end
 
+            % Add XFULL/YFULL
+            [~,AllSI] = imProc.cat.addXYfull(AllSI);
+
+            % Add LimMag and BackMag
+            [AllSI] = imProc.calib.limmag(AllSI, Args.LimMagArgs{:});  % 0.3s
+            [AllSI] = imProc.calib.backmag(AllSI, 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); % 0.2s
+            % Add PSF fraction to header
+            [~,AllSI] = imProc.psf.aperFrac(AllSI, 'AperRadius',Args.AperRadius);
+
             % match external / too expensive
             %if Args.matchExternal_Indiv
             %    % current default is true - do we want this?
@@ -480,6 +498,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                           'maskCR_Args',Args.maskCR_Args,...
                                                           'WriteStatHeader',true,...
                                                           'photometricZP_UpdateMagCols',false,...
+                                                          'Threshold',Args.Threshold,...
                                                           Args.multiIterExtractorArgs{:});
             
               
@@ -629,12 +648,14 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             end
 
             % Add LimMag and BackMag
-            [AllSI] = imProc.calib.limmag(AllSI, Args.LimMagArgs{:});  % 0.3s
-            [AllSI] = imProc.calib.backmag(AllSI, 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); % 0.2s
-            [Coadd] = imProc.calib.limmag(Coadd, Args.LimMagArgs{:});  
-            [Coadd] = imProc.calib.backmag(Coadd, 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); 
-
+            [Coadd(NotIsEmptyCat)] = imProc.calib.limmag(Coadd(NotIsEmptyCat), Args.LimMagArgs{:});  
+            [Coadd(NotIsEmptyCat)] = imProc.calib.backmag(Coadd(NotIsEmptyCat), 'KeyZP',Args.KeyZP, Args.BackMagArgs{:});             
+            % Add XFULL/YFULL
+            [~,Coadd(NotIsEmptyCat)] = imProc.cat.addXYfull(Coadd(NotIsEmptyCat));
+            % Add PSF fraction to header
+            [~,Coadd(NotIsEmptyCat)] = imProc.psf.aperFrac(Coadd(NotIsEmptyCat), 'AperRadius',Args.AperRadius);
             
+
             % Finish
             %ProcessingStep = 1000;
         catch ME

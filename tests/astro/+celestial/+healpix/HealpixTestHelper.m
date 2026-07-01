@@ -7,22 +7,23 @@ classdef HealpixTestHelper
     methods (Static)
 
         function Available = mexAvailable(MexName)
-            % mexAvailable  True when a celestial.healpix.mex binary exists.
-            MexFcn = ['celestial.healpix.mex.' MexName];
-            Available = (exist(MexFcn, 'file') == 3);
+            % mexAvailable  True when a compiled celestial.healpix.mex binary exists.
+            % Rejects .m script stubs — only accepts actual MEX files (.mexw64, .mexa64, etc.).
+            W = which(['celestial.healpix.mex.' MexName]);
+            Available = ~isempty(W) && ~strcmpi(W(max(1,end-1):end), '.m');
         end
 
         function assumeMex(testCase, MexName)
             % assumeMex  Skip the current test when the named MEX is unavailable.
             testCase.assumeTrue( ...
-                HealpixTestHelper.mexAvailable(MexName), ...
+                celestial.healpix.HealpixTestHelper.mexAvailable(MexName), ...
                 sprintf('Skipping: MEX "%s" is not compiled.', MexName));
         end
 
         function assumeCoreAngPixMex(testCase)
             % assumeCoreAngPixMex  Skip when self-contained ang2pix/pix2ang MEX missing.
-            HealpixTestHelper.assumeMex(testCase, 'ang2pix_nested');
-            HealpixTestHelper.assumeMex(testCase, 'pix2ang_nested');
+            celestial.healpix.HealpixTestHelper.assumeMex(testCase, 'ang2pix_nested');
+            celestial.healpix.HealpixTestHelper.assumeMex(testCase, 'pix2ang_nested');
         end
 
         function assumeMappingToolbox(testCase)

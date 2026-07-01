@@ -3,7 +3,7 @@
 % File        : +planner/+guiutils/PlannerMainLcsHelper.m
 % Author      : Chen Tishler
 % Created     : 10/06/2026
-% Modified    : 17/06/2026
+% Updated     : 22/06/2026
 % Description : LCS Fields view helper for PlannerMain / LcsFields.mlapp
 %==========================================================================
 
@@ -19,10 +19,13 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
             obj.LogPrefix = 'LcsHelper';
         end
 
+
         function showLcsFields(obj, app)
             % Open or raise LcsFields and populate group summary
+            % Called from PlannerMain.mlapp when LCSFieldsButton is pushed
             app.msglog('showLcsFields');
             if ~app.hasPlanner(), return; end
+            if ~strcmp(app.MainModule.Planner.Type, 'LCS'), return; end
 
             % Create LcsFields app if it doesn't exist
             if isempty(app.LcsFieldsApp) || ~isvalid(app.LcsFieldsApp)
@@ -51,7 +54,7 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
                 return;
             end
 
-            % Build summary table
+            % Build summary table with rows per base group letter
             Planner = app.MainModule.Planner;
             Summary = obj.buildGroupSummaryTable(Planner);
 
@@ -63,6 +66,8 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
 
         function onGroupSummarySelectionChanged(obj, app, lcsApp, selection)
             % Multi-row group selection: union fields for selected groups
+            % Called from LcsFields.mlapp when group in UITableGroupSummary is selected
+
             app.msglog('onGroupSummarySelectionChanged');
             obj.clearFieldDetailsPanel(lcsApp);
 
@@ -93,6 +98,8 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
 
         function onGroupFieldsSelectionChanged(obj, app, lcsApp, selection)
             % Field row selected: show observation dates and time range
+            % Called from LcsFields.mlapp when field in UITableGroupFields is selected
+
             app.msglog('onGroupFieldsSelectionChanged');
             if isempty(selection) || ~obj.hasLcsData(app)
                 obj.clearFieldDetailsPanel(lcsApp);
@@ -112,6 +119,8 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
                 obj.clearFieldDetailsPanel(lcsApp);
                 return;
             end
+
+            % Get the first row index from the selection
             RowIndex = RowIndices(1);
             if RowIndex < 1 || RowIndex > height(FieldsData)
                 obj.clearFieldDetailsPanel(lcsApp);
@@ -141,11 +150,15 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
             if isempty(selection)
                 return;
             end
+
+            % Get the row indices from the selection of the first column
             if size(selection, 2) >= 1
                 RowIndices = selection(:, 1);
             else
                 RowIndices = selection(:);
             end
+
+            % Keep only the valid row indices
             RowIndices = unique(RowIndices(RowIndices >= 1 & RowIndices <= maxRow));
         end
 
@@ -186,8 +199,8 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
             end
             FieldIds = Schedule.Field;
 
-            % Preserve first-seen group order from the schedule (not alphabetical)
-            UniqueGroups = unique(BaseGroups, 'stable');
+            % Sort groups alphabetically (A, B, C, D, ...)
+            UniqueGroups = unique(BaseGroups);
             NumGroups = numel(UniqueGroups);
             GroupCol = strings(NumGroups, 1);
             NumFieldsCol = zeros(NumGroups, 1);
@@ -199,17 +212,21 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
                 GroupLetter = UniqueGroups(I);
                 Mask = BaseGroups == GroupLetter;
                 FieldIdsInGroup = unique(FieldIds(Mask));
+
                 % fieldNamesForIds applies AllSky -> UniqTarg -> raw ID fallback
                 FieldNames = obj.fieldNamesForIds(Planner, FieldIdsInGroup);
 
                 % Aggregate per-group statistics: number of unique fields + date range in the plan
                 GroupCol(I) = GroupLetter;
                 NumFieldsCol(I) = numel(FieldNames);
+
+                % Get the min and max dates for the fields in the group
                 [MinDate, MaxDate] = obj.dateRangeForFields(Plan, FieldNames);
                 StartDateCol(I) = obj.formatDateOnly(MinDate);
                 EndDateCol(I) = obj.formatDateOnly(MaxDate);
             end
 
+            % Build the summary table
             Summary = table(GroupCol, NumFieldsCol, StartDateCol, EndDateCol, ...
                 'VariableNames', {'Group', 'NumFields', 'StartDate', 'EndDate'});
         end
@@ -231,23 +248,67 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
             % Collect unique field IDs that belong to the selected group letters
             GroupLetters = string(groupLetters(:));
             Mask = ismember(BaseGroups, GroupLetters);
-            FieldIds = unique(Schedule.Field(Mask));
-            FieldNames = obj.fieldNamesForIds(Planner, FieldIds);
+            FieldIdsAll = unique(Schedule.Field(Mask));
+            if isempty(FieldIdsAll)
+                FieldsTable = table();
+                return;
+            end
+
+            % Resolve names and AllSky properties per field ID, then dedupe by name
+            [RAColAll, DecColAll, AUColAll] = obj.fieldPropsForIds(Planner, FieldIdsAll);
+            NamesAll = strings(numel(FieldIdsAll), 1);
+            for I = 1:numel(FieldIdsAll)
+                NamesAll(I) = obj.fieldNameForId(Planner, FieldIdsAll(I));
+            end
+
+            % Deduplicate the fields by name
+            [NameCol, UniqueIdx] = unique(NamesAll, 'stable');
+            FieldIds = FieldIdsAll(UniqueIdx);
+
+            % Get the RA, Dec, A_U from the UniqTarg table for the deduplicated field IDs
+            RACol = RAColAll(UniqueIdx);
+            DecCol = DecColAll(UniqueIdx);
+            AUCol = AUColAll(UniqueIdx);
 
             % Build per-field min/max observation dates based on the current plan
-            NumFields = numel(FieldNames);
-            NameCol = FieldNames(:);
+            NumFields = numel(NameCol);
             MinObsCol = strings(NumFields, 1);
             MaxObsCol = strings(NumFields, 1);
 
+            % Get the min and max dates for the fields in the group
             for I = 1:NumFields
                 [MinDate, MaxDate] = obj.dateRangeForFields(Plan, NameCol(I));
                 MinObsCol(I) = obj.formatDateOnly(MinDate);
                 MaxObsCol(I) = obj.formatDateOnly(MaxDate);
             end
 
-            FieldsTable = table(NameCol, MinObsCol, MaxObsCol, ...
-                'VariableNames', {'FieldName', 'MinObsDate', 'MaxObsDate'});
+            % Build the fields table
+            VarNames = {'FieldName', 'RA', 'Dec', 'A_U', 'MinObsDate', 'MaxObsDate'};
+            FieldsTable = table(NameCol, RACol, DecCol, AUCol, MinObsCol, MaxObsCol, ...
+                'VariableNames', VarNames);
+
+            % Group B: add 1-day cadence window dates from schedule day indices
+            if any(GroupLetters == "B")
+                BMask = BaseGroups == "B";
+                StartDate = Planner.LCS_obj.StartDate;
+                CadenceStartCol = strings(NumFields, 1);
+                CadenceEndCol = strings(NumFields, 1);
+
+                % Get the 1-day cadence window dates for the fields in the group
+                for I = 1:NumFields
+                    BFieldMask = BMask & (Schedule.Field == FieldIds(I));
+                    if any(BFieldMask)
+                        MinStartDay = min(Schedule.start(BFieldMask));
+                        MaxEndDay = max(Schedule.end(BFieldMask));
+                        CadenceStartCol(I) = obj.formatDateOnly(StartDate + days(MinStartDay - 1));
+                        CadenceEndCol(I) = obj.formatDateOnly(StartDate + days(MaxEndDay - 1));
+                    end
+                end
+
+                % Add the 1-day cadence window dates to the fields table
+                FieldsTable = [FieldsTable, table(CadenceStartCol, CadenceEndCol, ...
+                    'VariableNames', {'1-Day Cadence Start', '1-Day Cadence End'})];
+            end
         end
 
 
@@ -280,13 +341,14 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
             DateCol = strings(NumRows, 1);
             StartTimeCol = strings(NumRows, 1);
 
+            % Build the display columns
             for I = 1:NumRows
                 Tstart = SubPlan.Tstart(I);
                 DateCol(I) = datestr(Tstart, 'yyyy-mm-dd');
                 StartTimeCol(I) = datestr(Tstart, 'HH:MM:SS');
             end
 
-            % Return both the table and the overall time range for UI display
+            % Build the dates table
             DatesTable = table(IndexCol, DateCol, StartTimeCol, ...
                 'VariableNames', {'Index', 'Date', 'StartTime'});
             MinDate = min(SubPlan.Tstart);
@@ -329,35 +391,61 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
                 return;
             end
 
-            % AllSky is the primary lookup table for field ID -> name
-            AllSky = Planner.LCS_obj.AllSky;
             NumIds = numel(fieldIds);
             Names = strings(NumIds, 1);
-
-            % Resolve each ID: AllSky.Name -> UniqTarg.Name -> raw Field value
             for I = 1:NumIds
-                FieldId = fieldIds(I);
-                RowIdx = find(AllSky.Field == FieldId, 1);
-                if isempty(RowIdx)
-                    % If the field is missing from AllSky, fall back to showing the raw ID
-                    Names(I) = string(FieldId);
-                    continue;
-                end
-
-                if ismember('Name', AllSky.Properties.VariableNames)
-                    % Preferred: explicit name column in AllSky table
-                    Names(I) = string(AllSky.Name(RowIdx));
-                elseif FieldId >= 1 && FieldId <= height(Planner.UniqTarg)
-                    % Legacy fallback: interpret the ID as an index into UniqTarg
-                    Names(I) = string(Planner.UniqTarg.Name(FieldId));
-                else
-                    % Last-resort: echo the numeric field identifier from AllSky
-                    Names(I) = string(AllSky.Field(RowIdx));
-                end
+                Names(I) = obj.fieldNameForId(Planner, fieldIds(I));
             end
 
             % Unique (stable) so downstream displays don't duplicate fields
             Names = unique(Names, 'stable');
+        end
+
+
+        function Name = fieldNameForId(obj, Planner, fieldId)
+            % Resolve a single LCS field ID to a display name
+            AllSky = Planner.LCS_obj.AllSky;
+            RowIdx = find(AllSky.Field == fieldId, 1);
+            if isempty(RowIdx)
+                Name = string(fieldId);
+                return;
+            end
+
+            % Get the name from the AllSky table if it exists
+            if ismember('Name', AllSky.Properties.VariableNames)
+                Name = string(AllSky.Name(RowIdx));
+
+            % Get the name from the UniqTarg table if the field ID is within the range
+            elseif fieldId >= 1 && fieldId <= height(Planner.UniqTarg)
+                Name = string(Planner.UniqTarg.Name(fieldId));
+
+            % Get the name from the AllSky table if the field ID is not within the range
+            else
+                Name = string(AllSky.Field(RowIdx));
+            end
+        end
+
+
+        function [RACol, DecCol, AUCol] = fieldPropsForIds(obj, Planner, fieldIds)
+            % Look up RA, Dec, A_U from AllSky for a list of field IDs
+            AllSky = Planner.LCS_obj.AllSky;
+            NumIds = numel(fieldIds);
+            RACol = nan(NumIds, 1);
+            DecCol = nan(NumIds, 1);
+            AUCol = nan(NumIds, 1);
+
+            % Get the RA, Dec, A_U from the AllSky table for each field ID
+            for I = 1:NumIds
+                RowIdx = find(AllSky.Field == fieldIds(I), 1);
+                if isempty(RowIdx)
+                    continue;
+                end
+
+                % Get the RA, Dec, A_U from the AllSky table for the field ID
+                RACol(I) = AllSky.RA(RowIdx);
+                DecCol(I) = AllSky.Dec(RowIdx);
+                AUCol(I) = AllSky.A_U(RowIdx);
+            end
         end
 
 
@@ -394,8 +482,10 @@ classdef PlannerMainLcsHelper < ultrasat.api.core.Loggable
             end
 
             uiTable.Data = Data;
+            
             % Keep UI table columns aligned with the table's variable names
             uiTable.ColumnName = Data.Properties.VariableNames;
+
             % Display-only tables in this view (sorting enabled, cell editing disabled)
             uiTable.ColumnEditable = false(1, width(Data));
             uiTable.ColumnSortable = true(1, width(Data));

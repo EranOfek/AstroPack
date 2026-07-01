@@ -79,6 +79,8 @@ function [Result, BestFitPSF] = fitFunPSF(PSF, Args)
         error('PSF must be a 2D matrix.');
     end
 
+    PSF = double(PSF);
+
     SizeXY = fliplr(size(PSF));   % [Xsize, Ysize]
 
     if isempty(Args.PosXY)

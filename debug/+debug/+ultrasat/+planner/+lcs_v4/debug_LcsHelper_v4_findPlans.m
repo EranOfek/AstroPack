@@ -3,19 +3,22 @@
 % Filename    : +debug/+ultrasat/+planner/+lcs_v4/debug_LcsHelper_v4_findPlans.m
 % Author      : Chen Tishler
 % Created     : 10/06/2026
+% Updated     : 22/06/2026
 % Description : Debug for LcsHelper_v4_findPlans — bidirectional LCS plan
 %               scanner centered on a given start date.
 %
-
 % Run by      : debug.ultrasat.planner.lcs_v4.debug_LcsHelper_v4_findPlans()
 %==========================================================================
 
 function debug_LcsHelper_v4_findPlans()
+    % Run basic, limited-radius, and empty-result findPlans smoke tests.
 
     fprintf('========== DEBUG LcsHelper_v4_findPlans ==========\n');
 
+    % --- Ensure ASTROPACK_DATA_PATH is set ---
     debug_ensureDataPath();
 
+    % --- Sub-tests ---
     debug_LcsHelper_v4_findPlans_basic();
     debug_LcsHelper_v4_findPlans_limitedRadius();
     debug_LcsHelper_v4_findPlans_emptyResult();
@@ -23,9 +26,10 @@ function debug_LcsHelper_v4_findPlans()
     fprintf('========== DEBUG LcsHelper_v4_findPlans DONE ==========\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_LcsHelper_v4_findPlans_basic()
-    % Standard call: find 2 plans before and 2 plans on/after 2029-01-05
+    % Standard call: find 2 plans before and 2 plans on/after 2029-01-05.
 
     fprintf('\n--- debug_LcsHelper_v4_findPlans_basic ---\n');
 
@@ -35,6 +39,7 @@ function debug_LcsHelper_v4_findPlans_basic()
         error('debug_LcsHelper_v4_findPlans_basic: expected a table result');
     end
 
+    % --- Verify expected output schema ---
     expectedCols = {'plan_start_date', 'offset_days', 'status', ...
         'num_observations', 'nA', 'nB', 'nC', 'nD', 'variant_used', 'detail'};
     for I = 1:numel(expectedCols)
@@ -47,6 +52,7 @@ function debug_LcsHelper_v4_findPlans_basic()
     disp(Plans(:, {'plan_start_date', 'offset_days', 'status', 'num_observations', 'variant_used'}));
 
     if height(Plans) > 0
+        % --- Feasible plans should be sorted and have positive counts ---
         FeasibleMask = strcmp(Plans.status, 'FEASIBLE');
         nBefore = sum(Plans.offset_days(FeasibleMask) < 0);
         nAfter  = sum(Plans.offset_days(FeasibleMask) >= 0);
@@ -69,9 +75,10 @@ function debug_LcsHelper_v4_findPlans_basic()
     fprintf('debug_LcsHelper_v4_findPlans_basic: OK\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_LcsHelper_v4_findPlans_limitedRadius()
-    % Small radius — may find fewer than NumPlans per direction
+    % Small radius — may find fewer than NumPlans per direction.
 
     fprintf('\n--- debug_LcsHelper_v4_findPlans_limitedRadius ---\n');
 
@@ -81,6 +88,7 @@ function debug_LcsHelper_v4_findPlans_limitedRadius()
         error('debug_LcsHelper_v4_findPlans_limitedRadius: expected a table result');
     end
 
+    % --- All feasible offsets must stay within MaxRadius ---
     FeasibleMask = strcmp(Plans.status, 'FEASIBLE');
     nBefore = sum(Plans.offset_days(FeasibleMask) < 0);
     nAfter  = sum(Plans.offset_days(FeasibleMask) >= 0);
@@ -94,9 +102,10 @@ function debug_LcsHelper_v4_findPlans_limitedRadius()
     fprintf('debug_LcsHelper_v4_findPlans_limitedRadius: OK\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_LcsHelper_v4_findPlans_emptyResult()
-    % MaxRadius=0: only tries StartDate itself; validates empty-table schema
+    % MaxRadius=0: only tries StartDate itself; validates empty-table schema.
 
     fprintf('\n--- debug_LcsHelper_v4_findPlans_emptyResult ---\n');
 
@@ -107,6 +116,7 @@ function debug_LcsHelper_v4_findPlans_emptyResult()
         error('debug_LcsHelper_v4_findPlans_emptyResult: expected a table result');
     end
 
+    % --- Schema must be present even when no feasible plans are found ---
     expectedCols = {'plan_start_date', 'offset_days', 'status', ...
         'num_observations', 'nA', 'nB', 'nC', 'nD', 'variant_used', 'detail'};
     for I = 1:numel(expectedCols)
@@ -119,8 +129,11 @@ function debug_LcsHelper_v4_findPlans_emptyResult()
     fprintf('debug_LcsHelper_v4_findPlans_emptyResult: OK\n');
 end
 
+% -------------------------------------------------------------------------
 
 function debug_ensureDataPath()
+    % Set ASTROPACK_DATA_PATH to a local fallback when unset.
+
     if ~isempty(getenv('ASTROPACK_DATA_PATH'))
         return;
     end

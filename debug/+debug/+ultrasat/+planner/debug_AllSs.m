@@ -10,13 +10,20 @@
 %==========================================================================
 
 function debug_AllSs()
+    % Step-by-step AllSS planner smoke tests mirroring uplanner.unitTest.
 
     fprintf('========== DEBUG ALLSS PLANNER ==========\n');
 
+    % --- Step 1: Ensure data path ---
     debug_ensureDataPath();
 
+    % --- Step 2: Grid construction ---
     debug_AllSs_constructGrid();
+
+    % --- Step 3: Weekly build ---
     debug_AllSs_buildWeekly();
+
+    % --- Step 4: Semester build ---
     debug_AllSs_buildSemester();
 
     fprintf('========== DEBUG ALLSS PLANNER DONE ==========\n');
@@ -24,7 +31,7 @@ end
 
 
 function debug_AllSs_constructGrid()
-    % Constructor auto-calls constructAllSSgrid; inspect UniqTarg grid
+    % Constructor auto-calls constructAllSSgrid; inspect UniqTarg grid.
 
     fprintf('\n--- debug_AllSs_constructGrid ---\n');
 
@@ -51,7 +58,7 @@ end
 
 
 function debug_AllSs_buildWeekly()
-    % Short 7-day AllSS smoke build (first buildAllSS block in unitTest)
+    % Short 7-day AllSS smoke build (first buildAllSS block in unitTest).
 
     fprintf('\n--- debug_AllSs_buildWeekly ---\n');
 
@@ -80,7 +87,7 @@ end
 
 
 function debug_AllSs_buildSemester()
-    % Full-semester AllSS build after weekly segment (second unitTest block)
+    % Full-semester AllSS build after weekly segment (second unitTest block).
 
     fprintf('\n--- debug_AllSs_buildSemester ---\n');
 
@@ -126,7 +133,7 @@ end
 
 
 function matPath = debug_getAllSsMatPath()
-    % Resolve alss_uniq_targ.mat from ASTROPACK_DATA_PATH or unitTest path
+    % Resolve alss_uniq_targ.mat from ASTROPACK_DATA_PATH or unitTest path.
 
     candidates = {};
 
@@ -135,6 +142,7 @@ function matPath = debug_getAllSsMatPath()
         candidates{end+1} = fullfile(dataRoot, 'ULTRASAT', 'alss_uniq_targ.mat'); %#ok<AGROW>
     end
 
+    % Add Windows data path
     if ispc
         candidates{end+1} = fullfile('C:\AstroPack\matlab\data', 'ULTRASAT', 'alss_uniq_targ.mat');
     end
@@ -156,6 +164,8 @@ end
 
 
 function debug_ensureDataPath()
+    % Set ASTROPACK_DATA_PATH fallback when unset.
+
     if ~isempty(getenv('ASTROPACK_DATA_PATH'))
         return;
     end

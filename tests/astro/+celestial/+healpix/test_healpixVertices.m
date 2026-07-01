@@ -23,7 +23,7 @@ function testOutOfRangePixelErrors(testCase)
     BadPix = 12 * NSide^2;
     testCase.verifyError( ...
         @() celestial.healpix.healpixVertices(NSide, BadPix), ...
-        'MATLAB:error');
+        ?MException);
 end
 
 function testInvalidTypeErrors(testCase)
@@ -32,12 +32,12 @@ function testInvalidTypeErrors(testCase)
     Pix = 0;
     testCase.verifyError( ...
         @() celestial.healpix.healpixVertices(NSide, Pix, 'invalid'), ...
-        'MATLAB:error');
+        ?MException);
 end
 
 function testVerticesNearPixelCenter(testCase)
     % Each vertex should be within ~1 pixel radius of the pixel center.
-    HealpixTestHelper.assumeCoreAngPixMex(testCase);
+    celestial.healpix.HealpixTestHelper.assumeCoreAngPixMex(testCase);
 
     NSide = 16;
     Pix = [197; 31];

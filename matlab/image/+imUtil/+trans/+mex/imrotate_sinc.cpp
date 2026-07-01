@@ -47,7 +47,10 @@ void rotateSinc(const T* Image,
                 mwSize Nx,
                 double RotationDeg)
 {
-    const double Theta = RotationDeg * (M_PI / 180.0);
+    // Negated so that positive RotationDeg matches MATLAB's imrotate
+    // convention (counter-clockwise in the array/display sense, where row
+    // index increases downward) rather than plain math-CCW in (col,row).
+    const double Theta = -RotationDeg * (M_PI / 180.0);
     const double CosT  = std::cos(Theta);
     const double SinT  = std::sin(Theta);
 

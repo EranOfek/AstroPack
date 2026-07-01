@@ -12,14 +12,23 @@
 %==========================================================================
 
 function debug_Lcs()
+    % Step-by-step LCS planner smoke tests mirroring uplanner.unitTest.
 
     fprintf('========== DEBUG LCS PLANNER ==========\n');
 
+    % --- Step 1: Ensure data path ---
     debug_ensureDataPath();
 
+    % --- Step 2: New LCS build (buildLCS1) ---
     debug_Lcs_buildLCS1();
+
+    % --- Step 3: Legacy buildLCS with visibility filter ---
     debug_Lcs_buildLCS_legacy();
+
+    % --- Step 4: HCS-to-LCS approved plan handoff ---
     debug_Lcs_retrieveApproved();
+
+    % --- Step 5: Edit and delete plan rows ---
     debug_Lcs_editAndDelete();
 
     fprintf('========== DEBUG LCS PLANNER DONE ==========\n');
@@ -27,10 +36,11 @@ end
 
 
 function debug_Lcs_buildLCS1()
-    % New LCS (2026) via LcsHelper and surveys grid CSV
+    % New LCS (2026) via LcsHelper and surveys grid CSV.
 
     fprintf('\n--- debug_Lcs_buildLCS1 ---\n');
 
+    % Create LCS uplanner
     upLCS = ultrasat.planner.uplanner('AstPlanner', 'YS', 'Type', 'LCS');
     upLCS.StartTime = '2029-02-01 00:00:00';
     upLCS.EndTime = upLCS.StartTime + caldays(420);
@@ -41,8 +51,11 @@ function debug_Lcs_buildLCS1()
         error('debug_Lcs_buildLCS1: grid file not found: %s', gridFile);
     end
 
+    % Read LCS grid CSV file
     LCS_grid = readtable(gridFile);
     upLCS.addUniqTargets(LCS_grid.RA, LCS_grid.Dec, 'Name', num2cell(LCS_grid.Field));
+
+    % Build LCS plan
     upLCS.buildLCS1;
 
     fprintf('LCS plan rows (buildLCS1): %d\n', height(upLCS.Plan));
@@ -51,10 +64,11 @@ end
 
 
 function debug_Lcs_buildLCS_legacy()
-    % Legacy buildLCS with visibility filter and TargetList
+    % Legacy buildLCS with visibility filter and TargetList.
 
     fprintf('\n--- debug_Lcs_buildLCS_legacy ---\n');
 
+    % Create LCS uplanner
     upLCS = ultrasat.planner.uplanner('AstPlanner', 'YS', 'Type', 'LCS');
     upLCS.StartTime = 'now';
     upLCS.EndTime = upLCS.StartTime + caldays(45);
@@ -65,16 +79,19 @@ function debug_Lcs_buildLCS_legacy()
         error('debug_Lcs_buildLCS_legacy: grid file not found: %s', gridFile);
     end
 
+    % Read LCS grid CSV file
     LCS_grid = readtable(gridFile);
     F = LCS_grid.V45 == 1 & LCS_grid.A_U_1 == 1;
     upLCS.addUniqTargets(LCS_grid.RA(F), LCS_grid.Dec(F), 'Name', num2cell(LCS_grid.Field(F)));
 
+    % Update target visibility
     upLCS.updateTargetVisibility('WindowStartTime', upLCS.StartTime, ...
         'WindowEndTime', upLCS.EndTime);
     F2 = find(all(upLCS.Vis.SunLimits & upLCS.Vis.EarthLimits & upLCS.Vis.MoonLimits, 1));
 
     fprintf('Visible targets: %d of %d\n', numel(F2), height(upLCS.UniqTarg));
 
+    % Build LCS plan
     upLCS.buildLCS('TargetList', F2);
 
     fprintf('LCS plan rows (buildLCS legacy): %d\n', height(upLCS.Plan));
@@ -83,11 +100,11 @@ end
 
 
 function debug_Lcs_retrieveApproved()
-    % HCS -> LCS handoff via retrieveMissionApprovedPlan (unitTest)
+    % HCS -> LCS handoff via retrieveMissionApprovedPlan (unitTest).
 
     fprintf('\n--- debug_Lcs_retrieveApproved ---\n');
 
-    % Build minimal HCS plan first (same as unitTest dependency)
+    % Build minimal HCS plan first (LCS depends on approved HCS plan)
     fields = debug_sampleFieldsTable();
     upHCS = ultrasat.planner.uplanner('AstPlanner', 'YS', 'Type', 'HCS', ...
         'StartTime', 'now', 'EndTime', datetime('now') + calmonths(6) - days(1));
@@ -95,11 +112,13 @@ function debug_Lcs_retrieveApproved()
     upHCS.buildHCS;
     fprintf('HCS plan rows for handoff: %d\n', height(upHCS.Plan));
 
+    % Create LCS uplanner
     upLCS = ultrasat.planner.uplanner('AstPlanner', 'YS', 'Type', 'LCS');
     upLCS.StartTime = 'now';
     upLCS.EndTime = upLCS.StartTime + caldays(45);
     upLCS.DailyWindowStartTime = duration('03:00:00');
 
+    % Read LCS grid CSV file
     gridFile = fullfile(upLCS.BaseDataDir, 'LCS_nonoverlapping_grid.csv');
     LCS_grid = readtable(gridFile);
     F = LCS_grid.V45 == 1 & LCS_grid.A_U_1 == 1;
@@ -108,11 +127,11 @@ function debug_Lcs_retrieveApproved()
         'WindowEndTime', upLCS.EndTime);
     F2 = find(all(upLCS.Vis.SunLimits & upLCS.Vis.EarthLimits & upLCS.Vis.MoonLimits, 1));
 
-    % From HCS Plan table
+    % Handoff from HCS Plan table
     upLCS.retrieveMissionApprovedPlan('inputPlan', upHCS.Plan);
     fprintf('retrieveMissionApprovedPlan from HCS.Plan: OK\n');
 
-    % From api_response.mat struct (if present)
+    % Handoff from api_response.mat struct (optional fixture)
     apiFile = fullfile(upLCS.BaseDataDir, 'api_response.mat');
     if isfile(apiFile)
         S = load(apiFile);
@@ -137,7 +156,7 @@ end
 
 
 function debug_Lcs_editAndDelete()
-    % Edit/delete plan rows and unique targets (unitTest LCS edit block)
+    % Edit/delete plan rows and unique targets (unitTest LCS edit block).
 
     fprintf('\n--- debug_Lcs_editAndDelete ---\n');
 
@@ -175,7 +194,7 @@ end
 
 
 function upLCS = debug_buildLcsForEdit()
-    % Build LCS plan with enough rows for edit/delete exercises
+    % Build LCS plan with enough rows for edit/delete exercises.
 
     fields = debug_sampleFieldsTable();
     upHCS = ultrasat.planner.uplanner('AstPlanner', 'YS', 'Type', 'HCS', ...
@@ -201,12 +220,16 @@ end
 
 
 function T = debug_sampleFieldsTable()
+    % Shared 3-field sample table used across planner debug scripts.
+
     T = table({'S1', 'N2', 'N3'}', [67, 215, 254]', [-59, 60, 64]', ...
         'VariableNames', {'Name', 'RA', 'Dec'}, 'RowNames', {'S1', 'N2', 'N3'});
 end
 
 
 function debug_ensureDataPath()
+    % Set ASTROPACK_DATA_PATH fallback when unset.
+
     if ~isempty(getenv('ASTROPACK_DATA_PATH'))
         return;
     end

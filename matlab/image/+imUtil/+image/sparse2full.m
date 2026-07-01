@@ -37,8 +37,8 @@ function Result = sparse2full(SparseImage, VecX, VecY, SizeIJ, Args)
         
         % post interpolation
         Args.Smooth(1,1) logical       = false;
-        Args.GaussSigma                = 10; % if empty do nothing
-        Args.FiltSizeFactor            = 6;
+        Args.GaussSigma                = 50; % 10 % if empty do nothing
+        Args.FiltSizeFactor            = 4; % 6
     end
    
     switch lower(Args.Method)

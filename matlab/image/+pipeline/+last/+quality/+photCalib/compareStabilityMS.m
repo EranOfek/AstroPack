@@ -460,6 +460,77 @@ function compareStabilityMS(MSList, Labels, Args)
         Args.MinTicks         (1,1) double {mustBePositive, mustBeInteger} = 1
         Args.ARMS_N           (1,1) double {mustBePositive, mustBeInteger} = 20
         Args.BadFlags         cell = {'Saturated','NearEdge','Overlap'}
+        Args.StdMethod                                            = 'robust'
+        % Per-source scatter estimator used for both the curve and the
+        % per-bin envelope (ShowStdBand):
+        %   'plain'  -> std(Y, 0, 1, 'omitnan')                       (back-compat)
+        %   'robust' -> 1.4826 * median(|Y - median(Y)|, 'omitnan')   (MAD-based, default)
+        % Accepts either a single char ('plain' / 'robust') applied to
+        % every MS, OR a cell of chars (one per MS in MSList) so a
+        % single call can overlay plain-std and robust-std for the
+        % same MS by duplicating it in MSList. Example:
+        %   compareStabilityMS({MS,MS}, {'std','rstd'}, ...
+        %                      'StdMethod', {'plain','robust'});
+        % ARMS inherits the per-MS choice automatically.
+        Args.LineStyle        cell = {}
+        % Per-MS line style. Empty (default) -> all solid ('-'). Otherwise
+        % a cell of MATLAB line specs, one per MS in MSList. Useful when
+        % overlaying plain-std + robust-std for the same MS — make the
+        % plain-std line dotted so it visually pairs with its rstd twin.
+        % Example: {':','-',':','-'}.
+        Args.LineColor             = []
+        % Per-MS line/band colour. Empty (default) -> lines(numel(MSList)).
+        % Otherwise either a Nx3 RGB matrix or a cell of 1x3 RGB triplets
+        % (N = numel(MSList)). Pair MSs that should share a colour (e.g.
+        % a std/rstd duplicate of the same source) by repeating the same
+        % triplet for those entries.
+        % Example pairing 4 MSs as two cohorts:
+        %   {[0 0.45 0.74],[0 0.45 0.74],[0.85 0.33 0.10],[0.85 0.33 0.10]}
+    end
+
+    % Normalise StdMethod to a 1xnumel(MSList) cell of chars. Validation
+    % is manual because the arguments block accepts either char OR cell.
+    if ischar(Args.StdMethod) || isstring(Args.StdMethod)
+        MethodPerMS = repmat({char(Args.StdMethod)}, 1, numel(MSList));
+    elseif iscell(Args.StdMethod)
+        if numel(Args.StdMethod) ~= numel(MSList)
+            error('compareStabilityMS:BadStdMethod', ...
+                'When StdMethod is a cell, it must have one entry per MS in MSList (got %d, expected %d).', ...
+                numel(Args.StdMethod), numel(MSList));
+        end
+        MethodPerMS = cellfun(@char, Args.StdMethod, 'Uni', 0);
+    else
+        error('compareStabilityMS:BadStdMethod', ...
+            'StdMethod must be ''plain'', ''robust'', or a cell of those (one per MS).');
+    end
+    if ~all(ismember(MethodPerMS, {'plain','robust'}))
+        error('compareStabilityMS:BadStdMethod', ...
+            'StdMethod entries must each be ''plain'' or ''robust''.');
+    end
+
+    % Per-MS line style. Empty -> all solid.
+    if isempty(Args.LineStyle)
+        LineStylePerMS = repmat({'-'}, 1, numel(MSList));
+    elseif iscell(Args.LineStyle) && numel(Args.LineStyle) == numel(MSList)
+        LineStylePerMS = Args.LineStyle;
+    else
+        error('compareStabilityMS:BadLineStyle', ...
+            'LineStyle must be empty or a cell of one MATLAB line spec per MS in MSList (%d).', ...
+            numel(MSList));
+    end
+
+    % Per-MS line / band colour. Empty -> lines(N). Accepts Nx3 numeric or
+    % cell of 1x3 RGB triplets.
+    if isempty(Args.LineColor)
+        ColorPerMS = lines(numel(MSList));
+    elseif iscell(Args.LineColor) && numel(Args.LineColor) == numel(MSList)
+        ColorPerMS = vertcat(Args.LineColor{:});
+    elseif isnumeric(Args.LineColor) && isequal(size(Args.LineColor), [numel(MSList), 3])
+        ColorPerMS = Args.LineColor;
+    else
+        error('compareStabilityMS:BadLineColor', ...
+            ['LineColor must be empty, a %dx3 numeric matrix, or a cell of ', ...
+             'one 1x3 RGB triplet per MS in MSList.'], numel(MSList));
     end
 
     if numel(Labels) < numel(MSList)
@@ -521,7 +592,7 @@ function compareStabilityMS(MSList, Labels, Args)
                 'Nrows*Ncols=%d < Nq=%d', Nrows*Ncols, Nq);
         end
     end
-    Cmap  = lines(numel(MSList));
+    Cmap  = ColorPerMS;
 
     if ~Args.SplitByRow
         figure('Name', sprintf('Stability comparison: %s', strjoin(Labels, ' vs ')), ...
@@ -564,9 +635,10 @@ function compareStabilityMS(MSList, Labels, Args)
             if ~isempty(Args.AIcoadd) && K <= numel(Args.AIcoadd)
                 AIcrops = Args.AIcoadd{K};
             end
-            [Med, Std] = collectMedStd(MSList{K}, Qk, IsAngK, Args, AIcrops);
+            MethodK = MethodPerMS{K};
+            [Med, Std] = collectMedStd(MSList{K}, Qk, IsAngK, Args, AIcrops, MethodK);
             if isempty(Med); continue; end
-            [Bx, By, Bs, Bn] = binStats(Med, Std, Args.BinWidth, IsLogX);
+            [Bx, By, Bs, Bn] = binStats(Med, Std, Args.BinWidth, IsLogX, MethodK);
             DName = Labels{K};
             if ~strcmp(Qk, Q0)
                 DName = sprintf('%s [%s]', Labels{K}, Qk);   % name differs from panel default
@@ -584,7 +656,7 @@ function compareStabilityMS(MSList, Labels, Args)
             else
                 ARMS  = NaN;
             end
-            DName = sprintf('%s (N=%d, ARMS=%.3g)', DName, sum(Bn), ARMS);
+            DName = sprintf('%s (ARMS=%.3g)', DName, ARMS);
             if Args.ShowStdBand && ~isempty(Bx)
                 Lo = max(By - Bs, eps);  Hi = By + Bs;
                 fill([Bx; flipud(Bx)], [Lo; flipud(Hi)], Cmap(K,:), ...
@@ -600,7 +672,8 @@ function compareStabilityMS(MSList, Labels, Args)
                     'EdgeColor', 'none', 'FaceAlpha', 0.35, ...
                     'HandleVisibility', 'off');
             end
-            plot(Ax, Bx, By, '-', 'Color', Cmap(K,:), 'LineWidth', 2, ...
+            plot(Ax, Bx, By, 'LineStyle', LineStylePerMS{K}, ...
+                'Color', Cmap(K,:), 'LineWidth', 2, ...
                 'DisplayName', DName);
         end
         if IsLogY; set(Ax, 'YScale', 'log'); end
@@ -689,11 +762,22 @@ function ensureMinTicks(Ax, N)
 end
 
 % =========================================================================
-function [Med, Std] = collectMedStd(CCell, Q, IsAng, Args, AIcrops)
+function [Med, Std] = collectMedStd(CCell, Q, IsAng, Args, AIcrops, Method)
     % Pool per-source (median, std) of column Q across all crops in CCell
     % (a 1xNcrop cell of MatchedSources, as produced by the normalisation
-    % step at the top of compareStabilityMS).
+    % step at the top of compareStabilityMS). Method ('plain'|'robust')
+    % selects the per-source scatter estimator; falls back to Args.StdMethod
+    % when not provided (kept for back-compat with internal callers only;
+    % Args.StdMethod may now itself be a cell, so prefer passing Method
+    % explicitly).
     if nargin < 5; AIcrops = []; end
+    if nargin < 6 || isempty(Method)
+        if ischar(Args.StdMethod) || isstring(Args.StdMethod)
+            Method = char(Args.StdMethod);
+        else
+            Method = 'plain';   % cell-valued Args.StdMethod has no scalar default
+        end
+    end
     Med = []; Std = [];
     if ~iscell(CCell); return; end
     for Ic = 1:numel(CCell)
@@ -729,7 +813,13 @@ function [Med, Std] = collectMedStd(CCell, Q, IsAng, Args, AIcrops)
             end
         end
         M = median(Y, 1, 'omitnan').';     % column Nsrc x 1
-        S = std(Y, 0, 1, 'omitnan').';     % column Nsrc x 1
+        % Per-source scatter: plain sample std (default) or 1.4826*MAD ('robust').
+        switch lower(Method)
+            case 'robust'
+                S = (1.4826 * median(abs(Y - M.'), 1, 'omitnan')).';  % column Nsrc x 1
+            otherwise
+                S = std(Y, 0, 1, 'omitnan').';                         % column Nsrc x 1
+        end
         NValid = sum(~isnan(Y), 1).';
         Keep = NValid >= Args.MinEpochs;
         % Quantities that use median(RefMag) as their X axis: angular ones
@@ -762,8 +852,9 @@ function [Med, Std] = collectMedStd(CCell, Q, IsAng, Args, AIcrops)
 end
 
 % =========================================================================
-function [Bx, By, Bs, Bn] = binStats(X, Y, BinWidth, IsLog)
-    if nargin < 4; IsLog = false; end
+function [Bx, By, Bs, Bn] = binStats(X, Y, BinWidth, IsLog, StdMethod)
+    if nargin < 4 || isempty(IsLog);     IsLog     = false;    end
+    if nargin < 5 || isempty(StdMethod); StdMethod = 'plain';  end
     Bx = []; By = []; Bs = []; Bn = [];
     if isempty(X); return; end
     X = X(:); Y = Y(:);
@@ -793,7 +884,11 @@ function [Bx, By, Bs, Bn] = binStats(X, Y, BinWidth, IsLog)
             Bx(I) = 0.5 * (Edges(I) + Edges(I+1));    % arithmetic mean
         end
         By(I) = median(Y(Sel));
-        Bs(I) = std(Y(Sel));
+        if strcmpi(StdMethod, 'robust')
+            Bs(I) = 1.4826 * median(abs(Y(Sel) - By(I)));
+        else
+            Bs(I) = std(Y(Sel));
+        end
         Bn(I) = N(I);
     end
     Keep = ~isnan(By);

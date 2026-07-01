@@ -82,7 +82,12 @@ end
 % --- Helper functions for testing ---
 
 function test_matchMask(manager, str, mask, expected)
+    % Assert matchMask(str, mask) equals expected boolean.
+
+    % Test matchMask
     result = manager.matchMask_public(str, mask);
+
+    % Check if the result is equal to the expected value
     if result == expected
         fprintf('  [SUCCESS] matchMask("%s", "%s") -> %s\n', str, mask, string(result));
     else
@@ -92,6 +97,8 @@ end
 
 
 function test_MatchParams(manager, required, effective, expected)
+    % Assert MatchParams(required, effective) equals expected boolean.
+
     result = manager.MatchParams_public(required, effective);
     if result == expected
         fprintf('  [SUCCESS] MatchParams test case passed as expected (%s).\n', string(expected));

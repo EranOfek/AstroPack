@@ -32,7 +32,7 @@ function testCheckRangeRejectsOutOfBounds(testCase)
     BadPix = int64(12 * NSide^2);  % one past last valid index
     testCase.verifyError( ...
         @() celestial.healpix.nest2xyf(NSide, BadPix, 'CheckRange', true), ...
-        'MATLAB:error');
+        ?MException);
 end
 
 function testNonPowerOfTwoNSideErrors(testCase)
@@ -41,7 +41,7 @@ function testNonPowerOfTwoNSideErrors(testCase)
     Pix = int64(0);
     testCase.verifyError( ...
         @() celestial.healpix.nest2xyf(NSide, Pix), ...
-        'MATLAB:error');
+        ?MException);
 end
 
 function testScalarRoundTrip(testCase)

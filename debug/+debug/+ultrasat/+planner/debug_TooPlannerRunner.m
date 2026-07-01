@@ -12,10 +12,11 @@
 %==========================================================================
 
 function debug_TooPlannerRunner()
+    % Exercise TooPlannerRunner runFromJson success, failure, and invalid-config paths.
 
     fprintf('========== DEBUG TOO PLANNER RUNNER ==========\n');
 
-    % SOC_PATH required by Loggable (TooPlannerRunner base class)
+    % --- Step 1: Ensure SOC_PATH (required by Loggable base class) ---
     socPath = getenv('SOC_PATH');
 
     if isempty(socPath)
@@ -27,7 +28,7 @@ function debug_TooPlannerRunner()
         end
     end
 
-    % ASTROPACK_DATA_PATH required by uplanner grids (buildTOO success path)
+    % --- Step 2: Ensure ASTROPACK_DATA_PATH (required by buildTOO) ---
     dataPath = getenv('ASTROPACK_DATA_PATH');
     if isempty(dataPath)
         fprintf('ASTROPACK_DATA_PATH not set. Using fallback for local testing...\n');
@@ -38,7 +39,7 @@ function debug_TooPlannerRunner()
         end
     end
 
-    % Run tests
+    % --- Step 3: Run success/failure/invalid-config scenarios ---
     debug_runFromJson_expectFailure();
     debug_runFromJson_expectSuccess();
     debug_runFromJsonInvalidConfig();
@@ -48,34 +49,30 @@ end
 
 
 function debug_runFromJson_expectFailure()
-    % Run test with expect failure because of too short CSV file
+    % Expect zero plans scheduled when probability map CSV is too short.
 
     fprintf('\n--- debug_runFromJson_expectFailure ---\n');
 
-    % Create too short CSV file
     csvFile = debug_createTooShortCsv();
     debug_runFromJson(csvFile, false);
 end
 
 
 function debug_runFromJson_expectSuccess()
-    % Run test with expect success because of LVC CSV file
+    % Expect at least one plan scheduled with full LVK probability map fixture.
 
     fprintf('\n--- debug_runFromJson_expectSuccess ---\n');
 
-    % Get LVC CSV file
     csvFile = debug_getLvcCsvPath();
-
-    % Run test with expect success because of LVC CSV file
     debug_runFromJson(csvFile, true);
 end
 
 
 function debug_runFromJson(csvFilename, expectSuccess)
-    % Run test with expect success or failure based on expectSuccess parameter
+    % Write JSON config, run TooPlannerRunner, and assert summary outcome.
 
     fprintf('\n--- debug_runFromJson (expectSuccess=%d) ---\n', expectSuccess);
- 
+
     baseDir = fileparts(mfilename('fullpath'));
     workDir = fullfile(baseDir, 'working_dir');
     outputFolder = fullfile(workDir, 'output');
@@ -133,7 +130,7 @@ end
 
 
 function debug_runFromJsonInvalidConfig()
-    % Run test with expect failure because of invalid config
+    % Expect empty summary when required JSON fields are missing.
 
     fprintf('\n--- debug_runFromJsonInvalidConfig ---\n');
 
@@ -176,7 +173,7 @@ end
 
 
 function debug_assertRunFromJsonResult(summaryFileName, expectSuccess)
-    % Assert the result of the test
+    % Assert summary file exists and plan counts match expected outcome.
 
     if isempty(summaryFileName) || ~isfile(summaryFileName)
         error('debug_runFromJson: summary file missing (expectSuccess=%d)', expectSuccess);
@@ -214,7 +211,7 @@ end
 
 
 function csvPath = debug_createTooShortCsv()
-    % Create too short CSV file, it will fail to run
+    % Write minimal CSV with one skymap row (insufficient for buildTOO).
 
     baseDir = fileparts(mfilename('fullpath'));
     workDir = fullfile(baseDir, 'working_dir');
@@ -234,7 +231,7 @@ end
 
 
 function csvPath = debug_getLvcCsvPath()
-    % Get LVC CSV file from input_data folder, expected to be in git repository
+    % Resolve full LVK probability map fixture from input_data/.
 
     baseDir = fileparts(mfilename('fullpath'));
     csvPath = fullfile(baseDir, 'input_data', 'lvc_2024_04_01_00_40_58_000000.csv');
@@ -247,7 +244,7 @@ end
 
 
 function plan = debug_firstSummaryPlan(plans)
-    % Get first plan from summary
+    % Extract first plan entry from cell or struct array summary.
 
     if iscell(plans)
         plan = plans{1};
@@ -260,12 +257,11 @@ end
 
 
 function val = debug_safeField(s, fieldName, defaultVal)
-    % Get field from struct, return default value if field is empty
-    
+    % Return struct field value or default when missing or empty.
+
     if isfield(s, fieldName) && ~isempty(s.(fieldName))
         val = s.(fieldName);
     else
         val = defaultVal;
     end
 end
-

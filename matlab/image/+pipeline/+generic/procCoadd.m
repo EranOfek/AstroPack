@@ -212,7 +212,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
        
 
         Args.multiIterExtractorArgs           = {};
-        Args.AperRadius                       = [2, 4, 6];
+        Args.AperRadius                       = [3, 5, 6, 7];
         Args.Annulus                          = [10 12];
         Args.MomentsMethod                    = 'mex';  %'legacy'|'mex'
         Args.AperPhotMethod                   = 'simple'; %'interp';  % 'simple'|'interp'
@@ -404,8 +404,10 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             switch Args.StackMethod
                 case 'wrobust'
                     % RegisteredImages contains also the Back and Var
+                    % Ncoadd is Nimages-3 because of one dof for mode
+                    % estimation, and 2 fir min/max rejection
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:}, 'AddBack', Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs, ...
-                                                            'Ncoadd',numel(RegisteredImages));
+                                                            'Ncoadd',numel(RegisteredImages)-3);
                     %'PoissVar',Args.PoissVar', 'RN2',Args.RN2, ...
                         
                    
@@ -433,9 +435,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 end
             end
 
+
+            % Background and Variance
             if Args.SetBackTo0 && Args.SubBack
                 Coadd(Ifields).BackData.Data = zeros(size(Coadd(Ifields).ImageData.Data), 'like',Coadd(Ifields).ImageData.Data);
             end
+
 
 
             % if Args.ReMeasureBack

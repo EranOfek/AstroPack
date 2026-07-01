@@ -15,7 +15,7 @@ function Image = addSources(Image, SrcPSF, XY, Args)
     % Author : A.M. Krassilchtchikov (2024 May) 
     % Example: for i = 1:10; P(:,:,i) = imUtil.kernel2.gauss([4 4 0],[24 24]) + 1e-2*rand(24,24); end
     %          X1Y1 = 100.*rand(10,2); Flux = 100.*rand(10,1);
-    %          [CubePSF, XY] = imUtil.art.createSourceCube(P, X1Y1, Flux, 'Oversample', 3, 'PositivePSF', true);
+    %          [CubePSF, XY] = imUtil.art.createSourceCube(P, X1Y1, Flux, 'Oversample', 3, 'FixPSFWings', true);
     %          Image = rand(100);
     %          ImageSrc = imUtil.art.addSources(Image,CubePSF,XY);
     arguments

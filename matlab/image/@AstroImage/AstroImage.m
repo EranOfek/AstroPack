@@ -700,6 +700,7 @@ classdef AstroImage < Component
             %            'ExtraOutProduct' - Additional Products to load in
             %                   addition to the 'Image' product.
             %                   Default is ["Mask", "PSF", "Cat"]
+            %            'UseMex' - whether to read with the MeX FITS reader
             %            'Level' - Level to load (if files is []).
             %                   Default is 'coadd'.
             % Output : - An AstroImage object with the loaded products.
@@ -712,7 +713,7 @@ classdef AstroImage < Component
                 
                 Args.Path                 = [];
                 Args.ExtraOutProduct      = ["Mask", "PSF", "Cat"];
-                
+                Args.UseMex               = false;
                 Args.Level                = 'coadd';
             end
 
@@ -735,7 +736,7 @@ classdef AstroImage < Component
                 Cell{Iex.*2-1} = Args.ExtraOutProduct{Iex};
                 Cell{Iex.*2}   = FileProd(:,Iex+1);
             end
-            Result   = AstroImage(FileProd(:,1), Cell{:});
+            Result   = AstroImage(FileProd(:,1), Cell{:}, 'UseMex', Args.UseMex);
             
         end
 
@@ -1336,7 +1337,7 @@ classdef AstroImage < Component
                                 end
                             end
                         case {'Cat','CatData'}
-                            if isempty(Obj.CatData.ColNames)
+                            if isempty(Obj.CatData.ColNames) || isempty(Obj.CatData.Catalog) 
                                 Istat = Istat + 1;
                                 Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, is empty - not saved', Name, 'CatData');
                             else

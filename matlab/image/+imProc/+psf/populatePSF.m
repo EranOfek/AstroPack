@@ -199,8 +199,10 @@ function [Obj,Result]=populatePSF(Obj, Args)
         Args.mean_sigclipArgs          = {};
 
         % --- wing suppression ---
+        Args.WingsMethod               = 'analytic';
+        Args.WingsPowerLaw             = 2;
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
-        Args.WingsThreshold            = 1e-3; %1e-4;       % legacy name -> buildPSF 'SuppressThreshold'
+        Args.WingsThreshold            = 1e-2; %1e-4;       % legacy name -> buildPSF 'SuppressThreshold'
         Args.SuppressWidth             = 3;          % legacy name -> buildPSF 'SuppressFunPars'
 
         % --- legacy / no-op options (kept for backward compatibility) ---

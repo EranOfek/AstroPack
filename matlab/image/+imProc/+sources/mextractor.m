@@ -219,7 +219,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
             % 1. construct a source image
             % 2. subtract the source image from the current image
             [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, ...
-                                                                        'Recenter', false,'PositivePSF',true);
+                                                                        'Recenter', false,'FixPSFWings',true);
             SourceImage(:,:,Iiter)       = imUtil.art.addSources(repmat(0,size(AI.Image)),CubePSF,XY,...
                                                                         'Oversample',[],'Subtract',false);                                                                                          
             Subtracted                   = AI.Image - SourceImage(:,:,Iiter);  
