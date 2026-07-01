@@ -1,33 +1,28 @@
 /*=============================================================================
- * backBertin.cpp   (single-file MEX)
+ * backBertinLowerRMS.cpp   (single-file MEX)
  *
- *  [Back, Var, BackSmall, VarSmall] = backBertin(Image, BACK_SIZE, ...
- *                           BACK_FILTERSIZE, BACK_FILTERTHRESH, VarMethod)
+ *  [Back, Var, BackSmall, VarSmall] = backBertinLowerRMS(Image, BACK_SIZE, ...
+ *                                        BACK_FILTERSIZE, BACK_FILTERTHRESH)
  *
- *  SExtractor-style (Bertin & Arnouts 1996, A&AS 117, 393) spatially-varying
- *  background and background-noise estimation, with selectable crowded-field
- *  variance estimators.
+ *  Same as backBertin for the BACKGROUND LEVEL (SExtractor / Bertin & Arnouts
+ *  1996: kappa-sigma clip; clipped mean if sigma changed <20%, else the mode
+ *  2.5*median-1.5*mean), but the VARIANCE is always estimated from the pixels
+ *  BELOW the mesh background level:
  *
- *  The BACKGROUND LEVEL is always computed the Bertin way (kappa-sigma clip;
- *  clipped mean if sigma changed <20%, else the mode 2.5*median-1.5*mean).
- *  VarMethod only changes how the per-mesh RMS (-> variance) is measured:
+ *      sigma = sqrt( mean( (v - Back)^2   over pixels with v < Back ) )
+ *      Var   = sigma^2
  *
- *    'clip'      (default) clipped standard deviation of the surviving pixels.
- *                Fast, but inflated by the positive source tail in crowded
- *                meshes -> variance biased high.
- *    'lowerrms'  RMS of the pixels BELOW the mesh background level, taken
- *                about that level: sigma = sqrt(mean((v-Back)^2 | v<Back)).
- *                The half-normal factor here is exactly 1 (RMS about the split
- *                point), so no magic constant. Robust to the source tail.
- *    'lowerstd'  standard deviation of the below-Back sub-sample about ITS OWN
- *                mean, rescaled by 1/sqrt(1-2/pi-(sqrt(2/pi))^2)=1.65903 to a
- *                full Gaussian. Self-centering -> less sensitive to a slightly
- *                biased Back, at the cost of one extra pass.
- *    'lowermad'  1.4826 * median(|v-Back|) over the below-Back pixels. Most
- *                robust to low-side outliers; needs a per-mesh median.
+ *  The half-normal RMS taken about the split point (Back) equals the full
+ *  Gaussian sigma exactly, so the rescaling factor is 1 (no magic constant).
+ *  This is robust to the positive source tail that inflates the ordinary
+ *  clipped sigma in crowded fields. It ASSUMES the low side of the histogram
+ *  is clean sky, so do NOT use it on difference / already-sky-subtracted images
+ *  (where real negative pixels exist).
  *
- *  All lower* methods assume the LOW side of the histogram is clean sky, so do
- *  NOT use them on difference / already-sky-subtracted images (real negatives).
+ *  Efficiency: the level is found exactly as in backBertin (the mode median is
+ *  computed only for crowded meshes). The below-Back variance is a single
+ *  extra branchless pass over the mesh pixels, run only when Var/VarSmall is
+ *  requested. All work is per-mesh and OpenMP-parallel over meshes.
  *
  *  Image             2-D real, class double or single (column-major). NaNs are
  *                    treated as masked and ignored.
@@ -35,29 +30,24 @@
  *  BACK_FILTERSIZE   median-filter size over the mesh maps (mesh units). Def 3.
  *  BACK_FILTERTHRESH replace a node by its median only if it differs by more
  *                    than this. Def 0 (always).
- *  VarMethod         char: 'clip'|'lowerrms'|'lowerstd'|'lowermad'. Def 'clip'.
  *
  *  Back      background surface B(x,y),  size(Image), class double.
  *  Var       (optional) background variance sigma_bck^2(x,y). Built only if asked.
- *  BackSmall (optional) the low-resolution background on the mesh grid, AFTER
- *            median filtering and BEFORE spline interpolation to the full
- *            image. Size [ny nx] = [ceil(M/bh) ceil(N/bw)], class double, with
- *            BackSmall(iy,ix) the background of mesh row iy, column ix.
- *  VarSmall  (optional) the corresponding low-resolution variance on the mesh
- *            grid = (median-filtered RMS mesh)^2. Size [ny nx].
+ *  BackSmall (optional) low-resolution background on the mesh grid, AFTER median
+ *            filtering and BEFORE spline interpolation. Size [ny nx] =
+ *            [ceil(M/bh) ceil(N/bw)]; BackSmall(iy,ix) = mesh row iy, column ix.
+ *  VarSmall  (optional) low-resolution variance on the mesh grid = (median-
+ *            filtered lower-RMS mesh)^2. Size [ny nx].
  *
  * Build (from MATLAB), OpenMP optional:
- *   mex -R2018a CXXFLAGS="$CXXFLAGS -O3 -fopenmp" LDFLAGS="$LDFLAGS -fopenmp" backBertin.cpp
- *   serial:   mex -R2018a CXXFLAGS="$CXXFLAGS -O3" backBertin.cpp
- *   MSVC:     mex COMPFLAGS="$COMPFLAGS /O2 /openmp" backBertin.cpp
- *   macOS:    mex CXXFLAGS="$CXXFLAGS -O3 -Xpreprocessor -fopenmp" LDFLAGS="$LDFLAGS -lomp" backBertin.cpp
+ *   mex -R2018a CXXFLAGS="$CXXFLAGS -O3 -fopenmp" LDFLAGS="$LDFLAGS -fopenmp" backBertinLowerRMS.cpp
+ *   serial:   mex -R2018a CXXFLAGS="$CXXFLAGS -O3" backBertinLowerRMS.cpp
  *===========================================================================*/
 #include "mex.h"
 #include <cmath>
 #include <vector>
 #include <algorithm>
 #include <cstddef>
-#include <cstring>
 
 /*===========================================================================
  * Numerical core. Images are column-major, M rows x N columns.
@@ -69,11 +59,6 @@ static const int    BB_MAXIT = 100;    /* max kappa-sigma iterations (rarely >~5
 static const double BB_TOL   = 1e-5;   /* relative convergence on sigma           */
 static const double BB_KAPPA = 3.0;    /* clip at +/- 3 sigma                     */
 static const double BB_CROWD = 0.20;   /* sigma changed >20% -> crowded -> mode   */
-
-static const double LOWER_STD_FACT = 1.65903;  /* below-mean subsample std -> full sigma */
-static const double MAD_FACT       = 1.4826;   /* MAD -> sigma (Gaussian)                */
-
-enum VarMethod { VAR_CLIP = 0, VAR_LOWERRMS = 1, VAR_LOWERSTD = 2, VAR_LOWERMAD = 3 };
 
 /* Median of a small scratch buffer (modifies a). Averages the two central
  * order statistics for even n. O(n) average via nth_element (no full sort). */
@@ -106,48 +91,13 @@ static inline void splineNatural(const double* y, int n, double h,
     for (int k = n - 2; k >= 0; --k) y2[k] = y2[k] * y2[k + 1] + work[k];
 }
 
-/* RMS (-> stored as the mesh "sigma") from the pixels below the background
- * level, per the selected method. buf[0..cnt) are all finite mesh pixels;
- * lev is the mesh background; clippedSig is the fallback. medbuf is scratch
- * of length >= cnt. Returns an RMS that the back-end will square into Var. */
-static inline double lowerSideRMS(const double* buf, int cnt, double lev,
-                                  double clippedSig, int varMethod,
-                                  double* medbuf) {
-    if (varMethod == VAR_LOWERRMS) {
-        double ss = 0.0; int nlow = 0;
-        for (int i = 0; i < cnt; ++i) {
-            const double v = buf[i];
-            if (v < lev) { const double d = v - lev; ss += d * d; ++nlow; }
-        }
-        if (nlow < 2) return clippedSig;
-        return std::sqrt(ss / nlow);                 /* factor is exactly 1 */
-    }
-    if (varMethod == VAR_LOWERSTD) {
-        double s = 0.0; int nlow = 0;
-        for (int i = 0; i < cnt; ++i) { const double v = buf[i]; if (v < lev) { s += v; ++nlow; } }
-        if (nlow < 2) return clippedSig;
-        const double m = s / nlow;
-        double ss = 0.0;
-        for (int i = 0; i < cnt; ++i) { const double v = buf[i]; if (v < lev) { const double d = v - m; ss += d * d; } }
-        double var = ss / nlow; if (var < 0.0) var = 0.0;
-        return LOWER_STD_FACT * std::sqrt(var);
-    }
-    if (varMethod == VAR_LOWERMAD) {
-        int nlow = 0;
-        for (int i = 0; i < cnt; ++i) { const double v = buf[i]; if (v < lev) medbuf[nlow++] = lev - v; }
-        if (nlow < 2) return clippedSig;
-        return MAD_FACT * median_inplace(medbuf, nlow);
-    }
-    return clippedSig;                               /* VAR_CLIP */
-}
-
-/* Per-mesh statistics: one gather pass into a contiguous buffer, then
- * branchless kappa-sigma clipping, then mean/mode decision. The mode median is
- * computed ONLY for crowded tiles. RMS per VarMethod. Outputs level[],sigma[]
- * (nx*ny, ix+iy*nx). */
+/* Per-mesh statistics. Level exactly as in backBertin (mode median only when
+ * crowded). If needVar, the RMS is taken from the pixels below the level
+ * (branchless pass); otherwise the clipped sigma is stored. Outputs level[],
+ * sigma[] (nx*ny, ix+iy*nx). */
 template <class T>
 void computeMesh(const T* img, int M, int N, int bw, int bh, int nx, int ny,
-                 double* level, double* sigma, int varMethod) {
+                 double* level, double* sigma, bool needVar) {
     const int tileMax = bw * bh;
 #ifdef _OPENMP
     #pragma omp parallel
@@ -215,9 +165,17 @@ void computeMesh(const T* img, int M, int N, int bw, int bh, int nx, int ny,
                     lev = 2.5 * med - 1.5 * mn;               /* Bertin & Arnouts mode */
                 }
 
-                double rms = sig;                            /* VAR_CLIP */
-                if (varMethod != VAR_CLIP)
-                    rms = lowerSideRMS(b, cnt, lev, sig, varMethod, medbuf.data());
+                double rms = sig;                            /* fallback if Var unused */
+                if (needVar) {
+                    double sslo = 0.0, nlow = 0.0;           /* below-Back RMS, factor 1 */
+                    for (int i = 0; i < cnt; ++i) {
+                        const double v = b[i];
+                        const double d = v - lev;
+                        const double m = (double)(v < lev);
+                        sslo += m * d * d; nlow += m;
+                    }
+                    rms = (nlow >= 2.0) ? std::sqrt(sslo / nlow) : sig;
+                }
 
                 level[ix + iy * nx] = lev;
                 sigma[ix + iy * nx] = rms;
@@ -342,10 +300,10 @@ static int getInt(const mxArray* a, int dflt) {
 
 void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     if (nrhs < 1)
-        mexErrMsgIdAndTxt("backBertin:nargin", "At least the Image is required.");
+        mexErrMsgIdAndTxt("backBertinLowerRMS:nargin", "At least the Image is required.");
     const mxArray* IM = prhs[0];
     if (mxIsComplex(IM) || mxGetNumberOfDimensions(IM) != 2 || mxIsSparse(IM))
-        mexErrMsgIdAndTxt("backBertin:type", "Image must be a 2-D real full matrix.");
+        mexErrMsgIdAndTxt("backBertinLowerRMS:type", "Image must be a 2-D real full matrix.");
 
     const int M = (int)mxGetM(IM);
     const int N = (int)mxGetN(IM);
@@ -358,29 +316,13 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
         bw = (ne >= 2) ? (int)std::floor(p[1] + 0.5) : bh;
     }
     if (bh < 1 || bw < 1)
-        mexErrMsgIdAndTxt("backBertin:size", "BACK_SIZE must be >= 1.");
+        mexErrMsgIdAndTxt("backBertinLowerRMS:size", "BACK_SIZE must be >= 1.");
 
     int fsize = getInt(nrhs >= 3 ? prhs[2] : 0, 3);
     if (fsize < 1) fsize = 1;
     double thresh = (nrhs >= 4 && !mxIsEmpty(prhs[3])) ? mxGetScalar(prhs[3]) : 0.0;
 
-    /* VarMethod (5th arg): 'clip'|'lowerrms'|'lowerstd'|'lowermad' */
-    int varMethod = bb::VAR_CLIP;
-    if (nrhs >= 5 && !mxIsEmpty(prhs[4])) {
-        if (!mxIsChar(prhs[4]))
-            mexErrMsgIdAndTxt("backBertin:VarMethod", "VarMethod must be a char string.");
-        char* vm = mxArrayToString(prhs[4]);
-        if      (!std::strcmp(vm, "clip"))     varMethod = bb::VAR_CLIP;
-        else if (!std::strcmp(vm, "lowerrms")) varMethod = bb::VAR_LOWERRMS;
-        else if (!std::strcmp(vm, "lowerstd")) varMethod = bb::VAR_LOWERSTD;
-        else if (!std::strcmp(vm, "lowermad")) varMethod = bb::VAR_LOWERMAD;
-        else { mxFree(vm);
-            mexErrMsgIdAndTxt("backBertin:VarMethod",
-                "VarMethod must be 'clip', 'lowerrms', 'lowerstd', or 'lowermad'."); }
-        mxFree(vm);
-    }
-    /* If Var is not requested the RMS mesh is unused -> skip the extra pass. */
-    if (nlhs < 2) varMethod = bb::VAR_CLIP;
+    const bool needVar = (nlhs >= 2);   /* Var or VarSmall both need the RMS mesh */
 
     const int nx = bb::nmesh(N, bw);
     const int ny = bb::nmesh(M, bh);
@@ -389,17 +331,18 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     const mxClassID cls = mxGetClassID(IM);
     if (cls == mxDOUBLE_CLASS)
         bb::computeMesh<double>((const double*)mxGetData(IM), M, N, bw, bh, nx, ny,
-                                level.data(), sigma.data(), varMethod);
+                                level.data(), sigma.data(), needVar);
     else if (cls == mxSINGLE_CLASS)
         bb::computeMesh<float>((const float*)mxGetData(IM), M, N, bw, bh, nx, ny,
-                               level.data(), sigma.data(), varMethod);
+                               level.data(), sigma.data(), needVar);
     else
-        mexErrMsgIdAndTxt("backBertin:class",
+        mexErrMsgIdAndTxt("backBertinLowerRMS:class",
                           "Image must be double or single. Cast it first, e.g. double(Image).");
 
     std::vector<double> levelF((std::size_t)nx * ny), sigmaF((std::size_t)nx * ny);
     bb::medianFilterMesh(level.data(), levelF.data(), nx, ny, fsize, thresh);
-    bb::medianFilterMesh(sigma.data(), sigmaF.data(), nx, ny, fsize, thresh);
+    if (needVar)
+        bb::medianFilterMesh(sigma.data(), sigmaF.data(), nx, ny, fsize, thresh);
 
     plhs[0] = mxCreateDoubleMatrix(M, N, mxREAL);
     bb::interpMeshToImage(levelF.data(), nx, ny, bw, bh, M, N, mxGetPr(plhs[0]), false);

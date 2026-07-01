@@ -30,10 +30,13 @@
 %            with the same size as the input image. It equals the square of
 %            the natural-spline-interpolated, median-filtered rms map.
 %            Computed only when requested.
-% License: GNU general public license version 3
-% Tested : Matlab R2024a
+%          - (BackSmall) Background in mesh prior to interpolating to the
+%            full image.
+%          - (VarSmall) Variance in mesh prior to interpolating to the
+%            full image.
+% Compilation: mex -R2018a CXXFLAGS="$CXXFLAGS -O3 -fopenmp" LDFLAGS="$LDFLAGS -fopenmp" backBertin.cpp
 % Author : Eran Ofek (Jun 2026)
 % Example: Image          = randn(1024,768).*3 + 100;
 %          [Back,Var]     = imUtil.background.mex.backBertin(Image);
-%          [Back,Var]     = imUtil.background.mex.backBertin(Image,64,3,0);
+%          [Back,Var,BackSmall,VarSmall]     = imUtil.background.mex.backBertin(Image,64,3,0);
 %          Back           = imUtil.background.mex.backBertin(single(Image),[128 256]);

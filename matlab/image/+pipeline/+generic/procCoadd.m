@@ -435,9 +435,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 end
             end
 
+
+            % Background and Variance
             if Args.SetBackTo0 && Args.SubBack
                 Coadd(Ifields).BackData.Data = zeros(size(Coadd(Ifields).ImageData.Data), 'like',Coadd(Ifields).ImageData.Data);
             end
+
 
 
             % if Args.ReMeasureBack
