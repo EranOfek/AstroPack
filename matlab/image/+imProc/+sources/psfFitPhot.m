@@ -89,6 +89,10 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
         Args.ColBack                 = 'BACK_IM';
         Args.ColVar                  = 'VAR_IM';  % prefered over ColStd
         Args.ColStd                  = [];
+        
+        Args.BackStdFromAnnulus      = false;
+        Args.BackAnnulus             = [10 12];
+
         Args.FitRadius               = 3;
         Args.HalfSize                = 8;
         Args.backgroundCubeArgs cell = {};
@@ -99,7 +103,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
         Args.psfPhotCubeArgs cell    = {};
         Args.ZP                      = 25;
 
-        Args.ColSN                   = 'SN_3';  % if empty don't use
+        Args.ColSN                   = 'SN_2';  % if empty don't use
         
         Args.MaxIter                 = 8;
         
@@ -179,6 +183,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                 Var  = Obj(Iobj).Var(Ind);
                 Std  = sqrt(Var);
             end
+
             
             % subtract Background
             ImageSubBack = Obj(Iobj).Image - Obj(Iobj).Back;  %Not clear why this line is needed?
@@ -195,7 +200,15 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                 %     case 'old'
                 Xinit = (Args.HalfSize+1+XY(:,1)-RoundX)';
                 Yinit = (Args.HalfSize+1+XY(:,2)-RoundY)';
-                                    
+                   
+
+                if Args.BackStdFromAnnulus
+                    % Calculate back and std from annulus around star
+                    [Cube, Back, Std, Npix] =  imUtil.sources.mex.annulus_median(Cube, Args.BackAnnulus, 0);
+                    % Cube is now back subtracted
+                end
+            
+
                 [Result, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
                                                                 'Std',Std,...
                                                                 'Back',0,...
