@@ -296,6 +296,9 @@ classdef PhotCalibTrans < Component
             %          PC = PhotCalibTrans('AirMass', 1.5, 'ExpTime', 20, ...
             %                              'NCoadd', 1, 'Temp', 15, 'Pressure', 965);
 
+            % Dedicated logger: warnings go to log file only, not terminal
+            Obj.Logger.SuppressDispLevel = LogLevel.Warning;
+
             % Parse name-value pairs and set properties if they exist
             for I = 1:2:length(varargin)
                 if I+1 <= length(varargin)
