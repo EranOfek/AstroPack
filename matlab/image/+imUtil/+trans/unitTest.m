@@ -11,6 +11,18 @@ function Result = unitTest()
         error('Problem with imUtil.trans.mex.imrotate_sinc');
     end
 
+    % Direction check: positive Rotation must match MATLAB's imrotate
+    % convention (counter-clockwise in the array/display sense).
+    Ntest = 41;
+    Ctest = (Ntest+1)/2;
+    Pt = zeros(Ntest,Ntest);
+    Pt(Ctest, Ctest+10) = 1;  % bright pixel to the right of center
+    PtRotSinc = imUtil.trans.mex.imrotate_sinc(Pt, 90);
+    PtRotML   = imrotate(Pt, 90, 'nearest', 'crop');
+    if ~isequal(find(PtRotSinc==max(PtRotSinc(:))), find(PtRotML==max(PtRotML(:))))
+        error('imUtil.trans.mex.imrotate_sinc rotation direction does not match imrotate convention');
+    end
+
     %% imUtil.trans.mex.polyRadialDistortion
     CoefX = rand(5,1);
     X     = rand(1e2, 1e2);

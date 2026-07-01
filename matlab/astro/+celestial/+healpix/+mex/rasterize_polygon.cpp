@@ -11,6 +11,7 @@
 #include <vector>
 #include <cmath>
 #include <cstring>
+#include <strings.h>   // strcasecmp
 
 // --- helper: nearest power of 2 ---
 int64_t nearest_pow2(double x)
@@ -26,8 +27,11 @@ void mexFunction(int nlhs, mxArray *plhs[],
 {
     if (nrhs < 2)
         mexErrMsgTxt(
-            "Usage: pix = celestial.healpix.mex.rasterize_polygon(P, res_arcsec, [scheme]); \n"
-            "or [pix, nside] = celestial.healpix.mex.rasterize_polygon(P, res_arcsec, [scheme])"
+            "Usage: pix = celestial.healpix.mex.rasterize_polygon(P, value, [mode], [scheme]); \n"
+            "or [pix, nside] = celestial.healpix.mex.rasterize_polygon(P, value, [mode], [scheme]) \n"
+            "  value  : Nside (default) or resolution in arcsec, selected by mode \n"
+            "  mode   : 'Nside' (default) or 'arcsec' \n"
+            "  scheme : 'NEST' (default) or 'RING'"
         );
 
     // --- Input polygon ---
@@ -49,24 +53,54 @@ void mexFunction(int nlhs, mxArray *plhs[],
 
     // define the radian
     double rad = 180.0/M_PI;
-    // --- Resolution (arcsec) ---
-    double res_arcsec = mxGetScalar(prhs[1]);
-    if (res_arcsec <= 0)
-        mexErrMsgTxt("Resolution must be positive (arcsec)");
+    // --- Second argument: Nside or resolution in arcsec (selected by mode) ---
+    double value = mxGetScalar(prhs[1]);
 
-    // --- Scheme ---
-    Healpix_Ordering_Scheme scheme = NEST;
+    // --- Mode (optional, def. 'Nside') ---
+    bool isArcsec = false;   // false -> value is Nside, true -> value is arcsec
     if (nrhs >= 3) {
-        char* str = mxArrayToString(prhs[2]);
+        char* mstr = mxArrayToString(prhs[2]);
+        if (strcasecmp(mstr, "arcsec")     == 0 ||
+            strcasecmp(mstr, "arcsecond")  == 0 ||
+            strcasecmp(mstr, "arcseconds") == 0 ||
+            strcasecmp(mstr, "res")        == 0 ||
+            strcasecmp(mstr, "resolution") == 0) {
+            isArcsec = true;
+        } else if (strcasecmp(mstr, "nside") == 0) {
+            isArcsec = false;
+        } else {
+            mxFree(mstr);
+            mexErrMsgTxt("Mode (3rd argument) must be 'Nside' or 'arcsec'");
+        }
+        mxFree(mstr);
+    }
+
+    // --- Scheme (optional, def. NESTED) ---
+    Healpix_Ordering_Scheme scheme = NEST;
+    if (nrhs >= 4) {
+        char* str = mxArrayToString(prhs[3]);
         if (strcmp(str, "RING") == 0)
             scheme = RING;
         mxFree(str);
     }
 
-    // --- Compute NSIDE ---
-    double res_deg = res_arcsec / 3600.0;
-    double nside_est = 58.63 / res_deg;
-    int64_t nside = nearest_pow2(nside_est);
+    // --- Determine NSIDE ---
+    int64_t nside;
+    if (isArcsec) {
+        // value is an angular resolution in arcsec -> compute the matching Nside
+        if (value <= 0)
+            mexErrMsgTxt("Resolution must be positive (arcsec)");
+        double res_deg   = value / 3600.0;
+        double nside_est = 58.63 / res_deg;
+        nside = nearest_pow2(nside_est);
+    } else {
+        // value is Nside, given directly -> must be a positive power of 2
+        int64_t nside_in = (int64_t) value;
+        if ((double) nside_in != value || nside_in < 1 ||
+            (nside_in & (nside_in - 1)) != 0)
+            mexErrMsgTxt("Nside must be a positive power of 2");
+        nside = nside_in;
+    }
 
     // --- Convert polygon ---
     std::vector<pointing> verts;
