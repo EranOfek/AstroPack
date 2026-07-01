@@ -1,7 +1,8 @@
 function [Result] = register(Obj, TransRef, Args)
     % Interpolate/register images in AstroImage into a new reference frame.
     %   Register images to a common frame.
-    %   This function is not rotating the PSF of the registered image.
+    %   By default, this function is not rotating the PSF of the registered
+    %   image; set the 'RotatePSF' argument to true to activate this (see below).
     %   
     % Input  : - AstroImage/AstroDiff/AstroZOGY object containing images.
     %          - One of the following options:
@@ -46,6 +47,19 @@ function [Result] = register(Obj, TransRef, Args)
     %                   If the 'WCS' argument is not provided, then this
     %                   argument will be set to false.
     %                   Default is true.
+    %            'RotatePSF' - Activate by calling with 'RotatePSF',true
+    %                   (only takes effect if 'CopyPSF' is also true,
+    %                   which is the default). If true, the copied PSF is
+    %                   rotated to align it with the TransRef orientation,
+    %                   by the difference between the WCS position angles
+    %                   (PA) of Obj and TransRef (via
+    %                   imUtil.astrometry.cdmatrix2rotScale), applied with
+    %                   imUtil.trans.mex.imrotate_sinc.
+    %                   Only supported when TransRef is an AstroWCS,
+    %                   AstroImage, AstroZOGY, or AstroDiff object; if
+    %                   TransRef is an affine2d/affinetform2d object or a
+    %                   numeric shift, an error is thrown.
+    %                   Default is false (PSF is copied as-is, unrotated).
     %            'CopyWCS' - Copy WCS from input image. Default is true.
     %            'CopyHeader' - Copy Header from input image. Default is true.
     %                   If CopyWCS is true, then will update header by the
