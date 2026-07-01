@@ -26,7 +26,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %         'Fields'               - comma-separated list of DB table columns to be retrieved for overlap checks, filtering, and control
     %         'GroupByFields'        - table fields used to group images that will be stitched separately, e.g., same epoch + telescope (def. {'mountnum','camnum','jd_start'})
     %         'BasePath'             - base path for retrieving the input crop images (def. '/mnt/euclid/last/data')
-    %         'ImageQualityFilter'   - a user-supplied quality filter injected directly into the SQL query (def. "fwhm < 4")
+    %         'QueryFilter'          - a user-supplied quality filter injected directly into the SQL query (def. "fwhm < 4")
     %         'RasterResolution'     - polygon rasterization step, in arcsec (def. 3)
     %         'MinCoverage'          - minimum fractional coverage of the reference field required to accept a group (def. 0.999)
     %         'SubBack'              - subtract the background in the coaddition step (def. true)
@@ -84,7 +84,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         
         Args.BasePath          = {'/mnt/euclid/last/data','/euclid/last/data'}; % base path for image retrieval  
         
-        Args.ImageQualityFilter = "fwhm < 4"; % a user-supplied filter (to be included directly into the SQL query) 
+        Args.QueryFilter       = "fwhm < 4"; % a user-supplied filter (to be included directly into the SQL query) 
                        
         Args.RasterResolution   = 3;     % arcsec
         Args.MinCoverage        = 0.999; % 0.995; % allowed inaccuracy in the required reference field coverage  
@@ -205,8 +205,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
         W = sprintf(" toString(upix_low) IN (%s)", PixList);
         
         % add image quality filter
-        if ~isempty(Args.ImageQualityFilter)
-            W = strcat("(",W,") and ",Args.ImageQualityFilter); 
+        if ~isempty(Args.QueryFilter)
+            W = strcat("(",W,") and ",Args.QueryFilter); 
         end
         
         % send the query and retrieve a table of image characteristics        
