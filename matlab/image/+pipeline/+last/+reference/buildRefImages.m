@@ -23,7 +23,6 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %         'ImageQualityFilter'   - a user-supplied quality filter injected directly into the SQL query (def. "fwhm < 4")
     %         'RasterResolution'     - polygon rasterization step, in arcsec (def. 3)
     %         'MinCoverage'          - minimum fractional coverage of the reference field required to accept a group (def. 0.999)
-    %         'CoaddFunction'        - function handle used to coadd the per-group stitched images (def. @pipeline.generic.procCoadd)
     %         'SubBack'              - subtract the background in the coaddition step (def. true)
     %         'StackMethod'          - stacking method passed to the coadd function (def. 'wrobust')
     %         'StackMethodArgs'      - extra arguments controlling the stacking method
@@ -79,8 +78,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                        
         Args.RasterResolution   = 3;     % arcsec
         Args.MinCoverage        = 0.999; % 0.995; % allowed inaccuracy in the required reference field coverage  
-                       
-        %Args.CoaddFunction      = @pipeline.generic.procCoadd; 
+                               
         %Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[128 128], 'MethodArgs',{{'Range',[-50 50]}}}
         %Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[256 256], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',100}, {}} };
         Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[512 512], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',50}, {}} };
