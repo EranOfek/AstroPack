@@ -124,7 +124,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.PhotCatMagRange        = [13 21.5];  % magnitude range for the photometric catalog
         Args.PhotCatPlxRange        = [0.1 100];  % parallax range [mas] for the photometric catalog
         
-        Args.Verbose               = 0; % from 0 (mute) to 2 (maximal)
+        Args.Verbose                = 1; % from 0 (mute) to 2 (chatty)
     end
     % 
     RAD = 180/pi;  
