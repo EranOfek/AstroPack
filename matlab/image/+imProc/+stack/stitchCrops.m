@@ -70,10 +70,14 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     CatShiftX = Xmin-X0;
     CatShiftY = Ymin-Y0;
 
-    % make an empty AstroImage
+    % accumulate the stitched image/mask in plain arrays: a partial
+    % assignment into an AstroImage/MaskImage Data property (which has a
+    % custom setter) forces a full Ny-by-Nx copy on every crop, so we
+    % accumulate locally and build the Result object once at the end
     Nx = max(Xmax)-X0+1;
     Ny = max(Ymax)-Y0+1;
-    Result = AstroImage({nan(Ny,Nx,'single')},'Mask',{zeros(Ny,Nx,'uint32')});
+    ImgAccum  = nan(Ny,Nx,'single');
+    MaskAccum = zeros(Ny,Nx,'uint32');
 
     % fill the new image with chopped crops, shift the catalog pixels
     for Icrop = 1:Ncrop
@@ -116,9 +120,12 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
             MCat(Icrop).Catalog(:,IndY) = MCat(Icrop).Catalog(:,IndY) + CatShiftY(Icrop) + YUmin - 1;
         end
 
-        Result.ImageData.Data(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.ImageData.Data;
-        Result.MaskData.Data(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)  = AIc.MaskData.Data;
+        ImgAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)  = AIc.ImageData.Data;
+        MaskAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.MaskData.Data;
     end
+
+    % assemble the stitched AstroImage from the accumulated arrays
+    Result = AstroImage({ImgAccum},'Mask',{MaskAccum});
 
     % the crop NearEdge and Overlap flags are meaningless after stitching
     %AllPix = true(Ny,Nx);
