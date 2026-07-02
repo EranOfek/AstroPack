@@ -132,10 +132,14 @@ classdef ImageIO < Component
                 Nobj = numel(List);
                 for Iobj=1:1:Nobj
                     Obj(Iobj) = ImageIO([]);
-                    if Args.ReadHeader
-                        [Obj(Iobj).Data, Obj(Iobj).Header] = ImageIO.read1(List{Iobj}, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',Args.IsTable, 'readTableArgs',Args.readTableArgs,'UseMex',Args.UseMex);
-                    else
-                        Obj(Iobj).Data = ImageIO.read1(List{Iobj}, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',Args.IsTable, 'readTableArgs',Args.readTableArgs,'UseMex',Args.UseMex);
+                    try
+                        if Args.ReadHeader
+                            [Obj(Iobj).Data, Obj(Iobj).Header] = ImageIO.read1(List{Iobj}, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',Args.IsTable, 'readTableArgs',Args.readTableArgs,'UseMex',Args.UseMex);
+                        else
+                            Obj(Iobj).Data = ImageIO.read1(List{Iobj}, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',Args.IsTable, 'readTableArgs',Args.readTableArgs,'UseMex',Args.UseMex);
+                        end
+                    catch ME
+                        warning('ImageIO: failed to read file %s - skip (%s)', List{Iobj}, ME.message);
                     end
                     Obj(Iobj).IsTable = Args.IsTable;
                     Obj(Iobj).CCDSEC  = Args.CCDSEC;

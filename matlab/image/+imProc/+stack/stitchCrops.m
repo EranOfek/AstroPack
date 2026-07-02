@@ -16,6 +16,9 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     %                    'header' - read KeyPH_ZP from input crop headers and take the mean.
     %         'KeyPH_ZP' - cell array of header keyword synonyms for the ZP, tried in order.
     %                    Used only when PhotZPMethod is 'header'. Default is {'PH_ZP','PT_ZP'}.
+    %         'BitDict'   - a BitDictionary to use for the mask bit operations, allowing the
+    %                    caller to build it once and reuse it across many calls.
+    %                    If empty, a default BitDictionary is built here. Default is [].
     % Output : - a stitched AstroImage with a merged catalog and updated WCS
     %          - AstroCatalog used for astrometry ([] if UpdateWCS is false)
     %          - AstroCatalog used for photometry ([] if UpdateZP is false or PhotZPMethod is 'header')
@@ -34,8 +37,13 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
         Args.PhotCat                 = [];
         Args.PhotZPMethod            = 'photometricZP';  % 'photometricZP'|'header'
         Args.KeyPH_ZP cell           = {'PH_ZP','PT_ZP'};
+        Args.BitDict                 = [];
 
         Args.MatchMethod             = 'mex';  % 'mex'|'old'
+    end
+
+    if isempty(Args.BitDict)
+        Args.BitDict = BitDictionary('BitMask.Image.Default');
     end
 
     AstrometricCat = [];
@@ -70,10 +78,14 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     CatShiftX = Xmin-X0;
     CatShiftY = Ymin-Y0;
 
-    % make an empty AstroImage
+    % accumulate the stitched image/mask in plain arrays: a partial
+    % assignment into an AstroImage/MaskImage Data property (which has a
+    % custom setter) forces a full Ny-by-Nx copy on every crop, so we
+    % accumulate locally and build the Result object once at the end
     Nx = max(Xmax)-X0+1;
     Ny = max(Ymax)-Y0+1;
-    Result = AstroImage({nan(Ny,Nx,'single')},'Mask',{zeros(Ny,Nx,'uint32')});
+    ImgAccum  = nan(Ny,Nx,'single');
+    MaskAccum = zeros(Ny,Nx,'uint32');
 
     % fill the new image with chopped crops, shift the catalog pixels
     for Icrop = 1:Ncrop
@@ -116,16 +128,18 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
             MCat(Icrop).Catalog(:,IndY) = MCat(Icrop).Catalog(:,IndY) + CatShiftY(Icrop) + YUmin - 1;
         end
 
-        Result.ImageData.Data(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.ImageData.Data;
-        Result.MaskData.Data(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)  = AIc.MaskData.Data;
+        ImgAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)  = AIc.ImageData.Data;
+        MaskAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.MaskData.Data;
     end
+
+    % assemble the stitched AstroImage from the accumulated arrays
+    Result = AstroImage({ImgAccum},'Mask',{MaskAccum});
 
     % the crop NearEdge and Overlap flags are meaningless after stitching
     %AllPix = true(Ny,Nx);
-    FF=Result.MaskData.findBit('NearEdge');
-    Result.MaskData = Result.MaskData.maskSet(FF, 'NearEdge',0);
-    FF=Result.MaskData.findBit('Overlap');
-    Result.MaskData = Result.MaskData.maskSet(FF, 'Overlap',0);
+    FFne = Result.MaskData.findBit('NearEdge');
+    FFov = Result.MaskData.findBit('Overlap');
+    Result.MaskData = Result.MaskData.maskSet({FFne,FFov}, {'NearEdge','Overlap'}, [0 0], 'DefBitDict',Args.BitDict);
     %Result.MaskData = Result.MaskData.maskSet(AllPix, 'NearEdge', 0);
     %Result.MaskData = Result.MaskData.maskSet(AllPix, 'Overlap',  0);
 

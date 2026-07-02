@@ -27,6 +27,7 @@
 
 #include "mex.h"
 #include "fitsio.h"
+#include "glibc_pthread_compat.h"
 #include <vector>
 #include <string>
 #include <cstring>

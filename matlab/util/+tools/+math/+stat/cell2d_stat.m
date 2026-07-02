@@ -10,7 +10,7 @@ function Result=cell2d_stat(X,Y,Val, Args)
     %            'FunsArgs' - A cell array of cell array of additional
     %                   arguments to pass to each one of the functions in the
     %                   'Funs' argument.
-    %                   Default is {{}, {'all','omitnan'}, {'all','omitnan'}, {'all'} }
+    %                   Default is {{}, {'all','omitnan'}, {'all','omitnan'}, {1} }
     %            'FunsName' - A cell array of function names that will be
     %                   used as the field of the output structure.
     %                   If empty, will use the actual function name.
@@ -38,7 +38,7 @@ function Result=cell2d_stat(X,Y,Val, Args)
         Y
         Val
         Args.Funs       = {@numel, @median, @mean, @tools.math.stat.rstd};
-        Args.FunsArgs   = {{}, {'all','omitnan'}, {'all','omitnan'}, {'all'} };
+        Args.FunsArgs   = {{}, {'all','omitnan'}, {'all','omitnan'}, {1} };
         Args.FunsName   = {};
         Args.EdgesX     = [];
         Args.EdgesY     = [];

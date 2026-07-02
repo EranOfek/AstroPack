@@ -91,7 +91,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
                                
         %Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[128 128], 'MethodArgs',{{'Range',[-50 50]}}}
         %Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[256 256], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',100}, {}} };
-        Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[512 512], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',50}, {}} };
+        %Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[512 512], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',50}, {}} };
+        Args.backVarArgs        = {'Method','backBertinLowerRMS', 'MethodArgs',{} };
         %Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',50}, {}} };
         %Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[256 256], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',100}, {}} };
         Args.backVarIndivArgs   =  {'Method',@imUtil.background.modeVar_LogHist, 'Block',[512 512], 'MethodArgs',{{},{}}};
@@ -115,7 +116,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.DbHost             = '10.150.28.18' 
         Args.DbPort             = 9000;
         Args.DbUser             = 'last_user'
-        Args.DbName             = 'last_ro'
+        Args.DbName             = 'last'
         Args.AstroDBPassFile    = '~/matlab/AstroPack/config/local/Passwords.yml'; % '~/.astropack/Passwords.yml';
                 
         Args.AstrometricCatRad     = 1;           % [deg] cone radius for pre-fetching reference catalogs
@@ -124,7 +125,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.PhotCatMagRange        = [13 21.5];  % magnitude range for the photometric catalog
         Args.PhotCatPlxRange        = [0.1 100];  % parallax range [mas] for the photometric catalog
         
-        Args.Verbose               = 0; % from 0 (mute) to 2 (maximal)
+        Args.Verbose                = 0; % from 0 (mute) to 2 (chatty)
     end
     % 
     RAD = 180/pi;  
@@ -162,7 +163,10 @@ function [Result,Info] = buildRefImages(RefID, Args)
     Info.CounterBadWCS  = 0;
     Info.CounterGoodWCS = 0;
 
-    % the main loop over the reference grid 
+    % build the mask bit dictionary once and reuse it in every stitchCrops call
+    BitDict = BitDictionary('BitMask.Image.Default');
+
+    % the main loop over the reference grid
     K = 0;
     for Iref = RefID
         K = K + 1;
@@ -338,7 +342,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
                         %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
                         StitchedImage = imProc.stack.stitchCrops(AI, ...
                             'UpdateWCS',true,'UpdateZP',true, ...
-                            'AstrometricCat',AstrometricCat,'PhotCat',PhotCat);
+                            'AstrometricCat',AstrometricCat,'PhotCat',PhotCat, ...
+                            'BitDict',BitDict);
 
                         if isnan(julday(StitchedImage))
                             StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabGrp.jd_start(Igroup));
