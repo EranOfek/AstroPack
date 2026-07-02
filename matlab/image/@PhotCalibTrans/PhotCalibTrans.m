@@ -342,7 +342,7 @@ classdef PhotCalibTrans < Component
             %            'UseTran2D'      - Enable position-dependent correction. Default is true.
             %            'XPixel'         - Detector X size in pixels (sets Tran2D
             %                               normalisation, ParNX = [XPixel/2, XPixel/2]).
-            %                               Default is 1716.
+            %                               Default is o.
             %            'YPixel'         - Detector Y size in pixels. Default is 1716.
             %            'CalibCatName'   - catsHTM catalog with reference spectra
             %                               (forwarded to selectCalibrators).
@@ -587,7 +587,11 @@ classdef PhotCalibTrans < Component
                 Args.YPixel           = 1716   % Detector Y size [pix]; Tran2D centre = YPixel/2
                 Args.Tran2DPerturbStd = 0      % Std-dev for randn-seed of Tran2D ParX (one shot before stage 1); 0 disables
                 Args.Tran2DRngSeed (1,1) double = 6   % rng seed mirrored from Simone's np.random.seed(6); used when OptSeq stage method is NONLIN_FC
-                Args.Co2_ppm (1,1) double = 395   % CO2 abundance [ppm] passed to predefSeqCompositeFun -> UMG.Par(4). Default 395 = Simone parity.
+                % (Co2_ppm retired from calibrate June 2026 — lives on
+                %  imUtil.calib.predefSeqCompositeFun as an atmospheric-
+                %  constant arg (default 395). Overriders build a FunList
+                %  via predefSeqCompositeFun('Co2_ppm', X) and pass through
+                %  CustomFunList.)
                 % Opt-in: record one snapshot per inner sigma-clip iteration
                 % across every stage. Snapshots are assembled from the
                 % fit's per-stage IterSnapshots (length NCalibTotal masks
@@ -706,6 +710,13 @@ classdef PhotCalibTrans < Component
                 Args.SelectionMethod char {mustBeMember(Args.SelectionMethod, ...
                     {'catsHTM','pythonLike'})} = 'catsHTM'
                 Args.UseTAPClassprob logical = false
+                % Position columns for the Tran2D fit. Default 'X','Y'
+                % (per-crop calibrate behaviour unchanged). Set to
+                % 'XFULL','YFULL' when calibrating a joint whole-image
+                % AstroCatalog from imProc.cat.joinCropsToCatalog so
+                % Tran2D operates in the field frame.
+                Args.PosColNameX      char    = 'X'
+                Args.PosColNameY      char    = 'Y'
             end
 
             % Save Metadata argument separately
@@ -724,19 +735,20 @@ classdef PhotCalibTrans < Component
                 fprintf('\n=== PhotCalibTrans Calibration ===\n');
             end
 
+            % ====================================================================
+            % STEPS 1-3: Metadata + FunList/OptSeq + TransModel
+            % ====================================================================
+
+            Metadata     = Args.Metadata;
             IsAstroImage = isa(Cat, 'AstroImage');
 
-            % ====================================================================
+            % ----------------------------------------------------------------
             % STEP 1: Extract metadata
-            % ====================================================================
-
+            % ----------------------------------------------------------------
             if Args.Verbose
                 fprintf('Step 1: Extracting observation metadata...\n');
             end
 
-            % Capture a reference to the underlying AstroHeader (if any) so
-            % the airmass-compute branch below can read RA/DEC/time after
-            % the metadata cell-array reassignment.
             HeaderRef = [];
             if IsAstroImage
                 HeaderRef = Cat.HeaderData;
@@ -744,82 +756,53 @@ classdef PhotCalibTrans < Component
                 HeaderRef = Metadata;
             end
 
-            % Extract metadata as cell array {key1, val1, key2, val2, ...}
             if iscell(Metadata)
                 % AstroCatalog with cell array: use directly
-                % (Metadata already set from Args.Metadata above)
             elseif IsAstroImage || isa(Metadata, 'AstroHeader')
-                % Extract from header (either Cat.HeaderData or Metadata)
-                Keys = {'MNTTEMP', 'EXPTIME', 'NCOADD', 'AIRMASS', 'PRESSURE'};
-                PropNames = {'Temp', 'ExpTime', 'NCoadd', 'AirMass', 'Pressure'};
-
+                Keys      = {'MNTTEMP', 'EXPTIME', 'NCOADD', 'AIRMASS', 'PRESSURE'};
+                PropNames = {'Temp',    'ExpTime', 'NCoadd', 'AirMass', 'Pressure'};
                 if IsAstroImage
                     Res = Cat.HeaderData.getStructKey(Keys);
                 else
                     Res = Metadata.getStructKey(Keys);
                 end
-
-                % Build cell array - only include non-NaN values
-                % This preserves class default properties when header values are missing or invalid
-                Metadata = cell(1, 2 * length(Keys));
+                Metadata = cell(1, 2*length(Keys));
                 Idx = 1;
                 for I = 1:length(Keys)
                     if isfield(Res, Keys{I})
                         Val = Res.(Keys{I});
                         if ~isempty(Val) && isnumeric(Val) && ~any(isnan(Val))
-                            Metadata{Idx} = PropNames{I};
+                            Metadata{Idx}   = PropNames{I};
                             Metadata{Idx+1} = Val;
                             Idx = Idx + 2;
                         end
                     end
                 end
-                Metadata = Metadata(1:Idx-1);  % Trim to actual size
+                Metadata = Metadata(1:Idx-1);
             else
-                % Empty metadata - use object defaults
                 Metadata = {};
             end
 
-            % Set properties from cell array (convert to struct for setProps)
             if ~isempty(Metadata)
-                MetadataStruct = struct(Metadata{:});
-                Obj.setProps(MetadataStruct);
+                Obj.setProps(struct(Metadata{:}));
             end
 
-            % NFramesPerCoadd is caller-driven (not in the FITS header). The
-            % default 1 leaves ordinary single-level coadds at
-            % ExpTime_eff = ExpTime/NCoadd. For an image built by stacking
-            % already-coadded frames (a coadd-of-coadds), the caller passes
-            % NFramesPerCoadd > 1 so the per-frame divisor becomes
-            % (NCoadd * NFramesPerCoadd).
             Obj.NFramesPerCoadd = Args.NFramesPerCoadd;
 
-            % --- Optional airmass override: compute from field-centre using the
-            % Hardie (1962) polynomial via celestial.coo.radec2azalt (whose
-            % internal call to celestial.coo.hardie uses the exact same
-            % coefficients as the Python production get_hardie_airmass).
-            % The downstream zenith conversion at line ~482 then does
-            % acosd(1/Obj.AirMass), mirroring abscalutils.get_zenith_from_airmass.
+            % Optional airmass override: compute from field-centre using
+            % Hardie polynomial via celestial.coo.radec2azalt (matches
+            % Python's get_hardie_airmass). Downstream zenith conversion
+            % (ZenithAngle = acosd(1/AirMass)) mirrors get_zenith_from_airmass.
             if strcmpi(Args.AirmassSource, 'compute')
                 if isempty(HeaderRef)
                     Obj.msgLog(LogLevel.Warning, ...
-                        'calibrate: AirmassSource=compute but no AstroHeader available — keeping header AIRMASS');
+                        'calibrate: AirmassSource=compute but no AstroHeader available - keeping header AIRMASS');
                 else
                     RAhdr  = HeaderRef.getVal('RA');
                     Dechdr = HeaderRef.getVal('DEC');
                     JDhdr  = readAirmassTime(HeaderRef, Args.AirmassTimeKey);
 
                     if isfinite(RAhdr) && isfinite(Dechdr) && isfinite(JDhdr)
-                        % Apply ICRS->apparent-of-date chain mirroring Python
-                        % astropy's SkyCoord(ICRS).transform_to(AltAz):
-                        %   * Optional annual aberration (Ron & Vondrak 1986)
-                        %     via celestial.coo.aberration (INPOP-free).
-                        %   * Precession step: when ApplyNutation=false (default),
-                        %     celestial.coo.radec2azalt's InEquinoxJD/OutEquinoxJD
-                        %     args (mean->mean, no nutation; matches pipeline
-                        %     imProc.header.addAirMass). When ApplyNutation=true,
-                        %     celestial.convert.precessCoo with OutMean=false
-                        %     (mean->TRUE equinox of date, adds nutation).
-                        % No refraction (matches astropy default with pressure unset).
                         try
                             RA_in  = RAhdr;
                             Dec_in = Dechdr;
@@ -830,7 +813,6 @@ classdef PhotCalibTrans < Component
                                 Dec_in = Aber(1,2) * 180/pi;
                             end
                             if Args.ApplyApparentPlace && Args.ApplyNutation
-                                % Precession + nutation -> true equinox of date.
                                 [RA_app, Dec_app] = celestial.convert.precessCoo( ...
                                     RA_in, Dec_in, ...
                                     'InEquinox',  2451545.5, 'InMean',  true, ...
@@ -840,14 +822,12 @@ classdef PhotCalibTrans < Component
                                     JDhdr, RA_app, Dec_app, ...
                                     'GeoCoo', [Args.ObsLon, Args.ObsLat]);
                             elseif Args.ApplyApparentPlace
-                                % Precession only (mean->mean), via radec2azalt.
                                 [~, ~, AM] = celestial.coo.radec2azalt( ...
                                     JDhdr, RA_in, Dec_in, ...
                                     'GeoCoo',       [Args.ObsLon, Args.ObsLat], ...
                                     'InEquinoxJD',  2451545, ...
                                     'OutEquinoxJD', JDhdr);
                             else
-                                % Legacy: pure spherical trig, no apparent-place transform.
                                 [~, ~, AM] = celestial.coo.radec2azalt( ...
                                     JDhdr, RA_in, Dec_in, ...
                                     'GeoCoo', [Args.ObsLon, Args.ObsLat]);
@@ -865,11 +845,6 @@ classdef PhotCalibTrans < Component
                             fprintf('  AirMass overridden (Hardie) = %.4f (ApparentPlace=%d, Aberration=%d, Nutation=%d)\n', ...
                                     AM, Args.ApplyApparentPlace, Args.ApplyAberration, Args.ApplyNutation);
                         end
-                        % Optionally persist the Hardie value back to the
-                        % source header (AstroHeader is a handle class, so
-                        % this updates the underlying AI.HeaderData; any
-                        % later write1 with that header carries the new
-                        % AIRMASS).
                         if Args.WriteComputedAirmass
                             HeaderRef.replaceVal('AIRMASS', AM);
                             if Args.Verbose
@@ -878,20 +853,18 @@ classdef PhotCalibTrans < Component
                         end
                     else
                         Obj.msgLog(LogLevel.Warning, sprintf( ...
-                            'calibrate: AirmassSource=compute but RA/DEC/%s missing or NaN — keeping header AIRMASS', ...
+                            'calibrate: AirmassSource=compute but RA/DEC/%s missing or NaN - keeping header AIRMASS', ...
                             Args.AirmassTimeKey));
                     end
                 end
             end
 
-            % Extract catalog (depends on input type)
             if IsAstroImage
                 CurrentCat = Cat.CatData;
             else
                 CurrentCat = Cat;
             end
 
-            % Display metadata if verbose
             if Args.Verbose
                 fprintf('  AirMass  = %.2f\n', Obj.AirMass);
                 fprintf('  ExpTime  = %.1f s\n', Obj.ExpTime);
@@ -904,32 +877,25 @@ classdef PhotCalibTrans < Component
                 fprintf('  Pressure = %.1f mbar\n', Obj.Pressure);
             end
 
-            % ====================================================================
+            % ----------------------------------------------------------------
             % STEP 2: Build TransModel structure with observation metadata
-            % ====================================================================
-
+            % ----------------------------------------------------------------
             if Args.Verbose
                 fprintf('\nStep 2: Building transmission model structure...\n');
             end
 
-            % Compute zenith angle from airmass: sec(z) = AirMass → z = acosd(1/AirMass)
             ZenithAngle = acosd(1 / max(Obj.AirMass, 1.0));
 
-            % Record CO2 (call-time override) on the object so it round-
-            % trips through the header writer below and matches what
-            % predefSeqCompositeFun bakes into UMG.Par(4).
-            Obj.Co2_ppm = Args.Co2_ppm;
-
-            % Load catalog with actual observation metadata
-            [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun(...
+            % Co2_ppm is NOT threaded through anymore — predefSeqCompositeFun
+            % owns the atmospheric-constant default (395, matches class
+            % Obj.Co2_ppm default so PT_CO2PPM provenance stays consistent).
+            [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun( ...
                 'ZenithAngle_deg', ZenithAngle, ...
-                'Pressure_mbar', Obj.Pressure, ...
-                'Temperature_C', Obj.Temp, ...
-                'Co2_ppm', Obj.Co2_ppm);
+                'Pressure_mbar',   Obj.Pressure, ...
+                'Temperature_C',   Obj.Temp);
 
-            % Get transmission function list and optimization sequence
             FunList = FunCat.(Args.FunListName);
-            OptSeq = StageCat.(Args.OptSeqName);
+            OptSeq  = StageCat.(Args.OptSeqName);
 
             if Args.Verbose
                 if ~isempty(Args.CustomFunList)
@@ -943,30 +909,23 @@ classdef PhotCalibTrans < Component
                     fprintf('  Using optimization sequence: %s (%d stages)\n', Args.OptSeqName, numel(OptSeq));
                 end
                 fprintf('  ZenithAngle = %.1f deg (from AirMass = %.2f)\n', ZenithAngle, Obj.AirMass);
-            end
-
-            if Args.Verbose
                 fprintf('  Transmission functions and optimization sequence configured\n\n');
             end
 
-            % ====================================================================
+            % ----------------------------------------------------------------
             % STEP 3: Build TransModel with real metadata
-            % ====================================================================
-
-            % MetaValues for CompositeFun.model (already set in FunCatalog
-            % via predefSeqCompositeFun, kept here for backward compatibility)
+            % ----------------------------------------------------------------
             MetaValues = {'ZenithAngle_deg', ZenithAngle, ...
-                          'Pressure_mbar', Obj.Pressure, ...
-                          'Temperature_C', Obj.Temp};
+                          'Pressure_mbar',   Obj.Pressure, ...
+                          'Temperature_C',   Obj.Temp};
 
-            % Build TransModel
             Obj.TransModel = tools.math.fun.CompositeFun.model(FunList, ...
-                'MetadataValues', MetaValues, ...
+                'MetadataValues',       MetaValues, ...
                 'OptimizationSequence', OptSeq, ...
-                'UseTran2D', Args.UseTran2D, ...
-                'Tran2DType', Args.Tran2DType, ...
-                'XPixel', Args.XPixel, ...
-                'YPixel', Args.YPixel);
+                'UseTran2D',            Args.UseTran2D, ...
+                'Tran2DType',           Args.Tran2DType, ...
+                'XPixel',               Args.XPixel, ...
+                'YPixel',               Args.YPixel);
 
             % ====================================================================
             % STEP 4: Select calibrators
@@ -1015,7 +974,9 @@ classdef PhotCalibTrans < Component
                 'UseTAPClassprob', Args.UseTAPClassprob, ...
                 'ObsJD', ObsJD, ...
                 'Verbose', Args.Verbose, ...
-                'match_catsHTMArgs',Args.match_catsHTMArgs);
+                'match_catsHTMArgs',Args.match_catsHTMArgs, ...
+                'PosColNameX', Args.PosColNameX, ...
+                'PosColNameY', Args.PosColNameY);
 
             % selectCalibrators populates Obj.SpecData, Obj.SourceData, and Obj.CalFound
 
@@ -1146,8 +1107,18 @@ classdef PhotCalibTrans < Component
                 % handler so it only seeds the LM initial guess for stage 4.
                 OptSeqHasNonlinFC = false;
                 if ~isempty(Obj.TransModel.OptSeq)
-                    for IStageCheck = 1:numel(Obj.TransModel.OptSeq)
-                        FP = Obj.TransModel.OptSeq(IStageCheck).FreeParams;
+                    % Recipe shape (scalar struct with .Stages / .NumRepeats /
+                    % .IterOverrides) vs legacy stage-array. Normalise so the
+                    % perturbation-guard loop iterates the actual stages.
+                    if isscalar(Obj.TransModel.OptSeq) && ...
+                            isstruct(Obj.TransModel.OptSeq) && ...
+                            isfield(Obj.TransModel.OptSeq, 'Stages')
+                        StagesForCheck = Obj.TransModel.OptSeq.Stages;
+                    else
+                        StagesForCheck = Obj.TransModel.OptSeq;
+                    end
+                    for IStageCheck = 1:numel(StagesForCheck)
+                        FP = StagesForCheck(IStageCheck).FreeParams;
                         if ischar(FP) && strcmpi(FP, 'NONLIN_FC')
                             OptSeqHasNonlinFC = true;
                             break;
@@ -1305,8 +1276,19 @@ classdef PhotCalibTrans < Component
                         FittedParamNames = {};
                         HasFieldCorrection = false;
 
-                        for IStage = 1:length(Obj.TransModel.OptSeq)
-                            Stage = Obj.TransModel.OptSeq(IStage);
+                        % Recipe (scalar struct with .Stages) vs legacy
+                        % struct-array — same normalisation pattern as the
+                        % perturbation-guard loop above.
+                        if isscalar(Obj.TransModel.OptSeq) && ...
+                                isstruct(Obj.TransModel.OptSeq) && ...
+                                isfield(Obj.TransModel.OptSeq, 'Stages')
+                            StagesForCount = Obj.TransModel.OptSeq.Stages;
+                        else
+                            StagesForCount = Obj.TransModel.OptSeq;
+                        end
+
+                        for IStage = 1:length(StagesForCount)
+                            Stage = StagesForCount(IStage);
                             if ischar(Stage.FreeParams) && strcmpi(Stage.FreeParams, 'JOINT_FC')
                                 % Joint Norm + Tran2D linear stage: counts as
                                 % Norm plus the Tran2D ParX (10 coeffs added
@@ -1467,15 +1449,16 @@ classdef PhotCalibTrans < Component
             %                                       SN window (5,1000), and
             %                                       FLUX_APER_3 / FLUX_PSF > 0.
             %            'UseTAPClassprob' - Only consulted in 'pythonLike'. When
-            %                        true, runs a Gaia DR3 TAP query (via
-            %                        VO.TopCat) for classprob_dsc_combmod_star>0.9
-            %                        and has_xp_sampled='TRUE' on the field circle
-            %                        of surviving candidates, then keeps only
-            %                        candidates whose J2016 position has a TAP
-            %                        counterpart within 0.5 arcsec. TAP failure
-            %                        (network/timeout) downgrades to a Warning and
-            %                        leaves the rest of the selection intact.
-            %                        Default is false (no online step).
+            %                        true, keeps only candidates whose matched
+            %                        GAIADR3spec row has
+            %                        classprob_dsc_combmod_star > 0.9.
+            %                        (Pre-Jun-2026 this triggered a VO.TopCat /
+            %                        STILTS TAP query against gaiadr3.gaia_source.
+            %                        After the GAIADR3spec regen the column lives
+            %                        at position 700, so the filter is now a
+            %                        direct column read with no network call.
+            %                        Arg name preserved for backwards compat.)
+            %                        Default is false.
             %            'ObsJD' - Observation Julian Date for PM propagation in
             %                        'pythonLike'. Default is NaN (skip PM with a
             %                        Warning); calibrate() fills this from the
@@ -1547,6 +1530,13 @@ classdef PhotCalibTrans < Component
                     {'catsHTM','pythonLike'})} = 'catsHTM'
                 Args.UseTAPClassprob logical = false    % only consulted in 'pythonLike'
                 Args.ObsJD            double  = NaN     % obs JD, drives PM propagation in 'pythonLike'
+                % Position columns read off Cands when building SourceData.
+                % Default 'X','Y' preserves per-crop calibrate byte-for-byte.
+                % Set to 'XFULL','YFULL' when calibrating a joint (whole-image)
+                % AstroCatalog produced by imProc.cat.joinCropsToCatalog so
+                % downstream Tran2D evaluation uses the field-frame coords.
+                Args.PosColNameX      char    = 'X'
+                Args.PosColNameY      char    = 'Y'
             end
 
             RAD = constant.RAD;
@@ -1645,8 +1635,8 @@ classdef PhotCalibTrans < Component
                 Cal_RA  = double(CalTab(:, 1)) * RAD;
                 Cal_Dec = double(CalTab(:, 2)) * RAD;
 
-                Obs_X    = Cands.X;
-                Obs_Y    = Cands.Y;
+                Obs_X    = Cands.(Args.PosColNameX);
+                Obs_Y    = Cands.(Args.PosColNameY);
                 Obs_RA   = Cands.RA;
                 Obs_Dec  = Cands.Dec;
                 Obs_Flux = Cands.(Args.FluxColName);
@@ -1726,11 +1716,31 @@ classdef PhotCalibTrans < Component
                     SourceTable.AIRMASS = Obs_Airmass;
                 end
                 if Args.AttachBP_RP
-                    [BPRPv, BPv, RPv] = PhotCalibTrans.fetchGaiaBPRP(Obs_RA, Obs_Dec, ...
-                        Args.AuditCatName, Args.SearchRadius, Obj);
-                    SourceTable.BP_RP  = BPRPv;
-                    SourceTable.MAG_BP = BPv;
-                    SourceTable.MAG_RP = RPv;
+                    % Read Gaia tail cols straight off the candidate row
+                    % (attached by findCalibCandidates after the Jun 2026
+                    % GAIADR3spec regen). Apply ValidCalibMask the same way
+                    % the other per-row vectors were subset. Missing column
+                    % => NaN-padded so the SourceData schema stays stable.
+                    CandsVN = Cands.Properties.VariableNames;
+                    % Raw Gaia col name in Cands -> user-facing col name in SourceData
+                    GaiaMap = { ...
+                        'bp_rp',                         'BP_RP'; ...
+                        'phot_bp_mean_mag',              'MAG_BP'; ...
+                        'phot_rp_mean_mag',              'MAG_RP'; ...
+                        'phot_g_mean_mag',               'MAG_G'; ...
+                        'PMRA',                          'PMRA'; ...
+                        'PMDec',                         'PMDec'; ...
+                        'classprob_dsc_combmod_star',    'CLASSPROB'; ...
+                        'phot_bp_rp_excess_factor',      'BPRP_EXCESS'};
+                    for GK = 1:size(GaiaMap, 1)
+                        RawName  = GaiaMap{GK, 1};
+                        NiceName = GaiaMap{GK, 2};
+                        Val = nan(Nvalid, 1);
+                        if ismember(RawName, CandsVN)
+                            Tmp = Cands.(RawName); Val = Tmp(ValidCalibMask);
+                        end
+                        SourceTable.(NiceName) = Val;
+                    end
                 end
                 Obj.SourceData = AstroCatalog(SourceTable);
                 Obj.CalFound   = true;
@@ -2623,8 +2633,16 @@ classdef PhotCalibTrans < Component
             % Pre-compute fitted parameter names from OptSeq
             FittedParamNames = {};
             if ~isempty(Obj.TransModel) && ~isempty(Obj.TransModel.OptSeq)
-                for IStage = 1:length(Obj.TransModel.OptSeq)
-                    Stage = Obj.TransModel.OptSeq(IStage);
+                % Recipe (scalar struct with .Stages) vs legacy struct-array.
+                if isscalar(Obj.TransModel.OptSeq) && ...
+                        isstruct(Obj.TransModel.OptSeq) && ...
+                        isfield(Obj.TransModel.OptSeq, 'Stages')
+                    StagesForNames = Obj.TransModel.OptSeq.Stages;
+                else
+                    StagesForNames = Obj.TransModel.OptSeq;
+                end
+                for IStage = 1:length(StagesForNames)
+                    Stage = StagesForNames(IStage);
                     if ischar(Stage.FreeParams) && strcmpi(Stage.FreeParams, 'JOINT_FC')
                         % Joint Norm + Tran2D linear stage: contributes 'Norm'.
                         if ~any(strcmp(FittedParamNames, 'Norm'))
@@ -4131,13 +4149,32 @@ classdef PhotCalibTrans < Component
             %            'Nrows' - Number of rows in grid. Default is 6.
             %            'SubImgSize' - Subimage size [Nx, Ny] pixels. Default
             %                        is [] (auto-detect from the first crop's
-            %                        Tran2DObj as [2*ParNX(2), 2*ParNY(2)],
-            %                        because ParNX/ParNY are [Center, HalfRange] —
-            %                        for LAST cheby1_4_xt this is [1726, 1726]).
-            %                        Pass an explicit [Nx, Ny] to override.
-            %                        Mismatch between SubImgSize and the true
-            %                        crop extent makes calibrators near the
-            %                        edge spill into the neighbouring tile.
+            %                        Tran2DObj as [2*ParNX(2), 2*ParNY(2)] in
+            %                        per-crop frame; defaults to [1726, 1726]
+            %                        in field frame, where Tran2D ParNX covers
+            %                        the whole mosaic and is not a per-crop
+            %                        extent). Pass an explicit [Nx, Ny] to
+            %                        override.
+            %            'Tran2DFrame' - 'auto' | 'percrop' | 'field'.
+            %                        Controls how plotZPMap calls evaluateZP
+            %                        per crop:
+            %                          'percrop' - each PC's Tran2DObj covers
+            %                                      that crop only; evaluateZP
+            %                                      sees local (X, Y) = 1..Nx.
+            %                                      Matches single-crop calibrate
+            %                                      output.
+            %                          'field'   - all PCs' Tran2DObjs share a
+            %                                      field-frame ParNX (cover
+            %                                      whole mosaic); evaluateZP
+            %                                      sees global (X, Y) =
+            %                                      X + (Col-1)*Nx, Y + (Row-1)*Ny.
+            %                                      Matches joint-fit output
+            %                                      (imProc.calib.fitPhotCalibTrans
+            %                                      with 'JointVisit', true).
+            %                          'auto'    - default: peek at the first
+            %                                      PC's ParNX(2). If
+            %                                      2*ParNX(2) > 3000 px treat
+            %                                      as field; else per-crop.
             %            'SmoothSigma' - Gaussian smoothing sigma [grid units].
             %                        Applied via NaN-aware conv2 with Gaussian kernel.
             %                        Set to 0 to disable. Default is 3.
@@ -4204,12 +4241,19 @@ classdef PhotCalibTrans < Component
                 Args.CropIDs = []
                 Args.Ncols = 4
                 Args.Nrows = 6
-                Args.SubImgSize = []     % [] = auto-detect from Tran2DObj.ParNX/ParNY of first valid crop
+                Args.SubImgSize = []     % [] = auto-detect from Tran2DObj.ParNX/ParNY of first valid crop (per-crop frame) or fall back to [1726, 1726] (field frame)
+                Args.Tran2DFrame char {mustBeMember(Args.Tran2DFrame, {'auto','percrop','field'})} = 'auto'
                 Args.SmoothSigma = 3
                 Args.PhotSys = 'percrop'
                 Args.RefCrop = 10
                 Args.TileOrder = 'rowmajor'  % 'colmajor' (old: bottom-up columns) | 'rowmajor' (new: left-right rows)
                 Args.OverlayCalibrators = 'both'   % 'both' | 'used' | 'all' | 'none' (logical true/false accepted as 'all'/'none')
+                % Optional AstroImage array with UNIQSEC/ORIGUSEC (fallback
+                % CCDSEC/ORIGSEC) headers. When passed, every real-detector
+                % pixel gets exactly one crop's ZP (no duplication in
+                % overlap strips). Empty (default) preserves the legacy
+                % edge-to-edge layout that draws overlap strips twice.
+                Args.AI = []
             end
 
             % Normalise OverlayCalibrators to canonical string
@@ -4287,20 +4331,36 @@ classdef PhotCalibTrans < Component
                 end
             else
                 % === Mosaic mode ===
-                % Auto-detect SubImgSize from Tran2D extent if not given.
-                % ParNX/ParNY are [Center, HalfRange], so full range = 2*HalfRange.
-                if isempty(Args.SubImgSize)
-                    Args.SubImgSize = [1550, 1550];   % legacy fallback
-                    for Itmp = 1:Nobj
-                        if ~isempty(Obj(Itmp).TransModel) && ...
-                                ~isempty(Obj(Itmp).TransModel.Tran2DObj)
-                            ParNX = Obj(Itmp).TransModel.Tran2DObj.ParNX;
-                            ParNY = Obj(Itmp).TransModel.Tran2DObj.ParNY;
-                            if numel(ParNX) >= 2 && numel(ParNY) >= 2
-                                Args.SubImgSize = [2*ParNX(2), 2*ParNY(2)];
-                            end
-                            break;
+                % Auto-detect Tran2DFrame + SubImgSize from the first valid
+                % Tran2DObj. ParNX/ParNY are [Center, HalfRange]:
+                %   - per-crop frame: 2*HalfRange ~ 1726 px (one crop)
+                %   - field frame   : 2*HalfRange ~ 6912 px (LAST mosaic)
+                % Threshold: 2*HalfRange > 3000 px => field-frame Tran2D.
+                ProbeHalfX = []; ProbeHalfY = [];
+                for Itmp = 1:Nobj
+                    if ~isempty(Obj(Itmp).TransModel) && ...
+                            ~isempty(Obj(Itmp).TransModel.Tran2DObj)
+                        ParNX = Obj(Itmp).TransModel.Tran2DObj.ParNX;
+                        ParNY = Obj(Itmp).TransModel.Tran2DObj.ParNY;
+                        if numel(ParNX) >= 2 && numel(ParNY) >= 2
+                            ProbeHalfX = ParNX(2);
+                            ProbeHalfY = ParNY(2);
                         end
+                        break;
+                    end
+                end
+                if strcmp(Args.Tran2DFrame, 'auto')
+                    if ~isempty(ProbeHalfX) && 2*ProbeHalfX > 3000
+                        Args.Tran2DFrame = 'field';
+                    else
+                        Args.Tran2DFrame = 'percrop';
+                    end
+                end
+                if isempty(Args.SubImgSize)
+                    if strcmp(Args.Tran2DFrame, 'percrop') && ~isempty(ProbeHalfX)
+                        Args.SubImgSize = [2*ProbeHalfX, 2*ProbeHalfY];
+                    else
+                        Args.SubImgSize = [1726, 1726];   % LAST default for field frame
                     end
                 end
 
@@ -4355,6 +4415,28 @@ classdef PhotCalibTrans < Component
                 allLocalX = [];
                 allLocalY = [];
 
+                % Per-crop geometry cache: UNIQSEC (local) + ORIGUSEC (global)
+                % boxes for each crop. Filled from headers if AI is passed,
+                % otherwise the legacy edge-to-edge boxes are stored so
+                % labels / grid / overlay code below can share a single
+                % linear (local -> global) mapping.
+                CropUniqLocal  = nan(Nobj, 4);   % [XloL, XhiL, YloL, YhiL]
+                CropUniqGlobal = nan(Nobj, 4);   % [XloG, XhiG, YloG, YhiG]
+
+                % Preflight: if AI is passed, note whether every crop has
+                % UNIQSEC + ORIGUSEC. If any crop lacks them we drop back
+                % to CCDSEC/ORIGSEC (overlap-carrying) with a warning.
+                UseAIGeom  = ~isempty(Args.AI);
+                UsedUniq   = false;
+                if UseAIGeom
+                    if numel(Args.AI) < Nobj
+                        Obj(1).msgLog(LogLevel.Warning, ...
+                            'plotZPMap: AI array shorter (%d) than PC array (%d) - dropping AI-driven geometry', ...
+                            numel(Args.AI), Nobj);
+                        UseAIGeom = false;
+                    end
+                end
+
                 for Iobj = 1:Nobj
                     if isempty(Obj(Iobj).TransModel)
                         continue;
@@ -4363,11 +4445,77 @@ classdef PhotCalibTrans < Component
                     CropID = CropIDs(Iobj);
                     [Row, Col] = PhotCalibTrans.cropID2RowCol(CropID, Args.Nrows, Args.Ncols, Args.TileOrder);
 
-                    Nx = Args.SubImgSize(1);
-                    Ny = Args.SubImgSize(2);
-                    Xvec = linspace(1, Nx, Args.GridSize(1));
-                    Yvec = linspace(1, Ny, Args.GridSize(2));
-                    [Xgrid, Ygrid] = meshgrid(Xvec, Yvec);
+                    % Sample-grid bounds. When AI is available and carries
+                    % UNIQSEC + ORIGUSEC, sample only within the crop's
+                    % non-overlap partition (local coords = UNIQSEC) and
+                    % place at its footprint in the detector (global coords
+                    % = ORIGUSEC). Otherwise fall back to the legacy
+                    % edge-to-edge placement.
+                    UsedUniqThisCrop = false;
+                    if UseAIGeom
+                        UniqLocal = [];
+                        UniqGlobal = [];
+                        try
+                            UniqLocal  = Args.AI(Iobj).HeaderData.getVal('UNIQSEC',  'ReadCCDSEC', true);
+                            UniqGlobal = Args.AI(Iobj).HeaderData.getVal('ORIGUSEC', 'ReadCCDSEC', true);
+                        catch
+                        end
+                        if isempty(UniqLocal) || any(~isfinite(UniqLocal(:))) || ...
+                                isempty(UniqGlobal) || any(~isfinite(UniqGlobal(:)))
+                            try
+                                UniqLocal  = Args.AI(Iobj).HeaderData.getVal('CCDSEC',  'ReadCCDSEC', true);
+                                UniqGlobal = Args.AI(Iobj).HeaderData.getVal('ORIGSEC', 'ReadCCDSEC', true);
+                                if Iobj == 1
+                                    Obj(1).msgLog(LogLevel.Warning, ...
+                                        'plotZPMap: UNIQSEC/ORIGUSEC absent; falling back to CCDSEC/ORIGSEC (overlap will be rendered twice)');
+                                end
+                            catch
+                                UniqLocal = []; UniqGlobal = [];
+                            end
+                        else
+                            UsedUniqThisCrop = true;
+                        end
+                        if ~isempty(UniqLocal) && ~isempty(UniqGlobal)
+                            XloL = UniqLocal(1);  XhiL = UniqLocal(2);
+                            YloL = UniqLocal(3);  YhiL = UniqLocal(4);
+                            XloG = UniqGlobal(1); XhiG = UniqGlobal(2);
+                            YloG = UniqGlobal(3); YhiG = UniqGlobal(4);
+                            Xvec_l = linspace(XloL, XhiL, Args.GridSize(1));
+                            Yvec_l = linspace(YloL, YhiL, Args.GridSize(2));
+                            [Xgrid, Ygrid] = meshgrid(Xvec_l, Yvec_l);
+                            Xvec_g = linspace(XloG, XhiG, Args.GridSize(1));
+                            Yvec_g = linspace(YloG, YhiG, Args.GridSize(2));
+                            [XgridG, YgridG] = meshgrid(Xvec_g, Yvec_g);
+                            X_global = XgridG(:);
+                            Y_global = YgridG(:);
+                            CropUniqLocal(Iobj,  :) = [XloL XhiL YloL YhiL];
+                            CropUniqGlobal(Iobj, :) = [XloG XhiG YloG YhiG];
+                            UsedUniq = UsedUniq || UsedUniqThisCrop;
+                        else
+                            % Fully failed to read AI geometry -> legacy path.
+                            Nx = Args.SubImgSize(1);
+                            Ny = Args.SubImgSize(2);
+                            Xvec = linspace(1, Nx, Args.GridSize(1));
+                            Yvec = linspace(1, Ny, Args.GridSize(2));
+                            [Xgrid, Ygrid] = meshgrid(Xvec, Yvec);
+                            X_global = Xgrid(:) + (Col - 1) * Nx;
+                            Y_global = Ygrid(:) + (Row - 1) * Ny;
+                            CropUniqLocal(Iobj,  :) = [1 Nx 1 Ny];
+                            CropUniqGlobal(Iobj, :) = ...
+                                [(Col-1)*Nx  Col*Nx  (Row-1)*Ny  Row*Ny];
+                        end
+                    else
+                        Nx = Args.SubImgSize(1);
+                        Ny = Args.SubImgSize(2);
+                        Xvec = linspace(1, Nx, Args.GridSize(1));
+                        Yvec = linspace(1, Ny, Args.GridSize(2));
+                        [Xgrid, Ygrid] = meshgrid(Xvec, Yvec);
+                        X_global = Xgrid(:) + (Col - 1) * Nx;
+                        Y_global = Ygrid(:) + (Row - 1) * Ny;
+                        CropUniqLocal(Iobj,  :) = [1 Nx 1 Ny];
+                        CropUniqGlobal(Iobj, :) = ...
+                            [(Col-1)*Nx  Col*Nx  (Row-1)*Ny  Row*Ny];
+                    end
 
                     if ~isempty(RefParamVec)
                         PCeval = Obj(Iobj).derivePC(RefParamVec, ...
@@ -4376,10 +4524,14 @@ classdef PhotCalibTrans < Component
                     else
                         PCeval = Obj(Iobj);
                     end
-                    ZP = PCeval.evaluateZP('X', Xgrid(:), 'Y', Ygrid(:));
-
-                    X_global = Xgrid(:) + (Col - 1) * Nx;
-                    Y_global = Ygrid(:) + (Row - 1) * Ny;
+                    % Field-frame Tran2D needs the global mosaic-frame (X,Y)
+                    % for normalisation against ParNX/ParNY. Per-crop frame
+                    % wants the crop-local (X,Y).
+                    if strcmp(Args.Tran2DFrame, 'field')
+                        ZP = PCeval.evaluateZP('X', X_global, 'Y', Y_global);
+                    else
+                        ZP = PCeval.evaluateZP('X', Xgrid(:), 'Y', Ygrid(:));
+                    end
                     Npts = numel(ZP);
 
                     allX = [allX; X_global];
@@ -4388,6 +4540,40 @@ classdef PhotCalibTrans < Component
                     allCropID = [allCropID; repmat(CropID, Npts, 1)];
                     allLocalX = [allLocalX; Xgrid(:)];
                     allLocalY = [allLocalY; Ygrid(:)];
+                end
+
+                % Safety-net dedup: after collecting, if two samples fall
+                % in the same 1-px cell in global coords, average their
+                % ZP. Under UNIQSEC-based geometry this is effectively a
+                % no-op (partition -> zero collisions); under legacy /
+                % CCDSEC fallback it collapses overlap strips.
+                if ~isempty(allX)
+                    % Use int64 - int32 saturates at 2.15e9 which is
+                    % well below Y*1e6 = 9576*1e6 = 9.6e9 for LAST.
+                    Key = int64(round(allX)) + int64(round(allY)) * int64(1e6);
+                    [KeyUniq, ~, ic] = unique(Key);
+                    if numel(KeyUniq) < numel(Key)
+                        Kcount = accumarray(ic, 1);
+                        allZP_avg = accumarray(ic, allZP, [], @mean);
+                        allX_avg  = accumarray(ic, allX,  [], @mean);
+                        allY_avg  = accumarray(ic, allY,  [], @mean);
+                        % Represent the merged cell with the modal CropID
+                        % (only used for the sample-table provenance).
+                        allCropID_agg = accumarray(ic, double(allCropID), [], @(v) mode(v));
+                        allLocalX_agg = accumarray(ic, allLocalX,         [], @mean);
+                        allLocalY_agg = accumarray(ic, allLocalY,         [], @mean);
+                        allX      = allX_avg;
+                        allY      = allY_avg;
+                        allZP     = allZP_avg;
+                        allCropID = allCropID_agg;
+                        allLocalX = allLocalX_agg;
+                        allLocalY = allLocalY_agg;
+                        if any(Kcount > 1)
+                            Obj(1).msgLog(LogLevel.Info, ...
+                                'plotZPMap: %d overlap samples averaged across duplicate cells', ...
+                                sum(Kcount) - numel(Kcount));
+                        end
+                    end
                 end
 
                 if isempty(allZP)
@@ -4411,9 +4597,17 @@ classdef PhotCalibTrans < Component
                     Args.CLim = [prctile(allZP, 1), prctile(allZP, 99)];
                 end
 
-                % Global grid
-                XmaxG = Args.Ncols * Args.SubImgSize(1);
-                YmaxG = Args.Nrows * Args.SubImgSize(2);
+                % Global grid. When AI-driven UNIQSEC geometry is in use,
+                % the sample extent is the real-detector footprint and
+                % Ncols*SubImgSize would over-shoot it; take the data
+                % extent instead.
+                if UsedUniq
+                    XmaxG = ceil(max(allX));
+                    YmaxG = ceil(max(allY));
+                else
+                    XmaxG = Args.Ncols * Args.SubImgSize(1);
+                    YmaxG = Args.Nrows * Args.SubImgSize(2);
+                end
                 XvecG = 0:GridRes:XmaxG;
                 YvecG = 0:GridRes:YmaxG;
                 [XgridG, YgridG] = meshgrid(XvecG, YvecG);
@@ -4453,40 +4647,52 @@ classdef PhotCalibTrans < Component
                 xlabel('X [pixels]');
                 ylabel('Y [pixels]');
 
-                % Draw crop boundaries
+                % Draw crop boundaries. The interior lines sit at the
+                % shared edges between adjacent crops' ORIGUSEC boxes:
+                % gather all distinct low/high edges, drop the outermost
+                % ones (that's the image frame, not a divider).
                 hold on;
-                for Icol = 1:Args.Ncols-1
-                    Xline = Icol * Args.SubImgSize(1);
-                    plot([Xline, Xline], [0, YmaxG], 'w-', 'LineWidth', 0.5);
+                XEdges = unique([CropUniqGlobal(:,1); CropUniqGlobal(:,2)]);
+                YEdges = unique([CropUniqGlobal(:,3); CropUniqGlobal(:,4)]);
+                XEdges = XEdges(XEdges > min(CropUniqGlobal(:,1)) & ...
+                                XEdges < max(CropUniqGlobal(:,2)));
+                YEdges = YEdges(YEdges > min(CropUniqGlobal(:,3)) & ...
+                                YEdges < max(CropUniqGlobal(:,4)));
+                for kk = 1:numel(XEdges)
+                    plot([XEdges(kk), XEdges(kk)], [0, YmaxG], 'w-', 'LineWidth', 0.5);
                 end
-                for Irow = 1:Args.Nrows-1
-                    Yline = Irow * Args.SubImgSize(2);
-                    plot([0, XmaxG], [Yline, Yline], 'w-', 'LineWidth', 0.5);
+                for kk = 1:numel(YEdges)
+                    plot([0, XmaxG], [YEdges(kk), YEdges(kk)], 'w-', 'LineWidth', 0.5);
                 end
 
-                % Label crop IDs
+                % Label crop IDs at each ORIGUSEC centre.
                 for Iobj = 1:Nobj
+                    if any(isnan(CropUniqGlobal(Iobj, :))); continue; end
                     CropID = CropIDs(Iobj);
-                    [Row, Col] = PhotCalibTrans.cropID2RowCol(CropID, Args.Nrows, Args.Ncols, Args.TileOrder);
-                    Xc = (Col - 0.5) * Args.SubImgSize(1);
-                    Yc = (Row - 0.5) * Args.SubImgSize(2);
+                    Xc = mean(CropUniqGlobal(Iobj, 1:2));
+                    Yc = mean(CropUniqGlobal(Iobj, 3:4));
                     text(Xc, Yc, sprintf('%d', CropID), ...
                         'HorizontalAlignment', 'center', 'Color', 'w', ...
                         'FontSize', 8, 'FontWeight', 'bold');
                 end
 
-                % Overlay calibrator positions per crop
+                % Overlay calibrator positions per crop, mapped from the
+                % SourceData's local (X,Y) to global via linear rescaling
+                % of the crop's UNIQSEC(local) -> ORIGUSEC(global) box.
+                % In the legacy path both boxes reduce to the tile so the
+                % result is identical to the old (Col-1)*SubImgSize offset.
                 if Args.OverlayCalibrators ~= "none"
                     for Iobj = 1:Nobj
-                        if isempty(Obj(Iobj).SourceData)
-                            continue;
-                        end
-                        CropID = CropIDs(Iobj);
-                        [Row, Col] = PhotCalibTrans.cropID2RowCol(CropID, Args.Nrows, Args.Ncols, Args.TileOrder);
+                        if isempty(Obj(Iobj).SourceData); continue; end
+                        if any(isnan(CropUniqGlobal(Iobj, :))); continue; end
                         [Xall, Yall, UsedFlag, Mode] = PhotCalibTrans.resolveOverlay(...
                             Obj(Iobj).SourceData, Args.OverlayCalibrators);
-                        Xg = Xall + (Col - 1) * Args.SubImgSize(1);
-                        Yg = Yall + (Row - 1) * Args.SubImgSize(2);
+                        XloL = CropUniqLocal(Iobj, 1);  XhiL = CropUniqLocal(Iobj, 2);
+                        YloL = CropUniqLocal(Iobj, 3);  YhiL = CropUniqLocal(Iobj, 4);
+                        XloG = CropUniqGlobal(Iobj, 1); XhiG = CropUniqGlobal(Iobj, 2);
+                        YloG = CropUniqGlobal(Iobj, 3); YhiG = CropUniqGlobal(Iobj, 4);
+                        Xg = XloG + (Xall - XloL) .* (XhiG - XloG) ./ (XhiL - XloL);
+                        Yg = YloG + (Yall - YloL) .* (YhiG - YloG) ./ (YhiL - YloL);
                         switch Mode
                             case "all"
                                 plot(Xg, Yg, 'w.', 'MarkerSize', 4);
@@ -5564,16 +5770,6 @@ classdef PhotCalibTrans < Component
         [Cands, FieldTab, CatH]             = findCalibCandidates(Cat, Args)
         [KeepMask, Reason]                  = applyCalibQuality(Cands, Args)
         [DoubtfulMask, Reason]              = auditCalibCandidates(CandTab, FieldTab, Args)
-        [Pool, FieldPool, CatHCell]         = poolCalibCandidates(CandsCell, FieldTabCell, CatHCellIn, Args)
-        PerCropCell                          = partitionByCrop(Pool, Ncrops, Args)
-        [PC_array, Pool]                    = selectCalibratorsJoint(PC_array, AI_array, Args)
-        [BPRPv, BPv, RPv]                   = fetchGaiaBPRP(RA_deg, Dec_deg, AuditCatName, SearchRadius_arcsec, Logger)
-        [Norm, Tran2DCoefs, FitInfo]        = fitJointNormTran2D(BaseResiduals, XFULL, YFULL, MagErr, FieldTran2DObj, Args)
-        FieldTran2DObj                       = buildFieldTran2D(AI_array, Args)
-        [BaseResid, MagErr, XFULL, YFULL, CropID] = computeJointBaseResiduals(PC_array, Args)
-        JP                                   = poolForJointFit(PC_array, Args)
-        PC_array                             = broadcastJointFitResult(PC_array, JointCF)
-        [PC_array, Result]                   = fitJointVisit(PC_array, AI_array, Args)
 
         function [Row, Col] = cropID2RowCol(CropID, Nrows, Ncols, TileOrder)
             % Convert CropID to grid (Row, Col) position
@@ -5799,48 +5995,46 @@ function Obj = selectCalibratorsPythonLike(Obj, Cat, Args)
     end
 
     if Args.Verbose
-        fprintf('  [pythonLike] match %d sources to GAIADR3spec + GAIADR3 (radius=%.1f arcsec)...\n', ...
+        fprintf('  [pythonLike] match %d sources to GAIADR3spec (radius=%.1f arcsec)...\n', ...
                 Nsources, Args.SearchRadius);
     end
 
-    % --- Parallel cone matches against the two Gaia catsHTM catalogues ---
+    % --- Cone match against GAIADR3spec only (Jun 2026 regen) ---
+    % The parallel GAIADR3 cone match that this code used to do (for
+    % PMRA/PMDec/phot_g_mean_mag/classprob_dsc_combmod_star) was retired:
+    % the GAIADR3spec regen attached cols 693-700 (PM + Gaia photometry +
+    % bp_rp + bp_rp_excess + classprob_dsc_combmod_star) to every row, so
+    % every value we used to pull from CatH_G now lives on CatH_S.
     [~, ~, ResIndS, CatH_S] = imProc.match.match_catsHTM(Cat, 'GAIADR3spec', ...
-        'Radius', Args.SearchRadius, 'RadiusUnits', 'arcsec', Args.match_catsHTMArgs{:});
-    [~, ~, ResIndG, CatH_G] = imProc.match.match_catsHTM(Cat, 'GAIADR3', ...
         'Radius', Args.SearchRadius, 'RadiusUnits', 'arcsec', Args.match_catsHTMArgs{:});
 
     SIdx = ResIndS.Obj2_IndInObj1;
-    GIdx = ResIndG.Obj2_IndInObj1;
     SNm  = ResIndS.Obj2_NmatchObj1;
-    GNm  = ResIndG.Obj2_NmatchObj1;
 
-    % Keep LAST sources with unique 1-1 match in GAIADR3spec, plus a
-    % positional hit (any multiplicity) in GAIADR3.
-    %   Uniqueness is enforced ONLY on GAIADR3spec: that catalog is the
-    %   XP-sampled subset of Gaia DR3, so a "1 in spec" match is implicitly
-    %   filtered to XP-available, G ~< 17.6 sources -- matching Python's
-    %   prototype (`has_xp_sampled = TRUE AND phot_g_mean_mag BETWEEN 12 AND 16`
-    %   pre-filter + unique-1-1 check on the filtered set).
-    %   We still require GIdx to be set (for PM and photometry) but no
-    %   longer reject when a faint non-XP blender is the second GAIADR3
-    %   neighbour within SearchRadius. Empirically this recovers the
-    %   `BLENDED in GAIADR3 (2)` rejections that Python keeps.
-    HasBoth = ~isnan(SIdx) & ~isnan(GIdx) & (SNm == 1);
+    % Keep LAST sources with unique 1-1 match in GAIADR3spec.
+    %   GAIADR3spec is the XP-sampled subset of Gaia DR3, so a "1 in spec"
+    %   match is implicitly filtered to XP-available sources -- matching
+    %   Python's prototype (`has_xp_sampled = TRUE` pre-filter + unique-1-1
+    %   check). The earlier `BLENDED in GAIADR3` second-neighbour rejection
+    %   was already disabled before this refactor (it cost spec matches
+    %   without gain) so removing the parallel GAIADR3 match changes
+    %   nothing semantically.
+    HasBoth = ~isnan(SIdx) & (SNm == 1);
 
     if ~any(HasBoth)
         Obj.msgLog(LogLevel.Warning, sprintf( ...
-            'selectCalibratorsPythonLike: no LAST sources matched both GAIADR3spec and GAIADR3 within %.1f arcsec', ...
+            'selectCalibratorsPythonLike: no LAST sources matched GAIADR3spec with unique 1-1 hit within %.1f arcsec', ...
             Args.SearchRadius));
         Obj.SourceData = []; Obj.SpecData = []; Obj.CalFound = false;
         return
     end
 
     if Args.Verbose
-        fprintf('  [pythonLike] %d sources matched both catalogues\n', sum(HasBoth));
+        fprintf('  [pythonLike] %d sources with unique GAIADR3spec match\n', sum(HasBoth));
     end
 
-    % --- Locate required GAIADR3 columns (case-insensitive synonyms) ---
-    GColNames = CatH_G.ColNames;
+    % --- Locate required GAIADR3spec columns (case-insensitive synonyms) ---
+    GColNames = CatH_S.ColNames;
     GRAi      = findColIdxLocal(GColNames, {'RA'});
     GDeci     = findColIdxLocal(GColNames, {'Dec'});
     PMRAi     = findColIdxLocal(GColNames, {'PMRA', 'pmra'});
@@ -5849,17 +6043,17 @@ function Obj = selectCalibratorsPythonLike(Obj, Cat, Args)
 
     if any([GRAi, GDeci, PMRAi, PMDeci] == 0)
         Obj.msgLog(LogLevel.Warning, ...
-            'selectCalibratorsPythonLike: required GAIADR3 columns missing (RA/Dec/PMRA/PMDec) - skipping PM propagation');
+            'selectCalibratorsPythonLike: required GAIADR3spec columns missing (RA/Dec/PMRA/PMDec) - skipping PM propagation');
     end
 
     % --- PM propagation (always-on per design when ObsJD is available) ---
     CandIdx = find(HasBoth);
     Ncand   = numel(CandIdx);
 
-    GR_2016 = double(CatH_G.Catalog(GIdx(CandIdx), GRAi))  .* RAD;  % rad -> deg
-    GD_2016 = double(CatH_G.Catalog(GIdx(CandIdx), GDeci)) .* RAD;
-    PMra    = double(CatH_G.Catalog(GIdx(CandIdx), PMRAi));   % mas/yr
-    PMdec   = double(CatH_G.Catalog(GIdx(CandIdx), PMDeci));  % mas/yr
+    GR_2016 = double(CatH_S.Catalog(SIdx(CandIdx), GRAi))  .* RAD;  % rad -> deg
+    GD_2016 = double(CatH_S.Catalog(SIdx(CandIdx), GDeci)) .* RAD;
+    PMra    = double(CatH_S.Catalog(SIdx(CandIdx), PMRAi));   % mas/yr
+    PMdec   = double(CatH_S.Catalog(SIdx(CandIdx), PMDeci));  % mas/yr
     PMra(~isfinite(PMra))   = 0;
     PMdec(~isfinite(PMdec)) = 0;
 
@@ -5897,9 +6091,9 @@ function Obj = selectCalibratorsPythonLike(Obj, Cat, Args)
     end
 
     % --- Filter cascade (Python recipe) ---
-    %   (a) MagRange via GAIADR3 phot_g_mean_mag (Python uses Gaia G, not LAST)
+    %   (a) MagRange via GAIADR3spec phot_g_mean_mag (Python uses Gaia G, not LAST)
     if GMagi > 0
-        GMag = double(CatH_G.Catalog(GIdx(CandIdx), GMagi));
+        GMag = double(CatH_S.Catalog(SIdx(CandIdx), GMagi));
         GoodMask = GoodMask & (GMag >= MagRange(1)) & (GMag <= MagRange(2));
     end
 
@@ -5930,73 +6124,34 @@ function Obj = selectCalibratorsPythonLike(Obj, Cat, Args)
         GoodMask = GoodMask & (Fpsf > 0);
     end
 
-    % --- Optional TAP classprob filter (Gaia DR3 via VO.TopCat) ---
-    %   Source IDs in GAIADR3spec catsHTM are stored as single-precision
-    %   floats (downloadPrepSpecGAIA.m:74), so 19-digit Gaia IDs are
-    %   corrupted and cannot serve as a join key with TAP. Instead we run
-    %   a sky-cone TAP query with the classprob>0.9 + has_xp_sampled
-    %   filters baked into the WHERE clause, then keep only candidates
-    %   whose Gaia J2016 position has a TAP-result counterpart within 0.5
-    %   arcsec. Both sides are at J2016, so the match is essentially
-    %   exact up to catsHTM rounding.
+    % --- Optional classprob filter (now: direct column read, was: TAP query) ---
+    % Pre-Jun-2026, this block ran a VO.TopCat / STILTS TAP query against
+    % gaiadr3.gaia_source for `classprob_dsc_combmod_star > 0.9 AND
+    % has_xp_sampled = TRUE`, then matched results to candidate J2016
+    % positions within 0.5 arcsec. After the GAIADR3spec regen, that
+    % column is at position 700 of every matched row and `has_xp_sampled`
+    % is implicit (GAIADR3spec only contains XP-sampled sources). One line
+    % of column-read replaces the whole TAP + match step. The
+    % `UseTAPClassprob` arg name is preserved for backwards compat with
+    % existing callers — semantically it now means "apply classprob>0.9
+    % filter using the catsHTM column".
     if Args.UseTAPClassprob && any(GoodMask)
-        try
-            CandLive = find(GoodMask);
-            cRa  = mean(GR_obs(CandLive));
-            cDec = mean(GD_obs(CandLive));
-            % Worst-case angular offset from centre (deg) + small margin
-            Off  = celestial.coo.sphere_dist_fast( ...
-                deg2rad(cRa), deg2rad(cDec), ...
-                deg2rad(GR_obs(CandLive)), deg2rad(GD_obs(CandLive))) .* RAD;
-            Rdeg = max(Off) + 0.05;
-
-            Q = sprintf([ ...
-                'SELECT source_id, ra, dec, classprob_dsc_combmod_star ', ...
-                'FROM gaiadr3.gaia_source ', ...
-                'WHERE 1=CONTAINS(POINT(''ICRS'', ra, dec), ', ...
-                'CIRCLE(''ICRS'', %.6f, %.6f, %.6f)) ', ...
-                'AND has_xp_sampled = ''TRUE'' ', ...
-                'AND classprob_dsc_combmod_star > 0.9'], ...
-                cRa, cDec, Rdeg);
-
+        ClassprobI = findColIdxLocal(GColNames, {'classprob_dsc_combmod_star'});
+        if ClassprobI > 0
+            Classprob = double(CatH_S.Catalog(SIdx(CandIdx), ClassprobI));
+            ClassMask = isfinite(Classprob) & Classprob > 0.9;
+            Before = sum(GoodMask);
+            GoodMask = GoodMask & ClassMask;
             if Args.Verbose
-                fprintf('  [pythonLike] TAP query: classprob>0.9, has_xp_sampled, circle %.4f deg around (%.4f, %.4f)\n', ...
-                        Rdeg, cRa, cDec);
+                fprintf('  [pythonLike] classprob filter (catsHTM col): %d/%d candidates retained\n', ...
+                        sum(GoodMask), Before);
             end
-
-            Tap = VO.TopCat();
-            % STILTS backend handles ADQL encoding correctly; auto-falls
-            % back to HTTP if jar is missing (VO.TopCat.query line 239).
-            TapResult = Tap.query(Q, 'Method', 'java', 'TimeoutSec', 120);
-
-            if isempty(TapResult) || height(TapResult) == 0
-                Obj.msgLog(LogLevel.Warning, ...
-                    'selectCalibratorsPythonLike: TAP returned 0 sources with classprob>0.9 - all candidates rejected');
-                GoodMask(:) = false;
-            else
-                % Match TAP rows (J2016) to candidate J2016 positions within 0.5 arcsec.
-                TapRA  = deg2rad(double(TapResult.ra));
-                TapDec = deg2rad(double(TapResult.dec));
-                Cand2016RA  = deg2rad(GR_2016);
-                Cand2016Dec = deg2rad(GD_2016);
-
-                HasTap = false(Ncand, 1);
-                for J = 1:numel(TapRA)
-                    D = celestial.coo.sphere_dist_fast( ...
-                        TapRA(J), TapDec(J), Cand2016RA, Cand2016Dec) .* RAD .* 3600;
-                    HasTap = HasTap | (D < 0.5);
-                end
-                GoodMask = GoodMask & HasTap;
-
-                if Args.Verbose
-                    fprintf('  [pythonLike] TAP classprob filter: %d/%d candidates retained (TAP returned %d sources)\n', ...
-                            sum(GoodMask), numel(CandLive), height(TapResult));
-                end
+        else
+            Obj.msgLog(LogLevel.Warning, ...
+                'selectCalibratorsPythonLike: classprob_dsc_combmod_star not in GAIADR3spec - classprob filter NOT applied');
+            if Args.Verbose
+                fprintf('  [pythonLike] classprob_dsc_combmod_star missing from CatH_S - filter SKIPPED\n');
             end
-        catch ME
-            Obj.msgLog(LogLevel.Warning, sprintf( ...
-                'selectCalibratorsPythonLike: TAP classprob query failed (%s) - classprob filter NOT applied', ...
-                ME.message));
         end
     end
 
@@ -6104,8 +6259,21 @@ function Obj = selectCalibratorsPythonLike(Obj, Cat, Args)
         SourceTable.AIRMASS = Obs_Airmass;
     end
     if Args.AttachBP_RP
-        [BPRPv, BPv, RPv] = PhotCalibTrans.fetchGaiaBPRP(Obs_RA, Obs_Dec, ...
-            Args.AuditCatName, Args.SearchRadius, Obj);
+        % Read Gaia tail cols straight off the matched GAIADR3spec row.
+        % SpecTab was indexed before ValidMask filtering, so apply ValidMask
+        % the same way SpecFlux/Cal_RA were subset.
+        SpecCN     = CatH_S.ColNames;
+        BPRPColIdx = find(strcmp(SpecCN, 'bp_rp'),             1);
+        BPColIdx   = find(strcmp(SpecCN, 'phot_bp_mean_mag'),  1);
+        RPColIdx   = find(strcmp(SpecCN, 'phot_rp_mean_mag'),  1);
+        Nrow = size(SpecTab, 1);
+        BPRPv = nan(Nrow, 1); BPv = nan(Nrow, 1); RPv = nan(Nrow, 1);
+        if ~isempty(BPRPColIdx); BPRPv = double(SpecTab(:, BPRPColIdx)); end
+        if ~isempty(BPColIdx);   BPv   = double(SpecTab(:, BPColIdx));   end
+        if ~isempty(RPColIdx);   RPv   = double(SpecTab(:, RPColIdx));   end
+        if exist('ValidMask','var') && numel(BPRPv) > Nvalid
+            BPRPv = BPRPv(ValidMask); BPv = BPv(ValidMask); RPv = RPv(ValidMask);
+        end
         SourceTable.BP_RP  = BPRPv;
         SourceTable.MAG_BP = BPv;
         SourceTable.MAG_RP = RPv;
