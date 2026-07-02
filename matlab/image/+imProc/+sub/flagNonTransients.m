@@ -309,10 +309,10 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Star/galaxy classification
         Args.StarGalProbEps double = 1e-6
-        Args.DefStarProb double = 0.97
+        Args.DefStarProb double = 0.95
         Args.MinStarProb double = 0.6
         Args.MinStarProbNoGal double = 0.10
-        Args.StarGalLogRatioThresh double = 0.85
+        Args.StarGalLogRatioThresh double = 0.6
 
         % D-image artifact filters
         Args.flagRinging logical = true
