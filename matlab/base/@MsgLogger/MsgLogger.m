@@ -26,7 +26,7 @@ classdef MsgLogger < handle
         CurFileLevel LogLevel       % Current level for log file
         CurDispLevel LogLevel       % Current level for display
         CurSyslogLevel LogLevel     % Current level for display
-        SuppressDispLevel LogLevel  % When set (not None), suppress display for messages at this level and above (lower severity), overriding mustLog
+        SuppressDispLevel           % LogLevel or cell array of LogLevels to suppress from display (overrides mustLog); [] means no suppression
         Console                     % True to print messages also to console
         Enabled logical             % True to enable logging, when false, calling msg..() function will do nothing
         UserData                    % Optional user data
@@ -115,7 +115,7 @@ classdef MsgLogger < handle
             Obj.CurFileLevel = LogLevel.All;
             Obj.CurDispLevel = LogLevel.All;
             Obj.CurSyslogLevel = LogLevel.All;
-            Obj.SuppressDispLevel = LogLevel.None;
+            Obj.SuppressDispLevel = [];
             Obj.Console = Args.Console;
                        
             % Load configuration file only once
@@ -286,7 +286,7 @@ classdef MsgLogger < handle
                 LogToFile = true;
                 LogToSyslog = true;
             end
-            if Obj.SuppressDispLevel ~= LogLevel.None && uint32(Level) >= uint32(Obj.SuppressDispLevel)
+            if Obj.isSuppressedFromDisp(Level)
                 LogToDisplay = false;
             end
 
@@ -371,7 +371,7 @@ classdef MsgLogger < handle
                 LogToFile = true;
                 LogToSyslog = true;
             end
-            if Obj.SuppressDispLevel ~= LogLevel.None && uint32(Level) >= uint32(Obj.SuppressDispLevel)
+            if Obj.isSuppressedFromDisp(Level)
                 LogToDisplay = false;
             end
 
@@ -463,6 +463,20 @@ classdef MsgLogger < handle
 			if Level == LogLevel.Error || Level == LogLevel.Fatal || Level == LogLevel.Assert || ...
                Level == LogLevel.Warning || Level == LogLevel.Test
                 Result = true;
+            end
+        end
+
+        function Result = isSuppressedFromDisp(Obj, Level)
+            % Return true if Level should be suppressed from display via SuppressDispLevel
+            % Input  : - Self.
+            %          - LogLevel to check.
+            % Output : - true if display should be suppressed for this level.
+            if isempty(Obj.SuppressDispLevel)
+                Result = false;
+            elseif iscell(Obj.SuppressDispLevel)
+                Result = any(cellfun(@(L) Level == L, Obj.SuppressDispLevel));
+            else
+                Result = Level == Obj.SuppressDispLevel;
             end
         end
 
