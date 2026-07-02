@@ -162,7 +162,10 @@ function [Result,Info] = buildRefImages(RefID, Args)
     Info.CounterBadWCS  = 0;
     Info.CounterGoodWCS = 0;
 
-    % the main loop over the reference grid 
+    % build the mask bit dictionary once and reuse it in every stitchCrops call
+    BitDict = BitDictionary('BitMask.Image.Default');
+
+    % the main loop over the reference grid
     K = 0;
     for Iref = RefID
         K = K + 1;
@@ -338,7 +341,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
                         %                         telescope.obs.plotFOVfromQueryTable(TabEpoch,'Lines',L)
                         StitchedImage = imProc.stack.stitchCrops(AI, ...
                             'UpdateWCS',true,'UpdateZP',true, ...
-                            'AstrometricCat',AstrometricCat,'PhotCat',PhotCat);
+                            'AstrometricCat',AstrometricCat,'PhotCat',PhotCat, ...
+                            'BitDict',BitDict);
 
                         if isnan(julday(StitchedImage))
                             StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabGrp.jd_start(Igroup));

@@ -16,6 +16,9 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     %                    'header' - read KeyPH_ZP from input crop headers and take the mean.
     %         'KeyPH_ZP' - cell array of header keyword synonyms for the ZP, tried in order.
     %                    Used only when PhotZPMethod is 'header'. Default is {'PH_ZP','PT_ZP'}.
+    %         'BitDict'   - a BitDictionary to use for the mask bit operations, allowing the
+    %                    caller to build it once and reuse it across many calls.
+    %                    If empty, a default BitDictionary is built here. Default is [].
     % Output : - a stitched AstroImage with a merged catalog and updated WCS
     %          - AstroCatalog used for astrometry ([] if UpdateWCS is false)
     %          - AstroCatalog used for photometry ([] if UpdateZP is false or PhotZPMethod is 'header')
@@ -34,8 +37,13 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
         Args.PhotCat                 = [];
         Args.PhotZPMethod            = 'photometricZP';  % 'photometricZP'|'header'
         Args.KeyPH_ZP cell           = {'PH_ZP','PT_ZP'};
+        Args.BitDict                 = [];
 
         Args.MatchMethod             = 'mex';  % 'mex'|'old'
+    end
+
+    if isempty(Args.BitDict)
+        Args.BitDict = BitDictionary('BitMask.Image.Default');
     end
 
     AstrometricCat = [];
@@ -130,9 +138,9 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     % the crop NearEdge and Overlap flags are meaningless after stitching
     %AllPix = true(Ny,Nx);
     FF=Result.MaskData.findBit('NearEdge');
-    Result.MaskData = Result.MaskData.maskSet(FF, 'NearEdge',0);
+    Result.MaskData = Result.MaskData.maskSet(FF, 'NearEdge',0,'DefBitDict',Args.BitDict);
     FF=Result.MaskData.findBit('Overlap');
-    Result.MaskData = Result.MaskData.maskSet(FF, 'Overlap',0);
+    Result.MaskData = Result.MaskData.maskSet(FF, 'Overlap',0,'DefBitDict',Args.BitDict);
     %Result.MaskData = Result.MaskData.maskSet(AllPix, 'NearEdge', 0);
     %Result.MaskData = Result.MaskData.maskSet(AllPix, 'Overlap',  0);
 
