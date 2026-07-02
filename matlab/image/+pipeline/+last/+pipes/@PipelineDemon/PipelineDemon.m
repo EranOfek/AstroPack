@@ -3043,7 +3043,7 @@ classdef PipelineDemon < Component
             end
             PipeName   = [];
             PipeStatus = 'Entered Demon';
-            %Obj.updateRedis('last03e.pipeline.num_image, sprintf('%d',Nimages));
+            %Obj.updateRedis('last03e.pipeline.num_image, sprintf('%d',Nimages), 'UpdateRedis',Args.UpdateRedis);
 
             RAD = 180./pi;
             SEC_DAY = 86400;

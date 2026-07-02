@@ -43,7 +43,7 @@ function [UpixLow, Raster0] = pixCoversPolygon(Polygon, Args)
     end
 
     % rasterize the polygon and find the healpix coverage
-    [Raster0, ~] = celestial.healpix.mex.rasterize_polygon(Polygon, Args.RasterResolution);
+    [Raster0, ~] = celestial.healpix.mex.rasterize_polygon(Polygon, Args.RasterResolution,'arcsec');
 
     % find the center and neighbors at the search resolution
     UpixCenter = celestial.healpix.ang2pix(Args.NsideSearch, RA0/RAD, Dec0/RAD);

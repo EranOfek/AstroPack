@@ -10,7 +10,13 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %                   If empty, then load file in 'RefTableName' arg.
     %            'RefTableName'    - File containing the Reference IDs.
     %                   Default is 'LAST_RefIm_Grid.mat'.
-    %         'PrebuiltRefWCS'       - if not empty, use an array of pre-built WCS, e.g., from the RefGrid object (def. empty)
+    %         'RefWCS'               - if not empty, use an array of pre-built WCS, e.g., from the RefGrid object (def. empty)
+    %         'RA'                   - [deg] optional array of sky point RA for building ad hoc, North-oriented
+    %                   reference image(s), instead of using the RefID/RefTable grid (def. empty)
+    %         'Dec'                  - [deg] array of sky point Dec, matching 'RA' element-by-element (def. empty)
+    %         'RefName'              - optional string/cellstr array, matching 'RA'/'Dec' element-by-element,
+    %                   used as the output filename tag for ad hoc sky points instead of the grid index.
+    %                   Default (if 'RA' is given but 'RefName' is not) is a sequential "1","2",... (def. empty)
     %         'Naxis1'               - the pixel size of a reference image, X axis (def. 1716)
     %         'Naxis2'               - the pixel size of a reference image, Y axis (def. 1716)
     %         'NsideSearch'          - the healpix Nside at which overlapping regions are searched; coarser than the DB table by one step (def. 2^7)
@@ -20,10 +26,9 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %         'Fields'               - comma-separated list of DB table columns to be retrieved for overlap checks, filtering, and control
     %         'GroupByFields'        - table fields used to group images that will be stitched separately, e.g., same epoch + telescope (def. {'mountnum','camnum','jd_start'})
     %         'BasePath'             - base path for retrieving the input crop images (def. '/mnt/euclid/last/data')
-    %         'ImageQualityFilter'   - a user-supplied quality filter injected directly into the SQL query (def. "fwhm < 4")
+    %         'QueryFilter'          - a user-supplied quality filter injected directly into the SQL query (def. "fwhm < 4")
     %         'RasterResolution'     - polygon rasterization step, in arcsec (def. 3)
-    %         'MinAllowedCoverage'   - minimum fractional coverage of the reference field required to accept a group (def. 0.999)
-    %         'CoaddFunction'        - function handle used to coadd the per-group stitched images (def. @pipeline.generic.procCoadd)
+    %         'MinCoverage'          - minimum fractional coverage of the reference field required to accept a group (def. 0.999)
     %         'SubBack'              - subtract the background in the coaddition step (def. true)
     %         'StackMethod'          - stacking method passed to the coadd function (def. 'wrobust')
     %         'StackMethodArgs'      - extra arguments controlling the stacking method
@@ -53,14 +58,18 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %          D = db.Db.connectLASTdb('Pass','*');
     %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D); % a most general usage  
     %          R=pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D,'RefID',[99945 99946]); % a short test
+    %          R=pipeline.last.reference.buildRefImages([],'DB',D,'RA',210.8,'Dec',54.3,'RefName',"myField"); % ad hoc sky point
     arguments
         RefID                  = 146446;
         Args.RefTable          = [];
         Args.RefTableName      = 'LAST_RefIm_Grid.mat';                                               
         %Args.RefID             = []; % e.g., [120000 120001] or [120000:120020]; input range of ref. image numbers  
         
-        Args.PrebuiltRefWCS    = [];    % use an array of pre-built WCS (e.g., from the RefGrid object)
-        Args.Naxis1            = 1716;  % the pixel size of a reference image   
+        Args.RefWCS            = [];    % use an array of pre-built WCS (e.g., from the RefGrid object)
+        Args.RA                = [];    % [deg] optional ad hoc sky point(s), instead of the RefID/RefTable grid
+        Args.Dec               = [];    % [deg] matching Dec for each Args.RA
+        Args.RefName           = [];    % output filename tag(s) for the ad hoc sky point(s); default is sequential numbering
+        Args.Naxis1            = 1716;  % the pixel size of a reference image
         Args.Naxis2            = 1716;  % NOTE that it was reduced to 1716 from 1726, while the grid was built for 1726 x 1726    
 
         Args.NsideSearch       = 2^7; % 2^7; % we should start the search at a somewhat larger region then the ref. image size  
@@ -75,18 +84,17 @@ function [Result,Info] = buildRefImages(RefID, Args)
         
         Args.BasePath          = {'/mnt/euclid/last/data','/euclid/last/data'}; % base path for image retrieval  
         
-        Args.ImageQualityFilter = "fwhm < 4"; % a user-supplied filter (to be included directly into the SQL query) 
+        Args.QueryFilter       = "fwhm < 4"; % a user-supplied filter (to be included directly into the SQL query) 
                        
-        Args.RasterResolution   = 3;    % arcsec
-        Args.MinAllowedCoverage = 0.999;  % 0.995; % allowed inaccuracy in the required reference field coverage  
-                       
-        %Args.CoaddFunction      = @pipeline.generic.procCoadd; 
+        Args.RasterResolution   = 3;     % arcsec
+        Args.MinCoverage        = 0.999; % 0.995; % allowed inaccuracy in the required reference field coverage  
+                               
         %Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[128 128], 'MethodArgs',{{'Range',[-50 50]}}}
         %Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[256 256], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',100}, {}} };
-        Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[128 128], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',50}, {}} };
+        Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[512 512], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',50}, {}} };
         %Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',50}, {}} };
         %Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[256 256], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',100}, {}} };
-        Args.backVarIndivArgs   =  {'Method',@imUtil.background.modeVar_LogHist, 'Block',[], 'MethodArgs',{{},{}}};
+        Args.backVarIndivArgs   =  {'Method',@imUtil.background.modeVar_LogHist, 'Block',[512 512], 'MethodArgs',{{},{}}};
 
         Args.Threshold          = [500 100 50 20 4];
 
@@ -129,22 +137,27 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Db.Password);
     end
 
-    if isempty(Args.RefTable)
-        RefGrid = io.files.load2(Args.RefTableName);
+    SkyPointMode = ~isempty(Args.RA);
+    if SkyPointMode
+        % build an ad hoc, one-row-per-point RefGrid instead of loading the RefID/RefTable grid
+        [RefGrid, Args.RefWCS, Args.RefName] = buildSkyPointGrid(Args.RA, Args.Dec, Args.RefName, ...
+            Args.Naxis1, Args.Naxis2, Args.PixScale);
+        RefID = 1:height(RefGrid);
     else
-        RefGrid = Args.RefGrid;
+        if isempty(Args.RefTable)
+            RefGrid = io.files.load2(Args.RefTableName);
+        else
+            RefGrid = Args.RefGrid;
+        end
+        % loop over the Reference Image grid that has been read above
+        if isempty(RefID)
+            RefID = 1:height(RefGrid);
+        end
     end
-    Nref = height(RefGrid); 
-           
+    Nref = height(RefGrid);
+
     Ibp = find(isfolder(Args.BasePath), 1, 'first');
     Args.BasePath = Args.BasePath(Ibp);
-
-    % loop over the Reference Image grid that has been read above 
-    if isempty(RefID)
-        RefID = 1:Nref;
-    else
-        RefID = RefID;
-    end
     
     Info.CounterBadWCS  = 0;
     Info.CounterGoodWCS = 0;
@@ -153,6 +166,11 @@ function [Result,Info] = buildRefImages(RefID, Args)
     K = 0;
     for Iref = RefID
         K = K + 1;
+        if SkyPointMode
+            Tag = Args.RefName(K);
+        else
+            Tag = string(Iref);
+        end
 
         if Args.Verbose > 0
             tstart = tic;
@@ -160,8 +178,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
         end
             
         % read or build the WCS of the target reference image
-        if ~isempty(Args.PrebuiltRefWCS)
-            RefWCS = Args.PrebuiltRefWCS(Iref);
+        if ~isempty(Args.RefWCS)
+            RefWCS = Args.RefWCS(Iref);
         else
             RefWCS = AstroWCS.buildSimpleWCS(RefGrid.RA(Iref),RefGrid.Dec(Iref),'Naxis1',Args.Naxis1,'Naxis2',Args.Naxis2,...
                 'PixScale',Args.PixScale); 
@@ -170,7 +188,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
             %                      'PA',RefGrid.PA(Iref),'PixScale',Args.PixScale);
         end        
         % create an empty reference AstroImage and attach the RefWCS to it
-        AIref = AstroImage({zeros(Args.Naxis1,Args.Naxis2,'single')}); 
+        AIref = AstroImage({zeros(Args.Naxis2,Args.Naxis1,'single')}); % rows=Naxis2=Y, cols=Naxis1=X
         AIref.WCS = RefWCS; 
         AIref.WCS.Success = true;  % must have Success=true
         AIref.HeaderData = AIref.WCS.wcs2header; 
@@ -187,8 +205,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
         W = sprintf(" toString(upix_low) IN (%s)", PixList);
         
         % add image quality filter
-        if ~isempty(Args.ImageQualityFilter)
-            W = strcat("(",W,") and ",Args.ImageQualityFilter); 
+        if ~isempty(Args.QueryFilter)
+            W = strcat("(",W,") and ",Args.QueryFilter); 
         end
         
         % send the query and retrieve a table of image characteristics        
@@ -260,7 +278,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                 while Icrop < height(TabGrp)+1 % merge the rasters of all the crops involved
                     CropPoly = double([TabGrp.ra1(Icrop), TabGrp.dec1(Icrop); TabGrp.ra2(Icrop), TabGrp.dec2(Icrop); ...
                         TabGrp.ra3(Icrop), TabGrp.dec3(Icrop); TabGrp.ra4(Icrop), TabGrp.dec4(Icrop)]);
-                    Raster = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution);                         
+                    Raster = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution,'arcsec');                         
                     % if this crop does not overlap with the reference region, deselect it
                     Coverage(Icrop) = sum(ismember(Raster,Raster0));
                     if Coverage(Icrop) < 1
@@ -274,7 +292,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                 Nim = height(TabGrp);
                 
                 CoverageAll = sum(ismember(Raster0, RasterC))/numel(Raster0);
-                if CoverageAll < Args.MinAllowedCoverage
+                if CoverageAll < Args.MinCoverage
                     % incomplete coverage: skip this epoch
                     if Args.Verbose > 1
                         fprintf('Incomplete coverage of %.4f, epoch %d is skipped\n', CoverageAll, Igroup);
@@ -389,7 +407,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                 % 6. save the new reference image and its catalog, mask, and PSF to the disk
                 if Args.Write2Disk
                     for Iprop=1:numel(Args.WriteProp)
-                        FN = sprintf('%s/LAST_clear_%d_sci_ref_%s_1.fits',Args.OutputDir,Iref,Args.WriteProp(Iprop));
+                        FN = sprintf('%s/LAST_clear_%s_sci_ref_%s_1.fits',Args.OutputDir,Tag,Args.WriteProp(Iprop));
                         RefImage.write1(FN, Args.WriteProp(Iprop), 'OverWrite', true, 'MkDir', true);
                     end
                 end
@@ -406,5 +424,44 @@ function [Result,Info] = buildRefImages(RefID, Args)
         end % for the particular reference grid position we have some coadds to build on        
         Result(K) = RefImage;
     end % for Iref = RefID / reference image grid
-    
-end 
+
+end
+
+function [RefGrid, RefWCS, RefName] = buildSkyPointGrid(RA, Dec, RefName, Naxis1, Naxis2, PixScale)
+    % build a one-row-per-point RefGrid (and matching WCS array) for ad hoc sky-point reference images
+    % Input  : - [deg] array of sky point RA.
+    %          - [deg] array of sky point Dec, matching RA element-by-element.
+    %          - output filename tag(s) matching RA/Dec. If empty, defaults to sequential "1","2",...
+    %          - Naxis1, Naxis2, PixScale, as in buildRefImages.
+    % Output : - RefGrid table with columns RA, Dec, RA1..RA4, Dec1..Dec4 (image center and corners).
+    %          - array of North-oriented AstroWCS objects, one per point.
+    %          - resolved RefName string array.
+    % Author : A.M. Krassilchtchikov (2026 Jul)
+    if numel(RA) ~= numel(Dec)
+        error('RA and Dec must have the same number of elements');
+    end
+    Npt = numel(RA);
+    if isempty(RefName)
+        RefName = string(1:Npt);
+    else
+        RefName = string(RefName);
+        if numel(RefName) ~= Npt
+            error('RefName must have the same number of elements as RA/Dec');
+        end
+    end
+
+    RefGrid = table();
+    RefGrid.RA  = RA(:);
+    RefGrid.Dec = Dec(:);
+
+    RefWCS(Npt,1) = AstroWCS;
+    for Ipt = 1:Npt
+        % North-oriented WCS (no PA given)
+        RefWCS(Ipt) = AstroWCS.buildSimpleWCS(RA(Ipt), Dec(Ipt), 'Naxis1',Naxis1, 'Naxis2',Naxis2, 'PixScale',PixScale);
+        Corners = RefWCS(Ipt).cooImage([1 Naxis1 1 Naxis2]).Corners;
+        RefGrid.RA1(Ipt)  = Corners(1,1); RefGrid.Dec1(Ipt) = Corners(1,2);
+        RefGrid.RA2(Ipt)  = Corners(2,1); RefGrid.Dec2(Ipt) = Corners(2,2);
+        RefGrid.RA3(Ipt)  = Corners(3,1); RefGrid.Dec3(Ipt) = Corners(3,2);
+        RefGrid.RA4(Ipt)  = Corners(4,1); RefGrid.Dec4(Ipt) = Corners(4,2);
+    end
+end

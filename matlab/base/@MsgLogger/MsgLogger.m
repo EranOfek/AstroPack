@@ -23,14 +23,15 @@ classdef MsgLogger < handle
 
     % Properties
     properties (SetAccess = public)
-        CurFileLevel LogLevel   % Current level for log file
-        CurDispLevel LogLevel   % Current level for display
-        CurSyslogLevel LogLevel % Current level for display
-        Console                 % True to print messages also to console
-        Enabled logical         % True to enable logging, when false, calling msg..() function will do nothing
-        UserData                % Optional user data
-        LogF LogFile            % Log file, used internally
-        Syslog io.Syslog        % Syslog logger
+        CurFileLevel LogLevel       % Current level for log file
+        CurDispLevel LogLevel       % Current level for display
+        CurSyslogLevel LogLevel     % Current level for display
+        SuppressDispLevel LogLevel  % When set (not None), suppress display for messages at this level and above (lower severity), overriding mustLog
+        Console                     % True to print messages also to console
+        Enabled logical             % True to enable logging, when false, calling msg..() function will do nothing
+        UserData                    % Optional user data
+        LogF LogFile                % Log file, used internally
+        Syslog io.Syslog            % Syslog logger
     end
 
     %--------------------------------------------------------
@@ -114,6 +115,7 @@ classdef MsgLogger < handle
             Obj.CurFileLevel = LogLevel.All;
             Obj.CurDispLevel = LogLevel.All;
             Obj.CurSyslogLevel = LogLevel.All;
+            Obj.SuppressDispLevel = LogLevel.None;
             Obj.Console = Args.Console;
                        
             % Load configuration file only once
@@ -278,13 +280,16 @@ classdef MsgLogger < handle
 			
 			LogToDisplay = Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel);
 			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);
-			LogToSyslog = uint32(Level) <= uint32(Obj.CurSyslogLevel);				
+			LogToSyslog = uint32(Level) <= uint32(Obj.CurSyslogLevel);
             if Obj.mustLog(Level)
                 LogToDisplay = true;
                 LogToFile = true;
                 LogToSyslog = true;
             end
-            
+            if Obj.SuppressDispLevel ~= LogLevel.None && uint32(Level) >= uint32(Obj.SuppressDispLevel)
+                LogToDisplay = false;
+            end
+
             % Prepare prompt with level
             LevStr = MsgLogger.getLevelStr(Level);
 
@@ -360,13 +365,16 @@ classdef MsgLogger < handle
 
 			LogToDisplay = Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel);
 			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);
-			LogToSyslog = uint32(Level) <= uint32(Obj.CurSyslogLevel);			
+			LogToSyslog = uint32(Level) <= uint32(Obj.CurSyslogLevel);
             if Obj.mustLog(Level)
                 LogToDisplay = true;
                 LogToFile = true;
                 LogToSyslog = true;
-            end            
-            
+            end
+            if Obj.SuppressDispLevel ~= LogLevel.None && uint32(Level) >= uint32(Obj.SuppressDispLevel)
+                LogToDisplay = false;
+            end
+
             % Prepare prompt with log level
             LevStr = "[" + MsgLogger.getLevelStr(Level) + "] ";
             
