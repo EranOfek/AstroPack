@@ -82,7 +82,10 @@ StampSize = size(PSF);
    
 % prep the PSF
 %PSF = imUtil.psf.padShift(PSF, SizeData(1:2));
-PSF = imUtil.psf.stamp2full(PSF, SizeData(1:2), 'CenterPosition','corner');
+if ~all(StampSize==size(Data))
+    PSF = imUtil.psf.stamp2full(PSF, SizeData(1:2), 'CenterPosition','corner');
+end
+
 if ~isempty(Args.AnnulusPre)
     PSF = imUtil.psf.mex.cosbellCorners(PSF, Args.AnnulusPre);
 end
