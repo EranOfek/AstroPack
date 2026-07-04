@@ -1226,8 +1226,8 @@ classdef PipelineDemon < Component
                 % Get Unix time
                 UnixTime = posixtime(datetime("now","TimeZone","UTC"));
                     
-                PVstore.hset(Key, 't',UnixTime, 'v',jsonencode(Val));
-                PVstore.expire(Key,Args.ExpireTime);
+                Obj.RedisPV.hset(Key, 't',UnixTime, 'v',jsonencode(Val));
+                Obj.RedisPV.expire(Key,Args.ExpireTime);
             end
 
         end
