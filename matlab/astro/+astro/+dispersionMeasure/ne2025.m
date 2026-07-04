@@ -1,5 +1,5 @@
 function [Ne, Info] = ne2025(RA, Dec, Dist, opts)
-% Galactic free-electron dispersion measure from the NE2025 model.
+%NE2025  Galactic free-electron dispersion measure from the NE2025 model.
 %
 %   [Ne, Info] = ne2025(RA, Dec, Dist, Name, Value, ...)
 %
@@ -20,26 +20,29 @@ function [Ne, Info] = ne2025(RA, Dec, Dist, opts)
 %   point, plus a per-component DM breakdown and scattering quantities, are
 %   returned in the Info struct (see below).
 %
-% Input  : - (RA) Right Ascension (deg, J2000/ICRS). Scalar or array.
-%          - (Dec) Declination     (deg, J2000/ICRS). Scalar or array.
-%          - (Dist)  Distance from the Sun in PARSEC. Default Inf. Scalar or array
-%            (arrays must match RA/Dec in size, or be scalar).
-%          * ...,key,val,...
-%            'Frame'      "icrs" (default) => RA,Dec are equatorial J2000 in deg.
-%                  "galactic"       => RA,Dec are interpreted as (l,b) in deg.
-%            'MaxDist'    Max integration distance (pc) used when Dist=Inf.
-%                  Default 50000 (50 kpc, the NE2025 modelling limit).
-%            'dStep'      Fine LoS integration step (pc). Default 2.5 (=2.5 pc).
-%            'Arms'       Include spiral arms         (logical, default true).
-%            'GC'         Include Galactic-Centre comp (logical, default true).
-%            'LISM'       Include Local ISM features   (logical, default true).
-%            'Clumps'     Include discrete clumps      (logical, default true).
-%            'Voids'      Include voids                 (logical, default true).
-%            'Scattering' Also compute SM / tau in Info (logical, default true).
-%            'Frequency'  Frequency (GHz) for scattering estimates. Default 1.0.
+%   INPUTS
+%     RA    - Right Ascension (deg, J2000/ICRS). Scalar or array.
+%     Dec   - Declination     (deg, J2000/ICRS). Scalar or array.
+%     Dist  - Distance from the Sun in PARSEC. Default Inf. Scalar or array
+%             (arrays must match RA/Dec in size, or be scalar).
 %
-% Output : - (Ne) DM in pc cm^-3 (same size as the inputs).
-%          - (Info) struct (struct array for vector inputs) with fields:
+%   NAME-VALUE OPTIONS
+%     'Frame'      "icrs" (default) => RA,Dec are equatorial J2000 in deg.
+%                  "galactic"       => RA,Dec are interpreted as (l,b) in deg.
+%     'MaxDist'    Max integration distance (pc) used when Dist=Inf.
+%                  Default 50000 (50 kpc, the NE2025 modelling limit).
+%     'dStep'      Fine LoS integration step (pc). Default 2.5 (=2.5 pc).
+%     'Arms'       Include spiral arms         (logical, default true).
+%     'GC'         Include Galactic-Centre comp (logical, default true).
+%     'LISM'       Include Local ISM features   (logical, default true).
+%     'Clumps'     Include discrete clumps      (logical, default true).
+%     'Voids'      Include voids                 (logical, default true).
+%     'Scattering' Also compute SM / tau in Info (logical, default true).
+%     'Frequency'  Frequency (GHz) for scattering estimates. Default 1.0.
+%
+%   OUTPUTS
+%     Ne    - DM in pc cm^-3 (same size as the inputs).
+%     Info  - struct (struct array for vector inputs) with fields:
 %               .l, .b          Galactic coordinates (deg)
 %               .DM             = Ne (pc cm^-3)
 %               .DMz            DM * |sin b|  (z-component, pc cm^-3)
@@ -55,16 +58,15 @@ function [Ne, Info] = ne2025(RA, Dec, Dist, opts)
 %                                                 at 'Frequency'  [if enabled]
 %               .Model = "NE2025"
 %
-% Author : Claude + Eran Ofek (Jul 2026)
-% Example:
+%   EXAMPLES
 %     % Total Galactic DM toward the Galactic anticentre pole region:
 %     dm = ne2025(96.34, -60.19);
 %
 %     % DM to a pulsar 3 kpc away at (l,b)=(204,-6.5):
-%     [dm,info] = astro.dispersionMeasure.ne2025(204, -6.5, 3000, 'Frame',"galactic");
+%     [dm,info] = ne2025(204, -6.5, 3000, 'Frame',"galactic");
 %
 %     % DM excluding clumps & voids (smooth model only):
-%     dm = astro.dispersionMeasure.ne2025(266.4,-28.9, 8500, 'Clumps',false,'Voids',false);
+%     dm = ne2025(266.4,-28.9, 8500, 'Clumps',false,'Voids',false);
 %
 %   Model data are embedded in this file (gal25.inp, ne_gc.NE2025.inp,
 %   nelism.inp, ne_arms_log_mod.inp, and the NE2025 clump/void tables).
@@ -145,22 +147,31 @@ function [DM, info] = ne2025_single(RA, Dec, Dist_pc, opts, M)
     % --- evaluate the seven components along the LoS ---
     ne1 = ne_outer(x,y,z,M);                % thick disk (vectorized)
     ne2 = ne_inner(x,y,z,M);                % thin disk  (vectorized)
-    if opts.Arms, nea = ne_arms(x,y,z,M); else, nea = zeros(size(s)); end
+    rr = sqrt(x.^2 + y.^2);
+    if opts.Arms
+        thxydeg = rad2deg(atan2(-x, y));  thxydeg(thxydeg<0) = thxydeg(thxydeg<0) + 360;
+        nea = ne_arms(x, y, z, rr, thxydeg, M);
+    else
+        nea = zeros(size(s));
+    end
     if opts.GC,   negc = ne_gc(x,y,z,M);   else, negc = zeros(size(s)); end
 
-    nelism = zeros(size(s)); Flism = zeros(size(s)); wlism = zeros(size(s));
-    necN = zeros(size(s));   FcN  = zeros(size(s));
-    nevN = zeros(size(s));   FvN  = zeros(size(s)); wvoid = zeros(size(s));
-    for i = 1:Ns
-        if opts.LISM
-            [nelism(i),Flism(i),wlism(i)] = ne_lism(x(i),y(i),z(i),M);
-        end
-        if opts.Clumps
-            [necN(i),FcN(i)] = ne_clumps(x(i),y(i),z(i),M);
-        end
-        if opts.Voids
-            [nevN(i),FvN(i),wvoid(i)] = ne_voids(x(i),y(i),z(i),M);
-        end
+    if opts.LISM
+        [nelism, Flism, wlism] = ne_lism(x, y, z, M);
+    else
+        nelism = zeros(size(s)); Flism = zeros(size(s)); wlism = zeros(size(s));
+    end
+    if opts.Clumps
+        selC = clumpsNearRay(cb,sl,cl,sb, d_kpc, M);
+        [necN, FcN] = ne_clumps(x, y, z, M, selC);
+    else
+        necN = zeros(size(s)); FcN = zeros(size(s));
+    end
+    if opts.Voids
+        selV = voidsNearRay(cb,sl,cl,sb, d_kpc, M);
+        [nevN, FvN, wvoid] = ne_voids(x, y, z, M, selV);
+    else
+        nevN = zeros(size(s)); FvN = zeros(size(s)); wvoid = zeros(size(s));
     end
 
     % --- combine components exactly as NE2001/NE2025 (weight overrides) ---
@@ -294,126 +305,177 @@ function ne = ne_gc(x,y,z,M)
     ne(rr<=M.rgc & zz<=M.hgc & arg<=1) = M.negc0;
 end
 % =====================================================================
-% Spiral-arm component (point-wise nearest-arm search with spline zoom)
-function nea = ne_arms(x,y,z,M)
-    nea = zeros(size(x));
-    for i = 1:numel(x)
-        nea(i) = ne_arms_point(x(i),y(i),z(i),M);
-    end
-end
-function nea = ne_arms_point(x,y,z,M)
-    narms = 5;  Nc = M.Ncoarse;  nea = 0;
-    rr = sqrt(x^2 + y^2);
-    thxydeg = rad2deg(atan2(-x, y));
-    if thxydeg < 0, thxydeg = thxydeg + 360; end
-    dmin_min = Inf;  whichsm = 0;
-    for j = 1:narms
-        dsq = (M.COARSEx(j,:) - x).^2 + (M.COARSEy(j,:) - y).^2;
-        [~, idx] = min(dsq);                       % 1-based nearest coarse index
-        lo = max(1, idx-3);  hi = min(Nc, idx+2);  % window (matches reference)
-        ind1 = lo:hi;
-        thg = M.TH1(j,ind1);
-        if numel(ind1) >= 2
-            thfine = thg(1):0.01:thg(end);
-            if numel(thfine) < 2, thfine = thg; end
-            dsqf = spline(thg, dsq(ind1), thfine);
-            [~, im] = min(dsqf);
-            thjmin = thfine(im);
-        else
-            thjmin = thg(1);
+% Spiral-arm component (vectorized, two-stage). For each arm we (1) find the
+% nearest coarse node to every LoS point by a vectorized min over the 50
+% coarse nodes, then (2) refine the closest-approach distance within a small
+% fine-sampled window around that node (index-gather, no per-point splines).
+% This reproduces the reference's nearest-node + local-refine scheme.
+function nea = ne_arms(x, y, z, rr, thxydeg, M)
+    Ns = numel(x);
+    xr = x(:); yr = y(:); zr = z(:); rrr = rr(:); thd = thxydeg(:);   % Ns x 1
+    nea = zeros(Ns, 1);
+    wa  = M.wa;  cut = 3*wa;  W = M.armWin;  woff = -W:W;
+    chunk = 20000;                          % bounds peak memory
+    for j = 1:5
+        jj  = M.armmap(j);
+        cx  = M.COARSEx(j,:);  cy = M.COARSEy(j,:);   % 1 x 50
+        xf  = M.armFx{j};      yf = M.armFy{j};        % 1 x Nf
+        ctr = M.armCtr{j};     Nf = numel(xf);
+        Wa  = wa * M.warm(jj);
+        Ha  = M.ha * M.harm(jj);
+        dmin = inf(Ns, 1);
+        for a = 1:chunk:Ns
+            b = min(a+chunk-1, Ns);  idx = (a:b).';
+            % stage 1: nearest coarse node
+            D2c = (xr(idx) - cx).^2 + (yr(idx) - cy).^2;     % nb x 50
+            [~, ic] = min(D2c, [], 2);                       % nb x 1
+            % stage 2: fine window around it (clamped)
+            cix = ctr(ic);  cix = cix(:);                    % nb x 1
+            widx = min(max(cix + woff, 1), Nf);              % nb x (2W+1)
+            D2f = (xr(idx) - xf(widx)).^2 + (yr(idx) - yf(widx)).^2;
+            dmin(idx) = sqrt(min(D2f, [], 2));
         end
-        rjmin = ppval(M.SPL{j}, thjmin);
-        xj = -rjmin*sin(thjmin);  yj = rjmin*cos(thjmin);
-        dm = sqrt((x-xj)^2 + (y-yj)^2);
-        jj = M.armmap(j);
-        Wa = M.wa * M.warm(jj);
-        if dm < 3*M.wa
-            if dm <= dmin_min, dmin_min = dm; whichsm = j; end
-            ga = exp(-(dm/Wa)^2);
-            if rr > M.Aa, ga = ga * sech2((rr-M.Aa)/2); end
-            Ha = M.ha * M.harm(jj);
-            ga = ga * sech2(z/Ha);
-            if jj == 3                              % TC arm 3 rescaling
-                t = thxydeg - 290; if t < 0, t = t + 360; end
-                if t >= 0 && t < (363-290)
-                    ga = ga * ((1 + cos(2*pi*t/(363-290)))/2)^4;
-                end
-            end
-            if jj == 2                              % TC arm 2 rescaling
-                t = thxydeg - 340; f2m = 0.1; if t < 0, t = t + 360; end
-                if t >= 0 && t < (370-340)
-                    ga = ga * ((1 + f2m + (1-f2m)*cos(2*pi*t/(370-340)))/2)^3.5;
-                end
-            end
-            nea = nea + ga * M.narm(jj) * M.na;
+        ga = exp(-(dmin/Wa).^2);
+        mrad = rrr > M.Aa;                                % radial taper beyond Aa
+        ga(mrad) = ga(mrad) .* sech2((rrr(mrad)-M.Aa)/2);
+        ga = ga .* sech2(zr/Ha);                          % vertical profile
+        ga(dmin >= cut) = 0;                              % 3*wa cutoff (as reference)
+        if jj == 3                                        % TC arm 3 angular rescaling
+            t = thd - 290;  t(t<0) = t(t<0) + 360;
+            m = (t>=0) & (t < (363-290));
+            ga(m) = ga(m) .* ((1 + cos(2*pi*t(m)/(363-290)))/2).^4;
+        elseif jj == 2                                    % TC arm 2 angular rescaling
+            t = thd - 340;  f2m = 0.1;  t(t<0) = t(t<0) + 360;
+            m = (t>=0) & (t < (370-340));
+            ga(m) = ga(m) .* ((1 + f2m + (1-f2m)*cos(2*pi*t(m)/(370-340)))/2).^3.5;
         end
+        nea = nea + ga * (M.narm(jj) * M.na);
     end
+    nea = reshape(nea, size(x));
 end
 % =====================================================================
-% Local ISM: LDR + LSB + LHB(cyl) + Loop I, with weighting LHB>LoopI>LSB>LDR
-function [ne, F, wlism] = ne_lism(x,y,z,M)
+% Local ISM (vectorized): LDR + LSB + LHB(cyl) + Loop I,
+% weighting LHB > LoopI > LSB > LDR. Inputs/outputs are same-shape arrays.
+function [ne, F, wlism] = ne_lism(x, y, z, M)
+    sz = size(x);
+    x = x(:); y = y(:); z = z(:);
     % LDR (ellipsoidal trough)
-    q = (x-M.xldr)^2*M.apldr + (y-M.yldr)^2*M.bpldr + (z-M.zldr)^2*M.cpldr ...
-        + (x-M.xldr)*(y-M.yldr)*M.dpldr;
-    if q<=1, neldr=M.neldr0; Fldr=M.Fldr; wldr=1; else, neldr=0; Fldr=0; wldr=0; end
+    q = (x-M.xldr).^2*M.apldr + (y-M.yldr).^2*M.bpldr + (z-M.zldr).^2*M.cpldr ...
+        + (x-M.xldr).*(y-M.yldr)*M.dpldr;
+    wldr = double(q <= 1);
+    neldr = M.neldr0*wldr;   Fldr = M.Fldr*wldr;
     % LSB
-    q = (x-M.xlsb)^2*M.aplsb + (y-M.ylsb)^2*M.bplsb + (z-M.zlsb)^2*M.cplsb ...
-        + (x-M.xlsb)*(y-M.ylsb)*M.dplsb;
-    if q<=1, nelsb=M.nelsb0; Flsb=M.Flsb; wlsb=1; else, nelsb=0; Flsb=0; wlsb=0; end
-    % LHB (slanted cylinder, cross-section -> 0 for z<0)
+    q = (x-M.xlsb).^2*M.aplsb + (y-M.ylsb).^2*M.bplsb + (z-M.zlsb).^2*M.cplsb ...
+        + (x-M.xlsb).*(y-M.ylsb)*M.dplsb;
+    wlsb = double(q <= 1);
+    nelsb = M.nelsb0*wlsb;   Flsb = M.Flsb*wlsb;
+    % LHB (slanted cylinder; cross-section shrinks toward z<0)
     yzslope = tan(M.thetalhb);  yaxis = M.ylhb + yzslope*z;
-    if z<=0 && z>=M.zlhb-M.clhb
-        aa = 0.001 + (M.alhb-0.001)*(1 - (1/(M.zlhb-M.clhb))*z);
-    else
-        aa = M.alhb;
-    end
-    qxy = ((x-M.xlhb)/aa)^2 + ((y-yaxis)/M.blhb)^2;  qz = abs(z-M.zlhb)/M.clhb;
-    if qxy<=1 && qz<=1, nelhb=M.nelhb0; Flhb=M.Flhb; wlhb=1; else, nelhb=0; Flhb=0; wlhb=0; end
-    % Loop I (spheroid + shell, truncated for z<0)
-    if z<0
-        neloop=0; Floop=0; wloop=0;
-    else
-        rr = sqrt((x-M.xlpI)^2 + (y-M.ylpI)^2 + (z-M.zlpI)^2);  a2 = M.rlpI+M.drlpI;
-        if rr>a2,        neloop=0;        Floop=0;       wloop=0;
-        elseif rr<=M.rlpI, neloop=M.nelpI; Floop=M.FlpI;  wloop=1;
-        else,            neloop=M.dnelpI; Floop=M.dFlpI; wloop=1;
-        end
-    end
-    ne = (1-wlhb)*((1-wloop)*(wlsb*nelsb + (1-wlsb)*neldr) + wloop*neloop) + wlhb*nelhb;
-    F  = (1-wlhb)*((1-wloop)*(wlsb*Flsb  + (1-wlsb)*Fldr ) + wloop*Floop ) + wlhb*Flhb;
-    wlism = max([wloop, wldr, wlsb, wlhb]);
+    aa = M.alhb*ones(size(z));
+    mlhb = (z<=0) & (z>=M.zlhb-M.clhb);
+    aa(mlhb) = 0.001 + (M.alhb-0.001)*(1 - (1/(M.zlhb-M.clhb))*z(mlhb));
+    qxy = ((x-M.xlhb)./aa).^2 + ((y-yaxis)/M.blhb).^2;   qz = abs(z-M.zlhb)/M.clhb;
+    wlhb = double((qxy<=1) & (qz<=1));
+    nelhb = M.nelhb0*wlhb;   Flhb = M.Flhb*wlhb;
+    % Loop I (spheroid core + shell; truncated for z<0)
+    rr = sqrt((x-M.xlpI).^2 + (y-M.ylpI).^2 + (z-M.zlpI).^2);   a2 = M.rlpI+M.drlpI;
+    incore  = (z>=0) & (rr<=M.rlpI);
+    inshell = (z>=0) & (rr>M.rlpI) & (rr<=a2);
+    wloop = double(incore | inshell);
+    neloop = M.nelpI*incore + M.dnelpI*inshell;
+    Floop  = M.FlpI*incore  + M.dFlpI*inshell;
+    % combine (element-wise overrides)
+    ne = (1-wlhb).*((1-wloop).*(wlsb.*nelsb + (1-wlsb).*neldr) + wloop.*neloop) + wlhb.*nelhb;
+    F  = (1-wlhb).*((1-wloop).*(wlsb.*Flsb  + (1-wlsb).*Fldr ) + wloop.*Floop ) + wlhb.*Flhb;
+    wlism = max(max(wldr, wlsb), max(wloop, wlhb));
+    ne = reshape(ne, sz);  F = reshape(F, sz);  wlism = reshape(wlism, sz);
 end
 % =====================================================================
-% Discrete clumps (Gaussian, optional hard edge at 1/e)
-function [necN, FcN] = ne_clumps(x,y,z,M)
-    arg = ((x-M.xc).^2 + (y-M.yc).^2 + (z-M.zc).^2) ./ M.rc.^2;
-    necN = 0;  FcN = 0;
-    m0 = (M.edgec==0) & (arg < 5);
-    if any(m0)
-        necN = necN + sum(M.nec(m0) .* exp(-arg(m0)));
-        last = find(m0,1,'last');  FcN = M.Fc(last);
+% Discrete clumps (vectorized). necN sums all overlapping clumps at each
+% point; FcN is the F of the highest-index overlapping clump (as in NE2001).
+% 'sel' is the subset of clump indices near this sightline (ascending).
+function [necN, FcN] = ne_clumps(x, y, z, M, sel)
+    sz = size(x);  Ns = numel(x);
+    necN = zeros(sz);  FcN = zeros(sz);
+    if isempty(sel), return; end
+    xr = x(:); yr = y(:); zr = z(:);          % Ns x 1
+    xc = M.xc(sel).'; yc = M.yc(sel).'; zc = M.zc(sel).';     % 1 x n
+    rc2 = (M.rc(sel).').^2;  NEC = M.nec(sel).';
+    edgec = M.edgec(sel).';  Fc = M.Fc(sel).';
+    n = numel(xc);  col = 1:n;
+    necC = zeros(Ns,1);  FcC = zeros(Ns,1);
+    chunk = 8000;
+    for a = 1:chunk:Ns
+        b = min(a+chunk-1, Ns);  idx = a:b;
+        arg = ((xr(idx)-xc).^2 + (yr(idx)-yc).^2 + (zr(idx)-zc).^2) ./ rc2;  % nb x n
+        m0 = (edgec==0) & (arg < 5);        % Gaussian clumps
+        m1 = (edgec==1) & (arg <= 1);       % hard-edged clumps
+        necC(idx) = sum(m0 .* (NEC .* exp(-arg)), 2) + sum(m1 .* NEC, 2);
+        match = m0 | m1;
+        lastval = max(match .* col, [], 2);           % highest matching column (0 if none)
+        nz = lastval > 0;
+        tmp = zeros(numel(idx),1);  tmp(nz) = Fc(lastval(nz));
+        FcC(idx) = tmp;
     end
-    m1 = (M.edgec==1) & (arg <= 1);
-    if any(m1)
-        necN = necN + sum(M.nec(m1));
-        last = find(m1,1,'last');  FcN = M.Fc(last);
-    end
+    necN = reshape(necC, sz);  FcN = reshape(FcC, sz);
 end
-% Voids (rotated ellipsoids)
-function [nevN, FvN, wvoid] = ne_voids(x,y,z,M)
-    dx = x-M.xv;  dy = y-M.yv;  dz = z-M.zv;
-    q = (M.cc12.*dx + M.s2.*dy + M.cs21.*dz).^2 ./ M.aav.^2 ...
-      + (-M.cs12.*dx + M.c2.*dy - M.ss12.*dz).^2 ./ M.bbv.^2 ...
-      + (-M.s1.*dx + M.c1.*dz).^2 ./ M.ccv.^2;
-    nevN = 0;  FvN = 0;  wvoid = 0;
-    m1 = (M.edgev==1) & (q <= 1);
-    if any(m1)
-        last = find(m1,1,'last');  nevN = M.nev(last);  FvN = M.Fv(last);  wvoid = 1;
+% Voids (vectorized). The highest-index overlapping void wins (as in NE2001).
+% 'sel' is the subset of void indices near this sightline (ascending).
+function [nevN, FvN, wvoid] = ne_voids(x, y, z, M, sel)
+    sz = size(x);  Ns = numel(x);
+    nevN = zeros(sz);  FvN = zeros(sz);  wvoid = zeros(sz);
+    if isempty(sel), return; end
+    xr = x(:); yr = y(:); zr = z(:);
+    xv=M.xv(sel).'; yv=M.yv(sel).'; zv=M.zv(sel).'; nev=M.nev(sel).'; Fv=M.Fv(sel).';
+    aav2=(M.aav(sel).').^2; bbv2=(M.bbv(sel).').^2; ccv2=(M.ccv(sel).').^2; edgev=M.edgev(sel).';
+    cc12=M.cc12(sel).'; s2=M.s2(sel).'; cs21=M.cs21(sel).'; cs12=M.cs12(sel).';
+    c2=M.c2(sel).'; ss12=M.ss12(sel).'; s1=M.s1(sel).'; c1=M.c1(sel).';
+    n = numel(xv);  col = 1:n;
+    neV = zeros(Ns,1);  fV = zeros(Ns,1);  wV = zeros(Ns,1);
+    chunk = 8000;
+    for a = 1:chunk:Ns
+        b = min(a+chunk-1, Ns);  idx = a:b;
+        dx = xr(idx)-xv;  dy = yr(idx)-yv;  dz = zr(idx)-zv;         % nb x n
+        q = (cc12.*dx + s2.*dy + cs21.*dz).^2 ./ aav2 ...
+          + (-cs12.*dx + c2.*dy - ss12.*dz).^2 ./ bbv2 ...
+          + (-s1.*dx + c1.*dz).^2 ./ ccv2;
+        m1 = (edgev==1) & (q <= 1);
+        m0 = (edgev==0) & (q < 3);
+        match = m1 | m0;
+        VAL = nev.*m1 + (nev.*exp(-q)).*m0;                          % value per (point,void)
+        lastval = max(match .* col, [], 2);                          % highest matching void
+        nz = lastval > 0;
+        rows = find(nz);
+        neN = zeros(numel(idx),1);  fN = zeros(numel(idx),1);
+        if ~isempty(rows)
+            lin = sub2ind(size(VAL), rows, lastval(nz));
+            neN(nz) = VAL(lin);
+            fN(nz)  = Fv(lastval(nz));
+        end
+        neV(idx) = neN;  fV(idx) = fN;  wV(idx) = double(nz);
     end
-    m0 = (M.edgev==0) & (q < 3);
-    if any(m0)
-        last = find(m0,1,'last');  nevN = M.nev(last)*exp(-q(last));  FvN = M.Fv(last);  wvoid = 1;
-    end
+    nevN = reshape(neV, sz);  FvN = reshape(fV, sz);  wvoid = reshape(wV, sz);
+end
+% Prefilter: indices of clumps whose sphere of influence lies near the ray.
+% Ray: P0=(0,rsun,0), unit dir u=(cb*sl,-cb*cl,sb), length d_kpc (kpc).
+function sel = clumpsNearRay(cb,sl,cl,sb, d_kpc, M)
+    ux=cb*sl; uy=-cb*cl; uz=sb;
+    scx=M.xc; scy=M.yc-M.rsun; scz=M.zc;                 % clump center relative to Sun
+    t = scx*ux + scy*uy + scz*uz;                        % along-track distance
+    perp2 = scx.^2 + scy.^2 + scz.^2 - t.^2;             % squared perpendicular distance
+    reach = sqrt(5)*M.rc;                                % arg<5 => within sqrt(5)*rc
+    sel = find(perp2 < (reach*1.3).^2 & t > -reach-0.05 & t < d_kpc + reach + 0.05);
+    sel = sel(:).';
+end
+% Prefilter: indices of voids whose bounding sphere lies near the ray.
+function sel = voidsNearRay(cb,sl,cl,sb, d_kpc, M)
+    ux=cb*sl; uy=-cb*cl; uz=sb;
+    scx=M.xv; scy=M.yv-M.rsun; scz=M.zv;
+    t = scx*ux + scy*uy + scz*uz;
+    perp2 = scx.^2 + scy.^2 + scz.^2 - t.^2;
+    reach = sqrt(3)*max([M.aav, M.bbv, M.ccv], [], 2);   % q<3 bounding radius
+    sel = find(perp2 < (reach*1.3).^2 & t > -reach-0.05 & t < d_kpc + reach + 0.05);
+    sel = sel(:).';
 end
 % =====================================================================
 function s = sech2(z)
@@ -481,8 +543,19 @@ function M = getModel()
     M.COARSEx = -R1.*sin(TH1);
     M.COARSEy =  R1.*cos(TH1);
     M.SPL = cell(1,narms);
+    M.armFx = cell(1,narms);  M.armFy = cell(1,narms);
+    M.armCtr = cell(1,narms);
+    M.armWin = 16;                               % fine half-window (>1 coarse spacing)
     for j = 1:narms
         M.SPL{j} = spline(TH1(j,:), R1(j,:));    % pp form of r(theta)
+        thf = TH1(j,1):0.01:TH1(j,end);          % fine theta (matches ref resolution)
+        if numel(thf) < 2, thf = TH1(j,:); end
+        rf  = ppval(M.SPL{j}, thf);
+        M.armFx{j} = -rf.*sin(thf);              % 1 x Nfine  (row)
+        M.armFy{j} =  rf.*cos(thf);
+        % fine-array index nearest to each coarse node (for windowed refine)
+        ctr = round((TH1(j,:) - thf(1))/0.01) + 1;
+        M.armCtr{j} = min(max(ctr, 1), numel(thf));
     end
 
     % ---- NE2025 clump table:  [l b nec Fc dc rc edge] (deg,deg,cm^-3,-,kpc,kpc,-) ----
