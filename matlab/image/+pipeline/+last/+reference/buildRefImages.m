@@ -129,7 +129,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
 
 
         Args.PhotZPMethod            = 'photometricZP';  % 'photometricZP'|'header'
-        Args.KeyZP                   = {'PH_ZP','PT_ZP'};
+        Args.KeyZP                   = {'PT_ZP','PH_ZP'};
     end
     % 
     RAD = 180/pi;  
