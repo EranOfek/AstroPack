@@ -1214,20 +1214,26 @@ classdef PipelineDemon < Component
             end
 
             if Args.UpdateRedis
-                % Check if Redis object already exist and alive
-                if isempty(Obj.RedisPV)
-                    % Create the Redis object
-                    Obj.RedisPV = Redis('localhost', 6379, 'password', 'foobared'); % password probably not needed on last nodes
-                end
-    
-                % Check that Redis is connected
-                % FFU
-    
-                % Get Unix time
-                UnixTime = posixtime(datetime("now","TimeZone","UTC"));
+                try
+                    % Check if Redis object already exist and alive
+                    if isempty(Obj.RedisPV)
+                        % Create the Redis object
+                        Obj.RedisPV = Redis('localhost', 6379, 'password', 'foobared'); % password probably not needed on last nodes
+                    end
                     
-                Obj.RedisPV.hset(Key, 't',UnixTime, 'v',jsonencode(Val));
-                Obj.RedisPV.expire(Key,Args.ExpireTime);
+                    % Check that Redis is connected
+                    % FFU
+                    
+                    % Get Unix time
+                    UnixTime = posixtime(datetime("now","TimeZone","UTC"));
+                    
+                    Obj.RedisPV.hset(Key, 't',UnixTime, 'v',jsonencode(Val));
+                    Obj.RedisPV.expire(Key,Args.ExpireTime);
+                catch ME
+                    ErrorMsg = sprintf('Connection or ingestion to Redis DB failed: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, MEs.stack(1).line);
+                    Obj.writeLog(ErrorMsg, LogLevel.Error); 
+                    Obj.writeLog(ME, LogLevel.Info); 
+                end
             end
 
         end
