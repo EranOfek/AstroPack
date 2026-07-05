@@ -14,7 +14,7 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     %         'PhotZPMethod' - method to determine the photometric ZP when UpdateZP is true:
     %                    'photometricZP' - call imProc.calib.photometricZP (default).
     %                    'header' - read KeyPH_ZP from input crop headers and take the mean.
-    %         'KeyPH_ZP' - cell array of header keyword synonyms for the ZP, tried in order.
+    %         'KeyZP' - cell array of header keyword synonyms for the ZP, tried in order.
     %                    Used only when PhotZPMethod is 'header'. Default is {'PH_ZP','PT_ZP'}.
     %         'BitDict'   - a BitDictionary to use for the mask bit operations, allowing the
     %                    caller to build it once and reuse it across many calls.
@@ -36,7 +36,7 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
         Args.AstrometricCat          = [];
         Args.PhotCat                 = [];
         Args.PhotZPMethod            = 'photometricZP';  % 'photometricZP'|'header'
-        Args.KeyPH_ZP cell           = {'PH_ZP','PT_ZP'};
+        Args.KeyZP                   = {'PH_ZP','PT_ZP'};
         Args.BitDict                 = [];
 
         Args.MatchMethod             = 'mex';  % 'mex'|'old'
@@ -180,11 +180,11 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
             case 'header'
                 ZP_vals = NaN(Ncrop, 1);
                 for Icrop = 1:Ncrop
-                    ZP_vals(Icrop) = AI(Icrop).HeaderData.getVal(Args.KeyPH_ZP);
+                    ZP_vals(Icrop) = AI(Icrop).HeaderData.getVal(Args.KeyZP);
                 end
                 MeanZP = mean(ZP_vals, 'omitnan');
-                Result.HeaderData = replaceVal(Result.HeaderData, Args.KeyPH_ZP{1}, MeanZP);
-                Result.HeaderData = replaceVal(Result.HeaderData, Args.KeyPH_ZP{2}, MeanZP);
+                Result.HeaderData = replaceVal(Result.HeaderData, Args.KeyZP{1}, MeanZP);
+                Result.HeaderData = replaceVal(Result.HeaderData, Args.KeyZP{2}, MeanZP);
             otherwise
                 error('Unknown PhotZPMethod: %s', Args.PhotZPMethod);
         end

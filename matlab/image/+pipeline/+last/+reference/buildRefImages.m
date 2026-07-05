@@ -126,6 +126,10 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.PhotCatPlxRange        = [0.1 100];  % parallax range [mas] for the photometric catalog
         
         Args.Verbose                = 0; % from 0 (mute) to 2 (chatty)
+
+
+        Args.PhotZPMethod            = 'photometricZP';  % 'photometricZP'|'header'
+        Args.KeyZP                   = {'PH_ZP','PT_ZP'};
     end
     % 
     RAD = 180/pi;  
@@ -343,6 +347,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
                         StitchedImage = imProc.stack.stitchCrops(AI, ...
                             'UpdateWCS',true,'UpdateZP',true, ...
                             'AstrometricCat',AstrometricCat,'PhotCat',PhotCat, ...
+                            'PhotZPMethod',Args.PhotZPMethod,...
+                            'KeyZP',Args.KeyZP,...
                             'BitDict',BitDict);
 
                         if isnan(julday(StitchedImage))
