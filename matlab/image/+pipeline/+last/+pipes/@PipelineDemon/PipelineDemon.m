@@ -3039,7 +3039,7 @@ classdef PipelineDemon < Component
                 Args.FailMethod        = 'move';  % 'move'|'report'|'none'
                 Args.Backup            = false;
 
-                Args.UpdateRedis       = false;
+                Args.UpdateRedis       = true;
             end
             PipeName   = [];
             PipeStatus = 'Entered Demon';
