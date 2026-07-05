@@ -42,7 +42,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %         'DbPort'               - DB server port (def. 9000)
     %         'DbUser'               - DB user name (def. 'last_user')
     %         'DbName'               - DB name used to look up the password in the AstroPack passwords file (def. 'last_ro')
-    %         'AstroDBPassFile'      - path to the AstroPack YAML passwords file (def. '~/.astropack/Passwords.yml')
+    %         'PassFile'      - path to the AstroPack YAML passwords file (def. '~/.astropack/Passwords.yml')
     %         'Verbose'              - verbosity level: 0 (mute), 1, 2 (maximal) (def. 2)
     %         'AstrometricCatRad'    - cone radius [deg] for pre-fetching astrometric/photometric
     %                    reference catalogs once per field (def. 1)
@@ -116,9 +116,9 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.DbHost             = '10.150.28.18' 
         Args.DbPort             = 9000;
         Args.DbUser             = 'last_user'
-        Args.DbName             = 'last'
-        Args.AstroDBPassFile    = '~/matlab/AstroPack/config/local/Passwords.yml'; % '~/.astropack/Passwords.yml';
-                
+        Args.PassFile           = '~/matlab/AstroPack/config/local/Passwords.yml'; % '~/.astropack/Passwords.yml';                
+        Args.PassToken          = 'last_ro'
+        
         Args.AstrometricCatRad     = 1;           % [deg] cone radius for pre-fetching reference catalogs
         Args.AstrometricCatMagRange = [12 19.5];  % magnitude range for the astrometric catalog
         Args.AstrometricCatPlxRange = [-Inf 50];  % parallax range [mas] for the astrometric catalog
@@ -136,9 +136,9 @@ function [Result,Info] = buildRefImages(RefID, Args)
 
     % make a connection to the image DB
     if isempty(Args.DB)
-        Configuration.getSingleton().loadFile(Args.AstroDBPassFile);
+        Configuration.getSingleton().loadFile(Args.PassFile);
         PM = PasswordsManager;
-        Db.Password = PM.search(Args.DbName).Pass;
+        Db.Password = PM.search(Args.PassToken).Pass;
         Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Db.Password);
     end
 
