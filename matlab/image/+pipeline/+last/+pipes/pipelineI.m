@@ -596,12 +596,18 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         
             % write drifts to header
             %ProcessingStep = 941;
-            for Isub=1:1:Nsub      
+            for Isub=1:1:Nsub
                 if NotIsEmptyCoadd(Isub)
-                    DataGM = [Args.KeysGlobalMotion(:), num2cell([GlobalMotion(Isub).RateX; GlobalMotion(Isub).StdX; GlobalMotion(Isub).RateY; GlobalMotion(Isub).StdY])];
+                    if isempty(GlobalMotion(Isub).RateX)
+                        GMvals = nan(4,1);
+                    else
+                        GMvals = [GlobalMotion(Isub).RateX; GlobalMotion(Isub).StdX; GlobalMotion(Isub).RateY; GlobalMotion(Isub).StdY];
+                    end
+                    DataGM = [Args.KeysGlobalMotion(:), num2cell(GMvals)];
                     Coadd(Isub).HeaderData.insertKey(DataGM,'end');
                 end
             end
+            
             
             %ProcessingStep = 951;
             %tic;
