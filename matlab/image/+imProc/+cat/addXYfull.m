@@ -70,7 +70,29 @@ function [XYfull, Result] = addXYfull(Obj, Args)
         XYfull = [Xfull, Yfull];
 
         if nargout>1
-            Result(Iobj).CatData = Result(Iobj).CatData.insertMultiCol(XYfull, NewColName, NewColUnits);
+            % Idempotent: if XFULL/YFULL already live in the catalog
+            % (e.g. this AI has been through addXYfull once, or the
+            % pipeline stamped them upstream), pass through unchanged
+            % - the existing values are authoritative. Prevents the
+            % duplicate-column crash that would otherwise fire on any
+            % Table access. Mixed state (one present, one missing) is
+            % pathological from a partial run; drop the straggler so
+            % insertMultiCol below can add both cleanly.
+            Names = Result(Iobj).CatData.ColNames;
+            HasX  = any(strcmp(Names, Args.ColXfull));
+            HasY  = any(strcmp(Names, Args.ColYfull));
+            if HasX && HasY
+                % Both already present - no-op.
+            else
+                if HasX
+                    Result(Iobj).CatData = Result(Iobj).CatData.deleteCol(Args.ColXfull);
+                end
+                if HasY
+                    Result(Iobj).CatData = Result(Iobj).CatData.deleteCol(Args.ColYfull);
+                end
+                Result(Iobj).CatData = Result(Iobj).CatData.insertMultiCol( ...
+                    XYfull, NewColName, NewColUnits);
+            end
         end
 
     end

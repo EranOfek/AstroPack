@@ -84,7 +84,7 @@ function Result = insertAzAlt(Obj, Args)
         if isa(Obj, 'AstroImage')
             Args.ObsCoo = nan(Nobj,2);
             for Iobj=1:1:Nobj
-                [Args.ObsCoo(Iobj,1), Args.ObsCoo(Iobj,2)] = getObsCoo(Obj(Iobj), Args,getObsCooArgs{:});  % [deg] / assumed
+                [Args.ObsCoo(Iobj,1), Args.ObsCoo(Iobj,2)] = getObsCoo(Obj(Iobj), Args.getObsCooArgs{:});  % [deg] / assumed
             end
         else
             error('if input object is not AstroImage, JD must be provided');

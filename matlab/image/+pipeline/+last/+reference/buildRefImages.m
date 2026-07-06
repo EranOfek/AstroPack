@@ -428,10 +428,20 @@ function [Result,Info] = buildRefImages(RefID, Args)
                 
                 % 6. save the new reference image and its catalog, mask, and PSF to the disk
                 if Args.Write2Disk
-                    for Iprop=1:numel(Args.WriteProp)
-                        FN = sprintf('%s/LAST_clear_%s_sci_ref_%s_1.fits',Args.OutputDir,Tag,Args.WriteProp(Iprop));
-                        RefImage.write1(FN, Args.WriteProp(Iprop), 'OverWrite', true, 'MkDir', true);
-                    end
+                    AF = AstroFileName;
+                    AF.ProjName = "LAST.01.00.00";
+                    AF.FieldID  = Tag;
+                    AF.JD       = JD;
+                    AF.julday2time;
+                    AF.Counter  = 0;
+                    AF.CCDID    = 1;
+                    AF.CropID   = 0;
+                    AF.Level    = "ref";
+
+                    imProc.io.saveProductImage(RefImage, AF, 'Path',Args.OutputDir, ...
+                        'OutProduct',["Image","Mask","Cat","PSF"], ...
+                        'WriteHeader',[true, false, true, false], ...
+                        'OverWrite',true,'SanifyPath',true);
                 end
                 
                 % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)

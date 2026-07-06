@@ -288,11 +288,6 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
 
         % Calibration config forwarded to calibrate (cell array of key-value pairs)
         Args.CalibArgs cell = {}
-        Args.JointVisit logical = false   % If true, run per-crop loop, then refine
-                                          % with PhotCalibTrans.fitJointVisit (joint
-                                          % LS over pooled calibrators: 1 Norm + 10
-                                          % field-frame Tran2D coefs). Default false
-                                          % preserves per-crop status quo.
 
         Args.CreateNewObj logical = false
         Args.DiffCalibProps cell = {'New', 'Ref'}
@@ -304,10 +299,26 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                                                 % target-mag conversion. 0 = AB-flat (back-compat).
                                                 % Negative -> blue, positive -> red.
         Args.RefSpecPivot (1,1) double = 5500   % Pivot wavelength [Angstrom] for the slope normalization
-        Args.Co2_ppm (1,1) double = 395         % CO2 abundance [ppm] threaded into PhotCalibTrans.calibrate
-        % -> predefSeqCompositeFun -> UMG.Par(4). Default 395 = Simone parity.
-        % Forwarded conditionally (only when not 395) to preserve last-write-
-        % wins precedence for any 'Co2_ppm' the caller already put in CalibArgs.
+        % AIRMASS-conditioned initial values for PWV_cm / TauAod500 /
+        % QE_Center_Ang (polynomial fits of Simone-pipeline medians;
+        % see astro.transmission.atmParFromAirmass). Only affects the
+        % initial guess into lsqnonlin. Default false (opt-in). Forwarded
+        % to PhotCalibTrans.calibrate; passing 'InitFromAirmass' inside
+        % CalibArgs also works and is equivalent.
+        Args.InitFromAirmass logical = false
+        % Per-source FIXED atmospheric parameters (PWV, AOD, Center)
+        % derived from each calibrator's own AIRMASS via
+        % astro.transmission.atmParFromAirmass. Requires PerSourceAirmass
+        % (auto-forced to true when this flag is on). Only affects the
+        % model prediction that costFun computes for each source; no
+        % change to the fit's free parameter set.
+        Args.PerSourceAtmFromAirmass logical = false
+        % (Co2_ppm was retired from this wrapper June 2026 — it lives on
+        %  imUtil.calib.predefSeqCompositeFun as an atmospheric-constant
+        %  arg (default 395, matching Simone parity), not per-image data.
+        %  Anyone who needs a non-default value builds a FunList via
+        %  predefSeqCompositeFun('Co2_ppm', X) and passes it through
+        %  CalibArgs as 'CustomFunList'.)
         Args.FluxColName = 'FLUX_APER_3'
         Args.AddZP logical = true
         Args.UpdateHeader logical = true
@@ -391,6 +402,20 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.CalibArgs = predefCalibArgs();
     end
 
+    % Promote 'CollectCalibTrajectory' from CalibArgs to the wrapper-level
+    % flag. Motivation: the wrapper splats CalibArgs first, then appends
+    % explicit args (last value wins), so an 'CollectCalibTrajectory' the
+    % user put in CalibArgs gets silently clobbered by the explicit
+    % forward at the bottom of the loop. Also, the wrapper's own
+    % aggregation block (`Cal = [...]`) reads Args.CollectCalibTrajectory,
+    % so the flag has to end up on Args to have any effect.
+    Idx = find(strcmp(Args.CalibArgs(1:2:end), 'CollectCalibTrajectory'), 1);
+    if ~isempty(Idx)
+        CctVal = Args.CalibArgs{2*Idx};
+        Args.CollectCalibTrajectory = logical(CctVal);
+        Args.CalibArgs([2*Idx-1, 2*Idx]) = [];
+    end
+
     % IsMeanImages branch: append NFramesPerCoadd so calibrate (and every
     % method that derives ExpTime_eff) uses ExpTime / (NCoadd * NProcsPerCoadd).
     % Appending overrides any earlier NFramesPerCoadd in CalibArgs (last write
@@ -415,14 +440,29 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     if ~strcmpi(Args.SelectionMethod, 'catsHTM')
         Args.CalibArgs = [Args.CalibArgs, {'SelectionMethod', Args.SelectionMethod}];
     end
-    if Args.Co2_ppm ~= 395
-        Args.CalibArgs = [Args.CalibArgs, {'Co2_ppm', Args.Co2_ppm}];
-    end
     if Args.UseTAPClassprob
         Args.CalibArgs = [Args.CalibArgs, {'UseTAPClassprob', true}];
     end
     if Args.UseTypicalX
         Args.CalibArgs = [Args.CalibArgs, {'UseTypicalX', true}];
+    end
+    % Promote top-level InitFromAirmass into CalibArgs only when true and
+    % the caller hasn't already put it there (so an explicit CalibArgs
+    % value wins). Skipping the append when false preserves calibrate's
+    % own opt-in default.
+    if Args.InitFromAirmass && ...
+            ~any(strcmp(Args.CalibArgs(1:2:end), 'InitFromAirmass'))
+        Args.CalibArgs = [Args.CalibArgs, {'InitFromAirmass', true}];
+    end
+    % Same promotion for PerSourceAtmFromAirmass. Also auto-force
+    % PerSourceAirmass = true (required by the calibrate-side wiring;
+    % without it there are no per-source AIRMASS values to sample).
+    if Args.PerSourceAtmFromAirmass && ...
+            ~any(strcmp(Args.CalibArgs(1:2:end), 'PerSourceAtmFromAirmass'))
+        Args.CalibArgs = [Args.CalibArgs, {'PerSourceAtmFromAirmass', true}];
+        if ~any(strcmp(Args.CalibArgs(1:2:end), 'PerSourceAirmass'))
+            Args.CalibArgs = [Args.CalibArgs, {'PerSourceAirmass', true}];
+        end
     end
 
     % ====================================================================
@@ -529,7 +569,8 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     CalibTrajectory = repmat(struct( ...
         'ObjectIndex', 0, 'StageIndex', 0, 'StageName', '', ...
         'IterIndex', 0, 'OuterIter', 0, 'NumClipped', 0, ...
-        'NumRemaining', 0, 'RMS', NaN, 'SourceData', AstroCatalog), 1, 0);
+        'NumRemaining', 0, 'RMS', NaN, 'Scatter', NaN, ...
+        'SourceData', AstroCatalog), 1, 0);
 
     % ====================================================================
     % LOOP OVER OBJECTS
@@ -584,7 +625,6 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % ----------------------------------------------------------------
         % Post-calibration processing
         % ----------------------------------------------------------------
-
         if ~isempty(PC.TransModel)
             % Add calibrated magnitude (and optionally ZP) columns.
             % AperCorr is NOT yet applied — will be applied below after calcAperCorr.
@@ -790,42 +830,6 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     end
   %toc
 
-    % ====================================================================
-    % OPTIONAL: JOINT-VISIT REFINEMENT (Phase 2c MVP)
-    % ====================================================================
-    % After per-crop fits, pool calibrators across all crops and run one
-    % joint LS for a single Norm + 10 field-frame Tran2D coefs. Overwrites
-    % each PhotCalib(i).TransModel in place.
-    if Args.JointVisit && IsAstroImage && Nobj > 1
-        try
-            if Args.Verbose
-                fprintf('\n=== JOINT-VISIT REFINEMENT (%d crops) ===\n', Nobj);
-            end
-            [PhotCalib, JointResult] = PhotCalibTrans.fitJointVisit( ...
-                PhotCalib, Result, ...
-                'CalibArgs', Args.CalibArgs, ...
-                'Verbose',   Args.Verbose);
-            % Stash joint diagnostics on the first FitRes entry so callers
-            % can recover (Norm, Tran2DCoefs, FieldTran2DObj, FitInfo, Pool)
-            % without changing the FitRes shape.
-            FitRes(1).JointVisitResult = JointResult;
-        catch ME
-            % Loud, multi-line warning so it doesn't get lost in Verbose output.
-            fprintf(2, '\n***********************************************************\n');
-            fprintf(2, '* JointVisit refinement FAILED. Returning per-crop result. *\n');
-            fprintf(2, '* Reason: %s\n', ME.message);
-            if ~isempty(ME.stack)
-                fprintf(2, '* At: %s (line %d)\n', ME.stack(1).name, ME.stack(1).line);
-            end
-            fprintf(2, '***********************************************************\n\n');
-            warning('imProc:fitPhotCalibTrans:JointVisitFailed', ...
-                'Joint-visit refinement failed (%s) - returning per-crop fit.', ...
-                ME.message);
-        end
-    elseif Args.JointVisit && Nobj <= 1
-        warning('imProc:fitPhotCalibTrans:JointVisitSingleCrop', ...
-            'JointVisit=true but Nobj=%d (need >=2 crops). Skipping joint refinement.', Nobj);
-    end
 
     % ====================================================================
     % SUMMARY
