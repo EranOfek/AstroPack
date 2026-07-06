@@ -606,7 +606,12 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 951;
             %tic;
             if Args.AddSrcAM
-                Coadd(NotIsEmptyCat) = imProc.cat.addAirMass(Coadd(NotIsEmptyCat), 'JD',JD, 'EquinoxJD',JD(1), Args.Cat_addAirMassArgs{:});
+                JD_CoaddPerSub = nan(1, Nsub);
+                JD_CoaddPerSub(NotIsEmptyCoadd) = JD_Coadd;
+                JD_Eq = mean(JD_CoaddPerSub,'all','omitnan');
+                Coadd(NotIsEmptyCat) = imProc.cat.addAirMass(Coadd(NotIsEmptyCat), 'JD',JD_CoaddPerSub(NotIsEmptyCat), 'EquinoxJD',JD_Eq, Args.Cat_addAirMassArgs{:});
+
+                %Coadd(NotIsEmptyCat) = imProc.cat.addAirMass(Coadd(NotIsEmptyCat), 'JD',JD_Coadd, 'EquinoxJD',JD_Coadd(1), Args.Cat_addAirMassArgs{:});
             end
             %toc
             if Args.AddNdet
