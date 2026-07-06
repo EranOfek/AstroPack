@@ -47,7 +47,7 @@ function [AI] = addSkyCoo(AI, Args)
             if Args.PopIsEdge
                 SizeImageIJ = size(AI(I).ImageData.Data);
                 IEX = AI(I).Streaks.X<Args.EdgeDist | AI(I).Streaks.X>(SizeImageIJ(2)-Args.EdgeDist);
-                IEY = AI(I).Streaks.Y<Args.EdgeDist | AI(I).Streaks.X>(SizeImageIJ(2)-Args.EdgeDist);
+                IEY = AI(I).Streaks.Y<Args.EdgeDist | AI(I).Streaks.Y>(SizeImageIJ(2)-Args.EdgeDist);
                 AI(I).Streaks.IsEdge = [IEX(1,:) | IEY(1,:); IEX(2,:) | IEY(2,:)];
             end
         end
