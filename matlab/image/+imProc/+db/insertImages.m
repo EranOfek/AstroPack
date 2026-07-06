@@ -129,6 +129,8 @@ function [T,Error,FileName] = insertImages(Obj, Args)
         Args.DeleteFile logical   = false;  % delete file after Db insertion
         Args.table2csvArgs        = {};
         
+        Args.DBConnector  = 'legacy'
+        Args.Schema       = []          % if not empty, pass it to the connector        
     end
 
     % convert headers to table
@@ -178,8 +180,7 @@ function [T,Error,FileName] = insertImages(Obj, Args)
     else
         FileName = [];
     end
-    
-    % insert csv to db
+        
     if ~isempty(Args.DbTable)
         if isempty(Args.Db)
             Db = db.Db;
@@ -189,9 +190,21 @@ function [T,Error,FileName] = insertImages(Obj, Args)
     
         DbTableStr = db.Db.concatDbTable(Args.DbName, Args.DbTable);
 
-        [Error, FileName]=Db.insertCsv(DbTableStr, FileName, 'FileName',FileName, 'DeleteFile',Args.DeleteFile, 'table2csvArgs',Args.table2csvArgs);
-        if isempty(Args.Db)
-            Db.disconnectCH_Java % disconnect Java
+        if strcmpi(Args.DBConnector,'legacy') % insert the csv to db           
+            [Error, FileName]=Db.insertCsv(DbTableStr, FileName, 'FileName',FileName, 'DeleteFile',Args.DeleteFile, 'table2csvArgs',Args.table2csvArgs);
+            if isempty(Args.Db)
+                Db.disconnectCH_Java % disconnect Java
+            end        
+        elseif strcmpi(Args.DBConnector,'native')
+            try
+                T.Properties.VariableNames = lower(T.Properties.VariableNames);
+                Db.insert(DbTableStr, T, Args.Schema);
+                Error = [];
+            catch ME
+                Error = ME.message;
+            end
+        else
+            error('Asked for unknown DB connector')
         end
     end
 

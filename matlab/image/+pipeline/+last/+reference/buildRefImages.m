@@ -111,13 +111,18 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.OutputDir          = '~/NewRef/';        
         Args.WriteProp          = ["Image","Cat","Mask","PSF"];
         
+        Args.Write2DB           = false;
         Args.OutputRefTable     = 'ref_images_v5'; % the output DB table name  
         
         Args.DbHost             = '10.150.28.18' 
         Args.DbPort             = 9000;
+        Args.DbName             = 'last'
         Args.DbUser             = 'last_user'
         Args.PassFile           = '~/matlab/AstroPack/config/local/Passwords.yml'; % '~/.astropack/Passwords.yml';                
         Args.PassToken          = 'LASTDB_User'
+        
+        Args.DBTemplate          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
+        Args.PassTokenRW         = 'last'
         
         Args.AstrometricCatRad     = 1;           % [deg] cone radius for pre-fetching reference catalogs
         Args.AstrometricCatMagRange = [12 19.5];  % magnitude range for the astrometric catalog
@@ -139,8 +144,14 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Configuration.getSingleton().loadFile(Args.PassFile);
         PM = PasswordsManager;
         Db.Password = PM.search(Args.PassToken).Pass;
-        Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Db.Password);
-    end
+        Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Db.Password);        
+        if Args.Write2DB
+            Db.Password = PM.search(Args.PassTokenRW).Pass;
+            Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, 'default', Db.Password); 
+            Schema = Args.DB.describe(db.Db.concatDbTable(Args.DbName, Args.OutputRefTable));
+        end
+    end    
+    TableColumns = db.util.read_xls2tableFormat(Args.DBTemplate,'Sheet','Images','TableName','ref_images');  
 
     SkyPointMode = ~isempty(Args.RA);
     if SkyPointMode
@@ -413,7 +424,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                 RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MOUNTNUM', 0);
                 RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'CAMNUM', 0);
                 JD = RefImage.getStructKey('MIDJD').MIDJD;
-                [RefImage,~] = imProc.db.generateImageID(RefImage,'KeyID','ID_REF','JD',JD);
+                [RefImage, IDref] = imProc.db.generateImageID(RefImage,'KeyID','ID_REF','JD',JD);
                 
                 % 6. save the new reference image and its catalog, mask, and PSF to the disk
                 if Args.Write2Disk
@@ -425,7 +436,16 @@ function [Result,Info] = buildRefImages(RefID, Args)
                 
                 % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)
                 %    write the reference image catalog to the reference image catalog table of the DB
-                
+                if Args.Write2DB 
+                    [~,Err,~] = imProc.db.insertImages(RefImage, 'DbTable', Args.OutputRefTable,...
+                        'DbName',Args.DbName,'Db', Args.DB, 'ColNameDic',TableColumns,...
+                        'ColNameID','id_ref', 'ID_Origin', IDref,...
+                        'Schema', Schema, 'DBConnector', 'native');
+                    if ~isempty(Err)
+                        fprintf('Iref = %d:\n',Iref);
+                        error('DB ingestion failed')
+                    end
+                end
             
                 if Args.Verbose > 0
                     fprintf('Finished building a reference image for field %d: %d epochs stacked in %.1f s\n',...
