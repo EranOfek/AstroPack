@@ -208,7 +208,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
             'RasterResolution',Args.RasterResolution, 'NsideSearch',Args.NsideSearch, 'NsideLow',Args.NsideLow);
         
         % 1. find the overlapping coadd proc or single-epoch proc images (determined by Args.SearchTable)
-        Q = sprintf("select %s from %s where",Args.Fields, Args.SearchTable);
+        Q = sprintf("select distinct %s from %s where",Args.Fields, Args.SearchTable);
         PixList = strjoin("toString(" + string(UpixLow(:)).' + ")", ", ");
         W = sprintf(" toString(upix_low) IN (%s)", PixList);
         
