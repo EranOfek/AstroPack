@@ -400,7 +400,6 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
 
             %Args.StackMethod = 'sigmaclip';
             
-
             switch Args.StackMethod
                 case 'wrobust'
                     % RegisteredImages contains also the Back and Var
