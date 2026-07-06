@@ -621,7 +621,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             end
             %toc
             if Args.AddNdet
-                Coadd(NotIsEmptyCat) = imProc.cat.addNdet(Coadd(NotIsEmptyCat), MS, 'SearchRadius',Args.NdetSearchRadius);
+                Coadd = imProc.cat.addNdet(Coadd, MS, 'NotIsEmptyImages',NotIsEmptyCat, 'SearchRadius',Args.NdetSearchRadius);
+                %Coadd(NotIsEmptyCat) = imProc.cat.addNdet(Coadd(NotIsEmptyCat), MS, 'SearchRadius',Args.NdetSearchRadius);
             end
         
             % photometric calibration
