@@ -122,7 +122,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.PassToken          = 'LASTDB_User'
         
         Args.DBTemplate          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
-        Args.PassTokenRW         = 'last'
+        Args.PassTokenRW         = 'LASTDB_Root'
         
         Args.AstrometricCatRad     = 1;           % [deg] cone radius for pre-fetching reference catalogs
         Args.AstrometricCatMagRange = [12 19.5];  % magnitude range for the astrometric catalog
@@ -440,7 +440,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                     [~,Err,~] = imProc.db.insertImages(RefImage, 'DbTable', Args.OutputRefTable,...
                         'DbName',Args.DbName,'Db', Args.DB, 'ColNameDic',TableColumns,...
                         'ColNameID','id_ref', 'ID_Origin', IDref,...
-                        'Schema', Schema, 'DBConnector', 'native');
+                        'CreateCsv',false,'Schema', Schema, 'DBConnector', 'native');
                     if ~isempty(Err)
                         fprintf('Iref = %d:\n',Iref);
                         error('DB ingestion failed')
