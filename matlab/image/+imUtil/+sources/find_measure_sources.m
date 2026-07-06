@@ -396,7 +396,7 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
 
                     if isempty(FluxErrAper)
                         AperPhot    = Aper.AperPhot.*Args.Gain;
-                        FluxErrAper = sqrt(abs(AperPhot) + Aper.AnnulusStd.^2)./AperPhot;
+                        FluxErrAper = sqrt(abs(AperPhot) + (Args.Gain.*Aper.AnnulusStd).^2)./AperPhot;
                     end
                     Cat(:,K:K+NC-1) = FluxErrAper;
                     
@@ -413,7 +413,7 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
                     NC = size(Aper.AperPhot,2);
                     if isempty(FluxErrAper)
                         AperPhot    = Aper.AperPhot.*Args.Gain;
-                        FluxErrAper = sqrt(abs(AperPhot) + Aper.AnnulusStd.^2)./AperPhot;
+                        FluxErrAper = sqrt(abs(AperPhot) + (Args.Gain.*Aper.AnnulusStd).^2)./AperPhot;
                     end
                     Cat(:,K:K+NC-1) = 1.086 .* FluxErrAper;
                     [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('MAGERR_APER',(1:1:NC)));

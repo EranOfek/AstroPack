@@ -285,7 +285,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     %          AI1 = imProc.sources.multiIterExtractor(AI, 'MethodBS','old', 'AddBackNoise',true);
 
     arguments
-        Obj AstroImage
+        Obj 
 
         Args.SumMethodPSF              = 'median';
         Args.MethodPSF                 = 'new';
