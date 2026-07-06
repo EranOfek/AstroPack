@@ -184,6 +184,9 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
         
+        Args.UpdateGain                       = true;
+        Args.KeyGain                          = 'GAIN';
+
         %Args.backgroundArgs cell              = {};
         %Args.BackSubSizeXY                    = [128 128];
         Args.backVarArgs                      = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256]}
@@ -400,7 +403,6 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
 
             %Args.StackMethod = 'sigmaclip';
             
-
             switch Args.StackMethod
                 case 'wrobust'
                     % RegisteredImages contains also the Back and Var
@@ -447,10 +449,18 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             %     Coadd(Ifields) = imProc.background.backVar(Coadd(Ifields), 'ReCalc',true, Args.backVarArgs{:});                
             % end
 
+            MeanN = mean(ResultCoadd(Ifields).CoaddN(:));
             if Args.CorrectVarByNcoadd
-                MeanN = mean(ResultCoadd(Ifields).CoaddN(:));
                 Coadd(Ifields).VarData.Data = Coadd(Ifields).VarData.Data .* (MeanN./ResultCoadd(Ifields).CoaddN).^2;
             end
+
+            Gain = Coadd(Ifields).HeaderData.getVal(Args.KeyGain, 'UseDict',false);
+            if Args.UpdateGain
+                % update the gain by multiply the current gain by NCOADD
+                Gain = Gain.*MeanN;
+                Coadd(Ifields).HeaderData.replaceVal(Args.KeyGain, Gain);
+            end
+            
 
             % In some cases the first image of the stack is rejected, so
             % the 'DATEOBS' in the resulting Coadd may be not the same 
