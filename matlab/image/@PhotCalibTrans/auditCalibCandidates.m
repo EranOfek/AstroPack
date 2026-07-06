@@ -15,11 +15,16 @@ function [DoubtfulMask, Reason] = auditCalibCandidates(CandTab, FieldTab, Args)
     %                       field is available; self-exclusion uses X/Y
     %                       proximity (<1 px).
     %          * Args - struct or key/val with:
-    %             .AuditCatName             - char. catsHTM cat name for the
-    %                                         photometric Gaia audit (default
-    %                                         'GAIADR3').
-    %             .SearchRadius             - arcsec, cone-search radius for
-    %                                         the Gaia audit match (default 2).
+    %             .AuditCatName             - DEPRECATED (Jun 2026): kept for
+    %                                         backwards compat only. The
+    %                                         GAIADR3spec regen attached
+    %                                         bp_rp / phot_bp_rp_excess_factor
+    %                                         directly to every candidate row
+    %                                         via findCalibCandidates, so the
+    %                                         secondary Gaia cone match this
+    %                                         arg used to drive is no longer
+    %                                         executed.
+    %             .SearchRadius             - DEPRECATED (Jun 2026): see above.
     %             .AuditBPRPMax             - reject if matched Gaia bp_rp
     %                                         exceeds this. Default 1.5.
     %             .AuditBPRPExcessFactorMax - reject if matched Gaia
@@ -60,6 +65,12 @@ function [DoubtfulMask, Reason] = auditCalibCandidates(CandTab, FieldTab, Args)
         Args.AuditLASTNearestDist       = 20
         Args.AuditLASTDeltaMag          = 2
         Args.MagColName                 = 'MAG_APER_3'
+        % Column used for the LAST NN delta-mag comparison. Kept separate
+        % from MagColName because MagColName may be set to a Gaia column
+        % (e.g. 'phot_g_mean_mag') that is only present on candidates —
+        % the NN check needs a column present on BOTH candidates and the
+        % full field. Default 'MAG_APER_3' works for LAST throughout.
+        Args.AuditNNMagCol              = 'MAG_APER_3'
         Args.Verbose logical            = false
         Args.Logger                     = []
     end
@@ -71,70 +82,40 @@ function [DoubtfulMask, Reason] = auditCalibCandidates(CandTab, FieldTab, Args)
         return;
     end
 
-    % ---- Gaia photometric audit (vectorized) ----
-    Sub = AstroCatalog;
-    Sub.Catalog  = [CandTab.RA, CandTab.Dec];
-    Sub.ColNames = {'RA', 'Dec'};
-    Sub.ColUnits = {'deg', 'deg'};
+    % ---- Gaia photometric audit (direct column reads) ----
+    % After the GAIADR3spec regen (Jun 2026), every candidate row coming
+    % from findCalibCandidates carries the Gaia tail columns. No secondary
+    % cone match is needed; just read off the existing columns.
+    CandVarNames = CandTab.Properties.VariableNames;
+    BPRPv   = nan(Ncand, 1);
+    BPRPExc = nan(Ncand, 1);
+    if ismember('bp_rp', CandVarNames)
+        BPRPv = double(CandTab.bp_rp);
+    elseif all(ismember({'phot_bp_mean_mag','phot_rp_mean_mag'}, CandVarNames))
+        BPRPv = double(CandTab.phot_bp_mean_mag) - double(CandTab.phot_rp_mean_mag);
+    end
+    if ismember('phot_bp_rp_excess_factor', CandVarNames)
+        BPRPExc = double(CandTab.phot_bp_rp_excess_factor);
+    end
 
-    try
-        [~, ~, ResIndA, CatA] = imProc.match.match_catsHTM(Sub, Args.AuditCatName, ...
-            'Radius', Args.SearchRadius, 'RadiusUnits', 'arcsec');
+    % Apply rules in priority order: BPRPExcess > BPRP (Reason records first hit)
+    ExcessHit = isfinite(BPRPExc) & BPRPExc > Args.AuditBPRPExcessFactorMax;
+    BPRPHit   = isfinite(BPRPv)   & BPRPv   > Args.AuditBPRPMax;
+    DoubtfulMask = DoubtfulMask | ExcessHit | BPRPHit;
+    Reason(ExcessHit & Reason == "")             = "BPRPExcess";
+    Reason(BPRPHit   & Reason == "")             = "BPRP";
 
-        AuditNear = nan(Ncand, 1);
-        N1 = min(Ncand, numel(ResIndA.Obj2_IndInObj1));
-        AuditNear(1:N1) = ResIndA.Obj2_IndInObj1(1:N1);
-        ValidGaia = isfinite(AuditNear);
-
-        BPRPCol    = findColIdxLocal(CatA.ColNames, {'bp_rp'});
-        BPCol      = findColIdxLocal(CatA.ColNames, {'phot_bp_mean_mag','Mag_BP','MagBP'});
-        RPCol      = findColIdxLocal(CatA.ColNames, {'phot_rp_mean_mag','Mag_RP','MagRP'});
-        BPRPExcCol = findColIdxLocal(CatA.ColNames, {'phot_bp_rp_excess_factor'});
-
-        BPRPv   = nan(Ncand, 1);
-        BPRPExc = nan(Ncand, 1);
-        if any(ValidGaia)
-            NiSel = AuditNear(ValidGaia);
-            if BPRPCol > 0
-                BPRPv(ValidGaia) = double(CatA.Catalog(NiSel, BPRPCol));
-            elseif BPCol > 0 && RPCol > 0
-                BPRPv(ValidGaia) = double(CatA.Catalog(NiSel, BPCol)) ...
-                                 - double(CatA.Catalog(NiSel, RPCol));
-            end
-            if BPRPExcCol > 0
-                BPRPExc(ValidGaia) = double(CatA.Catalog(NiSel, BPRPExcCol));
-            end
-        end
-
-        % Apply rules in priority order: BPRPExcess > BPRP (Reason records first hit)
-        ExcessHit = isfinite(BPRPExc) & BPRPExc > Args.AuditBPRPExcessFactorMax;
-        BPRPHit   = isfinite(BPRPv)   & BPRPv   > Args.AuditBPRPMax;
-        DoubtfulMask = DoubtfulMask | ExcessHit | BPRPHit;
-        Reason(ExcessHit & Reason == "")             = "BPRPExcess";
-        Reason(BPRPHit   & Reason == "")             = "BPRP";
-
-        if Args.Verbose
-            fprintf('    audit Gaia (%s): %d rejected (BPRP>%.2f or excess>%.2f)\n', ...
-                Args.AuditCatName, sum(ExcessHit | BPRPHit), ...
-                Args.AuditBPRPMax, Args.AuditBPRPExcessFactorMax);
-        end
-    catch ME
-        if ~isempty(Args.Logger) && ismethod(Args.Logger, 'msgLog')
-            Args.Logger.msgLog(LogLevel.Warning, ...
-                sprintf('auditCalibCandidates: Gaia match failed (%s) - skipping Gaia checks', ME.message));
-        else
-            warning('auditCalibCandidates:GaiaMatchFailed', ...
-                'Gaia match failed (%s) - skipping Gaia checks', ME.message);
-        end
-        if Args.Verbose
-            fprintf('    audit Gaia: skipped (%s)\n', ME.message);
-        end
+    if Args.Verbose
+        fprintf('    audit Gaia (tail cols): %d rejected (BPRP>%.2f or excess>%.2f)\n', ...
+            sum(ExcessHit | BPRPHit), ...
+            Args.AuditBPRPMax, Args.AuditBPRPExcessFactorMax);
     end
 
     % ---- LAST nearest-neighbour audit (vectorized) ----
-    Required = {'RA', 'Dec', 'X', 'Y', Args.MagColName};
+    Required = {'RA', 'Dec', 'X', 'Y', Args.AuditNNMagCol};
     FieldNames = FieldTab.Properties.VariableNames;
-    HaveAll = all(ismember(Required, FieldNames));
+    HaveAll = all(ismember(Required, FieldNames)) && ...
+              ismember(Args.AuditNNMagCol, CandTab.Properties.VariableNames);
     if HaveAll
         ArcsecPerRad = (180/pi) * 3600;
 
@@ -143,14 +124,14 @@ function [DoubtfulMask, Reason] = auditCalibCandidates(CandTab, FieldTab, Args)
         Deccand = double(CandTab.Dec) * pi/180;
         Xcand   = double(CandTab.X);
         Ycand   = double(CandTab.Y);
-        Magcand = double(CandTab.(Args.MagColName));
+        Magcand = double(CandTab.(Args.AuditNNMagCol));
 
         % Full field
         AllRArad  = double(FieldTab.RA)  * pi/180;
         AllDecrad = double(FieldTab.Dec) * pi/180;
         AllX      = double(FieldTab.X);
         AllY      = double(FieldTab.Y);
-        AllMag    = double(FieldTab.(Args.MagColName));
+        AllMag    = double(FieldTab.(Args.AuditNNMagCol));
 
         % [Ncand x Nfield] pairwise great-circle distance
         DistMat = celestial.coo.sphere_dist_fast( ...
@@ -178,22 +159,13 @@ function [DoubtfulMask, Reason] = auditCalibCandidates(CandTab, FieldTab, Args)
     else
         if ~isempty(Args.Logger) && ismethod(Args.Logger, 'msgLog')
             Args.Logger.msgLog(LogLevel.Warning, ...
-                sprintf('auditCalibCandidates: missing column(s) for LAST NN check (need RA, Dec, X, Y, %s) - skipping', Args.MagColName));
+                sprintf('auditCalibCandidates: missing column(s) for LAST NN check (need RA, Dec, X, Y, %s) - skipping', Args.AuditNNMagCol));
         else
             warning('auditCalibCandidates:MissingColumns', ...
-                'missing column(s) for LAST NN check (need RA, Dec, X, Y, %s) - skipping', Args.MagColName);
+                'missing column(s) for LAST NN check (need RA, Dec, X, Y, %s) - skipping', Args.AuditNNMagCol);
         end
         if Args.Verbose
             fprintf('    audit LAST NN: skipped (missing columns)\n');
         end
-    end
-end
-
-% =========================================================================
-function idx = findColIdxLocal(ColNames, Candidates)
-    idx = 0;
-    for I = 1:numel(Candidates)
-        f = find(strcmp(ColNames, Candidates{I}), 1);
-        if ~isempty(f); idx = f; return; end
     end
 end

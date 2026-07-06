@@ -1,5 +1,6 @@
 function Result = findVisits(DataPath, Args)
-    % Find LAST visit directories filtered by coordinates, field, and/or time.
+    % Find LAST visit directories filtered by coordinates, field, time, or
+    % header values (AIRMASS, FWHM).
     % Description: Discovers LAST visit subdirectories under DataPath and
     %              filters them by any combination of:
     %                * sky coordinates: point-in-footprint (Coo Nx2 [RA Dec])
@@ -8,6 +9,12 @@ function Result = findVisits(DataPath, Args)
     %                * explicit LAST field numbers (FieldNumber)
     %                * Julian-Date window (JDRange) and/or wall-clock window
     %                  (DateRange, UTC, parsed by datetime())
+    %                * AIRMASS or FWHM interval, read from one peek FITS
+    %                  per candidate visit (adds AIRMASS/FWHM columns to
+    %                  the output). Cheap-first: the header read runs only
+    %                  after the coord/field/time filters have shrunk the
+    %                  candidate list, so it costs O(#candidates), not
+    %                  O(#files under DataPath).
     %              Every filter that is specified must be satisfied
     %              (intersection); filters that are left empty impose no
     %              constraint. At least one filter must be specified.
@@ -37,6 +44,33 @@ function Result = findVisits(DataPath, Args)
     %            'DateRange'  - 1x2 datetime (or string accepted by
     %                           datetime()), UTC, converted to JD and
     %                           intersected with JDRange. Default [].
+    %            'AirmassRange' - [Amin Amax] keep visits whose peek FITS
+    %                           carries an AIRMASS header value in this
+    %                           range. Default [] (no AIRMASS filter).
+    %                           Also causes an 'AIRMASS' column to be
+    %                           attached to the output.
+    %            'FWHMRange'  - [Fmin Fmax] keep visits whose peek FITS
+    %                           carries an FWHM header value in this
+    %                           range. Default [] (no FWHM filter).
+    %                           Also causes a 'FWHM' column to be
+    %                           attached to the output. Note: FWHM is
+    %                           per-crop in LAST; the value read here is
+    %                           whatever crop the peek file happens to
+    %                           be, so it is a proxy for the visit
+    %                           median, not a rigorous per-crop mask.
+    %            'AirmassKey' - Header keyword for AIRMASS. Default
+    %                           'AIRMASS'.
+    %            'FWHMKey'    - Header keyword for FWHM. Default 'FWHM'.
+    %            'HeaderHDU'  - HDU index to open first when reading
+    %                           AIRMASS / FWHM from the peek FITS.
+    %                           Default 1 (LAST image header carries the
+    %                           telescope keywords for both proc and
+    %                           coadd; only PT_* photometric keys live in
+    %                           the coadd catalog HDU 3). HDU 3 is tried
+    %                           as an automatic fallback if the key is
+    %                           missing at the primary HDU, so oddball
+    %                           coadd layouts still resolve. Override to
+    %                           point at a different primary HDU.
     %            'FieldTable' - Path to the LAST_FieldsID file (columns
     %                           RA,Dec,MinRA,MaxRA,MinDec,MaxDec,...) OR a
     %                           table already read from it. The field
@@ -65,6 +99,10 @@ function Result = findVisits(DataPath, Args)
     %            .ProjName    - LAST project/mount/camera token (for a
     %                           future camera filter).
     %            .JD          - visit Julian Date.
+    %            .AIRMASS     - visit AIRMASS from the peek FITS (present
+    %                           only when 'AirmassRange' was supplied).
+    %            .FWHM        - visit FWHM from the peek FITS (present
+    %                           only when 'FWHMRange' was supplied).
     %            Sorted by FieldNumber then JD.
     % Author : D. Kovaleva (May 2026)
     % Example: % By coordinates (former findVisitsByCoo behaviour):
@@ -90,6 +128,19 @@ function Result = findVisits(DataPath, Args)
     %                   'FieldTable', FT, 'RARange', [200 230], ...
     %                   'DecRange', [30 50], ...
     %                   'DateRange', ["2025-05-01", "2025-05-31"]);
+    %
+    %          % Airmass window on a specific field (adds AIRMASS column):
+    %          R = pipeline.last.load.findVisits('/archimedes/test1000/', ...
+    %                   'FieldNumber', 350, 'AirmassRange', [1.0 1.4]);
+    %
+    %          % FWHM window over a JD span (adds FWHM column):
+    %          R = pipeline.last.load.findVisits('/archimedes/test1000/', ...
+    %                   'JDRange', [2460800 2460810], 'FWHMRange', [1.5 3.5]);
+    %
+    %          % Both header filters at once on coadd files:
+    %          R = pipeline.last.load.findVisits('/archimedes/test1000/', ...
+    %                   'FieldNumber', 350, 'FileType', 'coadd', ...
+    %                   'AirmassRange', [1.0 1.3], 'FWHMRange', [1.8 3.0]);
 
     arguments
         DataPath           {mustBeTextScalar}
@@ -99,6 +150,11 @@ function Result = findVisits(DataPath, Args)
         Args.FieldNumber   double                            = []
         Args.JDRange       double                            = []
         Args.DateRange                                       = []
+        Args.AirmassRange  double                            = []
+        Args.FWHMRange     double                            = []
+        Args.AirmassKey    (1,:) char                        = 'AIRMASS'
+        Args.FWHMKey       (1,:) char                        = 'FWHM'
+        Args.HeaderHDU                                       = []
         Args.FieldTable                                      = ''
         Args.Tol           (1,1) double {mustBeNonnegative}  = 1e-6
         Args.Recursive     logical                           = true
@@ -132,15 +188,33 @@ function Result = findVisits(DataPath, Args)
         error('findVisits:BadJDRange', ...
             'JDRange must be [JDmin JDmax] with JDmin <= JDmax.');
     end
+    if ~isempty(Args.AirmassRange) && (numel(Args.AirmassRange) ~= 2 || ...
+            Args.AirmassRange(1) > Args.AirmassRange(2))
+        error('findVisits:BadAirmassRange', ...
+            'AirmassRange must be [Amin Amax] with Amin <= Amax.');
+    end
+    if ~isempty(Args.FWHMRange) && (numel(Args.FWHMRange) ~= 2 || ...
+            Args.FWHMRange(1) > Args.FWHMRange(2))
+        error('findVisits:BadFWHMRange', ...
+            'FWHMRange must be [Fmin Fmax] with Fmin <= Fmax.');
+    end
 
     UseCoo   = ~isempty(Coo) || ~isempty(Args.RARange) || ~isempty(Args.DecRange);
     UseField = ~isempty(Args.FieldNumber);
     HaveJD   = ~isempty(Args.JDRange) || ~isempty(Args.DateRange);
-    if ~(UseCoo || UseField || HaveJD)
+    UseAir   = ~isempty(Args.AirmassRange);
+    UseFwhm  = ~isempty(Args.FWHMRange);
+    if ~(UseCoo || UseField || HaveJD || UseAir || UseFwhm)
         error('findVisits:NoFilter', ...
             ['Provide at least one filter: Coo, RARange, DecRange, ', ...
-             'FieldNumber, JDRange or DateRange.']);
+             'FieldNumber, JDRange, DateRange, AirmassRange or FWHMRange.']);
     end
+
+    % Default HeaderHDU=1: AIRMASS and FWHM live in the image header (HDU 1)
+    % for both coadd and proc — only the PT_* photometric keys live in the
+    % coadd catalog HDU 3. If the key is missing at HDU 1 we fall back to
+    % HDU 3 below (covers oddball layouts where it got copied there).
+    if isempty(Args.HeaderHDU); Args.HeaderHDU = 1; end
 
     % --- merge DateRange into JDRange (intersection) -------------------
     JDLim = Args.JDRange(:).';
@@ -230,7 +304,7 @@ function Result = findVisits(DataPath, Args)
         if Args.Verbose
             fprintf('findVisits: no LAST files matching the filter under %s\n', DataPath);
         end
-        Result = i_emptyResult();
+        Result = i_emptyResult(UseAir, UseFwhm);
         return;
     end
 
@@ -256,11 +330,67 @@ function Result = findVisits(DataPath, Args)
             fprintf('findVisits: 0 of %d visit dir(s) match the filters.\n', ...
                 numel(VisitDirs));
         end
-        Result = i_emptyResult();
+        Result = i_emptyResult(UseAir, UseFwhm);
         return;
     end
 
     Idx = find(Keep);
+
+    % --- Optional AIRMASS / FWHM filter (opens one FITS per candidate) --
+    Airmass = [];
+    FWHM    = [];
+    if UseAir || UseFwhm
+        Airmass = nan(numel(Idx), 1);
+        FWHM    = nan(numel(Idx), 1);
+        % Primary HDU + fallback (HDU 3) for the coadd oddball case where
+        % the key was copied into the catalog table header.
+        HdusToTry = unique([Args.HeaderHDU, 3], 'stable');
+        for J = 1:numel(Idx)
+            Done = false;
+            for Ih = 1:numel(HdusToTry)
+                if Done; continue; end
+                H = HdusToTry(Ih);
+                AH = [];
+                try
+                    AH = AstroHeader(PeekFiles{Idx(J)}, H);
+                catch
+                end
+                if ~isempty(AH)
+                    if UseAir && isnan(Airmass(J))
+                        V = AH.getVal(Args.AirmassKey);
+                        if isnumeric(V) && isscalar(V); Airmass(J) = double(V); end
+                    end
+                    if UseFwhm && isnan(FWHM(J))
+                        V = AH.getVal(Args.FWHMKey);
+                        if isnumeric(V) && isscalar(V); FWHM(J) = double(V); end
+                    end
+                end
+                Done = (~UseAir || ~isnan(Airmass(J))) && ...
+                       (~UseFwhm || ~isnan(FWHM(J)));
+            end
+        end
+        KeepMore = true(numel(Idx), 1);
+        if UseAir
+            KeepMore = KeepMore & Airmass >= Args.AirmassRange(1) & ...
+                                  Airmass <= Args.AirmassRange(2);
+        end
+        if UseFwhm
+            KeepMore = KeepMore & FWHM >= Args.FWHMRange(1) & ...
+                                  FWHM <= Args.FWHMRange(2);
+        end
+        if Args.Verbose
+            fprintf('findVisits: AIRMASS/FWHM filter kept %d of %d\n', ...
+                sum(KeepMore), numel(Idx));
+        end
+        Idx     = Idx(KeepMore);
+        Airmass = Airmass(KeepMore);
+        FWHM    = FWHM(KeepMore);
+        if isempty(Idx)
+            Result = i_emptyResult(UseAir, UseFwhm);
+            return;
+        end
+    end
+
     FieldRA  = nan(numel(Idx), 1);
     FieldDec = nan(numel(Idx), 1);
     if HaveFT
@@ -268,11 +398,12 @@ function Result = findVisits(DataPath, Args)
         FieldRA(InFT)  = FT.RA(FieldNo(Idx(InFT)));
         FieldDec(InFT) = FT.Dec(FieldNo(Idx(InFT)));
     end
-    Result = table( ...
-        string(VisitDirs(Idx)), FieldNo(Idx), FieldRA, FieldDec, ...
-        ProjN(Idx),             JD(Idx), ...
-        'VariableNames', ...
-        {'VisitPath','FieldNumber','FieldRA','FieldDec','ProjName','JD'});
+    Vars = {'VisitPath','FieldNumber','FieldRA','FieldDec','ProjName','JD'};
+    Cols = {string(VisitDirs(Idx)), FieldNo(Idx), FieldRA, FieldDec, ...
+            ProjN(Idx),             JD(Idx)};
+    if UseAir;  Vars{end+1} = 'AIRMASS'; Cols{end+1} = Airmass; end
+    if UseFwhm; Vars{end+1} = 'FWHM';    Cols{end+1} = FWHM;    end
+    Result = table(Cols{:}, 'VariableNames', Vars);
     Result = sortrows(Result, {'FieldNumber','JD'});
 
     if Args.Verbose
@@ -409,10 +540,15 @@ function Q = i_shellQuote(P)
 end
 
 % =========================================================================
-function T = i_emptyResult()
-    % Zero-row Result table with the documented column types.
-    T = table('Size', [0 6], ...
-        'VariableTypes', {'string','double','double','double','string','double'}, ...
-        'VariableNames', {'VisitPath','FieldNumber','FieldRA','FieldDec', ...
-                          'ProjName','JD'});
+function T = i_emptyResult(HasAir, HasFwhm)
+    % Zero-row Result table with the documented column types. AIRMASS and
+    % FWHM columns are appended when the corresponding filter was used.
+    if nargin < 1; HasAir  = false; end
+    if nargin < 2; HasFwhm = false; end
+    Vars  = {'VisitPath','FieldNumber','FieldRA','FieldDec','ProjName','JD'};
+    Types = {'string','double','double','double','string','double'};
+    if HasAir;  Vars{end+1} = 'AIRMASS'; Types{end+1} = 'double'; end
+    if HasFwhm; Vars{end+1} = 'FWHM';    Types{end+1} = 'double'; end
+    T = table('Size', [0 numel(Vars)], ...
+              'VariableTypes', Types, 'VariableNames', Vars);
 end

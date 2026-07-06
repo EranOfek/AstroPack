@@ -2277,6 +2277,15 @@ classdef CompositeFun < handle
                 Args.ExpTime = 20                     % Exposure time [s]
                 Args.Aperture_area_m2 = pi * (0.1397)^2  % LAST aperture [m^2]
                 Args.PerSourceZenithAngles = []        % Per-source zenith angles [N_obs x 1]
+                % Per-source FIXED atmospheric parameters. Each is a vector
+                % of length N_obs. Overrides the corresponding column of
+                % the broadcast PerSourceParams matrix. Meant for cases
+                % where atmospheric parameters are derived from per-source
+                % airmass via a lookup (e.g. astro.transmission.
+                % atmParFromAirmass) and held FIXED during the fit.
+                Args.PerSourcePWV_cm       = []
+                Args.PerSourceTauAod500    = []
+                Args.PerSourceCenter_Ang   = []
                 Args.CostType = 'sse'                 % Cost function type
                 Args.ValInp logical = true
                 Args.Verbose logical = false
@@ -2423,13 +2432,42 @@ classdef CompositeFun < handle
                     return;
                 end
 
-                % Evaluate model
-                if ~isempty(Args.PerSourceZenithAngles)
-                    % Per-source airmass mode: build per-source parameter matrix
+                % Per-source parameter mode: builds a [NCalUsed x Nparams]
+                % matrix broadcast from the scalar TransParams, then
+                % overwrites individual columns from the per-source
+                % vectors that were supplied. Any combination of the
+                % per-source args triggers the per-source path.
+                UsePerSource = ~isempty(Args.PerSourceZenithAngles) || ...
+                               ~isempty(Args.PerSourcePWV_cm)       || ...
+                               ~isempty(Args.PerSourceTauAod500)    || ...
+                               ~isempty(Args.PerSourceCenter_Ang);
+                if UsePerSource
                     AllNames = Obj.namesAllFunPar();
-                    ZenithIdx = find(strcmp(AllNames, 'ZenithAngle_deg'));
                     PerSourceParams = repmat(TransParams(:)', NCalUsed, 1);
-                    PerSourceParams(:, ZenithIdx) = Args.PerSourceZenithAngles(:);
+                    if ~isempty(Args.PerSourceZenithAngles)
+                        Idx = find(strcmp(AllNames, 'ZenithAngle_deg'), 1);
+                        if ~isempty(Idx)
+                            PerSourceParams(:, Idx) = Args.PerSourceZenithAngles(:);
+                        end
+                    end
+                    if ~isempty(Args.PerSourcePWV_cm)
+                        Idx = find(strcmp(AllNames, 'PWV_cm'), 1);
+                        if ~isempty(Idx)
+                            PerSourceParams(:, Idx) = Args.PerSourcePWV_cm(:);
+                        end
+                    end
+                    if ~isempty(Args.PerSourceTauAod500)
+                        Idx = find(strcmp(AllNames, 'TauAod500'), 1);
+                        if ~isempty(Idx)
+                            PerSourceParams(:, Idx) = Args.PerSourceTauAod500(:);
+                        end
+                    end
+                    if ~isempty(Args.PerSourceCenter_Ang)
+                        Idx = find(strcmp(AllNames, 'Center_Ang'), 1);
+                        if ~isempty(Idx)
+                            PerSourceParams(:, Idx) = Args.PerSourceCenter_Ang(:);
+                        end
+                    end
 
                     % evaluateAllFunParInput returns [N_input x NCalUsed]
                     ModelOutput = Obj.evaluateAllFunParInput(InputValues, PerSourceParams);
@@ -2938,10 +2976,15 @@ classdef CompositeFun < handle
                 Args.OptimizationSequence = Obj.OptSeq;  % Use stored sequence
             end
 
-            % Only call fitMultiStage if there are multiple stages (>1)
-            % Single-stage sequences run as regular single-stage fits
-            if ~isempty(Args.OptimizationSequence) && length(Args.OptimizationSequence) > 1
-                % Multi-stage optimization mode
+            % Call fitMultiStage for either shape of OptSeq:
+            %   * Legacy stage-array: numel(OptSeq) > 1
+            %   * Recipe: scalar struct with .Stages (numel==1 as MATLAB
+            %     struct, so the old length()>1 gate silently skipped it).
+            OptSeq_    = Args.OptimizationSequence;
+            IsRecipe_  = ~isempty(OptSeq_) && isscalar(OptSeq_) && ...
+                         isstruct(OptSeq_) && isfield(OptSeq_, 'Stages');
+            IsLegacyN_ = ~isempty(OptSeq_) && length(OptSeq_) > 1;
+            if IsRecipe_ || IsLegacyN_
                 [Obj, FitResult] = fitMultiStage(Obj, InputValues, ObservedValues, Args);
                 return;
             end
@@ -3019,6 +3062,43 @@ classdef CompositeFun < handle
 
             if Args.FitTransmission
                 if isempty(Args.FreeParamIndices)
+                    % Honour Args.OptimizationSequence.FreeParams when the
+                    % caller supplied a single-stage OptSeq. Mirrors what
+                    % fitMultiStage does for the general nonlinear stage
+                    % (reset all FitPar to false, then set true only for
+                    % the {Function, Parameter} pairs the stage lists).
+                    % Without this, single-stage OptSeqs would fall
+                    % through to the "no FitPar set -> fit ALL" fallback
+                    % below, effectively unconstraining PWV/AOD/Tran2D
+                    % even when the stage FreeParams listed just Norm+Center.
+                    if ~isempty(Args.OptimizationSequence) && ...
+                            isscalar(Args.OptimizationSequence) && ...
+                            isstruct(Args.OptimizationSequence) && ...
+                            isfield(Args.OptimizationSequence, 'FreeParams') && ...
+                            isstruct(Args.OptimizationSequence.FreeParams)
+                        AllFunParTmp = Obj.getAllFunPar();
+                        AllFunParTmp.FitPar(:) = false;
+                        FP = Args.OptimizationSequence.FreeParams;
+                        for Ifp = 1:numel(FP)
+                            ParName = FP(Ifp).Parameter;
+                            IdxFP   = find(strcmp(AllFunParTmp.Name, ParName), 1);
+                            if isempty(IdxFP)
+                                Obj.addStatus('fitPar', 'error', sprintf( ...
+                                    'Parameter "%s" (function "%s") not found in model', ...
+                                    ParName, FP(Ifp).Function), ...
+                                    'CompositeFun:fitPar:ParameterNotFound');
+                            else
+                                AllFunParTmp.FitPar(IdxFP) = true;
+                            end
+                        end
+                        Obj.setAllFunPar(AllFunParTmp);
+                        % Mirror fitMultiStage's general-nonlinear stage:
+                        % when the OptSeq lists transmission FreeParams,
+                        % Tran2D coefficients are held fixed for this fit.
+                        % Without this, fitPar's Args.FitPosition=true
+                        % default would still fit ParX/ParY silently.
+                        Args.FitPosition = false;
+                    end
                     % Use FitPar flags from model
                     AllFunPar = Obj.getAllFunPar();
                     FreeParamIndices = find(AllFunPar.FitPar);
@@ -3069,9 +3149,10 @@ classdef CompositeFun < handle
             % Caller (fitMultiStage) translates the local frame to the global
             % SourceData frame when assembling per-snap catalogs.
             IterSnapshots = repmat(struct( ...
+                'StageIndex', 1, 'StageName', '', 'OuterIter', 1, ...
                 'IterIndex', 0, 'KeepMask', [], 'Residuals', [], ...
                 'PredictedFlux', [], 'MagErr', [], 'NumClipped', 0, ...
-                'NumRemaining', 0, 'RMS', NaN), 1, 0);
+                'NumRemaining', 0, 'RMS', NaN, 'Scatter', NaN), 1, 0);
             PrevNumClipped = 0;  % cumulative # clipped at start of each iter
 
             % Rolling buffers (length NCalUsedInitial). Each entry holds
@@ -3084,6 +3165,45 @@ classdef CompositeFun < handle
                 AllResid    = nan(NCalUsedInitial, 1);
                 AllPredFlux = nan(NCalUsedInitial, 1);
                 AllMagErr   = nan(NCalUsedInitial, 1);
+
+                % Pre-fit snapshot (IterIndex=0). Residuals evaluated with
+                % the model's CURRENT parameter values - i.e. the state on
+                % entry to fitPar, before any optimisation runs. Useful as
+                % a baseline for RMS/residual reduction diagnostics.
+                if ~isempty(CurrentX)
+                    [~, ~, InitPredFlux, InitResid, InitMagErr] = Obj.costFun( ...
+                        InputValues, CurrentObs, Args.CostArgs{:}, ...
+                        'X', CurrentX, 'Y', CurrentY);
+                else
+                    [~, ~, InitPredFlux, InitResid, InitMagErr] = Obj.costFun( ...
+                        InputValues, CurrentObs, Args.CostArgs{:});
+                end
+                AllResid(CurrentIndices)    = InitResid(:);
+                AllPredFlux(CurrentIndices) = InitPredFlux(:);
+                if ~isempty(InitMagErr)
+                    AllMagErr(CurrentIndices) = InitMagErr(:);
+                end
+                SnapStageName0 = '';
+                if ~isempty(Args.OptimizationSequence) && ...
+                        isscalar(Args.OptimizationSequence) && ...
+                        isstruct(Args.OptimizationSequence) && ...
+                        isfield(Args.OptimizationSequence, 'StageName')
+                    SnapStageName0 = Args.OptimizationSequence.StageName;
+                end
+                Snap0 = struct( ...
+                    'StageIndex',    1, ...
+                    'StageName',     SnapStageName0, ...
+                    'OuterIter',     1, ...
+                    'IterIndex',     0, ...
+                    'KeepMask',      KeepMask, ...
+                    'Residuals',     AllResid, ...
+                    'PredictedFlux', AllPredFlux, ...
+                    'MagErr',        AllMagErr, ...
+                    'NumClipped',    0, ...
+                    'NumRemaining',  sum(KeepMask), ...
+                    'RMS',           sqrt(mean(InitResid.^2)), ...
+                    'Scatter',       std(InitResid));
+                IterSnapshots(end+1) = Snap0;   %#ok<AGROW>
             end
 
             for Iter = 1:NumIterations
@@ -3178,10 +3298,7 @@ classdef CompositeFun < handle
                             if ~isempty(Idx) && ~isempty(Args.CostArgs{2*Idx})
                                 Args.CostArgs{2*Idx} = Args.CostArgs{2*Idx}(:, IterKeepMask);
                             end
-                            Idx = find(strcmp(Args.CostArgs(1:2:end), 'PerSourceZenithAngles'));
-                            if ~isempty(Idx) && ~isempty(Args.CostArgs{2*Idx})
-                                Args.CostArgs{2*Idx} = Args.CostArgs{2*Idx}(IterKeepMask);
-                            end
+                            Args.CostArgs = slicePerSourceAtm(Args.CostArgs, IterKeepMask);
 
                             if Args.Verbose
                                 fprintf('Removed %d outliers, %d observations remaining\n', ...
@@ -3312,7 +3429,23 @@ classdef CompositeFun < handle
                                 AllMagErr(CurrentIndices) = MagErr(:);
                             end
                             TotalClippedNow = NCalUsedInitial - sum(KeepMask);
+                            % Stage identity metadata. In multi-stage runs
+                            % fitMultiStage stamps StageIndex / StageName /
+                            % OuterIter on the outgoing snap; single-stage
+                            % fitPar callers get sensible defaults here so
+                            % downstream (PhotCalibTrans.calibrate) can
+                            % treat both paths uniformly.
+                            SnapStageName = '';
+                            if ~isempty(Args.OptimizationSequence) && ...
+                                    isscalar(Args.OptimizationSequence) && ...
+                                    isstruct(Args.OptimizationSequence) && ...
+                                    isfield(Args.OptimizationSequence, 'StageName')
+                                SnapStageName = Args.OptimizationSequence.StageName;
+                            end
                             Snap = struct();
+                            Snap.StageIndex    = 1;
+                            Snap.StageName     = SnapStageName;
+                            Snap.OuterIter     = 1;
                             Snap.IterIndex     = Iter;
                             Snap.KeepMask      = KeepMask;
                             Snap.Residuals     = AllResid;
@@ -3321,6 +3454,7 @@ classdef CompositeFun < handle
                             Snap.NumClipped    = TotalClippedNow - PrevNumClipped;  % this-iter clips
                             Snap.NumRemaining  = sum(KeepMask);
                             Snap.RMS           = StageRMS;
+                            Snap.Scatter       = std(UnweightedResiduals);
                             IterSnapshots(end+1) = Snap;   %#ok<AGROW>
                             PrevNumClipped = TotalClippedNow;
                         end
@@ -3611,8 +3745,13 @@ classdef CompositeFun < handle
             %    SourceData snapshots.
             % Author : D. Kovaleva (Nov 2025)
 
-            % Use stored Obj.OptSeq directly (already set by fitPar)
-            Stages = Obj.OptSeq;
+            % Use stored Obj.OptSeq directly (already set by fitPar). It may
+            % be a legacy struct array of stages OR a Recipe-shaped scalar
+            % struct with fields .Stages, .NumRepeats, .IterOverrides. The
+            % normaliser below unifies them into (Stages, NumRepeats,
+            % IterOverrides) so the rest of the loop is shape-agnostic.
+            [Stages, RecipeNumRepeats, RecipeIterOverrides, IsLegacyShape] = ...
+                fitMultiStage_normaliseRecipe(Obj.OptSeq, Args);
             NumStages = length(Stages);
 
             % Initialize results array
@@ -3680,30 +3819,9 @@ classdef CompositeFun < handle
             % after the outer loop so callers (e.g. plotFitQuality) can show
             % stage evolution across outer clip iterations.
             AllOuterStages = [];
-            if Args.OuterSigmaClip
-                NumOuterIter = max(1, Args.OuterMaxIter);
-            else
-                NumOuterIter = 1;
-            end
-
-            % Per-outer-iter weighting toggle. Strict length match required.
-            % An entry == false means: wipe PrecomputedMagErr to [] for that
-            % iter so every stage runs unweighted (costFun and the JOINT_FC /
-            % nonlinear stage handlers all treat empty PrecomputedMagErr as
-            % the unweighted branch). On a true entry, leave CurrentCostArgs
-            % alone -- iter 1 keeps the full precomputed vector that came in
-            % via Args.CostArgs; iter >= 2 has already been re-subset above.
-            if ~isempty(Args.WeightedOuterIters)
-                if ~islogical(Args.WeightedOuterIters)
-                    Args.WeightedOuterIters = logical(Args.WeightedOuterIters);
-                end
-                if numel(Args.WeightedOuterIters) ~= NumOuterIter
-                    error('CompositeFun:fitMultiStage:WeightedOuterItersLength', ...
-                        ['WeightedOuterIters has length %d but OuterMaxIter=%d ', ...
-                         '(expected one logical entry per outer iteration).'], ...
-                        numel(Args.WeightedOuterIters), NumOuterIter);
-                end
-            end
+            % Iteration count comes from the normalised Recipe (legacy
+            % OuterMaxIter / OuterSigmaClip path or Recipe.NumRepeats path).
+            NumOuterIter = RecipeNumRepeats;
 
             for OuterIter = 1:NumOuterIter
                 if OuterIter > 1
@@ -3727,30 +3845,29 @@ classdef CompositeFun < handle
                     if ~isempty(Idx) && ~isempty(CurrentCostArgs{2*Idx})
                         CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(:, GlobalKeepMask);
                     end
-                    Idx = find(strcmp(CurrentCostArgs(1:2:end), 'PerSourceZenithAngles'));
-                    if ~isempty(Idx) && ~isempty(CurrentCostArgs{2*Idx})
-                        CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(GlobalKeepMask);
-                    end
+                    CurrentCostArgs = slicePerSourceAtm(CurrentCostArgs, GlobalKeepMask);
                     % Reset per-stage results for this fresh outer iteration.
                     FitResult = struct('StageName', {}, 'Method', {}, 'Cost', {}, 'RMS', {}, ...
                                        'Residuals', {}, 'NCalUsed', {}, 'NumClipped', {}, 'KeepMask', {}, ...
                                        'IsFieldCorrection', {}, 'Chi2', {}, 'DOF', {});
                 end
 
-                % Per-outer-iter unweighted override: wipe PrecomputedMagErr
-                % to [] before any stage runs in this iteration. Stage handlers
-                % treat empty MagErr as uniform weights (verified in costFun
-                % and the JOINT_FC / non-linear stage branches). A true entry
-                % leaves CurrentCostArgs alone (its PrecomputedMagErr is the
-                % full vector at iter 1, or already subset by GlobalKeepMask
-                % at iter >= 2).
-                if ~isempty(Args.WeightedOuterIters) && ~Args.WeightedOuterIters(OuterIter)
+                % Per-outer-iter weighting override (driven by Recipe). When
+                % IterOverrides(OuterIter).WeightingMode == 'none', wipe
+                % PrecomputedMagErr to [] so every stage runs unweighted.
+                % Stage handlers treat empty MagErr as uniform weights
+                % (verified in costFun and the JOINT_FC / non-linear stage
+                % branches). Any other WeightingMode leaves CurrentCostArgs
+                % alone.
+                CurOverride = RecipeIterOverrides(OuterIter);
+                if isfield(CurOverride, 'WeightingMode') && ...
+                        strcmpi(CurOverride.WeightingMode, 'none')
                     Idx = find(strcmp(CurrentCostArgs(1:2:end), 'PrecomputedMagErr'));
                     if ~isempty(Idx)
                         CurrentCostArgs{2*Idx} = [];
                     end
                     if Args.Verbose
-                        fprintf('  [WeightedOuterIters] OuterIter %d: weights disabled (uniform)\n', OuterIter);
+                        fprintf('  [Recipe iter %d] WeightingMode=''none'' -> uniform weights\n', OuterIter);
                     end
                 end
 
@@ -3857,7 +3974,7 @@ classdef CompositeFun < handle
                     LocalIterSnapshots = repmat(struct( ...
                         'IterIndex', 0, 'KeepMask', [], 'Residuals', [], ...
                         'PredictedFlux', [], 'MagErr', [], 'NumClipped', 0, ...
-                        'NumRemaining', 0, 'RMS', NaN), 1, 0);
+                        'NumRemaining', 0, 'RMS', NaN, 'Scatter', NaN), 1, 0);
                     LocalPrevClipped = 0;
 
                     % Rolling buffers (length stage-entry count).
@@ -3954,10 +4071,7 @@ classdef CompositeFun < handle
                                     if ~isempty(Idx) && ~isempty(CurrentCostArgsNorm{2*Idx})
                                         CurrentCostArgsNorm{2*Idx} = CurrentCostArgsNorm{2*Idx}(:, CurrentKeep);
                                     end
-                                    Idx = find(strcmp(CurrentCostArgsNorm(1:2:end), 'PerSourceZenithAngles'));
-                                    if ~isempty(Idx) && ~isempty(CurrentCostArgsNorm{2*Idx})
-                                        CurrentCostArgsNorm{2*Idx} = CurrentCostArgsNorm{2*Idx}(CurrentKeep);
-                                    end
+                                    CurrentCostArgsNorm = slicePerSourceAtm(CurrentCostArgsNorm, CurrentKeep);
 
                                     if Args.Verbose
                                         fprintf('  Clipped %d outliers (%.1f sigma)\n', NumOutliers, SigmaThresh);
@@ -4028,6 +4142,7 @@ classdef CompositeFun < handle
                                     Snap.NumClipped    = TotalClippedNow - LocalPrevClipped;
                                     Snap.NumRemaining  = sum(KeepMaskNorm);
                                     Snap.RMS           = std(Residuals);
+                                    Snap.Scatter       = std(Residuals);
                                     LocalIterSnapshots(end+1) = Snap;   %#ok<AGROW>
                                     LocalPrevClipped = TotalClippedNow;
                                 end
@@ -4132,7 +4247,7 @@ classdef CompositeFun < handle
                         LocalIterSnapshots = repmat(struct( ...
                             'IterIndex', 0, 'KeepMask', [], 'Residuals', [], ...
                             'PredictedFlux', [], 'MagErr', [], 'NumClipped', 0, ...
-                            'NumRemaining', 0, 'RMS', NaN), 1, 0);
+                            'NumRemaining', 0, 'RMS', NaN, 'Scatter', NaN), 1, 0);
                         LocalPrevClipped = 0;
 
                         % Rolling buffers, length stage-entry. Discarded
@@ -4155,9 +4270,36 @@ classdef CompositeFun < handle
                                 Obj.Tran2DObj.ParX = zeros(1, Nparams);
 
                                 % BaseResiduals = mag residuals with Norm=1, ParX=0
-                                [~, ~, ~, BaseResidualsJ, BaseMagErrJ] = Obj.costFun(...
+                                [~, ~, BasePredFluxJ, BaseResidualsJ, BaseMagErrJ] = Obj.costFun(...
                                     InputValues, LocalObs, LocalCostArgs{:}, ...
                                     'X', LocalX, 'Y', LocalY);
+
+                                % Pre-fit snapshot on the first inner iter
+                                % only (IterIndex=0). Captures the JOINT_FC
+                                % stage-entry state (Norm=1, ParX=0) so a
+                                % caller can see the residual reduction the
+                                % joint LS achieves. Skipped on subsequent
+                                % inner iters because they only see clipped
+                                % survivors, not the stage-entry population.
+                                if Args.CollectCalibTrajectory && IterClip == 0
+                                    SurvIdx0 = find(LocalKeepMask);
+                                    AllResidStage(SurvIdx0)    = BaseResidualsJ(:);
+                                    AllPredFluxStage(SurvIdx0) = BasePredFluxJ(:);
+                                    if ~isempty(BaseMagErrJ)
+                                        AllMagErrStage(SurvIdx0) = BaseMagErrJ(:);
+                                    end
+                                    Snap0 = struct();
+                                    Snap0.IterIndex     = 0;
+                                    Snap0.KeepMask      = LocalKeepMask;
+                                    Snap0.Residuals     = AllResidStage;
+                                    Snap0.PredictedFlux = AllPredFluxStage;
+                                    Snap0.MagErr        = AllMagErrStage;
+                                    Snap0.NumClipped    = 0;
+                                    Snap0.NumRemaining  = sum(LocalKeepMask);
+                                    Snap0.RMS           = sqrt(mean(BaseResidualsJ.^2));
+                                    Snap0.Scatter       = std(BaseResidualsJ);
+                                    LocalIterSnapshots(end+1) = Snap0;   %#ok<AGROW>
+                                end
 
                                 % Linear LS for all 10 ParX coefficients
                                 if ~isempty(BaseMagErrJ) && all(BaseMagErrJ > 0)
@@ -4173,15 +4315,55 @@ classdef CompositeFun < handle
                                         'Verbose', false);
                                 end
 
-                                % Apply Tran2D(0,0) = 0 split
-                                Xc = Obj.Tran2DObj.ParNX(1);
-                                Yc = Obj.Tran2DObj.ParNY(1);
-                                [DeltaJ, ~] = Obj.Tran2DObj.forward([Xc, Yc]);
-                                Obj.Tran2DObj.ParX(1) = Obj.Tran2DObj.ParX(1) - DeltaJ;
-
-                                AllFunParJ = Obj.getAllFunPar();
-                                AllFunParJ.Val(NormIdxJ) = 10^(-DeltaJ / 2.5);
-                                Obj.setAllFunPar(AllFunParJ);
+                                % Norm/Tran2D split. Stage.Tran2DSplit picks:
+                                %   'center' (default) - Tran2D(0,0) = 0 at
+                                %                        the field centre. kx0
+                                %                        shifted by that value,
+                                %                        Norm compensated by
+                                %                        10^(-Delta/2.5). Legacy.
+                                %   'mean'             - mean(Tran2D at calibrators) = 0.
+                                %                        Mirrors LAST_NormLin's
+                                %                        implicit Normalization_Refined.
+                                %   'median'           - robust variant of 'mean'.
+                                %   'none'             - NO split. kx0 keeps the DC
+                                %                        the LS solver put there;
+                                %                        Norm stays at 1 (as set at
+                                %                        the top of this iter). Use
+                                %                        when the Recipe treats kx0
+                                %                        as *the* zero-point handle
+                                %                        and never fits Norm separately.
+                                % isfield-guarded so any Recipe that doesn't
+                                % declare the field defaults to 'center'.
+                                if isfield(Stages(IStage), 'Tran2DSplit') && ...
+                                        ~isempty(Stages(IStage).Tran2DSplit)
+                                    SplitMode = lower(Stages(IStage).Tran2DSplit);
+                                else
+                                    SplitMode = 'center';
+                                end
+                                switch SplitMode
+                                    case 'center'
+                                        Xc = Obj.Tran2DObj.ParNX(1);
+                                        Yc = Obj.Tran2DObj.ParNY(1);
+                                        [DeltaJ, ~] = Obj.Tran2DObj.forward([Xc, Yc]);
+                                    case 'mean'
+                                        [T2Dvals, ~] = Obj.Tran2DObj.forward([LocalX, LocalY]);
+                                        DeltaJ = mean(T2Dvals);
+                                    case 'median'
+                                        [T2Dvals, ~] = Obj.Tran2DObj.forward([LocalX, LocalY]);
+                                        DeltaJ = median(T2Dvals);
+                                    case 'none'
+                                        DeltaJ = 0;
+                                    otherwise
+                                        error('CompositeFun:JOINT_FC:BadSplit', ...
+                                            'Stage.Tran2DSplit must be ''center'', ''mean'', ''median'', or ''none'' (got ''%s'')', ...
+                                            SplitMode);
+                                end
+                                if ~strcmp(SplitMode, 'none')
+                                    Obj.Tran2DObj.ParX(1) = Obj.Tran2DObj.ParX(1) - DeltaJ;
+                                    AllFunParJ = Obj.getAllFunPar();
+                                    AllFunParJ.Val(NormIdxJ) = 10^(-DeltaJ / 2.5);
+                                    Obj.setAllFunPar(AllFunParJ);
+                                end
 
                                 % Final residuals on the current local set
                                 [WeightedResJ, CostJ, PredFluxJ, ResidualsJ, MagErrJ] = Obj.costFun(...
@@ -4209,6 +4391,7 @@ classdef CompositeFun < handle
                                     Snap.NumClipped    = TotalClippedNow - LocalPrevClipped;
                                     Snap.NumRemaining  = sum(LocalKeepMask);
                                     Snap.RMS           = sqrt(mean(ResidualsJ.^2));
+                                    Snap.Scatter       = std(ResidualsJ);
                                     LocalIterSnapshots(end+1) = Snap;   %#ok<AGROW>
                                     LocalPrevClipped = TotalClippedNow;
                                 end
@@ -4249,10 +4432,7 @@ classdef CompositeFun < handle
                                             if ~isempty(Idx) && ~isempty(LocalCostArgs{2*Idx})
                                                 LocalCostArgs{2*Idx} = LocalCostArgs{2*Idx}(:, KeepLocal);
                                             end
-                                            Idx = find(strcmp(LocalCostArgs(1:2:end), 'PerSourceZenithAngles'));
-                                            if ~isempty(Idx) && ~isempty(LocalCostArgs{2*Idx})
-                                                LocalCostArgs{2*Idx} = LocalCostArgs{2*Idx}(KeepLocal);
-                                            end
+                                            LocalCostArgs = slicePerSourceAtm(LocalCostArgs, KeepLocal);
                                             if Args.Verbose
                                                 fprintf('  Inner sigma clip iter %d: %d outliers dropped (%.1f sigma)\n', ...
                                                     IterClip+1, NewOutliers, SigmaThresh);
@@ -4365,7 +4545,7 @@ classdef CompositeFun < handle
                         LocalIterSnapshots = repmat(struct( ...
                             'IterIndex', 0, 'KeepMask', [], 'Residuals', [], ...
                             'PredictedFlux', [], 'MagErr', [], 'NumClipped', 0, ...
-                            'NumRemaining', 0, 'RMS', NaN), 1, 0);
+                            'NumRemaining', 0, 'RMS', NaN, 'Scatter', NaN), 1, 0);
                         LocalPrevClipped = 0;
 
                         % Rolling buffers, length stage-entry. Discarded
@@ -4419,6 +4599,7 @@ classdef CompositeFun < handle
                                     Snap.NumClipped    = TotalClippedNow - LocalPrevClipped;
                                     Snap.NumRemaining  = sum(LocalKeepMask);
                                     Snap.RMS           = sqrt(mean(ResidualsN.^2));
+                                    Snap.Scatter       = std(ResidualsN);
                                     LocalIterSnapshots(end+1) = Snap;   %#ok<AGROW>
                                     LocalPrevClipped = TotalClippedNow;
                                 end
@@ -4600,10 +4781,7 @@ classdef CompositeFun < handle
                     if ~isempty(Idx) && ~isempty(CurrentCostArgs{2*Idx})
                         CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(:, StageKeepMask);
                     end
-                    Idx = find(strcmp(CurrentCostArgs(1:2:end), 'PerSourceZenithAngles'));
-                    if ~isempty(Idx) && ~isempty(CurrentCostArgs{2*Idx})
-                        CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(StageKeepMask);
-                    end
+                    CurrentCostArgs = slicePerSourceAtm(CurrentCostArgs, StageKeepMask);
                 end
 
                 % Store stage results (after updating GlobalKeepMask)
@@ -4676,21 +4854,41 @@ classdef CompositeFun < handle
                     end
                 end
 
-                % --- Outer sigma clip on final stage residuals ---
-                if ~Args.OuterSigmaClip
-                    break
+                % --- Per-iter sigma clip on final stage residuals (Recipe) ---
+                % Driven by IterOverrides(OuterIter).PostIterClipSigma (NaN/[]
+                % => no clip this iter). Method / StdFunc come from the same
+                % override. Legacy callers (without a Recipe) have a Recipe
+                % built for them by fitMultiStage_normaliseRecipe from
+                % OuterSigmaClip / OuterSigmaThresh / OuterStdFunc, so behavior
+                % for them is preserved exactly.
+                ClipSigma  = NaN;
+                ClipMethod = 'median';
+                ClipStdFunc = 'mad_std';
+                if isfield(CurOverride,'PostIterClipSigma')
+                    ClipSigma = CurOverride.PostIterClipSigma;
+                end
+                if isfield(CurOverride,'PostIterClipMethod') && ~isempty(CurOverride.PostIterClipMethod)
+                    ClipMethod = CurOverride.PostIterClipMethod;
+                end
+                if isfield(CurOverride,'PostIterClipStdFunc') && ~isempty(CurOverride.PostIterClipStdFunc)
+                    ClipStdFunc = CurOverride.PostIterClipStdFunc;
+                end
+                if ~isfinite(ClipSigma) || ClipSigma <= 0
+                    if IsLegacyShape && OuterIter == NumOuterIter
+                        break
+                    end
+                    continue
                 end
                 if isempty(FitResult) || isempty(FitResult(end).Residuals)
                     break
                 end
                 FinalResiduals = FitResult(end).Residuals;
                 [OuterOutMask, ~] = tools.math.stat.sigmaClip(FinalResiduals, ...
-                    Args.OuterSigmaThresh, 'Method', 'median', ...
-                    'StdFunc', Args.OuterStdFunc);
+                    ClipSigma, 'Method', ClipMethod, 'StdFunc', ClipStdFunc);
                 NewClipped = sum(OuterOutMask);
 
                 PrevTotalClipped = NCalUsedInitial - sum(GlobalKeepMask);
-                Converged = NewClipped < Args.OuterMinNewClipped;
+                Converged = IsLegacyShape && NewClipped < Args.OuterMinNewClipped;
                 OuterClipHistory(end+1) = struct( ...
                     'Iter', OuterIter, ...
                     'RMS', sqrt(mean(FinalResiduals.^2)), ...
@@ -4703,7 +4901,7 @@ classdef CompositeFun < handle
                             OuterIter, OuterClipHistory(end).RMS, NewClipped, Converged);
                 end
 
-                if Converged
+                if IsLegacyShape && Converged
                     break
                 end
 
@@ -4781,8 +4979,116 @@ function CostArgsOut = localDownsampleCostArgs(CostArgsIn, KeepRows)
     if ~isempty(Idx) && ~isempty(CostArgsOut{2*Idx})
         CostArgsOut{2*Idx} = CostArgsOut{2*Idx}(:, KeepRows);
     end
-    Idx = find(strcmp(CostArgsOut(1:2:end), 'PerSourceZenithAngles'));
-    if ~isempty(Idx) && ~isempty(CostArgsOut{2*Idx})
-        CostArgsOut{2*Idx} = CostArgsOut{2*Idx}(KeepRows);
+    CostArgsOut = slicePerSourceAtm(CostArgsOut, KeepRows);
+end
+
+% =====================================================================
+% Slice all per-source atmospheric arg vectors (PerSourceZenithAngles,
+% PerSourcePWV_cm, PerSourceTauAod500, PerSourceCenter_Ang) by the same
+% index / mask. Called at every site where costFun's local calibrator
+% subset shrinks (inner sigma clip, outer clip, stage entry) so the
+% four vectors stay aligned with the survivor set.
+% =====================================================================
+function CA = slicePerSourceAtm(CA, KeepIdx)
+    Names = {'PerSourceZenithAngles', 'PerSourcePWV_cm', ...
+             'PerSourceTauAod500',    'PerSourceCenter_Ang'};
+    for k = 1:numel(Names)
+        Idx = find(strcmp(CA(1:2:end), Names{k}), 1);
+        if ~isempty(Idx) && ~isempty(CA{2*Idx})
+            CA{2*Idx} = CA{2*Idx}(KeepIdx);
+        end
     end
+end
+
+% =====================================================================
+% Recipe normaliser: turn legacy struct-array OptSeq + legacy outer args
+% (OuterMaxIter, OuterSigmaClip, WeightedOuterIters, ...) into a uniform
+% (Stages, NumRepeats, IterOverrides) triple, OR accept a Recipe-shaped
+% scalar struct directly. Recipe + non-default legacy args is a hard error.
+% =====================================================================
+function [Stages, NumRepeats, IterOverrides, IsLegacyShape] = ...
+        fitMultiStage_normaliseRecipe(OptSeqInput, Args)
+    IsRecipe = isscalar(OptSeqInput) && isstruct(OptSeqInput) && ...
+               isfield(OptSeqInput, 'Stages');
+
+    if IsRecipe
+        % Hard-deprecate: reject co-supplied legacy outer args.
+        ConflictMsg = '';
+        if ~isempty(Args.WeightedOuterIters)
+            ConflictMsg = [ConflictMsg, 'WeightedOuterIters '];
+        end
+        if Args.OuterSigmaClip
+            ConflictMsg = [ConflictMsg, 'OuterSigmaClip=true '];
+        end
+        if isfield(Args, 'OuterMaxIter') && Args.OuterMaxIter ~= 5
+            ConflictMsg = [ConflictMsg, 'OuterMaxIter '];
+        end
+        if ~isempty(ConflictMsg)
+            error('CompositeFun:fitMultiStage:LegacyArgsWithRecipe', ...
+                ['Recipe-shaped OptSeq was supplied alongside legacy outer ', ...
+                 'args (%s). Drop the legacy args; the Recipe carries ', ...
+                 'iteration count, weighting, and clipping policy via ', ...
+                 'NumRepeats + IterOverrides.'], strtrim(ConflictMsg));
+        end
+
+        Stages = OptSeqInput.Stages;
+        if isfield(OptSeqInput, 'NumRepeats')
+            NumRepeats = max(1, OptSeqInput.NumRepeats);
+        else
+            NumRepeats = 1;
+        end
+        if isfield(OptSeqInput, 'IterOverrides') && ~isempty(OptSeqInput.IterOverrides)
+            IterOverrides = OptSeqInput.IterOverrides;
+            if numel(IterOverrides) ~= NumRepeats
+                error('CompositeFun:fitMultiStage:IterOverridesLength', ...
+                    'Recipe.IterOverrides has %d entries but NumRepeats=%d.', ...
+                    numel(IterOverrides), NumRepeats);
+            end
+        else
+            IterOverrides = repmat(fitMultiStage_emptyOverride(), 1, NumRepeats);
+        end
+        IsLegacyShape = false;
+    else
+        % Legacy struct-array OptSeq: synthesize a Recipe from outer args.
+        Stages = OptSeqInput;
+        if Args.OuterSigmaClip
+            NumRepeats = max(1, Args.OuterMaxIter);
+        else
+            NumRepeats = 1;
+        end
+        IterOverrides = repmat(fitMultiStage_emptyOverride(), 1, NumRepeats);
+        % WeightedOuterIters: per-iter Weighting toggle
+        if ~isempty(Args.WeightedOuterIters)
+            WOI = logical(Args.WeightedOuterIters);
+            if numel(WOI) ~= NumRepeats
+                error('CompositeFun:fitMultiStage:WeightedOuterItersLength', ...
+                    ['WeightedOuterIters has length %d but expected %d ', ...
+                     '(matches OuterMaxIter when OuterSigmaClip is on, 1 otherwise).'], ...
+                    numel(WOI), NumRepeats);
+            end
+            for K = 1:NumRepeats
+                if ~WOI(K)
+                    IterOverrides(K).WeightingMode = 'none';
+                end
+            end
+        end
+        % OuterSigmaClip => apply clip every iter using OuterSigmaThresh / OuterStdFunc.
+        if Args.OuterSigmaClip
+            for K = 1:NumRepeats
+                IterOverrides(K).PostIterClipSigma  = Args.OuterSigmaThresh;
+                IterOverrides(K).PostIterClipMethod = 'median';
+                IterOverrides(K).PostIterClipStdFunc = Args.OuterStdFunc;
+            end
+        end
+        IsLegacyShape = true;
+    end
+end
+
+function E = fitMultiStage_emptyOverride()
+    % Default per-iter override slot: inherit weighting, no post-iter clip.
+    E = struct('WeightingMode', 'inherit', ...
+               'PostIterClipSigma', NaN, ...
+               'PostIterClipMethod', 'median', ...
+               'PostIterClipStdFunc', 'mad_std', ...
+               'StageOverrides', []);
 end
