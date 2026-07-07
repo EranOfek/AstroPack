@@ -344,7 +344,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % background variations
             MeanBack     = imProc.stat.mean(AllSI);
             %MeanVar      = imProc.stat.mean(AllSI);
-            MeanMeanBack = mean(MeanBack, 2); % mean background over all sub images in each epoch
+            MeanMeanBack = mean(MeanBack, 2, 'omitnan'); % mean background over all sub images in each epoch
             MaxFracGrad  = (max(MeanBack,[],2) - min(MeanBack,[],2))./MeanMeanBack; % max fractional background gradient per epoch
             TableRaw.MaxFracGrad(TableRaw.SelectedImages) = MaxFracGrad;
 
