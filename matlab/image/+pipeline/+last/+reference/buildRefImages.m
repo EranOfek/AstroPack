@@ -146,12 +146,13 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Db.Password = PM.search(Args.PassToken).Pass;
         Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Db.Password);        
         if Args.Write2DB
+            TableColumns = db.util.read_xls2tableFormat(Args.DBTemplate,'Sheet','Images','TableName','ref_images');  
             Db.Password = PM.search(Args.PassTokenRW).Pass;
             Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, 'default', Db.Password); 
             Schema = Args.DB.describe(db.Db.concatDbTable(Args.DbName, Args.OutputRefTable));
         end
     end    
-    TableColumns = db.util.read_xls2tableFormat(Args.DBTemplate,'Sheet','Images','TableName','ref_images');  
+    
 
     SkyPointMode = ~isempty(Args.RA);
     if SkyPointMode
