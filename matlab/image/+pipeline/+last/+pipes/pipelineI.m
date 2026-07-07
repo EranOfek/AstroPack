@@ -154,6 +154,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         end
         RawImageList = {Files.name};
     end
+    RawImageListAll = RawImageList;
 
     %ProcessingStep = 21;
     Nepoch = numel(RawImageList);
@@ -167,7 +168,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
         TableRaw = [TableHeader, TableForDB]; 
         TableRaw.PrePrepOK = true(size(TableRaw,1), 1);
+        
         RawImageList = RawImageList(FlagGoodImages,:);
+        
     catch ME
         Status.PipeI   = false;
         Status.ME      = ME;
@@ -677,7 +680,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             Status.ME      = ME;
                         
 %             TableRaw.FileName   = strings(RawImageList(:));
-            TableRaw.FileName   = RawImageList(:);
+            TableRaw.FileName   = RawImageListAll(:);
             TableRaw.Exception(TableRaw.SelectedImages)  = true(numel(RawImageList), 1); % Exception in this stage will have PrePrepOK = true
 
             % TableRaw is populated!
