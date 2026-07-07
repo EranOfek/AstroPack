@@ -179,7 +179,7 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
     end
 
     if ~isempty(Args.FWHM)
-        Var = Var.*FWHM;
+        Var = Var.*Args.FWHM;
     end
     
     % Not needed:
