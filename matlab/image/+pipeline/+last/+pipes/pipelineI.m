@@ -547,7 +547,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Add catsHTM MergedCat column to Coadd catalogs
             if Args.AddMergedCat && AnyCoaddExist
                 %tic;
-                if isempty(Args.UseParfor)
+                if ~Args.UseParfor
                     Coadd(NotIsEmptyCoadd) = imProc.match.match_catsHTMmerged(Coadd(NotIsEmptyCoadd), 'SameField',false, 'CreateNewObj',false);  % 23 s
                 else
                     PP = gcp('nocreate');
