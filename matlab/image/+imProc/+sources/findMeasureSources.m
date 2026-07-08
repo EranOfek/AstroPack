@@ -152,13 +152,13 @@ function [Result,Streaks] = findMeasureSources(Obj, Args)
     arguments
         Obj AstroImage
         
-        Args.FlagCR logical                = true;
+        Args.FlagCR                        = true;
         Args.maskCR_Args                   = {};
-        Args.FlagDiffXY logical            = true;
+        Args.FlagDiffXY                    = true;
         Args.maskDiffXY_Args               = {};
         Args.MaskType                      = 'uint32';
 
-        Args.RemoveBadSources logical      = false;  % OBSOLETE
+        Args.RemoveBadSources              = false;  % OBSOLETE
         Args.BadBitNames cell              = {};
         
         Args.ReFind(1,1) logical           = true;
