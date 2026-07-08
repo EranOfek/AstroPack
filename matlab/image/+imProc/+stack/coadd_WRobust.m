@@ -179,7 +179,7 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
     end
 
     if ~isempty(Args.FWHM)
-        Var = Var.*FWHM;
+        Var = Var.*Args.FWHM;
     end
     
     % Not needed:
@@ -208,6 +208,7 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
     % measure background and variance
     if Args.AddBack
         Result = imProc.background.backVar(Result, Args.backVarArgs{:}, 'Ncoadd',Args.Ncoadd); %, 'PoissVar',Args.PoissVar', 'Ncoadd',Args.Ncoadd, 'RN2',Args.RN2);
+        %Result.Var = Result.Var.*20./3648;
     end
 
     % coadd mask

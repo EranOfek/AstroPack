@@ -5,6 +5,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %       point (ZP) of the catalog.
     %       If input is an AstroImage, the photometric ZP will be
     %       calculated only if the WCS.Success is true.
+    %   Note that limmag and backmag are no longer written to the header by
+    %   this function.
     % Input  : - An AstroImage or AstroCatalog object.
     %          * ...,key,val,...
     %            'Radius' - Matching radius between the catalog and
@@ -89,7 +91,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %                   Default is [-Inf 50].
     %
     %            'UpdateHeader' - A logical indicating if to update header
-    %                   with {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDW','PH_RMS','PH_NSRC','PH_MAGSY','LIMMAG', 'BACKMAG'};
+    %                   with {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDW','PH_RMS','PH_NSRC','PH_MAGSY'};
     %                   keywords. Applied only for AstroImage input.
     %                   Default is true.
     %
@@ -221,9 +223,9 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     'Flag',cell(Nobj,1),...
                     'RMS',cell(Nobj,1),...
                     'Chi2',cell(Nobj,1),...
-                    'Nsrc',cell(Nobj,1),...
-                    'LimMag',cell(Nobj,1),...
-                    'BackMag',cell(Nobj,1));
+                    'Nsrc',cell(Nobj,1));
+                    %'LimMag',cell(Nobj,1),...
+                    %'BackMag',cell(Nobj,1));
           
     if isempty(Args.IsGoodImage)
         % Read IsGoodImage from WCS
@@ -437,15 +439,15 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                         end
     
                         % estimate limiting magnitude
-                        if isempty(Args.LimMagSN)
-                            ResFit(Iobj).LimMag = NaN;
-                        else
-                            %ParLimMagFit = polyfit(log10(SN), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag, Args.LimMagColor, ResFit(Iobj).MedC, ResFit(Iobj).MedW, ResFit(Iobj).MedW), 1);
-                            % select only positive S/N:
-                            Isn = find(SN>Args.MinSN & SN<Args.MaxSN);
-                            ParLimMagFit = polyfit(log10(SN(Isn)), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag(Isn), Args.LimMagColor, ResFit(Iobj).MedC), 1);
-                            ResFit(Iobj).LimMag = polyval(ParLimMagFit, log10(Args.LimMagSN));
-                        end
+                        %if isempty(Args.LimMagSN)
+                        %    ResFit(Iobj).LimMag = NaN;
+                        %else
+                        %    %ParLimMagFit = polyfit(log10(SN), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag, Args.LimMagColor, ResFit(Iobj).MedC, ResFit(Iobj).MedW, ResFit(Iobj).MedW), 1);
+                        %    % select only positive S/N:
+                        %    Isn = find(SN>Args.MinSN & SN<Args.MaxSN);
+                        %    ParLimMagFit = polyfit(log10(SN(Isn)), ResFit(Iobj).Fun(ResFit(Iobj).Par, CatMag(Isn), Args.LimMagColor, ResFit(Iobj).MedC), 1);
+                        %    ResFit(Iobj).LimMag = polyval(ParLimMagFit, log10(Args.LimMagSN));
+                        %end
     
                         % photometric calibration plot
                         %semilogy(RefMag,[ResFit(Iobj).Fun(ResFit(1).Par, CatMag, Color, ResFit(Iobj).MedC )-RefMag],'.')
@@ -596,25 +598,25 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                 % LIMMAG
                 % BACKMAG
 
-                if Args.AddBackMag
-                    MedBack = fast_median(Result(Iobj).Back(:));   %, 'all', 'omitnan');
-                    if isempty(Args.PixScale)
-                        % try to read pixel scale from WCS
-                        if isa(Obj, 'AstroImage')
-                            PixScale = Obj(Iobj).WCS.getScale('arcsec');
-                        else
-                            error('Can not get pixel scale - either provide it, or use AstroImage with WCS data');
-                        end
-                    else
-                        PixScale = Args.PixScale;
-                    end
-                    ResFit(Iobj).BackMag = ResFit(Iobj).ZP - 2.5.*log10(MedBack) + 5.*log10(PixScale);  % per aecsec^2
-                else
-                    ResFit(Iobj).BackMag = NaN;
-                end
+                % if Args.AddBackMag
+                %     MedBack = fast_median(Result(Iobj).Back(:));   %, 'all', 'omitnan');
+                %     if isempty(Args.PixScale)
+                %         % try to read pixel scale from WCS
+                %         if isa(Obj, 'AstroImage')
+                %             PixScale = Obj(Iobj).WCS.getScale('arcsec');
+                %         else
+                %             error('Can not get pixel scale - either provide it, or use AstroImage with WCS data');
+                %         end
+                %     else
+                %         PixScale = Args.PixScale;
+                %     end
+                %     ResFit(Iobj).BackMag = ResFit(Iobj).ZP - 2.5.*log10(MedBack) + 5.*log10(PixScale);  % per aecsec^2
+                % else
+                %     ResFit(Iobj).BackMag = NaN;
+                % end
                 
                 if Args.ColorOrder==1 && ~Args.UseWidth
-                    Keys = {'PH_ZP','PH_COL1','PH_MEDC','PH_RMS','PH_NSRC','PH_MAGSY','LIMMAG','BACKMAG','PH_MAGT','PH_MAGTE'};
+                    Keys = {'PH_ZP','PH_COL1','PH_MEDC','PH_RMS','PH_NSRC','PH_MAGSY','PH_MAGT','PH_MAGTE'};
                     if isempty(ResFit(Iobj).ZP)
                         Vals = num2cell(nan(size(Keys)));
                     else
@@ -624,14 +626,12 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                                 ResFit(Iobj).RMS,...
                                 ResFit(Iobj).Nsrc,...
                                 ResFit(Iobj).MagSys,...
-                                ResFit(Iobj).LimMag,...
-                                ResFit(Iobj).BackMag,...
                                 ResFit(Iobj).UsedColMag,...
                                 ResFit(Iobj).UsedColMagErr};
                     end
                 else
 
-                    Keys = {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDC','PH_MEDW','PH_RMS','PH_NSRC','PH_MAGSY','LIMMAG','BACKMAG','PH_MAGT','PH_MAGTE'};
+                    Keys = {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDC','PH_MEDW','PH_RMS','PH_NSRC','PH_MAGSY','PH_MAGT','PH_MAGTE'};
                     if isempty(ResFit(Iobj).ZP)
                         Vals = num2cell(nan(size(Keys)));
                     else
@@ -643,9 +643,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                                 ResFit(Iobj).MedW,...
                                 ResFit(Iobj).RMS,...
                                 ResFit(Iobj).Nsrc,...
-                                ResFit(Iobj).MagSys,...
-                                ResFit(Iobj).LimMag,...
-                                ResFit(Iobj).BackMag,...
+                                ResFit(Iobj).MagSys,...                                
                                 ResFit(Iobj).UsedColMag,...
                                 ResFit(Iobj).UsedColMagErr};
                     end

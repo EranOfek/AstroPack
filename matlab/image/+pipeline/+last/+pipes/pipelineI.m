@@ -154,6 +154,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         end
         RawImageList = {Files.name};
     end
+    RawImageListAll = RawImageList;
 
     %ProcessingStep = 21;
     Nepoch = numel(RawImageList);
@@ -167,7 +168,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
         TableRaw = [TableHeader, TableForDB]; 
         TableRaw.PrePrepOK = true(size(TableRaw,1), 1);
+        
         RawImageList = RawImageList(FlagGoodImages,:);
+        
     catch ME
         Status.PipeI   = false;
         Status.ME      = ME;
@@ -341,7 +344,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % background variations
             MeanBack     = imProc.stat.mean(AllSI);
             %MeanVar      = imProc.stat.mean(AllSI);
-            MeanMeanBack = mean(MeanBack, 2); % mean background over all sub images in each epoch
+            MeanMeanBack = mean(MeanBack, 2, 'omitnan'); % mean background over all sub images in each epoch
             MaxFracGrad  = (max(MeanBack,[],2) - min(MeanBack,[],2))./MeanMeanBack; % max fractional background gradient per epoch
             TableRaw.MaxFracGrad(TableRaw.SelectedImages) = MaxFracGrad;
 
@@ -411,9 +414,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Add XFULL/YFULL
             [~,AllSI] = imProc.cat.addXYfull(AllSI);
 
-            % Add LimMag and BackMag
-            [AllSI] = imProc.calib.limmag(AllSI, Args.LimMagArgs{:});  % 0.3s
-            [AllSI] = imProc.calib.backmag(AllSI, 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); % 0.2s
+            
             % Add PSF fraction to header
             [~,AllSI] = imProc.psf.aperFrac(AllSI, 'AperRadius',Args.AperRadius);
 
@@ -546,7 +547,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Add catsHTM MergedCat column to Coadd catalogs
             if Args.AddMergedCat && AnyCoaddExist
                 %tic;
-                if isempty(Args.UseParfor)
+                if ~Args.UseParfor
                     Coadd(NotIsEmptyCoadd) = imProc.match.match_catsHTMmerged(Coadd(NotIsEmptyCoadd), 'SameField',false, 'CreateNewObj',false);  % 23 s
                 else
                     PP = gcp('nocreate');
@@ -596,21 +597,33 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         
             % write drifts to header
             %ProcessingStep = 941;
-            for Isub=1:1:Nsub      
+            for Isub=1:1:Nsub
                 if NotIsEmptyCoadd(Isub)
-                    DataGM = [Args.KeysGlobalMotion(:), num2cell([GlobalMotion(Isub).RateX; GlobalMotion(Isub).StdX; GlobalMotion(Isub).RateY; GlobalMotion(Isub).StdY])];
+                    if isempty(GlobalMotion(Isub).RateX)
+                        GMvals = nan(4,1);
+                    else
+                        GMvals = [GlobalMotion(Isub).RateX; GlobalMotion(Isub).StdX; GlobalMotion(Isub).RateY; GlobalMotion(Isub).StdY];
+                    end
+                    DataGM = [Args.KeysGlobalMotion(:), num2cell(GMvals)];
                     Coadd(Isub).HeaderData.insertKey(DataGM,'end');
                 end
             end
             
+            
             %ProcessingStep = 951;
             %tic;
             if Args.AddSrcAM
-                Coadd(NotIsEmptyCat) = imProc.cat.addAirMass(Coadd(NotIsEmptyCat), 'JD',JD, 'EquinoxJD',JD(1), Args.Cat_addAirMassArgs{:});
+                JD_CoaddPerSub = nan(1, Nsub);
+                JD_CoaddPerSub(NotIsEmptyCoadd) = JD_Coadd;
+                JD_Eq = mean(JD_CoaddPerSub,'all','omitnan');
+                Coadd(NotIsEmptyCat) = imProc.cat.addAirMass(Coadd(NotIsEmptyCat), 'JD',JD_CoaddPerSub(NotIsEmptyCat), 'EquinoxJD',JD_Eq, Args.Cat_addAirMassArgs{:});
+
+                %Coadd(NotIsEmptyCat) = imProc.cat.addAirMass(Coadd(NotIsEmptyCat), 'JD',JD_Coadd, 'EquinoxJD',JD_Coadd(1), Args.Cat_addAirMassArgs{:});
             end
             %toc
             if Args.AddNdet
-                Coadd(NotIsEmptyCat) = imProc.cat.addNdet(Coadd(NotIsEmptyCat), MS, 'SearchRadius',Args.NdetSearchRadius);
+                Coadd = imProc.cat.addNdet(Coadd, MS, 'NotIsEmptyImages',NotIsEmptyCat, 'SearchRadius',Args.NdetSearchRadius);
+                %Coadd(NotIsEmptyCat) = imProc.cat.addNdet(Coadd(NotIsEmptyCat), MS, 'SearchRadius',Args.NdetSearchRadius);
             end
         
             % photometric calibration
@@ -649,11 +662,15 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
             % Add LimMag and BackMag
             [Coadd(NotIsEmptyCat)] = imProc.calib.limmag(Coadd(NotIsEmptyCat), Args.LimMagArgs{:});  
-            [Coadd(NotIsEmptyCat)] = imProc.calib.backmag(Coadd(NotIsEmptyCat), 'KeyZP',Args.KeyZP, Args.BackMagArgs{:});             
+            [Coadd(NotIsEmptyCat)] = imProc.calib.backmag(Coadd(NotIsEmptyCat), 'KeyZP',Args.KeyZP, Args.BackMagArgs{:});   
+            % Add LimMag and BackMag / AllSI (after propagation to all
+            % images)
+            [AllSI] = imProc.calib.limmag(AllSI, Args.LimMagArgs{:});  % 0.3s
+            [AllSI] = imProc.calib.backmag(AllSI, 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); % 0.2s
             % Add XFULL/YFULL
             [~,Coadd(NotIsEmptyCat)] = imProc.cat.addXYfull(Coadd(NotIsEmptyCat));
             % Add PSF fraction to header
-            [~,Coadd(NotIsEmptyCat)] = imProc.psf.aperFrac(Coadd(NotIsEmptyCat), 'AperRadius',Args.AperRadius);
+             [~,Coadd(NotIsEmptyCat)] = imProc.psf.aperFrac(Coadd(NotIsEmptyCat), 'AperRadius',Args.AperRadius);
             
 
             % Finish
@@ -663,7 +680,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             Status.ME      = ME;
                         
 %             TableRaw.FileName   = strings(RawImageList(:));
-            TableRaw.FileName   = RawImageList(:);
+            TableRaw.FileName   = RawImageListAll(:);
             TableRaw.Exception(TableRaw.SelectedImages)  = true(numel(RawImageList), 1); % Exception in this stage will have PrePrepOK = true
 
             % TableRaw is populated!

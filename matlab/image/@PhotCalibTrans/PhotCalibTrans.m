@@ -588,6 +588,23 @@ classdef PhotCalibTrans < Component
                 Args.UseTran2D logical = true
                 Args.XPixel           = 1716   % Detector X size [pix]; Tran2D centre = XPixel/2
                 Args.YPixel           = 1716   % Detector Y size [pix]; Tran2D centre = YPixel/2
+                % Initial PWV/AOD/QE-Center from AIRMASS-conditioned
+                % polynomial medians (astro.transmission.atmParFromAirmass)
+                % instead of the flat predefSeqCompositeFun class defaults.
+                % Only affects the INITIAL guess into lsqnonlin - the fit
+                % still updates each parameter freely per its FitPar flag.
+                % OPT-IN: default false. Pass true to enable.
+                Args.InitFromAirmass logical = false
+                % Per-source FIXED atmospheric parameters, computed from
+                % each calibrator's own AIRMASS via the polynomial fit
+                % in astro.transmission.atmParFromAirmass. Passes vectors
+                % PerSourcePWV_cm, PerSourceTauAod500, PerSourceCenter_Ang
+                % into costFun; those override individual columns of the
+                % per-source parameter matrix while still holding scalar
+                % transmission parameters fixed globally. Requires
+                % PerSourceAirmass=true so per-source ZA (and hence AM)
+                % is available. OPT-IN: default false.
+                Args.PerSourceAtmFromAirmass logical = false
                 Args.Tran2DPerturbStd = 0      % Std-dev for randn-seed of Tran2D ParX (one shot before stage 1); 0 disables
                 Args.Tran2DRngSeed (1,1) double = 6   % rng seed mirrored from Simone's np.random.seed(6); used when OptSeq stage method is NONLIN_FC
                 % (Co2_ppm retired from calibrate June 2026 — lives on
@@ -892,10 +909,22 @@ classdef PhotCalibTrans < Component
             % Co2_ppm is NOT threaded through anymore — predefSeqCompositeFun
             % owns the atmospheric-constant default (395, matches class
             % Obj.Co2_ppm default so PT_CO2PPM provenance stays consistent).
+            % When Args.InitFromAirmass is true, the observation-airmass
+            % is threaded down so predefSeqCompositeFun replaces the
+            % class-default PWV_cm / TauAod500 / QE_Center_Ang with
+            % median LAST polynomial values from astro.transmission.
+            % atmParFromAirmass - better initial guesses for lsqnonlin
+            % at high airmass.
+            if Args.InitFromAirmass && isfinite(Obj.AirMass) && Obj.AirMass >= 1
+                InitAM = Obj.AirMass;
+            else
+                InitAM = NaN;
+            end
             [FunCat, StageCat] = imUtil.calib.predefSeqCompositeFun( ...
-                'ZenithAngle_deg', ZenithAngle, ...
-                'Pressure_mbar',   Obj.Pressure, ...
-                'Temperature_C',   Obj.Temp);
+                'ZenithAngle_deg',   ZenithAngle, ...
+                'Pressure_mbar',     Obj.Pressure, ...
+                'Temperature_C',     Obj.Temp, ...
+                'InitFromAirmass',   InitAM);
 
             FunList = FunCat.(Args.FunListName);
             OptSeq  = StageCat.(Args.OptSeqName);
@@ -1086,6 +1115,30 @@ classdef PhotCalibTrans < Component
                 Obj.SpecData.SpecFluxMatrix = Obj.resampleCalibratorSpectra();
 
                 % Setup CostArgs for TransmissionMode
+                % Optional per-source FIXED atmospheric parameters from
+                % airmass. When enabled (and PerSourceZenithAngles is
+                % available), evaluate astro.transmission.atmParFromAirmass
+                % element-wise on each calibrator's own AIRMASS. The
+                % resulting per-source (PWV, AOD, Center) vectors flow
+                % into costFun via CostArgs and enter each source's row
+                % of the PerSourceParams matrix - fixed data, not fit
+                % parameters. Small effect (LAST FoV airmass spread is
+                % ~0.005-0.01), but zero cost when disabled.
+                PerSourcePWV_cm     = [];
+                PerSourceTauAod500  = [];
+                PerSourceCenter_Ang = [];
+                if Args.PerSourceAtmFromAirmass && ~isempty(PerSourceZenithAngles)
+                    AM_vec = 1 ./ cosd(PerSourceZenithAngles(:));
+                    [PerSourcePWV_cm, PerSourceTauAod500, PerSourceCenter_Ang, ~] = ...
+                        astro.transmission.atmParFromAirmass(AM_vec);
+                    if Args.Verbose
+                        fprintf('  PerSourceAtmFromAirmass: PWV [%.2f, %.2f] cm, AOD [%.4f, %.4f], Center [%.0f, %.0f] A\n', ...
+                            min(PerSourcePWV_cm), max(PerSourcePWV_cm), ...
+                            min(PerSourceTauAod500), max(PerSourceTauAod500), ...
+                            min(PerSourceCenter_Ang), max(PerSourceCenter_Ang));
+                    end
+                end
+
                 % MagErr and SpecFluxMatrix pre-computed to avoid repeated calculations
                 CostArgs = {...
                     'WeightMatrix', Obj.SpecData.Spec', ...
@@ -1095,7 +1148,10 @@ classdef PhotCalibTrans < Component
                     'CalibWavelength', Obj.SpecData.SpecWvl, ...
                     'ExpTime', ExpTime_eff, ...
                     'Aperture_area_m2', Obj.Aperture, ...
-                    'PerSourceZenithAngles', PerSourceZenithAngles};
+                    'PerSourceZenithAngles', PerSourceZenithAngles, ...
+                    'PerSourcePWV_cm',       PerSourcePWV_cm, ...
+                    'PerSourceTauAod500',    PerSourceTauAod500, ...
+                    'PerSourceCenter_Ang',   PerSourceCenter_Ang};
 
                 % One-shot Tran2D ParX seeding (before stage 1 of the OptSeq).
                 % Stages 1-3 see the perturbed coeffs; stage 4 (FieldCorrection)
@@ -1173,13 +1229,29 @@ classdef PhotCalibTrans < Component
                         TrajAccum = repmat(struct( ...
                             'StageIndex', 0, 'StageName', '', 'IterIndex', 0, ...
                             'OuterIter', 0, 'NumClipped', 0, 'NumRemaining', 0, ...
-                            'RMS', NaN, 'SourceData', AstroCatalog), 1, 0);
-                        for IS = 1:numel(FitResult)
-                            if ~isfield(FitResult(IS), 'IterSnapshots') || isempty(FitResult(IS).IterSnapshots)
+                            'RMS', NaN, 'Scatter', NaN, ...
+                            'SourceData', AstroCatalog), 1, 0);
+                        % When the fit ran multiple outer iters (Recipe
+                        % NumRepeats > 1 or OuterSigmaClip), FitResult(1)
+                        % .AllOuterStages is a flat struct array of every
+                        % iter's stages in order, each carrying its own
+                        % IterSnapshots and stamped with .OuterIter.
+                        % Walk it if present so a caller sees the trajectory
+                        % for every stage of every outer iter — not just
+                        % the last iter (which is what FitResult itself
+                        % holds). Falls back to FitResult when the outer
+                        % loop ran only once.
+                        if isfield(FitResult(1), 'AllOuterStages') && ~isempty(FitResult(1).AllOuterStages)
+                            StagesToWalk = FitResult(1).AllOuterStages;
+                        else
+                            StagesToWalk = FitResult;
+                        end
+                        for IS = 1:numel(StagesToWalk)
+                            if ~isfield(StagesToWalk(IS), 'IterSnapshots') || isempty(StagesToWalk(IS).IterSnapshots)
                                 continue;
                             end
-                            for IK = 1:numel(FitResult(IS).IterSnapshots)
-                                Snap = FitResult(IS).IterSnapshots(IK);
+                            for IK = 1:numel(StagesToWalk(IS).IterSnapshots)
+                                Snap = StagesToWalk(IS).IterSnapshots(IK);
                                 if numel(Snap.KeepMask) ~= NCalibTot
                                     Obj.msgLog(LogLevel.Warning, sprintf( ...
                                         'CalibTrajectory: stage %d iter %d KeepMask length %d != NCalib %d — skipping', ...
@@ -1211,6 +1283,11 @@ classdef PhotCalibTrans < Component
                                 Entry.NumClipped   = Snap.NumClipped;
                                 Entry.NumRemaining = Snap.NumRemaining;
                                 Entry.RMS          = Snap.RMS;
+                                if isfield(Snap, 'Scatter')
+                                    Entry.Scatter  = Snap.Scatter;
+                                else
+                                    Entry.Scatter  = NaN;
+                                end
                                 Entry.SourceData   = AstroCatalog(SnapTable);
                                 TrajAccum(end+1) = Entry; %#ok<AGROW>
                             end

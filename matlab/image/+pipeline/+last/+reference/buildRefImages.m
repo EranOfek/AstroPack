@@ -111,13 +111,18 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.OutputDir          = '~/NewRef/';        
         Args.WriteProp          = ["Image","Cat","Mask","PSF"];
         
+        Args.Write2DB           = false;
         Args.OutputRefTable     = 'ref_images_v5'; % the output DB table name  
         
         Args.DbHost             = '10.150.28.18' 
         Args.DbPort             = 9000;
+        Args.DbName             = 'last'
         Args.DbUser             = 'last_user'
         Args.PassFile           = '~/matlab/AstroPack/config/local/Passwords.yml'; % '~/.astropack/Passwords.yml';                
         Args.PassToken          = 'LASTDB_User'
+        
+        Args.DBTemplate          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
+        Args.PassTokenRW         = 'LASTDB_Root'
         
         Args.AstrometricCatRad     = 1;           % [deg] cone radius for pre-fetching reference catalogs
         Args.AstrometricCatMagRange = [12 19.5];  % magnitude range for the astrometric catalog
@@ -139,8 +144,17 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Configuration.getSingleton().loadFile(Args.PassFile);
         PM = PasswordsManager;
         Db.Password = PM.search(Args.PassToken).Pass;
-        Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Db.Password);
-    end
+        Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Db.Password);        
+        if Args.Write2DB
+            % This line should be modified - colmns should be read from DB
+            % and not from local files...
+            TableColumns = db.util.read_xls2tableFormat(Args.DBTemplate,'Sheet','Images','TableName','ref_images');  
+            Db.Password = PM.search(Args.PassTokenRW).Pass;
+            Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, 'default', Db.Password); 
+            Schema = Args.DB.describe(db.Db.concatDbTable(Args.DbName, Args.OutputRefTable));
+        end
+    end    
+    
 
     SkyPointMode = ~isempty(Args.RA);
     if SkyPointMode
@@ -208,7 +222,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
             'RasterResolution',Args.RasterResolution, 'NsideSearch',Args.NsideSearch, 'NsideLow',Args.NsideLow);
         
         % 1. find the overlapping coadd proc or single-epoch proc images (determined by Args.SearchTable)
-        Q = sprintf("select %s from %s where",Args.Fields, Args.SearchTable);
+        Q = sprintf("select distinct %s from %s where",Args.Fields, Args.SearchTable);
         PixList = strjoin("toString(" + string(UpixLow(:)).' + ")", ", ");
         W = sprintf(" toString(upix_low) IN (%s)", PixList);
         
@@ -413,19 +427,38 @@ function [Result,Info] = buildRefImages(RefID, Args)
                 RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'MOUNTNUM', 0);
                 RefImage.HeaderData = replaceVal(RefImage.HeaderData, 'CAMNUM', 0);
                 JD = RefImage.getStructKey('MIDJD').MIDJD;
-                [RefImage,~] = imProc.db.generateImageID(RefImage,'KeyID','ID_REF','JD',JD);
+                [RefImage, IDref] = imProc.db.generateImageID(RefImage,'KeyID','ID_REF','JD',JD);
                 
                 % 6. save the new reference image and its catalog, mask, and PSF to the disk
                 if Args.Write2Disk
-                    for Iprop=1:numel(Args.WriteProp)
-                        FN = sprintf('%s/LAST_clear_%s_sci_ref_%s_1.fits',Args.OutputDir,Tag,Args.WriteProp(Iprop));
-                        RefImage.write1(FN, Args.WriteProp(Iprop), 'OverWrite', true, 'MkDir', true);
-                    end
+                    AF = AstroFileName;
+                    AF.ProjName = "LAST.01.00.00";
+                    AF.FieldID  = Tag;
+                    AF.JD       = JD;
+                    AF.julday2time;
+                    AF.Counter  = 0;
+                    AF.CCDID    = 1;
+                    AF.CropID   = 0;
+                    AF.Level    = "ref";
+
+                    imProc.io.saveProductImage(RefImage, AF, 'Path',Args.OutputDir, ...
+                        'OutProduct',["Image","Mask","Cat","PSF"], ...
+                        'WriteHeader',[true, false, true, false], ...
+                        'OverWrite',true,'SanifyPath',true);
                 end
                 
                 % 7. write the image metadata to the reference image table of the DB (use Args.OutputRefTable)
                 %    write the reference image catalog to the reference image catalog table of the DB
-                
+                if Args.Write2DB 
+                    [~,Err,~] = imProc.db.insertImages(RefImage, 'DbTable', Args.OutputRefTable,...
+                        'DbName',Args.DbName,'Db', Args.DB, 'ColNameDic',TableColumns,...
+                        'ColNameID','id_ref', 'ID_Origin', IDref,...
+                        'CreateCsv',false,'Schema', Schema, 'DBConnector', 'native');
+                    if ~isempty(Err)
+                        fprintf('Iref = %d:\n',Iref);
+                        error('DB ingestion failed')
+                    end
+                end
             
                 if Args.Verbose > 0
                     fprintf('Finished building a reference image for field %d: %d epochs stacked in %.1f s\n',...
