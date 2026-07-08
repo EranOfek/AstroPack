@@ -115,7 +115,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.SN         = [];
         Args.UseSNR     = true; % false;
         
-        Args.UseSourceNoise = 'last'; %'off';
+        Args.UseSourceNoise = 'last'; %'last'; %'off';
         Args.ZP         = 25; 
         
         Args.Verbose logical = false;
