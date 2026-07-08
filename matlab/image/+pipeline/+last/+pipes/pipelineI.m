@@ -655,7 +655,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             if AnyCoaddExist
                 % tic;
                 GoodCrop = ~tools.cell.isempty_cell({ResRelZP.FitZP});
-                DeltaZP = reshape([ResRelZP.FitZP], Nepoch, sum(GoodCrop));
+                %DeltaZP = reshape([ResRelZP.FitZP], Nepoch, sum(GoodCrop));
+                DeltaZP = reshape([ResRelZP(GoodCrop).FitZP], Nepoch, sum(GoodCrop));
                 AllSI(:,GoodCrop) = PC(GoodCrop).applyPhotCalibShifts(AllSI(:,GoodCrop), 'DeltaZP',DeltaZP);
                 % toc
             end
