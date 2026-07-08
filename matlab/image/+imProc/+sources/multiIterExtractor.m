@@ -572,7 +572,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             % FROM SOME reasons using zeros or allocateUninit fails the
             % function.
             SourceImage     = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % source image after each iteration
-            SumSourceImage  = repmat(single(0), SizeImage(1), SizeImage(2));    % source image after each iteration
+            %SumSourceImage  = repmat(single(0), SizeImage(1), SizeImage(2));    % source image after each iteration
             if ExtraOutput
                 SubtractedImage = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % subtracted image after each iteration
             end 
@@ -586,7 +586,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         else
             %ClassI = class(AI.ImageData.Data);
             SourceImage     = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % source image after each iteration
-            SumSourceImage  = repmat(single(0), SizeImage(1), SizeImage(2));    % source image after each iteration
+            %SumSourceImage  = repmat(single(0), SizeImage(1), SizeImage(2));    % source image after each iteration
             if ExtraOutput
                 SubtractedImage = repmat(single(0), SizeImage(1), SizeImage(2), Niter);    % subtracted image after each iteration
             end 
@@ -766,7 +766,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
 
                     %!!!!
                     %if Iiter>1
-                    SumSourceImage = SumSourceImage + SourceImage(:,:,Iiter);
+                    %SumSourceImage = SumSourceImage + SourceImage(:,:,Iiter);
                     %end
                 end
                 %!!!!
@@ -814,8 +814,11 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 % extended and the star edges are not subtracted
                 
                 %!!!!
-                AI.VarData.Image  = AI.VarData.Image  + SumSourceImage./(Ncoadd.*Gain);
-                AI.BackData.Image = AI.BackData.Image + SumSourceImage;  
+                %AI.VarData.Image  = AI.VarData.Image  + SumSourceImage./(Ncoadd.*Gain);
+                %AI.BackData.Image = AI.BackData.Image + SumSourceImage;  
+
+                AI.VarData.Image  = AI.VarData.Image  + SourceImage(:,:,Iiter)./(Ncoadd.*Gain);
+                AI.BackData.Image = AI.BackData.Image + SourceImage(:,:,Iiter);  
 
                 % if Iiter==1
                 %     if Args.IsBackSub
