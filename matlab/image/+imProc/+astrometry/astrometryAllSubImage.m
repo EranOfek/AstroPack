@@ -205,11 +205,11 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
             if Ncat==1
                 % allocate CatName
                 CatName = AstroCatalog([Nai,1]);
-                CatName(Args.StartSubImage) = Args.CatName;
+                CatName(Args.StartSubImage(Istart)) = Args.CatName;
             else
                 CatName = Args.CatName;
             end
-            InCatName = CatName(Args.StartSubImage);
+            InCatName = CatName(Args.StartSubImage(Istart));
         else
             InCatName = Args.CatName;
             CatName   = AstroCatalog([Nai,1]);
@@ -256,8 +256,8 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
     end
 
     FlagNotDone = true(Nai,1);
-    if ~isempty(ResultFit(Args.StartSubImage)) && ~isempty(ResultFit(Args.StartSubImage).WCS) && ResultFit(Args.StartSubImage).WCS.Success
-        FlagNotDone(Args.StartSubImage) = false;
+    if ~isempty(ResultFit(Args.StartSubImage(Istart))) && ~isempty(ResultFit(Args.StartSubImage(Istart)).WCS) && ResultFit(Args.StartSubImage(Istart)).WCS.Success
+        FlagNotDone(Args.StartSubImage(Istart)) = false;
     end
     IndNotDone = find(FlagNotDone);
     
