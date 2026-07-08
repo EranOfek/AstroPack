@@ -382,6 +382,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                         Ind = find(IsForcedPhot);
                         for IsubGood = 1:numel(Ind)                            
                             % May need to update the column names:
+                            % Note that the exact JD doesn't matter much,
+                            % therefore using JD(1).
                             [~, RA, Dec] = imProc.cat.applyProperMotionSimple(CatForcedPhot(IsubGood), JD(1), 'OutUnits','rad', 'OutEpochUnits','JD', 'InEpoch','Epoch', 'ColPMRA','PMRA', 'ColPMDec','PMDec', 'OutUnits','deg');
                             Coo = [RA, Dec];                            
                             %if strcmpi(Args.OutputType, 'concatai')       
