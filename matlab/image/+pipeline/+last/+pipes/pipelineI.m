@@ -154,6 +154,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         end
         RawImageList = {Files.name};
     end
+    RawImageListAll = RawImageList;
 
     %ProcessingStep = 21;
     Nepoch = numel(RawImageList);
@@ -167,7 +168,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
         TableRaw = [TableHeader, TableForDB]; 
         TableRaw.PrePrepOK = true(size(TableRaw,1), 1);
+        
         RawImageList = RawImageList(FlagGoodImages,:);
+        
     catch ME
         Status.PipeI   = false;
         Status.ME      = ME;
@@ -341,7 +344,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % background variations
             MeanBack     = imProc.stat.mean(AllSI);
             %MeanVar      = imProc.stat.mean(AllSI);
-            MeanMeanBack = mean(MeanBack, 2); % mean background over all sub images in each epoch
+            MeanMeanBack = mean(MeanBack, 2, 'omitnan'); % mean background over all sub images in each epoch
             MaxFracGrad  = (max(MeanBack,[],2) - min(MeanBack,[],2))./MeanMeanBack; % max fractional background gradient per epoch
             TableRaw.MaxFracGrad(TableRaw.SelectedImages) = MaxFracGrad;
 
@@ -544,7 +547,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Add catsHTM MergedCat column to Coadd catalogs
             if Args.AddMergedCat && AnyCoaddExist
                 %tic;
-                if isempty(Args.UseParfor)
+                if ~Args.UseParfor
                     Coadd(NotIsEmptyCoadd) = imProc.match.match_catsHTMmerged(Coadd(NotIsEmptyCoadd), 'SameField',false, 'CreateNewObj',false);  % 23 s
                 else
                     PP = gcp('nocreate');
@@ -677,7 +680,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             Status.ME      = ME;
                         
 %             TableRaw.FileName   = strings(RawImageList(:));
-            TableRaw.FileName   = RawImageList(:);
+            TableRaw.FileName   = RawImageListAll(:);
             TableRaw.Exception(TableRaw.SelectedImages)  = true(numel(RawImageList), 1); % Exception in this stage will have PrePrepOK = true
 
             % TableRaw is populated!
