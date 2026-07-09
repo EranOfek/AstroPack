@@ -117,6 +117,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         
         Args.UseSourceNoise = 'last'; %'last'; %'off';
         Args.ZP         = 25; 
+        Args.Gain       = 1;   % e-/ADU; source Poisson variance = Flux*PSF/Gain
         
         Args.Verbose logical = false;
 
@@ -244,7 +245,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         if UseSourceNoise && Ind > 1
             [~, FluxTmp, ShiftedPSFTmp] = internalCalcChi2( ...
                 CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, FitRadius2, Args.ShiftMethod, Args.UseMex);
-            Std = localUpdateStdWithSourceNoise(FluxTmp, ShiftedPSFTmp, StdBack);
+            Std = localUpdateStdWithSourceNoise(FluxTmp, ShiftedPSFTmp, StdBack, Args.Gain);
         end
 
         switch upper(Args.PsfPhotMethod)
@@ -283,7 +284,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         [~, FluxTmp, ShiftedPSFTmp] = internalCalcChi2( ...
             CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, FitRadius2, Args.ShiftMethod, Args.UseMex);
 
-        Std = localUpdateStdWithSourceNoise(FluxTmp, ShiftedPSFTmp, StdBack);
+        Std = localUpdateStdWithSourceNoise(FluxTmp, ShiftedPSFTmp, StdBack, Args.Gain);
 
         switch upper(Args.PsfPhotMethod)
             case '1D'
@@ -444,9 +445,9 @@ function [SmallStep, ConvThresh] = localPrepareStepControl(Args, Nim)
 end
 
 
-function Std = localUpdateStdWithSourceNoise(Flux, ShiftedPSF, StdBack)
+function Std = localUpdateStdWithSourceNoise(Flux, ShiftedPSF, StdBack, Gain)
     Flux3 = reshape(Flux, 1, 1, []);
-    ModelVar = Flux3 .* ShiftedPSF;
+    ModelVar = Flux3 .* ShiftedPSF ./ Gain;
     ModelVar = max(ModelVar, 0);
     Var = max(ModelVar + StdBack.^2, eps(class(StdBack)));
     Std = sqrt(Var);

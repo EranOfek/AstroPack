@@ -298,6 +298,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.BitDict                   = BitDictionary('BitMask.Image.Default');
         Args.JD                        = [];
         Args.KeyJD                     = [];
+        Args.Gain                      = [];   % if empty read from header
         Args.KeyGain                   = 'GAIN';
         Args.KeyNcoadd                 = 'NCOADD';
 
@@ -526,6 +527,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
 
     % get GAIN and NCOADD
     Keys = Result.getStructKey({Args.KeyGain, Args.KeyNcoadd});
+    
 
     % find and measure sources using multi-iteration PSF fitting    
     FWHM = nan(Nobj,1);
@@ -536,10 +538,14 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         %Result(Iobj).Table = [];
         FWHM(Iobj) = Result(Iobj).PSFData.fwhm;
       
-        if isnan(Keys(Iobj).(Args.KeyGain))
-            Gain = 1;
+        if isempty(Args.Gain)
+            if isnan(Keys(Iobj).(Args.KeyGain))
+                Gain = 1;
+            else
+                Gain = Keys(Iobj).(Args.KeyGain);
+            end
         else
-            Gain = Keys(Iobj).(Args.KeyGain);
+            Gain = Args.Gain;
         end
         if isnan(Keys(Iobj).(Args.KeyNcoadd))
             Ncoadd = 1;
@@ -713,7 +719,12 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 
                 % PSF photometry
                 %[Iobj Nobj]
-                [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN,'FitRadius',Args.FitRadius(Iiter), 'MaxIter',Args.MaxIter, 'ZP',Args.ZP, 'UseMex',Args.UseMex,...
+                [AI, Res] = imProc.sources.psfFitPhot(AI,'ColSN',ColSN,...
+                                                         'Gain',Gain,...
+                                                         'FitRadius',Args.FitRadius(Iiter),...
+                                                         'MaxIter',Args.MaxIter,...
+                                                         'ZP',Args.ZP,...
+                                                         'UseMex',Args.UseMex,...
                                                          'PsfPhotMethod',Args.PsfPhotMethod,...
                                                          'ShiftMethod',Args.ShiftMethod,...
                                                          Args.psfFitPhotArgs{:});  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter

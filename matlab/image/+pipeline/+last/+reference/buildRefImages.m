@@ -100,6 +100,9 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.multiIterExtractorArgs = {};
         Args.FlagCR                 = true;
 
+        Args.GainFrom           = 'ncoadd';
+        Args.KeyGain            = 'GAIN';
+        Args.KeyNcoadd          = 'NCOADD';
 
 
         Args.Threshold          = [500 100 50 20 4];
@@ -275,6 +278,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
             StackImages = [];
             Info(K).NimagesFootprint = size(T,1);
 
+            AllGain   = nan(Ngroup,1);
+            AllNcoadd = nan(Ngroup,1);
             for Igroup = 1:Ngroup % loop by sets of epoch + telescope
                 
                 TabGrp  = T(Grp == Igroup, :);               
@@ -348,6 +353,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
 
                     AI = AstroImage.readProducts(AF.genFull, 'UseMex', true);
 
+                    AllGain(Igroup)   = AI(1).HeaderData.getVal(Args.KeyGain);
+                    AllNcoadd(Igroup) = AI(1).HeaderData.getVal(Args.KeyNcoadd);
                     % for:
 %                     AI=pipeline.last.queryDB.loadProducts(TabGrp); % does not load anything ?
 
@@ -402,8 +409,18 @@ function [Result,Info] = buildRefImages(RefID, Args)
                 % 5. coadd the epochs from different groups of images (e.g., telescopes and cameras)
                 %    rotate, align, and cut the merged crops to the ref. coordinates
                 %    measure background, find sources, populate PSF
+                switch Args.GainFrom
+                    case 'gain'
+                        InputMeanGain = mean(AllGain,'all','omitnan');
+                    case 'ncoadd'
+                        InputMeanGain = mean(AllNcoadd,'all','omitnan');
+                    otherwise
+                        error('Unknown GainFrom option');
+                end
+
                 RefImage = pipeline.generic.procCoadd(StackImages','WCS',AIref,... 
                                     'multiIterExtractorArgs',Args.multiIterExtractorArgs,...
+                                    'InputMeanGain',InputMeanGain,...
                                     'FlagCR',Args.FlagCR,...
                                     'SubBack',Args.SubBack,...
                                     'SetBackTo0',false,...
@@ -414,8 +431,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                                     'AddExtraBack',true,...
                                     'AddExtraVar',true,...
                                     'ZP','PH_ZP',...
-                                    'NcoaddFactor',20,...
-                                    'CleanSN',0,...
+                                    'CleanSN',4,...
                                     'StackMethod',Args.StackMethod, Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:},...
                                     'backVarArgs',Args.backVarArgs,...
                                     'backVarIndivArgs',Args.backVarIndivArgs,...
