@@ -275,7 +275,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
                 fprintf('%d groups of images found\n',Ngroup);
             end
             %
-            StackImages = [];
+            StackImages = cell(1,Ngroup); % preallocated buffer, trimmed to Nstack after the group loop
+            Nstack = 0;
             Info(K).NimagesFootprint = size(T,1);
 
             AllGain   = nan(Ngroup,1);
@@ -385,17 +386,16 @@ function [Result,Info] = buildRefImages(RefID, Args)
                             fprintf(' done \n');
                         end
 
-                        % add the images to the stack
-                        if exist('StackImages','var')
-                            StackImages = [StackImages StitchedImage];
-                        else
-                            StackImages = StitchedImage;
-                        end
+                        % add the image to the preallocated stack buffer
+                        Nstack = Nstack + 1;
+                        StackImages{Nstack} = StitchedImage;
                     end
                 end
             end % groups (epochs + telescopes)
-            
-            % do the stacking 
+
+            StackImages = [StackImages{1:Nstack}]; % trim to the actual number of accepted images
+
+            % do the stacking
             if isempty(StackImages) || numel(StackImages)<2
                 if Args.Verbose > 0
                     cprintf('err','No images have been qualified for the field %d, skipping to the next field..\n',Iref);
