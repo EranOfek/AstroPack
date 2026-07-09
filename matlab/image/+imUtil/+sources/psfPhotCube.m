@@ -311,6 +311,16 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         DY = DY + StepY;
     end
 
+    % fix: rebuild the source-noise Std at the final (DX,DY) so the
+    % reported Chi2/Flux/FluxErr/SNm use a noise map consistent with the
+    % final position (removes the one-step lag from the loop / additional
+    % iteration). No-op for UseSourceNoise='off'.
+    if AdditionalIter || UseSourceNoise
+        [~, FluxTmp, ShiftedPSFTmp] = internalCalcChi2( ...
+            CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, FitRadius2, Args.ShiftMethod, Args.UseMex);
+        Std = localUpdateStdWithSourceNoise(FluxTmp, ShiftedPSFTmp, StdBack, Args.Gain);
+    end
+
     [Chi2, Flux, ShiftedPSF, Dof, FluxErr] = internalCalcChi2( ...
         CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, FitRadius2, Args.ShiftMethod, Args.UseMex);
 
