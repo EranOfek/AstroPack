@@ -234,6 +234,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         case 'last'
             AdditionalIter = true;
             UseSourceNoise = false;
+        otherwise
+            error('Unknown UseSourceNoise option');
     end
 
     Ind = 0;
@@ -263,6 +265,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
                 [StepX, StepY, AppFlux(Ind,:)] = gradDescentPSF2DGN( ...
                     CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, ...
                     FitRadius2, SmallStep, Args.MaxStep, Args.ShiftMethod, Args.UseMex);
+            otherwise
+                error('Unknown PsfPhotMethod option');
         end
 
         StepX(~Active) = 0;
@@ -299,6 +303,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
                 [StepX, StepY] = gradDescentPSF2DGN( ...
                     CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, ...
                     FitRadius2, SmallStep, Args.MaxStep, Args.ShiftMethod, Args.UseMex);
+            otherwise
+                error('Unknown PsfPhotMethod option');    
         end
 
         DX = DX + StepX;
