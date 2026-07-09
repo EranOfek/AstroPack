@@ -225,7 +225,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     AppFlux      = nan(Args.MaxIter, Nim);
 
     AdditionalIter = false;
-    UseSourceNoise = false;
+    %UseSourceNoise = false;
     switch lower(Args.UseSourceNoise)
         case 'all'
             UseSourceNoise = true;
