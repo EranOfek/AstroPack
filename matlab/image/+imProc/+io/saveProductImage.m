@@ -106,11 +106,11 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
         Args.SubDirKey                = 'SUBDIR';
         Args.FileType                 = 'fits';  % If AstroFileName, use info
         
-        Args.CompressedOutput         = [];      % if not empty, e.g., "fz", the requested type of compression will be performed by lower-lever functions   
-        Args.OverWrite logical        = false;
-        Args.WriteTime logical        = false;
-        Args.UpdateFileNameKey logical = false;
-        Args.SanifyPath               = false;
+        Args.CompressedOutput          = [];      % if not empty, e.g., "fz", the requested type of compression will be performed by lower-lever functions   
+        Args.OverWrite logical         = false;
+        Args.WriteTime logical         = false;
+        Args.UpdateFileNameKey logical = true;
+        Args.SanifyPath                = false;
 
         %Args.WriteMethodImages        = 'Simple';    % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
         %Args.WriteMethodTables        = 'Standard';  % can be 'Standard' or 'MexHeader'
