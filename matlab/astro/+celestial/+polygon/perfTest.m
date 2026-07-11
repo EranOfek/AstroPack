@@ -2,6 +2,28 @@ function [Result] = perfTest(X, Y, Args)
     % perfTest for celestial.polygon
     % Example: celestila.polygon.perfTest
 
+    %%
+    
+    %% celestial.polygon.areaPolyIntersection
+
+    RefLon = [350; 10; 10; 350];
+    RefLat = [-10; -10; 10; 10];
+    Lon    = [355; 15; 15; 355];
+    Lat    = [-5; -5; 15; 15];
+
+    tic;
+    for i=1:100
+        [Area, AreaRefPoly] = celestial.polygon.areaPolyIntersection(RefLon, RefLat, Lon, Lat, 'CooUnits','deg', 'UseMex',true);
+    end
+    T1=toc;
+    tic;
+    for i=1:100
+        [Area1, AreaRefPoly1] = celestial.polygon.areaPolyIntersection(RefLon, RefLat, Lon, Lat, 'CooUnits','deg', 'UseMex',false);
+    end
+    T2=toc;
+    fprintf('celestial.polygon.areaPolyIntersection mex is X %f faster than non mex\n',T2./T1);
+
+
     %% celestial.polygon.whichPolygonsTilesPoly (and mex)
     CenterLon = 0.0;
     CenterLat = 0.0;
