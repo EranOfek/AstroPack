@@ -446,7 +446,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         
             % calculate the photometric rms per crop
             
-            PhotRMS = MS.calcRMS('FieldY','MAG_APER_3');
+            PhotRMS = MS.calcRMS('FieldY','MAG_APER_3', 'FieldX','MAG_APER_3');
             Phot_MinRMS    = [PhotRMS.MinRMS];
             Phot_MagMinRMS = [PhotRMS.MagMinRMS];
             
