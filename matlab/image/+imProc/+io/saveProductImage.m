@@ -54,6 +54,17 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
     %            'OverWrite' - Default is false.
     %            'WriteTime' - Add the write time to header.
     %                   Default is false.
+    %            'UpdateFileNameKey' - A logical indicating if to replace the
+    %                   'FILENAME' header keyword with the name of the
+    %                   product file actually being written (per product).
+    %                   If false, 'FILENAME' is left untouched (i.e., it
+    %                   keeps whatever value it already had, typically the
+    %                   name of the raw image). In all cases, a 'FILETIME'
+    %                   keyword is added/replaced with the HHMMSS.sss of
+    %                   the product file being written (taken from the
+    %                   AstroFileName Time property). Both require FileName
+    %                   to be an AstroFileName object; ignored otherwise.
+    %                   Default is false.
     %            'SanifyPath' - A logical. true can be time-consuming.
     %                   Default is false.
     %            'WriteMethodImages' - can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
@@ -95,10 +106,11 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
         Args.SubDirKey                = 'SUBDIR';
         Args.FileType                 = 'fits';  % If AstroFileName, use info
         
-        Args.CompressedOutput         = [];      % if not empty, e.g., "fz", the requested type of compression will be performed by lower-lever functions   
-        Args.OverWrite logical        = false;
-        Args.WriteTime logical        = false;
-        Args.SanifyPath               = false; 
+        Args.CompressedOutput          = [];      % if not empty, e.g., "fz", the requested type of compression will be performed by lower-lever functions   
+        Args.OverWrite logical         = false;
+        Args.WriteTime logical         = false;
+        Args.UpdateFileNameKey logical = true;
+        Args.SanifyPath                = false;
 
         %Args.WriteMethodImages        = 'Simple';    % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
         %Args.WriteMethodTables        = 'Standard';  % can be 'Standard' or 'MexHeader'
@@ -216,6 +228,14 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
                     ErrInd = ErrInd + 1;
                     Status{ErrInd} = sprintf('Product not saved / Image: %s is empty',FileToSave);
                 else
+                    if Args.WriteHeader(Iprod) && isa(AFN, 'AstroFileName')
+                        if Args.UpdateFileNameKey
+                            AI(Iobj).HeaderData.replaceVal('FILENAME', char(FileList(Iobj,Iprod)), 'Comment',{'Name of this file'});
+                        end
+                        FileTimeStr = extractAfter(AFN.Time(Iobj), '.');
+                        AI(Iobj).HeaderData.replaceVal('FILETIME', char(FileTimeStr), 'Comment',{'Time stamp of this file name'});
+                    end
+
                     AI(Iobj).write1(FileToSave, Args.OutProduct{Iprod},...
                                                  'FileType',FileType,...
                                                  'CompressedOutput',Args.CompressedOutput,...

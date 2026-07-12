@@ -184,7 +184,13 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
         
+        Args.InputMeanGain                    = 1; % avergae gain of input images
+        % output gain:
         Args.UpdateGain                       = true;
+
+        % these are used only in the non wrboust_Coadd and will be removed
+        % in the future
+        Args.Gain                             = [];  % if empty use KeyGain
         Args.KeyGain                          = 'GAIN';
 
         %Args.backgroundArgs cell              = {};
@@ -210,11 +216,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.BS_BackMaxR                      = 1501;
         Args.AddExtraBack                     = true;
         Args.AddExtraVar                      = true;
-        Args.NcoaddFactor                     = 1;
+        %Args.NcoaddFactor                     = 1;
         Args.CleanSN                          = 4;
        
 
         Args.multiIterExtractorArgs           = {};
+        Args.FlagCR                           = true;
         Args.AperRadius                       = [3, 5, 6, 7];
         Args.Annulus                          = [10 12];
         Args.MomentsMethod                    = 'mex';  %'legacy'|'mex'
@@ -405,23 +412,31 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             
             switch Args.StackMethod
                 case 'wrobust'
+                    % Effective Ncoadd - remove 3 for min.max rejection +
+                    % mean calc...
+                    NcoaddEff = max(1, numel(RegisteredImages)-3);
                     % RegisteredImages contains also the Back and Var
                     % Ncoadd is Nimages-3 because of one dof for mode
                     % estimation, and 2 fir min/max rejection
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:}, 'AddBack', Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs, ...
-                                                            'Ncoadd',numel(RegisteredImages)-3);
-                    %'PoissVar',Args.PoissVar', 'RN2',Args.RN2, ...
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack,...
+                                                            'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:},...
+                                                            'AddBack', Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs, ...
+                                                            'Gain',Args.InputMeanGain,...
+                                                            'Ncoadd',NcoaddEff);
                         
                    
                 case 'proper'
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:}, 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
-
+                    % BUG : Need to return EffectiveGain
+                    EffectiveGain = NaN;
                 case 'sigmaclip'
                     % obsolete channel
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, ~, MidJD, SumExpTime] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
                                                                                                  'Cube',PreAllocCube,...
                                                                                                  'StackMethod',Args.StackMethod,...
                                                                                                  'StackArgs',{'MeanFun',@tools.math.stat.nanmean, 'Nsigma',[2 2]});
+                    % BUG : Need to return EffectiveGain
+                    EffectiveGain = NaN;
                 otherwise
                     error('Unknown StackMethod option');
             end
@@ -454,10 +469,18 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 Coadd(Ifields).VarData.Data = Coadd(Ifields).VarData.Data .* (MeanN./ResultCoadd(Ifields).CoaddN).^2;
             end
 
-            Gain = Coadd(Ifields).HeaderData.getVal(Args.KeyGain, 'UseDict',false);
+            if isnan(EffectiveGain)
+                if isempty(Args.Gain)
+                    Gain = Coadd(Ifields).HeaderData.getVal(Args.KeyGain, 'UseDict',false);
+                else
+                    Gain = Args.Gain;
+                end
+                Gain = Gain.*MeanN;
+            else
+                Gain = EffectiveGain;
+            end
             if Args.UpdateGain
                 % update the gain by multiply the current gain by NCOADD
-                Gain = Gain.*MeanN;
                 Coadd(Ifields).HeaderData.replaceVal(Args.KeyGain, Gain);
             end
             
@@ -499,6 +522,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             if Args.FindStars
                 [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), ...
                                                     Args.multiIterExtractorArgs{:},...
+                                                    'Gain',EffectiveGain,...
+                                                    'FlagCR',Args.FlagCR,...
                                                     'maskCR_Args',Args.maskCR_Args,...
                                                     'AperRadius',Args.AperRadius,...
                                                     'Annulus',Args.Annulus,...

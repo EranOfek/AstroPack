@@ -296,7 +296,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
             % solve astrometry of all images
             %ProcessingStep = 301;
-            [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, 'MatchMethod',Args.MatchMethod, Args.astrometryVisitSubImageArgs{:}); % 22s
+            [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, 'MatchMethod',Args.MatchMethod, 'JD',JD, Args.astrometryVisitSubImageArgs{:}); % 22s
         
             % add coordinates to catalogs
             %ProcessingStep = 401;
@@ -382,6 +382,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                         Ind = find(IsForcedPhot);
                         for IsubGood = 1:numel(Ind)                            
                             % May need to update the column names:
+                            % Note that the exact JD doesn't matter much,
+                            % therefore using JD(1).
                             [~, RA, Dec] = imProc.cat.applyProperMotionSimple(CatForcedPhot(IsubGood), JD(1), 'OutUnits','rad', 'OutEpochUnits','JD', 'InEpoch','Epoch', 'ColPMRA','PMRA', 'ColPMDec','PMDec', 'OutUnits','deg');
                             Coo = [RA, Dec];                            
                             %if strcmpi(Args.OutputType, 'concatai')       
@@ -444,7 +446,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         
             % calculate the photometric rms per crop
             
-            PhotRMS = MS.calcRMS('FieldY','MAG_APER_3');
+            PhotRMS = MS.calcRMS('FieldY','MAG_APER_3', 'FieldX','MAG_APER_3');
             Phot_MinRMS    = [PhotRMS.MinRMS];
             Phot_MagMinRMS = [PhotRMS.MagMinRMS];
             
@@ -655,7 +657,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             if AnyCoaddExist
                 % tic;
                 GoodCrop = ~tools.cell.isempty_cell({ResRelZP.FitZP});
-                DeltaZP = reshape([ResRelZP.FitZP], Nepoch, sum(GoodCrop));
+                %DeltaZP = reshape([ResRelZP.FitZP], Nepoch, sum(GoodCrop));
+                DeltaZP = reshape([ResRelZP(GoodCrop).FitZP], Nepoch, sum(GoodCrop));
                 AllSI(:,GoodCrop) = PC(GoodCrop).applyPhotCalibShifts(AllSI(:,GoodCrop), 'DeltaZP',DeltaZP);
                 % toc
             end
@@ -670,7 +673,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Add XFULL/YFULL
             [~,Coadd(NotIsEmptyCat)] = imProc.cat.addXYfull(Coadd(NotIsEmptyCat));
             % Add PSF fraction to header
-             [~,Coadd(NotIsEmptyCat)] = imProc.psf.aperFrac(Coadd(NotIsEmptyCat), 'AperRadius',Args.AperRadius);
+            [~,Coadd(NotIsEmptyCat)] = imProc.psf.aperFrac(Coadd(NotIsEmptyCat), 'AperRadius',Args.AperRadius);
             
 
             % Finish

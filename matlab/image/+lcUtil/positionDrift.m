@@ -50,7 +50,7 @@ function [GlobalMotion, Result] = positionDrift(MS, Args)
     Result = struct('DShiftX',cell(Nms,1), 'DShiftY',cell(Nms,1), 'ShiftXY',cell(Nms,1));
     GlobalMotion = struct('ResidX',cell(Nms,1), 'StdX',cell(Nms,1), 'RateX',cell(Nms,1), 'ResidY',cell(Nms,1), 'StdY',cell(Nms,1), 'RateY',cell(Nms,1));
     for Ims=1:1:Nms
-        if MS(Ims).Nepoch>Args.MinEpoch
+        if MS(Ims).Nepoch>=Args.MinEpoch
             switch lower(Args.Method)
                 case 'diff'
                     if isempty(Args.MinSN)

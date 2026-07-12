@@ -79,6 +79,8 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
         Args.PsfPhotMethod           = 'legacy';  % 'legacy'|'1D'|'2D'|'2DGN'
         Args.ShiftMethod             = 'fft'; % 1 lanczos3, 2-fft
 
+        Args.Gain                    = 1;
+
         Args.XY                      = [];  % empty - find sources, or read from catalog
         Args.PSF                     = [];  % PSF, or function_handle
         Args.PSFArgs cell            = {};
@@ -210,6 +212,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
             
 
                 [Result, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
+                                                                'Gain',Args.Gain,...
                                                                 'Std',Std,...
                                                                 'Back',0,...
                                                                 'FitRadius',Args.FitRadius,...

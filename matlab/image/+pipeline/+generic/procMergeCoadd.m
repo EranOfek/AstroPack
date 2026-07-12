@@ -235,9 +235,14 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
                                                                                                  'StackArgs',Args.StackArgs);
                                                                                                 
             % In some cases the first image of the stack is rejected, so
-            % the 'DATEOBS' in the resulting Coadd may be not the same 
-            % in all the subimages. Here we correct it taking the date from the first Proc image:
+            % the 'DATEOBS'/'FILENAME' in the resulting Coadd may not be
+            % the same in all the subimages (they get copied wholesale
+            % from ImObj(1) = the first surviving epoch for this specific
+            % crop, inside imProc.stack.coadd). Row 1 of AllSI is the same
+            % raw exposure for every crop/column, so we correct both here
+            % taking the values from the first Proc image:
             Coadd(Ifields).HeaderData.setVal('DATEOBS',AllSI(1,1).HeaderData.getVal('DATEOBS'));
+            Coadd(Ifields).HeaderData.setVal('FILENAME',AllSI(1,1).HeaderData.getVal('FILENAME'));
                                                                                              
             % Background
             Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...

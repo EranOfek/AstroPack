@@ -97,6 +97,14 @@ function [Result,Info] = buildRefImages(RefID, Args)
         %Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[256 256], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',100}, {}} };
         Args.backVarIndivArgs   =  {'Method',@imUtil.background.modeVar_LogHist, 'Block',[512 512], 'MethodArgs',{{},{}}};
 
+        Args.multiIterExtractorArgs = {};
+        Args.FlagCR                 = true;
+
+        Args.GainFrom           = 'ncoadd';
+        Args.KeyGain            = 'GAIN';
+        Args.KeyNcoadd          = 'NCOADD';
+
+
         Args.Threshold          = [500 100 50 20 4];
 
         Args.SubBack            = true;  % don't change unless you understand what you are doing
@@ -267,9 +275,12 @@ function [Result,Info] = buildRefImages(RefID, Args)
                 fprintf('%d groups of images found\n',Ngroup);
             end
             %
-            StackImages = [];
+            StackImages = cell(1,Ngroup); % preallocated buffer, trimmed to Nstack after the group loop
+            Nstack = 0;
             Info(K).NimagesFootprint = size(T,1);
 
+            AllGain   = nan(Ngroup,1);
+            AllNcoadd = nan(Ngroup,1);
             for Igroup = 1:Ngroup % loop by sets of epoch + telescope
                 
                 TabGrp  = T(Grp == Igroup, :);               
@@ -343,6 +354,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
 
                     AI = AstroImage.readProducts(AF.genFull, 'UseMex', true);
 
+                    AllGain(Igroup)   = AI(1).HeaderData.getVal(Args.KeyGain);
+                    AllNcoadd(Igroup) = AI(1).HeaderData.getVal(Args.KeyNcoadd);
                     % for:
 %                     AI=pipeline.last.queryDB.loadProducts(TabGrp); % does not load anything ?
 
@@ -373,17 +386,16 @@ function [Result,Info] = buildRefImages(RefID, Args)
                             fprintf(' done \n');
                         end
 
-                        % add the images to the stack
-                        if exist('StackImages','var')
-                            StackImages = [StackImages StitchedImage];
-                        else
-                            StackImages = StitchedImage;
-                        end
+                        % add the image to the preallocated stack buffer
+                        Nstack = Nstack + 1;
+                        StackImages{Nstack} = StitchedImage;
                     end
                 end
             end % groups (epochs + telescopes)
-            
-            % do the stacking 
+
+            StackImages = [StackImages{1:Nstack}]; % trim to the actual number of accepted images
+
+            % do the stacking
             if isempty(StackImages) || numel(StackImages)<2
                 if Args.Verbose > 0
                     cprintf('err','No images have been qualified for the field %d, skipping to the next field..\n',Iref);
@@ -397,7 +409,19 @@ function [Result,Info] = buildRefImages(RefID, Args)
                 % 5. coadd the epochs from different groups of images (e.g., telescopes and cameras)
                 %    rotate, align, and cut the merged crops to the ref. coordinates
                 %    measure background, find sources, populate PSF
-                RefImage = pipeline.generic.procCoadd(StackImages','WCS',AIref,...
+                switch Args.GainFrom
+                    case 'gain'
+                        InputMeanGain = mean(AllGain,'all','omitnan');
+                    case 'ncoadd'
+                        InputMeanGain = mean(AllNcoadd,'all','omitnan');
+                    otherwise
+                        error('Unknown GainFrom option');
+                end
+
+                RefImage = pipeline.generic.procCoadd(StackImages','WCS',AIref,... 
+                                    'multiIterExtractorArgs',Args.multiIterExtractorArgs,...
+                                    'InputMeanGain',InputMeanGain,...
+                                    'FlagCR',Args.FlagCR,...
                                     'SubBack',Args.SubBack,...
                                     'SetBackTo0',false,...
                                     'ReMeasureBack',true,...                                    
@@ -407,7 +431,6 @@ function [Result,Info] = buildRefImages(RefID, Args)
                                     'AddExtraBack',true,...
                                     'AddExtraVar',true,...
                                     'ZP','PH_ZP',...
-                                    'NcoaddFactor',20,...
                                     'CleanSN',4,...
                                     'StackMethod',Args.StackMethod, Args.StackMethodArgs{:}, Args.CoaddFunctionArgs{:},...
                                     'backVarArgs',Args.backVarArgs,...

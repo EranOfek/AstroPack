@@ -86,7 +86,7 @@ function [R, P_R, Info] = properCoaddLinear(M, P, Sigma_M, W_M, Args)
     %          [Rr,~]=imUtil.properCoadd.properCoaddLinear(M,P,B,1,'Flux',F,'Robust',true);
     %
     %
-      % Usage tips (setting the robustness parameters):
+    % Usage tips (setting the robustness parameters):
     %   The default call (Sigma_M=1, W_M=1, Robust=false) returns the exact
     %   Zackay & Ofek Fourier coadd via a single FFT solve. Robustness is opt-in;
     %   the pixel-space CG solver (and any rejection) is engaged only when W_M is

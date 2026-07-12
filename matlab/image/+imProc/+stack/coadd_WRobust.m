@@ -1,4 +1,4 @@
-function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
+function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
     % Weighted/robust coaddition of registeed images stored in AstroImage object.
     %   The function works on regsitered images (e.g., using
     %   imProc.transIm.register).
@@ -77,6 +77,8 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
     %            in each pixel.
     %          - Exposure time weighted mean of mid times of the coadd
     %            exposures (also written to header).
+    %          - Effective gain of coadd image.
+    %
     % More   : - If 'SubBack' is true and some images do not have the Back
     %            property populated, then the function estimates the
     %            background using imProc.background.backVar.
@@ -108,6 +110,8 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
         Args.CCDSEC          = [];
         Args.ZP              = [];  % if empty use equal flux matching
         Args.ZP0             = 25;
+
+        Args.Gain            = 1;
 
         %--- Background variance calculation
         %Args.PoissVar        = false;
@@ -202,6 +206,7 @@ function [Result, CoaddN, MidJD] = coadd_WRobust(Obj, Args)
     % I suspect we need to scale FluxMatch by the number of images...
 
     % coadd
+    EffectiveGain = Args.Gain .* sum(1./Var).^2./sum(1./Var.^2);  % weighted gain of the output image
     [Result.ImageData.Data, Result.VarData.Data, CoaddN] = imUtil.stack.wcoaddRobust(ImageCube, BackCube, 'Var',Var, 'F',FluxMatch, 'ZP',[],'ZP0',[],...
                                                                        'RemoveMinMax',Args.RemoveMinMax,'Niter',Args.Niter,'SigmaClip',Args.SigmaClip, 'StdMethod',Args.StdMethod,...
                                                                        'UseMex',Args.CoaddUseMex);

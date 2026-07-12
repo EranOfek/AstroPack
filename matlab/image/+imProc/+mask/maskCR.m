@@ -38,7 +38,7 @@ function [Result,FlagGood] = maskCR(Obj, Args)
     % Example: AI = imProc.mask.maskCR(AI)
     
     arguments
-        Obj AstroImage
+        Obj 
                 
         Args.ColX                    = 'XPEAK';
         Args.ColY                    = 'YPEAK';
@@ -50,12 +50,12 @@ function [Result,FlagGood] = maskCR(Obj, Args)
 
         Args.BitNameCR               = 'CR_DeltaHT';
 
-        Args.SetMask logical         = true;
-        Args.RemoveFromCat logical   = true;
+        Args.SetMask                 = true;
+        Args.RemoveFromCat           = true;
 
         Args.BitDict                 = BitDictionary('BitMask.Image.Default');
 
-        Args.CreateNewObj logical    = false;
+        Args.CreateNewObj            = false;
        
     end
     

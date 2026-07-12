@@ -121,7 +121,7 @@ if ~isempty(Args.AnnulusPost)
     PR = imUtil.psf.mex.cosbellCorners(PR, Args.AnnulusPost);
     
     if Args.ReCalcAfterAnnPost
-        PR_f  = ifft2(PR);
+        PR_f  = fft2(PR);
         R_f   = sum(WW_d .* Data_f.*conj(PSF_f),IndexDim)./PR_f;
         R     = ifft2(R_f);
     end 

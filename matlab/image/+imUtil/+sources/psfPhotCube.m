@@ -115,8 +115,9 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         Args.SN         = [];
         Args.UseSNR     = true; % false;
         
-        Args.UseSourceNoise = 'last'; %'off';
+        Args.UseSourceNoise = 'last'; %'last'; %'off';
         Args.ZP         = 25; 
+        Args.Gain       = 1;   % e-/ADU; source Poisson variance = Flux*PSF/Gain
         
         Args.Verbose logical = false;
 
@@ -224,7 +225,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     AppFlux      = nan(Args.MaxIter, Nim);
 
     AdditionalIter = false;
-    UseSourceNoise = false;
+    %UseSourceNoise = false;
     switch lower(Args.UseSourceNoise)
         case 'all'
             UseSourceNoise = true;
@@ -233,6 +234,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         case 'last'
             AdditionalIter = true;
             UseSourceNoise = false;
+        otherwise
+            error('Unknown UseSourceNoise option');
     end
 
     Ind = 0;
@@ -244,7 +247,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         if UseSourceNoise && Ind > 1
             [~, FluxTmp, ShiftedPSFTmp] = internalCalcChi2( ...
                 CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, FitRadius2, Args.ShiftMethod, Args.UseMex);
-            Std = localUpdateStdWithSourceNoise(FluxTmp, ShiftedPSFTmp, StdBack);
+            Std = localUpdateStdWithSourceNoise(FluxTmp, ShiftedPSFTmp, StdBack, Args.Gain);
         end
 
         switch upper(Args.PsfPhotMethod)
@@ -262,6 +265,8 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
                 [StepX, StepY, AppFlux(Ind,:)] = gradDescentPSF2DGN( ...
                     CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, ...
                     FitRadius2, SmallStep, Args.MaxStep, Args.ShiftMethod, Args.UseMex);
+            otherwise
+                error('Unknown PsfPhotMethod option');
         end
 
         StepX(~Active) = 0;
@@ -283,7 +288,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         [~, FluxTmp, ShiftedPSFTmp] = internalCalcChi2( ...
             CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, FitRadius2, Args.ShiftMethod, Args.UseMex);
 
-        Std = localUpdateStdWithSourceNoise(FluxTmp, ShiftedPSFTmp, StdBack);
+        Std = localUpdateStdWithSourceNoise(FluxTmp, ShiftedPSFTmp, StdBack, Args.Gain);
 
         switch upper(Args.PsfPhotMethod)
             case '1D'
@@ -298,10 +303,22 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
                 [StepX, StepY] = gradDescentPSF2DGN( ...
                     CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, ...
                     FitRadius2, SmallStep, Args.MaxStep, Args.ShiftMethod, Args.UseMex);
+            otherwise
+                error('Unknown PsfPhotMethod option');    
         end
 
         DX = DX + StepX;
         DY = DY + StepY;
+    end
+
+    % fix: rebuild the source-noise Std at the final (DX,DY) so the
+    % reported Chi2/Flux/FluxErr/SNm use a noise map consistent with the
+    % final position (removes the one-step lag from the loop / additional
+    % iteration). No-op for UseSourceNoise='off'.
+    if AdditionalIter || UseSourceNoise
+        [~, FluxTmp, ShiftedPSFTmp] = internalCalcChi2( ...
+            CubeFit, Std, Args.PSF, DX, DY, VecXrel, VecYrel, FitRadius2, Args.ShiftMethod, Args.UseMex);
+        Std = localUpdateStdWithSourceNoise(FluxTmp, ShiftedPSFTmp, StdBack, Args.Gain);
     end
 
     [Chi2, Flux, ShiftedPSF, Dof, FluxErr] = internalCalcChi2( ...
@@ -444,9 +461,9 @@ function [SmallStep, ConvThresh] = localPrepareStepControl(Args, Nim)
 end
 
 
-function Std = localUpdateStdWithSourceNoise(Flux, ShiftedPSF, StdBack)
+function Std = localUpdateStdWithSourceNoise(Flux, ShiftedPSF, StdBack, Gain)
     Flux3 = reshape(Flux, 1, 1, []);
-    ModelVar = Flux3 .* ShiftedPSF;
+    ModelVar = Flux3 .* ShiftedPSF ./ Gain;
     ModelVar = max(ModelVar, 0);
     Var = max(ModelVar + StdBack.^2, eps(class(StdBack)));
     Std = sqrt(Var);
