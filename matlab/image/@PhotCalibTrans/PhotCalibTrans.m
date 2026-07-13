@@ -665,6 +665,21 @@ classdef PhotCalibTrans < Component
                 Args.AirmassColName   = 'AIRMASS'
                 Args.PerSourceAirmass logical = false
 
+                % --- Norm convention (post-fit gauge fix) ---
+                % Selects the reported meaning of Norm and the Tran2D DC
+                % offset kx0. The (Norm, kx0) pair is a pure gauge freedom:
+                % any bijective reparameterisation preserves every model
+                % prediction. Options:
+                %   'raw'    - report the fit's raw values (default; every
+                %              historical run uses this).
+                %   'center' - after the fit completes, rotate the pair so
+                %              that Tran2D(field-centre) = 0 and Norm
+                %              carries the full field-centre ZP. Applied
+                %              via absorbTran2DCenterIntoNorm(). Predictions
+                %              are bit-identical; only the (Norm, ParX(1))
+                %              split changes.
+                Args.NormConvention (1,:) char {mustBeMember(Args.NormConvention, {'raw','center'})} = 'raw'
+
                 % Number of proc frames per individual input coadd. Stays at 1
                 % for ordinary single-level coadds (where EXPTIME / NCOADD already
                 % gives the per-frame exposure). Set to e.g. 20 when calibrating
@@ -723,7 +738,20 @@ classdef PhotCalibTrans < Component
                 Args.AperCorrMinSN    = 30           % Minimum S/N for aperture correction stars
 
                 Args.MagSystem char   = 'AB'
-                Args.N_ARMS           = 20              % N brightest calibrators for ARMS (0=skip)
+                % ARMS sample-size selection.
+                %   ARMSMode = 'percent' (default) - use ARMS_Percent% of
+                %              the brightest survivors. Sample size scales
+                %              with the calibrator pool.
+                %   ARMSMode = 'count'   - use the fixed N_ARMS brightest
+                %              (legacy behaviour; small pools no longer
+                %              hit the min(N_ARMS, Nvalid) safety floor
+                %              unexpectedly).
+                % Common: pool is filtered by Used=true AND finite Flux
+                % AND finite Residuals; sorted by Flux descending; the
+                % top-K rows contribute to sqrt(median(R^2)).
+                Args.ARMSMode        char   {mustBeMember(Args.ARMSMode, {'percent','count'})} = 'percent'
+                Args.ARMS_Percent    (1,1) double {mustBeNonnegative, mustBeLessThanOrEqual(Args.ARMS_Percent, 100)} = 20
+                Args.N_ARMS          (1,1) double = 20   % legacy count for ARMSMode='count' (0 skips ARMS in either mode)
                 Args.Verbose logical  = false
 
                 % --- Alternate calibrator selection (forwarded to selectCalibrators) ---
@@ -1095,18 +1123,36 @@ classdef PhotCalibTrans < Component
                 ExpTime_eff = Obj.ExpTime_eff;
 
                 % Pre-compute MagErr for all calibrators (expensive, do once)
-                % This avoids recalculating error propagation on every costFun call
-                PrecomputedMagErr = Obj.propagateCalibratorMagErr(Flux, FluxErrVector, ...
-                    'WeightingMode', Args.WeightingMode, ...
-                    'ExpTime', ExpTime_eff, ...
-                    'FluxErrorNorm', Args.FluxErrorNorm);
+                % This avoids recalculating error propagation on every costFun call.
+                % Both component vectors (spectral only, flux only) come back
+                % alongside the WeightingMode-combined fit-weight MagErr so
+                % they can be inspected in Cal snapshots.
+                [PrecomputedMagErr, PrecomputedMagErr_spectral, PrecomputedMagErr_flux] = ...
+                    Obj.propagateCalibratorMagErr(Flux, FluxErrVector, ...
+                        'WeightingMode', Args.WeightingMode, ...
+                        'ExpTime', ExpTime_eff, ...
+                        'FluxErrorNorm', Args.FluxErrorNorm);
 
-                % Store pre-computed MagErr in SourceData
+                % Store pre-computed MagErr (and its two components) in
+                % SourceData so every CalibTrajectory snapshot inherits them
+                % via SnapTable = BaseTable copy.
                 if istable(Obj.SourceData.Catalog)
                     Obj.SourceData.Catalog.MagErr = PrecomputedMagErr;
+                    if ~isempty(PrecomputedMagErr_spectral)
+                        Obj.SourceData.Catalog.MagErr_spectral = PrecomputedMagErr_spectral(:);
+                    end
+                    if ~isempty(PrecomputedMagErr_flux)
+                        Obj.SourceData.Catalog.MagErr_flux = PrecomputedMagErr_flux(:);
+                    end
                 else
                     Tab = Obj.SourceData.Table;
                     Tab.MagErr = PrecomputedMagErr;
+                    if ~isempty(PrecomputedMagErr_spectral)
+                        Tab.MagErr_spectral = PrecomputedMagErr_spectral(:);
+                    end
+                    if ~isempty(PrecomputedMagErr_flux)
+                        Tab.MagErr_flux = PrecomputedMagErr_flux(:);
+                    end
                     Obj.SourceData.Catalog = Tab;
                 end
 
@@ -1229,8 +1275,8 @@ classdef PhotCalibTrans < Component
                         TrajAccum = repmat(struct( ...
                             'StageIndex', 0, 'StageName', '', 'IterIndex', 0, ...
                             'OuterIter', 0, 'NumClipped', 0, 'NumRemaining', 0, ...
-                            'RMS', NaN, 'Scatter', NaN, ...
-                            'SourceData', AstroCatalog), 1, 0);
+                            'RMS', NaN, 'Scatter', NaN, 'RobustStd', NaN, ...
+                            'ARMS', NaN, 'SourceData', AstroCatalog), 1, 0);
                         % When the fit ran multiple outer iters (Recipe
                         % NumRepeats > 1 or OuterSigmaClip), FitResult(1)
                         % .AllOuterStages is a flat struct array of every
@@ -1287,6 +1333,33 @@ classdef PhotCalibTrans < Component
                                     Entry.Scatter  = Snap.Scatter;
                                 else
                                     Entry.Scatter  = NaN;
+                                end
+                                if isfield(Snap, 'RobustStd')
+                                    Entry.RobustStd = Snap.RobustStd;
+                                else
+                                    Entry.RobustStd = NaN;
+                                end
+                                % ARMS: bright-end sqrt(median(R^2)) on the
+                                % ARMSMode-selected sub-pool of this snap's
+                                % survivors. Same recipe as Obj.ARMS (line
+                                % 1450+), applied per-iter to SnapTable.
+                                Entry.ARMS  = NaN;
+                                ARMSEnabled = strcmp(Args.ARMSMode, 'percent') || Args.N_ARMS > 0;
+                                if ARMSEnabled
+                                    UsedSnap   = logical(SnapTable.Used);
+                                    FluxSnap   = SnapTable.Flux(UsedSnap);
+                                    ResSnap    = SnapTable.Residuals(UsedSnap);
+                                    ValidSnap  = isfinite(FluxSnap) & isfinite(ResSnap);
+                                    FluxVSnap  = FluxSnap(ValidSnap);
+                                    ResVSnap   = ResSnap(ValidSnap);
+                                    Ksnap = armsSampleSize(numel(FluxVSnap), ...
+                                        Args.ARMSMode, Args.ARMS_Percent, Args.N_ARMS);
+                                    if Ksnap > 0 && Ksnap <= numel(FluxVSnap)
+                                        [~, SortIdxSnap] = sort(FluxVSnap, 'descend');
+                                        R2SnapSort  = ResVSnap(SortIdxSnap).^2;
+                                        WindowMedS  = movmedian(R2SnapSort, Ksnap, 'Endpoints', 'discard');
+                                        Entry.ARMS  = sqrt(min(WindowMedS));
+                                    end
                                 end
                                 Entry.SourceData   = AstroCatalog(SnapTable);
                                 TrajAccum(end+1) = Entry; %#ok<AGROW>
@@ -1437,8 +1510,11 @@ classdef PhotCalibTrans < Component
                     end
                 end
 
-            % Compute ARMS (bright-star RMS) if requested
-            if Args.N_ARMS > 0 && ~isempty(Obj.TransModel) && ~isempty(Obj.SourceData)
+            % Compute ARMS (bright-star RMS) if requested. ARMSMode picks
+            % between fixed-count and percent-of-pool selection.
+            ARMSEnabled = ~isempty(Obj.TransModel) && ~isempty(Obj.SourceData) && ...
+                (strcmp(Args.ARMSMode, 'percent') || Args.N_ARMS > 0);
+            if ARMSEnabled
                 Tab = Obj.SourceData.Table;
                 UsedMask = logical(Tab.Used);
                 FluxUsed = Tab.Flux(UsedMask);
@@ -1446,16 +1522,34 @@ classdef PhotCalibTrans < Component
                 ValidMask = isfinite(FluxUsed) & isfinite(ResUsed);
                 FluxValid = FluxUsed(ValidMask);
                 ResValid  = ResUsed(ValidMask);
-                N = min(Args.N_ARMS, numel(FluxValid));
-                if N > 0
+                K = armsSampleSize(numel(FluxValid), Args.ARMSMode, ...
+                    Args.ARMS_Percent, Args.N_ARMS);
+                if K > 0 && K <= numel(FluxValid)
+                    % Sliding-window-min-median: sort survivors by Flux
+                    % descending, slide a K-wide window across the sorted
+                    % list, take the median of R^2 in each window, and
+                    % pick the minimum across all windows. sqrt gives
+                    % the "best-behaving-bin's" root-median-square
+                    % residual - a robust bright-to-mid-mag noise floor.
                     [~, SortIdx] = sort(FluxValid, 'descend');
-                    Obj.ARMS = sqrt(median(ResValid(SortIdx(1:N)).^2));
+                    R2Sorted     = ResValid(SortIdx).^2;
+                    WindowMed    = movmedian(R2Sorted, K, 'Endpoints', 'discard');
+                    Obj.ARMS     = sqrt(min(WindowMed));
                 end
             end
 
             % NOTE: calcAperCorr is no longer called here. It runs in
             % fitPhotCalibTrans AFTER addMag creates MAG_AB_* columns,
             % so 'mag' mode can use AB magnitudes.
+
+            % Post-fit gauge fix (opt-in). Reifies the reported (Norm, kx0)
+            % split according to NormConvention. Runs after CalibTrajectory
+            % has already been assembled, so the trajectory records the raw
+            % fit evolution and only the final PC.TransModel is
+            % gauge-canonicalised. Predictions unchanged either way.
+            if strcmpi(Args.NormConvention, 'center')
+                Obj = Obj.absorbTran2DCenterIntoNorm('Verbose', Args.Verbose);
+            end
 
             if Args.Verbose
                 fprintf('=== Calibration Complete ===\n');
@@ -2012,6 +2106,103 @@ classdef PhotCalibTrans < Component
             PCnew.TransModel.setAllFunPar(AllFunPar);
         end
 
+        function Obj = absorbTran2DCenterIntoNorm(Obj, Args)
+            % Rotate the (Norm, Tran2D-DC) gauge freedom so Tran2D(centre)=0
+            % Description: Post-fit relabelling of two degenerate parameters
+            %              that carry the same information: the fit's Norm
+            %              and the Tran2D polynomial's value at the field
+            %              centre. This method absorbs Tran2D(centre) into
+            %              Norm so that after the call Tran2D(x_c, y_c) = 0
+            %              exactly and Norm carries the full ZP at the
+            %              field centre. Every model prediction (ZP at any
+            %              (x,y), predicted flux, residuals, RMS, chi^2)
+            %              is bit-identical before and after — this is a
+            %              gauge fix, not a refit.
+            %
+            %              Math (multiplicative-in-flux ZP model, see
+            %              evaluateZP): the ZP at position (x,y) is
+            %                ZP(x,y) = 2.5*log10(Norm * OtherFactors)
+            %                          - Tran2D(x,y).
+            %              Let PolyC = Tran2D(x_c, y_c). To zero the
+            %              polynomial at the centre while preserving
+            %              ZP(x,y) everywhere:
+            %                Norm_new    = Norm_old * 10^(-PolyC/2.5)
+            %                ParX(1)_new = ParX(1)_old - PolyC     (uniform
+            %                              DC shift of the polynomial via
+            %                              the constant-basis coefficient)
+            %
+            %              Idempotent: running it a second time is a no-op
+            %              because Tran2D(centre) is already zero.
+            % Input  : - PhotCalibTrans object with a populated TransModel
+            %            and Tran2DObj.
+            %          * ...,key,val,...
+            %            'Tol'      - Threshold on |PolyC| below which the
+            %                         call is treated as a no-op.
+            %                         Default 1e-12.
+            %            'Verbose'  - Print the (Norm_old -> Norm_new,
+            %                         PolyC) trio on non-trivial calls.
+            %                         Default false.
+            % Output : - Same PhotCalibTrans (handle class; mutated in
+            %                     place). Returned for method chaining.
+            % Author : D. Kovaleva (Jul 2026)
+            % See also: derivePC (uses a related absorption for the
+            %           reference-vs-per-crop reshape/refzp modes).
+            % Example: PC = PC.calibrate(AI, 'NormConvention', 'center');
+            %          % or explicitly, after a raw calibrate:
+            %          PC = PC.absorbTran2DCenterIntoNorm();
+
+            arguments
+                Obj
+                Args.Tol     (1,1) double  = 1e-12
+                Args.Verbose (1,1) logical = false
+            end
+
+            if isempty(Obj.TransModel) || isempty(Obj.TransModel.Tran2DObj) ...
+                    || ~Obj.TransModel.UseTran2D
+                return;
+            end
+
+            T2D = Obj.TransModel.Tran2DObj;
+
+            % Field centre in the pixel coordinates the basis is
+            % normalised against. ParNX / ParNY hold [Xc, Xc] and
+            % [Yc, Yc] (basis is normalised to [-1,1] using these
+            % centres and half-widths, see Tran2D constructor).
+            Xc = T2D.ParNX(1);
+            Yc = T2D.ParNY(1);
+            [PolyC, ~] = T2D.forward([Xc, Yc]);
+
+            if ~isfinite(PolyC) || abs(PolyC) < Args.Tol
+                return;                                     % already canonical
+            end
+
+            AllFunPar = Obj.TransModel.getAllFunPar();
+            NormIdx   = find(strcmp(AllFunPar.Name, 'Norm'), 1);
+            if isempty(NormIdx)
+                Obj.addStatus('absorbTran2DCenterIntoNorm', 'warning', ...
+                    'TransModel has no Norm parameter — nothing to absorb into.', ...
+                    'PhotCalibTrans:absorbTran2DCenterIntoNorm:NoNorm');
+                return;
+            end
+
+            NormOld = AllFunPar.Val(NormIdx);
+            NormNew = NormOld * 10^(-PolyC / 2.5);
+
+            AllFunPar.Val(NormIdx) = NormNew;
+            Obj.TransModel.setAllFunPar(AllFunPar);
+
+            % Uniformly shift the polynomial by -PolyC via the
+            % constant-basis coefficient. For cheby1_*_xt the first
+            % basis function is ones(size(x)) (see Tran2D.m case
+            % 'cheby1_4_xt' / 'cheby1_2'), so ParX(1) is the DC term.
+            T2D.ParX(1) = T2D.ParX(1) - PolyC;
+
+            if Args.Verbose
+                fprintf('  absorbTran2DCenterIntoNorm: PolyC=%+.6g mag, Norm %g -> %g\n', ...
+                        PolyC, NormOld, NormNew);
+            end
+        end
+
         function ZP = evaluateZP(Obj, Args)
             % Evaluate photometric zero point at specific positions
             % Input  : - PhotCalibTrans object.
@@ -2379,18 +2570,22 @@ classdef PhotCalibTrans < Component
             ParamsInfo.WasFitted = WasFitted(:);
         end
 
-        function MagErr = propagateCalibratorMagErr(Obj, Flux, FluxErrVector, Args)
+        function [MagErr, MagErr_spectral, MagErr_flux] = propagateCalibratorMagErr(Obj, Flux, FluxErrVector, Args)
             % Propagate calibrator spectral and flux errors into per-star magnitude uncertainties
             % Description: Combines Gaia XP spectral errors (through reference
             %              transmission) and observed flux errors into a single
             %              MagErr vector, used as weights in the cost function
             %              during optimization. Called once before fitting to
-            %              avoid repeated error propagation.
+            %              avoid repeated error propagation. Both component
+            %              vectors are always computed when the requisite data
+            %              are available (independent of WeightingMode) so that
+            %              they can be inspected in Cal snapshots.
             % Input  : - PhotCalibTrans object (must have SpecData populated)
             %          - Observed flux values [photons] [N_calib x 1]
             %          - Relative flux errors [N_calib x 1] (can be [])
             %          * ...,key,val,...
-            %            'WeightingMode' - Error sources to include:
+            %            'WeightingMode' - Error sources to include in the
+            %                   combined fit-weight MagErr:
             %                   'spectral' - Gaia XP spectral errors only (default)
             %                   'flux'     - Observed flux errors only
             %                   'combined' - Quadrature sum of both
@@ -2400,10 +2595,19 @@ classdef PhotCalibTrans < Component
             %                   Default is @telescope.optics.refTransmissionLAST.
             %            'FluxErrorNorm' - Effective area scaling for synthetic flux
             %                   in error calculation [dimensionless]. Default is 0.5.
-            % Output : - Per-calibrator magnitude uncertainties [N_calib x 1],
-            %                     or [] if WeightingMode is 'none'
+            % Output : - Combined per-calibrator magnitude uncertainties
+            %                     [N_calib x 1], selected by WeightingMode,
+            %                     or [] if WeightingMode is 'none'.
+            %          - MagErr_spectral [N_calib x 1] - spectral-error
+            %                     component only, or [] if SpecData unavailable
+            %                     or WeightingMode is 'none'.
+            %          - MagErr_flux [N_calib x 1] - flux-error component only
+            %                     (1.086*FluxErr for 'spectral'/'combined'/no-mode,
+            %                     bandpass-propagated for legacy 'flux' mode),
+            %                     or [] if FluxErrVector unavailable or
+            %                     WeightingMode is 'none'.
             % Author : D. Kovaleva (Jan 2026)
-            % Example: MagErr = PC.propagateCalibratorMagErr(Flux, FluxErrVector, 'WeightingMode', 'spectral');
+            % Example: [MagErr, MagErr_spec, MagErr_fx] = PC.propagateCalibratorMagErr(Flux, FluxErrVector, 'WeightingMode', 'combined');
 
             arguments
                 Obj
@@ -2426,15 +2630,17 @@ classdef PhotCalibTrans < Component
             Flux = Flux(:);
             N_calib = length(Flux);
 
-            % Initialize output
+            % Initialize outputs
             MagErr = zeros(N_calib, 1);
+            MagErr_spectral = [];
+            MagErr_flux = [];
 
             % Check weighting mode
             UseSpectralWeighting = ismember(lower(Args.WeightingMode), {'spectral', 'combined'});
             UseFluxWeighting = ismember(lower(Args.WeightingMode), {'flux', 'combined'});
 
             if ~UseSpectralWeighting && ~UseFluxWeighting
-                % No weighting, return empty
+                % No weighting, return three empties (fast path)
                 MagErr = [];
                 return;
             end
@@ -2462,11 +2668,11 @@ classdef PhotCalibTrans < Component
             % Scaling factor 
             NSigma = 3;
 
-            MagErr_spectral = [];
-            MagErr_flux = [];
-
-            % Spectral error propagation
-            if UseSpectralWeighting && ~isempty(Obj.SpecData) && ~isempty(Obj.SpecData.SpecErr)
+            % Spectral error propagation. Computed whenever SpecData is
+            % available (independent of WeightingMode) so the component is
+            % accessible in Cal snapshots even when only flux weighting is
+            % active in the fit weight.
+            if ~isempty(Obj.SpecData) && ~isempty(Obj.SpecData.SpecErr)
                 SpecErrMatrix = Obj.SpecData.SpecErr';  % [N_wvl x N_calib]
                 SpecWvl = Obj.SpecData.SpecWvl(:);
 
@@ -2509,33 +2715,37 @@ classdef PhotCalibTrans < Component
                 MagErr_spectral(isnan(MagErr_spectral)) = 100;
             end
 
-            % Flux error propagation. 'combined' uses the simple per-source
-            % instrumental MagErr = 1.086 * FluxErr (FluxErr is relative dF/F,
-            % see [[fluxerr_relative_convention]]). Legacy 'flux' mode keeps
-            % the older bandpass-propagated formula.
-            if UseFluxWeighting && ~isempty(FluxErrVector)
+            % Flux error propagation. Computed whenever FluxErrVector is
+            % available (independent of WeightingMode). Default form is the
+            % simple per-source instrumental MagErr = 1.086 * FluxErr (FluxErr
+            % is relative dF/F, see [[fluxerr_relative_convention]]). Legacy
+            % 'flux' mode keeps the older bandpass-propagated formula so the
+            % fit-weight semantics for that mode are unchanged.
+            if ~isempty(FluxErrVector)
                 FluxErrVector = FluxErrVector(:);
                 if length(FluxErrVector) == N_calib
-                    if strcmpi(Args.WeightingMode, 'combined')
-                        MagErr_flux = 1.086 * FluxErrVector;
-                    else
+                    if strcmpi(Args.WeightingMode, 'flux')
                         T_lambda_dlambda = T_ref_vec(:) .* SpecWvl_nm(:) .* dLambda(:);
                         BandpassNorm = sum(T_lambda_dlambda);
                         BandpassQuad = sqrt(sum(T_lambda_dlambda.^2));
                         BandpassFactor = BandpassQuad / BandpassNorm;
                         FluxErrPropagated = NSigma * FluxErrVector .* BandpassFactor;
                         MagErr_flux = 2.5 * log10(1 + FluxErrPropagated);
+                    else
+                        MagErr_flux = 1.086 * FluxErrVector;
                     end
                     MagErr_flux(~isfinite(MagErr_flux) | MagErr_flux <= 0) = 100;
                 end
             end
 
-            % Combine errors based on weighting mode
-            if ~isempty(MagErr_spectral) && ~isempty(MagErr_flux)
+            % Combine components into fit-weight MagErr according to the
+            % requested WeightingMode. The two component vectors above are
+            % returned in full regardless of this selection.
+            if UseSpectralWeighting && UseFluxWeighting && ~isempty(MagErr_spectral) && ~isempty(MagErr_flux)
                 MagErr = sqrt(MagErr_spectral.^2 + MagErr_flux.^2);
-            elseif ~isempty(MagErr_spectral)
+            elseif UseSpectralWeighting && ~isempty(MagErr_spectral)
                 MagErr = MagErr_spectral;
-            elseif ~isempty(MagErr_flux)
+            elseif UseFluxWeighting && ~isempty(MagErr_flux)
                 MagErr = MagErr_flux;
             else
                 MagErr = [];
@@ -6363,5 +6573,28 @@ function Obj = selectCalibratorsPythonLike(Obj, Cat, Args)
 
     if Args.Verbose
         fprintf('  [pythonLike] calibrator selection complete: %d matched\n', Nvalid);
+    end
+end
+
+% =========================================================================
+function N = armsSampleSize(Nvalid, Mode, Percent, Count)
+    % Pick the number of brightest calibrators contributing to ARMS,
+    % dispatched by Mode:
+    %   'percent' - ceil(Nvalid * Percent/100), floored at 1 if Nvalid>0.
+    %               Small pools collapse gracefully (Nvalid=0 -> N=0).
+    %   'count'   - min(Count, Nvalid); N=0 disables ARMS in this mode
+    %               (handled by the caller-side ARMSEnabled guard).
+    if Nvalid <= 0
+        N = 0;
+        return;
+    end
+    switch Mode
+        case 'percent'
+            N = max(1, ceil(Nvalid * Percent / 100));
+            N = min(N, Nvalid);
+        case 'count'
+            N = min(max(0, floor(Count)), Nvalid);
+        otherwise
+            N = 0;
     end
 end

@@ -84,19 +84,34 @@ function Result = insertAzAlt(Obj, Args)
         if isa(Obj, 'AstroImage')
             Args.ObsCoo = nan(Nobj,2);
             for Iobj=1:1:Nobj
-                [Args.ObsCoo(Iobj,1), Args.ObsCoo(Iobj,2)] = getObsCoo(Obj(Iobj), Args.getObsCooArgs{:});  % [deg] / assumed
+                % getObsCoo is a method of AstroHeader; reach into
+                % HeaderData when the caller passed an AstroImage.
+                [Args.ObsCoo(Iobj,1), Args.ObsCoo(Iobj,2)] = getObsCoo(Obj(Iobj).HeaderData, Args.getObsCooArgs{:});  % [deg] / assumed
             end
         else
             error('if input object is not AstroImage, JD must be provided');
         end
     end
     
+    % Broadcast a single [Lon Lat] row across every AstroImage element:
+    % passing one coordinate pair is the common case (whole camera / whole
+    % visit at one site) and the per-Iobj indexing below assumes Nobj rows.
+    if size(Args.ObsCoo, 1) == 1 && Nobj > 1
+        Args.ObsCoo = repmat(Args.ObsCoo, Nobj, 1);
+    end
+
     Args.ObsCoo = convert.angular(Args.ObsCooUnits, 'rad', Args.ObsCoo);   % [rad]
     
     for Iobj=1:1:Nobj
         LST = celestial.time.lst(Args.JD, Args.ObsCoo(Iobj,1)./RAD, Args.TypeLST).*2.*pi;  % [rad]
         
-        [RA, Dec] = getLonLat(Obj(Iobj), 'rad', Args.getLonLatArgs{:});
+        % getLonLat is a method of AstroCatalog; reach into CatData when
+        % the caller passed an AstroImage.
+        if isa(Obj(Iobj), 'AstroImage')
+            [RA, Dec] = getLonLat(Obj(Iobj).CatData, 'rad', Args.getLonLatArgs{:});
+        else
+            [RA, Dec] = getLonLat(Obj(Iobj), 'rad', Args.getLonLatArgs{:});
+        end
         
         HA  = LST - RA;  % [rad]
         [Az, Alt] = celestial.coo.hadec2azalt(HA, Dec, Args.ObsCoo(Iobj,2));   % [rad]
@@ -120,7 +135,7 @@ function Result = insertAzAlt(Obj, Args)
             
             Data       = [Data, AM];
             ColName    = [ColName, {Args.ColNameAM}];
-            ColUnits   = [ColUnits, ''];
+            ColUnits   = [ColUnits, {''}];
         end
         if Args.InsertPA
             ParAng     = celestial.coo.parallactic_angle(RA, Dec, LST, Args.ObsCoo(Iobj,2));  % [rad]
