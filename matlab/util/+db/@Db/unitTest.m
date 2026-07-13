@@ -1,100 +1,168 @@
 function Result = unitTest()
+% db.Db.unitTest - Integration tests for ClickHouse JDBC and db.Db
+%
+% Runs four inner tests against Euclid (10.150.28.18:8123):
+%   1. testJdbcVersion          - raw JDBC SELECT version()
+%   2. testJdbcCountVisitImages - raw JDBC SELECT count(*) FROM last.visit_images
+%   3. testDbClassRead          - db.Db read queries as last_user
+%   4. testDbClassInsert        - db.Db create/insert/select as default
+%
+% Returns true on success, errors on failure.
 
-% testing DB-related functionality with Coadd images of LAST
-        
-    % read a LAST Coadd object from .mat archive or 24 FITS image files
-%     load('~/coadd_db_test.mat'); % 'Coadd','FN_Coadd','RawImageList'
+    testJdbcVersion();
+    testJdbcCountVisitImages();
+    testDbClassRead();
+    testDbClassInsert();
 
-    % read a list of proc catalogs on Marvin:
-    ProcDirs = readlines('proclist_sorted.txt');
-    Ndirs    = size(ProcDirs,1);
-    
-    % create a DB object and connect
-    DB = db.Db;
-    DB.Host     = 'socsrv';
-    DB.DbName   = 'last';
-    DB.User     = 'default';
-    DB.Password = 'PassRoot';
-    DB.Conn;
-    DB.useDB('last');
-    fprintf('DB in use: %s\n',DB.showCurrentDB);
-    fprintf('Table list: '); fprintf('%s ',DB.showTables); fprintf('\n');
-    
-    CoaddImageTable = 'visit_images';
-    ColNameID       = 'id_visit';
-    
-    tic
-    
-    Dir = pwd;
-    
-    for Idir = 1:1 % Ndirs  % loop over the directories 
-        
-%         DataDir = ProcDirs(Idir);
-        
-%         DataDir = '/mnt/marvin/LAST.01.01.01/2024/11/01/proc/001225v0/';
-        DataDir = '/Data1/LAST.01.01.01/2023/04/24/proc/185438v0/';
-        
-        cd(DataDir);
-        
-        if ~contains(fileread('.status'), "injected into the visit image DB")
-            Coadd=AstroImage('LAST*coadd_Image_1.fits'); % read the data
-            cd(Dir);
-            fprintf('Injecting from %s ..',DataDir);
-            
-            % check and add essential KEYWORDS if they are missing 
-            Pname = Coadd(1).getStructKey('PROJNAME').PROJNAME;
-            if isnan(Coadd(1).getStructKey('NODENUM').NODENUM)
-                NODENUMB = str2num(Pname(6:7));
-                for i=1:24
-                    Coadd(i).HeaderData.insertKey({'NODENUMB',NODENUMB,'node number'});
-                end
-            end
-            if isnan(Coadd(1).getStructKey('MOUNTNUM').MOUNTNUM)
-                MOUNTNUM = str2num(Pname(9:10));
-                for i=1:24
-                    Coadd(i).HeaderData.insertKey({'MOUNTNUM',MOUNTNUM,'mount number'});
-                end
-            end
-            
-            A = AstroFileName;
-            A.ProjName = Coadd(1).getStructKey('PROJNAME').PROJNAME;
-            A.SubDir   = Coadd(1).getStructKey('SUBDIR').SUBDIR;
-            A.Level    = Coadd(1).getStructKey('LEVEL').LEVEL;
-            A.FieldID  = Coadd(1).getStructKey('FIELDID').FIELDID;
-            A.JD       = Coadd(1).getStructKey('JD').JD; 
-            A.CCDID = 1; A.Counter = 0; A.CropID = 0; 
-            A.FileType = "csv"; A.julday2time;
-            CsvFN = A.genFile;
-            
-            Columns = db.util.read_xls2tableFormat('~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx',...
-                'Sheet','Images','TableName','visit_images');            
-
-            T=imProc.db.insertImages(Coadd,'ColNameDic',Columns,'Db',DB,'DbName','last','DbTable',...
-                CoaddImageTable,'CreateCsv',true,'FileName',CsvFN, 'ColNameID',ColNameID);
-            
-            % copy the CSV file into the proc catalog and edit the .status file
-            CopyCSV = sprintf('su - samar -c "cp ~sasha/%s %s"',CsvFN,DataDir);
-            [~, Err1] = system(CopyCSV);            
-            UpdateStatus = sprintf('su - samar -c "echo ''%s injected into the visit image DB'' >> %s/.status"',tools.timeStamp.getTimeStamp,DataDir);
-            [~, Err2] = system(UpdateStatus); 
-            % system(rm fprintf('%s',CsvFN));
-            fprintf(' ..done\n');  
-        else
-            cd(Dir); 
-        end                        
-    end
-                                         
-    toc
-
-    % disconnect the DB     
-    DB.disconnectCH_Java;    
+    Result = true;
 end
 
 
-            % Coadd.setKeyVal('CAMNAME',int16(999)); % column type mismatch
-            % Coadd.setKeyVal('ID_DARK',int16(999)); % dealing with NaNs is in db.Db.table2csv
-            
-            % convert char representations of ID_DARK and ID_FLAT back to int64:
-%             Coadd.setKeyVal('ID_DARK',int64([Coadd.getStructKey('ID_DARK').ID_DARK])); % converter moved to the Excel template;
-%             Coadd.setKeyVal('ID_FLAT',int64([Coadd.getStructKey('ID_FLAT').ID_FLAT]));
-            
+function testJdbcVersion()
+% Raw JDBC: SELECT version()
+
+    Version = runJdbcQuery("SELECT version()", @(Rs) string(Rs.getString(1)));
+    fprintf('ClickHouse server version: %s\n', Version);
+end
+
+
+function testJdbcCountVisitImages()
+% Raw JDBC: SELECT count(*) FROM last.visit_images
+
+    Count = runJdbcQuery("SELECT count(*) FROM last.visit_images", @(Rs) Rs.getLong(1));
+    fprintf('last.visit_images row count: %d\n', Count);
+end
+
+
+function testDbClassRead()
+% db.Db read queries as last_user / physics
+
+    DB = connectTestDb('last_user', 'physics');
+    Cleanup = onCleanup(@() safeDisconnect(DB));
+
+    DB.useDB('last');
+
+    T = DB.query("SELECT version()");
+    disp(T);
+
+    T = DB.query("SELECT count(*) FROM last.visit_images");
+    disp(T);
+end
+
+
+function testDbClassInsert()
+% db.Db write test as default / PassRoot: create test.matlab_insert, insert, select
+
+    DB = connectTestDb('default', 'PassRoot');
+    Cleanup = onCleanup(@() safeDisconnect(DB));
+
+    DB.query('CREATE DATABASE IF NOT EXISTS test', 'IsExec', true);
+    DB.query('DROP TABLE IF EXISTS test.matlab_insert', 'IsExec', true);
+
+    Error = DB.createTable('test.matlab_insert', ...
+        ["id"; "name"; "val"], ...
+        ["UInt32"; "String"; "Float64"]);
+    if ~isempty(Error)
+        error('ClickHouse:CreateTableFailed', '%s', Error);
+    end
+
+    T = table(uint32(1), "matlab_test", 3.14, ...
+        'VariableNames', {'id', 'name', 'val'});
+    Error = DB.insertCharDump('test.matlab_insert', T);
+    if ~isempty(Error)
+        error('ClickHouse:InsertFailed', '%s', Error);
+    end
+
+    T = DB.query("SELECT * FROM test.matlab_insert");
+    disp(T);
+
+    if height(T) ~= 1
+        error('ClickHouse:InsertVerifyFailed', 'Expected 1 row, got %d.', height(T));
+    end
+end
+
+
+function Value = runJdbcQuery(Sql, ParseFn)
+% Execute a JDBC query while conn/statement stay in this function scope
+
+    JarFile  = getClickHouseJarFile();
+    Host     = "10.150.28.18";
+    Port     = 8123;
+    Database = "last";
+    Username = "last_user";
+    Password = "physics";
+
+    javaaddpath(JarFile);
+
+    Driver = com.clickhouse.jdbc.ClickHouseDriver();
+    Props  = java.util.Properties();
+    Props.setProperty("user", Username);
+    Props.setProperty("password", Password);
+
+    Url = sprintf("jdbc:clickhouse:http://%s:%d/%s", Host, Port, Database);
+    fprintf("Connecting to:\n%s\n\n", Url);
+
+    Conn = Driver.connect(Url, Props);
+    if isempty(Conn)
+        error('ClickHouse:JDBCConnectionFailed', ...
+            'The JDBC driver did not accept the connection URL.');
+    end
+    ConnCleanup = onCleanup(@() Conn.close());
+
+    Statement = Conn.createStatement();
+    StatementCleanup = onCleanup(@() Statement.close());
+
+    ResultSet = Statement.executeQuery(Sql);
+    ResultSetCleanup = onCleanup(@() ResultSet.close());
+
+    if ~ResultSet.next()
+        error('ClickHouse:EmptyResult', '%s returned no rows.', Sql);
+    end
+
+    Value = ParseFn(ResultSet);
+end
+
+
+function JarFile = getClickHouseJarFile()
+% Locate clickhouse-jdbc-0.9.3-all.jar next to this file, with fallback path
+
+    LocalJar = fullfile(fileparts(mfilename('fullpath')), 'clickhouse-jdbc-0.9.3-all.jar');
+    FallbackJar = "C:\AstroPack\Data\clickhouse-jdbc-0.9.3-all.jar";
+
+    if isfile(LocalJar)
+        JarFile = LocalJar;
+    elseif isfile(FallbackJar)
+        JarFile = FallbackJar;
+    else
+        error('ClickHouse:JarNotFound', ...
+            'clickhouse-jdbc-0.9.3-all.jar not found at %s or %s', LocalJar, FallbackJar);
+    end
+end
+
+
+function DB = connectTestDb(User, Password)
+% Create db.Db and connect using the local JDBC jar (bypasses Installer)
+
+    DB = db.Db;
+    DB.Host     = '10.150.28.18';
+    DB.DbName   = 'last';
+    DB.User     = User;
+    DB.Password = Password;
+    DB.Conn = db.Db.connectCH_Java( ...
+        'DbName',   DB.DbName, ...
+        'Host',     DB.Host, ...
+        'Port',     DB.Port, ...
+        'User',     DB.User, ...
+        'Password', DB.Password, ...
+        'JarFile',  getClickHouseJarFile());
+end
+
+
+function safeDisconnect(DB)
+% Disconnect DB object; ignore errors on cleanup
+
+    try
+        DB.disconnect;
+    catch
+    end
+end
