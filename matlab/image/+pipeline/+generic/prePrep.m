@@ -74,6 +74,15 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     %            'AddFileNameLiteralsToHeader' - Cell array of literal names
     %                   (e.g., {'ProjName','FieldID'}) to inject from file
     %                   names into the FITS header. Default is {'ProjName','FieldID'}.
+    %            'RecoverKeysFromName' - Two-column cell array of essential
+    %                   header keys to recover from the file name when they
+    %                   are missing (NaN) in the header. First column is the
+    %                   header keyword name; second column is the index of
+    %                   the dot-separated part of the ProjName literal
+    %                   (e.g., 'LAST.01.10.01') holding its numeric value.
+    %                   Only applied when the input is given as file names
+    %                   (i.e., the file name literals are available).
+    %                   Default is {'NODENUMB',2; 'MOUNTNUM',3; 'CAMNUM',4}.
     %            'TimeZone' - Observatory time zone (used for dir name
     %                   construction). Must be consistent with AddHeadKeys
     %                   argument. Default is 2.
@@ -196,15 +205,13 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
                                             'MNTTEMP','FOCUS','PRVFOCUS',...
                                             'OBJECT','COUNTER','NODENUMB','MOUNTNUM','CAMNUM'};
         Args.DeleteHeaderKeys            = {'M_AAZ','M_AALT', 'GIT_UNIT', 'GIT_MESS', 'GITSWITC', 'GITMOUNT', 'CAMPOS'};
+        Args.RecoverKeysFromName         = {'NODENUMB',2; 'MOUNTNUM',3; 'CAMNUM',4};
         
-
-
-        Args.TableForDB                  = true; % if given then update table with header + results.
-        
+        Args.TableForDB                  = true; % if given then update table with header + results.        
     end
+    %
     TableForDB = Args.TableForDB;
     Nim = NaN;
-
    
     if isa(Images, 'AstroImage')
         AI = Images;
@@ -227,9 +234,35 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     AI = AI(:);
     Nim = numel(AI);
 
-    % Delete some header keys:
+    % Delete some header keys, and recover essential header keys (e.g.,
+    % NODENUMB, MOUNTNUM, CAMNUM) from the file name literals if missing.
+    RecoverKeys = ~isempty(Args.RecoverKeysFromName) && exist('Literals','var') && ~isempty(Literals);
+    Nrec        = size(Args.RecoverKeysFromName, 1);
     for Iim=1:1:Nim
         AI(Iim).HeaderData.deleteKey(Args.DeleteHeaderKeys, 'UseRegExp',false);
+
+        if RecoverKeys
+            % ProjName is the first literal (e.g., 'LAST.01.10.01'); its
+            % dot-separated parts hold the node/mount/camera numbers.
+            ProjParts = split(string(Literals{Iim,1}), '.');
+            for Irec=1:1:Nrec
+                KeyName = Args.RecoverKeysFromName{Irec,1};
+                PartInd = Args.RecoverKeysFromName{Irec,2};
+                if isnan(AI(Iim).HeaderData.getVal(KeyName))
+                    KeyVal = NaN;
+                    if PartInd<=numel(ProjParts)
+                        KeyVal = str2double(ProjParts(PartInd));
+                    end
+                    if isnan(KeyVal)
+                        warning('prePrep:recoverKey',...
+                                'Could not recover header key ''%s'' from file name literal ''%s''',...
+                                KeyName, Literals{Iim,1});
+                    else
+                        AI(Iim).HeaderData.replaceVal(KeyName, KeyVal);
+                    end
+                end
+            end
+        end
     end
     % delete comments from header
 %     if Args.DeleteComments
@@ -257,10 +290,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
             %AI(Iim).Image = single(AI(Iim).Image);
         end
     end
-
-    
-
-    
+     
     % allocate TableForDB:
     TableForDB=allocateTableForDB(TableForDB, Nim, Args.ClassID);
     
