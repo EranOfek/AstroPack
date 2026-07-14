@@ -8,17 +8,23 @@ The read-only ClickHouse user `last_user` was updated from `readonly = 1` to `re
 
 ### Required driver
 
-Replace the old JDBC JAR with:
+Install via Installer (recommended):
 
-**clickhouse-jdbc-0.9.3-all.jar**
+```matlab
+I = Installer; I.install('ClickHouseJar')
+```
 
-Download from:
+This downloads **clickhouse-jdbc-0.9.3-all.jar** from Maven into the `Java/Clickhouse` data directory.
+
+Manual download:
 
 https://repo1.maven.org/maven2/com/clickhouse/clickhouse-jdbc/0.9.3/clickhouse-jdbc-0.9.3-all.jar
 
 This version works with the Java 8 runtime used by MATLAB R2023a and R2025b, so no Java or Windows changes are required.
 
-After replacing the JAR, **fully restart MATLAB** before reconnecting to ClickHouse.
+After installing or replacing the JAR, **fully restart MATLAB** before reconnecting to ClickHouse.
+
+Legacy Installer items (do not use with ClickHouse 26.6+): `ClickHouseJar070`, `ClickHouseJar070Github`, `ClickHouseJar085`.
 
 ---
 
@@ -41,7 +47,9 @@ All ClickHouse access from MATLAB goes through [`Db.m`](Db.m). The class wraps M
    I = Installer; I.install('ClickHouseJar')
    ```
 
-Place **only** `clickhouse-jdbc-0.9.3-all.jar` in that directory and remove older versions (0.7.0, 0.8.x). A copy of the JAR is kept in this folder for reference; the runtime copy used by `db.Db` lives in the Installer data dir.
+Place **only** `clickhouse-jdbc-0.9.3-all.jar` in that directory and remove older versions (0.7.0, 0.8.x). All ClickHouse Installer items share `Java/Clickhouse`; `connectCH_Java` adds every `*.jar` in that folder to the classpath, so legacy jars must be removed after upgrading.
+
+A copy of the JAR is kept in `@Db/` for reference; the runtime copy used by `db.Db` lives in the Installer data dir.
 
 **Important:** swapping JAR files requires a full MATLAB restart because `javaaddpath` does not reliably unload old driver classes.
 

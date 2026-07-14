@@ -9,8 +9,11 @@ function Result = unitTest()
 %
 % Returns true on success, errors on failure.
 
+    % --- raw JDBC (direct driver, no db.Db) ---
     testJdbcVersion();
     testJdbcCountVisitImages();
+
+    % --- db.Db wrapper (MATLAB database() over JDBC) ---
     testDbClassRead();
     testDbClassInsert();
 
@@ -21,6 +24,7 @@ end
 function testJdbcVersion()
 % Raw JDBC: SELECT version()
 
+    % connect, query, parse first column as string
     Version = runJdbcQuery("SELECT version()", @(Rs) string(Rs.getString(1)));
     fprintf('ClickHouse server version: %s\n', Version);
 end
@@ -29,6 +33,7 @@ end
 function testJdbcCountVisitImages()
 % Raw JDBC: SELECT count(*) FROM last.visit_images
 
+    % connect, query, parse first column as int64
     Count = runJdbcQuery("SELECT count(*) FROM last.visit_images", @(Rs) Rs.getLong(1));
     fprintf('last.visit_images row count: %d\n', Count);
 end
@@ -37,6 +42,7 @@ end
 function testDbClassRead()
 % db.Db read queries as last_user / physics
 
+    % last_user is read-only (readonly=2); sufficient for SELECT
     DB = connectTestDb('last_user', 'physics');
     Cleanup = onCleanup(@() safeDisconnect(DB));
 
@@ -53,9 +59,11 @@ end
 function testDbClassInsert()
 % db.Db write test as default / PassRoot: create test.matlab_insert, insert, select
 
+    % default user has write access; required for CREATE/INSERT
     DB = connectTestDb('default', 'PassRoot');
     Cleanup = onCleanup(@() safeDisconnect(DB));
 
+    % prepare isolated test table in the test database
     DB.query('CREATE DATABASE IF NOT EXISTS test', 'IsExec', true);
     DB.query('DROP TABLE IF EXISTS test.matlab_insert', 'IsExec', true);
 
@@ -66,6 +74,7 @@ function testDbClassInsert()
         error('ClickHouse:CreateTableFailed', '%s', Error);
     end
 
+    % insert one row via direct VALUES (small-table path)
     T = table(uint32(1), "matlab_test", 3.14, ...
         'VariableNames', {'id', 'name', 'val'});
     Error = DB.insertCharDump('test.matlab_insert', T);
@@ -73,6 +82,7 @@ function testDbClassInsert()
         error('ClickHouse:InsertFailed', '%s', Error);
     end
 
+    % read back and verify row count
     T = DB.query("SELECT * FROM test.matlab_insert");
     disp(T);
 
@@ -84,6 +94,8 @@ end
 
 function Value = runJdbcQuery(Sql, ParseFn)
 % Execute a JDBC query while conn/statement stay in this function scope
+%   Java Connection/Statement must not cross function boundaries (MATLAB
+%   lifecycle), and onCleanup handles must be assigned to variables.
 
     JarFile  = getClickHouseJarFile();
     Host     = "10.150.28.18";
@@ -94,6 +106,7 @@ function Value = runJdbcQuery(Sql, ParseFn)
 
     javaaddpath(JarFile);
 
+    % build JDBC connection (HTTP protocol URL for raw driver test)
     Driver = com.clickhouse.jdbc.ClickHouseDriver();
     Props  = java.util.Properties();
     Props.setProperty("user", Username);
@@ -141,13 +154,15 @@ end
 
 
 function DB = connectTestDb(User, Password)
-% Create db.Db and connect using the local JDBC jar (bypasses Installer)
+% Create db.Db and connect using the local JDBC jar (explicit JarFile for test isolation)
 
     DB = db.Db;
     DB.Host     = '10.150.28.18';
     DB.DbName   = 'last';
     DB.User     = User;
     DB.Password = Password;
+
+    % explicit JarFile from @Db/ — production code uses Installer ClickHouseJar (0.9.3)
     DB.Conn = db.Db.connectCH_Java( ...
         'DbName',   DB.DbName, ...
         'Host',     DB.Host, ...
