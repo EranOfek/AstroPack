@@ -308,11 +308,14 @@ function [Result,Info] = buildRefImages(RefID, Args)
             
                 % 3a. deselect crops that do not overlap with the reference region at all;
                 %     a single vectorized call replaces rasterizing every candidate crop just to test overlap
+                %     NB: TabGrp must not be empty here -- isSpherePolyIntersect_mex crashes (rather than
+                %     erroring) on an empty candidate set; guard this call if steps 2/3 above are ever
+                %     implemented and can empty TabGrp
                 CropsLon = [TabGrp.ra1, TabGrp.ra2, TabGrp.ra3, TabGrp.ra4].';
                 CropsLat = [TabGrp.dec1, TabGrp.dec2, TabGrp.dec3, TabGrp.dec4].';
-                OverlapArea = celestial.polygon.areaPolyIntersection(P0(:,1), P0(:,2), ...
-                                      double(CropsLon), double(CropsLat), 'CooUnits','deg');
-                TabGrp = TabGrp(OverlapArea > 0, :);
+                Overlap  = celestial.polygon.isSpherePolyIntersect(P0(:,1), P0(:,2), ...
+                                      double(CropsLon), double(CropsLat));
+                TabGrp = TabGrp(Overlap, :);
 
                 if Args.Verbose > 1
                     fprintf('Group %d: %d images with actual sky overlap with the reference region\n',Igroup,height(TabGrp));
