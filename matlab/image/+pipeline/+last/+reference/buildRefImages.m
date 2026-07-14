@@ -306,22 +306,30 @@ function [Result,Info] = buildRefImages(RefID, Args)
                     fprintf('Group %d: %d images selected according to the time and quality criteria \n',Igroup,Nim);
                 end
             
+                % 3a. deselect crops that do not overlap with the reference region at all;
+                %     a single vectorized call replaces rasterizing every candidate crop just to test overlap
+                CropsLon = [TabGrp.ra1, TabGrp.ra2, TabGrp.ra3, TabGrp.ra4].';
+                CropsLat = [TabGrp.dec1, TabGrp.dec2, TabGrp.dec3, TabGrp.dec4].';
+                OverlapArea = celestial.polygon.areaPolyIntersection(P0(:,1), P0(:,2), CropsLon, CropsLat, 'CooUnits','deg');
+                TabGrp = TabGrp(OverlapArea > 0, :);
+
+                if Args.Verbose > 1
+                    fprintf('Group %d: %d images with actual sky overlap with the reference region\n',Igroup,height(TabGrp));
+                end
+
                 % if the total coverage is incomplete, skip to the next epoch
-                Coverage = []; RasterC = []; Icrop = 1;
+                % (the surviving, overlapping crops are rasterized and their union compared to Raster0,
+                %  since the total coverage of several possibly mutually-overlapping crops cannot be
+                %  obtained from their individual overlap areas with the reference region alone)
+                RasterC = []; Icrop = 1;
                 while Icrop < height(TabGrp)+1 % merge the rasters of all the crops involved
                     CropPoly = double([TabGrp.ra1(Icrop), TabGrp.dec1(Icrop); TabGrp.ra2(Icrop), TabGrp.dec2(Icrop); ...
                         TabGrp.ra3(Icrop), TabGrp.dec3(Icrop); TabGrp.ra4(Icrop), TabGrp.dec4(Icrop)]);
-                    Raster = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution,'arcsec');                         
-                    % if this crop does not overlap with the reference region, deselect it
-                    Coverage(Icrop) = sum(ismember(Raster,Raster0));
-                    if Coverage(Icrop) < 1
-                        TabGrp(Icrop,:) = [];
-                    else
-                        RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];
-                    end
+                    Raster = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution,'arcsec');
+                    RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];
                     Icrop = Icrop + 1;
                 end
-                
+
                 Nim = height(TabGrp);
                 
                 CoverageAll = sum(ismember(Raster0, RasterC))/numel(Raster0);
