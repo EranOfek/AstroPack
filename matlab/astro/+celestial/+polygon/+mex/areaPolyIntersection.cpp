@@ -5,7 +5,7 @@
  *
  * Compile from the +celestial/+polygon directory, for example:
  *
- *   mex -R2018a CXXFLAGS="$CXXFLAGS -O3 -march=native" areaPolyIntersection.cpp
+ *   mex -R2018a CXX=g++-9 CXXFLAGS="$CXXFLAGS -O3 -march=native" areaPolyIntersection.cpp
  *
  * Usage:
  *
