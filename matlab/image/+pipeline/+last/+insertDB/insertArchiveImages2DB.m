@@ -95,7 +95,8 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
             continue
         end
         if ~Injected
-            Coadd=AstroImage(FileNameTemplate); % read the data
+            R=AstroImage(FileNameTemplate); % read the data
+            Coadd=R(~R.isemptyImage);
             Nobj = numel(Coadd);
             if Nobj < 1 || Coadd(1).isemptyImage % no images have been read 
                 cd(Dir);
@@ -200,5 +201,9 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     toc
     fclose(FID);
     % disconnect the DB     
-    DB.disconnectCH_Java;  
+    if strcmpi(Args.DBConnector,'legacy')
+        DB.disconnectCH_Java;
+    else
+        DB.delete;
+    end
 end
