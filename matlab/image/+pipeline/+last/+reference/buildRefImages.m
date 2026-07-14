@@ -310,7 +310,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
                 %     a single vectorized call replaces rasterizing every candidate crop just to test overlap
                 CropsLon = [TabGrp.ra1, TabGrp.ra2, TabGrp.ra3, TabGrp.ra4].';
                 CropsLat = [TabGrp.dec1, TabGrp.dec2, TabGrp.dec3, TabGrp.dec4].';
-                OverlapArea = celestial.polygon.areaPolyIntersection(P0(:,1), P0(:,2), CropsLon, CropsLat, 'CooUnits','deg');
+                OverlapArea = celestial.polygon.areaPolyIntersection(P0(:,1), P0(:,2), ...
+                                      double(CropsLon), double(CropsLat), 'CooUnits','deg');
                 TabGrp = TabGrp(OverlapArea > 0, :);
 
                 if Args.Verbose > 1
