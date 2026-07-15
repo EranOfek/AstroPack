@@ -79,7 +79,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.SearchTable       = 'last.visit_images'; 
         % the list of table columns needed to check the overlaps + filtering + control 
         Args.Fields            = "id_visit, upix_low, jd_start, midjd, exptime, fieldid, nodenumb, mountnum, camnum, cropid," + ... 
-                                 "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
+                                 "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, rau1, rau2, rau3, rau4, decu1, decu2, decu3, decu4," + ...
+                                 "diryear, dirmon, dirday, subdir, filetime"; 
         Args.GroupByFields     = {'mountnum','camnum','jd_start'} % fields employed for grouping images to be stitched separately
         
         Args.BasePath          = {'/mnt/euclid/last/data','/euclid/last/data'}; % base path for image retrieval  
