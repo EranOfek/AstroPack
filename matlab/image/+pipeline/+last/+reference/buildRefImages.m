@@ -29,6 +29,12 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %         'QueryFilter'          - a user-supplied quality filter injected directly into the SQL query (def. "fwhm < 4")
     %         'RasterResolution'     - polygon rasterization step, in arcsec (def. 3)
     %         'MinCoverage'          - minimum fractional coverage of the reference field required to accept a group (def. 0.999)
+    %         'CoverageAlgo'         - algorithm used to check whether the crops of a group cover the reference field:
+    %                   'raster' - rasterize the reference polygon and the union of the overlapping crops,
+    %                          and compare the two rasters (def.).
+    %                   'area'   - sum the exact spherical intersection area of each crop's unique region
+    %                          (rau1-4/decu1-4) with the reference polygon, and compare the sum to the
+    %                          reference polygon's area.
     %         'SubBack'              - subtract the background in the coaddition step (def. true)
     %         'StackMethod'          - stacking method passed to the coadd function (def. 'wrobust')
     %         'StackMethodArgs'      - extra arguments controlling the stacking method
@@ -88,7 +94,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.QueryFilter       = "fwhm < 4"; % a user-supplied filter (to be included directly into the SQL query) 
                        
         Args.RasterResolution   = 3;     % arcsec
-        Args.MinCoverage        = 0.999; % 0.995; % allowed inaccuracy in the required reference field coverage  
+        Args.MinCoverage        = 0.999; % 0.995; % allowed inaccuracy in the required reference field coverage
+        Args.CoverageAlgo       = 'raster'; % 'raster' | 'area', see checkPolygonCoverage
                                
         %Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[128 128], 'MethodArgs',{{'Range',[-50 50]}}}
         %Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[256 256], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',100}, {}} };
@@ -307,38 +314,33 @@ function [Result,Info] = buildRefImages(RefID, Args)
                     fprintf('Group %d: %d images selected according to the time and quality criteria \n',Igroup,Nim);
                 end
             
-                % 3a. deselect crops that do not overlap with the reference region at all;
-                %     a single vectorized call replaces rasterizing every candidate crop just to test overlap
+                % 3a. check whether the crops in TabGrp provide sufficient sky coverage of the reference
+                %     region P0; deselects crops that do not contribute, and skips to the next epoch if
+                %     the surviving crops do not reach Args.MinCoverage
                 %     NB: TabGrp must not be empty here -- isSpherePolyIntersect_mex crashes (rather than
                 %     erroring) on an empty candidate set; guard this call if steps 2/3 above are ever
                 %     implemented and can empty TabGrp
-                CropsLon = [TabGrp.ra1, TabGrp.ra2, TabGrp.ra3, TabGrp.ra4].';
-                CropsLat = [TabGrp.dec1, TabGrp.dec2, TabGrp.dec3, TabGrp.dec4].';
-                Overlap  = celestial.polygon.isSpherePolyIntersect(P0(:,1), P0(:,2), ...
-                                      double(CropsLon), double(CropsLat));
-                TabGrp = TabGrp(Overlap, :);
+                switch Args.CoverageAlgo
+                    case 'raster'
+                        CropsLon = [TabGrp.ra1, TabGrp.ra2, TabGrp.ra3, TabGrp.ra4].';
+                        CropsLat = [TabGrp.dec1, TabGrp.dec2, TabGrp.dec3, TabGrp.dec4].';
+                    case 'area'
+                        CropsLon = [TabGrp.rau1, TabGrp.rau2, TabGrp.rau3, TabGrp.rau4].';
+                        CropsLat = [TabGrp.decu1, TabGrp.decu2, TabGrp.decu3, TabGrp.decu4].';
+                    otherwise
+                        error('buildRefImages:UnknownCoverageAlgo', 'Unknown Args.CoverageAlgo: %s', Args.CoverageAlgo);
+                end
+                [Sel, AllCovered, CoverageAll] = checkPolygonCoverage(P0(:,1), P0(:,2), double(CropsLon), double(CropsLat), ...
+                    'Algo',Args.CoverageAlgo, 'MinCoverage',Args.MinCoverage, 'RasterResolution',Args.RasterResolution, 'Raster0',Raster0);
+                TabGrp = TabGrp(Sel, :);
 
                 if Args.Verbose > 1
                     fprintf('Group %d: %d images with actual sky overlap with the reference region\n',Igroup,height(TabGrp));
                 end
 
-                % if the total coverage is incomplete, skip to the next epoch
-                % (the surviving, overlapping crops are rasterized and their union compared to Raster0,
-                %  since the total coverage of several possibly mutually-overlapping crops cannot be
-                %  obtained from their individual overlap areas with the reference region alone)
-                RasterC = []; Icrop = 1;
-                while Icrop < height(TabGrp)+1 % merge the rasters of all the crops involved
-                    CropPoly = double([TabGrp.ra1(Icrop), TabGrp.dec1(Icrop); TabGrp.ra2(Icrop), TabGrp.dec2(Icrop); ...
-                        TabGrp.ra3(Icrop), TabGrp.dec3(Icrop); TabGrp.ra4(Icrop), TabGrp.dec4(Icrop)]);
-                    Raster = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution,'arcsec');
-                    RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];
-                    Icrop = Icrop + 1;
-                end
-
                 Nim = height(TabGrp);
-                
-                CoverageAll = sum(ismember(Raster0, RasterC))/numel(Raster0);
-                if CoverageAll < Args.MinCoverage
+
+                if ~AllCovered
                     % incomplete coverage: skip this epoch
                     if Args.Verbose > 1
                         fprintf('Incomplete coverage of %.4f, epoch %d is skipped\n', CoverageAll, Igroup);
@@ -544,4 +546,85 @@ function [RefGrid, RefWCS, RefName] = buildSkyPointGrid(RA, Dec, RefName, Naxis1
         RefGrid.RA3(Ipt)  = Corners(3,1); RefGrid.Dec3(Ipt) = Corners(3,2);
         RefGrid.RA4(Ipt)  = Corners(4,1); RefGrid.Dec4(Ipt) = Corners(4,2);
     end
+end
+
+function [Sel, AllCovered, CoverageAll] = checkPolygonCoverage(RefLon, RefLat, PolysLon, PolysLat, Args)
+    % check whether a set of crop polygons provides sufficient sky coverage of a reference polygon
+    % NOTE: this is a staging copy, to be relocated to celestial.polygon (see buildRefImages.m header)
+    % Input  : - Vector of the reference polygon (P0) vertex longitudes [deg].
+    %          - Vector of the reference polygon (P0) vertex latitudes [deg].
+    %          - Matrix of crop-polygon vertex longitudes [deg], one polygon per column.
+    %          - Matrix of crop-polygon vertex latitudes [deg], one polygon per column.
+    %          * ...,key,val,...
+    %            'Algo' - coverage algorithm:
+    %                   'raster' - rasterize the reference polygon and the union of the overlapping
+    %                          crops, and compare the two rasters (def.).
+    %                   'area'   - sum the exact spherical intersection area of each crop with the
+    %                          reference polygon (celestial.polygon.areaPolyIntersection), and compare
+    %                          the sum to the reference polygon's area. The input crop polygons must
+    %                          already be mutually non-overlapping (e.g., per-crop unique-region
+    %                          corners) for the sum not to double-count shared sky area.
+    %            'MinCoverage' - minimum fractional coverage of the reference polygon required.
+    %                   Default is 0.999.
+    %            'RasterResolution' - polygon rasterization step, in arcsec ('raster' algo only).
+    %                   Default is 3.
+    %            'Raster0' - a precomputed raster of the reference polygon (e.g., from
+    %                   celestial.healpix.pixCoversPolygon), reused as-is if supplied ('raster' algo
+    %                   only); if empty, rasterized here from RefLon/RefLat. Default is [].
+    % Output : - Logical column vector selecting the input crop-polygon columns to keep: for 'raster',
+    %            the crops overlapping the reference polygon at all; for 'area', the crops with a
+    %            positive intersection area with the reference polygon.
+    %          - AllCovered: true if the kept crops cover at least MinCoverage of the reference polygon.
+    %          - CoverageAll: the achieved fractional coverage of the reference polygon.
+    % Author : A.M. Krassilchtchikov (2026 Jul)
+    % Example: [Sel, AllCovered, CoverageAll] = checkPolygonCoverage(P0(:,1), P0(:,2), CropsLon, CropsLat, 'Algo','area');
+    arguments
+        RefLon
+        RefLat
+        PolysLon
+        PolysLat
+        Args.Algo             = 'raster';
+        Args.MinCoverage      = 0.999;
+        Args.RasterResolution = 3;
+        Args.Raster0          = [];
+    end
+
+    switch lower(Args.Algo)
+        case 'raster'
+            % deselect crops that do not overlap with the reference region at all;
+            % a single vectorized call replaces rasterizing every candidate crop just to test overlap
+            % NB: PolysLon/PolysLat must not be empty here -- isSpherePolyIntersect_mex crashes (rather
+            % than erroring) on an empty candidate set
+            Sel = celestial.polygon.isSpherePolyIntersect(RefLon(:), RefLat(:), double(PolysLon), double(PolysLat));
+
+            if isempty(Args.Raster0)
+                Raster0 = celestial.healpix.mex.rasterize_polygon([RefLon(:), RefLat(:)], Args.RasterResolution, 'arcsec');
+            else
+                Raster0 = Args.Raster0;
+            end
+
+            % the surviving, overlapping crops are rasterized and their union compared to Raster0,
+            % since the total coverage of several possibly mutually-overlapping crops cannot be
+            % obtained from their individual overlap areas with the reference region alone
+            RasterC = [];
+            for Icrop = find(Sel(:)).'
+                CropPoly = double([PolysLon(:,Icrop), PolysLat(:,Icrop)]);
+                Raster   = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution, 'arcsec');
+                RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];
+            end
+
+            CoverageAll = sum(ismember(Raster0, RasterC))/numel(Raster0);
+
+        case 'area'
+            % sum the exact intersection areas of the (assumed mutually non-overlapping) crop
+            % polygons with the reference polygon, and compare the sum to the reference polygon's area
+            [Area, AreaRefPoly] = celestial.polygon.areaPolyIntersection(RefLon, RefLat, PolysLon, PolysLat, 'CooUnits','deg');
+            Sel = Area(:) > 0;
+            CoverageAll = sum(Area(Sel))/AreaRefPoly;
+
+        otherwise
+            error('checkPolygonCoverage:UnknownAlgo', 'Unknown Args.Algo: %s', Args.Algo);
+    end
+
+    AllCovered = CoverageAll >= Args.MinCoverage;
 end
