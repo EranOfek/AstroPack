@@ -20,7 +20,7 @@ function buildHTMfromFiles(Args)
 %                 VO.prep.build_htm_catalog. Completed grouped HDF5
 %                 files are copied to TargetDir incrementally.
 %              4. Build index with catsHTM.getNsrcMeta +
-%                 celestial.htm.saveHTMIndexFast
+%                 catsHTM.saveHTMIndexFast
 %              5. Copy remaining files and index to TargetDir
 %
 %              When Resume is true, completed regions (all HTM cells
@@ -645,7 +645,7 @@ function buildHTMfromFiles(Args)
     end
     % Replace any remaining NaN (unprocessed cells) with 0
     Nsrc(isnan(Nsrc(:, 2)), 2) = 0;
-    celestial.htm.saveHTMIndexFast(Args.HTM_Level, IndFileName, [], {}, Nsrc);
+    catsHTM.saveHTMIndexFast(Args.HTM_Level, IndFileName, [], {}, Nsrc);
 
     if Args.Verbose
         fprintf('Total sources: %d\n', sum(Nsrc(:, 2)));
