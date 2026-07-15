@@ -203,7 +203,7 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
             else
                 [~, Error]=imProc.db.insertCatalog(Cat,'Header',AH,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
                     'CreateCsv',false,'ColSrcID',Args.ColNameID,'KeyID',Args.KeyID,'DBConnector',Args.DBConnector,...
-                    'Schema',Args.Schema, 'MaxBatchLines',200000,'Verbosity',1);                               
+                    'Schema',Args.Schema, 'MaxBatchLines',200000,'Verbosity',0);                               
                 if ~isempty(Error)
                     error('catalog injection failed');
                 end
@@ -217,7 +217,7 @@ function [Result] = insertArchiveCoaddCatalogs2DB(RootDir, FileNameTemplate, Arg
                 [~, Err.Decompress] = system(Decompress); 
             end  
             %
-            fprintf(' ..done in %1.f s\n',toc);
+            fprintf(' ..done in %.1f s\n',toc);
         else
             cd(Dir); 
         end                        
