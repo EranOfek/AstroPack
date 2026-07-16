@@ -233,7 +233,7 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
         Aper.AperArea  =  zeros(0,numel(Args.AperRadius));
         Aper.AnnulusBack = [];
         Aper.AnnulusStd  = [];
-        Aper.AnnulusAre  = [];
+        Aper.AnnulusArea = [];
         Aper.AperRadius  = Args.AperRadius;
 
     else
