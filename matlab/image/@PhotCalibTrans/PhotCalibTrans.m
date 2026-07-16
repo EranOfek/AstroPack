@@ -393,7 +393,7 @@ classdef PhotCalibTrans < Component
             %                               only; stage 4 overwrites ParX with
             %                               the linear LS fit. 0 disables.
             %                               Default is 0.
-            %            'WeightingMode'  - Weighting mode. Default is 'spectral'.
+            %            'WeightingMode'  - Weighting mode. Default is 'combined'.
             %            'FluxErrColName' - Flux error column name. Default is 'FluxErr'.
             %            'SigmaClipMethod'- Sigma-clipping method forwarded to
             %                               tools.math.stat.sigmaClip via
@@ -640,7 +640,7 @@ classdef PhotCalibTrans < Component
                 % the base table). One extra catsHTM match against
                 % Args.AuditCatName. Default true; pass false to skip.
                 Args.AttachBP_RP logical = true
-                Args.WeightingMode    = 'spectral'
+                Args.WeightingMode    = 'combined'
                 Args.FluxErrColName   = 'FluxErr'
                 Args.SigmaClipMethod  = 'median'    % 'median' | 'median_signed' | 'weighted' — see header doc + tools.math.stat.sigmaClip
                 % Outer clip-and-refit loop (passed through to fitPar/fitMultiStage).
@@ -679,6 +679,11 @@ classdef PhotCalibTrans < Component
                 %              are bit-identical; only the (Norm, ParX(1))
                 %              split changes.
                 Args.NormConvention (1,:) char {mustBeMember(Args.NormConvention, {'raw','center'})} = 'raw'
+
+                % Systematic-error floor applied element-wise to the
+                % combined MagErr used as fit weight. See
+                % propagateCalibratorMagErr's docstring. Default 0.001 mag.
+                Args.SystematicErr (1,1) double {mustBeNonnegative} = 0.001
 
                 % Number of proc frames per individual input coadd. Stays at 1
                 % for ordinary single-level coadds (where EXPTIME / NCOADD already
@@ -1131,7 +1136,8 @@ classdef PhotCalibTrans < Component
                     Obj.propagateCalibratorMagErr(Flux, FluxErrVector, ...
                         'WeightingMode', Args.WeightingMode, ...
                         'ExpTime', ExpTime_eff, ...
-                        'FluxErrorNorm', Args.FluxErrorNorm);
+                        'FluxErrorNorm', Args.FluxErrorNorm, ...
+                        'SystematicErr', Args.SystematicErr);
 
                 % Store pre-computed MagErr (and its two components) in
                 % SourceData so every CalibTrajectory snapshot inherits them
@@ -2586,15 +2592,29 @@ classdef PhotCalibTrans < Component
             %          * ...,key,val,...
             %            'WeightingMode' - Error sources to include in the
             %                   combined fit-weight MagErr:
-            %                   'spectral' - Gaia XP spectral errors only (default)
+            %                   'spectral' - Gaia XP spectral errors only
             %                   'flux'     - Observed flux errors only
-            %                   'combined' - Quadrature sum of both
+            %                   'combined' - Quadrature sum of both (default)
             %                   'none'     - No weighting (returns [])
             %            'ExpTime' - Effective exposure time [s]. Default uses Obj.ExpTime/Obj.NCoadd.
             %            'RefTransmissionFun' - Function handle for reference transmission.
             %                   Default is @telescope.optics.refTransmissionLAST.
             %            'FluxErrorNorm' - Effective area scaling for synthetic flux
             %                   in error calculation [dimensionless]. Default is 0.5.
+            %            'SystematicErr' - Floor on the returned combined MagErr
+            %                   in magnitude units. Applied element-wise as
+            %                   MagErr = max(MagErr, SystematicErr). Prevents
+            %                   a handful of bright, tiny-formal-error stars
+            %                   from dominating the chi^2 when photon-noise
+            %                   propagation underestimates the true
+            %                   calibration floor (per-star systematics like
+            %                   flat-field errors, aperture correction
+            %                   residuals, colour-term mismatch). Applied to
+            %                   the WeightingMode-combined MagErr only; the
+            %                   MagErr_spectral / MagErr_flux component
+            %                   vectors are returned unfloored so they still
+            %                   reflect the raw propagated errors.
+            %                   Default 0.001 mag.
             % Output : - Combined per-calibrator magnitude uncertainties
             %                     [N_calib x 1], selected by WeightingMode,
             %                     or [] if WeightingMode is 'none'.
@@ -2613,10 +2633,11 @@ classdef PhotCalibTrans < Component
                 Obj
                 Flux
                 FluxErrVector = []
-                Args.WeightingMode = 'spectral'
+                Args.WeightingMode = 'combined'
                 Args.ExpTime = []
                 Args.RefTransmissionFun = @telescope.optics.refTransmissionLAST
                 Args.FluxErrorNorm = 0.5
+                Args.SystematicErr (1,1) double {mustBeNonnegative} = 0.001
             end
 
             % Get effective exposure time
@@ -2749,6 +2770,12 @@ classdef PhotCalibTrans < Component
                 MagErr = MagErr_flux;
             else
                 MagErr = [];
+            end
+
+            % Systematic-error floor on the returned combined MagErr.
+            % Skipped when MagErr is empty ('none' mode).
+            if ~isempty(MagErr) && Args.SystematicErr > 0
+                MagErr = max(MagErr, Args.SystematicErr);
             end
         end
 

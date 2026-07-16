@@ -77,6 +77,31 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
     %            'RefSpecPivot'         - Passed to fitPhotCalibTrans.
     %                                     Default 5500.
     %            'UseTypicalX'          - Default true.
+    %            'WeightingMode'        - Calibrator MagErr formula used at
+    %                                     startup and (for 2-iter recipes)
+    %                                     for iter-2 weighted refinement.
+    %                                     'combined' (default) uses
+    %                                     sqrt(MagErr_spectral^2 + (1.086
+    %                                     *FluxErr)^2). Set 'spectral' to
+    %                                     ignore per-source flux errors,
+    %                                     'flux' for bandpass-propagated
+    %                                     instrumental only, or 'none' for
+    %                                     unweighted. Iter 1 of the
+    %                                     LAST_Joint_2Iter_* recipes is
+    %                                     always unweighted (Recipe iter
+    %                                     override wipes MagErr) regardless
+    %                                     of this setting.
+    %            'SystematicErr'        - Floor on the returned combined
+    %                                     MagErr in magnitudes, applied
+    %                                     element-wise as MagErr = max(
+    %                                     MagErr, SystematicErr). Guards
+    %                                     the chi^2 from being dominated
+    %                                     by a handful of bright stars
+    %                                     whose formal photon-noise error
+    %                                     underestimates real per-star
+    %                                     systematics (flat-field, aperture
+    %                                     correction residuals, colour
+    %                                     mismatch). Default 0.001 mag.
     %            'NormConvention'       - Post-fit gauge convention for
     %                                     the (Norm, Tran2D-DC) pair.
     %                                     'center' (default) rotates them
@@ -152,7 +177,7 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
     % Example:
     %   Rep = pipeline.last.quality.photCalib.batchPhotCalibTrans('/data/coadd_run', ...
     %             'MaxVisits', 3, 'Verbose', true);
-    %   T = struct2table(Rep(:), 'AsArray', true);
+    % 
     %   plot([T.NCalib], [T.RMS], '.');
 
     arguments
@@ -184,6 +209,8 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
         Args.RefSpecPivot                       (1,1) double  = 5500
         Args.UseTypicalX                              logical = true
         Args.NormConvention                     (1,:) char    {mustBeMember(Args.NormConvention, {'raw','center'})} = 'center'
+        Args.WeightingMode                      (1,:) char    {mustBeMember(Args.WeightingMode, {'none','spectral','flux','combined'})} = 'combined'
+        Args.SystematicErr                      (1,1) double  {mustBeNonnegative} = 0.001
         Args.CalibArgsExtra                           cell    = {}
         Args.Verbose                                  logical = true
         Args.InnerVerbose                             logical = false
@@ -446,6 +473,8 @@ function CA = buildCalibArgs(Args, OptSeqName, Tran2DType, IsJoint, JHdr)
         'ApplyNutation',           Args.ApplyNutation, ...
         'Tran2DType',              Tran2DType, ...
         'NormConvention',          Args.NormConvention, ...
+        'WeightingMode',           Args.WeightingMode, ...
+        'SystematicErr',           Args.SystematicErr, ...
         'Verbose',                 Args.InnerVerbose};
     if IsJoint
         CA = [CA, { ...

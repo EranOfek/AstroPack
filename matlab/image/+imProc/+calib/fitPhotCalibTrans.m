@@ -916,7 +916,8 @@ function CalibArgs = predefCalibArgs(Args)
     %            'AuditLASTDeltaMag' - Reject if the candidate's nearest LAST
     %                                 neighbour has |delta-mag| (using
     %                                 MagColName) below this value. Default 2.
-    %            'WeightingMode'    - Weighting mode. Default 'spectral'.
+    %            'WeightingMode'    - Weighting mode. Default 'combined'
+    %                                 (was 'spectral' before 2026-07).
     %            'FluxErrColName'   - Flux error column. Default 'FluxErr'.
     %            'SigmaClipMethod'  - Sigma-clipping method forwarded to
     %                                 tools.math.stat.sigmaClip. Default 'median'.
@@ -1036,10 +1037,24 @@ function CalibArgs = predefCalibArgs(Args)
         Args.UseTypicalX logical = false
 
         % Weighting
-        Args.WeightingMode    = 'spectral'  % 'none', 'spectral', 'flux', 'combined'
+        Args.WeightingMode    = 'combined'  % 'none', 'spectral', 'flux', 'combined'
         Args.FluxErrColName   = 'FluxErr'
         Args.SigmaClipMethod  = 'median'    % 'median' | 'median_signed' | 'weighted' — see header doc
         Args.FluxErrorNorm    = 0.5
+        % Systematic-error floor applied element-wise to the WeightingMode-
+        % combined MagErr used as fit weight (see
+        % PhotCalibTrans.propagateCalibratorMagErr). 0.001 mag guards the
+        % chi^2 from being dominated by a handful of bright stars whose
+        % formal photon-noise error underestimates real per-star
+        % systematics.
+        Args.SystematicErr (1,1) double {mustBeNonnegative} = 0.001
+
+        % Post-fit (Norm, kx0) gauge convention. 'raw' preserves the fit's
+        % raw values (default; matches PhotCalibTrans.calibrate's own
+        % default). 'center' rotates the pair so Tran2D(field-centre) = 0
+        % and Norm carries the full field-centre ZP — physically comparable
+        % across visits. Predictions are bit-identical either way.
+        Args.NormConvention (1,:) char {mustBeMember(Args.NormConvention, {'raw','center'})} = 'raw'
         % Per-outer-iter weighting toggle. Empty (default) leaves every iter
         % weighted; non-empty must be a logical vector of length OuterMaxIter,
         % e.g. [false true] with OuterMaxIter=2 for the LAST_Joint_2Iter recipe.
