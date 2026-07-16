@@ -156,18 +156,12 @@ function [JointCat, JointHeader, AI] = joinCropsToCatalog(AI, Args)
         Nsky    = sum(HasSky);
 
         if Nsky > 1
-            SkyIdx = find(HasSky);
-            RArad  = deg2rad(RA_deg(SkyIdx));
-            Decrad = deg2rad(Dec_deg(SkyIdx));
-            Xc = cos(Decrad) .* cos(RArad);
-            Yc = cos(Decrad) .* sin(RArad);
-            Zc = sin(Decrad);
+            SkyIdx  = find(HasSky);
+            RA_sky  = RA_deg(SkyIdx);
+            Dec_sky = Dec_deg(SkyIdx);
 
-            % Great-circle radius -> chord distance on the unit sphere
-            AngRad   = deg2rad(Args.DedupRadius / 3600);
-            ChordThr = 2 * sin(AngRad / 2);
-
-            % Rank order within the sky-valid subset (highest SN first)
+            % Rank order within the sky-valid subset (highest SN first).
+            % SN column missing / all-NaN -> fall back to input order.
             if ismember(Args.SNColName, VNAll)
                 SNvec = double(TabAll.(Args.SNColName)(SkyIdx));
                 SNvec(~isfinite(SNvec)) = -inf;
@@ -175,11 +169,21 @@ function [JointCat, JointHeader, AI] = joinCropsToCatalog(AI, Args)
             else
                 Ord = (1:Nsky).';
             end
-            XYZs = [Xc(Ord), Yc(Ord), Zc(Ord)];
 
-            Mdl        = createns(XYZs, 'NSMethod', 'kdtree');
-            NbrIdxCell = rangesearch(Mdl, XYZs, ChordThr);
+            % Build the KDTree over SN-sorted positions so that cone-search
+            % index space matches the greedy-NMS walk order below.
+            % celestial.KDTreeCoo handles the unit-sphere Cartesian
+            % projection + range-search internally (chord vs great-circle
+            % is negligible at arcsec-scale radii — the two agree to below
+            % double-precision noise for radii <~ a few arcmin).
+            KT = celestial.KDTreeCoo;
+            KT = KT.populate(RA_sky(Ord), Dec_sky(Ord), 'InUnits', 'deg');
+            NbrIdxCell = KT.coneSearch(RA_sky(Ord), Dec_sky(Ord), ...
+                Args.DedupRadius, 'RadiusUnits', 'arcsec', 'InUnits', 'deg');
 
+            % Greedy non-maximum suppression: walk sorted list from
+            % highest-SN; each surviving source kills all direct
+            % neighbours within DedupRadius. Highest-SN wins per cluster.
             KeepInSort = true(Nsky, 1);
             for J = 1:Nsky
                 if ~KeepInSort(J); continue; end
