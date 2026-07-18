@@ -285,7 +285,6 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.MatchMethod                      = 'old'; % 'old'|'mex'
     end
     
-    SEC_DAY = 86400;
     
     if isempty(Args.backVarIndivArgs)
         Args.backVarIndivArgs = Args.backVarArgs;
