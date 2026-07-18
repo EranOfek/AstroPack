@@ -1,5 +1,5 @@
 function [Result] = histAnomaly(AI, varargin)
-    % Search for anaomlies in image histogram
+    % Search for anomalies in image histogram
     %   Specifically, search for image histogram which is clearly bi-modal.
     %   This can be due to e.g., electronic noise.
     %   Looks for peaks above RelPeakHeight, from those chose the one with

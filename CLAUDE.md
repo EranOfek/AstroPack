@@ -104,3 +104,40 @@ Long-running MATLAB worker services (`snr_service`, `slew_service`, `too_service
 - Vectorization preferred over loops.
 - MEX only after profiling; always keep a MATLAB reference implementation alongside.
 - `Drafts-*` folders are dead-end experiments — never build on them.
+
+## GAIADR3spec Enrichment + catsHTM Tooling (in progress, 2026-07)
+
+**Goal:** let `imProc.transmission.fitPhotCalibTrans` with `SelectionMethod='pythonLike'`
+get all calibrator data from ONE catsHTM match (not 3–4) by appending **8 Gaia DR3
+columns to `GAIADR3spec`** at positions **693–700**. Spectra stay at 7–692, so
+`SpFluxCol=[7 349 350 692]` is unchanged.
+
+The 8 columns (693–700): `PMRA`, `PMDec`, `phot_g_mean_mag`, `phot_bp_mean_mag`,
+`phot_rp_mean_mag`, `bp_rp`, `phot_bp_rp_excess_factor` (from the **local `GAIADR3`
+catsHTM**), and `classprob_dsc_combmod_star` (from a user-downloaded Gaia DR3 VOTable —
+`xp_sampled_mean_spectrum ∩ astrophysical_parameters`; on the ESA archive use
+`WHERE gs.has_xp_sampled='true'` instead of joining `xp_sampled_mean_spectrum`).
+
+**Prep pipeline** — `matlab/astro/+VO/+prep/+GAIA/+dr3/`:
+1. `buildGaiaClassprobHTM(VotFile,...)` — VOTable → CSV via STILTS `tpipe keepcols` → catsHTM `GAIADR3classprob` (RA,Dec,classprob).
+2. `mergeGAIADR3spec(OutDir,...)` — per GAIADR3spec cell, in-memory match to `GAIADR3` (7 cols) + `GAIADR3classprob` (1) using **cached HTM indices + `load_cat` by id + `VO.search.match_cats`** (the `xmatch_2cats` pattern; no per-cell `cone_search`/`fminsearch`), appends via `catsHTM.insertColumns`. Args: `ClassprobDir` (auto-addpath), `SkipExisting` (resume), `BaseDir` (point at a local copy of GAIADR3spec — `/euclid` is NFS).
+3. `checkGAIADR3specMerge(...)` — samples cells, reports per-column non-NaN fraction/min/median/max; auto-runs at end of merge.
+
+**New `@catsHTM` methods** (`matlab/astro/@catsHTM/catsHTM.m`):
+- `insertColumns(CatName, Names, Units, OutDir,...)` — append 1+ columns in ONE pass; `FillValue` may be `@(M)->[Nrows×K]`; writes OutDir files **fresh** (no `copyfile`); copies the (unchanged) index; `SkipExisting` resume. `insertColumn` is the single-column alias (error IDs kept as `catsHTM:insertColumn:*`).
+- `renameCat(SrcName, DstName, CatDir)` — rename a catsHTM catalog in a dir: file renames + rewrite the index's internal `/<name>_HTM` dataset.
+
+**Deploy (replace `GAIADR3spec` in place, same name):** registry stores no column
+info (`Ncol` comes from the colcell), so just rsync the new 700-col `*_htm_*.hdf5` +
+`*_htmColCell.mat` into `/euclid/catsHTM/GAIA/DR3spec/` (index is unchanged),
+regenerate the md5 list `list.euler.checksum._GAIA_DR3spec_` (`md5sum *.hdf5 *.mat`,
+run on the local copy for speed), then restart MATLAB (clears the cached
+`GAIADR3spec_HTM` index var that `HDF5.load_check` keeps in the base workspace).
+
+**Runtime status:** `PhotCalibTrans.selectCalibratorsPythonLike` currently uses the
+ORIGINAL 3-catalog path (GAIADR3spec+GAIADR3 match + online TAP classprob +
+`fetchGaiaBPRP_`). The single-match rewrite was **reverted** until the enriched catalog
+is deployed — re-apply it (read all 8 columns from the one GAIADR3spec match; drop the
+2nd match + TAP) after deployment.
+
+Tests: `tests/astro/catsHTM/test_add_remove_source.m`, `test_renameCat.m`.

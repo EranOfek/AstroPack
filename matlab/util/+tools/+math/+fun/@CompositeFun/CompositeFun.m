@@ -3152,7 +3152,8 @@ classdef CompositeFun < handle
                 'StageIndex', 1, 'StageName', '', 'OuterIter', 1, ...
                 'IterIndex', 0, 'KeepMask', [], 'Residuals', [], ...
                 'PredictedFlux', [], 'MagErr', [], 'NumClipped', 0, ...
-                'NumRemaining', 0, 'RMS', NaN, 'Scatter', NaN), 1, 0);
+                'NumRemaining', 0, 'RMS', NaN, 'Scatter', NaN, ...
+                'RobustStd', NaN), 1, 0);
             PrevNumClipped = 0;  % cumulative # clipped at start of each iter
 
             % Rolling buffers (length NCalUsedInitial). Each entry holds
@@ -3202,7 +3203,8 @@ classdef CompositeFun < handle
                     'NumClipped',    0, ...
                     'NumRemaining',  sum(KeepMask), ...
                     'RMS',           sqrt(mean(InitResid.^2)), ...
-                    'Scatter',       std(InitResid));
+                    'Scatter',       std(InitResid), ...
+                    'RobustStd',     1.4826 * median(abs(InitResid - median(InitResid))));
                 IterSnapshots(end+1) = Snap0;   %#ok<AGROW>
             end
 
@@ -3455,6 +3457,8 @@ classdef CompositeFun < handle
                             Snap.NumRemaining  = sum(KeepMask);
                             Snap.RMS           = StageRMS;
                             Snap.Scatter       = std(UnweightedResiduals);
+                            Snap.RobustStd     = 1.4826 * median(abs( ...
+                                UnweightedResiduals - median(UnweightedResiduals)));
                             IterSnapshots(end+1) = Snap;   %#ok<AGROW>
                             PrevNumClipped = TotalClippedNow;
                         end
@@ -3974,7 +3978,8 @@ classdef CompositeFun < handle
                     LocalIterSnapshots = repmat(struct( ...
                         'IterIndex', 0, 'KeepMask', [], 'Residuals', [], ...
                         'PredictedFlux', [], 'MagErr', [], 'NumClipped', 0, ...
-                        'NumRemaining', 0, 'RMS', NaN, 'Scatter', NaN), 1, 0);
+                        'NumRemaining', 0, 'RMS', NaN, 'Scatter', NaN, ...
+                'RobustStd', NaN), 1, 0);
                     LocalPrevClipped = 0;
 
                     % Rolling buffers (length stage-entry count).
@@ -4143,6 +4148,8 @@ classdef CompositeFun < handle
                                     Snap.NumRemaining  = sum(KeepMaskNorm);
                                     Snap.RMS           = std(Residuals);
                                     Snap.Scatter       = std(Residuals);
+                                    Snap.RobustStd     = 1.4826 * median(abs( ...
+                                        Residuals - median(Residuals)));
                                     LocalIterSnapshots(end+1) = Snap;   %#ok<AGROW>
                                     LocalPrevClipped = TotalClippedNow;
                                 end
@@ -4247,7 +4254,8 @@ classdef CompositeFun < handle
                         LocalIterSnapshots = repmat(struct( ...
                             'IterIndex', 0, 'KeepMask', [], 'Residuals', [], ...
                             'PredictedFlux', [], 'MagErr', [], 'NumClipped', 0, ...
-                            'NumRemaining', 0, 'RMS', NaN, 'Scatter', NaN), 1, 0);
+                            'NumRemaining', 0, 'RMS', NaN, 'Scatter', NaN, ...
+                'RobustStd', NaN), 1, 0);
                         LocalPrevClipped = 0;
 
                         % Rolling buffers, length stage-entry. Discarded
@@ -4260,16 +4268,30 @@ classdef CompositeFun < handle
                             AllMagErrStage   = nan(NEntryJ, 1);
                         end
 
+                        % Optional: preserve Norm from prior stage's fit
+                        % (default resets Norm=1 at each inner iter to keep
+                        % the "kx0 absorbs the DC, Norm==1 invariant" of
+                        % LAST_Joint_2Iter's stage 1). Recipes that fit
+                        % Norm in an earlier stage and want JOINT_FC to
+                        % operate around THAT Norm set KeepNormOnEntry=true
+                        % on this stage (e.g. LAST_Joint_1Iter_AtmosFirst
+                        % where stage 1 fits Norm and stage 2 should
+                        % refine Tran2D with that Norm preserved).
+                        KeepNormOnEntry = isfield(Stages(IStage), 'KeepNormOnEntry') && ...
+                                          Stages(IStage).KeepNormOnEntry;
+
                         for IterClip = 0:EffSigmaIter
                             if ~ConvergedSC
-                                % --- Set Norm=1 and reset ParX before each (re-)fit ---
+                                % --- Set Norm=1 (unless preserved) and reset ParX before each (re-)fit ---
                                 AllFunParJ = Obj.getAllFunPar();
                                 NormIdxJ = find(strcmp(AllFunParJ.Name, 'Norm'), 1);
-                                AllFunParJ.Val(NormIdxJ) = 1.0;
-                                Obj.setAllFunPar(AllFunParJ);
+                                if ~KeepNormOnEntry
+                                    AllFunParJ.Val(NormIdxJ) = 1.0;
+                                    Obj.setAllFunPar(AllFunParJ);
+                                end
                                 Obj.Tran2DObj.ParX = zeros(1, Nparams);
 
-                                % BaseResiduals = mag residuals with Norm=1, ParX=0
+                                % BaseResiduals = mag residuals with current Norm (1 or preserved), ParX=0
                                 [~, ~, BasePredFluxJ, BaseResidualsJ, BaseMagErrJ] = Obj.costFun(...
                                     InputValues, LocalObs, LocalCostArgs{:}, ...
                                     'X', LocalX, 'Y', LocalY);
@@ -4298,6 +4320,8 @@ classdef CompositeFun < handle
                                     Snap0.NumRemaining  = sum(LocalKeepMask);
                                     Snap0.RMS           = sqrt(mean(BaseResidualsJ.^2));
                                     Snap0.Scatter       = std(BaseResidualsJ);
+                                    Snap0.RobustStd     = 1.4826 * median(abs( ...
+                                        BaseResidualsJ - median(BaseResidualsJ)));
                                     LocalIterSnapshots(end+1) = Snap0;   %#ok<AGROW>
                                 end
 
@@ -4392,6 +4416,8 @@ classdef CompositeFun < handle
                                     Snap.NumRemaining  = sum(LocalKeepMask);
                                     Snap.RMS           = sqrt(mean(ResidualsJ.^2));
                                     Snap.Scatter       = std(ResidualsJ);
+                                    Snap.RobustStd     = 1.4826 * median(abs( ...
+                                        ResidualsJ - median(ResidualsJ)));
                                     LocalIterSnapshots(end+1) = Snap;   %#ok<AGROW>
                                     LocalPrevClipped = TotalClippedNow;
                                 end
@@ -4545,7 +4571,8 @@ classdef CompositeFun < handle
                         LocalIterSnapshots = repmat(struct( ...
                             'IterIndex', 0, 'KeepMask', [], 'Residuals', [], ...
                             'PredictedFlux', [], 'MagErr', [], 'NumClipped', 0, ...
-                            'NumRemaining', 0, 'RMS', NaN, 'Scatter', NaN), 1, 0);
+                            'NumRemaining', 0, 'RMS', NaN, 'Scatter', NaN, ...
+                'RobustStd', NaN), 1, 0);
                         LocalPrevClipped = 0;
 
                         % Rolling buffers, length stage-entry. Discarded
@@ -4600,6 +4627,8 @@ classdef CompositeFun < handle
                                     Snap.NumRemaining  = sum(LocalKeepMask);
                                     Snap.RMS           = sqrt(mean(ResidualsN.^2));
                                     Snap.Scatter       = std(ResidualsN);
+                                    Snap.RobustStd     = 1.4826 * median(abs( ...
+                                        ResidualsN - median(ResidualsN)));
                                     LocalIterSnapshots(end+1) = Snap;   %#ok<AGROW>
                                     LocalPrevClipped = TotalClippedNow;
                                 end
@@ -4782,6 +4811,34 @@ classdef CompositeFun < handle
                         CurrentCostArgs{2*Idx} = CurrentCostArgs{2*Idx}(:, StageKeepMask);
                     end
                     CurrentCostArgs = slicePerSourceAtm(CurrentCostArgs, StageKeepMask);
+                end
+
+                % Post-fit Norm -> kx0 redistribution (opt-in per stage).
+                % When Stage.PostFitAbsorbNormToKx0 is true and the fit
+                % moved Norm away from 1, shift kx0 by 2.5*log10(Norm) so
+                % the (Norm, kx0) split is the mathematically-equivalent
+                % pair (Norm, kx0 + Delta). Total flux prediction is
+                % bit-identical (Norm and Tran2D DC add in mag space);
+                % residuals unchanged. Useful for recipes that fit Norm
+                % in a nonlinear stage without a subsequent Tran2D refit
+                % (e.g. LAST_Joint_1Iter). Guarded by isfield so recipes
+                % that don't declare the flag default to no-op.
+                if isfield(Stages(IStage), 'PostFitAbsorbNormToKx0') && ...
+                        Stages(IStage).PostFitAbsorbNormToKx0 && ...
+                        Obj.UseTran2D && ~isempty(Obj.Tran2DObj)
+                    AllFunParPost = Obj.getAllFunPar();
+                    NormIdxPost   = find(strcmp(AllFunParPost.Name, 'Norm'), 1);
+                    if ~isempty(NormIdxPost)
+                        NormFitted = AllFunParPost.Val(NormIdxPost);
+                        if isfinite(NormFitted) && NormFitted > 0 && NormFitted ~= 1
+                            DeltaMag = 2.5 * log10(NormFitted);
+                            Obj.Tran2DObj.ParX(1) = Obj.Tran2DObj.ParX(1) + DeltaMag;
+                            if Args.Verbose
+                                fprintf('  [PostFitAbsorbNormToKx0] Norm=%.4f -> kx0 shifted by +%.4f mag\n', ...
+                                    NormFitted, DeltaMag);
+                            end
+                        end
+                    end
                 end
 
                 % Store stage results (after updating GlobalKeepMask)

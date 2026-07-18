@@ -29,7 +29,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'NoiseSky'       - sky background (1/0)
     %       'NoisePoisson'   - Poisson noise (1/0)
     %       'NoiseReadout'   - Read-out noise (1/0)
-    %       'Inj'            - source injection method (technical)
+    %       'Inj'            - source injection method (technical): 'direct', 'FFTshift', or 'stampcube'.
+    %                          See the Args.Inj comment in the arguments block below for the measured
+    %                          speed/accuracy trade-off between 'direct' (default) and 'stampcube'.
     %       'OutType'        - type of output image: FITS, AstroImage object, RAW object
     %       'Dir'            - the output directory
     %       'OutName'        - root name of the output files
@@ -38,7 +40,26 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'PostModelingFindSources' - do post modeling source search
     %       'PicklesDir' - a directory containing Pickles' stellar spectra
     %       'Phoenix' - an object containing Phoenix stellar spectra
-    % Output : - an AstroImage object with filled Catalog property 
+    %       --- extended (single-spectrum) object mode: standalone alternative to Cat/Mag/Spec above ---
+    %       'ExtProfileType' - '', 'sersic', 'gaussian', 'flat', or 'matrix'; '' = point-source mode (default).
+    %                          Setting this to a non-empty value switches usim into extended-object mode,
+    %                          simulating one extended object with a single shared spectrum instead of a point-source catalog.
+    %       'ExtProfilePar'   - Sersic [Re, n, k] or Gaussian [SigmaX, SigmaY, Rho] parameters, in ExtOversampling grid units
+    %       'ExtProfileMatrix'- a user-supplied 2D profile matrix, used when ExtProfileType = 'matrix'
+    %       'ExtOversampling' - profile spatial grid oversampling. Default is Args.ImRes (recommended)
+    %       'ExtAxisRatio'    - b/a axis ratio, applied to the profile for any ExtProfileType
+    %       'ExtPA'           - [deg] position angle, applied to the profile for any ExtProfileType
+    %       'ExtSizeRA'       - object angular extent in the RA direction, [arcsec]
+    %       'ExtSizeDec'      - object angular extent in the Dec direction, [arcsec]
+    %       'ExtRA0'          - object center RA, [deg]
+    %       'ExtDec0'         - object center Dec, [deg]
+    %       'ExtMag'          - total object magnitude
+    %       'ExtEbv'          - E(B-V) of the object
+    %       'ExtSpec'         - the object's single spectrum, same conventions as 'Spec'
+    %       'ExtSpecType'     - the object's spectral model, same conventions as 'SpecType'
+    %       'ExtFiltFam'      - filter family for ExtMag
+    %       'ExtFilt'         - filter for ExtMag
+    % Output : - an AstroImage object with filled Catalog property
     %            (also a FITS image file output + ds9 region files, RAW file output)           
     %          - an array of per-object AstroPSFs
     %          - an ADU image (simple array)
@@ -107,7 +128,32 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 %                                              % (see details in imUtil.art.noise)
         Args.NoisePoisson   logical = true;    % Poisson noise
                                              
-        Args.Inj             = 'direct';     % source injection method can be either 'FFTshift' or 'direct'
+        Args.Inj             = 'direct';     % source injection method: 'direct', 'FFTshift', or 'stampcube'
+                                             % 'stampcube' uses the same imUtil.art.createSourceCube/addSources
+                                             % pipeline as the extended-object mode (per-source downsample +
+                                             % Lanczos sub-pixel shift + a single vectorized embed), instead of
+                                             % 'direct's whole-tile imresize up to the PSF oversampled grid and
+                                             % back down.
+                                             % Trade-off (measured on real ULTRASAT catalogs, ImRes=1..10,
+                                             % up to 5000 sources/chunk):
+                                             %  - much faster at high ImRes with moderate source counts, e.g.
+                                             %    ~17x at ImRes=10/300 sources, ~6x at ImRes=5/300 sources
+                                             %    chunked; also avoids 'direct's whole-tile resize memory cost,
+                                             %    which grows as ImRes^2 (tens of GB at ImRes=10 and above);
+                                             %  - roughly on par, or slightly slower, at low ImRes (1-2) or very
+                                             %    large source counts per chunk (~5000+), where 'direct's
+                                             %    resize cost is amortized and stampcube's per-source Lanczos
+                                             %    step dominates instead;
+                                             %  - total injected flux matches 'direct' to ~1e-7 relative in all
+                                             %    tested cases (no flux leakage), but individual source flux is
+                                             %    redistributed slightly differently within its PSF footprint
+                                             %    (Lanczos vs. nearest-pixel sub-pixel interpolation): typically
+                                             %    below 1%, up to a few percent for the worst source in a large
+                                             %    (~5000) chunk or at ImRes=1.
+                                             % Currently opt-in; 'direct' remains the default given the mixed
+                                             % performance picture above and to preserve historical pipeline
+                                             % output (simulateOmegaCen/simulateKeplerField/simulateN3/unitTest
+                                             % all call usim without Inj and rely on 'direct's exact output).
         
         Args.OutType         = 'all';        % output type: 'AstroImage', 'FITS', 'all' (default)
         
@@ -122,9 +168,28 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.PicklesDir = '~/matlab/data/spec/PicklesStellarSpec/';
         Args.Phoenix    = '~/matlab/data/spec/Phoenix/phoenix_mtl0_rescale10.mat';
         
-        Args.FlatMatrix = [];                % an external model flat matrix can be input here 
-        
-        Args.AddCRStreaks logical = false;   % add CR streaks     
+        Args.FlatMatrix = [];                % an external model flat matrix can be input here
+
+        Args.AddCRStreaks logical = false;   % add CR streaks
+
+        % extended (single-spectrum) object mode: a standalone alternative to the
+        % point-source Cat/Mag/Spec inputs above; active whenever ExtProfileType is non-empty
+        Args.ExtProfileType   = '';          % '', 'sersic', 'gaussian', 'flat', or 'matrix'; '' = point-source mode (default)
+        Args.ExtProfilePar    = [2 4 1];     % Sersic [Re, n, k] or Gaussian [SigmaX, SigmaY, Rho], in ExtOversampling grid units
+        Args.ExtProfileMatrix = [];          % user-supplied 2D profile, used when ExtProfileType = 'matrix'
+        Args.ExtOversampling  = [];          % profile spatial grid oversampling; default: same as Args.ImRes
+        Args.ExtAxisRatio     = 1;           % b/a axis ratio, applied to the profile regardless of ExtProfileType
+        Args.ExtPA            = 0;           % [deg] position angle, applied to the profile regardless of ExtProfileType
+        Args.ExtSizeRA        = [];          % object angular extent in the RA direction, [arcsec]
+        Args.ExtSizeDec       = [];          % object angular extent in the Dec direction, [arcsec]
+        Args.ExtRA0           = [];          % object center RA, [deg]
+        Args.ExtDec0          = [];          % object center Dec, [deg]
+        Args.ExtMag           = [];          % total object magnitude
+        Args.ExtEbv           = 0;           % E(B-V) of the object (same convention as Ebv)
+        Args.ExtSpec          = 5800;        % same conventions as Spec, but describing a single, whole-object spectrum
+        Args.ExtSpecType      = 'BB';        % same conventions as SpecType, single value only
+        Args.ExtFiltFam       = 'ULTRASAT';  % filter family for ExtMag
+        Args.ExtFilt          = '';          % filter for ExtMag
     end
     
     % input format correction
@@ -292,12 +357,14 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         SimWCS.CD = RotMatrix * SimWCS.CD;
         
     else % or read in an appropriate ULTRASAT header and extract WCS
-        SimHeader = AstroHeader(Args.WCSFile{1},1); 
-        SimWCS    = AstroWCS.header2wcs(SimHeader);   
+        SimHeader = AstroHeader(Args.WCSFile{1},1);
+        SimWCS    = AstroWCS.header2wcs(SimHeader);
         SimWCS.populate_projMeta;
     end
-        
-    if isa(Args.Cat,'AstroCatalog') % read sources from an AstroCatalog object 
+
+    if isempty(Args.ExtProfileType)
+
+    if isa(Args.Cat,'AstroCatalog') % read sources from an AstroCatalog object
         NumSrc        = size(Args.Cat.Catalog,1); 
         RA            = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'RA' ))); 
         DEC           = Args.Cat.Catalog(:,find(strcmp(Args.Cat.ColNames, 'Dec'))); 
@@ -697,9 +764,208 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             end
         end
         
-    end % end the loop over source chunks 
-    
-    %%%%%%%%%%%%%%%%%%%%% add and apply various types of noise to the tile image 
+    end % end the loop over source chunks
+
+    else % Args.ExtProfileType is non-empty: simulate a single extended object with one shared spectrum
+
+        cprintf('hyper','%s%s\n','Simulating an extended object, profile: ',Args.ExtProfileType);
+
+        if isempty(Args.ExtRA0) || isempty(Args.ExtDec0) || isempty(Args.ExtMag) || ...
+                isempty(Args.ExtSizeRA) || isempty(Args.ExtSizeDec)
+            error('ExtRA0, ExtDec0, ExtMag, ExtSizeRA, and ExtSizeDec must all be specified in extended-object mode, exiting..');
+        end
+
+        NumSrc = 1;
+
+        RA  = Args.ExtRA0;
+        DEC = Args.ExtDec0;
+        [CatX, CatY] = SimWCS.sky2xy(RA, DEC);
+
+        InMag = Args.ExtMag;
+
+        if (CatX < 0.1) || (CatY < 0.1) || (CatX > ImageSizeX) || (CatY > ImageSizeY)
+            error('The extended object center falls out of the tile FOV, exiting..');
+        end
+
+        % warn if the object is large enough that the field-position dependence of the PSF
+        % across its own extent may no longer be negligible (a single PSF kernel is used regardless)
+        ExtSizeDeg = max(Args.ExtSizeRA, Args.ExtSizeDec) / 3600;
+        if ExtSizeDeg > 1
+            warning('ultrasat:usim:ExtLargeObject', ...
+                ['The requested extended object size (%.2f deg) exceeds 1 deg. A single PSF kernel is used\n', ...
+                 'for the whole object, but the ULTRASAT PSF varies over the field on this scale.'], ExtSizeDeg);
+        end
+
+        %%%%%%%%%%%%%%%%%%%%% radial distance of the object center from the inner corner of the tile,
+        %%%%%%%%%%%%%%%%%%%%% and the throughput there
+
+        RadSrc = sqrt( ( CatX - X0 ).^2 + ( CatY - Y0 ).^2 ) .* PixSizeDeg;                     % [deg]
+        TotT   = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc', 'linear', Tiny)';
+        [~, IndR] = min( abs(RadSrc - Rad) );
+
+        %%%%%%%%%%%%%%%%%%%%% read or generate the single object spectrum
+
+                                fprintf('Reading the extended object spectrum.. ');
+
+        if isa(Args.ExtSpec,'AstroSpec') || isa(Args.ExtSpec,'AstSpec')
+            if isa(Args.ExtSpec,'AstSpec')
+                SpecIn = interp1( Args.ExtSpec(1).Wave, Args.ExtSpec(1).Int, Wave, 'linear', 0 );
+            else
+                SpecIn = interp1( Args.ExtSpec(1).Wave, Args.ExtSpec(1).Flux, Wave, 'linear', 0 );
+            end
+        else
+            switch lower(Args.ExtSpecType)
+                case 'bb'
+                    SpecIn = AstroSpec.blackBody(Wave', Args.ExtSpec(1)).Flux'; % erg s(-1) cm(-2) A(-1)
+                case 'pl'
+                    SpecIn = Wave .^ Args.ExtSpec(1);                           % erg s(-1) cm(-2) A(-1)
+                case 'pickles'
+                    R = astro.stars.tlogg2picklesClass(Args.ExtSpec(1), Args.ExtSpec(2)); % Teff and log(g)
+                    PicklesFile = strcat(Args.PicklesDir,'uk',lower(R.class),lower(R.lumclass),'.mat');
+                    SPick = io.files.load2(PicklesFile);
+                    SpecIn = interp1( SPick(:,1), SPick(:,2), Wave, 'linear', 0 );
+                case 'phoenix'
+                    io.files.load1(Args.Phoenix);
+                    SpecIn = interpn(PhoenixWaveGrid, PhoenixTGrid, PhoenixLoggGrid, PhoenixSpec, Wave, Args.ExtSpec(1), Args.ExtSpec(2));
+                case 'tab'
+                    % Args.ExtSpec: column 1 = flux, column 2 = wavelength
+                    SpecIn = interp1( Args.ExtSpec(:,2), Args.ExtSpec(:,1), Wave, 'linear', 0 );
+                otherwise
+                    error('Extended object spectral type not recognized, exiting..');
+            end
+        end
+        SpecIn = reshape(SpecIn, 1, Nwave);
+
+                                fprintf('done\n');
+
+        %%%%%%%%%%%%%%%%%%%%% rescale the spectrum to the requested magnitude and account for extinction
+
+        if strcmp(Args.ExtFiltFam,'ULTRASAT')
+            MagSc = astro.spec.synthetic_phot([Wave' SpecIn'],UP.U_AstFilt(IndR),'R1','AB');
+        else
+            MagSc = astro.spec.synthetic_phot([Wave' SpecIn'],Args.ExtFiltFam,Args.ExtFilt,'AB');
+        end
+        Factor  = 10.^(-0.4.*(MagSc - Args.ExtMag));
+        SpecIn  = SpecIn ./ Factor;
+
+        ExtMagAtt  = astro.extinction.extinction(Args.ExtEbv, (Wave./1e4)');
+        Extinction = 10.^(-0.4.*ExtMagAtt);
+        SpecObs    = SpecIn .* Extinction';           % observed (extincted) spectrum
+
+        if Args.CalculateULTRASATMag
+            MagU = astro.spec.synthetic_phot([Wave' SpecObs'],UP.U_AstFilt(IndR),'R1','AB');
+        else
+            MagU = NaN;
+        end
+
+        %%%%%%%%%%%%%%%%%%%%% convolve the spectrum with the throughput and get the total object count rate
+
+        SpecCts = SpecObs .* TotT .* DeltaLambda .* SAper ./ ( H*C ./(1e-8 .* Wave) ); % [ counts /s /bin ]
+        CatFlux = sum(SpecCts, 2);                                                     % [ counts /s ]
+
+        %%%%%%%%%%%%%%%%%%%%% build the single spectrum-weighted PSF kernel and rotate it
+        %%%%%%%%%%%%%%%%%%%%% to the tile's PSF axis, exactly as done for point sources
+
+                                fprintf('Weighting the object PSF with its spectrum.. ');
+
+        WPSF = imUtil.psf.specWeight(SpecCts, RadSrc, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, ...
+                                     'Lambda',WavePSF,'SpecLam',Wave);
+        WPSF = WPSF(:,:,1);
+
+        RotAngle1 = RotAngle(1);
+        if abs(RotAngle1) < 1 || abs(RotAngle1 - 360) < 1
+            WPSFRot = WPSF;
+        else
+            WPSFRot = imrotate(WPSF, RotAngle1, 'bilinear', 'loose');
+            WPSFRot = WPSFRot ./ sum(WPSFRot, 'all');
+        end
+
+                                fprintf('done\n');
+
+        %%%%%%%%%%%%%%%%%%%%% build the spatial surface-brightness profile, on the same
+        %%%%%%%%%%%%%%%%%%%%% oversampled grid as the PSF kernel above
+
+        if isempty(Args.ExtOversampling)
+            ExtOversampling = Args.ImRes;
+        else
+            ExtOversampling = Args.ExtOversampling;
+        end
+
+        Grain = PixSizeDeg * 3600 / ExtOversampling;         % [arcsec] per profile grid cell
+        Nx    = max(3, ceil( Args.ExtSizeRA  / Grain ));
+        Ny    = max(3, ceil( Args.ExtSizeDec / Grain ));
+
+        switch lower(Args.ExtProfileType)
+            case 'sersic'
+                Profile = imUtil.kernel2.sersic(Args.ExtProfilePar, [Nx Ny]);
+            case 'gaussian'
+                Profile = imUtil.kernel2.gauss(Args.ExtProfilePar, [Nx Ny]);
+            case 'flat'
+                Profile = ones(Ny, Nx);
+            case 'matrix'
+                if isempty(Args.ExtProfileMatrix)
+                    error('ExtProfileMatrix must be provided when ExtProfileType = ''matrix'', exiting..');
+                end
+                Profile = Args.ExtProfileMatrix;
+                if ~isequal(size(Profile),[Ny Nx])
+                    Profile = imresize(Profile, [Ny Nx], 'bilinear');
+                end
+            otherwise
+                error('Unsupported ExtProfileType, exiting..');
+        end
+
+        % apply the object's axis ratio and position angle, uniformly for any ExtProfileType
+        % (a stretch + rotate approximation of an elliptical profile, since imUtil.kernel2.* are circular-only)
+        if Args.ExtAxisRatio ~= 1 || mod(Args.ExtPA,360) ~= 0
+            Profile = imresize(Profile, [size(Profile,1), max(3,round(size(Profile,2)*Args.ExtAxisRatio))], 'bilinear');
+            Profile = imrotate(Profile, Args.ExtPA, 'bilinear', 'loose');
+        end
+
+        Profile = Profile ./ sum(Profile, 'all'); % normalize to unit flux
+
+        %%%%%%%%%%%%%%%%%%%%% convolve the profile with the rotated PSF kernel
+
+                                fprintf('Convolving the spatial profile with the PSF.. ');
+
+        SzC = max(size(Profile), size(WPSFRot));
+        Profile2 = padarray(Profile, SzC-size(Profile), 0, 'post');
+        WPSFRot2 = padarray(WPSFRot, SzC-size(WPSFRot), 0, 'post');
+
+        ConvStamp = imUtil.filter.conv2_fft(Profile2, WPSFRot2);
+        ConvStamp = ConvStamp ./ sum(ConvStamp, 'all'); % renormalize to unit flux
+
+                                fprintf('done\n');
+
+        %%%%%%%%%%%%%%%%%%%%% resample the convolved stamp down to the detector pixel scale, sub-pixel
+        %%%%%%%%%%%%%%%%%%%%% center it on the object's position, flux-scale it, and inject it
+
+                                fprintf('Injecting the extended object into an empty image.. ');
+
+        [CubePSF, XYInj] = imUtil.art.createSourceCube(ConvStamp, [CatX CatY], CatFlux, ...
+                                'Oversample', Args.ImRes, 'Recenter', true, ...
+                                'RecenterMethod', 'lanczos');
+
+        ImageSrc = zeros(ImageSizeX, ImageSizeY, 'single');
+        ImageSrc = imUtil.art.addSources(ImageSrc, CubePSF, XYInj);
+
+        % store the (unscaled) spectrum-weighted PSF kernel, for consistency with the point-source output
+        PSF = WPSFRot;
+
+                                fprintf('done\n');
+
+        % crude SNR estimate, using the size of the actual (profile-convolved) object image
+        if Args.CalculateCrudeSNR
+            PSFeff           = 0.8;
+            ContainmentLevel = 0.5;
+            ObjRad   = imUtil.psf.quantileRadius(ConvStamp,'Level',ContainmentLevel) ./ Args.ImRes;
+            CrudeSNR = PSFeff * CatFlux * Exposure / sqrt(pi * ObjRad^2 * Back.Tot );
+        else
+            CrudeSNR = NaN;
+        end
+
+    end
+
+    %%%%%%%%%%%%%%%%%%%%% add and apply various types of noise to the tile image
     %%%%%%%%%%%%%%%%%%%%% NB: while ImageSrc is in [counts/s], ImageSrcNoise is already in [counts] !!
     
                                 cprintf('hyper','Adding noise .. ');
@@ -917,7 +1183,9 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     %          'RotatePSF'      - PSF rotation angle, either a single value
     %                             for all the sources or a vector of angles
     %          'Jitter'         - apply PSF blurring due to the S/C jitter  
-    %          'Method'         - source injection method, either 'direct' or 'PSFshift'
+    %          'Method'         - source injection method: 'direct', 'FFTshift', or 'stampcube'.
+    %                             See the Args.Inj comment in usim.m for the measured speed/accuracy
+    %                             trade-off between 'direct' (default) and 'stampcube'.
     %          'MeasurePSF'     - whether to measure PSF flux containment and pseudo-FWHM (diagnostics)
     %          
     % Output : - Image: a 2D array containing the resulting source image 
@@ -1014,13 +1282,25 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     
             Image = imUtil.art.addSources(Image0,JPSF.*reshape(CPS,1,1,NumSrc),...
                            [X Y],'Oversample',Args.PSFScaling,'Method','ns','ShiftInterp',true);
-        case 'direct'                  
+        case 'direct'
 %             ImageOld = directInjectSources(Image0,Cat,Args.PSFScaling,JPSF);
             Image = imUtil.art.addSources(Image0,JPSF.*reshape(CPS,1,1,NumSrc),...
                            [X Y],'Oversample',Args.PSFScaling,'Method','direct');
-    
-        otherwise        
-            error('Injection method not defined! Exiting..');        
+
+        case 'stampcube'
+            % rotation and jitter are already applied to JPSF above; here only
+            % downsample to detector resolution, sub-pixel center, and flux-scale
+            % each source's stamp (imUtil.art.createSourceCube), then embed them
+            % into the image with a single vectorized slice per source
+            % (imUtil.art.addSources), avoiding the whole-tile imresize that
+            % the 'direct' method performs.
+            [CubePSF, XYInj] = imUtil.art.createSourceCube(JPSF, [X Y], CPS, ...
+                                    'Oversample', Args.PSFScaling, 'RotAngle', [], ...
+                                    'Recenter', true, 'RecenterMethod', 'lanczos');
+            Image = imUtil.art.addSources(Image0, CubePSF, XYInj);
+
+        otherwise
+            error('Injection method not defined! Exiting..');
     end
 end
 

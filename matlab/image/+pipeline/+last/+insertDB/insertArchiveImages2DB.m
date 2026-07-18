@@ -31,30 +31,45 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
         Args.ProcDirTemplate   = '/proc/*';  
         
         Args.Template          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
-        
+         
         Args.DbHost = 'euclid';
         Args.DbName = 'last';   
         Args.DbUser = 'default';
-        Args.AstroDBPassFile   = '~/.astropack/Passwords.yml'; 
+        Args.DbPort =  9000;
+        Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
         
         Args.DbTable     = 'visit_images'; % 'visit_images'
         Args.ColNameID   = 'id_visit';
         Args.StatusStamp = "Injected into the visit image table"; % "injected into the visit image DB"; % "Injected into the visit image table";
-        
+               
         Args.RemoteUser  = 'euclid';
+        Args.DBConnector = 'native'; % 'legacy'; % 'native' or 'legacy'
+        Args.ConnectorOpts = struct('compression', db.mex.Compression.ZSTD);
+        Args.Schema        = [];       % the user may input the schema of the DB table 
+                                           % as a matlab table output of the "DESCRIBE TABLE" SQL command
     end    
-    % create a DB object and connect
-    DB          = db.Db;
-    DB.Host     = Args.DbHost;
-    DB.DbName   = Args.DbName;
-    DB.User     = Args.DbUser;
+    % create a DB object and connect 
     Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-    PM = PasswordsManager;    
-    DB.Password = PM.search(Args.DbName).Pass;
-    DB.Conn;
-    DB.useDB(Args.DbName);
-    fprintf('DB in use: %s\n',DB.showCurrentDB);
-    fprintf('Table list: '); fprintf('%s ',DB.showTables{:}); fprintf('\n');        
+    PM  = PasswordsManager;    
+    Pwd = PM.search(Args.DbName).Pass;
+    if strcmpi(Args.DBConnector,'legacy')
+        DB          = db.Db;
+        DB.Host     = Args.DbHost;
+        DB.DbName   = Args.DbName;
+        DB.User     = Args.DbUser;
+        DB.Password = Pwd;
+        DB.Conn;
+        DB.useDB(Args.DbName);
+        fprintf('DB in use: %s\n',DB.showCurrentDB);
+    elseif strcmpi(Args.DBConnector,'native')
+        DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Pwd, Args.ConnectorOpts);
+        DB.query(sprintf('use %s',Args.DbName));
+        if isempty(Args.Schema)
+            Args.Schema = DB.describe(Args.DbTable);
+        end
+    else
+        error('Asked for unknown DB connector')
+    end       
     % read the column list from the xls template
     Columns = db.util.read_xls2tableFormat(Args.Template,'Sheet','Images','TableName',Args.DbTable);      
     %
@@ -80,7 +95,8 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
             continue
         end
         if ~Injected
-            Coadd=AstroImage(FileNameTemplate); % read the data
+            R=AstroImage(FileNameTemplate); % read the data
+            Coadd=R(~R.isemptyImage);
             Nobj = numel(Coadd);
             if Nobj < 1 || Coadd(1).isemptyImage % no images have been read 
                 cd(Dir);
@@ -117,16 +133,18 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
             for Crop=1:Nobj
                 Coadd(Crop).HeaderData.replaceVal('INGESTION_TIME_JD',JDnow);
             end
-            % prepare file name for the CSV dump 
-            A = AstroFileName;
-            A.ProjName = Pname;
-            A.SubDir   = Subdir;
-            A.Level    = Coadd(1).getStructKey('LEVEL').LEVEL;
-            A.FieldID  = Coadd(1).getStructKey('FIELDID').FIELDID;
-            A.JD       = Coadd(1).getStructKey('JD').JD; 
-            A.CCDID = 1; A.Counter = 0; A.CropID = 0; 
-            A.FileType = "csv"; A.julday2time;
-            CsvFN = erase(A.genFile,' ');        
+            
+            % prepare file name for the CSV dump
+                A = AstroFileName;
+                A.ProjName = Pname;
+                A.SubDir   = Subdir;
+                A.Level    = Coadd(1).getStructKey('LEVEL').LEVEL;
+                A.FieldID  = Coadd(1).getStructKey('FIELDID').FIELDID;
+                A.JD       = Coadd(1).getStructKey('JD').JD;
+                A.CCDID = 1; A.Counter = 0; A.CropID = 0;
+                A.FileType = "csv"; A.julday2time;
+                CsvFN = erase(A.genFile,' ');
+            
             % add the keywords to be used for filename construction            
             for Crop = 1:Nobj
                 FN = Coadd(Crop).HeaderData.getStructKey('FILENAME').FILENAME;
@@ -148,20 +166,32 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
                 Coadd(Crop).HeaderData.replaceVal('DIRDAY' ,DateTime.Day);                
             end
 
-            [~, Error]=imProc.db.insertImages(Coadd,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
-                                    'CreateCsv',true,'FileName',CsvFN, 'ColNameID',Args.ColNameID);
-            if ~isempty(Error)
-                error('image injection failed');
-            end
-            % copy the CSV file into the proc catalog and edit the .status file
-            CopyCSV = sprintf('su - %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
-            [~, Err1] = system(CopyCSV);            
-            UpdateStatus = sprintf('su - %s -c "echo ''%s %s'' >> %s/.status"',...
-                                    Args.RemoteUser,tools.timeStamp.getTimeStamp,Args.StatusStamp,DataDir);
-            [~, Err2] = system(UpdateStatus); 
-            if isempty(Err1) && isempty(Err2)
-                RemLocalFile = sprintf('rm %s',CsvFN);
-                [~, Err3] = system(RemLocalFile);
+            if strcmpi(Args.DBConnector,'legacy')                                
+                [~, Error]=imProc.db.insertImages(Coadd,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+                    'CreateCsv',true,'FileName',CsvFN, 'ColNameID',Args.ColNameID);
+                if ~isempty(Error)
+                    error('image injection failed');
+                end
+                % copy the CSV file into the proc catalog and edit the .status file
+                CopyCSV = sprintf('su - %s -c "cp -f %s/%s %s"',Args.RemoteUser,Dir,CsvFN,DataDir);
+                [~, Err1] = system(CopyCSV);
+                UpdateStatus = sprintf('su - %s -c "echo ''%s %s'' >> %s/.status"',...
+                    Args.RemoteUser,tools.timeStamp.getTimeStamp,Args.StatusStamp,DataDir);
+                [~, Err2] = system(UpdateStatus);
+                if isempty(Err1) && isempty(Err2)
+                    RemLocalFile = sprintf('rm %s',CsvFN);
+                    [~, Err3] = system(RemLocalFile);
+                end                        
+            else
+                [~, Error]=imProc.db.insertImages(Coadd,'ColNameDic',Columns,'Db',DB,'DbName',Args.DbName,'DbTable',Args.DbTable,...
+                    'CreateCsv',false,'ColNameID',Args.ColNameID,...
+                    'DBConnector',Args.DBConnector,'Schema',Args.Schema);
+                if ~isempty(Error)
+                    error('image injection failed');
+                end
+                UpdateStatus = sprintf('su - %s -c "echo ''%s %s'' >> %s/.status"',...
+                    Args.RemoteUser,tools.timeStamp.getTimeStamp,Args.StatusStamp,DataDir);
+                [~, Err2] = system(UpdateStatus);
             end
             fprintf(' ..done\n');  
         else
@@ -171,5 +201,9 @@ function [Result] = insertArchiveImages2DB(RootDir, FileNameTemplate, Args)
     toc
     fclose(FID);
     % disconnect the DB     
-    DB.disconnectCH_Java;  
+    if strcmpi(Args.DBConnector,'legacy')
+        DB.disconnectCH_Java;
+    else
+        DB.delete;
+    end
 end

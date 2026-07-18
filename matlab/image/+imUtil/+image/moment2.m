@@ -485,6 +485,7 @@ if nargout>1
                                     'AnnulusRad',Args.Annulus, 'SubBack',false,...
                                     'AnnulusBack',AnnulusBack);
             Aper.AnnulusBack = AnnulusBack; % return annulus back to first value, otherwise will be zero...
+            Aper.AnnulusArea = Aper.AnnulusBackArea;
         else
         
             % aperture photometry

@@ -49,6 +49,7 @@ classdef Db < Component
     properties (Hidden)
         Conn      = [];        % connectivity information (for ConnType=java)
         DataTypes = cell(2,0); % data types in the DB tables 
+        SkipLazyConn logical = false; % suppress lazy connect in get.Conn (disconnect/isConnected)
     end
     
     properties (Hidden, Constant)
@@ -82,9 +83,9 @@ classdef Db < Component
             % Author : Eran Ofek (Jun 2025)
             % Example: DB.isConnected
 
+            Obj.SkipLazyConn = true;
             IsConn = ~isempty(Obj.Conn);
-
-            if nargout>1
+            if nargout>1 && IsConn
                 switch Obj.Conn.ReadOnly
                     case 'off'
                         ReadOnly = false;
@@ -92,6 +93,7 @@ classdef Db < Component
                         ReadOnly = true;
                 end
             end
+            Obj.SkipLazyConn = false;
         end
         
 
@@ -138,6 +140,9 @@ classdef Db < Component
             % Getter for Conn (Java connection)
            
             Val = Obj.Conn;
+            if Obj.SkipLazyConn
+                return;
+            end
             if isempty(Val)
                 Obj.User;
                 Val = db.Db.connectCH_Java('DbName',Obj.DbName, 'Host',Obj.Host, 'Port',Obj.Port, 'User',Obj.User, 'Password',Obj.Password);
@@ -757,7 +762,12 @@ classdef Db < Component
             % Author : Eran Ofek (Oct 2024)
             % Example: D.dissconectCH_Java
 
-            close(Obj.Conn);
+            Obj.SkipLazyConn = true;
+            Conn = Obj.Conn;
+            Obj.SkipLazyConn = false;
+            if ~isempty(Conn)
+                close(Conn);
+            end
             Obj.Conn = [];
         end
 
@@ -1511,7 +1521,7 @@ rs = stmt.executeQuery(Query);
     %----------------------------------------------------------------------
     % Unit test
     methods(Static)
-%         Result = unitTest()
+        Result = unitTest()
         
         function DB = connectLASTdb(Args)
             %

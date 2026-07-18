@@ -2641,7 +2641,8 @@ classdef DemonLAST < Component
                 Args.SortDirection = 'descend';      % 'ascend'|'descend' - analyze last image first
                 Args.AbortFileName = '~/abortPipe';  % if this file exit, then abort.
                 Args.StopButton logical = true;      % Display stop button
-                Args.StopDiskFull  = [];             % e.g., use 95 to abort if disk storage is above 95%
+                Args.StopDiskFull  = [];             % e.g., use 99 to pause processing while disk storage is above 99% (resumes automatically once it drops back below)
+                Args.PauseDiskFull = 60;             % [s] time to wait between disk space rechecks while paused on StopDiskFull
                 Args.multiRaw2procCoaddArgs = {'DoCoadd',true};
 
                 Args.StartJD       = -Inf;           % refers only to Science observations: JD, or [D M Y]
@@ -2880,9 +2881,37 @@ classdef DemonLAST < Component
             JDlastCalib = 0;
             Cont = true;
             while Cont
-                % Notify watchdog that process is running 
+                % Notify watchdog that process is running
                 tools.systemd.mex.notify_watchdog;
-   
+
+                % check disk storage state - pause processing while critically full
+                if ~isempty(Args.StopDiskFull)
+                    [~,DiskP] = tools.os.df(sprintf('data%d',Obj.DataDir));
+                    while DiskP>Args.StopDiskFull
+                        WarnMsg = sprintf('pipeline.DemonLAST: disk data%d is %.1f%% full (threshold %.1f%%) on %s - pausing processing', ...
+                            Obj.DataDir, DiskP, Args.StopDiskFull, Args.HostName);
+                        warning(WarnMsg);
+                        try
+                            Obj.writeLog(WarnMsg, LogLevel.Error);
+                        catch
+                            % local log write failed (disk likely full) - warning above already fired
+                        end
+                        if Args.StopButton && StopGUI()
+                            Cont = false;
+                            break;
+                        end
+                        if isfile(Args.AbortFileName)
+                            Cont = false;
+                            delete(Args.AbortFileName);
+                            break;
+                        end
+                        pause(Args.PauseDiskFull);
+                        [~,DiskP] = tools.os.df(sprintf('data%d',Obj.DataDir));
+                    end
+                    if ~Cont
+                        break;
+                    end
+                end
 
                 if Args.RegenCalib
                     % prep Master dark and move to raw/ dir
@@ -3376,11 +3405,29 @@ classdef DemonLAST < Component
                             delete(Args.AbortFileName);
                         end
 
-                        % check disk storage state
+                        % check disk storage state - pause processing while critically full
                         if ~isempty(Args.StopDiskFull)
                             [~,DiskP] = tools.os.df(sprintf('data%d',Obj.DataDir));
-                            if DiskP>Args.StopDiskFull
-                                Cont = false;
+                            while DiskP>Args.StopDiskFull
+                                WarnMsg = sprintf('pipeline.DemonLAST: disk data%d is %.1f%% full (threshold %.1f%%) on %s - pausing processing', ...
+                                    Obj.DataDir, DiskP, Args.StopDiskFull, Args.HostName);
+                                warning(WarnMsg);
+                                try
+                                    Obj.writeLog(WarnMsg, LogLevel.Error);
+                                catch
+                                    % local log write failed (disk likely full) - warning above already fired
+                                end
+                                if Args.StopButton && StopGUI()
+                                    Cont = false;
+                                    break;
+                                end
+                                if isfile(Args.AbortFileName)
+                                    Cont = false;
+                                    delete(Args.AbortFileName);
+                                    break;
+                                end
+                                pause(Args.PauseDiskFull);
+                                [~,DiskP] = tools.os.df(sprintf('data%d',Obj.DataDir));
                             end
                         end
 

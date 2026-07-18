@@ -100,7 +100,7 @@ DY = UnCCDSEC(:,3)-CCDSEC(:,3);
 WX = UnCCDSEC(:,2)-UnCCDSEC(:,1);
 WY = UnCCDSEC(:,4)-UnCCDSEC(:,3);
 
-NewNoOverlap = 1+[DX, WX-DX, DY, WY-DY];
+NewNoOverlap = 1+[DX, WX+DX, DY, WY+DY];
 
 
 if Args.MakeEqualSize
