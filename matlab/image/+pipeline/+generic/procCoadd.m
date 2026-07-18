@@ -609,10 +609,10 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             end
 
             if Args.AddLimMag
-                [Coadd] = imProc.calib.limmag(Coadd, Args.LimMagArgs{:});
+                [Coadd(Ifields)] = imProc.calib.limmag(Coadd(Ifields), Args.LimMagArgs{:});
             end
             if Args.AddBackMag
-                [Coadd] = imProc.calib.backmag(Coadd, 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); 
+                [Coadd(Ifields)] = imProc.calib.backmag(Coadd(Ifields), 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); 
             end
 
 

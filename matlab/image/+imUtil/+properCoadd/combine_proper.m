@@ -8,7 +8,7 @@ function [R,PR,R_f,PR_f]=combine_proper(Data,PSF,Args)
 %            The PSF is centered in the stamp.
 %          * Arbitrary number of ...,key,val,... arguments.
 %            The following keywords are available:
-%            'F' - A vector of weights (one weight per image).
+%            'F' - Vector of per-image flux zero-points (transparencies) F_j.
 %                   Default is 1.
 %            'Var' - A vector of variances (one variance per image).
 %                   Default is 1.
@@ -38,20 +38,18 @@ function [R,PR,R_f,PR_f]=combine_proper(Data,PSF,Args)
 %                   Useful since sometimes the output may have small
 %                   imaginary part.
 %                   Default is true.
-% Output : - The proper coadded image.
-%          - The proper PSF
-%          - FFT of the proper coadded image.
-%          - FFT of the proper PSF.
-% Reference: Ofek & Zackay 2017, ApJ 836, 188
-% License: GNU general public license version 3
+% Output : - The proper coadded image R (ZO17 Eq. 7). Zero-point F_R.
+%          - The proper PSF P_R, normalized to unit sum (ZO17 convention;
+%            note: cropping by Full2stamp removes wing flux, so the
+%            returned stamp sums to slightly less than 1).
+%          - FFT of R.
+%          - FFT of P_R (unit DC).
+% Reference: Zackay & Ofek 2017, ApJ 836, 188
 % Tested : Matlab R2015b
-%     By : Eran O. Ofek                    May 2020
-%    URL : http://weizmann.ac.il/home/eofek/matlab/
+% Author : Eran Ofek (May 2020)
 % Example: Psf = imUtil.kernel2.gauss([1 2 3 4 5]');
 %          Data = Psf + randn(size(Psf)).*0.001;
 %          [R,PR,R_f,PR_f]=imUtil.properCoadd.combine_proper(Data,Psf)
-% Reliable: 
-%--------------------------------------------------------------------------
 
 arguments
     Data
