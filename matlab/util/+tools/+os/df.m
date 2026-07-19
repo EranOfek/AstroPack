@@ -25,10 +25,18 @@ function [Str, DiskP] = df(Template)
             [R,Str] = system(sprintf('df | grep %s',Template));
             if isempty(Str)
                 DiskP = NaN;
+            else
+                Cell = regexp(Str, '\s', 'split');
+                Ind = find(contains(Cell, '%'));
+                if isempty(Ind)
+                    DiskP = NaN;
+                else
+                    if numel(Ind) > 1
+                        warning('tools.os.df: template ''%s'' matched more than one line in df output - using the first match', Template);
+                    end
+                    DiskP = str2double(Cell{Ind(1)}(1:end-1));
+                end
             end
-            Cell = regexp(Str, '\s', 'split');
-            Ind = find(contains(Cell, '%'));
-            DiskP = str2double(Cell{Ind}(1:end-1));
         end
 
     else
