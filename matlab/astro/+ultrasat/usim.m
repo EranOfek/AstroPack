@@ -927,11 +927,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
                                 fprintf('Convolving the spatial profile with the PSF.. ');
 
+        % conv2_fft expects its 2nd argument (the kernel) at its own natural,
+        % un-padded size -- it pads/crops internally to stay centered like
+        % conv2(Mat1,Mat2,'same'). Pre-padding both inputs to an equal size,
+        % as this used to do, breaks that internal centering and shifts the
+        % result by roughly half the padded canvas (source appears near a
+        % corner). Only pad Profile up to be elementwise >= WPSFRot, and pass
+        % WPSFRot untouched.
         SzC = max(size(Profile), size(WPSFRot));
         Profile2 = padarray(Profile, SzC-size(Profile), 0, 'post');
-        WPSFRot2 = padarray(WPSFRot, SzC-size(WPSFRot), 0, 'post');
 
-        ConvStamp = imUtil.filter.conv2_fft(Profile2, WPSFRot2);
+        ConvStamp = imUtil.filter.conv2_fft(Profile2, WPSFRot);
         ConvStamp = ConvStamp ./ sum(ConvStamp, 'all'); % renormalize to unit flux
 
                                 fprintf('done\n');
