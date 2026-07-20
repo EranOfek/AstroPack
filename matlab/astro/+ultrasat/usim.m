@@ -40,25 +40,32 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'PostModelingFindSources' - do post modeling source search
     %       'PicklesDir' - a directory containing Pickles' stellar spectra
     %       'Phoenix' - an object containing Phoenix stellar spectra
-    %       --- extended (single-spectrum) object mode: standalone alternative to Cat/Mag/Spec above ---
+    %       --- extended object mode: standalone alternative to Cat/Mag/Spec above ---
     %       'ExtProfileType' - '', 'sersic', 'gaussian', 'flat', or 'matrix'; '' = point-source mode (default).
     %                          Setting this to a non-empty value switches usim into extended-object mode,
-    %                          simulating one extended object with a single shared spectrum instead of a point-source catalog.
-    %       'ExtProfilePar'   - Sersic [Re, n, k] or Gaussian [SigmaX, SigmaY, Rho] parameters, in ExtOversampling grid units
-    %       'ExtProfileMatrix'- a user-supplied 2D profile matrix, used when ExtProfileType = 'matrix'
-    %       'ExtOversampling' - profile spatial grid oversampling. Default is Args.ImRes (recommended)
-    %       'ExtAxisRatio'    - b/a axis ratio, applied to the profile for any ExtProfileType
-    %       'ExtPA'           - [deg] position angle, applied to the profile for any ExtProfileType
-    %       'ExtSizeRA'       - object angular extent in the RA direction, [arcsec]
-    %       'ExtSizeDec'      - object angular extent in the Dec direction, [arcsec]
-    %       'ExtRA0'          - object center RA, [deg]
-    %       'ExtDec0'         - object center Dec, [deg]
-    %       'ExtMag'          - total object magnitude
-    %       'ExtEbv'          - E(B-V) of the object
-    %       'ExtSpec'         - the object's single spectrum, same conventions as 'Spec'
-    %       'ExtSpecType'     - the object's spectral model, same conventions as 'SpecType'
-    %       'ExtFiltFam'      - filter family for ExtMag
-    %       'ExtFilt'         - filter for ExtMag
+    %                          simulating N extended objects (N = numel(ExtRA0)) instead of a point-source
+    %                          catalog. ExtProfileType and ExtSpecType are shared by all N objects in a call;
+    %                          all other Ext* parameters below are per-object (length-N vectors/matrices/cell
+    %                          arrays, or a scalar to broadcast the same value to every object where noted).
+    %                          Objects whose center falls outside the tile FOV are dropped with a warning.
+    %       'ExtProfilePar'   - N x 3: per-object Sersic [Re, n, k] or Gaussian [SigmaX, SigmaY, Rho]
+    %                          parameters (one row per object), in ExtOversampling grid units
+    %       'ExtProfileMatrix'- a 1 x N cell array of user-supplied 2D profile matrices, one per object,
+    %                          used when ExtProfileType = 'matrix'
+    %       'ExtOversampling' - profile spatial grid oversampling, shared by all objects. Default is Args.ImRes (recommended)
+    %       'ExtAxisRatio'    - b/a axis ratio; a length-N vector or a scalar to apply to all objects
+    %       'ExtPA'           - [deg] position angle; a length-N vector or a scalar to apply to all objects
+    %       'ExtSizeRA'       - length-N vector: object angular extent in the RA direction, [arcsec]
+    %       'ExtSizeDec'      - length-N vector: object angular extent in the Dec direction, [arcsec]
+    %       'ExtRA0'          - length-N vector: object center RA, [deg]; N is taken from this argument
+    %       'ExtDec0'         - length-N vector: object center Dec, [deg]
+    %       'ExtMag'          - length-N vector: total magnitude of each object
+    %       'ExtEbv'          - E(B-V); a length-N vector or a scalar to apply to all objects
+    %       'ExtSpec'         - N x npar (or, for ExtSpecType = 'tab', Nwave x N / Nwave x (N+1)): per-object
+    %                          spectral parameters, same conventions as 'Spec'
+    %       'ExtSpecType'     - the spectral model shared by all objects, same conventions as 'SpecType'
+    %       'ExtFiltFam'      - filter family for ExtMag, shared by all objects
+    %       'ExtFilt'         - filter for ExtMag, shared by all objects
     % Output : - an AstroImage object with filled Catalog property
     %            (also a FITS image file output + ds9 region files, RAW file output)           
     %          - an array of per-object AstroPSFs
@@ -181,24 +188,27 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
         Args.AddCRStreaks logical = false;   % add CR streaks
 
-        % extended (single-spectrum) object mode: a standalone alternative to the
-        % point-source Cat/Mag/Spec inputs above; active whenever ExtProfileType is non-empty
+        % extended object mode: a standalone alternative to the point-source Cat/Mag/Spec
+        % inputs above; active whenever ExtProfileType is non-empty. Simulates N objects,
+        % N = numel(ExtRA0). ExtProfileType/ExtSpecType/ExtOversampling/ExtFiltFam/ExtFilt
+        % are shared by all N objects; the rest are per-object (length-N, or a scalar to
+        % broadcast where noted below).
         Args.ExtProfileType   = '';          % '', 'sersic', 'gaussian', 'flat', or 'matrix'; '' = point-source mode (default)
-        Args.ExtProfilePar    = [2 4 1];     % Sersic [Re, n, k] or Gaussian [SigmaX, SigmaY, Rho], in ExtOversampling grid units
-        Args.ExtProfileMatrix = [];          % user-supplied 2D profile, used when ExtProfileType = 'matrix'
-        Args.ExtOversampling  = [];          % profile spatial grid oversampling; default: same as Args.ImRes
-        Args.ExtAxisRatio     = 1;           % b/a axis ratio, applied to the profile regardless of ExtProfileType
-        Args.ExtPA            = 0;           % [deg] position angle, applied to the profile regardless of ExtProfileType
-        Args.ExtSizeRA        = [];          % object angular extent in the RA direction, [arcsec]
-        Args.ExtSizeDec       = [];          % object angular extent in the Dec direction, [arcsec]
-        Args.ExtRA0           = [];          % object center RA, [deg]
-        Args.ExtDec0          = [];          % object center Dec, [deg]
-        Args.ExtMag           = [];          % total object magnitude
-        Args.ExtEbv           = 0;           % E(B-V) of the object (same convention as Ebv)
-        Args.ExtSpec          = 5800;        % same conventions as Spec, but describing a single, whole-object spectrum
-        Args.ExtSpecType      = 'BB';        % same conventions as SpecType, single value only
-        Args.ExtFiltFam       = 'ULTRASAT';  % filter family for ExtMag
-        Args.ExtFilt          = '';          % filter for ExtMag
+        Args.ExtProfilePar    = [2 4 1];     % N x 3: per-object Sersic [Re, n, k] or Gaussian [SigmaX, SigmaY, Rho], in ExtOversampling grid units
+        Args.ExtProfileMatrix = [];          % 1 x N cell array of user-supplied 2D profiles, used when ExtProfileType = 'matrix'
+        Args.ExtOversampling  = [];          % profile spatial grid oversampling, shared by all objects; default: same as Args.ImRes
+        Args.ExtAxisRatio     = 1;           % b/a axis ratio, applied to the profile regardless of ExtProfileType; length-N vector or scalar (broadcast)
+        Args.ExtPA            = 0;           % [deg] position angle, applied to the profile regardless of ExtProfileType; length-N vector or scalar (broadcast)
+        Args.ExtSizeRA        = [];          % length-N: object angular extent in the RA direction, [arcsec]
+        Args.ExtSizeDec       = [];          % length-N: object angular extent in the Dec direction, [arcsec]
+        Args.ExtRA0           = [];          % length-N: object center RA, [deg]; N is taken from this argument
+        Args.ExtDec0          = [];          % length-N: object center Dec, [deg]
+        Args.ExtMag           = [];          % length-N: total magnitude of each object
+        Args.ExtEbv           = 0;           % E(B-V); length-N vector or scalar (broadcast) (same convention as Ebv)
+        Args.ExtSpec          = 5800;        % same conventions as Spec, but N x npar (one row per object)
+        Args.ExtSpecType      = 'BB';        % same conventions as SpecType, shared by all N objects
+        Args.ExtFiltFam       = 'ULTRASAT';  % filter family for ExtMag, shared by all objects
+        Args.ExtFilt          = '';          % filter for ExtMag, shared by all objects
     end
     
     % input format correction
@@ -775,208 +785,272 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
     end % end the loop over source chunks
 
-    else % Args.ExtProfileType is non-empty: simulate a single extended object with one shared spectrum
-
-        cprintf('hyper','%s%s\n','Simulating an extended object, profile: ',Args.ExtProfileType);
+    else % Args.ExtProfileType is non-empty: simulate one or more extended objects, each with its own shared spectrum
 
         if isempty(Args.ExtRA0) || isempty(Args.ExtDec0) || isempty(Args.ExtMag) || ...
                 isempty(Args.ExtSizeRA) || isempty(Args.ExtSizeDec)
             error('ExtRA0, ExtDec0, ExtMag, ExtSizeRA, and ExtSizeDec must all be specified in extended-object mode, exiting..');
         end
 
-        NumSrc = 1;
-
-        RA  = Args.ExtRA0;
-        DEC = Args.ExtDec0;
-        [CatX, CatY] = SimWCS.sky2xy(RA, DEC);
-
-        InMag = Args.ExtMag;
-
-        if (CatX < 0.1) || (CatY < 0.1) || (CatX > ImageSizeX) || (CatY > ImageSizeY)
-            error('The extended object center falls out of the tile FOV, exiting..');
+        NumExt = numel(Args.ExtRA0);
+        if numel(Args.ExtDec0) ~= NumExt || numel(Args.ExtMag) ~= NumExt || ...
+                numel(Args.ExtSizeRA) ~= NumExt || numel(Args.ExtSizeDec) ~= NumExt
+            error('ExtRA0, ExtDec0, ExtMag, ExtSizeRA, and ExtSizeDec must all have the same number of elements, exiting..');
         end
 
-        % warn if the object is large enough that the field-position dependence of the PSF
-        % across its own extent may no longer be negligible (a single PSF kernel is used regardless)
-        ExtSizeDeg = max(Args.ExtSizeRA, Args.ExtSizeDec) / 3600;
-        if ExtSizeDeg > 1
-            warning('ultrasat:usim:ExtLargeObject', ...
-                ['The requested extended object size (%.2f deg) exceeds 1 deg. A single PSF kernel is used\n', ...
-                 'for the whole object, but the ULTRASAT PSF varies over the field on this scale.'], ExtSizeDeg);
+        cprintf('hyper','%s%s%s%d%s\n','Simulating extended object(s), profile: ',Args.ExtProfileType,', N = ',NumExt,'');
+
+        % per-object parameters that may also be given as a single value to broadcast to all objects
+        ExtEbv       = extBroadcast(Args.ExtEbv,       NumExt, 'ExtEbv');
+        ExtAxisRatio = extBroadcast(Args.ExtAxisRatio, NumExt, 'ExtAxisRatio');
+        ExtPA        = extBroadcast(Args.ExtPA,        NumExt, 'ExtPA');
+
+        % a single [Re n k] / [SigmaX SigmaY Rho] row broadcasts to all objects
+        if size(Args.ExtProfilePar,1) == 1 && NumExt > 1
+            ExtProfilePar = repmat(Args.ExtProfilePar, NumExt, 1);
+        else
+            ExtProfilePar = Args.ExtProfilePar;
+        end
+        if ~any(strcmpi(Args.ExtProfileType,{'flat','matrix'})) && size(ExtProfilePar,1) ~= NumExt
+            error('ExtProfilePar must have NumExt (=%d) rows, or a single row to broadcast to all objects, exiting..', NumExt);
         end
 
-        %%%%%%%%%%%%%%%%%%%%% radial distance of the object center from the inner corner of the tile,
-        %%%%%%%%%%%%%%%%%%%%% and the throughput there
-
-        RadSrc = sqrt( ( CatX - X0 ).^2 + ( CatY - Y0 ).^2 ) .* PixSizeDeg;                     % [deg]
-        TotT   = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc', 'linear', Tiny)';
-        [~, IndR] = min( abs(RadSrc - Rad) );
-
-        %%%%%%%%%%%%%%%%%%%%% read or generate the single object spectrum
-
-                                fprintf('Reading the extended object spectrum.. ');
-
-        if isa(Args.ExtSpec,'AstroSpec') || isa(Args.ExtSpec,'AstSpec')
-            if isa(Args.ExtSpec,'AstSpec')
-                SpecIn = interp1( Args.ExtSpec(1).Wave, Args.ExtSpec(1).Int, Wave, 'linear', 0 );
+        % normalize ExtProfileMatrix into a 1 x NumExt cell array
+        if strcmpi(Args.ExtProfileType,'matrix')
+            if isempty(Args.ExtProfileMatrix)
+                error('ExtProfileMatrix must be provided when ExtProfileType = ''matrix'', exiting..');
+            elseif ~iscell(Args.ExtProfileMatrix)
+                if NumExt > 1
+                    error('ExtProfileMatrix must be a 1 x NumExt cell array when simulating more than one object, exiting..');
+                end
+                ExtProfileMatrix = {Args.ExtProfileMatrix};
+            elseif numel(Args.ExtProfileMatrix) ~= NumExt
+                error('ExtProfileMatrix must contain NumExt (=%d) matrices, exiting..', NumExt);
             else
-                SpecIn = interp1( Args.ExtSpec(1).Wave, Args.ExtSpec(1).Flux, Wave, 'linear', 0 );
+                ExtProfileMatrix = Args.ExtProfileMatrix;
             end
-        else
-            switch lower(Args.ExtSpecType)
-                case 'bb'
-                    SpecIn = AstroSpec.blackBody(Wave', Args.ExtSpec(1)).Flux'; % erg s(-1) cm(-2) A(-1)
-                case 'pl'
-                    SpecIn = Wave .^ Args.ExtSpec(1);                           % erg s(-1) cm(-2) A(-1)
-                case 'pickles'
-                    R = astro.stars.tlogg2picklesClass(Args.ExtSpec(1), Args.ExtSpec(2)); % Teff and log(g)
-                    PicklesFile = strcat(Args.PicklesDir,'uk',lower(R.class),lower(R.lumclass),'.mat');
-                    SPick = io.files.load2(PicklesFile);
-                    SpecIn = interp1( SPick(:,1), SPick(:,2), Wave, 'linear', 0 );
-                case 'phoenix'
-                    io.files.load1(Args.Phoenix);
-                    SpecIn = interpn(PhoenixWaveGrid, PhoenixTGrid, PhoenixLoggGrid, PhoenixSpec, Wave, Args.ExtSpec(1), Args.ExtSpec(2));
-                case 'tab'
-                    % Args.ExtSpec: column 1 = flux, column 2 = wavelength
-                    SpecIn = interp1( Args.ExtSpec(:,2), Args.ExtSpec(:,1), Wave, 'linear', 0 );
+        end
+
+        CatX     = zeros(NumExt,1);
+        CatY     = zeros(NumExt,1);
+        RA       = Args.ExtRA0(:);
+        DEC      = Args.ExtDec0(:);
+        InMag    = Args.ExtMag(:);
+        CatFlux  = zeros(NumExt,1);
+        MagU     = NaN(NumExt,1);
+        CrudeSNR = NaN(NumExt,1);
+        ConvStampCell = cell(1,NumExt);
+        WPSFRotCell   = cell(1,NumExt);
+        InFOVExt = true(NumExt,1);
+
+        for Iext = 1:1:NumExt
+
+            [CatX(Iext), CatY(Iext)] = SimWCS.sky2xy(Args.ExtRA0(Iext), Args.ExtDec0(Iext));
+
+            if (CatX(Iext) < 0.1) || (CatY(Iext) < 0.1) || (CatX(Iext) > ImageSizeX) || (CatY(Iext) > ImageSizeY)
+                warning('ultrasat:usim:ExtOutOfFOV', ...
+                    'Extended object #%d center falls out of the tile FOV, skipping it..', Iext);
+                InFOVExt(Iext) = false;
+                continue
+            end
+
+            % warn if the object is large enough that the field-position dependence of the PSF
+            % across its own extent may no longer be negligible (a single PSF kernel is used regardless)
+            ExtSizeDeg = max(Args.ExtSizeRA(Iext), Args.ExtSizeDec(Iext)) / 3600;
+            if ExtSizeDeg > 1
+                warning('ultrasat:usim:ExtLargeObject', ...
+                    ['Extended object #%d size (%.2f deg) exceeds 1 deg. A single PSF kernel is used\n', ...
+                     'for the whole object, but the ULTRASAT PSF varies over the field on this scale.'], Iext, ExtSizeDeg);
+            end
+
+            %%%%%%%%%%%%%%%%%%%%% radial distance of the object center from the inner corner of the tile,
+            %%%%%%%%%%%%%%%%%%%%% and the throughput there
+
+            RadSrc = sqrt( ( CatX(Iext) - X0 ).^2 + ( CatY(Iext) - Y0 ).^2 ) .* PixSizeDeg;     % [deg]
+            TotT   = interpn(UP.wavelength, Rad', UP.TotT, Wave', RadSrc', 'linear', Tiny)';
+            [~, IndR] = min( abs(RadSrc - Rad) );
+
+            %%%%%%%%%%%%%%%%%%%%% read or generate this object's spectrum
+
+                                    fprintf('Reading the spectrum of extended object #%d/%d.. ', Iext, NumExt);
+
+            if isa(Args.ExtSpec,'AstroSpec') || isa(Args.ExtSpec,'AstSpec')
+                Ispec = min(Iext, numel(Args.ExtSpec)); % a single spectrum object broadcasts to all objects
+                if isa(Args.ExtSpec,'AstSpec')
+                    SpecIn = interp1( Args.ExtSpec(Ispec).Wave, Args.ExtSpec(Ispec).Int, Wave, 'linear', 0 );
+                else
+                    SpecIn = interp1( Args.ExtSpec(Ispec).Wave, Args.ExtSpec(Ispec).Flux, Wave, 'linear', 0 );
+                end
+            else
+                switch lower(Args.ExtSpecType)
+                    case 'bb'
+                        SpecIn = AstroSpec.blackBody(Wave', extSpecRow(Args.ExtSpec,Iext,NumExt,1)).Flux'; % erg s(-1) cm(-2) A(-1)
+                    case 'pl'
+                        SpecIn = Wave .^ extSpecRow(Args.ExtSpec,Iext,NumExt,1);                           % erg s(-1) cm(-2) A(-1)
+                    case 'pickles'
+                        Par = extSpecRow(Args.ExtSpec,Iext,NumExt,2);
+                        R = astro.stars.tlogg2picklesClass(Par(1), Par(2)); % Teff and log(g)
+                        PicklesFile = strcat(Args.PicklesDir,'uk',lower(R.class),lower(R.lumclass),'.mat');
+                        SPick = io.files.load2(PicklesFile);
+                        SpecIn = interp1( SPick(:,1), SPick(:,2), Wave, 'linear', 0 );
+                    case 'phoenix'
+                        io.files.load1(Args.Phoenix);
+                        Par = extSpecRow(Args.ExtSpec,Iext,NumExt,2);
+                        SpecIn = interpn(PhoenixWaveGrid, PhoenixTGrid, PhoenixLoggGrid, PhoenixSpec, Wave, Par(1), Par(2));
+                    case 'tab'
+                        % Args.ExtSpec: Nwave x NumExt (one flux column per object, at the standard Wave grid),
+                        % or Nwave x (NumExt+1) with a shared custom wavelength grid in the last column
+                        if size(Args.ExtSpec,2) == NumExt && size(Args.ExtSpec,1) == Nwave
+                            SpecIn = Args.ExtSpec(:,Iext)';
+                        elseif size(Args.ExtSpec,2) == NumExt + 1
+                            SpecIn = interp1( Args.ExtSpec(:,NumExt+1), Args.ExtSpec(:,Iext), Wave, 'linear', 0 );
+                        else
+                            error('Number of columns or rows in the extended-object spectral input table (ExtSpec) is incorrect, exiting..');
+                        end
+                    otherwise
+                        error('Extended object spectral type not recognized, exiting..');
+                end
+            end
+            SpecIn = reshape(SpecIn, 1, Nwave);
+
+                                    fprintf('done\n');
+
+            %%%%%%%%%%%%%%%%%%%%% rescale the spectrum to the requested magnitude and account for extinction
+
+            if strcmp(Args.ExtFiltFam,'ULTRASAT')
+                MagSc = astro.spec.synthetic_phot([Wave' SpecIn'],UP.U_AstFilt(IndR),'R1','AB');
+            else
+                MagSc = astro.spec.synthetic_phot([Wave' SpecIn'],Args.ExtFiltFam,Args.ExtFilt,'AB');
+            end
+            Factor  = 10.^(-0.4.*(MagSc - Args.ExtMag(Iext)));
+            SpecIn  = SpecIn ./ Factor;
+
+            ExtMagAtt  = astro.extinction.extinction(ExtEbv(Iext), (Wave./1e4)');
+            Extinction = 10.^(-0.4.*ExtMagAtt);
+            SpecObs    = SpecIn .* Extinction';           % observed (extincted) spectrum
+
+            if Args.CalculateULTRASATMag
+                MagU(Iext) = astro.spec.synthetic_phot([Wave' SpecObs'],UP.U_AstFilt(IndR),'R1','AB');
+            end
+
+            %%%%%%%%%%%%%%%%%%%%% convolve the spectrum with the throughput and get the total object count rate
+
+            SpecCts = SpecObs .* TotT .* DeltaLambda .* SAper ./ ( H*C ./(1e-8 .* Wave) ); % [ counts /s /bin ]
+            CatFlux(Iext) = sum(SpecCts, 2);                                               % [ counts /s ]
+
+            %%%%%%%%%%%%%%%%%%%%% build this object's spectrum-weighted PSF kernel and rotate it
+            %%%%%%%%%%%%%%%%%%%%% to the tile's PSF axis, exactly as done for point sources
+
+            WPSF = imUtil.psf.specWeight(SpecCts, RadSrc, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, ...
+                                         'Lambda',WavePSF,'SpecLam',Wave);
+            WPSF = WPSF(:,:,1);
+
+            RotAngle1 = RotAngle(1);
+            if abs(RotAngle1) < 1 || abs(RotAngle1 - 360) < 1
+                WPSFRot = WPSF;
+            else
+                WPSFRot = imrotate(WPSF, RotAngle1, 'bilinear', 'loose');
+                WPSFRot = WPSFRot ./ sum(WPSFRot, 'all');
+            end
+
+            %%%%%%%%%%%%%%%%%%%%% build the spatial surface-brightness profile, on the same
+            %%%%%%%%%%%%%%%%%%%%% oversampled grid as the PSF kernel above
+
+            if isempty(Args.ExtOversampling)
+                ExtOversampling = Args.ImRes;
+            else
+                ExtOversampling = Args.ExtOversampling;
+            end
+
+            Grain = PixSizeDeg * 3600 / ExtOversampling;              % [arcsec] per profile grid cell
+            Nx    = max(3, ceil( Args.ExtSizeRA(Iext)  / Grain ));
+            Ny    = max(3, ceil( Args.ExtSizeDec(Iext) / Grain ));
+
+            switch lower(Args.ExtProfileType)
+                case 'sersic'
+                    Profile = imUtil.kernel2.sersic(ExtProfilePar(Iext,:), [Nx Ny]);
+                case 'gaussian'
+                    Profile = imUtil.kernel2.gauss(ExtProfilePar(Iext,:), [Nx Ny]);
+                case 'flat'
+                    Profile = ones(Ny, Nx);
+                case 'matrix'
+                    Profile = ExtProfileMatrix{Iext};
+                    if ~isequal(size(Profile),[Ny Nx])
+                        Profile = imresize(Profile, [Ny Nx], 'bilinear');
+                    end
                 otherwise
-                    error('Extended object spectral type not recognized, exiting..');
+                    error('Unsupported ExtProfileType, exiting..');
             end
-        end
-        SpecIn = reshape(SpecIn, 1, Nwave);
 
-                                fprintf('done\n');
+            % apply the object's axis ratio and position angle, uniformly for any ExtProfileType
+            % (a stretch + rotate approximation of an elliptical profile, since imUtil.kernel2.* are circular-only)
+            if ExtAxisRatio(Iext) ~= 1 || mod(ExtPA(Iext),360) ~= 0
+                Profile = imresize(Profile, [size(Profile,1), max(3,round(size(Profile,2)*ExtAxisRatio(Iext)))], 'bilinear');
+                Profile = imrotate(Profile, ExtPA(Iext), 'bilinear', 'loose');
+            end
 
-        %%%%%%%%%%%%%%%%%%%%% rescale the spectrum to the requested magnitude and account for extinction
+            Profile = Profile ./ sum(Profile, 'all'); % normalize to unit flux
 
-        if strcmp(Args.ExtFiltFam,'ULTRASAT')
-            MagSc = astro.spec.synthetic_phot([Wave' SpecIn'],UP.U_AstFilt(IndR),'R1','AB');
-        else
-            MagSc = astro.spec.synthetic_phot([Wave' SpecIn'],Args.ExtFiltFam,Args.ExtFilt,'AB');
-        end
-        Factor  = 10.^(-0.4.*(MagSc - Args.ExtMag));
-        SpecIn  = SpecIn ./ Factor;
+            %%%%%%%%%%%%%%%%%%%%% convolve the profile with the rotated PSF kernel
 
-        ExtMagAtt  = astro.extinction.extinction(Args.ExtEbv, (Wave./1e4)');
-        Extinction = 10.^(-0.4.*ExtMagAtt);
-        SpecObs    = SpecIn .* Extinction';           % observed (extincted) spectrum
+            % conv2_fft expects its 2nd argument (the kernel) at its own natural,
+            % un-padded size -- it pads/crops internally to stay centered like
+            % conv2(Mat1,Mat2,'same'). Pre-padding both inputs to an equal size
+            % breaks that internal centering and shifts the result by roughly
+            % half the padded canvas (source appears near a corner). Only pad
+            % Profile up to be elementwise >= WPSFRot, and pass WPSFRot untouched.
+            SzC = max(size(Profile), size(WPSFRot));
+            Profile2 = padarray(Profile, SzC-size(Profile), 0, 'post');
 
-        if Args.CalculateULTRASATMag
-            MagU = astro.spec.synthetic_phot([Wave' SpecObs'],UP.U_AstFilt(IndR),'R1','AB');
-        else
-            MagU = NaN;
-        end
+            ConvStamp = imUtil.filter.conv2_fft(Profile2, WPSFRot);
+            ConvStamp = ConvStamp ./ sum(ConvStamp, 'all'); % renormalize to unit flux
 
-        %%%%%%%%%%%%%%%%%%%%% convolve the spectrum with the throughput and get the total object count rate
+            ConvStampCell{Iext} = ConvStamp;
+            WPSFRotCell{Iext}   = WPSFRot;
 
-        SpecCts = SpecObs .* TotT .* DeltaLambda .* SAper ./ ( H*C ./(1e-8 .* Wave) ); % [ counts /s /bin ]
-        CatFlux = sum(SpecCts, 2);                                                     % [ counts /s ]
+            % crude SNR estimate, using the size of the actual (profile-convolved) object image
+            if Args.CalculateCrudeSNR
+                PSFeff           = 0.8;
+                ContainmentLevel = 0.5;
+                ObjRad   = imUtil.psf.quantileRadius(ConvStamp,'Level',ContainmentLevel) ./ Args.ImRes;
+                CrudeSNR(Iext) = PSFeff * CatFlux(Iext) * Exposure / sqrt(pi * ObjRad^2 * Back.Tot );
+            end
 
-        %%%%%%%%%%%%%%%%%%%%% build the single spectrum-weighted PSF kernel and rotate it
-        %%%%%%%%%%%%%%%%%%%%% to the tile's PSF axis, exactly as done for point sources
+        end % end the loop over extended objects
 
-                                fprintf('Weighting the object PSF with its spectrum.. ');
+        % drop objects that fell outside the tile FOV
+        CatX          = CatX(InFOVExt);
+        CatY          = CatY(InFOVExt);
+        RA            = RA(InFOVExt);
+        DEC           = DEC(InFOVExt);
+        InMag         = InMag(InFOVExt);
+        CatFlux       = CatFlux(InFOVExt);
+        MagU          = MagU(InFOVExt);
+        CrudeSNR      = CrudeSNR(InFOVExt);
+        ConvStampCell = ConvStampCell(InFOVExt);
+        WPSFRotCell   = WPSFRotCell(InFOVExt);
 
-        WPSF = imUtil.psf.specWeight(SpecCts, RadSrc, PSFdata, 'Rad', Rad, 'SizeLimit',Args.ArraySizeLimit, ...
-                                     'Lambda',WavePSF,'SpecLam',Wave);
-        WPSF = WPSF(:,:,1);
+        NumSrc = numel(CatX);
 
-        RotAngle1 = RotAngle(1);
-        if abs(RotAngle1) < 1 || abs(RotAngle1 - 360) < 1
-            WPSFRot = WPSF;
-        else
-            WPSFRot = imrotate(WPSF, RotAngle1, 'bilinear', 'loose');
-            WPSFRot = WPSFRot ./ sum(WPSFRot, 'all');
-        end
-
-                                fprintf('done\n');
-
-        %%%%%%%%%%%%%%%%%%%%% build the spatial surface-brightness profile, on the same
-        %%%%%%%%%%%%%%%%%%%%% oversampled grid as the PSF kernel above
-
-        if isempty(Args.ExtOversampling)
-            ExtOversampling = Args.ImRes;
-        else
-            ExtOversampling = Args.ExtOversampling;
-        end
-
-        Grain = PixSizeDeg * 3600 / ExtOversampling;         % [arcsec] per profile grid cell
-        Nx    = max(3, ceil( Args.ExtSizeRA  / Grain ));
-        Ny    = max(3, ceil( Args.ExtSizeDec / Grain ));
-
-        switch lower(Args.ExtProfileType)
-            case 'sersic'
-                Profile = imUtil.kernel2.sersic(Args.ExtProfilePar, [Nx Ny]);
-            case 'gaussian'
-                Profile = imUtil.kernel2.gauss(Args.ExtProfilePar, [Nx Ny]);
-            case 'flat'
-                Profile = ones(Ny, Nx);
-            case 'matrix'
-                if isempty(Args.ExtProfileMatrix)
-                    error('ExtProfileMatrix must be provided when ExtProfileType = ''matrix'', exiting..');
-                end
-                Profile = Args.ExtProfileMatrix;
-                if ~isequal(size(Profile),[Ny Nx])
-                    Profile = imresize(Profile, [Ny Nx], 'bilinear');
-                end
-            otherwise
-                error('Unsupported ExtProfileType, exiting..');
-        end
-
-        % apply the object's axis ratio and position angle, uniformly for any ExtProfileType
-        % (a stretch + rotate approximation of an elliptical profile, since imUtil.kernel2.* are circular-only)
-        if Args.ExtAxisRatio ~= 1 || mod(Args.ExtPA,360) ~= 0
-            Profile = imresize(Profile, [size(Profile,1), max(3,round(size(Profile,2)*Args.ExtAxisRatio))], 'bilinear');
-            Profile = imrotate(Profile, Args.ExtPA, 'bilinear', 'loose');
-        end
-
-        Profile = Profile ./ sum(Profile, 'all'); % normalize to unit flux
-
-        %%%%%%%%%%%%%%%%%%%%% convolve the profile with the rotated PSF kernel
-
-                                fprintf('Convolving the spatial profile with the PSF.. ');
-
-        % conv2_fft expects its 2nd argument (the kernel) at its own natural,
-        % un-padded size -- it pads/crops internally to stay centered like
-        % conv2(Mat1,Mat2,'same'). Pre-padding both inputs to an equal size,
-        % as this used to do, breaks that internal centering and shifts the
-        % result by roughly half the padded canvas (source appears near a
-        % corner). Only pad Profile up to be elementwise >= WPSFRot, and pass
-        % WPSFRot untouched.
-        SzC = max(size(Profile), size(WPSFRot));
-        Profile2 = padarray(Profile, SzC-size(Profile), 0, 'post');
-
-        ConvStamp = imUtil.filter.conv2_fft(Profile2, WPSFRot);
-        ConvStamp = ConvStamp ./ sum(ConvStamp, 'all'); % renormalize to unit flux
-
-                                fprintf('done\n');
-
-        %%%%%%%%%%%%%%%%%%%%% resample the convolved stamp down to the detector pixel scale, sub-pixel
-        %%%%%%%%%%%%%%%%%%%%% center it on the object's position, flux-scale it, and inject it
-
-                                fprintf('Injecting the extended object into an empty image.. ');
-
-        [CubePSF, XYInj] = imUtil.art.createSourceCube(ConvStamp, [CatX CatY], CatFlux, ...
-                                'Oversample', Args.ImRes, 'Recenter', true, ...
-                                'RecenterMethod', 'lanczos');
+        %%%%%%%%%%%%%%%%%%%%% resample the convolved stamps down to the detector pixel scale, sub-pixel
+        %%%%%%%%%%%%%%%%%%%%% center them on each object's position, flux-scale, and inject them all at once
 
         ImageSrc = zeros(ImageSizeX, ImageSizeY, 'single');
-        ImageSrc = imUtil.art.addSources(ImageSrc, CubePSF, XYInj);
 
-        % store the (unscaled) spectrum-weighted PSF kernel, for consistency with the point-source output
-        PSF = WPSFRot;
+        if NumSrc > 0
+                                    fprintf('Injecting %d extended object(s) into an empty image.. ', NumSrc);
 
-                                fprintf('done\n');
+            [CubePSF, XYInj] = imUtil.art.createSourceCube(ConvStampCell, [CatX CatY], CatFlux, ...
+                                    'Oversample', Args.ImRes, 'Recenter', true, ...
+                                    'RecenterMethod', 'lanczos');
 
-        % crude SNR estimate, using the size of the actual (profile-convolved) object image
-        if Args.CalculateCrudeSNR
-            PSFeff           = 0.8;
-            ContainmentLevel = 0.5;
-            ObjRad   = imUtil.psf.quantileRadius(ConvStamp,'Level',ContainmentLevel) ./ Args.ImRes;
-            CrudeSNR = PSFeff * CatFlux * Exposure / sqrt(pi * ObjRad^2 * Back.Tot );
-        else
-            CrudeSNR = NaN;
+            ImageSrc = imUtil.art.addSources(ImageSrc, CubePSF, XYInj);
+
+                                    fprintf('done\n');
         end
+
+        % store the (unscaled) per-object spectrum-weighted PSF kernels, for consistency with the point-source output
+        PSF = WPSFRotCell;
 
     end
 
@@ -1073,9 +1147,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     if NumSrc < Args.MaxPSFNum
         AP(1:NumSrc) = AstroPSF;
         for Isrc = 1:1:NumSrc
-            AP(Isrc).DataPSF = PSF(:,:,Isrc);
+            if iscell(PSF)  % one PSF stamp per extended object, possibly of different sizes
+                AP(Isrc).DataPSF = PSF{Isrc};
+            else
+                AP(Isrc).DataPSF = PSF(:,:,Isrc);
+            end
         end
-        usimImage.PSF = AP; 
+        usimImage.PSF = AP;
     else
         fprintf('NOTE: the number of input sources is too large to record each of their PSFs..\n'); 
     end
@@ -1397,7 +1475,32 @@ function Image = directInjectSources (Image0, Cat, Scaling, PSF)
                 fprintf('Summation method not defined!\n');            
         end                
     end
-    % scale down to the original pixel size:    
+    % scale down to the original pixel size:
     Image = imresize(Im, 1./Scaling, 'bilinear');
+end
+
+function V = extBroadcast(V, NumExt, Name)
+    % broadcast a scalar extended-object parameter to NumExt elements,
+    % or pass a length-NumExt vector through unchanged
+    if numel(V) == 1
+        V = repmat(V, NumExt, 1);
+    elseif numel(V) ~= NumExt
+        error('%s must be a scalar or have NumExt (=%d) elements, exiting..', Name, NumExt);
+    else
+        V = V(:);
+    end
+end
+
+function Par = extSpecRow(Spec, Iext, NumExt, Npar)
+    % return the Iext-th row of Npar per-object spectral parameters,
+    % broadcasting a single shared row to all NumExt objects if only one row was given
+    if size(Spec,1) == 1 && NumExt > 1
+        Par = Spec(1,1:Npar);
+    else
+        if size(Spec,1) ~= NumExt
+            error('ExtSpec must have NumExt (=%d) rows, or a single row to broadcast to all objects, exiting..', NumExt);
+        end
+        Par = Spec(Iext,1:Npar);
+    end
 end
 
