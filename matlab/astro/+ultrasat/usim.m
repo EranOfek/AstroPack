@@ -65,10 +65,19 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %          - an ADU image (simple array)
     % Tested : Matlab R2020b
     % Author : A. Krassilchtchikov (Mar-Oct 2023)
-    % Example: Sim = ultrasat.usim('Cat',1000) 
-    % (simulate 1000 sources at random positions with the default spectrum and magnitude)  
-    %          
-    arguments          
+    % Example: Sim = ultrasat.usim('Cat',1000)
+    % (simulate 1000 sources at random positions with the default spectrum and magnitude)
+    %
+    % Example: Sim = ultrasat.usim('ExtProfileType','sersic','ExtProfilePar',[70 4 1], ...
+    %              'ExtAxisRatio',1,'ExtSizeRA',370,'ExtSizeDec',370,'ExtOversampling',1, ...
+    %              'ExtRA0',221.787891,'ExtDec0',56.361518,'ExtMag',13, ...
+    %              'ExtSpecType','BB','ExtSpec',10000,'Tile','B','Exposure',[1 300])
+    % (simulate a single extended Sersic-profile object with a 10000 K blackbody spectrum)
+    %
+    % Example: Sim = ultrasat.usim('Cat',[2369 2369],'SkyCat',false,'Mag',12)
+    % (simulate a single bright point-like source on-axis, at the tile's central pixel)
+    %
+    arguments
         Args.Cat             =  10;          % if a number (N), generate N random fake sources
                                              % if a 2D table, use X, Y from this table
                                              % if an AstroCatalog object, use source coordinates from this object
