@@ -62,13 +62,16 @@ function [CubePSF, XY] = createSourceCube(PSF0, X1Y1, Flux, Args)
     end
 
     % check the size and type of PSF stamps
-    if ismatrix(PSF0)
-        PSF = repmat(PSF0, [1 1 Nsrc]);
-    elseif iscell(PSF0)
+    % NB: iscell(PSF0) must be checked before ismatrix(PSF0) -- ismatrix is true
+    % for cell arrays too, so a cell array of per-source stamps was previously
+    % misclassified as a single shared-matrix stamp and got corrupted by repmat.
+    if iscell(PSF0)
         if numel(PSF0) ~= Nsrc
             error ('The size of the PSF array does not match that of the coordinate matrix');
         end
         PSF = PSF0;
+    elseif ismatrix(PSF0)
+        PSF = repmat(PSF0, [1 1 Nsrc]);
     else
         if size(PSF0,3) ~= Nsrc
            error ('The size of the PSF stack does not match that of the coordinate matrix');
