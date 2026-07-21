@@ -330,8 +330,6 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
 
     % Estimate backround and variance of New and Ref
     AD.estimateBackVar;
-    % Estimate zero points
-    AD.estimateFnFr;
 
     if Args.RePopRefPSF
         for Iobj = Nobj:-1:1
@@ -352,6 +350,9 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
             AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF');
         end
     end   
+
+    % Estimate zero points
+    AD.estimateFnFr;
 
     if Args.applyCalibration
         for IObj = Nobj:-1:1
