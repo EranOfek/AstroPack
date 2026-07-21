@@ -376,7 +376,7 @@ classdef AstroZOGY < AstroDiff
             arguments
                 Obj
                 Args.UseNominalFr logical   = true;
-                Args.RangeFr                = (0.9:0.01:1.1);
+                Args.RangeFr                = (0.5:0.01:1.5);
 
                 Args.AbsFun              = @(X) abs(X);
                 Args.Eps                 = 0;
@@ -394,6 +394,9 @@ classdef AstroZOGY < AstroDiff
             Nobj = numel(Obj);
             Result = struct('VecFr',cell(Nobj,1), 'MeanD',cell(Nobj,1), 'MedianD',cell(Nobj,1), 'StdD',cell(Nobj,1), 'MadD',cell(Nobj,1),...
                                                   'OptMeanD',cell(Nobj,1), 'OptMedianD',cell(Nobj,1), 'OptStdD',cell(Nobj,1), 'OptMadD',cell(Nobj,1));
+
+            BD_IM = BitDictionary('BitMask.Image.Default');
+
             for Iobj=1:1:Nobj
                 if ~Obj(Iobj).IsRegistered
                     % register images if needed
@@ -412,6 +415,9 @@ classdef AstroZOGY < AstroDiff
                 Result(Iobj).MedianD = zeros(Nfr,1);
                 Result(Iobj).StdD    = zeros(Nfr,1);
                 Result(Iobj).MadD    = zeros(Nfr,1);
+
+                NaNMask = BD_IM.findBit(Obj(Iobj).MaskData.Image,'NaN');
+
                 for Ifr=1:1:Nfr
 
                     [D_hat_Fr, ~, Fd] = imUtil.properSub.subtractionD(Obj(Iobj).N_hat,...
@@ -432,10 +438,11 @@ classdef AstroZOGY < AstroDiff
                     if Args.NormDbyFd
                         D = D./Fd;
                     end
-                    Result(Iobj).MeanD(Ifr)   = mean(D(:));
-                    Result(Iobj).MedianD(Ifr) = fast_median(D(:));
-                    Result(Iobj).StdD(Ifr)    = std(D(:));
-                    Result(Iobj).MadD(Ifr)    = tools.math.stat.std_mad(D(:));
+                    NotNaND = D(~NaNMask);
+                    Result(Iobj).MeanD(Ifr)   = mean(NotNaND(:));
+                    Result(Iobj).MedianD(Ifr) = fast_median(NotNaND(:));
+                    Result(Iobj).StdD(Ifr)    = std(NotNaND(:));
+                    Result(Iobj).MadD(Ifr)    = tools.math.stat.std_mad(NotNaND(:));
 
                 end
                 % search optimum Fr
