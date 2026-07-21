@@ -13,7 +13,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
                        set to VisitData. Default is ''.
                 'RefPath' - Path to directory with reference images. If empty, 
                        constructs assuming reference directory is 
-                       "/'machine_name'/data/references'. Default is ''.
+                       "/'machine_name'/data/references". Default is ''.
                 'Product' - Products to be saved per subtraction in case 
                        SaveProducts is true. Default is ''.
                 'WriteHeader' - Array of bools indicating on whether to 
@@ -169,14 +169,6 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
       return
     end
    
-    if Args.RePopNewPSF
-        New = imProc.psf.populatePSF(New, 'RePopulatePSF', true,...
-            'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
-            'CropByQuantile', true, 'Quantile', 0.99999);
-        New = imProc.sources.psfFitPhot(New);
-        New = imProc.calib.photometricZP(New, 'CatColNameMag', 'MAG_PSF');
-    end
-
     % Only use non-empty images.
     New = New(NonEmptyNew);
     Nobj = numel(New);
@@ -231,14 +223,6 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     % Tack number of images with no overlap to any reference image
     NoOverlap = 0;
 
-    if Args.RePopRefPSF
-        Refs = imProc.psf.populatePSF(Refs, 'RePopulatePSF', true, ...
-            'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
-            'CropByQuantile', true, 'Quantile', 0.99999);
-        Refs = imProc.sources.psfFitPhot(Refs);
-        Refs = imProc.calib.photometricZP(Refs, 'CatColNameMag', 'MAG_PSF');
-    end
-
     for Iobj=Nobj:-1:1
 
         % Check if New image meets NCoadd criterium. If it does not,
@@ -269,7 +253,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
 
         % Verify there is some overlap between New and Ref
         if MinCRValDist > Args.MaximumCenterOffset
-            NoOverlap = NoOverlap +1;
+            NoOverlap = NoOverlap + 1;
             continue
         end
 
@@ -348,6 +332,26 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     AD.estimateBackVar;
     % Estimate zero points
     AD.estimateFnFr;
+
+    if Args.RePopRefPSF
+        for Iobj = Nobj:-1:1
+            AD(Iobj).Ref = imProc.psf.populatePSF(AD(Iobj).Ref, 'RePopulatePSF', true, ...
+                'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
+                'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'new');
+            AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref);
+            AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF');
+        end
+    end
+
+    if Args.RePopNewPSF
+        for Iobj = Nobj:-1:1
+            AD(Iobj).New = imProc.psf.populatePSF(AD(Iobj).New, 'RePopulatePSF', true,...
+                'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
+                'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'old');
+            AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New);
+            AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF');
+        end
+    end   
 
     if Args.applyCalibration
         for IObj = Nobj:-1:1
