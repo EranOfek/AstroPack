@@ -47,7 +47,7 @@ function [Flag] = histAnomaly(Image, Args)
         BinStart = Args.HistEdges(1);
         BinSize  = Args.HistEdges(2) - Args.HistEdges(1);
         BinN     = numel(Args.HistEdges) - 1;
-        Nh = tools.hist.mex.histcounts1regular(Image(:), BinStart, BinSize, BinN);
+        Nh = double(tools.hist.mex.histcounts1regular(Image(:), BinStart, BinSize, BinN));        
     else
         EndVal    = Args.HistEdges(1) + Args.HistEdges(2).*Args.HistEdges(3);
         HistEdges = (Args.HistEdges(1):Args.HistEdges(2):EndVal);

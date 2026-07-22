@@ -41,7 +41,7 @@
 %            CooUnits='deg'.
 %          - Area of the reference polygon, in the same area units as
 %            the first output.
-% Compilation: mex -R2018a CXXFLAGS="$CXXFLAGS -O3 -march=native" areaPolyIntersection.cpp
+% Compilation: mex -R2018a CXX=g++-9 CXXFLAGS="$CXXFLAGS -O3 -march=native" areaPolyIntersection.cpp
 % Author : ChatGPT + Eran Ofek (2026 Jul)
 % Example:
 %{

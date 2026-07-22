@@ -7,7 +7,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
               * ...,key,val,...
                 'RefPath' - Path to directory with reference images. If empty, 
                        constructs assuming reference directory is 
-                       "/'machine_name'/data/references'. Default is ''.
+                       "/'machine_name'/data/references". Default is ''.
                 'AddMeta' - Bool on whether to add some meta data to the
                        transients catalog, for e.g. mount, camera, croID data. 
                        Default is true.
@@ -146,14 +146,6 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
       return
     end
    
-    if Args.RePopNewPSF
-        New = imProc.psf.populatePSF(New, 'RePopulatePSF', true,...
-            'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
-            'CropByQuantile', true, 'Quantile', 0.99999);
-        New = imProc.sources.psfFitPhot(New);
-        New = imProc.calib.photometricZP(New, 'CatColNameMag', 'MAG_PSF');
-    end
-
     % Only use non-empty images.
     New = New(NonEmptyNew);
     Nobj = numel(New);
@@ -207,14 +199,6 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
     % Tack number of images with no overlap to any reference image
     NoOverlap = 0;
-
-    if Args.RePopRefPSF
-        Refs = imProc.psf.populatePSF(Refs, 'RePopulatePSF', true, ...
-            'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
-            'CropByQuantile', true, 'Quantile', 0.99999);
-        Refs = imProc.sources.psfFitPhot(Refs);
-        Refs = imProc.calib.photometricZP(Refs, 'CatColNameMag', 'MAG_PSF');
-    end
 
     for Iobj=Nobj:-1:1
 
@@ -323,6 +307,27 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
     % Estimate backround and variance of New and Ref
     AD.estimateBackVar;
+
+    if Args.RePopRefPSF
+        for Iobj = Nobj:-1:1
+            AD(Iobj).Ref = imProc.psf.populatePSF(AD(Iobj).Ref, 'RePopulatePSF', true, ...
+                'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
+                'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'old');
+            AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref);
+            AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF');
+        end
+    end
+
+    if Args.RePopNewPSF
+        for Iobj = Nobj:-1:1
+            AD(Iobj).New = imProc.psf.populatePSF(AD(Iobj).New, 'RePopulatePSF', true,...
+                'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
+                'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'old');
+            AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New);
+            AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF');
+        end
+    end    
+
     % Estimate zero points
     AD.estimateFnFr;
 

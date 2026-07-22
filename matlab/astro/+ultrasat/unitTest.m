@@ -7,8 +7,17 @@ function Result = unitTest()
     SimB = ultrasat.usim('Cat',1000, 'Tile', 'B');
     SimC = ultrasat.usim('Cat',1000, 'Tile', 'C');
     SimD = ultrasat.usim('Cat',1000, 'Tile', 'D');
-    
+
     MergedImage = ultrasat.umergeTileImages ();
+
+    % testing multiple extended-object simulation in a single call:
+
+    SimExt = ultrasat.usim('ExtProfileType','sersic', ...
+        'ExtProfilePar',[40 4 1; 12 2 1; 60 4 1], ...
+        'ExtSizeRA',[200 60 400],'ExtSizeDec',[200 60 250],'ExtOversampling',1, ...
+        'ExtRA0',[221.60 221.75 221.99],'ExtDec0',[56.30 56.40 56.45], ...
+        'ExtMag',[12 15 13],'ExtSpecType','BB','ExtSpec',[8000;6000;12000], ...
+        'Tile','B','Exposure',[1 300],'OutName','SimImageExt');
     
     % testing ULTRASAT PSF image content:
 

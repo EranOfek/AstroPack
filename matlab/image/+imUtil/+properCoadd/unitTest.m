@@ -27,44 +27,89 @@ function [Result] = unitTest()
     [Cube2]=imUtil.trans.mex.shift_lanczos3(Cube,DX2.*ones(Nim,1),DY2.*ones(Nim,1));
     Cube = Cube + Cube1.*F1 + Cube2.*F2;
 
-    Cube = 1e4.*Cube + randn(size(Cube));
+    CubeNN = Cube;
+    Cube = 1e3.*Cube + randn(size(Cube));
 
     % adding sub-Nyquist noise
     CubeC = Cube;  % without outliers
-    Cube(3,4,12) = 1e5;
-    Cube(100,100,17) = 1e5;
-    Cube(130,160,19) = 1e5;
+    Outlier = 1e5;
+    Cube(3,4,12)     = Outlier;
+    Cube(100,100,17) = Outlier;
+    Cube(130,160,19) = Outlier;
     
     %%
+    Z1 = -0.003;
+    Z2 = 0.005;
+    plot.plotImagesGrid({CubeNN(:,:,1), CubeNN(:,:,2), CubeNN(:,:,3)}, [1 3], 'Z1Z2',[Z1 Z2]);
+    print Coadd_Speckle3noiseless.eps -depsc2
+    %%
 
-    [R,PR,R_f,PR_f]=imUtil.properCoadd.combine_proper(CubeC, PSF, 'Full2stamp',false);
-    surface(fftshift(R))
-    colorbar
-    shading interp
+    plot.plotImagesGrid({Cube(:,:,1), Cube(:,:,2), Cube(:,:,3)}, [1 3], 'Z1Z2',[Z1 Z2].*1e3);
+    print Coadd_Speckle3withnoise.eps -depsc2
 
     %%
-    [R1,PR1,R_f,PR_f]=imUtil.properCoadd.combine_proper(Cube, PSF, 'Full2stamp',false);
-    R1 = fftshift(R1);
+
+    Sum = sum(Cube,3);
+    surface(Sum)
+    colorbar
+    shading interp
+    H = gca;
+    H.ZAxis.Limits=[Z1 Z2].*Nim.*1e3;
+    colormap gray
+    axis off
+
+    %%
+
+    %[R0,PR,R_f,PR_f]=imUtil.properCoadd.combine_proper(CubeC, PSF, 'Full2stamp',false);
+    [R0,PR,R_f,PR_f]=imUtil.properCoadd.properCoaddFFT(CubeC, PSF, 'Full2stamp',false);
+    surface(R0)
+    colorbar
+    shading interp
+    H = gca;
+    H.ZAxis.Limits=[Z1 Z2].*Nim.*1e3;
+    colormap gray
+    axis off
+
+    %%
+    %[R1,PR1,R_f,PR_f]=imUtil.properCoadd.combine_proper(Cube, PSF, 'Full2stamp',false);
+    [R1,PR,R_f,PR_f]=imUtil.properCoadd.properCoaddFFT(Cube, PSF, 'Full2stamp',false);
     surface(R1)
     colorbar
     shading interp
+    H = gca;
+    H.ZAxis.Limits=[Z1 Z2].*Nim.*1e3;
+    colormap gray
+    axis off
 
     %%
     [R2,P_R1,Info]=imUtil.properCoadd.properCoaddLinear(CubeC, PSF, 'Robust',false);
     surface((R2))
     colorbar
     shading interp
-
+    H = gca;
+    H.ZAxis.Limits=[Z1 Z2].*Nim.*1e3;
+    colormap gray
+    axis off
 
     %%
     [R3,P_R,Info]=imUtil.properCoadd.properCoaddLinear(Cube, PSF, 'Robust',true);
     surface((R3))
     colorbar
     shading interp
+    H = gca;
+    H.ZAxis.Limits=[Z1 Z2].*Nim.*1e3;
+    colormap gray
+    axis off
 
     %%
+    H=plot.plotImagesGrid({(Sum); (R0); (R1); (R3)}, [2 2], 'Z1Z2',[-5 Z2.*Nim.*1e2]);
+    
+    Ht=text(H(1),10,10,'(a)'); Ht.Color='w'; Ht.FontSize=20;
+    Ht=text(H(2),10,10,'(b)'); Ht.Color='w'; Ht.FontSize=20;
+    Ht=text(H(3),10,10,'(c)'); Ht.Color='w'; Ht.FontSize=20;
+    Ht=text(H(4),10,10,'(d)'); Ht.Color='w'; Ht.FontSize=20;
 
-
+    print Coadd_Methods.eps -depsc2
 
     %%
 

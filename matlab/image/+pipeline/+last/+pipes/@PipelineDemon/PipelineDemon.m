@@ -2922,8 +2922,9 @@ classdef PipelineDemon < Component
                 
                 Args.AbortFileName = '~/abortPipe';  % if this file exit, then abort.
                 Args.StopButton logical = true;      % Display stop button
-                Args.StopDiskFull  = [];             % e.g., use 95 to abort if disk storage is above 95%
-                
+                Args.StopDiskFull  = [];             % e.g., use 99 to pause processing while disk storage is above 99% (resumes automatically once it drops back below)
+                Args.PauseDiskFull = 60;             % [s] time to wait between disk space rechecks while paused on StopDiskFull
+
                 Args.multiRaw2procCoaddArgs = {'DoCoadd',true};
 
                 Args.pipelineIArgs  = {'UseParfor',true};
@@ -3116,9 +3117,38 @@ classdef PipelineDemon < Component
                 end
 
                 MainLoopCounter = MainLoopCounter + 1;
-                % Notify watchdog that process is running 
+                % Notify watchdog that process is running
                 tools.systemd.mex.notify_watchdog;
-   
+
+                % check disk storage state - pause processing while critically full
+                if ~isempty(Args.StopDiskFull)
+                    [~,DiskP] = tools.os.df(Obj.BasePath);
+                    while DiskP>Args.StopDiskFull
+                        WarnMsg = sprintf('pipeline.last.pipes.PipelineDemon: disk data%d is %.1f%% full (threshold %.1f%%) on %s - pausing processing', ...
+                            Obj.DataDir, DiskP, Args.StopDiskFull, Args.HostName);
+                        warning(WarnMsg);
+                        try
+                            Obj.writeLog(WarnMsg, LogLevel.Error);
+                        catch
+                            % local log write failed (disk likely full) - warning above already fired
+                        end
+                        if Args.StopButton && StopGUI()
+                            Cont = false;
+                            break;
+                        end
+                        if isfile(Args.AbortFileName)
+                            Cont = false;
+                            delete(Args.AbortFileName);
+                            break;
+                        end
+                        pause(Args.PauseDiskFull);
+                        [~,DiskP] = tools.os.df(Obj.BasePath);
+                    end
+                    if ~Cont
+                        break;
+                    end
+                end
+
                 cd(Obj.NewPath);
 
                 if Args.RegenCalib
@@ -3371,15 +3401,31 @@ classdef PipelineDemon < Component
                                 delete(Args.AbortFileName);
                             end
             
-                            % check disk storage state
+                            % check disk storage state - pause processing while critically full
                             if ~isempty(Args.StopDiskFull)
-                                [~,DiskP] = tools.os.df(sprintf('data%d',Obj.DataDir));
-                                if DiskP>Args.StopDiskFull
-                                    Cont = false;
-                                    Msg = sprintf('Pipeline stopped because disk is full');
-                                    Obj.writeLog(Msg, LogLevel.Info);
+                                [~,DiskP] = tools.os.df(Obj.BasePath);
+                                while DiskP>Args.StopDiskFull
+                                    WarnMsg = sprintf('pipeline.last.pipes.PipelineDemon: disk data%d is %.1f%% full (threshold %.1f%%) on %s - pausing processing', ...
+                                        Obj.DataDir, DiskP, Args.StopDiskFull, Args.HostName);
+                                    warning(WarnMsg);
+                                    try
+                                        Obj.writeLog(WarnMsg, LogLevel.Error);
+                                    catch
+                                        % local log write failed (disk likely full) - warning above already fired
+                                    end
+                                    if Args.StopButton && StopGUI()
+                                        Cont = false;
+                                        break;
+                                    end
+                                    if isfile(Args.AbortFileName)
+                                        Cont = false;
+                                        delete(Args.AbortFileName);
+                                        break;
+                                    end
+                                    pause(Args.PauseDiskFull);
+                                    [~,DiskP] = tools.os.df(Obj.BasePath);
                                 end
-                            end 
+                            end
         
                             if RepackRaw
                                 FN_Sci_Groups(IndStartGroup).compress('fz');

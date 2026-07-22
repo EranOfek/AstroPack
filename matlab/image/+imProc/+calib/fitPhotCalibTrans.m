@@ -325,6 +325,20 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.AddMagErr logical = true
         Args.CalcAperCorr logical = true
         Args.ApplyAperCorr logical = true
+
+        % Position-dependent aperture correction (opt-in). When true,
+        % calcAperCorr also fits a 2D basis-function model per aperture
+        % via imUtil.calib.fitPositionalDiff and the ApplyAperCorr branch
+        % evaluates the fit at each source's (X, Y) instead of using a
+        % scalar shift. Default false — scalar-only, matches historical
+        % behaviour.
+        Args.AperCorrPositional logical = false
+        Args.AperCorrPosColNameX (1,:) char = 'X'
+        Args.AperCorrPosColNameY (1,:) char = 'Y'
+        Args.AperCorrPosCCDSEC = [1 1716 1 1716]
+        Args.AperCorrPosModel cell = {@(x,y) 1, @(x,y) x, @(x,y) y, @(x,y) x.*y}
+        Args.AperCorrPosSigmaClip (1,2) double = [3 3]
+        Args.AperCorrPosMaxIter (1,1) double {mustBePositive, mustBeInteger} = 3
         % Default false because legacy fitPhotCalibMag still writes LIMMAG/BACKMAG.
         % Flip to true (and set WriteLimBackMag=false in fitPhotCalibMag) once this
         % path becomes the pipeline default.
@@ -666,13 +680,48 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                 else
                     CatRef = Result(Iobj);
                 end
-                PC = PC.calcAperCorr(CatRef, 'Verbose', Args.Verbose);
+                PC = PC.calcAperCorr(CatRef, ...
+                    'Positional',    Args.AperCorrPositional, ...
+                    'PosColNameX',   Args.AperCorrPosColNameX, ...
+                    'PosColNameY',   Args.AperCorrPosColNameY, ...
+                    'PosCCDSEC',     Args.AperCorrPosCCDSEC, ...
+                    'PosModel',      Args.AperCorrPosModel, ...
+                    'PosSigmaClip',  Args.AperCorrPosSigmaClip, ...
+                    'PosMaxIter',    Args.AperCorrPosMaxIter, ...
+                    'Verbose',       Args.Verbose);
 
                 if Args.ApplyAperCorr && ~isempty(PC.AperCorr) && ~isempty(PC.AperCorrColNames)
                     AllColNamesC = CatRef.Table.Properties.VariableNames;
+                    % Optional per-source (X, Y) for position-dependent
+                    % correction: fetch once if PC.AperCorrPositional is
+                    % populated. Column names default to 'X'/'Y' (per-crop)
+                    % but can be XFULL/YFULL in joint mode — the fit was
+                    % done in that basis.
+                    HasPosFit = iscell(PC.AperCorrPositional) && ...
+                                numel(PC.AperCorrPositional) == numel(PC.AperCorr);
+                    Xper = []; Yper = [];
+                    if HasPosFit
+                        for CN = {'X','XFULL'}
+                            if ismember(CN{1}, AllColNamesC); Xper = CatRef.getCol(CN{1}); break; end
+                        end
+                        for CN = {'Y','YFULL'}
+                            if ismember(CN{1}, AllColNamesC); Yper = CatRef.getCol(CN{1}); break; end
+                        end
+                    end
                     for Iap = 1:numel(PC.AperCorrColNames)
                         ColName = PC.AperCorrColNames{Iap};
-                        if ismember(ColName, AllColNamesC) && isfinite(PC.AperCorr(Iap))
+                        if ~ismember(ColName, AllColNamesC); continue; end
+                        PosFit = [];
+                        if HasPosFit; PosFit = PC.AperCorrPositional{Iap}; end
+                        if HasPosFit && ~isempty(Xper) && ~isempty(Yper) && ...
+                                ~isempty(PosFit) && isstruct(PosFit) && ...
+                                isfield(PosFit, 'Fun') && ~isempty(PosFit.Fun)
+                            % Per-source shift from the 2D fit.
+                            dCorr = PosFit.Fun(Xper, Yper, PosFit.Par);
+                            Vals = CatRef.getCol(ColName) + dCorr(:);
+                            CatRef.replaceCol(Vals, ColName);
+                        elseif isfinite(PC.AperCorr(Iap))
+                            % Legacy scalar shift.
                             Vals = CatRef.getCol(ColName) + PC.AperCorr(Iap);
                             CatRef.replaceCol(Vals, ColName);
                         end
@@ -916,7 +965,8 @@ function CalibArgs = predefCalibArgs(Args)
     %            'AuditLASTDeltaMag' - Reject if the candidate's nearest LAST
     %                                 neighbour has |delta-mag| (using
     %                                 MagColName) below this value. Default 2.
-    %            'WeightingMode'    - Weighting mode. Default 'spectral'.
+    %            'WeightingMode'    - Weighting mode. Default 'combined'
+    %                                 (was 'spectral' before 2026-07).
     %            'FluxErrColName'   - Flux error column. Default 'FluxErr'.
     %            'SigmaClipMethod'  - Sigma-clipping method forwarded to
     %                                 tools.math.stat.sigmaClip. Default 'median'.
@@ -1036,10 +1086,24 @@ function CalibArgs = predefCalibArgs(Args)
         Args.UseTypicalX logical = false
 
         % Weighting
-        Args.WeightingMode    = 'spectral'  % 'none', 'spectral', 'flux', 'combined'
+        Args.WeightingMode    = 'combined'  % 'none', 'spectral', 'flux', 'combined'
         Args.FluxErrColName   = 'FluxErr'
         Args.SigmaClipMethod  = 'median'    % 'median' | 'median_signed' | 'weighted' — see header doc
         Args.FluxErrorNorm    = 0.5
+        % Systematic-error floor applied element-wise to the WeightingMode-
+        % combined MagErr used as fit weight (see
+        % PhotCalibTrans.propagateCalibratorMagErr). 0.001 mag guards the
+        % chi^2 from being dominated by a handful of bright stars whose
+        % formal photon-noise error underestimates real per-star
+        % systematics.
+        Args.SystematicErr (1,1) double {mustBeNonnegative} = 0.001
+
+        % Post-fit (Norm, kx0) gauge convention. 'raw' preserves the fit's
+        % raw values (default; matches PhotCalibTrans.calibrate's own
+        % default). 'center' rotates the pair so Tran2D(field-centre) = 0
+        % and Norm carries the full field-centre ZP — physically comparable
+        % across visits. Predictions are bit-identical either way.
+        Args.NormConvention (1,:) char {mustBeMember(Args.NormConvention, {'raw','center'})} = 'raw'
         % Per-outer-iter weighting toggle. Empty (default) leaves every iter
         % weighted; non-empty must be a logical vector of length OuterMaxIter,
         % e.g. [false true] with OuterMaxIter=2 for the LAST_Joint_2Iter recipe.

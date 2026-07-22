@@ -29,6 +29,12 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %         'QueryFilter'          - a user-supplied quality filter injected directly into the SQL query (def. "fwhm < 4")
     %         'RasterResolution'     - polygon rasterization step, in arcsec (def. 3)
     %         'MinCoverage'          - minimum fractional coverage of the reference field required to accept a group (def. 0.999)
+    %         'CoverageAlgo'         - algorithm used to check whether the crops of a group cover the reference field:
+    %                   'raster' - rasterize the reference polygon and the union of the overlapping crops,
+    %                          and compare the two rasters (def.).
+    %                   'area'   - sum the exact spherical intersection area of each crop's unique region
+    %                          (rau1-4/decu1-4) with the reference polygon, and compare the sum to the
+    %                          reference polygon's area.
     %         'SubBack'              - subtract the background in the coaddition step (def. true)
     %         'StackMethod'          - stacking method passed to the coadd function (def. 'wrobust')
     %         'StackMethodArgs'      - extra arguments controlling the stacking method
@@ -79,7 +85,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.SearchTable       = 'last.visit_images'; 
         % the list of table columns needed to check the overlaps + filtering + control 
         Args.Fields            = "id_visit, upix_low, jd_start, midjd, exptime, fieldid, nodenumb, mountnum, camnum, cropid," + ... 
-                                 "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, diryear, dirmon, dirday, subdir, filetime"; 
+                                 "ra1, ra2, ra3, ra4, dec1, dec2, dec3, dec4, rau1, rau2, rau3, rau4, decu1, decu2, decu3, decu4," + ...
+                                 "diryear, dirmon, dirday, subdir, filetime"; 
         Args.GroupByFields     = {'mountnum','camnum','jd_start'} % fields employed for grouping images to be stitched separately
         
         Args.BasePath          = {'/mnt/euclid/last/data','/euclid/last/data'}; % base path for image retrieval  
@@ -87,7 +94,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.QueryFilter       = "fwhm < 4"; % a user-supplied filter (to be included directly into the SQL query) 
                        
         Args.RasterResolution   = 3;     % arcsec
-        Args.MinCoverage        = 0.999; % 0.995; % allowed inaccuracy in the required reference field coverage  
+        Args.MinCoverage        = 0.999; % 0.995; % allowed inaccuracy in the required reference field coverage
+        Args.CoverageAlgo       = 'raster'; % 'raster' | 'area', see checkPolygonCoverage
                                
         %Args.backVarArgs        = {'Method',@imUtil.background.modeVar_Hist, 'Block',[128 128], 'MethodArgs',{{'Range',[-50 50]}}}
         %Args.backVarArgs        = {'Method',{@imUtil.background.modeVar_Hist, @imUtil.background.rvar} 'Block',[256 256], 'MethodArgs',{{'Range',[-20 20], 'ApplyCeil',false, 'NinBin',100}, {}} };
@@ -306,26 +314,33 @@ function [Result,Info] = buildRefImages(RefID, Args)
                     fprintf('Group %d: %d images selected according to the time and quality criteria \n',Igroup,Nim);
                 end
             
-                % if the total coverage is incomplete, skip to the next epoch
-                Coverage = []; RasterC = []; Icrop = 1;
-                while Icrop < height(TabGrp)+1 % merge the rasters of all the crops involved
-                    CropPoly = double([TabGrp.ra1(Icrop), TabGrp.dec1(Icrop); TabGrp.ra2(Icrop), TabGrp.dec2(Icrop); ...
-                        TabGrp.ra3(Icrop), TabGrp.dec3(Icrop); TabGrp.ra4(Icrop), TabGrp.dec4(Icrop)]);
-                    Raster = celestial.healpix.mex.rasterize_polygon(CropPoly, Args.RasterResolution,'arcsec');                         
-                    % if this crop does not overlap with the reference region, deselect it
-                    Coverage(Icrop) = sum(ismember(Raster,Raster0));
-                    if Coverage(Icrop) < 1
-                        TabGrp(Icrop,:) = [];
-                    else
-                        RasterC  = [RasterC; Raster(~ismember(Raster,RasterC))];
-                    end
-                    Icrop = Icrop + 1;
+                % 3a. check whether the crops in TabGrp provide sufficient sky coverage of the reference
+                %     region P0; deselects crops that do not contribute, and skips to the next epoch if
+                %     the surviving crops do not reach Args.MinCoverage
+                %     NB: TabGrp must not be empty here -- isSpherePolyIntersect_mex crashes (rather than
+                %     erroring) on an empty candidate set; guard this call if steps 2/3 above are ever
+                %     implemented and can empty TabGrp
+                switch Args.CoverageAlgo
+                    case 'raster'
+                        CropsLon = [TabGrp.ra1, TabGrp.ra2, TabGrp.ra3, TabGrp.ra4].';
+                        CropsLat = [TabGrp.dec1, TabGrp.dec2, TabGrp.dec3, TabGrp.dec4].';
+                    case 'area'
+                        CropsLon = [TabGrp.rau1, TabGrp.rau2, TabGrp.rau3, TabGrp.rau4].';
+                        CropsLat = [TabGrp.decu1, TabGrp.decu2, TabGrp.decu3, TabGrp.decu4].';
+                    otherwise
+                        error('buildRefImages:UnknownCoverageAlgo', 'Unknown Args.CoverageAlgo: %s', Args.CoverageAlgo);
                 end
-                
+                [Sel, AllCovered, CoverageAll] = celestial.polygon.checkPolygonCoverage(P0(:,1), P0(:,2), double(CropsLon), double(CropsLat), ...
+                    'Algo',Args.CoverageAlgo, 'MinCoverage',Args.MinCoverage, 'RasterResolution',Args.RasterResolution, 'Raster0',Raster0);
+                TabGrp = TabGrp(Sel, :);
+
+                if Args.Verbose > 1
+                    fprintf('Group %d: %d images with actual sky overlap with the reference region\n',Igroup,height(TabGrp));
+                end
+
                 Nim = height(TabGrp);
-                
-                CoverageAll = sum(ismember(Raster0, RasterC))/numel(Raster0);
-                if CoverageAll < Args.MinCoverage
+
+                if ~AllCovered
                     % incomplete coverage: skip this epoch
                     if Args.Verbose > 1
                         fprintf('Incomplete coverage of %.4f, epoch %d is skipped\n', CoverageAll, Igroup);

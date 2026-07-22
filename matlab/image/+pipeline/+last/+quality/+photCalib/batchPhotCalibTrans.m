@@ -56,11 +56,22 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
     %                                     Default 'cheby1_2'.
     %            'Tran2DTypeJoint'      - Tran2DType for joint mode.
     %                                     Default 'cheby1_4'.
-    %            'XPixelJoint'          - Full-frame XPixel handed to
-    %                                     fitPhotCalibTrans in joint mode.
-    %                                     Default 6388.
-    %            'YPixelJoint'          - Full-frame YPixel for joint mode.
-    %                                     Default 9576.
+    %            'XPixelJoint'          - Full-frame X size handed to
+    %                                     fitPhotCalibTrans in joint mode; sets
+    %                                     the Tran2D normalisation (ParNX =
+    %                                     XPixel/2) over the XFULL coordinate.
+    %                                     Empty (default) auto-derives it from
+    %                                     ceil(max(XFULL)) of the first joined
+    %                                     visit and holds it constant (the
+    %                                     full-frame extent is fixed LAST
+    %                                     focal-plane geometry, not per-visit).
+    %                                     Pass an explicit value to override; it
+    %                                     is still cross-checked against the
+    %                                     measured extent in a log line. The
+    %                                     legacy constant was 6388.
+    %            'YPixelJoint'          - As XPixelJoint, for Y (YFULL). Empty
+    %                                     (default) auto-derives from
+    %                                     ceil(max(YFULL)). Legacy constant 9576.
     %            'MagColName'           - Calibrator magnitude column
     %                                     forwarded via CalibArgs. Default
     %                                     'phot_g_mean_mag'.
@@ -77,6 +88,31 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
     %            'RefSpecPivot'         - Passed to fitPhotCalibTrans.
     %                                     Default 5500.
     %            'UseTypicalX'          - Default true.
+    %            'WeightingMode'        - Calibrator MagErr formula used at
+    %                                     startup and (for 2-iter recipes)
+    %                                     for iter-2 weighted refinement.
+    %                                     'combined' (default) uses
+    %                                     sqrt(MagErr_spectral^2 + (1.086
+    %                                     *FluxErr)^2). Set 'spectral' to
+    %                                     ignore per-source flux errors,
+    %                                     'flux' for bandpass-propagated
+    %                                     instrumental only, or 'none' for
+    %                                     unweighted. Iter 1 of the
+    %                                     LAST_Joint_2Iter_* recipes is
+    %                                     always unweighted (Recipe iter
+    %                                     override wipes MagErr) regardless
+    %                                     of this setting.
+    %            'SystematicErr'        - Floor on the returned combined
+    %                                     MagErr in magnitudes, applied
+    %                                     element-wise as MagErr = max(
+    %                                     MagErr, SystematicErr). Guards
+    %                                     the chi^2 from being dominated
+    %                                     by a handful of bright stars
+    %                                     whose formal photon-noise error
+    %                                     underestimates real per-star
+    %                                     systematics (flat-field, aperture
+    %                                     correction residuals, colour
+    %                                     mismatch). Default 0.001 mag.
     %            'NormConvention'       - Post-fit gauge convention for
     %                                     the (Norm, Tran2D-DC) pair.
     %                                     'center' (default) rotates them
@@ -93,6 +129,43 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
     %                                     PhotCalibTrans.calibrate.
     %            'CalibArgsExtra'       - Extra key-val pairs appended to
     %                                     every CalibArgs cell. Default {}.
+    %            'OutDir'               - When non-empty, write the calibrated
+    %                                     catalogs to disk as FITS in addition
+    %                                     to building the Report. Products are
+    %                                     grouped by config into subdirectories
+    %                                     OutDir/<RunMode>__<OptSeqName>__<Tran2DType>/.
+    %                                     Per-crop mode writes one _Cat_ file per
+    %                                     crop (named after the source crop's Cat
+    %                                     product, header from the calibrated
+    %                                     Result). Joint mode writes according to
+    %                                     JointWriteMode. Empty (default) writes
+    %                                     nothing.
+    %            'JointWriteMode'       - What joint mode writes to OutDir:
+    %                                     'per-crop' (default) applies the single
+    %                                     global joint fit back to each crop's
+    %                                     native catalogue and writes 24
+    %                                     self-contained per-crop _Cat_ FITS
+    %                                     (native X/Y; the Tran2D is translated
+    %                                     into each crop's local frame and
+    %                                     Norm/kx0 re-gauged so Tran2D=0 at the
+    %                                     crop centre). 'joined' writes the single
+    %                                     full-frame catalog
+    %                                     <VisitStem>_joint_coadd_Cat_1.fits.
+    %                                     'both' writes both. Calibrated mags are
+    %                                     identical across the choices (gauge-
+    %                                     and frame-invariant); only header
+    %                                     bookkeeping and file layout differ.
+    %            'OverWrite'            - Overwrite existing output files.
+    %                                     Default true (recompute everything).
+    %                                     Set false to RESUME: before each
+    %                                     (visit, config) the expected output(s)
+    %                                     are checked, and if all are present the
+    %                                     fit is skipped entirely (not just the
+    %                                     write) so a restarted run continues
+    %                                     from where it stopped. A partially
+    %                                     written per-crop visit is re-run and
+    %                                     only its missing crops are filled.
+    %                                     Only meaningful together with OutDir.
     %            'Verbose'              - Print per-visit progress. Default true.
     %            'InnerVerbose'         - When true, forwards Verbose=true to
     %                                     fitPhotCalibTrans / PhotCalibTrans.calibrate
@@ -152,8 +225,39 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
     % Example:
     %   Rep = pipeline.last.quality.photCalib.batchPhotCalibTrans('/data/coadd_run', ...
     %             'MaxVisits', 3, 'Verbose', true);
-    %   T = struct2table(Rep(:), 'AsArray', true);
-    %   plot([T.NCalib], [T.RMS], '.');
+    %
+    %   plot([Rep.NCalib], [Rep.RMS], '.');
+    %
+    %   % Joint LAST_Joint_2Iter_Split3 campaign (Tran2D cheby1_4), writing 24
+    %   % self-contained per-crop calibrated FITS per visit (JointWriteMode
+    %   % defaults to 'per-crop'). XPixelJoint/YPixelJoint are left empty so the
+    %   % full-frame size is measured from XFULL/YFULL of the first joined visit
+    %   % (verify the logged extent matches the LAST geometry):
+    %   Rep = pipeline.last.quality.photCalib.batchPhotCalibTrans( ...
+    %             '/euclid/last/data/LAST.01.05.03', ...
+    %             'FieldId',      '1716.c', ...
+    %             'Filter',       'clear', ...
+    %             'RunModes',     {'joint'}, ...
+    %             'OptSeqNames',  {'LAST_Joint_2Iter_Split3'}, ...
+    %             'Tran2DTypeJoint', 'cheby1_4', ...
+    %             'OutDir',       '/home/dana/tmp/N3/joint_2Iter_Split3');
+    %
+    %   % Resume that same campaign after an interruption (skip finished visits,
+    %   % recompute only what is missing): rerun the identical call with
+    %   % 'OverWrite', false.
+    %   Rep = pipeline.last.quality.photCalib.batchPhotCalibTrans( ...
+    %             '/euclid/last/data/LAST.01.05.03', 'FieldId','1716.c', 'Filter','clear', ...
+    %             'RunModes', {'joint'}, 'OptSeqNames', {'LAST_Joint_2Iter_Split3'}, ...
+    %             'Tran2DTypeJoint', 'cheby1_4', ...
+    %             'OutDir', '/home/dana/tmp/N3/joint_2Iter_Split3', 'OverWrite', false);
+    %
+    %   % Same, but pin the full-frame size explicitly (still logged vs measured):
+    %   Rep = pipeline.last.quality.photCalib.batchPhotCalibTrans( ...
+    %             '/euclid/last/data/LAST.01.05.03', 'FieldId','1716.c', ...
+    %             'RunModes', {'joint'}, 'OptSeqNames', {'LAST_Joint_2Iter_Split3'}, ...
+    %             'Tran2DTypeJoint', 'cheby1_4', ...
+    %             'XPixelJoint', 6388, 'YPixelJoint', 9576, ...
+    %             'OutDir', '/home/dana/tmp/N3/joint_2Iter_Split3');
 
     arguments
         BaseDir                                 (1,:) char
@@ -171,8 +275,8 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
         Args.Tran2DTypeJoint                    (1,:) char    = 'cheby1_4'
         Args.XPixelPerCrop                      (1,1) double  = 1716
         Args.YPixelPerCrop                      (1,1) double  = 1716
-        Args.XPixelJoint                        (1,1) double  = 6388
-        Args.YPixelJoint                        (1,1) double  = 9576
+        Args.XPixelJoint                              double  = []
+        Args.YPixelJoint                              double  = []
         Args.MagColName                         (1,:) char    = 'phot_g_mean_mag'
         Args.MagRange                           (1,2) double  = [12, 16]
         Args.SigmaClipMethod                    (1,:) char    = 'median'
@@ -184,7 +288,12 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
         Args.RefSpecPivot                       (1,1) double  = 5500
         Args.UseTypicalX                              logical = true
         Args.NormConvention                     (1,:) char    {mustBeMember(Args.NormConvention, {'raw','center'})} = 'center'
+        Args.WeightingMode                      (1,:) char    {mustBeMember(Args.WeightingMode, {'none','spectral','flux','combined'})} = 'combined'
+        Args.SystematicErr                      (1,1) double  {mustBeNonnegative} = 0.001
         Args.CalibArgsExtra                           cell    = {}
+        Args.OutDir                             (1,:) char    = ''
+        Args.OverWrite                                logical = true
+        Args.JointWriteMode                     (1,:) char    {mustBeMember(Args.JointWriteMode, {'per-crop','joined','both'})} = 'per-crop'
         Args.Verbose                                  logical = true
         Args.InnerVerbose                             logical = false
     end
@@ -224,6 +333,21 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
 
     Report = reportRowTemplate();
     Report = Report([]);   % start with 0-length struct array of the right shape
+
+    if ~isempty(Args.OutDir) && ~exist(Args.OutDir, 'dir')
+        mkdir(Args.OutDir);
+    end
+
+    % Effective joint full-frame size for the Tran2D normalisation (XPixel/YPixel
+    % set ParNX = XPixel/2). These are a fixed property of the LAST focal-plane
+    % geometry (the CCDSEC/ORIGSEC -> XFULL/YFULL mapping), NOT a per-visit
+    % overlap measurement — so they are measured once from the first joined
+    % visit's XFULL/YFULL extent and then held constant. Empty means "derive";
+    % an explicit XPixelJoint/YPixelJoint is honoured (and still cross-checked
+    % against the measured extent for a one-line sanity log).
+    XPJoint = Args.XPixelJoint;
+    YPJoint = Args.YPixelJoint;
+    JointGeomLogged = false;
 
     for IV = 1:NVisits
         Vis = Visits(IV);
@@ -265,12 +389,63 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
                         Vis.Stem, ME.message);
                 JCat = [];
             end
+
+            % Measure the joint full-frame extent from XFULL/YFULL once, and
+            % derive XPJoint/YPJoint from it when the caller left them empty.
+            if ~isempty(JCat) && ~JointGeomLogged
+                MxX = ceil(max(JCat.getCol('XFULL'), [], 'omitnan'));
+                MxY = ceil(max(JCat.getCol('YFULL'), [], 'omitnan'));
+                XDerived = isempty(XPJoint);
+                YDerived = isempty(YPJoint);
+                if XDerived; XPJoint = MxX; end
+                if YDerived; YPJoint = MxY; end
+                if Args.Verbose
+                    fprintf(['  joint full-frame extent from XFULL/YFULL of %s: ', ...
+                             'measured max=[%g, %g]; using XPixel=%g (%s), YPixel=%g (%s) ', ...
+                             '(legacy constant [6388, 9576])\n'], ...
+                            Vis.Stem, MxX, MxY, ...
+                            XPJoint, ternary(XDerived, 'derived', 'supplied'), ...
+                            YPJoint, ternary(YDerived, 'derived', 'supplied'));
+                end
+                JointGeomLogged = true;
+            end
         end
 
         for IM = 1:NMode
             RunMode = lower(char(Args.RunModes{IM}));
             for IO = 1:NOpt
                 OptSeqName = char(Args.OptSeqNames{IO});
+
+                % Resume: when writing to disk and not overwriting, skip any
+                % config whose output(s) already exist so a restarted campaign
+                % continues instead of recomputing finished work. A visit is
+                % "done" for this config only when ALL its expected products
+                % are present (a partial per-crop visit is re-run, and
+                % writeCalibProduct then fills only the missing crops).
+                if ~isempty(Args.OutDir) && ~Args.OverWrite
+                    ExpFiles = expectedOutFiles(Args, RunMode, OptSeqName, Vis);
+                    if ~isempty(ExpFiles) && all(cellfun(@isfile, ExpFiles))
+                        if Args.Verbose
+                            fprintf('  mode=%-8s recipe=%s : resume skip (%d output(s) present)\n', ...
+                                    RunMode, OptSeqName, numel(ExpFiles));
+                        end
+                        Row = reportRowTemplate();
+                        Row.VisitStem    = Vis.Stem;
+                        Row.RunMode      = RunMode;
+                        Row.OptSeqName   = OptSeqName;
+                        if strcmp(RunMode, 'joint')
+                            Row.Tran2DType = Args.Tran2DTypeJoint;
+                            Row.CropNumber = 0;
+                        else
+                            Row.Tran2DType = Args.Tran2DTypePerCrop;
+                            Row.CropNumber = NaN;
+                        end
+                        Row.ErrorMessage = 'resume: output(s) already exist; fit skipped';
+                        Report(end+1) = Row; %#ok<AGROW>
+                        continue;
+                    end
+                end
+
                 if Args.Verbose
                     fprintf('  mode=%-8s recipe=%s ...\n', RunMode, OptSeqName);
                 end
@@ -279,8 +454,9 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
                     switch RunMode
                         case 'per-crop'
                             Tran2DType = Args.Tran2DTypePerCrop;
-                            CA = buildCalibArgs(Args, OptSeqName, Tran2DType, false, []);
-                            [~, PCarr] = imProc.calib.fitPhotCalibTrans(AI, ...
+                            CA = buildCalibArgs(Args, OptSeqName, Tran2DType, false, [], ...
+                                Args.XPixelPerCrop, Args.YPixelPerCrop);
+                            [ResultArr, PCarr] = imProc.calib.fitPhotCalibTrans(AI, ...
                                 'CreateNewObj', true, ...
                                 'UseTypicalX',  Args.UseTypicalX, ...
                                 'RefSpecSlope', Args.RefSpecSlope, ...
@@ -297,6 +473,23 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
                                     Tran2DType, Vis.Stem, IC, CropHdr, ...
                                     Args.FunListName, Args.XPixelPerCrop, Args.YPixelPerCrop);
                                 Report(end+1) = Row; %#ok<AGROW>
+
+                                % Write the calibrated per-crop catalog. Name it
+                                % after the source crop's Cat product; the header
+                                % is taken from the calibrated Result (carries the
+                                % PT_* keywords stamped by calibrate).
+                                if ~isempty(Args.OutDir) && IC <= numel(ResultArr)
+                                    [~, BImg, EImg] = fileparts(Vis.Files{IC});
+                                    OutName = strrep([BImg, EImg], '_Image_', '_Cat_');
+                                    if ~isempty(ResultArr(IC).HeaderData)
+                                        Hdr = ResultArr(IC).HeaderData.Data;
+                                    else
+                                        Hdr = {};
+                                    end
+                                    writeCalibProduct(ResultArr(IC).CatData, Args.OutDir, ...
+                                        configTag(RunMode, OptSeqName, Tran2DType), ...
+                                        OutName, Hdr, Args.OverWrite, Args.Verbose);
+                                end
                             end
 
                         case 'joint'
@@ -321,8 +514,9 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
                                 continue;
                             end
                             Tran2DType = Args.Tran2DTypeJoint;
-                            CA = buildCalibArgs(Args, OptSeqName, Tran2DType, true, JHdr);
-                            [~, PC] = imProc.calib.fitPhotCalibTrans(JCat, ...
+                            CA = buildCalibArgs(Args, OptSeqName, Tran2DType, true, JHdr, ...
+                                XPJoint, YPJoint);
+                            [JResult, PC] = imProc.calib.fitPhotCalibTrans(JCat, ...
                                 'CreateNewObj', true, ...
                                 'UseTypicalX',  Args.UseTypicalX, ...
                                 'RefSpecSlope', Args.RefSpecSlope, ...
@@ -331,8 +525,35 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
                                 'Verbose',      Args.InnerVerbose);
                             Row = extractReportRow(PC, RunMode, OptSeqName, ...
                                 Tran2DType, Vis.Stem, 0, JHdr, ...
-                                Args.FunListName, Args.XPixelJoint, Args.YPixelJoint);
+                                Args.FunListName, XPJoint, YPJoint);
                             Report(end+1) = Row; %#ok<AGROW>
+
+                            % Write calibrated products to disk. 'per-crop'
+                            % (default) applies the single global fit back to
+                            % each crop's native catalogue (self-contained
+                            % per-crop FITS, Tran2D translated to the crop-local
+                            % frame and Norm/kx0 re-gauged so Tran2D=0 at the
+                            % crop centre). 'joined' writes the single
+                            % full-frame catalogue. 'both' writes both.
+                            if ~isempty(Args.OutDir)
+                                Tag = configTag(RunMode, OptSeqName, Tran2DType);
+                                DoPerCrop = any(strcmp(Args.JointWriteMode, {'per-crop','both'}));
+                                DoJoined  = any(strcmp(Args.JointWriteMode, {'joined','both'}));
+
+                                if DoPerCrop
+                                    writeJointPerCrop(PC, AI, Vis, Tag, Args);
+                                end
+                                if DoJoined
+                                    OutName = sprintf('%s_joint_coadd_Cat_1.fits', Vis.Stem);
+                                    if ~isempty(JHdr)
+                                        Hdr = JHdr.Data;
+                                    else
+                                        Hdr = {};
+                                    end
+                                    writeCalibProduct(JResult, Args.OutDir, Tag, ...
+                                        OutName, Hdr, Args.OverWrite, Args.Verbose);
+                                end
+                            end
 
                         otherwise
                             error('pipeline:last:quality:photCalib:batchPhotCalibTrans:BadRunMode', ...
@@ -433,7 +654,9 @@ function Visits = discoverVisits(BaseDir, Pattern, Recursive, FieldId, Filter, C
 end
 
 
-function CA = buildCalibArgs(Args, OptSeqName, Tran2DType, IsJoint, JHdr)
+function CA = buildCalibArgs(Args, OptSeqName, Tran2DType, IsJoint, JHdr, XPix, YPix)
+    % XPix/YPix are the effective detector size for this mode (per-crop size
+    % for per-crop mode; the measured/derived full-frame size for joint mode).
     CA = { ...
         'MagColName',              Args.MagColName, ...
         'MagRange',                Args.MagRange, ...
@@ -446,21 +669,136 @@ function CA = buildCalibArgs(Args, OptSeqName, Tran2DType, IsJoint, JHdr)
         'ApplyNutation',           Args.ApplyNutation, ...
         'Tran2DType',              Tran2DType, ...
         'NormConvention',          Args.NormConvention, ...
+        'WeightingMode',           Args.WeightingMode, ...
+        'SystematicErr',           Args.SystematicErr, ...
         'Verbose',                 Args.InnerVerbose};
     if IsJoint
         CA = [CA, { ...
             'Metadata',            JHdr, ...
             'PosColNameX',         'XFULL', ...
             'PosColNameY',         'YFULL', ...
-            'XPixel',              Args.XPixelJoint, ...
-            'YPixel',              Args.YPixelJoint}];
+            'XPixel',              XPix, ...
+            'YPixel',              YPix}];
     else
         CA = [CA, { ...
-            'XPixel',              Args.XPixelPerCrop, ...
-            'YPixel',              Args.YPixelPerCrop}];
+            'XPixel',              XPix, ...
+            'YPixel',              YPix}];
     end
     if ~isempty(Args.CalibArgsExtra)
         CA = [CA, Args.CalibArgsExtra];
+    end
+end
+
+
+function S = ternary(Cond, ATrue, AFalse)
+    % Small inline branch for building log strings.
+    if Cond
+        S = ATrue;
+    else
+        S = AFalse;
+    end
+end
+
+
+function Tag = configTag(RunMode, OptSeqName, Tran2DType)
+    % Per-config output subdirectory name, keeping products from different
+    % (RunMode x OptSeq x Tran2D) configs from colliding on disk.
+    Tag = sprintf('%s__%s__%s', RunMode, OptSeqName, Tran2DType);
+end
+
+
+function Files = expectedOutFiles(Args, RunMode, OptSeqName, Vis)
+    % Full paths of the calibrated product(s) a given (visit, config) would
+    % write. Must mirror the write-path naming exactly so the resume check and
+    % the writer agree. Per-crop -> one file per crop. Joint -> per-crop files
+    % and/or the joined catalog, per JointWriteMode.
+    if strcmp(RunMode, 'joint')
+        Tag   = configTag(RunMode, OptSeqName, Args.Tran2DTypeJoint);
+        Files = {};
+        if any(strcmp(Args.JointWriteMode, {'per-crop', 'both'}))
+            for IC = 1:numel(Vis.Files)
+                [~, BImg, EImg] = fileparts(Vis.Files{IC});
+                OutName = strrep([BImg, EImg], '_Image_', '_Cat_');
+                Files{end+1} = fullfile(Args.OutDir, Tag, OutName); %#ok<AGROW>
+            end
+        end
+        if any(strcmp(Args.JointWriteMode, {'joined', 'both'}))
+            Files{end+1} = fullfile(Args.OutDir, Tag, ...
+                sprintf('%s_joint_coadd_Cat_1.fits', Vis.Stem)); %#ok<AGROW>
+        end
+    else
+        Tag   = configTag(RunMode, OptSeqName, Args.Tran2DTypePerCrop);
+        Files = cell(1, numel(Vis.Files));
+        for IC = 1:numel(Vis.Files)
+            [~, BImg, EImg] = fileparts(Vis.Files{IC});
+            OutName    = strrep([BImg, EImg], '_Image_', '_Cat_');
+            Files{IC}  = fullfile(Args.OutDir, Tag, OutName);
+        end
+    end
+end
+
+
+function writeJointPerCrop(PC, AI, Vis, Tag, Args)
+    % Apply a joint (full-frame) fit back to each crop's native catalogue and
+    % write self-contained per-crop calibrated FITS: one file per crop, named
+    % after the source crop's Cat product, with the crop's own header stamped
+    % with the crop-local, re-gauged photometric model. Uses the single joint
+    % PC for every crop (no per-crop PhotCalibTrans copies) via
+    % PhotCalibTrans.calibrateCropFromJointFit, which restores the PC after
+    % each crop.
+    Ncrop = min(numel(AI), numel(Vis.Files));
+    for IC = 1:Ncrop
+        if isempty(AI(IC).CatData) || isempty(AI(IC).HeaderData)
+            continue;
+        end
+        [~, BImg, EImg] = fileparts(Vis.Files{IC});
+        OutName = strrep([BImg, EImg], '_Image_', '_Cat_');
+        OutFile = fullfile(Args.OutDir, Tag, OutName);
+        if isfile(OutFile) && ~Args.OverWrite
+            if Args.Verbose
+                fprintf('    write skip (exists): %s\n', OutFile);
+            end
+            continue;
+        end
+
+        % Crop full-frame section (ORIGSEC) -> [xmin xmax ymin ymax].
+        try
+            CCDSEC = imUtil.ccdsec.ccdsecStr2num( ...
+                AI(IC).HeaderData.getVal('ORIGSEC', 'UseDict', false));
+        catch
+            warning('pipeline:last:quality:photCalib:batchPhotCalibTrans:NoORIGSEC', ...
+                    '%s crop %d: ORIGSEC unreadable; skipping per-crop write', Vis.Stem, IC);
+            continue;
+        end
+
+        CatOut = AI(IC).CatData.copy();
+        [CatOut, HdrOut] = PC.calibrateCropFromJointFit(CatOut, CCDSEC, ...
+            AI(IC).HeaderData, 'Verbose', Args.InnerVerbose);
+
+        writeCalibProduct(CatOut, Args.OutDir, Tag, OutName, HdrOut.Data, ...
+            Args.OverWrite, Args.Verbose);
+    end
+end
+
+
+function writeCalibProduct(CatObj, OutDir, ConfigTag, FileName, HeaderData, OverWrite, Verbose)
+    % Write one calibrated AstroCatalog to OutDir/<ConfigTag>/<FileName> as
+    % FITS with the given 3-column header cell. Honours OverWrite (skip when
+    % the file already exists and OverWrite is false), so campaigns resume.
+    Dir = fullfile(OutDir, ConfigTag);
+    if ~exist(Dir, 'dir')
+        mkdir(Dir);
+    end
+    OutFile = fullfile(Dir, FileName);
+    if isfile(OutFile) && ~OverWrite
+        if Verbose
+            fprintf('    write skip (exists): %s\n', OutFile);
+        end
+        return;
+    end
+    CatObj.write1(OutFile, 'FileType', 'fits', 'Header', HeaderData, 'OverWrite', true);
+    if Verbose
+        fprintf('    wrote: %s\n', OutFile);
     end
 end
 
