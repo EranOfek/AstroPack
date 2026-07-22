@@ -1011,7 +1011,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             SzC = max(size(Profile), size(WPSFRot));
             Profile2 = padarray(Profile, SzC-size(Profile), 0, 'post');
 
-            ConvStamp = imUtil.filter.conv2_fft(Profile2, WPSFRot);
+            % conv2_fft returns a complex-typed array via ifft2 (a floating-point-noise
+            % imaginary part, since it never discards it); take the real part, since the
+            % convolution of two real inputs is mathematically real.
+            ConvStamp = real(imUtil.filter.conv2_fft(Profile2, WPSFRot));
             ConvStamp = ConvStamp ./ sum(ConvStamp, 'all'); % renormalize to unit flux
 
             ConvStampCell{Iext} = ConvStamp;
@@ -1073,17 +1076,22 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 %                                     'Poisson',Args.NoisePoisson,'ReadOut',Args.NoiseReadout);                              
         
     NoiseLevel    = Back.Tot * ones(ImageSizeX,ImageSizeY,'single');   % already in [counts], see above
-    SrcAndNoise   = ImageSrc .* Exposure + NoiseLevel; 
-    
-    if Args.NoisePoisson        
+    SrcAndNoise   = ImageSrc .* Exposure + NoiseLevel;
+    % stamp resampling/recentering interpolation (bilinear/Lanczos) can ring slightly negative
+    % near sharp profile gradients; SrcAndNoise itself is kept as-is below (its negative dips
+    % are a real, flux-conserving part of the ringing), but poissrnd's lambda and the Gaussian
+    % stddev below both require a non-negative argument -- left unclamped, poissrnd would
+    % return NaN and sqrt(SrcAndNoise) would go complex, silently propagating into the output
+
+    if Args.NoisePoisson
         if Exposure < 300   % for short exposures one should use the true Poisson distribution
-            ImageSrcNoise = poissrnd( SrcAndNoise, ImageSizeX, ImageSizeY);
+            ImageSrcNoise = poissrnd( max(SrcAndNoise,0), ImageSizeX, ImageSizeY);
             ImageBkg      = poissrnd( NoiseLevel, ImageSizeX, ImageSizeY);
         else                % for longer exposures the noise level is already quite high, so
             % we can use a faster normal distribution instead of the Poisson
-            ImageSrcNoise =  normrnd( SrcAndNoise, sqrt(SrcAndNoise), ImageSizeX, ImageSizeY);
+            ImageSrcNoise =  normrnd( SrcAndNoise, sqrt(max(SrcAndNoise,0)), ImageSizeX, ImageSizeY);
             ImageBkg      =  normrnd( NoiseLevel,  sqrt(NoiseLevel),  ImageSizeX, ImageSizeY);
-        end        
+        end
     else
         ImageSrcNoise = SrcAndNoise;
         ImageBkg      = NoiseLevel;
@@ -1128,7 +1136,12 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         ImageSrcNoiseGainMask = ImageSrcNoise > GainThresh;  % if the signal is above the threshold, use low gain
         ImageSrcNoiseGain = ImageSrcNoise .* ( ImageSrcNoiseGainMask .* E2ADUlow + ...
                                               (ones(ImageSizeX,ImageSizeY,'single')-ImageSrcNoiseGainMask) .* E2ADUhigh );
-        ImageSrcNoiseADU = ultrasat.e2ADU(ImageSrcNoiseGain, ImageSrcNoiseGainMask); % the ADU is a 14-bit integer 
+        % ultrasat.e2ADU documents its valid input domain as [1, 1e8] (it takes log10 of the
+        % count to get an exponent); Gaussian-approximated noise can fluctuate to <=0 at low
+        % counts, which would otherwise silently go complex (log10 of a negative number) or
+        % -Inf (log10 of 0) -- clamp to the documented floor before calling it
+        ImageSrcNoiseGain = max(ImageSrcNoiseGain, 1);
+        ImageSrcNoiseADU = ultrasat.e2ADU(ImageSrcNoiseGain, ImageSrcNoiseGainMask); % the ADU is a 14-bit integer
     else
         fprintf('NOTE: the ADU image is not produced once multiple exposures are modelled..\n'); 
     end
