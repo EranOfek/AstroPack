@@ -202,10 +202,11 @@ function MS = stabilityN3(Args)
         StatFunInd = repmat({[1 3]}, 1, numel(StatCols));
         % AllCols: full [Nepoch x Nsrc] matrices in MS.Data. Include FLAGS
         % so searchFlags has data to consume per-epoch-per-source, SN so
-        % the SNmin filter can act per (epoch,source). MAGERR_<suffix> is
-        % needed by zp_meddiff if ApplyMedZP=true — gated to avoid bloating
-        % the merge.
-        AllCols   = unique([Args.Mags, {'FLAGS','SN'}], 'stable');
+        % the SNmin filter can act per (epoch,source), and X/Y so a downstream
+        % positional analysis (plotPhotStabilityMap) can map per-source scatter
+        % vs detector position without a rebuild. MAGERR_<suffix> is needed by
+        % zp_meddiff if ApplyMedZP=true — gated to avoid bloating the merge.
+        AllCols   = unique([Args.Mags, {'FLAGS','SN','X','Y'}], 'stable');
         if Args.ApplyMedZP
             AllCols       = unique([AllCols,       ErrFields], 'stable');
             MatchedColums = unique([MatchedColums, ErrFields], 'stable');
