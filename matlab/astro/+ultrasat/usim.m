@@ -29,6 +29,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'NoiseSky'       - sky background (1/0)
     %       'NoisePoisson'   - Poisson noise (1/0)
     %       'NoiseReadout'   - Read-out noise (1/0)
+    %       'DarkCurrent'    - dark current rate [e-/pix/s], added to the background. Default is 0.04.
     %       'Inj'            - source injection method (technical): 'direct', 'FFTshift', or 'stampcube'.
     %                          See the Args.Inj comment in the arguments block below for the measured
     %                          speed/accuracy trade-off between 'direct' (default) and 'stampcube'.
@@ -57,8 +58,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'ExtPA'           - [deg] position angle; a length-N vector or a scalar to apply to all objects
     %       'ExtSizeRA'       - length-N vector: object angular extent in the RA direction, [arcsec]
     %       'ExtSizeDec'      - length-N vector: object angular extent in the Dec direction, [arcsec]
-    %       'ExtRA0'          - length-N vector: object center RA, [deg]; N is taken from this argument
-    %       'ExtDec0'         - length-N vector: object center Dec, [deg]
+    %       'ExtRA0'          - length-N vector: object center RA, [deg], or X pixel coordinate if
+    %                           ExtSkyCat = false; N is taken from this argument
+    %       'ExtDec0'         - length-N vector: object center Dec, [deg], or Y pixel coordinate if ExtSkyCat = false
+    %       'ExtSkyCat'       - the flag determines whether ExtRA0/ExtDec0 are sky coordinates (true, default)
+    %                           or pixel X, Y (false); same convention as SkyCat
     %       'ExtMag'          - length-N vector: total magnitude of each object
     %       'ExtEbv'          - E(B-V); a length-N vector or a scalar to apply to all objects
     %       'ExtSpec'         - N x npar (or, for ExtSpecType = 'tab', Nwave x N / Nwave x (N+1)): per-object
@@ -71,7 +75,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %          - an array of per-object AstroPSFs
     %          - an ADU image (simple array)
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov (Mar-Oct 2023)
+    % Author : A. Krassilchtchikov (2023, 2026)
     % Example: Sim = ultrasat.usim('Cat',1000)
     % (simulate 1000 sources at random positions with the default spectrum and magnitude)
     %
@@ -152,7 +156,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 %         Args.NoiseReadout logical = true;    % Read-out noise
 %                                              % (see details in imUtil.art.noise)
         Args.NoisePoisson   logical = true;    % Poisson noise
-                                             
+
+        Args.DarkCurrent     = 0.04;         % [e-/pix/s] dark current rate, added to the background as a
+                                             % 300 s-exposure-equivalent count, consistently with the other
+                                             % Back.* terms; default matches the previous hardcoded Back.Dark = 12
+
         Args.Inj             = 'direct';     % source injection method: 'direct', 'FFTshift', or 'stampcube'
                                              % 'stampcube' uses the same imUtil.art.createSourceCube/addSources
                                              % pipeline as the extended-object mode (per-source downsample +
@@ -210,8 +218,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.ExtPA            = 0;           % [deg] position angle, applied to the profile regardless of ExtProfileType; length-N vector or scalar (broadcast)
         Args.ExtSizeRA        = [];          % length-N: object angular extent in the RA direction, [arcsec]
         Args.ExtSizeDec       = [];          % length-N: object angular extent in the Dec direction, [arcsec]
-        Args.ExtRA0           = [];          % length-N: object center RA, [deg]; N is taken from this argument
-        Args.ExtDec0          = [];          % length-N: object center Dec, [deg]
+        Args.ExtRA0           = [];          % length-N: object center RA, [deg], or X pixel coordinate if ExtSkyCat = false; N is taken from this argument
+        Args.ExtDec0          = [];          % length-N: object center Dec, [deg], or Y pixel coordinate if ExtSkyCat = false
+        Args.ExtSkyCat logical = true;       % the flag determines whether ExtRA0/ExtDec0 are sky coordinates or pixel X, Y (same convention as SkyCat)
         Args.ExtMag           = [];          % length-N: total magnitude of each object
         Args.ExtEbv           = 0;           % E(B-V); length-N vector or scalar (broadcast) (same convention as Ebv)
         Args.ExtSpec          = 5800;        % same conventions as Spec, but N x npar (one row per object)
@@ -325,7 +334,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     E2ADUlow    = 0.074;  % above GainThresh e-/pix
     
     % [e-/pix] background estimates for a 300 s exposure made by YS
-    Back.Zody    = 27; Back.Cher  = 15; Back.Stray = 12; Back.Dark = 12;
+    Back.Zody    = 27; Back.Cher  = 15; Back.Stray = 12; Back.Dark = Args.DarkCurrent * 300;
     Back.Readout =  6; Back.Cross =  2; Back.Gain  =  1;
     
 %     Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark + ...
@@ -842,8 +851,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
         CatX     = zeros(NumExt,1);
         CatY     = zeros(NumExt,1);
-        RA       = Args.ExtRA0(:);
-        DEC      = Args.ExtDec0(:);
+        RA       = zeros(NumExt,1);
+        DEC      = zeros(NumExt,1);
         InMag    = Args.ExtMag(:);
         CatFlux  = zeros(NumExt,1);
         MagU     = NaN(NumExt,1);
@@ -854,7 +863,15 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
         for Iext = 1:1:NumExt
 
-            [CatX(Iext), CatY(Iext)] = SimWCS.sky2xy(Args.ExtRA0(Iext), Args.ExtDec0(Iext));
+            if Args.ExtSkyCat   % the input coordinates are sky coordinates
+                [CatX(Iext), CatY(Iext)] = SimWCS.sky2xy(Args.ExtRA0(Iext), Args.ExtDec0(Iext));
+                RA(Iext)  = Args.ExtRA0(Iext);
+                DEC(Iext) = Args.ExtDec0(Iext);
+            else                 % the input coordinates are pixel coordinates
+                CatX(Iext) = Args.ExtRA0(Iext);
+                CatY(Iext) = Args.ExtDec0(Iext);
+                [RA(Iext), DEC(Iext)] = SimWCS.xy2sky(CatX(Iext), CatY(Iext));
+            end
 
             if (CatX(Iext) < 0.1) || (CatY(Iext) < 0.1) || (CatX(Iext) > ImageSizeX) || (CatY(Iext) > ImageSizeY)
                 warning('ultrasat:usim:ExtOutOfFOV', ...
