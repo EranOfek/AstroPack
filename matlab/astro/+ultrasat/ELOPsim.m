@@ -42,10 +42,15 @@ function Result = ELOPsim(Args)
     %         'TemplateBGridSpacing' - [arcsec] center-to-center spacing of the Template
     %                         'B' grid points, axis-aligned with the detector and centered
     %                         on the row's Radius-derived position. Default is 200.
+    %         'TemplatePolygons' - a cell array of Nx2 [dRA, dDec] arcsec vertex-offset
+    %                         lists, one polygon per cell, all relative to the row's
+    %                         Radius-derived position (same axis-aligned convention as the
+    %                         Template 'B' grid). Template 'C' requires exactly 1 polygon;
+    %                         Template 'D' requires 1 or more. Required (no default) when
+    %                         the table includes a 'C' or 'D' row.
     % Output : - a table of simulation parameters, one row per parameter combination.
-    % NB: the simulations themselves are currently only implemented for Template = 'A' or
-    %     'B', and Focus = 1; any other value in the table raises an explicit error.
-    %     Restrict 'Template' and 'Focus' accordingly until Templates C/D and the focus
+    % NB: the simulations themselves are currently only implemented for Focus = 1; any
+    %     other Focus value in the table raises an explicit error, until the focus blur
     %     kernels are implemented (see the Example below). Template 'B' is currently a
     %     regular M x N grid only; a user-supplied custom grid (a table of arcsec shifts)
     %     is a planned future addition, not yet implemented.
@@ -78,6 +83,7 @@ function Result = ELOPsim(Args)
         Args.TemplateBGridM        = 4;
         Args.TemplateBGridN        = 4;
         Args.TemplateBGridSpacing  = 200; % [arcsec]
+        Args.TemplatePolygons      = {};
     end
 
     NumRows = numel(Args.Filter) * numel(Args.Temperature) * numel(Args.Template) * ...
@@ -132,8 +138,8 @@ function Result = ELOPsim(Args)
     TableFullName = sprintf('%s%s%s', Args.OutDir, '/', Args.TableName);
     writetable(Result, TableFullName);
 
-    % run the simulations row by row (see the NB above: only Template = 'A'/'B' and
-    % Focus = 1 are currently implemented; any other row raises an explicit error)
+    % run the simulations row by row (see the NB above: only Focus = 1 is currently
+    % implemented; any other row raises an explicit error)
     for Irow = 1:1:NumRows
 
         if Result.Focus(Irow) ~= 1
@@ -159,23 +165,20 @@ function Result = ELOPsim(Args)
 
         [CatX0, CatY0] = elopSourcePixelPos(Result.Radius(Irow), Result.Tile{Irow});
 
-        [CatX, CatY] = elopTemplatePositions(Result.Template{Irow}, CatX0, CatY0, ...
-            Args.TemplateBGridM, Args.TemplateBGridN, Args.TemplateBGridSpacing);
+        [CatX, CatY, ExtSizeRAVec, ExtSizeDecVec, ExtProfileMatrix] = ...
+            elopTemplateSources(Result.Template{Irow}, CatX0, CatY0, Args);
 
         NumSrc = numel(CatX);
 
-        ExtSize          = 2 * Args.TemplateACircleRadius;          % [arcsec] bounding-box size of each disk
-        ExtSizeVec        = repmat(ExtSize, 1, NumSrc);
-        ExtMagVec         = repmat(Args.ExtMag, 1, NumSrc);
-        ExtProfileMatrix  = repmat({elopCircleMask(101)}, 1, NumSrc);
-        ExtSpec           = [repmat(SpecTab(:,2), 1, NumSrc), SpecTab(:,1)]; % usim.m's 'tab' convention: Nwave x (NumExt+1)
+        ExtMagVec = repmat(Args.ExtMag, 1, NumSrc);
+        ExtSpec   = [repmat(SpecTab(:,2), 1, NumSrc), SpecTab(:,1)]; % usim.m's 'tab' convention: Nwave x (NumExt+1)
 
         cprintf('hyper', '%s\n', sprintf('ELOPsim row %d/%d: %s', Irow, NumRows, Result.OutFileHI{Irow}));
 
         Sim = ultrasat.usim( ...
             'ExtProfileType', 'matrix', 'ExtProfileMatrix', ExtProfileMatrix, ...
             'ExtAxisRatio', 1, 'ExtPA', 0, ...
-            'ExtSizeRA', ExtSizeVec, 'ExtSizeDec', ExtSizeVec, ...
+            'ExtSizeRA', ExtSizeRAVec, 'ExtSizeDec', ExtSizeDecVec, ...
             'ExtRA0', CatX, 'ExtDec0', CatY, 'ExtSkyCat', false, ...
             'ExtMag', ExtMagVec, 'ExtEbv', 0, ...
             'ExtSpecType', Args.SpecType, 'ExtSpec', ExtSpec, ...
@@ -226,32 +229,120 @@ function [CatX, CatY] = elopSourcePixelPos(Radius, Tile)
     CatY = Y0 + PixOffset * sind(Theta);
 end
 
-function [CatX, CatY] = elopTemplatePositions(Template, CatX0, CatY0, GridM, GridN, GridSpacingArcsec)
-    % Pixel positions of all sources for a given ELOP test Template, centered at
-    % (CatX0, CatY0) (the Radius-derived position). Template 'A' is a single source.
-    % Template 'B' is a GridM x GridN raster grid of sources, axis-aligned with the
-    % detector, with the given center-to-center spacing.
+function [CatX, CatY, ExtSizeRAVec, ExtSizeDecVec, ExtProfileMatrix] = elopTemplateSources(Template, CatX0, CatY0, Args)
+    % Per-source ExtRA0/ExtDec0 (pixel, see ExtSkyCat=false)/ExtSizeRA/ExtSizeDec/
+    % ExtProfileMatrix for a given ELOP test Template, centered at (CatX0, CatY0) (the
+    % row's Radius-derived position). Template 'A' is a single circular disk source.
+    % Template 'B' is a GridM x GridN raster grid of disk sources, axis-aligned with the
+    % detector. Template 'C'/'D' are one, resp. one or more, user-supplied polygons
+    % (Args.TemplatePolygons), each becoming its own extended source.
     switch Template
         case 'A'
+            ExtSize = 2 * Args.TemplateACircleRadius;   % [arcsec] bounding-box size of the disk
             CatX = CatX0;
             CatY = CatY0;
+            ExtSizeRAVec  = ExtSize;
+            ExtSizeDecVec = ExtSize;
+            ExtProfileMatrix = {elopCircleMask(101)};
+
         case 'B'
-            RAD = 180 / pi;
-            FocalLength = 360;      % [mm]
-            PixelSizeMm = 9.5e-3;   % [mm]
-            PixSizeArcsec = (PixelSizeMm / FocalLength) * RAD * 3600;  % [arcsec/pix]
-            PixSpacing = GridSpacingArcsec / PixSizeArcsec;
+            [CatX, CatY] = elopGridPositions(CatX0, CatY0, ...
+                Args.TemplateBGridM, Args.TemplateBGridN, Args.TemplateBGridSpacing);
+            NumSrc = numel(CatX);
+            ExtSize = 2 * Args.TemplateACircleRadius;   % [arcsec] bounding-box size of each disk
+            ExtSizeRAVec     = repmat(ExtSize, 1, NumSrc);
+            ExtSizeDecVec    = repmat(ExtSize, 1, NumSrc);
+            ExtProfileMatrix = repmat({elopCircleMask(101)}, 1, NumSrc);
 
-            OffM = ((1:GridM) - (GridM + 1) / 2) * PixSpacing;
-            OffN = ((1:GridN) - (GridN + 1) / 2) * PixSpacing;
-            [OffX, OffY] = meshgrid(OffM, OffN);
+        case {'C', 'D'}
+            Polygons = Args.TemplatePolygons;
+            if isempty(Polygons)
+                error('ultrasat:ELOPsim:NoPolygons', ...
+                    'Template ''%s'' requires Args.TemplatePolygons to be set, exiting..', Template);
+            end
+            if strcmp(Template, 'C') && numel(Polygons) ~= 1
+                error('ultrasat:ELOPsim:PolygonCountMismatch', ...
+                    'Template ''C'' requires exactly 1 polygon in Args.TemplatePolygons (got %d), exiting..', numel(Polygons));
+            end
+            NumSrc = numel(Polygons);
+            CatX = zeros(1, NumSrc); CatY = zeros(1, NumSrc);
+            ExtSizeRAVec = zeros(1, NumSrc); ExtSizeDecVec = zeros(1, NumSrc);
+            ExtProfileMatrix = cell(1, NumSrc);
+            for Ip = 1:1:NumSrc
+                [CatX(Ip), CatY(Ip), ExtSizeRAVec(Ip), ExtSizeDecVec(Ip), ExtProfileMatrix{Ip}] = ...
+                    elopPolygonSource(Polygons{Ip}, CatX0, CatY0, 101);
+            end
 
-            CatX = CatX0 + OffX(:)';
-            CatY = CatY0 + OffY(:)';
         otherwise
             error('ultrasat:ELOPsim:TemplateNotImplemented', ...
-                'Template ''%s'' is not yet implemented (only ''A'' and ''B'' are supported), exiting..', Template);
+                'Template ''%s'' is not yet implemented (only ''A'', ''B'', ''C'', ''D'' are supported), exiting..', Template);
     end
+end
+
+function [CatX, CatY] = elopGridPositions(CatX0, CatY0, GridM, GridN, GridSpacingArcsec)
+    % Pixel positions of a GridM x GridN raster grid of sources, axis-aligned with the
+    % detector, centered at (CatX0, CatY0), with the given center-to-center spacing.
+    PixSizeArcsec = elopPixSizeArcsec();
+    PixSpacing = GridSpacingArcsec / PixSizeArcsec;
+
+    OffM = ((1:GridM) - (GridM + 1) / 2) * PixSpacing;
+    OffN = ((1:GridN) - (GridN + 1) / 2) * PixSpacing;
+    [OffX, OffY] = meshgrid(OffM, OffN);
+
+    CatX = CatX0 + OffX(:)';
+    CatY = CatY0 + OffY(:)';
+end
+
+function [CatX, CatY, ExtSizeRA, ExtSizeDec, Mask] = elopPolygonSource(Vertices, CatX0, CatY0, NPix)
+    % A single polygon source: Vertices is an Nx2 [dRA, dDec] arcsec vertex-offset list,
+    % relative to the shared center (CatX0, CatY0), axis-aligned with the detector.
+    % Returns the source's own center (its vertex bounding-box center, which need not
+    % coincide with (CatX0, CatY0) for an asymmetric polygon), its bounding-box size in
+    % arcsec, and an NPix x NPix mask (1 inside the polygon, 0 outside) spanning that
+    % bounding box, via inpolygon (as used elsewhere in AstroPack, e.g.
+    % imUtil.sources.polygonFlux), rather than the Image Processing Toolbox's poly2mask.
+    PixSizeArcsec = elopPixSizeArcsec();
+    VertPix = Vertices / PixSizeArcsec;   % Nx2 pixel offsets from (CatX0, CatY0)
+
+    MinX = min(VertPix(:,1)); MaxX = max(VertPix(:,1));
+    MinY = min(VertPix(:,2)); MaxY = max(VertPix(:,2));
+
+    % pad the smaller dimension symmetrically so the bounding box (and hence the
+    % resulting profile stamp) is square: imUtil.art.addSources computes a single
+    % injection-window radius from the stamp's row count and applies it to both axes,
+    % so a non-square stamp silently produces a wrong (or out-of-bounds) column window.
+    % The polygon itself is unaffected -- inpolygon still rasterizes against the true,
+    % unpadded vertices, so the extra grid cells are correctly masked to 0 (an empty
+    % margin around the real shape), and the padding is symmetric so the source's
+    % center position doesn't shift.
+    Width  = MaxX - MinX;
+    Height = MaxY - MinY;
+    if Width > Height
+        Pad = (Width - Height) / 2;
+        MinY = MinY - Pad; MaxY = MaxY + Pad;
+    elseif Height > Width
+        Pad = (Height - Width) / 2;
+        MinX = MinX - Pad; MaxX = MaxX + Pad;
+    end
+
+    CatX = CatX0 + (MinX + MaxX) / 2;
+    CatY = CatY0 + (MinY + MaxY) / 2;
+
+    ExtSizeRA  = (MaxX - MinX) * PixSizeArcsec;   % [arcsec]
+    ExtSizeDec = (MaxY - MinY) * PixSizeArcsec;   % [arcsec]
+
+    VecX = linspace(MinX, MaxX, NPix);
+    VecY = linspace(MinY, MaxY, NPix);
+    [GridX, GridY] = meshgrid(VecX, VecY);
+    Mask = double(inpolygon(GridX, GridY, VertPix(:,1), VertPix(:,2)));
+end
+
+function PixSizeArcsec = elopPixSizeArcsec()
+    % [arcsec/pix] the ULTRASAT pixel scale, matching usim.m's own PixSizeDeg constants.
+    RAD = 180 / pi;
+    FocalLength = 360;      % [mm]
+    PixelSizeMm = 9.5e-3;   % [mm]
+    PixSizeArcsec = (PixelSizeMm / FocalLength) * RAD * 3600;
 end
 
 function Mask = elopCircleMask(NPix)

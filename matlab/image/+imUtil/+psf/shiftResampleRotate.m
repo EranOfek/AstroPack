@@ -80,11 +80,14 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
             end
             PSF = imUtil.psf.oversampling(PSF, Oversample, 1,'ReNorm',false,'InterpMethod','bilinear');
         end
-        % force odd size (currently for square stamps only!)
+        % force odd size, independently per dimension (rows and columns may have
+        % different parity for a non-square stamp)
         if Args.ForceOdd
-            if rem( size(PSF,1), 2 ) == 0
-                PSF = padarray(PSF, [1, 1], 0, 'post');
-                PSF = imUtil.trans.shift_fft(PSF, 0.5, 0.5);
+            PadRow = mod( size(PSF,1), 2 ) == 0;
+            PadCol = mod( size(PSF,2), 2 ) == 0;
+            if PadRow || PadCol
+                PSF = padarray(PSF, double([PadRow, PadCol]), 0, 'post');
+                PSF = imUtil.trans.shift_fft(PSF, 0.5*PadCol, 0.5*PadRow);
             end
         end
         % shift on subpixel scale
@@ -109,11 +112,14 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
             if all(Oversample > 0)
                 PSF{Ipsf} = imUtil.psf.oversampling(PSF{Ipsf}, Oversample, 1,'ReNorm',false,'InterpMethod','bilinear');
             end
-            % force odd
+            % force odd size, independently per dimension (rows and columns may have
+            % different parity for a non-square stamp)
             if Args.ForceOdd
-                if rem( size(PSF{Ipsf},1), 2 ) == 0
-                    PSF{Ipsf} = padarray(PSF{Ipsf}, [1, 1], 0, 'post');
-                    PSF{Ipsf} = imUtil.trans.shift_fft(PSF{Ipsf}, 0.5, 0.5);
+                PadRow = mod( size(PSF{Ipsf},1), 2 ) == 0;
+                PadCol = mod( size(PSF{Ipsf},2), 2 ) == 0;
+                if PadRow || PadCol
+                    PSF{Ipsf} = padarray(PSF{Ipsf}, double([PadRow, PadCol]), 0, 'post');
+                    PSF{Ipsf} = imUtil.trans.shift_fft(PSF{Ipsf}, 0.5*PadCol, 0.5*PadRow);
                 end
             end
             % shift on subpixel scale

@@ -1000,6 +1000,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             Grain = PixSizeDeg * 3600 / ExtOversampling;              % [arcsec] per profile grid cell
             Nx    = max(3, ceil( Args.ExtSizeRA(Iext)  / Grain ));
             Ny    = max(3, ceil( Args.ExtSizeDec(Iext) / Grain ));
+            % imUtil.art.addSources requires odd-sized stamps; round up to the next odd
+            % value here so the final convolved stamp (SzC below) is never left even
+            Nx    = Nx + 1 - mod(Nx, 2);
+            Ny    = Ny + 1 - mod(Ny, 2);
 
             switch lower(Args.ExtProfileType)
                 case 'sersic'
