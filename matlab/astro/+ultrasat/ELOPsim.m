@@ -35,12 +35,20 @@ function Result = ELOPsim(Args)
     %                         default, not yet confirmed against a real ELOP test value.
     %                         Default is 15.
     %         'TemplateACircleRadius' - [arcsec] radius of the Template 'A' test source
-    %                         disk. Default is 10.
+    %                         disk, reused for each source of the Template 'B' grid.
+    %                         Default is 10.
+    %         'TemplateBGridM' - number of Template 'B' grid points along X. Default is 4.
+    %         'TemplateBGridN' - number of Template 'B' grid points along Y. Default is 4.
+    %         'TemplateBGridSpacing' - [arcsec] center-to-center spacing of the Template
+    %                         'B' grid points, axis-aligned with the detector and centered
+    %                         on the row's Radius-derived position. Default is 200.
     % Output : - a table of simulation parameters, one row per parameter combination.
-    % NB: the simulations themselves are currently only implemented for Template = 'A'
-    %     and Focus = 1; any other value in the table raises an explicit error. Restrict
-    %     'Template' and 'Focus' accordingly until the other templates/focus kernels are
-    %     implemented (see the Example below).
+    % NB: the simulations themselves are currently only implemented for Template = 'A' or
+    %     'B', and Focus = 1; any other value in the table raises an explicit error.
+    %     Restrict 'Template' and 'Focus' accordingly until Templates C/D and the focus
+    %     kernels are implemented (see the Example below). Template 'B' is currently a
+    %     regular M x N grid only; a user-supplied custom grid (a table of arcsec shifts)
+    %     is a planned future addition, not yet implemented.
     % Author : A. Krassilchtchikov (2026)
     % Example: T = ultrasat.ELOPsim('Template',{'A'},'Focus',{1}, ...
     %              'UVSpecFile','UV_spec.txt','VISSpecFile','VIS_spec.txt');
@@ -67,6 +75,9 @@ function Result = ELOPsim(Args)
         Args.ExtMag      = 15;
 
         Args.TemplateACircleRadius = 10; % [arcsec]
+        Args.TemplateBGridM        = 4;
+        Args.TemplateBGridN        = 4;
+        Args.TemplateBGridSpacing  = 200; % [arcsec]
     end
 
     NumRows = numel(Args.Filter) * numel(Args.Temperature) * numel(Args.Template) * ...
@@ -121,14 +132,10 @@ function Result = ELOPsim(Args)
     TableFullName = sprintf('%s%s%s', Args.OutDir, '/', Args.TableName);
     writetable(Result, TableFullName);
 
-    % run the simulations row by row (see the NB above: only Template = 'A' and
+    % run the simulations row by row (see the NB above: only Template = 'A'/'B' and
     % Focus = 1 are currently implemented; any other row raises an explicit error)
     for Irow = 1:1:NumRows
 
-        if ~strcmp(Result.Template{Irow}, 'A')
-            error('ultrasat:ELOPsim:TemplateNotImplemented', ...
-                'Template ''%s'' is not yet implemented (only ''A'' is supported), exiting..', Result.Template{Irow});
-        end
         if Result.Focus(Irow) ~= 1
             error('ultrasat:ELOPsim:FocusNotImplemented', ...
                 'Focus = %d is not yet implemented (only Focus = 1 is supported), exiting..', Result.Focus(Irow));
@@ -149,20 +156,28 @@ function Result = ELOPsim(Args)
                 'No spectrum file given for Filter = ''%s'' (see UVSpecFile/VISSpecFile), exiting..', Result.Filter{Irow});
         end
         SpecTab = readmatrix(SpecFile);            % [wavelength[A], flux[erg/s/cm2/A]]
-        ExtSpec = [SpecTab(:,2), SpecTab(:,1)];     % usim.m's 'tab' convention: Nwave x (NumExt+1), flux then wavelength
 
-        [CatX, CatY] = elopSourcePixelPos(Result.Radius(Irow), Result.Tile{Irow});
+        [CatX0, CatY0] = elopSourcePixelPos(Result.Radius(Irow), Result.Tile{Irow});
 
-        ExtSize = 2 * Args.TemplateACircleRadius;   % [arcsec] bounding-box size of the Template 'A' disk
+        [CatX, CatY] = elopTemplatePositions(Result.Template{Irow}, CatX0, CatY0, ...
+            Args.TemplateBGridM, Args.TemplateBGridN, Args.TemplateBGridSpacing);
+
+        NumSrc = numel(CatX);
+
+        ExtSize          = 2 * Args.TemplateACircleRadius;          % [arcsec] bounding-box size of each disk
+        ExtSizeVec        = repmat(ExtSize, 1, NumSrc);
+        ExtMagVec         = repmat(Args.ExtMag, 1, NumSrc);
+        ExtProfileMatrix  = repmat({elopCircleMask(101)}, 1, NumSrc);
+        ExtSpec           = [repmat(SpecTab(:,2), 1, NumSrc), SpecTab(:,1)]; % usim.m's 'tab' convention: Nwave x (NumExt+1)
 
         cprintf('hyper', '%s\n', sprintf('ELOPsim row %d/%d: %s', Irow, NumRows, Result.OutFileHI{Irow}));
 
         Sim = ultrasat.usim( ...
-            'ExtProfileType', 'matrix', 'ExtProfileMatrix', {elopCircleMask(101)}, ...
+            'ExtProfileType', 'matrix', 'ExtProfileMatrix', ExtProfileMatrix, ...
             'ExtAxisRatio', 1, 'ExtPA', 0, ...
-            'ExtSizeRA', ExtSize, 'ExtSizeDec', ExtSize, ...
+            'ExtSizeRA', ExtSizeVec, 'ExtSizeDec', ExtSizeVec, ...
             'ExtRA0', CatX, 'ExtDec0', CatY, 'ExtSkyCat', false, ...
-            'ExtMag', Args.ExtMag, 'ExtEbv', 0, ...
+            'ExtMag', ExtMagVec, 'ExtEbv', 0, ...
             'ExtSpecType', Args.SpecType, 'ExtSpec', ExtSpec, ...
             'Tile', Result.Tile{Irow}, 'RotAng', Result.Rotation(Irow), ...
             'Exposure', Args.Exposure, 'Jitter', Args.Jitter, 'DarkCurrent', DarkCurrent, ...
@@ -208,6 +223,34 @@ function [CatX, CatY] = elopSourcePixelPos(Radius, Tile)
     PixOffset = Radius / PixSizeDeg;
     CatX = X0 + PixOffset * cosd(Theta);
     CatY = Y0 + PixOffset * sind(Theta);
+end
+
+function [CatX, CatY] = elopTemplatePositions(Template, CatX0, CatY0, GridM, GridN, GridSpacingArcsec)
+    % Pixel positions of all sources for a given ELOP test Template, centered at
+    % (CatX0, CatY0) (the Radius-derived position). Template 'A' is a single source.
+    % Template 'B' is a GridM x GridN raster grid of sources, axis-aligned with the
+    % detector, with the given center-to-center spacing.
+    switch Template
+        case 'A'
+            CatX = CatX0;
+            CatY = CatY0;
+        case 'B'
+            RAD = 180 / pi;
+            FocalLength = 360;      % [mm]
+            PixelSizeMm = 9.5e-3;   % [mm]
+            PixSizeArcsec = (PixelSizeMm / FocalLength) * RAD * 3600;  % [arcsec/pix]
+            PixSpacing = GridSpacingArcsec / PixSizeArcsec;
+
+            OffM = ((1:GridM) - (GridM + 1) / 2) * PixSpacing;
+            OffN = ((1:GridN) - (GridN + 1) / 2) * PixSpacing;
+            [OffX, OffY] = meshgrid(OffM, OffN);
+
+            CatX = CatX0 + OffX(:)';
+            CatY = CatY0 + OffY(:)';
+        otherwise
+            error('ultrasat:ELOPsim:TemplateNotImplemented', ...
+                'Template ''%s'' is not yet implemented (only ''A'' and ''B'' are supported), exiting..', Template);
+    end
 end
 
 function Mask = elopCircleMask(NPix)
