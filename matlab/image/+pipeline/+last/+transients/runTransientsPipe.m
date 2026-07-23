@@ -335,7 +335,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         for Iobj = Nobj:-1:1
             AD(Iobj).Ref = imProc.psf.populatePSF(AD(Iobj).Ref, 'RePopulatePSF', true, ...
                 'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
-                'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'new');
+                'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'old');
             AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref);
             AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF');
         end
