@@ -48,12 +48,20 @@ function Result = ELOPsim(Args)
     %                         Template 'B' grid). Template 'C' requires exactly 1 polygon;
     %                         Template 'D' requires 1 or more. Required (no default) when
     %                         the table includes a 'C' or 'D' row.
+    %         'DefocusFWHM' - [arcsec] FWHM of the default Gaussian defocus blur kernel,
+    %                         applied to every source's profile for Focus ~= 1 (Focus = 1
+    %                         means no blur). The same value is currently used for every
+    %                         Focus level > 1 -- a placeholder pending real per-Focus-level
+    %                         defocus data. Default is 5.
+    %         'DefocusKernel' - an optional 2D kernel matrix that, if non-empty, replaces
+    %                         the default Gaussian entirely for every Focus level > 1.
+    %                         Default is [].
     % Output : - a table of simulation parameters, one row per parameter combination.
-    % NB: the simulations themselves are currently only implemented for Focus = 1; any
-    %     other Focus value in the table raises an explicit error, until the focus blur
-    %     kernels are implemented (see the Example below). Template 'B' is currently a
-    %     regular M x N grid only; a user-supplied custom grid (a table of arcsec shifts)
-    %     is a planned future addition, not yet implemented.
+    % NB: Template 'B' is currently a regular M x N grid only; a user-supplied custom grid
+    %     (a table of arcsec shifts) is a planned future addition, not yet implemented.
+    %     The Focus > 1 defocus blur currently uses one shared kernel (DefocusFWHM /
+    %     DefocusKernel) for all Focus levels 2-5; distinct per-level kernels are a
+    %     planned future refinement once real ELOP defocus data is available.
     % Author : A. Krassilchtchikov (2026)
     % Example: T = ultrasat.ELOPsim('Template',{'A'},'Focus',{1}, ...
     %              'UVSpecFile','UV_spec.txt','VISSpecFile','VIS_spec.txt');
@@ -84,6 +92,9 @@ function Result = ELOPsim(Args)
         Args.TemplateBGridN        = 4;
         Args.TemplateBGridSpacing  = 200; % [arcsec]
         Args.TemplatePolygons      = {};
+
+        Args.DefocusFWHM  = 5;  % [arcsec]
+        Args.DefocusKernel = [];
     end
 
     NumRows = numel(Args.Filter) * numel(Args.Temperature) * numel(Args.Template) * ...
@@ -138,14 +149,8 @@ function Result = ELOPsim(Args)
     TableFullName = sprintf('%s%s%s', Args.OutDir, '/', Args.TableName);
     writetable(Result, TableFullName);
 
-    % run the simulations row by row (see the NB above: only Focus = 1 is currently
-    % implemented; any other row raises an explicit error)
+    % run the simulations row by row
     for Irow = 1:1:NumRows
-
-        if Result.Focus(Irow) ~= 1
-            error('ultrasat:ELOPsim:FocusNotImplemented', ...
-                'Focus = %d is not yet implemented (only Focus = 1 is supported), exiting..', Result.Focus(Irow));
-        end
 
         DarkCurrent = elopDarkCurrent(Result.Temperature(Irow));
 
@@ -169,6 +174,14 @@ function Result = ELOPsim(Args)
             elopTemplateSources(Result.Template{Irow}, CatX0, CatY0, Args);
 
         NumSrc = numel(CatX);
+
+        if Result.Focus(Irow) ~= 1
+            for Ip = 1:1:NumSrc
+                GridScaleArcsec = ExtSizeRAVec(Ip) / size(ExtProfileMatrix{Ip}, 2);
+                Kernel = elopFocusKernel(GridScaleArcsec, size(ExtProfileMatrix{Ip}), Args);
+                ExtProfileMatrix{Ip} = elopConvolveKernel(ExtProfileMatrix{Ip}, Kernel);
+            end
+        end
 
         ExtMagVec = repmat(Args.ExtMag, 1, NumSrc);
         ExtSpec   = [repmat(SpecTab(:,2), 1, NumSrc), SpecTab(:,1)]; % usim.m's 'tab' convention: Nwave x (NumExt+1)
@@ -343,6 +356,37 @@ function PixSizeArcsec = elopPixSizeArcsec()
     FocalLength = 360;      % [mm]
     PixelSizeMm = 9.5e-3;   % [mm]
     PixSizeArcsec = (PixelSizeMm / FocalLength) * RAD * 3600;
+end
+
+function Kernel = elopFocusKernel(GridScaleArcsec, MaskSize, Args)
+    % The defocus blur kernel for a profile grid at GridScaleArcsec [arcsec/cell].
+    % Args.DefocusKernel, if non-empty, is used as-is (an arbitrary user-supplied
+    % kernel, already at the mask's own pixel grid scale). Otherwise a default Gaussian
+    % kernel is built with FWHM = Args.DefocusFWHM [arcsec], sized MaskSize.
+    if ~isempty(Args.DefocusKernel)
+        Kernel = Args.DefocusKernel;
+    else
+        FWHMPix = Args.DefocusFWHM / GridScaleArcsec;
+        Kernel = elopGaussianKernel(FWHMPix, MaskSize);
+    end
+end
+
+function Kernel = elopGaussianKernel(FWHMPix, MaskSize)
+    % A normalized 2D Gaussian kernel, MaskSize(1) x MaskSize(2), with the given FWHM
+    % [pix].
+    Sigma = FWHMPix / (2 * sqrt(2 * log(2)));
+    VecX  = (1:MaskSize(2)) - (MaskSize(2) + 1) / 2;
+    VecY  = (1:MaskSize(1)) - (MaskSize(1) + 1) / 2;
+    [X, Y] = meshgrid(VecX, VecY);
+    Kernel = exp( -(X.^2 + Y.^2) / (2 * Sigma^2) );
+    Kernel = Kernel / sum(Kernel, 'all');
+end
+
+function Mask = elopConvolveKernel(Mask, Kernel)
+    % Convolve a Template profile mask with an arbitrary 2D kernel (e.g. a defocus blur
+    % kernel), renormalizing the kernel to unit sum first.
+    Kernel = Kernel / sum(Kernel, 'all');
+    Mask = conv2(Mask, Kernel, 'same');
 end
 
 function Mask = elopCircleMask(NPix)
