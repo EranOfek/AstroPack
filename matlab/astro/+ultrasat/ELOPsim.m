@@ -3,7 +3,8 @@ function Result = ELOPsim(Args)
     % file, and run the corresponding ultrasat.usim simulation for each row.
     %     The table lists the full factorial combination of the input parameter ranges
     %     (one row per combination), together with the output file names used for the
-    %     high-gain/low-gain FITS images written by the corresponding ultrasat.usim run.
+    %     high-gain/low-gain ADU FITS images and the raw electron-count (CT) FITS image
+    %     written by the corresponding ultrasat.usim run.
     % Input : * ...,key,val,...
     %         'Filter'      - cell array of filter names. Default is {'UV','VIS'}.
     %         'Temperature' - cell array of detector temperatures [K]. Default is {200,300}.
@@ -110,6 +111,7 @@ function Result = ELOPsim(Args)
     Tile        = cell(NumRows,1);
     OutFileHI   = cell(NumRows,1);
     OutFileLO   = cell(NumRows,1);
+    OutFileCT   = cell(NumRows,1);
 
     % build the full factorial combination of the parameter ranges (Filter varies
     % slowest, Rotation fastest), and the corresponding output file name template
@@ -137,6 +139,7 @@ function Result = ELOPsim(Args)
 
                             OutFileHI{Irow} = sprintf('%s_HI.fits', BaseName);
                             OutFileLO{Irow} = sprintf('%s_LO.fits', BaseName);
+                            OutFileCT{Irow} = sprintf('%s_CT.fits', BaseName);
                         end
                     end
                 end
@@ -144,7 +147,7 @@ function Result = ELOPsim(Args)
         end
     end
 
-    Result = table(N, Filter, Temperature, Template, Radius, Focus, Rotation, Tile, OutFileHI, OutFileLO);
+    Result = table(N, Filter, Temperature, Template, Radius, Focus, Rotation, Tile, OutFileHI, OutFileLO, OutFileCT);
 
     TableFullName = sprintf('%s%s%s', Args.OutDir, '/', Args.TableName);
     writetable(Result, TableFullName);
@@ -206,6 +209,8 @@ function Result = ELOPsim(Args)
             'DataType', 'int16', 'Append', false, 'OverWrite', true, 'WriteTime', true);
         FITS.write(ImageLO, sprintf('!%s/%s', Args.OutDir, Result.OutFileLO{Irow}), ...
             'DataType', 'int16', 'Append', false, 'OverWrite', true, 'WriteTime', true);
+        FITS.write(Sim.Image, sprintf('!%s/%s', Args.OutDir, Result.OutFileCT{Irow}), ...
+            'DataType', 'single', 'Append', false, 'OverWrite', true, 'WriteTime', true);
 
     end
 
