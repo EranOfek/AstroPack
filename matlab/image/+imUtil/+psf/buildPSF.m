@@ -109,6 +109,26 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
     %                   Default is 1e-4.
     %            'SuppressFunPars' - Parameters for SuppressFun (e.g. the
     %                   number of pixels from the edge). Default is 3.
+    %            'WingsMethod' - 'analytic'|'cosbell'|'empirical'.
+    %                   'empirical' calibrates the wing directly from
+    %                   bright/near-saturated stars in the same image (see
+    %                   imUtil.psf.buildEmpiricalWing), falling back to
+    %                   'cosbell' when too few such stars are available.
+    %                   Default is 'analytic'.
+    %            'SaturatedMask' - Logical/numeric image, true where a
+    %                   pixel is saturated. Used only by WingsMethod=
+    %                   'empirical', to mask bright stars' saturated cores
+    %                   before they contribute to the wing calibration.
+    %                   Default is [].
+    %            'WingRangeSN' - [SNmin, SNmax] PSF-filter S/N window
+    %                   selecting the bright-star sample used by
+    %                   WingsMethod='empirical'. Empty -> [RangeSN(2), Inf],
+    %                   i.e. exactly the bright population RangeSN already
+    %                   excludes from the core stack. Default is [].
+    %            'MinWingStars' - Minimum number of bright stars required
+    %                   to trust the empirical wing calibration; below
+    %                   this, WingsMethod='empirical' falls back to
+    %                   'cosbell' for that image. Default is 8.
     %            'FitAnalytical' - Fit PSF with analytic function and
     %                   use it. Default is false.
     % Output : - Result, a struct with the following fields:
@@ -186,7 +206,11 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
         Args.SuppressThreshold         = 1e-2;
         Args.SuppressFunPars           = 3; % or # from edge
-        
+
+        Args.SaturatedMask             = []; % logical/numeric, true where a pixel is saturated; used only by WingsMethod='empirical'
+        Args.WingRangeSN               = []; % [SNmin, SNmax] for the bright-star wing-calibration sample; empty -> [RangeSN(2), Inf]
+        Args.MinWingStars              = 8;  % minimum bright stars required to trust the empirical wing; else falls back to cosbell
+
         Args.ExtendedSize              = [1501 1501];
         Args.Alpha                     = 1;
 
@@ -420,12 +444,59 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
             Args.SuppressThreshold = [];
         end
 
+        % --- empirical wing calibration from bright/near-saturated stars
+        %     (only possible when Image is the original 2D image, not a
+        %     pre-cut cube -- there is no source image left to cut
+        %     additional bright-star stamps from in the cube case) ---
+        ProfileRadius = [];
+        ProfileValue = [];
+        ProfileSuccess = false;
+        if strcmpi(Args.WingsMethod, 'empirical') && ismatrix(Image)
+            R1Emp = imUtil.psf.radiusAtFraction(MeanPSF, Args.SuppressThreshold);
+
+            if isempty(Args.WingRangeSN)
+                WingRangeSN = [Args.RangeSN(2), Inf];
+            else
+                WingRangeSN = Args.WingRangeSN;
+            end
+
+            FlagWingSN = Args.SN(:,2) > WingRangeSN(1) & Args.SN(:,2) <= WingRangeSN(2);
+            Xw = Args.X(FlagWingSN);
+            Yw = Args.Y(FlagWingSN);
+
+            if numel(Xw) >= Args.MinWingStars
+                CubeW = imUtil.cut.image2cutouts(Image, Xw, Yw, CutoutRadius, Args.image2cutoutsArgs{:});
+
+                if Args.SubAnnulusBack
+                    [CubeW,~,~,~] = imUtil.sources.mex.annulus_median(CubeW, Args.Annulus, 0);
+                end
+
+                % sub-pixel recenter using catalog positions (not moments,
+                % which a saturated core would corrupt)
+                FracX = Xw - round(Xw);
+                FracY = Yw - round(Yw);
+                CubeW = imUtil.trans.shift_fft(CubeW, -FracX, -FracY);
+
+                if ~isempty(Args.SaturatedMask)
+                    MaskCubeW = imUtil.cut.image2cutouts(double(Args.SaturatedMask), Xw, Yw, CutoutRadius, Args.image2cutoutsArgs{:});
+                else
+                    MaskCubeW = [];
+                end
+
+                [ProfileRadius, ProfileValue, ~, ProfileSuccess] = imUtil.psf.buildEmpiricalWing(...
+                    CubeW, MaskCubeW, MeanPSF, R1Emp, 'MinWingStars',Args.MinWingStars);
+            end
+        end
+
         [MeanPSF,InnerRadius] = imUtil.psf.wingsFix(MeanPSF, 'WingsMethod',Args.WingsMethod,...
                                                              'SuppressThreshold',Args.SuppressThreshold,...
                                                              'WingsPowerLaw',Args.WingsPowerLaw,...
                                                              'SuppressFun',Args.SuppressFun,...
                                                              'SuppressFunPars',Args.SuppressFunPars,...
-                                                             'ExtendedSize',Args.ExtendedSize);
+                                                             'ExtendedSize',Args.ExtendedSize,...
+                                                             'ProfileRadius',ProfileRadius,...
+                                                             'ProfileValue',ProfileValue,...
+                                                             'ProfileSuccess',ProfileSuccess);
 
 
 

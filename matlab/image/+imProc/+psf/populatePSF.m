@@ -117,7 +117,12 @@ function [Obj,Result]=populatePSF(Obj, Args)
     %
     %    --- wing suppression ---
     %            'WingsMethod' - Wing-fixing back-end forwarded to buildPSF:
-    %                   'analytic' | 'cosbell'. Default is 'analytic'.
+    %                   'analytic' | 'cosbell' | 'empirical'. 'empirical'
+    %                   calibrates the wing from this image's own bright/
+    %                   near-saturated stars (see imUtil.psf.buildPSF and
+    %                   imUtil.psf.buildEmpiricalWing), falling back to
+    %                   'cosbell' when too few such stars are available.
+    %                   Default is 'analytic'.
     %            'WingsPowerLaw' - Power-law index forwarded to buildPSF for
     %                   the 'analytic' WingsMethod. Default is 2.
     %            'SuppressFun' - Window function used by suppressWings.
@@ -127,6 +132,12 @@ function [Obj,Result]=populatePSF(Obj, Args)
     %                   Default is 1e-4.
     %            'SuppressWidth' - Width parameter for SuppressFun. (Legacy
     %                   name; forwarded to buildPSF as 'SuppressFunPars'.)
+    %            'WingRangeSN' - [SNmin, SNmax] bright-star sample used by
+    %                   WingsMethod='empirical'. Empty -> [RangeSN(2), Inf].
+    %                   Default is [].
+    %            'MinWingStars' - Minimum bright stars required to trust
+    %                   WingsMethod='empirical'; below this, falls back to
+    %                   'cosbell' for that image. Default is 8.
     %                   Default is 3.
     %
     %    --- legacy / no-op options (accepted for backward compatibility
@@ -208,6 +219,8 @@ function [Obj,Result]=populatePSF(Obj, Args)
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
         Args.WingsThreshold            = 1e-2; %1e-4;       % legacy name -> buildPSF 'SuppressThreshold'
         Args.SuppressWidth             = 3;          % legacy name -> buildPSF 'SuppressFunPars'
+        Args.WingRangeSN               = [];         % bright-star sample for WingsMethod='empirical'; [] -> [RangeSN(2), Inf]
+        Args.MinWingStars              = 8;          % min bright stars for WingsMethod='empirical'; else falls back to cosbell
 
         % --- legacy / no-op options (kept for backward compatibility) ---
         Args.moment2Args               = {};
@@ -251,7 +264,16 @@ function [Obj,Result]=populatePSF(Obj, Args)
                         % estimate background
                         Obj(Iobj) = imProc.background.background(Obj(Iobj), Args.backgroundArgs{:});
                     end
-                    
+
+                    % Saturated-pixel mask, used only by WingsMethod='empirical'
+                    % (to mask bright stars' saturated cores before they
+                    % contribute to the wing calibration).
+                    if Obj(Iobj).MaskData.isemptyImage
+                        SaturatedMask = [];
+                    else
+                        SaturatedMask = Obj(Iobj).MaskData.findBit('Saturated');
+                    end
+
                     % Renames at the call site (legacy populatePSF keys
                     % preserved for back-compat; mapped to new buildPSF
                     % names):
@@ -306,6 +328,9 @@ function [Obj,Result]=populatePSF(Obj, Args)
                                                 'SuppressFun',Args.SuppressFun,...
                                                 'SuppressThreshold',Args.WingsThreshold,...
                                                 'SuppressFunPars',Args.SuppressWidth,...
+                                                'SaturatedMask',SaturatedMask,...
+                                                'WingRangeSN',Args.WingRangeSN,...
+                                                'MinWingStars',Args.MinWingStars,...
                                                 'ExtendedSize',Args.ExtendedSize,...
                                                 'Alpha',Args.Alpha);
 
@@ -353,7 +378,10 @@ function [Obj,Result]=populatePSF(Obj, Args)
                                                 'WingsPowerLaw',Args.WingsPowerLaw,...
                                                 'SuppressFun',Args.SuppressFun,...
                                                 'SuppressThreshold',Args.WingsThreshold,...
-                                                'SuppressFunPars',Args.SuppressWidth);
+                                                'SuppressFunPars',Args.SuppressWidth,...
+                                                'SaturatedMask',SaturatedMask,...
+                                                'WingRangeSN',Args.WingRangeSN,...
+                                                'MinWingStars',Args.MinWingStars);
                     end
                     % insert PSF data
                     Obj(Iobj).PSFData.Data   = MeanPSF;
