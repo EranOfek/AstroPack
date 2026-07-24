@@ -12,7 +12,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'FiltFam'   - the filter family for which the source magnitudes are defined
     %       'Filt'      - the filter[s] for which the source magnitudes are defined
     %       'CalculateULTRASATMag' - if the input magnitudes are not of the ULTRASAT filters, calculate the ULTRASAT magnitudes at output 
-    %       'CalculateCrudeSNR' - estimate SNR for the input sources    
+    %       'CalculateCrudeSNR' - estimate SNR for the input sources
+    %       'SNROnly'   - if true, return right after CrudeSNR is computed, skipping the
+    %                     noise/ADU pipeline and file writing (usimImage.Image is [])
     %       'SpecType'  - model of the input spectra ('BB','PL','Pickles') or 'tab'
     %       'Spec'      - parameters of the input spectra (temperature, spectral index) or a table of spectral intensities
     %       'Exposure'  - image exposure
@@ -120,8 +122,15 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
         Args.CalculateULTRASATMag logical = true; % if the input magnitudes are not of the ULTRASAT filters, 
                                              % calculate the ULTRASAT magnitudes at output  
-        Args.CalculateCrudeSNR logical = true; % estimate SNR for the input sources                                         
-        
+        Args.CalculateCrudeSNR logical = true; % estimate SNR for the input sources
+        Args.SNROnly          logical = false; % if true, return as soon as CrudeSNR (and the rest of the
+                                             % output catalog) is computed, skipping the noise/ADU pipeline
+                                             % and file writing entirely (usimImage.Image is [] in this case).
+                                             % A cheap way to get CrudeSNR at a given input magnitude, e.g. to
+                                             % solve for the magnitude needed for a target SNR, without paying
+                                             % for noise generation (often the dominant cost, see the
+                                             % NoisePoisson/PoissonThreshold branch below)
+
         Args.SpecType        = {'BB'};       % parameters of the source spectra: 
                                              % either an array of AstSpec or AstroSpec objects
                                              % or an array of model spectra parameters: 
@@ -1100,6 +1109,21 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         % store the (unscaled) per-object spectrum-weighted PSF kernels, for consistency with the point-source output
         PSF = WPSFRotCell;
 
+    end
+
+    if Args.SNROnly
+        % CatX/CatY/CatFlux/InMag/MagU/CrudeSNR/RA/DEC are already finalized above (for
+        % both the point-source and extended-object branches); build the same CatData
+        % catalog a normal run would attach to its output, and return immediately,
+        % skipping the noise/ADU pipeline and file writing entirely
+        warning('ultrasat:usim:SNROnly', ...
+            'Args.SNROnly = true: returning CrudeSNR only, usimImage.Image is empty, no files written..');
+        Cat = [CatX CatY CatFlux InMag MagU CrudeSNR RA DEC];
+        OutCat = AstroCatalog({Cat},'ColNames',{'X', 'Y', 'Counts/s', 'InMAG', 'MagU', 'SNR', 'RA','Dec'}, 'HDU', 1);
+        usimImage = AstroImage();
+        usimImage.Image = [];
+        usimImage.CatData = OutCat;
+        return
     end
 
     %%%%%%%%%%%%%%%%%%%%% add and apply various types of noise to the tile image

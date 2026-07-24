@@ -32,9 +32,14 @@ function Result = ELOPsim(Args)
     %         'UVSpecFile'  - a 2-column [wavelength[A], flux[erg/s/cm2/A]] text file, used
     %                         as the tabulated source spectrum for Filter = 'UV' rows.
     %         'VISSpecFile' - same, for Filter = 'VIS' rows.
-    %         'ExtMag'      - magnitude of the simulated test source(s). Placeholder
-    %                         default, not yet confirmed against a real ELOP test value.
-    %                         Default is 15.
+    %         'ExtMag'      - trial magnitude used for the cheap CrudeSNR estimate each
+    %                         row starts with (see 'TargetSNR' below); not the magnitude
+    %                         the simulated source(s) actually end up at. Default is 15.
+    %         'TargetSNR'   - the actual magnitude used for each row's simulation is
+    %                         solved (from the ExtMag trial run's CrudeSNR, which scales
+    %                         exactly with flux) so that the row's source(s) reach this
+    %                         crude S/N; all sources in a row share one magnitude, solved
+    %                         from the first source. Default is 30.
     %         'TemplateACircleRadius' - [arcsec] radius of the Template 'A' test source
     %                         disk, reused for each source of the Template 'B' grid.
     %                         Default is 10.
@@ -87,6 +92,7 @@ function Result = ELOPsim(Args)
         Args.UVSpecFile  = '';
         Args.VISSpecFile = '';
         Args.ExtMag      = 15;
+        Args.TargetSNR   = 30;
 
         Args.TemplateACircleRadius = 10; % [arcsec]
         Args.TemplateBGridM        = 4;
@@ -186,22 +192,35 @@ function Result = ELOPsim(Args)
             end
         end
 
-        ExtMagVec = repmat(Args.ExtMag, 1, NumSrc);
-        ExtSpec   = [repmat(SpecTab(:,2), 1, NumSrc), SpecTab(:,1)]; % usim.m's 'tab' convention: Nwave x (NumExt+1)
+        ExtSpec = [repmat(SpecTab(:,2), 1, NumSrc), SpecTab(:,1)]; % usim.m's 'tab' convention: Nwave x (NumExt+1)
 
-        cprintf('hyper', '%s\n', sprintf('ELOPsim row %d/%d: %s', Irow, NumRows, Result.OutFileHI{Irow}));
-
-        Sim = ultrasat.usim( ...
+        CommonArgs = { ...
             'ExtProfileType', 'matrix', 'ExtProfileMatrix', ExtProfileMatrix, ...
             'ExtAxisRatio', 1, 'ExtPA', 0, ...
             'ExtSizeRA', ExtSizeRAVec, 'ExtSizeDec', ExtSizeDecVec, ...
             'ExtRA0', CatX, 'ExtDec0', CatY, 'ExtSkyCat', false, ...
-            'ExtMag', ExtMagVec, 'ExtEbv', 0, ...
-            'ExtSpecType', Args.SpecType, 'ExtSpec', ExtSpec, ...
+            'ExtEbv', 0, 'ExtSpecType', Args.SpecType, 'ExtSpec', ExtSpec, ...
             'Tile', Result.Tile{Irow}, 'RotAng', Result.Rotation(Irow), ...
             'Exposure', Args.Exposure, 'Jitter', Args.Jitter, 'DarkCurrent', DarkCurrent, ...
-            'NoiseZody', false, 'NoiseCher', false, 'NoiseStray', false, ...
-            'OutType', 'none');
+            'NoiseZody', false, 'NoiseCher', false, 'NoiseStray', false};
+
+        cprintf('hyper', '%s\n', sprintf('ELOPsim row %d/%d: %s', Irow, NumRows, Result.OutFileHI{Irow}));
+
+        % cheap trial pass: get CrudeSNR at Args.ExtMag (no noise/ADU pipeline, no
+        % files), then solve for the magnitude that reaches Args.TargetSNR, using the
+        % first source as the shared reference for the whole row (CrudeSNR scales
+        % exactly with flux, so this is an exact closed-form correction, not a guess)
+        TrialMagVec = repmat(Args.ExtMag, 1, NumSrc);
+        Trial = ultrasat.usim(CommonArgs{:}, 'ExtMag', TrialMagVec, 'SNROnly', true, 'OutType', 'none');
+        SNRTrial = Trial.CatData.Catalog(1, strcmp(Trial.CatData.ColNames, 'SNR'));
+        if ~(SNRTrial > 0) || isnan(SNRTrial)
+            error('ultrasat:ELOPsim:BadTrialSNR', ...
+                'Trial CrudeSNR = %g at ExtMag = %g is not usable to solve for TargetSNR, exiting..', SNRTrial, Args.ExtMag);
+        end
+        ExtMagRow = Args.ExtMag + 2.5 * log10(SNRTrial / Args.TargetSNR);
+        ExtMagVec = repmat(ExtMagRow, 1, NumSrc);
+
+        Sim = ultrasat.usim(CommonArgs{:}, 'ExtMag', ExtMagVec, 'OutType', 'none');
 
         [ImageHI, ImageLO] = elopGainImages(Sim.Image);
 
