@@ -33,6 +33,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'NoiseReadout'   - include read-out noise background (1/0). Default is true.
     %       'NoiseCross'     - include cross-talk background (1/0). Default is true.
     %       'DarkCurrent'    - dark current rate [e-/pix/s], added to the background. Default is 0.04.
+    %       'PoissonThreshold' - background level [e-/pix] above which the Gaussian
+    %                          approximation replaces the true Poisson distribution. Default is 100.
     %       'Inj'            - source injection method (technical): 'direct', 'FFTshift', or 'stampcube'.
     %                          See the Args.Inj comment in the arguments block below for the measured
     %                          speed/accuracy trade-off between 'direct' (default) and 'stampcube'.
@@ -168,6 +170,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.DarkCurrent     = 0.04;         % [e-/pix/s] dark current rate, added to the background as a
                                              % 300 s-exposure-equivalent count, consistently with the other
                                              % Back.* terms; default matches the previous hardcoded Back.Dark = 12
+
+        Args.PoissonThreshold = 100;         % [e-/pix] background level above which the (much faster) Gaussian
+                                             % approximation is used instead of the true Poisson distribution;
+                                             % see the Args.NoisePoisson branch below
 
         Args.Inj             = 'direct';     % source injection method: 'direct', 'FFTshift', or 'stampcube'
                                              % 'stampcube' uses the same imUtil.art.createSourceCube/addSources
@@ -1114,11 +1120,15 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     % return NaN and sqrt(SrcAndNoise) would go complex, silently propagating into the output
 
     if Args.NoisePoisson
-        if Exposure < 300   % for short exposures one should use the true Poisson distribution
+        % NB: the choice below is keyed on the background level (Back.Tot), not the
+        % exposure duration -- a short exposure can still have a high background (e.g.
+        % high dark current), where the true Poisson distribution is unnecessary and
+        % slow to sample; Poisson and Gaussian are already very close above a few tens
+        % of counts, so Args.PoissonThreshold (default 100) gives a comfortable margin
+        if Back.Tot < Args.PoissonThreshold   % low background: use the true Poisson distribution
             ImageSrcNoise = poissrnd( max(SrcAndNoise,0), ImageSizeX, ImageSizeY);
             ImageBkg      = poissrnd( NoiseLevel, ImageSizeX, ImageSizeY);
-        else                % for longer exposures the noise level is already quite high, so
-            % we can use a faster normal distribution instead of the Poisson
+        else   % high background: use the (much faster) Gaussian approximation instead
             ImageSrcNoise =  normrnd( SrcAndNoise, sqrt(max(SrcAndNoise,0)), ImageSizeX, ImageSizeY);
             ImageBkg      =  normrnd( NoiseLevel,  sqrt(NoiseLevel),  ImageSizeX, ImageSizeY);
         end
