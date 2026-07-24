@@ -4,7 +4,12 @@ function Result = ELOPsim(Args)
     %     The table lists the full factorial combination of the input parameter ranges
     %     (one row per combination), together with the output file names used for the
     %     high-gain/low-gain ADU FITS images and the raw electron-count (CT) FITS image
-    %     written by the corresponding ultrasat.usim run.
+    %     written by the corresponding ultrasat.usim run, and SNRMin/SNRMax: the S/N
+    %     measured empirically from that row's own CT image (aperture photometry, not
+    %     usim's analytic CrudeSNR) across all of the row's sources -- both equal for a
+    %     single-source row, and the achieved range across sources for Template B/D.
+    %     The table file is re-written after each row completes, so a long run's
+    %     results-so-far survive an interruption.
     % Input : * ...,key,val,...
     %         'Filter'      - cell array of filter names. Default is {'UV','VIS'}.
     %         'Temperature' - cell array of detector temperatures [K]. Default is {200,300}.
@@ -118,6 +123,8 @@ function Result = ELOPsim(Args)
     OutFileHI   = cell(NumRows,1);
     OutFileLO   = cell(NumRows,1);
     OutFileCT   = cell(NumRows,1);
+    SNRMin      = NaN(NumRows,1);
+    SNRMax      = NaN(NumRows,1);
 
     % build the full factorial combination of the parameter ranges (Filter varies
     % slowest, Rotation fastest), and the corresponding output file name template
@@ -153,10 +160,12 @@ function Result = ELOPsim(Args)
         end
     end
 
-    Result = table(N, Filter, Temperature, Template, Radius, Focus, Rotation, Tile, OutFileHI, OutFileLO, OutFileCT);
+    Result = table(N, Filter, Temperature, Template, Radius, Focus, Rotation, Tile, ...
+        OutFileHI, OutFileLO, OutFileCT, SNRMin, SNRMax);
 
     TableFullName = sprintf('%s%s%s', Args.OutDir, '/', Args.TableName);
-    writetable(Result, TableFullName);
+    writetable(Result, TableFullName);   % SNRMin/SNRMax start as NaN, filled in and
+                                          % re-written after each row below
 
     % run the simulations row by row
     for Irow = 1:1:NumRows
@@ -230,6 +239,34 @@ function Result = ELOPsim(Args)
             'DataType', 'int16', 'Append', false, 'OverWrite', true, 'WriteTime', true);
         FITS.write(Sim.Image, sprintf('!%s/%s', Args.OutDir, Result.OutFileCT{Irow}), ...
             'DataType', 'single', 'Append', false, 'OverWrite', true, 'WriteTime', true);
+
+        % empirically measure the S/N of every source directly from the simulated
+        % counts image (aperture photometry; background/noise from a fixed patch chosen
+        % to be as far as possible from every source in the row, not a local annulus --
+        % this lets the aperture itself grow up to half the nearest-neighbor spacing
+        % instead of a quarter, much closer to true curve-of-growth convergence for
+        % tightly-packed rows -- not usim's own analytic CrudeSNR, which is
+        % ~Args.TargetSNR by construction for the reference source and so wouldn't be
+        % an independent check of what's actually visible in the image)
+        [BackPerPix, NoisePerPix] = elopReferenceBackground(Sim.Image, CatX, CatY);
+        SNRVec = zeros(1, NumSrc);
+        for Ip = 1:1:NumSrc
+            if NumSrc > 1
+                OtherDist = sqrt((CatX([1:Ip-1, Ip+1:end]) - CatX(Ip)).^2 + ...
+                                  (CatY([1:Ip-1, Ip+1:end]) - CatY(Ip)).^2);
+                MaxApertureRadius = min(OtherDist) / 2;   % keep the aperture clear of the
+            else                                          % nearest neighbor's own aperture
+                MaxApertureRadius = Inf;
+            end
+            SNRVec(Ip) = elopMeasureSNR(Sim.Image, CatX(Ip), CatY(Ip), MaxApertureRadius, ...
+                BackPerPix, NoisePerPix);
+        end
+        Result.SNRMin(Irow) = min(SNRVec);
+        Result.SNRMax(Irow) = max(SNRVec);
+
+        writetable(Result, TableFullName);   % keep the table up to date row by row, so a
+                                              % long run's results-so-far survive an
+                                              % interruption
 
     end
 
@@ -411,6 +448,102 @@ function Mask = elopConvolveKernel(Mask, Kernel)
     % kernel), renormalizing the kernel to unit sum first.
     Kernel = Kernel / sum(Kernel, 'all');
     Mask = conv2(Mask, Kernel, 'same');
+end
+
+function SNR = elopMeasureSNR(Image, CatX, CatY, MaxApertureRadius, BackPerPix, NoisePerPix)
+    % Empirically measure the S/N of a source at pixel position (CatX, CatY) directly
+    % from Image, with the aperture radius itself determined empirically via a curve of
+    % growth, rather than assumed from the source's nominal profile size -- a small
+    % profile can still be much larger in the actual image once PSF blur dominates, and
+    % a fixed formula misses that. BackPerPix/NoisePerPix (from elopReferenceBackground)
+    % are the background level and its empirical pixel-to-pixel scatter, measured once
+    % per row from a source-free patch, not a local annulus. MaxApertureRadius caps the
+    % growth (e.g. to stay clear of a neighboring source in a multi-source row); pass
+    % Inf for an isolated source.
+    %
+    % NB: the curve of growth is evaluated at every trial radius (not stopped at the
+    % first quiet step) and the aperture is set to the LAST radius whose increment over
+    % the previous radius is statistically significant (> 3x the expected per-step
+    % noise) -- real curves can have a quiet, still-rising-later stretch before the true
+    % signal (e.g. near the profile core, before the PSF wings pick up most of the
+    % flux), where a naive first-quiet-step-wins rule stops too early. That radius's own
+    % Flux already includes the significant jump's full contribution, so no extra margin
+    % step is added -- the trial radii are log-spaced, and stepping one further (e.g.
+    % 18 -> 27) nearly triples the aperture area for no additional signal, needlessly
+    % raising the noise.
+    RadiiTrial = [3 5 8 12 18 27 40 60 90 130];
+    RadiiTrial = RadiiTrial(RadiiTrial <= MaxApertureRadius);
+    if isempty(RadiiTrial)
+        RadiiTrial = min(3, MaxApertureRadius);
+    end
+
+    SignificanceRatio = 3;
+    PrevFlux = 0;
+    LastSignificant = 1;
+    for Ri = 1:1:numel(RadiiTrial)
+        [Flux, NAperture] = elopApertureFlux(Image, CatX, CatY, RadiiTrial(Ri), BackPerPix);
+        ExpectedNoise = sqrt(max(NAperture,1)) * NoisePerPix;
+        if (Flux - PrevFlux) > SignificanceRatio * ExpectedNoise
+            LastSignificant = Ri;
+        end
+        PrevFlux = Flux;
+    end
+    RConverged = RadiiTrial(LastSignificant);
+
+    [Signal, NAperture] = elopApertureFlux(Image, CatX, CatY, RConverged, BackPerPix);
+    Noise = sqrt(NAperture) * NoisePerPix;
+
+    SNR = Signal / Noise;
+end
+
+function [Flux, NAperture] = elopApertureFlux(Image, CatX, CatY, R, BackPerPix)
+    % Background-subtracted flux in a circular aperture of radius R centered at
+    % (CatX, CatY), given the per-pixel background level BackPerPix.
+    [SizeY, SizeX] = size(Image);
+    Box = ceil(R) + 2;
+    XRange = max(1, round(CatX) - Box):min(SizeX, round(CatX) + Box);
+    YRange = max(1, round(CatY) - Box):min(SizeY, round(CatY) + Box);
+    [GridX, GridY] = meshgrid(XRange, YRange);
+    Dist = sqrt((GridX - CatX).^2 + (GridY - CatY).^2);
+    Sub = Image(YRange, XRange);
+
+    ApertureMask = Dist <= R;
+    NAperture = sum(ApertureMask, 'all');
+    Flux = sum(Sub(ApertureMask), 'all') - NAperture * BackPerPix;
+end
+
+function [BackPerPix, NoisePerPix] = elopReferenceBackground(Image, CatXAll, CatYAll)
+    % Background level and its empirical pixel-to-pixel scatter, measured from a fixed
+    % 100x100 patch near whichever of the image's 4 corners is farthest from every
+    % source in CatXAll/CatYAll -- avoids source contamination without needing an
+    % annulus around each individual source, so aperture growth in elopMeasureSNR isn't
+    % constrained by needing room for a local annulus too.
+    [SizeY, SizeX] = size(Image);
+    Margin = 60; PatchSize = 100;
+    Corners = [ Margin,               Margin; ...
+                SizeX-Margin-PatchSize, Margin; ...
+                Margin,               SizeY-Margin-PatchSize; ...
+                SizeX-Margin-PatchSize, SizeY-Margin-PatchSize];
+
+    MinDist = zeros(4,1);
+    for Ic = 1:1:4
+        CX = Corners(Ic,1) + PatchSize/2;
+        CY = Corners(Ic,2) + PatchSize/2;
+        MinDist(Ic) = min(sqrt((CatXAll - CX).^2 + (CatYAll - CY).^2));
+    end
+    [~, Best] = max(MinDist);
+
+    XRange = Corners(Best,1):(Corners(Best,1) + PatchSize - 1);
+    YRange = Corners(Best,2):(Corners(Best,2) + PatchSize - 1);
+    Patch = Image(YRange, XRange);
+
+    % NB: mean, not median -- the patch is already guaranteed source-free (chosen to be
+    % far from every source), so there's no outlier to be robust against, and at these
+    % low background counts (Poisson, right-skewed) the median measurably underestimates
+    % the true mean; that small per-pixel bias, multiplied by a large aperture area in
+    % elopMeasureSNR's curve of growth, was inflating the enclosed flux without bound
+    BackPerPix  = mean(Patch, 'all');
+    NoisePerPix = std(Patch, 0, 'all');
 end
 
 function Mask = elopCircleMask(NPix)
