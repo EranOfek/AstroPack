@@ -4,12 +4,14 @@ function Result = ELOPsim(Args)
     %     The table lists the full factorial combination of the input parameter ranges
     %     (one row per combination), together with the output file names used for the
     %     high-gain/low-gain ADU FITS images and the raw electron-count (CT) FITS image
-    %     written by the corresponding ultrasat.usim run, and SNRMin/SNRMax: the S/N
-    %     measured empirically from that row's own CT image (aperture photometry, not
-    %     usim's analytic CrudeSNR) across all of the row's sources -- both equal for a
-    %     single-source row, and the achieved range across sources for Template B/D.
-    %     The table file is re-written after each row completes, so a long run's
-    %     results-so-far survive an interruption.
+    %     written by the corresponding ultrasat.usim run; OutFileReg: a DS9-compatible
+    %     region file (image/pixel coordinates) marking every modelled source's design
+    %     geometry for that row (a circle for Template A/B, the polygon(s) for Template
+    %     C/D); and SNRMin/SNRMax: the S/N measured empirically from that row's own CT
+    %     image (aperture photometry, not usim's analytic CrudeSNR) across all of the
+    %     row's sources -- both equal for a single-source row, and the achieved range
+    %     across sources for Template B/D. The table file is re-written after each row
+    %     completes, so a long run's results-so-far survive an interruption.
     % Input : * ...,key,val,...
     %         'Filter'      - cell array of filter names. Default is {'UV','VIS'}.
     %         'Temperature' - cell array of detector temperatures [K]. Default is {200,300}.
@@ -44,7 +46,7 @@ function Result = ELOPsim(Args)
     %                         solved (from the ExtMag trial run's CrudeSNR, which scales
     %                         exactly with flux) so that the row's source(s) reach this
     %                         crude S/N; all sources in a row share one magnitude, solved
-    %                         from the first source. Default is 30.
+    %                         from the first source. Default is 50.
     %         'TemplateACircleRadius' - [arcsec] radius of the Template 'A' test source
     %                         disk, reused for each source of the Template 'B' grid.
     %                         Default is 10.
@@ -97,7 +99,7 @@ function Result = ELOPsim(Args)
         Args.UVSpecFile  = '';
         Args.VISSpecFile = '';
         Args.ExtMag      = 15;
-        Args.TargetSNR   = 30;
+        Args.TargetSNR   = 50;
 
         Args.TemplateACircleRadius = 10; % [arcsec]
         Args.TemplateBGridM        = 4;
@@ -123,6 +125,7 @@ function Result = ELOPsim(Args)
     OutFileHI   = cell(NumRows,1);
     OutFileLO   = cell(NumRows,1);
     OutFileCT   = cell(NumRows,1);
+    OutFileReg  = cell(NumRows,1);
     SNRMin      = NaN(NumRows,1);
     SNRMax      = NaN(NumRows,1);
 
@@ -150,9 +153,10 @@ function Result = ELOPsim(Args)
                                 Args.OutName, Irow, Filter{Irow}, Temperature(Irow), ...
                                 Template{Irow}, Radius(Irow), Focus(Irow), Rotation(Irow), Tile{Irow});
 
-                            OutFileHI{Irow} = sprintf('%s_HI.fits', BaseName);
-                            OutFileLO{Irow} = sprintf('%s_LO.fits', BaseName);
-                            OutFileCT{Irow} = sprintf('%s_CT.fits', BaseName);
+                            OutFileHI{Irow}  = sprintf('%s_HI.fits', BaseName);
+                            OutFileLO{Irow}  = sprintf('%s_LO.fits', BaseName);
+                            OutFileCT{Irow}  = sprintf('%s_CT.fits', BaseName);
+                            OutFileReg{Irow} = sprintf('%s_REG.reg', BaseName);
                         end
                     end
                 end
@@ -161,7 +165,7 @@ function Result = ELOPsim(Args)
     end
 
     Result = table(N, Filter, Temperature, Template, Radius, Focus, Rotation, Tile, ...
-        OutFileHI, OutFileLO, OutFileCT, SNRMin, SNRMax);
+        OutFileHI, OutFileLO, OutFileCT, OutFileReg, SNRMin, SNRMax);
 
     TableFullName = sprintf('%s%s%s', Args.OutDir, '/', Args.TableName);
     writetable(Result, TableFullName);   % SNRMin/SNRMax start as NaN, filled in and
@@ -239,6 +243,13 @@ function Result = ELOPsim(Args)
             'DataType', 'int16', 'Append', false, 'OverWrite', true, 'WriteTime', true);
         FITS.write(Sim.Image, sprintf('!%s/%s', Args.OutDir, Result.OutFileCT{Irow}), ...
             'DataType', 'single', 'Append', false, 'OverWrite', true, 'WriteTime', true);
+
+        % a DS9-compatible region file marking every modelled source's own design
+        % geometry (a circle for Template A/B, the user-supplied polygon(s) for
+        % Template C/D) in image (pixel) coordinates -- the FITS files above carry no
+        % WCS. Uses the nominal/design shape, not the PSF/focus-blurred apparent extent.
+        elopWriteRegionFile(sprintf('%s/%s', Args.OutDir, Result.OutFileReg{Irow}), ...
+            Result.Template{Irow}, CatX, CatY, CatX0, CatY0, Args);
 
         % empirically measure the S/N of every source directly from the simulated
         % counts image (aperture photometry; background/noise from a fixed patch chosen
@@ -544,6 +555,38 @@ function [BackPerPix, NoisePerPix] = elopReferenceBackground(Image, CatXAll, Cat
     % elopMeasureSNR's curve of growth, was inflating the enclosed flux without bound
     BackPerPix  = mean(Patch, 'all');
     NoisePerPix = std(Patch, 0, 'all');
+end
+
+function elopWriteRegionFile(FileName, Template, CatX, CatY, CatX0, CatY0, Args)
+    % Write a DS9-compatible region file (via DS9_new.regionWrite) marking every
+    % modelled source in a row, in image (pixel) coordinates. Template 'A'/'B': a
+    % circle per source, of the nominal Args.TemplateACircleRadius. Template 'C'/'D':
+    % the user-supplied polygon(s) (Args.TemplatePolygons), reconstructed to absolute
+    % pixel vertices from the row's shared center (CatX0, CatY0) -- the same convention
+    % elopPolygonSource uses -- rather than each polygon's own bounding-box center
+    % (CatX/CatY), since the vertices are defined relative to the shared center.
+    PixSizeArcsec = elopPixSizeArcsec();
+    switch Template
+        case {'A', 'B'}
+            RadiusPix = Args.TemplateACircleRadius / PixSizeArcsec;
+            DS9_new.regionWrite([CatX(:), CatY(:)], 'FileName', FileName, 'Coo', 'image', ...
+                'Marker', 'circle', 'Size', RadiusPix, 'Color', 'green', ...
+                'PrintIndividualProp', false);
+
+        case {'C', 'D'}
+            for Ip = 1:1:numel(Args.TemplatePolygons)
+                Vertices = Args.TemplatePolygons{Ip};
+                VertX = CatX0 + Vertices(:,1) / PixSizeArcsec;
+                VertY = CatY0 + Vertices(:,2) / PixSizeArcsec;
+                DS9_new.regionWrite([VertX(:), VertY(:)], 'FileName', FileName, 'Coo', 'image', ...
+                    'Marker', 'polygon', 'Color', 'green', 'Append', Ip > 1, ...
+                    'PrintIndividualProp', false);
+            end
+
+        otherwise
+            error('ultrasat:ELOPsim:TemplateNotImplemented', ...
+                'Template ''%s'' is not yet implemented (only ''A'', ''B'', ''C'', ''D'' are supported), exiting..', Template);
+    end
 end
 
 function Mask = elopCircleMask(NPix)
