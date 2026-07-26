@@ -1016,7 +1016,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             Nx    = max(3, ceil( Args.ExtSizeRA(Iext)  / Grain ));
             Ny    = max(3, ceil( Args.ExtSizeDec(Iext) / Grain ));
             % imUtil.art.addSources requires odd-sized stamps; round up to the next odd
-            % value here so the final convolved stamp (SzC below) is never left even
+            % value here so the final convolved stamp (ConvStamp below) is never left even
             Nx    = Nx + 1 - mod(Nx, 2);
             Ny    = Ny + 1 - mod(Ny, 2);
 
@@ -1047,19 +1047,37 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
             %%%%%%%%%%%%%%%%%%%%% convolve the profile with the rotated PSF kernel
 
-            % conv2_fft expects its 2nd argument (the kernel) at its own natural,
-            % un-padded size -- it pads/crops internally to stay centered like
-            % conv2(Mat1,Mat2,'same'). Pre-padding both inputs to an equal size
-            % breaks that internal centering and shifts the result by roughly
-            % half the padded canvas (source appears near a corner). Only pad
-            % Profile up to be elementwise >= WPSFRot, and pass WPSFRot untouched.
-            SzC = max(size(Profile), size(WPSFRot));
-            Profile2 = padarray(Profile, SzC-size(Profile), 0, 'post');
+            % conv2_fft's internal recentering offset, Sh1 = floor(min(size(Mat1),
+            % size(Mat2))*0.5), is only correct when Mat2 (the kernel) is at its own
+            % natural, un-padded size and is genuinely the smaller of the two -- if
+            % Mat1 and Mat2 end up the same size (e.g. from padding the smaller one up
+            % to match the larger), Sh1 degenerates into half of the WHOLE canvas
+            % instead of half the kernel, and the result lands near a corner. Profile is
+            % usually larger than WPSFRot for extended sources, but WPSFRot (the PSF
+            % stamp) is often the larger one for compact sources -- e.g. Template A/B in
+            % ultrasat.ELOPsim's small circles vs. a broad off-axis PSF -- so always
+            % orient the call with the genuinely larger side as Mat1 (natural size) and
+            % the genuinely smaller side as Mat2 (natural size, never padded).
+            % Convolution is commutative, so swapping which one is Mat1 only changes the
+            % output canvas size, not the result's content.
+            if all(size(Profile) >= size(WPSFRot))
+                Mat1 = Profile; Mat2 = WPSFRot;
+            elseif all(size(WPSFRot) >= size(Profile))
+                Mat1 = WPSFRot; Mat2 = Profile;
+            else
+                % neither dominates in both dimensions (a rare mixed aspect-ratio case
+                % for our profile/PSF shapes) -- pad each up to the elementwise max as
+                % before; conv2_fft's Sh1 offset is not exactly right in this fallback
+                % (same known limitation, now confined to this edge case only)
+                SzC  = max(size(Profile), size(WPSFRot));
+                Mat1 = padarray(Profile, SzC-size(Profile), 0, 'post');
+                Mat2 = padarray(WPSFRot, SzC-size(WPSFRot), 0, 'post');
+            end
 
             % conv2_fft returns a complex-typed array via ifft2 (a floating-point-noise
             % imaginary part, since it never discards it); take the real part, since the
             % convolution of two real inputs is mathematically real.
-            ConvStamp = real(imUtil.filter.conv2_fft(Profile2, WPSFRot));
+            ConvStamp = real(imUtil.filter.conv2_fft(Mat1, Mat2));
             ConvStamp = ConvStamp ./ sum(ConvStamp, 'all'); % renormalize to unit flux
 
             ConvStampCell{Iext} = ConvStamp;
