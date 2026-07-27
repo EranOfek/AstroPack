@@ -293,15 +293,21 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
      
     % allocate TableForDB:
     TableForDB=allocateTableForDB(TableForDB, Nim, Args.ClassID);
-    
+
+    % FlagGoodImages tracks images that passed all quality checks so far.
+    % It is initialized all-true and progressively ANDed with each check, so
+    % it may become all-false at any stage. Each check is guarded accordingly.
+    % RejectStage records the first check that rejected all images (if any).
+    FlagGoodImages = true(Nim,1);
+    NotEmptyImage  = true(Nim,1);   % default; overwritten if CheckEmpty is used
+    RejectStage    = '';
+
     % Check for empty images
     if Args.CheckEmpty
         NotEmptyImage = ~AI.isemptyImage;
-        if any(~NotEmptyImage)
-            TableForDB.NotEmptyImage = NotEmptyImage;            
-        end
         TableForDB.NotEmptyImage = NotEmptyImage;
-        FlagGoodImages = NotEmptyImage;
+        FlagGoodImages = FlagGoodImages & NotEmptyImage;
+        RejectStage    = updateRejectStage(RejectStage, FlagGoodImages, 'empty image');
     end
 
     % check for images with wrong size
@@ -314,10 +320,11 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
         TableForDB.CorrectSize = FlagCorrectSize;
 
         FlagGoodImages = FlagGoodImages & FlagCorrectSize;
+        RejectStage    = updateRejectStage(RejectStage, FlagGoodImages, 'incorrect image size');
     end
 
     % update header with SoftVersion keyword
-    if Args.AddGitVersion
+    if Args.AddGitVersion && any(FlagGoodImages)
         VerString = tools.git.getVersion;
         % remove non ascii characters:
         Bad = double(char(VerString)) > 127;
@@ -326,7 +333,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     end
     
     % add raw image ID
-    if Args.AddRawImageID
+    if Args.AddRawImageID && any(FlagGoodImages)
         % populate LEVEL and CROPID
         AI = AI.setKeyVal('LEVEL','raw');
         AI = AI.setKeyVal('CROPID',0);
@@ -337,32 +344,34 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     end
     
     % global background
-    if Args.GlobalBackLevel
+    if Args.GlobalBackLevel && any(FlagGoodImages)
         % need to call it in ImProc...
          [TableForDB.GoodGlobalBack, TableForDB.FracPixAboveThreshold, TableForDB.Median] = imProc.quality.backgroundLevel(AI, 'UseMex',Args.UseMex, Args.backgroundLevelArgs{:});
          FlagGoodImages = FlagGoodImages & TableForDB.GoodGlobalBack;
+         RejectStage    = updateRejectStage(RejectStage, FlagGoodImages, 'global background level');
     end
 
     % histogram anomaly
-    if Args.HistAnomaly
+     if Args.HistAnomaly && any(FlagGoodImages)
         % need an imProc version...
-        [TableForDB.HistOK(FlagGoodImages)] = ~imProc.quality.histAnomaly(AI, Args.histAnomalyArgs{:});
+        TableForDB.HistOK = ~imProc.quality.histAnomaly(AI, Args.histAnomalyArgs{:});
         FlagGoodImages = FlagGoodImages & TableForDB.HistOK;
-        
+        RejectStage    = updateRejectStage(RejectStage, FlagGoodImages, 'histogram anomaly');
     end
 
     % many pixels with the same value
-    if ~isempty(Args.MaxNBadVal)
+    if ~isempty(Args.MaxNBadVal) && any(FlagGoodImages)
         for Iim=1:1:Nim
             TableForDB.NpixWithBadVal(Iim)   = sum(AI(Iim).ImageData.Image(:)==Args.BadVal);
         end
         TableForDB.NpixWithBadValOK = TableForDB.NpixWithBadVal<Args.MaxNBadVal;
         FlagGoodImages = FlagGoodImages & TableForDB.NpixWithBadValOK;
+        RejectStage    = updateRejectStage(RejectStage, FlagGoodImages, 'too many fixed-value pixels');
     end
-       
+
 
     % PSF based on image ACF
-    if Args.GlobalBadPSF
+    if Args.GlobalBadPSF && any(FlagGoodImages)
         % Crop image
         for Iim=1:1:Nim
             if NotEmptyImage(Iim)
@@ -391,18 +400,38 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
         end
         TableForDB.GoodACF_FWHM = TableForDB.ACF_FWHM<Args.MaxFWHM;
         FlagGoodImages = FlagGoodImages & TableForDB.GoodACF_FWHM;
+        RejectStage    = updateRejectStage(RejectStage, FlagGoodImages, 'bad PSF (ACF FWHM)');
     end
 
     % Populate GoodImages
     TableForDB.GoodImages = FlagGoodImages;
-    % Populate EnoughImages (i.e., >=MinNim)
+    % Populate SelectedImages (i.e., GoodImages and total passing >= MinNim)
     TableForDB.SelectedImages = TableForDB.GoodImages & sum(FlagGoodImages)>=Args.MinNim;
 
     % return selected images
     AI = AI(TableForDB.SelectedImages);
     NimGood = numel(AI);
-    % update header
 
+    % No useful RAW images survived the quality checks (all rejected, or fewer
+    % than MinNim passed). Return peacefully with the full TableForDB (which
+    % holds every image's rejection flags), empty AI, and empty JD/ExpTime, so
+    % the caller can record the status, skip this visit, and unwind cleanly.
+    if NimGood==0
+        if isempty(RejectStage)
+            RejectStage = sprintf('fewer than MinNim=%d images passed', Args.MinNim);
+        end
+        warning('prePrep:noGoodImages',...
+                'No useful RAW images: all %d images rejected (stage: %s)', Nim, RejectStage);
+
+        TableForDB = struct2table(TableForDB);
+        JD_AI      = [];
+        ExpTime    = [];
+
+        if ~isempty(Args.LogObj)
+            Args.LogObj.writeLog(sprintf('prePrep: no useful RAW images (all %d rejected, stage: %s)', Nim, RejectStage), LogLevel.Info);
+        end
+        return
+    end
 
     % UPDATE/fix header
 
@@ -412,24 +441,27 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     end
 
 
-    % add header keywords
+    % add header keywords from the file name literals.
+    % AFN is built from the full image list; IndGood maps each selected image
+    % (AI(Iim)) back to its position in that full list.
     if ~isempty(Args.AddFileNameLiteralsToHeader)
-        AFN = AstroFileName(Images);
-        
+        AFN     = AstroFileName(Images);
+        IndGood = find(TableForDB.SelectedImages);
+
         Nlit = numel(Args.AddFileNameLiteralsToHeader);
         for Ilit=1:1:Nlit
             for Iim=1:1:NimGood
-                AI(Iim).HeaderData.replaceVal(char(upper(Args.AddFileNameLiteralsToHeader{Ilit})), char(AFN.(Args.AddFileNameLiteralsToHeader{Ilit})(Iim)));
+                Igood = IndGood(Iim);
+                AI(Iim).HeaderData.replaceVal(char(upper(Args.AddFileNameLiteralsToHeader{Ilit})), char(AFN.(Args.AddFileNameLiteralsToHeader{Ilit})(Igood)));
             end
         end
     end
 
-    
+
 
     TableForDB = struct2table(TableForDB);
-    %TableForDB = TableForDB(FlagGoodImages,:);
 
-   
+
 
     % write DIRYEAR, DIRMON, DIRDAY, FILETIME
     if Args.FixJD
@@ -444,19 +476,26 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
             AI(Iai).HeaderData.insertKey(Data, Inf);
         end
     end
-   
+
 
 
     % write log
     if ~isempty(Args.LogObj)
-        Nim = numel(AI);
         Msg = sprintf('prePrep quality checks: %d out of %d images passed', NimGood, Nim);
-        Obj.writeLog(Msg, LogLevel.Info);
+        Args.LogObj.writeLog(Msg, LogLevel.Info);
     end
 
 end
 
 % Aux functions:
+function Stage = updateRejectStage(Stage, FlagGoodImages, Name)
+    % Record the name of the first check that rejected all images.
+    % Once set, Stage is not overwritten by later checks.
+    if isempty(Stage) && ~any(FlagGoodImages)
+        Stage = Name;
+    end
+end
+
 function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
     % allocate TableForDB
 
