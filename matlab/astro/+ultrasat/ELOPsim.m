@@ -235,6 +235,19 @@ function Result = ELOPsim(Args)
 
         if Result.Focus(Irow) ~= 1
             for Ip = 1:1:NumSrc
+                if isempty(Args.DefocusKernel)
+                    % grow the source's own canvas (zero-padded, centered -- valid since
+                    % it's already zero outside the source's compact footprint) so it's
+                    % large enough to hold the blur kernel at its full physical diameter;
+                    % otherwise the kernel disk saturates into a uniform full-canvas smear
+                    % once its diameter exceeds the canvas (all such foci become visually
+                    % identical), and conv2's implicit zero-padding at the canvas edge
+                    % discards the flux that should have spread beyond it.
+                    DiameterArcsec = elopDefocusDiameterArcsec(Result.Focus(Irow), Args);
+                    [ExtProfileMatrix{Ip}, ExtSizeRAVec(Ip)] = elopPadCanvasForBlur( ...
+                        ExtProfileMatrix{Ip}, ExtSizeRAVec(Ip), DiameterArcsec, Args.ImRes);
+                    ExtSizeDecVec(Ip) = ExtSizeRAVec(Ip);
+                end
                 GridScaleArcsec = ExtSizeRAVec(Ip) / size(ExtProfileMatrix{Ip}, 2);
                 Kernel = elopFocusKernel(Result.Focus(Irow), GridScaleArcsec, size(ExtProfileMatrix{Ip}), Args);
                 ExtProfileMatrix{Ip} = elopConvolveKernel(ExtProfileMatrix{Ip}, Kernel);
@@ -539,22 +552,50 @@ function Profile = elopResampleToUsimGrid(Profile, ExtSizeRA, ExtSizeDec, UsimIm
     Profile = imresize(Profile, [Ny Nx], 'bilinear');
 end
 
+function DiameterArcsec = elopDefocusDiameterArcsec(Focus, Args)
+    % The physical defocus blur disk diameter [arcsec] for Focus (2-5), converted from
+    % Args.DefocusDiameterMicron(Focus-1) [micron] via
+    % D_arcsec = D_micron*(1000*1.1*330)/206265.
+    DiameterMicron = Args.DefocusDiameterMicron(Focus - 1);
+    DiameterArcsec = DiameterMicron * (1000 * 1.1 * 330) / 206265;
+end
+
+function [PaddedMask, NewExtSize] = elopPadCanvasForBlur(Mask, ExtSize, DiameterArcsec, ImRes)
+    % Enlarge Mask's square canvas (zero-padded, centered -- valid since Mask is already
+    % zero outside its own compact footprint) so it comfortably contains the blur kernel
+    % of diameter DiameterArcsec, avoiding the kernel-disk saturating into a uniform
+    % full-canvas smear (once its diameter exceeds the canvas, R <= Radius becomes true
+    % everywhere) and the resulting loss of flux that conv2's implicit zero-padding
+    % discards beyond the original canvas edge. The canvas only ever grows: NewExtSize =
+    % max(ExtSize, DiameterArcsec*1.1), at the same Args.ImRes grid scale as Mask, then
+    % forced to an odd sample count so the kernel's center falls exactly on a grid cell
+    % (matching elopResampleToUsimGrid's own odd-forcing for the same reason).
+    Grain = elopPixSizeArcsec() / ImRes;
+    NewNPix = max(3, ceil(max(ExtSize, DiameterArcsec * 1.1) / Grain));
+    NewNPix = NewNPix + 1 - mod(NewNPix, 2);
+    NewExtSize = NewNPix * Grain;
+
+    OldNPix = size(Mask, 1);
+    PaddedMask = zeros(NewNPix, NewNPix);
+    Offset = floor((NewNPix - OldNPix) / 2);
+    PaddedMask(Offset+1 : Offset+OldNPix, Offset+1 : Offset+OldNPix) = Mask;
+end
+
 function Kernel = elopFocusKernel(Focus, GridScaleArcsec, MaskSize, Args)
     % The defocus blur kernel for Focus (2-5) on a profile grid at GridScaleArcsec
     % [arcsec/cell]. Args.DefocusKernel, if non-empty, is used as-is (an arbitrary
     % user-supplied kernel, already at the mask's own pixel grid scale) for every
     % Focus level > 1. Otherwise the kernel is a disk of diameter
-    % Args.DefocusDiameterMicron(Focus-1) [micron], converted to arcsec via
-    % D_arcsec = D_micron*(1000*1.1*330)/206265, and shaped per Args.DefocusKernelShape:
-    % 'tophat' (uniform disk, hard cutoff) or 'topcosine' (cosine-tapered disk, smoothly
-    % reaching 0 at the same diameter instead of an abrupt edge).
+    % Args.DefocusDiameterMicron(Focus-1) [micron] (see elopDefocusDiameterArcsec),
+    % shaped per Args.DefocusKernelShape: 'tophat' (uniform disk, hard cutoff) or
+    % 'topcosine' (cosine-tapered disk, smoothly reaching 0 at the same diameter instead
+    % of an abrupt edge).
     if ~isempty(Args.DefocusKernel)
         Kernel = Args.DefocusKernel;
         return
     end
 
-    DiameterMicron = Args.DefocusDiameterMicron(Focus - 1);
-    DiameterArcsec = DiameterMicron * (1000 * 1.1 * 330) / 206265;
+    DiameterArcsec = elopDefocusDiameterArcsec(Focus, Args);
     DiameterPix    = DiameterArcsec / GridScaleArcsec;
 
     switch lower(Args.DefocusKernelShape)
