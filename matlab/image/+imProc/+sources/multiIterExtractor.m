@@ -136,6 +136,14 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     %                   with the empirical PSF templates; if false, use
     %                   the analytic PSF defined by 'PsfFunPar'.
     %                   Default is true.
+    %                   NB: the main (photometry) PSF built internally is
+    %                   WingsMethod='empirical' (see imProc.psf.populatePSF),
+    %                   for accurate flux calibration. The matched-filter
+    %                   detection template above uses a separate wing splice
+    %                   from the same core, WingsMethod='analytic' with
+    %                   Alpha=2 (imUtil.psf.buildPSF's BuildDetectionPSF
+    %                   option) - the only value validated safe against the
+    %                   #1103 bogus-detection-ring artifact. See issue #1178.
     %            'PsfFunPar' - Parameters of the analytic PSF model used
     %                   when FindWithEmpiricalPSF=false.
     %                   Default is {[0.1;1.0;1.5]}.
@@ -503,6 +511,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                    'RePopulatePSF',true,...
                                                    'PopExtended',Args.PopExtended,...
                                                    'ExtendedSize',Args.ExtendedSize,...
+                                                   'WingsMethod','empirical',...
+                                                   'BuildDetectionPSF',true,...
                                                    'Alpha',Args.Alpha);
     end
     
@@ -604,13 +614,14 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             % end
         end
 
-        SizePSF = size(AI.PSFData.DataPSF);
-        % if isempty(size(AI.PSFData.DataPSF))
-        %     % no PSF / revert to anal;ytical PSF
-        %     FindWithEmpiricalPSF = false;
-        % else
-        %     FindWithEmpiricalPSF = Args.FindWithEmpiricalPSF;
-        % end
+        % Detection-purpose PSF slice: if the PSF was built with
+        % BuildDetectionPSF=true, this is the analytic/Alpha=2 wing splice
+        % validated safe against the #1103 bogus-detection-ring artifact
+        % (see imUtil.psf.buildPSF). If not (e.g. an object populated
+        % without that option), getPSF's 'Purpose' request is a no-op and
+        % this is just the plain PSF, same as before.
+        DetectionPSFStamp = AI.PSFData.getPSF('PsfArgs',{'Purpose',2});
+        SizePSF = size(DetectionPSFStamp);
         if isempty(AI.PSFData.DataPSF)
             % No PSF - do not look for stars!
             % See issue #963 - consider calling findMeasureSources
@@ -634,13 +645,13 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                         if ~isempty(Args.ConvFunExtendedPSF)
                             ConvExtended = Args.ConvFunExtendedPSF(Args.ConvFunExtendedPSF_Args{:}, SizePSF);
                             PSFTemplate = repmat(single(0), [SizePSF, 3]);
-                            PSFTemplate(:,:,3) = conv2(AI.PSFData.DataPSF, ConvExtended, 'same');
+                            PSFTemplate(:,:,3) = conv2(DetectionPSFStamp, ConvExtended, 'same');
                         else
                             PSFTemplate = repmat(single(0), [SizePSF, 2]);
                         end
-                        
-                        PSFTemplate(:,:,1) = Args.InitPsf(Args.InitPsfArgs{1}(1),size(AI.PSF)); % a narrow delta-like PSF for CR rejection                 
-                        PSFTemplate(:,:,2) = AI.PSFData.DataPSF; % the empirical PSF
+
+                        PSFTemplate(:,:,1) = Args.InitPsf(Args.InitPsfArgs{1}(1),size(AI.PSF)); % a narrow delta-like PSF for CR rejection
+                        PSFTemplate(:,:,2) = DetectionPSFStamp; % detection-purpose PSF (see above)
                         
                         % check the information content overlap between the PSF
                         % and extended PSF:
@@ -712,9 +723,11 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 
                 % measure the PSF (if we believe that the PSF is flux-dependent?) or use the previous one 
                 ReCalcPSF = any(Args.ReCalcPsfIter==Iiter);
-                if ReCalcPSF 
+                if ReCalcPSF
                     %|| isempty(AI.PSF)
-                    AI = imProc.psf.populatePSF(AI,Args.populatePSFArgs{:});                
+                    AI = imProc.psf.populatePSF(AI,Args.populatePSFArgs{:},...
+                                                    'WingsMethod','empirical',...
+                                                    'BuildDetectionPSF',true);
                 end
                 
                 % PSF photometry

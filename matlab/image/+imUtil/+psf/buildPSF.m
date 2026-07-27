@@ -1,4 +1,4 @@
-function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
+function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(Image, Args)
     % Build a master PSF from an image (or a cube of stamps).
     %   Given a 2D image or a 3D cube of stellar stamps, construct a master
     %   PSF by stacking sub-pixel-shifted, normalized cutouts of stars.
@@ -131,6 +131,21 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
     %                   'cosbell' for that image. Default is 8.
     %            'FitAnalytical' - Fit PSF with analytic function and
     %                   use it. Default is false.
+    %            'BuildDetectionPSF' - Also return a second wing
+    %                   splice built from the same pre-wingsFix core,
+    %                   using WingsMethod='analytic' and
+    %                   'DetectionWingsPowerLaw' regardless of the main
+    %                   WingsMethod. Intended for cross-correlation
+    %                   source detection (see
+    %                   imProc.sources.multiIterExtractor), where
+    %                   Alpha=2 is the only value validated safe
+    %                   against the #1103 bogus-detection-ring
+    %                   artifact; other WingsMethod choices (and
+    %                   steeper Alpha) reintroduce it. Returned as the
+    %                   6th output, DetectionPSF. Default is false.
+    %            'DetectionWingsPowerLaw' - Power-law index used for
+    %                   the detection-PSF wing splice when
+    %                   BuildDetectionPSF=true. Default is 2.
     % Output : - Result, a struct with the following fields:
     %            .StartNsrc - Number of sources entering the pipeline
     %                         (after the initial SN cut and stamping).
@@ -210,6 +225,9 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
         Args.SaturatedMask             = []; % logical/numeric, true where a pixel is saturated; used only by WingsMethod='empirical'
         Args.WingRangeSN               = []; % [SNmin, SNmax] for the bright-star wing-calibration sample; empty -> [RangeSN(2), Inf]
         Args.MinWingStars              = 8;  % minimum bright stars required to trust the empirical wing; else falls back to cosbell
+
+        Args.BuildDetectionPSF         = false; % also return a 2nd wing splice (analytic, DetectionWingsPowerLaw) from the same core, for cross-correlation source detection
+        Args.DetectionWingsPowerLaw    = 2;     % power-law index used for the detection-PSF wing splice; 2 is the only value validated as safe for multiIterExtractor's matched filter
 
         Args.ExtendedSize              = [1501 1501];
         Args.Alpha                     = 1;
@@ -488,6 +506,22 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
             end
         end
 
+        DetectionPSF = [];
+        ExtendedPSF  = []; % population logic below is currently disabled (commented out); kept assigned so callers requesting DetectionPSF (a later positional output) don't error on this one being unassigned
+        if Args.BuildDetectionPSF
+            % Same pre-wingsFix core as the main output below, spliced with
+            % the wing treatment validated safe for cross-correlation
+            % source detection (imUtil.sources.multiIterExtractor), kept
+            % independent of whatever WingsMethod was requested for the
+            % main (photometry/subtraction) output.
+            DetectionPSF = imUtil.psf.wingsFix(MeanPSF, 'WingsMethod','analytic',...
+                                                         'SuppressThreshold',Args.SuppressThreshold,...
+                                                         'WingsPowerLaw',Args.DetectionWingsPowerLaw,...
+                                                         'SuppressFun',Args.SuppressFun,...
+                                                         'SuppressFunPars',Args.SuppressFunPars,...
+                                                         'ExtendedSize',Args.ExtendedSize);
+        end
+
         [MeanPSF,InnerRadius] = imUtil.psf.wingsFix(MeanPSF, 'WingsMethod',Args.WingsMethod,...
                                                              'SuppressThreshold',Args.SuppressThreshold,...
                                                              'WingsPowerLaw',Args.WingsPowerLaw,...
@@ -530,6 +564,7 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF] = buildPSF(Image, Args)
         VarPSF  = [];
         Nsrc    = 0;
         ExtendedPSF = [];
+        DetectionPSF = [];
     end
 
 end
