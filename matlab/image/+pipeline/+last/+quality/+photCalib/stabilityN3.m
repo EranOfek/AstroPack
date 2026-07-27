@@ -72,9 +72,61 @@ function MS = stabilityN3(Args)
         % Pattern), so we read it ONCE from the first surviving catalog and
         % broadcast XFULL = X + (ORIGSEC(1)-1), YFULL = Y + (ORIGSEC(3)-1)
         % into MS.Data as full [Nepoch x Nsrc] matrices - matches the shape
-        % convention every other Data field uses. Off by default; opt in when
-        % you want plotPhotStabilityMap / plotPhotStabilityXY to work in the
-        % XFULL / YFULL frame instead of native crop pixels.
+        % convention every other Data field uses. In Join mode (below)
+        % XFULL/YFULL come from joinCropsToCatalog directly, so this stamp
+        % becomes a no-op.
+        Args.JoinedMagLimit (1,1) double = Inf % Per-visit mag cut in Join mode
+        % When finite AND Args.Join=true, drop rows from every joined
+        % catalog whose Args.MagColForCut column exceeds this limit BEFORE
+        % mergeCatalogs. Motivation: the final MS.Data matrices are
+        % [Nvisit x Nsrc_pooled] per column, and Nsrc_pooled is dominated
+        % by the faint tail of sources detected in only a handful of
+        % visits (not usable for per-source scatter anyway). A limit of
+        % ~18 mag typically shrinks Nsrc by 10-50x, taking the MS memory
+        % peak from tens of GB to <1 GB on 200-visit Join runs. Bright
+        % sources (which is what stability characterises) survive.
+        Args.JoinedSNmin    (1,1) double = 0   % Per-visit SN cut in Join mode
+        % Same idea, gated on SN instead of mag. Applied AFTER MagLimit
+        % if both are set; either or both may be used.
+        Args.MagColForCut   (1,:) char   = 'MAG_APER_3'
+        % Column name used by JoinedMagLimit for the per-visit cut.
+        Args.CropOrigsecFromFile logical = false % Override HeaderData.ORIGSEC
+        % When true in Join mode, parse each file's crop index from its
+        % filename (LAST convention '_<crop>_sci_coadd_(Image|Cat)_<N>.fits')
+        % and stamp the correct full-frame ORIGSEC on AI(IC).HeaderData
+        % BEFORE joinCropsToCatalog runs. Use when the per-crop Cat headers
+        % carry a bogus ORIGSEC (typical after a joint-mode per-crop write
+        % that dropped the source coadd's ORIGSEC and left [1 Nx 1 Ny] in
+        % every crop). Requires FullFrameSize + CropSize + TileOrder.
+        Args.FullFrameSize (1,2) double  = [6388 9576]
+        % [Nx Ny] of the LAST focal-plane frame used to compute per-crop
+        % ORIGSEC via imUtil.cut.gridSubImage. Default matches the "new"
+        % pipeline (6388 x 9576). Override for other frame sizes.
+        Args.CropSize      (1,2) double  = [1726 1726]
+        % [Sx Sy] of each crop. Default matches the "old" LAST pipeline
+        % (1726 x 1726); pass [1716 1716] for the new pipeline.
+        Args.TileOrder     (1,:) char {mustBeMember(Args.TileOrder,{'rowmajor','colmajor'})} = 'colmajor'
+        % Order in which crop IDs fill the tile grid. 'colmajor' = old
+        % pipeline (fills bottom-to-top, then left-to-right). 'rowmajor'
+        % = new pipeline (fills left-to-right, then bottom-to-top). Ties
+        % into PhotCalibTrans.cropID2RowCol.
+        Args.Join       logical      = false % Per-visit join loader (deduped full-frame MS)
+        % When true, the loader groups the globbed files by visit stem
+        % (parsed via the LAST filename convention
+        % '<stem>_<crop>_sci_coadd_(Image|Cat)_<N>.fits'), and for each
+        % visit loads ALL crops as an AstroImage array (Image + sibling
+        % Cat) and runs imProc.cat.joinCropsToCatalog once, producing a
+        % single full-frame AstroCatalog per visit already stamped with
+        % XFULL/YFULL/CropID/AIRMASS and deduplicated at overlap zones
+        % (highest-SN wins per cluster). The AC array of these per-visit
+        % joins then merges into a SINGLE MS in the full-frame frame, so
+        % overlap sources are counted exactly once. Use for aggregated
+        % stability across all crops of a field without the double-
+        % counting artefact you get from a per-crop stabilityN3 loop.
+        % Pattern must match every crop of every visit (drop the crop-
+        % index token from a per-crop pattern), e.g.
+        %   'LAST*_1679.c_*_sci_coadd_Cat_1.fits'.
+        % Requires the sibling *_Image_1.fits file next to every Cat.
         Args.Mags       cell         = {'MAG_APER_3', 'MAGAB__APER_3'} %, 'MAG_PSF', 'MAGAB__PSF'}
         Args.FWHMKey    (1,:) char   = 'FWHM'    % Header key to read seeing/FWHM from
         Args.FWHMMax    (1,1) double = 10.0      % Drop catalogs whose FWHM exceeds this
@@ -175,7 +227,18 @@ function MS = stabilityN3(Args)
         end
         [~, ord] = sort({FileList.name});
         FileList = FileList(ord);
-        NEpochs  = min(NEpochsCap, numel(FileList));
+        % NEpochsCap unit differs by mode:
+        %   * per-crop (Join=false): cap is FILES (one file = one epoch).
+        %   * per-visit (Join=true): cap is VISITS. We can't apply it here
+        %     because file->visit grouping happens after the header peek;
+        %     defer to i_loadJoinedPerVisit (which caps whole visits so we
+        %     never load a partial 24-crop set).
+        if Args.Join
+            NEpochs = numel(FileList);   % peek every file's header
+        else
+            NEpochs  = min(NEpochsCap, numel(FileList));
+            FileList = FileList(1:NEpochs);
+        end
         fprintf('Loading %d catalogs from %s\n', NEpochs, DataPath);
 
         % Pass 1: header-only metadata read + quality cuts. Avoids loading
@@ -207,14 +270,28 @@ function MS = stabilityN3(Args)
         AM       = AM(KeepCat);
         NEpochs  = numel(FileList);
 
-        % Pass 2: load only the survivors.
-        fprintf('Loading %d surviving catalogs\n', NEpochs);
-        AC = AstroCatalog.empty(0, NEpochs);
-        for I = 1:NEpochs
-            FullPath = fullfile(DataPath, FileList(I).name);
-            AC(I)    = AstroCatalog(FullPath);
-            fprintf('  %3d: %s  JD=%.5f  %s=%.3f  AIRMASS=%.3f\n', ...
-                I, FileList(I).name, JD(I), Args.FWHMKey, FWHM(I), AM(I));
+        if Args.Join
+            % Per-visit loader: group surviving files by visit stem, then
+            % for each visit load the 24-crop AstroImage array and run
+            % joinCropsToCatalog. AC ends up length = number of visits
+            % (not files), and every AC(v) is a full-frame catalog with
+            % overlap sources already deduplicated. NEpochsCap is applied
+            % here at visit granularity so partial visits are never loaded.
+            [AC, VisitStems, JD, AM] = i_loadJoinedPerVisit( ...
+                DataPath, FileList, JD, AM, Args.FWHMKey, FWHM, NEpochsCap, ...
+                Args.JoinedMagLimit, Args.JoinedSNmin, Args.MagColForCut, ...
+                Args.CropOrigsecFromFile, Args.FullFrameSize, Args.CropSize, Args.TileOrder);
+            NEpochs = numel(AC);
+        else
+            % Pass 2: load only the survivors (per-file / per-crop).
+            fprintf('Loading %d surviving catalogs\n', NEpochs);
+            AC = AstroCatalog.empty(0, NEpochs);
+            for I = 1:NEpochs
+                FullPath = fullfile(DataPath, FileList(I).name);
+                AC(I)    = AstroCatalog(FullPath);
+                fprintf('  %3d: %s  JD=%.5f  %s=%.3f  AIRMASS=%.3f\n', ...
+                    I, FileList(I).name, JD(I), Args.FWHMKey, FWHM(I), AM(I));
+            end
         end
 
         BaseMatch  = {'RA','Dec','X','Y','SN','FLAGS', ...
@@ -230,6 +307,15 @@ function MS = stabilityN3(Args)
         % vs detector position without a rebuild. MAGERR_<suffix> is needed by
         % zp_meddiff if ApplyMedZP=true — gated to avoid bloating the merge.
         AllCols   = unique([Args.Mags, {'FLAGS','SN','X','Y'}], 'stable');
+        % In Join mode, promote XFULL/YFULL/CropID (produced by
+        % joinCropsToCatalog) so plotPhotStabilityMap/XY can address the
+        % full-frame frame directly. AddXYfull's post-hoc stamp becomes a
+        % no-op downstream because MS.Data.XFULL/YFULL already exist.
+        if Args.Join
+            JoinCols       = {'XFULL','YFULL','CropID'};
+            MatchedColums  = unique([MatchedColums, JoinCols], 'stable');
+            AllCols        = unique([AllCols,       JoinCols], 'stable');
+        end
         if Args.ApplyMedZP
             AllCols       = unique([AllCols,       ErrFields], 'stable');
             MatchedColums = unique([MatchedColums, ErrFields], 'stable');
@@ -262,7 +348,14 @@ function MS = stabilityN3(Args)
         % every epoch. Adds MS.Data.XFULL/YFULL as full [Nepoch x Nsrc]
         % matrices so downstream plotPhotStabilityMap('XField','XFULL',...)
         % works without a per-caller rebuild.
-        if Args.AddXYfull && isfield(MS.Data, 'X') && isfield(MS.Data, 'Y')
+        % Skip the post-hoc stamp when XFULL/YFULL are already on MS.Data —
+        % Join mode fills them via joinCropsToCatalog + the (correct)
+        % in-memory ORIGSEC override, and the on-disk file's ORIGSEC is
+        % often stale ([1 Nx 1 Ny] from a broken joint-write step). If we
+        % re-read ORIGSEC from the file here we would clobber the correct
+        % XFULL/YFULL with X + 0, Y + 0.
+        if Args.AddXYfull && isfield(MS.Data, 'X') && isfield(MS.Data, 'Y') ...
+                && ~isfield(MS.Data, 'XFULL')
             SamplePath = fullfile(DataPath, FileList(1).name);
             OS = [];
             for HDU = [2, 3, 1]   % same HDU search order as readHdrAny
@@ -474,6 +567,168 @@ function MS = stabilityN3(Args)
         title(sprintf('Stability across %d epochs', NEpochs));
     end
 end
+
+% =========================================================================
+function [AC, VisitStems, JDvis, AMvis] = i_loadJoinedPerVisit(DataPath, FileList, JDfile, AMfile, FWHMKey, FWHMfile, NEpochsCap, MagLimit, SNmin, MagColForCut, CropOrigsecFromFile, FullFrameSize, CropSize, TileOrder)
+    % Per-visit loader for stabilityN3's Join mode.
+    % Groups the surviving files by visit stem (parsed from the LAST
+    % filename convention '<stem>_<crop>_sci_coadd_(Image|Cat)_<N>.fits'),
+    % loads every crop of each visit as an AstroImage array via
+    % AstroImage.readProducts (Image + sibling Cat), and runs
+    % imProc.cat.joinCropsToCatalog to build ONE full-frame AstroCatalog
+    % per visit (already deduplicated at overlap zones by
+    % joinCropsToCatalog's own highest-SN cluster winner).
+    % NEpochsCap gates the number of VISITS loaded (not files), so
+    % partial 24-crop visits are never produced by the cap.
+    % Returns:
+    %   AC          - 1xNvisits AstroCatalog array (empty entries dropped)
+    %   VisitStems  - 1xNvisits cellstr of visit stems (for diagnostics)
+    %   JDvis, AMvis - per-visit JD and AIRMASS (copied from the visit's
+    %                  first surviving file - all crops of one visit share
+    %                  these header values).
+    Nfile = numel(FileList);
+    Stems = cell(1, Nfile);
+    CropIdx = nan(1, Nfile);
+    for I = 1:Nfile
+        [~, FName, ~] = fileparts(FileList(I).name);
+        Tok = regexp(FName, '^(.+?)_(\d+)_sci_coadd_(?:Image|Cat)_\d+$', 'tokens', 'once');
+        if ~isempty(Tok)
+            Stems{I} = Tok{1};
+            CropIdx(I) = str2double(Tok{2});
+        else
+            Stems{I} = FName;   % ungrouped filenames become singleton visits
+        end
+    end
+    [Us, ~, IUs] = unique(Stems);
+    Nvis = numel(Us);
+    % Sort visits by first-file JD so the cap keeps a chronological prefix
+    % (matches the file-mode cap which keeps the first N sorted files).
+    FirstJD = nan(1, Nvis);
+    for V = 1:Nvis
+        M = find(IUs == V, 1);
+        FirstJD(V) = JDfile(M);
+    end
+    [~, VOrd] = sort(FirstJD);
+    if isfinite(NEpochsCap) && NEpochsCap > 0 && NEpochsCap < Nvis
+        fprintf('NEpochsCap=%d: keeping the earliest %d of %d visits\n', ...
+            NEpochsCap, NEpochsCap, Nvis);
+        VOrd = VOrd(1:NEpochsCap);
+    end
+    % Rebuild the ordering so the outer loop indexes visits in JD order.
+    Us  = Us(VOrd);
+    Rev = zeros(1, Nvis);
+    Rev(VOrd) = 1:numel(VOrd);
+    IUs = Rev(IUs);
+    KeepFile = IUs > 0;                    % files whose visit survived
+    IUs = IUs(KeepFile);
+    FileList = FileList(KeepFile);
+    JDfile   = JDfile(KeepFile);
+    AMfile   = AMfile(KeepFile);
+    FWHMfile = FWHMfile(KeepFile);
+    CropIdx  = CropIdx(KeepFile);
+    Nvis = numel(Us);
+    fprintf('Joining %d visits from %d file(s)\n', Nvis, numel(FileList));
+
+    % Precompute per-crop ORIGSEC table if override requested.
+    % gridSubImage returns rows in 'row-major, X changes fastest' order,
+    % which matches PhotCalibTrans.cropID2RowCol convention 'rowmajor':
+    % index i = (Row-1)*Ncols + Col. For 'colmajor' we translate CropID
+    % -> (Row, Col) -> rowmajor index -> row in the CCDSEC table.
+    OrigsecTable = [];
+    if CropOrigsecFromFile
+        RowMajor = imUtil.cut.gridSubImage(FullFrameSize, CropSize);
+        Ncols = ceil(FullFrameSize(1) / CropSize(1));
+        Nrows = ceil(FullFrameSize(2) / CropSize(2));
+        Ntiles = size(RowMajor, 1);
+        OrigsecTable = zeros(Ntiles, 4);
+        for K = 1:Ntiles
+            [R, C] = PhotCalibTrans.cropID2RowCol(K, Nrows, Ncols, TileOrder);
+            OrigsecTable(K, :) = double(RowMajor((R - 1) * Ncols + C, :));
+        end
+        fprintf('CropOrigsecFromFile: precomputed ORIGSEC for %d crops (%s, FullFrame=[%d %d], CropSize=[%d %d])\n', ...
+            Ntiles, TileOrder, FullFrameSize(1), FullFrameSize(2), CropSize(1), CropSize(2));
+    end
+
+    AC          = AstroCatalog.empty(0, Nvis);
+    VisitStems  = cell(1, Nvis);
+    JDvis       = nan(1, Nvis);
+    AMvis       = nan(1, Nvis);
+    Kept        = false(1, Nvis);
+    for V = 1:Nvis
+        M = find(IUs == V);
+        [~, Ord] = sort(CropIdx(M));
+        M = M(Ord);
+        CatPaths = arrayfun(@(m) fullfile(DataPath, FileList(m).name), M(:), 'UniformOutput', false);
+        % Sibling Image_1.fits paths — AstroImage.readProducts wants the
+        % Image side; the AstroFileName parser auto-attaches the Cat sibling.
+        ImgPaths = cellfun(@(p) strrep(p, '_Cat_1.fits', '_Image_1.fits'), CatPaths, 'UniformOutput', false);
+        try
+            AI_v = AstroImage.readProducts(ImgPaths, 'ExtraOutProduct', "Cat");
+            % Optional: override each crop's HeaderData.ORIGSEC using the
+            % crop index parsed from the filename. Fixes the "every crop's
+            % Cat header carries [1 Nx 1 Ny]" bug from joint-mode per-crop
+            % writeback, without which XFULL/YFULL collapse to X/Y.
+            if ~isempty(OrigsecTable)
+                for II = 1:numel(AI_v)
+                    Cid = CropIdx(M(II));
+                    if isfinite(Cid) && Cid >= 1 && Cid <= size(OrigsecTable, 1)
+                        AI_v(II).HeaderData.replaceVal({'ORIGSEC'}, ...
+                            {sprintf('[%d %d %d %d]', OrigsecTable(Cid, :))});
+                    end
+                end
+            end
+            [J, ~] = imProc.cat.joinCropsToCatalog(AI_v, 'Verbose', false);
+            if isempty(J) || isempty(J.Catalog)
+                fprintf('  %3d: %s  join yielded empty catalog, skipping\n', V, Us{V});
+                continue;
+            end
+            % Optional per-visit pre-merge cuts. Purpose is purely memory
+            % pressure: MS.Data ends up [Nvisit x Nsrc_pooled] per column,
+            % so dropping the faint tail here shrinks the peak by ~1-2
+            % orders of magnitude on typical LAST fields. Bright sources
+            % (which is what stability analysis characterises) survive.
+            NBefore = height(J.Table);
+            if isfinite(MagLimit)
+                Vn = J.Table.Properties.VariableNames;
+                if any(strcmp(Vn, MagColForCut))
+                    Keep = J.Table.(MagColForCut) < MagLimit;
+                    J.Catalog = J.Catalog(Keep, :);
+                end
+            end
+            if SNmin > 0
+                Vn = J.Table.Properties.VariableNames;
+                if any(strcmp(Vn, 'SN'))
+                    Keep = J.Table.SN >= SNmin;
+                    J.Catalog = J.Catalog(Keep, :);
+                end
+            end
+            NAfter = height(J.Table);
+            AC(V) = J;
+            VisitStems{V} = Us{V};
+            JDvis(V) = JDfile(M(1));
+            AMvis(V) = AMfile(M(1));
+            Kept(V)  = true;
+            if NAfter < NBefore
+                fprintf('  %3d: %s  %d crops joined  N=%d -> %d after cuts  JD=%.5f  %s=%.3f  AIRMASS=%.3f\n', ...
+                    V, Us{V}, numel(M), NBefore, NAfter, JDvis(V), FWHMKey, FWHMfile(M(1)), AMvis(V));
+            else
+                fprintf('  %3d: %s  %d crops joined  N=%d  JD=%.5f  %s=%.3f  AIRMASS=%.3f\n', ...
+                    V, Us{V}, numel(M), NAfter, JDvis(V), FWHMKey, FWHMfile(M(1)), AMvis(V));
+            end
+        catch ME
+            fprintf('  %3d: %s  load/join failed (%s); skipping\n', V, Us{V}, ME.message);
+        end
+    end
+    if ~any(Kept)
+        error('pipeline:last:quality:photCalib:stabilityN3:JoinFailed', ...
+              'No visits survived the load/join step in Join mode.');
+    end
+    AC         = AC(Kept);
+    VisitStems = VisitStems(Kept);
+    JDvis      = JDvis(Kept);
+    AMvis      = AMvis(Kept);
+end
+
 
 % =========================================================================
 function V = readHdrAny(FullPath, Keys)
