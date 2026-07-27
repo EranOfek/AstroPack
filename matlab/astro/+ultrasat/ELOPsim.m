@@ -55,26 +55,45 @@ function Result = ELOPsim(Args)
     %         'TemplateBGridSpacing' - [arcsec] center-to-center spacing of the Template
     %                         'B' grid points, axis-aligned with the detector and centered
     %                         on the row's Radius-derived position. Default is 200.
-    %         'TemplatePolygons' - a cell array of Nx2 [dRA, dDec] arcsec vertex-offset
-    %                         lists, one polygon per cell, all relative to the row's
-    %                         Radius-derived position (same axis-aligned convention as the
-    %                         Template 'B' grid). Template 'C' requires exactly 1 polygon;
-    %                         Template 'D' requires 1 or more. Required (no default) when
-    %                         the table includes a 'C' or 'D' row.
-    %         'DefocusFWHM' - [arcsec] FWHM of the default Gaussian defocus blur kernel,
-    %                         applied to every source's profile for Focus ~= 1 (Focus = 1
-    %                         means no blur). The same value is currently used for every
-    %                         Focus level > 1 -- a placeholder pending real per-Focus-level
-    %                         defocus data. Default is 5.
+    %         'TemplatePolygons' - a 1x1 cell array holding a single Nx2 [dRA, dDec]
+    %                         arcsec vertex-offset list, relative to the row's
+    %                         Radius-derived position (same axis-aligned convention as
+    %                         the Template 'B' grid). This is Template 'C''s shape.
+    %                         Required (no default) when the table includes a 'C' or 'D'
+    %                         row.
+    %         'TemplateDSquareLeg' - [arcsec] Template 'D' reuses Template 'C''s single
+    %                         polygon, translated to each of the 4 corners of a square
+    %                         of this side length, centered on the row's Radius-derived
+    %                         position (axis-aligned, corners at (+-leg/2, +-leg/2)).
+    %                         Default is 600.
+    %         'DefocusKernelShape' - 'tophat' (uniform disk, hard cutoff) or 'topcosine'
+    %                         (cosine-tapered disk, smoothly reaching 0 at the same
+    %                         diameter instead of an abrupt edge). Applied to every
+    %                         source's profile for Focus ~= 1 (Focus = 1 means no blur).
+    %                         Default is 'tophat'.
+    %         'DefocusDiameterMicron' - a 4-element vector, the blur kernel diameter
+    %                         [micron] for Focus = 2, 3, 4, 5 respectively, converted to
+    %                         arcsec via D_arcsec = D_micron*(1000*1.1*330)/206265.
+    %                         Default is [10 18 45 90].
     %         'DefocusKernel' - an optional 2D kernel matrix that, if non-empty, replaces
-    %                         the default Gaussian entirely for every Focus level > 1.
-    %                         Default is [].
+    %                         DefocusKernelShape/DefocusDiameterMicron entirely for every
+    %                         Focus level > 1. Default is [].
+    %         'ImRes'       - ELOPsim's own profile-building/blur-convolution grid
+    %                         resolution: every source profile (circle/polygon) is built
+    %                         and blurred at 1/ImRes of a detector pixel, then resampled
+    %                         to UsimImRes before being handed to usim.m. NOT the same as
+    %                         usim.m's own Args.ImRes (see UsimImRes below). Default is 10.
+    %         'UsimImRes'   - passed through to usim.m's own Args.ImRes and
+    %                         ExtOversampling; the resolution ELOPsim's own ImRes-grid
+    %                         profile is resampled to before being handed to usim.m.
+    %                         Default is 5.
     % Output : - a table of simulation parameters, one row per parameter combination.
     % NB: Template 'B' is currently a regular M x N grid only; a user-supplied custom grid
     %     (a table of arcsec shifts) is a planned future addition, not yet implemented.
-    %     The Focus > 1 defocus blur currently uses one shared kernel (DefocusFWHM /
-    %     DefocusKernel) for all Focus levels 2-5; distinct per-level kernels are a
-    %     planned future refinement once real ELOP defocus data is available.
+    %     The magnitude used for Focus > 1 rows is not solved independently -- it reuses
+    %     the value solved at Focus = 1 for the same Filter/Temperature/Template/Radius/
+    %     Rotation/Tile combination (Focus = 1 must therefore be included in Args.Focus
+    %     and be processed before the other Focus values for that combination).
     % Author : A. Krassilchtchikov (2026)
     % Example: T = ultrasat.ELOPsim('Template',{'A'},'Focus',{1}, ...
     %              'UVSpecFile','UV_spec.txt','VISSpecFile','VIS_spec.txt');
@@ -82,7 +101,7 @@ function Result = ELOPsim(Args)
         Args.Filter      = {'UV','VIS'};
         Args.Temperature = {200, 300};
         Args.Template    = {'A','B','C','D'};
-        Args.Radius      = {2, 3, 4};
+        Args.Radius      = {1, 4, 6};
         Args.Focus       = {1, 2, 3, 4, 5};
         Args.Rotation    = {0};
         Args.Tile        = 'B';
@@ -99,16 +118,28 @@ function Result = ELOPsim(Args)
         Args.UVSpecFile  = '';
         Args.VISSpecFile = '';
         Args.ExtMag      = 15;
-        Args.TargetSNR   = 50;
+        Args.TargetSNR   = 100;
 
         Args.TemplateACircleRadius = 10; % [arcsec]
         Args.TemplateBGridM        = 4;
         Args.TemplateBGridN        = 4;
         Args.TemplateBGridSpacing  = 200; % [arcsec]
         Args.TemplatePolygons      = {};
+        Args.TemplateDSquareLeg    = 600; % [arcsec]
 
-        Args.DefocusFWHM  = 5;  % [arcsec]
+        Args.DefocusKernelShape    = 'tophat'; % 'tophat' or 'topcosine'
+        Args.DefocusDiameterMicron = [10 18 45 90]; % Focus = 2,3,4,5 respectively
         Args.DefocusKernel = [];
+
+        Args.ImRes     = 10; % ELOPsim's own profile-building/blur-convolution grid
+                             % resolution: 1/ImRes of a detector pixel (NOT usim.m's own
+                             % Args.ImRes, see UsimImRes below)
+        Args.UsimImRes = 5;  % passed through to usim.m's own Args.ImRes and
+                             % ExtOversampling; the blurred profile is resampled from
+                             % this function's own Args.ImRes grid down (or up) to this
+                             % resolution before being handed to usim.m, replicating
+                             % usim.m's exact Nx/Ny formula so its own internal resize
+                             % of ExtProfileMatrix becomes a no-op
     end
 
     NumRows = numel(Args.Filter) * numel(Args.Temperature) * numel(Args.Template) * ...
@@ -171,6 +202,11 @@ function Result = ELOPsim(Args)
     writetable(Result, TableFullName);   % SNRMin/SNRMax start as NaN, filled in and
                                           % re-written after each row below
 
+    % magnitude solved at Focus = 1, keyed by the row's other parameters (Filter,
+    % Temperature, Template, Radius, Rotation, Tile), reused for Focus > 1 rows of the
+    % same combination instead of solving independently (see the NB above)
+    FocusMagCache = containers.Map('KeyType', 'char', 'ValueType', 'double');
+
     % run the simulations row by row
     for Irow = 1:1:NumRows
 
@@ -200,14 +236,24 @@ function Result = ELOPsim(Args)
         if Result.Focus(Irow) ~= 1
             for Ip = 1:1:NumSrc
                 GridScaleArcsec = ExtSizeRAVec(Ip) / size(ExtProfileMatrix{Ip}, 2);
-                Kernel = elopFocusKernel(GridScaleArcsec, size(ExtProfileMatrix{Ip}), Args);
+                Kernel = elopFocusKernel(Result.Focus(Irow), GridScaleArcsec, size(ExtProfileMatrix{Ip}), Args);
                 ExtProfileMatrix{Ip} = elopConvolveKernel(ExtProfileMatrix{Ip}, Kernel);
             end
+        end
+
+        % profiles above were built (and, if Focus > 1, blurred) on this function's own
+        % Args.ImRes grid; resample each one now onto the grid usim.m's own Args.ImRes =
+        % Args.UsimImRes expects, so usim.m's internal resize of ExtProfileMatrix becomes
+        % a no-op rather than a second, undocumented interpolation step.
+        for Ip = 1:1:NumSrc
+            ExtProfileMatrix{Ip} = elopResampleToUsimGrid(ExtProfileMatrix{Ip}, ...
+                ExtSizeRAVec(Ip), ExtSizeDecVec(Ip), Args.UsimImRes);
         end
 
         ExtSpec = [repmat(SpecTab(:,2), 1, NumSrc), SpecTab(:,1)]; % usim.m's 'tab' convention: Nwave x (NumExt+1)
 
         CommonArgs = { ...
+            'ImRes', Args.UsimImRes, 'ExtOversampling', Args.UsimImRes, ...
             'ExtProfileType', 'matrix', 'ExtProfileMatrix', ExtProfileMatrix, ...
             'ExtAxisRatio', 1, 'ExtPA', 0, ...
             'ExtSizeRA', ExtSizeRAVec, 'ExtSizeDec', ExtSizeDecVec, ...
@@ -219,18 +265,35 @@ function Result = ELOPsim(Args)
 
         cprintf('hyper', '%s\n', sprintf('ELOPsim row %d/%d: %s', Irow, NumRows, Result.OutFileHI{Irow}));
 
-        % cheap trial pass: get CrudeSNR at Args.ExtMag (no noise/ADU pipeline, no
-        % files), then solve for the magnitude that reaches Args.TargetSNR, using the
-        % first source as the shared reference for the whole row (CrudeSNR scales
-        % exactly with flux, so this is an exact closed-form correction, not a guess)
-        TrialMagVec = repmat(Args.ExtMag, 1, NumSrc);
-        Trial = ultrasat.usim(CommonArgs{:}, 'ExtMag', TrialMagVec, 'SNROnly', true, 'OutType', 'none');
-        SNRTrial = Trial.CatData.Catalog(1, strcmp(Trial.CatData.ColNames, 'SNR'));
-        if ~(SNRTrial > 0) || isnan(SNRTrial)
-            error('ultrasat:ELOPsim:BadTrialSNR', ...
-                'Trial CrudeSNR = %g at ExtMag = %g is not usable to solve for TargetSNR, exiting..', SNRTrial, Args.ExtMag);
+        MagKey = sprintf('%s|%d|%s|%g|%g|%s', Result.Filter{Irow}, Result.Temperature(Irow), ...
+            Result.Template{Irow}, Result.Radius(Irow), Result.Rotation(Irow), Result.Tile{Irow});
+
+        if Result.Focus(Irow) == 1
+            % cheap trial pass: get CrudeSNR at Args.ExtMag (no noise/ADU pipeline, no
+            % files), then solve for the magnitude that reaches Args.TargetSNR, using the
+            % first source as the shared reference for the whole row (CrudeSNR scales
+            % exactly with flux, so this is an exact closed-form correction, not a guess)
+            TrialMagVec = repmat(Args.ExtMag, 1, NumSrc);
+            Trial = ultrasat.usim(CommonArgs{:}, 'ExtMag', TrialMagVec, 'SNROnly', true, 'OutType', 'none');
+            SNRTrial = Trial.CatData.Catalog(1, strcmp(Trial.CatData.ColNames, 'SNR'));
+            if ~(SNRTrial > 0) || isnan(SNRTrial)
+                error('ultrasat:ELOPsim:BadTrialSNR', ...
+                    'Trial CrudeSNR = %g at ExtMag = %g is not usable to solve for TargetSNR, exiting..', SNRTrial, Args.ExtMag);
+            end
+            ExtMagRow = Args.ExtMag + 2.5 * log10(SNRTrial / Args.TargetSNR);
+            FocusMagCache(MagKey) = ExtMagRow;
+        else
+            % reuse the magnitude solved at Focus = 1 for this same combination, rather
+            % than solving independently -- Focus doesn't change the source's total
+            % flux, so this keeps brightness fixed while only the blur varies,
+            % showing how defocus alone degrades the measured S/N
+            if ~isKey(FocusMagCache, MagKey)
+                error('ultrasat:ELOPsim:NoFocus1Magnitude', ...
+                    'Row %d (Focus = %d) needs the magnitude solved at Focus = 1 for the same Filter/Temperature/Template/Radius/Rotation/Tile combination, but that row has not been processed yet (Focus = 1 must be included in Args.Focus and come before other Focus values), exiting..', ...
+                    Irow, Result.Focus(Irow));
+            end
+            ExtMagRow = FocusMagCache(MagKey);
         end
-        ExtMagRow = Args.ExtMag + 2.5 * log10(SNRTrial / Args.TargetSNR);
         ExtMagVec = repmat(ExtMagRow, 1, NumSrc);
 
         Sim = ultrasat.usim(CommonArgs{:}, 'ExtMag', ExtMagVec, 'OutType', 'none');
@@ -319,8 +382,9 @@ function [CatX, CatY, ExtSizeRAVec, ExtSizeDecVec, ExtProfileMatrix] = elopTempl
     % ExtProfileMatrix for a given ELOP test Template, centered at (CatX0, CatY0) (the
     % row's Radius-derived position). Template 'A' is a single circular disk source.
     % Template 'B' is a GridM x GridN raster grid of disk sources, axis-aligned with the
-    % detector. Template 'C'/'D' are one, resp. one or more, user-supplied polygons
-    % (Args.TemplatePolygons), each becoming its own extended source.
+    % detector. Template 'C' is the single user-supplied polygon (Args.TemplatePolygons).
+    % Template 'D' is 4 copies of that same polygon, translated to the corners of a
+    % square (Args.TemplateDSquareLeg). See elopTemplateCDPolygons.
     switch Template
         case 'A'
             ExtSize = 2 * Args.TemplateACircleRadius;   % [arcsec] bounding-box size of the disk
@@ -328,7 +392,7 @@ function [CatX, CatY, ExtSizeRAVec, ExtSizeDecVec, ExtProfileMatrix] = elopTempl
             CatY = CatY0;
             ExtSizeRAVec  = ExtSize;
             ExtSizeDecVec = ExtSize;
-            ExtProfileMatrix = {elopCircleMask(101)};
+            ExtProfileMatrix = {elopCircleMask(elopGridSamples(ExtSize, Args.ImRes))};
 
         case 'B'
             [CatX, CatY] = elopGridPositions(CatX0, CatY0, ...
@@ -337,25 +401,17 @@ function [CatX, CatY, ExtSizeRAVec, ExtSizeDecVec, ExtProfileMatrix] = elopTempl
             ExtSize = 2 * Args.TemplateACircleRadius;   % [arcsec] bounding-box size of each disk
             ExtSizeRAVec     = repmat(ExtSize, 1, NumSrc);
             ExtSizeDecVec    = repmat(ExtSize, 1, NumSrc);
-            ExtProfileMatrix = repmat({elopCircleMask(101)}, 1, NumSrc);
+            ExtProfileMatrix = repmat({elopCircleMask(elopGridSamples(ExtSize, Args.ImRes))}, 1, NumSrc);
 
         case {'C', 'D'}
-            Polygons = Args.TemplatePolygons;
-            if isempty(Polygons)
-                error('ultrasat:ELOPsim:NoPolygons', ...
-                    'Template ''%s'' requires Args.TemplatePolygons to be set, exiting..', Template);
-            end
-            if strcmp(Template, 'C') && numel(Polygons) ~= 1
-                error('ultrasat:ELOPsim:PolygonCountMismatch', ...
-                    'Template ''C'' requires exactly 1 polygon in Args.TemplatePolygons (got %d), exiting..', numel(Polygons));
-            end
+            Polygons = elopTemplateCDPolygons(Template, Args);
             NumSrc = numel(Polygons);
             CatX = zeros(1, NumSrc); CatY = zeros(1, NumSrc);
             ExtSizeRAVec = zeros(1, NumSrc); ExtSizeDecVec = zeros(1, NumSrc);
             ExtProfileMatrix = cell(1, NumSrc);
             for Ip = 1:1:NumSrc
                 [CatX(Ip), CatY(Ip), ExtSizeRAVec(Ip), ExtSizeDecVec(Ip), ExtProfileMatrix{Ip}] = ...
-                    elopPolygonSource(Polygons{Ip}, CatX0, CatY0, 101);
+                    elopPolygonSource(Polygons{Ip}, CatX0, CatY0, Args.ImRes);
             end
 
         otherwise
@@ -378,14 +434,40 @@ function [CatX, CatY] = elopGridPositions(CatX0, CatY0, GridM, GridN, GridSpacin
     CatY = CatY0 + OffY(:)';
 end
 
-function [CatX, CatY, ExtSizeRA, ExtSizeDec, Mask] = elopPolygonSource(Vertices, CatX0, CatY0, NPix)
+function Polygons = elopTemplateCDPolygons(Template, Args)
+    % The polygon list (each an Nx2 [dRA, dDec] arcsec vertex-offset list) for Template
+    % 'C' (Args.TemplatePolygons's single polygon, unmodified) or 'D' (that same polygon,
+    % translated to each of the 4 corners of an axis-aligned square of side
+    % Args.TemplateDSquareLeg, centered on the row's Radius-derived position).
+    if numel(Args.TemplatePolygons) ~= 1
+        error('ultrasat:ELOPsim:PolygonCountMismatch', ...
+            'Args.TemplatePolygons must hold exactly 1 polygon -- Template ''C'' shape, reused by Template ''D'' at the corners of a square (got %d), exiting..', ...
+            numel(Args.TemplatePolygons));
+    end
+    BaseVertices = Args.TemplatePolygons{1};
+
+    switch Template
+        case 'C'
+            Polygons = {BaseVertices};
+        case 'D'
+            HalfLeg = Args.TemplateDSquareLeg / 2;
+            CornerOffsets = [-HalfLeg -HalfLeg; HalfLeg -HalfLeg; -HalfLeg HalfLeg; HalfLeg HalfLeg];
+            Polygons = cell(1, 4);
+            for Ic = 1:1:4
+                Polygons{Ic} = BaseVertices + CornerOffsets(Ic,:);
+            end
+    end
+end
+
+function [CatX, CatY, ExtSizeRA, ExtSizeDec, Mask] = elopPolygonSource(Vertices, CatX0, CatY0, ImRes)
     % A single polygon source: Vertices is an Nx2 [dRA, dDec] arcsec vertex-offset list,
     % relative to the shared center (CatX0, CatY0), axis-aligned with the detector.
     % Returns the source's own center (its vertex bounding-box center, which need not
     % coincide with (CatX0, CatY0) for an asymmetric polygon), its bounding-box size in
-    % arcsec, and an NPix x NPix mask (1 inside the polygon, 0 outside) spanning that
-    % bounding box, via inpolygon (as used elsewhere in AstroPack, e.g.
-    % imUtil.sources.polygonFlux), rather than the Image Processing Toolbox's poly2mask.
+    % arcsec, and a mask (1 inside the polygon, 0 outside) spanning that bounding box,
+    % sampled at a resolution of 1/ImRes of a detector pixel (see elopGridSamples), via
+    % inpolygon (as used elsewhere in AstroPack, e.g. imUtil.sources.polygonFlux),
+    % rather than the Image Processing Toolbox's poly2mask.
     PixSizeArcsec = elopPixSizeArcsec();
     VertPix = Vertices / PixSizeArcsec;   % Nx2 pixel offsets from (CatX0, CatY0)
 
@@ -416,6 +498,10 @@ function [CatX, CatY, ExtSizeRA, ExtSizeDec, Mask] = elopPolygonSource(Vertices,
     ExtSizeRA  = (MaxX - MinX) * PixSizeArcsec;   % [arcsec]
     ExtSizeDec = (MaxY - MinY) * PixSizeArcsec;   % [arcsec]
 
+    % the bounding box was padded square above, so ExtSizeRA == ExtSizeDec and a
+    % single NPix (via elopGridSamples) spans both axes.
+    NPix = elopGridSamples(ExtSizeRA, ImRes);
+
     VecX = linspace(MinX, MaxX, NPix);
     VecY = linspace(MinY, MaxY, NPix);
     [GridX, GridY] = meshgrid(VecX, VecY);
@@ -430,27 +516,84 @@ function PixSizeArcsec = elopPixSizeArcsec()
     PixSizeArcsec = (PixelSizeMm / FocalLength) * RAD * 3600;
 end
 
-function Kernel = elopFocusKernel(GridScaleArcsec, MaskSize, Args)
-    % The defocus blur kernel for a profile grid at GridScaleArcsec [arcsec/cell].
-    % Args.DefocusKernel, if non-empty, is used as-is (an arbitrary user-supplied
-    % kernel, already at the mask's own pixel grid scale). Otherwise a default Gaussian
-    % kernel is built with FWHM = Args.DefocusFWHM [arcsec], sized MaskSize.
+function NPix = elopGridSamples(ExtSizeArcsec, ImRes)
+    % Number of grid samples spanning ExtSizeArcsec at a resolution of 1/ImRes of a
+    % detector pixel (same ceil/floor convention as usim.m's own Nx/Ny, without the
+    % odd-forcing needed only for the final grid handed to usim.m -- see
+    % elopResampleToUsimGrid).
+    Grain = elopPixSizeArcsec() / ImRes;
+    NPix  = max(3, ceil(ExtSizeArcsec / Grain));
+end
+
+function Profile = elopResampleToUsimGrid(Profile, ExtSizeRA, ExtSizeDec, UsimImRes)
+    % Resample a profile (already built/blurred at this function's own Args.ImRes
+    % resolution) onto the grid usim.m's extended-object mode will independently expect,
+    % replicating its exact Nx/Ny formula (Grain = PixSizeArcsec/UsimImRes; Nx/Ny =
+    % max(3,ceil(ExtSize/Grain)), forced odd) so the array handed to usim.m already
+    % matches the size it computes for itself, and its own internal resize (imresize to
+    % [Ny Nx]) becomes a no-op.
+    Nx = elopGridSamples(ExtSizeRA,  UsimImRes);
+    Ny = elopGridSamples(ExtSizeDec, UsimImRes);
+    Nx = Nx + 1 - mod(Nx, 2);
+    Ny = Ny + 1 - mod(Ny, 2);
+    Profile = imresize(Profile, [Ny Nx], 'bilinear');
+end
+
+function Kernel = elopFocusKernel(Focus, GridScaleArcsec, MaskSize, Args)
+    % The defocus blur kernel for Focus (2-5) on a profile grid at GridScaleArcsec
+    % [arcsec/cell]. Args.DefocusKernel, if non-empty, is used as-is (an arbitrary
+    % user-supplied kernel, already at the mask's own pixel grid scale) for every
+    % Focus level > 1. Otherwise the kernel is a disk of diameter
+    % Args.DefocusDiameterMicron(Focus-1) [micron], converted to arcsec via
+    % D_arcsec = D_micron*(1000*1.1*330)/206265, and shaped per Args.DefocusKernelShape:
+    % 'tophat' (uniform disk, hard cutoff) or 'topcosine' (cosine-tapered disk, smoothly
+    % reaching 0 at the same diameter instead of an abrupt edge).
     if ~isempty(Args.DefocusKernel)
         Kernel = Args.DefocusKernel;
-    else
-        FWHMPix = Args.DefocusFWHM / GridScaleArcsec;
-        Kernel = elopGaussianKernel(FWHMPix, MaskSize);
+        return
+    end
+
+    DiameterMicron = Args.DefocusDiameterMicron(Focus - 1);
+    DiameterArcsec = DiameterMicron * (1000 * 1.1 * 330) / 206265;
+    DiameterPix    = DiameterArcsec / GridScaleArcsec;
+
+    switch lower(Args.DefocusKernelShape)
+        case 'tophat'
+            Kernel = elopTopHatKernel(DiameterPix, MaskSize);
+        case 'topcosine'
+            Kernel = elopTopCosineKernel(DiameterPix, MaskSize);
+        otherwise
+            error('ultrasat:ELOPsim:UnknownKernelShape', ...
+                'Unknown Args.DefocusKernelShape ''%s'' (use ''tophat'' or ''topcosine''), exiting..', ...
+                Args.DefocusKernelShape);
     end
 end
 
-function Kernel = elopGaussianKernel(FWHMPix, MaskSize)
-    % A normalized 2D Gaussian kernel, MaskSize(1) x MaskSize(2), with the given FWHM
-    % [pix].
-    Sigma = FWHMPix / (2 * sqrt(2 * log(2)));
-    VecX  = (1:MaskSize(2)) - (MaskSize(2) + 1) / 2;
-    VecY  = (1:MaskSize(1)) - (MaskSize(1) + 1) / 2;
+function Kernel = elopTopHatKernel(DiameterPix, MaskSize)
+    % A normalized uniform disk kernel, MaskSize(1) x MaskSize(2), of the given
+    % diameter [pix], with a hard cutoff at the edge.
+    Radius = DiameterPix / 2;
+    VecX   = (1:MaskSize(2)) - (MaskSize(2) + 1) / 2;
+    VecY   = (1:MaskSize(1)) - (MaskSize(1) + 1) / 2;
     [X, Y] = meshgrid(VecX, VecY);
-    Kernel = exp( -(X.^2 + Y.^2) / (2 * Sigma^2) );
+    R = sqrt(X.^2 + Y.^2);
+    Kernel = double(R <= Radius);
+    Kernel = Kernel / sum(Kernel, 'all');
+end
+
+function Kernel = elopTopCosineKernel(DiameterPix, MaskSize)
+    % A normalized cosine-tapered disk kernel, MaskSize(1) x MaskSize(2), of the given
+    % diameter [pix]: intensity(r) = 0.5*(1+cos(pi*r/Radius)) for r <= Radius, 0 beyond
+    % -- same finite support as elopTopHatKernel, but smoothly reaching 0 at the edge
+    % instead of an abrupt cutoff.
+    Radius = DiameterPix / 2;
+    VecX   = (1:MaskSize(2)) - (MaskSize(2) + 1) / 2;
+    VecY   = (1:MaskSize(1)) - (MaskSize(1) + 1) / 2;
+    [X, Y] = meshgrid(VecX, VecY);
+    R = sqrt(X.^2 + Y.^2);
+    Kernel = zeros(MaskSize);
+    InDisk = R <= Radius;
+    Kernel(InDisk) = 0.5 * (1 + cos(pi * R(InDisk) / Radius));
     Kernel = Kernel / sum(Kernel, 'all');
 end
 
@@ -561,8 +704,8 @@ function elopWriteRegionFile(FileName, Template, CatX, CatY, CatX0, CatY0, Args)
     % Write a DS9-compatible region file (via DS9_new.regionWrite) marking every
     % modelled source in a row, in image (pixel) coordinates. Template 'A'/'B': a
     % circle per source, of the nominal Args.TemplateACircleRadius. Template 'C'/'D':
-    % the user-supplied polygon(s) (Args.TemplatePolygons), reconstructed to absolute
-    % pixel vertices from the row's shared center (CatX0, CatY0) -- the same convention
+    % the polygon(s) from elopTemplateCDPolygons, reconstructed to absolute pixel
+    % vertices from the row's shared center (CatX0, CatY0) -- the same convention
     % elopPolygonSource uses -- rather than each polygon's own bounding-box center
     % (CatX/CatY), since the vertices are defined relative to the shared center.
     PixSizeArcsec = elopPixSizeArcsec();
@@ -574,8 +717,9 @@ function elopWriteRegionFile(FileName, Template, CatX, CatY, CatX0, CatY0, Args)
                 'PrintIndividualProp', false);
 
         case {'C', 'D'}
-            for Ip = 1:1:numel(Args.TemplatePolygons)
-                Vertices = Args.TemplatePolygons{Ip};
+            Polygons = elopTemplateCDPolygons(Template, Args);
+            for Ip = 1:1:numel(Polygons)
+                Vertices = Polygons{Ip};
                 VertX = CatX0 + Vertices(:,1) / PixSizeArcsec;
                 VertY = CatY0 + Vertices(:,2) / PixSizeArcsec;
                 DS9_new.regionWrite([VertX(:), VertY(:)], 'FileName', FileName, 'Coo', 'image', ...
