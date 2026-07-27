@@ -315,6 +315,10 @@ classdef Tran2D < Base
             %                   of the 4th degre + color term of the first degree.
             %            'cheby1_2' -  Fitsr kind Chebyshev polynomials
             %                   of the 2nd degree.
+            %            'cheby1_1' -  First kind Chebyshev polynomials
+            %                   of the 1st degree with a cross-term
+            %                   (4 parameters, both axes symmetric):
+            %                   kx0*T0 + kx*T1(x) + ky*T1(y) + kxy*T1(x)*T1(y).
             %            'poly1' - 1st deg polynomials.
             %            'poly2' - 2nd deg polynomials.
             %            'poly3' - 3rd deg polynomials.
@@ -534,7 +538,18 @@ classdef Tran2D < Base
                                       @(x,y,c,AM,PA) 2.*x.^2-1,...
                                       @(x,y,c,AM,PA) 2.*y.^2-1,...
                                       @(x,y,c,AM,PA) x.*y};
-                                      
+
+                    FunY        = FunX;
+                case 'cheby1_1'
+                    % First-kind Chebyshev polynomials of order 1 + cross-term.
+                    % Bilinear-plus-cross basis (4 parameters, symmetric in x,y):
+                    %   kx0*T0 + kx*T1(x) + ky*T1(y) + kxy*T1(x)*T1(y)
+                    % Parameter order: [kx0, kx, ky, kxy]
+                    ColCell     = {'x','y','c','AM','PA'};
+                    FunX        = {@(x,y,c,AM,PA) ones(size(x)),...   % 1: kx0 * T0
+                                      @(x,y,c,AM,PA) x,...             % 2: kx  * T1(x)
+                                      @(x,y,c,AM,PA) y,...             % 3: ky  * T1(y)
+                                      @(x,y,c,AM,PA) x.*y};            % 4: kxy * T1(x)*T1(y)
                     FunY        = FunX;
                 case 'poly1'
                     % chebyshev polynomials of the first kind, of order 3

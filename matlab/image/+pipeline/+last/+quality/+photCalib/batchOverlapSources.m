@@ -29,11 +29,27 @@ function Report = batchOverlapSources(BaseDir, Args)
     %            'MaxVisits'      - Cap. Default Inf.
     %            'NCrops'         - Expected crop count per visit
     %                               (LAST tiling = 24). Default 24.
+    %            'Calibrate'      - Run per-crop photometric calibration
+    %                               (imProc.calib.fitPhotCalibTrans) before
+    %                               overlapSources. Default true. Set false
+    %                               to skip calibration entirely and compare
+    %                               the raw catalog column instead — useful
+    %                               as an uncalibrated baseline (e.g. the
+    %                               size of before-calibration crop-to-crop
+    %                               systematics on MAG_APER_3). Every
+    %                               calibration-related arg (OptSeqName,
+    %                               CalibArgsExtra, InnerVerbose forwarded
+    %                               inside) is silently ignored.
     %            'OptSeqName'     - Recipe forwarded to fitPhotCalibTrans.
     %                               Default 'LAST_Joint_2Iter_AtmosFirst_Split3'.
+    %                               Ignored when Calibrate=false.
+    %            'Tran2DType'     - Tran2D polynomial basis. Default 'cheby1_2'
+    %                               (matches batchPhotCalibTrans's per-crop
+    %                               default). Ignored when Calibrate=false or
+    %                               when CalibArgsExtra sets UseTran2D=false.
     %            'CalibArgsExtra' - Extra key-value pairs prepended to the
     %                               CalibArgs cell (see fitPhotCalibTrans).
-    %                               Default {}.
+    %                               Default {}. Ignored when Calibrate=false.
     %            'MagCol'         - Catalog column fed to overlapSources'
     %                               'Prop'. Default 'MAG_APER_3'.
     %            'MagRange'       - Single mag window for overlapSources.
@@ -110,7 +126,9 @@ function Report = batchOverlapSources(BaseDir, Args)
         Args.Filter                 (1,:) char = ''
         Args.MaxVisits              (1,1) double = Inf
         Args.NCrops                 (1,1) double {mustBePositive, mustBeInteger} = 24
+        Args.Calibrate                    logical = true
         Args.OptSeqName             (1,:) char = 'LAST_Joint_2Iter_AtmosFirst_Split3'
+        Args.Tran2DType             (1,:) char = 'cheby1_2'
         Args.CalibArgsExtra               cell = {}
         Args.MagCol                 (1,:) char = 'MAG_APER_3'
         Args.MagRange               (1,2) double = [12 17]
@@ -180,16 +198,28 @@ function Report = batchOverlapSources(BaseDir, Args)
             % Load only present crops.
             AI = AstroImage.readProducts(Vis.Files, 'ExtraOutProduct', "Cat");
 
-            % Per-crop calibration (once per visit).
-            CA = [{'OptSeqName', Args.OptSeqName}, Args.CalibArgsExtra];
-            [ResultCalib, ~] = imProc.calib.fitPhotCalibTrans(AI, ...
-                    'CreateNewObj', true, ...
-                    'CalibArgs',    CA, ...
-                    'Verbose',      Args.InnerVerbose);
+            if Args.Calibrate
+                % Per-crop calibration (once per visit).
+                % CalibArgsExtra is appended AFTER the explicit args so the
+                % caller can override Tran2DType / OptSeqName from there
+                % (arguments-block rule: last name-value pair wins).
+                CA = [{'OptSeqName', Args.OptSeqName, ...
+                       'Tran2DType', Args.Tran2DType}, Args.CalibArgsExtra];
+                [Source, ~] = imProc.calib.fitPhotCalibTrans(AI, ...
+                        'CreateNewObj', true, ...
+                        'CalibArgs',    CA, ...
+                        'Verbose',      Args.InnerVerbose);
+            else
+                % Raw baseline: hand the loaded AI straight to overlapSources.
+                % MagCol must already exist in the untouched catalog (default
+                % 'MAG_APER_3' is the instrumental aperture mag written by the
+                % coadd pipeline).
+                Source = AI;
+            end
 
             % Pad to NCrops slots so overlapSources can iterate over the
             % full LASToverlaps table; missing slots produce "no overlap".
-            Padded = i_padToNCrops(ResultCalib, Vis.CropIds, Args.NCrops);
+            Padded = i_padToNCrops(Source, Vis.CropIds, Args.NCrops);
 
             % Default single-range overlap.
             Row.R = i_runOverlap(Padded, Args.MagRange, Args);

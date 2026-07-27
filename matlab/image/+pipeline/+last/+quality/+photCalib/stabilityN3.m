@@ -65,11 +65,19 @@ function MS = stabilityN3(Args)
 
     arguments
         Args.MinEpochs  (1,1) double = 10    % Drop sources cross-matched in <= MinEpochs epochs
-        Args.NEpochsCap (1,1) double = 100   % Cap on number of catalogs loaded
+        Args.NEpochsCap (1,1) double = 200   % Cap on number of catalogs loaded
         Args.Radius     (1,1) double = 1     % Cross-match radius [arcsec]
+        Args.AddXYfull  logical      = true % Stamp MS.Data.XFULL/YFULL after merge
+        % ORIGSEC is fixed per crop (same across every visit of a given
+        % Pattern), so we read it ONCE from the first surviving catalog and
+        % broadcast XFULL = X + (ORIGSEC(1)-1), YFULL = Y + (ORIGSEC(3)-1)
+        % into MS.Data as full [Nepoch x Nsrc] matrices - matches the shape
+        % convention every other Data field uses. Off by default; opt in when
+        % you want plotPhotStabilityMap / plotPhotStabilityXY to work in the
+        % XFULL / YFULL frame instead of native crop pixels.
         Args.Mags       cell         = {'MAG_APER_3', 'MAGAB__APER_3'} %, 'MAG_PSF', 'MAGAB__PSF'}
         Args.FWHMKey    (1,:) char   = 'FWHM'    % Header key to read seeing/FWHM from
-        Args.FWHMMax    (1,1) double = 3.5       % Drop catalogs whose FWHM exceeds this
+        Args.FWHMMax    (1,1) double = 10.0      % Drop catalogs whose FWHM exceeds this
         Args.MaxAirmass (1,1) double = 2.4       % Drop catalogs whose AIRMASS exceeds this. Set Inf to disable.
         Args.BadFlags   cell         = {'Saturated','NearEdge'}
         % Bit names from BitMask.Image.Default. Per-(epoch,source) entries
@@ -136,6 +144,10 @@ function MS = stabilityN3(Args)
         % with the default 'MAG'/'STD' rendering.
         Args.MarkerSize (1,1) double = 6         % Dot size for scatter
         Args.LineWidth  (1,1) double = 2         % Width of binned trend lines
+        Args.Plot       (1,1) logical = false     % Draw the std-vs-mag figure.
+        % Set false to only build/return MS without a figure - useful in loops
+        % (e.g. one MS per crop across all 24 crops) where 24 figures are not
+        % wanted, or for headless reuse of the MS by plotPhotStabilityMap.
     end
 
     DataPath = Args.DataPath;
@@ -150,6 +162,17 @@ function MS = stabilityN3(Args)
     if isempty(Args.MS)
         % --- build phase: glob, header pre-pass, AC load, mergeCatalogs ---
         FileList = dir(fullfile(DataPath, Pattern));
+        % Fail clearly on an empty match: the default Pattern is field-specific
+        % (1716.c crop 10), so a different field/crop silently matches nothing
+        % and would otherwise crash deep in mergeCatalogs on an empty array.
+        if isempty(FileList)
+            error('pipeline:last:quality:photCalib:stabilityN3:NoCatalogs', ...
+                ['No catalogs matched Pattern "%s" under %s.\n', ...
+                 'The default Pattern targets field 1716.c crop 10 - pass a ', ...
+                 '''Pattern'' for your field/crop, e.g.\n', ...
+                 '  ''Pattern'', ''LAST*_1679*_*_010_sci_coadd_Cat_1.fits'''], ...
+                Pattern, DataPath);
+        end
         [~, ord] = sort({FileList.name});
         FileList = FileList(ord);
         NEpochs  = min(NEpochsCap, numel(FileList));
@@ -224,6 +247,47 @@ function MS = stabilityN3(Args)
         % Catalog array is no longer needed once MS is built; free it
         % before the stats/plot phase to avoid carrying ~0.5-1 MB per epoch.
         clear AC
+
+        % Stash per-epoch AIRMASS on the MS as broadcast [Nepoch x Nsrc] so
+        % downstream tools (plotMagAirmass, ad-hoc analyses) can read it
+        % without re-peeking headers or requiring a CSV. Broadcast keeps the
+        % [Nep x Nsrc] shape convention of every other MS.Data field. Cost
+        % ~ Nep*Nsrc*8 bytes (~4 MB for 100 epochs x 5000 sources).
+        NsrcFinal = size(MS.Data.(Args.Mags{1}), 2);
+        MS.Data.AIRMASS = repmat(AM(:), 1, NsrcFinal);
+
+        % Optional XFULL/YFULL stamp. ORIGSEC is fixed per crop (same
+        % across every visit of a given Pattern), so we read it ONCE from
+        % the first surviving catalog and broadcast the offsets across
+        % every epoch. Adds MS.Data.XFULL/YFULL as full [Nepoch x Nsrc]
+        % matrices so downstream plotPhotStabilityMap('XField','XFULL',...)
+        % works without a per-caller rebuild.
+        if Args.AddXYfull && isfield(MS.Data, 'X') && isfield(MS.Data, 'Y')
+            SamplePath = fullfile(DataPath, FileList(1).name);
+            OS = [];
+            for HDU = [2, 3, 1]   % same HDU search order as readHdrAny
+                try
+                    AH  = AstroHeader(SamplePath, HDU);
+                    Raw = AH.getVal('ORIGSEC');
+                    if ischar(Raw) || isstring(Raw)
+                        OS = imUtil.ccdsec.ccdsecStr2num(char(Raw));
+                        if numel(OS) >= 4 && all(isfinite(OS)); break; end
+                        OS = [];
+                    end
+                catch
+                    % HDU absent or unreadable - try next
+                end
+            end
+            if isempty(OS)
+                warning('stabilityN3:AddXYfull', ...
+                    'Could not read ORIGSEC from %s; skipping XFULL/YFULL', ...
+                    SamplePath);
+            else
+                MS.Data.XFULL = MS.Data.X + (OS(1) - 1);
+                MS.Data.YFULL = MS.Data.Y + (OS(3) - 1);
+                fprintf('Stamped XFULL/YFULL using ORIGSEC = [%g %g %g %g]\n', OS);
+            end
+        end
     else
         % --- reuse phase: skip straight to masking + stats + plotting ---
         MS = Args.MS;
@@ -352,6 +416,10 @@ function MS = stabilityN3(Args)
             numel(Args.Labels), Nm);
     end
     UseAutoLabels = isempty(Args.Labels);
+
+    if ~Args.Plot
+        return;
+    end
 
     figure('WindowStyle','docked','Color',[1 1 1]); box on; hold on; grid on;
     set(gca, 'YScale', 'log');
