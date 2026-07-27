@@ -254,7 +254,11 @@ function [Obj,Result]=populatePSF(Obj, Args)
         Args.ExtendedSize              = [1501 1501];
         Args.Alpha                     = 1;
     end
-   
+
+    if Args.BuildDetectionPSF && ~strcmpi(Args.Method,'new')
+        error('populatePSF:invalidMethod', 'BuildDetectionPSF requires Method=''new'' -- the ''%s'' backend has no concept of a detection-PSF slice and would silently drop it.', Args.Method);
+    end
+
     %Result = [];
     Nobj   = numel(Obj);
     for Iobj=1:1:Nobj
