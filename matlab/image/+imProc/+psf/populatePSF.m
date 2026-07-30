@@ -116,6 +116,15 @@ function [Obj,Result]=populatePSF(Obj, Args)
     %                   Default is {}.
     %
     %    --- wing suppression ---
+    %            'WingsMethod' - Wing-fixing back-end forwarded to buildPSF:
+    %                   'analytic' | 'cosbell' | 'empirical'. 'empirical'
+    %                   calibrates the wing from this image's own bright/
+    %                   near-saturated stars (see imUtil.psf.buildPSF and
+    %                   imUtil.psf.buildEmpiricalWing), falling back to
+    %                   'cosbell' when too few such stars are available.
+    %                   Default is 'analytic'.
+    %            'WingsPowerLaw' - Power-law index forwarded to buildPSF for
+    %                   the 'analytic' WingsMethod. Default is 2.
     %            'SuppressFun' - Window function used by suppressWings.
     %                   Default is @imUtil.kernel2.cosbell.
     %            'WingsThreshold' - Threshold for suppressWings. (Legacy
@@ -123,7 +132,27 @@ function [Obj,Result]=populatePSF(Obj, Args)
     %                   Default is 1e-4.
     %            'SuppressWidth' - Width parameter for SuppressFun. (Legacy
     %                   name; forwarded to buildPSF as 'SuppressFunPars'.)
+    %            'WingRangeSN' - [SNmin, SNmax] bright-star sample used by
+    %                   WingsMethod='empirical'. Empty -> [RangeSN(2), Inf].
+    %                   Default is [].
+    %            'MinWingStars' - Minimum bright stars required to trust
+    %                   WingsMethod='empirical'; below this, falls back to
+    %                   'cosbell' for that image. Default is 8.
     %                   Default is 3.
+    %            'BuildDetectionPSF' - Also populate a 'Purpose'-dimensioned
+    %                   PSFData.Data cube: slice 1 (default, unchanged
+    %                   behavior for existing callers) is the normal
+    %                   photometry/subtraction PSF; slice 2 is a wing splice
+    %                   built from the same core using WingsMethod='analytic'
+    %                   and 'DetectionWingsPowerLaw', for source detection
+    %                   (imProc.sources.multiIterExtractor), where Alpha=2 is
+    %                   the only value validated safe against the #1103
+    %                   bogus-detection-ring artifact. Retrieve via
+    %                   PSFData.getPSF('PsfArgs',{'Purpose',2}). Default is
+    %                   false.
+    %            'DetectionWingsPowerLaw' - Power-law index for the
+    %                   detection-PSF slice when BuildDetectionPSF=true.
+    %                   Default is 2.
     %
     %    --- legacy / no-op options (accepted for backward compatibility
     %        but not forwarded to the current imUtil.psf.buildPSF) ---
@@ -204,6 +233,10 @@ function [Obj,Result]=populatePSF(Obj, Args)
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
         Args.WingsThreshold            = 1e-2; %1e-4;       % legacy name -> buildPSF 'SuppressThreshold'
         Args.SuppressWidth             = 3;          % legacy name -> buildPSF 'SuppressFunPars'
+        Args.WingRangeSN               = [];         % bright-star sample for WingsMethod='empirical'; [] -> [RangeSN(2), Inf]
+        Args.MinWingStars              = 8;          % min bright stars for WingsMethod='empirical'; else falls back to cosbell
+        Args.BuildDetectionPSF         = false;      % also populate a 'Purpose'-dimensioned detection-PSF slice (analytic, Alpha=DetectionWingsPowerLaw) alongside the main photometry/subtraction PSF
+        Args.DetectionWingsPowerLaw    = 2;          % power-law index for the detection-PSF slice; 2 is the only value validated safe for multiIterExtractor's matched filter
 
         % --- legacy / no-op options (kept for backward compatibility) ---
         Args.moment2Args               = {};
@@ -221,7 +254,11 @@ function [Obj,Result]=populatePSF(Obj, Args)
         Args.ExtendedSize              = [1501 1501];
         Args.Alpha                     = 1;
     end
-   
+
+    if Args.BuildDetectionPSF && ~strcmpi(Args.Method,'new')
+        error('populatePSF:invalidMethod', 'BuildDetectionPSF requires Method=''new'' -- the ''%s'' backend has no concept of a detection-PSF slice and would silently drop it.', Args.Method);
+    end
+
     %Result = [];
     Nobj   = numel(Obj);
     for Iobj=1:1:Nobj
@@ -247,7 +284,16 @@ function [Obj,Result]=populatePSF(Obj, Args)
                         % estimate background
                         Obj(Iobj) = imProc.background.background(Obj(Iobj), Args.backgroundArgs{:});
                     end
-                    
+
+                    % Saturated-pixel mask, used only by WingsMethod='empirical'
+                    % (to mask bright stars' saturated cores before they
+                    % contribute to the wing calibration).
+                    if Obj(Iobj).MaskData.isemptyImage
+                        SaturatedMask = [];
+                    else
+                        SaturatedMask = Obj(Iobj).MaskData.findBit('Saturated');
+                    end
+
                     % Renames at the call site (legacy populatePSF keys
                     % preserved for back-compat; mapped to new buildPSF
                     % names):
@@ -259,7 +305,7 @@ function [Obj,Result]=populatePSF(Obj, Args)
                     % constructPSF_cutoutsArgs, SmoothWings, SuppressWings,
                     % SuppressEdges, DataType, CropByQuantile, Quantile.
                     if Args.PopExtended
-                        [Result(Iobj), MeanPSF, VarPSF, NimPSF, ExtendedPSF] = imUtil.psf.buildPSF(Obj(Iobj).Image,...
+                        [Result(Iobj), MeanPSF, VarPSF, NimPSF, ExtendedPSF, DetectionPSF] = imUtil.psf.buildPSF(Obj(Iobj).Image,...
                                                 'X',X, 'Y',Y,...
                                                 'SN',SN,...
                                                 'Back',Obj(Iobj).Back,...
@@ -297,15 +343,22 @@ function [Obj,Result]=populatePSF(Obj, Args)
                                                 'WeightsMaxSN',Args.WeightsMaxSN,...
                                                 'mean_sigclipArgs',Args.mean_sigclipArgs,...
                                                 ... % wing suppression
+                                                'WingsMethod',Args.WingsMethod,...
+                                                'WingsPowerLaw',Args.WingsPowerLaw,...
                                                 'SuppressFun',Args.SuppressFun,...
                                                 'SuppressThreshold',Args.WingsThreshold,...
                                                 'SuppressFunPars',Args.SuppressWidth,...
+                                                'SaturatedMask',SaturatedMask,...
+                                                'WingRangeSN',Args.WingRangeSN,...
+                                                'MinWingStars',Args.MinWingStars,...
+                                                'BuildDetectionPSF',Args.BuildDetectionPSF,...
+                                                'DetectionWingsPowerLaw',Args.DetectionWingsPowerLaw,...
                                                 'ExtendedSize',Args.ExtendedSize,...
                                                 'Alpha',Args.Alpha);
 
                         Obj(Iobj).PSFData.DataExtended = ExtendedPSF;
                     else
-                        [Result(Iobj), MeanPSF, VarPSF, NimPSF] = imUtil.psf.buildPSF(Obj(Iobj).Image,...
+                        [Result(Iobj), MeanPSF, VarPSF, NimPSF, ~, DetectionPSF] = imUtil.psf.buildPSF(Obj(Iobj).Image,...
                                                 'X',X, 'Y',Y,...
                                                 'SN',SN,...
                                                 'Back',Obj(Iobj).Back,...
@@ -343,16 +396,35 @@ function [Obj,Result]=populatePSF(Obj, Args)
                                                 'WeightsMaxSN',Args.WeightsMaxSN,...
                                                 'mean_sigclipArgs',Args.mean_sigclipArgs,...
                                                 ... % wing suppression
+                                                'WingsMethod',Args.WingsMethod,...
+                                                'WingsPowerLaw',Args.WingsPowerLaw,...
                                                 'SuppressFun',Args.SuppressFun,...
                                                 'SuppressThreshold',Args.WingsThreshold,...
-                                                'SuppressFunPars',Args.SuppressWidth);
+                                                'SuppressFunPars',Args.SuppressWidth,...
+                                                'SaturatedMask',SaturatedMask,...
+                                                'WingRangeSN',Args.WingRangeSN,...
+                                                'MinWingStars',Args.MinWingStars,...
+                                                'BuildDetectionPSF',Args.BuildDetectionPSF,...
+                                                'DetectionWingsPowerLaw',Args.DetectionWingsPowerLaw);
                     end
                     % insert PSF data
-                    Obj(Iobj).PSFData.Data   = MeanPSF;
+                    if Args.BuildDetectionPSF && ~isempty(DetectionPSF)
+                        % 'Purpose'-dimensioned cube: slice 1 = photometry/
+                        % subtraction PSF (default), slice 2 = detection PSF.
+                        % Ndim in AstroPSF.getPSF is derived from
+                        % ndims(DataPSF)-2, so for a 3D cube only DimName{1}/
+                        % DimVals{1} are consulted -- overwrite that slot
+                        % rather than appending a new dimension.
+                        Obj(Iobj).PSFData.Data = cat(3, MeanPSF, DetectionPSF);
+                        Obj(Iobj).PSFData.DimName{1} = 'Purpose';
+                        Obj(Iobj).PSFData.DimVals{1} = [1 2];
+                    else
+                        Obj(Iobj).PSFData.Data   = MeanPSF;
+                    end
                     Obj(Iobj).PSFData.Var    = VarPSF;
                     Obj(Iobj).PSFData.Nstars = NimPSF;
                     Obj(Iobj).PSFData.SuppressRad = Result(Iobj).SuppressRad;
-                end        
+                end
 
             case 'legacy'
         

@@ -97,7 +97,14 @@ function [Result] = overlapSources(AI, Args)
             end
             for Iprop = 1:numel(Args.Prop)
                 Prop = Args.Prop{Iprop};
+                % Assign EVERY per-interface field so all stay the same length
+                % as the interface index Ivrlp. Omitting MeanDiff/Diff here (as
+                % before) left those arrays short whenever the trailing
+                % interfaces had no overlap sources, so any consumer that sizes
+                % from MedianDiff then indexes MeanDiff/Diff overran the end.
+                Result.(Prop).Diff{Ivrlp}       = [];
                 Result.(Prop).MedianDiff(Ivrlp) = NaN;
+                Result.(Prop).MeanDiff(Ivrlp)   = NaN;
                 Result.(Prop).StdDiff(Ivrlp)    = NaN;
             end
         end

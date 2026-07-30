@@ -3196,6 +3196,110 @@ classdef catsHTM
             Nsrc = Nsrc(1:K, :);
         end
 
+        function [CellID, RowInCell, Dist] = sourcePointer(CatName, RA, Dec, Args)
+            % Stable per-source storage pointer in a catsHTM catalog.
+            % Package: @catsHTM
+            % Description: For each input coordinate return the intrinsic
+            %              storage address of the source in a catsHTM catalog:
+            %              the HTM leaf-cell id and the row index within that
+            %              cell's dataset (htm_<CellID>). Unlike a cone_search
+            %              row index (relative to a particular query), this pair
+            %              is unique within the catalog, stable (the HDF5 files
+            %              are static) and independent of any query - a genuine
+            %              pointer to the source. Native source-id columns are
+            %              unreliable across catsHTM (all columns are stored as
+            %              double), so this is the recommended stable key.
+            % Input  : - Catalog name (e.g., 'PS1').
+            %          - J2000 R.A. [radians] (vector).
+            %          - J2000 Dec. [radians] (vector).
+            %          * ...,key,val,...
+            %            'SearchRadius' - Radius used to locate the containing
+            %                   HTM cell(s). Default is 2.
+            %            'SearchRadiusUnits' - Default is 'arcsec'.
+            %            'MaxDist' - Maximum allowed source-match distance;
+            %                   beyond it the pointer is NaN. Default is 2.
+            %            'MaxDistUnits' - Default is 'arcsec'.
+            %            'NfilesInHDF' - Datasets per HDF5 file. Default is 100.
+            %            'ColRA' - RA column index in the catalog. Default is 1.
+            %            'ColDec' - Dec column index in the catalog. Default 2.
+            % Output : - CellID    - HTM leaf-cell id per source (NaN if no
+            %                        source found within MaxDist).
+            %          - RowInCell - Row index within htm_<CellID> per source.
+            %          - Dist      - Match distance [arcsec] (NaN if none).
+            % Author : Dana Kovaleva (Jul 2026)
+            % Example: [Cid,Row] = catsHTM.sourcePointer('APASS', 1, 1);
+            arguments
+                CatName
+                RA
+                Dec
+                Args.SearchRadius        = 2;
+                Args.SearchRadiusUnits   = 'arcsec';
+                Args.MaxDist             = 2;
+                Args.MaxDistUnits        = 'arcsec';
+                Args.NfilesInHDF         = 100;
+                Args.ColRA               = 1;
+                Args.ColDec              = 2;
+            end
+
+            RA  = RA(:);
+            Dec = Dec(:);
+            Npt = numel(RA);
+
+            % Anchor everything to the catalog directory. H5F.open does NOT
+            % search the MATLAB path, so resolve the dir via the colcell .mat
+            % (which() reliably finds .mat files) and build full paths from it;
+            % the index and data HDF5 files live in that same directory.
+            ColCellFull = which(sprintf('%s_htmColCell.mat', CatName));
+            if isempty(ColCellFull)
+                error('catsHTM:sourcePointer:noCatalog', ...
+                    'Cannot find %s_htmColCell.mat on the MATLAB path (add the catalog directory).', ...
+                    CatName);
+            end
+            CatDir = fileparts(ColCellFull);
+            % search_htm_ind derives the var name by splitting the filename on
+            % '_', which breaks for a full path, so pass it explicitly.
+            [IndexFileName, IndexVarName] = catsHTM.get_index_filename(CatName);
+            IndexFull = fullfile(CatDir, IndexFileName);
+
+            SearchRad = convert.angular(Args.SearchRadiusUnits, 'rad', Args.SearchRadius);
+            MaxDistR  = convert.angular(Args.MaxDistUnits,      'rad', Args.MaxDist);
+
+            CellID    = nan(Npt,1);
+            RowInCell = nan(Npt,1);
+            BestDist  = inf(Npt,1);
+            Cache     = containers.Map('KeyType','double','ValueType','any');
+
+            for Ipt = 1:1:Npt
+                Cands = catsHTM.search_htm_ind(IndexFull, IndexVarName, RA(Ipt), Dec(Ipt), SearchRad);
+                for Ic = 1:1:numel(Cands)
+                    CID = Cands(Ic);
+                    if ~isKey(Cache, CID)
+                        FileID   = floor(CID./Args.NfilesInHDF).*Args.NfilesInHDF;
+                        FileName = fullfile(CatDir, sprintf('%s_htm_%06d.hdf5', CatName, FileID));
+                        DataName = sprintf('htm_%06d', CID);
+                        Cache(CID) = HDF5.load(FileName, DataName).';   % [Nsrc x Ncol]
+                    end
+                    Data = Cache(CID);
+                    if ~isempty(Data)
+                        D = celestial.coo.sphere_dist_fast(RA(Ipt), Dec(Ipt), ...
+                                Data(:,Args.ColRA), Data(:,Args.ColDec));
+                        [Dmin, Imin] = min(D);
+                        if Dmin < BestDist(Ipt)
+                            BestDist(Ipt)  = Dmin;
+                            CellID(Ipt)    = CID;
+                            RowInCell(Ipt) = Imin;
+                        end
+                    end
+                end
+            end
+
+            Bad            = BestDist > MaxDistR;
+            CellID(Bad)    = NaN;
+            RowInCell(Bad) = NaN;
+            Dist           = convert.angular('rad', 'arcsec', BestDist);
+            Dist(Bad)      = NaN;
+        end
+
         function [Nsrc,SumN]=nsrc(CatName)
             % Count sources in the HDF5/HTM index file
             % Package: @catsHTM

@@ -12,7 +12,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'FiltFam'   - the filter family for which the source magnitudes are defined
     %       'Filt'      - the filter[s] for which the source magnitudes are defined
     %       'CalculateULTRASATMag' - if the input magnitudes are not of the ULTRASAT filters, calculate the ULTRASAT magnitudes at output 
-    %       'CalculateCrudeSNR' - estimate SNR for the input sources    
+    %       'CalculateCrudeSNR' - estimate SNR for the input sources
+    %       'SNROnly'   - if true, return right after CrudeSNR is computed, skipping the
+    %                     noise/ADU pipeline and file writing (usimImage.Image is [])
     %       'SpecType'  - model of the input spectra ('BB','PL','Pickles') or 'tab'
     %       'Spec'      - parameters of the input spectra (temperature, spectral index) or a table of spectral intensities
     %       'Exposure'  - image exposure
@@ -25,10 +27,16 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'ArraySizeLimit' - the maximal array size, machine-dependent, determines the method in specWeight
     %       'MaxNumSrc'      - the maximal size of a source chunk to be worked over at a time
     %       'MaxPSFNum'      - the maximal number of recorded PSFs
-    %       'NoiseDark'      - dark current noise (1/0)
-    %       'NoiseSky'       - sky background (1/0)
     %       'NoisePoisson'   - Poisson noise (1/0)
-    %       'NoiseReadout'   - Read-out noise (1/0)
+    %       'NoiseZody'      - include zodiacal light in the background (1/0). Default is true.
+    %       'NoiseCher'      - include Cherenkov background (1/0). Default is true.
+    %       'NoiseStray'     - include stray light background (1/0). Default is true.
+    %       'NoiseDark'      - include dark current background (1/0). Default is true.
+    %       'NoiseReadout'   - include read-out noise background (1/0). Default is true.
+    %       'NoiseCross'     - include cross-talk background (1/0). Default is true.
+    %       'DarkCurrent'    - dark current rate [e-/pix/s], added to the background. Default is 0.04.
+    %       'PoissonThreshold' - background level [e-/pix] above which the Gaussian
+    %                          approximation replaces the true Poisson distribution. Default is 100.
     %       'Inj'            - source injection method (technical): 'direct', 'FFTshift', or 'stampcube'.
     %                          See the Args.Inj comment in the arguments block below for the measured
     %                          speed/accuracy trade-off between 'direct' (default) and 'stampcube'.
@@ -57,8 +65,11 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'ExtPA'           - [deg] position angle; a length-N vector or a scalar to apply to all objects
     %       'ExtSizeRA'       - length-N vector: object angular extent in the RA direction, [arcsec]
     %       'ExtSizeDec'      - length-N vector: object angular extent in the Dec direction, [arcsec]
-    %       'ExtRA0'          - length-N vector: object center RA, [deg]; N is taken from this argument
-    %       'ExtDec0'         - length-N vector: object center Dec, [deg]
+    %       'ExtRA0'          - length-N vector: object center RA, [deg], or X pixel coordinate if
+    %                           ExtSkyCat = false; N is taken from this argument
+    %       'ExtDec0'         - length-N vector: object center Dec, [deg], or Y pixel coordinate if ExtSkyCat = false
+    %       'ExtSkyCat'       - the flag determines whether ExtRA0/ExtDec0 are sky coordinates (true, default)
+    %                           or pixel X, Y (false); same convention as SkyCat
     %       'ExtMag'          - length-N vector: total magnitude of each object
     %       'ExtEbv'          - E(B-V); a length-N vector or a scalar to apply to all objects
     %       'ExtSpec'         - N x npar (or, for ExtSpecType = 'tab', Nwave x N / Nwave x (N+1)): per-object
@@ -71,7 +82,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %          - an array of per-object AstroPSFs
     %          - an ADU image (simple array)
     % Tested : Matlab R2020b
-    % Author : A. Krassilchtchikov (Mar-Oct 2023)
+    % Author : A. Krassilchtchikov (2023, 2026)
     % Example: Sim = ultrasat.usim('Cat',1000)
     % (simulate 1000 sources at random positions with the default spectrum and magnitude)
     %
@@ -111,8 +122,15 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
         Args.CalculateULTRASATMag logical = true; % if the input magnitudes are not of the ULTRASAT filters, 
                                              % calculate the ULTRASAT magnitudes at output  
-        Args.CalculateCrudeSNR logical = true; % estimate SNR for the input sources                                         
-        
+        Args.CalculateCrudeSNR logical = true; % estimate SNR for the input sources
+        Args.SNROnly          logical = false; % if true, return as soon as CrudeSNR (and the rest of the
+                                             % output catalog) is computed, skipping the noise/ADU pipeline
+                                             % and file writing entirely (usimImage.Image is [] in this case).
+                                             % A cheap way to get CrudeSNR at a given input magnitude, e.g. to
+                                             % solve for the magnitude needed for a target SNR, without paying
+                                             % for noise generation (often the dominant cost, see the
+                                             % NoisePoisson/PoissonThreshold branch below)
+
         Args.SpecType        = {'BB'};       % parameters of the source spectra: 
                                              % either an array of AstSpec or AstroSpec objects
                                              % or an array of model spectra parameters: 
@@ -146,13 +164,26 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         
         Args.MaxPSFNum       = 10000;        % if the number of input sources is above this value, 
                                              % do not record individual PSF and do not attach them to the output AstroImage 
-        % currently not employed:
-%         Args.NoiseDark    logical = true;    % Dark count noise  
-%         Args.NoiseSky     logical = true;    % Sky background 
-%         Args.NoiseReadout logical = true;    % Read-out noise
-%                                              % (see details in imUtil.art.noise)
         Args.NoisePoisson   logical = true;    % Poisson noise
-                                             
+
+        % individual on/off toggles for each background component summed into Back.Tot
+        % (see the Back.* assignments below); e.g. for a lab test with no sky/space
+        % background, set NoiseZody/NoiseCher/NoiseStray to false
+        Args.NoiseZody      logical = true;    % zodiacal light
+        Args.NoiseCher      logical = true;    % Cherenkov background
+        Args.NoiseStray     logical = true;    % stray light
+        Args.NoiseDark      logical = true;    % dark current
+        Args.NoiseReadout   logical = true;    % read-out noise
+        Args.NoiseCross     logical = true;    % cross-talk
+
+        Args.DarkCurrent     = 0.04;         % [e-/pix/s] dark current rate, added to the background as a
+                                             % 300 s-exposure-equivalent count, consistently with the other
+                                             % Back.* terms; default matches the previous hardcoded Back.Dark = 12
+
+        Args.PoissonThreshold = 100;         % [e-/pix] background level above which the (much faster) Gaussian
+                                             % approximation is used instead of the true Poisson distribution;
+                                             % see the Args.NoisePoisson branch below
+
         Args.Inj             = 'direct';     % source injection method: 'direct', 'FFTshift', or 'stampcube'
                                              % 'stampcube' uses the same imUtil.art.createSourceCube/addSources
                                              % pipeline as the extended-object mode (per-source downsample +
@@ -210,8 +241,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.ExtPA            = 0;           % [deg] position angle, applied to the profile regardless of ExtProfileType; length-N vector or scalar (broadcast)
         Args.ExtSizeRA        = [];          % length-N: object angular extent in the RA direction, [arcsec]
         Args.ExtSizeDec       = [];          % length-N: object angular extent in the Dec direction, [arcsec]
-        Args.ExtRA0           = [];          % length-N: object center RA, [deg]; N is taken from this argument
-        Args.ExtDec0          = [];          % length-N: object center Dec, [deg]
+        Args.ExtRA0           = [];          % length-N: object center RA, [deg], or X pixel coordinate if ExtSkyCat = false; N is taken from this argument
+        Args.ExtDec0          = [];          % length-N: object center Dec, [deg], or Y pixel coordinate if ExtSkyCat = false
+        Args.ExtSkyCat logical = true;       % the flag determines whether ExtRA0/ExtDec0 are sky coordinates or pixel X, Y (same convention as SkyCat)
         Args.ExtMag           = [];          % length-N: total magnitude of each object
         Args.ExtEbv           = 0;           % E(B-V); length-N vector or scalar (broadcast) (same convention as Ebv)
         Args.ExtSpec          = 5800;        % same conventions as Spec, but N x npar (one row per object)
@@ -325,8 +357,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     E2ADUlow    = 0.074;  % above GainThresh e-/pix
     
     % [e-/pix] background estimates for a 300 s exposure made by YS
-    Back.Zody    = 27; Back.Cher  = 15; Back.Stray = 12; Back.Dark = 12;
-    Back.Readout =  6; Back.Cross =  2; Back.Gain  =  1;
+    Back.Zody    = 27; Back.Cher  = 15; Back.Stray = 12; Back.Dark = Args.DarkCurrent * 300;
+    Back.Readout =  6; Back.Cross =  2;
     
 %     Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark + ...
 %                  Back.Cross + Back.Gain ) * sqrt(Exposure/300.) + Back.Readout * Args.Exposure(1); % NOT CORRECT
@@ -334,8 +366,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 %     Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark + ...
 %                  Back.Cross + Back.Gain + Back.Readout ) * Args.Exposure(1);  % NOT CORRECT for small exposures
              
-    Back.Tot = ( Back.Zody  + Back.Cher + Back.Stray + Back.Dark) * (Exposure/300.) ...
-                       + ( Back.Readout + Back.Cross + Back.Gain) * Args.Exposure(1); 
+    Back.Tot = ( Args.NoiseZody * Back.Zody + Args.NoiseCher * Back.Cher + ...
+                 Args.NoiseStray * Back.Stray + Args.NoiseDark * Back.Dark) * (Exposure/300.) ...
+                       + ( Args.NoiseReadout * Back.Readout + Args.NoiseCross * Back.Cross) * Args.Exposure(1);
     
     %%%%%%%%%%%%%%%%%%%% load the matlab object with the ULTRASAT properties:
     I = Installer;
@@ -842,8 +875,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
         CatX     = zeros(NumExt,1);
         CatY     = zeros(NumExt,1);
-        RA       = Args.ExtRA0(:);
-        DEC      = Args.ExtDec0(:);
+        RA       = zeros(NumExt,1);
+        DEC      = zeros(NumExt,1);
         InMag    = Args.ExtMag(:);
         CatFlux  = zeros(NumExt,1);
         MagU     = NaN(NumExt,1);
@@ -854,7 +887,15 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
         for Iext = 1:1:NumExt
 
-            [CatX(Iext), CatY(Iext)] = SimWCS.sky2xy(Args.ExtRA0(Iext), Args.ExtDec0(Iext));
+            if Args.ExtSkyCat   % the input coordinates are sky coordinates
+                [CatX(Iext), CatY(Iext)] = SimWCS.sky2xy(Args.ExtRA0(Iext), Args.ExtDec0(Iext));
+                RA(Iext)  = Args.ExtRA0(Iext);
+                DEC(Iext) = Args.ExtDec0(Iext);
+            else                 % the input coordinates are pixel coordinates
+                CatX(Iext) = Args.ExtRA0(Iext);
+                CatY(Iext) = Args.ExtDec0(Iext);
+                [RA(Iext), DEC(Iext)] = SimWCS.xy2sky(CatX(Iext), CatY(Iext));
+            end
 
             if (CatX(Iext) < 0.1) || (CatY(Iext) < 0.1) || (CatX(Iext) > ImageSizeX) || (CatY(Iext) > ImageSizeY)
                 warning('ultrasat:usim:ExtOutOfFOV', ...
@@ -974,6 +1015,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             Grain = PixSizeDeg * 3600 / ExtOversampling;              % [arcsec] per profile grid cell
             Nx    = max(3, ceil( Args.ExtSizeRA(Iext)  / Grain ));
             Ny    = max(3, ceil( Args.ExtSizeDec(Iext) / Grain ));
+            % imUtil.art.addSources requires odd-sized stamps; round up to the next odd
+            % value here so the final convolved stamp (ConvStamp below) is never left even
+            Nx    = Nx + 1 - mod(Nx, 2);
+            Ny    = Ny + 1 - mod(Ny, 2);
 
             switch lower(Args.ExtProfileType)
                 case 'sersic'
@@ -1002,19 +1047,37 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
             %%%%%%%%%%%%%%%%%%%%% convolve the profile with the rotated PSF kernel
 
-            % conv2_fft expects its 2nd argument (the kernel) at its own natural,
-            % un-padded size -- it pads/crops internally to stay centered like
-            % conv2(Mat1,Mat2,'same'). Pre-padding both inputs to an equal size
-            % breaks that internal centering and shifts the result by roughly
-            % half the padded canvas (source appears near a corner). Only pad
-            % Profile up to be elementwise >= WPSFRot, and pass WPSFRot untouched.
-            SzC = max(size(Profile), size(WPSFRot));
-            Profile2 = padarray(Profile, SzC-size(Profile), 0, 'post');
+            % conv2_fft's internal recentering offset, Sh1 = floor(min(size(Mat1),
+            % size(Mat2))*0.5), is only correct when Mat2 (the kernel) is at its own
+            % natural, un-padded size and is genuinely the smaller of the two -- if
+            % Mat1 and Mat2 end up the same size (e.g. from padding the smaller one up
+            % to match the larger), Sh1 degenerates into half of the WHOLE canvas
+            % instead of half the kernel, and the result lands near a corner. Profile is
+            % usually larger than WPSFRot for extended sources, but WPSFRot (the PSF
+            % stamp) is often the larger one for compact sources -- e.g. Template A/B in
+            % ultrasat.ELOPsim's small circles vs. a broad off-axis PSF -- so always
+            % orient the call with the genuinely larger side as Mat1 (natural size) and
+            % the genuinely smaller side as Mat2 (natural size, never padded).
+            % Convolution is commutative, so swapping which one is Mat1 only changes the
+            % output canvas size, not the result's content.
+            if all(size(Profile) >= size(WPSFRot))
+                Mat1 = Profile; Mat2 = WPSFRot;
+            elseif all(size(WPSFRot) >= size(Profile))
+                Mat1 = WPSFRot; Mat2 = Profile;
+            else
+                % neither dominates in both dimensions (a rare mixed aspect-ratio case
+                % for our profile/PSF shapes) -- pad each up to the elementwise max as
+                % before; conv2_fft's Sh1 offset is not exactly right in this fallback
+                % (same known limitation, now confined to this edge case only)
+                SzC  = max(size(Profile), size(WPSFRot));
+                Mat1 = padarray(Profile, SzC-size(Profile), 0, 'post');
+                Mat2 = padarray(WPSFRot, SzC-size(WPSFRot), 0, 'post');
+            end
 
             % conv2_fft returns a complex-typed array via ifft2 (a floating-point-noise
             % imaginary part, since it never discards it); take the real part, since the
             % convolution of two real inputs is mathematically real.
-            ConvStamp = real(imUtil.filter.conv2_fft(Profile2, WPSFRot));
+            ConvStamp = real(imUtil.filter.conv2_fft(Mat1, Mat2));
             ConvStamp = ConvStamp ./ sum(ConvStamp, 'all'); % renormalize to unit flux
 
             ConvStampCell{Iext} = ConvStamp;
@@ -1066,6 +1129,21 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
     end
 
+    if Args.SNROnly
+        % CatX/CatY/CatFlux/InMag/MagU/CrudeSNR/RA/DEC are already finalized above (for
+        % both the point-source and extended-object branches); build the same CatData
+        % catalog a normal run would attach to its output, and return immediately,
+        % skipping the noise/ADU pipeline and file writing entirely
+        warning('ultrasat:usim:SNROnly', ...
+            'Args.SNROnly = true: returning CrudeSNR only, usimImage.Image is empty, no files written..');
+        Cat = [CatX CatY CatFlux InMag MagU CrudeSNR RA DEC];
+        OutCat = AstroCatalog({Cat},'ColNames',{'X', 'Y', 'Counts/s', 'InMAG', 'MagU', 'SNR', 'RA','Dec'}, 'HDU', 1);
+        usimImage = AstroImage();
+        usimImage.Image = [];
+        usimImage.CatData = OutCat;
+        return
+    end
+
     %%%%%%%%%%%%%%%%%%%%% add and apply various types of noise to the tile image
     %%%%%%%%%%%%%%%%%%%%% NB: while ImageSrc is in [counts/s], ImageSrcNoise is already in [counts] !!
     
@@ -1084,11 +1162,15 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     % return NaN and sqrt(SrcAndNoise) would go complex, silently propagating into the output
 
     if Args.NoisePoisson
-        if Exposure < 300   % for short exposures one should use the true Poisson distribution
+        % NB: the choice below is keyed on the background level (Back.Tot), not the
+        % exposure duration -- a short exposure can still have a high background (e.g.
+        % high dark current), where the true Poisson distribution is unnecessary and
+        % slow to sample; Poisson and Gaussian are already very close above a few tens
+        % of counts, so Args.PoissonThreshold (default 100) gives a comfortable margin
+        if Back.Tot < Args.PoissonThreshold   % low background: use the true Poisson distribution
             ImageSrcNoise = poissrnd( max(SrcAndNoise,0), ImageSizeX, ImageSizeY);
             ImageBkg      = poissrnd( NoiseLevel, ImageSizeX, ImageSizeY);
-        else                % for longer exposures the noise level is already quite high, so
-            % we can use a faster normal distribution instead of the Poisson
+        else   % high background: use the (much faster) Gaussian approximation instead
             ImageSrcNoise =  normrnd( SrcAndNoise, sqrt(max(SrcAndNoise,0)), ImageSizeX, ImageSizeY);
             ImageBkg      =  normrnd( NoiseLevel,  sqrt(NoiseLevel),  ImageSizeX, ImageSizeY);
         end

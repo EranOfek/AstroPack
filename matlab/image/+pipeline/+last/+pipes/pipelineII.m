@@ -80,8 +80,8 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         Args.getKxKySizeFromImage logical = true;
 
         Args.InjectedSrcs = [];
-        Args.RePopRefPSF = false;
-        Args.RePopNewPSF = false;
+        Args.RePopRefPSF = true;
+        Args.RePopNewPSF = true;
 
         Args.SubselectionFalse = {'BadPixelHard', 'LIMMAG', 'Negative', ...
             'Overdensity', 'PVDist', 'Streak', 'PSFShape'};
@@ -312,7 +312,8 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         for Iobj = Nobj:-1:1
             AD(Iobj).Ref = imProc.psf.populatePSF(AD(Iobj).Ref, 'RePopulatePSF', true, ...
                 'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
-                'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'old');
+                'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'new', ...
+                'WingsMethod', 'empirical');
             AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref);
             AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF');
         end
@@ -322,7 +323,8 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         for Iobj = Nobj:-1:1
             AD(Iobj).New = imProc.psf.populatePSF(AD(Iobj).New, 'RePopulatePSF', true,...
                 'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
-                'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'old');
+                'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'new', ...
+                'WingsMethod', 'empirical');
             AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New);
             AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF');
         end

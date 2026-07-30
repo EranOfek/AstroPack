@@ -2647,9 +2647,23 @@ classdef PipelineDemon < Component
                     Obj.writeLog(MEs, LogLevel.Info);
                 end % try
             else
-                ErrorMsg = sprintf('Pipeline I failed: %s / funname: %s @ line: %d', Status.ME.message, Status.ME.stack(1).name, Status.ME.stack(1).line);
-                Obj.writeLog(ErrorMsg, LogLevel.Error);
-                Obj.writeLog(Status.ME, LogLevel.Info);
+                if isfield(Status,'NoGoodImages') && Status.NoGoodImages
+                    % Peaceful exit: no useful RAW images in this visit.
+                    % Log as a warning (not an error) and still record the RAW
+                    % status table so the rejected visit is registered.
+                    Obj.writeLog(sprintf('Pipeline I skipped visit: %s', Status.Msg), LogLevel.Warning);
+                    try
+                        Obj.saveTableRaw(FN_I, TableRaw, 'SaveTableRaw',Args.SaveTableRaw);
+                    catch MEsr
+                        Obj.writeLog(sprintf('Failed saving RAW status table for rejected visit: %s', MEsr.message), LogLevel.Error);
+                    end
+                elseif ~isempty(Status.ME)
+                    ErrorMsg = sprintf('Pipeline I failed: %s / funname: %s @ line: %d', Status.ME.message, Status.ME.stack(1).name, Status.ME.stack(1).line);
+                    Obj.writeLog(ErrorMsg, LogLevel.Error);
+                    Obj.writeLog(Status.ME, LogLevel.Info);
+                else
+                    Obj.writeLog('Pipeline I failed with no exception information', LogLevel.Error);
+                end
 
             end % if Status.PipeI
         end
@@ -2733,17 +2747,7 @@ classdef PipelineDemon < Component
             end
 
             % TableRaw
-            if Args.SaveTableRaw
-                FN_Raw = FN_I.reorderEntries(1, 'CreateNewObj',true);
-                FN_Raw.FileType = "mat";
-                FN_Raw.Level    = "raw";
-                FN_Raw.Product  = "Cat";
-                FN_Raw.Counter  = 0;
-                FN_Raw.CropID   = 0;
-                [~,FN_Raw] = imProc.io.saveProductMat(TableRaw, FN_Raw, 'BasePath',Obj.BasePath,'SavedProductName','StatusRAW');
-            else
-                FN_Raw = [];
-            end
+            FN_Raw = Obj.saveTableRaw(FN_I, TableRaw, 'SaveTableRaw',Args.SaveTableRaw);
 
             % AllForcedPhot
             FN_FP = FN_I.reorderEntries(1, 'CreateNewObj',true);
@@ -2776,6 +2780,43 @@ classdef PipelineDemon < Component
             
         end
         
+        function FN_Raw = saveTableRaw(Obj, FN_I, TableRaw, Args)
+            % Save the per-visit RAW status table as a 'StatusRAW' .mat product.
+            % Used on both the success path (from saveDataProductsI) and the
+            % no-useful-images path (from runPipelineI), so a rejected visit
+            % produces the same status product as a reduced one.
+            % Input  : - self.
+            %          - A FileNames object for the visit.
+            %          - The TableRaw (header + per-image quality flags) table.
+            %          * ...,key,val,...
+            %            'SaveTableRaw' - If false, do nothing and return [].
+            %                   Default is true.
+            % Output : - The FileNames object of the saved product, or [] if
+            %            not saved.
+            arguments
+                Obj
+                FN_I
+                TableRaw
+                Args.SaveTableRaw = true;
+            end
+
+            if Args.SaveTableRaw
+                FN_Raw = FN_I.reorderEntries(1, 'CreateNewObj',true);
+                FN_Raw.BasePathIncludeProjName = false;
+                FN_Raw.BasePath = Obj.BasePath;
+                FN_Raw.Path     = [];
+                FN_Raw.FileType = "mat";
+                FN_Raw.Level    = "raw";
+                FN_Raw.Product  = "Cat";
+                FN_Raw.Counter  = 0;
+                FN_Raw.CropID   = 0;
+                [~,FN_Raw] = imProc.io.saveProductMat(TableRaw, FN_Raw, 'BasePath',Obj.BasePath,'SavedProductName','StatusRAW');
+            else
+                FN_Raw = [];
+            end
+        end
+
+
         function [AD, ADc, TCL1, TCL2] = runPipelineII(Obj, Coadd, FN_Proc, UpArgs)
             % excute transients detection pipeline
 
@@ -3306,20 +3347,23 @@ classdef PipelineDemon < Component
                             if ~Status.PipeI || ~Status.WriteI
                                 % Move images to failed directory:
                                 switch Args.FailMethod
-                                    case 'move' 
+                                    case 'move'
                                         Obj.moveImagesToFailedDir(RawImageList);
-            
+
                                         % Write the Status info to the failed
                                         % directory:
-                                        PWD = pwd;
-                                        cd(Obj.FailedPath);
-                                        FailInfoFileName = RawImageList{1};
-                                        FailedInfoFileName = strrep(FailedInfoFileName, 'sci_raw_Image', 'sci_raw_Failure');
-                                        FailedInfoFileName = strrep(FailedInfoFileName, '.fits', '.mat');
-                                        Status.RawImageList = RawImageList;
-                                        Status.TableRaw     = TableRaw;
-                                        save('-v7.3', FailedInfoFileName, Status)
-                                        cd(PWD);
+                                        try
+                                            [~, FailName, FailExt] = fileparts(RawImageList{1});
+                                            FailedInfoFileName = strrep([FailName, FailExt], 'sci_raw_Image', 'sci_raw_Failure');
+                                            FailedInfoFileName = strrep(FailedInfoFileName, '.fits', '.mat');
+                                            FailedInfoFileName = fullfile(Obj.FailedPath, FailedInfoFileName);
+
+                                            Status.RawImageList = RawImageList;
+                                            Status.TableRaw     = TableRaw;
+                                            save('-v7.3', FailedInfoFileName, 'Status');
+                                        catch MEsave
+                                            Obj.writeLog(sprintf('Failed writing failure info file: %s', MEsave.message), LogLevel.Error);
+                                        end
                                     case 'report'
                                         if ~isfolder(Obj.FailedPath)
                                             mkdir(Obj.FailedPath);

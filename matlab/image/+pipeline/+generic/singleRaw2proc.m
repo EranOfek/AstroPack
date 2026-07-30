@@ -357,7 +357,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                     'FindWithEmpiricalPSF',true,...
                                                     'RedNoiseFactor',Args.MultiIterationRedNoiseFactor);
             else
-                [SI] = imProc.psf.populatePSF(SI, 'Method', 'new', Args.constructPSFArgs{:});
+                [SI] = imProc.psf.populatePSF(SI, 'Method', 'new', 'WingsMethod', 'empirical', Args.constructPSFArgs{:});
                 
                 NotEmptyPSF = ~isemptyPSF(SI);
                 NoPSF = sum(NotEmptyPSF)<5;

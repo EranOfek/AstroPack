@@ -228,7 +228,16 @@ classdef AstroPSF < Component
             %                       a cell array of values (or value vectors) corresponding 
             %                       to each of the dimensions of PSF.DataPSF 
             %                       NB: the dynamic dimension names are stored in the DimName cell array
-            %         'FunPSF'    - a PSF-generating function handle 
+            %                       NB: for a dimension named 'Purpose' (used by
+            %                       imProc.psf.populatePSF's BuildDetectionPSF
+            %                       option to carry a photometry-wing PSF at
+            %                       value 1 and a detection-wing PSF at value
+            %                       2 in the same object), the unspecified-
+            %                       value default is the dimension's FIRST
+            %                       grid value rather than the usual midpoint
+            %                       average, since averaging would silently
+            %                       interpolate/blend the two unrelated PSFs.
+            %         'FunPSF'    - a PSF-generating function handle
             %         'FunPars'   - optinal arguments to pass to FunPSF
             %         'InterpMethod' - interpolation method (may be a cell array with different methods for each dimension)
             %         'Oversampling' - resample the output stamp to this value (if not empty) 
@@ -286,7 +295,18 @@ classdef AstroPSF < Component
                             DName = Obj(IObj).DimName{Idim};
                             Ind = find( strcmpi( DName, Args.PsfArgs ), 1);
                             if isempty(Ind)
-                                DimVal{Idim} = ( Obj(IObj).DimVals{Idim}(1) + Obj(IObj).DimVals{Idim}( numel(Obj(IObj).DimVals{Idim}) ) ) / 2.;
+                                if strcmpi(DName, 'Purpose')
+                                    % Discrete/categorical dimension (e.g.
+                                    % photometry=1 vs. detection=2 wing
+                                    % treatment) -- averaging grid values
+                                    % would silently interpolate/blend two
+                                    % unrelated PSFs. Default to the first
+                                    % value (photometry) instead, matching
+                                    % pre-existing caller behavior.
+                                    DimVal{Idim} = Obj(IObj).DimVals{Idim}(1);
+                                else
+                                    DimVal{Idim} = ( Obj(IObj).DimVals{Idim}(1) + Obj(IObj).DimVals{Idim}( numel(Obj(IObj).DimVals{Idim}) ) ) / 2.;
+                                end
                             else
                                 DimVal{Idim} = Args.PsfArgs{Ind+1};
                             end
