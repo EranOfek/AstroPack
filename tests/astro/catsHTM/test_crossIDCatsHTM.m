@@ -384,3 +384,37 @@ function testAddPointer(testCase)
     verifyEqual(testCase, T.CellID_XIDA(Mat),    Cid, 'CellID mismatch vs sourcePointer.');
     verifyEqual(testCase, T.RowInCell_XIDA(Mat), Row, 'RowInCell mismatch vs sourcePointer.');
 end
+
+function testGetNsrcMetaLocationIndependent(testCase)
+    % getNsrcMeta resolves the catalog dir via which(), so it works from any
+    % cwd (the catalogs are only on the path, not in the current directory).
+    Nsrc = catsHTM.getNsrcMeta('XIDA');
+    verifyEqual(testCase, sum(Nsrc(:,2)), 10, 'XIDA should hold 10 sources.');
+    % explicit CatDir override yields the same per-cell counts
+    Nsrc2 = catsHTM.getNsrcMeta('XIDA', 'CatDir', testCase.TestData.Dir);
+    verifyEqual(testCase, sortrows(Nsrc2,1), sortrows(Nsrc,1), 'CatDir override mismatch.');
+end
+
+function testGlobalRowID(testCase)
+    % sourcePointer's 4th output and catsHTM.globalRowID collapse the
+    % (CellID,RowInCell) pair into a contiguous, unique scalar id.
+    RAD = 180./pi;
+    [C, CC] = catsHTM.cone_search('XIDA', 45./RAD, 0, 10800);  % all XIDA sources
+    ColRA  = find(strcmp(CC,'RA'),1);
+    ColDec = find(strcmp(CC,'Dec'),1);
+    Ra  = C(:,ColRA);
+    Dec = C(:,ColDec);
+
+    [Cid, Row, ~, Gid] = catsHTM.sourcePointer('XIDA', Ra, Dec);
+    Ntot = sum(catsHTM.getNsrcMeta('XIDA'), 1);       % [sumCellID sumNsrc]
+    Ntot = Ntot(2);
+
+    % every source is addressed exactly once -> ids are a 1..N permutation
+    verifyEqual(testCase, sort(Gid), (1:Ntot).', 'GlobalID must be a 1..N permutation.');
+    % the 4th output equals a direct globalRowID call on the pointer pair
+    Gid2 = catsHTM.globalRowID('XIDA', Cid, Row);
+    verifyEqual(testCase, Gid2, Gid, 'sourcePointer GlobalID differs from globalRowID.');
+    % NaN pointers propagate to NaN ids
+    GidNan = catsHTM.globalRowID('XIDA', [Cid(1); NaN], [Row(1); 5]);
+    verifyTrue(testCase, isnan(GidNan(2)), 'NaN cell id must give NaN GlobalID.');
+end

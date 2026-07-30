@@ -28,7 +28,7 @@ function [Result] = overlapSources(AI, Args)
     arguments
         AI      
         Args.MagRange    = [13 15];  
-        Args.MatchRadius = 3; % arcsec
+        Args.MatchRadius = 1; % arcsec
         Args.Prop        = {'RA', 'Dec', 'XPEAK', 'YPEAK', 'X1', 'Y1', 'X', 'Y', ...
                             'FLUX_APER_3', 'MAG_APER_3', 'MAG_AB_APER_3', 'MAG_PSF', 'MAG_AB_PSF'};        
         Args.BadFlags    = {'Saturated', 'Negative', 'NaN', 'Spike', 'Hole', 'NearEdge'};   

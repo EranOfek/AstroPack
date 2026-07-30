@@ -110,6 +110,30 @@ function Result = plotPhotStabilityXY(MS, Args)
     %   R = pipeline.last.quality.photCalib.plotPhotStabilityXY(MS, 'Plot', false);
     %   scatter(R.X, R.Y, 20, R.Std, 'filled');
     %   axis equal; colorbar;
+    %
+    %   % --- Pixel-binned heatmap (median STD per 100-px cell) instead of
+    %   %     one-dot-per-source. Only sources with median MAG_APER_3 in
+    %   %     [12, 17] contribute, and the axes are pinned to the full LAST
+    %   %     focal plane so runs are directly comparable:
+    %   pipeline.last.quality.photCalib.plotPhotStabilityXY(MS, ...
+    %       'XField','XFULL','YField','YFULL', ...
+    %       'Mode','heatmap', 'BinSize', 100, 'MinPerBin', 5, ...
+    %       'MagRange', [12 17], 'CropSize', [6388 9576]);
+    %
+    %   % --- Sweep mag windows manually (one plot per range), pinning the
+    %   %     colour scale so cells are comparable across windows:
+    %   Ranges = {[12 15], [12 16], [12 17], [12 18]};
+    %   for R = Ranges
+    %       pipeline.last.quality.photCalib.plotPhotStabilityXY(MS, ...
+    %           'Mode','heatmap', 'MagRange', R{1}, ...
+    %           'ColorLimits', [0 0.05], 'LogColor', false, ...
+    %           'BinSize', 100, 'CropSize', [6388 9576]);
+    %   end
+    %
+    %   % --- Density sanity check for a given mag range (source count per
+    %   %     bin, not STD). Useful before trusting a MagRange choice:
+    %   pipeline.last.quality.photCalib.plotPhotStabilityXY(MS, ...
+    %       'Mode','heatmap', 'BinStat','count', 'MagRange', [12 17]);
 
     arguments
         MS
@@ -120,6 +144,25 @@ function Result = plotPhotStabilityXY(MS, Args)
         Args.MinEpochs   (1,1) double  = 10
         Args.BadFlags         cell     = {'Saturated','NearEdge'}
         Args.SNmin       (1,1) double  = 10
+        Args.MagRange                  = []
+        % [MagMin MagMax] filter on per-source median Args.Mag. Sources
+        % outside this window are dropped before rendering. Empty (default)
+        % = no filter. Loop externally over MagRange values to sweep depth.
+        Args.Mode        (1,:) char {mustBeMember(Args.Mode,{'scatter','heatmap'})} = 'scatter'
+        % 'scatter' (default) - one dot per source at its (X, Y), colour
+        %                       encodes per-source STD (current behaviour).
+        % 'heatmap' - bin (X, Y) into pixel cells of size Args.BinSize;
+        %             colour encodes BinStat (median by default) of the
+        %             per-source STD in each cell. Cells with fewer than
+        %             Args.MinPerBin sources are drawn NaN (blank).
+        Args.BinSize                   = 100
+        % Scalar (square bins) or 1x2 [Bx By] pixel size for the heatmap
+        % grid. Only used when Mode='heatmap'.
+        Args.BinStat     (1,:) char {mustBeMember(Args.BinStat,{'median','mean','count'})} = 'median'
+        % Per-bin reduction of the per-source STDs. 'count' shows source
+        % density instead (useful sanity check for a MagRange choice).
+        Args.MinPerBin   (1,1) double  = 5
+        % Minimum sources per heatmap cell; below this the cell is NaN.
         Args.ColorMap    (1,:) char    = 'parula'
         Args.ColorLimits              = []
         Args.LogColor    (1,1) logical = true
@@ -128,6 +171,12 @@ function Result = plotPhotStabilityXY(MS, Args)
         Args.CropSize                  = []
         Args.Title       (1,:) char    = ''
         Args.Plot        (1,1) logical = true
+        Args.OutFile     (1,:) char    = ''
+        % When non-empty, save the returned Result struct to this .mat
+        % path (via `save`). Enables the `diffPhotStabilityHeatmap` sibling
+        % to load two heatmaps computed under different conditions (e.g.
+        % joint vs per-crop calibration, or two mag windows) and plot the
+        % pixel-wise difference / ratio. No effect on the figure.
     end
 
     MSarr = i_flattenMS(MS);
@@ -165,6 +214,14 @@ function Result = plotPhotStabilityXY(MS, Args)
     Good = isfinite(Xs) & isfinite(Ys) & isfinite(Zs);
     Xs = Xs(Good); Ys = Ys(Good); Zs = Zs(Good); Ms = Ms(Good);
 
+    % Optional mag-window cut on per-source median mag. Loop this arg from
+    % the caller to sweep depth ('for mr = ... plotPhotStabilityXY(...,
+    % 'MagRange', [12 mr])'). Empty = no filter (all sources plotted).
+    if ~isempty(Args.MagRange)
+        InRange = Ms >= Args.MagRange(1) & Ms <= Args.MagRange(2);
+        Xs = Xs(InRange); Ys = Ys(InRange); Zs = Zs(InRange); Ms = Ms(InRange);
+    end
+
     Result = struct('X', Xs, 'Y', Ys, 'Std', Zs, 'Mag', Ms, ...
                     'NSources', numel(Zs), 'Args', Args);
 
@@ -172,14 +229,35 @@ function Result = plotPhotStabilityXY(MS, Args)
         return;
     end
 
-    % --- Colour-axis limits for the STD encoding -----------------------
+    % Build the plot payload first so we can compute CLim from what will
+    % actually be shown (per-source Zs in scatter mode; binned HeatVal in
+    % heatmap mode - very different distributions and log-scale ranges).
+    figure('WindowStyle','docked','Color',[1 1 1]);
+    switch lower(Args.Mode)
+        case 'scatter'
+            ColorSource = Zs;
+            IsCount = false;
+        case 'heatmap'
+            [HeatVal, HeatCount, HeatX, HeatY] = i_binHeatmap( ...
+                Xs, Ys, Zs, Args.BinSize, Args.BinStat, Args.MinPerBin, Args.CropSize);
+            % Record heatmap product on Result for headless reuse.
+            Result.HeatX      = HeatX;
+            Result.HeatY      = HeatY;
+            Result.HeatVal    = HeatVal;
+            Result.HeatCount  = HeatCount;
+            IsCount = strcmpi(Args.BinStat, 'count');
+            if IsCount
+                ColorSource = HeatCount(:);
+            else
+                ColorSource = HeatVal(:);
+            end
+    end
+    % --- Colour-axis limits for the encoding shown -----------------------
     if isempty(Args.ColorLimits)
-        Finite = Zs(isfinite(Zs) & Zs > 0);
+        Finite = ColorSource(isfinite(ColorSource) & ColorSource > 0);
         if isempty(Finite)
             CLim = [0 1];
         else
-            % Robust percentile clamp so a handful of outliers don't
-            % squash the map into one colour bin.
             CLim = quantile(Finite, [0.02, 0.98]);
             if ~all(isfinite(CLim)) || CLim(1) == CLim(2)
                 CLim = [min(Finite), max(Finite)];
@@ -188,33 +266,52 @@ function Result = plotPhotStabilityXY(MS, Args)
     else
         CLim = Args.ColorLimits(:).';
     end
-
-    % Log-encode STD: map to log10(STD) for the colour axis so the scale
-    % spans decades cleanly. Non-positive STD values are dropped from the
-    % colour (drawn as NaN -> invisible on the scatter), consistent with
-    % the "sources with degenerate scatter should not compete for colour"
-    % convention. Colorbar tick labels are formatted back into linear mag.
-    if Args.LogColor
-        C = nan(size(Zs));
-        Pos = isfinite(Zs) & Zs > 0;
-        C(Pos) = log10(Zs(Pos));
-        CLimEff = log10(max(CLim, eps));
+    DoLog = Args.LogColor && ~IsCount;
+    % When log-encoding is on, values stay LINEAR (mag) - we set the axis'
+    % ColorScale to 'log' after plotting so MATLAB draws a log-spaced
+    % colour axis with linear tick labels (0.001, 0.01, 0.1 ...). CLim is
+    % kept in linear units and clamped away from zero so log(0) is safe.
+    if DoLog
+        CLimEff = [max(CLim(1), eps), max(CLim(2), CLim(1) + eps)];
     else
-        C = Zs;
         CLimEff = CLim;
     end
 
-    figure('WindowStyle','docked','Color',[1 1 1]);
-    scatter(Xs, Ys, Args.MarkerSize, C, 'filled');
+    switch lower(Args.Mode)
+        case 'scatter'
+            scatter(Xs, Ys, Args.MarkerSize, Zs, 'filled');
+        case 'heatmap'
+            % HeatVal is indexed (Xbin, Ybin); pcolor expects (row=Y, col=X)
+            % so transpose. NaN cells (below MinPerBin) render blank.
+            H = pcolor(HeatX, HeatY, HeatVal.');
+            H.EdgeColor = 'none';
+            shading flat;
+    end
     colormap(gca, Args.ColorMap);
     if all(isfinite(CLimEff)) && CLimEff(2) > CLimEff(1)
         caxis(CLimEff);
     end
+    if DoLog
+        % Requires R2019b+. If unavailable, fall back to a manual log-tick
+        % remap on the linear-value colorbar so at least the ticks read
+        % as 10^k mag.
+        try
+            set(gca, 'ColorScale', 'log');
+        catch
+            % older MATLAB - handled below by setting explicit ticks.
+        end
+    end
     CB = colorbar;
-    if Args.LogColor
-        CB.Label.String = sprintf('log_{10} STD(%s) [mag]', Args.Mag);
+    if IsCount
+        CB.Label.String = 'sources per bin';
     else
-        CB.Label.String = sprintf('STD(%s) [mag]', Args.Mag);
+        StatTag = '';
+        if strcmpi(Args.Mode, 'heatmap'); StatTag = [Args.BinStat ' ']; end
+        % Values are always linear (ColorScale handles the log rendering).
+        % So the label reads in linear mag either way; DoLog just controls
+        % whether the axis is drawn log-spaced. The scale (log vs linear)
+        % is visible in the tick spacing itself.
+        CB.Label.String = sprintf('%sSTD(%s) [mag]', StatTag, Args.Mag);
     end
     CB.Label.Interpreter = 'none';
 
@@ -233,9 +330,76 @@ function Result = plotPhotStabilityXY(MS, Args)
     if ~isempty(Args.Title)
         title(Args.Title, 'Interpreter','none');
     else
-        title(sprintf('Stability map - %s (%s std, %d sources)', ...
-              Args.Mag, Args.StdMethod, numel(Zs)), 'Interpreter','none');
+        MagTag = '';
+        if ~isempty(Args.MagRange)
+            MagTag = sprintf(', mag in [%g, %g]', Args.MagRange(1), Args.MagRange(2));
+        end
+        title(sprintf('Stability map (%s) - %s (%s std, %d sources%s)', ...
+              Args.Mode, Args.Mag, Args.StdMethod, numel(Zs), MagTag), ...
+              'Interpreter','none');
     end
+    if ~isempty(Args.OutFile)
+        [D, ~, ~] = fileparts(Args.OutFile);
+        if ~isempty(D) && ~exist(D, 'dir'); mkdir(D); end
+        save(Args.OutFile, 'Result', '-v7.3');
+        fprintf('plotPhotStabilityXY: Result saved to %s\n', Args.OutFile);
+    end
+end
+
+
+% =========================================================================
+function [Val, Cnt, Xc, Yc] = i_binHeatmap(Xs, Ys, Zs, BinSize, Stat, MinPerBin, CropSize)
+    % Reduce per-source (X, Y, Z) into a 2D pixel-binned map.
+    % BinSize scalar -> square bins; 1x2 -> [Bx By].
+    % CropSize (scalar or 1x2) pins the grid extent to [0.5, N+0.5]; empty
+    %   auto-fits to the observed X/Y range.
+    % Cells with < MinPerBin sources are set to NaN.
+    if isscalar(BinSize); Bxy = double([BinSize BinSize]);
+    else;                 Bxy = double(BinSize(:).');   end
+    if isempty(CropSize)
+        Xlo = floor(min(Xs, [], 'omitnan'));
+        Xhi = ceil (max(Xs, [], 'omitnan'));
+        Ylo = floor(min(Ys, [], 'omitnan'));
+        Yhi = ceil (max(Ys, [], 'omitnan'));
+    else
+        C = double(CropSize(:).');
+        if isscalar(C); C = [C C]; end
+        Xlo = 0.5;  Xhi = C(1) + 0.5;
+        Ylo = 0.5;  Yhi = C(2) + 0.5;
+    end
+    Nx = max(1, ceil((Xhi - Xlo) / Bxy(1)));
+    Ny = max(1, ceil((Yhi - Ylo) / Bxy(2)));
+    Xedges = Xlo + (0:Nx) * Bxy(1);
+    Yedges = Ylo + (0:Ny) * Bxy(2);
+    Xc = 0.5 * (Xedges(1:end-1) + Xedges(2:end));
+    Yc = 0.5 * (Yedges(1:end-1) + Yedges(2:end));
+
+    Ix = discretize(Xs, Xedges);
+    Iy = discretize(Ys, Yedges);
+    OK = isfinite(Ix) & isfinite(Iy);
+    Ix = Ix(OK); Iy = Iy(OK); Zs = Zs(OK);
+
+    % Count per bin.
+    Cnt = accumarray([Ix(:), Iy(:)], 1, [Nx, Ny], @sum, 0);
+
+    if strcmpi(Stat, 'count')
+        Val = double(Cnt);
+    else
+        switch lower(Stat)
+            case 'median'; Fun = @median;
+            case 'mean';   Fun = @mean;
+        end
+        Val = accumarray([Ix(:), Iy(:)], Zs(:), [Nx, Ny], Fun, NaN);
+    end
+    % Blank cells with too few sources.
+    Val(Cnt < MinPerBin) = NaN;
+end
+
+
+% =========================================================================
+function S = ternary(Cond, ATrue, AFalse)
+    % Inline branch for building log strings.
+    if Cond; S = ATrue; else; S = AFalse; end
 end
 
 

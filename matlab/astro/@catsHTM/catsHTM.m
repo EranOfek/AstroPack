@@ -3161,7 +3161,7 @@ classdef catsHTM
 
         end
 
-        function Nsrc = getNsrcMeta(CatName)
+        function Nsrc = getNsrcMeta(CatName, Args)
             % Count sources per HTM cell from HDF5 metadata only.
             % Package: @catsHTM
             % Description: Same output as catsHTM.get_nsrc but reads each
@@ -3172,18 +3172,45 @@ classdef catsHTM
             %              HDF5.save writes datasets with fliplr, so
             %              h5info reports them in MATLAB column-major
             %              order [Nrows, Ncols] -- Nrows is index 1.
+            %              The catalog directory is resolved on the MATLAB
+            %              path via which('<Cat>_htmColCell.mat') (or the
+            %              CatDir override), so the function is location-
+            %              independent and need NOT be run from the catalog
+            %              directory.
             % Input  : - Catalog base name (e.g., 'DECaLS10').
-            %            HDF5 files must be in the current directory.
+            %          * ...,key,val,...
+            %            'CatDir' - Directory holding the catalog HDF5 files.
+            %                   Default '' = resolve via which() on the path.
             % Output : - Matrix [HTM_index, Nsrc] with source count per cell.
             % Author : Dana Kovaleva (Mar 2026)
             % Example: Nsrc = catsHTM.getNsrcMeta('ForcedPhotList');
+            arguments
+                CatName
+                Args.CatDir = '';
+            end
 
-            Dir = dir(sprintf('%s_htm_*.hdf5', CatName));
+            % Resolve the catalog directory. dir()/h5info with a bare name
+            % only see the current directory; anchor to the catalog dir via
+            % the colcell .mat (which() reliably finds .mat files, checking
+            % the cwd too) so this works regardless of the current folder.
+            CatDir = Args.CatDir;
+            if isempty(CatDir)
+                ColCellFull = which(sprintf('%s_htmColCell.mat', CatName));
+                if isempty(ColCellFull)
+                    error('catsHTM:getNsrcMeta:noCatalog', ...
+                        'Cannot find %s_htmColCell.mat on the MATLAB path (add the catalog directory or pass CatDir).', ...
+                        CatName);
+                end
+                CatDir = fileparts(ColCellFull);
+            end
+
+            Dir = dir(fullfile(CatDir, sprintf('%s_htm_*.hdf5', CatName)));
             Ndir = numel(Dir);
             Nsrc = zeros(100 .* Ndir, 2);
             K = 0;
             for Idir = 1:Ndir
-                Info = h5info(Dir(Idir).name);
+                FullName = fullfile(Dir(Idir).folder, Dir(Idir).name);
+                Info = h5info(FullName);
                 IndH = find(cellfun(@numel, strfind({Info.Datasets.Name}, '_')) == 1);
                 Nih = numel(IndH);
                 for Iih = 1:Nih
@@ -3196,7 +3223,69 @@ classdef catsHTM
             Nsrc = Nsrc(1:K, :);
         end
 
-        function [CellID, RowInCell, Dist] = sourcePointer(CatName, RA, Dec, Args)
+        function [GlobalID, Offset] = globalRowID(CatName, CellID, RowInCell, Args)
+            % Map a (CellID, RowInCell) storage pointer to a single scalar id.
+            % Package: @catsHTM
+            % Description: Collapse the two-part storage address returned by
+            %              catsHTM.sourcePointer into ONE contiguous 1-based
+            %              index over the whole catalog. Cells are ordered by
+            %              ascending HTM id and each cell's rows occupy a
+            %              contiguous block, so
+            %                 GlobalID = Offset(CellID) + RowInCell
+            %              where Offset(CellID) is the number of sources in all
+            %              lower-id cells. Like the pointer pair this is unique
+            %              within the catalog and query-independent; unlike it,
+            %              it is a single integer (convenient as a join key).
+            %              NOTE: it is version-bound - re-ingesting the catalog
+            %              renumbers the blocks - so stamp persisted ids with
+            %              the catalog version.
+            % Input  : - Catalog base name (e.g., 'PS1').
+            %          - CellID    - HTM leaf-cell id(s) (from sourcePointer).
+            %          - RowInCell - Row within htm_<CellID> (from sourcePointer).
+            %          * ...,key,val,...
+            %            'CatDir' - Directory holding the catalog HDF5 files.
+            %                   Default '' = resolve via which() on the path.
+            %            'Nsrc' - Precomputed [CellID Nsrc] table (from
+            %                   catsHTM.getNsrcMeta) to skip the metadata scan
+            %                   when mapping many pointers. Default [] = scan.
+            % Output : - GlobalID - contiguous scalar id per source (NaN where
+            %                   CellID/RowInCell is NaN or the cell is absent).
+            %          - Offset   - [CellID, BlockStart] table (0-based start of
+            %                   each cell's block) - useful for inspection or
+            %                   repeated mapping.
+            % Author : Dana Kovaleva (Jul 2026)
+            % Example: [Cid,Row] = catsHTM.sourcePointer('APASS', 1, 1);
+            %          Gid        = catsHTM.globalRowID('APASS', Cid, Row);
+            arguments
+                CatName
+                CellID
+                RowInCell
+                Args.CatDir = '';
+                Args.Nsrc   = [];
+            end
+
+            % per-cell source counts, ordered by ascending HTM cell id
+            NsrcTable = Args.Nsrc;
+            if isempty(NsrcTable)
+                NsrcTable = catsHTM.getNsrcMeta(CatName, 'CatDir', Args.CatDir);
+            end
+            NsrcTable = sortrows(NsrcTable, 1);
+            Cells     = NsrcTable(:,1);
+            Counts    = NsrcTable(:,2);
+            % block start (0-based) of each cell = sources in all earlier cells
+            OffCol    = [0; cumsum(Counts(1:end-1))];
+            Offset    = [Cells, OffCol];
+
+            CellID    = CellID(:);
+            RowInCell = RowInCell(:);
+            Npt       = numel(CellID);
+            OffPer    = nan(Npt, 1);
+            [Tf, Loc] = ismember(CellID, Cells);     % Tf is false for NaN CellID
+            OffPer(Tf) = OffCol(Loc(Tf));
+            GlobalID  = OffPer + RowInCell;          % NaN if cell absent or row NaN
+        end
+
+        function [CellID, RowInCell, Dist, GlobalID] = sourcePointer(CatName, RA, Dec, Args)
             % Stable per-source storage pointer in a catsHTM catalog.
             % Package: @catsHTM
             % Description: For each input coordinate return the intrinsic
@@ -3226,8 +3315,15 @@ classdef catsHTM
             %                        source found within MaxDist).
             %          - RowInCell - Row index within htm_<CellID> per source.
             %          - Dist      - Match distance [arcsec] (NaN if none).
+            %          - GlobalID  - Optional 4th output: the (CellID,RowInCell)
+            %                        pair collapsed to a single contiguous
+            %                        catalog-wide scalar id (via
+            %                        catsHTM.globalRowID). Requesting it triggers
+            %                        a one-off metadata scan of the whole
+            %                        catalog, so it is computed only when asked.
             % Author : Dana Kovaleva (Jul 2026)
             % Example: [Cid,Row] = catsHTM.sourcePointer('APASS', 1, 1);
+            %          [Cid,Row,~,Gid] = catsHTM.sourcePointer('APASS', 1, 1);
             arguments
                 CatName
                 RA
@@ -3298,6 +3394,13 @@ classdef catsHTM
             RowInCell(Bad) = NaN;
             Dist           = convert.angular('rad', 'arcsec', BestDist);
             Dist(Bad)      = NaN;
+
+            % Optional scalar id. Reuse the already-resolved CatDir so
+            % globalRowID skips a second which() lookup. Computed only when
+            % requested (it scans the whole catalog's metadata once).
+            if nargout >= 4
+                GlobalID = catsHTM.globalRowID(CatName, CellID, RowInCell, 'CatDir', CatDir);
+            end
         end
 
         function [Nsrc,SumN]=nsrc(CatName)
