@@ -47,25 +47,50 @@ function Result = ELOPsim(Args)
     %                         exactly with flux) so that the row's source(s) reach this
     %                         crude S/N; all sources in a row share one magnitude, solved
     %                         from the first source. Default is 50.
-    %         'TemplateACircleRadius' - [arcsec] radius of the Template 'A' test source
-    %                         disk, reused for each source of the Template 'B' grid.
-    %                         Default is 10.
-    %         'TemplateBGridM' - number of Template 'B' grid points along X. Default is 4.
-    %         'TemplateBGridN' - number of Template 'B' grid points along Y. Default is 4.
-    %         'TemplateBGridSpacing' - [arcsec] center-to-center spacing of the Template
-    %                         'B' grid points, axis-aligned with the detector and centered
-    %                         on the row's Radius-derived position. Default is 200.
-    %         'TemplatePolygons' - a 1x1 cell array holding a single Nx2 [dRA, dDec]
-    %                         arcsec vertex-offset list, relative to the row's
-    %                         Radius-derived position (same axis-aligned convention as
-    %                         the Template 'B' grid). This is Template 'C''s shape.
-    %                         Required (no default) when the table includes a 'C' or 'D'
-    %                         row.
-    %         'TemplateDSquareLeg' - [arcsec] Template 'D' reuses Template 'C''s single
-    %                         polygon, translated to each of the 4 corners of a square
-    %                         of this side length, centered on the row's Radius-derived
-    %                         position (axis-aligned, corners at (+-leg/2, +-leg/2)).
-    %                         Default is 600.
+    %         'TemplateADiametersMm' - [mm] vector of the Template 'A' in-line circular
+    %                         source disk diameters (left to right); each a physical mask
+    %                         size, converted to arcsec via size2ang. Default is
+    %                         [0.2 0.4 0.55].
+    %         'TemplateAGapsMm' - [mm] vector (length numel(TemplateADiametersMm)-1) of
+    %                         the gaps between consecutive Template 'A' sources, converted
+    %                         via size2ang. The source line is centered on the row's
+    %                         Radius-derived position. Default is [17 17].
+    %         'TemplateARotation' - [deg] rotation of the Template 'A' source line about
+    %                         its center (0 = along detector X). Distinct from Args.Rotation
+    %                         (the whole-frame RotAng). Default is 0.
+    %         'TemplateBUpperDiameterMm' / 'TemplateBLowerDiameterMm' - [mm] circle
+    %                         diameter of every source in the upper, resp. lower, set of
+    %                         Template 'B' (converted via size2ang). Defaults 0.18, 0.57.
+    %         'TemplateBUpperColGapsMm' / 'TemplateBUpperRowGapsMm' - [mm] gaps between
+    %                         consecutive columns (left->right), resp. rows (top->bottom),
+    %                         of the upper set; the set is (numel(ColGaps)+1) x
+    %                         (numel(RowGaps)+1) sources. Default [5.145 5.290 5.435] each.
+    %         'TemplateBLowerColGapsMm' / 'TemplateBLowerRowGapsMm' - as above, for the
+    %                         lower set. Default [5.435 5.290 5.145] each.
+    %         'SetShift' - [mm] [horizontal, vertical] offset from the upper set's
+    %                         upper-left source to the lower set's upper-left source
+    %                         (converted via size2ang). Default [25 25].
+    %         'TemplateBRotation' - [deg] rotation of the whole Template 'B' two-set
+    %                         pattern about its centroid (0 = detector-aligned: columns
+    %                         +X, rows top->bottom -Y). Default is 0.
+    %         'TemplatePolygonsMm' - a 1x1 cell array holding a single Nx2 [dRA, dDec]
+    %                         vertex-offset list [mm] -- Template 'C''s reticle shape.
+    %                         Converted to arcsec via size2ang, shifted so its area-
+    %                         centroid sits at the row's Radius-derived position, and
+    %                         rotated by TemplateCRotation. Default is the T-4666-1754-00
+    %                         calibration-target pentagon.
+    %         'TemplateCRotation' - [deg] rotation of the Template 'C' polygon about its
+    %                         centroid (CCW, 0 = as drawn: dRA->+X, dDec->+Y). Default 0.
+    %         'TemplateDPolygonsMm' - a cell array of Nx2 [dRA, dDec] vertex-offset lists
+    %                         [mm] -- Template 'D''s 5 polygon shapes (T-4666-1751-00:
+    %                         2 rhombi, a triangle, and 2 arrows), positioned relative to
+    %                         the substrate center. Converted via size2ang and rotated by
+    %                         TemplateDRotation. Default is the T-4666-1751-00 target.
+    %         'TemplateDHoleMm' - [dRA, dDec, diameter] [mm] of Template 'D''s circular
+    %                         hole -- a 6th (disk) source. Default is [0 21.998 0.10].
+    %         'TemplateDRotation' - [deg] rotation of the whole Template 'D' assembly
+    %                         about the substrate-center anchor (CCW, 0 = as drawn).
+    %                         Default is 0.
     %         'DefocusKernelShape' - 'tophat' (uniform disk, hard cutoff) or 'topcosine'
     %                         (cosine-tapered disk, smoothly reaching 0 at the same
     %                         diameter instead of an abrupt edge). Applied to every
@@ -120,12 +145,38 @@ function Result = ELOPsim(Args)
         Args.ExtMag      = 15;
         Args.TargetSNR   = 100;
 
-        Args.TemplateACircleRadius = 10; % [arcsec]
-        Args.TemplateBGridM        = 4;
-        Args.TemplateBGridN        = 4;
-        Args.TemplateBGridSpacing  = 200; % [arcsec]
-        Args.TemplatePolygons      = {};
-        Args.TemplateDSquareLeg    = 600; % [arcsec]
+        Args.TemplateADiametersMm  = [0.2 0.4 0.55]; % [mm] per-source disk diameters, left->right
+        Args.TemplateAGapsMm       = [17 17];        % [mm] gaps between consecutive sources
+        Args.TemplateARotation     = 0;              % [deg] rotation of the source line about its center
+
+        Args.TemplateBUpperDiameterMm = 0.18;               % [mm] upper set circle diameter
+        Args.TemplateBUpperColGapsMm  = [5.145 5.290 5.435]; % [mm] upper set column gaps (L->R)
+        Args.TemplateBUpperRowGapsMm  = [5.145 5.290 5.435]; % [mm] upper set row gaps (top->bottom)
+        Args.TemplateBLowerDiameterMm = 0.57;               % [mm] lower set circle diameter
+        Args.TemplateBLowerColGapsMm  = [5.435 5.290 5.145]; % [mm] lower set column gaps (L->R)
+        Args.TemplateBLowerRowGapsMm  = [5.435 5.290 5.145]; % [mm] lower set row gaps (top->bottom)
+        Args.SetShift                 = [25 25];             % [mm] [horizontal, vertical] upper->lower set
+        Args.TemplateBRotation        = 0;                   % [deg] whole-template rotation about the centroid
+
+        Args.TemplatePolygonsMm    = { [0        0;       ...   % [mm] Template 'C' reticle shape
+                                        40.635   0;       ...   % (T-4666-1754-00 calibration target),
+                                        37.365  37.365;   ...   % [dRA, dDec] vertex offsets, as drawn
+                                        37.365  40.635;   ...
+                                        0       37.365] };
+        Args.TemplateCRotation     = 0;    % [deg] whole-polygon rotation about its centroid
+
+        % Template 'D' (T-4666-1751-00): 5 polygons + 1 circular hole, [mm] [dRA, dDec]
+        % vertices relative to the substrate center (the anchor)
+        Args.TemplateDPolygonsMm   = { ...
+            [-18.500  21.973; -21.121  16.734; -18.500  11.499; -15.882  16.734];             ... % rhombus (top-left)
+            [ 18.501  21.973;  15.883  16.734;  18.501  11.499;  21.119  16.734];             ... % rhombus (top-right)
+            [ -5.820   5.999;  -0.003  -5.640;   5.818   5.999];                              ... % triangle (center)
+            [-18.729 -12.093; -18.729 -13.546; -10.001 -13.546; -10.001 -21.113;             ... % left arrow
+             -12.912 -21.113; -12.912 -16.457; -18.729 -16.457; -18.729 -17.910; -21.640 -15.003]; ...
+            [ 16.546  -7.503;  16.546 -18.870;  15.089 -18.870;  18.000 -21.780;             ... % down arrow
+              20.910 -18.870;  19.453 -18.870;  19.453  -7.503] };
+        Args.TemplateDHoleMm       = [0 21.998 0.10];  % [mm] hole [dRA, dDec, diameter]
+        Args.TemplateDRotation     = 0;                % [deg] whole-assembly rotation about the anchor
 
         Args.DefocusKernelShape    = 'tophat'; % 'tophat' or 'topcosine'
         Args.DefocusDiameterMicron = [10 18 45 90]; % Focus = 2,3,4,5 respectively
@@ -359,6 +410,20 @@ function Result = ELOPsim(Args)
 
 end
 
+function Angle = size2ang(SizeMm)
+    % Convert a physical source size [mm], as specified on the ELOP lab-test mask, into
+    % the corresponding on-sky angular size [arcsec]. The lab-test optics image the mask
+    % onto the sky with magnification Magnification = 1.1*330/22000, and the conversion
+    % follows Angle = 206265*Magnification*Size/(1.1*330). Works element-wise, so a
+    % scalar, a vector, or an Nx2 polygon vertex-offset list are all handled uniformly.
+    % Input  : - Physical source size(s) [mm].
+    % Output : - Angular size(s) [arcsec].
+    % Author : A. Krassilchtchikov (Jul 2026)
+    % Example: Ang = ultrasat.ELOPsim>size2ang(0.55);
+    Magnification = 1.1 * 330 / 22000;
+    Angle = 206265 * Magnification * SizeMm / (1.1 * 330);
+end
+
 function [CatX, CatY] = elopSourcePixelPos(Radius, Tile)
     % Pixel position at angular distance Radius [deg] from the tile's inner corner,
     % along the diagonal into the tile's FOV, matching usim.m's own radial-distance
@@ -393,31 +458,80 @@ end
 function [CatX, CatY, ExtSizeRAVec, ExtSizeDecVec, ExtProfileMatrix] = elopTemplateSources(Template, CatX0, CatY0, Args)
     % Per-source ExtRA0/ExtDec0 (pixel, see ExtSkyCat=false)/ExtSizeRA/ExtSizeDec/
     % ExtProfileMatrix for a given ELOP test Template, centered at (CatX0, CatY0) (the
-    % row's Radius-derived position). Template 'A' is a single circular disk source.
-    % Template 'B' is a GridM x GridN raster grid of disk sources, axis-aligned with the
-    % detector. Template 'C' is the single user-supplied polygon (Args.TemplatePolygons).
-    % Template 'D' is 4 copies of that same polygon, translated to the corners of a
-    % square (Args.TemplateDSquareLeg). See elopTemplateCDPolygons.
+    % row's Radius-derived position). Template 'A' is a line of circular disk sources
+    % (per-source diameters Args.TemplateADiametersMm, consecutive gaps
+    % Args.TemplateAGapsMm), rotated by Args.TemplateARotation about its center.
+    % Template 'B' is two sets (upper/lower) of disk sources with per-set diameters and
+    % non-uniform column/row gaps, the lower set offset by Args.SetShift and the whole
+    % pattern rotated by Args.TemplateBRotation about its centroid. Template 'C' is a
+    % single polygon (Args.TemplatePolygonsMm [mm], area-centroid anchored, rotated by
+    % Args.TemplateCRotation). Template 'D' is 5 fixed polygons plus a circular hole
+    % (T-4666-1751-00), positioned relative to the substrate center (Args.TemplateDPolygonsMm
+    % / Args.TemplateDHoleMm) and rotated by Args.TemplateDRotation about that anchor.
     switch Template
         case 'A'
-            ExtSize = 2 * Args.TemplateACircleRadius;   % [arcsec] bounding-box size of the disk
-            CatX = CatX0;
-            CatY = CatY0;
-            ExtSizeRAVec  = ExtSize;
-            ExtSizeDecVec = ExtSize;
-            ExtProfileMatrix = {elopCircleMask(elopGridSamples(ExtSize, Args.ImRes))};
+            % a line of circular disk sources: per-source diameters [mm] and consecutive
+            % gaps [mm] are converted to arcsec, the line is centered on (CatX0, CatY0)
+            % and rotated by Args.TemplateARotation [deg] about that center (0 = along X).
+            DiamArcsec = size2ang(Args.TemplateADiametersMm);   % [arcsec] disk diameters
+            GapArcsec  = size2ang(Args.TemplateAGapsMm);        % [arcsec] consecutive gaps
+            NumSrc = numel(DiamArcsec);
+            if numel(GapArcsec) ~= NumSrc - 1
+                error('ultrasat:ELOPsim:TemplateAGapCount', ...
+                    'Args.TemplateAGapsMm must have numel(TemplateADiametersMm)-1 = %d elements (got %d), exiting..', ...
+                    NumSrc - 1, numel(GapArcsec));
+            end
+
+            AlongLine = [0, cumsum(GapArcsec)];   % [arcsec] cumulative positions along the line
+            AlongLine = AlongLine - (min(AlongLine) + max(AlongLine)) / 2;   % center on the anchor
+
+            PixSizeArcsec = elopPixSizeArcsec();
+            CatX = CatX0 + AlongLine * cosd(Args.TemplateARotation) / PixSizeArcsec;
+            CatY = CatY0 + AlongLine * sind(Args.TemplateARotation) / PixSizeArcsec;
+
+            ExtSizeRAVec  = DiamArcsec;   % [arcsec] bounding-box size = disk diameter
+            ExtSizeDecVec = DiamArcsec;
+            ExtProfileMatrix = cell(1, NumSrc);
+            for Ip = 1:1:NumSrc
+                ExtProfileMatrix{Ip} = elopCircleMask(elopGridSamples(DiamArcsec(Ip), Args.ImRes));
+            end
 
         case 'B'
-            [CatX, CatY] = elopGridPositions(CatX0, CatY0, ...
-                Args.TemplateBGridM, Args.TemplateBGridN, Args.TemplateBGridSpacing);
-            NumSrc = numel(CatX);
-            ExtSize = 2 * Args.TemplateACircleRadius;   % [arcsec] bounding-box size of each disk
-            ExtSizeRAVec     = repmat(ExtSize, 1, NumSrc);
-            ExtSizeDecVec    = repmat(ExtSize, 1, NumSrc);
-            ExtProfileMatrix = repmat({elopCircleMask(elopGridSamples(ExtSize, Args.ImRes))}, 1, NumSrc);
+            % two sets (upper/lower) of disk sources: per-set diameters and non-uniform
+            % column/row gaps [mm], the lower set offset from the upper by Args.SetShift
+            % [mm], the whole pattern centered on its centroid at (CatX0, CatY0) and
+            % rotated by Args.TemplateBRotation [deg] about it.
+            [Uup, Vup] = elopSetPositions(Args.TemplateBUpperColGapsMm, Args.TemplateBUpperRowGapsMm);
+            [Ulo, Vlo] = elopSetPositions(Args.TemplateBLowerColGapsMm, Args.TemplateBLowerRowGapsMm);
+            Ulo = Ulo + Args.SetShift(1);   % lower set's upper-left offset from the upper set's
+            Vlo = Vlo + Args.SetShift(2);
+            U = [Uup, Ulo];   % [mm] rightward from the shared upper-left
+            V = [Vup, Vlo];   % [mm] downward  from the shared upper-left
 
-        case {'C', 'D'}
-            Polygons = elopTemplateCDPolygons(Template, Args);
+            % center on the centroid (the anchor) and map to detector axes
+            % (variant 1: rightward -> +X, downward -> -Y)
+            DX =  (U - mean(U));
+            DY = -(V - mean(V));
+
+            % rotate the whole pattern about the centroid, then mm -> arcsec -> pixels
+            Theta = Args.TemplateBRotation;
+            DXr = DX * cosd(Theta) - DY * sind(Theta);
+            DYr = DX * sind(Theta) + DY * cosd(Theta);
+            PixSizeArcsec = elopPixSizeArcsec();
+            CatX = CatX0 + size2ang(DXr) / PixSizeArcsec;
+            CatY = CatY0 + size2ang(DYr) / PixSizeArcsec;
+
+            DiamArcsec = size2ang(elopTemplateBDiametersMm(Args));   % per-source disk diameters
+            NumSrc = numel(CatX);
+            ExtSizeRAVec  = DiamArcsec;
+            ExtSizeDecVec = DiamArcsec;
+            ExtProfileMatrix = cell(1, NumSrc);
+            for Ip = 1:1:NumSrc
+                ExtProfileMatrix{Ip} = elopCircleMask(elopGridSamples(DiamArcsec(Ip), Args.ImRes));
+            end
+
+        case 'C'
+            Polygons = elopTemplateCPolygon(Args);
             NumSrc = numel(Polygons);
             CatX = zeros(1, NumSrc); CatY = zeros(1, NumSrc);
             ExtSizeRAVec = zeros(1, NumSrc); ExtSizeDecVec = zeros(1, NumSrc);
@@ -427,49 +541,110 @@ function [CatX, CatY, ExtSizeRAVec, ExtSizeDecVec, ExtProfileMatrix] = elopTempl
                     elopPolygonSource(Polygons{Ip}, CatX0, CatY0, Args.ImRes);
             end
 
+        case 'D'
+            % 5 polygons + 1 circular hole (T-4666-1751-00), positioned in [mm] relative
+            % to the substrate center (the anchor at (CatX0, CatY0)), converted via
+            % size2ang and rotated as a whole by Args.TemplateDRotation about the anchor.
+            Polygons = elopTemplateDPolygons(Args);
+            NumPoly  = numel(Polygons);
+            NumSrc   = NumPoly + 1;   % + the circular hole disk source
+            CatX = zeros(1, NumSrc); CatY = zeros(1, NumSrc);
+            ExtSizeRAVec = zeros(1, NumSrc); ExtSizeDecVec = zeros(1, NumSrc);
+            ExtProfileMatrix = cell(1, NumSrc);
+            for Ip = 1:1:NumPoly
+                [CatX(Ip), CatY(Ip), ExtSizeRAVec(Ip), ExtSizeDecVec(Ip), ExtProfileMatrix{Ip}] = ...
+                    elopPolygonSource(Polygons{Ip}, CatX0, CatY0, Args.ImRes);
+            end
+            % the hole: a small circular disk source at its own rotated position
+            [HoleX, HoleY, HoleDiamArcsec] = elopTemplateDHole(Args);
+            PixSizeArcsec = elopPixSizeArcsec();
+            CatX(NumSrc) = CatX0 + HoleX / PixSizeArcsec;
+            CatY(NumSrc) = CatY0 + HoleY / PixSizeArcsec;
+            ExtSizeRAVec(NumSrc)  = HoleDiamArcsec;
+            ExtSizeDecVec(NumSrc) = HoleDiamArcsec;
+            ExtProfileMatrix{NumSrc} = elopCircleMask(elopGridSamples(HoleDiamArcsec, Args.ImRes));
+
         otherwise
             error('ultrasat:ELOPsim:TemplateNotImplemented', ...
                 'Template ''%s'' is not yet implemented (only ''A'', ''B'', ''C'', ''D'' are supported), exiting..', Template);
     end
 end
 
-function [CatX, CatY] = elopGridPositions(CatX0, CatY0, GridM, GridN, GridSpacingArcsec)
-    % Pixel positions of a GridM x GridN raster grid of sources, axis-aligned with the
-    % detector, centered at (CatX0, CatY0), with the given center-to-center spacing.
-    PixSizeArcsec = elopPixSizeArcsec();
-    PixSpacing = GridSpacingArcsec / PixSizeArcsec;
-
-    OffM = ((1:GridM) - (GridM + 1) / 2) * PixSpacing;
-    OffN = ((1:GridN) - (GridN + 1) / 2) * PixSpacing;
-    [OffX, OffY] = meshgrid(OffM, OffN);
-
-    CatX = CatX0 + OffX(:)';
-    CatY = CatY0 + OffY(:)';
+function [U, V] = elopSetPositions(ColGapsMm, RowGapsMm)
+    % Local (u,v) positions [mm] of one Template 'B' set of sources: u runs rightward
+    % from the set's upper-left source (cumulative column gaps), v runs downward
+    % (cumulative row gaps). The set is (numel(ColGaps)+1) x (numel(RowGaps)+1) sources.
+    % Returned as row vectors in a fixed column-major order so the upper and lower sets
+    % concatenate consistently with elopTemplateBDiametersMm.
+    ColPos = [0, cumsum(ColGapsMm(:)')];   % 1 x Ncol
+    RowPos = [0, cumsum(RowGapsMm(:)')];   % 1 x Nrow
+    [GridU, GridV] = meshgrid(ColPos, RowPos);
+    U = GridU(:)';
+    V = GridV(:)';
 end
 
-function Polygons = elopTemplateCDPolygons(Template, Args)
-    % The polygon list (each an Nx2 [dRA, dDec] arcsec vertex-offset list) for Template
-    % 'C' (Args.TemplatePolygons's single polygon, unmodified) or 'D' (that same polygon,
-    % translated to each of the 4 corners of an axis-aligned square of side
-    % Args.TemplateDSquareLeg, centered on the row's Radius-derived position).
-    if numel(Args.TemplatePolygons) ~= 1
-        error('ultrasat:ELOPsim:PolygonCountMismatch', ...
-            'Args.TemplatePolygons must hold exactly 1 polygon -- Template ''C'' shape, reused by Template ''D'' at the corners of a square (got %d), exiting..', ...
-            numel(Args.TemplatePolygons));
-    end
-    BaseVertices = Args.TemplatePolygons{1};
+function DiamMm = elopTemplateBDiametersMm(Args)
+    % Per-source disk diameter [mm] for Template 'B', in the same upper-then-lower,
+    % column-major order elopSetPositions produces, so it aligns with CatX/CatY.
+    NumUpper = (numel(Args.TemplateBUpperColGapsMm) + 1) * (numel(Args.TemplateBUpperRowGapsMm) + 1);
+    NumLower = (numel(Args.TemplateBLowerColGapsMm) + 1) * (numel(Args.TemplateBLowerRowGapsMm) + 1);
+    DiamMm = [repmat(Args.TemplateBUpperDiameterMm, 1, NumUpper), ...
+              repmat(Args.TemplateBLowerDiameterMm, 1, NumLower)];
+end
 
-    switch Template
-        case 'C'
-            Polygons = {BaseVertices};
-        case 'D'
-            HalfLeg = Args.TemplateDSquareLeg / 2;
-            CornerOffsets = [-HalfLeg -HalfLeg; HalfLeg -HalfLeg; -HalfLeg HalfLeg; HalfLeg HalfLeg];
-            Polygons = cell(1, 4);
-            for Ic = 1:1:4
-                Polygons{Ic} = BaseVertices + CornerOffsets(Ic,:);
-            end
+function Polygons = elopTemplateCPolygon(Args)
+    % Template 'C''s single polygon as a 1x1 cell of an Nx2 [dRA, dDec] arcsec vertex
+    % list, relative to the row's Radius-derived position: Args.TemplatePolygonsMm's
+    % [mm] vertices converted via size2ang, shifted so the polygon's area-centroid sits
+    % at (0,0) -- i.e. at (CatX0, CatY0), the centroid anchor -- and rotated by
+    % Args.TemplateCRotation [deg] (CCW) about that centroid.
+    if numel(Args.TemplatePolygonsMm) ~= 1
+        error('ultrasat:ELOPsim:PolygonCountMismatch', ...
+            'Args.TemplatePolygonsMm must hold exactly 1 polygon -- Template ''C'' shape (got %d), exiting..', ...
+            numel(Args.TemplatePolygonsMm));
     end
+    Base = size2ang(Args.TemplatePolygonsMm{1});     % Nx2 [dRA, dDec] arcsec
+    Base = Base - elopPolygonAreaCentroid(Base);
+    Theta = Args.TemplateCRotation;
+    Rot   = [cosd(Theta), -sind(Theta); sind(Theta), cosd(Theta)];
+    Polygons = { (Rot * Base.').' };                 % rotate CCW about the centroid
+end
+
+function Polygons = elopTemplateDPolygons(Args)
+    % Template 'D''s 5 polygon shapes (T-4666-1751-00) as a cell of Nx2 [dRA, dDec]
+    % arcsec vertex lists relative to the substrate center (the anchor): each polygon's
+    % [mm] vertices (Args.TemplateDPolygonsMm) are converted via size2ang and rotated by
+    % Args.TemplateDRotation [deg] (CCW) about the anchor, preserving their layout (unlike
+    % Template 'C', the shapes are NOT re-centered -- their positions carry the design).
+    Theta = Args.TemplateDRotation;
+    Rot   = [cosd(Theta), -sind(Theta); sind(Theta), cosd(Theta)];
+    Polygons = cell(1, numel(Args.TemplateDPolygonsMm));
+    for Ip = 1:1:numel(Args.TemplateDPolygonsMm)
+        Polygons{Ip} = (Rot * size2ang(Args.TemplateDPolygonsMm{Ip}).').';
+    end
+end
+
+function [HoleX, HoleY, HoleDiamArcsec] = elopTemplateDHole(Args)
+    % Template 'D''s circular hole: its [x, y] position [mm] (Args.TemplateDHoleMm(1:2),
+    % relative to the substrate center) converted to arcsec via size2ang and rotated by
+    % Args.TemplateDRotation about the anchor, plus its diameter (Args.TemplateDHoleMm(3)).
+    Theta = Args.TemplateDRotation;
+    Rot   = [cosd(Theta), -sind(Theta); sind(Theta), cosd(Theta)];
+    Pos   = (Rot * size2ang(Args.TemplateDHoleMm(1:2)).').';
+    HoleX = Pos(1);
+    HoleY = Pos(2);
+    HoleDiamArcsec = size2ang(Args.TemplateDHoleMm(3));
+end
+
+function Cxy = elopPolygonAreaCentroid(V)
+    % Area-centroid [x, y] of a simple polygon with Nx2 vertices V (any winding), via the
+    % standard shoelace formula -- used to anchor Template 'C'/'D' on the polygon's own
+    % area-centroid rather than its bounding-box center.
+    X = V(:,1); Y = V(:,2);
+    X2 = [X(2:end); X(1)]; Y2 = [Y(2:end); Y(1)];
+    Cross = X .* Y2 - X2 .* Y;
+    Area = sum(Cross) / 2;
+    Cxy  = [sum((X + X2) .* Cross), sum((Y + Y2) .* Cross)] / (6 * Area);
 end
 
 function [CatX, CatY, ExtSizeRA, ExtSizeDec, Mask] = elopPolygonSource(Vertices, CatX0, CatY0, ImRes)
@@ -743,34 +918,67 @@ end
 
 function elopWriteRegionFile(FileName, Template, CatX, CatY, CatX0, CatY0, Args)
     % Write a DS9-compatible region file (via DS9_new.regionWrite) marking every
-    % modelled source in a row, in image (pixel) coordinates. Template 'A'/'B': a
-    % circle per source, of the nominal Args.TemplateACircleRadius. Template 'C'/'D':
-    % the polygon(s) from elopTemplateCDPolygons, reconstructed to absolute pixel
-    % vertices from the row's shared center (CatX0, CatY0) -- the same convention
+    % modelled source in a row, in image (pixel) coordinates. Template 'A': one circle
+    % per source at its own design diameter (Args.TemplateADiametersMm). Template 'B':
+    % a circle per source at its set's diameter (upper/lower). Template 'C': the single
+    % polygon from elopTemplateCPolygon. Template 'D': the 5 polygons from
+    % elopTemplateDPolygons plus a circle for the hole. All reconstructed to absolute
+    % pixel vertices from the row's shared center (CatX0, CatY0) -- the same convention
     % elopPolygonSource uses -- rather than each polygon's own bounding-box center
     % (CatX/CatY), since the vertices are defined relative to the shared center.
     PixSizeArcsec = elopPixSizeArcsec();
     switch Template
-        case {'A', 'B'}
-            RadiusPix = Args.TemplateACircleRadius / PixSizeArcsec;
-            DS9_new.regionWrite([CatX(:), CatY(:)], 'FileName', FileName, 'Coo', 'image', ...
-                'Marker', 'circle', 'Size', RadiusPix, 'Color', 'green', ...
-                'PrintIndividualProp', false);
-
-        case {'C', 'D'}
-            Polygons = elopTemplateCDPolygons(Template, Args);
-            for Ip = 1:1:numel(Polygons)
-                Vertices = Polygons{Ip};
-                VertX = CatX0 + Vertices(:,1) / PixSizeArcsec;
-                VertY = CatY0 + Vertices(:,2) / PixSizeArcsec;
-                DS9_new.regionWrite([VertX(:), VertY(:)], 'FileName', FileName, 'Coo', 'image', ...
-                    'Marker', 'polygon', 'Color', 'green', 'Append', Ip > 1, ...
-                    'PrintIndividualProp', false);
+        case 'A'
+            % one circle per source, each drawn at its own design diameter
+            DiamArcsec = size2ang(Args.TemplateADiametersMm);
+            RadiiPix   = (DiamArcsec / 2) / PixSizeArcsec;
+            for Ip = 1:1:numel(CatX)
+                DS9_new.regionWrite([CatX(Ip), CatY(Ip)], 'FileName', FileName, 'Coo', 'image', ...
+                    'Marker', 'circle', 'Size', RadiiPix(Ip), 'Color', 'green', ...
+                    'Append', Ip > 1, 'PrintIndividualProp', false);
             end
+
+        case 'B'
+            % one circle per source, each at its set's diameter (same upper-then-lower
+            % order as CatX/CatY, via elopTemplateBDiametersMm)
+            DiamArcsec = size2ang(elopTemplateBDiametersMm(Args));
+            RadiiPix   = (DiamArcsec / 2) / PixSizeArcsec;
+            for Ip = 1:1:numel(CatX)
+                DS9_new.regionWrite([CatX(Ip), CatY(Ip)], 'FileName', FileName, 'Coo', 'image', ...
+                    'Marker', 'circle', 'Size', RadiiPix(Ip), 'Color', 'green', ...
+                    'Append', Ip > 1, 'PrintIndividualProp', false);
+            end
+
+        case 'C'
+            elopWritePolygonRegions(FileName, elopTemplateCPolygon(Args), CatX0, CatY0, PixSizeArcsec, false);
+
+        case 'D'
+            elopWritePolygonRegions(FileName, elopTemplateDPolygons(Args), CatX0, CatY0, PixSizeArcsec, false);
+            % the circular hole, as a circle region at its rotated position
+            [HoleX, HoleY, HoleDiamArcsec] = elopTemplateDHole(Args);
+            DS9_new.regionWrite([CatX0 + HoleX / PixSizeArcsec, CatY0 + HoleY / PixSizeArcsec], ...
+                'FileName', FileName, 'Coo', 'image', 'Marker', 'circle', ...
+                'Size', (HoleDiamArcsec / 2) / PixSizeArcsec, 'Color', 'green', ...
+                'Append', true, 'PrintIndividualProp', false);
 
         otherwise
             error('ultrasat:ELOPsim:TemplateNotImplemented', ...
                 'Template ''%s'' is not yet implemented (only ''A'', ''B'', ''C'', ''D'' are supported), exiting..', Template);
+    end
+end
+
+function elopWritePolygonRegions(FileName, Polygons, CatX0, CatY0, PixSizeArcsec, Append0)
+    % Write each polygon in Polygons (Nx2 [dRA, dDec] arcsec vertex lists, relative to
+    % (CatX0, CatY0)) as a DS9 polygon region in image (pixel) coordinates. Append0 is
+    % the Append flag for the first polygon (false to start a fresh file); subsequent
+    % polygons always append.
+    for Ip = 1:1:numel(Polygons)
+        Vertices = Polygons{Ip};
+        VertX = CatX0 + Vertices(:,1) / PixSizeArcsec;
+        VertY = CatY0 + Vertices(:,2) / PixSizeArcsec;
+        DS9_new.regionWrite([VertX(:), VertY(:)], 'FileName', FileName, 'Coo', 'image', ...
+            'Marker', 'polygon', 'Color', 'green', 'Append', Append0 || Ip > 1, ...
+            'PrintIndividualProp', false);
     end
 end
 
