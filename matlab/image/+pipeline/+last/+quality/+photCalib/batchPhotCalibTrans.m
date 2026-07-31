@@ -22,7 +22,42 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
     %                                     sibling `_Cat_1.fits` into
     %                                     CatData. Both are required for
     %                                     calibrator selection to succeed.
-    %            'Recursive'            - Walk sub-tree. Default true.
+    %            'Recursive'            - Walk sub-tree. Default true. Only
+    %                                     used by the default dir()-based
+    %                                     discovery (ignored when InGlob or
+    %                                     FileListFile is given).
+    %            'InGlob'               - Shell glob (expanded via `ls -1`) used
+    %                                     for discovery instead of MATLAB's
+    %                                     recursive dir(). STRONGLY preferred on
+    %                                     large NFS trees: dir(**) walks the
+    %                                     whole tree (hours on the LAST mount)
+    %                                     and filters only afterwards, whereas a
+    %                                     shell glob prunes non-matching dirs at
+    %                                     each level. Encode the field/filter/
+    %                                     path structure in the glob, e.g.
+    %                                     '.../2025/*/*/proc/*/LAST*_clear_1716.c_*_sci_coadd_Image_1.fits'.
+    %                                     FieldId/Filter/CropId are still
+    %                                     re-applied to the matches. Default ''
+    %                                     (use dir()).
+    %            'FileListFile'         - Path to a text file with one coadd
+    %                                     Image_1 absolute path per line (as
+    %                                     written to OutDir/visitfiles_<stamp>.txt
+    %                                     on a fresh run). When non-empty, the
+    %                                     (slow, NFS-bound) glob is skipped and
+    %                                     visits are re-grouped from this list;
+    %                                     FieldId/Filter/CropId are still applied.
+    %                                     Combine with 'OverWrite',false to
+    %                                     resume a stopped campaign quickly
+    %                                     (skip both the glob and already-written
+    %                                     products). Default '' (glob).
+    %            'DiscoverOnly'         - When true, discover the visits, write
+    %                                     the file-list snapshot to OutDir, and
+    %                                     RETURN without calibrating (empty
+    %                                     Report). Use to cheaply generate the
+    %                                     visitfiles_<stamp>.txt list up front,
+    %                                     then pass it back via 'FileListFile'.
+    %                                     Requires OutDir to persist the list.
+    %                                     Default false.
     %            'FieldId'              - Restrict discovery to a specific
     %                                     field. Matches files whose
     %                                     basename contains `_<FieldId>_`
@@ -77,6 +112,23 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
     %                                     'phot_g_mean_mag'.
     %            'MagRange'             - [min, max] magnitude range.
     %                                     Default [12, 16].
+    %            'MagColPrefix'         - Prefix for the calibrated magnitude
+    %                                     columns (forwarded to
+    %                                     fitPhotCalibTrans, and used by the
+    %                                     joint per-crop write-back via
+    %                                     PC.MagColPrefix). Default 'MAG_', which
+    %                                     OVERWRITES the instrumental MAG_<suffix>
+    %                                     columns in place. Pass 'MAGAB__' (or
+    %                                     'MAG_AB_') to instead write NEW columns
+    %                                     (e.g. MAGAB__APER_3) and keep the
+    %                                     original MAG_<suffix> untouched.
+    %            'AddMagErr'            - Add MAGERR_* columns. Default true. Set
+    %                                     FALSE when MagColPrefix='MAGAB__': the
+    %                                     auto-derived error-column name does not
+    %                                     strip the 'MAGAB__' prefix cleanly and
+    %                                     collides with the magnitude column, so
+    %                                     the MAGERR insert must be skipped (same
+    %                                     reason bulkCalibrate sets it false).
     %            'SigmaClipMethod'      - Default 'median'.
     %            'AirmassSource'        - Default 'compute'.
     %            'ApplyNutation'        - Default true.
@@ -239,14 +291,23 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
     %             'Filter',       'clear', ...
     %             'RunModes',     {'joint'}, ...
     %             'OptSeqNames',  {'LAST_Joint_2Iter_Split3'}, ...
-    %             'Tran2DTypeJoint', 'cheby1_4', ...
+    %              ...
     %             'OutDir',       '/home/dana/tmp/N3/joint_2Iter_Split3');
-    %
+    %'Tran2DTypeJoint', 'cheby1_4',
     %   % Resume that same campaign after an interruption (skip finished visits,
     %   % recompute only what is missing): rerun the identical call with
     %   % 'OverWrite', false.
     %   Rep = pipeline.last.quality.photCalib.batchPhotCalibTrans( ...
     %             '/euclid/last/data/LAST.01.05.03', 'FieldId','1716.c', 'Filter','clear', ...
+    %             'RunModes', {'joint'}, 'OptSeqNames', {'LAST_Joint_2Iter_Split3'}, ...
+    %             'Tran2DTypeJoint', 'cheby1_4', ...
+    %             'OutDir', '/home/dana/tmp/N3/joint_2Iter_Split3', 'OverWrite', false);
+    %
+    %   % Fast resume that also skips the (slow) discovery glob by reloading the
+    %   % file list the first run wrote to OutDir/visitfiles_<stamp>.txt:
+    %   Rep = pipeline.last.quality.photCalib.batchPhotCalibTrans( ...
+    %             '/euclid/last/data/LAST.01.05.03', ...
+    %             'FileListFile', '/home/dana/tmp/N3/joint_2Iter_Split3/visitfiles_20260718T101500.txt', ...
     %             'RunModes', {'joint'}, 'OptSeqNames', {'LAST_Joint_2Iter_Split3'}, ...
     %             'Tran2DTypeJoint', 'cheby1_4', ...
     %             'OutDir', '/home/dana/tmp/N3/joint_2Iter_Split3', 'OverWrite', false);
@@ -263,6 +324,9 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
         BaseDir                                 (1,:) char
         Args.FilePattern                        (1,:) char    = 'LAST*_sci_coadd_Image_1.fits'
         Args.Recursive                                logical = true
+        Args.InGlob                             (1,:) char    = ''
+        Args.FileListFile                       (1,:) char    = ''
+        Args.DiscoverOnly                             logical = false
         Args.FieldId                            (1,:) char    = ''
         Args.Filter                             (1,:) char    = ''
         Args.CropId                                   double  = []
@@ -279,6 +343,8 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
         Args.YPixelJoint                              double  = []
         Args.MagColName                         (1,:) char    = 'phot_g_mean_mag'
         Args.MagRange                           (1,2) double  = [12, 16]
+        Args.MagColPrefix                       (1,:) char    = 'MAG_'
+        Args.AddMagErr                                logical = true
         Args.SigmaClipMethod                    (1,:) char    = 'median'
         Args.AirmassSource                      (1,:) char    = 'compute'
         Args.ApplyNutation                            logical = true
@@ -298,22 +364,91 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
         Args.InnerVerbose                             logical = false
     end
 
-    if Args.Verbose
-        RecTag = 'non-recursive';
-        if Args.Recursive; RecTag = 'recursive'; end
-        fprintf('batchPhotCalibTrans: discovering %s under %s (%s glob "%s") ...\n', ...
-                RecTag, BaseDir, RecTag, Args.FilePattern);
-        DiscT0 = tic;
-    end
-    Visits = discoverVisits(BaseDir, Args.FilePattern, Args.Recursive, ...
-                            Args.FieldId, Args.Filter, Args.CropId);
-    if Args.Verbose
-        fprintf('  discovery: %d visit group(s) found in %.1f s\n', ...
-                numel(Visits), toc(DiscT0));
+    DiscT0 = tic;
+    LoadedFromList = ~isempty(Args.FileListFile);
+    if LoadedFromList
+        % Skip the (slow, NFS-bound) glob: load the flat file list from a
+        % snapshot written by an earlier run and re-group it into visits.
+        % The same FieldId/Filter/CropId filters are re-applied, so a
+        % hand-edited or subset list stays consistent.
+        if ~isfile(Args.FileListFile)
+            error('pipeline:last:quality:photCalib:batchPhotCalibTrans:NoFileList', ...
+                  'FileListFile not found: %s', Args.FileListFile);
+        end
+        Lines = strtrim(string(splitlines(fileread(Args.FileListFile))));
+        Files = cellstr(Lines(strlength(Lines) > 0));
+        Visits = groupFilesIntoVisits(Files, Args.FieldId, Args.Filter, Args.CropId);
+        if Args.Verbose
+            fprintf('batchPhotCalibTrans: loaded %d file(s) from %s -> %d visit group(s) in %.1f s\n', ...
+                    numel(Files), Args.FileListFile, numel(Visits), toc(DiscT0));
+        end
+    elseif ~isempty(Args.InGlob)
+        % Fast shell-glob discovery (like bulkCalibrate). The shell prunes
+        % non-matching directories at each path level, so it is dramatically
+        % faster than MATLAB's recursive dir(**) over a large NFS tree (which
+        % walks the whole tree and only then applies FieldId/Filter). Encode
+        % the field/filter/path structure directly in InGlob, e.g. all nights
+        % and all crops of one field:
+        %   .../2025/*/*/proc/*/LAST*_clear_1716.c_*_sci_coadd_Image_1.fits
+        %
+        % Expansion runs through the bash BUILTIN `printf`, NOT `ls`. A single
+        % field across all nights and all 24 crops is ~20k files; `ls -1 <glob>`
+        % execs an external process with every match as an argument, overflows
+        % ARG_MAX ("Argument list too long"), and - with stderr suppressed -
+        % silently yields ZERO files (bulkCalibrate avoided this only because it
+        % globbed a single crop, ~835 files). `printf` is a builtin (no exec,
+        % no ARG_MAX; verified returning ~20k files), and `nullglob` makes a
+        % no-match expand to nothing rather than the literal pattern.
+        if Args.Verbose
+            fprintf('batchPhotCalibTrans: shell-glob discovery: %s\n', Args.InGlob);
+        end
+        GlobCmd = sprintf('bash -c ''shopt -s nullglob; printf "%%s\\n" %s''', Args.InGlob);
+        [~, LsOut] = system(GlobCmd);
+        Lines  = strtrim(string(splitlines(string(LsOut))));
+        Files  = cellstr(Lines(strlength(Lines) > 0));
+        Visits = groupFilesIntoVisits(Files, Args.FieldId, Args.Filter, Args.CropId);
+        if Args.Verbose
+            fprintf('  shell glob matched %d file(s) -> %d visit group(s) in %.1f s\n', ...
+                    numel(Files), numel(Visits), toc(DiscT0));
+        end
+    else
+        if Args.Verbose
+            RecTag = 'non-recursive';
+            if Args.Recursive; RecTag = 'recursive'; end
+            fprintf('batchPhotCalibTrans: discovering %s under %s (%s glob "%s") ...\n', ...
+                    RecTag, BaseDir, RecTag, Args.FilePattern);
+        end
+        Visits = discoverVisits(BaseDir, Args.FilePattern, Args.Recursive, ...
+                                Args.FieldId, Args.Filter, Args.CropId);
+        if Args.Verbose
+            fprintf('  discovery: %d visit group(s) found in %.1f s\n', ...
+                    numel(Visits), toc(DiscT0));
+        end
     end
     if isempty(Visits)
         error('pipeline:last:quality:photCalib:batchPhotCalibTrans:NoVisits', ...
               'No visits matched pattern %s under %s', Args.FilePattern, BaseDir);
+    end
+    % Persist the discovered file list (full, before MaxVisits) so a later run
+    % can skip the glob via 'FileListFile' and, with OverWrite=false, resume.
+    % No point re-writing a list we just loaded.
+    if ~LoadedFromList
+        writeVisitFileList(Visits, Args.OutDir, Args.Verbose);
+    end
+    % Discover-only mode: write the file list (above) and return without
+    % calibrating. Cheap way to generate the visitfiles_<stamp>.txt snapshot
+    % up front, which you then pass back via 'FileListFile' on the real run.
+    if Args.DiscoverOnly
+        if Args.Verbose
+            fprintf('  DiscoverOnly: %d visit(s) discovered; skipping calibration.\n', ...
+                    numel(Visits));
+            if isempty(Args.OutDir)
+                fprintf('  (OutDir empty - no file list was written; set OutDir to persist it)\n');
+            end
+        end
+        Report = reportRowTemplate();
+        Report = Report([]);   % empty Report of the right shape
+        return;
     end
     if isfinite(Args.MaxVisits) && Args.MaxVisits < numel(Visits)
         if Args.Verbose
@@ -461,6 +596,8 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
                                 'UseTypicalX',  Args.UseTypicalX, ...
                                 'RefSpecSlope', Args.RefSpecSlope, ...
                                 'RefSpecPivot', Args.RefSpecPivot, ...
+                                'MagColPrefix', Args.MagColPrefix, ...
+                                'AddMagErr',    Args.AddMagErr, ...
                                 'CalibArgs',    CA, ...
                                 'Verbose',      Args.InnerVerbose);
                             for IC = 1:numel(PCarr)
@@ -521,6 +658,8 @@ function Report = batchPhotCalibTrans(BaseDir, Args)
                                 'UseTypicalX',  Args.UseTypicalX, ...
                                 'RefSpecSlope', Args.RefSpecSlope, ...
                                 'RefSpecPivot', Args.RefSpecPivot, ...
+                                'MagColPrefix', Args.MagColPrefix, ...
+                                'AddMagErr',    Args.AddMagErr, ...
                                 'CalibArgs',    CA, ...
                                 'Verbose',      Args.InnerVerbose);
                             Row = extractReportRow(PC, RunMode, OptSeqName, ...
@@ -583,14 +722,9 @@ end
 
 
 function Visits = discoverVisits(BaseDir, Pattern, Recursive, FieldId, Filter, CropId)
-    % Group coadd files by visit stem. Every LAST coadd filename ends in
-    % '_<crop>_sci_coadd_<Cat|Image>_<N>.fits' where <crop> is a zero-padded
-    % integer. Strip that suffix to identify the visit and sort files by
-    % <crop> so downstream AstroImage arrays are always in crop-index order.
-    % Optional filters (empty = no filter):
-    %   FieldId : substring that must appear as _<FieldId>_ in the basename
-    %   Filter  : substring that must appear as _<Filter>_  in the basename
-    %   CropId  : specific crop number (1..24)
+    % Discover coadd files under BaseDir (dir glob) and group them into visits.
+    % The grouping/filtering is delegated to groupFilesIntoVisits so the same
+    % logic serves both a fresh glob and a reloaded file list.
     if Recursive
         D = dir(fullfile(BaseDir, '**', Pattern));
     else
@@ -601,25 +735,55 @@ function Visits = discoverVisits(BaseDir, Pattern, Recursive, FieldId, Filter, C
         Visits = struct('Stem', {}, 'Files', {});
         return;
     end
+    Files = fullfile({D.folder}, {D.name});
+    Visits = groupFilesIntoVisits(Files, FieldId, Filter, CropId);
+end
 
-    % Filename-substring filters (fast — no header peek).
-    if ~isempty(FieldId)
-        D = D(contains({D.name}, ['_' FieldId '_']));
-    end
-    if ~isempty(Filter)
-        D = D(contains({D.name}, ['_' Filter '_']));
-    end
-    if isempty(D)
+
+function Visits = groupFilesIntoVisits(Files, FieldId, Filter, CropId)
+    % Group a flat list of coadd file paths by visit stem. Every LAST coadd
+    % filename ends in '_<crop>_sci_coadd_<Cat|Image>_<N>.fits' where <crop> is
+    % a zero-padded integer. Strip that suffix to identify the visit and sort
+    % each visit's files by <crop> so downstream AstroImage arrays are in
+    % crop-index order.
+    % Input  : - Files - cellstr of full file paths (from a glob or a reloaded
+    %                     FileListFile).
+    %          - FieldId : substring that must appear as _<FieldId>_ in basename
+    %          - Filter  : substring that must appear as _<Filter>_  in basename
+    %          - CropId  : specific crop number (1..24); [] = all
+    Files = Files(:).';
+    if isempty(Files)
         Visits = struct('Stem', {}, 'Files', {});
         return;
     end
 
-    Files = fullfile({D.folder}, {D.name});
+    % Basenames (with extension) for filtering + stem parsing.
+    Names = cell(1, numel(Files));
+    for K = 1:numel(Files)
+        [~, N, E] = fileparts(Files{K});
+        Names{K} = [N, E];
+    end
+
+    % Filename-substring filters (fast — no header peek). Applied here so a
+    % reloaded/hand-edited list is filtered the same way a fresh glob would be.
+    if ~isempty(FieldId)
+        Keep = contains(Names, ['_' FieldId '_']);
+        Files = Files(Keep); Names = Names(Keep);
+    end
+    if ~isempty(Filter)
+        Keep = contains(Names, ['_' Filter '_']);
+        Files = Files(Keep); Names = Names(Keep);
+    end
+    if isempty(Files)
+        Visits = struct('Stem', {}, 'Files', {});
+        return;
+    end
+
     NF = numel(Files);
     Stems = cell(1, NF);
     CropIdx = nan(1, NF);
     for K = 1:NF
-        [~, FName, ~] = fileparts(D(K).name);
+        [~, FName, ~] = fileparts(Names{K});
         Tok = regexp(FName, '^(.+?)_(\d+)_sci_coadd_(?:Image|Cat)_\d+$', 'tokens', 'once');
         if isempty(Tok)
             Stems{K}   = FName;
@@ -650,6 +814,39 @@ function Visits = discoverVisits(BaseDir, Pattern, Recursive, FieldId, Filter, C
         [~, Order] = sort(CropIdx(Sel));
         Visits(K).Stem  = Us{K};
         Visits(K).Files = Files(Sel(Order));
+    end
+end
+
+
+function writeVisitFileList(Visits, OutDir, Verbose)
+    % Persist the discovered coadd file list (one absolute path per line) to
+    % OutDir/visitfiles_<UTC-timestamp>.txt so a later run can skip the glob
+    % via 'FileListFile'. Timestamped so reruns accumulate snapshots rather
+    % than clobber. No-op (with a note) when OutDir is empty.
+    if isempty(OutDir)
+        if Verbose
+            fprintf(['  (OutDir empty - discovered file list not persisted; ', ...
+                     'set OutDir to enable FileListFile resume)\n']);
+        end
+        return;
+    end
+    if ~exist(OutDir, 'dir')
+        mkdir(OutDir);
+    end
+    AllFiles = [Visits.Files];   % concat the per-visit cellstrs into one list
+    Stamp    = datestr(now, 'yyyymmddTHHMMSS');                  %#ok<DATST,TNOW1>
+    ListFile = fullfile(OutDir, ['visitfiles_', Stamp, '.txt']);
+    Fid = fopen(ListFile, 'w');
+    if Fid > 0
+        fprintf(Fid, '%s\n', AllFiles{:});
+        fclose(Fid);
+        if Verbose
+            fprintf('  discovered file list saved: %s (%d files, %d visits)\n', ...
+                    ListFile, numel(AllFiles), numel(Visits));
+        end
+    else
+        warning('pipeline:last:quality:photCalib:batchPhotCalibTrans:FileList', ...
+                'Could not write %s - continuing without list snapshot', ListFile);
     end
 end
 
@@ -772,8 +969,16 @@ function writeJointPerCrop(PC, AI, Vis, Tag, Args)
         end
 
         CatOut = AI(IC).CatData.copy();
+        % Match the standard path's columns: AddZP=true so the per-crop catalog
+        % carries the <MagSystem>_ZP column (e.g. AB_ZP) that addMag's own
+        % default (AddZP=false) would otherwise drop. AddMagErr follows the
+        % top-level Args.AddMagErr (set false with MagColPrefix='MAGAB__' to
+        % avoid the MAGERR-name collision). MagColPrefix itself needs no arg
+        % here - addMag reads it from PC.MagColPrefix, which the joint fit set.
         [CatOut, HdrOut] = PC.calibrateCropFromJointFit(CatOut, CCDSEC, ...
-            AI(IC).HeaderData, 'Verbose', Args.InnerVerbose);
+            AI(IC).HeaderData, ...
+            'AddMagArgs', {'AddZP', true, 'AddMagErr', Args.AddMagErr}, ...
+            'Verbose', Args.InnerVerbose);
 
         writeCalibProduct(CatOut, Args.OutDir, Tag, OutName, HdrOut.Data, ...
             Args.OverWrite, Args.Verbose);

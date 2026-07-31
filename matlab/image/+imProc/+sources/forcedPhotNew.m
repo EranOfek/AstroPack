@@ -250,7 +250,7 @@ function [Result] = forcedPhotNew(Obj, Args)
             % generate PSF
             if Obj(Iobj).isemptyPSF || Args.ReconstructPSF
                 % if there is no PSF in AstroImage or PSF reconstruction is requested, generate a PSF
-                Obj(Iobj) = imProc.psf.populatePSF(Obj(Iobj), 'RadiusPSF',Args.HalfSizePSF, Args.constructPSFArgs{:});
+                Obj(Iobj) = imProc.psf.populatePSF(Obj(Iobj), 'Method','new', 'RadiusPSF',Args.HalfSizePSF, Args.constructPSFArgs{:});
             end
             PSF = Obj(Iobj).PSFData.Data;
     

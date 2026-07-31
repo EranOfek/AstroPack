@@ -275,7 +275,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
             Coadd(Ifields) = imProc.cat.insertCol(Coadd(Ifields), 'InsertJD',true, 'ColNameJD','JD');
 
             % Estimate PSF
-            [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), 'Method', 'new', Args.constructPSFArgs{:}, 'DataType',@single);
+            [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), 'Method', 'new', 'WingsMethod', 'empirical', Args.constructPSFArgs{:}, 'DataType',@single);
 
             % PSF photometry
             [Coadd(Ifields), ResPSF] = imProc.sources.psfFitPhot(Coadd(Ifields), 'CreateNewObj',false, 'ZP',Args.ZP, Args.psfFitPhotArgs{:});                  

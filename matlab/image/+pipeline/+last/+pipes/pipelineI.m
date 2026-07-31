@@ -166,11 +166,30 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         % Note that AI may be shorter than TableRaw
         % It contains only: TableRaw.SelectedImages
 
-        TableRaw = [TableHeader, TableForDB]; 
+        TableRaw = [TableHeader, TableForDB];
         TableRaw.PrePrepOK = true(size(TableRaw,1), 1);
-        
-        RawImageList = RawImageList(FlagGoodImages,:);
-        
+
+        if isempty(AI)
+            % No useful RAW images survived prePrep quality checks. This is a
+            % normal observing condition (e.g., clouds, closed shutter), not an
+            % error: unwind peacefully so the caller records the status and
+            % moves the raw images to the failed/ directory.
+            Status.PipeI        = false;
+            Status.NoGoodImages = true;
+            Status.Msg          = sprintf('No useful RAW images in visit - all %d images rejected by prePrep quality checks', numel(RawImageList));
+
+            TableRaw.PrePrepOK  = false(size(TableRaw,1), 1);
+            TableRaw.Exception  = false(size(TableRaw,1), 1); % rejected, not an exception
+
+            AllSI    = [];
+            MS       = [];
+            Coadd    = [];
+            OnlyMP   = [];
+            JD       = [];
+        else
+            RawImageList = RawImageList(FlagGoodImages,:);
+        end
+
     catch ME
         Status.PipeI   = false;
         Status.ME      = ME;

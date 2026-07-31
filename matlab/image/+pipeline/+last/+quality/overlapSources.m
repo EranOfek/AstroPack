@@ -28,7 +28,7 @@ function [Result] = overlapSources(AI, Args)
     arguments
         AI      
         Args.MagRange    = [13 15];  
-        Args.MatchRadius = 3; % arcsec
+        Args.MatchRadius = 1; % arcsec
         Args.Prop        = {'RA', 'Dec', 'XPEAK', 'YPEAK', 'X1', 'Y1', 'X', 'Y', ...
                             'FLUX_APER_3', 'MAG_APER_3', 'MAG_AB_APER_3', 'MAG_PSF', 'MAG_AB_PSF'};        
         Args.BadFlags    = {'Saturated', 'Negative', 'NaN', 'Spike', 'Hole', 'NearEdge'};   
@@ -97,7 +97,14 @@ function [Result] = overlapSources(AI, Args)
             end
             for Iprop = 1:numel(Args.Prop)
                 Prop = Args.Prop{Iprop};
+                % Assign EVERY per-interface field so all stay the same length
+                % as the interface index Ivrlp. Omitting MeanDiff/Diff here (as
+                % before) left those arrays short whenever the trailing
+                % interfaces had no overlap sources, so any consumer that sizes
+                % from MedianDiff then indexes MeanDiff/Diff overran the end.
+                Result.(Prop).Diff{Ivrlp}       = [];
                 Result.(Prop).MedianDiff(Ivrlp) = NaN;
+                Result.(Prop).MeanDiff(Ivrlp)   = NaN;
                 Result.(Prop).StdDiff(Ivrlp)    = NaN;
             end
         end

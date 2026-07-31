@@ -2886,7 +2886,7 @@ classdef DemonLAST < Component
 
                 % check disk storage state - pause processing while critically full
                 if ~isempty(Args.StopDiskFull)
-                    [~,DiskP] = tools.os.df(sprintf('data%d',Obj.DataDir));
+                    [~,DiskP] = tools.os.df(Obj.BasePath);
                     while DiskP>Args.StopDiskFull
                         WarnMsg = sprintf('pipeline.DemonLAST: disk data%d is %.1f%% full (threshold %.1f%%) on %s - pausing processing', ...
                             Obj.DataDir, DiskP, Args.StopDiskFull, Args.HostName);
@@ -2906,7 +2906,7 @@ classdef DemonLAST < Component
                             break;
                         end
                         pause(Args.PauseDiskFull);
-                        [~,DiskP] = tools.os.df(sprintf('data%d',Obj.DataDir));
+                        [~,DiskP] = tools.os.df(Obj.BasePath);
                     end
                     if ~Cont
                         break;
@@ -3407,7 +3407,7 @@ classdef DemonLAST < Component
 
                         % check disk storage state - pause processing while critically full
                         if ~isempty(Args.StopDiskFull)
-                            [~,DiskP] = tools.os.df(sprintf('data%d',Obj.DataDir));
+                            [~,DiskP] = tools.os.df(Obj.BasePath);
                             while DiskP>Args.StopDiskFull
                                 WarnMsg = sprintf('pipeline.DemonLAST: disk data%d is %.1f%% full (threshold %.1f%%) on %s - pausing processing', ...
                                     Obj.DataDir, DiskP, Args.StopDiskFull, Args.HostName);
@@ -3427,7 +3427,7 @@ classdef DemonLAST < Component
                                     break;
                                 end
                                 pause(Args.PauseDiskFull);
-                                [~,DiskP] = tools.os.df(sprintf('data%d',Obj.DataDir));
+                                [~,DiskP] = tools.os.df(Obj.BasePath);
                             end
                         end
 
