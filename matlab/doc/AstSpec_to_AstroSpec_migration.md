@@ -295,7 +295,7 @@ Zero risk, indefinite duplication. Legitimate if ULTRASAT delivery pressure outw
 | 0 | Move Tier 4 to `obsolete/`; extend the baseline to `usim`/`UltrasatPerf` fixtures | **done** — see §5; both fixtures captured |
 | 1 | Add `ObjName` to AstroSpec (§4.3) and populate it in `specStarsPickles` and `blackBody` | **done** — names byte-identical to AstSpec; `AstroSpec.unitTest` passes |
 | 2 | Tier 1 files | **done** — `usim` and `blackbody_mag_c` migrated, `add_meta_data2ps1` retired, `telescope.sn.unitTest` deferred to Phase 3 |
-| 3 | Tier 2 files (6) | `snr()` numerically identical; `back_comp()` fingerprints identical |
+| 3 | Tier 2 files | **done** — `snr`, `back_comp`, `spec2photons`, `unitTest`, `zodiac_bck` migrated and bit-identical; `sn_spec` migrated by inspection; `fit_bb` retired |
 | 4 | `UltrasatPerf` (`Specs(1,:) AstroSpec` + `SpecIsBB` flag) + GUI + `usim` AstSpec branch removal; regenerate the `.mat` (§4.4) | UltrasatPerf fixture identical; GUI source list unchanged |
 | 5 | Archive `@AstSpec` (keep loadable); drop the `blackbody`/`black_body` doc pointers | zero references |
 
@@ -355,3 +355,46 @@ resolves it as data. Preallocation must use the scalar form.
   Note this shifts `astro.spec.black_body` output by ~1e-5 relative for its other callers —
   `accretion_disk`, `accretionDiskSpec`, `blackbody_flux`, `sn_cooling_msw`, `sn_cooling_rw_my`,
   `matchspec` — in the direction of the more accurate constants.
+
+---
+
+## 10. Notes from Phase 3
+
+**`AstroSpec.interp1` is not a drop-in for `@AstSpec/interp`.** It interpolates the whole `Data`
+table, *including the `Wave` column*, so points outside the source range get `NaN` in the wavelength
+axis itself; `@AstSpec/interp` set `Wave` to the target grid. In `snr` this made any spectrum target
+narrower than the working grid fail with "sample points must be finite" (all Pickles spectra start
+at 1150 A, the grid at 1000), and silently left 1387 and 24 NaN wavelengths in `SN.BackComp(2)` and
+`(3)`. The fix is to interpolate the flux onto the target grid and rebuild the object. **Any
+remaining `interp` -> `interp1` conversion has the same trap.**
+
+**Growing a spectrum in place is not possible.** `Wave` and `Flux` are dependent properties over one
+table, so `S.Wave(end+1) = W; S.Flux(end+1) = F;` cannot work. Assemble a matrix and construct once.
+
+**Two photometry families disagree by 8.2 mmag**, measured on `QSO_SDSS` in SDSS r:
+
+| Implementation | Mag |
+|---|---|
+| `AstSpec.synphot`, `astro.spec.synphot` | -21.31450645875164 |
+| `AstroSpec.synphot`, `astro.spec.synthetic_phot` | -21.32269872441504 |
+
+`AstSpec.scale2mag` used the first family, `AstroSpec.scaleSynphot` uses the second, so swapping them
+changes the normalisation by 0.75% in flux. `sn_spec` now uses `scaleSynphot`, consistent with the
+rest of the migrated code, which was already on the `synthetic_phot` side (which is why `snr` and
+`back_comp` came out bit-identical). This is a pre-existing disagreement, not migration damage.
+
+**Atmospheric extinction is an exact swap.** `AstSpec.get_atmospheric_extinction(Name,'mat')` and
+`AstroSpec.atmosphericExtinction(Name,'OutType','mat')` agree to max abs diff 0 for both KPNO (82x2)
+and VLT (43x2).
+
+**More dead code found.** The `Util.*` package no longer exists; its contents moved to `tools.*`:
+
+- `fit_bb` — `Util.array.find_ranges` (now `tools.array.find_ranges`) at line 90, and `astro.blackbody`
+  at line 196, which exists nowhere. Retired to `obsolete/`.
+- `sn_spec` — `Util.filter.conv1_vargauss` at line 253, which has **no counterpart anywhere in the
+  tree**. Migrated by inspection but cannot be gated; it now gets as far as that call.
+
+**Local data paths.** `~/matlab/data/+cats/**` contains 128 auto-generated interface stubs that
+hardcode `/raid/eran/matlab/data/...`. The `AtmoExtinction` (KPNO, VLT) and `SkyBack`
+(Gemini_SkyBack_dark) stubs were repointed locally to allow verification. These files are outside
+the repository; a general fix would belong in `VO.search.catalog_interface`.

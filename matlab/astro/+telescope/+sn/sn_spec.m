@@ -49,8 +49,8 @@ function [SN]=sn_spec(Spec,varargin)
 % License: GNU general public license version 3
 %     By : Eran O. Ofek                    May 2017
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: Spec = AstSpec.get_galspec('Gal_E');
-%          Spec = scale2mag(Spec,20.5);
+% Example: Spec = AstroSpec.specGalQSO('Gal_E');
+%          Spec = scaleSynphot(Spec,20.5,'SDSS','r');
 %          Spec.synphot('SDSS','r','AB')
 %          SN=telescope.sn.sn_spec(Spec)
 % Reliable: Under tests
@@ -60,8 +60,8 @@ if (nargin==0)
     Spec = [];
 end
 if (isempty(Spec))
-    Spec = AstSpec.get_galspec('QSO_SDSS');
-    Spec = scale2mag(Spec,20);
+    Spec = AstroSpec.specGalQSO('QSO_SDSS');
+    Spec = scaleSynphot(Spec,20,'SDSS','r');
 end
 
 DefV.RN                   = 3;   % [e-]
@@ -101,8 +101,8 @@ SlitEff     = 2.*(normcdf(0.5.*InPar.SlitWidth./SeeingSigma,0,1)-normcdf(0,0,1))
 
 
 % read spectrum
-if (AstSpec.isastspec(Spec))
-    Spec = astspec2mat(Spec);
+if (isa(Spec,'AstroSpec'))
+    Spec = [Spec.Wave, Spec.Flux];
 end
 
 % resample spectrum at 
@@ -134,9 +134,14 @@ end
 % load background spectrum
 if (ischar(InPar.Back))
     Back = cats.spec.SkyBack.(InPar.Back);
-    Back = astspec2mat(Back); % [erg/cm^2/s/Ang]
-elseif (AstSpec.isastspec(InPar.Back))
-    Back = astspec2mat(InPar.Back);
+    if isa(Back,'AstroSpec')
+        Back = [Back.Wave, Back.Flux];  % [erg/cm^2/s/Ang]
+    else
+        % the sky background data files still hold obsolete AstSpec objects
+        Back = astspec2mat(Back);       % [erg/cm^2/s/Ang]
+    end
+elseif (isa(InPar.Back,'AstroSpec'))
+    Back = [InPar.Back.Wave, InPar.Back.Flux];
 else
     % assume a matrix in cgs units
     Back = InPar.Back;  % [erg/cm^2/s/Ang]
@@ -156,7 +161,7 @@ Back(:,2)          = convert.flux(Back(:,2),         InPar.BackFluxUnits,'ph/A',
 
 
 % get atmospheric extinction [mag/airmass]
-AtmExt = AstSpec.get_atmospheric_extinction(InPar.AtmosphericExt,'mat');
+AtmExt = AstroSpec.atmosphericExtinction(InPar.AtmosphericExt,'OutType','mat');
 % resample the atmospheric extinction
 AtmExt = [Spec(:,InPar.ColW), interp1(AtmExt(:,1),AtmExt(:,2),Spec(:,InPar.ColW),InPar.InterpMethod)];
 % apply atmopsheric extinction
@@ -284,20 +289,20 @@ if 1==0
         for Irn=1:1:Nrn
             RN = VecRN(Irn);
     
-            Spec = AstSpec.get_galspec('Gal_E');
-            Spec = scale2mag(Spec,20.5);
+            Spec = AstroSpec.specGalQSO('Gal_E');
+            Spec = scaleSynphot(Spec,20.5,'SDSS','r');
             SN=telescope.sn.sn_spec(Spec,'RN',RN,'SpecTh',SpecTh);
             F = SN.Wave>5000 & SN.Wave<8000;
             MSN = mean(SN.SNperResEl(F));
             MagDiff = 2.5.*log10((10./MSN));
             NewMag  = 20.5 - MagDiff;
-            Spec = scale2mag(Spec,NewMag );
+            Spec = scaleSynphot(Spec,NewMag,'SDSS','r');
             SN=telescope.sn.sn_spec(Spec,'RN',RN,'SpecTh',SpecTh);
             F = SN.Wave>5000 & SN.Wave<8000;
             MSN = mean(SN.SNperResEl(F));
             MagDiff = 2.5.*log10((10./MSN));
             NewMag = NewMag - MagDiff;
-            Spec = scale2mag(Spec,NewMag );
+            Spec = scaleSynphot(Spec,NewMag,'SDSS','r');
             SN=telescope.sn.sn_spec(Spec,'RN',RN,'SpecTh',SpecTh);
             F = SN.Wave>5000 & SN.Wave<8000;
             MSN = mean(SN.SNperResEl(F));
