@@ -194,10 +194,46 @@ the numbers below are the reference values.
 | `AstroSpec.unitTest()` | passes |
 | `AstSpec.blackbody`, `get_pickles`, `get_galspec`, `zodiac_spectrum` | per-spectrum fingerprints |
 
-**Cannot be tested here:** `telescope.sn.sn_spec()` fails on a hardcoded absolute path —
-`/raid/eran/matlab/data/+cats/+spec/+SkyBack/Gemini_SkyBack_dark.mat`. Anything routed through it
-is migrate-by-inspection only. `usim` and `UltrasatPerf` were not exercised and need their own
-fixtures.
+**UltrasatPerf fixture (Phase 0, gate for Phase 4)** — captured from the saved object the GUI
+loads, `~/matlab/data/ULTRASAT/P90_UP_test_60_ZP_Var_Cern_21.mat`:
+
+| Quantity | Value |
+|---|---|
+| `Specs` | `AstSpec`, 43x1 |
+| `C_Gaia_BpRp` | 43x1, sum 22.626722855507 |
+| `C_ULTRASAT_GaiaG` | 43x25, sum 3720.609014252 |
+| `C_ULTRASAT_GalexNUV` | 43x25, sum -2496.2778528443 |
+| `EffPSF` | 43x25, sum 26207.887805063 |
+| `LimMag` | 43x25, sum 23531.575082717 |
+| `SatMag` | 43x25, sum 12349.240925006 |
+| `ZP` | 43x25, sum 30294.347771999 |
+| `VarPerPix` | 43x25, sum 231223.08070326 |
+
+The live gate is a **recomputation**, not just stored values:
+`UltrasatPerf.calcColor(UP.Specs,'GAIA','BP','GAIA','RP')` reproduces the stored `C_Gaia_BpRp`
+exactly (sum 22.626722855507, first -0.27322175073511, last -0.82393084118771). It runs
+`Specs -> synthetic_phot` end to end, so Phase 4 must reproduce it after `Specs` becomes AstroSpec.
+
+**usim fixture (Phase 0, gate for Phase 4)** — `usim` adds random noise, so it is only a gate when
+the RNG is seeded. With a fixed seed it is bit-reproducible:
+
+```matlab
+rng(42,'twister');
+Sim = ultrasat.usim('Cat',[2369 2369], 'SkyCat',false, 'Mag',12);
+sum(Sim.Image, 'all')   % 4986678784   (4738x4738, max 480000)
+```
+
+Verified reproducible across runs. Without the seed, successive runs differ by ~2e-5 relative, so an
+unseeded comparison needs a tolerance of about 1e-3 and only detects gross changes.
+
+Notes: `usim` peaks at ~6.8 GB RSS and takes ~9 s at the default `ImRes=5`; on a 16 GB machine it can
+die with a segmentation violation under memory pressure, which is a resource limit, not a code fault.
+Lower `ImRes` values need PSF databases (`ULTRASATlabPSF<N>.mat`) that are not installed here — only
+`ULTRASATlabPSF5.mat` is present.
+
+**Cannot be tested here:** `telescope.sn.sn_spec()` — hardcoded absolute path
+`/raid/eran/matlab/data/+cats/+spec/+SkyBack/Gemini_SkyBack_dark.mat`. In Tier 2, so Phase 3 is
+migrate-by-inspection for that one file.
 
 **The gate should be "numerically identical to baseline", not "no error."** A migration that
 renames flux fields and flips array orientation is precisely the kind that keeps running while the
@@ -240,7 +276,7 @@ Zero risk, indefinite duplication. Legitimate if ULTRASAT delivery pressure outw
 
 | Phase | Work | Gate |
 |---|---|---|
-| 0 | Move Tier 4 to `obsolete/`; extend the baseline to `usim`/`UltrasatPerf` fixtures | baseline captured; no inbound refs broken |
+| 0 | Move Tier 4 to `obsolete/`; extend the baseline to `usim`/`UltrasatPerf` fixtures | **done** — see §5; both fixtures captured |
 | 1 | Add `ObjName` to AstroSpec (§4.3) | `AstroSpec.unitTest` passes; existing spectra unaffected |
 | 2 | Tier 1 files (4) | `telescope.sn.unitTest`, `AstroSpec.unitTest` pass |
 | 3 | Tier 2 files (6) | `snr()` numerically identical; `back_comp()` fingerprints identical |
