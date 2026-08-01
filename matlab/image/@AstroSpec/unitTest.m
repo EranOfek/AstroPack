@@ -39,5 +39,37 @@ function Result = unitTest
 
     assert(all(Factors>0),'Problem with applyExtinctionZ')
 
+    % binary operators on object arrays
+    Wave = (4000:10:5000).';
+    SpecA = [AstroSpec({[Wave, ones(size(Wave))]}), ...
+             AstroSpec({[Wave, 2.*ones(size(Wave))]}), ...
+             AstroSpec({[Wave, 3.*ones(size(Wave))]})];
+
+    % funBinary: one to many - each element must use its own second operand
+    Res = funBinary(SpecA(1), SpecA, @minus);
+    assert(numel(Res)==3,'funBinary one-to-many returned the wrong number of elements')
+    for Ir=1:1:3
+        assert(all(abs(Res(Ir).Flux - (1-Ir))<10.*eps), ...
+               'funBinary used the wrong element of the second object')
+    end
+
+    % rdivide: divisor shorter than the object array - flux must follow the
+    % first operand, not the divisor index
+    Res = rdivide(SpecA, {2});
+    for Ir=1:1:3
+        assert(all(abs(Res(Ir).Flux - Ir./2)<10.*eps), ...
+               'rdivide used the wrong element of the first object')
+    end
+
+    % rdivide: unimplemented divisor types must fail explicitly
+    Msg = '';
+    try
+        rdivide(SpecA, SpecA(1));
+    catch ME
+        Msg = ME.message;
+    end
+    assert(contains(Msg,'Unsupported class'), ...
+           'rdivide did not reject an unsupported second input object')
+
     Result = true;
 end

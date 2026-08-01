@@ -1866,7 +1866,7 @@ classdef AstroSpec < Component
                 if Args.KeepOnlyOverlap
                     [New1, New2] = interpAndKeepOverlap(Obj1(Iobj1), Obj2(Iobj2), 'Method',Args.InterpMethod, 'CreateNewObj',true);
                 else
-                    New2 = interp1(Obj2, Obj1(Iobj1).Wave, 'Method',Args.InterpMethod, 'CreateNewObj',true);
+                    New2 = interp1(Obj2(Iobj2), Obj1(Iobj1).Wave, 'Method',Args.InterpMethod, 'CreateNewObj',true);
                     New1 = Obj1(Iobj1).copy();
                 end
                 
@@ -1960,7 +1960,10 @@ classdef AstroSpec < Component
                 if iscell(Obj2)
                     I1 = min(I,N1);
                     I2 = min(I,N2);
-                    Result(I) = AstroSpec({[Obj1(I1).Wave, Obj1(I2).Flux./Obj2{I2}]});
+                    Result(I) = AstroSpec({[Obj1(I1).Wave, Obj1(I1).Flux./Obj2{I2}]});
+                else
+                    % spectrum/filter divisors are not implemented yet
+                    error('Unsupported class for second input object');
                 end
             end
             
