@@ -40,8 +40,8 @@ consumers are gone.
 | File | Uses |
 |---|---|
 | `astro/+astro/+spec/blackbody_mag_c.m` | `blackbody`, `.Int` |
-| `astro/+telescope/+sn/unitTest.m` | `get_pickles` |
-| `astro/+VO/+PS1/add_meta_data2ps1.m` | `get_galspec`, `synphot` |
+| ~~`astro/+telescope/+sn/unitTest.m`~~ | `get_pickles` — **moved to Tier 2**: it feeds `telescope.sn.snr`, which still tests `AstSpec.isastspec`. An AstroSpec fails that test and, since `numel` of a scalar object is 1, is silently treated as a blackbody *temperature* (`snr.m:181`). Must migrate with `snr`. |
+| ~~`astro/+VO/+PS1/add_meta_data2ps1.m`~~ | **retired to `obsolete/`** — `checkcode` reports 3 parse errors (a literal `????` at line 66) and it has no callers, so it has never been runnable |
 | `astro/+ultrasat/usim.m` | `isa(..,'AstSpec')` dual-path, `.Int` — **already handles both classes**; migration means deleting the AstSpec branch |
 
 ### Tier 2 — semantic (orientation, preallocation, field renames)
@@ -294,7 +294,7 @@ Zero risk, indefinite duplication. Legitimate if ULTRASAT delivery pressure outw
 |---|---|---|
 | 0 | Move Tier 4 to `obsolete/`; extend the baseline to `usim`/`UltrasatPerf` fixtures | **done** — see §5; both fixtures captured |
 | 1 | Add `ObjName` to AstroSpec (§4.3) and populate it in `specStarsPickles` and `blackBody` | **done** — names byte-identical to AstSpec; `AstroSpec.unitTest` passes |
-| 2 | Tier 1 files (4) | `telescope.sn.unitTest`, `AstroSpec.unitTest` pass |
+| 2 | Tier 1 files | **done** — `usim` and `blackbody_mag_c` migrated, `add_meta_data2ps1` retired, `telescope.sn.unitTest` deferred to Phase 3 |
 | 3 | Tier 2 files (6) | `snr()` numerically identical; `back_comp()` fingerprints identical |
 | 4 | `UltrasatPerf` (`Specs(1,:) AstroSpec` + `SpecIsBB` flag) + GUI + `usim` AstSpec branch removal; regenerate the `.mat` (§4.4) | UltrasatPerf fixture identical; GUI source list unchanged |
 | 5 | Archive `@AstSpec` (keep loadable); drop the `blackbody`/`black_body` doc pointers | zero references |
@@ -343,3 +343,15 @@ resolves it as data. Preallocation must use the scalar form.
   `BackType`/`Wave`/`InterpMethod` combinations. The obsolete `AstSpec.zodiac_spectrum` was left
   untouched; note it is buggy — supplying `Wave` with the default `'astspec'` output errors,
   so its own documented example does not run.
+
+- `astro/+astro/+spec/black_body.m`: replaced the hardcoded `h`, `c`, `k` with `constant.h`,
+  `constant.c`, `constant.kB` (Phase 2). The hardcoded `h = 6.6261e-27` differed from
+  `constant.h = 6.6260755e-27` by 3.7e-6, which the Planck exponent compounded into a ~1.4e-5
+  flux offset — so `AstroSpec.blackBody` (which delegates here) and `AstSpec.blackbody` (which
+  used the `constant` class) disagreed by up to 4.4e-5. They now agree to 4.4e-16, and
+  `blackbody_mag_c` migrated with **bit-identical** output. The comments in `black_body` already
+  read `% = get_constant('h','cgs')`, so this restores the original intent.
+
+  Note this shifts `astro.spec.black_body` output by ~1e-5 relative for its other callers —
+  `accretion_disk`, `accretionDiskSpec`, `blackbody_flux`, `sn_cooling_msw`, `sn_cooling_rw_my`,
+  `matchspec` — in the direction of the more accurate constants.

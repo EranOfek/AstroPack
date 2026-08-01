@@ -63,11 +63,11 @@ end
 Mag    = zeros(Nt,1).*NaN;
 for It=1:1:Nt
    %[Il,If] = black_body(Temp(It),WaveRange);
-   [Il] = AstSpec.blackbody(Temp(It),WaveRange);
+   [Il] = AstroSpec.blackBody(WaveRange,Temp(It));
    % apply extinction
    Extin = astro.extinction.extinction(Ebv,Il.Wave./1e4);
-   Il.Int = Il.Int.* 10.^(-0.4.*Extin);
-   
-   Spec    = [WaveRange, Il.Int .* 4.*pi.* Radius(It).^2 ./(4.*pi.*(Dist(It).*Pc).^2)];
+   Il.Flux = Il.Flux.* 10.^(-0.4.*Extin);
+
+   Spec    = [WaveRange, Il.Flux .* 4.*pi.* Radius(It).^2 ./(4.*pi.*(Dist(It).*Pc).^2)];
    [Mag(It)] = astro.spec.synphot(Spec,FilterSystem,FilterName,MagSys);
 end

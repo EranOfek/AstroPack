@@ -30,9 +30,9 @@ else
    error('Illegal number of input arguments');
 end
 
-h      = 6.6261e-27;      % = get_constant('h','cgs');          % Planck constant [cgs] 
-c      = 29979245800;     % = get_constant('c','cgs');          % speed of light [cm]
-k      = 1.380648813e-16; % = get_constant('kB','cgs');         % Boltzmann constant [cgs]
+h      = constant.h;      % Planck constant [cgs]
+c      = constant.c;      % speed of light [cm]
+k      = constant.kB;     % Boltzmann constant [cgs]
 
 Lam    = W.*1e-8;            % convert Ang to cm
 Nu     = c./Lam;             % convert wavelength to frequency [Hz]
