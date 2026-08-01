@@ -11,7 +11,8 @@ function [Spec]=zodiac_bck(RA,Dec,Date,varargin)
 %            'Wave' - Vector of wavelength [Ang] in which to calculate
 %                   spectrum. If empty, then use original data.
 %                   Default is empty.
-%            'OutType' - 'mat'|'astspec'. Default is 'mat'.
+%            'OutType' - 'mat'|'astrospec'. Default is 'mat'.
+%                   'astspec' is accepted as a synonym of 'astrospec'.
 %            'CooSys'  - Input coordinate system. Default is 'j2000.0'.
 %                        Options include 'hec' - heliocentric ecliptic,
 %                        'e','g', etc.
@@ -123,12 +124,11 @@ Spec.MagV = ZodiVmag;
 switch lower(InPar.OutType)
     case 'mat'
         % do nothing
-    case 'astspec'
+    case {'astrospec','astspec'}
         N = numel(Spec.RA);
-        AS = AstSpec(N,1);
+        AS = AstroSpec(N);
         for I=1:1:N
-            AS(I).Wave = Spec.Wave;
-            AS(I).Int  = Spec.Spec(:,I);
+            AS(I) = AstroSpec({[Spec.Wave, Spec.Spec(:,I)]});
         end
         Spec.Spec = AS;
     otherwise

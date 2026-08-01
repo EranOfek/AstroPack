@@ -47,7 +47,7 @@ InPar = InArg.populate_keyval(DefV,varargin,mfilename);
 
 
 
-BackSpec = AstSpec(4);
+BackSpec = AstroSpec(4);
 
 % Zodiac background
 [Spec]=ultrasat.zodiac_bck(InPar.RA,InPar.Dec,InPar.Date,'Wave',InPar.Wave);
@@ -56,31 +56,27 @@ if ~isempty(InPar.ZodiMagV) %calibrate to ZodiMagV, if given
     Spec.Spec = Spec.Spec.*10.^(0.4.*(Mag - InPar.ZodiMagV));
 end
 %InPar.BackSpec = [Spec.Wave,Spec.Spec];
-BackSpec(1).Wave = Spec.Wave;
-BackSpec(1).Int  = Spec.Spec;
+BackSpec(1) = AstroSpec({[Spec.Wave, Spec.Spec]});
 
 % Cerenkov background 
 if ~islogical(InPar.CernekovMaterial)
     [Res,~]=ultrasat.Cerenkov('FluxOption',InPar.CerenkovFlux);
-    BackSpec(2).Wave   = Res.Lam;
-    BackSpec(2).Int  = Res.IntFA./InPar.CerenkovSupp;
+    BackSpec(2) = AstroSpec({[Res.Lam(:), Res.IntFA(:)./InPar.CerenkovSupp]});
 else
     % set Cerenkov spectrum to zero
-    BackSpec(2).Wave = InPar.Wave;
-    BackSpec(2).Int  = zeros(size(InPar.Wave));
+    BackSpec(2) = AstroSpec({[InPar.Wave, zeros(size(InPar.Wave))]});
 end
 
 % Host galaxy background
-SG = AstSpec.get_galspec(InPar.HostType);
+SG = AstroSpec.specGalQSO(InPar.HostType);
 % extrapolate host spectrum to the IR
-SG.Wave(end+1) = 25000;
-SG.Int(end+1)  = SG.Int(end);
-FactorHost = 10.^(-0.4.*(InPar.HostMag - synthetic_phot(SG,'SDSS','r','AB')));
-SG.Int = SG.Int.*FactorHost;
+SGwave = [SG.Wave;  25000];
+SGflux = [SG.Flux;  SG.Flux(end)];
+FactorHost = 10.^(-0.4.*(InPar.HostMag - astro.spec.synthetic_phot([SGwave, SGflux],'SDSS','r','AB')));
+SGflux = SGflux.*FactorHost;
 %synphot(SG,'SDSS','r','AB');
-SG.Int = SG.Int./InPar.PsfEffAreaAS;  % surface brightness
-BackSpec(3) = SG;
+SGflux = SGflux./InPar.PsfEffAreaAS;  % surface brightness
+BackSpec(3) = AstroSpec({[SGwave, SGflux]});
 
 % Sky background
-BackSpec(4).Wave = InPar.Wave;
-BackSpec(4).Int  = convert.flux(InPar.SkyMag,'AB','cgs/A',InPar.Wave,'A');
+BackSpec(4) = AstroSpec({[InPar.Wave, convert.flux(InPar.SkyMag,'AB','cgs/A',InPar.Wave,'A')]});

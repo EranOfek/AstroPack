@@ -30,7 +30,7 @@ function Result = snr_unitTest()
     R = 1;
     
     % Options to 'Pickles Models' combo
-    Spec_all_MS_stars = AstSpec.get_pickles('M','V');
+    Spec_all_MS_stars = AstroSpec.specStarsPickles('M','V');
     Curr_Spec = Spec_all_MS_stars(1);
 
     [curr_SN] = telescope.sn.snr('FWHM', curr_effFWHM, 'TargetSpec', Curr_Spec,...

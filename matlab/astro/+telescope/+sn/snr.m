@@ -71,7 +71,7 @@ DefV.Trans                = 1; %1; %0.99.^8 .* 0.99.^4;
 DefV.Reflection           = 1; %0.96;
 DefV.QE                   = 1; %0.7;
 DefV.TargetSpec           = 2e4; %3e3; %2e4;    % if given override Mag
-DefV.BackSpec             = @telescope.sn.back_comp;    % per arcsec^2 | handle | AstSpec | matrix
+DefV.BackSpec             = @telescope.sn.back_comp;    % per arcsec^2 | handle | AstroSpec | matrix
 DefV.BackCompFunPar       = {};
 DefV.Ebv                  = 0.02;
 DefV.Filter               = 'Req4m3';
@@ -172,17 +172,19 @@ Trans        = [Filter.T(:,1), Filter.T(:,2).*Eta];
 
 
 % get Target spectrum
-if AstSpec.isastspec(InPar.TargetSpec)
+if isa(InPar.TargetSpec,'AstroSpec')
     % [Ang, erg/cm^2/s/A]
     % interpolate over grid
-    InPar.TargetSpec = interp(InPar.TargetSpec,InPar.Wave);
-    TargetSpec = [InPar.TargetSpec.Wave, InPar.TargetSpec.Int];
+    % note: interpolate the flux onto InPar.Wave rather than using
+    % AstroSpec/interp1, which also interpolates the Wave column and so
+    % leaves NaN in it outside the original wavelength range
+    TargetSpec = [InPar.Wave, interp1(InPar.TargetSpec.Wave,InPar.TargetSpec.Flux,InPar.Wave,InPar.InterpMethod)];
 else
     if numel(InPar.TargetSpec)==1
         % assume BB temperature
-        AS = AstSpec.blackbody(InPar.TargetSpec,InPar.Wave);
+        AS = AstroSpec.blackBody(InPar.Wave,InPar.TargetSpec);
         % [Ang, erg/cm^2/s/A]
-        TargetSpec = [AS.Wave, AS.Int];
+        TargetSpec = [AS.Wave, AS.Flux];
     else
         % assume matrix of spectrum
         % [Ang, erg/cm^2/s/A]
@@ -210,21 +212,22 @@ TargetSpec(:,2) = TargetSpec(:,2)./Factor;
 
 % get background spectrum [erg/cm^2/s/Ang/arcsec^2]
 % background options:
-% AstSpec spectra of several background componts
+% AstroSpec spectra of several background componts
 % AB magnitude scalar - will construct a flat f_nu spectrum
 % Matrix of spectrum
-if AstSpec.isastspec(InPar.BackSpec)
+if isa(InPar.BackSpec,'AstroSpec')
     % [Ang, erg/cm^2/s/A]
     % combine multiple background spectra
     BackSpec = [InPar.Wave, zeros(Nwave,1)];
-    SN.BackComp = AstSpec(size(InPar.BackSpec));
+    SN.BackComp = AstroSpec(numel(InPar.BackSpec));
     for Ib=1:1:numel(InPar.BackSpec)
-        Tmp = interp(InPar.BackSpec(Ib),InPar.Wave);
-        BackSpec(:,2) = BackSpec(:,2) + Tmp.Int;
-        
+        % interpolate the flux onto InPar.Wave - see the note above on
+        % AstroSpec/interp1 and the Wave column
+        TmpFlux = interp1(InPar.BackSpec(Ib).Wave,InPar.BackSpec(Ib).Flux,InPar.Wave,InPar.InterpMethod);
+        BackSpec(:,2) = BackSpec(:,2) + TmpFlux;
+
         % calculate the background component after transmission
-        SN.BackComp(Ib) = Tmp;
-        SN.BackComp(Ib).Int = SN.BackComp(Ib).Int.*Trans(:,2);  % erg/cm^2/s/Ang
+        SN.BackComp(Ib) = AstroSpec({[InPar.Wave, TmpFlux.*Trans(:,2)]});  % erg/cm^2/s/Ang
     end
 else
     if numel(InPar.BackSpec)==1

@@ -59,14 +59,15 @@ if (numel(Filter)==2)
    Filter = [Filter, ones(size(Filter))];
 end
 
-if (AstSpec.isastspec(Spectrum))
-    Spectrum = astspec2mat(Spectrum,'mat');
+if (isa(Spectrum,'AstroSpec'))
+    Spectrum = [Spectrum.Wave, Spectrum.Flux];
 end
 
 if (numel(Spectrum)==1)
    % Assumes black-body spectrum
    %[Il,In,IlA,ImJy,Ip] = black_body(Spectrum,Filter(:,1));
-   Spectrum = AstSpec.blackbody(Spectrum,Filter(:,1),'cgs/A','ang','mat');
+   AS       = AstroSpec.blackBody(Filter(:,1),Spectrum);
+   Spectrum = [AS.Wave, AS.Flux];
    %Spectrum = [Filter(:,1), IlA];
 end
 
