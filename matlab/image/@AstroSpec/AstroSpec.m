@@ -1856,7 +1856,9 @@ classdef AstroSpec < Component
             Nobj2 = numel(Obj2);
             
             Nobj = max(Nobj1, Nobj2);
-            Result = AstroSpec([Nobj,1]);
+            % scalar argument = number of elements; a vector would be
+            % interpreted as a data matrix
+            Result = AstroSpec(Nobj);
             for Iobj=1:1:Nobj
                 Iobj1 = min(Iobj, Nobj1);
                 Iobj2 = min(Iobj, Nobj2);
