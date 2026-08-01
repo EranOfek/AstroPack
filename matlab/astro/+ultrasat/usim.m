@@ -132,7 +132,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                              % NoisePoisson/PoissonThreshold branch below)
 
         Args.SpecType        = {'BB'};       % parameters of the source spectra: 
-                                             % either an array of AstSpec or AstroSpec objects
+                                             % either an array of AstroSpec objects
                                              % or an array of model spectra parameters: 
                                              % {'BB'} 3500 [Temperature (K)] -- blackbody
                                              % {'PL'} 2.   [Alpha -- power-law F ~ lambda^alpha]
@@ -508,7 +508,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         DEC     = DEC(Ind);
         InEbv   = InEbv(Ind);
         if ( numel(Args.Spec) ~= 1 )
-            if isa(Args.Spec,'AstroSpec') || isa(Args.Spec,'AstSpec')
+            if isa(Args.Spec,'AstroSpec')
                 Args.Spec = Args.Spec(Ind);
             else
                 Args.Spec = Args.Spec(Ind,:);
@@ -571,7 +571,7 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
         % read the input spectra or generate synthetic spectra 
                  
-        switch isa(Args.Spec,'AstroSpec') || isa(Args.Spec,'AstSpec')
+        switch isa(Args.Spec,'AstroSpec')
 
             case 0  % make a synthetic spectrum for a given model
 
@@ -655,13 +655,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                         error('Spectral parameters not properly defined in uSim, exiting..');
                 end
 
-            case 1  % read the table from an AstroSpec/AstSpec object and regrid it to Wave set of wavelengths
-                
-                if isa(Args.Spec,'AstSpec')
-                    Flx = cell2mat({Args.Spec( Range ).Int});
-                elseif isa(Args.Spec,'AstroSpec')
-                    Flx = cell2mat({Args.Spec( Range ).Flux});
-                end
+            case 1  % read the table from an AstroSpec object and regrid it to Wave set of wavelengths
+
+                Flx = cell2mat({Args.Spec( Range ).Flux});
                 Wav = cell2mat({Args.Spec( Range ).Wave});
 
                 for Isrc = 1:1:NumSrcCh  % can not make it a 1-liner? 
@@ -924,13 +920,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
 
                                     fprintf('Reading the spectrum of extended object #%d/%d.. ', Iext, NumExt);
 
-            if isa(Args.ExtSpec,'AstroSpec') || isa(Args.ExtSpec,'AstSpec')
+            if isa(Args.ExtSpec,'AstroSpec')
                 Ispec = min(Iext, numel(Args.ExtSpec)); % a single spectrum object broadcasts to all objects
-                if isa(Args.ExtSpec,'AstSpec')
-                    SpecIn = interp1( Args.ExtSpec(Ispec).Wave, Args.ExtSpec(Ispec).Int, Wave, 'linear', 0 );
-                else
-                    SpecIn = interp1( Args.ExtSpec(Ispec).Wave, Args.ExtSpec(Ispec).Flux, Wave, 'linear', 0 );
-                end
+                SpecIn = interp1( Args.ExtSpec(Ispec).Wave, Args.ExtSpec(Ispec).Flux, Wave, 'linear', 0 );
             else
                 switch lower(Args.ExtSpecType)
                     case 'bb'
