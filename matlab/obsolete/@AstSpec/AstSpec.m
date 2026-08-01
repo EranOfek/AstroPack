@@ -30,8 +30,18 @@ classdef AstSpec < HEAD
          function AstS=AstSpec(N,M)
              % AstSpec constructor
              % Package: @AstSpec
-             % Description: AstSpec constructor method
-            
+             % Description: AstSpec constructor method. Return an
+             %              initialized AstSpec object array.
+             % Input  : - Number of rows, or a size vector of the form
+             %            [Nrow, Ncol] (e.g., as returned by size).
+             %            Default is 1.
+             %          - Number of columns. Default is 1.
+             % Output : - An AstSpec object array of size [Nrow, Ncol].
+             % Example: AstS = AstSpec;
+             %          AstS = AstSpec(3);
+             %          AstS = AstSpec(2,3);
+             %          AstS = AstSpec([2 3]);   % same, size vector form
+
             WaveField = 'Wave';
             
             if (nargin==0)
@@ -39,7 +49,9 @@ classdef AstSpec < HEAD
                 M = 1;
             elseif (nargin==1)
                 if (numel(N)>1)
+                    % N is a size vector [Nrow, Ncol]
                     M = N(2);
+                    N = N(1);
                 else
                     M = 1;
                 end
