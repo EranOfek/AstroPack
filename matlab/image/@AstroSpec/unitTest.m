@@ -39,6 +39,21 @@ function Result = unitTest
 
     assert(all(Factors>0),'Problem with applyExtinctionZ')
 
+    % zodiacal light / sky background spectrum
+    Zod = AstroSpec.zodiacSpectrum;
+    assert(numel(Zod)==1 && numel(Zod.Wave)==59,'Problem with zodiacSpectrum')
+
+    ZodMat = AstroSpec.zodiacSpectrum([],'OutType','mat');
+    assert(isequal(Zod.Wave,ZodMat(:,1)) && isequal(Zod.Flux,ZodMat(:,2)), ...
+           'zodiacSpectrum AstroSpec and mat outputs disagree')
+
+    ZodAll = AstroSpec.zodiacSpectrum([],'BackType','all');
+    assert(numel(ZodAll)==3,'zodiacSpectrum BackType=all must return three elements')
+    assert(isequal(ZodAll(2).Flux,Zod.Flux),'zodiacSpectrum BackType=all ordering changed')
+
+    ZodInt = AstroSpec.zodiacSpectrum([5000; 5500]);
+    assert(numel(ZodInt.Wave)==2,'Problem with zodiacSpectrum interpolation')
+
     % binary operators on object arrays
     Wave = (4000:10:5000).';
     SpecA = [AstroSpec({[Wave, ones(size(Wave))]}), ...

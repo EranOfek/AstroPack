@@ -1,7 +1,8 @@
 # AstSpec → AstroSpec migration: analysis and plan
 
-Status: **proposal — no migration work has been done.** Analysis performed on `dev1`, Aug 2026,
-against MATLAB R2020b Update 8.
+Status: **proposal — no call site has been migrated yet.** The one piece of missing AstroSpec
+functionality identified below has been implemented (`zodiacSpectrum`, §9); the migration options
+in §6 are still open. Analysis performed on `dev1`, Aug 2026, against MATLAB R2020b Update 8.
 
 The obsolete class `matlab/obsolete/@AstSpec` (3676 lines, ~80 methods) is still used by active
 code under `+telescope/+sn`, `+ultrasat`, `@UltrasatPerf` and `+astro/+spec`. This document
@@ -59,7 +60,7 @@ consumers are gone.
 |---|---|
 | `astro/@UltrasatPerf/UltrasatPerf.m` | typed property `Specs(:,1) AstSpec = []` + `.ObjName` logic (52 inbound refs) |
 | `astro/@UltrasatPerf2GUI/UltrasatPerf2GUI.m` | `.ObjName` for the GUI source list |
-| `astro/+ultrasat/zodiac_spectrum.m` | no AstroSpec equivalent exists — needs a **port**, not a rename |
+| ~~`astro/+ultrasat/zodiac_spectrum.m`~~ | **resolved** — ported as `AstroSpec.zodiacSpectrum`; see §9 |
 
 ### Tier 4 — candidates for *not* migrating (zero inbound references)
 
@@ -88,7 +89,7 @@ implemented), `SnrGuiIni.m` (commented-out), `black_body.m`, `synthetic_phot.m`,
 | `AstSpec.get_galspec(Name, OutType)` | `AstroSpec.specGalQSO(Name, OutType)` | verified equivalent |
 | `AstSpec.get_atmospheric_extinction(Name, OutType)` | `AstroSpec.atmosphericExtinction(File, Args)` | different file keys (`'VLT'`/`'KPNO'`/`'SNfactory'`), `'mag'`\|`'trans'` |
 | `AstSpec.isastspec(X)` | `isa(X, 'AstroSpec')` | |
-| `AstSpec.zodiac_spectrum` | **missing** | port required |
+| `AstSpec.zodiac_spectrum` | `AstroSpec.zodiacSpectrum` | ported, see §9 |
 | `interp(S, W)` | `interp1(S, W)` | |
 | `resample`, `equalize_sampling` | `interp1` / `interpLogSpace` / `interpAndKeepOverlap` | |
 | `synphot`, `synthetic_phot` | `synphot` | |
@@ -138,10 +139,13 @@ no `ObjName`/`source`. This is not cosmetic — it drives **behaviour**:
 - `UltrasatPerf2GUI.m:53`: builds the GUI source list from `ObjName`
 - `zodiac_spectrum.m:139`, `fit_bb.m:178` set `ObjName`/`source`
 
-`Ref` is declared in AstroSpec but **never read or written anywhere in the class** — a free slot
-that could carry this. Options: (a) reuse `Ref`, (b) add `ObjName`/`Source` properties to
-AstroSpec, (c) replace the name-matching logic with an explicit flag array. (a) and (b) modify the
-new class.
+`Ref` was declared in AstroSpec but not read or written anywhere in the class — a free slot that
+could carry this. Options: (a) reuse `Ref`, (b) add `ObjName`/`Source` properties to AstroSpec,
+(c) replace the name-matching logic with an explicit flag array. (a) and (b) modify the new class.
+
+`zodiacSpectrum` (§9) provisionally writes provenance into `Ref`, which is the only use of that
+property so far. That is a placeholder, not a decision — if (b) or (c) is chosen, it is one line
+to change.
 
 ---
 
@@ -207,7 +211,7 @@ Zero risk, indefinite duplication. Legitimate if ULTRASAT delivery pressure outw
 | Phase | Work | Gate |
 |---|---|---|
 | 0 | Tier 4 decision; extend baseline to `usim`/`UltrasatPerf` fixtures | baseline captured |
-| 1 | Metadata decision (§4.3); `zodiac_spectrum` port to AstroSpec | new static matches `AstSpec.zodiac_spectrum` fingerprint |
+| 1 | Metadata decision (§4.3). ~~`zodiac_spectrum` port~~ — done, see §9 | new static matches `AstSpec.zodiac_spectrum` fingerprint |
 | 2 | Tier 1 files (4) | `telescope.sn.unitTest`, `AstroSpec.unitTest` pass |
 | 3 | Tier 2 files (6) | `snr()` numerically identical; `back_comp()` fingerprints identical |
 | 4 | `UltrasatPerf` + GUI + `usim` AstSpec branch removal | UltrasatPerf fixture identical |
@@ -222,7 +226,7 @@ Phases 2–5 are each a separate commit/PR.
 1. **Tier 4** — migrate anyway, move to `obsolete/`, or delete? (~⅓ of the work)
 2. **Metadata (§4.3)** — reuse `Ref`, add `ObjName`/`Source` to AstroSpec, or refactor the name-based logic away?
 3. **`UltrasatPerf.Specs` orientation (§4.2)** — change the property to a row, or transpose at producers?
-4. **`zodiac_spectrum`** — port into `@AstroSpec` as a static, or keep as a package function returning AstroSpec?
+4. ~~**`zodiac_spectrum`**~~ — **decided**: ported into `@AstroSpec` as a static; `ultrasat.zodiac_spectrum` now delegates to it.
 5. **Option A/B/C/D**, and whether `@AstSpec` is ultimately deleted or archived.
 
 ---
@@ -239,3 +243,16 @@ Phases 2–5 are each a separate commit/PR.
 Note that `AstroSpec` deliberately **cannot** accept a size vector: `AstroSpec([100 2])` is
 ambiguous between "100×2 array of spectra" and "a one-row data matrix", and the constructor
 resolves it as data. Preallocation must use the scalar form.
+
+- `@AstroSpec/AstroSpec.m` `funBinary`/`rdivide`: wrong element indexing and unimplemented
+  divisor types (issue #1185, fixed in d5ce9c3a7). `funBinary` had broken `applyAtmosphericExt`
+  for any vector airmass.
+- `@AstroSpec/AstroSpec.m`: added the missing `zodiacSpectrum` static (the §3 gap). It carries the
+  HST STIS sky-background table, supports `BackType` `'zodi'|'earthshine'|'total'|'all'` and
+  `OutType` `'AstroSpec'|'mat'`, and returns a 1x3 object array for `'all'`. Provenance goes into
+  the otherwise unused `Ref` property — a placeholder pending the §4.3 metadata decision, not a
+  commitment. `ultrasat.zodiac_spectrum` now delegates to it and keeps its `'mat'` default and its
+  `'astspec'` option; output is bit-identical to the previous implementation across all
+  `BackType`/`Wave`/`InterpMethod` combinations. The obsolete `AstSpec.zodiac_spectrum` was left
+  untouched; note it is buggy — supplying `Wave` with the default `'astspec'` output errors,
+  so its own documented example does not run.
