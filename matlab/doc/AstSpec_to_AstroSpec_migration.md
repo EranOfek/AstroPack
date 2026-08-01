@@ -1,8 +1,9 @@
 # AstSpec → AstroSpec migration: analysis and plan
 
-Status: **proposal — no call site has been migrated yet.** The one piece of missing AstroSpec
-functionality identified below has been implemented (`zodiacSpectrum`, §9); the migration options
-in §6 are still open. Analysis performed on `dev1`, Aug 2026, against MATLAB R2020b Update 8.
+Status: **plan agreed, no call site migrated yet.** The strategy and all blocking questions are
+decided (§8); Phase 0 has not started. The one piece of missing AstroSpec functionality has been
+implemented (`zodiacSpectrum`, §9). Analysis performed on `dev1`, Aug 2026, against MATLAB R2020b
+Update 8.
 
 The obsolete class `matlab/obsolete/@AstSpec` (3676 lines, ~80 methods) is still used by active
 code under `+telescope/+sn`, `+ultrasat`, `@UltrasatPerf` and `+astro/+spec`. This document
@@ -54,15 +55,15 @@ consumers are gone.
 | `astro/+astro/+spec/fit_bb.m` | `AstSpec` ctor, `.Int`, `.IntUnits`, `.source` |
 | `astro/+ultrasat/zodiac_bck.m` | `AstSpec(N,1)`, `.Int` |
 
-### Tier 3 — blocked on a decision about AstroSpec itself
+### Tier 3 — depends on the AstroSpec decisions in §8
 
 | File | Blocker |
 |---|---|
-| `astro/@UltrasatPerf/UltrasatPerf.m` | typed property `Specs(:,1) AstSpec = []` + `.ObjName` logic (52 inbound refs) |
+| `astro/@UltrasatPerf/UltrasatPerf.m` | typed property `Specs(:,1) AstSpec = []` (§4.2) + `.ObjName` logic (§4.3) + saved `.mat` (§4.4) |
 | `astro/@UltrasatPerf2GUI/UltrasatPerf2GUI.m` | `.ObjName` for the GUI source list |
 | ~~`astro/+ultrasat/zodiac_spectrum.m`~~ | **resolved** — ported as `AstroSpec.zodiacSpectrum`; see §9 |
 
-### Tier 4 — candidates for *not* migrating (zero inbound references)
+### Tier 4 — not migrating; moving to `obsolete/` (zero inbound references)
 
 | File | Refs removed if retired |
 |---|---|
@@ -72,7 +73,8 @@ consumers are gone.
 | `astro/+astro/+spec/spec_photon_counts.m` | self-declared OBSOLETE; calls a bare `blackbody()` that resolves to nothing |
 | `obsolete/+ImUtil/+calib/fit_phot_transmission.m` | 1 — already under `obsolete/` |
 
-**Retiring Tier 4 removes ~14 of ~42 references (a third of the work) for near-zero risk.**
+**Decided: move these to `obsolete/`** — removes ~14 of ~42 references (a third of the work)
+for near-zero risk, and keeps them findable.
 
 Doc/comment-only, no action: `wget_sdss_spec.m` (documents an `'AstSpec'` OutType that is never
 implemented), `SnrGuiIni.m` (commented-out), `black_body.m`, `synthetic_phot.m`, `zodiac_bck_V.m`.
@@ -99,7 +101,8 @@ implemented), `SnrGuiIni.m` (commented-out), `black_body.m`, `synthetic_phot.m`,
 | `extinction`, `atmospheric_extinction` | `applyExtinctionZ`, `applyAtmosphericExt` | |
 | `.Int` / `.IntUnits` | `.Flux` / `.FluxUnits` | |
 | `.Wave` / `.Err` / `.Back` / `.Mask` | `.Wave` / `.FluxErr` / `.Back` / `.Mask` | |
-| `.ObjName` / `.source` / `.comments` / `.FileName` / `.AddCol` | **no equivalent** | see §4.3 |
+| `.ObjName` | `.ObjName` | **new property**, to be added in Phase 1 — see §4.3 |
+| `.source` / `.comments` / `.FileName` / `.AddCol` | `.Ref` (provenance) or none | see §4.3 |
 
 ---
 
@@ -120,32 +123,59 @@ implemented), `SnrGuiIni.m` (commented-out), `black_body.m`, `synthetic_phot.m`,
 Linear indexing (`S(I)`) is unaffected. What breaks silently: `size(X,1)`, `[S.Wave]`
 concatenation, and column-shaped typed properties.
 
-### 4.2 `UltrasatPerf.m:58` is the hardest single item
+### 4.2 `UltrasatPerf.Specs` orientation — small, once measured
 
 ```matlab
 Specs(:,1)  AstSpec = [];   % column-constrained typed property
 ```
 
-Every AstroSpec producer yields a **row**. Swapping the type alone fails validation on assignment.
-Requires either `Specs(1,:) AstroSpec` or transposing at each producer — and with 52 inbound
-references, this is the one item that cannot be done incrementally within the class.
+Every AstroSpec producer yields a **row**, so the declared type cannot simply be swapped. But the
+blast radius is two lines, not the whole class:
+
+- exactly **one** write: `Obj.Specs = Obj.create_Specs(...)` (`UltrasatPerf.m:405`)
+- every read is orientation-insensitive: `numel(Obj.Specs)` (`:410`, `:771`), `Obj.Specs(Sidx)`
+  linear indexing (`:214`, `:423`, `:793-800`), `{Obj.Specs.ObjName}` cell expansion (`:306`,
+  `UltrasatPerf2GUI.m:53`)
+
+**Decided:** declare `Specs(1,:) AstroSpec` and have `create_Specs` build a row.
+
+(An earlier revision of this document called this "the one item that cannot be done incrementally".
+That was wrong — the 52 inbound references are to the *class*, not to this array's shape.)
 
 ### 4.3 Metadata gap — AstroSpec has no per-spectrum name
 
 AstroSpec properties: `Data, MaskData, Z, Vel, DistZ, LumDist, Ebv, Zext, R, Lines, Ref`. There is
-no `ObjName`/`source`. This is not cosmetic — it drives **behaviour**:
+no `ObjName`/`source`. The two consumers need **different** things:
 
-- `UltrasatPerf.m:306`: `F_BB = contains({Obj.Specs.ObjName},{'Planck'})` selects black-body spectra by name
-- `UltrasatPerf2GUI.m:53`: builds the GUI source list from `ObjName`
-- `zodiac_spectrum.m:139`, `fit_bb.m:178` set `ObjName`/`source`
+- `UltrasatPerf.m:306`: `F_BB = contains({Obj.Specs.ObjName},{'Planck'})` — used *only* to colour
+  points in the `'ColorColor'` plot. `create_Specs` builds the Pickles block and then the blackbody
+  loop itself, so the class already knows which spectra are blackbodies; matching on a name string
+  is fragile for no benefit.
+- `UltrasatPerf2GUI.m:53`: `Obj.Sources = string({...Specs.ObjName})` — a genuine need for
+  human-readable names in the GUI source list. No refactor removes this.
 
-`Ref` was declared in AstroSpec but not read or written anywhere in the class — a free slot that
-could carry this. Options: (a) reuse `Ref`, (b) add `ObjName`/`Source` properties to AstroSpec,
-(c) replace the name-matching logic with an explicit flag array. (a) and (b) modify the new class.
+**Decided:** add an `ObjName` property to AstroSpec for the display names, and replace the
+`'Planck'` string match with an explicit flag set by `create_Specs`. `Ref` stays for provenance,
+which is how `zodiacSpectrum` (§9) already uses it.
 
-`zodiacSpectrum` (§9) provisionally writes provenance into `Ref`, which is the only use of that
-property so far. That is a placeholder, not a decision — if (b) or (c) is chosen, it is one line
-to change.
+### 4.4 Serialized objects on disk
+
+`UltrasatPerf2GUI` loads `P90_UP_test_60_ZP_Var_Cern_21.mat` (present locally under
+`~/matlab/data/ULTRASAT/`). It contains a live `UltrasatPerf` whose `Specs` is a **43x1 AstSpec
+array** carrying real names:
+
+```
+Specs class AstSpec size [43 1]
+ObjNames(1:5): A 0.0 V | A 2.0 V | A 3.0 V | A 5.0 V | A 7.0 V
+```
+
+Migrating the class does not migrate that file: deleting `@AstSpec` would make it unloadable, and
+re-declaring `Specs` as `AstroSpec` makes the saved array fail property validation on load. This is
+independent of orientation — it follows from the class change itself.
+
+**Decided:** `@AstSpec` is **archived, not deleted**, so old files keep loading; the `.mat` is
+regenerated from migrated code in Phase 4 and the GUI switched to the new file. Users with their own
+saved objects keep working as long as `@AstSpec` remains on the path.
 
 ---
 
@@ -182,12 +212,12 @@ numbers move.
 All 16 files in one pass, delete `@AstSpec`. Fastest to a clean tree; one large untestable step;
 `sn_spec`/`usim`/`UltrasatPerf` regressions would surface only in ULTRASAT runs. **Not recommended.**
 
-### B — Retire Tier 4, then phased migration *(recommended)*
+### B — Retire Tier 4, then phased migration  ← **CHOSEN**
 
-1. Decide Tier 4 (retire/delete) — removes ~⅓ of references at near-zero risk.
-2. Resolve the two blockers (§4.3 metadata, §4.2 typed property) as explicit AstroSpec decisions.
+1. Retire Tier 4 — removes ~⅓ of references at near-zero risk.
+2. Resolve the blockers (§4.2, §4.3, §4.4) as explicit AstroSpec decisions. **Done — see §8.**
 3. Migrate Tier 1 → Tier 2 → Tier 3, gating each on the numeric baseline.
-4. Retire `@AstSpec` once its reference count reaches zero.
+4. Archive `@AstSpec` once its reference count reaches zero.
 
 Each phase is independently verifiable and revertible.
 
@@ -206,28 +236,33 @@ Zero risk, indefinite duplication. Legitimate if ULTRASAT delivery pressure outw
 
 ---
 
-## 7. Recommended sequence (Option B)
+## 7. Sequence (Option B, as decided)
 
 | Phase | Work | Gate |
 |---|---|---|
-| 0 | Tier 4 decision; extend baseline to `usim`/`UltrasatPerf` fixtures | baseline captured |
-| 1 | Metadata decision (§4.3). ~~`zodiac_spectrum` port~~ — done, see §9 | new static matches `AstSpec.zodiac_spectrum` fingerprint |
+| 0 | Move Tier 4 to `obsolete/`; extend the baseline to `usim`/`UltrasatPerf` fixtures | baseline captured; no inbound refs broken |
+| 1 | Add `ObjName` to AstroSpec (§4.3) | `AstroSpec.unitTest` passes; existing spectra unaffected |
 | 2 | Tier 1 files (4) | `telescope.sn.unitTest`, `AstroSpec.unitTest` pass |
 | 3 | Tier 2 files (6) | `snr()` numerically identical; `back_comp()` fingerprints identical |
-| 4 | `UltrasatPerf` + GUI + `usim` AstSpec branch removal | UltrasatPerf fixture identical |
-| 5 | Move `@AstSpec` to a dated attic or delete; drop the `blackbody`/`black_body` doc pointers | zero references |
+| 4 | `UltrasatPerf` (`Specs(1,:) AstroSpec` + `SpecIsBB` flag) + GUI + `usim` AstSpec branch removal; regenerate the `.mat` (§4.4) | UltrasatPerf fixture identical; GUI source list unchanged |
+| 5 | Archive `@AstSpec` (keep loadable); drop the `blackbody`/`black_body` doc pointers | zero references |
 
-Phases 2–5 are each a separate commit/PR.
+Phases are each a separate commit/PR.
+
+The `zodiac_spectrum` port that used to be Phase 1 is already done — see §9.
 
 ---
 
-## 8. Decisions needed before any code is written
+## 8. Decisions taken
 
-1. **Tier 4** — migrate anyway, move to `obsolete/`, or delete? (~⅓ of the work)
-2. **Metadata (§4.3)** — reuse `Ref`, add `ObjName`/`Source` to AstroSpec, or refactor the name-based logic away?
-3. **`UltrasatPerf.Specs` orientation (§4.2)** — change the property to a row, or transpose at producers?
-4. ~~**`zodiac_spectrum`**~~ — **decided**: ported into `@AstroSpec` as a static; `ultrasat.zodiac_spectrum` now delegates to it.
-5. **Option A/B/C/D**, and whether `@AstSpec` is ultimately deleted or archived.
+| # | Question | Decision |
+|---|---|---|
+| 1 | Overall strategy | **Option B** — phased, per §7 |
+| 2 | Tier 4 (5 files, zero inbound refs) | **Move to `obsolete/`** — keeps them findable, removes ~14 refs |
+| 3 | Metadata (§4.3) | **Add `ObjName` to AstroSpec** + replace the `'Planck'` match with an explicit flag |
+| 4 | `UltrasatPerf.Specs` orientation (§4.2) | **Declare `Specs(1,:) AstroSpec`**; `create_Specs` builds a row |
+| 5 | Saved `.mat` files (§4.4) | **Archive `@AstSpec`, do not delete**; regenerate the `.mat` in Phase 4 |
+| 6 | `zodiac_spectrum` | **Ported** to `AstroSpec.zodiacSpectrum`; `ultrasat.zodiac_spectrum` delegates — see §9 |
 
 ---
 
