@@ -39,6 +39,18 @@ function Result = unitTest
 
     assert(all(Factors>0),'Problem with applyExtinctionZ')
 
+    % ObjName - default empty, and set by the spectrum factories
+    assert(isempty(AstroSpec({rand(10,2)}).ObjName),'ObjName should default to empty')
+
+    BBs = AstroSpec.blackBody((4000:10:9000).', [5800; 10000]);
+    assert(strcmp(BBs(1).ObjName,'Planck spectrum T=5800.000000'), ...
+           'blackBody did not set ObjName in the expected format')
+
+    % Pickles file name -> spectral designation
+    assert(strcmp(AstroSpec.picklesName('uka0v.mat'),'A 0.0 V'),'Problem with picklesName')
+    assert(strcmp(AstroSpec.picklesName('uka05v.mat'),'A 0.5 V'),'Problem with picklesName half type')
+    assert(strcmp(AstroSpec.picklesName('wg8iii.mat'),'wg8iii'),'picklesName should fall back to the file name')
+
     % zodiacal light / sky background spectrum
     Zod = AstroSpec.zodiacSpectrum;
     assert(numel(Zod)==1 && numel(Zod.Wave)==59,'Problem with zodiacSpectrum')

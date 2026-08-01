@@ -74,6 +74,7 @@ classdef AstroSpec < Component
         R                    = 3.08; % Vector -
         Lines                % optional lines list
         Ref
+        ObjName              = '';   % object/spectrum name (e.g. for display)
     end
         
     
@@ -592,6 +593,7 @@ classdef AstroSpec < Component
                 end
                 
                 Result(It) = AstroSpec({[WaveAng, Flux]}, {'Wave','Flux'}, {WaveUnits, 'cgs/A'});
+                Result(It).ObjName = sprintf('Planck spectrum T=%f', Temp(It));
             end
             
         end
@@ -852,6 +854,7 @@ classdef AstroSpec < Component
                     switch lower(OutType)
                         case 'astrospec'
                             Result(If) = AstroSpec({Mat});
+                            Result(If).ObjName = AstroSpec.picklesName(Files{If});
                         case 'mat'
                             Result = Mat;
                         otherwise
@@ -863,6 +866,32 @@ classdef AstroSpec < Component
 
         end
         
+        function Name = picklesName(FileName)
+            % Convert a Pickles library file name into a spectral designation.
+            % Input  : - A Pickles library file name, e.g. 'uka0v.mat'.
+            % Output : - The spectral designation, e.g. 'A 0.0 V'. If the
+            %            file name does not follow the Pickles convention,
+            %            the file name without its extension is returned.
+            % Author : Eran Ofek (Feb 2016) - ported from AstSpec.get_pickles
+            % Example: Name = AstroSpec.picklesName('uka0v.mat');
+
+            arguments
+                FileName char
+            end
+
+            RE = regexp(FileName, 'uk(?<SpClass>[obafgkm]+)(?<SpNum>\d+)(?<SpLum>\w+)', 'names');
+            if isempty(RE)
+                [~, Name] = fileparts(FileName);
+            else
+                if numel(RE.SpNum)>1
+                    SpNum = str2double(RE.SpNum(1)) + 0.5;
+                else
+                    SpNum = str2double(RE.SpNum);
+                end
+                Name = sprintf('%s %3.1f %s', upper(RE.SpClass), SpNum, upper(RE.SpLum));
+            end
+        end
+
         function Result = specPhoenix(Args)
             % Get a Phoenix model stellar spectrum from a prepared grid
             % Reference: 

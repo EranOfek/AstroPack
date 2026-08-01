@@ -101,7 +101,7 @@ implemented), `SnrGuiIni.m` (commented-out), `black_body.m`, `synthetic_phot.m`,
 | `extinction`, `atmospheric_extinction` | `applyExtinctionZ`, `applyAtmosphericExt` | |
 | `.Int` / `.IntUnits` | `.Flux` / `.FluxUnits` | |
 | `.Wave` / `.Err` / `.Back` / `.Mask` | `.Wave` / `.FluxErr` / `.Back` / `.Mask` | |
-| `.ObjName` | `.ObjName` | **new property**, to be added in Phase 1 — see §4.3 |
+| `.ObjName` | `.ObjName` | added in Phase 1; `specStarsPickles` and `blackBody` populate it with the same strings AstSpec used |
 | `.source` / `.comments` / `.FileName` / `.AddCol` | `.Ref` (provenance) or none | see §4.3 |
 
 ---
@@ -157,6 +157,22 @@ no `ObjName`/`source`. The two consumers need **different** things:
 **Decided:** add an `ObjName` property to AstroSpec for the display names, and replace the
 `'Planck'` string match with an explicit flag set by `create_Specs`. `Ref` stays for provenance,
 which is how `zodiacSpectrum` (§9) already uses it.
+
+**Phase 1 (done):** `ObjName` added; `specStarsPickles` and `blackBody` populate it with the same
+strings AstSpec produced — verified byte-identical for Pickles classes M/G/A/B (`'M 0.0 V'`) and for
+blackbodies (`'Planck spectrum T=5800.000000'`). The filename parse lives in the new static
+`AstroSpec.picklesName`. The `create_Specs` flag refactor stays in Phase 4.
+
+**Gap found in Phase 1, blocking Phase 4:** `UltrasatPerf.create_Specs` calls
+`AstSpec.get_pickles([], MStype)` — empty spectral type plus a luminosity class, returning all 35
+class-V spectra. `AstroSpec.specStarsPickles([], 'V')` returns `[]`, because an empty first argument
+means "list mode" there. Phase 4 needs `specStarsPickles` to support this, or `create_Specs` must
+enumerate the classes itself.
+
+Note also that the saved fixture holds 43 spectra whereas 35 Pickles + 11 blackbody temperatures is
+46, so the stored object came from a different configuration. The Phase 4 gate is the
+*recomputation* from the stored `Specs` (§5), which is unaffected; a regenerated `.mat` may
+legitimately contain a different number of spectra.
 
 ### 4.4 Serialized objects on disk
 
@@ -277,7 +293,7 @@ Zero risk, indefinite duplication. Legitimate if ULTRASAT delivery pressure outw
 | Phase | Work | Gate |
 |---|---|---|
 | 0 | Move Tier 4 to `obsolete/`; extend the baseline to `usim`/`UltrasatPerf` fixtures | **done** — see §5; both fixtures captured |
-| 1 | Add `ObjName` to AstroSpec (§4.3) | `AstroSpec.unitTest` passes; existing spectra unaffected |
+| 1 | Add `ObjName` to AstroSpec (§4.3) and populate it in `specStarsPickles` and `blackBody` | **done** — names byte-identical to AstSpec; `AstroSpec.unitTest` passes |
 | 2 | Tier 1 files (4) | `telescope.sn.unitTest`, `AstroSpec.unitTest` pass |
 | 3 | Tier 2 files (6) | `snr()` numerically identical; `back_comp()` fingerprints identical |
 | 4 | `UltrasatPerf` (`Specs(1,:) AstroSpec` + `SpecIsBB` flag) + GUI + `usim` AstSpec branch removal; regenerate the `.mat` (§4.4) | UltrasatPerf fixture identical; GUI source list unchanged |
