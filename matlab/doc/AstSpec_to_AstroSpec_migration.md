@@ -189,9 +189,32 @@ Migrating the class does not migrate that file: deleting `@AstSpec` would make i
 re-declaring `Specs` as `AstroSpec` makes the saved array fail property validation on load. This is
 independent of orientation — it follows from the class change itself.
 
-**Decided:** `@AstSpec` is **archived, not deleted**, so old files keep loading; the `.mat` is
-regenerated from migrated code in Phase 4 and the GUI switched to the new file. Users with their own
-saved objects keep working as long as `@AstSpec` remains on the path.
+**Decided, then revised in Phase 4.** Keeping `@AstSpec` loadable is necessary but **not
+sufficient**: MATLAB applies the new property validation when loading, so a saved `Specs` of class
+AstSpec is discarded even though `@AstSpec` is still on the path. Measured on the stored fixture
+after retyping the property:
+
+```
+Specs        AstroSpec [1 0]   numel 0      <- was AstSpec [43 1]
+C_Gaia_BpRp  43x1                           <- survives
+LimMag       43x25                          <- survives
+load warning: (none)
+```
+
+Silent, no warning, and the GUI source list would drop to 0 entries.
+
+**Resolution:** `UltrasatPerf.loadobj` converts a legacy AstSpec `Specs` array to AstroSpec on load
+(MATLAB hands `loadobj` the saved data as a struct in this situation), carrying `ObjName` across and
+reconstructing `SpecIsBB` from the names. The conversion itself lives in the static
+`UltrasatPerf.astSpec2astroSpec`. Existing files then load unchanged - verified: 43 spectra, GUI
+list back to 43 entries, and `calcColor` on the converted spectra reproduces the stored
+`C_Gaia_BpRp` to 7.1e-15.
+
+Note `loadobj` must construct with `UltrasatPerf(1,'Init',false)`; the default `Init` runs
+`populate_Design`, which reads design data from a hardcoded absolute path.
+
+Regenerating the `.mat` is therefore not required, and is not possible in this environment: the
+constructor needs design files under `/home/yossishv/Dropbox (Weizmann Institute)/...`.
 
 ---
 
@@ -296,7 +319,7 @@ Zero risk, indefinite duplication. Legitimate if ULTRASAT delivery pressure outw
 | 1 | Add `ObjName` to AstroSpec (§4.3) and populate it in `specStarsPickles` and `blackBody` | **done** — names byte-identical to AstSpec; `AstroSpec.unitTest` passes |
 | 2 | Tier 1 files | **done** — `usim` and `blackbody_mag_c` migrated, `add_meta_data2ps1` retired, `telescope.sn.unitTest` deferred to Phase 3 |
 | 3 | Tier 2 files | **done** — `snr`, `back_comp`, `spec2photons`, `unitTest`, `zodiac_bck` migrated and bit-identical; `sn_spec` migrated by inspection; `fit_bb` retired |
-| 4 | `UltrasatPerf` (`Specs(1,:) AstroSpec` + `SpecIsBB` flag) + GUI + `usim` AstSpec branch removal; regenerate the `.mat` (§4.4) | UltrasatPerf fixture identical; GUI source list unchanged |
+| 4 | `UltrasatPerf` (`Specs(1,:) AstroSpec` + `SpecIsBB` flag) + GUI + `loadobj` for saved `.mat` (§4.4) | **done** — fixture reproduces stored colours to 7.1e-15; GUI list back to 43 entries |
 | 5 | Archive `@AstSpec` (keep loadable); drop the `blackbody`/`black_body` doc pointers | zero references |
 
 Phases are each a separate commit/PR.

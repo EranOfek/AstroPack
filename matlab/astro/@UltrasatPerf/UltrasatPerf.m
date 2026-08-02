@@ -55,7 +55,8 @@ classdef UltrasatPerf < Component
         Rmm(1,:)            double = linspace(0,45,25)*sqrt(2); % [mm] Radial distance vector in mm 
         Rdeg(1,:)           double = []; % [deg] Radial distance vector in deg
         AOI_grid(:,1)       double = 0:1:45; % [deg] Detector+Filter AOI grid vector
-        Specs(:,1)          AstSpec = []; % Specs
+        Specs(1,:)          AstroSpec = AstroSpec.empty(1,0); % Specs
+        SpecIsBB(1,:)       logical = false(1,0); % true for the blackbody entries of Specs
 
         % Design
         FLmm                double = 360; % [mm] focal length
@@ -191,7 +192,7 @@ classdef UltrasatPerf < Component
                 Args.Nim                  = 3;
 
                 Args.TargetSpec           = []; %2e4; %3e3; %2e4;    % if given override Mag
-                Args.BackSpec             = @telescope.sn.back_comp;    % per arcsec^2 | handle | AstSpec | matrix
+                Args.BackSpec             = @telescope.sn.back_comp;    % per arcsec^2 | handle | AstroSpec | matrix
                 Args.BackCompFunPar       = {'CerenkovSupp',21};
                 Args.Ebv                  = 0.02;
                 Args.Filter               = [];
@@ -303,7 +304,7 @@ classdef UltrasatPerf < Component
                     legend('FoV center','Radial distances: 0-10 deg','Location','best','interpreter','latex','FontSize',Args.LegendFontSize)
                     
                 case 'ColorColor'
-                    F_BB = contains({Obj.Specs.ObjName},{'Planck'});
+                    F_BB = Obj.SpecIsBB;
 
                     plot(Obj.C_Gaia_BpRp(~F_BB),Obj.C_ULTRASAT_GaiaG(~F_BB),'ob','MarkerSize',6,'MarkerFaceColor','b');
                     plot(Obj.C_Gaia_BpRp(F_BB),Obj.C_ULTRASAT_GaiaG(F_BB),'or','MarkerSize',6,'MarkerFaceColor','r');
@@ -402,7 +403,7 @@ classdef UltrasatPerf < Component
                 Args.SpecsFunPar = {};
             end
             
-            Obj.Specs = Obj.create_Specs('wavelength',Obj.wavelength,Args.SpecsFunPar{:});
+            [Obj.Specs, Obj.SpecIsBB] = Obj.create_Specs('wavelength',Obj.wavelength,Args.SpecsFunPar{:});
             Obj.C_Gaia_BpRp = Obj.calcColor(Obj.Specs,'GAIA','BP','GAIA','RP');
             Obj.C_ULTRASAT_GaiaG = Obj.calcColor(Obj.Specs,Obj.U_AstFilt,[],'GAIA','G');
             Obj.C_ULTRASAT_GalexNUV = Obj.calcColor(Obj.Specs,Obj.U_AstFilt,[],'GALEX','NUV');
@@ -722,6 +723,65 @@ classdef UltrasatPerf < Component
     end
     
     methods (Static)  % static methods
+
+        function Obj = loadobj(S)
+            % Load an UltrasatPerf, converting legacy AstSpec spectra.
+            %   Objects saved before the AstSpec -> AstroSpec migration hold
+            %   Specs as an AstSpec array, which no longer satisfies the
+            %   property declaration. Convert it so that such files keep
+            %   working.
+            % Input  : - A saved UltrasatPerf object, or the struct MATLAB
+            %            provides when the saved data does not match the
+            %            current class definition.
+            % Output : - An UltrasatPerf object with Specs as AstroSpec.
+            % Author : Aleksandr Krasilshchikov (Aug 2026)
+
+            if isstruct(S)
+                % 'Init',false - do not run populate_Design, the saved
+                % properties are restored below
+                Obj = UltrasatPerf(1, 'Init',false);
+                Fields = fieldnames(S);
+                for If=1:1:numel(Fields)
+                    if isprop(Obj, Fields{If})
+                        if strcmp(Fields{If}, 'Specs')
+                            Obj.Specs = UltrasatPerf.astSpec2astroSpec(S.Specs);
+                        else
+                            Obj.(Fields{If}) = S.(Fields{If});
+                        end
+                    end
+                end
+            else
+                Obj = S;
+            end
+
+            if isempty(Obj.SpecIsBB) && ~isempty(Obj.Specs)
+                % reconstruct the blackbody flag from the spectrum names
+                Obj.SpecIsBB = contains({Obj.Specs.ObjName}, 'Planck');
+            end
+        end
+
+        function Result = astSpec2astroSpec(Spec)
+            % Convert an obsolete AstSpec array into an AstroSpec array.
+            % Input  : - An AstSpec array (or an AstroSpec array, returned
+            %            unchanged).
+            % Output : - An AstroSpec array with Wave, Flux and ObjName
+            %            carried over.
+            % Author : Aleksandr Krasilshchikov (Aug 2026)
+            % Example: AS = UltrasatPerf.astSpec2astroSpec(AstSpec.get_pickles('M','V'));
+
+            if isa(Spec, 'AstroSpec') || isempty(Spec)
+                Result = Spec;
+                return
+            end
+
+            Nspec  = numel(Spec);
+            Result = AstroSpec(Nspec);
+            for Ispec=1:1:Nspec
+                Result(Ispec) = AstroSpec({[Spec(Ispec).Wave(:), Spec(Ispec).Int(:)]});
+                Result(Ispec).ObjName = Spec(Ispec).ObjName;
+            end
+        end
+
         function [effPSF,rPSF,PSF_all] = calc_eff_PSF(FWHM,ASpec,ASFilter,wavelength,Args)
             arguments
                 FWHM
@@ -734,10 +794,13 @@ classdef UltrasatPerf < Component
             rPSF(:,1) = (0:Args.dr:100);
 
 
-            ASpec = interp(ASpec,wavelength);
+            % interpolate the flux onto the wavelength grid - AstroSpec/interp1
+            % would also interpolate the Wave column and leave NaN in it
+            % outside the original range
+            SpecFlux = interp1(ASpec.Wave,ASpec.Flux,wavelength);
             ASFilter = interp(ASFilter,wavelength);
-            
-            TargetSpecPh = convert.flux(ASpec.Int,'cgs/A','ph/A',wavelength,'A'); % change Int to photons
+
+            TargetSpecPh = convert.flux(SpecFlux,'cgs/A','ph/A',wavelength,'A'); % change flux to photons
             Photon_flux = TargetSpecPh.*ASFilter.T(:,2);
             
             Sig_PSF = FWHM/2.355;
@@ -790,14 +853,14 @@ classdef UltrasatPerf < Component
             for Sidx = 1:Nsrc
                 for C = 1:NC
                     if NF1>1
-                       [MagF1,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Int],F1_family(C),[],Args.MagSys);
-                       [MagF2,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Int],F2_family,F2_band,Args.MagSys);
+                       [MagF1,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Flux],F1_family(C),[],Args.MagSys);
+                       [MagF2,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Flux],F2_family,F2_band,Args.MagSys);
                     elseif NF2>1
-                       [MagF1,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Int],F1_family,F1_band,Args.MagSys);
-                       [MagF2,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Int],F2_family(C),[],Args.MagSys);
+                       [MagF1,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Flux],F1_family,F1_band,Args.MagSys);
+                       [MagF2,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Flux],F2_family(C),[],Args.MagSys);
                     else
-                       [MagF1,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Int],F1_family,F1_band,Args.MagSys);
-                       [MagF2,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Int],F2_family,F2_band,Args.MagSys);
+                       [MagF1,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Flux],F1_family,F1_band,Args.MagSys);
+                       [MagF2,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Flux],F2_family,F2_band,Args.MagSys);
                     end
                     Color(Sidx,C) = MagF1-MagF2;
                 end
@@ -806,24 +869,29 @@ classdef UltrasatPerf < Component
             
         end        
         
-        function Specs = create_Specs(Args)
+        function [Specs, IsBB] = create_Specs(Args)
+            % Output : - An AstroSpec array: the requested Pickles stellar
+            %            spectra followed by one blackbody per T_BB.
+            %          - A logical vector, true for the blackbody entries.
             arguments
                 Args.wavelength(:,1) = 2000:11000 ;
                 Args.MStype          = 'V';
                 Args.T_BB             = [2e3 ,4e3 ,6e3 ,8e3 ,1e4 ,2e4 ,3e4 ,4e4, 5e4, 6e4, 7e4];
             end
-           
+
             if ~isempty(Args.MStype)
-                Specs = AstSpec.get_pickles([],Args.MStype );
+                Specs = AstroSpec.specStarsPickles([],Args.MStype );
             else
-                Specs = {};
+                Specs = AstroSpec.empty(1,0);
             end
-            
+            Nstar = numel(Specs);
+
             for T = Args.T_BB
-                currSpec = AstSpec.blackbody(T,Args.wavelength);
-                Specs = [Specs;currSpec];
-                %Specs(end+1) = AstSpec.blackbody(T,Args.wavelength);
+                currSpec = AstroSpec.blackBody(Args.wavelength,T);
+                Specs = [Specs, currSpec];
             end
+
+            IsBB = [false(1,Nstar), true(1,numel(Specs)-Nstar)];
         end
         
         

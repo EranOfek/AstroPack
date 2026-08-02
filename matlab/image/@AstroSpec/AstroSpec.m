@@ -790,8 +790,11 @@ classdef AstroSpec < Component
             % Load Pickles stellar spectra into an AstroSpec object
             % Input  : - Spectral type - e.g., 'G', 'G2',...
             %            or file name.
-            %            If empty, then return a cell array of all
-            %            available spectra names. Default is [].
+            %            If empty and no luminosity class is given, then
+            %            return a cell array of all available spectra
+            %            names. If empty and a luminosity class is given,
+            %            then return all spectral types of that class.
+            %            Default is [].
             %          - Luminosity class. e.g., 'V'. If empty, return all.
             %            Default is ''.
             %          - Output type: 'mat' | ['AstroSpec'].
@@ -818,11 +821,17 @@ classdef AstroSpec < Component
             I = Installer;
             [Files, Dir] = I.getFilesInDataDir(DataName);
             FilesList = {Files.name};
-            if isempty(SpType)
+            if isempty(SpType) && isempty(LumClass)
                 % get list of all spectra
                 Result = [];
             else
-                if ~contains(SpType,'.mat')
+                if isempty(SpType)
+                    % all spectral types of the requested luminosity class
+                    Template = sprintf('uk[obafgkm]+\\d+%s.mat', lower(LumClass));
+                    RE = regexp(FilesList, Template, 'match');
+                    Files = FilesList(~cellfun(@isempty, RE));
+
+                elseif ~contains(SpType,'.mat')
                     % not a single file
                     % Spectral type
                     if isempty(LumClass)
