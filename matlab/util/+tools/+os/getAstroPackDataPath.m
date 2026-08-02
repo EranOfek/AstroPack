@@ -11,10 +11,10 @@ function Result = getAstroPackDataPath()
             AstroPackPath = fullfile(HomeDir, MatlabDir, AstroPackDir);
         end
         
-        AstroPackDataPath = getenv('ASTROPACK_DATA_PATH');        
-        if isempty(AstroPackPath)    
+        AstroPackDataPath = getenv('ASTROPACK_DATA_PATH');
+        if isempty(AstroPackDataPath)
             AstroPackDataPath = fullfile(HomeDir, MatlabDir, 'data');
-        end        
+        end
     else
         % Windows
         HomeDir = getenv('HOMEPATH');
