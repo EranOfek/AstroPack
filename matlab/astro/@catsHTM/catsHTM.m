@@ -3223,7 +3223,7 @@ classdef catsHTM
             Nsrc = Nsrc(1:K, :);
         end
 
-        function [GlobalID, Offset] = globalRowID(CatName, CellID, RowInCell, Args)
+        function [CatRowID, Offset] = catRowID(CatName, CellID, RowInCell, Args)
             % Map a (CellID, RowInCell) storage pointer to a single scalar id.
             % Package: @catsHTM
             % Description: Collapse the two-part storage address returned by
@@ -3231,7 +3231,7 @@ classdef catsHTM
             %              index over the whole catalog. Cells are ordered by
             %              ascending HTM id and each cell's rows occupy a
             %              contiguous block, so
-            %                 GlobalID = Offset(CellID) + RowInCell
+            %                 CatRowID = Offset(CellID) + RowInCell
             %              where Offset(CellID) is the number of sources in all
             %              lower-id cells. Like the pointer pair this is unique
             %              within the catalog and query-independent; unlike it,
@@ -3248,14 +3248,14 @@ classdef catsHTM
             %            'Nsrc' - Precomputed [CellID Nsrc] table (from
             %                   catsHTM.getNsrcMeta) to skip the metadata scan
             %                   when mapping many pointers. Default [] = scan.
-            % Output : - GlobalID - contiguous scalar id per source (NaN where
+            % Output : - CatRowID - contiguous scalar id per source (NaN where
             %                   CellID/RowInCell is NaN or the cell is absent).
             %          - Offset   - [CellID, BlockStart] table (0-based start of
             %                   each cell's block) - useful for inspection or
             %                   repeated mapping.
             % Author : Dana Kovaleva (Jul 2026)
             % Example: [Cid,Row] = catsHTM.sourcePointer('APASS', 1, 1);
-            %          Gid        = catsHTM.globalRowID('APASS', Cid, Row);
+            %          Gid        = catsHTM.catRowID('APASS', Cid, Row);
             arguments
                 CatName
                 CellID
@@ -3282,10 +3282,165 @@ classdef catsHTM
             OffPer    = nan(Npt, 1);
             [Tf, Loc] = ismember(CellID, Cells);     % Tf is false for NaN CellID
             OffPer(Tf) = OffCol(Loc(Tf));
-            GlobalID  = OffPer + RowInCell;          % NaN if cell absent or row NaN
+            CatRowID  = OffPer + RowInCell;          % NaN if cell absent or row NaN
         end
 
-        function [CellID, RowInCell, Dist, GlobalID] = sourcePointer(CatName, RA, Dec, Args)
+        function [CellID, RowInCell] = catRowID2Pointer(CatName, CatRowID, Args)
+            % Invert a scalar CatRowID back to a (CellID, RowInCell) pointer.
+            % Package: @catsHTM
+            % Description: The exact inverse of catsHTM.catRowID. Because the
+            %              global id lays each cell's rows out as contiguous,
+            %              non-overlapping blocks ordered by ascending HTM id
+            %              (tiling 1..Ntot with no gaps), a scalar id resolves
+            %              deterministically to its storage address: find the
+            %              block it falls in, then subtract the block start.
+            %              Round-trips exactly with catRowID against the SAME
+            %              catalog version (the block layout is version-bound).
+            % Input  : - Catalog base name (e.g., 'PS1').
+            %          - CatRowID - scalar id(s) from catsHTM.catRowID
+            %            (NaN or out-of-range values map to NaN pointers).
+            %          * ...,key,val,...
+            %            'CatDir' - Directory holding the catalog HDF5 files.
+            %                   Default '' = resolve via which() on the path.
+            %            'Nsrc' - Precomputed [CellID Nsrc] table (from
+            %                   catsHTM.getNsrcMeta) to skip the metadata scan.
+            %                   Default [] = scan.
+            % Output : - CellID    - HTM leaf-cell id per id (NaN if invalid).
+            %          - RowInCell - Row within htm_<CellID> per id (NaN if
+            %                        invalid).
+            % Author : Dana Kovaleva (Jul 2026)
+            % Example: Gid          = catsHTM.catRowID('APASS', 12, 3);
+            %          [Cid,Row]     = catsHTM.catRowID2Pointer('APASS', Gid);
+            arguments
+                CatName
+                CatRowID
+                Args.CatDir = '';
+                Args.Nsrc   = [];
+            end
+
+            % per-cell source counts, ordered by ascending HTM cell id
+            NsrcTable = Args.Nsrc;
+            if isempty(NsrcTable)
+                NsrcTable = catsHTM.getNsrcMeta(CatName, 'CatDir', Args.CatDir);
+            end
+            NsrcTable = sortrows(NsrcTable, 1);
+            Cells     = NsrcTable(:,1);
+            Counts    = NsrcTable(:,2);
+            % block edges: id g in cell k iff Edges(k) < g <= Edges(k+1)
+            Edges     = [0; cumsum(Counts)];
+            Ntot      = Edges(end);
+
+            CatRowID  = CatRowID(:);
+            Npt       = numel(CatRowID);
+            CellID    = nan(Npt, 1);
+            RowInCell = nan(Npt, 1);
+            % valid ids are integers in 1..Ntot
+            Valid     = ~isnan(CatRowID) & CatRowID >= 1 & CatRowID <= Ntot & ...
+                        (CatRowID == round(CatRowID));
+            if any(Valid)
+                Bin              = discretize(CatRowID(Valid), Edges, 'IncludedEdge','right');
+                CellID(Valid)    = Cells(Bin);
+                RowInCell(Valid) = CatRowID(Valid) - Edges(Bin);
+            end
+        end
+
+        function [Data, ColNames] = gatherByPointer(CatName, CellID, RowInCell, Args)
+            % Read catalog rows addressed by (CellID, RowInCell) pointers.
+            % Package: @catsHTM
+            % Description: Given storage pointers (from catsHTM.sourcePointer,
+            %              or from catsHTM.catRowID2Pointer on a stored scalar
+            %              id), fetch the actual source rows from the catsHTM
+            %              HDF5 files WITHOUT a cone_search and without keeping
+            %              the catalog in memory. Pointers are grouped by cell
+            %              so each htm_<CellID> dataset is loaded at most once.
+            %              This is what lets crossIDCatsHTM / gatherCrossIDData
+            %              re-fetch ANY column later from just the stored
+            %              pointer. Rows with a NaN pointer come back as the
+            %              FillValue.
+            % Input  : - Catalog base name (e.g., 'PS1').
+            %          - CellID    - HTM leaf-cell id(s).
+            %          - RowInCell - Row within htm_<CellID> (same size).
+            %          * ...,key,val,...
+            %            'Columns' - Which columns to return: a cellstr of
+            %                   column names, a numeric vector of indices, or {}
+            %                   for ALL columns. Default {} (all).
+            %            'CatDir' - Directory holding the catalog HDF5 files.
+            %                   Default '' = resolve via which() on the path.
+            %            'NfilesInHDF' - Datasets per HDF5 file. Default is 100.
+            %            'FillValue' - Value for NaN-pointer rows. Default NaN.
+            % Output : - Data     - [Npt x Ncol] matrix of the requested columns
+            %                        in input (pointer) order.
+            %          - ColNames - cellstr of the returned column names.
+            % Author : Dana Kovaleva (Jul 2026)
+            % Example: [Cid,Row] = catsHTM.sourcePointer('APASS', RA, Dec);
+            %          [D,Cols]   = catsHTM.gatherByPointer('APASS', Cid, Row, ...
+            %                           'Columns',{'RA','Dec','Mag_V'});
+            arguments
+                CatName
+                CellID
+                RowInCell
+                Args.Columns     = {};
+                Args.CatDir      = '';
+                Args.NfilesInHDF = 100;
+                Args.FillValue   = NaN;
+            end
+
+            % resolve the catalog directory (which() checks the cwd too), then
+            % read the column names from the colcell in that same directory.
+            CatDir = Args.CatDir;
+            if isempty(CatDir)
+                ColCellFull = which(sprintf('%s_htmColCell.mat', CatName));
+                if isempty(ColCellFull)
+                    error('catsHTM:gatherByPointer:noCatalog', ...
+                        'Cannot find %s_htmColCell.mat on the MATLAB path (add the catalog directory or pass CatDir).', ...
+                        CatName);
+                end
+                CatDir = fileparts(ColCellFull);
+            end
+            AllCols = catsHTM.load_colcell_from_dir(CatDir, CatName);
+            AllCols = AllCols(:).';
+
+            % resolve requested columns to indices (into the full column set)
+            if isempty(Args.Columns)
+                ColIdx = 1:numel(AllCols);
+            elseif isnumeric(Args.Columns)
+                ColIdx = Args.Columns(:).';
+            else
+                Wanted = Args.Columns;
+                if ischar(Wanted) || isstring(Wanted)
+                    Wanted = cellstr(Wanted);
+                end
+                [Tf, Loc] = ismember(Wanted, AllCols);
+                if ~all(Tf)
+                    error('catsHTM:gatherByPointer:badColumn', ...
+                        'Unknown column(s) in %s: %s', CatName, strjoin(Wanted(~Tf), ', '));
+                end
+                ColIdx = Loc(:).';
+            end
+            ColNames = AllCols(ColIdx);
+
+            CellID    = CellID(:);
+            RowInCell = RowInCell(:);
+            Npt       = numel(CellID);
+            Data      = repmat(Args.FillValue, Npt, numel(ColIdx));
+
+            % group pointers by cell so each dataset is read once
+            Good      = find(~isnan(CellID) & ~isnan(RowInCell));
+            UniqCells = unique(CellID(Good));
+            for Ic = 1:1:numel(UniqCells)
+                CID      = UniqCells(Ic);
+                FileID   = floor(CID./Args.NfilesInHDF).*Args.NfilesInHDF;
+                FileName = fullfile(CatDir, sprintf('%s_htm_%06d.hdf5', CatName, FileID));
+                DataName = sprintf('htm_%06d', CID);
+                % catsHTM stores cells rows=sources; HDF5.load already returns
+                % [Nsrc x Ncol] (see catsHTM.load_cat) - do NOT transpose.
+                CellData = HDF5.load(FileName, DataName);   % [Nsrc x Ncol]
+                Rows     = Good(CellID(Good) == CID);
+                Data(Rows, :) = CellData(RowInCell(Rows), ColIdx);
+            end
+        end
+
+        function [CellID, RowInCell, Dist, CatRowID] = sourcePointer(CatName, RA, Dec, Args)
             % Stable per-source storage pointer in a catsHTM catalog.
             % Package: @catsHTM
             % Description: For each input coordinate return the intrinsic
@@ -3315,10 +3470,10 @@ classdef catsHTM
             %                        source found within MaxDist).
             %          - RowInCell - Row index within htm_<CellID> per source.
             %          - Dist      - Match distance [arcsec] (NaN if none).
-            %          - GlobalID  - Optional 4th output: the (CellID,RowInCell)
+            %          - CatRowID  - Optional 4th output: the (CellID,RowInCell)
             %                        pair collapsed to a single contiguous
             %                        catalog-wide scalar id (via
-            %                        catsHTM.globalRowID). Requesting it triggers
+            %                        catsHTM.catRowID). Requesting it triggers
             %                        a one-off metadata scan of the whole
             %                        catalog, so it is computed only when asked.
             % Author : Dana Kovaleva (Jul 2026)
@@ -3373,7 +3528,10 @@ classdef catsHTM
                         FileID   = floor(CID./Args.NfilesInHDF).*Args.NfilesInHDF;
                         FileName = fullfile(CatDir, sprintf('%s_htm_%06d.hdf5', CatName, FileID));
                         DataName = sprintf('htm_%06d', CID);
-                        Cache(CID) = HDF5.load(FileName, DataName).';   % [Nsrc x Ncol]
+                        % catsHTM stores cells rows=sources; HDF5.load already
+                        % returns [Nsrc x Ncol] (see catsHTM.load_cat) - do NOT
+                        % transpose, or the RA/Dec columns get scrambled.
+                        Cache(CID) = HDF5.load(FileName, DataName);   % [Nsrc x Ncol]
                     end
                     Data = Cache(CID);
                     if ~isempty(Data)
@@ -3396,10 +3554,10 @@ classdef catsHTM
             Dist(Bad)      = NaN;
 
             % Optional scalar id. Reuse the already-resolved CatDir so
-            % globalRowID skips a second which() lookup. Computed only when
+            % catRowID skips a second which() lookup. Computed only when
             % requested (it scans the whole catalog's metadata once).
             if nargout >= 4
-                GlobalID = catsHTM.globalRowID(CatName, CellID, RowInCell, 'CatDir', CatDir);
+                CatRowID = catsHTM.catRowID(CatName, CellID, RowInCell, 'CatDir', CatDir);
             end
         end
 

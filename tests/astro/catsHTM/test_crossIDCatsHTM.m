@@ -59,7 +59,7 @@ end
 
 function testCrossIdAndOrphans(testCase)
     % Anchor + XIDA: 8 matches, 2 orphans appended -> 12 global sources.
-    [T, Cats, S] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+    [T, Cats_cone, S] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
         'RefCat','XIDREF', 'CatList',{'XIDA','XIDB'}, ...
         'MatchRadius',2, 'Verbose',false);
 
@@ -81,8 +81,8 @@ function testCrossIdAndOrphans(testCase)
     verifyEqual(testCase, T.Ind_XIDREF(1:10), (1:10).');
     verifyTrue(testCase, all(isnan(T.Ind_XIDREF(11:12))));
 
-    % Cats holds the (native-order) catalogs the indices point into
-    verifyTrue(testCase, isfield(Cats,'XIDA') && isfield(Cats,'XIDREF'));
+    % Cats_cone holds the (native-order) catalogs the indices point into
+    verifyTrue(testCase, isfield(Cats_cone,'XIDA') && isfield(Cats_cone,'XIDREF'));
 
     % PerCat: Nmatched is catalog-source-centric and Nmatched+Norphan=Ncone
     P = S.PerCat;
@@ -97,22 +97,22 @@ function testCrossIdAndOrphans(testCase)
 end
 
 function testNativeOrderRoundTrip(testCase)
-    % Pin the identifier contract: Ind_<Cat> indexes Cats.<Cat> in NATIVE
+    % Pin the identifier contract: Ind_<Cat> indexes Cats_cone.<Cat> in NATIVE
     % cone_search order, so (a) a fresh cone_search reproduces the same rows,
     % (b) an orphan's index points to its own source, and (c) a matched
     % index points to a source within the matching radius.
     RAD = 180./pi;
-    [T, Cats, S] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+    [T, Cats_cone, S] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
         'RefCat','XIDREF', 'CatList',{'XIDA'}, 'MatchRadius',2, 'Verbose',false);
 
-    [sRA, sDec] = getLonLat(Cats.XIDA, 'deg');
+    [sRA, sDec] = getLonLat(Cats_cone.XIDA, 'deg');
 
-    % (a) stored Cats.XIDA is in native cone_search order (bit-for-bit)
+    % (a) stored Cats_cone.XIDA is in native cone_search order (bit-for-bit)
     Fresh = catsHTM.cone_search('XIDA', S.Field.RA./RAD, S.Field.Dec./RAD, ...
         S.Field.Radius, 'RadiusUnits', S.Field.RadiusUnits, 'OutType','astrocatalog');
     [fRA, fDec] = getLonLat(Fresh, 'deg');
     verifyEqual(testCase, [sRA, sDec], [fRA, fDec], 'AbsTol',1e-9, ...
-        'Cats.XIDA is not in native cone_search order.');
+        'Cats_cone.XIDA is not in native cone_search order.');
 
     % (b) orphan rows: master coords ARE the indexed XIDA source coords
     IndA = T.Ind_XIDA;
@@ -147,7 +147,7 @@ function testPerCatRadius(testCase)
 end
 
 function testFileOutput(testCase)
-    % OutFile writes a .mat (with Cats) and a .csv (flat table).
+    % OutFile writes a .mat (with Cats_cone) and a .csv (flat table).
     Stem = fullfile(testCase.TestData.Dir, 'xid_out');
     VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
         'RefCat','XIDREF', 'CatList',{'XIDA'}, 'Verbose',false, ...
@@ -155,27 +155,27 @@ function testFileOutput(testCase)
     verifyTrue(testCase, isfile([Stem '.mat']), 'MAT output missing.');
     verifyTrue(testCase, isfile([Stem '.csv']), 'CSV output missing.');
     Loaded = load([Stem '.mat']);
-    verifyTrue(testCase, isfield(Loaded,'XidTable') && isfield(Loaded,'Cats'), ...
-        'MAT output should preserve XidTable and Cats.');
+    verifyTrue(testCase, isfield(Loaded,'XidTable') && isfield(Loaded,'Cats_cone'), ...
+        'MAT output should preserve XidTable and Cats_cone.');
 end
 
 function testCatsToDisk(testCase)
-    % CatsToDisk streams each catalog to its own .mat; Cats holds PATHS and
+    % CatsToDisk streams each catalog to its own .mat; Cats_cone holds PATHS and
     % the indices still resolve against the loaded (native-order) catalog.
     CatsDir = fullfile(testCase.TestData.Dir, 'streamed');
-    [T, Cats, ~] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+    [T, Cats_cone, ~] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
         'RefCat','XIDREF', 'CatList',{'XIDA'}, 'MatchRadius',2, ...
         'CatsToDisk',true, 'CatsDir',CatsDir, 'Verbose',false);
 
-    % Cats fields are file paths, not AstroCatalogs
-    verifyTrue(testCase, ischar(Cats.XIDA) && isfile(Cats.XIDA), ...
-        'Cats.XIDA should be a path to an existing file.');
-    verifyTrue(testCase, ischar(Cats.XIDREF) && isfile(Cats.XIDREF), ...
-        'Cats.XIDREF should be a path to an existing file.');
+    % Cats_cone fields are file paths, not AstroCatalogs
+    verifyTrue(testCase, ischar(Cats_cone.XIDA) && isfile(Cats_cone.XIDA), ...
+        'Cats_cone.XIDA should be a path to an existing file.');
+    verifyTrue(testCase, ischar(Cats_cone.XIDREF) && isfile(Cats_cone.XIDREF), ...
+        'Cats_cone.XIDREF should be a path to an existing file.');
 
     % loaded catalog resolves a matched index to a nearby source (<2")
     RAD = 180./pi;
-    L   = load(Cats.XIDA);
+    L   = load(Cats_cone.XIDA);
     verifyTrue(testCase, isa(L.Cat,'AstroCatalog'), 'Loaded Cat not an AstroCatalog.');
     [sRA, sDec] = getLonLat(L.Cat, 'deg');
     IndA = T.Ind_XIDA;
@@ -205,23 +205,23 @@ function testTableToDisk(testCase)
     verifyTrue(testCase, isequaln(Mf.Ind_XIDA,    Ref.Ind_XIDA),    'Ind_XIDA mismatch.');
     verifyTrue(testCase, isequaln(Mf.Nmatch_XIDB, Ref.Nmatch_XIDB), 'Nmatch_XIDB mismatch.');
     verifyTrue(testCase, isequaln(Mf.RA,          Ref.RA),          'RA mismatch.');
-    verifyTrue(testCase, isequaln(Mf.GlobalID,    Ref.GlobalID),    'GlobalID mismatch.');
+    verifyTrue(testCase, isequaln(Mf.MasterID,    Ref.MasterID),    'MasterID mismatch.');
 
-    % Summary and Cats travel with the streamed file
-    L = load(TableFile, 'Summary', 'Cats');
+    % Summary and Cats_cone travel with the streamed file
+    L = load(TableFile, 'Summary', 'Cats_cone');
     verifyEqual(testCase, L.Summary.Nglobal, height(Ref), 'Summary.Nglobal mismatch.');
-    verifyTrue(testCase, isfield(L.Cats,'XIDA') && isfield(L.Cats,'XIDREF'), ...
-        'Cats not stored in the streamed file.');
+    verifyTrue(testCase, isfield(L.Cats_cone,'XIDA') && isfield(L.Cats_cone,'XIDREF'), ...
+        'Cats_cone not stored in the streamed file.');
 end
 
 function testGatherCrossID(testCase)
-    % gatherCrossID materializes catalog data per T row: matched rows carry
+    % gatherCrossIDData materializes catalog data per T row: matched rows carry
     % the indexed source's raw column values, unmatched rows are NaN.
-    [T, Cats] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+    [T, Cats_cone] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
         'RefCat','XIDREF','CatList',{'XIDA'},'MatchRadius',2,'Verbose',false);
-    D = VO.prep.gatherCrossID(T, Cats, 'Verbose',false);
+    D = VO.prep.gatherCrossIDData(T, Cats_cone, 'Verbose',false);
 
-    verifyTrue(testCase, all(ismember({'GlobalID','RA','Dec','OriginCat'}, ...
+    verifyTrue(testCase, all(ismember({'MasterID','RA','Dec','OriginCat'}, ...
         D.Properties.VariableNames)), 'Missing global columns.');
     verifyTrue(testCase, all(ismember({'XIDREF_RA','XIDREF_Dec','XIDA_RA','XIDA_Dec'}, ...
         D.Properties.VariableNames)), 'Missing prefixed catalog columns.');
@@ -229,41 +229,66 @@ function testGatherCrossID(testCase)
     IndA = T.Ind_XIDA;
     Mat  = find(~isnan(IndA));
     % gathered value = raw catalog value at the index (col 1 = RA, native rad)
-    verifyEqual(testCase, D.XIDA_RA(Mat), Cats.XIDA.Catalog(IndA(Mat),1), ...
+    verifyEqual(testCase, D.XIDA_RA(Mat), Cats_cone.XIDA.Catalog(IndA(Mat),1), ...
         'AbsTol',1e-12, 'Gathered XIDA_RA mismatch vs indexed catalog value.');
     Un = find(isnan(IndA));
     verifyTrue(testCase, all(isnan(D.XIDA_RA(Un))), 'Unmatched rows should be NaN.');
 
     % file output
     Stem = fullfile(testCase.TestData.Dir, 'gather_out');
-    [~, Written] = VO.prep.gatherCrossID(T, Cats, 'Verbose',false, ...
+    [~, Written] = VO.prep.gatherCrossIDData(T, Cats_cone, 'Verbose',false, ...
         'OutFile',Stem, 'OutFormat',{'mat','csv'});
     verifyTrue(testCase, isfile([Stem '.mat']) && isfile([Stem '.csv']), ...
-        'gatherCrossID file output missing.');
+        'gatherCrossIDData file output missing.');
     verifyEqual(testCase, numel(Written), 2, 'Should report 2 written files.');
 end
 
 function testGatherFromDiskCats(testCase)
-    % gatherCrossID resolves Cats given as file paths (CatsToDisk form).
+    % gatherCrossIDData resolves Cats_cone given as file paths (CatsToDisk form).
     CatsDir = fullfile(testCase.TestData.Dir, 'gstream');
-    [T, Cats] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+    [T, Cats_cone] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
         'RefCat','XIDREF','CatList',{'XIDA'},'MatchRadius',2, ...
         'CatsToDisk',true,'CatsDir',CatsDir,'Verbose',false);
-    verifyTrue(testCase, ischar(Cats.XIDA), 'Cats.XIDA should be a path here.');
+    verifyTrue(testCase, ischar(Cats_cone.XIDA), 'Cats_cone.XIDA should be a path here.');
 
-    D = VO.prep.gatherCrossID(T, Cats, 'CatList',{'XIDA'}, 'Verbose',false);
+    D = VO.prep.gatherCrossIDData(T, Cats_cone, 'CatList',{'XIDA'}, 'Verbose',false);
     IndA = T.Ind_XIDA;
     Mat  = find(~isnan(IndA));
-    Loaded = load(Cats.XIDA);
+    Loaded = load(Cats_cone.XIDA);
     verifyEqual(testCase, D.XIDA_RA(Mat), Loaded.Cat.Catalog(IndA(Mat),1), ...
         'AbsTol',1e-12, 'Gathered value from on-disk catalog mismatch.');
+end
+
+function testGatherPointerSource(testCase)
+    % Source='pointer' fetches from catsHTM via CellID_/RowInCell_, needs no
+    % Cats_cone, and matches what the 'cats' snapshot path returns.
+    [T, Cats_cone] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+        'RefCat','XIDREF','CatList',{'XIDA'},'MatchRadius',2,'Verbose',false);
+
+    % pointer mode: Cats_cone omitted entirely (auto -> pointer when Cats_cone empty)
+    Dp = VO.prep.gatherCrossIDData(T, [], 'Columns',{'RA','Dec'}, 'Verbose',false);
+    verifyTrue(testCase, all(ismember({'XIDA_RA','XIDA_Dec','XIDREF_RA','XIDREF_Dec'}, ...
+        Dp.Properties.VariableNames)), 'Pointer-mode columns missing.');
+
+    % same values as the snapshot ('cats') path on the matched rows
+    Dc   = VO.prep.gatherCrossIDData(T, Cats_cone, 'Columns',{'RA','Dec'}, 'Verbose',false);
+    Mat  = find(~isnan(T.Ind_XIDA));
+    verifyEqual(testCase, Dp.XIDA_RA(Mat), Dc.XIDA_RA(Mat), 'AbsTol',1e-12, ...
+        'Pointer vs cats RA mismatch.');
+    % unmatched rows (NaN pointer) come back as FillValue
+    Un = find(isnan(T.Ind_XIDA));
+    verifyTrue(testCase, all(isnan(Dp.XIDA_RA(Un))), 'Unmatched pointer rows must be NaN.');
+
+    % explicit Source='cats' with no Cats_cone is an error
+    verifyError(testCase, @() VO.prep.gatherCrossIDData(T, [], 'Source','cats','Verbose',false), ...
+        'gatherCrossIDData:noCats', 'Source=cats without Cats_cone should error.');
 end
 
 function testOutputTypes(testCase)
     % Default output is a MATLAB table (with OriginCat). OutType='astrocatalog'
     % gives a numeric AstroCatalog (OriginCat -> Summary.OriginCat). The .mat
     % stores the same type as the return; the .csv always keeps OriginCat.
-    [Tb, Cats, S] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, ...
+    [Tb, Cats_cone, S] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, ...
         'RefCat','XIDREF','CatList',{'XIDA'},'MatchRadius',2,'Verbose',false);
     verifyTrue(testCase, istable(Tb), 'Default output should be a table.');
     verifyTrue(testCase, ismember('OriginCat', Tb.Properties.VariableNames), ...
@@ -278,9 +303,9 @@ function testOutputTypes(testCase)
         'Summary.OriginCat must be row-aligned.');
     verifyTrue(testCase, isequaln(getCol(Ac,'Ind_XIDA'), Tb.Ind_XIDA), 'Ind_XIDA differs.');
 
-    % gatherCrossID works on both forms
-    D1 = VO.prep.gatherCrossID(Tb, Cats, 'Verbose',false);
-    D2 = VO.prep.gatherCrossID(Ac, Cats, 'Verbose',false);
+    % gatherCrossIDData works on both forms
+    D1 = VO.prep.gatherCrossIDData(Tb, Cats_cone, 'Verbose',false);
+    D2 = VO.prep.gatherCrossIDData(Ac, Cats_cone, 'Verbose',false);
     verifyTrue(testCase, ismember('XIDA_RA', D1.Properties.VariableNames), 'gather(table) failed.');
     verifyTrue(testCase, ismember('XIDA_RA', D2.Properties.VariableNames), 'gather(AstroCatalog) failed.');
 
@@ -369,7 +394,7 @@ end
 function testAddPointer(testCase)
     % Default AddPointer adds numeric CellID_/RowInCell_ columns that equal a
     % fresh catsHTM.sourcePointer call on the matched sources.
-    [T, Cats, ~] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+    [T, Cats_cone, ~] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
         'RefCat','XIDREF','CatList',{'XIDA'},'MatchRadius',2,'Verbose',false);
     verifyTrue(testCase, all(ismember({'CellID_XIDA','RowInCell_XIDA', ...
         'CellID_XIDREF','RowInCell_XIDREF'}, T.Properties.VariableNames)), ...
@@ -379,7 +404,7 @@ function testAddPointer(testCase)
     Mat  = find(~isnan(IndA));
     verifyFalse(testCase, any(isnan(T.CellID_XIDA(Mat))), 'Matched rows must have a cell id.');
 
-    [sRA, sDec] = getLonLat(Cats.XIDA, 'rad');
+    [sRA, sDec] = getLonLat(Cats_cone.XIDA, 'rad');
     [Cid, Row] = catsHTM.sourcePointer('XIDA', sRA(IndA(Mat)), sDec(IndA(Mat)));
     verifyEqual(testCase, T.CellID_XIDA(Mat),    Cid, 'CellID mismatch vs sourcePointer.');
     verifyEqual(testCase, T.RowInCell_XIDA(Mat), Row, 'RowInCell mismatch vs sourcePointer.');
@@ -395,8 +420,8 @@ function testGetNsrcMetaLocationIndependent(testCase)
     verifyEqual(testCase, sortrows(Nsrc2,1), sortrows(Nsrc,1), 'CatDir override mismatch.');
 end
 
-function testGlobalRowID(testCase)
-    % sourcePointer's 4th output and catsHTM.globalRowID collapse the
+function testCatRowID(testCase)
+    % sourcePointer's 4th output and catsHTM.catRowID collapse the
     % (CellID,RowInCell) pair into a contiguous, unique scalar id.
     RAD = 180./pi;
     [C, CC] = catsHTM.cone_search('XIDA', 45./RAD, 0, 10800);  % all XIDA sources
@@ -410,11 +435,125 @@ function testGlobalRowID(testCase)
     Ntot = Ntot(2);
 
     % every source is addressed exactly once -> ids are a 1..N permutation
-    verifyEqual(testCase, sort(Gid), (1:Ntot).', 'GlobalID must be a 1..N permutation.');
-    % the 4th output equals a direct globalRowID call on the pointer pair
-    Gid2 = catsHTM.globalRowID('XIDA', Cid, Row);
-    verifyEqual(testCase, Gid2, Gid, 'sourcePointer GlobalID differs from globalRowID.');
+    verifyEqual(testCase, sort(Gid), (1:Ntot).', 'CatRowID must be a 1..N permutation.');
+    % the 4th output equals a direct catRowID call on the pointer pair
+    Gid2 = catsHTM.catRowID('XIDA', Cid, Row);
+    verifyEqual(testCase, Gid2, Gid, 'sourcePointer CatRowID differs from catRowID.');
     % NaN pointers propagate to NaN ids
-    GidNan = catsHTM.globalRowID('XIDA', [Cid(1); NaN], [Row(1); 5]);
-    verifyTrue(testCase, isnan(GidNan(2)), 'NaN cell id must give NaN GlobalID.');
+    GidNan = catsHTM.catRowID('XIDA', [Cid(1); NaN], [Row(1); 5]);
+    verifyTrue(testCase, isnan(GidNan(2)), 'NaN cell id must give NaN CatRowID.');
+end
+
+function testAddCatRowID(testCase)
+    % AddCatRowID adds a CatRowID_<Cat> scalar that inverts back to the
+    % CellID_/RowInCell_ pair via catsHTM.catRowID2Pointer.
+    [T, ~, ~] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+        'RefCat','XIDREF','CatList',{'XIDA'},'MatchRadius',2, ...
+        'AddCatRowID',true,'Verbose',false);
+    verifyTrue(testCase, all(ismember({'CatRowID_XIDA','CatRowID_XIDREF'}, ...
+        T.Properties.VariableNames)), 'CatRowID_<Cat> columns missing.');
+
+    Mat = find(~isnan(T.Ind_XIDA));
+    Gid = T.CatRowID_XIDA(Mat);
+    verifyFalse(testCase, any(isnan(Gid)), 'Matched rows must have a scalar id.');
+    % round-trips back to the stored pointer pair
+    [Cid, Row] = catsHTM.catRowID2Pointer('XIDA', Gid);
+    verifyEqual(testCase, Cid, T.CellID_XIDA(Mat),    'CatRowID does not invert to CellID.');
+    verifyEqual(testCase, Row, T.RowInCell_XIDA(Mat), 'CatRowID does not invert to RowInCell.');
+
+    % AddCatRowID is silently skipped when AddPointer is off
+    [T2, ~, ~] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+        'RefCat','XIDREF','CatList',{'XIDA'},'MatchRadius',2, ...
+        'AddPointer',false,'AddCatRowID',true,'Verbose',false);
+    verifyFalse(testCase, any(startsWith(T2.Properties.VariableNames, 'CatRowID_')), ...
+        'CatRowID_<Cat> must be absent without AddPointer.');
+end
+
+function testIdExtras(testCase)
+    % IdExtras stamps the extra (non-nearest) matches with the same pointer /
+    % scalar-id layers as the main match. XIDB has two sources within 2" of
+    % anchor #1, so global row 1 has exactly one extra XIDB match.
+    [T, Cats_cone, ~] = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+        'RefCat','XIDREF','CatList',{'XIDB'},'MatchRadius',2, ...
+        'KeepExtraMatches',true,'AddPointer',true,'AddCatRowID',true, ...
+        'IdExtras',true,'Verbose',false);
+
+    verifyTrue(testCase, all(ismember({'CellIDExtra_XIDB','RowInCellExtra_XIDB', ...
+        'CatRowIDExtra_XIDB'}, T.Properties.VariableNames)), 'IdExtras columns missing.');
+
+    % row 1: two XIDB matches -> exactly one extra
+    verifyEqual(testCase, T.Nmatch_XIDB(1), 2, 'Expected 2 XIDB matches on row 1.');
+    ExInd = T.IndExtra_XIDB{1};
+    verifyEqual(testCase, numel(ExInd), 1, 'Expected exactly one extra index.');
+
+    % the extra pointer equals a fresh sourcePointer on that native XIDB source
+    [xRA, xDec] = getLonLat(Cats_cone.XIDB, 'rad');
+    [Cid, Row]  = catsHTM.sourcePointer('XIDB', xRA(ExInd), xDec(ExInd));
+    verifyEqual(testCase, T.CellIDExtra_XIDB{1}(:),    Cid, 'Extra CellID mismatch.');
+    verifyEqual(testCase, T.RowInCellExtra_XIDB{1}(:), Row, 'Extra RowInCell mismatch.');
+
+    % the extra scalar id inverts back to that same pointer
+    Gid = T.CatRowIDExtra_XIDB{1};
+    [Cid2, Row2] = catsHTM.catRowID2Pointer('XIDB', Gid);
+    verifyEqual(testCase, Cid2, Cid, 'Extra CatRowID does not invert to CellID.');
+    verifyEqual(testCase, Row2, Row, 'Extra CatRowID does not invert to RowInCell.');
+
+    % rows with <=1 match carry the NaN sentinel in the extra columns
+    Single = find(cellfun(@(v) isscalar(v) && isnan(v), T.IndExtra_XIDB));
+    verifyFalse(testCase, isempty(Single), 'Expected some single/no-match rows.');
+    verifyTrue(testCase, isnan(T.CatRowIDExtra_XIDB{Single(1)}), ...
+        'Single-match row must have NaN extra CatRowID.');
+
+    % IdExtras is skipped (with a note) when AddPointer is off
+    T2 = VO.prep.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+        'RefCat','XIDREF','CatList',{'XIDB'},'MatchRadius',2, ...
+        'KeepExtraMatches',true,'AddPointer',false,'IdExtras',true,'Verbose',false);
+    verifyFalse(testCase, any(startsWith(T2.Properties.VariableNames,'CellIDExtra_')), ...
+        'IdExtras must be skipped without AddPointer.');
+end
+
+function testCatRowID2Pointer(testCase)
+    % catRowID2Pointer is the exact inverse of catRowID (round-trip).
+    RAD = 180./pi;
+    [C, CC] = catsHTM.cone_search('XIDA', 45./RAD, 0, 10800);
+    ColRA  = find(strcmp(CC,'RA'),1);
+    ColDec = find(strcmp(CC,'Dec'),1);
+    [Cid, Row] = catsHTM.sourcePointer('XIDA', C(:,ColRA), C(:,ColDec));
+
+    Gid          = catsHTM.catRowID('XIDA', Cid, Row);
+    [Cid2, Row2] = catsHTM.catRowID2Pointer('XIDA', Gid);
+    verifyEqual(testCase, Cid2, Cid, 'CellID round-trip failed.');
+    verifyEqual(testCase, Row2, Row, 'RowInCell round-trip failed.');
+
+    % invalid ids (NaN / out of range) map to NaN pointers
+    [CidBad, RowBad] = catsHTM.catRowID2Pointer('XIDA', [NaN; 0; 1e9]);
+    verifyTrue(testCase, all(isnan(CidBad)), 'Invalid ids must give NaN CellID.');
+    verifyTrue(testCase, all(isnan(RowBad)), 'Invalid ids must give NaN RowInCell.');
+end
+
+function testGatherByPointer(testCase)
+    % gatherByPointer reads the real rows addressed by (CellID,RowInCell),
+    % matching the cone_search values, without a query or in-memory catalog.
+    RAD = 180./pi;
+    [C, CC] = catsHTM.cone_search('XIDA', 45./RAD, 0, 10800);
+    ColRA  = find(strcmp(CC,'RA'),1);
+    ColDec = find(strcmp(CC,'Dec'),1);
+    Ra  = C(:,ColRA);
+    Dec = C(:,ColDec);
+    [Cid, Row] = catsHTM.sourcePointer('XIDA', Ra, Dec);
+
+    % selected columns come back in request order and match the source values
+    [D, Cols] = catsHTM.gatherByPointer('XIDA', Cid, Row, 'Columns',{'Dec','RA'});
+    verifyEqual(testCase, Cols, {'Dec','RA'}, 'Column order not preserved.');
+    verifyEqual(testCase, D(:,2), Ra,  'AbsTol',1e-12, 'Gathered RA mismatch.');
+    verifyEqual(testCase, D(:,1), Dec, 'AbsTol',1e-12, 'Gathered Dec mismatch.');
+
+    % all-columns default + NaN pointer -> FillValue row
+    DAll = catsHTM.gatherByPointer('XIDA', [Cid(1); NaN], [Row(1); NaN]);
+    verifyEqual(testCase, size(DAll,2), numel(CC), 'Default should return all columns.');
+    verifyTrue(testCase, all(isnan(DAll(2,:))), 'NaN pointer row must be FillValue.');
+
+    % unknown column errors
+    verifyError(testCase, @() catsHTM.gatherByPointer('XIDA', Cid, Row, 'Columns',{'NoSuchCol'}), ...
+        'catsHTM:gatherByPointer:badColumn', 'Unknown column should error.');
 end

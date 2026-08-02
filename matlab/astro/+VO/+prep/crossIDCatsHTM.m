@@ -1,4 +1,4 @@
-function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
+function [XidTable, Cats_cone, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
     % Build a cross-identification index table between one anchor catsHTM
     % catalog and all (or selected) other catsHTM catalogs in a field.
     %   For a given field (RA, Dec, search radius) the function cone-searches
@@ -73,6 +73,26 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
     %                   and the astrocatalog output. Costs a second pass of
     %                   cone-cell reads per catalog, and is SKIPPED (with a note)
     %                   when TableToDisk=true. Default is true.
+    %            'AddCatRowID' - Also add CatRowID_<Cat>: the (CellID,RowInCell)
+    %                   pair collapsed to ONE contiguous catalog-wide scalar id
+    %                   (see catsHTM.catRowID), a compact single-number key
+    %                   that inverts back to a pointer via
+    %                   catsHTM.catRowID2Pointer. Requires AddPointer (it is
+    %                   derived from the pair) and costs one metadata scan
+    %                   (catsHTM.getNsrcMeta) per catalog, so it is opt-in.
+    %                   Default is false.
+    %            'IdExtras' - Also stamp the ADDITIONAL (non-nearest) matches
+    %                   with the same id layers the main match gets: when
+    %                   AddPointer, adds CellIDExtra_<Cat>/RowInCellExtra_<Cat>;
+    %                   when AddCatRowID, also CatRowIDExtra_<Cat>. Each is a
+    %                   ragged cell-of-vectors aligned with IndExtra_<Cat> (one
+    %                   value per extra match, NaN when there are 0 or 1
+    %                   matches), so - like IndExtra_ - it lives only in a table
+    %                   and in Summary (ExtraCellID/ExtraRowInCell/ExtraCatRowID),
+    %                   never in a numeric AstroCatalog or CSV. Requires
+    %                   KeepExtraMatches and AddPointer, and costs extra
+    %                   sourcePointer reads for the additional matches.
+    %                   Default is false.
     %            'OutType' - 'table' (MATLAB table; includes the OriginCat
     %                   column and, when KeepExtraMatches=true, the IndExtra_
     %                   cell columns) or 'astrocatalog' (numeric-column
@@ -87,7 +107,7 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
     %                   are written to disk (see 'OutFileFormat'). The '.mat'
     %                   stores variable XidTable (the SAME type as the returned
     %                   output - a table by default, or an AstroCatalog) plus
-    %                   Cats and Summary (Summary.OriginCat carries provenance);
+    %                   Cats_cone and Summary (Summary.OriginCat carries provenance);
     %                   the '.csv' is the flat index table and always includes
     %                   the OriginCat column. Default is '' (no file written).
     %            'OutFileFormat' - Cellstr subset of {'mat','csv'} controlling
@@ -98,9 +118,9 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
     %                   used, then cleared from memory, so peak memory is set
     %                   by the single largest catalog rather than the sum of
     %                   all of them. Use for large fields where the in-memory
-    %                   Cats struct would be huge. The returned Cats then holds
+    %                   Cats_cone struct would be huge. The returned Cats_cone then holds
     %                   file PATHS (char) instead of AstroCatalog objects; load
-    %                   one with L=load(Cats.<Cat>); L.Cat is the AstroCatalog.
+    %                   one with L=load(Cats_cone.<Cat>); L.Cat is the AstroCatalog.
     %                   Ind_<Cat> still indexes that (native-order) catalog.
     %                   Default is false.
     %            'CatsDir' - Target directory for the per-catalog .mat files
@@ -113,8 +133,8 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
     %                   a single column, not the whole table). In this mode the
     %                   FIRST output (XidTable) is the FILE PATH (char), not a
     %                   table; load columns lazily, e.g. matfile(path).Ind_PS1
-    %                   or load(path,'Ind_PS1'). The .mat also stores GlobalID,
-    %                   RA, Dec, OriginCat, Summary and Cats. This mode skips
+    %                   or load(path,'Ind_PS1'). The .mat also stores MasterID,
+    %                   RA, Dec, OriginCat, Summary and Cats_cone. This mode skips
     %                   the CSV output and ignores OutType='astrocatalog'.
     %                   Combine with CatsToDisk=true for end-to-end low memory.
     %                   Default is false.
@@ -122,31 +142,34 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
     %                   is <OutFile>_xidtable.mat if OutFile is given, else
     %                   ./xidTable.mat.
     %            'Verbose' - Print progress. Default is true.
-    % Output : - XidTable: the cross-id table. Columns: GlobalID, RA, Dec
-    %            [deg], OriginCat, then Ind_<Cat> (row index into Cats.<Cat>,
+    % Output : - XidTable: the cross-id table. Columns: MasterID, RA, Dec
+    %            [deg], OriginCat, then Ind_<Cat> (row index into Cats_cone.<Cat>,
     %            NaN if no match), Nmatch_<Cat> (number of catalog sources
     %            within the matching radius), optionally Dist_<Cat> [arcsec],
     %            and (when AddPointer=true) CellID_<Cat> / RowInCell_<Cat> - the
-    %            stable per-source storage pointer. By default (OutType='table')
+    %            stable per-source storage pointer - and (when AddCatRowID=true)
+    %            CatRowID_<Cat>, that pointer collapsed to a single catalog-wide
+    %            scalar id. By default (OutType='table')
     %            this is a MATLAB table
     %            including OriginCat (and the IndExtra_<Cat> cell columns when
-    %            KeepExtraMatches=true); with OutType='astrocatalog' it is an
+    %            KeepExtraMatches=true, plus CellIDExtra_/RowInCellExtra_/
+    %            CatRowIDExtra_<Cat> when IdExtras=true); with OutType='astrocatalog' it is an
     %            AstroCatalog with the numeric columns only (OriginCat is in
     %            Summary.OriginCat, extra matches in Summary.ExtraMatches). If
     %            'TableToDisk'=true this output is instead the .mat file PATH
     %            (char) the table was streamed to (see 'TableToDisk').
     %            Ind_<Cat> is the source identifier: since native SourceID
     %            columns are unreliable in many catsHTM catalogs, a source is
-    %            identified unambiguously by (Cats.<Cat>, Ind_<Cat>). The
+    %            identified unambiguously by (Cats_cone.<Cat>, Ind_<Cat>). The
     %            index is in NATIVE cone_search order, so it also reproduces a
     %            fresh catsHTM.cone_search(<Cat>, RA, Dec, Radius, 'Con',Con)
     %            over the field recorded in Summary.Field.
-    %          - Cats: a struct with one AstroCatalog per catalog (keyed by
+    %          - Cats_cone: a struct with one AstroCatalog per catalog (keyed by
     %            catalog name), holding the cone-search results the Ind_<Cat>
     %            columns index into, in native cone_search order. This is the
     %            lookup table for the indices and is saved with the '.mat'
     %            output so (index -> source) is self-contained and portable.
-    %            If 'CatsToDisk'=true, Cats instead holds the file PATH (char)
+    %            If 'CatsToDisk'=true, Cats_cone instead holds the file PATH (char)
     %            of each catalog's own .mat file (see 'CatsToDisk').
     %          - Summary: struct with .Field, .RefCat, .Nref, .Nglobal,
     %            .OriginCat, .Failed and a .PerCat table (one row per catalog,
@@ -161,34 +184,46 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
     %            If KeepExtraMatches=true, Summary also has .ExtraMatches - a
     %            struct with an Nglobal-by-1 cell per catalog holding the
     %            additional (non-nearest) native match indices per master row.
+    %            If IdExtras=true, Summary also has .ExtraCellID / .ExtraRowInCell
+    %            (and .ExtraCatRowID when AddCatRowID) - the same cell-of-vectors
+    %            layout holding the storage pointer / scalar id of each extra
+    %            match.
     % Note   : The FIRST output is a projection of the full result onto what the
     %          chosen container can represent, so its content depends on the
     %          format - but no information is lost, because Summary is the
     %          canonical record (Summary.OriginCat always holds provenance and,
     %          with KeepExtraMatches, Summary.ExtraMatches always holds the extra
     %          vectors). What each format carries:
-    %            OutType='table' (default) - GlobalID, RA, Dec, OriginCat, then
-    %              Ind_/Nmatch_/Dist_ (and CellID_/RowInCell_ when AddPointer)
-    %              per catalog, plus IndExtra_<Cat> cell columns when
-    %              KeepExtraMatches=true. The fullest form.
+    %            OutType='table' (default) - MasterID, RA, Dec, OriginCat, then
+    %              Ind_/Nmatch_/Dist_ (and CellID_/RowInCell_ when AddPointer,
+    %              CatRowID_ when AddCatRowID) per catalog, plus IndExtra_<Cat>
+    %              cell columns when KeepExtraMatches=true (and, when IdExtras,
+    %              CellIDExtra_/RowInCellExtra_/CatRowIDExtra_ cell columns).
+    %              The fullest form.
     %            OutType='astrocatalog' - the numeric columns only (this DOES
-    %              include CellID_/RowInCell_, which are numeric). The text
-    %              OriginCat and the ragged IndExtra_ CANNOT live in a numeric
-    %              AstroCatalog, so they are dropped from the object and read
-    %              instead from Summary.OriginCat / Summary.ExtraMatches.
+    %              include CellID_/RowInCell_/CatRowID_, which are numeric). The
+    %              text OriginCat and the ragged IndExtra_/*Extra_ CANNOT live in
+    %              a numeric AstroCatalog, so they are dropped from the object and
+    %              read instead from Summary (OriginCat / ExtraMatches /
+    %              ExtraCellID / ExtraRowInCell / ExtraCatRowID).
     %            OutFile .mat - stores XidTable as the SAME type as the returned
-    %              output (so it carries whatever that type carries), plus Cats
+    %              output (so it carries whatever that type carries), plus Cats_cone
     %              and Summary.
-    %            OutFile .csv - GlobalID, RA, Dec, OriginCat, Ind_/Nmatch_/Dist_
-    %              (and CellID_/RowInCell_ when AddPointer); the ragged IndExtra_
-    %              columns are NOT written (not serialisable to CSV).
-    %            TableToDisk .mat - GlobalID, RA, Dec, OriginCat and the
+    %            OutFile .csv - MasterID, RA, Dec, OriginCat, Ind_/Nmatch_/Dist_
+    %              (and CellID_/RowInCell_/CatRowID_ when enabled); the ragged
+    %              IndExtra_/*Extra_ cell columns are NOT written (not
+    %              serialisable to CSV).
+    %            TableToDisk .mat - MasterID, RA, Dec, OriginCat and the
     %              Ind_/Nmatch_/Dist_ columns as separate variables, plus Summary
-    %              and Cats; KeepExtraMatches and AddPointer are not supported in
+    %              and Cats_cone; KeepExtraMatches and AddPointer are not supported in
     %              this mode.
     %          The differences are forced by container limits: a numeric
     %          AstroCatalog cannot hold text or ragged columns, and CSV cannot
     %          hold ragged columns.
+    % See also: VO.prep.gatherCrossIDData (STEP 2 - turns this index into a
+    %           per-source DATA table, from Cats_cone or straight from catsHTM via
+    %           the CellID_/RowInCell_ pointer), catsHTM.sourcePointer /
+    %           catsHTM.gatherByPointer (the pointer machinery AddPointer uses).
     % Author : Dana Kovaleva (Jul 2026)
     % Example:
     %  RAD = 180./pi;   % positional RA,Dec are in RADIANS (like cone_search)
@@ -197,44 +232,50 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
     %
     %  % (1) defaults: field RA=254, Dec=+64 deg, R=60"=1 arcmin, 2" matching,
     %  %     anchor GAIADR3 vs ALL available catsHTM catalogs:
-    %  [T, Cats, S] = VO.prep.crossIDCatsHTM;
+    %  [T, Cats_cone, S] = VO.prep.crossIDCatsHTM;
     %
     %  % (2) EXPLICIT catalog list (only these, in this order; skips the
     %  %     'all catalogs' enumeration), field (254,64) deg over a 1 deg cone:
-    %  [T, Cats, S] = VO.prep.crossIDCatsHTM(254/RAD, 64/RAD, 1, ...
-    %               'RadiusUnits','deg', 'CatList',{'PS1','APASS','GALEX','TMASS'});
+    %  [T, Cats_cone, S] = VO.prep.crossIDCatsHTM(254/RAD, 64/RAD, 1, ...
+    %               'RadiusUnits','deg', 'CatList',{'PS1DR2','APASS','GALEXAIS','TMASS'});
     %
     %  % (3) different field + anchor + per-catalog match radii, 600" cone,
-    %  %     written to disk (.mat keeps Cats, .csv is the flat table):
-    %  [T, Cats, S] = VO.prep.crossIDCatsHTM(180/RAD, -30/RAD, 600, ...
+    %  %     written to disk (.mat keeps Cats_cone, .csv is the flat table):
+    %  [T, Cats_cone, S] = VO.prep.crossIDCatsHTM(180/RAD, -30/RAD, 600, ...
     %               'RefCat','GAIADR3','CatList',{'PS1','FIRST','NVSS'},...
     %               'MatchRadius',2,'RadiusPerCat',{'FIRST',5;'NVSS',5},...
     %               'OutFile','~/tmp/xid_field');
     %
     %  % (4) you may also give the field in degrees via 'CooUnits', and take
     %  %     all catalogs EXCEPT a few, dropping the orphan appending:
-    %  [T, Cats, S] = VO.prep.crossIDCatsHTM(254, 64, 60, 'CooUnits','deg',...
+    %  [T, Cats_cone, S] = VO.prep.crossIDCatsHTM(254, 64, 60, 'CooUnits','deg',...
     %               'SkipCats',{'DECaLS10','unWISE'}, 'OrphanHandling','none');
     %
     %  % (5) resolve an index (default table output): the PS1 source matched
     %  %     to global source g:
     %  g = 7;  row = T.Ind_PS1(g);
-    %  if ~isnan(row), src = Cats.PS1.Catalog(row,:); end
+    %  if ~isnan(row), src = Cats_cone.PS1.Catalog(row,:); end
     %
     %  % (6) LARGE field: stream each catalog to disk to keep memory low.
-    %  %     Cats then holds file paths; load one to resolve indices:
-    %  [T, Cats, S] = VO.prep.crossIDCatsHTM(254/RAD, 64/RAD, 10, ...
+    %  %     Cats_cone then holds file paths; load one to resolve indices:
+    %  [T, Cats_cone, S] = VO.prep.crossIDCatsHTM(254/RAD, 64/RAD, 10, ...
     %               'RadiusUnits','deg', 'CatsToDisk',true,'CatsDir','~/tmp/xidcats');
-    %  Lp = load(Cats.PS1);  ps1 = Lp.Cat;   % AstroCatalog for PS1
+    %  Lp = load(Cats_cone.PS1);  ps1 = Lp.Cat;   % AstroCatalog for PS1
     %  src = ps1.Catalog(T.Ind_PS1(g),:);
     %
     %  % (7) keep the list of additional matches when a catalog has several
     %  %     sources within the radius of one master source (default table):
-    %  [T, Cats, S] = VO.prep.crossIDCatsHTM(254/RAD, 64/RAD, 360, ...
+    %  [T, Cats_cone, S] = VO.prep.crossIDCatsHTM(254/RAD, 64/RAD, 360, ...
     %               'KeepExtraMatches',true);
     %  T.Ind_PS1(g)         % nearest PS1 source; T.Nmatch_PS1(g) = actual count
     %  T.IndExtra_PS1{g}    % vector of the OTHER PS1 indices (NaN if <=1 match)
     %  S.ExtraMatches.PS1{g}% same list (also the only home under 'astrocatalog')
+    %
+    %  % (8) STEP 2 - materialize the actual per-source DATA from the index T
+    %  %     with VO.prep.gatherCrossIDData (the companion gatherer):
+    %  [T, Cats_cone] = VO.prep.crossIDCatsHTM(254/RAD, 64/RAD, 360);
+    %  D = VO.prep.gatherCrossIDData(T, Cats_cone);                 % from the snapshot
+    %  D = VO.prep.gatherCrossIDData(T, [], 'Source','pointer');% from catsHTM, no Cats_cone
 
     arguments
         RA                             = 254.*pi./180;   % [rad] default field centre
@@ -253,6 +294,8 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
         Args.AddDistCol logical        = true;
         Args.KeepExtraMatches logical  = true;
         Args.AddPointer logical        = true;
+        Args.AddCatRowID logical       = false;
+        Args.IdExtras logical          = false;
         Args.OutType                   = 'table';
         Args.OutFile                   = '';
         Args.OutFileFormat             = {'mat','csv'};
@@ -277,6 +320,19 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
     AddPointer = Args.AddPointer && ~Stream;
     if Args.AddPointer && Stream && Args.Verbose
         fprintf('crossIDCatsHTM: AddPointer skipped in TableToDisk mode.\n');
+    end
+    % The scalar catalog-wide id is derived from the (CellID,RowInCell) pair,
+    % so it needs AddPointer; it also costs one metadata scan per catalog.
+    AddCatRowID = Args.AddCatRowID && AddPointer;
+    if Args.AddCatRowID && ~AddPointer && Args.Verbose
+        fprintf('crossIDCatsHTM: AddCatRowID requires AddPointer; skipped.\n');
+    end
+    % IdExtras mirrors the main-match id layers (CellID_/RowInCell_, and
+    % CatRowID_ when AddCatRowID) onto the additional (non-nearest) matches, as
+    % ragged cell-of-vector columns; needs KeepExtraMatches + AddPointer.
+    IdExtras = Args.IdExtras && KeepExtra && AddPointer;
+    if Args.IdExtras && ~(KeepExtra && AddPointer) && Args.Verbose
+        fprintf('crossIDCatsHTM: IdExtras needs KeepExtraMatches and AddPointer; skipped.\n');
     end
 
     % field centre in radians (cone_search convention)
@@ -332,12 +388,12 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
 
     % seedRA/seedDec already extracted, so the anchor catalog can be streamed
     % to disk (and freed) right away in CatsToDisk mode.
-    Cats = struct();
+    Cats_cone = struct();
     if Args.CatsToDisk
-        Cats.(Args.RefCat) = localWriteCat(CatsDir, Prefix, Args.RefCat, RefCatH, Args.Verbose);
+        Cats_cone.(Args.RefCat) = localWriteCat(CatsDir, Prefix, Args.RefCat, RefCatH, Args.Verbose);
         RefCatH = []; %#ok<NASGU>  free the anchor catalog from memory
     else
-        Cats.(Args.RefCat) = RefCatH;
+        Cats_cone.(Args.RefCat) = RefCatH;
     end
 
     % master (output) list — grows as orphans are appended
@@ -354,6 +410,8 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
     Extra     = struct();     % only used when KeepExtra (never with Stream)
     CellID    = struct();     % only used when AddPointer (never with Stream)
     RowInCell = struct();
+    CellIDExtra    = struct(); % only used when IdExtras (cell-of-vectors)
+    RowInCellExtra = struct();
     ColFiles  = {};
     AnchorInd  = (1:L).';
     AnchorNm   = ones(L,1);
@@ -370,6 +428,10 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
         if AddPointer
             CellID.(Args.RefCat)    = AnchorCID;
             RowInCell.(Args.RefCat) = AnchorRIC;
+        end
+        if IdExtras
+            CellIDExtra.(Args.RefCat)    = repmat({NaN}, L, 1);  % anchor: no extras
+            RowInCellExtra.(Args.RefCat) = repmat({NaN}, L, 1);
         end
     end
 
@@ -484,10 +546,21 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
 
             % stable storage pointers (cell id, row-in-cell) for the sources
             % this catalog contributes; computed while CatH is still available.
-            FullCellID    = nan(L,1);
-            FullRowInCell = nan(L,1);
+            FullCellID     = nan(L,1);
+            FullRowInCell  = nan(L,1);
+            CellIDExtraCol    = {};
+            RowInCellExtraCol = {};
             if AddPointer && Ncone > 0
-                Ref = unique(FullInd(~isnan(FullInd)));       % referenced native rows
+                % native rows referenced by the nearest matches...
+                RefMain = FullInd(~isnan(FullInd));
+                % ...and, when IdExtras, by the additional (non-nearest) matches
+                RefExtra = [];
+                if IdExtras
+                    HasEx    = ~cellfun(@(v) all(isnan(v)), FullExtra);
+                    RefExtra = [FullExtra{HasEx}];   % concat of native-index row vecs
+                    RefExtra = RefExtra(~isnan(RefExtra));
+                end
+                Ref = unique([RefMain(:); RefExtra(:)]);
                 [srcRA, srcDec] = getLonLat(CatH, 'rad');
                 [CidRef, RicRef] = catsHTM.sourcePointer(Name, srcRA(Ref), srcDec(Ref), ...
                     'MaxDist', RadMat, 'MaxDistUnits', Args.MatchRadiusUnits);
@@ -498,16 +571,23 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
                 Gp                = ~isnan(FullInd);
                 FullCellID(Gp)    = CidMap(FullInd(Gp));
                 FullRowInCell(Gp) = RicMap(FullInd(Gp));
+                % map the extra-match native indices through the same pointer map
+                if IdExtras
+                    CellIDExtraCol    = cellfun(@(v) localMapVec(v, CidMap), FullExtra, ...
+                        'UniformOutput', false);
+                    RowInCellExtraCol = cellfun(@(v) localMapVec(v, RicMap), FullExtra, ...
+                        'UniformOutput', false);
+                end
             end
 
-            % CatH is no longer needed: keep it in the native-order Cats struct
+            % CatH is no longer needed: keep it in the native-order Cats_cone struct
             % (in memory), or stream it to disk and free it. Either way
             % Ind_<Cat> indexes this native-order catalog.
             if Args.CatsToDisk
-                Cats.(Name) = localWriteCat(CatsDir, Prefix, Name, CatH, Args.Verbose);
+                Cats_cone.(Name) = localWriteCat(CatsDir, Prefix, Name, CatH, Args.Verbose);
                 CatH = [];
             else
-                Cats.(Name) = CatH;
+                Cats_cone.(Name) = CatH;
             end
 
             if Stream
@@ -523,6 +603,10 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
                 if AddPointer
                     CellID.(Name)    = FullCellID;
                     RowInCell.(Name) = FullRowInCell;
+                end
+                if IdExtras
+                    CellIDExtra.(Name)    = CellIDExtraCol;
+                    RowInCellExtra.(Name) = RowInCellExtraCol;
                 end
             end
 
@@ -562,10 +646,37 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
         end
     end
 
+    % per-catalog getNsrcMeta offset tables, computed once and reused by the
+    % main and extra CatRowID mappings (only when AddCatRowID).
+    NsrcCache = containers.Map('KeyType','char','ValueType','any');
+
+    % storage pointers / scalar ids for the extra matches (IdExtras): ragged
+    % cell-of-vector columns, mirroring the main-match id layers.
+    if IdExtras
+        Summary.ExtraCellID    = struct();
+        Summary.ExtraRowInCell = struct();
+        if AddCatRowID
+            Summary.ExtraCatRowID = struct();
+        end
+        for Icol = 1:1:numel(ColNames)
+            Nm   = ColNames{Icol};
+            ECid = localPadCell(CellIDExtra.(Nm),    Nglobal);
+            ERic = localPadCell(RowInCellExtra.(Nm), Nglobal);
+            Summary.ExtraCellID.(Nm)    = ECid;
+            Summary.ExtraRowInCell.(Nm) = ERic;
+            if AddCatRowID
+                NsrcTab        = catsHTM.getNsrcMeta(Nm);
+                NsrcCache(Nm)  = NsrcTab;
+                Summary.ExtraCatRowID.(Nm) = cellfun(@(c,r) ...
+                    localExtraCatRowID(Nm, c, r, NsrcTab), ECid, ERic, 'UniformOutput', false);
+            end
+        end
+    end
+
     if Stream
         % ---- stream the table to a v7.3 .mat, one column at a time -------
         localAssembleTableFile(TableFile, ColNames, ColFiles, Nglobal, ...
-            mRA, mDec, OriginCat, Args.AddDistCol, Summary, Cats, Args.Verbose);
+            mRA, mDec, OriginCat, Args.AddDistCol, Summary, Cats_cone, Args.Verbose);
         if isfolder(ColTmpDir)
             rmdir(ColTmpDir, 's');
         end
@@ -574,7 +685,7 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
         % ---- assemble the output table (in memory) ----------------------
         % pad every catalog column to the final global length
         VarData = {(1:Nglobal).', mRA, mDec, OriginCat};
-        VarName = {'GlobalID','RA','Dec','OriginCat'};
+        VarName = {'MasterID','RA','Dec','OriginCat'};
         for Icol = 1:1:numel(ColNames)
             Name = ColNames{Icol};
             VarData{end+1} = localPad(Ind.(Name),    Nglobal, NaN); %#ok<AGROW>
@@ -586,10 +697,26 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
                 VarName{end+1} = ['Dist_' Name];                      %#ok<AGROW>
             end
             if AddPointer
-                VarData{end+1} = localPad(CellID.(Name),    Nglobal, NaN); %#ok<AGROW>
+                PadCID = localPad(CellID.(Name),    Nglobal, NaN);
+                PadRIC = localPad(RowInCell.(Name), Nglobal, NaN);
+                VarData{end+1} = PadCID;                                    %#ok<AGROW>
                 VarName{end+1} = ['CellID_' Name];                         %#ok<AGROW>
-                VarData{end+1} = localPad(RowInCell.(Name), Nglobal, NaN); %#ok<AGROW>
+                VarData{end+1} = PadRIC;                                    %#ok<AGROW>
                 VarName{end+1} = ['RowInCell_' Name];                      %#ok<AGROW>
+                if AddCatRowID
+                    % collapse the pointer pair to one contiguous catalog-wide
+                    % scalar (NaN where the pair is NaN); one getNsrcMeta scan,
+                    % reused from NsrcCache if IdExtras already built it.
+                    if isKey(NsrcCache, Name)
+                        NsrcTab = NsrcCache(Name);
+                    else
+                        NsrcTab = catsHTM.getNsrcMeta(Name);
+                        NsrcCache(Name) = NsrcTab;
+                    end
+                    VarData{end+1} = catsHTM.catRowID(Name, PadCID, PadRIC, ...
+                        'Nsrc', NsrcTab); %#ok<AGROW>
+                    VarName{end+1} = ['CatRowID_' Name];                        %#ok<AGROW>
+                end
             end
         end
         TableForm = table(VarData{:}, 'VariableNames', VarName);
@@ -608,8 +735,15 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
             % add the additional-matches cell columns (table output only)
             if KeepExtra
                 for Icol = 1:1:numel(ColNames)
-                    XidTable.(['IndExtra_' ColNames{Icol}]) = ...
-                        Summary.ExtraMatches.(ColNames{Icol});
+                    Nm = ColNames{Icol};
+                    XidTable.(['IndExtra_' Nm]) = Summary.ExtraMatches.(Nm);
+                    if IdExtras
+                        XidTable.(['CellIDExtra_' Nm])    = Summary.ExtraCellID.(Nm);
+                        XidTable.(['RowInCellExtra_' Nm]) = Summary.ExtraRowInCell.(Nm);
+                        if AddCatRowID
+                            XidTable.(['CatRowIDExtra_' Nm]) = Summary.ExtraCatRowID.(Nm);
+                        end
+                    end
                 end
             end
         end
@@ -620,7 +754,7 @@ function [XidTable, Cats, Summary] = crossIDCatsHTM(RA, Dec, Radius, Args)
         % OriginCat column. Summary (incl. Summary.OriginCat) is saved too.
         if ~isempty(Args.OutFile)
             localWriteOut(Args.OutFile, Args.OutFileFormat, XidTable, TableForm, ...
-                Cats, Summary, Args.Verbose);
+                Cats_cone, Summary, Args.Verbose);
         end
     end
 end
@@ -681,6 +815,22 @@ function C = localPadCell(C, N)
     if numel(C) < N
         C(numel(C)+1:N, 1) = repmat({NaN}, N-numel(C), 1);
     end
+end
+
+% ======================================================================
+function Out = localMapVec(V, Map)
+    % Map a vector of native cone indices (or the scalar-NaN sentinel) through
+    % a per-row lookup Map, preserving NaNs and shape.
+    Out = nan(size(V));
+    Ok  = ~isnan(V);
+    Out(Ok) = Map(V(Ok));
+end
+
+% ======================================================================
+function G = localExtraCatRowID(Name, Cid, Ric, NsrcTab)
+    % Collapse an extra-match pointer vector (or NaN) to scalar CatRowIDs,
+    % reusing the precomputed getNsrcMeta offset table; returns a row vector.
+    G = catsHTM.catRowID(Name, Cid(:), Ric(:), 'Nsrc', NsrcTab).';
 end
 
 % ======================================================================
@@ -771,16 +921,16 @@ end
 
 % ======================================================================
 function localAssembleTableFile(TableFile, ColNames, ColFiles, Nglobal, ...
-        mRA, mDec, OriginCat, AddDistCol, Summary, Cats, Verbose)
+        mRA, mDec, OriginCat, AddDistCol, Summary, Cats_cone, Verbose)
     % Write the cross-id table to a v7.3 .mat one column at a time via
     % matfile, so the full wide table is never held in memory. Variables:
-    % GlobalID, RA, Dec, OriginCat, Ind_<Cat>, Nmatch_<Cat>[, Dist_<Cat>],
-    % plus Summary and Cats.
+    % MasterID, RA, Dec, OriginCat, Ind_<Cat>, Nmatch_<Cat>[, Dist_<Cat>],
+    % plus Summary and Cats_cone.
     if isfile(TableFile)
         delete(TableFile);
     end
     Mf           = matfile(TableFile, 'Writable', true);
-    Mf.GlobalID  = (1:Nglobal).';
+    Mf.MasterID  = (1:Nglobal).';
     Mf.RA        = mRA;
     Mf.Dec       = mDec;
     Mf.OriginCat = OriginCat;
@@ -793,7 +943,7 @@ function localAssembleTableFile(TableFile, ColNames, ColFiles, Nglobal, ...
         end
     end
     Mf.Summary = Summary;
-    Mf.Cats    = Cats;
+    Mf.Cats_cone    = Cats_cone;
     if Verbose
         fprintf('crossIDCatsHTM: wrote streamed table %s (%d rows, %d catalogs)\n', ...
             TableFile, Nglobal, numel(ColNames));
@@ -813,7 +963,7 @@ function Path = localWriteCat(Dir, Prefix, Name, Cat, Verbose)
 end
 
 % ======================================================================
-function localWriteOut(OutFile, Formats, XidTable, TableForm, Cats, Summary, Verbose)
+function localWriteOut(OutFile, Formats, XidTable, TableForm, Cats_cone, Summary, Verbose)
     % Write the cross-id results to disk (.mat and/or .csv).
     %   XidTable  - the object to store in the .mat (matches the return type:
     %               AstroCatalog or table).
@@ -830,7 +980,7 @@ function localWriteOut(OutFile, Formats, XidTable, TableForm, Cats, Summary, Ver
 
     if any(strcmpi(Formats, 'mat'))
         MatFile = [Stem '.mat'];
-        save(MatFile, 'XidTable', 'Cats', 'Summary', '-v7.3');
+        save(MatFile, 'XidTable', 'Cats_cone', 'Summary', '-v7.3');
         if Verbose
             fprintf('crossIDCatsHTM: wrote %s\n', MatFile);
         end
