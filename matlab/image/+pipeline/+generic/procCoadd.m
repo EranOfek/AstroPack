@@ -82,6 +82,20 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %            'BitName_CoaddLess' - The bit name in the bit mask image
     %                   containing the coadd less images.
     %                   Default is 'CoaddLessImages'.
+    %            'UNIQSEC' - The UNIQSEC [Xmin Xmax Ymin Ymax] of the sub
+    %                   images (i.e., their unique, non overlapping,
+    %                   sections in their own frame), either a single line
+    %                   applied to all the fields, or a line per field.
+    %                   If not empty, then the Overlap bit propagated from
+    %                   the single epoch masks (and smeared by the
+    %                   registration shifts) is dropped from the coadd mask
+    %                   and re-set according to this section. This is done
+    %                   before the source extraction, so that the coadd
+    %                   catalog FLAGS follow the coadd geometry.
+    %                   Default is [] (i.e., keep the propagated bit).
+    %            'BitName_Overlap' - The bit name of the overlap region.
+    %                   Used only when 'UNIQSEC' is not empty.
+    %                   Default is 'Overlap'.
     %            'HighBackNsigma' - If not empty, then will remove images
     %                   with high background. This is the number of sigmas
     %                   of the background above the median images
@@ -241,7 +255,9 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
           
         Args.CoaddLessFrac                    = 0.6; % if number of imagesx in pix is below this frac, than open the CoaddLessImages bit - empty - ignore
         Args.BitName_CoaddLess                = 'CoaddLessImages';
-        
+
+        Args.UNIQSEC                          = [];  % UNIQSEC of the sub images, line per field; if not empty, reset the Overlap bit of the coadd according to it
+        Args.BitName_Overlap                  = 'Overlap';
 
         Args.RefineSearchRadius               = 3;
         Args.FindStars                        = true;
@@ -354,7 +370,21 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     end
         
     ResultCoadd = struct('WMeanJD',cell(Nfields,1), 'IndivMidJD',cell(Nfields,1), 'CoaddN',cell(Nfields,1), 'AstrometricFit',cell(Nfields,1), 'ZP',cell(Nfields,1), 'PhotCat',cell(Nfields,1), 'TransFit',cell(Nfields,1));
-    
+
+    % resolve the Overlap bit index once, before the loop over the fields
+    OverlapBitInd = [];
+    if ~isempty(Args.UNIQSEC)
+        if isempty(AllSI(1,1).MaskData.Dict)
+            OverlapBitDict = BitDictionary('BitMask.Image.Default');
+        else
+            OverlapBitDict = AllSI(1,1).MaskData.Dict;
+        end
+        OverlapBitInd = OverlapBitDict.name2bit(Args.BitName_Overlap);
+        if size(Args.UNIQSEC,1)~=1 && size(Args.UNIQSEC,1)~=Nfields
+            error('UNIQSEC must contain either a single line or a line per field');
+        end
+    end
+
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
     for Ifields=1:1:Nfields
         
@@ -516,7 +546,16 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 maskSet(Coadd(Ifields).MaskData, FlagCoaddLess, Args.BitName_CoaddLess, 1, 'CreateNewObj',false);  %, 'DefBitDict',Args.DefBitDict);
             end
 
-            
+            % The Overlap bit propagated from the dithered single epoch masks is
+            % smeared by the registration shifts. Drop it and set it according to
+            % the coadd own geometry - before the source extraction, so that the
+            % coadd catalog FLAGS follow the same geometry.
+            if ~isempty(Args.UNIQSEC)
+                Isec = min(Ifields, size(Args.UNIQSEC,1));
+                Coadd(Ifields).MaskData.Data = imUtil.mask.setCoaddOverlap(Coadd(Ifields).MaskData.Data,...
+                                                    Args.UNIQSEC(Isec,:), 'BitInd',OverlapBitInd);
+            end
+
             %Ifields
             if Args.FindStars
                 [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), ...
