@@ -32,9 +32,9 @@ function [Mag,Cover,F]=synthetic_phot(Spec,FilterFamily,FilterName,MagSystem,var
 %     By : Eran O. Ofek                    Aug 2019
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: S=astro.get_pickles;
-%          SS=AstSpec.black_body(5770,(2000:1:10000)');
+%          SS=AstroSpec.blackBody((2000:1:10000)',5770);
 %          SS.Int = SS.Int.*4.*pi.*constant.SunR.^2./(4.*pi.*(10.*constant.pc).^2);
-%          [Mag,Cover,F]=astro.spec.synthetic_phot([SS.Wave, SS.Int],'SDSS','g','AB');
+%          [Mag,Cover,F]=astro.spec.synthetic_phot([SS.Wave, SS.Flux],'SDSS','g','AB');
 % Reliable: 2
 %--------------------------------------------------------------------------
 

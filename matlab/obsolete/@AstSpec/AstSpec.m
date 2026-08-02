@@ -1,6 +1,15 @@
 % A class for astronomical spectra
 % Package: @AstSpec
 % Description: A class of structure array of astronomical spectra.
+%
+%              DEPRECATED - use AstroSpec instead. This class is retained
+%              only so that previously saved objects and data files that
+%              contain AstSpec arrays remain loadable; do not use it in new
+%              code. UltrasatPerf.loadobj and the sky background branch of
+%              telescope.sn.sn_spec are the two places that still rely on
+%              it. See matlab/doc/AstSpec_to_AstroSpec_migration.md for the
+%              API mapping and for the pitfalls found while migrating.
+%
 %     By : Eran O. Ofek                    Feb 2016
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Reliable: 2

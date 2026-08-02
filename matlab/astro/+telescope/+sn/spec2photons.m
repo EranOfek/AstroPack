@@ -8,7 +8,7 @@ function [Flux,Counts]=spec2photons(Spectrum,Filter,Extin,Radius,Dist)
 %            [Wavelengh(Ang), Emmitence(erg cm^-2 s^-1 A^-1)].
 %            Alternatively, a scalar representing a black-body
 %            temperature [K].
-%            Alternatively this can be an AstSpec object.
+%            Alternatively this can be an AstroSpec object.
 %          - Filter [Wavelength(Ang), EffectiveAreaOfInstrument(cm^2)].
 %            If two element vector than assumes it to be the wavelength
 %            range [Ang] of a top-hat filter with efective area of 1 cm^2.

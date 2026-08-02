@@ -12,7 +12,7 @@ function [BackSpec]=back_comp(varargin)
 %                             Default is Inf. Inf will behave like no host
 %                             galaxy contribution to the background.
 %            'ZodiMagV'     - 
-% Output : - An AstSpec object in which each element corresponds to
+% Output : - An AstroSpec object in which each element corresponds to
 %            a background components.
 % License: GNU general public license version 3
 %     By : Eran O. Ofek                    Nov 2019

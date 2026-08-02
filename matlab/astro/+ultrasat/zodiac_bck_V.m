@@ -1,6 +1,6 @@
 function [ZodiVmag]=zodiac_bck_V(Long,Lat,Date,varargin)
 % Get the Zodiac V light surface brightness as a function of coordinates
-% Package: @AstSpec
+% Package: +ultrasat
 % Description: Calculate the zodiac V vand Vega magnitude for a sky.
 % Input  : - Either Ecliptic longitude or Helio-ecliptic longitude
 %            (i.e., L - L_sun) in radians

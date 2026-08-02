@@ -43,7 +43,7 @@ function Result = snr_unitTest()
     %                              'FilterFamily','ULTRASAT','Filter',sprintf('R%d',R),...
     %                              'ClearAper',1,'Trans',1,'Reflection',1,'QE',1);
 
-%     Spec_all_MS_stars = AstSpec.get_pickles([],'V');
+%     Spec_all_MS_stars = AstroSpec.specStarsPickles([],'V');
 %     Specs.Spec((numel(T_BB)+1):(numel(T_BB)+numel(Spec_all_MS_stars)))=Spec_all_MS_stars;
 %     for Idwarf = 1: numel(Spec_all_MS_stars)
 %         Specs.name(numel(T_BB)+Idwarf) = {Spec_all_MS_stars(Idwarf).ObjName};

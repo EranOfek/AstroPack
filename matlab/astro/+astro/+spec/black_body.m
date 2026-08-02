@@ -2,7 +2,7 @@ function [Il,In,IlA,ImJy,Ip]=black_body(T,W,Type)
 % Black body spectrum
 % Package: astro.spec
 % Description: Black body spectrum.
-%              OBSOLETE: Use AstSpec.blackbody instead.
+%              OBSOLETE: Use AstroSpec.blackBody instead.
 % Input  : - Temperature [K].
 %          - Vector of wavelength [Ang].
 %          - Calculation type:
@@ -14,7 +14,7 @@ function [Il,In,IlA,ImJy,Ip]=black_body(T,W,Type)
 %          - Emittance [erg/sec/cm^2/Ang(lambda)]
 %          - Emittance [mJy] (i.e., (erg/sec/cm^2/Hz)/1e-26) 
 %          - Number of photons [photons/sec/cm^2/Ang(lambda)]
-% See also: AstSpec.blackbody
+% See also: AstroSpec.blackBody
 % Tested : Matlab 5.3
 %     By : Eran O. Ofek                    Jan 2003
 %    URL : http://weizmann.ac.il/home/eofek/matlab/

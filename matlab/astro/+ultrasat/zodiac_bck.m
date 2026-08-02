@@ -28,7 +28,7 @@ function [Spec]=zodiac_bck(RA,Dec,Date,varargin)
 %            'Wave'- Vector of wavelength.
 %            'Spec'- A matrix in which each column is the zodi spectrum
 %                    in units of erg/cm^2/s/Ang/arcsec^2.
-%                    Or a vector of AstSpec objects with the spectra.
+%                    Or a vector of AstroSpec objects with the spectra.
 %            'Mag' - Vector of magnitude in requested band.
 %            'MagV'- Vector of Vega V-band magnitudes.
 % License: GNU general public license version 3

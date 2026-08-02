@@ -3,7 +3,7 @@ function [SN]=sn_spec(Spec,varargin)
 % Package: telescope.sn
 % Description: Simulate long-slit spectral observations and estimate the
 %              S/N per resolution element.
-% Input  : - Spectrum [Wave(Ang), Flux(cgs/A)] or an AstSpec object
+% Input  : - Spectrum [Wave(Ang), Flux(cgs/A)] or an AstroSpec object
 %            containing spectrum. Default is 'QSO_SDSS' at mag 20.0
 %          * Arbitrary number of pairs of arguments: ...,keyword,value,...
 %            where keyword are one of the followings:
@@ -15,7 +15,7 @@ function [SN]=sn_spec(Spec,varargin)
 %                        Default is 1.
 %            'DC'      - CCD dark curent [e-/pix/s]. Default is 1e-3.
 %            'Back'    - A background spectrum [Wave, Flux(cgs/A/arcsec^2)]
-%                        Either an AstSpec object a matrix or background
+%                        Either an AstroSpec object a matrix or background
 %                        catalog name in the cats.spec.SkyBack pacakge.
 %                        Default is 'Gemini_SkyBack_dark'.
 %            'PixScale' -Pixel scale in spatial direction [arcsec/pix].

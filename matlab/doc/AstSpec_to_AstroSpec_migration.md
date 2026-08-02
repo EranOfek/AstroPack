@@ -1,9 +1,8 @@
 # AstSpec → AstroSpec migration: analysis and plan
 
-Status: **plan agreed, no call site migrated yet.** The strategy and all blocking questions are
-decided (§8); Phase 0 has not started. The one piece of missing AstroSpec functionality has been
-implemented (`zodiacSpectrum`, §9). Analysis performed on `dev1`, Aug 2026, against MATLAB R2020b
-Update 8.
+Status: **complete.** All six phases are done; `@AstSpec` is deprecated and retained only so that
+previously saved objects remain loadable. Two deliberate references remain, listed in §11. Work done
+on `dev1`, Aug 2026, against MATLAB R2020b Update 8.
 
 The obsolete class `matlab/obsolete/@AstSpec` (3676 lines, ~80 methods) is still used by active
 code under `+telescope/+sn`, `+ultrasat`, `@UltrasatPerf` and `+astro/+spec`. This document
@@ -320,7 +319,7 @@ Zero risk, indefinite duplication. Legitimate if ULTRASAT delivery pressure outw
 | 2 | Tier 1 files | **done** — `usim` and `blackbody_mag_c` migrated, `add_meta_data2ps1` retired, `telescope.sn.unitTest` deferred to Phase 3 |
 | 3 | Tier 2 files | **done** — `snr`, `back_comp`, `spec2photons`, `unitTest`, `zodiac_bck` migrated and bit-identical; `sn_spec` migrated by inspection; `fit_bb` retired |
 | 4 | `UltrasatPerf` (`Specs(1,:) AstroSpec` + `SpecIsBB` flag) + GUI + `loadobj` for saved `.mat` (§4.4) | **done** — fixture reproduces stored colours to 7.1e-15; GUI list back to 43 entries |
-| 5 | Archive `@AstSpec` (keep loadable); drop the `blackbody`/`black_body` doc pointers | zero references |
+| 5 | Deprecate `@AstSpec` (keep loadable); fix stale doc pointers | **done** — see §11 |
 
 Phases are each a separate commit/PR.
 
@@ -421,3 +420,51 @@ and VLT (43x2).
 hardcode `/raid/eran/matlab/data/...`. The `AtmoExtinction` (KPNO, VLT) and `SkyBack`
 (Gemini_SkyBack_dark) stubs were repointed locally to allow verification. These files are outside
 the repository; a general fix would belong in `VO.search.catalog_interface`.
+
+---
+
+## 11. Final state (Phase 5)
+
+`@AstSpec` stays where it is, under `matlab/obsolete/`, and stays on the MATLAB path. It carries a
+DEPRECATED header pointing at AstroSpec and at this document. It was **not** deleted, because two
+places still need it — both by design:
+
+| Reference | Why |
+|---|---|
+| `UltrasatPerf.loadobj` / `UltrasatPerf.astSpec2astroSpec` | converts legacy `Specs` arrays in saved `.mat` files (§4.4) |
+| `telescope.sn.sn_spec:141` | `cats.spec.SkyBack` data files still contain AstSpec objects |
+| `ultrasat.zodiac_spectrum` `'astspec'` OutType | backward-compatible option; `'astrospec'` is the current one |
+
+Those are the only live references outside `obsolete/`. Everything else that mentions AstSpec is
+either inside `obsolete/`, or a comment.
+
+Stale documentation pointers fixed in Phase 5: `astro.spec.black_body` (its OBSOLETE note and
+See-also pointed at `AstSpec.blackbody`), `astro.spec.synthetic_phot` (its example called
+`AstSpec.black_body`, which never existed), and the help text of `sn_spec`, `back_comp`,
+`spec2photons`, `ultrasat.zodiac_bck`, `zodiac_bck_V` and `telescope.sn.unitTest`.
+
+### Retired during the migration
+
+Files moved to `obsolete/` rather than migrated, all with no inbound callers:
+
+| File | Reason |
+|---|---|
+| `telescope.sn.snr_chen` | near-duplicate of `snr` |
+| `astro.spec.fit_template2phot` | no callers |
+| `astro.spec.zodiac_bck` | superseded by `ultrasat.zodiac_bck` |
+| `astro.spec.spec_photon_counts` | self-declared obsolete |
+| `VO.PS1.add_meta_data2ps1` | 3 parse errors - a literal `????` at line 66 |
+| `astro.spec.fit_bb` | calls `Util.array.find_ranges` and `astro.blackbody`, neither of which exists |
+
+### Still broken, unrelated to the migration
+
+- `telescope.sn.sn_spec` reaches line 253 and fails on `Util.filter.conv1_vargauss`, which exists
+  nowhere in the tree. Migrated by inspection; it has never been gated.
+- `astro.spec.color2temp` fails with "Index exceeds the number of array elements (0)"; it failed
+  identically before the migration.
+- `@AstroSpec/rdivide` does not implement AstroSpec, numeric or AstFilter divisors (issue #1185).
+- The `FluxUnits` setter reads `DefColNameFlux` for `FluxErrData` and `BackData`, so setting
+  `FluxUnits` corrupts `FluxErr` and `Back`.
+- `~/matlab/data/+cats/**` holds 128 auto-generated stubs that hardcode `/raid/eran/matlab/data/...`.
+  Three were repointed locally to allow verification; a general fix belongs in
+  `VO.search.catalog_interface`.
