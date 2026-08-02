@@ -138,7 +138,6 @@ function [Status, AFN] = saveProductMat(Product, FileName, Args)
     Npath      = numel(PathList);
     Status     = {};
     ErrInd     = 0;
-    DirCreated = false;
 
     % product type: Args.OutProduct{Iprod}
     % save product: AI(Iobj).(Args.OutProduct{Iprod})
@@ -160,15 +159,21 @@ function [Status, AFN] = saveProductMat(Product, FileName, Args)
         ErrInd = ErrInd + 1;
         Status{ErrInd} = sprintf('Product not saved / MatchedSources: %s is empty',FileToSave);
     else
-        PWD = pwd;
-        cd(PathList);
+        % Create the target directory if it does not exist yet (e.g. a
+        % rejected visit where no image products were written first).
+        if ~isempty(PathList) && ~isfolder(PathList)
+            mkdir(PathList);
+        end
+        % Save to the full path directly, without cd-ing into the target
+        % directory, so a failing save() cannot strand the process in the
+        % wrong working folder.
+        FullFileToSave = fullfile(PathList, FileToSave);
         if isempty(Args.SavedProductName)
-            Args.SavedProductName = 'Product'; 
+            Args.SavedProductName = 'Product';
         else
             eval([Args.SavedProductName ' = Product;']);
         end
-        save(FileToSave, Args.SavedProductName, '-v7.3');
-        cd(PWD);
+        save(FullFileToSave, Args.SavedProductName, '-v7.3');
 
     end
     
