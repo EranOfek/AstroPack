@@ -25,8 +25,9 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
     %            'Constraints' - A two column cell array of constraints to
     %                   apply to the image search (by coordinates or
     %                   fieldid).
-    %                   Example: {'fwhm',[1.0 4.0]; 'airmass',[1 1.5]; 'ph_rms',[0 0.03]; 'limmag',[20 23]};
-    %                   Default is {}.
+    %                   Use {} or [] in order to apply no constraints.
+    %                   Default is {'fwhm',[1.0 4.0]; 'airmass',[1 1.5];
+    %                   'ph_rms',[0 0.03]; 'limmag',[20 23]}.
     %            'DB' - A db.Db object. If empty, will be created and
     %                   opened, and returned. Default is [].
     %
@@ -143,7 +144,9 @@ function [T, DB] = searchVisitsByCoo(RA, Dec, Args)
                     %tic;
                     [WhereClause,HP] = db.search.queryConeSearch_Healpix(RA(Icoo), Dec(Icoo), Args.InitSearchRadius,'NSide',Args.NSide_Low, 'HP_ColName','upix_low');
                     AddWhere    = db.Db.genWhereClause(Args.Constraints,'AddWhere',false);
-                    WhereClause = sprintf('%s AND %s', WhereClause, AddWhere);
+                    if strlength(strtrim(string(AddWhere)))>0
+                        WhereClause = sprintf('%s AND %s', WhereClause, AddWhere);
+                    end
                     QuerySQL    = db.Db.genQuery(Args.TableName, Args.SelectFields, WhereClause);
                     %toc
             

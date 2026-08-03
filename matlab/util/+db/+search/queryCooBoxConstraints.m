@@ -14,6 +14,9 @@ function Result = queryCooBoxConstraints(RA, Dec, Args)
     %            Use genWhereClause and genQuery in order to use
     %            this constraints to generate a select/where
     %            clause.
+    %            If the box crosses RA=0, then the first constraint is
+    %            applied to an SQL expression of the RA offset from the
+    %            search position, rather than to the RA column itself.
     % Author : Eran Ofek (Dec 2024)
     % Example: R=db.search.queryCooBoxConstraints(0.1,20)
 
@@ -30,39 +33,39 @@ function Result = queryCooBoxConstraints(RA, Dec, Args)
         Args.HalfWidth = [Args.HalfWidth, Args.HalfWidth];
     end
 
-    RA2 = RA + Args.HalfWidth(1)./cosd(Dec);
-    RA1 = RA - Args.HalfWidth(1)./cosd(Dec);
+    HalfWidthRA = Args.HalfWidth(1)./cosd(Dec);
+    RA1  = RA - HalfWidthRA;
+    RA2  = RA + HalfWidthRA;
     Dec1 = Dec - Args.HalfWidth(2);
     Dec2 = Dec + Args.HalfWidth(2);
 
+    % does the box cross RA=0?
+    CrossZero = RA1<0 || RA2>360;
+
     if Dec2>90
-        Dec2 = 90;
-        RA1  = 0;
-        RA2  = 360;
+        Dec2      = 90;
+        RA1       = 0;
+        RA2       = 360;
+        CrossZero = false;
     end
     if Dec1<-90
-        Dec1 = -90;
-        RA1  = 0;
-        RA2  = 360;
+        Dec1      = -90;
+        RA1       = 0;
+        RA2       = 360;
+        CrossZero = false;
     end
-    if RA1<0
-        RA1 = [RA1 0];
-        RA2 = [360 RA2];
-    end
-    if RA2>360
-        RA2 = [360 RA2];
-        RA1 = [RA1 0];
-    end
-    Const = {Args.ColRA, [RA1(1), RA2(1)];
-             Args.ColDec, [Dec1, Dec2]};
 
-    if numel(RA1)>1
-        Const1 = {Args.ColRA, [RA1(2), RA2(2)]};
+    if CrossZero
+        % Constrain the RA offset from the search position rather than RA itself.
+        % A single range constraint then covers both sides of the RA=0 crossing
+        % (two RA ranges would be combined by genWhereClause with AND) (issue #579).
+        ColRA = sprintf('(modulo(%s-%.15g+540,360)-180)', Args.ColRA, RA);
+        Result = {ColRA,       [-HalfWidthRA, HalfWidthRA];
+                  Args.ColDec, [Dec1, Dec2]};
     else
-        Const1 = {};
+        Result = {Args.ColRA,  [RA1, RA2];
+                  Args.ColDec, [Dec1, Dec2]};
     end
-    Result = [Const; Const1];
-
 
 end
 

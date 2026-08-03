@@ -31,7 +31,8 @@ function [Flag] = findInBox(RA, Dec, CornersRA, CornersDec, Args)
     CornersDec = CornersDec.*Factor;
     Args.SearchRadius = Args.SearchRadius.*Factor;
 
-    D = celestial.coo.sphere_dist_fast(RA, Dec, CornersRA(:,1), CornersDec(:,2));
+    % pre-selection by the distance to the first corner of each field
+    D = celestial.coo.sphere_dist_fast(RA, Dec, CornersRA(:,1), CornersDec(:,1));
     Icand = find(D<Args.SearchRadius);
     Ncand = numel(Icand);
 

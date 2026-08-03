@@ -52,23 +52,34 @@ function [WhereClause,PixHP] = queryConeSearch_Healpix(RA, Dec, SearchRadius, Ar
 
         Args.AddWhere          = '';  % should in clude AND or OR
     end
-    RAD = 180./pi;
     ARCSEC_DEG = 3600;
-    
-warning('This function may have a bug')
 
+    % the healpix cone search works in degrees:
     if strcmp(Args.SearchRadiusUnits, 'arcsec')
         % quick conversion
-        SearchRadius = SearchRadius./(RAD.*ARCSEC_DEG);  % [rad]
+        SearchRadius = SearchRadius./ARCSEC_DEG;  % [deg]
     else
-        SearchRadius = convert.angular(Args.SearchRadiusUnits, 'rad', SearchRadius);  % [rad]
+        SearchRadius = convert.angular(Args.SearchRadiusUnits, 'deg', SearchRadius);  % [deg]
     end
-    
+
     % get Coo:
     [RA, Dec]=celestial.convert.cooResolve(RA, Dec, 'InUnits',Args.InUnits, 'OutUnits',Args.OutUnits, 'Server',Args.Server);
-    
-    % convert coo to haelpix indices
-    PixHP  = celestial.healpix.coneSearch(Args.NSide, RA./RAD, Dec./RAD, SearchRadius, 'Type',Args.Type);
+    Factor = convert.angular(Args.OutUnits, 'deg');
+
+    switch lower(Args.Type)
+        case 'nested'
+            Scheme = 'NEST';
+        case 'ring'
+            Scheme = 'RING';
+        otherwise
+            error('Unknown Type option');
+    end
+
+    % convert coo to healpix indices.
+    % The inclusive disc query of the healpix library is used: it returns all the
+    % pixels whose borders overlap the cone. The sampling-based
+    % celestial.healpix.coneSearch misses some of these pixels (issue #579).
+    PixHP  = celestial.healpix.mex.coneSearch(Args.NSide, RA.*Factor, Dec.*Factor, SearchRadius, 'inclusive', Scheme);
     if Args.UniquePixID
         % convert to unique pix id:
         PixHP = celestial.healpix.pix2uniqueId(Args.NSide, PixHP);

@@ -43,7 +43,8 @@
 
 function Result = isPointInsidePolygon(lon0, lat0, polygon)
       % Vectorized point-in-spherical-polygon test.
-      % NB: will not work if the region contains both poles!                                                                                    
+      % NB: will not work if the region contains both poles!
+      % NB: the polygon must span less than 180 deg in longitude.
       % Input: - array of longitudes in deg
       %        - array of latitudes in deg                                                                                                      
       %        - a polygon as a 2-column matrix of [lon, lat] in deg
@@ -58,10 +59,12 @@ function Result = isPointInsidePolygon(lon0, lat0, polygon)
       pol  = deg2rad(polygon);                                                                                                                  
       NEdge = size(pol, 1);                                                                                                                      
  
-      % Wrap longitudes to [0, 2*pi]                                                                                                            
-      lon0 = mod(lon0, 2*pi);
-      pol(:,1) = mod(pol(:,1), 2*pi);                                                                                                            
-                 
+      % Measure all the longitudes from the first vertex of the polygon, so that
+      % a polygon crossing lon = 0 remains contiguous (issue #579)
+      LonRef   = pol(1,1);
+      lon0     = mod(lon0     - LonRef + pi, 2*pi) - pi;
+      pol(:,1) = mod(pol(:,1) - LonRef + pi, 2*pi) - pi;
+
       % Edge endpoint arrays: 1 x NEdge (row vectors for implicit expansion)                                                                    
       idx2 = [2:NEdge, 1];
       lon1 = pol(:,1).';          % 1 x NEdge                                                                                                    

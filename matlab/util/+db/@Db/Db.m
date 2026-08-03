@@ -441,7 +441,9 @@ classdef Db < Component
             %            'Operator' - Operator between constraints.
             %                   Default is 'AND'.
             % Output : - A string containing the where clause.
-            % Author : Eran Ofek (2024 Dec) 
+            %            If the constraints are empty, then an empty clause
+            %            is returned.
+            % Author : Eran Ofek (2024 Dec)
             % Example: R=db.Db.genWhereClause({'fieldid','1456%'; 'camnum',[1 2]; 'mount',1})
         
             arguments
@@ -451,8 +453,13 @@ classdef Db < Component
             end
             FieldField = 'Field';
             ConstField = 'Range';
-        
-        
+
+            if isempty(Const)
+                % no constraints - return an empty clause
+                WhereClause = '';
+                return;
+            end
+
             if isstruct(Const)
                 Column = {Const.(FieldField)};
                 Range  = {Const.(ConstField)};

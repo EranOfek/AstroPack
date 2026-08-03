@@ -7,31 +7,37 @@ function [Result] = imagesContainingPoint(RA, Dec, Args)
     %          * ...,key,val,... 
     %         'DB' - input DB object (otherwise a default connection will be attempted)
     %         'DBName' - name of the DB
-    %         'DBUser' - read-only user name
-    %         'DBPass' - read-only user pwd
-    %         'Table'  - image table name
+    %         'DBUser' - either a user name, or a {Project, User} cell array,
+    %                    in which case the password is taken from PasswordsManager.
+    %         'DBPass' - user pwd. If empty (default), the password is taken
+    %                    from PasswordsManager according to 'DBUser'.
+    %         'Table'  - image table name. If it does not contain a DB name,
+    %                    then 'DBName' is prepended.
     %         'SelectFields' - columns to be drawn from the table: id_visit, ra1-4 and dec1-4 are mandatory
     %         'HP_ColName'   - name of the Healpix column
-    %         'PrimarySearchNside' - nside of the primary search HPix, must match HP_ColName 
+    %         'PrimarySearchNside' - nside of the primary search HPix, must match HP_ColName
     %         'PrimarySearchRad' - [deg] this radius should include all the neighboring pixels of PrimarySearchNside
-    % Output : - a table containing unique indexes of the images, exptime, and jd_start 
-    % Author : A.M. Krassilchtchikov (2025 May) 
+    %         'Verbosity' - if > 0, report the fraction of the primarily
+    %                    selected images that do contain the point. Default is 0.
+    % Output : - a table containing unique indexes of the images, exptime, and jd_start
+    % Author : A.M. Krassilchtchikov (2025 May)
     % Example: T=db.search.imagesContainingPoint("10:23:00","+40:20:00");
-    %          T=db.search.imagesContainingPoint(100,10,'DB',D); % when D is a DB connected before  
+    %          T=db.search.imagesContainingPoint(100,10,'DB',D); % when D is a DB connected before
     arguments
         RA                     = 83.63;
         Dec                    = 22.01;
         Args.DB                = [];
         Args.DBName            = 'last';
-        Args.DBUser            = 'last_user';
-        Args.DBPass            = 'physics';
-        Args.Table             = 'visit_images'; % 'visit_images';   
-        Args.SelectFields      = ["id_visit", "exptime", "jd_start", "ra1", "ra2", "ra3", "ra4", "dec1", "dec2", "dec3", "dec4"];        
-        Args.HP_ColName        = 'upix_low';  
-        Args.PrimarySearchNside= 2^8; % this should match the actual HP_ColName         
+        Args.DBUser            = {'last_ro','last_user'};  % {Project, User} in PasswordsManager
+        Args.DBPass            = [];
+        Args.Table             = 'visit_images'; % 'visit_images';
+        Args.SelectFields      = ["id_visit", "exptime", "jd_start", "ra1", "ra2", "ra3", "ra4", "dec1", "dec2", "dec3", "dec4"];
+        Args.HP_ColName        = 'upix_low';
+        Args.PrimarySearchNside= 2^8; % this should match the actual HP_ColName
         Args.PrimarySearchRad  = 1;   % [deg] this radius should include all the neighboring pixels of PrimarySearchNside
-        Args.Server            = @VO.name.server_simbad; 
-    end   
+        Args.Server            = @VO.name.server_simbad;
+        Args.Verbosity         = 0;
+    end
     %
     Ncoo   = numel(RA);
     Result = cell(Ncoo,1);
@@ -39,11 +45,19 @@ function [Result] = imagesContainingPoint(RA, Dec, Args)
     if isempty(Args.DB)
         DB = db.Db;
         DB.User = Args.DBUser;
-        DB.Password = Args.DBPass;        
+        if ~isempty(Args.DBPass)
+            DB.Password = Args.DBPass;
+        end
         DB.Conn;
-        DB.useDB(Args.DBName);  
+        DB.useDB(Args.DBName);
     else
         DB = Args.DB;
+    end
+    % qualify the table name, so that the query does not rely on the current DB
+    if contains(Args.Table,'.')
+        TableName = Args.Table;
+    else
+        TableName = sprintf('%s.%s', Args.DBName, Args.Table);
     end
     % loop the points 
     for Icoo = 1:Ncoo      
@@ -56,18 +70,19 @@ function [Result] = imagesContainingPoint(RA, Dec, Args)
         WhereClause = db.search.queryConeSearch_Healpix(RA0, Dec0,...
             Args.PrimarySearchRad,'SearchRadiusUnits','deg','NSide',Args.PrimarySearchNside, ...
             'HP_ColName',Args.HP_ColName);
-        Query = db.Db.genQuery(Args.Table, Args.SelectFields, WhereClause);
+        Query = db.Db.genQuery(TableName, Args.SelectFields, WhereClause);
         T     = DB.query(Query);
         N1    = height(T);
-        F     = false(N1,1);        
+        F     = false(N1,1);
         % next we select only those images that indeed contain the point:
         for Irow = 1:N1
             Pol = [T.ra1(Irow),T.dec1(Irow);T.ra2(Irow),T.dec2(Irow);T.ra3(Irow),T.dec3(Irow);T.ra4(Irow),T.dec4(Irow)];
             F(Irow) = celestial.search.isPointInsidePolygon(RA0, Dec0, Pol);
         end
-        Result{Icoo} = sortrows(T(F,:),'jd_start'); % select and sort by start time 
-        N2      = height(Result{Icoo}); 
-        fprintf('second selection: %.3f\n',N2/N1);  % diagnostic             
+        Result{Icoo} = sortrows(T(F,:),'jd_start'); % select and sort by start time
+        if Args.Verbosity > 0 && N1 > 0
+            fprintf('second selection: %.3f\n', height(Result{Icoo})./N1);
+        end
     end
 end
 

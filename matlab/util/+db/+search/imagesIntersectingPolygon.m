@@ -5,13 +5,18 @@ function [Result] = imagesIntersectingPolygon(P, Args)
     %          * ...,key,val,... 
     %         'DB' - input DB object (otherwise a default connection will be attempted)
     %         'DBName' - name of the DB
-    %         'DBUser' - read-only user name
-    %         'DBPass' - read-only user pwd
-    %         'Table'  - image table name
+    %         'DBUser' - either a user name, or a {Project, User} cell array,
+    %                    in which case the password is taken from PasswordsManager.
+    %         'DBPass' - user pwd. If empty (default), the password is taken
+    %                    from PasswordsManager according to 'DBUser'.
+    %         'Table'  - image table name. If it does not contain a DB name,
+    %                    then 'DBName' is prepended.
     %         'SelectFields' - columns to be drawn from the table: id_visit, ra1-4 and dec1-4 are mandatory
     %         'HP_ColName'   - name of the Healpix column
     %         'Resolution'   - [arcsec] desired accuracy = raster resolution 
     %         'MaxImageSize' - [deg] maximal size of the DB image
+    %         'Verbosity' - if > 0, report the fraction of the primarily
+    %                    selected images that do intersect the polygon. Default is 0.
     % Output : - a table containing unique indexes of the images, exptime,
     %            jd_start, and a column indicating intersection and containment 
     % Author : A.M. Krassilchtchikov (2025 Jun)
@@ -25,27 +30,34 @@ function [Result] = imagesIntersectingPolygon(P, Args)
         P
         Args.DB                = [];
         Args.DBName            = 'last';
-        Args.DBUser            = 'last_user';
-%         Args.AstroDBPassFile   = '~/.astropack/Passwords.yml'; 
-        Args.DBPass            = 'physics';
-        Args.Table             = 'vis_im_tst_dedup'; % will be mostly used for 'reference_images'    
+        Args.DBUser            = {'last_ro','last_user'};  % {Project, User} in PasswordsManager
+%         Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
+        Args.DBPass            = [];
+        Args.Table             = 'vis_im_tst_dedup'; % will be mostly used for 'reference_images'
         Args.SelectFields      = ["id_visit", "exptime", "jd_start", "ra1", "ra2", "ra3", "ra4", "dec1", "dec2", "dec3", "dec4"];        
         Args.PrimarySearchNside= 2^8; % this should match the actual HP_ColName
         Args.HP_ColName        = 'upix_low'; 
         Args.Resolution        = 10;  % [arcsec] raster resolution
         Args.MaxImageSize      = 0.7; % [deg] maximal size of the DB image
+        Args.Verbosity         = 0;
     end
     % get a connection
     if isempty(Args.DB)
         DB = db.Db;
         DB.User = Args.DBUser;
-%         Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-%         PM = PasswordsManager; DB.Password = PM.search(Args.DBName).Pass;
-        DB.Password = Args.DBPass;        
+        if ~isempty(Args.DBPass)
+            DB.Password = Args.DBPass;
+        end
         DB.Conn;
-        DB.useDB(Args.DBName);  
+        DB.useDB(Args.DBName);
     else
         DB = Args.DB;
+    end
+    % qualify the table name, so that the query does not rely on the current DB
+    if contains(Args.Table,'.')
+        TableName = Args.Table;
+    else
+        TableName = sprintf('%s.%s', Args.DBName, Args.Table);
     end
     % determine the center and the size of the polygon: 
     [RA0, Dec0, R0] = celestial.polygon.spherical_polygon_circum_circle(P);     
@@ -53,7 +65,7 @@ function [Result] = imagesIntersectingPolygon(P, Args)
     Rad = R0 + Args.MaxImageSize;
     WhereClause = db.search.queryConeSearch_Healpix(RA0, Dec0, Rad,...
             'SearchRadiusUnits','deg','NSide',Args.PrimarySearchNside, 'HP_ColName',Args.HP_ColName);
-    Query = db.Db.genQuery(Args.Table, Args.SelectFields, WhereClause);
+    Query = db.Db.genQuery(TableName, Args.SelectFields, WhereClause);
     T     = DB.query(Query);
     N1    = height(T); Empty = zeros(N1,1);
     T     = [T, table(Empty, Empty, Empty, ...
@@ -67,6 +79,7 @@ function [Result] = imagesIntersectingPolygon(P, Args)
        T.P0containP1(Irow) = Res.P0containP1; T.P1containP0(Irow) = Res.P1containP0;
     end
     Result = sortrows(T(T.Intersect>0,:),'jd_start'); % select and sort by start time
-    N2     = height(Result);
-    fprintf('second selection: %.3f\n',N2/N1);  % diagnostic
+    if Args.Verbosity > 0 && N1 > 0
+        fprintf('second selection: %.3f\n', height(Result)./N1);
+    end
 end
