@@ -11,7 +11,10 @@ function [Result] = imagesIntersectingPolygon(P, Args)
     %                    from PasswordsManager according to 'DBUser'.
     %         'Table'  - image table name. If it does not contain a DB name,
     %                    then 'DBName' is prepended.
-    %         'SelectFields' - columns to be drawn from the table: id_visit, ra1-4 and dec1-4 are mandatory
+    %         'SelectFields' - columns to be drawn from the table: an image id,
+    %                    ra1-4 and dec1-4 are mandatory. The default uses the 'id'
+    %                    alias, which exists both in the visit images ('id_visit')
+    %                    and in the reference images ('id_ref') tables.
     %         'HP_ColName'   - name of the Healpix column
     %         'Resolution'   - [arcsec] desired accuracy = raster resolution 
     %         'MaxImageSize' - [deg] maximal size of the DB image
@@ -33,8 +36,8 @@ function [Result] = imagesIntersectingPolygon(P, Args)
         Args.DBUser            = {'last_ro','last_user'};  % {Project, User} in PasswordsManager
 %         Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
         Args.DBPass            = [];
-        Args.Table             = 'vis_im_tst_dedup'; % will be mostly used for 'reference_images'
-        Args.SelectFields      = ["id_visit", "exptime", "jd_start", "ra1", "ra2", "ra3", "ra4", "dec1", "dec2", "dec3", "dec4"];        
+        Args.Table             = 'ref_images'; % the reference images table
+        Args.SelectFields      = ["id", "exptime", "jd_start", "ra1", "ra2", "ra3", "ra4", "dec1", "dec2", "dec3", "dec4"];
         Args.PrimarySearchNside= 2^8; % this should match the actual HP_ColName
         Args.HP_ColName        = 'upix_low'; 
         Args.Resolution        = 10;  % [arcsec] raster resolution
