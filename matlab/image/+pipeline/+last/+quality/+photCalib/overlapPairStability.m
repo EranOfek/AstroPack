@@ -154,17 +154,35 @@ function Result = overlapPairStability(MS, Args)
     RAmedB  = median(MSB.Data.RA,  1, 'omitnan');
     DecmedB = median(MSB.Data.Dec, 1, 'omitnan');
 
+    % KDTreeCoo (KDTreeSearcher/KDTree underneath) rejects NaN inputs, so
+    % source columns whose RA/Dec median is non-finite (all epochs rejected
+    % upstream) must be dropped before populate/coneSearch. Remember the
+    % original column ids so matched pairs can be mapped back to A's and
+    % B's original source arrays.
+    KeepA = isfinite(RAmedA) & isfinite(DecmedA);
+    KeepB = isfinite(RAmedB) & isfinite(DecmedB);
+    if ~any(KeepA) || ~any(KeepB)
+        Result = i_makeEmptyResult(Args);
+        if Args.Verbose
+            fprintf('overlapPairStability: crops %d-%d: %d/%d A sources and %d/%d B sources have finite median RA/Dec; nothing to match\n', ...
+                Args.CropA, Args.CropB, nnz(KeepA), numel(KeepA), nnz(KeepB), numel(KeepB));
+        end
+        return;
+    end
+    MapA = find(KeepA);   MapB = find(KeepB);
+
     Kdt = celestial.KDTreeCoo;
-    Kdt = Kdt.populate(RAmedB(:), DecmedB(:), 'InUnits', 'deg');
-    NnCell = Kdt.coneSearch(RAmedA(:), DecmedA(:), Args.MatchRadius, ...
+    Kdt = Kdt.populate(RAmedB(MapB).', DecmedB(MapB).', 'InUnits', 'deg');
+    NnCell = Kdt.coneSearch(RAmedA(MapA).', DecmedA(MapA).', Args.MatchRadius, ...
                 'RadiusUnits', 'arcsec', 'InUnits', 'deg');
 
     % Keep A's sources that have at least one B neighbour; pick the first
     % (which is the nearest for a small radius). Multi-nearest merging is
     % avoided intentionally - degenerate cases will show up as excess.
     HasMatch = ~cellfun(@isempty, NnCell);
-    iA = find(HasMatch);
-    iB = cellfun(@(v) v(1), NnCell(HasMatch));
+    iA = MapA(HasMatch);                                     % A's ORIGINAL cols
+    iB = MapB(cellfun(@(v) v(1), NnCell(HasMatch)));         % B's ORIGINAL cols
+    iA = iA(:).';   iB = iB(:).';                            % row vectors
 
     if isempty(iA)
         Result = i_makeEmptyResult(Args);

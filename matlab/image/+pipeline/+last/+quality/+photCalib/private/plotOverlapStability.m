@@ -44,30 +44,52 @@ function plotOverlapStability(R, MagCol, StdMethod, TitleTag)
     legend({'A only', 'B only', 'random mix'}, 'Location','best');
     title(sprintf('STD vs magnitude  (%s)', TitleTag), 'Interpreter','none');
 
-    % -------- Panel 2: mix vs baseline, EQUAL AXES ----------------------
+    % -------- Panel 2: mix vs baseline, LOG-LOG EQUAL AXES + POWER FIT --
     nexttile; hold on; grid on; box on;
-    Combined = [R.RMS_base_theory(:); R.RMS_mix(:)];
-    Combined = Combined(isfinite(Combined) & Combined > 0);
-    if isempty(Combined)
-        Lo = 0; Hi = 1;
+    % Log-log needs positive values only; drop non-positive samples.
+    Xf   = R.RMS_base_theory(:);  Yf = R.RMS_mix(:);
+    Fin  = isfinite(Xf) & isfinite(Yf) & Xf > 0 & Yf > 0;
+    Xf   = Xf(Fin);   Yf = Yf(Fin);
+    Sig  = R.RMS_mix_sigma(:);  Sig = Sig(Fin);
+    Comb = [Xf; Yf];
+    if isempty(Comb)
+        Lo = 1e-3; Hi = 1;
     else
-        Q  = quantile(Combined, [0.01 0.99]);
-        Lo = min(Q(1), 0);
+        Q  = quantile(Comb, [0.005 0.995]);
+        Lo = max(Q(1), eps);
         Hi = Q(2);
-        if ~(Hi > Lo); Hi = Lo + eps; end
+        if ~(Hi > Lo); Hi = Lo * 10; end
     end
-    plot([Lo Hi], [Lo Hi], 'k-', 'LineWidth', 1);
-    errorbar(R.RMS_base_theory, R.RMS_mix, R.RMS_mix_sigma, ...
+    % Order: data first (bottom), then reference lines ON TOP so 1:1 and
+    % fit are never occluded by the dense green cloud.
+    Hd = errorbar(Xf, Yf, Sig, ...
         'LineStyle','none', 'Marker','.', 'MarkerSize', 8, 'Color', ColMix);
+    H1 = plot([Lo Hi], [Lo Hi], 'k-', 'LineWidth', 1.5);                 % 1:1
+    % Power-law fit in log-log space: log10(y) = a*log10(x) + b
+    %   => y = 10^b * x^a. On log-log axes this draws as a straight line
+    % with slope a. Reads as "if slope~=1 or intercept~=0, drift depends
+    % on baseline scatter" (slope) or "constant additive drift" (intercept
+    % away from 0 in log space is a multiplicative offset).
+    if numel(Xf) >= 3
+        P = polyfit(log10(Xf), log10(Yf), 1);   % [slope logIntercept]
+        Xline = logspace(log10(Lo), log10(Hi), 100);
+        Yline = 10.^(P(1)*log10(Xline) + P(2));
+        % Bold dotted dark-gray line — contrasts against the green data
+        % cloud AND against the thin black 1:1 diagonal.
+        Hf = plot(Xline, Yline, ':', 'LineWidth', 3, 'Color', [0.30 0.30 0.30]);
+        legend([Hd H1 Hf], {'data', '1:1', ...
+                sprintf('fit: y = %.3f x^{%.3f}', 10.^P(2), P(1))}, ...
+               'Location', 'northwest');
+    end
+    set(gca, 'XScale', 'log', 'YScale', 'log');
     xlim([Lo Hi]); ylim([Lo Hi]);
-    axis square;                      % square panel + shared limits
+    axis square;
     xlabel('RMS_{base} = sqrt((RMS_A^2 + RMS_B^2)/2)', 'Interpreter','tex');
     ylabel('RMS_{mix} (bootstrap)', 'Interpreter','tex');
-    title('mix vs baseline (above 1:1 -> drift)');
+    title('mix vs baseline (above 1:1 -> drift, log-log)');
 
-    % -------- Panel 3: excess vs magnitude ------------------------------
+    % -------- Panel 3: excess vs magnitude — trend line only, log Y ----
     nexttile; hold on; grid on; box on;
-    plot(R.MedMag, R.Excess, '.', 'MarkerSize', 5, 'Color', [0.5 0.5 0.5 0.35]);
     yline(0, 'k:', 'LineWidth', 1);
     if numel(R.MedMag) >= 20
         Mlo = min(R.MedMag, [], 'omitnan');
@@ -80,7 +102,8 @@ function plotOverlapStability(R, MagCol, StdMethod, TitleTag)
                  'MarkerFaceColor', 'r', 'MarkerEdgeColor', 'k', 'MarkerSize', 6);
         end
     end
+    set(gca, 'YScale', 'log');
     xlabel(sprintf('median %s [mag]', MagCol), 'Interpreter','none');
     ylabel('excess = RMS_{mix} - RMS_{base}');
-    title('excess vs magnitude');
+    title('excess vs magnitude (log Y)');
 end
