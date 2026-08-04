@@ -8,6 +8,7 @@ function [Flag, FracPix, Med] = backgroundLevel(Image, Args)
     %            'UseMex' - A logical indicating if to use mex functions:
     %                   tools.array.mex.diluteArray
     %                   tools.array.mex.countAboveVal
+    %                   tools.math.stat.mex.median
     %                   Default is true.
     %            'MaxPixFraction' - Max fraction of pixels above threshold
     %                   to define a bad image. Default is 0.4.
@@ -55,7 +56,17 @@ function [Flag, FracPix, Med] = backgroundLevel(Image, Args)
         Flag    = FracPix<Args.MaxPixFraction;
     
         if nargout>2
-            Med     = tools.math.stat.mex.median(ImageW(:),1);
+            if Args.UseMex
+                % the mex median supports single/double only
+                if isfloat(ImageW)
+                    MedInput = ImageW(:);
+                else
+                    MedInput = double(ImageW(:));
+                end
+                Med = tools.math.stat.mex.median(MedInput,1);
+            else
+                Med = median(ImageW(:),1);
+            end
         end
     end
 end
