@@ -120,7 +120,12 @@ function Result = ELOPsim(Args)
     %     Rotation/Tile combination (Focus = 1 must therefore be included in Args.Focus
     %     and be processed before the other Focus values for that combination).
     % Author : A. Krassilchtchikov (2026)
-    % Example: T = ultrasat.ELOPsim('Template',{'A'},'Focus',{1}, ...
+    % Example: % run the full default grid (all Filter/Temperature/Template/Radius/
+    %          % Focus/Rotation combinations, currently 240 rows)
+    %          T = ultrasat.ELOPsim('OutDir','.','OutName','USim', ...
+    %              'UVSpecFile','UV_spec.txt','VISSpecFile','VIS_spec.txt');
+    %          % or restrict the grid to a subset:
+    %          T = ultrasat.ELOPsim('Template',{'A'},'Focus',{1}, ...
     %              'UVSpecFile','UV_spec.txt','VISSpecFile','VIS_spec.txt');
     arguments
         Args.Filter      = {'UV','VIS'};
