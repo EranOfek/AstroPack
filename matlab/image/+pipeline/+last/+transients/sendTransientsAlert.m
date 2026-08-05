@@ -90,7 +90,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
 
         AT_Report.reporting_group_id = 139;
         AT_Report.discovery_data_source_id = 139;
-        AT_Report.reporter = "R. Konno (WIS), E. Zimmerman (WIS), A. Horowicz (WIS), S. Garrappa (WIS), E. O. Ofek (WIS), S. Ben-Ami (WIS), D. Polishook (WIS), P. Chen (WIS), A. Krassilchtchikov (WIS), Y. M. Shani (WIS), E. Segre (WIS), A. Gal-Yam (WIS), S. Spitzer (WIS), and K. Rybicki (WIS) on behalf of the LAST Collaboration";
+        AT_Report.reporter = "R. Konno (WIS), E. Zimmerman (WIS), A. Horowicz (WIS), S. Garrappa (WIS), E. O. Ofek (WIS), S. Ben-Ami (WIS), D. Polishook (WIS), P. Chen (WIS), A. Krassilchtchikov (WIS), Y. M. Shani (WIS), E. Segre (WIS), A. Gal-Yam (WIS), and S. Spitzer (WIS) on behalf of the LAST Collaboration";
         AT_Report.discovery_datetime = DateString;
         AT_Report.at_type = 1;
         
