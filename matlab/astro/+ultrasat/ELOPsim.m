@@ -154,7 +154,7 @@ function Result = ELOPsim(Args)
         Args.OutDir      = '.';
         Args.OutName     = 'USim';
         Args.TableName   = 'ELOPsim_table.csv';
-        Args.OutMode     = 'production'; % 'raw' (HI/LO), 'production' (ADU/GAIN), or 'both'
+        Args.OutMode     = 'raw'; % 'raw' (HI/LO), 'production' (ADU/GAIN), or 'both'
 
         Args.Exposure    = [1 15];
         Args.SpecType    = 'Tab';
@@ -163,7 +163,7 @@ function Result = ELOPsim(Args)
 
         Args.UVSpecFile  = '';
         Args.VISSpecFile = '';
-        Args.ExtMag      = 15;
+        Args.ExtMag      = 14;
         Args.TargetSNR   = 100;
 
         Args.TemplateADiametersMm  = [0.2 0.4 0.55]; % [mm] per-source disk diameters, left->right
@@ -199,7 +199,7 @@ function Result = ELOPsim(Args)
         Args.TemplateDHoleMm       = [0 21.998 0.10];  % [mm] hole [dRA, dDec, diameter]
         Args.TemplateDRotation     = 0;                % [deg] whole-assembly rotation about the anchor
 
-        Args.DefocusKernelShape    = 'tophat'; % 'tophat' or 'topcosine'
+        Args.DefocusKernelShape    = 'topcosine'; % 'tophat' or 'topcosine'
         Args.DefocusDiameterMicron = [10 18 45 90]; % Focus = 2,3,4,5 respectively
         Args.DefocusKernel = [];
 
