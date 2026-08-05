@@ -17,8 +17,9 @@ function [Flag, FracPixAboveThreshold, Med] = backgroundLevel(AI, varargin)
     %            I.e., the fraction of pixels above Args.ThresholdBack is
     %            smaller than Args.MaxPixFraction.
     %          - Array of Fraction of pixels above threshold.
+    %          - Array of medians of the images.
     % Author : Eran Ofek (2025 Sep) 
-    % Example: [IsGoodImage, FracPixAboveThreshold]= imProc.quality.backgroundLevel(AI)
+    % Example: [IsGoodImage, FracPixAboveThreshold, Med]= imProc.quality.backgroundLevel(AI)
 
     Size    = size(AI);
     Flag    = true(Size);

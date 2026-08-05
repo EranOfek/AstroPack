@@ -17,13 +17,37 @@ function Report = overlapFlagTally(Input, Args)
     %   'KeepOnlyFlagged' to keep only pairs flagged in at least one crop.
     %
     %   Interpretation. Under the current cropping partition each crop marks
-    %   'Overlap' only on the border ring OUTSIDE its own unique (no-overlap)
-    %   partition, and those rings sit on opposite sides of the shared
-    %   partition line - so a seam-crossing star is flagged in exactly ONE
-    %   crop (the non-owner) and clean in the other. Hence NBoth should be
-    %   ~0 (only footprints straddling the partition line). A materially
-    %   non-zero NBoth fraction is the signature of a different/older
-    %   flagging scheme that set 'Overlap' symmetrically in both crops.
+    %   'Overlap' on everything OUTSIDE its own unique (no-overlap) section,
+    %   i.e. it flags every source it does not own. Those sections tile the
+    %   full frame with no gaps (for the LAST grid they are exactly the
+    %   Voronoi cells of the crop centres), so every source is owned by
+    %   exactly one crop and flagged by all the others.
+    %
+    %   NBoth is therefore NOT expected to vanish: the per-pair tally has a
+    %   floor set by the geometry, from two contributions -
+    %     - 4-crop corners: a source owned by a THIRD crop is correctly
+    %       flagged in both members of the pair. For the standard frame
+    %       ([6388 9600] cropped into 4x6 subimages of 1716^2) this is 6.9%
+    %       of the matched pairs.
+    %     - the FLAGS cutout: catalog FLAGS are ORed over a
+    %       (2*FlagHalfSize+1)^2 box (imProc.sources.findMeasureSources,
+    %       FlagHalfSize=3 by default), which dilates the flagged region
+    %       across the partition line and adds a further ~4%.
+    %   So for the standard LAST geometry the floor is FracBoth ~ 0.11, and a
+    %   measured value near it indicates a CORRECT flag. A materially LARGER
+    %   fraction (0.15-0.20, seen before issue #1183 was fixed) is the
+    %   signature of the coadd inheriting the bit from the dithered
+    %   single-epoch masks, or of an older scheme that set 'Overlap'
+    %   symmetrically in both crops.
+    %
+    %   NNeither, in contrast, IS expected to be exactly 0: the unique
+    %   sections tile the frame, so at least one member of every matched pair
+    %   is a non-owner, and the FLAGS cutout only ever adds flags.
+    %
+    %   Because of the floor the per-pair tally has no achievable perfect
+    %   score. The metric that does is per SOURCE rather than per pair:
+    %   exactly one crop leaves each source clean, i.e. NFlagged == NCopies-1
+    %   over all the crops covering it.
     %
     %   The Overlap bit is NEVER used to pair sources or to filter them -
     %   matching is purely positional (RA/Dec), so the tally is an unbiased
@@ -88,6 +112,22 @@ function Report = overlapFlagTally(Input, Args)
     %                               Default '' (no filter).
     %            'MaxVisits'      - (path mode) cap. Default Inf.
     %            'Verbose'        - Print progress + summary. Default true.
+    %            'ExpectedFracBoth' - The geometric floor of FracBoth for the
+    %                               geometry at hand (see Interpretation
+    %                               above): the fraction of matched pairs
+    %                               flagged in BOTH crops even when the flag
+    %                               is correct. Quoted in the summary, and a
+    %                               measured FracBoth exceeding it by more
+    %                               than 'FracBothTol' is reported as
+    %                               suspicious. 0.11 is the value for the
+    %                               standard LAST grid ([6388 9600] cropped
+    %                               into 4x6 subimages of 1716^2, with
+    %                               FlagHalfSize=3); other geometries need
+    %                               their own floor. Set to NaN to skip the
+    %                               check. Default is 0.11.
+    %            'FracBothTol'    - Tolerance above 'ExpectedFracBoth' before
+    %                               the summary reports the run as
+    %                               suspicious. Default is 0.02.
     % Output : - Report struct with fields:
     %            .CropPairs   - [Ninterface x 2] crop-index pairs (from
     %                           LASToverlaps); columns are (crop1, crop2) and
@@ -154,6 +194,8 @@ function Report = overlapFlagTally(Input, Args)
         Args.Filter         (1,:) char = ''
         Args.MaxVisits      (1,1) double = Inf
         Args.Verbose              logical = true
+        Args.ExpectedFracBoth (1,1) double = 0.11
+        Args.FracBothTol      (1,1) double = 0.02
     end
 
     % --- Interface table + Overlap bit value -----------------------------
@@ -259,8 +301,18 @@ function Report = overlapFlagTally(Input, Args)
                  P.NMatched, P.NVisits, ...
                  P.NBoth, 100*P.NBoth/Den, P.NOne, 100*P.NOne/Den, ...
                  P.NNeither, 100*P.NNeither/Den);
-        if P.NBoth > 0
-            fprintf('  NB: NBoth>0 -> some pairs are Overlap-flagged in BOTH crops (symmetric-flag signature).\n');
+        % NBoth has a geometric floor (4-crop corners + the FLAGS cutout), so it
+        % is not expected to vanish - see the Interpretation in the help. NNeither,
+        % in contrast, must be exactly 0 for unique sections that tile the frame.
+        if ~isnan(Args.ExpectedFracBoth)
+            fprintf('  expected FracBoth floor = %.3f (4-crop corners + FlagHalfSize) ; measured = %.3f\n', ...
+                     Args.ExpectedFracBoth, P.FracBoth);
+            if P.FracBoth > Args.ExpectedFracBoth + Args.FracBothTol
+                fprintf('  NB: FracBoth exceeds the floor by more than %.3f -> check the Overlap flagging.\n', Args.FracBothTol);
+            end
+        end
+        if P.NNeither > 0
+            fprintf('  NB: NNeither>0 -> %d pair(s) flagged in NEITHER crop; the unique sections should tile the frame.\n', P.NNeither);
         end
     end
 end
