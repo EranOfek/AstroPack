@@ -307,7 +307,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
         % limiting magnitude
         if NuJD > 0
             % Get limiting magnitudes of non-detection
-            MagsUL = ULDB.n_limmag;
+            MagsUL = ULDB.limmag;
             MagsULJDs = zeros(NuJD,1);
 
             % Initialize table for ULs
