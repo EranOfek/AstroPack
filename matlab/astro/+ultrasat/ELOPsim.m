@@ -425,8 +425,9 @@ function Angle = size2ang(SizeMm)
     % Output : - Angular size(s) [arcsec].
     % Author : A. Krassilchtchikov (Jul 2026)
     % Example: Ang = ultrasat.ELOPsim>size2ang(0.55);
+    ArcsecInRad = 206265;
     Magnification = 1.1 * 330 / 22000;
-    Angle = 206265 * Magnification * SizeMm / (1.1 * 330);
+    Angle = ArcsecInRad * Magnification * SizeMm / (1.1 * 330);
 end
 
 function [CatX, CatY] = elopSourcePixelPos(Radius, Tile)
