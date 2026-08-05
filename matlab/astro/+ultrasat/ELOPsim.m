@@ -2,16 +2,20 @@ function Result = ELOPsim(Args)
     % Build a table of ULTRASAT ELOP lab-test simulation parameters, save it to a text
     % file, and run the corresponding ultrasat.usim simulation for each row.
     %     The table lists the full factorial combination of the input parameter ranges
-    %     (one row per combination), together with the output file names used for the
-    %     high-gain/low-gain ADU FITS images and the raw electron-count (CT) FITS image
-    %     written by the corresponding ultrasat.usim run; OutFileReg: a DS9-compatible
-    %     region file (image/pixel coordinates) marking every modelled source's design
-    %     geometry for that row (a circle for Template A/B, the polygon(s) for Template
-    %     C/D); and SNRMin/SNRMax: the S/N measured empirically from that row's own CT
-    %     image (aperture photometry, not usim's analytic CrudeSNR) across all of the
-    %     row's sources -- both equal for a single-source row, and the achieved range
-    %     across sources for Template B/D. The table file is re-written after each row
-    %     completes, so a long run's results-so-far survive an interruption.
+    %     (one row per combination), together with the output file names for that row's
+    %     products (which of these are actually written, and non-empty in the table,
+    %     depends on Args.OutMode): OutFileHI/OutFileLO, the 'raw'-mode all-high-gain/
+    %     all-low-gain ADU FITS images; OutFileADU/OutFileGain, the 'production'-mode
+    %     single gain-selected ADU FITS image and its per-pixel gain-selection map;
+    %     OutFileCT, the raw electron-count FITS image (always written); OutFileReg, a
+    %     DS9-compatible region file (image/pixel coordinates) marking every modelled
+    %     source's design geometry for that row (a circle for Template A/B, the
+    %     polygon(s) for Template C/D, always written); and SNRMin/SNRMax, the S/N
+    %     measured empirically from that row's own CT image (aperture photometry, not
+    %     usim's analytic CrudeSNR) across all of the row's sources -- both equal for a
+    %     single-source row, and the achieved range across sources for Template B/D. The
+    %     table file is re-written after each row completes, so a long run's
+    %     results-so-far survive an interruption.
     % Input : * ...,key,val,...
     %         'Filter'      - cell array of filter names. Default is {'UV','VIS'}.
     %         'Temperature' - cell array of detector temperatures [K]. Default is {200,300}.
@@ -27,6 +31,17 @@ function Result = ELOPsim(Args)
     %                         template. Default is 'USim'.
     %         'TableName'   - name of the saved parameter table text file. Default is
     %                         'ELOPsim_table.csv'.
+    %         'OutMode'     - which ADU-level product(s) to write per row: 'raw' (the
+    %                         camera's raw-readout mode: separate all-high-gain and
+    %                         all-low-gain ADU images, OutFileHI/OutFileLO), 'production'
+    %                         (the camera's production-readout mode: a single per-pixel
+    %                         gain-selected ADU image plus a separate per-pixel
+    %                         gain-selection map, OutFileADU/OutFileGain -- both derived
+    %                         from usim.m's own gain-selection threshold/constants,
+    %                         reproduced locally rather than by modifying usim.m), or
+    %                         'both' (write all four). The raw electron-count image
+    %                         (OutFileCT) and region file (OutFileReg) are always written
+    %                         regardless of OutMode. Default is 'production'.
     %         'Exposure'    - [NumExposures, ExposureDuration_s], passed to usim.m as-is.
     %                         Default is [1 15].
     %         'SpecType'    - passed to usim.m's ExtSpecType. Default is 'Tab' (tabulated
@@ -139,6 +154,7 @@ function Result = ELOPsim(Args)
         Args.OutDir      = '.';
         Args.OutName     = 'USim';
         Args.TableName   = 'ELOPsim_table.csv';
+        Args.OutMode     = 'production'; % 'raw' (HI/LO), 'production' (ADU/GAIN), or 'both'
 
         Args.Exposure    = [1 15];
         Args.SpecType    = 'Tab';
@@ -198,6 +214,13 @@ function Result = ELOPsim(Args)
                              % of ExtProfileMatrix becomes a no-op
     end
 
+    if ~ismember(Args.OutMode, {'raw','production','both'})
+        error('ultrasat:ELOPsim:InvalidOutMode', ...
+            'Args.OutMode must be ''raw'', ''production'', or ''both'' (got ''%s''), exiting..', Args.OutMode);
+    end
+    WriteRaw        = any(strcmp(Args.OutMode, {'raw','both'}));
+    WriteProduction = any(strcmp(Args.OutMode, {'production','both'}));
+
     NumRows = numel(Args.Filter) * numel(Args.Temperature) * numel(Args.Template) * ...
               numel(Args.Radius) * numel(Args.Focus) * numel(Args.Rotation);
 
@@ -209,8 +232,10 @@ function Result = ELOPsim(Args)
     Focus       = zeros(NumRows,1);
     Rotation    = zeros(NumRows,1);
     Tile        = cell(NumRows,1);
-    OutFileHI   = cell(NumRows,1);
-    OutFileLO   = cell(NumRows,1);
+    OutFileHI   = repmat({''}, NumRows, 1);
+    OutFileLO   = repmat({''}, NumRows, 1);
+    OutFileADU  = repmat({''}, NumRows, 1);
+    OutFileGain = repmat({''}, NumRows, 1);
     OutFileCT   = cell(NumRows,1);
     OutFileReg  = cell(NumRows,1);
     SNRMin      = NaN(NumRows,1);
@@ -240,8 +265,14 @@ function Result = ELOPsim(Args)
                                 Args.OutName, Irow, Filter{Irow}, Temperature(Irow), ...
                                 Template{Irow}, Radius(Irow), Focus(Irow), Rotation(Irow), Tile{Irow});
 
-                            OutFileHI{Irow}  = sprintf('%s_HI.fits', BaseName);
-                            OutFileLO{Irow}  = sprintf('%s_LO.fits', BaseName);
+                            if WriteRaw
+                                OutFileHI{Irow} = sprintf('%s_HI.fits', BaseName);
+                                OutFileLO{Irow} = sprintf('%s_LO.fits', BaseName);
+                            end
+                            if WriteProduction
+                                OutFileADU{Irow}  = sprintf('%s_ADU.fits', BaseName);
+                                OutFileGain{Irow} = sprintf('%s_GAIN.fits', BaseName);
+                            end
                             OutFileCT{Irow}  = sprintf('%s_CT.fits', BaseName);
                             OutFileReg{Irow} = sprintf('%s_REG.reg', BaseName);
                         end
@@ -252,7 +283,7 @@ function Result = ELOPsim(Args)
     end
 
     Result = table(N, Filter, Temperature, Template, Radius, Focus, Rotation, Tile, ...
-        OutFileHI, OutFileLO, OutFileCT, OutFileReg, SNRMin, SNRMax);
+        OutFileHI, OutFileLO, OutFileADU, OutFileGain, OutFileCT, OutFileReg, SNRMin, SNRMax);
 
     TableFullName = sprintf('%s%s%s', Args.OutDir, '/', Args.TableName);
     writetable(Result, TableFullName);   % SNRMin/SNRMax start as NaN, filled in and
@@ -332,7 +363,7 @@ function Result = ELOPsim(Args)
             'Exposure', Args.Exposure, 'Jitter', Args.Jitter, 'DarkCurrent', DarkCurrent, ...
             'NoiseZody', false, 'NoiseCher', false, 'NoiseStray', false};
 
-        cprintf('hyper', '%s\n', sprintf('ELOPsim row %d/%d: %s', Irow, NumRows, Result.OutFileHI{Irow}));
+        cprintf('hyper', '%s\n', sprintf('ELOPsim row %d/%d: %s', Irow, NumRows, Result.OutFileCT{Irow}));
 
         MagKey = sprintf('%s|%d|%s|%g|%g|%s', Result.Filter{Irow}, Result.Temperature(Irow), ...
             Result.Template{Irow}, Result.Radius(Irow), Result.Rotation(Irow), Result.Tile{Irow});
@@ -367,12 +398,20 @@ function Result = ELOPsim(Args)
 
         Sim = ultrasat.usim(CommonArgs{:}, 'ExtMag', ExtMagVec, 'OutType', 'none');
 
-        [ImageHI, ImageLO] = elopGainImages(Sim.Image);
-
-        FITS.write(ImageHI, sprintf('!%s/%s', Args.OutDir, Result.OutFileHI{Irow}), ...
-            'DataType', 'int16', 'Append', false, 'OverWrite', true, 'WriteTime', true);
-        FITS.write(ImageLO, sprintf('!%s/%s', Args.OutDir, Result.OutFileLO{Irow}), ...
-            'DataType', 'int16', 'Append', false, 'OverWrite', true, 'WriteTime', true);
+        if WriteRaw
+            [ImageHI, ImageLO] = elopGainImages(Sim.Image);
+            FITS.write(ImageHI, sprintf('!%s/%s', Args.OutDir, Result.OutFileHI{Irow}), ...
+                'DataType', 'int16', 'Append', false, 'OverWrite', true, 'WriteTime', true);
+            FITS.write(ImageLO, sprintf('!%s/%s', Args.OutDir, Result.OutFileLO{Irow}), ...
+                'DataType', 'int16', 'Append', false, 'OverWrite', true, 'WriteTime', true);
+        end
+        if WriteProduction
+            [ImageADU, ImageGain] = elopProductionImages(Sim.Image);
+            FITS.write(ImageADU, sprintf('!%s/%s', Args.OutDir, Result.OutFileADU{Irow}), ...
+                'DataType', 'int16', 'Append', false, 'OverWrite', true, 'WriteTime', true);
+            FITS.write(ImageGain, sprintf('!%s/%s', Args.OutDir, Result.OutFileGain{Irow}), ...
+                'DataType', 'int8', 'Append', false, 'OverWrite', true, 'WriteTime', true);
+        end
         FITS.write(Sim.Image, sprintf('!%s/%s', Args.OutDir, Result.OutFileCT{Irow}), ...
             'DataType', 'single', 'Append', false, 'OverWrite', true, 'WriteTime', true);
 
@@ -1028,4 +1067,31 @@ function [ImageHI, ImageLO] = elopGainImages(Image)
 
     ImageHI = ultrasat.e2ADU(GainHI, zeros(size(Image)));  % LowGain flag = 0 (high gain)
     ImageLO = ultrasat.e2ADU(GainLO, ones(size(Image)));   % LowGain flag = 1 (low gain)
+end
+
+function [ImageADU, ImageGainMap] = elopProductionImages(Image)
+    % Encode a counts (e-) image into the single per-pixel gain-selected ADU image a
+    % production-mode camera readout outputs, plus a separate per-pixel gain-selection
+    % map -- unlike elopGainImages' two uniform all-high-gain/all-low-gain images
+    % (ELOPsim's 'raw' mode). Reproduces usim.m's own per-pixel gain-selection logic
+    % (Back/E2ADU section: GainThresh/E2ADUhigh/E2ADUlow) locally and reuses
+    % ultrasat.e2ADU for the packing step, without modifying usim.m's own behavior; the
+    % ADU value itself is packed with IncludeGainBit = false (a pure 13-bit value), since
+    % the gain selection is carried by the separate map instead of the top bit.
+    % NB: GainThresh/E2ADUhigh/E2ADUlow must be kept in sync with the values hardcoded in
+    % usim.m.
+    % Input  : - a counts (e-) image, as returned in usim.m's output AstroImage.Image.
+    % Output : - the single gain-selected ADU image (13-bit packed, no gain bit).
+    %          - the per-pixel gain-selection map (0 = high gain used, 1 = low gain used).
+    % Author : A. Krassilchtchikov (2026)
+    % Example: [ImADU, ImGain] = ultrasat.ELOPsim>elopProductionImages(Sim.Image);
+    GainThresh = 1.6e4;  % usim.m's Back/E2ADU section
+    E2ADUhigh  = 1.185;  % usim.m's Back/E2ADU section
+    E2ADUlow   = 0.074;  % usim.m's Back/E2ADU section
+
+    GainMask     = Image > GainThresh;   % 0 = high gain, 1 = low gain (usim.m's own convention)
+    GainSelected = max(Image .* (GainMask.*E2ADUlow + ~GainMask.*E2ADUhigh), 1);  % ultrasat.e2ADU requires Count >= 1
+
+    ImageADU     = ultrasat.e2ADU(GainSelected, GainMask, false);   % IncludeGainBit = false
+    ImageGainMap = uint8(GainMask);
 end
