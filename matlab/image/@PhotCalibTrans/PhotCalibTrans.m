@@ -95,7 +95,9 @@ classdef PhotCalibTrans < Component
     %   Catalog Operations:
     %     calcAperCorr - Calculate aperture corrections vs reference flux/mag column.
     %                    Stores AperCorr, AperCorrColNames, AperCorrNStars on object.
-    %                    Results written to header by photCalibTransToHeader (APCOR_A1/A2/A3/PS/N).
+    %                    Results written to header by photCalibTransToHeader
+    %                    (APCOR_A<n> per aperture, e.g. A1..A4, plus APCOR_PS,
+    %                    APCOR_N; and, when position-dependent, APC0/APCX/APCY/APCXY_A<n>).
     %                    Applied to MAG_AB_* columns by orchestrator (fitPhotCalibTrans).
     %                    On failure: AperCorr set to NaN, warning via msgLog.
     %     addMag - Add calibrated magnitude columns to catalog (AB or Vega)
@@ -171,6 +173,12 @@ classdef PhotCalibTrans < Component
                                 % NFramesPerCoadd proc frames. Used to scale flux
                                 % to a per-frame rate:
                                 %    ExpTime_eff = ExpTime / (NCoadd * NFramesPerCoadd)
+
+        CCDSEC = []             % [Xmin Xmax Ymin Ymax] image section, read from the
+                                % header CCDSEC keyword as metadata (by calibrate and
+                                % photCalibTransFromHeader). Used to normalize the
+                                % position-dependent aperture correction (calcAperCorr)
+                                % onto [-1,1] and to evaluate it in applyAperCorr.
 
         % Calibrator information (empty until calibration)
         SpecData = []           % Structure with reference spectral data from selectCalibrators:
@@ -852,6 +860,17 @@ classdef PhotCalibTrans < Component
 
             if ~isempty(Metadata)
                 Obj.setProps(struct(Metadata{:}));
+            end
+
+            % CCDSEC is a bracketed string keyword, so it cannot go through the
+            % numeric getStructKey loop above; read it separately (ReadCCDSEC
+            % parses '[Xmin Xmax Ymin Ymax]'). Used to normalize the
+            % position-dependent aperture correction onto [-1,1].
+            if ~isempty(HeaderRef) && HeaderRef.isKeyExist('CCDSEC')
+                SecVal = HeaderRef.getVal('CCDSEC', 'ReadCCDSEC', true);
+                if numel(SecVal) >= 4 && all(isfinite(SecVal(1:4)))
+                    Obj.CCDSEC = SecVal(1:4);
+                end
             end
 
             Obj.NFramesPerCoadd = Args.NFramesPerCoadd;
@@ -1558,11 +1577,11 @@ classdef PhotCalibTrans < Component
                 end
             end
 
-            % NOTE: calcAperCorr is no longer called here. It runs in
+            % NOTE: calcAperCorr runs in
             % fitPhotCalibTrans AFTER addMag creates MAG_AB_* columns,
             % so 'mag' mode can use AB magnitudes.
 
-            % Post-fit gauge fix (opt-in). Reifies the reported (Norm, kx0)
+            % Post-fit gauge fix (opt-in). Rectifies the reported (Norm, kx0)
             % split according to NormConvention. Runs after CalibTrajectory
             % has already been assembled, so the trajectory records the raw
             % fit evolution and only the final PC.TransModel is
@@ -3230,17 +3249,32 @@ classdef PhotCalibTrans < Component
                 end
             end
 
-            % Aperture corrections (NaN written when calculation failed)
+            % Aperture corrections (NaN written when calculation failed).
+            % Scalar APCOR_* are always written; when a position-dependent fit
+            % is present, its bilinear coefficients APC0/APCX/APCY/APCXY_* are
+            % also written (normalized by the header CCDSEC, not repeated here).
+            % Key writing is delegated to aperCorrToHeader (single source);
+            % here we only add the HISTORY comments. Only the canonical
+            % bilinear (4-coef) positional fit is persisted; a different-order
+            % PosModel still applies at fit time via its .Fun but is not written.
             if ~isempty(Obj.AperCorr)
-                for Iaper = 1:length(Obj.AperCorr)
-                    KeyName = PhotCalibTrans.fluxCol2AperCorrKey(Obj.AperCorrColNames{Iaper});
-                    HeaderObj = HeaderObj.replaceVal(KeyName, Obj.AperCorr(Iaper));
-                    if Args.WriteComments
+                HeaderObj = Obj.aperCorrToHeader(HeaderObj);
+                if Args.WriteComments
+                    HasPos = iscell(Obj.AperCorrPositional) && ...
+                             numel(Obj.AperCorrPositional) == numel(Obj.AperCorr);
+                    for Iaper = 1:length(Obj.AperCorr)
+                        Keys = PhotCalibTrans.fluxCol2AperCorrKeys(Obj.AperCorrColNames{Iaper});
                         IComment = IComment + 1;
-                        HistoryComments{IComment} = sprintf('%s: Aperture correction for %s [mag]', KeyName, Obj.AperCorrColNames{Iaper});
+                        HistoryComments{IComment} = sprintf('%s: Aperture correction for %s [mag]', Keys.Scalar, Obj.AperCorrColNames{Iaper});
+                        if HasPos
+                            PF = Obj.AperCorrPositional{Iaper};
+                            if isstruct(PF) && isfield(PF, 'Par') && numel(PF.Par) == 4
+                                IComment = IComment + 1;
+                                HistoryComments{IComment} = sprintf('%s..%s: position-dependent AperCorr bilinear coefs [mag], CCDSEC-normalized', Keys.C0, Keys.Cxy);
+                            end
+                        end
                     end
                 end
-                HeaderObj = HeaderObj.replaceVal('APCOR_N', Obj.AperCorrNStars);
             end
 
             % Constant-band delta ZP
@@ -3386,6 +3420,53 @@ classdef PhotCalibTrans < Component
                 Val = HeaderObj.getVal('NCOADD');
                 if ~isnan(Val)
                     Obj.NCoadd = Val;
+                end
+            end
+
+            % CCDSEC (normalization for the position-dependent aperture
+            % correction) - bracketed-string keyword, read with ReadCCDSEC.
+            if HeaderObj.isKeyExist('CCDSEC')
+                SecVal = HeaderObj.getVal('CCDSEC', 'ReadCCDSEC', true);
+                if numel(SecVal) >= 4 && all(isfinite(SecVal(1:4)))
+                    Obj.CCDSEC = SecVal(1:4);
+                end
+            end
+
+            % Aperture corrections. Reconstruct the parallel arrays
+            % (AperCorr / AperCorrColNames / AperCorrPositional) keyed by the
+            % aperture tag. Column names are rebuilt with MagColPrefix, i.e.
+            % the mag-mode naming produced by calcAperCorr's default. When the
+            % bilinear coefficients APC0.. are present, the positional fit is
+            % restored as a struct with .Par so applyAperCorr can evaluate it.
+            CandTags = [arrayfun(@(k) sprintf('A%d',k), 1:9, 'UniformOutput', false), {'PS'}];
+            AperCorrVec = []; AperCorrCols = {}; PosCell = {};
+            for It = 1:numel(CandTags)
+                Tag = CandTags{It};
+                ScalarKey = ['APCOR_', Tag];
+                if ~HeaderObj.isKeyExist(ScalarKey); continue; end
+                AperCorrVec(end+1) = HeaderObj.getVal(ScalarKey); %#ok<AGROW>
+                AperCorrCols{end+1} = PhotCalibTrans.aperTag2MagCol(Tag, Obj.MagColPrefix); %#ok<AGROW>
+                PosEntry = [];
+                C0Key = ['APC0_', Tag];
+                if HeaderObj.isKeyExist(C0Key)
+                    Par = [HeaderObj.getVal(C0Key), ...
+                           HeaderObj.getVal(['APCX_',  Tag]), ...
+                           HeaderObj.getVal(['APCY_',  Tag]), ...
+                           HeaderObj.getVal(['APCXY_', Tag])];
+                    if all(isfinite(Par))
+                        PosEntry = struct('Par', Par);
+                    end
+                end
+                PosCell{end+1} = PosEntry; %#ok<AGROW>
+            end
+            if ~isempty(AperCorrVec)
+                Obj.AperCorr = AperCorrVec;
+                Obj.AperCorrColNames = AperCorrCols;
+                if any(~cellfun(@isempty, PosCell))
+                    Obj.AperCorrPositional = PosCell;
+                end
+                if HeaderObj.isKeyExist('APCOR_N')
+                    Obj.AperCorrNStars = HeaderObj.getVal('APCOR_N');
                 end
             end
 
@@ -3546,7 +3627,7 @@ classdef PhotCalibTrans < Component
             %   AperCorrNStars). Orchestrators (e.g., fitPhotCalibTrans)
             %   apply the corrections to existing MAG_<System>_* columns
             %   after this method runs. photCalibTransToHeader writes
-            %   APCOR_A1, APCOR_A2, APCOR_A3, APCOR_PS, APCOR_N keywords
+            %   APCOR_A<n> (one per aperture, e.g. A1..A4), APCOR_PS, APCOR_N keywords
             %   to the FITS header. NaN is written when calculation failed.
             %   On failure (missing columns, too few stars), AperCorr is set
             %   to NaN and a warning is issued via msgLog (no stdout).
@@ -3565,6 +3646,18 @@ classdef PhotCalibTrans < Component
             %            'SNColName'      - S/N column name for filtering. Default is 'SN'.
             %            'MinSN'          - Minimum S/N for star selection. Default is 30.
             %            'MaxSN'          - Maximum S/N. Default is Inf.
+            %            'FilterBadFlags' - Reject sources whose FLAGS carry any
+            %                        of BadFlags, in addition to the S/N cut.
+            %                        Default true. (Set false to reproduce the
+            %                        old S/N-only selection.)
+            %            'BadFlags'       - Bit names to reject. Default
+            %                        {'Saturated','NaN','Negative','CR_DeltaHT',
+            %                        'NearEdge'}. Names absent from the
+            %                        dictionary are skipped with a warning.
+            %            'FlagsColName'   - FLAGS column. Default 'FLAGS'. If
+            %                        absent, the flag filter is skipped (warning).
+            %            'BitDictName'    - BitDictionary for the bit names.
+            %                        Default 'BitMask.Image.Default'.
             %            'Method'         - 'median' or 'weighted'. Default is 'median'.
             %            'CalcCorrType'   - 'flux' (default) computes
             %                        -2.5*log10(median(FLUX_i / FLUX_ref)) from
@@ -3613,13 +3706,17 @@ classdef PhotCalibTrans < Component
                 Args.SNColName = 'SN'
                 Args.MinSN = 30
                 Args.MaxSN = Inf
+                Args.FilterBadFlags  logical = true
+                Args.BadFlags        cell   = {'Saturated','NaN','Negative','CR_DeltaHT','NearEdge'}
+                Args.FlagsColName    (1,:) char = 'FLAGS'
+                Args.BitDictName     (1,:) char = 'BitMask.Image.Default'
                 Args.Method = 'median'
                 Args.CalcCorrType = 'mag'            % 'mag' or 'flux'
                 Args.UpdateMagIfFail logical = true  % If true, NaN correction propagates to magnitudes
                 Args.Positional      logical = false
                 Args.PosColNameX     (1,:) char = 'X'
                 Args.PosColNameY     (1,:) char = 'Y'
-                Args.PosCCDSEC       double = [1 1716 1 1716]
+                Args.PosCCDSEC       double = []   % [] -> use Obj.CCDSEC (from header metadata), else [1 1716 1 1716]
                 Args.PosModel        cell   = {@(x,y) 1, @(x,y) x, @(x,y) y, @(x,y) x.*y}
                 Args.PosSigmaClip    (1,2) double = [3 3]
                 Args.PosMaxIter      (1,1) double {mustBePositive, mustBeInteger} = 3
@@ -3628,6 +3725,23 @@ classdef PhotCalibTrans < Component
 
             % Reset any previous positional fits.
             Obj.AperCorrPositional = {};
+
+            % Resolve the CCDSEC used to normalize the positional fit onto
+            % [-1,1]: explicit arg wins, else the object's CCDSEC (populated
+            % from the header by calibrate), else the LAST per-crop default.
+            % Record it on Obj.CCDSEC so applyAperCorr and the header
+            % round-trip evaluate on the same normalization.
+            PosCCDSEC = Args.PosCCDSEC;
+            if isempty(PosCCDSEC)
+                if ~isempty(Obj.CCDSEC)
+                    PosCCDSEC = Obj.CCDSEC;
+                else
+                    PosCCDSEC = [1 1716 1 1716];
+                end
+            end
+            if Args.Positional && isempty(Obj.CCDSEC)
+                Obj.CCDSEC = PosCCDSEC;
+            end
 
             % Get column names
             AllColNames = CatObj.Table.Properties.VariableNames;
@@ -3711,6 +3825,37 @@ classdef PhotCalibTrans < Component
                 Msg = sprintf('calcAperCorr: S/N column %s not found - using all sources', Args.SNColName);
                 Obj.msgLog(LogLevel.Warning, Msg);
                 Mask = true(CatObj.sizeCatalog, 1);
+            end
+
+            % Reject bad-flag detections (FLAGS bitmask). Saturated / NaN /
+            % negative / cosmic-ray / near-edge sources bias the aperture
+            % correction; NearEdge in particular levers the position-dependent
+            % fit toward the crop corners. AND-combined with the S/N mask.
+            if Args.FilterBadFlags && ~isempty(Args.BadFlags) && ...
+                    ismember(Args.FlagsColName, AllColNames)
+                BD = BitDictionary(Args.BitDictName);
+                [BadInd, ~] = BD.name2bit(Args.BadFlags);
+                BadInd = double(BadInd(:));
+                Missing = Args.BadFlags(~isfinite(BadInd));
+                if ~isempty(Missing)
+                    Obj.msgLog(LogLevel.Warning, sprintf( ...
+                        'calcAperCorr: bad-flag name(s) not in %s: %s', ...
+                        Args.BitDictName, strjoin(Missing, ', ')));
+                end
+                BadInd = BadInd(isfinite(BadInd));
+                if ~isempty(BadInd)
+                    BadMask = uint32(0);
+                    for Ib = 1:numel(BadInd)
+                        BadMask = bitor(BadMask, bitshift(uint32(1), uint32(BadInd(Ib))));
+                    end
+                    FlagsVec = CatObj.getCol(Args.FlagsColName);
+                    FlagsVec(isnan(FlagsVec)) = 0;
+                    IsBad = bitand(uint32(FlagsVec), BadMask) ~= 0;
+                    Mask = Mask & ~IsBad(:);
+                end
+            elseif Args.FilterBadFlags && ~ismember(Args.FlagsColName, AllColNames)
+                Obj.msgLog(LogLevel.Warning, sprintf( ...
+                    'calcAperCorr: FLAGS column %s not found - bad-flag filter skipped', Args.FlagsColName));
             end
 
             NStars = sum(Mask);
@@ -3869,10 +4014,17 @@ classdef PhotCalibTrans < Component
                             PosCell{Iaper} = imUtil.calib.fitPositionalDiff( ...
                                 MagDiffAper(Good), Xhi(Good), Yhi(Good), ...
                                 'Model',      Args.PosModel, ...
-                                'CCDSEC',     Args.PosCCDSEC, ...
+                                'CCDSEC',     PosCCDSEC, ...
                                 'FitMethod',  '\', ...
                                 'SigmaClip',  Args.PosSigmaClip, ...
                                 'MaxIter',    Args.PosMaxIter);
+                            % Keep the aperture-correction calibrators the fit
+                            % was built on (positions + MagDiff), so callers can
+                            % inspect/overlay them. FlagUse (from the fit) marks
+                            % which survived the sigma-clip.
+                            PosCell{Iaper}.Xfit    = Xhi(Good);
+                            PosCell{Iaper}.Yfit    = Yhi(Good);
+                            PosCell{Iaper}.MagDiff = MagDiffAper(Good);
                         catch ME
                             Obj.msgLog(LogLevel.Warning, sprintf( ...
                                 'calcAperCorr: positional fit failed on %s (%s)', ...
@@ -3900,6 +4052,123 @@ classdef PhotCalibTrans < Component
                     fprintf('    %s: %+.4f mag\n', AperCols{Iaper}, AperCorrVec(Iaper));
                 end
             end
+        end
+
+        function CatObj = applyAperCorr(Obj, CatObj, Args)
+            % Apply scalar or position-dependent aperture corrections in place.
+            %   For each calibrated-magnitude column in AperCorrColNames that
+            %   is present in CatObj, adds either the per-source bilinear
+            %   correction (when a position-dependent fit is stored in
+            %   AperCorrPositional and Obj.CCDSEC is set) or the scalar
+            %   AperCorr. Positions come from ColX/ColY (native), falling back
+            %   to XFULL/YFULL. Behaves identically whether the fit just ran
+            %   (calcAperCorr) or was restored from a header
+            %   (photCalibTransFromHeader) - both leave {.Par} + Obj.CCDSEC.
+            % Input  : - PhotCalibTrans object with AperCorr(+Positional).
+            %          - AstroCatalog with calibrated-mag columns and X/Y.
+            %          * ...,key,val,...
+            %            'ColX' - native X column. Default 'X' (XFULL fallback).
+            %            'ColY' - native Y column. Default 'Y' (YFULL fallback).
+            %            'Mode' - Which correction to apply per column:
+            %                     'auto'       - position-dependent when a fit
+            %                                    is present, else scalar (default;
+            %                                    the status-quo behaviour).
+            %                     'scalar'     - always the scalar AperCorr,
+            %                                    even if a positional fit exists.
+            %                     'positional' - the positional fit only; columns
+            %                                    without one are left unchanged
+            %                                    (no scalar fallback).
+            % Output : - CatObj with corrected magnitude columns (in place).
+            % Author : D. Kovaleva (Aug 2026)
+            % Example: Cat = PC.applyAperCorr(Cat);
+            %          Cat = PC.applyAperCorr(Cat, 'Mode', 'scalar');
+            arguments
+                Obj
+                CatObj
+                Args.ColX (1,:) char = 'X'
+                Args.ColY (1,:) char = 'Y'
+                Args.Mode (1,:) char {mustBeMember(Args.Mode, {'auto','scalar','positional'})} = 'auto'
+            end
+            if isempty(Obj.AperCorr) || isempty(Obj.AperCorrColNames)
+                return;
+            end
+            AllCol = CatObj.Table.Properties.VariableNames;
+            HasPos = iscell(Obj.AperCorrPositional) && ...
+                     numel(Obj.AperCorrPositional) == numel(Obj.AperCorr);
+            Xper = []; Yper = [];
+            if HasPos
+                for CN = {Args.ColX, 'XFULL'}
+                    if ismember(CN{1}, AllCol); Xper = CatObj.getCol(CN{1}); break; end
+                end
+                for CN = {Args.ColY, 'YFULL'}
+                    if ismember(CN{1}, AllCol); Yper = CatObj.getCol(CN{1}); break; end
+                end
+            end
+            for Iap = 1:numel(Obj.AperCorrColNames)
+                ColName = Obj.AperCorrColNames{Iap};
+                if ~ismember(ColName, AllCol); continue; end
+                PosFit = [];
+                if HasPos; PosFit = Obj.AperCorrPositional{Iap}; end
+                dCorr = [];
+                % Position-dependent shift, unless the caller forced 'scalar'.
+                if ~strcmp(Args.Mode, 'scalar') && HasPos && ...
+                        ~isempty(Xper) && ~isempty(Yper) && ...
+                        isstruct(PosFit) && isfield(PosFit, 'Par')
+                    if isfield(PosFit, 'Fun') && ~isempty(PosFit.Fun)
+                        % Fit-time: fitPositionalDiff's own evaluator (any model order).
+                        dCorr = PosFit.Fun(Xper, Yper, PosFit.Par);
+                    elseif numel(PosFit.Par) >= 4 && ~isempty(Obj.CCDSEC)
+                        % Header-restored: bilinear coefficients + CCDSEC.
+                        dCorr = PhotCalibTrans.evalAperPos(PosFit.Par, Xper, Yper, Obj.CCDSEC);
+                    end
+                end
+                if ~isempty(dCorr)
+                    Vals = CatObj.getCol(ColName) + dCorr(:);
+                    CatObj.replaceCol(Vals, ColName);
+                elseif ~strcmp(Args.Mode, 'positional') && isfinite(Obj.AperCorr(Iap))
+                    % Scalar shift ('auto' fallback or 'scalar' mode); skipped
+                    % in 'positional' mode when no positional fit is available.
+                    Vals = CatObj.getCol(ColName) + Obj.AperCorr(Iap);
+                    CatObj.replaceCol(Vals, ColName);
+                end
+            end
+        end
+
+        function HeaderObj = aperCorrToHeader(Obj, HeaderObj)
+            % Write ONLY the aperture-correction keywords into a header.
+            %   Scalar APCOR_<tag> per aperture, the position-dependent
+            %   bilinear coefficients APC0/APCX/APCY/APCXY_<tag> when a
+            %   4-coef fit is present (normalized by the image CCDSEC), and
+            %   APCOR_N. Nothing else is touched, so - unlike
+            %   photCalibTransToHeader, which stamps the whole calibration -
+            %   it is safe to call on an already-populated image header (e.g.
+            %   from a diagnostic that only (re)fit the aperture correction).
+            %   Keyword names come from fluxCol2AperCorrKeys (single source).
+            % Input  : - PhotCalibTrans with AperCorr[+Positional] populated.
+            %          - AstroHeader to write into (handle; mutated in place).
+            % Output : - The same AstroHeader.
+            % Author : D. Kovaleva (Aug 2026)
+            % Example: AI.HeaderData = PC.aperCorrToHeader(AI.HeaderData);
+            if isempty(Obj.AperCorr) || isempty(Obj.AperCorrColNames)
+                return;
+            end
+            HasPos = iscell(Obj.AperCorrPositional) && ...
+                     numel(Obj.AperCorrPositional) == numel(Obj.AperCorr);
+            for Iaper = 1:numel(Obj.AperCorr)
+                Keys = PhotCalibTrans.fluxCol2AperCorrKeys(Obj.AperCorrColNames{Iaper});
+                HeaderObj = HeaderObj.replaceVal(Keys.Scalar, Obj.AperCorr(Iaper));
+                if HasPos
+                    PF = Obj.AperCorrPositional{Iaper};
+                    if isstruct(PF) && isfield(PF, 'Par') && numel(PF.Par) == 4
+                        P = PF.Par;
+                        HeaderObj = HeaderObj.replaceVal(Keys.C0,  P(1));
+                        HeaderObj = HeaderObj.replaceVal(Keys.Cx,  P(2));
+                        HeaderObj = HeaderObj.replaceVal(Keys.Cy,  P(3));
+                        HeaderObj = HeaderObj.replaceVal(Keys.Cxy, P(4));
+                    end
+                end
+            end
+            HeaderObj = HeaderObj.replaceVal('APCOR_N', Obj.AperCorrNStars);
         end
 
         function CatObj = addMag(Obj, CatObj, Args)
@@ -6496,23 +6765,67 @@ classdef PhotCalibTrans < Component
             end
         end
 
-        function KeyName = fluxCol2AperCorrKey(ColName)
-            % Convert flux/mag column name to FITS header keyword (max 8 chars)
-            %   FLUX_APER_1 / MAG_AB_APER_1 / MAG_APER_1 -> APCOR_A1
-            %   FLUX_PSF    / MAG_AB_PSF                 -> APCOR_PS
-            % Input  : - Column name (char)
-            % Output : - FITS keyword (char, max 8 chars)
+        function Keys = fluxCol2AperCorrKeys(ColName)
+            % FITS header keyword names for an aperture correction (all <=8 chars).
+            %   Returns a struct with every keyword for this aperture column:
+            %     .Scalar - scalar correction     (APCOR_A1 / APCOR_PS / ...)
+            %     .C0 .Cx .Cy .Cxy - bilinear position-dependent coefficients
+            %                        (APC0_A1, APCX_A1, APCY_A1, APCXY_A1 / ..._PS)
+            %   Aperture tag: FLUX_APER_1 / MAG_AB_APER_1 / MAG_APER_1 -> 'A1';
+            %                 FLUX_PSF / MAG_AB_PSF -> 'PS'; else last 2 chars.
+            %   Single source of truth for the aperture-tag -> keyword mapping,
+            %   used by photCalibTransToHeader and photCalibTransFromHeader.
+            % Input  : - Column name (char).
+            % Output : - Struct of FITS keyword names.
 
             if contains(ColName, 'APER_')
-                Suffix = extractAfter(ColName, 'APER_');
-                KeyName = ['APCOR_A', Suffix];
+                Tag = ['A', extractAfter(ColName, 'APER_')];
             elseif endsWith(ColName, 'PSF')
-                KeyName = 'APCOR_PS';
+                Tag = 'PS';
             else
-                % Generic: take last 2 chars of column name
                 Tag = ColName(max(1, end-1):end);
-                KeyName = ['APCOR_', Tag];
             end
+            Keys.Scalar = ['APCOR_', Tag];
+            Keys.C0     = ['APC0_',  Tag];
+            Keys.Cx     = ['APCX_',  Tag];
+            Keys.Cy     = ['APCY_',  Tag];
+            Keys.Cxy    = ['APCXY_', Tag];
+        end
+
+        function ColName = aperTag2MagCol(Tag, MagColPrefix)
+            % Inverse of the aperture tag: reconstruct the calibrated-mag
+            % column name from an aperture keyword tag, for header read-back.
+            %   'A1' -> [MagColPrefix 'APER_1'] ;  'PS' -> [MagColPrefix 'PSF'].
+            % Input  : - Aperture tag ('A1'..'A9', 'PS', ...).
+            %          - MagColPrefix (e.g. 'MAG_AB_').
+            % Output : - Column name (char).
+            if strcmpi(Tag, 'PS')
+                ColName = [MagColPrefix, 'PSF'];
+            elseif numel(Tag) >= 2 && (Tag(1) == 'A' || Tag(1) == 'a')
+                ColName = [MagColPrefix, 'APER_', Tag(2:end)];
+            else
+                ColName = [MagColPrefix, Tag];
+            end
+        end
+
+        function d = evalAperPos(Par, X, Y, CCDSEC)
+            % Evaluate the bilinear position-dependent aperture correction.
+            %   d(X,Y) = C0 + Cx*Xn + Cy*Yn + Cxy*Xn*Yn, with
+            %   Xn=(X-MidX)/RangeX, Yn=(Y-MidY)/RangeY normalized by CCDSEC -
+            %   the SAME convention as imUtil.calib.fitPositionalDiff, so a fit
+            %   and its header round-trip evaluate identically.
+            % Input  : - Par = [C0 Cx Cy Cxy] (bilinear coefficients).
+            %          - X, Y - coordinate vectors (native, in CCDSEC frame).
+            %          - CCDSEC = [Xmin Xmax Ymin Ymax].
+            % Output : - d - per-source correction [mag], column vector.
+            MidX   = (CCDSEC(2) + CCDSEC(1)).*0.5;
+            RangeX = (CCDSEC(2) - CCDSEC(1)).*0.5;
+            MidY   = (CCDSEC(4) + CCDSEC(3)).*0.5;
+            RangeY = (CCDSEC(4) - CCDSEC(3)).*0.5;
+            Xn = (X(:) - MidX)./RangeX;
+            Yn = (Y(:) - MidY)./RangeY;
+            P  = Par(:).';
+            d  = P(1) + P(2).*Xn + P(3).*Yn + P(4).*Xn.*Yn;
         end
     end
 

@@ -100,7 +100,7 @@ function Result = plotHeaderScatter(DataPath, Args)
         DataPath                          {mustBeText}
         Args.XKey            (1,:) char
         Args.YKey            (1,:) char
-        Args.VisitPattern    {mustBeText}              = '*v[0-9]*'
+        Args.VisitPattern    {mustBeText}              = '' %        '*v[0-9]*'
         Args.Recursive       logical                    = true
         Args.FileType        {mustBeMember(Args.FileType, {'coadd','proc'})} = 'coadd'
         Args.FieldId                                      = ''
