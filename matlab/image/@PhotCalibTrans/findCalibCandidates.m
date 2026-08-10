@@ -94,25 +94,20 @@ function [Cands, FieldTab, CatH] = findCalibCandidates(Cat, Args)
     Cands.MatchDistRad = DistRadAll(HasMatchMask);
     Cands.Nmatch       = NmatchAll(HasMatchMask);
 
-    % Attach Gaia "tail" columns from the GAIADR3spec regen (Jun 2026):
-    % positions 693-700 carry PM, Gaia photometry, BP-RP, BP-RP-excess and
-    % the classprob_dsc_combmod_star flag. Pulling them through here means
-    % auditCalibCandidates no longer needs a secondary GAIADR3 cone search,
-    % AttachBP_RP no longer needs fetchGaiaBPRP, and the pythonLike PM
-    % propagation no longer needs a parallel match.
+
     GaiaTailCols = {'PMRA', 'PMDec', 'phot_g_mean_mag', 'phot_bp_mean_mag', ...
                     'phot_rp_mean_mag', 'bp_rp', 'phot_bp_rp_excess_factor', ...
                     'classprob_dsc_combmod_star'};
-    CalIdxRows  = double(CalIdxAll(HasMatchMask));
-    CatHColNames = CatH.ColNames;
-    for K = 1:numel(GaiaTailCols)
-        CName = GaiaTailCols{K};
-        Idx = find(strcmp(CatHColNames, CName), 1);
-        if isempty(Idx); continue; end
+ 
+    [Present, ~, ColIdx] = intersect(GaiaTailCols, CatH.ColNames, 'stable');
+    if ~isempty(ColIdx)
         if istable(CatH.Catalog)
-            Cands.(CName) = double(CatH.Catalog{CalIdxRows, Idx});
+            TailVals = double(CatH.Catalog{:, ColIdx});
         else
-            Cands.(CName) = double(CatH.Catalog(CalIdxRows, Idx));
+            TailVals = double(CatH.Catalog(:, ColIdx));
+        end
+        for K = 1:numel(Present)
+            Cands.(Present{K}) = TailVals(Cands.CalibInd, K);
         end
     end
 end

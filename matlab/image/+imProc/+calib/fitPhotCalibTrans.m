@@ -46,15 +46,11 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %                             'AirmassSource' ('header' | 'compute')
     %                             'AirmassTimeKey' ('DATE-OBS' | 'JD' | 'MIDJD')
     %                             'ObsLat' / 'ObsLon' / 'ObsHeight'
-    %                         Gaia colour columns:
-    %                           'AttachBP_RP' (default true) - attaches BP_RP,
-    %                             MAG_BP, MAG_RP columns to SourceData via one
-    %                             extra catsHTM match against AuditCatName
-    %                             (default 'GAIADR3'). Inherited by every
-    %                             CalibTrajectory snapshot's SourceData (no
-    %                             extra plumbing). NaN-filled where the Gaia
-    %                             match misses. Pass 'AttachBP_RP', false via
-    %                             CalibArgs to skip the extra match.
+    %                         Gaia colour columns: SourceData always carries
+    %                         BP_RP, MAG_BP, MAG_RP read from the GAIADR3spec
+    %                         tail columns already on each candidate (no extra
+    %                         match; NaN where the Gaia match misses). Inherited
+    %                         by every CalibTrajectory snapshot's SourceData.
     %                         Sigma-clipping inside the fit is governed by
     %                         CalibArgs entry 'SigmaClipMethod' (default
     %                         'median'). Three options forwarded to
@@ -113,17 +109,11 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %            'LimMagSN'        - SN at which to evaluate LimMag. Default is 5.
     %            'SelectionMethod' - Top-level shortcut for the calibrator-
     %                         selection recipe forwarded into CalibArgs.
-    %                         'catsHTM' (default; existing path) or
-    %                         'pythonLike' (mirror Python GaiaQuery prototype
-    %                         in selectCalibratorsPythonLike). Equivalent to
+    %                         'main' (default; the standard path) or
+    %                         'legacy' (mirror the old Python GaiaQuery prototype
+    %                         in selectCalibratorsLegacy). Equivalent to
     %                         appending {'SelectionMethod', value} to
-    %                         CalibArgs; only forwarded when ~='catsHTM'.
-    %            'UseTAPClassprob' - Top-level shortcut for the optional Gaia
-    %                         DR3 TAP classprob_dsc_combmod_star>0.9 filter
-    %                         in 'pythonLike' selection. Only consulted when
-    %                         SelectionMethod='pythonLike'. Default false.
-    %                         Equivalent to appending {'UseTAPClassprob',
-    %                         true} to CalibArgs; only forwarded when true.
+    %                         CalibArgs; only forwarded when ~='main'.
     %            'UseTypicalX' - Top-level shortcut to forward the
     %                         'TypicalX' option to lsqnonlin in
     %                         CompositeFun.fitPar. When true, per-parameter
@@ -189,7 +179,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %                         Plus every column from the live Obj.SourceData
     %                         at snap time (Flux, FluxErr, X, Y, RA, Dec,
     %                         MatchDistance, NumMatches, optional AIRMASS,
-    %                         and BP_RP/MAG_BP/MAG_RP when AttachBP_RP=true).
+    %                         and the Gaia BP_RP/MAG_BP/MAG_RP columns).
     %                         Plumbed through to PhotCalibTrans.calibrate
     %                         which assembles the per-snap catalog and
     %                         stores it on PC.CalibTrajectory (without
@@ -252,12 +242,11 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %          % reading AIRMASS keyword (matches Python production):
     %          [Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AI, ...
     %              'CalibArgs', {'AirmassSource', 'compute'});
-    %          % Full Python-prototype recipe (pythonLike selection + TAP
-    %          % classprob filter) combined with Hardie airmass via CalibArgs:
+    %          % Legacy Python-prototype recipe combined with
+    %          % Hardie airmass via CalibArgs:
     %          [Result, PC, FR] = imProc.calib.fitPhotCalibTrans(AI, ...
     %              'CreateNewObj', true, ...
-    %              'SelectionMethod', 'pythonLike', ...
-    %              'UseTAPClassprob', true, ...
+    %              'SelectionMethod', 'legacy', ...
     %              'CalibArgs', {'AirmassSource', 'compute'});
     %          % Calibrate a coadd-of-coadds (e.g. coaddVisits output):
     %          % EXPTIME sums NCOADD input coadds, each itself a coadd of 20 procs.
@@ -334,7 +323,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % behaviour.
         Args.AperCorrFilterBadFlags logical = true
         Args.AperCorrBadFlags cell = {'Saturated','NaN','Negative','CR_DeltaHT','NearEdge'}
-        Args.AperCorrPositional logical = false
+        Args.AperCorrPositional logical = true   % default path: position-dependent aperture correction
         Args.AperCorrPosColNameX (1,:) char = 'X'
         Args.AperCorrPosColNameY (1,:) char = 'Y'
         Args.AperCorrPosCCDSEC = []   % [] -> normalize by the image CCDSEC (from the header); else an explicit [Xmin Xmax Ymin Ymax]
@@ -375,15 +364,13 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.WriteComputedAirmass logical = false
 
         % Alternate calibrator selection (forwarded into CalibArgs).
-        % Top-level shortcuts so callers can write
-        %   fitPhotCalibTrans(AI, 'SelectionMethod', 'pythonLike',
-        %                         'UseTAPClassprob', true)
-        % without having to wrap them in a CalibArgs cell. Conditionally
-        % appended only when non-default so they don't override an
+        % Top-level shortcut so callers can write
+        %   fitPhotCalibTrans(AI, 'SelectionMethod', 'legacy')
+        % without having to wrap it in a CalibArgs cell. Conditionally
+        % appended only when non-default so it doesn't override an
         % explicit CalibArgs value the caller already supplied.
         Args.SelectionMethod char {mustBeMember(Args.SelectionMethod, ...
-            {'catsHTM','pythonLike'})} = 'catsHTM'
-        Args.UseTAPClassprob logical = false
+            {'main','legacy'})} = 'main'
 
         % Pass per-parameter TypicalX to lsqnonlin. Same conditional-
         % append pattern as the two above. Default false preserves
@@ -454,11 +441,8 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     % Top-level shortcuts for calibrator-selection knobs. Conditionally
     % appended only when non-default — last-write-wins, so an explicit
     % value already in CalibArgs gets overridden by the top-level value.
-    if ~strcmpi(Args.SelectionMethod, 'catsHTM')
+    if ~strcmpi(Args.SelectionMethod, 'main')
         Args.CalibArgs = [Args.CalibArgs, {'SelectionMethod', Args.SelectionMethod}];
-    end
-    if Args.UseTAPClassprob
-        Args.CalibArgs = [Args.CalibArgs, {'UseTAPClassprob', true}];
     end
     if Args.UseTypicalX
         Args.CalibArgs = [Args.CalibArgs, {'UseTypicalX', true}];
@@ -887,19 +871,25 @@ function CalibArgs = predefCalibArgs(Args)
     % Input  : * ...,key,val,...
     %            'Lambda'           - Wavelength grid [Ang]. Default (3000:20:11000)'.
     %            'SearchRadius'     - Calibrator match radius [arcsec]. Default 2.
-    %            'MagRange'         - Calibrator mag range [min max]. Default [11.5 15.5].
+    %            'MagRange'         - Calibrator Gaia-G (phot_g_mean_mag) mag range
+    %                                 [min max]. Default [12 16].
+    %            'PropagatePM'      - Propagate Gaia J2016 positions to ObsJD and
+    %                                 re-gate by SearchRadius (main path). Default true.
     %            'FilterNegFlux'    - Remove negative-flux sources. Default true.
     %            'MinSN2'           - Min SN_2 for calibrators (0=skip). Default 10.
     %            'FunListName'      - Transmission function list name. Default 'DefaultLASTFunList'.
     %            'CustomFunList'    - Custom function list (overrides FunListName). Default [].
-    %            'OptSeqName'       - Optimization sequence name. Default 'LAST_NormLin'.
+    %            'OptSeqName'       - Optimization sequence name. Default 'LAST_Joint_2Iter_Split3'.
     %            'CustomOptSeq'     - Custom opt sequence (overrides OptSeqName). Default [].
-    %            'Tran2DType'       - Tran2D polynomial type. Default 'cheby1_4_xt'.
+    %            'Tran2DType'       - Tran2D polynomial type. Default 'cheby1_1'.
     %            'UseTran2D'        - Enable Tran2D. Default true.
-    %            'XPixel'           - Detector X size in pixels (sets Tran2D
-    %                                 normalisation, ParNX = [XPixel/2, XPixel/2]).
-    %                                 Default 1716.
-    %            'YPixel'           - Detector Y size in pixels. Default 1716.
+    %            'XPixel'           - FALLBACK detector X size in pixels for the
+    %                                 Tran2D normalisation, used only when the
+    %                                 CCDSEC header keyword is absent. Normally
+    %                                 ParNX/ParNY come from the CCDSEC property
+    %                                 ([centre, half-range]). Default 1716.
+    %            'YPixel'           - FALLBACK detector Y size in pixels (see
+    %                                 XPixel). Default 1716.
     %            'Tran2DPerturbStd' - Std-dev for one-shot N(0,std) randn-seeding
     %                                 of Tran2D ParX before fit. Coefficients
     %                                 are perturbed once before stage 1 and
@@ -915,9 +905,9 @@ function CalibArgs = predefCalibArgs(Args)
     %            'MaxSN'            - Upper S/N gate. Default 1000.
     %            'FilterBadFlags'   - Apply the FLAGS bitmask filter in
     %                                 selectCalibrators. Default true.
-    %            'MagColName'       - Magnitude column used for the MagRange
-    %                                 filter and audit delta-mag.
-    %                                 Default 'MAG_APER_3'.
+    %            'MagColName'       - Magnitude column for the audit LAST nearest-
+    %                                 neighbour delta-mag (no longer the MagRange
+    %                                 cut). Default 'MAG_APER_3'.
     %            'SpFluxCol'        - Spectral flux column indices in
     %                                 CalibCatName as [flux_start, flux_end,
     %                                 err_start, err_end]. Default
@@ -928,16 +918,17 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 Default {'Saturated','NaN','Negative',
     %                                 'CR_DeltaHT','NearEdge'}.
     %            'AuditCalibrators' - Toggle the step-0 calibrator audit in
-    %                                 selectCalibrators. When false (default)
-    %                                 the call path is unchanged.
-    %            'AuditCatName'     - Gaia photometric catsHTM catalog used to
-    %                                 fetch BP-RP and BP-RP excess factor for
-    %                                 the audit. Default 'GAIADR3'.
+    %                                 selectCalibrators. Default true (audit ON).
     %            'AuditBPRPExcessFactorMax' - Reject if Gaia counterpart's
     %                                 phot_bp_rp_excess_factor exceeds this
     %                                 value. Default 1.3.
     %            'AuditBPRPMax'     - Reject if Gaia counterpart's bp_rp exceeds
     %                                 this value. Default 1.5.
+    %            'AuditClassprobMin' - Reject if Gaia counterpart's
+    %                                 classprob_dsc_combmod_star is below this.
+    %                                 Default 0.9 (the legacy classprob>0.9
+    %                                 filter); set NaN to disable the rule.
+    %                                 Only active with AuditCalibrators.
     %            'AuditLASTNearestDist' - Reject if the candidate's nearest LAST
     %                                 neighbour (self-excluded) lies within this
     %                                 distance [arcsec]. Default 20.
@@ -1010,14 +1001,15 @@ function CalibArgs = predefCalibArgs(Args)
     %                                 otherwise bias the fit, especially the
     %                                 position-dependent one near the edges.
     %            'AperCorrBadFlags' - Bit names rejected by the above filter.
-    %            'AperCorrPositional' - Also fit a position-dependent aperture
+    %            'AperCorrPositional' - Fit a position-dependent aperture
     %                                 correction MagDiff(X,Y) per aperture (via
-    %                                 imUtil.calib.fitPositionalDiff) on top of
-    %                                 the scalar one. Default false (scalar only
-    %                                 - the status quo). When true, the bilinear
+    %                                 imUtil.calib.fitPositionalDiff). Default
+    %                                 true (the default path). The bilinear
     %                                 coefficients are written to / read from the
-    %                                 header (APC0/APCX/APCY/APCXY_<tag>) in
-    %                                 addition to the scalar APCOR_<tag>.
+    %                                 header (APC0/APCX/APCY/APCXY_<tag>); the
+    %                                 scalar median APCOR_<tag> is NOT written,
+    %                                 and the reference aperture is skipped. Set
+    %                                 false for scalar-only (no header coefs).
     %            'AperCorrApplyMode'- Which aperture correction to apply:
     %                                 'auto' (default) uses the positional fit
     %                                 when present else the scalar; 'scalar'
@@ -1058,19 +1050,20 @@ function CalibArgs = predefCalibArgs(Args)
 
         % Calibrator selection
         Args.SearchRadius     = 2         % arcsec
-        Args.MagRange         = [11.5 16.0]
+        Args.MagRange         = [12 16]   % Gaia-G mag window (phot_g_mean_mag)
         Args.FilterNegFlux logical = true % Remove sources with negative flux
         Args.MinSN2           = 10        % Minimum SN_2 for calibrators (0 to skip)
+        Args.PropagatePM logical = true   % main path: propagate Gaia J2016->ObsJD, re-gate by SearchRadius
 
         % Transmission model
         Args.FunListName      = 'DefaultLASTFunList'
         Args.CustomFunList    = []
-        Args.OptSeqName       = 'LAST_NormLin'
+        Args.OptSeqName       = 'LAST_Joint_2Iter_Split3'   % match PhotCalibTrans.calibrate default
         Args.CustomOptSeq     = []
-        Args.Tran2DType       = 'cheby1_4_xt'
+        Args.Tran2DType       = 'cheby1_1'                  % match PhotCalibTrans.calibrate default
         Args.UseTran2D logical = true
-        Args.XPixel           = 1716   % Detector X size [pix]; sets Tran2D centre = XPixel/2
-        Args.YPixel           = 1716   % Detector Y size [pix]; sets Tran2D centre = YPixel/2
+        Args.XPixel           = 1716   % FALLBACK X size [pix] (Tran2D norm) when CCDSEC absent
+        Args.YPixel           = 1716   % FALLBACK Y size [pix] (Tran2D norm) when CCDSEC absent
         Args.Tran2DPerturbStd = 0   % Std-dev for randn-seed of Tran2D ParX (one shot before stage 1); 0 disables
 
         % Calibrator selection (forwarded to selectCalibrators)
@@ -1078,20 +1071,19 @@ function CalibArgs = predefCalibArgs(Args)
         Args.MinSN            = 5               % Lower S/N gate on calibrator candidates
         Args.MaxSN            = 1000            % Upper S/N gate
         Args.FilterBadFlags logical = true      % Apply FLAGS bitmask filter
-        Args.MagColName       = 'MAG_APER_3'    % Mag column for MagRange + audit deltaMag
+        Args.MagColName       = 'MAG_APER_3'    % Mag column for the audit NN deltaMag
         Args.SpFluxCol        = [7, 349, 350, 692]  % [flux_start, flux_end, err_start, err_end]
         Args.BadBitNames      = {'Saturated', 'NaN', 'Negative', 'CR_DeltaHT', 'NearEdge'}
-        Args.AuditCalibrators logical = false   % Toggle step-0 audit (default: keep status quo)
-        Args.AuditCatName     = 'GAIADR3'       % Gaia photometric catalog for the audit
+        Args.AuditCalibrators logical = true    % match PhotCalibTrans.calibrate default (audit ON)
         Args.AuditBPRPExcessFactorMax = 1.7
         Args.AuditBPRPMax     = 2.0
+        Args.AuditClassprobMin = 0.9            % reject classprob < this; NaN disables
         Args.AuditLASTNearestDist = 10          % arcsec
         Args.AuditLASTDeltaMag = 1              % mag
 
         % Alternate calibrator selection (forwarded to selectCalibrators)
         Args.SelectionMethod char {mustBeMember(Args.SelectionMethod, ...
-            {'catsHTM','pythonLike'})} = 'catsHTM'
-        Args.UseTAPClassprob logical = false
+            {'main','legacy'})} = 'main'
 
         % Forward to CompositeFun.fitPar -> lsqnonlin TypicalX. Scales
         % finite-diff steps + stopping tolerances by each free

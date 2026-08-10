@@ -2,8 +2,8 @@ function Result = mergeGAIADR3spec(OutDir, Args)
     % Append the 8 Gaia DR3 columns to GAIADR3spec in one pass (same name).
     % Description: Enrich the GAIADR3spec catsHTM catalog with the Gaia DR3
     %              proper-motion, photometry and classifier columns needed
-    %              by imProc.transmission.fitPhotCalibTrans with
-    %              'SelectionMethod','pythonLike', so that a single
+    %              by imProc.transmission.fitPhotCalibTrans (both the 'main'
+    %              and 'legacy' selection paths), so that a single
     %              match_catsHTM('GAIADR3spec') supplies everything (no
     %              second GAIADR3 match, no online query at calibration time).
     %
@@ -92,7 +92,7 @@ function Result = mergeGAIADR3spec(OutDir, Args)
 
     % Names/units appended to GAIADR3spec. Names MUST match both the source
     % catsHTM columns and the runtime lookups in
-    % PhotCalibTrans.selectCalibratorsPythonLike. The first 7 come from
+    % PhotCalibTrans.selectCalibratorsLegacy. The first 7 come from
     % GaiaCatName, the 8th from ClassprobCatName.
     GaiaCols   = {'PMRA','PMDec','phot_g_mean_mag','phot_bp_mean_mag', ...
                   'phot_rp_mean_mag','bp_rp','phot_bp_rp_excess_factor'};

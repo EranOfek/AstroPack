@@ -18,7 +18,7 @@ function Result = plotHeaderHist(Data, Args)
     %              required), e.g. AST_ARMS (asymptotic astrometry RMS),
     %              PH_RMS (relative photometry RMS), PT_ARMS / PT_RMS
     %              (absolute photometry asymptotic / mean RMS), FWHM,
-    %              LIMMAG, BACKMAG, MED_X2, APCOR_PS, AST_NSRC, etc.
+    %              LIMMAG, BACKMAG, MED_X2, APC0_PS, AST_NSRC, etc.
     %
     %              Counterpart of plotPhotHistogram (which reads from
     %              PhotCalibTrans) and plotPhotCatHist (which reads from

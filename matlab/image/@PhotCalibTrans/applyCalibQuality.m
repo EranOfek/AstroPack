@@ -1,10 +1,10 @@
 function [KeepMask, Reason] = applyCalibQuality(Cands, Args)
     % Apply per-source quality cuts to a calibrator-candidate table.
-    % Six rules, all OR-skipped when the required column is absent:
-    %   (1) MagRange         - <Args.MagColName> in [MagRange(1), MagRange(2)]
+    % Rules, all OR-skipped when the required column is absent:
+    %   (1) MagRange         - <Args.GMagColName> (Gaia G) in [MagRange(1), MagRange(2)]
     %   (2) FilterBadFlags   - FLAGS column has no Args.BadBitNames bits set
     %   (3) SN range         - SN in [MinSN, MaxSN]
-    %   (4) FilterNegFlux    - <Args.FluxColName> > 0
+    %   (4) FilterNegFlux    - <Args.FluxColName> > 0, and (if present) FLUX_PSF > 0
     %   (5) MinSN2           - SN_2 >= MinSN2 (skipped if MinSN2<=0)
     %   (6) UniqueMatch      - Nmatch == 1 (skipped if Nmatch absent)
     % Empty Cands => empty mask / reason; runs in O(height(Cands)).
@@ -12,8 +12,9 @@ function [KeepMask, Reason] = applyCalibQuality(Cands, Args)
     %                    pooled equivalent). Required columns depend on which
     %                    rules are active.
     %          * Args - struct or key/val with:
-    %             .MagRange         - [MinMag, MaxMag], default [11.5 16.0].
-    %             .MagColName       - char, default 'MAG_APER_3'.
+    %             .MagRange         - [MinMag, MaxMag] on Gaia G. Default [12 16].
+    %             .GMagColName      - Gaia G column for the MagRange cut.
+    %                                 Default 'phot_g_mean_mag'.
     %             .FilterBadFlags   - logical, default true.
     %             .BadBitNames      - cell of bit names. Default
     %                                 {'Saturated','NaN','Negative',
@@ -29,16 +30,16 @@ function [KeepMask, Reason] = applyCalibQuality(Cands, Args)
     %          - Reason   - string array, height(Cands) x 1. "" for kept rows,
     %                       otherwise the first rule that rejected the row:
     %                       "MagRange" | "FLAGS" | "SN" | "NegFlux" |
-    %                       "SN_2" | "NonUnique".
+    %                       "NegFluxPSF" | "SN_2" | "NonUnique".
     % Author : D. Kovaleva (April 2026)
     % Example: [Keep, Reason] = PhotCalibTrans.applyCalibQuality(Cands, ...
-    %              'MagRange', [11.5 16], 'MinSN', 5, 'MaxSN', 1000, ...
+    %              'MagRange', [12 16], 'MinSN', 5, 'MaxSN', 1000, ...
     %              'FilterBadFlags', true);
 
     arguments
         Cands
-        Args.MagRange         = [11.5 16.0]
-        Args.MagColName       = 'MAG_APER_3'
+        Args.MagRange         = [12 16]
+        Args.GMagColName      = 'phot_g_mean_mag'   % Gaia G column for the MagRange cut
         Args.FilterBadFlags logical = true
         Args.BadBitNames      = {'Saturated','NaN','Negative','CR_DeltaHT','NearEdge'}
         Args.MinSN            = 5
@@ -58,13 +59,13 @@ function [KeepMask, Reason] = applyCalibQuality(Cands, Args)
 
     VarNames = Cands.Properties.VariableNames;
 
-    % --- (1) Magnitude range ---
-    if ismember(Args.MagColName, VarNames)
-        Hit = ~(Cands.(Args.MagColName) >= Args.MagRange(1) & ...
-                Cands.(Args.MagColName) <= Args.MagRange(2));
+    % --- (1) Magnitude range on Gaia G (phot_g_mean_mag) ---
+    if ismember(Args.GMagColName, VarNames)
+        Hit = ~(Cands.(Args.GMagColName) >= Args.MagRange(1) & ...
+                Cands.(Args.GMagColName) <= Args.MagRange(2));
         applyCut(Hit, "MagRange");
         if Args.Verbose
-            fprintf('  Magnitude filter (%g-%g): %d sources passed\n', ...
+            fprintf('  Gaia-G magnitude filter (%g-%g): %d sources passed\n', ...
                     Args.MagRange(1), Args.MagRange(2), sum(KeepMask));
         end
     end
@@ -100,6 +101,15 @@ function [KeepMask, Reason] = applyCalibQuality(Cands, Args)
         if Args.Verbose
             fprintf('  Negative flux filter (%s): %d sources passed\n', ...
                     Args.FluxColName, sum(KeepMask));
+        end
+    end
+
+    % --- (4b) Negative PSF flux (Python parity: FLUX_PSF > 0) ---
+    if Args.FilterNegFlux && ismember('FLUX_PSF', VarNames)
+        Hit = ~(Cands.FLUX_PSF > 0);
+        applyCut(Hit, "NegFluxPSF");
+        if Args.Verbose
+            fprintf('  Negative PSF-flux filter: %d sources passed\n', sum(KeepMask));
         end
     end
 

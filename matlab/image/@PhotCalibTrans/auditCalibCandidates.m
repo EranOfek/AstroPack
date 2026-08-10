@@ -1,6 +1,6 @@
 function [DoubtfulMask, Reason] = auditCalibCandidates(CandTab, FieldTab, Args)
     % Step-0 calibrator audit: reject doubtful calibrator candidates.
-    % Four OR-combined rules, each vectorized over the candidate set.
+    % Five OR-combined rules, each vectorized over the candidate set.
     % Promoted (April 2026) from the private photCalibTransAuditCalibrators
     % helper so per-crop and pooled-field workflows can share the same code.
     % Input  : - CandTab  - MATLAB table of CALIBRATOR CANDIDATES to audit.
@@ -15,21 +15,17 @@ function [DoubtfulMask, Reason] = auditCalibCandidates(CandTab, FieldTab, Args)
     %                       field is available; self-exclusion uses X/Y
     %                       proximity (<1 px).
     %          * Args - struct or key/val with:
-    %             .AuditCatName             - DEPRECATED (Jun 2026): kept for
-    %                                         backwards compat only. The
-    %                                         GAIADR3spec regen attached
-    %                                         bp_rp / phot_bp_rp_excess_factor
-    %                                         directly to every candidate row
-    %                                         via findCalibCandidates, so the
-    %                                         secondary Gaia cone match this
-    %                                         arg used to drive is no longer
-    %                                         executed.
-    %             .SearchRadius             - DEPRECATED (Jun 2026): see above.
     %             .AuditBPRPMax             - reject if matched Gaia bp_rp
     %                                         exceeds this. Default 1.5.
     %             .AuditBPRPExcessFactorMax - reject if matched Gaia
     %                                         phot_bp_rp_excess_factor
     %                                         exceeds this. Default 1.3.
+    %             .AuditClassprobMin        - reject if matched Gaia
+    %                                         classprob_dsc_combmod_star is
+    %                                         below this (i.e. not confidently
+    %                                         a star). NaN (default) disables
+    %                                         the rule. Set 0.9 to mirror the
+    %                                         legacy path's classprob filter.
     %             .AuditLASTNearestDist     - arcsec; reject if NN distance
     %                                         in the LAST field is below this.
     %                                         Default 20.
@@ -48,20 +44,19 @@ function [DoubtfulMask, Reason] = auditCalibCandidates(CandTab, FieldTab, Args)
     %          - Reason       - string array, height(CandTab) x 1. "" for
     %                           kept rows, otherwise the first rule that
     %                           rejected the row: "BPRPExcess" | "BPRP" |
-    %                           "LASTNN_dist" | "LASTNN_dmag".
+    %                           "Classprob" | "LASTNN_dist" | "LASTNN_dmag".
     % Author : D. Kovaleva (April 2026; promoted from private helper).
     % Example: [Doubtful, R] = PhotCalibTrans.auditCalibCandidates( ...
     %              CandTab, FieldTab, ...
-    %              'AuditCatName', 'GAIADR3', 'MagColName', 'MAG_APER_3', ...
+    %              'MagColName', 'MAG_APER_3', ...
     %              'AuditBPRPMax', 1.5, 'AuditBPRPExcessFactorMax', 1.3);
 
     arguments
         CandTab
         FieldTab
-        Args.AuditCatName               = 'GAIADR3'
-        Args.SearchRadius               = 2
         Args.AuditBPRPMax               = 1.5
         Args.AuditBPRPExcessFactorMax   = 1.3
+        Args.AuditClassprobMin          = NaN   % NaN disables the classprob rule
         Args.AuditLASTNearestDist       = 20
         Args.AuditLASTDeltaMag          = 2
         Args.MagColName                 = 'MAG_APER_3'
@@ -87,8 +82,9 @@ function [DoubtfulMask, Reason] = auditCalibCandidates(CandTab, FieldTab, Args)
     % from findCalibCandidates carries the Gaia tail columns. No secondary
     % cone match is needed; just read off the existing columns.
     CandVarNames = CandTab.Properties.VariableNames;
-    BPRPv   = nan(Ncand, 1);
-    BPRPExc = nan(Ncand, 1);
+    BPRPv     = nan(Ncand, 1);
+    BPRPExc   = nan(Ncand, 1);
+    ClassProb = nan(Ncand, 1);
     if ismember('bp_rp', CandVarNames)
         BPRPv = double(CandTab.bp_rp);
     elseif all(ismember({'phot_bp_mean_mag','phot_rp_mean_mag'}, CandVarNames))
@@ -97,18 +93,26 @@ function [DoubtfulMask, Reason] = auditCalibCandidates(CandTab, FieldTab, Args)
     if ismember('phot_bp_rp_excess_factor', CandVarNames)
         BPRPExc = double(CandTab.phot_bp_rp_excess_factor);
     end
+    if ismember('classprob_dsc_combmod_star', CandVarNames)
+        ClassProb = double(CandTab.classprob_dsc_combmod_star);
+    end
 
-    % Apply rules in priority order: BPRPExcess > BPRP (Reason records first hit)
+    % Apply rules in priority order: BPRPExcess > BPRP > Classprob
+    % (Reason records the first hit). The classprob rule is disabled when
+    % AuditClassprobMin is NaN (default).
     ExcessHit = isfinite(BPRPExc) & BPRPExc > Args.AuditBPRPExcessFactorMax;
     BPRPHit   = isfinite(BPRPv)   & BPRPv   > Args.AuditBPRPMax;
-    DoubtfulMask = DoubtfulMask | ExcessHit | BPRPHit;
+    ClassHit  = isfinite(ClassProb) & isfinite(Args.AuditClassprobMin) & ...
+                ClassProb < Args.AuditClassprobMin;
+    DoubtfulMask = DoubtfulMask | ExcessHit | BPRPHit | ClassHit;
     Reason(ExcessHit & Reason == "")             = "BPRPExcess";
     Reason(BPRPHit   & Reason == "")             = "BPRP";
+    Reason(ClassHit  & Reason == "")             = "Classprob";
 
     if Args.Verbose
-        fprintf('    audit Gaia (tail cols): %d rejected (BPRP>%.2f or excess>%.2f)\n', ...
-            sum(ExcessHit | BPRPHit), ...
-            Args.AuditBPRPMax, Args.AuditBPRPExcessFactorMax);
+        fprintf('    audit Gaia (tail cols): %d rejected (BPRP>%.2f, excess>%.2f, classprob<%.2f)\n', ...
+            sum(ExcessHit | BPRPHit | ClassHit), ...
+            Args.AuditBPRPMax, Args.AuditBPRPExcessFactorMax, Args.AuditClassprobMin);
     end
 
     % ---- LAST nearest-neighbour audit (vectorized) ----
