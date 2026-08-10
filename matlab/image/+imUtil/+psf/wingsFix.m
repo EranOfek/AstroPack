@@ -24,6 +24,28 @@ function [PSF,InnerRadius] = wingsFix(PSF, Args)
     %                   When WingsMethod='empirical' and this is false, the
     %                   'cosbell' taper is used instead for this image.
     %                   Default is false.
+    %            'MaxAxisRatioForModel' - Minor/major axis ratio (see
+    %                   imUtil.psf.psfElongation), measured on the input
+    %                   PSF, below which WingsMethod is forced to 'cosbell'
+    %                   regardless of what was requested ('analytic' or
+    %                   'empirical'). Neither wing model assumes anything
+    %                   but a circularly-symmetric PSF, so a substantially
+    %                   elliptical PSF (e.g. from wind, or a tracking/
+    %                   guiding error) is better served by cosbell's plain
+    %                   taper of the actual (already non-circular) core
+    %                   than by either model. 1 always falls back; 0 never
+    %                   does. Default is 0.9.
+    %            'ApplyEllipticityFallback' - Whether the MaxAxisRatioForModel
+    %                   check above is applied at all. Set to false for the
+    %                   detection-purpose PSF (imUtil.psf.buildPSF's
+    %                   BuildDetectionPSF slice): 'analytic' at Alpha=2 is
+    %                   the only wing treatment validated safe against the
+    %                   #1103 cross-correlation ring artifact specifically
+    %                   in the detection role, a guarantee 'cosbell' was
+    %                   never tested to the same standard for -- unlike the
+    %                   photometry/subtraction slice, this one must not be
+    %                   silently swapped out just because the PSF is
+    %                   elliptical. Default is true.
     % Output : - PSF with fixed wings.
     % Author : Eran Ofek (2026 Jun)
     % Example: [PSF,InnerRadius] = imUtil.psf.wingsFix(PSF);
@@ -39,8 +61,16 @@ function [PSF,InnerRadius] = wingsFix(PSF, Args)
         Args.ProfileRadius               = [];
         Args.ProfileValue                = [];
         Args.ProfileSuccess              = false;
+        Args.MaxAxisRatioForModel        = 0.9;
+        Args.ApplyEllipticityFallback     = true;
     end
 
+    if Args.ApplyEllipticityFallback && ~strcmpi(Args.WingsMethod, 'cosbell')
+        [~, AxisRatio] = imUtil.psf.psfElongation(PSF);
+        if AxisRatio < Args.MaxAxisRatioForModel
+            Args.WingsMethod = 'cosbell';
+        end
+    end
 
     switch Args.WingsMethod
         case 'analytic'
