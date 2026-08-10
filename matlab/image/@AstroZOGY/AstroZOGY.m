@@ -735,22 +735,25 @@ classdef AstroZOGY < AstroDiff
                         HalfSizePSF = Args.HalfSizePSF;
                     end
                     HalfSizePSF = (HalfSizePSF(:).*ones(2,1)).';
-                    Pd = ifftshift(Pd);
+                    StampSize   = HalfSizePSF.*2 + 1;
+
+                    % ifft2 leaves Pd in FFT-corner order (centre at pixel 1).
+                    % fftshift moves it to floor(N/2)+1 for both even and odd N.
+                    Pd     = fftshift(Pd);
                     PdSize = size(Pd);
 
-                    if (mod(HalfSizePSF(1),2) > 0) || (mod(PdSize(1),2) > 0)
-                        Pd = circshift(Pd, [-1, -1]);
-                    end
+                    CenterI = floor(PdSize(1)./2) + 1;
+                    CenterJ = floor(PdSize(2)./2) + 1;
 
-                    CenterX = ceil(PdSize(1) / 2);
-                    CenterY = ceil(PdSize(2) / 2);
-                    
-                    CropX1 = CenterX - HalfSizePSF(1);
-                    CropX2 = CropX1 + NPx - 1;
-                    CropY1 = CenterY - HalfSizePSF(2);
-                    CropY2 = CropY1 + NPy - 1;
-                    
-                    Pd = Pd(CropX1:CropX2, CropY1:CropY2);
+                    % anchor inside the stamp - same ceil(Size/2) convention
+                    % used by the Pn_hat/Pr_hat getters
+                    AnchorI = ceil(StampSize(1)./2);
+                    AnchorJ = ceil(StampSize(2)./2);
+
+                    CropI1 = CenterI - AnchorI + 1;
+                    CropJ1 = CenterJ - AnchorJ + 1;
+
+                    Pd = Pd(CropI1:CropI1+StampSize(1)-1, CropJ1:CropJ1+StampSize(2)-1);
                     
                 end
                 if Args.SuppressEdgesPSF
