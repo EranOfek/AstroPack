@@ -20,7 +20,7 @@ function [Result] = images2subImages(AI, Args)
         Args.ListCenters      = [];
         Args.NoOverlapCCDSEC  = [];
         Args.NewNoOverlap     = [];
-        Args.EdgeDist               = 10;
+        Args.EdgeDist               = 13;
 
         Args.PropList               = {'ImageData','BackData','VarData','MaskData'};
 
