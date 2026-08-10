@@ -130,6 +130,20 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     %                   cleaning is applied. Default is 4.
     %            'KeyCleanSN' - Catalog column name read for the CleanSN
     %                   filter. Default is 'SN'.
+    %            'MaxSubtractFluxRatio' - Guard against PSF-fit divergence
+    %                   (imUtil.sources.psfPhotCube's internalCalcChi2 only
+    %                   floors its flux-estimator denominator at machine
+    %                   epsilon, and a diverged fit's formal FluxErr
+    %                   reflects fit geometry, not whether the fitted
+    %                   position/model actually matches the data -- so it
+    %                   can look deceptively well-constrained). A source is
+    %                   excluded from this iteration's subtraction model if
+    %                   its fitted |Flux| exceeds this factor times
+    %                   max(the source's own FLUX_XYPEAK, a background-
+    %                   noise floor). A real source's FLUX_PSF/FLUX_XYPEAK
+    %                   ratio is typically a few tens for this class of
+    %                   PSF; observed divergent fits exceeded a ratio of
+    %                   1000. Default is 200.
     %
     %            --- Source detection ---
     %            'FindWithEmpiricalPSF' - If true, run source detection
@@ -345,6 +359,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.mexCutout                 = true;
         Args.CleanSN                   = 4;  % remove sources below this SN (PSF fitting S/N).
         Args.KeyCleanSN                = 'SN';
+        Args.MaxSubtractFluxRatio      = 200; % reject a source from this iteration's subtraction model if |Res.Flux| > this * max(FLUX_XYPEAK, noise floor) -- guards against psfFitPhot divergence corrupting the image for later iterations
 
         % source detection:        
         Args.FindWithEmpiricalPSF logical = true;
@@ -742,8 +757,19 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                          'PsfPhotMethod',Args.PsfPhotMethod,...
                                                          'ShiftMethod',Args.ShiftMethod,...
                                                          Args.psfFitPhotArgs{:});  % produces PSFs shifted to RoundX, RoundY, so there is no need to Recenter
-    
-                
+
+                % Guard against PSF-fit divergence before it is baked into
+                % this iteration's subtraction model and corrupts the image
+                % for later iterations (see Args.MaxSubtractFluxRatio doc).
+                if ~isempty(Res) && ~isempty(Res.Flux)
+                    PeakFluxRef    = AI.CatData.getCol('FLUX_XYPEAK');
+                    NoiseFloor     = sqrt(median(AI.Var(:), 'omitnan'));
+                    ImplausibleFit = abs(Res.Flux(:)) > Args.MaxSubtractFluxRatio .* max(abs(PeakFluxRef(:)), NoiseFloor);
+                    if any(ImplausibleFit)
+                        Res.Flux(ImplausibleFit) = 0;
+                    end
+                end
+
                 % use either a) interpolation (experimental) or b) FFT shift (obtained above as Res.ShiftedPSF) + edge suppression
                 if Args.UsePSFInterpolant
                     ShiftedPSF = imUtil.trans.shift_interp(AI.PSFData.Data, Res.DX, Res.DY, 'Norm',true);

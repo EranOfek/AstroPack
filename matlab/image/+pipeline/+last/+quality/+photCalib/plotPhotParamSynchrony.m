@@ -16,6 +16,12 @@ function [Result, Fig] = plotPhotParamSynchrony(PC, Args)
     %
     % Input  : - PC - a PhotCalibTrans array, a cell of such arrays, or a
     %            struct with a .PC field (anything resolveInput accepts).
+    %            ALSO accepts a MATLAB table (from
+    %            pipeline.last.load.hdToTable): must carry columns JD,
+    %            NCrop and one column per name in ParamNames. In table
+    %            mode the 'ShapeT' quantity is unavailable (no access to
+    %            TransModel); use fitted-parameter column names directly
+    %            (e.g. PT_3_V2 for TauAOD500, PT_5_V2 for PWV_cm, etc.).
     %          * ...,key,val,...
     %            'ParamNames'     - Quantity name(s); fitted-parameter names
     %                               and/or 'ShapeT'. Default
@@ -35,6 +41,14 @@ function [Result, Fig] = plotPhotParamSynchrony(PC, Args)
     % Author : photCalib package refactor (2026-05)
     % Example: plotPhotParamSynchrony(R.PC, 'ParamNames', {'TauAod500','PWV_cm'});
     %          plotPhotParamSynchrony(R.PC, 'ParamNames', {'ShapeT'});
+    %
+    %          % Table input (header-sweep output from hdToTable):
+    %          [AI, Files] = pipeline.last.load.loadVisitCatHdr( ...
+    %                          'DataDir', BaseDir, 'FileType', 'coadd', 'CatHDU', 3);
+    %          HD = pipeline.last.load.extractHeaderData(AI, ...
+    %                          'HeaderKeys', {'JD','PT_3_V2','PT_5_V2','PT_8_V2'});
+    %          T  = pipeline.last.load.hdToTable(HD, Files);
+    %          plotPhotParamSynchrony(T, 'ParamNames', {'PT_3_V2','PT_5_V2','PT_8_V2'});
 
     arguments
         PC
@@ -45,32 +59,82 @@ function [Result, Fig] = plotPhotParamSynchrony(PC, Args)
         Args.PlotDelta       logical = true
         Args.PlotHeatmap     logical = true
         Args.Verbose         logical = true
+        Args.VisitCol        (1,:) char = ''
+        % (Table input only) name of the table column that identifies each
+        % visit (each unique value = one row of the pivoted matrix).
+        % Default '' auto-picks the first present of {'JD','VisitStem'}.
+        % Values can be numeric or string; groups formed by 'unique'.
+        Args.CropCol         (1,:) char = ''
+        % (Table input only) name of the table column that identifies each
+        % crop (each unique value = one column of the pivoted matrix).
+        % Default '' auto-picks the first present of {'NCrop','CropNumber'}.
+        % Values must be numeric (crop 1..N).
     end
 
     Result = struct();
     Fig    = gobjects(0);
 
-    PCcell = resolveInput(PC);
-    if isempty(PCcell); return; end
+    % Dual-input: PhotCalibTrans array/cell/struct  OR  a flat table with
+    % JD + NCrop + one column per named quantity (the shape hdToTable
+    % produces from a folder header sweep). Detect once, keep the rest of
+    % the pipeline generic on the [Nvisit x Ncrop] matrix.
+    IsTable = istable(PC);
+    if IsTable
+        T = PC;
+        % Resolve pivot key column names. Explicit VisitCol/CropCol win;
+        % empty defaults auto-pick the first present of the fallback list
+        % so both hdToTable (JD/NCrop) and report2table (VisitStem/
+        % CropNumber) tables work out of the box.
+        VisitColName = i_pickCol(T, Args.VisitCol, {'JD','VisitStem'}, 'visit');
+        CropColName  = i_pickCol(T, Args.CropCol,  {'NCrop','CropNumber'}, 'crop');
+        Raw = T.(VisitColName);
+        if ischar(Raw) || iscellstr(Raw) || isstring(Raw)
+            VisitKey = string(Raw);
+        else
+            VisitKey = Raw;
+        end
+        CropKey = T.(CropColName);
+        if ~isnumeric(CropKey)
+            error('photCalib:plotPhotParamSynchrony:BadCropCol', ...
+                'Crop column "%s" must be numeric (crop indices 1..N).', CropColName);
+        end
+        % Drop rows with missing visit/crop identifiers before uniquing.
+        if isnumeric(VisitKey)
+            ValidV = ~isnan(VisitKey);
+        else
+            ValidV = VisitKey ~= "";
+        end
+        ValidC  = ~isnan(CropKey);
+        Valid   = ValidV(:) & ValidC(:);
+        UJD     = unique(VisitKey(Valid), 'stable');
+        UCrp    = unique(CropKey(Valid));
+        Nvisits = numel(UJD);
+        Ncrop   = max(UCrp);
+        AllParNames = {};   % ShapeT / TransModel access not available on table
+        PCcell     = {};    % keep name in scope; unused in table branch
+    else
+        PCcell = resolveInput(PC);
+        if isempty(PCcell); return; end
 
-    Nvisits    = numel(PCcell);
-    FirstValid = find(~cellfun(@isempty, PCcell), 1);
-    if isempty(FirstValid); return; end
-    Ncrop = numel(PCcell{FirstValid});
+        Nvisits    = numel(PCcell);
+        FirstValid = find(~cellfun(@isempty, PCcell), 1);
+        if isempty(FirstValid); return; end
+        Ncrop = numel(PCcell{FirstValid});
+
+        % Fitted-parameter names available in the model
+        AllParNames = {};
+        for Ic = 1:Ncrop
+            if ~isempty(PCcell{FirstValid}(Ic).TransModel)
+                P = PCcell{FirstValid}(Ic).TransModel.getAllFunPar();
+                AllParNames = P.Name;
+                break;
+            end
+        end
+    end
 
     CropsToUse = Args.CropsToAnalyze;
     if isempty(CropsToUse); CropsToUse = 1:Ncrop; end
     NcropUse = numel(CropsToUse);
-
-    % Fitted-parameter names available in the model
-    AllParNames = {};
-    for Ic = 1:Ncrop
-        if ~isempty(PCcell{FirstValid}(Ic).TransModel)
-            P = PCcell{FirstValid}(Ic).TransModel.getAllFunPar();
-            AllParNames = P.Name;
-            break;
-        end
-    end
 
     CentralCropSet   = centralCrops(Args.TileOrder, Ncrop);
     CentralMask      = ismember(CropsToUse, CentralCropSet);
@@ -91,7 +155,11 @@ function [Result, Fig] = plotPhotParamSynchrony(PC, Args)
     for Ip = 1:numel(Args.ParamNames)
         PName = char(Args.ParamNames{Ip});
 
-        [Mat, Ok] = i_quantityMatrix(PCcell, PName, AllParNames, Args, Nvisits, Ncrop);
+        if IsTable
+            [Mat, Ok] = i_quantityMatrixFromTable(T, PName, UJD, Nvisits, Ncrop, VisitKey, CropKey);
+        else
+            [Mat, Ok] = i_quantityMatrix(PCcell, PName, AllParNames, Args, Nvisits, Ncrop);
+        end
         if ~Ok
             warning('photCalib:plotPhotParamSynchrony:NotFound', ...
                 'Quantity %s could not be resolved.', PName);
@@ -199,6 +267,59 @@ function [Result, Fig] = plotPhotParamSynchrony(PC, Args)
         fprintf('Peripheral crops: %s\n', mat2str(PeriphCrops));
     end
 end
+
+% =========================================================================
+function [Mat, Ok] = i_quantityMatrixFromTable(T, Name, UJD, Nvisits, Ncrop, VisitKey, CropKey)
+    % Pivot a table into a [Nvisit x Ncrop] matrix for one named column.
+    % VisitKey and CropKey are already extracted (and possibly string-
+    % cast) from whichever table columns the caller chose. Cells with no
+    % matching row stay NaN.
+    Mat = nan(Nvisits, Ncrop);
+    Ok  = ismember(Name, T.Properties.VariableNames);
+    if ~Ok; return; end
+    [~, JGrp] = ismember(VisitKey, UJD);
+    CGrp = CropKey;
+    Vals = T.(Name);
+    Good = JGrp(:) >= 1 & JGrp(:) <= Nvisits & CGrp(:) >= 1 & CGrp(:) <= Ncrop & isfinite(Vals(:));
+    if any(Good)
+        Idx = sub2ind([Nvisits, Ncrop], JGrp(Good), CGrp(Good));
+        Mat(Idx) = double(Vals(Good));
+    end
+end
+
+
+% =========================================================================
+function Name = i_pickCol(T, Explicit, Fallbacks, Role)
+    % Resolve which table column plays a given role. Explicit user choice
+    % wins; otherwise first present of Fallbacks; else clear error.
+    Vn = T.Properties.VariableNames;
+    if ~isempty(Explicit)
+        if ~ismember(Explicit, Vn)
+            error('photCalib:plotPhotParamSynchrony:MissingCol', ...
+                'Explicit %s column "%s" not found in table (columns: %s).', ...
+                Role, Explicit, strjoin(Vn, ', '));
+        end
+        Name = Explicit;
+        return;
+    end
+    for I = 1:numel(Fallbacks)
+        if ismember(Fallbacks{I}, Vn)
+            Name = Fallbacks{I};
+            return;
+        end
+    end
+    error('photCalib:plotPhotParamSynchrony:MissingCol', ...
+        ['Table has no %s-identifier column. Tried defaults {%s}; pass ', ...
+         '''%sCol'' explicitly to pick a different one. Columns present: %s.'], ...
+        Role, strjoin(Fallbacks, ', '), i_capFirst(Role), strjoin(Vn, ', '));
+end
+
+
+% =========================================================================
+function S = i_capFirst(S)
+    if ~isempty(S); S(1) = upper(S(1)); end
+end
+
 
 % =========================================================================
 function [Mat, Ok] = i_quantityMatrix(PCcell, Name, AllParNames, Args, Nvisits, Ncrop)

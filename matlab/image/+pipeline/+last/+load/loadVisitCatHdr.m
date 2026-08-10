@@ -1,4 +1,4 @@
-function AI = loadVisitCatHdr(Args)
+function [AI, Files] = loadVisitCatHdr(Args)
     % Load LAST pipeline files into lightweight AstroImage arrays (Cat + Header only)
     % Description: Lightweight loader that populates AstroImage.CatData and
     %              AstroImage.HeaderData only — no Image pixels, Mask, or PSF.
@@ -76,6 +76,15 @@ function AI = loadVisitCatHdr(Args)
         Args.ListFields  = {}       % field name(s) to read from ListFile
         Args.VisitIdx    = []       % indices into folder list
         Args.FileType    = 'proc'   % 'proc' | 'coadd'
+        Args.CatHDU      = []       % HDU N of the Cat FITS to ADDITIONALLY read
+        % Non-empty scalar (typical: 3 for LAST calibrated coadds) makes
+        % buildAIfromFiles append every Cat[CatHDU] header entry to the
+        % existing Image HDU 1 header. Motivation: PT_* photometric-model
+        % keywords stamped by PhotCalibTrans.calibrate live on Cat HDU 3,
+        % not on the Image; without this the getVal/getStructKey calls
+        % downstream (extractHeaderData, plotHeaderScatter, ...) can't see
+        % PT_NORM, PT_RMS, PT_ARMS, PT_CHI2, PT_DOF, PT_NCALI, PT_P_V*, etc.
+        % Empty (default) keeps the historical behaviour (Image HDU 1 only).
         Args.FieldId     = ''       % keep only files whose AstroFileName.FieldID matches
         Args.CropID      double {mustBeInteger, mustBeNonnegative} = []   % integer 1..Ncrop; [] = no filter
         Args.Verbose logical = true
@@ -86,7 +95,7 @@ function AI = loadVisitCatHdr(Args)
 
     if isempty(Dirs)
         % Fall back to DataDir mode
-        AI = loadFromDataDir(Args);
+        [AI, Files] = loadFromDataDir(Args);
         return;
     end
 
@@ -101,7 +110,8 @@ function AI = loadVisitCatHdr(Args)
     CatPatternBz2 = [CatPattern '.bz2'];
     ImPatternBz2  = [ImPattern '.bz2'];
 
-    AI = cell(Nvisits, 1);
+    AI    = cell(Nvisits, 1);
+    Files = cell(Nvisits, 1);
     for Iv = 1:Nvisits
         D = char(Dirs(Iv));
         if ~exist(D, 'dir')
@@ -141,7 +151,8 @@ function AI = loadVisitCatHdr(Args)
             continue;
         end
 
-        AI{Iv} = buildAIfromFiles(CatFiles, ImFiles);
+        AI{Iv}    = buildAIfromFiles(CatFiles, ImFiles, Args.CatHDU);
+        Files{Iv} = CatFiles;
 
         % Clean up temp files
         if ~isempty(TmpDir)
@@ -155,8 +166,13 @@ function AI = loadVisitCatHdr(Args)
 end
 
 % =========================================================================
-function AIv = buildAIfromFiles(CatFiles, ImFiles)
+function AIv = buildAIfromFiles(CatFiles, ImFiles, CatHDU)
     % Batched AstroCatalog + AstroHeader loader — much faster than per-file loop.
+    % CatHDU (optional, default []): when non-empty, ALSO read the Cat
+    % file's CatHDU header and append its rows to AIv(Ic).HeaderData.Data
+    % so keys stamped there (PT_* on LAST coadd HDU 3) are visible to
+    % downstream getVal / getStructKey callers.
+    if nargin < 3; CatHDU = []; end
     Ncf = numel(CatFiles);
     AIv = AstroImage([1, Ncf]);
     try
@@ -169,6 +185,14 @@ function AIv = buildAIfromFiles(CatFiles, ImFiles)
     catch
         Heads = [];
     end
+    CatHeads = [];
+    if ~isempty(CatHDU)
+        try
+            CatHeads = AstroHeader(CatFiles, CatHDU);
+        catch
+            CatHeads = [];
+        end
+    end
     for Ic = 1:Ncf
         if ~isempty(Cats) && Ic <= numel(Cats)
             AIv(Ic).CatData = Cats(Ic);
@@ -176,6 +200,33 @@ function AIv = buildAIfromFiles(CatFiles, ImFiles)
         if ~isempty(Heads) && Ic <= numel(Heads)
             AIv(Ic).HeaderData = Heads(Ic);
         end
+        if ~isempty(CatHeads) && Ic <= numel(CatHeads) ...
+                && ~isempty(CatHeads(Ic).Data)
+            % Merge Cat HDU keys AFTER Image HDU 1 so any duplicate keys
+            % from the Cat header win (last write - matches how AstroHeader
+            % getVal itself resolves duplicates).
+            if isempty(AIv(Ic).HeaderData)
+                AIv(Ic).HeaderData = CatHeads(Ic);
+            else
+                AIv(Ic).HeaderData.Data = ...
+                    [AIv(Ic).HeaderData.Data; CatHeads(Ic).Data];
+            end
+        end
+    end
+end
+
+
+% =========================================================================
+function Stems = i_visitStemFromFiles(Files)
+    % Extract the visit stem (everything up to '_<crop>_sci_coadd_(Cat|Image)_<N>')
+    % from each LAST filename. Files that don't match the convention get
+    % their basename as the stem (grouped alone).
+    N = numel(Files);
+    Stems = cell(N, 1);
+    for I = 1:N
+        [~, Name, ~] = fileparts(Files{I});
+        Tok = regexp(Name, '^(.+?)_(\d+)_sci_coadd_(?:Image|Cat)_\d+$', 'tokens', 'once');
+        if isempty(Tok); Stems{I} = Name; else; Stems{I} = Tok{1}; end
     end
 end
 
@@ -209,10 +260,11 @@ function Dirs = resolveVisitDirs(Args)
 end
 
 % =========================================================================
-function AI = loadFromDataDir(Args)
+function [AI, Files] = loadFromDataDir(Args)
     % Original DataDir mode — single directory, visits by filename token
     if isempty(Args.DataDir)
-        AI = {};
+        AI    = {};
+        Files = {};
         return;
     end
 
@@ -225,21 +277,42 @@ function AI = loadFromDataDir(Args)
     [AllCatFiles, AllImFiles] = filterFieldIdCropID(AllCatFiles, AllImFiles, ...
         Args.FieldId, Args.CropID, Args.Verbose, 'DataDir');
 
-    % Coadd: one coadd per crop per visit folder — no visit-index filtering
+    % Coadd: DataDir may hold many visits' output flat in one directory
+    % (batchPhotCalibTrans joint per-crop write dumps all 4800 files into
+    % one OutDir). Group by visit stem parsed out of the LAST filename
+    % convention '<stem>_<crop>_sci_coadd_(Cat|Image)_<N>.fits'. Each
+    % unique stem = one visit; each visit contributes its own 1 x Ncrop
+    % AstroImage array in the returned cell.
     if strcmpi(Args.FileType, 'coadd')
-        if Args.Verbose
-            fprintf('Loading coadd from %s\n', Args.DataDir);
-        end
-        AI = cell(1, 1);
         if isempty(AllCatFiles)
             if Args.Verbose
-                fprintf('  No coadd Cat files found\n');
+                fprintf('Loading coadd from %s: no Cat files found\n', Args.DataDir);
             end
+            AI    = cell(0, 1);
+            Files = cell(0, 1);
             return;
         end
-        AI{1} = buildAIfromFiles(AllCatFiles, AllImFiles);
+        Stems = i_visitStemFromFiles(AllCatFiles);
+        [UStems, ~, IUs] = unique(Stems);
+        Nvisits = numel(UStems);
         if Args.Verbose
-            fprintf('  Coadd: %d crops\n', numel(AllCatFiles));
+            fprintf('Loading coadd from %s: %d visits x <=Ncrop files each\n', ...
+                    Args.DataDir, Nvisits);
+        end
+        AI    = cell(Nvisits, 1);
+        Files = cell(Nvisits, 1);
+        for Iv = 1:Nvisits
+            Sel  = find(IUs == Iv);
+            VCat = AllCatFiles(Sel);
+            % Pair each Cat with its sibling Image (swap Cat_ -> Image_)
+            VIm  = cellfun(@(p) strrep(p, '_Cat_', '_Image_'), VCat, 'UniformOutput', false);
+            VIm  = VIm(cellfun(@isfile, VIm));   % drop siblings that don't exist
+            AI{Iv}    = buildAIfromFiles(VCat, VIm, Args.CatHDU);
+            Files{Iv} = VCat;
+            if Args.Verbose
+                fprintf('  visit %4d/%d: %s  Ncrop=%d\n', ...
+                        Iv, Nvisits, UStems{Iv}, numel(VCat));
+            end
         end
         return;
     end
@@ -249,7 +322,8 @@ function AI = loadFromDataDir(Args)
         fprintf('Loading %d visits from %s\n', Nvisits, Args.DataDir);
     end
 
-    AI = cell(Nvisits, 1);
+    AI    = cell(Nvisits, 1);
+    Files = cell(Nvisits, 1);
 
     for Iv = 1:Nvisits
         VisitNum = Args.Visits(Iv);
@@ -281,7 +355,8 @@ function AI = loadFromDataDir(Args)
             continue;
         end
 
-        AI{Iv} = buildAIfromFiles(CatFiles, ImFiles);
+        AI{Iv}    = buildAIfromFiles(CatFiles, ImFiles, Args.CatHDU);
+        Files{Iv} = CatFiles;
 
         if Args.Verbose
             fprintf('  Visit %s: %d crops\n', VStr, numel(CatFiles));

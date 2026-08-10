@@ -332,13 +332,16 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % evaluates the fit at each source's (X, Y) instead of using a
         % scalar shift. Default false — scalar-only, matches historical
         % behaviour.
+        Args.AperCorrFilterBadFlags logical = true
+        Args.AperCorrBadFlags cell = {'Saturated','NaN','Negative','CR_DeltaHT','NearEdge'}
         Args.AperCorrPositional logical = false
         Args.AperCorrPosColNameX (1,:) char = 'X'
         Args.AperCorrPosColNameY (1,:) char = 'Y'
-        Args.AperCorrPosCCDSEC = [1 1716 1 1716]
+        Args.AperCorrPosCCDSEC = []   % [] -> normalize by the image CCDSEC (from the header); else an explicit [Xmin Xmax Ymin Ymax]
         Args.AperCorrPosModel cell = {@(x,y) 1, @(x,y) x, @(x,y) y, @(x,y) x.*y}
         Args.AperCorrPosSigmaClip (1,2) double = [3 3]
         Args.AperCorrPosMaxIter (1,1) double {mustBePositive, mustBeInteger} = 3
+        Args.AperCorrApplyMode (1,:) char {mustBeMember(Args.AperCorrApplyMode, {'auto','scalar','positional'})} = 'auto'
         % Default false because legacy fitPhotCalibMag still writes LIMMAG/BACKMAG.
         % Flip to true (and set WriteLimBackMag=false in fitPhotCalibMag) once this
         % path becomes the pipeline default.
@@ -681,6 +684,8 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                     CatRef = Result(Iobj);
                 end
                 PC = PC.calcAperCorr(CatRef, ...
+                    'FilterBadFlags', Args.AperCorrFilterBadFlags, ...
+                    'BadFlags',       Args.AperCorrBadFlags, ...
                     'Positional',    Args.AperCorrPositional, ...
                     'PosColNameX',   Args.AperCorrPosColNameX, ...
                     'PosColNameY',   Args.AperCorrPosColNameY, ...
@@ -690,42 +695,16 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                     'PosMaxIter',    Args.AperCorrPosMaxIter, ...
                     'Verbose',       Args.Verbose);
 
-                if Args.ApplyAperCorr && ~isempty(PC.AperCorr) && ~isempty(PC.AperCorrColNames)
-                    AllColNamesC = CatRef.Table.Properties.VariableNames;
-                    % Optional per-source (X, Y) for position-dependent
-                    % correction: fetch once if PC.AperCorrPositional is
-                    % populated. Column names default to 'X'/'Y' (per-crop)
-                    % but can be XFULL/YFULL in joint mode — the fit was
-                    % done in that basis.
-                    HasPosFit = iscell(PC.AperCorrPositional) && ...
-                                numel(PC.AperCorrPositional) == numel(PC.AperCorr);
-                    Xper = []; Yper = [];
-                    if HasPosFit
-                        for CN = {'X','XFULL'}
-                            if ismember(CN{1}, AllColNamesC); Xper = CatRef.getCol(CN{1}); break; end
-                        end
-                        for CN = {'Y','YFULL'}
-                            if ismember(CN{1}, AllColNamesC); Yper = CatRef.getCol(CN{1}); break; end
-                        end
-                    end
-                    for Iap = 1:numel(PC.AperCorrColNames)
-                        ColName = PC.AperCorrColNames{Iap};
-                        if ~ismember(ColName, AllColNamesC); continue; end
-                        PosFit = [];
-                        if HasPosFit; PosFit = PC.AperCorrPositional{Iap}; end
-                        if HasPosFit && ~isempty(Xper) && ~isempty(Yper) && ...
-                                ~isempty(PosFit) && isstruct(PosFit) && ...
-                                isfield(PosFit, 'Fun') && ~isempty(PosFit.Fun)
-                            % Per-source shift from the 2D fit.
-                            dCorr = PosFit.Fun(Xper, Yper, PosFit.Par);
-                            Vals = CatRef.getCol(ColName) + dCorr(:);
-                            CatRef.replaceCol(Vals, ColName);
-                        elseif isfinite(PC.AperCorr(Iap))
-                            % Legacy scalar shift.
-                            Vals = CatRef.getCol(ColName) + PC.AperCorr(Iap);
-                            CatRef.replaceCol(Vals, ColName);
-                        end
-                    end
+                if Args.ApplyAperCorr
+                    % Apply scalar or position-dependent aperture corrections
+                    % via PhotCalibTrans.applyAperCorr (same code path used for
+                    % header-restored PCs). 'auto' uses the positional fit when
+                    % present (else scalar); the bilinear fit is evaluated from
+                    % its coefficients + PC.CCDSEC.
+                    CatRef = PC.applyAperCorr(CatRef, ...
+                        'ColX',  Args.AperCorrPosColNameX, ...
+                        'ColY',  Args.AperCorrPosColNameY, ...
+                        'Mode',  Args.AperCorrApplyMode);
                 end
             end
 
@@ -1022,6 +1001,40 @@ function CalibArgs = predefCalibArgs(Args)
     %            'AperCorrMethod'   - Aperture corr method. Default 'median'.
     %            'AperCorrSNColName'- S/N column for aper corr. Default 'SN'.
     %            'AperCorrMinSN'    - Min S/N for aper corr. Default 30.
+    %            'AperCorrFilterBadFlags' - Reject FLAGS-flagged sources from
+    %                                 the aperture-correction fit (in addition
+    %                                 to the S/N cut). Default true. Bit names
+    %                                 in 'AperCorrBadFlags' (default Saturated,
+    %                                 NaN, Negative, CR_DeltaHT, NearEdge) are
+    %                                 rejected - near-edge / saturated sources
+    %                                 otherwise bias the fit, especially the
+    %                                 position-dependent one near the edges.
+    %            'AperCorrBadFlags' - Bit names rejected by the above filter.
+    %            'AperCorrPositional' - Also fit a position-dependent aperture
+    %                                 correction MagDiff(X,Y) per aperture (via
+    %                                 imUtil.calib.fitPositionalDiff) on top of
+    %                                 the scalar one. Default false (scalar only
+    %                                 - the status quo). When true, the bilinear
+    %                                 coefficients are written to / read from the
+    %                                 header (APC0/APCX/APCY/APCXY_<tag>) in
+    %                                 addition to the scalar APCOR_<tag>.
+    %            'AperCorrApplyMode'- Which aperture correction to apply:
+    %                                 'auto' (default) uses the positional fit
+    %                                 when present else the scalar; 'scalar'
+    %                                 forces the scalar; 'positional' applies the
+    %                                 positional fit only. Status quo = 'auto'.
+    %            'AperCorrPosColNameX/Y' - Position columns for the positional
+    %                                 fit (and its application). Default 'X'/'Y'.
+    %            'AperCorrPosCCDSEC'- Normalization section for the positional
+    %                                 fit. Default [] -> use the image CCDSEC
+    %                                 from the header; else [Xmin Xmax Ymin Ymax].
+    %            'AperCorrPosModel' - Basis functions of the positional fit.
+    %                                 Default bilinear {1, x, y, x*y}; only this
+    %                                 4-coef form is persisted to the header.
+    %            'AperCorrPosSigmaClip' - [Lower Upper] sigma clip of the
+    %                                 positional fit. Default [3 3].
+    %            'AperCorrPosMaxIter' - Positional-fit iterations (1 = no clip).
+    %                                 Default 3.
     %            'N_ARMS'           - N brightest calibrators for ARMS. Default 20.
     % Output : - Cell array of key-value pairs for PhotCalibTrans.calibrate.
     % Author : D. Kovaleva (Feb 2026)
