@@ -1,0 +1,58 @@
+function Term = affine(Data, Args)
+    % Build the per-epoch affine transformation term (Segev et al. 2025,
+    % Eq. 4, 17-18). Couples to a source-position term via State.
+    % Input  : - Data : struct from imUtil.agis.buildFitData.
+    %          * ...,key,val,...
+    %            'SourceTermName' - name of the term supplying reference
+    %                               positions x0,y0 (rows 1,2 of its
+    %                               parameter matrix). Default: 'ProperMotion'.
+    %            'Name'           - term name. Default: 'Affine'.
+    % Output : - Term : struct conforming to the imUtil.agis term contract.
+    %            Parameter grouping: one block per EPOCH.
+    %            Parameters per block: [a1;a2;a3;a4;a5;a6], matching
+    %              x' = a1*x0 + a2*y0 + a3
+    %              y' = a4*x0 + a5*y0 + a6
+    % Author : N. Segev / imUtil.agis rewrite
+    % Example: Term = imUtil.agis.affine(Data);
+
+    arguments
+        Data (1,1) struct
+        Args.SourceTermName char = 'ProperMotion'
+        Args.Name char = 'Affine'
+    end
+
+    Term.Name       = Args.Name;
+    Term.NParams    = 6;
+    Term.ParamNames = {'a1', 'a2', 'a3', 'a4', 'a5', 'a6'};
+    Term.Active     = true;
+
+    % one parameter block per epoch, shared across all sources
+    Term.GroupFun = @(D, ~) repmat((1:D.Nepoch).', 1, D.Nsrc);
+
+    Term.DesignFun = @(D, S) localDesign(D, S, Args.SourceTermName);
+
+    Term.InitFun = @(D) localInit(D);
+end
+
+function [Dx, Dy] = localDesign(D, S, SourceTermName)
+    if ~isfield(S.Params, SourceTermName)
+        error('imUtil:agis:affine:missingSourceTerm', ...
+            ['Affine term requires State.Params.%s (reference source positions). ', ...
+             'Make sure a source-position term named "%s" is included in Terms.'], ...
+            SourceTermName, SourceTermName);
+    end
+
+    P0 = S.Params.(SourceTermName);          % [NParams x Nsrc], rows 1,2 = x0,y0
+    X0 = repmat(P0(1, :), D.Nepoch, 1);        % [Nepoch x Nsrc]
+    Y0 = repmat(P0(2, :), D.Nepoch, 1);
+    One  = ones(D.Nepoch, D.Nsrc);
+    Zero = zeros(D.Nepoch, D.Nsrc);
+
+    Dx = cat(3, X0, Y0, One, Zero, Zero, Zero);
+    Dy = cat(3, Zero, Zero, Zero, X0, Y0, One);
+end
+
+function P0 = localInit(D)
+    % identity transform for every epoch: a1=1,a2=0,a3=0,a4=0,a5=1,a6=0
+    P0 = repmat([1; 0; 0; 0; 1; 0], 1, D.Nepoch);
+end
