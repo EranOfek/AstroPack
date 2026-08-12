@@ -38,6 +38,11 @@ classdef PipelineDemon < Component
         
 
         ObsCoo       = [35.04073 30.05298 415];  % [deg deg m]
+
+        % Flux->magnitude conversion, 'mag' uses convert.magnitude
+        % (standard magnitude, NaN for non-positive flux); 'lup' uses
+        % convert.luptitude.
+        MagType char {mustBeMember(MagType, {'lup','mag'})} = 'mag';
     end
     
     properties (Hidden)
@@ -2583,7 +2588,7 @@ classdef PipelineDemon < Component
 
             % executing pipelineI
             AllForcedPhot = []; % TEMPORARY / not used
-            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, Args.pipelineIArgs{:},'Status',Status);
+            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, 'MagType', Obj.MagType, Args.pipelineIArgs{:},'Status',Status);
             %ProcImageList = TableRaw.FileName;                
             RunTime = etime(clock, Tstart);
             Ntr = size(TableRaw,1);

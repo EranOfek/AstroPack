@@ -1542,7 +1542,7 @@ function TranCat = flagNonTransients(Obj, Args)
             end
 
             if ~isempty(DgreaterR)
-                NuclearNoise = NuclearNoise | DgreaterR(GalPSFNoiseCand);
+                NuclearNoise = NuclearNoise & ~DgreaterR(GalPSFNoiseCand);
             end
 
             FilterFlags(GalPSFNoiseCand) = setFilterBit(...
