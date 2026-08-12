@@ -85,6 +85,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.coadd_WRobustArgs             = {};
         Args.generateImageIDArgs           = {};
         Args.fitPhotCalibTransArgs         = {};
+        Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup'  % flux->mag conversion for calibrated mags: 'lup' (default) | 'mag'. PipelineDemon sets 'mag'; overridable via fitPhotCalibTransArgs.
         
         %Args.PoissVar                      = true;
         %Args.RN2                           = 12;
@@ -668,7 +669,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 971;
             %tic;
             if AnyCoaddExist
-                [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
+                [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, 'MagType', Args.MagType, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
             end
             %toc
         

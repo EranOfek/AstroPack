@@ -32,6 +32,15 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %                         applyPhotCalibShifts all read it from there, so
     %                         write/read sides always agree. Does not affect
     %                         AB_ZP. Default is 'MAG_AB_'.
+    %            'MagType' - Flux->magnitude conversion for the calibrated
+    %                         magnitudes: 'lup' uses convert.luptitude (asinh
+    %                         magnitude, finite for negative flux) or 'mag' uses
+    %                         convert.magnitude (standard magnitude, NaN for
+    %                         non-positive flux). Stamped onto each PC object's
+    %                         MagType property; evaluateMag, addMag and the
+    %                         per-epoch applyPhotCalibShifts read it via
+    %                         PhotCalibTrans.fluxToMag. Default 'lup'
+    %                         (pipeline.last.pipes.PipelineDemon sets 'mag').
     %            'FluxColName' - Flux column name. Default is 'FLUX_APER_3'.
     %            'AddZP' - Add ZP column. Default is true.
     %            'UpdateHeader' - Update header with results. Default is true.
@@ -283,6 +292,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.AddMag logical = true
         Args.MagSystem char = 'AB'
         Args.MagColPrefix = 'MAG_'   % Prefix for calibrated MAG column names ('MAG_' drops _AB, overwrites instrumental MAG_*)
+        Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup'  % 'lup' convert.luptitude (default) | 'mag' convert.magnitude (NaN for Flux<=0)
         Args.RefSpecSlope (1,1) double = 0      % Slope alpha of the F_nu reference spectrum (lambda/pivot)^alpha
                                                 % used by evaluateZP/evaluateMag for the
                                                 % target-mag conversion. 0 = AB-flat (back-compat).
@@ -617,6 +627,9 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % applyConstBand, and the per-epoch applyPhotCalibShifts) reads this
         % property — set once here, no per-call threading.
         PC.MagColPrefix = Args.MagColPrefix;
+        % Flux->mag conversion (luptitude vs magnitude) travels with the object
+        % the same way, so the per-epoch applyPhotCalibShifts entry point sees it.
+        PC.MagType = Args.MagType;
 
         % Same convention for the reference-spectrum slope and pivot: stamp
         % once onto the PC so evaluateZP / evaluateMag pick them up.

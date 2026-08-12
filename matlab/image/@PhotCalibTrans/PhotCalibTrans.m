@@ -211,6 +211,14 @@ classdef PhotCalibTrans < Component
         % fitPhotCalibTrans stamps this from its MagColPrefix argument.
         MagColPrefix = 'MAG_AB_'            % Prefix for calibrated MAG column names
 
+        % Flux-to-magnitude conversion for calibrated magnitudes. 'lup' uses
+        % convert.luptitude (asinh magnitude, finite for negative flux); 'mag'
+        % uses convert.magnitude (standard magnitude, NaN for non-positive
+        % flux). Read by evaluateMag, addMag and applyPhotCalibShifts via the
+        % static fluxToMag. fitPhotCalibTrans stamps this from its MagType
+        % argument (default 'lup'; pipeline.last.pipes.PipelineDemon sets 'mag').
+        MagType char {mustBeMember(MagType, {'lup','mag'})} = 'lup'
+
         % Reference spectrum slope for target-mag conversion. The transmission
         % is integrated against F_nu(lambda) = (lambda / RefSpecPivot)^RefSpecSlope
         % when evaluateZP / evaluateMag compute calibrated mags. Default is the
@@ -2568,8 +2576,9 @@ classdef PhotCalibTrans < Component
             ZP = ZP(:);  % Ensure column vector
 
             % Calculate calibrated magnitudes
-            % MAG = -2.5*log10(FLUX/ExpTime_eff) + ZP
-            Mag = convert.luptitude(Flux/ExpTime_eff, 10.^(0.4.*ZP));
+            % MAG = -2.5*log10(FLUX/ExpTime_eff) + ZP (luptitude or magnitude
+            % per Obj.MagType; magnitude returns NaN for non-positive flux)
+            Mag = PhotCalibTrans.fluxToMag(Obj.MagType, Flux/ExpTime_eff, ZP);
 
             % Return magnitude errors if requested
             if nargout > 1
@@ -4371,8 +4380,9 @@ classdef PhotCalibTrans < Component
                 Flux = Tab.(FluxColName);
 
                 % Calibrated magnitude using pre-computed ZP
-                % MAG = -2.5*log10(FLUX/ExpTime_eff) + ZP  (via luptitude)
-                Mag = convert.luptitude(Flux/ExpTime_eff, 10.^(0.4.*ZP));
+                % MAG = -2.5*log10(FLUX/ExpTime_eff) + ZP (luptitude or
+                % magnitude per Obj.MagType; magnitude -> NaN for Flux<=0)
+                Mag = PhotCalibTrans.fluxToMag(Obj.MagType, Flux/ExpTime_eff, ZP);
 
                 % Create new calibrated magnitude column name
                 % e.g., FLUX_APER_3 -> MAG_AB_APER_3
@@ -6364,8 +6374,8 @@ classdef PhotCalibTrans < Component
                             FluxColNames = FluxColNames(KeepMask);
                             for I = 1:numel(FluxColNames)
                                 Flux_col = CatObj.Catalog(:, FluxColIdx(I));
-                                Mag = convert.luptitude(Flux_col / ExpTime_epoch, ...
-                                    10.^(0.4 .* ZP_epoch));
+                                Mag = PhotCalibTrans.fluxToMag(PC_c.MagType, ...
+                                    Flux_col / ExpTime_epoch, ZP_epoch);
                                 NewMagColName = strrep(FluxColNames{I}, 'FLUX_', MagPrefix);
 
                                 if Args.ApplyAperCorr && ~isempty(PC_c.AperCorr) && ...
@@ -6860,6 +6870,25 @@ classdef PhotCalibTrans < Component
             Yn = (Y(:) - MidY)./RangeY;
             P  = Par(:).';
             d  = P(1) + P(2).*Xn + P(3).*Yn + P(4).*Xn.*Yn;
+        end
+
+        function Mag = fluxToMag(MagType, Flux, ZP)
+            % Flux -> magnitude, dispatching on MagType ('lup' | 'mag').
+            %   'lup' -> convert.luptitude (asinh magnitude; finite for Flux<0)
+            %   'mag' -> convert.magnitude  (standard magnitude; NaN for Flux<=0)
+            % Uses Flux0 = 10.^(0.4.*ZP), the shared luptitude/magnitude
+            % convention, so the two are interchangeable here.
+            % Input  : - MagType char ('lup' or 'mag').
+            %          - Flux (already divided by ExpTime where applicable).
+            %          - ZP (scalar or per-source vector).
+            % Output : - Magnitude.
+            % Author : D. Kovaleva (Aug 2026)
+            Flux0 = 10.^(0.4.*ZP);
+            if strcmpi(MagType, 'mag')
+                Mag = convert.magnitude(Flux, Flux0);
+            else
+                Mag = convert.luptitude(Flux, Flux0);
+            end
         end
     end
 
