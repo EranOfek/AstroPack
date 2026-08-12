@@ -94,7 +94,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
         Args.LimMagArgs                    = {};
         Args.BackMagArgs                   = {};
-        Args.KeyZP                         = 'PH_ZP'; % Need to change to 'PT_ZP'
+        Args.KeyZP                         = 'PT_ZP'; % photometric ZP from fitPhotCalibTrans (propagated to AllSI via applyPhotCalibShifts)
 
         Args.ForcedPhotCat               = 'ForcedPhotList'; %'WDEDR3';  % UPDATE
         Args.CornersRA                   = {'RA1','RA2','RA3','RA4'};

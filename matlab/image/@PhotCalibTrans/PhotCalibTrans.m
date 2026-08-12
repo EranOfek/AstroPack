@@ -23,6 +23,7 @@ classdef PhotCalibTrans < Component
     %   DeltaZP_CB - Constant-band delta ZP [mag] (set by applyConstBand, written to header as PT_DZP)
     %   LimMag     - Limiting magnitude at SN=LimMagSN [mag] (set by evaluateLimMag, header keyword LIMMAG)
     %   BackMag    - Sky background surface brightness [mag/arcsec^2] (set by evaluateBackMag, header keyword BACKMAG)
+    %   PhotZP     - Photometric ZP at image centre [mag] = mag of a 1-count full-exposure source (set by evaluatePhotZP, header keyword PT_ZP)
     %   MagColPrefix - Prefix for calibrated MAG column names (default 'MAG_AB_';
     %                set 'MAG_' to overwrite instrumental MAG_<suffix> in place)
     %   AirMass, ExpTime, NCoadd, NFramesPerCoadd, Temp, Pressure, Humidity, Aperture
@@ -258,6 +259,12 @@ classdef PhotCalibTrans < Component
         % Limiting magnitude and sky surface brightness (legacy compat keywords)
         LimMag  = NaN           % Limiting magnitude at SN=LimMagSN [mag] (set by evaluateLimMag)
         BackMag = NaN           % Sky background surface brightness [mag/arcsec^2] (set by evaluateBackMag)
+
+        % Photometric zero point of the image at its centre [mag]: the
+        % magnitude of a source whose total flux over the full exposure is
+        % 1 count, i.e. PhotZP = ZP(centre) + 2.5*log10(ExpTime_eff). Set by
+        % evaluatePhotZP; written to the header as keyword PT_ZP.
+        PhotZP  = NaN
 
         % (Success flag removed — callers check ~isempty(TransModel) instead.)
 
@@ -3057,6 +3064,7 @@ classdef PhotCalibTrans < Component
             %                        APC0/APCX/APCY/APCXY_* (position-dependent aperture
             %                        corrections + APCOR_N; no scalar median APCOR_*),
             %                        PT_DZP (constant-band delta ZP, if DeltaZP_CB finite),
+            %                        PT_ZP (photometric ZP at image centre, if PhotZP finite),
             %                        LIMMAG (if LimMag finite), BACKMAG (if BackMag finite).
 
             arguments
@@ -3308,6 +3316,16 @@ classdef PhotCalibTrans < Component
                 end
             end
 
+            % Photometric zero point of the image at its centre (mag of a
+            % 1-count full-exposure source). Read by imProc.calib.backmag/limmag.
+            if isfinite(Obj.PhotZP)
+                HeaderObj = HeaderObj.replaceVal('PT_ZP', Obj.PhotZP);
+                if Args.WriteComments
+                    IComment = IComment + 1;
+                    HistoryComments{IComment} = 'PT_ZP: Photometric zero point at image centre [mag] (1 count, full exposure)';
+                end
+            end
+
             % Limiting magnitude and sky surface brightness (legacy keyword names)
             if isfinite(Obj.LimMag)
                 HeaderObj = HeaderObj.replaceVal('LIMMAG', Obj.LimMag);
@@ -3365,6 +3383,11 @@ classdef PhotCalibTrans < Component
             end
             if HeaderObj.isKeyExist('PT_DOF')
                 Obj.TransModel.DOF = HeaderObj.getVal('PT_DOF');
+            end
+
+            % Photometric zero point at image centre
+            if HeaderObj.isKeyExist('PT_ZP')
+                Obj.PhotZP = HeaderObj.getVal('PT_ZP');
             end
 
             % Limiting magnitude and sky surface brightness (legacy keywords)
@@ -4639,6 +4662,33 @@ classdef PhotCalibTrans < Component
 
             % Insert column
             CatObj = CatObj.insertCol(ZP, Inf, {ZPColName});
+        end
+
+        function Obj = evaluatePhotZP(Obj)
+            % Photometric zero point of the image at its centre -> Obj.PhotZP.
+            %   PhotZP is the magnitude of a source whose TOTAL flux over the
+            %   full exposure is 1 count:
+            %       PhotZP = ZP(centre) + 2.5*log10(ExpTime_eff)
+            %   where ZP(centre) is the transmission zero point evaluated at
+            %   the field centre (MAG = -2.5*log10(FLUX/ExpTime_eff) + ZP, so
+            %   FLUX = 1 count gives MAG = PhotZP). Written to the header as
+            %   keyword PT_ZP; read downstream by imProc.calib.backmag/limmag.
+            %   Requires a fitted TransModel and a finite positive ExpTime_eff;
+            %   sets NaN otherwise.
+            % Input  : - PhotCalibTrans object (after calibrate).
+            % Output : - Same object with PhotZP set.
+            % Author : D. Kovaleva (Aug 2026)
+            % Example: PC = PC.evaluatePhotZP;  PC.PhotZP
+            Obj.PhotZP = NaN;
+            if isempty(Obj.TransModel) || ~isfinite(Obj.ExpTime_eff) || Obj.ExpTime_eff <= 0
+                Obj.msgLog(LogLevel.Warning, ...
+                    'evaluatePhotZP: no TransModel or non-finite ExpTime_eff - PT_ZP set to NaN');
+                return;
+            end
+            ZPc = Obj.evaluateZP();          % scalar ZP at field centre
+            if isscalar(ZPc) && isfinite(ZPc)
+                Obj.PhotZP = ZPc + 2.5.*log10(Obj.ExpTime_eff);
+            end
         end
 
         function Obj = evaluateLimMag(Obj, CatObj, Args)
@@ -6486,6 +6536,14 @@ classdef PhotCalibTrans < Component
                         end
 
                         if Args.UpdateHeader && ~isempty(AIie.HeaderData)
+                            % Per-epoch photometric ZP (PT_ZP): mag of a 1-count
+                            % full-exposure source at the epoch's shifted ZP.
+                            PhotZP_ep = NaN;
+                            if isfinite(ZP_epoch_scalar) && isfinite(ExpTime_epoch) && ExpTime_epoch > 0
+                                PhotZP_ep = ZP_epoch_scalar + 2.5*log10(ExpTime_epoch);
+                            end
+                            EpochAIs(Ie, Ic).HeaderData = ...
+                                EpochAIs(Ie, Ic).HeaderData.replaceVal('PT_ZP', PhotZP_ep);
                             EpochAIs(Ie, Ic).HeaderData = ...
                                 EpochAIs(Ie, Ic).HeaderData.replaceVal('BACKMAG', BackMag_ep);
                         end

@@ -107,10 +107,18 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %                         crop. Required when ApplyConstBand=true.
     %            'ConstBandOutputMode' - 'newcol' or 'replace'. Default is 'newcol'.
     %            'ConstBandPrefix' - Column prefix for newcol mode. Default is 'MAG_CB_'.
+    %            'EvaluatePhotZP'  - Evaluate the photometric zero point at the
+    %                         image centre and write header keyword PT_ZP (the
+    %                         magnitude of a 1-count full-exposure source,
+    %                         PT_ZP = ZP(centre)+2.5*log10(ExpTime_eff)). Read
+    %                         downstream by imProc.calib.backmag/limmag.
+    %                         Default is true.
     %            'EvaluateLimMag'  - Evaluate limiting magnitude (legacy LIMMAG).
-    %                         Default is false (legacy fitPhotCalibMag emits it).
-    %                         Uses Args.FluxColName / Args.MagSystem to locate
-    %                         FLUXERR_<suffix> and MAG_<system>_<suffix>.
+    %                         Default is false (the LAST pipeline uses the
+    %                         standalone imProc.calib.limmag; legacy
+    %                         fitPhotCalibMag also emits it). Uses Args.FluxColName
+    %                         / Args.MagSystem to locate FLUXERR_<suffix> and
+    %                         MAG_<system>_<suffix>.
     %            'EvaluateBackMag' - Evaluate sky surface brightness (legacy BACKMAG).
     %                         Default is false; AstroImage input only.
     %            'LimMagMinSN'     - Lower SN bound for LimMag fit. Default is 5.
@@ -341,9 +349,13 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.AperCorrPosSigmaClip (1,2) double = [3 3]
         Args.AperCorrPosMaxIter (1,1) double {mustBePositive, mustBeInteger} = 3
         Args.AperCorrApplyMode (1,:) char {mustBeMember(Args.AperCorrApplyMode, {'auto','scalar','positional'})} = 'auto'
-        % Default false because legacy fitPhotCalibMag still writes LIMMAG/BACKMAG.
-        % Flip to true (and set WriteLimBackMag=false in fitPhotCalibMag) once this
-        % path becomes the pipeline default.
+        % PT_ZP (photometric zero point at the image centre = mag of a 1-count
+        % full-exposure source) is written to the header by default; downstream
+        % imProc.calib.backmag/limmag read it.
+        Args.EvaluatePhotZP  logical = true
+        % LIMMAG/BACKMAG stay OFF here by default: the LAST pipeline computes
+        % them with the standalone imProc.calib.limmag / imProc.calib.backmag
+        % (which read PT_ZP), and legacy fitPhotCalibMag still writes them.
         Args.EvaluateLimMag  logical = false
         Args.EvaluateBackMag logical = false
         Args.LimMagMinSN    double = 5
@@ -705,6 +717,11 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                 end
             end
 
+            % Photometric zero point at image centre (header keyword PT_ZP).
+            if Args.EvaluatePhotZP
+                PC = PC.evaluatePhotZP();
+            end
+
             % Limiting magnitude and sky surface brightness (legacy LIMMAG/BACKMAG)
             % Run after aperture correction so LimMag fits the corrected MAG_AB_* values.
             if Args.EvaluateLimMag
@@ -797,6 +814,11 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                 H = H.replaceVal(...
                     {'PT_RMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALIB', 'PT_SUCC', 'PT_AREF', 'PT_SPEC'}, ...
                     {NaN,      NaN,       NaN,      -1,          false,     'SMART v2.9.8', 'GaiaDR3'});
+
+                % NaN fill for PT_ZP (photometric ZP) on the failure path
+                if Args.EvaluatePhotZP
+                    H = H.replaceVal('PT_ZP', NaN);
+                end
 
                 % NaN fills for legacy LIMMAG/BACKMAG (only when feature enabled)
                 if Args.EvaluateLimMag
