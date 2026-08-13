@@ -335,7 +335,7 @@ function TranCat = flagNonTransients(Obj, Args)
         % N-image PSF shape
         Args.flagPSFShape logical = true
         Args.SecondMomSoftLim double = 1.4
-        Args.SecondMomHardLim double = [3.0 4.5 7.0]
+        Args.SecondMomHardLim double = [3.0 4.5 5.0]
 
         % Contamination logic
         Args.ContaminationBackRatio double = 0.1
