@@ -335,7 +335,7 @@ function MS = stabilityN3(Args)
         clear AC
 
         % Stash per-epoch AIRMASS on the MS as broadcast [Nepoch x Nsrc] so
-        % downstream tools (plotMagAirmass, ad-hoc analyses) can read it
+        % downstream tools (plotMagCurves, ad-hoc analyses) can read it
         % without re-peeking headers or requiring a CSV. Broadcast keeps the
         % [Nep x Nsrc] shape convention of every other MS.Data field. Cost
         % ~ Nep*Nsrc*8 bytes (~4 MB for 100 epochs x 5000 sources).

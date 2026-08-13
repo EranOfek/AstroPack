@@ -173,17 +173,19 @@ function compareStabilityMS(MSList, Labels, Args)
     %                                     filled with MinTicks evenly
     %                                     spaced positions (log-spaced
     %                                     on log axes). Default 2.
-    %                      'ARMS_N'     - Number of lowest per-source
-    %                                     Std values used for the
+    %                      'ARMS_N'     - Sliding-window length (number of
+    %                                     consecutive sources) for the
     %                                     "asymptotic RMS" estimate.
-    %                                     ARMS = median of the N lowest
-    %                                     STRICTLY-POSITIVE Std values
-    %                                     pooled across all crops of
-    %                                     the MS (exact zeros excluded
-    %                                     as float32 quantization
-    %                                     artifacts), per cohort per
-    %                                     panel quantity, shown in the
-    %                                     legend. Default 20.
+    %                                     Sources are ordered by median
+    %                                     magnitude; ARMS = the MINIMUM,
+    %                                     over all windows of ARMS_N
+    %                                     consecutive sources, of the
+    %                                     in-window median STRICTLY-POSITIVE
+    %                                     Std (exact zeros excluded as
+    %                                     float32 quantization artifacts),
+    %                                     pooled across all crops of the MS,
+    %                                     per cohort per panel quantity,
+    %                                     shown in the legend. Default 20.
     %                      'BadFlags'   - cell of FLAGS bit names; any
     %                                     (epoch,source) entry carrying
     %                                     one of these bits is set to
@@ -454,7 +456,7 @@ function compareStabilityMS(MSList, Labels, Args)
         Args.LogYQuantities   cell   = {'FLUX_APER_3','FLUX_PSF', ...
                                         'MAG_PSF','MAG_APER_3', ...
                                         'MAG_AB_PSF','MAG_AB_APER_3', ...
-                                        'RA','Dec'}
+                                        'RA','Dec', 'MAGAB__PSF', 'MAGAB__APER_3'}
         Args.SplitByRow       logical = false
         Args.MaxMedMag        (1,1) double = 20
         Args.MinTicks         (1,1) double {mustBePositive, mustBeInteger} = 1
@@ -643,16 +645,22 @@ function compareStabilityMS(MSList, Labels, Args)
             if ~strcmp(Qk, Q0)
                 DName = sprintf('%s [%s]', Labels{K}, Qk);   % name differs from panel default
             end
-            % N reflects sources actually rendered: only those whose
-            % median fell in a bin that survived binStats' N>=5 cut.
-            % ARMS = median of the N lowest per-source Std values (the
-            % "asymptotic" / irreducible-floor estimate). Exact zeros
-            % are excluded — std==0 is a float32 quantization artifact
-            % (large RA values stored as single), not a real floor.
-            Sfin = Std(isfinite(Std) & Std > 0);
+            % ARMS = "asymptotic RMS": the irreducible photometric floor at
+            % the most stable magnitude regime. Order the per-source Std by
+            % median magnitude, slide a window of ARMS_N consecutive sources,
+            % and take the MINIMUM of the in-window median Std. Using a
+            % windowed median (rather than the N globally-smallest values)
+            % keeps the estimate anchored to a contiguous magnitude range and
+            % robust to isolated low outliers. Exact zeros are excluded —
+            % std==0 is a float32 quantization artifact (large RA values
+            % stored as single), not a real floor.
+            Good = isfinite(Std) & isfinite(Med) & Std > 0;
+            Sfin = Std(Good);
+            Mfin = Med(Good);
             if numel(Sfin) >= Args.ARMS_N
-                Ssort = sort(Sfin);
-                ARMS  = median(Ssort(1:Args.ARMS_N));
+                [~, Ord] = sort(Mfin);
+                WinMed   = movmedian(Sfin(Ord), Args.ARMS_N, 'Endpoints', 'discard');
+                ARMS     = min(WinMed);
             else
                 ARMS  = NaN;
             end

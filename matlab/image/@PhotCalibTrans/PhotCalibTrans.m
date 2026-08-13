@@ -227,7 +227,7 @@ classdef PhotCalibTrans < Component
         % Only the *target-mag conversion* is affected — the calibration fit
         % itself uses the calibrators' true Gaia DR3 spectra (SpecData).
         % fitPhotCalibTrans stamps both from its RefSpecSlope / RefSpecPivot args.
-        RefSpecSlope = 0                    % Slope alpha for F_nu reference spectrum
+        RefSpecSlope = 1.5                  % Slope alpha for F_nu reference spectrum
         RefSpecPivot = 5500                 % Pivot wavelength [Angstrom]
 
         % Aperture corrections
@@ -380,7 +380,7 @@ classdef PhotCalibTrans < Component
             %                               re-gate by SearchRadius (main path). Default true.
             %            'FunListName'    - Transmission function list name. Default is 'DefaultLASTFunList'.
             %            'CustomFunList'  - Custom function list. Default is [].
-            %            'OptSeqName'     - Optimization sequence name. Default is 'LAST_Joint_2Iter_Split3'.
+            %            'OptSeqName'     - Optimization sequence name. Default is 'LAST_Joint_2Iter_AtmosFirst_Split3'.
             %            'CustomOptSeq'   - Custom optimization sequence. Default is [].
             %            'Tran2DType'     - Position-dependent correction type. Default is 'cheby1_1'.
             %            'UseTran2D'      - Enable position-dependent correction. Default is true.
@@ -402,6 +402,15 @@ classdef PhotCalibTrans < Component
             %            'MagColName'     - Mag column for the audit LAST nearest-
             %                               neighbour delta-mag (no longer the MagRange
             %                               cut). Default 'MAG_APER_3'.
+            %            'FluxColName'    - Observed-flux column in the catalog
+            %                               that the zero point is fit to (and
+            %                               that the calibrated MAG anchor rides
+            %                               on). Forwarded to selectCalibrators.
+            %                               Default 'FLUX_APER_3'; set 'FLUX_PSF'
+            %                               to calibrate on PSF photometry. When
+            %                               no matching FLUXERR_<col> exists the
+            %                               fit takes the relative flux error as
+            %                               1./SN (see selectCalibrators).
             %            'SpFluxCol'      - Spectral flux column indices in
             %                               CalibCatName as [flux_start, flux_end,
             %                               err_start, err_end]. Default
@@ -616,7 +625,7 @@ classdef PhotCalibTrans < Component
                 Args.MinSN2           = 10           % LAST default (matches predefCalibArgs)
                 Args.FunListName      = 'DefaultLASTFunList'
                 Args.CustomFunList    = []
-                Args.OptSeqName       = 'LAST_Joint_2Iter_Split3'
+                Args.OptSeqName       = 'LAST_Joint_2Iter_AtmosFirst_Split3'
                 Args.CustomOptSeq     = []
                 Args.Tran2DType       = 'cheby1_1'
                 Args.UseTran2D logical = true
@@ -657,6 +666,7 @@ classdef PhotCalibTrans < Component
                 Args.CollectCalibTrajectory logical = false
                 % Calibrator selection knobs forwarded to selectCalibrators
                 Args.CalibCatName     = 'GAIADR3spec'
+                Args.FluxColName      = 'FLUX_APER_3'      % Observed-flux column the ZP is fit to (e.g. 'FLUX_PSF')
                 Args.MinSN            = 5                  % Lower S/N gate on calibrator candidates
                 Args.MaxSN            = 1000               % Upper S/N gate
                 Args.FilterBadFlags logical = true         % Apply FLAGS bitmask filter
@@ -688,9 +698,9 @@ classdef PhotCalibTrans < Component
                 Args.FluxErrorNorm    = 0.5
                 % Forward to CompositeFun.fitPar -> lsqnonlin TypicalX.
                 % Scales finite-diff steps + stopping tolerances by each
-                % free parameter's natural magnitude. Default false
-                % preserves current optimizer behaviour.
-                Args.UseTypicalX logical = false
+                % free parameter's natural magnitude. Default true (the LAST
+                % fit's free parameters span ~5 orders of magnitude).
+                Args.UseTypicalX logical = true
                 Args.AirmassColName   = 'AIRMASS'
                 Args.PerSourceAirmass logical = false
 
@@ -699,15 +709,15 @@ classdef PhotCalibTrans < Component
                 % offset kx0. The (Norm, kx0) pair is a pure gauge freedom:
                 % any bijective reparameterisation preserves every model
                 % prediction. Options:
-                %   'raw'    - report the fit's raw values (default; every
-                %              historical run uses this).
-                %   'center' - after the fit completes, rotate the pair so
-                %              that Tran2D(field-centre) = 0 and Norm
+                %   'center' - (default) after the fit completes, rotate the
+                %              pair so that Tran2D(field-centre) = 0 and Norm
                 %              carries the full field-centre ZP. Applied
                 %              via absorbTran2DCenterIntoNorm(). Predictions
                 %              are bit-identical; only the (Norm, ParX(1))
                 %              split changes.
-                Args.NormConvention (1,:) char {mustBeMember(Args.NormConvention, {'raw','center'})} = 'raw'
+                %   'raw'    - report the fit's raw values (no centring; the
+                %              pre-Aug-2026 default).
+                Args.NormConvention (1,:) char {mustBeMember(Args.NormConvention, {'raw','center'})} = 'center'
 
                 % Systematic-error floor applied element-wise to the
                 % combined MagErr used as fit weight. See
@@ -1074,6 +1084,7 @@ classdef PhotCalibTrans < Component
                 'FilterNegFlux', Args.FilterNegFlux, ...
                 'MinSN2', Args.MinSN2, ...
                 'CalibCatName', Args.CalibCatName, ...
+                'FluxColName', Args.FluxColName, ...
                 'MinSN', Args.MinSN, ...
                 'MaxSN', Args.MaxSN, ...
                 'FilterBadFlags', Args.FilterBadFlags, ...
@@ -1893,10 +1904,23 @@ classdef PhotCalibTrans < Component
                 FluxErrColName = strrep(Args.FluxColName, 'FLUX', 'FLUXERR');
                 if ismember(FluxErrColName, Cands.Properties.VariableNames)
                     Obs_FluxErr = Cands.(FluxErrColName);
+                elseif ismember('SN', Cands.Properties.VariableNames)
+                    % No FLUXERR_<col> for this flux column (e.g. FLUX_PSF has
+                    % none): derive the RELATIVE flux error dF/F — the same
+                    % convention the FLUXERR_* columns use — from S/N as 1./SN.
+                    % (sqrt(|flux|) would be an ABSOLUTE error, which the fit's
+                    % weighting, MagErr=1.086*FluxErr, mis-scales silently.)
+                    % Non-positive / non-finite SN -> NaN (dropped by the
+                    % validity mask below).
+                    SNvec       = Cands.SN;
+                    Obs_FluxErr = 1 ./ SNvec;
+                    Obs_FluxErr(~(SNvec > 0) | ~isfinite(SNvec)) = NaN;
+                    Obj.msgLog(LogLevel.Warning, sprintf( ...
+                        'selectCalibrators: %s not found, using 1/SN for relative flux errors', FluxErrColName));
                 else
                     Obs_FluxErr = sqrt(abs(Obs_Flux));
                     Obj.msgLog(LogLevel.Warning, sprintf( ...
-                        'selectCalibrators: %s not found, using sqrt(flux) for errors', FluxErrColName));
+                        'selectCalibrators: %s and SN not found, using sqrt(flux) for errors', FluxErrColName));
                 end
 
                 Nsources_before = length(Obs_Flux);
@@ -4695,17 +4719,35 @@ classdef PhotCalibTrans < Component
             % Compute limiting magnitude from calibrated catalog (legacy LIMMAG)
             % Input  : - PhotCalibTrans object.
             %          - AstroCatalog object after addMag (must contain the
-            %            matching FLUXERR_<suffix> and <MagColPrefix><suffix>
-            %            columns derived from FluxColName; <MagColPrefix> is the
-            %            object's MagColPrefix property).
+            %            magnitude column selected by MagColName or, when that
+            %            is empty, <MagColPrefix><suffix> derived from FluxColName;
+            %            <MagColPrefix> is the object's MagColPrefix property).
             %          * ...,key,val,...
-            %            'FluxColName' - Flux column name; the matching
-            %                            FLUXERR_<suffix> drives the SN ratio
-            %                            and <MagColPrefix><suffix> is fit.
-            %                            Default is 'FLUX_APER_3'.
+            %            'FluxColName' - Flux column name; used to derive the
+            %                            magnitude column (<MagColPrefix><suffix>)
+            %                            and the FLUXERR-based S/N fallback
+            %                            (FLUXERR_<suffix>). Default is 'FLUX_APER_3'.
+            %            'MagColName'  - Explicit magnitude column to fit.
+            %                            Default 'MAG_PSF' - the matched-filter
+            %                            magnitude, so PhotCalibTrans's LIMMAG
+            %                            matches imProc.calib.limmag's PSF-based
+            %                            limit by construction. Empty '' falls
+            %                            back to the legacy <MagColPrefix><suffix>
+            %                            derived from FluxColName (aperture-based).
+            %                            FluxColName is still used for the FLUXERR
+            %                            fallback regardless.
+            %            'SNColName'   - S/N column name in the catalog. When
+            %                            present, its values are used directly -
+            %                            this is the PSF matched-filter SN written
+            %                            by psfFitPhot / multiIterExtractor and is
+            %                            what imProc.calib.limmag consumes, so the
+            %                            two calculators agree on the same source
+            %                            population. Empty ('') forces the
+            %                            FLUXERR-based fallback. Default 'SN'.
             %            'MagSystem'   - Magnitude system ('AB' or 'Vega').
             %                            Default is 'AB'.
-            %            'MinSN'       - Lower SN bound for fit window. Default is 5.
+            %            'MinSN'       - Lower SN bound for fit window. Default is 4
+            %                            (matches imProc.calib.limmag).
             %            'MaxSN'       - Upper SN bound for fit window. Default is 50.
             %            'LimMagSN'    - SN at which to evaluate limiting magnitude.
             %                            Default is 5.
@@ -4713,20 +4755,35 @@ classdef PhotCalibTrans < Component
             % Author : D. Kovaleva (May 2026)
             % Example: PC = PC.evaluateLimMag(Cat);
             %          PC = PC.evaluateLimMag(Cat, 'FluxColName', 'FLUX_PSF');
+            %          PC = PC.evaluateLimMag(Cat, 'MagColName',  'MAG_PSF');
+            %          PC = PC.evaluateLimMag(Cat, 'SNColName', '');   % force FLUXERR fallback
             % Description: Empirical limiting magnitude via straight-line fit of
-            %              MAG_<system>_<suffix> vs log10(SN) in window
-            %              [MinSN, MaxSN], evaluated at SN=LimMagSN. SN is taken
-            %              as 1./FLUXERR_<suffix> because FLUXERR is the relative
-            %              flux uncertainty (FluxErr/Flux); equivalent to
-            %              1.086/MagErr in the Gaussian limit. Color term omitted
-            %              because MAG_<system>_* already absorbs color.
+            %              a magnitude column vs log10(SN) in window
+            %              [MinSN, MaxSN], evaluated at SN=LimMagSN.
+            %              Magnitude column (in order): (1) MagColName when
+            %              non-empty (default 'MAG_PSF' - matched-filter
+            %              magnitude, aligns with imProc.calib.limmag);
+            %              (2) <MagColPrefix><suffix> derived from FluxColName
+            %              (legacy aperture-based; used when MagColName='').
+            %              SN source (in order): (1) the catalog's SNColName
+            %              column when it exists - the PSF matched-filter SN
+            %              (background-limited-optimal for point sources),
+            %              matching imProc.calib.limmag's convention so both
+            %              calculators land on the same limit; (2) fallback
+            %              1./FLUXERR_<suffix> (aperture SN; FLUXERR is the
+            %              relative flux uncertainty, so 1/FLUXERR ~ 1.086/MagErr
+            %              in the Gaussian limit) when the SN column is absent
+            %              or SNColName is empty. Color term omitted because
+            %              MAG_<system>_* already absorbs color.
 
             arguments
                 Obj
                 CatObj
                 Args.FluxColName char = 'FLUX_APER_3'
+                Args.MagColName  char = 'MAG_PSF'
+                Args.SNColName   char = 'SN'
                 Args.MagSystem   char = 'AB'
-                Args.MinSN       double = 5
+                Args.MinSN       double = 4
                 Args.MaxSN       double = 50
                 Args.LimMagSN    double = 5
             end
@@ -4738,7 +4795,8 @@ classdef PhotCalibTrans < Component
                 return;
             end
 
-            % Derive FLUXERR / MAG column names from FLUX_<suffix>
+            % Derive FLUXERR / MAG column names from FLUX_<suffix>. MagColName
+            % is overridden by an explicit Args.MagColName when supplied.
             Tokens = regexp(Args.FluxColName, '^FLUX_(.+)$', 'tokens', 'once');
             if isempty(Tokens)
                 Obj.msgLog(LogLevel.Warning, ...
@@ -4748,36 +4806,57 @@ classdef PhotCalibTrans < Component
             end
             Suffix         = Tokens{1};
             FluxErrColName = ['FLUXERR_', Suffix];
-            MagColName     = [Obj.MagColPrefix, Suffix];
+            if isempty(Args.MagColName)
+                MagColName = [Obj.MagColPrefix, Suffix];
+            else
+                MagColName = Args.MagColName;
+            end
 
             AllCols = CatObj.Table.Properties.VariableNames;
-            if ~ismember(FluxErrColName, AllCols) || ~ismember(MagColName, AllCols)
+            if ~ismember(MagColName, AllCols)
                 Obj.msgLog(LogLevel.Warning, ...
-                    'evaluateLimMag: Required columns %s / %s not found - LimMag set to NaN.', ...
-                    FluxErrColName, MagColName);
+                    'evaluateLimMag: Magnitude column %s not found - LimMag set to NaN.', ...
+                    MagColName);
+                return;
+            end
+
+            % SN source: prefer the catalog's SNColName (PSF matched-filter SN,
+            % matches imProc.calib.limmag); fall back to 1/FLUXERR only when the
+            % column is unavailable or SNColName is explicitly empty.
+            UseCatSN = ~isempty(Args.SNColName) && ismember(Args.SNColName, AllCols);
+            if ~UseCatSN && ~ismember(FluxErrColName, AllCols)
+                Obj.msgLog(LogLevel.Warning, ...
+                    ['evaluateLimMag: Neither SN column "%s" nor fallback %s ', ...
+                     'found - LimMag set to NaN.'], Args.SNColName, FluxErrColName);
                 return;
             end
 
             try
-                FluxErr = CatObj.getCol(FluxErrColName);
-                Mag     = CatObj.getCol(MagColName);
-                FluxErr = FluxErr(:);
-                Mag     = Mag(:);
-
-                % FLUXERR is relative (FluxErr/Flux), so SN = 1/FLUXERR
-                % (equivalent to 1.086/MagErr in the Gaussian limit).
-                SN = 1 ./ FluxErr;
+                Mag = CatObj.getCol(MagColName);
+                Mag = Mag(:);
+                if UseCatSN
+                    SN     = CatObj.getCol(Args.SNColName);
+                    SN     = SN(:);
+                    SNSrc  = Args.SNColName;
+                else
+                    FluxErr = CatObj.getCol(FluxErrColName);
+                    SN      = 1 ./ FluxErr(:);
+                    SNSrc   = ['1/', FluxErrColName];
+                end
 
                 Valid = isfinite(Mag) & isfinite(SN) & SN > Args.MinSN & SN < Args.MaxSN;
                 if nnz(Valid) < 3
                     Obj.msgLog(LogLevel.Warning, ...
-                        'evaluateLimMag: Only %d points in SN window [%.1f, %.1f] - LimMag set to NaN.', ...
-                        nnz(Valid), Args.MinSN, Args.MaxSN);
+                        'evaluateLimMag: Only %d points in SN window [%.1f, %.1f] (SN source: %s) - LimMag set to NaN.', ...
+                        nnz(Valid), Args.MinSN, Args.MaxSN, SNSrc);
                     return;
                 end
 
                 ParLimMagFit = polyfit(log10(SN(Valid)), Mag(Valid), 1);
                 Obj.LimMag = polyval(ParLimMagFit, log10(Args.LimMagSN));
+                Obj.msgLog(LogLevel.Debug, ...
+                    'evaluateLimMag: LimMag=%.3f (Mag column: %s, SN source: %s, %d points).', ...
+                    Obj.LimMag, MagColName, SNSrc, nnz(Valid));
             catch ME
                 Obj.msgLog(LogLevel.Warning, ...
                     'evaluateLimMag: Fit failed (%s) - LimMag set to NaN.', ME.message);

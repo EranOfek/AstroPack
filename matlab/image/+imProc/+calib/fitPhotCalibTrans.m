@@ -121,9 +121,28 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %                         MAG_<system>_<suffix>.
     %            'EvaluateBackMag' - Evaluate sky surface brightness (legacy BACKMAG).
     %                         Default is false; AstroImage input only.
-    %            'LimMagMinSN'     - Lower SN bound for LimMag fit. Default is 5.
+    %            'LimMagMinSN'     - Lower SN bound for LimMag fit. Default is 4
+    %                         (matches imProc.calib.limmag).
     %            'LimMagMaxSN'     - Upper SN bound for LimMag fit. Default is 50.
     %            'LimMagSN'        - SN at which to evaluate LimMag. Default is 5.
+    %            'LimMagSNColName' - Catalog column to use as S/N in the LimMag
+    %                         fit. When the column exists, it is used directly
+    %                         (default 'SN' - the PSF matched-filter S/N written
+    %                         by psfFitPhot / multiIterExtractor, matching
+    %                         imProc.calib.limmag so both calculators land on
+    %                         the same limit). Empty ('') forces evaluateLimMag's
+    %                         FLUXERR-based fallback (aperture S/N = 1./FLUXERR_<suffix>).
+    %                         Default is 'SN'.
+    %            'LimMagMagColName' - Magnitude column fit against log10(SN) in
+    %                         the LimMag fit. Default 'MAG_PSF' - the PSF
+    %                         matched-filter magnitude, so PhotCalibTrans's
+    %                         LIMMAG lands on the same definition
+    %                         imProc.calib.limmag stamps everywhere else in
+    %                         the LAST pipeline. Empty '' falls back to the
+    %                         legacy <MagColPrefix><suffix> derived from
+    %                         FluxColName (aperture-based); set any other
+    %                         calibrated magnitude column name to override.
+    %                         Note: only consulted when EvaluateLimMag=true.
     %            'SelectionMethod' - Top-level shortcut for the calibrator-
     %                         selection recipe forwarded into CalibArgs.
     %                         'main' (default; the standard path) or
@@ -301,7 +320,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.MagSystem char = 'AB'
         Args.MagColPrefix = 'MAG_'   % Prefix for calibrated MAG column names ('MAG_' drops _AB, overwrites instrumental MAG_*)
         Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup'  % 'lup' convert.luptitude (default) | 'mag' convert.magnitude (NaN for Flux<=0)
-        Args.RefSpecSlope (1,1) double = 0      % Slope alpha of the F_nu reference spectrum (lambda/pivot)^alpha
+        Args.RefSpecSlope (1,1) double = 1.5    % Slope alpha of the F_nu reference spectrum (lambda/pivot)^alpha
                                                 % used by evaluateZP/evaluateMag for the
                                                 % target-mag conversion. 0 = AB-flat (back-compat).
                                                 % Negative -> blue, positive -> red.
@@ -358,9 +377,11 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % (which read PT_ZP), and legacy fitPhotCalibMag still writes them.
         Args.EvaluateLimMag  logical = false
         Args.EvaluateBackMag logical = false
-        Args.LimMagMinSN    double = 5
+        Args.LimMagMinSN    double = 4
         Args.LimMagMaxSN    double = 50
         Args.LimMagSN       double = 5
+        Args.LimMagSNColName char  = 'SN'
+        Args.LimMagMagColName char = 'MAG_PSF'
         Args.ApplyConstBand logical = false   % Apply constant-band correction
         Args.ConstBandParams = []             % Struct or .mat path
         Args.ConstBandOutputMode = 'newcol'   % 'newcol' or 'replace'
@@ -535,7 +556,8 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                 'CalcAperCorr', Args.CalcAperCorr, 'ApplyAperCorr', Args.ApplyAperCorr, ...
                 'EvaluateLimMag', Args.EvaluateLimMag, 'EvaluateBackMag', Args.EvaluateBackMag, ...
                 'LimMagMinSN', Args.LimMagMinSN, 'LimMagMaxSN', Args.LimMagMaxSN, ...
-                'LimMagSN', Args.LimMagSN, ...
+                'LimMagSN', Args.LimMagSN, 'LimMagSNColName', Args.LimMagSNColName, ...
+                'LimMagMagColName', Args.LimMagMagColName, ...
                 'UpdateHeader', Args.UpdateHeader, 'CreateNewObj', false);
 
             % Store calibrated images back into Result
@@ -732,6 +754,8 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                 end
                 PC = PC.evaluateLimMag(CatLim, ...
                     'FluxColName', Args.FluxColName, ...
+                    'MagColName',  Args.LimMagMagColName, ...
+                    'SNColName',   Args.LimMagSNColName, ...
                     'MagSystem',   Args.MagSystem, ...
                     'MinSN',       Args.LimMagMinSN, ...
                     'MaxSN',       Args.LimMagMaxSN, ...
@@ -914,7 +938,7 @@ function CalibArgs = predefCalibArgs(Args)
     %            'MinSN2'           - Min SN_2 for calibrators (0=skip). Default 10.
     %            'FunListName'      - Transmission function list name. Default 'DefaultLASTFunList'.
     %            'CustomFunList'    - Custom function list (overrides FunListName). Default [].
-    %            'OptSeqName'       - Optimization sequence name. Default 'LAST_Joint_2Iter_Split3'.
+    %            'OptSeqName'       - Optimization sequence name. Default 'LAST_Joint_2Iter_AtmosFirst_Split3'.
     %            'CustomOptSeq'     - Custom opt sequence (overrides OptSeqName). Default [].
     %            'Tran2DType'       - Tran2D polynomial type. Default 'cheby1_1'.
     %            'UseTran2D'        - Enable Tran2D. Default true.
@@ -1093,7 +1117,7 @@ function CalibArgs = predefCalibArgs(Args)
         % Transmission model
         Args.FunListName      = 'DefaultLASTFunList'
         Args.CustomFunList    = []
-        Args.OptSeqName       = 'LAST_Joint_2Iter_Split3'   % match PhotCalibTrans.calibrate default
+        Args.OptSeqName       = 'LAST_Joint_2Iter_AtmosFirst_Split3'   % match PhotCalibTrans.calibrate default
         Args.CustomOptSeq     = []
         Args.Tran2DType       = 'cheby1_1'                  % match PhotCalibTrans.calibrate default
         Args.UseTran2D logical = true
@@ -1122,8 +1146,8 @@ function CalibArgs = predefCalibArgs(Args)
 
         % Forward to CompositeFun.fitPar -> lsqnonlin TypicalX. Scales
         % finite-diff steps + stopping tolerances by each free
-        % parameter's natural magnitude. Default false.
-        Args.UseTypicalX logical = false
+        % parameter's natural magnitude. Default true.
+        Args.UseTypicalX logical = true
 
         % Weighting
         Args.WeightingMode    = 'combined'  % 'none', 'spectral', 'flux', 'combined'
@@ -1138,12 +1162,12 @@ function CalibArgs = predefCalibArgs(Args)
         % systematics.
         Args.SystematicErr (1,1) double {mustBeNonnegative} = 0.001
 
-        % Post-fit (Norm, kx0) gauge convention. 'raw' preserves the fit's
-        % raw values (default; matches PhotCalibTrans.calibrate's own
-        % default). 'center' rotates the pair so Tran2D(field-centre) = 0
+        % Post-fit (Norm, kx0) gauge convention. 'center' (default; matches
+        % PhotCalibTrans.calibrate) rotates the pair so Tran2D(field-centre) = 0
         % and Norm carries the full field-centre ZP — physically comparable
-        % across visits. Predictions are bit-identical either way.
-        Args.NormConvention (1,:) char {mustBeMember(Args.NormConvention, {'raw','center'})} = 'raw'
+        % across visits. 'raw' preserves the fit's raw values (no centring).
+        % Predictions are bit-identical either way.
+        Args.NormConvention (1,:) char {mustBeMember(Args.NormConvention, {'raw','center'})} = 'center'
         % Per-outer-iter weighting toggle. Empty (default) leaves every iter
         % weighted; non-empty must be a logical vector of length OuterMaxIter,
         % e.g. [false true] with OuterMaxIter=2 for the LAST_Joint_2Iter recipe.

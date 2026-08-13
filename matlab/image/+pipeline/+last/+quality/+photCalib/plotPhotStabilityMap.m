@@ -83,7 +83,7 @@ function Result = plotPhotStabilityMap(MS, Args)
     %                           Default true.
     %            'TrendBand'  - Shaded envelope drawn UNDER each per-mag-bin
     %                           trend line on the X and Y panels (style
-    %                           borrowed from plotMagAirmass's OverlayMedian
+    %                           borrowed from plotMagCurves's OverlayMedian
     %                           band):
     %                             'none' (default) - no band.
     %                             'q13'   - Q1..Q3 band (25th/75th percentile).
@@ -468,7 +468,7 @@ function Result = plotPhotStabilityMap(MS, Args)
                 Col = i_colorFromMap(MagCmap, TArr(B).BinCenter, TrendCLim);
                 % Optional Q1/Q3 or MAD envelope, drawn UNDER the line so
                 % the trend + markers stay on top of the band. Style mirrors
-                % plotMagAirmass's OverlayMedian shaded overlay.
+                % plotMagCurves's OverlayMedian shaded overlay.
                 if DoBand && ~isempty(TArr(B).Lo)
                     Xb = TArr(B).X(:).';
                     Lo = TArr(B).Lo(:).';

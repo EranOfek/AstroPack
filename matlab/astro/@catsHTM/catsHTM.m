@@ -11,8 +11,10 @@
 % addSource - Insert new sources into a catsHTM catalog (read-only source). Package: @catsHTM Description: Add sources to an existing catsHTM catalog. The source catalog at BaseDir is read but never modified; modified files are written under OutDir. (Author: Dana Kovaleva, May 2026)
 % catalogs - List of catsHTM catalogs Example: Data = catsHTM.catalogs
 % catalogs_html - generate an html table of catalogs Example: catsHTM.catalogs_html
+% catalogSignature - Compute a lightweight version signature of a catsHTM catalog. Package: @catsHTM Description: LayoutHash (per-cell counts) + ColHash + optional ChecksumHash, so persisted pointers can be validated. Cheap (index-only). (Author: Dana Kovaleva, Aug 2026)
 % catRowID - Collapse a (CellID,RowInCell) storage pointer into one contiguous per-catalog scalar id. Package: @catsHTM Description: CatRowID = block-start(CellID) + RowInCell; version-bound. Inverse is catRowID2Pointer. (Author: Dana Kovaleva, 2026)
 % catRowID2Pointer - Invert a scalar CatRowID back to a (CellID,RowInCell) pointer. Package: @catsHTM Description: Exact inverse of catRowID. (Author: Dana Kovaleva, 2026)
+% checkCatalogSignature - Validate a stored catsHTM signature against the catalog's current state. Package: @catsHTM Description: Classifies change as valid / columns-changed / stale-layout / stale-suspect so stale pointers are caught before use. (Author: Dana Kovaleva, Aug 2026)
 % cone_search - Cone earch on local HDF5/HTM catalog Package: @catsHTM Description: Perform a cone search around RA/Dec on a local catalog in HDF5 format sorted into HTM.
 % count_edge_in_cat - Example: catsHTM.count_edge_in_cat('APASS');
 % create_catalog_lists4wget - Create list of catalogs foe wget including checsums
@@ -80,6 +82,20 @@
 %       per-cell source counts (the offset table catRowID/catRowID2Pointer
 %       share); metadata-only and location-independent.
 %
+% Because a pointer is bound to one catalog BUILD, persisted pointers must be
+% validated after the catalog may have changed (re-ingest, add/removeSource,
+% insertColumns):
+%   catalogSignature(Cat) -> Sig
+%       a cheap version fingerprint: LayoutHash (per-cell row counts, read
+%       from the index only) + ColHash (columns) + optional ChecksumHash
+%       (deployment checksum list). crossIDCatsHTM stamps one per catalog
+%       into Summary.Signature.
+%   checkCatalogSignature(Cat,Sig) -> [Ok,Report]
+%       compare a stored Sig against the catalog now and classify: valid /
+%       columns-changed (row pointers still OK) / stale-layout (pointers
+%       INVALID) / stale-suspect. gatherByPointer and gatherCrossIDData
+%       take a 'Signature' and refuse to dereference a stale-layout catalog.
+%
 %   crossIDCatsHTM(RA,Dec,Radius,...) -> [T, Cats_cone, Summary]
 %       Cross-identification index over a field: cone_search an anchor
 %       catalog (default GAIADR3) vs all/selected catsHTM catalogs,
@@ -92,13 +108,16 @@
 %       from catsHTM via CellID_/RowInCell_ (any column, no snapshot).
 %
 % Example (field at RA=0, Dec=0 [rad], 600 arcsec radius):
-%   [T,Cats_cone] = catsHTM.crossIDCatsHTM(0,0,600,'CatList',{'PS1'});
+%   [T,Cats_cone,S] = catsHTM.crossIDCatsHTM(0,0,600,'CatList',{'PS1'});
 %   D = catsHTM.gatherCrossIDData(T,Cats_cone);              % from snapshot
 %   D = catsHTM.gatherCrossIDData(T,[],'Source','pointer', ...
-%           'Columns',struct('PS1',{{'gPSFMag'}}));          % live from catsHTM
+%           'Columns',struct('PS1',{{'gPSFMag'}}), ...
+%           'Signature',S.Signature);                        % live + validated
 %   % a stable, cross-session handle to a source, then re-fetch its row:
 %   [cid,row] = catsHTM.sourcePointer('PS1', RA, Dec);
 %   srcRow    = catsHTM.gatherByPointer('PS1', cid, row);
+%   % later, verify the catalog has not changed under a stored pointer:
+%   [ok,rep]  = catsHTM.checkCatalogSignature('PS1', S.Signature.PS1);
 %
 
 classdef catsHTM
@@ -3273,6 +3292,190 @@ classdef catsHTM
             Nsrc = Nsrc(1:K, :);
         end
 
+        function Sig = catalogSignature(CatName, Args)
+            % Compute a lightweight version signature of a catsHTM catalog.
+            % Package: @catsHTM
+            % Description: A storage pointer (CellID,RowInCell) - and the scalar
+            %              CatRowID derived from it - addresses ONE specific build
+            %              of a catalog. Re-ingesting the catalog, or mutating it
+            %              with addSource/removeSource, moves rows and silently
+            %              invalidates stored pointers. This returns a compact
+            %              signature that changes when the build changes, so
+            %              persisted pointers can be validated before use
+            %              (see catsHTM.checkCatalogSignature). It is CHEAP: the
+            %              row-layout fingerprint is read from the single small
+            %              index file (<Cat>_htm.hdf5, column 13 = per-cell Nsrc),
+            %              NOT by scanning the data files. Three layered hashes,
+            %              each mapping to a distinct kind of change:
+            %                LayoutHash   - per-cell row counts. Changes iff rows
+            %                               are added/removed/re-partitioned -> the
+            %                               exact invariant pointer/CatRowID
+            %                               validity depends on.
+            %                ColHash      - column names + units. Changes on column
+            %                               insert/rename (e.g. insertColumns);
+            %                               row pointers still survive this.
+            %                ChecksumHash - md5 of the deployment checksum list
+            %                               (list*checksum* in the catalog dir), if
+            %                               present. A strong content fingerprint
+            %                               that also catches same-count in-cell
+            %                               reordering. Empty when no list is found.
+            % Input  : - Catalog base name (e.g., 'GAIADR3').
+            %          * ...,key,val,...
+            %            'CatDir' - Directory holding the catalog HDF5 files.
+            %                   Default '' = resolve via which() on the path.
+            %            'Checksum' - Include ChecksumHash from the checksum-list
+            %                   file when exactly one is found. Default true.
+            % Output : - Sig - struct with fields Name, CatDir, Ncell, Nsrc,
+            %            LayoutHash, ColHash, ChecksumHash, ChecksumFile, Version
+            %            (a short combined id) and StampedAt (timestamp string).
+            % Author : Dana Kovaleva (Aug 2026)
+            % See also: catsHTM.checkCatalogSignature, catsHTM.crossIDCatsHTM
+            %           (stamps this into Summary.Signature), catsHTM.catRowID.
+            % Example: Sig = catsHTM.catalogSignature('GAIADR3');
+            arguments
+                CatName
+                Args.CatDir            = '';
+                Args.Checksum logical  = true;
+            end
+
+            % resolve the catalog directory (which() checks the cwd too)
+            CatDir = Args.CatDir;
+            if isempty(CatDir)
+                ColCellFull = which(sprintf('%s_htmColCell.mat', CatName));
+                if isempty(ColCellFull)
+                    error('catsHTM:catalogSignature:noCatalog', ...
+                        'Cannot find %s_htmColCell.mat on the MATLAB path (add the catalog directory or pass CatDir).', ...
+                        CatName);
+                end
+                CatDir = fileparts(ColCellFull);
+            end
+
+            % --- LayoutHash: per-cell row counts from the index (one small file)
+            IndexFile = fullfile(CatDir, sprintf('%s_htm.hdf5', CatName));
+            if exist(IndexFile, 'file') ~= 2
+                error('catsHTM:catalogSignature:noIndex', ...
+                    'Index file %s not found.', IndexFile);
+            end
+            [~, IndData] = catsHTM.load_htm_ind(IndexFile, sprintf('%s_HTM', CatName));
+            NsrcCol    = double(IndData(:, 13));   % column 13 = Nsrc per cell
+            Ncell      = sum(NsrcCol > 0);
+            NsrcTotal  = sum(NsrcCol);
+            LayoutHash = localHashBytes(typecast(NsrcCol(:).', 'uint8'));
+
+            % --- ColHash: column names + units
+            [ColCell, ColUnits] = catsHTM.load_colcell_from_dir(CatDir, CatName);
+            ColStr  = strjoin([ColCell(:); ColUnits(:)], newline);
+            ColHash = localHashBytes(uint8(ColStr));
+
+            % --- ChecksumHash: md5-list file if present (best effort, non-fatal)
+            ChecksumHash = '';
+            ChecksumFile = '';
+            if Args.Checksum
+                D = dir(fullfile(CatDir, 'list*checksum*'));
+                D = D(~[D.isdir]);
+                if numel(D) == 1
+                    ChecksumFile = fullfile(D(1).folder, D(1).name);
+                    ChecksumHash = localHashBytes(localReadBytes(ChecksumFile));
+                end
+            end
+
+            Version = localHashBytes(uint8([LayoutHash ColHash]));
+            Sig = struct();
+            Sig.Name         = CatName;
+            Sig.CatDir       = CatDir;
+            Sig.Ncell        = Ncell;
+            Sig.Nsrc         = NsrcTotal;
+            Sig.LayoutHash   = LayoutHash;
+            Sig.ColHash      = ColHash;
+            Sig.ChecksumHash = ChecksumHash;
+            Sig.ChecksumFile = ChecksumFile;
+            Sig.Version      = Version(1:16);
+            Sig.StampedAt    = char(datetime('now', 'Format', 'yyyy-MM-dd''T''HH:mm:ss'));
+        end
+
+        function [Ok, Report] = checkCatalogSignature(CatName, Stored, Args)
+            % Validate a stored catsHTM signature against the catalog's current state.
+            % Package: @catsHTM
+            % Description: Compare a signature captured when pointers were stamped
+            %              (catsHTM.catalogSignature, e.g. from Summary.Signature)
+            %              against the catalog on disk NOW, and classify any change
+            %              so a caller knows whether stored (CellID,RowInCell) /
+            %              CatRowID pointers are still safe to dereference:
+            %                'valid'           - identical; pointers valid.
+            %                'columns-changed' - only columns changed (insertColumns);
+            %                                    row pointers still valid.
+            %                'stale-layout'    - row counts changed (re-ingest /
+            %                                    add/removeSource); pointers INVALID.
+            %                'stale-suspect'   - counts match but content checksum
+            %                                    differs (possible in-cell reorder);
+            %                                    pointers unreliable, deep-verify.
+            %              Cheap: only re-reads the index + colcell (+ checksum list).
+            % Input  : - Catalog base name (e.g., 'GAIADR3').
+            %          - Stored - the previously captured signature struct.
+            %          * ...,key,val,...
+            %            'CatDir' - Directory holding the catalog HDF5 files.
+            %                   Default '' = resolve via which() on the path.
+            %            'Checksum' - Recompute/compare ChecksumHash. Default true.
+            %            'Warn' - Emit a warning when not Ok. Default true.
+            % Output : - Ok - true iff row pointers remain valid (Status 'valid'
+            %            or 'columns-changed').
+            %          - Report - struct with Status, Ok, LayoutMatch, ColMatch,
+            %            ChecksumMatch ([] if undeterminable), Message, Stored, Current.
+            % Author : Dana Kovaleva (Aug 2026)
+            % See also: catsHTM.catalogSignature, catsHTM.gatherByPointer (ValidateSig).
+            % Example: [Ok, Rep] = catsHTM.checkCatalogSignature('GAIADR3', S.Signature.GAIADR3);
+            arguments
+                CatName
+                Stored struct
+                Args.CatDir            = '';
+                Args.Checksum logical  = true;
+                Args.Warn logical      = true;
+            end
+
+            Current = catsHTM.catalogSignature(CatName, 'CatDir', Args.CatDir, ...
+                'Checksum', Args.Checksum);
+
+            LayoutMatch = strcmp(Current.LayoutHash, Stored.LayoutHash);
+            ColMatch    = strcmp(Current.ColHash,    Stored.ColHash);
+            HaveChk     = ~isempty(Current.ChecksumHash) && isfield(Stored, 'ChecksumHash') ...
+                          && ~isempty(Stored.ChecksumHash);
+            if HaveChk
+                ChecksumMatch = strcmp(Current.ChecksumHash, Stored.ChecksumHash);
+            else
+                ChecksumMatch = [];   % undeterminable
+            end
+
+            if ~LayoutMatch
+                Status  = 'stale-layout';
+                Message = sprintf(['catsHTM catalog %s layout changed since the pointers ', ...
+                    'were stamped (rows added/removed or re-ingested). Stored ', ...
+                    '(CellID,RowInCell)/CatRowID pointers are INVALID - re-run crossIDCatsHTM.'], CatName);
+            elseif ~ColMatch
+                Status  = 'columns-changed';
+                Message = sprintf(['catsHTM catalog %s columns changed since stamping ', ...
+                    '(e.g. insertColumns); row pointers remain VALID. Confirm column ', ...
+                    'names before gathering by name.'], CatName);
+            elseif ~isempty(ChecksumMatch) && ~ChecksumMatch
+                Status  = 'stale-suspect';
+                Message = sprintf(['catsHTM catalog %s layout counts match but its content ', ...
+                    'checksum changed; possible in-cell reordering. Pointers may be ', ...
+                    'unreliable - deep-verify recommended.'], CatName);
+            else
+                Status  = 'valid';
+                Message = sprintf('catsHTM catalog %s matches the stored signature.', CatName);
+            end
+
+            Ok = any(strcmp(Status, {'valid', 'columns-changed'}));
+
+            Report = struct('Status', Status, 'Ok', Ok, 'LayoutMatch', LayoutMatch, ...
+                'ColMatch', ColMatch, 'ChecksumMatch', ChecksumMatch, ...
+                'Message', Message, 'Stored', Stored, 'Current', Current);
+
+            if Args.Warn && ~Ok
+                warning('catsHTM:checkCatalogSignature:stale', '%s', Message);
+            end
+        end
+
         function [CatRowID, Offset] = catRowID(CatName, CellID, RowInCell, Args)
             % Map a (CellID, RowInCell) storage pointer to a single scalar id.
             % Package: @catsHTM
@@ -3418,10 +3621,21 @@ classdef catsHTM
             %                   Default '' = resolve via which() on the path.
             %            'NfilesInHDF' - Datasets per HDF5 file. Default is 100.
             %            'FillValue' - Value for NaN-pointer rows. Default NaN.
+            %            'Signature' - A stored catsHTM.catalogSignature struct
+            %                   (e.g. Summary.Signature.<Cat>) captured when the
+            %                   pointers were made. When given and ValidateSig is
+            %                   true, the catalog is checked before dereferencing.
+            %                   Default [] = no check.
+            %            'ValidateSig' - When a Signature is supplied, validate the
+            %                   catalog against it: error on a changed row layout
+            %                   (pointers invalid), warn on a suspect content
+            %                   change. Default true. Has no effect without a
+            %                   Signature (so existing callers are unaffected).
             % Output : - Data     - [Npt x Ncol] matrix of the requested columns
             %                        in input (pointer) order.
             %          - ColNames - cellstr of the returned column names.
             % Author : Dana Kovaleva (Jul 2026)
+            % See also: catsHTM.catalogSignature, catsHTM.checkCatalogSignature.
             % Example: [Cid,Row] = catsHTM.sourcePointer('APASS', RA, Dec);
             %          [D,Cols]   = catsHTM.gatherByPointer('APASS', Cid, Row, ...
             %                           'Columns',{'RA','Dec','Mag_V'});
@@ -3429,10 +3643,12 @@ classdef catsHTM
                 CatName
                 CellID
                 RowInCell
-                Args.Columns     = {};
-                Args.CatDir      = '';
-                Args.NfilesInHDF = 100;
-                Args.FillValue   = NaN;
+                Args.Columns          = {};
+                Args.CatDir           = '';
+                Args.NfilesInHDF      = 100;
+                Args.FillValue        = NaN;
+                Args.Signature        = [];
+                Args.ValidateSig logical = true;
             end
 
             % resolve the catalog directory (which() checks the cwd too), then
@@ -3447,6 +3663,19 @@ classdef catsHTM
                 end
                 CatDir = fileparts(ColCellFull);
             end
+
+            % validate stored pointers against the catalog's current build: a
+            % changed row layout means the pointers now address different sources.
+            if Args.ValidateSig && ~isempty(Args.Signature)
+                [SigOk, SigRep] = catsHTM.checkCatalogSignature(CatName, Args.Signature, ...
+                    'CatDir', CatDir, 'Warn', false);
+                if strcmp(SigRep.Status, 'stale-layout')
+                    error('catsHTM:gatherByPointer:staleSignature', '%s', SigRep.Message);
+                elseif ~SigOk
+                    warning('catsHTM:gatherByPointer:suspectSignature', '%s', SigRep.Message);
+                end
+            end
+
             AllCols = catsHTM.load_colcell_from_dir(CatDir, CatName);
             AllCols = AllCols(:).';
 
@@ -5325,6 +5554,7 @@ classdef catsHTM
                 Args.AddPointer logical        = true;
                 Args.AddCatRowID logical       = false;
                 Args.IdExtras logical          = false;
+                Args.StampSignature logical    = true;
                 Args.OutType                   = 'table';
                 Args.OutFile                   = '';
                 Args.OutFileFormat             = {'mat','csv'};
@@ -5666,6 +5896,24 @@ classdef catsHTM
             Summary.PerCat    = table(ColNames(:), StatNcone(:), StatNmat(:), StatNorph(:), StatRad(:), ...
                 'VariableNames', {'Catalog','Ncone','Nmatched','Norphan','MatchRadiusArcsec'});
 
+            % version-stamp each catalog so persisted pointers can be validated
+            % later (catsHTM.checkCatalogSignature). Cheap - reads only the index
+            % + colcell. Non-fatal: a signature failure never breaks the cross-id.
+            if Args.StampSignature
+                Summary.Signature = struct();
+                for Icol = 1:1:numel(ColNames)
+                    try
+                        Summary.Signature.(ColNames{Icol}) = ...
+                            catsHTM.catalogSignature(ColNames{Icol});
+                    catch ME
+                        if Args.Verbose
+                            fprintf('crossIDCatsHTM: signature for %s failed (%s)\n', ...
+                                ColNames{Icol}, ME.message);
+                        end
+                    end
+                end
+            end
+
             % additional (non-nearest) matches per master row, as an Nglobal-by-1 cell
             % per catalog (NaN entries where there are 0 or 1 matches).
             if KeepExtra
@@ -5833,6 +6081,13 @@ classdef catsHTM
             %            'CatDir' - Directory holding the catsHTM files, passed through
             %                   to catsHTM.gatherByPointer for Source='pointer'.
             %                   Default '' = resolve via which() on the path.
+            %            'Signature' - Per-catalog signature struct (Summary.Signature
+            %                   from crossIDCatsHTM). For Source='pointer', each cat
+            %                   with a matching field is validated against the catalog
+            %                   before its rows are read. Default [] = no check.
+            %            'ValidateSig' - Honour 'Signature' (error on a stale row
+            %                   layout, warn on a suspect change). Default true; no
+            %                   effect without 'Signature'.
             %            'OutFile' - Output file base/full name. If non-empty, the
             %                   gathered table is written (see 'OutFormat'). Default ''.
             %            'OutFormat' - Cellstr subset of {'mat','csv'} to write when
@@ -5864,6 +6119,8 @@ classdef catsHTM
                 Args.IncludeGlobal logical = true;
                 Args.FillValue             = NaN;
                 Args.CatDir                = '';
+                Args.Signature             = [];
+                Args.ValidateSig logical   = true;
                 Args.OutFile               = '';
                 Args.OutFormat             = {'mat'};
                 Args.Verbose logical       = true;
@@ -5968,6 +6225,26 @@ end % end class
 %==========================================================================
 % LOCAL HELPER FUNCTIONS
 %==========================================================================
+
+function H = localHashBytes(Bytes)
+% Lowercase hex MD5 of a byte vector (used by catsHTM.catalogSignature).
+% Java's MessageDigest is always available in MATLAB, so no external deps.
+    Bytes = uint8(Bytes(:));
+    MD = java.security.MessageDigest.getInstance('MD5');
+    MD.update(typecast(Bytes, 'int8'));          % Java byte[] is signed
+    Dig = typecast(MD.digest(), 'uint8');        % int8 digest -> 0..255
+    H = lower(reshape(dec2hex(Dig, 2).', 1, [])); % 32-char hex string
+end
+
+function Bytes = localReadBytes(FileName)
+% Read a whole file as a uint8 column (empty on failure).
+    Bytes = uint8([]);
+    Fid = fopen(FileName, 'r');
+    if Fid >= 0
+        Bytes = fread(Fid, Inf, '*uint8');
+        fclose(Fid);
+    end
+end
 
 function [PL1, PL2, PL3, PL4, PL5, PL6] = computeHTMPolesVec(CV1, CV2, CV3)
 % Compute polysphere poles for N triangles (vectorized)
@@ -6311,8 +6588,15 @@ function [Block, ColNm, Msg] = localGatherOne(Source, Name, VarNames, GetCol, Ca
         Cid    = GetCol(CidName);
         Ric    = GetCol(RicName);
         Wanted = localWantedColumns(Args.Columns, Name);
+        % pass this catalog's stored signature (if any) so gatherByPointer can
+        % refuse to dereference pointers into a changed catalog build.
+        Sig = [];
+        if isstruct(Args.Signature) && isfield(Args.Signature, Name)
+            Sig = Args.Signature.(Name);
+        end
         [Block, ColNm] = catsHTM.gatherByPointer(Name, Cid, Ric, ...
-            'Columns', Wanted, 'CatDir', Args.CatDir, 'FillValue', Args.FillValue);
+            'Columns', Wanted, 'CatDir', Args.CatDir, 'FillValue', Args.FillValue, ...
+            'Signature', Sig, 'ValidateSig', Args.ValidateSig);
         ColNm = ColNm(:).';
     end
 end
