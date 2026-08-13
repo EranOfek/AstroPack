@@ -1500,7 +1500,7 @@ classdef AstroTable < Component
                 Args.IsTable logical          = false;
                 Args.AddEntryPerElement       = [];
                 Args.AddColNames cell         = {};
-                Args.AddColUnits cell         = {};
+                Args.AddColUnits cell         = {};                
             end
             
             Nobj     = numel(Obj);
@@ -1534,8 +1534,11 @@ classdef AstroTable < Component
                     NewObj.Catalog.Properties.VariableNames = NewObj.ColNames;
                 end
                 for Iobj=1:1:Nobj
-                    Nrow = size(Obj(Iobj).Catalog,1);
-                    if Nrow>0
+                    [Nrow, Ncol] = size(Obj(Iobj).Catalog); 
+                    if Iobj == 1
+                        Ncol1 = Ncol;
+                    end                    
+                    if Nrow>0 && Ncol == Ncol1
                         ColInd   = colname2ind(Obj(Iobj), Columns);
                         if isempty(Args.AddEntryPerElement)
                             %if Args.IsTable
