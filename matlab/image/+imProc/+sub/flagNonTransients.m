@@ -1686,8 +1686,8 @@ function TranCat = flagNonTransients(Obj, Args)
                 ExcludeCand = ExcludeCand | IsolatedCand | AmbBlendedCand;
             end
 
-            if ~isempty(DgreaterR)
-                ExcludeCand = ExcludeCand | DgreaterR;
+            if ~isempty(DgreaterNearbyR)
+                ExcludeCand = ExcludeCand | DgreaterNearbyR;
             end
 
             IsNotTranslient = (AIC_Diff < Args.TranslientThresh) ...
