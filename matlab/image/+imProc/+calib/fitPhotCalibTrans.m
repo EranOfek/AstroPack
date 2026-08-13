@@ -32,6 +32,15 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %                         applyPhotCalibShifts all read it from there, so
     %                         write/read sides always agree. Does not affect
     %                         AB_ZP. Default is 'MAG_AB_'.
+    %            'MagType' - Flux->magnitude conversion for the calibrated
+    %                         magnitudes: 'lup' uses convert.luptitude (asinh
+    %                         magnitude, finite for negative flux) or 'mag' uses
+    %                         convert.magnitude (standard magnitude, NaN for
+    %                         non-positive flux). Stamped onto each PC object's
+    %                         MagType property; evaluateMag, addMag and the
+    %                         per-epoch applyPhotCalibShifts read it via
+    %                         PhotCalibTrans.fluxToMag. Default 'lup'
+    %                         (pipeline.last.pipes.PipelineDemon sets 'mag').
     %            'FluxColName' - Flux column name. Default is 'FLUX_APER_3'.
     %            'AddZP' - Add ZP column. Default is true.
     %            'UpdateHeader' - Update header with results. Default is true.
@@ -98,10 +107,18 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %                         crop. Required when ApplyConstBand=true.
     %            'ConstBandOutputMode' - 'newcol' or 'replace'. Default is 'newcol'.
     %            'ConstBandPrefix' - Column prefix for newcol mode. Default is 'MAG_CB_'.
+    %            'EvaluatePhotZP'  - Evaluate the photometric zero point at the
+    %                         image centre and write header keyword PT_ZP (the
+    %                         magnitude of a 1-count full-exposure source,
+    %                         PT_ZP = ZP(centre)+2.5*log10(ExpTime_eff)). Read
+    %                         downstream by imProc.calib.backmag/limmag.
+    %                         Default is true.
     %            'EvaluateLimMag'  - Evaluate limiting magnitude (legacy LIMMAG).
-    %                         Default is false (legacy fitPhotCalibMag emits it).
-    %                         Uses Args.FluxColName / Args.MagSystem to locate
-    %                         FLUXERR_<suffix> and MAG_<system>_<suffix>.
+    %                         Default is false (the LAST pipeline uses the
+    %                         standalone imProc.calib.limmag; legacy
+    %                         fitPhotCalibMag also emits it). Uses Args.FluxColName
+    %                         / Args.MagSystem to locate FLUXERR_<suffix> and
+    %                         MAG_<system>_<suffix>.
     %            'EvaluateBackMag' - Evaluate sky surface brightness (legacy BACKMAG).
     %                         Default is false; AstroImage input only.
     %            'LimMagMinSN'     - Lower SN bound for LimMag fit. Default is 5.
@@ -283,6 +300,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.AddMag logical = true
         Args.MagSystem char = 'AB'
         Args.MagColPrefix = 'MAG_'   % Prefix for calibrated MAG column names ('MAG_' drops _AB, overwrites instrumental MAG_*)
+        Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup'  % 'lup' convert.luptitude (default) | 'mag' convert.magnitude (NaN for Flux<=0)
         Args.RefSpecSlope (1,1) double = 0      % Slope alpha of the F_nu reference spectrum (lambda/pivot)^alpha
                                                 % used by evaluateZP/evaluateMag for the
                                                 % target-mag conversion. 0 = AB-flat (back-compat).
@@ -331,9 +349,13 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.AperCorrPosSigmaClip (1,2) double = [3 3]
         Args.AperCorrPosMaxIter (1,1) double {mustBePositive, mustBeInteger} = 3
         Args.AperCorrApplyMode (1,:) char {mustBeMember(Args.AperCorrApplyMode, {'auto','scalar','positional'})} = 'auto'
-        % Default false because legacy fitPhotCalibMag still writes LIMMAG/BACKMAG.
-        % Flip to true (and set WriteLimBackMag=false in fitPhotCalibMag) once this
-        % path becomes the pipeline default.
+        % PT_ZP (photometric zero point at the image centre = mag of a 1-count
+        % full-exposure source) is written to the header by default; downstream
+        % imProc.calib.backmag/limmag read it.
+        Args.EvaluatePhotZP  logical = true
+        % LIMMAG/BACKMAG stay OFF here by default: the LAST pipeline computes
+        % them with the standalone imProc.calib.limmag / imProc.calib.backmag
+        % (which read PT_ZP), and legacy fitPhotCalibMag still writes them.
         Args.EvaluateLimMag  logical = false
         Args.EvaluateBackMag logical = false
         Args.LimMagMinSN    double = 5
@@ -617,6 +639,9 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % applyConstBand, and the per-epoch applyPhotCalibShifts) reads this
         % property — set once here, no per-call threading.
         PC.MagColPrefix = Args.MagColPrefix;
+        % Flux->mag conversion (luptitude vs magnitude) travels with the object
+        % the same way, so the per-epoch applyPhotCalibShifts entry point sees it.
+        PC.MagType = Args.MagType;
 
         % Same convention for the reference-spectrum slope and pivot: stamp
         % once onto the PC so evaluateZP / evaluateMag pick them up.
@@ -690,6 +715,11 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                         'ColY',  Args.AperCorrPosColNameY, ...
                         'Mode',  Args.AperCorrApplyMode);
                 end
+            end
+
+            % Photometric zero point at image centre (header keyword PT_ZP).
+            if Args.EvaluatePhotZP
+                PC = PC.evaluatePhotZP();
             end
 
             % Limiting magnitude and sky surface brightness (legacy LIMMAG/BACKMAG)
@@ -784,6 +814,11 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                 H = H.replaceVal(...
                     {'PT_RMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALIB', 'PT_SUCC', 'PT_AREF', 'PT_SPEC'}, ...
                     {NaN,      NaN,       NaN,      -1,          false,     'SMART v2.9.8', 'GaiaDR3'});
+
+                % NaN fill for PT_ZP (photometric ZP) on the failure path
+                if Args.EvaluatePhotZP
+                    H = H.replaceVal('PT_ZP', NaN);
+                end
 
                 % NaN fills for legacy LIMMAG/BACKMAG (only when feature enabled)
                 if Args.EvaluateLimMag

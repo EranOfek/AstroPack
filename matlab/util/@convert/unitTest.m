@@ -60,7 +60,17 @@ function Result = unitTest(Obj)
 
         y = convert.luptitude(x*1e6, 1);
         z = convert.flux2mag(x*1e6);
-        assert(abs((y - z)) < flerr);       
+        assert(abs((y - z)) < flerr);
+
+        % convert.magnitude: standard magnitude, NaN for non-positive flux
+        Flux0 = 10.^(0.4.*randi(30));
+        y = convert.magnitude(x*1e6, Flux0);
+        z = -2.5.*log10((x*1e6)./Flux0);
+        assert(abs((y - z)) < flerr);
+        assert(isnan(convert.magnitude(-x, Flux0)));     % negative flux -> NaN
+        assert(isnan(convert.magnitude(0,  Flux0)));     % zero flux -> NaN
+        m = convert.magnitude([x*1e6; -x; 0], Flux0);    % vectorized NaN mask
+        assert(~isnan(m(1)) && isnan(m(2)) && isnan(m(3)));
 
         y = convert.sum_mag([x 100], 2);
         assert(abs((y - x)) < flerr);

@@ -276,6 +276,7 @@ function TranCat = flagNonTransients(Obj, Args)
         % Chi2 filters
         Args.flagChi2 logical = true
         Args.Chi2dofLimitsLocal (1,2) double = [0.1 2.2]
+        Args.Chi2dofLimitsLocality (1,2) double = [0.1 1.5]
         Args.Chi2dofLimitsGlobal (1,2) double = [0.1 2.5]
 
         % Saturation / mask neighborhood
@@ -289,7 +290,7 @@ function TranCat = flagNonTransients(Obj, Args)
         % Soft bad-pixel filters
         Args.flagBadPix_Soft logical = true
         Args.BadPix_Soft cell = {'DarkHighVal', 'CR_DeltaHT'}
-        Args.BPS_PSFLimit double = -2.797
+        Args.BPS_PSFLimit double = -2.8
         Args.BPS_DeltaLimit double = 3.0
 
         % Holes in the reference filters
@@ -417,6 +418,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         N_MAG_PSF = [];
         R_MAG_PSF = [];
+        D_MAG_PSF = [];
 
         N_FLUX_PSF = [];
         R_FLUX_PSF = [];
@@ -456,6 +458,7 @@ function TranCat = flagNonTransients(Obj, Args)
         MedDiffVar = median(Obj(Iobj).Var(:));
 
         DgreaterR = []; % object is brighter in D than R
+        DgreaterNearbyR = []; % D magnitude brighter than any nearby R catalog source
 
         % PSF magnitudes
         if CandCat.isColumn('N_MAG_PSF')
@@ -525,8 +528,9 @@ function TranCat = flagNonTransients(Obj, Args)
             IsolatedCand = (R_SN < 3);
             BlendedCand = ~IsolatedCand;
 
-            % These might actually be isolated.
+            % These are not clear.
             AmbBlendedCand = BlendedCand & (R_MAG_PSF > R_LIMMAG);
+            AmbIsolated = IsolatedCand & (R_MAG_PSF < R_LIMMAG);
         end
 
         % Get candidate New and Ref bits masks values
@@ -535,6 +539,64 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Get XY coordinates
         [X,Y] = CandCat.getXY();
+
+
+        N_PSFHalfSize = floor(size(Obj(Iobj).New.PSFData.getPSF,2)/2);
+        R_PSFHalfSize = floor(size(Obj(Iobj).Ref.PSFData.getPSF,2)/2);
+        NearbyRRadius = 2 * max(20, 2*max(N_PSFHalfSize, R_PSFHalfSize));
+        
+        if ~isempty(D_MAG_PSF)
+            [R_NativeX, R_NativeY] = Obj(Iobj).Ref.CatData.getXY();
+            R_NativeMag = Obj(Iobj).Ref.CatData.getCol('MAG_PSF');
+        
+            DgreaterNearbyR = false(NumCand,1);
+        
+            if any(~isnan(R_NativeY))
+        
+                % Sort the reference catalog by Y and bin it into horizontal rows
+                % of height NearbyRRadius. Rows are contiguous in the sorted
+                % arrays, so each row maps to a single index range. A candidate can
+                % only match sources in its own row and the two adjacent ones,
+                % which restricts the distance calculation to a thin slab.
+                [R_SortedY, SI] = sort(R_NativeY);
+                R_SortedX = R_NativeX(SI);
+                R_SortedMag = R_NativeMag(SI);
+        
+                RowEdges = min(R_SortedY):NearbyRRadius:(max(R_SortedY)+NearbyRRadius);
+                NRow = numel(RowEdges)-1;
+        
+                RowStart = ones(NRow+1,1);
+                RowStart(2:end) = cumsum(histcounts(R_SortedY, RowEdges)).' + 1;
+        
+                CandRow = discretize(Y, RowEdges);
+                NearbyRRadiusSq = NearbyRRadius.^2;
+        
+                for Icand = 1:NumCand
+                    % Candidates outside the reference catalog Y range have no
+                    % row and therefore no nearby sources.
+                    if isnan(CandRow(Icand))
+                        continue
+                    end
+        
+                    Ilow  = RowStart(max(CandRow(Icand)-1, 1));
+                    Ihigh = RowStart(min(CandRow(Icand)+2, NRow+1))-1;
+        
+                    if Ihigh < Ilow
+                        continue
+                    end
+        
+                    SlabDistSq = (R_SortedX(Ilow:Ihigh) - X(Icand)).^2 ...
+                        + (R_SortedY(Ilow:Ihigh) - Y(Icand)).^2;
+                    Nearby = SlabDistSq < NearbyRRadiusSq;
+        
+                    if any(Nearby)
+                        SlabMag = R_SortedMag(Ilow:Ihigh);
+                        DgreaterNearbyR(Icand) = ...
+                            D_MAG_PSF(Icand) < min(SlabMag(Nearby));
+                    end
+                end
+            end
+        end
 
         RADec = CandCat.getLonLat('rad');
 
@@ -559,14 +621,6 @@ function TranCat = flagNonTransients(Obj, Args)
         if CandCat.isColumn('N_Y2')
             N_Y2 = CandCat.getCol('N_Y2');
         end
-
-        %HasNX2Y2 = ~isempty(N_X2) && ~isempty(N_Y2);
-        %if HasNX2Y2
-        %    N_GoodPSF = (N_X2 < Args.SecondMomSoftLim) & ...
-        %                (N_Y2 < Args.SecondMomSoftLim);
-        %else
-        %    N_GoodPSF = true(NumCand,1);
-        %end
 
         if CandCat.isColumn('R_X2')
             R_X2 = CandCat.getCol('R_X2');
@@ -685,6 +739,8 @@ function TranCat = flagNonTransients(Obj, Args)
         end
         
         % ----- Bad Pixels -----
+
+        BadPixHard = false(NumCand, 1);
 
         % Apply hard bit mask criteria.
         if Args.flagBadPix_Hard
@@ -1178,10 +1234,12 @@ function TranCat = flagNonTransients(Obj, Args)
             % contamination test appropriate to the N-image PSF quality, and satisfy
             % the R-image PSF requirement.
 
+            % A candidate brighter than any nearby persistent source cannot be the
+            % residual of one, so it is exempt from the contamination tests.
             Passes_PSFShape = ...
-                  PassesContaminationLoose ...  % Pass the main contamination test
-                & PassesContaminationStrict ... % Additional requirement for very poor N PSFs
-                & R_Passes_PSFShape;            % Require a good R PSF unless the candidate is isolated
+                  (PassesContaminationLoose | DgreaterNearbyR) ...  % Pass the main contamination test
+                & (PassesContaminationStrict | DgreaterNearbyR) ... % Additional requirement for very poor N PSFs
+                & R_Passes_PSFShape;                                % Require a good R PSF unless the candidate is isolated
            
             PSF_Flagged = ~Passes_PSFShape;
             FilterFlags = setFilterBit(FilterFlags, PSF_Flagged, BD_TF, 'PSFShape');
@@ -1279,6 +1337,27 @@ function TranCat = flagNonTransients(Obj, Args)
             Passes_CHI2DOF_Global = N_Passes_CHI2DOF_Global ...
                 & R_Passes_CHI2DOF_Global & Passes_CHI2DOF_D;
 
+            % Get locality Chi2
+            N_CHI2DOF_Locality = CandCat.getCol('N_PSF_CHI2DOF_LOCAL_MED');
+            R_CHI2DOF_Locality = CandCat.getCol('R_PSF_CHI2DOF_LOCAL_MED');
+            
+            % Test locality Chi2
+            N_Passes_CHI2DOF_Locality = ...
+                ((N_CHI2DOF_Locality > Args.Chi2dofLimitsLocality(1)) & ...
+                (N_CHI2DOF_Locality < Args.Chi2dofLimitsLocality(2))) | ...
+                isnan(N_CHI2DOF_Locality);
+
+            R_Passes_CHI2DOF_Locality = ...
+                ((R_CHI2DOF_Locality > Args.Chi2dofLimitsLocality(1)) & ...
+                (R_CHI2DOF_Locality < Args.Chi2dofLimitsLocality(2))) | ...
+                isnan(R_CHI2DOF_Locality);
+            
+            Passes_CHI2DOF_Locality = N_Passes_CHI2DOF_Locality & R_Passes_CHI2DOF_Locality;
+            
+            if ~isempty(DgreaterNearbyR)
+                Passes_CHI2DOF_Locality = Passes_CHI2DOF_Locality | DgreaterNearbyR;
+            end
+
             % Test local Chi2
             N_Passes_CHI2DOF_Local = ...
                 (N_CHI2DOF_Local > Args.Chi2dofLimitsLocal(1)) & ...
@@ -1290,10 +1369,19 @@ function TranCat = flagNonTransients(Obj, Args)
             
             % For isolated candidates, apply local test.
             Passes_CHI2DOF_Isolated = N_Passes_CHI2DOF_Local & IsolatedCand;
+            
+            % Test ambiguously isolated candidates. If a non-ambiguous isolated
+            % candidate passes the isolated condition, it is fine. If an
+            % ambiguous isolated candidate passes the isolated condition, it
+            % has an extra condition to pass.
+            Passes_CHI2DOF_Isolated = Passes_CHI2DOF_Isolated & ...
+                (~AmbIsolated ...
+                | (AmbIsolated ...
+                & Passes_CHI2DOF_Locality));
 
-            % For blended candidates, apply global test.
+            % For blended candidates, apply global and locality test.
             Passes_CHI2DOF_Blended = Passes_CHI2DOF_Global ...
-                & BlendedCand;
+                & BlendedCand & Passes_CHI2DOF_Locality;
 
             % Test ambigiously blended candidate. If a non-ambigious
             % blended candidate passes the blended condition, it is fine.
@@ -1478,12 +1566,33 @@ function TranCat = flagNonTransients(Obj, Args)
             R_MAG_PSF_4Nuc = R_MAG_PSF;
             Score_4Nuc = Score;
 
-            if CandCat.isColumn('S_CORR')
-                Scorr = CandCat.getCol('S_CORR');
-                Score_4Nuc = Scorr;
-                NuclearScore = Scorr(GalPSFNoiseCand);
+            % Some comparison sources are at the edge of the nan-border
+            % and have a low R_MAG_PSF but high SCORE value, which
+            % leads to filtering of real nuclear transients.
+            % TODO: this maybe should be done cleaner
+            ExcludeComparison = false(NumCand,1);
+
+            if any(BadPixHard)
+                ExcludeComparison = ExcludeComparison | BadPixHard;
+            end
+            
+            if ~isempty(Injections)
+                ExcludeComparison = ExcludeComparison | Injections;
             end
 
+            if any(NearStar)
+                ExcludeComparison = ExcludeComparison | ~NearStar;
+            end
+
+            if CandCat.isColumn('S_CORR')
+                Scorr = CandCat.getCol('S_CORR');
+
+                Score_4Nuc = Scorr;
+                NuclearScore = Scorr(GalPSFNoiseCand);
+                
+                ExcludeComparison = ExcludeComparison | (sign(Scorr) ~= sign(Score));
+            end
+            
             % Loop through each and assign corresponding median
             for INuclear = 1:NumNuclear
                 if ~RDetNuclear(INuclear)
@@ -1500,29 +1609,6 @@ function TranCat = flagNonTransients(Obj, Args)
                 DynamicBinMax = TargetRMag;
                 BinnedMags = (R_MAG_PSF_4Nuc > DynamicBinMin) ...
                     & (R_MAG_PSF_4Nuc < DynamicBinMax);
-
-                % Some comparison sources are at the edge of the nan-border
-                % and have a low R_MAG_PSF but high SCORE value, which
-                % leads to filtering of real nuclear transients.
-                % TODO: this maybe should be done cleaner
-                ExcludeComparison = false(NumCand,1);
-
-                if exist('BadPixHard','var')
-                    ExcludeComparison = ExcludeComparison | BadPixHard;
-                end
-                
-                if ~isempty(Injections)
-                    ExcludeComparison = ExcludeComparison | Injections;
-                end
-
-                if any(NearStar)
-                    ExcludeComparison = ExcludeComparison | ~NearStar;
-                end
-
-                if CandCat.isColumn('S_CORR')
-                    Scorr = CandCat.getCol('S_CORR');
-                    ExcludeComparison = ExcludeComparison | (sign(Scorr) ~= sign(Score));
-                end
 
                 BinnedMags = BinnedMags & ~ExcludeComparison;
                 

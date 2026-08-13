@@ -134,10 +134,12 @@ regenerate the md5 list `list.euler.checksum._GAIA_DR3spec_` (`md5sum *.hdf5 *.m
 run on the local copy for speed), then restart MATLAB (clears the cached
 `GAIADR3spec_HTM` index var that `HDF5.load_check` keeps in the base workspace).
 
-**Runtime status:** `PhotCalibTrans.selectCalibratorsPythonLike` currently uses the
-ORIGINAL 3-catalog path (GAIADR3spec+GAIADR3 match + online TAP classprob +
-`fetchGaiaBPRP_`). The single-match rewrite was **reverted** until the enriched catalog
-is deployed — re-apply it (read all 8 columns from the one GAIADR3spec match; drop the
-2nd match + TAP) after deployment.
+**Runtime status (enriched catalog DEPLOYED, 2026-08):** the single-match rewrite is
+**live** everywhere. `findCalibCandidates` does ONE `match_catsHTM` to GAIADR3spec and
+harvests cols 693–700 onto every candidate. Downstream now reads those tail columns with
+no second match: `auditCalibCandidates` (bp_rp / excess), `AttachBP_RP` (BP_RP/MAG_BP/
+MAG_RP), and `selectCalibratorsPythonLike` (single GAIADR3spec match; classprob is a
+direct column read, no TAP). `fetchGaiaBPRP` and the `AuditCatName` arg thread were
+removed. There is no remaining second catsHTM match, TAP query, or `fetchGaiaBPRP` call.
 
 Tests: `tests/astro/catsHTM/test_add_remove_source.m`, `test_renameCat.m`.

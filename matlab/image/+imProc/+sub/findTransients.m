@@ -90,6 +90,8 @@ function TranCat=findTransients(AD, Args)
         Args.include2ndMoments logical = true;
         Args.AsymThresh             = 0.2;
         Args.Aper_Annulus_min = 5;
+        Args.LocalChi2Radius = 300;   % pixels
+        Args.LocalChi2MinSrc = 30;   % below this the neighbourhood is not measurable
 
         Args.includeGradientDir logical = true;
 
@@ -214,6 +216,9 @@ function TranCat=findTransients(AD, Args)
             RefPSF = AD(Iobj).Ref.PSF;
             PSFbw = imbinarize(RefPSF);
             stats = regionprops(PSFbw, 'Orientation');
+            if numel(stats) > 1
+                stats = stats([stats.Orientation] ~= 0);
+            end
             PSFref = imrotate(RefPSF, -stats.Orientation, 'bilinear', 'crop');
 
             [~, M2R, ~] = imUtil.image.moment2(PSFref, ...
@@ -398,6 +403,8 @@ function TranCat=findTransients(AD, Args)
             else
                 MaxMag_New = ceil(max(MAGPSF_New));
             end
+
+            MinMag_New = min(MinMag_New, MaxMag_New - 1);
             binEdges_New = MinMag_New:1.0:MaxMag_New;
             binIndices_New = discretize(MAGPSF_New, binEdges_New);
 
@@ -430,12 +437,13 @@ function TranCat=findTransients(AD, Args)
             CHI2DOF_Ref = CHI2DOF_Ref(~NearEdge_Ref);
 
             MinMag_Ref = floor(min(MAGPSF_Ref));
-
             if AD(Iobj).Ref.HeaderData.isKeyExist('LIMMAG')
                 MaxMag_Ref = ceil(AD(Iobj).Ref.HeaderData.getVal('LIMMAG'));
             else
                 MaxMag_Ref = ceil(max(MAGPSF_Ref));
             end
+
+            MinMag_Ref = min(MinMag_Ref, MaxMag_Ref -1);
             binEdges_Ref = MinMag_Ref:1.0:MaxMag_Ref;
             binIndices_Ref = discretize(MAGPSF_Ref, binEdges_Ref);
             
@@ -455,6 +463,31 @@ function TranCat=findTransients(AD, Args)
                 binIndex = find(targetMag >= binEdges_Ref(1:end-1) & targetMag < binEdges_Ref(2:end));
                 if ~isempty(binIndex) && (binIndex <= numel(MedianValues_Ref))
                     MedianAtMag_Ref(i) = MedianValues_Ref(binIndex);
+                end
+            end
+            
+            [XCat_New, YCat_New] = AD(Iobj).New.CatData.getXY();
+            XCat_New = XCat_New(~NearEdge_New);
+            YCat_New = YCat_New(~NearEdge_New);
+            
+            [XCat_Ref, YCat_Ref] = AD(Iobj).Ref.CatData.getXY();
+            XCat_Ref = XCat_Ref(~NearEdge_Ref);
+            YCat_Ref = YCat_Ref(~NearEdge_Ref);
+            
+            LocalMedianChi2_New = NaN(Nsrc,1);
+            LocalMedianChi2_Ref = NaN(Nsrc,1);
+            
+            for i = 1:Nsrc
+                DistNew = sqrt((XCat_New - LocalMax(i,1)).^2 + (YCat_New - LocalMax(i,2)).^2);
+                NearbyNew = DistNew < Args.LocalChi2Radius;
+                if sum(NearbyNew) >= Args.LocalChi2MinSrc
+                    LocalMedianChi2_New(i) = median(CHI2DOF_New(NearbyNew));
+                end
+            
+                DistRef = sqrt((XCat_Ref - LocalMax(i,1)).^2 + (YCat_Ref - LocalMax(i,2)).^2);
+                NearbyRef = DistRef < Args.LocalChi2Radius;
+                if sum(NearbyRef) >= Args.LocalChi2MinSrc
+                    LocalMedianChi2_Ref(i) = median(CHI2DOF_Ref(NearbyRef));
                 end
             end
 
@@ -487,6 +520,13 @@ function TranCat=findTransients(AD, Args)
             TranCat(Iobj) = TranCat(Iobj).insertCol(...
                 cast(MedianAtMag_Ref, 'double'), 'R_PSF_CHI2DOF', ...
                 {'R_PSF_CHI2DOF_MED'}, {''});
+
+            TranCat(Iobj) = TranCat(Iobj).insertCol(...
+                cast(LocalMedianChi2_New, 'double'), 'N_PSF_CHI2DOF', ...
+                {'N_PSF_CHI2DOF_LOCAL_MED'}, {''});
+            TranCat(Iobj) = TranCat(Iobj).insertCol(...
+                cast(LocalMedianChi2_Ref, 'double'), 'R_PSF_CHI2DOF', ...
+                {'R_PSF_CHI2DOF_LOCAL_MED'}, {''});        
         end
 
         if Args.includeAperturePhot

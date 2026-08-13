@@ -22,6 +22,20 @@ function [ResultFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
     %            'CatName'
     %            'astrometryCoreArgs'
     %            'astrometryRefineArgs'
+    %            'RefRangeMag' - Reference catalog magnitude range used by
+    %                   astrometryCore. Shifted by the exposure time
+    %                   correction (see 'RefRangeMagExpTimeFun').
+    %                   Default is [10 17.0].
+    %            'RefRangeMagRefine' - Reference catalog magnitude range used
+    %                   by astrometryRefine, before the exposure time
+    %                   correction is applied. Matching a short exposure
+    %                   against a too deep reference catalog fails in crowded
+    %                   fields. Default is [12 19.5].
+    %            'RefRangeMagExpTimeFun' - Function of the exposure time used
+    %                   to shift both magnitude ranges relative to their value
+    %                   at the nominal 20s exposure. The shift is zero at 20s.
+    %                   If empty, no correction is applied.
+    %                   Default is @(ET) 1.8.*log10(ET).
     % Output : - 
     % Author : Eran Ofek (Aug 2021)
     % Example:
@@ -58,6 +72,8 @@ function [ResultFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
         Args.SearchRadius                        = 6;
         Args.FilterSigma                         = 3;
         
+        Args.RefRangeMagRefine                   = [12 19.5];  % astrometryRefine reference mag range
+
         % Dynamic definition of RefRangeMag:
         Args.KeyExpTime                          = 'EXPTIME';
         Args.RefRangeMagExpTimeFun               = @(ET) 1.8.*log10(ET);
@@ -70,13 +86,19 @@ function [ResultFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
         ResultObj = Obj;
     end
     
-    ExpTime = ResultObj(1).HeaderData.getVal(Args.KeyExpTime);
+    % Shift the reference magnitude ranges according to the exposure time.
+    % The shift is zero at the nominal 20s exposure.
+    MagShift = 0;
+    ExpTime  = ResultObj(1).HeaderData.getVal(Args.KeyExpTime);
     if ~isnan(ExpTime) && ~isempty(Args.RefRangeMagExpTimeFun)
-        Diff = diff(Args.RefRangeMagExpTimeFun([20 ExpTime]));
-        
-        Args.RefRangeMag = Args.RefRangeMag + Diff;
+        MagShift = diff(Args.RefRangeMagExpTimeFun([20 ExpTime]));
+
+        Args.RefRangeMag = Args.RefRangeMag + MagShift;
     end
-        
+    % astrometryRefine must use the same correction, otherwise short exposures
+    % are matched against a reference catalog which is far too deep
+    RefineRangeMag = Args.RefRangeMagRefine + MagShift;
+
     
     % get approximate coordinates for field center
     [RA, Dec] = getCoo(Obj(1).HeaderData);
@@ -111,6 +133,7 @@ function [ResultFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
     
     
     Sucess              = false(size(Obj));  % sucessful solution
+    Attempted           = false(size(Obj));  % sub image was already attempted
     
     % do we need to define this if CatName is AstroCatalog???
     AstrometricCat      = AstroCatalog(size(Obj));
@@ -219,19 +242,27 @@ function [ResultFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
                 % ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
 
                 % check qulity of solution
-                Sucess(Iim) = ResultFit(Iim).WCS.Success;
+                Sucess(Iim)    = ResultFit(Iim).WCS.Success;
+                Attempted(Iim) = true;
                 %[Sucess(Iim), QualitySummary(Iim)] = imProc.astrometry.assessAstrometricQuality(ResultFit(Iim).ResFit, Args.assessAstrometricQualityArgs{:});
             end
         else
             % run astrometryRefine
             % find a sub image which have nearby sucessful solution
             % matrix of distances : rows - sucssful; lines - ~sucessful
-            DistSubMat   = sqrt((SubCenterX(Sucess) - SubCenterX(~Sucess).').^2 + (SubCenterY(Sucess) - SubCenterY(~Sucess).').^2);
+            % candidates are sub images which are not solved and were not
+            % attempted yet - otherwise a sub image which can not be solved
+            % is selected again on every iteration
+            Candidate    = ~Sucess & ~Attempted;
+            if ~any(Candidate) || ~any(Sucess)
+                break;
+            end
+            DistSubMat   = sqrt((SubCenterX(Sucess) - SubCenterX(Candidate).').^2 + (SubCenterY(Sucess) - SubCenterY(Candidate).').^2);
             [~,IndMin]   = min(DistSubMat,[],'all','linear');
             [MinI,MinJ]  = imUtil.image.ind2sub_fast(size(DistSubMat), IndMin);
             FS           = find(Sucess);
-            FNS          = find(~Sucess);
-            IndSucess    = FS(MinI); 
+            FNS          = find(Candidate);
+            IndSucess    = FS(MinI);
             IndNotSucess = FNS(MinJ);
             % Index of image to solve
             Iim  = IndNotSucess;
@@ -295,7 +326,8 @@ function [ResultFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
                                                                                                            'Dec',[],...
                                                                                                            'CooUnits','deg',...
                                                                                                            'EpochOut',Args.EpochOut,...
-                                                                                                           'CatName',CatName,...  
+                                                                                                           'CatName',CatName,...
+                                                                                                           'RefRangeMag',RefineRangeMag,...
                                                                                                            Args.astrometryRefineArgs{:});
                 %
                 %ResultRefineFit(Iim).WCS.populateSuccess;
@@ -326,7 +358,7 @@ function [ResultFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
                                                                                                          'RangeX',[-1000 1000].*1,...
                                                                                                          'RangeY',[-1000 1000].*1,...
                                                                                                          'CatRadius',3600.*1,...
-                                                                                                         'RefRangeMag',[10 18],...
+                                                                                                         'RefRangeMag',Args.RefRangeMag,...
                                                                                                          'CooUnits',Args.CooUnits,...
                                                                                                          'EpochOut',Args.EpochOut,...
                                                                                                          'CatName',CatName,...
@@ -341,11 +373,15 @@ function [ResultFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
                 % ResultRefineFit(Iim).ResFit = ResultFit(Iim).ResFit; % RMS errors are measured in [deg]
                 % ResultRefineFit(Iim).WCS    = ResultFit(Iim).WCS;
                 
-                %Sucess(Iim) = ResultRefineFit(Iim).WCS.Success;
-                Sucess(Iim) = true; %ResultFit(Iim).WCS.Success;
-                %error('astrometryCore after astrometryRefine failed');
-                %UseRefine   = true;   % needed in order to avoid infinite loop
+                % report the true outcome - marking a failed solution as
+                % sucessful propagates an unpopulated WCS to the next sub image
+                if isempty(ResultFit(Iim).WCS)
+                    Sucess(Iim) = false;
+                else
+                    Sucess(Iim) = ResultFit(Iim).WCS.Success;
+                end
             end
+            Attempted(Iim) = true;
                 
           
         end

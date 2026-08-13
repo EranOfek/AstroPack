@@ -1021,7 +1021,38 @@ classdef convert
             Lup = -2.5./log(10).*(asinh((Flux./Flux0)./(2.*B))+log(B));
 
         end % convert.luptitude function
-        
+
+        % flux to magnitude (NaN for non-positive flux)
+        function Mag=magnitude(Flux,Flux0)
+            % Convert flux to standard magnitude, NaN for non-positive flux.
+            % Package: @convert
+            % Description: Standard magnitude Mag = -2.5*log10(Flux/Flux0).
+            %              Unlike convert.luptitude (asinh magnitude, which is
+            %              finite for negative flux), this returns NaN wherever
+            %              the flux is non-positive or non-finite, so
+            %              non-detections are flagged rather than folded into a
+            %              soft asinh value. Signature matches convert.luptitude
+            %              so the two are drop-in interchangeable at call sites.
+            % Input  : - Flux.
+            %          - Reference flux (Flux0), default is 1. Note that this
+            %            parameter should equal 10.^(0.4.*ZP) - the SAME
+            %            convention as convert.luptitude.
+            % Output : - Magnitude; NaN where Flux <= 0 (or non-finite).
+            % Author : D. Kovaleva (Aug 2026)
+            % Example: Mag = convert.magnitude(100, 10.^(0.4.*25));
+            %--------------------------------------------------------------------------
+
+            arguments
+                Flux
+                Flux0 = 1;
+            end
+
+            Ratio = Flux ./ Flux0;
+            Mag   = -2.5 .* log10(Ratio);
+            Mag(~(Ratio > 0)) = NaN;   % non-positive/NaN flux -> NaN magnitude
+
+        end % convert.magnitude function
+
         function Mag=flux2mag(Flux,ZP,Luptitude,Soft)
             % Convert flux to magnitude or luptitude
             % Package: @convert
