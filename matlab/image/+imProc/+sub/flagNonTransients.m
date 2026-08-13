@@ -1228,7 +1228,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
             PassesContaminationStrict = ...
                 ~N_VeryPoorPSF ...
-                | ((MagContamination > Args.ContaminationMag(2)) & PassesLocalAperStrict & ~N_NotSalvagablePSF);
+                | ((MagContamination > Args.ContaminationMag(2)) & PassesLocalAperStrict);
 
             % Final decision: require a reasonably clean local environment, pass the
             % contamination test appropriate to the N-image PSF quality, and satisfy
@@ -1239,7 +1239,8 @@ function TranCat = flagNonTransients(Obj, Args)
             Passes_PSFShape = ...
                   (PassesContaminationLoose | DgreaterNearbyR) ...  % Pass the main contamination test
                 & (PassesContaminationStrict | DgreaterNearbyR) ... % Additional requirement for very poor N PSFs
-                & R_Passes_PSFShape;                                % Require a good R PSF unless the candidate is isolated
+                & R_Passes_PSFShape ...                             % Require a good R PSF unless the candidate is isolated
+     	        & ~N_NotSalvagablePSF;
            
             PSF_Flagged = ~Passes_PSFShape;
             FilterFlags = setFilterBit(FilterFlags, PSF_Flagged, BD_TF, 'PSFShape');
