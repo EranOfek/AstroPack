@@ -1683,7 +1683,7 @@ function TranCat = flagNonTransients(Obj, Args)
             ExcludeCand = (GalCand & ~NuclearCand & ~NearStar);
 
             if ~isempty(IsolatedCand)
-                ExcludeCand = ExcludeCand | IsolatedCand | AmbBlendedCand;
+                ExcludeCand = ExcludeCand | (IsolatedCand & ~AmbIsolated);
             end
 
             if ~isempty(DgreaterNearbyR)
