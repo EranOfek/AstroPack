@@ -205,7 +205,25 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
                 {'SN_ext1'},{''});
         end
 
+        SN_smear = nan(numel(Score),1);
+        if ~isempty(AD(Iobj).S_smear)
+            Score = AD(Iobj).CatData.getCol('SCORE');
+            ScorePos = (Score >= 0);
+            ScoreNeg = (Score < 0);
+            XYPos = XY(ScorePos,:);
+            XYNeg = XY(ScoreNeg,:);
 
+            [SmearPos, ~, ~] = imUtil.properSub.findNearestPeakSig(AD(Iobj).S_smear, ...
+                XYPos(:,1), XYPos(:,2), 1, 'RadiusTS', Args.RadiusTS);
+            [SmearNeg, ~, ~] = imUtil.properSub.findNearestPeakSig(-AD(Iobj).S_smear, ...
+                XYNeg(:,1), XYNeg(:,2), 1, 'RadiusTS', Args.RadiusTS);
+            SN_smear = zeros(numel(Score),1);
+            SN_smear(ScorePos) = SmearPos;
+            SN_smear(ScoreNeg) = -SmearNeg;
+        end
+        AD(Iobj).CatData.insertCol(cast(SN_smear,'double'),'SCORE',...
+            {'SN_smear'},{''});
+        
         % Change Gabor stat to near max value
         if ~isempty(AD(Iobj).GaborSN)
             [Gabor_max, ~, ~] = imUtil.properSub.findNearestPeakSig(AD(Iobj).GaborSN, ...
