@@ -266,7 +266,8 @@ function testGatherCrossID(testCase)
     % the indexed source's raw column values, unmatched rows are NaN.
     [T, Cats_cone] = catsHTM.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
         'RefCat','XIDREF','CatList',{'XIDA'},'MatchRadius',2,'Verbose',false);
-    D = catsHTM.gatherCrossIDData(T, Cats_cone, 'Verbose',false);
+    % Columns={} = all columns (default is now 'auto' = prime mag / Dec fallback)
+    D = catsHTM.gatherCrossIDData(T, Cats_cone, 'Columns',{}, 'Verbose',false);
 
     verifyTrue(testCase, all(ismember({'MasterID','RA','Dec','OriginCat'}, ...
         D.Properties.VariableNames)), 'Missing global columns.');
@@ -298,7 +299,7 @@ function testGatherFromDiskCats(testCase)
         'CatsToDisk',true,'CatsDir',CatsDir,'Verbose',false);
     verifyTrue(testCase, ischar(Cats_cone.XIDA), 'Cats_cone.XIDA should be a path here.');
 
-    D = catsHTM.gatherCrossIDData(T, Cats_cone, 'CatList',{'XIDA'}, 'Verbose',false);
+    D = catsHTM.gatherCrossIDData(T, Cats_cone, 'CatList',{'XIDA'}, 'Columns',{}, 'Verbose',false);
     IndA = T.Ind_XIDA;
     Mat  = find(~isnan(IndA));
     Loaded = load(Cats_cone.XIDA);
@@ -351,8 +352,8 @@ function testOutputTypes(testCase)
     verifyTrue(testCase, isequaln(getCol(Ac,'Ind_XIDA'), Tb.Ind_XIDA), 'Ind_XIDA differs.');
 
     % gatherCrossIDData works on both forms
-    D1 = catsHTM.gatherCrossIDData(Tb, Cats_cone, 'Verbose',false);
-    D2 = catsHTM.gatherCrossIDData(Ac, Cats_cone, 'Verbose',false);
+    D1 = catsHTM.gatherCrossIDData(Tb, Cats_cone, 'Columns',{}, 'Verbose',false);
+    D2 = catsHTM.gatherCrossIDData(Ac, Cats_cone, 'Columns',{}, 'Verbose',false);
     verifyTrue(testCase, ismember('XIDA_RA', D1.Properties.VariableNames), 'gather(table) failed.');
     verifyTrue(testCase, ismember('XIDA_RA', D2.Properties.VariableNames), 'gather(AstroCatalog) failed.');
 
@@ -721,4 +722,97 @@ function testGatherCrossIDDataValidatesSignature(testCase)
     verifyError(testCase, @() catsHTM.gatherCrossIDData(T, [], 'Columns',{'RA'}, ...
         'Signature',BadSig, 'Verbose',false), ...
         'catsHTM:gatherByPointer:staleSignature', 'Stale signature should error.');
+end
+
+function testGatherAutoColumnsAndSkip(testCase)
+    % Default Columns='auto' pulls ONE column per catalog (prime mag, or the Dec
+    % fallback for the RA/Dec-only fixtures); {} pulls all; SkipCats drops a
+    % catalog from Data without touching T. Verified in both cats and pointer mode.
+    [T, Cats_cone] = catsHTM.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+        'RefCat','XIDREF','CatList',{'XIDA','XIDB'},'MatchRadius',2,'Verbose',false);
+
+    % auto (default): one column per catalog -> Dec fallback (no mag in fixture)
+    Da = catsHTM.gatherCrossIDData(T, Cats_cone, 'Verbose',false);
+    verifyTrue(testCase, ismember('XIDA_Dec', Da.Properties.VariableNames), ...
+        'auto should pull the Dec fallback for a mag-less catalog.');
+    verifyFalse(testCase, ismember('XIDA_RA', Da.Properties.VariableNames), ...
+        'auto should pull only one column per catalog.');
+
+    % auto in pointer mode (reads the colcell straight from catsHTM)
+    Dp = catsHTM.gatherCrossIDData(T, [], 'Source','pointer', 'Verbose',false);
+    verifyTrue(testCase, ismember('XIDA_Dec', Dp.Properties.VariableNames), ...
+        'auto pointer-mode should pull the Dec fallback.');
+    verifyFalse(testCase, ismember('XIDA_RA', Dp.Properties.VariableNames), ...
+        'auto pointer-mode: one column per catalog.');
+
+    % Columns={} : all columns (RA and Dec both present)
+    Df = catsHTM.gatherCrossIDData(T, Cats_cone, 'Columns',{}, 'Verbose',false);
+    verifyTrue(testCase, all(ismember({'XIDA_RA','XIDA_Dec'}, Df.Properties.VariableNames)), ...
+        'Columns={} should pull all columns.');
+
+    % SkipCats drops XIDA from Data but leaves it in T
+    Ds = catsHTM.gatherCrossIDData(T, Cats_cone, 'Columns',{}, 'SkipCats',{'XIDA'}, 'Verbose',false);
+    verifyFalse(testCase, any(startsWith(Ds.Properties.VariableNames,'XIDA_')), ...
+        'SkipCats should exclude XIDA columns.');
+    verifyTrue(testCase, any(startsWith(Ds.Properties.VariableNames,'XIDB_')), ...
+        'SkipCats should keep other catalogs.');
+    verifyTrue(testCase, ismember('Ind_XIDA', T.Properties.VariableNames), ...
+        'SkipCats must not modify T.');
+end
+
+function testAutoPicksPrimeMag(testCase)
+    % When a catalog HAS magnitudes, 'auto' picks the prime band (G over R), and
+    % AutoNMag=2 returns both. Uses a one-source catalog with Mag_G/Mag_R.
+    RAD = 180./pi;
+    CRA = 45.357; CDec = 0.894;
+    Src = [CRA./RAD, CDec./RAD, 18.0, 17.0];       % RA Dec Mag_G Mag_R
+    Old = pwd; cd(testCase.TestData.Dir);           % built in the (path'd) fixture dir
+    VO.prep.build_htm_catalog(Src, 'CatName','XMAG', 'HTM_Level',4, ...
+        'ColCell',{'RA','Dec','Mag_G','Mag_R'}, 'ColUnits',{'rad','rad','mag','mag'});
+    cd(Old);
+    evalin('base','clear XMAG_HTM');                % avoid a stale cached index
+
+    [Cid, Row]  = catsHTM.sourcePointer('XMAG', CRA./RAD, CDec./RAD);
+    [~, Cols]   = catsHTM.gatherByPointer('XMAG', Cid, Row, 'Columns','auto');
+    verifyEqual(testCase, Cols, {'Mag_G'}, 'auto should pick the G band over R.');
+
+    [~, Cols2]  = catsHTM.gatherByPointer('XMAG', Cid, Row, 'Columns','auto', 'AutoNMag',2);
+    verifyEqual(testCase, sort(Cols2), {'Mag_G','Mag_R'}, 'AutoNMag=2 should pick both mags.');
+end
+
+function testMarkShared(testCase)
+    % MarkShared adds NcoreShare_<Cat>: when ONE Cat source is the nearest match
+    % to TWO core sources (a blend), both rows get NcoreShare_<Cat>=2. Duplicates
+    % are marked, never dropped; the column is absent when MarkShared is off.
+    RAD = 180./pi;
+    CRA = 45.357; CDec = 0.894;
+    Sep = 1.0/3600/RAD;                                  % 1 arcsec (rad)
+    % two core sources 1" apart, and one Cat source at their midpoint (0.5" from
+    % each) so a 2" match assigns that single Cat source to BOTH core sources
+    Ref = [CRA./RAD,                    CDec./RAD; ...
+           CRA./RAD + Sep./cosd(CDec),  CDec./RAD];
+    Cat = [CRA./RAD + 0.5.*Sep./cosd(CDec), CDec./RAD];
+    Old = pwd; cd(testCase.TestData.Dir);
+    VO.prep.build_htm_catalog(Ref, 'CatName','SREF','HTM_Level',4, ...
+        'ColCell',{'RA','Dec'}, 'ColUnits',{'rad','rad'});
+    VO.prep.build_htm_catalog(Cat, 'CatName','SCAT','HTM_Level',4, ...
+        'ColCell',{'RA','Dec'}, 'ColUnits',{'rad','rad'});
+    cd(Old);
+    evalin('base','clear SREF_HTM SCAT_HTM');
+
+    T = catsHTM.crossIDCatsHTM(CRA./RAD, CDec./RAD, 10800, 'OutType','table', ...
+        'RefCat','SREF', 'CatList',{'SCAT'}, 'MatchRadius',2, ...
+        'MarkShared',true, 'Verbose',false);
+    verifyTrue(testCase, ismember('NcoreShare_SCAT', T.Properties.VariableNames), ...
+        'NcoreShare_SCAT column missing.');
+    Matched = ~isnan(T.Ind_SCAT);
+    verifyEqual(testCase, sum(Matched), 2, 'Both core sources should match the one SCAT source.');
+    verifyEqual(testCase, T.NcoreShare_SCAT(Matched), [2;2], ...
+        'A Cat source shared by two core sources should have NcoreShare=2.');
+
+    % default off -> no NcoreShare_ columns
+    T2 = catsHTM.crossIDCatsHTM(CRA./RAD, CDec./RAD, 10800, 'OutType','table', ...
+        'RefCat','SREF', 'CatList',{'SCAT'}, 'MatchRadius',2, 'Verbose',false);
+    verifyFalse(testCase, any(startsWith(T2.Properties.VariableNames,'NcoreShare_')), ...
+        'NcoreShare_ must be absent without MarkShared.');
 end

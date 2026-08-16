@@ -562,7 +562,7 @@ classdef catsHTM
             Data(I).RefLink = 'https://ui.adsabs.harvard.edu/abs/2007ApJS..172...99C/abstract';
             
             I = I + 1;
-            Data(I).Status  = true;
+            Data(I).Status  = false;  % superseded by DECaLS10; dir dropped from startup (Eran, 2026-05)
             Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/DECaLS/DR5/';
             Data(I).Name = 'DECaLS';
@@ -688,7 +688,7 @@ classdef catsHTM
             Data(I).RefLink = '';
 
             I = I + 1;
-            Data(I).Status  = true;
+            Data(I).Status  = false;  % superseded by GALEXAIS (DR6Plus7); dir dropped from startup (Eran, 2026-05)
             Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/GALEX/DR6Plus7Old/';
             Data(I).Name = 'GALEX';
@@ -715,7 +715,7 @@ classdef catsHTM
             Data(I).RefLink = 'https://arxiv.org/abs/2110.06184';
             
             I = I + 1;
-            Data(I).Status  = true;
+            Data(I).Status  = false;  % dir (GLADE/plus) dropped from startup (Eran, 2026-06); use GLADEp (GLADE/v1)
             Data(I).iscatsHTM  = true;
             Data(I).Dir  = '/GLADE/plus/';
             Data(I).Name = 'GLADEplus';
@@ -3367,9 +3367,16 @@ classdef catsHTM
             NsrcTotal  = sum(NsrcCol);
             LayoutHash = localHashBytes(typecast(NsrcCol(:).', 'uint8'));
 
-            % --- ColHash: column names + units
+            % --- ColHash: column names + units. Some catalogs (e.g. GAIADR3spec)
+            % store non-char unit entries ([] instead of ''), which strjoin
+            % rejects - so keep only the char entries.
             [ColCell, ColUnits] = catsHTM.load_colcell_from_dir(CatDir, CatName);
-            ColStr  = strjoin([ColCell(:); ColUnits(:)], newline);
+            Parts = ColCell(:);
+            if iscell(ColUnits)
+                Parts = [Parts; ColUnits(:)];
+            end
+            Parts   = Parts(cellfun(@ischar, Parts));
+            ColStr  = strjoin(Parts, newline);
             ColHash = localHashBytes(uint8(ColStr));
 
             % --- ChecksumHash: md5-list file if present (best effort, non-fatal)
@@ -3620,8 +3627,12 @@ classdef catsHTM
             %          - RowInCell - Row within htm_<CellID> (same size).
             %          * ...,key,val,...
             %            'Columns' - Which columns to return: a cellstr of
-            %                   column names, a numeric vector of indices, or {}
-            %                   for ALL columns. Default {} (all).
+            %                   column names, a numeric vector of indices, {}
+            %                   for ALL columns, or 'auto' for the catalog's prime
+            %                   magnitude(s). Default {} (all).
+            %            'AutoNMag' - Number of magnitude columns 'auto' returns
+            %                   (band preference G>V>r; falls back to Dec/RA/first
+            %                   column when the catalog has no magnitude). Default 1.
             %            'CatDir' - Directory holding the catalog HDF5 files.
             %                   Default '' = resolve via which() on the path.
             %            'NfilesInHDF' - Datasets per HDF5 file. Default is 100.
@@ -3649,6 +3660,7 @@ classdef catsHTM
                 CellID
                 RowInCell
                 Args.Columns          = {};
+                Args.AutoNMag         = 1;
                 Args.CatDir           = '';
                 Args.NfilesInHDF      = 100;
                 Args.FillValue        = NaN;
@@ -3689,6 +3701,12 @@ classdef catsHTM
                 ColIdx = 1:numel(AllCols);
             elseif isnumeric(Args.Columns)
                 ColIdx = Args.Columns(:).';
+            elseif (ischar(Args.Columns) || isstring(Args.Columns)) && strcmpi(Args.Columns, 'auto')
+                % 'auto' -> the catalog's prime magnitude(s) (never errors: the
+                % names are chosen from AllCols itself).
+                Wanted    = localAutoColumns(AllCols, Args.AutoNMag);
+                [~, Loc]  = ismember(Wanted, AllCols);
+                ColIdx    = Loc(:).';
             else
                 Wanted = Args.Columns;
                 if ischar(Wanted) || isstring(Wanted)
@@ -5290,7 +5308,7 @@ classdef catsHTM
             %            'CatList' - Cellstr of catalog names to cross-match against
             %                   the anchor. If empty, all available (Status==true)
             %                   catsHTM catalogs are used. Default is {}.
-            %            'SkipCats' - Cellstr of catalog names to exclude. Default {}.
+            %            'SkipCats' - Cellstr of catalog names to exclude. Default {'MergedCat'}.
             %            'MatchRadius' - Default matching radius applied to every
             %                   catalog pair. Default is 2.
             %            'MatchRadiusUnits' - Matching radius units. Default 'arcsec'.
@@ -5355,6 +5373,19 @@ classdef catsHTM
             %                   never in a numeric AstroCatalog or CSV. Requires
             %                   KeepExtraMatches and AddPointer, and costs extra
             %                   sourcePointer reads for the additional matches.
+            %                   Default is false.
+            %            'MarkShared' - Add NcoreShare_<Cat>: the number of core
+            %                   (master) sources whose nearest match is the SAME
+            %                   Cat source (0 no match, 1 unique, >=2 a Cat source
+            %                   shared by several core sources - i.e. a blend /
+            %                   unresolved close pair). It is the reverse-direction
+            %                   mirror of Nmatch_<Cat> and is per-catalog, so a pair
+            %                   that one catalog blends (NcoreShare>=2) while another
+            %                   resolves (=1) is visible. Duplicates are only MARKED,
+            %                   never dropped - resolve in post (e.g. keep min
+            %                   Dist_<Cat> within each shared Ind_<Cat> group).
+            %                   Numeric, so present in table, AstroCatalog and CSV.
+            %                   In-memory only (skipped with a note in TableToDisk).
             %                   Default is false.
             %            'OutType' - 'table' (MATLAB table; includes the OriginCat
             %                   column and, when KeepExtraMatches=true, the IndExtra_
@@ -5555,7 +5586,7 @@ classdef catsHTM
                 Args.RadiusUnits               = 'arcsec';
                 Args.RefCat                    = 'GAIADR3';
                 Args.CatList                   = {};
-                Args.SkipCats                  = {};
+                Args.SkipCats                  = {'MergedCat'};
                 Args.MatchRadius               = 2;
                 Args.MatchRadiusUnits          = 'arcsec';
                 Args.RadiusPerCat              = {};
@@ -5566,6 +5597,7 @@ classdef catsHTM
                 Args.AddPointer logical        = true;
                 Args.AddCatRowID logical       = false;
                 Args.IdExtras logical          = false;
+                Args.MarkShared logical        = false;
                 Args.StampSignature logical    = true;
                 Args.OutType                   = 'table';
                 Args.OutFile                   = '';
@@ -5605,6 +5637,13 @@ classdef catsHTM
             if Args.IdExtras && ~(KeepExtra && AddPointer) && Args.Verbose
                 fprintf('crossIDCatsHTM: IdExtras needs KeepExtraMatches and AddPointer; skipped.\n');
             end
+            % MarkShared adds NcoreShare_<Cat> = number of core sources that share
+            % each Cat source (mirror of Nmatch_<Cat>; 0 no-match, 1 unique, >=2 a
+            % blend). Computed from the assembled Ind_ column, so in-memory only.
+            MarkShared = Args.MarkShared && ~Stream;
+            if Args.MarkShared && Stream && Args.Verbose
+                fprintf('crossIDCatsHTM: MarkShared skipped in TableToDisk mode.\n');
+            end
 
             % field centre in radians (cone_search convention)
             RA_rad  = convert.angular(Args.CooUnits, 'rad', RA);
@@ -5639,8 +5678,14 @@ classdef catsHTM
                 fprintf('crossIDCatsHTM: anchor %s cone_search (R=%g %s)...\n', ...
                     Args.RefCat, Radius, Args.RadiusUnits);
             end
+            % Pass the full index var name (<Cat>_HTM) explicitly: cone_search's
+            % default derives it by splitting the FILENAME on '_' and keeping the
+            % first token, which is wrong for catalog names that contain an
+            % underscore (e.g. LoTSS_DR3 -> 'LoTSS_HTM' instead of 'LoTSS_DR3_HTM').
+            % For names without '_' this is identical to the default.
             RefCatH = catsHTM.cone_search(Args.RefCat, RA_rad, Dec_rad, Radius, ...
-                'RadiusUnits', Args.RadiusUnits, 'Con', Args.Con, 'OutType', 'astrocatalog');
+                'RadiusUnits', Args.RadiusUnits, 'Con', Args.Con, 'OutType', 'astrocatalog', ...
+                'IndexVarName', sprintf('%s_HTM', Args.RefCat));
             [seedRA, seedDec] = getLonLat(RefCatH, 'deg');
             seedRA  = seedRA(:);
             seedDec = seedDec(:);
@@ -5726,8 +5771,11 @@ classdef catsHTM
                 end
 
                 try
+                    % explicit full index var name (see the RefCat call above) so
+                    % underscore-named catalogs (e.g. LoTSS_DR3) resolve correctly.
                     CatH = catsHTM.cone_search(Name, RA_rad, Dec_rad, Radius, ...
-                        'RadiusUnits', Args.RadiusUnits, 'Con', Args.Con, 'OutType', 'astrocatalog');
+                        'RadiusUnits', Args.RadiusUnits, 'Con', Args.Con, 'OutType', 'astrocatalog', ...
+                        'IndexVarName', sprintf('%s_HTM', Name));
                 catch ME
                     Success = false;
                     Failed{end+1} = Name; %#ok<AGROW>
@@ -5981,6 +6029,12 @@ classdef catsHTM
                     VarName{end+1} = ['Ind_' Name];                          %#ok<AGROW>
                     VarData{end+1} = localPad(Nmatch.(Name), Nglobal, 0);    %#ok<AGROW>
                     VarName{end+1} = ['Nmatch_' Name];                       %#ok<AGROW>
+                    if MarkShared
+                        % how many core rows share this Cat source (>=2 -> blend);
+                        % the reverse-direction mirror of Nmatch_<Cat>.
+                        VarData{end+1} = localCoreShare(localPad(Ind.(Name), Nglobal, NaN)); %#ok<AGROW>
+                        VarName{end+1} = ['NcoreShare_' Name];               %#ok<AGROW>
+                    end
                     if Args.AddDistCol
                         VarData{end+1} = localPad(Dist.(Name), Nglobal, NaN); %#ok<AGROW>
                         VarName{end+1} = ['Dist_' Name];                      %#ok<AGROW>
@@ -6080,11 +6134,19 @@ classdef catsHTM
             %                   'cats' when Cats_cone is provided (non-empty), else 'pointer'.
             %            'CatList' - Cellstr of catalog names to gather. Default {} =
             %                   all catalogs found as Ind_<Cat> columns in T.
-            %            'Columns' - Which catalog columns to pull. Default {} = ALL
-            %                   columns of each catalog. A cellstr applies the same
-            %                   column list to every catalog (names absent from a given
-            %                   catalog are skipped). A struct with fields named after
-            %                   catalogs gives a per-catalog cellstr.
+            %            'SkipCats' - Cellstr of catalogs to EXCLUDE from the gather
+            %                   (complement of CatList). They stay in T; just none of
+            %                   their columns land in Data. Default {}.
+            %            'Columns' - Which catalog columns to pull: 'auto' (default)
+            %                   = each catalog's prime magnitude(s) - a compact table;
+            %                   {} = ALL columns (can be huge, e.g. ~700 for a spectral
+            %                   catalog); a cellstr applies the same list to every
+            %                   catalog (names absent from a catalog are skipped); a
+            %                   struct keyed by catalog gives a per-catalog list (each
+            %                   value may itself be 'auto', {}, or a cellstr).
+            %            'AutoNMag' - Number of magnitude columns 'auto' pulls per
+            %                   catalog (band preference G>V>r; falls back to Dec/RA
+            %                   when a catalog has no magnitude). Default 1.
             %            'ColPrefix' - Prefix each gathered column name with '<Cat>_'.
             %                   Default is true (recommended; avoids name collisions).
             %            'IncludeGlobal' - Prepend MasterID, RA, Dec, OriginCat from T.
@@ -6126,7 +6188,9 @@ classdef catsHTM
                 Cats_cone                       = [];
                 Args.Source                = 'auto';
                 Args.CatList               = {};
-                Args.Columns               = {};
+                Args.SkipCats              = {};
+                Args.Columns               = 'auto';
+                Args.AutoNMag              = 1;
                 Args.ColPrefix logical     = true;
                 Args.IncludeGlobal logical = true;
                 Args.FillValue             = NaN;
@@ -6178,6 +6242,15 @@ classdef catsHTM
                 if ischar(CatList) || isstring(CatList)
                     CatList = cellstr(CatList);
                 end
+            end
+            % SkipCats: drop these from the gather (they stay in T, just no
+            % columns of theirs land in Data). Complement of CatList.
+            if ~isempty(Args.SkipCats)
+                Skip = Args.SkipCats;
+                if ischar(Skip) || isstring(Skip)
+                    Skip = cellstr(Skip);
+                end
+                CatList = CatList(~ismember(CatList, Skip));
             end
 
             % ---- global columns ---------------------------------------------------
@@ -6375,6 +6448,20 @@ function V = localPad(V, N, FillVal)
     V = V(:);
     if numel(V) < N
         V(numel(V)+1:N, 1) = FillVal;
+    end
+end
+
+% ======================================================================
+function Share = localCoreShare(Ind)
+    % For each core row, how many core rows point at the SAME Cat source (its
+    % Ind_<Cat> value). 0 where there is no match (NaN), 1 = unique, >=2 = a Cat
+    % source shared by several core sources (a blend). Reverse of Nmatch_<Cat>.
+    Ind   = Ind(:);
+    Share = zeros(numel(Ind), 1);
+    Ok    = ~isnan(Ind);
+    if any(Ok)
+        Counts      = accumarray(Ind(Ok), 1);       % occurrences per Cat index
+        Share(Ok)   = Counts(Ind(Ok));
     end
 end
 
@@ -6605,7 +6692,7 @@ function [Block, ColNm, Msg] = localGatherOne(Source, Name, VarNames, GetCol, Ca
         end
         Cat = localGetCat(Cats_cone.(Name));
         Ind = GetCol(IndName);
-        [ColIdx, ColNm] = localResolveColumns(Cat, Args.Columns, Name);
+        [ColIdx, ColNm] = localResolveColumns(Cat, Args.Columns, Name, Args.AutoNMag);
         Block = repmat(Args.FillValue, Nglobal, numel(ColIdx));
         Ok    = ~isnan(Ind);
         if any(Ok) && ~isempty(ColIdx)
@@ -6629,8 +6716,8 @@ function [Block, ColNm, Msg] = localGatherOne(Source, Name, VarNames, GetCol, Ca
             Sig = Args.Signature.(Name);
         end
         [Block, ColNm] = catsHTM.gatherByPointer(Name, Cid, Ric, ...
-            'Columns', Wanted, 'CatDir', Args.CatDir, 'FillValue', Args.FillValue, ...
-            'Signature', Sig, 'ValidateSig', Args.ValidateSig);
+            'Columns', Wanted, 'AutoNMag', Args.AutoNMag, 'CatDir', Args.CatDir, ...
+            'FillValue', Args.FillValue, 'Signature', Sig, 'ValidateSig', Args.ValidateSig);
         ColNm = ColNm(:).';
     end
 end
@@ -6647,12 +6734,15 @@ function Cat = localGetCat(Entry)
 end
 
 % ======================================================================
-function [ColIdx, ColNm] = localResolveColumns(Cat, Columns, Name)
+function [ColIdx, ColNm] = localResolveColumns(Cat, Columns, Name, NMag)
     % Resolve the column indices/names to pull from a Cats_cone catalog object.
+    if nargin < 4, NMag = 1; end
     AllNames = Cat.ColNames;
     Wanted   = localWantedColumns(Columns, Name);
-    if isempty(Wanted)
-        Wanted = AllNames;                       % all columns
+    if isequal(Wanted, 'auto')
+        Wanted = localAutoColumns(AllNames, NMag);   % prime magnitude(s)
+    elseif isempty(Wanted)
+        Wanted = AllNames;                           % all columns
     end
     % keep only columns that exist in this catalog, preserving requested order
     [Tf, Loc] = ismember(Wanted, AllNames);
@@ -6664,10 +6754,10 @@ end
 
 % ======================================================================
 function Wanted = localWantedColumns(Columns, Name)
-    % The requested column list for a given catalog (cellstr, or {} = all).
-    if isempty(Columns)
-        Wanted = {};
-    elseif isstruct(Columns)
+    % The requested column list for a given catalog: a cellstr, {} = ALL, or the
+    % sentinel 'auto' = prime magnitude(s) (resolved later against the catalog's
+    % actual column names). A per-catalog struct may name any of these per field.
+    if isstruct(Columns)
         if isfield(Columns, Name)
             Wanted = Columns.(Name);
         else
@@ -6676,9 +6766,52 @@ function Wanted = localWantedColumns(Columns, Name)
     else
         Wanted = Columns;
     end
-    if ischar(Wanted) || isstring(Wanted)
+    if (ischar(Wanted) || isstring(Wanted)) && strcmpi(Wanted, 'auto')
+        Wanted = 'auto';                             % keep the sentinel scalar
+    elseif isempty(Wanted)
+        Wanted = {};
+    elseif ischar(Wanted) || isstring(Wanted)
         Wanted = cellstr(Wanted);
     end
+end
+
+% ======================================================================
+function Sel = localAutoColumns(AllNames, NMag)
+    % Pick up to NMag "prime" magnitude columns from a catalog's column names.
+    % Magnitude columns are those containing 'mag' (case-insensitive) that are
+    % NOT error/uncertainty columns; among them a band preference G > V > r is
+    % applied (ties keep native order). If none exist, fall back to the sort
+    % column (Dec), else RA, else the first column - so a source always yields
+    % at least one identifying value.
+    AllNames = AllNames(:).';
+    Low   = lower(AllNames);
+    IsMag = contains(Low,'mag') & ~contains(Low,'err') & ~contains(Low,'sig') ...
+            & ~startsWith(Low,'e_');
+    Mags  = AllNames(IsMag);
+    if isempty(Mags)
+        Fallback = {'Dec','RA'};
+        Sel = {};
+        for I = 1:numel(Fallback)
+            Hit = AllNames(strcmpi(AllNames, Fallback{I}));
+            if ~isempty(Hit)
+                Sel = Hit(1);
+                break;
+            end
+        end
+        if isempty(Sel)
+            Sel = AllNames(1);
+        end
+        return;
+    end
+    % band rank from the name with the 'mag' token removed (so the 'g' in 'mag'
+    % is not mistaken for a G band): G->1, V->2, r->3, other->4.
+    Stripped = erase(lower(Mags), 'mag');
+    Rank = 4.*ones(1, numel(Mags));
+    Rank(contains(Stripped,'r')) = 3;
+    Rank(contains(Stripped,'v')) = 2;
+    Rank(contains(Stripped,'g')) = 1;
+    [~, Ord] = sort(Rank);                           % stable: ties keep order
+    Sel = Mags(Ord(1:min(NMag, numel(Mags))));
 end
 
 % ======================================================================
