@@ -3356,8 +3356,13 @@ classdef catsHTM
                 error('catsHTM:catalogSignature:noIndex', ...
                     'Index file %s not found.', IndexFile);
             end
-            [~, IndData] = catsHTM.load_htm_ind(IndexFile, sprintf('%s_HTM', CatName));
+            % read the index matrix directly (col 13 = Nsrc); skip the HTM
+            % struct build load_htm_ind would do - only the counts are needed.
+            IndData    = HDF5.load(IndexFile, sprintf('%s_HTM', CatName));
             NsrcCol    = double(IndData(:, 13));   % column 13 = Nsrc per cell
+            % non-leaf / empty cells store NaN here; treat as 0 so the total
+            % and the hash are finite and match getNsrcMeta's leaf-only count.
+            NsrcCol(~isfinite(NsrcCol)) = 0;
             Ncell      = sum(NsrcCol > 0);
             NsrcTotal  = sum(NsrcCol);
             LayoutHash = localHashBytes(typecast(NsrcCol(:).', 'uint8'));
@@ -5368,9 +5373,16 @@ classdef catsHTM
             %                   Cats_cone and Summary (Summary.OriginCat carries provenance);
             %                   the '.csv' is the flat index table and always includes
             %                   the OriginCat column. Default is '' (no file written).
-            %            'OutFileFormat' - Cellstr subset of {'mat','csv'} controlling
-            %                   which files are written when 'OutFile' is set.
-            %                   Default is {'mat','csv'}.
+            %            'OutFileFormat' - Cellstr subset of {'mat','csv','json'}
+            %                   controlling which files are written when 'OutFile'
+            %                   is set. 'mat' bundles XidTable+Cats_cone+Summary;
+            %                   'csv' is the flat index table; 'json' writes a lean
+            %                   <OutFile>_signature.json sidecar holding just
+            %                   Summary.Signature (the per-catalog version stamps),
+            %                   so a csv/DB export of the pointer table stays
+            %                   validatable via catsHTM.checkCatalogSignature
+            %                   without the full .mat. 'json' is skipped (with a
+            %                   note) when StampSignature is off. Default {'mat','csv'}.
             %            'CatsToDisk' - If true, each catalog's cone_search result is
             %                   written to its own .mat file as soon as it has been
             %                   used, then cleared from memory, so peak memory is set
@@ -6548,6 +6560,28 @@ function localWriteOut(OutFile, Formats, XidTable, TableForm, Cats_cone, Summary
         writetable(TableForm, CsvFile);
         if Verbose
             fprintf('crossIDCatsHTM: wrote %s\n', CsvFile);
+        end
+    end
+    if any(strcmpi(Formats, 'json'))
+        % lean, portable sidecar carrying just the per-catalog version
+        % signatures, so a CSV/DB export of the pointer table stays validatable
+        % (catsHTM.checkCatalogSignature) without the full .mat Summary.
+        JsonFile = [Stem '_signature.json'];
+        if isfield(Summary, 'Signature') && ~isempty(fieldnames(Summary.Signature))
+            Fid = fopen(JsonFile, 'w');
+            if Fid < 0
+                warning('catsHTM:crossIDCatsHTM:jsonOpen', ...
+                    'Could not open %s for writing.', JsonFile);
+            else
+                fwrite(Fid, jsonencode(Summary.Signature));
+                fclose(Fid);
+                if Verbose
+                    fprintf('crossIDCatsHTM: wrote %s\n', JsonFile);
+                end
+            end
+        elseif Verbose
+            fprintf(['crossIDCatsHTM: no Summary.Signature to write as JSON ', ...
+                '(StampSignature off?); skipped %s\n'], JsonFile);
         end
     end
 end

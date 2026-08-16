@@ -1,31 +1,27 @@
-function Indices = plotMagCurves(MS, Args)
-    % Overlay per-source mag-vs-airmass curves for sources passing an epoch-
-    % count + median-magnitude cut. Per-epoch AIRMASS is read directly from
-    % the MatchedSources object (no external CSV): first MS.Data.AIRMASS is
-    % tried, then MS.SrcData.AIRMASS_perEpoch, then Args.Airmass. If none
-    % is available the function errors with a clear message.
+function Indices = plotCurvesMS(MS, Args)
+    % Overlay per-source curves of ANY MatchedSources quantity vs ANY per-epoch
+    % quantity. Y is any MS.Data column (magnitude, flux, FWHM, position, ...);
+    % X is airmass / Julian Date / time-in-hours / any per-epoch MS.Data column.
+    % Sources are gated by epoch count and (optionally) by a median-value window
+    % on a selection field, and drawn colour-coded by that median, with an
+    % optional binned-median + Q1/Q3 overlay on top.
     %
-    % stabilityN3 auto-populates MS.Data.AIRMASS as a broadcast
-    % [Nepoch x Nsrc] matrix (every column carries the same per-epoch AM),
-    % so the default entry point is:
-    %   MS = stabilityN3(...);   plotMagCurves(MS);
+    % Per-epoch AIRMASS (for XField='airmass') is read from the MS itself: first
+    % MS.Data.AIRMASS, then MS.SrcData.AIRMASS_perEpoch, then Args.Airmass.
+    % stabilityN3 auto-populates MS.Data.AIRMASS as a broadcast [Nep x Nsrc]
+    % matrix, so the default entry point is:
+    %   MS = stabilityN3(...);   plotCurvesMS(MS);
     %
-    % Sources are filtered by min-epoch count and by their median-magnitude
-    % window; the survivors are drawn as per-source lines colour-coded by
-    % median magnitude, with an optional binned-median + Q1/Q3 overlay on
-    % top. Migrated from /home/dana/tmp/N3/plotMagAirmass.m; the CSV /
-    % 'Visit'-filename JD-parsing plumbing is retired.
+    % Renamed from plotMagCurves (Aug 2026) when the Y-axis was generalised
+    % beyond magnitudes. Migrated from /home/dana/tmp/N3/plotMagAirmass.m; the
+    % CSV / 'Visit'-filename JD-parsing plumbing is retired.
     %
     % Input  : - MS - a single MatchedSources object (e.g. output of
     %                 stabilityN3, matchEpochs, loadMergedMat).
-    %                 Required fields: MS.Data.(MagField) [Nep x Nsrc], MS.JD.
-    %                 Per-epoch AIRMASS resolved from (in order):
-    %                   1. Args.Airmass (explicit override)
-    %                   2. MS.Data.AIRMASS(:,1) if present
-    %                   3. MS.SrcData.AIRMASS_perEpoch if present
+    %                 Required fields: MS.Data.(YField) [Nep x Nsrc], MS.JD.
     %          * ...,key,val,...
-    %            'MagField'      - magnitude matrix to plot.
-    %                              Default 'MAGAB__APER_3'.
+    %            'YField'        - MS.Data column plotted on the Y-axis (any
+    %                              [Nep x Nsrc] quantity). Default 'MAGAB__APER_3'.
     %            'XField'        - x-axis quantity. One of:
     %                                'airmass' (default) - per-epoch AIRMASS
     %                                'jd'                - raw Julian Date
@@ -42,22 +38,26 @@ function Indices = plotMagCurves(MS, Args)
     %            'Airmass'       - 1xNepoch numeric override. Default []
     %                              (auto-pull from MS as above). Length
     %                              must match numel(MS.JD).
-    %            'MinEpochs'     - min # of non-NaN epochs per source.
-    %                              Default 10.
-    %            'MagRange'      - [min, max] median-magnitude filter.
-    %                              Default [12, 16].
-    %            'MagRangeField' - MS.Data column whose per-source median the
-    %                              MagRange cut (and the median-magnitude
-    %                              colour code / colorbar) act on. Default ''
-    %                              -> use MagField. Lets you select on one
-    %                              magnitude (e.g. 'MAGAB__APER_3') while
-    %                              plotting another (e.g. 'MAGAB__PSF').
+    %            'MinEpochs'     - min # of non-NaN epochs per source (counted
+    %                              on YField). Default 10.
+    %            'SelField'      - MS.Data column whose per-source median drives
+    %                              the SelRange cut AND the colour code / colorbar.
+    %                              Default '' -> use YField. Lets you select /
+    %                              colour on one quantity (e.g. 'MAGAB__APER_3')
+    %                              while plotting another (e.g. 'FLUX_PSF').
+    %            'SelRange'      - [min, max] median-of-SelField window. Default
+    %                              [12, 16] (magnitude-oriented). Pass [] to
+    %                              disable the value cut entirely (keep only the
+    %                              MinEpochs cut) - useful for non-magnitude Y.
     %            'OutFile'       - if non-empty, save the figure here.
     %                              Default '' (interactive show).
-    %            'ColorBy'       - 'median' | 'flat'. Default 'median'.
+    %            'ColorBy'       - 'median' | 'flat'. Default 'median' (colour
+    %                              each source by its median SelField value;
+    %                              colorbar spans SelRange, or the data range
+    %                              when SelRange=[]).
     %            'LineAlpha'     - per-line alpha. Default 0.4.
-    %            'Subtract'      - 'none' | 'median' (per-source median mag
-    %                              subtraction, residuals around 0).
+    %            'Subtract'      - 'none' | 'median' (per-source median
+    %                              subtraction of Y, residuals around 0).
     %                              Default 'none'.
     %            'OverlayMedian' - true (default) to overlay a binned-median
     %                              + Q1/Q3 band over the per-source cloud.
@@ -65,59 +65,47 @@ function Indices = plotMagCurves(MS, Args)
     %                              the overlay. Default 20.
     %            'OverlayColor'  - RGB for the overlay median line + band.
     %                              Default [1 0 0].
-    % Output : - Indices - column indices in MS.Data.<MagField> of the
-    %                       sources drawn.
+    % Output : - Indices - column indices in MS.Data.<YField> of the sources drawn.
     % Author : D. Kovaleva (Jul 2026)
     % See also: stabilityN3 (loader + std-vs-mag), plotPhotStabilityMap
     %           (per-source scatter vs detector position),
     %           plotPhotStability, matchEpochs.
     % Example:
-    %   % --- Default: absolute MAGAB__APER_3 vs airmass, sources with
-    %   %             median in [12, 16] and > 10 epochs, colour-coded by
-    %   %             median mag. AIRMASS is pulled from MS.Data.AIRMASS.
+    %   % --- Default: MAGAB__APER_3 vs airmass, median in [12,16], >10 epochs.
     %   MS = pipeline.last.quality.photCalib.stabilityN3(...);
-    %   pipeline.last.quality.photCalib.plotMagCurves(MS);
-    %
-    %   % --- Subtract each source's median magnitude (residuals around 0).
-    %   pipeline.last.quality.photCalib.plotMagCurves(MS, 'Subtract','median');
+    %   pipeline.last.quality.photCalib.plotCurvesMS(MS);
     %
     %   % --- Deviation from median vs time (hours from a reference JD):
-    %   pipeline.last.quality.photCalib.plotMagCurves(MS, ...
+    %   pipeline.last.quality.photCalib.plotCurvesMS(MS, ...
     %       'XField','time', 'JD0', 2460864.2408504, 'Subtract','median');
     %
-    %   % --- ... or vs raw Julian Date:
-    %   pipeline.last.quality.photCalib.plotMagCurves(MS, 'XField','jd');
+    %   % --- A NON-magnitude quantity: FWHM vs airmass, no value cut,
+    %   %     coloured by median MAGAB__APER_3.
+    %   pipeline.last.quality.photCalib.plotCurvesMS(MS, ...
+    %       'YField','FWHM', 'SelRange',[], ...
+    %       'SelField','MAGAB__APER_3', 'ColorBy','median');
     %
-    %   % --- Narrower mag window + stricter epoch cut, save to file.
-    %   pipeline.last.quality.photCalib.plotMagCurves(MS, ...
-    %       'MagRange', [13 15], 'MinEpochs', 50, ...
-    %       'OutFile',  '/home/dana/tmp/MagAM_13_15.png');
+    %   % --- Plot FLUX_PSF but select on median MAGAB__APER_3 in [13 15]:
+    %   pipeline.last.quality.photCalib.plotCurvesMS(MS, ...
+    %       'YField','FLUX_PSF', 'SelField','MAGAB__APER_3', 'SelRange',[13 15]);
     %
-    %   % --- Different aperture / calibration column.
-    %   pipeline.last.quality.photCalib.plotMagCurves(MS, 'MagField','MAG_APER_3');
-    %
-    %   % --- Flat black lines (no median colour code) - good for B/W prints.
-    %   pipeline.last.quality.photCalib.plotMagCurves(MS, ...
+    %   % --- Flat black lines (no colour code) - good for B/W prints.
+    %   pipeline.last.quality.photCalib.plotCurvesMS(MS, ...
     %       'ColorBy','flat', 'LineAlpha', 0.2);
     %
-    %   % --- Explicit AIRMASS vector (e.g. MS came from a loader that did
-    %   %     not stash airmass; you have your own per-epoch AM).
-    %   pipeline.last.quality.photCalib.plotMagCurves(MS, 'Airmass', AMvec);
-    %
     %   % --- Capture indices of plotted sources for follow-up:
-    %   idx = pipeline.last.quality.photCalib.plotMagCurves(MS, ...
-    %             'MagRange', [14 14.2]);
+    %   idx = pipeline.last.quality.photCalib.plotCurvesMS(MS, 'SelRange', [14 14.2]);
     %   MS.SrcData.SOURCE_ID(idx)        % source IDs that made the cut
 
     arguments
         MS (1,1) MatchedSources
-        Args.MagField      (1,:) char    = 'MAGAB__APER_3'
+        Args.YField        (1,:) char    = 'MAGAB__APER_3'
         Args.XField        (1,:) char    = 'airmass'
         Args.JD0           (1,1) double  = NaN
         Args.Airmass                     = []
         Args.MinEpochs     (1,1) double  = 10
-        Args.MagRange      (1,2) double  = [12, 16]
-        Args.MagRangeField (1,:) char    = ''
+        Args.SelRange      double        = [12, 16]
+        Args.SelField      (1,:) char    = ''
         Args.OutFile       (1,:) char    = ''
         Args.ColorBy       (1,:) char    {mustBeMember(Args.ColorBy,{'median','flat'})} = 'median'
         Args.LineAlpha     (1,1) double  = 0.4
@@ -127,10 +115,17 @@ function Indices = plotMagCurves(MS, Args)
         Args.OverlayColor  (1,3) double  = [1 0 0]
     end
 
-    if ~isfield(MS.Data, Args.MagField)
-        error('pipeline:last:quality:photCalib:plotMagCurves:NoMagField', ...
+    Tex = @(S) strrep(S, '_', '\_');   % escape underscores for axis text
+
+    if ~isempty(Args.SelRange) && numel(Args.SelRange) ~= 2
+        error('pipeline:last:quality:photCalib:plotCurvesMS:BadSelRange', ...
+              'SelRange must be [] (no cut) or a [min max] pair; got %d elements.', ...
+              numel(Args.SelRange));
+    end
+    if ~isfield(MS.Data, Args.YField)
+        error('pipeline:last:quality:photCalib:plotCurvesMS:NoYField', ...
               'MatchedSources has no Data.%s. Available: %s', ...
-              Args.MagField, strjoin(fieldnames(MS.Data), ', '));
+              Args.YField, strjoin(fieldnames(MS.Data), ', '));
     end
 
     Nep = numel(MS.JD);
@@ -138,37 +133,43 @@ function Indices = plotMagCurves(MS, Args)
     % ---- Resolve the per-epoch x-axis quantity + its label --------------
     [X, XLabel] = i_resolveXAxis(MS, Args, Nep);
     if strcmpi(Args.XField, 'airmass') && all(isnan(X))
-        error('pipeline:last:quality:photCalib:plotMagCurves:NoAirmass', ...
+        error('pipeline:last:quality:photCalib:plotCurvesMS:NoAirmass', ...
              ['No per-epoch AIRMASS available on this MS. Either\n', ...
               '  (a) pass ''Airmass'' as a 1xNepoch vector, or\n', ...
               '  (b) load MS with stabilityN3 (auto-populates MS.Data.AIRMASS), or\n', ...
               '  (c) stash your AM vector as MS.SrcData.AIRMASS_perEpoch.']);
     end
 
-    % ---- Source selection (epoch-count + median-magnitude window) --------
-    % The MagRange cut and the median-magnitude colour code act on
-    % MagRangeField (default: the plotted MagField); the plotted quantity Y
-    % and the 'Subtract','median' residual always use MagField itself.
-    MagMat = MS.Data.(Args.MagField);
+    % ---- Source selection (epoch-count + optional median-value window) ---
+    % SelRange cut and the median colour code act on SelField (default: the
+    % plotted YField); the plotted quantity Y and 'Subtract','median' always
+    % use YField itself.
+    YMat = MS.Data.(Args.YField);
 
-    RangeField = Args.MagRangeField;
-    if isempty(RangeField); RangeField = Args.MagField; end
-    if ~isfield(MS.Data, RangeField)
-        error('pipeline:last:quality:photCalib:plotMagCurves:NoMagRangeField', ...
-              'MatchedSources has no Data.%s (MagRangeField). Available: %s', ...
-              RangeField, strjoin(fieldnames(MS.Data), ', '));
+    SelFieldName = Args.SelField;
+    if isempty(SelFieldName); SelFieldName = Args.YField; end
+    if ~isfield(MS.Data, SelFieldName)
+        error('pipeline:last:quality:photCalib:plotCurvesMS:NoSelField', ...
+              'MatchedSources has no Data.%s (SelField). Available: %s', ...
+              SelFieldName, strjoin(fieldnames(MS.Data), ', '));
     end
-    SelMat = MS.Data.(RangeField);
+    SelMat = MS.Data.(SelFieldName);
 
-    Nobs   = sum(~isnan(MagMat), 1);
-    MedSel = median(SelMat, 1, 'omitnan');   % selection + colour magnitude
+    Nobs     = sum(~isnan(YMat), 1);
+    MedSel   = median(SelMat, 1, 'omitnan');   % selection + colour value
+    UseRange = ~isempty(Args.SelRange);
 
-    Sel = find(Nobs(:) > Args.MinEpochs ...
-             & MedSel(:) >= Args.MagRange(1) ...
-             & MedSel(:) <= Args.MagRange(2));
-
-    fprintf('plotMagCurves: %d sources match (Nobs>%d, median(%s) in [%.2f, %.2f])\n', ...
-        numel(Sel), Args.MinEpochs, RangeField, Args.MagRange(1), Args.MagRange(2));
+    if UseRange
+        Sel = find(Nobs(:) > Args.MinEpochs ...
+                 & MedSel(:) >= Args.SelRange(1) ...
+                 & MedSel(:) <= Args.SelRange(2));
+        fprintf('plotCurvesMS: %d sources match (Nobs>%d, median(%s) in [%.4g, %.4g])\n', ...
+            numel(Sel), Args.MinEpochs, SelFieldName, Args.SelRange(1), Args.SelRange(2));
+    else
+        Sel = find(Nobs(:) > Args.MinEpochs & isfinite(MedSel(:)));
+        fprintf('plotCurvesMS: %d sources match (Nobs>%d, no %s value cut)\n', ...
+            numel(Sel), Args.MinEpochs, SelFieldName);
+    end
 
     if isempty(Sel)
         Indices = [];
@@ -176,12 +177,12 @@ function Indices = plotMagCurves(MS, Args)
     end
     Indices = Sel;
 
-    Y = MagMat(:, Sel);
+    Y = YMat(:, Sel);
     if strcmpi(Args.Subtract, 'median')
-        Y    = Y - median(MagMat(:, Sel), 1, 'omitnan');
-        Ylab = sprintf('%s - median(source)', strrep(Args.MagField, '_', '\_'));
+        Y    = Y - median(YMat(:, Sel), 1, 'omitnan');
+        Ylab = sprintf('%s - median(source)', Tex(Args.YField));
     else
-        Ylab = strrep(Args.MagField, '_', '\_');
+        Ylab = Tex(Args.YField);
     end
 
     % ---- Sort by the x-quantity so per-source lines connect cleanly -----
@@ -191,7 +192,7 @@ function Indices = plotMagCurves(MS, Args)
     Xsorted = Xsorted(OK);
     Y       = Y(OK, :);
     if isempty(Xsorted)
-        warning('pipeline:last:quality:photCalib:plotMagCurves:NoValidX', ...
+        warning('pipeline:last:quality:photCalib:plotCurvesMS:NoValidX', ...
                 'No epochs have a valid %s value - nothing to plot.', Args.XField);
         return;
     end
@@ -204,7 +205,12 @@ function Indices = plotMagCurves(MS, Args)
     switch lower(Args.ColorBy)
         case 'median'
             Cmap = parula(256);
-            MLo = Args.MagRange(1); MHi = Args.MagRange(2);
+            if UseRange
+                MLo = Args.SelRange(1);  MHi = Args.SelRange(2);
+            else
+                MLo = min(MedSel(Sel));  MHi = max(MedSel(Sel));   % data-driven range
+            end
+            if ~(MHi > MLo); MHi = MLo + eps; end                 % guard flat range
             Cidx = round((MedSel(Sel) - MLo) / max(MHi-MLo, eps) * 255) + 1;
             Cidx = max(1, min(256, Cidx));
             for J = 1:numel(Sel)
@@ -213,8 +219,7 @@ function Indices = plotMagCurves(MS, Args)
                 Ph.Color(4) = Args.LineAlpha;
             end
             CB = colorbar; colormap(Cmap);
-            CB.Label.String = sprintf('median %s [mag]', ...
-                strrep(RangeField, '_', '\_'));
+            CB.Label.String = sprintf('median %s', Tex(SelFieldName));
             caxis([MLo, MHi]);
         case 'flat'
             for J = 1:numel(Sel)
@@ -259,8 +264,12 @@ function Indices = plotMagCurves(MS, Args)
     xlabel(XLabel);
     ylabel(Ylab);
     grid on;
-    title(sprintf('%d sources, median in [%.2f, %.2f], N_{ep}>%d', ...
-        numel(Sel), Args.MagRange(1), Args.MagRange(2), Args.MinEpochs));
+    if UseRange
+        title(sprintf('%d sources, median(%s) in [%.4g, %.4g], N_{ep}>%d', ...
+            numel(Sel), Tex(SelFieldName), Args.SelRange(1), Args.SelRange(2), Args.MinEpochs));
+    else
+        title(sprintf('%d sources, N_{ep}>%d', numel(Sel), Args.MinEpochs));
+    end
     hold off;
 
     if ~isempty(Args.OutFile)
@@ -268,7 +277,7 @@ function Indices = plotMagCurves(MS, Args)
         if ~isempty(Outdir) && ~exist(Outdir, 'dir'); mkdir(Outdir); end
         print(Fig, Args.OutFile, '-dpng', '-r150');
         close(Fig);
-        fprintf('plotMagCurves: saved %s\n', Args.OutFile);
+        fprintf('plotCurvesMS: saved %s\n', Args.OutFile);
     end
 end
 
@@ -297,7 +306,7 @@ function [X, XLabel] = i_resolveXAxis(MS, Args, Nep)
             XLabel = sprintf('Time - JD %.7f [hr]', JD0);
         otherwise
             if ~isfield(MS.Data, Args.XField)
-                error('pipeline:last:quality:photCalib:plotMagCurves:BadXField', ...
+                error('pipeline:last:quality:photCalib:plotCurvesMS:BadXField', ...
                     ['Unknown XField ''%s''. Use ''airmass'', ''jd'', ''time'', ', ...
                      'or a per-epoch field of MS.Data (available: %s).'], ...
                     Args.XField, strjoin(fieldnames(MS.Data), ', '));
@@ -326,7 +335,7 @@ function AM = i_resolveAirmass(MS, Override, Nep)
     %   4. NaN vector (caller errors with a helpful message).
     if ~isempty(Override)
         if numel(Override) ~= Nep
-            error('pipeline:last:quality:photCalib:plotMagCurves:AirmassSize', ...
+            error('pipeline:last:quality:photCalib:plotCurvesMS:AirmassSize', ...
                 'Args.Airmass has %d elements; expected %d (numel(MS.JD)).', ...
                 numel(Override), Nep);
         end

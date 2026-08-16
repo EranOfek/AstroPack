@@ -17,19 +17,30 @@ function setup(testCase)
     Tmp = tempname;
     mkdir(Tmp);
 
-    % 10 anchor sources on a small patch around (45,0) deg
-    Base = [45 + (0:9).'.*0.01, zeros(10,1)];        % [deg deg]
+    % Synthetic catalogs on a COMPACT INTERIOR patch, deliberately off the HTM
+    % cell boundaries. build_htm_catalog double-writes sources that sit on the
+    % Dec=0 equator (a N/S cell boundary) and DROPS sources that land exactly on
+    % a cell edge - which a regular grid at a round RA/Dec does. A small jittered
+    % cluster (fixed seed) at an off-boundary centre keeps all 10 sources inside
+    % a single cell, so each catalog holds exactly the sources we insert. The
+    % field queries below still use (45,0): a 3 deg cone from there contains this
+    % ~1 deg-away cluster. NOTE: the cluster does not preserve input order, so
+    % tests assert match COUNTS / set membership, not fixed within-anchor rows.
+    rng(7);
+    CRA = 45.357;  CDec = 0.894;                     % [deg] interior centre
+    Base = [CRA + 0.015.*(rand(10,1)-0.5), ...       % 10 anchor sources in a
+            CDec + 0.015.*(rand(10,1)-0.5)];         % ~54" box, min sep ~9"
     Ref  = Base ./ RAD;                              % [rad]
 
     % XIDA: first 8 anchor sources (tiny 0.2" offsets) + 2 orphans
     Off  = 0.2/3600/RAD;                             % 0.2 arcsec in rad
     A    = Base(1:8,:)./RAD + Off;
-    Orph = [45.50 0.30; 45.60 0.30] ./ RAD;          % far from anchor
+    Orph = [CRA+0.020, CDec; CRA+0.022, CDec] ./ RAD;  % far (~72") from anchor, same cell
     A    = [A; Orph];
 
     % XIDB: two sources 1" apart on top of anchor source #1 (Nmatch==2)
     Sep  = 1.0/3600/RAD;
-    B    = [Base(1,:)./RAD; Base(1,:)./RAD + [Sep 0]];
+    B    = [Base(1,:)./RAD; Base(1,:)./RAD + [Sep./cosd(CDec), 0]];
 
     Old = pwd;
     cd(Tmp);
@@ -41,6 +52,13 @@ function setup(testCase)
         'ColCell',{'RA','Dec'}, 'ColUnits',{'rad','rad'});
     cd(Old);
     addpath(Tmp);
+
+    % build_htm_catalog reuses the catalog NAMES across tests, and catsHTM
+    % caches each HTM index as <Cat>_HTM in the base workspace
+    % (HDF5.load_check, default WS 'base'). Drop any stale cache so cone_search
+    % reads THIS fixture's freshly-written index rather than a previous build's
+    % cells (otherwise it looks for htm_<id> files this build never wrote).
+    evalin('base', 'clear XIDREF_HTM XIDA_HTM XIDB_HTM');
 
     testCase.TestData.Dir = Tmp;
 end
@@ -69,9 +87,11 @@ function testCrossIdAndOrphans(testCase)
     verifyEqual(testCase, S.Nglobal, 12);
 
     % first 8 anchor rows matched in XIDA, rows 9-10 did not
+    % anchor rows are 1:Nref (orphans are appended after); the cluster does not
+    % preserve input order, so assert 8 of the 10 anchors matched, 2 did not.
     IndA = T.Ind_XIDA;
-    verifyEqual(testCase, sum(~isnan(IndA(1:8))), 8, 'Missing XIDA matches.');
-    verifyTrue(testCase, all(isnan(IndA(9:10))), 'Rows 9-10 should be unmatched in XIDA.');
+    verifyEqual(testCase, sum(~isnan(IndA(1:10))), 8, 'Missing XIDA matches.');
+    verifyEqual(testCase, sum(isnan(IndA(1:10))), 2, 'Two anchors should be unmatched in XIDA.');
 
     % the two appended orphans originate from XIDA and self-index in XIDA
     verifyEqual(testCase, T.OriginCat(11:12), {'XIDA';'XIDA'});
@@ -134,7 +154,7 @@ function testNmatchColumn(testCase)
     T = catsHTM.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
         'RefCat','XIDREF', 'CatList',{'XIDB'}, ...
         'MatchRadius',2, 'Verbose',false);
-    verifyEqual(testCase, T.Nmatch_XIDB(1), 2, 'Nmatch should count both XIDB sources.');
+    verifyEqual(testCase, max(T.Nmatch_XIDB), 2, 'Nmatch should count both XIDB sources.');
 end
 
 function testPerCatRadius(testCase)
@@ -157,6 +177,30 @@ function testFileOutput(testCase)
     Loaded = load([Stem '.mat']);
     verifyTrue(testCase, isfield(Loaded,'XidTable') && isfield(Loaded,'Cats_cone'), ...
         'MAT output should preserve XidTable and Cats_cone.');
+end
+
+function testSignatureJsonOutput(testCase)
+    % OutFileFormat 'json' writes a lean <OutFile>_signature.json sidecar with
+    % Summary.Signature; it round-trips and validates via checkCatalogSignature.
+    Stem = fullfile(testCase.TestData.Dir, 'xid_sig');
+    [~, ~, S] = catsHTM.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+        'RefCat','XIDREF', 'CatList',{'XIDA'}, 'MatchRadius',2, 'Verbose',false, ...
+        'OutFile',Stem, 'OutFileFormat',{'json'});
+    JsonFile = [Stem '_signature.json'];
+    verifyTrue(testCase, isfile(JsonFile), 'Signature JSON sidecar missing.');
+    % json-only: no .mat/.csv written
+    verifyFalse(testCase, isfile([Stem '.mat']), 'json-only should not write .mat.');
+
+    Loaded = jsondecode(fileread(JsonFile));
+    verifyTrue(testCase, isfield(Loaded,'XIDA') && isfield(Loaded,'XIDREF'), ...
+        'JSON should carry the per-catalog signatures.');
+    verifyEqual(testCase, Loaded.XIDA.LayoutHash, S.Signature.XIDA.LayoutHash, ...
+        'JSON LayoutHash must match the in-memory signature.');
+
+    % a JSON-restored signature validates identically to a .mat one
+    [ok, rep] = catsHTM.checkCatalogSignature('XIDA', Loaded.XIDA, 'Warn',false);
+    verifyTrue(testCase, ok, 'JSON-restored signature should validate.');
+    verifyEqual(testCase, rep.Status, 'valid', 'JSON-restored signature should be valid.');
 end
 
 function testCatsToDisk(testCase)
@@ -189,8 +233,11 @@ end
 function testTableToDisk(testCase)
     % TableToDisk streams the table to a v7.3 .mat; the first output is the
     % path, and lazily-read columns reproduce the in-memory table exactly.
+    % KeepExtraMatches (now default true) is unsupported with TableToDisk, so
+    % turn it off explicitly for the streaming comparison.
     Common = {45.*pi./180, 0, 10800,'OutType','table','RefCat','XIDREF', ...
-              'CatList',{'XIDA','XIDB'},'MatchRadius',2,'Verbose',false};
+              'CatList',{'XIDA','XIDB'},'MatchRadius',2, ...
+              'KeepExtraMatches',false,'Verbose',false};
     Ref = catsHTM.crossIDCatsHTM(Common{:});
 
     TableFile = fullfile(testCase.TestData.Dir, 'streamed_table.mat');
@@ -336,17 +383,20 @@ function testKeepExtraMatches(testCase)
         'RefCat','XIDREF','CatList',{'XIDB'},'MatchRadius',2, ...
         'KeepExtraMatches',true,'Verbose',false);
 
-    verifyEqual(testCase, Tb.Nmatch_XIDB(1), 2, 'Row 1 should have 2 XIDB matches.');
-    Extra1 = Tb.IndExtra_XIDB{1};
-    verifyEqual(testCase, numel(Extra1), 1, 'Row 1 should have one additional match.');
+    % the cluster does not preserve input order, so locate the multi-match row
+    R = find(Tb.Nmatch_XIDB == 2);
+    verifyEqual(testCase, numel(R), 1, 'Exactly one master row should have 2 XIDB matches.');
+    Extra1 = Tb.IndExtra_XIDB{R};
+    verifyEqual(testCase, numel(Extra1), 1, 'Multi-match row should have one additional match.');
     verifyFalse(testCase, any(isnan(Extra1)), 'Additional match index should not be NaN.');
-    verifyNotEqual(testCase, Extra1, Tb.Ind_XIDB(1), 'Extra index must differ from nearest.');
-    % nearest + extra together are the two XIDB sources (rows 1 and 2)
-    verifyEqual(testCase, sort([Tb.Ind_XIDB(1); Extra1(:)]), [1;2], ...
+    verifyNotEqual(testCase, Extra1, Tb.Ind_XIDB(R), 'Extra index must differ from nearest.');
+    % nearest + extra together are the two XIDB sources (indices 1 and 2)
+    verifyEqual(testCase, sort([Tb.Ind_XIDB(R); Extra1(:)]), [1;2], ...
         'Nearest+extra should be the two XIDB sources.');
 
-    % rows with <=1 match carry NaN in IndExtra
-    verifyTrue(testCase, all(cellfun(@(c) isscalar(c) && isnan(c), Tb.IndExtra_XIDB(2:end))), ...
+    % every other row (<=1 match) carries NaN in IndExtra
+    Others = setdiff((1:height(Tb)).', R);
+    verifyTrue(testCase, all(cellfun(@(c) isscalar(c) && isnan(c), Tb.IndExtra_XIDB(Others))), ...
         'Rows with <=1 match must have NaN extra.');
 
     % Summary.ExtraMatches mirrors the IndExtra column
@@ -481,19 +531,21 @@ function testIdExtras(testCase)
     verifyTrue(testCase, all(ismember({'CellIDExtra_XIDB','RowInCellExtra_XIDB', ...
         'CatRowIDExtra_XIDB'}, T.Properties.VariableNames)), 'IdExtras columns missing.');
 
-    % row 1: two XIDB matches -> exactly one extra
-    verifyEqual(testCase, T.Nmatch_XIDB(1), 2, 'Expected 2 XIDB matches on row 1.');
-    ExInd = T.IndExtra_XIDB{1};
+    % the multi-match row (cluster does not preserve input order): 2 XIDB
+    % matches -> exactly one extra
+    R = find(T.Nmatch_XIDB == 2);
+    verifyEqual(testCase, numel(R), 1, 'Expected exactly one master row with 2 XIDB matches.');
+    ExInd = T.IndExtra_XIDB{R};
     verifyEqual(testCase, numel(ExInd), 1, 'Expected exactly one extra index.');
 
     % the extra pointer equals a fresh sourcePointer on that native XIDB source
     [xRA, xDec] = getLonLat(Cats_cone.XIDB, 'rad');
     [Cid, Row]  = catsHTM.sourcePointer('XIDB', xRA(ExInd), xDec(ExInd));
-    verifyEqual(testCase, T.CellIDExtra_XIDB{1}(:),    Cid, 'Extra CellID mismatch.');
-    verifyEqual(testCase, T.RowInCellExtra_XIDB{1}(:), Row, 'Extra RowInCell mismatch.');
+    verifyEqual(testCase, T.CellIDExtra_XIDB{R}(:),    Cid, 'Extra CellID mismatch.');
+    verifyEqual(testCase, T.RowInCellExtra_XIDB{R}(:), Row, 'Extra RowInCell mismatch.');
 
     % the extra scalar id inverts back to that same pointer
-    Gid = T.CatRowIDExtra_XIDB{1};
+    Gid = T.CatRowIDExtra_XIDB{R};
     [Cid2, Row2] = catsHTM.catRowID2Pointer('XIDB', Gid);
     verifyEqual(testCase, Cid2, Cid, 'Extra CatRowID does not invert to CellID.');
     verifyEqual(testCase, Row2, Row, 'Extra CatRowID does not invert to RowInCell.');
@@ -556,4 +608,117 @@ function testGatherByPointer(testCase)
     % unknown column errors
     verifyError(testCase, @() catsHTM.gatherByPointer('XIDA', Cid, Row, 'Columns',{'NoSuchCol'}), ...
         'catsHTM:gatherByPointer:badColumn', 'Unknown column should error.');
+end
+
+function testCatalogSignature(testCase)
+    % catalogSignature returns a deterministic version fingerprint whose Nsrc
+    % and Ncell agree with getNsrcMeta, computed from the index alone.
+    Sig = catsHTM.catalogSignature('XIDA');
+    verifyTrue(testCase, all(isfield(Sig, {'Name','LayoutHash','ColHash', ...
+        'ChecksumHash','Version','Nsrc','Ncell','StampedAt'})), ...
+        'Signature struct is missing fields.');
+    verifyEqual(testCase, Sig.Name, 'XIDA', 'Signature Name wrong.');
+
+    Nsrc = catsHTM.getNsrcMeta('XIDA');
+    verifyEqual(testCase, Sig.Nsrc, sum(Nsrc(:,2)), 'Signature Nsrc != getNsrcMeta.');
+    verifyEqual(testCase, Sig.Ncell, sum(Nsrc(:,2) > 0), 'Signature Ncell wrong.');
+
+    % deterministic: same catalog -> identical hashes (StampedAt aside)
+    Sig2 = catsHTM.catalogSignature('XIDA', 'CatDir', testCase.TestData.Dir);
+    verifyEqual(testCase, Sig2.LayoutHash, Sig.LayoutHash, 'LayoutHash not deterministic.');
+    verifyEqual(testCase, Sig2.ColHash,    Sig.ColHash,    'ColHash not deterministic.');
+
+    % a catalog with a DIFFERENT layout (XIDB has 2 sources vs XIDA's 10) gets
+    % a different signature. (Two catalogs with identical layout+columns share a
+    % layout signature by design - it fingerprints the build, not the identity.)
+    SigB = catsHTM.catalogSignature('XIDB');
+    verifyTrue(testCase, ~strcmp(SigB.LayoutHash, Sig.LayoutHash), ...
+        'Different-layout catalogs should have different LayoutHash.');
+end
+
+function testCheckCatalogSignatureClassifies(testCase)
+    % checkCatalogSignature classifies changes: valid / columns-changed /
+    % stale-layout, driven only by which stored hash we perturb.
+    Sig = catsHTM.catalogSignature('XIDA');
+
+    % identical -> valid, Ok true
+    [Ok, Rep] = catsHTM.checkCatalogSignature('XIDA', Sig, 'Warn', false);
+    verifyTrue(testCase, Ok, 'Unchanged catalog should validate.');
+    verifyEqual(testCase, Rep.Status, 'valid', 'Status should be valid.');
+
+    % only ColHash differs -> columns-changed, row pointers still Ok
+    ColChanged = Sig; ColChanged.ColHash = 'deadbeefdeadbeefdeadbeefdeadbeef';
+    [Ok2, Rep2] = catsHTM.checkCatalogSignature('XIDA', ColChanged, 'Warn', false);
+    verifyTrue(testCase, Ok2, 'Column-only change must keep row pointers valid.');
+    verifyEqual(testCase, Rep2.Status, 'columns-changed', 'Should be columns-changed.');
+
+    % LayoutHash differs -> stale-layout, Ok false
+    LayoutChanged = Sig; LayoutChanged.LayoutHash = '00000000000000000000000000000000';
+    [Ok3, Rep3] = catsHTM.checkCatalogSignature('XIDA', LayoutChanged, 'Warn', false);
+    verifyFalse(testCase, Ok3, 'Layout change must invalidate pointers.');
+    verifyEqual(testCase, Rep3.Status, 'stale-layout', 'Should be stale-layout.');
+end
+
+function testStampSignatureInSummary(testCase)
+    % crossIDCatsHTM stamps a per-catalog signature into Summary.Signature that
+    % matches a fresh catalogSignature call.
+    [~, ~, S] = catsHTM.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+        'RefCat','XIDREF','CatList',{'XIDA'},'MatchRadius',2,'Verbose',false);
+    verifyTrue(testCase, isfield(S, 'Signature') && isfield(S.Signature, 'XIDA'), ...
+        'Summary.Signature.XIDA missing.');
+    verifyEqual(testCase, S.Signature.XIDA.LayoutHash, ...
+        catsHTM.catalogSignature('XIDA').LayoutHash, 'Stamped LayoutHash mismatch.');
+
+    % opting out drops the field
+    [~, ~, S2] = catsHTM.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+        'RefCat','XIDREF','CatList',{'XIDA'},'MatchRadius',2, ...
+        'StampSignature',false,'Verbose',false);
+    verifyFalse(testCase, isfield(S2, 'Signature'), 'StampSignature=false should omit it.');
+end
+
+function testGatherByPointerValidatesSignature(testCase)
+    % gatherByPointer honours a stored Signature: a stale row layout errors,
+    % the correct signature is a no-op that returns the same data.
+    RAD = 180./pi;
+    [C, CC] = catsHTM.cone_search('XIDA', 45./RAD, 0, 10800);
+    Ra  = C(:,strcmp(CC,'RA'));
+    Dec = C(:,strcmp(CC,'Dec'));
+    [Cid, Row] = catsHTM.sourcePointer('XIDA', Ra, Dec);
+    Sig = catsHTM.catalogSignature('XIDA');
+
+    % correct signature -> identical result to no-signature gather
+    D0 = catsHTM.gatherByPointer('XIDA', Cid, Row, 'Columns',{'RA'});
+    D1 = catsHTM.gatherByPointer('XIDA', Cid, Row, 'Columns',{'RA'}, 'Signature',Sig);
+    verifyEqual(testCase, D1, D0, 'AbsTol',1e-12, 'Valid signature changed the data.');
+
+    % stale layout -> refuse to dereference
+    Bad = Sig; Bad.LayoutHash = '00000000000000000000000000000000';
+    verifyError(testCase, @() catsHTM.gatherByPointer('XIDA', Cid, Row, ...
+        'Columns',{'RA'}, 'Signature',Bad), ...
+        'catsHTM:gatherByPointer:staleSignature', 'Stale layout should error.');
+
+    % ValidateSig=false bypasses the check even with a bad signature
+    Dbypass = catsHTM.gatherByPointer('XIDA', Cid, Row, 'Columns',{'RA'}, ...
+        'Signature',Bad, 'ValidateSig',false);
+    verifyEqual(testCase, Dbypass, D0, 'AbsTol',1e-12, 'ValidateSig=false should bypass.');
+end
+
+function testGatherCrossIDDataValidatesSignature(testCase)
+    % gatherCrossIDData(Source='pointer') passes Summary.Signature through and
+    % refuses a stale catalog; the correct signature is transparent.
+    [T, ~, S] = catsHTM.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+        'RefCat','XIDREF','CatList',{'XIDA'},'MatchRadius',2,'Verbose',false);
+
+    % correct Summary.Signature -> gathers normally
+    D = catsHTM.gatherCrossIDData(T, [], 'Columns',{'RA'}, ...
+        'Signature',S.Signature, 'Verbose',false);
+    verifyTrue(testCase, ismember('XIDA_RA', D.Properties.VariableNames), ...
+        'Validated pointer gather failed.');
+
+    % corrupt XIDA's layout hash -> stale-layout error from the gather
+    BadSig = S.Signature;
+    BadSig.XIDA.LayoutHash = '00000000000000000000000000000000';
+    verifyError(testCase, @() catsHTM.gatherCrossIDData(T, [], 'Columns',{'RA'}, ...
+        'Signature',BadSig, 'Verbose',false), ...
+        'catsHTM:gatherByPointer:staleSignature', 'Stale signature should error.');
 end
