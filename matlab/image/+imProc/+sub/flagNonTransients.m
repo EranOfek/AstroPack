@@ -350,6 +350,12 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ContaminationBackAnnulusMax double = [1.0 3.0]
         Args.ContaminationStdAnnulusMax double = [4.5 12 100]
 
+        % Local background
+        Args.flagLocalBack logical = true
+        Args.LocalBackStdMax double = 12
+        Args.LocalBackMax double = 3.0
+        Args.LocalBackSNEscape double = 100
+
         % Extendedness
         Args.flagExtended logical = true
         Args.ExtendedThreshold double = -0.19
@@ -1070,6 +1076,29 @@ function TranCat = flagNonTransients(Obj, Args)
 
             TranCat(Iobj) = Obj(Iobj).CatData.insertCol(...
                    ContamFluxCol, 'SCORE', {'FLUX_CONTAM'}, {''});
+        end
+
+        % ----- Disturbed local background -----
+        %  Annulus statistics measured in the difference image, on the
+        %  candidate itself. This is independent of the residual template:
+        %  it asks whether the neighbourhood is locally disturbed at all,
+        %  which catches diffuse structure, galaxy light and unmodelled
+        %  background with no persistent point source to blame. The residual
+        %  filter can only speak about candidates that have a contaminator
+        %  in reach, so the two do not overlap.
+        %
+        %  The escape on D_FLUX_PSF/STD_ANNULUS keeps a candidate that is
+        %  simply very bright: a high annulus STD next to a strong source is
+        %  the source's own wings, not a disturbed field.
+        if Args.flagLocalBack && D_PSFPhot_isSolved && Annulus_isSolved
+
+            Passes_LocalBack = ...
+                  (STD_ANNULUS < Args.LocalBackStdMax ...
+                   & abs(BACK_ANNULUS) < Args.LocalBackMax) ...
+                | (abs(D_FLUX_PSF./STD_ANNULUS) > Args.LocalBackSNEscape);
+
+            FilterFlags = setFilterBit(FilterFlags, ~Passes_LocalBack, ...
+                                       BD_TF, 'LocalBack');
         end
 
         %{
