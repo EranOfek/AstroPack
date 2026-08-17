@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <thread>
+#include <vector>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-truncation"
@@ -98,13 +99,29 @@ bool isInList(const char* str, const char* list[])
 void printValue(char* key, mxArray* valueElement, char* value, size_t valueSize) 
 {
     if (mxIsChar(valueElement)) {
-        // Add single quotes for string values
+        // Add single quotes for string values. A literal single quote
+        // inside the string must itself be escaped as two consecutive
+        // single quotes per the FITS standard's quoted-string
+        // convention (matching how cfitsio's own writeKey would encode
+        // it) - previously left unescaped here, producing a malformed
+        // card for any string value containing an apostrophe. See
+        // issue #1212.
         char tempStr[2048];
         mxGetString(valueElement, tempStr, sizeof(tempStr));
        if (strlen(tempStr) > maxStringLength)
             tempStr[maxStringLength] = '\0';
-        snprintf(value, valueSize, "'%s'", tempStr);
-    } 
+
+        char escaped[2 * maxStringLength + 1];
+        size_t ei = 0;
+        for (size_t si = 0; tempStr[si] != '\0' && ei < sizeof(escaped) - 2; ++si) {
+            escaped[ei++] = tempStr[si];
+            if (tempStr[si] == '\'')
+                escaped[ei++] = '\'';
+        }
+        escaped[ei] = '\0';
+
+        snprintf(value, valueSize, "'%s'", escaped);
+    }
     else if (mxIsLogical(valueElement)) {
         // Handle logical values
         mxLogical val = *mxGetLogicals(valueElement);
@@ -191,13 +208,31 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
                 continue;
             
             // Value is string, add single quotes for string values
-            if (mxIsChar(valueElement)) {            
+            if (mxIsChar(valueElement)) {
                 char* tempStr = mxArrayToString(valueElement);
-                size_t totalLength = strlen(tempStr);
+                size_t rawLength = strlen(tempStr);
+
+                // Escape embedded single quotes by doubling them, per the
+                // FITS standard's quoted-string convention (this is the
+                // actual live string-formatting path - printValue()'s own
+                // mxIsChar branch is never reached from here). Escaping
+                // happens before splitting into CONTINUE segments below,
+                // so a doubled-quote pair is never split across two
+                // cards. See issue #1212.
+                std::vector<char> escapedBuf(2 * rawLength + 1);
+                size_t ei = 0;
+                for (size_t si = 0; si < rawLength; ++si) {
+                    escapedBuf[ei++] = tempStr[si];
+                    if (tempStr[si] == '\'')
+                        escapedBuf[ei++] = '\'';
+                }
+                escapedBuf[ei] = '\0';
+                char* escStr = escapedBuf.data();
+                size_t totalLength = ei;
 
                 // Short string with comment
                 if ((totalLength <= 19) & comment[0]) {
-                    sprintf(value, "'%s'", tempStr);
+                    sprintf(value, "'%s'", escStr);
                     comment[maxCommentSize] = 0;
                     snprintf(card, sizeof(card), "%-8.8s= %20s / %s", key, value, comment);
                     addCard(headerBuffer, bufferPos, card);
@@ -205,7 +240,7 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
 
                 // String that fits in one line, ignore the comment
                 else if (totalLength <= 67) {
-                    sprintf(value, "'%s'", tempStr);
+                    sprintf(value, "'%s'", escStr);
                     snprintf(card, sizeof(card), "%-8.8s= %20s", key, value);
                     addCard(headerBuffer, bufferPos, card);
                 }
@@ -216,7 +251,7 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
                     //mexPrintf("totalLength: %d, segments: %d\n", (int)totalLength, (int)numSegments);
                     for (int i = 0; i < numSegments; ++i) {
                         if (i < numSegments - 1) {
-                            strncpy(value, tempStr + i * maxStringLength, maxStringLength);
+                            strncpy(value, escStr + i * maxStringLength, maxStringLength);
                             value[maxStringLength] = '\0';
                             if (i == 0) {
                                 snprintf(card, sizeof(card), "%-8s= '%s&'", key, value);
@@ -225,7 +260,7 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
                             }
                         }
                         else {
-                            strcpy(value, tempStr + i * maxStringLength);
+                            strcpy(value, escStr + i * maxStringLength);
                             snprintf(card, sizeof(card), "CONTINUE '%s'", value);
                         }
                         addCard(headerBuffer, bufferPos, card);
