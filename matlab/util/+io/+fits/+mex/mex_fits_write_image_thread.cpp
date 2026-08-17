@@ -114,18 +114,26 @@ void printValue(char* key, mxArray* valueElement, char* value, size_t valueSize)
         // Handling floating-point and integer types
         if (mxIsSingle(valueElement)) {
             float val = (float)mxGetScalar(valueElement);
-            if (floorf(val) == val) 
+            if (std::isinf(val))
+                // Quoted string, matching FITS.writeHeader's convention: the FITS
+                // standard has no textual representation for Inf in a header keyword
+                // value, and the default reader (str2doubleq) cannot parse an
+                // unquoted Inf/-Inf token - it silently falls back to NaN. See #1196.
+                snprintf(value, valueSize, val > 0 ? "'Inf'" : "'-Inf'");
+            else if (floorf(val) == val)
                 snprintf(value, valueSize, "%.0f.", val);
             else
                 snprintf(value, valueSize, "%.7G", val);
-        } 
-        else if (mxIsDouble(valueElement)) {            
+        }
+        else if (mxIsDouble(valueElement)) {
             double val = mxGetScalar(valueElement);
-            if (floor(val) == val) 
+            if (std::isinf(val))
+                snprintf(value, valueSize, val > 0 ? "'Inf'" : "'-Inf'");
+            else if (floor(val) == val)
                 snprintf(value, valueSize, "%.0f.", val);
              else
                  snprintf(value, valueSize, "%.15G", val);
-        }         
+        }
         else if (mxIsClass(valueElement, "int8") || mxIsClass(valueElement, "uint8") ||
                  mxIsClass(valueElement, "int16") || mxIsClass(valueElement, "uint16") ||
                  mxIsClass(valueElement, "int32") || mxIsClass(valueElement, "uint32") ||
