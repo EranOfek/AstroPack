@@ -47,14 +47,17 @@ function [Result] = measureLabPSF(Image, Args)
     % cut out the source PSF
     [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Image-Back, Info.X1, Info.Y1, Args.CutRadius);
     % normalize the PSF
-    PSF = Cube./sum(Cube,'all');
+    % 'omitnan': image2cutouts now NaN-pads cutout pixels outside the
+    % image (issue #1199); without omitnan a single edge pixel would
+    % NaN out the whole normalization.
+    PSF = Cube./sum(Cube,'all','omitnan');
     % calculate R50
     X0 = Args.CutRadius+1; Y0 = X0;        
     CurveOfGrowth = imUtil.psf.curve_of_growth(PSF,[X0, Y0],0.1);
     Ind50 = find(CurveOfGrowth.CumSum>0.5,1);
     R50   = CurveOfGrowth.Radius(Ind50);
     % calculate SNR
-    Src = sum(Cube,'all');  
+    Src = sum(Cube,'all','omitnan');
     SNR = Args.PSFeff * Src / (2*pi*R50^2 * Back); 
     % summarize the results
     Result.PSF = PSF;    

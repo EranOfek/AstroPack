@@ -232,6 +232,14 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
 
     end
     AI = AI(:);
+    % Keep Images in the same column orientation as AI: a row-oriented
+    % Images list (a common, natural way to build a file list, e.g.
+    % fullfile(Dir,{Files.name})) previously survived unreshaped all the
+    % way to "TableHeader.FileName = string(Images)" below, where
+    % assigning a row vector into a new column of an Nim-row table
+    % throws "the number of rows must match the height of the table" -
+    % see issue #1213.
+    Images = Images(:);
     Nim = numel(AI);
 
     % Delete some header keys, and recover essential header keys (e.g.,

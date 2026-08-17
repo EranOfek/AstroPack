@@ -156,6 +156,15 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         end
         RawImageList = {Files.name};
     end
+    % Normalize to a column: downstream code (e.g. line 192,
+    % RawImageList(FlagGoodImages,:)) uses 2-D logical indexing that
+    % assumes RawImageList is [Nepoch x 1]. A row-oriented RawImageList
+    % (a natural, common construction - the manual-mode fallback right
+    % above builds one itself via {Files.name}) previously reached that
+    % indexing unreshaped, since row-position-1 has size 1, not Nepoch,
+    % throwing "logical indices ... contain a true value outside of the
+    % array bounds" for any FlagGoodImages(k>1)==true. See issue #1213.
+    RawImageList    = RawImageList(:);
     RawImageListAll = RawImageList;
 
     %ProcessingStep = 21;

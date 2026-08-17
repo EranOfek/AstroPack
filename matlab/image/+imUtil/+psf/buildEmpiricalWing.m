@@ -67,7 +67,11 @@ function [ProfileRadius, ProfileValue, Nstars, Success] = buildEmpiricalWing(Cub
 
     % --- mask saturated pixels ---
     if ~isempty(MaskCubeW)
-        CubeW(logical(MaskCubeW)) = NaN;
+        % MaskCubeW may contain NaN for cutout pixels outside the image
+        % (image2cutouts now defaults to NaN-padding - see issue #1199).
+        % logical(NaN) errors, so use a comparison instead, which treats
+        % NaN (unknown/out-of-image) as "not masked" rather than crashing.
+        CubeW(MaskCubeW > 0) = NaN;
     end
 
     % --- per-star seam-match scale factor onto CorePSF's absolute scale ---

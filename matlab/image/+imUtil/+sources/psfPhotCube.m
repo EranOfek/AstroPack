@@ -798,21 +798,35 @@ function [Chi2, Flux, ShiftedPSF, Dof, FluxErr] = internalCalcChi2( ...
         end
     
         W = 1 ./ max(Std.^2, eps(class(Std)));
-    
+
         Num = sum(Flag .* W .* Cube .* ShiftedPSF, [1 2], 'omitnan');
         Den = sum(Flag .* W .* ShiftedPSF.^2,      [1 2], 'omitnan');
-    
+
         Den = max(Den, eps(class(Den)));
         Flux = squeeze(Num ./ Den);
-    
+
         Flux3 = reshape(Flux, 1, 1, []);
         Resid = Cube - ShiftedPSF .* Flux3;
-    
+
         ResidStd = Flag .* Resid ./ Std;
         Chi2 = squeeze(sum(ResidStd.^2, [1 2], 'omitnan'));
-    
+
         Dof = squeeze(sum(Flag, [1 2], 'omitnan') - 3);
         FluxErr = sqrt(1 ./ squeeze(Den));
+
+        % A slice with zero finite Cube pixels within FitRadius (e.g. a
+        % forced-photometry request landing entirely outside the image -
+        % image2cutouts now NaN-pads out-of-bounds pixels, see issue
+        % #1199) has Num's 'omitnan' sum silently return 0 for an
+        % all-omitted sum, giving a spurious high-confidence Flux~0/
+        % Chi2~0 instead of a flagged result. Match the mex path's
+        % existing convention of NaN for no-valid-data.
+        NoValidData = squeeze(sum(Flag & isfinite(Cube), [1 2])) == 0;
+        if any(NoValidData)
+            Flux(NoValidData)    = NaN;
+            Chi2(NoValidData)    = NaN;
+            FluxErr(NoValidData) = NaN;
+        end
     end
 end
 

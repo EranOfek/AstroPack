@@ -252,7 +252,7 @@ if Args.NoWeightFirstIter
 else
     WInt = W.*W_Max.*Cube; % Weighted intensity
 end
-Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
+Norm = 1./squeeze(sum(WInt,[1 2],'omitnan'));  % normalization; omitnan: WInt derives from Cube, which may contain NaN-padded edge pixels (issue #1199) - defense in depth
 
 WInt1 = WInt; % keep it for the 2nd moment calculation
 Norm1 = Norm; 
@@ -334,14 +334,14 @@ else
         W_Max = cast(1, 'like',Image).*(MatR2<MomRadius2);
 
         WInt = W.*W_Max.*Cube; % Weighted intensity
-        Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
+        Norm = 1./squeeze(sum(WInt,[1 2],'omitnan'));  % normalization; omitnan: WInt derives from Cube, which may contain NaN-padded edge pixels (issue #1199) - defense in depth
         
         if Args.UseMex
             DeltaX1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatXcen, Norm);
             DeltaY1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatYcen, Norm);
         else
-            DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
-            DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+            DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2],'omitnan')).*Norm;
+            DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2],'omitnan')).*Norm;
         end
 
         if ~isempty(Args.MaxStep)
@@ -401,14 +401,14 @@ else
         WInt = WW_Max.*Cube; % Weighted intensity
         %WInt = W.*W_Max.*Cube; % Weighted intensity
         
-        Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
+        Norm = 1./squeeze(sum(WInt,[1 2],'omitnan'));  % normalization; omitnan: WInt derives from Cube, which may contain NaN-padded edge pixels (issue #1199) - defense in depth
 
         if Args.UseMex
             DeltaX1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatXcen, Norm);
             DeltaY1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatYcen, Norm);
         else
-            DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
-            DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+            DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2],'omitnan')).*Norm;
+            DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2],'omitnan')).*Norm;
         end
 
         if ~isempty(Args.MaxStep)
@@ -459,9 +459,9 @@ if nargout>1
         Norm1 = Norm;
     end
     
-    M2.X2 = squeeze(sum(WInt1.*MatXcen.^2,[1 2])).*Norm1;
-    M2.Y2 = squeeze(sum(WInt1.*MatYcen.^2,[1 2])).*Norm1;
-    M2.XY = squeeze(sum(WInt1.*MatXcen.*MatYcen,[1 2])).*Norm1;
+    M2.X2 = squeeze(sum(WInt1.*MatXcen.^2,[1 2],'omitnan')).*Norm1;
+    M2.Y2 = squeeze(sum(WInt1.*MatYcen.^2,[1 2],'omitnan')).*Norm1;
+    M2.XY = squeeze(sum(WInt1.*MatXcen.*MatYcen,[1 2],'omitnan')).*Norm1;
     
     if nargout>2
         Args.UseAperPhotCube = true;
