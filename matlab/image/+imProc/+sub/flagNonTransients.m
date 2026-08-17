@@ -1068,7 +1068,9 @@ function TranCat = flagNonTransients(Obj, Args)
                 ContamFluxCol = MaxContamFlux;
                 ContamFluxCol(~isfinite(ContamFluxCol)) = 0;
 
-                PSF_Flagged = ~Passes_PSFShape;
+                N_NotSalvagablePSF = (N_X2 + N_Y2) >= Args.SecondMomHardLim(3);
+
+                PSF_Flagged = ~Passes_PSFShape | N_NotSalvagablePSF;
                 FilterFlags = setFilterBit(FilterFlags, PSF_Flagged, BD_TF, 'PSFShape');
             else
                 ContamFluxCol = nan(NumCand,1);
