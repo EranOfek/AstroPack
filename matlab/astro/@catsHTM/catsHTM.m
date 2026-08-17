@@ -6425,7 +6425,7 @@ function CatList = localBuildCatList(RefCat, UserList, SkipCats, Verbose)
     end
 
     % remove the anchor and any explicitly skipped catalogs
-    Drop    = [{RefCat}, cellstr(SkipCats).'];
+    Drop    = [{RefCat}, cellstr(SkipCats)];
     CatList = CatList(~ismember(CatList, Drop));
     CatList = CatList(:).';
 end
