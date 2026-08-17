@@ -60,7 +60,7 @@ else
     else
         % note Mat2 is the first argument
     
-        Res     = zeros(size(Mat1,1), size(Mat1,2), Nfilter);
+        Res     = zeros(size(Mat1,1), size(Mat1,2), Nfilter, class(Mat1));
         % slower
         %Res     = repmat(0, size(Mat1,1), size(Mat1,2), Nfilter);
     end
