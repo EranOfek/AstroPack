@@ -1,4 +1,4 @@
-function [Result] = backVar(Obj, Args)
+function [Result, FailedList] = backVar(Obj, Args)
     % Measure background and variance and store in AstroImage object
     %     Given an AstroImage/AstroZOGY object, estimate the background and
     %     variance using the various methods available in:
@@ -140,9 +140,10 @@ function [Result] = backVar(Obj, Args)
         end
     end
 
+    FailedList = [];
     for Iobj=1:1:Nobj
         if isempty(Result(Iobj).(Args.BackProp).(Args.BackPropIn)) || Args.ReCalc
-            
+            try
             switch StrMethod
                 case 'backBertin'
                     [Back, Var, BackSmall, VarSmall] = imUtil.background.mex.backBertin(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn), Args.MethodArgs{:});
@@ -161,7 +162,9 @@ function [Result] = backVar(Obj, Args)
                                                  'CCDSEC',Args.CCDSEC,...
                                                  'ExtendFull',Args.ExtendFull);
             end
-            
+            catch ME
+                FailedList = [FailedList,Iobj];
+            end
 
             % store
             Result(Iobj).BackData.Image = Back;
