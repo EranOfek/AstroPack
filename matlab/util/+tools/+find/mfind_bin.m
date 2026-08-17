@@ -62,7 +62,7 @@ else
         if (isempty(X))
             Im = uint32([]);
         else
-            Im = ones(1,Nvals);
+            Im = uint32(ones(1,Nvals));
         end
     else
         %Niter = 0;
