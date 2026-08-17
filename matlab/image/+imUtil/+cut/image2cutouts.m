@@ -17,6 +17,16 @@ function [Cube, RoundX, RoundY, X, Y] = image2cutouts(Image, X, Y, MaxRadius, Ar
     %                   Default is true.
     %            'Circle' - If true, then will set all points outside the radius to NaN.
     %                   Default is false.
+    %            'PadVal' - Fill value for cutout pixels outside the image
+    %                   bounds. Default is NaN (previously hard-coded to 0
+    %                   in the mexCutout=true path only, which silently
+    %                   contaminated e.g. background/annulus statistics
+    %                   near image edges with fake zero-valued pixels -
+    %                   see issue #1199. For integer-class images the mex
+    %                   kernel maps NaN to 0 automatically, since NaN has
+    %                   no integer representation - only float/double
+    %                   image consumers are affected by this default
+    %                   change.
     % Output : - A cube. The 3rd dimension is the image index.
     %          - Roundex X position in cutout.
     %          - Roundex Y position in cutout.
@@ -34,6 +44,7 @@ function [Cube, RoundX, RoundY, X, Y] = image2cutouts(Image, X, Y, MaxRadius, Ar
         Args.mexCutout            = true;
         Args.mexNew               = true;
         Args.Circle               = false;
+        Args.PadVal               = NaN;
     end
     
 
@@ -43,19 +54,19 @@ function [Cube, RoundX, RoundY, X, Y] = image2cutouts(Image, X, Y, MaxRadius, Ar
         %Args.mexCutout = false; %% FFU - BUG
         if Args.mexCutout
             if Args.mexNew
-                [Cube] = imUtil.cut.mex.imageCutouts(Image, X, Y, MaxRadius.*2+1, 0);
-                
+                [Cube] = imUtil.cut.mex.imageCutouts(Image, X, Y, MaxRadius.*2+1, Args.PadVal);
+
             else
                 % Note that the second argument must be a double
                 [Cube] = imUtil.cut.mex.mex_cutout(Image,double([X, Y]),MaxRadius.*2+1);
-                %Cube   = imUtil.cut.mex.imageCutouts(Image, X, Y, MaxRadius.2+1, 0);
+                %Cube   = imUtil.cut.mex.imageCutouts(Image, X, Y, MaxRadius.2+1, Args.PadVal);
                 Cube   = squeeze(Cube);
             end
             RoundX = round(X);
             RoundY = round(Y);
-        
+
         else
-            [Cube, RoundX, RoundY] = imUtil.cut.find_within_radius_mat(Image, X, Y, MaxRadius, Args.Circle);
+            [Cube, RoundX, RoundY] = imUtil.cut.find_within_radius_mat(Image, X, Y, MaxRadius, Args.Circle, Args.PadVal);
         end
 
     elseif NdimImage==3

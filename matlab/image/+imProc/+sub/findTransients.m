@@ -323,13 +323,18 @@ function TranCat=findTransients(AD, Args)
                 Gdir = atan2d(Gy, Gx);
 
                 Gdir_rad = deg2rad(Gdir(MaskBack));
-                GDIRCVAR(ITran,1) = 1 - abs(mean(exp(1i * Gdir_rad),"all"));
+                % 'omitnan': a Sobel-gradient pixel adjacent to a
+                % NaN-padded cutout edge (image2cutouts now defaults to
+                % NaN-padding - see issue #1199) is itself NaN; without
+                % omitnan a single such pixel would silently NaN out the
+                % whole transient score.
+                GDIRCVAR(ITran,1) = 1 - abs(mean(exp(1i * Gdir_rad),"all",'omitnan'));
 
                 AngleDiff = abs(Gdir - ExpectedAngleDeg);
                 % Correct for wrapping issues (e.g., -179° vs 179° should be close)
                 AngleDiff = min(AngleDiff, 360 - AngleDiff);
                 % Compute the mean alignment error
-                GDIRERROR(ITran,1) = mean(AngleDiff(MaskBack),"all");
+                GDIRERROR(ITran,1) = mean(AngleDiff(MaskBack),"all",'omitnan');
             end
 
             TranCat(Iobj) = TranCat(Iobj).insertCol(cast(GDIRCVAR,'double'), ...
