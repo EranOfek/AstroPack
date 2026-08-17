@@ -101,10 +101,19 @@ void computeMeanAndStdPerSliceSIMD(const T* input, T* meanOutput, T* stdOutput, 
             }
         }
 
+        // Match MATLAB's mean(...,'omitnan')/std(...,'omitnan') convention:
+        // count==0 -> both NaN (no data); count==1 -> mean is the single
+        // value, std is 0 (not NaN - a single sample has zero spread by
+        // definition); count>1 -> the usual sample std. Previously
+        // count==1 fell into the same "insufficient data" branch as
+        // count==0, giving NaN/NaN instead of value/0. See issue #1205.
         if (count > 1) {
             T mean = sum / count;
             meanOutput[k] = mean;
             stdOutput[k] = std::sqrt((sumSq - sum * mean) / (count - 1));
+        } else if (count == 1) {
+            meanOutput[k] = sum;
+            stdOutput[k] = static_cast<T>(0);
         } else {
             meanOutput[k] = std::numeric_limits<T>::quiet_NaN();
             stdOutput[k] = std::numeric_limits<T>::quiet_NaN();
