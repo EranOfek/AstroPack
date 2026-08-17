@@ -192,8 +192,34 @@ classdef FITS < handle
                                end
                            else
                                if (length(PosAp)>=2)
-                                   % a string-am
-                                   Value = Value(PosAp(1)+1:PosAp(2)-1);
+                                   % a string - find the true closing quote,
+                                   % skipping over any doubled '' (escaped
+                                   % literal quote) pairs per the FITS
+                                   % standard, and unescape them to a single
+                                   % ' in the extracted value. Previously
+                                   % this just took the substring up to the
+                                   % *second* apostrophe found, which is
+                                   % wrong whenever the string contains an
+                                   % escaped quote - it would truncate at
+                                   % the first escaped quote instead of the
+                                   % real closing quote. See issue #1212.
+                                   Inner = Value(PosAp(1)+1:end);
+                                   Ic    = 1;
+                                   Out   = '';
+                                   while Ic <= length(Inner)
+                                       if Inner(Ic)==''''
+                                           if Ic<length(Inner) && Inner(Ic+1)==''''
+                                               Out = [Out, '''']; %#ok<AGROW>
+                                               Ic = Ic + 2;
+                                           else
+                                               break;  % true closing quote
+                                           end
+                                       else
+                                           Out = [Out, Inner(Ic)]; %#ok<AGROW>
+                                           Ic = Ic + 1;
+                                       end
+                                   end
+                                   Value = Out;
                                else
                                    Value = Card(PosAp(1)+10:end);
                                end
