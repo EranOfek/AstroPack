@@ -49,9 +49,15 @@ function [Flag] = histAnomaly(Image, Args)
         BinN     = numel(Args.HistEdges) - 1;
         Nh = double(tools.hist.mex.histcounts1regular(Image(:), BinStart, BinSize, BinN));        
     else
-        EndVal    = Args.HistEdges(1) + Args.HistEdges(2).*Args.HistEdges(3);
-        HistEdges = (Args.HistEdges(1):Args.HistEdges(2):EndVal);
-        Nh        = histcounts(Image(:), HistEdges);
+        % Args.HistEdges is a full bin-edges vector (see its default,
+        % (-0.5:5:5000.5), and how BinCenter below is derived from it) -
+        % use it directly, matching how the UseMex branch derives BinStart/
+        % BinSize/BinN from it. Previously this branch mis-treated
+        % Args.HistEdges as a [start,step,count] triple, producing a
+        % truncated local edges vector while BinCenter (below) stayed
+        % built from the full Args.HistEdges - silently mismatched bin
+        % counts/labels. See issue #1203.
+        Nh = histcounts(Image(:), Args.HistEdges);
     end
     BinCenter = (Args.HistEdges(1:end-1) + Args.HistEdges(2:end)).*0.5;
     Nh        = Nh./max(Nh);

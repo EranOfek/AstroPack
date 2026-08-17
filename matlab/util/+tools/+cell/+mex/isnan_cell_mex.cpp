@@ -39,12 +39,21 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         if (cellElement == nullptr || mxIsEmpty(cellElement)) {
             // If the cell is empty or null, it's not NaN
             outArray[i] = false;
-        } else if (mxIsDouble(cellElement) && mxGetNumberOfElements(cellElement) == 1) {
-            // Check if the cell contains a single double and if it is NaN
-            double value = *mxGetPr(cellElement);
+        } else if (mxIsNumeric(cellElement) && !mxIsComplex(cellElement) && mxGetNumberOfElements(cellElement) == 1) {
+            // Check if the cell contains a single numeric scalar (any
+            // class - double, single, or an integer type) and if it is
+            // NaN. Previously this only recognized mxIsDouble, silently
+            // answering false for e.g. a single-precision or integer-
+            // typed scalar cell (and mxGetPr on a non-double array would
+            // have misread the underlying bytes anyway, had that branch
+            // been taken) - see issue #1211. mxGetScalar is type-safe
+            // for any numeric class.
+            double value = mxGetScalar(cellElement);
             outArray[i] = std::isnan(value);
         } else {
-            // If the cell does not contain a single double, it's not NaN
+            // Non-scalar numeric content or a non-numeric type: not NaN
+            // by this function's contract (a scalar-or-NaN sentinel
+            // check, not a general isnan()).
             outArray[i] = false;
         }
     }

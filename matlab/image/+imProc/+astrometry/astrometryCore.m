@@ -48,6 +48,16 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %                   Default is {'Plx'}.
     %            'RefRangePlx' - Parllax range to retrieve.
     %                   Default is [-Inf 50].
+    %            'MinFracIsolated' - Minimum fraction of the reference
+    %                   sources that must survive the neighboors rejection.
+    %                   If the fraction is smaller, then the faint limit of
+    %                   'RefRangeMag' is brightened until it is satisfied.
+    %                   In crowded fields a deep reference catalog is left
+    %                   with almost no isolated sources, so this is what
+    %                   makes the astrometry work there.
+    %                   Set to [] to disable.
+    %                   See imProc.cat.getAstrometricCatalog.
+    %                   Default is 0.5.
     %            'EpochOut' - Output epoch. Default units is 'JD' (see
     %                   imProc.cat.applyProperMotion for more options).
     %                   If empty, will not apply proper motion and
@@ -171,6 +181,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.RefRangeMag                  = [12 19]; %.5];
         Args.RefColNamePlx                = {'Plx'};
         Args.RefRangePlx                  = [-Inf 50];
+        Args.MinFracIsolated              = 0.5;   % adapt RefRangeMag to the crowding of the field
         
         Args.EpochOut                     = [];
         Args.argsGetAstrometricCat cell   = {};
@@ -307,6 +318,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                                                                                     'RangeMag',Args.RefRangeMag,...
                                                                                     'ColNamePlx',Args.RefColNamePlx,...
                                                                                     'RangePlx',Args.RefRangePlx,...
+                                                                                    'MinFracIsolated',Args.MinFracIsolated,...
                                                                                     'OutRADecUnits','rad',...
                                                                                     Args.argsGetAstrometricCat{:});
           

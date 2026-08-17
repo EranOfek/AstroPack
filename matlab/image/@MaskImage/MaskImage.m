@@ -358,19 +358,21 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             
             switch lower(Operator)
                 case 'or'
-                    Fun = @tools.array.bitor_array;
+                    Fun    = @tools.array.bitor_array;
+                    PadVal = 0;   % OR identity element
                 case 'and'
-                    Fun = @tools.array.bitand_array;
+                    Fun    = @tools.array.bitand_array;
+                    PadVal = intmax(class(Obj.Data));   % AND identity element (all bits set) - see issue #1204
                 otherwise
                     error('Unnown Operator option');
             end
-                
+
             if Args.UseMex
                 % use the mex version (considerably faster)
                 Result = imUtil.cut.bitwise_cutouts(Obj.Data, XY(:,1), XY(:,2), Args.HalfSize, strcmp(Operator,'or'));
             else
                 Result = funCutouts(Obj, XY, Fun, 'HalfSize',Args.HalfSize,...
-                                                      'PadVal',0,...
+                                                      'PadVal',PadVal,...
                                                       'CutALgo',Args.CutAlgo,...
                                                       'IsCircle',Args.IsCircle,...
                                                       'DataProp',Args.DataProp);

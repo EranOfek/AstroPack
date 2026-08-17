@@ -98,7 +98,16 @@ function [TrimedData, CCDSEC]=trim(Data, CCDSEC, TypeCCDSEC, FillVal, UseMex)
         else
             error('FillVal different than [] is not yet supported');
         end
-            
+
+        % A CCDSEC entirely off-image clamps to an inverted/empty range
+        % (e.g. X1>X2). Previously the non-mex path silently returned a
+        % 0-size result while the mex path hard-errored; make both paths
+        % error consistently instead of depending on UseMex - see issue
+        % #1206.
+        if Y1>Y2 || X1>X2
+            error('imUtil:cut:trim:emptyCCDSEC', 'Requested CCDSEC is entirely outside the image - nothing to trim');
+        end
+
         if UseMex
             TrimedData = imUtil.cut.mex.trimImage(Data, [Y1 Y2 X1 X2]);
         else

@@ -125,10 +125,10 @@ function Result = zp_meddiff(MS, Args)
 
         if Args.UseMex
             if Args.UseWMedian
-                [Result(Ims).FitZP(FlagGoodEpoch),Result(Ims).FitStdZP]    = tools.math.stat.mex.wmedianStd_mex(DiffMagEpoch, 1./(MagErr.^2), 2); 
+                [Result(Ims).FitZP(FlagGoodEpoch),Result(Ims).FitStdZP(FlagGoodEpoch)]    = tools.math.stat.mex.wmedianStd_mex(DiffMagEpoch, 1./(MagErr.^2), 2);
             else
                 Result(Ims).FitZP(FlagGoodEpoch)    = tools.math.stat.mex.median(DiffMagEpoch, 2, 'omitnan');
-                Result(Ims).FitStdZP = std(DiffMagEpoch, [], 2, 'omitnan');
+                Result(Ims).FitStdZP(FlagGoodEpoch) = std(DiffMagEpoch, [], 2, 'omitnan');
              end
         else
             if Args.UseWMedian

@@ -2454,28 +2454,41 @@ classdef AstroWCS < Component
                 end
             end
 
+            % Normalize CoefX/CoefY and the power vectors to class(X)/class(Y)
+            % unconditionally (previously only done in the UseMex=true
+            % branch), so both branches agree on the output class instead
+            % of the matlab branch relying on implicit type promotion -
+            % see issue #1207.
+            if ~strcmp(class(CoefX),class(X))
+                CoefX = cast(CoefX, 'like',X);
+                CoefY = cast(CoefY, 'like',Y);
+            end
+            if ~strcmp(class(X), class(X_Xpower))
+                X_Xpower = cast(X_Xpower, 'like',X);
+                X_Ypower = cast(X_Ypower, 'like',X);
+                X_Rpower = cast(X_Rpower, 'like',X);
+                Y_Xpower = cast(Y_Xpower, 'like',Y);
+                Y_Ypower = cast(Y_Ypower, 'like',Y);
+                Y_Rpower = cast(Y_Rpower, 'like',Y);
+            end
+            if ~strcmp(class(X), class(Args.R))
+                % Args.R (default scalar 1, double) was never cast even in
+                % the UseMex=true branch - the mex kernel requires X and R
+                % to share a class, so this broke outright for single X/Y
+                % before this fix, not just a latent asymmetry.
+                Args.R = cast(Args.R, 'like',X);
+            end
+
             if Args.UseMex
                 %if isscalar(X_Rpower)
                 %    X_Rpower = repmat(X_Rpower, size(X_Xpower));
                 %end
-                if ~strcmp(class(CoefX),class(X))
-                    CoefX = cast(CoefX, 'like',X);
-                    CoefY = cast(CoefY, 'like',Y);
-                end
-                if ~strcmp(class(X), class(X_Xpower))
-                    X_Xpower = cast(X_Xpower, 'like',X);
-                    X_Ypower = cast(X_Ypower, 'like',X);
-                    X_Rpower = cast(X_Rpower, 'like',X);
-                    Y_Xpower = cast(Y_Xpower, 'like',Y);
-                    Y_Ypower = cast(Y_Ypower, 'like',Y);
-                    Y_Rpower = cast(Y_Rpower, 'like',Y);
-                end
                 Xd = imUtil.trans.mex.polyRadialDistortion(X, Y, Args.R, CoefX, X_Xpower, X_Ypower, X_Rpower);
                 %if isscalar(Y_Rpower)
                 %    Y_Rpower = repmat(Y_Rpower, size(Y_Xpower));
                 %end
                 Yd = imUtil.trans.mex.polyRadialDistortion(X, Y, Args.R, CoefY, Y_Xpower, Y_Ypower, Y_Rpower);
-                
+
             else
                 Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((Args.R(:).').^X_Rpower(:)),1);
                 Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((Args.R(:).').^Y_Rpower(:)),1);  

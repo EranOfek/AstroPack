@@ -44,6 +44,16 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     mwSize N = mxGetNumberOfElements(prhs[0]);
     mwSize Nvals = mxGetNumberOfElements(prhs[1]);
 
+    // N==0 (empty X): Im[i]-1 would underflow to UINT32_MAX inside
+    // mfind_bin's X[Im[i]-1] lookup, an out-of-bounds read far past the
+    // (empty) array. Match the matlab fallback (mfind_bin.m), which
+    // returns an empty result for an empty X, instead of entering the
+    // search loop at all. See issue #1210.
+    if (N == 0) {
+        plhs[0] = mxCreateNumericMatrix(1, 0, mxUINT32_CLASS, mxREAL);
+        return;
+    }
+
     const float* X = static_cast<const float*>(mxGetData(prhs[0]));
     const float* Vals = static_cast<const float*>(mxGetData(prhs[1]));
 

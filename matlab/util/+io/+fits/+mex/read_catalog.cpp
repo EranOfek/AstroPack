@@ -15,13 +15,18 @@
 //   hdu_header- if we wish to read the header from a different HDU 
 //
 // Outputs:
-//   S         - struct with one field per column (all double arrays)
+//   S         - struct with one field per column (numeric columns are
+//               double arrays; string columns are Nrows x 1 cell arrays
+//               of char row vectors)
 //   Header    - Nx3 cell array {keyword, value, comment}
 //   hdu       - HDU number actually used to read the catalog
 //   ColUnits  - 1×Ncols cell array of unit strings (one per column in S)
 //
-// All numeric columns are read as double. String columns are skipped with a
-// warning. Vector columns (repeat > 1) are flattened with a warning.
+// All numeric columns are read as double. String columns are read as a
+// cell array of strings (one string per row - a repeat-per-cell string
+// array is not supported, matching standard single-string-per-row FITS
+// table usage). Vector columns (repeat > 1) are flattened with a warning.
+// See issue #1208 - string columns used to be silently dropped.
 //
 // Author: A.M. Krassilchtchikov, D. Kovaleva (2026 Apr)
 
@@ -339,6 +344,8 @@ void mexFunction(int nlhs, mxArray* plhs[],
         std::string name;
         std::string unit;     // physical unit string from TUNIT keyword
         long        repeat;   // element count per row
+        bool        is_string;// true for a TSTRING column
+        long        width;    // max string length (TSTRING columns only)
     };
 
     std::vector<ColInfo> cols;
@@ -369,30 +376,30 @@ void mexFunction(int nlhs, mxArray* plhs[],
             if (!found) continue;
         }
 
-        // Skip string columns
         int tc = abs(typecode);
-        if (tc == TSTRING) {
-            mexPrintf("Warning: skipping string column '%s'\n", ttype);
-            continue;
-        }
+        bool is_string = (tc == TSTRING);
 
-        // Warn about vector columns (repeat > 1)
-        if (repeat > 1) {
+        // Warn about vector (non-string) columns with repeat > 1 - a
+        // string column's "repeat" is its character width, not a count
+        // of separate strings, so it doesn't apply here.
+        if (!is_string && repeat > 1) {
             mexPrintf("Warning: column '%s' has repeat=%ld, flattening to %ld rows\n",
                       ttype, repeat, nrows * repeat);
         }
 
         ColInfo ci;
-        ci.colnum = c;
-        ci.name   = name;
-        ci.unit   = std::string(tunit);
-        ci.repeat = repeat;
+        ci.colnum    = c;
+        ci.name      = name;
+        ci.unit      = std::string(tunit);
+        ci.repeat    = is_string ? 1 : repeat;
+        ci.is_string = is_string;
+        ci.width     = width;
         cols.push_back(ci);
     }
 
     int ncols = (int)cols.size();
     if (ncols == 0)
-        mexErrMsgTxt("No columns matched (or table has only string columns)");
+        mexErrMsgTxt("No columns matched");
 
     // ------------------------------------------------------------------
     // 5. Build output struct
@@ -404,26 +411,46 @@ void mexFunction(int nlhs, mxArray* plhs[],
     mxArray* S = mxCreateStructMatrix(1, 1, ncols, fieldnames.data());
 
     // ------------------------------------------------------------------
-    // 6. Read each column as double
-    // ------------------------------------------------------------------   
+    // 6. Read each column: numeric columns as double, string columns as
+    //    a cell array of char row vectors (one string per row).
+    // ------------------------------------------------------------------
     double nulval = std::numeric_limits<double>::quiet_NaN();
 
     for (int i = 0; i < ncols; i++) {
         const ColInfo& ci = cols[i];
         int anynul = 0;
 
-        long nelems = nrows * ci.repeat;
-        mwSize dims[2] = { (mwSize)nrows, (mwSize)ci.repeat };
+        if (ci.is_string) {
+            long bufwidth = ci.width + 1;   // +1 for the null terminator
+            std::vector<std::vector<char>> buf((size_t)nrows, std::vector<char>((size_t)bufwidth, '\0'));
+            std::vector<char*> ptrs((size_t)nrows);
+            for (long r = 0; r < nrows; r++) ptrs[r] = buf[r].data();
 
-        mxArray* arr = mxCreateNumericArray(2, dims, mxDOUBLE_CLASS, mxREAL);
-        double* data = (double*)mxGetData(arr);
+            char nulstr[] = "";
+            fits_read_col(fptr, TSTRING, ci.colnum,
+                          row1, 1, nrows,
+                          nulstr, ptrs.data(), &anynul, &status);
+            checkStatus(status);
 
-        fits_read_col(fptr, TDOUBLE, ci.colnum,
-                      row1, 1, nelems,
-                      &nulval, data, &anynul, &status);
-        checkStatus(status);
+            mxArray* cellArr = mxCreateCellMatrix(nrows, 1);
+            for (long r = 0; r < nrows; r++)
+                mxSetCell(cellArr, r, mxCreateString(buf[r].data()));
 
-        mxSetFieldByNumber(S, 0, i, arr);
+            mxSetFieldByNumber(S, 0, i, cellArr);
+        } else {
+            long nelems = nrows * ci.repeat;
+            mwSize dims[2] = { (mwSize)nrows, (mwSize)ci.repeat };
+
+            mxArray* arr = mxCreateNumericArray(2, dims, mxDOUBLE_CLASS, mxREAL);
+            double* data = (double*)mxGetData(arr);
+
+            fits_read_col(fptr, TDOUBLE, ci.colnum,
+                          row1, 1, nelems,
+                          &nulval, data, &anynul, &status);
+            checkStatus(status);
+
+            mxSetFieldByNumber(S, 0, i, arr);
+        }
     }
 
     // ------------------------------------------------------------------

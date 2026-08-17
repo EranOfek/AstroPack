@@ -30,6 +30,14 @@ function [FWHM, Nstars, Info, ACF] = fwhm_fromACF(Image, Args)
     %                   Default is 30000
     %            'UseMexRP' - Use mex function to calculate radial profile.
     %                   Default is false.
+    %            'UseMex' - Alias for 'UseMexRP', provided so that callers
+    %                   using the codebase-wide 'UseMex' convention (e.g.
+    %                   pipeline.generic.prePrep) actually control this
+    %                   function's mex/legacy dispatch instead of silently
+    %                   binding to 'UseMexRP' via MATLAB's arguments-block
+    %                   partial name matching (see issue #1195). If both
+    %                   'UseMex' and 'UseMexRP' are passed, 'UseMex' wins.
+    %                   Default is [] (defer to 'UseMexRP').
     %
     % Output : - The estimated FWHM.
     %            This is not formally the FWHM, but a factor that scales
@@ -70,8 +78,13 @@ function [FWHM, Nstars, Info, ACF] = fwhm_fromACF(Image, Args)
         Args.SatLevel          = 30000;
 
         Args.UseMexRP logical    = false;
+        Args.UseMex              = [];   % alias for UseMexRP; see issue #1195
     end
-    
+
+    if ~isempty(Args.UseMex)
+        Args.UseMexRP = logical(Args.UseMex);
+    end
+
     Nstars = NaN;
     
     if ~isempty(Args.CCDSEC)

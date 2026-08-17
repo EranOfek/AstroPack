@@ -6432,6 +6432,7 @@ function CatList = localBuildCatList(RefCat, UserList, SkipCats, Verbose)
         Skip = cellstr(Skip);
     end
     Drop    = [{RefCat}, Skip(:).'];
+
     CatList = CatList(~ismember(CatList, Drop));
     CatList = CatList(:).';
 end

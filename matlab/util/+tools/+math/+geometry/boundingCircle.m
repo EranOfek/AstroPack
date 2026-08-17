@@ -7,7 +7,10 @@ function [BestXY, BestRadius] = boundingCircle(X, Y, Args)
     %          * ...,key,val,...
     %            'UseMex' - A logical indicating if to use the fast MEX version:
     %                   tools.math.geometry.mex.smallestRadiusBoundingCircle
-    %                   Default is false.
+    %                   An exact minimal-enclosing-circle solver (vs. the
+    %                   fminsearch approximation used when false) - see
+    %                   issue #1197.
+    %                   Default is true.
     % Output : - A two element vector of best circle position [X,Y].
     %          - The minimum radius around the best center than encompass all
     %            the data points.
@@ -15,13 +18,24 @@ function [BestXY, BestRadius] = boundingCircle(X, Y, Args)
     % Example: X = rand(10,1); Y = rand(10,1);
     %          [BestXY, BestRadius] = tools.math.geometry.boundingCircle(X,Y);
     %          plot(X,Y,'+'); hold on; plot.plot_ellipse(BestXY, [BestRadius, BestRadius],[],0);
-    
+
     arguments
         X
         Y
-        Args.UseMex   = false;
+        Args.UseMex   = true;
     end
-    
+
+    % Filter out non-finite points so the mex and matlab paths handle
+    % invalid input identically: the mex kernel bails out to an all-NaN
+    % result on any non-finite input, while the matlab/fminsearch path
+    % silently tolerates it (issue #1197).
+    FlagFinite = isfinite(X) & isfinite(Y);
+    X = X(FlagFinite);
+    Y = Y(FlagFinite);
+    if isempty(X)
+        error('tools:math:geometry:boundingCircle:noValidPoints', 'No finite input points - can not compute a bounding circle');
+    end
+
     if Args.UseMex
         [Xc, Yc, BestRadius] = tools.math.geometry.mex.smallestRadiusBoundingCircle(X,Y);
         BestXY = [Xc, Yc];

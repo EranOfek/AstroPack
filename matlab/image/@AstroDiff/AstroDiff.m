@@ -1177,8 +1177,8 @@ classdef AstroDiff < AstroImage
         
                 Args.FlagCol char = 'FLAGS_TRANSIENT'
         
-                Args.ScoreCol char = 'SCORE'
-                Args.ScorrCol char = 'S_CORR'
+                Args.ScoreCol char = ''
+                Args.ScorrCol char = ''
         
                 Args.FluxCol char = 'FLUX_PSF'
                 Args.FluxErrCol char = 'FLUXERR_PSF'
@@ -1661,6 +1661,22 @@ classdef AstroDiff < AstroImage
                     case 'SDelta'
                         ds9(Obj.S_delta,Nimgs);
                         ds9.plot(TranCat.getXY, Args.TranMarker);
+                        if exist('NonTranCat','var')
+                            ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
+                        end
+                    case 'SSmear'
+                        if isempty(Obj.S_smear)
+                            % No smear template could be measured for this
+                            % subimage, which is a supported outcome. Undo
+                            % the frame count so ds9.tile does not leave a
+                            % gap for a frame that was never loaded.
+                            Nimgs = Nimgs - 1;
+                            continue
+                        end
+                        ds9(Obj.S_smear,Nimgs);
+                        if NumTran > 0
+                            ds9.plot(TranCat.getXY, Args.TranMarker);
+                        end
                         if exist('NonTranCat','var')
                             ds9.plot(NonTranCat.getXY, Args.NonTranMarker);
                         end

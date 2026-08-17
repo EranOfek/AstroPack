@@ -336,6 +336,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.flagPSFShape logical = true
         Args.SecondMomSoftLim double = 1.4
         Args.SecondMomHardLim double = [3.0 4.5 5.0]
+        Args.ContamMagThresh double = 0.5
+        Args.psfResidContamArgs cell = {}
 
         % Contamination logic
         Args.ContaminationBackRatio double = 0.1
@@ -544,15 +546,38 @@ function TranCat = flagNonTransients(Obj, Args)
         N_PSFHalfSize = floor(size(Obj(Iobj).New.PSFData.getPSF,2)/2);
         R_PSFHalfSize = floor(size(Obj(Iobj).Ref.PSFData.getPSF,2)/2);
         NearbyRRadius = 2 * max(20, 2*max(N_PSFHalfSize, R_PSFHalfSize));
-        
-        if ~isempty(D_MAG_PSF)
+
+        % A point source can only spill onto a candidate that sits inside its
+        % PSF footprint, so this test uses the stamp radius rather than
+        % NearbyRRadius.
+        RSrcRadiusSq = max(N_PSFHalfSize, R_PSFHalfSize).^2;
+
+        if D_PSFPhot_isSolved
             [R_NativeX, R_NativeY] = Obj(Iobj).Ref.CatData.getXY();
             R_NativeMag = Obj(Iobj).Ref.CatData.getCol('MAG_PSF');
-        
+
+            % Only point sources matter. Diffuse flux is not PSF-matched, so a
+            % poorly reconstructed PSF cannot turn it into a point-like
+            % residual. If the moments are unavailable, treat everything as
+            % point-like so that the exemption stays conservative.
+            if Obj(Iobj).Ref.CatData.isColumn('X2') && Obj(Iobj).Ref.CatData.isColumn('Y2')
+                R_NativeX2 = Obj(Iobj).Ref.CatData.getCol('X2');
+                R_NativeY2 = Obj(Iobj).Ref.CatData.getCol('Y2');
+                R_IsPoint  = ((R_NativeX2 + R_NativeY2) < Args.SecondMomHardLim(2)) ...
+                           | (max(R_NativeX2, R_NativeY2) < Args.SecondMomHardLim(1));
+            else
+                R_IsPoint = true(size(R_NativeX));
+            end
+
             DgreaterNearbyR = false(NumCand,1);
-        
+
+            % No point source within the PSF stamp, so nothing can have left a
+            % residual here. Default false: where we cannot tell, withhold the
+            % exemption.
+            NoNearbyRSrc = false(NumCand,1);
+
             if any(~isnan(R_NativeY))
-        
+
                 % Sort the reference catalog by Y and bin it into horizontal rows
                 % of height NearbyRRadius. Rows are contiguous in the sorted
                 % arrays, so each row maps to a single index range. A candidate can
@@ -561,34 +586,42 @@ function TranCat = flagNonTransients(Obj, Args)
                 [R_SortedY, SI] = sort(R_NativeY);
                 R_SortedX = R_NativeX(SI);
                 R_SortedMag = R_NativeMag(SI);
-        
+                R_SortedIsPoint = R_IsPoint(SI);
+
                 RowEdges = min(R_SortedY):NearbyRRadius:(max(R_SortedY)+NearbyRRadius);
                 NRow = numel(RowEdges)-1;
-        
+
                 RowStart = ones(NRow+1,1);
                 RowStart(2:end) = cumsum(histcounts(R_SortedY, RowEdges)).' + 1;
-        
+
                 CandRow = discretize(Y, RowEdges);
                 NearbyRRadiusSq = NearbyRRadius.^2;
-        
+
                 for Icand = 1:NumCand
                     % Candidates outside the reference catalog Y range have no
                     % row and therefore no nearby sources.
                     if isnan(CandRow(Icand))
                         continue
                     end
-        
+
                     Ilow  = RowStart(max(CandRow(Icand)-1, 1));
                     Ihigh = RowStart(min(CandRow(Icand)+2, NRow+1))-1;
-        
+
                     if Ihigh < Ilow
+                        % No Ref sources anywhere in this row band, so none
+                        % within the PSF stamp either.
+                        NoNearbyRSrc(Icand) = true;
                         continue
                     end
-        
+
                     SlabDistSq = (R_SortedX(Ilow:Ihigh) - X(Icand)).^2 ...
                         + (R_SortedY(Ilow:Ihigh) - Y(Icand)).^2;
                     Nearby = SlabDistSq < NearbyRRadiusSq;
-        
+
+                    NearPoint = (SlabDistSq < RSrcRadiusSq) ...
+                        & R_SortedIsPoint(Ilow:Ihigh);
+                    NoNearbyRSrc(Icand) = ~any(NearPoint);
+
                     if any(Nearby)
                         SlabMag = R_SortedMag(Ilow:Ihigh);
                         DgreaterNearbyR(Icand) = ...
@@ -969,6 +1002,77 @@ function TranCat = flagNonTransients(Obj, Args)
             FilterFlags = setFilterBit(FilterFlags, ExtendedSource, BD_TF, 'Extended');
         end
 
+        % ----- PSF reconstruction residuals -----
+        %  The reconstructed PSF represents the core but not the profile
+        %  outside it, and the missing flux lands in D as a residual at
+        %  every persistent source. imUtil.properSub.psfResidContamCat
+        %  measures those residuals directly rather than extrapolating a
+        %  tail from the PSF model, and a candidate fails when it is not
+        %  bright enough to be anything other than the residual it sits on.
+        if Args.flagPSFShape && D_PSFPhot_isSolved
+
+            % No usable template means the test cannot be evaluated at all.
+            % The column is still written, as a NaN array, so every crop the
+            % filter runs on carries the same columns and merge across crops
+            % does not fail on a mismatched column set. NaN is therefore
+            % distinct from 0, which means the test ran and found no residual
+            % within reach.
+            HasResidTemplate = isprop(Obj(Iobj),'S_PSFresid') && ...
+                               ~isempty(Obj(Iobj).S_PSFresid);
+
+            if HasResidTemplate
+
+                ContamCat = imUtil.properSub.psfResidContamCat(Obj(Iobj), ...
+                                Args.psfResidContamArgs{:});
+
+                % Match out to where the template's flux actually is, not to
+                % the stamp edge. psfResidTemplate measures it and clamps it
+                % down to the half size, so a diffuse template falls back to
+                % the old behaviour rather than reaching past its own
+                % definition.
+                MatchRadT = Obj(Iobj).PSFresidTemplateInfo.MatchRadius;
+
+                % Strongest residual within reach of each candidate. Not the
+                % nearest one: the nearest is not necessarily the one that
+                % could have produced it, and candidates routinely have
+                % several.
+                MaxContamFlux = nan(NumCand,1);
+                if ContamCat.sizeCatalog > 0
+                    CxT = ContamCat.getCol('XPEAK');
+                    CyT = ContamCat.getCol('YPEAK');
+                    CfT = ContamCat.getCol('FLUX_TEMPLATE');
+                    for ICand = 1:NumCand
+                        Inc = (CxT - X(ICand)).^2 + (CyT - Y(ICand)).^2 <= MatchRadT.^2;
+                        if any(Inc)
+                            MaxContamFlux(ICand) = max(CfT(Inc));
+                        end
+                    end
+                end
+
+                % Same convention as ContaminationMag: a log10 flux ratio. A
+                % candidate with no residual in reach passes, since there is
+                % nothing that could have produced it.
+                ContamMag  = log10(D_FLUX_PSF ./ MaxContamFlux);
+                HasContam  = isfinite(ContamMag);
+                Passes_PSFShape = ~(HasContam & (ContamMag <= Args.ContamMagThresh));
+
+                % 0 rather than NaN where the test ran and found nothing. The
+                % decision above has already been taken from MaxContamFlux,
+                % where NaN is what makes such a candidate pass.
+                ContamFluxCol = MaxContamFlux;
+                ContamFluxCol(~isfinite(ContamFluxCol)) = 0;
+
+                PSF_Flagged = ~Passes_PSFShape;
+                FilterFlags = setFilterBit(FilterFlags, PSF_Flagged, BD_TF, 'PSFShape');
+            else
+                ContamFluxCol = nan(NumCand,1);
+            end
+
+            TranCat(Iobj) = Obj(Iobj).CatData.insertCol(...
+                   ContamFluxCol, 'SCORE', {'FLUX_CONTAM'}, {''});
+        end
+
+        %{
         if Args.flagPSFShape && D_PSFPhot_isSolved && R_PSFPhot_isSolved && Annulus_isSolved
 
             % This section attempts to identify candidates that are likely 
@@ -1081,7 +1185,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
             % Mark persistent sources as potential contaminators if their estimated
             % tail flux exceeds a configurable fraction of the N-image background.
-            Contaminators = (N_TailFlux > Args.ContaminationBackRatio*Obj.BackN);
+            Contaminators = (N_TailFlux > Args.ContaminationBackRatio*Obj(Iobj).BackN);
 
             % Match candidates to contaminating sources within a radius scaled to the
             % PSF size, so that broader PSFs are searched over a larger area.
@@ -1245,6 +1349,7 @@ function TranCat = flagNonTransients(Obj, Args)
             PSF_Flagged = ~Passes_PSFShape;
             FilterFlags = setFilterBit(FilterFlags, PSF_Flagged, BD_TF, 'PSFShape');
         end
+        %}
 
         if Args.flagDiffSpike
 
@@ -1318,31 +1423,43 @@ function TranCat = flagNonTransients(Obj, Args)
         % Apply Chi2 per degrees of freedom criterium.
         if Args.flagChi2 && N_PSFPhot_isSolved && R_PSFPhot_isSolved && D_PSFPhot_isSolved
 
-            % Get global Chi2
-            N_CHI2DOF_Global = CandCat.getCol('N_PSF_CHI2DOF_MED');
-            R_CHI2DOF_Global = CandCat.getCol('R_PSF_CHI2DOF_MED');
+            % Test local Chi2
+            N_Passes_CHI2DOF_Local = ...
+                (N_CHI2DOF_Local > Args.Chi2dofLimitsLocal(1)) & ...
+                (N_CHI2DOF_Local < Args.Chi2dofLimitsLocal(2));
 
-            % Test global Chi2
-            N_Passes_CHI2DOF_Global = ...
-                (N_CHI2DOF_Global > Args.Chi2dofLimitsGlobal(1)) & ...
-                (N_CHI2DOF_Global < Args.Chi2dofLimitsGlobal(2));
-            R_Passes_CHI2DOF_Global = ... 
-                ((R_CHI2DOF_Global > Args.Chi2dofLimitsGlobal(1)) & ...
-                (R_CHI2DOF_Global < Args.Chi2dofLimitsGlobal(2))) |...
-                isnan(R_CHI2DOF_Global);
+            % Nothing detectable at the candidate position in R, so the narrow N
+            % fit is uncontaminated and can be required as well.
+            % TODO: temporary, to be removed once the new hot pixel filter
+            % is implemented
+            CleanIsolated = IsolatedCand & ~AmbIsolated;
 
+            % The residual itself has to look like the PSF in the difference
+            % image. This is the direct test of whether the subtraction produced
+            % a believable point source.
             Passes_CHI2DOF_D = ...
                 (D_CHI2DOF_Local > Args.Chi2dofLimitsLocal(1)) & ...
                 (D_CHI2DOF_Local < Args.Chi2dofLimitsLocal(2));
-            
-            Passes_CHI2DOF_Global = N_Passes_CHI2DOF_Global ...
-                & R_Passes_CHI2DOF_Global & Passes_CHI2DOF_D;
 
-            % Get locality Chi2
+            % The PSF reconstruction has to work in the regime of the
+            % subtraction. Globally in N and R ...
+            N_CHI2DOF_Global = CandCat.getCol('N_PSF_CHI2DOF_MED');
+            R_CHI2DOF_Global = CandCat.getCol('R_PSF_CHI2DOF_MED');
+
+            N_Passes_CHI2DOF_Global = ...
+                (N_CHI2DOF_Global > Args.Chi2dofLimitsGlobal(1)) & ...
+                (N_CHI2DOF_Global < Args.Chi2dofLimitsGlobal(2));
+            R_Passes_CHI2DOF_Global = ...
+                ((R_CHI2DOF_Global > Args.Chi2dofLimitsGlobal(1)) & ...
+                (R_CHI2DOF_Global < Args.Chi2dofLimitsGlobal(2))) | ...
+                isnan(R_CHI2DOF_Global);
+
+            Passes_CHI2DOF_Global = N_Passes_CHI2DOF_Global & R_Passes_CHI2DOF_Global;
+
+            % ... and locally around the candidate.
             N_CHI2DOF_Locality = CandCat.getCol('N_PSF_CHI2DOF_LOCAL_MED');
             R_CHI2DOF_Locality = CandCat.getCol('R_PSF_CHI2DOF_LOCAL_MED');
-            
-            % Test locality Chi2
+
             N_Passes_CHI2DOF_Locality = ...
                 ((N_CHI2DOF_Locality > Args.Chi2dofLimitsLocality(1)) & ...
                 (N_CHI2DOF_Locality < Args.Chi2dofLimitsLocality(2))) | ...
@@ -1352,53 +1469,22 @@ function TranCat = flagNonTransients(Obj, Args)
                 ((R_CHI2DOF_Locality > Args.Chi2dofLimitsLocality(1)) & ...
                 (R_CHI2DOF_Locality < Args.Chi2dofLimitsLocality(2))) | ...
                 isnan(R_CHI2DOF_Locality);
-            
-            Passes_CHI2DOF_Locality = N_Passes_CHI2DOF_Locality & R_Passes_CHI2DOF_Locality;
-            
+
+            Passes_CHI2DOF_Locality = ...
+                N_Passes_CHI2DOF_Locality & R_Passes_CHI2DOF_Locality;
+
+            % A candidate brighter than any nearby persistent source cannot be
+            % the residual of one.
             if ~isempty(DgreaterNearbyR)
                 Passes_CHI2DOF_Locality = Passes_CHI2DOF_Locality | DgreaterNearbyR;
             end
 
-            % Test local Chi2
-            N_Passes_CHI2DOF_Local = ...
-                (N_CHI2DOF_Local > Args.Chi2dofLimitsLocal(1)) & ...
-                (N_CHI2DOF_Local < Args.Chi2dofLimitsLocal(2));
-
-            R_Passes_CHI2DOF_Local = ...
-                (R_CHI2DOF_Local > Args.Chi2dofLimitsLocal(1)) & ...
-                (R_CHI2DOF_Local < Args.Chi2dofLimitsLocal(2));
-            
-            % For isolated candidates, apply local test.
-            Passes_CHI2DOF_Isolated = N_Passes_CHI2DOF_Local & IsolatedCand;
-            
-            % Test ambiguously isolated candidates. If a non-ambiguous isolated
-            % candidate passes the isolated condition, it is fine. If an
-            % ambiguous isolated candidate passes the isolated condition, it
-            % has an extra condition to pass.
-            Passes_CHI2DOF_Isolated = Passes_CHI2DOF_Isolated & ...
-                (~AmbIsolated ...
-                | (AmbIsolated ...
-                & Passes_CHI2DOF_Locality));
-
-            % For blended candidates, apply global and locality test.
-            Passes_CHI2DOF_Blended = Passes_CHI2DOF_Global ...
-                & BlendedCand & Passes_CHI2DOF_Locality;
-
-            % Test ambigiously blended candidate. If a non-ambigious
-            % blended candidate passes the blended condition, it is fine.
-            % If an ambigious blended candidate passes the blended
-            % condition, it has an extra condition to pass.
-            Passes_CHI2DOF_Blended = Passes_CHI2DOF_Blended & ...
-                (~AmbBlendedCand ...
-                | (AmbBlendedCand ...
-                & (N_Passes_CHI2DOF_Local | ~R_Passes_CHI2DOF_Local)));
-
-            Passes_CHI2DOF = Passes_CHI2DOF_Isolated | ...
-                Passes_CHI2DOF_Blended;
+            Passes_CHI2DOF = Passes_CHI2DOF_D ...
+                & Passes_CHI2DOF_Global & Passes_CHI2DOF_Locality ...
+                & (~CleanIsolated | N_Passes_CHI2DOF_Local);
 
             CHI2DOF_Flagged = ~Passes_CHI2DOF;
             FilterFlags = setFilterBit(FilterFlags, CHI2DOF_Flagged, BD_TF, 'PSFChi2');
-
         end
 
         % ----- Physical contaminants -----
@@ -1698,10 +1784,32 @@ function TranCat = flagNonTransients(Obj, Args)
 
         end
 
+        % ----- Candidate property bits -----
+        % Properties that depend on the Ref source catalogue and so cannot be
+        % recovered from the output columns. Bit values are defined here for
+        % now, to be moved into a BitDictionary later.
+        %
+        %   1 : NoNearbyRSrc     - no R point source within the PSF stamp
+        %   2 : DgreaterNearbyR  - brighter in D than any nearby R point source
+
+        CandProps = zeros(NumCand,1);
+
+        if ~isempty(NoNearbyRSrc)
+            CandProps = CandProps + double(NoNearbyRSrc) .* 1;
+        end
+        if ~isempty(DgreaterNearbyR)
+            CandProps = CandProps + double(DgreaterNearbyR) .* 2;
+        end
+
         % Safe flags as bit value.
         TranCat(Iobj) = Obj(Iobj).CatData.insertCol(...
             cast(FilterFlags, 'double'), 'SCORE', ...
             {'FLAGS_TRANSIENT'}, {''});
+
+        TranCat(Iobj) = Obj(Iobj).CatData.insertCol(...
+            cast(CandProps, 'double'), 'FLAGS_TRANSIENT', ...
+            {'CAND_PROPS'}, {''});
+
     end
   
 end

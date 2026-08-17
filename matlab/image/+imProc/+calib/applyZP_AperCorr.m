@@ -26,7 +26,11 @@ function [Result] = applyZP_AperCorr(Obj, Args)
     %            'FunAperCorrArgs' - A cell array of additional arguments to
     %                   pass to the FunAperCorr function.
     %                   Default is {1, 'omitnan'}.
-    %            'ColSN' - S/N column name. Default is 'SN'.
+    %            'ColSN' - S/N column name. The SN_<n> columns are the S/N
+    %                   per matched filter template, so the index selects a
+    %                   template width rather than an aperture.
+    %                   Default is 'SN_3'. Note that imProc.calib.photometricZP
+    %                   uses 'SN_2' and passes it on explicitly.
     %            'MinSN' - Min S/N of stars on which to calculate the
     %                   aperture correction. Default is 50.
     %            'MaxSN' - Max S/N of stars on which to calculate the

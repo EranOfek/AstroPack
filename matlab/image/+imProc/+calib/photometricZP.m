@@ -38,7 +38,10 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %            'CatColNameMagErr' - Mag. error column name in Catalog.
     %                   Default is 'MAGERR_APER_3'.
     %            'CatColNameSN' - S/N column name in Catalog.
-    %                   Default is 'SN_3'.
+    %                   The SN_<n> columns are the S/N per matched filter
+    %                   template, so the index selects a template width
+    %                   rather than an aperture. Default is 'SN_2', which
+    %                   corresponds to the sigma=1 pix template.
     %            'LimMagSN' - S/N for lim. mag. calculation.
     %                   Default is 5.
     %            'LimMagColor' - Color in which to calculate the lim. mag.
@@ -89,6 +92,15 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %                   Default is {'Plx'}.
     %            'RangePlx' - Parllax range to retrieve.
     %                   Default is [-Inf 50].
+    %            'MinFracIsolated' - Minimum fraction of the photometric
+    %                   catalog sources that must survive the neighboors
+    %                   rejection. If the fraction is smaller, then the
+    %                   faint limit of 'RangeMag' is brightened until it is
+    %                   satisfied. In crowded fields a deep catalog is left
+    %                   with almost no isolated sources.
+    %                   Set to [] to disable.
+    %                   See imProc.cat.getAstrometricCatalog.
+    %                   Default is 0.5.
     %
     %            'UpdateHeader' - A logical indicating if to update header
     %                   with {'PH_ZP','PH_COL1','PH_COL2','PH_W','PH_MEDW','PH_RMS','PH_NSRC','PH_MAGSY'};
@@ -175,6 +187,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.RangeMag                  = [13 21.5];
         Args.ColNamePlx                = {'Plx'};
         Args.RangePlx                  = [0.1 100];  % remove galaxies
+        Args.MinFracIsolated           = 0.5;   % adapt RangeMag to the field density - see imProc.cat.getAstrometricCatalog
         
         % Update catalog
         Args.UpdateMagCols logical     = true;
@@ -300,7 +313,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                                                                       'ColNameMag',Args.RefColNameMag,...
                                                                       'RangeMag',Args.RangeMag,...
                                                                       'ColNamePlx',Args.ColNamePlx,...
-                                                                      'RangePlx',Args.RangePlx);
+                                                                      'RangePlx',Args.RangePlx,...
+                                                                      'MinFracIsolated',Args.MinFracIsolated);
             end
 
             if Args.UseOnlyMainSeq
@@ -557,7 +571,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     
                     %InstMag = Cat.getCol(UsedColMag);
                     DeltaMag = ResFit(Iobj).Fun(ResFit(Iobj).Par, 0, Args.CatMagColor, ResFit(Iobj).MedC);
-                    Cat = imProc.calib.applyZP_AperCorr(Cat, 'ZP',DeltaMag, 'ColRefMag',UsedColMag{1});
+                    Cat = imProc.calib.applyZP_AperCorr(Cat, 'ZP',DeltaMag, 'ColRefMag',UsedColMag{1}, 'ColSN',Args.CatColNameSN);
                   
                     % OLD CODE:
                     % if ischar(Args.MagColName2update)

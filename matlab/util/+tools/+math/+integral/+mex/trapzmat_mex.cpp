@@ -1,5 +1,9 @@
 // trapzmat_mex.cpp
-// Trapezoidal integration like trapzmat(), but WITHOUT abs(dx).
+// Trapezoidal integration like trapzmat(), using abs(dx) - matching the
+// non-mex fallback in trapzmat.m (sum(abs(diff(X,1,1)).*0.5.*(...))), so
+// UseMex=true/false agree even for a non-monotonically-increasing X. See
+// issue #1201 - previously this kernel used signed dx, which is only
+// safe for callers guaranteed a monotonically increasing X.
 // X can be either:
 //   - same size as Y, or
 //   - a vector matching the integration dimension (trapz-like).
@@ -13,6 +17,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <cmath>
 
 #if defined(_OPENMP)
   #include <omp.h>
@@ -48,10 +53,10 @@ static void integrate_dim1(T* out, const T* X, const T* Y, mwSize m, mwSize n, b
 
         mwIndex i = 0;
         for (; i + 3 < mm1; i += 4) {
-            T dx0 = xcol[i+1] - xcol[i];
-            T dx1 = xcol[i+2] - xcol[i+1];
-            T dx2 = xcol[i+3] - xcol[i+2];
-            T dx3 = xcol[i+4] - xcol[i+3];
+            T dx0 = std::abs(xcol[i+1] - xcol[i]);
+            T dx1 = std::abs(xcol[i+2] - xcol[i+1]);
+            T dx2 = std::abs(xcol[i+3] - xcol[i+2]);
+            T dx3 = std::abs(xcol[i+4] - xcol[i+3]);
 
             T s0  = ycol[i]   + ycol[i+1];
             T s1  = ycol[i+1] + ycol[i+2];
@@ -62,7 +67,7 @@ static void integrate_dim1(T* out, const T* X, const T* Y, mwSize m, mwSize n, b
         }
 
         for (; i < mm1; ++i) {
-            const T dx = xcol[i+1] - xcol[i];
+            const T dx = std::abs(xcol[i+1] - xcol[i]);
             const T sy = ycol[i] + ycol[i+1];
             acc += half * dx * sy;
         }
@@ -100,7 +105,7 @@ static void integrate_dim2(T* out, const T* X, const T* Y, mwSize m, mwSize n, b
                 const T y0 = Y[idx];
                 const T y1 = Y[idx + stride];
 
-                acc += half * (x1 - x0) * (y0 + y1);
+                acc += half * std::abs(x1 - x0) * (y0 + y1);
                 idx += stride;
             }
         } else {
@@ -115,7 +120,7 @@ static void integrate_dim2(T* out, const T* X, const T* Y, mwSize m, mwSize n, b
                 const T y0 = Y[idx];
                 const T y1 = Y[idx + stride];
 
-                acc += half * (x1 - x0) * (y0 + y1);
+                acc += half * std::abs(x1 - x0) * (y0 + y1);
                 idx += stride;
             }
         }
