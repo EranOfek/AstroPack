@@ -44,10 +44,12 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
                                                  %'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
         Args.Threshold                        = 5;
         Args.astrometryRefineArgs cell        = {};
+        Args.MinFracIsolated                  = 0.5;   % minimum fraction of isolated reference sources - see imProc.cat.getAstrometricCatalog
         Args.Scale                            = 1.25;
         Args.Tran                             = Tran2D('poly3');
         Args.CatName                          = 'GAIAEDR3';
-        Args.photometricZPArgs cell           = {};                                                              
+        Args.AstrometricCat                   = [];   % per sub image AstroCatalog already retrieved for the epoch images
+        Args.photometricZPArgs cell           = {};
         Args.ReturnRegisteredAllSI logical    = true; % false;  % if true it means that AllSI will be modified and contain the registered images
         Args.interp2affineArgs cell           = {};
         Args.interp2wcsArgs cell              = {};
@@ -284,11 +286,23 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
             % Note that if available, will use the "X" & "Y" positions produced
             % by the PSF photometry
             MeanJD = mean(JD);
+            % Use the astrometric catalog already retrieved for the epoch
+            % images of this sub image. Re-querying by name would use the
+            % astrometryRefine default magnitude range, which in crowded
+            % fields leaves almost no reference stars after the neighbour
+            % rejection of getAstrometricCatalog.
+            if isa(Args.AstrometricCat, 'AstroCatalog') && Ifields<=numel(Args.AstrometricCat) && ~isempty(Args.AstrometricCat(Ifields).Catalog)
+                InCatName = Args.AstrometricCat(Ifields);
+            else
+                InCatName = Args.CatName;
+            end
+
             [ResultCoadd(Ifields).AstrometricFit, Coadd(Ifields), AstrometricCat] = imProc.astrometry.astrometryRefine(Coadd(Ifields), Args.astrometryRefineArgs{:},...
                                                                                                     'WCS',AllSI(1,Ifields).WCS,...
                                                                                                     'EpochOut',MeanJD,...
                                                                                                     'Scale',Args.Scale,...
-                                                                                                    'CatName',Args.CatName,...
+                                                                                                    'CatName',InCatName,...
+                                                                                                    'MinFracIsolated',Args.MinFracIsolated,...
                                                                                                     'Tran',Args.Tran,...
                                                                                                     'CreateNewObj',false);
 
@@ -300,10 +314,14 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
             %CatColNameMag            = 'MAG_APER_3';
             %CatColNameMagErr   = 'MAGERR_APER_3';
 
+            % Let photometricZP retrieve its own catalog rather than reusing
+            % the astrometric one: the two want different magnitude ranges,
+            % and the adaptive faint limit of getAstrometricCatalog now makes
+            % the deeper photometric range safe in crowded fields as well.
             [Coadd(Ifields), ResultCoadd(Ifields).ZP, ResultCoadd(Ifields).PhotCat] = imProc.calib.photometricZP(Coadd(Ifields),...
                                                                                                         'CreateNewObj',false,...
                                                                                                         'MagZP',Args.ZP,...
-                                                                                                        'CatName',AstrometricCat,...
+                                                                                                        'MinFracIsolated',Args.MinFracIsolated,...
                                                                                                         Args.photometricZPArgs{:});
 
             % Add GlobalMotion information to header

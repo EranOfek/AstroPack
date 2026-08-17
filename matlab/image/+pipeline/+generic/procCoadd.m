@@ -67,6 +67,15 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %            'CatName' - catsHTM astrometric catalog to use for the
     %                   astrometric solution.
     %                   Default is 'GAIADR3'
+    %            'MinFracIsolated' - Minimum fraction of the reference
+    %                   catalog sources that must survive the neighboors
+    %                   rejection. In a crowded field a deep reference
+    %                   catalog is left with almost no isolated sources;
+    %                   when the fraction is not met the faint limit of the
+    %                   magnitude range is brightened automatically.
+    %                   Set to [] to disable.
+    %                   See imProc.cat.getAstrometricCatalog.
+    %                   Default is 0.5.
     %            'photometricZPArgs' - A cell array of arguments to pass to
     %                   the imProc.calib.photometricZP function.
     %                   Default is {}.
@@ -246,6 +255,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
 
         Args.RefineAstrometry                 = true;
         Args.astrometryRefineArgs cell        = {};
+        Args.MinFracIsolated                  = 0.5;   % minimum fraction of isolated reference sources - see imProc.cat.getAstrometricCatalog
         Args.Scale                            = 1.25;
         Args.Tran                             = Tran2D('poly3');
         Args.CatName                          = 'GAIADR3';
@@ -607,6 +617,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                                     'CatName',AstrometricCat,...
                                                                                                     'Tran',Args.Tran,...
                                                                                                     'MatchMethod',Args.MatchMethod,...
+                                                                                                    'MinFracIsolated',Args.MinFracIsolated,...
                                                                                                     'CreateNewObj',false);
                 
                 %ResultCoadd(Ifields).MidMidJD = MidMidJD;
@@ -632,6 +643,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                                             'MagZP',Args.ZP0,...
                                                                                                             'CatName',AstrometricCat,...
                                                                                                             'UpdateMagCols',Args.photometricZP_UpdateMagCols,...
+                                                                                                            'MinFracIsolated',Args.MinFracIsolated,...
                                                                                                             Args.photometricZPArgs{:});
             end
 
