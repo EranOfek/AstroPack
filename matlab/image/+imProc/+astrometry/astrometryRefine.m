@@ -121,6 +121,16 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     %            'RemoveNeighboors' - A logical indicating if to remove
     %                   sources with near neighboors from the astrometric
     %                   catalog. Default is true.
+    %            'MinFracIsolated' - Minimum fraction of the reference
+    %                   sources that must survive the neighboors rejection.
+    %                   If the fraction is smaller, then the faint limit of
+    %                   'RefRangeMag' is brightened until it is satisfied.
+    %                   In crowded fields a deep reference catalog is left
+    %                   with almost no isolated sources, so this is what
+    %                   makes the astrometry work there.
+    %                   Set to [] to disable.
+    %                   See imProc.cat.getAstrometricCatalog.
+    %                   Default is 0.5.
     %            'CreateNewObj' - A logical indicating if to create a new
     %                   copy of the input AstroCatalog object.
     %                   Default is true.
@@ -222,6 +232,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         Args.ReuseAstrometricCat(1,1) logical   = false;
                 
         Args.RemoveNeighboors(1,1) logical      = true;
+        Args.MinFracIsolated                    = 0.5;   % adapt RefRangeMag to the crowding of the field
      
         Args.CreateNewObj(1,1) logical          = true;
         
@@ -443,6 +454,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                                                                                             'ColNamePlx',Args.RefColNamePlx,...
                                                                                             'RangePlx',Args.RefRangePlx,...
                                                                                             'RemoveNeighboors',Args.RemoveNeighboors,...
+                                                                                            'MinFracIsolated',Args.MinFracIsolated,...
                                                                                             'flagSrcWithNeighborsArgs',Args.flagSrcWithNeighborsArgs);
 
             % RA/Dec in [deg]

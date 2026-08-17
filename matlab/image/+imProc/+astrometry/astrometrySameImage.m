@@ -68,6 +68,15 @@ function [ResultFit, AI, CatName] = astrometrySameImage(Obj, Args)
     %            'FilterSigma' - Width [sigma units] of Gaussian filter with
     %                   which to cross-correlate the H2 (hits for shifts) matrix.
     %                   If empty, no filtering is applied. Default is 3.
+    %            'MinFracIsolated' - Minimum fraction of the reference
+    %                   sources that must survive the neighboors rejection.
+    %                   Passed on to astrometryCore/astrometryRefine. In a
+    %                   crowded field a deep reference catalog is left with
+    %                   almost no isolated sources; when the fraction is not
+    %                   met the faint limit of the magnitude range is
+    %                   brightened automatically. Set to [] to disable.
+    %                   See imProc.cat.getAstrometricCatalog.
+    %                   Default is 0.5.
     %            'KeyExpTime' - Header keyword for the exposure time.
     %                   Default is 'EXPTIME'.
     %            'RefRangeMagExpTimeFun' - Function handle for the upper value of the RefMagRange
@@ -124,6 +133,7 @@ function [ResultFit, AI, CatName] = astrometrySameImage(Obj, Args)
         Args.RefRangeMag            = [10 17.0];  % [12 18]
         Args.SearchRadius           = 6;
         Args.FilterSigma            = 3;
+        Args.MinFracIsolated        = 0.5;   % adapt RefRangeMag to the crowding of the field
         
         % Dynamic definition of RefRangeMag:
         Args.KeyExpTime             = 'EXPTIME';
@@ -226,6 +236,7 @@ function [ResultFit, AI, CatName] = astrometrySameImage(Obj, Args)
                                                                                                 'StepY',Args.StepY,...
                                                                                                 'Flip',Args.Flip,...
                                                                                                 'RefRangeMag',Args.RefRangeMag,...
+                                                                                                'MinFracIsolated',Args.MinFracIsolated,...
                                                                                                 'SearchRadius',Args.SearchRadius,...
                                                                                                 'FilterSigma',Args.FilterSigma,...
                                                                                                 'KeyExpTime',Args.KeyExpTime,...

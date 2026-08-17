@@ -39,6 +39,15 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
     %            'MultiplyByGain'
     %            'MaskSaturated'
     %            'DoAstrometry'
+    %            'MinFracIsolated' - Minimum fraction of the reference
+    %                   catalog sources that must survive the neighboors
+    %                   rejection. In a crowded field a deep reference
+    %                   catalog is left with almost no isolated sources;
+    %                   when the fraction is not met the faint limit of the
+    %                   magnitude range is brightened automatically.
+    %                   Set to [] to disable.
+    %                   See imProc.cat.getAstrometricCatalog.
+    %                   Default is 0.5.
     %            'DoPhotometry'
     %            'MatchExternal'
     %            'SaveProducts'
@@ -125,6 +134,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.ZP                               = 25;
         Args.photometricZPArgs cell           = {};
         Args.astrometrySubImagesArgs cell     = {};
+        Args.MinFracIsolated                  = 0.5;   % minimum fraction of isolated reference sources - see imProc.cat.getAstrometricCatalog
         Args.astrometryRefineArgs cell        = {};
         Args.RefineSearchRadius               = 5;
         Args.CatName                          = 'GAIAEDR3';  % or AstroCatalog
@@ -390,6 +400,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                                                                 'Scale',Args.Scale,...
                                                                                                 'CatName',Args.CatName,...
                                                                                                 'CooOffset',Args.CooOffset,...
+                                                                                                'MinFracIsolated',Args.MinFracIsolated,...
                                                                                                 'CCDSEC', InfoCCDSEC.EdgesCCDSEC,...
                                                                                                 'Tran',Args.Tran,...
                                                                                                 'CreateNewObj',false);
@@ -402,6 +413,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                                                                 'Tran',Args.Tran,...
                                                                                                 'SearchRadius',Args.RefineSearchRadius,...
                                                                                                 'IncludeDistortions',true,...
+                                                                                                'MinFracIsolated',Args.MinFracIsolated,...
                                                                                                 'CreateNewObj',false);
                
                 % % treatment in case of a failure
@@ -440,6 +452,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
             [SI, Result.ZP, ~] = imProc.calib.photometricZP(SI, 'CreateNewObj',false,...
                                                                 'MagZP',Args.ZP,...
                                                                 'CatName',AstrometricCat,...
+                                                                'MinFracIsolated',Args.MinFracIsolated,...
                                                                 Args.photometricZPArgs{:});
 
             % Update Cat photometry

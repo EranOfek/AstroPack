@@ -1,4 +1,4 @@
-function [Cube,RoundXorig,RoundYorig]=find_within_radius_mat(Matrix,X,Y,Radius,Circle)
+function [Cube,RoundXorig,RoundYorig]=find_within_radius_mat(Matrix,X,Y,Radius,Circle,PadVal)
 % Construct a cube of stamps around specific locations in a 2D image.
 % Package: imUtil.image
 % Description: Given an image and a list of coordinates, construct a cybe
@@ -19,6 +19,12 @@ function [Cube,RoundXorig,RoundYorig]=find_within_radius_mat(Matrix,X,Y,Radius,C
 %          - Radius [pix].
 %          - If true, then will set all points outside the radius to NaN.
 %            Default is false.
+%          - PadVal - Value with which to pad the cube for positions
+%            outside the image boundaries. Default is NaN. See issue
+%            #1204 - previously hard-coded to NaN regardless of caller
+%            intent, which silently became 0 for integer-class images
+%            (NaN has no integer representation), poisoning e.g. a
+%            bitwise-AND reduction across the cutout.
 % Output : - A cube of size 2.*Radius+1 by 2.*Radius+1 by number of
 %            coordinates.
 %            The cube contains the stamps around the requested rounded
@@ -40,10 +46,8 @@ arguments
     Y
     Radius
     Circle(1,1) logical      = false;
+    PadVal                   = NaN;
 end
-
-PadVal = NaN;
-
 
 Nsrc = numel(X);
 

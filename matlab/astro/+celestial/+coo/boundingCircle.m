@@ -9,9 +9,10 @@ function [BestCoo, BestRadius] = boundingCircle(X, Y, Z, Args)
     %          * ...,key,val,...
     %            'UseMex' - A logical indicating if to use the fast MEX
     %                   function: celestial.coo.mex.boundingCircleSpherical_mex
-    %                   About x40 faster.
-    %                   Default is false (in this case input must be
-    %                   lon/lat).
+    %                   About x40 faster, and an exact minimal-enclosing-
+    %                   circle solver (vs. the fminsearch approximation
+    %                   used when false) - see issue #1197.
+    %                   Default is true.
     % Output : - A two element vector of best circle position [X,Y] in radians.
     %          - The minimum radius around the best center than encompass all
     %            the data points [radians].
@@ -27,9 +28,29 @@ function [BestCoo, BestRadius] = boundingCircle(X, Y, Z, Args)
         X
         Y
         Z           = [];
-        Args.UseMex = false;
+        Args.UseMex = true;
     end
-    
+
+    % Filter out non-finite points so the mex and matlab paths handle
+    % invalid input identically. The mex kernel used for the 'pix' sibling
+    % (tools.math.geometry.boundingCircle) bails out to an all-NaN result
+    % on any non-finite input, while the matlab/fminsearch path silently
+    % tolerates it; filtering here keeps behavior consistent regardless of
+    % UseMex (issue #1197).
+    if isempty(Z)
+        FlagFinite = isfinite(X) & isfinite(Y);
+        X = X(FlagFinite);
+        Y = Y(FlagFinite);
+    else
+        FlagFinite = isfinite(X) & isfinite(Y) & isfinite(Z);
+        X = X(FlagFinite);
+        Y = Y(FlagFinite);
+        Z = Z(FlagFinite);
+    end
+    if isempty(X)
+        error('celestial:coo:boundingCircle:noValidPoints', 'No finite input points - can not compute a bounding circle');
+    end
+
     if Args.UseMex
         % call fast MEX function
         % this function ix x60 faster
