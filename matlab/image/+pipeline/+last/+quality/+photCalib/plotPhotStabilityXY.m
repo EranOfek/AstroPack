@@ -79,7 +79,7 @@ function Result = plotPhotStabilityXY(MS, Args)
     % Author : D. Kovaleva (Jul 2026)
     % See also: plotPhotStabilityMap (1-D marginal STD-vs-X and STD-vs-Y),
     %           stabilityN3 (loader + std-vs-mag),
-    %           plotMagCurves (per-source MAG vs airmass/JD/time overlay).
+    %           plotCurvesMS (per-source MAG vs airmass/JD/time overlay).
     % Example:
     %   % --- Per-crop stability map (native crop pixels). Multi-crop MS is
     %   %     pooled so all crops overlay on the same [1, 1716] axes.

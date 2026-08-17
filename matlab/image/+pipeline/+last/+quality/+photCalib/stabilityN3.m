@@ -294,6 +294,9 @@ function MS = stabilityN3(Args)
             end
         end
 
+        % NB: FWHM is NOT a per-source catalog column (it is a per-visit
+        % header scalar); it is broadcast into MS.Data.FWHM after the merge
+        % instead of matched here.
         BaseMatch  = {'RA','Dec','X','Y','SN','FLAGS', ...
                       'BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS', ...
                       'FLUX_APER_3', 'MAG_PSF', 'MAGAB__PSF'};
@@ -334,13 +337,17 @@ function MS = stabilityN3(Args)
         % before the stats/plot phase to avoid carrying ~0.5-1 MB per epoch.
         clear AC
 
-        % Stash per-epoch AIRMASS on the MS as broadcast [Nepoch x Nsrc] so
-        % downstream tools (plotMagCurves, ad-hoc analyses) can read it
-        % without re-peeking headers or requiring a CSV. Broadcast keeps the
-        % [Nep x Nsrc] shape convention of every other MS.Data field. Cost
-        % ~ Nep*Nsrc*8 bytes (~4 MB for 100 epochs x 5000 sources).
+        % Stash per-epoch AIRMASS and FWHM on the MS as broadcast
+        % [Nepoch x Nsrc] so downstream tools (plotCurvesMS, ad-hoc analyses)
+        % can read them without re-peeking headers or requiring a CSV.
+        % Both are per-VISIT header scalars (seeing / airmass), not per-source
+        % catalog columns, so every column carries the same per-epoch value.
+        % Broadcast keeps the [Nep x Nsrc] shape convention of every other
+        % MS.Data field. Cost ~ Nep*Nsrc*8 bytes (~4 MB for 100 epochs x
+        % 5000 sources) per field.
         NsrcFinal = size(MS.Data.(Args.Mags{1}), 2);
-        MS.Data.AIRMASS = repmat(AM(:), 1, NsrcFinal);
+        MS.Data.AIRMASS = repmat(AM(:),   1, NsrcFinal);
+        MS.Data.FWHM    = repmat(FWHM(:), 1, NsrcFinal);
 
         % Optional XFULL/YFULL stamp. ORIGSEC is fixed per crop (same
         % across every visit of a given Pattern), so we read it ONCE from
