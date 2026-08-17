@@ -5586,7 +5586,7 @@ classdef catsHTM
                 Args.RadiusUnits               = 'arcsec';
                 Args.RefCat                    = 'GAIADR3';
                 Args.CatList                   = {};
-                Args.SkipCats                  = {'MergedCat'};
+                Args.SkipCats                  = {'MergedCat', 'GAIAEDR3'};
                 Args.MatchRadius               = 2;
                 Args.MatchRadiusUnits          = 'arcsec';
                 Args.RadiusPerCat              = {};
@@ -6424,8 +6424,15 @@ function CatList = localBuildCatList(RefCat, UserList, SkipCats, Verbose)
         CatList = UserList;
     end
 
-    % remove the anchor and any explicitly skipped catalogs
-    Drop    = [{RefCat}, cellstr(SkipCats)];
+    % remove the anchor and any explicitly skipped catalogs. Accept SkipCats as
+    % a char, string, or cellstr of ANY shape: force a 1xN row before concat so
+    % 0 or >=2 skip names work (the old cellstr(...).' only worked for exactly 1).
+    Skip = SkipCats;
+    if ischar(Skip) || isstring(Skip)
+        Skip = cellstr(Skip);
+    end
+    Drop    = [{RefCat}, Skip(:).'];
+
     CatList = CatList(~ismember(CatList, Drop));
     CatList = CatList(:).';
 end
