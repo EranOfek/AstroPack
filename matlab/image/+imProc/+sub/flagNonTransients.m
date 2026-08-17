@@ -285,13 +285,13 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Hard bad-pixel filters
         Args.flagBadPix_Hard logical = true
-        Args.BadPix_Hard cell = {'Interpolated','NaN','NearEdge','Hole','Negative', 'CR_DeltaHT'}
+        Args.BadPix_Hard cell = {'Interpolated','NaN','NearEdge','Hole','Negative'}
 
         % Soft bad-pixel filters
         Args.flagBadPix_Soft logical = true
         Args.BadPix_Soft cell = {'DarkHighVal', 'CR_DeltaHT'}
         Args.BPS_PSFLimit double = -2.8
-        Args.BPS_DeltaLimit double = 3.0
+        Args.BPS_DeltaLimit double = 10.0
 
         % Holes in the reference filters
         Args.flagRefHole logical = true;
