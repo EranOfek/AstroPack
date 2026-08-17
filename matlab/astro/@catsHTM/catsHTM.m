@@ -5414,6 +5414,12 @@ classdef catsHTM
             %                   validatable via catsHTM.checkCatalogSignature
             %                   without the full .mat. 'json' is skipped (with a
             %                   note) when StampSignature is off. Default {'mat','csv'}.
+            %            'MatVars' - Which of {'XidTable','Cats_cone','Summary'} the
+            %                   'mat' output stores. Cats_cone is the BULK (the raw
+            %                   per-catalog snapshots), so e.g. {'XidTable','Summary'}
+            %                   keeps a small .mat that still carries the pointers and
+            %                   the version signatures, and {'XidTable'} the table
+            %                   alone. Default all three (full bundle, unchanged).
             %            'CatsToDisk' - If true, each catalog's cone_search result is
             %                   written to its own .mat file as soon as it has been
             %                   used, then cleared from memory, so peak memory is set
@@ -5602,6 +5608,7 @@ classdef catsHTM
                 Args.OutType                   = 'table';
                 Args.OutFile                   = '';
                 Args.OutFileFormat             = {'mat','csv'};
+                Args.MatVars                   = {'XidTable','Cats_cone','Summary'};
                 Args.CatsToDisk logical        = false;
                 Args.CatsDir                   = '';
                 Args.TableToDisk logical       = false;
@@ -6097,7 +6104,7 @@ classdef catsHTM
                 % OriginCat column. Summary (incl. Summary.OriginCat) is saved too.
                 if ~isempty(Args.OutFile)
                     localWriteOut(Args.OutFile, Args.OutFileFormat, XidTable, TableForm, ...
-                        Cats_cone, Summary, Args.Verbose);
+                        Cats_cone, Summary, Args.MatVars, Args.Verbose);
                 end
             end
         end
@@ -6627,11 +6634,12 @@ function Path = localWriteCat(Dir, Prefix, Name, Cat, Verbose)
 end
 
 % ======================================================================
-function localWriteOut(OutFile, Formats, XidTable, TableForm, Cats_cone, Summary, Verbose)
+function localWriteOut(OutFile, Formats, XidTable, TableForm, Cats_cone, Summary, MatVars, Verbose)
     % Write the cross-id results to disk (.mat and/or .csv).
     %   XidTable  - the object to store in the .mat (matches the return type:
     %               AstroCatalog or table).
     %   TableForm - the full MATLAB table (with OriginCat) used for the .csv.
+    %   MatVars   - which of {XidTable, Cats_cone, Summary} to put in the .mat.
     if ischar(Formats) || isstring(Formats)
         Formats = cellstr(Formats);
     end
@@ -6644,9 +6652,26 @@ function localWriteOut(OutFile, Formats, XidTable, TableForm, Cats_cone, Summary
 
     if any(strcmpi(Formats, 'mat'))
         MatFile = [Stem '.mat'];
-        save(MatFile, 'XidTable', 'Cats_cone', 'Summary', '-v7.3');
+        % save only the requested subset (in canonical order). Cats_cone is the
+        % bulk (the raw per-catalog snapshots), so dropping it keeps the file
+        % small; XidTable + Summary alone still carry the pointers + signatures.
+        if ischar(MatVars) || isstring(MatVars)
+            MatVars = cellstr(MatVars);
+        end
+        Vars = {'XidTable','Cats_cone','Summary'};
+        Vars = Vars(ismember(Vars, MatVars));
+        if isempty(Vars)
+            warning('catsHTM:crossIDCatsHTM:matVars', ...
+                'MatVars selected none of {XidTable,Cats_cone,Summary}; saving XidTable only.');
+            Vars = {'XidTable'};
+        end
+        % bundle the requested subset and save its fields as top-level variables
+        % (cell-wrap so the struct stays scalar even for struct/object values).
+        Bundle = struct('XidTable', {XidTable}, 'Cats_cone', {Cats_cone}, 'Summary', {Summary});
+        Bundle = rmfield(Bundle, setdiff(fieldnames(Bundle), Vars));
+        save(MatFile, '-struct', 'Bundle', '-v7.3');
         if Verbose
-            fprintf('crossIDCatsHTM: wrote %s\n', MatFile);
+            fprintf('crossIDCatsHTM: wrote %s [%s]\n', MatFile, strjoin(Vars, ', '));
         end
     end
     if any(strcmpi(Formats, 'csv'))
