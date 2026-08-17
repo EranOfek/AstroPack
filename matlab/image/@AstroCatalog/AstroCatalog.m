@@ -701,7 +701,11 @@ classdef AstroCatalog < AstroTable
             %            'UseMex' - Use Mex function options in:
             %                   tools.math.geometry.boundingCircle
             %                   and celestial.coo.boundingCircle
-            %                   Default is false.
+            %                   The mex path is an exact minimal-enclosing-
+            %                   circle solver, faster and more accurate than
+            %                   the fminsearch approximation used when
+            %                   false - see issue #1197.
+            %                   Default is true.
             % Output : - The best fit circle X/Long
             %          - The best fit circle Y/Lat
             %          - The best fit circle radius
@@ -714,7 +718,7 @@ classdef AstroCatalog < AstroTable
                 Obj
                 Args.OutUnits            = 'deg';
                 Args.CooType             = [];
-                Args.UseMex              = false;
+                Args.UseMex              = true;
             end
             
             Nobj         = numel(Obj);
