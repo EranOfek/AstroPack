@@ -37,6 +37,14 @@ classdef AstroZOGY < AstroDiff
         
         S_delta   % S for delta function response
         S_ext     % S for extended PSF response
+
+        S_smear   % S for registration-smeared bad-pixel response
+        SmearTemplate       % the measured smear kernel
+        SmearTemplateInfo   % diagnostics from imUtil.properSub.smearTemplate
+
+        S_PSFresid           % S for the PSF-reconstruction residual response
+        PSFresidTemplate     % the measured residual kernel
+        PSFresidTemplateInfo % diagnostics from the template measurement
         
         DSDF
         %DScorrDF
@@ -859,6 +867,14 @@ classdef AstroZOGY < AstroDiff
                 Args.ExtendedFun function_handle = @imUtil.kernel2.gauss;
                 Args.ExtendedFunArgs             = [1.0];
 
+                Args.PopS_smear logical      = false;
+                Args.SmearTemplate           = [];   % if given, used as is
+                Args.smearTemplateArgs cell  = {};
+
+                Args.PopS_PSFresid logical      = true;
+                Args.PSFresidTemplate           = [];   % if given, used as is
+                Args.psfResidTemplateArgs cell  = {};
+
                 Args.Eps                    = 1e-5;
             end
             
@@ -902,6 +918,53 @@ classdef AstroZOGY < AstroDiff
                     Obj(Iobj).S_ext = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Obj(Iobj).Image, ExtPSF);
                 end
 
+                if Args.PopS_smear
+                    % The smear kernel is measured per coadd rather than
+                    % derived. The per-epoch registration shifts change from
+                    % visit to visit, so the shape must be rebuilt each time.
+                    if isempty(Args.SmearTemplate)
+                        [SmearPSF, SmearInfo] = imUtil.properSub.smearTemplate(...
+                            Obj(Iobj), Args.smearTemplateArgs{:});
+                        Obj(Iobj).SmearTemplateInfo = SmearInfo;
+                    else
+                        SmearPSF = Args.SmearTemplate;
+                    end
+
+                    Obj(Iobj).SmearTemplate = SmearPSF;
+
+                    % Leaving S_smear empty is a supported outcome. A
+                    % subimage with too few DarkHighVal defects cannot yield
+                    % a template, and everything downstream must tolerate
+                    % that rather than fail.
+                    if ~isempty(SmearPSF)
+                        Obj(Iobj).S_smear = Obj(Iobj).Fd .* ...
+                            imUtil.filter.filter2_fast(Obj(Iobj).Image, SmearPSF);
+                    end
+                end
+
+                if Args.PopS_PSFresid
+                    % The residual kernel is measured per subtraction, like the smear
+                    % kernel: it is set by how the PSF reconstruction failed on this
+                    % visit, so it cannot be carried over from another one.
+                    if isempty(Args.PSFresidTemplate)
+                        [ResidPSF, ResidInfo] = imUtil.properSub.psfResidTemplate(...
+                            Obj(Iobj), Args.psfResidTemplateArgs{:});
+                        Obj(Iobj).PSFresidTemplateInfo = ResidInfo;
+                    else
+                        ResidPSF = Args.PSFresidTemplate;
+                    end
+
+                    Obj(Iobj).PSFresidTemplate = ResidPSF;
+
+                    % Leaving S_PSFresid empty is a supported outcome, as for S_smear.
+                    % A crop with too few isolated sources cannot yield a template and
+                    % everything downstream must tolerate that rather than fail.
+                    if ~isempty(ResidPSF)
+                        Obj(Iobj).S_PSFresid = Obj(Iobj).Fd .* ...
+                            imUtil.filter.filter2_fast(Obj(Iobj).Image, ResidPSF);
+                    end
+                end
+
                 if Args.PopS_hat
                     
                     Obj(Iobj).S_hat = Obj(Iobj).Fd .* Obj(Iobj).D_hat.*conj(Obj(Iobj).Pd_hat);
@@ -934,7 +997,19 @@ classdef AstroZOGY < AstroDiff
                                                                       'Fun2Prob',[],...
                                                                       'Prob2Sig',false);
                             end
-                                
+                            if Args.PopS_smear && ~isempty(Obj(Iobj).S_smear)
+                                Obj(Iobj).S_smear = imUtil.image.normalize(Obj(Iobj).S_smear, 'PreDef',Args.NormMethod,...
+                                                                      'K',1,...
+                                                                      'Fun2Prob',[],...
+                                                                      'Prob2Sig',false);
+                            end
+                            if Args.PopS_PSFresid && ~isempty(Obj(Iobj).S_PSFresid)
+                                Obj(Iobj).S_PSFresid = imUtil.image.normalize(Obj(Iobj).S_PSFresid, 'PreDef',Args.NormMethod,...
+                                                                      'K',1,...
+                                                                      'Fun2Prob',[],...
+                                                                      'Prob2Sig',false);
+                            end
+
                         case 'chi2'
                             % Nomalize using S^2
                             Obj(Iobj).S = imUtil.image.normalize(Obj(Iobj).S, 'PreDef',Args.NormMethod,...
@@ -956,7 +1031,21 @@ classdef AstroZOGY < AstroDiff
                                                                       'Fun2Prob',@chi2cdf,...
                                                                       'Prob2Sig',true);
                             end
-                            
+                            if Args.PopS_smear && ~isempty(Obj(Iobj).S_smear)
+                                Obj(Iobj).S_smear = imUtil.image.normalize(Obj(Iobj).S_smear, 'PreDef',Args.NormMethod,...
+                                                                      'K',1,...
+                                                                      'IfChi2_Sq',true,...
+                                                                      'Fun2Prob',@chi2cdf,...
+                                                                      'Prob2Sig',true);
+                            end
+                            if Args.PopS_PSFresid && ~isempty(Obj(Iobj).S_PSFresid)
+                                Obj(Iobj).S_PSFresid = imUtil.image.normalize(Obj(Iobj).S_PSFresid, 'PreDef',Args.NormMethod,...
+                                                                      'K',1,...
+                                                                      'IfChi2_Sq',true,...
+                                                                      'Fun2Prob',@chi2cdf,...
+                                                                      'Prob2Sig',true);
+                            end
+
                         case 'none'
                             % do nothing
                         otherwise
@@ -1417,7 +1506,7 @@ classdef AstroZOGY < AstroDiff
 
         end
 
-        function Obj=dSdFn(Obj, Args)
+        function Obj=dSdFn(Obj)
             % Populate DSDF - the dS/dFn (Fr=1) derivative for ZOGY subtraction.
             %   Obsoloete: USE getter DSDFn instead
             % Input  : - N_hat (Fourier Transform of new image).
