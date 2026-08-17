@@ -83,8 +83,6 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
     %            'unifiedSourcesCatalogArgs' - A cell array of arguments to
     %                   pass to: MatchedSources/unifiedCatalogsIntoMatched
     %                   Default is {}.
-    %            'UseMex' - A logical indicating if to use MEX when
-    %                   possible. Default is false.
     %            'MergeMethod' - Matching and merging method: 'unify' | 'legacy'.
     %                   Options are:
     %                       'unify' - use imProc.match.unify including mex.
@@ -141,7 +139,6 @@ function [MatchedS, ResZP] = proc2MatchedSources(AI, Args)
         Args.fitMotionArgs     = {};
 
         Args.unifiedSourcesCatalogArgs = {};
-        Args.UseMex            = false;
         Args.MergeMethod       = 'unify'; % 'legacy'
         %Args.LogObj            = [];
     end
