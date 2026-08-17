@@ -445,7 +445,54 @@ void mexFunction(int nlhs, mxArray* plhs[],
             
             fits_close_file(fptr, &status);
             checkStatus(status);
-            
+
+            plhs[0] = out;
+            return;
+        }
+    }
+
+    // Same idea for uint32 coded as int32 with BZERO=2^31 - the
+    // convention used for e.g. MaskImage bitmasks (see
+    // io.fits.dataType2bitpix.m). Previously only the uint16 case above
+    // was handled; a uint32-BZERO-shifted image fell through to the
+    // generic LONG_IMG path below, which reads/returns plain signed
+    // int32 (wrong for a value that should be uint32) - see issue #1209.
+    if (bitpix == LONG_IMG) {
+        double bzero = 0.0;
+        fits_read_key(fptr, TDOUBLE, "BZERO", &bzero, NULL, &status);
+        if (status) status = 0;
+
+        if (bzero == 2147483648.0) {
+            // unsigned 32-bit path
+            mxArray* out = mxCreateNumericArray(naxis, dims.data(), mxUINT32_CLASS, mxREAL);
+            unsigned int* data = (unsigned int*)mxGetData(out);
+
+            fits_read_subset(fptr, TUINT,
+                    fpixel.data(),
+                    lpixel.data(),
+                    inc.data(),
+                    NULL,
+                    data,
+                    &anynul,
+                    &status);
+            checkStatus(status);
+
+            // Output 2: header (optional)
+            if (nlhs >= 2) {
+                mxArray* rawheader = readHeaderCell(fptr);
+                if (compressed_header)
+                    plhs[1] = cleanCompressedHeader(rawheader);
+                else
+                    plhs[1] = rawheader;
+            }
+            // Output 3: HDU number used (optional)
+            if (nlhs >= 3) {
+                plhs[2] = mxCreateDoubleScalar((double)hdu);
+            }
+
+            fits_close_file(fptr, &status);
+            checkStatus(status);
+
             plhs[0] = out;
             return;
         }
