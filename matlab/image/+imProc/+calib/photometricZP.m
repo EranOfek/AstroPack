@@ -38,7 +38,10 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %            'CatColNameMagErr' - Mag. error column name in Catalog.
     %                   Default is 'MAGERR_APER_3'.
     %            'CatColNameSN' - S/N column name in Catalog.
-    %                   Default is 'SN_3'.
+    %                   The SN_<n> columns are the S/N per matched filter
+    %                   template, so the index selects a template width
+    %                   rather than an aperture. Default is 'SN_2', which
+    %                   corresponds to the sigma=1 pix template.
     %            'LimMagSN' - S/N for lim. mag. calculation.
     %                   Default is 5.
     %            'LimMagColor' - Color in which to calculate the lim. mag.
@@ -568,7 +571,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     
                     %InstMag = Cat.getCol(UsedColMag);
                     DeltaMag = ResFit(Iobj).Fun(ResFit(Iobj).Par, 0, Args.CatMagColor, ResFit(Iobj).MedC);
-                    Cat = imProc.calib.applyZP_AperCorr(Cat, 'ZP',DeltaMag, 'ColRefMag',UsedColMag{1});
+                    Cat = imProc.calib.applyZP_AperCorr(Cat, 'ZP',DeltaMag, 'ColRefMag',UsedColMag{1}, 'ColSN',Args.CatColNameSN);
                   
                     % OLD CODE:
                     % if ischar(Args.MagColName2update)
