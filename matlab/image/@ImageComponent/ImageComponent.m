@@ -1731,7 +1731,7 @@ classdef ImageComponent < Component
                         CutoutCube   = squeeze(CutoutCube);
                     end
                 case 'wmat'
-                    [CutoutCube] = imUtil.cut.find_within_radius_mat(Obj(Iobj).(Args.DataProp), RoundXY(:,1), RoundXY(:,2), Args.HalfSize, Args.IsCircle);
+                    [CutoutCube] = imUtil.cut.find_within_radius_mat(Obj(Iobj).(Args.DataProp), RoundXY(:,1), RoundXY(:,2), Args.HalfSize, Args.IsCircle, Args.PadVal);
                 otherwise
                     error('Unknown Algo option');
             end
