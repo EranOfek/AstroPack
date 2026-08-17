@@ -76,8 +76,8 @@ function Obj = calibrateTransients(Obj, Args)
         Args.FlagCol char = 'FLAGS_TRANSIENT'
 
         % Existing output columns
-        Args.ScoreCol char = 'SCORE'
-        Args.ScorrCol char = 'S_CORR'
+        Args.ScoreCol char = ''
+        Args.ScorrCol char = ''
 
         Args.FluxCol char = 'FLUX_PSF'
         Args.FluxErrCol char = 'FLUXERR_PSF'
