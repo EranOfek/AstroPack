@@ -285,13 +285,13 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Hard bad-pixel filters
         Args.flagBadPix_Hard logical = true
-        Args.BadPix_Hard cell = {'Interpolated','NaN','NearEdge','Hole','Negative', 'CR_DeltaHT'}
+        Args.BadPix_Hard cell = {'Interpolated','NaN','NearEdge','Hole','Negative'}
 
         % Soft bad-pixel filters
         Args.flagBadPix_Soft logical = true
         Args.BadPix_Soft cell = {'DarkHighVal', 'CR_DeltaHT'}
         Args.BPS_PSFLimit double = -2.8
-        Args.BPS_DeltaLimit double = 3.0
+        Args.BPS_DeltaLimit double = 10.0
 
         % Holes in the reference filters
         Args.flagRefHole logical = true;
@@ -349,6 +349,12 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.ContaminationMag double = [0.3 0.5]
         Args.ContaminationBackAnnulusMax double = [1.0 3.0]
         Args.ContaminationStdAnnulusMax double = [4.5 12 100]
+
+        % Local background
+        Args.flagLocalBack logical = true
+        Args.LocalBackStdMax double = 12
+        Args.LocalBackMax double = 3.0
+        Args.LocalBackSNEscape double = 100
 
         % Extendedness
         Args.flagExtended logical = true
@@ -1062,7 +1068,9 @@ function TranCat = flagNonTransients(Obj, Args)
                 ContamFluxCol = MaxContamFlux;
                 ContamFluxCol(~isfinite(ContamFluxCol)) = 0;
 
-                PSF_Flagged = ~Passes_PSFShape;
+                N_NotSalvagablePSF = (N_X2 + N_Y2) >= Args.SecondMomHardLim(3);
+
+                PSF_Flagged = ~Passes_PSFShape | N_NotSalvagablePSF;
                 FilterFlags = setFilterBit(FilterFlags, PSF_Flagged, BD_TF, 'PSFShape');
             else
                 ContamFluxCol = nan(NumCand,1);
@@ -1070,6 +1078,29 @@ function TranCat = flagNonTransients(Obj, Args)
 
             TranCat(Iobj) = Obj(Iobj).CatData.insertCol(...
                    ContamFluxCol, 'SCORE', {'FLUX_CONTAM'}, {''});
+        end
+
+        % ----- Disturbed local background -----
+        %  Annulus statistics measured in the difference image, on the
+        %  candidate itself. This is independent of the residual template:
+        %  it asks whether the neighbourhood is locally disturbed at all,
+        %  which catches diffuse structure, galaxy light and unmodelled
+        %  background with no persistent point source to blame. The residual
+        %  filter can only speak about candidates that have a contaminator
+        %  in reach, so the two do not overlap.
+        %
+        %  The escape on D_FLUX_PSF/STD_ANNULUS keeps a candidate that is
+        %  simply very bright: a high annulus STD next to a strong source is
+        %  the source's own wings, not a disturbed field.
+        if Args.flagLocalBack && D_PSFPhot_isSolved && Annulus_isSolved
+
+            Passes_LocalBack = ...
+                  (STD_ANNULUS < Args.LocalBackStdMax ...
+                   & abs(BACK_ANNULUS) < Args.LocalBackMax) ...
+                | (abs(D_FLUX_PSF./STD_ANNULUS) > Args.LocalBackSNEscape);
+
+            FilterFlags = setFilterBit(FilterFlags, ~Passes_LocalBack, ...
+                                       BD_TF, 'LocalBack');
         end
 
         %{
