@@ -34,7 +34,7 @@ function ContamCat = psfResidContamCat(Obj, Args)
 
     arguments
         Obj(1,1)
-        Args.ResidThresh = 5;
+        Args.ResidThresh = 4;
         Args.BadPixDist  = 3;
         Args.MinSN_R     = 5;
         Args.RatioPrc    = 95;

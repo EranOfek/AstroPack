@@ -79,10 +79,10 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
         Args.MinPeakSN            = 5;
         
         Args.BlobThresh           = 2;
-        Args.MinBlobArea          = 20;
+        Args.MinBlobArea          = 25;
 
-        Args.RingWeight           = 0.3;
-        Args.RingWidth            = 2;
+        Args.RingWeight           = 1;
+        Args.RingWidth            = 1;
 
         Args.RadiusPrc            = 90;
         Args.RadiusPad            = 1;
