@@ -198,9 +198,11 @@ function [Result] = forcedPhot(Obj, Args)
         Args.ConvThresh              = 1e-4;
         Args.MaxIter                 = 10;      % use 1 for no itrations
         Args.UseSourceNoise          = 'off';
-        Args.ZP                      = 25; 
+        Args.ZP                      = 25;
         Args.HeaderZP                = true; %false;   % Use ZP from image header (PH_ZP); (if nan returns to Args.ZP)
-        
+
+        Args.UseMex                  = false;   % passed to imUtil.sources.psfPhotCube - see issue #1198
+
         Args.OutType                 = 'MatchedSources';
     end
 
@@ -385,6 +387,7 @@ function [Result] = forcedPhot(Obj, Args)
                                                                 'ConvThresh',Args.ConvThresh,...
                                                                 'MaxIter',Args.MaxIter,...
                                                                 'UseSourceNoise',Args.UseSourceNoise,...
+                                                                'UseMex',Args.UseMex,...
                                                                 'ZP',Args.ZP);
                                                             
             

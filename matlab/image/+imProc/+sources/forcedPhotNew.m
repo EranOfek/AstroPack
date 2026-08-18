@@ -73,9 +73,11 @@ function [Result] = forcedPhotNew(Obj, Args)
         Args.ConvThresh              = 1e-4;
         Args.MaxIter                 = 2; % 10      % use 1 for no itrations
         Args.UseSourceNoise          = 'off';
-        Args.ZP                      = 25; 
+        Args.ZP                      = 25;
         Args.HeaderZP                = true; %false;   % Use ZP from image header (PH_ZP); (if nan returns to Args.ZP)
-        
+
+        Args.UseMex                  = false;   % passed to imUtil.sources.psfPhotCube - see issue #1198
+
     end
 
     % empty object list returns the input untouched 
@@ -295,6 +297,7 @@ function [Result] = forcedPhotNew(Obj, Args)
                                                                 'UseSourceNoise',Args.UseSourceNoise,...
                                                                 'PsfPhotMethod',Args.PsfPhotMethod,...
                                                                 'ShiftMethod',Args.ShiftMethod,...
+                                                                'UseMex',Args.UseMex,...
                                                                 'ZP',Args.ZP);
                                                             
             
