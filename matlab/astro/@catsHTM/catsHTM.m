@@ -101,7 +101,8 @@
 %       catalog (default GAIADR3) vs all/selected catsHTM catalogs,
 %       cross-match to a growing master (union) list, append orphans, and
 %       stamp Ind_/Nmatch_/Dist_ + the stable CellID_/RowInCell_ pointer
-%       (opt-in CatRowID_ scalar; IdExtras for multiple matches) per cat.
+%       (opt-in CatRowID_ scalar) per cat; extra matches in a compact
+%       Summary.ExtraMatches table.
 %   gatherCrossIDData(T[,Cats_cone],...) -> Data
 %       Materialize the index T into a per-source DATA table. Source='cats'
 %       reads the Cats_cone snapshot via Ind_; Source='pointer' reads live
@@ -5332,17 +5333,17 @@ classdef catsHTM
             %            'KeepExtraMatches' - When a catalog has SEVERAL sources within
             %                   the match radius of a master source, keep the full list.
             %                   The result stays one row per master source: Ind_<Cat>,
-            %                   Nmatch_<Cat>, Dist_<Cat> are for the NEAREST match and
-            %                   Nmatch_<Cat> is the true count; the additional (non
-            %                   nearest) catalog indices, ordered by distance, are kept
-            %                   per row as a VECTOR. These vectors are always returned
-            %                   in Summary.ExtraMatches.<Cat> (an Nglobal-by-1 cell;
-            %                   each entry is a native-index row vector, or NaN when
-            %                   there are 0 or 1 matches). With OutType='table' they are
-            %                   also added as an IndExtra_<Cat> cell column. Uses the
-            %                   heavier multi-match; NOT supported with TableToDisk, and
-            %                   the IndExtra_ cell columns are not written to CSV.
-            %                   Default is false.
+            %                   Nmatch_<Cat>, Dist_<Cat> are for the NEAREST match (and
+            %                   Nmatch_<Cat> is the true count). The additional (non
+            %                   nearest) matches are collected into a single COMPACT
+            %                   table Summary.ExtraMatches - one ROW per extra match,
+            %                   columns: MasterID (the global output row), Catalog,
+            %                   Ind (native index into Cats_cone.<Cat>), CellID and
+            %                   RowInCell (the stable pointer, NaN if AddPointer is off),
+            %                   Dist_arcsec. Only sources that actually have >=2 matches
+            %                   appear, so it stays small; filter it by MasterID/Catalog
+            %                   and join back to the table on MasterID. NOT supported
+            %                   with TableToDisk. Default is true.
             %            'AddPointer' - Add a STABLE, query-independent pointer to each
             %                   source: two numeric columns CellID_<Cat> (HTM leaf-cell
             %                   id) and RowInCell_<Cat> (row within htm_<CellID>), the
@@ -5362,18 +5363,6 @@ classdef catsHTM
             %                   derived from the pair) and costs one metadata scan
             %                   (catsHTM.getNsrcMeta) per catalog, so it is opt-in.
             %                   Default is false.
-            %            'IdExtras' - Also stamp the ADDITIONAL (non-nearest) matches
-            %                   with the same id layers the main match gets: when
-            %                   AddPointer, adds CellIDExtra_<Cat>/RowInCellExtra_<Cat>;
-            %                   when AddCatRowID, also CatRowIDExtra_<Cat>. Each is a
-            %                   ragged cell-of-vectors aligned with IndExtra_<Cat> (one
-            %                   value per extra match, NaN when there are 0 or 1
-            %                   matches), so - like IndExtra_ - it lives only in a table
-            %                   and in Summary (ExtraCellID/ExtraRowInCell/ExtraCatRowID),
-            %                   never in a numeric AstroCatalog or CSV. Requires
-            %                   KeepExtraMatches and AddPointer, and costs extra
-            %                   sourcePointer reads for the additional matches.
-            %                   Default is false.
             %            'MarkShared' - Add NcoreShare_<Cat>: the number of core
             %                   (master) sources whose nearest match is the SAME
             %                   Cat source (0 no match, 1 unique, >=2 a Cat source
@@ -5387,13 +5376,12 @@ classdef catsHTM
             %                   Numeric, so present in table, AstroCatalog and CSV.
             %                   In-memory only (skipped with a note in TableToDisk).
             %                   Default is false.
-            %            'OutType' - 'table' (MATLAB table; includes the OriginCat
-            %                   column and, when KeepExtraMatches=true, the IndExtra_
-            %                   cell columns) or 'astrocatalog' (numeric-column
-            %                   AstroCatalog - the text OriginCat and any cell columns
-            %                   are NOT included; OriginCat is kept in
-            %                   Summary.OriginCat, row-aligned, and extra matches in
-            %                   Summary.ExtraMatches). Default is 'table'. Access
+            %            'OutType' - 'table' (MATLAB table; includes the text OriginCat
+            %                   column) or 'astrocatalog' (numeric-column AstroCatalog -
+            %                   the text OriginCat is NOT included but kept in
+            %                   Summary.OriginCat, row-aligned). Either way the extra
+            %                   matches live in the compact Summary.ExtraMatches table.
+            %                   Default is 'table'. Access
             %                   AstroCatalog columns with getCol, e.g.
             %                   Ind = getCol(XidCat,'Ind_PS1'). Ignored when
             %                   TableToDisk=true.
@@ -5414,12 +5402,15 @@ classdef catsHTM
             %                   validatable via catsHTM.checkCatalogSignature
             %                   without the full .mat. 'json' is skipped (with a
             %                   note) when StampSignature is off. Default {'mat','csv'}.
-            %            'MatVars' - Which of {'XidTable','Cats_cone','Summary'} the
-            %                   'mat' output stores. Cats_cone is the BULK (the raw
-            %                   per-catalog snapshots), so e.g. {'XidTable','Summary'}
-            %                   keeps a small .mat that still carries the pointers and
-            %                   the version signatures, and {'XidTable'} the table
-            %                   alone. Default all three (full bundle, unchanged).
+            %            'MatVars' - Which of {'XidTable','Cats_cone','Summary',
+            %                   'Signature'} the 'mat' output stores. Cats_cone is the
+            %                   BULK (raw per-catalog snapshots) and Summary can also
+            %                   be large (ExtraMatches). 'Signature' saves ONLY
+            %                   Summary.Signature (the tiny per-catalog fingerprints)
+            %                   as its own variable - so {'XidTable','Signature'} keeps
+            %                   the pointers + version stamps in a small .mat, while
+            %                   {'XidTable'} is the table alone. Default all three
+            %                   real vars {XidTable,Cats_cone,Summary} (unchanged).
             %            'CatsToDisk' - If true, each catalog's cone_search result is
             %                   written to its own .mat file as soon as it has been
             %                   used, then cleared from memory, so peak memory is set
@@ -5456,13 +5447,11 @@ classdef catsHTM
             %            and (when AddPointer=true) CellID_<Cat> / RowInCell_<Cat> - the
             %            stable per-source storage pointer - and (when AddCatRowID=true)
             %            CatRowID_<Cat>, that pointer collapsed to a single catalog-wide
-            %            scalar id. By default (OutType='table')
-            %            this is a MATLAB table
-            %            including OriginCat (and the IndExtra_<Cat> cell columns when
-            %            KeepExtraMatches=true, plus CellIDExtra_/RowInCellExtra_/
-            %            CatRowIDExtra_<Cat> when IdExtras=true); with OutType='astrocatalog' it is an
-            %            AstroCatalog with the numeric columns only (OriginCat is in
-            %            Summary.OriginCat, extra matches in Summary.ExtraMatches). If
+            %            scalar id. By default (OutType='table') this is a MATLAB table
+            %            including the text OriginCat column; with OutType='astrocatalog'
+            %            it is an AstroCatalog with the numeric columns only (OriginCat
+            %            is in Summary.OriginCat). Either way the additional (non-nearest)
+            %            matches are in the compact Summary.ExtraMatches table. If
             %            'TableToDisk'=true this output is instead the .mat file PATH
             %            (char) the table was streamed to (see 'TableToDisk').
             %            Ind_<Cat> is the source identifier: since native SourceID
@@ -5489,41 +5478,31 @@ classdef catsHTM
             %              Nmatched + Norphan = Ncone.
             %            MatchRadiusArcsec - match radius used for that catalog.
             %            If KeepExtraMatches=true, Summary also has .ExtraMatches - a
-            %            struct with an Nglobal-by-1 cell per catalog holding the
-            %            additional (non-nearest) native match indices per master row.
-            %            If IdExtras=true, Summary also has .ExtraCellID / .ExtraRowInCell
-            %            (and .ExtraCatRowID when AddCatRowID) - the same cell-of-vectors
-            %            layout holding the storage pointer / scalar id of each extra
-            %            match.
-            % Note   : The FIRST output is a projection of the full result onto what the
-            %          chosen container can represent, so its content depends on the
-            %          format - but no information is lost, because Summary is the
-            %          canonical record (Summary.OriginCat always holds provenance and,
-            %          with KeepExtraMatches, Summary.ExtraMatches always holds the extra
-            %          vectors). What each format carries:
+            %            compact TABLE, one row per additional (non-nearest) match, with
+            %            columns MasterID, Catalog, Ind (native index into Cats_cone.<Cat>),
+            %            CellID/RowInCell (stable pointer, NaN if AddPointer is off) and
+            %            Dist_arcsec. Only sources with >=2 matches appear; join it back
+            %            to the output on MasterID.
+            % Note   : XidTable is now fully flat (all columns numeric except the text
+            %          OriginCat); the additional (non-nearest) matches always live in the
+            %          compact Summary.ExtraMatches table, never in XidTable. So the FIRST
+            %          output differs between formats only in how it carries OriginCat:
             %            OutType='table' (default) - MasterID, RA, Dec, OriginCat, then
             %              Ind_/Nmatch_/Dist_ (and CellID_/RowInCell_ when AddPointer,
-            %              CatRowID_ when AddCatRowID) per catalog, plus IndExtra_<Cat>
-            %              cell columns when KeepExtraMatches=true (and, when IdExtras,
-            %              CellIDExtra_/RowInCellExtra_/CatRowIDExtra_ cell columns).
-            %              The fullest form.
-            %            OutType='astrocatalog' - the numeric columns only (this DOES
-            %              include CellID_/RowInCell_/CatRowID_, which are numeric). The
-            %              text OriginCat and the ragged IndExtra_/*Extra_ CANNOT live in
-            %              a numeric AstroCatalog, so they are dropped from the object and
-            %              read instead from Summary (OriginCat / ExtraMatches /
-            %              ExtraCellID / ExtraRowInCell / ExtraCatRowID).
-            %            OutFile .mat - stores XidTable as the SAME type as the returned
-            %              output (so it carries whatever that type carries), plus Cats_cone
-            %              and Summary.
-            %            OutFile .csv - MasterID, RA, Dec, OriginCat, Ind_/Nmatch_/Dist_
-            %              (and CellID_/RowInCell_/CatRowID_ when enabled); the ragged
-            %              IndExtra_/*Extra_ cell columns are NOT written (not
-            %              serialisable to CSV).
+            %              CatRowID_ when AddCatRowID, NcoreShare_ when MarkShared) per
+            %              catalog.
+            %            OutType='astrocatalog' - the same numeric columns; the text
+            %              OriginCat is dropped from the object and read from
+            %              Summary.OriginCat.
+            %            OutFile .mat - stores the selected MatVars (XidTable, Cats_cone,
+            %              Summary and/or just Signature; see 'MatVars').
+            %            OutFile .csv - the flat table (everything serialises since only
+            %              OriginCat is text); Summary.ExtraMatches is NOT in the csv -
+            %              use 'json' for the signatures, or save ExtraMatches yourself.
             %            TableToDisk .mat - MasterID, RA, Dec, OriginCat and the
             %              Ind_/Nmatch_/Dist_ columns as separate variables, plus Summary
-            %              and Cats_cone; KeepExtraMatches and AddPointer are not supported in
-            %              this mode.
+            %              and Cats_cone; KeepExtraMatches and AddPointer are not supported
+            %              in this mode.
             %          The differences are forced by container limits: a numeric
             %          AstroCatalog cannot hold text or ragged columns, and CSV cannot
             %          hold ragged columns.
@@ -5570,13 +5549,12 @@ classdef catsHTM
             %  Lp = load(Cats_cone.PS1);  ps1 = Lp.Cat;   % AstroCatalog for PS1
             %  src = ps1.Catalog(T.Ind_PS1(g),:);
             %
-            %  % (7) keep the list of additional matches when a catalog has several
-            %  %     sources within the radius of one master source (default table):
-            %  [T, Cats_cone, S] = catsHTM.crossIDCatsHTM(254/RAD, 64/RAD, 360, ...
-            %               'KeepExtraMatches',true);
+            %  % (7) additional matches when a catalog has several sources within the
+            %  %     radius of one master source (default; compact Summary.ExtraMatches):
+            %  [T, Cats_cone, S] = catsHTM.crossIDCatsHTM(254/RAD, 64/RAD, 360);
             %  T.Ind_PS1(g)         % nearest PS1 source; T.Nmatch_PS1(g) = actual count
-            %  T.IndExtra_PS1{g}    % vector of the OTHER PS1 indices (NaN if <=1 match)
-            %  S.ExtraMatches.PS1{g}% same list (also the only home under 'astrocatalog')
+            %  EM = S.ExtraMatches; % table: MasterID, Catalog, Ind, CellID, RowInCell, Dist_arcsec
+            %  EM(EM.MasterID==g & strcmp(EM.Catalog,'PS1'), :)  % the OTHER PS1 matches for row g
             %
             %  % (8) STEP 2 - materialize the actual per-source DATA from the index T
             %  %     with catsHTM.gatherCrossIDData (the companion gatherer):
@@ -5592,7 +5570,7 @@ classdef catsHTM
                 Args.RadiusUnits               = 'arcsec';
                 Args.RefCat                    = 'GAIADR3';
                 Args.CatList                   = {};
-                Args.SkipCats                  = {'MergedCat', 'GAIAEDR3'};
+                Args.SkipCats                  = {'MergedCat', 'GAIAEDR3', 'PS1'};
                 Args.MatchRadius               = 2;
                 Args.MatchRadiusUnits          = 'arcsec';
                 Args.RadiusPerCat              = {};
@@ -5602,7 +5580,6 @@ classdef catsHTM
                 Args.KeepExtraMatches logical  = true;
                 Args.AddPointer logical        = true;
                 Args.AddCatRowID logical       = false;
-                Args.IdExtras logical          = false;
                 Args.MarkShared logical        = false;
                 Args.StampSignature logical    = true;
                 Args.OutType                   = 'table';
@@ -5637,13 +5614,12 @@ classdef catsHTM
             if Args.AddCatRowID && ~AddPointer && Args.Verbose
                 fprintf('crossIDCatsHTM: AddCatRowID requires AddPointer; skipped.\n');
             end
-            % IdExtras mirrors the main-match id layers (CellID_/RowInCell_, and
-            % CatRowID_ when AddCatRowID) onto the additional (non-nearest) matches, as
-            % ragged cell-of-vector columns; needs KeepExtraMatches + AddPointer.
-            IdExtras = Args.IdExtras && KeepExtra && AddPointer;
-            if Args.IdExtras && ~(KeepExtra && AddPointer) && Args.Verbose
-                fprintf('crossIDCatsHTM: IdExtras needs KeepExtraMatches and AddPointer; skipped.\n');
-            end
+            % Additional (non-nearest) matches are collected into the compact
+            % Summary.ExtraMatches table (MasterID, Catalog, Ind, CellID, RowInCell,
+            % Dist_arcsec). Their stable pointers are computed whenever
+            % KeepExtraMatches is on and pointers are available (same sourcePointer
+            % pass as the nearest matches, so ~free).
+            ExtraPtr = KeepExtra && AddPointer;
             % MarkShared adds NcoreShare_<Cat> = number of core sources that share
             % each Cat source (mirror of Nmatch_<Cat>; 0 no-match, 1 unique, >=2 a
             % blend). Computed from the assembled Ind_ column, so in-memory only.
@@ -5731,9 +5707,10 @@ classdef catsHTM
             Nmatch    = struct();
             Dist      = struct();
             Extra     = struct();     % only used when KeepExtra (never with Stream)
+            ExtraDist = struct();     % matching extra-match distances [arcsec]
             CellID    = struct();     % only used when AddPointer (never with Stream)
             RowInCell = struct();
-            CellIDExtra    = struct(); % only used when IdExtras (cell-of-vectors)
+            CellIDExtra    = struct(); % extra-match pointers (cell-of-vectors), when ExtraPtr
             RowInCellExtra = struct();
             ColFiles  = {};
             AnchorInd  = (1:L).';
@@ -5746,13 +5723,14 @@ classdef catsHTM
                 Nmatch.(Args.RefCat) = AnchorNm;
                 Dist.(Args.RefCat)   = AnchorDist;
                 if KeepExtra
-                    Extra.(Args.RefCat) = repmat({NaN}, L, 1);   % anchor has no extras
+                    Extra.(Args.RefCat)     = repmat({NaN}, L, 1);   % anchor has no extras
+                    ExtraDist.(Args.RefCat) = repmat({NaN}, L, 1);
                 end
                 if AddPointer
                     CellID.(Args.RefCat)    = AnchorCID;
                     RowInCell.(Args.RefCat) = AnchorRIC;
                 end
-                if IdExtras
+                if ExtraPtr
                     CellIDExtra.(Args.RefCat)    = repmat({NaN}, L, 1);  % anchor: no extras
                     RowInCellExtra.(Args.RefCat) = repmat({NaN}, L, 1);
                 end
@@ -5799,7 +5777,8 @@ classdef catsHTM
                     FullNm   = zeros(L,1);
                     FullDist = nan(L,1);
                     if KeepExtra
-                        FullExtra = repmat({NaN}, L, 1);
+                        FullExtra     = repmat({NaN}, L, 1);
+                        FullExtraDist = repmat({NaN}, L, 1);
                     end
                     Norphan  = 0;
 
@@ -5827,10 +5806,11 @@ classdef catsHTM
                         ML = numel(MatchRA);
                         if KeepExtra
                             % all matches per master row (nearest + additional list)
-                            [IndVec, NmVec, DistVec, ExtraML, OrphSorted] = ...
+                            [IndVec, NmVec, DistVec, ExtraML, ExtraDistML, OrphSorted] = ...
                                 localMultiMatch(SortedCat, MasterCat, RadMat, ...
                                     Args.MatchRadiusUnits, SI, Ncone, ML);
-                            FullExtra(1:ML) = ExtraML;
+                            FullExtra(1:ML)     = ExtraML;
+                            FullExtraDist(1:ML) = ExtraDistML;
                         else
                             % Obj1 = this catalog (sorted copy), Obj2 = master, so the
                             % per-master-row fields are exactly what we need.
@@ -5864,7 +5844,8 @@ classdef catsHTM
                             FullNm(NewIdx,1)   = 1;
                             FullDist(NewIdx,1) = 0;
                             if KeepExtra
-                                FullExtra(NewIdx,1) = repmat({NaN}, Norphan, 1);
+                                FullExtra(NewIdx,1)     = repmat({NaN}, Norphan, 1);
+                                FullExtraDist(NewIdx,1) = repmat({NaN}, Norphan, 1);
                             end
                             L = L + Norphan;
                         end
@@ -5879,9 +5860,10 @@ classdef catsHTM
                     if AddPointer && Ncone > 0
                         % native rows referenced by the nearest matches...
                         RefMain = FullInd(~isnan(FullInd));
-                        % ...and, when IdExtras, by the additional (non-nearest) matches
+                        % ...and by the additional (non-nearest) matches (for the
+                        % Summary.ExtraMatches table); same sourcePointer pass.
                         RefExtra = [];
-                        if IdExtras
+                        if ExtraPtr
                             HasEx    = ~cellfun(@(v) all(isnan(v)), FullExtra);
                             RefExtra = [FullExtra{HasEx}];   % concat of native-index row vecs
                             RefExtra = RefExtra(~isnan(RefExtra));
@@ -5898,7 +5880,7 @@ classdef catsHTM
                         FullCellID(Gp)    = CidMap(FullInd(Gp));
                         FullRowInCell(Gp) = RicMap(FullInd(Gp));
                         % map the extra-match native indices through the same pointer map
-                        if IdExtras
+                        if ExtraPtr
                             CellIDExtraCol    = cellfun(@(v) localMapVec(v, CidMap), FullExtra, ...
                                 'UniformOutput', false);
                             RowInCellExtraCol = cellfun(@(v) localMapVec(v, RicMap), FullExtra, ...
@@ -5924,13 +5906,14 @@ classdef catsHTM
                         Nmatch.(Name) = FullNm;
                         Dist.(Name)   = FullDist;
                         if KeepExtra
-                            Extra.(Name) = FullExtra;
+                            Extra.(Name)     = FullExtra;
+                            ExtraDist.(Name) = FullExtraDist;
                         end
                         if AddPointer
                             CellID.(Name)    = FullCellID;
                             RowInCell.(Name) = FullRowInCell;
                         end
-                        if IdExtras
+                        if ExtraPtr
                             CellIDExtra.(Name)    = CellIDExtraCol;
                             RowInCellExtra.(Name) = RowInCellExtraCol;
                         end
@@ -5981,40 +5964,43 @@ classdef catsHTM
                 end
             end
 
-            % additional (non-nearest) matches per master row, as an Nglobal-by-1 cell
-            % per catalog (NaN entries where there are 0 or 1 matches).
-            if KeepExtra
-                Summary.ExtraMatches = struct();
-                for Icol = 1:1:numel(ColNames)
-                    Summary.ExtraMatches.(ColNames{Icol}) = localPadCell(Extra.(ColNames{Icol}), Nglobal);
-                end
-            end
-
             % per-catalog getNsrcMeta offset tables, computed once and reused by the
-            % main and extra CatRowID mappings (only when AddCatRowID).
+            % main-match CatRowID mapping (only when AddCatRowID).
             NsrcCache = containers.Map('KeyType','char','ValueType','any');
 
-            % storage pointers / scalar ids for the extra matches (IdExtras): ragged
-            % cell-of-vector columns, mirroring the main-match id layers.
-            if IdExtras
-                Summary.ExtraCellID    = struct();
-                Summary.ExtraRowInCell = struct();
-                if AddCatRowID
-                    Summary.ExtraCatRowID = struct();
-                end
+            % additional (non-nearest) matches as a COMPACT long table: one row per
+            % extra match (only sources that actually have >=2 matches), instead of
+            % a dense Nglobal-by-Ncat grid of mostly-NaN cells. Columns:
+            % MasterID (global row), Catalog, Ind (native index into Cats_cone.<Cat>),
+            % CellID/RowInCell (stable pointer, NaN if AddPointer is off), Dist_arcsec.
+            if KeepExtra
+                EMid = zeros(0,1); EMcat = cell(0,1); EMind = zeros(0,1);
+                EMcid = zeros(0,1); EMric = zeros(0,1); EMdist = zeros(0,1);
                 for Icol = 1:1:numel(ColNames)
-                    Nm   = ColNames{Icol};
-                    ECid = localPadCell(CellIDExtra.(Nm),    Nglobal);
-                    ERic = localPadCell(RowInCellExtra.(Nm), Nglobal);
-                    Summary.ExtraCellID.(Nm)    = ECid;
-                    Summary.ExtraRowInCell.(Nm) = ERic;
-                    if AddCatRowID
-                        NsrcTab        = catsHTM.getNsrcMeta(Nm);
-                        NsrcCache(Nm)  = NsrcTab;
-                        Summary.ExtraCatRowID.(Nm) = cellfun(@(c,r) ...
-                            localExtraCatRowID(Nm, c, r, NsrcTab), ECid, ERic, 'UniformOutput', false);
+                    Nm     = ColNames{Icol};
+                    Ex     = Extra.(Nm);
+                    ExD    = ExtraDist.(Nm);
+                    hasPtr = ExtraPtr && isfield(CellIDExtra, Nm);
+                    for g = 1:1:numel(Ex)
+                        v = Ex{g}(:);
+                        if ~isempty(v) && ~all(isnan(v))
+                            k      = numel(v);
+                            EMid   = [EMid;  repmat(g, k, 1)];   %#ok<AGROW>
+                            EMcat  = [EMcat; repmat({Nm}, k, 1)];%#ok<AGROW>
+                            EMind  = [EMind; v];                 %#ok<AGROW>
+                            EMdist = [EMdist; ExD{g}(:)];        %#ok<AGROW>
+                            if hasPtr
+                                EMcid = [EMcid; CellIDExtra.(Nm){g}(:)];    %#ok<AGROW>
+                                EMric = [EMric; RowInCellExtra.(Nm){g}(:)]; %#ok<AGROW>
+                            else
+                                EMcid = [EMcid; nan(k,1)];       %#ok<AGROW>
+                                EMric = [EMric; nan(k,1)];       %#ok<AGROW>
+                            end
+                        end
                     end
                 end
+                Summary.ExtraMatches = table(EMid, EMcat, EMind, EMcid, EMric, EMdist, ...
+                    'VariableNames', {'MasterID','Catalog','Ind','CellID','RowInCell','Dist_arcsec'});
             end
 
             if Stream
@@ -6081,21 +6067,10 @@ classdef catsHTM
                     AC.ColNames = Numeric.Properties.VariableNames;
                     XidTable    = AC;
                 else
+                    % XidTable is now fully flat/numeric; the additional (non-nearest)
+                    % matches live in the compact Summary.ExtraMatches table, keyed to
+                    % rows here by MasterID (no ragged per-catalog cell columns).
                     XidTable = TableForm;
-                    % add the additional-matches cell columns (table output only)
-                    if KeepExtra
-                        for Icol = 1:1:numel(ColNames)
-                            Nm = ColNames{Icol};
-                            XidTable.(['IndExtra_' Nm]) = Summary.ExtraMatches.(Nm);
-                            if IdExtras
-                                XidTable.(['CellIDExtra_' Nm])    = Summary.ExtraCellID.(Nm);
-                                XidTable.(['RowInCellExtra_' Nm]) = Summary.ExtraRowInCell.(Nm);
-                                if AddCatRowID
-                                    XidTable.(['CatRowIDExtra_' Nm]) = Summary.ExtraCatRowID.(Nm);
-                                end
-                            end
-                        end
-                    end
                 end
 
                 % ---- optional file output ---------------------------------------
@@ -6480,15 +6455,6 @@ function Share = localCoreShare(Ind)
 end
 
 % ======================================================================
-function C = localPadCell(C, N)
-    % Pad a cell column to length N with {NaN}.
-    C = C(:);
-    if numel(C) < N
-        C(numel(C)+1:N, 1) = repmat({NaN}, N-numel(C), 1);
-    end
-end
-
-% ======================================================================
 function Out = localMapVec(V, Map)
     % Map a vector of native cone indices (or the scalar-NaN sentinel) through
     % a per-row lookup Map, preserving NaNs and shape.
@@ -6498,28 +6464,23 @@ function Out = localMapVec(V, Map)
 end
 
 % ======================================================================
-function G = localExtraCatRowID(Name, Cid, Ric, NsrcTab)
-    % Collapse an extra-match pointer vector (or NaN) to scalar CatRowIDs,
-    % reusing the precomputed getNsrcMeta offset table; returns a row vector.
-    G = catsHTM.catRowID(Name, Cid(:), Ric(:), 'Nsrc', NsrcTab).';
-end
-
-% ======================================================================
-function [IndVec, NmVec, DistVec, ExtraML, OrphSorted] = ...
+function [IndVec, NmVec, DistVec, ExtraML, ExtraDistML, OrphSorted] = ...
         localMultiMatch(SortedCat, MasterCat, RadMat, RadUnits, SI, Ncone, ML)
     % Per master row, return the nearest match plus the list of additional
     % (non-nearest) matches. Indices are remapped SortedCat -> native via SI.
     % IndVec/NmVec/DistVec are ML-by-1 (nearest, count, nearest dist [arcsec]);
     % ExtraML is an ML-by-1 cell (native index row vector, or NaN for <=1);
+    % ExtraDistML is the matching ML-by-1 cell of extra distances [arcsec];
     % OrphSorted are SortedCat rows matched to no master source.
     RM = imProc.match.matchReturnIndicesMulti(SortedCat, MasterCat, ...
             'CooType','sphere', 'Radius',RadMat, 'RadiusUnits',RadUnits);
     MM = RM(1).Ind;                       % struct array, one per master row
 
-    IndVec  = nan(ML,1);
-    NmVec   = zeros(ML,1);
-    DistVec = nan(ML,1);
-    ExtraML = repmat({NaN}, ML, 1);
+    IndVec      = nan(ML,1);
+    NmVec       = zeros(ML,1);
+    DistVec     = nan(ML,1);
+    ExtraML     = repmat({NaN}, ML, 1);
+    ExtraDistML = repmat({NaN}, ML, 1);
     Matched = false(Ncone,1);
     for Ig = 1:1:ML
         Ids = MM(Ig).Ind(:);
@@ -6527,11 +6488,13 @@ function [IndVec, NmVec, DistVec, ExtraML, OrphSorted] = ...
             Matched(Ids)  = true;
             [Dsort, Ord]  = sort(MM(Ig).Dist(:));   % nearest first
             IdsN          = SI(Ids(Ord));           % native indices
+            DsortAS       = convert.angular('rad', 'arcsec', Dsort);
             IndVec(Ig)    = IdsN(1);
             NmVec(Ig)     = numel(Ids);
-            DistVec(Ig)   = convert.angular('rad', 'arcsec', Dsort(1));
+            DistVec(Ig)   = DsortAS(1);
             if numel(IdsN) > 1
-                ExtraML{Ig} = IdsN(2:end).';        % additional native indices
+                ExtraML{Ig}     = IdsN(2:end).';    % additional native indices
+                ExtraDistML{Ig} = DsortAS(2:end).'; % and their distances [arcsec]
             end
         end
     end
@@ -6658,16 +6621,29 @@ function localWriteOut(OutFile, Formats, XidTable, TableForm, Cats_cone, Summary
         if ischar(MatVars) || isstring(MatVars)
             MatVars = cellstr(MatVars);
         end
-        Vars = {'XidTable','Cats_cone','Summary'};
+        % 'Signature' saves ONLY Summary.Signature (the small per-catalog version
+        % fingerprints) as its own variable - use it to keep the fingerprints
+        % without the bulky full Summary (ExtraMatches etc.).
+        Sig = [];
+        if isstruct(Summary) && isfield(Summary, 'Signature')
+            Sig = Summary.Signature;
+        end
+        Vars = {'XidTable','Cats_cone','Summary','Signature'};
         Vars = Vars(ismember(Vars, MatVars));
+        if any(strcmp(Vars,'Signature')) && isempty(Sig)
+            warning('catsHTM:crossIDCatsHTM:noSignature', ...
+                'MatVars asked for Signature but Summary has none (StampSignature off); skipping it.');
+            Vars = Vars(~strcmp(Vars,'Signature'));
+        end
         if isempty(Vars)
             warning('catsHTM:crossIDCatsHTM:matVars', ...
-                'MatVars selected none of {XidTable,Cats_cone,Summary}; saving XidTable only.');
+                'MatVars selected nothing to save; saving XidTable only.');
             Vars = {'XidTable'};
         end
         % bundle the requested subset and save its fields as top-level variables
         % (cell-wrap so the struct stays scalar even for struct/object values).
-        Bundle = struct('XidTable', {XidTable}, 'Cats_cone', {Cats_cone}, 'Summary', {Summary});
+        Bundle = struct('XidTable', {XidTable}, 'Cats_cone', {Cats_cone}, ...
+                        'Summary', {Summary}, 'Signature', {Sig});
         Bundle = rmfield(Bundle, setdiff(fieldnames(Bundle), Vars));
         save(MatFile, '-struct', 'Bundle', '-v7.3');
         if Verbose

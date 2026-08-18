@@ -377,45 +377,52 @@ function testOutputTypes(testCase)
 end
 
 function testKeepExtraMatches(testCase)
-    % XIDB has two sources within 2" of anchor #1: one row, nearest data in
-    % Ind_XIDB, actual count in Nmatch_XIDB, and the additional match in the
-    % IndExtra_XIDB cell column.
+    % XIDB has two sources within 2" of anchor #1: the nearest is in Ind_XIDB;
+    % the extra goes into the compact Summary.ExtraMatches TABLE (one row).
     [Tb, ~, S] = catsHTM.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
         'RefCat','XIDREF','CatList',{'XIDB'},'MatchRadius',2, ...
         'KeepExtraMatches',true,'Verbose',false);
 
-    % the cluster does not preserve input order, so locate the multi-match row
     R = find(Tb.Nmatch_XIDB == 2);
     verifyEqual(testCase, numel(R), 1, 'Exactly one master row should have 2 XIDB matches.');
-    Extra1 = Tb.IndExtra_XIDB{R};
-    verifyEqual(testCase, numel(Extra1), 1, 'Multi-match row should have one additional match.');
-    verifyFalse(testCase, any(isnan(Extra1)), 'Additional match index should not be NaN.');
-    verifyNotEqual(testCase, Extra1, Tb.Ind_XIDB(R), 'Extra index must differ from nearest.');
+    % XidTable is fully flat now - no ragged IndExtra_ cell columns
+    verifyFalse(testCase, any(startsWith(Tb.Properties.VariableNames,'IndExtra_')), ...
+        'XidTable should not have IndExtra_ cell columns anymore.');
+
+    EM = S.ExtraMatches;
+    verifyTrue(testCase, istable(EM), 'Summary.ExtraMatches must be a table.');
+    verifyEqual(testCase, EM.Properties.VariableNames, ...
+        {'MasterID','Catalog','Ind','CellID','RowInCell','Dist_arcsec'}, ...
+        'ExtraMatches columns wrong.');
+
+    % exactly one extra match: multi-match master row, catalog XIDB
+    verifyEqual(testCase, height(EM), 1, 'Expected exactly one extra-match row.');
+    verifyEqual(testCase, EM.MasterID, R, 'Extra row MasterID should be the multi-match row.');
+    verifyEqual(testCase, EM.Catalog{1}, 'XIDB', 'Extra row catalog should be XIDB.');
+    verifyNotEqual(testCase, EM.Ind, Tb.Ind_XIDB(R), 'Extra Ind must differ from the nearest.');
     % nearest + extra together are the two XIDB sources (indices 1 and 2)
-    verifyEqual(testCase, sort([Tb.Ind_XIDB(R); Extra1(:)]), [1;2], ...
-        'Nearest+extra should be the two XIDB sources.');
+    verifyEqual(testCase, sort([Tb.Ind_XIDB(R); EM.Ind]), [1;2], ...
+        'Nearest + extra should be the two XIDB sources.');
 
-    % every other row (<=1 match) carries NaN in IndExtra
-    Others = setdiff((1:height(Tb)).', R);
-    verifyTrue(testCase, all(cellfun(@(c) isscalar(c) && isnan(c), Tb.IndExtra_XIDB(Others))), ...
-        'Rows with <=1 match must have NaN extra.');
-
-    % Summary.ExtraMatches mirrors the IndExtra column
-    verifyTrue(testCase, isequaln(S.ExtraMatches.XIDB, Tb.IndExtra_XIDB), ...
-        'Summary.ExtraMatches must match the IndExtra column.');
+    % the stored pointer is set and dereferences to one source; distance sane
+    verifyFalse(testCase, isnan(EM.CellID) || isnan(EM.RowInCell), 'Extra pointer should be set.');
+    D = catsHTM.gatherByPointer('XIDB', EM.CellID, EM.RowInCell, 'Columns',{'RA','Dec'});
+    verifyEqual(testCase, size(D,1), 1, 'gatherByPointer should return one row.');
+    verifyTrue(testCase, EM.Dist_arcsec > 0 && EM.Dist_arcsec < 2, 'Extra distance out of range.');
 end
 
 function testKeepExtraAstroCatAndErrors(testCase)
-    % OutType='astrocatalog': extras live only in Summary.ExtraMatches, not as
-    % an AstroCatalog column; and KeepExtraMatches + TableToDisk errors.
+    % OutType='astrocatalog': XidTable is numeric-only, extras still in the
+    % Summary.ExtraMatches table; and KeepExtraMatches + TableToDisk errors.
     [Ac, ~, S] = catsHTM.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','astrocatalog', ...
         'RefCat','XIDREF','CatList',{'XIDB'},'MatchRadius',2, ...
         'KeepExtraMatches',true,'Verbose',false);
     verifyClass(testCase, Ac, 'AstroCatalog');
     verifyFalse(testCase, any(startsWith(Ac.ColNames,'IndExtra_')), ...
         'AstroCatalog must not carry IndExtra cell columns.');
-    verifyTrue(testCase, isfield(S,'ExtraMatches') && isfield(S.ExtraMatches,'XIDB'), ...
-        'Extras must be in Summary for AstroCatalog output.');
+    verifyTrue(testCase, isfield(S,'ExtraMatches') && istable(S.ExtraMatches), ...
+        'Extras must be in the Summary.ExtraMatches table for AstroCatalog output.');
+    verifyEqual(testCase, height(S.ExtraMatches), 1, 'One extra-match row expected.');
 
     verifyError(testCase, @() catsHTM.crossIDCatsHTM(45.*pi./180, 0, 10800, ...
         'RefCat','XIDREF','CatList',{'XIDB'},'KeepExtraMatches',true, ...
@@ -520,49 +527,31 @@ function testAddCatRowID(testCase)
         'CatRowID_<Cat> must be absent without AddPointer.');
 end
 
-function testIdExtras(testCase)
-    % IdExtras stamps the extra (non-nearest) matches with the same pointer /
-    % scalar-id layers as the main match. XIDB has two sources within 2" of
-    % anchor #1, so global row 1 has exactly one extra XIDB match.
-    [T, Cats_cone, ~] = catsHTM.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+function testExtraMatchesPointer(testCase)
+    % The Summary.ExtraMatches pointer equals a fresh sourcePointer on that native
+    % XIDB source; with AddPointer off, Ind/Dist stay but the pointer is NaN.
+    [~, Cats_cone, S] = catsHTM.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
         'RefCat','XIDREF','CatList',{'XIDB'},'MatchRadius',2, ...
-        'KeepExtraMatches',true,'AddPointer',true,'AddCatRowID',true, ...
-        'IdExtras',true,'Verbose',false);
+        'KeepExtraMatches',true,'AddPointer',true,'Verbose',false);
+    EM = S.ExtraMatches;
+    verifyEqual(testCase, height(EM), 1, 'Expected one extra-match row.');
 
-    verifyTrue(testCase, all(ismember({'CellIDExtra_XIDB','RowInCellExtra_XIDB', ...
-        'CatRowIDExtra_XIDB'}, T.Properties.VariableNames)), 'IdExtras columns missing.');
-
-    % the multi-match row (cluster does not preserve input order): 2 XIDB
-    % matches -> exactly one extra
-    R = find(T.Nmatch_XIDB == 2);
-    verifyEqual(testCase, numel(R), 1, 'Expected exactly one master row with 2 XIDB matches.');
-    ExInd = T.IndExtra_XIDB{R};
-    verifyEqual(testCase, numel(ExInd), 1, 'Expected exactly one extra index.');
-
-    % the extra pointer equals a fresh sourcePointer on that native XIDB source
+    % pointer matches sourcePointer on the extra source's coordinates
     [xRA, xDec] = getLonLat(Cats_cone.XIDB, 'rad');
-    [Cid, Row]  = catsHTM.sourcePointer('XIDB', xRA(ExInd), xDec(ExInd));
-    verifyEqual(testCase, T.CellIDExtra_XIDB{R}(:),    Cid, 'Extra CellID mismatch.');
-    verifyEqual(testCase, T.RowInCellExtra_XIDB{R}(:), Row, 'Extra RowInCell mismatch.');
+    [Cid, Row]  = catsHTM.sourcePointer('XIDB', xRA(EM.Ind), xDec(EM.Ind));
+    verifyEqual(testCase, EM.CellID,    Cid, 'Extra CellID mismatch vs sourcePointer.');
+    verifyEqual(testCase, EM.RowInCell, Row, 'Extra RowInCell mismatch vs sourcePointer.');
 
-    % the extra scalar id inverts back to that same pointer
-    Gid = T.CatRowIDExtra_XIDB{R};
-    [Cid2, Row2] = catsHTM.catRowID2Pointer('XIDB', Gid);
-    verifyEqual(testCase, Cid2, Cid, 'Extra CatRowID does not invert to CellID.');
-    verifyEqual(testCase, Row2, Row, 'Extra CatRowID does not invert to RowInCell.');
-
-    % rows with <=1 match carry the NaN sentinel in the extra columns
-    Single = find(cellfun(@(v) isscalar(v) && isnan(v), T.IndExtra_XIDB));
-    verifyFalse(testCase, isempty(Single), 'Expected some single/no-match rows.');
-    verifyTrue(testCase, isnan(T.CatRowIDExtra_XIDB{Single(1)}), ...
-        'Single-match row must have NaN extra CatRowID.');
-
-    % IdExtras is skipped (with a note) when AddPointer is off
-    T2 = catsHTM.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
+    % AddPointer off -> Ind and Dist_arcsec present, pointer columns NaN
+    [~, ~, S2] = catsHTM.crossIDCatsHTM(45.*pi./180, 0, 10800, 'OutType','table', ...
         'RefCat','XIDREF','CatList',{'XIDB'},'MatchRadius',2, ...
-        'KeepExtraMatches',true,'AddPointer',false,'IdExtras',true,'Verbose',false);
-    verifyFalse(testCase, any(startsWith(T2.Properties.VariableNames,'CellIDExtra_')), ...
-        'IdExtras must be skipped without AddPointer.');
+        'KeepExtraMatches',true,'AddPointer',false,'Verbose',false);
+    EM2 = S2.ExtraMatches;
+    verifyEqual(testCase, height(EM2), 1, 'Expected one extra-match row (no pointer).');
+    verifyFalse(testCase, isnan(EM2.Ind), 'Ind should be present without AddPointer.');
+    verifyTrue(testCase, isnan(EM2.CellID) && isnan(EM2.RowInCell), ...
+        'Pointer columns should be NaN when AddPointer is off.');
+    verifyTrue(testCase, EM2.Dist_arcsec > 0, 'Dist should be present without AddPointer.');
 end
 
 function testCatRowID2Pointer(testCase)
