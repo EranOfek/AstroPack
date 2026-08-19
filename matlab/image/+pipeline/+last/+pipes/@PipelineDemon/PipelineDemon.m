@@ -2975,6 +2975,15 @@ classdef PipelineDemon < Component
 
                 Args.pipelineIArgs  = {'UseParfor',true};
 
+                Args.histAnomalyArgs = {};           % args for the prePrep histogram-anomaly quality check
+                                                     % (imUtil.image.histAnomaly), propagated down via
+                                                     % pipelineIArgs -> prePrepArgs. E.g.
+                                                     % {'CCDSEC',[1 6388 25 9600]} restricts the histogram
+                                                     % to the light region, excluding the overscan strip
+                                                     % whose bias-level peak can falsely trigger the
+                                                     % bi-modality detector on dark-sky nights.
+                                                     % Default {} = keep histAnomaly defaults (full frame).
+
                 Args.StopWhenDone logical = false;   % if true, will not look for new images (i.e., images that were created after the function started)
                                 
                 Args.CleanNewDir     = true;         % if true, remove files with zero size and day-time images from the new dir               
@@ -3103,6 +3112,15 @@ classdef PipelineDemon < Component
             
             % prep arguments
             [Obj, Args] = prepArgs(Obj, Args);
+
+            % Propagate the histogram-anomaly check arguments down the chain:
+            % main -> pipelineI -> prePrep -> imProc.quality.histAnomaly.
+            % Appended AFTER any caller-supplied pipelineIArgs so that on a
+            % duplicate 'histAnomalyArgs' entry this dedicated argument wins
+            % (in MATLAB name-value parsing the last occurrence prevails).
+            if ~isempty(Args.histAnomalyArgs)
+                Args.pipelineIArgs = [Args.pipelineIArgs(:).', {'histAnomalyArgs', Args.histAnomalyArgs}];
+            end
             
 
 

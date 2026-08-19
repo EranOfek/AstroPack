@@ -11,6 +11,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.Nworkers                      = 16;
         Args.TempName                      = 'LAST*.fit*';
         Args.prePrepArgs                   = {}; % e.g., {'AstroImageReadArgs',{'UseMex', true}};
+        Args.histAnomalyArgs               = {}; % args for prePrep's histogram-anomaly check
+                                                 % (imUtil.image.histAnomaly); appended to prePrepArgs
+                                                 % as {'histAnomalyArgs',...}. E.g.
+                                                 % {'CCDSEC',[1 6388 25 9600]} excludes the overscan.
+                                                 % Default {} = full frame (histAnomaly defaults).
         Args.basicCalibArgs                = {};
         Args.KeyMidJD                      = 'MIDJD';
 
@@ -172,8 +177,15 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
     % load images and check quality
     % AI putput is of size [Nimages x 1]
+    % Fold the dedicated histAnomalyArgs into prePrepArgs; appended AFTER the
+    % caller's prePrepArgs so on a duplicate 'histAnomalyArgs' name-value pair
+    % the dedicated argument wins (last occurrence prevails in NV parsing).
+    PrePrepArgs = Args.prePrepArgs(:).';
+    if ~isempty(Args.histAnomalyArgs)
+        PrePrepArgs = [PrePrepArgs, {'histAnomalyArgs', Args.histAnomalyArgs}];
+    end
     try
-        [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime_AI] = pipeline.generic.prePrep(RawImageList, Args.prePrepArgs{:});  %5.9s
+        [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime_AI] = pipeline.generic.prePrep(RawImageList, PrePrepArgs{:});  %5.9s
         % Note that AI may be shorter than TableRaw
         % It contains only: TableRaw.SelectedImages
 

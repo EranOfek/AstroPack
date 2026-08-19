@@ -34,7 +34,7 @@ function [Flag] = histAnomaly(Image, Args)
 
     % trim image using CCDSEC
     if ~isempty(Args.CCDSEC)
-        Image = Image(Args.CCCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2));
+        Image = Image(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2));
     end
 
     % Dilute image size
