@@ -334,7 +334,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     AD.estimateFnFr;
 
     if Args.applyCalibration
-        for IObj = Nobj:-1:1
+        for Iobj = Nobj:-1:1
 
             if ~AD(Iobj).Ref.HeaderData.isKeyExist('PT_SPEC')
                 if AD(Iobj).RefIsBackgroundSubtracted
