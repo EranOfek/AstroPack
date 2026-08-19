@@ -14,8 +14,8 @@ function [Result] = forcedPhotNew(Obj, Args)
         Obj
 
         Args.IsGood                  = [];
-        Args.PsfPhotMethod           = 'legacy';
-        Args.ShiftMethod             = 'fft';
+        Args.PsfPhotMethod           = '2DGN';      % 'legacy'/'old'|'1D'|'2D'|'2DGN' - see issue #1198
+        Args.ShiftMethod             = 'lanczos3';  % 'fft'|'lanczos3' - see issue #1198
 
         Args.Coo                     = zeros(0,2);  % or a single AstroCatalog
         Args.CooUnits                = 'deg';   % 'pix'|'deg'|'rad
@@ -76,7 +76,7 @@ function [Result] = forcedPhotNew(Obj, Args)
         Args.ZP                      = 25;
         Args.HeaderZP                = true; %false;   % Use ZP from image header (PH_ZP); (if nan returns to Args.ZP)
 
-        Args.UseMex                  = false;   % passed to imUtil.sources.psfPhotCube - see issue #1198
+        Args.UseMex                  = true;    % passed to imUtil.sources.psfPhotCube - see issue #1198
 
     end
 
