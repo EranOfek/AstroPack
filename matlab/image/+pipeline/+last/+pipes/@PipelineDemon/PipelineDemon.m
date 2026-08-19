@@ -2977,12 +2977,14 @@ classdef PipelineDemon < Component
 
                 Args.histAnomalyArgs = {};           % args for the prePrep histogram-anomaly quality check
                                                      % (imUtil.image.histAnomaly), propagated down via
-                                                     % pipelineIArgs -> prePrepArgs. E.g.
-                                                     % {'CCDSEC',[1 6388 25 9600]} restricts the histogram
-                                                     % to the light region, excluding the overscan strip
-                                                     % whose bias-level peak can falsely trigger the
-                                                     % bi-modality detector on dark-sky nights.
-                                                     % Default {} = keep histAnomaly defaults (full frame).
+                                                     % pipelineIArgs -> prePrepArgs.
+                                                     % Default {} = defer to pipelineI's default, which
+                                                     % restricts the histogram to the LIGHTSEC region
+                                                     % [1 6388 25 9600] (excludes the overscan strip whose
+                                                     % bias-level peak falsely triggers the bi-modality
+                                                     % detector on dark-sky nights; issue #1216).
+                                                     % Pass {'CCDSEC',[]} to force the full-frame
+                                                     % (overscan-included) histogram.
 
                 Args.StopWhenDone logical = false;   % if true, will not look for new images (i.e., images that were created after the function started)
                                 

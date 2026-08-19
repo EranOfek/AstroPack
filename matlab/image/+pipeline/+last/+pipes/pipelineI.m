@@ -11,11 +11,16 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.Nworkers                      = 16;
         Args.TempName                      = 'LAST*.fit*';
         Args.prePrepArgs                   = {}; % e.g., {'AstroImageReadArgs',{'UseMex', true}};
-        Args.histAnomalyArgs               = {}; % args for prePrep's histogram-anomaly check
+        Args.histAnomalyArgs               = {'CCDSEC',[1 6388 25 9600]};
+                                                 % args for prePrep's histogram-anomaly check
                                                  % (imUtil.image.histAnomaly); appended to prePrepArgs
-                                                 % as {'histAnomalyArgs',...}. E.g.
-                                                 % {'CCDSEC',[1 6388 25 9600]} excludes the overscan.
-                                                 % Default {} = full frame (histAnomaly defaults).
+                                                 % as {'histAnomalyArgs',...}.
+                                                 % Default restricts the histogram to the LIGHTSEC
+                                                 % region: the overscan strip's bias-level peak
+                                                 % otherwise falsely triggers the bi-modality detector
+                                                 % on dark-sky nights (issue #1216).
+                                                 % Pass {'CCDSEC',[]} to restore the full-frame
+                                                 % (overscan-included) histogram.
         Args.basicCalibArgs                = {};
         Args.KeyMidJD                      = 'MIDJD';
 
