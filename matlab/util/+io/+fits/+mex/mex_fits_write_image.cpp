@@ -110,18 +110,36 @@ void printValue(char* key, mxArray* valueElement, char* value, size_t valueSize)
         // Handling floating-point and integer types
         if (mxIsSingle(valueElement)) {
             float val = (float)mxGetScalar(valueElement);
-            if (floorf(val) == val) 
+            if (std::isnan(val))
+                // Blank value field, i.e. the FITS standard's "undefined value":
+                // the standard has no textual representation for NaN in a header
+                // keyword value, and the bare token produced by %G ('NAN'/'-NAN')
+                // is rejected by standard-conforming readers. The keyword is kept
+                // so that its presence and comment are preserved, and it reads
+                // back as an empty char value. See #1194.
+                value[0] = '\0';
+            else if (std::isinf(val))
+                // Quoted string, matching FITS.writeHeader's convention: the FITS
+                // standard has no textual representation for Inf in a header keyword
+                // value, and the default reader (str2doubleq) cannot parse an
+                // unquoted Inf/-Inf token - it silently falls back to NaN. See #1196.
+                snprintf(value, valueSize, val > 0 ? "'Inf'" : "'-Inf'");
+            else if (floorf(val) == val)
                 snprintf(value, valueSize, "%.0f.", val);
             else
                 snprintf(value, valueSize, "%.7G", val);
-        } 
-        else if (mxIsDouble(valueElement)) {            
+        }
+        else if (mxIsDouble(valueElement)) {
             double val = mxGetScalar(valueElement);
-            if (floor(val) == val) 
+            if (std::isnan(val))
+                value[0] = '\0';
+            else if (std::isinf(val))
+                snprintf(value, valueSize, val > 0 ? "'Inf'" : "'-Inf'");
+            else if (floor(val) == val)
                 snprintf(value, valueSize, "%.0f.", val);
              else
                  snprintf(value, valueSize, "%.15G", val);
-        }         
+        }
         else if (mxIsClass(valueElement, "int8") || mxIsClass(valueElement, "uint8") ||
                  mxIsClass(valueElement, "int16") || mxIsClass(valueElement, "uint16") ||
                  mxIsClass(valueElement, "int32") || mxIsClass(valueElement, "uint32") ||
