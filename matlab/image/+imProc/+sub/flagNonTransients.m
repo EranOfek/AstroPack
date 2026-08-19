@@ -1068,7 +1068,12 @@ function TranCat = flagNonTransients(Obj, Args)
                 ContamFluxCol = MaxContamFlux;
                 ContamFluxCol(~isfinite(ContamFluxCol)) = 0;
 
-                N_NotSalvagablePSF = (N_X2 + N_Y2) >= Args.SecondMomHardLim(3);
+                % Either moment alone is enough. A PSF stretched along one
+                % axis has a sum the joint limit lets through whenever the
+                % other moment is small, and that is exactly the shape whose
+                % reconstruction cannot be trusted.
+                N_NotSalvagablePSF = ((N_X2 + N_Y2) >= Args.SecondMomHardLim(3)) ...
+                                   | (max(N_X2, N_Y2) >= Args.SecondMomHardLim(1));
 
                 PSF_Flagged = ~Passes_PSFShape | N_NotSalvagablePSF;
                 FilterFlags = setFilterBit(FilterFlags, PSF_Flagged, BD_TF, 'PSFShape');
