@@ -121,7 +121,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.CoaddFunctionArgs  = {}; % additional arguments to be passed to the coadd function 
         
         Args.PixScale           = 1.25;
-        Args.EdgeDist           = 10;  % [pix] distance from the frame edge to flag with the NearEdge mask bit
+        Args.EdgeDist           = 13;  % [pix] distance from the frame edge to flag with the NearEdge mask bit
         
         Args.Write2Disk         = true;
         Args.OutputDir          = '~/NewRef/';        
