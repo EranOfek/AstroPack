@@ -14,8 +14,11 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     %         'PhotZPMethod' - method to determine the photometric ZP when UpdateZP is true:
     %                    'photometricZP' - call imProc.calib.photometricZP (default).
     %                    'header' - read KeyPH_ZP from input crop headers and take the mean.
-    %         'KeyZP' - cell array of header keyword synonyms for the ZP, tried in order.
-    %                    Used only when PhotZPMethod is 'header'. Default is {'PH_ZP','PT_ZP'}.
+    %         'KeyZP' - cell array of header keyword synonyms for the ZP.
+    %                    With PhotZPMethod 'header' these are the keywords read from the
+    %                    input crops. In both methods the resulting ZP is written back to
+    %                    every keyword in the list, so that a consumer looking the ZP up
+    %                    under any one of the synonyms finds it. Default is {'PH_ZP','PT_ZP'}.
     %         'BitDict'   - a BitDictionary to use for the mask bit operations, allowing the
     %                    caller to build it once and reuse it across many calls.
     %                    If empty, a default BitDictionary is built here. Default is [].
@@ -160,15 +163,30 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
                                                         Result.CatData, 'RA',RA0, 'Dec',Dec0,...
                                                         'MatchMethod',Args.MatchMethod,...
                                                         AstCatArg{:});
+        % When the refinement fails (e.g. too few reference sources) FitRes
+        % carries an empty Tran/ResFit, and assigning those to the AstroWCS
+        % errors. Keep the failure as a false Success instead of crashing.
         Result.WCS         = FitRes.WCS;
-        Result.WCS.Tran2D  = FitRes.Tran;
-        Result.WCS.ResFit  = FitRes.ResFit;
-        Result.WCS.Success = FitRes.Success;
-        Result.propagateWCS('UpdateCat',false);
+        if ~isempty(FitRes.Tran)
+            Result.WCS.Tran2D = FitRes.Tran;
+        end
+        if ~isempty(FitRes.ResFit)
+            Result.WCS.ResFit = FitRes.ResFit;
+        end
+        if isempty(FitRes.Success)
+            Result.WCS.Success = false;
+        else
+            Result.WCS.Success = FitRes.Success;
+        end
+        if Result.WCS.Success
+            Result.propagateWCS('UpdateCat',false);
+        end
     end
 
     % calculate a new photometric ZP
-    if Args.UpdateZP
+    % skip it if the astrometry failed - the ZP would be meaningless and
+    % photometricZP would in any case refuse to work on an unsuccessful WCS
+    if Args.UpdateZP && (~Args.UpdateWCS || Result.WCS.Success)
         switch lower(Args.PhotZPMethod)
             case 'photometriczp'
                 if isempty(Args.PhotCat)
@@ -176,17 +194,29 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
                 else
                     PhCatArg = {'CatName', Args.PhotCat};
                 end
-                [Result, ~, PhotCat] = imProc.calib.photometricZP(Result, PhCatArg{:});
+                [Result, ZPfit, PhotCat] = imProc.calib.photometricZP(Result, PhCatArg{:});
+                % photometricZP writes the ZP under its own keyword only.
+                % Downstream consumers may look it up under a different
+                % synonym, so take the fitted value and write all of them.
+                MeanZP = [];
+                if ~isempty(ZPfit) && isfield(ZPfit,'ZP') && ~isempty(ZPfit(1).ZP) && isfinite(ZPfit(1).ZP)
+                    MeanZP = ZPfit(1).ZP;
+                end
             case 'header'
                 ZP_vals = NaN(Ncrop, 1);
                 for Icrop = 1:Ncrop
                     ZP_vals(Icrop) = AI(Icrop).HeaderData.getVal(Args.KeyZP);
                 end
                 MeanZP = mean(ZP_vals, 'omitnan');
-                Result.HeaderData = replaceVal(Result.HeaderData, Args.KeyZP{1}, MeanZP);
-                Result.HeaderData = replaceVal(Result.HeaderData, Args.KeyZP{2}, MeanZP);
             otherwise
                 error('Unknown PhotZPMethod: %s', Args.PhotZPMethod);
+        end
+
+        % write the ZP under every synonym in KeyZP
+        if ~isempty(MeanZP) && isfinite(MeanZP)
+            for Ikey=1:1:numel(Args.KeyZP)
+                Result.HeaderData = replaceVal(Result.HeaderData, Args.KeyZP{Ikey}, MeanZP);
+            end
         end
     end
 

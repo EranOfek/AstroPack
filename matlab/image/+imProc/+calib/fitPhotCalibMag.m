@@ -30,6 +30,7 @@ function [Result, ResFit] = fitPhotCalibMag(Obj, Args)
         Args.RefIsErrSN             = true;
         Args.MaxErr                 = 0.02;
         Args.MagRange               = [13 18];
+        Args.MinFracIsolated        = 0.5;   % adapt MagRange to the crowding of the field - see imProc.cat.getAstrometricCatalog
         Args.SelectCrit             = {'Plx',[0.05 1000], ''}
         Args.MagSys                 = 'AB';
         Args.UseOnlyMainSeq         = false;
@@ -165,7 +166,8 @@ function [Result, ResFit] = fitPhotCalibMag(Obj, Args)
                                                                       'Con',Args.Con,...
                                                                       'UseIndex',Args.UseIndex,...
                                                                       'ColNameMag',Args.RefColMag,...
-                                                                      'RangeMag',Args.MagRange);
+                                                                      'RangeMag',Args.MagRange,...
+                                                                      'MinFracIsolated',Args.MinFracIsolated);
             end % if isa(Args.CatName, 'AstroCatalog')
 
             if Iobj==Ipc

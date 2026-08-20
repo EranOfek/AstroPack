@@ -201,7 +201,7 @@ function [Result] = forcedPhot(Obj, Args)
         Args.ZP                      = 25;
         Args.HeaderZP                = true; %false;   % Use ZP from image header (PH_ZP); (if nan returns to Args.ZP)
 
-        Args.UseMex                  = false;   % passed to imUtil.sources.psfPhotCube - see issue #1198
+        Args.UseMex                  = true;    % passed to imUtil.sources.psfPhotCube - see issue #1198
 
         Args.OutType                 = 'MatchedSources';
     end

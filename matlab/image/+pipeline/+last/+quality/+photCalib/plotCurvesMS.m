@@ -27,11 +27,17 @@ function Indices = plotCurvesMS(MS, Args)
     %                                'jd'                - raw Julian Date
     %                                'time'              - hours since JD0:
     %                                                      (MS.JD - JD0)*24
-    %                                <fieldname>         - any per-epoch column
-    %                                                      of MS.Data
-    %                              Bin edges, sort order and x-label follow the
-    %                              chosen quantity. 'Airmass' override applies
-    %                              only when XField='airmass'.
+    %                                <fieldname>         - any MS.Data field.
+    %                              A per-epoch/broadcast field (AIRMASS/FWHM/...)
+    %                              gives connected per-source lines vs that
+    %                              shared x. A genuine PER-SOURCE field (mags,
+    %                              fluxes, PSF_CHI2DOF, ...) is reduced to its
+    %                              PER-SOURCE MEDIAN, so each source is drawn as
+    %                              points at its own median x (e.g.
+    %                              'XField','MAG_APER_3' with 'Subtract','median'
+    %                              -> MAG_PSF residual vs median brightness).
+    %                              'Airmass' override applies only when
+    %                              XField='airmass'.
     %            'JD0'           - reference JD subtracted when XField='time'.
     %                              Default NaN -> use MS.JD(1) (hours from the
     %                              first epoch).
@@ -51,10 +57,19 @@ function Indices = plotCurvesMS(MS, Args)
     %                              MinEpochs cut) - useful for non-magnitude Y.
     %            'OutFile'       - if non-empty, save the figure here.
     %                              Default '' (interactive show).
-    %            'ColorBy'       - 'median' | 'flat'. Default 'median' (colour
-    %                              each source by its median SelField value;
-    %                              colorbar spans SelRange, or the data range
-    %                              when SelRange=[]).
+    %            'ColorBy'       - Colouring mode. Default 'median'.
+    %                                'median' - one colour per source (its
+    %                                           median SelField; colorbar spans
+    %                                           SelRange, or the data range when
+    %                                           SelRange=[]). Lines/markers.
+    %                                'flat'   - plain black lines/markers.
+    %                                <quantity> - a per-epoch quantity ('jd' |
+    %                                           'time' | 'airmass' | a broadcast
+    %                                           MS.Data field). Draws a SCATTER
+    %                                           colouring each detection by its
+    %                                           epoch's value - e.g. 'jd' tints
+    %                                           points by epoch so a single bad
+    %                                           visit is one colour band.
     %            'LineAlpha'     - per-line alpha. Default 0.4.
     %            'Subtract'      - 'none' | 'median' (per-source median
     %                              subtraction of Y, residuals around 0).
@@ -64,6 +79,15 @@ function Indices = plotCurvesMS(MS, Args)
     %            'NBins'         - number of equal-width x-axis bins for
     %                              the overlay. Default 20.
     %            'OverlayColor'  - RGB for the overlay median line + band.
+    %                              Default [1 0 0].
+    %            'HighlightJD'   - JD value(s) to highlight: the nearest MS.JD
+    %                              epoch for each is over-plotted (on top, as
+    %                              'o' markers in HighlightColor, legended with
+    %                              its epoch index + JD). Default [] (none).
+    %            'HighlightEpochs' - explicit epoch row index/indices to
+    %                              over-plot (alternative/addition to
+    %                              HighlightJD). Default [].
+    %            'HighlightColor'- RGB for the highlighted epoch markers.
     %                              Default [1 0 0].
     % Output : - Indices - column indices in MS.Data.<YField> of the sources drawn.
     % Author : D. Kovaleva (Jul 2026)
@@ -107,12 +131,15 @@ function Indices = plotCurvesMS(MS, Args)
         Args.SelRange      double        = [12, 16]
         Args.SelField      (1,:) char    = ''
         Args.OutFile       (1,:) char    = ''
-        Args.ColorBy       (1,:) char    {mustBeMember(Args.ColorBy,{'median','flat'})} = 'median'
+        Args.ColorBy       (1,:) char    = 'median'
         Args.LineAlpha     (1,1) double  = 0.4
         Args.Subtract      (1,:) char    {mustBeMember(Args.Subtract,{'none','median'})} = 'none'
         Args.OverlayMedian (1,1) logical = true
         Args.NBins         (1,1) double  = 20
         Args.OverlayColor  (1,3) double  = [1 0 0]
+        Args.HighlightJD                 = []        % JD value(s); the nearest MS.JD epoch(s) are over-plotted in HighlightColor on top
+        Args.HighlightEpochs             = []        % explicit epoch row index/indices to over-plot (alternative to HighlightJD)
+        Args.HighlightColor (1,3) double = [1 0 0]   % colour for the highlighted epoch markers
     end
 
     Tex = @(S) strrep(S, '_', '\_');   % escape underscores for axis text
@@ -131,8 +158,8 @@ function Indices = plotCurvesMS(MS, Args)
     Nep = numel(MS.JD);
 
     % ---- Resolve the per-epoch x-axis quantity + its label --------------
-    [X, XLabel] = i_resolveXAxis(MS, Args, Nep);
-    if strcmpi(Args.XField, 'airmass') && all(isnan(X))
+    [X, XLabel, XMode] = i_resolveXAxis(MS, Args, Nep);
+    if strcmpi(Args.XField, 'airmass') && all(isnan(X(:)))
         error('pipeline:last:quality:photCalib:plotCurvesMS:NoAirmass', ...
              ['No per-epoch AIRMASS available on this MS. Either\n', ...
               '  (a) pass ''Airmass'' as a 1xNepoch vector, or\n', ...
@@ -185,15 +212,22 @@ function Indices = plotCurvesMS(MS, Args)
         Ylab = Tex(Args.YField);
     end
 
-    % ---- Sort by the x-quantity so per-source lines connect cleanly -----
-    [Xsorted, SortIdx] = sort(X);
-    Y = Y(SortIdx, :);
-    OK = ~isnan(Xsorted);
-    Xsorted = Xsorted(OK);
-    Y       = Y(OK, :);
-    if isempty(Xsorted)
+    % ---- Assemble the per-source x-matrix -------------------------------
+    % Xmat(:,k) is the x for the k-th selected source. XMode='epoch' -> a
+    % shared per-epoch vector (airmass/jd/time or a broadcast field), drawn as
+    % connected per-source lines. XMode='source' -> one x per source (the
+    % per-source MEDIAN of a per-source field, e.g. median MAG_APER_3), drawn
+    % as points so each source sits at its own x (e.g. residual-vs-brightness).
+    if strcmp(XMode, 'source')
+        Xmat       = repmat(reshape(X(Sel), 1, []), size(Y, 1), 1);   % [Nep x numSel]
+        UseMarkers = true;
+    else
+        Xmat       = repmat(X(:), 1, numel(Sel));
+        UseMarkers = false;
+    end
+    if all(isnan(Xmat(:)))
         warning('pipeline:last:quality:photCalib:plotCurvesMS:NoValidX', ...
-                'No epochs have a valid %s value - nothing to plot.', Args.XField);
+                'No valid %s values - nothing to plot.', Args.XField);
         return;
     end
 
@@ -202,8 +236,15 @@ function Indices = plotCurvesMS(MS, Args)
     Fig = figure('Visible', Visible, 'Position', [100 100 1100 700]);
     hold on;
 
-    switch lower(Args.ColorBy)
-        case 'median'
+    % ---- Colouring: three modes -----------------------------------------
+    %   'median' - one colour per source (its median SelField)  [lines/markers]
+    %   'flat'   - plain black                                    [lines/markers]
+    %   <per-epoch quantity> - per-POINT colour (jd/time/airmass/...) [scatter]
+    IsMedian = strcmpi(Args.ColorBy, 'median');
+    IsFlat   = strcmpi(Args.ColorBy, 'flat');
+
+    if IsMedian || IsFlat
+        if IsMedian
             Cmap = parula(256);
             if UseRange
                 MLo = Args.SelRange(1);  MHi = Args.SelRange(2);
@@ -213,52 +254,106 @@ function Indices = plotCurvesMS(MS, Args)
             if ~(MHi > MLo); MHi = MLo + eps; end                 % guard flat range
             Cidx = round((MedSel(Sel) - MLo) / max(MHi-MLo, eps) * 255) + 1;
             Cidx = max(1, min(256, Cidx));
-            for J = 1:numel(Sel)
-                Col = Cmap(Cidx(J), :);
-                Ph  = plot(Xsorted, Y(:,J), '-', 'Color', Col, 'LineWidth', 0.8);
-                Ph.Color(4) = Args.LineAlpha;
+        end
+        for J = 1:numel(Sel)
+            xj = Xmat(:, J);  yj = Y(:, J);
+            ok = ~isnan(xj) & ~isnan(yj);
+            if ~any(ok); continue; end
+            [xs, si] = sort(xj(ok));  ys = yj(ok);  ys = ys(si);
+            if IsMedian; Col = Cmap(Cidx(J), :); else; Col = [0 0 0]; end
+            if UseMarkers
+                Ph = plot(xs, ys, '.', 'Color', Col, 'MarkerSize', 6);
+            else
+                LW = 0.8;  if IsFlat; LW = 0.5; end
+                Ph = plot(xs, ys, '-', 'Color', Col, 'LineWidth', LW);
             end
-            CB = colorbar; colormap(Cmap);
+            Ph.Color(4) = Args.LineAlpha;
+        end
+        if IsMedian
+            colormap(Cmap);  CB = colorbar;
             CB.Label.String = sprintf('median %s', Tex(SelFieldName));
             caxis([MLo, MHi]);
-        case 'flat'
-            for J = 1:numel(Sel)
-                Ph = plot(Xsorted, Y(:,J), '-', 'Color', [0 0 0], 'LineWidth', 0.5);
-                Ph.Color(4) = Args.LineAlpha;
-            end
+        end
+    else
+        % Per-POINT colour by a per-epoch (or per-source) quantity, resolved
+        % the same way as XField (so 'jd'/'time'/'airmass' or any broadcast
+        % field work). Drawn as a scatter so every detection carries its own
+        % colour - e.g. ColorBy='jd' tints points by epoch, making a single
+        % bad visit show up as one colour offset in y.
+        CArgs = Args;  CArgs.XField = Args.ColorBy;
+        [Cx, CLabel, CMode] = i_resolveXAxis(MS, CArgs, size(Y, 1));
+        if strcmp(CMode, 'source')
+            Cmat = repmat(reshape(Cx(Sel), 1, []), size(Y, 1), 1);
+        else
+            Cmat = repmat(Cx(:), 1, numel(Sel));
+        end
+        Xp = Xmat(:);  Yp = Y(:);  Cp = Cmat(:);
+        okp = ~isnan(Xp) & ~isnan(Yp) & ~isnan(Cp);
+        scatter(Xp(okp), Yp(okp), 12, Cp(okp), 'filled', ...
+                'MarkerFaceAlpha', Args.LineAlpha);
+        colormap(parula);  CB = colorbar;
+        CB.Label.String = CLabel;
     end
 
-    % ---- Overlay binned median with transparent Q1-Q3 band --------------
-    if Args.OverlayMedian && numel(Xsorted) > 1
-        % NBins equal-width bins across the x-quantity range.
-        Edges = linspace(Xsorted(1), Xsorted(end), Args.NBins + 1);
-        Ctr   = 0.5 * (Edges(1:end-1) + Edges(2:end));
-        BinId = discretize(Xsorted, Edges);
-        BinId(isnan(BinId)) = Args.NBins;   % right-edge sample -> last bin
-        MedY = nan(1, Args.NBins);
-        Q1Y  = nan(1, Args.NBins);
-        Q3Y  = nan(1, Args.NBins);
-        for B = 1:Args.NBins
-            Rows = BinId == B;
-            if ~any(Rows); continue; end
-            Chunk = Y(Rows, :);
-            Chunk = Chunk(:);
-            Chunk = Chunk(~isnan(Chunk));
-            if numel(Chunk) < 5; continue; end
-            Q      = quantile(Chunk, [0.25, 0.5, 0.75]);
-            Q1Y(B) = Q(1);
-            MedY(B)= Q(2);
-            Q3Y(B) = Q(3);
+    % ---- Overlay binned median + Q1-Q3 band (pooled over all points) ----
+    if Args.OverlayMedian
+        Xp = Xmat(:);  Yp = Y(:);
+        okp = ~isnan(Xp) & ~isnan(Yp);
+        Xp = Xp(okp);  Yp = Yp(okp);
+        if numel(Xp) > 1
+            % NBins equal-width bins across the x-quantity range.
+            Edges = linspace(min(Xp), max(Xp), Args.NBins + 1);
+            Ctr   = 0.5 * (Edges(1:end-1) + Edges(2:end));
+            BinId = discretize(Xp, Edges);
+            BinId(isnan(BinId)) = Args.NBins;   % right-edge sample -> last bin
+            MedY = nan(1, Args.NBins);
+            Q1Y  = nan(1, Args.NBins);
+            Q3Y  = nan(1, Args.NBins);
+            for B = 1:Args.NBins
+                InB = Yp(BinId == B);
+                InB = InB(~isnan(InB));
+                if numel(InB) < 5; continue; end
+                Q      = quantile(InB, [0.25, 0.5, 0.75]);
+                Q1Y(B) = Q(1);
+                MedY(B)= Q(2);
+                Q3Y(B) = Q(3);
+            end
+            Good = ~isnan(MedY);
+            if any(Good)
+                Xb = Ctr(Good);
+                patch([Xb, fliplr(Xb)], [Q3Y(Good), fliplr(Q1Y(Good))], ...
+                      Args.OverlayColor, 'FaceAlpha', 0.2, 'EdgeColor', 'none', ...
+                      'HandleVisibility', 'off');
+                plot(Xb, MedY(Good), '-', 'Color', Args.OverlayColor, ...
+                     'LineWidth', 2.5);
+            end
         end
-        Good = ~isnan(MedY);
-        if any(Good)
-            Xb = Ctr(Good);
-            patch([Xb, fliplr(Xb)], [Q3Y(Good), fliplr(Q1Y(Good))], ...
-                  Args.OverlayColor, 'FaceAlpha', 0.2, 'EdgeColor', 'none', ...
-                  'HandleVisibility', 'off');
-            plot(Xb, MedY(Good), '-', 'Color', Args.OverlayColor, ...
-                 'LineWidth', 2.5);
+    end
+
+    % ---- Optional: over-plot specific epoch(s) in HighlightColor --------
+    % Resolve epoch rows from explicit indices and/or nearest-JD matches.
+    HiEpochs = round(Args.HighlightEpochs(:)).';
+    if ~isempty(Args.HighlightJD)
+        JDv = MS.JD(:);
+        for JDh = Args.HighlightJD(:).'
+            [~, EbyJD] = min(abs(JDv - JDh));
+            HiEpochs = [HiEpochs, EbyJD]; %#ok<AGROW>
         end
+    end
+    HiEpochs = unique(HiEpochs(HiEpochs >= 1 & HiEpochs <= size(Y, 1)));
+    if ~isempty(HiEpochs)
+        hHi = gobjects(1, 0);
+        for Eh = HiEpochs
+            xh = Xmat(Eh, :);  yh = Y(Eh, :);
+            okh = ~isnan(xh) & ~isnan(yh);
+            if ~any(okh); continue; end
+            H = plot(xh(okh), yh(okh), 'o', ...
+                'MarkerFaceColor', Args.HighlightColor, 'MarkerEdgeColor', 'k', ...
+                'MarkerSize', 7, 'LineWidth', 0.5, ...
+                'DisplayName', sprintf('epoch %d (JD %.5f)', Eh, MS.JD(Eh)));
+            hHi(end+1) = H; %#ok<AGROW>
+        end
+        if ~isempty(hHi); legend(hHi, 'Location', 'best'); end
     end
 
     xlabel(XLabel);
@@ -283,15 +378,20 @@ end
 
 
 % =========================================================================
-function [X, XLabel] = i_resolveXAxis(MS, Args, Nep)
-    % Return the per-epoch x-axis vector (Nep x 1) and its axis label,
-    % dispatching on Args.XField:
-    %   'airmass' - per-epoch AIRMASS (i_resolveAirmass; honours Args.Airmass)
-    %   'jd'      - raw Julian Date (MS.JD)
-    %   'time'    - hours since a reference JD: (MS.JD - JD0)*24, where JD0 is
-    %               Args.JD0 (default MS.JD(1) when NaN)
-    %   <field>   - any per-epoch column of MS.Data (broadcast-safe: first
-    %               finite column is used)
+function [X, XLabel, XMode] = i_resolveXAxis(MS, Args, Nep)
+    % Resolve the x-axis. Returns X, its label, and XMode:
+    %   XMode='epoch'  - X is an [Nep x 1] PER-EPOCH vector (airmass/jd/time,
+    %                    or a broadcast MS.Data field such as AIRMASS/FWHM
+    %                    whose columns are all identical). Drawn as connected
+    %                    per-source lines (light-curve style).
+    %   XMode='source' - X is a PER-SOURCE vector (one value per MS.Data
+    %                    column): the per-source MEDIAN of a genuine per-source
+    %                    field (e.g. MAG_APER_3 -> each source at its median
+    %                    magnitude). Drawn as points, giving e.g.
+    %                    residual-vs-brightness. Chosen automatically when the
+    %                    named field varies across sources.
+    % Dispatch on Args.XField: 'airmass' | 'jd' | 'time' | <MS.Data field>.
+    XMode = 'epoch';
     switch lower(Args.XField)
         case 'airmass'
             X      = i_resolveAirmass(MS, Args.Airmass, Nep);
@@ -308,18 +408,35 @@ function [X, XLabel] = i_resolveXAxis(MS, Args, Nep)
             if ~isfield(MS.Data, Args.XField)
                 error('pipeline:last:quality:photCalib:plotCurvesMS:BadXField', ...
                     ['Unknown XField ''%s''. Use ''airmass'', ''jd'', ''time'', ', ...
-                     'or a per-epoch field of MS.Data (available: %s).'], ...
+                     'or a field of MS.Data (available: %s).'], ...
                     Args.XField, strjoin(fieldnames(MS.Data), ', '));
             end
-            A = MS.Data.(Args.XField);
-            X = nan(Nep, 1);
-            if size(A, 1) == Nep
+            A = double(MS.Data.(Args.XField));
+            if size(A, 1) ~= Nep
+                X = nan(Nep, 1);
+                XLabel = strrep(Args.XField, '_', '\_');
+                return;
+            end
+            % Broadcast per-epoch fields (AIRMASS/FWHM/FWHE/M_CHI2D stashed by
+            % stabilityN3) have identical columns; genuine per-source fields
+            % (mags, fluxes, X2/Y2/XY, PSF_CHI2DOF) vary across sources.
+            % max/min ignore NaN by default, so ColSpread==0 <=> broadcast.
+            ColSpread = max(A, [], 2) - min(A, [], 2);
+            if all(~isfinite(ColSpread)) || max(ColSpread) <= 1e-9
+                % Broadcast: representative (first finite) column.
+                X = nan(Nep, 1);
                 for C = 1:size(A, 2)
-                    Col = double(A(:, C));
+                    Col = A(:, C);
                     if any(isfinite(Col)); X = Col; break; end
                 end
+                XLabel = strrep(Args.XField, '_', '\_');
+            else
+                % Genuine per-source field: x = per-source median (one per
+                % source), a brightness/quantity ruler.
+                X      = median(A, 1, 'omitnan').';   % [Nsrc x 1]
+                XMode  = 'source';
+                XLabel = sprintf('median %s', strrep(Args.XField, '_', '\_'));
             end
-            XLabel = strrep(Args.XField, '_', '\_');
     end
 end
 

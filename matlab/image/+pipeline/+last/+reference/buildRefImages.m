@@ -56,6 +56,11 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %         'AstrometricCatPlxRange' - [min max] parallax range [mas] for the astrometric catalog (def. [-Inf 50])
     %         'PhotCatMagRange'       - [min max] magnitude range for the photometric catalog (def. [13 21.5])
     %         'PhotCatPlxRange'       - [min max] parallax range [mas] for the photometric catalog (def. [0.1 100])
+    %         'MinFracIsolated'      - minimum fraction of the reference sources that must survive the
+    %                   neighboors rejection. In a crowded field a deep reference catalog is left with
+    %                   almost no isolated sources; when the fraction is not met the faint limit of the
+    %                   magnitude range is brightened automatically. Set to [] to disable.
+    %                   See imProc.cat.getAstrometricCatalog (def. 0.5)
     %
     % Output : - an AstroImage object for the last reference ID from the input list
     %          - reference image files (Image, Mask, PSF, Cat) written to disk and ref_images table filled in the DB
@@ -145,6 +150,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.AstrometricCatPlxRange = [-Inf 50];  % parallax range [mas] for the astrometric catalog
         Args.PhotCatMagRange        = [13 21.5];  % magnitude range for the photometric catalog
         Args.PhotCatPlxRange        = [0.1 100];  % parallax range [mas] for the photometric catalog
+        Args.MinFracIsolated        = 0.5;        % minimum fraction of isolated reference sources - see imProc.cat.getAstrometricCatalog
         
         Args.Verbose                = 0; % from 0 (mute) to 2 (chatty)
 
@@ -194,8 +200,9 @@ function [Result,Info] = buildRefImages(RefID, Args)
     Ibp = find(isfolder(Args.BasePath), 1, 'first');
     Args.BasePath = Args.BasePath(Ibp);
     
-    Info.CounterBadWCS  = 0;
-    Info.CounterGoodWCS = 0;
+    Info.CounterBadWCS    = 0;
+    Info.CounterGoodWCS   = 0;
+    Info.CounterBadStitch = 0;   % groups dropped because the stitched image astrometry failed
 
     % build the mask bit dictionary once and reuse it in every stitchCrops call
     BitDict = BitDictionary('BitMask.Image.Default');
@@ -264,14 +271,26 @@ function [Result,Info] = buildRefImages(RefID, Args)
             if Args.Verbose > 1
                 fprintf('Pre-fetching astrometric and photometric catalogs (r=%.1f deg)...\n', Args.AstrometricCatRad);
             end
-            RawMagRange = [min(Args.AstrometricCatMagRange(1), Args.PhotCatMagRange(1)), max(Args.AstrometricCatMagRange(2), Args.PhotCatMagRange(2))];
-            RawPlxRange = [min(Args.AstrometricCatPlxRange(1), Args.PhotCatPlxRange(1)), max(Args.AstrometricCatPlxRange(2), Args.PhotCatPlxRange(2))];
-            FullCat = imProc.cat.getAstrometricCatalog(RefGrid.RA(Iref), RefGrid.Dec(Iref), ...
-                'Radius',Args.AstrometricCatRad,'RadiusUnits','deg','OutUnits','rad', 'RangeMag',RawMagRange,'RangePlx',RawPlxRange);
-            AstrometricCat = queryRange(FullCat, {'phot_bp_mean_mag','phot_g_mean_mag'}, Args.AstrometricCatMagRange, ...
-                'Plx', Args.AstrometricCatPlxRange); 
-            PhotCat        = queryRange(FullCat, {'phot_bp_mean_mag','phot_g_mean_mag'}, Args.PhotCatMagRange, ...
-                'Plx', Args.PhotCatPlxRange); 
+            % Retrieve the two catalogs separately. Fetching their union and
+            % splitting it afterwards applies the neighboors rejection of
+            % getAstrometricCatalog to the deeper, union range, which in a
+            % crowded field discards nearly everything - and a source removed
+            % there can not be recovered by the later queryRange. Each range
+            % must therefore be filtered within itself, and 'MinFracIsolated'
+            % brightens the faint limit when the field is too crowded even
+            % for that.
+            AstrometricCat = imProc.cat.getAstrometricCatalog(RefGrid.RA(Iref), RefGrid.Dec(Iref), ...
+                'Radius',Args.AstrometricCatRad,'RadiusUnits','deg','OutUnits','rad', ...
+                'RangeMag',Args.AstrometricCatMagRange,'RangePlx',Args.AstrometricCatPlxRange,...
+                'MinFracIsolated',Args.MinFracIsolated);
+            PhotCat        = imProc.cat.getAstrometricCatalog(RefGrid.RA(Iref), RefGrid.Dec(Iref), ...
+                'Radius',Args.AstrometricCatRad,'RadiusUnits','deg','OutUnits','rad', ...
+                'RangeMag',Args.PhotCatMagRange,'RangePlx',Args.PhotCatPlxRange,...
+                'MinFracIsolated',Args.MinFracIsolated);
+            if Args.Verbose > 1
+                fprintf('   astrometric catalog: %d sources; photometric catalog: %d sources\n', ...
+                        sizeCatalog(AstrometricCat), sizeCatalog(PhotCat));
+            end
 
             % identify sets of subimages from the same epoch and telescope to be stitched
             T = sortrows(T, Args.GroupByFields);            
@@ -393,17 +412,27 @@ function [Result,Info] = buildRefImages(RefID, Args)
                             'KeyZP',Args.KeyZP,...
                             'BitDict',BitDict);
 
-                        if isnan(julday(StitchedImage))
-                            StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabGrp.jd_start(Igroup));
-                        end
+                        % Do not coadd a group whose astrometry failed: its WCS
+                        % was never refined, so it would be registered on a
+                        % wrong solution and silently degrade the reference.
+                        if isempty(StitchedImage.WCS) || ~StitchedImage.WCS.Success
+                            Info(K).CounterBadStitch = Info(K).CounterBadStitch + 1;
+                            if Args.Verbose > 0
+                                cprintf('red','\nAstrometry of the stitched image failed, skipping the epoch %d\n',Igroup);
+                            end
+                        else
+                            if isnan(julday(StitchedImage))
+                                StitchedImage.HeaderData = replaceVal(StitchedImage.HeaderData, 'JD', TabGrp.jd_start(Igroup));
+                            end
 
-                        if Args.Verbose > 0
-                            fprintf(' done \n');
-                        end
+                            if Args.Verbose > 0
+                                fprintf(' done \n');
+                            end
 
-                        % add the image to the preallocated stack buffer
-                        Nstack = Nstack + 1;
-                        StackImages{Nstack} = StitchedImage;
+                            % add the image to the preallocated stack buffer
+                            Nstack = Nstack + 1;
+                            StackImages{Nstack} = StitchedImage;
+                        end
                     end
                 end
             end % groups (epochs + telescopes)

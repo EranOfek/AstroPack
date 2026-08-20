@@ -68,6 +68,7 @@ function MS = stabilityN3(Args)
         Args.NEpochsCap (1,1) double = 200   % Cap on number of catalogs loaded
         Args.Radius     (1,1) double = 1     % Cross-match radius [arcsec]
         Args.AddXYfull  logical      = true % Stamp MS.Data.XFULL/YFULL after merge
+        Args.AddShapeCols logical    = true % Match per-source PSF-shape diagnostics X2/Y2/XY/PSF_CHI2DOF into MS.Data (set false to save memory)
         % ORIGSEC is fixed per crop (same across every visit of a given
         % Pattern), so we read it ONCE from the first surviving catalog and
         % broadcast XFULL = X + (ORIGSEC(1)-1), YFULL = Y + (ORIGSEC(3)-1)
@@ -128,8 +129,11 @@ function MS = stabilityN3(Args)
         %   'LAST*_1679.c_*_sci_coadd_Cat_1.fits'.
         % Requires the sibling *_Image_1.fits file next to every Cat.
         Args.Mags       cell         = {'MAG_APER_3', 'MAGAB__APER_3'} %, 'MAG_PSF', 'MAGAB__PSF'}
+        Args.Fluxes     cell         = {}        % Flux columns to gather into MS.Data as [Nep x Nsrc] matrices (e.g. {'FLUX_APER_3','FLUX_PSF'}). {} = none.
         Args.FWHMKey    (1,:) char   = 'FWHM'    % Header key to read seeing/FWHM from
         Args.FWHMMax    (1,1) double = 10.0      % Drop catalogs whose FWHM exceeds this
+        Args.FWHEKey    (1,:) char   = 'FWHE'    % Header key for the second width estimate; gathered (not a cut) into MS.Data.FWHE
+        Args.ExtraHdrKeys cell       = {'M_CHI2D'} % Extra per-visit header scalars to read and broadcast into MS.Data.<KEY> (e.g. {'M_CHI2D','MED_X2'}). {} = none. Each name must be a valid field name.
         Args.MaxAirmass (1,1) double = 2.4       % Drop catalogs whose AIRMASS exceeds this. Set Inf to disable.
         Args.BadFlags   cell         = {'Saturated','NearEdge'}
         % Bit names from BitMask.Image.Default. Per-(epoch,source) entries
@@ -214,16 +218,26 @@ function MS = stabilityN3(Args)
     if isempty(Args.MS)
         % --- build phase: glob, header pre-pass, AC load, mergeCatalogs ---
         FileList = dir(fullfile(DataPath, Pattern));
+        if isempty(FileList)
+            % LAST proc trees keep the coadds in per-visit subdirs
+            % (proc/<visit>/LAST*...), so a Pattern relative to proc/ matches
+            % nothing with a flat dir(). Retry recursively; each entry's
+            % .folder (used below to build the path) then points at the visit
+            % subdir. Only triggers when the flat glob is empty, so a flat
+            % DataPath is unaffected and files are never double-counted.
+            FileList = dir(fullfile(DataPath, '**', Pattern));
+        end
         % Fail clearly on an empty match: the default Pattern is field-specific
         % (1716.c crop 10), so a different field/crop silently matches nothing
         % and would otherwise crash deep in mergeCatalogs on an empty array.
         if isempty(FileList)
             error('pipeline:last:quality:photCalib:stabilityN3:NoCatalogs', ...
-                ['No catalogs matched Pattern "%s" under %s.\n', ...
+                ['No catalogs matched Pattern "%s" under %s (searched both %s ', ...
+                 'directly and its subdirectories).\n', ...
                  'The default Pattern targets field 1716.c crop 10 - pass a ', ...
                  '''Pattern'' for your field/crop, e.g.\n', ...
                  '  ''Pattern'', ''LAST*_1679*_*_010_sci_coadd_Cat_1.fits'''], ...
-                Pattern, DataPath);
+                Pattern, DataPath, DataPath);
         end
         [~, ord] = sort({FileList.name});
         FileList = FileList(ord);
@@ -245,12 +259,19 @@ function MS = stabilityN3(Args)
         % any AstroCatalog data for visits that fail FWHM/AIRMASS thresholds.
         JD   = nan(NEpochs, 1);
         FWHM = nan(NEpochs, 1);
+        FWHE = nan(NEpochs, 1);
         AM   = nan(NEpochs, 1);
+        nExtra = numel(Args.ExtraHdrKeys);
+        Extra  = nan(NEpochs, nExtra);     % [Nepoch x nExtra] per-visit header scalars
         for I = 1:NEpochs
-            FullPath = fullfile(DataPath, FileList(I).name);
+            FullPath = fullfile(FileList(I).folder, FileList(I).name);
             JD(I)   = readHdrAny(FullPath, {'JD', 'MIDJD'});
             FWHM(I) = readHdrAny(FullPath, {Args.FWHMKey});
+            FWHE(I) = readHdrAny(FullPath, {Args.FWHEKey});
             AM(I)   = readHdrAny(FullPath, {'AIRMASS'});
+            for E = 1:nExtra
+                Extra(I, E) = readHdrAny(FullPath, Args.ExtraHdrKeys(E));
+            end
         end
 
         KeepFWHM = ~isfinite(Args.FWHMMax)   | (isfinite(FWHM) & FWHM <= Args.FWHMMax);
@@ -267,7 +288,9 @@ function MS = stabilityN3(Args)
         FileList = FileList(KeepCat);
         JD       = JD(KeepCat);
         FWHM     = FWHM(KeepCat);
+        FWHE     = FWHE(KeepCat);
         AM       = AM(KeepCat);
+        Extra    = Extra(KeepCat, :);
         NEpochs  = numel(FileList);
 
         if Args.Join
@@ -277,8 +300,11 @@ function MS = stabilityN3(Args)
             % (not files), and every AC(v) is a full-frame catalog with
             % overlap sources already deduplicated. NEpochsCap is applied
             % here at visit granularity so partial visits are never loaded.
-            [AC, VisitStems, JD, AM] = i_loadJoinedPerVisit( ...
-                DataPath, FileList, JD, AM, Args.FWHMKey, FWHM, NEpochsCap, ...
+            % JD/AM/FWHM/FWHE come back re-ordered to per-visit granularity
+            % (one value per surviving visit), so they stay aligned with the
+            % per-visit MS rows for the broadcast below.
+            [AC, VisitStems, JD, AM, FWHM, FWHE, Extra] = i_loadJoinedPerVisit( ...
+                DataPath, FileList, JD, AM, Args.FWHMKey, FWHM, FWHE, Extra, NEpochsCap, ...
                 Args.JoinedMagLimit, Args.JoinedSNmin, Args.MagColForCut, ...
                 Args.CropOrigsecFromFile, Args.FullFrameSize, Args.CropSize, Args.TileOrder);
             NEpochs = numel(AC);
@@ -287,20 +313,32 @@ function MS = stabilityN3(Args)
             fprintf('Loading %d surviving catalogs\n', NEpochs);
             AC = AstroCatalog.empty(0, NEpochs);
             for I = 1:NEpochs
-                FullPath = fullfile(DataPath, FileList(I).name);
+                FullPath = fullfile(FileList(I).folder, FileList(I).name);
                 AC(I)    = AstroCatalog(FullPath);
                 fprintf('  %3d: %s  JD=%.5f  %s=%.3f  AIRMASS=%.3f\n', ...
                     I, FileList(I).name, JD(I), Args.FWHMKey, FWHM(I), AM(I));
             end
         end
 
-        % NB: FWHM is NOT a per-source catalog column (it is a per-visit
-        % header scalar); it is broadcast into MS.Data.FWHM after the merge
+        % NB: FWHM/FWHE are NOT per-source catalog columns (they are per-visit
+        % header scalars); they are broadcast into MS.Data after the merge
         % instead of matched here.
         BaseMatch  = {'RA','Dec','X','Y','SN','FLAGS', ...
                       'BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS', ...
                       'FLUX_APER_3', 'MAG_PSF', 'MAGAB__PSF'};
-        MatchedColums = unique([BaseMatch, Args.Mags], 'stable');
+        % Per-source PSF-shape diagnostics: X2/Y2/XY (second moments) and
+        % PSF_CHI2DOF ARE per-source catalog columns, so match them as real
+        % columns (unlike FWHM/FWHE). This makes MS.Data.X2/Y2/XY/PSF_CHI2DOF
+        % full [Nepoch x Nsrc] matrices - a downstream QC can then flag a
+        % bad-PSF visit via, e.g., median bright-star PSF_CHI2DOF (this is how
+        % visit 232829v1 stood out: median chi2 ~38000 vs ~700). Gated for
+        % memory; the per-visit header medians MED_X2/Y2/XY/M_CHI2D are just
+        % median(MS.Data.X2) etc. if a scalar-per-visit is all you need.
+        ShapeCols = {'X2', 'Y2', 'XY', 'PSF_CHI2DOF'};
+        if Args.AddShapeCols
+            BaseMatch = [BaseMatch, ShapeCols];
+        end
+        MatchedColums = unique([BaseMatch, Args.Mags, Args.Fluxes], 'stable');
         StatCols   = unique([{'RA','Dec','X','Y','SN'}, Args.Mags], 'stable');
         StatFunInd = repmat({[1 3]}, 1, numel(StatCols));
         % AllCols: full [Nepoch x Nsrc] matrices in MS.Data. Include FLAGS
@@ -310,6 +348,12 @@ function MS = stabilityN3(Args)
         % vs detector position without a rebuild. MAGERR_<suffix> is needed by
         % zp_meddiff if ApplyMedZP=true — gated to avoid bloating the merge.
         AllCols   = unique([Args.Mags, {'FLAGS','SN','X','Y'}], 'stable');
+        if Args.AddShapeCols
+            AllCols = unique([AllCols, ShapeCols], 'stable');
+        end
+        if ~isempty(Args.Fluxes)
+            AllCols = unique([AllCols, Args.Fluxes], 'stable');
+        end
         % In Join mode, promote XFULL/YFULL/CropID (produced by
         % joinCropsToCatalog) so plotPhotStabilityMap/XY can address the
         % full-frame frame directly. AddXYfull's post-hoc stamp becomes a
@@ -337,17 +381,22 @@ function MS = stabilityN3(Args)
         % before the stats/plot phase to avoid carrying ~0.5-1 MB per epoch.
         clear AC
 
-        % Stash per-epoch AIRMASS and FWHM on the MS as broadcast
+        % Stash per-epoch AIRMASS, FWHM and FWHE on the MS as broadcast
         % [Nepoch x Nsrc] so downstream tools (plotCurvesMS, ad-hoc analyses)
         % can read them without re-peeking headers or requiring a CSV.
-        % Both are per-VISIT header scalars (seeing / airmass), not per-source
-        % catalog columns, so every column carries the same per-epoch value.
-        % Broadcast keeps the [Nep x Nsrc] shape convention of every other
-        % MS.Data field. Cost ~ Nep*Nsrc*8 bytes (~4 MB for 100 epochs x
-        % 5000 sources) per field.
+        % All three are per-VISIT header scalars (airmass / two seeing-width
+        % estimates), not per-source catalog columns, so every column carries
+        % the same per-epoch value. Broadcast keeps the [Nep x Nsrc] shape
+        % convention of every other MS.Data field. Cost ~ Nep*Nsrc*8 bytes
+        % (~4 MB for 100 epochs x 5000 sources) per field.
         NsrcFinal = size(MS.Data.(Args.Mags{1}), 2);
         MS.Data.AIRMASS = repmat(AM(:),   1, NsrcFinal);
         MS.Data.FWHM    = repmat(FWHM(:), 1, NsrcFinal);
+        MS.Data.FWHE    = repmat(FWHE(:), 1, NsrcFinal);
+        % Any extra per-visit header scalars requested (e.g. M_CHI2D).
+        for E = 1:nExtra
+            MS.Data.(Args.ExtraHdrKeys{E}) = repmat(Extra(:, E), 1, NsrcFinal);
+        end
 
         % Optional XFULL/YFULL stamp. ORIGSEC is fixed per crop (same
         % across every visit of a given Pattern), so we read it ONCE from
@@ -363,7 +412,7 @@ function MS = stabilityN3(Args)
         % XFULL/YFULL with X + 0, Y + 0.
         if Args.AddXYfull && isfield(MS.Data, 'X') && isfield(MS.Data, 'Y') ...
                 && ~isfield(MS.Data, 'XFULL')
-            SamplePath = fullfile(DataPath, FileList(1).name);
+            SamplePath = fullfile(FileList(1).folder, FileList(1).name);
             OS = [];
             for HDU = [2, 3, 1]   % same HDU search order as readHdrAny
                 try
@@ -576,7 +625,7 @@ function MS = stabilityN3(Args)
 end
 
 % =========================================================================
-function [AC, VisitStems, JDvis, AMvis] = i_loadJoinedPerVisit(DataPath, FileList, JDfile, AMfile, FWHMKey, FWHMfile, NEpochsCap, MagLimit, SNmin, MagColForCut, CropOrigsecFromFile, FullFrameSize, CropSize, TileOrder)
+function [AC, VisitStems, JDvis, AMvis, FWHMvis, FWHEvis, ExtraVis] = i_loadJoinedPerVisit(DataPath, FileList, JDfile, AMfile, FWHMKey, FWHMfile, FWHEfile, ExtraFile, NEpochsCap, MagLimit, SNmin, MagColForCut, CropOrigsecFromFile, FullFrameSize, CropSize, TileOrder)
     % Per-visit loader for stabilityN3's Join mode.
     % Groups the surviving files by visit stem (parsed from the LAST
     % filename convention '<stem>_<crop>_sci_coadd_(Image|Cat)_<N>.fits'),
@@ -590,9 +639,13 @@ function [AC, VisitStems, JDvis, AMvis] = i_loadJoinedPerVisit(DataPath, FileLis
     % Returns:
     %   AC          - 1xNvisits AstroCatalog array (empty entries dropped)
     %   VisitStems  - 1xNvisits cellstr of visit stems (for diagnostics)
-    %   JDvis, AMvis - per-visit JD and AIRMASS (copied from the visit's
-    %                  first surviving file - all crops of one visit share
-    %                  these header values).
+    %   JDvis, AMvis, FWHMvis, FWHEvis - per-visit JD, AIRMASS, FWHM and FWHE
+    %                  (copied from the visit's first surviving file - all
+    %                  crops of one visit share these header values). Returned
+    %                  re-ordered to per-visit granularity so they stay aligned
+    %                  with the per-visit MS rows.
+    %   ExtraVis     - [Nvisit x nExtra] the ExtraHdrKeys header scalars, same
+    %                  first-file-per-visit reordering.
     Nfile = numel(FileList);
     Stems = cell(1, Nfile);
     CropIdx = nan(1, Nfile);
@@ -632,6 +685,8 @@ function [AC, VisitStems, JDvis, AMvis] = i_loadJoinedPerVisit(DataPath, FileLis
     JDfile   = JDfile(KeepFile);
     AMfile   = AMfile(KeepFile);
     FWHMfile = FWHMfile(KeepFile);
+    FWHEfile = FWHEfile(KeepFile);
+    ExtraFile = ExtraFile(KeepFile, :);
     CropIdx  = CropIdx(KeepFile);
     Nvis = numel(Us);
     fprintf('Joining %d visits from %d file(s)\n', Nvis, numel(FileList));
@@ -660,12 +715,15 @@ function [AC, VisitStems, JDvis, AMvis] = i_loadJoinedPerVisit(DataPath, FileLis
     VisitStems  = cell(1, Nvis);
     JDvis       = nan(1, Nvis);
     AMvis       = nan(1, Nvis);
+    FWHMvis     = nan(1, Nvis);
+    FWHEvis     = nan(1, Nvis);
+    ExtraVis    = nan(Nvis, size(ExtraFile, 2));
     Kept        = false(1, Nvis);
     for V = 1:Nvis
         M = find(IUs == V);
         [~, Ord] = sort(CropIdx(M));
         M = M(Ord);
-        CatPaths = arrayfun(@(m) fullfile(DataPath, FileList(m).name), M(:), 'UniformOutput', false);
+        CatPaths = arrayfun(@(m) fullfile(FileList(m).folder, FileList(m).name), M(:), 'UniformOutput', false);
         % Sibling Image_1.fits paths — AstroImage.readProducts wants the
         % Image side; the AstroFileName parser auto-attaches the Cat sibling.
         ImgPaths = cellfun(@(p) strrep(p, '_Cat_1.fits', '_Image_1.fits'), CatPaths, 'UniformOutput', false);
@@ -712,9 +770,12 @@ function [AC, VisitStems, JDvis, AMvis] = i_loadJoinedPerVisit(DataPath, FileLis
             NAfter = height(J.Table);
             AC(V) = J;
             VisitStems{V} = Us{V};
-            JDvis(V) = JDfile(M(1));
-            AMvis(V) = AMfile(M(1));
-            Kept(V)  = true;
+            JDvis(V)   = JDfile(M(1));
+            AMvis(V)   = AMfile(M(1));
+            FWHMvis(V) = FWHMfile(M(1));
+            FWHEvis(V) = FWHEfile(M(1));
+            ExtraVis(V, :) = ExtraFile(M(1), :);
+            Kept(V)    = true;
             if NAfter < NBefore
                 fprintf('  %3d: %s  %d crops joined  N=%d -> %d after cuts  JD=%.5f  %s=%.3f  AIRMASS=%.3f\n', ...
                     V, Us{V}, numel(M), NBefore, NAfter, JDvis(V), FWHMKey, FWHMfile(M(1)), AMvis(V));
@@ -734,6 +795,9 @@ function [AC, VisitStems, JDvis, AMvis] = i_loadJoinedPerVisit(DataPath, FileLis
     VisitStems = VisitStems(Kept);
     JDvis      = JDvis(Kept);
     AMvis      = AMvis(Kept);
+    FWHMvis    = FWHMvis(Kept);
+    FWHEvis    = FWHEvis(Kept);
+    ExtraVis   = ExtraVis(Kept, :);
 end
 
 

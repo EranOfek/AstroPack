@@ -43,6 +43,17 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
     %                    'MAGERR_APER_3','MAG_PSF','MAGERR_PSF'}.
     %                   If AddUnUse is true, you may want to add here also:
     %                   'NITER'.
+    %            'MinNdet' - Minimum number of epochs/catalogs in which a
+    %                   source must be detected in order to be kept in the
+    %                   master list. Sources detected in less epochs are
+    %                   removed before the [Nunique,Nobj] index matrix is
+    %                   allocated, so this argument also controls the peak
+    %                   memory consumption. 1 means keep all sources.
+    %                   Default is 1.
+    %            'InitCap' - Initial number of rows allocated for the master
+    %                   list. The list is grown geometrically when needed.
+    %                   If empty, use twice the size of the first catalog.
+    %                   Default is [].
     % Output : - MasterUniqueCoo matrix [Nunique,2]. Coordinates of the
     %            unique sources. If AddUnUse=true, then the unused-source
     %            master list is appended below the used-source master list.
@@ -73,6 +84,8 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
         Args.ColUse            = 'FORCED';
         Args.AddUnUse          = false;
         Args.Col               = {'RA','Dec','X','Y','FLAGS','MAG_APER_3','MAGERR_APER_3','MAG_PSF','MAGERR_PSF'};
+        Args.MinNdet           = 1;
+        Args.InitCap           = [];
     end
 
     Nobj = numel(Obj);
@@ -137,35 +150,50 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
         MatchRadius = Args.MatchRadius;
     end
 
-    % preallocate full possible size; no further growth needed
+    % The number of unique sources is not known in advance, and the worst
+    % case (sum of all catalog sizes) is prohibitive for a large number of
+    % epochs. Therefore the master list starts small and is grown
+    % geometrically, while the per-epoch row indices are accumulated as
+    % (master row, catalog row) pairs. The [Nunique,Nobj] index matrix is
+    % materialized only after the master list is complete and filtered.
     SizeCat = Obj.sizeCatalog;
-    if isscalar(SizeCat)
-        InitCap = SizeCat;
+    MaxCap  = sum(SizeCat);
+    if isempty(Args.InitCap)
+        InitCap = min(MaxCap, max(2.*size(Coo,1), 1024));
     else
-        InitCap = sum(SizeCat);
+        InitCap = min(MaxCap, Args.InitCap);
     end
+
+    PairMaster = cell(Nobj, 1);   % master row indices, per epoch
+    PairCat    = cell(Nobj, 1);   % corresponding catalog row indices
 
     % used branch
     MasterUniqueCoo = nan(InitCap, 2);
-    MasterInd       = nan(InitCap, Nobj);
+    Ndet            = zeros(InitCap, 1);   % number of epochs per master source
 
     Nmaster = size(MasterCoo, 1);
     if Nmaster > 0
         MasterUniqueCoo(1:Nmaster, :) = MasterCoo;
-        MasterInd(1:Nmaster, Iobj)    = find(Use1);
+        Ndet(1:Nmaster)               = 1;
+        PairMaster{Iobj} = int32(1:Nmaster).';
+        PairCat{Iobj}    = int32(find(Use1));
     end
 
     % unused branch
     if Args.AddUnUse
-        MasterCoo_NU = Coo(NotUse1, :);
+        MasterCoo_NU  = Coo(NotUse1, :);
+        PairMaster_NU = cell(Nobj, 1);
+        PairCat_NU    = cell(Nobj, 1);
 
         MasterUniqueCoo_NU = nan(InitCap, 2);
-        MasterInd_NU       = nan(InitCap, Nobj);
+        Ndet_NU            = zeros(InitCap, 1);
 
         Nmaster_NU = size(MasterCoo_NU, 1);
         if Nmaster_NU > 0
             MasterUniqueCoo_NU(1:Nmaster_NU, :) = MasterCoo_NU;
-            MasterInd_NU(1:Nmaster_NU, Iobj)    = find(NotUse1);
+            Ndet_NU(1:Nmaster_NU)               = 1;
+            PairMaster_NU{Iobj} = int32(1:Nmaster_NU).';
+            PairCat_NU{Iobj}    = int32(find(NotUse1));
         end
     end
 
@@ -196,22 +224,28 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
                                       MatchRadius, IsDeg, [], Use2, Args.TestSorted);
 
         FlagMatch = ~isnan(Ind1);
-        if any(FlagMatch)
-            MasterInd(FlagMatch, Iobj) = Ind1(FlagMatch);
-        end
+        MatchRows = find(FlagMatch);
+        Ndet(MatchRows) = Ndet(MatchRows) + 1;
 
         FlagNew = Use2 & isnan(Ind2);
         Nnew    = nnz(FlagNew);
 
         if Nnew > 0
             NewInd  = find(FlagNew);
-            NewRows = (Nmaster + 1):(Nmaster + Nnew);
+            NewRows = ((Nmaster + 1):(Nmaster + Nnew)).';
 
+            [MasterUniqueCoo, Ndet] = growMaster(MasterUniqueCoo, Ndet, Nmaster + Nnew, MaxCap);
             MasterUniqueCoo(NewRows, :) = CooNext(NewInd, :);
-            MasterInd(NewRows, Iobj)    = NewInd;
+            Ndet(NewRows)               = 1;
 
             Nmaster = Nmaster + Nnew;
+        else
+            NewInd  = zeros(0,1);
+            NewRows = zeros(0,1);
         end
+
+        PairMaster{Iobj} = int32([MatchRows;        NewRows]);
+        PairCat{Iobj}    = int32([Ind1(FlagMatch);  NewInd]);
 
         %----- unused branch -----
         if Args.AddUnUse
@@ -223,32 +257,38 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
                                                 MatchRadius, IsDeg, [], NotUse2, Args.TestSorted);
 
             FlagMatch_NU = ~isnan(Ind1_NU);
-            if any(FlagMatch_NU)
-                MasterInd_NU(FlagMatch_NU, Iobj) = Ind1_NU(FlagMatch_NU);
-            end
+            MatchRows_NU = find(FlagMatch_NU);
+            Ndet_NU(MatchRows_NU) = Ndet_NU(MatchRows_NU) + 1;
 
             FlagNew_NU = NotUse2 & isnan(Ind2_NU);
             Nnew_NU    = nnz(FlagNew_NU);
 
             if Nnew_NU > 0
                 NewInd_NU  = find(FlagNew_NU);
-                NewRows_NU = (Nmaster_NU + 1):(Nmaster_NU + Nnew_NU);
+                NewRows_NU = ((Nmaster_NU + 1):(Nmaster_NU + Nnew_NU)).';
 
+                [MasterUniqueCoo_NU, Ndet_NU] = growMaster(MasterUniqueCoo_NU, Ndet_NU, Nmaster_NU + Nnew_NU, MaxCap);
                 MasterUniqueCoo_NU(NewRows_NU, :) = CooNext(NewInd_NU, :);
-                MasterInd_NU(NewRows_NU, Iobj)    = NewInd_NU;
+                Ndet_NU(NewRows_NU)               = 1;
 
                 Nmaster_NU = Nmaster_NU + Nnew_NU;
+            else
+                NewInd_NU  = zeros(0,1);
+                NewRows_NU = zeros(0,1);
             end
+
+            PairMaster_NU{Iobj} = int32([MatchRows_NU;          NewRows_NU]);
+            PairCat_NU{Iobj}    = int32([Ind1_NU(FlagMatch_NU); NewInd_NU]);
         end
     end
 
-    % trim unused tail
-    MasterUniqueCoo = MasterUniqueCoo(1:Nmaster, :);
-    MasterInd       = MasterInd(1:Nmaster, :);
+    % trim unused tail and build the [Nunique,Nobj] index matrix
+    [MasterUniqueCoo, MasterInd] = buildMasterInd(MasterUniqueCoo(1:Nmaster,:), Ndet(1:Nmaster),...
+                                                  PairMaster, PairCat, Nobj, Args.MinNdet);
 
     if Args.AddUnUse
-        MasterUniqueCoo_NU = MasterUniqueCoo_NU(1:Nmaster_NU, :);
-        MasterInd_NU       = MasterInd_NU(1:Nmaster_NU, :);
+        [MasterUniqueCoo_NU, MasterInd_NU] = buildMasterInd(MasterUniqueCoo_NU(1:Nmaster_NU,:), Ndet_NU(1:Nmaster_NU),...
+                                                            PairMaster_NU, PairCat_NU, Nobj, Args.MinNdet);
 
         MasterUniqueCoo = [MasterUniqueCoo; MasterUniqueCoo_NU];
         MasterInd       = [MasterInd;       MasterInd_NU];
@@ -257,6 +297,45 @@ function [MasterUniqueCoo, MasterInd, MS] = unify(Obj, Args)
     if nargout > 2
         % call it with Obj / Note that the catalog was not changed
         MS = imProc.cat.catalog2MatchedSources(Obj, 'MasterInd', MasterInd, 'Col', Args.Col, 'CopyJD', true);
+    end
+end
+
+
+function [Coo, Ndet] = growMaster(Coo, Ndet, NeedRows, MaxCap)
+    % Geometrically grow the master coordinates and detection counter.
+    Cap = size(Coo, 1);
+    if NeedRows > Cap
+        NewCap = min(max(2.*Cap, NeedRows), MaxCap);
+        Coo(Cap+1:NewCap, :)  = NaN;
+        Ndet(Cap+1:NewCap, 1) = 0;
+    end
+end
+
+
+function [Coo, Ind] = buildMasterInd(Coo, Ndet, PairMaster, PairCat, Nobj, MinNdet)
+    % Build the [Nunique,Nobj] index matrix from the accumulated
+    % (master row, catalog row) pairs, keeping only master sources detected
+    % in at least MinNdet epochs. The matrix is allocated at its final size.
+    Nmaster = size(Coo, 1);
+    if MinNdet > 1
+        Keep  = Ndet >= MinNdet;
+        Nkeep = nnz(Keep);
+        Map   = zeros(Nmaster, 1, 'int32');
+        Map(Keep) = int32(1:Nkeep);
+        Coo   = Coo(Keep, :);
+    else
+        Nkeep = Nmaster;
+        Map   = int32(1:Nmaster).';
+    end
+
+    Ind = nan(Nkeep, Nobj);
+    for Iobj=1:1:Nobj
+        if ~isempty(PairMaster{Iobj})
+            Rows  = Map(PairMaster{Iobj});
+            Valid = Rows > 0;
+            % linear indexing avoids a temporary copy of the column
+            Ind(double(Rows(Valid)) + (Iobj-1).*Nkeep) = double(PairCat{Iobj}(Valid));
+        end
     end
 end
 

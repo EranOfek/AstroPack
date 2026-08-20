@@ -74,6 +74,16 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     %            'Annulus' - [Rin, Rout] of the sky background annulus
     %                   used for local background/variance estimation.
     %                   Default is [10 12].
+    %            'PsfAnnulus' - [Rin, Rout] background annulus for the
+    %                   PSF-star stamps (forwarded to imProc.psf.populatePSF
+    %                   as its 'Annulus'), decoupled from the photometry
+    %                   'Annulus'. The stamp annulus sits on the PSF star's
+    %                   own wing, biasing the stamp background high and
+    %                   clipping the PSF wings; a larger annulus (e.g.
+    %                   [16 20] -- buildPSF enlarges the cutouts to cover
+    %                   it) lowers the per-stamp background and preserves
+    %                   the wings. Empty (default) -> use 'Annulus'
+    %                   (legacy behavior, bit-identical).
     %            'MomentsMethod' - Implementation used for moment
     %                   measurements inside findMeasureSources:
     %                   'legacy' | 'mex'. Default is 'mex'.
@@ -336,6 +346,13 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.RadiusPSF                 = 12;
         Args.AperRadius                = [3, 5, 6, 7];
         Args.Annulus                   = [10 12];
+        Args.PsfAnnulus                = [];  % [Rin, Rout] background annulus for the PSF-star stamps
+                                              % (imProc.psf.populatePSF), decoupled from the photometry
+                                              % 'Annulus'. The stamp annulus sits on the PSF star's own
+                                              % wing, so a larger radius (e.g. [16 20]; buildPSF enlarges
+                                              % the cutouts to cover it) lowers the per-stamp background
+                                              % and preserves the wings. [] (default) -> use Args.Annulus
+                                              % (legacy single-annulus behavior).
         Args.MomentsMethod             = 'mex';  %'legacy'|'mex'
         Args.AperPhotMethod            = 'interp';  % 'simple'|'interp'
         Args.MomPar                    = {};
@@ -452,6 +469,12 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.Alpha                     = 1;
     end
 
+    % PSF-stamp background annulus defaults to the photometry annulus, so the
+    % legacy single-Annulus behavior is preserved when PsfAnnulus is not set.
+    if isempty(Args.PsfAnnulus)
+        Args.PsfAnnulus = Args.Annulus;
+    end
+
     %Args.BS_R = Args.BS_R(Args.BS_R<Args.BS_MaxR);
 
     if isa(Args.BS_Prof, 'function_handle')
@@ -518,7 +541,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                    'SumMethod',Args.SumMethodPSF,...
                                                    'ShiftMethod', Args.ShiftMethod,...
                                                    'RadiusPSF',Args.RadiusPSF,...
-                                                   'Annulus',Args.Annulus,...
+                                                   'Annulus',Args.PsfAnnulus,...
                                                    'ThresholdPSF',Args.ThresholdPSF,...
                                                    'RangeSN',Args.RangeSN,...
                                                    'InitPsf',Args.InitPsf,...
@@ -742,6 +765,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                     %|| isempty(AI.PSF)
                     AI = imProc.psf.populatePSF(AI,Args.populatePSFArgs{:},...
                                                     'Method',Args.MethodPSF,...
+                                                    'Annulus',Args.PsfAnnulus,...
                                                     'WingsMethod','empirical',...
                                                     'BuildDetectionPSF',true);
                 end
