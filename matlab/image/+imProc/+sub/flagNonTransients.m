@@ -555,11 +555,15 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % A point source can only spill onto a candidate that sits inside its
         % PSF footprint, so this test uses the stamp radius rather than
-        % NearbyRRadius.
-        RSrcRadiusSq = max(N_PSFHalfSize, R_PSFHalfSize).^2;
+        % NearbyRRadius. The reference catalogue is in its own pixel frame, so
+        % separations are measured on the sky and both radii are converted.
+        NearbyRRadiusRad = NearbyRRadius .* Args.PixelScale .* Arcsec2Rad;
+        RSrcRadiusRadSq  = (max(N_PSFHalfSize, R_PSFHalfSize) ...
+                            .* Args.PixelScale .* Arcsec2Rad).^2;
 
         if D_PSFPhot_isSolved
-            [R_NativeX, R_NativeY] = Obj(Iobj).Ref.CatData.getXY();
+            [R_NativeRA, R_NativeDec] = Obj(Iobj).Ref.CatData.getLonLat('rad');
+            [CandRA, CandDec]         = CandCat.getLonLat('rad');
             R_NativeMag = Obj(Iobj).Ref.CatData.getCol('MAG_PSF');
 
             % Only point sources matter. Diffuse flux is not PSF-matched, so a
@@ -572,7 +576,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 R_IsPoint  = ((R_NativeX2 + R_NativeY2) < Args.SecondMomHardLim(2)) ...
                            | (max(R_NativeX2, R_NativeY2) < Args.SecondMomHardLim(1));
             else
-                R_IsPoint = true(size(R_NativeX));
+                R_IsPoint = true(size(R_NativeRA));
             end
 
             DgreaterNearbyR = false(NumCand,1);
@@ -582,30 +586,30 @@ function TranCat = flagNonTransients(Obj, Args)
             % exemption.
             NoNearbyRSrc = false(NumCand,1);
 
-            if any(~isnan(R_NativeY))
+            if any(~isnan(R_NativeDec))
 
-                % Sort the reference catalog by Y and bin it into horizontal rows
-                % of height NearbyRRadius. Rows are contiguous in the sorted
-                % arrays, so each row maps to a single index range. A candidate can
-                % only match sources in its own row and the two adjacent ones,
-                % which restricts the distance calculation to a thin slab.
-                [R_SortedY, SI] = sort(R_NativeY);
-                R_SortedX = R_NativeX(SI);
+                % Sort the reference catalog by Dec and bin it into bands of
+                % height NearbyRRadiusRad. Bands are contiguous in the sorted
+                % arrays, so each band maps to a single index range. A candidate
+                % can only match sources in its own band and the two adjacent
+                % ones, which restricts the distance calculation to a thin slab.
+                [R_SortedDec, SI] = sort(R_NativeDec);
+                R_SortedRA = R_NativeRA(SI);
                 R_SortedMag = R_NativeMag(SI);
                 R_SortedIsPoint = R_IsPoint(SI);
 
-                RowEdges = min(R_SortedY):NearbyRRadius:(max(R_SortedY)+NearbyRRadius);
+                RowEdges = min(R_SortedDec):NearbyRRadiusRad:(max(R_SortedDec)+NearbyRRadiusRad);
                 NRow = numel(RowEdges)-1;
 
                 RowStart = ones(NRow+1,1);
-                RowStart(2:end) = cumsum(histcounts(R_SortedY, RowEdges)).' + 1;
+                RowStart(2:end) = cumsum(histcounts(R_SortedDec, RowEdges)).' + 1;
 
-                CandRow = discretize(Y, RowEdges);
-                NearbyRRadiusSq = NearbyRRadius.^2;
+                CandRow = discretize(CandDec, RowEdges);
+                NearbyRRadiusRadSq = NearbyRRadiusRad.^2;
 
                 for Icand = 1:NumCand
-                    % Candidates outside the reference catalog Y range have no
-                    % row and therefore no nearby sources.
+                    % Candidates outside the reference catalog Dec range have no
+                    % band and therefore no nearby sources.
                     if isnan(CandRow(Icand))
                         continue
                     end
@@ -614,17 +618,23 @@ function TranCat = flagNonTransients(Obj, Args)
                     Ihigh = RowStart(min(CandRow(Icand)+2, NRow+1))-1;
 
                     if Ihigh < Ilow
-                        % No Ref sources anywhere in this row band, so none
+                        % No Ref sources anywhere in this band, so none
                         % within the PSF stamp either.
                         NoNearbyRSrc(Icand) = true;
                         continue
                     end
 
-                    SlabDistSq = (R_SortedX(Ilow:Ihigh) - X(Icand)).^2 ...
-                        + (R_SortedY(Ilow:Ihigh) - Y(Icand)).^2;
-                    Nearby = SlabDistSq < NearbyRRadiusSq;
+                    % Small-angle separation, with RA wrapped to [-pi,pi] and
+                    % scaled by cos(Dec).
+                    DeltaRA  = R_SortedRA(Ilow:Ihigh) - CandRA(Icand);
+                    DeltaRA  = mod(DeltaRA + pi, 2.*pi) - pi;
+                    DeltaRA  = DeltaRA .* cos(CandDec(Icand));
+                    DeltaDec = R_SortedDec(Ilow:Ihigh) - CandDec(Icand);
 
-                    NearPoint = (SlabDistSq < RSrcRadiusSq) ...
+                    SlabDistSq = DeltaRA.^2 + DeltaDec.^2;
+                    Nearby = SlabDistSq < NearbyRRadiusRadSq;
+
+                    NearPoint = (SlabDistSq < RSrcRadiusRadSq) ...
                         & R_SortedIsPoint(Ilow:Ihigh);
                     NoNearbyRSrc(Icand) = ~any(NearPoint);
 
