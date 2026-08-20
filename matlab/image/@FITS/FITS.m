@@ -157,16 +157,42 @@ classdef FITS < handle
                            %  string starts with a quote, and we
                            %  must first search for the closing quote.
                            PosAp = strfind(Card(KeyPos+1:end),'''');
+                           % Locate the true closing quote, skipping over any
+                           % doubled '' pairs (the FITS standard's escape for a
+                           % literal quote inside a string). Taking PosAp(2) as
+                           % the closing quote is wrong as soon as the value
+                           % contains an escaped quote: it points at the first
+                           % half of the escape pair, so the value was cut at
+                           % the default comment column instead of at the real
+                           % closing quote, truncating the card - most visibly
+                           % on CONTINUE segments. See issue #1212.
+                           PosClose = [];
+                           if ~isempty(PosAp)
+                               Str = Card(KeyPos+1:end);
+                               Ic  = PosAp(1)+1;
+                               while Ic<=length(Str)
+                                   if Str(Ic)==''''
+                                       if Ic<length(Str) && Str(Ic+1)==''''
+                                           Ic = Ic + 2;
+                                       else
+                                           PosClose = Ic;
+                                           break;
+                                       end
+                                   else
+                                       Ic = Ic + 1;
+                                   end
+                               end
+                           end
                            % Update comment position due to over flow
                            Islash = strfind(Card(1:end),'/');
-                           if (isempty(Islash)) && length(PosAp)<2
+                           if (isempty(Islash)) && isempty(PosClose)
                                UpdatedComPos = ComPos;
                            else
-                               if length(PosAp)>=2
+                               if ~isempty(PosClose)
                                    if isempty(Islash)
-                                       UpdatedComPos = max(ComPos,KeyPos+1+PosAp(2));
+                                       UpdatedComPos = max(ComPos,KeyPos+1+PosClose);
                                    else
-                                       UpdatedComPos = Islash(Islash>KeyPos+1+PosAp(2));
+                                       UpdatedComPos = Islash(Islash>KeyPos+1+PosClose);
                                    end
                                else
                                    UpdatedComPos = Islash(1);
