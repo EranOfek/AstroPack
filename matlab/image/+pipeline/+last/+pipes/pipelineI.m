@@ -553,7 +553,13 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                           'photometricZP_UpdateMagCols',false,...
                                                           'MinFracIsolated',Args.MinFracIsolated,...
                                                           'Threshold',Args.Threshold,...
-                                                          Args.multiIterExtractorArgs{:});
+                                                          'multiIterExtractorArgs',Args.multiIterExtractorArgs);
+            % NOTE: multiIterExtractorArgs is passed as procCoadd's dedicated
+            % pass-through (procCoadd forwards it to the coadd's own
+            % multiIterExtractor call). Splatting the cell directly into the
+            % procCoadd argument list (the previous form) crashed on any
+            % extractor-specific name that procCoadd's arguments block does
+            % not share (e.g. 'PsfAnnulus', 'populatePSFArgs', 'psfFitPhotArgs').
             
               
             %toc
