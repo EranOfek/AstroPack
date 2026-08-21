@@ -1893,8 +1893,12 @@ classdef PipelineDemon < Component
             %   D.CalibPath directory.
             % Input  : - A ipeline.DemonLAST object.
             %          * ...,key,val,...
-            %            'FileList' - list of files to select.
-            %                   Default is '*dark*.fits'.
+            %            'FilesList' - Files to select: either a file name
+            %                   template, or a FileNames object. A caller-supplied
+            %                   FileNames object must carry its own FullPath - that
+            %                   is what allows building a master from frames outside
+            %                   new/, e.g. when reprocessing an archived night.
+            %                   Default is '*dark*.fits*'.
             %            'BiasArgs' - A cell array of additional arguments
             %                   to pass to the CalibImages/createBias
             %                   function. Default is {}.
@@ -1927,7 +1931,7 @@ classdef PipelineDemon < Component
 
             arguments
                 Obj
-                Args.FilesList            = '*dark*.fits';
+                Args.FilesList            = '*dark*.fits*';
                 Args.BiasArgs             = {};
                 Args.MinDT                = 1./1440;  % [d]
                 Args.WaitForMoreImages    = 10;   % [s]
@@ -1938,7 +1942,8 @@ classdef PipelineDemon < Component
                 Args.Move2raw logical     = true;
             end
 
-            FN        = [];
+            FN        = FileNames;   % nfiles==0; keeps the Move2raw guard below valid
+                                     % on the path where FN is never assigned (issue #1221)
             FN_Master = [];
             NoImages = false;
             if Args.Repopulate || ~exist(Obj.CI,'Bias',{'Image','Mask'})
@@ -1952,7 +1957,10 @@ classdef PipelineDemon < Component
                 while WaitForMoreImages
                     
                     if isa(Args.FilesList,'FileNames')
-                        FN = Args.FN;
+                        % use the caller-supplied object; its own FullPath is kept by
+                        % genPath, which is what allows building a master from frames
+                        % outside new/ (issue #1221)
+                        FN = Args.FilesList;
                         WaitForMoreImages = false;
                     else
                         % generate file names
@@ -2095,8 +2103,12 @@ classdef PipelineDemon < Component
             %   D.CalibPath directory.
             % Input  : - A ipeline.DemonLAST object.
             %          * ...,key,val,...
-            %            'FileList' - list of files to select.
-            %                   Default is '*flat*.fits'.
+            %            'FilesList' - Files to select: either a file name
+            %                   template, or a FileNames object. A caller-supplied
+            %                   FileNames object must carry its own FullPath - that
+            %                   is what allows building a master from frames outside
+            %                   new/, e.g. when reprocessing an archived night.
+            %                   Default is '*flat*.fits*'.
             %            'debiasArgs' - A cell array of additional
             %                   arguments to pass to imProc.dark.debias.
             %                   Default is {}.
@@ -2136,7 +2148,7 @@ classdef PipelineDemon < Component
 
             arguments
                 Obj
-                Args.FilesList   = '*flat*.fits';
+                Args.FilesList   = '*flat*.fits*';
                 Args.BiasImage   = [];  % if not given use Demon.CI
                 Args.debiasArgs  = {};
                 Args.FlatArgs    = {};
@@ -2158,7 +2170,8 @@ classdef PipelineDemon < Component
             PWD = pwd;
             cd(Obj.NewPath);
 
-            FN        = [];
+            FN        = FileNames;   % nfiles==0; keeps the Move2raw guard below valid
+                                     % on the path where FN is never assigned (issue #1221)
             FN_Master = [];
             NoImages = false;
             if Args.Repopulate || ~exist(Obj.CI,'Flat',{'Image','Mask'})
@@ -2172,7 +2185,10 @@ classdef PipelineDemon < Component
                 while WaitForMoreImages
                     
                     if isa(Args.FilesList,'FileNames')
-                        FN = Args.FN;
+                        % use the caller-supplied object; its own FullPath is kept by
+                        % genPath, which is what allows building a master from frames
+                        % outside new/ (issue #1221)
+                        FN = Args.FilesList;
                         WaitForMoreImages = false;
                     else
                         % generate file names
