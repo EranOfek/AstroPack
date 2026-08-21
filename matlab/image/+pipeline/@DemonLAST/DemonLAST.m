@@ -2647,7 +2647,7 @@ classdef DemonLAST < Component
                 Obj
                 Args.DataDir       = 1;              % LAST data dir: 1|2
                 Args.CamNumber     = [];             % Camera number: 1|2|3|4
-                Args.TempRawSci    = '*_sci_raw_*.fits';   % file name template to search
+                Args.TempRawSci    = '*_sci_raw_*.fit*';   % file name template to search; .fit* also matches fpacked/gzipped frames (issue #1225)
                 Args.AstroImageReadArgs = {};        % e.g., {'Use.Mex',1}
                 Args.NewSubDir     = 'new';          % new sub dir
                 Args.NonStandardNew= '';             % non-standard new dir
@@ -2673,7 +2673,7 @@ classdef DemonLAST < Component
                 Args.DeleteSunAlt  = 0;                  % SunAlt for previous argument
 
                 Args.FocusTreatment  = 'move';           % 'move'|'keep'|'delete' 
-                Args.TempRawFocus    = '*_focus_raw_*.fits';
+                Args.TempRawFocus    = '*_focus_raw_*.fit*';   % see issue #1225
 
                 Args.MinNumImageVisit  = 10;
                 Args.PauseDay          = 100;
