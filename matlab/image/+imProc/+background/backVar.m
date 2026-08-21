@@ -120,7 +120,6 @@ function [Result, FailedList] = backVar(Obj, Args)
     end
 
     Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR', 'MINBCK', 'MAXBCK', 'BCKMETH'};
-    MinVar = eps('single');   % variance floor - see the store block below
 
     if Args.CreateNewObj
         Result = Obj.copy;
@@ -209,12 +208,19 @@ function [Result, FailedList] = backVar(Obj, Args)
                 % a large dead region drives the Poisson variance to zero or
                 % negative, and a zero variance makes S/N Inf downstream, which
                 % then aborts source extraction (issue #1223).
+                % Floor at the read-noise variance, not at eps: a pixel floored
+                % to eps has sqrt(Var)~3e-4 and becomes an enormous local
+                % maximum, trading the crash for spurious sources. Since
+                % Var=(Back+RN2)/Ncoadd, flooring at RN2/Ncoadd is exactly
+                % flooring Back at 0, so floored pixels read as ordinary
+                % read-noise-limited pixels. max(eps(..),..) keeps it positive
+                % if RN2 comes from a header and is 0.
                 % Index rather than max(): max() ignores NaN and would silently
-                % replace the NaN failure marker above with the floor value.
-                if Ok
-                    Var(Var<MinVar)           = MinVar;
-                    VarSmall(VarSmall<MinVar) = MinVar;
-                end
+                % replace the NaN failure marker above with the floor value -
+                % which also makes an Ok guard here unnecessary.
+                MinVar = max(eps('single'), Args.RN2(Iobj)./Args.Ncoadd);
+                Var(Var<MinVar)           = MinVar;
+                VarSmall(VarSmall<MinVar) = MinVar;
             end
             Result(Iobj).VarData.Image  = Var;
             

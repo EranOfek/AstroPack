@@ -13,6 +13,11 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
     %       See also: imUtil.background.modeVar_LogHist
     %       
     % Input  : - An array for which to calculate the mode (over all dims).
+    %            NaN and non-positive pixels are excluded, since the mode is
+    %            estimated from log(Array). An image that legitimately
+    %            contains negative values (e.g. a background-subtracted
+    %            image) will therefore give a biased mode rather than an
+    %            error - this function expects images in electrons.
     %          * ...,key,val,... 
     %            'DiluteFactor' - (positive integer) If >1 then will dilute the array by this
     %                   factor (for speed up). Default is 1.
@@ -95,7 +100,17 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
         Array = single(Array);
     end
     if ~isempty(Args.MinVal) || ~isempty(Args.MaxVal)
-        Array = Array(Array>Args.MinVal & Array<Args.MaxVal);
+        % the guard is || but the expression needs both, so substitute an
+        % open bound for whichever one was not given (issue #1223)
+        MinVal = Args.MinVal;
+        MaxVal = Args.MaxVal;
+        if isempty(MinVal)
+            MinVal = -Inf;
+        end
+        if isempty(MaxVal)
+            MaxVal = Inf;
+        end
+        Array = Array(Array>MinVal & Array<MaxVal);
     end
 
     % Remove NaNs and non-positive values in a single pass.
