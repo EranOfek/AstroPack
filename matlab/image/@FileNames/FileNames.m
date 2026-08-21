@@ -1666,7 +1666,10 @@ classdef FileNames < Component
 
             N        = numel(JD);
             I1       = find(Flag);
-            I2       = [I1(2:end); N];
+            % end of a group is one before the start of the next: I1 holds group
+            % START indices, so using I1(2:end) directly made consecutive groups
+            % overlap by one file and inflated N by one (issue #1224)
+            I2       = [I1(2:end)-1; N];
             Ngr      = numel(I1);
             K = 0;
             Groups = [];
