@@ -72,7 +72,14 @@ function [Result, FailedList] = backVar(Obj, Args)
     %            'CreateNewObj' - A logical indicating if to create new
     %                   object before modifying the AstroImage.
     %                   Default is false.
+    %            'Verbosity' - 0: silent; >0: issue a warning naming each
+    %                   element whose background estimation failed.
+    %                   Default is 0.
     % Output : - An updated object.
+    %          - A vector of indices of the elements for which the background
+    %            estimation failed. Their Back/Var are filled with NaN, their
+    %            header is left untouched, and the background is not
+    %            subtracted from them even if SubBack is true.
     % Author : Eran Ofek (2025 Oct) 
     % Example: AI=imProc.background.backVar(AI);
     %          AI=imProc.background.backVar(AI, 'Block',256, 'Method',{@median, @var}, 'ReCalc',true);
@@ -101,6 +108,7 @@ function [Result, FailedList] = backVar(Obj, Args)
 
         Args.ReCalc       = false;
         Args.CreateNewObj = false;
+        Args.Verbosity    = 0;    % 0: silent; >0: warn when an estimation fails
 
         Args.ImageProp    = 'ImageData';
         Args.ImagePropIn  = 'Data';
@@ -111,7 +119,8 @@ function [Result, FailedList] = backVar(Obj, Args)
         
     end
 
-    Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR', 'MINBCK', 'MAXBCK'};
+    Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR', 'MINBCK', 'MAXBCK', 'BCKMETH'};
+    MinVar = eps('single');   % variance floor - see the store block below
 
     if Args.CreateNewObj
         Result = Obj.copy;
@@ -140,9 +149,18 @@ function [Result, FailedList] = backVar(Obj, Args)
         end
     end
 
+    % Readable method name for the BCKMETH header keyword. StrMethod is the
+    % literal 'cell' when Args.Method is a cell array, so resolve the elements.
+    if iscell(Args.Method)
+        MethodName = strjoin(cellfun(@localMethodName, Args.Method, 'UniformOutput',false), ',');
+    else
+        MethodName = StrMethod;
+    end
+
     FailedList = [];
     for Iobj=1:1:Nobj
         if isempty(Result(Iobj).(Args.BackProp).(Args.BackPropIn)) || Args.ReCalc
+            Ok = true;
             try
             switch StrMethod
                 case 'backBertin'
@@ -164,6 +182,19 @@ function [Result, FailedList] = backVar(Obj, Args)
             end
             catch ME
                 FailedList = [FailedList,Iobj];
+                Ok         = false;
+                if Args.Verbosity>0
+                    warning('imProc:background:backVar:estimationFailed',...
+                            'Background estimation failed for element %d: %s', Iobj, ME.message);
+                end
+                % Without this the store below would keep the *previous*
+                % element's Back/Var and write them into this image, or throw
+                % on an unassigned Back for the first element (issue #1223).
+                SizeIm    = size(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn));
+                Back      = nan(SizeIm, 'single');
+                Var       = nan(SizeIm, 'single');
+                BackSmall = [];
+                VarSmall  = [];
             end
 
             % store
@@ -173,17 +204,32 @@ function [Result, FailedList] = backVar(Obj, Args)
                 % assume Var is poisson from Back
                 Var      = (Back + Args.RN2(Iobj))./Args.Ncoadd;
                 VarSmall = (BackSmall + Args.RN2(Iobj))./Args.Ncoadd;
+
+                % Floor the variance. A background extrapolated below zero over
+                % a large dead region drives the Poisson variance to zero or
+                % negative, and a zero variance makes S/N Inf downstream, which
+                % then aborts source extraction (issue #1223).
+                % Index rather than max(): max() ignores NaN and would silently
+                % replace the NaN failure marker above with the floor value.
+                if Ok
+                    Var(Var<MinVar)           = MinVar;
+                    VarSmall(VarSmall<MinVar) = MinVar;
+                end
             end
             Result(Iobj).VarData.Image  = Var;
             
     
-            % subtract background 
-            if Args.SubBack
+            % subtract background
+            % skipped when the estimation failed: subtracting a NaN background
+            % would destroy the image data
+            if Args.SubBack && Ok
                 Result(Iobj).ImageData.Image = Result(Iobj).ImageData.Image - Back;
             end
     
             % update header
-            if ~isempty(Args.AddHeaderInfo)
+            % skipped on failure: every statistic would be NaN, and non-finite
+            % header values are a problem of their own (issue #1194)
+            if ~isempty(Args.AddHeaderInfo) && Ok
                 %
                 MeanBack = mean(BackSmall, 'all');
                 StdBack  = std(BackSmall, [],'all');
@@ -199,11 +245,20 @@ function [Result, FailedList] = backVar(Obj, Args)
                     MedVar  = median(VarSmall, 'all');
                 end
                 
-                %Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR', 'MINBCK', 'MAXBCK'};
-                Vals  = {MeanBack, MedBack, StdBack, MeanVar, MedVar, MinBack, MaxBack};
+                %Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR', 'MINBCK', 'MAXBCK', 'BCKMETH'};
+                Vals  = {MeanBack, MedBack, StdBack, MeanVar, MedVar, MinBack, MaxBack, MethodName};
                 Result(Iobj).HeaderData.replaceVal(Keys,Vals);
                     
             end % if ~isempty(Args.AddHeaderInfo)
         end % if isempty(Result(Iobj).BackData.Image) || Args.ReCalc
     end % for Iobj=1:1:Nobj
+end
+
+function Str = localMethodName(Method)
+    % Readable name for a method given as a function handle or a char array
+    if isa(Method,'function_handle')
+        Str = func2str(Method);
+    else
+        Str = char(Method);
+    end
 end

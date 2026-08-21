@@ -98,8 +98,16 @@ function [Mode, Var] = modeVar_LogHist(Array, Args)
         Array = Array(Array>Args.MinVal & Array<Args.MaxVal);
     end
 
-    % Remove NaNs
-    Array = Array(~isnan(Array));
+    % Remove NaNs and non-positive values in a single pass.
+    % The mode is estimated from log(Array), so a single zero pixel gives
+    % -Inf, the histogram range becomes non-finite and hist1reg_mex throws
+    % 'Require finite Xstart < Xend' (issue #1223). NaN>0 is false, so this
+    % also performs the NaN removal it replaces - no extra pass over the data.
+    Array = Array(Array>0);
+    if isempty(Array)
+        error('imUtil:background:modeVar_LogHist:noPositivePixels',...
+              'No positive pixels - can not estimate mode and variance');
+    end
     
     
     % remove lower/upper quantile

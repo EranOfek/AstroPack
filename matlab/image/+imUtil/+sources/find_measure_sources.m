@@ -237,7 +237,10 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
                 % x7-10 faster     
                 %tic; for i=1:100
                 SN_W = Src.SN(:,2);
-                SN_W(SN_W<1) = 1;
+                % ~isfinite is required: NaN<1 and Inf<1 are both false, so
+                % neither is caught by the comparison alone, and an Inf weight
+                % aborts moment1_cube with 'SN must be finite' (issue #1223)
+                SN_W(~isfinite(SN_W) | SN_W<1) = 1;
                 [M1, M2, Aper] = imUtil.sources.moments(Image-Back, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod);
                 
                 % %end, toc
@@ -264,7 +267,10 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
             case 'mex'
                 
                 SN_W = Src.SN(:,2);
-                SN_W(SN_W<1) = 1;
+                % ~isfinite is required: NaN<1 and Inf<1 are both false, so
+                % neither is caught by the comparison alone, and an Inf weight
+                % aborts moment1_cube with 'SN must be finite' (issue #1223)
+                SN_W(~isfinite(SN_W) | SN_W<1) = 1;
                 [M1, M2] = imUtil.sources.moments(Image, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod);
             otherwise
                 error('Unknown MomentsMethod option');
@@ -279,7 +285,10 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
             case 'mex'
                 
                 SN_W = Src.SN(:,2);
-                SN_W(SN_W<1) = 1;
+                % ~isfinite is required: NaN<1 and Inf<1 are both false, so
+                % neither is caught by the comparison alone, and an Inf weight
+                % aborts moment1_cube with 'SN must be finite' (issue #1223)
+                SN_W(~isfinite(SN_W) | SN_W<1) = 1;
                 [M1] = imUtil.sources.moments(Image, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod);
             otherwise
                 error('Unknown MomentsMethod option');
