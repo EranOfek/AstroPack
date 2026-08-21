@@ -258,7 +258,17 @@ function [Result] = forcedPhotNew(Obj, Args)
     
             HalfSizePSF = (size(Obj(Iobj).PSFData.Data,1)-1).*0.5;
             % stamps around sources
-            [Cube] = imUtil.cut.image2cutouts(Obj(Iobj).(Args.ImageProp).Data, XI, YI, HalfSizePSF);
+            [Cube, RoundX, RoundY] = imUtil.cut.image2cutouts(Obj(Iobj).(Args.ImageProp).Data, XI, YI, HalfSizePSF);
+    
+            % image2cutouts rounds the requested position, so the stamp centre is
+            % (RoundX,RoundY). Start the PSF fit at the true sub-pixel position
+            % instead of at the stamp centre (issue #1219).
+            Xcenter = size(Cube,2).*0.5 + 0.5;
+            Ycenter = size(Cube,1).*0.5 + 0.5;
+            % row vectors, as in imProc.sources.psfFitPhot: the legacy branch of
+            % psfPhotCube uses Xinit/Yinit without reorienting them.
+            Xinit   = Xcenter + (XI(:).' - RoundX(:).');
+            Yinit   = Ycenter + (YI(:).' - RoundY(:).');
     
             % background
             if Args.UseBack
@@ -295,6 +305,8 @@ function [Result] = forcedPhotNew(Obj, Args)
                                                                 'ConvThresh',Args.ConvThresh,...
                                                                 'MaxIter',Args.MaxIter,...
                                                                 'UseSourceNoise',Args.UseSourceNoise,...
+                                                                'Xinit',Xinit,...
+                                                                'Yinit',Yinit,...
                                                                 'PsfPhotMethod',Args.PsfPhotMethod,...
                                                                 'ShiftMethod',Args.ShiftMethod,...
                                                                 'UseMex',Args.UseMex,...
@@ -302,8 +314,9 @@ function [Result] = forcedPhotNew(Obj, Args)
                                                             
             
             
-            Xpos = XI(:) + ResultPSF.DX(:);
-            Ypos = YI(:) + ResultPSF.DY(:);
+            % ResultPSF.DX/DY are measured relative to the stamp centre (RoundX,RoundY)
+            Xpos = RoundX(:) + ResultPSF.DX(:);
+            Ypos = RoundY(:) + ResultPSF.DY(:);
             % RA, Dec of fitted position
             [RAI, DecI] = Obj(Iobj).WCS.xy2sky(Xpos,Ypos,'OutUnits',Args.CooOutUnits);
     

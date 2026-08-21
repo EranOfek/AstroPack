@@ -130,12 +130,12 @@ function [Result] = forcedPhot(Obj, Args)
     %                   exist in the AstroPSF in the AstroImage.
     %                   Default is false.
     %            'HalfSizePSF' - Half size of the constructed PSF (unless
-    %                   PSF is provided). Default is 12 [pix].
+    %                   PSF is provided). Default is 6 [pix].
     %            'FitRadius' - Radius around source center to fit.
     %                   This can be used in order to exclude regions
     %                   outside the stellar core.
     %                   Default is 3.
-    %            'SmallStep' - Gradient step size. Default is 1e-4 (pix).
+    %            'SmallStep' - Gradient step size. Default is 1e-3 (pix).
     %            'MaxStep' - Maximum step size in each iteration.
     %                   Default is 0.2.
     %            'ConvThresh' - Convergence threshold. Default is 1e-4.
@@ -364,7 +364,17 @@ function [Result] = forcedPhot(Obj, Args)
 
             HalfSizePSF = (size(Obj(Iobj).PSFData.Data,1)-1).*0.5;
             % stamps around sources
-            [Cube] = imUtil.cut.image2cutouts(Obj(Iobj).(Args.ImageProp), X, Y, HalfSizePSF);
+            [Cube, RoundX, RoundY] = imUtil.cut.image2cutouts(Obj(Iobj).(Args.ImageProp), X, Y, HalfSizePSF);
+
+            % image2cutouts rounds the requested position, so the stamp centre is
+            % (RoundX,RoundY). Start the PSF fit at the true sub-pixel position
+            % instead of at the stamp centre (issue #1219).
+            Xcenter = size(Cube,2).*0.5 + 0.5;
+            Ycenter = size(Cube,1).*0.5 + 0.5;
+            % row vectors, as in imProc.sources.psfFitPhot: the legacy branch of
+            % psfPhotCube uses Xinit/Yinit without reorienting them.
+            Xinit   = Xcenter + (X(:).' - RoundX(:).');
+            Yinit   = Ycenter + (Y(:).' - RoundY(:).');
 
 
             % background
@@ -387,13 +397,16 @@ function [Result] = forcedPhot(Obj, Args)
                                                                 'ConvThresh',Args.ConvThresh,...
                                                                 'MaxIter',Args.MaxIter,...
                                                                 'UseSourceNoise',Args.UseSourceNoise,...
+                                                                'Xinit',Xinit,...
+                                                                'Yinit',Yinit,...
                                                                 'UseMex',Args.UseMex,...
                                                                 'ZP',Args.ZP);
                                                             
             
             
-            Xpos = X(:).' + ResultPSF.DX(:).';
-            Ypos = Y(:).' + ResultPSF.DY(:).';
+            % ResultPSF.DX/DY are measured relative to the stamp centre (RoundX,RoundY)
+            Xpos = RoundX(:).' + ResultPSF.DX(:).';
+            Ypos = RoundY(:).' + ResultPSF.DY(:).';
             [RA, Dec] = Obj(Iobj).WCS.xy2sky(Xpos,Ypos,'OutUnits',Args.CooOutUnits);
 
             if any(FlagIn) && ~isempty(Obj(Iobj).Mask)
