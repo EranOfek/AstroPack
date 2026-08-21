@@ -17,6 +17,14 @@ function [Result, AstrometricCat]=astrometryCheck(Obj, Args)
     %                   (e.g. 196 in the galactic bulge), and the check
     %                   would report a misleading verdict on a good
     %                   solution. Set to [] to disable.
+    %                   The step in which the faint limit is brightened, and
+    %                   the brightest limit which may be selected, are
+    %                   'AdaptMagStep' (0.5 mag) and 'AdaptMagMin' (15) of
+    %                   imProc.cat.getAstrometricCatalog; together they also
+    %                   bound the number of trials. The faint limit is only
+    %                   ever brightened and the bright limit is never
+    %                   touched, so a field which already satisfies the
+    %                   fraction is unaffected.
     %                   See imProc.cat.getAstrometricCatalog.
     %                   Default is 0.5.
     %            'getAstrometricCatalogArgs' - A cell array of additional

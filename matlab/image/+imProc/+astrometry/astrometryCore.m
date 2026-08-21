@@ -56,6 +56,14 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %                   with almost no isolated sources, so this is what
     %                   makes the astrometry work there.
     %                   Set to [] to disable.
+    %                   The step in which the faint limit is brightened, and
+    %                   the brightest limit which may be selected, are
+    %                   'AdaptMagStep' (0.5 mag) and 'AdaptMagMin' (15) of
+    %                   imProc.cat.getAstrometricCatalog; together they also
+    %                   bound the number of trials. The faint limit is only
+    %                   ever brightened, so a supplied magnitude range -
+    %                   e.g., one already corrected for the exposure time -
+    %                   is never deepened or replaced.
     %                   See imProc.cat.getAstrometricCatalog.
     %                   Default is 0.5.
     %            'EpochOut' - Output epoch. Default units is 'JD' (see

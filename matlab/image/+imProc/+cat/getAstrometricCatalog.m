@@ -37,24 +37,55 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     %            'RangeMag' - Magnitude range to retrieve.
     %                   Default is [12 19.5].
     %            'MinFracIsolated' - If not empty, then this is the minimum
-    %                   fraction of the in-range sources that must survive
-    %                   the neighbour rejection ('RemoveNeighboors'). In
-    %                   crowded fields nearly every source has a neighbour
-    %                   within 'RemoveNeighboorsRadius', so a deep magnitude
-    %                   range can be left with almost no usable sources.
-    %                   When the fraction is below this value, the faint
-    %                   limit of 'RangeMag' is brightened in steps until the
-    %                   fraction is satisfied. The range is never deepened,
-    %                   so a field in which the fraction is already
-    %                   satisfied is unaffected.
+    %                   acceptable value of the ratio
+    %                   (sources surviving the neighbour rejection) /
+    %                   (sources within 'RangeMag'),
+    %                   and the faint limit of 'RangeMag' is adapted to the
+    %                   crowding of the field until the ratio is met.
+    %                   Rationale: a reference source is usable only if no
+    %                   other catalog source lies within
+    %                   'RemoveNeighboorsRadius' (see 'RemoveNeighboors').
+    %                   That step and the magnitude range fight each other,
+    %                   because the faint sources gained by a deeper limit
+    %                   are exactly the neighbours which disqualify the
+    %                   brighter ones - so the number of usable sources is
+    %                   not monotonic in depth. E.g., on the galactic bulge
+    %                   [12 19.5] gives 143568 sources of which 196 are
+    %                   isolated, while [10 17] gives 18347 of which 8359
+    %                   are isolated.
+    %                   How it works: the cone is searched once, and is then
+    %                   re-filtered in memory at the trial faint limits
+    %                   'AdaptMagMin':'AdaptMagStep':RangeMag(2). The scan
+    %                   runs bright to faint, and the number of trials is
+    %                   bounded by the number of steps - at most 5 for
+    %                   [10 17]. In a crowded field it stops early, at the
+    %                   first trial failing the ratio (which only degrades
+    %                   with depth), so the large deep samples are never
+    %                   evaluated. The limit which is used is the deepest
+    %                   trial satisfying both this ratio and
+    %                   'AdaptMinNsrc'. If none does, or if RangeMag(2) is
+    %                   already brighter than 'AdaptMagMin', then 'RangeMag'
+    %                   is left untouched.
+    %                   The adaptation only ever brightens the faint limit,
+    %                   and never touches the bright limit, so a field which
+    %                   already satisfies the ratio gets exactly the catalog
+    %                   it would have got otherwise. In particular, it does
+    %                   not replace an exposure time dependent 'RangeMag'
+    %                   (see 'RefRangeMagExpTimeFun' of
+    %                   imProc.astrometry.astrometrySubImages): such a range
+    %                   is computed by the caller, and the adaptation is
+    %                   applied on top of it.
     %                   If empty, no adaptation is done. Default is [].
-    %            'AdaptMagStep' - Step [mag] by which the faint limit is
-    %                   brightened. Default is 0.5.
-    %            'AdaptMagMin' - The faint limit is never brightened below
-    %                   this value. Default is 15.
+    %            'AdaptMagStep' - Step [mag] in which the faint limit is
+    %                   brightened by the 'MinFracIsolated' adaptation. Sets
+    %                   the resolution of the scan and, with 'AdaptMagMin',
+    %                   the maximal number of trials. Default is 0.5.
+    %            'AdaptMagMin' - The brightest faint limit the
+    %                   'MinFracIsolated' adaptation is allowed to select,
+    %                   and the first trial of the scan. Default is 15.
     %            'AdaptMinNsrc' - The faint limit is never brightened to a
-    %                   value leaving fewer than this number of sources.
-    %                   Default is 50.
+    %                   value leaving fewer than this number of isolated
+    %                   sources. Default is 50.
     %            'ColNamePlx' - Parallax column name.
     %                   Default is {'Plx'}.
     %            'RangePlx' - Parllax range to retrieve.

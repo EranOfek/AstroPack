@@ -60,6 +60,14 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %                   neighboors rejection. In a crowded field a deep reference catalog is left with
     %                   almost no isolated sources; when the fraction is not met the faint limit of the
     %                   magnitude range is brightened automatically. Set to [] to disable.
+    %                   The step in which the faint limit is brightened, and
+    %                   the brightest limit which may be selected, are
+    %                   'AdaptMagStep' (0.5 mag) and 'AdaptMagMin' (15) of
+    %                   imProc.cat.getAstrometricCatalog; together they also
+    %                   bound the number of trials. The faint limit is only
+    %                   ever brightened and the bright limit is never
+    %                   touched, so a field which already satisfies the
+    %                   fraction is unaffected.
     %                   See imProc.cat.getAstrometricCatalog (def. 0.5)
     %
     % Output : - an AstroImage object for the last reference ID from the input list
