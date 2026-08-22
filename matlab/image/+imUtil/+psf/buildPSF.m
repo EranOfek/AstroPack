@@ -556,6 +556,14 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
                                                          'ApplyEllipticityFallback',false);
         end
 
+        % With a visit-level wing profile in use, keep the wings even for an
+        % elongated core: the epoch's own (elongated) core is preserved below
+        % the splice radius either way, and a circular pooled wing beyond it
+        % is far better than the cosbell fallback's NO wing - the fallback
+        % toggles the ~3% wing flux on/off between epochs, which was measured
+        % to dominate bright-star flux repeatability (issue #1178 thread,
+        % field 1139: 9/20 epochs wing-less on the dense crop). The legacy
+        % (per-epoch calibration) path keeps the fallback unchanged.
         [MeanPSF,InnerRadius] = imUtil.psf.wingsFix(MeanPSF, 'WingsMethod',Args.WingsMethod,...
                                                              'SuppressThreshold',Args.SuppressThreshold,...
                                                              'WingsPowerLaw',Args.WingsPowerLaw,...
@@ -564,7 +572,8 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
                                                              'ExtendedSize',Args.ExtendedSize,...
                                                              'ProfileRadius',ProfileRadius,...
                                                              'ProfileValue',ProfileValue,...
-                                                             'ProfileSuccess',ProfileSuccess);
+                                                             'ProfileSuccess',ProfileSuccess,...
+                                                             'ApplyEllipticityFallback',~UseVisitWing);
 
 
 
