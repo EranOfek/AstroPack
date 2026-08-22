@@ -62,6 +62,16 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
         Args.image2subimagesArgs           = {};
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
+        Args.VisitLevelWings               = false; % Phase 1 of the single-PSF scheme: measure ONE
+                                                    % empirical PSF-wing shape per crop for the whole
+                                                    % visit (imProc.psf.visitWingProfile pre-pass) and
+                                                    % share it across the epochs' PSFs (each epoch keeps
+                                                    % its own core; buildPSF re-anchors the shape onto
+                                                    % it). Removes the per-epoch wing-estimation noise
+                                                    % from the PSF normalization (measured ~9 mmag on the
+                                                    % bright end, issue #1178 thread). Default false =
+                                                    % legacy per-epoch wing calibration.
+        Args.visitWingProfileArgs          = {};    % extra args for imProc.psf.visitWingProfile
         Args.SearchStreaksEpoch            = true;  % search streaks in epoch images
         Args.maskCR_Args                   = {'RemoveFromCat',true}; % <-- remove CR
         Args.MaskHole                      = true;
@@ -270,6 +280,25 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             JD = repmat(JD_AI(:), 1, Nsub); % faster than getting the JD for AllSI
             ExpTime = repmat(ExpTime_AI(:), 1, Nsub);
 
+            % Visit-level PSF wing profiles: one wing SHAPE per crop, pooled
+            % from bright stars of several epochs, shared by all the epochs'
+            % PSFs (per-epoch cores are kept; see Args.VisitLevelWings).
+            % WingArgCell{Iobj} is spliced into each extractor call: {} when
+            % disabled (bit-identical legacy behavior), or
+            % {'WingProfile', <this crop's profile>} when enabled. AllSI is
+            % [Nepoch x Nsub], so linear object Iobj maps to crop
+            % ceil(Iobj/Nepoch).
+            WingArgCell   = repmat({{}}, 1, Nobj);
+            WingArgSerial = {};
+            if Args.VisitLevelWings
+                WingProf = imProc.psf.visitWingProfile(AllSI, Args.visitWingProfileArgs{:});
+                for Iwp = 1:Nobj
+                    WingArgCell{Iwp} = {'WingProfile', WingProf(ceil(Iwp./Nepoch))};
+                end
+                % whole-array (serial) form: one profile per linear object
+                WingArgSerial = {'WingProfile', WingProf(ceil((1:Nobj)./Nepoch))};
+            end
+
             % initiate parpool if needed
             %ProcessingStep = 81;
             PP = [];
@@ -293,6 +322,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             if isempty(PP)
                 %ProcessingStep = 101;
                 [AllSI] = imProc.sources.multiIterExtractor(AllSI, Args.multiIterExtractorArgs{:},...
+                                                            WingArgSerial{:},...
                                                             'JD',JD,...
                                                             'ColCell',Args.ColCell,...
                                                             'UseMex',Args.UseMex,...
@@ -314,6 +344,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 % parfor (Iobj=1:1:Nobj, 0)  % no par for!
                 parfor Iobj=1:1:Nobj
                     [AllSI(Iobj)] = imProc.sources.multiIterExtractor(AllSI(Iobj), Args.multiIterExtractorArgs{:},...
+                                                            WingArgCell{Iobj}{:},...
                                                             'JD',JD(Iobj),...
                                                             'ColCell',Args.ColCell,...
                                                             'UseMex',Args.UseMex,...

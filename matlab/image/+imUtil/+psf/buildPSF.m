@@ -223,6 +223,7 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
         Args.SuppressFunPars           = 3; % or # from edge
 
         Args.SaturatedMask             = []; % logical/numeric, true where a pixel is saturated; used only by WingsMethod='empirical'
+        Args.WingProfile               = []; % precomputed visit-level wing SHAPE (struct with .Radius/.Value/.Success from imProc.psf.visitWingProfile). When given with Success=true and WingsMethod='empirical', the per-epoch internal wing calibration is SKIPPED and this shape is re-anchored onto the current core at the splice radius - shared wing shape, per-epoch core. Empty/Success=false -> legacy per-image calibration.
         Args.WingRangeSN               = []; % [SNmin, SNmax] for the bright-star wing-calibration sample; empty -> [RangeSN(2), Inf]
         Args.MinWingStars              = 8;  % minimum bright stars required to trust the empirical wing; else falls back to cosbell
 
@@ -469,7 +470,39 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
         ProfileRadius = [];
         ProfileValue = [];
         ProfileSuccess = false;
-        if strcmpi(Args.WingsMethod, 'empirical') && ismatrix(Image)
+        UseVisitWing = ~isempty(Args.WingProfile) && isstruct(Args.WingProfile) ...
+                       && isfield(Args.WingProfile, 'Success') && Args.WingProfile(1).Success;
+        if strcmpi(Args.WingsMethod, 'empirical') && UseVisitWing
+            % Visit-level wing: re-anchor the precomputed SHAPE profile onto
+            % THIS core at the splice radius. The shape (visit-stable) is
+            % shared across epochs; only the scalar anchor - the core's ring
+            % median at the 1%-of-peak radius, measured from the stacked
+            % core, hence low-noise - is per-epoch. This removes the
+            % epoch-to-epoch wing-estimation noise of the internal
+            % calibration below while keeping truthful wings.
+            % Works for cube input too (no source image needed).
+            R1Emp = imUtil.psf.radiusAtFraction(MeanPSF, Args.SuppressThreshold);
+            [NyP, NxP] = size(MeanPSF);
+            [XgP, YgP] = meshgrid(1:NxP, 1:NyP);
+            RBinP   = round(hypot(XgP - (NxP+1)/2, YgP - (NyP+1)/2));
+            SelRing = RBinP == round(R1Emp);
+            CoreVal = median(MeanPSF(SelRing), 'omitnan');
+            PR = double(Args.WingProfile(1).Radius(:));
+            PV = double(Args.WingProfile(1).Value(:));
+            if numel(PR) >= 2 && isfinite(CoreVal) && CoreVal > 0
+                % shape value at the anchor radius (log-linear, clipped into
+                % the measured range - same convention as the splice itself)
+                Ranchor = min(max(R1Emp, PR(1)), PR(end));
+                Panchor = exp(interp1(PR, log(PV), Ranchor, 'linear'));
+                if isfinite(Panchor) && Panchor > 0
+                    ProfileRadius  = PR;
+                    ProfileValue   = PV .* (CoreVal ./ Panchor);
+                    ProfileSuccess = true;
+                end
+            end
+            % on any failure ProfileSuccess stays false -> wingsFix falls
+            % back to cosbell (never silently to a wrong scale)
+        elseif strcmpi(Args.WingsMethod, 'empirical') && ismatrix(Image)
             R1Emp = imUtil.psf.radiusAtFraction(MeanPSF, Args.SuppressThreshold);
 
             if isempty(Args.WingRangeSN)

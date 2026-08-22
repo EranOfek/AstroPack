@@ -343,6 +343,13 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.ReCalcPsfIter             = [];  % Index of iterations in which to re-calc PSF; if UseOriginalPSF=true, then no need to set this to 1.
         Args.UseOriginalPSF logical    = true;   % use the PSF already attached to the input AstroImage
         Args.populatePSFArgs cell      = {'CropByQuantile',false, 'SuppressWidth',3, 'SmoothWings',false}; % {'CropByQuantile',true,'Quantile',0.5}
+        Args.WingProfile               = [];  % precomputed visit-level wing shape(s) from imProc.psf.visitWingProfile
+                                              % (struct with .Radius/.Value/.Success; scalar, or one per input
+                                              % object). Forwarded to imProc.psf.populatePSF: with
+                                              % WingsMethod='empirical' the wing SHAPE is shared while each
+                                              % epoch keeps its own core (removes per-epoch wing-estimation
+                                              % noise from the PSF normalization). Empty (default) -> legacy
+                                              % per-image wing calibration.
         Args.RadiusPSF                 = 12;
         Args.AperRadius                = [3, 5, 6, 7];
         Args.Annulus                   = [10 12];
@@ -542,6 +549,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                    'ShiftMethod', Args.ShiftMethod,...
                                                    'RadiusPSF',Args.RadiusPSF,...
                                                    'Annulus',Args.PsfAnnulus,...
+                                                   'WingProfile',Args.WingProfile,...
                                                    'ThresholdPSF',Args.ThresholdPSF,...
                                                    'RangeSN',Args.RangeSN,...
                                                    'InitPsf',Args.InitPsf,...
@@ -763,9 +771,17 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 ReCalcPSF = any(Args.ReCalcPsfIter==Iiter);
                 if ReCalcPSF
                     %|| isempty(AI.PSF)
+                    % per-object wing-profile slice (scalar serves all; array
+                    % is indexed by this object's position, clipped at end)
+                    if isempty(Args.WingProfile)
+                        WingProfIter = [];
+                    else
+                        WingProfIter = Args.WingProfile(min(Iobj, numel(Args.WingProfile)));
+                    end
                     AI = imProc.psf.populatePSF(AI,Args.populatePSFArgs{:},...
                                                     'Method',Args.MethodPSF,...
                                                     'Annulus',Args.PsfAnnulus,...
+                                                    'WingProfile',WingProfIter,...
                                                     'WingsMethod','empirical',...
                                                     'BuildDetectionPSF',true);
                 end
