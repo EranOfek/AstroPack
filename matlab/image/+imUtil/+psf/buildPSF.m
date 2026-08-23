@@ -482,19 +482,24 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
             % calibration below while keeping truthful wings.
             % Works for cube input too (no source image needed).
             R1Emp = imUtil.psf.radiusAtFraction(MeanPSF, Args.SuppressThreshold);
-            [NyP, NxP] = size(MeanPSF);
-            [XgP, YgP] = meshgrid(1:NxP, 1:NyP);
-            RBinP   = round(hypot(XgP - (NxP+1)/2, YgP - (NyP+1)/2));
-            SelRing = RBinP == round(R1Emp);
-            CoreVal = median(MeanPSF(SelRing), 'omitnan');
             PR = double(Args.WingProfile(1).Radius(:));
             PV = double(Args.WingProfile(1).Value(:));
-            if numel(PR) >= 2 && isfinite(CoreVal) && CoreVal > 0
-                % shape value at the anchor radius (log-linear, clipped into
-                % the measured range - same convention as the splice itself)
+            if numel(PR) >= 2
+                % Anchor radius: R1Emp clipped into the measured profile
+                % range. CRITICAL: CoreVal and Panchor must be evaluated at
+                % the SAME radius - measuring CoreVal at round(R1Emp) while
+                % evaluating the shape at the clipped radius inflates the
+                % scale by the profile slope across the gap whenever
+                % R1Emp < PR(1) (good-seeing crops: R1Emp=3 vs profile start
+                % 4 -> wings ~x3 too high; 1677 field, 9/24 crops).
                 Ranchor = min(max(R1Emp, PR(1)), PR(end));
+                [NyP, NxP] = size(MeanPSF);
+                [XgP, YgP] = meshgrid(1:NxP, 1:NyP);
+                RBinP   = round(hypot(XgP - (NxP+1)/2, YgP - (NyP+1)/2));
+                SelRing = RBinP == round(Ranchor);
+                CoreVal = median(MeanPSF(SelRing), 'omitnan');
                 Panchor = exp(interp1(PR, log(PV), Ranchor, 'linear'));
-                if isfinite(Panchor) && Panchor > 0
+                if isfinite(CoreVal) && CoreVal > 0 && isfinite(Panchor) && Panchor > 0
                     ProfileRadius  = PR;
                     ProfileValue   = PV .* (CoreVal ./ Panchor);
                     ProfileSuccess = true;

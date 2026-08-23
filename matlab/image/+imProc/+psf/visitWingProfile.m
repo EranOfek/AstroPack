@@ -72,7 +72,17 @@ function Prof = visitWingProfile(Obj, Args)
         Args.PseudoSNThresh   (1,1) double  = 100
         Args.NeighRadius      (1,1) double  = 15
         Args.MaxStarsPerEpoch (1,1) double  = 40
-        Args.MinWingStars     (1,1) double  = 8
+        Args.MinWingStars     (1,1) double  = 20   % pooled across epochs, so higher than
+                                                   % buildEmpiricalWing's per-epoch 8; crops
+                                                   % that cannot supply this many clean stars
+                                                   % return Success=false -> per-crop legacy
+                                                   % fallback (graceful degradation)
+        Args.SeamMinSN        (1,1) double  = 10   % min S/N of the star's seam-ring median
+                                                   % (vs its annulus noise). Stars whose seam
+                                                   % scale is at noise level corrupt the pooled
+                                                   % shape (scaling by a noisy near-zero value
+                                                   % inflates the wing) - on sparse fields the
+                                                   % brightest-N selection reaches such stars.
         Args.SatBitName       (1,:) char    = 'Saturated'
         Args.DiluteFactor     (1,1) double  = 101
         Args.Verbose          (1,1) logical = false
@@ -139,7 +149,29 @@ function Prof = visitWingProfile(Obj, Args)
 
             % stamps, background-subtracted by the far-out annulus
             Cube = imUtil.cut.image2cutouts(Im, X, Y, Args.StampRadius);
-            [Cube, ~, ~, ~] = imUtil.sources.mex.annulus_median(Cube, Args.WingAnnulus, 0);
+            [Cube, ~, BgStd, ~] = imUtil.sources.mex.annulus_median(Cube, Args.WingAnnulus, 0);
+
+            % Seam-S/N cut: the per-star scale in buildEmpiricalWing is the
+            % seam-ring median; if that is at noise level, 1/V scaling
+            % corrupts (inflates) the pooled shape. Keep only stars whose
+            % seam-ring median clears SeamMinSN x its ring-median noise
+            % (1.2533*std/sqrt(Nring)).
+            [NyS, NxS, ~] = size(Cube);
+            [XgS, YgS] = meshgrid(1:NxS, 1:NyS);
+            SeamSelS = round(hypot(XgS-(NxS+1)/2, YgS-(NyS+1)/2)) == round(Args.SeamRadius);
+            NringS   = nnz(SeamSelS);
+            KeepSeam = false(size(Cube,3),1);
+            for Ist = 1:size(Cube,3)
+                Stamp = Cube(:,:,Ist);
+                Vseam = median(Stamp(SeamSelS), 'omitnan');
+                SigSeam = 1.2533 .* BgStd(Ist) ./ sqrt(NringS);
+                KeepSeam(Ist) = isfinite(Vseam) && Vseam > Args.SeamMinSN .* SigSeam;
+            end
+            Cube = Cube(:,:,KeepSeam);
+            X = X(KeepSeam);  Y = Y(KeepSeam);
+            if isempty(X)
+                continue;
+            end
 
             % saturated-pixel stamps (0 = usable) - keep cube alignment even
             % when an epoch has no mask
