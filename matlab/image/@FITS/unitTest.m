@@ -48,7 +48,9 @@ function Result = unitTest(Obj)
 	
 	% mget_keys
 	io.msgLog(LogLevel.Test, 'testing FITS mget_keys');
-	[KeysVal,KeysComment,Struct,List]=FITS.mget_keys('*.fits',{'NAXIS1','NAXIS2'});
+	% not '*.fits': the directory also holds catalog files whose primary HDU
+	% has no NAXIS1/NAXIS2, and readKey errors on a keyword which is absent
+	[KeysVal,KeysComment,Struct,List]=FITS.mget_keys('WFPC2*.fits',{'NAXIS1','NAXIS2'});
 	
 	% non static 
 	F.numHDU;  
