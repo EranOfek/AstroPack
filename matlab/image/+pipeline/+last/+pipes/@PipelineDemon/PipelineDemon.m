@@ -2621,6 +2621,17 @@ classdef PipelineDemon < Component
                 MsgF{2} = sprintf('pipeline run time : %f', RunTime);
                 Obj.writeLog(MsgF, LogLevel.Info);
 
+                % Background estimation failures (issue #1226). Such crops are
+                % saved, with blank background keywords, but take no part in
+                % the coadd, the matched sources or the forced photometry.
+                % Logged here rather than by a warning inside the extractor,
+                % which runs under parfor and whose warnings do not reliably
+                % reach this log.
+                if isfield(Status,'NfailedBack') && Status.NfailedBack>0
+                    MsgB{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: background estimation failed for %d sub image(s) - saved, but excluded from the coadd and the matched sources', Status.NfailedBack);
+                    Obj.writeLog(MsgB, LogLevel.Warning);
+                end
+
                 % saving data products of pipelineI
 
                 try
@@ -2707,7 +2718,22 @@ classdef PipelineDemon < Component
             FN_I.JD = FN_I.julday;
             
 
-            [~,FN_I] = imProc.io.saveProductImage(AllSI, FN_I, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveEpochProduct, 'WriteHeader',Args.SaveEpochHeader, 'WriteMethodImages',Args.WriteMethodImages, 'WriteMethodTables',Args.WriteMethodTables, 'CompressedOutput', Args.CompressedOutput);  % 20 s
+            % WriteEmptyCat: a crop which extracted no sources - e.g. one
+            % whose background estimation failed - is saved as a zero-row
+            % catalog rather than silently producing no file (issue #1226).
+            % Only the epoch (crop) products opt in; the coadd and the merged
+            % products below keep the previous behaviour.
+            [SaveStatus,FN_I] = imProc.io.saveProductImage(AllSI, FN_I, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveEpochProduct, 'WriteHeader',Args.SaveEpochHeader, 'WriteMethodImages',Args.WriteMethodImages, 'WriteMethodTables',Args.WriteMethodTables, 'CompressedOutput', Args.CompressedOutput, 'WriteEmptyCat',true);  % 20 s
+
+            % A product which was not written leaves a message in SaveStatus.
+            % It used to be discarded here, so a visit could end with fewer
+            % epoch products than crops and nothing said why (issue #1226).
+            if ~isempty(SaveStatus)
+                MsgS = cell(1, numel(SaveStatus)+1);
+                MsgS{1} = sprintf('pipeline.last.pipes.PipelineDemon/saveDataProductsI: %d epoch product(s) not saved', numel(SaveStatus));
+                MsgS(2:end) = SaveStatus(:).';
+                Obj.writeLog(MsgS, LogLevel.Warning);
+            end
 
             % Streaks
             % need JD

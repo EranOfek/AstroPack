@@ -151,11 +151,19 @@ function Result = writeTable1(Table, FileName, Args)
         Args.ColNames, Args.ColDataType, Args.ColUnits, Args.ExtName);
                    
     % Process each column
-    for Icol=1:1:Ncol       
-        % Write elements into ASCII or binary table column
-        % writeCol(fptr,colnum,firstrow,coldata)
-        Data = Table.Catalog(:,Icol);        
-        matlab.io.fits.writeCol(Fptr, Icol, Args.StartRow, Data); 
+    % A table with no rows is skipped here: createTbl above already wrote the
+    % column definitions, while matlab.io.fits.writeCol rejects empty column
+    % data ('Expected COLDATA to be nonempty') and leaves a truncated,
+    % unreadable file behind. An empty catalog is a legitimate product - e.g., a
+    % crop whose background estimation failed extracts no sources, and it is
+    % still saved (issue #1226).
+    if TableSize(1)>0
+        for Icol=1:1:Ncol
+            % Write elements into ASCII or binary table column
+            % writeCol(fptr,colnum,firstrow,coldata)
+            Data = Table.Catalog(:,Icol);
+            matlab.io.fits.writeCol(Fptr, Icol, Args.StartRow, Data);
+        end
     end
             
     % Write optional header

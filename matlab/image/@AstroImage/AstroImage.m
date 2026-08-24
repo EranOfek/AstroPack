@@ -1266,6 +1266,11 @@ classdef AstroImage < Component
             %            'Mkdir' - A logical indicating if to create
             %                   directory if file name contains full path.
             %                   Default is false.
+            %            'WriteEmptyCat' - A logical indicating if to write a
+            %                   Cat product whose catalog has columns but no
+            %                   rows. Such a product records that the image was
+            %                   processed and yielded no sources (issue #1226).
+            %                   Default is false, i.e. it is not written.
             %            'Status' - Status structure to which to append the
             %                   new status.
             % Output : - Status structure with entry per problem.
@@ -1288,6 +1293,7 @@ classdef AstroImage < Component
                 Args.FastHeader logical       = false;                
                 Args.WriteMethodImages        = 'Simple';    % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
                 Args.WriteMethodTables        = 'Standard';  % can be 'Standard' or 'MexHeader'
+                Args.WriteEmptyCat logical    = false;       % write a catalog which has columns but no rows (issue #1226)
             end
             
             if Args.WriteHeader
@@ -1337,9 +1343,25 @@ classdef AstroImage < Component
                                 end
                             end
                         case {'Cat','CatData'}
-                            if isempty(Obj.CatData.ColNames) || isempty(Obj.CatData.Catalog) 
+                            % With WriteEmptyCat, a catalog which has columns
+                            % but no rows is written: the zero-row table records
+                            % that the image was processed and produced no
+                            % sources - e.g., a crop whose background estimation
+                            % failed (issue #1226). It is off by default, so
+                            % that only the callers which asked for it (the
+                            % epoch products of pipeline I) gain files.
+                            % A catalog with no columns cannot be represented as
+                            % a FITS binary table in any case, and neither can
+                            % one whose column names do not match its columns -
+                            % the table is created from the names and filled
+                            % from the data, so a mismatch would abort mid-write
+                            % and leave a truncated file.
+                            NoCatData = isempty(Obj.CatData.ColNames) || ...
+                                        numel(Obj.CatData.ColNames)~=size(Obj.CatData.Catalog,2) || ...
+                                        (isempty(Obj.CatData.Catalog) && ~Args.WriteEmptyCat);
+                            if NoCatData
                                 Istat = Istat + 1;
-                                Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, is empty - not saved', Name, 'CatData');
+                                Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, is empty or has a column mismatch - not saved', Name, 'CatData');
                             else
                                 FITS.writeTable1(Obj.CatData, Name, 'Header',HeaderData,...
                                                                     'CompressedOutput',Args.CompressedOutput,...

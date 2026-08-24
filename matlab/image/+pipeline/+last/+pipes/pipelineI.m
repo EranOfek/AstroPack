@@ -166,6 +166,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
     
     Status.PipeI   = true;
     Status.ME      = [];
+    Status.NfailedBack = 0;   % sub images whose background estimation failed (#1226)
     %ProcessingStep = 11;
 
     if isempty(RawImageList)
@@ -440,7 +441,21 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             MaxFracGrad  = (max(MeanBack,[],2) - min(MeanBack,[],2))./MeanMeanBack; % max fractional background gradient per epoch
             TableRaw.MaxFracGrad(TableRaw.SelectedImages) = MaxFracGrad;
 
-            IsGood = IsGoodWCS & Nstars>Args.MinNstars & MaxFracGrad<Args.MaxFracGrad;
+            % background estimation failures (issue #1226)
+            % Such a crop is still written to disk, with blank background
+            % keywords, but it must not take part in the coaddition, the
+            % matched sources or the forced photometry. Today it is already
+            % excluded by the two terms above - it extracts no sources and its
+            % astrometry does not converge - but only as a side effect; the
+            % term below makes it deliberate. Note that MaxFracGrad cannot
+            % catch it: it is computed from the image, not from the background.
+            IsFailedBack      = imProc.background.isFailedBack(AllSI);
+            Status.NfailedBack = sum(IsFailedBack, 'all');
+            if Status.NfailedBack>0
+                warning('Background estimation failed for %d of %d sub images - they are saved but excluded from the coadd and the matched sources', Status.NfailedBack, numel(AllSI));
+            end
+
+            IsGood = IsGoodWCS & Nstars>Args.MinNstars & MaxFracGrad<Args.MaxFracGrad & ~IsFailedBack;
         
             % Photometric calibration of individual images:
             %[Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AllSI);
@@ -782,7 +797,17 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             [~,Coadd(NotIsEmptyCat)] = imProc.cat.addXYfull(Coadd(NotIsEmptyCat));
             % Add PSF fraction to header
             [~,Coadd(NotIsEmptyCat)] = imProc.psf.aperFrac(Coadd(NotIsEmptyCat), 'AperRadius',Args.AperRadius);
-            
+
+            % Give the source-less crops the column set of the visit (#1226).
+            % A crop which extracted nothing - e.g. one whose background
+            % estimation failed - ends with a catalogue that has neither rows
+            % nor columns, and a catalogue without columns cannot be written as
+            % a FITS binary table, so no data product would be saved for it at
+            % all. With the columns in place it is saved as a zero-row
+            % catalogue, whose header records why it is empty.
+            % Done here, after every stage that adds columns, so that the empty
+            % catalogues match the ones actually written for this visit.
+            AllSI = imProc.cat.fillEmptyCatColumns(AllSI);
 
             % Finish
             %ProcessingStep = 1000;
