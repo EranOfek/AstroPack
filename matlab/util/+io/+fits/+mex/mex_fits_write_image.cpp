@@ -235,7 +235,7 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
                 size_t totalLength = ei;
 
                 // Short string with comment
-                if ((totalLength <= 19) & comment[0]) {
+                if ((totalLength <= 19) && comment[0]) {
                     sprintf(value, "'%s'", escStr);
                     comment[maxCommentSize] = 0;
                     snprintf(card, sizeof(card), "%-8.8s= %20s / %s", key, value, comment);
