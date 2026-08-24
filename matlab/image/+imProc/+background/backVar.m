@@ -119,7 +119,7 @@ function [Result, FailedList] = backVar(Obj, Args)
         
     end
 
-    Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR', 'MINBCK', 'MAXBCK', 'BCKMETH'};
+    Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR', 'MINBCK', 'MAXBCK', 'BCKMTHD', 'VARMTHD'};
 
     if Args.CreateNewObj
         Result = Obj.copy;
@@ -148,12 +148,17 @@ function [Result, FailedList] = backVar(Obj, Args)
         end
     end
 
-    % Readable method name for the BCKMETH header keyword. StrMethod is the
-    % literal 'cell' when Args.Method is a cell array, so resolve the elements.
-    if iscell(Args.Method)
-        MethodName = strjoin(cellfun(@localMethodName, Args.Method, 'UniformOutput',false), ',');
-    else
-        MethodName = StrMethod;
+    % Codes of the background and the variance estimation methods, written
+    % to the BCKMTHD and VARMTHD header keywords. A single method (i.e. not
+    % a cell array) estimates both, hence the same code in both keywords.
+    [MethodDict, MethodCode] = imUtil.background.backdictionary(Args.Method);
+    if isscalar(MethodCode)
+        MethodCode = [MethodCode, MethodCode];
+    end
+    % method names, written as the comments of the two keywords
+    MethodComment = cell(1,2);
+    for Imeth=1:1:2
+        MethodComment{Imeth} = MethodDict([MethodDict.Code]==MethodCode(Imeth)).Name;
     end
 
     FailedList = [];
@@ -251,20 +256,16 @@ function [Result, FailedList] = backVar(Obj, Args)
                     MedVar  = median(VarSmall, 'all');
                 end
                 
-                %Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR', 'MINBCK', 'MAXBCK', 'BCKMETH'};
-                Vals  = {MeanBack, MedBack, StdBack, MeanVar, MedVar, MinBack, MaxBack, MethodName};
+                %Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR', 'MINBCK', 'MAXBCK', 'BCKMTHD', 'VARMTHD'};
+                Vals  = {MeanBack, MedBack, StdBack, MeanVar, MedVar, MinBack, MaxBack, MethodCode(1), MethodCode(2)};
                 Result(Iobj).HeaderData.replaceVal(Keys,Vals);
+                % the method names are written as comments of the two method
+                % keywords; a second call is needed because imUtil.headerCell.replaceKey
+                % applies comments only to keywords which already exist
+                Result(Iobj).HeaderData.replaceVal(Keys(8:9), Vals(8:9), 'Comment',MethodComment);
                     
             end % if ~isempty(Args.AddHeaderInfo)
         end % if isempty(Result(Iobj).BackData.Image) || Args.ReCalc
     end % for Iobj=1:1:Nobj
 end
 
-function Str = localMethodName(Method)
-    % Readable name for a method given as a function handle or a char array
-    if isa(Method,'function_handle')
-        Str = func2str(Method);
-    else
-        Str = char(Method);
-    end
-end
