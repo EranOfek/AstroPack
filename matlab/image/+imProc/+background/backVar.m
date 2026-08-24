@@ -155,11 +155,12 @@ function [Result, FailedList] = backVar(Obj, Args)
     if isscalar(MethodCode)
         MethodCode = [MethodCode, MethodCode];
     end
-    % method names, written as the comments of the two keywords
+    % method names, written as the comments of the two method keywords
     MethodComment = cell(1,2);
     for Imeth=1:1:2
         MethodComment{Imeth} = MethodDict([MethodDict.Code]==MethodCode(Imeth)).Name;
     end
+    KeyComments = [repmat({''}, 1, numel(Keys)-2), MethodComment];
 
     FailedList = [];
     for Iobj=1:1:Nobj
@@ -258,11 +259,7 @@ function [Result, FailedList] = backVar(Obj, Args)
                 
                 %Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR', 'MINBCK', 'MAXBCK', 'BCKMTHD', 'VARMTHD'};
                 Vals  = {MeanBack, MedBack, StdBack, MeanVar, MedVar, MinBack, MaxBack, MethodCode(1), MethodCode(2)};
-                Result(Iobj).HeaderData.replaceVal(Keys,Vals);
-                % the method names are written as comments of the two method
-                % keywords; a second call is needed because imUtil.headerCell.replaceKey
-                % applies comments only to keywords which already exist
-                Result(Iobj).HeaderData.replaceVal(Keys(8:9), Vals(8:9), 'Comment',MethodComment);
+                Result(Iobj).HeaderData.replaceVal(Keys, Vals, 'Comment',KeyComments);
                     
             end % if ~isempty(Args.AddHeaderInfo)
         end % if isempty(Result(Iobj).BackData.Image) || Args.ReCalc
