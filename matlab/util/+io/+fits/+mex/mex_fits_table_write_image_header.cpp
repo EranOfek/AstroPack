@@ -354,8 +354,12 @@ mxArray* createFitsImageHeaderFromCellArray(const mxArray* headerArray, bool ima
 
     //mexPrintf("bufferPos: %d, headerBytesToWrite: %d, bytesToWrite: %d\n", (int)bufferPos, (int)headerBytesToWrite, (int)bytesToWrite);
 
-    mxArray* outputBuffer = mxCreateCharArray(1, &bytesToWrite);
-    mxChar *outputData = mxGetChars(outputBuffer);
+    // uint8 and not mxCreateCharArray: the buffer holds raw bytes, while an
+    // mxChar element is two bytes wide, so a char array made MATLAB read the
+    // header as 16 bit characters - the returned buffer was unusable, even
+    // though writing it to a file happened to work
+    mxArray* outputBuffer = mxCreateNumericMatrix(1, bytesToWrite, mxUINT8_CLASS, mxREAL);
+    uint8_t *outputData = (uint8_t*)mxGetData(outputBuffer);
     memcpy(outputData, headerBuffer, bufferPos);
     if (imageData)
         memset(outputData + headerBytesToWrite, 0, blockSize);
@@ -408,13 +412,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         FILE* fp = fopen(filename, "ab");
         if (!fp) {
             mxFree(filename);
-            mxFree(outputBuffer);
+            mxDestroyArray(outputBuffer);
             mexErrMsgIdAndTxt("MATLAB:mex_fits_table_write_image_header:fileOpenFailed", "Could not open the file for writing (append).");
             return;
         }
 	        
         // Write the header buffer to the file
-        void* dataPtr = mxGetChars(outputBuffer);        
+        void* dataPtr = mxGetData(outputBuffer);        
         fwrite(dataPtr, 1, allocatedSize, fp);
         fclose(fp);
         
