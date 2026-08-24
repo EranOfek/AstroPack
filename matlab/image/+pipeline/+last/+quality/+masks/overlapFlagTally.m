@@ -16,14 +16,27 @@ function Report = overlapFlagTally(Input, Args)
     %   header lacks it), RA/Dec, and the Overlap bit as 0/1. Use
     %   'KeepOnlyFlagged' to keep only pairs flagged in at least one crop.
     %
-    %   Interpretation. Under the current cropping partition each crop marks
-    %   'Overlap' on everything OUTSIDE its own unique (no-overlap) section,
+    %   Interpretation - NOTE, the expectations depend on the flagging
+    %   policy the products were made under:
+    %
+    %   NEW policy (issue #1180): each crop marks 'Overlap' on its full
+    %   overlap region - everything outside its exclusive (single-coverage)
+    %   section, the EXCLSEC header keyword - so a pixel covered by several
+    %   crops is flagged in ALL of them. Every RA/Dec-matched pair then
+    %   carries the bit in BOTH members by construction: expect FracBoth
+    %   ~ 1 and NNeither = 0. The bit no longer identifies ownership;
+    %   de-duplication uses the catalog 'primary' column instead
+    %   (imProc.cat.addPrimary; exactly one member of each matched group
+    %   has primary==1).
+    %
+    %   OLD (asymmetric) policy: each crop marks 'Overlap' on everything
+    %   OUTSIDE its own unique (no-overlap) section,
     %   i.e. it flags every source it does not own. Those sections tile the
     %   full frame with no gaps (for the LAST grid they are exactly the
     %   Voronoi cells of the crop centres), so every source is owned by
     %   exactly one crop and flagged by all the others.
     %
-    %   NBoth is therefore NOT expected to vanish: the per-pair tally has a
+    %   Under the OLD policy NBoth is NOT expected to vanish: the per-pair tally has a
     %   floor set by the geometry, from two contributions -
     %     - 4-crop corners: a source owned by a THIRD crop is correctly
     %       flagged in both members of the pair. For the standard frame

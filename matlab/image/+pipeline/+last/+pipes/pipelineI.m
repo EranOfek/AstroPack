@@ -30,6 +30,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.NoOverlapCCDSEC               = [];
         Args.ListCenters                   = [];
         Args.NewNoOverlap                  = [];
+        Args.NewExclusive                  = [];   % single-coverage sections (sub image frame); the Overlap bit marks their complement, i.e. the full overlap region, in all the crops covering it (issue #1180)
+        Args.AddPrimary logical            = true; % add the 'primary' ownership column (imProc.cat.addPrimary) to the sub image and coadd catalogs
 
         %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
         %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LeftHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}},{}}}; % both for single epoch and coadd
@@ -265,11 +267,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 51;
             if isempty(Args.EdgesCCDSEC)
                 SizeXY = fliplr(size(AI(1).ImageData.Data));
-                [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);  % 0.01s
+                [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters, ~, Args.NewExclusive] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);  % 0.01s
             end
             % No WCS/PSF/Cat so no need to update them
             %ProcessingStep = 61;
-            AllSI=imProc.image.images2subImages(AI, 'SubSizeXY',Args.SubSizeXY, 'EdgesCCDSEC',Args.EdgesCCDSEC, 'ListCenters',Args.ListCenters, 'NoOverlapCCDSEC',Args.NoOverlapCCDSEC, 'NewNoOverlap',Args.NewNoOverlap,...
+            AllSI=imProc.image.images2subImages(AI, 'SubSizeXY',Args.SubSizeXY, 'EdgesCCDSEC',Args.EdgesCCDSEC, 'ListCenters',Args.ListCenters, 'NoOverlapCCDSEC',Args.NoOverlapCCDSEC, 'NewNoOverlap',Args.NewNoOverlap, 'NewExclusive',Args.NewExclusive,...
                                                     'UpdateWCS',false, 'UpdatePSF',false, 'UpdateCat',false, 'UpdateXY',false);  % 6.6s
             [Nepoch, Nsub] = size(AllSI);
             Nobj = numel(AllSI);
@@ -362,8 +364,20 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 end
                 %toc
             end
-        
-            % Consider update TableRaw - No PSF, etc? 
+
+            % ownership column (issue #1180): primary=1 for the sources whose
+            % exact X,Y is inside the crop unique section, 0 for the copies in
+            % the overlapping neighbours. The Overlap FLAGS bit marks the full
+            % overlap region in all the crops covering it, so de-duplication
+            % of the concatenated crop catalogs uses this column.
+            if Args.AddPrimary && ~isempty(Args.NewNoOverlap)
+                for Isub=1:1:Nsub
+                    IsecP = min(Isub, size(Args.NewNoOverlap,1));
+                    imProc.cat.addPrimary(AllSI(:,Isub), Args.NewNoOverlap(IsecP,:));
+                end
+            end
+
+            % Consider update TableRaw - No PSF, etc?
             %TableRaw.BasicCalib(TableRaw.SelectedImages) = true(numel(AI),1); 
         
             
@@ -567,6 +581,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                           'PropShiftXY','ShiftXY',...
                                                           'IsShiftXYfiltered',true,...
                                                           'UNIQSEC',Args.NewNoOverlap,...
+                                                          'EXCLSEC',Args.NewExclusive,...
+                                                          'AddPrimary',Args.AddPrimary,...
                                                           'StackMethod',Args.StackMethod,...
                                                           'UseMex',Args.UseMex,...
                                                           'PhotCalibSimple',false,...

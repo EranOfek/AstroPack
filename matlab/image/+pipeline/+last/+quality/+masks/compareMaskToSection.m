@@ -2,7 +2,10 @@ function Report = compareMaskToSection(Input, Args)
     % Compare an image's mask bit against flag_ccdsec(size, SECTION, InOut).
     % Description: For a geometric mask bit that is supposed to be a pure
     %   function of a header CCDSEC-type section (the LAST 'Overlap' bit is
-    %   exactly CCDSEC \ UNIQSEC), this predicts the bit's footprint from the
+    %   exactly CCDSEC \ UNIQSEC under the old asymmetric policy, and
+    %   CCDSEC \ EXCLSEC under the issue #1180 policy - for products made
+    %   under the latter pass 'SectionKey','EXCLSEC'), this predicts the
+    %   bit's footprint from the
     %   header section via imUtil.ccdsec.flag_ccdsec(size, SECTION, InOut) and
     %   compares it, pixel for pixel, to the actual mask. It reports the
     %   over-set pixels (flagged but not predicted), under-set pixels
