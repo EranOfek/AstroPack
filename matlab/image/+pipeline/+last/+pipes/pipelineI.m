@@ -96,6 +96,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                               'FLUX_APER_3',...
                                               'FLAGS',...
                                               'BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS',...
+                                              'primary',...
                                               'FORCED'};
         Args.ColUse                        = 'FORCED';
         Args.AddUnUse                      = true;
@@ -366,18 +367,6 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 %toc
             end
 
-            % ownership column (issue #1180): primary=1 for the sources whose
-            % exact X,Y is inside the crop unique section, 0 for the copies in
-            % the overlapping neighbours. The Overlap FLAGS bit marks the full
-            % overlap region in all the crops covering it, so de-duplication
-            % of the concatenated crop catalogs uses this column.
-            if Args.AddPrimary && ~isempty(Args.NewNoOverlap)
-                for Isub=1:1:Nsub
-                    IsecP = min(Isub, size(Args.NewNoOverlap,1));
-                    imProc.cat.addPrimary(AllSI(:,Isub), Args.NewNoOverlap(IsecP,:));
-                end
-            end
-
             % Consider update TableRaw - No PSF, etc?
             %TableRaw.BasicCalib(TableRaw.SelectedImages) = true(numel(AI),1); 
         
@@ -510,7 +499,23 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             else
                 %AllForcedPhot = [];
             end
-        
+
+            % ownership column (issue #1180): primary=1 for the sources whose
+            % exact X,Y is inside the crop unique section, 0 for the copies in
+            % the overlapping neighbours. The Overlap FLAGS bit marks the full
+            % overlap region in all the crops covering it, so de-duplication
+            % of the concatenated crop catalogs uses this column.
+            % Placed after the forced photometry, which appends rows at the
+            % coadd positions, so that the forced rows get a value too
+            % (addPrimary recomputes the whole column from X,Y and replaces
+            % it in place).
+            if Args.AddPrimary && ~isempty(Args.NewNoOverlap)
+                for Isub=1:1:Nsub
+                    IsecP = min(Isub, size(Args.NewNoOverlap,1));
+                    imProc.cat.addPrimary(AllSI(:,Isub), Args.NewNoOverlap(IsecP,:));
+                end
+            end
+
             % Sort all catalogs by Dec
             %ProcessingStep = 451;
             for Iim=1:1:Nsub.*Nepoch
