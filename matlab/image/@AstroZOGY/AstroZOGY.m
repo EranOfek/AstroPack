@@ -867,7 +867,7 @@ classdef AstroZOGY < AstroDiff
                 Args.ExtendedFun function_handle = @imUtil.kernel2.gauss;
                 Args.ExtendedFunArgs             = [1.0];
 
-                Args.PopS_smear logical      = false;
+                Args.PopS_smear logical      = true;
                 Args.SmearTemplate           = [];   % if given, used as is
                 Args.smearTemplateArgs cell  = {};
 
@@ -923,7 +923,7 @@ classdef AstroZOGY < AstroDiff
                     % derived. The per-epoch registration shifts change from
                     % visit to visit, so the shape must be rebuilt each time.
                     if isempty(Args.SmearTemplate)
-                        [SmearPSF, SmearInfo] = imUtil.properSub.smearTemplate(...
+                        [SmearPSF, SmearInfo] = imProc.sub.smearTemplate(...
                             Obj(Iobj), Args.smearTemplateArgs{:});
                         Obj(Iobj).SmearTemplateInfo = SmearInfo;
                     else
@@ -947,7 +947,7 @@ classdef AstroZOGY < AstroDiff
                     % kernel: it is set by how the PSF reconstruction failed on this
                     % visit, so it cannot be carried over from another one.
                     if isempty(Args.PSFresidTemplate)
-                        [ResidPSF, ResidInfo] = imUtil.properSub.psfResidTemplate(...
+                        [ResidPSF, ResidInfo] = imProc.sub.psfResidTemplate(...
                             Obj(Iobj), Args.psfResidTemplateArgs{:});
                         Obj(Iobj).PSFresidTemplateInfo = ResidInfo;
                     else

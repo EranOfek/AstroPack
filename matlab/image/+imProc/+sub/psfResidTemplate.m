@@ -61,7 +61,7 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
     %            factor. Reason is '' on success and
     %            says why otherwise.
     % Author : Ruslan Konno + Claude (Aug 2026)
-    % Example: [T,I] = imUtil.properSub.psfResidTemplate(AD);
+    % Example: [T,I] = imProc.sub.psfResidTemplate(AD);
     %          S = AD.Fd .* imUtil.filter.filter2_fast(AD.Image, T);
 
     arguments

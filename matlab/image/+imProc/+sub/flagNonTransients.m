@@ -293,6 +293,9 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.BPS_PSFLimit double = -2.8
         Args.BPS_DeltaLimit double = 10.0
 
+        Args.SmearThreshold double = []        % [BinCen BinThr], empty to calibrate
+        Args.smearThresholdArgs cell = {}      % passed to imUtil.properSub.smearThreshold
+
         % Holes in the reference filters
         Args.flagRefHole logical = true;
         Args.RefHoleThresh double = 3.0;
@@ -834,6 +837,7 @@ function TranCat = flagNonTransients(Obj, Args)
         end
 
         % Apply soft bit mask criteria.
+        %{
         if Args.flagBadPix_Soft && CandCat.isColumn('SN_delta')
 
             SN_delta = CandCat.getCol('SN_delta');
@@ -871,7 +875,41 @@ function TranCat = flagNonTransients(Obj, Args)
             BadPixSoft = ~PassesBPSoft;
 
             FilterFlags = setFilterBit(FilterFlags, BadPixSoft, BD_TF, 'BadPixelSoft');
-       end        
+       end
+        %}
+
+        % Apply soft bit mask criteria, by the smear statistic.
+        %   A defect sits at a fixed detector position, so the registration
+        %   applied before coaddition moves it and it becomes a small blob in
+        %   the coadd. SN_smear is the response of a matched filter built for
+        %   that shape, so a smeared defect scores higher on it than on the
+        %   PSF while a real source does the reverse.
+        %
+        %   The old SCORE - SN_delta test asked whether a candidate looked
+        %   like a real source or a single bad pixel. A smeared bad pixel is
+        %   neither, so it fell between the two templates and passed.
+        if Args.flagBadPix_Soft && CandCat.isColumn('SN_smear')
+
+            SN_smear = CandCat.getCol('SN_smear');
+
+            if isempty(Args.SmearThreshold)
+                [BinCen, BinThr, SmearInfo] = imProc.sub.smearThreshold(...
+                    Obj(Iobj), Args.smearThresholdArgs{:});
+            else
+                BinCen    = Args.SmearThreshold(:,1);
+                BinThr    = Args.SmearThreshold(:,2);
+                SmearInfo = struct('Fun', ...
+                    @(A) interp1(BinCen, BinThr, min(max(A,BinCen(1)),BinCen(end)), 'linear'));
+            end
+
+            if isempty(BinCen)
+                BadPixSoft = false(NumCand,1);
+            else
+                BadPixSoft = (Score - SN_smear) < SmearInfo.Fun(abs(Score));
+            end
+
+            FilterFlags = setFilterBit(FilterFlags, BadPixSoft, BD_TF, 'BadPixelSoft');
+        end
 
         % Flag saturated candidates
         if Args.flagSaturated
@@ -1021,7 +1059,7 @@ function TranCat = flagNonTransients(Obj, Args)
         % ----- PSF reconstruction residuals -----
         %  The reconstructed PSF represents the core but not the profile
         %  outside it, and the missing flux lands in D as a residual at
-        %  every persistent source. imUtil.properSub.psfResidContamCat
+        %  every persistent source. imProc.sub.psfResidContamCat
         %  measures those residuals directly rather than extrapolating a
         %  tail from the PSF model, and a candidate fails when it is not
         %  bright enough to be anything other than the residual it sits on.
@@ -1038,7 +1076,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
             if HasResidTemplate
 
-                ContamCat = imUtil.properSub.psfResidContamCat(Obj(Iobj), ...
+                ContamCat = imProc.sub.psfResidContamCat(Obj(Iobj), ...
                                 Args.psfResidContamArgs{:});
 
                 % Match out to where the template's flux actually is, not to
