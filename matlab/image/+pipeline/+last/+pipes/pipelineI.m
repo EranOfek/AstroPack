@@ -753,7 +753,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             end
 
             % Add LimMag and BackMag
-            [Coadd(NotIsEmptyCat)] = imProc.calib.limmag(Coadd(NotIsEmptyCat), Args.LimMagArgs{:});  
+            % LimMag is applied to all the crops, including those with an
+            % empty catalog, so that LIMMAG is always present in the header
+            % (undefined value when it can not be estimated)
+            [Coadd] = imProc.calib.limmag(Coadd, Args.LimMagArgs{:});  
             [Coadd(NotIsEmptyCat)] = imProc.calib.backmag(Coadd(NotIsEmptyCat), 'KeyZP',Args.KeyZP, Args.BackMagArgs{:});   
             % Add LimMag and BackMag / AllSI (after propagation to all
             % images)

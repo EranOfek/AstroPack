@@ -30,14 +30,23 @@ function [AI, Result] = limmag(AI, Args)
     %            'LimSN' - S/N value at which to evaluate the limiting
     %                   magnitude.
     %                   Default is 5.
+    %            'MinNsrc' - Minimum number of sources in the S/N window
+    %                   required for the fit. If the number of sources is
+    %                   smaller, then the limiting magnitude is set to NaN
+    %                   (written to the header as an undefined value).
+    %                   Default is 10.
     %            'KeyLimMag' - Header keyword in which to store the limiting
     %                   magnitude. If empty, the header is not updated.
+    %                   The keyword is written also when the limiting
+    %                   magnitude can not be estimated (e.g., an empty
+    %                   catalog), in which case its value is NaN.
     %                   Default is 'LIMMAG'.
     % Output : - AI, AstroImage object with updated header keyword containing
     %                   the limiting magnitude.
     %          - Result, structure array with one element per AstroImage.
     %                   Fields:
-    %                   .LimMag  - Estimated limiting magnitude.
+    %                   .LimMag  - Estimated limiting magnitude, or NaN if
+    %                              less than Args.MinNsrc sources are available.
     %                   .Par     - Best-fit polynomial parameters, as returned
     %                              by polyfit.
     %                   .Nsrc    - Number of sources used in the fit.
@@ -55,6 +64,7 @@ function [AI, Result] = limmag(AI, Args)
         Args.MaxSN         = 50;
         Args.MinSN         = 4;
         Args.LimSN         = 5;
+        Args.MinNsrc       = 10;
 
         Args.KeyLimMag     = 'LIMMAG';
     end
@@ -78,8 +88,15 @@ function [AI, Result] = limmag(AI, Args)
         Flag = isfinite(Mag) & isfinite(SN) & ...
                SN > Args.MinSN & SN < Args.MaxSN;
 
-        Par = polyfit(log10(SN(Flag)), Mag(Flag), 1);
-        LimMag = polyval(Par, log10(Args.LimSN));
+        if sum(Flag) < Args.MinNsrc
+            % too few sources for a meaningful fit (e.g., an empty catalog):
+            % polyfit returns [0 0] for empty input, so guard it explicitly
+            Par    = [NaN NaN];
+            LimMag = NaN;
+        else
+            Par    = polyfit(log10(SN(Flag)), Mag(Flag), 1);
+            LimMag = polyval(Par, log10(Args.LimSN));
+        end
 
         if Args.Plot
             semilogy(Mag, SN, '.');
