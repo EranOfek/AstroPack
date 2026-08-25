@@ -148,7 +148,7 @@ function [Result] = unitTest()
     % compare the rstd of the images
     tools.math.stat.rstd(R0(:)-R2(:))
     
-    [R2_5,P_R1,Info]=imUtil.properCoadd.properCoaddLinear(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',5);
+    [R2_5,P_R1,Info]=imUtil.properCoadd.properCoaddLinear(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',4.685);
     [R2_50,P_R1,Info]=imUtil.properCoadd.properCoaddLinear(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',50);
     [R2_500,P_R1,Info]=imUtil.properCoadd.properCoaddLinear(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',500);
     
