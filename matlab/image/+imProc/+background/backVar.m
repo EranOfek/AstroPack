@@ -152,7 +152,7 @@ function [Result, FailedList] = backVar(Obj, Args)
     % Codes of the background and the variance estimation methods, written
     % to the BCKMTHD and VARMTHD header keywords. A single method (i.e. not
     % a cell array) estimates both, hence the same code in both keywords.
-    [MethodDict, MethodCode] = imUtil.background.backdictionary(Args.Method);
+    [MethodDict, MethodCode] = imUtil.background.backDictionary(Args.Method);
     if isscalar(MethodCode)
         MethodCode = [MethodCode, MethodCode];
     end

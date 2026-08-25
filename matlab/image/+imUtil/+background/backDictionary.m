@@ -1,4 +1,4 @@
-function [Dict, Code] = backdictionary(Method)
+function [Dict, Code] = backDictionary(Method)
     % Dictionary of background/variance estimation methods and their codes.
     %
     % The dictionary provides a compact (uint8) representation of the
@@ -27,9 +27,9 @@ function [Dict, Code] = backdictionary(Method)
     %            otherwise a scalar (a single method estimates both).
     %            An unrecognized method is coded as 0.
     % Author : A.M. Krassilchtchikov (Aug 2026)
-    % Example: Dict = imUtil.background.backdictionary;
-    %          [~,Code] = imUtil.background.backdictionary(@imUtil.background.modeVar_LogHist);
-    %          [~,Code] = imUtil.background.backdictionary({@median,'rvar'});
+    % Example: Dict = imUtil.background.backDictionary;
+    %          [~,Code] = imUtil.background.backDictionary(@imUtil.background.modeVar_LogHist);
+    %          [~,Code] = imUtil.background.backDictionary({@median,'rvar'});
     %          % decode:
     %          Name = Dict([Dict.Code]==Code(1)).Name;
 
