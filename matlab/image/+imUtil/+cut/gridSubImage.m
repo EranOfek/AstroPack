@@ -1,4 +1,4 @@
-function [CCDSEC, NSub, NoOverlapCCDSEC, NewNoOverlapCCDSEC, CentersXY] = gridSubImage(ImageSize, SubSize)
+function [CCDSEC, NSub, NoOverlapCCDSEC, NewNoOverlapCCDSEC, CentersXY, ExclusiveCCDSEC, NewExclusiveCCDSEC] = gridSubImage(ImageSize, SubSize)
     % Compute CCDSEC tiles (with overlap) + non-overlap cores in full-image coordinates and in each subimage's local frame.
     %   Given an image size and a subimage size, generate a list of CCDSEC that
     %   covers the full image and have the subimage size.
@@ -15,6 +15,18 @@ function [CCDSEC, NSub, NoOverlapCCDSEC, NewNoOverlapCCDSEC, CentersXY] = gridSu
     %            non-overlapping cores of the subimages as measured in the sub image
     %            frame.
     %          - Centers [X Y] of the CCDSEC in the full image frame.
+    %          - ExclusiveCCDSEC: The CCDSEC [Xmin Xmax Ymin Ymax] of the
+    %            exclusive (single-coverage) section of each subimage, as
+    %            measured in the full image frame: the part of the tile that
+    %            no other tile covers. The complement of this section within
+    %            the tile is the full overlap region, i.e. the pixels
+    %            covered by 2 or more tiles. Unlike the non-overlap cores
+    %            (which split the overlap by midpoints, so they tile the
+    %            image), the exclusive sections do not tile the image.
+    %            If the neighbouring tiles cover a tile entirely, its
+    %            exclusive section is degenerate (Max < Min).
+    %          - NewExclusiveCCDSEC: Like ExclusiveCCDSEC, but measured in
+    %            the sub image frame.
     % Notes: All indices are 1-based and inclusive.
     %        CCDSEC sizes are exactly SubSize.
     %        Cores are split symmetrically (up to +/-1 pixel) between adjacent tiles.
@@ -93,11 +105,42 @@ function [CCDSEC, NSub, NoOverlapCCDSEC, NewNoOverlapCCDSEC, CentersXY] = gridSu
         end
     end
     
+    % 1D exclusive (single-coverage) intervals along each axis (full-image
+    % frame): the part of each tile that no other tile covers
+    if nargout>5
+        [XExclMin, XExclMax] = localExclusiveCores(XStart, SizeSubX, SizeImageX);
+        [YExclMin, YExclMax] = localExclusiveCores(YStart, SizeSubY, SizeImageY);
+
+        ExclusiveCCDSEC    = zeros(NBox, 4, 'int64');
+        NewExclusiveCCDSEC = zeros(NBox, 4, 'int64');
+
+        K = 0;
+        for Iy = 1:NSubY
+            for Ix = 1:NSubX
+                K = K + 1;
+
+                % Full-image frame exclusive section
+                XminF = XExclMin(Ix);  XmaxF = XExclMax(Ix);
+                YminF = YExclMin(Iy);  YmaxF = YExclMax(Iy);
+                ExclusiveCCDSEC(K,:) = [XminF, XmaxF, YminF, YmaxF];
+
+                % Subimage-local frame exclusive section
+                XminTile = CCDSEC(K,1);
+                YminTile = CCDSEC(K,3);
+                NewExclusiveCCDSEC(K,:) = [XminF - XminTile + 1, XmaxF - XminTile + 1, ...
+                                           YminF - YminTile + 1, YmaxF - YminTile + 1];
+            end
+        end
+
+        ExclusiveCCDSEC    = double(ExclusiveCCDSEC);
+        NewExclusiveCCDSEC = double(NewExclusiveCCDSEC);
+    end
+
     % Return as doubles (MATLAB convention)
     CCDSEC             = double(CCDSEC);
     NoOverlapCCDSEC    = double(NoOverlapCCDSEC);
     NewNoOverlapCCDSEC = double(NewNoOverlapCCDSEC);
-    
+
     CentersXY           = [CCDSEC(:,1) + CCDSEC(:,2), CCDSEC(:,3) + CCDSEC(:,4)]./2;
 end
     
@@ -177,7 +220,43 @@ function [CoreMin, CoreMax] = localNoOverlapCores(Start, SizeSub, SizeImage)
             CoreMax(I) = CoreMin(I);
         end
     end
-    
 
+
+
+end
+
+
+function [ExclMin, ExclMax] = localExclusiveCores(Start, SizeSub, SizeImage)
+    % Single-coverage interval of each tile: between the previous tile's
+    % end and the next tile's start. If the neighbours cover the tile
+    % entirely the interval is left degenerate (Max < Min).
+
+    Start     = int64(Start);
+    SizeSub   = int64(SizeSub);
+    SizeImage = int64(SizeImage);
+
+    N = numel(Start);
+    EndPos = Start + SizeSub - 1;
+
+    ExclMin = zeros(1, N, 'int64');
+    ExclMax = zeros(1, N, 'int64');
+
+    for I = 1:N
+        if I == 1
+            ExclMin(I) = int64(1);
+        else
+            ExclMin(I) = EndPos(I-1) + 1;
+        end
+
+        if I == N
+            ExclMax(I) = SizeImage;
+        else
+            ExclMax(I) = Start(I+1) - 1;
+        end
+
+        % Clamp to this tile's extent
+        ExclMin(I) = max(ExclMin(I), Start(I));
+        ExclMax(I) = min(ExclMax(I), EndPos(I));
+    end
 
 end

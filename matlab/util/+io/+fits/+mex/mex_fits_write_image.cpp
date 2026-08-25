@@ -235,7 +235,7 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
                 size_t totalLength = ei;
 
                 // Short string with comment
-                if ((totalLength <= 19) & comment[0]) {
+                if ((totalLength <= 19) && comment[0]) {
                     sprintf(value, "'%s'", escStr);
                     comment[maxCommentSize] = 0;
                     snprintf(card, sizeof(card), "%-8.8s= %20s / %s", key, value, comment);
@@ -293,10 +293,16 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
         // Comment only, one or more lines
         else if (comment[0]) {
             size_t totalLength = strlen(comment);
-            int numSegments = (int)((totalLength-1) / maxCommentLineSize) + 1;  
-            for (int i = 0; i < numSegments; ++i) {
-                strcat(card, "COMMENT ");
-                strncpy(card + 8, comment + i * maxCommentLineSize, maxCommentLineSize);
+            size_t numSegments = (totalLength - 1) / maxCommentLineSize + 1;
+            for (size_t i = 0; i < numSegments; ++i) {
+                // Build the card from scratch for every segment: appending
+                // "COMMENT " to it would write past the end of the 80
+                // character buffer on the second and any further segment
+                size_t offset  = i * maxCommentLineSize;
+                size_t segSize = std::min(maxCommentLineSize, totalLength - offset);
+                memcpy(card, "COMMENT ", 8);
+                memcpy(card + 8, comment + offset, segSize);
+                card[8 + segSize] = '\0';
                 addCard(headerBuffer, bufferPos, card);
             }
         }

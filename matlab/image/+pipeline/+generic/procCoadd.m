@@ -106,13 +106,32 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %                   If not empty, then the Overlap bit propagated from
     %                   the single epoch masks (and smeared by the
     %                   registration shifts) is dropped from the coadd mask
-    %                   and re-set according to this section. This is done
-    %                   before the source extraction, so that the coadd
-    %                   catalog FLAGS follow the coadd geometry.
+    %                   and re-set according to the coadd own geometry
+    %                   (EXCLSEC when given, this section otherwise). This
+    %                   is done before the source extraction, so that the
+    %                   coadd catalog FLAGS follow the coadd geometry.
+    %                   Also used (with 'AddPrimary') to add the 'primary'
+    %                   ownership column to the coadd catalog.
     %                   Default is [] (i.e., keep the propagated bit).
+    %            'EXCLSEC' - The EXCLSEC [Xmin Xmax Ymin Ymax] of the sub
+    %                   images: their exclusive (single-coverage) sections
+    %                   in their own frame, same format as 'UNIQSEC'.
+    %                   If not empty, the Overlap bit is re-set outside
+    %                   this section instead of outside UNIQSEC, so that
+    %                   the bit marks the full overlap region in all the
+    %                   crops covering it (issue #1180), and the ownership
+    %                   is recorded in the catalog 'primary' column.
+    %                   Default is [].
     %            'BitName_Overlap' - The bit name of the overlap region.
-    %                   Used only when 'UNIQSEC' is not empty.
+    %                   Used only when 'UNIQSEC' or 'EXCLSEC' is not empty.
     %                   Default is 'Overlap'.
+    %            'AddPrimary' - A logical indicating if to add the
+    %                   'primary' ownership column to the coadd catalog
+    %                   (via imProc.cat.addPrimary): 1 if the source exact
+    %                   X,Y is inside the field UNIQSEC, 0 otherwise.
+    %                   Used only when 'UNIQSEC' is not empty and sources
+    %                   are extracted.
+    %                   Default is true.
     %            'HighBackNsigma' - If not empty, then will remove images
     %                   with high background. This is the number of sigmas
     %                   of the background above the median images
@@ -274,8 +293,10 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.CoaddLessFrac                    = 0.6; % if number of imagesx in pix is below this frac, than open the CoaddLessImages bit - empty - ignore
         Args.BitName_CoaddLess                = 'CoaddLessImages';
 
-        Args.UNIQSEC                          = [];  % UNIQSEC of the sub images, line per field; if not empty, reset the Overlap bit of the coadd according to it
+        Args.UNIQSEC                          = [];  % UNIQSEC of the sub images, line per field; if not empty, reset the Overlap bit of the coadd + add the 'primary' catalog column
+        Args.EXCLSEC                          = [];  % exclusive (single-coverage) sections, line per field; if not empty, the Overlap bit is reset outside them (the full overlap region; issue #1180) instead of outside UNIQSEC
         Args.BitName_Overlap                  = 'Overlap';
+        Args.AddPrimary logical               = true; % add the 'primary' ownership column to the coadd catalog (needs a non-empty UNIQSEC)
 
         Args.RefineSearchRadius               = 3;
         Args.FindStars                        = true;
@@ -389,18 +410,28 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         
     ResultCoadd = struct('WMeanJD',cell(Nfields,1), 'IndivMidJD',cell(Nfields,1), 'CoaddN',cell(Nfields,1), 'AstrometricFit',cell(Nfields,1), 'ZP',cell(Nfields,1), 'PhotCat',cell(Nfields,1), 'TransFit',cell(Nfields,1));
 
-    % resolve the Overlap bit index once, before the loop over the fields
+    % resolve the Overlap bit index once, before the loop over the fields.
+    % The bit is re-set outside the exclusive section (EXCLSEC) when given,
+    % so that it marks the full overlap region in all the crops covering it
+    % (issue #1180); outside UNIQSEC (the older, asymmetric policy) otherwise.
     OverlapBitInd = [];
-    if ~isempty(Args.UNIQSEC)
+    OverlapSEC    = Args.EXCLSEC;
+    if isempty(OverlapSEC)
+        OverlapSEC = Args.UNIQSEC;
+    end
+    if ~isempty(OverlapSEC)
         if isempty(AllSI(1,1).MaskData.Dict)
             OverlapBitDict = BitDictionary('BitMask.Image.Default');
         else
             OverlapBitDict = AllSI(1,1).MaskData.Dict;
         end
         OverlapBitInd = OverlapBitDict.name2bit(Args.BitName_Overlap);
-        if size(Args.UNIQSEC,1)~=1 && size(Args.UNIQSEC,1)~=Nfields
-            error('UNIQSEC must contain either a single line or a line per field');
+        if size(OverlapSEC,1)~=1 && size(OverlapSEC,1)~=Nfields
+            error('The Overlap section (EXCLSEC/UNIQSEC) must contain either a single line or a line per field');
         end
+    end
+    if ~isempty(Args.UNIQSEC) && size(Args.UNIQSEC,1)~=1 && size(Args.UNIQSEC,1)~=Nfields
+        error('UNIQSEC must contain either a single line or a line per field');
     end
 
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
@@ -568,10 +599,10 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % smeared by the registration shifts. Drop it and set it according to
             % the coadd own geometry - before the source extraction, so that the
             % coadd catalog FLAGS follow the same geometry.
-            if ~isempty(Args.UNIQSEC)
-                Isec = min(Ifields, size(Args.UNIQSEC,1));
+            if ~isempty(OverlapSEC)
+                Isec = min(Ifields, size(OverlapSEC,1));
                 Coadd(Ifields).MaskData.Data = imUtil.mask.setCoaddOverlap(Coadd(Ifields).MaskData.Data,...
-                                                    Args.UNIQSEC(Isec,:), 'BitInd',OverlapBitInd);
+                                                    OverlapSEC(Isec,:), 'BitInd',OverlapBitInd);
             end
 
             %Ifields
@@ -597,6 +628,16 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                     'CleanSN',Args.CleanSN,...
                                                     'UpdateHeaderDataBkgVar',false,...
                                                     'UseMex',Args.UseMex);
+            end
+
+            % ownership column (issue #1180): primary=1 for the sources whose
+            % exact X,Y is inside the field unique section, 0 for the copies
+            % in the overlapping neighbours. The Overlap FLAGS bit marks the
+            % full overlap region symmetrically, so de-duplication of the
+            % concatenated crop catalogs uses this column.
+            if Args.AddPrimary && ~isempty(Args.UNIQSEC) && Coadd(Ifields).CatData.sizeCatalog>0
+                IsecU = min(Ifields, size(Args.UNIQSEC,1));
+                imProc.cat.addPrimary(Coadd(Ifields), Args.UNIQSEC(IsecU,:), 'CreateNewObj',false);
             end
 
             % prelimnary astrometry by copying the WCS

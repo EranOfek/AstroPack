@@ -116,6 +116,7 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
         %Args.WriteMethodTables        = 'Standard';  % can be 'Standard' or 'MexHeader'
         Args.WriteMethodImages = 'ThreadedMex';     % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
         Args.WriteMethodTables = 'MexHeader';       % can be 'Standard' or 'MexHeader'  
+        Args.WriteEmptyCat logical = false;         % save a Cat product whose catalog has columns but no rows (issue #1226)
 
     end    
 
@@ -245,7 +246,8 @@ function [Status,AFN] = saveProductImage(AI, FileName, Args)
                                                  'WriteTime',Args.WriteTime,...
                                                  'SanifyPath',Args.SanifyPath,...
                                                  'WriteMethodImages',Args.WriteMethodImages,...
-                                                 'WriteMethodTables',Args.WriteMethodTables);
+                                                 'WriteMethodTables',Args.WriteMethodTables,...
+                                                 'WriteEmptyCat',Args.WriteEmptyCat);
     
                     DirCreated = true;
                     % Update FileName in AI for the Image product only

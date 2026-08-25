@@ -13,6 +13,21 @@ function Obj = updateHeaderCCDSEC(Obj, Args)
     %            'NewNoOverlap' - Like EdgesCCDSEC, but for the CCDSEC
     %                   of the non-overlapping sub image in new sub image.
     %                   Default is [].
+    %            'NewExclusive' - Like EdgesCCDSEC, but for the CCDSEC
+    %                   of the exclusive (single-coverage) section of the
+    %                   sub image in the new sub image frame, i.e. the part
+    %                   of the sub image that no other sub image covers.
+    %                   Its complement within the sub image is the full
+    %                   overlap region (pixels covered by 2+ sub images).
+    %                   A dedicated keyword is needed because this section
+    %                   is bounded by the NEIGHBOUR footprint edges, which
+    %                   are not recoverable from this image own keywords:
+    %                   the unique-section boundary is the floor-rounded
+    %                   midpoint of the shared strip, so inverting it
+    %                   leaves the neighbour edge ambiguous by 1 pixel
+    %                   whenever the overlap width is odd (as in the LAST
+    %                   grid, 159 px in X split 79/80).
+    %                   Default is [].
     %            'KeyCCDSEC' - Keywirds of CCDSEC. Default is 'CCDSEC'.
     %            'KeyORIGSEC' - Keyword of EdgesCCDSEC.
     %                   Default is 'ORIGSEC.
@@ -20,6 +35,8 @@ function Obj = updateHeaderCCDSEC(Obj, Args)
     %                   Default is 'ORIGUSEC'.
     %            'KeyUNIQSEC' - Keyword of NewNoOverlap.
     %                   Default is 'UNIQSEC'.
+    %            'KeyEXCLSEC' - Keyword of NewExclusive.
+    %                   Default is 'EXCLSEC'.
     % Output : - The input AstroImage object with the updated header.
     %            New copy is not generated.
     % Author : Eran Ofek (Nov 2021)
@@ -32,14 +49,16 @@ function Obj = updateHeaderCCDSEC(Obj, Args)
         Args.EdgesCCDSEC     = [];    % ORIGSEC : SEC of subimage in full image
         Args.NoOverlapCCDSEC = [];    % ORIGUSEC : SEC of non-overlapping sub image in full image
         Args.NewNoOverlap    = [];    % UNIQSEC : SEC of non-overlapping sub image in new sub image
-        
+        Args.NewExclusive    = [];    % EXCLSEC : SEC of the single-coverage (exclusive) sub image section in new sub image
+
         Args.KeyCCDSEC       = 'CCDSEC';
         Args.KeyORIGSEC      = 'ORIGSEC';
         Args.KeyORIGUSEC     = 'ORIGUSEC';
         Args.KeyUNIQSEC      = 'UNIQSEC';
+        Args.KeyEXCLSEC      = 'EXCLSEC';
     end
-    
-    KeyNames = {'NAXIS1','NAXIS2', Args.KeyCCDSEC, Args.KeyORIGSEC, Args.KeyORIGUSEC, Args.KeyUNIQSEC};
+
+    KeyNames = {'NAXIS1','NAXIS2', Args.KeyCCDSEC, Args.KeyORIGSEC, Args.KeyORIGUSEC, Args.KeyUNIQSEC, Args.KeyEXCLSEC};
     
     Nsub = numel(Obj);
     KeyVals  = cell(size(KeyNames));
@@ -58,6 +77,9 @@ function Obj = updateHeaderCCDSEC(Obj, Args)
         end
         if ~isempty(Args.NewNoOverlap)
             KeyVals{6} = imUtil.ccdsec.ccdsec2str(Args.NewNoOverlap(Isub,:));           % UNIQSEC : SEC of non-overlapping sub image in new sub image
+        end
+        if ~isempty(Args.NewExclusive)
+            KeyVals{7} = imUtil.ccdsec.ccdsec2str(Args.NewExclusive(Isub,:));           % EXCLSEC : SEC of the single-coverage section in new sub image
         end
 
         Obj(Isub).HeaderData.replaceVal(KeyNames, KeyVals);

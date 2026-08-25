@@ -30,6 +30,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.NoOverlapCCDSEC               = [];
         Args.ListCenters                   = [];
         Args.NewNoOverlap                  = [];
+        Args.NewExclusive                  = [];   % single-coverage sections (sub image frame); the Overlap bit marks their complement, i.e. the full overlap region, in all the crops covering it (issue #1180)
+        Args.AddPrimary logical            = true; % add the 'primary' ownership column (imProc.cat.addPrimary) to the sub image and coadd catalogs
 
         %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256], 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}}; % both for single epoch and coadd
         %Args.backVarArgs                   = {'Method',@imUtil.background.modeVar_LeftHist, 'Block',[256 256], 'PoissVar',true, 'Ncoadd',1, 'RN2',13, 'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}},{}}}; % both for single epoch and coadd
@@ -94,6 +96,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                               'FLUX_APER_3',...
                                               'FLAGS',...
                                               'BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS',...
+                                              'primary',...
                                               'FORCED'};
         Args.ColUse                        = 'FORCED';
         Args.AddUnUse                      = true;
@@ -164,6 +167,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
     
     Status.PipeI   = true;
     Status.ME      = [];
+    Status.NfailedBack = 0;   % sub images whose background estimation failed (#1226)
     %ProcessingStep = 11;
 
     if isempty(RawImageList)
@@ -265,11 +269,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 51;
             if isempty(Args.EdgesCCDSEC)
                 SizeXY = fliplr(size(AI(1).ImageData.Data));
-                [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);  % 0.01s
+                [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters, ~, Args.NewExclusive] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);  % 0.01s
             end
             % No WCS/PSF/Cat so no need to update them
             %ProcessingStep = 61;
-            AllSI=imProc.image.images2subImages(AI, 'SubSizeXY',Args.SubSizeXY, 'EdgesCCDSEC',Args.EdgesCCDSEC, 'ListCenters',Args.ListCenters, 'NoOverlapCCDSEC',Args.NoOverlapCCDSEC, 'NewNoOverlap',Args.NewNoOverlap,...
+            AllSI=imProc.image.images2subImages(AI, 'SubSizeXY',Args.SubSizeXY, 'EdgesCCDSEC',Args.EdgesCCDSEC, 'ListCenters',Args.ListCenters, 'NoOverlapCCDSEC',Args.NoOverlapCCDSEC, 'NewNoOverlap',Args.NewNoOverlap, 'NewExclusive',Args.NewExclusive,...
                                                     'UpdateWCS',false, 'UpdatePSF',false, 'UpdateCat',false, 'UpdateXY',false);  % 6.6s
             [Nepoch, Nsub] = size(AllSI);
             Nobj = numel(AllSI);
@@ -362,8 +366,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 end
                 %toc
             end
-        
-            % Consider update TableRaw - No PSF, etc? 
+
+            % Consider update TableRaw - No PSF, etc?
             %TableRaw.BasicCalib(TableRaw.SelectedImages) = true(numel(AI),1); 
         
             
@@ -426,7 +430,21 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             MaxFracGrad  = (max(MeanBack,[],2) - min(MeanBack,[],2))./MeanMeanBack; % max fractional background gradient per epoch
             TableRaw.MaxFracGrad(TableRaw.SelectedImages) = MaxFracGrad;
 
-            IsGood = IsGoodWCS & Nstars>Args.MinNstars & MaxFracGrad<Args.MaxFracGrad;
+            % background estimation failures (issue #1226)
+            % Such a crop is still written to disk, with blank background
+            % keywords, but it must not take part in the coaddition, the
+            % matched sources or the forced photometry. Today it is already
+            % excluded by the two terms above - it extracts no sources and its
+            % astrometry does not converge - but only as a side effect; the
+            % term below makes it deliberate. Note that MaxFracGrad cannot
+            % catch it: it is computed from the image, not from the background.
+            IsFailedBack      = imProc.background.isFailedBack(AllSI);
+            Status.NfailedBack = sum(IsFailedBack, 'all');
+            if Status.NfailedBack>0
+                warning('Background estimation failed for %d of %d sub images - they are saved but excluded from the coadd and the matched sources', Status.NfailedBack, numel(AllSI));
+            end
+
+            IsGood = IsGoodWCS & Nstars>Args.MinNstars & MaxFracGrad<Args.MaxFracGrad & ~IsFailedBack;
         
             % Photometric calibration of individual images:
             %[Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AllSI);
@@ -481,7 +499,23 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             else
                 %AllForcedPhot = [];
             end
-        
+
+            % ownership column (issue #1180): primary=1 for the sources whose
+            % exact X,Y is inside the crop unique section, 0 for the copies in
+            % the overlapping neighbours. The Overlap FLAGS bit marks the full
+            % overlap region in all the crops covering it, so de-duplication
+            % of the concatenated crop catalogs uses this column.
+            % Placed after the forced photometry, which appends rows at the
+            % coadd positions, so that the forced rows get a value too
+            % (addPrimary recomputes the whole column from X,Y and replaces
+            % it in place).
+            if Args.AddPrimary && ~isempty(Args.NewNoOverlap)
+                for Isub=1:1:Nsub
+                    IsecP = min(Isub, size(Args.NewNoOverlap,1));
+                    imProc.cat.addPrimary(AllSI(:,Isub), Args.NewNoOverlap(IsecP,:));
+                end
+            end
+
             % Sort all catalogs by Dec
             %ProcessingStep = 451;
             for Iim=1:1:Nsub.*Nepoch
@@ -567,6 +601,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                           'PropShiftXY','ShiftXY',...
                                                           'IsShiftXYfiltered',true,...
                                                           'UNIQSEC',Args.NewNoOverlap,...
+                                                          'EXCLSEC',Args.NewExclusive,...
+                                                          'AddPrimary',Args.AddPrimary,...
                                                           'StackMethod',Args.StackMethod,...
                                                           'UseMex',Args.UseMex,...
                                                           'PhotCalibSimple',false,...
@@ -753,7 +789,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             end
 
             % Add LimMag and BackMag
-            [Coadd(NotIsEmptyCat)] = imProc.calib.limmag(Coadd(NotIsEmptyCat), Args.LimMagArgs{:});  
+            % LimMag is applied to all the crops, including those with an
+            % empty catalog, so that LIMMAG is always present in the header
+            % (undefined value when it can not be estimated)
+            [Coadd] = imProc.calib.limmag(Coadd, Args.LimMagArgs{:});  
             [Coadd(NotIsEmptyCat)] = imProc.calib.backmag(Coadd(NotIsEmptyCat), 'KeyZP',Args.KeyZP, Args.BackMagArgs{:});   
             % Add LimMag and BackMag / AllSI (after propagation to all
             % images)
@@ -763,7 +802,17 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             [~,Coadd(NotIsEmptyCat)] = imProc.cat.addXYfull(Coadd(NotIsEmptyCat));
             % Add PSF fraction to header
             [~,Coadd(NotIsEmptyCat)] = imProc.psf.aperFrac(Coadd(NotIsEmptyCat), 'AperRadius',Args.AperRadius);
-            
+
+            % Give the source-less crops the column set of the visit (#1226).
+            % A crop which extracted nothing - e.g. one whose background
+            % estimation failed - ends with a catalogue that has neither rows
+            % nor columns, and a catalogue without columns cannot be written as
+            % a FITS binary table, so no data product would be saved for it at
+            % all. With the columns in place it is saved as a zero-row
+            % catalogue, whose header records why it is empty.
+            % Done here, after every stage that adds columns, so that the empty
+            % catalogues match the ones actually written for this visit.
+            AllSI = imProc.cat.fillEmptyCatColumns(AllSI);
 
             % Finish
             %ProcessingStep = 1000;

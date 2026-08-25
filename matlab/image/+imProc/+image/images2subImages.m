@@ -20,6 +20,7 @@ function [Result] = images2subImages(AI, Args)
         Args.ListCenters      = [];
         Args.NoOverlapCCDSEC  = [];
         Args.NewNoOverlap     = [];
+        Args.NewExclusive     = [];   % single-coverage sections (sub image frame); if available, the Overlap bit marks their complement (the full overlap region, in all the sub images covering it - issue #1180); if empty, fall back to the complement of NewNoOverlap
         Args.EdgeDist               = 13;
 
         Args.PropList               = {'ImageData','BackData','VarData','MaskData'};
@@ -45,7 +46,7 @@ function [Result] = images2subImages(AI, Args)
     % construct partition:
     if isempty(Args.EdgesCCDSEC) && isempty(Args.ListCenters) && isempty(Args.NoOverlapCCDSEC) && isempty(Args.NewNoOverlap)
         SizeXY = fliplr(size(AI(1).ImageData.Image));
-        [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);
+        [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters, ~, Args.NewExclusive] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);
 
         % [Args.EdgesCCDSEC,Args.NoOverlapCCDSEC,Args.ListCenters,Args.Nxy,Args.NewNoOverlap] = imUtil.cut.subimage_grid(SizeXY,...
         %                                                     'SubSizeXY',Args.SubSizeXY,...
@@ -111,8 +112,16 @@ function [Result] = images2subImages(AI, Args)
                 Flag   = imUtil.ccdsec.selectNearEdges(SizeIJ, Args.EdgeDist);
                 Result(Iai, Isub) = maskSet(Result(Iai, Isub), Flag, Args.NearEdge_BitName, true, 'DefBitDict',Args.BitDict, 'CreateNewObj',false);
 
-                % ovelaping
-                Flag = imUtil.ccdsec.flag_ccdsec(SizeIJ, Args.NewNoOverlap(Isub,:), false);
+                % overlapping: flag the full overlap region (the complement
+                % of the single-coverage section), so that a pixel covered
+                % by several sub images is flagged in all of them (issue
+                % #1180); ownership is recorded in the catalog 'primary'
+                % column (imProc.cat.addPrimary) rather than in this bit
+                if ~isempty(Args.NewExclusive)
+                    Flag = imUtil.ccdsec.flag_ccdsec(SizeIJ, Args.NewExclusive(Isub,:), false);
+                else
+                    Flag = imUtil.ccdsec.flag_ccdsec(SizeIJ, Args.NewNoOverlap(Isub,:), false);
+                end
                 Result(Iai, Isub) = maskSet(Result(Iai, Isub), Flag, Args.Overlap_BitName, true, 'DefBitDict',Args.BitDict, 'CreateNewObj',false);
 
             end % for Isub=1:1:Nsub
@@ -140,7 +149,8 @@ function [Result] = images2subImages(AI, Args)
         % update the header CCDSEC info for all sub images in a single AI:
         Result(Iai,:) = imProc.transIm.updateHeaderCCDSEC(Result(Iai,:), 'EdgesCCDSEC',Args.EdgesCCDSEC,...
                                                            'NoOverlapCCDSEC',Args.NoOverlapCCDSEC,...
-                                                           'NewNoOverlap',Args.NewNoOverlap);
+                                                           'NewNoOverlap',Args.NewNoOverlap,...
+                                                           'NewExclusive',Args.NewExclusive);
     end %for Iai=1:1:Nai
 
 

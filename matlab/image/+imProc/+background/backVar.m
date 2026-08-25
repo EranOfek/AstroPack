@@ -77,9 +77,10 @@ function [Result, FailedList] = backVar(Obj, Args)
     %                   Default is 0.
     % Output : - An updated object.
     %          - A vector of indices of the elements for which the background
-    %            estimation failed. Their Back/Var are filled with NaN, their
-    %            header is left untouched, and the background is not
-    %            subtracted from them even if SubBack is true.
+    %            estimation failed. Their Back/Var are filled with NaN, the
+    %            background statistics keywords are written with an undefined
+    %            (blank) value, and the background is not subtracted from them
+    %            even if SubBack is true.
     % Author : Eran Ofek (2025 Oct) 
     % Example: AI=imProc.background.backVar(AI);
     %          AI=imProc.background.backVar(AI, 'Block',256, 'Method',{@median, @var}, 'ReCalc',true);
@@ -119,7 +120,7 @@ function [Result, FailedList] = backVar(Obj, Args)
         
     end
 
-    Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR', 'MINBCK', 'MAXBCK', 'BCKMETH'};
+    Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR', 'MINBCK', 'MAXBCK', 'BCKMTHD', 'VARMTHD'};
 
     if Args.CreateNewObj
         Result = Obj.copy;
@@ -148,13 +149,19 @@ function [Result, FailedList] = backVar(Obj, Args)
         end
     end
 
-    % Readable method name for the BCKMETH header keyword. StrMethod is the
-    % literal 'cell' when Args.Method is a cell array, so resolve the elements.
-    if iscell(Args.Method)
-        MethodName = strjoin(cellfun(@localMethodName, Args.Method, 'UniformOutput',false), ',');
-    else
-        MethodName = StrMethod;
+    % Codes of the background and the variance estimation methods, written
+    % to the BCKMTHD and VARMTHD header keywords. A single method (i.e. not
+    % a cell array) estimates both, hence the same code in both keywords.
+    [MethodDict, MethodCode] = imUtil.background.backDictionary(Args.Method);
+    if isscalar(MethodCode)
+        MethodCode = [MethodCode, MethodCode];
     end
+    % method names, written as the comments of the two method keywords
+    MethodComment = cell(1,2);
+    for Imeth=1:1:2
+        MethodComment{Imeth} = MethodDict([MethodDict.Code]==MethodCode(Imeth)).Name;
+    end
+    KeyComments = [repmat({''}, 1, numel(Keys)-2), MethodComment];
 
     FailedList = [];
     for Iobj=1:1:Nobj
@@ -233,8 +240,22 @@ function [Result, FailedList] = backVar(Obj, Args)
             end
     
             % update header
-            % skipped on failure: every statistic would be NaN, and non-finite
-            % header values are a problem of their own (issue #1194)
+            % On failure the keywords are still written, with an undefined
+            % value (issue #1226): the image is saved as a data product even
+            % though it has no background, so its header has to say so, and a
+            % keyword present without a value is distinguishable from one that
+            % never ran (no keyword at all).
+            % The value is NaN and not [], although both read back as NaN
+            % through getVal/getStructKey: the mex header writers serialize a
+            % non-finite value as a blank (FITS undefined) card - the
+            % representation agreed in issue #1194 - while an empty value is
+            % serialized as '0.', which would claim a zero background and the
+            % method code 0.
+            if ~isempty(Args.AddHeaderInfo) && ~Ok
+                % no method comment here - no method produced a result
+                Result(Iobj).HeaderData.replaceVal(Keys, repmat({NaN}, 1, numel(Keys)),...
+                                                   'Comment',repmat({''}, 1, numel(Keys)));
+            end
             if ~isempty(Args.AddHeaderInfo) && Ok
                 %
                 MeanBack = mean(BackSmall, 'all');
@@ -251,20 +272,12 @@ function [Result, FailedList] = backVar(Obj, Args)
                     MedVar  = median(VarSmall, 'all');
                 end
                 
-                %Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR', 'MINBCK', 'MAXBCK', 'BCKMETH'};
-                Vals  = {MeanBack, MedBack, StdBack, MeanVar, MedVar, MinBack, MaxBack, MethodName};
-                Result(Iobj).HeaderData.replaceVal(Keys,Vals);
+                %Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR', 'MINBCK', 'MAXBCK', 'BCKMTHD', 'VARMTHD'};
+                Vals  = {MeanBack, MedBack, StdBack, MeanVar, MedVar, MinBack, MaxBack, MethodCode(1), MethodCode(2)};
+                Result(Iobj).HeaderData.replaceVal(Keys, Vals, 'Comment',KeyComments);
                     
             end % if ~isempty(Args.AddHeaderInfo)
         end % if isempty(Result(Iobj).BackData.Image) || Args.ReCalc
     end % for Iobj=1:1:Nobj
 end
 
-function Str = localMethodName(Method)
-    % Readable name for a method given as a function handle or a char array
-    if isa(Method,'function_handle')
-        Str = func2str(Method);
-    else
-        Str = char(Method);
-    end
-end

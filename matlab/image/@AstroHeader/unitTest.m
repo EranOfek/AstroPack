@@ -68,7 +68,9 @@ function Result = unitTest()
     H.insertKey('stam');
     H.insertKey({'A','','';'B','',''},'end-1');
     [Result,C] = getStructKey(H, {'stam'});
-    if ~isempty(Result.stam)
+    % the inserted keyword has no value, and an empty value is mapped to the
+    % Fill value of getValBySynonym, i.e. NaN by default (issue #1194)
+    if ~isnan(Result.stam) || ~isempty(H.Data{strcmp(H.Data(:,1),'stam'), 2})
         error('insertKey failed');
     end
 

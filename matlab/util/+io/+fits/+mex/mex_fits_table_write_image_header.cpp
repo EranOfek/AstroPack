@@ -216,7 +216,7 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
                 size_t totalLength = ei;
 
                 // Short string with comment
-                if ((totalLength <= 19) & comment[0]) {
+                if ((totalLength <= 19) && comment[0]) {
                     sprintf(value, "'%s'", escStr);
                     comment[maxCommentSize] = 0;
                     snprintf(card, sizeof(card), "%-8.8s= %20s / %s", key, value, comment);
@@ -274,10 +274,16 @@ void fillHeaderBufferFromCellArray(char* headerBuffer, size_t& bufferPos, const 
         // Comment only, one or more lines
         else if (comment[0]) {
             size_t totalLength = strlen(comment);
-            int numSegments = (int)((totalLength-1) / maxCommentLineSize) + 1;  
-            for (int i = 0; i < numSegments; ++i) {
-                strcat(card, "COMMENT ");
-                strncpy(card + 8, comment + i * maxCommentLineSize, maxCommentLineSize);
+            size_t numSegments = (totalLength - 1) / maxCommentLineSize + 1;
+            for (size_t i = 0; i < numSegments; ++i) {
+                // Build the card from scratch for every segment: appending
+                // "COMMENT " to it would write past the end of the 80
+                // character buffer on the second and any further segment
+                size_t offset  = i * maxCommentLineSize;
+                size_t segSize = std::min(maxCommentLineSize, totalLength - offset);
+                memcpy(card, "COMMENT ", 8);
+                memcpy(card + 8, comment + offset, segSize);
+                card[8 + segSize] = '\0';
                 addCard(headerBuffer, bufferPos, card);
             }
         }
@@ -348,8 +354,12 @@ mxArray* createFitsImageHeaderFromCellArray(const mxArray* headerArray, bool ima
 
     //mexPrintf("bufferPos: %d, headerBytesToWrite: %d, bytesToWrite: %d\n", (int)bufferPos, (int)headerBytesToWrite, (int)bytesToWrite);
 
-    mxArray* outputBuffer = mxCreateCharArray(1, &bytesToWrite);
-    mxChar *outputData = mxGetChars(outputBuffer);
+    // uint8 and not mxCreateCharArray: the buffer holds raw bytes, while an
+    // mxChar element is two bytes wide, so a char array made MATLAB read the
+    // header as 16 bit characters - the returned buffer was unusable, even
+    // though writing it to a file happened to work
+    mxArray* outputBuffer = mxCreateNumericMatrix(1, bytesToWrite, mxUINT8_CLASS, mxREAL);
+    uint8_t *outputData = (uint8_t*)mxGetData(outputBuffer);
     memcpy(outputData, headerBuffer, bufferPos);
     if (imageData)
         memset(outputData + headerBytesToWrite, 0, blockSize);
@@ -402,13 +412,13 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         FILE* fp = fopen(filename, "ab");
         if (!fp) {
             mxFree(filename);
-            mxFree(outputBuffer);
+            mxDestroyArray(outputBuffer);
             mexErrMsgIdAndTxt("MATLAB:mex_fits_table_write_image_header:fileOpenFailed", "Could not open the file for writing (append).");
             return;
         }
 	        
         // Write the header buffer to the file
-        void* dataPtr = mxGetChars(outputBuffer);        
+        void* dataPtr = mxGetData(outputBuffer);        
         fwrite(dataPtr, 1, allocatedSize, fp);
         fclose(fp);
         

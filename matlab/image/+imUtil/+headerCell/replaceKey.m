@@ -11,6 +11,8 @@ function Cell=replaceKey(Cell,Key,Val,Args)
 %            'RepVal'   - Replace value. Default is true.
 %            'Comment'  - A cell array of optional comments.
 %                   If empty, then do not replace comment. Default is [].
+%                   The comment is applied also to keys which are added
+%                   because they do not exist in the input cell array.
 %            'NewKey' - A cell array of new keys to replace the old keys.
 %                   If empty, then do not replace keys.
 %                   Default is {}.
@@ -82,8 +84,14 @@ function Cell=replaceKey(Cell,Key,Val,Args)
         end
         if Args.RepVal
             if Args.AddKey && isempty(IK{Ikey})
-                % add key/val if doesn't exist
-                Cell = imUtil.headerCell.insertKey(Cell, [Key(Ikey), Val(Ikey)], Args.AddPos);
+                % add key/val if doesn't exist, including the comment: it
+                % can not be assigned after the insertion, because IK holds
+                % the indices found before the key was added
+                NewLine = [Key(Ikey), Val(Ikey)];
+                if iscell(Args.Comment) && size(Cell,2)>=Args.ColComment
+                    NewLine = [NewLine, Args.Comment(Ikey)];
+                end
+                Cell = imUtil.headerCell.insertKey(Cell, NewLine, Args.AddPos);
             else
                 [Cell(IK{Ikey},Args.ColVal)] = deal(Val(Ikey));
             end
