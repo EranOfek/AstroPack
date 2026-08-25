@@ -454,6 +454,44 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.SearchStreaks                 = false;
         Args.detectStreaksLSDArgs          = {};
 
+        % --- Phase 2 of the single-PSF scheme: bright-star halo into Back/Var ---
+        Args.BrightWingBack logical = false;  % add each bright star's wing/halo model into
+                                              % Back and Var beyond the subtraction stamp
+                                              % (via SourceImage, so the existing bookkeeping
+                                              % applies it), and add a model-uncertainty
+                                              % variance floor (BWB_ResidualFrac) inside it.
+                                              % Kills the residual-wing plateau at its root and
+                                              % makes the S/N map honest about subtraction
+                                              % residuals near bright stars. Default false
+                                              % (production path untouched).
+        Args.BWB_MinFlux       = 1e5;         % FLUX_APER_3 threshold for "bright" stars
+        Args.BWB_AnnulusR      = [10 12];     % data annulus [pix] anchoring the halo amplitude
+                                              % (imUtil.sources.mex.fluxAtRadius on the
+                                              % pre-subtraction image, minus local Back)
+        Args.BWB_MaxR          = 100;         % halo extent [pix]
+        Args.BWB_ResidProfile  = [2e-2 2e-2 2e-2 2e-2 8e-3 4e-3 2.5e-3 1.5e-3 1.0e-3 6e-4 5e-4 4e-4 3.5e-4];
+                                              % residual-sigma radial profile, as FRACTION OF THE
+                                              % STAR'S PEAK, on integer radii r = 0..numel-1.
+                                              % Per bright star, (BWB_ResidScale * Profile(r) *
+                                              % Peak)^2 is ADDED TO VAR within that radius - the
+                                              % model-uncertainty floor that makes the S/N map
+                                              % honest about subtraction residuals near cores.
+                                              % Default measured on LAST subtracted images
+                                              % (field 1677, r=3..12; held flat inside r<3).
+        Args.BWB_ResidScale    = 1;           % overall multiplier of BWB_ResidProfile
+        Args.BWB_FallbackAlpha = 5;           % halo power-law index when no visit-level wing
+                                              % profile is available (WingProfile empty or
+                                              % Success=false, e.g. fallback crops)
+        Args.BWB_InnerCut      = [];          % inner radius [pix] of the applied halo. The
+                                              % spliced PSF's edge taper rolls the SUBTRACTION
+                                              % model off from ~RadiusPSF-3 to RadiusPSF, so the
+                                              % real wing is only partially subtracted there -
+                                              % a systematic positive residual annulus (measured:
+                                              % variant-only detections ringing at r=9-11 on the
+                                              % dense field). Empty (default) -> RadiusPSF-3, so
+                                              % the halo covers the taper zone; RadiusPSF
+                                              % restores the original stamp-edge cut.
+
         % Bright stars back/var adjustment:
         Args.BS_R     = (0:1:1500)+0.1;
         Args.BS_BackMaxR  = 1501;
@@ -668,6 +706,24 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         % this is just the plain PSF, same as before.
         DetectionPSFStamp = AI.PSFData.getPSF('PsfArgs',{'Purpose',2});
         SizePSF = size(DetectionPSFStamp);
+
+        % Phase-2 halo profile for this object (visit wing shape, power-law
+        % extended; zeroed inside the subtraction stamp to avoid double
+        % counting with the stamp model that is already added to Back/Var).
+        if Args.BrightWingBack
+            if isempty(Args.WingProfile)
+                WingProfBWB = [];
+            else
+                WingProfBWB = Args.WingProfile(min(Iobj, numel(Args.WingProfile)));
+            end
+            if isempty(Args.BWB_InnerCut)
+                BWB_CutR = Args.RadiusPSF - 3;   % cover the stamp-edge taper zone
+            else
+                BWB_CutR = Args.BWB_InnerCut;
+            end
+            [BWB_Prof, BWB_ShapeAnchor] = i_buildHaloProfile(WingProfBWB, ...
+                Args.BWB_MaxR, BWB_CutR, mean(Args.BWB_AnnulusR), Args.BWB_FallbackAlpha);
+        end
         if isempty(AI.PSFData.DataPSF)
             % No PSF - do not look for stars!
             % See issue #963 - consider calling findMeasureSources
@@ -841,6 +897,86 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                     SourceImage(:,:,Iiter)       = imUtil.art.addSources(zeros(SizeImage, 'single'), CubePSF, XY,...
                                                                                 'Oversample',[],'Subtract',false);
 
+                    % Phase 2: add bright-star halos into SourceImage. The
+                    % existing bookkeeping then does the rest: the halo is
+                    % subtracted from the working image AND added to
+                    % Back/Var, so the residual wing plateau beyond the
+                    % subtraction stamp is removed from (I-B) and its noise
+                    % floor is honest. Amplitude is anchored on the DATA
+                    % (annulus median minus local Back) so it is robust to
+                    % saturated cores.
+                    if Args.BrightWingBack && Iiter==1
+                        ColDataB = AI.CatData.getColMulti({'XPEAK','YPEAK','FLUX_APER_3','FLUX_XYPEAK'});
+                        SelB = isfinite(ColDataB(:,3)) & ColDataB(:,3) > Args.BWB_MinFlux & ...
+                               isfinite(ColDataB(:,1)) & isfinite(ColDataB(:,2));
+                        if any(SelB) && BWB_ShapeAnchor > 0
+                            Xb = ColDataB(SelB,1);
+                            Yb = ColDataB(SelB,2);
+                            FluxAtR = imUtil.sources.mex.fluxAtRadius(AI.ImageData.Image, ...
+                                          [Xb, Yb], Args.BWB_AnnulusR);
+                            IndB    = sub2ind(size(AI.BackData.Image), ...
+                                          max(min(round(Yb), size(AI.BackData.Image,1)),1), ...
+                                          max(min(round(Xb), size(AI.BackData.Image,2)),1));
+                            WingLev = FluxAtR(:) - double(AI.BackData.Image(IndB));
+                            OkB = isfinite(WingLev) & WingLev > 0;
+                            if any(OkB)
+                                % Route the halo to Back/Var ONLY - not into
+                                % SourceImage. The SourceImage path subtracts
+                                % from the image AND adds to Back, leaving a
+                                % -1x wing moat in (I-B) even for a perfect
+                                % model (intentional for cores, wrong for the
+                                % halo: it suppresses real companions sitting
+                                % on the wing). With Back-only routing the
+                                % real wing in I and the model in B cancel:
+                                % (I-B) is flat, companions unaffected,
+                                % residual deviations covered by the Var terms.
+                                AmpB = WingLev(OkB) ./ BWB_ShapeAnchor;
+                                HaloInc = imUtil.art.mex.addBrightSourceProfile( ...
+                                    zeros(SizeImage, 'single'), single(Xb(OkB)), single(Yb(OkB)), ...
+                                    single(AmpB), single(Args.BWB_MaxR.*ones(nnz(OkB),1)), ...
+                                    single(BWB_Prof));
+                                AI.BackData.Image = AI.BackData.Image + HaloInc;
+                                AI.VarData.Image  = AI.VarData.Image  + HaloInc./(Ncoadd.*Gain);
+                            end
+
+                            % residual-variance floor: subtraction residuals
+                            % near a bright star's core scale with its PEAK
+                            % (measured: ~2e-2 of peak at r=3 down to ~4e-4
+                            % at r=12). Add (Profile(r)*Peak)^2 to Var so a
+                            % residual bump is ~1 sigma of known model error
+                            % rather than a many-sigma "detection". Var-only:
+                            % must NOT enter SourceImage/Back.
+                            % Saturation-immune scale: FLUX_XYPEAK is CLIPPED
+                            % at saturation, under-scaling the floor for
+                            % exactly the brightest hosts. Estimate the true
+                            % peak from the (unclipped) measured wing level
+                            % via the PSF's own peak-to-anchor-ring ratio,
+                            % and take the larger of the two.
+                            PeakB = ColDataB(SelB,4);
+                            PsfPh = AI.PSFData.getPSF;   % photometry PSF (unit sum)
+                            [NyPp, NxPp] = size(PsfPh);
+                            [XgPp, YgPp] = meshgrid(1:NxPp, 1:NyPp);
+                            RBpp  = round(hypot(XgPp-(NxPp+1)/2, YgPp-(NyPp+1)/2));
+                            RingA = median(PsfPh(RBpp == round(mean(Args.BWB_AnnulusR))), 'omitnan');
+                            if isfinite(RingA) && RingA > 0
+                                Cpk = max(PsfPh(:)) ./ RingA;
+                                PeakW = WingLev .* Cpk;   % true-peak estimate from the wing
+                                Better = isfinite(PeakW) & PeakW > PeakB;
+                                PeakB(Better) = PeakW(Better);
+                            end
+                            OkP   = isfinite(PeakB) & PeakB > 0;
+                            if any(OkP)
+                                ResProf2 = (Args.BWB_ResidScale .* Args.BWB_ResidProfile(:).').^2;
+                                NresR    = numel(ResProf2) - 1;
+                                VarInc = imUtil.art.mex.addBrightSourceProfile( ...
+                                    zeros(SizeImage, 'single'), single(Xb(OkP)), single(Yb(OkP)), ...
+                                    single(PeakB(OkP).^2), single(NresR.*ones(nnz(OkP),1)), ...
+                                    single(ResProf2));
+                                AI.VarData.Image = AI.VarData.Image + VarInc;
+                            end
+                        end
+                    end
+
                     % add wings around bright stars
                     % if Iiter==1
                     %     ColData = AI.CatData.getColMulti({'XPEAK','YPEAK','FLUX_APER_3'});
@@ -909,7 +1045,10 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 %AI.BackData.Image = AI.BackData.Image + SumSourceImage;  
 
                 AI.VarData.Image  = AI.VarData.Image  + SourceImage(:,:,Iiter)./(Ncoadd.*Gain);
-                AI.BackData.Image = AI.BackData.Image + SourceImage(:,:,Iiter);  
+                AI.BackData.Image = AI.BackData.Image + SourceImage(:,:,Iiter);
+                % (Phase-2 residual-variance floor is injected per bright
+                % star in the Iiter==1 block above - it scales with the
+                % star's PEAK, not with the local model value.)
 
                 % if Iiter==1
                 %     if Args.IsBackSub
@@ -1185,4 +1324,55 @@ function writeDS9region(AI, Args)
     DS9_new.regionWrite([AI.CatData.getCol('X') AI.CatData.getCol('Y')],...
                         'FileName',RegName,'Color',Clr,'Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
 
+end
+
+
+function [ProfApplied, ShapeAnchor] = i_buildHaloProfile(WingProf, MaxR, CutR, Ranchor, FallbackAlpha)
+    % Bright-star halo radial profile on the integer grid r = 0..MaxR
+    % (imUtil.art.mex.addBrightSourceProfile convention: element I+1 =
+    % radius I). Shape comes from the visit-level wing profile when
+    % available (log-interp inside its measured range, power-law extension
+    % fitted on its outer half beyond it), else a pure r^-FallbackAlpha
+    % power law. ProfApplied is zeroed for r <= CutR (the subtraction-stamp
+    % radius) to avoid double counting with the stamp model that the
+    % iteration bookkeeping already adds to Back/Var. ShapeAnchor is the
+    % (un-zeroed) shape value at Ranchor, used to scale the profile to the
+    % star's measured wing level; the overall normalization of the shape is
+    % arbitrary (it cancels in the amplitude ratio).
+    R = 0:MaxR;
+    UseVisit = ~isempty(WingProf) && isstruct(WingProf) ...
+               && isfield(WingProf, 'Success') && WingProf(1).Success ...
+               && numel(WingProf(1).Radius) >= 3;
+    if UseVisit
+        PR = double(WingProf(1).Radius(:));
+        PV = double(WingProf(1).Value(:));
+        SelOut = PR >= max(PR(1), PR(end)./2);
+        if nnz(SelOut) >= 2
+            Pfit = polyfit(log10(PR(SelOut)), log10(PV(SelOut)), 1);
+        else
+            Pfit = [-FallbackAlpha, log10(PV(end)) + FallbackAlpha.*log10(PR(end))];
+        end
+        Shape = zeros(1, MaxR+1);
+        In  = R >= PR(1) & R <= PR(end);
+        Shape(In)  = exp(interp1(PR, log(PV), R(In), 'linear'));
+        Ext = R > PR(end);
+        Shape(Ext) = 10.^polyval(Pfit, log10(R(Ext)));
+        Shape(R < PR(1)) = PV(1);   % flat inward (below the anchor; unused in practice)
+    else
+        Shape    = zeros(1, MaxR+1);
+        Shape(2:end) = R(2:end).^(-FallbackAlpha);
+        Shape(1) = Shape(2);
+    end
+    ShapeAnchor = interp1(R, Shape, min(max(Ranchor, 0), MaxR));
+    % Apply the COMPLEMENT of the PSF stamp's edge taper: the subtraction
+    % model carries Edge(r)=1-S(t) of the wing across the taper zone
+    % [CutR, CutR+TaperW] (addEmpiricalWings2PSF smootherstep), so the halo
+    % must add exactly the unmodeled fraction S(t) there - adding the full
+    % shape double-counts and digs a (I-B) suppression moat that was
+    % measured to swallow real companions at r=8-12. Beyond the stamp the
+    % model carries nothing and the full shape applies.
+    TaperW = 3;
+    t = min(max((R - CutR)./TaperW, 0), 1);
+    S = t.^3 .* (t.*(t.*6 - 15) + 10);      % 0 at CutR -> 1 at CutR+TaperW
+    ProfApplied = Shape .* S;
 end

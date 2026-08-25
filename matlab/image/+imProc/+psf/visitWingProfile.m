@@ -83,6 +83,16 @@ function Prof = visitWingProfile(Obj, Args)
                                                    % shape (scaling by a noisy near-zero value
                                                    % inflates the wing) - on sparse fields the
                                                    % brightest-N selection reaches such stars.
+        Args.StampBack        (1,:) char {mustBeMember(Args.StampBack, {'annulus','global'})} = 'annulus'
+                                                   % stamp background: 'annulus' = per-stamp
+                                                   % median in WingAnnulus (independent noise per
+                                                   % star, but sits on the star's own wing ->
+                                                   % self-subtraction bias, ~13% low at r=12 up to
+                                                   % ~40% at r=15 for a r^-5 wing); 'global' =
+                                                   % subtract the epoch's global diluted median
+                                                   % (no self-subtraction -> truthful outer shape,
+                                                   % but any background-model error is coherent
+                                                   % across stamps and does not average out).
         Args.SatBitName       (1,:) char    = 'Saturated'
         Args.DiluteFactor     (1,1) double  = 101
         Args.Verbose          (1,1) logical = false
@@ -147,9 +157,16 @@ function Prof = visitWingProfile(Obj, Args)
             Is = Is(1:min(numel(Is), Args.MaxStarsPerEpoch));
             X = X(Is); Y = Y(Is);
 
-            % stamps, background-subtracted by the far-out annulus
+            % stamps, background-subtracted per StampBack
             Cube = imUtil.cut.image2cutouts(Im, X, Y, Args.StampRadius);
-            [Cube, ~, BgStd, ~] = imUtil.sources.mex.annulus_median(Cube, Args.WingAnnulus, 0);
+            if strcmp(Args.StampBack, 'global')
+                % epoch global level (diluted median, computed above); noise
+                % for the seam-S/N cut is the epoch's global robust std
+                Cube  = Cube - Med;
+                BgStd = repmat(Rstd, size(Cube,3), 1);
+            else
+                [Cube, ~, BgStd, ~] = imUtil.sources.mex.annulus_median(Cube, Args.WingAnnulus, 0);
+            end
 
             % Seam-S/N cut: the per-star scale in buildEmpiricalWing is the
             % seam-ring median; if that is at noise level, 1/V scaling
