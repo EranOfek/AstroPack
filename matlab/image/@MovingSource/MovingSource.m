@@ -843,10 +843,34 @@ classdef MovingSource < Component
                 DecFlag = Obj(Iobj).MergedCat.getCol(Args.ColFlags);
                 % If there are multiple entries - use only the first:
                 DecFlag = DecFlag(1);
-                if Args.NotFlags
-                    Flag(Iobj) = ~Args.BitDict.findBit(DecFlag, Args.Flags, 'Method',Args.Method);
+                % issue #1180: on catalogs carrying the 'primary' ownership
+                % column the Overlap bit marks the full overlap region in
+                % ALL the crops covering it; test the ownership (primary~=1
+                % marks the duplicate copies) instead of the literal bit.
+                FlagList   = Args.Flags;
+                UsePrimary = any(strcmp(FlagList,'Overlap')) && Obj(Iobj).MergedCat.isColumn('primary');
+                if UsePrimary
+                    FlagList = FlagList(~strcmp(FlagList,'Overlap'));
+                    Prim     = Obj(Iobj).MergedCat.getCol('primary');
+                    NotPrim  = Prim(1)~=1;
+                end
+                if isempty(FlagList)
+                    % the bit test is vacuous; only the ownership condition remains
+                    HasFlag = UsePrimary && NotPrim;
                 else
-                    Flag(Iobj) = Args.BitDict.findBit(DecFlag, Args.Flags, 'Method',Args.Method);
+                    HasFlag = Args.BitDict.findBit(DecFlag, FlagList, 'Method',Args.Method);
+                    if UsePrimary
+                        if strcmpi(Args.Method, 'all')
+                            HasFlag = HasFlag && NotPrim;
+                        else
+                            HasFlag = HasFlag || NotPrim;
+                        end
+                    end
+                end
+                if Args.NotFlags
+                    Flag(Iobj) = ~HasFlag;
+                else
+                    Flag(Iobj) = HasFlag;
                 end
             end
                             

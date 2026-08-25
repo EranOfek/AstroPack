@@ -37,7 +37,14 @@ function searchVarMerged(Files, Args)
         MS(Counter, CropID) = MatchedSources.read(FileMergedMat);
         
         T = FITS.readTable1(FileName);
-        [FlagBad] = findBit(BD, T.FLAGS, {'Saturated','NearEdge','Overlap','NaN'});
+        % issue #1180: on products carrying the 'primary' ownership column
+        % the Overlap bit marks the full overlap region in ALL the crops
+        % covering it; reject the non-primary copies instead of the bit.
+        if ismember('primary', T.Properties.VariableNames)
+            [FlagBad] = findBit(BD, T.FLAGS, {'Saturated','NearEdge','NaN'}) | (T.primary~=1);
+        else
+            [FlagBad] = findBit(BD, T.FLAGS, {'Saturated','NearEdge','Overlap','NaN'});
+        end
         
         FlagSelected = T.PolyDeltaChi2>16 & ~FlagBad & T.Std_MAG_CONV_2>0.1;
                 

@@ -113,8 +113,24 @@ function Result=searchExternalCatOrphans(Obj, Args)
 
             % select sources with no external catalog match
             FlagInCat      = MergedCatBD.findBit(ColMergedCat, Args.RemoveCat, 'Method','any');
-            % select sources with no bad flags
-            FlagBad        = BD.findBit(ColFlags, Args.RemoveFlags, 'Method','any');
+            % select sources with no bad flags.
+            % issue #1180: on catalogs carrying the 'primary' ownership
+            % column the Overlap bit marks the full overlap region in ALL
+            % the crops covering it, so rejecting it would drop every copy
+            % of a seam source; reject the non-primary copies instead.
+            RemoveFlags = Args.RemoveFlags;
+            UsePrimary  = any(strcmp(RemoveFlags,'Overlap')) && Cat.isColumn('primary');
+            if UsePrimary
+                RemoveFlags = RemoveFlags(~strcmp(RemoveFlags,'Overlap'));
+            end
+            if isempty(RemoveFlags)
+                FlagBad    = false(size(ColFlags));
+            else
+                FlagBad    = BD.findBit(ColFlags, RemoveFlags, 'Method','any');
+            end
+            if UsePrimary
+                FlagBad    = FlagBad | (Cat.getCol('primary')~=1);
+            end
 
             if Args.RemoveCooNaN
                 XY = Cat.getXY;

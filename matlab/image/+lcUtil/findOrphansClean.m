@@ -103,11 +103,22 @@ function [OrphansList,CleanOrphansList,Norphans] = findOrphansClean(Obj, Args)
     end
     
     if isempty(Args.BadFlags)
-        BadFlags = Args.BadFlags;
+        BadFlags   = Args.BadFlags;
+        UsePrimary = false;
     else
+        % issue #1180: on products carrying the 'primary' ownership column
+        % the Overlap bit marks the full overlap region in ALL the crops
+        % covering it, so rejecting the bit would drop every copy of a seam
+        % source; reject the non-primary (duplicate) copies instead.
+        BadFlagNames = Args.BadFlags;
+        UsePrimary   = any(strcmp(BadFlagNames,'Overlap')) && ...
+                       all(arrayfun(@(O) isfield(O.Data,'primary'), Obj));
+        if UsePrimary
+            BadFlagNames = BadFlagNames(~strcmp(BadFlagNames,'Overlap'));
+        end
         % Generate a decimal FLAG
         % this is in order to save time
-        [~,~,BadFlags] = name2bit(Args.BitDict, Args.BadFlags);
+        [~,~,BadFlags] = name2bit(Args.BitDict, BadFlagNames);
     end
         
     
@@ -119,6 +130,9 @@ function [OrphansList,CleanOrphansList,Norphans] = findOrphansClean(Obj, Args)
         
     % look for all orphan candidates in a MatchedSources object
     OutputFields = [Args.OutputFields, Args.SN_Field, Args.Flags_Field, Args.M2_Fields];
+    if UsePrimary
+        OutputFields = [OutputFields, {'primary'}];
+    end
     OrphansList = lcUtil.findOrphans(Obj, 'SelectFieldName',Args.SelectFieldName, 'MaxNepochs',Args.MaxNepochs, 'OutputFields',OutputFields);
     
     Nobj = numel(Obj);
@@ -160,6 +174,12 @@ function [OrphansList,CleanOrphansList,Norphans] = findOrphansClean(Obj, Args)
                    % Remove source
                    OrphansList(Iobj).Src(Isrc).GoodOrphan = false;
                 end
+            end
+
+            % Check ownership (issue #1180): a candidate that is not the
+            % primary copy is a duplicate from an overlapping crop
+            if UsePrimary && any(OrphansList(Iobj).Src(Isrc).primary ~= 1)
+                OrphansList(Iobj).Src(Isrc).GoodOrphan = false;
             end
             
             % Check 2nd moment
