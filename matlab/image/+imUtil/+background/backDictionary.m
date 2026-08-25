@@ -1,4 +1,4 @@
-function [Dict, Code] = backDictionary(Method)
+function [Dict, Code] = backDictionary(Method, Args)
     % Dictionary of background/variance estimation methods and their codes.
     %
     % The dictionary provides a compact (uint8) representation of the
@@ -10,12 +10,22 @@ function [Dict, Code] = backDictionary(Method)
     % pre-defined options of imUtil.background.backgroundOption.
     % Code 0 is reserved for a method which is not in the dictionary
     % (e.g., a user supplied function handle).
+    % The dictionary is built in, and is the default of the 'Dict'
+    % argument, so that a caller may build it once and pass it on, or
+    % supply an alternative dictionary.
     %
     % Input  : - A method, as passed to imUtil.background.backVar: a
     %            function handle, a char array of a pre-defined method, or
     %            a cell array of two such elements for the background and
     %            the variance methods, respectively.
     %            If not given, then only the dictionary is returned.
+    %          * ...,key,val,...
+    %            'Dict' - A dictionary to use instead of the built-in
+    %                   one: a struct array with the same fields, e.g.
+    %                   the output of a previous call, or a dictionary
+    %                   extended by the caller.
+    %                   If empty, use the built-in dictionary.
+    %                   Default is [].
     % Output : - Dict, the dictionary - a struct array with the fields:
     %            .Code        - The uint8 code of the method.
     %            .Name        - The canonical method name.
@@ -30,14 +40,21 @@ function [Dict, Code] = backDictionary(Method)
     % Example: Dict = imUtil.background.backDictionary;
     %          [~,Code] = imUtil.background.backDictionary(@imUtil.background.modeVar_LogHist);
     %          [~,Code] = imUtil.background.backDictionary({@median,'rvar'});
+    %          % build once, then decode without rebuilding:
+    %          [~,Code] = imUtil.background.backDictionary('rvar', 'Dict',Dict);
     %          % decode:
     %          Name = Dict([Dict.Code]==Code(1)).Name;
 
     arguments
-        Method = [];
+        Method    = [];
+        Args.Dict = [];
     end
 
-    Dict = localDictionary;
+    if isempty(Args.Dict)
+        Dict = localDictionary;
+    else
+        Dict = Args.Dict;
+    end
 
     if isempty(Method)
         Code = uint8.empty(1,0);
