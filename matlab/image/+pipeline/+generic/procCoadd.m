@@ -189,7 +189,11 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     % Output : - A vector of AstroImage object containing the coadd images.
     %            One image per field.
     %          - A structure array containing information regarding the
-    %            coaddition process.
+    %            coaddition process. The 'RegisteredBy' field records the
+    %            registration route per field: 'shift' (by the supplied
+    %            ShiftXY), 'wcs' (no ShiftXY supplied), or 'wcs-fallback'
+    %            (ShiftXY supplied but unusable for this field - empty,
+    %            non-finite, or row-mismatched; issue #1162).
     % Author : Eran Ofek (Jun 2023)
     % Example: 
    
@@ -200,7 +204,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.JD                               = [];
         Args.IsGood                           = [];
         Args.MinNumCoadd                      = 10;
-        Args.ShiftXY                          = [];  % if empty, then, register by WCS.
+        Args.ShiftXY                          = [];  % if empty, then, register by WCS. May be a struct array (element per field) with the shifts in PropShiftXY; a field whose resolved shifts are empty, non-finite, or row-mismatched falls back to WCS registration, recorded in ResultCoadd.RegisteredBy (issue #1162).
         Args.WCS                              = [];
         Args.PropShiftXY                      = 'ShiftXY';
         Args.IsShiftXYfiltered                = true;
@@ -408,7 +412,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         PreAllocCube = [];
     end
         
-    ResultCoadd = struct('WMeanJD',cell(Nfields,1), 'IndivMidJD',cell(Nfields,1), 'CoaddN',cell(Nfields,1), 'AstrometricFit',cell(Nfields,1), 'ZP',cell(Nfields,1), 'PhotCat',cell(Nfields,1), 'TransFit',cell(Nfields,1));
+    ResultCoadd = struct('WMeanJD',cell(Nfields,1), 'IndivMidJD',cell(Nfields,1), 'CoaddN',cell(Nfields,1), 'AstrometricFit',cell(Nfields,1), 'ZP',cell(Nfields,1), 'PhotCat',cell(Nfields,1), 'TransFit',cell(Nfields,1), 'RegisteredBy',cell(Nfields,1));
 
     % resolve the Overlap bit index once, before the loop over the fields.
     % The bit is re-set outside the exclusive section (EXCLSEC) when given,
@@ -448,9 +452,60 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             %(MidJD(1) + MidJD(end)).*0.5;
            
         
-            if isempty(Args.ShiftXY)
+            % Resolve the per-field ShiftXY first, then pick the
+            % registration branch on the RESOLVED value (issue #1162):
+            % lcUtil.positionDrift leaves the ShiftXY field EMPTY for a
+            % crop whose MatchedSources has fewer than MinEpoch epochs,
+            % and an empty/NaN shift matrix used to crash (or silently
+            % corrupt) imProc.transIm.register. A shift matrix is usable
+            % only when it is non-empty, all-finite, and has exactly one
+            % row per registered image (register silently REUSES its last
+            % row for extra images, misregistering them). Otherwise fall
+            % back to registration by WCS.
+            if isstruct(Args.ShiftXY)
+                if Ifields <= numel(Args.ShiftXY)
+                    ShiftXY = Args.ShiftXY(Ifields).(Args.PropShiftXY);
+                else
+                    ShiftXY = [];
+                end
+            else
+                ShiftXY = Args.ShiftXY;
+            end
+            if ~isempty(ShiftXY) && ~Args.IsShiftXYfiltered
+                ShiftXY = ShiftXY(FlagGood,:);
+            end
+            UseShiftXY = ~isempty(ShiftXY) && all(isfinite(ShiftXY(:))) && ...
+                         size(ShiftXY,1) == Ngood;
+            % The fallback is RECORDED, not warned: no console output by
+            % default. ResultCoadd(Ifields).RegisteredBy is 'shift',
+            % 'wcs' (caller passed no ShiftXY), or 'wcs-fallback' (caller
+            % passed ShiftXY but this field's resolved shifts are
+            % unusable); pipelineI counts the fallbacks into
+            % Status.NbadShiftXY and PipelineDemon writes them to its
+            % log / the systemd journal.
+            if UseShiftXY
+                ResultCoadd(Ifields).RegisteredBy = 'shift';
+            elseif isempty(Args.ShiftXY)
+                ResultCoadd(Ifields).RegisteredBy = 'wcs';
+            else
+                ResultCoadd(Ifields).RegisteredBy = 'wcs-fallback';
+            end
+
+            if UseShiftXY
+                % register images by the resolved ShiftXY
+                RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), ShiftXY,...
+                                                       'WCS',AllSI(IfirstGood,Ifields).WCS,...
+                                                       Args.registerArgs{:},...
+                                                       'DataProp',DataProp);
+            else
                 if isempty(Args.WCS)
                     % register by the WCS of the fisrt available image:
+                    % CAVEAT (issue #1162): imProc.transIm.register does
+                    % NOT support a bare AstroWCS TransRef (its AstroWCS
+                    % branch is unimplemented), so this sub-branch
+                    % currently errors inside register; pass 'WCS' (an
+                    % AstroImage), or pass AllSI(IfirstGood,Ifields)
+                    % here, once the registration target is decided.
                     RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), AllSI(IfirstGood,Ifields).WCS,...
                                                            Args.registerArgs{:},...
                                                            'DataProp',DataProp);
@@ -459,21 +514,6 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                            Args.registerArgs{:},...
                                                            'DataProp',DataProp);
                 end
-            else
-                % Register images by Args.ShiftXY
-                if isstruct(Args.ShiftXY)
-                    ShiftXY = Args.ShiftXY(Ifields).(Args.PropShiftXY);
-                else
-                    ShiftXY = Args.ShiftXY;
-                end
-                if ~Args.IsShiftXYfiltered
-                    ShiftXY = ShiftXY(FlagGood,:);
-                end
-                % register images
-                RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), ShiftXY,...
-                                                       'WCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
-                                                       Args.registerArgs{:},...
-                                                       'DataProp',DataProp);
             end
 
             % Add Back/Var from header into Back/Var properties

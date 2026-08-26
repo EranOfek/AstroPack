@@ -169,6 +169,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
     Status.PipeI   = true;
     Status.ME      = [];
     Status.NfailedBack = 0;   % sub images whose background estimation failed (#1226)
+    Status.NbadShiftXY = 0;   % sub image groups whose ShiftXY was unusable and were registered by WCS (#1162)
     %ProcessingStep = 11;
 
     if isempty(RawImageList)
@@ -622,6 +623,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                           'MinFracIsolated',Args.MinFracIsolated,...
                                                           'Threshold',Args.Threshold,...
                                                           'multiIterExtractorArgs',Args.multiIterExtractorArgs);
+            % Crops whose positionDrift ShiftXY was unusable were registered
+            % by WCS instead (issue #1162). Counted here, logged by
+            % PipelineDemon (no console warning by design).
+            Status.NbadShiftXY = sum(strcmp({ResCoadd.RegisteredBy}, 'wcs-fallback'));
             % NOTE: multiIterExtractorArgs is passed as procCoadd's dedicated
             % pass-through (procCoadd forwards it to the coadd's own
             % multiIterExtractor call). Splatting the cell directly into the

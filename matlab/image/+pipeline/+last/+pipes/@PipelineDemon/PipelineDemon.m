@@ -2632,6 +2632,14 @@ classdef PipelineDemon < Component
                     Obj.writeLog(MsgB, LogLevel.Warning);
                 end
 
+                % Unusable per-crop ShiftXY (issue #1162): procCoadd registered
+                % those crops by WCS instead. Recorded in ResultCoadd /
+                % Status rather than warned on the console, and logged here.
+                if isfield(Status,'NbadShiftXY') && Status.NbadShiftXY>0
+                    MsgS{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: unusable ShiftXY for %d sub image group(s) - registered by WCS instead (issue #1162)', Status.NbadShiftXY);
+                    Obj.writeLog(MsgS, LogLevel.Warning);
+                end
+
                 % saving data products of pipelineI
 
                 try
