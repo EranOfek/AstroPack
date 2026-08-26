@@ -343,6 +343,20 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.ReCalcPsfIter             = [];  % Index of iterations in which to re-calc PSF; if UseOriginalPSF=true, then no need to set this to 1.
         Args.UseOriginalPSF logical    = true;   % use the PSF already attached to the input AstroImage
         Args.populatePSFArgs cell      = {'CropByQuantile',false, 'SuppressWidth',3, 'SmoothWings',false}; % {'CropByQuantile',true,'Quantile',0.5}
+        Args.WingsMethod       (1,:) char = 'empirical';  % wing model of the MAIN (photometry/
+                                                % subtraction) PSF, forwarded to populatePSF:
+                                                % 'empirical' (default, current behavior) |
+                                                % 'analytic' (power-law wings, exponent via
+                                                % populatePSFArgs 'WingsPowerLaw') | 'cosbell'.
+                                                % 'analytic' + BuildDetectionPSF=false = the
+                                                % single-model scheme (same core+analytic-wing
+                                                % PSF for discovery AND fluxes).
+        Args.BuildDetectionPSF logical = true;  % build the separate flat-winged detection-PSF slice
+                                                % (Purpose=2; the two-PSF scheme). Set FALSE to run
+                                                % detection on the SAME truthful photometry PSF -
+                                                % the single-PSF scheme (Phase 3); getPSF's
+                                                % 'Purpose' request is then a documented no-op.
+                                                % Default true = current two-PSF behavior.
         Args.WingProfile               = [];  % precomputed visit-level wing shape(s) from imProc.psf.visitWingProfile
                                               % (struct with .Radius/.Value/.Success; scalar, or one per input
                                               % object). Forwarded to imProc.psf.populatePSF: with
@@ -595,8 +609,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                    'RePopulatePSF',true,...
                                                    'PopExtended',Args.PopExtended,...
                                                    'ExtendedSize',Args.ExtendedSize,...
-                                                   'WingsMethod','empirical',...
-                                                   'BuildDetectionPSF',true,...
+                                                   'WingsMethod',Args.WingsMethod,...
+                                                   'BuildDetectionPSF',Args.BuildDetectionPSF,...
                                                    'Alpha',Args.Alpha);
     end
     
@@ -838,8 +852,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                     'Method',Args.MethodPSF,...
                                                     'Annulus',Args.PsfAnnulus,...
                                                     'WingProfile',WingProfIter,...
-                                                    'WingsMethod','empirical',...
-                                                    'BuildDetectionPSF',true);
+                                                    'WingsMethod',Args.WingsMethod,...
+                                                    'BuildDetectionPSF',Args.BuildDetectionPSF);
                 end
                 
                 % PSF photometry
