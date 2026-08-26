@@ -13,10 +13,13 @@ function Obj = updateHeaderCCDSEC(Obj, Args)
     %            'NewNoOverlap' - Like EdgesCCDSEC, but for the CCDSEC
     %                   of the non-overlapping sub image in new sub image.
     %                   Default is [].
-    %            'NewExclusive' - Like EdgesCCDSEC, but for the CCDSEC
+    %            'ExclusiveCCDSEC' - Like EdgesCCDSEC, but for the CCDSEC
     %                   of the exclusive (single-coverage) section of the
-    %                   sub image in the new sub image frame, i.e. the part
+    %                   sub image in the full image frame, i.e. the part
     %                   of the sub image that no other sub image covers.
+    %                   Default is [].
+    %            'NewExclusive' - Like ExclusiveCCDSEC, but measured in the
+    %                   new sub image frame.
     %                   Its complement within the sub image is the full
     %                   overlap region (pixels covered by 2+ sub images).
     %                   A dedicated keyword is needed because this section
@@ -35,6 +38,8 @@ function Obj = updateHeaderCCDSEC(Obj, Args)
     %                   Default is 'ORIGUSEC'.
     %            'KeyUNIQSEC' - Keyword of NewNoOverlap.
     %                   Default is 'UNIQSEC'.
+    %            'KeyORIGESEC' - Keyword of ExclusiveCCDSEC.
+    %                   Default is 'ORIGESEC'.
     %            'KeyEXCLSEC' - Keyword of NewExclusive.
     %                   Default is 'EXCLSEC'.
     % Output : - The input AstroImage object with the updated header.
@@ -49,16 +54,18 @@ function Obj = updateHeaderCCDSEC(Obj, Args)
         Args.EdgesCCDSEC     = [];    % ORIGSEC : SEC of subimage in full image
         Args.NoOverlapCCDSEC = [];    % ORIGUSEC : SEC of non-overlapping sub image in full image
         Args.NewNoOverlap    = [];    % UNIQSEC : SEC of non-overlapping sub image in new sub image
+        Args.ExclusiveCCDSEC = [];    % ORIGESEC : SEC of the single-coverage (exclusive) sub image section in full image
         Args.NewExclusive    = [];    % EXCLSEC : SEC of the single-coverage (exclusive) sub image section in new sub image
 
         Args.KeyCCDSEC       = 'CCDSEC';
         Args.KeyORIGSEC      = 'ORIGSEC';
         Args.KeyORIGUSEC     = 'ORIGUSEC';
         Args.KeyUNIQSEC      = 'UNIQSEC';
+        Args.KeyORIGESEC     = 'ORIGESEC';
         Args.KeyEXCLSEC      = 'EXCLSEC';
     end
 
-    KeyNames = {'NAXIS1','NAXIS2', Args.KeyCCDSEC, Args.KeyORIGSEC, Args.KeyORIGUSEC, Args.KeyUNIQSEC, Args.KeyEXCLSEC};
+    KeyNames = {'NAXIS1','NAXIS2', Args.KeyCCDSEC, Args.KeyORIGSEC, Args.KeyORIGUSEC, Args.KeyUNIQSEC, Args.KeyEXCLSEC, Args.KeyORIGESEC};
     
     Nsub = numel(Obj);
     KeyVals  = cell(size(KeyNames));
@@ -80,6 +87,9 @@ function Obj = updateHeaderCCDSEC(Obj, Args)
         end
         if ~isempty(Args.NewExclusive)
             KeyVals{7} = imUtil.ccdsec.ccdsec2str(Args.NewExclusive(Isub,:));           % EXCLSEC : SEC of the single-coverage section in new sub image
+        end
+        if ~isempty(Args.ExclusiveCCDSEC)
+            KeyVals{8} = imUtil.ccdsec.ccdsec2str(Args.ExclusiveCCDSEC(Isub,:));        % ORIGESEC : SEC of the single-coverage section in full image
         end
 
         Obj(Isub).HeaderData.replaceVal(KeyNames, KeyVals);

@@ -30,6 +30,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.NoOverlapCCDSEC               = [];
         Args.ListCenters                   = [];
         Args.NewNoOverlap                  = [];
+        Args.ExclusiveCCDSEC               = [];   % single-coverage sections in the full image frame (ORIGESEC header keyword)
         Args.NewExclusive                  = [];   % single-coverage sections (sub image frame); the Overlap bit marks their complement, i.e. the full overlap region, in all the crops covering it (issue #1180)
         Args.AddPrimary logical            = true; % add the 'primary' ownership column (imProc.cat.addPrimary) to the sub image and coadd catalogs
 
@@ -269,11 +270,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 51;
             if isempty(Args.EdgesCCDSEC)
                 SizeXY = fliplr(size(AI(1).ImageData.Data));
-                [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters, ~, Args.NewExclusive] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);  % 0.01s
+                [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters, Args.ExclusiveCCDSEC, Args.NewExclusive] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);  % 0.01s
             end
             % No WCS/PSF/Cat so no need to update them
             %ProcessingStep = 61;
-            AllSI=imProc.image.images2subImages(AI, 'SubSizeXY',Args.SubSizeXY, 'EdgesCCDSEC',Args.EdgesCCDSEC, 'ListCenters',Args.ListCenters, 'NoOverlapCCDSEC',Args.NoOverlapCCDSEC, 'NewNoOverlap',Args.NewNoOverlap, 'NewExclusive',Args.NewExclusive,...
+            AllSI=imProc.image.images2subImages(AI, 'SubSizeXY',Args.SubSizeXY, 'EdgesCCDSEC',Args.EdgesCCDSEC, 'ListCenters',Args.ListCenters, 'NoOverlapCCDSEC',Args.NoOverlapCCDSEC, 'NewNoOverlap',Args.NewNoOverlap, 'NewExclusive',Args.NewExclusive, 'ExclusiveCCDSEC',Args.ExclusiveCCDSEC,...
                                                     'UpdateWCS',false, 'UpdatePSF',false, 'UpdateCat',false, 'UpdateXY',false);  % 6.6s
             [Nepoch, Nsub] = size(AllSI);
             Nobj = numel(AllSI);
