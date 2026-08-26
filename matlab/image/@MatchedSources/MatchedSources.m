@@ -2345,6 +2345,11 @@ classdef MatchedSources < Component
         
         function [Result] = searchFlags(MS, Args)
             % Search specific flags in MatchedSources matrix.
+            %   NOTE: expected to become obsolete with the new (v1) pipeline.
+            %   On new-pipeline products (issue #1180) the 'Overlap' bit is
+            %   raised in ALL the crops covering a pixel, so treating it as a
+            %   bad flag rejects every copy of a seam source; on such products
+            %   select the owned copy with the catalog 'primary' column instead.
             %   Return a matrix of logical indicating if the specific flags
             %   are present in each entry.
             % Input  : - A single element MatchedSources object.
@@ -2364,23 +2369,6 @@ classdef MatchedSources < Component
             %                   the flags on SrcData property (true), or the
             %                   Data property (false).
             %                   Default is false.
-            %            'OverlapUsePrimary' - How to treat the 'Overlap'
-            %                   entry of FlagsList on products carrying the
-            %                   'primary' ownership column (issue #1180).
-            %                   On such products the Overlap bit marks the
-            %                   full overlap region in ALL the crops
-            %                   covering it, so matching the bit would
-            %                   select every copy of a seam source; the
-            %                   ownership condition primary~=1 selects only
-            %                   the duplicate copies, which is what the
-            %                   rejection consumers of this function need.
-            %                   'auto' - replace the 'Overlap' bit search
-            %                            by primary~=1 when Data.primary
-            %                            exists; search the bit otherwise
-            %                            (old products). Default.
-            %                   true   - always replace (requires
-            %                            Data.primary).
-            %                   false  - always search the literal bit.
             % Output : - An array of logicals of size Nepoch X Nsrc.
             %            Each element in the array indicate if the
             %            requested bit names where found in this entry.
@@ -2394,24 +2382,10 @@ classdef MatchedSources < Component
                Args.FlagsList    = {'NearEdge','Saturated','NaN','Negative'};
                Args.Operator     = @or; % @or | @and
                Args.UseSrcData logical = false;
-               Args.OverlapUsePrimary  = 'auto';   % 'auto' | true | false
             end
 
             if ~isfield(MS.SrcData, Args.PropFlags)
                 MS.addSrcData;
-            end
-
-            % issue #1180: on products with the 'primary' ownership column,
-            % 'Overlap' in FlagsList selects the non-primary (duplicate)
-            % copies instead of the literal bit - see OverlapUsePrimary.
-            FlagsList = cellstr(Args.FlagsList);
-            if ischar(Args.OverlapUsePrimary) || isstring(Args.OverlapUsePrimary)
-                UsePrimary = any(strcmp(FlagsList,'Overlap')) && isfield(MS.Data,'primary');
-            else
-                UsePrimary = logical(Args.OverlapUsePrimary) && any(strcmp(FlagsList,'Overlap'));
-            end
-            if UsePrimary
-                FlagsList = FlagsList(~strcmp(FlagsList,'Overlap'));
             end
 
             BitClass = Args.BitDic.Class;
@@ -2422,25 +2396,14 @@ classdef MatchedSources < Component
             end
 
             Result = zeros(size(Flags));
-            Nflag  = numel(FlagsList);
+            Nflag  = numel(Args.FlagsList);
             for Iflag = 1:1:Nflag
-                FieldIndex = find(strcmp(Args.BitDic.Dic.BitName, FlagsList{Iflag}));
+                FieldIndex = find(strcmp(Args.BitDic.Dic.BitName, Args.FlagsList{Iflag}));
                 if ~isempty(FieldIndex)
                     Result = Args.Operator(Result, bitget(Flags,FieldIndex));
                 else
-                    error('Field "%s" not found in dictionary', FlagsList{Iflag});
+                    error('Field "%s" not found in dictionary', Args.FlagsList{Iflag});
                 end
-            end
-
-            if UsePrimary
-                if Args.UseSrcData
-                    % per-source: the source is a duplicate copy unless its
-                    % (epoch-constant, up to seam-straddler jitter) primary is 1
-                    NotPrimary = ~(median(MS.Data.primary, 1, 'omitnan')==1);
-                else
-                    NotPrimary = ~(MS.Data.primary==1);
-                end
-                Result = Args.Operator(Result, NotPrimary);
             end
         end
    

@@ -1,5 +1,10 @@
 function Result=searchExternalCatOrphans(Obj, Args)
     % Search for orphans using MergedCat external catalog information
+    %   NOTE: expected to become obsolete with the new (v1) pipeline. On
+    %   new-pipeline products (issue #1180) the 'Overlap' bit is raised in
+    %   ALL the crops covering a pixel, so keeping it in RemoveFlags rejects
+    %   every copy of a seam source; on such products select the owned copy
+    %   with the catalog 'primary' column instead.
     %   This function is for the selection of sources that do not appear in
     %   external catalog (orphans). The program works with AstroCatalog
     %   objects, or AstroImage containing AstroCatalog object. The object
@@ -113,24 +118,8 @@ function Result=searchExternalCatOrphans(Obj, Args)
 
             % select sources with no external catalog match
             FlagInCat      = MergedCatBD.findBit(ColMergedCat, Args.RemoveCat, 'Method','any');
-            % select sources with no bad flags.
-            % issue #1180: on catalogs carrying the 'primary' ownership
-            % column the Overlap bit marks the full overlap region in ALL
-            % the crops covering it, so rejecting it would drop every copy
-            % of a seam source; reject the non-primary copies instead.
-            RemoveFlags = Args.RemoveFlags;
-            UsePrimary  = any(strcmp(RemoveFlags,'Overlap')) && Cat.isColumn('primary');
-            if UsePrimary
-                RemoveFlags = RemoveFlags(~strcmp(RemoveFlags,'Overlap'));
-            end
-            if isempty(RemoveFlags)
-                FlagBad    = false(size(ColFlags));
-            else
-                FlagBad    = BD.findBit(ColFlags, RemoveFlags, 'Method','any');
-            end
-            if UsePrimary
-                FlagBad    = FlagBad | (Cat.getCol('primary')~=1);
-            end
+            % select sources with no bad flags
+            FlagBad        = BD.findBit(ColFlags, Args.RemoveFlags, 'Method','any');
 
             if Args.RemoveCooNaN
                 XY = Cat.getXY;

@@ -1,5 +1,10 @@
 function [OrphansList,CleanOrphansList,Norphans] = findOrphansClean(Obj, Args)
     % Select orphan sources from a MatchedSources object and clean them.
+    %   NOTE: expected to become obsolete with the new (v1) pipeline. On
+    %   new-pipeline products (issue #1180) the 'Overlap' bit is raised in
+    %   ALL the crops covering a pixel, so keeping it in BadFlags rejects
+    %   every copy of a seam source; on such products select the owned copy
+    %   with the catalog 'primary' column instead.
     %   Orphan sources are defined to be sources which appears in
     %   only 1 (or a few) epochs - These are selected using lcUtil.findOrphans
     %   Clean sources are those which satisfy some additional criteria like
@@ -103,22 +108,11 @@ function [OrphansList,CleanOrphansList,Norphans] = findOrphansClean(Obj, Args)
     end
     
     if isempty(Args.BadFlags)
-        BadFlags   = Args.BadFlags;
-        UsePrimary = false;
+        BadFlags = Args.BadFlags;
     else
-        % issue #1180: on products carrying the 'primary' ownership column
-        % the Overlap bit marks the full overlap region in ALL the crops
-        % covering it, so rejecting the bit would drop every copy of a seam
-        % source; reject the non-primary (duplicate) copies instead.
-        BadFlagNames = Args.BadFlags;
-        UsePrimary   = any(strcmp(BadFlagNames,'Overlap')) && ...
-                       all(arrayfun(@(O) isfield(O.Data,'primary'), Obj));
-        if UsePrimary
-            BadFlagNames = BadFlagNames(~strcmp(BadFlagNames,'Overlap'));
-        end
         % Generate a decimal FLAG
         % this is in order to save time
-        [~,~,BadFlags] = name2bit(Args.BitDict, BadFlagNames);
+        [~,~,BadFlags] = name2bit(Args.BitDict, Args.BadFlags);
     end
         
     
@@ -130,9 +124,6 @@ function [OrphansList,CleanOrphansList,Norphans] = findOrphansClean(Obj, Args)
         
     % look for all orphan candidates in a MatchedSources object
     OutputFields = [Args.OutputFields, Args.SN_Field, Args.Flags_Field, Args.M2_Fields];
-    if UsePrimary
-        OutputFields = [OutputFields, {'primary'}];
-    end
     OrphansList = lcUtil.findOrphans(Obj, 'SelectFieldName',Args.SelectFieldName, 'MaxNepochs',Args.MaxNepochs, 'OutputFields',OutputFields);
     
     Nobj = numel(Obj);
@@ -174,12 +165,6 @@ function [OrphansList,CleanOrphansList,Norphans] = findOrphansClean(Obj, Args)
                    % Remove source
                    OrphansList(Iobj).Src(Isrc).GoodOrphan = false;
                 end
-            end
-
-            % Check ownership (issue #1180): a candidate that is not the
-            % primary copy is a duplicate from an overlapping crop
-            if UsePrimary && any(OrphansList(Iobj).Src(Isrc).primary ~= 1)
-                OrphansList(Iobj).Src(Isrc).GoodOrphan = false;
             end
             
             % Check 2nd moment
