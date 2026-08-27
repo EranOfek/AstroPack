@@ -68,6 +68,18 @@ function Cell=replaceKey(Cell,Key,Val,Args)
     
     Nkey = numel(Key);
     
+    % An empty numeric Val denotes "no value". num2cell([]) above yields a
+    % zero-element cell, which would fail the per-key Val(Ikey) indexing
+    % below. Expand it to one NaN per key: NaN is written as a blank card by
+    % the mex FITS writers and reads back as NaN, which matches the value
+    % returned for a keyword that is absent altogether. An empty value ([])
+    % must NOT be used here - the mex writers turn it into a literal 0.
+    % Note this only triggers for a numeric empty; a '' value arrives as the
+    % one-element cell {''} and is left untouched.
+    if Args.RepVal && isempty(Val)
+        Val = repmat({NaN}, 1, Nkey);
+    end
+    
     %[~,~,~,IK] = imUtil.headerCell.getByKey(Cell,Key,'SearchAlgo',Args.SearchAlgo,'CaseSens',Args.CaseSens,'ReturnN',Inf);
     [IK] = imUtil.headerCell.getIndKey(Cell,Key,'SearchAlgo',Args.SearchAlgo,'CaseSens',Args.CaseSens,'ReturnN',Inf);
 
