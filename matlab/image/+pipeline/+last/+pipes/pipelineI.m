@@ -792,7 +792,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 971;
             %tic;
             if AnyCoaddExist
-                [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, 'MagType', Args.MagType, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
+                [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, 'MagType', Args.MagType, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', true); % 8.7s for all in loop
             end
             %toc
         
