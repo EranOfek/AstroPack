@@ -61,6 +61,8 @@ function [PSF,InnerRadius] = wingsFix(PSF, Args)
         Args.ProfileRadius               = [];
         Args.ProfileValue                = [];
         Args.ProfileSuccess              = false;
+        Args.PA                          = 0;   % elliptical-wing position angle [rad]
+        Args.AxisRatio                   = 1;   % elliptical-wing axis ratio; 1 = circular
         Args.MaxAxisRatioForModel        = 0.9;
         Args.ApplyEllipticityFallback     = true;
     end
@@ -76,7 +78,7 @@ function [PSF,InnerRadius] = wingsFix(PSF, Args)
         case 'analytic'
             InnerRadius = imUtil.psf.radiusAtFraction(PSF, Args.SuppressThreshold);
             OuterRadius  = min(InnerRadius + 3, (size(PSF,1)-1).*0.5);
-            PSF = imUtil.psf.addWings2PSF(PSF, Args.WingsPowerLaw, InnerRadius, OuterRadius);
+            PSF = imUtil.psf.addWings2PSF(PSF, Args.WingsPowerLaw, InnerRadius, OuterRadius, true, Inf, NaN, NaN, NaN, Args.PA, Args.AxisRatio);
         case  'cosbell'
             [PSF, InnerRadius] = imUtil.psf.suppressWings(PSF, 'Fun',Args.SuppressFun,...
                                                             'Threshold',Args.SuppressThreshold,...
@@ -89,7 +91,8 @@ function [PSF,InnerRadius] = wingsFix(PSF, Args)
             if Args.ProfileSuccess && ~isempty(Args.ProfileRadius) && ~isempty(Args.ProfileValue)
                 OuterRadius = min(InnerRadius + 3, (size(PSF,1)-1).*0.5);
                 PSF = imUtil.psf.addEmpiricalWings2PSF(PSF, Args.ProfileRadius, Args.ProfileValue, ...
-                                                         'R1',InnerRadius, 'R2',OuterRadius);
+                                                         'R1',InnerRadius, 'R2',OuterRadius, ...
+                                                         'PA',Args.PA, 'AxisRatio',Args.AxisRatio);
             else
                 % Not enough bright/near-saturated stars to calibrate an
                 % empirical wing for this image -- fall back to cosbell.
