@@ -106,6 +106,12 @@ static void bitset_u32_avx2_set(const uint32_T* __restrict A,
             const int Tid = omp_get_thread_num();
             const size_t Chunk = (N + (size_t)T - 1) / (size_t)T;
             Start = (size_t)Tid * Chunk;
+            // Chunk is rounded up, so the last threads may start past the end
+            // of the array (e.g. N=25 over 48 threads gives Chunk=1 and
+            // Start=47). Clamping Start as well keeps End >= Start: without it
+            // End-Start underflows the unsigned arithmetic below and the
+            // vector loops run over an astronomically large range.
+            if (Start > N) Start = N;
             End   = Start + Chunk;
             if (End > N) End = N;
         }
@@ -178,6 +184,12 @@ static void bitset_u32_avx2_clear(const uint32_T* __restrict A,
             const int Tid = omp_get_thread_num();
             const size_t Chunk = (N + (size_t)T - 1) / (size_t)T;
             Start = (size_t)Tid * Chunk;
+            // Chunk is rounded up, so the last threads may start past the end
+            // of the array (e.g. N=25 over 48 threads gives Chunk=1 and
+            // Start=47). Clamping Start as well keeps End >= Start: without it
+            // End-Start underflows the unsigned arithmetic below and the
+            // vector loops run over an astronomically large range.
+            if (Start > N) Start = N;
             End   = Start + Chunk;
             if (End > N) End = N;
         }
@@ -250,6 +262,12 @@ static void bitset_u32_alltrue_set(const uint32_T* __restrict A,
             const int Tid = omp_get_thread_num();
             const size_t Chunk = (N + (size_t)T - 1) / (size_t)T;
             Start = (size_t)Tid * Chunk;
+            // Chunk is rounded up, so the last threads may start past the end
+            // of the array (e.g. N=25 over 48 threads gives Chunk=1 and
+            // Start=47). Clamping Start as well keeps End >= Start: without it
+            // End-Start underflows the unsigned arithmetic below and the
+            // vector loops run over an astronomically large range.
+            if (Start > N) Start = N;
             End   = Start + Chunk;
             if (End > N) End = N;
         }
@@ -301,6 +319,12 @@ static void bitset_u32_alltrue_clear(const uint32_T* __restrict A,
             const int Tid = omp_get_thread_num();
             const size_t Chunk = (N + (size_t)T - 1) / (size_t)T;
             Start = (size_t)Tid * Chunk;
+            // Chunk is rounded up, so the last threads may start past the end
+            // of the array (e.g. N=25 over 48 threads gives Chunk=1 and
+            // Start=47). Clamping Start as well keeps End >= Start: without it
+            // End-Start underflows the unsigned arithmetic below and the
+            // vector loops run over an astronomically large range.
+            if (Start > N) Start = N;
             End   = Start + Chunk;
             if (End > N) End = N;
         }
