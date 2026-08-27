@@ -836,8 +836,8 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
             if Args.UpdateHeader && IsAstroImage
                 H = Result(Iobj).HeaderData;
                 H = H.replaceVal(...
-                    {'PT_RMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALIB', 'PT_SUCC', 'PT_AREF', 'PT_SPEC'}, ...
-                    {NaN,      NaN,       NaN,      -1,          false,     'SMART v2.9.8', 'GaiaDR3'});
+                    {'PT_RMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALIB', 'PT_AREF', 'PT_SPEC'}, ...
+                    {NaN,      NaN,       NaN,      -1,          'SMART v2.9.8', 'GaiaDR3'});
 
                 % NaN fill for PT_ZP (photometric ZP) on the failure path
                 if Args.EvaluatePhotZP
