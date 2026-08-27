@@ -41,6 +41,8 @@ function [AI, Result] = limmag(AI, Args)
     %                   magnitude can not be estimated (e.g., an empty
     %                   catalog), in which case its value is NaN.
     %                   Default is 'LIMMAG'.
+    %            ''KeyLimMagErr' - Header keyword in which to store the limiting
+    %                   magnitude. Frfault is 'LIMMAGER'.
     % Output : - AI, AstroImage object with updated header keyword containing
     %                   the limiting magnitude.
     %          - Result, structure array with one element per AstroImage.
@@ -67,6 +69,7 @@ function [AI, Result] = limmag(AI, Args)
         Args.MinNsrc       = 10;
 
         Args.KeyLimMag     = 'LIMMAG';
+        Args.KeyLimMagErr  = 'LIMMAGER';
     end
 
     Nai = numel(AI);
@@ -91,11 +94,13 @@ function [AI, Result] = limmag(AI, Args)
         if sum(Flag) < Args.MinNsrc
             % too few sources for a meaningful fit (e.g., an empty catalog):
             % polyfit returns [0 0] for empty input, so guard it explicitly
-            Par    = [NaN NaN];
-            LimMag = NaN;
+            Par       = [NaN NaN];
+            LimMag    = NaN;
+            LimMagErr = NaN;
         else
-            Par    = polyfit(log10(SN(Flag)), Mag(Flag), 1);
+            [Par,S] = polyfit(log10(SN(Flag)), Mag(Flag), 1);
             LimMag = polyval(Par, log10(Args.LimSN));
+            LimMagErr = S.normr;
         end
 
         if Args.Plot
@@ -109,6 +114,9 @@ function [AI, Result] = limmag(AI, Args)
         % Update header
         if ~isempty(Args.KeyLimMag)
             AI(Iai).HeaderData.replaceVal(Args.KeyLimMag, LimMag);
+            if ~isempty(Args.KeyLimMagErr)
+                AI(Iai).HeaderData.replaceVal(Args.KeyLimMagErr, LimMagErr);
+            end
         end
 
         if nargout > 1

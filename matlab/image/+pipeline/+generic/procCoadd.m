@@ -544,7 +544,9 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                         
                    
                 case 'proper'
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:}, 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages,...
+                                                                                 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:},...
+                                                                                 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
                     % BUG : Need to return EffectiveGain
                     EffectiveGain = NaN;
                 case 'sigmaclip'
