@@ -839,17 +839,18 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                 end
             end
 
-            % Write the full PT_* keyword set to the header. Values that a
-            % successful fit would have produced are written EMPTY (FITS
-            % undefined-value convention) - NaN is not representable as a
-            % numeric FITS keyword value. PT_NCALIB = -1 is the failure
-            % sentinel; PT_AREF/PT_SPEC are configuration strings known
-            % regardless of the fit outcome.
+            % Write the full PT_* keyword set to the header. Every value a
+            % successful fit would have produced is written EMPTY (blank FITS
+            % card, reads back as NaN) - NaN is not representable as a
+            % numeric FITS keyword value. Only PT_AREF/PT_SPEC carry values:
+            % they are configuration strings known regardless of the fit
+            % outcome. Failure detection: isnan(getVal('PT_NCALIB')) (or any
+            % other PT_ numeric).
             if Args.UpdateHeader && IsAstroImage
                 H = Result(Iobj).HeaderData;
                 H = H.replaceVal(...
                     {'PT_RMS', 'PT_ARMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALIB', 'PT_AREF', 'PT_SPEC'}, ...
-                    {[],       [],        [],        [],       -1,          'SMART v2.9.8', 'GaiaDR3'});
+                    {[],       [],        [],        [],       [],          'SMART v2.9.8', 'GaiaDR3'});
 
                 % Empty fill for PT_ZP (photometric ZP) on the failure path
                 if Args.EvaluatePhotZP
@@ -866,8 +867,8 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
 
                 % Write the per-function keywords: the (unfitted) TransModel is
                 % built by calibrate even when the calibration failed, so the
-                % intended function set is known. Parameter values are empty;
-                % fit flags are 0 (nothing was fitted).
+                % intended function set is known. Parameter values and fit
+                % flags are empty (nothing was fitted).
                 if ~isempty(PC.TransModel) && ~isempty(PC.TransModel.Funs)
                     Funs = PC.TransModel.Funs;
                     for iFun = 1:length(Funs)
@@ -880,10 +881,10 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                         end
                         H = H.replaceVal(sprintf('PT_%d_N', iFun), FunRef);
 
-                        % Parameters: values = empty, flags = 0
+                        % Parameters: values and flags = empty
                         for iPar = 1:length(Fun.Par)
                             H = H.replaceVal(sprintf('PT_%d_V%d', iFun, iPar), {[]});
-                            H = H.replaceVal(sprintf('PT_%d_F%d', iFun, iPar), 0);
+                            H = H.replaceVal(sprintf('PT_%d_F%d', iFun, iPar), {[]});
                         end
                     end
                 end
