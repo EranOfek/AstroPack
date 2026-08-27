@@ -43,6 +43,12 @@ classdef PipelineDemon < Component
         % (standard magnitude, NaN for non-positive flux); 'lup' uses
         % convert.luptitude.
         MagType char {mustBeMember(MagType, {'lup','mag'})} = 'mag';
+
+        % If true, crops whose photometric calibration did not run (no coadd
+        % for the visit, or a crop with no relative-ZP fit) get their
+        % MAG_*/MAGERR_* columns NaN-filled instead of keeping the
+        % extractor's uncalibrated instrumental values. See issue #1161.
+        NaNUncalibMag logical = true;
     end
     
     properties (Hidden)
@@ -2604,7 +2610,7 @@ classdef PipelineDemon < Component
 
             % executing pipelineI
             AllForcedPhot = []; % TEMPORARY / not used
-            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, 'MagType', Obj.MagType, Args.pipelineIArgs{:},'Status',Status);
+            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, 'MagType', Obj.MagType, 'NaNUncalibMag', Obj.NaNUncalibMag, Args.pipelineIArgs{:},'Status',Status);
             %ProcImageList = TableRaw.FileName;                
             RunTime = etime(clock, Tstart);
             Ntr = size(TableRaw,1);

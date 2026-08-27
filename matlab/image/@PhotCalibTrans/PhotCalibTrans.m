@@ -3088,7 +3088,8 @@ classdef PhotCalibTrans < Component
             %                        APC0/APCX/APCY/APCXY_* (position-dependent aperture
             %                        corrections + APCOR_N; no scalar median APCOR_*),
             %                        PT_DZP (constant-band delta ZP, if DeltaZP_CB finite),
-            %                        PT_ZP (photometric ZP at image centre, if PhotZP finite),
+            %                        PT_ZP (photometric ZP at image centre; always
+            %                        written - blank/undefined when PhotZP is not finite),
             %                        LIMMAG (if LimMag finite), BACKMAG (if BackMag finite).
 
             arguments
@@ -3342,12 +3343,17 @@ classdef PhotCalibTrans < Component
 
             % Photometric zero point of the image at its centre (mag of a
             % 1-count full-exposure source). Read by imProc.calib.backmag/limmag.
-            if isfinite(Obj.PhotZP)
-                HeaderObj = HeaderObj.replaceVal('PT_ZP', Obj.PhotZP);
-                if Args.WriteComments
-                    IComment = IComment + 1;
-                    HistoryComments{IComment} = 'PT_ZP: Photometric zero point at image centre [mag] (1 count, full exposure)';
-                end
+            % Written unconditionally: PT_ZP is a core calibration result, so
+            % an uncalibrated image must carry the keyword with an undefined
+            % (blank) value rather than omit it - a non-finite value is
+            % serialized as a blank card by the mex header writers (issue
+            % #1194) and reads back as NaN through getVal. Keys that only
+            % record whether an OPTIONAL step ran (e.g. PT_DZP) stay
+            % conditional, so their absence keeps its meaning.
+            HeaderObj = HeaderObj.replaceVal('PT_ZP', Obj.PhotZP);
+            if Args.WriteComments
+                IComment = IComment + 1;
+                HistoryComments{IComment} = 'PT_ZP: Photometric zero point at image centre [mag] (1 count, full exposure)';
             end
 
             % Limiting magnitude and sky surface brightness (legacy keyword names)
@@ -7025,6 +7031,55 @@ classdef PhotCalibTrans < Component
                 Mag = convert.magnitude(Flux, Flux0);
             else
                 Mag = convert.luptitude(Flux, Flux0);
+            end
+        end
+
+        function CatObj = nanFillMagCols(CatObj, Args)
+            % NaN-fill the MAG_*/MAGERR_* columns of an uncalibrated catalog.
+            %   Used when the photometric calibration did not run for a
+            %   crop/epoch, so that the product does not ship uncalibrated
+            %   instrumental magnitudes under a calibrated column name. The
+            %   column set matches the one the successful path would have
+            %   created: one <MagColPrefix><suffix> per FLUX_<suffix>
+            %   (FLUX_XYPEAK excluded - it is a pixel peak value, not a
+            %   photometric flux), plus MAGERR_<suffix> wherever an error
+            %   source exists (FLUXERR_<suffix>, or SN for FLUX_PSF).
+            %   Existing columns of the same name are overwritten in place.
+            % Input  : - An AstroCatalog (or AstroTable) object.
+            %          * ...,key,val,...
+            %            'MagColPrefix' - Prefix of the magnitude columns.
+            %                   Default is 'MAG_'.
+            % Output : - The catalog with NaN-filled magnitude columns.
+            % Author : (Aug 2026)
+            % Example: Cat = PhotCalibTrans.nanFillMagCols(Cat);
+            arguments
+                CatObj
+                Args.MagColPrefix char = 'MAG_';
+            end
+
+            if isempty(CatObj) || isempty(CatObj.Catalog) || size(CatObj.Catalog,1)==0
+                return;
+            end
+
+            AllColNames  = CatObj.ColNames;
+            Nrows        = size(CatObj.Catalog, 1);
+            NaNcol       = nan(Nrows, 1);
+
+            IsFlux       = startsWith(AllColNames, 'FLUX_');
+            FluxColNames = AllColNames(IsFlux);
+            FluxColNames = FluxColNames(~strcmp(FluxColNames, 'FLUX_XYPEAK'));
+
+            for I = 1:1:numel(FluxColNames)
+                NewMagColName = strrep(FluxColNames{I}, 'FLUX_', Args.MagColPrefix);
+                CatObj = CatObj.insertCol(NaNcol, Inf, NewMagColName, {}, 'OmitValidation', true);
+
+                FluxErrCol   = strrep(FluxColNames{I}, 'FLUX_', 'FLUXERR_');
+                HasErrSource = any(strcmp(AllColNames, FluxErrCol)) || ...
+                    (strcmp(FluxColNames{I}, 'FLUX_PSF') && any(strcmp(AllColNames, 'SN')));
+                if HasErrSource
+                    MagErrColName = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
+                    CatObj = CatObj.insertCol(NaNcol, Inf, MagErrColName, {}, 'OmitValidation', true);
+                end
             end
         end
     end

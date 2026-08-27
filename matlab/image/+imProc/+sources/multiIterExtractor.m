@@ -451,6 +451,10 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.ColMagErr         = 'MAGERR_APER'
         
         Args.ZP                = 25;
+        % Flux->magnitude conversion for all MAG_* columns produced here and
+        % by the called extractors: 'lup' - convert.luptitude | 'mag' -
+        % convert.magnitude (NaN for non-positive flux).
+        Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup';
 
        
         % miscellaneous:
@@ -794,6 +798,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                               'Gain',Gain,...
                                                               'JD',JD(Iobj),...
                                                               'ZP',Args.ZP,...
+                                                              'MagType',Args.MagType,...
                                                               'SearchStreaks',SearchStreaks,...
                                                               'detectStreaksLSDArgs',Args.detectStreaksLSDArgs);
                    
@@ -819,6 +824,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                               'BitDict',Args.BitDict,...
                                                               'JD',JD(Iobj),...
                                                               'ZP',Args.ZP,...
+                                                              'MagType',Args.MagType,...
                                                               'SearchStreaks',SearchStreaks,...
                                                               'detectStreaksLSDArgs',Args.detectStreaksLSDArgs);
                    
@@ -863,6 +869,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                          'FitRadius',Args.FitRadius(Iiter),...
                                                          'MaxIter',Args.MaxIter,...
                                                          'ZP',Args.ZP,...
+                                                         'MagType',Args.MagType,...
                                                          'UseMex',Args.UseMex,...
                                                          'PsfPhotMethod',Args.PsfPhotMethod,...
                                                          'ShiftMethod',Args.ShiftMethod,...
@@ -1190,10 +1197,26 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             % R=imProc.sources.aperPhot(AI);
 
             % perform only aperture photometry on brightest sources
-            [Cube] = imUtil.cut.image2cutouts(SubImageFaint, BrightXY(:,1), BrightXY(:,2), Args.RadiusPSF, 'mexCutout',Args.mexCutout, 'Circle',false);
-            
-            %!!! need to replace this with a new version of AperPhot:
-            ResAperBright = imUtil.sources.aperPhotCube(Cube, 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus);
+            [Cube, RoundXbright, RoundYbright] = imUtil.cut.image2cutouts(SubImageFaint, BrightXY(:,1), BrightXY(:,2), Args.RadiusPSF, 'mexCutout',Args.mexCutout, 'Circle',false);
+
+            % imUtil.sources.aperPhotCube takes X and Y as POSITIONAL
+            % arguments (Cube, X, Y, Args), where X/Y are the source positions
+            % within the stamp - they drive the sub-pixel recentering. Omitting
+            % them made 'AperRad' be swallowed as X and the radius vector as Y,
+            % so AperRad silently kept its own default [2,4,5]: the photometry
+            % was done at the wrong radii, and the resulting Naper mismatch
+            % broke the replaceCol below whenever numel(AperRadius)~=3.
+            % Same stamp-centre convention as imProc.sources.psfFitPhot
+            % (HalfSize+1 + X - RoundX) and imUtil.image.moment2.
+            StampCenterAper = Args.RadiusPSF + 1;
+            Xstamp = BrightXY(:,1) - RoundXbright(:) + StampCenterAper;
+            Ystamp = BrightXY(:,2) - RoundYbright(:) + StampCenterAper;
+            % sources with an undefined position sit at the stamp centre
+            IsNanXY         = isnan(Xstamp) | isnan(Ystamp);
+            Xstamp(IsNanXY) = StampCenterAper;
+            Ystamp(IsNanXY) = StampCenterAper;
+
+            ResAperBright = imUtil.sources.aperPhotCube(Cube, Xstamp, Ystamp, 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus);
 
             PsfHalfSize = (size(Result(Iobj).PSFData.Data,1)-1)./2;
             [Cube] = imUtil.cut.image2cutouts(SubImageFaint, BrightXY(:,1), BrightXY(:,2), PsfHalfSize, 'mexCutout',Args.mexCutout, 'Circle',false);
@@ -1201,6 +1224,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                                'PSF',Result(Iobj).PSFData.Data,...
                                                                'MaxIter',Args.MaxIter,...
                                                                'ZP',Args.ZP,...
+                                                               'MagType',Args.MagType,...
                                                                Args.psfFitPhotArgs{:});
 
 
@@ -1219,13 +1243,31 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             %[C2{1:Naper.*2}] = deal('mag');
             %ColUnits         = [C1, C2];
 
+            if strcmp(Args.MagType, 'mag')
+                MagAperBright = convert.magnitude(ResAperBright.AperPhot, 10.^(0.4.*Args.ZP));
+                MagPsfBright  = convert.magnitude(ResPsfBright.Flux,      10.^(0.4.*Args.ZP));
+            else
+                MagAperBright = convert.luptitude(ResAperBright.AperPhot, 10.^(0.4.*Args.ZP));
+                MagPsfBright  = convert.luptitude(ResPsfBright.Flux,      10.^(0.4.*Args.ZP));
+            end
+
+            MagErrAperBright = 1.086.*ResAperBright.AperPhotErr./ResAperBright.AperPhot;
+            MagErrPsfBright  = 1.086./ResPsfBright.SNm;
+            if strcmp(Args.MagType, 'mag')
+                % the magnitudes are NaN for non-positive flux - the error
+                % columns must follow them (both are divided by the flux, so
+                % they would otherwise come out negative).
+                MagErrAperBright(~(ResAperBright.AperPhot>0)) = NaN;
+                MagErrPsfBright(~(ResPsfBright.Flux>0))       = NaN;
+            end
+
             FluxMagData = [ResAperBright.AperPhot,...
                            ResAperBright.AperPhotErr,...
-                           convert.luptitude(ResAperBright.AperPhot, 10.^(0.4.*Args.ZP)),...
-                           1.086.*ResAperBright.AperPhotErr./ResAperBright.AperPhot,...
+                           MagAperBright,...
+                           MagErrAperBright,...
                            ResPsfBright.Flux,...
-                           convert.luptitude(ResPsfBright.Flux, 10.^(0.4.*Args.ZP)),...
-                           1.086./ResPsfBright.SNm,...
+                           MagPsfBright,...
+                           MagErrPsfBright,...
                            ResPsfBright.SNm,...
                            ResPsfBright.Chi2./ResPsfBright.Dof];
 
