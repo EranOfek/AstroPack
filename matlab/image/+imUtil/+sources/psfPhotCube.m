@@ -117,6 +117,9 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
         
         Args.UseSourceNoise = 'last'; %'last'; %'off';
         Args.ZP         = 25; 
+        % Flux->magnitude conversion for Result.Mag:
+        % 'lup' - convert.luptitude | 'mag' - convert.magnitude (NaN for Flux<=0)
+        Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup';
         Args.Gain       = 1;   % e-/ADU; source Poisson variance = Flux*PSF/Gain
         
         Args.Verbose logical = false;
@@ -159,6 +162,7 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
                                                         'SN',Args.SN, 'UseSNR',Args.UseSNR,...
                                                         'UseSourceNoise',Args.UseSourceNoise,...
                                                         'ZP',Args.ZP,...
+                                                        'MagType',Args.MagType,...
                                                         'Verbose',Args.Verbose,...
                                                         'UseMex',Args.UseMex);
         return;
@@ -330,7 +334,11 @@ function [Result, CubePsfSub] = psfPhotCube(Cube, Args)
     Result.Flux         = Flux(:);
     Result.FluxErr      = FluxErr(:);
     Result.SNm          = Flux(:) ./ FluxErr(:);
-    Result.Mag          = convert.luptitude(Result.Flux, 10.^(0.4 .* Args.ZP));
+    if strcmp(Args.MagType, 'mag')
+        Result.Mag      = convert.magnitude(Result.Flux, 10.^(0.4 .* Args.ZP));
+    else
+        Result.Mag      = convert.luptitude(Result.Flux, 10.^(0.4 .* Args.ZP));
+    end
     Result.DX           = DX(:);
     Result.DY           = DY(:);
     Result.Xinit        = Args.Xinit(:);

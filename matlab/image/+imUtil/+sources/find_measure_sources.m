@@ -87,6 +87,12 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
     %                   Default is 8.
     %            'Gain' - Default is 1.
     %            'LupSoftPar' - Luptitude softening parameter. Default is 1e-10.
+    %            'MagType' - Flux to magnitude conversion for the MAG_*
+    %                   columns: 'lup' - convert.luptitude (asinh magnitude,
+    %                   finite for non-positive flux); 'mag' -
+    %                   convert.magnitude (NaN for non-positive flux).
+    %                   LupSoftPar is used only when MagType='lup'.
+    %                   Default is 'lup'.
     %            'ZP' - ZP for magnitude. Default is 25.
     %            'ImageField' - Image field. Default is 'Im'.
     %            'BackField' - Background field. Default is 'Back'.
@@ -156,6 +162,7 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
         
         Args.Gain                          = 1;      % only for errors calculation
         Args.LupSoftPar                    = 1e-10;
+        Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup';
         Args.ZP                            = 25;
         
         Args.ImageField char               = 'Im';
@@ -367,14 +374,24 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
                 case 'mag_conv'
                     % may have multiple columns
                     NC = size(Src.FLUX_CONV,2);
-                    Cat(:,K:K+NC-1) = convert.luptitude(Src.FLUX_CONV, ZP_Flux, Args.LupSoftPar);  
+                    if strcmp(Args.MagType, 'mag')
+                        Cat(:,K:K+NC-1) = convert.magnitude(Src.FLUX_CONV, ZP_Flux);
+                    else
+                        Cat(:,K:K+NC-1) = convert.luptitude(Src.FLUX_CONV, ZP_Flux, Args.LupSoftPar);
+                    end
                     %Cat(:,K:K+NC-1) = real(Cat(:,K:K+NC-1));
                     [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
                     K = K + NC - 1;    
                 case 'magerr_conv'
                     % may have multiple columns
                     NC = size(Src.FLUX_CONV,2);
-                    Cat(:,K:K+NC-1) = 1.086./Src.SN;
+                    MagErrConv = 1.086./Src.SN;
+                    if strcmp(Args.MagType, 'mag')
+                        % MAG is NaN for non-positive flux - the error must
+                        % follow it (and a negative error is meaningless).
+                        MagErrConv(~(Src.FLUX_CONV>0)) = NaN;
+                    end
+                    Cat(:,K:K+NC-1) = MagErrConv;
                     [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
                     K = K + NC - 1;   
                 case 'back_im'
@@ -417,7 +434,11 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
                 case 'mag_aper'
                     % may have multiple columns
                     NC = size(Aper.AperPhot,2);
-                    Cat(:,K:K+NC-1) = convert.luptitude(Aper.AperPhot, ZP_Flux, Args.LupSoftPar);
+                    if strcmp(Args.MagType, 'mag')
+                        Cat(:,K:K+NC-1) = convert.magnitude(Aper.AperPhot, ZP_Flux);
+                    else
+                        Cat(:,K:K+NC-1) = convert.luptitude(Aper.AperPhot, ZP_Flux, Args.LupSoftPar);
+                    end
                     [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('MAG_APER',(1:1:NC)));
                     K = K + NC - 1;
                 case 'magerr_aper'
@@ -429,7 +450,14 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
                         %AperPhot    = Aper.AperPhot.*Args.Gain;
                         %FluxErrAper = sqrt(abs(AperPhot) + (Args.Gain.*Aper.AnnulusStd).^2)./AperPhot;
                     end
-                    Cat(:,K:K+NC-1) = 1.086 .* FluxErrAper;
+                    MagErrAper = 1.086 .* FluxErrAper;
+                    if strcmp(Args.MagType, 'mag')
+                        % MAG_APER is NaN for non-positive flux - the error
+                        % must follow it (FluxErrAper is divided by AperPhot,
+                        % so it would otherwise come out negative).
+                        MagErrAper(~(Aper.AperPhot>0)) = NaN;
+                    end
+                    Cat(:,K:K+NC-1) = MagErrAper;
                     [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('MAGERR_APER',(1:1:NC)));
                     K = K + NC - 1;    
                 case 'aper_area'
@@ -448,7 +476,11 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
                 case 'backmag_annulus'
                     % need to add Src.BACK_IM because the background was subtract
                     % (in moment2 input)
-                    Cat(:,K) = convert.luptitude(Aper.AnnulusBack + Src.BACK_IM, ZP_Flux, Args.LupSoftPar);    
+                    if strcmp(Args.MagType, 'mag')
+                        Cat(:,K) = convert.magnitude(Aper.AnnulusBack + Src.BACK_IM, ZP_Flux);
+                    else
+                        Cat(:,K) = convert.luptitude(Aper.AnnulusBack + Src.BACK_IM, ZP_Flux, Args.LupSoftPar);
+                    end
                 case 'std_annulus'
                     Cat(:,K) = Aper.AnnulusStd;
                 case 'flux_waper'

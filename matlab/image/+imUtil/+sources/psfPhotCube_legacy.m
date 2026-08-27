@@ -114,6 +114,9 @@ function [Result, CubePsfSub] = psfPhotCube_legacy(Cube, Args)
         
         Args.UseSourceNoise = 'last'; %'off';
         Args.ZP         = 25; 
+        % Flux->magnitude conversion for Result.Mag:
+        % 'lup' - convert.luptitude | 'mag' - convert.magnitude (NaN for Flux<=0)
+        Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup';
         
         Args.Verbose logical = false;
 
@@ -266,7 +269,11 @@ function [Result, CubePsfSub] = psfPhotCube_legacy(Cube, Args)
     Result.Flux = squeeze(Flux);
     % SNm can be negaive if source is negative
     Result.SNm  = sign(Result.Flux).*abs(Result.Flux)./sqrt(abs(Result.Flux) + (squeeze(StdBack)).^2);  % S/N for measurments
-    Result.Mag  = convert.luptitude(Result.Flux, 10.^(0.4.*Args.ZP));
+    if strcmp(Args.MagType, 'mag')
+        Result.Mag = convert.magnitude(Result.Flux, 10.^(0.4.*Args.ZP));
+    else
+        Result.Mag = convert.luptitude(Result.Flux, 10.^(0.4.*Args.ZP));
+    end
     Result.DX = DX(:);
     Result.DY = DY(:);
     Result.Xinit = Args.Xinit;
