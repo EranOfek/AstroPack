@@ -673,7 +673,14 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % ----------------------------------------------------------------
         % Post-calibration processing
         % ----------------------------------------------------------------
-        if ~isempty(PC.TransModel)
+        % Success = calibrators were found AND the fit actually ran.
+        % NOTE: ~isempty(PC.TransModel) is NOT a valid success test - calibrate
+        % builds the (unfitted) model unconditionally before selecting
+        % calibrators, so on the no-calibrator soft failure the model is
+        % present but carries only its initial parameter values; branching on
+        % it would evaluate ZP/magnitudes from those initial values.
+        CalibOK = PC.CalFound && ~isempty(PC.FitResults);
+        if CalibOK
             % Add calibrated magnitude (and optionally ZP) columns.
             % AperCorr is NOT yet applied — will be applied below after calcAperCorr.
             if Args.AddMag
@@ -832,27 +839,35 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                 end
             end
 
-            % Write PT_* keywords to header with NaN values for uniformity
+            % Write the full PT_* keyword set to the header. Values that a
+            % successful fit would have produced are written EMPTY (FITS
+            % undefined-value convention) - NaN is not representable as a
+            % numeric FITS keyword value. PT_NCALIB = -1 is the failure
+            % sentinel; PT_AREF/PT_SPEC are configuration strings known
+            % regardless of the fit outcome.
             if Args.UpdateHeader && IsAstroImage
                 H = Result(Iobj).HeaderData;
                 H = H.replaceVal(...
-                    {'PT_RMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALIB', 'PT_AREF', 'PT_SPEC'}, ...
-                    {NaN,      NaN,       NaN,      -1,          'SMART v2.9.8', 'GaiaDR3'});
+                    {'PT_RMS', 'PT_ARMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALIB', 'PT_AREF', 'PT_SPEC'}, ...
+                    {[],       [],        [],        [],       -1,          'SMART v2.9.8', 'GaiaDR3'});
 
-                % NaN fill for PT_ZP (photometric ZP) on the failure path
+                % Empty fill for PT_ZP (photometric ZP) on the failure path
                 if Args.EvaluatePhotZP
-                    H = H.replaceVal('PT_ZP', NaN);
+                    H = H.replaceVal('PT_ZP', {[]});
                 end
 
-                % NaN fills for legacy LIMMAG/BACKMAG (only when feature enabled)
+                % Empty fills for legacy LIMMAG/BACKMAG (only when feature enabled)
                 if Args.EvaluateLimMag
-                    H = H.replaceVal('LIMMAG', NaN);
+                    H = H.replaceVal('LIMMAG', {[]});
                 end
                 if Args.EvaluateBackMag
-                    H = H.replaceVal('BACKMAG', NaN);
+                    H = H.replaceVal('BACKMAG', {[]});
                 end
 
-                % Write function parameters with NaN values and 0 flags
+                % Write the per-function keywords: the (unfitted) TransModel is
+                % built by calibrate even when the calibration failed, so the
+                % intended function set is known. Parameter values are empty;
+                % fit flags are 0 (nothing was fitted).
                 if ~isempty(PC.TransModel) && ~isempty(PC.TransModel.Funs)
                     Funs = PC.TransModel.Funs;
                     for iFun = 1:length(Funs)
@@ -865,9 +880,9 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                         end
                         H = H.replaceVal(sprintf('PT_%d_N', iFun), FunRef);
 
-                        % Parameters: values = NaN, flags = 0
+                        % Parameters: values = empty, flags = 0
                         for iPar = 1:length(Fun.Par)
-                            H = H.replaceVal(sprintf('PT_%d_V%d', iFun, iPar), NaN);
+                            H = H.replaceVal(sprintf('PT_%d_V%d', iFun, iPar), {[]});
                             H = H.replaceVal(sprintf('PT_%d_F%d', iFun, iPar), 0);
                         end
                     end
@@ -907,7 +922,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     % ====================================================================
 
     if Args.Verbose
-        SuccessMask = arrayfun(@(p) ~isempty(p.TransModel), PhotCalib);
+        SuccessMask = arrayfun(@(p) p.CalFound && ~isempty(p.FitResults), PhotCalib);
         Nsuccess = sum(SuccessMask);
         fprintf('\n=== CALIBRATION COMPLETE ===\n');
         fprintf('Successful: %d/%d objects\n', Nsuccess, Nobj);
