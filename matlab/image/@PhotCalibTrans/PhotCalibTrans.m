@@ -991,7 +991,7 @@ classdef PhotCalibTrans < Component
 
             % Co2_ppm is NOT threaded through anymore — predefSeqCompositeFun
             % owns the atmospheric-constant default (395, matches class
-            % Obj.Co2_ppm default so PT_CO2PPM provenance stays consistent).
+            % Obj.Co2_ppm default so PT_CO2PP provenance stays consistent).
             % When Args.InitFromAirmass is true, the observation-airmass
             % is threaded down so predefSeqCompositeFun replaces the
             % class-default PWV_cm / TauAod500 / QE_Center_Ang with
@@ -3081,7 +3081,7 @@ classdef PhotCalibTrans < Component
             % Example: Header = PC.photCalibTransToHeader(Header);
             %          Header = PC.photCalibTransToHeader(Header, 'WriteComments', true);
             % Description: Writes calibration results and fitted parameters to header.
-            %              Keywords: PT_RMS, PT_ARMS, PT_CHI2, PT_DOF, PT_NCALIB,
+            %              Keywords: PT_RMS, PT_ARMS, PT_CHI2, PT_DOF, PT_NCALI,
             %                        PT_AREF, PT_SPEC,
             %                        PT_X_N, PT_X_VY, PT_X_FY (function parameters),
             %                        PT_P_N, PT_P_VY, PT_P_FY (position corrections if UseTran2D=true),
@@ -3141,19 +3141,19 @@ classdef PhotCalibTrans < Component
             else
                 NCalFinal = NaN;
             end
-            HeaderObj = HeaderObj.replaceVal('PT_NCALIB', NCalFinal);
+            HeaderObj = HeaderObj.replaceVal('PT_NCALI', NCalFinal);
             HeaderObj = HeaderObj.replaceVal('PT_AREF', 'SMART v2.9.8');
             HeaderObj = HeaderObj.replaceVal('PT_SPEC', 'GaiaDR3');
             HeaderObj = HeaderObj.replaceVal('PT_REFSL', Obj.RefSpecSlope);
             HeaderObj = HeaderObj.replaceVal('PT_REFPV', Obj.RefSpecPivot);
-            HeaderObj = HeaderObj.replaceVal('PT_CO2PPM', Obj.Co2_ppm);
+            HeaderObj = HeaderObj.replaceVal('PT_CO2PP', Obj.Co2_ppm);
 
             if Args.WriteComments
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_RMS: RMS of calibration fit [mag]';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_ARMS: sqrt(median(R^2)) of N brightest calibrators [mag]';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_CHI2: Chi-squared of fit';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_DOF: Degrees of freedom';
-                IComment = IComment + 1; HistoryComments{IComment} = 'PT_NCALIB: Number of calibrators';
+                IComment = IComment + 1; HistoryComments{IComment} = 'PT_NCALI: Number of calibrators';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_AREF: Atmospheric model reference';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_SPEC: Spectra reference';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_REFSL: Ref spectrum F_nu slope (lambda/PT_REFPV)^slope';
@@ -3440,8 +3440,8 @@ classdef PhotCalibTrans < Component
             % CO2 abundance (Simone-parity default 395 ppm when absent so
             % FITS written before step-1 UMG ParamMatrix expansion still
             % load cleanly).
-            if HeaderObj.isKeyExist('PT_CO2PPM')
-                Val = HeaderObj.getVal('PT_CO2PPM');
+            if HeaderObj.isKeyExist('PT_CO2PP')
+                Val = HeaderObj.getVal('PT_CO2PP');
                 if isnumeric(Val) && ~isnan(Val)
                     Obj.Co2_ppm = Val;
                 end
@@ -3695,9 +3695,9 @@ classdef PhotCalibTrans < Component
                 Obj.TransModel.UseTran2D = false;
             end
 
-            % Set CalFound based on PT_NCALIB
-            if HeaderObj.isKeyExist('PT_NCALIB')
-                Val = HeaderObj.getVal('PT_NCALIB');
+            % Set CalFound based on PT_NCALI
+            if HeaderObj.isKeyExist('PT_NCALI')
+                Val = HeaderObj.getVal('PT_NCALI');
                 if ~isnan(Val) && Val > 0
                     Obj.CalFound = true;
                 else

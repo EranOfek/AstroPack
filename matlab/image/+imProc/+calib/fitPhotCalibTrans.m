@@ -844,12 +844,12 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
             % card, reads back as NaN) - NaN is not representable as a
             % numeric FITS keyword value. Only PT_AREF/PT_SPEC carry values:
             % they are configuration strings known regardless of the fit
-            % outcome. Failure detection: isnan(getVal('PT_NCALIB')) (or any
+            % outcome. Failure detection: isnan(getVal('PT_NCALI')) (or any
             % other PT_ numeric).
             if Args.UpdateHeader && IsAstroImage
                 H = Result(Iobj).HeaderData;
                 H = H.replaceVal(...
-                    {'PT_RMS', 'PT_ARMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALIB', 'PT_AREF', 'PT_SPEC'}, ...
+                    {'PT_RMS', 'PT_ARMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALI', 'PT_AREF', 'PT_SPEC'}, ...
                     {[],       [],        [],        [],       [],          'SMART v2.9.8', 'GaiaDR3'});
 
                 % Empty fill for PT_ZP (photometric ZP) on the failure path
