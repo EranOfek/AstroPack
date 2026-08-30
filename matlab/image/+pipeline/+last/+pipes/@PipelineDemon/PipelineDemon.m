@@ -972,6 +972,12 @@ classdef PipelineDemon < Component
 
             FileName = fullfile(Path,Args.FileName);
             FID = fopen(FileName,'a+');
+            if FID<0
+                % e.g. Path is a file, or a directory that does not exist:
+                % report, but never throw out of the main loop (issue #1242)
+                Obj.writeLog(sprintf('writeStatus: cannot open %s for writing', FileName), LogLevel.Error);
+                return;
+            end
             fprintf(FID,'%s %s\n',datestr(now,'yyyy-mm-ddTHH:MM:SS'),Args.Msg);
             fclose(FID);
 
@@ -3497,9 +3503,21 @@ classdef PipelineDemon < Component
           
                                 
                             % Write ready-to-transfer
-                            if Args.UpdateStatusFile
+                            %   Only a successfully processed visit is marked: a failed
+                            %   visit must not be transferred (issue #1242).
+                            if Args.UpdateStatusFile && Status.PipeI && Status.WriteI
                                 writeStatus(Obj, FN_I.genPath);
-                                writeStatus(Obj, RawImageListFinal{1});
+                                if Status.MoveRaw
+                                    % RawImageListFinal is the raw/ directory once the RAW
+                                    % frames have been moved there; guard against it still
+                                    % holding the list of RAW file names
+                                    RawStatusPath = string(RawImageListFinal);
+                                    RawStatusPath = RawStatusPath(1);
+                                    if ~isfolder(RawStatusPath)
+                                        RawStatusPath = fileparts(RawStatusPath);
+                                    end
+                                    writeStatus(Obj, RawStatusPath);
+                                end
                             end
         
                             % Backup the data
