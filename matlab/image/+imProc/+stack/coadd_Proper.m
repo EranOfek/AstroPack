@@ -85,7 +85,8 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
         Obj   % AstroImage, AstroDiff, AstroZOGY
         Args.SubBack         = true;
         Args.BackArgs        = {};
-        Args.FinalBackArgs   = {'Method',@imUtil.background.modeVar_Hist};
+        %Args.FinalBackArgs   = {'Method',@imUtil.background.modeVar_Hist};
+        Args.backVarArgs     = {'Method',@imUtil.background.modeVar_Hist};
         Args.ScalarVar       = true;
         Args.CCDSEC          = [];
         Args.ZP              = 'PH_ZP';  % if empty use equal flux matching
@@ -180,7 +181,7 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
     
 
     if Args.AddBack
-        Result = imProc.background.backVar(Result, Args.FinalBackArgs{:});
+        Result = imProc.background.backVar(Result, Args.backVarArgs{:});
     end
 
     % coadd mask
