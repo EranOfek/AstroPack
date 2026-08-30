@@ -42,13 +42,7 @@ function [AI, Result] = limmag(AI, Args)
     %                   catalog), in which case its value is NaN.
     %                   Default is 'LIMMAG'.
     %            'KeyLimMagErr' - Header keyword in which to store the
-    %                   limiting magnitude uncertainty (issue #1232): the
-    %                   RMS scatter of the fitted sources around the line,
-    %                   sqrt(sum(Resid.^2)/dof) with dof = Nsrc-2.
-    %                   It is independent of the number of fitted sources.
-    %                   If empty, the keyword is not written. Written as
-    %                   NaN whenever the limiting magnitude itself is NaN.
-    %                   Default is 'LIMMAGER'.
+    %                   limiting magnitude uncertainty.
     % Output : - AI, AstroImage object with updated header keyword containing
     %                   the limiting magnitude.
     %          - Result, structure array with one element per AstroImage.
@@ -110,11 +104,8 @@ function [AI, Result] = limmag(AI, Args)
             [Par,S] = polyfit(log10(SN(Flag)), Mag(Flag), 1);
             LimMag = polyval(Par, log10(Args.LimSN));
             % RMS scatter of the sources around the fitted line:
-            % sqrt(sum(Resid.^2)/dof), with dof = Nsrc-2. NOT the raw
-            % S.normr = sqrt(sum(Resid.^2)), which grows like sqrt(Nsrc)
-            % (issue #1232). Equivalent to the delta output of
-            % polyval(Par, x, S) up to the (negligible for large Nsrc)
-            % leverage factor of the evaluation point.
+            % sqrt(sum(Resid.^2)/dof), with dof = Nsrc-2.
+            % (issue #1232).
             LimMagErr = sqrt(S.normr.^2 ./ S.df);
         end
 
