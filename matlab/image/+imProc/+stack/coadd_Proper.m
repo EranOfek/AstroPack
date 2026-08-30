@@ -164,7 +164,7 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
     Result = AstroImage;
 
     % coadd
-    CubePSF   = imProc.psf.psf2cube(Obj);
+    CubePSF   = imProc.psf.psf2cube(Obj, 'StampSize',[15 15]);
     
     PixNaN = isnan(ImageCube);
     CoaddN = sum(~PixNaN,3);
