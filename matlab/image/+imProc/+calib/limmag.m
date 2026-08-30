@@ -41,14 +41,22 @@ function [AI, Result] = limmag(AI, Args)
     %                   magnitude can not be estimated (e.g., an empty
     %                   catalog), in which case its value is NaN.
     %                   Default is 'LIMMAG'.
-    %            ''KeyLimMagErr' - Header keyword in which to store the limiting
-    %                   magnitude. Frfault is 'LIMMAGER'.
+    %            'KeyLimMagErr' - Header keyword in which to store the
+    %                   limiting magnitude uncertainty (issue #1232): the
+    %                   RMS scatter of the fitted sources around the line,
+    %                   sqrt(sum(Resid.^2)/dof) with dof = Nsrc-2.
+    %                   It is independent of the number of fitted sources.
+    %                   If empty, the keyword is not written. Written as
+    %                   NaN whenever the limiting magnitude itself is NaN.
+    %                   Default is 'LIMMAGER'.
     % Output : - AI, AstroImage object with updated header keyword containing
     %                   the limiting magnitude.
     %          - Result, structure array with one element per AstroImage.
     %                   Fields:
     %                   .LimMag  - Estimated limiting magnitude, or NaN if
     %                              less than Args.MinNsrc sources are available.
+    %                   .LimMagErr - Limiting magnitude uncertainty (see
+    %                              'KeyLimMagErr'), or NaN.
     %                   .Par     - Best-fit polynomial parameters, as returned
     %                              by polyfit.
     %                   .Nsrc    - Number of sources used in the fit.
@@ -76,10 +84,11 @@ function [AI, Result] = limmag(AI, Args)
 
     if nargout > 1
         Result = struct( ...
-            'LimMag', cell(size(AI)), ...
-            'Par',    cell(size(AI)), ...
-            'Nsrc',   cell(size(AI)), ...
-            'Flag',   cell(size(AI)));
+            'LimMag',    cell(size(AI)), ...
+            'LimMagErr', cell(size(AI)), ...
+            'Par',       cell(size(AI)), ...
+            'Nsrc',      cell(size(AI)), ...
+            'Flag',      cell(size(AI)));
     end
 
     for Iai = 1:1:Nai
@@ -100,7 +109,13 @@ function [AI, Result] = limmag(AI, Args)
         else
             [Par,S] = polyfit(log10(SN(Flag)), Mag(Flag), 1);
             LimMag = polyval(Par, log10(Args.LimSN));
-            LimMagErr = S.normr;
+            % RMS scatter of the sources around the fitted line:
+            % sqrt(sum(Resid.^2)/dof), with dof = Nsrc-2. NOT the raw
+            % S.normr = sqrt(sum(Resid.^2)), which grows like sqrt(Nsrc)
+            % (issue #1232). Equivalent to the delta output of
+            % polyval(Par, x, S) up to the (negligible for large Nsrc)
+            % leverage factor of the evaluation point.
+            LimMagErr = sqrt(S.normr.^2 ./ S.df);
         end
 
         if Args.Plot
@@ -114,16 +129,17 @@ function [AI, Result] = limmag(AI, Args)
         % Update header
         if ~isempty(Args.KeyLimMag)
             AI(Iai).HeaderData.replaceVal(Args.KeyLimMag, LimMag);
-            if ~isempty(Args.KeyLimMagErr)
-                AI(Iai).HeaderData.replaceVal(Args.KeyLimMagErr, LimMagErr);
-            end
+        end
+        if ~isempty(Args.KeyLimMagErr)
+            AI(Iai).HeaderData.replaceVal(Args.KeyLimMagErr, LimMagErr);
         end
 
         if nargout > 1
-            Result(Iai).LimMag = LimMag;
-            Result(Iai).Par    = Par;
-            Result(Iai).Nsrc   = sum(Flag);
-            Result(Iai).Flag   = Flag;
+            Result(Iai).LimMag    = LimMag;
+            Result(Iai).LimMagErr = LimMagErr;
+            Result(Iai).Par       = Par;
+            Result(Iai).Nsrc      = sum(Flag);
+            Result(Iai).Flag      = Flag;
         end
     end
 end
