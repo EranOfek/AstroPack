@@ -3483,18 +3483,25 @@ classdef PipelineDemon < Component
                                     Status.PipeII  = true;
                                     Status.WriteII = true;
                                 catch MEs
-                                    Status.ME = MEs;
-                                    PWD = pwd;
-                                    cd(Obj.FailedPath);
-                                    FailInfoFileName = RawImageList{1};
-                                    FailedInfoFileName = strrep(FailedInfoFileName, 'sci_raw_Image', 'sci_zogy_Failure');
-                                    FailedInfoFileName = strrep(FailedInfoFileName, '.fits', '.mat');
+                                    % the handler itself must never throw (issue #1243)
+                                    Status.ME           = MEs;
                                     Status.RawImageList = RawImageList;
                                     Status.TableRaw     = TableRaw;
-                                    save('-v7.3', FailedInfoFileName, Status)
-                                    cd(PWD);
-                                    Status.PipeII  = false;
-                                    Status.WriteII = false;   
+                                    Status.PipeII       = false;
+                                    Status.WriteII      = false;
+
+                                    Obj.writeLog('pipeline.last.pipes.PipelineDemon: pipelineII failed', LogLevel.Error);
+                                    Obj.writeLog(MEs, LogLevel.Error);
+
+                                    % failure report, named after the first RAW frame of the visit
+                                    try
+                                        [~, RawBase] = fileparts(char(RawImageList{1}));
+                                        RawBase = regexprep(RawBase, '\.fits$', '');   % handles .fits.fz
+                                        FailedInfoFileName = [strrep(RawBase, 'sci_raw_Image', 'sci_zogy_Failure'), '.mat'];
+                                        save(fullfile(Obj.FailedPath, FailedInfoFileName), 'Status', '-v7.3');
+                                    catch MEsave
+                                        Obj.writeLog(sprintf('pipelineII failure report not saved: %s', MEsave.message), LogLevel.Error);
+                                    end
                                 end
                             else
                                 Status.PipeII  = false;
