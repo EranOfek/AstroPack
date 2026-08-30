@@ -3592,12 +3592,18 @@ classdef PhotCalibTrans < Component
                     % Read parameter value
                     ParValues(IPar) = HeaderObj.getVal(KeyNameV);
 
-                    % Read fit flag
+                    % Read fit flag. A blank card (the fitPhotCalibTrans
+                    % failure stamp - nothing was fitted) reads back as NaN,
+                    % which logical() refuses to convert; treat it as fixed.
                     KeyNameF = sprintf('PT_%d_F%d', IFun, IPar);
+                    FlagVal = NaN;
                     if HeaderObj.isKeyExist(KeyNameF)
-                        FitFlags(IPar) = logical(HeaderObj.getVal(KeyNameF));
+                        FlagVal = HeaderObj.getVal(KeyNameF);
+                    end
+                    if isempty(FlagVal) || ~isnumeric(FlagVal) || isnan(FlagVal)
+                        FitFlags(IPar) = false;  % Default to fixed if absent/blank
                     else
-                        FitFlags(IPar) = false;  % Default to fixed if not specified
+                        FitFlags(IPar) = logical(FlagVal);
                     end
 
                     IPar = IPar + 1;

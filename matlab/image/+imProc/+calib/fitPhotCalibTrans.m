@@ -840,29 +840,35 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
             end
 
             % Write the full PT_* keyword set to the header. Every value a
-            % successful fit would have produced is written EMPTY (blank FITS
-            % card, reads back as NaN) - NaN is not representable as a
-            % numeric FITS keyword value. Only PT_AREF/PT_SPEC carry values:
-            % they are configuration strings known regardless of the fit
-            % outcome. Failure detection: isnan(getVal('PT_NCALI')) (or any
-            % other PT_ numeric).
+            % successful fit would have produced is written as NaN, which the
+            % mex FITS writers used by imProc.io.saveProductImage serialize as
+            % a blank card that reads back as NaN. Do NOT write [] here: those
+            % writers turn an empty value into a literal 0., which is
+            % indistinguishable from a real measurement - a failed fit would
+            % then carry PT_ZP = 0. as a plausible zero point. An in-memory []
+            % is also unusable: photCalibTransFromHeader's
+            % `if ~isnan(Val) && Val > 0` throws on an empty operand.
+            % Only PT_AREF/PT_SPEC carry values: they are configuration
+            % strings known regardless of the fit outcome.
+            % Failure detection: isnan(getVal('PT_NCALI')) (or any other
+            % PT_ numeric).
             if Args.UpdateHeader && IsAstroImage
                 H = Result(Iobj).HeaderData;
                 H = H.replaceVal(...
                     {'PT_RMS', 'PT_ARMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALI', 'PT_AREF', 'PT_SPEC'}, ...
-                    {[],       [],        [],        [],       [],          'SMART v2.9.8', 'GaiaDR3'});
+                    {NaN,      NaN,       NaN,       NaN,      NaN,         'SMART v2.9.8', 'GaiaDR3'});
 
-                % Empty fill for PT_ZP (photometric ZP) on the failure path
+                % Blank fill for PT_ZP (photometric ZP) on the failure path
                 if Args.EvaluatePhotZP
-                    H = H.replaceVal('PT_ZP', {[]});
+                    H = H.replaceVal('PT_ZP', NaN);
                 end
 
-                % Empty fills for legacy LIMMAG/BACKMAG (only when feature enabled)
+                % Blank fills for legacy LIMMAG/BACKMAG (only when feature enabled)
                 if Args.EvaluateLimMag
-                    H = H.replaceVal('LIMMAG', {[]});
+                    H = H.replaceVal('LIMMAG', NaN);
                 end
                 if Args.EvaluateBackMag
-                    H = H.replaceVal('BACKMAG', {[]});
+                    H = H.replaceVal('BACKMAG', NaN);
                 end
 
                 % Write the per-function keywords: the (unfitted) TransModel is
@@ -881,10 +887,10 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                         end
                         H = H.replaceVal(sprintf('PT_%d_N', iFun), FunRef);
 
-                        % Parameters: values and flags = empty
+                        % Parameters: values and flags = blank (NaN)
                         for iPar = 1:length(Fun.Par)
-                            H = H.replaceVal(sprintf('PT_%d_V%d', iFun, iPar), {[]});
-                            H = H.replaceVal(sprintf('PT_%d_F%d', iFun, iPar), {[]});
+                            H = H.replaceVal(sprintf('PT_%d_V%d', iFun, iPar), NaN);
+                            H = H.replaceVal(sprintf('PT_%d_F%d', iFun, iPar), NaN);
                         end
                     end
                 end
