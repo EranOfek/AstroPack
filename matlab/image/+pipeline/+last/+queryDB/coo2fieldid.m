@@ -48,13 +48,11 @@ function [Result] = coo2fieldid(RA, Dec, Args)
     S.generateRegularGrid;
 
     Flag = S.cooInField(RA, Dec);
-    IndF = find(Flag)
+    IndF = find(Flag);
     Nind = numel(IndF);
     K = 0;
     Result = struct('fieldid',[], 'camnum',[], 'cropid',[]);
     for I=1:1:Nind
-        S.List.Table.RA(IndF(I))
-
         [OffsetLong,OffsetLat,Dist,PA] = celestial.coo.sphere_offset(S.List.Table.RA(IndF(I))./RAD, S.List.Table.Dec(IndF(I))./RAD, RA./RAD, Dec./RAD);
 
         OffsetLong = OffsetLong.*RAD;

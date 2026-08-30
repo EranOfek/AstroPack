@@ -225,6 +225,7 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
         Args.SaturatedMask             = []; % logical/numeric, true where a pixel is saturated; used only by WingsMethod='empirical'
         Args.WingProfile               = []; % precomputed visit-level wing SHAPE (struct with .Radius/.Value/.Success from imProc.psf.visitWingProfile). When given with Success=true and WingsMethod='empirical', the per-epoch internal wing calibration is SKIPPED and this shape is re-anchored onto the current core at the splice radius - shared wing shape, per-epoch core. Empty/Success=false -> legacy per-image calibration.
         Args.SkipEllipticityFallback logical = false; % skip the wingsFix ellipticity fallback for the MAIN splice regardless of WingProfile (the fallback deletes the wings on elongated cores, toggling ~3% of flux between epochs - the dominant bright-star repeatability noise). Default false = legacy behavior (fallback active unless a visit-level WingProfile is in use).
+        Args.EllipticalWings logical   = false; % build the MAIN (photometry/subtraction) wing on the ELLIPTICAL radius matched to the measured core shape (PA, axis ratio from imUtil.psf.psfElongation on the pre-splice core) - models the quadrupole of the core asymmetry instead of leaving it as +/- subtraction-residual lobes. The detection slice stays circular (an azimuthally symmetric template is orthogonal to the residual pattern). Default false = circular wings (legacy).
         Args.WingRangeSN               = []; % [SNmin, SNmax] for the bright-star wing-calibration sample; empty -> [RangeSN(2), Inf]
         Args.MinWingStars              = 8;  % minimum bright stars required to trust the empirical wing; else falls back to cosbell
 
@@ -562,6 +563,12 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
                                                          'ApplyEllipticityFallback',false);
         end
 
+        % Elliptical-wing shape parameters from the pre-splice core.
+        WingPA = 0;  WingQ = 1;
+        if Args.EllipticalWings
+            [WingPA, WingQ] = imUtil.psf.psfElongation(MeanPSF);
+        end
+
         % With a visit-level wing profile in use, keep the wings even for an
         % elongated core: the epoch's own (elongated) core is preserved below
         % the splice radius either way, and a circular pooled wing beyond it
@@ -579,7 +586,8 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
                                                              'ProfileRadius',ProfileRadius,...
                                                              'ProfileValue',ProfileValue,...
                                                              'ProfileSuccess',ProfileSuccess,...
-                                                             'ApplyEllipticityFallback',~(UseVisitWing || Args.SkipEllipticityFallback));
+                                                             'PA',WingPA, 'AxisRatio',WingQ,...
+                                                             'ApplyEllipticityFallback',~(UseVisitWing || Args.SkipEllipticityFallback || Args.EllipticalWings));
 
 
 

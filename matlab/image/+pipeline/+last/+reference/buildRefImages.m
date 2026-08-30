@@ -47,8 +47,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %         'DbHost'               - DB server host address (def. '10.150.28.18')
     %         'DbPort'               - DB server port (def. 9000)
     %         'DbUser'               - DB user name (def. 'last_user')
-    %         'DbName'               - DB name used to look up the password in the AstroPack passwords file (def. 'last_ro')
-    %         'PassFile'      - path to the AstroPack YAML passwords file (def. '~/.astropack/Passwords.yml')
+    %         'DbName'               - name of the DB on the ClickHouse server (def. 'last')
     %         'Verbose'              - verbosity level: 0 (mute), 1, 2 (maximal) (def. 2)
     %         'AstrometricCatRad'    - cone radius [deg] for pre-fetching astrometric/photometric
     %                    reference catalogs once per field (def. 1)
@@ -69,6 +68,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %                   touched, so a field which already satisfies the
     %                   fraction is unaffected.
     %                   See imProc.cat.getAstrometricCatalog (def. 0.5)
+    %         'PSFMethod'            - how imProc.stack.stitchCrops propagates the PSF of the crops
+    %                   to the stitched image: 'none', 'central' or 'wmean' (def. 'wmean')
     %
     % Output : - an AstroImage object for the last reference ID from the input list
     %          - reference image files (Image, Mask, PSF, Cat) written to disk and ref_images table filled in the DB
@@ -147,7 +148,6 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.DbPort             = 9000;
         Args.DbName             = 'last'
         Args.DbUser             = 'last_user'
-        Args.PassFile           = '~/matlab/AstroPack/config/local/Passwords.yml'; % '~/.astropack/Passwords.yml';                
         Args.PassToken          = 'LASTDB_User'
         
         Args.DBTemplate          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
@@ -165,13 +165,13 @@ function [Result,Info] = buildRefImages(RefID, Args)
 
         Args.PhotZPMethod            = 'photometricZP';  % 'photometricZP'|'header'
         Args.KeyZP                   = {'PT_ZP','PH_ZP'};
+        Args.PSFMethod               = 'wmean';  % 'none'|'central'|'wmean'
     end
     % 
     RAD = 180/pi;  
 
     % make a connection to the image DB
     if isempty(Args.DB)
-        Configuration.getSingleton().loadFile(Args.PassFile);
         PM = PasswordsManager;
         Db.Password = PM.search(Args.PassToken).Pass;
         Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Db.Password);        
@@ -418,6 +418,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                             'AstrometricCat',AstrometricCat,'PhotCat',PhotCat, ...
                             'PhotZPMethod',Args.PhotZPMethod,...
                             'KeyZP',Args.KeyZP,...
+                            'PSFMethod',Args.PSFMethod,...
                             'BitDict',BitDict);
 
                         % Do not coadd a group whose astrometry failed: its WCS

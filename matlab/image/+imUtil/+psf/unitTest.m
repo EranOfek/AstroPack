@@ -90,6 +90,77 @@ function Result = unitTest()
     end
 
 
+    %% imUtil.psf.combinePSF
+
+    P1 = imUtil.kernel2.gauss([2 2 0],[15 15]);   P1 = P1./sum(P1,'all');
+    P2 = imUtil.kernel2.gauss([3 3 0],[15 15]);   P2 = P2./sum(P2,'all');
+    Tol = 100.*eps;
+
+    % equal weights give the plain mean
+    C = imUtil.psf.combinePSF({P1,P2});
+    if max(abs(C-(P1+P2)./2),[],'all') > Tol
+        error('Problem with imUtil.psf.combinePSF - equal weights');
+    end
+
+    % the weights act through their ratio only, and the result is normalized
+    C1 = imUtil.psf.combinePSF({P1,P2}, 'Weights',[1 3]);
+    C2 = imUtil.psf.combinePSF({P1,P2}, 'Weights',[10 30]);
+    if max(abs(C1-(0.25.*P1+0.75.*P2)),[],'all') > Tol || ~isequal(C1,C2) || abs(sum(C1,'all')-1) > Tol
+        error('Problem with imUtil.psf.combinePSF - weighted mean');
+    end
+
+    % the input stamps are normalized before the combination
+    C3 = imUtil.psf.combinePSF({5.*P1, P2}, 'Weights',[1 3]);
+    if max(abs(C3-C1),[],'all') > Tol
+        error('Problem with imUtil.psf.combinePSF - input normalization');
+    end
+
+    % the numeric [Ny,Nx,Npsf] form matches the cell array form
+    C4 = imUtil.psf.combinePSF(cat(3,P1,P2), 'Weights',[1 3]);
+    if max(abs(C4-C1),[],'all') > Tol
+        error('Problem with imUtil.psf.combinePSF - numeric input form');
+    end
+
+    % a single stamp is returned as it is
+    if max(abs(imUtil.psf.combinePSF({P1})-P1),[],'all') > Tol
+        error('Problem with imUtil.psf.combinePSF - single stamp');
+    end
+
+    % the variance of a weighted mean of independent estimates: sum(W_i^2*Var_i),
+    % and it follows the normalization applied to its own stamp
+    V1 = 0.1.*P1;  V2 = 0.2.*P2;
+    [~, CV]  = imUtil.psf.combinePSF({P1,P2}, 'Weights',[1 3], 'Var',{V1,V2});
+    [~, CV2] = imUtil.psf.combinePSF({5.*P1,P2}, 'Weights',[1 3], 'Var',{25.*V1,V2});
+    if max(abs(CV-(0.25.^2.*V1+0.75.^2.*V2)),[],'all') > Tol || max(abs(CV2-CV),[],'all') > Tol
+        error('Problem with imUtil.psf.combinePSF - variance propagation');
+    end
+
+    % extra stamp dimensions (e.g. a 'Purpose' cube) survive, each slice
+    % being combined on its own
+    D1 = imUtil.kernel2.gauss([2.5 2.5 0],[15 15]);  D1 = D1./sum(D1,'all');
+    D2 = imUtil.kernel2.gauss([3.5 3.5 0],[15 15]);  D2 = D2./sum(D2,'all');
+    CQ = imUtil.psf.combinePSF({cat(3,P1,D1), cat(3,P2,D2)}, 'Weights',[1 3]);
+    if ~isequal(size(CQ),[15 15 2]) || max(abs(CQ(:,:,1)-C1),[],'all') > Tol || ...
+            max(abs(CQ(:,:,2)-(0.25.*D1+0.75.*D2)),[],'all') > Tol
+        error('Problem with imUtil.psf.combinePSF - multi-D stamps');
+    end
+
+    % without normalization the scale of the input stamps is kept
+    if abs(sum(imUtil.psf.combinePSF({2.*P1, 2.*P2}, 'Norm',false),'all')-2) > Tol
+        error('Problem with imUtil.psf.combinePSF - Norm=false');
+    end
+
+    % invalid input must be rejected
+    BadInput = {};
+    try, imUtil.psf.combinePSF({P1,P2}, 'Weights',[1 2 3]); BadInput{end+1}='weight count'; end %#ok<TRYNC>
+    try, imUtil.psf.combinePSF({P1,P2}, 'Weights',[1 -1]);  BadInput{end+1}='negative weight'; end %#ok<TRYNC>
+    try, imUtil.psf.combinePSF({P1,P2(1:13,1:13)});         BadInput{end+1}='size mismatch'; end %#ok<TRYNC>
+    try, imUtil.psf.combinePSF({P1,P2}, 'Var',{V1});        BadInput{end+1}='variance count'; end %#ok<TRYNC>
+    try, imUtil.psf.combinePSF(cat(4,P1,P2));               BadInput{end+1}='4-D numeric input'; end %#ok<TRYNC>
+    if ~isempty(BadInput)
+        error('Problem with imUtil.psf.combinePSF - not rejected: %s', strjoin(BadInput,', '));
+    end
+
     %%
 
 	Result = true;

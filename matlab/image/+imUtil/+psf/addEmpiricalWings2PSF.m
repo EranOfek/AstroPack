@@ -55,6 +55,8 @@ function NewPSF = addEmpiricalWings2PSF(PSF, ProfileRadius, ProfileValue, Args)
         Args.TaperWidth  = 3
         Args.Cx          = NaN
         Args.Cy          = NaN
+        Args.PA          = 0     % major-axis position angle [rad] for elliptical wings
+        Args.AxisRatio   = 1     % minor/major axis ratio; 1 = circular (legacy)
     end
 
     assert(Args.R2 > Args.R1, 'addEmpiricalWings2PSF:radii', 'Require R2 > R1.');
@@ -84,7 +86,11 @@ function NewPSF = addEmpiricalWings2PSF(PSF, ProfileRadius, ProfileValue, Args)
         end
     end
 
-    R = hypot(X - Cx, Y - Cy);
+    % Elliptical radius (see addWings2PSF); taper/Rmax stay circular.
+    Xr = (X - Cx).*cos(Args.PA) + (Y - Cy).*sin(Args.PA);
+    Yr = -(X - Cx).*sin(Args.PA) + (Y - Cy).*cos(Args.PA);
+    R  = hypot(Xr, Yr ./ max(Args.AxisRatio, 0.1));
+    Rcirc = hypot(X - Cx, Y - Cy);
 
     % --- clean/sort the measured profile ---
     Valid = isfinite(ProfileRadius(:)) & isfinite(ProfileValue(:)) & ProfileValue(:) > 0;
@@ -112,10 +118,10 @@ function NewPSF = addEmpiricalWings2PSF(PSF, ProfileRadius, ProfileValue, Args)
 
     % --- smooth taper to zero by the stamp edge ---
     Rtaper0 = max(Rmax - Args.TaperWidth, Args.R2);
-    tt      = min(max((R - Rtaper0)./(Rmax - Rtaper0), 0), 1);
+    tt      = min(max((Rcirc - Rtaper0)./(Rmax - Rtaper0), 0), 1);
     Edge    = 1 - (tt.^3 .* (tt.*(tt.*6 - 15) + 10));
     NewPSF  = NewPSF .* Edge;
-    NewPSF(R > Rmax) = 0;
+    NewPSF(Rcirc > Rmax) = 0;
 
     if Args.Norm
         s = sum(NewPSF(:));
