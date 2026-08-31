@@ -1718,20 +1718,29 @@ classdef PipelineDemon < Component
                     if isempty(Args.CalibPath)
                         % use CalibBasePath
                         SplittedNewPath = split(Args.NewPath, filesep);
-                        Fc = contains(SplittedNewPath, 'LAST.');
-                        ProjName = SplittedNewPath(Fc);
-                        Args.CalibPath = sprintf('%s%s%s%s%s', Args.CalibBasePath, filsesep, ProjName, filesep, 'calib');
+                        Fc  = contains(SplittedNewPath, 'LAST.');
+                        Ind = find(Fc, 1);
+                        if isempty(Ind)
+                            error('prepPath: no project name (LAST.*) found in NewPath: %s', Args.NewPath);
+                        end
+                        ProjName = SplittedNewPath{Ind};
+                        Args.CalibPath = fullfile(Args.CalibBasePath, ProjName, 'calib');
                     end
 
                     Obj.BasePath    = Args.LocalPath;
                     Obj.NewPath     = Args.NewPath;
                     Obj.CalibPath   = Args.CalibPath;
-                    Obj.LogPath     = sprintf('%s%s%s',Args.LocalDir, filesep, 'log');
-                    Obj.FailedPath  = sprintf('%s%s%s',Args.LocalDir, filesep, 'failed');
-                    Obj.RefPath     = Args.RefPath;
+                    Obj.LogPath     = fullfile(Args.LocalPath, 'log');
+                    Obj.FailedPath  = fullfile(Args.LocalPath, 'failed');
+                    if ~isempty(Args.RefPath)
+                        % if empty - auto detected (see populateRefPath)
+                        Obj.RefPath = Args.RefPath;
+                    end
                 case 'test'
                     Obj.BasePath = sprintf('%s/matlab/data/pipeline/LAST',tools.os.get_userhome);
-                    Obj.RefPath     = Args.RefPath;
+                    if ~isempty(Args.RefPath)
+                        Obj.RefPath = Args.RefPath;
+                    end
 
                 otherwise
                     error('Unknown ReductionMode option');
@@ -3086,7 +3095,7 @@ classdef PipelineDemon < Component
                 Args.NewPath       = [];
                 Args.CalibBasePath = '/marvin';
                 Args.CalibPath     = [];
-                Args.RefPath       = '/lastdata/references/v4';
+                Args.RefPath       = [];         % if empty - auto detected: /<HostName>/data/references (populateRefPath)
 
                 Args.ConnectDB     = true;    % get a DB connector (e.g., for multiepoch matching of PipeII)
                 Args.DBConnector   = 'legacy'; 
