@@ -182,8 +182,10 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
         Args.Back                   = [];
         Args.Var                    = [];
         Args.SubAnnulusBack         = true;
+        Args.StampBack char {mustBeMember(Args.StampBack, {'annulus','global'})} = 'annulus'; % per-stamp background estimator when SubAnnulusBack: 'annulus' (legacy, mex annulus_median over Args.Annulus) or 'global' (interpolated background-map crop, requires Args.Back; wing-blind but block-coarse). Source-quality filters use the annulus stats in BOTH modes.
        
         Args.RadiusPSF                 = 12;
+        Args.CropToRadiusPSF logical   = true; % crop the FINISHED PSF back to the 2*RadiusPSF+1 stamp when a background annulus wider than RadiusPSF (PsfAnnulus) grew the cutouts. The annulus serves PSF CONSTRUCTION only; without the crop the output PSF inherits the enlarged size (41x41 for Annulus [16 20]), which as the matched-filter template widens the NaN dead band along coadd edges from RadiusPSF+1 to Annulus(2)+1 px and as the subtraction stamp breaks the BrightWingBack taper-complement geometry. Renormalized to unit sum after the crop (flux beyond RadiusPSF is ~0.2% for alpha=5 wings). No-op when the stamp is already 2*RadiusPSF+1 - i.e. on every default-path call.
         Args.Annulus                   = [10 12];
         
         Args.image2cutoutsArgs         = {};
@@ -332,8 +334,28 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
 
 
     if Args.SubAnnulusBack && Nsrc>0
-        % subtract annulus background
-        [Cube,Back,BackSt,BackNpix] = imUtil.sources.mex.annulus_median(Cube, Args.Annulus, 0);
+        % subtract per-stamp background. Two estimators (see Args.StampBack):
+        % 'annulus' (legacy) - per-stamp annulus median; local, but sits on
+        % the star's own wing (self-subtraction biases the wing).
+        % 'global' - the interpolated background-map crop; wing-blind (the
+        % block median resists the star's own light) but cannot follow
+        % local pedestal variations. In 'global' mode the annulus stats are
+        % still computed for the Back/Std source-quality filters below, so
+        % the star selection is identical between the two modes.
+        if strcmpi(Args.StampBack, 'global')
+            [~,Back,BackSt,BackNpix] = imUtil.sources.mex.annulus_median(Cube, Args.Annulus, 0);
+            if isempty(Args.Back)
+                error('buildPSF:StampBack', 'StampBack=''global'' requires the ''Back'' background image');
+            end
+            if numel(Args.Back) == 1
+                Cube = Cube - Args.Back;
+            else
+                BackCube = imUtil.cut.image2cutouts(single(Args.Back), X, Y, CutoutRadius, Args.image2cutoutsArgs{:});
+                Cube = Cube - BackCube;
+            end
+        else
+            [Cube,Back,BackSt,BackNpix] = imUtil.sources.mex.annulus_median(Cube, Args.Annulus, 0);
+        end
 
         if ~isempty(Args.BackQuantile)
             BackQ  = quantile(Back, Args.BackQuantile);
@@ -526,7 +548,14 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
                 CubeW = imUtil.cut.image2cutouts(Image, Xw, Yw, CutoutRadius, Args.image2cutoutsArgs{:});
 
                 if Args.SubAnnulusBack
-                    [CubeW,~,~,~] = imUtil.sources.mex.annulus_median(CubeW, Args.Annulus, 0);
+                    if strcmpi(Args.StampBack, 'global') && numel(Args.Back) > 1
+                        BackCubeW = imUtil.cut.image2cutouts(single(Args.Back), Xw, Yw, CutoutRadius, Args.image2cutoutsArgs{:});
+                        CubeW = CubeW - BackCubeW;
+                    elseif strcmpi(Args.StampBack, 'global')
+                        CubeW = CubeW - Args.Back;
+                    else
+                        [CubeW,~,~,~] = imUtil.sources.mex.annulus_median(CubeW, Args.Annulus, 0);
+                    end
                 end
 
                 % sub-pixel recenter using catalog positions (not moments,
@@ -589,8 +618,31 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
                                                              'PA',WingPA, 'AxisRatio',WingQ,...
                                                              'ApplyEllipticityFallback',~(UseVisitWing || Args.SkipEllipticityFallback || Args.EllipticalWings));
 
-
-
+        % Crop back to the RadiusPSF stamp (see Args.CropToRadiusPSF doc).
+        % Runs after the wing splice and the detection slice, so both keep
+        % the geometry they were built with; only the shipped support
+        % shrinks. VarPSF is scaled by the same normalization squared.
+        if Args.CropToRadiusPSF
+            HalfCur = (size(MeanPSF,1)-1)./2;
+            if HalfCur > Args.RadiusPSF
+                Ctr  = HalfCur + 1;
+                Rng  = (Ctr-Args.RadiusPSF):(Ctr+Args.RadiusPSF);
+                MeanPSF = MeanPSF(Rng, Rng);
+                Snorm   = sum(MeanPSF(:));
+                VarPSF  = VarPSF(Rng, Rng);
+                if Snorm > 0
+                    MeanPSF = MeanPSF./Snorm;
+                    VarPSF  = VarPSF./(Snorm.^2);
+                end
+                if ~isempty(DetectionPSF)
+                    DetectionPSF = DetectionPSF(Rng, Rng);
+                    Sdet = sum(DetectionPSF(:));
+                    if Sdet > 0
+                        DetectionPSF = DetectionPSF./Sdet;
+                    end
+                end
+            end
+        end
 
         % smooth wings
         % if nargout>4
