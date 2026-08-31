@@ -3154,7 +3154,7 @@ classdef PipelineDemon < Component
 
                 %Args.RunAsService logical  = false;
                 
-                Args.UncompressRaw     = false;             % we already know how to read compressed fits.fz, so no need to uncompress
+                Args.UncompressRaw     = false;             % not used: compressed RAW frames are read directly - prePrep forces the mex reader for .fz/.gz (issue #1248)
                 
                 Args.MoveNew2Raw       = true;     % move RAW images from new/ to YYYY/MM/DD/raw/ after processing
                 Args.RemoveAfterWrite  = false;    % remove the output YYYY/MM/DD/raw/subdir/ folder after writing into it (usefull for multiple tests)

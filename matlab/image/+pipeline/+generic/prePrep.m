@@ -204,7 +204,15 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
                                             'AIRMASS','TRK_RA','TRK_DEC',...
                                             'MNTTEMP','FOCUS','PRVFOCUS',...
                                             'OBJECT','COUNTER','NODENUMB','MOUNTNUM','CAMNUM'};
-        Args.DeleteHeaderKeys            = {'M_AAZ','M_AALT', 'GIT_UNIT', 'GIT_MESS', 'GITSWITC', 'GITMOUNT', 'CAMPOS'};
+        Args.DeleteHeaderKeys            = {'M_AAZ','M_AALT', 'GIT_UNIT', 'GIT_MESS', 'GITSWITC', 'GITMOUNT', 'CAMPOS',...
+                                            ...% tile-compression container keywords: they describe the .fz
+                                            ...% wrapper, not the image, and must never reach a product header
+                                            ...% (issue #1248)
+                                            'XTENSION','PCOUNT','GCOUNT','TFIELDS','EXTNAME','TTYPE1','TFORM1',...
+                                            'ZIMAGE','ZSIMPLE','ZBITPIX','ZNAXIS','ZNAXIS1','ZNAXIS2',...
+                                            'ZTILE1','ZTILE2','ZCMPTYPE','ZNAME1','ZVAL1','ZNAME2','ZVAL2',...
+                                            'ZQUANTIZ','ZDITHER0','ZTENSION','ZPCOUNT','ZGCOUNT','ZTHEAP',...
+                                            'ZHECKSUM','ZDATASUM'};
         Args.RecoverKeysFromName         = {'NODENUMB',2; 'MOUNTNUM',3; 'CAMNUM',4};
         
         Args.TableForDB                  = true; % if given then update table with header + results.        
@@ -221,7 +229,19 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
         Images = AI.getFileNames;
     else
         % assume input is a list of images
-        AI = AstroImage(Images, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
+        % Tile-compressed frames must be read with the mex reader: reading a
+        % .fits.fz with matlab.io.fits returns the compressed container's
+        % header (NAXIS1=8, XTENSION='BINTABLE', PCOUNT/GCOUNT/TFIELDS,
+        % EXTNAME='COMPRESSED_IMAGE') instead of the image header, and those
+        % keywords then propagate into the products (issue #1248)
+        ReadArgs = Args.AstroImageReadArgs;
+        if ischar(Images) || isstring(Images) || iscellstr(Images)
+            IsCompressed = any(endsWith(string(Images), [".fz",".gz"]));
+            if IsCompressed && ~any(strcmpi(ReadArgs(1:2:end), 'UseMex'))
+                ReadArgs = [ReadArgs, {'UseMex',true}];
+            end
+        end
+        AI = AstroImage(Images, ReadArgs{:}, 'CCDSEC',Args.CCDSEC);
 
         % Add Time string to header:
         Literals = AstroFileName.parseString2literals(Images);
