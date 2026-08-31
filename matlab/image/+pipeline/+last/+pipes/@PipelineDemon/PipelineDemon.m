@@ -84,16 +84,6 @@ classdef PipelineDemon < Component
     end
     
     
-    methods % Constructor
-       
-        function Obj = DemonLAST(Args)
-            % Constructor for DemonLAST
-
-            
-        end
-        
-    end
-    
     methods % setter/getters
         function Obj=set.AutoPath(Obj, Val)
             % Setter for AutoPath
