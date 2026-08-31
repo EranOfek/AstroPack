@@ -774,7 +774,7 @@ classdef PipelineDemon < Component
                         Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
                         Obj.FocusPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFocusPath);
 
-                        Obj.RefPath    = sprintf('%s%s%s',tools.os.get_computer, filesep, Obj.DefRefPath);
+                        Obj.RefPath    = fullfile(filesep, tools.os.get_computer, Obj.DefRefPath);   % issue #1246
                     end
                 case 'marvin'
                     % Obj.BasePath = '/marvin';
@@ -3185,6 +3185,16 @@ classdef PipelineDemon < Component
             
             % prep arguments
             [Obj, Args] = prepArgs(Obj, Args);
+
+            % Complete the paths that were not set explicitly (issue #1245):
+            % when only DataDir is set, set.DataDir populates BasePath, but the
+            % new/calib/failed/log/focus directories are not derived from it
+            if isempty(Obj.NewPath)
+                if isempty(Obj.BasePath)
+                    Obj.BasePath = Obj.getPath;
+                end
+                Obj.autoDetectPath('LAST');
+            end
 
             % Propagate the histogram-anomaly check arguments down the chain:
             % main -> pipelineI -> prePrep -> imProc.quality.histAnomaly.
