@@ -54,8 +54,8 @@ void fitGaussian3Param(const double* D, const double* W, int n,
     for (int i = 0; i < n; i++) {
         if (!std::isnan(W[i])) {
             W_sum += W[i];
-            D_sum += D[i] * W[i];
-            D2_sum += D[i] * D[i] * W[i];
+            D_sum += D[i];
+            D2_sum += D[i] * D[i];
         }
     }
     
@@ -67,8 +67,8 @@ void fitGaussian3Param(const double* D, const double* W, int n,
         return;
     }
     
-    mu = D_sum / W_sum;
-    double variance = (D2_sum / W_sum) - (mu * mu);
+    mu = D_sum /n;
+    double variance = D2_sum  - (mu * mu);
     sigma = std::sqrt(std::abs(variance) + 1e-6);
     A = W_max;
     
