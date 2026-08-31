@@ -3128,9 +3128,7 @@ classdef PipelineDemon < Component
                 Args.SaveEpochHeader  = [true, false, true, false];
                 Args.SaveVisitHeader  = [true, false, true, false];
 
-                Args.SaveMergedCat     = false;
                 Args.SaveMergedMat     = true;
-                Args.SaveMergedAsteroids  = false;
                 Args.SaveVisitAsteroids  = true;
                 Args.SaveTableRaw        = true;
 
