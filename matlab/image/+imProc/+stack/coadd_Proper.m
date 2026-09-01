@@ -177,6 +177,10 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
     end
 
     [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.combine_proper(ImageCube, CubePSF, 'F',FluxMatch, 'Var',Var, 'Norm',true);
+
+    %[Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.properCoaddLinear(ImageCube, CubePSF, Var', 1, 'SigmaIsVariance',true, 'Flux',FluxMatch,'Robust',true);
+
+
     Result.ImageData.Data = real(Result.ImageData.Data);
     
 
