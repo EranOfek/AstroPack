@@ -212,7 +212,13 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         % --- registration ---
         Args.registerArgs                     = {};
         Args.DataProp                         = {'ImageData','BackData','VarData','MaskData'};
-        Args.SubBack                          = true;  % false is useful for visit coaddition, for general coaddition use true.
+        Args.SubBack                          = true;  % subtract background before coaddition. false is useful for visit coaddition; for general coaddition use true.
+                                                        % NOTE: StackMethod='proper' ALWAYS subtracts the background - imProc.stack.coadd_Proper is
+                                                        % called with a hardcoded 'SubBack',true regardless of this flag (proper coaddition requires it).
+                                                        % This flag therefore controls only the 'wrobust'/'sigmaclip' channels. However SetBackTo0 (below)
+                                                        % and the 'IsBackSub' value forwarded to imProc.sources.multiIterExtractor still follow THIS flag, so
+                                                        % with StackMethod='proper' keep SubBack=true to stay consistent with the background that was actually
+                                                        % subtracted (setting it false would tell the extractor the coadd is not background-subtracted when it is).
         
         Args.SetBackTo0                       = true; % if SubBack=true and SetBackTo0 then set back to 0.
         %Args.ReMeasureBackVar                 = true; % if SetBackT0=false and this is true than remeasure back and var
@@ -548,13 +554,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % is now Gain/Nimages
             % 2. RegisteredImages has no header so no JD...
 
-            %Args.StackMethod = 'sigmaclip';
-            
+            %Args.StackMethod = 'sigmaclip';            
             switch Args.StackMethod
                 case 'wrobust'
                     % Effective Ncoadd - remove 3 for min.max rejection +
                     % mean calc...
-                    NcoaddEff = max(1, numel(RegisteredImages)-3);
+                    NcoaddEff = numel(RegisteredImages); %max(1, numel(RegisteredImages)-3);
                     % RegisteredImages contains also the Back and Var
                     % Ncoadd is Nimages-3 because of one dof for mode
                     % estimation, and 2 fir min/max rejection
@@ -566,11 +571,19 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                         
                    
                 case 'proper'
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages,...
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_Proper(RegisteredImages, 'SubBack',true,...
                                                                                  'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:},...
-                                                                                 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
+                                                                                 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs,...
+                                                                                 'Gain',InGain, 'ProperMethod','fft');
+
                     % BUG : Need to return EffectiveGain
-                    EffectiveGain = NaN;
+                    %EffectiveGain = NaN;
+                case 'rproper'
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_Proper(RegisteredImages, 'SubBack',true,...
+                                                                                 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:},...
+                                                                                 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs,...
+                                                                                 'Gain',InGain, 'ProperMethod','robust');
+                        
                 case 'sigmaclip'
                     % obsolete channel
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, ~, MidJD, SumExpTime] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...

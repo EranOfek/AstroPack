@@ -1,4 +1,4 @@
-function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
+function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     % Proper coaddition (Zackay & Ofek 2017) of registered images stored in AstroImage object.
     %   The function works on registered images (e.g., using
     %   imProc.transIm.register).
@@ -57,6 +57,18 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
     %          - (CoaddN) Number of input images used in the coadd.
     %          - Exposure time weighted mean of mid times of the coadd
     %            exposures (also written to header).
+    %          - (EffectiveGain) The effective gain [e-/ADU] of the proper
+    %            coadd output image, i.e. the factor for which the source
+    %            Poisson variance is Flux/EffectiveGain in the output units.
+    %            The proper coadd is normalized to unit background variance,
+    %            so this is NOT the mean-coadd gain (Gain*N); it is
+    %                EffectiveGain = Gain * (sum_j F_j^2/V_j)^1.5 / sum_j F_j^3/V_j^2
+    %            where F_j = flux-match factor and V_j = background variance
+    %            of input image j (and Gain = input single-image gain).
+    %            For N identical inputs this reduces to Gain*sqrt(N)*sigma.
+    %            Derived by conserving the integrated source-flux variance
+    %            through the ZOGY matched-filter combination (see issue
+    %            #1251); exact for a real/symmetric, shape-matched PSF.
     % Notes   : - If 'SubBack' is true and some images do not have the Back
     %            property populated, then the function estimates the
     %            background using imProc.background.backVar.
@@ -83,6 +95,7 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
 
     arguments
         Obj   % AstroImage, AstroDiff, AstroZOGY
+        Args.ProperMethod    = 'robust';
         Args.SubBack         = true;
         Args.BackArgs        = {};
         %Args.FinalBackArgs   = {'Method',@imUtil.background.modeVar_Hist};
@@ -91,7 +104,10 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
         Args.CCDSEC          = [];
         Args.ZP              = 'PH_ZP';  % if empty use equal flux matching
         Args.ZP0             = 25;
+        Args.Gain            = 1;   % input single-image gain [e-/ADU]; used only to compute the EffectiveGain output (issue #1251)
         
+        Args.SizePSF         = [25 25];
+
         %--- coadd ---
         Args.AddBack         = true;
 
@@ -164,7 +180,7 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
     Result = AstroImage;
 
     % coadd
-    CubePSF   = imProc.psf.psf2cube(Obj, 'StampSize',[15 15]);
+    CubePSF   = imProc.psf.psf2cube(Obj, 'StampSize',Args.SizePSF);
     
     PixNaN = isnan(ImageCube);
     CoaddN = sum(~PixNaN,3);
@@ -176,10 +192,16 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
         error('SubBack false is not supported');
     end
 
-    [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.combine_proper(ImageCube, CubePSF, 'F',FluxMatch, 'Var',Var, 'Norm',true);
-
-    %[Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.properCoaddLinear(ImageCube, CubePSF, Var', 1, 'SigmaIsVariance',true, 'Flux',FluxMatch,'Robust',true);
-
+    
+    switch Args.ProperMethod
+        case 'fft'
+            [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.combine_proper(ImageCube, CubePSF, 'F',FluxMatch, 'Var',Var, 'Norm',true);
+        case 'robust'
+            [Result.ImageData.Data, Result.PSFData.Data] = imUtil.properCoadd.properCoaddLinear(ImageCube, CubePSF, Var', 1, 'SigmaIsVariance',true, 'Flux',FluxMatch,'Robust',true);
+            Result.PSFData.Data = imUtil.psf.full2stampPsf(Result.PSFData.Data, Args.SizePSF, 'FullPosition','corner');
+        otherwise
+            error('Unknown ProperMethod option');
+    end
 
     Result.ImageData.Data = real(Result.ImageData.Data);
     
@@ -207,5 +229,30 @@ function [Result, CoaddN, MidJD] = coadd_Proper(Obj, Args)
                                                       'UpdateImagePathKeys',Args.UpdateImagePathKeys,...
                                                       'StackMethod',StackMethod,...
                                                       'CoaddN',CoaddN,...
-                                                      'KeyExpTime',Args.KeyExpTime);    
+                                                      'KeyExpTime',Args.KeyExpTime);
+
+    % Effective gain of the proper (ZOGY) coadd (issue #1251).
+    % The proper coadd R is normalized to unit background variance, so its
+    % gain is NOT the mean-coadd Gain*N. Conserving the integrated source-flux
+    % variance through the matched-filter combination (the PSF-shape factor
+    % cancels for a real/symmetric, shape-matched PSF) gives:
+    %    EffectiveGain = Gain * (sum_j F_j^2/V_j)^(3/2) / sum_j F_j^3/V_j^2
+    % with F_j = FluxMatch and V_j = per-image background variance (the same
+    % F and Var passed to imUtil.properCoadd.combine_proper). For N identical
+    % inputs this reduces to Gain*sqrt(N)*sigma.
+    Fvec = double(FluxMatch(:));
+    if Args.ScalarVar
+        Vvec = double(Var(:));
+    else
+        Vvec = double(squeeze(mean(Var, [1 2], 'omitnan')));
+        Vvec = Vvec(:);
+    end
+    Good = isfinite(Fvec) & isfinite(Vvec) & Vvec>0;
+    SumW = sum(Fvec(Good).^2 ./ Vvec(Good));           % sum_j F_j^2/V_j
+    SumD = sum(Fvec(Good).^3 ./ Vvec(Good).^2);        % sum_j F_j^3/V_j^2
+    if isfinite(SumW) && isfinite(SumD) && SumD>0 && SumW>0
+        EffectiveGain = Args.Gain .* SumW.^1.5 ./ SumD;
+    else
+        EffectiveGain = NaN;
+    end
 end

@@ -221,7 +221,7 @@ function [Matched2, Ind1, Matched1, Ind2] = matchCat(Obj1, Obj2, Args)
         
         Cat2  = Obj2(Iobj2).getCatData;
 
-        Cat2.Catalog()
+        %Cat2.Catalog()
         Matched2(Imax) = Matched2(Imax).setCatData( Cat2.selectRows(Ind1(Iobj1).Ind, 'IgnoreNaN',false, 'CreateNewObj',Args.CreateNewObj), 'CreateNewObj',false );
         
         if CalcM1
