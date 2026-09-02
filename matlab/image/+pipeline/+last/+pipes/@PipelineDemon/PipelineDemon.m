@@ -3623,16 +3623,20 @@ classdef PipelineDemon < Component
                         break;
                     end
          
-                    % stop when done
-                    if Args.StopWhenDone
-                        Cont = false;
-                    end
                 else
                     % slow down - 
-                    if FN_Sci.nFiles<Args.MinInGroup
+                    if FN_Sci.nFiles<Args.MinInGroup && ~Args.StopWhenDone
                         pause(20);
                     end
                 end % if FN_Sci.nFiles>Args.MinInGroup
+
+                % Stop when done - at the level of the main loop, so that it
+                % also applies when new/ holds fewer images than MinInGroup.
+                % Nested inside the branch above, a batch run over leftovers
+                % never returned (as in pipeline.DemonLAST, which checks here)
+                if Args.StopWhenDone
+                    Cont = false;
+                end
 
             end % while Cont
             cd(PWD);
