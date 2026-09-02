@@ -740,18 +740,28 @@ classdef PipelineDemon < Component
 
     
     methods % utilities
-        function Obj=autoDetectPath(Obj, Type)
+        function Obj=autoDetectPath(Obj, Type, Args)
             % Auto detect path for various directories
             % Input  : - self.
             %          - One of the following options:
             %            'LAST' - Path on some LAST computer (in site).
             %            'test/data' - Path for local AstroPack data dir.
+            %          * ...,key,val,...
+            %            'SetRefPath' - A logical indicating if to set also
+            %                   RefPath. If false, RefPath is left as is -
+            %                   use it when only the working directories
+            %                   should be derived, so that an explicitly
+            %                   set RefPath is not overwritten (issue #1260).
+            %                   An unset RefPath is still auto detected on
+            %                   read (see populateRefPath).
+            %                   Default is true.
             % Output : - Updated object.
             % Author : Eran Ofek (Jan 2026)
 
             arguments
                 Obj
                 Type  = 'LAST';
+                Args.SetRefPath logical = true;
             end
 
             switch lower(Type)
@@ -764,7 +774,9 @@ classdef PipelineDemon < Component
                         Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
                         Obj.FocusPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFocusPath);
 
-                        Obj.RefPath    = fullfile(filesep, tools.os.get_computer, Obj.DefRefPath);   % issue #1246
+                        if Args.SetRefPath
+                            Obj.RefPath = fullfile(filesep, tools.os.get_computer, Obj.DefRefPath);   % issue #1246
+                        end
                     end
                 case 'marvin'
                     % Obj.BasePath = '/marvin';
@@ -785,7 +797,9 @@ classdef PipelineDemon < Component
                     Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
                     Obj.FocusPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFocusPath);
 
-                    Obj.RefPath    = '/lastdata/references/v4';
+                    if Args.SetRefPath
+                        Obj.RefPath = '/lastdata/references/v4';
+                    end
 
 
                 otherwise
@@ -3176,12 +3190,15 @@ classdef PipelineDemon < Component
 
             % Complete the paths that were not set explicitly (issue #1245):
             % when only DataDir is set, set.DataDir populates BasePath, but the
-            % new/calib/failed/log/focus directories are not derived from it
+            % new/calib/failed/log/focus directories are not derived from it.
+            % RefPath is deliberately left out (issue #1260): it is not derived
+            % from BasePath, prepPath may have just taken it from the caller,
+            % and if it is unset its getter auto detects it anyway
             if isempty(Obj.NewPath)
                 if isempty(Obj.BasePath)
                     Obj.BasePath = Obj.getPath;
                 end
-                Obj.autoDetectPath('LAST');
+                Obj.autoDetectPath('LAST', 'SetRefPath', false);
             end
 
             % Propagate the histogram-anomaly check arguments down the chain:
