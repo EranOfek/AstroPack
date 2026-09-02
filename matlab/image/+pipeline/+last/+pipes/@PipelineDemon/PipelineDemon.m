@@ -3638,6 +3638,18 @@ classdef PipelineDemon < Component
                     Cont = false;
                 end
 
+                % The abort file and the stop button are checked inside the
+                % branch above as well, i.e. only when there are more than
+                % MinInGroup images in new/. A demon left with a handful of
+                % stranded frames could then not be stopped at all (#1262).
+                if Args.StopButton && StopGUI()
+                    Cont = false;
+                end
+                if isfile(Args.AbortFileName)
+                    Cont = false;
+                    delete(Args.AbortFileName);
+                end
+
             end % while Cont
             cd(PWD);
 
