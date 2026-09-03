@@ -510,6 +510,29 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                               % the halo covers the taper zone; RadiusPSF
                                               % restores the original stamp-edge cut.
 
+        % --- one-PSF scheme: core/wing split routing of the subtraction model ---
+        Args.SplitWingRouting logical = false; % subtract only the CORE (r<=splice) part of each
+                                              % source's model from the image; route the WING part
+                                              % (r>splice, smootherstep seam over 3 pix) to Back/Var
+                                              % ONLY. The standard bookkeeping enters the full model
+                                              % on both sides (Image-= / Back+=), leaving
+                                              % (I-B) = -2*model inside the stamp - a "moat" that is
+                                              % harmless for clipped wings but swallows real close
+                                              % companions (r=8-10 pix) when the wings are truthful
+                                              % (the one-PSF model). Splitting keeps re-detection
+                                              % suppression for the core, while beyond the splice the
+                                              % real wing light stays in the image and the model wing
+                                              % sits in Back, so (I-B)~0 and companions survive.
+                                              % "The image loses only cores; the background owns all
+                                              % wings." Default false = legacy full-model routing.
+        Args.SWR_SpliceFrac    = 3e-3;        % peak fraction defining the splice radius on the
+                                              % photometry PSF (same convention as the wingsFix
+                                              % WingsThreshold); used when SWR_SpliceRadius is empty
+        Args.SWR_SpliceRadius  = [];          % [pix] fixed core/wing splice radius; empty ->
+                                              % imUtil.psf.radiusAtFraction(PSF, SWR_SpliceFrac)
+                                              % per image (falls back to full-model routing if the
+                                              % radius is not finite)
+
         % Bright stars back/var adjustment:
         Args.BS_R     = (0:1:1500)+0.1;
         Args.BS_BackMaxR  = 1501;
@@ -904,19 +927,49 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 % subtract the newly found and measured sources:
                 % 1. construct a source image
                 % 2. subtract the source image from the current image
+                SWR_WingLayer = [];   % wing part of the model when SplitWingRouting (Back/Var only)
                 if isempty(ShiftedPSF)
                     % deals with no stars found in iteration
                     SourceImage(:,:,Iiter) = zeros(SizeImage, 'single');
                 else
-    
+
                     [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, ...
                                                                                 'Recenter', false,'FixPSFWings',false);
-                   
+
                     %CubePSF = imUtil.psf.mex.cosbellTaper(CubePSF,[9 11]);
                     %SourceImage(:,:,Iiter)       = imUtil.art.addSources(zeros(SizeImage, 'single'), permute(CubePSF,[2,1,3]),XY,...
-                    %                                                            'Oversample',[],'Subtract',false);  
-                    SourceImage(:,:,Iiter)       = imUtil.art.addSources(zeros(SizeImage, 'single'), CubePSF, XY,...
+                    %                                                            'Oversample',[],'Subtract',false);
+
+                    % Core/wing split of the model cube (see Args.SplitWingRouting):
+                    % core weight 1 below the splice radius, smootherstep down to 0
+                    % over 3 pix (the wingsFix seam convention). SourceImage gets
+                    % only the core part; the wing part is rendered separately and
+                    % added to Back/Var at the bookkeeping site below.
+                    if Args.SplitWingRouting
+                        if isempty(Args.SWR_SpliceRadius)
+                            SWR_R = imUtil.psf.radiusAtFraction(AI.PSFData.getPSF, Args.SWR_SpliceFrac);
+                        else
+                            SWR_R = Args.SWR_SpliceRadius;
+                        end
+                        if isfinite(SWR_R)
+                            [NyCu, NxCu, ~] = size(CubePSF);
+                            [XgCu, YgCu] = meshgrid(1:NxCu, 1:NyCu);
+                            RCu   = hypot(XgCu - (NxCu+1)/2, YgCu - (NyCu+1)/2);
+                            tCu   = min(max((RCu - SWR_R)./3, 0), 1);
+                            Wcore = 1 - (tCu.^3 .* (tCu.*(tCu.*6 - 15) + 10));
+                            SourceImage(:,:,Iiter) = imUtil.art.addSources(zeros(SizeImage, 'single'), CubePSF.*Wcore, XY,...
                                                                                 'Oversample',[],'Subtract',false);
+                            SWR_WingLayer          = imUtil.art.addSources(zeros(SizeImage, 'single'), CubePSF.*(1-Wcore), XY,...
+                                                                                'Oversample',[],'Subtract',false);
+                        else
+                            % no splice radius measurable -> legacy full-model routing
+                            SourceImage(:,:,Iiter) = imUtil.art.addSources(zeros(SizeImage, 'single'), CubePSF, XY,...
+                                                                                'Oversample',[],'Subtract',false);
+                        end
+                    else
+                        SourceImage(:,:,Iiter)   = imUtil.art.addSources(zeros(SizeImage, 'single'), CubePSF, XY,...
+                                                                                'Oversample',[],'Subtract',false);
+                    end
 
                     % Phase 2: add bright-star halos into SourceImage. The
                     % existing bookkeeping then does the rest: the halo is
@@ -1070,6 +1123,16 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 % (Phase-2 residual-variance floor is injected per bright
                 % star in the Iiter==1 block above - it scales with the
                 % star's PEAK, not with the local model value.)
+
+                % SplitWingRouting: the wing part of the model was NOT
+                % subtracted from the image (only the core in SourceImage
+                % above); it enters Back/Var here so the real wing light in
+                % the image and the model wing in Back cancel in (I-B), and
+                % the wing's Poisson noise stays counted in Var.
+                if Args.SplitWingRouting && ~isempty(SWR_WingLayer)
+                    AI.BackData.Image = AI.BackData.Image + SWR_WingLayer;
+                    AI.VarData.Image  = AI.VarData.Image  + SWR_WingLayer./(Ncoadd.*Gain);
+                end
 
                 % if Iiter==1
                 %     if Args.IsBackSub
@@ -1326,8 +1389,10 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             if Args.AddSkyCoo && ~isempty(Result(Iobj).WCS) && Result(Iobj).WCS.Success
                 XY        = Result(Iobj).CatData.getXY();
                 [RA, Dec] = Result(Iobj).WCS.xy2sky(XY(:,1), XY(:,2));
-                Result(Iobj).CatData = insertCol(Result(Iobj).CatData, RA, Inf, Args.ColRA, {''});
-                Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Dec, Inf, Args.ColDec, {''});
+                % xy2sky returns deg (its default); an empty unit label is
+                % read as radians by spherical matching (e.g. photometricZP)
+                Result(Iobj).CatData = insertCol(Result(Iobj).CatData, RA, Inf, Args.ColRA, {'deg'});
+                Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Dec, Inf, Args.ColDec, {'deg'});
                 Result(Iobj).CatData.sortrows(Args.ColDec);    
             end        
     
