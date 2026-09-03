@@ -1720,7 +1720,10 @@ classdef PipelineDemon < Component
                     % do nothing
                 case 'local'
                     if isempty(Args.CalibPath)
-                        % use CalibBasePath
+                        % use CalibBasePath - the project name is taken from NewPath
+                        if isempty(Args.NewPath)
+                            error('prepPath: ReductionMode=''local'' requires NewPath (or an explicit CalibPath)');
+                        end
                         SplittedNewPath = split(Args.NewPath, filesep);
                         Fc  = contains(SplittedNewPath, 'LAST.');
                         Ind = find(Fc, 1);
