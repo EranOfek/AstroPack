@@ -8,7 +8,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         CI                                 = [];   
         Args.DefScale                      = 1.25;  % Default scale if WCS is empty
         Args.UseParfor                     = true;
-        Args.Nworkers                      = 16;
+        Args.Nworkers                      = 8;   % measured optimum for the LAST nodes: two demons
+                                                  % (one per DataDir) share 64 cores, and at 8 workers
+                                                  % each demon runs within 3% of its solo speed while
+                                                  % only 30 cores are busy; at 16 each they saturate
+                                                  % the machine and lose 35%. See issue #1263.
         Args.TempName                      = 'LAST*.fit*';
         Args.prePrepArgs                   = {}; % e.g., {'AstroImageReadArgs',{'UseMex', true}};
         Args.histAnomalyArgs               = {'CCDSEC',[1 6388 25 9600]};
