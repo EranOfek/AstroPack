@@ -314,7 +314,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 if isempty(PP)
                     % no parpool exist
                     % create new parpool
-                    PP = parpool(Args.Nworkers);
+                    PP = parpool(localCluster(Args.Nworkers), Args.Nworkers);
                 end
             else
                 PP = [];
@@ -697,7 +697,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 else
                     PP = gcp('nocreate');
                     if isempty(PP)
-                        PP = parpool(Args.Nworkers);
+                        PP = parpool(localCluster(Args.Nworkers), Args.Nworkers);
                     end
                     %tic;
                     parfor Isub=1:1:Nsub
@@ -887,4 +887,20 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
         end
     end % if Status.Success
+end
+
+
+function C = localCluster(~)
+    % A 'local' cluster with a job storage location private to this process.
+    %   Two MATLAB clients on one machine (the two LAST demons, one per
+    %   DataDir) cannot both start a pool from the shared default location:
+    %   both fail with "Parallel pool failed to start ... validate the
+    %   profile 'local'", pipelineI then throws, and the demon moves the
+    %   whole visit to failed/.
+    C = parcluster('local');
+    JSL = fullfile(tempdir, sprintf('matlab_jsl_%d', feature('getpid')));
+    if ~isfolder(JSL)
+        mkdir(JSL);
+    end
+    C.JobStorageLocation = JSL;
 end
