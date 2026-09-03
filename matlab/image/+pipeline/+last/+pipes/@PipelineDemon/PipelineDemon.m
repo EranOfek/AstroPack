@@ -2518,10 +2518,13 @@ classdef PipelineDemon < Component
 
             PWD = pwd;
             if ~isempty(Args.CalibPath)
-                cd(Args.CalibPath)
+                CalibPathUsed = Args.CalibPath;
             else
-                cd(Obj.CalibPath);
+                CalibPathUsed = Obj.CalibPath;
             end
+            cd(CalibPathUsed);
+            % restore the working dir on every exit path, including errors (issue #1264)
+            Cleanup = onCleanup(@() cd(PWD));
             
             %fprintf('\n\nAvailable storage space:\n')
             %unix('df -h | grep data');
@@ -2536,6 +2539,15 @@ classdef PipelineDemon < Component
             if ismember('bias',lower(Args.ReadProduct))
                 if Args.ForceReload || IsBiasEmpty
                     FN_Bias = FileNames.generateFromFileName(Args.BiasTemplate);
+                    if FN_Bias.nfiles==0
+                        % nothing matched: report it here, while "no file" is still
+                        % distinguishable from "old file without an ID" (issue #1264)
+                        Obj.writeLog(sprintf('loadCalib: no bias images matching %s in %s', ...
+                                             Args.BiasTemplate, CalibPathUsed), LogLevel.Error);
+                        error('PipelineDemon:loadCalib:NoBiasImages', ...
+                              'loadCalib: no bias/dark images matching ''%s'' found in %s', ...
+                              Args.BiasTemplate, CalibPathUsed);
+                    end
                     if isempty(Args.BiasNearJD)
                         [~,~,~,FN_Bias] = FN_Bias.selectLastJD;
                     else
@@ -2568,6 +2580,14 @@ classdef PipelineDemon < Component
             if ismember('flat',lower(Args.ReadProduct))
                 if Args.ForceReload || IsFlatEmpty
                     FN_Flat = FileNames.generateFromFileName(Args.FlatTemplate);
+                    if FN_Flat.nfiles==0
+                        % see the bias case above (issue #1264)
+                        Obj.writeLog(sprintf('loadCalib: no flat images matching %s in %s', ...
+                                             Args.FlatTemplate, CalibPathUsed), LogLevel.Error);
+                        error('PipelineDemon:loadCalib:NoFlatImages', ...
+                              'loadCalib: no flat images matching ''%s'' found in %s', ...
+                              Args.FlatTemplate, CalibPathUsed);
+                    end
                     if isempty(Args.FlatNearJD)
                         [~,~,~,FN_Flat] = FN_Flat.selectLastJD;
                     else
@@ -2600,8 +2620,8 @@ classdef PipelineDemon < Component
 
             % Read linearity file
             % Result = populateLinearity(Obj.CI, Name, Args)
-          
-            cd(PWD);
+
+            % the working dir is restored by Cleanup (issue #1264)
 
         end
 
