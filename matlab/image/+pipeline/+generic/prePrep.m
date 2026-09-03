@@ -365,7 +365,12 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
         % populate LEVEL and CROPID
         AI = AI.setKeyVal('LEVEL','raw');
         AI = AI.setKeyVal('CROPID',0);
-        [AI, ID] = imProc.db.generateImageID(AI, 'KeyID',Args.KeyRawID);
+        % Only images that passed the checks: a rejected image may have an
+        % empty/unreadable header (a truncated file reads as an empty image
+        % with all-NaN keywords), and generateImageID then throws - which used
+        % to abort the whole visit instead of dropping the one bad frame
+        ID = zeros(numel(AI),1,'uint64');
+        [AI(FlagGoodImages), ID(FlagGoodImages)] = imProc.db.generateImageID(AI(FlagGoodImages), 'KeyID',Args.KeyRawID);
 
         %TableForDB.RawID(FlagGoodImages) = ID;
         TableForDB.ID_RAW = ID;
@@ -382,7 +387,14 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     % histogram anomaly
      if Args.HistAnomaly && any(FlagGoodImages)
         % need an imProc version...
-        TableForDB.HistOK = ~imProc.quality.histAnomaly(AI, Args.histAnomalyArgs{:});
+        % Only non-empty images: an empty one (e.g. from a truncated file) makes
+        % histAnomaly index out of bounds, which used to abort the whole visit.
+        % Same guard as the ACF/PSF check below.
+        HistOK = false(Nim,1);
+        if any(NotEmptyImage)
+            HistOK(NotEmptyImage) = ~imProc.quality.histAnomaly(AI(NotEmptyImage), Args.histAnomalyArgs{:});
+        end
+        TableForDB.HistOK = HistOK;
         FlagGoodImages = FlagGoodImages & TableForDB.HistOK;
         RejectStage    = updateRejectStage(RejectStage, FlagGoodImages, 'histogram anomaly');
     end

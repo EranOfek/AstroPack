@@ -212,7 +212,13 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         % --- registration ---
         Args.registerArgs                     = {};
         Args.DataProp                         = {'ImageData','BackData','VarData','MaskData'};
-        Args.SubBack                          = true;  % false is useful for visit coaddition, for general coaddition use true.
+        Args.SubBack                          = true;  % subtract background before coaddition. false is useful for visit coaddition; for general coaddition use true.
+                                                        % NOTE: StackMethod='proper' ALWAYS subtracts the background - imProc.stack.coadd_Proper is
+                                                        % called with a hardcoded 'SubBack',true regardless of this flag (proper coaddition requires it).
+                                                        % This flag therefore controls only the 'wrobust'/'sigmaclip' channels. However SetBackTo0 (below)
+                                                        % and the 'IsBackSub' value forwarded to imProc.sources.multiIterExtractor still follow THIS flag, so
+                                                        % with StackMethod='proper' keep SubBack=true to stay consistent with the background that was actually
+                                                        % subtracted (setting it false would tell the extractor the coadd is not background-subtracted when it is).
         
         Args.SetBackTo0                       = true; % if SubBack=true and SetBackTo0 then set back to 0.
         %Args.ReMeasureBackVar                 = true; % if SetBackT0=false and this is true than remeasure back and var
@@ -238,14 +244,22 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
         
-        Args.InputMeanGain                    = 1; % avergae gain of input images
+        % Gain handling (unified; issue #1251):
+        %   Gain    - the INPUT single-image gain [e-/ADU] of the frames
+        %             being coadded. [] (default) -> read the mean over the
+        %             input images from header KeyGain (->1 if the keyword is
+        %             missing). Scalar -> use that value for all inputs. Used
+        %             by every StackMethod to derive the OUTPUT effective gain
+        %             (wrobust: imProc.stack.coadd_WRobust's weighted
+        %             EffectiveGain; proper/sigmaclip: Gain.*MeanN).
+        %   KeyGain - header keyword: (a) source of the input gain when
+        %             Gain=[], and (b) destination for the OUTPUT effective
+        %             gain (written when UpdateGain=true).
+        %   (Replaces the former InputMeanGain + Gain/KeyGain split.)
+        Args.Gain                             = [];
+        Args.KeyGain                          = 'GAIN';
         % output gain:
         Args.UpdateGain                       = true;
-
-        % these are used only in the non wrboust_Coadd and will be removed
-        % in the future
-        Args.Gain                             = [];  % if empty use KeyGain
-        Args.KeyGain                          = 'GAIN';
 
         %Args.backgroundArgs cell              = {};
         %Args.BackSubSizeXY                    = [128 128];
@@ -354,6 +368,20 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         AllSI = AllSI.';
     end
     [Nepoch, Nfields]  = size(AllSI);
+
+    % Resolve the INPUT single-image gain once (issue #1251): use the
+    % supplied scalar, else the mean of the input-image KeyGain headers,
+    % falling back to 1 when the keyword is missing. This single value feeds
+    % every StackMethod branch below.
+    if isempty(Args.Gain)
+        InGainKeys = AllSI.getStructKey(Args.KeyGain);
+        InGain     = mean([InGainKeys.(Args.KeyGain)], 'all', 'omitnan');
+        if isempty(InGain) || ~isfinite(InGain)
+            InGain = 1;
+        end
+    else
+        InGain = Args.Gain;
+    end
 
     % get JD
     if isempty(Args.JD)
@@ -526,29 +554,36 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % is now Gain/Nimages
             % 2. RegisteredImages has no header so no JD...
 
-            %Args.StackMethod = 'sigmaclip';
-            
+            %Args.StackMethod = 'sigmaclip';            
             switch Args.StackMethod
                 case 'wrobust'
                     % Effective Ncoadd - remove 3 for min.max rejection +
                     % mean calc...
-                    NcoaddEff = max(1, numel(RegisteredImages)-3);
+                    NcoaddEff = numel(RegisteredImages); %max(1, numel(RegisteredImages)-3);
                     % RegisteredImages contains also the Back and Var
                     % Ncoadd is Nimages-3 because of one dof for mode
                     % estimation, and 2 fir min/max rejection
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack,...
                                                             'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:},...
                                                             'AddBack', Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs, ...
-                                                            'Gain',Args.InputMeanGain,...
+                                                            'Gain',InGain,...
                                                             'Ncoadd',NcoaddEff);
                         
                    
                 case 'proper'
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages,...
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_Proper(RegisteredImages, 'SubBack',true,...
                                                                                  'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:},...
-                                                                                 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
+                                                                                 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs,...
+                                                                                 'Gain',InGain, 'ProperMethod','fft');
+
                     % BUG : Need to return EffectiveGain
-                    EffectiveGain = NaN;
+                    %EffectiveGain = NaN;
+                case 'rproper'
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_Proper(RegisteredImages, 'SubBack',true,...
+                                                                                 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:},...
+                                                                                 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs,...
+                                                                                 'Gain',InGain, 'ProperMethod','robust');
+                        
                 case 'sigmaclip'
                     % obsolete channel
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, ~, MidJD, SumExpTime] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
@@ -590,17 +625,16 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             end
 
             if isnan(EffectiveGain)
-                if isempty(Args.Gain)
-                    Gain = Coadd(Ifields).HeaderData.getVal(Args.KeyGain, 'UseDict',false);
-                else
-                    Gain = Args.Gain;
-                end
-                Gain = Gain.*MeanN;
+                % proper/sigmaclip do not return an effective gain: scale the
+                % resolved input gain by the mean coadd count (issue #1251).
+                Gain = InGain.*MeanN;
             else
+                % wrobust: coadd_WRobust already returned the (weighted)
+                % effective output gain.
                 Gain = EffectiveGain;
             end
             if Args.UpdateGain
-                % update the gain by multiply the current gain by NCOADD
+                % write the OUTPUT effective gain into the KeyGain keyword
                 Coadd(Ifields).HeaderData.replaceVal(Args.KeyGain, Gain);
             end
             

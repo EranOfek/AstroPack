@@ -38,11 +38,26 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     %            'KeyJD' - Header keyword to use when reading JD; only
     %                   used if 'JD' is empty. If empty, AstroImage/julday
     %                   uses its header-config defaults. Default is [].
-    %            'KeyGain' - Header keyword for the image Gain. If the
-    %                   keyword is missing, gain is set to 1.
-    %                   Default is 'GAIN'.
+    %            'KeyGain' - Header keyword for the image EFFECTIVE gain
+    %                   [e-/ADU]. This must be the effective gain of the
+    %                   (possibly coadded) image, i.e. the factor for which
+    %                   the source Poisson variance is Flux/Gain: for a mean
+    %                   coadd of N frames of single-image gain g it is g*N
+    %                   (imProc.stack.coadd_WRobust returns this as
+    %                   EffectiveGain, and pipeline.generic.procCoadd writes
+    %                   it into the GAIN keyword). Used both for the source
+    %                   Poisson noise forwarded to findMeasureSources /
+    %                   psfFitPhot AND for the flux->variance conversion of
+    %                   the bright-star back/var injection. If the keyword is
+    %                   missing, gain is set to 1. Default is 'GAIN'.
+    %                   See issue #1251.
     %            'KeyNcoadd' - Header keyword for the number of coadded
-    %                   images. Default is 'NCOADD'.
+    %                   images. Default is 'NCOADD'. NB: as of issue #1251
+    %                   Ncoadd is NO LONGER used to scale the source noise -
+    %                   the coadd factor is already carried by the effective
+    %                   'Gain' above (multiplying by Ncoadd again would
+    %                   double-count it). The keyword is kept only for
+    %                   informational/back-compat purposes.
     %
     %            --- Background / variance estimation ---
     %            'backVarArgs' - Cell of args forwarded to
@@ -330,9 +345,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.BitDict                   = BitDictionary('BitMask.Image.Default');
         Args.JD                        = [];
         Args.KeyJD                     = [];
-        Args.Gain                      = [];   % if empty read from header
+        Args.Gain                      = [];   % EFFECTIVE gain [e-/ADU] (g*N for a mean coadd of N frames); if empty read from KeyGain header. See issue #1251.
         Args.KeyGain                   = 'GAIN';
-        Args.KeyNcoadd                 = 'NCOADD';
+        Args.KeyNcoadd                 = 'NCOADD';  % informational only; no longer scales the noise (issue #1251)
 
         % background and variance measurement:
         Args.backVarArgs               = {'Block',[256 256], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',10, 'MaxVal',6000},{}}};
@@ -541,10 +556,10 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.BS_PL    = 1.0;
         Args.MethodBS = 'prof';
         Args.BS_ColFlux = 'FLUX_APER_4';
-        Args.IsBackSub   = false;   % If true, will not estimate the VarFactor empirically.
+        Args.IsBackSub   = false;   % If true, the bright-star VarFactor is the analytic 1/(Gain*NcoaddFactor); if false it is estimated empirically as Var/Back (both = 1/effective-gain). See issue #1251.
         Args.AddExtraBack   = true;
         Args.AddExtraVar    = true;
-        Args.NcoaddFactor   = 1;
+        Args.NcoaddFactor   = 1;    % optional tuning multiplier on the analytic bright-star VarFactor (IsBackSub=true); default 1. No longer the coadd count (issue #1251).
 
         Args.UseMex                        = false;
 
@@ -1010,7 +1025,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                     single(AmpB), single(Args.BWB_MaxR.*ones(nnz(OkB),1)), ...
                                     single(BWB_Prof));
                                 AI.BackData.Image = AI.BackData.Image + HaloInc;
-                                AI.VarData.Image  = AI.VarData.Image  + HaloInc./(Ncoadd.*Gain);
+                                AI.VarData.Image  = AI.VarData.Image  + HaloInc./Gain; % (Ncoadd.*Gain);  % Issue: #1251 - Removing Ncoadd
                             end
 
                             % residual-variance floor: subtraction residuals
@@ -1118,7 +1133,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 %AI.VarData.Image  = AI.VarData.Image  + SumSourceImage./(Ncoadd.*Gain);
                 %AI.BackData.Image = AI.BackData.Image + SumSourceImage;  
 
-                AI.VarData.Image  = AI.VarData.Image  + SourceImage(:,:,Iiter)./(Ncoadd.*Gain);
+                AI.VarData.Image  = AI.VarData.Image  + SourceImage(:,:,Iiter)./Gain; %(Ncoadd.*Gain);  % Issue: #1251
                 AI.BackData.Image = AI.BackData.Image + SourceImage(:,:,Iiter);
                 % (Phase-2 residual-variance floor is injected per bright
                 % star in the Iiter==1 block above - it scales with the
@@ -1182,11 +1197,11 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             %has no meaning
                             % This has meaning only when gain=1.
                             if Args.IsBackSub
-                                VarFactor = 1./((Ncoadd-3).*Args.NcoaddFactor);
+                                VarFactor = 1./(Gain.*Args.NcoaddFactor); % 1./((Ncoadd-3).*Args.NcoaddFactor);   % Issue: #1251
                             else
                                 % Image is NOT background subtracted
                                 % can estimate the VarFactor empirically
-                                VarFactor   = (AI.VarData.Data(1)./AI.BackData.Data(1)).^2; %   <1./(Ncoadd.*Gain) or use AI.VarData.Data(1)./AI.BackData.Data(1)>
+                                VarFactor   = (AI.VarData.Data(1)./AI.BackData.Data(1)); %.^2; % Issue: #1251 
                             end
                             %VarFactor   = 1./(20.*Ncoadd.*Gain);
                             if Args.AddExtraBack
@@ -1217,7 +1232,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             %AI.Back(AI.Image>5000) = 5000;
                             ConvBright = conv2(EdgesVarMap, LK, 'same');
                             ConvCore   = conv2(EdgesVarMap, CK, 'same')./Args.ScatteredLightFrac;
-                            AI.VarData.Image  = AI.VarData.Image  + ConvBright./(Ncoadd.*Gain) + ConvCore;
+                            AI.VarData.Image  = AI.VarData.Image  + ConvBright./Gain + ConvCore; %(Ncoadd.*Gain) + ConvCore;  % Issue: #1251
                             AI.BackData.Image = AI.BackData.Image + ConvBright + ConvCore;
                             % toc
                         case 'none'

@@ -740,18 +740,28 @@ classdef PipelineDemon < Component
 
     
     methods % utilities
-        function Obj=autoDetectPath(Obj, Type)
+        function Obj=autoDetectPath(Obj, Type, Args)
             % Auto detect path for various directories
             % Input  : - self.
             %          - One of the following options:
             %            'LAST' - Path on some LAST computer (in site).
             %            'test/data' - Path for local AstroPack data dir.
+            %          * ...,key,val,...
+            %            'SetRefPath' - A logical indicating if to set also
+            %                   RefPath. If false, RefPath is left as is -
+            %                   use it when only the working directories
+            %                   should be derived, so that an explicitly
+            %                   set RefPath is not overwritten (issue #1260).
+            %                   An unset RefPath is still auto detected on
+            %                   read (see populateRefPath).
+            %                   Default is true.
             % Output : - Updated object.
             % Author : Eran Ofek (Jan 2026)
 
             arguments
                 Obj
                 Type  = 'LAST';
+                Args.SetRefPath logical = true;
             end
 
             switch lower(Type)
@@ -764,7 +774,9 @@ classdef PipelineDemon < Component
                         Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
                         Obj.FocusPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFocusPath);
 
-                        Obj.RefPath    = fullfile(filesep, tools.os.get_computer, Obj.DefRefPath);   % issue #1246
+                        if Args.SetRefPath
+                            Obj.RefPath = fullfile(filesep, tools.os.get_computer, Obj.DefRefPath);   % issue #1246
+                        end
                     end
                 case 'marvin'
                     % Obj.BasePath = '/marvin';
@@ -785,7 +797,9 @@ classdef PipelineDemon < Component
                     Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
                     Obj.FocusPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFocusPath);
 
-                    Obj.RefPath    = '/lastdata/references/v4';
+                    if Args.SetRefPath
+                        Obj.RefPath = '/lastdata/references/v4';
+                    end
 
 
                 otherwise
@@ -1706,7 +1720,10 @@ classdef PipelineDemon < Component
                     % do nothing
                 case 'local'
                     if isempty(Args.CalibPath)
-                        % use CalibBasePath
+                        % use CalibBasePath - the project name is taken from NewPath
+                        if isempty(Args.NewPath)
+                            error('prepPath: ReductionMode=''local'' requires NewPath (or an explicit CalibPath)');
+                        end
                         SplittedNewPath = split(Args.NewPath, filesep);
                         Fc  = contains(SplittedNewPath, 'LAST.');
                         Ind = find(Fc, 1);
@@ -2501,10 +2518,13 @@ classdef PipelineDemon < Component
 
             PWD = pwd;
             if ~isempty(Args.CalibPath)
-                cd(Args.CalibPath)
+                CalibPathUsed = Args.CalibPath;
             else
-                cd(Obj.CalibPath);
+                CalibPathUsed = Obj.CalibPath;
             end
+            cd(CalibPathUsed);
+            % restore the working dir on every exit path, including errors (issue #1264)
+            Cleanup = onCleanup(@() cd(PWD));
             
             %fprintf('\n\nAvailable storage space:\n')
             %unix('df -h | grep data');
@@ -2519,6 +2539,15 @@ classdef PipelineDemon < Component
             if ismember('bias',lower(Args.ReadProduct))
                 if Args.ForceReload || IsBiasEmpty
                     FN_Bias = FileNames.generateFromFileName(Args.BiasTemplate);
+                    if FN_Bias.nfiles==0
+                        % nothing matched: report it here, while "no file" is still
+                        % distinguishable from "old file without an ID" (issue #1264)
+                        Obj.writeLog(sprintf('loadCalib: no bias images matching %s in %s', ...
+                                             Args.BiasTemplate, CalibPathUsed), LogLevel.Error);
+                        error('PipelineDemon:loadCalib:NoBiasImages', ...
+                              'loadCalib: no bias/dark images matching ''%s'' found in %s', ...
+                              Args.BiasTemplate, CalibPathUsed);
+                    end
                     if isempty(Args.BiasNearJD)
                         [~,~,~,FN_Bias] = FN_Bias.selectLastJD;
                     else
@@ -2551,6 +2580,14 @@ classdef PipelineDemon < Component
             if ismember('flat',lower(Args.ReadProduct))
                 if Args.ForceReload || IsFlatEmpty
                     FN_Flat = FileNames.generateFromFileName(Args.FlatTemplate);
+                    if FN_Flat.nfiles==0
+                        % see the bias case above (issue #1264)
+                        Obj.writeLog(sprintf('loadCalib: no flat images matching %s in %s', ...
+                                             Args.FlatTemplate, CalibPathUsed), LogLevel.Error);
+                        error('PipelineDemon:loadCalib:NoFlatImages', ...
+                              'loadCalib: no flat images matching ''%s'' found in %s', ...
+                              Args.FlatTemplate, CalibPathUsed);
+                    end
                     if isempty(Args.FlatNearJD)
                         [~,~,~,FN_Flat] = FN_Flat.selectLastJD;
                     else
@@ -2583,8 +2620,8 @@ classdef PipelineDemon < Component
 
             % Read linearity file
             % Result = populateLinearity(Obj.CI, Name, Args)
-          
-            cd(PWD);
+
+            % the working dir is restored by Cleanup (issue #1264)
 
         end
 
@@ -3128,9 +3165,7 @@ classdef PipelineDemon < Component
                 Args.SaveEpochHeader  = [true, false, true, false];
                 Args.SaveVisitHeader  = [true, false, true, false];
 
-                Args.SaveMergedCat     = false;
                 Args.SaveMergedMat     = true;
-                Args.SaveMergedAsteroids  = false;
                 Args.SaveVisitAsteroids  = true;
                 Args.SaveTableRaw        = true;
 
@@ -3178,12 +3213,15 @@ classdef PipelineDemon < Component
 
             % Complete the paths that were not set explicitly (issue #1245):
             % when only DataDir is set, set.DataDir populates BasePath, but the
-            % new/calib/failed/log/focus directories are not derived from it
+            % new/calib/failed/log/focus directories are not derived from it.
+            % RefPath is deliberately left out (issue #1260): it is not derived
+            % from BasePath, prepPath may have just taken it from the caller,
+            % and if it is unset its getter auto detects it anyway
             if isempty(Obj.NewPath)
                 if isempty(Obj.BasePath)
                     Obj.BasePath = Obj.getPath;
                 end
-                Obj.autoDetectPath('LAST');
+                Obj.autoDetectPath('LAST', 'SetRefPath', false);
             end
 
             % Propagate the histogram-anomaly check arguments down the chain:
@@ -3608,16 +3646,32 @@ classdef PipelineDemon < Component
                         break;
                     end
          
-                    % stop when done
-                    if Args.StopWhenDone
-                        Cont = false;
-                    end
                 else
                     % slow down - 
-                    if FN_Sci.nFiles<Args.MinInGroup
+                    if FN_Sci.nFiles<Args.MinInGroup && ~Args.StopWhenDone
                         pause(20);
                     end
                 end % if FN_Sci.nFiles>Args.MinInGroup
+
+                % Stop when done - at the level of the main loop, so that it
+                % also applies when new/ holds fewer images than MinInGroup.
+                % Nested inside the branch above, a batch run over leftovers
+                % never returned (as in pipeline.DemonLAST, which checks here)
+                if Args.StopWhenDone
+                    Cont = false;
+                end
+
+                % The abort file and the stop button are checked inside the
+                % branch above as well, i.e. only when there are more than
+                % MinInGroup images in new/. A demon left with a handful of
+                % stranded frames could then not be stopped at all (#1262).
+                if Args.StopButton && StopGUI()
+                    Cont = false;
+                end
+                if isfile(Args.AbortFileName)
+                    Cont = false;
+                    delete(Args.AbortFileName);
+                end
 
             end % while Cont
             cd(PWD);

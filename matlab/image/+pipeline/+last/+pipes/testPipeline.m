@@ -6,7 +6,10 @@ function [Result] = testPipeline(Args)
     %            'LocalPath'        - base local directory; results are written to LocalPath/LAST.XX.XX.XX/ where
     %                                  LAST.XX.XX.XX is extracted from 'RAWImageDir' (def. '~/LASTunitTest')
     %            'RAWImageDir'      - a (remote) directory with RAW images; if empty, the function does nothing (def. empty)
-    %            'CalibDir'         - path to calibration images; if empty, derived from 'RAWImageDir' (def. empty)
+    %            'CalibDir'         - path to calibration images; if empty, derived from 'CalibBasePath' or from 'RAWImageDir' (def. empty)
+    %            'CalibBasePath'    - base path of the calibration data; when 'CalibDir' is empty and this is given,
+    %                                  the calibration directory is composed as CalibBasePath/LAST.XX.XX.XX/calib;
+    %                                  useful when the RAW images were moved away from their original archive (def. empty)
     %            'RefPath'          - path to reference images, used by PipelineII (def. '/mnt/euclid/last/data/references/v4/')
     %            'StartImage'       - explicit RAW image filename marking the start of the processed range; overrides 'StartTime' when set (def. a representative LAST filename)
     %            'StartTime'        - start time of the processed interval, as a date vector or JD; ignored if 'StartImage' is set (def. empty)
@@ -28,10 +31,13 @@ function [Result] = testPipeline(Args)
     %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'StartTime',[8 7 2025 01 28 0],'RemoveAfterWrite',true);
     %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'PipelineVersion','v1', 'StartImage','LAST.01.01.01_20250708.003700.313_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz');
     %          pipeline.last.pipes.testPipeline('RAWImageDir',RAWImageDir,'LocalPath','/Data/test1000/','StaticRAWDir',true);
+    %          pipeline.last.pipes.testPipeline('RAWImageDir','/bigdata3/projects/last/data/raw/LAST.01.01.01/2025/05/03/raw/',...
+    %                                           'CalibBasePath','/mnt/marvin/','StartTime',[3 5 2025 22 0 0]);
     arguments
         Args.LocalPath         = '~/LASTunitTest/';
         Args.RAWImageDir       = [] 
         Args.CalibDir          = [] 
+        Args.CalibBasePath     = ''    % e.g., '/mnt/marvin/' 
         Args.RefPath           = '/mnt/euclid/last/data/references/v4/'
         Args.StartImage        = []    % e.g., 'LAST.01.01.01_20250708.000029.080_clear_1718.c_001_001_001_sci_raw_Image_1.fits.fz' 
         Args.StartTime         = []    % [2025 8 7 01 28 0] or 2025.3456
@@ -73,7 +79,16 @@ function [Result] = testPipeline(Args)
     end
     % determine calib directory
     if isempty(Args.CalibDir)
-        Args.CalibDir = regexprep(Args.RAWImageDir, '^(.*LAST\.\d{2}\.\d{2}\.\d{2}).*$', '$1/calib/');
+        if isempty(Args.CalibBasePath)
+            Args.CalibDir = regexprep(Args.RAWImageDir, '^(.*LAST\.\d{2}\.\d{2}\.\d{2}).*$', '$1/calib/');
+        else
+            % the RAW images may reside apart from the calibration data
+            Args.CalibDir = fullfile(Args.CalibBasePath, LASTId, 'calib');
+        end
+    end
+    Args.CalibDir = char(Args.CalibDir);
+    if ~isfolder(Args.CalibDir)
+        error('LAST pipeline unit test: calibration directory not found: %s', Args.CalibDir);
     end
     % if an explicit start image is given, override Args.StartTime:
     if isempty(Args.StartImage)

@@ -72,6 +72,11 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
         Args.CropIDs = [];
 
+        % PSF-fit method used when re-fitting the Ref/New catalogues below.
+        % psfFitPhot's own default is still 'legacy', which is much slower and
+        % is the only remaining user of shift_fft (issue #1259).
+        Args.PsfPhotMethod = '2DGN';   % 'legacy'/'old'|'1D'|'2D'|'2DGN'
+
         Args.FilterConfigFile = '';
 
         Args.PixScale = 1.25;
@@ -314,7 +319,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                 'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
                 'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'new', ...
                 'WingsMethod', 'empirical');
-            AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref);
+            AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref, 'PsfPhotMethod',Args.PsfPhotMethod);
             AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF');
         end
     end
@@ -325,7 +330,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                 'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
                 'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'new', ...
                 'WingsMethod', 'empirical');
-            AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New);
+            AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New, 'PsfPhotMethod',Args.PsfPhotMethod);
             AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF');
         end
     end    
