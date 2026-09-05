@@ -562,7 +562,18 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
                 % which a saturated core would corrupt)
                 FracX = Xw - round(Xw);
                 FracY = Yw - round(Yw);
-                CubeW = imUtil.trans.shift_fft(CubeW, -FracX, -FracY);
+                % follow Args.ShiftMethod, as the data cube does above: the
+                % weight cube was shifted with the FFT unconditionally, so one
+                % buildPSF call used two different interpolation kernels
+                % (issue #1258)
+                switch Args.ShiftMethod
+                    case 'lanczos3'
+                        CubeW = imUtil.trans.mex.shift_lanczos3(CubeW, -FracX, -FracY);
+                    case 'fft'
+                        CubeW = imUtil.trans.shift_fft(CubeW, -FracX, -FracY);
+                    otherwise
+                        error('Unknown ShiftMethod option');
+                end
 
                 if ~isempty(Args.SaturatedMask)
                     MaskCubeW = imUtil.cut.image2cutouts(double(Args.SaturatedMask), Xw, Yw, CutoutRadius, Args.image2cutoutsArgs{:});

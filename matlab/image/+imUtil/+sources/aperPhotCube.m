@@ -87,7 +87,7 @@ function Result = aperPhotCube(Cube, X, Y, Args)
         Args.StdFun function_handle   = @std
         Args.StdFunArgs cell          = {'omitnan'};
         
-        Args.SubPixShift              = 'fft';    % 'lanczos' | 'fft' | 'none'
+        Args.SubPixShift              = 'lanczos3'; % 'lanczos' | 'lanczos3' | 'fft' | 'none' (issue #1258)
         Args.A                        = 3;
         Args.IsCircFilt logical       = true;
         Args.PadVal                   = 0;
