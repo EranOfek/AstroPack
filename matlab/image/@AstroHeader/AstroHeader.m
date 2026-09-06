@@ -538,7 +538,9 @@ classdef AstroHeader < Component
             % Get header keyword value / simple version (no synonyms and conversions).
             % Inpuut : - self.
             %          - Key name.
-            % Output : - Value (NaN if not exist).
+            % Output : - Value (NaN if not exist, or if the stored value is
+            %            empty/blank - the unmeasured-value convention of
+            %            issue #1252, matching getVal's conversion).
             %          - Comment
             % Author : Eran Ofek (Jun 2025)
             % Example: AH.getValSimple(AH,'EXPTIME')
@@ -549,6 +551,9 @@ classdef AstroHeader < Component
                 Comment = '';
             else
                 Val  = Obj.Data{Ind,2};
+                if isempty(Val) || (ischar(Val) && isempty(strtrim(Val)))
+                    Val = NaN;
+                end
                 if nargout>1
                     Comment = Obj.Data{Ind,3};
                 end
@@ -2018,16 +2023,21 @@ classdef AstroHeader < Component
                     Kwords{Ind} = 'DATE_OBS'; % correct one of the keywords
                     Keys = ismember(lower(Kwords), cols_coadd');
                     Obj(Iobj).Data = Obj(Iobj).Data(Keys,:); % keep only the matching keywords
-                    % avoid empty char array in subdir and sublevel
+                    % avoid empty char array in subdir and sublevel.
+                    % Blank cards read as NaN since issue #1252 - treat a
+                    % NaN in these STRING columns like empty (a blank
+                    % string in the DB, not the text 'NaN').
                     Ind = find( strcmp(Obj(Iobj).Data(:,1), 'SUBDIR')   ); 
                     if Ind > 0
-                        if isempty(Obj(Iobj).Data{Ind,2})
+                        V = Obj(Iobj).Data{Ind,2};
+                        if isempty(V) || (isnumeric(V) && all(isnan(V)))
                             Obj(Iobj).Data{Ind,2} = ' ';
                         end
                     end
                     Ind = find( strcmp(Obj(Iobj).Data(:,1), 'SUBLEVEL') ); 
                     if Ind > 0
-                        if isempty(Obj(Iobj).Data{Ind,2})
+                        V = Obj(Iobj).Data{Ind,2};
+                        if isempty(V) || (isnumeric(V) && all(isnan(V)))
                             Obj(Iobj).Data{Ind,2} = ' ';
                         end
                     end

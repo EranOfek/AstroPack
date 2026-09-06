@@ -251,6 +251,15 @@ classdef FITS < handle
                                end
                            end
 
+                           % Unmeasured-value convention (issue #1252): a
+                           % blank card - a quoted all-blank string or a
+                           % value-less (FITS undefined) card - reads as
+                           % NaN, so consumers that take the stored value
+                           % directly (e.g. getValSimple, raw Data access)
+                           % agree with getVal's conversion.
+                           if isempty(Value) || (ischar(Value) && isempty(strtrim(Value)))
+                               Value = NaN;
+                           end
                            HeadCell{Ikey,2}  = Value; %Card(KeyPos+1:min(LenCard,ComPos-1));
                            if (LenCard>UpdatedComPos)
                                HeadCell{Ikey,3}  = strtrim(Card(UpdatedComPos+1:end));
