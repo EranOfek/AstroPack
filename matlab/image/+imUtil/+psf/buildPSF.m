@@ -186,8 +186,8 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
        
         Args.RadiusPSF                 = 12;
         Args.CropToRadiusPSF logical   = true; % crop the FINISHED PSF back to the 2*RadiusPSF+1 stamp when a background annulus wider than RadiusPSF (PsfAnnulus) grew the cutouts. The annulus serves PSF CONSTRUCTION only; without the crop the output PSF inherits the enlarged size (41x41 for Annulus [16 20]), which as the matched-filter template widens the NaN dead band along coadd edges from RadiusPSF+1 to Annulus(2)+1 px and as the subtraction stamp breaks the BrightWingBack taper-complement geometry. Renormalized to unit sum after the crop (flux beyond RadiusPSF is ~0.2% for alpha=5 wings). No-op when the stamp is already 2*RadiusPSF+1 - i.e. on every default-path call.
-        Args.Annulus                   = [10 12];
-        
+        Args.Annulus                   = [16 20];  % uniPSF default: PSF-stamp background ring outside the wings (a [10 12] ring sits ON the alpha~3.7 wings and eats them); the cutouts grow to cover it and CropToRadiusPSF restores the stamp size
+
         Args.image2cutoutsArgs         = {};
         
         %Args.Threshold                 = 5;
@@ -219,15 +219,15 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
         Args.mean_sigclipArgs          = {};
 
         Args.WingsMethod               = 'analytic';
-        Args.WingsPowerLaw             = 2;
+        Args.WingsPowerLaw             = 3.7;   % uniPSF default (validated on LAST); pass 2 for the legacy analytic slope
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
         Args.SuppressThreshold         = 1e-2;
         Args.SuppressFunPars           = 3; % or # from edge
 
         Args.SaturatedMask             = []; % logical/numeric, true where a pixel is saturated; used only by WingsMethod='empirical'
         Args.WingProfile               = []; % precomputed visit-level wing SHAPE (struct with .Radius/.Value/.Success from imProc.psf.visitWingProfile). When given with Success=true and WingsMethod='empirical', the per-epoch internal wing calibration is SKIPPED and this shape is re-anchored onto the current core at the splice radius - shared wing shape, per-epoch core. Empty/Success=false -> legacy per-image calibration.
-        Args.SkipEllipticityFallback logical = false; % skip the wingsFix ellipticity fallback for the MAIN splice regardless of WingProfile (the fallback deletes the wings on elongated cores, toggling ~3% of flux between epochs - the dominant bright-star repeatability noise). Default false = legacy behavior (fallback active unless a visit-level WingProfile is in use).
-        Args.EllipticalWings logical   = false; % build the MAIN (photometry/subtraction) wing on the ELLIPTICAL radius matched to the measured core shape (PA, axis ratio from imUtil.psf.psfElongation on the pre-splice core) - models the quadrupole of the core asymmetry instead of leaving it as +/- subtraction-residual lobes. The detection slice stays circular (an azimuthally symmetric template is orthogonal to the residual pattern). Default false = circular wings (legacy).
+        Args.SkipEllipticityFallback logical = true; % skip the wingsFix ellipticity fallback for the MAIN splice regardless of WingProfile (the fallback deletes the wings on elongated cores, toggling ~3% of flux between epochs - the dominant bright-star repeatability noise). Default true = uniPSF; pass false for the legacy behavior (fallback active unless a visit-level WingProfile is in use).
+        Args.EllipticalWings logical   = true; % build the MAIN (photometry/subtraction) wing on the ELLIPTICAL radius matched to the measured core shape (PA, axis ratio from imUtil.psf.psfElongation on the pre-splice core) - models the quadrupole of the core asymmetry instead of leaving it as +/- subtraction-residual lobes. A requested detection slice stays circular (an azimuthally symmetric template is orthogonal to the residual pattern). Default true = uniPSF; pass false for legacy circular wings.
         Args.WingRangeSN               = []; % [SNmin, SNmax] for the bright-star wing-calibration sample; empty -> [RangeSN(2), Inf]
         Args.MinWingStars              = 8;  % minimum bright stars required to trust the empirical wing; else falls back to cosbell
 

@@ -166,9 +166,16 @@ function TESSpointpipe(FFIDataPath, RA, Dec, SavePath, Args)
         Ref = AstroImage.readFileNamesObj(RefFileName, 'Path', Args.RefPath);
 
         if Args.useMultiIterPSF
+            % PSF args pinned to the pre-uniPSF values: the uniPSF defaults
+            % (analytic 3.7 elliptical wings, single detection PSF, [16 20]
+            % stamp annulus) are validated on LAST, not on TESS's undersampled
+            % PSF regime, so this call freezes the behavior it always had.
             [Ref, ~] = imProc.sources.multiIterExtractor(Ref, ...
                 'backVarArgs', {'Block',[128 128], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',100, 'MaxVal',120},{}}}, ...
-                'ZP', 20.44, 'UseOriginalPSF', false);
+                'ZP', 20.44, 'UseOriginalPSF', false, ...
+                'WingsMethod','empirical', 'BuildDetectionPSF',true, 'PsfAnnulus',[10 12], ...
+                'populatePSFArgs',{'CropByQuantile',false, 'SuppressWidth',3, 'SmoothWings',false, ...
+                    'WingsPowerLaw',2, 'EllipticalWings',false, 'SkipEllipticityFallback',false});
         end
 
         if Ref.isemptyImage

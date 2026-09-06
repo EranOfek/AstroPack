@@ -191,7 +191,7 @@ function [Obj,Result]=populatePSF(Obj, Args)
         Args.backgroundArgs            = {};
         Args.SubAnnulusBack            = true;
         Args.StampBack char {mustBeMember(Args.StampBack, {'annulus','global'})} = 'annulus'; % forward to buildPSF: per-stamp background estimator ('annulus' legacy | 'global' background-map crop)
-        Args.Annulus                   = [10 12];
+        Args.Annulus                   = [16 20];  % uniPSF default: PSF-stamp background ring outside the wings (see buildPSF)
         Args.BackQuantile              = [0.01 0.9]; % if empty skip
         Args.StdQuantile               = [0.01 0.9]; % if empty skip
 
@@ -207,7 +207,7 @@ function [Obj,Result]=populatePSF(Obj, Args)
         Args.cleanSourcesArgs          = {};
 
         % --- stamp cutouts ---
-        Args.RadiusPSF                 = 8;
+        Args.RadiusPSF                 = 12;  % uniPSF default (25x25 stamp), aligned with imUtil.psf.buildPSF
         Args.DeltaSigma                = 0.5;        % if empty skip
         Args.image2cutoutsArgs         = {};
         Args.backgroundCubeArgs        = {};
@@ -230,14 +230,14 @@ function [Obj,Result]=populatePSF(Obj, Args)
 
         % --- wing suppression ---
         Args.WingsMethod               = 'analytic';
-        Args.WingsPowerLaw             = 2;
+        Args.WingsPowerLaw             = 3.7;  % uniPSF default; pass 2 for the legacy analytic slope
         Args.SuppressFun               = @imUtil.kernel2.cosbell;
         Args.WingsThreshold            = 1e-2; %1e-4;       % legacy name -> buildPSF 'SuppressThreshold'
         Args.SuppressWidth             = 3;          % legacy name -> buildPSF 'SuppressFunPars'
         Args.WingRangeSN               = [];         % bright-star sample for WingsMethod='empirical'; [] -> [RangeSN(2), Inf]
         Args.MinWingStars              = 8;          % min bright stars for WingsMethod='empirical'; else falls back to cosbell
-        Args.SkipEllipticityFallback logical = false; % forward to buildPSF: skip the wingsFix ellipticity fallback for the main splice
-        Args.EllipticalWings logical   = false;       % forward to buildPSF: elliptical main-splice wings matched to the core shape
+        Args.SkipEllipticityFallback logical = true;  % forward to buildPSF: skip the wingsFix ellipticity fallback for the main splice (uniPSF default; false = legacy)
+        Args.EllipticalWings logical   = true;        % forward to buildPSF: elliptical main-splice wings matched to the core shape (uniPSF default; false = legacy circular)
         Args.CropToRadiusPSF logical   = true;        % forward to buildPSF: crop the finished PSF back to the 2*RadiusPSF+1 stamp when a wide background annulus (PsfAnnulus) grew the cutouts; no-op otherwise
         Args.WingProfile               = [];         % precomputed visit-level wing shape(s) (struct array from imProc.psf.visitWingProfile); scalar or one per input object (indexed per Iobj, clipped at end). Only used with Method='new' and WingsMethod='empirical'; empty -> legacy per-image wing calibration in buildPSF
         Args.BuildDetectionPSF         = false;      % also populate a 'Purpose'-dimensioned detection-PSF slice (analytic, Alpha=DetectionWingsPowerLaw) alongside the main photometry/subtraction PSF

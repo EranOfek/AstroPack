@@ -358,20 +358,26 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.ReCalcPsfIter             = [];  % Index of iterations in which to re-calc PSF; if UseOriginalPSF=true, then no need to set this to 1.
         Args.UseOriginalPSF logical    = true;   % use the PSF already attached to the input AstroImage
         Args.populatePSFArgs cell      = {'CropByQuantile',false, 'SuppressWidth',3, 'SmoothWings',false}; % {'CropByQuantile',true,'Quantile',0.5}
-        Args.WingsMethod       (1,:) char = 'empirical';  % wing model of the MAIN (photometry/
+        Args.WingsMethod       (1,:) char = 'analytic';  % wing model of the MAIN (photometry/
                                                 % subtraction) PSF, forwarded to populatePSF:
-                                                % 'empirical' (default, current behavior) |
-                                                % 'analytic' (power-law wings, exponent via
-                                                % populatePSFArgs 'WingsPowerLaw') | 'cosbell'.
+                                                % 'analytic' (uniPSF default: power-law wings,
+                                                % exponent via populatePSFArgs 'WingsPowerLaw') |
+                                                % 'empirical' (legacy production) | 'cosbell'.
                                                 % 'analytic' + BuildDetectionPSF=false = the
-                                                % single-model scheme (same core+analytic-wing
-                                                % PSF for discovery AND fluxes).
-        Args.BuildDetectionPSF logical = true;  % build the separate flat-winged detection-PSF slice
-                                                % (Purpose=2; the two-PSF scheme). Set FALSE to run
-                                                % detection on the SAME truthful photometry PSF -
-                                                % the single-PSF scheme (Phase 3); getPSF's
-                                                % 'Purpose' request is then a documented no-op.
-                                                % Default true = current two-PSF behavior.
+                                                % uniPSF scheme (same core+analytic-wing
+                                                % PSF for discovery AND fluxes) - the default.
+                                                % Legacy two-PSF production recipe (escape hatch):
+                                                %   Legacy2PSF = {'WingsMethod','empirical', ...
+                                                %     'BuildDetectionPSF',true, 'PsfAnnulus',[10 12], ...
+                                                %     'populatePSFArgs',{'CropByQuantile',false, ...
+                                                %     'SuppressWidth',3, 'SmoothWings',false, ...
+                                                %     'WingsPowerLaw',2, 'EllipticalWings',false, ...
+                                                %     'SkipEllipticityFallback',false}};
+        Args.BuildDetectionPSF logical = false; % build the separate flat-winged detection-PSF slice
+                                                % (Purpose=2; the legacy two-PSF scheme). Default
+                                                % FALSE = uniPSF: detection runs on the SAME
+                                                % truthful photometry PSF; getPSF's 'Purpose'
+                                                % request is then a documented no-op.
         Args.WingProfile               = [];  % precomputed visit-level wing shape(s) from imProc.psf.visitWingProfile
                                               % (struct with .Radius/.Value/.Success; scalar, or one per input
                                               % object). Forwarded to imProc.psf.populatePSF: with
@@ -382,13 +388,13 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.RadiusPSF                 = 12;
         Args.AperRadius                = [3, 5, 6, 7];
         Args.Annulus                   = [10 12];
-        Args.PsfAnnulus                = [];  % [Rin, Rout] background annulus for the PSF-star stamps
+        Args.PsfAnnulus                = [16 20];  % [Rin, Rout] background annulus for the PSF-star stamps
                                               % (imProc.psf.populatePSF), decoupled from the photometry
                                               % 'Annulus'. The stamp annulus sits on the PSF star's own
-                                              % wing, so a larger radius (e.g. [16 20]; buildPSF enlarges
-                                              % the cutouts to cover it) lowers the per-stamp background
-                                              % and preserves the wings. [] (default) -> use Args.Annulus
-                                              % (legacy single-annulus behavior).
+                                              % wing, so a larger radius ([16 20], the uniPSF default;
+                                              % buildPSF enlarges the cutouts to cover it) lowers the
+                                              % per-stamp background and preserves the wings. [] -> use
+                                              % Args.Annulus (legacy single-annulus behavior).
         Args.MomentsMethod             = 'mex';  %'legacy'|'mex'
         Args.AperPhotMethod            = 'interp';  % 'simple'|'interp'
         Args.MomPar                    = {};
