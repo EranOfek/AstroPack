@@ -50,6 +50,11 @@ function [phot,extsegs,curve,stripeindices]=...
 %                         are tagged as bad, and excluded. The default
 %                         is false, to return an useful answer in anomalous
 %                         cases.
+%     'medianclip': for 'clipping'='gaussianfit', results from slices
+%              which give an amplitude 'MedianClip' times the median of
+%              the slice data or above, are considered unacceptable.
+%              (default is 2, must be >0)
+%
 %  Outputs:
 %    - phot: esimated intensity/unit length of each streak
 %    - extseg: [x1e; y1e; x2e; y2e]
@@ -57,10 +62,15 @@ function [phot,extsegs,curve,stripeindices]=...
 %            * coefficients {a,b,c} of the parabolic fits
 %              to the offset w.r.o the base segs, h(t) = a+b*t+c*t^2
 %              where {x,y} = {x1e, y1e} for t=0 and {x,y} = {x2e, y2e} for t=1
-%              (note that this fit is done only on the 'acceptable' pixels,
-%              differently than and independently of the slice photometry)
-%            * coordinates of the fitted parabloic arc (one point per
-%              slice)
+%             For 'clipping'='gaussianfit', this fit is computed using
+%              the sagittal locations on each slice; for other choices
+%              of 'clipping', using all values of the 'acceptable' pixels.
+%             For reference, the offsets at extremes are:
+%                   [curve(i).parfit(3), sum(curve(i).parfit)]
+%               and the max offset is:
+%                  -curve(i).parfit(2)^2/(4*curve(i).parfit(1)) + curve(i).parfit(3)
+%            * coordinates of the fitted parabolic arc (one point per
+%              slice), or of the acceptable local slice maxima, for 'gaussianfit'
 %            * photometric value in the slice (for clipping='gaussianfit',
 %              or for other methods if linephot=true)
 %            * standard deviation of the gaussian fitted to the transverse
@@ -85,6 +95,7 @@ function [phot,extsegs,curve,stripeindices]=...
         Args.sigmaclip=[]; % defaults set below according to method
         Args.clipping {mustBeMember(Args.clipping, {'sigma','quantile','gaussianfit'})} ...
              = 'gaussianfit';
+        Args.medianclip=2; % only for 'gaussianfit'
         Args.slice_width=10; % longitudinal streak slice width, pixel units
         Args.linephot=true;
         Args.UseMex=true;
@@ -177,7 +188,7 @@ function [phot,extsegs,curve,stripeindices]=...
         spp=std(pp);
         hm=[];
         
-        % contaminators clipping methods
+        % clipping methods to remove contaminators
         switch Args.clipping
             case 'gaussianfit'
                 % exploring slice fits
@@ -187,13 +198,13 @@ function [phot,extsegs,curve,stripeindices]=...
                         imUtil.streaks.mex.sliceGaussianProfile([x1ext,y1ext],...
                         [x2ext,y2ext],[x1,y1],[x2,y2],xm,ym,pp,...
                         'slice_width',Args.slice_width,...
-                        'rthreshold',Args.sigmaclip);
+                        'rthreshold',Args.sigmaclip,'medianclip',Args.medianclip);
                 else
-                    % use private function, at the bottom of this file
+                    % use private matlab function, at the bottom of this file
                     [C,goodindices,tm] = sliceGaussianProfile([x1ext,y1ext],...
                         [x2ext,y2ext],[x1,y1],[x2,y2],xm,ym,pp,...
                         'slice_width',Args.slice_width,...
-                        'rthreshold',Args.sigmaclip);
+                        'rthreshold',Args.sigmaclip,'medianclip',Args.medianclip);
                 end
                 curve(i).linephot=C(1,:).*C(3,:)*sqrt(2*pi);
                 curve(i).hMean= C(2,:);
@@ -233,17 +244,33 @@ function [phot,extsegs,curve,stripeindices]=...
         %  implanted)?
         %phot(i)=median(scpp)*numel(pp)/Lext;
         
-        % fit a parabola only to the base detected segment (but note that
-        %  smask depends on goodindices calculated including the extended segment
-        curve(i).parfit = weightedParabolicOffset([x1,y1],[x2,y2],xcm,ycm,scpp);
-        % offsets at extremes: [curve(i).parfit(3), sum(curve(i).parfit)]
-        % max offset:
-        %  -curve(i).parfit(2)^2/(4*curve(i).parfit(1)) + curve(i).parfit(3)
         
-        % sliced photometry for simpler masking methods
+        % compute a global parabolic fit to the streak
         switch Args.clipping
             case 'gaussianfit'
+                % fit a parabola through the acceptable maxima of the Gaussians
+                %  fitted to each slice, with equal weights (note that
+                %  smask depends on goodindices calculated including the extended segment
+                X1=[x1ext,y1ext];
+                X2=[x2ext,y2ext];
+                L=sqrt((X2-X1)*(X2-X1)');
+                q=~isnan(hm);
+                X=nan(size(tm)); Y=X;
+                X(q) = X1(1) + (X2(1)-X1(1))*tm(q) - (X2(2)-X1(2))*hm(q)/L;
+                Y(q) = X1(2) + (X2(2)-X1(2))*tm(q) + (X2(1)-X1(1))*hm(q)/L;
+                curve(i).parfit = weightedParabolicOffset(X1,X2,X(q)',Y(q)');
+                % Use points on the parabola as coordinates for the 
+                %  unacceptable slices
+                h= curve(i).parfit(1)*tm(~q).^2 + curve(i).parfit(2)*tm(~q) + ...
+                    curve(i).parfit(3);
+                [X(~q),Y(~q)]=segmentParabolicOffset(X1,X2,...
+                                     curve(i).parfit,tm(~q), h);
             otherwise
+                % fit a parabola to all unclipped pixels, with weight
+                %  proportional to the pixel intensity itself (statistically
+                %  questionable)
+                curve(i).parfit = weightedParabolicOffset([x1,y1],[x2,y2],xcm,ycm,scpp);
+                % sliced photometry for simpler masking methods
                 tmask=t(mask);
                 tsmask=t(smask);
                 num_slices=ceil(Lext/Args.slice_width);
@@ -262,16 +289,18 @@ function [phot,extsegs,curve,stripeindices]=...
                         end
                     end
                 end
+                % use all points, to return curve(i).coord
+                [X,Y]=segmentParabolicOffset([x1ext,y1ext],[x2ext,y2ext],...
+                    curve(i).parfit,tm, hm);
         end
         
-        [X,Y]=segmentParabolicOffset([x1ext,y1ext],[x2ext,y2ext],...
-                           curve(i).parfit,tm, hm);
         curve(i).coord=[X',Y'];
         
         % second pass photometry: only consider the pixels traversed by
         %  the fitting parabola. Rationale, we are working with images
         %  which are already PSF-filtered, including sidewings will bias
         %  the estimate toward 0.
+        % left for future development, not sure it would add
     end
 end
 
