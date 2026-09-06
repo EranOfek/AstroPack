@@ -1329,7 +1329,13 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 MagPsfBright  = convert.luptitude(ResPsfBright.Flux,      10.^(0.4.*Args.ZP));
             end
 
-            MagErrAperBright = 1.086.*ResAperBright.AperPhotErr./ResAperBright.AperPhot;
+            % FLUXERR_APER is a RELATIVE quantity (dF/F) in this pipeline -
+            % aperPhotCube returns the ABSOLUTE error, so divide by the flux
+            % (this block used to write the absolute error, violating the
+            % convention). Non-positive flux -> NaN (issue #1135).
+            FluxErrAperBright = ResAperBright.AperPhotErr./ResAperBright.AperPhot;
+            FluxErrAperBright(~(ResAperBright.AperPhot>0)) = NaN;
+            MagErrAperBright = 1.086.*FluxErrAperBright;
             MagErrPsfBright  = 1.086./ResPsfBright.SNm;
             if strcmp(Args.MagType, 'mag')
                 % the magnitudes are NaN for non-positive flux - the error
@@ -1340,7 +1346,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             end
 
             FluxMagData = [ResAperBright.AperPhot,...
-                           ResAperBright.AperPhotErr,...
+                           FluxErrAperBright,...
                            MagAperBright,...
                            MagErrAperBright,...
                            ResPsfBright.Flux,...

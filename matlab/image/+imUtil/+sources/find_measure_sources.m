@@ -423,6 +423,10 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
                     if isempty(FluxErrAper)
                         
                         FluxErrAper = sqrt(max(Aper.AperPhot, 0)./Args.Gain + Aper.AperArea.*Aper.AnnulusStd.^2 .* (1 + Aper.AperArea./Aper.AnnulusArea))./Aper.AperPhot;
+                        % non-positive flux: the relative error is
+                        % meaningless (and would be negative after the
+                        % division) - NaN, matching the NaN MAG (issue #1135)
+                        FluxErrAper(~(Aper.AperPhot>0)) = NaN;
 
                         %AperPhot    = Aper.AperPhot.*Args.Gain;
                         %FluxErrAper = sqrt(abs(AperPhot) + (Args.Gain.*Aper.AnnulusStd).^2)./AperPhot;
@@ -446,6 +450,10 @@ function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, 
                     NC = size(Aper.AperPhot,2);
                     if isempty(FluxErrAper)
                         FluxErrAper = sqrt(max(Aper.AperPhot, 0)./Args.Gain + Aper.AperArea.*Aper.AnnulusStd.^2 .* (1 + Aper.AperArea./Aper.AnnulusArea))./Aper.AperPhot;
+                        % non-positive flux: the relative error is
+                        % meaningless (and would be negative after the
+                        % division) - NaN, matching the NaN MAG (issue #1135)
+                        FluxErrAper(~(Aper.AperPhot>0)) = NaN;
 
                         %AperPhot    = Aper.AperPhot.*Args.Gain;
                         %FluxErrAper = sqrt(abs(AperPhot) + (Args.Gain.*Aper.AnnulusStd).^2)./AperPhot;

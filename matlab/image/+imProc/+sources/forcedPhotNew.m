@@ -415,7 +415,7 @@ function [Result] = forcedPhotNew(Obj, Args)
     
                     case 'FLUXERR_APER_1'
                         if isempty(FluxErrRelAper)
-                            FluxErrRelAper = sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot;
+                            FluxErrRelAper = i_fluxErrRelAper(Aper);
                         end
                         Data(:,K) = FluxErrRelAper(:,1);
                         %Data(:,K:K+Naper-1) = sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2);
@@ -423,12 +423,12 @@ function [Result] = forcedPhotNew(Obj, Args)
                         %K = K + Naper - 1;
                     case 'FLUXERR_APER_2'
                         if isempty(FluxErrRelAper)
-                            FluxErrRelAper = sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot;
+                            FluxErrRelAper = i_fluxErrRelAper(Aper);
                         end
                         Data(:,K) = FluxErrRelAper(:,2);
                     case 'FLUXERR_APER_3'
                         if isempty(FluxErrRelAper)
-                            FluxErrRelAper = sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot;
+                            FluxErrRelAper = i_fluxErrRelAper(Aper);
                         end
                         Data(:,K) = FluxErrRelAper(:,3);
                     case 'MAG_APER_1'
@@ -454,7 +454,7 @@ function [Result] = forcedPhotNew(Obj, Args)
                         end
                     case 'MAGERR_APER_1'
                         if isempty(FluxErrRelAper)
-                            FluxErrRelAper = sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot;
+                            FluxErrRelAper = i_fluxErrRelAper(Aper);
                         end
                         MagErrAper = 1.086.*FluxErrRelAper(:,1);
                         if strcmp(Args.MagType, 'mag')
@@ -468,7 +468,7 @@ function [Result] = forcedPhotNew(Obj, Args)
                         %K = K + Naper - 1;
                     case 'MAGERR_APER_2'
                         if isempty(FluxErrRelAper)
-                            FluxErrRelAper = sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot;
+                            FluxErrRelAper = i_fluxErrRelAper(Aper);
                         end
                         MagErrAper = 1.086.*FluxErrRelAper(:,2);
                         if strcmp(Args.MagType, 'mag')
@@ -479,7 +479,7 @@ function [Result] = forcedPhotNew(Obj, Args)
                         Data(:,K) = MagErrAper;
                     case 'MAGERR_APER_3'
                         if isempty(FluxErrRelAper)
-                            FluxErrRelAper = sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot;
+                            FluxErrRelAper = i_fluxErrRelAper(Aper);
                         end
                         MagErrAper = 1.086.*FluxErrRelAper(:,3);
                         if strcmp(Args.MagType, 'mag')
@@ -594,6 +594,15 @@ end
 
 
 %%%
+function FluxErrRel = i_fluxErrRelAper(Aper)
+    % Relative aperture flux error (dF/F), shared by the FLUXERR_APER_* and
+    % MAGERR_APER_* columns. Non-positive flux: the relative error is
+    % meaningless (and would be negative after the division) - NaN, matching
+    % the NaN MAG (issue #1135).
+    FluxErrRel = sqrt(Aper.AperPhotErr.^2 + (Aper.AnnulusStd./sqrt(Aper.AnnulusBackArea)).^2)./Aper.AperPhot;
+    FluxErrRel(~(Aper.AperPhot>0)) = NaN;
+end
+
 function CellStr = sprintf_cell(Str,Ind)
     N = numel(Ind);
     CellStr = cell(1,N);
