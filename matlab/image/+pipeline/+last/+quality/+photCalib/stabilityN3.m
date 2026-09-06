@@ -76,6 +76,15 @@ function MS = stabilityN3(Args)
         % convention every other Data field uses. In Join mode (below)
         % XFULL/YFULL come from joinCropsToCatalog directly, so this stamp
         % becomes a no-op.
+        Args.MagLimit   (1,1) double = Inf   % Per-catalog mag cut (per-crop mode)
+        % When finite (and Args.Join=false), drop rows whose
+        % Args.MagColForCut column exceeds this limit (NaN rows are
+        % dropped too) from every catalog right after loading, BEFORE
+        % mergeCatalogs. Same motivation as JoinedMagLimit: the pooled
+        % source count is dominated by the faint tail detected in a
+        % handful of epochs, useless for per-source scatter; a limit of
+        % ~18 shrinks the MS by an order of magnitude. In Join mode use
+        % JoinedMagLimit instead.
         Args.JoinedMagLimit (1,1) double = Inf % Per-visit mag cut in Join mode
         % When finite AND Args.Join=true, drop rows from every joined
         % catalog whose Args.MagColForCut column exceeds this limit BEFORE
@@ -315,8 +324,13 @@ function MS = stabilityN3(Args)
             for I = 1:NEpochs
                 FullPath = fullfile(FileList(I).folder, FileList(I).name);
                 AC(I)    = AstroCatalog(FullPath);
-                fprintf('  %3d: %s  JD=%.5f  %s=%.3f  AIRMASS=%.3f\n', ...
-                    I, FileList(I).name, JD(I), Args.FWHMKey, FWHM(I), AM(I));
+                if isfinite(Args.MagLimit)
+                    CutVal = AC(I).getCol(Args.MagColForCut);
+                    AC(I).Catalog = AC(I).Catalog(CutVal <= Args.MagLimit, :);
+                end
+                fprintf('  %3d: %s  JD=%.5f  %s=%.3f  AIRMASS=%.3f  Nsrc=%d\n', ...
+                    I, FileList(I).name, JD(I), Args.FWHMKey, FWHM(I), AM(I), ...
+                    size(AC(I).Catalog,1));
             end
         end
 
