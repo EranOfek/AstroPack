@@ -77,6 +77,11 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         % is the only remaining user of shift_fft (issue #1259).
         Args.PsfPhotMethod = '2DGN';   % 'legacy'/'old'|'1D'|'2D'|'2DGN'
 
+        % Sub-pixel shift kernel of the PSF fit. psfPhotCube's own default is
+        % 'lanczos3', but psfFitPhot passes its own 'fft' default down, so
+        % without this the fit is shifted with the FFT (issue #1257, item 3).
+        Args.ShiftMethod = 'lanczos3';   % 'lanczos3'|'fft'
+
         Args.FilterConfigFile = '';
 
         Args.PixScale = 1.25;
@@ -319,7 +324,8 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                 'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
                 'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'new', ...
                 'WingsMethod', 'empirical');
-            AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref, 'PsfPhotMethod',Args.PsfPhotMethod);
+            AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref, 'PsfPhotMethod',Args.PsfPhotMethod, ...
+                                                                    'ShiftMethod',Args.ShiftMethod);
             AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF');
         end
     end
@@ -330,7 +336,8 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                 'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
                 'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'new', ...
                 'WingsMethod', 'empirical');
-            AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New, 'PsfPhotMethod',Args.PsfPhotMethod);
+            AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New, 'PsfPhotMethod',Args.PsfPhotMethod, ...
+                                                                    'ShiftMethod',Args.ShiftMethod);
             AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF');
         end
     end    
