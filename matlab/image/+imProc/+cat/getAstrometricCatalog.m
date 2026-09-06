@@ -258,9 +258,14 @@ function RangeMag = adaptFaintLimit(Cone, Args)
         Ladder = [Ladder, RangeMag(2)];
     end
 
+    % countKept needs the catalogue sorted by Dec for the neighbour search, and
+    % a magnitude cut preserves that order, so sort once here instead of once
+    % per ladder step (issue #1257, observation 6)
+    ConeSorted = sortrows(Cone.copy, 'Dec');
+
     BestFaint = [];
     for Ifaint=1:1:numel(Ladder)
-        [Nin, Nkept] = countKept(Cone, [RangeMag(1), Ladder(Ifaint)], Args);
+        [Nin, Nkept] = countKept(ConeSorted, [RangeMag(1), Ladder(Ifaint)], Args);
         if Nin>0 && (Nkept./Nin)<Args.MinFracIsolated
             % the fraction only gets worse with depth - stop here
             break;
@@ -283,6 +288,7 @@ end
 function [Nin, Nkept] = countKept(Cone, RangeMag, Args)
     % Number of sources in a magnitude range, before and after the neighbour
     % rejection. Operates on a copy, so the input cone is not modified.
+    % The input must already be sorted by Dec (adaptFaintLimit sorts once).
 
     Cat = Cone.copy;
     if Args.UsePlxRange
@@ -294,7 +300,12 @@ function [Nin, Nkept] = countKept(Cone, RangeMag, Args)
     if Nin==0
         Nkept = 0;
     else
-        Cat     = sortrows(Cat, 'Dec');
+        % No sortrows here: the cone was sorted by Dec once in adaptFaintLimit
+        % and the magnitude cut above keeps the row order. It does clear the
+        % IsSorted flag, because queryRange assigns to Catalog and that setter
+        % resets it, so restore the flag rather than re-sort (#1257, obs. 6).
+        % flagSrcWithNeighbors still verifies the order itself (issorted).
+        Cat.IsSorted = true;
         UseFlag = ~imProc.match.flagSrcWithNeighbors(Cat, Args.flagSrcWithNeighborsArgs{:}, 'CooType','sphere',...
                                                      'Radius',Args.RemoveNeighboorsRadius);
         Nkept   = sum(UseFlag);
