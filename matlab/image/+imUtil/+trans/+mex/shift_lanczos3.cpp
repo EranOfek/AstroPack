@@ -45,9 +45,19 @@ static inline double frac_from_neg_shift(double d, int& shiftInt) {
 }
 
 static inline void weights_lanczos3(double frac01, double w[TAPS]) {
+    double sum = 0.0;
     for (int i = 0; i < TAPS; ++i) {
         const int k = K0 + i; // -2..+3
         w[i] = lanczos3(frac01 - (double)k);
+        sum += w[i];
+    }
+    // Normalise the taps so that they sum to unity. The raw Lanczos-3 taps do
+    // not, which cost up to 1.1% of the flux per 0.5 pixel shift and produced a
+    // sub-pixel-phase dependent photometric error (issue #1258). The shift is
+    // separable, so normalising each 1-D tap set makes the 2-D kernel sum to 1.
+    if (sum != 0.0) {
+        const double inv = 1.0 / sum;
+        for (int i = 0; i < TAPS; ++i) w[i] *= inv;
     }
 }
 
