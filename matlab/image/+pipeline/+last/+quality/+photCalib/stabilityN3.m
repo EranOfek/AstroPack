@@ -353,6 +353,15 @@ function MS = stabilityN3(Args)
             BaseMatch = [BaseMatch, ShapeCols];
         end
         MatchedColums = unique([BaseMatch, Args.Mags, Args.Fluxes], 'stable');
+        % keep only the columns the catalogs actually carry (e.g. the new
+        % pipeline coadd catalogs have no MAGAB__* columns) - a requested
+        % Mags entry that is missing still errors below, by design
+        Avail   = AC(1).ColNames;
+        Dropped = setdiff(MatchedColums, Avail);
+        if ~isempty(Dropped)
+            fprintf('Columns absent in the catalogs, not matched: %s\n', strjoin(Dropped, ', '));
+        end
+        MatchedColums = intersect(MatchedColums, Avail, 'stable');
         StatCols   = unique([{'RA','Dec','X','Y','SN'}, Args.Mags], 'stable');
         StatFunInd = repmat({[1 3]}, 1, numel(StatCols));
         % AllCols: full [Nepoch x Nsrc] matrices in MS.Data. Include FLAGS
