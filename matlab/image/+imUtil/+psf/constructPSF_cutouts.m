@@ -178,7 +178,7 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         
         %M1 = imUtil.image.moment2(Cube, X, Y, 'MomRadius',Args.MomRadius);
         if isempty(Args.M1)
-            switch Args.MomnentsMethod
+            switch Args.MomentsMethod
                 case 'mex'
                     SN_W = ones(size(Xcen)).*100;
                     [M1] = imUtil.sources.moments(Image, 'X',Xcen, 'Y',Ycen, 'SN',SN_W);
