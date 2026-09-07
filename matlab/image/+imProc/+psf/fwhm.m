@@ -73,6 +73,7 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
         Args.KeyNpeaksPSF           = 'PSF_NPK';
         Args.KeyPeaksRatio          = 'PSF_PKR';
         Args.KeyDistPeaks           = 'PSF_DPK';
+        Args.KeyPeakRadius          = 'PSF_RPK';
 
         Args.AddPos                 = Inf;
         Args.AddMom2                = false; % writing median of stellar moments is not the responsibility of this fun. Instead use: imProc.header.writeStat2Header
@@ -156,7 +157,11 @@ function [Obj,AllFWHM] = fwhm(Obj, Args)
                 else
                     PeakRatio = NaN;
                 end
-                Obj(Iobj).HeaderData.replaceVal({Args.KeyNpeaksPSF, Args.KeyPeaksRatio, Args.KeyDistPeaks}, [Npeak, PeakRatio, DistH], 'AddPos',Args.AddPos);
+                % radius of the radially-averaged profile peak: 0 for a
+                % centrally-peaked PSF, the ring radius for a defocused
+                % (donut) PSF - issue #1268
+                [~, PeakRadius] = imUtil.psf.radiusAtFraction(Obj(Iobj).PSFData.Data, 1e-2);
+                Obj(Iobj).HeaderData.replaceVal({Args.KeyNpeaksPSF, Args.KeyPeaksRatio, Args.KeyDistPeaks, Args.KeyPeakRadius}, [Npeak, PeakRatio, DistH, PeakRadius], 'AddPos',Args.AddPos);
             end
     
             % add 2nd moment information
