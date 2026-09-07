@@ -77,10 +77,12 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         % is the only remaining user of shift_fft (issue #1259).
         Args.PsfPhotMethod = '2DGN';   % 'legacy'/'old'|'1D'|'2D'|'2DGN'
 
-        % Sub-pixel shift kernel of the PSF fit. psfPhotCube's own default is
-        % 'lanczos3', but psfFitPhot passes its own 'fft' default down, so
-        % without this the fit is shifted with the FFT (issue #1257, item 3).
-        Args.ShiftMethod = 'lanczos3';   % 'lanczos3'|'fft'
+        % Sub-pixel shift kernel of the PSF fit. Measured against known truth
+        % (issue #1258): shifting the model PSF with lanczos3 costs ~1 mmag and,
+        % worse, the bias grows with the sub-pixel offset, so no zero point
+        % absorbs it; the FFT recovers the flux exactly. Set explicitly here so
+        % the fit does not depend on psfFitPhot's default (issue #1257, item 3).
+        Args.ShiftMethod = 'fft';   % 'lanczos3'|'fft' (issue #1258)
 
         Args.FilterConfigFile = '';
 
