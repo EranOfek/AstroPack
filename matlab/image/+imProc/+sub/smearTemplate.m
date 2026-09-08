@@ -378,10 +378,15 @@ function [Template, Info] = derivedFromShifts(Obj, Args, Info)
     % D. Despite the name, PdN is not the New image PSF, see deltaResponse.
     Big = conv2(Kernel, PdN, 'same');
 
-    % What the catalogue would call the position of this response, so the cut
-    % lands in the same frame the measured path cuts in.
-    Offset      = momentOffset(Big, Args.MomRadiusFactor .* Obj.PSFData.fwhm);
-    Info.Offset = Offset;
+    % Where the cut lands sets where S_smear peaks relative to the candidate
+    % position, and for a track those are not the same point. Anchored on the
+    % PSF filter peak, so the template origin is where the catalogue will put
+    % the candidate. The moment is still reported, as the diagnostic it now
+    % is rather than the anchor it was.
+    Offset            = psfPeakOffset(Big, Obj.PSFData.getPSF);
+    Info.Offset       = Offset;
+    Info.MomentOffset = momentOffset(Big, Args.MomRadiusFactor .* Obj.PSFData.fwhm);
+    Info.AnchorShift  = Offset - Info.MomentOffset;
 
     [Template, Core] = normaliseCore(cropCentre(Big, Args.HalfSize, round(Offset)), true);
     Info.Core = Core;
@@ -529,6 +534,30 @@ function Offset = momentOffset(Image, MomRadius)
     Offset = [M1.X - Cen(2), M1.Y - Cen(1)];
 end
 
+function Offset = psfPeakOffset(Image, Psf)
+    % Where the PSF matched filter peaks on Image, relative to its centre.
+    %
+    %   This is the anchor the catalogue effectively uses. findTransients
+    %   detects on S, which is D filtered by the D PSF, so a candidate's
+    %   position is where that filter peaks -- for a smear track, near its
+    %   brightest part rather than its centroid.
+    %
+    %   Cutting the template here makes its origin coincide with the position
+    %   the candidate will be given, so S_smear peaks where S peaks and
+    %   SN_smear is sampled on the response instead of beside it. Anchoring
+    %   on a windowed moment instead put the origin at the track centroid,
+    %   which for a long track is a different point: measured across 13
+    %   crops, the two peaks sat up to 5 pix apart and 96 to 100 per cent of
+    %   candidates on the long track visits had SN_smear read off the
+    %   response entirely.
+
+    Sf       = imUtil.filter.filter2_fast(Image, Psf);
+    [~, Idx] = max(Sf(:));
+    [Iy, Ix] = ind2sub(size(Sf), Idx);
+
+    Cen    = round((size(Image)+1)./2);
+    Offset = [Ix - Cen(2), Iy - Cen(1)];
+end
 
 function [T, Core] = normaliseCore(T, LocateCore)
     % Divide by the core, the sum of a central 3x3. Returns empty T when the

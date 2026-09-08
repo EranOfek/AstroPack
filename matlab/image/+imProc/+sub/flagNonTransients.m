@@ -292,9 +292,8 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.BadPix_Soft cell = {'DarkHighVal', 'CR_DeltaHT'}
         Args.BPS_PSFLimit double = -2.8
         Args.BPS_DeltaLimit double = 10.0
-
-        Args.SmearThreshold double = []        % [BinCen BinThr], empty to calibrate
-        Args.smearThresholdArgs cell = {}      % passed to imUtil.properSub.smearThreshold
+        Args.SmearThreshold double = []        % [BinCen BinThr...], empty to calibrate
+        Args.smearThresholdArgs cell = {}      % passed to imProc.sub.smearThreshold
 
         % Holes in the reference filters
         Args.flagRefHole logical = true;
@@ -560,7 +559,7 @@ function TranCat = flagNonTransients(Obj, Args)
         % PSF footprint, so this test uses the stamp radius rather than
         % NearbyRRadius. The reference catalogue is in its own pixel frame, so
         % separations are measured on the sky and both radii are converted.
-        NearbyRRadiusRad = NearbyRRadius .* Args.PixelScale .* Arcsec2Rad;
+        NearbyRRadiusRad = NearbyRRadius * Args.PixelScale * Arcsec2Rad;
         RSrcRadiusRadSq  = (max(N_PSFHalfSize, R_PSFHalfSize) ...
                             .* Args.PixelScale .* Arcsec2Rad).^2;
 
@@ -892,20 +891,39 @@ function TranCat = flagNonTransients(Obj, Args)
 
             SN_smear = CandCat.getCol('SN_smear');
 
+            % Candidates on a pixel the image mask already calls suspect get
+            % the tighter contour. The prior that they are real is lower
+            % there, so accepting a higher rejection rate of genuine sources
+            % is the right trade, while everything else keeps the default
+            % keep fraction. This is the calibrated form of what the old
+            % filter did with BPS_ThresholdIncrement.
+            Noisy = false(NumCand,1);
+            for Ib=1:1:numel(Args.BadPix_Soft)
+                Noisy = Noisy | BD_IM.findBit(N_BM, Args.BadPix_Soft{Ib});
+            end
+
             if isempty(Args.SmearThreshold)
-                [BinCen, BinThr, SmearInfo] = imProc.sub.smearThreshold(...
+                [BinCen, ~, SmearInfo] = imProc.sub.smearThreshold(...
                     Obj(Iobj), Args.smearThresholdArgs{:});
             else
-                BinCen    = Args.SmearThreshold(:,1);
-                BinThr    = Args.SmearThreshold(:,2);
-                SmearInfo = struct('Fun', ...
-                    @(A) interp1(BinCen, BinThr, min(max(A,BinCen(1)),BinCen(end)), 'linear'));
+                BinCen        = Args.SmearThreshold(:,1);
+                BinThr        = Args.SmearThreshold(:,2:end);
+                SmearInfo     = struct();
+                SmearInfo.Fun = arrayfun(@(Ik) @(A) interp1(BinCen, BinThr(:,Ik), ...
+                                    min(max(A,BinCen(1)),BinCen(end)), 'linear'), ...
+                                    1:1:size(BinThr,2), 'UniformOutput',false);
             end
 
             if isempty(BinCen)
                 BadPixSoft = false(NumCand,1);
             else
-                BadPixSoft = (Score - SN_smear) < SmearInfo.Fun(abs(Score));
+                % A single contour means the caller asked for one keep
+                % fraction, and Noisy then has no effect.
+                Thresh = SmearInfo.Fun{1}(abs(Score));
+                if numel(SmearInfo.Fun) > 1 && any(Noisy)
+                    Thresh(Noisy) = SmearInfo.Fun{end}(abs(Score(Noisy)));
+                end
+                BadPixSoft = (Score - SN_smear) < Thresh;
             end
 
             FilterFlags = setFilterBit(FilterFlags, BadPixSoft, BD_TF, 'BadPixelSoft');
