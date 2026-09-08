@@ -336,7 +336,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
 
         Args.SumMethodPSF              = 'median';
         Args.MethodPSF                 = 'new';
-        Args.ShiftMethod               = 'lanczos3'; % 'lanczos3' | 'fft'
+        Args.ShiftMethod               = 'fft'; % 'lanczos3' | 'fft' (issue #1258)
 
         Args.PsfPhotMethod             = 'legacy';
 

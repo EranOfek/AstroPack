@@ -15,7 +15,7 @@ function [Result] = forcedPhotNew(Obj, Args)
 
         Args.IsGood                  = [];
         Args.PsfPhotMethod           = '2DGN';      % 'legacy'/'old'|'1D'|'2D'|'2DGN' - see issue #1198
-        Args.ShiftMethod             = 'lanczos3';  % 'fft'|'lanczos3' - see issue #1198
+        Args.ShiftMethod             = 'fft';  % 'fft'|'lanczos3' - see issues #1198, #1258
 
         Args.Coo                     = zeros(0,2);  % or a single AstroCatalog
         Args.CooUnits                = 'deg';   % 'pix'|'deg'|'rad

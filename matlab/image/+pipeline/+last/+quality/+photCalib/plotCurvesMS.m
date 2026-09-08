@@ -27,6 +27,11 @@ function Indices = plotCurvesMS(MS, Args)
     %                                'jd'                - raw Julian Date
     %                                'time'              - hours since JD0:
     %                                                      (MS.JD - JD0)*24
+    %                                'seq' (= 'index')   - epoch sequence number
+    %                                                      1..Nepoch in JD order
+    %                                                      (rows are numbered by
+    %                                                      ascending MS.JD, not
+    %                                                      storage order)
     %                                <fieldname>         - any MS.Data field.
     %                              A per-epoch/broadcast field (AIRMASS/FWHM/...)
     %                              gives connected per-source lines vs that
@@ -404,6 +409,15 @@ function [X, XLabel, XMode] = i_resolveXAxis(MS, Args, Nep)
             if isnan(JD0); JD0 = MS.JD(1); end
             X      = (double(MS.JD(:)) - JD0) * 24;
             XLabel = sprintf('Time - JD %.7f [hr]', JD0);
+        case {'seq', 'index'}
+            % Epoch sequence number in JD order: each row gets the rank of
+            % its JD, so the numbering is chronological even when the MS
+            % storage order is not (e.g. mergeCatalogs fed by directory
+            % listing, where after-midnight visits sort first).
+            [~, Order] = sort(double(MS.JD(:)));
+            X          = nan(Nep, 1);
+            X(Order)   = (1:Nep)';
+            XLabel     = 'Epoch sequence # (JD order)';
         otherwise
             if ~isfield(MS.Data, Args.XField)
                 error('pipeline:last:quality:photCalib:plotCurvesMS:BadXField', ...

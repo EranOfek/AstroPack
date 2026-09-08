@@ -130,7 +130,21 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
 %         error('Norm argument must be provided');
 %     end
     
-    MaxRadius = Args.MomRadius;
+    % The re-centring call below hands the cutouts to imUtil.image.moment2
+    % together with Args.Annulus, whose outer radius must fit inside the stamp.
+    % With the shipped defaults it does not (MomRadius 8 -> 17x17 stamps, against
+    % an annulus reaching 12), so the default path failed with "MaxRadius is
+    % larger than stamp size". Cut the stamps wide enough to hold the annulus
+    % and crop the finished PSF back to 2*MomRadius+1 below, so the returned
+    % stamp size is unchanged - the same approach imUtil.psf.buildPSF takes with
+    % its CropToRadiusPSF (issue #1273).
+    MaxRadius   = Args.MomRadius;
+    GrownForAnn = false;
+    if ndims(Image)==2 && Args.ReCenter && isempty(Args.M1) && ~isempty(Args.Annulus) ...
+            && strcmpi(Args.MomentsMethod,'legacy') && max(Args.Annulus)>MaxRadius
+        MaxRadius   = max(Args.Annulus);
+        GrownForAnn = true;
+    end
     
     if isempty(XY)
         if ndims(Image)==3
@@ -178,7 +192,7 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         
         %M1 = imUtil.image.moment2(Cube, X, Y, 'MomRadius',Args.MomRadius);
         if isempty(Args.M1)
-            switch Args.MomnentsMethod
+            switch Args.MomentsMethod
                 case 'mex'
                     SN_W = ones(size(Xcen)).*100;
                     [M1] = imUtil.sources.moments(Image, 'X',Xcen, 'Y',Ycen, 'SN',SN_W);
@@ -271,6 +285,21 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
                 error('Unknown SumMethod option');
         end
     
+        % crop back to the requested stamp size when the cutouts were grown to
+        % accommodate the background annulus (issue #1273). Done before the wing
+        % smoothing and the normalisation, so both act on the returned stamp.
+        if GrownForAnn
+            HalfCur = (size(Mean,1)-1)./2;
+            if HalfCur > Args.MomRadius
+                Ctr  = HalfCur + 1;
+                Rng  = (Ctr-Args.MomRadius):(Ctr+Args.MomRadius);
+                Mean = Mean(Rng, Rng);
+                if ~isempty(Var)
+                    Var = Var(Rng, Rng);
+                end
+            end
+        end
+
         % smooth wings...
         if Args.SmoothWings
             Mean = imUtil.psf.psf_zeroConverge(Mean, Args.psf_zeroConvergeArgs{:});
