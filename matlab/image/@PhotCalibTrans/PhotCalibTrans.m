@@ -3742,7 +3742,23 @@ classdef PhotCalibTrans < Component
             %                        (so it matches whatever prefix addMag used).
             %            'SNColName'      - S/N column name for filtering. Default is 'SN'.
             %            'MinSN'          - Minimum S/N for star selection. Default is 30.
-            %            'MaxSN'          - Maximum S/N. Default is Inf.
+            %            'MaxSN'          - Maximum S/N. Default is 1000
+            %                        (issue #1274: an S/N ceiling screens
+            %                        artifact floods, e.g. ghost-halo
+            %                        pseudo-sources, out of the fit).
+            %            'Chi2ColName'    - PSF-fit chi2/dof column used for
+            %                        calibrator screening. Default is
+            %                        'PSF_CHI2DOF'. If the column is absent
+            %                        the chi2 screen is skipped with a
+            %                        warning.
+            %            'Chi2Range'      - [Min Max] allowed PSF_CHI2DOF for
+            %                        aperture-correction calibrators; []
+            %                        disables the screen. Default is
+            %                        [0.5 100] (issue #1274: ghost-halo
+            %                        pseudo-sources carry chi2/dof ~60 vs
+            %                        ~2 for real stars, so this range is
+            %                        trivially separating while keeping any
+            %                        plausibly-fit star).
             %            'FilterBadFlags' - Reject sources whose FLAGS carry any
             %                        of BadFlags, in addition to the S/N cut.
             %                        Default true. (Set false to reproduce the
@@ -3802,7 +3818,9 @@ classdef PhotCalibTrans < Component
                 Args.AperFluxPrefix = 'FLUX_'
                 Args.SNColName = 'SN'
                 Args.MinSN = 30
-                Args.MaxSN = Inf
+                Args.MaxSN = 1000       % S/N ceiling (issue #1274)
+                Args.Chi2ColName (1,:) char = 'PSF_CHI2DOF'
+                Args.Chi2Range double = [0.5 100]   % [] disables (issue #1274)
                 Args.FilterBadFlags  logical = true
                 Args.BadFlags        cell   = {'Saturated','NaN','Negative','CR_DeltaHT','NearEdge'}
                 Args.FlagsColName    (1,:) char = 'FLAGS'
@@ -3922,6 +3940,23 @@ classdef PhotCalibTrans < Component
                 Msg = sprintf('calcAperCorr: S/N column %s not found - using all sources', Args.SNColName);
                 Obj.msgLog(LogLevel.Warning, Msg);
                 Mask = true(CatObj.sizeCatalog, 1);
+            end
+
+            % Screen by PSF-fit quality (issue #1274): artifact detections
+            % (e.g. the ~500 ghost-halo pseudo-sources that steered the
+            % positional fit to a ~1 mag/crop gradient) carry PSF_CHI2DOF
+            % far above real stars (measured ~60 vs ~2), so a permissive
+            % range removes them without touching genuine calibrators.
+            % AND-combined with the S/N mask.
+            if ~isempty(Args.Chi2Range)
+                if ismember(Args.Chi2ColName, AllColNames)
+                    Chi2 = CatObj.getCol(Args.Chi2ColName);
+                    Mask = Mask & Chi2(:) > Args.Chi2Range(1) & Chi2(:) < Args.Chi2Range(2);
+                else
+                    Obj.msgLog(LogLevel.Warning, sprintf( ...
+                        'calcAperCorr: chi2 column %s not found - chi2 screen skipped', ...
+                        Args.Chi2ColName));
+                end
             end
 
             % Reject bad-flag detections (FLAGS bitmask). Saturated / NaN /
