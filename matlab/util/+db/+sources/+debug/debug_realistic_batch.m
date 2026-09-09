@@ -3,7 +3,7 @@
 % File        : db.sources.debug.debug_realistic_batch.m
 % Author      : Chen Tishler
 % Created     : 19/08/2026
-% Updated     : 07/09/2026
+% Updated     : 09/09/2026
 % Description : Realistic sky-field catalogs and visit batch simulation (MATLAB).
 %==========================================================================
 
@@ -19,27 +19,20 @@ function varargout = debug_realistic_batch(action, varargin)
 %   Sky field RA centers are offset +12 deg vs Python debug/client so MATLAB
 %   first visits are mostly NEW alongside the running Python inserter.
 
-    % Simulation constants (flux safe for int16 path; RA offset vs Python).
-    persistent FLUX_SAFE_MAX CATALOG_SIZE RA_OFFSET_DEG
-    if isempty(FLUX_SAFE_MAX)
-        FLUX_SAFE_MAX = 319.0;
-        CATALOG_SIZE = 1200;
-        RA_OFFSET_DEG = 12.0;
-    end
+    C = db.sources.debug.debugConstants_();
 
-    % Dispatch by action string.
     switch lower(action)
         case 'defaultfields'
             n = varargin{1};
-            varargout{1} = defaultSkyFields_(n, RA_OFFSET_DEG);
+            varargout{1} = defaultSkyFields_(n, C.RaOffsetDeg);
         case 'load'
             p = inputParser;
             addRequired(p, 'stateFile', @(x) ischar(x) || isstring(x));
-            addParameter(p, 'Seed', 1042, @isnumeric);
-            addParameter(p, 'Fields', 8, @isnumeric);
+            addParameter(p, 'Seed', C.DefaultSeed, @isnumeric);
+            addParameter(p, 'Fields', C.DefaultFields, @isnumeric);
             parse(p, varargin{:});
             varargout{1} = loadBatchState_(char(p.Results.stateFile), ...
-                p.Results.Seed, p.Results.Fields, RA_OFFSET_DEG);
+                p.Results.Seed, p.Results.Fields, C.RaOffsetDeg);
         case 'save'
             stateFile = varargin{1};
             state = varargin{2};
@@ -65,8 +58,7 @@ function varargout = debug_realistic_batch(action, varargin)
             addParameter(p, 'FieldNameTag', '', @(x) ischar(x) || isstring(x));
             parse(p, varargin{3:end});
             [tbl, state] = simulateVisitBatch_(state, sky, p.Results.Rows, ...
-                p.Results.VisitIndex, FLUX_SAFE_MAX, CATALOG_SIZE, ...
-                char(p.Results.FieldNameTag));
+                p.Results.VisitIndex, C, char(p.Results.FieldNameTag));
             varargout{1} = tbl;
             varargout{2} = state;
         otherwise
@@ -78,7 +70,6 @@ end
 function fields = defaultSkyFields_(n, raOffset)
 %DEFAULTSKYFIELDS_  Return n LAST-like sky field descriptors with RA offset.
 
-    % Four named reference fields (galactic center, high latitude, ecliptic, south pole).
     fields(1) = struct('name', 'LAST_galactic_center', 'ra_center', 266.4 + raOffset, ...
         'dec_center', -29.0, 'fov_deg', 2.5, 'density_factor', 3.0, 'seed', 1000);
     fields(2) = struct('name', 'LAST_high_latitude', 'ra_center', 185.0 + raOffset, ...
@@ -92,7 +83,6 @@ function fields = defaultSkyFields_(n, raOffset)
         return;
     end
 
-    % Extend with grid tiles until n fields are available.
     raSteps = (0:3) * 45.0;
     decSteps = [-20.0, 20.0];
     seedBase = 5000;
@@ -116,7 +106,6 @@ end
 function state = loadBatchState_(path, seed, nFields, raOffset)
 %LOADBATCHSTATE_  Load or initialize continuous-insert simulation state from JSON.
 
-    % Default empty state with sky fields and visit counters.
     state = struct();
     state.seed = seed;
     state.round_idx = 0;
@@ -132,7 +121,6 @@ function state = loadBatchState_(path, seed, nFields, raOffset)
         return;
     end
 
-    % Merge persisted catalog.json fields into default state.
     raw = jsondecode(fileread(path));
     if isfield(raw, 'seed')
         state.seed = raw.seed;
@@ -160,13 +148,11 @@ end
 function saveBatchState_(path, state)
 %SAVEBATCHSTATE_  Persist simulation state to catalog.json.
 
-    % Ensure parent directory exists.
     dirPath = fileparts(path);
     if ~isempty(dirPath) && ~isfolder(dirPath)
         mkdir(dirPath);
     end
 
-    % Write JSON payload (seed, fields, catalogs, visit counts, round index).
     payload = struct();
     payload.seed = state.seed;
     payload.fields = state.fields;
@@ -198,14 +184,12 @@ end
 function pop = generatePopulation_(sky, popSeed, size, fluxMax)
 %GENERATEPOPULATION_  Random source population within one sky field FOV.
 
-    % Sample RA/Dec uniformly inside field footprint.
     half = sky.fov_deg / 2.0;
     n = max(size, 100);
     rng(popSeed);
     ra = mod(sky.ra_center + (rand(n, 1) * 2 - 1) * half, 360.0);
     dec = max(-89.9, min(89.9, sky.dec_center + (rand(n, 1) * 2 - 1) * half));
 
-    % Photometry within safe flux range for service int16 path.
     magnitude = single(15.0 + rand(n, 1) * 4.5);
     flux = single(min(fluxMax, max(0.1, 10 .^ ((25.0 - double(magnitude)) / 2.5))));
     flags = zeros(n, 1, 'uint32');
@@ -214,26 +198,23 @@ function pop = generatePopulation_(sky, popSeed, size, fluxMax)
 end
 
 
-function [tbl, state] = simulateVisitBatch_(state, sky, n, visitIndex, fluxMax, catalogSize, fieldNameTag)
+function [tbl, state] = simulateVisitBatch_(state, sky, n, visitIndex, C, fieldNameTag)
 %SIMULATEVISITBATCH_  Build one visit batch table (first visit or revisit mix).
 
-    % Lazy-create per-field catalog population on first simulate call.
     catKey = matlab.lang.makeValidName(sky.name);
     if ~isfield(state.catalogs, catKey)
         popSeed = sky.seed;
         if popSeed == 0
             popSeed = state.seed;
         end
-        state.catalogs.(catKey) = generatePopulation_(sky, popSeed, catalogSize, fluxMax);
+        state.catalogs.(catKey) = generatePopulation_(sky, popSeed, C.CatalogSize, C.FluxSafeMax);
     end
     pop = state.catalogs.(catKey);
     nCat = numel(pop.ra);
     ts = int64(posixtime(datetime('now')));
 
-    % Deterministic RNG per visit for reproducible batches.
     rng(state.seed + visitIndex + mod(sum(double(sky.name)), 10000));
 
-    % First visit: sample catalog rows as all-NEW detections.
     if visitIndex == 0
         idx = randperm(nCat, min(n, nCat));
         tbl = rowsToTable_(pop.ra(idx), pop.dec(idx), pop.magnitude(idx), ...
@@ -242,8 +223,20 @@ function [tbl, state] = simulateVisitBatch_(state, sky, n, visitIndex, fluxMax, 
         return;
     end
 
-    % Revisit: astrometric jitter + photometric noise on catalog subset.
     idx = randperm(nCat, min(n, nCat));
+    [ra, dec, magnitude, flux, flags] = applyRevisitNoise_(pop, idx, C.FluxSafeMax);
+    [magnitude, flux] = injectVariableStars_(magnitude, flux, pop, idx, C.FluxSafeMax, C.VariableStarFraction);
+    [ra, dec, magnitude, flux, flags] = injectTransients_(ra, dec, magnitude, flux, flags, n, C.FluxSafeMax, C.TransientFraction);
+    [ra, dec, magnitude, flux, flags] = injectArtifacts_(ra, dec, magnitude, flux, flags, n, C.ArtifactFraction);
+
+    tbl = rowsToTable_(ra, dec, magnitude, flux, flags, ts, fieldNameTag, sky.name);
+    state.catalogs.(catKey) = pop;
+end
+
+
+function [ra, dec, magnitude, flux, flags] = applyRevisitNoise_(pop, idx, fluxMax)
+%APPLYREVISITNOISE_  Astrometric jitter and photometric noise on catalog subset.
+
     noiseDeg = 0.4 / 3600.0;
     ra = mod(pop.ra(idx) + randn(numel(idx), 1) * noiseDeg, 360.0);
     dec = max(-89.9, min(89.9, pop.dec(idx) + randn(numel(idx), 1) * noiseDeg));
@@ -251,47 +244,60 @@ function [tbl, state] = simulateVisitBatch_(state, sky, n, visitIndex, fluxMax, 
     magnitude = pop.magnitude(idx) + photNoise;
     flux = single(min(fluxMax, max(0.01, double(pop.flux(idx)) .* 10 .^ (-double(photNoise) / 2.5))));
     flags = pop.flags(idx);
+end
 
-    % ~2% variable stars: larger magnitude/flux change (CHANGED status).
-    nVariable = max(1, round(numel(idx) * 0.02));
+
+function [magnitude, flux] = injectVariableStars_(magnitude, flux, pop, idx, fluxMax, fraction)
+%INJECTVARIABLESTARS_  Mark ~fraction of rows as photometrically CHANGED.
+
+    nVariable = max(1, round(numel(idx) * fraction));
     varIdx = randperm(numel(idx), nVariable);
     deltaMag = single((randi([0 1], nVariable, 1) * 2 - 1) .* (0.1 + rand(nVariable, 1) * 0.7));
     magnitude(varIdx) = magnitude(varIdx) + deltaMag;
     flux(varIdx) = single(min(fluxMax, max(0.01, double(pop.flux(idx(varIdx))) ...
         .* 10 .^ (-double(deltaMag) / 2.5))));
+end
 
-    % ~0.5% transients (NEW) and ~0.5% artifacts (invalid coords).
-    nNew = max(0, round(n * 0.005));
-    nArt = max(0, round(n * 0.005));
 
-    if nNew > 0
-        raNew = min(ra) + rand(nNew, 1) * (max(ra) - min(ra));
-        decNew = min(dec) + rand(nNew, 1) * (max(dec) - min(dec));
-        magNew = single(18.5 + rand(nNew, 1) * 3.0);
-        fluxNew = single(min(fluxMax, max(0.1, 10 .^ ((25.0 - double(magNew)) / 2.5))));
-        flagsNew = zeros(nNew, 1, 'uint32');
-        ra = [ra; raNew];
-        dec = [dec; decNew];
-        magnitude = [magnitude; magNew];
-        flux = [flux; fluxNew];
-        flags = [flags; flagsNew];
+function [ra, dec, magnitude, flux, flags] = injectTransients_(ra, dec, magnitude, flux, flags, n, fluxMax, fraction)
+%INJECTTRANSIENTS_  Append ~fraction of batch size as NEW transient detections.
+
+    nNew = max(0, round(n * fraction));
+    if nNew <= 0
+        return;
     end
 
-    if nArt > 0
-        raArt = 360.01 + rand(nArt, 1) * 359.99;
-        decArt = -90 + rand(nArt, 1) * 180;
-        magArt = single(14.0 + rand(nArt, 1) * 6.0);
-        fluxArt = single(10 + rand(nArt, 1) * 190);
-        flagsArt = zeros(nArt, 1, 'uint32');
-        ra = [ra; raArt];
-        dec = [dec; decArt];
-        magnitude = [magnitude; magArt];
-        flux = [flux; fluxArt];
-        flags = [flags; flagsArt];
+    raNew = min(ra) + rand(nNew, 1) * (max(ra) - min(ra));
+    decNew = min(dec) + rand(nNew, 1) * (max(dec) - min(dec));
+    magNew = single(18.5 + rand(nNew, 1) * 3.0);
+    fluxNew = single(min(fluxMax, max(0.1, 10 .^ ((25.0 - double(magNew)) / 2.5))));
+    flagsNew = zeros(nNew, 1, 'uint32');
+    ra = [ra; raNew];
+    dec = [dec; decNew];
+    magnitude = [magnitude; magNew];
+    flux = [flux; fluxNew];
+    flags = [flags; flagsNew];
+end
+
+
+function [ra, dec, magnitude, flux, flags] = injectArtifacts_(ra, dec, magnitude, flux, flags, n, fraction)
+%INJECTARTIFACTS_  Append ~fraction of batch size as invalid-coordinate artifacts.
+
+    nArt = max(0, round(n * fraction));
+    if nArt <= 0
+        return;
     end
 
-    tbl = rowsToTable_(ra, dec, magnitude, flux, flags, ts, fieldNameTag, sky.name);
-    state.catalogs.(catKey) = pop;
+    raArt = 360.01 + rand(nArt, 1) * 359.99;
+    decArt = -90 + rand(nArt, 1) * 180;
+    magArt = single(14.0 + rand(nArt, 1) * 6.0);
+    fluxArt = single(10 + rand(nArt, 1) * 190);
+    flagsArt = zeros(nArt, 1, 'uint32');
+    ra = [ra; raArt];
+    dec = [dec; decArt];
+    magnitude = [magnitude; magArt];
+    flux = [flux; fluxArt];
+    flags = [flags; flagsArt];
 end
 
 

@@ -112,6 +112,22 @@ MATLAB uses a **separate** sky catalog with **+12° RA** offset vs Python so fir
 | `debug_insert_continuous.m` | Continuous 1000-row realistic cadence loop |
 | `debug_realistic_batch.m` | Sky fields, catalog persistence, visit simulation |
 | `debug_log.m` | Timestamped section/ok/warn/err/info logging |
-| `debug_outboxStatus_.m` | Print pending/failed outbox folder counts and paths |
+| `debugOutboxStatus_.m` | Print pending/failed outbox folder counts and paths |
 | `run_debug_insert_continuous.bat` | Windows R2025b `-batch` launcher |
 | `run_debug_insert_continuous.sh` | Linux/Git-Bash launcher |
+
+## Internal helpers (private)
+
+Shared by smoke and continuous scripts. Trailing `_` marks package-private helpers.
+
+| File | Purpose |
+|------|---------|
+| `debugConstants_.m` | Named defaults (timeouts, poll interval, simulation fractions) |
+| `debugSetupLog_.m` | Create daily log file under `sources/debug/logs/` |
+| `debugResolveBaseUrl_.m` | Read `US_BASE_URL` or localhost default |
+| `debugCreateClient_.m` | Build verbose `SourcesClient` |
+| `debugCheckHealth_.m` | Best-effort health probe; strict `RequireHealth` mode |
+| `debugHandleInsertResponse_.m` | Queued / waitJob / result logging (smoke vs continuous) |
+| `debugDataRoot_.m` | `$ASTROPACK_DATA_PATH/sources/debug` |
+| `debugOutboxStatus_.m` | Outbox pending/failed folder summary |
+| `ensurePath_.m` | Add `matlab/util` when `ASTROPACK_PATH` is set (batch launchers) |

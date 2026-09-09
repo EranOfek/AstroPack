@@ -26,9 +26,16 @@ end
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `US_BASE_URL` | `http://127.0.0.1:8151` | Unique Sources API base URL |
-| `US_API_KEY` | (empty) | Optional API key header |
+| `US_BASE_URL` | `http://127.0.0.1:8151` | Full URL or alias `local` / `euclid` |
+| `US_API_KEY` | (empty) | Optional locally; required on Euclid |
 | `ASTROPACK_DATA_PATH` | OS-specific fallback | Parent for offline outbox (see below) |
+
+### Named hosts (`US_BASE_URL` or constructor arg)
+
+| Alias | URL |
+|-------|-----|
+| `local` | `http://127.0.0.1:8151` |
+| `euclid` | `http://euclid/unique-sources` |
 
 ## Offline outbox
 

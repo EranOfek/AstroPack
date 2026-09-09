@@ -3,7 +3,7 @@
 % File        : db.sources.SourcesClient.m
 % Author      : Chen Tishler
 % Created     : 07/09/2026
-% Updated     : 07/09/2026
+% Updated     : 09/09/2026
 % Description : HTTP client for Unique Sources FastAPI service (Layer 1).
 %==========================================================================
 
@@ -53,13 +53,13 @@ classdef SourcesClient < handle
             % Example:
             %   client = db.sources.SourcesClient();
 
-            % Base URL from argument or US_BASE_URL env var.
+            % Base URL from argument or US_BASE_URL env var (supports aliases local, euclid).
             if nargin >= 1 && ~isempty(base_url)
-                obj.base_url_ = obj.strip_slash_(base_url);
+                obj.base_url_ = obj.strip_slash_(obj.resolveBaseUrl_(base_url));
             else
                 envUrl = getenv('US_BASE_URL');
                 if ~isempty(envUrl)
-                    obj.base_url_ = obj.strip_slash_(envUrl);
+                    obj.base_url_ = obj.strip_slash_(obj.resolveBaseUrl_(envUrl));
                 end
             end
 
@@ -199,12 +199,15 @@ classdef SourcesClient < handle
                     'RequestId is required for idempotency');
             end
 
+            % Normalize table for Parquet (ClickHouse-style names, safe types).
+            UploadTable = obj.prepareTableForParquet_(srcTable, p.Results.LowercaseColumns);
+
             % Write table to a temp Parquet file, submit, then remove temp dir.
             tmpDir = tempname;
             mkdir(tmpDir);
             pqPath = fullfile(tmpDir, char(p.Results.OriginalName));
             try
-                parquetwrite(pqPath, srcTable);
+                parquetwrite(pqPath, UploadTable);
                 resp = obj.submitInsert_(pqPath, reqId, p.Results);
             catch ME
                 if exist(tmpDir, 'dir')
@@ -341,7 +344,83 @@ classdef SourcesClient < handle
             addParameter(p, 'DetectionAs', '', @(x) ischar(x) || isstring(x));
             addParameter(p, 'UniqueAs', '', @(x) ischar(x) || isstring(x));
             addParameter(p, 'OriginalName', 'sources.parquet', @(x) ischar(x) || isstring(x));
+            addParameter(p, 'LowercaseColumns', true, @islogical);
             parse(p, varargin{:});
+        end
+
+
+        function T = prepareTableForParquet_(obj, srcTable, lowercaseColumns) %#ok<INUSD>
+            % prepareTableForParquet_  Coerce types and optionally lowercase names for upload.
+            %
+            %   LAST archive tables from imProc.db.insertCatalog may use uppercase
+            %   names and uint64 IDs; Parquet/ClickHouse expect lowercase snake_case.
+
+            T = srcTable;
+            if isempty(T) || height(T) == 0
+                return;
+            end
+
+            if lowercaseColumns
+                T.Properties.VariableNames = lower(T.Properties.VariableNames);
+            end
+
+            VarNames = T.Properties.VariableNames;
+            for i = 1:numel(VarNames)
+                Col = T.(VarNames{i});
+                T.(VarNames{i}) = obj.coerceColumnForParquet_(Col);
+            end
+        end
+
+
+        function Col = coerceColumnForParquet_(obj, Col) %#ok<INUSD>
+            % coerceColumnForParquet_  Map MATLAB column types to Parquet-safe types.
+
+            if iscell(Col)
+                if all(cellfun(@(x) ischar(x) || isstring(x) || (isscalar(x) && isnan(x)), Col))
+                    Col = string(Col);
+                end
+                return;
+            end
+
+            if isstring(Col) || ischar(Col)
+                if ischar(Col)
+                    Col = string(Col);
+                end
+                return;
+            end
+
+            if isdatetime(Col)
+                Col = int64(posixtime(Col));
+                return;
+            end
+
+            if isduration(Col)
+                Col = seconds(Col);
+                return;
+            end
+
+            if islogical(Col)
+                Col = int8(Col);
+                return;
+            end
+
+            cls = class(Col);
+            switch cls
+                case 'uint64'
+                    maxVal = intmax('int64');
+                    if all(Col <= maxVal, 'all')
+                        Col = int64(Col);
+                    else
+                        Col = double(Col);
+                    end
+                case {'uint32', 'uint16', 'uint8'}
+                    Col = int64(Col);
+                case 'single'
+                    % keep single for reduced smoke tables; double is safer for mixed LAST cols
+                    if any(isinf(Col) | isnan(Col))
+                        Col = double(Col);
+                    end
+            end
         end
 
 
@@ -754,6 +833,21 @@ classdef SourcesClient < handle
             % strip_slash_  Remove trailing slash from base URL string.
 
             s = regexprep(strtrim(char(url)), '/$', '');
+        end
+
+
+        function url = resolveBaseUrl_(obj, value) %#ok<INUSD>
+            % resolveBaseUrl_  Expand named hosts (local, euclid) to full URLs.
+
+            key = lower(strtrim(char(value)));
+            switch key
+                case {'local', 'localhost'}
+                    url = 'http://127.0.0.1:8151';
+                case 'euclid'
+                    url = 'http://euclid/unique-sources';
+                otherwise
+                    url = char(value);
+            end
         end
 
 

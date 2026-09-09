@@ -3,7 +3,7 @@
 % File        : db.sources.debug.debug_log.m
 % Author      : Chen Tishler
 % Created     : 19/08/2026
-% Updated     : 07/09/2026
+% Updated     : 09/09/2026
 % Description : Timestamped console logging for sources debug walkthroughs.
 %==========================================================================
 
@@ -18,12 +18,12 @@ function debug_log(action, msg, logFile)
 %
 %   Optional third arg appends the same line to a log file.
 
-    % Default: console only when logFile omitted.
-    if nargin < 3
-        logFile = '';
+    arguments
+        action (1,:) char
+        msg (1,:) char
+        logFile (1,:) char = ''
     end
 
-    % Format line by action type (section banner vs status prefix).
     ts = datestr(now, 'yyyy-mm-dd HH:MM:SS');
     switch lower(action)
         case 'section'
@@ -40,7 +40,6 @@ function debug_log(action, msg, logFile)
             line = sprintf('[%s] %s\n', ts, msg);
     end
 
-    % Print to console and optionally append to log file.
     fprintf('%s', line);
     if ~isempty(logFile)
         fid = fopen(logFile, 'a');
