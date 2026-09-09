@@ -78,6 +78,7 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
         Args.KeepFraction      = [0.99 0.90];
         Args.MinPerBin         = 20;
         Args.RadiusTS          = 1;
+        Args.RadiusSmear       = [];
         Args.InjectSmear logical = false;
         Args.Seed              = [];
     end
@@ -85,6 +86,7 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
     BinCen = [];
     BinThr = [];
     Info   = struct('Ninj',0, 'NumGrid',0, 'NumClear',0, 'MinSep',NaN, ...
+                    'RadiusSmear',NaN, ...
                     'NumPerBin',[], 'PsfSlope',NaN, 'SmearSlope',NaN, ...
                     'Fun',[], 'Reason','');
 
@@ -93,6 +95,24 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
         Info.Reason = 'no smear template or no difference image';
         return
     end
+
+    % The smear statistic needs a wider peak search than SCORE, since the
+    % template's response peaks away from the PSF filter's. Taken from the
+    % template so this matches what imProc.sub.measureTransients measured on
+    % the real candidates: a threshold fitted at one radius and applied to a
+    % statistic sampled at another is not a threshold on the same quantity.
+    RadiusSmear = Args.RadiusSmear;
+    if isempty(RadiusSmear)
+        if ~isempty(Obj.SmearTemplateInfo) && ...
+                isfield(Obj.SmearTemplateInfo,'Radius') && ...
+                isfinite(Obj.SmearTemplateInfo.Radius)
+            RadiusSmear = Obj.SmearTemplateInfo.Radius;
+        else
+            RadiusSmear = Args.RadiusTS;
+        end
+    end
+
+    Info.RadiusSmear = RadiusSmear;
 
     if ~isempty(Args.Seed)
         rng(Args.Seed);
@@ -194,7 +214,7 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
         [Sc{Ipop}, ~, ~] = imUtil.properSub.findNearestPeakSig(Simg, ...
             Gxy(:,1), Gxy(:,2), 1, 'RadiusTS', Args.RadiusTS);
         [Sm{Ipop}, ~, ~] = imUtil.properSub.findNearestPeakSig(Mimg, ...
-            Gxy(:,1), Gxy(:,2), 1, 'RadiusTS', Args.RadiusTS);
+            Gxy(:,1), Gxy(:,2), 1, 'RadiusTS', RadiusSmear);
     end
 
     ScorePsf = Sc{1};

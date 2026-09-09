@@ -20,14 +20,22 @@ function [Template, Info] = smearTemplate(Obj, Args)
     %            must have run.
     %          * ...,key,val,...
     %            'Method' - 'measured', 'derived', or 'auto'.
-    %                   'auto' derives when the shift track is reachable and
-    %                   otherwise stacks DarkHighVal defects. The visit
-    %                   directory and crop are taken from the arguments when
-    %                   given and from the object otherwise, so 'auto'
-    %                   usually needs nothing passed. The derived path cannot
-    %                   fail for lack of defects, so it is preferred whenever
-    %                   it can run. Info.Method reports which was used.
+    %                   'auto' stacks real DarkHighVal defects whenever the
+    %                   crop has at least MinNumDefects of them, and derives
+    %                   the template from the shift track otherwise. Measured
+    %                   is preferred because it carries the shape the defects
+    %                   actually have, including the negative lobe the derived
+    %                   model lacks; derived is the fallback for crops without
+    %                   the calibrators to stack. Either way the other method
+    %                   is tried if the first fails, so this never hard fails.
+    %                   The visit directory and crop are taken from the
+    %                   arguments when given and from the object otherwise, so
+    %                   'auto' usually needs nothing passed. Info.Method
+    %                   reports which was used, Info.Rejected why the first
+    %                   choice was dropped when it was.
     %                   Default is 'auto'.
+    %                   Info.Radius is the peak search radius the smear
+    %                   statistic should be sampled with, in pixels.
     %
     %            --- both methods ---
     %            'HalfSize' - Cutout half size. Default is 7.
@@ -101,8 +109,6 @@ function [Template, Info] = smearTemplate(Obj, Args)
     arguments
         Obj(1,1)
         Args.Method               = 'auto';
-        Args.SwitchToMeasuredSpan = 15;    % prefer measured above this drift
-                                           % span in pixels; empty disables
         Args.NoFallback logical   = false; % internal: one method, no retry
         Args.TrackSpan            = [];    % [spanX spanY], filled in internally
         Args.HalfSize             = 7;
@@ -134,7 +140,7 @@ function [Template, Info] = smearTemplate(Obj, Args)
                       'Scatter',NaN, 'Core',NaN, 'Offset',[NaN NaN], ...
                       'NumNearSrc',0, 'X',[], 'Y',[], ...
                       'Nepoch',NaN, 'SpanX',NaN, 'SpanY',NaN, ...
-                      'Rejected',{{}}, 'Reason','');
+                      'Radius',NaN, 'Rejected',{{}}, 'Reason','');
 
     % Fill in the visit directory and crop from the object where they were
     % not given, so the derived path is usable without plumbing them through
@@ -156,7 +162,6 @@ function [Template, Info] = smearTemplate(Obj, Args)
         [Ncal, Span]   = countClosedDefects(Obj, Args);
         Args.TrackSpan = Span;
     end
-    Span = Args.TrackSpan;
 
     if Args.NoFallback
         Order = {Method};
@@ -165,15 +170,22 @@ function [Template, Info] = smearTemplate(Obj, Args)
             case 'measured', Order = {'measured','derived'};
             case 'derived',  Order = {'derived','measured'};
             case 'auto'
-                if isempty(Span) && isempty(Args.ShiftXY)
-                    Order = {'measured'};        % no track: derived is impossible
-                elseif ~isempty(Args.SwitchToMeasuredSpan) && ~isempty(Span) && ...
-                        max(Span) > Args.SwitchToMeasuredSpan && ...
-                        Ncal >= Args.MinNumDefects
-                    % A long track is where the derived model is least
-                    % trustworthy and where real defects are most plentiful.
+                if Ncal >= Args.MinNumDefects
+                    % The measured template is the observed defect shape,
+                    % negative lobe and all. The derived model does not
+                    % reproduce that lobe: it stays positive along the whole
+                    % track while the real residual turns negative past its
+                    % midpoint, and a filter that is positive where the data
+                    % is negative loses response. On one crop that cost a
+                    % 9 pixel defect track its flag, at +1.14 against a
+                    % threshold of +1.04, which the measured template caught
+                    % at -1.05 against +0.22 while flagging fewer candidates
+                    % overall. So measured is preferred whenever the crop has
+                    % the defects to build it.
                     Order = {'measured','derived'};
                 else
+                    % Not enough calibrators to stack. The derived path needs
+                    % none, so it is the fallback rather than the preference.
                     Order = {'derived','measured'};
                 end
             otherwise
@@ -196,6 +208,7 @@ function [Template, Info] = smearTemplate(Obj, Args)
         if ~isempty(Template)
             Info.Method   = Order{Im};
             Info.Rejected = Rejected;
+            Info.Radius   = smearRadius(Template);
             return
         end
         Rejected{end+1} = sprintf('%s: %s', Order{Im}, Info.Reason); %#ok<AGROW>
@@ -605,6 +618,39 @@ function Out = cropCentre(Image, HalfSize, Offset)
     Ry  = round(Cen(1)) + Offset(2) + (-HalfSize:1:HalfSize);
     Rx  = round(Cen(2)) + Offset(1) + (-HalfSize:1:HalfSize);
     Out = Image(Ry, Rx);
+end
+
+function R = smearRadius(Template)
+    % Peak search radius for the smear statistic, from the template itself.
+    %   SCORE peaks on the PSF filter, which for a track sits at one point
+    %   of it, while S_smear peaks where the whole track best aligns. The
+    %   two are not the same pixel, so the radius of 1 that measureTransients
+    %   uses for the compact statistics samples S_smear off its own response
+    %   and understates it. The flux weighted rms radius is the scale of that
+    %   displacement, and unlike the drift span it is defined for both
+    %   methods and survives whatever cropping the builder applied.
+    %
+    %   Positive part only, since the difference image template has negative
+    %   wings that carry no response to align on.
+    %
+    %   Capped because the cost of a wider box is noise: the maximum over
+    %   (2R+1)^2 pixels rises with R for a source that is not smeared, which
+    %   pushes real sources toward the cut. On a 29x29 measured template the
+    %   uncapped rule gives 9, and the injected loss of real sources at that
+    %   radius drifts to 6 per cent against a 99 per cent keep target, while
+    %   the separation gains only 0.03 over radius 6.
+
+    N = size(Template,1);
+    C = (N+1)./2;
+    [Yg, Xg] = ndgrid((1:N)-C, (1:N)-C);
+
+    W = max(Template, 0);
+    if ~any(W(:) > 0)
+        R = 1;
+        return
+    end
+    W = W ./ sum(W(:));
+    R = max(1, min(ceil(sqrt(sum(W(:) .* (Xg(:).^2 + Yg(:).^2)))), 4));
 end
 
 
