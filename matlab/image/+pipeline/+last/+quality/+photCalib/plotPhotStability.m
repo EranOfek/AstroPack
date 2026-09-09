@@ -203,6 +203,13 @@ function Result = plotPhotStability(MS, Args)
         Args.OverlayTrend                               = 'median'
         Args.TrendBinWidth                              = 0.5
         Args.MinEpochs                                  = 5
+        Args.StdMethod  (1,:) char ...
+            {mustBeMember(Args.StdMethod, {'std','rstd'})} = 'std'
+            % Per-source scatter estimator along the epoch axis:
+            % 'std'  - classical standard deviation (legacy default;
+            %          outlier-inflated faintward of ~mag 18)
+            % 'rstd' - robust 1.4826*MAD, same convention as
+            %          compareStabilityMS 'StdMethod'
         Args.FilterFlags            cell                = {'Saturated', 'NearEdge', 'NaN'}
         Args.BackgroundMag                              = 22
         Args.MinSN                                      = 5
@@ -567,7 +574,14 @@ function S = collectMedStd(MSobj, YCol, XCol, BadEpochMask, Args, ScaleCosCol, S
     end
 
     S.Med = median(X, 1, 'omitnan');
-    S.Std = std(Y, 0, 1, 'omitnan');
+    switch Args.StdMethod
+        case 'rstd'
+            % NaN-tolerant 1.4826*MAD - same formula as compareStabilityMS
+            % (MATLAB's mad() does not omit NaN)
+            S.Std = 1.4826 .* median(abs(Y - median(Y, 1, 'omitnan')), 1, 'omitnan');
+        otherwise
+            S.Std = std(Y, 0, 1, 'omitnan');
+    end
     if HaveScale
         MedZ = median(Z, 1, 'omitnan');
         S.Std = S.Std .* cosd(MedZ);
@@ -638,7 +652,7 @@ function drawMagPanel(Ax, QName, DataByQ, Im, Args, CentralCrops)
     end
     set(Ax, 'YScale', 'log'); box(Ax, 'on'); grid(Ax, 'on');
     xlabel(Ax, 'Median Magnitude', 'Interpreter', 'none');
-    ylabel(Ax, 'Std [mag]', 'Interpreter', 'none');
+    ylabel(Ax, sprintf('%s [mag]', i_stdLabel(Args)), 'Interpreter', 'none');
     xlim(Ax, [9 22]); ylim(Ax, [1e-3 10]);
 end
 
@@ -669,9 +683,9 @@ function drawAngularPanel(Ax, QName, DataByQ, Im, Args, CentralCrops)
     set(Ax, 'YScale', 'log'); box(Ax, 'on'); grid(Ax, 'on');
     xlabel(Ax, sprintf('Median %s', D.RefMag), 'Interpreter', 'none');
     if isfield(D, 'IsRefMagX') && D.IsRefMagX
-        ylabel(Ax, sprintf('Std %s', QName), 'Interpreter', 'none');
+        ylabel(Ax, sprintf('%s %s', i_stdLabel(Args), QName), 'Interpreter', 'none');
     else
-        ylabel(Ax, 'Std [arcsec]', 'Interpreter', 'none');
+        ylabel(Ax, sprintf('%s [arcsec]', i_stdLabel(Args)), 'Interpreter', 'none');
     end
     xlim(Ax, [9 22]);
     title(Ax, QName, 'Interpreter', 'none');
@@ -781,5 +795,14 @@ function addCropLegend(Ax, CropsToUse, PerCropData, CropCmap)
     if ~isempty(LegHandles)
         legend(Ax, LegHandles, LegLabels, 'Location', 'southwest', ...
             'FontSize', 6, 'NumColumns', 4, 'Interpreter', 'none');
+    end
+end
+
+function Lbl = i_stdLabel(Args)
+    % y-axis label for the chosen scatter estimator
+    if strcmpi(Args.StdMethod, 'rstd')
+        Lbl = 'RobustStd';
+    else
+        Lbl = 'Std';
     end
 end
