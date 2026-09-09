@@ -101,6 +101,10 @@ function [Template, Info] = smearTemplate(Obj, Args)
     arguments
         Obj(1,1)
         Args.Method               = 'auto';
+        Args.SwitchToMeasuredSpan = 15;    % prefer measured above this drift
+                                           % span in pixels; empty disables
+        Args.NoFallback logical   = false; % internal: one method, no retry
+        Args.TrackSpan            = [];    % [spanX spanY], filled in internally
         Args.HalfSize             = 7;
         Args.MomRadiusFactor      = 1.7;
 
@@ -129,34 +133,87 @@ function [Template, Info] = smearTemplate(Obj, Args)
     Info     = struct('Method','', 'NumComp',0, 'NumUsed',0, ...
                       'Scatter',NaN, 'Core',NaN, 'Offset',[NaN NaN], ...
                       'NumNearSrc',0, 'X',[], 'Y',[], ...
-                      'Nepoch',NaN, 'SpanX',NaN, 'SpanY',NaN, 'Reason','');
+                      'Nepoch',NaN, 'SpanX',NaN, 'SpanY',NaN, ...
+                      'Rejected',{{}}, 'Reason','');
 
     % Fill in the visit directory and crop from the object where they were
     % not given, so the derived path is usable without plumbing them through
     % subtractionS.
     [Args.VisitDir, Args.CropID] = resolveVisit(Obj, Args);
 
-    % Resolve 'auto'. Deriving needs only the shift track, and unlike the
-    % measured path it cannot fail for lack of defects, so it is used
-    % whenever the track is reachable.
+    % Resolve the order to try. Both facts are cheap: the shift track is
+    % needed by the derived path anyway, and the defect count is one
+    % bwconncomp. Deciding here rather than mid-build means the choice is
+    % made in one place and recorded.
     Method = lower(Args.Method);
-    if strcmp(Method, 'auto')
-        if ~isempty(Args.ShiftXY) || ...
-                (~isempty(Args.VisitDir) && ~isempty(Args.CropID))
-            Method = 'derived';
-        else
-            Method = 'measured';
+
+    % The span is needed by the measured builder too, to size its stamp and
+    % to close the one-pixel gaps in the mask tracks, so recover it whatever
+    % the method resolves to. A NoFallback call already carries it in Args,
+    % put there by the caller that recursed into us.
+    Ncal = 0;
+    if ~Args.NoFallback
+        [Ncal, Span]   = countClosedDefects(Obj, Args);
+        Args.TrackSpan = Span;
+    end
+    Span = Args.TrackSpan;
+
+    if Args.NoFallback
+        Order = {Method};
+    else
+        switch Method
+            case 'measured', Order = {'measured','derived'};
+            case 'derived',  Order = {'derived','measured'};
+            case 'auto'
+                if isempty(Span) && isempty(Args.ShiftXY)
+                    Order = {'measured'};        % no track: derived is impossible
+                elseif ~isempty(Args.SwitchToMeasuredSpan) && ~isempty(Span) && ...
+                        max(Span) > Args.SwitchToMeasuredSpan && ...
+                        Ncal >= Args.MinNumDefects
+                    % A long track is where the derived model is least
+                    % trustworthy and where real defects are most plentiful.
+                    Order = {'measured','derived'};
+                else
+                    Order = {'derived','measured'};
+                end
+            otherwise
+                Info.Reason = sprintf('unknown Method option %s', Args.Method);
+                return
         end
     end
 
-    Info.Method = Method;
+    % Try in order; the first that yields a template wins. Nothing here is
+    % fatal, an exhausted list returns an empty template with the reasons.
+    Rejected = {};
+    ArgsCell = namedargs2cell(Args);
+    for Im = 1:1:numel(Order)
+        if Args.NoFallback || numel(Order) == 1
+            [Template, Info] = buildOne(Obj, Args, Info, Order{Im});
+        else
+            [Template, Info] = imProc.sub.smearTemplate(Obj, ArgsCell{:}, ...
+                                   'Method',Order{Im}, 'NoFallback',true);
+        end
+        if ~isempty(Template)
+            Info.Method   = Order{Im};
+            Info.Rejected = Rejected;
+            return
+        end
+        Rejected{end+1} = sprintf('%s: %s', Order{Im}, Info.Reason); %#ok<AGROW>
+    end
 
+    Template      = [];
+    Info.Method   = Order{1};
+    Info.Rejected = Rejected;
+    Info.Reason   = strjoin(Rejected, '; ');
+    return
+end
+
+
+function [Template, Info] = buildOne(Obj, Args, Info, Method)
+    % One method, no fallback. The measured body follows inline below.
+    Info.Method = Method;
     if strcmp(Method, 'derived')
         [Template, Info] = derivedFromShifts(Obj, Args, Info);
-        return
-    end
-    if ~strcmp(Method, 'measured')
-        Info.Reason = sprintf('unknown Method option %s', Args.Method);
         return
     end
 
@@ -170,7 +227,18 @@ function [Template, Info] = smearTemplate(Obj, Args)
 
     Fwhm     = Obj.PSFData.fwhm;
     SizeIm   = size(Image);
+
+    % A defect smeared along the drift needs a stamp that holds the whole
+    % track, not the compact-defect default.
+    %   Constraint worth knowing: imProc.sub.smearThreshold injects on a grid
+    %   of spacing MinSep, and a source contaminates another within 2*HalfSize
+    %   of it, so 2*HalfSize must stay below MinSep (30 by default). At a span
+    %   of 19 pix this gives HalfSize 14, i.e. 29x29, which just fits. A
+    %   substantially longer track would need MinSep raised to match.
     HalfSize = Args.HalfSize;
+    if ~isempty(Args.TrackSpan)
+        HalfSize = max(HalfSize, ceil(max(Args.TrackSpan)./2) + 4);
+    end
     Cen      = HalfSize + 1;
 
     % --- defect positions ---
@@ -178,6 +246,21 @@ function [Template, Info] = smearTemplate(Obj, Args)
     if ~any(DefectMask(:))
         Info.Reason = sprintf('no %s pixels', strjoin(Args.Bits,'/'));
         return
+    end
+
+    % The mask is registered with nearest neighbour and OR'd over epochs, so
+    % one defect becomes a track along the drift. Sub-pixel steps leave
+    % one-pixel gaps in it and bwconncomp then reports each track as several
+    % fragments: on one crop 470 tracks came out as 1879 components, and
+    % cutting stamps at fragment centroids blurred the stacked residual by a
+    % factor 4 in peak. Closing a single-pixel gap along the drift recovers
+    % whole tracks and their centroids.
+    if ~isempty(Args.TrackSpan)
+        if Args.TrackSpan(1) >= Args.TrackSpan(2)
+            DefectMask = imclose(DefectMask, ones(1,3));
+        else
+            DefectMask = imclose(DefectMask, ones(3,1));
+        end
     end
 
     CC    = bwconncomp(DefectMask, 8);
@@ -682,4 +765,45 @@ function [VisitDir, CropID] = resolveVisit(Obj, Args)
             % leave empty
         end
     end
+end
+
+function [N, Span] = countClosedDefects(Obj, Args)
+    % How many usable defect tracks the measured path would have, and the
+    % drift span, both cheaply.
+    %
+    %   The mask is registered with nearest neighbour and OR'd across epochs,
+    %   so one detector defect becomes a track along the drift. Sub-pixel
+    %   steps leave one-pixel gaps in it, and bwconncomp then reports each
+    %   track as several fragments: on one crop 470 real tracks came out as
+    %   1879 components. Closing a single-pixel gap along the drift axis
+    %   recovers them, so the count here is of tracks, not fragments.
+
+    N = 0;  Span = [];
+
+    try
+        [ShiftXY, ~] = shiftTrackFromVisit(Args);
+        Span = [range(ShiftXY(:,1)), range(ShiftXY(:,2))];
+    catch
+        % no track: the caller falls back on the measured path anyway
+    end
+
+    if isempty(Obj.New) || isempty(Obj.New.MaskData) || Obj.New.MaskData.isemptyImage
+        return
+    end
+
+    M = Obj.New.MaskData.findBit(Args.Bits, 'Method','any', 'OutType','mat');
+    if ~any(M(:))
+        return
+    end
+
+    if ~isempty(Span)
+        if Span(1) >= Span(2)
+            M = imclose(M, ones(1,3));   % drift in x
+        else
+            M = imclose(M, ones(3,1));   % drift in y
+        end
+    end
+
+    CC = bwconncomp(M, 8);
+    N  = CC.NumObjects;
 end

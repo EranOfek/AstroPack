@@ -27,8 +27,13 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
     %                   default, since what matters is where the injections
     %                   land in SCORE and that depends on the coadd depth.
     %                   Default is [3e1 3e4].
-    %            'MinSep' - Grid spacing, in pixels, so stamps do not
-    %                   overlap. Default is 30.
+    %            'MinSep' - Minimum grid spacing in pixels. Raised to
+    %                   2*HalfSize + SepMargin when the template is large
+    %                   enough to need it, since a source within twice the
+    %                   filter half-width contaminates its neighbour's
+    %                   statistic. Default is 30.
+    %            'SepMargin' - Extra pixels beyond 2*HalfSize when scaling
+    %                   MinSep. Default is 4.
     %            'QuietLimit' - Exclude grid positions where |S| exceeds
     %                   this anywhere under the stamp, so nothing is
     %                   injected on top of a real source. Defaults to 5,
@@ -67,6 +72,7 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
         Args.Ninj              = 1000;
         Args.FluxRng           = [3e1 3e4];
         Args.MinSep            = 30;
+        Args.SepMargin         = 4;
         Args.QuietLimit        = 5;
         Args.BinEdges          = [5 7.5 10 14 20 30 45 70 120];
         Args.KeepFraction      = [0.99 0.90];
@@ -78,8 +84,9 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
 
     BinCen = [];
     BinThr = [];
-    Info   = struct('Ninj',0, 'NumGrid',0, 'NumClear',0, 'NumPerBin',[], ...
-                    'PsfSlope',NaN, 'SmearSlope',NaN, 'Fun',[], 'Reason','');
+    Info   = struct('Ninj',0, 'NumGrid',0, 'NumClear',0, 'MinSep',NaN, ...
+                    'NumPerBin',[], 'PsfSlope',NaN, 'SmearSlope',NaN, ...
+                    'Fun',[], 'Reason','');
 
     Template = Obj.SmearTemplate;
     if isempty(Template) || isempty(Obj.Image)
@@ -117,8 +124,19 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
     %  way moved the threshold from -0.564 to -0.442 and cut its
     %  seed-to-seed scatter from 0.139 to 0.108 -- the bias was the larger
     %  of the two effects.
-    [Gx, Gy] = meshgrid(Hm+Args.MinSep : Args.MinSep : SizeIm(2)-Hm-Args.MinSep, ...
-                        Hm+Args.MinSep : Args.MinSep : SizeIm(1)-Hm-Args.MinSep);
+    %
+    %  Spacing has to clear the filter, not just the stamp. A source at
+    %  distance d still contributes to the filtered value at another position
+    %  whenever d <= 2*Hm, since the matched filter has half-width Hm, so a
+    %  grid narrower than that lets injections corrupt each other's
+    %  statistics with no sign that anything is wrong. This became live when
+    %  smearTemplate started scaling its stamp with the drift span: a 19 pix
+    %  track gives Hm = 14, so 2*Hm = 28 against the old fixed 30.
+    MinSep = max(Args.MinSep, 2.*Hm + Args.SepMargin);
+    Info.MinSep = MinSep;
+
+    [Gx, Gy] = meshgrid(Hm+MinSep : MinSep : SizeIm(2)-Hm-MinSep, ...
+                        Hm+MinSep : MinSep : SizeIm(1)-Hm-MinSep);
     Gxy = [Gx(:), Gy(:)];
 
     Info.NumGrid = size(Gxy,1);
