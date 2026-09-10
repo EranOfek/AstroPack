@@ -29,7 +29,7 @@ const size_t maxCommentLineSize = 80 - 8;   // Max length of text in line that s
 
 // Keys added by our mex code, we ignore them is also specified by the caller 
 // to avoid duplicates in the FITS header
-const char* omitted_keys_list[] = {"NAXIS", "NAXIS1", "NAXIS2", "BITPIX", 0};
+const char* omitted_keys_list[] = {"SIMPLE", "NAXIS", "NAXIS1", "NAXIS2", "BITPIX", "EXTEND", 0};
 
 // Global to be accessed from addCard
 size_t _allocatedSize = 0;
