@@ -46,7 +46,10 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %            'UpdateHeader' - Update header with results. Default is true.
     %            'CalibArgs' - Cell array of key-value pairs forwarded to
     %                         PhotCalibTrans.calibrate. Build via local
-    %                         predefCalibArgs() or manually. Default is {}.
+    %                         predefCalibArgs() or manually. NOTE: supplying
+    %                         this REPLACES the whole predefined recipe - to
+    %                         override single settings use 'ExtraCalibArgs'.
+    %                         Default is {}.
     %                         Calibrate arguments commonly threaded here include
     %                         (see PhotCalibTrans.calibrate for the full list):
     %                           'UseTran2D', 'OptSeqName', 'AuditCalibrators',
@@ -96,6 +99,13 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %                         header RA/DEC/time and observer location (mirrors
     %                         the Python production LastCatUtils.get_airmass_from_cat
     %                         path) instead of the header AIRMASS keyword.
+    %            'ExtraCalibArgs' - Cell array of key-value pairs APPENDED to
+    %                         'CalibArgs', leaving the predefined recipe in
+    %                         place (last write wins). Use this to override
+    %                         individual calibrate settings, e.g. for a deep
+    %                         reference image:
+    %                           'ExtraCalibArgs', {'MaxSN', 1e9}
+    %                         Default is {}.
     %            'ApplyConstBand' - Apply constant-band correction after
     %                         computing AB magnitudes. Adds MAG_CB_* columns
     %                         (or overwrites MAG_AB_* if ConstBandOutputMode='replace').
@@ -314,6 +324,11 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % Calibration config forwarded to calibrate (cell array of key-value pairs)
         Args.CalibArgs cell = {}
 
+        % Key-value pairs APPENDED to CalibArgs (last write wins), leaving the
+        % predefined recipe intact. Use this to override single calibrate
+        % settings; supplying 'CalibArgs' instead REPLACES the whole recipe.
+        Args.ExtraCalibArgs cell = {}
+
         Args.CreateNewObj logical = false
         Args.DiffCalibProps cell = {'New', 'Ref'}
         Args.AddMag logical = true
@@ -450,6 +465,22 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     % Apply predefCalibArgs defaults when no CalibArgs provided
     if isempty(Args.CalibArgs)
         Args.CalibArgs = predefCalibArgs();
+    end
+
+    % Append the caller's single-setting overrides. This is the way to change
+    % one calibrate argument without losing the predefined recipe: appending
+    % wins over an earlier value of the same key in the arguments-block
+    % resolution at the receiving end. Example: a reference image stacked
+    % from ~1000 exposures has all its Gaia G=12-16 calibrators above the
+    % default upper S/N gate of 1000, so every calibrator is rejected and the
+    % fit finds none - 'ExtraCalibArgs',{'MaxSN',1e9} fixes that while
+    % keeping the tuned optimisation sequence and calibrator selection.
+    if ~isempty(Args.ExtraCalibArgs)
+        if mod(numel(Args.ExtraCalibArgs),2)~=0
+            error('fitPhotCalibTrans:ExtraCalibArgs', ...
+                  'ExtraCalibArgs must be a cell array of key-value pairs');
+        end
+        Args.CalibArgs = [Args.CalibArgs, Args.ExtraCalibArgs];
     end
 
     % Promote 'CollectCalibTrajectory' from CalibArgs to the wrapper-level
