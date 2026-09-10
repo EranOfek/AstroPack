@@ -230,8 +230,8 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
         Args.SuppressThreshold         = 1e-2;
         Args.SuppressFunPars           = 3; % or # from edge
 
-        Args.MinEdgeDist               = 13;  % [pix] reject PSF stars closer than this to the image border, on EVERY path (issue #1275). The PSF CORE of such a star is truncated by the image edge and the cutout is NaN-padded there; the lanczos3 recentering shift then smears the NaN ~3 pix further inward. Unlike cleanSourcesArgs' MinEdgeDist (applied only when buildPSF finds the sources itself) this screen also applies to a caller-supplied X/Y list, which is what the pipeline uses. The background annulus may extend beyond the border - annulus_median tolerates a partial (sector) annulus - so the distance is set by RadiusPSF + shift margin, not by the annulus radius. [] or 0 disables.
-        Args.MinNumGoodPsf             = 5;   % minimum number of PSF stars surviving all selections; below it no master PSF is built (empty PSF returned, as when no stars are found) instead of stacking a meaningless 1-2 star PSF (issue #1275)
+        Args.MinEdgeDist               = 13;  % [pix] reject PSF stars closer than this to the image border, on EVERY path (issue #1276). The PSF CORE of such a star is truncated by the image edge and the cutout is NaN-padded there; the lanczos3 recentering shift then smears the NaN ~3 pix further inward. Unlike cleanSourcesArgs' MinEdgeDist (applied only when buildPSF finds the sources itself) this screen also applies to a caller-supplied X/Y list, which is what the pipeline uses. The background annulus may extend beyond the border - annulus_median tolerates a partial (sector) annulus - so the distance is set by RadiusPSF + shift margin, not by the annulus radius. [] or 0 disables.
+        Args.MinNumGoodPsf             = 5;   % minimum number of PSF stars surviving all selections; below it no master PSF is built (empty PSF returned, as when no stars are found) instead of stacking a meaningless 1-2 star PSF (issue #1276)
 
         Args.SaturatedMask             = []; % logical/numeric, true where a pixel is saturated; used only by WingsMethod='empirical'
         Args.WingProfile               = []; % precomputed visit-level wing SHAPE (struct with .Radius/.Value/.Success from imProc.psf.visitWingProfile). When given with Success=true and WingsMethod='empirical', the per-epoch internal wing calibration is SKIPPED and this shape is re-anchored onto the current core at the splice radius - shared wing shape, per-epoch core. Empty/Success=false -> legacy per-image calibration.
@@ -283,7 +283,7 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
         FlagSN  = Args.SN(:,2)>Args.RangeSN(1) & Args.SN(:,2)<Args.RangeSN(2) & Args.SN(:,2)>(Args.SN(:,1)+Args.SNdiff);
 
         % Reject stars whose PSF core would be truncated by the image border
-        % (issue #1275). Without this, a star a few pix from the edge yields a
+        % (issue #1276). Without this, a star a few pix from the edge yields a
         % NaN-padded cutout; if it is the only surviving PSF star the master
         % PSF is half NaN, its radial profile is all-NaN, and the wing splice
         % dies with 'Require R2 > R1'.
@@ -445,7 +445,7 @@ function [Result, MeanPSF, VarPSF, Nsrc, ExtendedPSF, DetectionPSF] = buildPSF(I
         end
     end
 
-    % Too few PSF stars to build a meaningful master PSF (issue #1275): take
+    % Too few PSF stars to build a meaningful master PSF (issue #1276): take
     % the same graceful path as "no stars found" - an empty PSF - rather than
     % stacking one or two stamps.
     if Nsrc>0 && ~isempty(Args.MinNumGoodPsf) && Nsrc<Args.MinNumGoodPsf

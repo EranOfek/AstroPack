@@ -245,8 +245,8 @@ function [Obj,Result]=populatePSF(Obj, Args)
 
         % --- legacy / no-op options (kept for backward compatibility) ---
         Args.moment2Args               = {};
-        Args.MinNumGoodPsf             = 5;    % forwarded to buildPSF on the 'new' path since issue #1275 (was legacy-only)
-        Args.MinEdgeDist               = 13;   % [pix] PSF-star border exclusion, forwarded to buildPSF (issue #1275)
+        Args.MinNumGoodPsf             = 5;    % forwarded to buildPSF on the 'new' path since issue #1276 (was legacy-only)
+        Args.MinEdgeDist               = 13;   % [pix] PSF-star border exclusion, forwarded to buildPSF (issue #1276)
         Args.constructPSF_cutoutsArgs  = {};
         Args.SmoothWings               = true;       % old: psf_zeroConverge  !! set to false
         Args.SuppressWings             = false;      % suppressWings fun      !! set to true

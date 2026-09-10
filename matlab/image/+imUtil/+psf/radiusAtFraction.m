@@ -46,7 +46,7 @@ function [ThreshRadius, PeakRadius] = radiusAtFraction(PSF, Threshold)
         % border, whose ring means are NaN) yields no usable crossing. Return
         % the stamp half-size, i.e. the same "no outskirts inside the stamp"
         % semantics as the no-crossing case above, so the caller's wing splice
-        % degenerates to a no-op instead of failing (issue #1275).
+        % degenerates to a no-op instead of failing (issue #1276).
         ThreshRadius = HalfSize;
     end
 
