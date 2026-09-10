@@ -140,16 +140,27 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
             YUmax = CCDSEC(Icrop,4);
         end
 
-        AIc = crop(AI(Icrop),[XUmin XUmax YUmin YUmax],'UpdateCat',true,'CreateNewObj',true);
-        MCat(Icrop) = AIc.CatData;
+        AIc = crop(AI(Icrop),[XUmin XUmax YUmin YUmax],'UpdateCat',false,'CreateNewObj',true);
 
-        % a source at column c of the cropped stamp sits at
-        % c + CatShift + XUmin - 1 in the stitched image, in both branches - the
-        % two used to differ only because XUmin itself was short by one in the
-        % hasLeft/hasBottom case, which cancelled within a crop but left the
-        % crops mutually offset (issue #1236)
-        MCat(Icrop).Catalog(:,IndX) = MCat(Icrop).Catalog(:,IndX) + CatShiftX(Icrop) + XUmin - 1;
-        MCat(Icrop).Catalog(:,IndY) = MCat(Icrop).Catalog(:,IndY) + CatShiftY(Icrop) + YUmin - 1;
+        % Select the catalog rows here rather than letting crop do it. crop
+        % keeps XUmin <= X <= XUmax on the raw coordinate, so a source whose
+        % centroid falls between the last column one crop owns and the first
+        % column of the next belongs to neither and is lost from the stitch.
+        % Own a source if the PIXEL containing its centroid is owned, i.e. the
+        % half-open interval [XUmin-0.5, XUmax+0.5) - which tiles the seams
+        % without gaps and without duplicates (issue #1236).
+        Cat  = AI(Icrop).CatData.copy;
+        Xcat = Cat.Catalog(:,IndX(1));
+        Ycat = Cat.Catalog(:,IndY(1));
+        FlagIn = Xcat>=(XUmin-0.5) & Xcat<(XUmax+0.5) & ...
+                 Ycat>=(YUmin-0.5) & Ycat<(YUmax+0.5);
+        Cat.Catalog = Cat.Catalog(FlagIn,:);
+
+        % the crop coordinates are still those of the uncropped crop, so the
+        % shift into the stitched frame is just the crop's own origin offset
+        Cat.Catalog(:,IndX) = Cat.Catalog(:,IndX) + CatShiftX(Icrop);
+        Cat.Catalog(:,IndY) = Cat.Catalog(:,IndY) + CatShiftY(Icrop);
+        MCat(Icrop) = Cat;
 
         ImgAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)  = AIc.ImageData.Data;
         MaskAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.MaskData.Data;
