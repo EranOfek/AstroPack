@@ -2,13 +2,16 @@ function [Result,Info] = buildRefImages(RefID, Args)
     % given a grid of reference images, build them from proc/coadd images
     %     employs proc/coadd image DB     
     %
-    % Input  : - Reference ID. Default is 146446 (M51 field).
-    %            If empty, then create ID of all images.
+    % Input  : - Reference image ID or a vector of IDs, i.e. the row index
+    %            (indices) in the reference grid table.
+    %            Default is 146446 (M51 field).
+    %            If empty, all the rows of the grid are processed.
+    %            Ignored when the ad hoc 'RA'/'Dec' arguments are given.
     %          * ...,key,val,...
-    %            'RefTable' - A table with gid of reference images: coordinates of image
-    %                   centers and corners (RA0, Dec0, RA1-RA4, Dec1-Dec4).
+    %            'RefTable' - A table with the grid of reference images: coordinates of image
+    %                   centers and corners (RA, Dec, RA1-RA4, Dec1-Dec4).
     %                   If empty, then load file in 'RefTableName' arg.
-    %            'RefTableName'    - File containing the Reference IDs.
+    %            'RefTableName'    - File containing the reference image grid table.
     %                   Default is 'LAST_RefIm_Grid.mat'.
     %         'RefWCS'               - if not empty, use an array of pre-built WCS, e.g., from the RefGrid object (def. empty)
     %         'RA'                   - [deg] optional array of sky point RA for building ad hoc, North-oriented
@@ -74,10 +77,10 @@ function [Result,Info] = buildRefImages(RefID, Args)
     % Output : - an AstroImage object for the last reference ID from the input list
     %          - reference image files (Image, Mask, PSF, Cat) written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2026 Apr) 
-    % Example: load('LAST_refGrid_new.mat'); 
+    % Example: RefGrid = io.files.load2('LAST_RefIm_Grid.mat');
     %          D = db.Db.connectLASTdb('Pass','*');
-    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D); % a most general usage  
-    %          R=pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D,'RefID',[99945 99946]); % a short test
+    %          pipeline.last.reference.buildRefImages([],'RefTable',RefGrid,'DB',D); % a most general usage
+    %          R=pipeline.last.reference.buildRefImages([99945 99946],'RefTable',RefGrid,'DB',D); % a short test
     %          R=pipeline.last.reference.buildRefImages([],'DB',D,'RA',210.8,'Dec',54.3,'RefName',"myField"); % ad hoc sky point
     arguments
         RefID                  = 146446;
@@ -196,7 +199,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         if isempty(Args.RefTable)
             RefGrid = io.files.load2(Args.RefTableName);
         else
-            RefGrid = Args.RefGrid;
+            RefGrid = Args.RefTable;
         end
         % loop over the Reference Image grid that has been read above
         if isempty(RefID)

@@ -3206,7 +3206,11 @@ classdef PipelineDemon < Component
                 Args.SaveVisitProductII = {'Image','Mask','Cat','PSF'};
                 Args.SaveVisitHeaderII = [true,false,true,false];
                 Args.SaveTCL1 logical = true;
-                Args.InjectTCL2 logical = true;
+                % Default false: injecting transient candidates into the live
+                % table is a side effect on the outside world, and a run that
+                % does not ask for it (a re-reduction of archived data, a
+                % regression test) must not produce one (issue #1253)
+                Args.InjectTCL2 logical = false;
                 Args.SendTransientAlerts logical = true;
 
                 %Args.RunAsService logical  = false;
