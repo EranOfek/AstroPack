@@ -393,6 +393,8 @@ function TranCat = flagNonTransients(Obj, Args)
 
         Args.flagTranslients logical = true
         Args.TranslientThresh double = 0.95
+
+        Args.CandPropsDict char = 'BitMask.TransientsCandidateProps.Default'
     end
 
     % Don't question all this madness.
@@ -1888,20 +1890,18 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % ----- Candidate property bits -----
         % Properties that depend on the Ref source catalogue and so cannot be
-        % recovered from the output columns. Bit values are defined here for
-        % now, to be moved into a BitDictionary later.
-        %
-        %   1 : NoNearbyRSrc     - no R point source within the PSF stamp
-        %   2 : DgreaterNearbyR  - brighter in D than any nearby R point source
+        % recovered from the output columns. Bit values come from the
+        % candidate-property dictionary; imProc.sub.calibrateTransients sets
+        % further bits in the same column later in the pipeline.
+
+        BD_CP = BitDictionary(Args.CandPropsDict);
 
         CandProps = zeros(NumCand,1);
 
-        if ~isempty(NoNearbyRSrc)
-            CandProps = CandProps + double(NoNearbyRSrc) .* 1;
-        end
-        if ~isempty(DgreaterNearbyR)
-            CandProps = CandProps + double(DgreaterNearbyR) .* 2;
-        end
+        CandProps = setCandPropBit(CandProps, NoNearbyRSrc, BD_CP, ...
+            'NoNearbyRSrc');
+        CandProps = setCandPropBit(CandProps, DgreaterNearbyR, BD_CP, ...
+            'DgreaterNearbyR');
 
         % Safe flags as bit value.
         TranCat(Iobj) = Obj(Iobj).CatData.insertCol(...
@@ -2009,4 +2009,36 @@ function FilterFlags = setFilterBit(FilterFlags, Mask, BD_TF, BitName)
         return
     end
     FilterFlags = FilterFlags + Mask .* 2.^BD_TF.name2bit(BitName);
+end
+
+function CandProps = setCandPropBit(CandProps, Mask, BD_CP, BitName)
+    %{
+    Set a candidate-property bit for all candidates selected by a mask.
+
+    Input   : - Column vector of candidate-property bit values.
+              - Logical mask selecting candidates for which to set the bit.
+              - BitDictionary object for candidate-property bits.
+              - Bit name to set.
+
+    Output  : - Updated column vector of candidate-property bit values.
+
+    Description : Counterpart of setFilterBit for the CAND_PROPS column.
+                  Uses bitor rather than addition so that setting a bit that
+                  is already present is a no-op.
+
+                  If Mask is empty, the function returns immediately without
+                  modifying CandProps.
+
+    Author  : Ruslan Konno
+    Example : CandProps = setCandPropBit(CandProps, NoNearbyRSrc, BD_CP, ...
+                  'NoNearbyRSrc');
+    %}
+
+    if isempty(Mask)
+        return
+    end
+
+    [~, BitDec] = BD_CP.name2bit(BitName);
+    Sel = logical(Mask);
+    CandProps(Sel) = bitor(CandProps(Sel), BitDec);
 end

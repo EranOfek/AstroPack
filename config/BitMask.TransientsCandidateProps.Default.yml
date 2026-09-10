@@ -1,0 +1,4 @@
+
+NoNearbyRSrc     : [0  ,       'No R point source within the PSF stamp']
+DgreaterNearbyR  : [1  ,       'Brighter in D than any nearby R point source']
+CalibLowSN       : [2  ,       'Failed the post-calibration S/N check']
