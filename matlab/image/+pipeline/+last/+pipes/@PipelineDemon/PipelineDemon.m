@@ -1816,15 +1816,22 @@ classdef PipelineDemon < Component
                     % at least one group was found, but less than
                     % Args.MaxInGroup (20) images in group.
 
+                    % A visit is regarded as finished only after this long
+                    % without a new image. Scaled with the exposure time, as
+                    % the pause below is: at 20 s it is the previous 60 s
+                    % (three cadences), while a hard 60 s would declare a
+                    % visit with longer exposures finished after one frame
+                    % (issue #641).
+                    StaleDay = max(60, 3.*Args.ExpTime)./SEC_DAY;
+
                     MaxJDPerGroup = FN_Sci_Groups.juldayFun(@max);
+                    TimeSinceLastImage = celestial.time.julday() - MaxJDPerGroup;
                     if Ngroup==1
                         % get max JD of each sequence:
-                        
-                        TimeSinceLastImage = celestial.time.julday() - MaxJDPerGroup;
 
-                        if TimeSinceLastImage>(60./SEC_DAY)
+                        if TimeSinceLastImage>StaleDay
                             % check if there are enough images in visit
-                            if FN_Sci_Groups.nFiles>Args.MinInGroup
+                            if NinGroup(1)>=Args.MinInGroup
                                 % continue with current visit
                                 IndStartGroup = 1;
                             end
@@ -1854,6 +1861,21 @@ classdef PipelineDemon < Component
                                 Obj.writeLog(Msg, LogLevel.Error);
             
                                 error('Unknown SortDirection option');
+                        end
+
+                        % The index above only avoids the newest group; it says
+                        % nothing about whether the chosen one is finished. Left
+                        % unchecked, a visit still being written was taken and
+                        % its remaining images were stranded in new/ for ever,
+                        % since a run shorter than MinInGroup is never regrouped.
+                        % Apply the same two tests as the single-group branch
+                        % above: take it only if it is complete, or has stopped
+                        % receiving images and holds enough of them (issue #641).
+                        if NinGroup(IndStartGroup)~=Args.MaxInGroup && ...
+                                ~(TimeSinceLastImage(IndStartGroup)>StaleDay && ...
+                                  NinGroup(IndStartGroup)>=Args.MinInGroup)
+                            % not finished - wait for the rest of the visit
+                            IndStartGroup = [];
                         end
 
                     end
