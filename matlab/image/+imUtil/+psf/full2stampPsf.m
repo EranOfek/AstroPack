@@ -6,13 +6,14 @@ function StampCube = full2stampPsf(FullCube, StampSizeIJ, Args)
     %   always centered.
     %
     %   This is a corrected re-implementation of imUtil.psf.full2stamp:
-    %   1. The center is taken as the integer center *pixel*
-    %      floor((N+1)/2), consistent with the even-size PSF convention used
-    %      by imUtil.kernel2.* and by fftshift/ifftshift. The old
-    %      (N+1)/2 convention is a half-integer for even N, which
-    %      mis-centered even-sized inputs by 0.5 pixel and, for a symmetric
-    %      PSF, rounded the peak pixel by a full pixel when the output size
-    %      parity differed from the input (e.g. even -> odd).
+    %   1. The center is taken as an integer center *pixel*, so the old
+    %      (N+1)/2 convention - a half-integer for even N - is avoided. That
+    %      convention mis-centered even-sized inputs by 0.5 pixel and, for a
+    %      symmetric PSF, rounded the peak pixel by a full pixel when the
+    %      output size parity differed from the input (e.g. even -> odd).
+    %      Which integer pixel is the center depends on the layout of the
+    %      input, and is selected by 'FullPosition' - see there. For odd N
+    %      all the conventions coincide; they differ only for even N.
     %   2. Because both centers are integers, the extraction is a pure
     %      integer crop/embed - there is no fractional Lanczos resample, so
     %      there is no flux smearing and no edge ringing (the old code
@@ -26,9 +27,25 @@ function StampCube = full2stampPsf(FullCube, StampSizeIJ, Args)
     %          - (StampSizeIJ) Requested output stamp size [Y, X]. A scalar
     %            is interpreted as a square stamp [S, S].
     %          * ...,key,val,...
-    %            'FullPosition' - Position of the PSF in the full image:
-    %                   "center" : PSF is centered in FullCube (default).
-    %                   "corner" : PSF is in FFT (fftshift) order.
+    %            'FullPosition' - Layout of the PSF in the full image. This
+    %                   selects the center pixel of the input, and the center
+    %                   pixel of the output stamp is taken in the same
+    %                   convention, so the layout is preserved:
+    %                   "center"    : centered at floor(N/2)+1, the index at
+    %                          which fftshift places the DC element. This is
+    %                          the layout of a PSF obtained as
+    %                          fftshift(ifft2(...)), e.g. the P_R returned by
+    %                          imUtil.properCoadd.properCoaddLinear.
+    %                          NOTE that this is NOT the center used by
+    %                          imUtil.kernel2.* - see "pixcenter" below. The
+    %                          two coincide for odd N and differ by one pixel
+    %                          for even N. Default.
+    %                   "pixcenter" : centered at ceil(N/2), the convention of
+    %                          imUtil.kernel2.* (whose PosXY is ceil(SizeXY/2)).
+    %                          Use this for an even-sized stamp built by
+    %                          imUtil.kernel2.gauss and friends.
+    %                   "corner"    : PSF is in FFT order, i.e. its center is
+    %                          at index 1; fftshift is applied first.
     %            'Supress' - A logical indicating if to call
     %                   imUtil.psf.suppressEdges to suppress the PSF wings.
     %                   Default is true.
@@ -46,9 +63,11 @@ function StampCube = full2stampPsf(FullCube, StampSizeIJ, Args)
     %
     % Author : Eran Ofek + Claude (Aug 2026) 
     % Example:
-    %   S = imUtil.psf.full2stampPsf(imUtil.kernel2.gauss(2,[20 20]), [15 15]);
+    %   S = imUtil.psf.full2stampPsf(imUtil.kernel2.gauss(2,[21 21]), [15 15]);
+    %   % an even-sized kernel2 stamp is in the "pixcenter" convention:
+    %   S = imUtil.psf.full2stampPsf(imUtil.kernel2.gauss(2,[20 20]), [15 15], 'FullPosition',"pixcenter");
     %   S = imUtil.psf.full2stampPsf(FullFFT, 15, 'FullPosition',"corner");
-    %   C = imUtil.psf.full2stampPsf(rand(20,20,50), [15 15]);  % cube
+    %   C = imUtil.psf.full2stampPsf(rand(21,21,50), [15 15]);  % cube
 
     arguments
         FullCube
@@ -62,9 +81,9 @@ function StampCube = full2stampPsf(FullCube, StampSizeIJ, Args)
 
     % --- validate FullPosition (fixes the missing 'otherwise' in full2stamp) ---
     Args.FullPosition = string(Args.FullPosition);
-    if ~ismember(Args.FullPosition, ["center","corner"])
+    if ~ismember(Args.FullPosition, ["center","pixcenter","corner"])
         error('imUtil:psf:full2stampPsf:BadFullPosition', ...
-              'FullPosition must be "center" or "corner".');
+              'FullPosition must be "center", "pixcenter" or "corner".');
     end
 
     % --- validate/normalize sizes ---
@@ -90,21 +109,31 @@ function StampCube = full2stampPsf(FullCube, StampSizeIJ, Args)
 
     % --- convert to centered layout if needed ---
     switch Args.FullPosition
-        case "center"
+        case {"center","pixcenter"}
             FullCentered = FullCube;
         case "corner"
+            % fftshift moves the DC element to floor(N/2)+1
             FullCentered = fftshift(fftshift(FullCube, 1), 2);
     end
 
-    % --- integer center pixel: floor(N/2)+1 (the FFT / fftshift DC index) ---
-    % This is exactly where fftshift places the DC/center: N/2+1 for even N
-    % and (N+1)/2 for odd N. It matches FFT-order PSFs (e.g. PR=ifft2(...)
-    % in imProc.stack.coadd_Proper), whose even-sized center sits at N/2+1 -
-    % NOT at N/2. (Using floor((N+1)/2)=N/2 for even shifts the stamp by 1.)
-    CenterFullI  = floor(NfullI ./2) + 1;
-    CenterFullJ  = floor(NfullJ ./2) + 1;
-    CenterStampI = floor(NstampI./2) + 1;
-    CenterStampJ = floor(NstampJ./2) + 1;
+    % --- integer center pixel, in the convention named by FullPosition ---
+    % "center"/"corner" : floor(N/2)+1, where fftshift places the DC element
+    %       (N/2+1 for even N, (N+1)/2 for odd N). This is the layout of an
+    %       FFT-derived PSF such as fftshift(ifft2(...)).
+    % "pixcenter"       : ceil(N/2), the convention of imUtil.kernel2.*
+    %       (N/2 for even N, (N+1)/2 for odd N).
+    % The two agree for odd N and differ by exactly one pixel for even N;
+    % taking the wrong one crops the stamp one pixel off its center.
+    % The output stamp uses the same convention as the input, so the layout
+    % is preserved by the extraction.
+    CenterFun = @(N) floor(N./2) + 1;
+    if Args.FullPosition=="pixcenter"
+        CenterFun = @(N) ceil(N./2);
+    end
+    CenterFullI  = CenterFun(NfullI);
+    CenterFullJ  = CenterFun(NfullJ);
+    CenterStampI = CenterFun(NstampI);
+    CenterStampJ = CenterFun(NstampJ);
 
     % Map: Full index for a given stamp index s is  s + Off
     OffI = CenterFullI - CenterStampI;

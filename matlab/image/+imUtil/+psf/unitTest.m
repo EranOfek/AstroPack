@@ -43,7 +43,7 @@ function Result = unitTest()
     %old: Fs1 = imUtil.psf.full2stamp(K(:,:,1), 'StampHalfSize',[7 7],'IsCorner',false);
 
     M = imUtil.image.moment2(Fs(:,:,1),8,7.6);
-    if abs(M.X-8)>1e-4 || abs(M.X-8)>1e-4
+    if abs(M.X-8)>1e-4 || abs(M.Y-8)>1e-4
         error('Problem with imUtil.psf.full2stamp');
     end
     if max(abs(Fs-K),[],'all')>1e-3
@@ -55,13 +55,75 @@ function Result = unitTest()
     Fs = imUtil.psf.full2stamp(F, [15 15], 'FullPosition','center');
 
     M = imUtil.image.moment2(Fs(:,:,1),8,7.6);
-    if abs(M.X-8)>3e-4 || abs(M.X-8)>3e-4
+    if abs(M.X-8)>3e-4 || abs(M.Y-8)>3e-4
         abs(M.X-8)
         abs(M.Y-8)
         error('Problem with imUtil.psf.full2stamp');
     end
     if max(abs(Fs-K),[],'all')>1e-3
         error('Problem with imUtil.psf.full2stamp');
+    end
+
+    %% imUtil.psf.full2stampPsf
+    % The extracted stamp must be centered for every combination of input
+    % and output size parity, in each of the three input layouts. Odd sizes
+    % hide the bug: the "center" and "pixcenter" conventions differ only for
+    % even N (issue #1241).
+    for Nfull=[20 21 31 32]
+        for Nstamp=[15 16 25]
+            % "pixcenter": the imUtil.kernel2.* layout, center at ceil(N/2)
+            P  = imUtil.kernel2.gauss(2, [Nfull Nfull]);
+            St = imUtil.psf.full2stampPsf(P, [Nstamp Nstamp], 'FullPosition','pixcenter', 'Supress',false);
+            [~,Imax]  = max(St(:));
+            [Ipk,Jpk] = ind2sub(size(St), Imax);
+            if Ipk~=ceil(Nstamp./2) || Jpk~=ceil(Nstamp./2)
+                error('Problem with imUtil.psf.full2stampPsf: pixcenter %dx%d -> %dx%d', Nfull,Nfull,Nstamp,Nstamp);
+            end
+
+            % "center": the fftshift layout, center at floor(N/2)+1
+            P  = fftshift(real(ifft2(ones(Nfull,Nfull))));
+            St = imUtil.psf.full2stampPsf(P, [Nstamp Nstamp], 'FullPosition','center', 'Supress',false, 'Norm',false);
+            [~,Imax]  = max(St(:));
+            [Ipk,Jpk] = ind2sub(size(St), Imax);
+            if Ipk~=floor(Nstamp./2)+1 || Jpk~=floor(Nstamp./2)+1
+                error('Problem with imUtil.psf.full2stampPsf: center %dx%d -> %dx%d', Nfull,Nfull,Nstamp,Nstamp);
+            end
+
+            % "corner": FFT order, center at index 1
+            P  = real(ifft2(ones(Nfull,Nfull)));
+            St = imUtil.psf.full2stampPsf(P, [Nstamp Nstamp], 'FullPosition','corner', 'Supress',false, 'Norm',false);
+            [~,Imax]  = max(St(:));
+            [Ipk,Jpk] = ind2sub(size(St), Imax);
+            if Ipk~=floor(Nstamp./2)+1 || Jpk~=floor(Nstamp./2)+1
+                error('Problem with imUtil.psf.full2stampPsf: corner %dx%d -> %dx%d', Nfull,Nfull,Nstamp,Nstamp);
+            end
+        end
+    end
+
+    % a non-square stamp must be centered independently in I and J
+    P  = imUtil.kernel2.gauss(2, [40 41]);
+    St = imUtil.psf.full2stampPsf(P, [15 21], 'FullPosition','pixcenter', 'Supress',false);
+    [~,Imax]  = max(St(:));
+    [Ipk,Jpk] = ind2sub(size(St), Imax);
+    if Ipk~=ceil(15./2) || Jpk~=ceil(21./2)
+        error('Problem with imUtil.psf.full2stampPsf: non-square stamp');
+    end
+
+    % a cube is extracted slice by slice
+    Cube = imUtil.kernel2.gauss(2.*ones(5,1), [21 21]);
+    StC  = imUtil.psf.full2stampPsf(Cube, [15 15], 'Supress',false);
+    if ~isequal(size(StC), [15 15 5])
+        error('Problem with imUtil.psf.full2stampPsf: cube size');
+    end
+
+    % an unknown layout must be rejected rather than silently assumed
+    try
+        imUtil.psf.full2stampPsf(ones(21,21), [15 15], 'FullPosition','unknown');
+        error('Problem with imUtil.psf.full2stampPsf: bad FullPosition not rejected');
+    catch Ex
+        if ~strcmp(Ex.identifier, 'imUtil:psf:full2stampPsf:BadFullPosition')
+            rethrow(Ex);
+        end
     end
 
     %% imUtil.psf.radialProfile / imUtil.psf.mex.radialProfile_mex
