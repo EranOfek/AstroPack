@@ -128,6 +128,15 @@ function Obj = calibrateTransients(Obj, Args)
         % Candidate positions in the registered subtraction/New grid.
         [X, Y] = CandCat.getXY();
 
+        % PC_Ref's field-correction map is fit in the Ref's pre-registration
+        % frame, while X/Y above are on the registered New grid (the two are
+        % ~430 pix apart in a typical LAST subimage). Map each candidate back
+        % through the WCS so the Ref zeropoint is read where the source really
+        % sits in the Ref. An empty RefWCS_PreReg (object never registered, or
+        % built before the property existed) falls back to the New positions.
+        RefWCS_PreReg = Obj(Iobj).RefWCS_PreReg;
+        UseRefFrame   = ~isempty(RefWCS_PreReg) && ~isempty(Obj(Iobj).WCS);
+
         AbsPhotOK_New = isAbsPhotOK(Obj(Iobj).PC_New, ...
             'MinAperCorrStars', Args.MinAperCorrStars, ...
             'PreferredAperCorrCol', Args.PreferredAperCorrCol);
@@ -155,11 +164,24 @@ function Obj = calibrateTransients(Obj, Args)
                 continue
             end
 
+            % Same sky position, expressed in the Ref's pre-registration frame.
+            X_Ref = X_New;
+            Y_Ref = Y_New;
+            if UseRefFrame
+                [RA_Cand, Dec_Cand] = Obj(Iobj).WCS.xy2sky(X_New, Y_New);
+                [XRefCand, YRefCand] = RefWCS_PreReg.sky2xy(RA_Cand, Dec_Cand);
+                if isfinite(XRefCand) && isfinite(YRefCand)
+                    X_Ref = XRefCand;
+                    Y_Ref = YRefCand;
+                end
+            end
+
             try
                 WorkAD = AstroZOGY(Obj(Iobj).New.copy, Obj(Iobj).Ref.copy);
-            
+
                 Result = photTransientFromCalibratedImages( ...
-                    WorkAD, X_New, Y_New, Obj(Iobj).PC_New, Obj(Iobj).PC_Ref, Args);
+                    WorkAD, X_New, Y_New, X_Ref, Y_Ref, ...
+                    Obj(Iobj).PC_New, Obj(Iobj).PC_Ref, Args);
             
                 Out = updateExistingColumns(Out, Irow, Result);
             
@@ -176,13 +198,15 @@ function Obj = calibrateTransients(Obj, Args)
     end
 end
 
-function Result = photTransientFromCalibratedImages(AD, X_New, Y_New, PC_New, PC_Ref, Args)
+function Result = photTransientFromCalibratedImages(AD, X_New, Y_New, X_Ref, Y_Ref, PC_New, PC_Ref, Args)
 %{
     Re-subtract a local cutout and measure forced PSF photometry.
 
     Input   : - AstroDiff object.
               - Target X position on the registered New-image grid.
               - Target Y position on the registered New-image grid.
+              - Target X position in the Ref's pre-registration frame.
+              - Target Y position in the Ref's pre-registration frame.
               - Photometric calibration object for the New image.
               - Logical flag indicating whether the New-image calibration
                 passed quality checks.
@@ -205,7 +229,9 @@ function Result = photTransientFromCalibratedImages(AD, X_New, Y_New, PC_New, PC
     ZP_New = PC_New.evaluateZP('X', X_New, 'Y', Y_New) ...
         + 2.5.*log10(Args.N_AV_EXPTIME);
 
-    ZP_Ref = PC_Ref.evaluateZP('X', X_New, 'Y', Y_New) ...
+    % Evaluated in the Ref's own frame: see the RefWCS_PreReg note in the
+    % caller. Falls back to the New-grid position when that WCS is absent.
+    ZP_Ref = PC_Ref.evaluateZP('X', X_Ref, 'Y', Y_Ref) ...
         + 2.5.*log10(Args.R_AV_EXPTIME);
 
     setHeaderKey(AD.New.HeaderData, 'PH_ZP', ZP_New);

@@ -224,9 +224,19 @@ end
 
 function [Template, Info] = buildOne(Obj, Args, Info, Method)
     % One method, no fallback. The measured body follows inline below.
+    Template    = [];
     Info.Method = Method;
     if strcmp(Method, 'derived')
         [Template, Info] = derivedFromShifts(Obj, Args, Info);
+        return
+    end
+
+    % Obj.New can be a zero element AstroImage when the pipeline gave up
+    % early, on a crop with no reference for instance. Property access on an
+    % empty object array yields no outputs at all rather than an empty, so
+    % this has to be checked before Obj.New is touched.
+    if isempty(Obj.New) || numel(Obj.New) < 1
+        Info.Reason = 'no New image';
         return
     end
 
