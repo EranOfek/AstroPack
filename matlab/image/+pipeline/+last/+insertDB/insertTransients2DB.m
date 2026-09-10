@@ -33,8 +33,22 @@ function [Result] = insertTransients2DB(Cat, Headers, Args)
         Args.ColNameID = 'id_diff_src';    
 
         Args.DBConnector  =  'legacy'; % 'native'; % 'legacy';
+
+        % Opening a connection of our own when the caller handed us an empty
+        % 'DB' defeats any attempt to run the pipeline without a database: a
+        % reduction started with ConnectDB=false still reached the live
+        % transients table. Refuse by default; a standalone caller that really
+        % wants this function to dial the DB itself must ask for it (#1253).
+        Args.ConnectIfNoDB logical = false;
     end    
     % create a DB object and connect or use a preloaded object with connection
+    if isempty(Args.DB) && ~Args.ConnectIfNoDB
+        Result = sprintf(['insertTransients2DB: no DB connection was supplied and ' ...
+                          'ConnectIfNoDB is false - nothing was inserted into %s@%s'], ...
+                         Args.DbTable, Args.DbHost);
+        warning('%s', Result);
+        return;
+    end
     if isempty(Args.DB)        
         DB          = db.Db;
         DB.Host     = Args.DbHost;
