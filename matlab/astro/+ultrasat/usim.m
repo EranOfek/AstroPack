@@ -262,6 +262,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     if ~iscell(Args.SpecType)
                 Args.SpecType = {Args.SpecType};
     end
+    % NB: SpecType is shared by all the point sources, just as ExtSpecType is shared by
+    % all the extended objects: the per-model layouts of Spec (1 parameter per source for
+    % 'BB' and 'PL', 2 for 'Pickles' and 'Phoenix', a whole column for 'Tab') can not be
+    % held in one array, so a per-source mixture of models is not representable here
+    if numel(Args.SpecType) > 1
+        if all( strcmpi(Args.SpecType, Args.SpecType{1}) )
+            Args.SpecType = Args.SpecType(1);
+        else
+            error('SpecType is shared by all the point sources: pass a single spectral model, exiting..');
+        end
+    end
     if ~iscell(Args.WCSFile)
                 Args.WCSFile  = {Args.WCSFile};
     end 
@@ -470,13 +481,21 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     else
         InEbv = Args.Ebv(1)*ones(NumSrc,1);
     end
+    % NB: a per-source list is used as it is (one cell per source), it is not to be
+    % wrapped into a single cell: FiltFam/Filter are indexed per source further below
     if numel(Args.FiltFam) > 1
-        FiltFam = {Args.FiltFam};
+        if numel(Args.FiltFam) ~= NumSrc
+            error('FiltFam must hold 1 or NumSrc (=%d) filter families, exiting..', NumSrc);
+        end
+        FiltFam = reshape(Args.FiltFam,1,NumSrc);
     else
         FiltFam = repmat(Args.FiltFam,1,NumSrc);
     end
     if numel(Args.Filt) > 1
-        Filter = {Args.Filt};
+        if numel(Args.Filt) ~= NumSrc
+            error('Filt must hold 1 or NumSrc (=%d) filters, exiting..', NumSrc);
+        end
+        Filter = reshape(Args.Filt,1,NumSrc);
     else
         Filter = repmat(Args.Filt,1,NumSrc);
     end
@@ -507,22 +526,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         RA      = RA(Ind);
         DEC     = DEC(Ind);
         InEbv   = InEbv(Ind);
-        if ( numel(Args.Spec) ~= 1 )
-            % NB: a single spectrum (1 AstroSpec element or 1 parameter row) is
-            % broadcast to all the sources, hence it is not to be cut
-            if isa(Args.Spec,'AstroSpec')
-                if numel(Args.Spec) > 1
-                    Args.Spec = Args.Spec(Ind);
-                end
-            elseif size(Args.Spec,1) > 1
-                Args.Spec = Args.Spec(Ind,:);
-            end
-        end
-        if ( numel(Args.SpecType) ~= 1)
-            Args.SpecType = Args.SpecType(Ind);
-        end
-        if ( numel(Args.RotAng) ~= 1)
-            Args.RotAng = Args.RotAng(Ind);
+        Args.Spec = cutSpecToFOV(Args.Spec, Args.SpecType{1}, Ind);
+        if ( numel(RotAngle) ~= 1)
+            RotAngle = RotAngle(Ind);   % NB: RotAngle, not Args.RotAng: it is derived above and used below
         end
     end
 %                          
@@ -1686,5 +1692,36 @@ function SpecPar = chunkSpecPar(Spec, Range, NumSrc, NumSrcCh)
                    size(Spec,1), NumSrc);
         end
         SpecPar = Spec(Range,1:2);  % NB: Range is GLOBAL, the chunk-local index must not be used here
+    end
+end
+
+function Spec = cutSpecToFOV(Spec, SpecType, Ind)
+    % keep in Spec only the entries belonging to the sources inside the FOV.
+    % NB: the layout of Spec depends on the spectral model -- 'tab' holds one COLUMN per
+    % source (optionally followed by a shared wavelength column), the parametric models
+    % hold one ROW per source -- so the cut has to be dispatched on SpecType. A single
+    % spectrum (or parameter row) is broadcast to all the sources and is left uncut.
+    if isa(Spec,'AstroSpec')
+        if numel(Spec) > 1
+            Spec = Spec(Ind);
+        end
+        return
+    end
+    NumSrc0 = numel(Ind);   % the number of sources before the cut
+    switch lower(SpecType)
+        case 'tab'
+            if size(Spec,2) == NumSrc0 + 1      % the wavelength grid is the last column
+                Spec = Spec(:,[Ind(:); true]);
+            elseif size(Spec,2) == NumSrc0
+                Spec = Spec(:,Ind);
+            end
+        case {'pickles','phoenix'}              % NumSrc x 2
+            if size(Spec,1) == NumSrc0
+                Spec = Spec(Ind,:);
+            end
+        otherwise                               % 'bb', 'pl': 1 parameter per source
+            if numel(Spec) == NumSrc0
+                Spec = Spec(Ind);
+            end
     end
 end
