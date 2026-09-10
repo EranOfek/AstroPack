@@ -41,4 +41,13 @@ function [ThreshRadius, PeakRadius] = radiusAtFraction(PSF, Threshold)
         ThreshRadius = floor(tools.interp.interp1crossVal(Radius(Imax:end), Prof, Threshold, false));
     end
 
+    if ~isfinite(ThreshRadius)
+        % A NaN-bearing radial profile (e.g. a stamp truncated by the image
+        % border, whose ring means are NaN) yields no usable crossing. Return
+        % the stamp half-size, i.e. the same "no outskirts inside the stamp"
+        % semantics as the no-crossing case above, so the caller's wing splice
+        % degenerates to a no-op instead of failing (issue #1275).
+        ThreshRadius = HalfSize;
+    end
+
 end

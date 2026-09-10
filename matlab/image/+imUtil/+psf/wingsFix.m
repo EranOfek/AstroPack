@@ -78,7 +78,7 @@ function [PSF,InnerRadius] = wingsFix(PSF, Args)
         case 'analytic'
             InnerRadius = imUtil.psf.radiusAtFraction(PSF, Args.SuppressThreshold);
             HalfPSF     = (size(PSF,1)-1).*0.5;
-            if InnerRadius >= HalfPSF
+            if ~isfinite(InnerRadius) || InnerRadius >= HalfPSF
                 % the profile never drops to the threshold inside the stamp
                 % (e.g. a strongly defocused PSF; issue #1268) - there are
                 % no outskirts to replace, keep the empirical stamp
