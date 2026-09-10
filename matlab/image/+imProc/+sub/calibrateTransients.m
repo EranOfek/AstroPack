@@ -22,6 +22,41 @@ function Obj = calibrateTransients(Obj, Args)
                        re-subtraction.
                        Default is 'S_CORR'.
 
+                'FlagLowSN' - Bool on whether to flag calibrated candidates
+                       whose re-measured S/N falls below 'MinSN'. Sets the
+                       'Scorr' bit in 'FlagCol' and the 'CandPropsLowSNBit'
+                       bit in 'CandPropsCol'. Only rows that were actually
+                       calibrated (FlagCol < 1) are eligible; rows whose
+                       calibration failed have a NaN S/N and stay unflagged.
+                       No rows are removed.
+                       Default is true.
+
+                'MinSN' - Signed S/N threshold used by 'FlagLowSN'. Signed,
+                       so a candidate whose flux turned negative under the
+                       calibrated zeropoints is flagged as well as one that is
+                       merely insignificant.
+                       Default is 2.
+
+                'CandPropsCol' - Candidate-property bitmask column.
+                       Default is 'CAND_PROPS'.
+
+                'CandPropsDict' - BitDictionary holding the candidate-property
+                       bit definitions.
+                       Default is 'BitMask.TransientsCandidateProps.Default'.
+
+                'CandPropsBitName' - Bit set in 'CandPropsCol' when a
+                       candidate fails the post-calibration S/N check. This
+                       distinguishes it from the detection-stage 'Scorr'
+                       filter, which sets the same FLAGS_TRANSIENT bit.
+                       Default is 'CalibLowSN'.
+
+                'SNCol' - Existing column to update with the PSF-fit S/N of
+                       the local re-subtraction (psfPhotCube SNm), matching
+                       how imProc.sub.findTransients populates it. Note this
+                       is not SCORE/S_CORR, which stay at their original
+                       subtraction values because they are normalised to it.
+                       Default is 'SN'.
+
                 'FluxCol' - Existing column to update with PSF flux
                        measured on the local re-subtraction.
                        Default is 'FLUX_PSF'.
@@ -60,7 +95,10 @@ function Obj = calibrateTransients(Obj, Args)
 
     Output  : - The input AstroDiff object, with existing CatData columns
                 updated only for candidates where FLAGS_TRANSIENT < 1.
-                No new columns are inserted.
+                No new columns are inserted and no rows are removed. When
+                'FlagLowSN' is true, calibrated candidates falling below
+                'MinSN' additionally have their FlagCol and CandPropsCol bits
+                set.
 
     Author  : Ruslan Konno
     Example : AD = imProc.sub.calibrateTransients(AD);
@@ -79,6 +117,8 @@ function Obj = calibrateTransients(Obj, Args)
         Args.ScoreCol char = ''
         Args.ScorrCol char = ''
 
+        Args.SNCol char = 'SN'
+
         Args.FluxCol char = 'FLUX_PSF'
         Args.FluxErrCol char = 'FLUXERR_PSF'
         Args.MagCol char = 'MAG_PSF'
@@ -87,6 +127,13 @@ function Obj = calibrateTransients(Obj, Args)
         Args.ZPCol char = 'ZP'
         Args.NZPCol char = 'N_ZP'
         Args.RZPCol char = 'R_ZP'
+
+        % Post-calibration S/N check
+        Args.FlagLowSN logical = true
+        Args.MinSN double = 2
+        Args.CandPropsCol char = 'CAND_PROPS'
+        Args.CandPropsDict char = 'BitMask.TransientsCandidateProps.Default'
+        Args.CandPropsBitName char = 'CalibLowSN'
 
         % Local subtraction
         Args.CropHalfSize double = 100
@@ -194,6 +241,11 @@ function Obj = calibrateTransients(Obj, Args)
         end
 
         CandCat = replaceExistingColumns(CandCat, Out);
+
+        if Args.FlagLowSN
+            CandCat = flagLowSNCandidates(CandCat, Args);
+        end
+
         Obj(Iobj).CatData = CandCat;
     end
 end
@@ -285,6 +337,72 @@ function Result = photTransientFromCalibratedImages(AD, X_New, Y_New, X_Ref, Y_R
 
 end
 
+function CandCat = flagLowSNCandidates(CandCat, Args)
+    %{
+    Flag calibrated candidates whose re-measured S/N is below threshold.
+
+    Input   : - AstroCatalog whose SNCol has just been updated from the local
+                re-subtraction.
+              - Args structure.
+
+    Output  : - AstroCatalog with the failing candidates flagged. No rows are
+                removed and no columns are inserted.
+
+    Description : Sets the 'Scorr' transient-filter bit in FlagCol, which
+                  takes the candidate out of the FLAGS_TRANSIENT < 1 set that
+                  downstream code treats as transients, and additionally sets
+                  a bit in CandPropsCol recording that the rejection came from
+                  the post-calibration S/N check rather than from the
+                  detection-stage Scorr filter.
+
+                  Only rows that were actually calibrated (FlagCol < 1) are
+                  eligible, so candidates already rejected by the transient
+                  filters are left alone and never judged on their stale
+                  detection-stage S/N. The test is signed: a candidate whose
+                  flux turned negative under the calibrated zeropoints is
+                  flagged along with one that is merely insignificant. Rows
+                  whose calibration failed carry a NaN S/N and are left
+                  unflagged, since the comparison is false for NaN.
+
+    Author  : Ruslan Konno
+    %}
+
+    if strlength(string(Args.SNCol)) == 0 || ~CandCat.isColumn(Args.SNCol)
+        return
+    end
+
+    if ~CandCat.isColumn(Args.FlagCol)
+        return
+    end
+
+    SN         = CandCat.getCol(Args.SNCol);
+    Calibrated = CandCat.getCol(Args.FlagCol) < 1.0;
+
+    Failed = Calibrated & (SN < Args.MinSN);
+
+    if ~any(Failed)
+        return
+    end
+
+    BD_TF = BitDictionary('BitMask.TransientsFilter.Default');
+    Flags = CandCat.getCol(Args.FlagCol);
+    Flags(Failed) = bitor(Flags(Failed), 2.^BD_TF.name2bit('Scorr'));
+    CandCat = CandCat.replaceCol(Flags, Args.FlagCol);
+
+    % Candidate property bit. imProc.sub.flagNonTransients still writes the
+    % first two of these inline (1 NoNearbyRSrc, 2 DgreaterNearbyR); the
+    % dictionary mirrors those values, so the two agree until that code is
+    % migrated to read from it as well.
+    if CandCat.isColumn(Args.CandPropsCol)
+        BD_CP = BitDictionary(Args.CandPropsDict);
+        [~, BitDec] = BD_CP.name2bit(Args.CandPropsBitName);
+
+        Props = CandCat.getCol(Args.CandPropsCol);
+        Props(Failed) = bitor(Props(Failed), BitDec);
+        CandCat = CandCat.replaceCol(Props, Args.CandPropsCol);
+    end
+end
+
 function Out = getExistingColumns(CandCat, Args)
     %{
     Read existing output columns from CatData.
@@ -294,6 +412,8 @@ function Out = getExistingColumns(CandCat, Args)
 
     Out.Score   = getExistingColumn(CandCat, Args.ScoreCol);
     Out.Scorr   = getExistingColumn(CandCat, Args.ScorrCol);
+
+    Out.SN      = getExistingColumn(CandCat, Args.SNCol);
 
     Out.Flux    = getExistingColumn(CandCat, Args.FluxCol);
     Out.FluxErr = getExistingColumn(CandCat, Args.FluxErrCol);
@@ -341,6 +461,8 @@ function Out = updateExistingColumns(Out, Irow, Result)
 
     Out = updateOneColumn(Out, 'Score',   Irow, Result, 'S');
     Out = updateOneColumn(Out, 'Scorr',   Irow, Result, 'Scorr');
+
+    Out = updateOneColumn(Out, 'SN',      Irow, Result, 'SNm');
 
     Out = updateOneColumn(Out, 'Flux',    Irow, Result, 'Flux');
     Out = updateOneColumn(Out, 'FluxErr', Irow, Result, 'FluxErr');
@@ -626,6 +748,8 @@ function Result = makeNanResult()
 
     Result.S = nan;
     Result.Scorr = nan;
+
+    Result.SNm = nan;
 
     Result.Flux = nan;
     Result.FluxErr = nan;
