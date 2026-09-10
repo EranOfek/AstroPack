@@ -111,7 +111,11 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     % fill the new image with chopped crops, shift the catalog pixels
     for Icrop = 1:Ncrop
         if O.hasLeft(Icrop)
-            XUmin = OrigU(Icrop,1)-Xmin(Icrop);
+            % crop column 1 holds original column Xmin, so the crop column
+            % holding original column OrigU(1) is OrigU(1)-Xmin+1. Without the
+            % +1 the crop contributed one extra column and was placed one pixel
+            % too far right (issue #1236)
+            XUmin = OrigU(Icrop,1)-Xmin(Icrop)+1;
             ImaShiftX = OrigU(Icrop,1)-X0;
         else
             XUmin = CCDSEC(Icrop,1);
@@ -123,7 +127,8 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
             XUmax = CCDSEC(Icrop,2);
         end
         if O.hasBottom(Icrop)
-            YUmin = OrigU(Icrop,3)-Ymin(Icrop);
+            % see the X case above (issue #1236)
+            YUmin = OrigU(Icrop,3)-Ymin(Icrop)+1;
             ImaShiftY = OrigU(Icrop,3)-Y0;
         else
             YUmin = CCDSEC(Icrop,3);
@@ -138,16 +143,13 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
         AIc = crop(AI(Icrop),[XUmin XUmax YUmin YUmax],'UpdateCat',true,'CreateNewObj',true);
         MCat(Icrop) = AIc.CatData;
 
-        if O.hasLeft(Icrop)
-            MCat(Icrop).Catalog(:,IndX) = MCat(Icrop).Catalog(:,IndX) + CatShiftX(Icrop) + XUmin;
-        else
-            MCat(Icrop).Catalog(:,IndX) = MCat(Icrop).Catalog(:,IndX) + CatShiftX(Icrop) + XUmin - 1;
-        end
-        if O.hasBottom(Icrop)
-            MCat(Icrop).Catalog(:,IndY) = MCat(Icrop).Catalog(:,IndY) + CatShiftY(Icrop) + YUmin;
-        else
-            MCat(Icrop).Catalog(:,IndY) = MCat(Icrop).Catalog(:,IndY) + CatShiftY(Icrop) + YUmin - 1;
-        end
+        % a source at column c of the cropped stamp sits at
+        % c + CatShift + XUmin - 1 in the stitched image, in both branches - the
+        % two used to differ only because XUmin itself was short by one in the
+        % hasLeft/hasBottom case, which cancelled within a crop but left the
+        % crops mutually offset (issue #1236)
+        MCat(Icrop).Catalog(:,IndX) = MCat(Icrop).Catalog(:,IndX) + CatShiftX(Icrop) + XUmin - 1;
+        MCat(Icrop).Catalog(:,IndY) = MCat(Icrop).Catalog(:,IndY) + CatShiftY(Icrop) + YUmin - 1;
 
         ImgAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)  = AIc.ImageData.Data;
         MaskAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.MaskData.Data;
