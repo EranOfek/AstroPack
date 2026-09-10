@@ -95,6 +95,19 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         Args.RePopNewPSF = true;
 
         Args.applyCalibration logical = true;
+
+        % Header keyword holding the photometric zero point of each image,
+        % read by AstroDiff/estimateFnFr to set the New/Ref flux scaling
+        % (Fr = 10^(0.4*(RefZP - NewZP))). estimateFnFr does not fit
+        % anything: it divides the two header values, so both images must
+        % carry a zero point on the SAME absolute scale or the difference
+        % image is mis-scaled by exactly the offset between the two
+        % calibrations (issue #1267). Default 'PH_ZP' preserves the existing
+        % behaviour; use 'PT_ZP' on both sides once the reference images have
+        % been rebuilt with pipeline.last.reference.rebuildRefProducts.
+        % Changing only one side is worse than changing neither.
+        Args.NewZP = 'PH_ZP';
+        Args.RefZP = 'PH_ZP';
     end
 
     % 1: ----- Set default arguments -----
@@ -358,7 +371,7 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     end   
 
     % Estimate zero points
-    AD.estimateFnFr;
+    AD.estimateFnFr('NewZP',Args.NewZP, 'RefZP',Args.RefZP);
 
     if Args.applyCalibration
         for Iobj = Nobj:-1:1
