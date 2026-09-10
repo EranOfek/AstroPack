@@ -158,9 +158,8 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
 
         % the crop coordinates are still those of the uncropped crop, so the
         % shift into the stitched frame is just the crop's own origin offset
-        Cat.Catalog(:,IndX) = Cat.Catalog(:,IndX) + CatShiftX(Icrop);
-        Cat.Catalog(:,IndY) = Cat.Catalog(:,IndY) + CatShiftY(Icrop);
-        MCat(Icrop) = Cat;
+        % (issue #1106)
+        MCat(Icrop) = imProc.cat.shiftXY(Cat, CatShiftX(Icrop), CatShiftY(Icrop));
 
         ImgAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)  = AIc.ImageData.Data;
         MaskAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.MaskData.Data;

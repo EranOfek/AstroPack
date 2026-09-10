@@ -54,7 +54,7 @@ function [PSF,InnerRadius] = wingsFix(PSF, Args)
         PSF
         Args.WingsMethod                 = 'analytic';
         Args.SuppressThreshold           = 1e-2;
-        Args.WingsPowerLaw               = 2.0;
+        Args.WingsPowerLaw               = 3.7;   % uniPSF default (validated on LAST); pass 2 for the legacy analytic slope
         Args.SuppressFun                 = @imUtil.kernel2.cosbell;
         Args.SuppressFunPars             = 3; % or # from edge
         Args.ExtendedSize                = [];

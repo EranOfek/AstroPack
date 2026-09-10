@@ -115,6 +115,24 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
         Args.FunLimb      = @astro.stars.limbDarkening;
         Args.LimbDarkCoef = zeros(1,4); %astro.stars.getClaret2020_LimbDarkeningWD(10000,[7]);
         Args.FunLimbPar   = {'MuUnits','r', 'Fun','4par'};
+        Args.PerpImpactPar = 0;        % Perpendicular (Y) offset of the lens track
+                                       % from the source centre, in the same units
+                                       % as the ImpactPar input (SrcRad by default).
+                                       % ImpactPar (the 1st input) is the along-track
+                                       % (X) coordinate; PerpImpactPar is the fixed
+                                       % offset perpendicular to it. For a circular
+                                       % source only sqrt(ImpactPar^2+PerpImpactPar^2)
+                                       % matters, but for an inclined (elliptical)
+                                       % source the split matters. Only used by '2d'.
+        Args.FunLimbInclination = 0;   % [deg] Inclination of the source brightness
+                                       % profile (FunLimb). 0=face-on (circular).
+                                       % Only affects the '2d' algorithm: the circular
+                                       % source is projected to an ellipse with axis
+                                       % ratio cos(FunLimbInclination). The brightness of
+                                       % each sky-plane point is evaluated at its
+                                       % de-projected disk radius; points that de-project
+                                       % outside the disk get zero brightness. The lensing
+                                       % geometry (and lens occultation) is unaffected.
         
         
         Args.UseIndivMag logical  = true;
@@ -223,13 +241,14 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
             Rlens = AngLensRad./Res.ER;
 
             Beta = ImpactPar(:).'.*Rstar;
+            Yoff = Args.PerpImpactPar.*Rstar;   % perpendicular (Y) lens offset [ER units]
             Nbeta = numel(Beta);
-            
+
             CosFun = @(R,u,b) real(acos((-R.^2 +u.^2+b.^2)./(2.*u.*b)));
             TotMu  = zeros(1,Nbeta);
-                        
-            
-                            
+
+
+
             Nblock = ceil(Args.Nsim./Args.NsimBlock);
             
             if Args.PrepMovie
@@ -251,11 +270,15 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
                 Mag = zeros(Nblock,1);
                 
                 for Iblock=1:1:Nblock
+                    % Sample uniformly in the (circular) disk plane. R is the
+                    % disk-frame radius (sets the brightness via FunLimb), while
+                    % the sky-plane position is the projection of the inclined disk:
+                    % an ellipse foreshortened along the minor (Y) axis by
+                    % cos(FunLimbInclination). For i=0 this is the original circle;
+                    % for i=90 the disk collapses to a line along the major axis.
                     [X,Y, R] = tools.rand.randInCirc(Rstar, Args.NsimBlock, 1);
-                    % apply limb darkening (using R)
-                    % ...
-                    
-                    
+                    Ysky = Y.*cosd(Args.FunLimbInclination);
+                    % apply limb darkening (using the disk-frame radius R)
                     %[Imu] = astro.stars.limbDarkening(Args.LimbDarkCoef, R./Rstar, 'MuUnits','r', 'Fun','4par');
                     if isnumeric(Args.FunLimb)
                         % FunLimb is a [R LimbDark] matrix - interpolate
@@ -264,8 +287,9 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
                         % FunLimb is a function
                         Imu = Args.FunLimb(Args.LimbDarkCoef, R./Rstar, Args.FunLimbPar{:});
                     end
-                    
-                    U2 = (X - Beta(Ib)).^2 + (Y).^2;
+                    Imu(isnan(Imu)) = 0;
+
+                    U2 = (X - Beta(Ib)).^2 + (Ysky - Yoff).^2;
                     U  = sqrt(U2);
 
                     U0     = sqrt(U2 + 4);

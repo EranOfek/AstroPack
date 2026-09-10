@@ -98,7 +98,14 @@ function [Result] = unitTest()
     axis off
 
     %%
+    tic;
     [R2,P_R1,Info]=imUtil.properCoadd.properCoaddLinear(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',100);
+    toc
+
+    tic;
+    [R2,P_R1,Info]=imUtil.properCoadd.properCoaddLinearR(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',100);
+    toc
+
     surface((R2))
     colorbar
     shading interp
@@ -108,7 +115,7 @@ function [Result] = unitTest()
     axis off
 
     %%
-    [R3,P_R,Info]=imUtil.properCoadd.properCoaddLinear(Cube, PSF, 'Robust',true);
+    [R3,P_R,Info]=imUtil.properCoadd.properCoaddLinearR(Cube, PSF, 'Robust',true);
     surface((R3))
     colorbar
     shading interp

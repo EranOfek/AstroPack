@@ -1,6 +1,5 @@
 function [MinT,MinDist]=traj_mindist(A1,B1,D1,E1,T1,A2,B2,D2,E2,T2)
 % Time of minimum distance between two 2-D linear trajetories
-% Package: Util.Geom
 % Description: Given two linear trajectories in the 2-D plane (x and y
 %              position as function of time), calculate the time in which
 %              the distance between the two trajectories is minimal and
@@ -23,8 +22,6 @@ function [MinT,MinDist]=traj_mindist(A1,B1,D1,E1,T1,A2,B2,D2,E2,T2)
 %     By : Eran O. Ofek                    Jun 2005
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Note   : This function was previously called: linemindist_t.m
-% Reliable: 2
-%--------------------------------------------------------------------------
 
 MinT = (-A1.*B1+A1.*B2+B1.^2.*T1-B1.*T1.*B2+A2.*B1-A2.*B2-B2.*T2.*B1+B2.^2.*T2-D1.*E1+D1.*E2+E1.^2.*T1-E1.*T1.*E2+D2.*E1-D2.*E2-E2.*T2.*E1+E2.^2.*T2)./(B1.^2-2.*B1.*B2+B2.^2+E1.^2-2.*E1.*E2+E2.^2);
 
