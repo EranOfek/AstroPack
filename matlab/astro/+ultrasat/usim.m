@@ -508,9 +508,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         DEC     = DEC(Ind);
         InEbv   = InEbv(Ind);
         if ( numel(Args.Spec) ~= 1 )
+            % NB: a single spectrum (1 AstroSpec element or 1 parameter row) is
+            % broadcast to all the sources, hence it is not to be cut
             if isa(Args.Spec,'AstroSpec')
-                Args.Spec = Args.Spec(Ind);
-            else
+                if numel(Args.Spec) > 1
+                    Args.Spec = Args.Spec(Ind);
+                end
+            elseif size(Args.Spec,1) > 1
                 Args.Spec = Args.Spec(Ind,:);
             end
         end
@@ -608,19 +612,29 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                     case 'pickles' 
                         
                         fprintf('%s','generating Pickles spectra for individual values of Teff and log(g) .. ');
+                        SpecPar = chunkSpecPar(Args.Spec, Range, NumSrc, NumSrcCh); % this chunk's Teff and log(g)
+                        % determine the Pickles class of each source and read each of the
+                        % involved class spectra only once (there are few distinct classes)
+                        Class = cell(NumSrcCh,1);
                         for Isrc = 1:1:NumSrcCh
-                            R = astro.stars.tlogg2picklesClass(Args.Spec(Isrc,1), Args.Spec(Isrc,2)); % Teff and log(g)
-                            PicklesFile = strcat(Args.PicklesDir,'uk',lower(R.class),lower(R.lumclass),'.mat');
+                            R = astro.stars.tlogg2picklesClass(SpecPar(Isrc,1), SpecPar(Isrc,2)); % Teff and log(g)
+                            Class{Isrc} = strcat(lower(R.class),lower(R.lumclass));
+                        end
+                        [UniqClass, ~, IndClass] = unique(Class);
+                        for Icl = 1:1:numel(UniqClass)
+                            PicklesFile = strcat(Args.PicklesDir,'uk',UniqClass{Icl},'.mat');
                             SPick = io.files.load2(PicklesFile);
-                            SpecIn(Isrc,:) = interp1( SPick(:,1), SPick(:,2), Wave, 'linear', 0 );
+                            SpecIn(IndClass == Icl,:) = repmat( interp1( SPick(:,1), SPick(:,2), Wave, 'linear', 0 ), ...
+                                                                sum(IndClass == Icl), 1 );
                         end
                         
                     case 'phoenix'
                         
                         fprintf('%s','generating Phoenix spectra for individual values of Teff and log(g) .. ');
+                        SpecPar = chunkSpecPar(Args.Spec, Range, NumSrc, NumSrcCh); % this chunk's Teff and log(g)
                         io.files.load1(Args.Phoenix);
                         for Isrc = 1:1:NumSrcCh
-                            SpecIn(Isrc,:) = interpn(PhoenixWaveGrid, PhoenixTGrid, PhoenixLoggGrid, PhoenixSpec, Wave, Args.Spec(Isrc,1), Args.Spec(Isrc,2));
+                            SpecIn(Isrc,:) = interpn(PhoenixWaveGrid, PhoenixTGrid, PhoenixLoggGrid, PhoenixSpec, Wave, SpecPar(Isrc,1), SpecPar(Isrc,2));
                         end                        
                         
                     case 'tab'
@@ -1655,3 +1669,22 @@ function Par = extSpecRow(Spec, Iext, NumExt, Npar)
     end
 end
 
+
+function SpecPar = chunkSpecPar(Spec, Range, NumSrc, NumSrcCh)
+    % return the [Teff log(g)] rows of the sources of the current chunk,
+    % broadcasting a single shared row to all NumSrc sources if only one row was given.
+    % NB: Range is the GLOBAL source index range of the chunk: indexing Spec with the
+    % chunk-local index gives every chunk but the first the spectra of other sources.
+    if size(Spec,2) < 2
+        error('The source Teff/log(g) array must have 2 columns, exiting..');
+    end
+    if size(Spec,1) == 1
+        SpecPar = repmat(Spec(1,1:2), NumSrcCh, 1);
+    else
+        if size(Spec,1) ~= NumSrc
+            error('The size of the source Teff/log(g) array is incorrect: %d rows for %d sources, exiting..', ...
+                   size(Spec,1), NumSrc);
+        end
+        SpecPar = Spec(Range,1:2);  % NB: Range is GLOBAL, the chunk-local index must not be used here
+    end
+end
