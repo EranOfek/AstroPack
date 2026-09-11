@@ -49,9 +49,13 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
     %                   Default is [5 7.5 10 14 20 30 45 70 120].
     %            'KeepFraction' - Fraction of PSF-shaped sources to keep.
     %                   A vector returns one contour per entry, all from the
-    %                   same injections, so they cannot cross. Default is
-    %                   [0.99 0.95]: the first is the general cut, the second
-    %                   the tighter one for candidates on suspect pixels.
+    %                   same injections, so they cannot cross. With more than
+    %                   one, imProc.sub.flagNonTransients applies the last to
+    %                   candidates on suspect pixels. Default is 0.99, one
+    %                   contour for every candidate: suspect pixels are handled
+    %                   by the BadPix_SoftMinScore floor there instead, and
+    %                   above it a tighter contour was measured to reject no
+    %                   additional defects while losing more real sources.
     %            'MinPerBin' - Injections needed to use a bin. Default is 20.
     %            'RadiusTS' - Peak search radius when sampling, matching
     %                   imProc.sub.measureTransients. Default is 1.
@@ -75,7 +79,7 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
         Args.SepMargin         = 4;
         Args.QuietLimit        = 5;
         Args.BinEdges          = [5 7.5 10 14 20 30 45 70 120];
-        Args.KeepFraction      = [0.99 0.55];
+        Args.KeepFraction      = 0.99;
         Args.MinPerBin         = 20;
         Args.RadiusTS          = 1;
         Args.RadiusSmear       = [];

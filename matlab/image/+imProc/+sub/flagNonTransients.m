@@ -46,8 +46,17 @@ function TranCat = flagNonTransients(Obj, Args)
                        criteria with adaptive thresholds.
                        Default is true.
 
-                'BadPix_Soft' - Cell array of {bitName, thresholdIncrement}.
-                       Default is {{'DarkHighVal',1.2},{'CR_DeltaHT',2.9}}.
+                'BadPix_Soft' - Cell array of image mask bit names marking
+                       suspect pixels in New. Candidates on them below
+                       BadPix_SoftMinScore are flagged outright, and above it
+                       get the last smear contour when smearThreshold returns
+                       more than one.
+                       Default is {'DarkHighVal','CR_DeltaHT'}.
+
+                'BadPix_SoftMinScore' - |SCORE| below which a candidate on a
+                       BadPix_Soft pixel is flagged on the mask alone, since
+                       a faint defect cannot be told from a point source by
+                       shape. Default is 12.
 
                 'flagSubVisit' - Flag inconsistent saturation between N and R.
                        Default is true.
@@ -294,6 +303,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.BPS_DeltaLimit double = 10.0
         Args.SmearThreshold double = []        % [BinCen BinThr...], empty to calibrate
         Args.smearThresholdArgs cell = {}      % passed to imProc.sub.smearThreshold
+        Args.BadPix_SoftMinScore double = 12   % below this, marked candidates are flagged on the mask
 
         % Holes in the reference filters
         Args.flagRefHole logical = true;
@@ -889,43 +899,60 @@ function TranCat = flagNonTransients(Obj, Args)
         %   The old SCORE - SN_delta test asked whether a candidate looked
         %   like a real source or a single bad pixel. A smeared bad pixel is
         %   neither, so it fell between the two templates and passed.
-        if Args.flagBadPix_Soft && CandCat.isColumn('SN_smear')
+        if Args.flagBadPix_Soft
 
-            SN_smear = CandCat.getCol('SN_smear');
-
-            % Candidates on a pixel the image mask already calls suspect get
-            % the tighter contour. The prior that they are real is lower
-            % there, so accepting a higher rejection rate of genuine sources
-            % is the right trade, while everything else keeps the default
-            % keep fraction. This is the calibrated form of what the old
-            % filter did with BPS_ThresholdIncrement.
+            % Candidates on a pixel the New mask already calls suspect.
             Noisy = false(NumCand,1);
             for Ib=1:1:numel(Args.BadPix_Soft)
                 Noisy = Noisy | BD_IM.findBit(N_BM, Args.BadPix_Soft{Ib});
             end
 
-            if isempty(Args.SmearThreshold)
-                [BinCen, ~, SmearInfo] = imProc.sub.smearThreshold(...
-                    Obj(Iobj), Args.smearThresholdArgs{:});
-            else
-                BinCen        = Args.SmearThreshold(:,1);
-                BinThr        = Args.SmearThreshold(:,2:end);
-                SmearInfo     = struct();
-                SmearInfo.Fun = arrayfun(@(Ik) @(A) interp1(BinCen, BinThr(:,Ik), ...
-                                    min(max(A,BinCen(1)),BinCen(end)), 'linear'), ...
-                                    1:1:size(BinThr,2), 'UniformOutput',false);
-            end
+            % Below BadPix_SoftMinScore a marked candidate is flagged on the
+            % mask alone. A faint defect does not smear enough for the shape
+            % statistic to tell it from a point source: PSF sources injected
+            % onto real marked sites land among the defects themselves below
+            % SCORE ~10, so the statistic can only decide at random there and
+            % the mask is the real information.
+            %   The value 12 comes from counting trials. Taking each marked
+            % defect in a subtraction as one trial, with a Gaussian tail of
+            % the smear statistic at its SCORE, a floor of 12 leaves of order
+            % 0.02 defect false positives per subtraction on crops where the
+            % template works, a tenth of the ~0.2 per subtraction expected
+            % from 5 sigma noise fluctuations alone.
+            %   A real transient reaches a marked pixel only by chance
+            % alignment, of order 2 per cent of the detector, which bounds
+            % what this costs. Independent of the smear calibration, so it
+            % applies even when no template or threshold could be built.
+            BadPixSoft = Noisy & abs(Score) < Args.BadPix_SoftMinScore;
 
-            if isempty(BinCen)
-                BadPixSoft = false(NumCand,1);
-            else
-                % A single contour means the caller asked for one keep
-                % fraction, and Noisy then has no effect.
-                Thresh = SmearInfo.Fun{1}(abs(Score));
-                if numel(SmearInfo.Fun) > 1 && any(Noisy)
-                    Thresh(Noisy) = SmearInfo.Fun{end}(abs(Score(Noisy)));
+            if CandCat.isColumn('SN_smear')
+                SN_smear = CandCat.getCol('SN_smear');
+
+                if isempty(Args.SmearThreshold)
+                    [BinCen, ~, SmearInfo] = imProc.sub.smearThreshold(...
+                        Obj(Iobj), Args.smearThresholdArgs{:});
+                else
+                    BinCen        = Args.SmearThreshold(:,1);
+                    BinThr        = Args.SmearThreshold(:,2:end);
+                    SmearInfo     = struct();
+                    SmearInfo.Fun = arrayfun(@(Ik) @(A) interp1(BinCen, BinThr(:,Ik), ...
+                                        min(max(A,BinCen(1)),BinCen(end)), 'linear'), ...
+                                        1:1:size(BinThr,2), 'UniformOutput',false);
                 end
-                BadPixSoft = (Score - SN_smear) < Thresh;
+
+                if ~isempty(BinCen)
+                    % With more than one keep fraction, marked candidates
+                    % above the floor get the last contour. The default is a
+                    % single contour, so the floor is then the only thing
+                    % that treats marked candidates differently: above it a
+                    % tighter contour rejected no additional defects and lost
+                    % more real sources.
+                    Thresh = SmearInfo.Fun{1}(abs(Score));
+                    if numel(SmearInfo.Fun) > 1 && any(Noisy)
+                        Thresh(Noisy) = SmearInfo.Fun{end}(abs(Score(Noisy)));
+                    end
+                    BadPixSoft = BadPixSoft | ((Score - SN_smear) < Thresh);
+                end
             end
 
             FilterFlags = setFilterBit(FilterFlags, BadPixSoft, BD_TF, 'BadPixelSoft');
