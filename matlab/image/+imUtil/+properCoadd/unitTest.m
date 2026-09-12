@@ -146,15 +146,28 @@ function [Result] = unitTest()
 
     %% The noise in the coadd (clean) images is ~1
     % compare the rstd of the images
-    tools.math.stat.rstd(R0(:)-R2(:))
     
-    [R2_5,P_R1,Info]=imUtil.properCoadd.properCoaddLinear(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',4.685);
-    [R2_50,P_R1,Info]=imUtil.properCoadd.properCoaddLinear(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',50);
-    [R2_500,P_R1,Info]=imUtil.properCoadd.properCoaddLinear(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',500);
-    
-    tools.math.stat.rstd(R0(:)-R2_5(:))
-    tools.math.stat.rstd(R0(:)-R2_50(:))
-    tools.math.stat.rstd(R0(:)-R2_500(:))
+    RP = [4.685, logspace(log10(5), log10(5000), 20)];
+    ResStd = zeros(numel(RP),1);
+    for Irp=1:1:numel(RP)
+        [R2_v,P_R1,Info]=imUtil.properCoadd.properCoaddLinear(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',RP(Irp));
+        ResStd(Irp) = tools.math.stat.rstd(R0(:)-R2_v(:));
+    end
+
+    %%
+
+    loglog(RP, ResStd, 'ko', 'MarkerFaceColor','k')
+    set(gca, 'FontSize',28);
+    H=xlabel('Tucky parameter');
+    H.FontSize = 34;
+    H.Interpreter = 'latex';
+    H=ylabel('Robust StD');
+    H.FontSize = 34;
+    H.Interpreter = 'latex';
+    set(gcf, 'Color', 'w');
+
+    print TuckyPar_StD.eps -depsc2
+
 
     %%
 
