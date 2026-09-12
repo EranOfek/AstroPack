@@ -95,6 +95,19 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
         Args.RePopNewPSF = true;
 
         Args.applyCalibration logical = true;
+
+        % Header keyword holding the photometric zero point of each image,
+        % read by AstroDiff/estimateFnFr to set the New/Ref flux scaling
+        % (Fr = 10^(0.4*(RefZP - NewZP))). estimateFnFr does not fit
+        % anything: it divides the two header values, so both images must
+        % carry a zero point on the SAME absolute scale or the difference
+        % image is mis-scaled by exactly the offset between the two
+        % calibrations (issue #1267). Default 'PH_ZP' preserves the existing
+        % behaviour; use 'PT_ZP' on both sides once the reference images have
+        % been rebuilt with pipeline.last.reference.rebuildRefProducts.
+        % Changing only one side is worse than changing neither.
+        Args.NewZP = 'PH_ZP';
+        Args.RefZP = 'PH_ZP';
     end
 
     % 1: ----- Set default arguments -----
@@ -333,10 +346,11 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
 
     if Args.RePopRefPSF
         for Iobj = Nobj:-1:1
-            AD(Iobj).Ref = imProc.psf.populatePSF(AD(Iobj).Ref, 'RePopulatePSF', true, ...
-                'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
-                'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'new', ...
-                'WingsMethod', 'empirical');
+            AD(Iobj).Ref = imProc.psf.populatePSF(AD(Iobj).Ref, 'RePopulatePSF', true, 'Method', 'new');
+                % uniPSF repop: every PSF-shape argument (RadiusPSF 12, Annulus
+                % [16 20], analytic 3.7 wings @ 1e-2, elliptical, no ellipticity
+                % fallback, CropByQuantile false, single detection PSF) comes
+                % from the populatePSF/buildPSF uniPSF defaults.
             AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref);
             AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF');
         end
@@ -347,14 +361,17 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
             AD(Iobj).New = imProc.psf.populatePSF(AD(Iobj).New, 'RePopulatePSF', true,...
                 'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
                 'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'new', ...
-                'WingsMethod', 'empirical');
+                'WingsMethod', 'empirical', ...
+                'Annulus', [10 12], 'WingsPowerLaw', 2, ...           % pinned pre-uniPSF values: the repop
+                'EllipticalWings', false, 'SkipEllipticityFallback', false); % recipe is frozen until the subtraction
+                                                                             % flow is validated on uniPSF defaults
             AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New);
             AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF');
         end
     end   
 
     % Estimate zero points
-    AD.estimateFnFr;
+    AD.estimateFnFr('NewZP',Args.NewZP, 'RefZP',Args.RefZP);
 
     if Args.applyCalibration
         for Iobj = Nobj:-1:1

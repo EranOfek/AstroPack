@@ -24,6 +24,10 @@ function Result = psf2cube(Obj, Args)
     Nobj = numel(Obj);
     for Iobj=1:1:Nobj
         PSF = getPSF(Obj(Iobj).PSFData); % not yet available: , Args.DataPSF, Args.FunPSF, Args.StampSize, Args.ArgVals, Args.ArgNames);
+        if ~isempty(Args.StampSize)
+            PSF = imUtil.psf.pad_psf(PSF, Args.StampSize);
+        end
+        
         if Iobj==1
             Size   = size(PSF);
             Result = zeros(Size(1), Size(2), Nobj);

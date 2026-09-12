@@ -2,13 +2,16 @@ function [Result,Info] = buildRefImages(RefID, Args)
     % given a grid of reference images, build them from proc/coadd images
     %     employs proc/coadd image DB     
     %
-    % Input  : - Reference ID. Default is 146446 (M51 field).
-    %            If empty, then create ID of all images.
+    % Input  : - Reference image ID or a vector of IDs, i.e. the row index
+    %            (indices) in the reference grid table.
+    %            Default is 146446 (M51 field).
+    %            If empty, all the rows of the grid are processed.
+    %            Ignored when the ad hoc 'RA'/'Dec' arguments are given.
     %          * ...,key,val,...
-    %            'RefTable' - A table with gid of reference images: coordinates of image
-    %                   centers and corners (RA0, Dec0, RA1-RA4, Dec1-Dec4).
+    %            'RefTable' - A table with the grid of reference images: coordinates of image
+    %                   centers and corners (RA, Dec, RA1-RA4, Dec1-Dec4).
     %                   If empty, then load file in 'RefTableName' arg.
-    %            'RefTableName'    - File containing the Reference IDs.
+    %            'RefTableName'    - File containing the reference image grid table.
     %                   Default is 'LAST_RefIm_Grid.mat'.
     %         'RefWCS'               - if not empty, use an array of pre-built WCS, e.g., from the RefGrid object (def. empty)
     %         'RA'                   - [deg] optional array of sky point RA for building ad hoc, North-oriented
@@ -47,8 +50,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %         'DbHost'               - DB server host address (def. '10.150.28.18')
     %         'DbPort'               - DB server port (def. 9000)
     %         'DbUser'               - DB user name (def. 'last_user')
-    %         'DbName'               - DB name used to look up the password in the AstroPack passwords file (def. 'last_ro')
-    %         'PassFile'      - path to the AstroPack YAML passwords file (def. '~/.astropack/Passwords.yml')
+    %         'DbName'               - name of the DB on the ClickHouse server (def. 'last')
     %         'Verbose'              - verbosity level: 0 (mute), 1, 2 (maximal) (def. 2)
     %         'AstrometricCatRad'    - cone radius [deg] for pre-fetching astrometric/photometric
     %                    reference catalogs once per field (def. 1)
@@ -62,21 +64,23 @@ function [Result,Info] = buildRefImages(RefID, Args)
     %                   magnitude range is brightened automatically. Set to [] to disable.
     %                   The step in which the faint limit is brightened, and
     %                   the brightest limit which may be selected, are
-    %                   'AdaptMagStep' (0.5 mag) and 'AdaptMagMin' (15) of
+    %                   'AdaptMagStep' (0.5 mag) and 'AdaptMaxDeltaMag' (5 mag) of
     %                   imProc.cat.getAstrometricCatalog; together they also
     %                   bound the number of trials. The faint limit is only
     %                   ever brightened and the bright limit is never
     %                   touched, so a field which already satisfies the
     %                   fraction is unaffected.
     %                   See imProc.cat.getAstrometricCatalog (def. 0.5)
+    %         'PSFMethod'            - how imProc.stack.stitchCrops propagates the PSF of the crops
+    %                   to the stitched image: 'none', 'central' or 'wmean' (def. 'wmean')
     %
     % Output : - an AstroImage object for the last reference ID from the input list
     %          - reference image files (Image, Mask, PSF, Cat) written to disk and ref_images table filled in the DB
     % Author : A.M. Krassilchtchikov (2026 Apr) 
-    % Example: load('LAST_refGrid_new.mat'); 
+    % Example: RefGrid = io.files.load2('LAST_RefIm_Grid.mat');
     %          D = db.Db.connectLASTdb('Pass','*');
-    %          pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D); % a most general usage  
-    %          R=pipeline.last.reference.buildRefImages(LAST_RefIm_Grid,'DB',D,'RefID',[99945 99946]); % a short test
+    %          pipeline.last.reference.buildRefImages([],'RefTable',RefGrid,'DB',D); % a most general usage
+    %          R=pipeline.last.reference.buildRefImages([99945 99946],'RefTable',RefGrid,'DB',D); % a short test
     %          R=pipeline.last.reference.buildRefImages([],'DB',D,'RA',210.8,'Dec',54.3,'RefName',"myField"); % ad hoc sky point
     arguments
         RefID                  = 146446;
@@ -147,7 +151,6 @@ function [Result,Info] = buildRefImages(RefID, Args)
         Args.DbPort             = 9000;
         Args.DbName             = 'last'
         Args.DbUser             = 'last_user'
-        Args.PassFile           = '~/matlab/AstroPack/config/local/Passwords.yml'; % '~/.astropack/Passwords.yml';                
         Args.PassToken          = 'LASTDB_User'
         
         Args.DBTemplate          = '~/matlab/data/db/Design-Database-Pipeline-ClickHouse.xlsx';
@@ -165,13 +168,13 @@ function [Result,Info] = buildRefImages(RefID, Args)
 
         Args.PhotZPMethod            = 'photometricZP';  % 'photometricZP'|'header'
         Args.KeyZP                   = {'PT_ZP','PH_ZP'};
+        Args.PSFMethod               = 'wmean';  % 'none'|'central'|'wmean'
     end
     % 
     RAD = 180/pi;  
 
     % make a connection to the image DB
     if isempty(Args.DB)
-        Configuration.getSingleton().loadFile(Args.PassFile);
         PM = PasswordsManager;
         Db.Password = PM.search(Args.PassToken).Pass;
         Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, Db.Password);        
@@ -196,7 +199,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
         if isempty(Args.RefTable)
             RefGrid = io.files.load2(Args.RefTableName);
         else
-            RefGrid = Args.RefGrid;
+            RefGrid = Args.RefTable;
         end
         % loop over the Reference Image grid that has been read above
         if isempty(RefID)
@@ -418,6 +421,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
                             'AstrometricCat',AstrometricCat,'PhotCat',PhotCat, ...
                             'PhotZPMethod',Args.PhotZPMethod,...
                             'KeyZP',Args.KeyZP,...
+                            'PSFMethod',Args.PSFMethod,...
                             'BitDict',BitDict);
 
                         % Do not coadd a group whose astrometry failed: its WCS
@@ -472,7 +476,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
 
                 RefImage = pipeline.generic.procCoadd(StackImages','WCS',AIref,... 
                                     'multiIterExtractorArgs',Args.multiIterExtractorArgs,...
-                                    'InputMeanGain',InputMeanGain,...
+                                    'Gain',InputMeanGain,...   % procCoadd's unified input-gain arg (issue #1251)
                                     'FlagCR',Args.FlagCR,...
                                     'SubBack',Args.SubBack,...
                                     'SetBackTo0',false,...

@@ -204,7 +204,15 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
                                             'AIRMASS','TRK_RA','TRK_DEC',...
                                             'MNTTEMP','FOCUS','PRVFOCUS',...
                                             'OBJECT','COUNTER','NODENUMB','MOUNTNUM','CAMNUM'};
-        Args.DeleteHeaderKeys            = {'M_AAZ','M_AALT', 'GIT_UNIT', 'GIT_MESS', 'GITSWITC', 'GITMOUNT', 'CAMPOS'};
+        Args.DeleteHeaderKeys            = {'M_AAZ','M_AALT', 'GIT_UNIT', 'GIT_MESS', 'GITSWITC', 'GITMOUNT', 'CAMPOS',...
+                                            ...% tile-compression container keywords: they describe the .fz
+                                            ...% wrapper, not the image, and must never reach a product header
+                                            ...% (issue #1248)
+                                            'XTENSION','PCOUNT','GCOUNT','TFIELDS','EXTNAME','TTYPE1','TFORM1',...
+                                            'ZIMAGE','ZSIMPLE','ZBITPIX','ZNAXIS','ZNAXIS1','ZNAXIS2',...
+                                            'ZTILE1','ZTILE2','ZCMPTYPE','ZNAME1','ZVAL1','ZNAME2','ZVAL2',...
+                                            'ZQUANTIZ','ZDITHER0','ZTENSION','ZPCOUNT','ZGCOUNT','ZTHEAP',...
+                                            'ZHECKSUM','ZDATASUM'};
         Args.RecoverKeysFromName         = {'NODENUMB',2; 'MOUNTNUM',3; 'CAMNUM',4};
         
         Args.TableForDB                  = true; % if given then update table with header + results.        
@@ -221,7 +229,19 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
         Images = AI.getFileNames;
     else
         % assume input is a list of images
-        AI = AstroImage(Images, Args.AstroImageReadArgs{:}, 'CCDSEC',Args.CCDSEC);
+        % Tile-compressed frames must be read with the mex reader: reading a
+        % .fits.fz with matlab.io.fits returns the compressed container's
+        % header (NAXIS1=8, XTENSION='BINTABLE', PCOUNT/GCOUNT/TFIELDS,
+        % EXTNAME='COMPRESSED_IMAGE') instead of the image header, and those
+        % keywords then propagate into the products (issue #1248)
+        ReadArgs = Args.AstroImageReadArgs;
+        if ischar(Images) || isstring(Images) || iscellstr(Images)
+            IsCompressed = any(endsWith(string(Images), [".fz",".gz"]));
+            if IsCompressed && ~any(strcmpi(ReadArgs(1:2:end), 'UseMex'))
+                ReadArgs = [ReadArgs, {'UseMex',true}];
+            end
+        end
+        AI = AstroImage(Images, ReadArgs{:}, 'CCDSEC',Args.CCDSEC);
 
         % Add Time string to header:
         Literals = AstroFileName.parseString2literals(Images);
@@ -345,7 +365,12 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
         % populate LEVEL and CROPID
         AI = AI.setKeyVal('LEVEL','raw');
         AI = AI.setKeyVal('CROPID',0);
-        [AI, ID] = imProc.db.generateImageID(AI, 'KeyID',Args.KeyRawID);
+        % Only images that passed the checks: a rejected image may have an
+        % empty/unreadable header (a truncated file reads as an empty image
+        % with all-NaN keywords), and generateImageID then throws - which used
+        % to abort the whole visit instead of dropping the one bad frame
+        ID = zeros(numel(AI),1,'uint64');
+        [AI(FlagGoodImages), ID(FlagGoodImages)] = imProc.db.generateImageID(AI(FlagGoodImages), 'KeyID',Args.KeyRawID);
 
         %TableForDB.RawID(FlagGoodImages) = ID;
         TableForDB.ID_RAW = ID;
@@ -362,7 +387,14 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     % histogram anomaly
      if Args.HistAnomaly && any(FlagGoodImages)
         % need an imProc version...
-        TableForDB.HistOK = ~imProc.quality.histAnomaly(AI, Args.histAnomalyArgs{:});
+        % Only non-empty images: an empty one (e.g. from a truncated file) makes
+        % histAnomaly index out of bounds, which used to abort the whole visit.
+        % Same guard as the ACF/PSF check below.
+        HistOK = false(Nim,1);
+        if any(NotEmptyImage)
+            HistOK(NotEmptyImage) = ~imProc.quality.histAnomaly(AI(NotEmptyImage), Args.histAnomalyArgs{:});
+        end
+        TableForDB.HistOK = HistOK;
         FlagGoodImages = FlagGoodImages & TableForDB.HistOK;
         RejectStage    = updateRejectStage(RejectStage, FlagGoodImages, 'histogram anomaly');
     end

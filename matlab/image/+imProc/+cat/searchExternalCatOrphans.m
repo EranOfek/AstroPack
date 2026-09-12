@@ -1,5 +1,10 @@
 function Result=searchExternalCatOrphans(Obj, Args)
     % Search for orphans using MergedCat external catalog information
+    %   NOTE: expected to become obsolete with the new (v1) pipeline. On
+    %   new-pipeline products (issue #1180) the 'Overlap' bit is raised in
+    %   ALL the crops covering a pixel, so keeping it in RemoveFlags rejects
+    %   every copy of a seam source; on such products select the owned copy
+    %   with the catalog 'primary' column instead.
     %   This function is for the selection of sources that do not appear in
     %   external catalog (orphans). The program works with AstroCatalog
     %   objects, or AstroImage containing AstroCatalog object. The object

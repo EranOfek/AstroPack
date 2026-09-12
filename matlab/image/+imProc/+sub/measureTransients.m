@@ -65,6 +65,9 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
                 'RadiusTS' - Radius of area on transients positions in 
                        test statistic images S2 and Z2. Used to find peak 
                        S2 and Z2 values. Default is 5.
+                'RadiusSmear' - Peak search radius for SN_smear only.
+                       Empty takes it from SmearTemplateInfo.Radius.
+                       Default is [].
     Output  : - An AstroCatalog with the derived properties added to it.
                 These properties are the following;
                 .S2_TS - Peak value of the S2 test statistic within area
@@ -85,6 +88,7 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
         AD AstroZOGY
 
         Args.RadiusTS = 1;
+        Args.RadiusSmear = [];
         Args.useFWHM logical = false;
         Args.MultipleFWHM = 2;
         Args.applyDSDFcorrection = true;
@@ -213,14 +217,30 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
             XYPos = XY(ScorePos,:);
             XYNeg = XY(ScoreNeg,:);
 
+            % Wider than RadiusTS: a track-like template puts its matched
+            % filter peak away from the PSF peak that XPEAK marks, so the
+            % compact radius samples S_smear off its own response. The
+            % template reports the scale.
+            RadiusSmear = Args.RadiusSmear;
+            if isempty(RadiusSmear)
+                if ~isempty(AD(Iobj).SmearTemplateInfo) && ...
+                        isfield(AD(Iobj).SmearTemplateInfo,'Radius') && ...
+                        isfinite(AD(Iobj).SmearTemplateInfo.Radius)
+                    RadiusSmear = AD(Iobj).SmearTemplateInfo.Radius;
+                else
+                    RadiusSmear = Args.RadiusTS;
+                end
+            end
+
             [SmearPos, ~, ~] = imUtil.properSub.findNearestPeakSig(AD(Iobj).S_smear, ...
-                XYPos(:,1), XYPos(:,2), 1, 'RadiusTS', Args.RadiusTS);
+                XYPos(:,1), XYPos(:,2), 1, 'RadiusTS', RadiusSmear);
             [SmearNeg, ~, ~] = imUtil.properSub.findNearestPeakSig(-AD(Iobj).S_smear, ...
-                XYNeg(:,1), XYNeg(:,2), 1, 'RadiusTS', Args.RadiusTS);
+                XYNeg(:,1), XYNeg(:,2), 1, 'RadiusTS', RadiusSmear);
             SN_smear = zeros(numel(Score),1);
             SN_smear(ScorePos) = SmearPos;
             SN_smear(ScoreNeg) = -SmearNeg;
         end
+
         AD(Iobj).CatData.insertCol(cast(SN_smear,'double'),'SCORE',...
             {'SN_smear'},{''});
         

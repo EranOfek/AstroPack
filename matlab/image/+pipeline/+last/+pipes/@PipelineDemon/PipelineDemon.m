@@ -43,6 +43,12 @@ classdef PipelineDemon < Component
         % (standard magnitude, NaN for non-positive flux); 'lup' uses
         % convert.luptitude.
         MagType char {mustBeMember(MagType, {'lup','mag'})} = 'mag';
+
+        % If true, crops whose photometric calibration did not run (no coadd
+        % for the visit, or a crop with no relative-ZP fit) get their
+        % MAG_*/MAGERR_* columns NaN-filled instead of keeping the
+        % extractor's uncalibrated instrumental values. See issue #1161.
+        NaNUncalibMag logical = true;
     end
     
     properties (Hidden)
@@ -77,16 +83,6 @@ classdef PipelineDemon < Component
         ListProduct     = { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids'};
     end
     
-    
-    methods % Constructor
-       
-        function Obj = DemonLAST(Args)
-            % Constructor for DemonLAST
-
-            
-        end
-        
-    end
     
     methods % setter/getters
         function Obj=set.AutoPath(Obj, Val)
@@ -744,18 +740,28 @@ classdef PipelineDemon < Component
 
     
     methods % utilities
-        function Obj=autoDetectPath(Obj, Type)
+        function Obj=autoDetectPath(Obj, Type, Args)
             % Auto detect path for various directories
             % Input  : - self.
             %          - One of the following options:
             %            'LAST' - Path on some LAST computer (in site).
             %            'test/data' - Path for local AstroPack data dir.
+            %          * ...,key,val,...
+            %            'SetRefPath' - A logical indicating if to set also
+            %                   RefPath. If false, RefPath is left as is -
+            %                   use it when only the working directories
+            %                   should be derived, so that an explicitly
+            %                   set RefPath is not overwritten (issue #1260).
+            %                   An unset RefPath is still auto detected on
+            %                   read (see populateRefPath).
+            %                   Default is true.
             % Output : - Updated object.
             % Author : Eran Ofek (Jan 2026)
 
             arguments
                 Obj
                 Type  = 'LAST';
+                Args.SetRefPath logical = true;
             end
 
             switch lower(Type)
@@ -768,7 +774,9 @@ classdef PipelineDemon < Component
                         Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
                         Obj.FocusPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFocusPath);
 
-                        Obj.RefPath    = sprintf('%s%s%s',tools.os.get_computer, filesep, Obj.DefRefPath);
+                        if Args.SetRefPath
+                            Obj.RefPath = fullfile(filesep, tools.os.get_computer, Obj.DefRefPath);   % issue #1246
+                        end
                     end
                 case 'marvin'
                     % Obj.BasePath = '/marvin';
@@ -789,7 +797,9 @@ classdef PipelineDemon < Component
                     Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
                     Obj.FocusPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFocusPath);
 
-                    Obj.RefPath    = '/lastdata/references/v4';
+                    if Args.SetRefPath
+                        Obj.RefPath = '/lastdata/references/v4';
+                    end
 
 
                 otherwise
@@ -966,6 +976,12 @@ classdef PipelineDemon < Component
 
             FileName = fullfile(Path,Args.FileName);
             FID = fopen(FileName,'a+');
+            if FID<0
+                % e.g. Path is a file, or a directory that does not exist:
+                % report, but never throw out of the main loop (issue #1242)
+                Obj.writeLog(sprintf('writeStatus: cannot open %s for writing', FileName), LogLevel.Error);
+                return;
+            end
             fprintf(FID,'%s %s\n',datestr(now,'yyyy-mm-ddTHH:MM:SS'),Args.Msg);
             fclose(FID);
 
@@ -1704,22 +1720,34 @@ classdef PipelineDemon < Component
                     % do nothing
                 case 'local'
                     if isempty(Args.CalibPath)
-                        % use CalibBasePath
+                        % use CalibBasePath - the project name is taken from NewPath
+                        if isempty(Args.NewPath)
+                            error('prepPath: ReductionMode=''local'' requires NewPath (or an explicit CalibPath)');
+                        end
                         SplittedNewPath = split(Args.NewPath, filesep);
-                        Fc = contains(SplittedNewPath, 'LAST.');
-                        ProjName = SplittedNewPath(Fc);
-                        Args.CalibPath = sprintf('%s%s%s%s%s', Args.CalibBasePath, filsesep, ProjName, filesep, 'calib');
+                        Fc  = contains(SplittedNewPath, 'LAST.');
+                        Ind = find(Fc, 1);
+                        if isempty(Ind)
+                            error('prepPath: no project name (LAST.*) found in NewPath: %s', Args.NewPath);
+                        end
+                        ProjName = SplittedNewPath{Ind};
+                        Args.CalibPath = fullfile(Args.CalibBasePath, ProjName, 'calib');
                     end
 
                     Obj.BasePath    = Args.LocalPath;
                     Obj.NewPath     = Args.NewPath;
                     Obj.CalibPath   = Args.CalibPath;
-                    Obj.LogPath     = sprintf('%s%s%s',Args.LocalDir, filesep, 'log');
-                    Obj.FailedPath  = sprintf('%s%s%s',Args.LocalDir, filesep, 'failed');
-                    Obj.RefPath     = Args.RefPath;
+                    Obj.LogPath     = fullfile(Args.LocalPath, 'log');
+                    Obj.FailedPath  = fullfile(Args.LocalPath, 'failed');
+                    if ~isempty(Args.RefPath)
+                        % if empty - auto detected (see populateRefPath)
+                        Obj.RefPath = Args.RefPath;
+                    end
                 case 'test'
                     Obj.BasePath = sprintf('%s/matlab/data/pipeline/LAST',tools.os.get_userhome);
-                    Obj.RefPath     = Args.RefPath;
+                    if ~isempty(Args.RefPath)
+                        Obj.RefPath = Args.RefPath;
+                    end
 
                 otherwise
                     error('Unknown ReductionMode option');
@@ -1788,15 +1816,22 @@ classdef PipelineDemon < Component
                     % at least one group was found, but less than
                     % Args.MaxInGroup (20) images in group.
 
+                    % A visit is regarded as finished only after this long
+                    % without a new image. Scaled with the exposure time, as
+                    % the pause below is: at 20 s it is the previous 60 s
+                    % (three cadences), while a hard 60 s would declare a
+                    % visit with longer exposures finished after one frame
+                    % (issue #641).
+                    StaleDay = max(60, 3.*Args.ExpTime)./SEC_DAY;
+
                     MaxJDPerGroup = FN_Sci_Groups.juldayFun(@max);
+                    TimeSinceLastImage = celestial.time.julday() - MaxJDPerGroup;
                     if Ngroup==1
                         % get max JD of each sequence:
-                        
-                        TimeSinceLastImage = celestial.time.julday() - MaxJDPerGroup;
 
-                        if TimeSinceLastImage>(60./SEC_DAY)
+                        if TimeSinceLastImage>StaleDay
                             % check if there are enough images in visit
-                            if FN_Sci_Groups.nFiles>Args.MinInGroup
+                            if NinGroup(1)>=Args.MinInGroup
                                 % continue with current visit
                                 IndStartGroup = 1;
                             end
@@ -1826,6 +1861,21 @@ classdef PipelineDemon < Component
                                 Obj.writeLog(Msg, LogLevel.Error);
             
                                 error('Unknown SortDirection option');
+                        end
+
+                        % The index above only avoids the newest group; it says
+                        % nothing about whether the chosen one is finished. Left
+                        % unchecked, a visit still being written was taken and
+                        % its remaining images were stranded in new/ for ever,
+                        % since a run shorter than MinInGroup is never regrouped.
+                        % Apply the same two tests as the single-group branch
+                        % above: take it only if it is complete, or has stopped
+                        % receiving images and holds enough of them (issue #641).
+                        if NinGroup(IndStartGroup)~=Args.MaxInGroup && ...
+                                ~(TimeSinceLastImage(IndStartGroup)>StaleDay && ...
+                                  NinGroup(IndStartGroup)>=Args.MinInGroup)
+                            % not finished - wait for the rest of the visit
+                            IndStartGroup = [];
                         end
 
                     end
@@ -2490,10 +2540,13 @@ classdef PipelineDemon < Component
 
             PWD = pwd;
             if ~isempty(Args.CalibPath)
-                cd(Args.CalibPath)
+                CalibPathUsed = Args.CalibPath;
             else
-                cd(Obj.CalibPath);
+                CalibPathUsed = Obj.CalibPath;
             end
+            cd(CalibPathUsed);
+            % restore the working dir on every exit path, including errors (issue #1264)
+            Cleanup = onCleanup(@() cd(PWD));
             
             %fprintf('\n\nAvailable storage space:\n')
             %unix('df -h | grep data');
@@ -2508,6 +2561,15 @@ classdef PipelineDemon < Component
             if ismember('bias',lower(Args.ReadProduct))
                 if Args.ForceReload || IsBiasEmpty
                     FN_Bias = FileNames.generateFromFileName(Args.BiasTemplate);
+                    if FN_Bias.nfiles==0
+                        % nothing matched: report it here, while "no file" is still
+                        % distinguishable from "old file without an ID" (issue #1264)
+                        Obj.writeLog(sprintf('loadCalib: no bias images matching %s in %s', ...
+                                             Args.BiasTemplate, CalibPathUsed), LogLevel.Error);
+                        error('PipelineDemon:loadCalib:NoBiasImages', ...
+                              'loadCalib: no bias/dark images matching ''%s'' found in %s', ...
+                              Args.BiasTemplate, CalibPathUsed);
+                    end
                     if isempty(Args.BiasNearJD)
                         [~,~,~,FN_Bias] = FN_Bias.selectLastJD;
                     else
@@ -2540,6 +2602,14 @@ classdef PipelineDemon < Component
             if ismember('flat',lower(Args.ReadProduct))
                 if Args.ForceReload || IsFlatEmpty
                     FN_Flat = FileNames.generateFromFileName(Args.FlatTemplate);
+                    if FN_Flat.nfiles==0
+                        % see the bias case above (issue #1264)
+                        Obj.writeLog(sprintf('loadCalib: no flat images matching %s in %s', ...
+                                             Args.FlatTemplate, CalibPathUsed), LogLevel.Error);
+                        error('PipelineDemon:loadCalib:NoFlatImages', ...
+                              'loadCalib: no flat images matching ''%s'' found in %s', ...
+                              Args.FlatTemplate, CalibPathUsed);
+                    end
                     if isempty(Args.FlatNearJD)
                         [~,~,~,FN_Flat] = FN_Flat.selectLastJD;
                     else
@@ -2572,8 +2642,8 @@ classdef PipelineDemon < Component
 
             % Read linearity file
             % Result = populateLinearity(Obj.CI, Name, Args)
-          
-            cd(PWD);
+
+            % the working dir is restored by Cleanup (issue #1264)
 
         end
 
@@ -2604,7 +2674,7 @@ classdef PipelineDemon < Component
 
             % executing pipelineI
             AllForcedPhot = []; % TEMPORARY / not used
-            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, 'MagType', Obj.MagType, Args.pipelineIArgs{:},'Status',Status);
+            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, 'MagType', Obj.MagType, 'NaNUncalibMag', Obj.NaNUncalibMag, Args.pipelineIArgs{:},'Status',Status);
             %ProcImageList = TableRaw.FileName;                
             RunTime = etime(clock, Tstart);
             Ntr = size(TableRaw,1);
@@ -2630,6 +2700,14 @@ classdef PipelineDemon < Component
                 if isfield(Status,'NfailedBack') && Status.NfailedBack>0
                     MsgB{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: background estimation failed for %d sub image(s) - saved, but excluded from the coadd and the matched sources', Status.NfailedBack);
                     Obj.writeLog(MsgB, LogLevel.Warning);
+                end
+
+                % Unusable per-crop ShiftXY (issue #1162): procCoadd registered
+                % those crops by WCS instead. Recorded in ResultCoadd /
+                % Status rather than warned on the console, and logged here.
+                if isfield(Status,'NbadShiftXY') && Status.NbadShiftXY>0
+                    MsgS{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: unusable ShiftXY for %d sub image group(s) - registered by WCS instead (issue #1162)', Status.NbadShiftXY);
+                    Obj.writeLog(MsgS, LogLevel.Warning);
                 end
 
                 % saving data products of pipelineI
@@ -3066,7 +3144,7 @@ classdef PipelineDemon < Component
                 Args.NewPath       = [];
                 Args.CalibBasePath = '/marvin';
                 Args.CalibPath     = [];
-                Args.RefPath       = '/lastdata/references/v4';
+                Args.RefPath       = [];         % if empty - auto detected: /<HostName>/data/references (populateRefPath)
 
                 Args.ConnectDB     = true;    % get a DB connector (e.g., for multiepoch matching of PipeII)
                 Args.DBConnector   = 'legacy'; 
@@ -3109,9 +3187,7 @@ classdef PipelineDemon < Component
                 Args.SaveEpochHeader  = [true, false, true, false];
                 Args.SaveVisitHeader  = [true, false, true, false];
 
-                Args.SaveMergedCat     = false;
                 Args.SaveMergedMat     = true;
-                Args.SaveMergedAsteroids  = false;
                 Args.SaveVisitAsteroids  = true;
                 Args.SaveTableRaw        = true;
 
@@ -3130,12 +3206,16 @@ classdef PipelineDemon < Component
                 Args.SaveVisitProductII = {'Image','Mask','Cat','PSF'};
                 Args.SaveVisitHeaderII = [true,false,true,false];
                 Args.SaveTCL1 logical = true;
-                Args.InjectTCL2 logical = true;
+                % Default false: injecting transient candidates into the live
+                % table is a side effect on the outside world, and a run that
+                % does not ask for it (a re-reduction of archived data, a
+                % regression test) must not produce one (issue #1253)
+                Args.InjectTCL2 logical = false;
                 Args.SendTransientAlerts logical = true;
 
                 %Args.RunAsService logical  = false;
                 
-                Args.UncompressRaw     = false;             % we already know how to read compressed fits.fz, so no need to uncompress
+                Args.UncompressRaw     = false;             % not used: compressed RAW frames are read directly - prePrep forces the mex reader for .fz/.gz (issue #1248)
                 
                 Args.MoveNew2Raw       = true;     % move RAW images from new/ to YYYY/MM/DD/raw/ after processing
                 Args.RemoveAfterWrite  = false;    % remove the output YYYY/MM/DD/raw/subdir/ folder after writing into it (usefull for multiple tests)
@@ -3156,6 +3236,19 @@ classdef PipelineDemon < Component
             
             % prep arguments
             [Obj, Args] = prepArgs(Obj, Args);
+
+            % Complete the paths that were not set explicitly (issue #1245):
+            % when only DataDir is set, set.DataDir populates BasePath, but the
+            % new/calib/failed/log/focus directories are not derived from it.
+            % RefPath is deliberately left out (issue #1260): it is not derived
+            % from BasePath, prepPath may have just taken it from the caller,
+            % and if it is unset its getter auto detects it anyway
+            if isempty(Obj.NewPath)
+                if isempty(Obj.BasePath)
+                    Obj.BasePath = Obj.getPath;
+                end
+                Obj.autoDetectPath('LAST', 'SetRefPath', false);
+            end
 
             % Propagate the histogram-anomaly check arguments down the chain:
             % main -> pipelineI -> prePrep -> imProc.quality.histAnomaly.
@@ -3315,9 +3408,15 @@ classdef PipelineDemon < Component
     
                     % Select visit for reduction:
                     if Args.StaticRAWDir
-                        % Test mode: queue all full groups, oldest-first
+                        % Test mode: queue all groups with more than
+                        % MinInGroup images, oldest-first - the same
+                        % acceptance criterion selectVisitForReduction
+                        % applies in production. Requiring exactly
+                        % MaxInGroup here silently dropped every visit
+                        % whose sequence ended early (16-19 of 20 frames),
+                        % which production does process.
                         NinGroup   = FN_Sci_Groups.nFiles;
-                        GroupQueue = fliplr(find(NinGroup == Args.MaxInGroup));
+                        GroupQueue = fliplr(find(NinGroup > Args.MinInGroup));
                     else
                         GroupQueue = selectVisitForReduction(Obj, FN_Sci_Groups, Args);
                     end
@@ -3463,18 +3562,25 @@ classdef PipelineDemon < Component
                                     Status.PipeII  = true;
                                     Status.WriteII = true;
                                 catch MEs
-                                    Status.ME = MEs;
-                                    PWD = pwd;
-                                    cd(Obj.FailedPath);
-                                    FailInfoFileName = RawImageList{1};
-                                    FailedInfoFileName = strrep(FailedInfoFileName, 'sci_raw_Image', 'sci_zogy_Failure');
-                                    FailedInfoFileName = strrep(FailedInfoFileName, '.fits', '.mat');
+                                    % the handler itself must never throw (issue #1243)
+                                    Status.ME           = MEs;
                                     Status.RawImageList = RawImageList;
                                     Status.TableRaw     = TableRaw;
-                                    save('-v7.3', FailedInfoFileName, Status)
-                                    cd(PWD);
-                                    Status.PipeII  = false;
-                                    Status.WriteII = false;   
+                                    Status.PipeII       = false;
+                                    Status.WriteII      = false;
+
+                                    Obj.writeLog('pipeline.last.pipes.PipelineDemon: pipelineII failed', LogLevel.Error);
+                                    Obj.writeLog(MEs, LogLevel.Error);
+
+                                    % failure report, named after the first RAW frame of the visit
+                                    try
+                                        [~, RawBase] = fileparts(char(RawImageList{1}));
+                                        RawBase = regexprep(RawBase, '\.fits$', '');   % handles .fits.fz
+                                        FailedInfoFileName = [strrep(RawBase, 'sci_raw_Image', 'sci_zogy_Failure'), '.mat'];
+                                        save(fullfile(Obj.FailedPath, FailedInfoFileName), 'Status', '-v7.3');
+                                    catch MEsave
+                                        Obj.writeLog(sprintf('pipelineII failure report not saved: %s', MEsave.message), LogLevel.Error);
+                                    end
                                 end
                             else
                                 Status.PipeII  = false;
@@ -3483,9 +3589,21 @@ classdef PipelineDemon < Component
           
                                 
                             % Write ready-to-transfer
-                            if Args.UpdateStatusFile
+                            %   Only a successfully processed visit is marked: a failed
+                            %   visit must not be transferred (issue #1242).
+                            if Args.UpdateStatusFile && Status.PipeI && Status.WriteI
                                 writeStatus(Obj, FN_I.genPath);
-                                writeStatus(Obj, RawImageListFinal{1});
+                                if Status.MoveRaw
+                                    % RawImageListFinal is the raw/ directory once the RAW
+                                    % frames have been moved there; guard against it still
+                                    % holding the list of RAW file names
+                                    RawStatusPath = string(RawImageListFinal);
+                                    RawStatusPath = RawStatusPath(1);
+                                    if ~isfolder(RawStatusPath)
+                                        RawStatusPath = fileparts(RawStatusPath);
+                                    end
+                                    writeStatus(Obj, RawStatusPath);
+                                end
                             end
         
                             % Backup the data
@@ -3560,16 +3678,32 @@ classdef PipelineDemon < Component
                         break;
                     end
          
-                    % stop when done
-                    if Args.StopWhenDone
-                        Cont = false;
-                    end
                 else
                     % slow down - 
-                    if FN_Sci.nFiles<Args.MinInGroup
+                    if FN_Sci.nFiles<Args.MinInGroup && ~Args.StopWhenDone
                         pause(20);
                     end
                 end % if FN_Sci.nFiles>Args.MinInGroup
+
+                % Stop when done - at the level of the main loop, so that it
+                % also applies when new/ holds fewer images than MinInGroup.
+                % Nested inside the branch above, a batch run over leftovers
+                % never returned (as in pipeline.DemonLAST, which checks here)
+                if Args.StopWhenDone
+                    Cont = false;
+                end
+
+                % The abort file and the stop button are checked inside the
+                % branch above as well, i.e. only when there are more than
+                % MinInGroup images in new/. A demon left with a handful of
+                % stranded frames could then not be stopped at all (#1262).
+                if Args.StopButton && StopGUI()
+                    Cont = false;
+                end
+                if isfile(Args.AbortFileName)
+                    Cont = false;
+                    delete(Args.AbortFileName);
+                end
 
             end % while Cont
             cd(PWD);

@@ -22,12 +22,25 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     %         'BitDict'   - a BitDictionary to use for the mask bit operations, allowing the
     %                    caller to build it once and reuse it across many calls.
     %                    If empty, a default BitDictionary is built here. Default is [].
+    %         'PSFMethod' - how to propagate the PSF of the crops to the stitched image:
+    %                    'none'    - leave the PSF of the stitched image empty (default).
+    %                    'central' - copy the PSF of the crop closest to the centre of the
+    %                                stitched image (the whole AstroPSF object is copied).
+    %                    'wmean'   - a weighted mean of the crop PSFs, each crop weighted
+    %                                by the area it contributes to the stitched image.
+    %                                Only the PSF stamp, its variance, Nstars and the
+    %                                stamp grid are populated; the derived quantities
+    %                                (FWHM, FluxContainmentRadius, SuppressRad, the
+    %                                extended PSF) are left empty.
+    %                    Crops with an empty or non-finite PSF are ignored. If no crop
+    %                    carries a usable PSF, the stitched PSF is left empty.
     % Output : - a stitched AstroImage with a merged catalog and updated WCS
     %          - AstroCatalog used for astrometry ([] if UpdateWCS is false)
     %          - AstroCatalog used for photometry ([] if UpdateZP is false or PhotZPMethod is 'header')
     % Author : A.M. Krassilchtchikov (2026 Jan)
     % Example: [AIs, AstCat, PhCat] = imProc.stack.stitchCrops(AI,'UpdateWCS',true,'UpdateZP',true)
     %          [AIs] = imProc.stack.stitchCrops(AI,'UpdateZP',true,'PhotZPMethod','header')
+    %          [AIs] = imProc.stack.stitchCrops(AI,'PSFMethod','wmean')
     %
     arguments
         AI
@@ -41,6 +54,7 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
         Args.PhotZPMethod            = 'photometricZP';  % 'photometricZP'|'header'
         Args.KeyZP                   = {'PH_ZP','PT_ZP'};
         Args.BitDict                 = [];
+        Args.PSFMethod               = 'none';  % 'none'|'central'|'wmean'
 
         Args.MatchMethod             = 'mex';  % 'mex'|'old'
     end
@@ -58,6 +72,10 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     Ymin  = zeros(Ncrop,1); Ymax  = zeros(Ncrop,1);
     CCDSEC= zeros(Ncrop,4);
     OrigU = zeros(Ncrop,4);
+    % the area and the [Xmin Xmax Ymin Ymax] region each crop contributes to
+    % the stitched image, in the pixel coordinates of the stitched image
+    CropArea = zeros(Ncrop,1);
+    CropReg  = zeros(Ncrop,4);
 
     % get the table indices of the pixel columns
     IndX = AI(1).CatData.colname2ind({'XPEAK','X1','X'});
@@ -93,7 +111,11 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     % fill the new image with chopped crops, shift the catalog pixels
     for Icrop = 1:Ncrop
         if O.hasLeft(Icrop)
-            XUmin = OrigU(Icrop,1)-Xmin(Icrop);
+            % crop column 1 holds original column Xmin, so the crop column
+            % holding original column OrigU(1) is OrigU(1)-Xmin+1. Without the
+            % +1 the crop contributed one extra column and was placed one pixel
+            % too far right (issue #1236)
+            XUmin = OrigU(Icrop,1)-Xmin(Icrop)+1;
             ImaShiftX = OrigU(Icrop,1)-X0;
         else
             XUmin = CCDSEC(Icrop,1);
@@ -105,7 +127,8 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
             XUmax = CCDSEC(Icrop,2);
         end
         if O.hasBottom(Icrop)
-            YUmin = OrigU(Icrop,3)-Ymin(Icrop);
+            % see the X case above (issue #1236)
+            YUmin = OrigU(Icrop,3)-Ymin(Icrop)+1;
             ImaShiftY = OrigU(Icrop,3)-Y0;
         else
             YUmin = CCDSEC(Icrop,3);
@@ -117,22 +140,32 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
             YUmax = CCDSEC(Icrop,4);
         end
 
-        AIc = crop(AI(Icrop),[XUmin XUmax YUmin YUmax],'UpdateCat',true,'CreateNewObj',true);
-        MCat(Icrop) = AIc.CatData;
+        AIc = crop(AI(Icrop),[XUmin XUmax YUmin YUmax],'UpdateCat',false,'CreateNewObj',true);
 
-        if O.hasLeft(Icrop)
-            MCat(Icrop).Catalog(:,IndX) = MCat(Icrop).Catalog(:,IndX) + CatShiftX(Icrop) + XUmin;
-        else
-            MCat(Icrop).Catalog(:,IndX) = MCat(Icrop).Catalog(:,IndX) + CatShiftX(Icrop) + XUmin - 1;
-        end
-        if O.hasBottom(Icrop)
-            MCat(Icrop).Catalog(:,IndY) = MCat(Icrop).Catalog(:,IndY) + CatShiftY(Icrop) + YUmin;
-        else
-            MCat(Icrop).Catalog(:,IndY) = MCat(Icrop).Catalog(:,IndY) + CatShiftY(Icrop) + YUmin - 1;
-        end
+        % Select the catalog rows here rather than letting crop do it. crop
+        % keeps XUmin <= X <= XUmax on the raw coordinate, so a source whose
+        % centroid falls between the last column one crop owns and the first
+        % column of the next belongs to neither and is lost from the stitch.
+        % Own a source if the PIXEL containing its centroid is owned, i.e. the
+        % half-open interval [XUmin-0.5, XUmax+0.5) - which tiles the seams
+        % without gaps and without duplicates (issue #1236).
+        Cat  = AI(Icrop).CatData.copy;
+        Xcat = Cat.Catalog(:,IndX(1));
+        Ycat = Cat.Catalog(:,IndY(1));
+        FlagIn = Xcat>=(XUmin-0.5) & Xcat<(XUmax+0.5) & ...
+                 Ycat>=(YUmin-0.5) & Ycat<(YUmax+0.5);
+        Cat.Catalog = Cat.Catalog(FlagIn,:);
+
+        % the crop coordinates are still those of the uncropped crop, so the
+        % shift into the stitched frame is just the crop's own origin offset
+        % (issue #1106)
+        MCat(Icrop) = imProc.cat.shiftXY(Cat, CatShiftX(Icrop), CatShiftY(Icrop));
 
         ImgAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)  = AIc.ImageData.Data;
         MaskAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.MaskData.Data;
+
+        CropArea(Icrop)  = (XUmax-XUmin+1).*(YUmax-YUmin+1);
+        CropReg(Icrop,:) = [ImaShiftX+1, ImaShiftX+XUmax-XUmin+1, ImaShiftY+1, ImaShiftY+YUmax-YUmin+1];
     end
 
     % assemble the stitched AstroImage from the accumulated arrays
@@ -145,6 +178,11 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     Result.MaskData = Result.MaskData.maskSet({FFne,FFov}, {'NearEdge','Overlap'}, [0 0], 'DefBitDict',Args.BitDict);
     %Result.MaskData = Result.MaskData.maskSet(AllPix, 'NearEdge', 0);
     %Result.MaskData = Result.MaskData.maskSet(AllPix, 'Overlap',  0);
+
+    % propagate the PSF of the crops
+    if ~strcmpi(Args.PSFMethod,'none')
+        Result.PSFData = stitchPSF(AI, CropArea, CropReg, [Nx Ny], Args.PSFMethod);
+    end
 
     % merge the catalogs:
     Result.CatData = merge(MCat);
@@ -232,4 +270,88 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     Keys = {'NODENUMB','MOUNTNUM','CAMNUM','IMTYPE','NCOADD'};
     Vals = cellfun(@(k) AI(1).HeaderData.getVal(k), Keys, 'UniformOutput', false);
     Result.HeaderData = replaceVal(Result.HeaderData, Keys, Vals);
+end
+
+function Result = stitchPSF(AI, CropArea, CropReg, StitchSize, Method)
+    % Build the PSF of a stitched image out of the PSFs of its crops
+    % Input  : - the array of crop AstroImages.
+    %          - a vector with the area each crop contributes to the stitch.
+    %          - an [Ncrop, 4] matrix with the [Xmin Xmax Ymin Ymax] region each
+    %            crop contributes, in the pixel coordinates of the stitched image.
+    %          - the [Nx, Ny] size of the stitched image.
+    %          - 'central' | 'wmean', see the PSFMethod argument of stitchCrops.
+    % Output : - an AstroPSF object (empty if no crop carries a usable PSF).
+    % Author : A.M. Krassilchtchikov (Aug 2026)
+
+    Result = AstroPSF;
+
+    % use only the crops carrying a usable PSF
+    Ncrop  = numel(AI);
+    Good   = false(Ncrop,1);
+    Nstars = NaN(Ncrop,1);
+    for Icrop = 1:Ncrop
+        Data = AI(Icrop).PSFData.DataPSF;
+        % a non-positive stamp sum would turn the normalization into NaN/Inf
+        Good(Icrop)   = ~isempty(Data) && all(isfinite(Data),'all') && all(sum(Data,[1 2])>0,'all');
+        Nstars(Icrop) = AI(Icrop).PSFData.Nstars;
+    end
+    if ~any(Good)
+        return
+    end
+    Ind = find(Good);
+
+    % the crop closest to the centre of the stitched image: the distance to the
+    % contributed region (0 when the centre falls inside it), with the distance
+    % to the centre of the region as a tie breaker
+    Xc      = (1+StitchSize(1))./2;
+    Yc      = (1+StitchSize(2))./2;
+    DistReg = hypot( max(0, max(CropReg(:,1)-Xc, Xc-CropReg(:,2))), ...
+                     max(0, max(CropReg(:,3)-Yc, Yc-CropReg(:,4))) );
+    DistCen = hypot( (CropReg(:,1)+CropReg(:,2))./2-Xc, (CropReg(:,3)+CropReg(:,4))./2-Yc );
+    DistReg(~Good) = Inf;
+    DistCen(~Good) = Inf;
+    [~, Ord] = sortrows([DistReg, DistCen]);
+    Icen     = Ord(1);
+    Ref      = AI(Icen).PSFData;
+
+    switch lower(Method)
+        case 'central'
+            % AstroPSF is a handle object, so copy it not to alias the input
+            Result = Ref.copy;
+        case 'wmean'
+            % averaging is meaningful only for stamps sharing a common grid
+            Ndim  = max(0, ndims(Ref.DataPSF)-2);
+            Sizes = arrayfun(@(X) isequal(size(X.PSFData.DataPSF), size(Ref.DataPSF)), AI(Ind));
+            Grids = arrayfun(@(X) isequal(X.PSFData.DimName(1:Ndim), Ref.DimName(1:Ndim)) && ...
+                                  isequal(X.PSFData.DimVals(1:Ndim), Ref.DimVals(1:Ndim)), AI(Ind));
+            if ~all(Sizes & Grids)
+                warning('imProc:stack:stitchCrops:PSFGridMismatch',...
+                        'The crop PSFs are not on a common grid, falling back to the PSF of the central crop');
+                Result = Ref.copy;
+            else
+                Weights = CropArea(Ind);
+                PsfCell = arrayfun(@(X) X.PSFData.DataPSF, AI(Ind), 'UniformOutput',false);
+                Result.DataPSF = imUtil.psf.combinePSF(PsfCell(:).', 'Weights',Weights);
+
+                % the variance refers to the 2D photometry stamp, i.e. to the
+                % leading slice of the PSF data, so combine it against that one
+                VarCell = arrayfun(@(X) X.PSFData.DataVar, AI(Ind), 'UniformOutput',false);
+                SizeVar = size(Ref.DataVar);
+                if ~isempty(Ref.DataVar) && all(cellfun(@(X) isequal(size(X), SizeVar), VarCell)) && ...
+                        isequal(SizeVar, size(Ref.DataPSF,[1 2]))
+                    Psf2D = cellfun(@(X) X(:,:,1), PsfCell, 'UniformOutput',false);
+                    [~, Result.DataVar] = imUtil.psf.combinePSF(Psf2D(:).', 'Weights',Weights, 'Var',VarCell(:).');
+                end
+
+                if ~all(isnan(Nstars(Ind)))
+                    Result.Nstars = sum(Nstars(Ind), 'omitnan');
+                end
+                Result.Scale        = Ref.Scale;
+                Result.DimName      = Ref.DimName;
+                Result.DimVals      = Ref.DimVals;
+                Result.InterpMethod = Ref.InterpMethod;
+            end
+        otherwise
+            error('Unknown PSFMethod: %s', Method);
+    end
 end

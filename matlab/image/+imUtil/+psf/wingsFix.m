@@ -54,13 +54,15 @@ function [PSF,InnerRadius] = wingsFix(PSF, Args)
         PSF
         Args.WingsMethod                 = 'analytic';
         Args.SuppressThreshold           = 1e-2;
-        Args.WingsPowerLaw               = 2.0;
+        Args.WingsPowerLaw               = 3.7;   % uniPSF default (validated on LAST); pass 2 for the legacy analytic slope
         Args.SuppressFun                 = @imUtil.kernel2.cosbell;
         Args.SuppressFunPars             = 3; % or # from edge
         Args.ExtendedSize                = [];
         Args.ProfileRadius               = [];
         Args.ProfileValue                = [];
         Args.ProfileSuccess              = false;
+        Args.PA                          = 0;   % elliptical-wing position angle [rad]
+        Args.AxisRatio                   = 1;   % elliptical-wing axis ratio; 1 = circular
         Args.MaxAxisRatioForModel        = 0.9;
         Args.ApplyEllipticityFallback     = true;
     end
@@ -75,8 +77,15 @@ function [PSF,InnerRadius] = wingsFix(PSF, Args)
     switch Args.WingsMethod
         case 'analytic'
             InnerRadius = imUtil.psf.radiusAtFraction(PSF, Args.SuppressThreshold);
-            OuterRadius  = min(InnerRadius + 3, (size(PSF,1)-1).*0.5);
-            PSF = imUtil.psf.addWings2PSF(PSF, Args.WingsPowerLaw, InnerRadius, OuterRadius);
+            HalfPSF     = (size(PSF,1)-1).*0.5;
+            if ~isfinite(InnerRadius) || InnerRadius >= HalfPSF
+                % the profile never drops to the threshold inside the stamp
+                % (e.g. a strongly defocused PSF; issue #1268) - there are
+                % no outskirts to replace, keep the empirical stamp
+            else
+                OuterRadius  = min(InnerRadius + 3, HalfPSF);
+                PSF = imUtil.psf.addWings2PSF(PSF, Args.WingsPowerLaw, InnerRadius, OuterRadius, true, Inf, NaN, NaN, NaN, Args.PA, Args.AxisRatio);
+            end
         case  'cosbell'
             [PSF, InnerRadius] = imUtil.psf.suppressWings(PSF, 'Fun',Args.SuppressFun,...
                                                             'Threshold',Args.SuppressThreshold,...
@@ -86,10 +95,15 @@ function [PSF,InnerRadius] = wingsFix(PSF, Args)
                                                             'Alpha',Args.WingsPowerLaw);
         case 'empirical'
             InnerRadius = imUtil.psf.radiusAtFraction(PSF, Args.SuppressThreshold);
-            if Args.ProfileSuccess && ~isempty(Args.ProfileRadius) && ~isempty(Args.ProfileValue)
-                OuterRadius = min(InnerRadius + 3, (size(PSF,1)-1).*0.5);
+            HalfPSF     = (size(PSF,1)-1).*0.5;
+            if InnerRadius >= HalfPSF
+                % no outskirts inside the stamp (issue #1268) - keep the
+                % empirical stamp as is
+            elseif Args.ProfileSuccess && ~isempty(Args.ProfileRadius) && ~isempty(Args.ProfileValue)
+                OuterRadius = min(InnerRadius + 3, HalfPSF);
                 PSF = imUtil.psf.addEmpiricalWings2PSF(PSF, Args.ProfileRadius, Args.ProfileValue, ...
-                                                         'R1',InnerRadius, 'R2',OuterRadius);
+                                                         'R1',InnerRadius, 'R2',OuterRadius, ...
+                                                         'PA',Args.PA, 'AxisRatio',Args.AxisRatio);
             else
                 % Not enough bright/near-saturated stars to calibrate an
                 % empirical wing for this image -- fall back to cosbell.

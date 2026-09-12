@@ -75,6 +75,35 @@ function [Result] = unitTest()
         error('Problem with tools.array.mex.bitsetFlag - new mex');
     end
 
+    % Small arrays (issue #1237): the kernels split the array over the OpenMP
+    % threads by hand, and a thread whose start index fell past the end of the
+    % array used to send the vector loops off the heap. That only happens when
+    % the number of elements is small compared to the number of threads, which
+    % the 1716x1716 case above never reaches.
+    for Nel = [1 2 7 8 25 47 48 49 100 255 500]
+        ArrayS = uint32(randi([0 2^31-1], Nel, 1));
+        FlagS  = rand(Nel,1) > 0.5;
+        for Bit = [1 13 32]
+            for Val = [0 1]
+                RefS = tools.array.bitsetFlag(ArrayS, FlagS, Bit, Val, [false false]);
+                if ~isequal(RefS, tools.array.mex.bitsetFlag(ArrayS, FlagS, Bit, Val))
+                    error('Problem with tools.array.mex.bitsetFlag - N=%d, Bit=%d, Val=%d', Nel, Bit, Val);
+                end
+                % uniform flags, with and without the prescan, exercise the
+                % dedicated all-true / all-false kernels
+                for Uni = [false true]
+                    FlagU = repmat(Uni, Nel, 1);
+                    RefU  = tools.array.bitsetFlag(ArrayS, FlagU, Bit, Val, [false false]);
+                    for Pre = [false true]
+                        if ~isequal(RefU, tools.array.mex.bitsetFlag(ArrayS, FlagU, Bit, Val, Pre))
+                            error('Problem with tools.array.mex.bitsetFlag - uniform flags, N=%d, Bit=%d, Val=%d, Prescan=%d', Nel, Bit, Val, Pre);
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     % more bitsetFlag tests
 
     test_bitsetFlag();

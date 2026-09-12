@@ -1,4 +1,4 @@
-function [NewPSF, Amp] = addWings2PSF(PSF, Alpha, R1, R2, Norm, Rmax, Cx, Cy, Amp)
+function [NewPSF, Amp] = addWings2PSF(PSF, Alpha, R1, R2, Norm, Rmax, Cx, Cy, Amp, PA, AxisRatio)
     % Replace the noisy outer wings of a measured PSF with an analytic power-law.
     % Description: Given a measured (possibly asymmetric) PSF, preserve the core
     %              for radius r<=R1 and replace the noisy outer wings with a
@@ -47,6 +47,8 @@ function [NewPSF, Amp] = addWings2PSF(PSF, Alpha, R1, R2, Norm, Rmax, Cx, Cy, Am
         Cx       = NaN   % NaN -> flux centroid
         Cy       = NaN
         Amp      = NaN   % NaN -> robust auto-fit
+        PA       = 0     % major-axis position angle [rad] for elliptical wings
+        AxisRatio = 1    % minor/major axis ratio; 1 = circular (legacy)
     end
 
     assert(R2 > R1, 'addWings2PSF:radii', 'Require R2 > R1.');
@@ -67,7 +69,12 @@ function [NewPSF, Amp] = addWings2PSF(PSF, Alpha, R1, R2, Norm, Rmax, Cx, Cy, Am
         end
     end
 
-    R = hypot(X - Cx, Y - Cy);
+    % Elliptical radius: wing iso-contours follow the measured core shape
+    % (PA, AxisRatio from imUtil.psf.psfElongation). AxisRatio=1 -> circular.
+    Xr = (X - Cx).*cos(PA) + (Y - Cy).*sin(PA);
+    Yr = -(X - Cx).*sin(PA) + (Y - Cy).*cos(PA);
+    R  = hypot(Xr, Yr ./ max(AxisRatio, 0.1));
+    Rcirc = hypot(X - Cx, Y - Cy);   % truncation stays circular (stamp geometry)
 
     % --- robust amplitude fit on the annulus (if not supplied) ---
     if isnan(Amp)
@@ -90,7 +97,7 @@ function [NewPSF, Amp] = addWings2PSF(PSF, Alpha, R1, R2, Norm, Rmax, Cx, Cy, Am
     NewPSF              = w.*PSF + (1 - w).*W;   % annulus blend
     NewPSF(R <= R1)     = PSF(R <= R1);          % exact data core (avoids 0*Inf)
     NewPSF(R >= R2)     = W(R >= R2);            % pure analytic wing
-    NewPSF(R >  Rmax)   = 0;                     % truncate
+    NewPSF(Rcirc > Rmax) = 0;                    % truncate
 
     if Norm
         s = sum(NewPSF(:));

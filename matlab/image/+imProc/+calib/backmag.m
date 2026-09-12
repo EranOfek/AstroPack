@@ -100,6 +100,20 @@ function [AI, Result] = backmag(AI, Args)
         % get PixScale [arcsec/pix]
         PixScale = AI(Iai).HeaderData.getValSimple(Args.KeyPixScale);
 
+        % A blank header card (e.g. the fitPhotCalibTrans failure stamp for
+        % PT_ZP, or MEDBCK on an image whose background estimation failed)
+        % reads back as empty. Treat any of them as NaN so that MagBack
+        % propagates as NaN, as it already does for an absent keyword.
+        if isempty(BackVal)
+            BackVal = NaN;
+        end
+        if isempty(ZP)
+            ZP = NaN;
+        end
+        if isempty(PixScale)
+            PixScale = NaN;
+        end
+
         MagBack = ZP - 2.5.*log10(BackVal./(PixScale.^2));
 
         if nargout>1

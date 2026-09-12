@@ -89,7 +89,22 @@ function [Result] = aperPhot(Obj, Args)
 
         [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(Result(Iobj).ImageData.Image, XY(:,1), XY(:,2), Args.RadiusStamp, 'mexCutout',Args.mexCutout, 'Circle',false);
             
-        ResAperBright = imUtil.sources.aperPhotCube(Cube, 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus);
+        % imUtil.sources.aperPhotCube takes X and Y as POSITIONAL arguments
+        % (Cube, X, Y, Args), where X/Y are the source positions within the
+        % stamp - they drive the sub-pixel recentering. Omitting them made
+        % 'AperRad' be swallowed as X and the radius vector as Y, so AperRad
+        % silently kept its own default [2,4,5] and the photometry was done at
+        % the wrong radii. Same stamp-centre convention as
+        % imProc.sources.psfFitPhot (HalfSize+1 + X - RoundX).
+        StampCenterAper = Args.RadiusStamp + 1;
+        Xstamp = XY(:,1) - RoundX(:) + StampCenterAper;
+        Ystamp = XY(:,2) - RoundY(:) + StampCenterAper;
+        % sources with an undefined position sit at the stamp centre
+        IsNanXY         = isnan(Xstamp) | isnan(Ystamp);
+        Xstamp(IsNanXY) = StampCenterAper;
+        Ystamp(IsNanXY) = StampCenterAper;
+
+        ResAperBright = imUtil.sources.aperPhotCube(Cube, Xstamp, Ystamp, 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus);
 
         
         FluxMagData = [ResAperBright.AperPhot,...

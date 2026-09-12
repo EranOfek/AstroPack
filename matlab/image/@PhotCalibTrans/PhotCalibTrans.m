@@ -991,7 +991,7 @@ classdef PhotCalibTrans < Component
 
             % Co2_ppm is NOT threaded through anymore — predefSeqCompositeFun
             % owns the atmospheric-constant default (395, matches class
-            % Obj.Co2_ppm default so PT_CO2PPM provenance stays consistent).
+            % Obj.Co2_ppm default so PT_CO2PP provenance stays consistent).
             % When Args.InitFromAirmass is true, the observation-airmass
             % is threaded down so predefSeqCompositeFun replaces the
             % class-default PWV_cm / TauAod500 / QE_Center_Ang with
@@ -3081,14 +3081,15 @@ classdef PhotCalibTrans < Component
             % Example: Header = PC.photCalibTransToHeader(Header);
             %          Header = PC.photCalibTransToHeader(Header, 'WriteComments', true);
             % Description: Writes calibration results and fitted parameters to header.
-            %              Keywords: PT_RMS, PT_ARMS, PT_CHI2, PT_DOF, PT_NCALIB,
+            %              Keywords: PT_RMS, PT_ARMS, PT_CHI2, PT_DOF, PT_NCALI,
             %                        PT_AREF, PT_SPEC,
             %                        PT_X_N, PT_X_VY, PT_X_FY (function parameters),
             %                        PT_P_N, PT_P_VY, PT_P_FY (position corrections if UseTran2D=true),
             %                        APC0/APCX/APCY/APCXY_* (position-dependent aperture
             %                        corrections + APCOR_N; no scalar median APCOR_*),
             %                        PT_DZP (constant-band delta ZP, if DeltaZP_CB finite),
-            %                        PT_ZP (photometric ZP at image centre, if PhotZP finite),
+            %                        PT_ZP (photometric ZP at image centre; always
+            %                        written - blank/undefined when PhotZP is not finite),
             %                        LIMMAG (if LimMag finite), BACKMAG (if BackMag finite).
 
             arguments
@@ -3140,19 +3141,19 @@ classdef PhotCalibTrans < Component
             else
                 NCalFinal = NaN;
             end
-            HeaderObj = HeaderObj.replaceVal('PT_NCALIB', NCalFinal);
+            HeaderObj = HeaderObj.replaceVal('PT_NCALI', NCalFinal);
             HeaderObj = HeaderObj.replaceVal('PT_AREF', 'SMART v2.9.8');
             HeaderObj = HeaderObj.replaceVal('PT_SPEC', 'GaiaDR3');
             HeaderObj = HeaderObj.replaceVal('PT_REFSL', Obj.RefSpecSlope);
             HeaderObj = HeaderObj.replaceVal('PT_REFPV', Obj.RefSpecPivot);
-            HeaderObj = HeaderObj.replaceVal('PT_CO2PPM', Obj.Co2_ppm);
+            HeaderObj = HeaderObj.replaceVal('PT_CO2PP', Obj.Co2_ppm);
 
             if Args.WriteComments
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_RMS: RMS of calibration fit [mag]';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_ARMS: sqrt(median(R^2)) of N brightest calibrators [mag]';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_CHI2: Chi-squared of fit';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_DOF: Degrees of freedom';
-                IComment = IComment + 1; HistoryComments{IComment} = 'PT_NCALIB: Number of calibrators';
+                IComment = IComment + 1; HistoryComments{IComment} = 'PT_NCALI: Number of calibrators';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_AREF: Atmospheric model reference';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_SPEC: Spectra reference';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_REFSL: Ref spectrum F_nu slope (lambda/PT_REFPV)^slope';
@@ -3342,12 +3343,17 @@ classdef PhotCalibTrans < Component
 
             % Photometric zero point of the image at its centre (mag of a
             % 1-count full-exposure source). Read by imProc.calib.backmag/limmag.
-            if isfinite(Obj.PhotZP)
-                HeaderObj = HeaderObj.replaceVal('PT_ZP', Obj.PhotZP);
-                if Args.WriteComments
-                    IComment = IComment + 1;
-                    HistoryComments{IComment} = 'PT_ZP: Photometric zero point at image centre [mag] (1 count, full exposure)';
-                end
+            % Written unconditionally: PT_ZP is a core calibration result, so
+            % an uncalibrated image must carry the keyword with an undefined
+            % (blank) value rather than omit it - a non-finite value is
+            % serialized as a blank card by the mex header writers (issue
+            % #1194) and reads back as NaN through getVal. Keys that only
+            % record whether an OPTIONAL step ran (e.g. PT_DZP) stay
+            % conditional, so their absence keeps its meaning.
+            HeaderObj = HeaderObj.replaceVal('PT_ZP', Obj.PhotZP);
+            if Args.WriteComments
+                IComment = IComment + 1;
+                HistoryComments{IComment} = 'PT_ZP: Photometric zero point at image centre [mag] (1 count, full exposure)';
             end
 
             % Limiting magnitude and sky surface brightness (legacy keyword names)
@@ -3434,8 +3440,8 @@ classdef PhotCalibTrans < Component
             % CO2 abundance (Simone-parity default 395 ppm when absent so
             % FITS written before step-1 UMG ParamMatrix expansion still
             % load cleanly).
-            if HeaderObj.isKeyExist('PT_CO2PPM')
-                Val = HeaderObj.getVal('PT_CO2PPM');
+            if HeaderObj.isKeyExist('PT_CO2PP')
+                Val = HeaderObj.getVal('PT_CO2PP');
                 if isnumeric(Val) && ~isnan(Val)
                     Obj.Co2_ppm = Val;
                 end
@@ -3586,12 +3592,18 @@ classdef PhotCalibTrans < Component
                     % Read parameter value
                     ParValues(IPar) = HeaderObj.getVal(KeyNameV);
 
-                    % Read fit flag
+                    % Read fit flag. A blank card (the fitPhotCalibTrans
+                    % failure stamp - nothing was fitted) reads back as NaN,
+                    % which logical() refuses to convert; treat it as fixed.
                     KeyNameF = sprintf('PT_%d_F%d', IFun, IPar);
+                    FlagVal = NaN;
                     if HeaderObj.isKeyExist(KeyNameF)
-                        FitFlags(IPar) = logical(HeaderObj.getVal(KeyNameF));
+                        FlagVal = HeaderObj.getVal(KeyNameF);
+                    end
+                    if isempty(FlagVal) || ~isnumeric(FlagVal) || isnan(FlagVal)
+                        FitFlags(IPar) = false;  % Default to fixed if absent/blank
                     else
-                        FitFlags(IPar) = false;  % Default to fixed if not specified
+                        FitFlags(IPar) = logical(FlagVal);
                     end
 
                     IPar = IPar + 1;
@@ -3689,9 +3701,9 @@ classdef PhotCalibTrans < Component
                 Obj.TransModel.UseTran2D = false;
             end
 
-            % Set CalFound based on PT_NCALIB
-            if HeaderObj.isKeyExist('PT_NCALIB')
-                Val = HeaderObj.getVal('PT_NCALIB');
+            % Set CalFound based on PT_NCALI
+            if HeaderObj.isKeyExist('PT_NCALI')
+                Val = HeaderObj.getVal('PT_NCALI');
                 if ~isnan(Val) && Val > 0
                     Obj.CalFound = true;
                 else
@@ -3730,7 +3742,23 @@ classdef PhotCalibTrans < Component
             %                        (so it matches whatever prefix addMag used).
             %            'SNColName'      - S/N column name for filtering. Default is 'SN'.
             %            'MinSN'          - Minimum S/N for star selection. Default is 30.
-            %            'MaxSN'          - Maximum S/N. Default is Inf.
+            %            'MaxSN'          - Maximum S/N. Default is 1000
+            %                        (issue #1274: an S/N ceiling screens
+            %                        artifact floods, e.g. ghost-halo
+            %                        pseudo-sources, out of the fit).
+            %            'Chi2ColName'    - PSF-fit chi2/dof column used for
+            %                        calibrator screening. Default is
+            %                        'PSF_CHI2DOF'. If the column is absent
+            %                        the chi2 screen is skipped with a
+            %                        warning.
+            %            'Chi2Range'      - [Min Max] allowed PSF_CHI2DOF for
+            %                        aperture-correction calibrators; []
+            %                        disables the screen. Default is
+            %                        [0.5 100] (issue #1274: ghost-halo
+            %                        pseudo-sources carry chi2/dof ~60 vs
+            %                        ~2 for real stars, so this range is
+            %                        trivially separating while keeping any
+            %                        plausibly-fit star).
             %            'FilterBadFlags' - Reject sources whose FLAGS carry any
             %                        of BadFlags, in addition to the S/N cut.
             %                        Default true. (Set false to reproduce the
@@ -3790,7 +3818,9 @@ classdef PhotCalibTrans < Component
                 Args.AperFluxPrefix = 'FLUX_'
                 Args.SNColName = 'SN'
                 Args.MinSN = 30
-                Args.MaxSN = Inf
+                Args.MaxSN = 1000       % S/N ceiling (issue #1274)
+                Args.Chi2ColName (1,:) char = 'PSF_CHI2DOF'
+                Args.Chi2Range double = [0.5 100]   % [] disables (issue #1274)
                 Args.FilterBadFlags  logical = true
                 Args.BadFlags        cell   = {'Saturated','NaN','Negative','CR_DeltaHT','NearEdge'}
                 Args.FlagsColName    (1,:) char = 'FLAGS'
@@ -3910,6 +3940,23 @@ classdef PhotCalibTrans < Component
                 Msg = sprintf('calcAperCorr: S/N column %s not found - using all sources', Args.SNColName);
                 Obj.msgLog(LogLevel.Warning, Msg);
                 Mask = true(CatObj.sizeCatalog, 1);
+            end
+
+            % Screen by PSF-fit quality (issue #1274): artifact detections
+            % (e.g. the ~500 ghost-halo pseudo-sources that steered the
+            % positional fit to a ~1 mag/crop gradient) carry PSF_CHI2DOF
+            % far above real stars (measured ~60 vs ~2), so a permissive
+            % range removes them without touching genuine calibrators.
+            % AND-combined with the S/N mask.
+            if ~isempty(Args.Chi2Range)
+                if ismember(Args.Chi2ColName, AllColNames)
+                    Chi2 = CatObj.getCol(Args.Chi2ColName);
+                    Mask = Mask & Chi2(:) > Args.Chi2Range(1) & Chi2(:) < Args.Chi2Range(2);
+                else
+                    Obj.msgLog(LogLevel.Warning, sprintf( ...
+                        'calcAperCorr: chi2 column %s not found - chi2 screen skipped', ...
+                        Args.Chi2ColName));
+                end
             end
 
             % Reject bad-flag detections (FLAGS bitmask). Saturated / NaN /
@@ -7025,6 +7072,55 @@ classdef PhotCalibTrans < Component
                 Mag = convert.magnitude(Flux, Flux0);
             else
                 Mag = convert.luptitude(Flux, Flux0);
+            end
+        end
+
+        function CatObj = nanFillMagCols(CatObj, Args)
+            % NaN-fill the MAG_*/MAGERR_* columns of an uncalibrated catalog.
+            %   Used when the photometric calibration did not run for a
+            %   crop/epoch, so that the product does not ship uncalibrated
+            %   instrumental magnitudes under a calibrated column name. The
+            %   column set matches the one the successful path would have
+            %   created: one <MagColPrefix><suffix> per FLUX_<suffix>
+            %   (FLUX_XYPEAK excluded - it is a pixel peak value, not a
+            %   photometric flux), plus MAGERR_<suffix> wherever an error
+            %   source exists (FLUXERR_<suffix>, or SN for FLUX_PSF).
+            %   Existing columns of the same name are overwritten in place.
+            % Input  : - An AstroCatalog (or AstroTable) object.
+            %          * ...,key,val,...
+            %            'MagColPrefix' - Prefix of the magnitude columns.
+            %                   Default is 'MAG_'.
+            % Output : - The catalog with NaN-filled magnitude columns.
+            % Author : (Aug 2026)
+            % Example: Cat = PhotCalibTrans.nanFillMagCols(Cat);
+            arguments
+                CatObj
+                Args.MagColPrefix char = 'MAG_';
+            end
+
+            if isempty(CatObj) || isempty(CatObj.Catalog) || size(CatObj.Catalog,1)==0
+                return;
+            end
+
+            AllColNames  = CatObj.ColNames;
+            Nrows        = size(CatObj.Catalog, 1);
+            NaNcol       = nan(Nrows, 1);
+
+            IsFlux       = startsWith(AllColNames, 'FLUX_');
+            FluxColNames = AllColNames(IsFlux);
+            FluxColNames = FluxColNames(~strcmp(FluxColNames, 'FLUX_XYPEAK'));
+
+            for I = 1:1:numel(FluxColNames)
+                NewMagColName = strrep(FluxColNames{I}, 'FLUX_', Args.MagColPrefix);
+                CatObj = CatObj.insertCol(NaNcol, Inf, NewMagColName, {}, 'OmitValidation', true);
+
+                FluxErrCol   = strrep(FluxColNames{I}, 'FLUX_', 'FLUXERR_');
+                HasErrSource = any(strcmp(AllColNames, FluxErrCol)) || ...
+                    (strcmp(FluxColNames{I}, 'FLUX_PSF') && any(strcmp(AllColNames, 'SN')));
+                if HasErrSource
+                    MagErrColName = regexprep(NewMagColName, '^MAG_', 'MAGERR_');
+                    CatObj = CatObj.insertCol(NaNcol, Inf, MagErrColName, {}, 'OmitValidation', true);
+                end
             end
         end
     end

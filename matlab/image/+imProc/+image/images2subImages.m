@@ -20,6 +20,7 @@ function [Result] = images2subImages(AI, Args)
         Args.ListCenters      = [];
         Args.NoOverlapCCDSEC  = [];
         Args.NewNoOverlap     = [];
+        Args.ExclusiveCCDSEC  = [];   % single-coverage sections in the full image frame (ORIGESEC header keyword)
         Args.NewExclusive     = [];   % single-coverage sections (sub image frame); if available, the Overlap bit marks their complement (the full overlap region, in all the sub images covering it - issue #1180); if empty, fall back to the complement of NewNoOverlap
         Args.EdgeDist               = 13;
 
@@ -46,7 +47,7 @@ function [Result] = images2subImages(AI, Args)
     % construct partition:
     if isempty(Args.EdgesCCDSEC) && isempty(Args.ListCenters) && isempty(Args.NoOverlapCCDSEC) && isempty(Args.NewNoOverlap)
         SizeXY = fliplr(size(AI(1).ImageData.Image));
-        [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters, ~, Args.NewExclusive] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);
+        [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters, Args.ExclusiveCCDSEC, Args.NewExclusive] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);
 
         % [Args.EdgesCCDSEC,Args.NoOverlapCCDSEC,Args.ListCenters,Args.Nxy,Args.NewNoOverlap] = imUtil.cut.subimage_grid(SizeXY,...
         %                                                     'SubSizeXY',Args.SubSizeXY,...
@@ -150,7 +151,8 @@ function [Result] = images2subImages(AI, Args)
         Result(Iai,:) = imProc.transIm.updateHeaderCCDSEC(Result(Iai,:), 'EdgesCCDSEC',Args.EdgesCCDSEC,...
                                                            'NoOverlapCCDSEC',Args.NoOverlapCCDSEC,...
                                                            'NewNoOverlap',Args.NewNoOverlap,...
-                                                           'NewExclusive',Args.NewExclusive);
+                                                           'NewExclusive',Args.NewExclusive,...
+                                                           'ExclusiveCCDSEC',Args.ExclusiveCCDSEC);
     end %for Iai=1:1:Nai
 
 

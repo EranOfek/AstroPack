@@ -20,14 +20,22 @@ function [Template, Info] = smearTemplate(Obj, Args)
     %            must have run.
     %          * ...,key,val,...
     %            'Method' - 'measured', 'derived', or 'auto'.
-    %                   'auto' derives when the shift track is reachable and
-    %                   otherwise stacks DarkHighVal defects. The visit
-    %                   directory and crop are taken from the arguments when
-    %                   given and from the object otherwise, so 'auto'
-    %                   usually needs nothing passed. The derived path cannot
-    %                   fail for lack of defects, so it is preferred whenever
-    %                   it can run. Info.Method reports which was used.
+    %                   'auto' stacks real DarkHighVal defects whenever the
+    %                   crop has at least MinNumDefects of them, and derives
+    %                   the template from the shift track otherwise. Measured
+    %                   is preferred because it carries the shape the defects
+    %                   actually have, including the negative lobe the derived
+    %                   model lacks; derived is the fallback for crops without
+    %                   the calibrators to stack. Either way the other method
+    %                   is tried if the first fails, so this never hard fails.
+    %                   The visit directory and crop are taken from the
+    %                   arguments when given and from the object otherwise, so
+    %                   'auto' usually needs nothing passed. Info.Method
+    %                   reports which was used, Info.Rejected why the first
+    %                   choice was dropped when it was.
     %                   Default is 'auto'.
+    %                   Info.Radius is the peak search radius the smear
+    %                   statistic should be sampled with, in pixels.
     %
     %            --- both methods ---
     %            'HalfSize' - Cutout half size. Default is 7.
@@ -101,6 +109,8 @@ function [Template, Info] = smearTemplate(Obj, Args)
     arguments
         Obj(1,1)
         Args.Method               = 'auto';
+        Args.NoFallback logical   = false; % internal: one method, no retry
+        Args.TrackSpan            = [];    % [spanX spanY], filled in internally
         Args.HalfSize             = 7;
         Args.MomRadiusFactor      = 1.7;
 
@@ -129,34 +139,104 @@ function [Template, Info] = smearTemplate(Obj, Args)
     Info     = struct('Method','', 'NumComp',0, 'NumUsed',0, ...
                       'Scatter',NaN, 'Core',NaN, 'Offset',[NaN NaN], ...
                       'NumNearSrc',0, 'X',[], 'Y',[], ...
-                      'Nepoch',NaN, 'SpanX',NaN, 'SpanY',NaN, 'Reason','');
+                      'Nepoch',NaN, 'SpanX',NaN, 'SpanY',NaN, ...
+                      'Radius',NaN, 'Rejected',{{}}, 'Reason','');
 
     % Fill in the visit directory and crop from the object where they were
     % not given, so the derived path is usable without plumbing them through
     % subtractionS.
     [Args.VisitDir, Args.CropID] = resolveVisit(Obj, Args);
 
-    % Resolve 'auto'. Deriving needs only the shift track, and unlike the
-    % measured path it cannot fail for lack of defects, so it is used
-    % whenever the track is reachable.
+    % Resolve the order to try. Both facts are cheap: the shift track is
+    % needed by the derived path anyway, and the defect count is one
+    % bwconncomp. Deciding here rather than mid-build means the choice is
+    % made in one place and recorded.
     Method = lower(Args.Method);
-    if strcmp(Method, 'auto')
-        if ~isempty(Args.ShiftXY) || ...
-                (~isempty(Args.VisitDir) && ~isempty(Args.CropID))
-            Method = 'derived';
-        else
-            Method = 'measured';
+
+    % The span is needed by the measured builder too, to size its stamp and
+    % to close the one-pixel gaps in the mask tracks, so recover it whatever
+    % the method resolves to. A NoFallback call already carries it in Args,
+    % put there by the caller that recursed into us.
+    Ncal = 0;
+    if ~Args.NoFallback
+        [Ncal, Span]   = countClosedDefects(Obj, Args);
+        Args.TrackSpan = Span;
+    end
+
+    if Args.NoFallback
+        Order = {Method};
+    else
+        switch Method
+            case 'measured', Order = {'measured','derived'};
+            case 'derived',  Order = {'derived','measured'};
+            case 'auto'
+                if Ncal >= Args.MinNumDefects
+                    % The measured template is the observed defect shape,
+                    % negative lobe and all. The derived model does not
+                    % reproduce that lobe: it stays positive along the whole
+                    % track while the real residual turns negative past its
+                    % midpoint, and a filter that is positive where the data
+                    % is negative loses response. On one crop that cost a
+                    % 9 pixel defect track its flag, at +1.14 against a
+                    % threshold of +1.04, which the measured template caught
+                    % at -1.05 against +0.22 while flagging fewer candidates
+                    % overall. So measured is preferred whenever the crop has
+                    % the defects to build it.
+                    Order = {'measured','derived'};
+                else
+                    % Not enough calibrators to stack. The derived path needs
+                    % none, so it is the fallback rather than the preference.
+                    Order = {'derived','measured'};
+                end
+            otherwise
+                Info.Reason = sprintf('unknown Method option %s', Args.Method);
+                return
         end
     end
 
-    Info.Method = Method;
+    % Try in order; the first that yields a template wins. Nothing here is
+    % fatal, an exhausted list returns an empty template with the reasons.
+    Rejected = {};
+    ArgsCell = namedargs2cell(Args);
+    for Im = 1:1:numel(Order)
+        if Args.NoFallback || numel(Order) == 1
+            [Template, Info] = buildOne(Obj, Args, Info, Order{Im});
+        else
+            [Template, Info] = imProc.sub.smearTemplate(Obj, ArgsCell{:}, ...
+                                   'Method',Order{Im}, 'NoFallback',true);
+        end
+        if ~isempty(Template)
+            Info.Method   = Order{Im};
+            Info.Rejected = Rejected;
+            Info.Radius   = smearRadius(Template);
+            return
+        end
+        Rejected{end+1} = sprintf('%s: %s', Order{Im}, Info.Reason); %#ok<AGROW>
+    end
 
+    Template      = [];
+    Info.Method   = Order{1};
+    Info.Rejected = Rejected;
+    Info.Reason   = strjoin(Rejected, '; ');
+    return
+end
+
+
+function [Template, Info] = buildOne(Obj, Args, Info, Method)
+    % One method, no fallback. The measured body follows inline below.
+    Template    = [];
+    Info.Method = Method;
     if strcmp(Method, 'derived')
         [Template, Info] = derivedFromShifts(Obj, Args, Info);
         return
     end
-    if ~strcmp(Method, 'measured')
-        Info.Reason = sprintf('unknown Method option %s', Args.Method);
+
+    % Obj.New can be a zero element AstroImage when the pipeline gave up
+    % early, on a crop with no reference for instance. Property access on an
+    % empty object array yields no outputs at all rather than an empty, so
+    % this has to be checked before Obj.New is touched.
+    if isempty(Obj.New) || numel(Obj.New) < 1
+        Info.Reason = 'no New image';
         return
     end
 
@@ -170,7 +250,18 @@ function [Template, Info] = smearTemplate(Obj, Args)
 
     Fwhm     = Obj.PSFData.fwhm;
     SizeIm   = size(Image);
+
+    % A defect smeared along the drift needs a stamp that holds the whole
+    % track, not the compact-defect default.
+    %   Constraint worth knowing: imProc.sub.smearThreshold injects on a grid
+    %   of spacing MinSep, and a source contaminates another within 2*HalfSize
+    %   of it, so 2*HalfSize must stay below MinSep (30 by default). At a span
+    %   of 19 pix this gives HalfSize 14, i.e. 29x29, which just fits. A
+    %   substantially longer track would need MinSep raised to match.
     HalfSize = Args.HalfSize;
+    if ~isempty(Args.TrackSpan)
+        HalfSize = max(HalfSize, ceil(max(Args.TrackSpan)./2) + 4);
+    end
     Cen      = HalfSize + 1;
 
     % --- defect positions ---
@@ -178,6 +269,21 @@ function [Template, Info] = smearTemplate(Obj, Args)
     if ~any(DefectMask(:))
         Info.Reason = sprintf('no %s pixels', strjoin(Args.Bits,'/'));
         return
+    end
+
+    % The mask is registered with nearest neighbour and OR'd over epochs, so
+    % one defect becomes a track along the drift. Sub-pixel steps leave
+    % one-pixel gaps in it and bwconncomp then reports each track as several
+    % fragments: on one crop 470 tracks came out as 1879 components, and
+    % cutting stamps at fragment centroids blurred the stacked residual by a
+    % factor 4 in peak. Closing a single-pixel gap along the drift recovers
+    % whole tracks and their centroids.
+    if ~isempty(Args.TrackSpan)
+        if Args.TrackSpan(1) >= Args.TrackSpan(2)
+            DefectMask = imclose(DefectMask, ones(1,3));
+        else
+            DefectMask = imclose(DefectMask, ones(3,1));
+        end
     end
 
     CC    = bwconncomp(DefectMask, 8);
@@ -378,10 +484,15 @@ function [Template, Info] = derivedFromShifts(Obj, Args, Info)
     % D. Despite the name, PdN is not the New image PSF, see deltaResponse.
     Big = conv2(Kernel, PdN, 'same');
 
-    % What the catalogue would call the position of this response, so the cut
-    % lands in the same frame the measured path cuts in.
-    Offset      = momentOffset(Big, Args.MomRadiusFactor .* Obj.PSFData.fwhm);
-    Info.Offset = Offset;
+    % Where the cut lands sets where S_smear peaks relative to the candidate
+    % position, and for a track those are not the same point. Anchored on the
+    % PSF filter peak, so the template origin is where the catalogue will put
+    % the candidate. The moment is still reported, as the diagnostic it now
+    % is rather than the anchor it was.
+    Offset            = psfPeakOffset(Big, Obj.PSFData.getPSF);
+    Info.Offset       = Offset;
+    Info.MomentOffset = momentOffset(Big, Args.MomRadiusFactor .* Obj.PSFData.fwhm);
+    Info.AnchorShift  = Offset - Info.MomentOffset;
 
     [Template, Core] = normaliseCore(cropCentre(Big, Args.HalfSize, round(Offset)), true);
     Info.Core = Core;
@@ -519,6 +630,39 @@ function Out = cropCentre(Image, HalfSize, Offset)
     Out = Image(Ry, Rx);
 end
 
+function R = smearRadius(Template)
+    % Peak search radius for the smear statistic, from the template itself.
+    %   SCORE peaks on the PSF filter, which for a track sits at one point
+    %   of it, while S_smear peaks where the whole track best aligns. The
+    %   two are not the same pixel, so the radius of 1 that measureTransients
+    %   uses for the compact statistics samples S_smear off its own response
+    %   and understates it. The flux weighted rms radius is the scale of that
+    %   displacement, and unlike the drift span it is defined for both
+    %   methods and survives whatever cropping the builder applied.
+    %
+    %   Positive part only, since the difference image template has negative
+    %   wings that carry no response to align on.
+    %
+    %   Capped because the cost of a wider box is noise: the maximum over
+    %   (2R+1)^2 pixels rises with R for a source that is not smeared, which
+    %   pushes real sources toward the cut. On a 29x29 measured template the
+    %   uncapped rule gives 9, and the injected loss of real sources at that
+    %   radius drifts to 6 per cent against a 99 per cent keep target, while
+    %   the separation gains only 0.03 over radius 6.
+
+    N = size(Template,1);
+    C = (N+1)./2;
+    [Yg, Xg] = ndgrid((1:N)-C, (1:N)-C);
+
+    W = max(Template, 0);
+    if ~any(W(:) > 0)
+        R = 1;
+        return
+    end
+    W = W ./ sum(W(:));
+    R = max(1, min(ceil(sqrt(sum(W(:) .* (Xg(:).^2 + Yg(:).^2)))), 4));
+end
+
 
 function Offset = momentOffset(Image, MomRadius)
     % Windowed first moment about the stamp centre, the same estimator
@@ -529,6 +673,30 @@ function Offset = momentOffset(Image, MomRadius)
     Offset = [M1.X - Cen(2), M1.Y - Cen(1)];
 end
 
+function Offset = psfPeakOffset(Image, Psf)
+    % Where the PSF matched filter peaks on Image, relative to its centre.
+    %
+    %   This is the anchor the catalogue effectively uses. findTransients
+    %   detects on S, which is D filtered by the D PSF, so a candidate's
+    %   position is where that filter peaks -- for a smear track, near its
+    %   brightest part rather than its centroid.
+    %
+    %   Cutting the template here makes its origin coincide with the position
+    %   the candidate will be given, so S_smear peaks where S peaks and
+    %   SN_smear is sampled on the response instead of beside it. Anchoring
+    %   on a windowed moment instead put the origin at the track centroid,
+    %   which for a long track is a different point: measured across 13
+    %   crops, the two peaks sat up to 5 pix apart and 96 to 100 per cent of
+    %   candidates on the long track visits had SN_smear read off the
+    %   response entirely.
+
+    Sf       = imUtil.filter.filter2_fast(Image, Psf);
+    [~, Idx] = max(Sf(:));
+    [Iy, Ix] = ind2sub(size(Sf), Idx);
+
+    Cen    = round((size(Image)+1)./2);
+    Offset = [Ix - Cen(2), Iy - Cen(1)];
+end
 
 function [T, Core] = normaliseCore(T, LocateCore)
     % Divide by the core, the sum of a central 3x3. Returns empty T when the
@@ -653,4 +821,45 @@ function [VisitDir, CropID] = resolveVisit(Obj, Args)
             % leave empty
         end
     end
+end
+
+function [N, Span] = countClosedDefects(Obj, Args)
+    % How many usable defect tracks the measured path would have, and the
+    % drift span, both cheaply.
+    %
+    %   The mask is registered with nearest neighbour and OR'd across epochs,
+    %   so one detector defect becomes a track along the drift. Sub-pixel
+    %   steps leave one-pixel gaps in it, and bwconncomp then reports each
+    %   track as several fragments: on one crop 470 real tracks came out as
+    %   1879 components. Closing a single-pixel gap along the drift axis
+    %   recovers them, so the count here is of tracks, not fragments.
+
+    N = 0;  Span = [];
+
+    try
+        [ShiftXY, ~] = shiftTrackFromVisit(Args);
+        Span = [range(ShiftXY(:,1)), range(ShiftXY(:,2))];
+    catch
+        % no track: the caller falls back on the measured path anyway
+    end
+
+    if isempty(Obj.New) || isempty(Obj.New.MaskData) || Obj.New.MaskData.isemptyImage
+        return
+    end
+
+    M = Obj.New.MaskData.findBit(Args.Bits, 'Method','any', 'OutType','mat');
+    if ~any(M(:))
+        return
+    end
+
+    if ~isempty(Span)
+        if Span(1) >= Span(2)
+            M = imclose(M, ones(1,3));   % drift in x
+        else
+            M = imclose(M, ones(3,1));   % drift in y
+        end
+    end
+
+    CC = bwconncomp(M, 8);
+    N  = CC.NumObjects;
 end

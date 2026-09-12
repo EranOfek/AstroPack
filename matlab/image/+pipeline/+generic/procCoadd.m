@@ -76,7 +76,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %                   Set to [] to disable.
     %                   The step in which the faint limit is brightened, and
     %                   the brightest limit which may be selected, are
-    %                   'AdaptMagStep' (0.5 mag) and 'AdaptMagMin' (15) of
+    %                   'AdaptMagStep' (0.5 mag) and 'AdaptMaxDeltaMag' (5 mag) of
     %                   imProc.cat.getAstrometricCatalog; together they also
     %                   bound the number of trials. The faint limit is only
     %                   ever brightened, so a supplied magnitude range -
@@ -189,7 +189,11 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     % Output : - A vector of AstroImage object containing the coadd images.
     %            One image per field.
     %          - A structure array containing information regarding the
-    %            coaddition process.
+    %            coaddition process. The 'RegisteredBy' field records the
+    %            registration route per field: 'shift' (by the supplied
+    %            ShiftXY), 'wcs' (no ShiftXY supplied), or 'wcs-fallback'
+    %            (ShiftXY supplied but unusable for this field - empty,
+    %            non-finite, or row-mismatched; issue #1162).
     % Author : Eran Ofek (Jun 2023)
     % Example: 
    
@@ -200,7 +204,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.JD                               = [];
         Args.IsGood                           = [];
         Args.MinNumCoadd                      = 10;
-        Args.ShiftXY                          = [];  % if empty, then, register by WCS.
+        Args.ShiftXY                          = [];  % if empty, then, register by WCS. May be a struct array (element per field) with the shifts in PropShiftXY; a field whose resolved shifts are empty, non-finite, or row-mismatched falls back to WCS registration, recorded in ResultCoadd.RegisteredBy (issue #1162).
         Args.WCS                              = [];
         Args.PropShiftXY                      = 'ShiftXY';
         Args.IsShiftXYfiltered                = true;
@@ -208,7 +212,13 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         % --- registration ---
         Args.registerArgs                     = {};
         Args.DataProp                         = {'ImageData','BackData','VarData','MaskData'};
-        Args.SubBack                          = true;  % false is useful for visit coaddition, for general coaddition use true.
+        Args.SubBack                          = true;  % subtract background before coaddition. false is useful for visit coaddition; for general coaddition use true.
+                                                        % NOTE: StackMethod='proper' ALWAYS subtracts the background - imProc.stack.coadd_Proper is
+                                                        % called with a hardcoded 'SubBack',true regardless of this flag (proper coaddition requires it).
+                                                        % This flag therefore controls only the 'wrobust'/'sigmaclip' channels. However SetBackTo0 (below)
+                                                        % and the 'IsBackSub' value forwarded to imProc.sources.multiIterExtractor still follow THIS flag, so
+                                                        % with StackMethod='proper' keep SubBack=true to stay consistent with the background that was actually
+                                                        % subtracted (setting it false would tell the extractor the coadd is not background-subtracted when it is).
         
         Args.SetBackTo0                       = true; % if SubBack=true and SetBackTo0 then set back to 0.
         %Args.ReMeasureBackVar                 = true; % if SetBackT0=false and this is true than remeasure back and var
@@ -234,14 +244,22 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
         
-        Args.InputMeanGain                    = 1; % avergae gain of input images
+        % Gain handling (unified; issue #1251):
+        %   Gain    - the INPUT single-image gain [e-/ADU] of the frames
+        %             being coadded. [] (default) -> read the mean over the
+        %             input images from header KeyGain (->1 if the keyword is
+        %             missing). Scalar -> use that value for all inputs. Used
+        %             by every StackMethod to derive the OUTPUT effective gain
+        %             (wrobust: imProc.stack.coadd_WRobust's weighted
+        %             EffectiveGain; proper/sigmaclip: Gain.*MeanN).
+        %   KeyGain - header keyword: (a) source of the input gain when
+        %             Gain=[], and (b) destination for the OUTPUT effective
+        %             gain (written when UpdateGain=true).
+        %   (Replaces the former InputMeanGain + Gain/KeyGain split.)
+        Args.Gain                             = [];
+        Args.KeyGain                          = 'GAIN';
         % output gain:
         Args.UpdateGain                       = true;
-
-        % these are used only in the non wrboust_Coadd and will be removed
-        % in the future
-        Args.Gain                             = [];  % if empty use KeyGain
-        Args.KeyGain                          = 'GAIN';
 
         %Args.backgroundArgs cell              = {};
         %Args.BackSubSizeXY                    = [128 128];
@@ -351,6 +369,20 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     end
     [Nepoch, Nfields]  = size(AllSI);
 
+    % Resolve the INPUT single-image gain once (issue #1251): use the
+    % supplied scalar, else the mean of the input-image KeyGain headers,
+    % falling back to 1 when the keyword is missing. This single value feeds
+    % every StackMethod branch below.
+    if isempty(Args.Gain)
+        InGainKeys = AllSI.getStructKey(Args.KeyGain);
+        InGain     = mean([InGainKeys.(Args.KeyGain)], 'all', 'omitnan');
+        if isempty(InGain) || ~isfinite(InGain)
+            InGain = 1;
+        end
+    else
+        InGain = Args.Gain;
+    end
+
     % get JD
     if isempty(Args.JD)
         JD = julday(AllSI(:,1));
@@ -408,7 +440,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         PreAllocCube = [];
     end
         
-    ResultCoadd = struct('WMeanJD',cell(Nfields,1), 'IndivMidJD',cell(Nfields,1), 'CoaddN',cell(Nfields,1), 'AstrometricFit',cell(Nfields,1), 'ZP',cell(Nfields,1), 'PhotCat',cell(Nfields,1), 'TransFit',cell(Nfields,1));
+    ResultCoadd = struct('WMeanJD',cell(Nfields,1), 'IndivMidJD',cell(Nfields,1), 'CoaddN',cell(Nfields,1), 'AstrometricFit',cell(Nfields,1), 'ZP',cell(Nfields,1), 'PhotCat',cell(Nfields,1), 'TransFit',cell(Nfields,1), 'RegisteredBy',cell(Nfields,1));
 
     % resolve the Overlap bit index once, before the loop over the fields.
     % The bit is re-set outside the exclusive section (EXCLSEC) when given,
@@ -448,9 +480,60 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             %(MidJD(1) + MidJD(end)).*0.5;
            
         
-            if isempty(Args.ShiftXY)
+            % Resolve the per-field ShiftXY first, then pick the
+            % registration branch on the RESOLVED value (issue #1162):
+            % lcUtil.positionDrift leaves the ShiftXY field EMPTY for a
+            % crop whose MatchedSources has fewer than MinEpoch epochs,
+            % and an empty/NaN shift matrix used to crash (or silently
+            % corrupt) imProc.transIm.register. A shift matrix is usable
+            % only when it is non-empty, all-finite, and has exactly one
+            % row per registered image (register silently REUSES its last
+            % row for extra images, misregistering them). Otherwise fall
+            % back to registration by WCS.
+            if isstruct(Args.ShiftXY)
+                if Ifields <= numel(Args.ShiftXY)
+                    ShiftXY = Args.ShiftXY(Ifields).(Args.PropShiftXY);
+                else
+                    ShiftXY = [];
+                end
+            else
+                ShiftXY = Args.ShiftXY;
+            end
+            if ~isempty(ShiftXY) && ~Args.IsShiftXYfiltered
+                ShiftXY = ShiftXY(FlagGood,:);
+            end
+            UseShiftXY = ~isempty(ShiftXY) && all(isfinite(ShiftXY(:))) && ...
+                         size(ShiftXY,1) == Ngood;
+            % The fallback is RECORDED, not warned: no console output by
+            % default. ResultCoadd(Ifields).RegisteredBy is 'shift',
+            % 'wcs' (caller passed no ShiftXY), or 'wcs-fallback' (caller
+            % passed ShiftXY but this field's resolved shifts are
+            % unusable); pipelineI counts the fallbacks into
+            % Status.NbadShiftXY and PipelineDemon writes them to its
+            % log / the systemd journal.
+            if UseShiftXY
+                ResultCoadd(Ifields).RegisteredBy = 'shift';
+            elseif isempty(Args.ShiftXY)
+                ResultCoadd(Ifields).RegisteredBy = 'wcs';
+            else
+                ResultCoadd(Ifields).RegisteredBy = 'wcs-fallback';
+            end
+
+            if UseShiftXY
+                % register images by the resolved ShiftXY
+                RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), ShiftXY,...
+                                                       'WCS',AllSI(IfirstGood,Ifields).WCS,...
+                                                       Args.registerArgs{:},...
+                                                       'DataProp',DataProp);
+            else
                 if isempty(Args.WCS)
                     % register by the WCS of the fisrt available image:
+                    % CAVEAT (issue #1162): imProc.transIm.register does
+                    % NOT support a bare AstroWCS TransRef (its AstroWCS
+                    % branch is unimplemented), so this sub-branch
+                    % currently errors inside register; pass 'WCS' (an
+                    % AstroImage), or pass AllSI(IfirstGood,Ifields)
+                    % here, once the registration target is decided.
                     RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), AllSI(IfirstGood,Ifields).WCS,...
                                                            Args.registerArgs{:},...
                                                            'DataProp',DataProp);
@@ -459,21 +542,6 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                            Args.registerArgs{:},...
                                                            'DataProp',DataProp);
                 end
-            else
-                % Register images by Args.ShiftXY
-                if isstruct(Args.ShiftXY)
-                    ShiftXY = Args.ShiftXY(Ifields).(Args.PropShiftXY);
-                else
-                    ShiftXY = Args.ShiftXY;
-                end
-                if ~Args.IsShiftXYfiltered
-                    ShiftXY = ShiftXY(FlagGood,:);
-                end
-                % register images
-                RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), ShiftXY,...
-                                                       'WCS',AllSI(find(FlagGood,1,'first'),Ifields).WCS,...
-                                                       Args.registerArgs{:},...
-                                                       'DataProp',DataProp);
             end
 
             % Add Back/Var from header into Back/Var properties
@@ -486,27 +554,36 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % is now Gain/Nimages
             % 2. RegisteredImages has no header so no JD...
 
-            %Args.StackMethod = 'sigmaclip';
-            
+            %Args.StackMethod = 'sigmaclip';            
             switch Args.StackMethod
                 case 'wrobust'
                     % Effective Ncoadd - remove 3 for min.max rejection +
                     % mean calc...
-                    NcoaddEff = max(1, numel(RegisteredImages)-3);
+                    NcoaddEff = numel(RegisteredImages); %max(1, numel(RegisteredImages)-3);
                     % RegisteredImages contains also the Back and Var
                     % Ncoadd is Nimages-3 because of one dof for mode
                     % estimation, and 2 fir min/max rejection
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack,...
                                                             'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:},...
                                                             'AddBack', Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs, ...
-                                                            'Gain',Args.InputMeanGain,...
+                                                            'Gain',InGain,...
                                                             'Ncoadd',NcoaddEff);
                         
                    
                 case 'proper'
-                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD] = imProc.stack.coadd_Proper(RegisteredImages, 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:}, 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs);
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_Proper(RegisteredImages, 'SubBack',true,...
+                                                                                 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:},...
+                                                                                 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs,...
+                                                                                 'Gain',InGain, 'ProperMethod','fft');
+
                     % BUG : Need to return EffectiveGain
-                    EffectiveGain = NaN;
+                    %EffectiveGain = NaN;
+                case 'rproper'
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_Proper(RegisteredImages, 'SubBack',true,...
+                                                                                 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:},...
+                                                                                 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs,...
+                                                                                 'Gain',InGain, 'ProperMethod','robust');
+                        
                 case 'sigmaclip'
                     % obsolete channel
                     [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, ~, MidJD, SumExpTime] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
@@ -548,17 +625,16 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             end
 
             if isnan(EffectiveGain)
-                if isempty(Args.Gain)
-                    Gain = Coadd(Ifields).HeaderData.getVal(Args.KeyGain, 'UseDict',false);
-                else
-                    Gain = Args.Gain;
-                end
-                Gain = Gain.*MeanN;
+                % proper/sigmaclip do not return an effective gain: scale the
+                % resolved input gain by the mean coadd count (issue #1251).
+                Gain = InGain.*MeanN;
             else
+                % wrobust: coadd_WRobust already returned the (weighted)
+                % effective output gain.
                 Gain = EffectiveGain;
             end
             if Args.UpdateGain
-                % update the gain by multiply the current gain by NCOADD
+                % write the OUTPUT effective gain into the KeyGain keyword
                 Coadd(Ifields).HeaderData.replaceVal(Args.KeyGain, Gain);
             end
             
@@ -607,9 +683,13 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
 
             %Ifields
             if Args.FindStars
+                % Pass the resolved Gain (not the raw EffectiveGain): for
+                % StackMethod 'proper'/'sigmaclip' EffectiveGain is NaN and
+                % would propagate into all FLUXERR/MAGERR columns; Gain
+                % falls back to header-GAIN * MeanN in that case (issue #1134).
                 [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), ...
                                                     Args.multiIterExtractorArgs{:},...
-                                                    'Gain',EffectiveGain,...
+                                                    'Gain',Gain,...
                                                     'FlagCR',Args.FlagCR,...
                                                     'maskCR_Args',Args.maskCR_Args,...
                                                     'AperRadius',Args.AperRadius,...

@@ -1,5 +1,6 @@
 function StampCube = full2stamp(FullCube, StampSizeIJ, Args)
     % full2stamp Extract a centered PSF stamp from a full image/cube.
+    %   Obsolete: (due to bugs) use: full2stampPsf instead
     %   Extract a stamp of size StampSizeIJ = [Y, X] from a full image/cube.
     %   The PSF in the full image may be either centered or in FFT-corner
     %   ordering. In the output stamp, the PSF is always centered.
@@ -31,8 +32,8 @@ function StampCube = full2stamp(FullCube, StampSizeIJ, Args)
     %
     % Author : ChatGPT + Eran Ofek (Apr 2026)
     % Example:
-    %   Stamp = full2stamp(Full, [31 31]);
-    %   Stamp = full2stamp(FullFFT, [31 31], FullPosition="corner");
+    %   Stamp = imUtil.psf.full2stamp(Full, [31 31]);
+    %   Stamp = imUtil.psf.full2stamp(FullFFT, [31 31], FullPosition="corner");
 
     arguments
         FullCube 

@@ -46,7 +46,10 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %            'UpdateHeader' - Update header with results. Default is true.
     %            'CalibArgs' - Cell array of key-value pairs forwarded to
     %                         PhotCalibTrans.calibrate. Build via local
-    %                         predefCalibArgs() or manually. Default is {}.
+    %                         predefCalibArgs() or manually. NOTE: supplying
+    %                         this REPLACES the whole predefined recipe - to
+    %                         override single settings use 'ExtraCalibArgs'.
+    %                         Default is {}.
     %                         Calibrate arguments commonly threaded here include
     %                         (see PhotCalibTrans.calibrate for the full list):
     %                           'UseTran2D', 'OptSeqName', 'AuditCalibrators',
@@ -96,6 +99,13 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     %                         header RA/DEC/time and observer location (mirrors
     %                         the Python production LastCatUtils.get_airmass_from_cat
     %                         path) instead of the header AIRMASS keyword.
+    %            'ExtraCalibArgs' - Cell array of key-value pairs APPENDED to
+    %                         'CalibArgs', leaving the predefined recipe in
+    %                         place (last write wins). Use this to override
+    %                         individual calibrate settings, e.g. for a deep
+    %                         reference image:
+    %                           'ExtraCalibArgs', {'MaxSN', 1e9}
+    %                         Default is {}.
     %            'ApplyConstBand' - Apply constant-band correction after
     %                         computing AB magnitudes. Adds MAG_CB_* columns
     %                         (or overwrites MAG_AB_* if ConstBandOutputMode='replace').
@@ -314,6 +324,11 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % Calibration config forwarded to calibrate (cell array of key-value pairs)
         Args.CalibArgs cell = {}
 
+        % Key-value pairs APPENDED to CalibArgs (last write wins), leaving the
+        % predefined recipe intact. Use this to override single calibrate
+        % settings; supplying 'CalibArgs' instead REPLACES the whole recipe.
+        Args.ExtraCalibArgs cell = {}
+
         Args.CreateNewObj logical = false
         Args.DiffCalibProps cell = {'New', 'Ref'}
         Args.AddMag logical = true
@@ -360,6 +375,9 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % behaviour.
         Args.AperCorrFilterBadFlags logical = true
         Args.AperCorrBadFlags cell = {'Saturated','NaN','Negative','CR_DeltaHT','NearEdge'}
+        Args.AperCorrMinSN (1,1) double = 30          % calibrator S/N floor (calcAperCorr 'MinSN')
+        Args.AperCorrMaxSN (1,1) double = 1000        % calibrator S/N ceiling (issue #1274)
+        Args.AperCorrChi2Range double = [0.5 100]     % PSF_CHI2DOF window; [] disables (issue #1274)
         Args.AperCorrPositional logical = true   % default path: position-dependent aperture correction
         Args.AperCorrPosColNameX (1,:) char = 'X'
         Args.AperCorrPosColNameY (1,:) char = 'Y'
@@ -447,6 +465,22 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     % Apply predefCalibArgs defaults when no CalibArgs provided
     if isempty(Args.CalibArgs)
         Args.CalibArgs = predefCalibArgs();
+    end
+
+    % Append the caller's single-setting overrides. This is the way to change
+    % one calibrate argument without losing the predefined recipe: appending
+    % wins over an earlier value of the same key in the arguments-block
+    % resolution at the receiving end. Example: a reference image stacked
+    % from ~1000 exposures has all its Gaia G=12-16 calibrators above the
+    % default upper S/N gate of 1000, so every calibrator is rejected and the
+    % fit finds none - 'ExtraCalibArgs',{'MaxSN',1e9} fixes that while
+    % keeping the tuned optimisation sequence and calibrator selection.
+    if ~isempty(Args.ExtraCalibArgs)
+        if mod(numel(Args.ExtraCalibArgs),2)~=0
+            error('fitPhotCalibTrans:ExtraCalibArgs', ...
+                  'ExtraCalibArgs must be a cell array of key-value pairs');
+        end
+        Args.CalibArgs = [Args.CalibArgs, Args.ExtraCalibArgs];
     end
 
     % Promote 'CollectCalibTrajectory' from CalibArgs to the wrapper-level
@@ -673,7 +707,14 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % ----------------------------------------------------------------
         % Post-calibration processing
         % ----------------------------------------------------------------
-        if ~isempty(PC.TransModel)
+        % Success = calibrators were found AND the fit actually ran.
+        % NOTE: ~isempty(PC.TransModel) is NOT a valid success test - calibrate
+        % builds the (unfitted) model unconditionally before selecting
+        % calibrators, so on the no-calibrator soft failure the model is
+        % present but carries only its initial parameter values; branching on
+        % it would evaluate ZP/magnitudes from those initial values.
+        CalibOK = PC.CalFound && ~isempty(PC.FitResults);
+        if CalibOK
             % Add calibrated magnitude (and optionally ZP) columns.
             % AperCorr is NOT yet applied — will be applied below after calcAperCorr.
             if Args.AddMag
@@ -717,6 +758,9 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                 PC = PC.calcAperCorr(CatRef, ...
                     'FilterBadFlags', Args.AperCorrFilterBadFlags, ...
                     'BadFlags',       Args.AperCorrBadFlags, ...
+                    'MinSN',          Args.AperCorrMinSN, ...
+                    'MaxSN',          Args.AperCorrMaxSN, ...
+                    'Chi2Range',      Args.AperCorrChi2Range, ...
                     'Positional',    Args.AperCorrPositional, ...
                     'PosColNameX',   Args.AperCorrPosColNameX, ...
                     'PosColNameY',   Args.AperCorrPosColNameY, ...
@@ -832,19 +876,31 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                 end
             end
 
-            % Write PT_* keywords to header with NaN values for uniformity
+            % Write the full PT_* keyword set to the header. Every value a
+            % successful fit would have produced is written as NaN, which the
+            % mex FITS writers used by imProc.io.saveProductImage serialize as
+            % a blank card that reads back as NaN. Do NOT write [] here: those
+            % writers turn an empty value into a literal 0., which is
+            % indistinguishable from a real measurement - a failed fit would
+            % then carry PT_ZP = 0. as a plausible zero point. An in-memory []
+            % is also unusable: photCalibTransFromHeader's
+            % `if ~isnan(Val) && Val > 0` throws on an empty operand.
+            % Only PT_AREF/PT_SPEC carry values: they are configuration
+            % strings known regardless of the fit outcome.
+            % Failure detection: isnan(getVal('PT_NCALI')) (or any other
+            % PT_ numeric).
             if Args.UpdateHeader && IsAstroImage
                 H = Result(Iobj).HeaderData;
                 H = H.replaceVal(...
-                    {'PT_RMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALIB', 'PT_SUCC', 'PT_AREF', 'PT_SPEC'}, ...
-                    {NaN,      NaN,       NaN,      -1,          false,     'SMART v2.9.8', 'GaiaDR3'});
+                    {'PT_RMS', 'PT_ARMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALI', 'PT_AREF', 'PT_SPEC'}, ...
+                    {NaN,      NaN,       NaN,       NaN,      NaN,         'SMART v2.9.8', 'GaiaDR3'});
 
-                % NaN fill for PT_ZP (photometric ZP) on the failure path
+                % Blank fill for PT_ZP (photometric ZP) on the failure path
                 if Args.EvaluatePhotZP
                     H = H.replaceVal('PT_ZP', NaN);
                 end
 
-                % NaN fills for legacy LIMMAG/BACKMAG (only when feature enabled)
+                % Blank fills for legacy LIMMAG/BACKMAG (only when feature enabled)
                 if Args.EvaluateLimMag
                     H = H.replaceVal('LIMMAG', NaN);
                 end
@@ -852,7 +908,10 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                     H = H.replaceVal('BACKMAG', NaN);
                 end
 
-                % Write function parameters with NaN values and 0 flags
+                % Write the per-function keywords: the (unfitted) TransModel is
+                % built by calibrate even when the calibration failed, so the
+                % intended function set is known. Parameter values and fit
+                % flags are empty (nothing was fitted).
                 if ~isempty(PC.TransModel) && ~isempty(PC.TransModel.Funs)
                     Funs = PC.TransModel.Funs;
                     for iFun = 1:length(Funs)
@@ -865,10 +924,10 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                         end
                         H = H.replaceVal(sprintf('PT_%d_N', iFun), FunRef);
 
-                        % Parameters: values = NaN, flags = 0
+                        % Parameters: values and flags = blank (NaN)
                         for iPar = 1:length(Fun.Par)
                             H = H.replaceVal(sprintf('PT_%d_V%d', iFun, iPar), NaN);
-                            H = H.replaceVal(sprintf('PT_%d_F%d', iFun, iPar), 0);
+                            H = H.replaceVal(sprintf('PT_%d_F%d', iFun, iPar), NaN);
                         end
                     end
                 end
@@ -907,7 +966,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
     % ====================================================================
 
     if Args.Verbose
-        SuccessMask = arrayfun(@(p) ~isempty(p.TransModel), PhotCalib);
+        SuccessMask = arrayfun(@(p) p.CalFound && ~isempty(p.FitResults), PhotCalib);
         Nsuccess = sum(SuccessMask);
         fprintf('\n=== CALIBRATION COMPLETE ===\n');
         fprintf('Successful: %d/%d objects\n', Nsuccess, Nobj);

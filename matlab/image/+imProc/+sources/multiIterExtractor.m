@@ -38,11 +38,26 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     %            'KeyJD' - Header keyword to use when reading JD; only
     %                   used if 'JD' is empty. If empty, AstroImage/julday
     %                   uses its header-config defaults. Default is [].
-    %            'KeyGain' - Header keyword for the image Gain. If the
-    %                   keyword is missing, gain is set to 1.
-    %                   Default is 'GAIN'.
+    %            'KeyGain' - Header keyword for the image EFFECTIVE gain
+    %                   [e-/ADU]. This must be the effective gain of the
+    %                   (possibly coadded) image, i.e. the factor for which
+    %                   the source Poisson variance is Flux/Gain: for a mean
+    %                   coadd of N frames of single-image gain g it is g*N
+    %                   (imProc.stack.coadd_WRobust returns this as
+    %                   EffectiveGain, and pipeline.generic.procCoadd writes
+    %                   it into the GAIN keyword). Used both for the source
+    %                   Poisson noise forwarded to findMeasureSources /
+    %                   psfFitPhot AND for the flux->variance conversion of
+    %                   the bright-star back/var injection. If the keyword is
+    %                   missing, gain is set to 1. Default is 'GAIN'.
+    %                   See issue #1251.
     %            'KeyNcoadd' - Header keyword for the number of coadded
-    %                   images. Default is 'NCOADD'.
+    %                   images. Default is 'NCOADD'. NB: as of issue #1251
+    %                   Ncoadd is NO LONGER used to scale the source noise -
+    %                   the coadd factor is already carried by the effective
+    %                   'Gain' above (multiplying by Ncoadd again would
+    %                   double-count it). The keyword is kept only for
+    %                   informational/back-compat purposes.
     %
     %            --- Background / variance estimation ---
     %            'backVarArgs' - Cell of args forwarded to
@@ -321,7 +336,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
 
         Args.SumMethodPSF              = 'median';
         Args.MethodPSF                 = 'new';
-        Args.ShiftMethod               = 'lanczos3'; % 'lanczos3' | 'fft'
+        Args.ShiftMethod               = 'fft'; % 'lanczos3' | 'fft' (issue #1258)
 
         Args.PsfPhotMethod             = 'legacy';
 
@@ -330,9 +345,9 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.BitDict                   = BitDictionary('BitMask.Image.Default');
         Args.JD                        = [];
         Args.KeyJD                     = [];
-        Args.Gain                      = [];   % if empty read from header
+        Args.Gain                      = [];   % EFFECTIVE gain [e-/ADU] (g*N for a mean coadd of N frames); if empty read from KeyGain header. See issue #1251.
         Args.KeyGain                   = 'GAIN';
-        Args.KeyNcoadd                 = 'NCOADD';
+        Args.KeyNcoadd                 = 'NCOADD';  % informational only; no longer scales the noise (issue #1251)
 
         % background and variance measurement:
         Args.backVarArgs               = {'Block',[256 256], 'Method',@imUtil.background.modeVar_LogHist, 'MethodArgs',{{'MinVal',10, 'MaxVal',6000},{}}};
@@ -343,6 +358,26 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.ReCalcPsfIter             = [];  % Index of iterations in which to re-calc PSF; if UseOriginalPSF=true, then no need to set this to 1.
         Args.UseOriginalPSF logical    = true;   % use the PSF already attached to the input AstroImage
         Args.populatePSFArgs cell      = {'CropByQuantile',false, 'SuppressWidth',3, 'SmoothWings',false}; % {'CropByQuantile',true,'Quantile',0.5}
+        Args.WingsMethod       (1,:) char = 'analytic';  % wing model of the MAIN (photometry/
+                                                % subtraction) PSF, forwarded to populatePSF:
+                                                % 'analytic' (uniPSF default: power-law wings,
+                                                % exponent via populatePSFArgs 'WingsPowerLaw') |
+                                                % 'empirical' (legacy production) | 'cosbell'.
+                                                % 'analytic' + BuildDetectionPSF=false = the
+                                                % uniPSF scheme (same core+analytic-wing
+                                                % PSF for discovery AND fluxes) - the default.
+                                                % Legacy two-PSF production recipe (escape hatch):
+                                                %   Legacy2PSF = {'WingsMethod','empirical', ...
+                                                %     'BuildDetectionPSF',true, 'PsfAnnulus',[10 12], ...
+                                                %     'populatePSFArgs',{'CropByQuantile',false, ...
+                                                %     'SuppressWidth',3, 'SmoothWings',false, ...
+                                                %     'WingsPowerLaw',2, 'EllipticalWings',false, ...
+                                                %     'SkipEllipticityFallback',false}};
+        Args.BuildDetectionPSF logical = false; % build the separate flat-winged detection-PSF slice
+                                                % (Purpose=2; the legacy two-PSF scheme). Default
+                                                % FALSE = uniPSF: detection runs on the SAME
+                                                % truthful photometry PSF; getPSF's 'Purpose'
+                                                % request is then a documented no-op.
         Args.WingProfile               = [];  % precomputed visit-level wing shape(s) from imProc.psf.visitWingProfile
                                               % (struct with .Radius/.Value/.Success; scalar, or one per input
                                               % object). Forwarded to imProc.psf.populatePSF: with
@@ -353,13 +388,13 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.RadiusPSF                 = 12;
         Args.AperRadius                = [3, 5, 6, 7];
         Args.Annulus                   = [10 12];
-        Args.PsfAnnulus                = [];  % [Rin, Rout] background annulus for the PSF-star stamps
+        Args.PsfAnnulus                = [16 20];  % [Rin, Rout] background annulus for the PSF-star stamps
                                               % (imProc.psf.populatePSF), decoupled from the photometry
                                               % 'Annulus'. The stamp annulus sits on the PSF star's own
-                                              % wing, so a larger radius (e.g. [16 20]; buildPSF enlarges
-                                              % the cutouts to cover it) lowers the per-stamp background
-                                              % and preserves the wings. [] (default) -> use Args.Annulus
-                                              % (legacy single-annulus behavior).
+                                              % wing, so a larger radius ([16 20], the uniPSF default;
+                                              % buildPSF enlarges the cutouts to cover it) lowers the
+                                              % per-stamp background and preserves the wings. [] -> use
+                                              % Args.Annulus (legacy single-annulus behavior).
         Args.MomentsMethod             = 'mex';  %'legacy'|'mex'
         Args.AperPhotMethod            = 'interp';  % 'simple'|'interp'
         Args.MomPar                    = {};
@@ -437,6 +472,10 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.ColMagErr         = 'MAGERR_APER'
         
         Args.ZP                = 25;
+        % Flux->magnitude conversion for all MAG_* columns produced here and
+        % by the called extractors: 'lup' - convert.luptitude | 'mag' -
+        % convert.magnitude (NaN for non-positive flux).
+        Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup';
 
        
         % miscellaneous:
@@ -492,6 +531,29 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                               % the halo covers the taper zone; RadiusPSF
                                               % restores the original stamp-edge cut.
 
+        % --- one-PSF scheme: core/wing split routing of the subtraction model ---
+        Args.SplitWingRouting logical = false; % subtract only the CORE (r<=splice) part of each
+                                              % source's model from the image; route the WING part
+                                              % (r>splice, smootherstep seam over 3 pix) to Back/Var
+                                              % ONLY. The standard bookkeeping enters the full model
+                                              % on both sides (Image-= / Back+=), leaving
+                                              % (I-B) = -2*model inside the stamp - a "moat" that is
+                                              % harmless for clipped wings but swallows real close
+                                              % companions (r=8-10 pix) when the wings are truthful
+                                              % (the one-PSF model). Splitting keeps re-detection
+                                              % suppression for the core, while beyond the splice the
+                                              % real wing light stays in the image and the model wing
+                                              % sits in Back, so (I-B)~0 and companions survive.
+                                              % "The image loses only cores; the background owns all
+                                              % wings." Default false = legacy full-model routing.
+        Args.SWR_SpliceFrac    = 3e-3;        % peak fraction defining the splice radius on the
+                                              % photometry PSF (same convention as the wingsFix
+                                              % WingsThreshold); used when SWR_SpliceRadius is empty
+        Args.SWR_SpliceRadius  = [];          % [pix] fixed core/wing splice radius; empty ->
+                                              % imUtil.psf.radiusAtFraction(PSF, SWR_SpliceFrac)
+                                              % per image (falls back to full-model routing if the
+                                              % radius is not finite)
+
         % Bright stars back/var adjustment:
         Args.BS_R     = (0:1:1500)+0.1;
         Args.BS_BackMaxR  = 1501;
@@ -500,10 +562,10 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.BS_PL    = 1.0;
         Args.MethodBS = 'prof';
         Args.BS_ColFlux = 'FLUX_APER_4';
-        Args.IsBackSub   = false;   % If true, will not estimate the VarFactor empirically.
+        Args.IsBackSub   = false;   % If true, the bright-star VarFactor is the analytic 1/(Gain*NcoaddFactor); if false it is estimated empirically as Var/Back (both = 1/effective-gain). See issue #1251.
         Args.AddExtraBack   = true;
         Args.AddExtraVar    = true;
-        Args.NcoaddFactor   = 1;
+        Args.NcoaddFactor   = 1;    % optional tuning multiplier on the analytic bright-star VarFactor (IsBackSub=true); default 1. No longer the coadd count (issue #1251).
 
         Args.UseMex                        = false;
 
@@ -595,8 +657,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                    'RePopulatePSF',true,...
                                                    'PopExtended',Args.PopExtended,...
                                                    'ExtendedSize',Args.ExtendedSize,...
-                                                   'WingsMethod','empirical',...
-                                                   'BuildDetectionPSF',true,...
+                                                   'WingsMethod',Args.WingsMethod,...
+                                                   'BuildDetectionPSF',Args.BuildDetectionPSF,...
                                                    'Alpha',Args.Alpha);
     end
     
@@ -780,6 +842,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                               'Gain',Gain,...
                                                               'JD',JD(Iobj),...
                                                               'ZP',Args.ZP,...
+                                                              'MagType',Args.MagType,...
                                                               'SearchStreaks',SearchStreaks,...
                                                               'detectStreaksLSDArgs',Args.detectStreaksLSDArgs);
                    
@@ -805,6 +868,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                               'BitDict',Args.BitDict,...
                                                               'JD',JD(Iobj),...
                                                               'ZP',Args.ZP,...
+                                                              'MagType',Args.MagType,...
                                                               'SearchStreaks',SearchStreaks,...
                                                               'detectStreaksLSDArgs',Args.detectStreaksLSDArgs);
                    
@@ -838,8 +902,8 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                     'Method',Args.MethodPSF,...
                                                     'Annulus',Args.PsfAnnulus,...
                                                     'WingProfile',WingProfIter,...
-                                                    'WingsMethod','empirical',...
-                                                    'BuildDetectionPSF',true);
+                                                    'WingsMethod',Args.WingsMethod,...
+                                                    'BuildDetectionPSF',Args.BuildDetectionPSF);
                 end
                 
                 % PSF photometry
@@ -849,6 +913,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                          'FitRadius',Args.FitRadius(Iiter),...
                                                          'MaxIter',Args.MaxIter,...
                                                          'ZP',Args.ZP,...
+                                                         'MagType',Args.MagType,...
                                                          'UseMex',Args.UseMex,...
                                                          'PsfPhotMethod',Args.PsfPhotMethod,...
                                                          'ShiftMethod',Args.ShiftMethod,...
@@ -883,19 +948,49 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 % subtract the newly found and measured sources:
                 % 1. construct a source image
                 % 2. subtract the source image from the current image
+                SWR_WingLayer = [];   % wing part of the model when SplitWingRouting (Back/Var only)
                 if isempty(ShiftedPSF)
                     % deals with no stars found in iteration
                     SourceImage(:,:,Iiter) = zeros(SizeImage, 'single');
                 else
-    
+
                     [CubePSF, XY]                = imUtil.art.createSourceCube(ShiftedPSF, [Res.RoundY Res.RoundX], Res.Flux, ...
                                                                                 'Recenter', false,'FixPSFWings',false);
-                   
+
                     %CubePSF = imUtil.psf.mex.cosbellTaper(CubePSF,[9 11]);
                     %SourceImage(:,:,Iiter)       = imUtil.art.addSources(zeros(SizeImage, 'single'), permute(CubePSF,[2,1,3]),XY,...
-                    %                                                            'Oversample',[],'Subtract',false);  
-                    SourceImage(:,:,Iiter)       = imUtil.art.addSources(zeros(SizeImage, 'single'), CubePSF, XY,...
+                    %                                                            'Oversample',[],'Subtract',false);
+
+                    % Core/wing split of the model cube (see Args.SplitWingRouting):
+                    % core weight 1 below the splice radius, smootherstep down to 0
+                    % over 3 pix (the wingsFix seam convention). SourceImage gets
+                    % only the core part; the wing part is rendered separately and
+                    % added to Back/Var at the bookkeeping site below.
+                    if Args.SplitWingRouting
+                        if isempty(Args.SWR_SpliceRadius)
+                            SWR_R = imUtil.psf.radiusAtFraction(AI.PSFData.getPSF, Args.SWR_SpliceFrac);
+                        else
+                            SWR_R = Args.SWR_SpliceRadius;
+                        end
+                        if isfinite(SWR_R)
+                            [NyCu, NxCu, ~] = size(CubePSF);
+                            [XgCu, YgCu] = meshgrid(1:NxCu, 1:NyCu);
+                            RCu   = hypot(XgCu - (NxCu+1)/2, YgCu - (NyCu+1)/2);
+                            tCu   = min(max((RCu - SWR_R)./3, 0), 1);
+                            Wcore = 1 - (tCu.^3 .* (tCu.*(tCu.*6 - 15) + 10));
+                            SourceImage(:,:,Iiter) = imUtil.art.addSources(zeros(SizeImage, 'single'), CubePSF.*Wcore, XY,...
                                                                                 'Oversample',[],'Subtract',false);
+                            SWR_WingLayer          = imUtil.art.addSources(zeros(SizeImage, 'single'), CubePSF.*(1-Wcore), XY,...
+                                                                                'Oversample',[],'Subtract',false);
+                        else
+                            % no splice radius measurable -> legacy full-model routing
+                            SourceImage(:,:,Iiter) = imUtil.art.addSources(zeros(SizeImage, 'single'), CubePSF, XY,...
+                                                                                'Oversample',[],'Subtract',false);
+                        end
+                    else
+                        SourceImage(:,:,Iiter)   = imUtil.art.addSources(zeros(SizeImage, 'single'), CubePSF, XY,...
+                                                                                'Oversample',[],'Subtract',false);
+                    end
 
                     % Phase 2: add bright-star halos into SourceImage. The
                     % existing bookkeeping then does the rest: the halo is
@@ -936,7 +1031,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                     single(AmpB), single(Args.BWB_MaxR.*ones(nnz(OkB),1)), ...
                                     single(BWB_Prof));
                                 AI.BackData.Image = AI.BackData.Image + HaloInc;
-                                AI.VarData.Image  = AI.VarData.Image  + HaloInc./(Ncoadd.*Gain);
+                                AI.VarData.Image  = AI.VarData.Image  + HaloInc./Gain; % (Ncoadd.*Gain);  % Issue: #1251 - Removing Ncoadd
                             end
 
                             % residual-variance floor: subtraction residuals
@@ -1044,11 +1139,21 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                 %AI.VarData.Image  = AI.VarData.Image  + SumSourceImage./(Ncoadd.*Gain);
                 %AI.BackData.Image = AI.BackData.Image + SumSourceImage;  
 
-                AI.VarData.Image  = AI.VarData.Image  + SourceImage(:,:,Iiter)./(Ncoadd.*Gain);
+                AI.VarData.Image  = AI.VarData.Image  + SourceImage(:,:,Iiter)./Gain; %(Ncoadd.*Gain);  % Issue: #1251
                 AI.BackData.Image = AI.BackData.Image + SourceImage(:,:,Iiter);
                 % (Phase-2 residual-variance floor is injected per bright
                 % star in the Iiter==1 block above - it scales with the
                 % star's PEAK, not with the local model value.)
+
+                % SplitWingRouting: the wing part of the model was NOT
+                % subtracted from the image (only the core in SourceImage
+                % above); it enters Back/Var here so the real wing light in
+                % the image and the model wing in Back cancel in (I-B), and
+                % the wing's Poisson noise stays counted in Var.
+                if Args.SplitWingRouting && ~isempty(SWR_WingLayer)
+                    AI.BackData.Image = AI.BackData.Image + SWR_WingLayer;
+                    AI.VarData.Image  = AI.VarData.Image  + SWR_WingLayer./(Ncoadd.*Gain);
+                end
 
                 % if Iiter==1
                 %     if Args.IsBackSub
@@ -1098,11 +1203,11 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             %has no meaning
                             % This has meaning only when gain=1.
                             if Args.IsBackSub
-                                VarFactor = 1./((Ncoadd-3).*Args.NcoaddFactor);
+                                VarFactor = 1./(Gain.*Args.NcoaddFactor); % 1./((Ncoadd-3).*Args.NcoaddFactor);   % Issue: #1251
                             else
                                 % Image is NOT background subtracted
                                 % can estimate the VarFactor empirically
-                                VarFactor   = (AI.VarData.Data(1)./AI.BackData.Data(1)).^2; %   <1./(Ncoadd.*Gain) or use AI.VarData.Data(1)./AI.BackData.Data(1)>
+                                VarFactor   = (AI.VarData.Data(1)./AI.BackData.Data(1)); %.^2; % Issue: #1251 
                             end
                             %VarFactor   = 1./(20.*Ncoadd.*Gain);
                             if Args.AddExtraBack
@@ -1133,7 +1238,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                             %AI.Back(AI.Image>5000) = 5000;
                             ConvBright = conv2(EdgesVarMap, LK, 'same');
                             ConvCore   = conv2(EdgesVarMap, CK, 'same')./Args.ScatteredLightFrac;
-                            AI.VarData.Image  = AI.VarData.Image  + ConvBright./(Ncoadd.*Gain) + ConvCore;
+                            AI.VarData.Image  = AI.VarData.Image  + ConvBright./Gain + ConvCore; %(Ncoadd.*Gain) + ConvCore;  % Issue: #1251
                             AI.BackData.Image = AI.BackData.Image + ConvBright + ConvCore;
                             % toc
                         case 'none'
@@ -1176,10 +1281,26 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             % R=imProc.sources.aperPhot(AI);
 
             % perform only aperture photometry on brightest sources
-            [Cube] = imUtil.cut.image2cutouts(SubImageFaint, BrightXY(:,1), BrightXY(:,2), Args.RadiusPSF, 'mexCutout',Args.mexCutout, 'Circle',false);
-            
-            %!!! need to replace this with a new version of AperPhot:
-            ResAperBright = imUtil.sources.aperPhotCube(Cube, 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus);
+            [Cube, RoundXbright, RoundYbright] = imUtil.cut.image2cutouts(SubImageFaint, BrightXY(:,1), BrightXY(:,2), Args.RadiusPSF, 'mexCutout',Args.mexCutout, 'Circle',false);
+
+            % imUtil.sources.aperPhotCube takes X and Y as POSITIONAL
+            % arguments (Cube, X, Y, Args), where X/Y are the source positions
+            % within the stamp - they drive the sub-pixel recentering. Omitting
+            % them made 'AperRad' be swallowed as X and the radius vector as Y,
+            % so AperRad silently kept its own default [2,4,5]: the photometry
+            % was done at the wrong radii, and the resulting Naper mismatch
+            % broke the replaceCol below whenever numel(AperRadius)~=3.
+            % Same stamp-centre convention as imProc.sources.psfFitPhot
+            % (HalfSize+1 + X - RoundX) and imUtil.image.moment2.
+            StampCenterAper = Args.RadiusPSF + 1;
+            Xstamp = BrightXY(:,1) - RoundXbright(:) + StampCenterAper;
+            Ystamp = BrightXY(:,2) - RoundYbright(:) + StampCenterAper;
+            % sources with an undefined position sit at the stamp centre
+            IsNanXY         = isnan(Xstamp) | isnan(Ystamp);
+            Xstamp(IsNanXY) = StampCenterAper;
+            Ystamp(IsNanXY) = StampCenterAper;
+
+            ResAperBright = imUtil.sources.aperPhotCube(Cube, Xstamp, Ystamp, 'AperRad',Args.AperRadius, 'AnnulusRad',Args.Annulus);
 
             PsfHalfSize = (size(Result(Iobj).PSFData.Data,1)-1)./2;
             [Cube] = imUtil.cut.image2cutouts(SubImageFaint, BrightXY(:,1), BrightXY(:,2), PsfHalfSize, 'mexCutout',Args.mexCutout, 'Circle',false);
@@ -1187,6 +1308,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                                                                'PSF',Result(Iobj).PSFData.Data,...
                                                                'MaxIter',Args.MaxIter,...
                                                                'ZP',Args.ZP,...
+                                                               'MagType',Args.MagType,...
                                                                Args.psfFitPhotArgs{:});
 
 
@@ -1205,13 +1327,37 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             %[C2{1:Naper.*2}] = deal('mag');
             %ColUnits         = [C1, C2];
 
+            if strcmp(Args.MagType, 'mag')
+                MagAperBright = convert.magnitude(ResAperBright.AperPhot, 10.^(0.4.*Args.ZP));
+                MagPsfBright  = convert.magnitude(ResPsfBright.Flux,      10.^(0.4.*Args.ZP));
+            else
+                MagAperBright = convert.luptitude(ResAperBright.AperPhot, 10.^(0.4.*Args.ZP));
+                MagPsfBright  = convert.luptitude(ResPsfBright.Flux,      10.^(0.4.*Args.ZP));
+            end
+
+            % FLUXERR_APER is a RELATIVE quantity (dF/F) in this pipeline -
+            % aperPhotCube returns the ABSOLUTE error, so divide by the flux
+            % (this block used to write the absolute error, violating the
+            % convention). Non-positive flux -> NaN (issue #1135).
+            FluxErrAperBright = ResAperBright.AperPhotErr./ResAperBright.AperPhot;
+            FluxErrAperBright(~(ResAperBright.AperPhot>0)) = NaN;
+            MagErrAperBright = 1.086.*FluxErrAperBright;
+            MagErrPsfBright  = 1.086./ResPsfBright.SNm;
+            if strcmp(Args.MagType, 'mag')
+                % the magnitudes are NaN for non-positive flux - the error
+                % columns must follow them (both are divided by the flux, so
+                % they would otherwise come out negative).
+                MagErrAperBright(~(ResAperBright.AperPhot>0)) = NaN;
+                MagErrPsfBright(~(ResPsfBright.Flux>0))       = NaN;
+            end
+
             FluxMagData = [ResAperBright.AperPhot,...
-                           ResAperBright.AperPhotErr,...
-                           convert.luptitude(ResAperBright.AperPhot, 10.^(0.4.*Args.ZP)),...
-                           1.086.*ResAperBright.AperPhotErr./ResAperBright.AperPhot,...
+                           FluxErrAperBright,...
+                           MagAperBright,...
+                           MagErrAperBright,...
                            ResPsfBright.Flux,...
-                           convert.luptitude(ResPsfBright.Flux, 10.^(0.4.*Args.ZP)),...
-                           1.086./ResPsfBright.SNm,...
+                           MagPsfBright,...
+                           MagErrPsfBright,...
                            ResPsfBright.SNm,...
                            ResPsfBright.Chi2./ResPsfBright.Dof];
 
@@ -1270,8 +1416,10 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             if Args.AddSkyCoo && ~isempty(Result(Iobj).WCS) && Result(Iobj).WCS.Success
                 XY        = Result(Iobj).CatData.getXY();
                 [RA, Dec] = Result(Iobj).WCS.xy2sky(XY(:,1), XY(:,2));
-                Result(Iobj).CatData = insertCol(Result(Iobj).CatData, RA, Inf, Args.ColRA, {''});
-                Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Dec, Inf, Args.ColDec, {''});
+                % xy2sky returns deg (its default); an empty unit label is
+                % read as radians by spherical matching (e.g. photometricZP)
+                Result(Iobj).CatData = insertCol(Result(Iobj).CatData, RA, Inf, Args.ColRA, {'deg'});
+                Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Dec, Inf, Args.ColDec, {'deg'});
                 Result(Iobj).CatData.sortrows(Args.ColDec);    
             end        
     

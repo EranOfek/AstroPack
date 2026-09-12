@@ -802,6 +802,11 @@ classdef MovingSource < Component
 
         function [Flag] = selectByBitMask(Obj, Args)
             % Select elements of MovingSource object that have specific BitMask.
+            %   NOTE: expected to become obsolete with the new (v1) pipeline.
+            %   On new-pipeline products (issue #1180) the 'Overlap' bit is
+            %   raised in ALL the crops covering a pixel, so treating it as a
+            %   bad flag rejects every copy of a seam source; on such products
+            %   select the owned copy with the catalog 'primary' column instead.
             %   This function check the value of the FLAGS column in the
             %   MergedCat property of the MovingSource object. It returns
             %   list of elements that satisfy some criteria (i.e., some of

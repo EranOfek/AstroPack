@@ -262,6 +262,17 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     if ~iscell(Args.SpecType)
                 Args.SpecType = {Args.SpecType};
     end
+    % NB: SpecType is shared by all the point sources, just as ExtSpecType is shared by
+    % all the extended objects: the per-model layouts of Spec (1 parameter per source for
+    % 'BB' and 'PL', 2 for 'Pickles' and 'Phoenix', a whole column for 'Tab') can not be
+    % held in one array, so a per-source mixture of models is not representable here
+    if numel(Args.SpecType) > 1
+        if all( strcmpi(Args.SpecType, Args.SpecType{1}) )
+            Args.SpecType = Args.SpecType(1);
+        else
+            error('SpecType is shared by all the point sources: pass a single spectral model, exiting..');
+        end
+    end
     if ~iscell(Args.WCSFile)
                 Args.WCSFile  = {Args.WCSFile};
     end 
@@ -470,13 +481,21 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     else
         InEbv = Args.Ebv(1)*ones(NumSrc,1);
     end
+    % NB: a per-source list is used as it is (one cell per source), it is not to be
+    % wrapped into a single cell: FiltFam/Filter are indexed per source further below
     if numel(Args.FiltFam) > 1
-        FiltFam = {Args.FiltFam};
+        if numel(Args.FiltFam) ~= NumSrc
+            error('FiltFam must hold 1 or NumSrc (=%d) filter families, exiting..', NumSrc);
+        end
+        FiltFam = reshape(Args.FiltFam,1,NumSrc);
     else
         FiltFam = repmat(Args.FiltFam,1,NumSrc);
     end
     if numel(Args.Filt) > 1
-        Filter = {Args.Filt};
+        if numel(Args.Filt) ~= NumSrc
+            error('Filt must hold 1 or NumSrc (=%d) filters, exiting..', NumSrc);
+        end
+        Filter = reshape(Args.Filt,1,NumSrc);
     else
         Filter = repmat(Args.Filt,1,NumSrc);
     end
@@ -507,18 +526,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         RA      = RA(Ind);
         DEC     = DEC(Ind);
         InEbv   = InEbv(Ind);
-        if ( numel(Args.Spec) ~= 1 )
-            if isa(Args.Spec,'AstroSpec')
-                Args.Spec = Args.Spec(Ind);
-            else
-                Args.Spec = Args.Spec(Ind,:);
-            end
-        end
-        if ( numel(Args.SpecType) ~= 1)
-            Args.SpecType = Args.SpecType(Ind);
-        end
-        if ( numel(Args.RotAng) ~= 1)
-            Args.RotAng = Args.RotAng(Ind);
+        Args.Spec = cutSpecToFOV(Args.Spec, Args.SpecType{1}, Ind);
+        if ( numel(RotAngle) ~= 1)
+            RotAngle = RotAngle(Ind);   % NB: RotAngle, not Args.RotAng: it is derived above and used below
         end
     end
 %                          
@@ -608,19 +618,29 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                     case 'pickles' 
                         
                         fprintf('%s','generating Pickles spectra for individual values of Teff and log(g) .. ');
+                        SpecPar = chunkSpecPar(Args.Spec, Range, NumSrc, NumSrcCh); % this chunk's Teff and log(g)
+                        % determine the Pickles class of each source and read each of the
+                        % involved class spectra only once (there are few distinct classes)
+                        Class = cell(NumSrcCh,1);
                         for Isrc = 1:1:NumSrcCh
-                            R = astro.stars.tlogg2picklesClass(Args.Spec(Isrc,1), Args.Spec(Isrc,2)); % Teff and log(g)
-                            PicklesFile = strcat(Args.PicklesDir,'uk',lower(R.class),lower(R.lumclass),'.mat');
+                            R = astro.stars.tlogg2picklesClass(SpecPar(Isrc,1), SpecPar(Isrc,2)); % Teff and log(g)
+                            Class{Isrc} = strcat(lower(R.class),lower(R.lumclass));
+                        end
+                        [UniqClass, ~, IndClass] = unique(Class);
+                        for Icl = 1:1:numel(UniqClass)
+                            PicklesFile = strcat(Args.PicklesDir,'uk',UniqClass{Icl},'.mat');
                             SPick = io.files.load2(PicklesFile);
-                            SpecIn(Isrc,:) = interp1( SPick(:,1), SPick(:,2), Wave, 'linear', 0 );
+                            SpecIn(IndClass == Icl,:) = repmat( interp1( SPick(:,1), SPick(:,2), Wave, 'linear', 0 ), ...
+                                                                sum(IndClass == Icl), 1 );
                         end
                         
                     case 'phoenix'
                         
                         fprintf('%s','generating Phoenix spectra for individual values of Teff and log(g) .. ');
+                        SpecPar = chunkSpecPar(Args.Spec, Range, NumSrc, NumSrcCh); % this chunk's Teff and log(g)
                         io.files.load1(Args.Phoenix);
                         for Isrc = 1:1:NumSrcCh
-                            SpecIn(Isrc,:) = interpn(PhoenixWaveGrid, PhoenixTGrid, PhoenixLoggGrid, PhoenixSpec, Wave, Args.Spec(Isrc,1), Args.Spec(Isrc,2));
+                            SpecIn(Isrc,:) = interpn(PhoenixWaveGrid, PhoenixTGrid, PhoenixLoggGrid, PhoenixSpec, Wave, SpecPar(Isrc,1), SpecPar(Isrc,2));
                         end                        
                         
                     case 'tab'
@@ -1655,3 +1675,53 @@ function Par = extSpecRow(Spec, Iext, NumExt, Npar)
     end
 end
 
+
+function SpecPar = chunkSpecPar(Spec, Range, NumSrc, NumSrcCh)
+    % return the [Teff log(g)] rows of the sources of the current chunk,
+    % broadcasting a single shared row to all NumSrc sources if only one row was given.
+    % NB: Range is the GLOBAL source index range of the chunk: indexing Spec with the
+    % chunk-local index gives every chunk but the first the spectra of other sources.
+    if size(Spec,2) < 2
+        error('The source Teff/log(g) array must have 2 columns, exiting..');
+    end
+    if size(Spec,1) == 1
+        SpecPar = repmat(Spec(1,1:2), NumSrcCh, 1);
+    else
+        if size(Spec,1) ~= NumSrc
+            error('The size of the source Teff/log(g) array is incorrect: %d rows for %d sources, exiting..', ...
+                   size(Spec,1), NumSrc);
+        end
+        SpecPar = Spec(Range,1:2);  % NB: Range is GLOBAL, the chunk-local index must not be used here
+    end
+end
+
+function Spec = cutSpecToFOV(Spec, SpecType, Ind)
+    % keep in Spec only the entries belonging to the sources inside the FOV.
+    % NB: the layout of Spec depends on the spectral model -- 'tab' holds one COLUMN per
+    % source (optionally followed by a shared wavelength column), the parametric models
+    % hold one ROW per source -- so the cut has to be dispatched on SpecType. A single
+    % spectrum (or parameter row) is broadcast to all the sources and is left uncut.
+    if isa(Spec,'AstroSpec')
+        if numel(Spec) > 1
+            Spec = Spec(Ind);
+        end
+        return
+    end
+    NumSrc0 = numel(Ind);   % the number of sources before the cut
+    switch lower(SpecType)
+        case 'tab'
+            if size(Spec,2) == NumSrc0 + 1      % the wavelength grid is the last column
+                Spec = Spec(:,[Ind(:); true]);
+            elseif size(Spec,2) == NumSrc0
+                Spec = Spec(:,Ind);
+            end
+        case {'pickles','phoenix'}              % NumSrc x 2
+            if size(Spec,1) == NumSrc0
+                Spec = Spec(Ind,:);
+            end
+        otherwise                               % 'bb', 'pl': 1 parameter per source
+            if numel(Spec) == NumSrc0
+                Spec = Spec(Ind);
+            end
+    end
+end

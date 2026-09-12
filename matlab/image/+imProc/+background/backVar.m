@@ -24,6 +24,13 @@ function [Result, FailedList] = backVar(Obj, Args)
     %            'MethodArgs' - A cell array of additional arguments to pass to:
     %                   imUtil.background.backgroundOption
     %                   Default is {}.
+    %            'MethodDict' - A dictionary of the methods, used to code
+    %                   'Method' into the BCKMTHD and VARMTHD keywords,
+    %                   as returned by imUtil.background.backDictionary.
+    %                   Pass it to avoid rebuilding the dictionary on
+    %                   every call, or to supply an alternative one.
+    %                   If empty, use the built-in dictionary.
+    %                   Default is [].
     %            'RN2' - Readout noise ^2 (required by 'poiss').
     %                   Note thta modeVar_LogHist has its own RN2 argument.
     %                   Default is 12.
@@ -91,6 +98,7 @@ function [Result, FailedList] = backVar(Obj, Args)
 
         Args.Method     = @imUtil.background.modeVar_Hist; %{@median,@poiss}; %or @modeVar_Hist; or string of predefined...
         Args.MethodArgs = {{},{}};
+        Args.MethodDict = [];  % [] - use the built-in dictionary
         Args.RN2        = 12;  % RN^2 - required by 'poiss' | header keyword
         Args.Dilute     = [];   % be careful of double diluting
 
@@ -152,14 +160,20 @@ function [Result, FailedList] = backVar(Obj, Args)
     % Codes of the background and the variance estimation methods, written
     % to the BCKMTHD and VARMTHD header keywords. A single method (i.e. not
     % a cell array) estimates both, hence the same code in both keywords.
-    [MethodDict, MethodCode] = imUtil.background.backDictionary(Args.Method);
+    [MethodDict, MethodCode] = imUtil.background.backDictionary(Args.Method, 'Dict',Args.MethodDict);
     if isscalar(MethodCode)
         MethodCode = [MethodCode, MethodCode];
     end
-    % method names, written as the comments of the two method keywords
-    MethodComment = cell(1,2);
+    % method names, written as the comments of the two method keywords.
+    % find(...,1) and not logical indexing: a supplied dictionary which
+    % lacks the code (e.g. no 0 entry), or repeats it, would otherwise
+    % return no name or two, and the assignment below would fail.
+    MethodComment = repmat({''}, 1, 2);
     for Imeth=1:1:2
-        MethodComment{Imeth} = MethodDict([MethodDict.Code]==MethodCode(Imeth)).Name;
+        Idic = find([MethodDict.Code]==MethodCode(Imeth), 1);
+        if ~isempty(Idic)
+            MethodComment{Imeth} = MethodDict(Idic).Name;
+        end
     end
     KeyComments = [repmat({''}, 1, numel(Keys)-2), MethodComment];
 

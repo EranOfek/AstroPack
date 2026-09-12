@@ -22,6 +22,16 @@ function [Result] = subtractionZOGY(AI, Args)
         % Overlap parameters
         Args.MinmalOverlapFraction = 0.1;
         Args.CheckBits             = {'NaN','Overlap','NearEdge'};
+                                     % NOTE (issue #1180): the Overlap bit now marks the FULL
+                                     % overlap region in all the crops covering it, so keeping
+                                     % 'Overlap' here excludes the whole seam band from the
+                                     % subtraction in EVERY crop (before: only in the non-owner
+                                     % crop). This is a pixel-level check, so the catalog
+                                     % 'primary' column does not apply directly; when this
+                                     % function is completed, either drop 'Overlap' here and
+                                     % de-duplicate detected transients by the UNIQSEC
+                                     % ownership cell (the addPrimary rule), or keep it and
+                                     % knowingly forfeit transients in the seam band.
         Args.RefIsRegistered       = true;
         %Args.OutUnits              = 'deg';
         Args.UseMex                = false;

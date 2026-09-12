@@ -1,6 +1,11 @@
 function searchVarMerged(Files, Args)
     %
-   
+    %   NOTE: expected to become obsolete with the new (v1) pipeline. On
+    %   new-pipeline products (issue #1180) the 'Overlap' bit is raised in
+    %   ALL the crops covering a pixel, so treating it as a bad flag rejects
+    %   every copy of a seam source; on such products select the owned copy
+    %   with the catalog 'primary' column instead.
+
     arguments
         Files          = 'LAST*_sci_merged_Cat_*.fits';   
         Args.Dir       = '';  % local dir

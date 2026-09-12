@@ -81,7 +81,14 @@ function [Obj, ID, ID_Str] = generateImageID(Obj, Args)
                         error('Incorrect object type');
                     end
                 end
-                BitVal(Isub) = Args.FormatSt(Isub).Fun(TmpVal);
+                Val = Args.FormatSt(Isub).Fun(TmpVal);
+                if isempty(Val) || ~isscalar(Val)
+                    % the keyword could not be resolved - e.g. a missing IMTYPE
+                    % gives find(strcmp(NaN,...)) = [] - treat it as NaN and let
+                    % the ErrorOnNaN logic below decide
+                    Val = NaN;
+                end
+                BitVal(Isub) = Val;
                 if isnan(BitVal(Isub)) && Args.ErrorOnNaN
                     error('Keyword %s value is NaN', Args.FormatSt(Isub).Key);
                 elseif isnan(BitVal(Isub)) && ~Args.ErrorOnNaN

@@ -8,7 +8,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         CI                                 = [];   
         Args.DefScale                      = 1.25;  % Default scale if WCS is empty
         Args.UseParfor                     = true;
-        Args.Nworkers                      = 16;
+        Args.Nworkers                      = 8;   % measured optimum for the LAST nodes: two demons
+                                                  % (one per DataDir) share 64 cores, and at 8 workers
+                                                  % each demon runs within 3% of its solo speed while
+                                                  % only 30 cores are busy; at 16 each they saturate
+                                                  % the machine and lose 35%. See issue #1263.
         Args.TempName                      = 'LAST*.fit*';
         Args.prePrepArgs                   = {}; % e.g., {'AstroImageReadArgs',{'UseMex', true}};
         Args.histAnomalyArgs               = {'CCDSEC',[1 6388 25 9600]};
@@ -30,6 +34,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.NoOverlapCCDSEC               = [];
         Args.ListCenters                   = [];
         Args.NewNoOverlap                  = [];
+        Args.ExclusiveCCDSEC               = [];   % single-coverage sections in the full image frame (ORIGESEC header keyword)
         Args.NewExclusive                  = [];   % single-coverage sections (sub image frame); the Overlap bit marks their complement, i.e. the full overlap region, in all the crops covering it (issue #1180)
         Args.AddPrimary logical            = true; % add the 'primary' ownership column (imProc.cat.addPrimary) to the sub image and coadd catalogs
 
@@ -109,7 +114,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.coadd_WRobustArgs             = {};
         Args.generateImageIDArgs           = {};
         Args.fitPhotCalibTransArgs         = {};
-        Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup'  % flux->mag conversion for calibrated mags: 'lup' (default) | 'mag'. PipelineDemon sets 'mag'; overridable via fitPhotCalibTransArgs.
+        Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup'  % flux->mag conversion for EVERY MAG_* column produced by this pipeline - the instrumental ones from the extractors (and hence the MatchedSources light curves) and the calibrated ones from fitPhotCalibTrans/applyPhotCalibShifts: 'lup' convert.luptitude (default) | 'mag' convert.magnitude (NaN for non-positive flux). PipelineDemon sets 'mag'.
+        Args.NaNUncalibMag logical         = false;  % if true, NaN-fill the MAG_*/MAGERR_* columns of crops whose photometric calibration did not run (no coadd, or a crop with no relative-ZP fit), instead of leaving uncalibrated instrumental values in the products. PipelineDemon sets true.
         
         %Args.PoissVar                      = true;
         %Args.RN2                           = 12;
@@ -168,6 +174,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
     Status.PipeI   = true;
     Status.ME      = [];
     Status.NfailedBack = 0;   % sub images whose background estimation failed (#1226)
+    Status.NbadShiftXY = 0;   % sub image groups whose ShiftXY was unusable and were registered by WCS (#1162)
     %ProcessingStep = 11;
 
     if isempty(RawImageList)
@@ -269,11 +276,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 51;
             if isempty(Args.EdgesCCDSEC)
                 SizeXY = fliplr(size(AI(1).ImageData.Data));
-                [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters, ~, Args.NewExclusive] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);  % 0.01s
+                [Args.EdgesCCDSEC, ~, Args.NoOverlapCCDSEC, Args.NewNoOverlap, Args.ListCenters, Args.ExclusiveCCDSEC, Args.NewExclusive] = imUtil.cut.gridSubImage(SizeXY, Args.SubSizeXY);  % 0.01s
             end
             % No WCS/PSF/Cat so no need to update them
             %ProcessingStep = 61;
-            AllSI=imProc.image.images2subImages(AI, 'SubSizeXY',Args.SubSizeXY, 'EdgesCCDSEC',Args.EdgesCCDSEC, 'ListCenters',Args.ListCenters, 'NoOverlapCCDSEC',Args.NoOverlapCCDSEC, 'NewNoOverlap',Args.NewNoOverlap, 'NewExclusive',Args.NewExclusive,...
+            AllSI=imProc.image.images2subImages(AI, 'SubSizeXY',Args.SubSizeXY, 'EdgesCCDSEC',Args.EdgesCCDSEC, 'ListCenters',Args.ListCenters, 'NoOverlapCCDSEC',Args.NoOverlapCCDSEC, 'NewNoOverlap',Args.NewNoOverlap, 'NewExclusive',Args.NewExclusive, 'ExclusiveCCDSEC',Args.ExclusiveCCDSEC,...
                                                     'UpdateWCS',false, 'UpdatePSF',false, 'UpdateCat',false, 'UpdateXY',false);  % 6.6s
             [Nepoch, Nsub] = size(AllSI);
             Nobj = numel(AllSI);
@@ -311,7 +318,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 if isempty(PP)
                     % no parpool exist
                     % create new parpool
-                    PP = parpool(Args.Nworkers);
+                    PP = parpool(localCluster(Args.Nworkers), Args.Nworkers);
                 end
             else
                 PP = [];
@@ -329,6 +336,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                             WingArgSerial{:},...
                                                             'JD',JD,...
                                                             'ColCell',Args.ColCell,...
+                                                            'MagType',Args.MagType,...
                                                             'UseMex',Args.UseMex,...
                                                             'backVarArgs',Args.backVarArgs,...
                                                             'AperRadius',Args.AperRadius,...
@@ -351,6 +359,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                             WingArgCell{Iobj}{:},...
                                                             'JD',JD(Iobj),...
                                                             'ColCell',Args.ColCell,...
+                                                            'MagType',Args.MagType,...
                                                             'UseMex',Args.UseMex,...
                                                             'backVarArgs',Args.backVarArgs,...
                                                             'AperRadius',Args.AperRadius,...
@@ -490,7 +499,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                     'Coo',Coo, 'Moving',false, 'AddRefStarsDist',0, 'CatIsUniform',true, 'ColCell',ColNamesFF, ...
                                     'ReadColFromHeader',false, 'PsfPhotMethod',Args.PsfPhotMethod, 'ShiftMethod',Args.ShiftMethod, ...
                                     'UseMex',Args.UseMex, ...
-                                    Args.forcedPhotArgs{:});  % 8.3 s [for all in loop]
+                                    Args.forcedPhotArgs{:}, 'MagType',Args.MagType);  % 8.3 s [for all in loop]
                             end                           
                         end
                     %toc
@@ -557,6 +566,16 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Merge catalogs
             %ProcessingStep = 501;
             [MS,ResRelZP] = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse, 'MatchedCols',Args.MatchedCols);   % 9.6 s -> 1.3s (with MatchMethod='unify')
+
+            % Stamp the flux->magnitude convention of the MAG_* fields onto the
+            % MatchedSources, so that the saved product records whether its
+            % magnitudes are luptitudes or magnitudes (issue #1161).
+            % write1 stores it as the HDF5 root attribute 'MagType'.
+            % Guarded: deal() on an empty [] would silently turn MS into a
+            % struct rather than leaving it empty.
+            if ~isempty(MS)
+                [MS(1:numel(MS)).MagType] = deal(Args.MagType);
+            end
         
             % calculate the photometric rms per crop
             
@@ -620,7 +639,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                           'photometricZP_UpdateMagCols',false,...
                                                           'MinFracIsolated',Args.MinFracIsolated,...
                                                           'Threshold',Args.Threshold,...
-                                                          'multiIterExtractorArgs',Args.multiIterExtractorArgs);
+                                                          'multiIterExtractorArgs',[Args.multiIterExtractorArgs, {'MagType',Args.MagType}]);
+            % Crops whose positionDrift ShiftXY was unusable were registered
+            % by WCS instead (issue #1162). Counted here, logged by
+            % PipelineDemon (no console warning by design).
+            Status.NbadShiftXY = sum(strcmp({ResCoadd.RegisteredBy}, 'wcs-fallback'));
             % NOTE: multiIterExtractorArgs is passed as procCoadd's dedicated
             % pass-through (procCoadd forwards it to the coadd's own
             % multiIterExtractor call). Splatting the cell directly into the
@@ -678,7 +701,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 else
                     PP = gcp('nocreate');
                     if isempty(PP)
-                        PP = parpool(Args.Nworkers);
+                        PP = parpool(localCluster(Args.Nworkers), Args.Nworkers);
                     end
                     %tic;
                     parfor Isub=1:1:Nsub
@@ -773,7 +796,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 971;
             %tic;
             if AnyCoaddExist
-                [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, 'MagType', Args.MagType, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
+                [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, 'MagType', Args.MagType, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', true); % 8.7s for all in loop
             end
             %toc
         
@@ -786,6 +809,41 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                 DeltaZP = reshape([ResRelZP(GoodCrop).FitZP], Nepoch, sum(GoodCrop));
                 AllSI(:,GoodCrop) = PC(GoodCrop).applyPhotCalibShifts(AllSI(:,GoodCrop), 'DeltaZP',DeltaZP);
                 % toc
+            else
+                GoodCrop = false(1, size(AllSI,2));
+            end
+
+            % Crops for which the photometric calibration did not run keep the
+            % instrumental magnitudes of the extractor (arbitrary ZP, no
+            % relative-ZP correction) under calibrated column names. When
+            % requested, NaN-fill them instead - see issue #1161.
+            % Crops with an empty TransModel are already NaN-filled inside
+            % applyPhotCalibShifts, so only the two branches below are left.
+            if Args.NaNUncalibMag && ~all(GoodCrop)
+                % An empty PhotCalibTrans (empty TransModel) writes the full
+                % PT_* key set with NaN values; the mex header writers
+                % serialize a non-finite value as a blank (FITS undefined)
+                % card - the representation agreed in issue #1194 - so the
+                % keywords are present but empty. Without this the crop would
+                % carry no PT_* at all, and a consumer could not tell
+                % "calibration did not run" from "no sources found".
+                PCuncalib   = PhotCalibTrans;
+                UncalibCrop = find(~GoodCrop);
+                for Iuc=1:1:numel(UncalibCrop)
+                    for Iep=1:1:size(AllSI,1)
+                        try
+                            AllSI(Iep,UncalibCrop(Iuc)).CatData = ...
+                                PhotCalibTrans.nanFillMagCols(AllSI(Iep,UncalibCrop(Iuc)).CatData);
+                            if ~isempty(AllSI(Iep,UncalibCrop(Iuc)).HeaderData)
+                                AllSI(Iep,UncalibCrop(Iuc)).HeaderData = ...
+                                    PCuncalib.photCalibTransToHeader(AllSI(Iep,UncalibCrop(Iuc)).HeaderData);
+                            end
+                        catch ME
+                            fprintf('pipelineI: NaN-fill of uncalibrated epoch %d crop %d failed: %s\n', ...
+                                    Iep, UncalibCrop(Iuc), ME.message);
+                        end
+                    end
+                end
             end
 
             % Add LimMag and BackMag
@@ -833,4 +891,20 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
         end
     end % if Status.Success
+end
+
+
+function C = localCluster(~)
+    % A 'local' cluster with a job storage location private to this process.
+    %   Two MATLAB clients on one machine (the two LAST demons, one per
+    %   DataDir) cannot both start a pool from the shared default location:
+    %   both fail with "Parallel pool failed to start ... validate the
+    %   profile 'local'", pipelineI then throws, and the demon moves the
+    %   whole visit to failed/.
+    C = parcluster('local');
+    JSL = fullfile(tempdir, sprintf('matlab_jsl_%d', feature('getpid')));
+    if ~isfolder(JSL)
+        mkdir(JSL);
+    end
+    C.JobStorageLocation = JSL;
 end

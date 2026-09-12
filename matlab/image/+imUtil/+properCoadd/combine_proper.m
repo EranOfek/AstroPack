@@ -129,7 +129,7 @@ if Args.Full2stamp
     % convert PSF size to stamp size
 
     % need to update with new function:
-    PR = imUtil.psf.full2stamp(PR, 'StampHalfSize',(StampSize(1:2)-1)./2, 'IsCorner',true);
+    PR = imUtil.psf.full2stampPsf(PR,StampSize, 'FullPosition','corner');
 end
 
 if Args.Convert2real

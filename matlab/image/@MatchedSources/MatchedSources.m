@@ -77,6 +77,12 @@ classdef MatchedSources < Component
         JD                % time per epoch
         SrcData(1,1) struct   % Data for sources (e.g., mean RA)
         FileName          % optional file name
+        % Flux->magnitude convention of the MAG_* fields in Data:
+        % 'lup' - convert.luptitude (asinh magnitude), 'mag' - convert.magnitude
+        % (NaN for non-positive flux), '' - unknown/not stamped.
+        % Written to (and restored from) the HDF5 root attribute 'MagType',
+        % so a saved product records which convention its magnitudes use.
+        MagType char {mustBeMember(MagType, {'','lup','mag'})} = ''
     end
     
     properties (Dependent)
@@ -232,6 +238,17 @@ classdef MatchedSources < Component
                 Obj(If).addMatrix(Struct);
                 
                 Obj(If).FileName = FileName;
+
+                % restore the flux->magnitude convention stamp, if present
+                switch lower(Args.FileType)
+                    case {'hdf5','h5','hd5'}
+                        try
+                            Obj(If).MagType = h5readatt(FileName, '/', 'MagType');
+                        catch
+                            % no stamp (e.g. a product written before the
+                            % attribute was introduced) - leave it empty
+                        end
+                end
             end
         end
         
@@ -542,6 +559,9 @@ classdef MatchedSources < Component
             %                   ['hdf5'] - HDF5 file with dataset named like
             %                       the field names.
             %                   'mat' - Save the Data struct to a mat file.
+            %                           Note: only the 'hdf5' branch stores the
+            %                           MagType stamp (as a root attribute);
+            %                           'mat' saves Obj.Data alone and drops it.
             %                   'matobj' - Save the entire MatchedSource object to
             %                       a mat file.
             %            'RealIfComplex' - A logical indicating if to take
@@ -587,6 +607,12 @@ classdef MatchedSources < Component
                     % save also the JD
                     h5create(FileName, '/JD', size(Obj.JD));
                     h5write(FileName,  '/JD', Obj.JD);
+                    % stamp the flux->magnitude convention as a root attribute
+                    % (an attribute and not a dataset, so that read() - which
+                    % loads every dataset into Data - is not affected)
+                    if ~isempty(Obj.MagType)
+                        h5writeatt(FileName, '/', 'MagType', Obj.MagType);
+                    end
                 case {'mat'}
                     % save the Data structure
                     Tmp = Obj.Data;
@@ -2345,6 +2371,11 @@ classdef MatchedSources < Component
         
         function [Result] = searchFlags(MS, Args)
             % Search specific flags in MatchedSources matrix.
+            %   NOTE: expected to become obsolete with the new (v1) pipeline.
+            %   On new-pipeline products (issue #1180) the 'Overlap' bit is
+            %   raised in ALL the crops covering a pixel, so treating it as a
+            %   bad flag rejects every copy of a seam source; on such products
+            %   select the owned copy with the catalog 'primary' column instead.
             %   Return a matrix of logical indicating if the specific flags
             %   are present in each entry.
             % Input  : - A single element MatchedSources object.
@@ -2361,7 +2392,7 @@ classdef MatchedSources < Component
             %                   the bit names. Options are @or | @and.
             %                   Default is @or.
             %            'UseSrcData' - A logical indicating if to search
-            %                   the flags on SrcData property (true), or the 
+            %                   the flags on SrcData property (true), or the
             %                   Data property (false).
             %                   Default is false.
             % Output : - An array of logicals of size Nepoch X Nsrc.
@@ -2397,7 +2428,7 @@ classdef MatchedSources < Component
                 if ~isempty(FieldIndex)
                     Result = Args.Operator(Result, bitget(Flags,FieldIndex));
                 else
-                    error('Field "%s" not found in dictionary', Args.Flags{Iflag});
+                    error('Field "%s" not found in dictionary', Args.FlagsList{Iflag});
                 end
             end
         end

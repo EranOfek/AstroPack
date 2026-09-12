@@ -27,8 +27,19 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
     %                   default, since what matters is where the injections
     %                   land in SCORE and that depends on the coadd depth.
     %                   Default is [3e1 3e4].
-    %            'MinSep' - Grid spacing, in pixels, so stamps do not
-    %                   overlap. Default is 30.
+    %            'MinSep' - Minimum grid spacing in pixels. Raised to
+    %                   2*HalfSize + SepMargin when the template is large
+    %                   enough to need it, since a source within twice the
+    %                   filter half-width contaminates its neighbour's
+    %                   statistic. Default is 30.
+    %            'SepMargin' - Extra pixels beyond 2*HalfSize when scaling
+    %                   MinSep. Default is 4.
+    %            'QuietLimit' - Exclude grid positions where |S| exceeds
+    %                   this anywhere under the stamp, so nothing is
+    %                   injected on top of a real source. Defaults to 5,
+    %                   the imProc.sub.findTransients detection threshold,
+    %                   which makes the cut exactly "nothing here would
+    %                   have entered the catalogue". Empty disables it.
     %            'BinEdges' - |SCORE| bins the threshold is fitted in. Starts
     %                   at 5 because imProc.sub.findTransients detects at
     %                   threshold 5, so nothing fainter reaches the
@@ -37,20 +48,27 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
     %                   |SCORE| and its robust scale becomes meaningless.
     %                   Default is [5 7.5 10 14 20 30 45 70 120].
     %            'KeepFraction' - Fraction of PSF-shaped sources to keep.
-    %                   Default is 0.99.
+    %                   A vector returns one contour per entry, all from the
+    %                   same injections, so they cannot cross. With more than
+    %                   one, imProc.sub.flagNonTransients applies the last to
+    %                   candidates on suspect pixels. Default is 0.99, one
+    %                   contour for every candidate: suspect pixels are handled
+    %                   by the BadPix_SoftMinScore floor there instead, and
+    %                   above it a tighter contour was measured to reject no
+    %                   additional defects while losing more real sources.
     %            'MinPerBin' - Injections needed to use a bin. Default is 20.
     %            'RadiusTS' - Peak search radius when sampling, matching
     %                   imProc.sub.measureTransients. Default is 1.
     %            'Seed' - rng seed, for a reproducible threshold. Empty
-    %                   leaves the generator alone. Default is [].
     % Output : - Bin centres, the median |SCORE| in each used bin.
-    %          - Bin thresholds, the contour keeping KeepFraction.
-    %          - A struct with Ninj, NumPerBin, the fitted branch slopes, a
-    %            Fun handle that evaluates the threshold at any |SCORE|, and
-    %            Reason, which is '' on success.
-    % Author : Ruslan Konno (Aug 2026)
-    % Example: [BinCen, BinThr, Info] = imUtil.properSub.smearThreshold(AD);
-    %          Thresh  = Info.Fun(abs(Score));
+    %          - Bin thresholds, one column per keep fraction.
+    %          - A struct with Ninj, NumGrid and NumClear (grid positions
+    %            before and after the NaN and quiet-site cuts), NumPerBin,
+    %            the fitted branch slopes, Fun, a cell of handles evaluating
+    %            each contour at any |SCORE|, and Reason, '' on success.
+    % Author : Ruslan Konno + Claude (Aug 2026)
+    % Example: [BinCen, BinThr, Info] = imProc.sub.smearThreshold(AD);
+    %          Thresh  = Info.Fun{1}(abs(Score));
     %          IsSmear = (Score - SN_smear) < Thresh;
 
     arguments
@@ -58,24 +76,47 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
         Args.Ninj              = 1000;
         Args.FluxRng           = [3e1 3e4];
         Args.MinSep            = 30;
+        Args.SepMargin         = 4;
+        Args.QuietLimit        = 5;
         Args.BinEdges          = [5 7.5 10 14 20 30 45 70 120];
         Args.KeepFraction      = 0.99;
         Args.MinPerBin         = 20;
         Args.RadiusTS          = 1;
+        Args.RadiusSmear       = [];
         Args.InjectSmear logical = false;
         Args.Seed              = [];
     end
 
     BinCen = [];
     BinThr = [];
-    Info   = struct('Ninj',0, 'NumPerBin',[], 'PsfSlope',NaN, ...
-                    'SmearSlope',NaN, 'Fun',[], 'Reason','');
+    Info   = struct('Ninj',0, 'NumGrid',0, 'NumClear',0, 'MinSep',NaN, ...
+                    'RadiusSmear',NaN, ...
+                    'NumPerBin',[], 'PsfSlope',NaN, 'SmearSlope',NaN, ...
+                    'Fun',[], 'Reason','');
 
     Template = Obj.SmearTemplate;
     if isempty(Template) || isempty(Obj.Image)
         Info.Reason = 'no smear template or no difference image';
         return
     end
+
+    % The smear statistic needs a wider peak search than SCORE, since the
+    % template's response peaks away from the PSF filter's. Taken from the
+    % template so this matches what imProc.sub.measureTransients measured on
+    % the real candidates: a threshold fitted at one radius and applied to a
+    % statistic sampled at another is not a threshold on the same quantity.
+    RadiusSmear = Args.RadiusSmear;
+    if isempty(RadiusSmear)
+        if ~isempty(Obj.SmearTemplateInfo) && ...
+                isfield(Obj.SmearTemplateInfo,'Radius') && ...
+                isfinite(Obj.SmearTemplateInfo.Radius)
+            RadiusSmear = Obj.SmearTemplateInfo.Radius;
+        else
+            RadiusSmear = Args.RadiusTS;
+        end
+    end
+
+    Info.RadiusSmear = RadiusSmear;
 
     if ~isempty(Args.Seed)
         rng(Args.Seed);
@@ -97,16 +138,47 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
     %  stamp rather than the central pixel: a stamp touching one has no
     %  usable statistic at its centre and would enter as a spurious low
     %  outlier in whichever branch it belongs to.
-    [Gx, Gy] = meshgrid(Hm+Args.MinSep : Args.MinSep : SizeIm(2)-Hm-Args.MinSep, ...
-                        Hm+Args.MinSep : Args.MinSep : SizeIm(1)-Hm-Args.MinSep);
+    %
+    %  Sites where a real source already sits are dropped the same way. An
+    %  injection landing on one keeps the residual's own statistic, which is
+    %  a large negative outlier, and that inflates the robust scale the
+    %  contour is built from. Since the contour is median - 2.33*scale, an
+    %  inflated scale biases the threshold low and quietly loosens the
+    %  filter. Measured on one crop, dropping 18 per cent of the grid this
+    %  way moved the threshold from -0.564 to -0.442 and cut its
+    %  seed-to-seed scatter from 0.139 to 0.108 -- the bias was the larger
+    %  of the two effects.
+    %
+    %  Spacing has to clear the filter, not just the stamp. A source at
+    %  distance d still contributes to the filtered value at another position
+    %  whenever d <= 2*Hm, since the matched filter has half-width Hm, so a
+    %  grid narrower than that lets injections corrupt each other's
+    %  statistics with no sign that anything is wrong. This became live when
+    %  smearTemplate started scaling its stamp with the drift span: a 19 pix
+    %  track gives Hm = 14, so 2*Hm = 28 against the old fixed 30.
+    MinSep = max(Args.MinSep, 2.*Hm + Args.SepMargin);
+    Info.MinSep = MinSep;
+
+    [Gx, Gy] = meshgrid(Hm+MinSep : MinSep : SizeIm(2)-Hm-MinSep, ...
+                        Hm+MinSep : MinSep : SizeIm(1)-Hm-MinSep);
     Gxy = [Gx(:), Gy(:)];
+
+    Info.NumGrid = size(Gxy,1);
+    StampEl      = strel('square', 2.*ceil(Hm)+1);
 
     if ~isempty(Obj.MaskData) && ~Obj.MaskData.isemptyImage
         BD_IM   = BitDictionary('BitMask.Image.Default');
         NaNmask = BD_IM.findBit(Obj.MaskData.Image, 'NaN');
-        Blocked = imdilate(NaNmask, strel('square', 2.*ceil(Hm)+1));
+        Blocked = imdilate(NaNmask, StampEl);
         Gxy     = Gxy(~Blocked(sub2ind(SizeIm, Gxy(:,2), Gxy(:,1))), :);
     end
+
+    if ~isempty(Args.QuietLimit) && isprop(Obj,'S') && ~isempty(Obj.S)
+        Loud = imdilate(abs(Obj.S) > Args.QuietLimit, StampEl);
+        Gxy  = Gxy(~Loud(sub2ind(SizeIm, Gxy(:,2), Gxy(:,1))), :);
+    end
+
+    Info.NumClear = size(Gxy,1);
 
     Ninj = min(Args.Ninj, size(Gxy,1));
     if Ninj < 10.*Args.MinPerBin
@@ -146,7 +218,7 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
         [Sc{Ipop}, ~, ~] = imUtil.properSub.findNearestPeakSig(Simg, ...
             Gxy(:,1), Gxy(:,2), 1, 'RadiusTS', Args.RadiusTS);
         [Sm{Ipop}, ~, ~] = imUtil.properSub.findNearestPeakSig(Mimg, ...
-            Gxy(:,1), Gxy(:,2), 1, 'RadiusTS', Args.RadiusTS);
+            Gxy(:,1), Gxy(:,2), 1, 'RadiusTS', RadiusSmear);
     end
 
     ScorePsf = Sc{1};
@@ -166,7 +238,7 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
     %  1st, and with of order a hundred injections per bin that order
     %  statistic is effectively the bin minimum, so a single injection
     %  landing on a real source would set the threshold for that bin.
-    Kkeep = norminv(1 - Args.KeepFraction);
+    Kkeep = norminv(1 - Args.KeepFraction(:).');
 
     for Ibin=1:1:numel(Args.BinEdges)-1
         Sel = abs(ScorePsf) >= Args.BinEdges(Ibin) & ...
@@ -175,10 +247,10 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
         if sum(Sel) >= Args.MinPerBin
             Dbin = Dpsf(Sel);
 
-            BinCen(end+1,1)       = median(abs(ScorePsf(Sel)), 'omitnan'); %#ok<AGROW>
-            BinThr(end+1,1)       = median(Dbin, 'omitnan') + ...
-                                    Kkeep .* 1.4826 .* mad(Dbin, 1);       %#ok<AGROW>
-            Info.NumPerBin(end+1,1) = sum(Sel);                            %#ok<AGROW>
+            BinCen(end+1,1)         = median(abs(ScorePsf(Sel)), 'omitnan'); %#ok<AGROW>
+            BinThr(end+1,:)         = median(Dbin, 'omitnan') + ...
+                                      Kkeep(:).' .* 1.4826 .* mad(Dbin, 1);  %#ok<AGROW>
+            Info.NumPerBin(end+1,1) = sum(Sel);                              %#ok<AGROW>
         end
     end
 
@@ -189,7 +261,12 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
         return
     end
 
-    Info.Fun = @(AbsScore) evalThreshold(AbsScore, BinCen, BinThr);
+    % One handle per keep fraction, in the order KeepFraction was given.
+    % Both come from the same injections, so the tighter contour is
+    % guaranteed to sit above the looser one -- calling this function twice
+    % instead would draw two independent samples and they could cross.
+    Info.Fun = arrayfun(@(Ik) @(AbsScore) evalThreshold(AbsScore, BinCen, BinThr(:,Ik)), ...
+                        1:1:numel(Kkeep), 'UniformOutput',false);
 end
 
 

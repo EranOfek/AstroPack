@@ -72,6 +72,18 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
         Args.CropIDs = [];
 
+        % PSF-fit method used when re-fitting the Ref/New catalogues below.
+        % psfFitPhot's own default is still 'legacy', which is much slower and
+        % is the only remaining user of shift_fft (issue #1259).
+        Args.PsfPhotMethod = '2DGN';   % 'legacy'/'old'|'1D'|'2D'|'2DGN'
+
+        % Sub-pixel shift kernel of the PSF fit. Measured against known truth
+        % (issue #1258): shifting the model PSF with lanczos3 costs ~1 mmag and,
+        % worse, the bias grows with the sub-pixel offset, so no zero point
+        % absorbs it; the FFT recovers the flux exactly. Set explicitly here so
+        % the fit does not depend on psfFitPhot's default (issue #1257, item 3).
+        Args.ShiftMethod = 'fft';   % 'lanczos3'|'fft' (issue #1258)
+
         Args.FilterConfigFile = '';
 
         Args.PixScale = 1.25;
@@ -87,6 +99,19 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
             'Overdensity', 'PVDist', 'Streak', 'PSFShape'};
 
         Args.applyCalibration logical = true;
+
+        % Header keyword holding the photometric zero point of each image,
+        % read by AstroDiff/estimateFnFr to set the New/Ref flux scaling
+        % (Fr = 10^(0.4*(RefZP - NewZP))). estimateFnFr does not fit
+        % anything: it divides the two header values, so both images must
+        % carry a zero point on the SAME absolute scale or the difference
+        % image is mis-scaled by exactly the offset between the two
+        % calibrations (issue #1267). Default 'PH_ZP' preserves the existing
+        % behaviour; use 'PT_ZP' on both sides once the reference images have
+        % been rebuilt with pipeline.last.reference.rebuildRefProducts.
+        % Changing only one side is worse than changing neither.
+        Args.NewZP = 'PH_ZP';
+        Args.RefZP = 'PH_ZP';
     end
 
     % 1: ----- Set default arguments -----
@@ -310,11 +335,13 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
     if Args.RePopRefPSF
         for Iobj = Nobj:-1:1
-            AD(Iobj).Ref = imProc.psf.populatePSF(AD(Iobj).Ref, 'RePopulatePSF', true, ...
-                'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
-                'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'new', ...
-                'WingsMethod', 'empirical');
-            AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref);
+            AD(Iobj).Ref = imProc.psf.populatePSF(AD(Iobj).Ref, 'RePopulatePSF', true, 'Method', 'new');
+                % uniPSF repop: every PSF-shape argument (RadiusPSF 12, Annulus
+                % [16 20], analytic 3.7 wings @ 1e-2, elliptical, no ellipticity
+                % fallback, CropByQuantile false, single detection PSF) comes
+                % from the populatePSF/buildPSF uniPSF defaults.
+            AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref, 'PsfPhotMethod',Args.PsfPhotMethod, ...
+                                                                    'ShiftMethod',Args.ShiftMethod);
             AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF');
         end
     end
@@ -324,14 +351,18 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
             AD(Iobj).New = imProc.psf.populatePSF(AD(Iobj).New, 'RePopulatePSF', true,...
                 'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
                 'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'new', ...
-                'WingsMethod', 'empirical');
-            AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New);
+                'WingsMethod', 'empirical', ...
+                'Annulus', [10 12], 'WingsPowerLaw', 2, ...           % pinned pre-uniPSF values: the repop
+                'EllipticalWings', false, 'SkipEllipticityFallback', false); % recipe is frozen until the subtraction
+                                                                             % flow is validated on uniPSF defaults
+            AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New, 'PsfPhotMethod',Args.PsfPhotMethod, ...
+                                                                    'ShiftMethod',Args.ShiftMethod);
             AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF');
         end
     end    
 
     % Estimate zero points
-    AD.estimateFnFr;
+    AD.estimateFnFr('NewZP',Args.NewZP, 'RefZP',Args.RefZP);
 
     if Args.applyCalibration
         for Iobj = Nobj:-1:1

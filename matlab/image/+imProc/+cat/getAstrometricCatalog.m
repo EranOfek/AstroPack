@@ -54,18 +54,20 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     %                   isolated, while [10 17] gives 18347 of which 8359
     %                   are isolated.
     %                   How it works: the cone is searched once, and is then
-    %                   re-filtered in memory at the trial faint limits
-    %                   'AdaptMagMin':'AdaptMagStep':RangeMag(2). The scan
-    %                   runs bright to faint, and the number of trials is
-    %                   bounded by the number of steps - at most 5 for
-    %                   [10 17]. In a crowded field it stops early, at the
-    %                   first trial failing the ratio (which only degrades
-    %                   with depth), so the large deep samples are never
-    %                   evaluated. The limit which is used is the deepest
-    %                   trial satisfying both this ratio and
-    %                   'AdaptMinNsrc'. If none does, or if RangeMag(2) is
-    %                   already brighter than 'AdaptMagMin', then 'RangeMag'
-    %                   is left untouched.
+    %                   re-filtered in memory at a ladder of trial faint
+    %                   limits running from
+    %                   RangeMag(2)-'AdaptMaxDeltaMag' up to RangeMag(2) in
+    %                   steps of 'AdaptMagStep'. The scan runs bright to
+    %                   faint and stops at the first trial failing the ratio,
+    %                   so the large deep samples are never evaluated.
+    %                   The limit which is used is the deepest trial
+    %                   satisfying both this ratio and 'AdaptMinNsrc'.
+    %                   If no trial satisfies the ratio, the brightest trial
+    %                   is used instead, provided it has at least
+    %                   'AdaptMinNsrc' isolated sources - every deeper trial
+    %                   is worse, so it is the best limit available within
+    %                   the cap. If that too fails, 'RangeMag' is left
+    %                   untouched.
     %                   The adaptation only ever brightens the faint limit,
     %                   and never touches the bright limit, so a field which
     %                   already satisfies the ratio gets exactly the catalog
@@ -78,11 +80,22 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     %                   If empty, no adaptation is done. Default is [].
     %            'AdaptMagStep' - Step [mag] in which the faint limit is
     %                   brightened by the 'MinFracIsolated' adaptation. Sets
-    %                   the resolution of the scan and, with 'AdaptMagMin',
-    %                   the maximal number of trials. Default is 0.5.
-    %            'AdaptMagMin' - The brightest faint limit the
-    %                   'MinFracIsolated' adaptation is allowed to select,
-    %                   and the first trial of the scan. Default is 15.
+    %                   the resolution of the scan and, with
+    %                   'AdaptMaxDeltaMag', the maximal number of trials.
+    %                   Default is 0.5.
+    %            'AdaptMaxDeltaMag' - The largest amount [mag] by which the
+    %                   'MinFracIsolated' adaptation is allowed to brighten
+    %                   the faint limit. The brightest limit it can select
+    %                   is therefore RangeMag(2)-'AdaptMaxDeltaMag', clipped
+    %                   at RangeMag(1).
+    %                   The cap is relative, not absolute, so that it scales
+    %                   with the requested range. An absolute limit both
+    %                   allows a deep request to be brightened much further
+    %                   than a shallow one, and switches the adaptation off
+    %                   completely for any range already brighter than it -
+    %                   e.g. a 1s exposure, where the caller has already
+    %                   shifted [10 17] to [7.7 14.7].
+    %                   Use Inf for no cap. Default is 5.
     %            'AdaptMinNsrc' - The faint limit is never brightened to a
     %                   value leaving fewer than this number of isolated
     %                   sources. Default is 50.
@@ -128,7 +141,7 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
         % Adaptive faint limit (crowded fields) - see help
         Args.MinFracIsolated               = [];
         Args.AdaptMagStep              = 0.5;
-        Args.AdaptMagMin               = 15;
+        Args.AdaptMaxDeltaMag          = 5;
         Args.AdaptMinNsrc              = 50;
         Args.ColNamePlx                = {'Plx'};
         Args.UsePlxRange               = true;
@@ -245,24 +258,44 @@ function RangeMag = adaptFaintLimit(Cone, Args)
     % Author : Alexander Gioffe (Aug 2026)
 
     RangeMag = Args.RangeMag;
-    if RangeMag(2)<=Args.AdaptMagMin
-        % already at least as bright as we are ever willing to go
+
+    % The faint limit may be brightened by at most AdaptMaxDeltaMag relative to
+    % the requested one, and never past the bright limit. A relative cap scales
+    % with the requested range, unlike an absolute one, which both lets a deep
+    % request be brightened much further than a shallow one and switches the
+    % adaptation off completely for a range already brighter than it.
+    FloorMag = max(RangeMag(2) - Args.AdaptMaxDeltaMag, RangeMag(1));
+    if FloorMag>=RangeMag(2)
+        % no room to brighten
         return;
     end
 
-    % The surviving fraction decreases monotonically with the faint limit, so
-    % scan upwards and stop at the first limit that fails. Scanning upwards
-    % also means the large (deep, crowded) samples are never evaluated.
-    Ladder = (Args.AdaptMagMin:Args.AdaptMagStep:RangeMag(2));
+    % Over the range that matters the surviving fraction decreases with the
+    % faint limit, so scan upwards and stop at the first limit that fails.
+    % Scanning upwards also means the large (deep, crowded) samples are never
+    % evaluated. The fraction is not monotonic everywhere - it wiggles at the
+    % bright end where the counts are small - but there it is far above any
+    % sensible MinFracIsolated, so the scan is not stopped early by it.
+    Ladder = (FloorMag:Args.AdaptMagStep:RangeMag(2));
     if Ladder(end)<RangeMag(2)
         Ladder = [Ladder, RangeMag(2)];
     end
 
-    BestFaint = [];
+    % countKept needs the catalogue sorted by Dec for the neighbour search, and
+    % a magnitude cut preserves that order, so sort once here instead of once
+    % per ladder step (issue #1257, observation 6)
+    ConeSorted = sortrows(Cone.copy, 'Dec');
+
+    BestFaint   = [];
+    BrightestOK = false;   % the brightest trial has enough isolated sources
     for Ifaint=1:1:numel(Ladder)
-        [Nin, Nkept] = countKept(Cone, [RangeMag(1), Ladder(Ifaint)], Args);
+        [Nin, Nkept] = countKept(ConeSorted, [RangeMag(1), Ladder(Ifaint)], Args);
+        if Ifaint==1
+            BrightestOK = Nkept>=Args.AdaptMinNsrc;
+        end
         if Nin>0 && (Nkept./Nin)<Args.MinFracIsolated
-            % the fraction only gets worse with depth - stop here
+            % over the range that matters the fraction only gets worse with
+            % depth - stop here
             break;
         end
         if Nkept>=Args.AdaptMinNsrc
@@ -271,6 +304,13 @@ function RangeMag = adaptFaintLimit(Cone, Args)
             BestFaint = Ladder(Ifaint);
         end
         % too few sources at this limit is a reason to go deeper, not to stop
+    end
+
+    if isempty(BestFaint) && BrightestOK
+        % Not even the brightest allowed limit meets the fraction. Every deeper
+        % trial is worse, so this is the best limit available within the cap,
+        % and it is still far better than the requested one.
+        BestFaint = Ladder(1);
     end
 
     if ~isempty(BestFaint)
@@ -283,6 +323,7 @@ end
 function [Nin, Nkept] = countKept(Cone, RangeMag, Args)
     % Number of sources in a magnitude range, before and after the neighbour
     % rejection. Operates on a copy, so the input cone is not modified.
+    % The input must already be sorted by Dec (adaptFaintLimit sorts once).
 
     Cat = Cone.copy;
     if Args.UsePlxRange
@@ -294,7 +335,12 @@ function [Nin, Nkept] = countKept(Cone, RangeMag, Args)
     if Nin==0
         Nkept = 0;
     else
-        Cat     = sortrows(Cat, 'Dec');
+        % No sortrows here: the cone was sorted by Dec once in adaptFaintLimit
+        % and the magnitude cut above keeps the row order. It does clear the
+        % IsSorted flag, because queryRange assigns to Catalog and that setter
+        % resets it, so restore the flag rather than re-sort (#1257, obs. 6).
+        % flagSrcWithNeighbors still verifies the order itself (issorted).
+        Cat.IsSorted = true;
         UseFlag = ~imProc.match.flagSrcWithNeighbors(Cat, Args.flagSrcWithNeighborsArgs{:}, 'CooType','sphere',...
                                                      'Radius',Args.RemoveNeighboorsRadius);
         Nkept   = sum(UseFlag);

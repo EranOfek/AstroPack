@@ -33,6 +33,11 @@ classdef AstroDiff < AstroImage
         ThresholdImage_IsSet logical = false;
         RefIsBackgroundSubtracted logical = false;
         
+        % WCS of whichever image register resampled, as it was BEFORE registration.
+        % PC_Ref / PC_New field-correction maps are fit in the pre-registration
+        % frame, so evaluating them needs this rather than the post-register WCS.
+        RefWCS_PreReg AstroWCS
+
         %
         Fn
         Fr
@@ -575,11 +580,12 @@ classdef AstroDiff < AstroImage
 
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-
+                
                 if ~Obj(Iobj).IsRegistered || Args.ReRegister
                     if Args.RegisterRef
 
                         RefCat = Obj(Iobj).Ref.CatData;
+                        RefWCS0  = Obj(Iobj).Ref.WCS.copy;
                         Obj(Iobj).Ref = imProc.transIm.interp2wcs(Obj(Iobj).Ref, Obj(Iobj).New,...
                                                                   'InterpMethod',Args.InterpMethod,...
                                                                   'InterpMethodMask',Args.InterpMethodMask,...
@@ -591,6 +597,7 @@ classdef AstroDiff < AstroImage
                                                                   'Sampling',Args.Sampling,...
                                                                   'CreateNewObj',false);
                         Obj(Iobj).Ref.CatData = RefCat;
+                        Obj(Iobj).RefWCS_PreReg = RefWCS0;   
                         % mask NaN pixels (typically at edges)
                         if Args.SetNaNBitMask
                             Obj(Iobj).Ref = imProc.mask.maskNaN(Obj(Iobj).Ref, 'CreateNewObj',false);

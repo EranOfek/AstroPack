@@ -72,7 +72,11 @@ function ContamCat = psfResidContamCat(Obj, Args)
     % Both kernels carry unit sum, so both fitted amplitudes are fluxes in
     % counts and their ratio is directly the residual fraction.
     Kt = double(reshape(T, [], 1));
-    Kr = Obj.Ref.PSFData.getPSF('StampSize', [2*HalfSize+1, 2*HalfSize+1]);
+    % getPSF's StampSize only pads (imUtil.psf.padShift errors when the
+    % existing stamp is larger). The Ref coadd PSF can exceed the D PSF
+    % + 2*HalfSizePad, so crop/embed it explicitly.
+    Kr = imUtil.psf.full2stampPsf(Obj.Ref.PSFData.getPSF, [2*HalfSize+1, 2*HalfSize+1], ...
+                                  'Supress', false, 'Norm', true);
     Kv = double(reshape(Kr./sum(Kr(:)), [], 1));
 
     %--- the threshold, from unselected Ref positions ---

@@ -104,6 +104,9 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
         Args.Circle logical          = false;
         Args.psfPhotCubeArgs cell    = {};
         Args.ZP                      = 25;
+        % Flux->magnitude conversion for the MAG_PSF column:
+        % 'lup' - convert.luptitude | 'mag' - convert.magnitude (NaN for Flux<=0)
+        Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup';
 
         Args.ColSN                   = 'SN_2';  % if empty don't use
         
@@ -217,6 +220,7 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                                                                 'Back',0,...
                                                                 'FitRadius',Args.FitRadius,...
                                                                 'ZP',Args.ZP,...
+                                                                'MagType',Args.MagType,...
                                                                 'SN',SN,...
                                                                 'backgroundCubeArgs',Args.backgroundCubeArgs,...
                                                                 'MaxIter',Args.MaxIter,...
@@ -274,6 +278,11 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                 Result.X = Result.RoundX + Result.DX;
                 Result.Y = Result.RoundY + Result.DY;
                 Result.MagErr = 1.086./abs(Result.SNm);     % mag err always positive
+                if strcmp(Args.MagType, 'mag')
+                    % Result.Mag is NaN for non-positive flux - the error
+                    % column must be NaN there as well.
+                    Result.MagErr(~(Result.Flux>0)) = NaN;
+                end
                 Res.Flux = Result.Flux; 
                 Res.ShiftedPSF = Result.ShiftedPSF;            
                 

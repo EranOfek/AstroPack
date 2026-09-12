@@ -82,7 +82,7 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
     %                   brightened automatically. Set to [] to disable.
     %                   The step in which the faint limit is brightened, and
     %                   the brightest limit which may be selected, are
-    %                   'AdaptMagStep' (0.5 mag) and 'AdaptMagMin' (15) of
+    %                   'AdaptMagStep' (0.5 mag) and 'AdaptMaxDeltaMag' (5 mag) of
     %                   imProc.cat.getAstrometricCatalog; together they also
     %                   bound the number of trials. The adaptation is
     %                   applied on top of the exposure time correction of

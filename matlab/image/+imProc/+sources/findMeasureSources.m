@@ -80,6 +80,11 @@ function [Result,Streaks] = findMeasureSources(Obj, Args)
     %                   Default is 8.
     %            'Gain' - Default is 1.
     %            'LupSoftPar' - Luptitude softening parameter. Default is 1e-10.
+    %            'MagType' - Flux to magnitude conversion for the MAG_*
+    %                   columns: 'lup' (convert.luptitude) | 'mag'
+    %                   (convert.magnitude, NaN for non-positive flux).
+    %                   Passed to imUtil.sources.find_measure_sources.
+    %                   Default is 'lup'.
     %            'ZP' - ZP for magnitude. Default is 25.
     %            'JD' - An array of JD of the images. If empty, then get
     %                   from header. Default is [].
@@ -172,6 +177,7 @@ function [Result,Streaks] = findMeasureSources(Obj, Args)
         
         Args.Gain                          = 1;      % only for errors calculation
         Args.LupSoftPar                    = 1e-10;
+        Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup';
         Args.ZP                            = 25;
         Args.JD                            = [];
         
@@ -274,6 +280,7 @@ function [Result,Streaks] = findMeasureSources(Obj, Args)
                                                         'Conn',Args.Conn,...
                                                         'Gain',Args.Gain,...
                                                         'LupSoftPar',Args.LupSoftPar,...
+                                                        'MagType',Args.MagType,...
                                                         'ZP',Args.ZP,...
                                                         'ColCell',Args.ColCell,...
                                                         'SearchStreaks',Args.SearchStreaks,...
