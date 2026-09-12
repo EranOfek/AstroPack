@@ -85,6 +85,20 @@ function [Info, Result] = rebuildRefProducts(RefList, Args)
     %                   when the references were built. Default is 1501.
     %            'CleanSN' - As used when the references were built.
     %                   Default is 4.
+    %            'RunPhotometricZP' - Re-fit the legacy zero point (PH_ZP)
+    %                   over the new catalog, before the transmission
+    %                   calibration, as procCoadd does. The v4 references
+    %                   carry degenerate PH solutions inherited from the old
+    %                   catalog; re-fitting over the v1 catalog cures them,
+    %                   so consumers that still default to PH_ZP (such as
+    %                   AstroDiff/estimateFnFr) read an honest value.
+    %                   Default is true.
+    %            'photometricZPArgs' - Extra args for imProc.calib.photometricZP.
+    %                   Default is {}.
+    %            'MaxPhotColTerm' - Reject the PH fit (and remove the PH_*
+    %                   keywords) when |PH_COL1| exceeds this. Default is 1.
+    %            'MaxPhotRMS' - Reject the PH fit when PH_RMS exceeds this.
+    %                   Default is 0.05.
     %            'ReAstrometry' - Re-refine the WCS. The reference defines
     %                   the astrometric grid of everything registered onto
     %                   it, so the default keeps the existing WCS and only
@@ -100,6 +114,9 @@ function [Info, Result] = rebuildRefProducts(RefList, Args)
     %            .PSF_AF3 (fraction of PSF light within r=6 pix; ~0.96 for a
     %                  proper winged PSF, 0.9998 for the wing-less v4 ones)
     %            .PSF_RPK .ExpTime .NCoadd .ExpTimeEff .Gain .Msg
+    %            .PH_ZP_out .PH_COL1 .PH_RMS (the regenerated legacy zero
+    %                  point and its fit quality; NaN when the fit was
+    %                  rejected and the PH_* keywords removed)
     %          - The rebuilt AstroImage array (only for small inputs; the
     %            batch use writes to disk and returns the Info struct).
     % Author : Dana Kovaleva (Sep 2026)
@@ -137,6 +154,10 @@ function [Info, Result] = rebuildRefProducts(RefList, Args)
         Args.ExtraCalibArgs   cell         = {}
         Args.BS_BackMaxR      (1,1) double = 1501
         Args.CleanSN          (1,1) double = 4
+        Args.RunPhotometricZP logical      = true
+        Args.photometricZPArgs cell        = {}
+        Args.MaxPhotColTerm   (1,1) double = 1.0
+        Args.MaxPhotRMS       (1,1) double = 0.05
         Args.ReAstrometry     logical      = false
         Args.Verbose          logical      = true
     end
@@ -150,6 +171,7 @@ function [Info, Result] = rebuildRefProducts(RefList, Args)
     Info = repmat(struct('File','', 'OutFile','', 'Success',false, 'Nsrc',0, ...
                          'FWHM',NaN, 'PT_ZP',NaN, 'PH_ZP_in',NaN, 'ZPimplied',NaN, ...
                          'dZP',NaN, 'PSF_AF3',NaN, 'PSF_RPK',NaN, 'ExpTime',NaN, ...
+                         'PH_ZP_out',NaN, 'PH_COL1',NaN, 'PH_RMS',NaN, ...
                          'NCoadd',NaN, 'ExpTimeEff',NaN, 'Gain',NaN, 'Msg',''), 1, Nf);
     Result = AstroImage(0);
 
@@ -278,6 +300,44 @@ function [I, AI] = i_rebuildOne(InFile, OutFile, DoWrite, Args, I)
     imProc.psf.fwhm(AI, 'AddMorphology',true, 'AddErr',true, 'UseLegacy',false);
     [~, AI] = imProc.psf.aperFrac(AI, 'AperRadius',Args.AperRadius);
 
+    % 6b. legacy photometric zero point (PH_ZP). Regenerating it is the
+    %    point: the degenerate colour solutions seen on v4 references
+    %    (PH_COL1 ~ -2.6, PH_RMS ~ 0.14) come from the OLD catalog, not from
+    %    the image - re-fitting over the v1 catalog produces a sane value.
+    %    Written before the transmission calibration, as procCoadd does, and
+    %    with UpdateMagCols=false so the magnitude columns stay the ones
+    %    fitPhotCalibTrans produces. Consumers that still default to PH_ZP
+    %    (AstroDiff/estimateFnFr does) then read an honest number.
+    if Args.RunPhotometricZP
+        try
+            AI = imProc.calib.photometricZP(AI, 'CreateNewObj',false, ...
+                        'UpdateMagCols',false, Args.photometricZPArgs{:});
+            I.PH_ZP_out = AI.HeaderData.getVal('PH_ZP');
+            I.PH_COL1   = AI.HeaderData.getVal('PH_COL1');
+            I.PH_RMS    = AI.HeaderData.getVal('PH_RMS');
+            % Sanity-gate the fit before letting the value stand. A runaway
+            % colour term or a large residual means the solution is
+            % degenerate; keeping it would hand a bad zero point to anything
+            % reading PH_ZP, which is exactly the failure this rebuild
+            % exists to remove. Drop the keywords instead, so such a
+            % consumer gets NaN and fails visibly rather than quietly.
+            BadFit = ~isfinite(I.PH_ZP_out) || ...
+                     (isfinite(I.PH_COL1) && abs(I.PH_COL1) > Args.MaxPhotColTerm) || ...
+                     (isfinite(I.PH_RMS)  && I.PH_RMS  > Args.MaxPhotRMS);
+            if BadFit
+                AI.HeaderData.deleteKey({'PH_ZP','PH_COL1','PH_COL2','PH_W', ...
+                                         'PH_MEDC','PH_MEDW','PH_RMS','PH_NSRC'});
+                I.Msg = sprintf('photometricZP rejected (COL1=%.3f RMS=%.3f) - PH_* removed', ...
+                                I.PH_COL1, I.PH_RMS);
+                I.PH_ZP_out = NaN;
+            end
+        catch ME
+            AI.HeaderData.deleteKey({'PH_ZP','PH_COL1','PH_COL2','PH_W', ...
+                                     'PH_MEDC','PH_MEDW','PH_RMS','PH_NSRC'});
+            I.Msg = sprintf('photometricZP failed (%s) - PH_* removed', ME.message);
+        end
+    end
+
     % 7. absolute photometric calibration - the reason for the rebuild.
     %    Writes PT_ZP and the calibrated magnitude columns, and applies the
     %    positional aperture correction.
@@ -317,11 +377,22 @@ function [I, AI] = i_rebuildOne(InFile, OutFile, DoWrite, Args, I)
         if ~isfolder(OutPath)
             mkdir(OutPath);
         end
-        [~, Base, Ext] = fileparts(OutFile);
-        BaseName = [Base, Ext];
-        BaseName = regexprep(BaseName, '_Image_1\.fits$', '');
-        imProc.io.saveProductImage(AI, BaseName, 'Path',OutPath, ...
-            'OutProduct',Args.OutProduct, 'OverWrite',true, 'SanifyPath',true);
+        % Write each product under the input's own name, so the output tree
+        % mirrors the input one file for one file. The header is written for
+        % the Image and the Cat (write1 drops it for PSF in any case), which
+        % is the convention imProc.io.saveProductImage uses for references.
+        Stem = regexprep(OutFile, '_Image_1\.fits$', '');
+        if strcmp(Stem, OutFile)
+            error('rebuildRefProducts:BadName', ...
+                  'input name does not end in _Image_1.fits: %s', OutFile);
+        end
+        Prods = cellstr(Args.OutProduct);
+        for Ip = 1:1:numel(Prods)
+            Prod  = Prods{Ip};
+            PName = sprintf('%s_%s_1.fits', Stem, Prod);
+            WrHdr = any(strcmpi(Prod, {'Image','Cat'}));
+            AI.write1(PName, Prod, 'WriteHeader',WrHdr, 'OverWrite',true);
+        end
     end
 
     I.Success = true;
