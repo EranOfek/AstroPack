@@ -95,8 +95,9 @@ function [Info, Result] = rebuildRefProducts(RefList, Args)
     %                   Default is true.
     %            'photometricZPArgs' - Extra args for imProc.calib.photometricZP.
     %                   Default is {}.
-    %            'MaxPhotColTerm' - Reject the PH fit (and remove the PH_*
-    %                   keywords) when |PH_COL1| exceeds this. Default is 1.
+    %            'MaxPhotColTerm' - Reject the PH fit (writing the PH_*
+    %                   keywords with blank values, which read back as NaN)
+    %                   when |PH_COL1| exceeds this. Default is 1.
     %            'MaxPhotRMS' - Reject the PH fit when PH_RMS exceeds this.
     %                   Default is 0.05.
     %            'ReAstrometry' - Re-refine the WCS. The reference defines
@@ -116,7 +117,7 @@ function [Info, Result] = rebuildRefProducts(RefList, Args)
     %            .PSF_RPK .ExpTime .NCoadd .ExpTimeEff .Gain .Msg
     %            .PH_ZP_out .PH_COL1 .PH_RMS (the regenerated legacy zero
     %                  point and its fit quality; NaN when the fit was
-    %                  rejected and the PH_* keywords removed)
+    %                  rejected and the PH_* keywords written blank)
     %          - The rebuilt AstroImage array (only for small inputs; the
     %            batch use writes to disk and returns the Info struct).
     % Author : Dana Kovaleva (Sep 2026)
@@ -319,22 +320,30 @@ function [I, AI] = i_rebuildOne(InFile, OutFile, DoWrite, Args, I)
             % colour term or a large residual means the solution is
             % degenerate; keeping it would hand a bad zero point to anything
             % reading PH_ZP, which is exactly the failure this rebuild
-            % exists to remove. Drop the keywords instead, so such a
-            % consumer gets NaN and fails visibly rather than quietly.
+            % exists to remove. Blank the values instead, so such a
+            % consumer gets NaN through the normal blank-card convention
+            % (issue #1252) rather than a value that looks trustworthy.
             BadFit = ~isfinite(I.PH_ZP_out) || ...
                      (isfinite(I.PH_COL1) && abs(I.PH_COL1) > Args.MaxPhotColTerm) || ...
                      (isfinite(I.PH_RMS)  && I.PH_RMS  > Args.MaxPhotRMS);
             if BadFit
-                AI.HeaderData.deleteKey({'PH_ZP','PH_COL1','PH_COL2','PH_W', ...
-                                         'PH_MEDC','PH_MEDW','PH_RMS','PH_NSRC'});
-                I.Msg = sprintf('photometricZP rejected (COL1=%.3f RMS=%.3f) - PH_* removed', ...
+                PhKeys = {'PH_ZP','PH_COL1','PH_COL2','PH_W', ...
+                          'PH_MEDC','PH_MEDW','PH_RMS','PH_NSRC'};
+                % blank the values, keep the keywords: NaN is rendered as a
+                % genuine blank card by BOTH header writers and reads back as
+                % NaN (the issue #1252 convention). Do NOT stamp with empty -
+                % the ThreadedMex writer serializes empty as a literal 0.
+                % (issue #1234, commit 8393576f4).
+                AI.HeaderData.replaceVal(PhKeys, num2cell(nan(1,numel(PhKeys))));
+                I.Msg = sprintf('photometricZP rejected (COL1=%.3f RMS=%.3f) - PH_* blanked', ...
                                 I.PH_COL1, I.PH_RMS);
                 I.PH_ZP_out = NaN;
             end
         catch ME
-            AI.HeaderData.deleteKey({'PH_ZP','PH_COL1','PH_COL2','PH_W', ...
-                                     'PH_MEDC','PH_MEDW','PH_RMS','PH_NSRC'});
-            I.Msg = sprintf('photometricZP failed (%s) - PH_* removed', ME.message);
+            PhKeys = {'PH_ZP','PH_COL1','PH_COL2','PH_W', ...
+                      'PH_MEDC','PH_MEDW','PH_RMS','PH_NSRC'};
+            AI.HeaderData.replaceVal(PhKeys, num2cell(nan(1,numel(PhKeys))));
+            I.Msg = sprintf('photometricZP failed (%s) - PH_* blanked', ME.message);
         end
     end
 
@@ -396,7 +405,9 @@ function [I, AI] = i_rebuildOne(InFile, OutFile, DoWrite, Args, I)
     end
 
     I.Success = true;
-    I.Msg = 'ok';
+    if isempty(I.Msg)
+        I.Msg = 'ok';
+    end
 end
 
 % ------------------------------------------------------------------------
