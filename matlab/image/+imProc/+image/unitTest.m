@@ -36,6 +36,21 @@ function Result = unitTest()
     if ~(median(Result(1).Image(:))==1 && median(Result(2).Image(:))==2 && median(Result(3).Image(:))==3 && median(Result(4).Image(:))==4)
         error('Problem with image2subimages');
     end
+    % a single-column split (issue #1278): ORIGSEC must be a partition of
+    % the image, and UNIQSEC must be consistent with ORIGSEC/ORIGUSEC
+    AI = AstroImage({rand(200,240)});
+    SI = imProc.image.image2subimages(AI, [], 'Nxy',[1 3], 'OverlapXY',[12 12]);
+    for Isub=1:1:numel(SI)
+        ORIGSEC  = SI(Isub).HeaderData.getVal('ORIGSEC',  'ReadCCDSEC',true);
+        ORIGUSEC = SI(Isub).HeaderData.getVal('ORIGUSEC', 'ReadCCDSEC',true);
+        UNIQSEC  = SI(Isub).HeaderData.getVal('UNIQSEC',  'ReadCCDSEC',true);
+        if ORIGSEC(4)-ORIGSEC(3)+1 > 100 || ~isequal(size(SI(Isub).Image), [ORIGSEC(4)-ORIGSEC(3)+1, ORIGSEC(2)-ORIGSEC(1)+1])
+            error('Problem with image2subimages: sub image of a 1x3 split covers the image');
+        end
+        if ~isequal(UNIQSEC, ORIGUSEC - ORIGSEC([1 1 3 3]) + 1)
+            error('Problem with image2subimages: UNIQSEC is inconsistent with ORIGSEC/ORIGUSEC');
+        end
+    end
     
     % interpOverNan
     AI = AstroImage({ones(100,100)});
