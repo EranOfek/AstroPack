@@ -3767,6 +3767,12 @@ classdef PhotCalibTrans < Component
             %                        corrected chi2 ~60 vs ~1-1.6 for real
             %                        stars, so the band is widely
             %                        separating at every S/N).
+            %            'Chi2Range'      - [Min Max] allowed raw PSF_CHI2DOF.
+            %                        Superseded by the SN-corrected screen
+            %                        and disabled by default ([]); when
+            %                        nonempty it is applied as an
+            %                        additional cut, AND-combined with the
+            %                        other screens.
             %            'FilterBadFlags' - Reject sources whose FLAGS carry any
             %                        of BadFlags, in addition to the S/N cut.
             %                        Default true. (Set false to reproduce the
@@ -3830,6 +3836,7 @@ classdef PhotCalibTrans < Component
                 Args.Chi2ColName (1,:) char = 'PSF_CHI2DOF'
                 Args.SysFloor (1,1) double = 0.01   % SNCHI2-style floor [mag] (issues #1271/#1274)
                 Args.MaxCorrChi2 double = 3         % SN-corrected chi2 ceiling; [] disables
+                Args.Chi2Range double = []          % raw chi2 range; superseded, [] (default) disables
                 Args.FilterBadFlags  logical = true
                 Args.BadFlags        cell   = {'Saturated','NaN','Negative','CR_DeltaHT','NearEdge'}
                 Args.FlagsColName    (1,:) char = 'FLAGS'
@@ -3971,6 +3978,19 @@ classdef PhotCalibTrans < Component
                     Obj.msgLog(LogLevel.Warning, sprintf( ...
                         'calcAperCorr: column %s or %s not found - corrected-chi2 screen skipped', ...
                         Args.Chi2ColName, Args.SNColName));
+                end
+            end
+
+            % Legacy raw chi2 range (superseded by the SN-corrected screen
+            % above; off by default). Applied as an additional cut when set.
+            if ~isempty(Args.Chi2Range)
+                if ismember(Args.Chi2ColName, AllColNames)
+                    Chi2 = CatObj.getCol(Args.Chi2ColName);
+                    Mask = Mask & Chi2(:) > Args.Chi2Range(1) & Chi2(:) < Args.Chi2Range(2);
+                else
+                    Obj.msgLog(LogLevel.Warning, sprintf( ...
+                        'calcAperCorr: chi2 column %s not found - chi2 range screen skipped', ...
+                        Args.Chi2ColName));
                 end
             end
 
