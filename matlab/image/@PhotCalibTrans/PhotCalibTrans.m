@@ -3748,17 +3748,25 @@ classdef PhotCalibTrans < Component
             %                        pseudo-sources, out of the fit).
             %            'Chi2ColName'    - PSF-fit chi2/dof column used for
             %                        calibrator screening. Default is
-            %                        'PSF_CHI2DOF'. If the column is absent
-            %                        the chi2 screen is skipped with a
-            %                        warning.
-            %            'Chi2Range'      - [Min Max] allowed PSF_CHI2DOF for
-            %                        aperture-correction calibrators; []
-            %                        disables the screen. Default is
-            %                        [0.5 100] (issue #1274: ghost-halo
-            %                        pseudo-sources carry chi2/dof ~60 vs
-            %                        ~2 for real stars, so this range is
-            %                        trivially separating while keeping any
-            %                        plausibly-fit star).
+            %                        'PSF_CHI2DOF'. If the column (or the
+            %                        S/N column) is absent the chi2 screen
+            %                        is skipped with a warning.
+            %            'SysFloor'       - Systematic chi2 floor of the PSF
+            %                        fit in magnitude-error units (the
+            %                        SNCHI2 quantity of issue #1271):
+            %                        bright stars have
+            %                        E[chi2dof] = 1 + (SN*SysFloor/1.086)^2,
+            %                        so a raw chi2 cut would reject good
+            %                        bright calibrators. Default is 0.01.
+            %            'MaxCorrChi2'    - Keep a calibrator only if its
+            %                        SN-corrected chi2,
+            %                        PSF_CHI2DOF/(1+(SN*SysFloor/1.086)^2),
+            %                        is below this value; [] disables the
+            %                        screen. Default is 3 (issue #1274:
+            %                        ghost-halo pseudo-sources sit at
+            %                        corrected chi2 ~60 vs ~1-1.6 for real
+            %                        stars, so the band is widely
+            %                        separating at every S/N).
             %            'FilterBadFlags' - Reject sources whose FLAGS carry any
             %                        of BadFlags, in addition to the S/N cut.
             %                        Default true. (Set false to reproduce the
@@ -3820,7 +3828,8 @@ classdef PhotCalibTrans < Component
                 Args.MinSN = 30
                 Args.MaxSN = 1000       % S/N ceiling (issue #1274)
                 Args.Chi2ColName (1,:) char = 'PSF_CHI2DOF'
-                Args.Chi2Range double = [0.5 100]   % [] disables (issue #1274)
+                Args.SysFloor (1,1) double = 0.01   % SNCHI2-style floor [mag] (issues #1271/#1274)
+                Args.MaxCorrChi2 double = 3         % SN-corrected chi2 ceiling; [] disables
                 Args.FilterBadFlags  logical = true
                 Args.BadFlags        cell   = {'Saturated','NaN','Negative','CR_DeltaHT','NearEdge'}
                 Args.FlagsColName    (1,:) char = 'FLAGS'
@@ -3933,7 +3942,8 @@ classdef PhotCalibTrans < Component
             end
 
             % Filter by S/N
-            if ismember(Args.SNColName, AllColNames)
+            HaveSN = ismember(Args.SNColName, AllColNames);
+            if HaveSN
                 SN = CatObj.getCol(Args.SNColName);
                 Mask = SN > Args.MinSN & SN < Args.MaxSN;
             else
@@ -3942,20 +3952,25 @@ classdef PhotCalibTrans < Component
                 Mask = true(CatObj.sizeCatalog, 1);
             end
 
-            % Screen by PSF-fit quality (issue #1274): artifact detections
-            % (e.g. the ~500 ghost-halo pseudo-sources that steered the
-            % positional fit to a ~1 mag/crop gradient) carry PSF_CHI2DOF
-            % far above real stars (measured ~60 vs ~2), so a permissive
-            % range removes them without touching genuine calibrators.
-            % AND-combined with the S/N mask.
-            if ~isempty(Args.Chi2Range)
-                if ismember(Args.Chi2ColName, AllColNames)
-                    Chi2 = CatObj.getCol(Args.Chi2ColName);
-                    Mask = Mask & Chi2(:) > Args.Chi2Range(1) & Chi2(:) < Args.Chi2Range(2);
+            % Screen by SN-corrected PSF-fit quality (issue #1274): artifact
+            % detections (e.g. the ~500 ghost-halo pseudo-sources that
+            % steered the positional fit to a ~1 mag/crop gradient) carry
+            % PSF_CHI2DOF far above real stars at the same S/N. A raw chi2
+            % cut cannot separate them from good bright stars, whose
+            % chi2/dof is legitimately inflated by the systematic floor of
+            % issue #1271, E[chi2dof] = 1 + (SN*SysFloor/1.086)^2. Divide
+            % that floor out and cut the corrected chi2 at MaxCorrChi2:
+            % real stars sit at ~1-1.6, ghosts at ~60. AND-combined with
+            % the S/N mask.
+            if ~isempty(Args.MaxCorrChi2)
+                if ismember(Args.Chi2ColName, AllColNames) && HaveSN
+                    Chi2     = CatObj.getCol(Args.Chi2ColName);
+                    CorrChi2 = Chi2(:) ./ (1 + (SN(:).*Args.SysFloor./1.086).^2);
+                    Mask     = Mask & CorrChi2 < Args.MaxCorrChi2;
                 else
                     Obj.msgLog(LogLevel.Warning, sprintf( ...
-                        'calcAperCorr: chi2 column %s not found - chi2 screen skipped', ...
-                        Args.Chi2ColName));
+                        'calcAperCorr: column %s or %s not found - corrected-chi2 screen skipped', ...
+                        Args.Chi2ColName, Args.SNColName));
                 end
             end
 
