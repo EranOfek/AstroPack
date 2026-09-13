@@ -157,7 +157,7 @@ function [Result] = unitTest()
     RP = [4.685, logspace(log10(5), log10(5000), 20)];
     ResStd = zeros(numel(RP),1);
     for Irp=1:1:numel(RP)
-        [R2_v,P_R1,Info]=imUtil.properCoadd.properCoaddLinear(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',RP(Irp));
+        [R2_v,P_R1,Info]=imUtil.properCoadd.properCoaddLinearR(CubeC, PSF, 'Robust',true, 'MaxIter',1,'RobustPar',RP(Irp));
         ResStd(Irp) = tools.math.stat.rstd(R0(:)-R2_v(:));
     end
 
@@ -174,6 +174,77 @@ function [Result] = unitTest()
     set(gcf, 'Color', 'w');
 
     print TuckyPar_StD.eps -depsc2
+
+
+    %%
+  
+    %% Oracle test: robust rejection vs. perfectly known bad pixels
+% Compare:
+%   R0      - proper coadd of clean images
+%   R1      - non-robust proper coadd containing the outliers
+%   R3      - robust proper coadd containing the outliers
+%   Roracle - coadd with the exact injected bad pixels masked
+
+Woracle = ones(size(Cube));
+
+% Exact locations of the five injected outliers
+Woracle(3,4,12)       = 0;
+Woracle(100,100,17)   = 0;
+Woracle(130,160,19)   = 0;
+Woracle(128,130,2)    = 0;
+Woracle(129,5,3)      = 0;
+
+% Keep the mean weight of each affected image equal to 1.
+% This keeps the representative scalar weights, and hence the
+% prescribed global coadd PSF, equal to those of the robust solution.
+Npix   = size(Cube,1).*size(Cube,2);
+BadIm  = [12 17 19 2 3];
+ScaleW = Npix./(Npix - 1);
+
+for Ibad = 1:numel(BadIm)
+    Iim = BadIm(Ibad);
+
+    Tmp = Woracle(:,:,Iim);
+    Flag = Tmp > 0;
+    Tmp(Flag) = Tmp(Flag).*ScaleW;
+
+    Woracle(:,:,Iim) = Tmp;
+end
+
+% Oracle solution.
+% Sigma_M = 1 because the Gaussian noise added above has sigma=1.
+% Woracle is the fourth positional argument.
+[Roracle,P_Roracle,InfoOracle] = ...
+    imUtil.properCoadd.properCoaddLinearR( ...
+    Cube, PSF, 1, Woracle, ...
+    'Robust',false, ...
+    'CGTol',1e-8);
+
+% Differences relative to the oracle
+D_bad   = R1 - Roracle;
+D_rob   = R3 - Roracle;
+D_clean = R0 - Roracle;
+
+RMS_bad   = sqrt(mean(D_bad(:).^2));
+RMS_rob   = sqrt(mean(D_rob(:).^2));
+RMS_clean = sqrt(mean(D_clean(:).^2));
+
+fprintf('\n');
+fprintf('Oracle rejection test:\n');
+fprintf('RMS(non-robust - oracle) = %12.5g\n', RMS_bad);
+fprintf('RMS(robust     - oracle) = %12.5g\n', RMS_rob);
+fprintf('RMS(clean      - oracle) = %12.5g\n', RMS_clean);
+fprintf('Suppression factor       = %12.5g\n', RMS_bad./RMS_rob);
+fprintf('max |P_R - P_Roracle|    = %12.5g\n', ...
+        max(abs(P_R(:)-P_Roracle(:))));
+
+% Display residuals relative to the oracle solution
+Zmax = max(abs(D_bad(:)));
+
+plot.plotImagesGrid({D_bad; D_rob; D_clean}, [1 3], ...
+                    'Z1Z2',[-Zmax Zmax]);
+colormap(flipud(gray))
+set(gcf,'Color','w');
 
 
     %%
