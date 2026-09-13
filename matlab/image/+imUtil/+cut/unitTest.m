@@ -41,6 +41,46 @@ function Result = unitTest()
         error('Problem with imUtil.cut.mex.cube2image');
     end
 
+    %% imUtil.cut.subimage_grid (issue #1278)
+    % for every grid: the sub images lie inside the image and contain their
+    % non-overlapping region, the non-overlapping regions tile the image
+    % exactly, and the non-overlapping region in the sub image frame is
+    % consistent with the one in the full image frame (it used to be stale
+    % for the edge sub images, and MakeSquare used to push the sub images
+    % of a 1x3 split outside the image)
+    Grids = {[240 200], [1 3], [12 12], true;...
+             [240 200], [1 3], [12 12], false;...
+             [240 200], [3 1], [12 12], true;...
+             [240 200], [2 2], [10 10], true;...
+             [240 200], [3 3], [10 10], true;...
+             [9600 6388], [6 4], [64 64], true;...
+             [1726 1726], [13 13], [16 16], true};
+    for Ig=1:1:size(Grids,1)
+        SizeXY = Grids{Ig,1};
+        [CCDSEC, UnCCDSEC, ~, ~, NewNoOverlap] = imUtil.cut.subimage_grid(SizeXY, 'SubSizeXY',SizeXY, 'Nxy',Grids{Ig,2}, 'OverlapXY',Grids{Ig,3}, 'MakeSquare',Grids{Ig,4});
+        if ~all(CCDSEC(:,[1 3])>=1, 'all') || ~all(CCDSEC(:,2)<=SizeXY(1)) || ~all(CCDSEC(:,4)<=SizeXY(2))
+            error('Problem with imUtil.cut.subimage_grid: sub image outside the image');
+        end
+        if ~all(CCDSEC(:,[1 3])<=UnCCDSEC(:,[1 3]) & CCDSEC(:,[2 4])>=UnCCDSEC(:,[2 4]), 'all')
+            error('Problem with imUtil.cut.subimage_grid: sub image does not contain its non-overlapping region');
+        end
+        Cover = zeros(SizeXY(2), SizeXY(1));
+        for Isub=1:1:size(UnCCDSEC,1)
+            Cover(UnCCDSEC(Isub,3):UnCCDSEC(Isub,4), UnCCDSEC(Isub,1):UnCCDSEC(Isub,2)) = Cover(UnCCDSEC(Isub,3):UnCCDSEC(Isub,4), UnCCDSEC(Isub,1):UnCCDSEC(Isub,2)) + 1;
+        end
+        if ~all(Cover==1, 'all')
+            error('Problem with imUtil.cut.subimage_grid: non-overlapping regions do not tile the image');
+        end
+        if ~isequal(NewNoOverlap, UnCCDSEC - CCDSEC(:,[1 1 3 3]) + 1)
+            error('Problem with imUtil.cut.subimage_grid: NewNoOverlap is inconsistent with CCDSEC');
+        end
+    end
+    % the 1x3 split must be a partition, not three copies of the image
+    [CCDSEC] = imUtil.cut.subimage_grid([240 200], 'SubSizeXY',[240 200], 'Nxy',[1 3], 'OverlapXY',[12 12]);
+    if size(unique(CCDSEC,'rows'),1)~=3 || any(CCDSEC(:,4)-CCDSEC(:,3)+1 > 100)
+        error('Problem with imUtil.cut.subimage_grid: 1x3 split is not a partition of the image');
+    end
+
 
 
 

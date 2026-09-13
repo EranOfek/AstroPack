@@ -15,8 +15,12 @@ function [CCDSEC,UnCCDSEC,Center,Nxy,NewNoOverlap]=subimage_grid(SizeXY,Args)
 %            'OverlapXY' - Overlapping extra [X, Y] to add to SubSizeXY
 %                    from each side. Default is [32 32].
 %            'MakeEqualSize' - A logical indicating if the sub image sizes
-%                   must be of equal size. Default is true.
-%            'MakeSquare' - Make square sub grid. Default is true. 
+%                   must be of equal size (the size of the largest sub
+%                   image, but not larger than the image). Default is true.
+%            'MakeSquare' - Make square sub images, if such sub images fit
+%                   in the image (e.g., they do not for a 1x3 split of a
+%                   non-square image); otherwise only 'MakeEqualSize' is
+%                   applied. Default is true. 
 % Output : - CCDSEC of the images with overlap [xmin, xmax, ymin, ymax].
 %            A line per sub image.
 %          - CCDSEC of the images without overlap.
@@ -95,6 +99,28 @@ end
 % end
 Center = [mean(CCDSEC(:,1:2),2), mean(CCDSEC(:,3:4),2)];
 
+if Args.MakeEqualSize
+    % resize the sub images to the largest one (issue #1278)
+    SpanXY = [CCDSEC(:,2)-CCDSEC(:,1), CCDSEC(:,4)-CCDSEC(:,3)];
+    % a sub image can not be larger than the image
+    MaxXY  = min(max(SpanXY, [], 1), SizeXY-1);
+    Slid = false;
+    if Args.MakeSquare
+        MM = max(MaxXY);
+        [CCDSECsq, Slid] = resizeCCDSEC(CCDSEC, [MM MM], SizeXY);
+    end
+    if Args.MakeSquare && ~Slid
+        % square sub images fit in the image
+        CCDSEC = CCDSECsq;
+    else
+        % keep the sub images equal in size, but not square (e.g., a 1x3
+        % split of a non-square image)
+        CCDSEC = resizeCCDSEC(CCDSEC, MaxXY, SizeXY);
+    end
+end
+
+% the non overlapping region in the sub image frame
+% (must be calculated after the resizing above)
 DX = UnCCDSEC(:,1)-CCDSEC(:,1);
 DY = UnCCDSEC(:,3)-CCDSEC(:,3);
 WX = UnCCDSEC(:,2)-UnCCDSEC(:,1);
@@ -102,13 +128,13 @@ WY = UnCCDSEC(:,4)-UnCCDSEC(:,3);
 
 NewNoOverlap = 1+[DX, WX+DX, DY, WY+DY];
 
+end
 
-if Args.MakeEqualSize
-    MaxXY = max([CCDSEC(:,2)-CCDSEC(:,1), CCDSEC(:,4)-CCDSEC(:,3)]);
-    if Args.MakeSquare
-        MM = max(MaxXY);
-        MaxXY = [MM MM];
-    end
+function [CCDSEC, Slid] = resizeCCDSEC(CCDSEC, MaxXY, SizeXY)
+    % Extend the sub images to size MaxXY (span): the inner sub images
+    % upward and the edge sub images downward. Sub images that exceed the
+    % image are shifted back inside it (Slid is true if any was shifted).
+    
     AddXY = MaxXY - [CCDSEC(:,2)-CCDSEC(:,1), CCDSEC(:,4)-CCDSEC(:,3)];
     
     FlagEdgeX = CCDSEC(:,2)==SizeXY(1);
@@ -120,4 +146,9 @@ if Args.MakeEqualSize
     CCDSEC(~FlagEdgeY,4) = CCDSEC(~FlagEdgeY,4) + AddXY(~FlagEdgeY,2);
     CCDSEC(FlagEdgeY,3)  = CCDSEC(FlagEdgeY,3)  - AddXY(FlagEdgeY,2);
     
+    OverX = max(CCDSEC(:,2)-SizeXY(1), 0) - max(1-CCDSEC(:,1), 0);
+    OverY = max(CCDSEC(:,4)-SizeXY(2), 0) - max(1-CCDSEC(:,3), 0);
+    CCDSEC(:,[1 2]) = CCDSEC(:,[1 2]) - OverX;
+    CCDSEC(:,[3 4]) = CCDSEC(:,[3 4]) - OverY;
+    Slid = any(OverX~=0) || any(OverY~=0);
 end
