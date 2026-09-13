@@ -28,6 +28,9 @@ function [Info, Result] = rebuildRefProducts(RefList, Args)
     % Input  : - Reference images to rebuild, given as a file name, a cell
     %            array of file names, a struct array returned by dir, or a
     %            glob pattern (e.g. '/path/to/v4/*/*_sci_ref_Image_1.fits').
+    %            NOTE: v4 also holds *_sci_coadd_Image_1.fits references
+    %            (visit coadds used where no stack exists) - a full batch
+    %            must include both patterns.
     %          * ...,key,val,...
     %            'OutDir' - Root directory of the output tree (e.g. the v4b
     %                   directory). The sub-directory structure of each input
@@ -75,10 +78,13 @@ function [Info, Result] = rebuildRefProducts(RefList, Args)
     %                   Info. PT_ZP is the raw-count zero point, so it is
     %                   invariant to this bookkeeping. Default is 1.
     %            'CalibMaxSN' - Upper S/N gate for calibrator selection,
-    %                   passed to fitPhotCalibTrans as ExtraCalibArgs. The
-    %                   pipeline default (1000) rejects every calibrator on a
-    %                   deep reference, so the gate is opened here.
-    %                   Default is 1e9.
+    %                   passed to fitPhotCalibTrans as ExtraCalibArgs.
+    %                   Empty (default) = decide per file by reference type:
+    %                   deep *_sci_ref_* stacks get 1e9 (the single-visit
+    %                   default of 1000 rejects every calibrator there),
+    %                   while plain *_sci_coadd_* visit coadds keep the
+    %                   default gate of 1000. A numeric value forces that
+    %                   gate for all inputs. Default is [].
     %            'ExtraCalibArgs' - Further key-value overrides appended to
     %                   the predefined calibration recipe. Default is {}.
     %            'BS_BackMaxR' - Bright-source background radius, as used
@@ -163,7 +169,7 @@ function [Info, Result] = rebuildRefProducts(RefList, Args)
         Args.GainKey          (1,:) char   = 'AVNCOADD'
         Args.Gain                          = []
         Args.NFramesPerCoadd  (1,1) double {mustBePositive} = 1
-        Args.CalibMaxSN       (1,1) double {mustBePositive} = 1e9
+        Args.CalibMaxSN       double {mustBeScalarOrEmpty} = []
         Args.ExtraCalibArgs   cell         = {}
         Args.BS_BackMaxR      (1,1) double = 1501
         Args.CleanSN          (1,1) double = 4
@@ -371,7 +377,21 @@ function [I, AI] = i_rebuildOne(InFile, OutFile, DoWrite, Args, I)
     %    zero calibrators and the calibration fails outright.
     %    IsMeanImages/NProcsPerCoadd carry the coadd-of-coadds exposure
     %    bookkeeping into calibrate.
-    ExtraCalib = [{'MaxSN', Args.CalibMaxSN}, Args.ExtraCalibArgs];
+    %    v4 holds two reference types, told apart by filename: *_sci_ref_*
+    %    is a coadd-of-coadds (deep stack) where every calibrator sits above
+    %    the single-visit gate, so the gate is opened; *_sci_coadd_* is a
+    %    plain visit coadd standing in where no stack exists - there the
+    %    default MaxSN=1000 keeps its meaning and is left in force.
+    if isempty(Args.CalibMaxSN)
+        if contains(InFile, '_sci_coadd_')
+            MaxSNGate = {};                 % keep the recipe default (1000)
+        else
+            MaxSNGate = {'MaxSN', 1e9};     % deep stack: open the gate
+        end
+    else
+        MaxSNGate = {'MaxSN', Args.CalibMaxSN};
+    end
+    ExtraCalib = [MaxSNGate, Args.ExtraCalibArgs];
     [AI, ~, ~] = imProc.calib.fitPhotCalibTrans(AI, Args.fitPhotCalibTransArgs{:}, ...
                 'MagType',         Args.MagType, ...
                 'ExtraCalibArgs',  ExtraCalib, ...
