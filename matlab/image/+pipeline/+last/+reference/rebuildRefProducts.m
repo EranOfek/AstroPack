@@ -85,6 +85,18 @@ function [Info, Result] = rebuildRefProducts(RefList, Args)
     %                   when the references were built. Default is 1501.
     %            'CleanSN' - As used when the references were built.
     %                   Default is 4.
+    %            'IsBackSub' - The input image is background-subtracted.
+    %                   Forwarded to multiIterExtractor, where it selects
+    %                   the analytic bright-star variance factor 1/Gain
+    %                   instead of the empirical Var(1)/Back(1): on a
+    %                   sky-subtracted image Back(1) is an arbitrary
+    %                   near-zero number, and the factor (of either sign)
+    %                   scales a halo of radius BS_R over the whole frame,
+    %                   wiping out or inflating the detections at random.
+    %                   The v4 *_sci_ref_* references are sky-subtracted;
+    %                   the *_sci_coadd_* ones are not, so pass false for
+    %                   them. procCoadd forwards its SubBack flag the same
+    %                   way. Default is true.
     %            'RunPhotometricZP' - Re-fit the legacy zero point (PH_ZP)
     %                   over the new catalog, before the transmission
     %                   calibration, as procCoadd does. The v4 references
@@ -155,6 +167,7 @@ function [Info, Result] = rebuildRefProducts(RefList, Args)
         Args.ExtraCalibArgs   cell         = {}
         Args.BS_BackMaxR      (1,1) double = 1501
         Args.CleanSN          (1,1) double = 4
+        Args.IsBackSub        logical      = true
         Args.RunPhotometricZP logical      = true
         Args.photometricZPArgs cell        = {}
         Args.MaxPhotColTerm   (1,1) double = 1.0
@@ -278,6 +291,7 @@ function [I, AI] = i_rebuildOne(InFile, OutFile, DoWrite, Args, I)
                 'MagType',         Args.MagType, ...
                 'BS_BackMaxR',     Args.BS_BackMaxR, ...
                 'CleanSN',         Args.CleanSN, ...
+                'IsBackSub',       Args.IsBackSub, ...
                 'AddBackNoise',    true, ...
                 'AddExtraBack',    true, ...
                 'AddExtraVar',     true, ...
