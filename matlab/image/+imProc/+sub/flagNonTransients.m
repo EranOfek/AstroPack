@@ -307,7 +307,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Holes in the reference filters
         Args.flagRefHole logical = true;
-        Args.RefHoleThresh double = 3.0;
+        Args.RefHoleFluxFrac double = 0.5;
 
         % Sub-visit / asymmetric saturation handling
         Args.flagSubVisit logical = true
@@ -970,9 +970,22 @@ function TranCat = flagNonTransients(Obj, Args)
             
         end
 
-        if Args.flagRefHole && R_PSFPhot_isSolved
-            HoleInRef = (R_SN < 0) & (Score + R_SN < Args.RefHoleThresh);
-            
+        if Args.flagRefHole && R_PSFPhot_isSolved && D_PSFPhot_isSolved
+            % A negative reference flux inflates the difference. Ask whether
+            % that deficit alone accounts for the candidate's difference flux,
+            % after converting reference counts into D flux units.
+            %   Deliberately not a significance test. The reference PSF-fit
+            % error comes from backgroundCube, which uses a non-robust @std
+            % over the stamp's outer annulus, so a bright neighbour landing
+            % there inflates it and collapses |R_SN|: a -164 e- hole was
+            % reported at R_SN = -1.78 while the fit's own chi2/dof sat at
+            % 0.04 against a local median of 0.78. R_FLUX_PSF is unaffected
+            % by that, so the test uses flux alone.
+            RefDeficit = -R_FLUX_PSF .* 10.^(0.4.*(Obj(Iobj).ZpD - Obj(Iobj).ZpR));
+
+            HoleInRef = (R_FLUX_PSF < 0) & (D_FLUX_PSF > 0) & ...
+                        (RefDeficit > Args.RefHoleFluxFrac .* D_FLUX_PSF);
+
             FilterFlags = setFilterBit(FilterFlags, HoleInRef, BD_TF, 'RefHole');
         end
 
