@@ -60,6 +60,17 @@ function [Template, Info] = smearTemplate(Obj, Args)
     %                   Default is 70.
     %            'MaxNumDefects' - Cap on the number of cutouts stacked.
     %                   Default is 3000.
+    %            'SigThresh' - Pixel significance threshold for the measured
+    %                   template, in units of the scatter of its own border
+    %                   ring. Default is 5.
+    %            'MinSigPix' - Pixels the measured template must have above
+    %                   SigThresh for it to be used. A drift of about a pixel
+    %                   per epoch leaves no coherent smear to stack, and the
+    %                   result is noise; filtering on it flags real sources.
+    %                   Default is 3. Failing it returns an empty template
+    %                   with Info.NoSmear true and no fallback to the other
+    %                   method, since the finding is about the visit rather
+    %                   than about the method.
     %            'MinNumDefects' - Below this, return an empty template.
     %                   Default is 50.
     %            'StarCatName' - catsHTM catalogue used to reject calibrators
@@ -120,6 +131,8 @@ function [Template, Info] = smearTemplate(Obj, Args)
         Args.MaxFluxPerPix        = 70;
         Args.MaxNumDefects        = 3000;
         Args.MinNumDefects        = 50;
+        Args.SigThresh            = 5;     % pixel significance, in template scatter
+        Args.MinSigPix            = 3;     % pixels above it for the template to count
         Args.StarCatName          = 'GAIADR3';
         Args.MinStarDistFWHM      = 2.5;
         Args.SrcXY                = [];
@@ -140,7 +153,8 @@ function [Template, Info] = smearTemplate(Obj, Args)
                       'Scatter',NaN, 'Core',NaN, 'Offset',[NaN NaN], ...
                       'NumNearSrc',0, 'X',[], 'Y',[], ...
                       'Nepoch',NaN, 'SpanX',NaN, 'SpanY',NaN, ...
-                      'Radius',NaN, 'Rejected',{{}}, 'Reason','');
+                      'Radius',NaN, 'SigPix',NaN, 'PeakSig',NaN, 'NoSmear',false, ...
+                      'Rejected',{{}}, 'Reason','');
 
     % Fill in the visit directory and crop from the object where they were
     % not given, so the derived path is usable without plumbing them through
@@ -212,6 +226,10 @@ function [Template, Info] = smearTemplate(Obj, Args)
             return
         end
         Rejected{end+1} = sprintf('%s: %s', Order{Im}, Info.Reason); %#ok<AGROW>
+        if Info.NoSmear
+            % Nothing to find by any method on this visit.
+            break
+        end
     end
 
     Template      = [];
@@ -414,6 +432,37 @@ function [Template, Info] = buildOne(Obj, Args, Info, Method)
         % with each cutout normalized to a core of 1, cancellation drives
         % the stacked core toward zero.
         Info.Reason = sprintf('template core is not positive, %.4g', Core);
+        return
+    end
+
+    % Is there a smear here at all? A defect only builds a coherent track
+    % when the per epoch step is a fraction of a pixel, so consecutive
+    % deposits pile up on the same pixels. Once the drift is of order a
+    % pixel per epoch, each epoch lands on its own pixel, the sigma clip
+    % removes it as a lone outlier, and what survives is a twentieth of one
+    % epoch spread along the track. The stack is then noise, and filtering
+    % on it flags real sources: measured on one badly tracked visit, a
+    % 43x43 stack of 156 cutouts held a single pixel above 5 sigma and its
+    % matched filter flagged a genuine transient sitting on a star residual.
+    %   Tested against the scatter of the template's own border ring, which
+    % holds no track whatever the drift, so this works for a compact blob
+    % and a long track alike.
+    Edge          = true(size(Template));
+    Edge(3:end-2, 3:end-2) = false;
+    SigTemplate   = 1.4826 .* mad(Template(Edge), 1);
+    Info.SigPix   = sum(Template(:) > Args.SigThresh .* SigTemplate);
+    Info.PeakSig  = max(Template(:)) ./ SigTemplate;
+
+    if Info.SigPix < Args.MinSigPix
+        % Not a weakness of this method, a statement about the visit: there
+        % is no coherent smear in this coadd to filter on. The derived model
+        % would happily supply a track anyway, since it knows the shift
+        % history but not that the clipping removed the defect, and filtering
+        % on that flags real sources. So stop here rather than fall through.
+        Template      = [];
+        Info.NoSmear  = true;
+        Info.Reason   = sprintf('no smear in this coadd, %d template pixels above %g sigma, peak %.1f sigma', ...
+                                Info.SigPix, Args.SigThresh, Info.PeakSig);
         return
     end
 
