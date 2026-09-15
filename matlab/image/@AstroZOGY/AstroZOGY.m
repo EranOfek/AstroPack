@@ -725,12 +725,10 @@ classdef AstroZOGY < AstroDiff
                 end
                 Obj(Iobj).Image = D;
 
-                
-
                 % calculate Pd
-                Pd = ifft2(Obj(Iobj).Pd_hat);
+                Pd = fftshift(ifft2(Obj(Iobj).Pd_hat));
                 if ischar(Args.HalfSizePSF)
-                    % full - do not touch
+                    % keep full
                 else
                     if isempty(Args.HalfSizePSF)
                         % use PSF size of new
@@ -747,7 +745,6 @@ classdef AstroZOGY < AstroDiff
 
                     % ifft2 leaves Pd in FFT-corner order (centre at pixel 1).
                     % fftshift moves it to floor(N/2)+1 for both even and odd N.
-                    Pd     = fftshift(Pd);
                     PdSize = size(Pd);
 
                     CenterI = floor(PdSize(1)./2) + 1;
