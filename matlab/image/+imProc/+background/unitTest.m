@@ -53,6 +53,43 @@ function Result = unitTest()
     AI = AstroImage([DataSampleDir,'/PTF_201411204943_i_p_scie_t115144_u023050379_f02_p100037_c02.fits']);
     [SmBackEst, BackEst] = imProc.background.filterSources(AI);
     
+    % imProc.background.backVar failure path + imProc.background.isFailedBack (issue #1226)
+    % An element whose background estimation fails must get NaN Back/Var,
+    % be reported in FailedList, and carry the nine background keywords
+    % with a blank (NaN) value - not the previous element's values and
+    % not [] (which the mex header writers serialize as 0).
+    BackVarArgs = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[512 512], ...
+                   'PoissVar',true, 'Ncoadd',1, 'RN2',13, ...
+                   'MethodArgs',{{'MinVal',10, 'MaxVal',7000},{}}};
+    Keys = {'MEANBCK','MEDBCK','STDBCK','MEANVAR','MEDVAR','MINBCK','MAXBCK','BCKMTHD','VARMTHD'};
+    AI = AstroImage([1 2]);
+    Good = 200 + sqrt(200).*randn(600,'single');
+    AI(1).ImageData.Image = Good;
+    AI(2).ImageData.Image = Good - max(Good(:)) - 10;   % all pixels <= 0 -> LogHist throws
+    [AI, FailedList] = imProc.background.backVar(AI, BackVarArgs{:});
+    if ~isequal(FailedList, 2)
+        error('Problem with imProc.background.backVar: FailedList');
+    end
+    if ~all(cellfun(@(K) AI(2).HeaderData.isKeyExist(K), Keys)) || ...
+       ~all(cellfun(@(K) isnan(AI(2).HeaderData.getVal(K)), Keys))
+        error('Problem with imProc.background.backVar: failed element keywords must be present and NaN');
+    end
+    if ~(isfinite(AI(1).HeaderData.getVal('MEDBCK')) && AI(1).HeaderData.getVal('MEDBCK')>0) || ...
+       AI(1).HeaderData.getVal('BCKMTHD')~=2
+        error('Problem with imProc.background.backVar: healthy element keywords');
+    end
+    % the blank value must survive [Struct.KEY] concatenation as NaN (see #1194)
+    St = AI.getStructKey({'MEDBCK'});
+    CatVals = [St.MEDBCK];
+    if ~(isfloat(CatVals) && numel(CatVals)==2 && isnan(CatVals(2)))
+        error('Problem with imProc.background.backVar: [Struct.MEDBCK] concatenation');
+    end
+    % [healthy, failed, never estimated] -> [0 1 0]
+    AI3  = AstroImage({single(rand(20))});
+    Flag = imProc.background.isFailedBack([AI(1), AI(2), AI3]);
+    if ~isequal(Flag(:).', [false true false])
+        error('Problem with imProc.background.isFailedBack');
+    end
     
     cd(PWD);
     %io.msgStyle(LogLevel.Test, '@passed', 'imProc.background test passed');

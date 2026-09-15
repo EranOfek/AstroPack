@@ -87,6 +87,9 @@ function Result = unitTest(Obj)
 
     % Test writeTable1()
     test_writeTable();
+
+    % Test writeTable1() with a zero-row table (issue #1226)
+    test_writeTable_zeroRows();
     
 	cd(PWD);	
 	io.msgStyle(LogLevel.Test, '@passed', 'FITS test passed')
@@ -94,6 +97,36 @@ function Result = unitTest(Obj)
 end
 
 
+
+function Result = test_writeTable_zeroRows()
+    % A table with columns but no rows must be written as a valid 0-row
+    % binary table, and read back (before #1226: writeCol threw on empty
+    % column data and left a truncated file behind).
+    FileName = fullfile(tempdir,'wrtable_rows0.fits');
+    if isfile(FileName)
+        delete(FileName);
+    end
+    ColNames = {'X','Y','MAG_APER_3'};
+    % (the constructor does not keep ColNames for empty data - build the
+    % zero-row catalog from a populated one)
+    AC0 = AstroCatalog({rand(5,3)}, 'ColNames',ColNames, 'ColUnits',{'pix','pix','mag'});
+    AC0.Catalog = zeros(0,3);
+    FITS.writeTable1(AC0, FileName, 'ExtName','Rows0');
+    D0 = dir(FileName);
+    if isempty(D0) || D0(1).bytes<=2880
+        error('Problem with FITS.writeTable1: zero-row table not written');
+    end
+    Info = fitsinfo(FileName);
+    if Info.BinaryTable(1).Rows~=0 || Info.BinaryTable(1).NFields~=3
+        error('Problem with FITS.writeTable1: zero-row table has wrong shape');
+    end
+    Out = FITS.readTable1(FileName, 'HDUnum',2, 'OutTable','AstroCatalog');
+    if ~isequal(size(Out.Catalog), [0 3]) || ~isequal(Out.ColNames(:).', ColNames)
+        error('Problem with FITS.readTable1: zero-row table read back');
+    end
+    delete(FileName);
+    Result = true;
+end
 
 function Result = test_writeTable()
 
