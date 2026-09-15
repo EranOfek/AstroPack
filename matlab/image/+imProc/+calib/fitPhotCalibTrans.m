@@ -377,7 +377,10 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.AperCorrBadFlags cell = {'Saturated','NaN','Negative','CR_DeltaHT','NearEdge'}
         Args.AperCorrMinSN (1,1) double = 30          % calibrator S/N floor (calcAperCorr 'MinSN')
         Args.AperCorrMaxSN (1,1) double = 1000        % calibrator S/N ceiling (issue #1274)
-        Args.AperCorrSysFloor (1,1) double = 0.01     % SNCHI2-style chi2 floor [mag] (issues #1271/#1274)
+        Args.CalcSNChi2 logical = true                % measure SNCHI2 via imProc.calib.snChi2, write to header (issue #1271)
+        Args.AperCorrSysFloor double = []             % [] = auto: per-image SNCHI2 clamped to [Default, Cap]; numeric = fixed (issues #1271/#1274)
+        Args.AperCorrSysFloorDefault (1,1) double = 0.01  % auto-mode fallback and lower clamp [mag]
+        Args.AperCorrSysFloorCap (1,1) double = 0.03  % auto-mode upper clamp [mag]: a ghost-inflated SNCHI2 must not loosen the screen
         Args.AperCorrMaxCorrChi2 double = 3           % SN-corrected chi2 ceiling; [] disables (issue #1274)
         Args.AperCorrChi2Range double = []            % legacy raw chi2 range; superseded, [] (default) disables
         Args.AperCorrPositional logical = true   % default path: position-dependent aperture correction
@@ -749,6 +752,39 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                 end
             end
 
+            % Measure the PSF-fit systematic chi2 floor (issue #1271): the
+            % SNCHI2 keyword is written to the header, and in auto mode the
+            % measured value drives the aperture-correction calibrator
+            % screen below.
+            SNChi2Val = NaN;
+            if Args.CalcSNChi2
+                if IsAstroImage
+                    [Result(Iobj), ResSNChi2] = imProc.calib.snChi2(Result(Iobj));
+                else
+                    TmpAI = AstroImage;
+                    TmpAI.CatData = Result(Iobj);
+                    [~, ResSNChi2] = imProc.calib.snChi2(TmpAI, 'UpdateHeader',false);
+                end
+                SNChi2Val = ResSNChi2.SNCHI2;
+            end
+
+            % Resolve the SysFloor for the calibrator screen: auto mode
+            % ([]) uses the image's own SNCHI2, clamped into
+            % [SysFloorDefault, SysFloorCap] — the upper clamp keeps a
+            % ghost-inflated SNCHI2 (issue #1274 contamination raises the
+            % measured floor by up to x10) from loosening the very screen
+            % that must reject the ghosts. The header keeps the uncapped
+            % measurement; the clamp is screening policy only.
+            if isempty(Args.AperCorrSysFloor)
+                if isfinite(SNChi2Val)
+                    AperCorrSysFloor = min(max(SNChi2Val, Args.AperCorrSysFloorDefault), Args.AperCorrSysFloorCap);
+                else
+                    AperCorrSysFloor = Args.AperCorrSysFloorDefault;
+                end
+            else
+                AperCorrSysFloor = Args.AperCorrSysFloor;
+            end
+
             % Compute aperture corrections using freshly-created MAG_AB_* columns,
             % then (if requested) apply them to those same columns in place.
             if Args.CalcAperCorr
@@ -762,7 +798,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                     'BadFlags',       Args.AperCorrBadFlags, ...
                     'MinSN',          Args.AperCorrMinSN, ...
                     'MaxSN',          Args.AperCorrMaxSN, ...
-                    'SysFloor',       Args.AperCorrSysFloor, ...
+                    'SysFloor',       AperCorrSysFloor, ...
                     'MaxCorrChi2',    Args.AperCorrMaxCorrChi2, ...
                     'Chi2Range',      Args.AperCorrChi2Range, ...
                     'Positional',    Args.AperCorrPositional, ...
