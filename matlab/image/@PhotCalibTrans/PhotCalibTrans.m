@@ -2455,6 +2455,7 @@ classdef PhotCalibTrans < Component
                 Args.Y = []
                 Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
                 Args.PerSourceZenithAngles = []  % [N_pos x 1] per-source zenith angles [deg]
+                Args.RefSpecSlopePerSource = []  % [N_pos x 1] optional per-source F_nu reference-spectrum slope alpha. When empty (default) the scalar Obj.RefSpecSlope is used and the ZP is computed exactly as before. When given, the reference spectrum (lambda/pivot).^alpha is built per source, so the ZP (and hence the calibrated magnitude) carries a per-source colour term. Length must match the number of positions (X/Y or PerSourceZenithAngles).
             end
 
             % Vega magnitude system placeholder — not yet implemented
@@ -2488,9 +2489,15 @@ classdef PhotCalibTrans < Component
 
                 % Reference F_nu spectrum: power law (lambda/pivot)^slope.
                 % Slope = 0 (default) reduces to the AB-flat reference.
-                RefSpectrum = Fnu * (Lambda(:) / Obj.RefSpecPivot) .^ Obj.RefSpecSlope;  % [N_lambda x 1]
+                if isempty(Args.RefSpecSlopePerSource)
+                    RefSpectrum = Fnu * (Lambda(:) / Obj.RefSpecPivot) .^ Obj.RefSpecSlope;  % [N_lambda x 1]
+                else
+                    % Optional per-source slope: reference spectrum is [N_lambda x N_pos]
+                    AlphaPS = Args.RefSpecSlopePerSource(:).';                     % [1 x N_pos]
+                    RefSpectrum = Fnu .* (Lambda(:) / Obj.RefSpecPivot) .^ AlphaPS; % [N_lambda x N_pos]
+                end
 
-                % Apply transmission per source: [N_wvl x N_pos] .* [N_wvl x 1]
+                % Apply transmission per source: [N_wvl x N_pos] .* [N_wvl x 1 | N_wvl x N_pos]
                 SpecTrans = TransPerSource .* RefSpectrum;  % [N_wvl x N_pos]
 
                 % Divide by Lambda for integration
@@ -2517,24 +2524,39 @@ classdef PhotCalibTrans < Component
                 TransBase = Obj.TransModel.evaluateAllFunParInput(Lambda);
                 TransBase = TransBase(:)';  % Row vector [1 x N_lambda]
 
-                % Reference F_nu spectrum: power law (lambda/pivot)^slope.
-                % Slope = 0 (default) reduces to the AB-flat reference.
-                RefSpectrum = Fnu * (Lambda(:) / Obj.RefSpecPivot) .^ Obj.RefSpecSlope;  % [N_lambda x 1]
+                if isempty(Args.RefSpecSlopePerSource)
+                    % Reference F_nu spectrum: power law (lambda/pivot)^slope.
+                    % Slope = 0 (default) reduces to the AB-flat reference.
+                    RefSpectrum = Fnu * (Lambda(:) / Obj.RefSpecPivot) .^ Obj.RefSpecSlope;  % [N_lambda x 1]
 
-                % Apply transmission: multiply by reference spectrum
-                SpecTrans = TransBase .* RefSpectrum';  % [1 x N_lambda]
+                    % Apply transmission: multiply by reference spectrum
+                    SpecTrans = TransBase .* RefSpectrum';  % [1 x N_lambda]
 
-                % Multiply by Lambda for integration
-                Integrand = SpecTrans ./ Lambda';  % [1 x N_lambda]
+                    % Multiply by Lambda for integration
+                    Integrand = SpecTrans ./ Lambda';  % [1 x N_lambda]
 
-                % Integrate along wavelength dimension
-                A = tools.math.integral.trapzmat(Lambda(:)', Integrand, 2);  % scalar
+                    % Integrate along wavelength dimension
+                    A = tools.math.integral.trapzmat(Lambda(:)', Integrand, 2);  % scalar
 
-                % Calculate base zero-point flux
-                TotalFlux_ZP = Obj.Aperture * A / H;  % scalar
+                    % Calculate base zero-point flux
+                    TotalFlux_ZP = Obj.Aperture * A / H;  % scalar
 
-                % Convert to base magnitude ZP
-                ZP_base = 2.5 * log10(TotalFlux_ZP);  % scalar
+                    % Convert to base magnitude ZP
+                    ZP_base = 2.5 * log10(TotalFlux_ZP);  % scalar
+                else
+                    % Optional per-source reference slope (add-on): a shared
+                    % (single-airmass) transmission folded against a per-source
+                    % reference spectrum, giving a per-source base ZP. This is
+                    % the colour term — the transmission is identical for every
+                    % source, only (lambda/pivot)^alpha varies.
+                    AlphaPS  = Args.RefSpecSlopePerSource(:).';                    % [1 x N_pos]
+                    RefSpec  = Fnu .* (Lambda(:) / Obj.RefSpecPivot) .^ AlphaPS;   % [N_lambda x N_pos]
+                    Integrand = (TransBase(:) .* RefSpec) ./ Lambda(:);           % [N_lambda x N_pos]
+                    A         = tools.math.integral.trapzmat(Lambda(:), Integrand, 1);  % [1 x N_pos]
+                    TotalFlux_ZP = Obj.Aperture * A / H;                          % [1 x N_pos]
+                    ZP_base   = 2.5 * log10(TotalFlux_ZP);                        % [1 x N_pos]
+                    ZP_base   = ZP_base(:);                                       % [N_pos x 1]
+                end
 
                 % Add position-dependent correction if positions provided and Tran2D exists
                 if ~isempty(Args.X) && ~isempty(Args.Y) && ...
@@ -2587,6 +2609,7 @@ classdef PhotCalibTrans < Component
                 Args.Y = []          % Y coordinates [N x 1]
                 Args.MagErr = []     % Magnitude errors [N x 1]
                 Args.MagSystem char = 'AB'  % 'AB' or 'Vega' (placeholder)
+                Args.RefSpecSlopePerSource = []  % [N x 1] optional per-source reference-spectrum slope alpha (see evaluateZP). Empty (default) -> scalar Obj.RefSpecSlope.
             end
 
             % Vega magnitude system placeholder — not yet implemented
@@ -2603,7 +2626,8 @@ classdef PhotCalibTrans < Component
 
             % Calculate ZP at positions (or field center if X, Y empty)
             ZP = Obj.evaluateZP('X', Args.X, 'Y', Args.Y, ...
-                                'MagSystem', Args.MagSystem);
+                                'MagSystem', Args.MagSystem, ...
+                                'RefSpecSlopePerSource', Args.RefSpecSlopePerSource);
             ZP = ZP(:);  % Ensure column vector
 
             % Calculate calibrated magnitudes
@@ -4402,6 +4426,10 @@ classdef PhotCalibTrans < Component
                 Args.ConstBandParams = []            % Struct or .mat path for constant band params
                 Args.ConstBandOutputMode = 'newcol'  % 'newcol' or 'replace'
                 Args.ConstBandPrefix = 'MAG_CB_'     % Prefix for constant-band mag columns
+                Args.RefSpecSlopePerSource = []      % [Nrows x 1] optional explicit per-source reference-spectrum slope alpha. Overrides the colour-column derivation below. Empty (default) -> scalar RefSpecSlope path unchanged.
+                Args.RefSpecSlopeColorCol char = ''  % Column name to derive a per-source alpha from (e.g. 'BP_RP'). Off by default ('').
+                Args.RefSpecSlopeCoef (1,1) double = 0    % dAlpha/dColor for the colour-column derivation: alpha = RefSpecSlope + RefSpecSlopeCoef*(color - RefColor).
+                Args.RefSpecSlopeColorRef (1,1) double = NaN  % Reference colour subtracted before applying the coefficient. NaN (default) -> median of the finite colour values.
             end
 
             % Vega magnitude system placeholder — not yet implemented
@@ -4458,6 +4486,31 @@ classdef PhotCalibTrans < Component
                 end
             end
 
+            % Optional per-source reference-spectrum slope (add-on). Default
+            % off -> AlphaPerSource stays [] and the scalar RefSpecSlope path
+            % is used, leaving behaviour identical to before. An explicit
+            % vector takes precedence over the colour-column derivation.
+            AlphaPerSource = [];
+            if ~isempty(Args.RefSpecSlopePerSource)
+                AlphaPerSource = Args.RefSpecSlopePerSource(:);
+            elseif ~isempty(Args.RefSpecSlopeColorCol)
+                if ismember(Args.RefSpecSlopeColorCol, AllColNames)
+                    Color    = Tab.(Args.RefSpecSlopeColorCol);
+                    Color    = Color(:);
+                    RefColor = Args.RefSpecSlopeColorRef;
+                    if ~isfinite(RefColor)
+                        RefColor = median(Color(isfinite(Color)), 'omitnan');
+                    end
+                    AlphaPerSource = Obj.RefSpecSlope + Args.RefSpecSlopeCoef .* (Color - RefColor);
+                    % Fall back to the scalar slope where the colour is missing.
+                    AlphaPerSource(~isfinite(AlphaPerSource)) = Obj.RefSpecSlope;
+                else
+                    Obj.msgLog(LogLevel.Warning, ...
+                        'addMag: RefSpecSlopeColorCol ''%s'' not found; using scalar RefSpecSlope.', ...
+                        Args.RefSpecSlopeColorCol);
+                end
+            end
+
             % Compute ZP once for all flux columns
             Nrows = height(Tab);
             ZP = nan(Nrows, 1);
@@ -4490,6 +4543,9 @@ classdef PhotCalibTrans < Component
                 end
                 if ~isempty(PerSourceZenithAngles)
                     ZPArgs = [ZPArgs, 'PerSourceZenithAngles', PerSourceZenithAngles(ValidPosMask)];
+                end
+                if ~isempty(AlphaPerSource)
+                    ZPArgs = [ZPArgs, 'RefSpecSlopePerSource', AlphaPerSource(ValidPosMask)];
                 end
                 ZP_valid = Obj.evaluateZP(ZPArgs{:});
                 ZP(ValidPosMask) = ZP_valid(:);
