@@ -267,6 +267,9 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         Args.boundingCircleArgs           = {};
         
         Args.MatchMethod                  = 'old'; % 'old'|'mex'
+
+        Args.AddColor logical             = false; % optionally attach Gaia colour (BP-RP) to the source catalog (issue #1289)
+        Args.AddColorArgs cell            = {};    % extra args forwarded to imProc.cat.addColor
     end
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
@@ -610,6 +613,12 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                 end
                 if ~isempty(Args.SortCat)
                     Cat = sortrows(Cat, Args.SortCat);
+                end
+
+                % Optionally attach Gaia colour (BP-RP) to the source catalog
+                % (issue #1289), reusing this element's astrometric reference.
+                if Args.AddColor
+                    Cat = imProc.cat.addColor(Cat, 'RefCat', AstrometricCat(Iobj), Args.AddColorArgs{:});
                 end
 
                 if isa(Obj, 'AstroImage')

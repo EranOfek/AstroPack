@@ -257,6 +257,9 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.FilterCat logical            = true;
 
         Args.MatchMethod                  = 'old'; % 'old'|'mex'
+
+        Args.AddColor logical             = false; % optionally attach Gaia colour (BP-RP) to the source catalog (issue #1289)
+        Args.AddColorArgs cell            = {};    % extra args forwarded to imProc.cat.addColor
     end
     RAD         = 180./pi;
     ARCSEC_DEG  = 3600;
@@ -633,8 +636,15 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                     if ~isempty(Args.SortCat)
                         Cat = sortrows(Cat, Args.SortCat);
                     end
-    
-    
+
+                    % Optionally attach Gaia colour (BP-RP) to the source
+                    % catalog (issue #1289), reusing the astrometric reference
+                    % already loaded to avoid a second catsHTM query.
+                    if Args.AddColor
+                        Cat = imProc.cat.addColor(Cat, 'RefCat', AstrometricCat, Args.AddColorArgs{:});
+                    end
+
+
                     % update the Obj with the new CatData and new header:
                     if isa(Obj, 'AstroImage')
                         Obj(Iobj).CatData = Cat;
