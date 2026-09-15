@@ -15,7 +15,7 @@ function Result = unitTest()
     toc
     tic;
     for I=1:1:N
-        [R(I),BF] = imUtil.psf.fitFunPSF(G(:,:,I), 'Funs',{@imUtil.kernel2.gauss}, 'Par0',{[2 2 0],[1]}, 'Norm0',[1 1]);
+        [R(I),BF] = imUtil.psf.fitFunPSF(G(:,:,I), 'Funs',{@imUtil.kernel2.gauss}, 'Par0',{[2 2 0]}, 'Norm0',1);
     end
     toc
     Par=reshape([R.Par],4,1000)';
