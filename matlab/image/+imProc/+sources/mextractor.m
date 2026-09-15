@@ -212,7 +212,7 @@ function [Result, SourceLess] = mextractor(Obj, Args)
                 end
                 ShiftedPSF = ShiftedPSF./sum(ShiftedPSF,[1 2]); % renormalize
             else
-                ShiftedPSF = imUtil.psf.suppressEdges(Res.ShiftedPSF, 'Fun',@imUtil.kernel2.cosbell, 'FunPars', [5, 8], 'Norm', true);
+                ShiftedPSF = imUtil.psf.suppressEdges(Res.ShiftedPSF, 'Fun',@imUtil.kernel2.cosbell, 'FunPars', 2, 'Norm', true);
             end            
     
             % subtract the newly found and measured sources:

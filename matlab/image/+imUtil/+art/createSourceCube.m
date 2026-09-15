@@ -13,6 +13,7 @@ function [CubePSF, XY] = createSourceCube(PSF0, X1Y1, Flux, Args)
     %                       false (just round the X1Y1 values to XY and do not shift the PSF)
     %          'RecenterMethod' - 'lanczos' (default), 'fft', or 'nearest'; usually 'nearest' goes with Oversampling > 1
     %          'FixPSFWings' - logical, whether to suppress PSF wings 
+    %          'ExtendedSize' - forwarded to imUtil.psf.wingsFix. Default is [].
     %          'EmptyPSFsize' - size of the output empty PSF for the case when an empty PSF was given at input
     % Output : - a cube / cell array of shifted, rescaled and fluxed PSF stamps
     %          - a 2-column (X, Y) table of whole pixel injection positions
@@ -39,6 +40,7 @@ function [CubePSF, XY] = createSourceCube(PSF0, X1Y1, Flux, Args)
         Args.SuppressFun         = @imUtil.kernel2.cosbell;
         Args.SuppressThreshold   = 1e-3;
         Args.SuppressFunPars     = 3; % or # from edge
+        Args.ExtendedSize        = [];   % forwarded to imUtil.psf.wingsFix
         Args.EmptyPSFsize        = [25 25];
     end
 

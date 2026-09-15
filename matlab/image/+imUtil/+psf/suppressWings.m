@@ -47,7 +47,7 @@ function [PSF, InnerRad, ExtendedPSF] = suppressWings(PSF, Args)
         % use cosbell with pre define parameters
         if isscalar(Args.FunPars)
             
-            Args.FunPars = [HalfSize-Args.FunPars, Args.FunPars];
+            Args.FunPars = [HalfSize-Args.FunPars, HalfSize];
         end
     else
         % set InnerRadius based on PSF radial profile < Threshold

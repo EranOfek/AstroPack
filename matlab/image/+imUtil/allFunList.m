@@ -243,6 +243,7 @@
 % imUtil.psf.shiftResampleRotate - Resample a PSF stack / cell array downto Oversampling = 1, make it odd-sized, rotate and shift
 %          imUtil.psf.specWeight - Make source PSFs at certain pixel distances on the detector weighted with the given spectra of the sources
 %       imUtil.psf.suppressEdges - Multiply the PSF by edge suppressing function (e.g., cosbell).
+%   imUtil.psf.suppressEdgesPars - Convert a scalar taper width into [inner, outer] radii for a stamp size.
 %            imUtil.psf.unitTest - Package Unit-Test
 % imUtil.psf.mex.radialProfile_mex - Calculate the meand and std radial profile around a point in an image
 %      imUtil.sources.allFunList - Functions and Classes list for the imUtil.sources package

@@ -5,6 +5,7 @@ function [SubtractedImage, SourceImage] = subtractSources(Image, PSF, Args)
     %       This function is used by the multi-iteration PSF-fitting code.
     % Input  : - An image (2D matrix).
     %          - A PSF stamp, or PSF cube (PSF index in the third dim.)
+    %            Stamps must be odd-sized (required by imUtil.art.addSources).
     %          * ...,key,val,... 
     %            'X' - X coordinate of sources, or alternatively roundex X
     %                   coordinates. In the latter, the DX argument must be
@@ -25,8 +26,10 @@ function [SubtractedImage, SourceImage] = subtractSources(Image, PSF, Args)
     %            'SupressPSF' - A function handle that will be used to
     %                   supress the PSF edges. If empty, then skip.
     %                   Default is @imUtil.kernel2.cosbell
-    %            'SupressPSFArgs' - Arguments to pass to the SupressPSF
-    %                   function. Default is [5 8].
+    %            'SupressPSFArgs' - FunPars to pass to the SupressPSF
+    %                   function via imUtil.psf.suppressEdges: a scalar
+    %                   taper width in pixels from the stamp outer radius,
+    %                   or explicit [inner, outer] radii. Default is 2.
     %            'NormPSF' - A logical indicating if to normalize the PSF
     %                   to 1. Default is true.
     %            See additional arguments for ds9 region files in the code.
@@ -51,7 +54,7 @@ function [SubtractedImage, SourceImage] = subtractSources(Image, PSF, Args)
         Args.ShiftMethod       = 'fft';
 
         Args.SupressPSF        = @imUtil.kernel2.cosbell;  % if empty, skip
-        Args.SupressPSFArgs    = [5 8];
+        Args.SupressPSFArgs    = 2;
         Args.NormPSF           = true;
 
         Args.RegionFile        = []; %If empty, do not write ds9 region file

@@ -126,6 +126,63 @@ function Result = unitTest()
         end
     end
 
+    %% imUtil.psf.suppressEdges / imUtil.psf.suppressEdgesPars
+    % A scalar FunPars W is a taper width from the stamp outer radius R:
+    % the cosbell must be 1 at R-W, 0.5 at R-1 (for W=2) and exactly 0 at
+    % R along the axis, for odd and even N alike. R is the largest on-axis
+    % radius about the imUtil.kernel2 center ceil(N/2): (N-1)/2 for odd N,
+    % N/2 for even N.
+    for N = [15 16 24 25]
+        Cen = ceil(N/2);
+        R   = N - Cen;
+        FunPars = imUtil.psf.suppressEdgesPars(2, [N N]);
+        if any(FunPars ~= [R-2, R])
+            error('Problem with imUtil.psf.suppressEdgesPars: N=%d', N);
+        end
+        % a flat input exposes the taper itself
+        T = imUtil.psf.suppressEdges(ones(N,N), 'Norm',false);
+        Row = T(Cen, :);
+        if abs(Row(Cen+R-2)-1)>1e-12 || abs(Row(Cen+R-1)-0.5)>1e-12 || Row(Cen+R)~=0 || any(Row(Cen:Cen+R-2)~=1)
+            error('Problem with imUtil.psf.suppressEdges: taper values for N=%d', N);
+        end
+        % the far edge (at distance R from the center) is zero; the near
+        % edge is at distance Cen-1, i.e. R for odd N (zero) and R-1 for
+        % even N (0.5 on the axis)
+        NearVal = 0.5.*(mod(N,2)==0);
+        if any(T(end,:)~=0) || any(T(:,end)~=0) || abs(T(Cen,1)-NearVal)>1e-12 || abs(T(1,Cen)-NearVal)>1e-12
+            error('Problem with imUtil.psf.suppressEdges: edge values for N=%d', N);
+        end
+        % Norm=false must not change the flux scale of the untapered core
+        % (the taper is peak-normalized to 1, not sum-normalized)
+        P = imUtil.kernel2.gauss(1, [N N]);
+        S = imUtil.psf.suppressEdges(P, 'Norm',false);
+        if abs(S(Cen,Cen) - P(Cen,Cen))>1e-12
+            error('Problem with imUtil.psf.suppressEdges: Norm=false rescales the PSF for N=%d', N);
+        end
+        % explicit [inner outer] radii are used as is
+        T2 = imUtil.psf.suppressEdges(ones(N,N), 'FunPars',[3 5], 'Norm',false);
+        Row2 = T2(Cen, :);
+        if abs(Row2(Cen+3)-1)>1e-12 || abs(Row2(Cen+4)-0.5)>1e-12 || Row2(Cen+5)~=0
+            error('Problem with imUtil.psf.suppressEdges: explicit FunPars for N=%d', N);
+        end
+    end
+    % non-square: the outer radius follows the shorter axis
+    FunPars = imUtil.psf.suppressEdgesPars(2, [21 15]);
+    if any(FunPars ~= [5 7])
+        error('Problem with imUtil.psf.suppressEdgesPars: non-square stamp');
+    end
+    % cube: each slice is tapered and normalized independently
+    C = imUtil.psf.suppressEdges(rand(25,25,3));
+    if any(abs(squeeze(sum(C,[1 2])) - 1)>1e-12) || any(C(1,:,:)~=0, 'all')
+        error('Problem with imUtil.psf.suppressEdges: cube');
+    end
+    % the default taper keeps the flux of a PSF much narrower than the stamp
+    P = imUtil.kernel2.gauss(2, [25 25]);
+    S = imUtil.psf.suppressEdges(P, 'Norm',false);
+    if sum(S,'all') < 0.999
+        error('Problem with imUtil.psf.suppressEdges: default taper removes flux');
+    end
+
     %% imUtil.psf.radialProfile / imUtil.psf.mex.radialProfile_mex
 
     K = imUtil.kernel2.gauss;

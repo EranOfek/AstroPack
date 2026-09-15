@@ -263,7 +263,7 @@ function Result = FitRestoreSubtract(AI, Args)
     end
     
     if Args.SuppressEdges
-        SPSF = imUtil.psf.suppressEdges(ShiftedPSF, 'Fun',@imUtil.kernel2.cosbell, 'FunPars', [5, 8]);
+        SPSF = imUtil.psf.suppressEdges(ShiftedPSF, 'Fun',@imUtil.kernel2.cosbell, 'FunPars', 2);
     else
         SPSF = ShiftedPSF;
     end

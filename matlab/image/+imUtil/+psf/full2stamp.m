@@ -16,8 +16,10 @@ function StampCube = full2stamp(FullCube, StampSizeIJ, Args)
     %                   imUtil.psf.suppressEdges to supress PSF wings.
     %                   Default is true.
     %           'SupressFunPars' - The FunPars argument to pass to the
-    %                   imUtil.psf.suppressEdges function.
-    %                   Default is [5 7].
+    %                   imUtil.psf.suppressEdges function: a scalar taper
+    %                   width in pixels from the stamp outer radius, or
+    %                   explicit [inner, outer] cosbell radii.
+    %                   Default is 2.
     %           'suppressEdgesArgs' - A cell array of additional arguments
     %                   to pass to: imUtil.psf.suppressEdges
     %                   Default is {}.
@@ -40,7 +42,7 @@ function StampCube = full2stamp(FullCube, StampSizeIJ, Args)
         StampSizeIJ
         Args.FullPosition      = "center";
         Args.Supress           = true;
-        Args.SupressFunPars    = [5 7];
+        Args.SupressFunPars    = 2;
         Args.suppressEdgesArgs = {};
     end
 

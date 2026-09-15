@@ -944,11 +944,16 @@ classdef AstroPSF < Component
             % Input  : - An AstroPSF object.
             %          * ...,key,val,...
             %            'Fun' - A 2-D function that will multiply the PSF.
-            %                   The function is of the form F(Pars, SizeXY)
+            %                   The function is of the form F(Pars, SizeXY).
+            %                   Its output is normalized to unit peak before
+            %                   use, so it acts as a [0,1] taper.
             %                   Default is @imUtil.kernel2.cosbell
-            %            'FunPars' - Vector of parameters that will be
-            %                   passed as the first argument to the Fun.
-            %                   Default is 5 7
+            %            'FunPars' - Parameters passed as the first argument
+            %                   to Fun. A scalar is the taper width in pixels
+            %                   from the stamp outer radius (see
+            %                   imUtil.psf.suppressEdgesPars); a two-element
+            %                   vector is used as is ([inner, outer] radii).
+            %                   Default is 2.
             %            'MultVar' - Multiply also the DataVar property.
             %                   Default is false.
             %            'Norm' - A logical indicating if to normalize the
@@ -964,7 +969,7 @@ classdef AstroPSF < Component
             arguments
                 Obj
                 Args.Fun                     = @imUtil.kernel2.cosbell;
-                Args.FunPars                 = [5 7];
+                Args.FunPars                 = 2;
                 Args.MultVar logical         = false;
                 Args.Norm logical            = true;
                 Args.CreateNewObj logical    = false;                
@@ -977,8 +982,12 @@ classdef AstroPSF < Component
             end
             
             Nobj = numel(Obj);
-            Size = size(Result(1).DataPSF);
-            Fun  = Args.Fun(Args.FunPars, [Size(2) Size(1)]);
+            Size    = size(Result(1).DataPSF);
+            SizeXY  = [Size(2) Size(1)];
+            FunPars = imUtil.psf.suppressEdgesPars(Args.FunPars, SizeXY);
+            % peak-normalize: a [0,1] taper, so the flux scale is preserved
+            Fun  = Args.Fun(FunPars, SizeXY);
+            Fun  = Fun./max(Fun, [], 'all');
             for Iobj=1:1:Nobj
                 Result(Iobj).DataPSF  = Result(Iobj).DataPSF .* Fun;
                 if Args.Norm
