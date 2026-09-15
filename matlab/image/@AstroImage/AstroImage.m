@@ -533,6 +533,21 @@ classdef AstroImage < Component
                 end
                 Obj = AstroImage.imageIO2AstroImage(ImIO, Args.DataProp, Args.Scale, Args.FileNames, Args.ReadHeader, Args.Obj);
             catch ME
+                % Only a file name which matches nothing is skipped with a
+                % warning; any other failure (e.g. a header which cannot be
+                % parsed) is rethrown - reporting it as "not found" hid the
+                % real cause (issue #1285).
+                IsFileSpec = ischar(FileName) || isstring(FileName) || iscellstr(FileName);
+                if IsFileSpec
+                    try
+                        Found = io.files.filelist(FileName, 'UseRegExp',Args.UseRegExp);
+                    catch
+                        Found = {};
+                    end
+                end
+                if ~IsFileSpec || ~isempty(Found)
+                    rethrow(ME);
+                end
                 if iscell(FileName) || isstring(FileName)
                     Tmp = FileName{1};
                 else

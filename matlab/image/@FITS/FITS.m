@@ -192,7 +192,10 @@ classdef FITS < handle
                                    if isempty(Islash)
                                        UpdatedComPos = max(ComPos,KeyPos+1+PosClose);
                                    else
-                                       UpdatedComPos = Islash(Islash>KeyPos+1+PosClose);
+                                       % first slash after the closing quote (a comment
+                                       % may itself contain slashes; a vector here is a
+                                       % colon-operand error from R2025b on, issue #1285)
+                                       UpdatedComPos = Islash(find(Islash>KeyPos+1+PosClose, 1));
                                    end
                                else
                                    UpdatedComPos = Islash(1);
