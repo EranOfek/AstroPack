@@ -52,7 +52,8 @@ classdef ImageIO < Component
             %            'HDU' - HDU number of HDF5 dataset name.
             %                   Default is 1.
             %            'FileType' - [] will attempt to identify
-            %                   automatically. Otherwise, 'fits' | 'hdf5'.
+            %                   automatically. Otherwise, 'fits' | 'hdf5' |
+            %                   'tiff' (see io.tiff.read1; HDU is the page).
             %                   Default is [].
             %            'ReadHeader' - Default is true.
             %            'IsTable' - True if attempt to read table.
@@ -166,7 +167,8 @@ classdef ImageIO < Component
             %            'HDU' - HDU number of HDF5 dataset name.
             %                   Default is 1.
             %            'FileType' - [] will attempt to identify
-            %                   automatically. Otherwise, 'fits' | 'hdf5'.
+            %                   automatically. Otherwise, 'fits' | 'hdf5' |
+            %                   'tiff' (see io.tiff.read1; HDU is the page).
             %                   Default is [].
             %            'IsTable' - True if attempt to read table.
             %                   Default is false.
@@ -214,6 +216,8 @@ classdef ImageIO < Component
                         Args.FileType = 'fits';
                     case {'hdf5','h5','hd5'}
                         Args.FileType = 'hdf5';
+                    case {'tif','tiff'}
+                        Args.FileType = 'tiff';
                     otherwise
                         Args.FileType = 'other';
                 end
@@ -245,6 +249,18 @@ classdef ImageIO < Component
                     
                 case 'hdf5'
                     error('hdf5 is not yet supported');
+                    
+                case 'tiff'
+                    if Args.IsTable
+                        error('IsTable is true while file type is tiff');
+                    end
+                    if ~Args.ReadData
+                        Header = io.tiff.readHeader1(FileName, 'Page',Args.HDU);
+                    elseif nargout<2
+                        Data = io.tiff.read1(FileName, 'Page',Args.HDU, 'CCDSEC',Args.CCDSEC);
+                    else
+                        [Data, Header] = io.tiff.read1(FileName, 'Page',Args.HDU, 'CCDSEC',Args.CCDSEC);
+                    end
                     
                 otherwise
                     if Args.IsTable
