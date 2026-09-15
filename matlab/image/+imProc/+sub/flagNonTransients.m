@@ -56,7 +56,9 @@ function TranCat = flagNonTransients(Obj, Args)
                 'BadPix_SoftMinScore' - |SCORE| below which a candidate on a
                        BadPix_Soft pixel is flagged on the mask alone, since
                        a faint defect cannot be told from a point source by
-                       shape. Default is 12.
+                       shape. Not applied when smearTemplate reports
+                       Info.NoSmear, i.e. the coadd holds no smear at all.
+                       Default is 12.
 
                 'flagSubVisit' - Flag inconsistent saturation between N and R.
                        Default is true.
@@ -923,7 +925,22 @@ function TranCat = flagNonTransients(Obj, Args)
             % alignment, of order 2 per cent of the detector, which bounds
             % what this costs. Independent of the smear calibration, so it
             % applies even when no template or threshold could be built.
-            BadPixSoft = Noisy & abs(Score) < Args.BadPix_SoftMinScore;
+            %   Except when there is no smear in this coadd at all.
+            % imProc.sub.smearTemplate sets Info.NoSmear when the drift is
+            % about a pixel per epoch or more: each defect deposit then lands
+            % on its own pixel, the clip removes it, and no smear survives to
+            % be filtered. Faint marked candidates there are not smear
+            % artifacts, so the floor would cost completeness with nothing to
+            % catch.
+            NoSmear = ~isempty(Obj(Iobj).SmearTemplateInfo) && ...
+                      isfield(Obj(Iobj).SmearTemplateInfo, 'NoSmear') && ...
+                      Obj(Iobj).SmearTemplateInfo.NoSmear;
+
+            if NoSmear
+                BadPixSoft = false(NumCand,1);
+            else
+                BadPixSoft = Noisy & abs(Score) < Args.BadPix_SoftMinScore;
+            end
 
             if CandCat.isColumn('SN_smear')
                 SN_smear = CandCat.getCol('SN_smear');
