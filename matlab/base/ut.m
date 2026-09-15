@@ -5,7 +5,7 @@
 % Usage:
 %   ut.bpush() - Runs all Unit-Tests before git push
 %                If errors found, you should NOT push your changes to the main 
-%                working branch (dev1/master/etc.)
+%                working branch (main)
 %
 
 % #functions (autogen)

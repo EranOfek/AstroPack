@@ -46,7 +46,7 @@ Tests are function-based (return `functiontests(localfunctions)`), not class-bas
 ## Installation
 
 ```bash
-git clone <repo> && git checkout dev1
+git clone <repo> && git checkout main
 ```
 
 In MATLAB: `edit manuals.Install`. See also `config/Installer.yml`.

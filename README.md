@@ -7,7 +7,7 @@ Main Developers: <a href="https://www.weizmann.ac.il/physics/ofek/home">Eran Ofe
 
 ## Installation:
 1. git clone <this package>
-2. git checkout dev1
+2. git checkout main
 3. From matlab: edit manuals.  Install, and follow the instructions.
 
 For detailed installation instruction, see the <a href="https://github.com/EranOfek/AstroPack/wiki/Install">Install wiki page</a>.

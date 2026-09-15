@@ -9,7 +9,7 @@
 % UnitTester -
 % Warn -
 % beforePush - Call to perform tests before git push - PUSH ONLY IF ALL TESTS PASS
-% doBeforePush - Run all required tests before 'git push' command WARNING: DO NOT PUSH to common branch (currently: 'dev1') if there are failed tests!
+% doBeforePush - Run all required tests before 'git push' command WARNING: DO NOT PUSH to common branch (currently: 'main') if there are failed tests!
 % doPerfTest - Run all Performance tests
 % doStressTest - Run all Stress tests
 % doTest - Run all unit-tests and show report
@@ -167,7 +167,7 @@ classdef UnitTester < handle
 
         function Result = doBeforePush(Obj)
             % Run all required tests before 'git push' command
-            % WARNING: DO NOT PUSH to common branch (currently: 'dev1') if there are failed tests!
+            % WARNING: DO NOT PUSH to common branch (currently: 'main') if there are failed tests!
             % Output:  true on success
             % Example: Obj.doBeforePush()
             

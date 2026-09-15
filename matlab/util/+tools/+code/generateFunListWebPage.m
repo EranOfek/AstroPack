@@ -18,7 +18,7 @@ function generateFunListWebPage(Args)
             % a local machine link:
             List(Icell).Link = sprintf('%s%s%s%s%s', '<a href="', List(Icell).FullPath,'">',List(Icell).FunName,'</a>');
             % relink to Github:
-            List(Icell).Link = regexprep(List(Icell).Link, 'href=".*AstroPack/','href="https://github.com/EranOfek/AstroPack/tree/dev1/'); 
+            List(Icell).Link = regexprep(List(Icell).Link, 'href=".*AstroPack/','href="https://github.com/EranOfek/AstroPack/tree/main/'); 
         end
         
     TableCell = [{List.Link}.', {List.FunFullName}.', {List.ClassName}.', {List.Year}.', {List.Month}.', {List.DescriptionLine}.'];
@@ -27,7 +27,7 @@ function generateFunListWebPage(Args)
     % make a text-style description for the Git Wiki page:
     for Icell=1:Ncell
         Nshort = regexprep(List(Icell).FullPath,'.*AstroPack/','');
-        Lnk = sprintf('%s','https://github.com/EranOfek/AstroPack/tree/dev1/',Nshort);
+        Lnk = sprintf('%s','https://github.com/EranOfek/AstroPack/tree/main/',Nshort);
         Str = strcat('* **',List(Icell).FunFullName,'** :',List(Icell).Year,'/',List(Icell).Month,' [',...
             List(Icell).DescriptionLine,' ](',Lnk,')');
         fprintf(FID,'%s\n',Str);
