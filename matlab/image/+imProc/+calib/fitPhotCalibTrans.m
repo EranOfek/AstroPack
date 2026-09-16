@@ -395,6 +395,9 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % full-exposure source) is written to the header by default; downstream
         % imProc.calib.backmag/limmag read it.
         Args.EvaluatePhotZP  logical = true
+        Args.EvaluateColorTerm logical = true   % measure dMag/dalpha for this image -> PT_CTA/PT_CTAE/PT_REFC (issue #1287); does not modify the ZP
+        Args.AlphaProbe (1,1) double = 2.0      % second reference-spectrum slope used for the PT_CTA finite difference
+        Args.RefColor   (1,1) double = 1.2026   % anchor colour BP_RP where the colour term vanishes (alpha(RefColor) = RefSpecSlope)
         % LIMMAG/BACKMAG stay OFF here by default: the LAST pipeline computes
         % them with the standalone imProc.calib.limmag / imProc.calib.backmag
         % (which read PT_ZP), and legacy fitPhotCalibMag still writes them.
@@ -826,6 +829,13 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
             % Photometric zero point at image centre (header keyword PT_ZP).
             if Args.EvaluatePhotZP
                 PC = PC.evaluatePhotZP();
+            end
+
+            % Colour-term sensitivity of this image (header PT_CTA/PT_CTAE/PT_REFC,
+            % issue #1287). Records dMag/dalpha; does not modify the ZP.
+            if Args.EvaluateColorTerm
+                PC = PC.evaluateColorTerm('AlphaProbe', Args.AlphaProbe, ...
+                                          'RefColor',   Args.RefColor);
             end
 
             % Limiting magnitude and sky surface brightness (legacy LIMMAG/BACKMAG)
