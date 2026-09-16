@@ -5,8 +5,13 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
     %   sub-directory (e.g., PTC_int_hr) with a PTC_Config.xlsx and the
     %   TIFF frames <Base>_<Test>_#<Step>_<Type>_<Index>.tif, where Type is
     %   B (bright), D (dark), or ZE (zero exposure).
+    %   Each TIFF holds the low-gain and the high-gain readout of the same
+    %   pixels as two contiguous halves (left = low, right = high). By
+    %   default the high-gain half is returned in the DESY orientation
+    %   (transposed and rotated by 180 deg), in which the DESY analysis
+    %   regions are defined; see 'Gain' and 'Orient'.
     %   Each output AstroImage gets the TIFF header (see io.tiff.read1) plus
-    %   keys from the sidecars: LOTID, WAFERID, DEVICE, RUNNO, OPERATOR,
+    %   GAINSEL, ORIENT, RAWSEC and keys from the sidecars: LOTID, WAFERID, DEVICE, RUNNO, OPERATOR,
     %   STATION, TESTSEQ, SEQREV, TESTTEMP, CHUCKTMP, TESTNAME, FRMTYPE,
     %   STEP, FRMINDEX, EXPTIME, INTENS, DATE-OBS (file time, UTC),
     %   TESTSTRT/TESTEND (lab local time), PASS, SOFTBIN, supply voltages
@@ -26,10 +31,19 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
     %            'ReadImage' - Read the pixel data. If false, only the
     %                   headers are populated (fast inventory).
     %                   Default is true.
-    %            'CCDSEC' - [Xmin Xmax Ymin Ymax] section to read.
-    %                   Default is [].
-    %            'FlipUD' - Flip the frames vertically (FITS row order).
-    %                   Default is false.
+    %            'Gain' - Which readout to return: 'high' (right half of
+    %                   the TIFF), 'low' (left half), or 'raw' (the whole
+    %                   TIFF as stored). Default is 'high'.
+    %            'Orient' - Orientation of the returned image: 'desy'
+    %                   (transposed and rotated by 180 deg, i.e. the numpy
+    %                   orientation of the DESY analysis, 4741x4742 for a
+    %                   half) or 'tiff' (as stored). Default is 'desy'.
+    %            'CCDSEC' - [Xmin Xmax Ymin Ymax] section to read, in the
+    %                   returned orientation (after Gain/Orient, before
+    %                   FlipUD). Mapped to the raw TIFF so only that
+    %                   section is read. Default is [].
+    %            'FlipUD' - Flip the returned frames vertically (FITS row
+    %                   order). Default is false.
     %            'Verbosity' - 0 silent, 1 report progress. Default is 0.
     % Output : - An AstroImage column array, sorted by frame type (B, D,
     %            ZE), step, and frame index.
@@ -39,6 +53,7 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
     %            Calib (see ultrasat.lab.readResult, readLog, readPTCConfig).
     % Author : Sasha Krassilchtchikov (Sep 2026)
     % Example: AI = ultrasat.lab.readPTC('LOT_TH02954_W08_D02', 'FrameType','D');
+    %          AI = ultrasat.lab.readPTC('LOT_TH02954_W08_D02', 'Gain','low', 'Orient','tiff');
     %          [~, Frames] = ultrasat.lab.readPTC('LOT_TH02954_W08_D02', 'ReadImage',false);
     %          AI = ultrasat.lab.readPTC('LOT_TH02954_W08_D02', 'FrameType','B', 'Step',10, 'CCDSEC',[1 1000 1 1000]);
 
@@ -49,6 +64,8 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
         Args.Step                     = [];
         Args.FrameIndex               = [];
         Args.ReadImage(1,1) logical   = true;
+        Args.Gain                     = 'high';
+        Args.Orient                   = 'desy';
         Args.CCDSEC                   = [];
         Args.FlipUD(1,1) logical      = false;
         Args.Verbosity(1,1) double    = 0;
@@ -117,11 +134,7 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
         end
         [ExpTime(If), Intensity(If)] = frameExposure(P(If), Sidecar.Config);
         try
-            if Args.ReadImage
-                [AI(If).Image, TiffHeader] = io.tiff.read1(File, 'CCDSEC',Args.CCDSEC, 'FlipUD',Args.FlipUD);
-            else
-                TiffHeader = io.tiff.readHeader1(File);
-            end
+            [AI(If).Image, TiffHeader] = readFrame(File, Args);
             DateObs{If} = TiffHeader{strcmp(TiffHeader(:,1), 'FILEDATE'), 2};
             FrameHeader = {'DATE-OBS', DateObs{If},      'File modification time (UTC)';
                            'FRMTYPE',  P(If).FrameType,  'Frame type: B bright, D dark, ZE zero exposure';
@@ -138,6 +151,74 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
 
     Frames = table({TifFiles.name}.', {P.FrameType}.', [P.Step].', [P.FrameIndex].', ExpTime, Intensity, DateObs, ...
                    'VariableNames', {'FileName','FrameType','Step','FrameIndex','ExpTime','Intensity','DateObs'});
+end
+
+function [Image, Header] = readFrame(File, Args)
+    % read one frame (or its header) with gain-half selection and orientation
+    Info = imfinfo(File);
+    G = frameGeometry(Info(1).Width, Info(1).Height, Args.Gain, Args.Orient, Args.CCDSEC);
+    if Args.ReadImage
+        [Image, Header] = io.tiff.read1(File, 'CCDSEC',G.RawSec);
+        if strcmpi(Args.Orient, 'desy')
+            Image = rot90(Image.', 2);
+        end
+        if Args.FlipUD
+            Image = flipud(Image);
+        end
+        Header(strcmp(Header(:,1), 'CCDSEC'), :) = [];
+        Header{strcmp(Header(:,1), 'FLIPUD'), 2} = Args.FlipUD;
+    else
+        Image  = [];
+        Header = io.tiff.readHeader1(File, 'Info',Info);
+    end
+    Header{strcmp(Header(:,1), 'NAXIS1'), 2} = G.OutSize(2);
+    Header{strcmp(Header(:,1), 'NAXIS2'), 2} = G.OutSize(1);
+    Header(end+1,:) = {'GAINSEL', lower(Args.Gain),   'Readout half: high, low, or raw'};
+    Header(end+1,:) = {'ORIENT',  lower(Args.Orient), 'desy: transposed + rot180; tiff: as stored'};
+    Header(end+1,:) = {'RAWSEC',  sprintf('[%d:%d,%d:%d]', G.RawSec), 'Section of the TIFF read [x1:x2,y1:y2]'};
+    if ~isempty(Args.CCDSEC)
+        Header(end+1,:) = {'CCDSEC', sprintf('[%d:%d,%d:%d]', Args.CCDSEC), 'Section in the returned orientation'};
+    end
+end
+
+function G = frameGeometry(Width, Height, Gain, Orient, CCDSEC)
+    % raw TIFF section [Xmin Xmax Ymin Ymax] and output size for a gain half,
+    % an orientation and a section given in the output orientation
+    switch lower(Gain)
+        case 'raw'
+            Xoff = 0;  Wh = Width;
+        case {'high', 'low'}
+            if mod(Width, 2)~=0
+                error('ultrasat:lab:readPTC:halves', 'Width %d is odd: cannot split into gain halves', Width);
+            end
+            Wh = Width/2;
+            if strcmpi(Gain, 'high')
+                Xoff = Wh;
+            else
+                Xoff = 0;
+            end
+        otherwise
+            error('ultrasat:lab:readPTC:gain', 'Unknown Gain %s (high|low|raw)', Gain);
+    end
+    switch lower(Orient)
+        case 'tiff'
+            if isempty(CCDSEC)
+                CCDSEC = [1 Wh 1 Height];
+            end
+            G.RawSec = [Xoff+CCDSEC(1), Xoff+CCDSEC(2), CCDSEC(3), CCDSEC(4)];
+        case 'desy'
+            % D = rot90(Half.', 2): D(i,j) = Half(Height-j+1, Wh-i+1)
+            if isempty(CCDSEC)
+                CCDSEC = [1 Height 1 Wh];
+            end
+            G.RawSec = [Xoff+Wh-CCDSEC(4)+1, Xoff+Wh-CCDSEC(3)+1, Height-CCDSEC(2)+1, Height-CCDSEC(1)+1];
+        otherwise
+            error('ultrasat:lab:readPTC:orient', 'Unknown Orient %s (desy|tiff)', Orient);
+    end
+    G.OutSize = [CCDSEC(4)-CCDSEC(3)+1, CCDSEC(2)-CCDSEC(1)+1];
+    if any(G.RawSec<1) || G.RawSec(2)>Width || G.RawSec(4)>Height
+        error('ultrasat:lab:readPTC:ccdsec', 'CCDSEC [%d %d %d %d] is outside the %dx%d %s image', CCDSEC, G.OutSize(2), G.OutSize(1), Gain);
+    end
 end
 
 function [ExpTime, Intensity] = frameExposure(P, Config)

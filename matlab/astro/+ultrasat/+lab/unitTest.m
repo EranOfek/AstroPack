@@ -85,8 +85,8 @@ function Result = unitTest()
     assert(C.PTC_ExpTime==15 && isequal(C.Dark_ExpTime,[15 30 60]) && isequal(C.Bright_Intensity,[1e-5 2e-5]));
     assert(C.ChuckTemperature==-50 && C.zVDDA==3.3 && C.zDUT_ADC_CAP==5);
 
-    % readPTC: all frames, sorted B, D, ZE / step / index
-    [AI, Frames, S] = ultrasat.lab.readPTC(Dev);
+    % readPTC: all frames, sorted B, D, ZE / step / index (raw frames, as stored)
+    [AI, Frames, S] = ultrasat.lab.readPTC(Dev, 'Gain','raw', 'Orient','tiff');
     assert(numel(AI)==6 && height(Frames)==6);
     assert(isequal(Frames.FrameType.', {'B','B','D','D','D','ZE'}));
     assert(isequal(Frames.Step.', [1 2 1 3 3 1]) && isequal(Frames.FrameIndex.', [1 1 1 1 2 1]));
@@ -97,17 +97,36 @@ function Result = unitTest()
     assert(strcmp(H.getVal('FRMTYPE'),'D') && H.getVal('STEP')==3 && H.getVal('EXPTIME')==60 && H.getVal('INTENS')==0);
     assert(H.getVal('CHUCKTMP')==-50 && H.getVal('VDDA')==3.3 && H.getVal('CAL_ADC')==2 && H.getVal('PASS')==1);
     assert(strcmp(H.getVal('TESTSTRT'),'2026-08-27T04:07:13') && strcmp(H.getVal('TESTNAME'),Test));
-    assert(~isempty(H.getVal('DATE-OBS')) && H.getVal('NAXIS1')==20);
+    assert(~isempty(H.getVal('DATE-OBS')) && H.getVal('NAXIS1')==20 && strcmp(H.getVal('GAINSEL'),'raw'));
     assert(S.Calib.adc.BestMatch==2 && numel(S.Calib.adc.MeasuredValues)==3);
 
-    % readPTC: filters, headers only, CCDSEC, FlipUD
+    % readPTC: filters, headers only, CCDSEC, FlipUD (raw)
     [AI, Frames] = ultrasat.lab.readPTC(Dev, 'FrameType','D', 'Step',3, 'ReadImage',false);
     assert(numel(AI)==2 && all(strcmp(Frames.FrameType,'D')) && isempty(AI(1).Image));
-    assert(AI(1).HeaderData.getVal('EXPTIME')==60);
-    AI = ultrasat.lab.readPTC(Dev, 'FrameType',{'B','ZE'}, 'FrameIndex',1, 'CCDSEC',[2 5 3 4]);
+    assert(AI(1).HeaderData.getVal('EXPTIME')==60 && AI(1).HeaderData.getVal('NAXIS1')==10);
+    AI = ultrasat.lab.readPTC(Dev, 'FrameType',{'B','ZE'}, 'FrameIndex',1, 'CCDSEC',[2 5 3 4], 'Gain','raw', 'Orient','tiff');
     assert(numel(AI)==3 && isequal(AI(1).Image, 2*Im(3:4, 2:5)));
-    AI = ultrasat.lab.readPTC(Dev, 'FrameType','ZE', 'FlipUD',true);
+    AI = ultrasat.lab.readPTC(Dev, 'FrameType','ZE', 'FlipUD',true, 'Gain','raw', 'Orient','tiff');
     assert(isequal(AI.Image, flipud(6*Im)));
+
+    % readPTC: gain halves and orientation
+    High = Im(:, 11:20);  Low = Im(:, 1:10);
+    D    = rot90(High.', 2);                                    % DESY orientation of the high-gain half
+    AI = ultrasat.lab.readPTC(Dev, 'FrameType','ZE');           % defaults: high, desy
+    assert(isequal(AI.Image, 6*D) && isequal(size(AI.Image), [10 10]));
+    H = AI.HeaderData;
+    assert(strcmp(H.getVal('GAINSEL'),'high') && strcmp(H.getVal('ORIENT'),'desy') && strcmp(H.getVal('RAWSEC'),'[11:20,1:10]'));
+    AI = ultrasat.lab.readPTC(Dev, 'FrameType','ZE', 'Gain','low', 'Orient','tiff');
+    assert(isequal(AI.Image, 6*Low) && strcmp(AI.HeaderData.getVal('RAWSEC'),'[1:10,1:10]'));
+    AI = ultrasat.lab.readPTC(Dev, 'FrameType','ZE', 'Gain','low');
+    assert(isequal(AI.Image, 6*rot90(Low.', 2)));
+    AI = ultrasat.lab.readPTC(Dev, 'FrameType','ZE', 'CCDSEC',[2 5 3 4]);            % section in the DESY orientation
+    assert(isequal(AI.Image, 6*D(3:4, 2:5)) && AI.HeaderData.getVal('NAXIS1')==4 && AI.HeaderData.getVal('NAXIS2')==2);
+    assert(strcmp(AI.HeaderData.getVal('CCDSEC'),'[2:5,3:4]'));
+    AI = ultrasat.lab.readPTC(Dev, 'FrameType','ZE', 'CCDSEC',[2 5 3 4], 'FlipUD',true);
+    assert(isequal(AI.Image, flipud(6*D(3:4, 2:5))));
+    AI = ultrasat.lab.readPTC(Dev, 'FrameType','ZE', 'Gain','raw');                  % whole TIFF, DESY orientation
+    assert(isequal(AI.Image, 6*rot90(Im.', 2)));
 
     io.msgStyle(LogLevel.Test, '@passed', 'ultrasat.lab test passed');
     Result = true;
