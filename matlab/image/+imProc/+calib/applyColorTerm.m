@@ -82,6 +82,12 @@ function Result = applyColorTerm(Obj, Args)
         Args.UseQuadratic logical       = true
         Args.ColorRange (1,2) double    = [0.3, 3.5]
         Args.OutputMode char {mustBeMember(Args.OutputMode,{'delta','apply','both'})} = 'both'
+        Args.QualityGate logical        = true   % reject images whose measured coefficients are inconsistent with the physical expectations below
+        Args.CTA2Ref (1,1) double       = 0.0266 % band constant: PT_CTA2 = 0.543*Var[ln lambda] of the LAST band (measured 0.0266+-0.0002 on 3 telescopes)
+        Args.CTA2Tol (1,1) double       = 0.004  % width channel: |PT_CTA2 - CTA2Ref| beyond this => transmission shape suspect
+        Args.CTALawAB (1,2) double      = [0.020, 0.024]  % mean channel: expected PT_CTA = a + b*AIRMASS (5-field fit, Sep 2026)
+        Args.CTATol (1,1) double        = 0.030  % allowed |PT_CTA - law|; catches mean-wavelength degeneracies (e.g. field 1680: PT_CTA 0.104 vs law ~0.05, PT_CTA2 normal)
+        Args.AirmassKey char            = 'AIRMASS'  % header key for the airmass used by the mean channel; if missing, the mean channel is skipped
         Args.MagColNames                = {}
         Args.OutSuffix char             = '_CT'
         Args.DeltaColName char          = 'MAG_CT'
@@ -141,6 +147,39 @@ function Result = applyColorTerm(Obj, Args)
         end
         if ~Args.UseQuadratic || ~isfinite(CTA2)
             CTA2 = 0;
+        end
+
+        % --- quality gate on the measured coefficients (issue #1287) ---
+        % Both coefficients are moments of the throughput-weighted ln(lambda)
+        % distribution, so each guards one failure mode of the transmission fit:
+        %   width channel: PT_CTA2 is a band CONSTANT (0.543*Var[ln lambda]);
+        %       a deviation means the fitted band has the wrong width.
+        %   mean channel : PT_CTA follows a smooth airmass law; a deviation
+        %       means the fitted band centre is displaced (this is the channel
+        %       that catches degenerate fits like field 1680, whose PT_CTA2
+        %       was normal while PT_CTA was twice the law).
+        % A tripped gate skips the correction for this image (magnitudes are
+        % left untouched), because a biased coefficient does more harm than an
+        % uncorrected colour term.
+        if Args.QualityGate
+            GateMsg = '';
+            if isfinite(CTA2) && CTA2 ~= 0 && abs(CTA2 - Args.CTA2Ref) > Args.CTA2Tol
+                GateMsg = sprintf('PT_CTA2=%.4f vs band constant %.4f (tol %.4f)', ...
+                    CTA2, Args.CTA2Ref, Args.CTA2Tol);
+            end
+            AMgate = getHeaderVal(Header, Args.AirmassKey);
+            if isempty(GateMsg) && isfinite(AMgate)
+                CTAExp = Args.CTALawAB(1) + Args.CTALawAB(2).*AMgate;
+                if abs(CTA - CTAExp) > Args.CTATol
+                    GateMsg = sprintf('PT_CTA=%.4f vs airmass law %.4f at AM=%.2f (tol %.4f)', ...
+                        CTA, CTAExp, AMgate, Args.CTATol);
+                end
+            end
+            if ~isempty(GateMsg)
+                warning('imProc:calib:applyColorTerm:QualityGate', ...
+                    'Coefficient quality gate tripped (%s) - no colour correction applied to this image.', GateMsg);
+                continue;
+            end
         end
 
         % Consistency check: the anchor colour should map to alpha0.
