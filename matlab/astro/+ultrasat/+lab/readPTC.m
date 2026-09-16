@@ -11,7 +11,7 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
     %   (transposed and rotated by 180 deg), in which the DESY analysis
     %   regions are defined; see 'Gain' and 'Orient'.
     %   Each output AstroImage gets the TIFF header (see io.tiff.read1) plus
-    %   GAINSEL, ORIENT, RAWSEC and keys from the sidecars: LOTID, WAFERID, DEVICE, RUNNO, OPERATOR,
+    %   GAINSEL, ORIENT, RAWSEC, RAWXOFF and keys from the sidecars: LOTID, WAFERID, DEVICE, RUNNO, OPERATOR,
     %   STATION, TESTSEQ, SEQREV, TESTTEMP, CHUCKTMP, TESTNAME, FRMTYPE,
     %   STEP, FRMINDEX, EXPTIME, INTENS, DATE-OBS (file time, UTC),
     %   TESTSTRT/TESTEND (lab local time), PASS, SOFTBIN, supply voltages
@@ -176,6 +176,7 @@ function [Image, Header] = readFrame(File, Args)
     Header(end+1,:) = {'GAINSEL', lower(Args.Gain),   'Readout half: high, low, or raw'};
     Header(end+1,:) = {'ORIENT',  lower(Args.Orient), 'desy: transposed + rot180; tiff: as stored'};
     Header(end+1,:) = {'RAWSEC',  sprintf('[%d:%d,%d:%d]', G.RawSec), 'Section of the TIFF read [x1:x2,y1:y2]'};
+    Header(end+1,:) = {'RAWXOFF', G.Xoff, 'First TIFF column of the selected half minus 1'};
     if ~isempty(Args.CCDSEC)
         Header(end+1,:) = {'CCDSEC', sprintf('[%d:%d,%d:%d]', Args.CCDSEC), 'Section in the returned orientation'};
     end
@@ -216,6 +217,7 @@ function G = frameGeometry(Width, Height, Gain, Orient, CCDSEC)
             error('ultrasat:lab:readPTC:orient', 'Unknown Orient %s (desy|tiff)', Orient);
     end
     G.OutSize = [CCDSEC(4)-CCDSEC(3)+1, CCDSEC(2)-CCDSEC(1)+1];
+    G.Xoff    = Xoff;
     if any(G.RawSec<1) || G.RawSec(2)>Width || G.RawSec(4)>Height
         error('ultrasat:lab:readPTC:ccdsec', 'CCDSEC [%d %d %d %d] is outside the %dx%d %s image', CCDSEC, G.OutSize(2), G.OutSize(1), Gain);
     end

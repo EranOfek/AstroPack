@@ -21,7 +21,10 @@ classdef PTCAnalysis < Component
     %   100x100 region) and 'full' (whole die, streamed step by step; only
     %   the fit maps are kept).
     %   The conversion gain for ADU->e- is the measured PTC gain unless the
-    %   Gain property is set (override, e.g. the DESY 1.05 ADU/e-).
+    %   GainADU property is set (override, e.g. the DESY 1.05 ADU/e-).
+    %   With Parity='rawcol' every statistic is also computed separately for
+    %   the pixels in even and odd columns of the stored TIFF (the readout
+    %   columns; rows in the DESY orientation) and compared in summary.
     % Author : Sasha Krassilchtchikov (Sep 2026)
     % Example: P = ultrasat.lab.PTCAnalysis('/data/LOT_TH02954_W04_D07');
     %          P.run;  S = P.summary;
@@ -46,6 +49,7 @@ classdef PTCAnalysis < Component
         GainADU    = [];                      % [ADU/e-] conversion override for ADU->e-; [] = measured PTC gain
         GainEstimator = 'temporal';           % PTC variance estimator used for GainUsed: 'temporal' | 'diff' | 'spatial'
         ExpSen     = [];                      % [s] sensor exposure of the bright frames; [] = PTC_ExpTime
+        Parity     = 'none';                  % 'none' | 'rawcol': also split all statistics by raw-TIFF column parity
         Verbosity  = 0;
     end
 
@@ -54,6 +58,7 @@ classdef PTCAnalysis < Component
         Frames                                % table from readPTC (inventory)
         Sidecar                               % Result, Log, Config, Calib
         Info       = struct;                  % Lot, Wafer, Device, Base
+        ParityMap                             % logical map, true = odd raw-TIFF column (Parity='rawcol')
         AI                                    % AstroImage array (region mode only)
         Zero                                  % bias frame (single)
         ZeroNoise                             % per-pixel std of the ZE frames
@@ -73,7 +78,8 @@ classdef PTCAnalysis < Component
             %          * ...,key,val,... any public property, e.g.
             %            'Test', 'CCDSEC', 'Gain', 'Orient', 'Combiner',
             %            'FitRange', 'FitSteps', 'IntensityScale', 'GainRange',
-            %            'SatLevel', 'GainADU', 'GainEstimator', 'ExpSen', 'Verbosity'.
+            %            'SatLevel', 'GainADU', 'GainEstimator', 'ExpSen', 'Parity',
+            %            'Verbosity'.
             % Output : - A PTCAnalysis object (nothing read yet).
             % Example: P = ultrasat.lab.PTCAnalysis(Dir, 'CCDSEC',[1 200 1 200]);
             arguments
@@ -91,6 +97,7 @@ classdef PTCAnalysis < Component
                 Args.GainADU        = [];
                 Args.GainEstimator  = 'temporal';
                 Args.ExpSen         = [];
+                Args.Parity         = 'none';
                 Args.Verbosity      = 0;
             end
             Obj.DeviceDir = DeviceDir;
@@ -135,6 +142,37 @@ classdef PTCAnalysis < Component
                               'Test',Obj.Test);
             if isempty(Obj.ExpSen) && ~isempty(Obj.Sidecar.Config) && isfield(Obj.Sidecar.Config, 'PTC_ExpTime')
                 Obj.ExpSen = Obj.Sidecar.Config.PTC_ExpTime(1);
+            end
+            Obj.ParityMap = [];
+            if strcmpi(Obj.Parity, 'rawcol')
+                Obj.ParityMap = Obj.parityMap;
+            end
+        end
+
+        function Map = parityMap(Obj)
+            % Logical map of the pixels read (true = odd raw-TIFF column,
+            % counting from 1 at the first column of the selected half),
+            % derived from the RAWSEC / RAWXOFF / ORIENT header keys.
+            % Example: Map = P.parityMap
+            if strcmp(Obj.Mode, 'region')
+                H = Obj.AI(1).HeaderData;
+            else
+                A0 = ultrasat.lab.readPTC(Obj.DeviceDir, 'Test',Obj.Test, 'ReadImage',false, 'Gain',Obj.Gain, 'Orient',Obj.Orient);
+                H  = A0(1).HeaderData;
+            end
+            RawSec = sscanf(H.getVal('RAWSEC'), '[%d:%d,%d:%d]').';
+            Xoff   = H.getVal('RAWXOFF');
+            Ny     = H.getVal('NAXIS2');
+            Nx     = H.getVal('NAXIS1');
+            switch lower(H.getVal('ORIENT'))
+                case 'tiff'
+                    RawCol = RawSec(1) - Xoff + (0:Nx-1);            % per output column
+                    Map    = repmat(mod(RawCol, 2)==1, Ny, 1);
+                case 'desy'
+                    RawCol = RawSec(2) - Xoff - (0:Ny-1).';         % per output row (descending)
+                    Map    = repmat(mod(RawCol, 2)==1, 1, Nx);
+                otherwise
+                    error('ultrasat:lab:PTCAnalysis:orient', 'Unknown ORIENT %s', H.getVal('ORIENT'));
             end
         end
 
@@ -198,6 +236,10 @@ classdef PTCAnalysis < Component
             Fit.X        = L.X;
             Fit.Type     = Type;
             Fit = Obj.fitSummary(Fit);
+            if ~isempty(Obj.ParityMap)
+                Fit.Parity.Even = Obj.fitSummary(Fit, ~Obj.ParityMap);
+                Fit.Parity.Odd  = Obj.fitSummary(Fit,  Obj.ParityMap);
+            end
             if strcmp(Type, 'D')
                 Obj.DarkFit = Fit;
             else
@@ -215,21 +257,10 @@ classdef PTCAnalysis < Component
             %            (per step), Fit.(estimator) = Gain, Offset, Npts,
             %            GainMeasured (GainEstimator), GainUsed, GainSource.
             % Example: P.fitGain
-            B = Obj.Bright;
-            P = struct('Mean',B.RegionMean, 'VarTemporal',B.RegionVarTemporal, ...
-                       'VarDiff',B.RegionVarDiff, 'VarSpatial',B.RegionVarSpatial, 'GainRange',Obj.GainRange, ...
-                       'SatLevel',Obj.SatLevel, 'Saturated',B.RegionMean>Obj.SatLevel);
-            Est = {'temporal','VarTemporal'; 'diff','VarDiff'; 'spatial','VarSpatial'};
-            for Ie=1:1:size(Est,1)
-                V    = P.(Est{Ie,2});
-                Flag = P.Mean>=Obj.GainRange(1) & P.Mean<=Obj.GainRange(2) & ~P.Saturated & isfinite(V) & V>0;
-                F    = struct('Gain',NaN, 'Offset',NaN, 'Npts',sum(Flag));
-                if F.Npts>=2
-                    C = polyfit(P.Mean(Flag), V(Flag), 1);
-                    F.Gain   = C(1);
-                    F.Offset = C(2);
-                end
-                P.Fit.(Est{Ie,1}) = F;
+            P = Obj.gainOfLadder(Obj.Bright);
+            if isfield(Obj.Bright, 'Parity')
+                P.Parity.Even = Obj.gainOfLadder(Obj.Bright.Parity.Even);
+                P.Parity.Odd  = Obj.gainOfLadder(Obj.Bright.Parity.Odd);
             end
             P.GainMeasured = P.Fit.(Obj.GainEstimator).Gain;
             if isempty(Obj.GainADU)
@@ -272,7 +303,50 @@ classdef PTCAnalysis < Component
                 T.MedianLightE    = T.MedianLightADU./G;
                 T.StdLightE       = T.StdLightADU./G;
             end
+            if ~isempty(Obj.ParityMap)
+                for Pn = {'Even','Odd'}
+                    Q = struct;
+                    Mask = Obj.parityMask(Pn{1});
+                    if isfield(T, 'DarkADU')
+                        Q.MedianDarkADU = median(T.DarkADU(Mask), 'omitnan');
+                        Q.StdDarkADU    = std(T.DarkADU(Mask), 'omitnan');
+                        Q.MedianDarkE   = Q.MedianDarkADU./G;
+                    end
+                    if isfield(T, 'LightADU')
+                        Fd = Obj.DarkFit.Parity.(Pn{1});
+                        Fb = Obj.BrightFit.Parity.(Pn{1});
+                        Q.MedianLightADU = -(Fb.MedianIntercept + Fd.MedianSlope.*Obj.ExpSen);
+                        Q.StdLightADU    = Fb.StdIntercept;
+                        Q.MedianLightE   = Q.MedianLightADU./G;
+                    end
+                    T.Parity.(Pn{1}) = Q;
+                end
+            end
             Obj.Threshold = T;
+        end
+
+        function Files = writeFITS(Obj, OutDir, Args)
+            % Export the frames of this device as FITS (see ultrasat.lab.writeFITS).
+            % Input  : - Output directory ([] = <DeviceDir>/FITS).
+            %          * ...,key,val,... passed to ultrasat.lab.writeFITS
+            %            ('Gain', 'FrameType', 'Step', 'FrameIndex',
+            %            'Saturate', 'OverWrite', 'Verbosity'); the Test and
+            %            Orient of the object are used.
+            % Output : - Cell array of FITS files.
+            % Example: P.writeFITS('/data/fits', 'Gain','high')
+            arguments
+                Obj
+                OutDir                    = [];
+                Args.Gain                 = 'both';
+                Args.FrameType            = 'all';
+                Args.Step                 = [];
+                Args.FrameIndex           = [];
+                Args.Saturate             = 16383;
+                Args.OverWrite            = false;
+                Args.Verbosity            = Obj.Verbosity;
+            end
+            C = namedargs2cell(Args);
+            Files = ultrasat.lab.writeFITS(Obj.DeviceDir, OutDir, 'Test',Obj.Test, 'Orient',Obj.Orient, C{:});
         end
 
         function S = summary(Obj)
@@ -313,6 +387,54 @@ classdef PTCAnalysis < Component
                     end
                 end
             end
+            if ~isempty(Obj.ParityMap)
+                S.Parity      = Obj.Parity;
+                S.ParityTable = Obj.parityTable;
+            end
+        end
+
+        function T = parityTable(Obj)
+            % Table comparing the even and odd raw-column pixels: for each
+            % quantity the median (or fitted value) in the two groups, their
+            % difference, the difference over the standard error of the
+            % median difference (1.25*std/sqrt(N) per group; NaN where no
+            % per-pixel spread exists), and the relative difference.
+            % Example: T = P.parityTable
+            if isempty(Obj.ParityMap)
+                error('ultrasat:lab:PTCAnalysis:parity', 'Run with Parity=''rawcol'' first');
+            end
+            Ne = nnz(~Obj.ParityMap);  No = nnz(Obj.ParityMap);
+            Rows = cell(0,4);   % {Name, Even, Odd, SE}
+            for Tp = {'DarkFit','Dark'; 'BrightFit','Bright'}.'
+                F = Obj.(Tp{1});
+                if ~isempty(fieldnames(F)) && isfield(F, 'Parity')
+                    for Q = {'Slope','Intercept','ResidRMS'}
+                        E  = F.Parity.Even.(['Median', Q{1}]);  O = F.Parity.Odd.(['Median', Q{1}]);
+                        SE = 1.25*sqrt(F.Parity.Even.(['Std', Q{1}]).^2./Ne + F.Parity.Odd.(['Std', Q{1}]).^2./No);
+                        Rows(end+1,:) = {[Tp{2}, Q{1}], E, O, SE};
+                    end
+                end
+            end
+            if isfield(Obj.PTC, 'Parity')
+                for E = {'temporal','diff','spatial'}
+                    Rows(end+1,:) = {['Gain_', E{1}], Obj.PTC.Parity.Even.Fit.(E{1}).Gain, Obj.PTC.Parity.Odd.Fit.(E{1}).Gain, NaN};
+                end
+            end
+            if isfield(Obj.Threshold, 'Parity')
+                for Q = {'MedianDarkADU','MedianDarkE','MedianLightADU','MedianLightE'}
+                    if isfield(Obj.Threshold.Parity.Even, Q{1})
+                        SE = NaN;
+                        if strcmp(Q{1}, 'MedianDarkADU')
+                            SE = 1.25*sqrt(Obj.Threshold.Parity.Even.StdDarkADU.^2./Ne + Obj.Threshold.Parity.Odd.StdDarkADU.^2./No);
+                        end
+                        Rows(end+1,:) = {['Threshold', Q{1}(7:end)], Obj.Threshold.Parity.Even.(Q{1}), Obj.Threshold.Parity.Odd.(Q{1}), SE};
+                    end
+                end
+            end
+            Even = cell2mat(Rows(:,2));  Odd = cell2mat(Rows(:,3));  SE = cell2mat(Rows(:,4));
+            Diff = Even - Odd;
+            T = table(Rows(:,1), Even, Odd, Diff, Diff./SE, 2*Diff./(Even+Odd), ...
+                      'VariableNames', {'Quantity','Even','Odd','Diff','DiffOverSE','RelDiff'});
         end
     end
 
@@ -330,6 +452,7 @@ classdef PTCAnalysis < Component
                 Obj
                 Args.Estimator = 'all';
                 Args.XLim      = [];
+                Args.Parity    = false;    % overlay the even / odd raw-column curves of the first estimator
                 Args.Axes      = [];
             end
             H = Obj.axesOf(Args.Axes);
@@ -343,6 +466,13 @@ classdef PTCAnalysis < Component
                 F = P.Fit.(Est{Ie,1});
                 plot(H, P.Mean, P.(Est{Ie,2}), Est{Ie,3}, 'MarkerSize',4, ...
                      'DisplayName',sprintf('%s: gain = %.3f ADU/e-', Est{Ie,1}, F.Gain));
+            end
+            if Args.Parity && isfield(P, 'Parity')
+                for Pn = {'Even','Odd'; 'r','m'}
+                    Q = P.Parity.(Pn{1});
+                    plot(H, Q.Mean, Q.(Est{1,2}), ['-', Pn{2}], 'LineWidth',1, ...
+                         'DisplayName',sprintf('%s columns (%s): gain = %.3f', lower(Pn{1}), Est{1,1}, Q.Fit.(Est{1,1}).Gain));
+                end
             end
             Xl = [0, max(P.Mean)];
             plot(H, Xl, Xl, '-', 'Color',[1 .6 0], 'DisplayName','gain = 1');
@@ -372,8 +502,9 @@ classdef PTCAnalysis < Component
             arguments
                 Obj
                 Type
-                Args.Npix = 300;
-                Args.Axes = [];
+                Args.Npix   = 300;
+                Args.Parity = false;    % overlay the even / odd raw-column medians
+                Args.Axes   = [];
             end
             if ~strcmp(Obj.Mode, 'region')
                 error('ultrasat:lab:PTCAnalysis:mode', 'plotResponse needs the per-pixel cubes (region mode)');
@@ -403,6 +534,13 @@ classdef PTCAnalysis < Component
             if any(Excl)
                 plot(H, L.X(Excl), Med(Excl), 'rx', 'MarkerSize',10, 'LineWidth',1.5, ...
                      'DisplayName',sprintf('excluded from fit (%d)', sum(Excl)));
+            end
+            if Args.Parity && ~isempty(Obj.ParityMap)
+                PM = Obj.ParityMap(:);
+                plot(H, L.X, median(Y(~PM,:), 1, 'omitnan'), 'b-s', 'MarkerSize',3, ...
+                     'DisplayName',sprintf('even columns (slope %.4g)', Fit.Parity.Even.MedianSlope));
+                plot(H, L.X, median(Y( PM,:), 1, 'omitnan'), 'm-d', 'MarkerSize',3, ...
+                     'DisplayName',sprintf('odd columns (slope %.4g)', Fit.Parity.Odd.MedianSlope));
             end
             hold(H, 'off');
             grid(H, 'on');
@@ -584,6 +722,13 @@ classdef PTCAnalysis < Component
                        'RegionVarDiff',nan(1,Ns), 'RegionVarSpatial',nan(1,Ns));
             IsRegion = strcmp(Obj.Mode, 'region');
             Sums = [];
+            UseParity = ~isempty(Obj.ParityMap);
+            if UseParity
+                for Pn = {'Even','Odd'}
+                    L.Parity.(Pn{1}) = struct('RegionMean',nan(1,Ns), 'RegionVarTemporal',nan(1,Ns), ...
+                                              'RegionVarDiff',nan(1,Ns), 'RegionVarSpatial',nan(1,Ns));
+                end
+            end
             for Is=1:1:Ns
                 Row = find(Flag & Obj.Frames.Step==Steps(Is), 1);
                 if strcmp(Type, 'D')
@@ -599,12 +744,15 @@ classdef PTCAnalysis < Component
                 L.Nframes(Is) = Nf;
                 M  = Obj.combine(Cube);
                 V  = var(Cube, 0, 3);
-                L.RegionMean(Is)        = mean(M(:), 'omitnan');
-                L.RegionVarTemporal(Is) = mean(V(:), 'omitnan');
-                L.RegionVarSpatial(Is)  = mean(var(reshape(Cube, [], Nf), 0, 1, 'omitnan'));
-                if Nf>=2
-                    Dif = Cube(:,:,1) - Cube(:,:,2);
-                    L.RegionVarDiff(Is) = var(Dif(:), 'omitnan')./2;
+                [L.RegionMean(Is), L.RegionVarTemporal(Is), L.RegionVarDiff(Is), L.RegionVarSpatial(Is)] = ...
+                    ultrasat.lab.PTCAnalysis.regionStats(Cube, M, V, true(size(M)));
+                if UseParity
+                    for Pn = {'Even','Odd'}
+                        Q = L.Parity.(Pn{1});
+                        [Q.RegionMean(Is), Q.RegionVarTemporal(Is), Q.RegionVarDiff(Is), Q.RegionVarSpatial(Is)] = ...
+                            ultrasat.lab.PTCAnalysis.regionStats(Cube, M, V, Obj.parityMask(Pn{1}));
+                        L.Parity.(Pn{1}) = Q;
+                    end
                 end
                 if IsRegion
                     if Is==1
@@ -647,15 +795,44 @@ classdef PTCAnalysis < Component
             end
         end
 
-        function Fit = fitSummary(Obj, Fit)
-            % Median / std over pixels and the modal number of used points.
+        function Fit = fitSummary(Obj, Fit, Mask)
+            % Median / std over pixels (optionally only those in Mask) and
+            % the modal number of used points.
+            if nargin<3
+                Mask = true(size(Fit.Slope));
+            end
             for Q = {'Slope','Intercept','ResidRMS'}
-                V = Fit.(Q{1})(:);
+                V = Fit.(Q{1})(Mask);
                 Fit.(['Median', Q{1}]) = median(V, 'omitnan');
                 Fit.(['Std', Q{1}])    = std(V, 'omitnan');
             end
-            Fit.NusedMode = mode(Fit.Nused(:));
+            Fit.NusedMode = mode(Fit.Nused(Mask));
+            Fit.Npix      = nnz(Mask);
             Fit.Combiner  = Obj.Combiner;
+        end
+
+        function Mask = parityMask(Obj, Name)
+            % logical mask of the 'Even' or 'Odd' raw-column pixels
+            Mask = xor(Obj.ParityMap, strcmp(Name, 'Even'));
+        end
+
+        function P = gainOfLadder(Obj, B)
+            % PTC gain fits of one ladder structure (see fitGain)
+            P = struct('Mean',B.RegionMean, 'VarTemporal',B.RegionVarTemporal, ...
+                       'VarDiff',B.RegionVarDiff, 'VarSpatial',B.RegionVarSpatial, 'GainRange',Obj.GainRange, ...
+                       'SatLevel',Obj.SatLevel, 'Saturated',B.RegionMean>Obj.SatLevel);
+            Est = {'temporal','VarTemporal'; 'diff','VarDiff'; 'spatial','VarSpatial'};
+            for Ie=1:1:size(Est,1)
+                V    = P.(Est{Ie,2});
+                Flag = P.Mean>=Obj.GainRange(1) & P.Mean<=Obj.GainRange(2) & ~P.Saturated & isfinite(V) & V>0;
+                F    = struct('Gain',NaN, 'Offset',NaN, 'Npts',sum(Flag));
+                if F.Npts>=2
+                    C = polyfit(P.Mean(Flag), V(Flag), 1);
+                    F.Gain   = C(1);
+                    F.Offset = C(2);
+                end
+                P.Fit.(Est{Ie,1}) = F;
+            end
         end
 
         function L = ladderOf(Obj, Type)
@@ -678,7 +855,22 @@ classdef PTCAnalysis < Component
         end
     end
 
-    methods (Static, Access = protected) % labels
+    methods (Static, Access = protected) % statistics and labels
+        function [Mean, VarT, VarD, VarS] = regionStats(Cube, M, V, Mask)
+            % per-step scalars over the masked pixels: mean signal, mean
+            % temporal variance, frame-difference variance, mean spatial
+            % variance of the single frames
+            Nf   = size(Cube, 3);
+            Mean = mean(M(Mask), 'omitnan');
+            VarT = mean(V(Mask), 'omitnan');
+            C2   = reshape(Cube, [], Nf);
+            VarS = mean(var(C2(Mask(:),:), 0, 1, 'omitnan'));
+            VarD = NaN;
+            if Nf>=2
+                Dif  = C2(Mask(:),1) - C2(Mask(:),2);
+                VarD = var(Dif, 'omitnan')./2;
+            end
+        end
         function H = axesOf(Ax)
             if isempty(Ax)
                 figure;

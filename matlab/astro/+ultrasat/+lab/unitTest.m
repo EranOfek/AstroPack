@@ -128,6 +128,22 @@ function Result = unitTest()
     AI = ultrasat.lab.readPTC(Dev, 'FrameType','ZE', 'Gain','raw');                  % whole TIFF, DESY orientation
     assert(isequal(AI.Image, 6*rot90(Im.', 2)));
 
+    % writeFITS: one FITS per gain, DESY orientation, header keys
+    FitsDir = fullfile(TmpDir, 'fits');
+    [Files, Fr] = ultrasat.lab.writeFITS(Dev, FitsDir, 'FrameType','ZE');
+    assert(numel(Files)==2 && height(Fr)==1 && all(cellfun(@isfile, Files)));
+    assert(endsWith(Files{1}, '_S01_ZE_0001_hg.fits') && endsWith(Files{2}, '_S01_ZE_0001_lg.fits'));
+    A = AstroImage(Files{1});
+    assert(isequal(uint16(A.Image), 6*D) && isa(A.Image, 'uint16'));
+    H = A.HeaderData;
+    assert(strcmp(H.getVal('GAINSEL'),'high') && strcmp(H.getVal('ORIENT'),'desy') && H.getVal('RAWXOFF')==10);
+    assert(strcmp(H.getVal('LOTID'),'TH00001') && strcmp(H.getVal('FRMTYPE'),'ZE') && H.getVal('SATURATE')==16383);
+    assert(strcmp(H.getVal('BUNIT'),'ADU') && endsWith(H.getVal('ORIGFILE'), '#01_ZE_0001.tif'));
+    B = AstroImage(Files{2});
+    assert(isequal(uint16(B.Image), 6*rot90(Low.', 2)) && strcmp(B.HeaderData.getVal('GAINSEL'),'low'));
+    Files2 = ultrasat.lab.writeFITS(Dev, FitsDir, 'FrameType','ZE');          % existing files are kept
+    assert(isequal(Files2, Files));
+
     io.msgStyle(LogLevel.Test, '@passed', 'ultrasat.lab test passed');
     Result = true;
 end

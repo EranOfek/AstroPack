@@ -35,6 +35,7 @@ function Result = unitTest()
     ExpSen    = 15;
     [Xg, Yg]  = meshgrid(1:Nx, 1:Ny);
     SlopeD    = 6 + 0.02.*Xg;                          % ADU/s per pixel
+    SlopeD(2:2:end, :) = 1.1.*SlopeD(2:2:end, :);      % even DESY rows = odd raw-TIFF columns: 10% more dark current
     InterD    = -140 + 1.*Yg;                          % ADU per pixel
     SlopeB    = 1.3e4 + 20.*Yg;                        % ADU/int
     InterB    = -20 + 0.5.*Xg;                         % ADU
@@ -140,10 +141,41 @@ function Result = unitTest()
     F2.run;
     assert(max(abs(F2.DarkFit.Slope(:) - P2.DarkFit.Slope(:)))<1e-3 && isequal(F2.BrightFit.Nused, P2.BrightFit.Nused));
 
+    % raw-column parity: map orientation and detection of the 10% slope difference
+    Pp = ultrasat.lab.PTCAnalysis(Dev, 'CCDSEC',[1 Nx 1 Ny], 'FitRange',[-1e9 1e9], 'GainRange',[100 1e5], 'Parity','rawcol');
+    Pp.run;
+    assert(isequal(size(Pp.ParityMap), [Ny Nx]) && all(Pp.ParityMap(2,:)) && ~any(Pp.ParityMap(1,:)));
+    T = Pp.parityTable;
+    R = T(strcmp(T.Quantity, 'DarkSlope'), :);
+    assert(abs(R.Odd/R.Even - 1.1) < 0.02 && R.DiffOverSE < -20);
+    R = T(strcmp(T.Quantity, 'BrightSlope'), :);
+    assert(abs(R.RelDiff) < 0.02);
+    assert(abs(Pp.PTC.Parity.Even.Fit.temporal.Gain - GainTrue)/GainTrue < 0.15);
+    assert(isfield(Pp.Threshold.Parity.Even, 'MedianLightE') && numel(Pp.Dark.Parity.Odd.RegionMean)==numel(DarkExp));
+    S = Pp.summary;  assert(istable(S.ParityTable) && strcmp(S.Parity, 'rawcol'));
+    Pt = ultrasat.lab.PTCAnalysis(Dev, 'CCDSEC',[1 Ny 1 Nx], 'Orient','tiff', 'Parity','rawcol', 'FitRange',[-1e9 1e9]);
+    Pt.run;                                                       % tiff orientation: parity along columns
+    assert(isequal(size(Pt.ParityMap), [Nx Ny]) && all(Pt.ParityMap(:,1)) && ~any(Pt.ParityMap(:,2)));
+    Tt = Pt.parityTable;  assert(abs(Tt.Odd(strcmp(Tt.Quantity,'DarkSlope'))/Tt.Even(strcmp(Tt.Quantity,'DarkSlope')) - 1.1) < 0.02);
+    Fp = ultrasat.lab.PTCAnalysis(Dev, 'CCDSEC',[], 'Parity','rawcol', 'FitRange',[-1e9 1e9], 'GainRange',[100 1e5]);
+    Fp.run;                                                       % streamed mode carries the parity split too
+    Tf = Fp.parityTable;
+    assert(max(abs(Tf.Even - T.Even)) < 1e-6 && max(abs(Tf.Odd - T.Odd)) < 1e-6);
+
+    % FITS export through the class
+    FitsDir = fullfile(TmpDir, 'fits');
+    Files = P.writeFITS(FitsDir, 'FrameType','ZE', 'FrameIndex',1);
+    assert(numel(Files)==2 && all(cellfun(@isfile, Files)));
+    A = AstroImage(Files{1});
+    assert(isequal(A.Image, P.AI(find(strcmp(P.Frames.FrameType,'ZE'),1)).Image));
+    assert(strcmp(A.HeaderData.getVal('GAINSEL'),'high') && A.HeaderData.getVal('SATURATE')==16383);
+
     % plots run without error
     Fig = figure('Visible','off');
     P.plotPTC('Axes',axes(Fig));
     P.plotResponse('D', 'Axes',axes(Fig), 'Npix',20);
+    Pp.plotResponse('D', 'Axes',axes(Fig), 'Npix',20, 'Parity',true);
+    Pp.plotPTC('Axes',axes(Fig), 'Estimator','temporal', 'Parity',true);
     close(Fig);
     H = P.plotHistograms('B');  close(ancestor(H(1), 'figure'));
     H = F.plotMaps('D');        close(ancestor(H(1), 'figure'));
