@@ -111,6 +111,12 @@ function [Template, Info] = smearTemplate(Obj, Args)
     %          - A struct with Method, Core, Offset and Reason, plus
     %            NumComp, NumUsed, Scatter, NumNearSrc, X and Y for
     %            'measured', and Nepoch, SpanX and SpanY for 'derived'.
+    %            X and Y are the stacking positions, on the smear. CalX and
+    %            CalY are the same calibrators with the common Offset taken
+    %            back out, so they land on the mask components themselves,
+    %            for a caller that needs the morphology the template was
+    %            trained on. Both are empty for 'derived', which builds no
+    %            calibrator list.
     %            Reason is '' on success and says why otherwise.
     % Author : Ruslan Konno + Claude (Aug 2026), derived method after @agioffe
     % Example: [T,I] = imUtil.properSub.smearTemplate(AD);
@@ -151,7 +157,7 @@ function [Template, Info] = smearTemplate(Obj, Args)
     Template = [];
     Info     = struct('Method','', 'NumComp',0, 'NumUsed',0, ...
                       'Scatter',NaN, 'Core',NaN, 'Offset',[NaN NaN], ...
-                      'NumNearSrc',0, 'X',[], 'Y',[], ...
+                      'NumNearSrc',0, 'X',[], 'Y',[], 'CalX',[], 'CalY',[], ...
                       'Nepoch',NaN, 'SpanX',NaN, 'SpanY',NaN, ...
                       'Radius',NaN, 'SigPix',NaN, 'PeakSig',NaN, 'NoSmear',false, ...
                       'Rejected',{{}}, 'Reason','');
@@ -470,6 +476,14 @@ function [Template, Info] = buildOne(Obj, Args, Info, Method)
 
     Info.X = X(Good);
     Info.Y = Y(Good);
+
+    % The same calibrators in the mask frame. X and Y carry the common Shift
+    % that puts the cutouts on the smear, so they sit a pixel or two off the
+    % mask component they came from. A caller asking what morphology the
+    % template was trained on has to sample the mask, not the smear, so undo
+    % the shift here rather than making every caller repeat it.
+    Info.CalX = Info.X - Shift(1);
+    Info.CalY = Info.Y - Shift(2);
 
     Info.Scatter = median(reshape(std(CubeN, 0, 3, 'omitnan') ...
                                   ./ max(abs(Template(:))), [], 1));

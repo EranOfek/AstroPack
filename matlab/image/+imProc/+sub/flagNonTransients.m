@@ -60,6 +60,25 @@ function TranCat = flagNonTransients(Obj, Args)
                        Info.NoSmear, i.e. the coadd holds no smear at all.
                        Default is 12.
 
+                'flagBadPix_Dense' - Flag candidates sitting on mask
+                       structure wider than the defects the smear template
+                       was built from, where the template does not apply.
+                       Default is true.
+
+                'BadPix_DenseSigma' - Gaussian sigma, in pixels, of the
+                       kernel whose overlap with the BadPix_Soft mask
+                       measures the local density.
+                       Default is 1.
+
+                'BadPix_DenseOffset' - How far above the calibrators' own
+                       density a candidate must sit to be flagged. In units
+                       of kernel fraction, where a one pixel track gives
+                       0.399 and a two pixel one 0.641. Skipped when
+                       smearTemplate returned no calibrators, i.e. the
+                       derived method, no template, or Info.NoSmear, which
+                       passes everything.
+                       Default is 0.20.
+
                 'flagSubVisit' - Flag inconsistent saturation between N and R.
                        Default is true.
 
@@ -306,6 +325,9 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.SmearThreshold double = []        % [BinCen BinThr...], empty to calibrate
         Args.smearThresholdArgs cell = {}      % passed to imProc.sub.smearThreshold
         Args.BadPix_SoftMinScore double = 12   % below this, marked candidates are flagged on the mask
+        Args.flagBadPix_Dense logical = true
+        Args.BadPix_DenseSigma double = 1      % Gaussian sigma for the local mask density
+        Args.BadPix_DenseOffset double = 0.20  % above the calibrators' density
 
         % Holes in the reference filters
         Args.flagRefHole logical = true;
@@ -936,10 +958,51 @@ function TranCat = flagNonTransients(Obj, Args)
                       isfield(Obj(Iobj).SmearTemplateInfo, 'NoSmear') && ...
                       Obj(Iobj).SmearTemplateInfo.NoSmear;
 
+            % Beyond the morphology the template was trained on it no longer
+            % describes the object. Every defect in a coadd shares one shift
+            % history, so the calibrators smearTemplate stacked all have the
+            % same mask footprint, and the local mask density measured at
+            % them is a single value to within a few per cent. A candidate
+            % well above that sits on something wider, a solid clump or two
+            % tracks side by side, whose blob is broader than the template
+            % and so reads as PSF-like. Flag those on the mask rather than
+            % judging them with a template that does not fit them.
+            %   The density is the fraction of a sigma 1 Gaussian falling on
+            % marked pixels, which is absolute: 0.399 is a one pixel track,
+            % 0.641 two pixels wide, 0.883 three. The offset is in those
+            % units, so 0.20 is well over half a pixel of extra width.
+            Dense = false(NumCand,1);
+            STI   = Obj(Iobj).SmearTemplateInfo;
+            if Args.flagBadPix_Dense && ~NoSmear && ~isempty(STI) && ...
+                    isfield(STI, 'CalX') && ~isempty(STI.CalX) && ...
+                    ~Obj(Iobj).New.MaskData.isemptyImage
+
+                MaskSoft = Obj(Iobj).New.MaskData.findBit(Args.BadPix_Soft, ...
+                                            'Method','any', 'OutType','mat');
+
+                Kdense    = imUtil.kernel2.gauss(Args.BadPix_DenseSigma, [7 7]);
+                Kdense    = Kdense./sum(Kdense, 'all');
+                DenseIm   = imUtil.filter.filter2_fast(double(MaskSoft), Kdense);
+                SizeDense = size(DenseIm);
+
+                IndCal  = imUtil.image.sub2ind_fast(SizeDense, ...
+                              round(STI.CalY), round(STI.CalX));
+                VThresh = median(DenseIm(IndCal), 'omitnan') + Args.BadPix_DenseOffset;
+
+                [Xp,Yp] = CandCat.getXY('ColX','XPEAK','ColY','YPEAK');
+                IndCand = imUtil.image.sub2ind_fast(SizeDense, ...
+                              min(max(round(Yp),1), SizeDense(1)), ...
+                              min(max(round(Xp),1), SizeDense(2)));
+
+                Dense = DenseIm(IndCand) > VThresh;
+            end
+
+            % No smear in this coadd means nothing here is a smear artifact,
+            % so neither the floor nor the density gate applies.
             if NoSmear
                 BadPixSoft = false(NumCand,1);
             else
-                BadPixSoft = Noisy & abs(Score) < Args.BadPix_SoftMinScore;
+                BadPixSoft = (Noisy & abs(Score) < Args.BadPix_SoftMinScore) | Dense;
             end
 
             if CandCat.isColumn('SN_smear')
