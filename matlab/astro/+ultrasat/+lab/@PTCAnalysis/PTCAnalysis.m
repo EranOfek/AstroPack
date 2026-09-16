@@ -14,7 +14,7 @@ classdef PTCAnalysis < Component
     %                     or the steps listed in FitSteps
     %     fitGain       - PTC gain [ADU/e-] from variance vs mean (B ladder)
     %     threshold     - dark method: -Intercept; light method:
-    %                     -(Intercept + DC*ExpSen); ADU and e-
+    %                     DC*ExpSen - Intercept; ADU and e-
     %   Frames are read with ultrasat.lab.readPTC: by default the high-gain
     %   half in the DESY orientation (see its Gain / Orient arguments).
     %   Two modes: 'region' (CCDSEC read into memory, default the DESY
@@ -276,12 +276,15 @@ classdef PTCAnalysis < Component
         function Obj = threshold(Obj)
             % Threshold maps from the response fits.
             %   Dark method : ThresholdADU = -DarkFit.Intercept
-            %   Light method: ThresholdADU = -(BrightFit.Intercept + DC*ExpSen),
-            %                 DC = DarkFit.Slope [ADU/s], ExpSen [s]
+            %   Light method: ThresholdADU = DC*ExpSen - BrightFit.Intercept,
+            %                 DC = DarkFit.Slope [ADU/s], ExpSen [s]: the dark
+            %                 signal accumulated during the bright exposure
+            %                 fills part of the threshold, so it is added back.
             %   Electrons   : ADU / PTC.GainUsed (measured, or GainADU override)
-            % The DESY deck quotes the (negative) intercept in e-, i.e.
-            % -ThresholdE. Summary values are medians over pixels; the light
-            % summary also uses the median DC (as in the deck).
+            % Threshold is positive = electrons lost. The DESY deck quotes the
+            % corrected intercept, i.e. -ThresholdE (e.g. -2.3 - 6.1*15 = -92.3).
+            % Summary values are medians over pixels; the light summary uses
+            % the median DC (as in the deck).
             % Example: P.threshold
             G = Obj.PTC.GainUsed;
             T = struct('GainUsed',G, 'GainSource',Obj.PTC.GainSource, 'ExpSen',Obj.ExpSen);
@@ -295,10 +298,10 @@ classdef PTCAnalysis < Component
             end
             if ~isempty(fieldnames(Obj.BrightFit)) && ~isempty(fieldnames(Obj.DarkFit))
                 DCterm = Obj.DarkFit.Slope.*Obj.ExpSen;
-                T.LightADU = -(Obj.BrightFit.Intercept + DCterm);
+                T.LightADU = DCterm - Obj.BrightFit.Intercept;
                 T.LightE   = T.LightADU./G;
                 T.MedianDCtermADU = Obj.DarkFit.MedianSlope.*Obj.ExpSen;
-                T.MedianLightADU  = -(Obj.BrightFit.MedianIntercept + T.MedianDCtermADU);
+                T.MedianLightADU  = T.MedianDCtermADU - Obj.BrightFit.MedianIntercept;
                 T.StdLightADU     = Obj.BrightFit.StdIntercept;
                 T.MedianLightE    = T.MedianLightADU./G;
                 T.StdLightE       = T.StdLightADU./G;
@@ -315,7 +318,7 @@ classdef PTCAnalysis < Component
                     if isfield(T, 'LightADU')
                         Fd = Obj.DarkFit.Parity.(Pn{1});
                         Fb = Obj.BrightFit.Parity.(Pn{1});
-                        Q.MedianLightADU = -(Fb.MedianIntercept + Fd.MedianSlope.*Obj.ExpSen);
+                        Q.MedianLightADU = Fd.MedianSlope.*Obj.ExpSen - Fb.MedianIntercept;
                         Q.StdLightADU    = Fb.StdIntercept;
                         Q.MedianLightE   = Q.MedianLightADU./G;
                     end

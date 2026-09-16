@@ -96,7 +96,7 @@ function Result = unitTest()
     assert(strncmp(P.PTC.GainSource, 'measured', 8) && P.PTC.GainUsed==P.PTC.Fit.temporal.Gain);
     T = P.Threshold;
     assert(abs(T.MedianDarkADU + P.DarkFit.MedianIntercept)<1e-9);
-    assert(abs(T.MedianLightADU + P.BrightFit.MedianIntercept + P.DarkFit.MedianSlope*ExpSen)<1e-9);
+    assert(abs(T.MedianLightADU - (P.DarkFit.MedianSlope*ExpSen - P.BrightFit.MedianIntercept))<1e-9);
     assert(abs(T.MedianDarkE - T.MedianDarkADU/P.PTC.GainUsed)<1e-9);
     S = P.summary;
     assert(strcmp(S.Lot,'TH00002') && S.Wafer==4 && S.Device==7 && S.DarkFit.Npix==Ny*Nx);
