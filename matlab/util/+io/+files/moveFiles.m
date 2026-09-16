@@ -1,4 +1,4 @@
-function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, Args)
+function [Destination, Ok, Msg] = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, Args)
     % Move a list of files with options.
     %   Can be use to move files, move a list of of files with common path,
     %   create destination directories, and move file using regular
@@ -26,8 +26,17 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
     %            'Mode' - If 'f', copies SOURCE to DESTINATION, even when
     %                   DESTINATION is read-only.
     %                   Default is [].
+    %            'ErrorOnFail' - A logical indicating if to throw an error
+    %                   when a file can not be moved. If false, the
+    %                   failure is reported in the Ok/Msg outputs and the
+    %                   remaining files are still moved.
+    %                   Default is true.
     % Output : - A cell array of destination file names including full
     %            path.
+    %          - A logical vector, per file, indicating if the move
+    %            succeeded.
+    %          - A cell array of the movefile error message per file
+    %            (empty on success).
     % Author : Eran Ofek (Apr 2022)
     % Example: % move list of files from local dir to some dir.
     %          Destination = io.files.moveFiles({'a',v'}, [], '', '~/')
@@ -42,6 +51,7 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
         Args.MkDir logical  = true;
         Args.RegExp logical = false;
         Args.Mode           = [];
+        Args.ErrorOnFail logical = true;
     end
     
     if Args.RegExp
@@ -83,6 +93,8 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
     
     Nfile = numel(SourceFiles);
     Destination = cell(1, Nfile);
+    Ok          = true(1, Nfile);
+    Msg         = cell(1, Nfile);
     for Ifile=1:1:Nfile
         if isempty(SourcePath)
             Source = SourceFiles{Ifile};
@@ -111,11 +123,14 @@ function Destination = moveFiles(SourceFiles, DestFiles, SourcePath, DestPath, A
                 mkdir(DestPath{Ifile});
             end
         end
-        % move file
+        % move file (status form - movefile does not throw)
         if isempty(Args.Mode)
-            movefile(Source, Destination{Ifile});
+            [Ok(Ifile), Msg{Ifile}] = movefile(Source, Destination{Ifile});
         else
-            movefile(Source, Destination{Ifile}, Args.Mode);
+            [Ok(Ifile), Msg{Ifile}] = movefile(Source, Destination{Ifile}, Args.Mode);
+        end
+        if ~Ok(Ifile) && Args.ErrorOnFail
+            error('io:files:moveFiles:failed', 'Failed moving %s to %s: %s', Source, Destination{Ifile}, Msg{Ifile});
         end
     end
     

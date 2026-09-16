@@ -3003,12 +3003,15 @@ classdef AstroFileName < Component
                 Groups = tools.find.groupCounter(CounterVec, 'MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
                 
                 if nargout>1
+                    % the group indices refer to the JD-sorted copy, not
+                    % to the (possibly unsorted) input object (issue #1286)
+                    Sorted = Result;
                     Ngr    = numel(Groups);
                     if Ngr==0
                         Result = AstroFileName;
                     else
                         for Igr=1:1:Ngr
-                            Result(Igr) = Obj.reorderEntries(Groups(Igr).Ind, 'CreateNewObj',true);
+                            Result(Igr) = Sorted.reorderEntries(Groups(Igr).Ind, 'CreateNewObj',true);
                             if ~isempty(Args.BasePath)
                                 Result(Igr).BasePath = Args.BasePath;
                             end

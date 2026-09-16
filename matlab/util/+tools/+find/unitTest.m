@@ -117,6 +117,40 @@ function Result = unitTest()
         error('Error in tools,find.mex.findSmallerFirst');
     end
     
+    %% tools.find.groupCounter
+    % non-finite counters never join a group and break the vector (issue #1286)
+    Gr = tools.find.groupCounter([1:20, 1:20]);
+    if numel(Gr)~=2 || ~isequal(Gr(1).Ind, (1:20).') || ~isequal(Gr(2).Ind, (21:40).')
+        error('tools.find.groupCounter: two consecutive visits');
+    end
+    Gr = tools.find.groupCounter([nan(1,12), 1:20, 1:20]);
+    if numel(Gr)~=2 || ~isequal(Gr(1).Ind, (13:32).') || ~isequal(Gr(2).Ind, (33:52).')
+        error('tools.find.groupCounter: NaN run before the visits');
+    end
+    Gr = tools.find.groupCounter([1:8, nan(1,12), 9:20]);
+    if numel(Gr)~=1 || ~isequal(Gr(1).Ind, (21:32).') || Gr(1).N~=12
+        error('tools.find.groupCounter: NaN run must break a visit');
+    end
+    Gr = tools.find.groupCounter([1:20, nan(1,12)]);
+    if numel(Gr)~=1 || ~isequal(Gr(1).Ind, (1:20).')
+        error('tools.find.groupCounter: NaN run after the visit');
+    end
+    Gr = tools.find.groupCounter([1:20, NaN, 1:20]);
+    if numel(Gr)~=2 || ~isequal(Gr(1).Ind, (1:20).') || ~isequal(Gr(2).Ind, (22:41).')
+        error('tools.find.groupCounter: single NaN between visits');
+    end
+    Gr = tools.find.groupCounter(nan(1,15));
+    if ~isempty(Gr)
+        error('tools.find.groupCounter: all-NaN vector must give no group');
+    end
+    Gr = tools.find.groupCounter([1:50, NaN, 1:5]);
+    if numel(Gr)~=3 || ~isequal([Gr.I1], [1 21 41]) || ~isequal([Gr.I2], [20 40 50])
+        error('tools.find.groupCounter: MaxInGroup split of a long run');
+    end
+    if ~isempty(tools.find.groupCounter([]))
+        error('tools.find.groupCounter: empty input');
+    end
+    
     
 	%io.msgStyle(LogLevel.Test, '@start', 'test started');
     

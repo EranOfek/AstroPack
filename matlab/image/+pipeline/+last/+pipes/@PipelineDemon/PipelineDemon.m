@@ -3035,23 +3035,90 @@ classdef PipelineDemon < Component
 
         function moveImagesToFailedDir(Obj, RawImageList)
             % move images to failed directory
+            %   Never throws: a file that can not be moved (e.g., it does
+            %   not exist) is reported to the log and the rest of the
+            %   list is still moved (issue #1286).
 
-            % extract errors
-            %ErrorMsg = sprintf('PipelineI try error: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);
-            %warning(ErrorMsg);
-            %Obj.writeLog(ErrorMsg, LogLevel.Error);
-
-            %Obj.writeLog(ME, LogLevel.Error);
-            
-            % write log file
-            ErrorMsg = sprintf('PipelineI %d images moved to failed directory',numel(RawImageList));
-            Obj.writeLog(ErrorMsg, LogLevel.Error);
+            RawImageList = cellstr(RawImageList);
+            RawImageList = RawImageList(:).';
+            Nraw         = numel(RawImageList);
+            if Nraw==0
+                Obj.writeLog('PipelineI moveImagesToFailedDir called with an empty image list', LogLevel.Error);
+                return;
+            end
 
             % move images to failed/ dir
-            io.files.moveFiles(RawImageList, [], '', Obj.FailedPath);           
+            Nmoved = 0;
+            try
+                Exist    = isfile(RawImageList);
+                IndExist = find(Exist);
+                [~, Ok, MoveMsg] = io.files.moveFiles(RawImageList(IndExist), [], '', Obj.FailedPath, 'ErrorOnFail',false);
+                Nmoved = sum(Ok);
+
+                Failed    = [RawImageList(~Exist), RawImageList(IndExist(~Ok))];
+                FailedMsg = [repmat({'file not found'}, 1, sum(~Exist)), MoveMsg(~Ok)];
+                for Ifail=1:1:numel(Failed)
+                    ErrorMsg = sprintf('PipelineI could not move %s to failed directory: %s', Failed{Ifail}, FailedMsg{Ifail});
+                    Obj.writeLog(ErrorMsg, LogLevel.Error);
+                end
+            catch ME
+                ErrorMsg = sprintf('PipelineI error while moving images to failed directory: %s', ME.message);
+                Obj.writeLog(ErrorMsg, LogLevel.Error);
+            end
+
+            % write log file
+            ErrorMsg = sprintf('PipelineI %d of %d images moved to failed directory', Nmoved, Nraw);
+            Obj.writeLog(ErrorMsg, LogLevel.Error);
 
             Msg{1} = sprintf('PipelineI summary line - Failed - First image: %s', RawImageList{1});
             Obj.writeLog(Msg, LogLevel.Info);
+        end
+
+        function FN = quarantineMalformedRaw(Obj, FN, DiskNames)
+            % Move raw files with an unusable name out of new/ into failed/
+            %   A file whose name parses into a NaN counter, or that does
+            %   not round-trip through genFile, can never be assigned to a
+            %   visit; left in new/ it corrupts the counter grouping of
+            %   its neighbours and is re-selected forever (issue #1286).
+            % Input  : - PipelineDemon object.
+            %          - AstroFileName object of the raw files found in new/.
+            %          - String array of the on-disk file names, in the
+            %            same order as the AstroFileName entries.
+            % Output : - The AstroFileName object without the quarantined
+            %            entries.
+
+            if FN.nFiles==0
+                return;
+            end
+
+            DiskNames = string(DiskNames(:));
+            Bad = isnan(str2double(FN.Counter)) | FN.genFile~=DiskNames;
+            if ~any(Bad)
+                return;
+            end
+
+            try
+                SrcPath = char(FN.Path);
+                if isempty(SrcPath)
+                    SrcPath = Obj.NewPath;
+                end
+                BadNames = cellstr(DiskNames(Bad));
+                [~, Ok, MoveMsg] = io.files.moveFiles(BadNames, [], SrcPath, Obj.FailedPath, 'ErrorOnFail',false);
+                for Ibad=1:1:numel(BadNames)
+                    if Ok(Ibad)
+                        Msg = sprintf('Raw file with a malformed name moved to failed directory: %s', BadNames{Ibad});
+                    else
+                        Msg = sprintf('Raw file with a malformed name could not be moved to failed directory: %s (%s)', BadNames{Ibad}, MoveMsg{Ibad});
+                    end
+                    Obj.writeLog(Msg, LogLevel.Error);
+                end
+            catch ME
+                Msg = sprintf('Error while quarantining malformed raw files: %s', ME.message);
+                Obj.writeLog(Msg, LogLevel.Error);
+            end
+
+            % drop the malformed entries whether or not the move succeeded
+            FN = FN.reorderEntries(~Bad);
         end
 
 
@@ -3385,7 +3452,9 @@ classdef PipelineDemon < Component
                 end
                 
                 % look for new images
-                FN_Sci   = AstroFileName(Args.TempRawSci);
+                [FN_Sci, DirSci] = AstroFileName.dir(Args.TempRawSci);
+                % files whose name can not form a visit go to failed/ (issue #1286)
+                FN_Sci   = Obj.quarantineMalformedRaw(FN_Sci, {DirSci.name});
                 FN_Sci.JD=FN_Sci.julday;
                
                 if FN_Sci.nFiles>Args.MinInGroup
