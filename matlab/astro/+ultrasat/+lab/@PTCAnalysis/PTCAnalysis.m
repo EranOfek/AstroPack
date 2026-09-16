@@ -5,7 +5,8 @@ classdef PTCAnalysis < Component
     %   intensity ladder) TIFF frames plus the PTC_Config.xlsx sidecar.
     %   Pipeline (run):
     %     read          - inventory of frames and sidecars
-    %     subtractZero  - bias frame from the ZE frames (Combiner)
+    %     subtractZero  - bias frame from the ZE frames (Combiner); bias level
+    %                     and read noise (temporal / frame-difference / spatial)
     %     combineSteps  - per step: combined signal, temporal / frame-difference /
     %                     spatial variance
     %     fitResponse   - per-pixel linear fit of signal vs exposure (D) or
@@ -61,8 +62,9 @@ classdef PTCAnalysis < Component
         ParityMap                             % logical map, true = odd raw-TIFF column (Parity='rawcol')
         AI                                    % AstroImage array (region mode only)
         Zero                                  % bias frame (single)
-        ZeroNoise                             % per-pixel std of the ZE frames
+        ZeroNoise                             % per-pixel std of the ZE frames (read-noise map)
         NZero      = 0;
+        ZeroStats  = struct;                  % bias level and read noise (see zeroStats)
         Dark       = struct;                  % ladder of the D frames (see combineSteps)
         Bright     = struct;                  % ladder of the B frames
         DarkFit    = struct;                  % fitResponse('D')
@@ -177,7 +179,9 @@ classdef PTCAnalysis < Component
         end
 
         function Obj = subtractZero(Obj)
-            % Build the bias frame from the ZE frames (Combiner) and its noise.
+            % Build the bias frame from the ZE frames (Combiner), its per-pixel
+            % noise, and the bias-level / read-noise statistics (ZeroStats,
+            % see zeroStats; also per column parity when Parity is set).
             % The subtraction itself is applied when steps are loaded.
             % Example: P.subtractZero
             Cube = Obj.loadFrames('ZE', []);
@@ -187,6 +191,11 @@ classdef PTCAnalysis < Component
             Obj.NZero     = size(Cube, 3);
             Obj.Zero      = Obj.combine(Cube);
             Obj.ZeroNoise = std(Cube, 0, 3);
+            Obj.ZeroStats = ultrasat.lab.PTCAnalysis.zeroStats(Cube, Obj.Zero, Obj.ZeroNoise, true(size(Obj.Zero)));
+            if ~isempty(Obj.ParityMap)
+                Obj.ZeroStats.Parity.Even = ultrasat.lab.PTCAnalysis.zeroStats(Cube, Obj.Zero, Obj.ZeroNoise, ~Obj.ParityMap);
+                Obj.ZeroStats.Parity.Odd  = ultrasat.lab.PTCAnalysis.zeroStats(Cube, Obj.Zero, Obj.ZeroNoise,  Obj.ParityMap);
+            end
         end
 
         function Obj = combineSteps(Obj)
@@ -258,6 +267,7 @@ classdef PTCAnalysis < Component
             %            GainMeasured (GainEstimator), GainUsed, GainSource.
             % Example: P.fitGain
             P = Obj.gainOfLadder(Obj.Bright);
+            P.ReadNoiseFromOffset = sqrt(max(P.Fit.temporal.Offset, 0));   % [ADU] Var = Gain*Mean + Offset
             if isfield(Obj.Bright, 'Parity')
                 P.Parity.Even = Obj.gainOfLadder(Obj.Bright.Parity.Even);
                 P.Parity.Odd  = Obj.gainOfLadder(Obj.Bright.Parity.Odd);
@@ -373,6 +383,22 @@ classdef PTCAnalysis < Component
                                       'FitRange',F.FitRange, 'FitSteps',F.FitSteps);
                 end
             end
+            if ~isempty(fieldnames(Obj.ZeroStats))
+                Z = Obj.ZeroStats;
+                S.NZero               = Obj.NZero;
+                S.BiasLevel           = Z.BiasLevel;
+                S.BiasMean            = Z.BiasMean;
+                S.BiasStd             = Z.BiasStd;
+                S.ReadNoiseTemporal   = Z.ReadNoiseTemporal;
+                S.ReadNoiseTemporalRMS = Z.ReadNoiseTemporalRMS;
+                S.ReadNoiseDiff       = Z.ReadNoiseDiff;
+                S.ReadNoiseSpatial    = Z.ReadNoiseSpatial;
+                S.ReadNoiseTemporalStd = Z.ReadNoiseTemporalStd;
+                if ~isempty(fieldnames(Obj.PTC))
+                    S.ReadNoiseE          = Z.ReadNoiseTemporalRMS./Obj.PTC.GainUsed;
+                    S.ReadNoiseFromOffset = Obj.PTC.ReadNoiseFromOffset;
+                end
+            end
             if ~isempty(fieldnames(Obj.PTC))
                 S.GainTemporal = Obj.PTC.Fit.temporal.Gain;
                 S.GainDiff     = Obj.PTC.Fit.diff.Gain;
@@ -408,6 +434,12 @@ classdef PTCAnalysis < Component
             end
             Ne = nnz(~Obj.ParityMap);  No = nnz(Obj.ParityMap);
             Rows = cell(0,4);   % {Name, Even, Odd, SE}
+            if isfield(Obj.ZeroStats, 'Parity')
+                Ze = Obj.ZeroStats.Parity.Even;  Zo = Obj.ZeroStats.Parity.Odd;
+                Rows(end+1,:) = {'BiasLevel', Ze.BiasLevel, Zo.BiasLevel, 1.25*sqrt(Ze.BiasStd.^2./Ne + Zo.BiasStd.^2./No)};
+                Rows(end+1,:) = {'ReadNoiseTemporal', Ze.ReadNoiseTemporal, Zo.ReadNoiseTemporal, 1.25*sqrt(Ze.ReadNoiseTemporalStd.^2./Ne + Zo.ReadNoiseTemporalStd.^2./No)};
+                Rows(end+1,:) = {'ReadNoiseDiff', Ze.ReadNoiseDiff, Zo.ReadNoiseDiff, NaN};
+            end
             for Tp = {'DarkFit','Dark'; 'BrightFit','Bright'}.'
                 F = Obj.(Tp{1});
                 if ~isempty(fieldnames(F)) && isfield(F, 'Parity')
@@ -613,7 +645,43 @@ classdef PTCAnalysis < Component
         end
     end
 
-    methods (Static) % masked linear regression
+    methods (Static) % zero-frame statistics and masked linear regression
+        function Z = zeroStats(Cube, Zero, ZeroNoise, Mask)
+            % Bias level and read noise from a cube of zero-exposure frames.
+            % Input  : - ZE frames [Ny Nx Nframes] (single).
+            %          - Combined bias frame [Ny Nx].
+            %          - Per-pixel std over the frames [Ny Nx].
+            %          - Logical mask of the pixels to use.
+            % Output : - Structure with (all in ADU):
+            %            BiasLevel - median of the bias frame; BiasMean - its
+            %            mean; BiasStd - its spatial std (fixed pattern);
+            %            ReadNoiseTemporal - median over pixels of the
+            %            per-pixel std across the frames (N-1; quantised
+            %            for few integer frames); ReadNoiseTemporalRMS -
+            %            sqrt of the mean per-pixel variance;
+            %            ReadNoiseTemporalStd - spread of the std map;
+            %            ReadNoiseDiff - std(F1-F2)/sqrt(2) over the pixels
+            %            (free of fixed pattern); ReadNoiseSpatial - median
+            %            over frames of the spatial std of a single frame
+            %            (includes the fixed pattern); Npix; Nframes.
+            % Example: Z = ultrasat.lab.PTCAnalysis.zeroStats(Cube, mean(Cube,3), std(Cube,0,3), true(size(Cube,1,2)))
+            Nf = size(Cube, 3);
+            Cube = double(Cube);  Zero = double(Zero);  ZeroNoise = double(ZeroNoise);
+            Z  = struct('Npix',nnz(Mask), 'Nframes',Nf);
+            Z.BiasLevel = median(Zero(Mask), 'omitnan');
+            Z.BiasMean  = mean(Zero(Mask), 'omitnan');
+            Z.BiasStd   = std(Zero(Mask), 'omitnan');
+            Z.ReadNoiseTemporal    = median(ZeroNoise(Mask), 'omitnan');
+            Z.ReadNoiseTemporalRMS = sqrt(mean(ZeroNoise(Mask).^2, 'omitnan'));
+            Z.ReadNoiseTemporalStd = std(ZeroNoise(Mask), 'omitnan');
+            C2 = reshape(Cube, [], Nf);
+            Z.ReadNoiseSpatial = median(std(C2(Mask(:),:), 0, 1, 'omitnan'));
+            Z.ReadNoiseDiff = NaN;
+            if Nf>=2
+                Z.ReadNoiseDiff = std(C2(Mask(:),1) - C2(Mask(:),2), 'omitnan')./sqrt(2);
+            end
+        end
+
         function S = accumulate(S, Y, X, FitRange)
             % Add one or more steps to the running sums of a masked linear fit.
             % Input  : - Sums structure (N, Sx, Sy, Sxx, Sxy, Syy) or [] to start.

@@ -82,6 +82,10 @@ function Result = unitTest()
     assert(strcmp(P.Mode,'region') && P.NZero==Nz && P.ExpSen==ExpSen);
     assert(max(abs(P.Bright.X - BrightInt.*IntScale))<1e-9);
     assert(abs(mean(P.Zero(:))-ZeroLevel)<1);
+    Z = P.ZeroStats;                                                % ReadNoise = 2 ADU in writeFrames
+    assert(abs(Z.BiasLevel-ZeroLevel)<1 && abs(Z.BiasMean-ZeroLevel)<1 && Z.BiasStd<2 && Z.Nframes==Nz && Z.Npix==Ny*Nx);
+    assert(abs(Z.ReadNoiseTemporal-2)<0.4 && abs(Z.ReadNoiseDiff-2)<0.2 && abs(Z.ReadNoiseSpatial-2)<0.3);
+    assert(Z.ReadNoiseTemporalStd>0 && Z.ReadNoiseTemporalStd<1.5);
     assert(isequal(P.Dark.X, DarkExp) && isequal(size(P.Dark.Mean), [Ny Nx numel(DarkExp)]));
     assert(P.DarkFit.NusedMode==numel(DarkExp) && P.BrightFit.NusedMode==numel(BrightInt));
     assert(abs(P.DarkFit.MedianSlope - median(SlopeD(:)))<0.05);
@@ -100,6 +104,8 @@ function Result = unitTest()
     assert(abs(T.MedianDarkE - T.MedianDarkADU/P.PTC.GainUsed)<1e-9);
     S = P.summary;
     assert(strcmp(S.Lot,'TH00002') && S.Wafer==4 && S.Device==7 && S.DarkFit.Npix==Ny*Nx);
+    assert(abs(S.BiasLevel-ZeroLevel)<1 && abs(S.ReadNoiseE - S.ReadNoiseTemporalRMS/S.GainUsed)<1e-9 && S.NZero==Nz && abs(S.ReadNoiseTemporalRMS-2)<0.3);
+    assert(isfinite(S.ReadNoiseFromOffset));
 
     % conversion-gain override
     P.GainADU = 1.05;
@@ -146,6 +152,8 @@ function Result = unitTest()
     Pp.run;
     assert(isequal(size(Pp.ParityMap), [Ny Nx]) && all(Pp.ParityMap(2,:)) && ~any(Pp.ParityMap(1,:)));
     T = Pp.parityTable;
+    assert(any(strcmp(T.Quantity, 'BiasLevel')) && any(strcmp(T.Quantity, 'ReadNoiseTemporal')));
+    assert(abs(T.RelDiff(strcmp(T.Quantity, 'BiasLevel'))) < 0.01);
     R = T(strcmp(T.Quantity, 'DarkSlope'), :);
     assert(abs(R.Odd/R.Even - 1.1) < 0.02 && R.DiffOverSE < -20);
     R = T(strcmp(T.Quantity, 'BrightSlope'), :);
