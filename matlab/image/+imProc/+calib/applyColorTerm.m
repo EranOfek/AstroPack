@@ -17,8 +17,9 @@ function Result = applyColorTerm(Obj, Args)
     %     DeltaMag = PT_CTA*(alpha - alpha0) + PT_CTA2*(alpha - alpha0)^2
     %   with alpha = polyval(AlphaPoly, BP_RP) and alpha0 = PT_REFSL, and is
     %   ADDED to the calibrated magnitude. It vanishes at the anchor colour
-    %   PT_REFC (the colour whose slope equals alpha0), so a star there is
-    %   unchanged and the mean calibration is preserved. The quadratic term
+    %   (by default the median colour of the image's bright stars - see
+    %   'RefColorSource'), so the correction is mean-free over the field and
+    %   only the star-to-star colour differential is applied. The quadratic term
     %   matters: a linear-only model errs by ~35 mmag at BP_RP 0.8 and by
     %   hundreds of mmag at BP_RP > 2 (see evaluateColorTerm).
     %
@@ -82,7 +83,53 @@ function Result = applyColorTerm(Obj, Args)
         Args.UseQuadratic logical       = true
         Args.ColorRange (1,2) double    = [0.3, 3.5]
         Args.OutputMode char {mustBeMember(Args.OutputMode,{'delta','apply','both'})} = 'both'
-        Args.QualityGate logical        = true   % reject images whose measured coefficients are inconsistent with the physical expectations below
+        Args.CoefSource char {mustBeMember(Args.CoefSource,{'model','header'})} = 'header'
+                                                 % 'header' (default): the per-image measured PT_CTA/PT_CTA2, screened
+                                                 %   by the quality gate. Preferred: the per-image value tracks real
+                                                 %   night-to-night atmospheric variation that a single global law
+                                                 %   cannot follow (measured on 1677.c: 5.8 vs 11.3 mmag red-star LC
+                                                 %   scatter).
+                                                 % 'model': deterministic coefficients - PT_CTA from the
+                                                 %   airmass law CTALawAB at the header AIRMASS, PT_CTA2 = the band
+                                                 %   constant CTA2Ref. The per-image header values are treated as
+                                                 %   diagnostics only (they carry transmission-fit noise; see the
+                                                 %   quality gate). Falls back to 'header' when AIRMASS is missing.
+        Args.RefColorSource char {mustBeMember(Args.RefColorSource,{'image','header'})} = 'image'
+                                                 % where the anchor colour (the colour at which the correction
+                                                 %   vanishes) comes from.
+                                                 % 'image' (default): the median colour of THIS image's bright,
+                                                 %   colour-known stars, i.e. the field's own stellar locus. The
+                                                 %   correction is then mean-free over the image's stars, so it
+                                                 %   carries no epoch-common component, and a biased coefficient is
+                                                 %   multiplied by ~0 for the typical star. Measured stability of
+                                                 %   this anchor: <=0.006 mag between visits (<=0.6 mmag induced),
+                                                 %   on 5 fields / 3 telescopes.
+                                                 % 'header': use PT_REFC as written by the calibration.
+                                                 % The anchor is a convention (the constant of integration of a
+                                                 %   differential correction), not a physical constant: any choice
+                                                 %   is admissible provided it is recorded, and converting between
+                                                 %   anchors is exact arithmetic given the stored coefficients.
+        Args.RefColorMagCol char        = ''     % magnitude column for the 'image' anchor brightness cut; '' -> 'MAG_APER_3'
+                                                 %   if present, else the first MAG_* column, else no brightness cut
+        Args.RefColorMagMax (1,1) double = 16    % 'image' anchor ensemble = colour-known stars brighter than this.
+                                                 %   A brightness cut is REQUIRED: over the full detection list the
+                                                 %   median colour wanders by up to 0.3 mag between visits (detection
+                                                 %   depth varies), which would itself inject 1-6 mmag per epoch.
+        Args.RefColorMinN (1,1) double  = 20     % minimum ensemble size; below it, fall back to the header anchor
+        Args.DeMean logical             = false  % SUPERSEDED by RefColorSource='image', which achieves the same
+                                                 %   zero-mean property through the anchor; kept as an exact escape
+                                                 %   hatch (it also zeroes the quadratic term's ensemble mean).
+                                                 %   Subtracts the per-image ensemble median of the correction, making it
+                                                 %   zero-mean over this image's (bright, colour-known) stars. Use for
+                                                 %   RELATIVE (light-curve) photometry: kills the per-epoch common
+                                                 %   shift by construction. Leave false for ABSOLUTE photometry, where
+                                                 %   the ensemble-mean correction is a real error to be applied.
+                                                 %   Under DeMean, colourless stars receive zero correction, which now
+                                                 %   means "assume the ensemble-typical colour" - the best default.
+        Args.DeMeanMagCol char          = ''     % magnitude column for the DeMean brightness cut; '' -> 'MAG_APER_3'
+                                                 %   if present, else the first MAG_* column, else no brightness cut
+        Args.DeMeanMagMax (1,1) double  = 16     % DeMean ensemble = colour-known stars brighter than this
+        Args.QualityGate logical        = true   % ('header' mode only) reject images whose measured coefficients are inconsistent with the physical expectations below
         Args.CTA2Ref (1,1) double       = 0.0266 % band constant: PT_CTA2 = 0.543*Var[ln lambda] of the LAST band (measured 0.0266+-0.0002 on 3 telescopes)
         Args.CTA2Tol (1,1) double       = 0.004  % width channel: |PT_CTA2 - CTA2Ref| beyond this => transmission shape suspect
         Args.CTALawAB (1,2) double      = [0.020, 0.024]  % mean channel: expected PT_CTA = a + b*AIRMASS (5-field fit, Sep 2026)
@@ -130,6 +177,33 @@ function Result = applyColorTerm(Obj, Args)
         Alpha0 = getHeaderVal(Header, 'PT_REFSL');
         RefCol = getHeaderVal(Header, 'PT_REFC');
 
+        % --- deterministic ('model') coefficients (default) ---
+        % The physical content of PT_CTA is a smooth airmass law and PT_CTA2 is
+        % a band constant; the per-image measured values add only transmission-
+        % fit noise (2-8 mmag per epoch into bright-star light curves) and, on
+        % degenerate fits, bias. In 'model' mode the coefficients are computed
+        % from those laws and the header values serve as diagnostics only.
+        UseModelCoef = strcmp(Args.CoefSource, 'model');
+        if UseModelCoef
+            AMmodel = getHeaderVal(Header, Args.AirmassKey);
+            if isfinite(AMmodel)
+                CTA  = Args.CTALawAB(1) + Args.CTALawAB(2).*AMmodel;
+                CTA2 = Args.CTA2Ref;
+                if ~isfinite(Alpha0)
+                    Alpha0 = 1.5;
+                end
+            else
+                % Without an airmass neither the model law nor the gate's mean
+                % channel can run, so a biased header coefficient could slip
+                % through unchecked. Be conservative: skip the correction.
+                % (Set CoefSource='header' explicitly to force header values.)
+                warning('imProc:calib:applyColorTerm:ModelNoAirmass', ...
+                    'CoefSource=''model'' but header key ''%s'' is missing - no colour correction applied to this image.', ...
+                    Args.AirmassKey);
+                continue;
+            end
+        end
+
         if ~isfinite(CTA)
             warning('imProc:calib:applyColorTerm:NoCoef', ...
                 'PT_CTA missing or NaN - no colour correction applied.');
@@ -161,7 +235,7 @@ function Result = applyColorTerm(Obj, Args)
         % A tripped gate skips the correction for this image (magnitudes are
         % left untouched), because a biased coefficient does more harm than an
         % uncorrected colour term.
-        if Args.QualityGate
+        if Args.QualityGate && ~UseModelCoef
             GateMsg = '';
             if isfinite(CTA2) && CTA2 ~= 0 && abs(CTA2 - Args.CTA2Ref) > Args.CTA2Tol
                 GateMsg = sprintf('PT_CTA2=%.4f vs band constant %.4f (tol %.4f)', ...
@@ -182,16 +256,6 @@ function Result = applyColorTerm(Obj, Args)
             end
         end
 
-        % Consistency check: the anchor colour should map to alpha0.
-        if isfinite(RefCol)
-            AlphaAtRef = polyval(Args.AlphaPoly, RefCol);
-            if abs(AlphaAtRef - Alpha0) > 0.05
-                warning('imProc:calib:applyColorTerm:AnchorMismatch', ...
-                    ['Anchor colour PT_REFC=%.4f maps to alpha=%.4f but PT_REFSL=%.4f. ', ...
-                     'The correction will not vanish at PT_REFC.'], RefCol, AlphaAtRef, Alpha0);
-            end
-        end
-
         % --- per-star correction ---
         if ~any(strcmp(Cat.ColNames, Args.ColorCol))
             warning('imProc:calib:applyColorTerm:NoColor', ...
@@ -203,16 +267,84 @@ function Result = applyColorTerm(Obj, Args)
         Color = Color(:);
         Known = isfinite(Color);
 
+        % Anchor of the correction: the colour at which it vanishes. With
+        % RefColorSource='image' this is the median colour of the image's
+        % bright, colour-known stars, so the correction has ~zero mean over
+        % the field and cannot introduce an epoch-common shift; otherwise it
+        % is the header value PT_REFC. Dev0 is the anchor's slope offset.
+        AnchorCol = RefCol;
+        if strcmp(Args.RefColorSource, 'image')
+            SelAnc = Known;
+            MagColAnc = Args.RefColorMagCol;
+            if isempty(MagColAnc)
+                if any(strcmp(Cat.ColNames, 'MAG_APER_3'))
+                    MagColAnc = 'MAG_APER_3';
+                else
+                    CandAnc = Cat.ColNames(startsWith(Cat.ColNames,'MAG_') & ~startsWith(Cat.ColNames,'MAGERR_'));
+                    CandAnc = CandAnc(~strcmp(CandAnc, Args.DeltaColName));
+                    if ~isempty(CandAnc); MagColAnc = CandAnc{1}; end
+                end
+            end
+            if ~isempty(MagColAnc) && any(strcmp(Cat.ColNames, MagColAnc))
+                MagAnc = Cat.getCol(MagColAnc);
+                SelAnc = SelAnc & MagAnc(:) < Args.RefColorMagMax;
+            end
+            if sum(SelAnc) >= Args.RefColorMinN
+                AnchorCol = median(Color(SelAnc), 'omitnan');
+            else
+                warning('imProc:calib:applyColorTerm:AnchorEnsemble', ...
+                    'RefColorSource=''image'' but only %d ensemble stars (<%d) - falling back to the header anchor PT_REFC.', ...
+                    sum(SelAnc), Args.RefColorMinN);
+            end
+        end
+        if ~isfinite(AnchorCol)
+            warning('imProc:calib:applyColorTerm:NoAnchor', ...
+                'No usable anchor colour (PT_REFC missing and image anchor unavailable) - no colour correction applied.');
+            continue;
+        end
+        Dev0 = polyval(Args.AlphaPoly, min(max(AnchorCol, Args.ColorRange(1)), Args.ColorRange(2))) - Alpha0;
+
         ColorC = min(max(Color, Args.ColorRange(1)), Args.ColorRange(2));
         Alpha  = polyval(Args.AlphaPoly, ColorC);
         Dev    = Alpha - Alpha0;
 
-        Delta    = CTA.*Dev + CTA2.*(Dev.^2);
+        Delta    = CTA.*(Dev - Dev0) + CTA2.*(Dev.^2 - Dev0.^2);
         % d(Delta)/d(alpha) propagated through the relation's intrinsic scatter.
         DeltaErr = abs(CTA + 2.*CTA2.*Dev) .* Args.SigmaAlpha;
 
         Delta(~Known)    = NaN;
         DeltaErr(~Known) = NaN;
+
+        % --- per-image ensemble de-mean (relative-photometry mode) ---
+        % Subtracting the ensemble median re-anchors the correction at this
+        % image's own stellar locus, so its per-image mean is zero by
+        % construction and no epoch-to-epoch common shift can be injected.
+        % Equivalent to an adaptive anchor colour; exact including the
+        % quadratic term. The subtracted constant is a pure zero-point
+        % convention, so DeltaErr is unchanged.
+        if Args.DeMean
+            SelDM = Known;
+            MagColDM = Args.DeMeanMagCol;
+            if isempty(MagColDM)
+                if any(strcmp(Cat.ColNames, 'MAG_APER_3'))
+                    MagColDM = 'MAG_APER_3';
+                else
+                    CandDM = Cat.ColNames(startsWith(Cat.ColNames,'MAG_') & ~startsWith(Cat.ColNames,'MAGERR_'));
+                    CandDM = CandDM(~strcmp(CandDM, Args.DeltaColName));
+                    if ~isempty(CandDM); MagColDM = CandDM{1}; end
+                end
+            end
+            if ~isempty(MagColDM) && any(strcmp(Cat.ColNames, MagColDM))
+                MagDM = Cat.getCol(MagColDM);
+                SelDM = SelDM & MagDM(:) < Args.DeMeanMagMax;
+            end
+            if sum(SelDM) >= 10
+                Delta(Known) = Delta(Known) - median(Delta(SelDM), 'omitnan');
+            else
+                warning('imProc:calib:applyColorTerm:DeMeanEnsemble', ...
+                    'DeMean requested but only %d ensemble stars available (<10) - correction left un-demeaned.', sum(SelDM));
+            end
+        end
 
         if ismember(Args.OutputMode, {'delta','both'})
             Cat = replaceOrInsert(Cat, Delta,    Args.DeltaColName);
