@@ -187,8 +187,11 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     % merge the catalogs:
     Result.CatData = merge(MCat);
     Result.CatData.JD = MCat(1).julday;
-    RA0  = mean(Result.CatData.getCol('RA'));
-    Dec0 = mean(Result.CatData.getCol('Dec'));
+    % a crop catalog may carry a source with a failed PSF fit (X=Y=NaN, hence
+    % RA=Dec=NaN); a plain mean would then return a NaN centre and the
+    % refinement below would produce a degenerate WCS (issue #1291)
+    RA0  = mean(Result.CatData.getCol('RA'), 'omitnan');
+    Dec0 = mean(Result.CatData.getCol('Dec'), 'omitnan');
 
     % build WCS from the merged catalog
     if Args.UpdateWCS
@@ -211,10 +214,14 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
         if ~isempty(FitRes.ResFit)
             Result.WCS.ResFit = FitRes.ResFit;
         end
+        % FitRes.Success only means that enough sources were matched; the
+        % quality of the fit itself is judged by AstroWCS.populateSucess
+        % and stored in FitRes.WCS.Success (false for a degenerate solution,
+        % e.g. CRVAL=NaN, CD=0). Both must hold (issue #1291).
         if isempty(FitRes.Success)
             Result.WCS.Success = false;
         else
-            Result.WCS.Success = FitRes.Success;
+            Result.WCS.Success = FitRes.Success && FitRes.WCS.Success;
         end
         if Result.WCS.Success
             Result.propagateWCS('UpdateCat',false);
