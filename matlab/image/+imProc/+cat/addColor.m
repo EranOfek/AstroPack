@@ -105,14 +105,20 @@ function Result = addColor(Obj, Args)
         ColData = nan(Nsrc, Ncol);
 
         if ~isemptyCatalog(GaiaCat)
-            % Match Gaia (Obj1) against the source catalog (Obj2): Obj2_IndInObj1
-            % is, for each source, the row of its nearest Gaia match (NaN if none).
-            ResInd = imProc.match.matchReturnIndices(GaiaCat, Cat, 'CooType','sphere', ...
-                                                     'Radius',Args.Radius, 'RadiusUnits',Args.RadiusUnits);
-            IndInGaia = ResInd(1).Obj2_IndInObj1;
+            % Match with the MEX binary-search matcher (imProc.match.matchInd):
+            % ResInd(1).Ind holds, for each source, the row of its nearest Gaia
+            % match (NaN if none). The matcher requires catalog 2 to be sorted
+            % by Dec: the astrometric RefCat already is, but the cone-search
+            % fallback carries no such guarantee, so match against a Dec-sorted
+            % working copy and read the Gaia columns from that same copy, which
+            % makes index remapping unnecessary.
+            GaiaSorted = sortrows(GaiaCat.copy, 'Dec');
+            ResInd = imProc.match.matchInd(Cat, GaiaSorted, 'IsSpherical',true, ...
+                                           'SearchRadius',Args.Radius, 'SearchRadiusUnits',Args.RadiusUnits);
+            IndInGaia = ResInd(1).Ind;
             Matched   = ~isnan(IndInGaia);
             for Icol = 1:Ncol
-                GaiaVal = getGaiaCol(GaiaCat, Args.GaiaCols{Icol});
+                GaiaVal = getGaiaCol(GaiaSorted, Args.GaiaCols{Icol});
                 ColData(Matched, Icol) = GaiaVal(IndInGaia(Matched));
             end
         end
