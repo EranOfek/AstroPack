@@ -22,7 +22,19 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
     % Input  : - A single element AstroZOGY, or AstroDiff, with Image, Fd,
     %            PSFData and SmearTemplate populated.
     %          * ...,key,val,...
-    %            'Ninj' - Injections per population. Default is 1000.
+    %            'Ninj' - Injections per population, capped by the number of
+    %                   clear grid positions, which on a full crop is about
+    %                   2400 and so is usually what limits it. Default is
+    %                   3000, i.e. take every position available.
+    %                   The threshold is median + norminv(1-KeepFraction)
+    %                   times a robust scale, and that scale is biased low at
+    %                   small n, which pulls a 2.33 sigma threshold toward the
+    %                   centre and makes the contour stricter than it should
+    %                   be. Measured on one crop, the threshold at |SCORE| 12
+    %                   moved from -1.14 at Ninj 1000 to -1.37 at the grid
+    %                   limit, a shift five times the run to run scatter. The
+    %                   injections are not what costs time here, so there is
+    %                   no reason to take fewer than the grid offers.
     %            'FluxRng' - Log-uniform injected flux range. Wide by
     %                   default, since what matters is where the injections
     %                   land in SCORE and that depends on the coadd depth.
@@ -73,7 +85,7 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
 
     arguments
         Obj(1,1)
-        Args.Ninj              = 1000;
+        Args.Ninj              = 3000;
         Args.FluxRng           = [3e1 3e4];
         Args.MinSep            = 30;
         Args.SepMargin         = 4;
