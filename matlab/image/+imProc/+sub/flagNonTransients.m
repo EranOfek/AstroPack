@@ -158,45 +158,11 @@ function TranCat = flagNonTransients(Obj, Args)
                        persistent sources.
                        Default is true.
 
-                'SecondMomSoftLim' - Soft limit on second moments defining
-                       the good-PSF regime.
-                       Default is 1.4.
-
-                'SecondMomHardLim' - Two-element threshold defining the
-                       very-poor N-PSF regime:
-                       [(N_X2+N_Y2) limit, max(N_X2,N_Y2) limit].
-                       Default is [5.0 3.0].
-
-                'ContaminationBackRatio' - Tail flux relative to background.
-                       Default is 0.1.
-
-                'ContaminationMag' - Log flux-ratio thresholds used in the
-                       layered contamination logic:
-                       [strict, loose, very-poor rescue].
-                       Default is [0.0 0.3 1.0].
-
-                'ContaminationRadius' - Matching radius in PSF units.
-                       Default is 1.5.
-
-                'ContaminatorBlendChi2Thresh' - Chi2 threshold for blended
-                       contaminators.
-                       Default is 6.0.
-
-                'ContaminationSelfRadiusFactor' - Radius in PSF units within
-                       which a matched source is considered self-contamination.
-                       Default is 1.5.
-
-                'BufferAgainstEdgeSmoothing' - Pixel buffer applied when
-                       estimating PSF tail flux beyond the stamp.
-                       Default is 2.
-
-                'ContaminationBackAnnulusMax' - Allowed |BACK_ANNULUS|
-                       thresholds for strict and loose cuts.
-                       Default is [1.0 3.0].
-
-                'ContaminationStdAnnulusMax' - Allowed STD_ANNULUS thresholds
-                       for strict and loose cuts.
-                       Default is [4.5 12.0].
+                'SecondMomHardLim' - Three-element second moment threshold:
+                       (1) limit on max(X2,Y2), (2) limit on X2+Y2 for the
+                       very-poor PSF regime, (3) limit on X2+Y2 beyond which
+                       the PSF is not salvageable.
+                       Default is [3.0 4.5 5.0].
 
                 'flagExtended' - Flag extended (non-PSF-like) sources.
                        Default is true.
@@ -271,9 +237,6 @@ function TranCat = flagNonTransients(Obj, Args)
                 'TranslientThresh' - Fixed threshold for poor PSF cases.
                        Default is 0.48.
 
-                'TranslientExpThresh' - Exponential threshold parameters.
-                       Default is [10.84285361,-0.11715016,-0.06581693].
-
                 --- Injections ---
                 'injectedSrcs' - [RA,Dec] injected sources to ignore in some
                        tests.
@@ -298,7 +261,6 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.PixelScale double = 1.25
         Args.injectedSrcs double = []
 
-        Args.SoftNChi2Lim double = 5.0
 
         % Negative candidates
         Args.flagNegatives logical = true
@@ -320,14 +282,12 @@ function TranCat = flagNonTransients(Obj, Args)
         % Soft bad-pixel filters
         Args.flagBadPix_Soft logical = true
         Args.BadPix_Soft cell = {'DarkHighVal', 'CR_DeltaHT'}
-        Args.BPS_PSFLimit double = -2.8
-        Args.BPS_DeltaLimit double = 10.0
         Args.SmearThreshold double = []        % [BinCen BinThr...], empty to calibrate
         Args.smearThresholdArgs cell = {}      % passed to imProc.sub.smearThreshold
         Args.BadPix_SoftMinScore double = 12   % below this, marked candidates are flagged on the mask
         Args.flagBadPix_Dense logical = true
         Args.BadPix_DenseSigma double = 1      % Gaussian sigma for the local mask density
-        Args.BadPix_DenseOffset double = 0.20  % above the calibrators' density
+        Args.BadPix_DenseOffset double = 0.2  % above the calibrators' density
 
         % Holes in the reference filters
         Args.flagRefHole logical = true;
@@ -370,21 +330,10 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % N-image PSF shape
         Args.flagPSFShape logical = true
-        Args.SecondMomSoftLim double = 1.4
         Args.SecondMomHardLim double = [3.0 4.5 5.0]
         Args.ContamMagThresh double = 0.5
         Args.psfResidContamArgs cell = {}
 
-        % Contamination logic
-        Args.ContaminationBackRatio double = 0.1
-        Args.ContaminationRadius double = 1.5
-        Args.ContaminatorBlendChi2Thresh double = 6.0
-        Args.ContaminationSelfRadiusFactor double = 1.5
-        Args.BufferAgainstEdgeSmoothing double = 2;
-
-        Args.ContaminationMag double = [0.3 0.5]
-        Args.ContaminationBackAnnulusMax double = [1.0 3.0]
-        Args.ContaminationStdAnnulusMax double = [4.5 12 100]
 
         % Local background
         Args.flagLocalBack logical = true
@@ -871,48 +820,6 @@ function TranCat = flagNonTransients(Obj, Args)
             FilterFlags = setFilterBit(FilterFlags, FalseSaturation, BD_TF, 'SubVisit');
         end
 
-        % Apply soft bit mask criteria.
-        %{
-        if Args.flagBadPix_Soft && CandCat.isColumn('SN_delta')
-
-            SN_delta = CandCat.getCol('SN_delta');
-
-            SdiffSd = Score - SN_delta;
-
-            BPSThresh = zeros(NumCand,1);
-
-            NumBadSoft = numel(Args.BadPix_Soft);
-
-            BPSoftOkayChi2 = true(NumCand,1);
-       
-            for IBad=1:1:NumBadSoft
-                BPinNew = BD_IM.findBit(N_BM, Args.BadPix_Soft{IBad});
-                BPinRef = BD_IM.findBit(R_BM, Args.BadPix_Soft{IBad});
-                BPinNewRef = BPinNew | BPinRef;
-
-                BPS_ThresholdIncrement = Args.BPS_DeltaLimit;
-
-
-                if N_PSFPhot_isSolved
-                    BPSoftOkayChi2(BPinNew) = BPSoftOkayChi2(BPinNew) & ...
-                        (N_CHI2DOF_Local(BPinNew) < Args.SoftNChi2Lim);
-                    BPSoftOkayChi2(BPinRef) = BPSoftOkayChi2(BPinRef) & ...
-                        (N_CHI2DOF_Local(BPinRef) < Args.SoftNChi2Lim);
-                end
-
-                BPSThresh(BPinNewRef) = BPSThresh(BPinNewRef) ...
-                    + BPS_ThresholdIncrement;
-            end
-
-            BPSThresh(BPSThresh == 0) = Args.BPS_PSFLimit;
-
-            PassesBPSoft = (SdiffSd >= BPSThresh) & BPSoftOkayChi2;
-            BadPixSoft = ~PassesBPSoft;
-
-            FilterFlags = setFilterBit(FilterFlags, BadPixSoft, BD_TF, 'BadPixelSoft');
-       end
-        %}
-
         % Apply soft bit mask criteria, by the smear statistic.
         %   A defect sits at a fixed detector position, so the registration
         %   applied before coaddition moves it and it becomes a small blob in
@@ -1295,285 +1202,6 @@ function TranCat = flagNonTransients(Obj, Args)
             FilterFlags = setFilterBit(FilterFlags, ~Passes_LocalBack, ...
                                        BD_TF, 'LocalBack');
         end
-
-        %{
-        if Args.flagPSFShape && D_PSFPhot_isSolved && R_PSFPhot_isSolved && Annulus_isSolved
-
-            % This section attempts to identify candidates that are likely 
-            % subtraction residuals caused by imperfect PSF reconstruction. 
-            % Such residuals often arise near bright or smeared persistent sources.
-            %
-            % The logic combines two ideas:
-            %   1) Is the candidate bright compared to the expected contamination from
-            %      nearby persistent sources?
-            %      - We estimate persistent-source fluxes from the R image, convert
-            %        them to the N-image zeropoint, and use the N-image PSF to estimate
-            %        how much flux can leak beyond the PSF stamp.
-            %   2) Is the local subtraction around the candidate generally clean?
-            %      - We use annulus statistics measured in the difference image.
-            %
-            % The conditions are layered in loose and strict conditions.
-            % Loose conditions are always applied and the strict
-            % coniditions are only applied if the PSF is very poor.
-            %
-            % A future alternative would be to replace these layered cuts with a
-            % trained multi-dimensional classifier such as a BDT.
-
-            % Require a good R-image PSF unless the candidate is isolated.
-            % For isolated candidates, the N-image PSF test is considered sufficient.
-
-            R_Passes_PSFShape = (R_GoodPSF | IsolatedCand);
-
-            % In the N image, a transient superimposed on a persistent source can
-            % shift the measured centroid and bias the local source photometry.
-            % To estimate contamination from persistent sources only, we take the
-            % source fluxes from the R image, convert them to the N-image zeropoint,
-            % and combine them with the N-image PSF shape. We use the PSF
-            % flux because the aperture flux will overestimate the
-            % contamination for extended sources such as galaxies.
-
-            R_IntFlux = Obj(Iobj).Ref.CatData.getCol('FLUX_PSF');
-            N_IntFlux = R_IntFlux*10^(0.4*(Obj(Iobj).ZpN-Obj(Iobj).ZpR));
-
-            % Estimate the fraction of source flux expected to fall beyond the smaller
-            % of the N- and R-image PSF stamps, since this is the part most relevant
-            % for contamination by unmodeled PSF wings.
-
-            N_PSFSize = floor(size(Obj(Iobj).New.PSFData.getPSF,2)/2);
-            R_PSFSize = floor(size(Obj(Iobj).Ref.PSFData.getPSF,2)/2);
-
-            % Recalculating the moments due to issue #701, this should change once the
-            % issue is properly fixed. TODO
-            NewPSF = Obj(Iobj).New.PSF;
-            PSFbw = imbinarize(NewPSF);
-
-            stats = regionprops(PSFbw, 'Orientation', 'Area');
-            
-            if isempty(stats)
-                theta = 0;
-            else
-                % take largest component
-                [~, imax] = max([stats.Area]);
-                theta = stats(imax).Orientation;
-            end
-            
-            PSFnew = imrotate(NewPSF, -theta, 'bilinear', 'crop');
-
-            PSFsum = sum(PSFnew(:));
-            if PSFsum > 0
-                PSFnew = PSFnew ./ PSFsum;
-            else
-                PSFnew = zeros(size(PSFnew));
-            end
-
-            [~, M2, ~] = imUtil.image.moment2(PSFnew, ...
-                N_PSFSize, N_PSFSize, 'MaxIter',-1,...
-                'MomRadius', 1.7*Obj(Iobj).New.PSFData.fwhm);
-
-            Med_NX2 = M2.X2;
-            Med_NY2 = M2.Y2;
-
-            % Get the flux fraction that is expected in the tails beyond 
-            % the PSF stamp. Start from a Gaussian tail extrapolation based 
-            % on the PSF second moments. Then inflate that tail estimate 
-            % if a significant fraction of the PSF power lies near the 
-            % stamp boundary, which indicates asymmetry or broader
-            % non-Gaussian wings.
-            
-            % Punish for assymetry
-            [~, imax] = max(PSFnew(:));
-            [iy0, ix0] = ind2sub(size(PSFnew), imax);
-            
-            [xg, yg] = meshgrid(1:size(PSFnew,2), 1:size(PSFnew,1));
-            dx = abs(xg - ix0);
-            dy = abs(yg - iy0);
-            
-            PSFSize_Min = min(N_PSFSize,R_PSFSize);
-            ExpectedMaxPos = PSFSize_Min + 1;
-            MaxOffset = abs(ExpectedMaxPos - [ix0, iy0]);
-            EdgeOffset = Args.BufferAgainstEdgeSmoothing;%+ max(MaxOffset);
-            PSFSize_Min = min(N_PSFSize,R_PSFSize)-EdgeOffset;
-            PSFSize_Max = max(N_PSFSize,R_PSFSize);
-
-            FractionTailFlux_Gauss = 1 - ...
-                erf((PSFSize_Min)./sqrt(2*Med_NX2))*erf((PSFSize_Min)./sqrt(2*Med_NY2));
-
-            EdgeMask = (dx >= PSFSize_Min-MaxOffset(1)) ...
-                | (dy >= PSFSize_Min-MaxOffset(2));
-
-            EdgeFrac = sum(PSFnew(EdgeMask), 'all');
-            Inflation = min(1 + 2 * EdgeFrac, 3.0);
-
-            FractionTailFlux = min(FractionTailFlux_Gauss * Inflation, 0.9);
-            N_TailFlux = N_IntFlux*FractionTailFlux;
-
-            % Mark persistent sources as potential contaminators if their estimated
-            % tail flux exceeds a configurable fraction of the N-image background.
-            Contaminators = (N_TailFlux > Args.ContaminationBackRatio*Obj(Iobj).BackN);
-
-            % Match candidates to contaminating sources within a radius scaled to the
-            % PSF size, so that broader PSFs are searched over a larger area.
-            [R_NativeRA, R_NativeDec] = Obj(Iobj).Ref.CatData.getLonLat('rad');
-            WideRadiusArcsec = ceil(Args.ContaminationRadius*PSFSize_Max*Args.PixelScale);
-
-            % Select positions and tail fluxes of contaminating sources.
-            R_NativeContRa = R_NativeRA(Contaminators);
-            R_NativeContDec = R_NativeDec(Contaminators);
-            N_ContTailFlux = N_TailFlux(Contaminators);
-
-            % Blended sources in the R image will be counted as one
-            % source in the R-image catalog. A contamination can occur
-            % at the edge of an unregistered source, so we'll identify
-            % poorly fitted R-image sources and use a bigger radius for
-            % them. 
-
-            R_NativeCHI2 = Obj(Iobj).Ref.CatData.getCol('PSF_CHI2DOF');
-            R_NativeContCHI2 = R_NativeCHI2(Contaminators);
-            BlendedContaminators = ...
-                (R_NativeContCHI2 > Args.ContaminatorBlendChi2Thresh);
-
-            % Store the subset of contaminators whose poor R-image PSF fit 
-            % suggests blending or unresolved structure.
-            R_NativeBlendedContRa = R_NativeContRa(BlendedContaminators);
-            R_NativeBlendedContDec = R_NativeContDec(BlendedContaminators);
-
-            % Match candidates to contaminating sources in wide range.
-            if any(Contaminators)
-                N_ContCatMatchWide = VO.search.search_sortedlat_multi( ...
-                    [R_NativeContRa, R_NativeContDec], RA, Dec, ...
-                    -WideRadiusArcsec*Arcsec2Rad);
-
-                if any(BlendedContaminators)
-                    N_BlendedContCatMatchWide = VO.search.search_sortedlat_multi( ...
-                        [R_NativeBlendedContRa, R_NativeBlendedContDec], RA, Dec, ...
-                        -2.*WideRadiusArcsec*Arcsec2Rad);
-
-                    % Merge matches to blended contaminators into the general contaminator
-                    % match list, remapping indices from the blended subset back to the full
-                    % contaminator list.
-                    BlendedToContIdx = find(BlendedContaminators);
-                    
-                    for i = 1:numel(N_ContCatMatchWide)
-                    
-                        % --- general matches ---
-                        indA  = N_ContCatMatchWide(i).Ind(:);
-                        distA = N_ContCatMatchWide(i).Dist(:);
-                    
-                        % --- blended matches, remapped to full contaminator indexing ---
-                        indB_local = N_BlendedContCatMatchWide(i).Ind(:);
-                        distB      = N_BlendedContCatMatchWide(i).Dist(:);
-                    
-                        if ~isempty(indB_local)
-                            indB = BlendedToContIdx(indB_local);
-                        else
-                            indB = [];
-                        end
-                    
-                        % append only indices not already present
-                        isNew = ~ismember(indB, indA);
-                    
-                        indMerged  = [indA;  indB(isNew)];
-                        distMerged = [distA; distB(isNew)];
-                    
-                        % update struct
-                        N_ContCatMatchWide(i).Ind    = indMerged;
-                        N_ContCatMatchWide(i).Dist   = distMerged;
-                        N_ContCatMatchWide(i).Nmatch = numel(indMerged);
-                    
-                        if ~isempty(indMerged)
-                            [~, kmin] = min(distMerged);
-                            N_ContCatMatchWide(i).Ind1 = indMerged(kmin);
-                        else
-                            N_ContCatMatchWide(i).Ind1 = [];
-                        end
-                    end
-
-                end
-
-                NumMatchesWideCont = vertcat(N_ContCatMatchWide.Nmatch);
-            else
-                NumMatchesWideCont = zeros(NumCand,1);
-            end
-
-            %SelfSrcRadiusRad = Args.ContaminationSelfRadiusFactor .* ...
-            %    Args.PixelScale .* Arcsec2Rad;
-            SelfSrcRadiusRad = PointLimit3*Arcsec2Rad;
-
-            ContaminationFlux = zeros(NumCand,1);
-
-            for ICand = 1:NumCand
-
-                if (NumMatchesWideCont(ICand) < 1)
-                    continue
-                end
-                
-                IdxRef = N_ContCatMatchWide(ICand).Ind(:);
-                DistRad   = N_ContCatMatchWide(ICand).Dist(:);
-
-                % Ignore self-contamination.
-                IdxRef = IdxRef(DistRad > SelfSrcRadiusRad);
-
-                if isempty(IdxRef)  
-                    ContaminationFlux(ICand) = 0;
-                    continue
-                end
-                
-                % Sum the estimated contaminating tail flux from all matched nearby
-                % persistent sources, excluding the candidate's own matched counterpart.    
-                ContaminationFlux(ICand) = sum(N_ContTailFlux(IdxRef));
-            end
-
-            TranCat(Iobj) = Obj(Iobj).CatData.insertCol(...
-                   ContaminationFlux, 'SCORE', {'FLUX_CONTAM'}, {''});
-
-            % These layered threshold cuts could in principle be replaced by a single
-            % multi-dimensional classifier, making this a natural future BDT use case.
-
-            HasContam = ContaminationFlux > 0;
-            MagContamination = inf(NumCand,1);
-            MagContamination(HasContam) = ...
-                log10(D_FLUX_PSF(HasContam) ./ ContaminationFlux(HasContam));
-            
-            PassesLocalAperLoose = ...
-                (STD_ANNULUS < Args.ContaminationStdAnnulusMax(2) ...
-                & (abs(BACK_ANNULUS) < Args.ContaminationBackAnnulusMax(2)) ...
-                | (abs(D_FLUX_PSF./STD_ANNULUS) > Args.ContaminationStdAnnulusMax(3)));
-
-            PassesContaminationLoose = ...
-                (MagContamination > Args.ContaminationMag(1)) & PassesLocalAperLoose;
-
-            PassesLocalAperStrict = ...
-                (STD_ANNULUS < Args.ContaminationStdAnnulusMax(1)) ...
-                & (abs(BACK_ANNULUS) < Args.ContaminationBackAnnulusMax(1));
-
-            % Identify candidates with very poor N-image PSF shape.
-            % These candidates are only retained if they satisfy the strictest
-            % contamination and local-background conditions.
-            N_VeryPoorPSF = ((max(N_X2,N_Y2) >= Args.SecondMomHardLim(1)) ...
-                & ((N_X2 + N_Y2) >= Args.SecondMomHardLim(2)));
-
-            N_NotSalvagablePSF = (N_X2 + N_Y2) >= Args.SecondMomHardLim(3);
-
-            PassesContaminationStrict = ...
-                ~N_VeryPoorPSF ...
-                | ((MagContamination > Args.ContaminationMag(2)) & PassesLocalAperStrict);
-
-            % Final decision: require a reasonably clean local environment, pass the
-            % contamination test appropriate to the N-image PSF quality, and satisfy
-            % the R-image PSF requirement.
-
-            % A candidate brighter than any nearby persistent source cannot be the
-            % residual of one, so it is exempt from the contamination tests.
-            Passes_PSFShape = ...
-                  (PassesContaminationLoose | DgreaterNearbyR) ...  % Pass the main contamination test
-                & (PassesContaminationStrict | DgreaterNearbyR) ... % Additional requirement for very poor N PSFs
-                & R_Passes_PSFShape ...                             % Require a good R PSF unless the candidate is isolated
-     	        & ~N_NotSalvagablePSF;
-           
-            PSF_Flagged = ~Passes_PSFShape;
-            FilterFlags = setFilterBit(FilterFlags, PSF_Flagged, BD_TF, 'PSFShape');
-        end
-        %}
 
         if Args.flagDiffSpike
 
