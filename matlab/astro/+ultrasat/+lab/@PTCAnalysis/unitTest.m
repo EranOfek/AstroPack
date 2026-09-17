@@ -213,8 +213,11 @@ function writeFrames(Dev, Base, Test, Type, Step, Nframes, Signal, Offset, ZeroL
         Ne   = poissrnd(max(Signal, 0)./Gain);
         High = ZeroLevel + Offset + Gain.*Ne + ReadNoise.*randn(size(Signal));
         Low  = ZeroLevel + (Offset + Gain.*Ne)./15 + ReadNoise.*randn(size(Signal));
-        % readPTC returns rot90(Half.', 2); invert that for the stored halves
-        Im   = [rot90(Low, 2).', rot90(High, 2).'];
+        % readPTC returns rot90(Half.', 2); invert that for the stored halves, and
+        % prepend the two counter columns of every TIFF row
+        Hh   = size(Signal, 2);                                  % TIFF rows = model columns
+        Ctr  = [(1:Hh).', 32768 + (1:Hh).'];
+        Im   = [Ctr, rot90(Low, 2).', rot90(High, 2).'];
         Name = sprintf('%s_%s_#%02d_%s_%04d.tif', Base, Test, Step, Type, If);
         imwrite(uint16(round(Im)), fullfile(Dev, Test, Name), 'tif', 'Compression','none');
     end

@@ -5,11 +5,13 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
     %   sub-directory (e.g., PTC_int_hr) with a PTC_Config.xlsx and the
     %   TIFF frames <Base>_<Test>_#<Step>_<Type>_<Index>.tif, where Type is
     %   B (bright), D (dark), or ZE (zero exposure).
-    %   Each TIFF holds the low-gain and the high-gain readout of the same
-    %   pixels as two contiguous halves (left = low, right = high). By
-    %   default the high-gain half is returned in the DESY orientation
-    %   (transposed and rotated by 180 deg), in which the DESY analysis
-    %   regions are defined; see 'Gain' and 'Orient'.
+    %   Each TIFF row starts with MetaCols (2) counter columns (row number,
+    %   row number + 32768) followed by the low-gain and the high-gain
+    %   readout of the same pixels as two contiguous halves (left = low,
+    %   right = high; 4740 columns each for a 9482-wide TIFF). By default
+    %   the high-gain half is returned in the DESY orientation (transposed
+    %   and rotated by 180 deg), in which the DESY analysis regions are
+    %   defined; see 'Gain', 'Orient' and 'MetaCols'.
     %   Each output AstroImage gets the TIFF header (see io.tiff.read1) plus
     %   GAINSEL, ORIENT, RAWSEC, RAWXOFF and keys from the sidecars: LOTID, WAFERID, DEVICE, RUNNO, OPERATOR,
     %   STATION, TESTSEQ, SEQREV, TESTTEMP, CHUCKTMP, TESTNAME, FRMTYPE,
@@ -32,8 +34,11 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
     %                   headers are populated (fast inventory).
     %                   Default is true.
     %            'Gain' - Which readout to return: 'high' (right half of
-    %                   the TIFF), 'low' (left half), or 'raw' (the whole
-    %                   TIFF as stored). Default is 'high'.
+    %                   the pixel payload), 'low' (left half), or 'raw'
+    %                   (the whole TIFF as stored, counters included).
+    %                   Default is 'high'.
+    %            'MetaCols' - Number of leading non-pixel (counter) columns
+    %                   in each TIFF row. Default is 2.
     %            'Orient' - Orientation of the returned image: 'desy'
     %                   (transposed and rotated by 180 deg, i.e. the numpy
     %                   orientation of the DESY analysis, 4741x4742 for a
@@ -66,6 +71,7 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
         Args.ReadImage(1,1) logical   = true;
         Args.Gain                     = 'high';
         Args.Orient                   = 'desy';
+        Args.MetaCols(1,1) double     = 2;
         Args.CCDSEC                   = [];
         Args.FlipUD(1,1) logical      = false;
         Args.Verbosity(1,1) double    = 0;
@@ -156,7 +162,7 @@ end
 function [Image, Header] = readFrame(File, Args)
     % read one frame (or its header) with gain-half selection and orientation
     Info = imfinfo(File);
-    G = frameGeometry(Info(1).Width, Info(1).Height, Args.Gain, Args.Orient, Args.CCDSEC);
+    G = frameGeometry(Info(1).Width, Info(1).Height, Args.Gain, Args.Orient, Args.CCDSEC, Args.MetaCols);
     if Args.ReadImage
         [Image, Header] = io.tiff.read1(File, 'CCDSEC',G.RawSec);
         if strcmpi(Args.Orient, 'desy')
@@ -177,26 +183,29 @@ function [Image, Header] = readFrame(File, Args)
     Header(end+1,:) = {'ORIENT',  lower(Args.Orient), 'desy: transposed + rot180; tiff: as stored'};
     Header(end+1,:) = {'RAWSEC',  sprintf('[%d:%d,%d:%d]', G.RawSec), 'Section of the TIFF read [x1:x2,y1:y2]'};
     Header(end+1,:) = {'RAWXOFF', G.Xoff, 'First TIFF column of the selected half minus 1'};
+    Header(end+1,:) = {'METACOLS', G.MetaCols, 'Leading counter columns per TIFF row (not pixels)'};
     if ~isempty(Args.CCDSEC)
         Header(end+1,:) = {'CCDSEC', sprintf('[%d:%d,%d:%d]', Args.CCDSEC), 'Section in the returned orientation'};
     end
 end
 
-function G = frameGeometry(Width, Height, Gain, Orient, CCDSEC)
+function G = frameGeometry(Width, Height, Gain, Orient, CCDSEC, MetaCols)
     % raw TIFF section [Xmin Xmax Ymin Ymax] and output size for a gain half,
-    % an orientation and a section given in the output orientation
+    % an orientation and a section given in the output orientation; the
+    % MetaCols leading counter columns are excluded from the halves
+    G.MetaCols = MetaCols;
     switch lower(Gain)
         case 'raw'
             Xoff = 0;  Wh = Width;
         case {'high', 'low'}
-            if mod(Width, 2)~=0
-                error('ultrasat:lab:readPTC:halves', 'Width %d is odd: cannot split into gain halves', Width);
+            if mod(Width - MetaCols, 2)~=0
+                error('ultrasat:lab:readPTC:halves', 'Width %d minus %d counter columns is odd: cannot split into gain halves', Width, MetaCols);
             end
-            Wh = Width/2;
+            Wh = (Width - MetaCols)/2;
             if strcmpi(Gain, 'high')
-                Xoff = Wh;
+                Xoff = MetaCols + Wh;
             else
-                Xoff = 0;
+                Xoff = MetaCols;
             end
         otherwise
             error('ultrasat:lab:readPTC:gain', 'Unknown Gain %s (high|low|raw)', Gain);

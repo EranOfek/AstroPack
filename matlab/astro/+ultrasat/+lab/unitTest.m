@@ -68,7 +68,9 @@ function Result = unitTest()
     writecell(Config, fullfile(Dev, Test, 'PTC_Config.xlsx'));
 
     [X, Y] = meshgrid(1:20, 1:10);
-    Im = uint16(100*Y + X);
+    Im = uint16(100*Y + X);                                     % 10 low-gain + 10 high-gain pixel columns
+    Ctr = uint16([(1:10).', 32768 + (1:10).']);                 % the two counter columns of every TIFF row
+    Im  = [Ctr, Im];                                            % stored TIFF: 10 x 22
     Names = {'#02_B_0001', '#01_B_0001', '#03_D_0002', '#03_D_0001', '#01_D_0001', '#01_ZE_0001'};
     for In=1:1:numel(Names)
         imwrite(In*Im, fullfile(Dev, Test, sprintf('%s_%s_%s.tif', Base, Test, Names{In})), 'tif', 'Compression','none');
@@ -91,33 +93,34 @@ function Result = unitTest()
     assert(isequal(Frames.FrameType.', {'B','B','D','D','D','ZE'}));
     assert(isequal(Frames.Step.', [1 2 1 3 3 1]) && isequal(Frames.FrameIndex.', [1 1 1 1 2 1]));
     assert(isequal(Frames.ExpTime.', [15 15 15 60 60 0]) && isequal(Frames.Intensity.', [1e-5 2e-5 0 0 0 0]));
-    assert(isequal(AI(1).Image, 2*Im) && isequal(AI(6).Image, 6*Im));   % '#01_B_0001' was written 2nd
+    assert(isequal(AI(1).Image, 2*Im) && isequal(AI(6).Image, 6*Im));   % '#01_B_0001' was written 2nd (raw: counters scaled too)
     H = AI(4).HeaderData;
     assert(strcmp(H.getVal('LOTID'),'TH00001') && H.getVal('WAFERID')==3 && H.getVal('DEVICE')==7);
     assert(strcmp(H.getVal('FRMTYPE'),'D') && H.getVal('STEP')==3 && H.getVal('EXPTIME')==60 && H.getVal('INTENS')==0);
     assert(H.getVal('CHUCKTMP')==-50 && H.getVal('VDDA')==3.3 && H.getVal('CAL_ADC')==2 && H.getVal('PASS')==1);
     assert(strcmp(H.getVal('TESTSTRT'),'2026-08-27T04:07:13') && strcmp(H.getVal('TESTNAME'),Test));
-    assert(~isempty(H.getVal('DATE-OBS')) && H.getVal('NAXIS1')==20 && strcmp(H.getVal('GAINSEL'),'raw'));
+    assert(~isempty(H.getVal('DATE-OBS')) && H.getVal('NAXIS1')==22 && strcmp(H.getVal('GAINSEL'),'raw') && H.getVal('METACOLS')==2);
     assert(S.Calib.adc.BestMatch==2 && numel(S.Calib.adc.MeasuredValues)==3);
 
     % readPTC: filters, headers only, CCDSEC, FlipUD (raw)
     [AI, Frames] = ultrasat.lab.readPTC(Dev, 'FrameType','D', 'Step',3, 'ReadImage',false);
     assert(numel(AI)==2 && all(strcmp(Frames.FrameType,'D')) && isempty(AI(1).Image));
     assert(AI(1).HeaderData.getVal('EXPTIME')==60 && AI(1).HeaderData.getVal('NAXIS1')==10);
-    AI = ultrasat.lab.readPTC(Dev, 'FrameType',{'B','ZE'}, 'FrameIndex',1, 'CCDSEC',[2 5 3 4], 'Gain','raw', 'Orient','tiff');
-    assert(numel(AI)==3 && isequal(AI(1).Image, 2*Im(3:4, 2:5)));
+    AI = ultrasat.lab.readPTC(Dev, 'FrameType',{'B','ZE'}, 'FrameIndex',1, 'CCDSEC',[4 7 3 4], 'Gain','raw', 'Orient','tiff');
+    assert(numel(AI)==3 && isequal(AI(1).Image, 2*Im(3:4, 4:7)));
     AI = ultrasat.lab.readPTC(Dev, 'FrameType','ZE', 'FlipUD',true, 'Gain','raw', 'Orient','tiff');
     assert(isequal(AI.Image, flipud(6*Im)));
 
-    % readPTC: gain halves and orientation
-    High = Im(:, 11:20);  Low = Im(:, 1:10);
+    % readPTC: gain halves (after the 2 counter columns) and orientation
+    High = Im(:, 13:22);  Low = Im(:, 3:12);
     D    = rot90(High.', 2);                                    % DESY orientation of the high-gain half
     AI = ultrasat.lab.readPTC(Dev, 'FrameType','ZE');           % defaults: high, desy
     assert(isequal(AI.Image, 6*D) && isequal(size(AI.Image), [10 10]));
     H = AI.HeaderData;
-    assert(strcmp(H.getVal('GAINSEL'),'high') && strcmp(H.getVal('ORIENT'),'desy') && strcmp(H.getVal('RAWSEC'),'[11:20,1:10]'));
+    assert(strcmp(H.getVal('GAINSEL'),'high') && strcmp(H.getVal('ORIENT'),'desy') && strcmp(H.getVal('RAWSEC'),'[13:22,1:10]') && H.getVal('RAWXOFF')==12);
     AI = ultrasat.lab.readPTC(Dev, 'FrameType','ZE', 'Gain','low', 'Orient','tiff');
-    assert(isequal(AI.Image, 6*Low) && strcmp(AI.HeaderData.getVal('RAWSEC'),'[1:10,1:10]'));
+    assert(isequal(AI.Image, 6*Low) && strcmp(AI.HeaderData.getVal('RAWSEC'),'[3:12,1:10]') && AI.HeaderData.getVal('RAWXOFF')==2);
+    assert(~any(AI.Image(:)==6) && ~any(AI.Image(:)==6*32769));      % no counter values in a pixel half
     AI = ultrasat.lab.readPTC(Dev, 'FrameType','ZE', 'Gain','low');
     assert(isequal(AI.Image, 6*rot90(Low.', 2)));
     AI = ultrasat.lab.readPTC(Dev, 'FrameType','ZE', 'CCDSEC',[2 5 3 4]);            % section in the DESY orientation
@@ -136,7 +139,7 @@ function Result = unitTest()
     A = AstroImage(Files{1});
     assert(isequal(uint16(A.Image), 6*D) && isa(A.Image, 'uint16'));
     H = A.HeaderData;
-    assert(strcmp(H.getVal('GAINSEL'),'high') && strcmp(H.getVal('ORIENT'),'desy') && H.getVal('RAWXOFF')==10);
+    assert(strcmp(H.getVal('GAINSEL'),'high') && strcmp(H.getVal('ORIENT'),'desy') && H.getVal('RAWXOFF')==12 && H.getVal('METACOLS')==2);
     assert(strcmp(H.getVal('LOTID'),'TH00001') && strcmp(H.getVal('FRMTYPE'),'ZE') && H.getVal('SATURATE')==16383);
     assert(strcmp(H.getVal('BUNIT'),'ADU') && endsWith(H.getVal('ORIGFILE'), '#01_ZE_0001.tif'));
     B = AstroImage(Files{2});
