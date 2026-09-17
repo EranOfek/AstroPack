@@ -34,8 +34,6 @@ function [Template, Info] = smearTemplate(Obj, Args)
     %                   reports which was used, Info.Rejected why the first
     %                   choice was dropped when it was.
     %                   Default is 'auto'.
-    %                   Info.Radius is the peak search radius the smear
-    %                   statistic should be sampled with, in pixels.
     %
     %            --- both methods ---
     %            'HalfSize' - Cutout half size. Default is 7.
@@ -63,14 +61,27 @@ function [Template, Info] = smearTemplate(Obj, Args)
     %            'SigThresh' - Pixel significance threshold for the measured
     %                   template, in units of the scatter of its own border
     %                   ring. Default is 5.
-    %            'MinSigPix' - Pixels the measured template must have above
-    %                   SigThresh for it to be used. A drift of about a pixel
-    %                   per epoch leaves no coherent smear to stack, and the
-    %                   result is noise; filtering on it flags real sources.
-    %                   Default is 3. Failing it returns an empty template
+    %            'MinPeakSig' - Least peak over border scatter the template
+    %                   must reach for it to count as a smear. A short track
+    %                   concentrates its flux, so this is the test that keeps
+    %                   it. Default is 25, against 9.0 to 9.2 for stacks
+    %                   consistent with noise and 32.8 to 207.2 for real ones
+    %                   over a 13 crop sample.
+    %            'MinSigPix' - Pixels the template must have above SigThresh
+    %                   for it to count as a smear. A long track spreads its
+    %                   flux and lifts an area mildly without ever reaching a
+    %                   high peak, so this is the test that keeps it. Default
+    %                   is 12, against 1 to 9 for stacks consistent with noise
+    %                   and 13 to 29 for real ones over the same sample.
+    %                   MinSigPix and MinPeakSig are alternatives, not a pair:
+    %                   passing either one builds the template, and the coadd
+    %                   is called empty only when both fail. A drift of about
+    %                   a pixel per epoch leaves no coherent smear to stack
+    %                   and the result is noise, which filtering on flags real
+    %                   sources, so failing both returns an empty template
     %                   with Info.NoSmear true and no fallback to the other
-    %                   method, since the finding is about the visit rather
-    %                   than about the method.
+    %                   method: the finding is about the visit rather than
+    %                   about the method.
     %            'MinNumDefects' - Below this, return an empty template.
     %                   Default is 50.
     %            'StarCatName' - catsHTM catalogue used to reject calibrators
@@ -109,8 +120,17 @@ function [Template, Info] = smearTemplate(Obj, Args)
     %            apply to it.
     % Output : - The normalized template, or [] if it could not be obtained.
     %          - A struct with Method, Core, Offset and Reason, plus
-    %            NumComp, NumUsed, Scatter, NumNearSrc, X and Y for
-    %            'measured', and Nepoch, SpanX and SpanY for 'derived'.
+    %            NumComp, NumUsed, Scatter, NumNearSrc, X, Y, CalX and CalY
+    %            for 'measured', and Nepoch, SpanX, SpanY, MomentOffset and
+    %            AnchorShift for 'derived'.
+    %            Radius is the peak search radius the smear statistic should
+    %            be sampled with, in pixels.
+    %            SigPix, PeakSig and NoSmear report the significance test:
+    %            the pixel count above SigThresh, the peak over the border
+    %            scatter, and whether the coadd was judged to hold no smear.
+    %            NoSmear is the one a caller acts on, since it says the
+    %            template is absent because there is nothing to find here
+    %            rather than because this method could not build it.
     %            X and Y are the stacking positions, on the smear. CalX and
     %            CalY are the same calibrators with the common Offset taken
     %            back out, so they land on the mask components themselves,
@@ -137,8 +157,9 @@ function [Template, Info] = smearTemplate(Obj, Args)
         Args.MaxFluxPerPix        = 70;
         Args.MaxNumDefects        = 3000;
         Args.MinNumDefects        = 50;
-        Args.SigThresh            = 5;     % pixel significance, in template scatter
-        Args.MinSigPix            = 3;     % pixels above it for the template to count
+        Args.SigThresh            = 5;
+        Args.MinPeakSig           = 25;    % peak / border scatter of the template
+        Args.MinSigPix            = 12;    % pixels above it for the template to count
         Args.StarCatName          = 'GAIADR3';
         Args.MinStarDistFWHM      = 2.5;
         Args.SrcXY                = [];
@@ -159,6 +180,7 @@ function [Template, Info] = smearTemplate(Obj, Args)
                       'Scatter',NaN, 'Core',NaN, 'Offset',[NaN NaN], ...
                       'NumNearSrc',0, 'X',[], 'Y',[], 'CalX',[], 'CalY',[], ...
                       'Nepoch',NaN, 'SpanX',NaN, 'SpanY',NaN, ...
+                      'MomentOffset',[NaN NaN], 'AnchorShift',[NaN NaN], ...
                       'Radius',NaN, 'SigPix',NaN, 'PeakSig',NaN, 'NoSmear',false, ...
                       'Rejected',{{}}, 'Reason','');
 
@@ -167,16 +189,17 @@ function [Template, Info] = smearTemplate(Obj, Args)
     % subtractionS.
     [Args.VisitDir, Args.CropID] = resolveVisit(Obj, Args);
 
-    % Resolve the order to try. Both facts are cheap: the shift track is
-    % needed by the derived path anyway, and the defect count is one
-    % bwconncomp. Deciding here rather than mid-build means the choice is
-    % made in one place and recorded.
     Method = lower(Args.Method);
 
-    % The span is needed by the measured builder too, to size its stamp and
-    % to close the one-pixel gaps in the mask tracks, so recover it whatever
-    % the method resolves to. A NoFallback call already carries it in Args,
-    % put there by the caller that recursed into us.
+    % Count the defects, and recover the track span while we are here. The
+    % count decides the order to try below; deciding it here rather than
+    % mid-build means the choice is made in one place and recorded. The span
+    % is needed by the measured builder too, to size its stamp and to close
+    % the one-pixel gaps in the mask tracks, so recover it whatever the
+    % method resolves to. Both are cheap: the shift track is needed by the
+    % derived path anyway, and the defect count is one bwconncomp. A
+    % NoFallback call already carries the span in Args, put there by the
+    % caller that recursed into us.
     Ncal = 0;
     if ~Args.NoFallback
         [Ncal, Span]   = countClosedDefects(Obj, Args);
@@ -231,7 +254,14 @@ function [Template, Info] = smearTemplate(Obj, Args)
             Info.Radius   = smearRadius(Template);
             return
         end
-        Rejected{end+1} = sprintf('%s: %s', Order{Im}, Info.Reason); %#ok<AGROW>
+        if Args.NoFallback
+            % A leaf call runs one method and is always reached through the
+            % loop above, which prefixes the method name itself. Prefixing
+            % here as well is what produced 'measured: measured: ...'.
+            Rejected{end+1} = Info.Reason; %#ok<AGROW>
+        else
+            Rejected{end+1} = sprintf('%s: %s', Order{Im}, Info.Reason); %#ok<AGROW>
+        end
         if Info.NoSmear
             % Nothing to find by any method on this visit.
             break
@@ -459,7 +489,21 @@ function [Template, Info] = buildOne(Obj, Args, Info, Method)
     Info.SigPix   = sum(Template(:) > Args.SigThresh .* SigTemplate);
     Info.PeakSig  = max(Template(:)) ./ SigTemplate;
 
-    if Info.SigPix < Args.MinSigPix
+    % Either one suffices, because a smear can show itself either way. A
+    % short track concentrates its flux and shows a high peak on few pixels,
+    % while a long one spreads it and lifts an area mildly without ever
+    % reaching a high peak. Demanding both would reject the second kind, so
+    % the coadd is called empty only when it fails on both counts.
+    %   Both thresholds sit above the floor the core normalization creates.
+    % A stack of clean positions run through the same selection and division
+    % holds 8 to 10 pixels above SigThresh and reaches peak/sigma 3 to 9 with
+    % nothing there, which is why the old MinSigPix of 3 could never fire.
+    % Over a 13 crop sample the stacks consistent with that floor gave 1 to 9
+    % pixels and 5.6 to 9.2 peak, and the real ones 13 to 29 pixels and 32.8
+    % to 207.2 peak. The lowest member of the real group on both counts is
+    % the crop with the longest tracks, whose flux is spread over 19 pixels,
+    % so the thresholds are placed to keep it.
+    if Info.SigPix < Args.MinSigPix && Info.PeakSig < Args.MinPeakSig
         % Not a weakness of this method, a statement about the visit: there
         % is no coherent smear in this coadd to filter on. The derived model
         % would happily supply a track anyway, since it knows the shift
