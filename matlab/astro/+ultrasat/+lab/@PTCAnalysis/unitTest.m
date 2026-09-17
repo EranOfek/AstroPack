@@ -141,6 +141,12 @@ function Result = unitTest()
     assert(isequal(Pa.DarkFit.FitSteps, ExpD) && abs(Pa.DarkFit.MedianSlope - median(SlopeD(:)))<0.1);
     Pa.AutoMinFrac = 0.99;  Pa.fitResponse('D');                    % fallback too strict -> top 3 steps
     assert(isequal(Pa.DarkFit.FitSteps, 7:9));
+    Pa.AutoMinFrac = 0.15;
+    Pa.FitRange = [MedD(5)-1 MedD(6)+1];  Pa.fitResponse('D');       % two steps in the window -> nearest neighbour added, not the top
+    Near = [4 7];  [~, Im] = min([MedD(5)-MedD(4), MedD(7)-MedD(6)]);
+    assert(isequal(Pa.DarkFit.FitSteps, sort([5 6 Near(Im)])));
+    Pa.FitRange = [MedD(2)-1 MedD(2)+1];  Pa.fitResponse('D');       % one step -> the two nearest (1 and 3)
+    assert(isequal(Pa.DarkFit.FitSteps, 1:3));
 
     % median combiner and a sub-region
     P3 = ultrasat.lab.PTCAnalysis(Dev, 'CCDSEC',[5 20 3 12], 'Combiner','median', 'FitRange',[-1e9 1e9]);

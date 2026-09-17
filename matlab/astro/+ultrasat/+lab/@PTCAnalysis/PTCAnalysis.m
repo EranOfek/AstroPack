@@ -43,7 +43,7 @@ classdef PTCAnalysis < Component
         % options
         Combiner   = 'mean';                  % 'mean' | 'median' for ZE frames and step repeats
         FitRange   = [1000 2500];             % [ADU] signal window of the response fits; 1x2 for both types or 2x2 (row 1 = D, row 2 = B)
-        FitSteps   = struct('D',[], 'B',[]);  % explicit step numbers to fit (overrides FitRange when non-empty); 'auto' = steps whose median signal is inside FitRange, or if fewer than AutoMinSteps, the steps above AutoMinFrac of the top median (region mode only)
+        FitSteps   = struct('D',[], 'B',[]);  % explicit step numbers to fit (overrides FitRange when non-empty); 'auto' = steps whose median signal is inside FitRange, topped up to AutoMinSteps with the nearest steps; an empty window falls back to the steps above AutoMinFrac of the top median (region mode only)
         AutoMinSteps = 3;                     % 'auto' selection: minimum number of steps
         AutoMinFrac  = 0.15;                  % 'auto' selection: fallback lower limit as a fraction of the highest step median
         IntensityScale = 1000;                % bright X = Bright_Intensity * IntensityScale ("int" of the DESY plots = config value x 1000)
@@ -883,20 +883,25 @@ classdef PTCAnalysis < Component
 
         function Steps = autoSteps(Obj, L, Range)
             % 'auto' step selection from the median ladder: steps whose
-            % median signal lies inside Range and below SatLevel; if fewer
-            % than AutoMinSteps, the unsaturated steps whose median is at
-            % least AutoMinFrac of the highest median, topped up to
-            % AutoMinSteps with the highest remaining unsaturated steps.
+            % median signal lies inside Range and below SatLevel. If the
+            % window is empty (ladder entirely outside it), the unsaturated
+            % steps whose median is at least AutoMinFrac of the highest
+            % median are taken instead. In both cases fewer than
+            % AutoMinSteps steps are topped up with the unsaturated steps
+            % nearest to the window, so that a ladder step just outside
+            % the window never pulls in the whole saturating curve.
             Med = median(reshape(L.Mean, [], numel(L.X)), 1, 'omitnan');
             Ok  = isfinite(Med) & Med<Obj.SatLevel;
             Sel = Ok & Med>=Range(1) & Med<=Range(2);
-            if nnz(Sel)<Obj.AutoMinSteps
+            if ~any(Sel)
                 Sel = Ok & Med>=Obj.AutoMinFrac.*max(Med(Ok));
-                if nnz(Sel)<Obj.AutoMinSteps
-                    M2 = Med;  M2(~Ok) = -Inf;
-                    [~, Order] = sort(M2, 'descend');
-                    Sel(Order(1:min(Obj.AutoMinSteps, nnz(Ok)))) = true;
-                end
+            end
+            if nnz(Sel)<Obj.AutoMinSteps
+                Dist = max([Range(1)-Med; Med-Range(2); zeros(size(Med))], [], 1);
+                Dist(~Ok | Sel) = Inf;
+                [~, Order] = sort(Dist, 'ascend');
+                Order = Order(isfinite(Dist(Order)));
+                Sel(Order(1:min(Obj.AutoMinSteps-nnz(Sel), numel(Order)))) = true;
             end
             Steps = L.Step(Sel);
         end
