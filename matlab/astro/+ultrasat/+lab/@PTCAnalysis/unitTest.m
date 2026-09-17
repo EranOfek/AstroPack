@@ -130,6 +130,18 @@ function Result = unitTest()
     assert(isequal(squeeze(any(any(P2.DarkFit.Used,1),2)).', logical([0 0 0 1 1 1 1 0 0])));
     assert(abs(P2.DarkFit.MedianSlope - median(SlopeD(:)))<0.1);
 
+    % 'auto' selection: window when it holds >= 3 steps, else the top >= 15% of the maximum
+    Pa = ultrasat.lab.PTCAnalysis(Dev, 'CCDSEC',[1 Nx 1 Ny], 'FitSteps',struct('D','auto','B','auto'), 'FitRange',[1000 2500]);
+    Pa.run;
+    MedD = median(SlopeD(:)).*DarkExp + median(InterD(:));
+    ExpD = find(MedD>=1000 & MedD<=2500);
+    assert(isequal(Pa.DarkFit.FitSteps, ExpD) && Pa.DarkFit.NusedMode==numel(ExpD) && numel(ExpD)>=3);
+    Pa.FitRange = [1e5 2e5];  Pa.fitResponse('D');                  % window empty -> fallback
+    ExpD = find(MedD>=0.15*max(MedD));
+    assert(isequal(Pa.DarkFit.FitSteps, ExpD) && abs(Pa.DarkFit.MedianSlope - median(SlopeD(:)))<0.1);
+    Pa.AutoMinFrac = 0.99;  Pa.fitResponse('D');                    % fallback too strict -> top 3 steps
+    assert(isequal(Pa.DarkFit.FitSteps, 7:9));
+
     % median combiner and a sub-region
     P3 = ultrasat.lab.PTCAnalysis(Dev, 'CCDSEC',[5 20 3 12], 'Combiner','median', 'FitRange',[-1e9 1e9]);
     P3.run;

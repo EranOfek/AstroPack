@@ -43,7 +43,9 @@ classdef PTCAnalysis < Component
         % options
         Combiner   = 'mean';                  % 'mean' | 'median' for ZE frames and step repeats
         FitRange   = [1000 2500];             % [ADU] signal window of the response fits; 1x2 for both types or 2x2 (row 1 = D, row 2 = B)
-        FitSteps   = struct('D',[], 'B',[]);  % explicit step numbers to fit (overrides FitRange when non-empty)
+        FitSteps   = struct('D',[], 'B',[]);  % explicit step numbers to fit (overrides FitRange when non-empty); 'auto' = steps whose median signal is inside FitRange, or if fewer than AutoMinSteps, the steps above AutoMinFrac of the top median (region mode only)
+        AutoMinSteps = 3;                     % 'auto' selection: minimum number of steps
+        AutoMinFrac  = 0.15;                  % 'auto' selection: fallback lower limit as a fraction of the highest step median
         IntensityScale = 1000;                % bright X = Bright_Intensity * IntensityScale ("int" of the DESY plots = config value x 1000)
         GainRange  = [300 2500];              % [ADU] mean-signal window of the PTC gain fit (below the 3-5 kADU variance dip; validated against the deck)
         SatLevel   = 15000;                   % [ADU] steps with a mean above this are excluded from the gain fit (ADC 16383 - zero ~400 saturates at ~15985)
@@ -93,6 +95,8 @@ classdef PTCAnalysis < Component
                 Args.Combiner       = 'mean';
                 Args.FitRange       = [1000 2500];
                 Args.FitSteps       = struct('D',[], 'B',[]);
+                Args.AutoMinSteps   = 3;
+                Args.AutoMinFrac    = 0.15;
                 Args.IntensityScale = 1000;
                 Args.GainRange      = [300 2500];
                 Args.SatLevel       = 15000;
@@ -220,7 +224,9 @@ classdef PTCAnalysis < Component
 
         function Obj = fitResponse(Obj, Type)
             % Per-pixel linear fit of signal vs X inside FitRange (per type),
-            % or of the steps listed in FitSteps.(Type) when non-empty.
+            % or of the steps listed in FitSteps.(Type) when non-empty, or of
+            % the steps chosen by the 'auto' rule (see FitSteps) from the
+            % median ladder of the region.
             % Input  : - 'D' (signal vs exposure time) or 'B' (vs intensity).
             % Output : - Obj with DarkFit / BrightFit: Slope, Intercept,
             %            ResidRMS, Nused maps; Used [Ny Nx Nstep] (region
@@ -231,7 +237,7 @@ classdef PTCAnalysis < Component
                 if ~isfield(L, 'Mean')
                     error('ultrasat:lab:PTCAnalysis:order', 'Run combineSteps before fitResponse');
                 end
-                [Range, Steps] = Obj.fitSelection(Type, L.Step);
+                [Range, Steps] = Obj.fitSelection(Type, L.Step, L);
                 Fit = Obj.fitMasked(L.Mean(:,:,Steps), L.X(Steps), Range);
                 if ~all(Steps)
                     Used = false(size(L.Mean));
@@ -241,7 +247,7 @@ classdef PTCAnalysis < Component
             else
                 Fit = L.Fit;   % accumulated while streaming
             end
-            [Fit.FitRange, ~, Fit.FitSteps] = Obj.fitSelection(Type, L.Step);
+            [Fit.FitRange, ~, Fit.FitSteps] = Obj.fitSelection(Type, L.Step, L);
             Fit.X        = L.X;
             Fit.Type     = Type;
             Fit = Obj.fitSummary(Fit);
@@ -833,7 +839,7 @@ classdef PTCAnalysis < Component
                     L.Mean(:,:,Is)        = M;
                     L.VarTemporal(:,:,Is) = V;
                 else
-                    [Range, Sel] = Obj.fitSelection(Type, Steps(Is));
+                    [Range, Sel] = Obj.fitSelection(Type, Steps(Is));   % errors for 'auto' (needs the region ladder)
                     if Sel
                         Sums = ultrasat.lab.PTCAnalysis.accumulate(Sums, M, L.X(Is), Range);
                     elseif isempty(Sums)
@@ -846,11 +852,11 @@ classdef PTCAnalysis < Component
             end
         end
 
-        function [Range, Sel, Steps] = fitSelection(Obj, Type, StepNumbers)
+        function [Range, Sel, Steps] = fitSelection(Obj, Type, StepNumbers, L)
             % signal window of a frame type and the logical selection of the
             % given step numbers: all true when FitSteps.(Type) is empty
             % (selection by FitRange), otherwise the listed steps with an
-            % open window.
+            % open window; 'auto' resolves the list from the median ladder L.
             if size(Obj.FitRange, 1)==2
                 Range = Obj.FitRange(1 + strcmp(Type, 'B'), :);
             else
@@ -859,11 +865,40 @@ classdef PTCAnalysis < Component
             Steps = [];
             if isfield(Obj.FitSteps, Type) && ~isempty(Obj.FitSteps.(Type))
                 Steps = Obj.FitSteps.(Type);
+                if ischar(Steps) || isstring(Steps)
+                    if ~strcmpi(Steps, 'auto')
+                        error('ultrasat:lab:PTCAnalysis:fitsteps', 'FitSteps.%s must be numeric, [] or ''auto''', Type);
+                    end
+                    if nargin<4 || ~isfield(L, 'Mean')
+                        error('ultrasat:lab:PTCAnalysis:auto', 'FitSteps ''auto'' needs the per-pixel ladder (region mode)');
+                    end
+                    Steps = Obj.autoSteps(L, Range);
+                end
                 Sel   = ismember(StepNumbers, Steps);
                 Range = [-Inf Inf];
             else
                 Sel = true(size(StepNumbers));
             end
+        end
+
+        function Steps = autoSteps(Obj, L, Range)
+            % 'auto' step selection from the median ladder: steps whose
+            % median signal lies inside Range and below SatLevel; if fewer
+            % than AutoMinSteps, the unsaturated steps whose median is at
+            % least AutoMinFrac of the highest median, topped up to
+            % AutoMinSteps with the highest remaining unsaturated steps.
+            Med = median(reshape(L.Mean, [], numel(L.X)), 1, 'omitnan');
+            Ok  = isfinite(Med) & Med<Obj.SatLevel;
+            Sel = Ok & Med>=Range(1) & Med<=Range(2);
+            if nnz(Sel)<Obj.AutoMinSteps
+                Sel = Ok & Med>=Obj.AutoMinFrac.*max(Med(Ok));
+                if nnz(Sel)<Obj.AutoMinSteps
+                    M2 = Med;  M2(~Ok) = -Inf;
+                    [~, Order] = sort(M2, 'descend');
+                    Sel(Order(1:min(Obj.AutoMinSteps, nnz(Ok)))) = true;
+                end
+            end
+            Steps = L.Step(Sel);
         end
 
         function Fit = fitSummary(Obj, Fit, Mask)
