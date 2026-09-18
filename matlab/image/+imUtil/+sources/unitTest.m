@@ -28,6 +28,22 @@ function Result = unitTest
         error('Problem with imUtil.sources.aperPhotCube simulations');
     end
     Result = imUtil.sources.aperPhotCube(Cube, 9.*ones(Nsrc,1), 9.*ones(Nsrc,1), 'AperRad',[2 4 5 6]);
+
+    % imUtil.sources.moments - first moment on noise-free Gaussian sources (issue #1275)
+    % A bright source 0.4 pix off the stamp center must be recovered to <1%
+    % (the 3.75-pix support disc used to compress it to 0.82 of the offset),
+    % and a faint one (SN=6) 0.6 pix off must not freeze on the 0.4 rail.
+    SigmaPSF = 1.57;
+    [XX,YY]  = meshgrid(1:25, 1:25);
+    Stamp    = @(Dx) 1e4.*exp(-((XX-13-Dx).^2 + (YY-13).^2)./(2.*SigmaPSF.^2))./(2.*pi.*SigmaPSF.^2);
+    Cube     = cat(3, Stamp(0.4), Stamp(0.6));
+    M1 = imUtil.sources.moments(Cube, 'X',[13;13], 'Y',[13;13], 'SN',[1000; 6], 'Annulus',[10 12]);
+    if abs(M1.StampX1(1) - 0.4)>0.01 || abs(M1.StampY1(1))>0.01
+        error('Problem with imUtil.sources.moments: bright-source first moment compressed toward the stamp center');
+    end
+    if abs(M1.StampX1(2) - 0.6)>0.03
+        error('Problem with imUtil.sources.moments: faint-source first moment frozen by the step clamp');
+    end
     % maximal relative flux error (without noise)
     max(abs(([Result.AperPhot(:,4) - Flux]./Flux)))
     

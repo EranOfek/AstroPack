@@ -17,8 +17,9 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
     %          * ...,key,val,... or named arguments:
     %            'SN' - Vector of S/N values, one per image slice. Used in the
     %                   convergence criterion of the iterative centroiding.
-    %                   Convergence is reached when the positional shift between
-    %                   iterations is smaller than SigmaWidth./SN.
+    %                   Convergence is reached when the proposed positional
+    %                   shift between iterations is smaller than
+    %                   min(SigmaWidth(2)./SN, MaxStepSize(2)).
     %                   Default is [].
     %            'X' - X coordinates in the full image, one per source.
     %                  Required when Image is 2-D.
@@ -69,9 +70,12 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
     %                   first iteration and the second in subsequent iterations.
     %                   Default is [3 1.5].
     %            'TruncateSigma' - Truncation factor K for the Gaussian weights.
-    %                   Pixels outside +/-K*SigmaWidth may be ignored in the
-    %                   weighted-moment calculation.
-    %                   Default is 3.
+    %                   Pixels outside a disc of radius K*SigmaWidth(2)
+    %                   around the stamp center are ignored in the
+    %                   weighted-moment calculation. The disc must hold
+    %                   the whole source: 2.5 (i.e., 3.75 pix) compressed
+    %                   bright-star centroids by 18% (issue #1275).
+    %                   Default is 4.
     %            'MaxStepSize' - Two-element vector controlling the maximum centroid
     %                   step size between iterations, in pixels.
     %                   The first element is used for the first iteration and the
@@ -148,7 +152,7 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
         Args.Annulus           = [10 12];
         Args.MaxIter           = 8;
         Args.SigmaWidth        = [3 1.5];
-        Args.TruncateSigma     = 2.5;
+        Args.TruncateSigma     = 4;
         Args.MaxStepSize       = [0.1 0.1]; % [first iter, all the rest]
         Args.MaxRadiusM2       = 6;
     end
@@ -240,11 +244,18 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
 
         [CubeBS, Aper.AnnulusBack, Aper.AnnulusStd, Aper.AnnulusArea] = imUtil.sources.mex.annulus_median(Cube, Args.Annulus, 0);
         B0 = zeros(Nslice, 1);
+
+        % Noise variance level per stamp for the centroid weights I*g/(Var+A*g).
+        % Passing 0 here cancels the Gaussian window and turns the first moment
+        % into a plain centroid (issue #1275). The mex rejects non-finite values,
+        % so a failed annulus falls back to the unweighted case for that stamp.
+        VarLevel = Aper.AnnulusStd(:).^2;
+        VarLevel(~isfinite(VarLevel)) = 0;
     
         % M1.X1S/Y1S are the 1st moment estimated centers relative to the stamp
         % center (not stamp corner - controloed by the meaning of the 7th input
         % argument).
-        [M1.StampX1, M1.StampY1, M1.Iter] = imUtil.sources.mex.moment1_cube(CubeBS, B0, Args.SN, Args.MaxIter, Args.SigmaWidth, Args.TruncateSigma, true, Args.MaxStepSize(2), Args.MaxStepSize(1));
+        [M1.StampX1, M1.StampY1, M1.Iter] = imUtil.sources.mex.moment1_cube(CubeBS, VarLevel, Args.SN, Args.MaxIter, Args.SigmaWidth, Args.TruncateSigma, true, Args.MaxStepSize(2), Args.MaxStepSize(1));
     
         % return X, Y positions to stamp center position
         % Note that if the user didn't define Args.X, Args.Y then these are

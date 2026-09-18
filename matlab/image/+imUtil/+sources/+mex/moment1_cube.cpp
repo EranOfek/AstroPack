@@ -1,16 +1,19 @@
 // wcenteroid_cube.cpp
-// Poisson MLE-like Gaussian centroiding with per-slice background and one-time A estimate (iter #1)
+// Poisson MLE-like Gaussian centroiding of background-subtracted stamps with a per-slice
+// noise-variance level and a one-time A estimate (iter #1)
 //
 // Compile (Linux/g++):
 //   mex -O CXXFLAGS="\$CXXFLAGS -O3 -std=c++17 -march=native -fopenmp" LDFLAGS="\$LDFLAGS -fopenmp" wcenteroid_cube.cpp
 //
 // USAGE:
-//   [X1,Y1,IterConv] = wcenteroid_cube(Cube, Back, SN, MaxIter=10, SigmaWidth=2, k=3, RelToCenter=true, MaxStep=1/(sqrt(2)*MaxIter), MaxStep1=MaxStep)
+//   [X1,Y1,IterConv] = wcenteroid_cube(Cube, Var, SN, MaxIter=10, SigmaWidth=2, k=3, RelToCenter=true, MaxStep=1/(sqrt(2)*MaxIter), MaxStep1=MaxStep)
 //
 // INPUTS:
 //   Cube  : MxK or MxKxN, real single/double.
-//           IMPORTANT: Cube is assumed to INCLUDE the background.
-//   Back  : scalar or length-N vector, background level per slice (>=0).
+//           IMPORTANT: Cube is assumed to be BACKGROUND-SUBTRACTED.
+//   Var   : scalar or length-N vector, noise variance level per slice (>=0), e.g. sky + RN^2
+//           (the annulus std^2). It only enters the weights; 0 turns the estimator into a
+//           plain (unweighted) centroid inside the support disc (issue #1275).
 //   SN    : scalar or length-N vector, S/N per slice (>0). Used only for convergence tolerance.
 //
 // OPTIONAL INPUTS:
@@ -31,19 +34,19 @@
 //              NaN if not converged.
 //
 // ALGORITHM SUMMARY (per slice):
-//   Model per pixel i:  lambda_i = B + A * g_i(x,y)
+//   Model per pixel i:  variance_i = V + A * g_i(x,y)
 //     where g is a *normalized* 2D Gaussian with sigma = SigmaWidth(iter):
 //       g = (1/(2*pi*sigma^2)) * exp(-(dx^2+dy^2)/(2*sigma^2))
 //
 //   A estimation (ONLY once, in iteration 1, around the initial guess = stamp center):
-//     A = sum_{r <= 2*Sigma1} max(I - B, 0), ignoring NaNs.
+//     A = sum_{r <= 2*Sigma1} max(I, 0), ignoring NaNs  (I is already background-subtracted).
 //
 //   Fixed circular support (for speed + robustness):
 //     radius R = min(k*Sigma2, half_stamp_size) ; fixed center = stamp center (not updated).
 //     Pixels outside this mask are ignored in all iterations.
 //
 //   MLE-like centroid update (each iteration):
-//     w_i = I_i * g_i / (B + A*g_i)
+//     w_i = I_i * g_i / (V + A*g_i)      (signal x PSF weight / variance)
 //     x_hat = sum(w_i * x_i)/sum(w_i),  y_hat = sum(w_i * y_i)/sum(w_i)
 //     Proposed step: dx = x_hat - x0, dy = y_hat - y0
 //     Always clamp step magnitude separately in x,y:
@@ -51,8 +54,11 @@
 //     Update: x0 += dx ; y0 += dy
 //
 //   Convergence:
-//     tol = Sigma2 / SN
-//     Require TWO successive iterations with |dx|<tol AND |dy|<tol.
+//     tol = min(Sigma2 / SN, MaxStep)
+//     Require TWO successive iterations with |dx|<tol AND |dy|<tol, where dx,dy are the
+//     UNCLAMPED (proposed) steps - a step that had to be clamped is never "converged"
+//     (issue #1275: testing the clamped step froze every source with SN < Sigma2/MaxStep
+//     after 3 iterations).
 //     Also, convergence is never allowed on the first iteration (always do >=2 iterations).
 //
 //   Final iteration with correct window:
@@ -62,7 +68,7 @@
 // NOTES:
 //   - NaN/Inf pixels in Cube are ignored (they do not contribute).
 //   - If sum(w) <= 0 or not finite, slice returns current estimate and stops iterating.
-//   - Background B may be 0, but if B=0 and A=0 then denom can be 0; such pixels are skipped.
+//   - V may be 0, but if V=0 and A=0 then denom can be 0; such pixels are skipped.
 
 #include "mex.h"
 #include <cmath>
@@ -190,10 +196,10 @@ static inline double clampStep(double d, double maxStep) {
 template <typename T>
 static void centroid_one_slice_mle(
     const T* img, mwSize M, mwSize K,
-    double B,
+    double B,                 // noise variance level of the slice
     int maxIter,
     double sigma1, double sigma2,
-    double tol,               // sigma2 / SN
+    double tol,               // min(sigma2 / SN, maxStep)
     double kcut,              // support radius factor (applies to sigma2)
     bool relToCenter,
     double maxStep, double maxStep1,
@@ -245,8 +251,8 @@ static void centroid_one_slice_mle(
             if (dx*dx + dy*dy > RA2) continue;
             const double I = (double)img[idx[p]];
             if (!std::isfinite(I)) continue;
-            const double sub = I - B;
-            if (sub > 0.0) A += sub;
+            // the cube is background-subtracted; B is the variance level, not a bias to remove
+            if (I > 0.0) A += I;
         }
         if (!(A >= 0.0) || !mxIsFinite(A)) A = 0.0;
     }
@@ -288,15 +294,16 @@ static void centroid_one_slice_mle(
         double dxp = xhat - x0;
         double dyp = yhat - y0;
 
+        // report the proposed (unclamped) step for the convergence test
+        dxOut = dxp;
+        dyOut = dyp;
+
         // Always clamp
         dxp = clampStep(dxp, maxStepThis);
         dyp = clampStep(dyp, maxStepThis);
 
         x0 += dxp;
         y0 += dyp;
-
-        dxOut = dxp;
-        dyOut = dyp;
         return true;
     };
 
@@ -360,7 +367,8 @@ static void centroid_cube_mle(
     #pragma omp parallel for schedule(static)
 #endif
     for (mwSize n = 0; n < N; ++n) {
-        const double tol = sigma2 / SN[n];
+        double tol = sigma2 / SN[n];
+        if (maxStep >= 0.0 && maxStep < tol) tol = maxStep;   // a clamped step never counts as converged
         double x, y, itc;
         centroid_one_slice_mle<T>(
             cube + n * stride, M, K,
@@ -384,7 +392,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     //   [X1,Y1,IterConv] = wcenteroid_cube(Cube, Back, SN, MaxIter=10, SigmaWidth=2, k=3, RelToCenter=true, MaxStep=1/(sqrt(2)*MaxIter), MaxStep1=MaxStep)
 
     if (nrhs < 3 || nrhs > 9)
-        die("Usage: [X1,Y1,IterConv]=wcenteroid_cube(Cube, Back, SN, MaxIter=10, SigmaWidth=2, k=3, RelToCenter=true, MaxStep=1/(sqrt(2)*MaxIter), MaxStep1=MaxStep)");
+        die("Usage: [X1,Y1,IterConv]=wcenteroid_cube(Cube, Var, SN, MaxIter=10, SigmaWidth=2, k=3, RelToCenter=true, MaxStep=1/(sqrt(2)*MaxIter), MaxStep1=MaxStep)");
     if (nlhs != 3)
         die("Require three outputs: [X1, Y1, IterConv].");
 
@@ -403,7 +411,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
     const mwSize N = (nd == 3) ? dims[2] : 1;
 
     std::vector<double> Back, SN;
-    readVecToDouble(BackA, N, Back, "Back", /*allowZero=*/true,  /*requirePositive=*/false);
+    readVecToDouble(BackA, N, Back, "Var",  /*allowZero=*/true,  /*requirePositive=*/false);
     readVecToDouble(SNA,   N, SN,   "SN",   /*allowZero=*/false, /*requirePositive=*/true);
 
     const int maxIter = parseIntScalarDefault((nrhs >= 4) ? prhs[3] : nullptr, 10);
