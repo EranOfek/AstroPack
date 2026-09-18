@@ -24,7 +24,7 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
     %            'X' - X coordinates in the full image, one per source.
     %                  Required when Image is 2-D.
     %                  Optional when Image is a cube; if not provided, the output
-    %                  coordinates M1.X1 will be empty, and StampX1 should be used.
+    %                  coordinates M1.X will be empty, and StampX1 should be used.
     %                  Default is [].
     %            'Y' - Y coordinates in the full image, one per source.
     %                  Required when Image is 2-D.
@@ -265,8 +265,13 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
         % Note: If the input is a cube and the user didn't provide X/Y then the
         % X1/Y1 (in image coordinates) will be empty, and the use should use
         % StampX1/StampY1
-        M1.X = M1.StampX1 + X;  % coordinates in full image
-        M1.Y = M1.StampY1 + Y;  % coordinates in full image
+        if isempty(X) || isempty(Y)
+            M1.X = [];
+            M1.Y = [];
+        else
+            M1.X = M1.StampX1 + X;  % coordinates in full image
+            M1.Y = M1.StampY1 + Y;  % coordinates in full image
+        end
         M1.StampInitX = StampX;
         M1.StampInitY = StampY;
     

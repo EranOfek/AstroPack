@@ -44,6 +44,11 @@ function Result = unitTest
     if abs(M1.StampX1(2) - 0.6)>0.03
         error('Problem with imUtil.sources.moments: faint-source first moment frozen by the step clamp');
     end
+    % cube input without X/Y: full-image coordinates are empty, stamp ones are not (issue #1292)
+    M1 = imUtil.sources.moments(Cube, 'SN',[1000; 6], 'Annulus',[10 12]);
+    if ~isempty(M1.X) || ~isempty(M1.Y) || numel(M1.StampX1)~=2 || abs(M1.StampX1(1) - 0.4)>0.01
+        error('Problem with imUtil.sources.moments: cube input without X/Y');
+    end
     % maximal relative flux error (without noise)
     max(abs(([Result.AperPhot(:,4) - Flux]./Flux)))
     
