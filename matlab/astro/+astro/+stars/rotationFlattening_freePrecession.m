@@ -1,5 +1,6 @@
 function [Oblateness, P_Precession] = rotationFlattening_freePrecession(Mass, Radius, Period, Args)
     % Rotation induced flattening of a rigid body and free-precession period
+    %   See alos: astro.stars.wd_free_precession
     % Input  : - Mass [g]
     %          - Radius [cm]
     %          - Rotation period [s]
