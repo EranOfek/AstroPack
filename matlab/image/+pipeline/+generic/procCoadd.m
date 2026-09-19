@@ -304,7 +304,9 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.Scale                            = 1.25;
         Args.Tran                             = Tran2D('poly3');
         Args.CatName                          = 'GAIADR3';
-        
+        Args.AddColor logical                 = false;  % attach the Gaia colour BP_RP to the coadd catalog (issue #1289) - passed on to astrometryRefine
+        Args.AddColorArgs                     = {};     % extra args for imProc.cat.addColor
+
         Args.fitPhotCalibTransArgs            = {};
         Args.ReturnRegisteredAllSI logical    = true; % false;  % if true it means that AllSI will be modified and contain the registered images
           
@@ -747,6 +749,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                                     'Tran',Args.Tran,...
                                                                                                     'MatchMethod',Args.MatchMethod,...
                                                                                                     'MinFracIsolated',Args.MinFracIsolated,...
+                                                                                                    'AddColor',Args.AddColor,...
+                                                                                                    'AddColorArgs',Args.AddColorArgs,...
                                                                                                     'CreateNewObj',false);
                 
                 %ResultCoadd(Ifields).MidMidJD = MidMidJD;

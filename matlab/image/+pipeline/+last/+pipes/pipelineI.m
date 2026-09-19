@@ -85,6 +85,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.maskHolesArgs                 = {};
         Args.astrometryVisitSubImageArgs   = {};
         Args.MinFracIsolated               = 0.5;   % minimum fraction of isolated reference sources - see imProc.cat.getAstrometricCatalog
+        Args.AddColor logical              = false; % attach the Gaia colour BP_RP to the epoch and coadd catalogs (issue #1289), for the colour-dependent photometric calibration of issues #1287/#1270. Opt-in until the end-to-end run validates it; set true to enable.
+        Args.AddColorArgs                  = {};    % extra args for imProc.cat.addColor
         Args.forcedPhotArgs                = {};
         %--- pipeline.generic.proc2MatchedSources args ---
         Args.proc2MatchedSourcesArgs       = {};
@@ -209,6 +211,13 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
     PrePrepArgs = Args.prePrepArgs(:).';
     if ~isempty(Args.histAnomalyArgs)
         PrePrepArgs = [PrePrepArgs, {'histAnomalyArgs', Args.histAnomalyArgs}];
+    end
+
+    % Carry the Gaia colour into the matched-sources product only when it is
+    % actually attached to the epoch catalogs: the matcher fetches every name
+    % in MatchedCols by name and errors on a missing column.
+    if Args.AddColor && ~any(strcmp(Args.MatchedCols, 'BP_RP'))
+        Args.MatchedCols = [Args.MatchedCols(:).', {'BP_RP'}];
     end
     try
         [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime_AI] = pipeline.generic.prePrep(RawImageList, PrePrepArgs{:});  %5.9s
@@ -393,6 +402,24 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 401;
             AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true, 'OutUnits','deg');  % 0.8s
 
+            % Attach the Gaia colour (BP_RP) to every epoch catalog (issue
+            % #1289). Done here, immediately after the sky coordinates exist,
+            % and per sub image so that the astrometric reference catalog of
+            % that sub image (already in memory, GAIADR3) is reused for all its
+            % epochs - no second catsHTM query, one Dec-sort per sub image.
+            % Catalogs whose astrometry failed get a NaN column.
+            ReuseRefCat = isa(CatName, 'AstroCatalog') && numel(CatName)==Nsub;
+            if Args.AddColor
+                for Isub=1:1:Nsub
+                    if ReuseRefCat
+                        RefCatSub = CatName(Isub);
+                    else
+                        RefCatSub = [];   % addColor cone-searches instead
+                    end
+                    AllSI(:,Isub) = imProc.cat.addColor(AllSI(:,Isub), 'RefCat',RefCatSub, Args.AddColorArgs{:});
+                end
+            end
+
             % Add JD, RA, Dec, IsEdge to streaks data:
             AllSI=imProc.streaks.addSkyCoo(AllSI, 'PopJD',true, 'JD',JD, 'ExpTime',ExpTime);
             % populate streak mask:
@@ -500,7 +527,25 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                     'ReadColFromHeader',false, 'PsfPhotMethod',Args.PsfPhotMethod, 'ShiftMethod',Args.ShiftMethod, ...
                                     'UseMex',Args.UseMex, ...
                                     Args.forcedPhotArgs{:}, 'MagType',Args.MagType);  % 8.3 s [for all in loop]
-                            end                           
+
+                                % Re-attach the colour on the sub images that
+                                % just gained forced rows (issue #1289):
+                                % forcedPhotNew fills any column it does not
+                                % measure with NaN, so the appended sources
+                                % would otherwise carry BP_RP=NaN and be left
+                                % out of the colour-dependent calibration of
+                                % issues #1287/#1270. Only the affected sub
+                                % images are re-matched.
+                                if Args.AddColor
+                                    if ReuseRefCat
+                                        RefCatFP = CatName(Ind(IsubGood));
+                                    else
+                                        RefCatFP = [];
+                                    end
+                                    AllSI(IsGoodEpoch,Ind(IsubGood)) = imProc.cat.addColor(AllSI(IsGoodEpoch,Ind(IsubGood)), ...
+                                                                            'RefCat',RefCatFP, Args.AddColorArgs{:});
+                                end
+                            end
                         end
                     %toc
                 end
@@ -615,6 +660,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                           'SetBackTo0',false,...
                                                           'ReMeasureBack',true,...                                                          
                                                           'CatName',CatName,...
+                                                          'AddColor',Args.AddColor,...
+                                                          'AddColorArgs',Args.AddColorArgs,...
                                                           'ShiftXY',ShiftInfo,...
                                                           'IsGood',IsGood,...
                                                           'PropShiftXY','ShiftXY',...

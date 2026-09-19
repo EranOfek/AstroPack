@@ -2,10 +2,11 @@ function Result = addColor(Obj, Args)
     % Add Gaia colour (BP-RP) and/or magnitude columns to a source catalog by
     % cross-matching its RA/Dec against a Gaia catsHTM catalog.
     %
-    %   Opt-in helper (issue #1289). Nothing in the pipeline calls it unless
-    %   asked; catalogs are unchanged otherwise. It is intended to be called by
-    %   the astrometric solvers (imProc.astrometry.astrometryCore /
-    %   astrometryRefine) once the sources carry a WCS RA/Dec, so the colour a
+    %   Issue #1289. Called by pipeline.last.pipes.pipelineI for both the epoch
+    %   catalogs (directly, once per sub image) and the coadd catalog (through
+    %   procCoadd -> astrometryRefine); everywhere else it is opt-in and
+    %   catalogs are unchanged unless asked. It is meant to run right after the
+    %   sources acquire a WCS RA/Dec, so the colour a
     %   colour-dependent photometric calibration needs (e.g. the per-source
     %   RefSpecSlope of PhotCalibTrans, issue #1287) is present as a plain
     %   catalog column. To avoid a second catsHTM query it can reuse the Gaia
@@ -28,6 +29,11 @@ function Result = addColor(Obj, Args)
     %                         Gaia catalog. Default {'bp_rp'}.
     %            'OutCols'  - Cell array of output column names, same length as
     %                         'GaiaCols'. Default {'BP_RP'}.
+    %            'ColSphere' - Names of the spherical coordinate columns of the
+    %                         source catalog. An element that lacks them (e.g. its
+    %                         astrometric solution failed) gets all-NaN columns
+    %                         rather than an error, so a column list built over an
+    %                         array of catalogs stays uniform. Default {'RA','Dec'}.
     %            'ColPos'   - Column position for insertion. Default Inf (append).
     %            'CreateNewObj' - Operate on a copy. Default false.
     % Output : - The input object with the requested colour/magnitude columns
@@ -49,6 +55,7 @@ function Result = addColor(Obj, Args)
         Args.RadiusUnits char       = 'arcsec'
         Args.GaiaCols               = {'bp_rp'}
         Args.OutCols                = {'BP_RP'}
+        Args.ColSphere              = {'RA','Dec'}
         Args.ColPos                 = Inf
         Args.CreateNewObj logical   = false
         Args.boundingCircleArgs cell = {}
@@ -67,6 +74,17 @@ function Result = addColor(Obj, Args)
         Result = Obj;
     end
 
+    % The matcher requires the Gaia catalog to be sorted by Dec, and sorting a
+    % ~50-column Gaia catalog is the dominant cost of this function. When one
+    % reference serves every element — the pipeline case: one astrometric
+    % catalog per sub-image, all epochs of that sub-image — sort it once here
+    % instead of once per element.
+    SharedSorted = [];
+    if ~isempty(Args.RefCat) && numel(Args.RefCat) == 1 && ...
+            ~isemptyCatalog(Args.RefCat) && all(ismember(Args.GaiaCols, Args.RefCat.ColNames))
+        SharedSorted = sortrows(Args.RefCat.copy, 'Dec');
+    end
+
     Nobj = numel(Result);
     for Iobj = 1:1:Nobj
         % Resolve the catalog to operate on (AstroImage -> its CatData).
@@ -80,46 +98,56 @@ function Result = addColor(Obj, Args)
             continue;
         end
 
-        % Gaia reference: reuse the provided one if it carries the requested
-        % columns, otherwise cone-search this footprint.
-        GaiaCat = [];
-        if ~isempty(Args.RefCat)
-            if numel(Args.RefCat) == 1
-                GaiaCat = Args.RefCat;
-            else
-                GaiaCat = Args.RefCat(Iobj);
-            end
-            % Fall back to a fresh search if the reference lacks any column.
-            if ~all(ismember(Args.GaiaCols, GaiaCat.ColNames))
-                GaiaCat = [];
-            end
-        end
-        if isempty(GaiaCat)
-            [CircX, CircY, CircR] = Cat.boundingCircle('OutUnits','rad', 'CooType','sphere', Args.boundingCircleArgs{:});
-            GaiaCat = catsHTM.cone_search(Args.CatName, CircX, CircY, CircR, ...
-                                          'RadiusUnits','rad', 'OutType','astrocatalog');
-        end
-
         Nsrc = sizeCatalog(Cat);
         Ncol = numel(Args.GaiaCols);
         ColData = nan(Nsrc, Ncol);
 
-        if ~isemptyCatalog(GaiaCat)
-            % Match with the MEX binary-search matcher (imProc.match.matchInd):
-            % ResInd(1).Ind holds, for each source, the row of its nearest Gaia
-            % match (NaN if none). The matcher requires catalog 2 to be sorted
-            % by Dec: the astrometric RefCat already is, but the cone-search
-            % fallback carries no such guarantee, so match against a Dec-sorted
-            % working copy and read the Gaia columns from that same copy, which
-            % makes index remapping unnecessary.
-            GaiaSorted = sortrows(GaiaCat.copy, 'Dec');
-            ResInd = imProc.match.matchInd(Cat, GaiaSorted, 'IsSpherical',true, ...
-                                           'SearchRadius',Args.Radius, 'SearchRadiusUnits',Args.RadiusUnits);
-            IndInGaia = ResInd(1).Ind;
-            Matched   = ~isnan(IndInGaia);
-            for Icol = 1:Ncol
-                GaiaVal = getGaiaCol(GaiaSorted, Args.GaiaCols{Icol});
-                ColData(Matched, Icol) = GaiaVal(IndInGaia(Matched));
+        % Sources with no sky coordinates cannot be matched. This happens for
+        % real when an astrometric solution fails, so it must not throw: the
+        % element keeps all-NaN columns and the array stays column-uniform.
+        if ~all(ismember(Args.ColSphere, Cat.ColNames))
+            warning('imProc:cat:addColor:NoSkyCoo', ...
+                'Catalog %d has no %s columns - inserting NaN colour columns.', ...
+                Iobj, strjoin(Args.ColSphere, '/'));
+        else
+            % Gaia reference: reuse the provided one if it carries the requested
+            % columns, otherwise cone-search this footprint.
+            GaiaSorted = SharedSorted;
+            if isempty(GaiaSorted)
+                GaiaCat = [];
+                if ~isempty(Args.RefCat) && numel(Args.RefCat) > 1
+                    GaiaCat = Args.RefCat(Iobj);
+                    % Fall back to a fresh search if the reference lacks any column.
+                    if ~all(ismember(Args.GaiaCols, GaiaCat.ColNames))
+                        GaiaCat = [];
+                    end
+                end
+                if isempty(GaiaCat)
+                    [CircX, CircY, CircR] = Cat.boundingCircle('OutUnits','rad', 'CooType','sphere', Args.boundingCircleArgs{:});
+                    GaiaCat = catsHTM.cone_search(Args.CatName, CircX, CircY, CircR, ...
+                                                  'RadiusUnits','rad', 'OutType','astrocatalog');
+                end
+                if ~isemptyCatalog(GaiaCat)
+                    GaiaSorted = sortrows(GaiaCat.copy, 'Dec');
+                end
+            end
+
+            if ~isempty(GaiaSorted) && ~isemptyCatalog(GaiaSorted)
+                % Match with the MEX binary-search matcher (imProc.match.matchInd):
+                % ResInd(1).Ind holds, for each source, the row of its nearest Gaia
+                % match (NaN if none). The matcher requires catalog 2 to be sorted
+                % by Dec, hence the Dec-sorted working copy above; the Gaia columns
+                % are read from that same copy, which makes index remapping
+                % unnecessary.
+                ResInd = imProc.match.matchInd(Cat, GaiaSorted, 'IsSpherical',true, ...
+                                               'ColSphere1',Args.ColSphere, ...
+                                               'SearchRadius',Args.Radius, 'SearchRadiusUnits',Args.RadiusUnits);
+                IndInGaia = ResInd(1).Ind;
+                Matched   = ~isnan(IndInGaia);
+                for Icol = 1:Ncol
+                    GaiaVal = getGaiaCol(GaiaSorted, Args.GaiaCols{Icol});
+                    ColData(Matched, Icol) = GaiaVal(IndInGaia(Matched));
+                end
             end
         end
 
