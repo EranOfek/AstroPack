@@ -23,6 +23,19 @@ function Result = addColor(Obj, Args)
     %                         coordinates must be spherical, and it must carry the
     %                         'GaiaCols' below. A single AstroCatalog is reused
     %                         for every element of Obj. Default [] (cone_search).
+    %                         NOTE that an astrometric reference is magnitude
+    %                         limited (getAstrometricCatalog applies RefRangeMag
+    %                         and an isolation cut), so reusing it leaves the
+    %                         colour empty for everything outside that range;
+    %                         pass [] for a colour column as complete as Gaia is.
+    %            'SharedRefCat' - Relevant only when 'RefCat' is empty and Obj has
+    %                         more than one element that image the SAME field
+    %                         (e.g. the epochs of one sub image). If true, one
+    %                         cone search is made over the union of the elements'
+    %                         footprints and reused for all of them, instead of
+    %                         one search per element. Do not set it for elements
+    %                         pointing at unrelated fields: the union circle then
+    %                         covers everything between them. Default false.
     %            'Radius'   - Match radius. Default 1.
     %            'RadiusUnits' - Default 'arcsec'.
     %            'GaiaCols' - Cell array of source-column names to pull from the
@@ -51,6 +64,7 @@ function Result = addColor(Obj, Args)
         Obj
         Args.CatName char           = 'GAIADR3'
         Args.RefCat                 = []
+        Args.SharedRefCat logical   = false
         Args.Radius                 = 1
         Args.RadiusUnits char       = 'arcsec'
         Args.GaiaCols               = {'bp_rp'}
@@ -83,6 +97,20 @@ function Result = addColor(Obj, Args)
     if ~isempty(Args.RefCat) && numel(Args.RefCat) == 1 && ...
             ~isemptyCatalog(Args.RefCat) && all(ismember(Args.GaiaCols, Args.RefCat.ColNames))
         SharedSorted = sortrows(Args.RefCat.copy, 'Dec');
+    end
+
+    % No reference given, but all elements image the same field: cone-search
+    % once over the union of their footprints and reuse it, instead of
+    % repeating the query per element.
+    if isempty(SharedSorted) && isempty(Args.RefCat) && Args.SharedRefCat && numel(Result) > 1
+        [UX, UY, UR] = unionFootprint(Result, Args.ColSphere, Args.boundingCircleArgs);
+        if isfinite(UR) && UR > 0
+            GaiaUnion = catsHTM.cone_search(Args.CatName, UX, UY, UR, ...
+                                            'RadiusUnits','rad', 'OutType','astrocatalog');
+            if ~isemptyCatalog(GaiaUnion)
+                SharedSorted = sortrows(GaiaUnion, 'Dec');
+            end
+        end
     end
 
     Nobj = numel(Result);
@@ -162,6 +190,50 @@ function Result = addColor(Obj, Args)
             Result(Iobj) = Cat;
         end
     end
+end
+
+function [X, Y, R] = unionFootprint(Obj, ColSphere, bcArgs)
+    % Smallest circle [rad] covering the bounding circles of all elements.
+    %   Centre = direction of the mean unit vector of the element centres;
+    %   radius = max over elements of (distance to that centre + own radius).
+    %   Elements without sky coordinates or with an unusable catalog are
+    %   skipped; R is NaN when none is usable.
+    Nobj = numel(Obj);
+    Cx = nan(Nobj,1);  Cy = nan(Nobj,1);  Cr = nan(Nobj,1);
+    for Iobj = 1:1:Nobj
+        if isa(Obj(Iobj), 'AstroImage') || isa(Obj(Iobj), 'AstroDiff') || isa(Obj(Iobj), 'AstroZOGY')
+            Cat = Obj(Iobj).CatData;
+        else
+            Cat = Obj(Iobj);
+        end
+        if isemptyCatalog(Cat) || ~all(ismember(ColSphere, Cat.ColNames))
+            continue;
+        end
+        try
+            [Cx(Iobj), Cy(Iobj), Cr(Iobj)] = Cat.boundingCircle('OutUnits','rad', 'CooType','sphere', bcArgs{:});
+        catch
+            % leave NaN - this element just does not constrain the union
+        end
+    end
+    Ok = isfinite(Cx) & isfinite(Cy) & isfinite(Cr);
+    if ~any(Ok)
+        X = NaN;  Y = NaN;  R = NaN;
+        return;
+    end
+    Cx = Cx(Ok);  Cy = Cy(Ok);  Cr = Cr(Ok);
+    % Mean unit vector -> centre direction (immune to the RA=0/2pi seam).
+    V = [mean(cos(Cy).*cos(Cx)), mean(cos(Cy).*sin(Cx)), mean(sin(Cy))];
+    Norm = sqrt(sum(V.^2));
+    if Norm == 0
+        X = Cx(1);  Y = Cy(1);  R = max(Cr);
+        return;
+    end
+    V = V ./ Norm;
+    X = atan2(V(2), V(1));
+    if X < 0; X = X + 2.*pi; end
+    Y = asin(V(3));
+    D = celestial.coo.sphere_dist(X, Y, Cx, Cy, 'rad');
+    R = max(D(:) + Cr(:));
 end
 
 function tf = isemptyCatalog(Cat)
