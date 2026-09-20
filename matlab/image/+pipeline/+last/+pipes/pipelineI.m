@@ -85,8 +85,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.maskHolesArgs                 = {};
         Args.astrometryVisitSubImageArgs   = {};
         Args.MinFracIsolated               = 0.5;   % minimum fraction of isolated reference sources - see imProc.cat.getAstrometricCatalog
-        Args.AddColor logical              = false; % attach the Gaia colour BP_RP to the epoch and coadd catalogs (issue #1289), for the colour-dependent photometric calibration of issues #1287/#1270. Opt-in until the end-to-end run validates it; set true to enable.
+        Args.AddColor logical              = true;  % attach the Gaia colour BP_RP to the epoch and coadd catalogs (issue #1289), for the colour-dependent photometric calibration of issues #1287/#1270
         Args.AddColorArgs                  = {};    % extra args for imProc.cat.addColor
+        Args.AddColorForced logical        = false; % (AddColor only) also re-attach the colour after forced photometry, so the appended forced rows carry BP_RP instead of the NaN that forcedPhotNew leaves. Costs one extra pass over the sub images that gained forced sources.
         Args.AddColorComplete logical      = true;  % (AddColor only) query Gaia directly instead of reusing the astrometric reference, which is magnitude limited (RefRangeMag + isolation cut) and leaves BP_RP empty outside that range. Costs one catsHTM cone search per sub image (~0.07 s), reused across the epochs of that sub image.
         Args.forcedPhotArgs                = {};
         %--- pipeline.generic.proc2MatchedSources args ---
@@ -542,15 +543,14 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                     'UseMex',Args.UseMex, ...
                                     Args.forcedPhotArgs{:}, 'MagType',Args.MagType);  % 8.3 s [for all in loop]
 
-                                % Re-attach the colour on the sub images that
-                                % just gained forced rows (issue #1289):
-                                % forcedPhotNew fills any column it does not
-                                % measure with NaN, so the appended sources
-                                % would otherwise carry BP_RP=NaN and be left
-                                % out of the colour-dependent calibration of
-                                % issues #1287/#1270. Only the affected sub
-                                % images are re-matched.
-                                if Args.AddColor
+                                % Optionally re-attach the colour on the sub
+                                % images that just gained forced rows (issue
+                                % #1289): forcedPhotNew fills any column it
+                                % does not measure with NaN, so without this
+                                % the appended sources carry BP_RP=NaN. Off by
+                                % default - only the affected sub images are
+                                % re-matched when it is on.
+                                if Args.AddColor && Args.AddColorForced
                                     if ~Args.AddColorComplete && ReuseRefCat
                                         RefCatFP = CatName(Ind(IsubGood));
                                     else

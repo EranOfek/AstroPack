@@ -25,8 +25,9 @@ function [Result] = testPipeline(Args)
     %            'Nworkers'         - number of matlab parallel processes (
     %            'DebugMode'        - run extra tests (e.g., DB injection) not required for a production run (def. false)
     %            'RemoveAfterWrite' - remove pipeline product files after they are written to disk; useful for massive tests (def. false)
-    %            'AddColor'         - attach the Gaia colour BP_RP to the epoch, forced and coadd catalogs
-    %                                  (issue #1289); forwarded to pipelineI, 'v1' only (def. false)
+    %            'AddColor'         - attach the Gaia colour BP_RP to the epoch and coadd catalogs
+    %                                  (issue #1289); forwarded to pipelineI, 'v1' only (def. true)
+    %            'AddColorForced'   - also attach it to the rows appended by forced photometry (def. false)
     % Output : - filled visit directory Args.LocalPath/YYYY/MM/DD/proc/HHMMSSvXX (XX starting with 0)
     % Author : A.M. Krassilchtchikov (2026 Mar) 
     % Example: RAWImageDir = '/mnt/marvin/LAST.01.01.01/2025/07/07/raw/';
@@ -59,7 +60,8 @@ function [Result] = testPipeline(Args)
         Args.UpdateRedis       = false % write status messages to the local  Redis DB 
         Args.multiIterExtractorArgs = {}; % arguments of multiIterextractor
         Args.forcedPhotArgs    = {};   % {'MaxIter', 2, 'MaxStep', 0.05}; % forced photometry arguments (PSF photometry)
-        Args.AddColor logical  = false % attach the Gaia colour BP_RP to the epoch, forced and coadd catalogs (issue #1289); passed on to pipelineI ('v1' only)
+        Args.AddColor logical  = true  % attach the Gaia colour BP_RP to the epoch and coadd catalogs (issue #1289); passed on to pipelineI ('v1' only)
+        Args.AddColorForced logical = false % also attach it to the rows appended by forced photometry
     end
     
     % if running without explicit arguments, do nothing
@@ -141,6 +143,7 @@ function [Result] = testPipeline(Args)
                                   'fitPhotCalibTransArgs',{'match_catsHTMArgs',{'boundingCircleArgs',{'UseMex', true}}},...
                                   'forcedPhotArgs', Args.forcedPhotArgs,...
                                   'AddColor', Args.AddColor,...
+                                  'AddColorForced', Args.AddColorForced,...
                                   },...
                 'MoveNew2Raw',false,...
                 'FocusTreatment', 'keep',...
