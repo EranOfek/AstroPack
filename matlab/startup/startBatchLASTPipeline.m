@@ -8,6 +8,7 @@ function startBatchLASTPipeline(Args)
     arguments
         Args.Id     % [numeric] Currently either 1 or 2, but maybe more
         Args.PipelineVersion = 'v0'  % 'v0' - current (production) pipeline.DemonLAST; 'v1' - development pipeline.last.pipes.PipelineDemon
+        Args.RefPath         = ''    % [char] Reference images directory; '' - auto detected by the daemon (/<host>/data/references)
     end
 
     if ~isfield(Args, 'Id') || ~isnumeric(Args.Id)
@@ -28,12 +29,26 @@ function startBatchLASTPipeline(Args)
     D.Logger.Console = false;
     D.Logger.Syslog.ProgName = sprintf("last-pipeline%d", Args.Id);
 
-    % Record which pipeline version and which AstroPack revision are running
-    D.Logger.msgLog(LogLevel.Info, 'startBatchLASTPipeline: Id=%d, PipelineVersion=%s, AstroPack=%s', ...
-                    Args.Id, lower(Args.PipelineVersion), astroPackRevision);
-
     % Tell the daemon which data directory to monitor
     D.DataDir = Args.Id;
+
+    % Reference images directory, if the service resolved one (see
+    % last-pipeline-service). Set after DataDir: assigning DataDir derives the
+    % other paths. Fail fast on a missing directory: pipelineII would otherwise
+    % only report 'RefPath directory not found' per visit and the daemon would
+    % keep running without transients.
+    if ~isempty(Args.RefPath)
+        if ~isfolder(Args.RefPath)
+            D.Logger.msgLog(LogLevel.Error, 'startBatchLASTPipeline: RefPath directory not found: %s', Args.RefPath);
+            error('startBatchLASTPipeline: RefPath directory not found: %s', Args.RefPath);
+        end
+        D.RefPath = Args.RefPath;
+    end
+
+    % Record which pipeline version, reference directory (as resolved by the
+    % daemon) and AstroPack revision are running
+    D.Logger.msgLog(LogLevel.Info, 'startBatchLASTPipeline: Id=%d, PipelineVersion=%s, RefPath=%s, AstroPack=%s', ...
+                    Args.Id, lower(Args.PipelineVersion), D.RefPath, astroPackRevision);
 
     % Notify systemd (if SYSTEMD env. var. exists) that the service is
     % running and what is its main process id
