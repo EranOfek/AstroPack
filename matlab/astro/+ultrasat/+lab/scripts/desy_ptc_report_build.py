@@ -85,7 +85,14 @@ w('2. **Zero level, bias and read noise** (`subtractZero`, `zeroStats`): the 5 Z
 w('3. **Step combination** (`combineSteps`): the 3 repeats of every step are averaged per pixel; the temporal variance per pixel, the frame-difference variance var(F1 − F2)/2 and the spatial variance of single frames are kept as three independent PTC estimators.')
 w('4. **Per-pixel linear fits** (`fitResponse`): signal vs exposure time (D) and vs light intensity (B) for every pixel, using a subset of steps. The deck fits “the linear regime ~1 k–2.5 k ADU”, but its point counts (4/9 dark, 3/10 bright on run 31; 2/9 dark on run 32) are not reproduced by any fixed ADU window; the deck’s selections are therefore applied explicitly (`FitSteps`: dark steps 4–7 = 120–360 s for run 31, 8–9 = 480–600 s for run 32; bright: the default window `[1000 2500]` ADU gives exactly the deck’s three points, intensities 0.09 / 0.14 / 0.18). Slope, intercept and residual rms are summarised by the median and std over the pixels.')
 w('5. **Gain** (`fitGain`): straight line through variance vs mean of the bright ladder for mean signals in `[300 2500]` ADU (below the 3–5 kADU variance dip and far from ADC saturation at 16383 ADU). The temporal estimator is used for the ADU → e⁻ conversion unless `GainADU` is set.')
-w('6. **Threshold** (`threshold`): dark method −intercept; light method DC × 15 s − intercept (the dark signal accumulated during the bright exposure fills part of the threshold and is added back); both in ADU and e⁻, positive = electrons lost. The deck quotes the corrected intercept, i.e. the negative of our threshold (its “(−2.3 ± 60) − 6.1 e⁻/s × 15 s = −92.3 e⁻”).')
+w('6. **Threshold** (`threshold`): dark method −I_D; light method DC × 15 s − I_B; both in ADU and e⁻, positive = electrons lost. In detail:')
+w('   The threshold is the charge a pixel must collect before its output starts to rise — charge that is lost (e.g. left under the transfer gate) and never appears in the signal. Both estimates come from the two per-pixel straight-line fits of item 4 on the zero-subtracted signal:')
+w('   - *Dark ladder* (9 exposures in the dark, t = 15–600 s): S_dark(t) = DC · t + I_D. **DC** is the slope, the dark current in ADU/s; **I_D** is the intercept, the value of the line at t = 0. Without a threshold a zero-length exposure would give zero signal and I_D = 0; with lost charge the line reaches S = 0 only after some accumulation time, so I_D < 0 (e.g. −141 ADU for W04_D07, run 31).')
+w('   - *Bright ladder* (34 illuminated exposures of fixed length t = ExpSen = 15 s, `PTC_ExpTime`, with the LED intensity as the variable): S_bright(int) = R · int + I_B, with **R** the response in ADU per intensity unit and **I_B** the intercept at zero intensity.')
+w('   - **Dark method:** Threshold = −I_D. The intercept is the signal deficit at t = 0, so its negative is the charge lost (141 ADU in the example).')
+w('   - **Light method:** Threshold = DC · t − I_B. A bright frame of zero intensity is not a zero-signal frame: during its 15 s the pixel also collects dark charge DC · t (6.14 ADU/s × 15 s ≈ 92 ADU, the “DC term”), which already fills part of the threshold, so I_B is the deficit *after* that dark charge was absorbed and the DC term is added back (92.1 − 0.2 ≈ 92 ADU in the example). DC is taken from the dark fit of the same pixel; the summary values use the median DC, as the deck does. The deck quotes the same quantity with the opposite sign as a “corrected intercept”: (−2.3) − 6.1 × 15 = −92.3.')
+w('   - **Electrons:** both ADU values are divided by the conversion gain G [ADU/e⁻] of item 5 (130 e⁻ dark-method, 85 e⁻ light-method for the example). Positive = electrons lost; a negative light-method value means the bright line extrapolates above zero at zero intensity, i.e. charge is present even without light.')
+w('   - The two methods probe different regimes: the dark method extrapolates a slow, linear accumulation (minutes) to t = 0 and relies on the dark current being linear from the start — under aSpect settings the dark ladder stays below 200 ADU, so this extrapolation is poorly constrained; the light method uses fast illumination at a fixed 15 s and subtracts the dark contribution, and repeats better between runs.')
 w('7. **Odd / even columns** (`Parity=\'rawcol\'`): every pixel is tagged by the parity of its column in the stored TIFF half (= the readout column; these are rows in the DESY orientation), and all statistics are repeated for the two groups.')
 w('8. **Full die** (`CCDSEC=[]`): the same fits are accumulated frame by frame over all 4740 × 4742 pixels (running sums of the masked regression; ~2 GB RAM) to produce the slope / intercept / rms maps of the deck’s slide 28.')
 w('')
@@ -267,6 +274,7 @@ md = '\n'.join(L)
 
 # ---- HTML (marked.js) with the report stylesheet; images referenced relatively
 css = open('/home/sasha/claude/DESY_PTCint_runs_31_32_report.html').read().split('<style>')[1].split('</style>')[0]
+md_src = md.replace('</script', '<\\/script')
 page = f'''<title>DESY PTC Reproduction</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>{css}
@@ -278,7 +286,7 @@ p>em{{color:var(--muted);font-size:.85rem;}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <main id="out"></main>
-<script type="text/markdown" id="src">{html.escape(md)}</script>
+<script type="text/markdown" id="src">{md_src}</script>
 <script>
 document.getElementById('out').innerHTML = marked.parse(document.getElementById('src').textContent, {{gfm:true}});
 document.querySelectorAll('table').forEach(t => {{ const d=document.createElement('div'); d.className='tw'; t.replaceWith(d); d.appendChild(t); }});

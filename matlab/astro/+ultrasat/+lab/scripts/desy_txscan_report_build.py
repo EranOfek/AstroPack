@@ -119,6 +119,17 @@ w('7. **Dies.** The same ranking in every run: W08_D02 has the largest dark curr
 w('8. **Odd / even columns.** At the reference settings the small parity offsets of the runs 31/32 report persist (even columns: more negative dark intercept, higher gain). Off the reference settings parity becomes the dominant structure — bias split by 13–35 ADU (RST_H 2.7 V) or 27–55 ADU (TX ≥ 3.7 V), gain split by ≈ 10 % at TX 3.5 / 3.7 V.')
 w('9. **Method note.** The first version of the automatic fit-step rule fitted through the saturation knee for the RST_H 2.7 V runs; it was fixed (nearest-step top-up, §2) and those runs re-processed before the numbers above were drawn.')
 w('')
+w('## 0. The two threshold estimates')
+w('')
+w('Thresholds are the quantity compared across runs below; their definitions (`PTCAnalysis.threshold`, following the deck) are repeated here. The threshold is the charge a pixel must collect before its output starts to rise — charge that is lost (e.g. left under the transfer gate) and never appears in the signal. Both estimates come from the two per-pixel straight-line fits on the zero-subtracted signal:')
+w('')
+w('- *Dark ladder* (9 exposures in the dark, t = 15–600 s): S_dark(t) = DC · t + I_D. **DC** is the slope, the dark current in ADU/s; **I_D** is the intercept, the value of the line at t = 0. Without a threshold a zero-length exposure would give zero signal and I_D = 0; with lost charge the line reaches S = 0 only after some accumulation time, so I_D < 0 (e.g. −141 ADU for W04_D07, run 31).')
+w('- *Bright ladder* (34 illuminated exposures of fixed length t = ExpSen = 15 s, `PTC_ExpTime`, with the LED intensity as the variable): S_bright(int) = R · int + I_B, with **R** the response in ADU per intensity unit and **I_B** the intercept at zero intensity.')
+w('- **Dark method:** Threshold = −I_D. The intercept is the signal deficit at t = 0, so its negative is the charge lost (141 ADU in the example).')
+w('- **Light method:** Threshold = DC · t − I_B. A bright frame of zero intensity is not a zero-signal frame: during its 15 s the pixel also collects dark charge DC · t (6.14 ADU/s × 15 s ≈ 92 ADU, the “DC term”), which already fills part of the threshold, so I_B is the deficit *after* that dark charge was absorbed and the DC term is added back (92.1 − 0.2 ≈ 92 ADU in the example). DC is taken from the dark fit of the same pixel; the summary values use the median DC, as the deck does. The deck quotes the same quantity with the opposite sign as a “corrected intercept”: (−2.3) − 6.1 × 15 = −92.3.')
+w('- **Electrons:** both ADU values are divided by the conversion gain G [ADU/e⁻] measured from the photon-transfer curve of the bright ladder (130 e⁻ dark-method, 85 e⁻ light-method for the example). Positive = electrons lost; a negative light-method value means the bright line extrapolates above zero at zero intensity, i.e. charge is present even without light.')
+w('- The two methods probe different regimes: the dark method extrapolates a slow, linear accumulation (minutes) to t = 0 and relies on the dark current being linear from the start — under aSpect settings the dark ladder stays below 200 ADU, so this extrapolation is poorly constrained; the light method uses fast illumination at a fixed 15 s and subtracts the dark contribution, and repeats better between runs.')
+w('')
 w('## 1. Runs and their setup differences')
 w('')
 w('All runs use the same measurement design (5 ZE, 9 × 3 dark 15–600 s, 34 × 3 bright at 15 s), chuck −50 °C, VDDA/VDDD 3.3 V, VDD_SEN 3.8 V, ADC_ADJ 6, COL_ADJ 31 (ADC_CAP re-searched per die). Only the bias set and the die set change (`PTC_Config.xlsx`, confirmed by the `Result.txt` readbacks):')
@@ -204,6 +215,7 @@ w('- Reproduce: `P = ultrasat.lab.PTCAnalysis(Dev, \'FitSteps\',struct(\'D\',\'a
 md = '\n'.join(L)
 (D / 'report.md').write_text(md)
 css = open('/home/sasha/claude/DESY_PTCint_runs_31_32_report.html').read().split('<style>')[1].split('</style>')[0]
+md_src = md.replace('</script', '<\\/script')
 page = f'''<title>TH02954 TX Scan</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>{css}
@@ -215,7 +227,7 @@ p>em{{color:var(--muted);font-size:.85rem;}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <main id="out"></main>
-<script type="text/markdown" id="src">{html.escape(md)}</script>
+<script type="text/markdown" id="src">{md_src}</script>
 <script>
 document.getElementById('out').innerHTML = marked.parse(document.getElementById('src').textContent, {{gfm:true}});
 document.querySelectorAll('table').forEach(t => {{ const d=document.createElement('div'); d.className='tw'; t.replaceWith(d); d.appendChild(t); }});
