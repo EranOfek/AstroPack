@@ -391,13 +391,39 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.AperCorrPosSigmaClip (1,2) double = [3 3]
         Args.AperCorrPosMaxIter (1,1) double {mustBePositive, mustBeInteger} = 3
         Args.AperCorrApplyMode (1,:) char {mustBeMember(Args.AperCorrApplyMode, {'auto','scalar','positional'})} = 'auto'
+        % Colour term of the aperture correction (issues #1287/#1270): the
+        % chromaticity of MAG_<col> - MAG_APER_3, fitted per image for every
+        % non-reference aperture and for MAG_PSF. It is FITTED and published in
+        % the header (APCC_<tag>, APCCE_<tag>, APCC_REF) but NOT applied to the
+        % catalog magnitudes: by policy the catalog stays colour-uncorrected and
+        % imProc.calib.applyColorTerm builds corrected magnitudes on demand.
+        Args.AperCorrColorTerm logical = true         % fit it (default ON). Needs the BP_RP column (imProc.cat.addColor, issue #1289); without it the APCC_ keywords are written blank.
+        Args.AperCorrColorColName (1,:) char = 'BP_RP'
+        Args.AperCorrColorRefSource (1,:) char {mustBeMember(Args.AperCorrColorRefSource,{'median','fixed'})} = 'median'
+                                                      % 'median' (default): anchor the aperture colour term at the median
+                                                      % colour of the stars it was fitted on - the self-consistent choice,
+                                                      % since the aperture correction is defined relative to the image's
+                                                      % own stars. 'fixed' uses AperCorrColorRef instead.
+        Args.AperCorrColorRef double = []             % anchor colour when AperCorrColorRefSource='fixed'; [] -> the object's RefColor (1.0)
         % PT_ZP (photometric zero point at the image centre = mag of a 1-count
         % full-exposure source) is written to the header by default; downstream
         % imProc.calib.backmag/limmag read it.
         Args.EvaluatePhotZP  logical = true
         Args.EvaluateColorTerm logical = true   % measure dMag/dalpha for this image -> PT_CTA/PT_CTAE/PT_REFC (issue #1287); does not modify the ZP
-        Args.AlphaProbe (1,1) double = 2.0      % second reference-spectrum slope used for the PT_CTA finite difference
-        Args.RefColor   (1,1) double = 1.2026   % anchor colour BP_RP where the colour term vanishes (alpha(RefColor) = RefSpecSlope)
+        Args.AlphaProbe (1,1) double = 2.0      % legacy probe slope; superseded by ColorTermAlphaGrid
+        Args.ColorTermStoreMode (1,:) char {mustBeMember(Args.ColorTermStoreMode,{'coef','table'})} = 'coef'
+                                                % How DeltaMag(alpha) is written to the header. 'coef' (default):
+                                                % four coefficients PT_CTA/PT_CTA2/PT_CTA3/PT_CTA4, which reproduce
+                                                % the exact curve to 0.4 mmag over the whole grid. 'table': the curve
+                                                % itself, PT_CA00.., read back by interpolation. Same compute cost;
+                                                % PT_CTA and PT_CTA2 are written either way.
+        Args.ColorTermAlphaGrid double = -1:0.5:8  % alpha values at which the curve is evaluated
+        Args.RefColor   (1,1) double = 1.0      % anchor colour BP_RP where the colour term vanishes: the colour left uncorrected, from which every other star's correction is measured. A convention - PT_CTA/PT_CTA2 do not depend on it.
+        Args.RefColorPerImage logical = false   % opt-in: replace RefColor with THIS image's median colour (bright, colour-known sources), so the correction is mean-free over the field. The value used is written to PT_REFC, so the choice stays reversible.
+        Args.RefColorCol (1,:) char = 'BP_RP'   % catalog colour column for the per-image anchor (imProc.cat.addColor, issue #1289)
+        Args.RefColorMagCol (1,:) char = ''     % magnitude column for its brightness cut; '' -> MAG_APER_3, else the first MAG_* column
+        Args.RefColorMagMax (1,1) double = 16   % the anchor ensemble is colour-known sources brighter than this
+        Args.RefColorMinN (1,1) double = 20     % below this many ensemble members, keep Args.RefColor
         % LIMMAG/BACKMAG stay OFF here by default: the LAST pipeline computes
         % them with the standalone imProc.calib.limmag / imProc.calib.backmag
         % (which read PT_ZP), and legacy fitPhotCalibMag still writes them.
@@ -811,6 +837,10 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                     'PosModel',      Args.AperCorrPosModel, ...
                     'PosSigmaClip',  Args.AperCorrPosSigmaClip, ...
                     'PosMaxIter',    Args.AperCorrPosMaxIter, ...
+                    'ColorTerm',     Args.AperCorrColorTerm, ...
+                    'ColorColName',  Args.AperCorrColorColName, ...
+                    'ColorRefSource',Args.AperCorrColorRefSource, ...
+                    'ColorRef',      Args.AperCorrColorRef, ...
                     'Verbose',       Args.Verbose);
 
                 if Args.ApplyAperCorr
@@ -834,8 +864,21 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
             % Colour-term sensitivity of this image (header PT_CTA/PT_CTAE/PT_REFC,
             % issue #1287). Records dMag/dalpha; does not modify the ZP.
             if Args.EvaluateColorTerm
+                RefColorUse = Args.RefColor;
+                if Args.RefColorPerImage
+                    if IsAstroImage
+                        CatAnchor = Result(Iobj).CatData;
+                    else
+                        CatAnchor = Result(Iobj);
+                    end
+                    RefColorUse = imageAnchorColor(CatAnchor, Args.RefColorCol, ...
+                                                   Args.RefColorMagCol, Args.RefColorMagMax, ...
+                                                   Args.RefColorMinN, Args.RefColor);
+                end
                 PC = PC.evaluateColorTerm('AlphaProbe', Args.AlphaProbe, ...
-                                          'RefColor',   Args.RefColor);
+                                          'RefColor',   RefColorUse, ...
+                                          'StoreMode',  Args.ColorTermStoreMode, ...
+                                          'AlphaGrid',  Args.ColorTermAlphaGrid);
             end
 
             % Limiting magnitude and sky surface brightness (legacy LIMMAG/BACKMAG)
@@ -1311,4 +1354,34 @@ function CalibArgs = predefCalibArgs(Args)
     end
 
     CalibArgs = namedargs2cell(Args);
+end
+function RefColor = imageAnchorColor(Cat, ColorCol, MagCol, MagMax, MinN, Fallback)
+    % Median colour of an image's bright, colour-known sources (the per-image
+    % anchor of 'RefColorPerImage'), or Fallback when too few are available.
+    %   The brightness cut is required: the full detection list wanders in
+    %   median colour between epochs as the depth changes, which would move the
+    %   anchor from visit to visit; the bright subset does not.
+    RefColor = Fallback;
+    if isempty(Cat) || isempty(Cat.Catalog) || ~any(strcmp(Cat.ColNames, ColorCol))
+        return;
+    end
+    Color = Cat.getCol(ColorCol);
+    Sel   = isfinite(Color(:));
+
+    if isempty(MagCol)
+        if any(strcmp(Cat.ColNames, 'MAG_APER_3'))
+            MagCol = 'MAG_APER_3';
+        else
+            MagNames = Cat.ColNames(startsWith(Cat.ColNames, 'MAG_') & ~contains(Cat.ColNames, 'ERR'));
+            if ~isempty(MagNames); MagCol = MagNames{1}; end
+        end
+    end
+    if ~isempty(MagCol) && any(strcmp(Cat.ColNames, MagCol))
+        Mag = Cat.getCol(MagCol);
+        Sel = Sel & Mag(:) < MagMax;
+    end
+
+    if sum(Sel) >= MinN
+        RefColor = median(Color(Sel), 'omitnan');
+    end
 end

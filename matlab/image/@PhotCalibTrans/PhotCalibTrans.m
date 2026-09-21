@@ -240,8 +240,12 @@ classdef PhotCalibTrans < Component
         % as PT_CTA / PT_CTAE / PT_REFC.
         ColorTermA    = NaN     % dMag/dalpha at alpha=RefSpecSlope [mag per unit alpha] (PT_CTA)
         ColorTermA2   = NaN     % Quadratic coefficient d2Mag/dalpha2 / 2 [mag per alpha^2] (PT_CTA2)
-        ColorTermAErr = NaN     % Max |model-exact| over BP_RP 0.5-3 using both coefficients [mag] (PT_CTAE)
-        RefColor      = 1.2026  % Anchor colour BP_RP where the colour term vanishes (PT_REFC)
+        ColorTermAErr = NaN     % Max |model-exact| over BP_RP 0.5-3 of the stored representation [mag] (PT_CTAE)
+        ColorTermA3   = NaN     % Cubic coefficient of DeltaMag(alpha) [mag per alpha^3] (PT_CTA3); NaN when StoreMode='table'
+        ColorTermA4   = NaN     % Quartic coefficient [mag per alpha^4] (PT_CTA4); NaN when StoreMode='table'
+        ColorTermTable = []     % [1 x N] DeltaMag(alpha) - DeltaMag(RefSpecSlope) on ColorTermAlpha (PT_CA00..); [] when StoreMode='coef'
+        ColorTermAlpha = []     % [1 x N] the alpha grid of ColorTermTable (described by PT_CAA0/PT_CADA/PT_CAN)
+        RefColor      = 1.0     % Anchor colour BP_RP where the colour term vanishes (PT_REFC). A convention, not a measurement: it sets the colour whose magnitudes are left untouched, and the correction of every other star is measured from it. The default 1.0 is close to the median colour of a typical LAST field; fitPhotCalibTrans('RefColorPerImage',true) replaces it with this image's own median instead.
 
         % Aperture corrections
         AperCorr = []           % [1 x N_aper] aperture corrections in mag; NaN if calculation failed
@@ -3200,6 +3204,26 @@ classdef PhotCalibTrans < Component
             HeaderObj = HeaderObj.replaceVal('PT_CTA2', Obj.ColorTermA2);
             HeaderObj = HeaderObj.replaceVal('PT_CTAE', Obj.ColorTermAErr);
             HeaderObj = HeaderObj.replaceVal('PT_REFC', Obj.RefColor);
+            % Higher-order coefficients of DeltaMag(alpha) (StoreMode='coef'):
+            % with them the curve is good over the whole alpha grid, without
+            % them the quadratic above is a local expansion around RefSpecSlope.
+            % Blank when the curve is stored as a table instead.
+            HeaderObj = HeaderObj.replaceVal('PT_CTA3', Obj.ColorTermA3);
+            HeaderObj = HeaderObj.replaceVal('PT_CTA4', Obj.ColorTermA4);
+            % The tabulated curve (StoreMode='table'): PT_CAnn are DeltaMag at
+            % alpha = PT_CAA0 + nn*PT_CADA, nn = 0 .. PT_CAN-1.
+            if ~isempty(Obj.ColorTermTable) && ~isempty(Obj.ColorTermAlpha)
+                Grid = Obj.ColorTermAlpha(:).';
+                Tab  = Obj.ColorTermTable(:).';
+                HeaderObj = HeaderObj.replaceVal('PT_CAA0', Grid(1));
+                if numel(Grid) > 1
+                    HeaderObj = HeaderObj.replaceVal('PT_CADA', Grid(2) - Grid(1));
+                end
+                HeaderObj = HeaderObj.replaceVal('PT_CAN',  numel(Grid));
+                for Itab = 1:numel(Tab)
+                    HeaderObj = HeaderObj.replaceVal(sprintf('PT_CA%02d', Itab-1), Tab(Itab));
+                end
+            end
 
             if Args.WriteComments
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_RMS: RMS of calibration fit [mag]';
@@ -3489,6 +3513,35 @@ classdef PhotCalibTrans < Component
             % so headers written before this convention still load cleanly).
             if HeaderObj.isKeyExist('PT_REFSL')
                 Obj.RefSpecSlope = HeaderObj.getVal('PT_REFSL');
+            end
+
+            % Colour term of the zero point (issue #1287), in whichever form the
+            % header carries it: coefficients, a tabulated curve, or neither.
+            for KeyProp = {'PT_CTA','ColorTermA'; 'PT_CTA2','ColorTermA2'; ...
+                           'PT_CTA3','ColorTermA3'; 'PT_CTA4','ColorTermA4'; ...
+                           'PT_CTAE','ColorTermAErr'; 'PT_REFC','RefColor'}'
+                if HeaderObj.isKeyExist(KeyProp{1})
+                    Val = HeaderObj.getVal(KeyProp{1});
+                    if isnumeric(Val) && ~isempty(Val)
+                        Obj.(KeyProp{2}) = double(Val(1));
+                    end
+                end
+            end
+            if HeaderObj.isKeyExist('PT_CAN')
+                Ntab = HeaderObj.getVal('PT_CAN');
+                if isnumeric(Ntab) && isfinite(Ntab) && Ntab > 1
+                    A0  = HeaderObj.getVal('PT_CAA0');
+                    dA  = HeaderObj.getVal('PT_CADA');
+                    Tab = nan(1, Ntab);
+                    for Itab = 1:Ntab
+                        K = sprintf('PT_CA%02d', Itab-1);
+                        if HeaderObj.isKeyExist(K); Tab(Itab) = HeaderObj.getVal(K); end
+                    end
+                    if all(isfinite(Tab)) && isfinite(A0) && isfinite(dA)
+                        Obj.ColorTermTable = Tab;
+                        Obj.ColorTermAlpha = A0 + (0:(Ntab-1)).*dA;
+                    end
+                end
             end
             if HeaderObj.isKeyExist('PT_REFPV')
                 Obj.RefSpecPivot = HeaderObj.getVal('PT_REFPV');
@@ -3910,8 +3963,22 @@ classdef PhotCalibTrans < Component
                 Args.PosMaxIter      (1,1) double {mustBePositive, mustBeInteger} = 3
                 Args.ColorTerm       logical = false  % fit a colour term alongside the positional surface (issues #1287/#1270)
                 Args.ColorColName    (1,:) char = 'BP_RP'   % catalog colour column (imProc.cat.addColor, issue #1289)
-                Args.ColorRef        double = []      % anchor colour; [] -> Obj.RefColor
-                Args.ColorBackfitIter (1,1) double {mustBePositive, mustBeInteger} = 2  % position/colour back-fitting iterations
+                Args.ColorRefSource  (1,:) char {mustBeMember(Args.ColorRefSource,{'median','fixed'})} = 'median'
+                                                      % Anchor colour of the aperture colour term - the colour at which
+                                                      % it vanishes. 'median' (default): the median colour of the stars
+                                                      % this image's aperture correction was fitted on. That is the
+                                                      % self-consistent choice, because the aperture correction is
+                                                      % defined RELATIVE to the image's own stars: its fitted constant
+                                                      % absorbs the sample mean, so the colour at which the correction
+                                                      % is already right is that sample's median. Measured on a red
+                                                      % field (median colour 1.59): applying the term at 1.0 raised the
+                                                      % bright-star MAG_PSF scatter from 8.4 to 9.5 mmag, at 1.6 it
+                                                      % lowered it to 8.0. 'fixed' uses ColorRef instead - note that the
+                                                      % zero-point term's anchor PT_REFC (1.0) is a DIFFERENT quantity,
+                                                      % tied to an external absolute scale, and the two coincide only in
+                                                      % fields whose stars happen to sit near 1.0.
+                Args.ColorRef        double = []      % anchor colour used when ColorRefSource='fixed'; [] -> Obj.RefColor
+                Args.ColorBackfitIter (1,1) double {mustBePositive, mustBeInteger} = 1  % position/colour passes. 1 (default) = fit the positional surface on the raw magnitude difference, then the colour slope on its residuals, so the surface - which IS applied to the catalog - is bit-identical to a run without the colour term. 2+ back-fits them jointly: measured on 99 images, that changes the fitted slope by only 0.0004 mag/mag (under 2% of a typical 0.023) while moving the applied surface by 1.2-1.5 mmag rms, so it buys nothing and perturbs the catalog.
                 Args.ColorMinN       (1,1) double = 30   % minimum stars with a colour required to fit the term
                 Args.ColorMinSpread  (1,1) double = 0.08 % minimum robust spread of the colour [mag]; below this the lever arm is too short
                 Args.Verbose logical = false
@@ -4244,6 +4311,18 @@ classdef PhotCalibTrans < Component
                                 Args.ColorColName));
                         else
                             ColAll = ColAll(Mask);
+                            % One anchor per image, from the aperture-correction
+                            % sample itself (see ColorRefSource).
+                            if strcmp(Args.ColorRefSource, 'median')
+                                FiniteCol = ColAll(isfinite(ColAll));
+                                if numel(FiniteCol) >= Args.ColorMinN
+                                    ColorRefUse = median(FiniteCol);
+                                else
+                                    Obj.msgLog(LogLevel.Warning, sprintf( ...
+                                        'calcAperCorr: only %d stars with a colour (<%d) - keeping the fixed anchor %.4f', ...
+                                        numel(FiniteCol), Args.ColorMinN, ColorRefUse));
+                                end
+                            end
                         end
                     end
 
@@ -4395,6 +4474,7 @@ classdef PhotCalibTrans < Component
                 Args.ColY (1,:) char = 'Y'
                 Args.Mode (1,:) char {mustBeMember(Args.Mode, {'auto','scalar','positional'})} = 'auto'
                 Args.ColColor (1,:) char = 'BP_RP'   % colour column for the aperture-correction colour term
+                Args.ApplyColorTerm logical = false  % add the fitted colour term A5*(colour-anchor) to the magnitudes. FALSE by default and in the pipeline: catalog magnitudes are left colour-uncorrected by policy, and the coefficient is published in the header (APCC_<tag>) so imProc.calib.applyColorTerm can apply it on demand. Set true only to reproduce the pre-policy behaviour.
             end
             if isempty(Obj.AperCorr) || isempty(Obj.AperCorrColNames)
                 return;
@@ -4416,7 +4496,7 @@ classdef PhotCalibTrans < Component
             % Colour of each source, for the optional colour term of the
             % aperture correction (issues #1287/#1270).
             Cper = [];
-            if HasCol && ismember(Args.ColColor, AllCol)
+            if Args.ApplyColorTerm && HasCol && ismember(Args.ColColor, AllCol)
                 Cper = CatObj.getCol(Args.ColColor);
                 Cper = Cper(:);
             end
@@ -4438,11 +4518,13 @@ classdef PhotCalibTrans < Component
                         dCorr = PhotCalibTrans.evalAperPos(PosFit.Par, Xper, Yper, Obj.CCDSEC);
                     end
                 end
-                % Colour term, added on top of the positional surface. It
-                % vanishes at ColorRef; sources with an unknown colour get no
-                % colour shift (the positional part still applies).
+                % Colour term, added on top of the positional surface. Off by
+                % default: the fitted coefficient is published in the header
+                % instead, and the catalog keeps colour-uncorrected magnitudes.
+                % When enabled it vanishes at ColorRef; sources with an unknown
+                % colour get no colour shift (the positional part still applies).
                 dCol = [];
-                if HasCol && ~isempty(Cper)
+                if Args.ApplyColorTerm && HasCol && ~isempty(Cper)
                     CF = Obj.AperCorrColorTerm{Iap};
                     if isstruct(CF) && isfield(CF, 'Par') && isfinite(CF.Par)
                         dCol = CF.Par .* (Cper - CF.ColorRef);
@@ -4507,13 +4589,34 @@ classdef PhotCalibTrans < Component
                     end
                 end
                 % Colour term of the aperture correction (issues #1287/#1270).
-                % Written only when it was actually fitted.
-                if iscell(Obj.AperCorrColorTerm) && numel(Obj.AperCorrColorTerm) >= Iaper
-                    CF = Obj.AperCorrColorTerm{Iaper};
-                    if isstruct(CF) && isfield(CF, 'Par') && isfinite(CF.Par)
-                        HeaderObj = HeaderObj.replaceVal(Keys.Ccol,    CF.Par);
-                        HeaderObj = HeaderObj.replaceVal(Keys.CcolErr, CF.ParErr);
+                % NOT applied to the catalog magnitudes: it is published here so
+                % that imProc.calib.applyColorTerm can build colour-corrected
+                % magnitudes on demand.
+                %   The slope and its error are written for EVERY non-reference
+                % column, blank (NaN, per the #1252 blank<->NaN convention) when
+                % the fit did not produce one. Keeping the pair present rather
+                % than omitting it lets a reader judge significance by comparing
+                % the value against its error, and tells apart "not measured"
+                % from "measured and small".
+                IsRefCol = isfinite(Obj.AperCorr(Iaper)) && Obj.AperCorr(Iaper) == 0;
+                if ~IsRefCol
+                    A5 = NaN;  A5Err = NaN;  AnchorCol = Obj.RefColor;
+                    if iscell(Obj.AperCorrColorTerm) && numel(Obj.AperCorrColorTerm) >= Iaper
+                        CF = Obj.AperCorrColorTerm{Iaper};
+                        if isstruct(CF) && isfield(CF, 'Par')
+                            A5 = CF.Par;
+                            if isfield(CF, 'ParErr'); A5Err = CF.ParErr; end
+                            if isfield(CF, 'ColorRef') && isfinite(CF.ColorRef)
+                                AnchorCol = CF.ColorRef;
+                            end
+                        end
                     end
+                    HeaderObj = HeaderObj.replaceVal(Keys.Ccol,    A5);
+                    HeaderObj = HeaderObj.replaceVal(Keys.CcolErr, A5Err);
+                    % The slope is meaningless without the colour it is measured
+                    % from: record the anchor next to it.
+                    HeaderObj = HeaderObj.replaceVal('APCC_REF', AnchorCol, ...
+                        'Comment', {'Anchor colour BP_RP of the APCC_ terms'});
                 end
             end
             HeaderObj = HeaderObj.replaceVal('APCOR_N', Obj.AperCorrNStars);
@@ -5161,10 +5264,17 @@ classdef PhotCalibTrans < Component
             %            'AlphaProbe' - Second reference-spectrum slope used for
             %                   the finite difference. Default is 2.0.
             %            'RefColor' - Anchor colour BP_RP at which the colour
-            %                   term vanishes, i.e. the colour whose SED slope
-            %                   equals Obj.RefSpecSlope. Default is 1.2026
-            %                   (solved from the global alpha(BP_RP) relation
-            %                   for alpha = 1.5).
+            %                   term vanishes. This is a bookkeeping
+            %                   convention: the coefficients ColorTermA /
+            %                   ColorTermA2 do NOT depend on it (they are
+            %                   derivatives at alpha = RefSpecSlope), it only
+            %                   declares which colour is left uncorrected.
+            %                   Default is 1.0. The colour whose SED slope
+            %                   actually equals RefSpecSlope = 1.5 is 1.2026,
+            %                   but an anchor far from a field's median colour
+            %                   injects a time-varying all-stars-together shift
+            %                   (see imProc.calib.applyColorTerm), and 1.0 sits
+            %                   closer to the median of a typical LAST field.
             %            'AlphaPoly' - Coefficients [c2 c1 c0] of the global
             %                   alpha(BP_RP) relation, used only to define the
             %                   colour range over which ColorTermAErr is
@@ -5212,16 +5322,32 @@ classdef PhotCalibTrans < Component
 
             arguments
                 Obj
-                Args.AlphaProbe (1,1) double = 2.0
-                Args.RefColor   (1,1) double = 1.2026
+                Args.AlphaProbe (1,1) double = 2.0   % kept for callers that set it; the grid below supersedes it
+                Args.RefColor   (1,1) double = 1.0
                 Args.AlphaPoly  (1,3) double = [-0.0516, 2.4450, -1.3658]
                 Args.ColorRange (1,2) double = [0.5, 3.0]
+                Args.StoreMode  (1,:) char {mustBeMember(Args.StoreMode,{'coef','table'})} = 'coef'
+                                        % How DeltaMag(alpha) is stored. 'coef' (default): four coefficients
+                                        % c1..c4 of a quartic in (alpha - RefSpecSlope), written as
+                                        % PT_CTA/PT_CTA2/PT_CTA3/PT_CTA4. Measured to reproduce the exact
+                                        % curve to 0.4 mmag over the whole grid, because only c1 varies
+                                        % between images - c2..c4 are set by the filter, not the night.
+                                        % 'table': the curve itself sampled on AlphaGrid, written as
+                                        % PT_CA00.. - no model, the reader interpolates. Both cost the same
+                                        % (one ZP integral per grid point, ~5 ms each); they differ only in
+                                        % how many header keywords they occupy. PT_CTA and PT_CTA2 are
+                                        % written in BOTH modes so existing readers keep working.
+                Args.AlphaGrid  double = -1:0.5:8    % alpha values at which the curve is evaluated (19 points)
             end
 
-            Obj.ColorTermA    = NaN;
-            Obj.ColorTermA2   = NaN;
-            Obj.ColorTermAErr = NaN;
-            Obj.RefColor      = Args.RefColor;
+            Obj.ColorTermA     = NaN;
+            Obj.ColorTermA2    = NaN;
+            Obj.ColorTermA3    = NaN;
+            Obj.ColorTermA4    = NaN;
+            Obj.ColorTermAErr  = NaN;
+            Obj.ColorTermTable = [];
+            Obj.ColorTermAlpha = [];
+            Obj.RefColor       = Args.RefColor;
 
             Alpha1 = Obj.RefSpecSlope;
             Alpha2 = Args.AlphaProbe;
@@ -5237,47 +5363,89 @@ classdef PhotCalibTrans < Component
             end
 
             try
-                % Scalar ZP at the field centre for a single reference slope.
+                % Scalar ZP at the field centre for a given reference slope.
                 % Passing the slope through RefSpecSlopePerSource evaluates the
                 % reference spectrum at that alpha without touching the object.
-                % Three ZP evaluations at alpha0, alpha0+h/2, alpha0+h define the
-                % quadratic expansion DeltaZP = A*d + B*d^2 (d = alpha - alpha0):
-                %   ZPm - ZP1 = A*(h/2) + B*(h/2)^2
-                %   ZP2 - ZP1 = A*h     + B*h^2
-                H   = Alpha2 - Alpha1;
-                ZP1 = Obj.evaluateZP('RefSpecSlopePerSource', Alpha1);
-                ZPm = Obj.evaluateZP('RefSpecSlopePerSource', Alpha1 + 0.5.*H);
-                ZP2 = Obj.evaluateZP('RefSpecSlopePerSource', Alpha2);
-                Dm  = ZPm - ZP1;
-                D2  = ZP2 - ZP1;
+                % One integral per grid point (~5 ms each), so the whole curve
+                % costs ~0.1 s per image; both storage modes share this cost and
+                % differ only in what is kept.
+                Grid = Args.AlphaGrid(:).';
+                Grid = unique([Grid, Alpha1]);            % the anchor must be on the grid
+                ZP0  = Obj.evaluateZP('RefSpecSlopePerSource', Alpha1);
+                DZP  = zeros(1, numel(Grid));
+                for Ig = 1:numel(Grid)
+                    DZP(Ig) = Obj.evaluateZP('RefSpecSlopePerSource', Grid(Ig)) - ZP0;
+                end
+                Dev = Grid - Alpha1;
 
-                Obj.ColorTermA  = (4.*Dm - D2) ./ H;          % derivative at alpha0
-                Obj.ColorTermA2 = (2.*D2 - 4.*Dm) ./ (H.^2);  % quadratic coefficient
+                % Quartic in (alpha - alpha0), no intercept: the curve passes
+                % through zero at the anchor by construction.
+                Design = [Dev(:), Dev(:).^2, Dev(:).^3, Dev(:).^4];
+                Coef   = Design \ DZP(:);
+                Obj.ColorTermA  = Coef(1);
+                Obj.ColorTermA2 = Coef(2);
+                if strcmp(Args.StoreMode, 'coef')
+                    Obj.ColorTermA3 = Coef(3);
+                    Obj.ColorTermA4 = Coef(4);
+                else
+                    Obj.ColorTermTable = DZP;
+                    Obj.ColorTermAlpha = Grid;
+                end
 
-                % Model fidelity over the nominal colour range: compare the stored
-                % two-coefficient model against direct ZP integrals.
-                Ctest = linspace(Args.ColorRange(1), Args.ColorRange(2), 7);
-                Atest = polyval(Args.AlphaPoly, Ctest);
+                % Fidelity of the STORED representation over the colours real
+                % stars have: compared against direct ZP integrals at points
+                % that are not on the grid, so interpolation is also tested.
+                Ctest  = linspace(Args.ColorRange(1), Args.ColorRange(2), 7);
+                Atest  = polyval(Args.AlphaPoly, Ctest);
                 MaxDev = 0;
                 for Itest = 1:numel(Atest)
-                    Dtest   = Atest(Itest) - Alpha1;
-                    Exact   = Obj.evaluateZP('RefSpecSlopePerSource', Atest(Itest)) - ZP1;
-                    Modeled = Obj.ColorTermA.*Dtest + Obj.ColorTermA2.*Dtest.^2;
+                    Exact   = Obj.evaluateZP('RefSpecSlopePerSource', Atest(Itest)) - ZP0;
+                    Modeled = Obj.evalColorTermDelta(Atest(Itest) - Alpha1);
                     MaxDev  = max(MaxDev, abs(Modeled - Exact));
                 end
                 Obj.ColorTermAErr = MaxDev;
 
                 Obj.msgLog(LogLevel.Debug, ...
-                    'evaluateColorTerm: A=%.4f A2=%.4f mag/alpha^n (max model err %.4f mag over BP_RP %.1f-%.1f), RefColor=%.4f.', ...
-                    Obj.ColorTermA, Obj.ColorTermA2, Obj.ColorTermAErr, ...
-                    Args.ColorRange(1), Args.ColorRange(2), Obj.RefColor);
+                    'evaluateColorTerm[%s]: A=%.4f A2=%.4f A3=%.5f A4=%.6f (max model err %.4f mag over BP_RP %.1f-%.1f), RefColor=%.4f.', ...
+                    Args.StoreMode, Obj.ColorTermA, Obj.ColorTermA2, Obj.ColorTermA3, Obj.ColorTermA4, ...
+                    Obj.ColorTermAErr, Args.ColorRange(1), Args.ColorRange(2), Obj.RefColor);
             catch ME
                 Obj.msgLog(LogLevel.Warning, ...
                     'evaluateColorTerm: failed (%s) - ColorTermA set to NaN.', ME.message);
-                Obj.ColorTermA    = NaN;
-                Obj.ColorTermA2   = NaN;
-                Obj.ColorTermAErr = NaN;
+                Obj.ColorTermA     = NaN;
+                Obj.ColorTermA2    = NaN;
+                Obj.ColorTermA3    = NaN;
+                Obj.ColorTermA4    = NaN;
+                Obj.ColorTermAErr  = NaN;
+                Obj.ColorTermTable = [];
+                Obj.ColorTermAlpha = [];
             end
+        end
+
+        function Delta = evalColorTermDelta(Obj, Dev)
+            % DeltaMag at one or more alpha offsets Dev = alpha - RefSpecSlope.
+            %   Uses whichever representation this object carries: the tabulated
+            %   curve when present (pchip, which does not overshoot between
+            %   samples), otherwise the polynomial, to whatever order is finite.
+            % Input  : - PhotCalibTrans object.
+            %          - Dev, alpha - RefSpecSlope [scalar or array].
+            % Output : - DeltaMag, same size as Dev; NaN where undefined.
+            % Author : Dana Kovaleva (Sep 2026)
+            Dev   = double(Dev);
+            Delta = nan(size(Dev));
+            if ~isempty(Obj.ColorTermTable) && ~isempty(Obj.ColorTermAlpha) && ...
+                    numel(Obj.ColorTermTable) == numel(Obj.ColorTermAlpha)
+                DevGrid = Obj.ColorTermAlpha(:).' - Obj.RefSpecSlope;
+                Delta   = interp1(DevGrid, Obj.ColorTermTable(:).', Dev, 'pchip', NaN);
+                return;
+            end
+            if ~isfinite(Obj.ColorTermA)
+                return;
+            end
+            Delta = Obj.ColorTermA .* Dev;
+            if isfinite(Obj.ColorTermA2); Delta = Delta + Obj.ColorTermA2 .* Dev.^2; end
+            if isfinite(Obj.ColorTermA3); Delta = Delta + Obj.ColorTermA3 .* Dev.^3; end
+            if isfinite(Obj.ColorTermA4); Delta = Delta + Obj.ColorTermA4 .* Dev.^4; end
         end
 
         function Obj = evaluateBackMag(Obj, AI, Args)

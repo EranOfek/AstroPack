@@ -16,10 +16,13 @@ function Result = applyColorTerm(Obj, Args)
     %   The correction is
     %     DeltaMag = PT_CTA*(alpha - alpha0) + PT_CTA2*(alpha - alpha0)^2
     %   with alpha = polyval(AlphaPoly, BP_RP) and alpha0 = PT_REFSL, and is
-    %   ADDED to the calibrated magnitude. It vanishes at the anchor colour
-    %   (by default the median colour of the image's bright stars - see
-    %   'RefColorSource'), so the correction is mean-free over the field and
-    %   only the star-to-star colour differential is applied. The quadratic term
+    %   ADDED to the calibrated magnitude. It vanishes at the anchor colour,
+    %   by default the header's PT_REFC (1.0 unless the image was calibrated
+    %   with fitPhotCalibTrans('RefColorPerImage',true), which puts that
+    %   image's own median colour there) - see 'RefColorSource'. Only the
+    %   star-to-star colour differential is physical: the anchor merely
+    %   declares which colour is left uncorrected, and shifts every star of
+    %   the image by the same amount. The quadratic term
     %   matters: a linear-only model errs by ~35 mmag at BP_RP 0.8 and by
     %   hundreds of mmag at BP_RP > 2 (see evaluateColorTerm).
     %
@@ -94,17 +97,25 @@ function Result = applyColorTerm(Obj, Args)
                                                  %   constant CTA2Ref. The per-image header values are treated as
                                                  %   diagnostics only (they carry transmission-fit noise; see the
                                                  %   quality gate). Falls back to 'header' when AIRMASS is missing.
-        Args.RefColorSource char {mustBeMember(Args.RefColorSource,{'image','header'})} = 'image'
+        Args.RefColorSource char {mustBeMember(Args.RefColorSource,{'image','header'})} = 'header'
                                                  % where the anchor colour (the colour at which the correction
                                                  %   vanishes) comes from.
-                                                 % 'image' (default): the median colour of THIS image's bright,
-                                                 %   colour-known stars, i.e. the field's own stellar locus. The
-                                                 %   correction is then mean-free over the image's stars, so it
-                                                 %   carries no epoch-common component, and a biased coefficient is
-                                                 %   multiplied by ~0 for the typical star. Measured stability of
-                                                 %   this anchor: <=0.006 mag between visits (<=0.6 mmag induced),
-                                                 %   on 5 fields / 3 telescopes.
-                                                 % 'header': use PT_REFC as written by the calibration.
+                                                 % 'header' (default): PT_REFC as written by the calibration -
+                                                 %   1.0 by default, or this image's own median colour when it was
+                                                 %   calibrated with fitPhotCalibTrans('RefColorPerImage',true).
+                                                 %   Preferred because the anchor that was used is then recorded in
+                                                 %   the product and the choice stays reversible.
+                                                 % 'image': recompute the median colour of THIS image's bright,
+                                                 %   colour-known stars here, at apply time, ignoring PT_REFC. The
+                                                 %   correction is then mean-free over the image's stars and carries
+                                                 %   no epoch-common component - but the anchor used is written back
+                                                 %   to the header only for AstroImage input (see UpdateHeaderAnchor);
+                                                 %   for a bare AstroCatalog it is not recorded anywhere.
+                                                 % An anchor far from a field's median colour costs |g(anchor) -
+                                                 %   g(median)| * sigma(PT_CTA) of epoch-common wobble: measured on
+                                                 %   field 1677 (58 visits), the bright floor of MAG_APER_3 went
+                                                 %   3.7 -> 6.0 mmag with the anchor 0.29 mag away, 3.7 -> 4.1 with
+                                                 %   it 0.09 mag away, and 3.7 -> 3.7 with the per-image median.
                                                  % The anchor is a convention (the constant of integration of a
                                                  %   differential correction), not a physical constant: any choice
                                                  %   is admissible provided it is recorded, and converting between
@@ -116,6 +127,9 @@ function Result = applyColorTerm(Obj, Args)
                                                  %   median colour wanders by up to 0.3 mag between visits (detection
                                                  %   depth varies), which would itself inject 1-6 mmag per epoch.
         Args.RefColorMinN (1,1) double  = 20     % minimum ensemble size; below it, fall back to the header anchor
+        Args.UpdateHeaderAnchor logical = true   % with RefColorSource='image' and AstroImage input, write the anchor
+                                                 %   actually used back to PT_REFC, so the magnitudes can be put back
+                                                 %   on any other anchor afterwards. Without this the choice is lost.
         Args.DeMean logical             = false  % SUPERSEDED by RefColorSource='image', which achieves the same
                                                  %   zero-mean property through the anchor; kept as an exact escape
                                                  %   hatch (it also zeroes the quadratic term's ensemble mean).
@@ -137,6 +151,8 @@ function Result = applyColorTerm(Obj, Args)
         Args.AirmassKey char            = 'AIRMASS'  % header key for the airmass used by the mean channel; if missing, the mean channel is skipped
         Args.MagColNames                = {}
         Args.OutSuffix char             = '_CT'
+        Args.ApplyAperColorTerm logical = true   % also apply the aperture-correction colour term of each column (APCC_<tag> in the header, issue #1270), on top of the zero-point term above. The two are independent: the zero-point term is common to every magnitude and cancels in MAG_PSF - MAG_APER_3, which is exactly what APCC_ measures.
+        Args.Verbose logical            = false  % warn when a requested correction could not be applied
         Args.DeltaColName char          = 'MAG_CT'
         Args.DeltaErrColName char       = 'MAGERR_CT'
         Args.CreateNewObj logical       = false
@@ -302,15 +318,41 @@ function Result = applyColorTerm(Obj, Args)
                 'No usable anchor colour (PT_REFC missing and image anchor unavailable) - no colour correction applied.');
             continue;
         end
+        % Record the anchor that was actually used. The correction shifts every
+        % star of this image by -PT_CTA*g(anchor), so without the anchor the
+        % magnitudes sit on a system that cannot be converted to any other.
+        if Args.UpdateHeaderAnchor && strcmp(Args.RefColorSource, 'image') && IsAstroImage
+            Result(Iobj).HeaderData.replaceVal('PT_REFC', AnchorCol, ...
+                'Comment', {'Anchor colour BP_RP of the applied colour term'});
+        end
+
         Dev0 = polyval(Args.AlphaPoly, min(max(AnchorCol, Args.ColorRange(1)), Args.ColorRange(2))) - Alpha0;
 
         ColorC = min(max(Color, Args.ColorRange(1)), Args.ColorRange(2));
         Alpha  = polyval(Args.AlphaPoly, ColorC);
         Dev    = Alpha - Alpha0;
 
-        Delta    = CTA.*(Dev - Dev0) + CTA2.*(Dev.^2 - Dev0.^2);
+        % DeltaMag(alpha) in whichever form the header carries it. The
+        % tabulated curve (PT_CA00.., written by StoreMode='table') wins when
+        % present; otherwise the polynomial, to whatever order is available -
+        % PT_CTA3/PT_CTA4 extend it over the full alpha range, and a header
+        % written before them falls back to the quadratic unchanged.
+        [Tab, GridDev] = headerColorTable(Header, Alpha0);
+        if ~isempty(Tab)
+            DeltaOf = @(D) interp1(GridDev, Tab, D, 'pchip', NaN);
+            % local slope for the error, by finite difference on the curve
+            Hd      = 0.05;
+            SlopeOf = @(D) (DeltaOf(D + Hd) - DeltaOf(D - Hd)) ./ (2.*Hd);
+        else
+            CTA3 = getHeaderVal(Header, 'PT_CTA3');  if ~isfinite(CTA3); CTA3 = 0; end
+            CTA4 = getHeaderVal(Header, 'PT_CTA4');  if ~isfinite(CTA4); CTA4 = 0; end
+            DeltaOf = @(D) CTA.*D + CTA2.*D.^2 + CTA3.*D.^3 + CTA4.*D.^4;
+            SlopeOf = @(D) CTA + 2.*CTA2.*D + 3.*CTA3.*D.^2 + 4.*CTA4.*D.^3;
+        end
+
+        Delta    = DeltaOf(Dev) - DeltaOf(Dev0);
         % d(Delta)/d(alpha) propagated through the relation's intrinsic scatter.
-        DeltaErr = abs(CTA + 2.*CTA2.*Dev) .* Args.SigmaAlpha;
+        DeltaErr = abs(SlopeOf(Dev)) .* Args.SigmaAlpha;
 
         Delta(~Known)    = NaN;
         DeltaErr(~Known) = NaN;
@@ -365,13 +407,42 @@ function Result = applyColorTerm(Obj, Args)
             % Unknown colour -> leave the magnitude untouched.
             DeltaApply = Delta;
             DeltaApply(~Known) = 0;
+            AppliedAper = {};
+
+            % Anchor of the aperture-correction colour terms. Written next to
+            % them by aperCorrToHeader; PT_REFC is the fallback for headers
+            % predating that keyword, where the two anchors always coincided.
+            AperRef = getHeaderVal(Header, 'APCC_REF');
+            if ~isfinite(AperRef); AperRef = RefCol; end
 
             for Icol = 1:numel(MagCols)
                 if ~any(strcmp(Cat.ColNames, MagCols{Icol}))
                     continue;
                 end
                 MagVal = Cat.getCol(MagCols{Icol});
-                Cat    = replaceOrInsert(Cat, MagVal(:) + DeltaApply, [MagCols{Icol}, Args.OutSuffix]);
+                Shift  = DeltaApply;
+
+                % Aperture-correction colour term of THIS column (issue #1270):
+                % the chromaticity of MAG_<col> - MAG_APER_3, fitted at
+                % calibration time and published as APCC_<tag>. It is a
+                % different effect from the zero-point term above - that one is
+                % common to every magnitude and cancels in their difference -
+                % so the two add.
+                if Args.ApplyAperColorTerm
+                    [A5, Tag] = aperColorCoef(Header, MagCols{Icol});
+                    if isfinite(A5)
+                        dCol = A5 .* (ColorC(:) - AperRef);
+                        dCol(~Known) = 0;
+                        Shift = Shift + dCol;
+                        AppliedAper{end+1} = Tag; %#ok<AGROW>
+                    end
+                end
+
+                Cat = replaceOrInsert(Cat, MagVal(:) + Shift, [MagCols{Icol}, Args.OutSuffix]);
+            end
+            if Args.ApplyAperColorTerm && isempty(AppliedAper) && Args.Verbose
+                warning('imProc:calib:applyColorTerm:NoAperColorTerm', ...
+                    'ApplyAperColorTerm requested but no APCC_ keyword matched the requested magnitude columns.');
             end
         end
 
@@ -406,5 +477,46 @@ function Cat = replaceOrInsert(Cat, Data, ColName)
         Cat = Cat.replaceCol(Data(:), ColName);
     else
         Cat = Cat.insertCol(Data(:), Inf, {ColName});
+    end
+end
+
+function [A5, Tag] = aperColorCoef(Header, MagColName)
+    % Aperture-correction colour slope of one magnitude column, from APCC_<tag>.
+    %   The tag mapping is PhotCalibTrans.fluxCol2AperCorrKeys, so it matches
+    %   whatever aperCorrToHeader wrote. NaN when the column has no term -
+    %   which is the normal case for the reference aperture (MAG_APER_3), whose
+    %   correction is zero by definition.
+    A5  = NaN;
+    Tag = '';
+    try
+        Keys = PhotCalibTrans.fluxCol2AperCorrKeys(MagColName);
+        A5   = getHeaderVal(Header, Keys.Ccol);
+        Tag  = Keys.Ccol;
+    catch
+        % unrecognised column name - no colour term for it
+    end
+end
+
+function [Tab, GridDev] = headerColorTable(Header, Alpha0)
+    % Tabulated DeltaMag(alpha) from PT_CAnn, as offsets from Alpha0.
+    %   Empty when the header does not carry a table, which is the normal case
+    %   for the default StoreMode='coef'.
+    Tab = [];  GridDev = [];
+    N = getHeaderVal(Header, 'PT_CAN');
+    if ~isfinite(N) || N < 2
+        return;
+    end
+    A0 = getHeaderVal(Header, 'PT_CAA0');
+    dA = getHeaderVal(Header, 'PT_CADA');
+    if ~isfinite(A0) || ~isfinite(dA) || dA == 0
+        return;
+    end
+    V = nan(1, N);
+    for I = 1:N
+        V(I) = getHeaderVal(Header, sprintf('PT_CA%02d', I-1));
+    end
+    if all(isfinite(V))
+        Tab     = V;
+        GridDev = A0 + (0:(N-1)).*dA - Alpha0;
     end
 end
