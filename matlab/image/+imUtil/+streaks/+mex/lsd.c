@@ -275,7 +275,7 @@ static ntuple_list new_ntuple_list(unsigned int dim)
   n_tuple->dim = dim;
 
   /* get memory for tuples */
-  n_tuple->values = (float *) malloc( dim*n_tuple->max_size * sizeof(double) );
+  n_tuple->values = (float *) malloc( dim*n_tuple->max_size * sizeof(float) );
   if( n_tuple->values == NULL ) error("not enough memory.");
 
   return n_tuple;
@@ -780,16 +780,6 @@ static float angle_diff(float a, float b)
   return a;
 }
 
-/*----------------------------------------------------------------------------*/
-/** Signed angle difference.
- */
-static float angle_diff_signed(float a, float b)
-{
-  a -= b;
-  while( a <= -M_PI ) a += M_2__PI;
-  while( a >   M_PI ) a -= M_2__PI;
-  return a;
-}
 
 
 /*----------------------------------------------------------------------------*/
