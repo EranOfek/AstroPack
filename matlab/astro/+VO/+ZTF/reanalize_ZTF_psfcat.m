@@ -8,11 +8,12 @@ function [ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_psfcat(F
     %          - A structure array with Status of reduction.
     %          - Path.
     % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem('merge');
-    %          INPOP = celestial.INPOP; INPOP.populateAll;
+    %          INPOP = celestial.INPOP.init; %; INPOP.populateAll;
     %          GeoPosSt = celestial.earth.observatoryCoo('Name','Palomar48');
     %          GeoPos = [GeoPosSt.Lon./RAD, GeoPosSt.Lat./RAD, GeoPosSt.Height];
-    %          [Result, AstrometricCat] = reanalize_ZTF_psfcat(File,'Path','/raid/eran/projects/telescopes/ZTF/sourceCatalogs/DAO/649/10','INPOP',INPOP','OrbEl',OrbEl,'GeoPos',GeoPos);
-    %          [Result, AstrometricCat] = reanalize_ZTF_psfcat(File,'Path','/raid/eran/projects/telescopes/ZTF/sourceCatalogs/DAO/601/10','INPOP',INPOP','OrbEl',OrbEl,'GeoPos',GeoPos);
+    %          [Result, AstrometricCat] = VO.ZTF.reanalize_ZTF_psfcat(File,'Path','/raid/eran/projects/telescopes/ZTF/sourceCatalogs/DAO/649/10','INPOP',INPOP','OrbEl',OrbEl,'GeoPos',GeoPos);
+    %          [Result, AstrometricCat] = VO.ZTF.reanalize_ZTF_psfcat(File,'Path','/raid/eran/projects/telescopes/ZTF/sourceCatalogs/DAO/601/10','INPOP',INPOP','OrbEl',OrbEl,'GeoPos',GeoPos);
+    %          [Result, AstrometricCat] = VO.ZTF.reanalize_ZTF_psfcat(File,'INPOP',INPOP','OrbEl',OrbEl,'GeoPos',GeoPos);
 
     arguments
         File
@@ -55,6 +56,17 @@ function [ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_psfcat(F
     % Re do astrometry
     SortCat = 'dec';
 
+    % OrigKey = {'ALPHAWIN_J2000','DELTAWIN_J2000','X_IMAGE','Y_IMAGE',...
+    %            'FLUX_APER_1_','FLUXERR_APER_1_',...
+    %            'FLUX_APER_2_','FLUXERR_APER_2_',...
+    %            'FLUX_APER_3_','FLUXERR_APER_3_',...
+    %            'FLUX_APER_4_','FLUXERR_APER_4_',...
+    %            'FLUX_APER_5_','FLUXERR_APER_5_',...
+    %            'FLUX_APER_6_','FLUXERR_APER_6_'}
+    OrigKey = {'xpos','ypos','ra','dec','flux','sigflux'};
+    NewKey  = {'X','Y',      'RA','Dec','FLUX_PSF','FLUXERR_PSF'};
+    ObjCat.replaceColNames(OrigKey, NewKey);
+    ObjCat.sortrows('Dec');
 
     TT = ObjCat.copy;
     [ResAstrometry, ObjCat, AstrometricCat] = imProc.astrometry.astrometryRefine(ObjCat, 'WCS',[],...
@@ -76,6 +88,9 @@ function [ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_psfcat(F
     % Add MergedCat
     ObjCat = imProc.match.match_catsHTMmerged(ObjCat);
     
+
+    [ObjCat, PC, FitRes] = imProc.calib.fitPhotCalibTrans(ObjCat, 'MagType', 'mag', 'Verbose',false, 'AddMagErr', true); % 8.7s for all in loop
+
 
     % Re do photometric calibration - what about g/r/i?
     Att     = split(File,'_');

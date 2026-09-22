@@ -271,6 +271,54 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %
     Args=imProc.astrometry.prepArgsForAstrometry(Obj, Args);
 
+    % For AstroCatalog input, determine whether RA/Dec contain valid
+    % coordinate values. The AstroImage defaults may be header-key
+    % placeholders, so they must not be interpreted as sky coordinates.
+    if isa(Obj, 'AstroCatalog')
+        UseCatalogCenter = isempty(Args.RA) || isempty(Args.Dec);
+
+        if ~UseCatalogCenter
+            try
+                [TestRA, TestDec] = celestial.coo.parseCooInput( ...
+                    Args.RA, Args.Dec, ...
+                    'InUnits', Args.CooUnits, ...
+                    'OutUnits', Args.CooUnits);
+
+                UseCatalogCenter = ...
+                    ~isscalar(TestRA) || ...
+                    ~isscalar(TestDec) || ...
+                    ~isfinite(double(TestRA)) || ...
+                    ~isfinite(double(TestDec));
+            catch
+                % Non-coordinate strings, such as header-key placeholders,
+                % are invalid for AstroCatalog input.
+                UseCatalogCenter = true;
+            end
+        end
+
+        if UseCatalogCenter
+            [SrcRA, SrcDec] = getLonLat(Obj(1), 'rad');
+            ValidCoo = isfinite(SrcRA) & isfinite(SrcDec);
+
+            if ~any(ValidCoo)
+                error('AstroCatalog contains no finite RA/Dec coordinates');
+            end
+
+            [Args.RA, Args.Dec, CatRadiusFromCatalog] = boundingCircle( ...
+                Obj(1), ...
+                'CooType', 'sphere', ...
+                'OutUnits', 'deg');
+
+            Args.CooUnits = 'deg';
+
+            % Preserve the caller-supplied/default CatRadius when nonempty.
+            if isempty(Args.CatRadius)
+                Args.CatRadius      = CatRadiusFromCatalog;
+                Args.CatRadiusUnits = 'deg';
+            end
+        end
+    end
+
     % if isa(Obj, 'AstroImage')
     %     % can read RA/Dec from Header if AstroImage
     %     [Args.RA, Args.Dec] = getCoo(Obj(1).HeaderData, 'RA',Args.RA, 'Dec',Args.Dec, 'Units',Args.CooUnits, 'OutUnits',Args.CooUnits);
