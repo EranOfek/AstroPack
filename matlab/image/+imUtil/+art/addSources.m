@@ -41,7 +41,9 @@ function Image = addSources(Image, SrcPSF, XY, Args)
         M = round(N/Args.Oversample);    
         SrcPSF1 = zeros(M, M, Nsrc);
         for Isrc = 1:Nsrc
-            SrcPSF1(:, :, Isrc) = (Args.Oversample^2).*imresize(SrcPSF(:, :, Isrc), 1./Args.Oversample);
+            % 'box' integrates the flux over the detector pixel area; imresize's
+            % default (bicubic) would both narrow the PSF and ring into negative values
+            SrcPSF1(:, :, Isrc) = (Args.Oversample^2).*imresize(SrcPSF(:, :, Isrc), 1./Args.Oversample, 'box');
         end              
         Flux = repmat(1.0,1,Nsrc);   
         Cat = [XY(:,2) XY(:,1) Flux'];
@@ -164,12 +166,20 @@ function Image = directInjectSources (Image0, Cat, Scaling, PSF)
     % Author : A. Krassilchtchikov et al. (Feb 2023)
     % Example: Image1 = imUtil.art.directInjectSources (Image0,Cat,Scaling,PSF)
 
+    % the 'box' up- and downsampling below is an exact round trip (pixel replication
+    % followed by block averaging) only for an integer Scaling; for a non-integer one
+    % the two grids do not align and the whole image would be silently smoothed
+    if ~isscalar(Scaling) || ~isfinite(Scaling) || Scaling < 1 || mod(Scaling,1) ~= 0
+        error('The oversampling factor must be a scalar integer >= 1, got %s', mat2str(Scaling));
+    end
+
     % image summation methods:     
     Method = 'Regular'; % 'Pad'     : summ full matrices
                          % 'Regular' : add the PSF stamp values in cycles
         
     % rescale the initial image to the PSF scale:    
-    Im = imresize(Image0, Scaling, 'bilinear');
+%     Im = imresize(Image0, Scaling, 'bilinear');
+    Im = imresize(Image0, Scaling, 'box');
     SizeImX = size(Im,1);
     SizeImY = size(Im,2);
         
@@ -223,7 +233,8 @@ function Image = directInjectSources (Image0, Cat, Scaling, PSF)
         end                
     end
     % scale down to the original pixel size:    
-    Image = imresize(Im, 1./Scaling, 'bilinear');
+%     Image = imresize(Im, 1./Scaling, 'bilinear');
+    Image = imresize(Im, 1./Scaling, 'box');
 end
 
 function S = injectSources_NS(Image,Cat,PSFin,Args)

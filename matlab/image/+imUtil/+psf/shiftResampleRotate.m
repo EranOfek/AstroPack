@@ -10,6 +10,23 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
     %          * ...,key,val,...
     %         'Recenter' - true/false whether to shift the PSFs on the subpixel scale
     %         'RecenterMethod' - 'lanczos' (default), 'fft', or 'nearest'; usually 'nearest' goes with Oversampling > 1
+    %         'InterpMethod' - imresize kernel for the Oversample -> 1 rescaling.
+    %                    Default is '' = choose automatically: 'box' when downsampling
+    %                    (Oversample > 1), which integrates the flux over the detector
+    %                    pixel area and thus does not broaden the PSF, and 'bilinear'
+    %                    when upsampling, where 'box' would only replicate pixels.
+    %         'SuppressEdges' - taper width [pix], measured inward from the stamp
+    %                    outer radius, of the cosine-bell edge suppression applied
+    %                    after the subpixel shift: the shift kernels (lanczos, fft)
+    %                    ring at the stamp borders, the more so the sharper the
+    %                    stamp. The taper is flux-conserving -- the sum of each
+    %                    stamp is restored after it -- so it redistributes the
+    %                    counts inward but never removes any. 0 or [] disables it.
+    %                    Default is [] (disabled): the taper only reaches the outermost
+    %                    pixels, whereas the shift kernels ring immediately around the
+    %                    core, and for a stamp that does not fully contain the PSF (e.g.
+    %                    the ULTRASAT lab PSF at large field radii, where >30% of the
+    %                    light lies in the tapered zone) it would pull that light inward.
     %         'Renorm'   - true/false whether to renormalize the stamps
     %         'ForceOdd' - false/true whether to make the even-sized stamps odd-sized
     % Output : - a stack or a cell array of resampled and shifted PSFs
@@ -24,6 +41,8 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
         RotAngle               = [];      % [deg] counterclockwise
         Args.Recenter logical  = true;
         Args.RecenterMethod    = 'lanczos';   % lanczos, fft, or nearest
+        Args.InterpMethod      = '';          % '' = auto ('box' downsampling, 'bilinear' upsampling)
+        Args.SuppressEdges     = [];          % [pix] cosbell taper width, [] or 0 = disabled
         Args.Renorm   logical  = true;
         Args.ForceOdd logical  = false;
     end
@@ -78,7 +97,8 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
                 end
                 PSF = ShiftedPSF;
             end
-            PSF = imUtil.psf.oversampling(PSF, Oversample, 1,'ReNorm',false,'InterpMethod','bilinear');
+            PSF = imUtil.psf.oversampling(PSF, Oversample, 1,'ReNorm',false,...
+                                          'InterpMethod',resampleKernel(Args.InterpMethod, Oversample));
         end
         % force odd size, independently per dimension (rows and columns may have
         % different parity for a non-square stamp)
@@ -98,6 +118,8 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
                 PSF = imUtil.trans.shift_lanczos(PSF, Shift);
             end
         end
+        % suppress the border ringing left by the shift kernel (flux-conserving)
+        PSF = taperEdges(PSF, Args.SuppressEdges);
         % normalize
         if Args.Renorm
             PSF = imUtil.psf.normPSF(PSF);
@@ -110,7 +132,8 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
             end
             % rescale
             if all(Oversample > 0)
-                PSF{Ipsf} = imUtil.psf.oversampling(PSF{Ipsf}, Oversample, 1,'ReNorm',false,'InterpMethod','bilinear');
+                PSF{Ipsf} = imUtil.psf.oversampling(PSF{Ipsf}, Oversample, 1,'ReNorm',false,...
+                                          'InterpMethod',resampleKernel(Args.InterpMethod, Oversample));
             end
             % force odd size, independently per dimension (rows and columns may have
             % different parity for a non-square stamp)
@@ -135,10 +158,62 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
                     PSF{Ipsf} = imUtil.trans.shift_lanczos(PSF{Ipsf}, ShiftXY);
                 end
             end
+            % suppress the border ringing left by the shift kernel (flux-conserving)
+            PSF{Ipsf} = taperEdges(PSF{Ipsf}, Args.SuppressEdges);
             % normalize
             if Args.Renorm
                 PSF{Ipsf} = imUtil.psf.normPSF(PSF{Ipsf});
             end
         end
     end
+end
+
+%%%
+%%% internal functions
+%%%
+
+function Method = resampleKernel(Method, Oversample)
+    % Pick the imresize kernel for an Oversample -> 1 rescaling, unless forced by the user
+    % Input  : - a user-requested kernel name, or '' to choose automatically
+    %          - the oversampling factor(s) of the input PSF grid
+    % Output : - the imresize kernel name
+    % Author : A.M. Krassilchtchikov (Sep 2026)
+    if isempty(Method)
+        if all(Oversample > 1)
+            Method = 'box';      % a detector pixel integrates the flux over its area
+        else
+            Method = 'bilinear'; % upsampling: 'box' would merely replicate pixels
+        end
+    end
+end
+
+function PSF = taperEdges(PSF, Width)
+    % Apply a flux-conserving cosine-bell taper to the borders of a PSF stamp / cube
+    %     The taper kills the ringing the subpixel shift kernels leave at the stamp
+    %     borders. The sum of every stamp is restored afterwards, so the counts are
+    %     redistributed inward and the injected flux is unchanged.
+    % Input  : - a 2D PSF stamp or a 3D stack (stamp index in the 3rd dimension)
+    %          - the taper width [pix] inward from the stamp outer radius,
+    %            0 or [] to return the stamp unchanged
+    % Output : - the tapered stamp / stack, with the original per-stamp sum
+    % Author : A.M. Krassilchtchikov (Sep 2026)
+    if isempty(Width) || Width <= 0
+        return
+    end
+    SizeXY = [size(PSF,2) size(PSF,1)];
+    FunPars = imUtil.psf.suppressEdgesPars(Width, SizeXY);
+    if FunPars(1) < 1   % the stamp is too small to be tapered over this width
+        return
+    end
+    Sum0 = sum(PSF, [1 2]);
+    try
+        PSF = imUtil.psf.mex.cosbellTaper(PSF, FunPars);
+    catch
+        % the mex is unavailable or refused the input: use the m-code equivalent
+        % (NB: the two centre even-sized stamps differently, see imUtil.psf.suppressEdgesPars)
+        PSF = imUtil.psf.suppressEdges(PSF, 'FunPars', FunPars, 'Norm', false);
+    end
+    Sum1 = sum(PSF, [1 2]);
+    Keep = Sum1 ~= 0;
+    PSF(:,:,Keep) = PSF(:,:,Keep) .* (Sum0(Keep)./Sum1(Keep));
 end
