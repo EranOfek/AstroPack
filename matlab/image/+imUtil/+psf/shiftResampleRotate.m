@@ -25,11 +25,9 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
     %                    error from 0.015 to 0.003 pix. It costs ~4x more in the
     %                    rescale+shift step, the stamps being Oversample^2 larger
     %                    at the time of the shift.
-    %         'InterpMethod' - imresize kernel for the Oversample -> 1 rescaling.
-    %                    Default is '' = choose automatically: 'box' when downsampling
-    %                    (Oversample > 1), which integrates the flux over the detector
-    %                    pixel area and thus does not broaden the PSF, and 'bilinear'
-    %                    when upsampling, where 'box' would only replicate pixels.
+    %         'InterpMethod' - imresize kernel for the Oversample -> 1 rescaling,
+    %                    forwarded to imUtil.psf.oversampling. Default is '' =
+    %                    chosen there automatically ('box' when downsampling).
     %         'SuppressEdges' - taper width [pix], measured inward from the stamp
     %                    outer radius, of the cosine-bell edge suppression applied
     %                    after the subpixel shift: the shift kernels (lanczos, fft)
@@ -137,7 +135,7 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
                 PSF = ShiftedPSF;
             end
             PSF = imUtil.psf.oversampling(PSF, Oversample, 1,'ReNorm',false,...
-                                          'InterpMethod',resampleKernel(Args.InterpMethod, Oversample));
+                                          'InterpMethod',Args.InterpMethod);
         end
         % force odd size, independently per dimension (rows and columns may have
         % different parity for a non-square stamp)
@@ -188,7 +186,7 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
             end
             if RescaleCell
                 PSF{Ipsf} = imUtil.psf.oversampling(PSF{Ipsf}, Oversample, 1,'ReNorm',false,...
-                                          'InterpMethod',resampleKernel(Args.InterpMethod, Oversample));
+                                          'InterpMethod',Args.InterpMethod);
             end
             % force odd size, independently per dimension (rows and columns may have
             % different parity for a non-square stamp)
@@ -279,21 +277,6 @@ function ShiftXY = shiftRow(Shift, Ipsf)
         ShiftXY = Shift(1,:);
     else
         ShiftXY = Shift(Ipsf,:);
-    end
-end
-
-function Method = resampleKernel(Method, Oversample)
-    % Pick the imresize kernel for an Oversample -> 1 rescaling, unless forced by the user
-    % Input  : - a user-requested kernel name, or '' to choose automatically
-    %          - the oversampling factor(s) of the input PSF grid
-    % Output : - the imresize kernel name
-    % Author : A.M. Krassilchtchikov (Sep 2026)
-    if isempty(Method)
-        if all(Oversample > 1)
-            Method = 'box';      % a detector pixel integrates the flux over its area
-        else
-            Method = 'bilinear'; % upsampling: 'box' would merely replicate pixels
-        end
     end
 end
 
