@@ -156,12 +156,17 @@ end
 function Image = directInjectSources (Image0, Cat, Scaling, PSF)
     % Inject sources to catalog positions with PSFs scaled by the Scaling factor 
     % Package: imUtil.art
-    % Description: Inject sources to catalog positions with PSFs scaled by the Scaling factor 
+    % Description: The image is brought to the oversampled scale of the PSF stamps with
+    %              a 'box' resize (which replicates pixels), the fluxed stamps are added
+    %              there, and the result is averaged back down. A detector pixel I covers
+    %              the oversampled pixels (I-1)*Scaling+1 : I*Scaling, so a source at the
+    %              detector position X sits at Scaling*(X-0.5)+0.5 on that grid; the stamp
+    %              is placed at the nearest whole oversampled pixel and shifted by the
+    %              remainder. Stamps reaching outside the image are cut, not moved inwards.
     % Input:   - Image0: a 2D array containing the initial image 
     %          - Cat: an 3-column table: X, Y, full band flux normalization
-    %          - Scaling: a scaling factor, typically > 1
-    %          - PSF: a 2+1 D array of source PSFs
-    %          NB: the PSF stamp for all the sources is the same
+    %          - Scaling: a scaling factor, a positive integer
+    %          - PSF: a 2+1 D array of source PSFs, normalized to unity
     % Output : - Image: a 2D array containing the resulting image
     % Author : A. Krassilchtchikov et al. (Feb 2023)
     % Example: Image1 = imUtil.art.directInjectSources (Image0,Cat,Scaling,PSF)
@@ -173,67 +178,69 @@ function Image = directInjectSources (Image0, Cat, Scaling, PSF)
         error('The oversampling factor must be a scalar integer >= 1, got %s', mat2str(Scaling));
     end
 
-    % image summation methods:     
-    Method = 'Regular'; % 'Pad'     : summ full matrices
-                         % 'Regular' : add the PSF stamp values in cycles
-        
     % rescale the initial image to the PSF scale:    
-%     Im = imresize(Image0, Scaling, 'bilinear');
-    Im = imresize(Image0, Scaling, 'box');
+    Im      = imresize(Image0, Scaling, 'box');
     SizeImX = size(Im,1);
     SizeImY = size(Im,2);
-        
-    % add the sources PSFs
+
     SizeX  = size(PSF,1);
     SizeY  = size(PSF,2);
-    NumSrc = size(PSF,3);     
-%     Src    = zeros( SizeX, SizeY );
-    
-    for Isrc = 1:1:NumSrc        
-        % rescale the source coordinates        
-        Xcenter = Scaling * Cat(Isrc,1);
-        Ycenter = Scaling * Cat(Isrc,2);
-        
-        % define the stamp borders in the rescaled image        
-        Xleft   = max( floor( Xcenter - SizeX/2. ), 1);
-        Yleft   = max( floor( Ycenter - SizeY/2. ), 1);
-        Xright  = min( Xleft + SizeX, SizeImX);
-        Yright  = min( Yleft + SizeY, SizeImY);
-        SzX     = Xright-Xleft;
-        SzY     = Yright-Yleft;
-        
-        switch lower(Method)            
-            case 'pad'                
-                % pad the stamp with zeros upto the full image size and add the images
-        
-                PadXL   = max(Xleft-1, 0);
-                PadXR   = max(SizeImX-Xright+1, 0);
-                PadYL   = max(Yleft-1, 0);
-                PadYR   = max(SizeImY-Yright+1, 0);  
+    NumSrc = size(PSF,3);
 
-                Src = PSF(:,:,Isrc) .* Cat(Isrc,3);
+    if NumSrc > 0
+        % source positions on the oversampled grid, and the corner the stamp is to occupy
+        Xcenter = Scaling.*(Cat(:,1) - 0.5) + 0.5;
+        Ycenter = Scaling.*(Cat(:,2) - 0.5) + 0.5;
+        XcornEx = Xcenter - (SizeX-1)./2;
+        YcornEx = Ycenter - (SizeY-1)./2;
+        Xcorn   = round(XcornEx);
+        Ycorn   = round(YcornEx);
 
-                Src = padarray(Src,[PadXL 0],'pre'); 
-                Src = padarray(Src,[PadXR 0],'post'); 
-                Src = padarray(Src,[0 PadYL],'pre'); 
-                Src = padarray(Src,[0 PadYR],'post');
+        % the subpixel remainder is applied to the stamps themselves, on the oversampled
+        % grid, where the interpolation kernel does not ring; the flux of each stamp is
+        % restored afterwards, so the injected flux stays exact
+        % NB: shift_lanczos takes [ShiftX, ShiftY] with X along the columns
+        ShiftXY = [YcornEx - Ycorn, XcornEx - Xcorn];
+        if any(ShiftXY ~= 0, 'all')
+            SumBefore = sum(PSF, [1 2]);
+            PSF       = imUtil.trans.shift_lanczos(PSF, ShiftXY);
+            SumAfter  = sum(PSF, [1 2]);
+            Keep      = SumAfter ~= 0;
+            PSF(:,:,Keep) = PSF(:,:,Keep) .* (SumBefore(Keep)./SumAfter(Keep));
+        end
 
-                Im = Im + Src .* Scaling^2;  
-                % NB! "imresize" scales the sum of the counts as Scale^2, so we need to scale the added signal
-            case 'regular'           
-                for iX = 1:1:SzX
-                    for iY = 1:1:SzY
-                        Im( Xleft+iX-1, Yleft+iY-1 ) = Im( Xleft+iX-1, Yleft+iY-1) + ...
-                            PSF(iX, iY, Isrc) .* Cat(Isrc,3) .* Scaling^2; 
-                        % NB! "imresize" scales the sum of the counts as Scale^2, so we need to scale the added signal
-                    end
-                end
-            otherwise            
-                fprintf('Summation method not defined!\n');            
-        end                
+        for Isrc = 1:1:NumSrc
+            % the region to be filled in the oversampled image and the part of the stamp
+            % that falls into it: a stamp reaching outside the image is cut, not moved
+            X1 = Xcorn(Isrc); X2 = X1 + SizeX - 1;
+            Y1 = Ycorn(Isrc); Y2 = Y1 + SizeY - 1;
+            X11 = 1; X21 = SizeX; Y11 = 1; Y21 = SizeY;
+            if X1 < 1
+                X11 = 2 - X1;
+                X1  = 1;
+            end
+            if Y1 < 1
+                Y11 = 2 - Y1;
+                Y1  = 1;
+            end
+            if X2 > SizeImX
+                X21 = X21 - (X2 - SizeImX);
+                X2  = SizeImX;
+            end
+            if Y2 > SizeImY
+                Y21 = Y21 - (Y2 - SizeImY);
+                Y2  = SizeImY;
+            end
+            % NB! "imresize" scales the sum of the counts as Scaling^2, so we need to
+            % scale the added signal
+            if X2 >= X1 && Y2 >= Y1
+                Im(X1:X2, Y1:Y2) = Im(X1:X2, Y1:Y2) + ...
+                                   PSF(X11:X21, Y11:Y21, Isrc) .* Cat(Isrc,3) .* Scaling.^2;
+            end
+        end
     end
+
     % scale down to the original pixel size:    
-%     Image = imresize(Im, 1./Scaling, 'bilinear');
     Image = imresize(Im, 1./Scaling, 'box');
 end
 
