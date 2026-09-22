@@ -14,7 +14,10 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
     %          - a vector of rotation angles [deg]
     %          * ...,key,val,...
     %         'Recenter' - true/false whether to shift the PSFs on the subpixel scale
-    %         'RecenterMethod' - 'lanczos' (default), 'fft', or 'nearest'; usually 'nearest' goes with Oversampling > 1
+    %         'RecenterMethod' - 'lanczos' (default), 'fft', or 'nearest'; usually 'nearest' goes with Oversampling > 1.
+    %                    NB: until Sep 2026 'nearest' was silently ignored unless the PSF
+    %                    came as a numeric array AND Oversample > 0, the code implementing
+    %                    it living inside the rescaling block of the array branch only.
     %         'ShiftOversampled' - if true (default) and the PSF is rescaled, the
     %                    subpixel shift is applied on the OVERSAMPLED grid, before
     %                    the rescaling, rather than on the detector grid after it.
@@ -93,7 +96,7 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
         % apply the subpixel shift while the PSF is still oversampled, where the
         % interpolation kernel does not ring (see the ShiftOversampled help above)
         ShiftOnFine = Rescale && Args.ShiftOversampled && ...
-                      any(strcmpi(Args.RecenterMethod,{'fft','lanczos'}));
+                      any(strcmpi(Args.RecenterMethod,{'fft','lanczos','nearest'}));
         if ShiftOnFine
             ShiftFine = zeros(size(Shift));
             if Args.Recenter
@@ -113,27 +116,6 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
             end
         end
         if Rescale
-            if Args.Recenter && strcmpi(Args.RecenterMethod,'nearest')
-                % need to check the following block and, probably, make it faster and more compact
-                ShiftRow = round(Shift(:,1) * Oversample(1)); % to the scale of the oversampled PSF
-                ShiftCol = round(Shift(:,2) * Oversample(2));
-                ShiftedPSF = zeros(size(PSF));
-                for Ipsf = 1:NumPsf
-                    if ShiftRow(Ipsf) > 0
-                        ShiftedPSF(ShiftRow(Ipsf)+1:end, :, Ipsf) = PSF(1:end-ShiftRow(Ipsf), :, Ipsf);
-                    else
-                        ShiftedPSF(1:end+ShiftRow(Ipsf), :, Ipsf) = PSF(-ShiftRow(Ipsf)+1:end, :, Ipsf);
-                    end
-                    if ShiftCol(Ipsf) > 0
-                        ShiftedPSF(:, ShiftCol(Ipsf)+1:end, Ipsf) = ShiftedPSF(:, 1:end-ShiftCol(Ipsf), Ipsf);
-                        ShiftedPSF(:, 1:ShiftCol(Ipsf), Ipsf) = 0;
-                    else
-                        ShiftedPSF(:, 1:end+ShiftCol(Ipsf), Ipsf) = ShiftedPSF(:, -ShiftCol(Ipsf)+1:end, Ipsf);
-                        ShiftedPSF(:, end+ShiftCol(Ipsf)+1:end, Ipsf) = 0;
-                    end
-                end
-                PSF = ShiftedPSF;
-            end
             PSF = imUtil.psf.oversampling(PSF, Oversample, 1,'ReNorm',false,...
                                           'InterpMethod',Args.InterpMethod);
         end
@@ -170,7 +152,7 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
             % rescale
             RescaleCell = ~isempty(Oversample) && all(Oversample > 0);
             ShiftOnFine = RescaleCell && Args.ShiftOversampled && ...
-                          any(strcmpi(Args.RecenterMethod,{'fft','lanczos'}));
+                          any(strcmpi(Args.RecenterMethod,{'fft','lanczos','nearest'}));
             if ShiftOnFine
                 ShiftFine = [0 0];
                 if Args.Recenter
@@ -222,13 +204,18 @@ function PSF = subPixShift(PSF, Shift, Method)
     %     whereas the first column of Shift is the first array dimension, hence the swap
     % Input  : - A PSF stamp or a stack of them.
     %          - A 2-column array of [dim1, dim2] shifts, in pixels of the current grid.
-    %          - 'fft', 'lanczos', or 'nearest' (which is handled before the rescaling).
+    %          - 'fft', 'lanczos' or 'nearest'.
     % Output : - The shifted stamp / stack.
     % Author : A.M. Krassilchtchikov (Sep 2026)
     if strcmpi(Method,'fft')
         PSF = imUtil.trans.shift_fft(PSF, Shift(:,2), Shift(:,1));
     elseif strcmpi(Method,'lanczos')
         PSF = imUtil.trans.shift_lanczos(PSF, Shift(:,[2 1]));
+    elseif strcmpi(Method,'nearest')
+        % a rounded shift, which imUtil.trans.shift_lanczos performs by indexing alone,
+        % without interpolating (issue #1298). When the stamp is rescaled this rounds to
+        % the oversampled grid, so the residual is at most half an oversampled pixel
+        PSF = imUtil.trans.shift_lanczos(PSF, round(Shift(:,[2 1])));
     end
 end
 
