@@ -153,6 +153,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         
         Args.AddNdet                     = true;
         Args.NdetSearchRadius            = 1.5;  % [arcsec]
+        Args.AddSpatialDensity logical   = true; % write the SPATQ* source-density quantiles to the coadd header (issue #1274)
+        Args.SpatialDensityArgs          = {};   % extra args for imProc.cat.starsSpatialDensity
 
 
         Args.Logger                      = [];
@@ -921,6 +923,13 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             [~,Coadd(NotIsEmptyCat)] = imProc.cat.addXYfull(Coadd(NotIsEmptyCat));
             % Add PSF fraction to header
             [~,Coadd(NotIsEmptyCat)] = imProc.psf.aperFrac(Coadd(NotIsEmptyCat), 'AperRadius',Args.AperRadius);
+            % Add the spatial-density quantiles of the detected sources to
+            % the header (issue #1274): SPATQ50/75/90/95 + SPATNBIN. Coadd
+            % only - a single epoch has too few sources per grid cell for
+            % the quantiles to mean anything. ~0.4 ms per crop.
+            if Args.AddSpatialDensity
+                [~,Coadd(NotIsEmptyCat)] = imProc.cat.starsSpatialDensity(Coadd(NotIsEmptyCat), Args.SpatialDensityArgs{:});
+            end
 
             % Give the source-less crops the column set of the visit (#1226).
             % A crop which extracted nothing - e.g. one whose background
