@@ -1684,8 +1684,15 @@ classdef ImageComponent < Component
             %                   with NaN outside the HalfSize radius.
             %                   Default is false.
             %            'Shift' - A logical indicating if to shift
-            %            'ShiftAlgo' - Shift algorithm ['lanczos3'] |
-            %                   'lanczos2' | 'fft'.
+            %            'ShiftAlgo' - Shift algorithm ['lanczos3_mcode'] |
+            %                   'lanczos2_mcode' | 'fft'.
+            %                   The *_mcode options use imUtil.trans.shift_lanczos
+            %                   (the m-code, with A=3 / A=2). They were named
+            %                   'lanczos3'/'lanczos2' until Sep 2026, which
+            %                   collided with the 'lanczos3' of aperPhotCube,
+            %                   psfPhotCube, buildPSF and constructPSF_cutouts,
+            %                   where that string selects the MEX
+            %                   imUtil.trans.mex.shift_lanczos3 instead.
             %            'IsCircFilt' - While using lanczos, is circshift
             %                   is circular or not. Default is false.
             %            'DataProp' - Data property from which to extract
@@ -1712,7 +1719,7 @@ classdef ImageComponent < Component
                 Args.newMex                 = true;
                 Args.IsCircle               = false;
                 Args.Shift(1,1) logical     = false;
-                Args.ShiftAlgo              = 'lanczos3';  % 'fft' | 'lanczos2' | 'lanczos3' | ...
+                Args.ShiftAlgo              = 'lanczos3_mcode';  % 'fft' | 'lanczos2_mcode' | 'lanczos3_mcode'
                 Args.IsCircFilt(1,1) logical = true;
                 Args.DataProp               = 'Image';
             end
@@ -1739,10 +1746,18 @@ classdef ImageComponent < Component
             % shift cutouts
             if Args.Shift
                 ActualXY  = XY;
+                % The cutouts are cut around RoundXY, so the requested position XY
+                % sits at (XY-RoundXY) from the stamp center; to bring it TO the
+                % center the stamp content must move by RoundXY-XY.
+                % Two bugs here until Sep 2026 (issue #1298): the lanczos branches
+                % shifted by the full XY (the source position in the image, which
+                % with IsCircFilt merely rotated the cutout), and all the branches,
+                % 'fft' included, had the sign inverted, moving the source away from
+                % the center by twice the subpixel residual.
+                DXY       = RoundXY - XY;
                 switch lower(Args.ShiftAlgo)
                     case 'fft'
                         Ncut = size(XY,1);
-                        DXY   = XY - RoundXY;
                         
                         % FFU: I suspect the loop can be removed
                         if Ncut>0
@@ -1753,10 +1768,10 @@ classdef ImageComponent < Component
                             [CutoutCube(:,:,Icut), NY,NX,Nr,Nc] = imUtil.trans.shift_fft(squeeze(CutoutCube(:,:,Icut)), DXY(Icut,1), DXY(Icut,2), NY,NX,Nr,Nc);
                         end
                         
-                    case 'lanczos2'
-                        CutoutCube = imUtil.trans.shift_lanczos(CutoutCube, XY, 2, Args.IsCircFilt, Args.PadVal);
-                    case 'lanczos3'
-                        CutoutCube = imUtil.trans.shift_lanczos(CutoutCube, XY, 3, Args.IsCircFilt, Args.PadVal);
+                    case 'lanczos2_mcode'
+                        CutoutCube = imUtil.trans.shift_lanczos(CutoutCube, DXY, 2, Args.IsCircFilt, Args.PadVal);
+                    case 'lanczos3_mcode'
+                        CutoutCube = imUtil.trans.shift_lanczos(CutoutCube, DXY, 3, Args.IsCircFilt, Args.PadVal);
                     otherwise
                         error('Unknown ShiftAlgo option');
                 end

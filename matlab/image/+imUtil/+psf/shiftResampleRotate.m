@@ -3,7 +3,12 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
     %     NB: after all the operations, some small negative values may appear at the borders
     %         one may need to employ imUtil.psf.suppressEdges
     % Input  : - a 3D PSF array with the source index in the 3rd dimension or a cell-array of 2D PSFs
-    %          - an 2-column array of XY subpixel shifts
+    %          - an 2-column array of XY subpixel shifts, in the coordinate
+    %            convention of imUtil.art.addSources / imUtil.art.createSourceCube:
+    %            the FIRST column shifts along the first array dimension (rows) and
+    %            the second column along the second one (columns). NB: this is the
+    %            transpose of the [ShiftX, ShiftY] taken by imUtil.trans.shift_* ,
+    %            where X is the column direction, hence the swaps below.
     %          - a vector of oversampling factors (e.g. Oversample = 3 means
     %            that the PSF grid is 3 times finer than that of the detector)
     %          - a vector of rotation angles [deg]
@@ -78,21 +83,21 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
             end
             if Args.Recenter && strcmpi(Args.RecenterMethod,'nearest')
                 % need to check the following block and, probably, make it faster and more compact
-                ShiftX = round(Shift(:,1) * Oversample(1)); % to the scale of the oversampled PSF
-                ShiftY = round(Shift(:,2) * Oversample(2));
+                ShiftRow = round(Shift(:,1) * Oversample(1)); % to the scale of the oversampled PSF
+                ShiftCol = round(Shift(:,2) * Oversample(2));
                 ShiftedPSF = zeros(size(PSF));
                 for Ipsf = 1:NumPsf
-                    if ShiftX(Ipsf) > 0
-                        ShiftedPSF(:, ShiftX(Ipsf)+1:end, Ipsf) = PSF(:, 1:end-ShiftX(Ipsf), Ipsf);
+                    if ShiftRow(Ipsf) > 0
+                        ShiftedPSF(ShiftRow(Ipsf)+1:end, :, Ipsf) = PSF(1:end-ShiftRow(Ipsf), :, Ipsf);
                     else
-                        ShiftedPSF(:, 1:end+ShiftX(Ipsf), Ipsf) = PSF(:, -ShiftX(Ipsf)+1:end, Ipsf);
+                        ShiftedPSF(1:end+ShiftRow(Ipsf), :, Ipsf) = PSF(-ShiftRow(Ipsf)+1:end, :, Ipsf);
                     end
-                    if ShiftY(Ipsf) > 0
-                        ShiftedPSF(ShiftY(Ipsf)+1:end, :, Ipsf) = ShiftedPSF(1:end-ShiftY(Ipsf), :, Ipsf);
-                        ShiftedPSF(1:ShiftY(Ipsf), :, Ipsf) = 0;
+                    if ShiftCol(Ipsf) > 0
+                        ShiftedPSF(:, ShiftCol(Ipsf)+1:end, Ipsf) = ShiftedPSF(:, 1:end-ShiftCol(Ipsf), Ipsf);
+                        ShiftedPSF(:, 1:ShiftCol(Ipsf), Ipsf) = 0;
                     else
-                        ShiftedPSF(1:end+ShiftY(Ipsf), :, Ipsf) = ShiftedPSF(-ShiftY(Ipsf)+1:end, :, Ipsf);
-                        ShiftedPSF(end+ShiftY(Ipsf)+1:end, :, Ipsf) = 0;
+                        ShiftedPSF(:, 1:end+ShiftCol(Ipsf), Ipsf) = ShiftedPSF(:, -ShiftCol(Ipsf)+1:end, Ipsf);
+                        ShiftedPSF(:, end+ShiftCol(Ipsf)+1:end, Ipsf) = 0;
                     end
                 end
                 PSF = ShiftedPSF;
@@ -112,10 +117,12 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
         end
         % shift on subpixel scale
         if Args.Recenter
+            % NB: shift_* take [ShiftX, ShiftY] with X along the columns, so the
+            % two components are swapped here (see the Shift convention above)
             if strcmpi(Args.RecenterMethod,'fft')
-                PSF = imUtil.trans.shift_fft(PSF, Shift(:,1), Shift(:,2));
+                PSF = imUtil.trans.shift_fft(PSF, Shift(:,2), Shift(:,1));
             elseif strcmpi(Args.RecenterMethod,'lanczos')
-                PSF = imUtil.trans.shift_lanczos(PSF, Shift);
+                PSF = imUtil.trans.shift_lanczos(PSF, Shift(:,[2 1]));
             end
         end
         % suppress the border ringing left by the shift kernel (flux-conserving)
@@ -152,10 +159,11 @@ function PSF = shiftResampleRotate(PSF, Shift, Oversample, RotAngle, Args)
                 else
                     ShiftXY = Shift(Ipsf,:);
                 end
+                % NB: shift_* take [ShiftX, ShiftY] with X along the columns
                 if strcmpi(Args.RecenterMethod,'fft')
-                    PSF{Ipsf} = imUtil.trans.shift_fft(PSF{Ipsf}, ShiftXY(1), ShiftXY(2));
+                    PSF{Ipsf} = imUtil.trans.shift_fft(PSF{Ipsf}, ShiftXY(2), ShiftXY(1));
                 elseif strcmpi(Args.RecenterMethod,'lanczos')
-                    PSF{Ipsf} = imUtil.trans.shift_lanczos(PSF{Ipsf}, ShiftXY);
+                    PSF{Ipsf} = imUtil.trans.shift_lanczos(PSF{Ipsf}, ShiftXY([2 1]));
                 end
             end
             % suppress the border ringing left by the shift kernel (flux-conserving)
