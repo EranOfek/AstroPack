@@ -577,6 +577,16 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         end
     end
 
+    % Promote the top-level FluxColName into CalibArgs so it reaches
+    % calibrate -> selectCalibrators (which packages this observed flux as
+    % SourceData.Flux, the quantity the ZP/transmission fit is solved
+    % against). Without this the wrapper's FluxColName only affected addMag,
+    % and calibrate silently used its own FLUX_APER_3 default - throwing when
+    % that column is absent. Guarded so an explicit CalibArgs value wins.
+    if ~any(strcmp(Args.CalibArgs(1:2:end), 'FluxColName'))
+        Args.CalibArgs = [Args.CalibArgs, {'FluxColName', Args.FluxColName}];
+    end
+
     % ====================================================================
     % ASTRODIFF / ASTROZOGY: delegate to recursive calls per sub-property
     % ====================================================================
