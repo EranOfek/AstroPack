@@ -17,7 +17,7 @@ function Result = applyColorTerm(Obj, Args)
     %     DeltaMag = PT_CTA*(alpha - alpha0) + PT_CTA2*(alpha - alpha0)^2
     %   with alpha = polyval(AlphaPoly, BP_RP) and alpha0 = PT_REFSL, and is
     %   ADDED to the calibrated magnitude. It vanishes at the anchor colour,
-    %   by default the header's PT_REFC (1.0 unless the image was calibrated
+    %   by default the header's PT_REFC (0.9392 unless the image was calibrated
     %   with fitPhotCalibTrans('RefColorPerImage',true), which puts that
     %   image's own median colour there) - see 'RefColorSource'. Only the
     %   star-to-star colour differential is physical: the anchor merely
@@ -48,7 +48,14 @@ function Result = applyColorTerm(Obj, Args)
     %                         (attached by imProc.cat.addColor, issue #1289).
     %            'AlphaPoly'- Coefficients [c2 c1 c0] of alpha(BP_RP), highest
     %                         power first (as polyval). Default
-    %                         [-0.0516 2.4450 -1.3658], from 58k Gaia XP spectra.
+    %                         [-0.0410 2.4150 -0.7320], from 58k Gaia XP spectra:
+    %                         the throughput-weighted slope of ln F_nu vs
+    %                         ln lambda over the LAST band, as measured. An
+    %                         earlier version subtracted 0.6135 from every
+    %                         colour to force alpha(1.2) = 1.5, which made the
+    %                         relation unable to say anything independent about
+    %                         the anchor; alpha = PT_REFSL = 1.5 in fact belongs
+    %                         at BP_RP = 0.9392 (= the default PT_REFC).
     %            'SigmaAlpha' - Intrinsic scatter of the alpha(BP_RP) relation,
     %                         used for the correction error. Default 0.09.
     %            'UseQuadratic' - Include the PT_CTA2 term. Default true. Set
@@ -81,7 +88,7 @@ function Result = applyColorTerm(Obj, Args)
         Obj
         Args.Header                     = []
         Args.ColorCol char              = 'BP_RP'
-        Args.AlphaPoly (1,3) double     = [-0.0516, 2.4450, -1.3658]
+        Args.AlphaPoly (1,3) double     = [-0.0410, 2.4150, -0.7320]
         Args.SigmaAlpha (1,1) double    = 0.09
         Args.UseQuadratic logical       = true
         Args.ColorRange (1,2) double    = [0.3, 3.5]

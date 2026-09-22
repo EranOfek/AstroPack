@@ -399,12 +399,12 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % imProc.calib.applyColorTerm builds corrected magnitudes on demand.
         Args.AperCorrColorTerm logical = true         % fit it (default ON). Needs the BP_RP column (imProc.cat.addColor, issue #1289); without it the APCC_ keywords are written blank.
         Args.AperCorrColorColName (1,:) char = 'BP_RP'
-        Args.AperCorrColorRefSource (1,:) char {mustBeMember(Args.AperCorrColorRefSource,{'median','fixed'})} = 'median'
+        Args.AperCorrColorRefSource (1,:) char {mustBeMember(Args.AperCorrColorRefSource,{'median','fixed'})} = 'fixed'
                                                       % 'median' (default): anchor the aperture colour term at the median
                                                       % colour of the stars it was fitted on - the self-consistent choice,
                                                       % since the aperture correction is defined relative to the image's
                                                       % own stars. 'fixed' uses AperCorrColorRef instead.
-        Args.AperCorrColorRef double = []             % anchor colour when AperCorrColorRefSource='fixed'; [] -> the object's RefColor (1.0)
+        Args.AperCorrColorRef double = 0.9392         % anchor colour when AperCorrColorRefSource='fixed' (the default); written to APCC_REF. Matches the Args.RefColor default below, so the aperture and zero-point colour terms share one anchor. [] -> fall back to the object's RefColor.
         % PT_ZP (photometric zero point at the image centre = mag of a 1-count
         % full-exposure source) is written to the header by default; downstream
         % imProc.calib.backmag/limmag read it.
@@ -418,7 +418,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                                                 % itself, PT_CA00.., read back by interpolation. Same compute cost;
                                                 % PT_CTA and PT_CTA2 are written either way.
         Args.ColorTermAlphaGrid double = -1:0.5:8  % alpha values at which the curve is evaluated
-        Args.RefColor   (1,1) double = 1.0      % anchor colour BP_RP where the colour term vanishes: the colour left uncorrected, from which every other star's correction is measured. A convention - PT_CTA/PT_CTA2 do not depend on it.
+        Args.RefColor   (1,1) double = 0.9392   % anchor colour BP_RP where the colour term vanishes: the colour left uncorrected, from which every other star's correction is measured. A convention - PT_CTA/PT_CTA2 do not depend on it. 0.9392 is where the measured alpha(BP_RP) relation equals RefSpecSlope (1.5), so the anchor and the reference spectrum describe the same star, and it sits at the median colour of a typical LAST field.
         Args.RefColorPerImage logical = false   % opt-in: replace RefColor with THIS image's median colour (bright, colour-known sources), so the correction is mean-free over the field. The value used is written to PT_REFC, so the choice stays reversible.
         Args.RefColorCol (1,:) char = 'BP_RP'   % catalog colour column for the per-image anchor (imProc.cat.addColor, issue #1289)
         Args.RefColorMagCol (1,:) char = ''     % magnitude column for its brightness cut; '' -> MAG_APER_3, else the first MAG_* column
