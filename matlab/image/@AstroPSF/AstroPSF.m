@@ -897,6 +897,17 @@ classdef AstroPSF < Component
             %            'zeroConvArgs' - A cell array of arguments to pass to
             %                   imUtil.psf.psf_zeroConverge
             %                   Default is {}.
+            %            'FullPosition' - Layout of the PSF in the full image, passed
+            %                   to imUtil.psf.full2stampPsf: 'center' (the index at
+            %                   which fftshift puts the DC element, floor(N/2)+1),
+            %                   'pixcenter' (ceil(N/2), the convention of
+            %                   imUtil.kernel2.*) or 'corner' (FFT order).
+            %                   The three coincide for an odd-sized input and differ
+            %                   by one pixel for an even-sized one, where a stamp
+            %                   built by imUtil.kernel2.* needs 'pixcenter'.
+            %                   Default is 'center'.
+            %            'SupressFunPars' - Taper width [pix] passed on to
+            %                   imUtil.psf.suppressEdges. Default is 2.
             %            'Norm' - Normalize the PSF stamp by this value.
             %                   If true, then will normalize the PSF by its sum
             %                   (such that integral will be 1).
@@ -912,8 +923,9 @@ classdef AstroPSF < Component
             arguments
                 Obj
                 Args.NewVer               = true;
-                Args.FullPosition         = 'center';
+                Args.FullPosition         = 'center';   % or 'pixcenter' / 'corner', see below
                 Args.Supress              = true;
+                Args.SupressFunPars       = 2;
                 Args.suppressEdgesArgs    = {};
 
                 Args.PsfArgs              = {};
@@ -934,12 +946,14 @@ classdef AstroPSF < Component
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                P = Obj.getPSF();
+                P = Obj(Iobj).getPSF();   % NB: without the index every element got the first PSF
                 if Args.NewVer
-                    % NB: the new signature takes the stamp size positionally, so this
-                    % has to be imUtil.psf.full2stamp and not the obsolete namesake,
-                    % which takes name-value pairs only (issue #1302)
-                    Result(Iobj).DataPSF = imUtil.psf.full2stamp(P, Args.StampHalfSize.*2 + 1, 'FullPosition',Args.FullPosition, 'Supress',Args.Supress, 'suppressEdgesArgs',Args.suppressEdgesArgs);
+                    Result(Iobj).DataPSF = imUtil.psf.full2stampPsf(P, Args.StampHalfSize.*2 + 1, ...
+                                                                    'FullPosition',Args.FullPosition,...
+                                                                    'Supress',Args.Supress,...
+                                                                    'SupressFunPars',Args.SupressFunPars,...
+                                                                    'suppressEdgesArgs',Args.suppressEdgesArgs,...
+                                                                    'Norm',Args.Norm);
                 else
                     Result(Iobj).DataPSF = imUtil.psf.obsolete.full2stamp(P, 'StampHalfSize',Args.StampHalfSize,...
                                                                          'IsCorner',Args.IsCorner,...
