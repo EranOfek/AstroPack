@@ -61,7 +61,10 @@ function Result = unitTest()
     AP = AstroPSF;
     AP.DataPSF = imUtil.kernel2.gauss;
     AP(2).DataPSF = imUtil.kernel2.gauss;
-    [M1,M2,Aper] = moment2(AP,'moment2Args',{'Momradius',4,'Annulus',[3, 4]});
+    % NB: 'MaxRadiusM2' is what imUtil.sources.moments calls the second moment
+    % radius; 'Momradius' was the name used by imUtil.image.moment2, which this
+    % method stopped calling (issue #1302)
+    [M1,M2,Aper] = moment2(AP,'moment2Args',{'MaxRadiusM2',4,'Annulus',[3, 4]});
 
     % fwhm
     imUtil.psf.pseudoFWHM(AP(1).Data)

@@ -634,9 +634,23 @@ classdef AstroPSF < Component
             SizeCube = size(Cube);
             X = (SizeCube(2)+1).*0.5;
             Y = (SizeCube(1)+1).*0.5;
-            
+
+            % imUtil.sources.moments subtracts the median of an annulus which it
+            % defaults to [10 12] pixels. That is sized for image cutouts and lies
+            % entirely outside a PSF stamp of less than 21x21, on which the mex then
+            % fails with "Annulus mask is empty". Keep the default whenever it does
+            % fit the stamp, so that nothing that works today changes, and fall back
+            % to the outermost ring of the stamp only when it does not.
+            HalfStamp = (min(SizeCube(1:2))-1)./2;
+            Annulus   = [10 12];
+            if hypot(HalfStamp, HalfStamp) < Annulus(1)
+                Annulus = [max(1, HalfStamp-2), HalfStamp];
+            end
+
             %[varargout{1:nargout}] = imUtil.image.moment2(Cube, X, Y, Args.moment2Args{:}, 'SubBack',false);
-            [varargout{1:nargout}] = imUtil.sources.moments(Cube, 'X',X, 'Y',Y, 'SN',100, Args.moment2Args{:}, 'Cut2D',false);
+            % NB: Annulus is given before moment2Args, so that a caller supplied one wins
+            [varargout{1:nargout}] = imUtil.sources.moments(Cube, 'X',X, 'Y',Y, 'SN',100, ...
+                                            'Annulus',Annulus, Args.moment2Args{:}, 'Cut2D',false);
 
         end
         
@@ -922,7 +936,10 @@ classdef AstroPSF < Component
             for Iobj=1:1:Nobj
                 P = Obj.getPSF();
                 if Args.NewVer
-                    Result(Iobj).DataPSF = imUtil.psf.obsolete.full2stamp(P, Args.StampHalfSize.*2 + 1, 'FullPosition',Args.FullPosition, 'Supress',Args.Supress, 'suppressEdgesArgs',Args.suppressEdgesArgs);
+                    % NB: the new signature takes the stamp size positionally, so this
+                    % has to be imUtil.psf.full2stamp and not the obsolete namesake,
+                    % which takes name-value pairs only (issue #1302)
+                    Result(Iobj).DataPSF = imUtil.psf.full2stamp(P, Args.StampHalfSize.*2 + 1, 'FullPosition',Args.FullPosition, 'Supress',Args.Supress, 'suppressEdgesArgs',Args.suppressEdgesArgs);
                 else
                     Result(Iobj).DataPSF = imUtil.psf.obsolete.full2stamp(P, 'StampHalfSize',Args.StampHalfSize,...
                                                                          'IsCorner',Args.IsCorner,...
