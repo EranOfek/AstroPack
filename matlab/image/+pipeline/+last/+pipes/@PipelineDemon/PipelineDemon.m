@@ -2016,7 +2016,13 @@ classdef PipelineDemon < Component
                     else
                         % generate file names
                         % find all images in directory
-                        FN = FileNames.generateFromFileName(Args.FilesList);
+                        if ischar(Args.FilesList) || isstring(Args.FilesList)
+                            % a template: files whose name the parser rejects
+                            % go to failed/ (issue #1311)
+                            FN = Obj.listRawFiles(Args.FilesList, 'Parser','FileNames');
+                        else
+                            FN = FileNames.generateFromFileName(Args.FilesList);
+                        end
                         FN.BasePath = Obj.BasePath;
                     end
     
@@ -2244,7 +2250,13 @@ classdef PipelineDemon < Component
                     else
                         % generate file names
                         % find all images in directory
-                        FN = FileNames.generateFromFileName(Args.FilesList);
+                        if ischar(Args.FilesList) || isstring(Args.FilesList)
+                            % a template: files whose name the parser rejects
+                            % go to failed/ (issue #1311)
+                            FN = Obj.listRawFiles(Args.FilesList, 'Parser','FileNames');
+                        else
+                            FN = FileNames.generateFromFileName(Args.FilesList);
+                        end
                         FN.BasePath = Obj.BasePath;
                     end
     
@@ -2561,7 +2573,8 @@ classdef PipelineDemon < Component
             % read latest bias image
             if ismember('bias',lower(Args.ReadProduct))
                 if Args.ForceReload || IsBiasEmpty
-                    FN_Bias = FileNames.generateFromFileName(Args.BiasTemplate);
+                    % a malformed name in calib/ is logged and left out, not moved (issue #1311)
+                    FN_Bias = Obj.listRawFiles(Args.BiasTemplate, 'Parser','FileNames', 'Quarantine',false);
                     if FN_Bias.nfiles==0
                         % nothing matched: report it here, while "no file" is still
                         % distinguishable from "old file without an ID" (issue #1264)
@@ -2602,7 +2615,8 @@ classdef PipelineDemon < Component
             % read latest flat image
             if ismember('flat',lower(Args.ReadProduct))
                 if Args.ForceReload || IsFlatEmpty
-                    FN_Flat = FileNames.generateFromFileName(Args.FlatTemplate);
+                    % a malformed name in calib/ is logged and left out, not moved (issue #1311)
+                    FN_Flat = Obj.listRawFiles(Args.FlatTemplate, 'Parser','FileNames', 'Quarantine',false);
                     if FN_Flat.nfiles==0
                         % see the bias case above (issue #1264)
                         Obj.writeLog(sprintf('loadCalib: no flat images matching %s in %s', ...
@@ -3145,14 +3159,15 @@ classdef PipelineDemon < Component
             end
         end
 
-        function [FN, DirSt] = listRawFiles(Obj, Template)
-            % List the raw files matching a template in the current directory (new/)
-            %   As AstroFileName.dir, but a file whose name the parser
-            %   rejects is moved to failed/ instead of taking the whole
-            %   listing, and with it the demon, down (issue #1290). The
-            %   parser rejects a listing with mixed numbers of "_"
-            %   separators (split) and a name with an unknown
-            %   Type/Level/Product (the property validators).
+        function [FN, DirSt] = listRawFiles(Obj, Template, Args)
+            % List the files matching a template in the current directory (e.g., new/)
+            %   As AstroFileName.dir (or FileNames.generateFromFileName),
+            %   but a file whose name the parser rejects is moved to
+            %   failed/ instead of taking the whole listing, and with it
+            %   the demon, down (issues #1290, #1311). Both parsers reject
+            %   a name with the wrong number of "_" separators and a name
+            %   with an unknown Type/Level/Product (the property
+            %   validators).
             %   The listing is parsed in one go, as before; only if that
             %   fails is every file parsed on its own to find the
             %   offenders. A file is kept if it parses on its own and has
@@ -3160,29 +3175,68 @@ classdef PipelineDemon < Component
             %   files kept can be parsed together.
             % Input  : - PipelineDemon object.
             %          - File name template, e.g., '*_sci_raw_*.fit*'.
-            % Output : - AstroFileName object of the files kept.
+            %          * ...,key,val,...
+            %            'Parser' - 'AstroFileName' | 'FileNames'.
+            %                   Default is 'AstroFileName'.
+            %            'Quarantine' - If true, move the rejected files
+            %                   to failed/. If false, only leave them out
+            %                   of the listing (e.g., for pipeline products
+            %                   in calib/). Either way one [ERR] line per
+            %                   file is logged. Default is true.
+            % Output : - AstroFileName (or FileNames) object of the files kept.
             %          - The dir struct array of the files kept, in the
             %            same order as the AstroFileName entries.
+            %            Empty for Parser 'FileNames'.
             % Author : A.M. Krassilchtchikov (Sep 2026)
             % Example: [FN, DirSt] = Obj.listRawFiles('*_sci_raw_*.fit*');
+            %          FN = Obj.listRawFiles('*dark*.fits*', 'Parser','FileNames');
 
-            DirSt = dir(Template);
-            if isempty(DirSt)
-                FN = AstroFileName;
-                return;
-            end
-            try
-                FN = AstroFileName.parseString2AstroFileName(DirSt);
-                return;
-            catch
-                % find the offenders below
+            arguments
+                Obj
+                Template
+                Args.Parser char             = 'AstroFileName';
+                Args.Quarantine logical      = true;
             end
 
-            % the last "_" token holds both Version and FileType
-            Nsep   = numel(AstroFileName.FIELDS) - 2;
-            Names  = {DirSt.name};
+            IsFileNames = strcmpi(Args.Parser, 'FileNames');
+            if IsFileNames
+                % the last "_" token holds Version.FileType
+                Nsep  = 10;
+                Parse = @(List) FileNames.generateFromFileName(List);
+                DirSt = [];
+                try
+                    % the same call as before, including its warning on
+                    % an empty listing
+                    FN = Parse(Template);
+                    return;
+                catch
+                    % find the offenders below
+                end
+                DirList = dir(Template);
+                Names   = {DirList.name};
+                Folder  = pwd;
+            else
+                % the last "_" token holds both Version and FileType
+                Nsep  = numel(AstroFileName.FIELDS) - 2;
+                Parse = @(List) AstroFileName.parseString2AstroFileName(List);
+                DirSt = dir(Template);
+                if isempty(DirSt)
+                    FN = AstroFileName;
+                    return;
+                end
+                try
+                    FN = Parse(DirSt);
+                    return;
+                catch
+                    % find the offenders below
+                end
+                DirList = DirSt;
+                Names   = {DirSt.name};
+                Folder  = DirSt(1).folder;
+            end
+
             NsepF  = count(Names, '_');
-            Nfile  = numel(DirSt);
+            Nfile  = numel(Names);
             Good   = false(1, Nfile);
             Reason = cell(1, Nfile);
             for Ifile=1:1:Nfile
@@ -3190,7 +3244,11 @@ classdef PipelineDemon < Component
                     Reason{Ifile} = sprintf('%d "_" separators instead of %d', NsepF(Ifile), Nsep);
                 else
                     try
-                        AstroFileName.parseString2AstroFileName(DirSt(Ifile));
+                        if IsFileNames
+                            Parse(Names(Ifile));
+                        else
+                            Parse(DirList(Ifile));
+                        end
                         Good(Ifile) = true;
                     catch ME
                         Reason{Ifile} = ME.message;
@@ -3199,14 +3257,25 @@ classdef PipelineDemon < Component
             end
 
             if any(~Good)
-                Obj.moveMalformedRaw(Names(~Good), DirSt(1).folder, Reason(~Good));
+                if Args.Quarantine
+                    Obj.moveMalformedRaw(Names(~Good), Folder, Reason(~Good));
+                else
+                    for Ibad=find(~Good)
+                        Msg = sprintf('File with a malformed name ignored: %s - %s', fullfile(Folder, Names{Ibad}), Reason{Ibad});
+                        Obj.writeLog(Msg, LogLevel.Error);
+                    end
+                end
             end
 
-            DirSt = DirSt(Good);
-            if isempty(DirSt)
-                FN = AstroFileName;
+            if IsFileNames
+                FN = Parse(Names(Good));
             else
-                FN = AstroFileName.parseString2AstroFileName(DirSt);
+                DirSt = DirSt(Good);
+                if isempty(DirSt)
+                    FN = AstroFileName;
+                else
+                    FN = Parse(DirSt);
+                end
             end
         end
 
@@ -3516,11 +3585,20 @@ classdef PipelineDemon < Component
                 cd(Obj.NewPath);
 
                 if Args.RegenCalib
-                    % prep Master dark and move to raw/ dir
-                    [Obj, FN_Dark] = Obj.prepMasterDark('Move2raw',true);
-                        
-                    % prep Master flat and move to raw/ dir
-                    [Obj, FN_Flat] = Obj.prepMasterFlat('Move2raw',true);
+                    % must not take the demon down: on an error the loop goes on
+                    % with the calibration already loaded (issue #1311)
+                    try
+                        % prep Master dark and move to raw/ dir
+                        [Obj, FN_Dark] = Obj.prepMasterDark('Move2raw',true);
+                            
+                        % prep Master flat and move to raw/ dir
+                        [Obj, FN_Flat] = Obj.prepMasterFlat('Move2raw',true);
+                    catch ME
+                        Msg = sprintf('PipelineDemon failed to prepare the master dark/flat, will retry: %s', ME.message);
+                        Obj.writeLog(Msg, LogLevel.Error);
+                        % the listings below are relative to new/
+                        cd(Obj.NewPath);
+                    end
                 else
                     % reload calib only if not already loaded in CI
                     [IsEmB, IsEmF] = Obj.CI.isemptyProp({'Bias','Flat'});
