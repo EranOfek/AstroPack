@@ -6,7 +6,6 @@
 % Typically, orbital elements of a single object as a function of epoch are stored in the same row,
 % while orbital elements for different targets are stored in different
 % rows.
-% 
 % Examples:
 % % To download the JPL orbital elements use the Installer.
 % % Load arguments of all numbered asteroids

@@ -1,6 +1,6 @@
-function [ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_psfcat(File, Args)
+function [Result, ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_psfcat(File, Args)
     % Given ZTF psfcat apply  photometric ZP, astrometry and match to known asteroids
-    % Input  : - FITS table name.
+    % Input  : - FITS table name, or a cell array of FITS table names
     %          * ...,key,val,...
     %            see code for options
     % Output : - AstroCatalog with updated information.
@@ -27,9 +27,18 @@ function [ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_psfcat(F
         Args.FieldID           = [];
         Args.CCDID             = [];
 
+        Args.RunPhotCalib      = false;
+
     end
     RAD = 180./pi;
 
+    if ischar(File)
+        FileList = {File};
+    else
+        FileList = File;
+    end
+
+    Nfile = numel(File);
 
     PWD = pwd;
     if ~isempty(Args.Path)
@@ -37,157 +46,174 @@ function [ObjCat, OnlyMP, AstrometricCat, Status, Path] = reanalize_ZTF_psfcat(F
     end
     Path = pwd;
 
-    if ischar(File)
-        ObjCat = FITS.readTable1(File, 'OutTable','AstroCatalog');
+    for Ifile=1:1:Nfile
+        File = FileList{Ifile};
 
-        FileSplit = split(File,'_');
-        Year  = str2double(FileSplit{2}(1:4));
-        Month = str2double(FileSplit{2}(5:6));
-        Day   = str2double(FileSplit{2}(7:8));
-        Frac  = str2double(FileSplit{2}(9:end));
-        Frac  = Frac./(10.^ceil(log10(Frac)));
-
-        JD    = celestial.time.julday([Day Month Year Frac]);
-        ObjCat.JD = JD;
-    else
-        ObjCat = File;
-    end
-
-    % Re do astrometry
-    SortCat = 'dec';
-
-    % OrigKey = {'ALPHAWIN_J2000','DELTAWIN_J2000','X_IMAGE','Y_IMAGE',...
-    %            'FLUX_APER_1_','FLUXERR_APER_1_',...
-    %            'FLUX_APER_2_','FLUXERR_APER_2_',...
-    %            'FLUX_APER_3_','FLUXERR_APER_3_',...
-    %            'FLUX_APER_4_','FLUXERR_APER_4_',...
-    %            'FLUX_APER_5_','FLUXERR_APER_5_',...
-    %            'FLUX_APER_6_','FLUXERR_APER_6_'}
-    OrigKey = {'xpos','ypos','ra','dec','flux','sigflux'};
-    NewKey  = {'X','Y',      'RA','Dec','FLUX_PSF','FLUXERR_PSF'};
-    ObjCat.replaceColNames(OrigKey, NewKey);
-    ObjCat.sortrows('Dec');
-
-    TT = ObjCat.copy;
-    [ResAstrometry, ObjCat, AstrometricCat] = imProc.astrometry.astrometryRefine(ObjCat, 'WCS',[],...
-                            'CatName',Args.AstrometricCat, 'RA',[], 'Dec',[], 'SortCat',SortCat,...
-                            'EpochOut',JD);
-
-     if 1==0
-        % Comparison between the astromery of ZTF and astrometryRefine
-        % astrometryRefine is much better
-        %TT = ObjCat.copy;
-        R1=imProc.astrometry.astrometryQualityData(TT);  
-        R2=imProc.astrometry.astrometryQualityData(ObjCat);
-        %
-        semilogy(R1.Mag, R1.DeltaDist.*RAD.*3600,'.')
-        hold on
-        semilogy(R2.Mag, R2.DeltaDist.*RAD.*3600,'.')
-    end
-
-    % Add MergedCat
-    ObjCat = imProc.match.match_catsHTMmerged(ObjCat);
     
-
-    [ObjCat, PC, FitRes] = imProc.calib.fitPhotCalibTrans(ObjCat, 'MagType', 'mag', 'Verbose',false, 'AddMagErr', true); % 8.7s for all in loop
-
-
-    % Re do photometric calibration - what about g/r/i?
-    Att     = split(File,'_');
-    Filter  = Att{4};
-    switch lower(Filter)
-        case 'zg'
-            RefColNameMag    = 'phot_bp_mean_mag';
-            RefColNameMagErr = 'phot_bp_mean_flux_over_error';
-        otherwise
-            % zr zi
-            RefColNameMag    = 'phot_rp_mean_mag';
-            RefColNameMagErr = 'phot_rp_mean_flux_over_error';
-    end
-    [ObjCat, ZP, PhotCat] = imProc.calib.photometricZP(ObjCat,'UseOnlyMainSeq',false,'Plot',false, 'CreateNewObj',false,...
-                                                              'CatColNameMag',{'mag'},'CatColNameMagErr',{'sigmag'},...
-                                                              'CatColNameSN','snr',...
-                                                              'UpdateMagCols',true,...
-                                                              'RefColNameMag',RefColNameMag,...
-                                                              'RefColNameMagErr' ,RefColNameMagErr,...
-                                                              'MagZP',0,...
-                                                              'SignZP',-1,...
-                                                              'MagColName2update','mag');
+        if ischar(File)
+            ObjCat = FITS.readTable1(File, 'OutTable','AstroCatalog');
     
-    Status.File = File;
-    Status.Path = Args.Path;
-    Status.AstNgood    = ResAstrometry.ResFit.Ngood;
-    Status.AstAssymRMS = ResAstrometry.ResFit.AssymRMS;
-
-    if ZP.Nsrc<5
-        % skip file
+            FileSplit = split(File,'_');
+            Year  = str2double(FileSplit{2}(1:4));
+            Month = str2double(FileSplit{2}(5:6));
+            Day   = str2double(FileSplit{2}(7:8));
+            Frac  = str2double(FileSplit{2}(9:end));
+            Frac  = Frac./(10.^ceil(log10(Frac)));
+    
+            JD    = celestial.time.julday([Day Month Year Frac]);
+            ObjCat.JD = JD;
+        else
+            ObjCat = File;
+        end
+    
+        % Re do astrometry
+        SortCat = 'dec';
+    
+        % OrigKey = {'ALPHAWIN_J2000','DELTAWIN_J2000','X_IMAGE','Y_IMAGE',...
+        %            'FLUX_APER_1_','FLUXERR_APER_1_',...
+        %            'FLUX_APER_2_','FLUXERR_APER_2_',...
+        %            'FLUX_APER_3_','FLUXERR_APER_3_',...
+        %            'FLUX_APER_4_','FLUXERR_APER_4_',...
+        %            'FLUX_APER_5_','FLUXERR_APER_5_',...
+        %            'FLUX_APER_6_','FLUXERR_APER_6_'}
+        OrigKey = {'xpos','ypos','ra','dec','flux','sigflux'};
+        NewKey  = {'X','Y',      'RA','Dec','FLUX_PSF','FLUXERR_PSF'};
+       
+        ObjCat.replaceColNames(OrigKey, NewKey);
+    
+        ObjCat.sortrows('Dec');
         
-        Status.ZP   = NaN;
-        OnlyMP    = [];
-        AstCat    = [];
+        OrigCooData = getCol(ObjCat, {'RA','Dec'});
 
-    else
-        Status.ZP = ZP;
-        % Asteroids search
-        [OnlyMP, AstCat, ~] = imProc.match.match2solarSystem(ObjCat, 'JD',JD, 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',3, 'INPOP',Args.INPOP);
-        % add JD to OnlyMP
-        Nast = OnlyMP.sizeCatalog;
-        if Nast>0
-            OnlyMP.insertCol(repmat(OnlyMP.JD, Nast,1), Inf, 'JD', 'day');
+        ObjCat = insertCol(ObjCat, OrigCooData, Inf, {'ALPHAWIN_J2000','DELTAWIN_J2000'}, {'deg','deg'});
+
+        TT = ObjCat.copy;
+        [ResAstrometry, ObjCat, AstrometricCat] = imProc.astrometry.astrometryRefine(ObjCat, 'WCS',[],...
+                                'CatName',Args.AstrometricCat, 'RA',[], 'Dec',[], 'SortCat',SortCat,...
+                                'EpochOut',JD);
+
+        Result(Ifile) = ObjCat.copy;
+    
+         if 1==0
+            % Comparison between the astromery of ZTF and astrometryRefine
+            % astrometryRefine is much better
+            %TT = ObjCat.copy;
+            R1=imProc.astrometry.astrometryQualityData(TT);  
+            R2=imProc.astrometry.astrometryQualityData(ObjCat);
+            %
+            semilogy(R1.Mag, R1.DeltaDist.*RAD.*3600,'.')
+            hold on
+            semilogy(R2.Mag, R2.DeltaDist.*RAD.*3600,'.')
         end
     
+        if Args.RunPhotCalib
 
-        ObjCat.UserData.ZP     = ZP;
-        ObjCat.UserData.Astrom = ResAstrometry.ResFit;
-    
-    
-        if Args.WriteProd
-            FilterList = {'zg','zr','zi'};
-    
-            % write data products
-            FN = FileNames;
-            FN.ProjName = 'ZTF';
-            FN.Level    = 'proc';
-            FN.Product  = 'Cat';
-            FN.FieldID  = {Args.FieldID};
-            FN.CCDID    = Args.CCDID;
-            Att     = split(File,'_');
-            FN.Filter  = Att{4};
-            FN.CropID  = Att{7}(2);
-            FN.Counter = 0;
-            FN.Time    = ObjCat.JD;
-            FN.FullPath = Args.Path;
-    
-    
-            % add band information to OnlyMP
-            FilterInd = find(strcmp(FilterList, FN.Filter{1}));
-            Nast = OnlyMP.sizeCatalog;
-    
-            FieldNumber = str2double(Args.FieldID);
-            CCDN        = str2double(Args.CCDID);
-    
-            insertCol(OnlyMP, FilterInd.*ones(Nast,1), Inf, 'Filter');
-            insertCol(OnlyMP, FieldNumber.*ones(Nast,1), Inf, 'FieldID');
-            insertCol(OnlyMP, CCDN.*ones(Nast,1), Inf, 'CCDID');
+            % Add MergedCat
+            ObjCat = imProc.match.match_catsHTMmerged(ObjCat);
             
-    
-            Nsrc = ObjCat.sizeCatalog;
-            ObjCat.insertCol(ObjCat.UserData.ZP.ZP.*ones(Nsrc,1), Inf, 'ZP','mag');
-            ObjCat.insertCol(ObjCat.UserData.ZP.MedC.*ones(Nsrc,1), Inf, 'MedC','mag');
-            ObjCat.insertCol(ObjCat.UserData.ZP.Par(2).*ones(Nsrc,1), Inf, 'ColorT','mag/mag');
-            ObjCat.insertCol(ObjCat.UserData.ZP.RMS.*ones(Nsrc,1), Inf, 'PhotRMS','mag');
-            ObjCat.insertCol(ObjCat.UserData.Astrom.AssymRMS_mag.*ones(Nsrc,1).*3600, Inf, 'AstromRMS','arcsec');
-            ObjCat.insertCol(ObjCat.JD.*ones(Nsrc,1), Inf, 'JD','day');
-
-    
-            imProc.io.writeProduct(ObjCat, FN, 'GetHeaderJD',false, 'AI_CropID_FromHeader',false, 'AI_Counter_FromHeader',false, 'FullPath',pwd);
-    
+        
+            [ObjCat, PC, FitRes] = imProc.calib.fitPhotCalibTrans(ObjCat, 'MagType', 'mag', 'Verbose',false, 'AddMagErr', true, 'FluxColName','FLUX_PSF'); % 8.7s for all in loop
+        
+        
+            % Re do photometric calibration - what about g/r/i?
+            Att     = split(File,'_');
+            Filter  = Att{4};
+            switch lower(Filter)
+                case 'zg'
+                    RefColNameMag    = 'phot_bp_mean_mag';
+                    RefColNameMagErr = 'phot_bp_mean_flux_over_error';
+                otherwise
+                    % zr zi
+                    RefColNameMag    = 'phot_rp_mean_mag';
+                    RefColNameMagErr = 'phot_rp_mean_flux_over_error';
+            end
+            [ObjCat, ZP, PhotCat] = imProc.calib.photometricZP(ObjCat,'UseOnlyMainSeq',false,'Plot',false, 'CreateNewObj',false,...
+                                                                      'CatColNameMag',{'mag'},'CatColNameMagErr',{'sigmag'},...
+                                                                      'CatColNameSN','snr',...
+                                                                      'UpdateMagCols',true,...
+                                                                      'RefColNameMag',RefColNameMag,...
+                                                                      'RefColNameMagErr' ,RefColNameMagErr,...
+                                                                      'MagZP',0,...
+                                                                      'SignZP',-1,...
+                                                                      'MagColName2update','mag');
+            
+            Status.File = File;
+            Status.Path = Args.Path;
+            Status.AstNgood    = ResAstrometry.ResFit.Ngood;
+            Status.AstAssymRMS = ResAstrometry.ResFit.AssymRMS;
+        
+            if ZP.Nsrc<5
+                % skip file
+                
+                Status.ZP   = NaN;
+                OnlyMP    = [];
+                AstCat    = [];
+        
+            else
+                Status.ZP = ZP;
+                % Asteroids search
+                [OnlyMP, AstCat, ~] = imProc.match.match2solarSystem(ObjCat, 'JD',JD, 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',3, 'INPOP',Args.INPOP);
+                % add JD to OnlyMP
+                Nast = OnlyMP.sizeCatalog;
+                if Nast>0
+                    OnlyMP.insertCol(repmat(OnlyMP.JD, Nast,1), Inf, 'JD', 'day');
+                end
+            
+        
+                ObjCat.UserData.ZP     = ZP;
+                ObjCat.UserData.Astrom = ResAstrometry.ResFit;
+            
+            
+                if Args.WriteProd
+                    FilterList = {'zg','zr','zi'};
+            
+                    % write data products
+                    FN = FileNames;
+                    FN.ProjName = 'ZTF';
+                    FN.Level    = 'proc';
+                    FN.Product  = 'Cat';
+                    FN.FieldID  = {Args.FieldID};
+                    FN.CCDID    = Args.CCDID;
+                    Att     = split(File,'_');
+                    FN.Filter  = Att{4};
+                    FN.CropID  = Att{7}(2);
+                    FN.Counter = 0;
+                    FN.Time    = ObjCat.JD;
+                    FN.FullPath = Args.Path;
+            
+            
+                    % add band information to OnlyMP
+                    FilterInd = find(strcmp(FilterList, FN.Filter{1}));
+                    Nast = OnlyMP.sizeCatalog;
+            
+                    FieldNumber = str2double(Args.FieldID);
+                    CCDN        = str2double(Args.CCDID);
+            
+                    insertCol(OnlyMP, FilterInd.*ones(Nast,1), Inf, 'Filter');
+                    insertCol(OnlyMP, FieldNumber.*ones(Nast,1), Inf, 'FieldID');
+                    insertCol(OnlyMP, CCDN.*ones(Nast,1), Inf, 'CCDID');
+                    
+            
+                    Nsrc = ObjCat.sizeCatalog;
+                    ObjCat.insertCol(ObjCat.UserData.ZP.ZP.*ones(Nsrc,1), Inf, 'ZP','mag');
+                    ObjCat.insertCol(ObjCat.UserData.ZP.MedC.*ones(Nsrc,1), Inf, 'MedC','mag');
+                    ObjCat.insertCol(ObjCat.UserData.ZP.Par(2).*ones(Nsrc,1), Inf, 'ColorT','mag/mag');
+                    ObjCat.insertCol(ObjCat.UserData.ZP.RMS.*ones(Nsrc,1), Inf, 'PhotRMS','mag');
+                    ObjCat.insertCol(ObjCat.UserData.Astrom.AssymRMS_mag.*ones(Nsrc,1).*3600, Inf, 'AstromRMS','arcsec');
+                    ObjCat.insertCol(ObjCat.JD.*ones(Nsrc,1), Inf, 'JD','day');
+        
+            
+                    imProc.io.writeProduct(ObjCat, FN, 'GetHeaderJD',false, 'AI_CropID_FromHeader',false, 'AI_Counter_FromHeader',false, 'FullPath',pwd);
+            
+                end
+            end
         end
     end
-
 
     if ~isempty(Args.Path)
         cd(PWD);
     end
 
+
+    %[~,~,MS]=imProc.match.unify(Result, 'MatchRadius',1.5, 'MatchRadiusUnits','arcsec', 'MinNdet',1000, 'Col',{'RA','Dec','X','Y','mag','sigmag','snr','chi','sharp','flags'});
 end
