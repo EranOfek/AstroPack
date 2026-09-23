@@ -13,6 +13,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'Filt'      - the filter[s] for which the source magnitudes are defined
     %       'CalculateULTRASATMag' - if the input magnitudes are not of the ULTRASAT filters, calculate the ULTRASAT magnitudes at output 
     %       'CalculateCrudeSNR' - estimate SNR for the input sources
+    %       'SNRMethod' - how CrudeSNR is computed: 'aperture' (default), 'optimal',
+    %                     'shot' or 'legacy'. See the Args.SNRMethod comment below.
     %       'SNROnly'   - if true, return right after CrudeSNR is computed, skipping the
     %                     noise/ADU pipeline and file writing (usimImage.Image is [])
     %       'SpecType'  - model of the input spectra ('BB','PL','Pickles') or 'tab'
@@ -123,6 +125,31 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         Args.CalculateULTRASATMag logical = true; % if the input magnitudes are not of the ULTRASAT filters, 
                                              % calculate the ULTRASAT magnitudes at output  
         Args.CalculateCrudeSNR logical = true; % estimate SNR for the input sources
+        Args.SNRMethod        = 'aperture';  % how the CrudeSNR column is computed. The image this
+                                             % simulator produces has a per-pixel variance of
+                                             % (source counts + Back.Tot) -- see the poissrnd/normrnd
+                                             % call further below -- so the matched estimator for an
+                                             % aperture A is  sum_A S / sqrt( sum_A S + N_A*Back.Tot ).
+                                             % 'aperture' : that expression, evaluated exactly on the
+                                             %              source's own stamp resampled to the
+                                             %              detector grid, maximised over the aperture
+                                             %              radius. Default: it is the only variant
+                                             %              that predicts what aperture photometry on
+                                             %              the output image actually returns.
+                                             % 'optimal'  : matched filter, sqrt(sum S^2/(S+Back.Tot)).
+                                             %              The theoretical ceiling (PSF fitting);
+                                             %              reads ~10-15% above aperture photometry.
+                                             % 'shot'     : the legacy expression with the missing
+                                             %              source-shot-noise term restored, i.e.
+                                             %              S/sqrt(S + pi*R50^2*Back.Tot). Keeps the
+                                             %              legacy PSFeff = 0.8 numerator.
+                                             % 'legacy'   : the historical background-limited formula,
+                                             %              0.8*F*T/sqrt(pi*R50^2*Back.Tot). It omits
+                                             %              the source's own shot noise and so reads
+                                             %              far too high for bright compact sources
+                                             %              (~8x for a 60 counts/s star in 300 s).
+                                             %              Kept because it is exactly linear in flux,
+                                             %              which callers that invert it rely on.
         Args.SNROnly          logical = false; % if true, return as soon as CrudeSNR (and the rest of the
                                              % output catalog) is computed, skipping the noise/ADU pipeline
                                              % and file writing entirely (usimImage.Image is [] in this case).
@@ -824,21 +851,12 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         end
                                 fprintf('Partial source image added to the stacked source image \n');
                                 
-        if Args.CalculateCrudeSNR                        
-            PSFeff           = 0.8;
-            ContainmentLevel = 0.5;
-            %         PixSizeSec  = PixSizeDeg*3600;
-            for Isrc = 1:1:NumSrcCh
-%             for Isrc = 1:1:300 % use a small limit with telescope.sn.snr, because it is very slow !
-                Isrc_gl = Isrc + ChL(ICh) - 1;   % global source number
-                PSFRad  = imUtil.psf.quantileRadius(PSF_ch(:,:,Isrc),'Level',ContainmentLevel)./Args.ImRes;
-                CrudeSNR(Isrc_gl) = PSFeff * CatFlux(Isrc_gl) * Exposure / sqrt(pi * PSFRad^2 * Back.Tot );
-%                 SNR1    = telescope.sn.snr('ExpTime',Args.Exposure(2),'Nim',Args.Exposure(1),...
-%                     'TargetSpec',[Wave' SpecObs(Isrc,:)'],'PSFeff',PSFeff,'Mag',MagU(Isrc_gl),...
-%                     'CalibFilterFamily',UP.U_AstFilt(IndR(Isrc)),'CalibFilter','','Wave', Wave',...
-%                     'SN',5,'FWHM',2.*PSFRad * PixSizeSec,'BackCompFunPar',{'CerenkovSupp',21});
-%                 SNR(Isrc_gl) = SNR1.SNR;
-            end
+        if Args.CalculateCrudeSNR
+            % NB: PSF_ch are the stamps actually injected into the image (rotated,
+            % jitter-blurred), so the S/N below is measured on the very profile the
+            % source has in the output -- not on a nominal one
+            CrudeSNR(Range) = crudeSNR(PSF_ch, CatFlux(Range), Exposure, Back.Tot, ...
+                                       Args.ImRes, Args.SNRMethod);
         end
         
     end % end the loop over source chunks
@@ -1095,12 +1113,10 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
             ConvStampCell{Iext} = ConvStamp;
             WPSFRotCell{Iext}   = WPSFRot;
 
-            % crude SNR estimate, using the size of the actual (profile-convolved) object image
+            % crude SNR estimate, using the actual (profile-convolved) object image
             if Args.CalculateCrudeSNR
-                PSFeff           = 0.8;
-                ContainmentLevel = 0.5;
-                ObjRad   = imUtil.psf.quantileRadius(ConvStamp,'Level',ContainmentLevel) ./ Args.ImRes;
-                CrudeSNR(Iext) = PSFeff * CatFlux(Iext) * Exposure / sqrt(pi * ObjRad^2 * Back.Tot );
+                CrudeSNR(Iext) = crudeSNR(ConvStamp, CatFlux(Iext), Exposure, Back.Tot, ...
+                                          Args.ImRes, Args.SNRMethod);
             end
 
         end % end the loop over extended objects
@@ -1644,5 +1660,140 @@ function Spec = cutSpecToFOV(Spec, SpecType, Ind)
             if numel(Spec) == NumSrc0
                 Spec = Spec(Ind);
             end
+    end
+end
+
+function SNR = crudeSNR (Stamps, Flux, Exposure, BackPerPix, Scaling, Method)
+    % Estimate the S/N of sources from the very stamps that are injected into the image
+    % Description: The image this simulator builds has a per-pixel variance of
+    %              (source counts + BackPerPix) -- see the poissrnd/normrnd call in usim --
+    %              so the matched estimator over an aperture A is
+    %                   sum_A S / sqrt( sum_A S + N_A * BackPerPix ).
+    %              The historical formula ('legacy' below) is that expression with the
+    %              sum_A S term dropped from the variance, which is only valid in the
+    %              background-limited regime; it overestimates a 60 counts/s star in a
+    %              300 s exposure by a factor ~8.
+    % Input:  - Stamps     : [Ny Nx Nsrc] oversampled source stamps (PSF, or a
+    %                        profile-convolved object stamp), each ~ unit total flux
+    %         - Flux       : [Nsrc 1] source count rates [counts/s]
+    %         - Exposure   : total exposure [s]
+    %         - BackPerPix : background level [counts/pix] over the whole exposure
+    %         - Scaling    : stamp oversampling factor (usim's Args.ImRes)
+    %         - Method     : 'aperture' | 'optimal' | 'shot' | 'legacy', see Args.SNRMethod
+    % Output: - SNR        : [Nsrc 1]
+    % Author : A. Krassilchtchikov (Sep 2026)
+    Flux   = Flux(:);
+    NumSrc = numel(Flux);
+    SNR    = zeros(NumSrc,1);
+    if NumSrc < 1
+        return
+    end
+    Stot = Flux .* Exposure;   % total source counts collected over the whole exposure
+
+    switch lower(Method)
+        case {'legacy','shot'}
+            % the historical 50%-containment-radius aperture, kept bit-for-bit for
+            % 'legacy' because callers that invert CrudeSNR rely on it being exactly
+            % linear in flux (see ultrasat.ELOPsim)
+            PSFeff           = 0.8;
+            ContainmentLevel = 0.5;
+            for Isrc = 1:1:NumSrc
+                Rad = imUtil.psf.quantileRadius(Stamps(:,:,Isrc),'Level',ContainmentLevel) ./ Scaling;
+                Sig = PSFeff .* Stot(Isrc);
+                if strcmpi(Method,'legacy')
+                    SNR(Isrc) = Sig ./ sqrt( pi .* Rad.^2 .* BackPerPix );
+                else
+                    SNR(Isrc) = Sig ./ sqrt( Sig + pi .* Rad.^2 .* BackPerPix );
+                end
+            end
+        case {'aperture','optimal'}
+            % work in blocks: the radius cube built below is [Ny Nx Nblock]
+            MaxBlock = 2000;
+            for I1 = 1:MaxBlock:NumSrc
+                I2  = min(I1+MaxBlock-1, NumSrc);
+                Sub = I1:1:I2;
+                SNR(Sub) = snrFromStamps( stamps2det(Stamps(:,:,Sub), Scaling), ...
+                                          Stot(Sub), BackPerPix, Method );
+            end
+        otherwise
+            error('ultrasat:usim:UnknownSNRMethod', ...
+                  'Args.SNRMethod = ''%s'' is not one of aperture/optimal/shot/legacy, exiting..', Method);
+    end
+end
+
+function D = stamps2det (S, Scaling)
+    % Resample oversampled stamps onto the detector grid by summing each Scaling x Scaling
+    % block: a detector pixel integrates the flux falling on its area, so for an integer
+    % factor the block sum is that integral exactly (the same reason 'box' is the only
+    % correct imresize kernel for this step, cf. AstroPack issue #1296)
+    [Ny, Nx, Ns] = size(S);
+    if abs(Scaling - 1) < 1e-10
+        D = S;
+        return
+    end
+    if abs(Scaling - round(Scaling)) < 1e-10
+        Sc = round(Scaling);
+        Py = mod(-Ny, Sc);
+        Px = mod(-Nx, Sc);
+        if Py > 0 || Px > 0
+            % pad symmetrically, so the block grid stays centred on the stamp
+            Pad = zeros(Ny+Py, Nx+Px, Ns, 'like', S);
+            Pad(floor(Py./2)+(1:1:Ny), floor(Px./2)+(1:1:Nx), :) = S;
+            S  = Pad;
+            Ny = Ny + Py;
+            Nx = Nx + Px;
+        end
+        Ny2 = Ny ./ Sc;
+        Nx2 = Nx ./ Sc;
+        A = sum( reshape(S, Sc, Ny2.*Nx.*Ns), 1 );
+        A = permute( reshape(A, Ny2, Nx, Ns), [2 1 3] );
+        A = sum( reshape(A, Sc, Nx2.*Ny2.*Ns), 1 );
+        D = permute( reshape(A, Nx2, Ny2, Ns), [2 1 3] );
+    else
+        % non-integer oversampling (ImRes = 47.5): imresize 'box' averages over the block,
+        % so multiply the block area back in to conserve the total flux
+        D = imresize(S, 1./Scaling, 'box') .* Scaling.^2;
+    end
+end
+
+function SNR = snrFromStamps (P, Stot, BackPerPix, Method)
+    % S/N of sources whose detector-grid stamps are P, given their total counts Stot
+    [Ny, Nx, Ns] = size(P);
+    Stot = reshape(Stot, 1, 1, Ns);
+
+    % the stamps are only approximately normalised after rotation/jitter/resampling
+    Norm = sum(P, [1 2]);
+    Norm(Norm == 0) = 1;
+    Sig  = (P ./ Norm) .* Stot;   % expected source counts in each detector pixel
+
+    if strcmpi(Method,'optimal')
+        % matched filter: the highest S/N any pixel weighting can reach, i.e. what PSF
+        % fitting approaches. Reads above aperture photometry by ~10-15%.
+        SNR = sqrt( sum( Sig.^2 ./ (max(Sig,0) + BackPerPix), [1 2] ) );
+        SNR = SNR(:);
+        return
+    end
+
+    % 'aperture': grow a circular aperture around the stamp centroid and keep the radius
+    % that maximises S/N -- the aperture an observer would end up choosing
+    [Yg, Xg] = ndgrid(1:1:Ny, 1:1:Nx);
+    Wgt  = max(P, 0);             % resampling can ring slightly negative; ignore that here
+    Wsum = sum(Wgt, [1 2]);
+    Wsum(Wsum == 0) = 1;
+    Cy  = sum(Wgt .* Yg, [1 2]) ./ Wsum;
+    Cx  = sum(Wgt .* Xg, [1 2]) ./ Wsum;
+    Rad = sqrt( (Yg - Cy).^2 + (Xg - Cx).^2 );
+
+    RadMax  = min(Ny, Nx) ./ 2;
+    NRad    = min( max(ceil(RadMax./0.5), 1), 200 );   % 0.5 px steps, capped for big stamps
+    RadGrid = linspace(RadMax./NRad, RadMax, NRad);
+
+    SNR = zeros(Ns,1);
+    for Ir = 1:1:NRad
+        Mask  = Rad <= RadGrid(Ir);
+        SigR  = sum( Sig .* Mask, [1 2] );
+        NpixR = sum( Mask, [1 2] );
+        SnrR  = SigR ./ sqrt( max(SigR,0) + NpixR .* BackPerPix );
+        SNR   = max(SNR, SnrR(:));
     end
 end

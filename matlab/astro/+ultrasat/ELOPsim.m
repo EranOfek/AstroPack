@@ -11,9 +11,10 @@ function Result = ELOPsim(Args)
     %     DS9-compatible region file (image/pixel coordinates) marking every modelled
     %     source's design geometry for that row (a circle for Template A/B, the
     %     polygon(s) for Template C/D, always written); and SNRMin/SNRMax, the S/N
-    %     measured empirically from that row's own CT image (aperture photometry, not
-    %     usim's analytic CrudeSNR) across all of the row's sources -- both equal for a
-    %     single-source row, and the achieved range across sources for Template B/D. The
+    %     measured empirically from that row's own CT image (aperture photometry including
+    %     the source's own shot noise, not usim's analytic CrudeSNR) across all of the
+    %     row's sources -- both equal for a single-source row, and the achieved range
+    %     across sources for Template B/D. The
     %     table file is re-written after each row completes, so a long run's
     %     results-so-far survive an interruption.
     % Input : * ...,key,val,...
@@ -54,14 +55,16 @@ function Result = ELOPsim(Args)
     %         'UVSpecFile'  - a 2-column [wavelength[A], flux[erg/s/cm2/A]] text file, used
     %                         as the tabulated source spectrum for Filter = 'UV' rows.
     %         'VISSpecFile' - same, for Filter = 'VIS' rows.
-    %         'ExtMag'      - trial magnitude used for the cheap CrudeSNR estimate each
-    %                         row starts with (see 'TargetSNR' below); not the magnitude
-    %                         the simulated source(s) actually end up at. Default is 15.
-    %         'TargetSNR'   - the actual magnitude used for each row's simulation is
-    %                         solved (from the ExtMag trial run's CrudeSNR, which scales
-    %                         exactly with flux) so that the row's source(s) reach this
-    %                         crude S/N; all sources in a row share one magnitude, solved
-    %                         from the first source. Default is 50.
+    %         'ExtMag'      - magnitude the iterative solve for TargetSNR starts from (see
+    %                         'TargetSNR' below); not the magnitude the simulated
+    %                         source(s) actually end up at. Default is 15.
+    %         'TargetSNR'   - the actual magnitude used for each row's simulation is solved,
+    %                         iteratively, so that the row's source(s) reach this crude S/N;
+    %                         all sources in a row share one magnitude, solved from the
+    %                         first source. usim's CrudeSNR now includes the source's own
+    %                         shot noise, so it is NOT linear in flux and the magnitude
+    %                         cannot be obtained in a single closed-form step -- see the
+    %                         solve loop below. Default is 50.
     %         'TemplateADiametersMm' - [mm] vector of the Template 'A' in-line circular
     %                         source disk diameters (left to right); each a physical mask
     %                         size, converted to arcsec via size2ang. Default is
@@ -369,18 +372,57 @@ function Result = ELOPsim(Args)
             Result.Template{Irow}, Result.Radius(Irow), Result.Rotation(Irow), Result.Tile{Irow});
 
         if Result.Focus(Irow) == 1
-            % cheap trial pass: get CrudeSNR at Args.ExtMag (no noise/ADU pipeline, no
-            % files), then solve for the magnitude that reaches Args.TargetSNR, using the
-            % first source as the shared reference for the whole row (CrudeSNR scales
-            % exactly with flux, so this is an exact closed-form correction, not a guess)
-            TrialMagVec = repmat(Args.ExtMag, 1, NumSrc);
-            Trial = ultrasat.usim(CommonArgs{:}, 'ExtMag', TrialMagVec, 'SNROnly', true, 'OutType', 'none');
-            SNRTrial = Trial.CatData.Catalog(1, strcmp(Trial.CatData.ColNames, 'SNR'));
-            if ~(SNRTrial > 0) || isnan(SNRTrial)
-                error('ultrasat:ELOPsim:BadTrialSNR', ...
-                    'Trial CrudeSNR = %g at ExtMag = %g is not usable to solve for TargetSNR, exiting..', SNRTrial, Args.ExtMag);
+            % solve for the magnitude at which the row's reference source (the first one)
+            % reaches Args.TargetSNR, using cheap trial passes (SNROnly: no noise/ADU
+            % pipeline, no files written).
+            %
+            % usim's CrudeSNR includes the source's own shot noise, so
+            %     SNR(F) = S/sqrt(S + N_bg),  S ~ F
+            % is CONCAVE, not linear, and a single 2.5*log10(SNRTrial/Target) step (exact
+            % only while the source is background limited) undershoots for bright targets.
+            % The iteration below takes that step first -- it is exact in the faint limit
+            % and a good starting point otherwise -- and then uses the local logarithmic
+            % slope  d(log SNR)/d(log F), which runs between 1 (background limited) and
+            % 1/2 (shot limited), measured by secant from the two most recent trials.
+            % Typically 2-3 trials suffice.
+            SNRTolerance = 0.01;   % stop once the trial SNR is within 1% of the target
+            MaxSNRTrials = 8;
+            MagHist = NaN(MaxSNRTrials,1);
+            SNRHist = NaN(MaxSNRTrials,1);
+            ExtMagRow = Args.ExtMag;
+            for Itr = 1:1:MaxSNRTrials
+                TrialMagVec = repmat(ExtMagRow, 1, NumSrc);
+                Trial = ultrasat.usim(CommonArgs{:}, 'ExtMag', TrialMagVec, 'SNROnly', true, 'OutType', 'none');
+                SNRTrial = Trial.CatData.Catalog(1, strcmp(Trial.CatData.ColNames, 'SNR'));
+                if ~(SNRTrial > 0) || isnan(SNRTrial)
+                    error('ultrasat:ELOPsim:BadTrialSNR', ...
+                        'Trial CrudeSNR = %g at magnitude %g is not usable to solve for TargetSNR, exiting..', SNRTrial, ExtMagRow);
+                end
+                MagHist(Itr) = ExtMagRow;
+                SNRHist(Itr) = SNRTrial;
+                if abs(log10(SNRTrial ./ Args.TargetSNR)) < log10(1 + SNRTolerance)
+                    break
+                end
+                if Itr == 1
+                    Slope = 1;   % background-limited first step
+                else
+                    % d(log SNR)/d(log flux) from the last two trials; dlog10(F) = -0.4*dMag
+                    Slope = ( log10(SNRHist(Itr)) - log10(SNRHist(Itr-1)) ) ./ ...
+                            ( -0.4 .* ( MagHist(Itr) - MagHist(Itr-1) ) );
+                    Slope = Slope(1);
+                    if ~isfinite(Slope) || Slope < 0.25 || Slope > 1.5
+                        Slope = 1;   % secant unusable (equal magnitudes, noise): fall back
+                    end
+                end
+                ExtMagRow = ExtMagRow + 2.5 .* log10(SNRTrial ./ Args.TargetSNR) ./ Slope;
             end
-            ExtMagRow = Args.ExtMag + 2.5 * log10(SNRTrial / Args.TargetSNR);
+            % use the last magnitude actually evaluated, not the (untried) next step
+            ExtMagRow = MagHist(Itr);
+            if abs(log10(SNRHist(Itr) ./ Args.TargetSNR)) >= log10(1 + SNRTolerance)
+                fprintf(['NOTE: TargetSNR solve did not reach %g%%%% after %d trials ', ...
+                         '(CrudeSNR = %.4g vs target %g at mag %.4f); using it anyway..\n'], ...
+                        100.*SNRTolerance, MaxSNRTrials, SNRHist(Itr), Args.TargetSNR, ExtMagRow);
+            end
             FocusMagCache(MagKey) = ExtMagRow;
         else
             % reuse the magnitude solved at Focus = 1 for this same combination, rather
@@ -876,16 +918,21 @@ function SNR = elopMeasureSNR(Image, CatX, CatY, MaxApertureRadius, BackPerPix, 
     % growth (e.g. to stay clear of a neighboring source in a multi-source row); pass
     % Inf for an isolated source.
     %
+    % NB: both the per-step significance test and the final S/N include the source's own
+    % shot noise, not just the background: the simulated image has a per-pixel variance of
+    % (source counts + background), so the noise on a flux measured in an aperture of
+    % N pixels is sqrt(N*NoisePerPix^2 + Signal). Leaving the Signal term out (as this
+    % function did until Sep 2026) overstates the S/N by ~2x for a compact source on the
+    % low-background 200 K rows, and by ~1.2x on the 300 K ones.
+    %
     % NB: the curve of growth is evaluated at every trial radius (not stopped at the
-    % first quiet step) and the aperture is set to the LAST radius whose increment over
-    % the previous radius is statistically significant (> 3x the expected per-step
-    % noise) -- real curves can have a quiet, still-rising-later stretch before the true
-    % signal (e.g. near the profile core, before the PSF wings pick up most of the
-    % flux), where a naive first-quiet-step-wins rule stops too early. That radius's own
-    % Flux already includes the significant jump's full contribution, so no extra margin
-    % step is added -- the trial radii are log-spaced, and stepping one further (e.g.
-    % 18 -> 27) nearly triples the aperture area for no additional signal, needlessly
-    % raising the noise.
+    % first quiet step) and the growth is taken to converge at the LAST radius whose
+    % increment over the previous radius is statistically significant (> 3x the expected
+    % per-step noise) -- real curves can have a quiet, still-rising-later stretch before
+    % the true signal (e.g. near the profile core, before the PSF wings pick up most of
+    % the flux), where a naive first-quiet-step-wins rule stops too early. That converged
+    % radius BOUNDS the aperture search; the S/N itself is reported at whichever trial
+    % radius within that bound maximises it (see the comment at the end of the function).
     RadiiTrial = [3 5 8 12 18 27 40 60 90 130];
     RadiiTrial = RadiiTrial(RadiiTrial <= MaxApertureRadius);
     if isempty(RadiiTrial)
@@ -895,20 +942,33 @@ function SNR = elopMeasureSNR(Image, CatX, CatY, MaxApertureRadius, BackPerPix, 
     SignificanceRatio = 3;
     PrevFlux = 0;
     LastSignificant = 1;
-    for Ri = 1:1:numel(RadiiTrial)
+    NRad     = numel(RadiiTrial);
+    FluxAll  = zeros(NRad,1);
+    NApAll   = zeros(NRad,1);
+    for Ri = 1:1:NRad
         [Flux, NAperture] = elopApertureFlux(Image, CatX, CatY, RadiiTrial(Ri), BackPerPix);
-        ExpectedNoise = sqrt(max(NAperture,1)) * NoisePerPix;
+        FluxAll(Ri) = Flux;
+        NApAll(Ri)  = NAperture;
+        ExpectedNoise = sqrt(max(NAperture,1) * NoisePerPix^2 + max(Flux,0));
         if (Flux - PrevFlux) > SignificanceRatio * ExpectedNoise
             LastSignificant = Ri;
         end
         PrevFlux = Flux;
     end
-    RConverged = RadiiTrial(LastSignificant);
 
-    [Signal, NAperture] = elopApertureFlux(Image, CatX, CatY, RConverged, BackPerPix);
-    Noise = sqrt(NAperture) * NoisePerPix;
-
-    SNR = Signal / Noise;
+    % Of the radii up to the converged one, report the S/N at the radius that MAXIMISES
+    % it. The converged radius is where the flux stops growing -- the right aperture for
+    % photometry -- but the best S/N is normally reached inside it, because the outer
+    % annuli add far more background than signal: on the 300 K rows, where the dark
+    % current alone is ~300 counts/pix, growing r = 3 -> 5 buys 8% more flux and costs
+    % 20% of the S/N. Bounding the search by the converged radius, instead of searching
+    % every trial radius, keeps a neighboring source or a background gradient from
+    % winning with a huge aperture (on a Template A row the r = 40 aperture, which
+    % swallows the neighbor, otherwise scores higher than the source's own optimum).
+    Keep  = 1:1:LastSignificant;
+    Noise = sqrt( NApAll(Keep) .* NoisePerPix.^2 + max(FluxAll(Keep),0) );
+    Noise( Noise <= 0 ) = 1;
+    SNR   = max( FluxAll(Keep) ./ Noise );
 end
 
 function [Flux, NAperture] = elopApertureFlux(Image, CatX, CatY, R, BackPerPix)
