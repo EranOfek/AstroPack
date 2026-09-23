@@ -12,6 +12,13 @@ function [CubePSF, XY] = createSourceCube(PSF0, X1Y1, Flux, Args)
     %          'Recenter' - true (shift the stamps according to X1Y1) or
     %                       false (just round the X1Y1 values to XY and do not shift the PSF)
     %          'RecenterMethod' - 'lanczos' (default), 'fft', or 'nearest'; usually 'nearest' goes with Oversampling > 1
+    %          'ShiftOversampled' - if true (default), apply the subpixel shift on the
+    %                    oversampled grid, before the rescaling, where the interpolation
+    %                    kernel does not ring. See imUtil.psf.shiftResampleRotate.
+    %          'SuppressEdges' - width [pix] of the flux-conserving cosine-bell taper
+    %                    applied to the stamp borders after the subpixel shift,
+    %                    see imUtil.psf.shiftResampleRotate, where the default and the
+    %                    reason for it are documented. Default is [] (disabled).
     %          'FixPSFWings' - logical, whether to suppress PSF wings 
     %          'ExtendedSize' - forwarded to imUtil.psf.wingsFix. Default is [].
     %          'EmptyPSFsize' - size of the output empty PSF for the case when an empty PSF was given at input
@@ -33,6 +40,8 @@ function [CubePSF, XY] = createSourceCube(PSF0, X1Y1, Flux, Args)
         Args.RotAngle            = [];
         Args.Recenter    logical = true;
         Args.RecenterMethod      = 'lanczos';  % lanczos, fft, or nearest
+        Args.ShiftOversampled logical = true;  % shift before rescaling (no ringing)
+        Args.SuppressEdges       = [];         % [pix] border taper width, [] or 0 = disabled
         
         Args.FixPSFWings   logical  = false;
         Args.WingsMethod         = 'analytic';
@@ -84,7 +93,9 @@ function [CubePSF, XY] = createSourceCube(PSF0, X1Y1, Flux, Args)
     % shift and resample the PSF stamps, forcing odd-sized and normalized stamps
     if Args.Recenter || all(Args.Oversample > 0)
         PSF = imUtil.psf.shiftResampleRotate(PSF,XYshift,Args.Oversample,Args.RotAngle,...
-            'ForceOdd',true,'Recenter',Args.Recenter,'RecenterMethod',Args.RecenterMethod,'Renorm',true);
+            'ForceOdd',true,'Recenter',Args.Recenter,'RecenterMethod',Args.RecenterMethod,...
+            'ShiftOversampled',Args.ShiftOversampled,...
+            'SuppressEdges',Args.SuppressEdges,'Renorm',true);
     end
 
     % suppress PSF wings

@@ -15,8 +15,11 @@ function [CutoutCube, ActualXY] = cutouts(Obj, XY, Args)
     %                   with NaN outside the HalfSize radius.
     %                   Default is false.
     %            'Shift' - A logical indicating if to shift
-    %            'ShiftAlgo' - Shift algorithm ['lanczos3'] |
-    %                   'lanczos2' | 'fft'.
+    %            'ShiftAlgo' - Shift algorithm ['lanczos3_mcode'] |
+    %                   'lanczos2_mcode' | 'fft'. The *_mcode options use
+    %                   imUtil.trans.shift_lanczos (m-code); elsewhere in
+    %                   AstroPack 'lanczos3' selects the MEX
+    %                   imUtil.trans.mex.shift_lanczos3.
     %            'IsCircFilt' - While using lanczos, is circshift
     %                   is circular or not. Default is false.
     %            'DataPropIC' - Data property inside ImageComponent,
@@ -49,7 +52,10 @@ function [CutoutCube, ActualXY] = cutouts(Obj, XY, Args)
         Args.CutAlgo                = 'mex';  % 'mex' | 'wmat'
         Args.IsCircle               = false;
         Args.Shift(1,1) logical     = false;
-        Args.ShiftAlgo              = 'lanczos3';  % 'fft' | 'lanczos2' | 'lanczos3' | ...
+        Args.ShiftAlgo              = 'lanczos3_mcode';  % 'fft' | 'lanczos2_mcode' | 'lanczos3_mcode'
+                                                         % the *_mcode options use the m-code
+                                                         % imUtil.trans.shift_lanczos; elsewhere in
+                                                         % AstroPack 'lanczos3' means the MEX
         Args.IsCircFilt(1,1) logical = true;
     end
 

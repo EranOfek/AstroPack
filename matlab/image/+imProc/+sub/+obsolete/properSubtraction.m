@@ -243,7 +243,11 @@ function [D, S, Scorr, Z2, S2, F_S, SdN, SdR, Fd] = properSubtraction(ObjNew, Ob
                                               'IsFFT',true);
 
         if ~isempty(Args.HalfSizePSF)
-            Pd = imUtil.psf.full2stamp(Pd, 'StampHalfSize',Args.HalfSizePSF, Args.full2stampArgs{:});
+            % NB: 'StampHalfSize' belonged to imUtil.psf.obsolete.full2stamp; the current
+            % imUtil.psf.full2stampPsf takes the stamp size positionally, and the edges are
+            % suppressed just below, hence 'Supress',false here (issue #1303)
+            Pd = imUtil.psf.full2stampPsf(Pd, 2.*Args.HalfSizePSF + 1, 'FullPosition','corner',...
+                                          'Supress',false, Args.full2stampArgs{:});
             if Args.SuppressEdgesPSF
                 Pd = imUtil.psf.suppressEdges(Pd, 'FunPar',Args.SuppressEdgesAnnulus);
             end

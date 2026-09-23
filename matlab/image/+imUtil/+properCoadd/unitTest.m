@@ -132,7 +132,7 @@ function [Result] = unitTest()
     H = gca;
     Z1Z2 = [-3 3];
     H.ZAxis.Limits=Z1Z2; %[Z1 Z2].*Nim.*1e3;
-    clim(Z1Z2)
+    caxis(Z1Z2)   % NB: not clim(), which exists only from R2022a; caxis still works there
 
     colormap(flipud(gray))    
     axis off

@@ -634,9 +634,23 @@ classdef AstroPSF < Component
             SizeCube = size(Cube);
             X = (SizeCube(2)+1).*0.5;
             Y = (SizeCube(1)+1).*0.5;
-            
+
+            % imUtil.sources.moments subtracts the median of an annulus which it
+            % defaults to [10 12] pixels. That is sized for image cutouts and lies
+            % entirely outside a PSF stamp of less than 21x21, on which the mex then
+            % fails with "Annulus mask is empty". Keep the default whenever it does
+            % fit the stamp, so that nothing that works today changes, and fall back
+            % to the outermost ring of the stamp only when it does not.
+            HalfStamp = (min(SizeCube(1:2))-1)./2;
+            Annulus   = [10 12];
+            if hypot(HalfStamp, HalfStamp) < Annulus(1)
+                Annulus = [max(1, HalfStamp-2), HalfStamp];
+            end
+
             %[varargout{1:nargout}] = imUtil.image.moment2(Cube, X, Y, Args.moment2Args{:}, 'SubBack',false);
-            [varargout{1:nargout}] = imUtil.sources.moments(Cube, 'X',X, 'Y',Y, 'SN',100, Args.moment2Args{:}, 'Cut2D',false);
+            % NB: Annulus is given before moment2Args, so that a caller supplied one wins
+            [varargout{1:nargout}] = imUtil.sources.moments(Cube, 'X',X, 'Y',Y, 'SN',100, ...
+                                            'Annulus',Annulus, Args.moment2Args{:}, 'Cut2D',false);
 
         end
         
@@ -871,18 +885,22 @@ classdef AstroPSF < Component
             %            'PsfArgs' - position in a multi-D PSF space to be passed to getPSF
             %            'StampHalfSize' - Output stamp half size in [X,Y].
             %                   Default is [7 7] (i.e., stamp will be 15 by 15).
-            %            'IsCorner' - A logical indicating if the PSF is in the
-            %                   image corner (true) or center (false) in the input
-            %                   full-size image.
-            %                   Default is true.
-            %            'Recenter' - Recenter the PSF using 1st moment estimation.
-            %                   Default is false (NOT AVAILABLE).
-            %            'zeroConv' - A logical indicating if to call the imUtil.psf.psf_zeroConverge
-            %                   in order to smooth the edges of the PSF.
-            %                   Default is true.
-            %            'zeroConvArgs' - A cell array of arguments to pass to
-            %                   imUtil.psf.psf_zeroConverge
-            %                   Default is {}.
+            %            NB: 'NewVer', 'IsCorner', 'Recenter', 'zeroConv' and
+            %                'zeroConvArgs' were removed in Sep 2026 together with the
+            %                branch that called imUtil.psf.obsolete.full2stamp; the
+            %                layout of the input is given by 'FullPosition' instead
+            %                ('corner' replaces IsCorner=true), see issue #1303.
+            %            'FullPosition' - Layout of the PSF in the full image, passed
+            %                   to imUtil.psf.full2stampPsf: 'center' (the index at
+            %                   which fftshift puts the DC element, floor(N/2)+1),
+            %                   'pixcenter' (ceil(N/2), the convention of
+            %                   imUtil.kernel2.*) or 'corner' (FFT order).
+            %                   The three coincide for an odd-sized input and differ
+            %                   by one pixel for an even-sized one, where a stamp
+            %                   built by imUtil.kernel2.* needs 'pixcenter'.
+            %                   Default is 'center'.
+            %            'SupressFunPars' - Taper width [pix] passed on to
+            %                   imUtil.psf.suppressEdges. Default is 2.
             %            'Norm' - Normalize the PSF stamp by this value.
             %                   If true, then will normalize the PSF by its sum
             %                   (such that integral will be 1).
@@ -897,17 +915,13 @@ classdef AstroPSF < Component
 
             arguments
                 Obj
-                Args.NewVer               = true;
-                Args.FullPosition         = 'center';
+                Args.FullPosition         = 'center';   % or 'pixcenter' / 'corner', see below
                 Args.Supress              = true;
+                Args.SupressFunPars       = 2;
                 Args.suppressEdgesArgs    = {};
 
                 Args.PsfArgs              = {};
                 Args.StampHalfSize        = [7 7];   % [X, Y]
-                Args.IsCorner logical     = true;
-                Args.Recenter logical     = false;
-                Args.zeroConv logical     = true;
-                Args.zeroConvArgs cell    = {};
                 Args.Norm                 = true;
                 Args.CreateNewObj logical = false;
             end
@@ -920,17 +934,13 @@ classdef AstroPSF < Component
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                P = Obj.getPSF();
-                if Args.NewVer
-                    Result(Iobj).DataPSF = imUtil.psf.obsolete.full2stamp(P, Args.StampHalfSize.*2 + 1, 'FullPosition',Args.FullPosition, 'Supress',Args.Supress, 'suppressEdgesArgs',Args.suppressEdgesArgs);
-                else
-                    Result(Iobj).DataPSF = imUtil.psf.obsolete.full2stamp(P, 'StampHalfSize',Args.StampHalfSize,...
-                                                                         'IsCorner',Args.IsCorner,...
-                                                                         'Recenter',Args.Recenter,...
-                                                                         'zeroConv',Args.zeroConv,...
-                                                                         'zeroConvArgs',Args.zeroConvArgs,...
-                                                                         'Norm',Args.Norm);
-                end
+                P = Obj(Iobj).getPSF();   % NB: without the index every element got the first PSF
+                Result(Iobj).DataPSF = imUtil.psf.full2stampPsf(P, Args.StampHalfSize.*2 + 1, ...
+                                                                'FullPosition',Args.FullPosition,...
+                                                                'Supress',Args.Supress,...
+                                                                'SupressFunPars',Args.SupressFunPars,...
+                                                                'suppressEdgesArgs',Args.suppressEdgesArgs,...
+                                                                'Norm',Args.Norm);
                 % as the resulting stamp is 2D, additional dimensions do not exist any more:
                 Result(Iobj).DimVals = cellfun(@(x) [0], Result(Iobj).DimVals, 'UniformOutput', false);
             end

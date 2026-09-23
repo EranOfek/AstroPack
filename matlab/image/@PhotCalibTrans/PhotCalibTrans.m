@@ -227,7 +227,7 @@ classdef PhotCalibTrans < Component
         % Only the *target-mag conversion* is affected — the calibration fit
         % itself uses the calibrators' true Gaia DR3 spectra (SpecData).
         % fitPhotCalibTrans stamps both from its RefSpecSlope / RefSpecPivot args.
-        RefSpecSlope = 1.5                  % Slope alpha for F_nu reference spectrum
+        RefSpecSlope = 1.642                % Slope alpha for F_nu reference spectrum
         RefSpecPivot = 5500                 % Pivot wavelength [Angstrom]
 
         % Colour-term calibration (issue #1287). The catalog ZP keeps the
@@ -245,7 +245,7 @@ classdef PhotCalibTrans < Component
         ColorTermA4   = NaN     % Quartic coefficient [mag per alpha^4] (PT_CTA4); NaN when StoreMode='table'
         ColorTermTable = []     % [1 x N] DeltaMag(alpha) - DeltaMag(RefSpecSlope) on ColorTermAlpha (PT_CA00..); [] when StoreMode='coef'
         ColorTermAlpha = []     % [1 x N] the alpha grid of ColorTermTable (described by PT_CAA0/PT_CADA/PT_CAN)
-        RefColor      = 1.0     % Anchor colour BP_RP where the colour term vanishes (PT_REFC). A convention, not a measurement: it sets the colour whose magnitudes are left untouched, and the correction of every other star is measured from it. The default 1.0 is close to the median colour of a typical LAST field; fitPhotCalibTrans('RefColorPerImage',true) replaces it with this image's own median instead.
+        RefColor      = 1.0     % Anchor colour BP_RP where the colour term vanishes (PT_REFC). A convention, not a measurement: it sets the colour whose magnitudes are left untouched, and the correction of every other star is measured from it. The default 1.0 sits at the median colour of a typical LAST field, and the RefSpecSlope default (1.642) is the alpha the measured alpha(BP_RP) relation gives there, so the anchor and the reference spectrum describe the same star. fitPhotCalibTrans('RefColorPerImage',true) replaces it with this image's own median instead.
 
         % Aperture corrections
         AperCorr = []           % [1 x N_aper] aperture corrections in mag; NaN if calculation failed
@@ -3963,9 +3963,11 @@ classdef PhotCalibTrans < Component
                 Args.PosMaxIter      (1,1) double {mustBePositive, mustBeInteger} = 3
                 Args.ColorTerm       logical = false  % fit a colour term alongside the positional surface (issues #1287/#1270)
                 Args.ColorColName    (1,:) char = 'BP_RP'   % catalog colour column (imProc.cat.addColor, issue #1289)
-                Args.ColorRefSource  (1,:) char {mustBeMember(Args.ColorRefSource,{'median','fixed'})} = 'median'
+                Args.ColorRefSource  (1,:) char {mustBeMember(Args.ColorRefSource,{'median','fixed'})} = 'fixed'
                                                       % Anchor colour of the aperture colour term - the colour at which
-                                                      % it vanishes. 'median' (default): the median colour of the stars
+                                                      % it vanishes. 'fixed' (default): Args.ColorRef, or Obj.RefColor
+                                                      % when that is empty, so APCC_REF and PT_REFC agree and the two
+                                                      % colour terms share one anchor. 'median': the median colour of the stars
                                                       % this image's aperture correction was fitted on. That is the
                                                       % self-consistent choice, because the aperture correction is
                                                       % defined RELATIVE to the image's own stars: its fitted constant
@@ -5269,18 +5271,23 @@ classdef PhotCalibTrans < Component
             %                   ColorTermA2 do NOT depend on it (they are
             %                   derivatives at alpha = RefSpecSlope), it only
             %                   declares which colour is left uncorrected.
-            %                   Default is 1.0. The colour whose SED slope
-            %                   actually equals RefSpecSlope = 1.5 is 1.2026,
-            %                   but an anchor far from a field's median colour
-            %                   injects a time-varying all-stars-together shift
-            %                   (see imProc.calib.applyColorTerm), and 1.0 sits
-            %                   closer to the median of a typical LAST field.
+            %                   Default is 1.0, the median colour of a typical
+            %                   LAST field. RefSpecSlope defaults to the alpha
+            %                   the measured alpha(BP_RP) relation gives there
+            %                   (1.642), so the anchor and the reference
+            %                   spectrum describe the same star. Staying near
+            %                   the field median matters because an anchor far
+            %                   from it injects a time-varying all-stars-
+            %                   together shift (see imProc.calib.applyColorTerm).
             %            'AlphaPoly' - Coefficients [c2 c1 c0] of the global
             %                   alpha(BP_RP) relation, used only to define the
             %                   colour range over which ColorTermAErr is
-            %                   measured. Default [-0.0516 2.4450 -1.3658].
+            %                   measured. Default [-0.0410 2.4150 -0.7320].
             %            'ColorRange' - Colour range over which the accuracy of
-            %                   the stored model is assessed. Default [0.5 3.0].
+            %                   the stored model is assessed. Default [0.3 3.5],
+            %                   matching imProc.calib.applyColorTerm's ColorRange,
+            %                   so ColorTermAErr describes the model over the same
+            %                   colours the correction is actually applied to.
             % Output : - PhotCalibTrans object with ColorTermA, ColorTermA2,
             %            ColorTermAErr and RefColor set (NaN on failure).
             % Author : D. Kovaleva (Sep 2026)
@@ -5290,13 +5297,14 @@ classdef PhotCalibTrans < Component
             %              F_nu = (lambda/RefSpecPivot)^alpha through this image's
             %              fitted throughput, so it depends on alpha, and the
             %              sensitivity depends on the image (instrument response,
-            %              atmosphere, airmass). We evaluate the ZP at
-            %              alpha = RefSpecSlope and at alpha = AlphaProbe and store
-            %              the slope of that difference:
-            %                ColorTermA = [ZP(AlphaProbe) - ZP(RefSpecSlope)] /
-            %                             (AlphaProbe - RefSpecSlope)   [mag/alpha]
-            %              Because ColorTermA is normalised per unit alpha, the
-            %              probe value itself is not needed downstream.
+            %              atmosphere, airmass). The ZP is evaluated on 'AlphaGrid'
+            %              (19 points by default) and DeltaMag(alpha) = ZP(alpha) -
+            %              ZP(RefSpecSlope) is fitted with a quartic through the
+            %              origin; ColorTermA is its linear coefficient, the
+            %              derivative at the anchor [mag/alpha]. An earlier version
+            %              used a two-point finite difference against 'AlphaProbe';
+            %              that argument is now inert and kept only so existing
+            %              callers do not error.
             %              ZP(alpha) is convex, because ZP = (2.5/ln10)*ln A(alpha)
             %              and d2(ln A)/dalpha2 = Var[ln(lambda/pivot)] > 0 over the
             %              band. A purely linear coefficient is therefore accurate
@@ -5322,10 +5330,10 @@ classdef PhotCalibTrans < Component
 
             arguments
                 Obj
-                Args.AlphaProbe (1,1) double = 2.0   % kept for callers that set it; the grid below supersedes it
+                Args.AlphaProbe (1,1) double = 2.0   % INERT: retired with the two-point finite difference; accepted so existing callers do not error, but unused
                 Args.RefColor   (1,1) double = 1.0
-                Args.AlphaPoly  (1,3) double = [-0.0516, 2.4450, -1.3658]
-                Args.ColorRange (1,2) double = [0.5, 3.0]
+                Args.AlphaPoly  (1,3) double = [-0.0410, 2.4150, -0.7320]
+                Args.ColorRange (1,2) double = [0.3, 3.5]
                 Args.StoreMode  (1,:) char {mustBeMember(Args.StoreMode,{'coef','table'})} = 'coef'
                                         % How DeltaMag(alpha) is stored. 'coef' (default): four coefficients
                                         % c1..c4 of a quartic in (alpha - RefSpecSlope), written as
@@ -5349,11 +5357,15 @@ classdef PhotCalibTrans < Component
             Obj.ColorTermAlpha = [];
             Obj.RefColor       = Args.RefColor;
 
+            % Only the anchor matters. The old two-point method divided by
+            % (AlphaProbe - RefSpecSlope) and so had to reject equal values; the
+            % grid fit below has no such division, and keeping that test meant a
+            % RefSpecSlope of exactly 2.0 (the AlphaProbe default) silently
+            % produced NaN coefficients.
             Alpha1 = Obj.RefSpecSlope;
-            Alpha2 = Args.AlphaProbe;
-            if ~isfinite(Alpha1) || ~isfinite(Alpha2) || Alpha1 == Alpha2
+            if ~isfinite(Alpha1)
                 Obj.msgLog(LogLevel.Warning, ...
-                    'evaluateColorTerm: degenerate alpha pair (%g, %g) - ColorTermA set to NaN.', Alpha1, Alpha2);
+                    'evaluateColorTerm: RefSpecSlope is not finite (%g) - ColorTermA set to NaN.', Alpha1);
                 return;
             end
             if isempty(Obj.TransModel)

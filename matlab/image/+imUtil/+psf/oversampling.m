@@ -5,7 +5,25 @@ function Result = oversampling(PSF, OriginalOversampling, NewOversampling, Args)
         %        - the orginal oversampling of the stamp (1 or 2 values)
         %        - the new oversampling of the stamp (1 or 2 values) 
         %        * ...,key,val,...
-        %        'InterpMethod' - interpolation method to use for resampling
+        %        'InterpMethod' - interpolation method to use for resampling.
+        %                 Default is '' = choose automatically: 'box' when
+        %                 downsampling, which integrates the flux over the area of
+        %                 the target pixel and so does not broaden the PSF, and
+        %                 'bilinear' when upsampling, where 'box' would merely
+        %                 replicate pixels. Measured on a sigma = 0.85 pix Gaussian
+        %                 downsampled by 5: 'box' reproduces the exact pixel
+        %                 integrated width, 'bilinear' is 4.7% too broad, and
+        %                 'bicubic'/'lanczos' are 5.3% too narrow and ring into
+        %                 negative pixels.
+        %                 NB: when downsampling by an integer factor the stamp is
+        %                 first zero-padded symmetrically, if needed, so that its
+        %                 size is an exact multiple of that factor. Otherwise the
+        %                 output size has to be rounded and imresize then works at
+        %                 a slightly different scale than the one requested (a
+        %                 108 px stamp at Oversample 5 gives round(21.6) = 22 and
+        %                 hence an effective factor of 4.91, i.e. a 1.7% error in
+        %                 the PSF scale). Padding keeps the stamp centered, which
+        %                 passing the scale to imresize instead would not.
         %        'ReNorm'       - whether to renormalize the PSF stamp
         %        'ReNormMethod' - 'int' or 'rms' 
         % Output: - a resampled PSF stamp at the new oversampling scale
@@ -16,14 +34,21 @@ function Result = oversampling(PSF, OriginalOversampling, NewOversampling, Args)
             PSF
             OriginalOversampling = 1;
             NewOversampling      = 1;  
-            Args.InterpMethod    = 'bilinear';
+            Args.InterpMethod    = '';    % '' = auto: box downsampling, bilinear upsampling
             Args.ReNorm          = true;
             Args.ReNormMethod    = 'int';  % 'int' | 'rms'
         end
         %
         NPSF = size(PSF,3);
         Factor = NewOversampling./OriginalOversampling;
-        XYsize = round( Factor .* size(PSF(:,:,1)) );
+        if isempty(Args.InterpMethod)
+            if all(Factor < 1)
+                Args.InterpMethod = 'box';      % the target pixel integrates the flux over its area
+            else
+                Args.InterpMethod = 'bilinear'; % upsampling: 'box' would merely replicate pixels
+            end
+        end
+        [PSF, XYsize] = matchResampleGrid(PSF, Factor);
         Result = zeros(XYsize(1), XYsize(2), NPSF);
         for Ipsf = 1:NPSF                
             Result(:,:,Ipsf) = imresize(PSF(:,:,Ipsf), XYsize, Args.InterpMethod);            
@@ -31,4 +56,43 @@ function Result = oversampling(PSF, OriginalOversampling, NewOversampling, Args)
         if Args.ReNorm
                 Result = imUtil.psf.normPSF(Result,'ReNormMethod',Args.ReNormMethod);
         end
+end
+
+function [PSF, XYsize] = matchResampleGrid(PSF, Factor)
+    % Pad a PSF stamp so that an integer downsampling factor divides its size exactly
+    %     Only then can the output size be size/Factor, which is what makes imresize
+    %     resample at exactly the requested scale. The padding is symmetric, so the
+    %     stamp stays centered. If no symmetric padding can do it (an even factor
+    %     with an odd stamp size), the size is rounded as before.
+    % Input  : - A PSF stamp or cube.
+    %          - The resampling factor (1 or 2 elements; > 1 upsamples).
+    % Output : - The stamp, zero-padded if needed.
+    %          - The output size [rows, columns] to resample to.
+    % Author : A.M. Krassilchtchikov (Sep 2026)
+    SizeRC = size(PSF, [1 2]);
+    Fac    = Factor(:).';
+    if isscalar(Fac)
+        Fac = [Fac Fac];
+    end
+    PadRC  = [0 0];
+    for Idim = 1:2
+        Down = 1./Fac(Idim);
+        if Fac(Idim) < 1 && abs(Down - round(Down)) < 1e-10 && mod(SizeRC(Idim), round(Down)) ~= 0
+            Down = round(Down);
+            IsFound = false;
+            Ipad    = 0;
+            while ~IsFound && Ipad < Down     % an even factor with an odd size has no solution
+                Ipad = Ipad + 1;
+                IsFound = mod(SizeRC(Idim) + 2.*Ipad, Down) == 0;
+            end
+            if IsFound
+                PadRC(Idim) = Ipad;
+            end
+        end
+    end
+    if any(PadRC > 0)
+        PSF    = padarray(PSF, PadRC, 0, 'both');
+        SizeRC = size(PSF, [1 2]);
+    end
+    XYsize = round( Fac .* SizeRC );
 end

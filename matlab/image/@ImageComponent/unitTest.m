@@ -212,6 +212,33 @@ function Result = unitTest
     Cube = cutouts(IC, XY,'Shift',true);
     Cube = cutouts(IC, XY,'Shift',true,'IsCircFilt',true);
 
+    % the shifted cutouts must be centered on the requested position, and all the
+    % ShiftAlgo options must agree (issue #1298: the lanczos branches used to shift
+    % by the full XY instead of the XY-RoundXY residual)
+    % two Gaussians placed analytically at non-integer positions, so that a cutout
+    % requested at exactly those positions must come out centered on the stamp
+    XYsrc  = [60.3 50.7; 130.2 120.4];   % (X,Y) = (column, row)
+    [RowG, ColG] = ndgrid(1:200, 1:200);
+    ImSrc  = 1 + 100.*exp(-((ColG-XYsrc(1,1)).^2 + (RowG-XYsrc(1,2)).^2)./(2.*2.^2)) ...
+               + 100.*exp(-((ColG-XYsrc(2,1)).^2 + (RowG-XYsrc(2,2)).^2)./(2.*2.^2));
+    CubeFFT = real(cutouts(ImageComponent({ImSrc}), XYsrc, 'Shift',true, 'ShiftAlgo','fft', ...
+                           'HalfSize',8, 'PadVal',0));
+    for Algo = {'lanczos2_mcode','lanczos3_mcode'}
+        CubeL = real(cutouts(ImageComponent({ImSrc}), XYsrc, 'Shift',true, 'ShiftAlgo',Algo{1}, ...
+                             'HalfSize',8, 'PadVal',0));
+        if max(abs(CubeL - CubeFFT),[],'all') > 0.05.*max(CubeFFT,[],'all')
+            error('cutouts ShiftAlgo %s disagrees with fft', Algo{1});
+        end
+        % the source must land on the central pixel of the stamp
+        for Icut = 1:2
+            [~,IndMax] = max(reshape(CubeL(:,:,Icut),[],1));
+            [RowMax, ColMax] = ind2sub([17 17], IndMax);
+            if RowMax~=9 || ColMax~=9
+                error('cutouts ShiftAlgo %s did not center the source on the stamp', Algo{1});
+            end
+        end
+    end
+
     % funCutouts
     IC=ImageComponent({uint16(ones(100,100))});
     Result = funCutouts(IC, [1 1; 2 2; 10 10; 30 30], @tools.array.bitor_array);

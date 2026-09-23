@@ -2,7 +2,7 @@ function Result = applyColorTerm(Obj, Args)
     % Apply the per-star colour correction to calibrated magnitudes (issue #1287)
     %
     %   The photometric zero point is built from ONE reference spectrum,
-    %   F_nu = (lambda/pivot)^alpha with alpha = PT_REFSL (default 1.5), applied
+    %   F_nu = (lambda/pivot)^alpha with alpha = PT_REFSL (default 1.642), applied
     %   to every star. A star whose spectral slope differs from that value is
     %   therefore mis-calibrated, by an amount that also grows with airmass
     %   (the atmosphere's wavelength dependence amplifies it). This function
@@ -48,7 +48,15 @@ function Result = applyColorTerm(Obj, Args)
     %                         (attached by imProc.cat.addColor, issue #1289).
     %            'AlphaPoly'- Coefficients [c2 c1 c0] of alpha(BP_RP), highest
     %                         power first (as polyval). Default
-    %                         [-0.0516 2.4450 -1.3658], from 58k Gaia XP spectra.
+    %                         [-0.0410 2.4150 -0.7320], from 58k Gaia XP spectra:
+    %                         the throughput-weighted slope of ln F_nu vs
+    %                         ln lambda over the LAST band, as measured. An
+    %                         earlier version subtracted 0.6135 from every
+    %                         colour to force alpha(1.2) = 1.5, which made the
+    %                         relation unable to say anything independent about
+    %                         the anchor. The default PT_REFC = 1.0 and the
+    %                         default PT_REFSL = 1.642 are consistent under
+    %                         this relation: polyval(AlphaPoly, 1.0) = 1.642.
     %            'SigmaAlpha' - Intrinsic scatter of the alpha(BP_RP) relation,
     %                         used for the correction error. Default 0.09.
     %            'UseQuadratic' - Include the PT_CTA2 term. Default true. Set
@@ -81,7 +89,7 @@ function Result = applyColorTerm(Obj, Args)
         Obj
         Args.Header                     = []
         Args.ColorCol char              = 'BP_RP'
-        Args.AlphaPoly (1,3) double     = [-0.0516, 2.4450, -1.3658]
+        Args.AlphaPoly (1,3) double     = [-0.0410, 2.4150, -0.7320]
         Args.SigmaAlpha (1,1) double    = 0.09
         Args.UseQuadratic logical       = true
         Args.ColorRange (1,2) double    = [0.3, 3.5]
@@ -206,7 +214,7 @@ function Result = applyColorTerm(Obj, Args)
                 CTA  = Args.CTALawAB(1) + Args.CTALawAB(2).*AMmodel;
                 CTA2 = Args.CTA2Ref;
                 if ~isfinite(Alpha0)
-                    Alpha0 = 1.5;
+                    Alpha0 = 1.642;
                 end
             else
                 % Without an airmass neither the model law nor the gate's mean

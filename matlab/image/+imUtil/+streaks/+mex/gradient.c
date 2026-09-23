@@ -157,3 +157,16 @@ static image_float ll_angle( image_float in, float threshold,
   return g;
 }
 
+/*----------------------------------------------------------------------------*/
+/** Signed angle difference. (used only in function refine()).
+     At lines 940-949 in the original code. Same as in the original.
+/*
+static float angle_diff_signed(float a, float b)
+{
+  a -= b;
+  while( a <= -M_PI ) a += M_2__PI;
+  while( a >   M_PI ) a -= M_2__PI;
+  return a;
+}
+
+

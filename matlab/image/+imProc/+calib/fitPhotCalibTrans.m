@@ -335,7 +335,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.MagSystem char = 'AB'
         Args.MagColPrefix = 'MAG_'   % Prefix for calibrated MAG column names ('MAG_' drops _AB, overwrites instrumental MAG_*)
         Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup'  % 'lup' convert.luptitude (default) | 'mag' convert.magnitude (NaN for Flux<=0)
-        Args.RefSpecSlope (1,1) double = 1.5    % Slope alpha of the F_nu reference spectrum (lambda/pivot)^alpha
+        Args.RefSpecSlope (1,1) double = 1.642  % Slope alpha of the F_nu reference spectrum (lambda/pivot)^alpha
                                                 % used by evaluateZP/evaluateMag for the
                                                 % target-mag conversion. 0 = AB-flat (back-compat).
                                                 % Negative -> blue, positive -> red.
@@ -399,26 +399,27 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % imProc.calib.applyColorTerm builds corrected magnitudes on demand.
         Args.AperCorrColorTerm logical = true         % fit it (default ON). Needs the BP_RP column (imProc.cat.addColor, issue #1289); without it the APCC_ keywords are written blank.
         Args.AperCorrColorColName (1,:) char = 'BP_RP'
-        Args.AperCorrColorRefSource (1,:) char {mustBeMember(Args.AperCorrColorRefSource,{'median','fixed'})} = 'median'
+        Args.AperCorrColorRefSource (1,:) char {mustBeMember(Args.AperCorrColorRefSource,{'median','fixed'})} = 'fixed'
                                                       % 'median' (default): anchor the aperture colour term at the median
                                                       % colour of the stars it was fitted on - the self-consistent choice,
                                                       % since the aperture correction is defined relative to the image's
                                                       % own stars. 'fixed' uses AperCorrColorRef instead.
-        Args.AperCorrColorRef double = []             % anchor colour when AperCorrColorRefSource='fixed'; [] -> the object's RefColor (1.0)
+        Args.AperCorrColorRef double = 1.0            % anchor colour when AperCorrColorRefSource='fixed' (the default); written to APCC_REF. Matches the Args.RefColor default below, so the aperture and zero-point colour terms share one anchor. [] -> fall back to the object's RefColor.
         % PT_ZP (photometric zero point at the image centre = mag of a 1-count
         % full-exposure source) is written to the header by default; downstream
         % imProc.calib.backmag/limmag read it.
         Args.EvaluatePhotZP  logical = true
         Args.EvaluateColorTerm logical = true   % measure dMag/dalpha for this image -> PT_CTA/PT_CTAE/PT_REFC (issue #1287); does not modify the ZP
-        Args.AlphaProbe (1,1) double = 2.0      % legacy probe slope; superseded by ColorTermAlphaGrid
+        Args.AlphaProbe (1,1) double = 2.0      % INERT: retired with the two-point finite difference, superseded by ColorTermAlphaGrid. Accepted so existing callers do not error, but unused.
         Args.ColorTermStoreMode (1,:) char {mustBeMember(Args.ColorTermStoreMode,{'coef','table'})} = 'coef'
                                                 % How DeltaMag(alpha) is written to the header. 'coef' (default):
                                                 % four coefficients PT_CTA/PT_CTA2/PT_CTA3/PT_CTA4, which reproduce
                                                 % the exact curve to 0.4 mmag over the whole grid. 'table': the curve
                                                 % itself, PT_CA00.., read back by interpolation. Same compute cost;
                                                 % PT_CTA and PT_CTA2 are written either way.
+        Args.ColorTermColorRange (1,2) double = [0.3, 3.5]  % colour range over which the stored model's fidelity (PT_CTAE) is assessed; matches imProc.calib.applyColorTerm's ColorRange, i.e. the colours the correction is actually applied to
         Args.ColorTermAlphaGrid double = -1:0.5:8  % alpha values at which the curve is evaluated
-        Args.RefColor   (1,1) double = 1.0      % anchor colour BP_RP where the colour term vanishes: the colour left uncorrected, from which every other star's correction is measured. A convention - PT_CTA/PT_CTA2 do not depend on it.
+        Args.RefColor   (1,1) double = 1.0      % anchor colour BP_RP where the colour term vanishes: the colour left uncorrected, from which every other star's correction is measured. A convention - PT_CTA/PT_CTA2 do not depend on it. 1.0 is the median colour of a typical LAST field, and RefSpecSlope defaults to the alpha the measured alpha(BP_RP) relation gives there (1.642), so the anchor and the reference spectrum describe the same star.
         Args.RefColorPerImage logical = false   % opt-in: replace RefColor with THIS image's median colour (bright, colour-known sources), so the correction is mean-free over the field. The value used is written to PT_REFC, so the choice stays reversible.
         Args.RefColorCol (1,:) char = 'BP_RP'   % catalog colour column for the per-image anchor (imProc.cat.addColor, issue #1289)
         Args.RefColorMagCol (1,:) char = ''     % magnitude column for its brightness cut; '' -> MAG_APER_3, else the first MAG_* column
@@ -575,6 +576,16 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         if ~any(strcmp(Args.CalibArgs(1:2:end), 'PerSourceAirmass'))
             Args.CalibArgs = [Args.CalibArgs, {'PerSourceAirmass', true}];
         end
+    end
+
+    % Promote the top-level FluxColName into CalibArgs so it reaches
+    % calibrate -> selectCalibrators (which packages this observed flux as
+    % SourceData.Flux, the quantity the ZP/transmission fit is solved
+    % against). Without this the wrapper's FluxColName only affected addMag,
+    % and calibrate silently used its own FLUX_APER_3 default - throwing when
+    % that column is absent. Guarded so an explicit CalibArgs value wins.
+    if ~any(strcmp(Args.CalibArgs(1:2:end), 'FluxColName'))
+        Args.CalibArgs = [Args.CalibArgs, {'FluxColName', Args.FluxColName}];
     end
 
     % ====================================================================
@@ -877,6 +888,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                 end
                 PC = PC.evaluateColorTerm('AlphaProbe', Args.AlphaProbe, ...
                                           'RefColor',   RefColorUse, ...
+                                          'ColorRange', Args.ColorTermColorRange, ...
                                           'StoreMode',  Args.ColorTermStoreMode, ...
                                           'AlphaGrid',  Args.ColorTermAlphaGrid);
             end

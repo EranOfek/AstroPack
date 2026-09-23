@@ -74,10 +74,14 @@ function readULTRASATlabDB
 
             % regrid to larger pixel scales:
 
-            PSF10 = imresize(PSFdata0,10./PixRat,'bilinear');
-            PSF5  = imresize(PSFdata0,5./PixRat,'bilinear');
-            PSF2  = imresize(PSFdata0,2./PixRat,'bilinear');
-            PSF1  = imresize(PSFdata0,1./PixRat,'bilinear');
+            % all four scalings are downsamplings (PixRat = 47.5), so the target
+            % pixel integrates the flux over its area: 'box'. With 'bilinear' the
+            % stored PSFs come out a few percent too broad, and that broadening is
+            % then carried by everything that reads this database (issue #1296)
+            PSF10 = imresize(PSFdata0,10./PixRat,'box');
+            PSF5  = imresize(PSFdata0,5./PixRat,'box');
+            PSF2  = imresize(PSFdata0,2./PixRat,'box');
+            PSF1  = imresize(PSFdata0,1./PixRat,'box');
 
             PSFdata10(:,:,Iw,Ir) = PSF10 / sum( PSF10,'all');
             PSFdata5(:,:,Iw,Ir)  = PSF5  / sum( PSF5, 'all');

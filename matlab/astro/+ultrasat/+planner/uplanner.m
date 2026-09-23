@@ -2252,7 +2252,7 @@ classdef uplanner < Component
                 colormap(ax,'turbo');
                 c = colorbar(ax);
                 c.Label.String = 'A_{ULTRASAT}';
-                clim(ax, [0,1.1]);
+                caxis(ax, [0,1.1]);   % NB: not clim(), which exists only from R2022a
                 set(ax,'YDir','normal');
             end
             

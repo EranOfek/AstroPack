@@ -172,6 +172,50 @@ function Result = unitTest()
     % [ResultFit, ResultObj] = imProc.astrometry.astrometrySubImages(SI, 'Scale',1.25,'CCDSEC', InfoCCDSEC.EdgesCCDSEC, 'RA',RA,'Dec',Dec, 'EpochOut',JD, 'Tran',Tran, 'CatName',AstrometricCat,'CreateNewObj',false);
     % toc        
     
+    % prepArgsForAstrometry - resolution of Args.RA/Args.Dec (issues #1294, #1299)
+    %   No external data needed.
+    Hdr = AstroHeader;
+    Hdr.insertKey({'RA',123.456,''; 'DEC',45.678,''});
+    AItest = AstroImage({zeros(10)});
+    AItest.HeaderData = Hdr;
+    ACtest = AstroCatalog({[1 2 30.0 31.0; 3 4 30.2 31.2]}, 'ColNames',{'X','Y','RA','Dec'},...
+                                                            'ColUnits',{'pix','pix','deg','deg'});
+    ArgsT  = struct('RA',[], 'Dec',[], 'CooUnits','deg', 'Tran',Tran2D('poly3'), 'EpochOut',[]);
+
+    % AstroImage + empty RA/Dec: must stay empty, otherwise astrometryRefine
+    % stops deriving the field center from the catalog bounding circle - this
+    % is what astrometrySingleImage and procCoadd (i.e. pipelineI) rely on.
+    ArgsO = imProc.astrometry.prepArgsForAstrometry(AItest, ArgsT);
+    if ~isempty(ArgsO.RA) || ~isempty(ArgsO.Dec)
+        error('prepArgsForAstrometry: empty RA/Dec must stay empty for AstroImage input');
+    end
+
+    % AstroImage + header keyword names (the astrometryCore defaults): resolved
+    ArgsT.RA  = 'RA';
+    ArgsT.Dec = 'DEC';
+    ArgsO = imProc.astrometry.prepArgsForAstrometry(AItest, ArgsT);
+    if ~isnumeric(ArgsO.RA) || ~isnumeric(ArgsO.Dec) || ...
+            abs(ArgsO.RA - 123.456)>1e-9 || abs(ArgsO.Dec - 45.678)>1e-9
+        error('prepArgsForAstrometry: header keyword names were not resolved for AstroImage input');
+    end
+
+    % AstroImage + numeric RA/Dec: passed through unchanged
+    ArgsT.RA  = 10;
+    ArgsT.Dec = -20;
+    ArgsO = imProc.astrometry.prepArgsForAstrometry(AItest, ArgsT);
+    if ArgsO.RA~=10 || ArgsO.Dec~=-20
+        error('prepArgsForAstrometry: numeric RA/Dec must be passed through');
+    end
+
+    % AstroCatalog + empty RA/Dec: must stay empty (issue #1294), so that the
+    % center is taken from the catalog and not from the (1,1) placeholder
+    ArgsT.RA  = [];
+    ArgsT.Dec = [];
+    ArgsO = imProc.astrometry.prepArgsForAstrometry(ACtest, ArgsT);
+    if ~isempty(ArgsO.RA) || ~isempty(ArgsO.Dec)
+        error('prepArgsForAstrometry: empty RA/Dec must stay empty for AstroCatalog input');
+    end
+
     cd(PWD);
     %io.msgStyle(LogLevel.Test, '@passed', 'imProc.astrometry test passed')
     Result = true;

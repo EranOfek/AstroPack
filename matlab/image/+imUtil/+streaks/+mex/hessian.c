@@ -135,10 +135,9 @@ static image_float ll_angle( image_float in, float threshold,
 
         lambda1 = (Hxx + Hyy +Discr)/2;
         lambda2 = (Hxx + Hyy -Discr)/2;
-        gx = Hxy; /* gradient x component */
-        gy = lambda2-Hxx; /* gradient y component */
+        //gx = lambda2-Hyy; /* gradient x component */
+        //gy = Hxy; /* gradient y component */
 
-        //if (E>1) LAMBDARATIO=E; else Et=1;
         if( lambda2 < 0. && LAMBDARATIO*lambda1<-lambda2) // FIXME empiric threshold
 //            norm = sqrt(-lambda2); /* "gradient norm", compresses dynamics but takes time */
             norm = -lambda2; /* "gradient norm" */
@@ -153,7 +152,9 @@ static image_float ll_angle( image_float in, float threshold,
         else
           {
             /* gradient angle computation */
-            g->data[adr] = atan2(gx,-gy);
+            //g->data[adr] = atan2(gx,-gy);
+            // same angle via the extremal of the quadratic form
+            g->data[adr] = atan2(2*Hxy,Hxx-Hyy)/2;
 
             /* look for the maximum of the gradient */
             if( norm > max_grad ) max_grad = norm;
@@ -207,5 +208,17 @@ static image_float ll_angle( image_float in, float threshold,
   free( (void *) range_l_e );
 
   return g;
+}
+
+/*----------------------------------------------------------------------------*/
+/** Signed angle difference. (used only in function refine()).
+     At lines 940-949 in the original code.
+ */
+static float angle_diff_signed(float a, float b)
+{
+  a -= b;
+  while( a <= -M_PI/2 ) a += M_PI;
+  while( a >   M_PI/2 ) a -= M_PI;
+  return a;
 }
 

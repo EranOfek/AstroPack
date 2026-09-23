@@ -280,6 +280,72 @@ function Result = unitTest()
         error('Problem with imUtil.psf.combinePSF - not rejected: %s', strjoin(BadInput,', '));
     end
 
+    %% imUtil.psf.oversampling - the downsampling factor must be exact (issue #1296)
+    % The output size has to be size/Factor exactly. Rounding it instead makes
+    % imresize work at a slightly different scale: a 108 px stamp at Oversample 5
+    % used to give round(21.6) = 22 and hence an effective factor of 4.91.
+
+    Nfine = 108;
+    Over  = 5;
+    SepIn = 50;
+    [YY, XX] = ndgrid(1:Nfine, 1:Nfine);
+    Cfine = (Nfine+1)./2;
+    TwoSrc = exp(-((XX-(Cfine-SepIn./2)).^2 + (YY-Cfine).^2)./(2.*3.^2)) + ...
+             exp(-((XX-(Cfine+SepIn./2)).^2 + (YY-Cfine).^2)./(2.*3.^2));
+    Down = imUtil.psf.oversampling(TwoSrc, Over, 1, 'ReNorm',false, 'InterpMethod','box');
+    Ndown = size(Down,1);
+    [~, XXd] = ndgrid(1:Ndown, 1:Ndown);
+    LeftSrc  = Down;  LeftSrc(:, ceil(Ndown./2):end) = 0;
+    RightSrc = Down;  RightSrc(:, 1:floor(Ndown./2)) = 0;
+    SepOut = sum(RightSrc.*XXd,'all')./sum(RightSrc,'all') - sum(LeftSrc.*XXd,'all')./sum(LeftSrc,'all');
+    if abs(SepOut - SepIn./Over) > 1e-3
+        error('Problem with imUtil.psf.oversampling: effective factor is %.4f instead of %d', ...
+              SepIn./SepOut, Over);
+    end
+    % and a centered source must stay centered
+    Centred = imUtil.psf.oversampling(exp(-((XX-Cfine).^2+(YY-Cfine).^2)./(2.*(0.85.*Over).^2)), ...
+                                      Over, 1, 'ReNorm',true, 'InterpMethod','box');
+    Nc = size(Centred,1);
+    [YYc, XXc] = ndgrid(1:Nc, 1:Nc);
+    WCen = Centred./sum(Centred,'all');
+    if hypot(sum(WCen.*YYc,'all')-(Nc+1)./2, sum(WCen.*XXc,'all')-(Nc+1)./2) > 1e-3
+        error('Problem with imUtil.psf.oversampling: the stamp center is not preserved');
+    end
+
+    %% imUtil.psf.shiftResampleRotate - the subpixel shift must not ring (issue #1296)
+    % With an oversampled input the shift is applied before the rescaling, where the
+    % profile is well sampled; doing it afterwards left ~0.2% of the flux of a
+    % sigma = 0.85 pix core in negative pixels around it.
+
+    Nps  = 125;
+    Cps  = (Nps+1)./2;
+    [Yp, Xp] = ndgrid(1:Nps, 1:Nps);
+    Psf1 = exp(-((Xp-Cps).^2 + (Yp-Cps).^2)./(2.*(0.85.*Over).^2));
+    Psf1 = Psf1./sum(Psf1,'all');
+    rng(11);
+    ShiftSub = rand(10,2) - 0.5;
+    for Imeth = {'lanczos','fft'}
+        Shifted = imUtil.psf.shiftResampleRotate(repmat(Psf1,[1 1 10]), ShiftSub, Over, [], ...
+                        'ForceOdd',true, 'Recenter',true, 'RecenterMethod',Imeth{1}, 'Renorm',true);
+        NegFrac = sum(Shifted(Shifted<0))./sum(Shifted,'all');
+        if abs(NegFrac) > 1e-4
+            error('Problem with imUtil.psf.shiftResampleRotate: %s left %.4f%% of the flux negative', ...
+                  Imeth{1}, 100.*NegFrac);
+        end
+        % and the stamp must actually be shifted by what was asked
+        Nsh = size(Shifted,1);
+        [Ysh, Xsh] = ndgrid(1:Nsh, 1:Nsh);
+        for Ipsf = 1:10
+            Wsh = Shifted(:,:,Ipsf)./sum(Shifted(:,:,Ipsf),'all');
+            ErrSh = hypot(sum(Wsh.*Ysh,'all')-((Nsh+1)./2+ShiftSub(Ipsf,1)), ...
+                          sum(Wsh.*Xsh,'all')-((Nsh+1)./2+ShiftSub(Ipsf,2)));
+            if ErrSh > 0.02
+                error('Problem with imUtil.psf.shiftResampleRotate: %s misplaced a stamp by %.3f pix', ...
+                      Imeth{1}, ErrSh);
+            end
+        end
+    end
+
     %%
 
 	Result = true;

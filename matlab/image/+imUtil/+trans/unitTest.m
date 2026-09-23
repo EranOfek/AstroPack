@@ -96,6 +96,66 @@ function Result = unitTest()
 
 
 
+    %% imUtil.trans.shift_lanczos - shift fidelity (issue #1298)
+    % Until Sep 2026 the whole-pixel part of the shift was applied only for
+    % abs(shift)>1, so any shift in (-1,0) came out +1 pixel off and a shift of
+    % exactly +-1 did nothing at all. These checks cover both.
+
+    Gs     = imUtil.kernel2.gauss([2 2 0],[31 31]);
+    Gs     = Gs./sum(Gs,'all');
+    [Mr,Mc] = ndgrid(1:31,1:31);
+    Centre = @(Q) [sum(Q.*Mr,'all')./sum(Q,'all'), sum(Q.*Mc,'all')./sum(Q,'all')];
+    Cen0   = Centre(Gs);
+    % NB: shift_lanczos takes [ShiftX, ShiftY] with X along the columns
+    TestShift = [0.3 0; -0.3 0; 0 0.3; 0 -0.3; 0.5 0; -0.5 0; 0.8 0; -0.8 0; ...
+                 1 0; -1 0; 0 1; 0 -1; 1.3 0; -1.3 0; 0.35 -0.35; 2.7 -3.2];
+    for Icirc = [false true]
+        for Ish = 1:size(TestShift,1)
+            Cen = Centre(imUtil.trans.shift_lanczos(Gs, TestShift(Ish,:), 3, Icirc, 0)) - Cen0;
+            % the Lanczos kernel compresses the centroid by a few percent of the
+            % requested shift, hence the tolerance
+            if abs(Cen(2)-TestShift(Ish,1))>0.06 || abs(Cen(1)-TestShift(Ish,2))>0.06
+                error('Problem with imUtil.trans.shift_lanczos: shift [%g %g] gave [%g %g]', ...
+                      TestShift(Ish,1), TestShift(Ish,2), Cen(2), Cen(1));
+            end
+        end
+    end
+
+    % a whole-pixel shift must be exact and must conserve the flux
+    Delta = zeros(21,21); Delta(11,11) = 1;
+    for Ish = [3 -3 7 -7]
+        Moved = imUtil.trans.shift_lanczos(Delta, [Ish 0], 3, false, 0);
+        if abs(Moved(11,11+Ish)-1)>1e-10 || abs(sum(Moved,'all')-1)>1e-10
+            error('Problem with imUtil.trans.shift_lanczos: whole pixel shift is not exact');
+        end
+    end
+
+    % a sub-pixel shift must conserve the flux, and shifting back must restore the image
+    CubeL = single(imUtil.kernel2.gauss(2.5.*ones(10,1),[31 31]));
+    ShiftL = 3.*(rand(10,2)-0.5);
+    if max(abs(sum(imUtil.trans.shift_lanczos(CubeL, ShiftL, 3, false, 0),[1 2])./sum(CubeL,[1 2]) - 1),[],'all')>1e-5
+        error('Problem with imUtil.trans.shift_lanczos: flux is not conserved');
+    end
+    for Icirc = [false true]
+        BackL = imUtil.trans.shift_lanczos(imUtil.trans.shift_lanczos(CubeL, ShiftL, 3, Icirc, 0), ...
+                                           -ShiftL, 3, Icirc, 0);
+        if max(abs(double(BackL(8:24,8:24,:))-double(CubeL(8:24,8:24,:))),[],'all')./double(max(CubeL,[],'all'))>0.01
+            error('Problem with imUtil.trans.shift_lanczos: shift/unshift does not restore the image');
+        end
+    end
+
+    % the m-code and the mex must agree (both are lanczos3, non-circular)
+    if max(abs(double(imUtil.trans.mex.shift_lanczos3(CubeL, ShiftL(:,1), ShiftL(:,2))) - ...
+               double(imUtil.trans.shift_lanczos(CubeL, ShiftL, 3, false, 0))),[],'all') ...
+               ./double(max(CubeL,[],'all')) > 0.01
+        error('imUtil.trans.shift_lanczos and imUtil.trans.mex.shift_lanczos3 disagree');
+    end
+
+    % shifting the image completely out of the frame must leave only PadVal
+    if ~all(abs(imUtil.trans.shift_lanczos(single(ones(11)), [30 0], 3, false, 7) - 7)<1e-4, 'all')
+        error('Problem with imUtil.trans.shift_lanczos: PadVal is not applied');
+    end
+
     %%
     
 	Result = true;

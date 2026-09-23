@@ -923,10 +923,12 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             [~,Coadd(NotIsEmptyCat)] = imProc.cat.addXYfull(Coadd(NotIsEmptyCat));
             % Add PSF fraction to header
             [~,Coadd(NotIsEmptyCat)] = imProc.psf.aperFrac(Coadd(NotIsEmptyCat), 'AperRadius',Args.AperRadius);
-            % Add the spatial-density quantiles of the detected sources to
-            % the header (issue #1274): SPATQ50/75/90/95 + SPATNBIN. Coadd
-            % only - a single epoch has too few sources per grid cell for
-            % the quantiles to mean anything. ~0.4 ms per crop.
+
+            % Spatial density of the detected sources (issue #1274).
+            % Independent of the steps above; writes SPATQ50/75/90/95 and
+            % SPATNBIN. Coadd images only - a single epoch has too few
+            % sources per grid cell for the quantiles to mean anything.
+            % ~0.4 ms per crop.
             if Args.AddSpatialDensity
                 [~,Coadd(NotIsEmptyCat)] = imProc.cat.starsSpatialDensity(Coadd(NotIsEmptyCat), Args.SpatialDensityArgs{:});
             end
