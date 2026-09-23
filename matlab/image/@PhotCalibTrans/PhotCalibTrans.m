@@ -247,6 +247,15 @@ classdef PhotCalibTrans < Component
         ColorTermAlpha = []     % [1 x N] the alpha grid of ColorTermTable (described by PT_CAA0/PT_CADA/PT_CAN)
         RefColor      = 1.0     % Anchor colour BP_RP where the colour term vanishes (PT_REFC). A convention, not a measurement: it sets the colour whose magnitudes are left untouched, and the correction of every other star is measured from it. The default 1.0 sits at the median colour of a typical LAST field, and the RefSpecSlope default (1.642) is the alpha the measured alpha(BP_RP) relation gives there, so the anchor and the reference spectrum describe the same star. fitPhotCalibTrans('RefColorPerImage',true) replaces it with this image's own median instead.
 
+        % AB zero-point offset of the reference-spectrum slope (issue #1301).
+        % The catalog ZP is the field-centre integral of F_nu=(lambda/pivot)^alpha
+        % at alpha=RefSpecSlope; DeltaZP_AB records how much that differs from the
+        % zero point a flat (alpha=0, AB-flat) reference would give, so a consumer
+        % can recover the flat-reference ZP without re-running the integral:
+        % DeltaZP_AB = ZP(RefSpecSlope) - ZP(0). Set in calibrate; written as
+        % PT_DZPAB. NaN when no TransModel was fit.
+        DeltaZP_AB    = NaN     % ZP(RefSpecSlope) - ZP(slope 0) at field centre [mag] (PT_DZPAB)
+
         % Aperture corrections
         AperCorr = []           % [1 x N_aper] aperture corrections in mag; NaN if calculation failed
         AperCorrColNames = {}   % Cell array of column names where AperCorr applies
@@ -1645,6 +1654,28 @@ classdef PhotCalibTrans < Component
                 Obj = Obj.absorbTran2DCenterIntoNorm('Verbose', Args.Verbose);
             end
 
+            % AB zero-point offset of the reference slope (issue #1301).
+            % ZP(alpha) is the field-centre integral of (lambda/pivot)^alpha
+            % through the fitted throughput; record how much the catalog's
+            % RefSpecSlope zero point differs from a flat (alpha=0) reference,
+            % so downstream can recover the flat-reference ZP without redoing
+            % the integral. One extra evaluateZP (~5 ms); gauge-invariant.
+            if ~isempty(Obj.TransModel)
+                try
+                    ZP_slope = Obj.evaluateZP('RefSpecSlopePerSource', Obj.RefSpecSlope);
+                    ZP_flat  = Obj.evaluateZP('RefSpecSlopePerSource', 0);
+                    Obj.DeltaZP_AB = ZP_slope - ZP_flat;
+                catch ME
+                    Obj.msgLog(LogLevel.Warning, ...
+                        'calibrate: DeltaZP_AB evaluation failed (%s) - set to NaN.', ME.message);
+                    Obj.DeltaZP_AB = NaN;
+                end
+                if Args.Verbose && isfinite(Obj.DeltaZP_AB)
+                    fprintf('  DeltaZP_AB (slope %.3f vs 0): %.4f mag\n', ...
+                            Obj.RefSpecSlope, Obj.DeltaZP_AB);
+                end
+            end
+
             if Args.Verbose
                 fprintf('=== Calibration Complete ===\n');
             end
@@ -1821,23 +1852,51 @@ classdef PhotCalibTrans < Component
                 if HavePM
                     % Gaia J2016 position from the matched reference rows
                     % (CatH cols 1,2 are RA/Dec in radians).
-                    GaiaRA2016  = double(CatH.Catalog(Cands.CalibInd, 1)) .* RAD;   % deg
-                    GaiaDec2016 = double(CatH.Catalog(Cands.CalibInd, 2)) .* RAD;   % deg
+                    % Propagated with the shared celestial.coo.proper_motion
+                    % (rigorous 3D space motion), the same routine
+                    % imProc.cat.addColor uses, rather than a local flat-sky
+                    % step. Gaia PMRA is mu_alpha*cos(dec), which is the
+                    % convention that function expects. The numerical change
+                    % against the previous inline approximation is negligible
+                    % (<=0.02 mas at LAST declinations, 1.4 mas at dec 89)
+                    % compared with a SearchRadius of order 1 arcsec; sharing
+                    % one implementation is the point.
+                    GaiaRA  = double(CatH.Catalog(Cands.CalibInd, 1));   % rad
+                    GaiaDec = double(CatH.Catalog(Cands.CalibInd, 2));   % rad
                     PMra  = double(Cands.PMRA);    % mas/yr (Gaia pmra = mu_alpha*cos(dec))
                     PMdec = double(Cands.PMDec);   % mas/yr
                     Yr_obs = 2000.0 + (Args.ObsJD - 2451545.0) ./ 365.25;
                     dt_yr  = Yr_obs - 2016.0;
-                    GaiaRA_obs  = GaiaRA2016  + (PMra  .* dt_yr) ./ (cosd(GaiaDec2016) .* 3.6e6);
-                    GaiaDec_obs = GaiaDec2016 + (PMdec .* dt_yr) ./ 3.6e6;
+                    EpochJD = 2451545.0 + (2016.0 - 2000).*365.25;  % Gaia DR3 epoch
+
+                    % A candidate without a Gaia proper motion keeps its
+                    % catalog position and is then gated like any other. It
+                    % used to fall out here: a NaN PM propagated to a NaN
+                    % separation, which failed the '< SearchRadius' test and
+                    % silently discarded the star even though its position was
+                    % perfectly usable.
+                    GaiaRA_obs  = GaiaRA;
+                    GaiaDec_obs = GaiaDec;
+                    HavePMRow = isfinite(PMra) & isfinite(PMdec);
+                    if any(HavePMRow)
+                        [PropRA, PropDec] = celestial.coo.proper_motion( ...
+                            Args.ObsJD, EpochJD, [], ...
+                            GaiaRA(HavePMRow), GaiaDec(HavePMRow), ...
+                            PMra(HavePMRow), PMdec(HavePMRow));
+                        GoodRow = isfinite(PropRA) & isfinite(PropDec);
+                        IdxRow  = find(HavePMRow);
+                        GaiaRA_obs(IdxRow(GoodRow))  = PropRA(GoodRow);
+                        GaiaDec_obs(IdxRow(GoodRow)) = PropDec(GoodRow);
+                    end
                     DistRad = celestial.coo.sphere_dist_fast( ...
-                        deg2rad(GaiaRA_obs), deg2rad(GaiaDec_obs), ...
+                        GaiaRA_obs, GaiaDec_obs, ...
                         deg2rad(double(Cands.RA)), deg2rad(double(Cands.Dec)));
                     DistArcsec = DistRad .* RAD .* 3600;
                     KeepPM = DistArcsec < Args.SearchRadius;
                     Cands = Cands(KeepPM, :);
                     if Args.Verbose
-                        fprintf('  PM propagation (dt=%.2f yr): %d/%d within %.1f arcsec\n', ...
-                                dt_yr, sum(KeepPM), numel(KeepPM), Args.SearchRadius);
+                        fprintf('  PM propagation (dt=%.2f yr): %d/%d within %.1f arcsec (%d without PM kept at catalog position)\n', ...
+                                dt_yr, sum(KeepPM), numel(KeepPM), Args.SearchRadius, sum(~HavePMRow));
                     end
                 elseif Args.Verbose
                     % PropagatePM is on by default; a missing ObsJD or absent
@@ -3196,6 +3255,9 @@ classdef PhotCalibTrans < Component
             HeaderObj = HeaderObj.replaceVal('PT_SPEC', 'GaiaDR3');
             HeaderObj = HeaderObj.replaceVal('PT_REFSL', Obj.RefSpecSlope);
             HeaderObj = HeaderObj.replaceVal('PT_REFPV', Obj.RefSpecPivot);
+            % AB zero-point offset of the reference slope vs a flat reference
+            % (issue #1301): ZP(RefSpecSlope) - ZP(slope 0) at field centre.
+            HeaderObj = HeaderObj.replaceVal('PT_DZPAB', Obj.DeltaZP_AB);
             HeaderObj = HeaderObj.replaceVal('PT_CO2PP', Obj.Co2_ppm);
             % Colour term (issue #1287): sensitivity of the magnitude to the
             % reference-spectrum slope for this image, and the anchor colour at
@@ -3235,6 +3297,7 @@ classdef PhotCalibTrans < Component
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_SPEC: Spectra reference';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_REFSL: Ref spectrum F_nu slope (lambda/PT_REFPV)^slope';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_REFPV: Ref spectrum pivot wavelength [Angstrom]';
+                IComment = IComment + 1; HistoryComments{IComment} = 'PT_DZPAB: Delta ZP_AB, ZP(PT_REFSL) - ZP(slope 0) [mag]';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_CTA: dMag/dalpha colour-term coef [mag per unit alpha]';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_CTA2: Quadratic colour-term coef [mag per alpha^2]';
                 IComment = IComment + 1; HistoryComments{IComment} = 'PT_CTAE: Max model error over BP_RP 0.5-3 [mag]';
@@ -3545,6 +3608,11 @@ classdef PhotCalibTrans < Component
             end
             if HeaderObj.isKeyExist('PT_REFPV')
                 Obj.RefSpecPivot = HeaderObj.getVal('PT_REFPV');
+            end
+            % AB zero-point offset of the reference slope (issue #1301). Left at
+            % the NaN default when absent (headers written before this keyword).
+            if HeaderObj.isKeyExist('PT_DZPAB')
+                Obj.DeltaZP_AB = HeaderObj.getVal('PT_DZPAB');
             end
 
             % CO2 abundance (Simone-parity default 395 ppm when absent so
@@ -3962,7 +4030,9 @@ classdef PhotCalibTrans < Component
                 Args.PosSigmaClip    (1,2) double = [3 3]
                 Args.PosMaxIter      (1,1) double {mustBePositive, mustBeInteger} = 3
                 Args.ColorTerm       logical = false  % fit a colour term alongside the positional surface (issues #1287/#1270)
-                Args.ColorColName    (1,:) char = 'BP_RP'   % catalog colour column (imProc.cat.addColor, issue #1289)
+                Args.ColorColName    (1,:) char = 'BP_RP_NEAR'   % catalog colour column (imProc.cat.addColor, issue #1289)
+                Args.ColorDistColName (1,:) char = 'GAIA_DIST'  % companion match distance [arcsec]
+                Args.ColorMaxDist    (1,1) double = 1           % accept the colour only within this separation
                 Args.ColorRefSource  (1,:) char {mustBeMember(Args.ColorRefSource,{'median','fixed'})} = 'fixed'
                                                       % Anchor colour of the aperture colour term - the colour at which
                                                       % it vanishes. 'fixed' (default): Args.ColorRef, or Obj.RefColor
@@ -4306,7 +4376,17 @@ classdef PhotCalibTrans < Component
                     if isempty(ColorRefUse); ColorRefUse = Obj.RefColor; end
                     ColAll = [];
                     if Args.ColorTerm
-                        ColAll = tryGetCol(CatObj, Args.ColorColName);
+                        % Gated: addColor stores the colour of the nearest
+                        % Gaia source within 5", which need not be the
+                        % counterpart, so only matches inside ColorMaxDist are
+                        % taken to belong to the source.
+                        ColAll = imProc.cat.usableColor(CatObj, ...
+                                    'ColorCol', Args.ColorColName, ...
+                                    'DistCol',  Args.ColorDistColName, ...
+                                    'MaxDist',  Args.ColorMaxDist);
+                        if all(isnan(ColAll))
+                            ColAll = [];
+                        end
                         if isempty(ColAll)
                             Obj.msgLog(LogLevel.Warning, sprintf( ...
                                 'calcAperCorr: colour term requested but %s missing - skipping (run imProc.cat.addColor)', ...
@@ -4475,7 +4555,9 @@ classdef PhotCalibTrans < Component
                 Args.ColX (1,:) char = 'X'
                 Args.ColY (1,:) char = 'Y'
                 Args.Mode (1,:) char {mustBeMember(Args.Mode, {'auto','scalar','positional'})} = 'auto'
-                Args.ColColor (1,:) char = 'BP_RP'   % colour column for the aperture-correction colour term
+                Args.ColColor (1,:) char = 'BP_RP_NEAR'   % colour column for the aperture-correction colour term
+                Args.ColColorDist (1,:) char = 'GAIA_DIST'    % companion match distance [arcsec]
+                Args.ColorMaxDist (1,1) double = 1            % accept the colour only within this separation
                 Args.ApplyColorTerm logical = false  % add the fitted colour term A5*(colour-anchor) to the magnitudes. FALSE by default and in the pipeline: catalog magnitudes are left colour-uncorrected by policy, and the coefficient is published in the header (APCC_<tag>) so imProc.calib.applyColorTerm can apply it on demand. Set true only to reproduce the pre-policy behaviour.
             end
             if isempty(Obj.AperCorr) || isempty(Obj.AperCorrColNames)
@@ -4498,9 +4580,12 @@ classdef PhotCalibTrans < Component
             % Colour of each source, for the optional colour term of the
             % aperture correction (issues #1287/#1270).
             Cper = [];
-            if Args.ApplyColorTerm && HasCol && ismember(Args.ColColor, AllCol)
-                Cper = CatObj.getCol(Args.ColColor);
-                Cper = Cper(:);
+            if Args.ApplyColorTerm && HasCol && ...
+                    (ismember(Args.ColColor, AllCol) || ismember('BP_RP', AllCol))
+                Cper = imProc.cat.usableColor(CatObj, ...
+                            'ColorCol', Args.ColColor, ...
+                            'DistCol',  Args.ColColorDist, ...
+                            'MaxDist',  Args.ColorMaxDist);
             end
             for Iap = 1:numel(Obj.AperCorrColNames)
                 ColName = Obj.AperCorrColNames{Iap};

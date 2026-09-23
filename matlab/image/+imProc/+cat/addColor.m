@@ -1,6 +1,10 @@
 function Result = addColor(Obj, Args)
-    % Add Gaia colour (BP-RP) and/or magnitude columns to a source catalog by
-    % cross-matching its RA/Dec against a Gaia catsHTM catalog.
+    % Cross-match a source catalog against Gaia and attach, for the nearest
+    % match, the requested Gaia columns, its separation and a neighbour count.
+    %
+    %   NAME: the function outgrew 'addColor' - the colour is now one of three
+    %   products - and is to be renamed imProc.cat.addGaiaMatch in a separate
+    %   change, together with the AddColor* pipeline arguments.
     %
     %   Issue #1289. Called by pipeline.last.pipes.pipelineI for both the epoch
     %   catalogs (directly, once per sub image) and the coadd catalog (through
@@ -38,17 +42,43 @@ function Result = addColor(Obj, Args)
     %                         covers everything between them. Default false.
     %            'Radius'   - Match radius. Default 1.
     %            'RadiusUnits' - Default 'arcsec'.
-    %            'GaiaCols' - Cell array of source-column names to pull from the
-    %                         Gaia catalog. Default {'bp_rp'}.
-    %            'OutCols'  - Cell array of output column names, same length as
-    %                         'GaiaCols'. Default {'BP_RP'}.
-    %            'ColSphere' - Names of the spherical coordinate columns of the
-    %                         source catalog. An element that lacks them (e.g. its
-    %                         astrometric solution failed) gets all-NaN columns
-    %                         rather than an error, so a column list built over an
-    %                         array of catalogs stays uniform. Default {'RA','Dec'}.
-    %            'ColPos'   - Column position for insertion. Default Inf (append).
-    %            'CreateNewObj' - Operate on a copy. Default false.
+    %            'PropagatePM' - Move the Gaia reference from its catalog epoch
+    %                         to the observation epoch with celestial.coo.proper_motion
+    %                         before matching. Gaia PMRA is mu_alpha*cos(dec), the
+    %                         convention that function expects. Rows with no PM keep
+    %                         their catalog position, and the step is skipped entirely
+    %                         when the PM columns or the observation epoch are absent,
+    %                         so a catalog without them matches exactly as before.
+    %                         Measured on a LAST field at dt=9.0 yr: median shift
+    %                         0.09", 0.7%% of Gaia rows move more than the 1" match
+    %                         radius. Default true.
+    %            'ObsJD'    - Observation JD driving the propagation. Empty (default)
+    %                         takes it from the AstroImage header ('JD', then 'MIDJD');
+    %                         a bare AstroCatalog without it simply skips propagation.
+    %                         When one reference serves several elements, the median
+    %                         of their JDs is used - they image the same field within
+    %                         a visit, so the spread is minutes.
+    %            'PMCols'   - Gaia PM column names [mas/yr]. Default {'PMRA','PMDec'}.
+    %            'PlxCol'   - Gaia parallax column [mas]. Default 'Plx'.
+    %            'EpochCol' - Gaia epoch column [Julian yr]. Default 'Epoch'; when the
+    %                         column is absent 'CatEpoch' is used.
+    %            'CatEpoch' - Fallback catalog epoch [Julian yr]. Default 2016 (Gaia DR3).
+    %            'NeighborOutCols' - Names of the two companion columns:
+    %                         the distance to the nearest Gaia source [arcsec] and
+    %                         how many lie within 'Radius' (issue #1306). Default
+    %                         {'GAIA_DIST','GAIA_NSRC'}. GAIA_DIST is NaN when
+    %                         nothing is found; GAIA_NSRC is 0 when Gaia was
+    %                         searched and empty, NaN when the source could not be
+    %                         matched at all. Set an entry to '' to skip it.
+    %
+    %   The colour reported is that of the NEAREST Gaia source within 'Radius'
+    %   (5" by default), NOT of a source guaranteed to be the counterpart - hence
+    %   the default name BP_RP_NEAR. Whether it may be used as the source's own
+    %   colour is the caller's decision, taken from GAIA_DIST: the photometric
+    %   calibration accepts it only within imProc.calib.applyColorTerm's
+    %   'ColorMaxDist' (1" by default). Storing the colour with its distance
+    %   rather than a pre-gated column keeps both the strict colour and the blend
+    %   diagnostics available from one match.
     % Output : - The input object with the requested colour/magnitude columns
     %            inserted into each element's catalog. Sources with no Gaia match
     %            within 'Radius' get NaN.
@@ -65,14 +95,21 @@ function Result = addColor(Obj, Args)
         Args.CatName char           = 'GAIADR3'
         Args.RefCat                 = []
         Args.SharedRefCat logical   = false
-        Args.Radius                 = 1
+        Args.Radius                 = 5
         Args.RadiusUnits char       = 'arcsec'
         Args.GaiaCols               = {'bp_rp'}
-        Args.OutCols                = {'BP_RP'}
+        Args.OutCols                = {'BP_RP_NEAR'}
         Args.ColSphere              = {'RA','Dec'}
         Args.ColPos                 = Inf
         Args.CreateNewObj logical   = false
         Args.boundingCircleArgs cell = {}
+        Args.PropagatePM logical    = true
+        Args.ObsJD                  = []
+        Args.PMCols                 = {'PMRA','PMDec'}
+        Args.PlxCol char            = 'Plx'
+        Args.EpochCol char          = 'Epoch'
+        Args.CatEpoch (1,1) double  = 2016.0
+        Args.NeighborOutCols        = {'GAIA_DIST','GAIA_NSRC'}
     end
 
     if ischar(Args.GaiaCols); Args.GaiaCols = {Args.GaiaCols}; end
@@ -88,6 +125,17 @@ function Result = addColor(Obj, Args)
         Result = Obj;
     end
 
+    % Observation epoch per element, for the proper-motion step. A missing JD
+    % is not an error: that element is matched on the catalog positions.
+    ObsJDs = collectObsJD(Result, Args.ObsJD);
+
+    % One match, one radius. The colour reported is that of the NEAREST Gaia
+    % source inside it, together with how far away that source is and how many
+    % lie inside - the caller decides, from the distance, whether the colour is
+    % close enough to belong to the source (see imProc.calib.applyColorTerm's
+    % ColorMaxDist).
+    MatchAS = toArcsec(Args.Radius, Args.RadiusUnits);
+
     % The matcher requires the Gaia catalog to be sorted by Dec, and sorting a
     % ~50-column Gaia catalog is the dominant cost of this function. When one
     % reference serves every element — the pipeline case: one astrometric
@@ -96,7 +144,8 @@ function Result = addColor(Obj, Args)
     SharedSorted = [];
     if ~isempty(Args.RefCat) && numel(Args.RefCat) == 1 && ...
             ~isemptyCatalog(Args.RefCat) && all(ismember(Args.GaiaCols, Args.RefCat.ColNames))
-        SharedSorted = sortrows(Args.RefCat.copy, 'Dec');
+        SharedSorted = propagatePM(Args.RefCat.copy, median(ObsJDs,'omitnan'), Args);
+        SharedSorted = sortrows(SharedSorted, 'Dec');
     end
 
     % No reference given, but all elements image the same field: cone-search
@@ -108,6 +157,7 @@ function Result = addColor(Obj, Args)
             GaiaUnion = catsHTM.cone_search(Args.CatName, UX, UY, UR, ...
                                             'RadiusUnits','rad', 'OutType','astrocatalog');
             if ~isemptyCatalog(GaiaUnion)
+                GaiaUnion    = propagatePM(GaiaUnion, median(ObsJDs,'omitnan'), Args);
                 SharedSorted = sortrows(GaiaUnion, 'Dec');
             end
         end
@@ -129,6 +179,11 @@ function Result = addColor(Obj, Args)
         Nsrc = sizeCatalog(Cat);
         Ncol = numel(Args.GaiaCols);
         ColData = nan(Nsrc, Ncol);
+        % NaN, not 0, until a match is actually made: an element with no sky
+        % coordinates or no Gaia reference must report "unknown", not "no
+        % neighbours". The matched branch below overwrites both in full.
+        NbrDist = nan(Nsrc, 1);
+        NbrN    = nan(Nsrc, 1);
 
         % Sources with no sky coordinates cannot be matched. This happens for
         % real when an astrometric solution fails, so it must not throw: the
@@ -156,7 +211,8 @@ function Result = addColor(Obj, Args)
                                                   'RadiusUnits','rad', 'OutType','astrocatalog');
                 end
                 if ~isemptyCatalog(GaiaCat)
-                    GaiaSorted = sortrows(GaiaCat.copy, 'Dec');
+                    GaiaSorted = propagatePM(GaiaCat.copy, ObsJDs(Iobj), Args);
+                    GaiaSorted = sortrows(GaiaSorted, 'Dec');
                 end
             end
 
@@ -169,18 +225,37 @@ function Result = addColor(Obj, Args)
                 % unnecessary.
                 ResInd = imProc.match.matchInd(Cat, GaiaSorted, 'IsSpherical',true, ...
                                                'ColSphere1',Args.ColSphere, ...
-                                               'SearchRadius',Args.Radius, 'SearchRadiusUnits',Args.RadiusUnits);
+                                               'SearchRadius',MatchAS, 'SearchRadiusUnits','arcsec');
                 IndInGaia = ResInd(1).Ind;
-                Matched   = ~isnan(IndInGaia);
+                % matchInd returns Dist in radians (spherical mode converts
+                % internally); everything below is in arcsec.
+                DistAS    = ResInd(1).Dist(:) .* (180./pi) .* 3600;
+                Found     = ~isnan(IndInGaia);
+
+                % The nearest Gaia source inside the match radius: its value(s),
+                % its distance, and how many sources lie inside (blends,
+                % issue #1306). One match supplies all three.
                 for Icol = 1:Ncol
                     GaiaVal = getGaiaCol(GaiaSorted, Args.GaiaCols{Icol});
-                    ColData(Matched, Icol) = GaiaVal(IndInGaia(Matched));
+                    ColData(Found, Icol) = GaiaVal(IndInGaia(Found));
+                end
+                NbrDist(Found) = DistAS(Found);
+                if isfield(ResInd, 'Nmatch') && ~isempty(ResInd(1).Nmatch)
+                    NbrN = double(ResInd(1).Nmatch(:));
+                else
+                    NbrN = countWithin(Cat, GaiaSorted, Args.ColSphere, MatchAS);
                 end
             end
         end
 
         for Icol = 1:Ncol
             Cat = replaceOrInsert(Cat, ColData(:, Icol), Args.ColPos, Args.OutCols{Icol});
+        end
+        if ~isempty(Args.NeighborOutCols{1})
+            Cat = replaceOrInsert(Cat, NbrDist, Args.ColPos, Args.NeighborOutCols{1});
+        end
+        if numel(Args.NeighborOutCols) > 1 && ~isempty(Args.NeighborOutCols{2})
+            Cat = replaceOrInsert(Cat, NbrN, Args.ColPos, Args.NeighborOutCols{2});
         end
 
         % Write the catalog back.
@@ -190,6 +265,124 @@ function Result = addColor(Obj, Args)
             Result(Iobj) = Cat;
         end
     end
+end
+
+function AS = toArcsec(Val, Units)
+    % Angular value -> arcsec.
+    switch lower(Units)
+        case {'arcsec','as'}
+            AS = Val;
+        case {'deg','degree','degrees'}
+            AS = Val .* 3600;
+        case {'rad','radian','radians'}
+            AS = Val .* (180./pi) .* 3600;
+        case {'arcmin','am'}
+            AS = Val .* 60;
+        otherwise
+            error('imProc:cat:addColor:BadUnits', 'Unsupported angular units ''%s''.', Units);
+    end
+end
+
+function JD = collectObsJD(Obj, Given)
+    % Observation JD per element: the caller's value if given, else the header
+    % 'JD' (then 'MIDJD'). NaN where unavailable - propagation is then skipped.
+    Nobj = numel(Obj);
+    if ~isempty(Given)
+        if isscalar(Given)
+            JD = repmat(double(Given), Nobj, 1);
+        else
+            JD = double(Given(:));
+        end
+        return;
+    end
+    JD = nan(Nobj, 1);
+    for Iobj = 1:1:Nobj
+        if isa(Obj(Iobj), 'AstroImage') || isa(Obj(Iobj), 'AstroDiff') || isa(Obj(Iobj), 'AstroZOGY')
+            H = Obj(Iobj).HeaderData;
+            if ~isempty(H)
+                for Key = {'JD','MIDJD'}
+                    if isnan(JD(Iobj)) && H.isKeyExist(Key{1})
+                        V = H.getVal(Key{1});
+                        if ~isempty(V) && isnumeric(V) && isfinite(V(1))
+                            JD(Iobj) = double(V(1));
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+function GaiaCat = propagatePM(GaiaCat, ObsJD, Args)
+    % Move the Gaia reference to the observation epoch with the shared
+    % celestial.coo.proper_motion (Gaia PMRA = mu_alpha*cos(dec), which is the
+    % convention that function expects). Silently a no-op when switched off, or
+    % when the PM columns or the epoch are unavailable, so callers that lack
+    % them behave exactly as before. Rows with no PM keep their catalog
+    % position rather than being dropped.
+    if ~Args.PropagatePM || isempty(ObsJD) || ~isfinite(ObsJD) || isemptyCatalog(GaiaCat)
+        return;
+    end
+    CN = GaiaCat.ColNames;
+    if ~all(ismember(Args.PMCols, CN)) || ~all(ismember({'RA','Dec'}, CN))
+        return;
+    end
+    PMRA  = double(GaiaCat.getCol(Args.PMCols{1}));   % mas/yr, mu_alpha*cos(dec)
+    PMDec = double(GaiaCat.getCol(Args.PMCols{2}));   % mas/yr
+    Ok    = isfinite(PMRA) & isfinite(PMDec);
+    if ~any(Ok)
+        return;
+    end
+    [RA, Dec] = GaiaCat.getLonLat('rad');
+    RA = double(RA(:));  Dec = double(Dec(:));
+
+    if any(strcmp(CN, Args.EpochCol))
+        EpochYr = double(GaiaCat.getCol(Args.EpochCol));
+        EpochYr(~isfinite(EpochYr)) = Args.CatEpoch;
+    else
+        EpochYr = repmat(Args.CatEpoch, numel(RA), 1);
+    end
+    EpochJD = 2451545.0 + (EpochYr - 2000).*365.25;
+
+    if any(strcmp(CN, Args.PlxCol))
+        Plx = double(GaiaCat.getCol(Args.PlxCol));
+        Plx(~isfinite(Plx)) = 1e-4;     % proper_motion clamps non-positive values anyway
+    else
+        Plx = repmat(1e-4, numel(RA), 1);
+    end
+
+    [NewRA, NewDec] = celestial.coo.proper_motion(ObsJD, EpochJD(Ok), [], ...
+                                                  RA(Ok), Dec(Ok), PMRA(Ok), PMDec(Ok), Plx(Ok));
+    Good = isfinite(NewRA) & isfinite(NewDec);
+    Idx  = find(Ok);
+    RA(Idx(Good))  = NewRA(Good);
+    Dec(Idx(Good)) = NewDec(Good);
+
+    % Write back in whatever units the catalog stores its coordinates in.
+    % Derived from the data rather than from metadata: getLonLat always returns
+    % radians, so the ratio against the stored column is exactly the scale
+    % (1 for radians, 180/pi for degrees).
+    Stored = double(GaiaCat.getCol('Dec'));
+    [~, DecRad] = GaiaCat.getLonLat('rad');
+    Use = isfinite(Stored) & isfinite(DecRad(:)) & abs(DecRad(:)) > 1e-6;
+    if any(Use)
+        Scale = median(Stored(Use) ./ double(DecRad(Use)), 'omitnan');
+    else
+        Scale = 1;
+    end
+    if ~isfinite(Scale) || Scale <= 0
+        Scale = 1;
+    end
+    GaiaCat = GaiaCat.replaceCol(RA .*Scale, 'RA');
+    GaiaCat = GaiaCat.replaceCol(Dec.*Scale, 'Dec');
+end
+
+function N = countWithin(Cat, GaiaSorted, ColSphere, RadiusAS)
+    % Number of Gaia sources within RadiusAS of each source.
+    R = imProc.match.matchInd(Cat, GaiaSorted, 'IsSpherical',true, ...
+                              'ColSphere1',ColSphere, ...
+                              'SearchRadius',RadiusAS, 'SearchRadiusUnits','arcsec');
+    N = double(R(1).Nmatch(:));
 end
 
 function [X, Y, R] = unionFootprint(Obj, ColSphere, bcArgs)

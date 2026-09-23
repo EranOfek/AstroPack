@@ -689,7 +689,24 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                     % catalog (issue #1289), reusing the astrometric reference
                     % already loaded to avoid a second catsHTM query.
                     if Args.AddColor
-                        Cat = imProc.cat.addColor(Cat, 'RefCat', AstrometricCat, Args.AddColorArgs{:});
+                        % A bare catalog carries no epoch, so hand addColor
+                        % this element's JD explicitly - otherwise its
+                        % proper-motion step would silently find no epoch and
+                        % skip. Placed before the splat, so an ObsJD given in
+                        % AddColorArgs still wins.
+                        ObsJDArg = {};
+                        if isa(Obj, 'AstroImage') && ~isempty(Obj(Iobj).HeaderData)
+                            for KeyJD = {'JD','MIDJD'}
+                                if isempty(ObsJDArg) && Obj(Iobj).HeaderData.isKeyExist(KeyJD{1})
+                                    ValJD = Obj(Iobj).HeaderData.getVal(KeyJD{1});
+                                    if ~isempty(ValJD) && isnumeric(ValJD) && isfinite(ValJD(1))
+                                        ObsJDArg = {'ObsJD', double(ValJD(1))};
+                                    end
+                                end
+                            end
+                        end
+                        Cat = imProc.cat.addColor(Cat, 'RefCat', AstrometricCat, ...
+                                                  ObsJDArg{:}, Args.AddColorArgs{:});
                     end
 
 

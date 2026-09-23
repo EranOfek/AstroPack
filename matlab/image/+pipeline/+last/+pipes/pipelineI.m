@@ -89,6 +89,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.AddColorArgs                  = {};    % extra args for imProc.cat.addColor
         Args.AddColorForced logical        = false; % (AddColor only) also re-attach the colour after forced photometry, so the appended forced rows carry BP_RP instead of the NaN that forcedPhotNew leaves. Costs one extra pass over the sub images that gained forced sources.
         Args.AddColorComplete logical      = true;  % (AddColor only) query Gaia directly instead of reusing the astrometric reference, which is magnitude limited (RefRangeMag + isolation cut) and leaves BP_RP empty outside that range. Costs one catsHTM cone search per sub image (~0.07 s), reused across the epochs of that sub image.
+        Args.GaiaNeighborRadius (1,1) double = 5;   % [arcsec] Gaia match radius used by imProc.cat.addColor. The colour of the nearest source inside it is stored as BP_RP_NEAR, with GAIA_DIST (its separation) and GAIA_NSRC (how many lie inside) beside it, so blends can be screened (issue #1306). The photometric calibration accepts the colour only within its own ColorMaxDist (1 arcsec).
         Args.forcedPhotArgs                = {};
         %--- pipeline.generic.proc2MatchedSources args ---
         Args.proc2MatchedSourcesArgs       = {};
@@ -220,14 +221,23 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
     % Carry the Gaia colour into the matched-sources product only when it is
     % actually attached to the epoch catalogs: the matcher fetches every name
     % in MatchedCols by name and errors on a missing column.
-    if Args.AddColor && ~any(strcmp(Args.MatchedCols, 'BP_RP'))
-        Args.MatchedCols = [Args.MatchedCols(:).', {'BP_RP'}];
+    % The colour travels with its match distance: it is the colour of the
+    % nearest Gaia source within addColor's radius, and is only the source's
+    % own colour when GAIA_DIST is small enough, so one without the other
+    % cannot be interpreted downstream.
+    if Args.AddColor
+        for ColName = {'BP_RP_NEAR','GAIA_DIST','GAIA_NSRC'}
+            if ~any(strcmp(Args.MatchedCols, ColName{1}))
+                Args.MatchedCols = [Args.MatchedCols(:).', ColName(1)];
+            end
+        end
     end
 
     % Coadd catalogs get their colour inside astrometryRefine, which offers it
     % the astrometric reference. That reference is magnitude limited, so for a
     % complete colour column the reference is overridden with [] - the args
     % below are splatted after it and the last name-value pair wins.
+    Args.AddColorArgs = [{'Radius', Args.GaiaNeighborRadius}, Args.AddColorArgs(:).'];
     AddColorArgsCoadd = Args.AddColorArgs(:).';
     if Args.AddColor && Args.AddColorComplete
         AddColorArgsCoadd = [{'RefCat', []}, AddColorArgsCoadd];

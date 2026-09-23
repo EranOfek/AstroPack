@@ -398,7 +398,8 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % catalog magnitudes: by policy the catalog stays colour-uncorrected and
         % imProc.calib.applyColorTerm builds corrected magnitudes on demand.
         Args.AperCorrColorTerm logical = true         % fit it (default ON). Needs the BP_RP column (imProc.cat.addColor, issue #1289); without it the APCC_ keywords are written blank.
-        Args.AperCorrColorColName (1,:) char = 'BP_RP'
+        Args.AperCorrColorColName (1,:) char = 'BP_RP_NEAR'
+        Args.ColorMaxDist (1,1) double = 1   % [arcsec] largest Gaia separation at which the stored colour is taken to belong to the source; addColor reports the nearest source within 5"
         Args.AperCorrColorRefSource (1,:) char {mustBeMember(Args.AperCorrColorRefSource,{'median','fixed'})} = 'fixed'
                                                       % 'median' (default): anchor the aperture colour term at the median
                                                       % colour of the stars it was fitted on - the self-consistent choice,
@@ -421,7 +422,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.ColorTermAlphaGrid double = -1:0.5:8  % alpha values at which the curve is evaluated
         Args.RefColor   (1,1) double = 1.0      % anchor colour BP_RP where the colour term vanishes: the colour left uncorrected, from which every other star's correction is measured. A convention - PT_CTA/PT_CTA2 do not depend on it. 1.0 is the median colour of a typical LAST field, and RefSpecSlope defaults to the alpha the measured alpha(BP_RP) relation gives there (1.642), so the anchor and the reference spectrum describe the same star.
         Args.RefColorPerImage logical = false   % opt-in: replace RefColor with THIS image's median colour (bright, colour-known sources), so the correction is mean-free over the field. The value used is written to PT_REFC, so the choice stays reversible.
-        Args.RefColorCol (1,:) char = 'BP_RP'   % catalog colour column for the per-image anchor (imProc.cat.addColor, issue #1289)
+        Args.RefColorCol (1,:) char = 'BP_RP_NEAR'   % catalog colour column for the per-image anchor (imProc.cat.addColor, issue #1289); gated by ColorMaxDist like every other use of the colour
         Args.RefColorMagCol (1,:) char = ''     % magnitude column for its brightness cut; '' -> MAG_APER_3, else the first MAG_* column
         Args.RefColorMagMax (1,1) double = 16   % the anchor ensemble is colour-known sources brighter than this
         Args.RefColorMinN (1,1) double = 20     % below this many ensemble members, keep Args.RefColor
@@ -850,6 +851,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                     'PosMaxIter',    Args.AperCorrPosMaxIter, ...
                     'ColorTerm',     Args.AperCorrColorTerm, ...
                     'ColorColName',  Args.AperCorrColorColName, ...
+                    'ColorMaxDist',  Args.ColorMaxDist, ...
                     'ColorRefSource',Args.AperCorrColorRefSource, ...
                     'ColorRef',      Args.AperCorrColorRef, ...
                     'Verbose',       Args.Verbose);
@@ -884,7 +886,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                     end
                     RefColorUse = imageAnchorColor(CatAnchor, Args.RefColorCol, ...
                                                    Args.RefColorMagCol, Args.RefColorMagMax, ...
-                                                   Args.RefColorMinN, Args.RefColor);
+                                                   Args.RefColorMinN, Args.RefColor, Args.ColorMaxDist);
                 end
                 PC = PC.evaluateColorTerm('AlphaProbe', Args.AlphaProbe, ...
                                           'RefColor',   RefColorUse, ...
@@ -1367,18 +1369,25 @@ function CalibArgs = predefCalibArgs(Args)
 
     CalibArgs = namedargs2cell(Args);
 end
-function RefColor = imageAnchorColor(Cat, ColorCol, MagCol, MagMax, MinN, Fallback)
+function RefColor = imageAnchorColor(Cat, ColorCol, MagCol, MagMax, MinN, Fallback, MaxDist)
     % Median colour of an image's bright, colour-known sources (the per-image
     % anchor of 'RefColorPerImage'), or Fallback when too few are available.
     %   The brightness cut is required: the full detection list wanders in
     %   median colour between epochs as the depth changes, which would move the
     %   anchor from visit to visit; the bright subset does not.
     RefColor = Fallback;
-    if isempty(Cat) || isempty(Cat.Catalog) || ~any(strcmp(Cat.ColNames, ColorCol))
+    if isempty(Cat) || isempty(Cat.Catalog)
         return;
     end
-    Color = Cat.getCol(ColorCol);
-    Sel   = isfinite(Color(:));
+    if nargin < 7 || isempty(MaxDist)
+        MaxDist = 1;
+    end
+    % Gated like every other use of the colour: addColor stores the nearest
+    % Gaia source within 5", which need not be the source's counterpart.
+    [Color, Sel] = imProc.cat.usableColor(Cat, 'ColorCol',ColorCol, 'MaxDist',MaxDist);
+    if ~any(Sel)
+        return;
+    end
 
     if isempty(MagCol)
         if any(strcmp(Cat.ColNames, 'MAG_APER_3'))
