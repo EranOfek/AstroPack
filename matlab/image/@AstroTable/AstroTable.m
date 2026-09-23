@@ -208,8 +208,11 @@ classdef AstroTable < Component
                     for Iobj=1:1:Nobj
                         Obj(Iobj) = AstroTable([]);
                         
-                        if ~isempty(ImIO(Iobj).Data)
-                            % otherwise generate an empty object
+                        if ~isempty(ImIO(Iobj).Data) || size(ImIO(Iobj).Data,2)>0
+                            % otherwise generate an empty object.
+                            % Data with columns but no rows is kept: the
+                            % column names do not depend on the number of
+                            % rows (issue #1279)
                             Obj(Iobj).Catalog  = ImIO(Iobj).Data;
                             if isempty(Args.ColNames)
                                 Args.ColNames = Obj(Iobj).Catalog.Properties.VariableNames;

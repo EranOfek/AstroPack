@@ -21,6 +21,16 @@ function Result = unitTest()
     AC = AstroTable({array2table(rand(10,2))});                     
     AC = AstroTable({rand(10,2)},'ColNames',{'RA','Dec'});
 
+    % zero rows keep the columns and their names (issue #1279)
+    AC = AstroTable({zeros(0,2)},'ColNames',{'RA','Dec'});
+    assert(isequal(size(AC.Catalog),[0 2]) && isequal(AC.ColNames,{'RA','Dec'}),...
+           'AstroTable: a zero-row matrix lost its columns or ColNames')
+    AC = AstroCatalog({zeros(0,2)},'ColNames',{'RA','Dec'});
+    assert(isequal(size(AC.Catalog),[0 2]) && isequal(AC.ColNames,{'RA','Dec'}),...
+           'AstroCatalog: a zero-row matrix lost its columns or ColNames')
+    AC = AstroTable({zeros(0,0)});
+    assert(isempty(AC.Catalog) && isempty(AC.ColNames), 'AstroTable: a 0x0 matrix must give an empty table')
+
     % @FAILED - @Eran
     A = AstCat; A(1).Cat=rand(10,2);
     A(2).Cat=rand(10,2); 
