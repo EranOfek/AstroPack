@@ -15,6 +15,10 @@ package: run the `.m` files with `run('<path>/<script>.m')`.
 | `desy_txscan_run.m` | Runs 31–40 (settings and VDD_TX scan) with the `'auto'` fit-step rule and parity; ZE statistics for all runs incl. the ZE-only runs 39 / 39-2; figures for W04_D07 and W08_D02; `results.json`. |
 | `desy_txscan_report_build.py` | Builds `DESY_TH02954_TXscan_report.pdf` (matplotlib scan plots vs TX, tables, findings). Merges `results_patch*.json` if present (die-runs re-processed separately). |
 | `desy_fits_export.m` | Exports runs 31 and 32 (7 dies, both gains, DESY orientation) as FITS to `/Data1/DESY_FITS/<run>/<die>/`. |
+| `desy_ptc_shape_extract.m` | Region PTC of both ladders (dark and light) with robust per-step variance statistics (mean, 1 %-clipped mean, median/ln2) and the ZE read noise, for the three deck die-runs; writes `dark_light2.json`. |
+| `desy_ptc_shape_plots.py` | (Var − RN²)/(Mean·Gain) panels for Gain = 1.02…1.10, light and dark ladders (report §8.3). |
+| `desy_ptc_perpixel_extract.m` | Per-pixel means and temporal variances of both ladders + per-pixel ZE noise (binary dumps + `meta.json`), same three die-runs. |
+| `desy_ptc_perpixel_plots.py` | Single-pixel version of the same panels, each pixel with its own mean, variance and read noise (report §8.4); the scatter-across-pixels figure of §8.5 is built from the same dumps. |
 | `desy_regenerate_all.sh` | Sequential chain of the above (drivers, zero stats, TX scan, FITS export) with a log. |
 
 Reports: runs 31/32 reproduction (deck UC-3400-TN175-05) and the TX-scan report;
