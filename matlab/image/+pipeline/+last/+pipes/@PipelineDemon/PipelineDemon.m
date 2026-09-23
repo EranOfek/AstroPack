@@ -2576,9 +2576,10 @@ classdef PipelineDemon < Component
             % read latest bias image
             if ismember('bias',lower(Args.ReadProduct))
                 if Args.ForceReload || IsBiasEmpty
-                    % a malformed name in calib/ is logged and left out, not moved (issue #1311)
-                    FN_Bias = Obj.listRawFiles(Args.BiasTemplate, 'Parser','FileNames', 'Quarantine',false);
-                    if FN_Bias.nfiles==0
+                    % a malformed name in calib/ is logged and left out, not moved (issue #1311);
+                    % AstroFileName, not FileNames (issue #1315)
+                    FN_Bias = Obj.listRawFiles(Args.BiasTemplate, 'Quarantine',false);
+                    if FN_Bias.nFiles==0
                         % nothing matched: report it here, while "no file" is still
                         % distinguishable from "old file without an ID" (issue #1264)
                         Obj.writeLog(sprintf('loadCalib: no bias images matching %s in %s', ...
@@ -2600,7 +2601,7 @@ classdef PipelineDemon < Component
                         if isnan(Obj.CI.Bias.HeaderData.getVal(Args.KeyID_Dark))
                             % This block is an ugly patch to fix the fact
                             % that old dark/flats doesn't have an image ID:
-                            SpProjName = split(FN_Bias.ProjName{1},'.'); % This command is specific for LAST
+                            SpProjName = split(char(FN_Bias.ProjName(1)),'.'); % This command is specific for LAST
                             Node = str2double(SpProjName{2});
                             Mount = str2double(SpProjName{3});
                             
@@ -2618,9 +2619,10 @@ classdef PipelineDemon < Component
             % read latest flat image
             if ismember('flat',lower(Args.ReadProduct))
                 if Args.ForceReload || IsFlatEmpty
-                    % a malformed name in calib/ is logged and left out, not moved (issue #1311)
-                    FN_Flat = Obj.listRawFiles(Args.FlatTemplate, 'Parser','FileNames', 'Quarantine',false);
-                    if FN_Flat.nfiles==0
+                    % a malformed name in calib/ is logged and left out, not moved (issue #1311);
+                    % AstroFileName, not FileNames (issue #1315)
+                    FN_Flat = Obj.listRawFiles(Args.FlatTemplate, 'Quarantine',false);
+                    if FN_Flat.nFiles==0
                         % see the bias case above (issue #1264)
                         Obj.writeLog(sprintf('loadCalib: no flat images matching %s in %s', ...
                                              Args.FlatTemplate, CalibPathUsed), LogLevel.Error);
@@ -2641,7 +2643,7 @@ classdef PipelineDemon < Component
                         if isnan(Obj.CI.Flat.HeaderData.getVal(Args.KeyID_Flat))
                             % This block is an ugly patch to fix the fact
                             % that old dark/flats doesn't have an image ID:
-                            SpProjName = split(FN_Flat.ProjName{1},'.'); % This command is specific for LAST
+                            SpProjName = split(char(FN_Flat.ProjName(1)),'.'); % This command is specific for LAST
                             Node = str2double(SpProjName{2});
                             Mount = str2double(SpProjName{3});
                             

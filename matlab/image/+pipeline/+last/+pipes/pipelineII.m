@@ -158,7 +158,13 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % 3: ----- Load and verify New images -----
 
         Coadds = strcat(VisitData,'/LAST*coadd_Image_1.fits');
-        New = AstroImage.readFileNamesObj(Coadds, 'Path', VisitData);
+        % listed with AstroFileName, not FileNames (issue #1315)
+        FNnew = AstroFileName.dir(Coadds);
+        if FNnew.nFiles==0
+            New = AstroImage;
+        else
+            New = AstroImage.readFileNamesObj(FNnew, 'Path', VisitData);
+        end
     elseif isa(VisitData, 'AstroImage')
         New = VisitData;
     end
@@ -210,7 +216,13 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     RefFile = replace(RefFile,'_coadd_','_*_');
 
     % Load Ref image as AstroImage and Ref image FileName object
-    Refs = AstroImage.readFileNamesObj(RefFile, 'Path', FieldRefPath);
+    % (listed with AstroFileName, not FileNames - issue #1315)
+    FNrefs = AstroFileName.dir(RefFile);
+    if FNrefs.nFiles==0
+        Refs = AstroImage;
+    else
+        Refs = AstroImage.readFileNamesObj(FNrefs, 'Path', FieldRefPath);
+    end
     NumRefs = numel(Refs);
 
     if (NumRefs < 1) || ((NumRefs == 1) && isempty(Refs(1).Image))

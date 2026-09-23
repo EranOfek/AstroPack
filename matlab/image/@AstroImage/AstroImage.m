@@ -759,10 +759,10 @@ classdef AstroImage < Component
             % Read the images and products associated with an image contained in a FileNames object into an AstroImage object.
             %   Optionally read not only the image but also additional
             %   products (e.g., 'Cat','PSF').
-            % Input  : - A single element FileNames object (that may contain
-            %            multiple file names) from which file names can be
-            %            generated, or a file name with optional wild cards,
-            %            or a cell array of file names.
+            % Input  : - A single element FileNames or AstroFileName object
+            %            (that may contain multiple file names) from which
+            %            file names can be generated, or a file name with
+            %            optional wild cards, or a cell array of file names.
             %            If the 'AddProduct' is empty, then just read the
             %            specified files into an AstroImage.
             %            However, if the 'AddProduct' is not empty, then in
@@ -802,14 +802,26 @@ classdef AstroImage < Component
                 Args.AddProduct = {Args.AddProduct};
             end
             
-            if isa(ObjFN, 'FileNames')
-                % already a FileNames object
+            if isa(ObjFN, 'AstroFileName')
+                % the full names of each product, as FileNames.genFull gives
+                % them (a cell array), 'Path' replacing the object's path
+                % (issue #1315)
+                if ~isempty(Args.Path)
+                    ObjFN      = ObjFN.copy;
+                    ObjFN.Path = string(Args.Path);
+                end
+                GenFull = @(Product) cellstr(ObjFN.genFull([], 'genFileArgs',{'Product',Product}));
             else
-                ObjFN = FileNames.generateFromFileName(ObjFN);
+                if isa(ObjFN, 'FileNames')
+                    % already a FileNames object
+                else
+                    ObjFN = FileNames.generateFromFileName(ObjFN);
+                end
+                GenFull = @(Product) ObjFN.genFull('Product',Product, 'FullPath',Args.Path);
             end
 
 
-            FilesList = ObjFN.genFull('Product',Args.MainProduct, 'FullPath',Args.Path);
+            FilesList = GenFull(Args.MainProduct);
         
             Nprod  = numel(Args.AddProduct);
             if Nprod==0
@@ -817,7 +829,7 @@ classdef AstroImage < Component
             end
             for Iprod=1:1:Nprod
                 AI_Args{Iprod.*2-1} = Args.AddProduct{Iprod};
-                AI_Args{Iprod.*2}   = ObjFN.genFull('Product',Args.AddProduct{Iprod}, 'FullPath',Args.Path);
+                AI_Args{Iprod.*2}   = GenFull(Args.AddProduct{Iprod});
             end
             
             Result = AstroImage(FilesList, AI_Args{:});
