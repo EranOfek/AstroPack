@@ -5284,7 +5284,10 @@ classdef PhotCalibTrans < Component
             %                   colour range over which ColorTermAErr is
             %                   measured. Default [-0.0410 2.4150 -0.7320].
             %            'ColorRange' - Colour range over which the accuracy of
-            %                   the stored model is assessed. Default [0.5 3.0].
+            %                   the stored model is assessed. Default [0.3 3.5],
+            %                   matching imProc.calib.applyColorTerm's ColorRange,
+            %                   so ColorTermAErr describes the model over the same
+            %                   colours the correction is actually applied to.
             % Output : - PhotCalibTrans object with ColorTermA, ColorTermA2,
             %            ColorTermAErr and RefColor set (NaN on failure).
             % Author : D. Kovaleva (Sep 2026)
@@ -5294,13 +5297,14 @@ classdef PhotCalibTrans < Component
             %              F_nu = (lambda/RefSpecPivot)^alpha through this image's
             %              fitted throughput, so it depends on alpha, and the
             %              sensitivity depends on the image (instrument response,
-            %              atmosphere, airmass). We evaluate the ZP at
-            %              alpha = RefSpecSlope and at alpha = AlphaProbe and store
-            %              the slope of that difference:
-            %                ColorTermA = [ZP(AlphaProbe) - ZP(RefSpecSlope)] /
-            %                             (AlphaProbe - RefSpecSlope)   [mag/alpha]
-            %              Because ColorTermA is normalised per unit alpha, the
-            %              probe value itself is not needed downstream.
+            %              atmosphere, airmass). The ZP is evaluated on 'AlphaGrid'
+            %              (19 points by default) and DeltaMag(alpha) = ZP(alpha) -
+            %              ZP(RefSpecSlope) is fitted with a quartic through the
+            %              origin; ColorTermA is its linear coefficient, the
+            %              derivative at the anchor [mag/alpha]. An earlier version
+            %              used a two-point finite difference against 'AlphaProbe';
+            %              that argument is now inert and kept only so existing
+            %              callers do not error.
             %              ZP(alpha) is convex, because ZP = (2.5/ln10)*ln A(alpha)
             %              and d2(ln A)/dalpha2 = Var[ln(lambda/pivot)] > 0 over the
             %              band. A purely linear coefficient is therefore accurate
@@ -5326,10 +5330,10 @@ classdef PhotCalibTrans < Component
 
             arguments
                 Obj
-                Args.AlphaProbe (1,1) double = 2.0   % kept for callers that set it; the grid below supersedes it
+                Args.AlphaProbe (1,1) double = 2.0   % INERT: retired with the two-point finite difference; accepted so existing callers do not error, but unused
                 Args.RefColor   (1,1) double = 1.0
                 Args.AlphaPoly  (1,3) double = [-0.0410, 2.4150, -0.7320]
-                Args.ColorRange (1,2) double = [0.5, 3.0]
+                Args.ColorRange (1,2) double = [0.3, 3.5]
                 Args.StoreMode  (1,:) char {mustBeMember(Args.StoreMode,{'coef','table'})} = 'coef'
                                         % How DeltaMag(alpha) is stored. 'coef' (default): four coefficients
                                         % c1..c4 of a quartic in (alpha - RefSpecSlope), written as
@@ -5353,11 +5357,15 @@ classdef PhotCalibTrans < Component
             Obj.ColorTermAlpha = [];
             Obj.RefColor       = Args.RefColor;
 
+            % Only the anchor matters. The old two-point method divided by
+            % (AlphaProbe - RefSpecSlope) and so had to reject equal values; the
+            % grid fit below has no such division, and keeping that test meant a
+            % RefSpecSlope of exactly 2.0 (the AlphaProbe default) silently
+            % produced NaN coefficients.
             Alpha1 = Obj.RefSpecSlope;
-            Alpha2 = Args.AlphaProbe;
-            if ~isfinite(Alpha1) || ~isfinite(Alpha2) || Alpha1 == Alpha2
+            if ~isfinite(Alpha1)
                 Obj.msgLog(LogLevel.Warning, ...
-                    'evaluateColorTerm: degenerate alpha pair (%g, %g) - ColorTermA set to NaN.', Alpha1, Alpha2);
+                    'evaluateColorTerm: RefSpecSlope is not finite (%g) - ColorTermA set to NaN.', Alpha1);
                 return;
             end
             if isempty(Obj.TransModel)

@@ -410,13 +410,14 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % imProc.calib.backmag/limmag read it.
         Args.EvaluatePhotZP  logical = true
         Args.EvaluateColorTerm logical = true   % measure dMag/dalpha for this image -> PT_CTA/PT_CTAE/PT_REFC (issue #1287); does not modify the ZP
-        Args.AlphaProbe (1,1) double = 2.0      % legacy probe slope; superseded by ColorTermAlphaGrid
+        Args.AlphaProbe (1,1) double = 2.0      % INERT: retired with the two-point finite difference, superseded by ColorTermAlphaGrid. Accepted so existing callers do not error, but unused.
         Args.ColorTermStoreMode (1,:) char {mustBeMember(Args.ColorTermStoreMode,{'coef','table'})} = 'coef'
                                                 % How DeltaMag(alpha) is written to the header. 'coef' (default):
                                                 % four coefficients PT_CTA/PT_CTA2/PT_CTA3/PT_CTA4, which reproduce
                                                 % the exact curve to 0.4 mmag over the whole grid. 'table': the curve
                                                 % itself, PT_CA00.., read back by interpolation. Same compute cost;
                                                 % PT_CTA and PT_CTA2 are written either way.
+        Args.ColorTermColorRange (1,2) double = [0.3, 3.5]  % colour range over which the stored model's fidelity (PT_CTAE) is assessed; matches imProc.calib.applyColorTerm's ColorRange, i.e. the colours the correction is actually applied to
         Args.ColorTermAlphaGrid double = -1:0.5:8  % alpha values at which the curve is evaluated
         Args.RefColor   (1,1) double = 1.0      % anchor colour BP_RP where the colour term vanishes: the colour left uncorrected, from which every other star's correction is measured. A convention - PT_CTA/PT_CTA2 do not depend on it. 1.0 is the median colour of a typical LAST field, and RefSpecSlope defaults to the alpha the measured alpha(BP_RP) relation gives there (1.642), so the anchor and the reference spectrum describe the same star.
         Args.RefColorPerImage logical = false   % opt-in: replace RefColor with THIS image's median colour (bright, colour-known sources), so the correction is mean-free over the field. The value used is written to PT_REFC, so the choice stays reversible.
@@ -887,6 +888,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                 end
                 PC = PC.evaluateColorTerm('AlphaProbe', Args.AlphaProbe, ...
                                           'RefColor',   RefColorUse, ...
+                                          'ColorRange', Args.ColorTermColorRange, ...
                                           'StoreMode',  Args.ColorTermStoreMode, ...
                                           'AlphaGrid',  Args.ColorTermAlphaGrid);
             end
