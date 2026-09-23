@@ -2,7 +2,7 @@ function Result = applyColorTerm(Obj, Args)
     % Apply the per-star colour correction to calibrated magnitudes (issue #1287)
     %
     %   The photometric zero point is built from ONE reference spectrum,
-    %   F_nu = (lambda/pivot)^alpha with alpha = PT_REFSL (default 1.5), applied
+    %   F_nu = (lambda/pivot)^alpha with alpha = PT_REFSL (default 1.642), applied
     %   to every star. A star whose spectral slope differs from that value is
     %   therefore mis-calibrated, by an amount that also grows with airmass
     %   (the atmosphere's wavelength dependence amplifies it). This function
@@ -17,7 +17,7 @@ function Result = applyColorTerm(Obj, Args)
     %     DeltaMag = PT_CTA*(alpha - alpha0) + PT_CTA2*(alpha - alpha0)^2
     %   with alpha = polyval(AlphaPoly, BP_RP) and alpha0 = PT_REFSL, and is
     %   ADDED to the calibrated magnitude. It vanishes at the anchor colour,
-    %   by default the header's PT_REFC (0.9392 unless the image was calibrated
+    %   by default the header's PT_REFC (1.0 unless the image was calibrated
     %   with fitPhotCalibTrans('RefColorPerImage',true), which puts that
     %   image's own median colour there) - see 'RefColorSource'. Only the
     %   star-to-star colour differential is physical: the anchor merely
@@ -54,8 +54,9 @@ function Result = applyColorTerm(Obj, Args)
     %                         earlier version subtracted 0.6135 from every
     %                         colour to force alpha(1.2) = 1.5, which made the
     %                         relation unable to say anything independent about
-    %                         the anchor; alpha = PT_REFSL = 1.5 in fact belongs
-    %                         at BP_RP = 0.9392 (= the default PT_REFC).
+    %                         the anchor. The default PT_REFC = 1.0 and the
+    %                         default PT_REFSL = 1.642 are consistent under
+    %                         this relation: polyval(AlphaPoly, 1.0) = 1.642.
     %            'SigmaAlpha' - Intrinsic scatter of the alpha(BP_RP) relation,
     %                         used for the correction error. Default 0.09.
     %            'UseQuadratic' - Include the PT_CTA2 term. Default true. Set
@@ -213,7 +214,7 @@ function Result = applyColorTerm(Obj, Args)
                 CTA  = Args.CTALawAB(1) + Args.CTALawAB(2).*AMmodel;
                 CTA2 = Args.CTA2Ref;
                 if ~isfinite(Alpha0)
-                    Alpha0 = 1.5;
+                    Alpha0 = 1.642;
                 end
             else
                 % Without an airmass neither the model law nor the gate's mean
