@@ -4030,7 +4030,7 @@ classdef PhotCalibTrans < Component
                 Args.PosSigmaClip    (1,2) double = [3 3]
                 Args.PosMaxIter      (1,1) double {mustBePositive, mustBeInteger} = 3
                 Args.ColorTerm       logical = false  % fit a colour term alongside the positional surface (issues #1287/#1270)
-                Args.ColorColName    (1,:) char = 'BP_RP_NEAR'   % catalog colour column (imProc.cat.addColor, issue #1289)
+                Args.ColorColName    (1,:) char = 'BP_RP'   % catalog colour column (imProc.cat.addColor, issue #1289)
                 Args.ColorDistColName (1,:) char = 'GAIA_DIST'  % companion match distance [arcsec]
                 Args.ColorMaxDist    (1,1) double = 1           % accept the colour only within this separation
                 Args.ColorRefSource  (1,:) char {mustBeMember(Args.ColorRefSource,{'median','fixed'})} = 'fixed'
@@ -4555,7 +4555,7 @@ classdef PhotCalibTrans < Component
                 Args.ColX (1,:) char = 'X'
                 Args.ColY (1,:) char = 'Y'
                 Args.Mode (1,:) char {mustBeMember(Args.Mode, {'auto','scalar','positional'})} = 'auto'
-                Args.ColColor (1,:) char = 'BP_RP_NEAR'   % colour column for the aperture-correction colour term
+                Args.ColColor (1,:) char = 'BP_RP'   % colour column for the aperture-correction colour term
                 Args.ColColorDist (1,:) char = 'GAIA_DIST'    % companion match distance [arcsec]
                 Args.ColorMaxDist (1,1) double = 1            % accept the colour only within this separation
                 Args.ApplyColorTerm logical = false  % add the fitted colour term A5*(colour-anchor) to the magnitudes. FALSE by default and in the pipeline: catalog magnitudes are left colour-uncorrected by policy, and the coefficient is published in the header (APCC_<tag>) so imProc.calib.applyColorTerm can apply it on demand. Set true only to reproduce the pre-policy behaviour.
@@ -4581,7 +4581,7 @@ classdef PhotCalibTrans < Component
             % aperture correction (issues #1287/#1270).
             Cper = [];
             if Args.ApplyColorTerm && HasCol && ...
-                    (ismember(Args.ColColor, AllCol) || ismember('BP_RP', AllCol))
+                    (ismember(Args.ColColor, AllCol) || ismember('BP_RP_NEAR', AllCol))
                 Cper = imProc.cat.usableColor(CatObj, ...
                             'ColorCol', Args.ColColor, ...
                             'DistCol',  Args.ColColorDist, ...

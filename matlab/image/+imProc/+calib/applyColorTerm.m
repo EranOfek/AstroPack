@@ -44,11 +44,11 @@ function Result = applyColorTerm(Obj, Args)
     %            'Header'   - AstroHeader to read the PT_* keywords from. Required
     %                         when the input is an AstroCatalog; ignored for an
     %                         AstroImage (its HeaderData is used). Default [].
-    %            'ColorCol' - Catalog column holding the colour. Default 'BP_RP_NEAR'
-    %                         (the nearest Gaia source within addColor's 5" radius).
-    %                         It is accepted only where the companion 'ColorDistCol'
-    %                         is within 'ColorMaxDist'; catalogs that still carry the
-    %                         old strictly matched 'LegacyColorCol' are used as-is.
+    %            'ColorCol' - Strictly matched colour column, addColor's default.
+    %                         Default 'BP_RP', used as it stands. A catalog produced
+    %                         with a wider match radius instead carries
+    %                         'NearColorCol' beside 'ColorDistCol', and is then
+    %                         accepted only within 'ColorMaxDist'.
     %                         (attached by imProc.cat.addColor, issue #1289).
     %            'AlphaPoly'- Coefficients [c2 c1 c0] of alpha(BP_RP), highest
     %                         power first (as polyval). Default
@@ -92,10 +92,10 @@ function Result = applyColorTerm(Obj, Args)
     arguments
         Obj
         Args.Header                     = []
-        Args.ColorCol char              = 'BP_RP_NEAR'
-        Args.ColorDistCol char          = 'GAIA_DIST'   % match distance [arcsec] written beside the colour by imProc.cat.addColor
-        Args.ColorMaxDist (1,1) double  = 1             % accept the colour only within this separation; addColor reports the nearest Gaia source inside 5", which need not be the counterpart
-        Args.LegacyColorCol char        = 'BP_RP'       % pre-rename catalogs: already a strict match, used as-is
+        Args.ColorCol char              = 'BP_RP'       % strictly matched colour (addColor's default 1" match), used as it stands
+        Args.NearColorCol char          = 'BP_RP_NEAR'  % nearest-source colour, when addColor was run with a wider radius (#1306)
+        Args.ColorDistCol char          = 'GAIA_DIST'   % its match distance [arcsec]
+        Args.ColorMaxDist (1,1) double  = 1             % separation within which the nearest-source colour is accepted as the source's own
         Args.AlphaPoly (1,3) double     = [-0.0410, 2.4150, -0.7320]
         Args.SigmaAlpha (1,1) double    = 0.09
         Args.UseQuadratic logical       = true
@@ -288,18 +288,16 @@ function Result = applyColorTerm(Obj, Args)
         end
 
         % --- per-star correction ---
-        if ~any(strcmp(Cat.ColNames, Args.ColorCol)) && ~any(strcmp(Cat.ColNames, Args.LegacyColorCol))
+        if ~any(strcmp(Cat.ColNames, Args.ColorCol)) && ~any(strcmp(Cat.ColNames, Args.NearColorCol))
             warning('imProc:calib:applyColorTerm:NoColor', ...
                 'Neither colour column ''%s'' nor ''%s'' found - no colour correction applied. Run imProc.cat.addColor first.', ...
-                Args.ColorCol, Args.LegacyColorCol);
+                Args.ColorCol, Args.NearColorCol);
             continue;
         end
-        % The stored colour is that of the nearest Gaia source, not necessarily
-        % the counterpart, so it is accepted only within ColorMaxDist.
         [Color, Known] = imProc.cat.usableColor(Cat, 'ColorCol',Args.ColorCol, ...
+                                                'NearColorCol',Args.NearColorCol, ...
                                                 'DistCol',Args.ColorDistCol, ...
-                                                'MaxDist',Args.ColorMaxDist, ...
-                                                'LegacyColorCol',Args.LegacyColorCol);
+                                                'MaxDist',Args.ColorMaxDist);
 
         % Anchor of the correction: the colour at which it vanishes. With
         % RefColorSource='image' this is the median colour of the image's

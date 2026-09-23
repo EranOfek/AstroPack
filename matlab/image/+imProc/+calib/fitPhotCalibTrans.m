@@ -398,7 +398,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         % catalog magnitudes: by policy the catalog stays colour-uncorrected and
         % imProc.calib.applyColorTerm builds corrected magnitudes on demand.
         Args.AperCorrColorTerm logical = true         % fit it (default ON). Needs the BP_RP column (imProc.cat.addColor, issue #1289); without it the APCC_ keywords are written blank.
-        Args.AperCorrColorColName (1,:) char = 'BP_RP_NEAR'
+        Args.AperCorrColorColName (1,:) char = 'BP_RP'
         Args.ColorMaxDist (1,1) double = 1   % [arcsec] largest Gaia separation at which the stored colour is taken to belong to the source; addColor reports the nearest source within 5"
         Args.AperCorrColorRefSource (1,:) char {mustBeMember(Args.AperCorrColorRefSource,{'median','fixed'})} = 'fixed'
                                                       % 'median' (default): anchor the aperture colour term at the median
@@ -422,7 +422,7 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.ColorTermAlphaGrid double = -1:0.5:8  % alpha values at which the curve is evaluated
         Args.RefColor   (1,1) double = 1.0      % anchor colour BP_RP where the colour term vanishes: the colour left uncorrected, from which every other star's correction is measured. A convention - PT_CTA/PT_CTA2 do not depend on it. 1.0 is the median colour of a typical LAST field, and RefSpecSlope defaults to the alpha the measured alpha(BP_RP) relation gives there (1.642), so the anchor and the reference spectrum describe the same star.
         Args.RefColorPerImage logical = false   % opt-in: replace RefColor with THIS image's median colour (bright, colour-known sources), so the correction is mean-free over the field. The value used is written to PT_REFC, so the choice stays reversible.
-        Args.RefColorCol (1,:) char = 'BP_RP_NEAR'   % catalog colour column for the per-image anchor (imProc.cat.addColor, issue #1289); gated by ColorMaxDist like every other use of the colour
+        Args.RefColorCol (1,:) char = 'BP_RP'   % catalog colour column for the per-image anchor (imProc.cat.addColor, issue #1289); gated by ColorMaxDist like every other use of the colour
         Args.RefColorMagCol (1,:) char = ''     % magnitude column for its brightness cut; '' -> MAG_APER_3, else the first MAG_* column
         Args.RefColorMagMax (1,1) double = 16   % the anchor ensemble is colour-known sources brighter than this
         Args.RefColorMinN (1,1) double = 20     % below this many ensemble members, keep Args.RefColor

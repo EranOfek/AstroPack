@@ -63,22 +63,24 @@ function Result = addColor(Obj, Args)
     %            'EpochCol' - Gaia epoch column [Julian yr]. Default 'Epoch'; when the
     %                         column is absent 'CatEpoch' is used.
     %            'CatEpoch' - Fallback catalog epoch [Julian yr]. Default 2016 (Gaia DR3).
-    %            'NeighborOutCols' - Names of the two companion columns:
-    %                         the distance to the nearest Gaia source [arcsec] and
-    %                         how many lie within 'Radius' (issue #1306). Default
-    %                         {'GAIA_DIST','GAIA_NSRC'}. GAIA_DIST is NaN when
-    %                         nothing is found; GAIA_NSRC is 0 when Gaia was
+    %            'AddNeighborCols' - Opt in to the blend-screening columns
+    %                         (issue #1306): the distance to the nearest Gaia
+    %                         source and how many lie within 'Radius'. Default
+    %                         FALSE. Intended together with a wider 'Radius'
+    %                         (e.g. 5") and an 'OutCols' name that says so
+    %                         (e.g. 'BP_RP_NEAR'), because the colour is then the
+    %                         nearest source's and need not be the counterpart.
+    %            'NeighborOutCols' - Names of those two columns. Default
+    %                         {'GAIA_DIST','GAIA_NSRC'}. GAIA_DIST [arcsec] is NaN
+    %                         when nothing is found; GAIA_NSRC is 0 when Gaia was
     %                         searched and empty, NaN when the source could not be
-    %                         matched at all. Set an entry to '' to skip it.
+    %                         matched. Set an entry to '' to skip it.
     %
-    %   The colour reported is that of the NEAREST Gaia source within 'Radius'
-    %   (5" by default), NOT of a source guaranteed to be the counterpart - hence
-    %   the default name BP_RP_NEAR. Whether it may be used as the source's own
-    %   colour is the caller's decision, taken from GAIA_DIST: the photometric
-    %   calibration accepts it only within imProc.calib.applyColorTerm's
-    %   'ColorMaxDist' (1" by default). Storing the colour with its distance
-    %   rather than a pre-gated column keeps both the strict colour and the blend
-    %   diagnostics available from one match.
+    %   By default this is a strict 1" match producing one column, BP_RP: the
+    %   colour of the Gaia source the object is identified with, which is what
+    %   the colour term consumes. Widening 'Radius' turns the colour into "the
+    %   nearest source's colour" and it must then be read through
+    %   imProc.cat.usableColor, which applies a distance cut.
     % Output : - The input object with the requested colour/magnitude columns
     %            inserted into each element's catalog. Sources with no Gaia match
     %            within 'Radius' get NaN.
@@ -95,10 +97,10 @@ function Result = addColor(Obj, Args)
         Args.CatName char           = 'GAIADR3'
         Args.RefCat                 = []
         Args.SharedRefCat logical   = false
-        Args.Radius                 = 5
+        Args.Radius                 = 1
         Args.RadiusUnits char       = 'arcsec'
         Args.GaiaCols               = {'bp_rp'}
-        Args.OutCols                = {'BP_RP_NEAR'}
+        Args.OutCols                = {'BP_RP'}
         Args.ColSphere              = {'RA','Dec'}
         Args.ColPos                 = Inf
         Args.CreateNewObj logical   = false
@@ -109,6 +111,7 @@ function Result = addColor(Obj, Args)
         Args.PlxCol char            = 'Plx'
         Args.EpochCol char          = 'Epoch'
         Args.CatEpoch (1,1) double  = 2016.0
+        Args.AddNeighborCols logical = false
         Args.NeighborOutCols        = {'GAIA_DIST','GAIA_NSRC'}
     end
 
@@ -251,11 +254,13 @@ function Result = addColor(Obj, Args)
         for Icol = 1:Ncol
             Cat = replaceOrInsert(Cat, ColData(:, Icol), Args.ColPos, Args.OutCols{Icol});
         end
-        if ~isempty(Args.NeighborOutCols{1})
-            Cat = replaceOrInsert(Cat, NbrDist, Args.ColPos, Args.NeighborOutCols{1});
-        end
-        if numel(Args.NeighborOutCols) > 1 && ~isempty(Args.NeighborOutCols{2})
-            Cat = replaceOrInsert(Cat, NbrN, Args.ColPos, Args.NeighborOutCols{2});
+        if Args.AddNeighborCols
+            if ~isempty(Args.NeighborOutCols{1})
+                Cat = replaceOrInsert(Cat, NbrDist, Args.ColPos, Args.NeighborOutCols{1});
+            end
+            if numel(Args.NeighborOutCols) > 1 && ~isempty(Args.NeighborOutCols{2})
+                Cat = replaceOrInsert(Cat, NbrN, Args.ColPos, Args.NeighborOutCols{2});
+            end
         end
 
         % Write the catalog back.

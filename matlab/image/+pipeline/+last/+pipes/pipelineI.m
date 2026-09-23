@@ -87,9 +87,14 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.MinFracIsolated               = 0.5;   % minimum fraction of isolated reference sources - see imProc.cat.getAstrometricCatalog
         Args.AddColor logical              = true;  % attach the Gaia colour BP_RP to the epoch and coadd catalogs (issue #1289), for the colour-dependent photometric calibration of issues #1287/#1270
         Args.AddColorArgs                  = {};    % extra args for imProc.cat.addColor
+        Args.AddColorEpochs logical        = false; % (AddColor only) also attach the colour to every EPOCH catalog. Default false: the colour is needed for the coadd's photometric calibration, and on the epochs it costs ~22 ms per crop per visit (4 ms inserting, 18 ms writing) plus ~4 MB, for a column nothing downstream consumes. Turning it on also puts BP_RP into the matched-sources product.
         Args.AddColorForced logical        = false; % (AddColor only) also re-attach the colour after forced photometry, so the appended forced rows carry BP_RP instead of the NaN that forcedPhotNew leaves. Costs one extra pass over the sub images that gained forced sources.
         Args.AddColorComplete logical      = true;  % (AddColor only) query Gaia directly instead of reusing the astrometric reference, which is magnitude limited (RefRangeMag + isolation cut) and leaves BP_RP empty outside that range. Costs one catsHTM cone search per sub image (~0.07 s), reused across the epochs of that sub image.
-        Args.GaiaNeighborRadius (1,1) double = 5;   % [arcsec] Gaia match radius used by imProc.cat.addColor. The colour of the nearest source inside it is stored as BP_RP_NEAR, with GAIA_DIST (its separation) and GAIA_NSRC (how many lie inside) beside it, so blends can be screened (issue #1306). The photometric calibration accepts the colour only within its own ColorMaxDist (1 arcsec).
+        % The blend-screening columns of issue #1306 (BP_RP_NEAR / GAIA_DIST /
+        % GAIA_NSRC) are OFF by default. To produce them, widen the match and
+        % name the colour for what it then is, e.g.
+        %   'AddColorArgs', {'Radius',5, 'OutCols',{'BP_RP_NEAR'}, 'AddNeighborCols',true}
+        % which applies to the coadd catalogs.
         Args.forcedPhotArgs                = {};
         %--- pipeline.generic.proc2MatchedSources args ---
         Args.proc2MatchedSourcesArgs       = {};
@@ -219,25 +224,16 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
     end
 
     % Carry the Gaia colour into the matched-sources product only when it is
-    % actually attached to the epoch catalogs: the matcher fetches every name
-    % in MatchedCols by name and errors on a missing column.
-    % The colour travels with its match distance: it is the colour of the
-    % nearest Gaia source within addColor's radius, and is only the source's
-    % own colour when GAIA_DIST is small enough, so one without the other
-    % cannot be interpreted downstream.
-    if Args.AddColor
-        for ColName = {'BP_RP_NEAR','GAIA_DIST','GAIA_NSRC'}
-            if ~any(strcmp(Args.MatchedCols, ColName{1}))
-                Args.MatchedCols = [Args.MatchedCols(:).', ColName(1)];
-            end
-        end
+    % actually attached to the EPOCH catalogs: the matcher fetches every name in
+    % MatchedCols by name and errors on a missing column.
+    if Args.AddColor && Args.AddColorEpochs && ~any(strcmp(Args.MatchedCols, 'BP_RP'))
+        Args.MatchedCols = [Args.MatchedCols(:).', {'BP_RP'}];
     end
 
     % Coadd catalogs get their colour inside astrometryRefine, which offers it
     % the astrometric reference. That reference is magnitude limited, so for a
     % complete colour column the reference is overridden with [] - the args
     % below are splatted after it and the last name-value pair wins.
-    Args.AddColorArgs = [{'Radius', Args.GaiaNeighborRadius}, Args.AddColorArgs(:).'];
     AddColorArgsCoadd = Args.AddColorArgs(:).';
     if Args.AddColor && Args.AddColorComplete
         AddColorArgsCoadd = [{'RefCat', []}, AddColorArgsCoadd];
@@ -435,7 +431,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % limited, so the colour column would be empty outside RefRangeMag.
             % Catalogs whose astrometry failed get a NaN column.
             ReuseRefCat = isa(CatName, 'AstroCatalog') && numel(CatName)==Nsub;
-            if Args.AddColor
+            if Args.AddColor && Args.AddColorEpochs
                 for Isub=1:1:Nsub
                     if ~Args.AddColorComplete && ReuseRefCat
                         RefCatSub = CatName(Isub);
@@ -562,7 +558,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                 % the appended sources carry BP_RP=NaN. Off by
                                 % default - only the affected sub images are
                                 % re-matched when it is on.
-                                if Args.AddColor && Args.AddColorForced
+                                if Args.AddColor && Args.AddColorEpochs && Args.AddColorForced
                                     if ~Args.AddColorComplete && ReuseRefCat
                                         RefCatFP = CatName(Ind(IsubGood));
                                     else
