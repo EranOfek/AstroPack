@@ -3181,13 +3181,12 @@ classdef PipelineDemon < Component
 
         function [FN, DirSt] = listRawFiles(Obj, Template, Args)
             % List the files matching a template in the current directory (e.g., new/)
-            %   As AstroFileName.dir (or FileNames.generateFromFileName),
-            %   but a file whose name the parser rejects is moved to
-            %   failed/ instead of taking the whole listing, and with it
-            %   the demon, down (issues #1290, #1311). Both parsers reject
-            %   a name with the wrong number of "_" separators and a name
-            %   with an unknown Type/Level/Product (the property
-            %   validators).
+            %   As AstroFileName.dir, but a file whose name the parser
+            %   rejects is moved to failed/ instead of taking the whole
+            %   listing, and with it the demon, down (issues #1290, #1311).
+            %   The parser rejects a listing with mixed numbers of "_"
+            %   separators (split) and a name with an unknown
+            %   Type/Level/Product (the property validators).
             %   The listing is parsed in one go, as before; only if that
             %   fails is every file parsed on its own to find the
             %   offenders. A file is kept if it parses on its own and has
@@ -3196,67 +3195,42 @@ classdef PipelineDemon < Component
             % Input  : - PipelineDemon object.
             %          - File name template, e.g., '*_sci_raw_*.fit*'.
             %          * ...,key,val,...
-            %            'Parser' - 'AstroFileName' | 'FileNames'.
-            %                   Default is 'AstroFileName'.
             %            'Quarantine' - If true, move the rejected files
             %                   to failed/. If false, only leave them out
             %                   of the listing (e.g., for pipeline products
             %                   in calib/). Either way one [ERR] line per
             %                   file is logged. Default is true.
-            % Output : - AstroFileName (or FileNames) object of the files kept.
+            % Output : - AstroFileName object of the files kept.
             %          - The dir struct array of the files kept, in the
             %            same order as the AstroFileName entries.
-            %            Empty for Parser 'FileNames'.
             % Author : A.M. Krassilchtchikov (Sep 2026)
             % Example: [FN, DirSt] = Obj.listRawFiles('*_sci_raw_*.fit*');
-            %          FN = Obj.listRawFiles('*dark*.fits*', 'Parser','FileNames');
+            %          FN = Obj.listRawFiles('*dark_proc_Image*.fits', 'Quarantine',false);
 
             arguments
                 Obj
                 Template
-                Args.Parser char             = 'AstroFileName';
                 Args.Quarantine logical      = true;
             end
 
-            IsFileNames = strcmpi(Args.Parser, 'FileNames');
-            if IsFileNames
-                % the last "_" token holds Version.FileType
-                Nsep  = 10;
-                Parse = @(List) FileNames.generateFromFileName(List);
-                DirSt = [];
-                try
-                    % the same call as before, including its warning on
-                    % an empty listing
-                    FN = Parse(Template);
-                    return;
-                catch
-                    % find the offenders below
-                end
-                DirList = dir(Template);
-                Names   = {DirList.name};
-                Folder  = pwd;
-            else
-                % the last "_" token holds both Version and FileType
-                Nsep  = numel(AstroFileName.FIELDS) - 2;
-                Parse = @(List) AstroFileName.parseString2AstroFileName(List);
-                DirSt = dir(Template);
-                if isempty(DirSt)
-                    FN = AstroFileName;
-                    return;
-                end
-                try
-                    FN = Parse(DirSt);
-                    return;
-                catch
-                    % find the offenders below
-                end
-                DirList = DirSt;
-                Names   = {DirSt.name};
-                Folder  = DirSt(1).folder;
+            DirSt = dir(Template);
+            if isempty(DirSt)
+                FN = AstroFileName;
+                return;
+            end
+            try
+                FN = AstroFileName.parseString2AstroFileName(DirSt);
+                return;
+            catch
+                % find the offenders below
             end
 
+            % the last "_" token holds both Version and FileType
+            Nsep   = numel(AstroFileName.FIELDS) - 2;
+            Names  = {DirSt.name};
+            Folder = DirSt(1).folder;
             NsepF  = count(Names, '_');
-            Nfile  = numel(Names);
+            Nfile  = numel(DirSt);
             Good   = false(1, Nfile);
             Reason = cell(1, Nfile);
             for Ifile=1:1:Nfile
@@ -3264,11 +3238,7 @@ classdef PipelineDemon < Component
                     Reason{Ifile} = sprintf('%d "_" separators instead of %d', NsepF(Ifile), Nsep);
                 else
                     try
-                        if IsFileNames
-                            Parse(Names(Ifile));
-                        else
-                            Parse(DirList(Ifile));
-                        end
+                        AstroFileName.parseString2AstroFileName(DirSt(Ifile));
                         Good(Ifile) = true;
                     catch ME
                         Reason{Ifile} = ME.message;
@@ -3287,15 +3257,11 @@ classdef PipelineDemon < Component
                 end
             end
 
-            if IsFileNames
-                FN = Parse(Names(Good));
+            DirSt = DirSt(Good);
+            if isempty(DirSt)
+                FN = AstroFileName;
             else
-                DirSt = DirSt(Good);
-                if isempty(DirSt)
-                    FN = AstroFileName;
-                else
-                    FN = Parse(DirSt);
-                end
+                FN = AstroFileName.parseString2AstroFileName(DirSt);
             end
         end
 
