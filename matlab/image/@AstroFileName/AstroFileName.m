@@ -1744,6 +1744,14 @@ classdef AstroFileName < Component
             %               array of literals to replace the ones in the
             %               AstroFileName object (the object will not
             %               change).
+            %            'IsLog' - A logical indicating if to generate a
+            %               log file name instead:
+            %               <ProjName>_<YYYYMMDD>______log__<Product>_.log,
+            %               where YYYYMMDD is the date of the night (the
+            %               JD + TimeZone, floored, as in getDateDir with
+            %               UseJD=true), as FileNames.genFile makes it.
+            %               The other literals are ignored.
+            %               Default is false.
             % Output : - A string array of file names.
             % Author : Eran Ofek (Oct 2024)
             % Example: A=AstroFileName.dir('LAST*.fits');
@@ -1751,6 +1759,8 @@ classdef AstroFileName < Component
             %          A.genFile(1:10)   % only first 10 files
             %          A.genFile([],'Level','raw')  % replace Level to 'raw'
             %          A.genFile([],'Level','raw','Version',2)  % replace Level to 'raw' and version to 2.
+            %          A=AstroFileName; A.ProjName="LAST.01.01.01"; A.julday2time(2461307.3);
+            %          A.genFile([],'IsLog',true,'Product','Pipeline')
 
             arguments
                 Obj
@@ -1767,13 +1777,30 @@ classdef AstroFileName < Component
                 Args.Product   = [];
                 Args.Version   = [];
                 Args.FileType  = [];
+                Args.IsLog logical = false;
             end
-            
+
             Nfile = Obj.nFiles;
             if isempty(Ind)
                 Ind = (1:1:Nfile).';
             end
             Nind = numel(Ind);
+
+            if Args.IsLog
+                % a log file name keeps only ProjName, the night date and
+                % Product (issue #1315). The date is generated for all the
+                % files, as a user-provided literal is indexed by Ind below
+                Args.Time     = Obj.getDateDir([], 'BreakToYMD',false, 'UseJD',true);
+                Args.Filter   = "";
+                Args.FieldID  = "";
+                Args.Counter  = "";
+                Args.CCDID    = "";
+                Args.CropID   = "";
+                Args.Type     = "log";
+                Args.Level    = "";
+                Args.Version  = "";
+                Args.FileType = "log";
+            end
 
             Nfields  = numel(Obj.FIELDS);
             Literals = strings(Nind, Nfields);
