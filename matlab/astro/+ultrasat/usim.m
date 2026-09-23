@@ -15,6 +15,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     %       'CalculateCrudeSNR' - estimate SNR for the input sources
     %       'SNRMethod' - how CrudeSNR is computed: 'aperture' (default), 'optimal',
     %                     'shot' or 'legacy'. See the Args.SNRMethod comment below.
+    %       'MeasurePSF' - if true, measure the width of every point source's final
+    %                     (rotated, jittered) PSF and attach a table of them to the output
+    %                     as usimImage.UserData.PSFWidths. Default is false.
     %       'SNROnly'   - if true, return right after CrudeSNR is computed, skipping the
     %                     noise/ADU pipeline and file writing (usimImage.Image is [])
     %       'SpecType'  - model of the input spectra ('BB','PL','Pickles') or 'tab'
@@ -150,6 +153,13 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
                                              %              (~8x for a 60 counts/s star in 300 s).
                                              %              Kept because it is exactly linear in flux,
                                              %              which callers that invert it rely on.
+        Args.MeasurePSF       logical = false; % diagnostics: measure every point source's final
+                                             % (rotated, jittered) PSF -- the 50% encircled-flux
+                                             % radius and a pseudo-FWHM -- and attach them to the
+                                             % output as usimImage.UserData.PSFWidths, a table with
+                                             % columns X, Y, FieldRadiusDeg, R50arcsec, FWHMarcsec,
+                                             % plus a one-line summary on screen. Point sources
+                                             % only (ignored, with a warning, for extended objects)
         Args.SNROnly          logical = false; % if true, return as soon as CrudeSNR (and the rest of the
                                              % output catalog) is computed, skipping the noise/ADU pipeline
                                              % and file writing entirely (usimImage.Image is [] in this case).
@@ -461,6 +471,8 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         SimWCS.populate_projMeta;
     end
 
+    PSFWidths = [];   % filled in only with Args.MeasurePSF, for point sources
+
     if isempty(Args.ExtProfileType)
 
     if isa(Args.Cat,'AstroCatalog') % read sources from an AstroCatalog object
@@ -562,6 +574,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     CatFlux  = zeros(NumSrc,1);  % will be determined below from spectra * transmission 
     MagU     = zeros(NumSrc,1);  % will be calculated below if requested 
     CrudeSNR = zeros(NumSrc,1);  % will be calculated below if requested 
+    if Args.MeasurePSF
+        PSFWidths = NaN(NumSrc,3);  % [field radius (deg), R50 (pix), FWHM (pix)]
+    end
     
     %%%%%%%%%%%%%%%%%%%%% split the list of objects into chunks and work
     %%%%%%%%%%%%%%%%%%%%% chunk-by-chunk 
@@ -835,9 +850,12 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         % imUtil.art.injectArtSrc for the time being, but 
         % this need to be rewritten with the new tools from imUtil.art
 
-        [Image_ch, PSF_ch] = injectArtSrc (CatX_ch, CatY_ch, CatFlux_ch, ImageSizeX, ImageSizeY,...
+        [Image_ch, PSF_ch, Widths_ch] = injectArtSrc (CatX_ch, CatY_ch, CatFlux_ch, ImageSizeX, ImageSizeY,...
                                  WPSF, 'PSFScaling', Args.ImRes, 'RotatePSF', RotAngle_ch,...
-                                 'Jitter', Args.Jitter, 'Method', Args.Inj, 'MeasurePSF', 0); 
+                                 'Jitter', Args.Jitter, 'Method', Args.Inj, 'MeasurePSF', Args.MeasurePSF);
+        if Args.MeasurePSF
+            PSFWidths(Range,:) = [RadSrc(:) Widths_ch];   %#ok<AGROW> preallocated above when MeasurePSF
+        end
 
                                 fprintf(' done\n');
                                 elapsed = toc; fprintf('%4.1f%s\n',elapsed,' sec'); drawnow('update'); tic                      
@@ -1155,6 +1173,23 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         % store the (unscaled) per-object spectrum-weighted PSF kernels, for consistency with the point-source output
         PSF = WPSFRotCell;
 
+        if Args.MeasurePSF
+            warning('ultrasat:usim:MeasurePSFExt', ...
+                'Args.MeasurePSF is implemented for point sources only; ignored for extended objects..');
+        end
+
+    end
+
+    % PSF width diagnostics (Args.MeasurePSF), in arcsec
+    if ~isempty(PSFWidths)
+        PixSizeArcsec = PixSizeDeg .* 3600;
+        PSFWidths = table(CatX, CatY, PSFWidths(:,1), PSFWidths(:,2).*PixSizeArcsec, ...
+                          PSFWidths(:,3).*PixSizeArcsec, ...
+                          'VariableNames', {'X','Y','FieldRadiusDeg','R50arcsec','FWHMarcsec'});
+        fprintf(['PSF widths (N = %d): R50 median %.2f" [%.2f-%.2f], ', ...
+                 'FWHM median %.2f" [%.2f-%.2f]\n'], height(PSFWidths), ...
+                median(PSFWidths.R50arcsec),  min(PSFWidths.R50arcsec),  max(PSFWidths.R50arcsec), ...
+                median(PSFWidths.FWHMarcsec), min(PSFWidths.FWHMarcsec), max(PSFWidths.FWHMarcsec));
     end
 
     if Args.SNROnly
@@ -1169,6 +1204,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
         usimImage = AstroImage();
         usimImage.Image = [];
         usimImage.CatData = OutCat;
+        if ~isempty(PSFWidths)
+            usimImage.UserData.PSFWidths = PSFWidths;
+        end
         return
     end
 
@@ -1273,6 +1311,9 @@ function [usimImage, AP, ImageSrcNoiseADU] =  usim ( Args )
     % make an AstroImage (note, the images are to be transposed!)
     usimImage = AstroImage( {ImageSrcNoise'} ,'Back', {NoiseLevel'}, 'Var', {ImageBkg'});
     usimImage.CatData = OutCat;
+    if ~isempty(PSFWidths)
+        usimImage.UserData.PSFWidths = PSFWidths;
+    end
 
     % save the final source PSFs into an AstroPSF array and attach it to
     % the resulting AstroImage object, if the source number is not too large
@@ -1450,7 +1491,7 @@ end
 
 
 
-function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
+function [Image, JPSF, Widths] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     % Make an artificial image with rotated and jitter-blurred source PSFs injected to the catalog positions     
     % Package: imUtil.art
     % Description: Make an artificial image with rotated and jitter-blurred source PSFs injected to the catalog positions
@@ -1470,6 +1511,11 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
     %          
     % Output : - Image: a 2D array containing the resulting source image 
     %          - JPSF:  a 2+1 D array of rotated and jittered source PSFs
+    %          - Widths: [NumSrc 2] = [R50 FWHM] of each final PSF in IMAGE pixels, with
+    %                    'MeasurePSF'; [] otherwise. R50 is the 50% encircled-flux radius
+    %                    (imUtil.psf.quantileRadius), FWHM the geometric mean
+    %                    sqrt(wX*wY) of imUtil.psf.pseudoFWHM's X and Y widths -- equal to
+    %                    the FWHM for a round PSF, and the equal-area width otherwise
     %            
     % Tested : Matlab R2020b
     % Author : A. Krassilchtchikov et al. (Feb 2023)
@@ -1487,7 +1533,7 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
         Args.Jitter         =    0;       % PSF blurring due to the S/C jitter
         Args.Method         =   'direct'; % injection method
                                           % 'direct' or 'FFTShift'
-        Args.MeasurePSF     =    0;       % measure PSF flux containment and pseudo-FWHM        
+        Args.MeasurePSF     =    false;   % measure PSF flux containment and pseudo-FWHM        
     end
     % create an impty image of the given size
     Image0 = repmat(0, SizeX, SizeY);
@@ -1529,28 +1575,22 @@ function [Image, JPSF] = injectArtSrc (X, Y, CPS, SizeX, SizeY, PSF, Args)
         JPSF = RotPSF;
     end
     
-    % test PSF size, containment width and pseudoFWHM width (if requested)    
-    if Args.MeasurePSF == 1
-        StampSize  = size(JPSF);   
-        fprintf('%s%4.1f%s\n','Final PSF stamp size ', StampSize / Args.PSFScaling , ' image pixels');
-    
-        ContWidth  = zeros(NumSrc,1);  % radius of the encircled flux PSF region
-        PseudoFWHM = zeros(NumSrc,1);  % pseudo FWHM of the PSFs (see imUtil.psf.pseudoFWHM for the particular algorithm)
+    % measure the final PSF widths (if requested). NB: both imUtil.psf functions take the
+    % stamp POSITIONALLY; the field radius, pixel scale and any plotting belong to the
+    % caller (usim), which knows where the optical axis is on this tile
+    Widths = [];
+    if Args.MeasurePSF
+        fprintf('Final PSF stamp size %.1f x %.1f image pixels\n', ...
+                size(JPSF,1)./Args.PSFScaling, size(JPSF,2)./Args.PSFScaling);
+        NumPSF = size(JPSF,3);   % 1 if a single PSF is shared by all the sources
+        Widths = zeros(NumSrc,2);
         for Isrc = 1:1:NumSrc
-            ContWidth(Isrc) = imUtil.psf.quantileRadius('PSF',JPSF(:,:,Isrc),'Level',0.5);
-
-            [ widthX, widthY ] = ... 
-                        imUtil.psf.pseudoFWHM('PSF',JPSF(:,:,Isrc),'Level',0.5);
-
-            PseudoFWHM(Isrc) = sqrt ( widthX^2 + widthY^2 );
+            Stamp = JPSF(:,:,min(Isrc,NumPSF));
+            Widths(Isrc,1) = imUtil.psf.quantileRadius(Stamp,'Level',0.5);
+            [WidthX, WidthY] = imUtil.psf.pseudoFWHM(Stamp,'Level',0.5);
+            Widths(Isrc,2) = sqrt(WidthX .* WidthY);
         end
-        ContWidth   = ContWidth  / Args.PSFScaling ;  % convert to image pixel size    
-        PseudoFWHM  = PseudoFWHM / Args.PSFScaling ;  % convert to image pixel size
-        % some visual tests
-        figure(2); plot(sqrt(X.^2+Y.^2).*5.44./3600, ContWidth * 5.44,'*'); % 5.44 arcsec pixel size for ULTRASAT
-        xlabel('Radius, deg'); ylabel('50% encirclement radius, arcsec')    
-        figure(3); plot(sqrt(X.^2+Y.^2).*5.44./3600, PseudoFWHM * 5.44,'*'); 
-        xlabel('Radius, deg'); ylabel('pseudoFWHM, arcsec')    
+        Widths = Widths ./ Args.PSFScaling;   % oversampled -> image pixels
     end
 
     % PSF injection: inject all the rotated source PSFs into the blank image 
