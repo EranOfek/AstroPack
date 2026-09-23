@@ -996,8 +996,9 @@ classdef AstroFileName < Component
             else
                 Result = false;
                 if ErrorIfWrong
-                    II=find(Flag,1);
-                    error('Illegal value found in Type property (element %d): %s',II, Obj.Type);
+                    % report the first illegal element (issue #1290)
+                    II=find(~Flag,1);
+                    error('Illegal value found in Type property (element %d): %s',II, string(Obj.Type(II)));
                 end
             end
             
@@ -1025,8 +1026,9 @@ classdef AstroFileName < Component
             else
                 Result = false;
                 if ErrorIfWrong
-                    II=find(Flag,1);
-                    error('Illegal value found in Level property (element %d)',II);
+                    % report the first illegal element (issue #1290)
+                    II=find(~Flag,1);
+                    error('Illegal value found in Level property (element %d): %s',II, string(Obj.Level(II)));
                 end
             end
             
@@ -1054,8 +1056,9 @@ classdef AstroFileName < Component
             else
                 Result = false;
                 if ErrorIfWrong
-                    II=find(Flag,1);
-                    error('Illegal value found in Product property (element %d)',II);
+                    % report the first illegal element (issue #1290)
+                    II=find(~Flag,1);
+                    error('Illegal value found in Product property (element %d): %s',II, string(Obj.Product(II)));
                 end
             end
             

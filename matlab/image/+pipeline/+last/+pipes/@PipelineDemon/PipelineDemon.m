@@ -898,7 +898,8 @@ classdef PipelineDemon < Component
             PWD = pwd;
             cd(Obj.NewPath);
             
-            FN = AstroFileName(Args.TempFileName);
+            % unparsable names go to failed/ rather than failing the listing (issue #1290)
+            FN = Obj.listRawFiles(Args.TempFileName);
             FN.selectByPropVal('Type',Args.Type);
             
             [SunAlt] = FN.sunAlt('GeoPos',Obj.ObsCoo(1:2));
@@ -3097,12 +3098,35 @@ classdef PipelineDemon < Component
                 return;
             end
 
+            SrcPath = char(FN.Path);
+            if isempty(SrcPath)
+                SrcPath = Obj.NewPath;
+            end
+            Obj.moveMalformedRaw(cellstr(DiskNames(Bad)), SrcPath);
+
+            % drop the malformed entries whether or not the move succeeded
+            FN = FN.reorderEntries(~Bad);
+        end
+
+        function moveMalformedRaw(Obj, BadNames, SrcPath, Reasons)
+            % Move raw files with a malformed name to failed/, one log line per file
+            %   Never throws: a file that can not be moved is reported to
+            %   the log (issues #1286, #1290).
+            % Input  : - PipelineDemon object.
+            %          - Cell array of the file names.
+            %          - The directory in which the files reside.
+            %          - Optional cell array (one per file) of the reasons
+            %            the names were rejected, appended to the log lines.
+            %            Default is {} (no reasons).
+
+            arguments
+                Obj
+                BadNames cell
+                SrcPath
+                Reasons cell = {};
+            end
+
             try
-                SrcPath = char(FN.Path);
-                if isempty(SrcPath)
-                    SrcPath = Obj.NewPath;
-                end
-                BadNames = cellstr(DiskNames(Bad));
                 [~, Ok, MoveMsg] = io.files.moveFiles(BadNames, [], SrcPath, Obj.FailedPath, 'ErrorOnFail',false);
                 for Ibad=1:1:numel(BadNames)
                     if Ok(Ibad)
@@ -3110,15 +3134,80 @@ classdef PipelineDemon < Component
                     else
                         Msg = sprintf('Raw file with a malformed name could not be moved to failed directory: %s (%s)', BadNames{Ibad}, MoveMsg{Ibad});
                     end
+                    if ~isempty(Reasons)
+                        Msg = sprintf('%s - %s', Msg, Reasons{Ibad});
+                    end
                     Obj.writeLog(Msg, LogLevel.Error);
                 end
             catch ME
                 Msg = sprintf('Error while quarantining malformed raw files: %s', ME.message);
                 Obj.writeLog(Msg, LogLevel.Error);
             end
+        end
 
-            % drop the malformed entries whether or not the move succeeded
-            FN = FN.reorderEntries(~Bad);
+        function [FN, DirSt] = listRawFiles(Obj, Template)
+            % List the raw files matching a template in the current directory (new/)
+            %   As AstroFileName.dir, but a file whose name the parser
+            %   rejects is moved to failed/ instead of taking the whole
+            %   listing, and with it the demon, down (issue #1290). The
+            %   parser rejects a listing with mixed numbers of "_"
+            %   separators (split) and a name with an unknown
+            %   Type/Level/Product (the property validators).
+            %   The listing is parsed in one go, as before; only if that
+            %   fails is every file parsed on its own to find the
+            %   offenders. A file is kept if it parses on its own and has
+            %   the number of separators the parser expects, so that the
+            %   files kept can be parsed together.
+            % Input  : - PipelineDemon object.
+            %          - File name template, e.g., '*_sci_raw_*.fit*'.
+            % Output : - AstroFileName object of the files kept.
+            %          - The dir struct array of the files kept, in the
+            %            same order as the AstroFileName entries.
+            % Author : A.M. Krassilchtchikov (Sep 2026)
+            % Example: [FN, DirSt] = Obj.listRawFiles('*_sci_raw_*.fit*');
+
+            DirSt = dir(Template);
+            if isempty(DirSt)
+                FN = AstroFileName;
+                return;
+            end
+            try
+                FN = AstroFileName.parseString2AstroFileName(DirSt);
+                return;
+            catch
+                % find the offenders below
+            end
+
+            % the last "_" token holds both Version and FileType
+            Nsep   = numel(AstroFileName.FIELDS) - 2;
+            Names  = {DirSt.name};
+            NsepF  = count(Names, '_');
+            Nfile  = numel(DirSt);
+            Good   = false(1, Nfile);
+            Reason = cell(1, Nfile);
+            for Ifile=1:1:Nfile
+                if NsepF(Ifile)~=Nsep
+                    Reason{Ifile} = sprintf('%d "_" separators instead of %d', NsepF(Ifile), Nsep);
+                else
+                    try
+                        AstroFileName.parseString2AstroFileName(DirSt(Ifile));
+                        Good(Ifile) = true;
+                    catch ME
+                        Reason{Ifile} = ME.message;
+                    end
+                end
+            end
+
+            if any(~Good)
+                Obj.moveMalformedRaw(Names(~Good), DirSt(1).folder, Reason(~Good));
+            end
+
+            DirSt = DirSt(Good);
+            if isempty(DirSt)
+                FN = AstroFileName;
+            else
+                FN = AstroFileName.parseString2AstroFileName(DirSt);
+            end
         end
 
 
@@ -3339,7 +3428,14 @@ classdef PipelineDemon < Component
             % clean Files from NewPath
             % remove files with zero size and day-time images:
             if Args.CleanNewDir
-                Obj.cleanNewDir;
+                % must not take the demon down: this runs on every restart
+                % (issue #1290)
+                try
+                    Obj.cleanNewDir;
+                catch ME
+                    Msg = sprintf('PipelineDemon failed to clean new/ at startup: %s', ME.message);
+                    Obj.writeLog(Msg, LogLevel.Error);
+                end
             end
 
             %IsRunningOnLAST = false;
@@ -3437,26 +3533,50 @@ classdef PipelineDemon < Component
 
                 % delete test images taken during daytime
                 if Args.DeleteSciDayTime
-                    deleteDayTimeImages(Obj, 'SunAlt',Args.DeleteSunAlt);
+                    % must not take the demon down (issue #1290)
+                    try
+                        deleteDayTimeImages(Obj, 'SunAlt',Args.DeleteSunAlt);
+                    catch ME
+                        Msg = sprintf('PipelineDemon failed to delete the day-time images in new/, will retry: %s', ME.message);
+                        Obj.writeLog(Msg, LogLevel.Error);
+                    end
                 end
 
+                % The listing of new/ must never take the demon down: an
+                % error here would recur on every restart (issue #1290).
+                % Files the name parser rejects are moved to failed/ by
+                % listRawFiles; anything else is logged and retried in the
+                % next iteration.
+
                 % move focus images
-                %FN_Foc   = FileNames.generateFromFileName(Args.TempRawFocus);
-                FN_Foc   = AstroFileName(Args.TempRawFocus);
-                FN_Foc.BasePath = Obj.BasePath;
-                
-                %FN_Foc.FullPath = [];
-                % The empty argument in genPath is required for moving each image to the correct (date) directory. 
-                if FN_Foc.nFiles>0
-                   FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',FN_Foc.genPath([]), 'DestPath', Obj.FocusPath, 'Level','raw', 'Type','focus');
+                try
+                    %FN_Foc   = FileNames.generateFromFileName(Args.TempRawFocus);
+                    FN_Foc   = Obj.listRawFiles(Args.TempRawFocus);
+                    FN_Foc.BasePath = Obj.BasePath;
+
+                    %FN_Foc.FullPath = [];
+                    % The empty argument in genPath is required for moving each image to the correct (date) directory.
+                    if FN_Foc.nFiles>0
+                       FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',FN_Foc.genPath([]), 'DestPath', Obj.FocusPath, 'Level','raw', 'Type','focus');
+                    end
+                catch ME
+                    Msg = sprintf('PipelineDemon failed to list or move the focus images in new/, will retry: %s', ME.message);
+                    Obj.writeLog(Msg, LogLevel.Error);
                 end
-                
+
                 % look for new images
-                [FN_Sci, DirSci] = AstroFileName.dir(Args.TempRawSci);
-                % files whose name can not form a visit go to failed/ (issue #1286)
-                FN_Sci   = Obj.quarantineMalformedRaw(FN_Sci, {DirSci.name});
-                FN_Sci.JD=FN_Sci.julday;
-               
+                try
+                    [FN_Sci, DirSci] = Obj.listRawFiles(Args.TempRawSci);
+                    % files whose name can not form a visit go to failed/ (issue #1286)
+                    FN_Sci   = Obj.quarantineMalformedRaw(FN_Sci, {DirSci.name});
+                    FN_Sci.JD=FN_Sci.julday;
+                catch ME
+                    Msg = sprintf('PipelineDemon failed to list the images in new/, will retry: %s', ME.message);
+                    Obj.writeLog(Msg, LogLevel.Error);
+                    % no files: the loop pauses and checks the stop conditions
+                    FN_Sci = AstroFileName;
+                end
+
                 if FN_Sci.nFiles>Args.MinInGroup
                     if ~isempty(PipeName)
                         PipeStatus = sprintf('Found %d files to reduce',FN_Sci.nFiles);
