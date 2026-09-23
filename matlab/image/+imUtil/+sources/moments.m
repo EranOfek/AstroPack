@@ -278,7 +278,12 @@ function [M1, M2, Aper, Cube] = moments(Image, Args)
     
         if nargout>1
             
-            [M2.X2,M2.Y2,M2.XY] = imUtil.sources.mex.mom2_cube(CubeBS, B0, M1.StampX1, M1.StampY1, Args.MaxRadiusM2);
+            % mom2_cube expects the centre in stamp coordinates, while
+            % moment1_cube was called with RelToCenter=true and returns an
+            % offset from the stamp centre. Convert before passing it on.
+            StampCenX = (size(CubeBS,2)+1).*0.5;
+            StampCenY = (size(CubeBS,1)+1).*0.5;
+            [M2.X2,M2.Y2,M2.XY] = imUtil.sources.mex.mom2_cube(CubeBS, B0, M1.StampX1+StampCenX, M1.StampY1+StampCenY, Args.MaxRadiusM2);
 
             % debuging - using old moment code with new aper phot
             % no improvment
