@@ -1131,10 +1131,11 @@ classdef PipelineDemon < Component
 
             [~,~,~,~,ProjName,~]=getPath(Obj,'HostName',Args.HostName);
 
-            FN = FileNames;
+            % AstroFileName, not FileNames (issue #1315)
+            FN = AstroFileName;
             FN.ProjName = ProjName;
-            FN.Time     = celestial.time.julday;
-            LogFileName = FN.genFile('IsLog',true, 'ReturnChar',true, 'Product','Pipeline');
+            FN.julday2time(celestial.time.julday);
+            LogFileName = char(FN.genFile([], 'IsLog',true, 'Product','Pipeline'));
             Path        = Obj.LogPath;
             mkdir(Path);
             LogFileName = fullfile(Path, LogFileName);
