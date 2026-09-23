@@ -1740,6 +1740,8 @@ classdef PipelineDemon < Component
                     Obj.CalibPath   = Args.CalibPath;
                     Obj.LogPath     = fullfile(Args.LocalPath, 'log');
                     Obj.FailedPath  = fullfile(Args.LocalPath, 'failed');
+                    % unset, the focus frames were "moved" onto themselves (issue #1312)
+                    Obj.FocusPath   = fullfile(Args.LocalPath, 'focus');
                     if ~isempty(Args.RefPath)
                         % if empty - auto detected (see populateRefPath)
                         Obj.RefPath = Args.RefPath;
