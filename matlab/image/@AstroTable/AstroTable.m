@@ -1533,11 +1533,15 @@ classdef AstroTable < Component
                     NewObj.Catalog = array2table(NewObj.Catalog);
                     NewObj.Catalog.Properties.VariableNames = NewObj.ColNames;
                 end
+                % the number of columns of the first element with rows is
+                % the reference: taking it from an empty first element (e.g.,
+                % 0x0) dropped all the other elements (issue #1279)
+                Ncol1 = [];
                 for Iobj=1:1:Nobj
-                    [Nrow, Ncol] = size(Obj(Iobj).Catalog); 
-                    if Iobj == 1
+                    [Nrow, Ncol] = size(Obj(Iobj).Catalog);
+                    if isempty(Ncol1) && Nrow>0
                         Ncol1 = Ncol;
-                    end                    
+                    end
                     if Nrow>0 && Ncol == Ncol1
                         ColInd   = colname2ind(Obj(Iobj), Columns);
                         if isempty(Args.AddEntryPerElement)

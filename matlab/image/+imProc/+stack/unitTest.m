@@ -174,6 +174,61 @@ function Result = unitTest()
         assert(contains(ME.message,'Unknown PSFMethod'), 'stitchCrops: unexpected error: %s', ME.message)
     end
 
+    %% stitchCrops - crops with empty catalogs (issue #1279)
+    % a CROP column tells which crop each row of the stitched catalog came from
+    SIk = SI.copy;
+    for Icr=1:1:Ncr
+        Cat = SI(Icr).CatData.Catalog;
+        SIk(Icr).CatData = AstroCatalog({[Cat, Icr.*ones(size(Cat,1),1)]},...
+                                        'ColNames',[SI(Icr).CatData.ColNames, {'CROP'}]);
+    end
+    Rall = imProc.stack.stitchCrops(SIk);
+    Crop = Rall.CatData.getCol('CROP');
+    assert(isequal(unique(Crop).', 1:1:Ncr), 'stitchCrops: every crop must contribute to the reference stitch')
+
+    % an empty catalog: no columns at all (a missing Cat product), or columns
+    % but no rows, possibly fewer columns than the other crops have
+    Empty0x0 = AstroCatalog;
+    EmptyNar = AstroCatalog;
+    EmptyNar.Catalog  = zeros(0,2);
+    EmptyNar.ColNames = {'XPEAK','YPEAK'};
+    for Iempty=[1 3]
+        for EmptyCat={Empty0x0, EmptyNar}
+            SIe = SIk.copy;
+            SIe(Iempty).CatData = EmptyCat{1}.copy;
+            Rst = imProc.stack.stitchCrops(SIe);
+            assert(isequal(Rst.CatData.Catalog, Rall.CatData.Catalog(Crop~=Iempty,:)) && ...
+                   isequal(Rst.CatData.ColNames, Rall.CatData.ColNames),...
+                   'stitchCrops: an empty catalog in crop %d must only remove the rows of that crop', Iempty)
+            assert(isequaln(Rst.Image, Rall.Image) && isequal(Rst.MaskData.Data, Rall.MaskData.Data),...
+                   'stitchCrops: an empty catalog must not change the stitched image')
+        end
+    end
+
+    % no crop has a source: the image is stitched, the catalog is empty but keeps
+    % the columns, and the WCS is reported as failed without querying anything
+    SIe = SIk.copy;
+    for Icr=1:1:Ncr
+        SIe(Icr).CatData.Catalog = SIe(Icr).CatData.Catalog([],:);
+    end
+    SIe(1).CatData = AstroCatalog;
+    Rst = imProc.stack.stitchCrops(SIe, 'UpdateWCS',true, 'UpdateZP',true);
+    assert(isempty(Rst.CatData.Catalog) && isequal(Rst.CatData.ColNames, SIk(2).CatData.ColNames),...
+           'stitchCrops: with no sources the stitched catalog must be empty, with the columns of the crops')
+    assert(~Rst.WCS.Success, 'stitchCrops: with no sources the WCS must be reported as failed')
+    assert(isequaln(Rst.Image, Rall.Image), 'stitchCrops: with no sources the image must still be stitched')
+
+    % a catalog with rows but without the pixel columns is an error
+    SIe = SIk.copy;
+    SIe(2).CatData = AstroCatalog({rand(3,2)}, 'ColNames',{'RA','Dec'});
+    try
+        imProc.stack.stitchCrops(SIe);
+        error('stitchCrops: a catalog without pixel columns must raise an error')
+    catch ME
+        assert(strcmp(ME.identifier,'imProc:stack:stitchCrops:NoPixelColumns'),...
+               'stitchCrops: unexpected error: %s', ME.message)
+    end
+
     Result = true;
 
 

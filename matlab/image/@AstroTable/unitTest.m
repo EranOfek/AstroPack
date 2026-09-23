@@ -38,8 +38,20 @@ function Result = unitTest()
     MAC = merge([AC,AC]);
     if length(AC.Catalog)*2 ~= length(MAC.Catalog)
         error('Merge error: Bad row count');
-    end    
-    
+    end
+
+    % an empty first element must not drop the other elements (issue #1279)
+    AE = AstroTable([1 3]);
+    AE(2).Catalog = rand(4,2); AE(2).ColNames = {'a','b'};
+    AE(3).Catalog = rand(5,2); AE(3).ColNames = {'a','b'};
+    MAE = merge(AE);
+    assert(isequal(MAE.Catalog, [AE(2).Catalog; AE(3).Catalog]),...
+           'Merge error: an empty (0x0) first element dropped the other elements')
+    AE(1).Catalog = zeros(0,3); AE(1).ColNames = {'a','b','c'};
+    MAE = merge(AE, {'a','b'});
+    assert(size(MAE.Catalog,1)==9,...
+           'Merge error: a zero-row first element of a different width dropped the other elements')
+
 
     % Sort by second column
     %io.msgLog(LogLevel.Test, 'testing AstroTable sortrows')

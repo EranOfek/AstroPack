@@ -76,10 +76,8 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
     % the stitched image, in the pixel coordinates of the stitched image
     CropArea = zeros(Ncrop,1);
     CropReg  = zeros(Ncrop,4);
-
-    % get the table indices of the pixel columns
-    IndX = AI(1).CatData.colname2ind({'XPEAK','X1','X'});
-    IndY = AI(1).CatData.colname2ind({'YPEAK','Y1','Y'});
+    % the crops which contribute catalog rows to the stitched image
+    HasCat   = false(Ncrop,1);
 
     % read the sizes and locations, determine the overlaps
     for Icrop = 1:Ncrop
@@ -149,17 +147,30 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
         % Own a source if the PIXEL containing its centroid is owned, i.e. the
         % half-open interval [XUmin-0.5, XUmax+0.5) - which tiles the seams
         % without gaps and without duplicates (issue #1236).
-        Cat  = AI(Icrop).CatData.copy;
-        Xcat = Cat.Catalog(:,IndX(1));
-        Ycat = Cat.Catalog(:,IndY(1));
-        FlagIn = Xcat>=(XUmin-0.5) & Xcat<(XUmax+0.5) & ...
-                 Ycat>=(YUmin-0.5) & Ycat<(YUmax+0.5);
-        Cat.Catalog = Cat.Catalog(FlagIn,:);
+        % A crop without sources - a catalog with no rows, or with no columns
+        % at all when its Cat product is missing - contributes its pixels but
+        % no catalog rows. The pixel columns are therefore looked up in each
+        % crop, not in the first one (issue #1279).
+        HasCat(Icrop) = size(AI(Icrop).CatData.Catalog,1)>0;
+        if HasCat(Icrop)
+            Cat  = AI(Icrop).CatData.copy;
+            IndX = Cat.colname2ind({'XPEAK','X1','X'});
+            IndY = Cat.colname2ind({'YPEAK','Y1','Y'});
+            if isnan(IndX(1)) || isnan(IndY(1))
+                error('imProc:stack:stitchCrops:NoPixelColumns',...
+                      'The catalog of crop %d has no XPEAK/YPEAK columns', Icrop);
+            end
+            Xcat = Cat.Catalog(:,IndX(1));
+            Ycat = Cat.Catalog(:,IndY(1));
+            FlagIn = Xcat>=(XUmin-0.5) & Xcat<(XUmax+0.5) & ...
+                     Ycat>=(YUmin-0.5) & Ycat<(YUmax+0.5);
+            Cat.Catalog = Cat.Catalog(FlagIn,:);
 
-        % the crop coordinates are still those of the uncropped crop, so the
-        % shift into the stitched frame is just the crop's own origin offset
-        % (issue #1106)
-        MCat(Icrop) = imProc.cat.shiftXY(Cat, CatShiftX(Icrop), CatShiftY(Icrop));
+            % the crop coordinates are still those of the uncropped crop, so the
+            % shift into the stitched frame is just the crop's own origin offset
+            % (issue #1106)
+            MCat(Icrop) = imProc.cat.shiftXY(Cat, CatShiftX(Icrop), CatShiftY(Icrop));
+        end
 
         ImgAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1)  = AIc.ImageData.Data;
         MaskAccum(ImaShiftY+1:ImaShiftY+YUmax-YUmin+1, ImaShiftX+1:ImaShiftX+XUmax-XUmin+1) = AIc.MaskData.Data;
@@ -184,17 +195,34 @@ function [Result, AstrometricCat, PhotCat] = stitchCrops(AI, Args)
         Result.PSFData = stitchPSF(AI, CropArea, CropReg, [Nx Ny], Args.PSFMethod);
     end
 
-    % merge the catalogs:
-    Result.CatData = merge(MCat);
-    Result.CatData.JD = MCat(1).julday;
-    % a crop catalog may carry a source with a failed PSF fit (X=Y=NaN, hence
-    % RA=Dec=NaN); a plain mean would then return a NaN centre and the
-    % refinement below would produce a degenerate WCS (issue #1291)
-    RA0  = mean(Result.CatData.getCol('RA'), 'omitnan');
-    Dec0 = mean(Result.CatData.getCol('Dec'), 'omitnan');
+    % merge the catalogs of the crops which contribute sources (issue #1279)
+    if any(HasCat)
+        Result.CatData    = merge(MCat(HasCat));
+        Result.CatData.JD = MCat(find(HasCat,1)).julday;
+    else
+        % no crop has a source: keep a zero-row catalog with the columns of
+        % the first crop that has any
+        Iref = find(arrayfun(@(X) ~isempty(X.CatData.ColNames), AI), 1);
+        if isempty(Iref)
+            Result.CatData = AstroCatalog;
+        else
+            Result.CatData = AI(Iref).CatData.copy;
+            Result.CatData.Catalog = Result.CatData.Catalog([],:);
+        end
+    end
 
     % build WCS from the merged catalog
-    if Args.UpdateWCS
+    if Args.UpdateWCS && ~any(HasCat)
+        % there is nothing to fit: report it as a failed refinement, which
+        % also skips the ZP below (issue #1279)
+        Result.WCS.Success = false;
+    elseif Args.UpdateWCS
+        % a crop catalog may carry a source with a failed PSF fit (X=Y=NaN, hence
+        % RA=Dec=NaN); a plain mean would then return a NaN centre and the
+        % refinement below would produce a degenerate WCS (issue #1291)
+        RA0  = mean(Result.CatData.getCol('RA'), 'omitnan');
+        Dec0 = mean(Result.CatData.getCol('Dec'), 'omitnan');
+
         if isempty(Args.AstrometricCat)
             AstCatArg = {};
         else
