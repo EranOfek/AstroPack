@@ -71,7 +71,17 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
     %            'MinPerBin' - Injections needed to use a bin. Default is 20.
     %            'RadiusTS' - Peak search radius when sampling, matching
     %                   imProc.sub.measureTransients. Default is 1.
-    %            'Seed' - rng seed, for a reproducible threshold. Empty
+    %            'Seed' - Seed for the injection draw, so the threshold is
+    %                   reproducible run to run (issue #1319).
+    %                   'header' - derive it from the observational header
+    %                       keys of New and Ref via
+    %                       tools.rand.seedFromHeader, so each crop gets its
+    %                       own fixed injection set.
+    %                   [] - unseeded, the previous behaviour.
+    %                   A numeric scalar - use it as the seed.
+    %                   The draw uses a private RandStream, so the caller's
+    %                   random stream is not advanced.
+    %                   Default is 'header'.
     % Output : - Bin centres, the median |SCORE| in each used bin.
     %          - Bin thresholds, one column per keep fraction.
     %          - A struct with Ninj, NumGrid and NumClear (grid positions
@@ -96,7 +106,7 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
         Args.RadiusTS          = 1;
         Args.RadiusSmear       = [];
         Args.InjectSmear logical = false;
-        Args.Seed              = [];
+        Args.Seed              = 'header';  % 'header' | [] (unseeded) | numeric scalar
     end
 
     BinCen = [];
@@ -130,8 +140,22 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
 
     Info.RadiusSmear = RadiusSmear;
 
-    if ~isempty(Args.Seed)
-        rng(Args.Seed);
+    %   A private stream rather than rng(): the injections have to be
+    %   reproducible run to run (issue #1319) without reseeding the global
+    %   generator, which would change the draws of every caller up the stack.
+    if isempty(Args.Seed)
+        StreamInj = RandStream.getGlobalStream;        % unseeded, as before
+    elseif isnumeric(Args.Seed)
+        StreamInj = RandStream('threefry', 'Seed',uint32(Args.Seed));
+    else
+        Heads = [Obj.New, Obj.Ref];
+        if isempty(Heads)
+            Heads = Obj;   % New/Ref not kept: the D header carries the same keys
+        end
+        StreamInj = RandStream('threefry', 'Seed', ...
+                        tools.rand.seedFromHeader(Heads, ...
+                            'Salt','imProc.sub.smearThreshold', ...
+                            'FallbackVals',@() [size(Obj.Image), numel(Template)]));
     end
 
     % --- the two shapes ---
@@ -198,8 +222,8 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
         return
     end
 
-    Gxy  = Gxy(randperm(size(Gxy,1), Ninj), :);
-    Finj = 10.^(log10(Args.FluxRng(1)) + rand(Ninj,1).*diff(log10(Args.FluxRng)));
+    Gxy  = Gxy(randperm(StreamInj, size(Gxy,1), Ninj), :);
+    Finj = 10.^(log10(Args.FluxRng(1)) + rand(StreamInj, Ninj,1).*diff(log10(Args.FluxRng)));
 
     Info.Ninj = Ninj;
 

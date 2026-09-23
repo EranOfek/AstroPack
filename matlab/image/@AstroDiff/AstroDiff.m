@@ -262,6 +262,7 @@ classdef AstroDiff < AstroImage
             end
 
         end
+
     end
     
     methods % utilities
@@ -275,7 +276,20 @@ classdef AstroDiff < AstroImage
             %                   Ref images will be replaced with this value.
             %                   If 'back', then will take the value from
             %                   the 'BackN' and 'BackR' properties.
-            %                   Default is 'back'.
+            %                   If 'backdist', then draw each NaN pixel from
+            %                   a normal distribution with the mean and std
+            %                   of the background.
+            %                   Default is 'backdist'.
+            %            'Seed' - Seed for the 'backdist' draw, so that the
+            %                   fill is reproducible run to run (issue #1319).
+            %                   'header' - derive it from the observational
+            %                       header keys of New and Ref, so every crop
+            %                       gets its own fixed noise field.
+            %                   [] - unseeded (the previous behaviour).
+            %                   A numeric scalar - use it as the seed.
+            %                   The draw uses a private RandStream, so the
+            %                   caller's random stream is not advanced.
+            %                   Default is 'header'.
             % Output : - An updated AstroDiff object, in which the NaN
             %            values in the New and Ref images is replaced.
             % Author : Eran Ofek (Jan 2024)
@@ -284,6 +298,7 @@ classdef AstroDiff < AstroImage
             arguments
                 Obj
                 Args.ReplaceVal  = 'backdist';  % or scalar
+                Args.Seed        = 'header';    % 'header' | [] (unseeded) | numeric scalar       
             end
 
             Nobj = numel(Obj);
@@ -318,8 +333,34 @@ classdef AstroDiff < AstroImage
 
                             [XSizeN,YSizeN] = Obj(Iobj).New.sizeImage();
                             [XSizeR,YSizeR] = Obj(Iobj).Ref.sizeImage();
-                            SimBackN = normrnd(MeanN, SigN, [XSizeN,YSizeN]);
-                            SimBackR = normrnd(MeanR, SigR, [XSizeR,YSizeR]);
+
+                            if isempty(Args.Seed)
+                                % unseeded - the behaviour before issue #1319
+                                SimBackN = normrnd(MeanN, SigN, [XSizeN,YSizeN]);
+                                SimBackR = normrnd(MeanR, SigR, [XSizeR,YSizeR]);
+                            else
+                                %   Private streams, so the caller's random
+                                %   sequence is not advanced. Two of them,
+                                %   salted apart: with one seed and equal
+                                %   sizes the New and Ref fills would be the
+                                %   identical noise field.
+                                if isnumeric(Args.Seed)
+                                    SeedN = uint32(Args.Seed);
+                                    SeedR = bitxor(SeedN, uint32(2654435769));
+                                else
+                                    Heads = [Obj(Iobj).New, Obj(Iobj).Ref];
+                                    Fb    = @() [XSizeN, YSizeN, Obj(Iobj).BackN, Obj(Iobj).SigmaN, ...
+                                                 Obj(Iobj).BackR, Obj(Iobj).SigmaR];
+                                    SeedN = tools.rand.seedFromHeader(Heads, ...
+                                                    'Salt','AstroDiff.replaceNaN:New', 'FallbackVals',Fb);
+                                    SeedR = tools.rand.seedFromHeader(Heads, ...
+                                                    'Salt','AstroDiff.replaceNaN:Ref', 'FallbackVals',Fb);
+                                end
+                                StreamN  = RandStream('threefry', 'Seed',SeedN);
+                                StreamR  = RandStream('threefry', 'Seed',SeedR);
+                                SimBackN = MeanN + SigN.*randn(StreamN, XSizeN, YSizeN);
+                                SimBackR = MeanR + SigR.*randn(StreamR, XSizeR, YSizeR);
+                            end
 
                             NaNMaskN = isnan(Obj(Iobj).New.Image);
                             NaNMaskR = isnan(Obj(Iobj).Ref.Image);
