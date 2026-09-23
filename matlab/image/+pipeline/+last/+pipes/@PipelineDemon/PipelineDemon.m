@@ -3002,35 +3002,58 @@ classdef PipelineDemon < Component
    
             Nobj = numel(AD);
     
+            % The products are named after the coadd, in the visit's proc/ dir.
+            % The FileType is reduced to its first extension ("fits.fz" ->
+            % "fits"), as FileNames parsed it (issue #1315)
+            ProcPath = FN_Proc.genPath;
+            ProcPath = ProcPath(1);
+            % the visit's SubDir (the last folder of ProcPath, should FN_Proc
+            % carry none): without it genFullPath would generate a new one
+            SubDir = FN_Proc.SubDir;
+            if isempty(SubDir) || strlength(SubDir(1))==0
+                [~, SubDir] = fileparts(ProcPath);
+            end
+            SubDir = SubDir(1);
+
             % Save sub-image products
             if ~isempty(UpArgs.SaveVisitProductII)
+                % one header flag per product, as writeProduct took them;
+                % saveProductImage replaces a vector of fewer than 4 flags
+                % by its own defaults, so pad it
+                Nprod       = numel(UpArgs.SaveVisitProductII);
+                WriteHeader = UpArgs.SaveVisitHeaderII;
+                if isscalar(WriteHeader)
+                    WriteHeader = repmat(WriteHeader, 1, Nprod);
+                end
+                WriteHeader = [WriteHeader(:).', false(1, 4-numel(WriteHeader))];
                 for Iobj=Nobj:-1:1
-                    FN = FileNames.generateFromFileName(cellstr(AD(Iobj).New.ImageData.FileName));
                     % Set AD name
-                    FNad = FN.copy();
-                    FNad.Level = {'coadd.zogyD'};
-                    FNad.FullPath = FN_Proc.genPath;
-                    AD(Iobj).ImageData.FileName = FNad.genFull{1};
-                    
-                    [~,~,~]=imProc.io.writeProduct(AD(Iobj), FNad, ...
-                        'Level', 'coadd.zogyD', 'Product', UpArgs.SaveVisitProductII,...
-                        'WriteHeader', UpArgs.SaveVisitHeaderII,'Overwrite', true);
-                end                
+                    FNad = AstroFileName.parseString2AstroFileName(AD(Iobj).New.ImageData.FileName);
+                    FNad.FileType = extractBefore(FNad.FileType + ".", ".");
+                    FNad.Level = "coadd.zogyD";
+                    FNad.SubDir = SubDir;
+
+                    % as writeProduct wrote them: no FILENAME/SUBDIR header
+                    % update, the same FITS writers
+                    imProc.io.saveProductImage(AD(Iobj), FNad, 'Path',ProcPath, 'AddSubDir',false, ...
+                        'OutProduct', UpArgs.SaveVisitProductII, 'WriteHeader', WriteHeader, ...
+                        'UpdateFileNameKey',false, 'OverWrite',true, ...
+                        'WriteMethodImages','Simple', 'WriteMethodTables','Standard');
+                    AD(Iobj).ImageData.FileName = char(fullfile(ProcPath, FNad.genFile));
+                end
             end
 
             % Save TCL1 to disk
+            % saveProductImage writes nothing for an object without an image,
+            % so the catalog is written directly, as writeProduct did
             if UpArgs.SaveTCL1 && ~TCL1.isemptyCatalog
-                FN = FileNames.generateFromFileName(cellstr(AD(1).New.ImageData.FileName));
-                FN_merged = FN.copy();
-                FN_merged.Level = {'coadd.zogyD'};
-                FN_merged.CropID = 0;
-                FN_merged.Product = {'Cat'};
-                FN_merged.FullPath = FN_Proc.genPath;
-                
-                [~,~,~]=imProc.io.writeProduct(TCL1, FN_merged, ...
-                    'Level', 'coadd.zogyD', 'Product', {'Cat'},...
-                    'WriteHeader', false,'Overwrite', true, 'GetHeaderJD', false, ...
-                    'CropID_FromIndex', false);
+                FN_merged = AstroFileName.parseString2AstroFileName(AD(1).New.ImageData.FileName);
+                FN_merged.FileType = extractBefore(FN_merged.FileType + ".", ".");
+                FN_merged.Level   = "coadd.zogyD";
+                FN_merged.CropID  = 0;
+                FN_merged.Product = "Cat";
+                TCL1.write1(char(fullfile(ProcPath, FN_merged.genFile)), 'FileType',char(FN_merged.FileType(1)), ...
+                    'OverWrite',true, 'WriteMethodTables','Standard');
             end
 
             % Inject TCL2 to DB

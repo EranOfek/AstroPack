@@ -320,16 +320,20 @@ function [Status] = sendTransientsAlert(ADc, Args)
         if ~isempty(Args.SavePath)
 
             % Construct image name
-            FN = FileNames.generateFromFileName(cellstr(Transient.New.ImageData.FileName));
-            ImageFN = FN.copy();
-            ImageFN.Level = {'coadd.zogyD'};
-            ImageFN.Product = {'Image'};
-            ImageFN.FileType = {'png'};
+            % named after the coadd (issue #1315: AstroFileName, not FileNames)
+            ImageFN = AstroFileName.parseString2AstroFileName(Transient.New.ImageData.FileName);
+            ImageFN.Level = "coadd.zogyD";
+            ImageFN.Product = "Image";
+            ImageFN.FileType = "png";
             ImageFN.Version = Iadc;
-            Image_FilenameCell = ImageFN.genFile;
-            Image_Filename = Image_FilenameCell{1};
-            Image_DirFilenameCell = strcat(Args.SavePath,'/',ImageFN.genFile);
-            Image_DirFilename = Image_DirFilenameCell{1};
+            Image_Filename = char(ImageFN.genFile);
+            % SavePath may be a cell/string array with one path per file
+            % (FileNames/AstroFileName genPath): use the first, as before
+            Image_DirFilename = strcat(Args.SavePath,'/',Image_Filename);
+            if ~ischar(Image_DirFilename)
+                Image_DirFilename = Image_DirFilename(1);
+            end
+            Image_DirFilename = char(Image_DirFilename);
 
             MaskKernel = ones(3,3);
 

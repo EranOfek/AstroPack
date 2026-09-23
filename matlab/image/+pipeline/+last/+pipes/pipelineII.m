@@ -181,34 +181,36 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
     % Preload refs
 
-    % Get name of New image and search for Ref image via wildcards
-    FN = FileNames.generateFromFileName(cellstr(New(1).ImageData.FileName));
-    FNref = FN.copy();
+    % Get name of New image and search for Ref image via wildcards.
+    % The FileType is reduced to its first extension ("fits.fz" -> "fits"),
+    % as FileNames parsed it, so that the search is unchanged (issue #1315)
+    FNref = AstroFileName.parseString2AstroFileName(New(1).ImageData.FileName);
+    FNref.FileType = extractBefore(FNref.FileType + ".", ".");
 
     % Convert telescope designation to wildcard if Refs from other
     % telescopes are allowed.
     if ~Args.SameTelOnly
-        FNref.ProjName={replaceBetween(FNref.ProjName{1},"LAST.01.",".0","*")};
+        FNref.ProjName = replaceBetween(FNref.ProjName(1),"LAST.01.",".0","*");
     end
 
     % Wildcard time and crop ID.
-    FNref.Time = {'*.*.*'};
-    FNref.CropID = '*';
+    FNref.Time   = "*.*.*";
+    FNref.CropID = "*";
 
     % Use only the LAST field ID for Ref search. If New image
     % observation was of an Object with a dot extsion, the dot
     % extension is removed for Ref search.
-    FieldID = split(FNref.FieldID{1},'.');
-    FieldID = FieldID{1};
+    FieldID = split(FNref.FieldID(1),'.');
+    FieldID = char(FieldID(1));
     
     % Construct Ref filename
     FieldRefPath = strcat(RefPath, '/', FieldID);
-    FNref.FieldID{1} = FieldID;
-    RefFile = fullfile(FieldRefPath,FNref.genFile);
-    RefFile{1} = replace(RefFile{1},'_coadd_','_*_');
+    FNref.FieldID = FieldID;
+    RefFile = fullfile(FieldRefPath, char(FNref.genFile));
+    RefFile = replace(RefFile,'_coadd_','_*_');
 
     % Load Ref image as AstroImage and Ref image FileName object
-    Refs = AstroImage.readFileNamesObj(RefFile{1}, 'Path', FieldRefPath);
+    Refs = AstroImage.readFileNamesObj(RefFile, 'Path', FieldRefPath);
     NumRefs = numel(Refs);
 
     if (NumRefs < 1) || ((NumRefs == 1) && isempty(Refs(1).Image))
@@ -261,7 +263,8 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
         Ref = Refs(CRValDist == MinCRValDist);
 
-        FNrref = FileNames.generateFromFileName(Ref.ImageData.FileName);
+        FNrref = AstroFileName.parseString2AstroFileName(Ref.ImageData.FileName);
+        FNrref.FileType = extractBefore(FNrref.FileType + ".", ".");
 
         % Make sure Ref products are complete, continue if not.
         if isempty(Ref.PSF) || isempty(Ref.Mask)
@@ -270,12 +273,13 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         end
 
         % Generate New and Ref filenames properly
-        FN = FileNames.generateFromFileName(cellstr(New(Iobj).ImageData.FileName));
+        FN = AstroFileName.parseString2AstroFileName(New(Iobj).ImageData.FileName);
+        FN.FileType = extractBefore(FN.FileType + ".", ".");
         NewName = FN.genFile;
         RefName = FNrref.genFile;
         
         % Check if the New image is the Ref image, continue if they are.
-        if convertCharsToStrings(NewName{1}) == convertCharsToStrings(RefName{1})
+        if NewName(1) == RefName(1)
             warning('New image is reference image.');
             continue
         end
@@ -286,7 +290,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         % Create AstroDiff (AstroZOGY)
         AD(Iobj) = AstroZOGY(New(Iobj), Ref);
         % Remember in AD if Ref image is already background subtracted.
-        if FNrref.Level{1} == "ref"
+        if FNrref.Level(1) == "ref"
             AD(Iobj).RefIsBackgroundSubtracted = true;
         else
             AD(Iobj).RefIsBackgroundSubtracted = false;
