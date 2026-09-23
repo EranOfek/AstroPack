@@ -882,7 +882,7 @@ classdef PipelineDemon < Component
             %                   the images. Default is 0.
             %            'Delete' - Logical indicating if to delete the
             %                   images. Default is true.
-            % Output : - FileNames object of all found images
+            % Output : - AstroFileName object of all found images
             %          - Logical indicating, for each image, if Alt>0 
             % Author : Eran Ofek (Apr 2023)
             
@@ -1948,10 +1948,12 @@ classdef PipelineDemon < Component
             % Input  : - A ipeline.DemonLAST object.
             %          * ...,key,val,...
             %            'FilesList' - Files to select: either a file name
-            %                   template, or a FileNames object. A caller-supplied
-            %                   FileNames object must carry its own FullPath - that
-            %                   is what allows building a master from frames outside
-            %                   new/, e.g. when reprocessing an archived night.
+            %                   template, or an AstroFileName or FileNames object
+            %                   (a FileNames object is converted to an
+            %                   AstroFileName). A caller-supplied object must carry
+            %                   its own path - that is what allows building a master
+            %                   from frames outside new/, e.g. when reprocessing an
+            %                   archived night.
             %                   Default is '*dark*.fits*'.
             %            'BiasArgs' - A cell array of additional arguments
             %                   to pass to the CalibImages/createBias
@@ -1975,8 +1977,8 @@ classdef PipelineDemon < Component
             %            'Move2raw' - Move images to raw dir after
             %                   processing. Default is true.
             % Output : - A pipeline.DemonLAST with updated CI property.
-            %          - FileNames object of raw dark images.
-            %          - FileNames object of proc dark master image.
+            %          - AstroFileName object of raw dark images.
+            %          - AstroFileName object of proc dark master image.
             %          * Write files to disk
             % Author : Eran Ofek (Apr 2023)
             % Example: D = pipeline.DemonLAST;
@@ -1996,8 +1998,8 @@ classdef PipelineDemon < Component
                 Args.Move2raw logical     = true;
             end
 
-            FN        = FileNames;   % nfiles==0; keeps the Move2raw guard below valid
-                                     % on the path where FN is never assigned (issue #1221)
+            FN        = AstroFileName;   % nFiles==0; keeps the Move2raw guard below valid
+                                         % on the path where FN is never assigned (issue #1221)
             FN_Master = [];
             NoImages = false;
             if Args.Repopulate || ~exist(Obj.CI,'Bias',{'Image','Mask'})
@@ -2010,11 +2012,12 @@ classdef PipelineDemon < Component
                 WaitForMoreImages = true;
                 while WaitForMoreImages
                     
-                    if isa(Args.FilesList,'FileNames')
-                        % use the caller-supplied object; its own FullPath is kept by
-                        % genPath, which is what allows building a master from frames
-                        % outside new/ (issue #1221)
-                        FN = Args.FilesList;
+                    if isa(Args.FilesList,'AstroFileName') || isa(Args.FilesList,'FileNames')
+                        % use the caller-supplied object; its own path is kept,
+                        % which is what allows building a master from frames
+                        % outside new/ (issue #1221). A FileNames object is
+                        % converted to an AstroFileName (issue #1315)
+                        FN = Obj.toAstroFileName(Args.FilesList);
                         WaitForMoreImages = false;
                     else
                         % generate file names
@@ -2022,15 +2025,17 @@ classdef PipelineDemon < Component
                         if ischar(Args.FilesList) || isstring(Args.FilesList)
                             % a template: files whose name the parser rejects
                             % go to failed/ (issue #1311)
-                            FN = Obj.listRawFiles(Args.FilesList, 'Parser','FileNames');
+                            FN = Obj.listRawFiles(Args.FilesList);
                         else
-                            FN = FileNames.generateFromFileName(Args.FilesList);
+                            FN = Obj.toAstroFileName(Args.FilesList);
                         end
                         FN.BasePath = Obj.BasePath;
+                        % BasePath includes the ProjName, as FileNames assumed
+                        FN.BasePathIncludeProjName = false;
                     end
     
                     % identify new bias images
-                    [FN_Dark,Flag] = selectBy(FN, 'Type', {'dark','bias'}, 'CreateNewObj',true);
+                    [FN_Dark,Flag] = FN.selectByPropVal('Type', ["dark","bias"], 'Operator',@ismember, 'CreateNewObj',true);
     
                     % check that the dark images are ready and group by night
                     [Ind, LastJD, DT] = selectLastJD(FN_Dark);
@@ -2062,7 +2067,7 @@ classdef PipelineDemon < Component
                     Ngr = numel(FN_Dark_Groups);
                     if Ngr>0
                         for Igr=1:1:Ngr
-                            DarkList = FN_Dark_Groups(Igr).genFull([]);
+                            DarkList = cellstr(FN_Dark_Groups(Igr).genFull([]));
 
 
                             % prepare master bias
@@ -2082,20 +2087,7 @@ classdef PipelineDemon < Component
 
                                 % write file
                                 JD = CI.Bias.julday;
-                                FN_Master = FileNames;
-                                FN_Master.readFromHeader(CI.Bias);
-                                FN_Master.Type     = {'dark'};
-                                FN_Master.Level    = {'proc'};
-                                FN_Master.Product  = {'Image'};
-                                FN_Master.Version  = [1];
-                                FN_Master.FileType = {'fits'};    
-
-                                % values for LAST dark images
-                                FN_Master.FieldID  = {''};
-                                FN_Master.Counter  = {''};
-                                FN_Master.CCDID    = {''};
-                                FN_Master.CropID   = {''};
-                                FN_Master.ProjName = FN_Dark.ProjName{1};
+                                FN_Master = Obj.masterFileName(CI.Bias, "dark", FN_Dark.ProjName(1));
 
                                 if ~isfolder(Obj.CalibPath)
                                     mkdir(Obj.CalibPath);
@@ -2105,14 +2097,11 @@ classdef PipelineDemon < Component
                                 % add ID to image
                                 [CI.Bias,ID]=imProc.db.generateImageID(CI.Bias, 'KeyID','ID_DARK');
 
-                                FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                                write1(CI.Bias, FileN{1}, 'Image');
-                                FN_Master.Product  = {'Mask'};
-                                FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                                write1(CI.Bias, FileN{1}, 'Mask');
-                                FN_Master.Product  = {'Var'};
-                                FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                                write1(CI.Bias, FileN{1}, 'Var');
+                                write1(CI.Bias, char(fullfile(Obj.CalibPath, FN_Master.genFile)), 'Image');
+                                FN_Master.Product  = "Mask";
+                                write1(CI.Bias, char(fullfile(Obj.CalibPath, FN_Master.genFile)), 'Mask');
+                                FN_Master.Product  = "Var";
+                                write1(CI.Bias, char(fullfile(Obj.CalibPath, FN_Master.genFile)), 'Var');
 
                                 % keep in CI.Bias 
                                 Obj.CI.Bias = CI.Bias;
@@ -2142,11 +2131,8 @@ classdef PipelineDemon < Component
                 error('No Bias image found - can not run pipeline');
             end
             
-            if Args.Move2raw && FN.nfiles>0
-                RawList = FN.genFull; 
-                FN.FullPath = [];
-                % copy files to: FN_Dark.genPath();
-                io.files.moveFiles(RawList, FN.genFull);
+            if Args.Move2raw && FN.nFiles>0
+                Obj.moveCalibToRaw(FN);
             end
 
 
@@ -2164,10 +2150,12 @@ classdef PipelineDemon < Component
             % Input  : - A ipeline.DemonLAST object.
             %          * ...,key,val,...
             %            'FilesList' - Files to select: either a file name
-            %                   template, or a FileNames object. A caller-supplied
-            %                   FileNames object must carry its own FullPath - that
-            %                   is what allows building a master from frames outside
-            %                   new/, e.g. when reprocessing an archived night.
+            %                   template, or an AstroFileName or FileNames object
+            %                   (a FileNames object is converted to an
+            %                   AstroFileName). A caller-supplied object must carry
+            %                   its own path - that is what allows building a master
+            %                   from frames outside new/, e.g. when reprocessing an
+            %                   archived night.
             %                   Default is '*flat*.fits*'.
             %            'debiasArgs' - A cell array of additional
             %                   arguments to pass to imProc.dark.debias.
@@ -2198,8 +2186,8 @@ classdef PipelineDemon < Component
             %            'OverWrite' - Over write files.
             %                   Default is true.
             % Output : - A pipeline.DemonLAST with updated CI property.
-            %          - FileNames object of raw flat images.
-            %          - FileNames object of proc flat master image.
+            %          - AstroFileName object of raw flat images.
+            %          - AstroFileName object of proc flat master image.
             %          * Write files to disk
             % Author : Eran Ofek (Apr 2023)
             % Example: D = pipeline.DemonLAST;
@@ -2230,8 +2218,8 @@ classdef PipelineDemon < Component
             PWD = pwd;
             cd(Obj.NewPath);
 
-            FN        = FileNames;   % nfiles==0; keeps the Move2raw guard below valid
-                                     % on the path where FN is never assigned (issue #1221)
+            FN        = AstroFileName;   % nFiles==0; keeps the Move2raw guard below valid
+                                         % on the path where FN is never assigned (issue #1221)
             FN_Master = [];
             NoImages = false;
             if Args.Repopulate || ~exist(Obj.CI,'Flat',{'Image','Mask'})
@@ -2244,11 +2232,12 @@ classdef PipelineDemon < Component
                 WaitForMoreImages = true;
                 while WaitForMoreImages
                     
-                    if isa(Args.FilesList,'FileNames')
-                        % use the caller-supplied object; its own FullPath is kept by
-                        % genPath, which is what allows building a master from frames
-                        % outside new/ (issue #1221)
-                        FN = Args.FilesList;
+                    if isa(Args.FilesList,'AstroFileName') || isa(Args.FilesList,'FileNames')
+                        % use the caller-supplied object; its own path is kept,
+                        % which is what allows building a master from frames
+                        % outside new/ (issue #1221). A FileNames object is
+                        % converted to an AstroFileName (issue #1315)
+                        FN = Obj.toAstroFileName(Args.FilesList);
                         WaitForMoreImages = false;
                     else
                         % generate file names
@@ -2256,15 +2245,17 @@ classdef PipelineDemon < Component
                         if ischar(Args.FilesList) || isstring(Args.FilesList)
                             % a template: files whose name the parser rejects
                             % go to failed/ (issue #1311)
-                            FN = Obj.listRawFiles(Args.FilesList, 'Parser','FileNames');
+                            FN = Obj.listRawFiles(Args.FilesList);
                         else
-                            FN = FileNames.generateFromFileName(Args.FilesList);
+                            FN = Obj.toAstroFileName(Args.FilesList);
                         end
                         FN.BasePath = Obj.BasePath;
+                        % BasePath includes the ProjName, as FileNames assumed
+                        FN.BasePathIncludeProjName = false;
                     end
     
                     % identify new flat images
-                    [FN_Flat,Flag] = selectBy(FN, 'Type', {'twflat','flat'}, 'CreateNewObj',true);
+                    [FN_Flat,Flag] = FN.selectByPropVal('Type', ["twflat","flat"], 'Operator',@ismember, 'CreateNewObj',true);
     
                     % check that the dark images are ready and group by night
                     [Ind, LastJD, DT] = selectLastJD(FN_Flat);
@@ -2298,7 +2289,7 @@ classdef PipelineDemon < Component
                     Ngr = numel(FN_Flat_Groups);
                     if Ngr>0
                         for Igr=1:1:Ngr
-                            FlatList = FN_Flat_Groups(Igr).genFull([]);
+                            FlatList = cellstr(FN_Flat_Groups(Igr).genFull([]));
 
 
                             % prepare master flat
@@ -2321,32 +2312,16 @@ classdef PipelineDemon < Component
 
                                 % write file
                                 JD = CI.Flat.julday;
-                                FN_Master = FileNames;
-                                FN_Master.readFromHeader(CI.Flat);
-                                FN_Master.Type     = {'twflat'};
-                                FN_Master.Level    = {'proc'};
-                                FN_Master.Product  = {'Image'};
-                                FN_Master.Version  = [1];
-                                FN_Master.FileType = {'fits'};    
-
-                                % values for LAST dark images
-                                FN_Master.FieldID  = {''};
-                                FN_Master.Counter  = {''};
-                                FN_Master.CCDID    = {''};
-                                FN_Master.CropID   = {''};
-                                FN_Master.ProjName = FN_Flat.ProjName{1};
+                                FN_Master = Obj.masterFileName(CI.Flat, "twflat", FN_Flat.ProjName(1));
 
                                 % add ID to image
                                 [CI.Flat,ID]=imProc.db.generateImageID(CI.Flat, 'KeyID','ID_FLAT');
 
-                                FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                                write1(CI.Flat, FileN{1}, 'Image', 'Overwrite',Args.OverWrite);
-                                FN_Master.Product  = {'Mask'};
-                                FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                                write1(CI.Flat, FileN{1}, 'Mask', 'Overwrite',Args.OverWrite);
-                                FN_Master.Product  = {'Var'};
-                                FileN = FN_Master.genFull('FullPath',Obj.CalibPath);
-                                write1(CI.Flat, FileN{1}, 'Var', 'Overwrite',Args.OverWrite);
+                                write1(CI.Flat, char(fullfile(Obj.CalibPath, FN_Master.genFile)), 'Image', 'Overwrite',Args.OverWrite);
+                                FN_Master.Product  = "Mask";
+                                write1(CI.Flat, char(fullfile(Obj.CalibPath, FN_Master.genFile)), 'Mask', 'Overwrite',Args.OverWrite);
+                                FN_Master.Product  = "Var";
+                                write1(CI.Flat, char(fullfile(Obj.CalibPath, FN_Master.genFile)), 'Var', 'Overwrite',Args.OverWrite);
 
                                 % keep in CI.Bias 
                                 Obj.CI.Flat = CI.Flat;
@@ -2379,11 +2354,8 @@ classdef PipelineDemon < Component
                 error('No Flat image found - can not run pipeline');
             end
             
-            if Args.Move2raw && FN.nfiles>0
-                RawList = FN.genFull; 
-                FN.FullPath = [];
-                % copy files to: FN_Dark.genPath();
-                io.files.moveFiles(RawList, FN.genFull);
+            if Args.Move2raw && FN.nFiles>0
+                Obj.moveCalibToRaw(FN);
             end
 
             cd(PWD);
@@ -2416,7 +2388,13 @@ classdef PipelineDemon < Component
             PWD = pwd;
             cd(Obj.CalibPath);
             if ischar(AI) || isstring(AI)
-                AI = AstroImage.readFileNamesObj(AI);
+                % a file name or template in CalibPath: AstroFileName, not
+                % FileNames (issue #1315)
+                if any(contains(string(AI), '*'))
+                    AI = AstroImage.readFileNamesObj(AstroFileName.dir(AI));
+                else
+                    AI = AstroImage.readFileNamesObj(Obj.toAstroFileName(AI));
+                end
             else
                 % AI is supplied by user
             end
@@ -2475,7 +2453,13 @@ classdef PipelineDemon < Component
                 cd(Obj.CalibPath);
             end
             if ischar(AI) || isstring(AI)
-                AI = AstroImage.readFileNamesObj(AI);
+                % a file name or template in CalibPath: AstroFileName, not
+                % FileNames (issue #1315)
+                if any(contains(string(AI), '*'))
+                    AI = AstroImage.readFileNamesObj(AstroFileName.dir(AI));
+                else
+                    AI = AstroImage.readFileNamesObj(Obj.toAstroFileName(AI));
+                end
             else
                 % AI is supplied by user
             end
@@ -2755,7 +2739,9 @@ classdef PipelineDemon < Component
                 
                     % Move images to raw/ dir                
                     if Args.MoveNew2Raw     
-                        RawImageListFinal = FN_I.genPath('PathType','raw');
+                        % the date of the night, as the proc/ dir, v0 and the
+                        % LAST archive use (not the UT date) - issue #1315
+                        RawImageListFinal = FN_I.genPath('PathType','raw', 'RawDateFromJD',true);
                         io.files.moveFiles(RawImageList, [], '', RawImageListFinal);
                         
                         Status.MoveRaw = true;
@@ -3311,6 +3297,89 @@ classdef PipelineDemon < Component
                     FN = Parse(DirSt);
                 end
             end
+        end
+
+        function FN = toAstroFileName(Obj, In)
+            % An AstroFileName object of the given files (issue #1315)
+            %   An AstroFileName is returned as is. A FileNames object is
+            %   converted from its full names, keeping its BasePath and
+            %   TimeZone and the meaning of its BasePathIncludeProjName,
+            %   which is inverted in AstroFileName (FileNames: true =
+            %   BasePath already includes the ProjName; AstroFileName: true
+            %   = add it). A cell/string array of file names is parsed; names
+            %   without a path are taken in the current directory, as
+            %   FileNames.generateFromFileName did.
+            % Input  : - PipelineDemon object.
+            %          - An AstroFileName or FileNames object, or a cell/string
+            %            array of file names.
+            % Output : - An AstroFileName object.
+            % Author : A.M. Krassilchtchikov (Sep 2026)
+
+            if isa(In, 'AstroFileName')
+                FN = In;
+            elseif isa(In, 'FileNames')
+                FN = AstroFileName.parseString2AstroFileName(string(In.genFull([])));
+                FN.BasePath = string(In.BasePath);
+                FN.BasePathIncludeProjName = ~In.BasePathIncludeProjName;
+                FN.TimeZone = In.TimeZone(1);
+            else
+                FN = AstroFileName.parseString2AstroFileName(string(In(:)));
+                if all(strlength(FN.Path)==0)
+                    FN.Path = string(pwd);
+                end
+            end
+        end
+
+        function FN = masterFileName(Obj, AI, Type, ProjName)
+            % The AstroFileName of a master dark/flat image (Product 'Image')
+            %   Named as FileNames.readFromHeader and the LAST calibration
+            %   values named it: the Time from the JD of the header
+            %   (AstroHeader.julday), the Filter from FILTER, the ProjName of
+            %   the raw frames, empty FieldID/Counter/CCDID/CropID, Level
+            %   'proc', Version 1, FileType 'fits' (issue #1315).
+            %   AstroFileName.readFromHeader is not used: it reads a keyword
+            %   per field (e.g., TIME, TYPE), which a master does not carry.
+            % Input  : - PipelineDemon object.
+            %          - The master AstroImage (with its header).
+            %          - Type: "dark" | "twflat".
+            %          - ProjName (of the raw frames).
+            % Output : - An AstroFileName object.
+            % Author : A.M. Krassilchtchikov (Sep 2026)
+
+            FN = AstroFileName;
+            FN.ProjName = string(ProjName);
+            FN.julday2time(julday(AI.HeaderData));
+            Filter = AI.HeaderData.getVal('FILTER');
+            if isnumeric(Filter) && all(isnan(Filter))
+                Filter = "";
+            end
+            FN.Filter   = string(Filter);
+            FN.FieldID  = "";
+            FN.Counter  = "";
+            FN.CCDID    = "";
+            FN.CropID   = "";
+            FN.Type     = string(Type);
+            FN.Level    = "proc";
+            FN.Product  = "Image";
+            FN.Version  = "1";
+            FN.FileType = "fits";
+        end
+
+        function moveCalibToRaw(Obj, FN)
+            % Move raw calibration frames to raw/, under the night of the first one
+            %   As FileNames did (genFull with the path of the first file):
+            %   every frame goes to <BasePath>/YYYY/MM/DD/raw of the first
+            %   frame, the date being the date of the night, i.e. the JD +
+            %   TimeZone floored, as in the LAST archive (issue #1315).
+            % Input  : - PipelineDemon object.
+            %          - AstroFileName object of the frames (with their Path).
+            % Author : A.M. Krassilchtchikov (Sep 2026)
+
+            RawList = cellstr(FN.genFull([]));
+            FNraw = FN.copy;
+            FNraw.Path = [];
+            RawPath = FNraw.genPath(1, 'PathType','raw', 'RawDateFromJD',true);
+            io.files.moveFiles(RawList, cellstr(fullfile(RawPath, FN.genFile)));
         end
 
 
