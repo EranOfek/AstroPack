@@ -346,6 +346,40 @@ function Result = unitTest()
         end
     end
 
+    %% pseudoFWHM (issue #1310): no one-pixel shortfall, no whole-pixel quantisation,
+    % X = columns, and truncation at the stamp edge flagged
+    TopHat = zeros(11); TopHat(4:8,5:7) = 1;          % 5 rows (Y) x 3 columns (X)
+    [Wx, Wy, Trunc] = imUtil.psf.pseudoFWHM(TopHat);
+    if abs(Wx - 3) > 1e-12 || abs(Wy - 5) > 1e-12 || any(Trunc)
+        error('Problem with imUtil.psf.pseudoFWHM: a 5-row x 3-column top hat gave X %g, Y %g (expected 3, 5)', Wx, Wy);
+    end
+    % pixel-integrated Gaussian (sigma 3 px, FWHM 7.06 px) at random sub-pixel positions:
+    % the old pixel-centre extent read ~0.93 px short with +-0.34 px of scatter
+    rng(12);
+    Sig = 3; Nst = 41; Ss = 10;
+    Xs  = ((1:Nst*Ss) - 0.5)./Ss + 0.5;
+    [Xg, Yg] = meshgrid(Xs, Xs);
+    Wfit = zeros(50,1);
+    for Itr = 1:50
+        C0 = (Nst+1)./2 + rand(1,2) - 0.5;
+        Fine = exp(-((Xg-C0(1)).^2 + (Yg-C0(2)).^2)./(2.*Sig.^2));
+        Stamp = reshape(sum(sum(reshape(Fine,Ss,Nst,Ss,Nst),1),3), Nst, Nst);
+        [Wx, Wy] = imUtil.psf.pseudoFWHM(Stamp);
+        Wfit(Itr) = (Wx + Wy)./2;
+    end
+    TrueFWHM = 2.*sqrt(2.*log(2)).*sqrt(Sig.^2 + 1./12);   % incl. pixel integration
+    if abs(mean(Wfit) - TrueFWHM) > 0.1 || std(Wfit) > 0.05
+        error('Problem with imUtil.psf.pseudoFWHM: sigma=3 Gaussian gave %.3f +- %.3f px (expected %.3f)', ...
+              mean(Wfit), std(Wfit), TrueFWHM);
+    end
+    % a region reaching the stamp edge is a lower limit, and must say so
+    Edge = exp(-((Xg-3).^2 + (Yg-20).^2)./(2.*4.^2));
+    [~, ~, Trunc] = imUtil.psf.pseudoFWHM(Edge(1:Ss:end,1:Ss:end));
+    if ~isequal(Trunc, [true false])
+        error('Problem with imUtil.psf.pseudoFWHM: truncation flag %s for a PSF cut by the left edge (expected [1 0])', ...
+              mat2str(Trunc));
+    end
+
     %%
 
 	Result = true;
