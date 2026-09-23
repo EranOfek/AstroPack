@@ -1528,7 +1528,11 @@ classdef AstroTable < Component
                 end
                 
                 NextraCol    = size(Args.AddEntryPerElement,2);
-    
+                if isempty(Args.AddColUnits)
+                    % keep ColUnits as long as ColNames (issue #1309)
+                    Args.AddColUnits = repmat({''}, 1, numel(Args.AddColNames));
+                end
+
                 NewObj.ColNames = [ColNames, Args.AddColNames];
                 NewObj.ColUnits = [ColUnits, Args.AddColUnits];
                 NewObj.Catalog = zeros(0,Ncol+NextraCol);
@@ -1558,7 +1562,8 @@ classdef AstroTable < Component
                             if Args.IsTable
                                 NewObj.Catalog = [NewObj.Catalog; [getCol(Obj(Iobj), ColInd, Args.IsTable, false), array2table(ExtraCols, 'VariableNames',Args.AddColNames)]];
                             else
-                                NewObj.Catalog = [NewObj.Catalog; [getCol(Obj(Iobj), ColInd, Args.IsTable, false), repmat(ExtraCols, Nrow, 1)]];
+                                % ExtraCols already has Nrow rows (issue #1309)
+                                NewObj.Catalog = [NewObj.Catalog; [getCol(Obj(Iobj), ColInd, Args.IsTable, false), ExtraCols]];
                             end
                         end
                         
@@ -1607,7 +1612,13 @@ classdef AstroTable < Component
                     SortByColumnInd           = colname2ind(Obj(Iobj), SortByColumn);
                 end
                 
-                if ~isnan(SortByColumnInd) && (~Obj(Iobj).IsSorted || any(SortByColumnInd~=Obj(Iobj).SortByCol))
+                % one index per sort column: the catalog is sorted by all of
+                % them, as in the built-in sortrows (issue #1308). A catalog
+                % flagged IsSorted with an empty SortByCol is trusted, as before.
+                SortByColumnInd = SortByColumnInd(:).';
+                IsSortedBy      = Obj(Iobj).IsSorted && (isempty(Obj(Iobj).SortByCol) || ...
+                                                         isequal(SortByColumnInd, Obj(Iobj).SortByCol(:).'));
+                if all(~isnan(SortByColumnInd)) && ~IsSortedBy
                     [Obj(Iobj).Catalog, Ind]   = sortrows(Obj(Iobj).Catalog, SortByColumnInd);
                     Obj(Iobj).SortByCol = SortByColumnInd;
                     Obj(Iobj).IsSorted  = true;

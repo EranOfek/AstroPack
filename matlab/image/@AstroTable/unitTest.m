@@ -62,6 +62,23 @@ function Result = unitTest()
     assert(size(MAE.Catalog,1)==9,...
            'Merge error: a zero-row first element of a different width dropped the other elements')
 
+    % a per-element entry added as extra columns, to multi-row elements (issue #1309)
+    AE = AstroTable([1 2]);
+    AE(1).Catalog = rand(4,2); AE(1).ColNames = {'a','b'}; AE(1).ColUnits = {'deg','mag'};
+    AE(2).Catalog = rand(5,2); AE(2).ColNames = {'a','b'}; AE(2).ColUnits = {'deg','mag'};
+    Extra = [10 100; 20 200];
+    for IsTable=[false true]
+        MAE = merge(AE, [], 'AddEntryPerElement',Extra, 'AddColNames',{'e','f'}, 'IsTable',IsTable);
+        Data = MAE.Catalog;
+        if IsTable
+            Data = table2array(Data);
+        end
+        assert(isequal(Data, [AE(1).Catalog, repmat(Extra(1,:),4,1); AE(2).Catalog, repmat(Extra(2,:),5,1)]),...
+               'Merge error: AddEntryPerElement (IsTable=%d)', IsTable)
+        assert(isequal(MAE.ColNames, {'a','b','e','f'}) && isequal(MAE.ColUnits, {'deg','mag','',''}),...
+               'Merge error: AddColNames/ColUnits (IsTable=%d)', IsTable)
+    end
+
 
     % Sort by second column
     %io.msgLog(LogLevel.Test, 'testing AstroTable sortrows')
@@ -70,6 +87,24 @@ function Result = unitTest()
     if ~(MAC.IsSorted && issorted(MAC.Catalog(:,ColIndDec)))
         error('Problem with sort flagging');
     end
+
+    % sort by several columns, as the built-in sortrows (issue #1308)
+    AS = AstroTable({[repmat([3;1;2],3,1), (9:-1:1).', (1:9).']}, 'ColNames',{'a','b','c'});
+    Orig = AS.Catalog;
+    [~, Ind] = sortrows(AS, {'a','b'});
+    assert(isequal(AS.Catalog, sortrows(Orig, [1 2])) && isequal(AS.Catalog, Orig(Ind,:)) && ...
+           isequal(AS.SortByCol, [1 2]) && AS.IsSorted, 'sortrows: multi-column sort failed')
+    sortrows(AS, [1 3]);
+    assert(issortedrows(AS.Catalog, [1 3]) && isequal(AS.SortByCol, [1 3]),...
+           'sortrows: a different column list must re-sort')
+    sortrows(AS, [1 3 2]);
+    assert(isequal(AS.SortByCol, [1 3 2]), 'sortrows: a longer column list must re-sort')
+    sortrows(AS, 'b');
+    assert(issorted(AS.Catalog(:,2)) && isequal(AS.SortByCol, 2), 'sortrows: back to one column failed')
+    Cat0 = AS.Catalog;
+    sortrows(AS, {'a','nosuchcol'});
+    assert(isequal(AS.Catalog, Cat0) && isequal(AS.SortByCol, 2),...
+           'sortrows: an unknown column must leave the catalog untouched')
 
     % get column
     %io.msgLog(LogLevel.Test, 'testing AstroTable getCol')
