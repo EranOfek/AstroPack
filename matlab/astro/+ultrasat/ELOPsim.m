@@ -57,14 +57,14 @@ function Result = ELOPsim(Args)
     %         'VISSpecFile' - same, for Filter = 'VIS' rows.
     %         'ExtMag'      - magnitude the iterative solve for TargetSNR starts from (see
     %                         'TargetSNR' below); not the magnitude the simulated
-    %                         source(s) actually end up at. Default is 15.
+    %                         source(s) actually end up at. Default is 14.
     %         'TargetSNR'   - the actual magnitude used for each row's simulation is solved,
     %                         iteratively, so that the row's source(s) reach this crude S/N;
     %                         all sources in a row share one magnitude, solved from the
     %                         first source. usim's CrudeSNR now includes the source's own
     %                         shot noise, so it is NOT linear in flux and the magnitude
     %                         cannot be obtained in a single closed-form step -- see the
-    %                         solve loop below. Default is 50.
+    %                         solve loop below. Default is 100.
     %         'TemplateADiametersMm' - [mm] vector of the Template 'A' in-line circular
     %                         source disk diameters (left to right); each a physical mask
     %                         size, converted to arcsec via size2ang. Default is
