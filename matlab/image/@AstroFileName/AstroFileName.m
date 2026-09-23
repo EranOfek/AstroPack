@@ -959,11 +959,30 @@ classdef AstroFileName < Component
             % Author : Eran Ofek (Oct 2024)
             % Example: AstroFileName.julday2timeString(2451545+[0 1])
             
-            Date = celestial.time.jd2date(JD(:),'H');
-            N = numel(JD);
-            Str = strings(N,1);
+            % The JD is rounded to the millisecond before it is split into
+            % date and time, so that e.g. 59.9996 s carries into the next
+            % minute (and day) instead of giving "HHMM60.000", as FileNames
+            % does (issue #1315). A non-finite JD is formatted as before.
+            JD    = JD(:);
+            N     = numel(JD);
+            Str   = strings(N,1);
+            Good  = isfinite(JD);
+            JD0   = floor(JD - 0.5) + 0.5;            % JD of the preceding 0h UT
+            MSday = round((JD - JD0).*86400000);      % [ms] since 0h UT
+            Next  = MSday>=86400000;
+            JD0(Next)   = JD0(Next) + 1;
+            MSday(Next) = MSday(Next) - 86400000;
+            DateD = celestial.time.jd2date(JD0);      % [D M Y frac], frac=0
+            Date  = celestial.time.jd2date(JD,'H');   % only for a non-finite JD
             for I=1:1:N
-                Str(I)  = sprintf('%04d%02d%02d.%02d%02d%06.3f',Date(I,[3 2 1 4 5 6]));
+                if Good(I)
+                    MS = MSday(I);
+                    Str(I) = sprintf('%04d%02d%02d.%02d%02d%02d.%03d', DateD(I,[3 2 1]), ...
+                                     floor(MS./3600000), floor(mod(MS,3600000)./60000), ...
+                                     floor(mod(MS,60000)./1000), mod(MS,1000));
+                else
+                    Str(I) = sprintf('%04d%02d%02d.%02d%02d%06.3f',Date(I,[3 2 1 4 5 6]));
+                end
             end
             
         end
@@ -1163,6 +1182,13 @@ classdef AstroFileName < Component
                 TimeFormat = Obj.FormatTime;
             end
             
+            if Obj.nFiles==0
+                % datevec of an empty time string returns the current date,
+                % which made an empty object look like a file taken now (issue #1315)
+                JD = zeros(0,1);
+                return;
+            end
+
             TimeMat = datevec(Obj.Time, TimeFormat);
             JD = celestial.time.julday(TimeMat(:,[3 2 1 4 5 6]));
             
@@ -1910,6 +1936,12 @@ classdef AstroFileName < Component
             %                   Default is [].
             %            'AddSubDir' - Like BasePathIncludeProjName but for
             %                   adding the SubDir string. Default is [].
+            %            'RawDateFromJD' - For PathType 'raw': if true, take
+            %                   the YYYY/MM/DD from the JD and the TimeZone,
+            %                   i.e., the date of the night (changes at local
+            %                   noon), as the 'proc' path and FileNames do.
+            %                   If false, take it from the Time string
+            %                   (the UT date). Default is false.
             % Output : - A string array of path.
             % Author : Eran Ofek (Oct 2024)
             % Example: A=AstroFileName.dir('LAST.01.*fits'); A.Path = [];
@@ -1930,6 +1962,7 @@ classdef AstroFileName < Component
                 Args.PathType         = 'proc';  % 'new'|'calib'|'failed'|'proc'|'raw'|'ref'
                 Args.BasePathIncludeProjName = [];
                 Args.AddSubDir               = [];
+                Args.RawDateFromJD logical   = false;   % issue #1315
             end
             if isempty(Args.BasePathIncludeProjName)
                 BasePathIncludeProjName = Obj.BasePathIncludeProjName;
@@ -1993,7 +2026,7 @@ classdef AstroFileName < Component
                     case 'raw'
                         %BasePath/ProjName/YYYY/MM/DD/raw
                         
-                        YMD         = Obj.getDateDir(Ind, 'BreakToYMD',true, 'UseJD',false);
+                        YMD         = Obj.getDateDir(Ind, 'BreakToYMD',true, 'UseJD',Args.RawDateFromJD);
                         BasePathStr = Obj.getProp("BasePath", Ind, 'RepMat',true);
                         
                         if BasePathIncludeProjName
@@ -2849,7 +2882,7 @@ classdef AstroFileName < Component
         end
         
         % DONE
-        function [Obj, Flag] = selectByPropVal(Obj, Prop, Val, Args)
+        function [Result, Flag] = selectByPropVal(Obj, Prop, Val, Args)
             % Select lines/files names by property comparison with some value
             %   The comparison is done using a user specified function
             %   e.g., @strcmpi
@@ -3114,7 +3147,9 @@ classdef AstroFileName < Component
                 if isempty(Groups)
                     Result = [];
                 else
-                    Result = FileNames(Ngr);
+                    % an AstroFileName array (was a FileNames array, into which
+                    % the AstroFileName groups could not be assigned - issue #1315)
+                    Result = AstroFileName(Ngr);
                     for Igr=1:1:Ngr
                         Result(Igr) = Obj.reorderEntries(Groups(Igr).Ind, 'CreateNewObj',true);
                     end
