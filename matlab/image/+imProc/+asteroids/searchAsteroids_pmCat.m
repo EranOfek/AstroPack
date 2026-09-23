@@ -128,6 +128,16 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
     %            'UseMovingSource' - A logical indicating if to produce a
     %                   MovingSource object or AstCrop structure.
     %                   Default is true.
+    %            'ColNameMergedCat' - Column name in the merged catalog
+    %                   containing the MergedCat bit mask.
+    %                   Default is 'MergedCatMask'.
+    %            'RemoveByMergedCatFlags' - A cell array of MergedCat bit
+    %                   names (external catalogs). An asteroid candidate
+    %                   matched to one of these catalogs is not stored.
+    %                   If empty, do not screen.
+    %                   Default is {'GAIADR3','PGC','GLADEp'}.
+    %            'BitDicMergedCat' - The MergedCat BitDictionary object.
+    %                   Default is BitDictionary('BitMask.MergedCat.Default').
     % Output : - The original input merged catalog, with possibly additional
     %            column 'LinkingColName' for asteroid candidates.
     %          - A structure array with the cropped images. The following
@@ -199,7 +209,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         
         Args.UseMovingSource logical      = true;
         Args.ColNameMergedCat             = 'MergedCatMask';
-        Args.RemoveByMergedCatFlags       = {'GAIA_DRE3','PGC','GLADE'};
+        Args.RemoveByMergedCatFlags       = {'GAIADR3','PGC','GLADEp'};
         Args.BitDicMergedCat              = BitDictionary('BitMask.MergedCat.Default');
 
         Args.LinkAst logical              = false;
