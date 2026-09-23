@@ -2694,7 +2694,13 @@ classdef PipelineDemon < Component
 
             % executing pipelineI
             AllForcedPhot = []; % TEMPORARY / not used
-            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, 'MagType', Obj.MagType, 'NaNUncalibMag', Obj.NaNUncalibMag, Args.pipelineIArgs{:},'Status',Status);
+            % Solar System ephemeris prepared by prepSolarSystemEphem (issue #1320);
+            % only non-empty ones, placed before pipelineIArgs so the latter take precedence
+            EphemArgs = {'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'INPOP',Args.INPOP};
+            EphemArgs = EphemArgs(repelem(~cellfun(@isempty, EphemArgs(2:2:end)), 2));
+            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, 'MagType', Obj.MagType, 'NaNUncalibMag', Obj.NaNUncalibMag, ...
+                                                                     EphemArgs{:}, 'AsteroidSearchRadius',Args.AsteroidSearchRadius, ...
+                                                                     Args.pipelineIArgs{:},'Status',Status);
             %ProcImageList = TableRaw.FileName;                
             RunTime = etime(clock, Tstart);
             Ntr = size(TableRaw,1);

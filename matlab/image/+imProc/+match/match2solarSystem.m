@@ -51,7 +51,8 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
     %           'GeoPos' - Geodetic position of the observer (on
     %                   Earth). [Lon (rad), Lat (rad), Height (m)].
     %                   If empty and input is AstroImage then will attempt
-    %                   to read from header. If empty, and no header info,
+    %                   to read from header (Lon/Lat in deg, converted to
+    %                   rad). If empty, and no header info,
     %                   then will use geocentric position.
     %                   Default is [].
     %            'RefEllipsoid' - Reference ellipsoid for the
@@ -246,8 +247,17 @@ function [SourcesWhichAreMP, AstCat, Obj] = match2solarSystem(Obj, Args)
             
                 % Get image/catalog obs position
                 if isempty(Args.GeoPos) && isa(Obj, 'AstroImage')
+                    % header Lon/Lat are in deg, GeoPos is in rad (issue #1320)
                     [Lon, Lat, Alt] = getObsCoo(Obj(Iobj).HeaderData, 'KeyLon',Args.KeyLon, 'KeyLat',Args.KeyLat, 'KeyAlt',Args.KeyAlt);
-                    Args.GeoPos     = [Lon, Lat, Alt]; 
+                    if isnan(Lon) || isnan(Lat)
+                        % no position in header - geocentric (NaN would propagate to all predictions)
+                        Args.GeoPos = [];
+                    else
+                        if isnan(Alt)
+                            Alt = 0;
+                        end
+                        Args.GeoPos = [Lon./RAD, Lat./RAD, Alt];
+                    end
                 end
             
                 % Generate catalog of asteroids around search coordinates
