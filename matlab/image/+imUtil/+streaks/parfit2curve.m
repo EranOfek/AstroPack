@@ -11,9 +11,10 @@ function [CurveX, CurveY] = parfit2curve(Parfit, X, Y, Args)
     %     t=1 corresponds to the end   point [X(2), Y(2)]
     %   The transverse (perpendicular) offset from the base segment at t is:
     %     h(t) = Parfit(1)*t^2 + Parfit(2)*t + Parfit(3)
-    %   The orthogonal unit vector is (-dy, dx)/L, so:
-    %     CurveX(t) = X(1) + (X(2)-X(1))*t - (Y(2)-Y(1))*h(t)/L
-    %     CurveY(t) = Y(1) + (Y(2)-Y(1))*t + (X(2)-X(1))*h(t)/L
+    %   The orthogonal unit vector is (dy, -dx)/L, matching the signed
+    %   offset used by streak_photometry (X = column, Y = row):
+    %     CurveX(t) = X(1) + (X(2)-X(1))*t + (Y(2)-Y(1))*h(t)/L
+    %     CurveY(t) = Y(1) + (Y(2)-Y(1))*t - (X(2)-X(1))*h(t)/L
     %
     % Input  : - Parfit: [a; b; c] (3x1 column vector) or [a, b, c] (1x3 row).
     %          - X: [x1, x2] start/end x-coordinates (pixel column indices).
@@ -40,12 +41,12 @@ function [CurveX, CurveY] = parfit2curve(Parfit, X, Y, Args)
     %   % Single streak from detectStreaksLSD output:
     %   i = 1;
     %   [CX, CY] = imUtil.streaks.parfit2curve(Parfit(:,i), ...
-    %                   [segs(1,i), segs(3,i)], [segs(2,i), segs(4,i)]);
+    %                   [segs(2,i), segs(4,i)], [segs(1,i), segs(3,i)]);
     %   plot(CX, CY, 'r-');
     %
     %   % With extension and explicit step size:
     %   [CX, CY] = imUtil.streaks.parfit2curve(Parfit(:,i), ...
-    %                   [segs(1,i), segs(3,i)], [segs(2,i), segs(4,i)], ...
+    %                   [segs(2,i), segs(4,i)], [segs(1,i), segs(3,i)], ...
     %                   'Npoints', 500, 'ExtendFrac', 0.05);
 
     arguments
@@ -81,8 +82,9 @@ function [CurveX, CurveY] = parfit2curve(Parfit, X, Y, Args)
 
     % --- Convert to pixel coordinates ---
     % Along-segment component: X(1) + dx*t, Y(1) + dy*t
-    % Perpendicular unit vector: (-dy, dx)/L
-    CurveX = X(1) + dx.*t - dy.*h./L;
-    CurveY = Y(1) + dy.*t + dx.*h./L;
+    % Perpendicular unit vector: (dy, -dx)/L
+    % (same signed offset as streak_photometry/segmentParabolicOffset)
+    CurveX = X(1) + dx.*t + dy.*h./L;
+    CurveY = Y(1) + dy.*t - dx.*h./L;
 
 end

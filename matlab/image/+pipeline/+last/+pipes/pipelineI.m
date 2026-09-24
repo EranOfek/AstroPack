@@ -66,6 +66,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
         Args.BitName       = 'Streak';
         Args.SemiWidth     = 3;
+        Args.AddCurvature  = false; % false: straight mask between streak ends; true: follow St.Curve
 
         Args.image2subimagesArgs           = {};
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
@@ -446,7 +447,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Add JD, RA, Dec, IsEdge to streaks data:
             AllSI=imProc.streaks.addSkyCoo(AllSI, 'PopJD',true, 'JD',JD, 'ExpTime',ExpTime);
             % populate streak mask:
-            AllSI = imProc.streaks.addStreak2Mask(AllSI, 'BitName', Args.BitName, 'SemiWidth',Args.SemiWidth);
+            AllSI = imProc.streaks.addStreak2Mask(AllSI, 'BitName', Args.BitName, 'SemiWidth',Args.SemiWidth, 'AddCurvature',Args.AddCurvature);
 
             % Args.DistEdgeStreak = 10;
             % for Iobj=1:1:Nobj

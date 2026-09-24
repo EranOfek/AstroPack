@@ -60,8 +60,8 @@ function [phot,extsegs,curve,stripeindices]=...
 %    - extseg: [x1e; y1e; x2e; y2e]
 %    - curve: structure containing:
 %            * coefficients {a,b,c} of the parabolic fits
-%              to the offset w.r.o the base segs, h(t) = a+b*t+c*t^2
-%              where {x,y} = {x1e, y1e} for t=0 and {x,y} = {x2e, y2e} for t=1
+%              to the offset w.r.t. the base segment, h(t) = a*t^2 + b*t + c
+%              where {x,y} = {x1, y1} for t=0 and {x,y} = {x2, y2} for t=1
 %             For 'clipping'='gaussianfit', this fit is computed using
 %              the sagittal locations on each slice; for other choices
 %              of 'clipping', using all values of the 'acceptable' pixels.
@@ -258,13 +258,19 @@ function [phot,extsegs,curve,stripeindices]=...
                 X=nan(size(tm)); Y=X;
                 X(q) = X1(1) + (X2(1)-X1(1))*tm(q) - (X2(2)-X1(2))*hm(q)/L;
                 Y(q) = X1(2) + (X2(2)-X1(2))*tm(q) + (X2(1)-X1(1))*hm(q)/L;
-                curve(i).parfit = weightedParabolicOffset(X1,X2,X(q)',Y(q)');
-                % Use points on the parabola as coordinates for the 
-                %  unacceptable slices
-                h= curve(i).parfit(1)*tm(~q).^2 + curve(i).parfit(2)*tm(~q) + ...
-                    curve(i).parfit(3);
-                [X(~q),Y(~q)]=segmentParabolicOffset(X1,X2,...
-                                     curve(i).parfit,tm(~q), h);
+                % Fit relative to the base segment, which is the segment
+                % stored on AstroStreak and consumed by parfit2mask.
+                curve(i).parfit = weightedParabolicOffset([x1,y1],[x2,y2],X(q)',Y(q)');
+                % Unacceptable slices: place them on that same parabola.
+                % tm is the extended-segment coordinate; convert it to the
+                % base-segment coordinate before evaluating parfit.
+                if any(~q)
+                    t0 = ((x2-x1)*(x1ext-x1) + (y2-y1)*(y1ext-y1)) / L2;
+                    t1 = ((x2-x1)*(x2ext-x1) + (y2-y1)*(y2ext-y1)) / L2;
+                    tBase = t0 + tm(~q).*(t1 - t0);
+                    [X(~q),Y(~q)] = segmentParabolicOffset([x1,y1],[x2,y2], ...
+                        curve(i).parfit, reshape(tBase, 1, []));
+                end
             otherwise
                 % fit a parabola to all unclipped pixels, with weight
                 %  proportional to the pixel intensity itself (statistically
@@ -414,10 +420,8 @@ function [C,goodindices,tm] = sliceGaussianProfile(X1,X2,Xb1,Xb2,x,y,W,Args)
 %                is 0 or NaN.
 % goodindices: logical vector 1xN, true for indices of elements of W which
 %                lead to an acceptable fit (R-square>Args.rthreshold)
-%   tm:  vector of values of the intrinsic segment coordinate, at the
-%        mid of each slice. To associate the photometry of each slice with
-%        pixel coordinates, via 
-%          [X,Y]=segmentParabolicOffset([x1,y1],[x2,y2],curve(i).parfit,tm)
+%   tm:  vector of values of the intrinsic coordinate of the extended
+%        segment (X1,X2), at the mid of each slice.
 
     arguments
         X1 (1,2) double

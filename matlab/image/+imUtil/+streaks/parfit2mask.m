@@ -43,11 +43,11 @@ function Flag = parfit2mask(ImageSize, Parfit, Args)
     % Example:
     %   % Basic mask from detectStreaksLSD output, streak i:
     %   F = imUtil.streaks.parfit2mask(size(Im), Parfit(:,i), ...
-    %           'X', [segs(1,i), segs(3,i)], 'Y', [segs(2,i), segs(4,i)]);
+    %           'X', [segs(2,i), segs(4,i)], 'Y', [segs(1,i), segs(3,i)]);
     %
     %   % Extend both ends to image edges:
     %   F = imUtil.streaks.parfit2mask(size(Im), Parfit(:,i), ...
-    %           'X', [segs(1,i), segs(3,i)], 'Y', [segs(2,i), segs(4,i)], ...
+    %           'X', [segs(2,i), segs(4,i)], 'Y', [segs(1,i), segs(3,i)], ...
     %           'SemiWidth', 5, 'IsEdges', [true, true]);
 
     arguments
@@ -169,6 +169,7 @@ function [cx, cy] = evalCurve(Parfit, X, Y, L, t)
     dx = X(2) - X(1);
     dy = Y(2) - Y(1);
     h  = Parfit(1).*t.^2 + Parfit(2).*t + Parfit(3);
-    cx = X(1) + dx.*t - dy.*h./L;
-    cy = Y(1) + dy.*t + dx.*h./L;
+    % Same signed offset as parfit2curve / segmentParabolicOffset
+    cx = X(1) + dx.*t + dy.*h./L;
+    cy = Y(1) + dy.*t - dx.*h./L;
 end
