@@ -402,8 +402,8 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
         RejectStage    = updateRejectStage(RejectStage, FlagGoodImages, 'histogram anomaly');
     end
 
-    % many pixels with the same value
-    if ~isempty(Args.MaxNBadVal) && any(FlagGoodImages)
+    % many pixels with the same value (skipped if BadVal is empty, issue #1325)
+    if ~isempty(Args.BadVal) && ~isempty(Args.MaxNBadVal) && any(FlagGoodImages)
         for Iim=1:1:Nim
             TableForDB.NpixWithBadVal(Iim)   = sum(AI(Iim).ImageData.Image(:)==Args.BadVal);
         end
