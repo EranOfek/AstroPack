@@ -1471,6 +1471,34 @@ classdef PipelineDemon < Component
             end
 
         end
+
+        function AI=readCalibFrames(FileList)
+            % (Static) Read raw calibration frames (dark/flat) into an AstroImage,
+            %   handling tile-compressed (.fz/.gz) input.
+            %   Reading a .fits.fz with matlab.io.fits returns the compressed
+            %   container's header instead of the image header, which later
+            %   breaks the master write (CFITSIO 407). Compressed input is thus
+            %   read with the mex reader and the container keywords are removed
+            %   (issues #1248, #1323).
+            % Input  : - A cell array of file names.
+            % Output : - An AstroImage array.
+            % Author : A.M. Krassilchtchikov (Sep 2026)
+            % Example: AI = pipeline.last.pipes.PipelineDemon.readCalibFrames(FlatList);
+
+            ContainerKeys = {'XTENSION','PCOUNT','GCOUNT','TFIELDS','EXTNAME','TTYPE1','TFORM1',...
+                             'ZIMAGE','ZSIMPLE','ZBITPIX','ZNAXIS','ZNAXIS1','ZNAXIS2',...
+                             'ZTILE1','ZTILE2','ZCMPTYPE','ZNAME1','ZVAL1','ZNAME2','ZVAL2',...
+                             'ZQUANTIZ','ZDITHER0','ZTENSION','ZPCOUNT','ZGCOUNT','ZTHEAP',...
+                             'ZHECKSUM','ZDATASUM'};
+
+            IsCompressed = any(endsWith(string(FileList), [".fz",".gz"]));
+            AI = AstroImage(FileList, 'UseMex',IsCompressed);
+            if IsCompressed
+                for Iim=1:1:numel(AI)
+                    AI(Iim).HeaderData.deleteKey(ContainerKeys, 'UseRegExp',false);
+                end
+            end
+        end
     end
 
     
@@ -2073,7 +2101,7 @@ classdef PipelineDemon < Component
                             % prepare master bias
                             CI = CalibImages;
 
-                            CI.createBias(DarkList, 'BiasArgs',Args.BiasArgs, 'Convert2single',true);
+                            CI.createBias(Obj.readCalibFrames(DarkList), 'BiasArgs',Args.BiasArgs, 'Convert2single',true);
 
                             % save processed bias images in raw/ dir
 
@@ -2295,7 +2323,7 @@ classdef PipelineDemon < Component
                             % prepare master flat
 
                             % read the images
-                            AI = AstroImage(FlatList);
+                            AI = Obj.readCalibFrames(FlatList);
 
                             % subtract bias/dark
                             if Args.Convert2single
