@@ -89,7 +89,9 @@ Image2 = imresize(Image,2,'lanczos2'); %nearest');
 Lap2 = imUtil.filter.imlaplacian(Image2);
 
 % replace L2<0 with 0
-Lap2(Lap2<0) = 0;
+% Lap2(Lap2<0) = 0; % slow
+Lap2 = Lap2.*(Lap2>0);
+
 
 % convolve with [1 1;1 1]
 

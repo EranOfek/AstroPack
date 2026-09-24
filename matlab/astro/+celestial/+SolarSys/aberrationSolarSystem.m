@@ -1,6 +1,15 @@
 function U2 = aberrationSolarSystem(U, E_dotH, Delta)
+    % Apply aberration of light to solar system observer and body
+    % Input  : - (U) A 3 row matrix of object barycentric position.
+    %            All coordinate systems should be consistent.
+    %          - A 3 row matrix of observer barycentric velocity.
+    %          - A vector of observer-object distance.
+    %            Note that for a star This will be 1, and U is the unit
+    %            vector of the star position.
+    %            If empty, then calculated from U.
+    %            Default is [].
+    % Output : - Abberated U.
     %
-    
     % Here:
     %   u_B - The Barycentric position of the object.
     %   E_B - The Barycentric position of the earth.
@@ -12,16 +21,39 @@ function U2 = aberrationSolarSystem(U, E_dotH, Delta)
     % Alamanac (Seidelmann 2006), chapter 3.315, p. 148.
     % Vel should be in the Barycentric system, but here we
     % approximate it in the Heliocentric system
-    
+    %
+    % Author : Eran Ofek (Jan 2016)
     % Example: U2 = celestial.SolarSys.aberrationSolarSystem(U, E_dotH, Delta)
             
+    arguments
+        U
+        E_dotH
+        Delta   = [];
+    end
+    
     Caud = constant.c.*86400./constant.au;  % speed of light [au/day]
 
+    if isempty(Delta)
+        Delta = sqrt(sum(U.^2, 1));
+    end
+    
     P       = U./Delta;
     V       = E_dotH./Caud;
     AbsV    = sqrt(sum(V.^2, 1));
     InvBeta = sqrt(1- AbsV.^2);
-    F1      = dot(P, V);
+    
+    % match sizes
+    SizeP   = size(P, 2);
+    SizeV   = size(V, 2);
+    if SizeP>1 && SizeV==1
+        V = repmat(V, 1, SizeP);
+    elseif SizeV>1 && SizeP==1
+        P = repmat(P, 1, SizeV);
+    else
+        % do nothing
+    end
+        
+    F1      = dot(P, V, 1);
     F2      = 1 + F1./(1 + InvBeta);
 
     % The abberated position of the body in the geocentric inertial
@@ -30,4 +62,6 @@ function U2 = aberrationSolarSystem(U, E_dotH, Delta)
 
     U2 = (InvBeta.*U + F2.*Delta.*V)./(1 + F1);
 
+    % non reltivsitic approximation
+    % U2 = U + Delta.*V;
 end

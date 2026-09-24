@@ -4,9 +4,10 @@ function Result = unitTest(Obj)
     % https://heasarc.gsfc.nasa.gov/docs/software/ftools/fv/
 
 
-	io.msgLog(LogLevel.Test, 'FITS.unitTest sarted');
+	io.msgLog(LogLevel.Test, 'FITS.unitTest started');
 	
-	DataSampleDir = tools.os.getTestDataDir;
+% 	DataSampleDir = tools.os.getTestDataDir;
+    I = Installer; DataSampleDir = I.getDataDir('TestImagesAstroPack');
 	PWD = pwd;
 	cd(DataSampleDir);
           
@@ -47,7 +48,9 @@ function Result = unitTest(Obj)
 	
 	% mget_keys
 	io.msgLog(LogLevel.Test, 'testing FITS mget_keys');
-	[KeysVal,KeysComment,Struct,List]=FITS.mget_keys('*.fits',{'NAXIS1','NAXIS2'});
+	% not '*.fits': the directory also holds catalog files whose primary HDU
+	% has no NAXIS1/NAXIS2, and readKey errors on a keyword which is absent
+	[KeysVal,KeysComment,Struct,List]=FITS.mget_keys('WFPC2*.fits',{'NAXIS1','NAXIS2'});
 	
 	% non static 
 	F.numHDU;  
@@ -62,7 +65,7 @@ function Result = unitTest(Obj)
 	
 	% read/write
 	A=rand(10,11);
-	File = 'tmp/tmpfile.fits';
+	File = fullfile(tempdir,'tmpfile.fits');
 	io.msgLog(LogLevel.Test, 'testing FITS write');
 	FITS.write(A,File,'Header',{'a',1,'';'b',2,''});
 	[B,H]=FITS.read1(File);  
@@ -73,13 +76,20 @@ function Result = unitTest(Obj)
 	
 	% write_keys
 	io.msgLog(LogLevel.Test, 'testing FITS write_keys');
-	File = 'tmp/tmpfile.fits';
+	File = fullfile(tempdir,'tmpfile.fits');
 	FITS.write(A,File,'Header',{'a',1,'';'b',2',''});
 	FITS.write_keys(File,{'try','A','comm';'try2',6,'what'});
 	delete(File);
 	
+    % write and reread long string values
+	io.msgLog(LogLevel.Test, 'testing FITS read_long_header_strings');
+    test_long_header_strings();
+
     % Test writeTable1()
-    test_writeTable();    
+    test_writeTable();
+
+    % Test writeTable1() with a zero-row table (issue #1226)
+    test_writeTable_zeroRows();
     
 	cd(PWD);	
 	io.msgStyle(LogLevel.Test, '@passed', 'FITS test passed')
@@ -88,12 +98,42 @@ end
 
 
 
+function Result = test_writeTable_zeroRows()
+    % A table with columns but no rows must be written as a valid 0-row
+    % binary table, and read back (before #1226: writeCol threw on empty
+    % column data and left a truncated file behind).
+    FileName = fullfile(tempdir,'wrtable_rows0.fits');
+    if isfile(FileName)
+        delete(FileName);
+    end
+    ColNames = {'X','Y','MAG_APER_3'};
+    % (the constructor does not keep ColNames for empty data - build the
+    % zero-row catalog from a populated one)
+    AC0 = AstroCatalog({rand(5,3)}, 'ColNames',ColNames, 'ColUnits',{'pix','pix','mag'});
+    AC0.Catalog = zeros(0,3);
+    FITS.writeTable1(AC0, FileName, 'ExtName','Rows0');
+    D0 = dir(FileName);
+    if isempty(D0) || D0(1).bytes<=2880
+        error('Problem with FITS.writeTable1: zero-row table not written');
+    end
+    Info = fitsinfo(FileName);
+    if Info.BinaryTable(1).Rows~=0 || Info.BinaryTable(1).NFields~=3
+        error('Problem with FITS.writeTable1: zero-row table has wrong shape');
+    end
+    Out = FITS.readTable1(FileName, 'HDUnum',2, 'OutTable','AstroCatalog');
+    if ~isequal(size(Out.Catalog), [0 3]) || ~isequal(Out.ColNames(:).', ColNames)
+        error('Problem with FITS.readTable1: zero-row table read back');
+    end
+    delete(FileName);
+    Result = true;
+end
+
 function Result = test_writeTable()
 
     % unitTest for the FITS.writeTable()
     %WorkDir = tools.os.getTestWorkDir;
    
-    FileName = 'tmp/wrtable1a.fits';
+    FileName = fullfile(tempdir,'wrtable1a.fits');
     if isfile(FileName)
         delete(FileName);
     end
@@ -174,7 +214,7 @@ end
 function Result = test_writeHeader()
     % Test performance of writeHeader and other fits issues (under work)
     
-    FileName = 'tmp/writeheader.fits';
+    FileName = fullfile(tempdir,'writeheader.fits');
     
     NumKeys = 10;    
     for Iter=1:5
@@ -197,4 +237,47 @@ function Result = test_writeHeader()
     
     Result = true;
 end
+
+function Result = test_long_header_strings()
+% Test reading headers with continued cards and long string values
+
+    FileName = fullfile(tempdir,'longheader.fits');
+    if isfile(FileName)
+        delete(FileName);
+    end
+
+    Header=AstroHeader();
+    % add some normal and some exotic keys to the header
+    % TODO, in future add to FITS.readHeader1 also HIERARCH long keys
+    Header.insertKey({...
+        'ONE',1,'a number';...
+        'ALONGLONGNUMBER',2,'another number';...
+        'ALONGLONGSTRING','this may be more interesting','figure what';...
+        'THREE','a very very, but really a lot, and again, and more, and more and longer string',...
+        'even with a comment';...
+        'TWELVE','Like the previous, a very very, but really a lot, and again, and more, and more and longer string, but sooooo long that it goes on for several lines',...
+        'even with a comment';...
+        'ELEVEN',11,' still a number';...
+        'PRAVDA',true,'logical, no? but here we could argue, forever, because comments are autoreferential';...
+        'FOUR','a /very very/ but really a lot/ and again, and more/ and more and longer string',...
+              'a rhyme ''/'' with many slashes/ so it is also/ pretty long';...
+        'SymKey','sys\\tem?\&^M^V                                                     loong(((',...
+                 'with \\6& $ #strange sym)bols(' ...
+        });
+
+    FITS.write(rand(3,3), FileName, 'Header', Header.Data);
+
+    Header2 = FITS.readHeader1(FileName);
+
+    for i=1:size(Header.Data,1)
+        Key=Header.Data{i,1};
+        Value=Header2{strcmpi(Header2(:,1),Key),2};
+        if ~all(Value==Header.Data{i,2})
+            error('value of %s not reread correctly',Key)
+        end
+    end
+
+    delete(FileName);
+end
+
 

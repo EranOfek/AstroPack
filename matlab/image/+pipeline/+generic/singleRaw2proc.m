@@ -39,6 +39,23 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
     %            'MultiplyByGain'
     %            'MaskSaturated'
     %            'DoAstrometry'
+    %            'MinFracIsolated' - Minimum fraction of the reference
+    %                   catalog sources that must survive the neighboors
+    %                   rejection. In a crowded field a deep reference
+    %                   catalog is left with almost no isolated sources;
+    %                   when the fraction is not met the faint limit of the
+    %                   magnitude range is brightened automatically.
+    %                   Set to [] to disable.
+    %                   The step in which the faint limit is brightened, and
+    %                   the brightest limit which may be selected, are
+    %                   'AdaptMagStep' (0.5 mag) and 'AdaptMaxDeltaMag' (5 mag) of
+    %                   imProc.cat.getAstrometricCatalog; together they also
+    %                   bound the number of trials. The faint limit is only
+    %                   ever brightened, so a supplied magnitude range -
+    %                   e.g., one already corrected for the exposure time -
+    %                   is never deepened or replaced.
+    %                   See imProc.cat.getAstrometricCatalog.
+    %                   Default is 0.5.
     %            'DoPhotometry'
     %            'MatchExternal'
     %            'SaveProducts'
@@ -78,11 +95,11 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                  'LIGHTSEC','[1 6388 25 9600]';...
                                                  'OVERSCAN','[6389 6422 1 9600]'};   % '[1 6354 1 9600]'};
                                              % 'COUNTER',1;...
-        Args.UpdateHeader logical             = true;   % CROPID & LEVEL
-        
+        Args.UpdateHeader logical             = true;   % CROPID & LEVEL        
         
         Args.MultiplyByGain logical           = true; % after fringe correction
         Args.MaskSaturated(1,1) logical       = true;
+        Args.InterpolateOverBadPix logical    = false;
         Args.DoAstrometry(1,1) logical        = true;
         Args.DoPhotometry(1,1) logical        = true;
         Args.MatchExternal(1,1) logical       = false;
@@ -91,10 +108,11 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.RemoveBadImages logical          = true;
         Args.identifyBadImagesArgs cell       = {};
         
-        Args.BitNameBadPix                  = {'Saturated','NaN','Negative'};
-        Args.BitNameInterpolated            = 'Interpolated';
+        Args.BitDictionaryName                = 'BitMask.Image.Default';
+        Args.BitNameBadPix                    = {}; %{'NaN','Negative'};
+        Args.BitNameInterpolated              = 'Interpolated';
                 
-        Args.KeySoftVer                       = 'PIPEVER';
+        Args.KeySoftVer                       = []; %'PIPEVER';  % if empty skip
         
         Args.InterpolateOverProblems logical  = false; %true;
         Args.BitNamesToInterp                 = {'Saturated','HighRN','DarkHighVal','Hole','Spike','CR_DeltaHT'};
@@ -120,9 +138,11 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         Args.subtractMeanColRowArgs cell      = {};
         
         Args.findMeasureSourcesArgs cell      = {};
+        Args.RemoveBadSources logical         = true;
         Args.ZP                               = 25;
         Args.photometricZPArgs cell           = {};
         Args.astrometrySubImagesArgs cell     = {};
+        Args.MinFracIsolated                  = 0.5;   % minimum fraction of isolated reference sources - see imProc.cat.getAstrometricCatalog
         Args.astrometryRefineArgs cell        = {};
         Args.RefineSearchRadius               = 5;
         Args.CatName                          = 'GAIAEDR3';  % or AstroCatalog
@@ -141,25 +161,30 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                  'SN','BACK_IM','VAR_IM',...  
                                                  'BACK_ANNULUS', 'STD_ANNULUS', ...
                                                  'FLUX_APER', 'FLUXERR_APER',...
-                                                 'MAG_APER', 'MAGERR_APER',...
-                                                 'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
+                                                 'MAG_APER', 'MAGERR_APER'};
+                                                 %'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
         Args.DeletePropAfterSrcFinding        = {}; %{'Back','Var'};
         
         
         
-        Args.OrbEl                            = []; %celestial.OrbitalEl.loadSolarSystem;  % prepare ahead to save time % empty/don't match
-        Args.KnownAsteroidsSearchRadius       = 8;     % [arcsec]
+        Args.OrbEl                            = []; % celestial.OrbitalEl.loadSolarSystem;  % prepare ahead to save time % empty/don't match
+        Args.KnownAsteroidsSearchRadius       =  8; % [arcsec]
         Args.match2solarSystemArgs            = {};
         Args.GeoPos                           = [];
         
+        Args.MinNstar                         = 10; % minimal number of sources in a subimage
         Args.AddPSF logical                   = false;
         Args.constructPSFArgs cell            = {}; % can be, e.g. {'CropByQuantile',true,'Quantile',0.999}; 
         Args.PsfPhot logical                  = false;
+        Args.psfFitPhotArgs cell              = {'FitRadius',3};         
+        
+        Args.MultiIterationPSFphot logical    = false;     % currently not activated: under tests
+        Args.MultiIterationThresholds         = [30 10 5]; % multi-iteration PSF photometry thresholds per iteration (in sigma)
+        Args.MultiIterationRedNoiseFactor     = 1.3;       % red-noise factor increasing variance around found sources for the next iterations
         
         Args.SaveFileName                     = [];  % full path or ImagePath object
         Args.CreateNewObj logical             = false;
-        
-        
+                              
     end
     
     % Get Image
@@ -195,7 +220,9 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
     end
     
     % add AstroPack version to headers
-    AI.setKeyVal(Args.KeySoftVer, tools.git.getVersion);
+    if ~isempty(Args.KeySoftVer)
+        AI.setKeyVal(Args.KeySoftVer, tools.git.getVersion);
+    end
 
     % set CalibImages
     if isempty(Args.CalibImages)
@@ -235,7 +262,8 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
     % CalibImages object.
     AI = Args.CalibImages.processImages(AI, ...
                               'SingleFilter',true,...
-                              'InterpolateOverBadPix',true,...
+                              'BitDict',Args.BitDictionaryName,...
+                              'InterpolateOverBadPix',Args.InterpolateOverBadPix,...
                               'BitNameBadPix',Args.BitNameBadPix,...
                               'BitNameInterpolated',Args.BitNameInterpolated,...
                               'MaskSaturated',Args.MaskSaturated,...
@@ -319,25 +347,56 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         % Source finding
         %SI.cast('double');
         SI = imProc.sources.findMeasureSources(SI, Args.findMeasureSourcesArgs{:},...
-                                                   'RemoveBadSources',true,...
+                                                   'MomentsMethod','legacy',...
+                                                   'RemoveBadSources',Args.RemoveBadSources,...
                                                    'Threshold',Args.Threshold,...
                                                    'ColCell',Args.ColCell,...
                                                    'ZP',Args.ZP,...
                                                    'CreateNewObj',false);
         %SI.cast('single');
 
+        % Add JD and CropID to Catalog
+        SI = imProc.cat.insertCol(SI, 'InsertJD',true, 'ColNameJD','JD', 'InsertId',true, 'ColNameId','CropID');
+
+
+        if any(SI.sizeCatalog < Args.MinNstar)
+            [MinVal, MinInd] = min(SI.sizeCatalog);
+            %error('Sub-image: %d has only %d sources', MinInd, MinVal)
+        end
+        
         % FFU: flags Holes
         % imProc.mask.maskHoles
 
-        % Estimate PSF
-        if Args.AddPSF
-            [SI] = imProc.psf.populatePSF(SI, 'Method', 'new', Args.constructPSFArgs{:}); 
-
-            if Args.PsfPhot
-                % PSF photometry
-                [SI, ResPSF] = imProc.sources.psfFitPhot(SI, 'CreateNewObj',false);                                   
+        % Estimate PSF and do PSF photometry
+        if Args.AddPSF            
+            if Args.MultiIterationPSFphot
+                % This is not the place for mextractor...
+                [SI, ~] = imProc.sources.mextractor(SI,'Threshold',Args.MultiIterationThresholds,...
+                                                    'FindWithEmpiricalPSF',true,...
+                                                    'RedNoiseFactor',Args.MultiIterationRedNoiseFactor);
+            else
+                [SI] = imProc.psf.populatePSF(SI, 'Method', 'new', 'WingsMethod', 'empirical', Args.constructPSFArgs{:});
+                
+                NotEmptyPSF = ~isemptyPSF(SI);
+                NoPSF = sum(NotEmptyPSF)<5;
+                if NoPSF
+                    IsPSF = false;
+                    % less than 5 good images
+                %if any(isemptyPSF(SI))
+                    % If no PSF found for one sub image - fails all
+                    % FFU: need to change in the future
+                    N_noPSF = sum(isemptyPSF(SI));
+                    N_SubImages = numel(SI);
+                    N_totSrc    = sum(SI.sizeCatalog);
+                    N_minSrc    = min(SI.sizeCatalog);
+                    warning('No PSF constructed to %d out of %d sub images - total number of stars in all sub images %d - number of stars in sub images with minimum stars is %d',N_noPSF, N_SubImages, N_totSrc, N_minSrc);
+                end
+                
+                if Args.PsfPhot && ~NoPSF
+                    % PSF photometry
+                    [SI(NotEmptyPSF), ResPSF] = imProc.sources.psfFitPhot(SI(NotEmptyPSF), 'CreateNewObj',false,'ZP',Args.ZP,Args.psfFitPhotArgs{:});
+                end
             end
-
         end
 
         
@@ -349,6 +408,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                                                                 'Scale',Args.Scale,...
                                                                                                 'CatName',Args.CatName,...
                                                                                                 'CooOffset',Args.CooOffset,...
+                                                                                                'MinFracIsolated',Args.MinFracIsolated,...
                                                                                                 'CCDSEC', InfoCCDSEC.EdgesCCDSEC,...
                                                                                                 'Tran',Args.Tran,...
                                                                                                 'CreateNewObj',false);
@@ -361,6 +421,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
                                                                                                 'Tran',Args.Tran,...
                                                                                                 'SearchRadius',Args.RefineSearchRadius,...
                                                                                                 'IncludeDistortions',true,...
+                                                                                                'MinFracIsolated',Args.MinFracIsolated,...
                                                                                                 'CreateNewObj',false);
                
                 % % treatment in case of a failure
@@ -390,7 +451,7 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
         
         % add PSF FWHM to the header after the astrometry, as it employs WCS.CD
         if Args.AddPSF
-            imProc.psf.fwhm(SI); 
+            [SI, Tmp] = imProc.psf.fwhm(SI, 'Scale',Args.Scale); 
         end
 
         % Photometric ZP
@@ -399,12 +460,14 @@ function [SI, BadImageFlag, AstrometricCat, Result] = singleRaw2proc(File, Args)
             [SI, Result.ZP, ~] = imProc.calib.photometricZP(SI, 'CreateNewObj',false,...
                                                                 'MagZP',Args.ZP,...
                                                                 'CatName',AstrometricCat,...
+                                                                'MinFracIsolated',Args.MinFracIsolated,...
                                                                 Args.photometricZPArgs{:});
 
             % Update Cat photometry
         end
         
         % interpolate over problematic pixels
+        % FFU: maybe remove as this is already done by CalibImages/processImage
         if Args.InterpolateOverProblems
             % interpolate over staurated pixels
             SI = imProc.mask.interpOverMaskedPix(SI, 'BitNamesToInterp',Args.BitNamesToInterp,...

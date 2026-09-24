@@ -5,7 +5,7 @@ function Result = unitTest()
 
     RAD = 180./pi;
     
-    % selectFlag
+    %% selectFlag
     OrbEl = celestial.OrbitalEl.loadSolarSystem('num');
     Res   = selectFlag(OrbEl, 1, true);
             
@@ -13,10 +13,10 @@ function Result = unitTest()
     %OrbEl = celestial.OrbitalEl.loadSolarSystem;
     %O = merge(OrbEl);
     
-    % meanMotion
+    %% meanMotion
     Result = meanMotion(OrbEl(1));
     
-    % period
+    %% period
     Result = period(OrbEl(1));
     
     Result = eccAnom2radius(OrbEl(1), 1);  
@@ -30,9 +30,9 @@ function Result = unitTest()
 
     OrbElA = celestial.OrbitalEl.loadSolarSystem;
     [Nu, R, E, Vel, M] = keplerSolve(OrbElA(1), 2451545);
-    OrbEl = celestial.OrbitalEl.loadSolarSystem([],9804);
+    OrbEl = celestial.OrbitalEl.loadSolarSystem('num',9804);
     [Nu, R, E, Vel, M] = keplerSolve(OrbEl(1), 2451545+(1:1:10)');
-    % Test parabolic orbit
+    %% Test parabolic orbit
     E1.Tp = celestial.time.julday([14 4 1998 0.4358]);
     E1.PeriDist = 1.487469;
     JD = celestial.time.julday([ 5 8 1998]);
@@ -119,7 +119,7 @@ function Result = unitTest()
     
     
     %% testing ephem against JPL
-    E = celestial.OrbitalEl.loadSolarSystem([],9804);
+    E = celestial.OrbitalEl.loadSolarSystem('num',9804);
     [X, V, JD0] = elements2pos(E, 'CooSys','ec');
     [T] = celestial.SolarSys.getJPL_ephem('9804;','EPHEM_TYPE','VECTORS','TimeScale','TT', 'StartTime',JD0, 'StopTime',JD0+0.5,'CENTER','500@0');
     if any(abs([T.X;T.Y;T.Z]-X)>1e-6)
@@ -128,7 +128,7 @@ function Result = unitTest()
         
     
 
-    % same with heliocentric position
+    %% same with heliocentric position
     % Not working!
     % Test by obtaining the Sun barycentric position
     OrbEl1 = celestial.OrbitalEl.loadSolarSystem('num',9804);
@@ -152,7 +152,7 @@ function Result = unitTest()
     %% Test: integrateElements
     OrbEl=celestial.OrbitalEl.loadSolarSystem('num',[9801]);   
     JD = OrbEl.Epoch + 1000;
-    Result = integrateElements(OrbEl, JD, 'TolInt',1e-6);
+    Result = integrateElements(OrbEl, JD, 'TolInt',1e-7);
     [T] = celestial.SolarSys.getJPL_ephem('9801;','EPHEM_TYPE','ELEMENTS','TimeScale','TDB','StartTime',JD,'StopTime',JD+0.5, 'OutType','OrbitalEl');
     Resid = [Result.Node - T.Node, Result.W-T.W, Result.Incl-T.Incl, Result.A-T.A, Result.PeriDist-T.PeriDist, Result.Eccen-T.Eccen];
     if any(abs(Resid)>1e-4)
@@ -175,10 +175,7 @@ function Result = unitTest()
             error('Astroid not found by searchMinorPlanetsNearPosition');
         end
     end
-            
-
-    
-    
+         
     %io.msgLog(LogLevel.Test, 'OrbitalEl test passed');
     Result = true;
 end

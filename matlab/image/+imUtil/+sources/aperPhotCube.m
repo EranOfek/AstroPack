@@ -32,7 +32,7 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     %            'StdFun' - A function handle for std background
     %                   calculation. The function is of the forms
     %                   Fun(Data,Dim,...)
-    %                   Default is @std
+    %                   Default is @std (consider changing to mad).
     %            'StdFunArgs' - A cell array of additional arguments to
     %                   pass to 'StdFun' (after the dimension arguments.
     %                   Defauly is {'omitnan'}.
@@ -87,7 +87,7 @@ function Result = aperPhotCube(Cube, X, Y, Args)
         Args.StdFun function_handle   = @std
         Args.StdFunArgs cell          = {'omitnan'};
         
-        Args.SubPixShift              = 'fft';    % 'lanczos' | 'fft' | 'none'
+        Args.SubPixShift              = 'lanczos3'; % 'lanczos' | 'lanczos3' | 'fft' | 'none' (issue #1258)
         Args.A                        = 3;
         Args.IsCircFilt logical       = true;
         Args.PadVal                   = 0;
@@ -103,7 +103,7 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     AperRad2 = Args.AperRad.^2;
     Naper    = numel(AperRad2);
     
-    if numel(Args.AnnulusRad)==1
+    if isscalar(Args.AnnulusRad)
         % width, where Rout is half size
         Rout = 0.5.*min(SizeX, SizeY);
         Args.AnnulusRad = [Rout-Args.AnnulusRad, Rout];  % [Rin, Rout]
@@ -140,6 +140,8 @@ function Result = aperPhotCube(Cube, X, Y, Args)
     switch Args.SubPixShift   
         case 'lanczos'
             [Cube] = imUtil.trans.shift_lanczos(Cube, ShiftXY, Args.A, Args.IsCircFilt, Args.PadVal);
+        case 'lanczos3'
+            [Cube] = imUtil.trans.mex.shift_lanczos3(Cube, ShiftXY(:,1), ShiftXY(:,2));
         case 'fft'
             [Cube] = imUtil.trans.shift_fft(Cube, ShiftXY(:,1), ShiftXY(:,2));            
         case 'none'
@@ -147,9 +149,15 @@ function Result = aperPhotCube(Cube, X, Y, Args)
             % need to prepare a new version of MatR2 with the correct
             % positions
             
+            % BUG: because ShiftXY was already shifted to origin of stamp
+            % [-X,...0,...X]
             VecX  = X(:) - (1:1:SizeX);
             VecY  = Y(:) - (1:1:SizeY);
             
+            % [1,...2X]
+            %VecX = (1:1:SizeX) - ShiftXY(:,1);
+            %VecY = (1:1:SizeY) - ShiftXY(:,2);
+
             MatR2 = zeros(SizeY, SizeX, Nim);
             for Iim=1:1:Nim
                 MatR2(:,:,Iim) = VecX(Iim,:).^2 + (VecY(Iim,:).').^2;
@@ -170,8 +178,9 @@ function Result = aperPhotCube(Cube, X, Y, Args)
         Result.AperArea(:,Iaper)    = squeeze(sum(FlagPix,[1 2]));
         %Result.AperPhot(:,Iaper)   = squeeze(sum(Cube.*(MatR2 < AperRad2(Iaper)),[1 2],'omitnan'));
         Result.AperPhot(:,Iaper)    = squeeze(sum(Cube.*FlagPix,[1 2],'omitnan'));
+        %Result.AperPhot(:,Iaper)    = tools.array.mex.squeezeSumAmultB_Dim12(Cube,FlagPix,repmat(1,size(Cube,3),1));
     end
-    Result.AperPhotErr =  sqrt(Result.AnnulusBack.*Result.AperArea + Result.AperPhot);
+    Result.AperPhotErr =  sqrt(abs(Result.AnnulusBack.*Result.AperArea + Result.AperPhot));
     
     if Args.BoxPhot
         Result.BoxPhot = squeeze(sum(Cube,[1 2],'omitnan'));

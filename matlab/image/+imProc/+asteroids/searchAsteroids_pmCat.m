@@ -125,6 +125,19 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
     %                   to be cut around each asteroid candidate.
     %            'cropLonLatArgs' - A cell array of additional arguments to
     %                   pass to AstroImage/cropLonLat. Default is {}.
+    %            'UseMovingSource' - A logical indicating if to produce a
+    %                   MovingSource object or AstCrop structure.
+    %                   Default is true.
+    %            'ColNameMergedCat' - Column name in the merged catalog
+    %                   containing the MergedCat bit mask.
+    %                   Default is 'MergedCatMask'.
+    %            'RemoveByMergedCatFlags' - A cell array of MergedCat bit
+    %                   names (external catalogs). An asteroid candidate
+    %                   matched to one of these catalogs is not stored.
+    %                   If empty, do not screen.
+    %                   Default is {'GAIADR3','PGC','GLADEp'}.
+    %            'BitDicMergedCat' - The MergedCat BitDictionary object.
+    %                   Default is BitDictionary('BitMask.MergedCat.Default').
     % Output : - The original input merged catalog, with possibly additional
     %            column 'LinkingColName' for asteroid candidates.
     %          - A structure array with the cropped images. The following
@@ -154,7 +167,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
     arguments
         CatPM AstroCatalog
         
-        Args.BitDict(1,1) BitDictionary
+        Args.BitDict(1,1) BitDictionary   = BitDictionary;
         Args.Images                       = [];   % column per CatPM element
         
         Args.ColNameRA                    = 'RA';  % RA at central epoch
@@ -179,6 +192,10 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         Args.Nobs_TdistProb               = [10 0.98; 5 0.995; 3 0.9999]; %     ((PM_TdistProb > 0.995 & Nobs>5) | (PM_TdistProb>0.9999 & Nobs>3));   
         Args.MinStdSN                     = 0.4;   
         Args.H1_NoutlierLimit             = 2;  
+
+        Args.ColNameChi2Dof               = 'Mean_PSF_CHI2DOF';
+        Args.MaxChi2Dof                   = 3;
+        Args.SN_ForMaxChi2Dof             = 100;
         
         % linking
         Args.LinkingRadius                = 7;
@@ -188,7 +205,16 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         
         % cutouts
         Args.HalfSizeXY                   = [50 50];
-        Args.cropLonLatArgs               = {'DataProp',{'ImageData'}, 'DeleteProp',{'BackData','VarData'}, 'UpdateCat',true, 'UpdateWCS',false, 'cropXYargs', {}, 'UpdateHeader',true};
+        Args.cropLonLatArgs               = {'DataProp',{'ImageData'}, 'DeleteProp',{'BackData','VarData'}, 'UpdateCat',true, 'UpdateWCS',true, 'cropXYargs', {}, 'UpdateHeader',true};
+        
+        Args.UseMovingSource logical      = true;
+        Args.ColNameMergedCat             = 'MergedCatMask';
+        Args.RemoveByMergedCatFlags       = {'GAIADR3','PGC','GLADEp'};
+        Args.BitDicMergedCat              = BitDictionary('BitMask.MergedCat.Default');
+
+        Args.LinkAst logical              = false;
+        
+        Args.MaxNumAst  = 10;
     end
     
     Args.PM_Radius   = convert.angular(Args.PM_RadiusUnits, 'deg', Args.PM_Radius); % deg
@@ -211,6 +237,9 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
         Args.TimeSpan = max(Args.JD) - min(Args.JD);
     end
     
+    if Args.UseMovingSource
+        AstCrop = MovingSource(); 
+    end
     Icrop = 0;
     for Icat=1:1:Ncat
         % select columns from CatPM
@@ -225,7 +254,7 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
             Noutlier     = CatPM(Icat).getCol(Args.ColNameNoutlier);
             DecFlags     = CatPM(Icat).getCol(Args.ColNameFlags);
             InfoSN       = CatPM(Icat).getCol({Args.ColNameMeanSN, Args.ColNameStdSN});  % [Mean, Std]
-
+            PSF_Chi2Dif  = CatPM(Icat).getCol({Args.ColNameChi2Dof});  % [Mean]
 
             TotPM        = sqrt(sum(PM.^2, 2));  % total PM [deg/day]
             %ExpectedNobs = Nepochs .* TotPM.*Args.TimeSpan./(2.*Args.PM_Radius);
@@ -241,6 +270,8 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
                 Flags(Icat).Flags_HighSN  = ~findBit(Args.BitDict, DecFlags, Args.HighSNBitNames, 'Method','any');
                 Flags(Icat).Flags_HighSN  = Flags(Icat).Flags_HighSN | InfoSN(:,1)>Args.SN_HighSN;
             end
+
+            Flags(Icat).Flag_Chi2Dof = InfoSN(:,1)>Args.SN_ForMaxChi2Dof | (InfoSN(:,1)<Args.SN_ForMaxChi2Dof & PSF_Chi2Dif<Args.MaxChi2Dof);
 
             % Flag sources with large number of outliers in H1 (PM hypothesis)
             % This select good stars with small number of outliers
@@ -259,45 +290,60 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
                                  Flags(Icat).Tdist & ...
                                  Flags(Icat).Nobs & ...
                                  Flags(Icat).LowStdSN & ...
+                                 Flags(Icat).Flag_Chi2Dof & ...
                                  Flags(Icat).Flag_Outlier;
 
             % Number of asteroid candidates
+            
             AstInd   = find(Flags(Icat).All);
             NastCand = numel(AstInd);
+            
+            if NastCand>Args.MaxNumAst
+                % select only top /best asteroids according to Tdist
+                % Note that the other criteria still applies so the number
+                % of selected asteroids may be smaller than Args.MaxNumAst
+                Nsrc = numel(PM_TdistProb);
+                Flags(Icat).All = Flags(Icat).All & PM_TdistProb>quantile(PM_TdistProb, (Nsrc - Args.MaxNumAst)./Nsrc);
+                AstInd   = find(Flags(Icat).All);
+                NastCand = numel(AstInd);
+            end
 
             % Linking objects
             % Since PM epoch is the same for all objects
             % this involves only comparing the position of sources
             [RA, Dec] = CatPM(Icat).getLonLat('rad', 'ColLon',Args.ColNameRA, 'ColLat',Args.ColNameDec); % [rad]
             % select only the asteroid candidates
-            CandRA  = RA(Flags(Icat).All);
-            CandDec = Dec(Flags(Icat).All);
+            CandRA  = RA(AstInd);
+            CandDec = Dec(AstInd);
 
             LinkedAstIndex       = 0;
             LinkedColumn         = nan(Nsrc, 1);  % nan - no PM | negative/unique(not necessely continous) - asteroid w/o links | >0 - asteroid with links
             LinkedColumn(AstInd) = -(1:1:numel(AstInd));
-            if NastCand>1
-                for Icand=1:1:NastCand
-                    Dist = celestial.coo.sphere_dist_fast(CandRA(Icand), CandDec(Icand), CandRA, CandDec);
-                    Dist(Icand) = NaN;
-
-                    FlagLink = Dist < LinkingRadiusRad;
-                    if sum(FlagLink)>0
-                        % found a match for asteroid 
-                        LinkedAstIndex = LinkedAstIndex + 1;
-
-                        % mark the linked sources as the same asteroid (same
-                        % index)
-                        LinkedColumn(AstInd(Icand))    = LinkedAstIndex;
-                        LinkedColumn(AstInd(FlagLink)) = LinkedAstIndex;
+            if Args.LinkAst
+                % FFU: there is a bug in this section -
+                % it doesn't find linked asteroids.
+                if NastCand>0
+                    for Icand=1:1:NastCand
+                        Dist = celestial.coo.sphere_dist_fast(CandRA(Icand), CandDec(Icand), CandRA, CandDec);
+                        Dist(Icand) = NaN;
+    
+                        FlagLink = Dist < LinkingRadiusRad;
+                        if sum(FlagLink)>1
+                            % found a match for asteroid 
+                            LinkedAstIndex = LinkedAstIndex + 1;
+    
+                            % mark the linked sources as the same asteroid (same
+                            % index)
+                            LinkedColumn(AstInd(Icand))    = LinkedAstIndex;
+                            LinkedColumn(AstInd(FlagLink)) = LinkedAstIndex;
+                        end
                     end
                 end
             end
-
             if Args.AddLinkingCol
                 CatPM(Icat).insertCol(LinkedColumn, Inf, Args.LinkingColName, '');
             end
-
+            
 
             % extract cutouts centered on asteroids candidates
             if ~isempty(Args.Images) 
@@ -306,31 +352,83 @@ function [CatPM, AstCrop] = searchAsteroids_pmCat(CatPM, Args)
                 UniquAst = unique(LinkedColumn);
                 UniquAst = UniquAst(~isnan(UniquAst));
                 Nunique  = numel(UniquAst);
-                for Iun=1:1:Nunique
-                    % for each unique asteroid
-                    % extract a cutout from Args.Images
 
-                    Iast = find(LinkedColumn==UniquAst(Iun));
+                % create MovingSource object
+                if Args.UseMovingSource
 
-                    Icrop = Icrop + 1;
+                    for Iun=1:1:Nunique
+                        % for each unique asteroid
+                        % extract a cutout from Args.Images
+                        Iast = find(LinkedColumn==UniquAst(Iun));
 
-                    AstCrop(Icrop).FieldIndex     = Icat;
-                    AstCrop(Icrop).AstIndex       = UniquAst(Iun);
+                        if isempty(Args.RemoveByMergedCatFlags)
+                            StoreAsteroid = true;
+                        else
+                            if all(CatPM.isColumn(Args.ColNameMergedCat))
+                                BitDec = CatPM(Icat).getCol(Args.ColNameMergedCat);
+    
+                                if Args.BitDicMergedCat.findBit(BitDec(Iast), Args.RemoveByMergedCatFlags, 'Method','any')
+                                    % skip
+                                    StoreAsteroid = false;
+                                else             
+                                    StoreAsteroid = true;
+                                end
+                            else
+                                StoreAsteroid = true;
+                            end
+                        end
+                        if StoreAsteroid
+                            Icrop = Icrop + 1;
+                            %Icrop
+                            AstCrop(Icrop).MergedCat             = CatPM(Icat).selectRows(Iast);
+                            %AstCrop(Icrop).JD                    = Args.JD;
+                            %AstCrop(Icrop).RA             = RA(Iast(1));   % [rad]
+                            %AstCrop(Icrop).Dec            = Dec(Iast(1));  % [rad]
+                            [AstCrop(Icrop).Stamps, Info] = cropLonLat(Args.Images(:, Icat), AstCrop(Icrop).RA, AstCrop(Icrop).Dec,...
+                                                                            'CooUnits','deg',...
+                                                                            'HalfSizeXY',Args.HalfSizeXY,...
+                                                                            Args.cropLonLatArgs{:});
+                            
+                            AstCrop(Icrop).Info.X                = Info.X;
+                            AstCrop(Icrop).Info.Y                = Info.Y;
+                            AstCrop(Icrop).Info.CCDSEC           = Info.CCDSEC;
+                            AstCrop(Icrop).Info.FieldIndex     = Icat;
+                            AstCrop(Icrop).Info.AstIndex       = UniquAst(Iun);
+                            % asteroid selected lines from CatPM
+                            AstCrop(Icrop).Info.IndexInMergedCat = Iast;
+                                                            
+                        end
+                    end
 
-                    AstCrop(Icrop).RA             = RA(Iast(1));   % [rad]
-                    AstCrop(Icrop).Dec            = Dec(Iast(1));  % [rad]
-                    [AstCrop(Icrop).Stamps, Info] = cropLonLat(Args.Images(:, Icat), AstCrop(Icrop).RA, AstCrop(Icrop).Dec,...
-                                                                    'CooUnits','rad',...
-                                                                    'HalfSizeXY',Args.HalfSizeXY,...
-                                                                    Args.cropLonLatArgs{:});
-                    AstCrop(Icrop).X              = Info.X;
-                    AstCrop(Icrop).Y              = Info.Y;
-                    AstCrop(Icrop).CCDSEC         = Info.CCDSEC;
-                    % asteroid selected lines from CatPM
-                    AstCrop(Icrop).IndexOfAstInCatPM = Iast;
-                    AstCrop(Icrop).SelectedCatPM  = CatPM(Icat).selectRows(Iast);
-                    AstCrop(Icrop).JD             = Args.JD;
+                else
+                    % Use original AstCrop format
 
+                    for Iun=1:1:Nunique
+                        % for each unique asteroid
+                        % extract a cutout from Args.Images
+    
+                        Iast = find(LinkedColumn==UniquAst(Iun));
+    
+                        Icrop = Icrop + 1;
+    
+                        AstCrop(Icrop).FieldIndex     = Icat;
+                        AstCrop(Icrop).AstIndex       = UniquAst(Iun);
+    
+                        AstCrop(Icrop).RA             = RA(Iast(1));   % [rad]
+                        AstCrop(Icrop).Dec            = Dec(Iast(1));  % [rad]
+                        [AstCrop(Icrop).Stamps, Info] = cropLonLat(Args.Images(:, Icat), AstCrop(Icrop).RA, AstCrop(Icrop).Dec,...
+                                                                        'CooUnits','rad',...
+                                                                        'HalfSizeXY',Args.HalfSizeXY,...
+                                                                        Args.cropLonLatArgs{:});
+                        AstCrop(Icrop).X              = Info.X;
+                        AstCrop(Icrop).Y              = Info.Y;
+                        AstCrop(Icrop).CCDSEC         = Info.CCDSEC;
+                        % asteroid selected lines from CatPM
+                        AstCrop(Icrop).IndexOfAstInCatPM = Iast;
+                        AstCrop(Icrop).SelectedCatPM  = CatPM(Icat).selectRows(Iast);
+                        AstCrop(Icrop).JD             = Args.JD;
+    
+                    end
                 end
             end
         end

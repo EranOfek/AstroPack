@@ -105,6 +105,7 @@ classdef AstroHeader < Component
                 FileNames      = 1;   % name or array size
                 HDU            = 1;
                 Args.UseRegExp(1,1) logical = false;
+                Args.UseMex    = false
             end
             
             if isnumeric(FileNames)
@@ -135,7 +136,11 @@ classdef AstroHeader < Component
             for Ih=1:1:Nh
                 if ~isempty(Obj(Ih).File)
                     Ihdu = min(Ih,Nhdu);
-                    Obj(Ih).Data = FITS.readHeader1(Obj(Ih).File,HDU(Ihdu));
+                    if Args.UseMex
+                        Obj(Ih).Data = io.fits.mex.read_header(Obj(Ih).File, HDU(Ihdu));
+                    else
+                        Obj(Ih).Data = FITS.readHeader1(Obj(Ih).File, HDU(Ihdu));
+                    end
                 end
                 Obj(Ih).KeyDict     = Dictionary.getDict('Header.Synonyms.KeyNames');
                 Obj(Ih).ValDict     = Dictionary.getDict('Header.Synonyms.KeyVal.IMTYPE');
@@ -502,7 +507,7 @@ classdef AstroHeader < Component
                     Result = replaceVal(Obj ,Args.ReplaceKeys, Args.ReplaceVals, Args.replaceValArgs{:});
                 end
                 if ~isempty(Args.InsertKeys)
-                    Result = insertKey(Obj ,ArgsInsertKeys, Args.insertKeyArgs{:});
+                    Result = insertKey(Obj ,Args.InsertKeys, Args.insertKeyArgs{:});
                 end
                 if Args.AddHistory
                     HistoryLine = {'HISTORY', sprintf('funUnary with operator: %s',func2str(Operator)),''};
@@ -527,6 +532,32 @@ classdef AstroHeader < Component
                 Nline(Iobj) = size(Obj(Iobj).Data,1);
             end
 
+        end
+
+        function [Val,Comment] = getValSimple(Obj, Key)
+            % Get header keyword value / simple version (no synonyms and conversions).
+            % Inpuut : - self.
+            %          - Key name.
+            % Output : - Value (NaN if not exist, or if the stored value is
+            %            empty/blank - the unmeasured-value convention of
+            %            issue #1252, matching getVal's conversion).
+            %          - Comment
+            % Author : Eran Ofek (Jun 2025)
+            % Example: AH.getValSimple(AH,'EXPTIME')
+
+            Ind = find(strcmp(Obj.Data(:,1), Key));
+            if isempty(Ind)
+                Val = NaN;
+                Comment = '';
+            else
+                Val  = Obj.Data{Ind,2};
+                if isempty(Val) || (ischar(Val) && isempty(strtrim(Val)))
+                    Val = NaN;
+                end
+                if nargout>1
+                    Comment = Obj.Data{Ind,3};
+                end
+            end
         end
 
         function [Val, Key, Comment, Nfound] = getVal(Obj, KeySynonym, Args)
@@ -749,7 +780,7 @@ classdef AstroHeader < Component
         end
         
         function [ResultVal, IK] = getCellKey(Obj,ExactKeys,Args)
-            % Get multiple  keys from multiple headers and store in a cell array
+            % Get multiple keys from multiple headers and store in a cell array
             %       The keyword search can be exact (UseDict=false), or
             %       using a keywords dictionary (UseDict=true).
             % Input  : - An AstroHeader object (multiple elements supported)
@@ -935,6 +966,8 @@ classdef AstroHeader < Component
             %            'CaseSens' - Default is true.
             %            'UseRegExp' - Use regexp (true) or strcmp (false).
             %                   Default is true.
+            %            'Algo' - Algorithm used. Default is 1.
+            %               If UseRefExp=true, then will revert to Algo=2.
             % Example: H=AstroHeader('WFPC2ASSNu5780205bx.fits');
             %          deleteKey(H,{'EXPTIME','A','COMMENT'})
             %          deleteKey(H,{'EXPTIME','A','SKYSUB\d'}) % use regexp
@@ -942,28 +975,53 @@ classdef AstroHeader < Component
             arguments
                 Obj
                 ExactKeys
-                Args.CaseSens(1,1) logical    = true;
-                Args.UseRegExp(1,1) logical   = true;
+                Args.CaseSens                 = true;
+                Args.UseRegExp                = true;
+                Args.Algo                     = 1; % old
             end
-            
-            if ischar(ExactKeys)
-                ExactKeys = {ExactKeys};
+
+            if Args.UseRegExp
+                % revert to old algo:
+                Args.Algo = 2;
             end
-            Nkeys = numel(ExactKeys);
-            
-            searchFun = tools.string.stringSearchFun(Args.UseRegExp, Args.CaseSens);
-            
+
             Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                Nrow = size(Obj(Iobj).Data,1);
-                Flag = false(Nrow,1);
-                for Ikeys=1:1:Nkeys
-                    % in principle can use ismember (but no regexp)
-                    NewFlag = searchFun( Obj(Iobj).Data(:,Obj(Iobj).ColKey), ExactKeys{Ikeys});
-                    Flag = Flag | NewFlag(:);
+            
+            if Args.Algo==1
+                if Args.CaseSens
+                    for Iobj=1:1:Nobj
+                        FlagToRemove   = ismember(Obj(Iobj).Data(:,1), ExactKeys);
+                        Obj(Iobj).Data = Obj(Iobj).Data(~FlagToRemove,:);
+                    end
+                else
+                    % case insensetive
+                    for Iobj=1:1:Nobj
+                        FlagToRemove   = ismember(upper(Obj(Iobj).Data(:,1)), upper(ExactKeys));
+                        Obj(Iobj).Data = Obj(Iobj).Data(~FlagToRemove,:);
+                    end
                 end
-                % remove keywords
-                Obj(Iobj).Data = Obj(Iobj).Data(~Flag,:);
+            elseif Args.Algo==2
+                % old code
+                if ischar(ExactKeys)
+                    ExactKeys = {ExactKeys};
+                end
+    
+                Nkeys = numel(ExactKeys);
+                
+                searchFun = tools.string.stringSearchFun(Args.UseRegExp, Args.CaseSens);
+                
+                
+                for Iobj=1:1:Nobj
+                    Nrow = size(Obj(Iobj).Data,1);
+                    Flag = false(Nrow,1);
+                    for Ikeys=1:1:Nkeys
+                        % in principle can use ismember (but no regexp)
+                        NewFlag = searchFun( Obj(Iobj).Data(:,Obj(Iobj).ColKey), ExactKeys{Ikeys});
+                        Flag = Flag | NewFlag(:);
+                    end
+                    % remove keywords
+                    Obj(Iobj).Data = Obj(Iobj).Data(~Flag,:);
+                end
             end
                  
         end
@@ -1023,16 +1081,16 @@ classdef AstroHeader < Component
                 Obj
                 Key
                 Val
-                Args.SearchAlgo char                          = 'strcmp';
-                Args.CaseSens(1,1) logical                    = true;
-                Args.RepVal(1,1) logical                      = true;
-                Args.Comment                                  = [];
-                Args.NewKey                                   = {};
-                Args.AddKey(1,1) logical                      = true;
-                Args.AddPos                                   = 'end';
-                Args.ColKey(1,1) uint8                        = 1;
-                Args.ColVal(1,1) uint8                        = 2;
-                Args.ColComment(1,1) uint8                    = 3;
+                Args.SearchAlgo                     = 'strcmp';
+                Args.CaseSens                       = true;
+                Args.RepVal                         = true;
+                Args.Comment                        = [];
+                Args.NewKey                         = {};
+                Args.AddKey                         = true;
+                Args.AddPos                         = 'end';
+                Args.ColKey                         = 1;
+                Args.ColVal                         = 2;
+                Args.ColComment                     = 3;
             end
 
             Nobj = numel(Obj);
@@ -1310,6 +1368,11 @@ classdef AstroHeader < Component
             %   Each keyword is associated with a conversion formulae.
             % Input  : - AstroHeader object (multi elements supported).
             %          * ...,key,val,...
+            %            'KeyJD' - JD or mid jd keyword. If given, then
+            %                   will be extracted directly without any
+            %                   calculations (e.g., 'MIDJD').
+            %                   If given, then output EXPTIME will be NaN.
+            %                   Default is [].
             %            'ExpTimeKey' - Exposure time header keyword.
             %                   Default is 'EXPTIME'.
             %            'FunTimeKeys' - A structure array (Dictionary) of
@@ -1350,75 +1413,86 @@ classdef AstroHeader < Component
             
             arguments
                 Obj
+                Args.KeyJD                             = [];  % if JD is known (for fast extraction)
                 Args.ExpTimeKey                        = 'EXPTIME';
-                Args.FunTimeKeys cell                  = {};
+                Args.FunTimeKeys                       = {};
                 %Args.TreatBug2000(1,1) logical                                  = true;
                 Args.UseDict(1,1) logical                                       = true;
                 Args.CaseSens(1,1) logical                                      = true;
-                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
+                Args.SearchAlgo                                                 = 'strcmp';
                 Args.Fill                                                       = NaN;
                 Args.Val2Num(1,1) logical                                       = true;
                 Args.IsInputAlt(1,1) logical                                    = true;
                 Args.KeyDict                                                    = [];
                 
             end
-            SEC_IN_DAY = 86400;
-            
-            if isempty(Args.FunTimeKeys)
-                % attempt loading from dictionary
-                if isempty(Obj(1).TimeDict.FieldNames)
-                    % set up to default values
-                    Args.FunTimeKeys.Dict.MIDJD     = @(Time,Exp) Time;
-                    Args.FunTimeKeys.Dicr.MIDMJD    = @(Time,Exp) convert.time(Time,'MJD','JD');
-                    Args.FunTimeKeys.Dict.JD        = @(Time,Exp) Time + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.Dict.MJD       = @(Time,Exp) convert.time(Time,'MJD','JD') + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.Dict.DATEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.Dict.TIMEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
-                    Args.FunTimeKeys.Dict.DATE      = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
 
-                else
-                    % use dictionary
-                    Args.FunTimeKeys = Obj(1).TimeDict;
+            if isempty(Args.KeyJD)
+                SEC_IN_DAY = 86400;
+                
+                if isempty(Args.FunTimeKeys)
+                    % attempt loading from dictionary
+                    if isempty(Obj(1).TimeDict.FieldNames)
+                        % set up to default values
+                        Args.FunTimeKeys.Dict.MIDJD     = @(Time,Exp) Time;
+                        Args.FunTimeKeys.Dict.MIDMJD    = @(Time,Exp) convert.time(Time,'MJD','JD');
+                        Args.FunTimeKeys.Dict.JD        = @(Time,Exp) Time + 0.5.*Exp./SEC_IN_DAY;
+                        Args.FunTimeKeys.Dict.MJD       = @(Time,Exp) convert.time(Time,'MJD','JD') + 0.5.*Exp./SEC_IN_DAY;
+                        Args.FunTimeKeys.Dict.DATEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
+                        Args.FunTimeKeys.Dict.TIMEOBS   = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
+                        Args.FunTimeKeys.Dict.DATE      = @(Time,Exp) convert.time(Time,'StrDate','JD') + 0.5.*Exp./SEC_IN_DAY;
+    
+                    else
+                        % use dictionary
+                        Args.FunTimeKeys = Obj(1).TimeDict;
+                    end
                 end
-            end
-                                  
-            
-            TimeKeys = fieldnames(Args.FunTimeKeys.Dict);
-            NtimeKeys = numel(TimeKeys);
-            
-            StTime    = getStructKey(Obj, TimeKeys);
-            StExp     = getStructKey(Obj, Args.ExpTimeKey);
-            
-            
-            MidJD   = nan(size(Obj));
-            ExpTime = nan(size(Obj));
-            Nobj = numel(Obj);
-            for Iobj=1:1:Nobj
-                ExpTime(Iobj)  = StExp(Iobj).(Args.ExpTimeKey);
-                Found = false;
-                Ikey = 0;
-                while ~Found && Ikey<NtimeKeys
-                    Ikey = Ikey + 1;
-                    T  = StTime(Iobj).(TimeKeys{Ikey});
-                    if ~isnan(T)
-                        if iscell(Args.FunTimeKeys.Dict.(TimeKeys{Ikey}))
-                            JD = Args.FunTimeKeys.Dict.(TimeKeys{Ikey}){1}(T, ExpTime(Iobj));
-                        else
-                            JD = Args.FunTimeKeys.Dict.(TimeKeys{Ikey})(T, ExpTime(Iobj));
-                        end
-                        if ~isnan(JD)
-%                             if Args.TreatBug2000
-%                                 if JD<celestial.time.julday([1 1 100])
-%                                     % assume that year is given with two
-%                                     % digits
-%                                     DD = celestial.time.jd2date(JD);
-%                                     JD = celestial.time.julday([DD(1) DD(2) DD(3)+1900]);
-%                                 end
-%                             end
-                            MidJD(Iobj) = JD;
-                            Found       = true;
+                                      
+                
+                TimeKeys = fieldnames(Args.FunTimeKeys.Dict);
+                NtimeKeys = numel(TimeKeys);
+                
+                StTime    = getStructKey(Obj, TimeKeys);
+                StExp     = getStructKey(Obj, Args.ExpTimeKey);
+                
+                
+                MidJD   = nan(size(Obj));
+                ExpTime = nan(size(Obj));
+                Nobj = numel(Obj);
+                for Iobj=1:1:Nobj
+                    ExpTime(Iobj)  = StExp(Iobj).(Args.ExpTimeKey);
+                    Found = false;
+                    Ikey = 0;
+                    while ~Found && Ikey<NtimeKeys
+                        Ikey = Ikey + 1;
+                        T  = StTime(Iobj).(TimeKeys{Ikey});
+                        if ~isnan(T)
+                            if iscell(Args.FunTimeKeys.Dict.(TimeKeys{Ikey}))
+                                JD = Args.FunTimeKeys.Dict.(TimeKeys{Ikey}){1}(T, ExpTime(Iobj));
+                            else
+                                JD = Args.FunTimeKeys.Dict.(TimeKeys{Ikey})(T, ExpTime(Iobj));
+                            end
+                            if ~isnan(JD)
+    %                             if Args.TreatBug2000
+    %                                 if JD<celestial.time.julday([1 1 100])
+    %                                     % assume that year is given with two
+    %                                     % digits
+    %                                     DD = celestial.time.jd2date(JD);
+    %                                     JD = celestial.time.julday([DD(1) DD(2) DD(3)+1900]);
+    %                                 end
+    %                             end
+                                MidJD(Iobj) = JD;
+                                Found       = true;
+                            end
                         end
                     end
+                end
+            else
+                Nobj    = numel(Obj);
+                MidJD   = nan(Nobj,1);
+                ExpTime = nan(Nobj,1);
+                for Iobj=1:1:Nobj
+                    MidJD(Iobj) = Obj(Iobj).getVal(Args.KeyJD);
                 end
             end
         end
@@ -1463,14 +1537,14 @@ classdef AstroHeader < Component
             
             arguments
                 Obj
-                Keys cell        = {};  % e.g., {'IMTYPE','EXPTIME','FILTER'}
-                Args.UseDict(1,1) logical                                       = true;
-                Args.CaseSens(1,1) logical                                      = true;
-                Args.SearchAlgo char  {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
-                Args.Fill                                                       = NaN;
-                Args.Val2Num(1,1) logical                                       = true;
-                Args.IsInputAlt(1,1) logical                                    = true;
-                Args.KeyDict                                                    = [];
+                Keys             = {};  % e.g., {'IMTYPE','EXPTIME','FILTER'}
+                Args.UseDict                                     = true;
+                Args.CaseSens                                    = true;
+                Args.SearchAlgo                                  = 'strcmp'; % {'strcmp','regexp'}
+                Args.Fill                                        = NaN;
+                Args.Val2Num                                     = true;
+                Args.IsInputAlt                                  = true;
+                Args.KeyDict                                     = [];
             end
             
             % need a version of getStructKey for cells
@@ -1773,7 +1847,7 @@ classdef AstroHeader < Component
                     FlagEmpty = false(Nkeys, 1);
                 end
             
-                CellHeader = Obj(Iobj).Data(~FlagHistory & ~FlagHistory & ~FlagEmpty,:);
+                CellHeader = Obj(Iobj).Data(~FlagHistory & ~FlagEmpty,:);
                 
                 if Args.RemoveNonUnique
                     [~,IU] = unique(CellHeader(:,1));
@@ -1840,8 +1914,63 @@ classdef AstroHeader < Component
                 Obj(Iobj).deleteKey('B_\d+_\d+');
                 Obj(Iobj).deleteKey('AP_\d+_\d+');
                 Obj(Iobj).deleteKey('BP_\d+_\d+');
+                Obj(Iobj).deleteKey('A_ORDER');
+                Obj(Iobj).deleteKey('B_ORDER');
+                Obj(Iobj).deleteKey('AP_ORDER');
+                Obj(Iobj).deleteKey('BP_ORDER');
+                Obj(Iobj).replaceVal('CTYPE1','RA---TAN');
+                Obj(Iobj).replaceVal('CTYPE2','DEC--TAN');
+
             end
             
+        end
+        
+        function writeCSVforBulkInjection(Obj0,FileName,Args)
+            % write an AstroHeader to a csv text file
+            % Input  : - An AstroHeader object or a vector of AH objects
+            %          - name of the file to write to
+            %        * ...,key,val,...
+            %        'Append'   - append to an existing CSV file (no need to
+            %        make a new file and write a line with column names
+            %        'Delimiter' - field delimiter
+            %        'Filter' - whether to remove the fields not present in the DB table
+            %        'FiltrList' - a cell array of the DB table fields to match
+            % Output : - a csv file
+            % Author : A. Krassilchtchikov (Feb 2024)
+            arguments
+                Obj0
+                FileName             = 'astroheader.csv' % output file name
+                Args.Append logical  = false % append or overwrite
+                Args.Delimiter       =  ',' % '\t' is tab
+                Args.Filter  logical = false
+                Args.FilterList      = {}
+            end           
+            
+            Obj = Obj0.copy;
+             
+            Nobj = length(Obj);
+            Keys = [Obj.Data];
+            Keys = reshape(Keys,[size(Keys,1),3,Nobj]);
+            
+            % clear out repeating keywords
+            [~,Ind,~] = unique(Keys(:,1,1),'stable');
+            Keys = Keys(Ind,:,:);
+            
+            % keep only the keywords from the FilterList 
+            if Args.Filter
+                Ind = ismember(Keys(:,1,1), upper(Args.FilterList'));
+                Keys = Keys(Ind,:,:);
+            end
+            
+            % if not appending, start with a line with keywords
+            if ~Args.Append
+                FirstLine = Keys(:,1,1)';            
+                writecell(FirstLine,FileName,'Delimiter',Args.Delimiter);
+            end
+            
+            Keys = squeeze(Keys(:,2,:));                                  
+            writecell(Keys',FileName,'Delimiter',Args.Delimiter,'WriteMode','append');
+
         end
         
         function Result = writeCSV(Obj0, FileName, Args)
@@ -1894,16 +2023,21 @@ classdef AstroHeader < Component
                     Kwords{Ind} = 'DATE_OBS'; % correct one of the keywords
                     Keys = ismember(lower(Kwords), cols_coadd');
                     Obj(Iobj).Data = Obj(Iobj).Data(Keys,:); % keep only the matching keywords
-                    % avoid empty char array in subdir and sublevel
+                    % avoid empty char array in subdir and sublevel.
+                    % Blank cards read as NaN since issue #1252 - treat a
+                    % NaN in these STRING columns like empty (a blank
+                    % string in the DB, not the text 'NaN').
                     Ind = find( strcmp(Obj(Iobj).Data(:,1), 'SUBDIR')   ); 
                     if Ind > 0
-                        if isempty(Obj(Iobj).Data{Ind,2})
+                        V = Obj(Iobj).Data{Ind,2};
+                        if isempty(V) || (isnumeric(V) && all(isnan(V)))
                             Obj(Iobj).Data{Ind,2} = ' ';
                         end
                     end
                     Ind = find( strcmp(Obj(Iobj).Data(:,1), 'SUBLEVEL') ); 
                     if Ind > 0
-                        if isempty(Obj(Iobj).Data{Ind,2})
+                        V = Obj(Iobj).Data{Ind,2};
+                        if isempty(V) || (isnumeric(V) && all(isnan(V)))
                             Obj(Iobj).Data{Ind,2} = ' ';
                         end
                     end
@@ -1919,6 +2053,35 @@ classdef AstroHeader < Component
             
         end
         
+        function Obj = deleteComment(Obj, Args)
+            % Delete all comments from header, or empty comments
+            % Input  : - AstroHeader object.
+            %          * ...,key,val,..
+            %            'OnlyIfEmpty' - Delete comment, only if empty.
+            %                   Default is false.
+            % Output : - An updated AstroHeader object
+            % Author : Eran Ofek (Dec 2024)
+            % Example: CI.HeaderData.deleteComment
+            
+            arguments
+                Obj
+                Args.OnlyIfEmpty logical  = false;
+            end
+
+            Nobj=numel(Obj);
+            for Iobj=1:1:Nobj
+                II = find(strcmp(Obj(Iobj).Data(:,1),'COMMENT'));
+                Nline = size(Obj(Iobj).Data,1);
+                Vec   = (1:1:Nline)';
+                if Args.OnlyIfEmpty
+                    IsEmpty = tools.cell.isempty_cell(Obj(Iobj).Data(:,2));
+                    Isel    = setdiff(Vec, II(Isempty));
+                else
+                    Isel    = setdiff(Vec, II);
+                end
+                Obj(Iobj).Data = Obj(Iobj).Data(Isel,:);
+            end
+        end
     end
     
     methods (Static)  % help and documentation

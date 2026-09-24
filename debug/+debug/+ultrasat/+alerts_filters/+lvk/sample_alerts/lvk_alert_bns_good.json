@@ -1,0 +1,34 @@
+{
+    "alert_id": "G2026-0001",
+    "superevent_id": "S2026abcd",
+    "alert_type": "PRELIMINARY",
+  
+    "time_created": "2026-05-12T10:15:00",
+    "event_time": "2026-05-12T10:14:22",
+  
+    "prob_bns": 0.82,
+    "prob_nsbh": 0.10,
+    "prob_bbh": 0.03,
+    "prob_terrestrial": 0.05,
+  
+    "has_ns": 0.95,
+    "has_remnant": 0.88,
+    "has_mass_gap": 0.02,
+  
+    "far_hz": 1.2e-10,
+    "far_per_year": 0.004,
+  
+    "skymap_path": "/data/lvk/2026/05/12/S2026abcd/skymap.fits",
+    "localization_area_deg2": 45.2,
+  
+    "instruments": ["H1", "L1", "V1"],
+    "pipeline": "gstlal",
+    "search": "CBC",
+  
+    "raw_fields": {
+      "group": "CBC",
+      "significant": true
+    },
+  
+    "parsed_time": "2026-05-12T10:15:05"
+  }

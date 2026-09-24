@@ -53,7 +53,7 @@ classdef ComponentMap < handle
             
             Obj.Map = containers.Map();
             Obj.IgnoreCase = Args.IgnoreCase;
-            Obj.msgLog(LogLevel.Debug, 'ComponentMap created: %s', Obj.Name);
+%             Obj.msgLog(LogLevel.Debug, 'ComponentMap created: %s', Obj.Name);
         end
 
 

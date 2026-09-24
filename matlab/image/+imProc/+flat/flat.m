@@ -60,6 +60,12 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
     %            'SumExpTime' - A logical indicating if to sum
     %                   (true) or take the mean (false) of the
     %                   EXPTIME header keyword. Default is false.
+    %            'GenerateID' - A logical indicating if to generate image
+    %                   ID (using imProc.db.generateImageID) and to insert
+    %                   it to header. Default is true.
+    %            'ArgsGenerateID' - A cell array of additional arguments to
+    %                   pass to imProc.db.generateImageID
+    %                   Default is {'KeyID','ID_FLAT'}.
     % Output : - An arrray of AstroImage containing the Flat image per
     %            filter.
     %          - A vector of logical indicating which images were
@@ -102,7 +108,7 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
         Args.FlatHighStd_MeanFun        = 0.01;   %@median;   % or RN or RN keyword...
 
         Args.FlatLowVal_BitName         = 'FlatLowVal';
-        Args.FlatLowVal_Threshold       = 0.5;
+        Args.FlatLowVal_Threshold       = 0.3;
         Args.Replace0 logical           = true;   % replace 0 or negative with NaN
         Args.NaN_BitName                = 'NaN';
 
@@ -110,6 +116,8 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
         Args.AddHeaderPos               = 'end';
         Args.SumExpTime(1,1) logical    = false;
 
+        Args.GenerateID logical         = true;
+        Args.ArgsGenerateID cell        = {'KeyID','ID_FLAT'};
     end
 
     Nim = numel(ImObj);
@@ -133,6 +141,9 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
         % use all images
         Nufilt = 1;
     else
+        if ~ImObj(1).HeaderData.isKeyExist(Args.FilterKey)
+            error('Header keyword %s - does not exist - If not filters, use FilterKey=[]');
+        end
         St           = getStructKey(ImObj, Args.FilterKey, 'UseDict',true);
         FilterCell   = {St.(Args.FilterKey)};
         UniqueFilter = unique(FilterCell);
@@ -150,7 +161,7 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
             FlagFilter = strcmp(UniqueFilter{Iufilt}, FilterCell);
         end
         
-        [Result(Iufilt), CoaddN, ImageCube] = imProc.stack.coadd(ImObj(FlagFilter), 'CCDSEC',[],...
+        [Result(Iufilt), CoaddN, ImageCube] = imProc.stack.coadd(ImObj(FlagFilter(:) & IsFlat(:)), 'CCDSEC',[],...
                                       'Offset',[],...
                                       'PreNorm',Args.PreNorm,...
                                       'PreNormArgs',Args.PreNormArgs,...
@@ -206,6 +217,11 @@ function [Result, IsFlat, CoaddN] = flat(ImObj, Args)
          if ~isempty(Args.AddHeader)
             Result(Iufilt).HeaderData = insertKey(Result(Iufilt).HeaderData, Args.AddHeader, Args.AddHeaderPos);
          end
+    end
+
+    % Add Image ID to header
+    if Args.GenerateID
+        [Result] = imProc.db.generateImageID(Result, Args.ArgsGenerateID{:});
     end
             
 end

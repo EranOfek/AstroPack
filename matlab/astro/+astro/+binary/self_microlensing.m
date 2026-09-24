@@ -32,10 +32,14 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
     %                   Default is [].
     %            'Oversampling' - An oversampling factor for the automatic
     %                   selection of Nstep. Default is 3.
-    %            'LimbFun' - Limb darkning function.
-    %                   Default is @astro.binary.limb_darkening
-    %            'LimbFunPars' - Default is {'constant'}
-    %            
+    %
+    %            'FunLimb' - Either a matrix of [R/Rstar, LimbDark] profile
+    %                   or a function handle of the form:
+    %                   Imu = Fun(Coef, R, FunLimbBar{:})
+    %                   Default is @astro.stars.limbDarkening
+    %            'LimbDarkCoef' - Coef of FunLimb. Default is zeros(1,4).
+    %            'FunLimbPar' - Default is {'MuUnits','r', 'Fun','4par'}.
+    %                
     %            'PrepMovie' - Default is false.
     %            'MovieName' - Default is 'try.avi'.
     %            'LC'        - Add LC to movie. Default is [].
@@ -62,7 +66,23 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
     %          [TM,Res]=astro.binary.self_microlensing(Beta, 'Dls',Dls, 'Algo','1dfast', 'LC',Args.LC);
     %          Args.LC=[Beta.', TM(:)];
     %           [TM,Res]=astro.binary.self_microlensing(Beta, 'Dls',Dls, 'Algo','2d', 'LC',Args.LC);  
-    
+    %          
+    %         [TM,Res]=astro.binary.self_microlensing(b, 'Dls',Dls,'SrcRad',696000.*astro.stars.wdMassRadius('M',0.5),'Mass',8, 'LensRad',3);
+    %
+    %         Beta = (0:0.05:3)';
+    %         Period = logspace(0,2,10).'.*3600;
+    %         K=celestial.Kepler.kepler3law(1.4.*2e33, 'p',Period); %3600);
+    %         Dls = K.a./constant.pc;
+    %         Nk = numel(K.a);
+    %         VecMass = (1.5:0.5:10)'; Nm = numel(VecMass);
+    %         VecSrcRad = logspace(-2,-0.5,10).'.*696000;
+    %         Nr=numel(VecSrcRad)
+    %         for Ik=1:1:Nk, for Im=1:1:Nm, for Ir=1:1:Nr
+    %               [TM,Res]=astro.binary.self_microlensing(Beta,'Dls',Dls(Ik), 'Mass',VecMass(Im),'SrcRad',VecSrcRad(Ir), 'LensRad',15);
+    %               Res.Max(Ik,Im,Ir) = max(TM); 
+    %               Res.Dur(Ik,Im,Ir) = 2.*sum(TM>1.1)./20 .* VecSrcRad(Ir).*1e5./K.v(Ik);
+    %         end, end, end
+
     arguments
         ImpactPar             % in SrcRad units
         Args.ImpactParUnits  = 'SrcRad';  % 'SrcRad','SrcRadUnits'
@@ -80,8 +100,8 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
         Args.TotL      = 1;
                 
         Args.IntStep       = 1e-5;   % in units of ER
-        Args.LimbFun       = @astro.binary.limb_darkening;
-        Args.LimbFunPars   = {'constant'};
+        %Args.LimbFun       = @astro.binary.limb_darkening;
+        %Args.LimbFunPars   = {'constant'};
         
         Args.Algo          = '1dfast';
         Args.Nstep         = [];
@@ -92,7 +112,28 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
         Args.NsimBlock     = 1e6;  % number of simotanous ismulations
         
         % limb darkening
+        Args.FunLimb      = @astro.stars.limbDarkening;
         Args.LimbDarkCoef = zeros(1,4); %astro.stars.getClaret2020_LimbDarkeningWD(10000,[7]);
+        Args.FunLimbPar   = {'MuUnits','r', 'Fun','4par'};
+        Args.PerpImpactPar = 0;        % Perpendicular (Y) offset of the lens track
+                                       % from the source centre, in the same units
+                                       % as the ImpactPar input (SrcRad by default).
+                                       % ImpactPar (the 1st input) is the along-track
+                                       % (X) coordinate; PerpImpactPar is the fixed
+                                       % offset perpendicular to it. For a circular
+                                       % source only sqrt(ImpactPar^2+PerpImpactPar^2)
+                                       % matters, but for an inclined (elliptical)
+                                       % source the split matters. Only used by '2d'.
+        Args.FunLimbInclination = 0;   % [deg] Inclination of the source brightness
+                                       % profile (FunLimb). 0=face-on (circular).
+                                       % Only affects the '2d' algorithm: the circular
+                                       % source is projected to an ellipse with axis
+                                       % ratio cos(FunLimbInclination). The brightness of
+                                       % each sky-plane point is evaluated at its
+                                       % de-projected disk radius; points that de-project
+                                       % outside the disk get zero brightness. The lensing
+                                       % geometry (and lens occultation) is unaffected.
+        
         
         Args.UseIndivMag logical  = true;
         
@@ -200,13 +241,14 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
             Rlens = AngLensRad./Res.ER;
 
             Beta = ImpactPar(:).'.*Rstar;
+            Yoff = Args.PerpImpactPar.*Rstar;   % perpendicular (Y) lens offset [ER units]
             Nbeta = numel(Beta);
-            
+
             CosFun = @(R,u,b) real(acos((-R.^2 +u.^2+b.^2)./(2.*u.*b)));
             TotMu  = zeros(1,Nbeta);
-                        
-            
-                            
+
+
+
             Nblock = ceil(Args.Nsim./Args.NsimBlock);
             
             if Args.PrepMovie
@@ -228,13 +270,26 @@ function [TotMu,Res]=self_microlensing(ImpactPar, Args)
                 Mag = zeros(Nblock,1);
                 
                 for Iblock=1:1:Nblock
+                    % Sample uniformly in the (circular) disk plane. R is the
+                    % disk-frame radius (sets the brightness via FunLimb), while
+                    % the sky-plane position is the projection of the inclined disk:
+                    % an ellipse foreshortened along the minor (Y) axis by
+                    % cos(FunLimbInclination). For i=0 this is the original circle;
+                    % for i=90 the disk collapses to a line along the major axis.
                     [X,Y, R] = tools.rand.randInCirc(Rstar, Args.NsimBlock, 1);
-                    % apply limb darkening (using R)
-                    % ...
-                    
-                    [Imu] = astro.stars.limbDarkening(Args.LimbDarkCoef, R./Rstar, 'MuUnits','r', 'Fun','4par');
-                    
-                    U2 = (X - Beta(Ib)).^2 + (Y).^2;
+                    Ysky = Y.*cosd(Args.FunLimbInclination);
+                    % apply limb darkening (using the disk-frame radius R)
+                    %[Imu] = astro.stars.limbDarkening(Args.LimbDarkCoef, R./Rstar, 'MuUnits','r', 'Fun','4par');
+                    if isnumeric(Args.FunLimb)
+                        % FunLimb is a [R LimbDark] matrix - interpolate
+                        Imu = interp1(Args.FunLimb(:,1), Args.FunLimb(:,2), R./Rstar);
+                    else
+                        % FunLimb is a function
+                        Imu = Args.FunLimb(Args.LimbDarkCoef, R./Rstar, Args.FunLimbPar{:});
+                    end
+                    Imu(isnan(Imu)) = 0;
+
+                    U2 = (X - Beta(Ib)).^2 + (Ysky - Yoff).^2;
                     U  = sqrt(U2);
 
                     U0     = sqrt(U2 + 4);

@@ -121,6 +121,24 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     %            'RemoveNeighboors' - A logical indicating if to remove
     %                   sources with near neighboors from the astrometric
     %                   catalog. Default is true.
+    %            'MinFracIsolated' - Minimum fraction of the reference
+    %                   sources that must survive the neighboors rejection.
+    %                   If the fraction is smaller, then the faint limit of
+    %                   'RefRangeMag' is brightened until it is satisfied.
+    %                   In crowded fields a deep reference catalog is left
+    %                   with almost no isolated sources, so this is what
+    %                   makes the astrometry work there.
+    %                   Set to [] to disable.
+    %                   The step in which the faint limit is brightened, and
+    %                   the brightest limit which may be selected, are
+    %                   'AdaptMagStep' (0.5 mag) and 'AdaptMaxDeltaMag' (5 mag) of
+    %                   imProc.cat.getAstrometricCatalog; together they also
+    %                   bound the number of trials. The faint limit is only
+    %                   ever brightened, so a supplied magnitude range -
+    %                   e.g., one already corrected for the exposure time -
+    %                   is never deepened or replaced.
+    %                   See imProc.cat.getAstrometricCatalog.
+    %                   Default is 0.5.
     %            'CreateNewObj' - A logical indicating if to create a new
     %                   copy of the input AstroCatalog object.
     %                   Default is true.
@@ -152,6 +170,14 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     %                   RA column name. Default is AstroCatalog.DefNamesRA.
     %            'RefColNamesDec' - A cell array dictionary of reference astrometric catalog
     %                   Dec column name. Default is AstroCatalog.DefNamesDec.
+    %
+    %            'UpdateHeaderCoo' - A logical indicating if to update the
+    %                   RA/Dec keywords in the header with the image center
+    %                   coordinates. Header keywords are specified in
+    %                   'KeyRA','KeyDec'.
+    %                   Default is true.
+    %            'KeyRA' - RA header keyword to update. Default is 'RA'.
+    %            'KeyDec' - Dec header keyword to update. Default is 'DEC'.
     % Output : - A structure array with the following fields (each element
     %            corresponds to an AstroCatalog elelemt):
     %            'ParWCS' - The WCS parameters.
@@ -197,7 +223,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         
         Args.CatName                            = 'GAIADR3';  % or AstroCatalog
         Args.CatOrigin                          = 'catsHTM';
-        Args.CatRadius                          = 1400;
+        Args.CatRadius                          = 1600;
         Args.CatRadiusUnits                     = 'arcsec'
         Args.Con                                = {};
         
@@ -214,6 +240,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         Args.ReuseAstrometricCat(1,1) logical   = false;
                 
         Args.RemoveNeighboors(1,1) logical      = true;
+        Args.MinFracIsolated                    = 0.5;   % adapt RefRangeMag to the crowding of the field
      
         Args.CreateNewObj(1,1) logical          = true;
         
@@ -232,6 +259,17 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         Args.CatColNamesMag                     = AstroCatalog.DefNamesMag;
         Args.RefColNamesRA                      = AstroCatalog.DefNamesRA;
         Args.RefColNamesDec                     = AstroCatalog.DefNamesDec;
+
+        Args.UpdateHeaderCoo logical      = true;
+        Args.KeyRA                        = 'RA';
+        Args.KeyDec                       = 'DEC';
+
+        Args.boundingCircleArgs           = {};
+        
+        Args.MatchMethod                  = 'old'; % 'old'|'mex'
+
+        Args.AddColor logical             = false; % optionally attach Gaia colour (BP-RP) to the source catalog (issue #1289)
+        Args.AddColorArgs cell            = {};    % extra args forwarded to imProc.cat.addColor
     end
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
@@ -241,28 +279,31 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     CatColNameRA  = 'RA';
     CatColNameDec = 'Dec';
     
-    if isa(Obj, 'AstroImage')
-        % can read RA/Dec from Header if AstroImage
-        [Args.RA, Args.Dec] = getCoo(Obj(1).HeaderData, 'RA',Args.RA, 'Dec',Args.Dec, 'Units',Args.CooUnits, 'OutUnits',Args.CooUnits);
-    else
-        [Args.RA, Args.Dec] = celestial.coo.parseCooInput(Args.RA, Args.Dec, 'InUnits',Args.CooUnits, 'OutUnits',Args.CooUnits);
-    end
-    
-    
     % ### IF YOU CHANGE SOMETHING IN THIS BLOCK - MAKE THE SAME IN astrometryCore
     %
-    % make sure Tran is a new copy, otherwise may overwrite other Tran
-    Args.Tran = Args.Tran.copy;
+    Args=imProc.astrometry.prepArgsForAstrometry(Obj, Args);
     
-    % get EpochOut
-    if isempty(Args.EpochOut)
-        if isa(Obj, 'AstroImage')
-            Args.EpochOut = julday(Obj);
-            if any(isnan(Args.EpochOut))
-                Args.EpochOut = [];
-            end
-        end
-    end
+    % if isa(Obj, 'AstroImage')
+    %     % can read RA/Dec from Header if AstroImage
+    %     [Args.RA, Args.Dec] = getCoo(Obj(1).HeaderData, 'RA',Args.RA, 'Dec',Args.Dec, 'Units',Args.CooUnits, 'OutUnits',Args.CooUnits);
+    % else
+    %     [Args.RA, Args.Dec] = celestial.coo.parseCooInput(Args.RA, Args.Dec, 'InUnits',Args.CooUnits, 'OutUnits',Args.CooUnits);
+    % end
+    % 
+    % 
+    % %
+    % % make sure Tran is a new copy, otherwise may overwrite other Tran
+    % Args.Tran = Args.Tran.copy;
+    % 
+    % % get EpochOut
+    % if isempty(Args.EpochOut)
+    %     if isa(Obj, 'AstroImage')
+    %         Args.EpochOut = julday(Obj);
+    %         if any(isnan(Args.EpochOut))
+    %             Args.EpochOut = [];
+    %         end
+    %     end
+    % end
     
     % ### END OF COMMON BLOCK
     
@@ -287,15 +328,28 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     end
     NastCat = numel(Args.CatName);
     
-    % allocate Result
-    Result = struct('ParWCS',cell(Nobj,1),...
-                    'Tran',cell(Nobj,1),...
-                    'ResFit',cell(Nobj,1),...
-                    'WCS',cell(Nobj,1));
+    % allocate Result (same as astrometryCore)
+    Result = imProc.astrometry.defResultFit([Nobj,1]);
+    % Result = struct('ImageCenterXY',cell(Nobj,1),...
+    %                 'Nsolutions',cell(Nobj,1),...
+    %                 'ResPattern',cell(Nobj,1),...
+    %                 'ErrorOnMean',cell(Nobj,1),...
+    %                 'BestInd',cell(Nobj,1),...
+    %                 'WCS',cell(Nobj,1),...
+    %                 'ParWCS',cell(Nobj,1),...
+    %                 'Tran',cell(Nobj,1),...
+    %                 'ResFit',cell(Nobj,1),...
+    %                 'Origin',cell(Nobj,1),...
+    %                 'Success',cell(Nobj,1));
+    % Result = struct('ParWCS',cell(Nobj,1),...
+    %                 'Tran',cell(Nobj,1),...
+    %                 'ResFit',cell(Nobj,1),...
+    %                 'WCS',cell(Nobj,1));
     
     for Iobj=1:1:Nobj
         % for each element in AstroCatalog
         Iwcs = min(Iobj, Nwcs);
+        Result(Iobj).Origin = 'astrometryRefine';
         
         if isa(Obj, 'AstroImage')
             Cat = Obj(Iobj).CatData;
@@ -343,28 +397,29 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
         else
             % Convert X/Y to RA/Dec using AstroWCS
             GoodAstrometry = WCS.Success;
-            if GoodAstrometry
+            % generate a new copy of Cat
+            Cat = Cat.copy;
+            if GoodAstrometry && ~isempty(Xcat)
                 [SrcRA, SrcDec] = WCS.xy2sky(Xcat, Ycat, 'OutUnits','rad',...
                                                          'IncludeDistortions',Args.IncludeDistortions);
+                
                 % add approximate RA, Dec to new copy of catalog
-                % generate a new copy of Cat
-                Cat = Cat.copy;
                 Cat = insertCol(Cat, [SrcRA, SrcDec], Inf, {CatColNameRA, CatColNameDec}, {'rad', 'rad'});
             end
         end
 
-        if GoodAstrometry
+        if GoodAstrometry && ~isempty(Xcat)
             if CooFromBoundingCircle || isempty(Args.RA) || isempty(Args.Dec)
                 CircleUnits         = 'deg';
                 if isempty(WCS)
                     % estimate RA/Dec of center of catalog from catalog itself
-                    [Args.RA, Args.Dec, Args.CatRadius] = boundingCircle(Cat,'CooType','sphere','OutUnits',CircleUnits); 
+                    [Args.RA, Args.Dec, Args.CatRadius] = boundingCircle(Cat,'CooType','sphere','OutUnits',CircleUnits,Args.boundingCircleArgs{:}); 
 
                     Args.CooUnits       = CircleUnits;
                     Args.CatRadiusUnits = CircleUnits;
                 else
                     % estimate from image center and WCS
-                    [CenterX, CenterY, CenterRadius] = boundingCircle(Cat,'CooType','pix');
+                    [CenterX, CenterY, CenterRadius] = boundingCircle(Cat,'CooType','pix',Args.boundingCircleArgs{:});
                     [Args.RA, Args.Dec] = xy2sky(WCS, CenterX, CenterY, 'OutUnits',CircleUnits,...
                                                   'includeDistortion',Args.IncludeDistortions);
                     if isempty(Args.Scale)
@@ -410,6 +465,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                                                                                             'ColNamePlx',Args.RefColNamePlx,...
                                                                                             'RangePlx',Args.RefRangePlx,...
                                                                                             'RemoveNeighboors',Args.RemoveNeighboors,...
+                                                                                            'MinFracIsolated',Args.MinFracIsolated,...
                                                                                             'flagSrcWithNeighborsArgs',Args.flagSrcWithNeighborsArgs);
 
             % RA/Dec in [deg]
@@ -441,7 +497,10 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
 
             % match the RA/Dec against an external catalog
             % sources in MatchedCat corresponds to sources in ProjAstCat
-            MatchInd = imProc.match.matchReturnIndices(Cat, ProjAstCat,...
+            switch Args.MatchMethod
+                case 'old'
+                    % Old matching code:
+                        MatchInd = imProc.match.matchReturnIndices(Cat, ProjAstCat,...
                                                         'Radius',Args.SearchRadius,...
                                                         'RadiusUnits','arcsec',...
                                                         'CooType','sphere',...
@@ -450,13 +509,26 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                                                         'ColRefX',CatColNameRA,...
                                                         'ColRefY',CatColNameDec);
 
-            MatchedCat = Cat.copy;
-            MatchedCat = selectRows(MatchedCat, MatchInd.Obj2_IndInObj1, 'CreateNewObj',false);
-    %                                                                                      
-            % Debug: check that the matching is working
-            % F=~isnan(MatchedCat.Catalog(:,1));
-            % [ProjAstCat.Catalog(F,1:2), MatchedCat.Catalog(F,40:41)].*RAD
+                        MatchedCat = Cat.copy;
+                        MatchedCat = selectRows(MatchedCat, MatchInd.Obj2_IndInObj1, 'CreateNewObj',false);
+                %                                                                                      
+                        % Debug: check that the matching is working
+                        % F=~isnan(MatchedCat.Catalog(:,1));
+                        % [ProjAstCat.Catalog(F,1:2), MatchedCat.Catalog(F,40:41)].*RAD
 
+                case 'mex'
+                    [Ind1] = imProc.match.matchInd(ProjAstCat, Cat, 'IsSpherical',true, 'SearchRadius',Args.SearchRadius);
+                    MatchedCat = selectRows(Cat, Ind1.Ind, 'CreateNewObj',true);
+
+                    % debug (after name it MatchedCat1)
+                    % aa=~isnan(MatchedCat1.Catalog(:,1));
+                    % sum(~isnan(MatchedCat1.Catalog(:,1)) ~= ~isnan(MatchedCat.Catalog(:,1)))
+                    % max(abs(MatchedCat1.Catalog(aa,:) - MatchedCat.Catalog(aa,:)),[],'all')
+
+                otherwise
+                    error('Unknown MatchMethod');
+            end
+   
 
             % Count the number of matches
             Flag = ~isnan(MatchedCat.Catalog(:,1));
@@ -464,7 +536,10 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
 
             if Nmatches<Args.MinNmatches
                 % bad 
+                Result(Iobj).WCS = AstroWCS;
+                Result(Iobj).Success = false;
             else
+                Result(Iobj).Success = true;
                 
                 [Xcat,~,IndCatX] = getColDic(MatchedCat, Args.CatColNamesX);
                 [Ycat,~,IndCatY] = getColDic(MatchedCat, Args.CatColNamesY);
@@ -505,7 +580,13 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
 
                 % create an AstroWCS object
                 %KeyValWCS = namedargs2cell(Result(Iobj).ParWCS);
+                if isempty(Args.EpochOut)
+                    WCS.EPOCH = Obj(Iobj).julday();
+                else
+                    WCS.EPOCH = Args.EpochOut;
+                end
                 Result(Iobj).WCS = WCS;  %AstroWCS.tran2wcs(Result(Iobj).Tran, KeyValWCS{:});
+
 
                 % add RA/Dec to the catalog
                 %if nargout>1
@@ -534,6 +615,29 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                     Cat = sortrows(Cat, Args.SortCat);
                 end
 
+                % Optionally attach Gaia colour (BP-RP) to the source catalog
+                % (issue #1289), reusing this element's astrometric reference.
+                if Args.AddColor
+                    % A bare catalog carries no epoch, so hand addColor this
+                    % element's JD explicitly - otherwise its proper-motion
+                    % step would silently find no epoch and skip. Placed
+                    % before the splat, so an ObsJD given in AddColorArgs
+                    % still wins.
+                    ObsJDArg = {};
+                    if isa(Obj, 'AstroImage') && ~isempty(Obj(Iobj).HeaderData)
+                        for KeyJD = {'JD','MIDJD'}
+                            if isempty(ObsJDArg) && Obj(Iobj).HeaderData.isKeyExist(KeyJD{1})
+                                ValJD = Obj(Iobj).HeaderData.getVal(KeyJD{1});
+                                if ~isempty(ValJD) && isnumeric(ValJD) && isfinite(ValJD(1))
+                                    ObsJDArg = {'ObsJD', double(ValJD(1))};
+                                end
+                            end
+                        end
+                    end
+                    Cat = imProc.cat.addColor(Cat, 'RefCat', AstrometricCat(Iobj), ...
+                                              ObsJDArg{:}, Args.AddColorArgs{:});
+                end
+
                 if isa(Obj, 'AstroImage')
                     Obj(Iobj).CatData = Cat;
                     % update WCS in AstroImage
@@ -542,6 +646,17 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                     Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
                     % add RA/Dec corners to header
                     Obj(Iobj).HeaderData = addCornersCoo2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+
+
+                    if Args.UpdateHeaderCoo
+                        % update RA/Dec keywords in header
+                        imProc.astrometry.getCooCenter(Obj(Iobj), 'OutCooUnits','deg',...
+                                                                  'UseWCS',true,...
+                                                                  'UpdateHeader',true,...
+                                                                  'KeyRA',Args.KeyRA,...
+                                                                  'KeyDec',Args.KeyDec);
+                    end
+
 
                 elseif isa(Obj, 'AstroCatalog')
                     Obj(Iobj)         = Cat;

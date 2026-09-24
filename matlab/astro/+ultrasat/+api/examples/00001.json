@@ -1,0 +1,124 @@
+{
+  "pk": 1,
+  "id": "",
+  "plan_kind": "imaging",
+  "plan_type": "HCS",
+  "ast_planner": "chen",
+  "title": "MyPlan_1",
+  "status": "committed",
+  "created_by": "",
+  "create_time": "2025-11-16T09:33:01.860Z",
+  "update_time": "2025-11-16T09:33:22.861Z",
+  "start_time": "2028-01-01T00:00:00.000Z",
+  "end_time": "2028-07-01T00:00:15.000Z",
+  "allow_edit": true,
+  "deleted": false,
+  "metadata": {
+    "SelfConsitencyStatus": {
+      "Status": [],
+      "StartTime": [],
+      "UpdateTime": [],
+      "ShortStatus": [],
+      "Text": [],
+      "Html": []
+    },
+    "BuildStatus": {
+      "Status": "OK",
+      "StartTime": "2025-11-16T09:33:19.200Z",
+      "UpdateTime": "2025-11-16T09:33:19.200Z",
+      "ShortStatus": [],
+      "Text": [],
+      "Html": []
+    },
+    "ValidationStatus": {
+      "Status": [],
+      "StartTime": [],
+      "UpdateTime": [],
+      "ShortStatus": [],
+      "Text": [],
+      "Html": []
+    },
+    "SubmitStatus": {
+      "Status": [],
+      "StartTime": [],
+      "UpdateTime": [],
+      "ShortStatus": [],
+      "Text": [],
+      "Html": []
+    },
+    "ValidationResponse": [],
+    "ReviewStatus": {
+      "Status": "commit",
+      "StartTime": "2025-11-16T16:07:17.485Z",
+      "UpdateTime": "2025-11-16T16:07:17.485Z",
+      "ShortStatus": "commit",
+      "Text": "Plan review completed with status: commit",
+      "Html": "<div>Plan review completed with status: <strong>commit</strong></div>"
+    }
+  },
+  "history": [
+    {
+      "timestamp": "2025-11-16T09:33:19.199Z",
+      "message": "BuildHCS Ok"
+    },
+    {
+      "timestamp": "2025-11-16T09:33:19.302Z",
+      "message": "Build completed"
+    },
+    {
+      "timestamp": "2025-11-16T09:33:31.346Z",
+      "message": "submit"
+    },
+    {
+      "timestamp": "2025-11-16T09:33:31.560Z",
+      "message": "plan submitted by "
+    },
+    {
+      "timestamp": "2025-11-16 10:27:22",
+      "message": "Commit"
+    },
+    {
+      "timestamp": "2025-11-16 10:33:26",
+      "message": "Commit"
+    },
+    {
+      "timestamp": "2025-11-16 10:53:26",
+      "message": "Commit"
+    },
+    {
+      "timestamp": "2025-11-16 11:25:03",
+      "message": "Commit"
+    },
+    {
+      "timestamp": "2025-11-16 14:07:17",
+      "message": "Commit"
+    }
+  ],
+  "targets": [
+    {
+      "name": "HCS_1",
+      "ra": 215,
+      "decl": 60,
+      "roll": 0,
+      "tiles": "1,2,3,4",
+      "start_time": "2028-01-01T00:00:00.000Z",
+      "end_time": "2028-07-01T00:00:15.000Z",
+      "exposure": 300,
+      "image_count": 52416,
+      "total_seconds": 15724815,
+      "start_time_jd": 2461771.5,
+      "end_time_jd": 2461953.500173611,
+      "slew_before": 0,
+      "target_type": "HCS",
+      "review_status": "approved",
+      "review_comment": "",
+      "review_select": false
+    }
+  ],
+  "default_override_action_applied": true,
+  "validation_start_time_first_override": "2028-01-01T00:00:00Z",
+  "validation_end_time_last_override": "2028-07-01T00:00:15Z",
+  "validation_window_start_time": "2027-12-31T23:00:00Z",
+  "validation_window_end_time": "2028-07-01T01:00:15Z",
+  "review_time": "2025-11-16T16:07:17.485Z"
+}

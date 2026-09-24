@@ -18,6 +18,8 @@ function Result = fitMotion(Obj, Args)
     %                   the chi2 for the H1 hypothesis to 1.
     %                   Default is true.
     % Output : - A structure with the following fields:
+    %            [Note that RA fit is in time units (cos(Dec) factor) while Dec is in angular
+    %            units]
     %            .MeanT - Mean epoch relative to which the fit is done.
     %            .RA.ParH1 - Parameters for H1 [pos; vel] for each source.
     %            .RA.ParH0 - Parameters for H0 [pos] for each source.
@@ -42,8 +44,14 @@ function Result = fitMotion(Obj, Args)
     arguments
         Obj MatchedSources
         Args.MinNobs                = 3;
-        Args.Prob                   = [1e-3 1e-5];
+        
         Args.Units                  = 'deg';
+        Args.UnitsErr               = 'deg';
+        
+        Args.Niter                  = 2;
+        Args.SigmaClip              = [3 3];
+
+        Args.Prob                   = [1e-3 1e-5];
         Args.RenormErr(1,1) logical = true;
     end
     
@@ -60,9 +68,19 @@ function Result = fitMotion(Obj, Args)
         if isempty(MatErrDec)
             MatErrDec = 1./(3600.*100);
         end
-        Result(Iobj) = celestial.pm.fitMultiProperMotion(Obj(Iobj).JD, MatRA, MatDec, MatErrRA, MatErrDec, 'MinNobs',Args.MinNobs,...
+        Algo = 1;
+        if Algo==0
+            Result(Iobj) = celestial.pm.fitMultiProperMotion(Obj(Iobj).JD, MatRA, MatDec, MatErrRA, MatErrDec, 'MinNobs',Args.MinNobs,...
                                                                                 'Prob',Args.Prob,...
                                                                                 'Units',Args.Units,...
                                                                                 'RenormErr',Args.RenormErr);
+        else
+            % New version / under debuging
+            Result(Iobj) = celestial.pm.fitLinearProperMotion(Obj(Iobj).JD, MatRA, MatDec, 'MinNObs',Args.MinNobs,...
+                                                                                       'Niter',Args.Niter,...
+                                                                                       'SigmaClip',Args.SigmaClip,...
+                                                                                       'Units',Args.Units,...
+                                                                                       'UnitsErr',Args.UnitsErr);
+        end
     end
 end

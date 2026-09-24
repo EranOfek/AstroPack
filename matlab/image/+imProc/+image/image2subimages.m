@@ -1,5 +1,6 @@
 function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
     % Partition an AstroImage image into sub images
+    %   Obsolete: use imProc.image.images2subImages
     % Input  : - An AstroImage object with a single element.
     %          - BlockSize [X, Y] of sub images. or [X] (will be copied as [X, X]).
     %            If empty, will use imUtil.cut.subimage_grid
@@ -70,7 +71,7 @@ function [Result, InfoCCDSEC] = image2subimages(Obj, BlockSize, Args)
         Args.CopyHeader(1,1) logical       = true;
         Args.KeyCropID                     = 'CROPID';
         Args.UpdateMask(1,1) logical       = true;
-        Args.EdgeDist                      = 10;
+        Args.EdgeDist                      = 13;
         Args.NearEdge_BitName char         = 'NearEdge';
         Args.Overlap_BitName char          = 'Overlap';
         Args.BitDict(1,1) BitDictionary    = BitDictionary('BitMask.Image.Default');

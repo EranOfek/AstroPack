@@ -52,6 +52,7 @@ classdef ImageComponent < Component
         
         CCDSEC                       = [];      % [Xmin, Xmax, Ymin, Ymax] from previous image. [] - unknown or full
         
+        IsFFT logical               = false;
         %DataProp cell = {'Data'};              % a cell of properties on which the fun_* methods will be applied
         FileName                     = '';      % @FFU
         
@@ -760,7 +761,7 @@ classdef ImageComponent < Component
             arguments
                 Obj
                 Args.CCDSEC                        = [];  % empty for the entire image
-                Args.DataPropIn                    = 'Image';
+                Args.DataPropIn                    = 'Data'; %'Image';
                 Args.DimIndex                      = 3;
                 Args.Class                         = [];
             end
@@ -782,8 +783,11 @@ classdef ImageComponent < Component
             if Args.DimIndex==1
                 Cube = zeros(Size(1), Size(2), Nobj, Args.Class);    % faster
                 %Cube = zeros(Nobj, Size(1), Size(2), Args.Class);   % slower
+                
             elseif Args.DimIndex==3
                 Cube = zeros(Size(1), Size(2), Nobj, Args.Class);
+                % allocate memory without initialization
+                Cube = tools.array.mex.allocateUninit([Size(1), Size(2), Nobj], Args.Class);
             else
                 error('DimINdex must be 1 or 3');
             end
@@ -798,7 +802,9 @@ classdef ImageComponent < Component
                     % DimIndex = 1
                     
                     for Iobj=1:1:Nobj
-                        Cube(:,:,Iobj) = Obj(Iobj).(Args.DataPropIn);
+                        if ~isempty(Obj(Iobj).(Args.DataPropIn))
+                            Cube(:,:,Iobj) = Obj(Iobj).(Args.DataPropIn);
+                        end
                     end
                     Cube = permute(Cube,[3 1 2]);
 
@@ -1532,6 +1538,11 @@ classdef ImageComponent < Component
             %            'Type' - ['ccdsec'] | 'center'
             %            'DataPropIn' - Data property on which to operate.
             %                   Default is 'Data'.
+            %            'FillVal' - In case that the trim section is near the edge,
+            %                   this is the fill value to insert into the edge, such that the
+            %                   trim section will have the requires size. If empty, then
+            %                   return only the overlap region.
+            %                   Default is [].
             %            'CreateNewObj' - Copy to new object.
             %                   Default is false.
             % Output : - An ImageComponent object with the cropped images.
@@ -1544,6 +1555,7 @@ classdef ImageComponent < Component
                 CCDSEC                  % [xmin xmax ymin ymax]
                 Args.Type char                   = 'ccdsec';
                 Args.DataPropIn char             = 'Data';
+                Args.FillVal                     = [];
                 Args.CreateNewObj logical        = false;
             end
             
@@ -1566,7 +1578,7 @@ classdef ImageComponent < Component
                     Iobj = min(Imax, Nobj);
                     Isec = min(Imax, Nsec);
                     
-                    [Result(Imax).Data, UsedCCDSEC]   = imUtil.cut.trim(Obj(Iobj).(Args.DataPropIn), CCDSEC(Isec,:), Args.Type);
+                    [Result(Imax).Data, UsedCCDSEC]   = imUtil.cut.trim(Obj(Iobj).(Args.DataPropIn), CCDSEC(Isec,:), Args.Type, Args.FillVal);
                     Result(Imax).CCDSEC = UsedCCDSEC;
                 end
             else
@@ -1664,12 +1676,23 @@ classdef ImageComponent < Component
             %            'PadVal' - padding value for cutouts near edge or
             %                   without circular shifts.
             %            'CutAlgo' - Algorithm: ['mex'] | 'wmat'.
+            %            'mexNew' - If mexCutout is true.
+            %                   Use imUtil.cut.mex.imageCutouts (true)
+            %                   or old imUtil.cut.mex.mex_cutout (false).
+            %                   Default is true.
             %            'IsCircle' - If true then will pad each cutout
             %                   with NaN outside the HalfSize radius.
             %                   Default is false.
             %            'Shift' - A logical indicating if to shift
-            %            'ShiftAlgo' - Shift algorithm ['lanczos3'] |
-            %                   'lanczos2' | 'fft'.
+            %            'ShiftAlgo' - Shift algorithm ['lanczos3_mcode'] |
+            %                   'lanczos2_mcode' | 'fft'.
+            %                   The *_mcode options use imUtil.trans.shift_lanczos
+            %                   (the m-code, with A=3 / A=2). They were named
+            %                   'lanczos3'/'lanczos2' until Sep 2026, which
+            %                   collided with the 'lanczos3' of aperPhotCube,
+            %                   psfPhotCube, buildPSF and constructPSF_cutouts,
+            %                   where that string selects the MEX
+            %                   imUtil.trans.mex.shift_lanczos3 instead.
             %            'IsCircFilt' - While using lanczos, is circshift
             %                   is circular or not. Default is false.
             %            'DataProp' - Data property from which to extract
@@ -1693,9 +1716,10 @@ classdef ImageComponent < Component
                 Args.HalfSize               = 8;
                 Args.PadVal                 = NaN;
                 Args.CutAlgo                = 'mex';  % 'mex' | 'wmat'
+                Args.newMex                 = true;
                 Args.IsCircle               = false;
                 Args.Shift(1,1) logical     = false;
-                Args.ShiftAlgo              = 'lanczos3';  % 'fft' | 'lanczos2' | 'lanczos3' | ...
+                Args.ShiftAlgo              = 'lanczos3_mcode';  % 'fft' | 'lanczos2_mcode' | 'lanczos3_mcode'
                 Args.IsCircFilt(1,1) logical = true;
                 Args.DataProp               = 'Image';
             end
@@ -1707,10 +1731,14 @@ classdef ImageComponent < Component
             Iobj = 1;
             switch lower(Args.CutAlgo)
                 case 'mex'
-                    [CutoutCube] = imUtil.cut.mex.mex_cutout(Obj(Iobj).(Args.DataProp), RoundXY, CutoutSize, Args.PadVal, 0, 0, 1);
-                    CutoutCube   = squeeze(CutoutCube);
+                    if Args.newMex
+                        [CutoutCube] = imUtil.cut.mex.imageCutouts(Obj(Iobj).(Args.DataProp), RoundXY(:,1), RoundXY(:,2), CutoutSize, Args.PadVal);
+                    else
+                        [CutoutCube] = imUtil.cut.mex.mex_cutout(Obj(Iobj).(Args.DataProp), RoundXY, CutoutSize, Args.PadVal, 0, 0, 1);
+                        CutoutCube   = squeeze(CutoutCube);
+                    end
                 case 'wmat'
-                    [CutoutCube] = imUtil.cut.find_within_radius_mat(Obj(Iobj).(Args.DataProp), RoundXY(:,1), RoundXY(:,2), Args.HalfSize, Args.IsCircle);
+                    [CutoutCube] = imUtil.cut.find_within_radius_mat(Obj(Iobj).(Args.DataProp), RoundXY(:,1), RoundXY(:,2), Args.HalfSize, Args.IsCircle, Args.PadVal);
                 otherwise
                     error('Unknown Algo option');
             end
@@ -1718,10 +1746,18 @@ classdef ImageComponent < Component
             % shift cutouts
             if Args.Shift
                 ActualXY  = XY;
+                % The cutouts are cut around RoundXY, so the requested position XY
+                % sits at (XY-RoundXY) from the stamp center; to bring it TO the
+                % center the stamp content must move by RoundXY-XY.
+                % Two bugs here until Sep 2026 (issue #1298): the lanczos branches
+                % shifted by the full XY (the source position in the image, which
+                % with IsCircFilt merely rotated the cutout), and all the branches,
+                % 'fft' included, had the sign inverted, moving the source away from
+                % the center by twice the subpixel residual.
+                DXY       = RoundXY - XY;
                 switch lower(Args.ShiftAlgo)
                     case 'fft'
                         Ncut = size(XY,1);
-                        DXY   = XY - RoundXY;
                         
                         % FFU: I suspect the loop can be removed
                         if Ncut>0
@@ -1732,10 +1768,10 @@ classdef ImageComponent < Component
                             [CutoutCube(:,:,Icut), NY,NX,Nr,Nc] = imUtil.trans.shift_fft(squeeze(CutoutCube(:,:,Icut)), DXY(Icut,1), DXY(Icut,2), NY,NX,Nr,Nc);
                         end
                         
-                    case 'lanczos2'
-                        CutoutCube = imUtil.trans.shift_lanczos(CutoutCube, XY, 2, Args.IsCircFilt, Args.PadVal);
-                    case 'lanczos3'
-                        CutoutCube = imUtil.trans.shift_lanczos(CutoutCube, XY, 3, Args.IsCircFilt, Args.PadVal);
+                    case 'lanczos2_mcode'
+                        CutoutCube = imUtil.trans.shift_lanczos(CutoutCube, DXY, 2, Args.IsCircFilt, Args.PadVal);
+                    case 'lanczos3_mcode'
+                        CutoutCube = imUtil.trans.shift_lanczos(CutoutCube, DXY, 3, Args.IsCircFilt, Args.PadVal);
                     otherwise
                         error('Unknown ShiftAlgo option');
                 end

@@ -28,6 +28,7 @@ function [Res,OutCol]=binning(Data,BinSize,StartEnd,OutCol,OutType)
 %            'MeanBin'
 %            'MedianBin'
 %            'StdBin'
+%            'MaxErr'
 %            Or any function that returns a scalar to apply to the
 %            observations (e.g., @numel, @mean, @median).
 %            There are several special functions that will be applied also
@@ -101,41 +102,44 @@ end
 Ncol = numel(OutCol);
 
 
-Res   = zeros(Nbin,Ncol);
+Res   = nan(Nbin,Ncol);
 for Ibin=1:1:Nbin
     Flag = Data(:,Col.X)>Edges(Ibin) & Data(:,Col.X)<=Edges(Ibin+1);
-    
-    % calculate columns
-    for Icol=1:1:Ncol
-        if (ischar(OutCol{Icol}))
-            % Col is a pre-defined string
-            switch lower(OutCol{Icol})
-                case 'midbin'
-                    Res(Ibin,Icol) = (Edges(Ibin) + Edges(Ibin+1)).*0.5;
-                case 'startbin'
-                    Res(Ibin,Icol) = Edges(Ibin);
-                case 'endbin'
-                    Res(Ibin,Icol) = Edges(Ibin+1);
-                case 'meanbin'
-                    Res(Ibin,Icol) = mean(Data(Flag,Col.X));
-                case 'medianbin'
-                    Res(Ibin,Icol) = median(Data(Flag,Col.X));
-                case 'stdbin'
-                    Res(Ibin,Icol) = std(Data(Flag,Col.X));
-                case 'wmean'
-                    Res(Ibin,Icol) = Util.stat.wmean(Data(Flag,[Col.X,Col.E]));
-                otherwise
-                    error('Unknown Column option');
-            end
-        else
-            % Col is a function handle
-            switch lower(func2str(OutCol{Icol}))
-                case {'util.stat.wmean','util.stat.wmedian'}
-                    Res(Ibin,Icol) = OutCol{Icol}(Data(Flag,Col.Y), Data(Flag,Col.E));
-                case {'werr', 'wmeanerr'} 
-                    [~,Res(Ibin,Icol)] = Util.stat.wmean(Data(Flag,Col.Y), Data(Flag,Col.E));
-                otherwise
-                    Res(Ibin,Icol) = OutCol{Icol}(Data(Flag,Col.Y));
+    if sum(Flag)>0
+        % calculate columns
+        for Icol=1:1:Ncol
+            if (ischar(OutCol{Icol}))
+                % Col is a pre-defined string
+                switch lower(OutCol{Icol})
+                    case 'midbin'
+                        Res(Ibin,Icol) = (Edges(Ibin) + Edges(Ibin+1)).*0.5;
+                    case 'startbin'
+                        Res(Ibin,Icol) = Edges(Ibin);
+                    case 'endbin'
+                        Res(Ibin,Icol) = Edges(Ibin+1);
+                    case 'meanbin'
+                        Res(Ibin,Icol) = mean(Data(Flag,Col.X));
+                    case 'medianbin'
+                        Res(Ibin,Icol) = median(Data(Flag,Col.X));
+                    case 'stdbin'
+                        Res(Ibin,Icol) = std(Data(Flag,Col.X));
+                    case 'wmean'
+                        Res(Ibin,Icol) = Util.stat.wmean(Data(Flag,[Col.X,Col.E]));
+                    case 'maxerr'
+                        Res(Ibin,Icol) = max(Data(Flag,Col.E));
+                    otherwise
+                        error('Unknown Column option');
+                end
+            else
+                % Col is a function handle
+                switch lower(func2str(OutCol{Icol}))
+                    case {'util.stat.wmean','util.stat.wmedian'}
+                        Res(Ibin,Icol) = OutCol{Icol}(Data(Flag,Col.Y), Data(Flag,Col.E));
+                    case {'werr', 'wmeanerr'} 
+                        [~,Res(Ibin,Icol)] = Util.stat.wmean(Data(Flag,Col.Y), Data(Flag,Col.E));
+                    otherwise
+                        Res(Ibin,Icol) = OutCol{Icol}(Data(Flag,Col.Y));
+                end
             end
         end
     end

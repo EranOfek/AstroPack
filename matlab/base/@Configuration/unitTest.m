@@ -1,7 +1,6 @@
 function Result = unitTest()
     % Configuration.unitTest
     
-    io.msgLog(LogLevel.Test, 'Configuration test started');
 
     % Clear java to avoid failure of yaml.ReadYaml()
     clear java;
@@ -22,16 +21,16 @@ function Result = unitTest()
     ConfigFileName = fullfile(ConfigPath, strcat(FileName, '.yml'));
     
     % Test low level loading of Yaml struct
-    io.msgLog(LogLevel.Test, 'Testing low level functions');
+    %io.msgLog(LogLevel.Test, 'Testing low level functions');
     yml = Configuration.internal_loadYaml(ConfigFileName);
     uTest = yml;
-    io.msgLog(LogLevel.Test, 'Key1: %s', uTest.Key1);
-    io.msgLog(LogLevel.Test, 'Key2: %s', uTest.Key2);
-    io.msgLog(LogLevel.Test, 'Key: %s', uTest.Key0x2D3);
-    io.msgLog(LogLevel.Test, 'Key: %s', uTest.x0x2DKeyMinus);
+    % io.msgLog(LogLevel.Test, 'Key1: %s', uTest.Key1);
+    % io.msgLog(LogLevel.Test, 'Key2: %s', uTest.Key2);
+    % io.msgLog(LogLevel.Test, 'Key: %s', uTest.Key0x2D3);
+    % io.msgLog(LogLevel.Test, 'Key: %s', uTest.x0x2DKeyMinus);
     yml = Configuration.internal_reloadYaml(yml);
     uTest = yml;
-    io.msgLog(LogLevel.Test, 'Key1: %s', uTest.Key1);                  
+    %io.msgLog(LogLevel.Test, 'Key1: %s', uTest.Key1);                  
     
     %----------------------------------------------------------------------
     % Initialize and get a singletone persistant object
@@ -61,28 +60,28 @@ function Result = unitTest()
     %----------------------------------------------------------------------
 
     % Test Configuration class
-    io. msgLog(LogLevel.Test, 'Testing Configuration object');
+    %io. msgLog(LogLevel.Test, 'Testing Configuration object');
 
     confUnitTest = PrivateConf2.Data.(FileName);
 
     %
-    io.msgLog(LogLevel.Test, 'FileName: %s', confUnitTest.FileName);
+    %io.msgLog(LogLevel.Test, 'FileName: %s', confUnitTest.FileName);
     disp(confUnitTest);         
 
     %
-    io.msgLog(LogLevel.Test, 'Key1: %s', confUnitTest.Key1);
-    io.msgLog(LogLevel.Test, 'Key2: %s', confUnitTest.Key2);
-    io.msgLog(LogLevel.Test, 'Key: %s', confUnitTest.Key0x2D3);
-    io.msgLog(LogLevel.Test, 'Key: %s', confUnitTest.x0x2DKeyMinus);
+    % io.msgLog(LogLevel.Test, 'Key1: %s', confUnitTest.Key1);
+    % io.msgLog(LogLevel.Test, 'Key2: %s', confUnitTest.Key2);
+    % io.msgLog(LogLevel.Test, 'Key: %s', confUnitTest.Key0x2D3);
+    % io.msgLog(LogLevel.Test, 'Key: %s', confUnitTest.x0x2DKeyMinus);
 
     %disp(conf.listLen(conf.UnitTest.NonUniqueKeys));
 
     % Load all config files in folder
-    io.msgLog(LogLevel.Test, 'Testing folder');
+    %io.msgLog(LogLevel.Test, 'Testing folder');
     Conf.loadFolder(ConfigPath);
     disp(Conf.Data.System.EnvFolders);
 
-    io.msgLog(LogLevel.Test, 'Testing utility functions');
+    %io.msgLog(LogLevel.Test, 'Testing utility functions');
     %io.msgLog(LogLevel.Test, 'unmacro: %s', Configuration.unmacro("$Key1/abc", confUnitTest));
     assert(strcmp(Configuration.unmacro("$Key1/abc", confUnitTest),"Value1/abc"))
 
@@ -90,6 +89,6 @@ function Result = unitTest()
     assert(~strcmp(Conf.expandFolder("$ROOT/abc"),"$ROOT/abc"))
 
     % Done
-    io.msgLog(LogLevel.Test, 'Configuration test passed');
+    %io.msgLog(LogLevel.Test, 'Configuration test passed');
     Result = true;
 end

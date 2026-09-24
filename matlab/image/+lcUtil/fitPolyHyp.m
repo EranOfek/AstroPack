@@ -63,6 +63,6 @@ function [Result] = fitPolyHyp(Obj, Args)
     Mag = getMatrix(Obj, FieldName);
     
     % poly hypothesis testing
-    Result = timeSeries.fit.fitPolyHyp(Obj.JD, Mag);
+    Result = timeSeries.fit.fitPolyHyp(Obj.JD, Mag, 'PolyDeg',Args.PolyDeg);
     
 end

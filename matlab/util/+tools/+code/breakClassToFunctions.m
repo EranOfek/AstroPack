@@ -2,10 +2,14 @@ function AllFun = breakClassToFunctions(FileName)
     % Parse all functions from a class m file
     % Input  : - File name or a cell array containing the file content
     %            (file line per cell element).
+    %            If cell array then this it contains the class line per
+    %            element, while if this is a char array, then this is the
+    %            function name and location.
     % Output : - A structure array of all functions found in class.
     %            The function text in a cell format is in the .Text field.
     % Author : Eran Ofek (May 2022)
     % Example: AllFun = tools.code.breakClassToFunctions(F)
+    %          AllFun = tools.code.breakClassToFunctions('/raid/eran/matlab/AstroPack/matlab/image/@AstroFileName/AstroFileName.m');
     
     arguments
         FileName

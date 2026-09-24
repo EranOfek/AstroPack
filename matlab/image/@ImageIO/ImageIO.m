@@ -52,7 +52,8 @@ classdef ImageIO < Component
             %            'HDU' - HDU number of HDF5 dataset name.
             %                   Default is 1.
             %            'FileType' - [] will attempt to identify
-            %                   automatically. Otherwise, 'fits' | 'hdf5'.
+            %                   automatically. Otherwise, 'fits' | 'hdf5' |
+            %                   'tiff' (see io.tiff.read1; HDU is the page).
             %                   Default is [].
             %            'ReadHeader' - Default is true.
             %            'IsTable' - True if attempt to read table.
@@ -65,6 +66,7 @@ classdef ImageIO < Component
             %            'readTableArgs' - A cell array of additional
             %                   arguments to pass to FITS.readTable1.
             %                   Default is {}.
+            %            'UseMex' - use a Mex FITS reader (def. false)
             % Output : - An ImageIO object.
             % Example: I = ImageIO
             %          I = ImageIO([2, 2]);
@@ -84,6 +86,7 @@ classdef ImageIO < Component
                 Args.UseRegExp(1,1) logical  = false;
                 Args.CCDSEC                  = [];
                 Args.readTableArgs cell      = {};
+                Args.UseMex                  = false;
             end
             
             
@@ -107,7 +110,7 @@ classdef ImageIO < Component
                         Obj.IsTable = true;
                     else
                         % traet file names
-                        if iscellstr(FileNames)
+                        if iscellstr(FileNames) || isstring(FileNames)
                             List = FileNames;
                         else
                             if iscell(FileNames)
@@ -130,10 +133,14 @@ classdef ImageIO < Component
                 Nobj = numel(List);
                 for Iobj=1:1:Nobj
                     Obj(Iobj) = ImageIO([]);
-                    if Args.ReadHeader
-                        [Obj(Iobj).Data, Obj(Iobj).Header] = ImageIO.read1(List{Iobj}, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',Args.IsTable, 'readTableArgs',Args.readTableArgs);
-                    else
-                        Obj(Iobj).Data = ImageIO.read1(List{Iobj}, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',Args.IsTable, 'readTableArgs',Args.readTableArgs);
+                    try
+                        if Args.ReadHeader
+                            [Obj(Iobj).Data, Obj(Iobj).Header] = ImageIO.read1(List{Iobj}, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',Args.IsTable, 'readTableArgs',Args.readTableArgs,'UseMex',Args.UseMex);
+                        else
+                            Obj(Iobj).Data = ImageIO.read1(List{Iobj}, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',Args.IsTable, 'readTableArgs',Args.readTableArgs,'UseMex',Args.UseMex);
+                        end
+                    catch ME
+                        warning('ImageIO: failed to read file %s - skip (%s)', List{Iobj}, ME.message);
                     end
                     Obj(Iobj).IsTable = Args.IsTable;
                     Obj(Iobj).CCDSEC  = Args.CCDSEC;
@@ -160,7 +167,8 @@ classdef ImageIO < Component
             %            'HDU' - HDU number of HDF5 dataset name.
             %                   Default is 1.
             %            'FileType' - [] will attempt to identify
-            %                   automatically. Otherwise, 'fits' | 'hdf5'.
+            %                   automatically. Otherwise, 'fits' | 'hdf5' |
+            %                   'tiff' (see io.tiff.read1; HDU is the page).
             %                   Default is [].
             %            'IsTable' - True if attempt to read table.
             %                   Default is false.
@@ -170,12 +178,13 @@ classdef ImageIO < Component
             %            'readTableArgs' - A cell array of additional
             %                   arguments to pass to FITS.readTable1.
             %                   Default is {}.
+            %            'UseMex' - use a MeX FITS reader (def. false)
             % Output : - Data. Either image matrix, or table of table data.
             %          - Header (3 columns cell array).
             % Author : Eran Ofek (Apr 2021)
             % Example: [D,H]=ImageIO.read1('asu.fit','IsTable',1);
             %          [D,H]=ImageIO.read1('WFPC2ASSNu5780205bx.fits');
-            %          [D,H]=ImageIO.read1('WFPC2ASSNu5780205bx.fits','CCDSEC',[1 10 1 10]);
+            %          [D,H]=ImageIO.read1('WFPC2ASSNu5780205bx.fits','CCDSEC',[1 10 1 10],'UseMex',true);
             %          [D]=ImageIO.read1('WFPC2ASSNu5780205bx.fits');
             %          [D,H]=ImageIO.read1('WFPC2ASSNu5780205bx.fits','ReadData',false);
             
@@ -187,6 +196,7 @@ classdef ImageIO < Component
                 Args.IsTable(1,1) logical    = false;
                 Args.CCDSEC                  = [];
                 Args.readTableArgs cell      = {};
+                Args.UseMex                  = false;
             end
             
             if isempty(Args.HDU)
@@ -202,10 +212,12 @@ classdef ImageIO < Component
                 Ext = strrep(Ext,'.',''); % remove dot from extension
                 
                 switch lower(Ext)
-                    case {'fits','fit'}
+                    case {'fits','fit','fz','gz','bz2','xz'}
                         Args.FileType = 'fits';
                     case {'hdf5','h5','hd5'}
                         Args.FileType = 'hdf5';
+                    case {'tif','tiff'}
+                        Args.FileType = 'tiff';
                     otherwise
                         Args.FileType = 'other';
                 end
@@ -218,13 +230,19 @@ classdef ImageIO < Component
                         Header = FITS.readHeader1(FileName, Args.HDU);
                     else
                         if Args.IsTable
-                            [Data, Header] = FITS.readTable1(FileName, Args.readTableArgs{:});
-                            %Data = table2array(Data);
+                            if Args.UseMex
+                                [DataStruct, Header, ~, ColUnits] = io.fits.mex.read_catalog(FileName, 0);
+                                Data = struct2table(DataStruct);
+                                Data.Properties.VariableUnits = ColUnits;
+                            else
+                                [Data, Header] = FITS.readTable1(FileName, Args.readTableArgs{:});
+                                %Data = table2array(Data);
+                            end
                         else
                             if Args.ReadData && nargout<2
-                                [Data] = FITS.read1(FileName, Args.HDU, 'CCDSEC',Args.CCDSEC);
+                                [Data] = FITS.read1(FileName, Args.HDU, 'CCDSEC',Args.CCDSEC,'UseMex',Args.UseMex);
                             else
-                                [Data, Header] = FITS.read1(FileName, Args.HDU, 'CCDSEC',Args.CCDSEC);
+                                [Data, Header] = FITS.read1(FileName, Args.HDU, 'CCDSEC',Args.CCDSEC,'UseMex',Args.UseMex);
                             end
                         end
                     end
@@ -232,9 +250,21 @@ classdef ImageIO < Component
                 case 'hdf5'
                     error('hdf5 is not yet supported');
                     
+                case 'tiff'
+                    if Args.IsTable
+                        error('IsTable is true while file type is tiff');
+                    end
+                    if ~Args.ReadData
+                        Header = io.tiff.readHeader1(FileName, 'Page',Args.HDU);
+                    elseif nargout<2
+                        Data = io.tiff.read1(FileName, 'Page',Args.HDU, 'CCDSEC',Args.CCDSEC);
+                    else
+                        [Data, Header] = io.tiff.read1(FileName, 'Page',Args.HDU, 'CCDSEC',Args.CCDSEC);
+                    end
+                    
                 otherwise
                     if Args.IsTable
-                        error('IsTable is truw while file type is not fits or hdf5');
+                        error('IsTable is true while file type is not fits or hdf5');
                     else
                         if Args.ReadData
                             Data   = imread(FileName);
@@ -287,9 +317,8 @@ classdef ImageIO < Component
             %            'ColUnits' - A cell arrat of table units names.
             %            'CCDSEC' - CCDSEC to save. If empty, save full
             %                   image. Default is [].
-            %            'IsSimpleFITS' - A logical indicating if to use
-            %                   io.fits.writeSimpleFITS (faster).
-            %                   Default is false.
+            %            'WriteMethodImages' - write method, def. 'Full', if 'Simple', 'Mex', or 'ThreadedMex'
+            %            uses io.fits.writeSimpleFITS, io.fits.writeMexFITS or io.fits.writeThreadMexFITS (fastest).
             %            'Append' - Append image as a multi extension to an
             %                      existing FITS file. Default is false.
             %            'OverWrite'- Overwrite an existing image. Default
@@ -314,9 +343,8 @@ classdef ImageIO < Component
                 Args.IsTable(1,1) logical     = false;
                 Args.ColNames cell            = {};
                 Args.ColUnits cell            = {};
-                Args.CCDSEC                   = [];      % only for 2D images
-                
-                Args.IsSimpleFITS logical     = false;
+                Args.CCDSEC                   = [];      % only for 2D images                
+                Args.WriteMethodImages        = 'Full';  % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
                 Args.Append(1,1) logical      = false;
                 Args.OverWrite(1,1) logical   = false;
                 Args.WriteTime(1,1) logical   = false;
@@ -385,15 +413,16 @@ classdef ImageIO < Component
                         
                     else
                         % write FITS image
-                        if Args.IsSimpleFITS
-                            FITS.writeSimpleFITS(Data, FileName, 'Header', Header,...
-                                                   'DataType',DataType);
-                        else
+                        if strcmpi(Args.WriteMethodImages,'full') 
                             FITS.write(Data, FileName, 'Header', Header,...
                                                    'DataType',DataType,...
                                                    'Append',Args.Append,...
                                                    'OverWrite',Args.OverWrite,...
-                                                   'WriteTime',Args.WriteTime);
+                                                   'WriteTime',Args.WriteTime);                            
+                        else
+                            FITS.writeSimpleFITS(Data, FileName, 'Header', Header,...
+                                                   'DataType',DataType,...
+                                                   'WriteMethodImages',Args.WriteMethodImages);
                         end
                     end
                         
@@ -501,8 +530,8 @@ classdef ImageIO < Component
             %            'WriteHeader' - Write header.
             %                   Relevant only for AstroImage input.
             %                   Default is true.
-            %            'IsSimpleFITS' - Write using simpleFITS.
-            %                   Default is true.
+            %            'WriteMethodImages' - write method, can be 'Full', if 'Simple', 'Mex', or 'ThreadedMex'
+            %            uses io.fits.writeSimpleFITS, io.fits.writeMexFITS or io.fits.writeThreadMexFITS (fastest).
             %            'DataType' - cast to data type. Default is [].
             %            'ImageFileType' - Default is 'fits'.
             %            'MatchedFileType' - Default is 'hdf5'.
@@ -515,10 +544,9 @@ classdef ImageIO < Component
                 ObjFN
                 DataProp                   = 'Image';
                 Args.HDU                   = 1;
-                Args.WriteHeader logical   = true;
-                Args.IsSimpleFITS logical  = true;
+                Args.WriteHeader logical   = true;                
                 Args.DataType              = [];
-                
+                Args.WriteMethodImages     = 'Simple';  % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
                 Args.ImageFileType         = 'fits';
                 Args.MatchedFileType       = 'hdf5';
             end
@@ -566,7 +594,7 @@ classdef ImageIO < Component
                         end
                         ImageIO.write1(ObjIn(Iobj).(DataProp), Files{Iobj},'HDU',Args.HDU,...
                                                                            'FileType',Args.ImageFileType,...
-                                                                           'IsSimpleFITS',Args.IsSimpleFITS,...
+                                                                           'WriteMethodImages',Args.WriteMethodImages,...
                                                                            'IsTable',IsTable,...
                                                                            'DataType',Args.DataType,...
                                                                            'Header',Header);

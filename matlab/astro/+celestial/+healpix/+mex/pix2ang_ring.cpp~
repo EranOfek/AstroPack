@@ -1,0 +1,84 @@
+#include <stdint.h>
+#include <math.h>
+#include <stdio.h>
+#include <omp.h>  // Include OpenMP header
+#include "mex.h"
+
+#define pi 3.141592653589793238462643383279502884197
+#define twopi (2.0 * pi)
+#define halfpi (pi / 2.0)
+
+// Function to convert pixel index to (theta, phi) in ring ordering
+void pix2ang_ring_z_phi64(int64_t nside, int64_t ipix, double *theta, double *phi) {
+    int64_t npix = 12 * nside * nside;
+    int64_t ncap = 2 * nside * (nside - 1); // Number of pixels in the polar caps
+
+    if (ipix < ncap) {  // North Polar cap
+        int64_t iring = (int64_t)((1 + sqrt(1 + 2 * ipix)) / 2); // Ring number counted from the North pole
+        int64_t iphi = ipix - 2 * iring * (iring - 1) + 1; // Position along the ring
+
+        double z = 1.0 - (iring * iring) / (double)(nside * nside);
+        *theta = acos(z); // Convert z to theta
+        *phi = (iphi - 0.5) * halfpi / iring;
+    } 
+    else if (ipix < (npix - ncap)) {  // Equatorial region
+        int64_t ip = ipix - ncap;
+        int64_t iring = ip / (4 * nside) + nside; // Ring number counted from the North pole
+        int64_t iphi = ip % (4 * nside) + 1;
+
+        int64_t nl2 = 2 * nside;
+        double fodd = ((iring + nside) & 1) ? 1.0 : 0.5;  // 1 if iring+nside is odd, 0.5 otherwise
+
+        double z = (nl2 - iring) / (double)nside;
+        *theta = acos(z);
+        *phi = (iphi - fodd) * pi / (2 * nside);
+    } 
+    else {  // South Polar cap
+        int64_t ip = npix - ipix;
+        int64_t iring = (int64_t)((1 + sqrt(2 * ip - 1)) / 2); // Ring number counted from the South pole
+        int64_t iphi = 4 * iring + 1 - (ip - 2 * iring * (iring - 1));
+
+        double z = -1.0 + (iring * iring) / (double)(nside * nside);
+        *theta = acos(z);
+        *phi = (iphi - 0.5) * halfpi / iring;
+    }
+}
+
+// Gateway function for the MEX interface
+void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
+    if (nrhs != 2) {
+        mexErrMsgIdAndTxt("pix2ang_ring_mex:nrhs", "Two inputs required: nside and pixel indices");
+    }
+    if (nlhs != 2) {
+        mexErrMsgIdAndTxt("pix2ang_ring_mex:nlhs", "Two outputs required: longitude and latitude arrays");
+    }
+
+    // Input variables
+    int64_t nside = (int64_t)mxGetScalar(prhs[0]);
+    double *pixel_indices = mxGetPr(prhs[1]);
+
+    // Get the number of elements in the input pixel array
+    size_t num_elements = mxGetNumberOfElements(prhs[1]);
+
+    // Prepare the output arrays with the same dimensions as the input
+    plhs[0] = mxCreateDoubleMatrix(num_elements, 1, mxREAL); // Longitudes
+    plhs[1] = mxCreateDoubleMatrix(num_elements, 1, mxREAL); // Latitudes
+    double *longitudes = mxGetPr(plhs[0]);
+    double *latitudes = mxGetPr(plhs[1]);
+
+    // Parallelize the loop using OpenMP
+    #pragma omp parallel for
+    for (size_t i = 0; i < num_elements; i++) {
+        int64_t ipix = (int64_t)pixel_indices[i];
+
+        // Calculate theta and phi from the pixel index in ring ordering
+        double theta, phi;
+        pix2ang_ring_z_phi64(nside, ipix, &theta, &phi);
+
+        // Convert theta to latitude
+        latitudes[i] = halfpi - theta; // Convert colatitude to latitude
+
+        // Use phi as longitude
+        longitudes[i] = phi;
+    }
+}

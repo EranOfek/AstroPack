@@ -4,6 +4,7 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     %       Number of pixels in the ACF above some threshold correlation.
     %       Distance from ACF center to the furthest ACF value above some
     %       threshold.
+    %       Also look for histogram anomaly using: imUtil.image.histAnomaly
     %       NOTE: I guess that staellites constellations may be identified
     %       as bad images.
     % Input  : - An AstroImage object, or a char file name with optional
@@ -14,6 +15,16 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     %            'CCDSEC' - CCDSEC [Xmin Xmax Ymin Ymax] on which to
     %                   operate the ACF tests. If empty, then use entire image.
     %                   Default is [].
+    %            'CCDSEC2' - An alternative CCDSEC. If FWHM>MaxFWHM then
+    %                   will recalc. FWHM in secondry CCDSEC. This is required
+    %                   again sat. streaks.
+    %                   Default is [1 1000 1 1000]
+    %            'UseFWHM' - Calculate FWHM using imUtil.psf.fwhm_fromACF
+    %                   Default is true.
+    %            'MaxFWHM' - Default is 5 pixels.
+    %            'MaxRadius' - Max radius for ACF calculation.
+    %                   Default is 50.
+    %
     %            'ThresholdACFnpix' - Threshold aotocorrelation.
     %                   Default is 0.25.
     %            'ThresholdACFdist' - ACF threshold for max dist test. 
@@ -33,6 +44,9 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     %                   If number of ACF pixels above ThresholdACF, exceed
     %                   this value, then the image will be declared as bad.
     %                   Default is 20.
+    %            'N32768' - Max. Number of pixels with value exactly 32768
+    %                   which are allowed in image. Default is 1e4.
+    %
     %            'backgroundArgs' - A cell array of arguments to pass to
     %                   the imUtil.background.background.
     %                   This will be used only if the 'Back' field in the
@@ -45,22 +59,36 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     %            .Npix
     %            .NpixAboveThresholdVal
     %            .NpixAboveThresholdACF
+    %            .HistAnomaly - logical indicating if hist anomaly was
+    %                   detected.
     %            .BadImageFlag - true if image is bad.
     %          - The ACF of the background subtracted image.
     %            Only, the last analyzed image is returned.
     % Author : Eran Ofek (Dec 2021)
     % Example: Result = imProc.stat.identifyBadImages(Obj, Args)
+    %          % Test on images
+    %          F=dir('LAST*.fits'); Nf=numel(F);
+    %          for I=1:1:Nf, AI=AstroImage(F(I).name); 
+    %          [Result(I)] = imProc.stat.identifyBadImages(AI,'CCDSEC',[2701 3700 4301 5300],'CCDSEC2',[2701 3700 3201 4200]);
+    %          end
     
     arguments
         Obj AstroImage
         
         Args.CCDSEC                 = [];
+        Args.CCDSEC2                = [1 1000 1 1000];   % failure region
+        Args.MaxRadius              = 50;
+        Args.UseFWHM logical        = true;
+        Args.MaxFWHM                = 5;
+        
+        
         Args.ThresholdACFnpix       = 0.8;
         Args.ThresholdACFdist       = 0.5;
         Args.ThresholdMaxDistACF    = 6;
         Args.ThresholdVal           = 5000;
         Args.MaxFracAboveVal        = 0.3;
         Args.MaxPixAboveACF         = 20;
+        Args.N32768                 = 1e4;
         
         Args.backgroundArgs cell    = {'BackFun',@median, 'BackFunPar',{[1 2],'omitnan'}, 'SubSizeXY',[]};
         Args.PopulateBack logical   = false;
@@ -86,7 +114,9 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
     Result = struct('Npix',cell(Nobj,1),...
                     'NpixAboveThresholdVal',cell(Nobj,1),...
                     'NpixAboveThresholdACF',cell(Nobj,1),...
-                    'BadImageFlag',cell(Nobj,1));
+                    'BadImageFlag',cell(Nobj,1),...
+                    'N32768',cell(Nobj,1),...
+                    'FWHM_ACF',cell(Nobj,1));
                 
     for Iobj=1:1:Nobj
         if isempty(List)
@@ -111,14 +141,21 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
         end
         
         
+        Result(Iobj).HistAnomaly = imUtil.image.histAnomaly(Image);
+        
         % Number of pixels above threshold
         Result(Iobj).Npix = numel(Image);
         Result(Iobj).NpixAboveThresholdVal =  sum(Image > Args.ThresholdVal, 'all');
         
         
+        % many pixels with the same value
+        Result(Iobj).N32768 = sum(Obj(Iobj).Image(:)==32768);
+       
+        
         % background
         if isempty(Back)
-            Back = imUtil.background.background(Image, Args.backgroundArgs{:});
+            Back = median(Image(:));
+            %Back = imUtil.background.background(Image, Args.backgroundArgs{:});
             if Args.PopulateBack
                 Obj(Iim).(Args.BackProp) = Back;
             end
@@ -127,25 +164,43 @@ function [Result,ACF] = identifyBadImages(Obj, Args)
         BackSubImage = Image - Back;
         
         
-        % FFU: treat saturated pixels!
-        BackSubImage(BackSubImage>40000) = 0;
+        
         
         % Autocorrelation function
-        [ACF] = imUtil.filter.autocor(BackSubImage, 'Norm',true, 'SubBack',false);
+        if Args.UseFWHM
+            % image already cropped
+            [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius);
+            if FWHM_ACF>Args.MaxFWHM
+                % run it again in a different CCDSEC
+                % this may be due to satellite streaks
+                Image = Obj(Iim).(Args.DataProp)(Args.CCDSEC2(3):Args.CCDSEC2(4), Args.CCDSEC2(1):Args.CCDSEC2(2));
+                [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(Image, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius);
+            end
+            Result(Iobj).FWHM_ACF = FWHM_ACF;
+            Result(Iobj).BadImageFlag = (Result(Iobj).NpixAboveThresholdVal./Result(Iobj).Npix) > Args.MaxFracAboveVal || ...
+                                    FWHM_ACF>Args.MaxFWHM || isnan(FWHM_ACF) || ...
+                                    Result(Iobj).N32768>Args.N32768;
+            
+        else
+            % FFU: treat saturated pixels!
+            BackSubImage(BackSubImage>40000) = 0; % NOT GOOD WHEN USED WITH UseFWHM=true
+            
+            [ACF] = imUtil.filter.autocor(BackSubImage, 'Norm',true, 'SubBack',false);
         
-        SizeACF = size(ACF);
-     
-        II = find(ACF>Args.ThresholdACFdist);
-        [I,J]=imUtil.image.ind2sub_fast(SizeACF,II);
-        Result(Iobj).MaxDistACFabove = max(sqrt(sum(([I,J] - SizeACF.*0.5).^2,2)));
+            SizeACF = size(ACF);
+
+            II = find(ACF>Args.ThresholdACFdist);
+            [I,J]=imUtil.image.ind2sub_fast(SizeACF,II);
+            Result(Iobj).MaxDistACFabove = max(sqrt(sum(([I,J] - SizeACF.*0.5).^2,2)));
+
+            Result(Iobj).NpixAboveThresholdACF = sum(ACF > Args.ThresholdACFnpix, 'all');
         
         
-        
-        
-        Result(Iobj).NpixAboveThresholdACF = sum(ACF > Args.ThresholdACFnpix, 'all');
-        
-        Result(Iobj).BadImageFlag = (Result(Iobj).NpixAboveThresholdVal./Result(Iobj).Npix) > Args.MaxFracAboveVal || ...
+            Result(Iobj).BadImageFlag = (Result(Iobj).NpixAboveThresholdVal./Result(Iobj).Npix) > Args.MaxFracAboveVal || ...
                                     Result(Iobj).NpixAboveThresholdACF > Args.MaxPixAboveACF || ...
-                                    Result(Iobj).MaxDistACFabove > Args.ThresholdMaxDistACF;
+                                    Result(Iobj).MaxDistACFabove > Args.ThresholdMaxDistACF || ...
+                                    Result(Iobj).N32768>Args.N32768 || ...
+                                    Result(Iobj).HistAnomaly;
+        end
     end
 end

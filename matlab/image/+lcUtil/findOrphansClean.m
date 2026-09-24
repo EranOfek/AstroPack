@@ -1,5 +1,10 @@
 function [OrphansList,CleanOrphansList,Norphans] = findOrphansClean(Obj, Args)
     % Select orphan sources from a MatchedSources object and clean them.
+    %   NOTE: expected to become obsolete with the new (v1) pipeline. On
+    %   new-pipeline products (issue #1180) the 'Overlap' bit is raised in
+    %   ALL the crops covering a pixel, so keeping it in BadFlags rejects
+    %   every copy of a seam source; on such products select the owned copy
+    %   with the catalog 'primary' column instead.
     %   Orphan sources are defined to be sources which appears in
     %   only 1 (or a few) epochs - These are selected using lcUtil.findOrphans
     %   Clean sources are those which satisfy some additional criteria like

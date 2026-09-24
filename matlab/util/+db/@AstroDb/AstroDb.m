@@ -101,9 +101,13 @@ classdef AstroDb < Component
                 Args.DatabaseName  = 'lastdb'        % 'last_operational' at last0 node
                 Args.UserName      = ''      % User name
                 Args.Password      = ''      % Password
-                Args.ReadConfig    = false;  % read config from a local config file or create an object with the given parameters                
+                Args.ReadConfig    = false;  % read config from a local config file or create an object with the given parameters  
+                Args.ReloadConfig  = false;
+                Args.PWFile        = '~/.astropack/Passwords.yml';
             end
-            
+            if Args.ReloadConfig                
+                Configuration.getSingleton().loadFile(Args.PWFile); % tell the PM where to look for passwords
+            end
             PM = PasswordsManager;
             try
                 Args.UserName = PM.search(Args.DatabaseName).User;
@@ -232,9 +236,14 @@ classdef AstroDb < Component
             Q.addColumn(TN, 'm_ha',     'double', 'default 0');
             Q.addColumn(TN, 'm_jra',    'double', 'default 0');
             Q.addColumn(TN, 'm_jdec',   'double', 'default 0');
-            Q.addColumn(TN, 'm_jha',    'double', 'default 0');
-            Q.addColumn(TN, 'ha',       'double', 'default 0');
-
+%             Q.addColumn(TN, 'm_jha',    'double', 'default 0');
+%             Q.addColumn(TN, 'ha',       'double', 'default 0');
+            Q.addColumn(TN, 'm_ara',    'double', 'default 0');
+            Q.addColumn(TN, 'm_aha',    'double', 'default 0');
+            Q.addColumn(TN, 'm_adec',   'double', 'default 0');
+            Q.addColumn(TN, 'm_adra',   'double', 'default 0');
+            Q.addColumn(TN, 'm_adha',   'double', 'default 0');
+            Q.addColumn(TN, 'm_addec',  'double', 'default 0');                                    
             %
             Q.addColumn(TN, 'equinox',  'single', 'default 0');
             Q.addColumn(TN, 'm_az',     'single', 'default 0');
@@ -429,7 +438,9 @@ classdef AstroDb < Component
 %             Q.addColumn(TN, 'nobs',         'smallint', 'default 0'); 
 %                                              smallint is incompatible with NaN values!
             Q.addColumn(TN, 'nobs',         'single', 'default 0');
+            Q.addColumn(TN, 'distmp',       'single', 'default 0');
             Q.addColumn(TN, 'jd',           'double', 'default 0', 'index', true);
+            Q.addColumn(TN, 'cropid',       'smallint', 'default 0', 'index', true);
             Q.addColumn(TN, 'exptime',      'single', 'default 0');
                         
             % Additional
@@ -438,8 +449,15 @@ classdef AstroDb < Component
                 
             Obj.msgLog(LogLevel.Info, 'addCommonCatalogColumns done');
             Result = true;
-        end
+       end
         
+       function Result = getListOfTableColumns(Obj, TN)
+           
+           TN1 = sprintf('table_name = ''%s''',TN);
+           Rec = Obj.Query.select('column_name','TableName','information_schema.columns','Where',TN1);
+           Result = {Rec.Data.column_name};
+           
+       end
     end
 
     methods % low level addImage and addCatalog functions             
@@ -641,6 +659,8 @@ classdef AstroDb < Component
                 % NB! this case is very LAST-specific!                    
                     FN = Args.BulkFN.copy;
                     FN = FN.updateIfNotEmpty('Product','Cat', 'FileType',{'csv'});
+                    FN.CropID = FN.CropID(FN.validTimes);
+                    FN.Time   = FN.Time(FN.validTimes);
                     if strcmpi(Args.BulkCatType,'proc')
                         CatFileName = FN.genFull{1};
                     elseif strcmpi(Args.BulkCatType,'coadd')
@@ -650,26 +670,43 @@ classdef AstroDb < Component
                         error('Incorrect catalog type in AstroDb.insert');
                     end
                     CatFileName = tools.os.relPath2absPath(CatFileName);
-                    StKey = Args.BulkAI.getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
+%                     StKey = Args.BulkAI.getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','JD','EXPTIME'});
+%                     Data.writeLargeCSV(CatFileName,...
+%                         'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
+%                         'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.JD, StKey.EXPTIME] );
+                    StKey = Args.BulkAI.getStructKey({'CAMNUM','MOUNTNUM','NODENUMB','EXPTIME'});
                     Data.writeLargeCSV(CatFileName,...
-                        'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'JD'} {'EXPTIME'}],...
-                        'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.JD, StKey.EXPTIME] );
+                        'AddColNames',[{'CAMNUM'} {'MOUNT'} {'NODE'} {'EXPTIME'}],...
+                        'AddColValues',[StKey.CAMNUM, StKey.MOUNTNUM, StKey.NODENUMB, StKey.EXPTIME] );
                     
                 case 'bulkima' % bulk writing of RAW, PROC, and COADD image headers to a CSV file for further injection
                 % NB! this case is very LAST-specific!
                     FN = Args.BulkFN.copy;
                     FN = FN.updateIfNotEmpty('FileType',{'csv'});
+                    ColumnList = Obj.getListOfTableColumns(Table);
                     if strcmpi(Args.BulkCatType,'raw')
                         HeaderFN = FN.genFull{1};
-                        Data.writeCSV(HeaderFN,'CleanHeaderValues',1);                        
+                        if ~isempty(Args.FileNames)                            
+                            [Data.File] = Args.FileNames{:};
+                        end
+%                         Data.writeCSVforBulkInjection(HeaderFN,'Filter',true,'FilterList',ColumnList);
+                        imProc.header.writeCSVforBulkInjection(Data, HeaderFN,'Filter',true,'FilterList',ColumnList);
                     elseif strcmpi(Args.BulkCatType,'proc')
                         HeaderFN = FN.genFull{1};
                         AH = [Data.HeaderData];
-                        AH.writeCSV(HeaderFN,'CleanHeaderValues',1);
+                        if ~isempty(Args.FileNames)                            
+                            [AH.File] = Args.FileNames{:};
+                        end
+%                         AH.writeCSVforBulkInjection(HeaderFN,'Filter',true,'FilterList',ColumnList);
+                        imProc.header.writeCSVforBulkInjection(AH, HeaderFN,'Filter',true,'FilterList',ColumnList);
                     elseif strcmpi(Args.BulkCatType,'coadd')
                         HeaderFN = FN.genFull('LevelPath','proc'); HeaderFN = HeaderFN{1};
                         AH = [Data.HeaderData];
-                        AH.writeCSV(HeaderFN,'CleanHeaderValues',1);
+                        if ~isempty(Args.FileNames)                            
+                            [AH.File] = Args.FileNames{:};
+                        end
+%                         AH.writeCSVforBulkInjection(HeaderFN,'Filter',true,'FilterList',ColumnList);
+                        imProc.header.writeCSVforBulkInjection(AH, HeaderFN,'Filter',true,'FilterList',ColumnList);
                     else
                         error('Incorrect image type in AstroDb.insert');
                     end                    
@@ -757,7 +794,7 @@ classdef AstroDb < Component
                     Obj.msgLog(LogLevel.Info, 'Table %s successfully populated with %s metadata', Table, Args.Type');
             end
             
-            Result = 0;            
+            Result = 1;            
         end
         
         function Result = updateByTupleID(Obj, TupleID, Colname, Colval, Args)
@@ -769,7 +806,7 @@ classdef AstroDb < Component
             %          * ...,key,val,...
             %          'Table'  : table name (by default = Obj.Tname)
             %
-            % Output : - success flag (0 -- images successfully changed the values in the DB)
+            % Output : - success flag (1 -- images successfully changed the values in the DB)
             % Tested : Matlab R2020b
             % Author : A. Krassilchtchikov (May 2023)
             % Examples: A = db.AstroDb; 

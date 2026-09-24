@@ -8,16 +8,26 @@ function Result = unitTest(Args)
     arguments
         Args.RestoreNew = true;  % copy the raw data back to new 
         Args.Insert2DB  = false; % whether to perform the DB part
-        Args.AstroDBArgs cell  = {'Host','socsrv','DatabaseName','lastdb','Port',5432};
-%         Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5432};  % use this when running on a LAST node
+        Args.AstroDBArgs cell = {'Host','socsrv','DatabaseName','lastdb','Port',5432};
+        Args.InsertTransients2DB = true;
+        Args.DBHost              = 'euclid';
         Args.DB_ImageBulk   logical = false; % whether to use bulk or direct injection method
         Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
         % for some test we'd need all the epoch products, but the output will weigh 12 Gb instead of 1 Gb! 
-        Args.SaveEpochProduct = {[],[],'Cat',[]}; % {'Image','Mask','Cat','PSF'}; 
+        Args.SaveEpochProduct = {'Image','Mask','Cat','PSF'}; % {[],[],'Cat',[]}; % {'Image','Mask','Cat','PSF'}; 
+        Args.NonStandardNew   = '';
+        Args.MinInGroup       = 20;
+        Args.UpdateStatusFile = false;
+        Args.UnpackRaw        = false;
+        Args.RepackRaw        = false;
     end
+    
+%     Args = tools.code.updateParFromConfig(Args,'LASTpipeline_def');
+%     Args = tools.code.updateParFromConfig(Args);
     
     I = Installer;
     BaseDir = I.getDataDir('LASTpipelineUnitTest');
+    BaseDir = tools.os.relPath2absPath(BaseDir);
     
     CatsHTMdir = strcat(BaseDir,'/catsHTM/');
     startup('AstroPack_CatsHTMPath',CatsHTMdir)
@@ -26,16 +36,23 @@ function Result = unitTest(Args)
     D.setPath(BaseDir);
 %     D.RefPath = strcat(BaseDir,'/reference/');   % not needed?  
 
-    D.main('StopButton',false,'StopWhenDone',true,'HostName','last08w',...
+    D.main('StopButton',false,'StopWhenDone',true,...
            'Insert2DB',Args.Insert2DB,'AstroDBArgs',Args.AstroDBArgs,...
            'DB_ImageBulk',Args.DB_ImageBulk,'DB_CatalogBulk',Args.DB_CatalogBulk,...
-           'SaveEpochProduct',Args.SaveEpochProduct);
+           'InsertTransients2DB',Args.InsertTransients2DB,'DBHost',Args.DBHost,...
+           'SaveEpochProduct',Args.SaveEpochProduct,...
+           'NonStandardNew',Args.NonStandardNew,...
+           'MinInGroup',Args.MinInGroup,...
+           'UnpackRaw',Args.UnpackRaw,'RepackRaw',Args.RepackRaw,...
+           'PauseDay',1,'PauseNight',1,...
+           'UpdateStatusFile',Args.UpdateStatusFile);
     
     if Args.RestoreNew % copy the raw data back to new
         % NB: this is hard-coded, because the particular observation
         % used for the unitTest and distributed with Installer is of 2023/06/16 
         CurrentDir = pwd; cd(BaseDir);
         !cp 2023/06/16/raw/LAST*fits new/  
+%         !cp new2/* new3/
         cd(CurrentDir);
     end
    
@@ -50,8 +67,7 @@ function TestDataProducts
 
     % cd to data products directory
 
-
-    %% Test the X1 and X position in the image catalogs
+    % Test the X1 and X position in the image catalogs
     AC=AstroCatalog('LAST.*_010_sci_proc_Cat_1.fits');
     T=AC(1).toTable;
 
@@ -87,14 +103,14 @@ function TestDataProducts
     semilogx(T.SN_3, T.BACK_ANNULUS./T.BACK_IM,'.')
 
     % looks like a severe bias - the variance is factor of 2 higher than
+
     % expected - CORRECTED (issue 300)
     hist(T.BACK_IM./T.VAR_IM)
 
     % should be 1 - not too bad
-    median(T.PSF_CHI2DOF)
+    
 
-
-    %% Read all images of a vist
+    % Read all images of a vist
     AI=AstroImage.readFileNamesObj('LAST*sci_proc_Image_1.fits');
 
     LL = AI.getStructKey({'LIMMAG','PH_ZP','PH_COL1','PH_RMS','FWHM'});

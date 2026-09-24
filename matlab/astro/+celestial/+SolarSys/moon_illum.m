@@ -13,7 +13,7 @@ function [Illum,Ph]=moon_illum(Date)
 %------------------------------------------------------------------------------
 RAD = 180./pi;
 
-if (size(Date,2)==1),
+if (size(Date,2)==1)
    % already JD
    JD = Date;
 else

@@ -1,0 +1,75 @@
+PLAN MODE - INITIAL LEARNING PROMPT (NO CODE CHANGES)
+
+You are working on the ULTRASAT SOC MATLAB codebase.
+
+ROOT OPENED FOLDER:
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat
+
+GOAL OF THIS STEP:
+Build a correct mental model of the project structure, responsibilities, and architectural conventions before any refactoring.
+
+STRICT RULES FOR THIS STEP:
+- Do NOT modify any files.
+- Do NOT move files.
+- Do NOT create new files.
+- Do NOT refactor code.
+- Only analyze and summarize.
+
+TASKS:
+1) Scan the folder tree under:
+   C:\Ultrasat\AstroPack\matlab\astro\+ultrasat
+
+2) Identify and summarize:
+   - Main top-level packages (e.g. +api, +uplanner, +services, +tools, etc.)
+   - Responsibilities of each top-level package
+   - How +api is currently structured (clients, models, utils, sim, debug)
+   - Where MATLAB API clients live
+   - Where JSON file simulation is implemented
+   - Where domain models live
+   - Where utilities live
+   - Where debug scripts live
+
+3) For +ultrasat/+api specifically:
+   - List key files and their roles:
+     * MissionApiClient.m
+     * ClientBase.m
+     * MissionApiBase.m
+     * MissionApiModels.m
+     * MissionModels.m
+     * ModelBase.m
+     * ModelFactoryBase.m
+     * VirtualTimeClient.m
+     * VirtualTimeModels.m
+     * EncodeUtils.m
+     * PathUtils.m
+     * Config.m
+     * Loggable.m
+     * LogManager.m
+     * ApiSimProvider.m
+     * MissionApiSim.m
+     * ValidatorSim.m
+     * SimpleFileClient.m
+     * SimpleFileLocal.m
+
+4) Identify:
+   - Which parts are production API clients
+   - Which parts are JSON/file-based API simulation
+   - Which parts are domain models
+   - Which parts are utilities
+   - Which parts access filesystem by namespace path
+   - Which parts are obsolete or transitional
+
+5) Summarize:
+   - Current architectural patterns
+   - Current pain points / complexity hot spots
+   - Current coupling problems (e.g., clients tied to filesystem, factories tied to models, etc.)
+
+OUTPUT FORMAT:
+- Provide a concise but structured summary:
+  * Folder tree overview
+  * Table: File -> Responsibility -> Category (client/model/utils/sim/debug)
+  * 5–10 bullet points of architectural observations
+  * Risks / refactor opportunities
+
+STOP CONDITION:
+After the analysis summary, stop and wait for my next instruction.

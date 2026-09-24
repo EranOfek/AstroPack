@@ -1,0 +1,15 @@
+flowchart TD
+    start["too_planner_service"] --> ipc["JsonFileIpc.processLoop"]
+    ipc --> req["processRequest.m"]
+    req --> health{"action?"}
+    health -->|health| ok["status ok"]
+    health -->|too_planner| runner["TooPlannerRunner.runFromJson"]
+    runner --> load["Load CSV probability map"]
+    load --> plans["For each plan in plans array"]
+    plans --> safe["runOnePlanSafe"]
+    safe --> uplanner["uplanner.buildTOO"]
+    uplanner --> artifacts["plan.json, plan.mat, sky.png, coverage.png"]
+    artifacts --> summary["summary.json"]
+    summary --> out["request.out.json"]
+
+    safe -->|failure| continue["Continue other plans"]

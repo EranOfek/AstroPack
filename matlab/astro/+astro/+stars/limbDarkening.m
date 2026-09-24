@@ -75,7 +75,9 @@ function [Imu,Mu,R]=limbDarkening(Coef, Mu, Args)
             Imu =  1 - Coef(1).*(1 - Mu).^0.5 - ...
                        Coef(2).*(1 - Mu).^1 - ...
                        Coef(3).*(1 - Mu).^1.5 - ...
-                       Coef(4).*(1 - Mu).^2;            
+                       Coef(4).*(1 - Mu).^2;   
+        case 'constant'
+            Imu = 1.*ones(size(Mu));
         otherwise
             error('Unknown Fun option');
     end

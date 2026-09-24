@@ -75,7 +75,7 @@ Res.Mag              = Mag;
 Res.Resid            = Resid;
 
 switch lower(Args.BinMethod)
-    case 'fit'
+    case 'poly'
         % fit polynomial to resid vs. mag
         
         Par = polyfit(Mag, Resid, Args.PolyDeg);
@@ -94,6 +94,14 @@ switch lower(Args.BinMethod)
         
         Flag = abs(Resid - Res.InterpMeanResid)./Res.InterpStdResid < Args.ThresholdSigma & FlagMag;
 
+    case 'fitpred'
+        % fit predicted resid vs. mag
+        % of the form a*F/(a*F+b), where F=10^(-0.4*Mag)
+        
+        %Flux = 10.^(-0.4.*Mag);
+        error('Option fitpred - not yet available');
+        
+        
     otherwise
         error('Unknown Method option');
 end

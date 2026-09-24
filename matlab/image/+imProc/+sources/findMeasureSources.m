@@ -1,9 +1,27 @@
-function Result = findMeasureSources(Obj, Args)
+function [Result,Streaks] = findMeasureSources(Obj, Args)
     % Basic sources finder and measurements on AstroImage object.
     %   This function uses the +imUtil.sources.find_measure_sources function.
     % Input  : - An AstroImage object (multi elements are supported).
+    %         * ...,key,val,...
+    %           'FlagCR' - A logical indicating if to search for CR
+    %                   using imProc.mask.maskCR to flag them in the bit
+    %                   mask, and optionaly remove them.
+    %                   Default is true.
+    %           'maskCR_Args' - A cell array of arguments to pass to 
+    %                   imProc.mask.maskCR
+    %                   Default is {}.
+    %           'FlagDiffXY' - A logical indicating if to search for
+    %                   sources which X1 and XPEAK positions deviates
+    %                   using imProc.mask.maskDiffXY to flag them in the bit
+    %                   mask, and optionaly remove them.
+    %                   Default is true.
+    %           'maskDiffXY_Args' - A cell array of arguments to pass to 
+    %                   imProc.mask.maskDiffXY
+    %                   Default is {}.
+    %
     %            'RemoveBadSources' - A logical indicating if to remove
     %                   bad sources using imProc.sources.cleanSources.
+    %                   OBSOLETE.
     %                   This will work only if the following columns are requested
     %                   'SN_1','SN_2','FLUX_CONV_2','FLUX_CONV_3','STD_ANNULUS'.
     %                   Default is false.
@@ -12,8 +30,6 @@ function Result = findMeasureSources(Obj, Args)
     %                   function, then the source will be removed from the
     %                   list. For example {'ColumnLow','ColumnHigh'},...
     %                   Default is {}.
-    %            'FlagCR' - A logical indicating if to flag cosmic rays
-    %                   (CR)  using the CR_DeltaHT flag. Default is true.
     %            'ReFind' - A logical indicating if to find stars if the
     %                   catalog is already populated. Default is true.
     %            'Threshold' - Detection threshold above background in units of
@@ -64,7 +80,14 @@ function Result = findMeasureSources(Obj, Args)
     %                   Default is 8.
     %            'Gain' - Default is 1.
     %            'LupSoftPar' - Luptitude softening parameter. Default is 1e-10.
+    %            'MagType' - Flux to magnitude conversion for the MAG_*
+    %                   columns: 'lup' (convert.luptitude) | 'mag'
+    %                   (convert.magnitude, NaN for non-positive flux).
+    %                   Passed to imUtil.sources.find_measure_sources.
+    %                   Default is 'lup'.
     %            'ZP' - ZP for magnitude. Default is 25.
+    %            'JD' - An array of JD of the images. If empty, then get
+    %                   from header. Default is [].
     %            'ColCell' - A cell array of column names to generate in the
     %                   output.
     %                   Default is
@@ -87,6 +110,8 @@ function Result = findMeasureSources(Obj, Args)
     %                   Default is 3.
     %            'FlasgPos' - The column index in which to add the Flags
     %                   column. Default is Inf.
+    %            'BitDict' - BitDictionary object.
+    %                   Default is BitDictionary('BitMask.Image.Default').
     %            'ColNameFlags' - The column name of Flags to add to the
     %                   catalog. 
     %                   This will be added only of the MaskData is
@@ -107,8 +132,23 @@ function Result = findMeasureSources(Obj, Args)
     %            'CreateNewObj' - Indicating if the output
     %                   is a new copy of the input (true), or an
     %                   handle of the input (false). Default is false.
+    %            --- Streak detection ---
+    %            'SearchStreaks' - A logical indicating if to search for
+    %                   streaks. Default is false.
+    %            'detectStreaksLSDArgs' - A cell array of arguments to pass
+    %                   to imUtil.streaks.detectStreaksLSD
+    %                   Default is {}.
+    %
     % Output : - An AstroImage object in which the CatData is populated
     %            with sources found in the image.
+    %          - Structure containing information about streaks found in
+    %            the image. If non empty, then the following fields are available:
+    %            'Segs' - 4 x Nstreaks array of segments (x1,y1,x2,y2)
+    %            'Phot' - 1 x Nstreaks array of streaks flux.
+    %            'Parfit' - 3 x Nstreaks array of curvature model fit to the
+    %                   streak: h(t) = at^2 + bt + c
+    %                   describing the transverse offset from the base detected
+    %                   segment, as fitted from the pixel intensity data.
     % Example: Im=imUtil.kernel2.gauss(2,[128 128]);
     %          Im=Im.*1000 +randn(size(Im));        
     %          AI = AstroImage({Im});
@@ -116,9 +156,16 @@ function Result = findMeasureSources(Obj, Args)
    
     arguments
         Obj AstroImage
-        Args.RemoveBadSources logical      = false;
+        
+        Args.FlagCR                        = true;
+        Args.maskCR_Args                   = {};
+        Args.FlagDiffXY                    = true;
+        Args.maskDiffXY_Args               = {};
+        Args.MaskType                      = 'uint32';
+
+        Args.RemoveBadSources              = false;  % OBSOLETE
         Args.BadBitNames cell              = {};
-        Args.FlagCR logical                = true;
+        
         Args.ReFind(1,1) logical           = true;
         Args.Threshold                     = 5;
         Args.Psf                           = [];
@@ -130,11 +177,18 @@ function Result = findMeasureSources(Obj, Args)
         
         Args.Gain                          = 1;      % only for errors calculation
         Args.LupSoftPar                    = 1e-10;
+        Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup';
         Args.ZP                            = 25;
+        Args.JD                            = [];
         
         Args.ReCalcBack logical            = false;
         Args.BackPar cell                  = {};
-        
+
+        Args.AperRadius                    = [2 4 6];
+        Args.Annulus                       = [10 12];
+        Args.MomentsMethod                 = 'mex';  %'legacy'|'mex'
+        Args.AperPhotMethod                = 'interp';  % 'simple'|'interp'
+
         Args.MomPar cell                   = {};
         Args.Conn                          = 8;
 %         Args.ColCell cell                  = {'XPEAK','YPEAK','TEMP_ID','SN','FLUX_CONV','BACK_IM','VAR_IM',...           
@@ -151,7 +205,8 @@ function Result = findMeasureSources(Obj, Args)
                                                  'BACK_ANNULUS', 'STD_ANNULUS', ...
                                                  'FLUX_APER', 'FLUXERR_APER',...
                                                  'MAG_APER', 'MAGERR_APER',...
-                                                 'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
+                                                 'FLUX_XYPEAK'};
+                                                 %'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
         % Flags
         Args.AddFlags logical              = true;
         Args.FlagHalfSize                  = 3;
@@ -162,7 +217,9 @@ function Result = findMeasureSources(Obj, Args)
         Args.ColNamesXsec                  = 'XPEAK';
         Args.ColNamesYsec                  = 'YPEAK';
         Args.FlagsType                     = @double;
-            
+        
+        Args.BitDict                       = BitDictionary('BitMask.Image.Default');
+
         Args.CreateNewObj logical          = false;
         
         % hidden
@@ -173,6 +230,9 @@ function Result = findMeasureSources(Obj, Args)
         Args.VarProp char              = 'VarData';
         Args.VarPropIn char            = 'Image';
         Args.CatProp char              = 'CatData';
+
+        Args.SearchStreaks                 = false;
+        Args.detectStreaksLSDArgs          = {};
     end
     
     if Args.CreateNewObj
@@ -180,18 +240,28 @@ function Result = findMeasureSources(Obj, Args)
     else
         Result = Obj;
     end
+
+    % create Mask if needed
+    if Args.FlagCR && isemptyImage(Obj(1), 'Mask')
+        Result.createMask(Args.MaskType);
+    end
     
     % calculate background
     imProc.background.background(Result, 'CreateNewObj',false, 'ReCalcBack', Args.ReCalcBack, Args.BackPar{:});
     
-    VecJD = Obj.julday; 
+    if isempty(Args.JD)
+        VecJD = Obj.julday; 
+    else
+        VecJD = Args.JD;
+    end
+    
     Nobj  = numel(Obj);
     %Iobj
     for Iobj=1:1:Nobj
         %Iobj
         % call the source finder and measurments
         if Args.ReFind || ~isempty(Result(Iobj).(Args.CatProp).Catalog)
-            Result(Iobj).(Args.CatProp) = imUtil.sources.find_measure_sources(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn), ...
+            [Result(Iobj).(Args.CatProp),~,~,~,Streaks] = imUtil.sources.find_measure_sources(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn), ...
                                                         'OutType','AstroCatalog',...
                                                         'BackIm',Result(Iobj).(Args.BackProp).(Args.BackPropIn),...
                                                         'VarIm',Result(Iobj).(Args.VarProp).(Args.VarPropIn),...
@@ -202,12 +272,19 @@ function Result = findMeasureSources(Obj, Args)
                                                         'RemoveEdgeDist',Args.RemoveEdgeDist,...
                                                         'ForcedList',Args.ForcedList,...
                                                         'OnlyForced',Args.OnlyForced,...
+                                                        'MomentsMethod',Args.MomentsMethod,...
+                                                        'AperRadius',Args.AperRadius,...
+                                                        'Annulus',Args.Annulus,...
+                                                        'AperPhotMethod',Args.AperPhotMethod,...
                                                         'MomPar',Args.MomPar,...
                                                         'Conn',Args.Conn,...
                                                         'Gain',Args.Gain,...
                                                         'LupSoftPar',Args.LupSoftPar,...
+                                                        'MagType',Args.MagType,...
                                                         'ZP',Args.ZP,...
-                                                        'ColCell',Args.ColCell);
+                                                        'ColCell',Args.ColCell,...
+                                                        'SearchStreaks',Args.SearchStreaks,...
+                                                        'detectStreaksLSDArgs',Args.detectStreaksLSDArgs);
                                                     
                                                     
 %             [Result(Iobj).(Args.CatProp).Catalog, Result(Iobj).(Args.CatProp).ColNames] = imUtil.sources.find_measure_sources(Result(Iobj).(Args.ImageProp).(Args.ImagePropIn), ...
@@ -231,7 +308,14 @@ function Result = findMeasureSources(Obj, Args)
                    
             % remove bad sources
             % works only for Gaussian PSF
-            if Args.FlagCR || Args.RemoveBadSources 
+            if Args.FlagCR && ~isemptyImage(Obj(Iobj), 'Mask')
+                Result(Iobj) = imProc.mask.maskCR(Result(Iobj), 'BitDict',Args.BitDict, Args.maskCR_Args{:});
+            end
+            if Args.FlagDiffXY
+                Result(Iobj) = imProc.mask.xpeak_x1_diff(Result(Iobj), Args.maskDiffXY_Args{:});
+            end
+
+            if Args.RemoveBadSources
                 [Result(Iobj)] = imProc.sources.cleanSources(Result(Iobj), 'SigmaPSF',Args.PsfFunPar{1}(1:2),...
                                                                            'ColNamsSN',{'SN_1','SN_2'},...
                                                                            'RemoveBadSources',Args.RemoveBadSources,...
@@ -241,24 +325,29 @@ function Result = findMeasureSources(Obj, Args)
             % populate Flags from the Mask image
             if Args.AddFlags
                 XY                   = getXY(Result(Iobj).CatData, 'ColX',Args.ColNamesX, 'ColY',Args.ColNamesY); 
-                % Replace NaN with valid X/Y position
-                XYpeak               = getXY(Result(Iobj).CatData, 'ColX',Args.ColNamesXsec, 'ColY',Args.ColNamesYsec); 
-                [SizeImageY, SizeImageX] = sizeImage(Result(Iobj));
-                Fnan                 = isnan(XY(:,1)) | XY(:,1)<1 | XY(:,2)<1 | XY(:,1)>(SizeImageX-1) | XY(:,2)>(SizeImageY-1);
-                XY(Fnan,:)           = XYpeak(Fnan,:);
-                
-                % need to decide what to do about NaN positions
-                if ~isemptyImage(Result(Iobj).MaskData)
-                    Flags                = bitwise_cutouts(Result(Iobj).MaskData, XY, 'or', 'HalfSize',Args.FlagHalfSize);
+                if ~isempty(XY)
+                    % If no stars then nothing to flag
+                    
+                    % Replace NaN with valid X/Y position
+                    XYpeak               = getXY(Result(Iobj).CatData, 'ColX',Args.ColNamesXsec, 'ColY',Args.ColNamesYsec); 
+                    [SizeImageY, SizeImageX] = sizeImage(Result(Iobj));
+                    Fnan                 = isnan(XY(:,1)) | XY(:,1)<1 | XY(:,2)<1 | XY(:,1)>(SizeImageX-1) | XY(:,2)>(SizeImageY-1);
                    
-                    Flags                = Args.FlagsType(Flags);
-                    Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Flags, Args.FlasgPos, Args.ColNameFlags, {''});
+                    XY(Fnan,:)           = XYpeak(Fnan,:);
                     
-                    % remove sources with bad flags
-                    if ~isempty(Args.BadBitNames)
-                        FlagBad = Result(Iobj).MaskData.Dict.findBit(Flags, Args.BadBitNames, 'Method','any');
-                    
-                        Result(Iobj).CatData.Catalog = Result(Iobj).CatData.Catalog(~FlagBad,:);
+                    % need to decide what to do about NaN positions
+                    if ~isemptyImage(Result(Iobj).MaskData)
+                        Flags                = bitwise_cutouts(Result(Iobj).MaskData, XY, 'or', 'HalfSize',Args.FlagHalfSize);
+                       
+                        Flags                = Args.FlagsType(Flags);
+                        Result(Iobj).CatData = insertCol(Result(Iobj).CatData, Flags, Args.FlasgPos, Args.ColNameFlags, {''});
+                        
+                        % remove sources with bad flags
+                        if ~isempty(Args.BadBitNames)
+                            FlagBad = Result(Iobj).MaskData.Dict.findBit(Flags, Args.BadBitNames, 'Method','any');
+                        
+                            Result(Iobj).CatData.Catalog = Result(Iobj).CatData.Catalog(~FlagBad,:);
+                        end
                     end
                 end
            

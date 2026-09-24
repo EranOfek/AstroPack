@@ -38,9 +38,13 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     %                   set to NaN when the flags map equal true.
     %                   If empty, then skip this step.
     %                   Default is [].
-    %            'NormalizationMethod' - Method in which Z2 should be
-    %            normalized. Choices are 'analytical', 'empirical', and
-    %            'None'. Default is 'analytical'.
+    %            'NormMethod' - Method in which Z2 should be normalized.
+    %                   Options are:
+    %                   'analytical' - Analitical normalization.
+    %                   'empirical' - Empirical using the median of \chi^2
+    %                           with 2 dof.
+    %                   'none' - No normalization.
+    %                   Default is 'empirical'.
     % Output : - (Z2) The translient statistic.
     %          - (Zhat) The translient Zhat vector. Size (M,M,2) where M is
     %            the image size.
@@ -71,9 +75,11 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         Args.Eps                      = 0;
 
         Args.SetToNaN         = [];
-        Args.NormalizationMethod = 'analytical';
-    end
+        Args.NormMethod = 'empirical';
 
+        Args.Kx = [];
+        Args.Ky = [];
+    end
 
     N = N.*Args.Fn;
     SigmaN = SigmaN/Args.Fn;
@@ -103,10 +109,9 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
         Prhat = fftshift(Prhat);
     end
 
-
-    [Z2Prefactors,Norm] = imUtil.properSub.translientAuxiliary(Pnhat, Prhat, ...
-        SigmaN, SigmaR, 'IsPsfFFT',true,'Eps',Args.Eps);
-    
+    [Z2Prefactors, Norm] = imUtil.properSub.translientAuxiliary_fast(Pnhat, Prhat, ...
+        SigmaN, SigmaR, 'IsPsfFFT', true, 'Eps', Args.Eps, 'Kx', Args.Kx, 'Ky', Args.Ky);
+        
     Zhat = Z2Prefactors.*(Pnhat.*Rhat - Prhat.*Nhat);
 
     Z = imag(ifft2(Zhat));
@@ -118,18 +123,19 @@ function [Z2,Zhat,Norm] = translient(N, R, Pn, Pr, SigmaN, SigmaR, Args)
     end
 
     % degrees of freedom
-    k = 2;
-    switch Args.NormalizationMethod
+    switch lower(Args.NormMethod)
         case 'analytical'
             % Zs^2 from Translient paper eq. 23
             Z2 = Z2./Norm; 
         case 'empirical'
             % force median to be that of a chi2 with dof=2
-            median_expected = k.*(1 - 2./(9.*k)).^3;
-            Z2 = Z2 - median(Z2, 'all', 'omitnan') + median_expected;
-        case 'None'
+            K = 2;
+            Expected_median = K.*(1 - 2./(9.*K)).^3;
+            Z2 = Z2./median(Z2, 'all', 'omitnan')*Expected_median;
+            %Z2 = Z2./mean(Z2, 'all', 'omitnan')*k;
+            %Z2 = Z2./tools.math.stat.rstd(Z2, [1 2])*sqrt(2*k);
+        case 'none'
+            % do nothing
     end
-
-    Z2 = Z2./tools.math.stat.rstd(Z2, 'all').*sqrt(2.*k);
 
 end

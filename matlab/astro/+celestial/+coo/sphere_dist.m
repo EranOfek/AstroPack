@@ -29,9 +29,9 @@ function [Dist,PA]=sphere_dist(RA_1,Dec_1,RA_2,Dec_2,Units)
 RADIAN = 180./pi;
 
 
-if (nargin==4),
+if (nargin==4)
    Units   = 'g';
-elseif (nargin==5),
+elseif (nargin==5)
    % do nothing
 else
    error('Illegal number of input arguments');

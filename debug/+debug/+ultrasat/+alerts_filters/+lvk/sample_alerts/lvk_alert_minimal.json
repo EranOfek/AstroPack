@@ -1,0 +1,31 @@
+{
+    "alert_id": "G2026-0005",
+    "superevent_id": "",
+    "alert_type": "TEST",
+  
+    "time_created": "2026-05-12T14:00:00",
+    "event_time": "2026-05-12T14:00:00",
+  
+    "prob_bns": null,
+    "prob_nsbh": null,
+    "prob_bbh": null,
+    "prob_terrestrial": null,
+  
+    "has_ns": null,
+    "has_remnant": null,
+    "has_mass_gap": null,
+  
+    "far_hz": null,
+    "far_per_year": null,
+  
+    "skymap_path": "",
+    "localization_area_deg2": null,
+  
+    "instruments": [],
+    "pipeline": "",
+    "search": "",
+  
+    "raw_fields": {},
+  
+    "parsed_time": "2026-05-12T14:00:01"
+  }

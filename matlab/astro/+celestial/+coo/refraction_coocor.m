@@ -1,5 +1,6 @@
 function [DelAlpha,DelDelta]=refraction_coocor(RA,Dec,Ref,varargin)
-% Atmospheric refraction correction for equatorial coordinates.
+% Atmospheric refraction correction for equatorial coordinates. OBSOLETE: celestial.convert.refractedCoo
+% use 
 % Package: celestial.coo
 % Description: Calculate the correction in equatorial coordinates due to
 %              atmospheric refraction.

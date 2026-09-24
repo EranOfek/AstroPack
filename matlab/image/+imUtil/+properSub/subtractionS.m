@@ -59,7 +59,7 @@ function [S_hat, D_hat, Pd_hat, Fd, D_den, D_num, D_denSqrt] = subtractionS(N_ha
                                                                                  'AbsFun',Args.AbsFun, 'Eps',Args.Eps, 'IsOutFFT',true);
     S_hat = D_hat.*conj(Pd_hat);
     
-    if Args.IsOutFFT
+    if ~Args.IsOutFFT
         % convert D and Pd to regular space
         S_hat  = ifft2(S_hat);
         D_hat  = ifft2(D_hat);

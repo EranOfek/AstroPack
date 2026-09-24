@@ -1,0 +1,56 @@
+---
+description: Long-running MATLAB services and workers — SNR, slew, TOO, alerts filter
+globs: "+services/**,*_service.m,*Service*.m"
+alwaysApply: false
+---
+
+# Services, workers, and long-running processes
+
+## What is a MATLAB service
+
+Long-running process that waits for input (often files), computes, produces output, continues running.
+
+Examples: `snr_calc_service`, `slew_calc_service`, `too_planner_service`, `alerts_filter_service`.
+
+File IPC detail: `01_matlab_file_based_ipc_with_python.mdc` (this folder).
+
+## Service structure
+
+- Manager/worker class
+- Supporting helpers
+- Configuration handling
+- Explicit start/stop logic
+
+## Services are not
+
+- GUI applications
+- One-off scripts
+- Interactive tools
+
+## Error handling
+
+- Never crash on a single bad request
+- Log or record errors explicitly
+- Continue after recoverable failures
+
+## File and data flow
+
+- Often file-based IPC
+- Robust, defensive file handling
+- Never assume ordering or completeness
+
+## Testing
+
+- Core logic testable without running the service loop
+- Service loops are thin wrappers
+
+## What not to do
+
+- No UI code in services
+- No blocking forever without escape
+- No hardcoded paths or credentials
+
+## Output expectations
+
+- Separate loop control from computation
+- Assume months of uptime

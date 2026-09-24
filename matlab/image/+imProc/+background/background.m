@@ -1,6 +1,6 @@
 function Result = background(Obj, Args)
     % Calculate background and variance of an AstroImage object.
-    % Input  : - An AstroImage object multi elements supported).
+    % Input  : - An AstroImage or AstroDiff object multi elements supported).
     %          * ...,key,val,...
     %            'BackFun' - A function handle for the background (and
     %                   optionally variance) estimation.
@@ -13,7 +13,8 @@ function Result = background(Obj, Args)
     %                   [other example: @median]
     %            'BackFunPar' - A cell array of additional parameters to pass
     %                   to the BackFun function.
-    %                   Default is {[1 2]} [other example: {true,true,0.1}]
+    %                   Default is {'MinVal',1} (i.e., additional arguments
+    %                   to pass to @imUtil.background.modeVar_LogHist).
     %            'VarFun' - A function handle for the background estimation.
     %                   The function is of the form:
     %                   [Var]=Fun(Matrix,additional parameters,...).
@@ -70,13 +71,14 @@ function Result = background(Obj, Args)
     %          Result = imProc.background.background(AI);
    
     arguments
-        Obj AstroImage
+        Obj   
         
+
         %Args.BackFun                     = @imUtil.background.mode; %@median;
         %Args.BackFunPar cell             = {true}; %{[1 2]};
         
         Args.BackFun                     = @imUtil.background.modeVar_LogHist; %@median;
-        Args.BackFunPar cell             = {}; %{[1 2]};
+        Args.BackFunPar cell             = {'MinVal',10, 'MaxVal',7000}; %{'MinVal',30, 'MaxVal',7000}; %{[1 2]};  % 5000 is the max vab. allowed in LAST images
 
         Args.VarFun                      = []; %@imUtil.background.rvar; % [];
         Args.VarFunPar cell              = {};
@@ -163,7 +165,7 @@ function Result = background(Obj, Args)
             if Args.SubBack
                 % subtract background
                 subtractBack(Result(Iobj).(Args.ImageProp), Result(Iobj).(Args.BackProp).Image );
-                
+                Result(Iobj).BackSub = true;
             end
             
             % Add info to header
@@ -177,6 +179,10 @@ function Result = background(Obj, Args)
                 if Args.UseFastMedian
                     MedBack  = fast_median( Result(Iobj).(Args.BackProp).(Args.BackPropIn)(:));
                     MedVar  = fast_median( Result(Iobj).(Args.VarProp).(Args.VarPropIn)(:));
+
+                    % not good
+                    %MedBack = tools.math.stat.median1( Result(Iobj).(Args.BackProp).(Args.BackPropIn)(:) );
+                    %MedVar  = tools.math.stat.median1( Result(Iobj).(Args.VarProp).(Args.VarPropIn)(:) );
                 else
                     MedBack  = median( Result(Iobj).(Args.BackProp).(Args.BackPropIn), 'all');
                     MedVar  = median( Result(Iobj).(Args.VarProp).(Args.VarPropIn), 'all');

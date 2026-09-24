@@ -1,0 +1,2764 @@
+
+
+Failed Tests:
+Test Name: TestAstroAngle/testConstructorWithSexagesimalString
+Diagnostics:
+Error occurred in TestAstroAngle/testConstructorWithSexagesimalString and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.coo.convertdms (line 195)
+    Unknown declination sign
+    Error in AstroAngle (line 47)
+                            Result.Angle = celestial.coo.convertdms(Data, 'SD', 'r');
+    Error in TestAstroAngle>testConstructorWithSexagesimalString (line 36)
+        A = AstroAngle(Data, Units);
+Test Name: TestAstroAngle/testMpi
+Diagnostics:
+Verification failed in TestAstroAngle/testMpi.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Mpi conversion did not produce the expected result.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within absolute tolerance.
+    --> Failure table:
+            Index        Actual             Expected             Error          RelativeError    AbsoluteTolerance
+            _____    _______________    ________________    ________________    _____________    _________________
+                                                                                                                  
+              1      1.5707963267949    -1.5707963267949    3.14159265358979         -2                1e-10      
+    
+    Actual Value:
+       1.570796326794897   3.141592653589793  -1.570796326794897
+    Expected Value:
+      -1.570796326794897   3.141592653589793  -1.570796326794897
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/astro/TestAstroAngle.m (testMpi) at 105
+Test Name: TestAstroAngle/testTanFunction
+Diagnostics:
+Verification failed in TestAstroAngle/testTanFunction.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Tan function did not produce the expected result.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within absolute tolerance.
+    --> Failure table:
+            Index           Actual           Expected    Error    RelativeError    AbsoluteTolerance
+            _____    ____________________    ________    _____    _____________    _________________
+                                                                                                    
+              3      1.63312393531954e+16      Inf       -Inf          NaN               1e-10      
+    
+    Actual Value:
+       1.0e+16 *
+                       0   0.000000000000000   1.633123935319537
+    Expected Value:
+         0     1   Inf
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/astro/TestAstroAngle.m (testTanFunction) at 153
+Test Name: TestCelAnnulusArea/testInvalidNumberOfArguments
+Diagnostics:
+Verification failed in TestCelAnnulusArea/testInvalidNumberOfArguments.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Error handling for too few arguments failed.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyError failed.
+    --> The function threw the wrong exception.
+        
+        Actual Exception:
+            <No Message Identifier>
+        Expected Exception:
+            'celestial:coo:cel_annulus_area:illegalNumberOfInputs'
+    --> Actual Error Report:
+            Error using celestial.coo.cel_annulus_area (line 31)
+            Illegal number of input arguments
+            Error in TestCelAnnulusArea>@()celestial.coo.cel_annulus_area(1) (line 92)
+                verifyError(testCase, @() celestial.coo.cel_annulus_area(1),'celestial:coo:cel_annulus_area:illegalNumberOfInputs', ...
+    
+    Evaluated Function:
+      function_handle with value:
+        @()celestial.coo.cel_annulus_area(1)
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/astro/TestCelAnnulusArea.m (testInvalidNumberOfArguments) at 92
+Test Name: TestCelestialConvert/testJ2000toApparent
+Diagnostics:
+Error occurred in TestCelestialConvert/testJ2000toApparent and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP.init (line 457)
+                    Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in celestial.convert.j2000_toApparent (line 103)
+            Args.INPOP             = celestial.INPOP.init({'Ear'});
+    Error in TestCelestialConvert>testJ2000toApparent (line 52)
+        [OutRA, OutDec] = celestial.convert.j2000_toApparent(RA, Dec, celestial.time.julday([1, 1, 2100]), ...
+Test Name: TestINPOP/testDownloadConstants
+Diagnostics:
+Verification failed in TestINPOP/testDownloadConstants.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Could not load constants.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyNotEmpty failed.
+    --> The value must not be empty.
+    --> The value has a size of [0  0].
+    
+    Actual Value:
+         []
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/astro/TestINPOP.m (testDownloadConstants) at 21
+Test Name: TestINPOP/testPopulateTables
+Diagnostics:
+Error occurred in TestINPOP/testPopulateTables and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:textio:textio:FileNotFound'
+    --------------
+    Error Details:
+    --------------
+    Error using readmatrix (line 171)
+    Unable to find or open 'inpop21a_TDB_m100_p100_asc_pos_Sun.asc'.
+    Check the path and filename or file permissions.
+    Error in celestial.INPOP.loadINPOP (line 337)
+                        Result = readmatrix(FullFileName, 'NumHeaderLines',2,'FileType','text');
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in TestINPOP>testPopulateTables (line 27)
+        I = I.populateTables({'Sun', 'Ear'}, 'FileType', 'asc');
+Test Name: TestINPOP/testPositionComparisonWithVSOP87
+Diagnostics:
+Error occurred in TestINPOP/testPositionComparisonWithVSOP87 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.INPOP/getPos (line 803)
+    PosTables table for object Ear is not loaded - use populateTables
+    to load table
+    Error in TestINPOP>testPositionComparisonWithVSOP87 (line 40)
+        PosINPOP = getPos(I, 'Ear', JD);
+Test Name: TestINPOP/testVelocityComparisonWithVSOP87
+Diagnostics:
+Error occurred in TestINPOP/testVelocityComparisonWithVSOP87 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.INPOP/getPos (line 803)
+    VelTables table for object Jup is not loaded - use populateTables
+    to load table
+    Error in TestINPOP>testVelocityComparisonWithVSOP87 (line 55)
+        VelINPOP = getPos(I, 'Jup', JD, 'IsPos', false);
+Test Name: TestINPOP/testPopulateAllObjects
+Diagnostics:
+Verification failed in TestINPOP/testPopulateAllObjects.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed in populating and calculating objects.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyTrue failed.
+    --> The value must evaluate to "true".
+    
+    Actual Value:
+      logical
+       0
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/astro/TestINPOP.m (testPopulateAllObjects) at 88
+Test Name: TestINPOP/testTimeSpanOption
+Diagnostics:
+Error occurred in TestINPOP/testTimeSpanOption and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Sun.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP/populateAll (line 693)
+                 Obj.populateTables('all', 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in TestINPOP>testTimeSpanOption (line 97)
+        I.populateAll('TimeSpan', [2459000, 2461000], 'PopForce', true);
+Test Name: TestTileTheSky/testInvalidInput
+Diagnostics:
+Verification failed in TestTileTheSky/testInvalidInput.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    The function should throw an error when N_RA is 0.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyError failed.
+    --> The function did not throw any exception.
+        
+        Expected Exception:
+            'MATLAB:expectedPositiveScalar'
+    
+    Evaluated Function:
+      function_handle with value:
+        @()celestial.grid.tile_the_sky(0,180)
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/astro/TestTileTheSky.m (testInvalidInput) at 74\nVerification failed in TestTileTheSky/testInvalidInput.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    The function should throw an error when N_Dec is 0.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyError failed.
+    --> The function did not throw any exception.
+        
+        Expected Exception:
+            'MATLAB:expectedPositiveScalar'
+    
+    Evaluated Function:
+      function_handle with value:
+        @()celestial.grid.tile_the_sky(360,0)
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/astro/TestTileTheSky.m (testInvalidInput) at 78
+Test Name: celestial.convert.test_apparent_toJ2000/testDefaultParameters
+Diagnostics:
+Error occurred in celestial.convert.test_apparent_toJ2000/testDefaultParameters and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP.init (line 457)
+                    Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in celestial.convert.apparent_toJ2000 (line 31)
+            Args.INPOP             = celestial.INPOP.init({'Ear'});
+    Error in celestial.convert/test_apparent_toJ2000>testDefaultParameters (line 26)
+        [OutRA, OutDec, ~, ~, ~] = celestial.convert.apparent_toJ2000(RA, Dec, JD);
+Test Name: celestial.convert.test_apparent_toJ2000/testCustomConditions
+Diagnostics:
+Error occurred in celestial.convert.test_apparent_toJ2000/testCustomConditions and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP.init (line 457)
+                    Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in celestial.convert.apparent_toJ2000 (line 31)
+            Args.INPOP             = celestial.INPOP.init({'Ear'});
+    Error in celestial.convert/test_apparent_toJ2000>testCustomConditions (line 48)
+        [OutRA, OutDec, ~, ~, ~] = celestial.convert.apparent_toJ2000(RA, Dec, JD, Args{:});
+Test Name: celestial.convert.test_apparent_toJ2000/testHighProperMotion
+Diagnostics:
+Error occurred in celestial.convert.test_apparent_toJ2000/testHighProperMotion and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP.init (line 457)
+                    Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in celestial.convert.apparent_toJ2000 (line 31)
+            Args.INPOP             = celestial.INPOP.init({'Ear'});
+    Error in celestial.convert/test_apparent_toJ2000>testHighProperMotion (line 71)
+        [OutRA, OutDec, ~, ~, ~] = celestial.convert.apparent_toJ2000(RA, Dec, JD, Args{:});
+Test Name: celestial.convert.test_apparent_toJ2000/testLowParallax
+Diagnostics:
+Error occurred in celestial.convert.test_apparent_toJ2000/testLowParallax and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP.init (line 457)
+                    Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in celestial.convert.apparent_toJ2000 (line 31)
+            Args.INPOP             = celestial.INPOP.init({'Ear'});
+    Error in celestial.convert/test_apparent_toJ2000>testLowParallax (line 94)
+        [OutRA, OutDec, ~, ~, ~] = celestial.convert.apparent_toJ2000(RA, Dec, JD, Args{:});
+Test Name: celestial.convert.test_j2000_toApparent/testBasicConversion
+Diagnostics:
+Error occurred in celestial.convert.test_j2000_toApparent/testBasicConversion and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP.init (line 457)
+                    Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in celestial.convert.j2000_toApparent (line 103)
+            Args.INPOP             = celestial.INPOP.init({'Ear'});
+    Error in celestial.convert/test_j2000_toApparent>testBasicConversion (line 37)
+        [OutRA, OutDec, Alt, Refraction, Aux] = celestial.convert.j2000_toApparent(RA, Dec, JD);
+Test Name: celestial.convert.test_j2000_toApparent/testUnitsConversion
+Diagnostics:
+Error occurred in celestial.convert.test_j2000_toApparent/testUnitsConversion and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP.init (line 457)
+                    Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in celestial.convert.j2000_toApparent (line 103)
+            Args.INPOP             = celestial.INPOP.init({'Ear'});
+    Error in celestial.convert/test_j2000_toApparent>testUnitsConversion (line 56)
+        [OutRA, OutDec, ~, ~] = celestial.convert.j2000_toApparent(RA, Dec, JD, Args{:});
+Test Name: celestial.convert.test_j2000_toApparent/testMotionParallaxRV
+Diagnostics:
+Error occurred in celestial.convert.test_j2000_toApparent/testMotionParallaxRV and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP.init (line 457)
+                    Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in celestial.convert.j2000_toApparent (line 103)
+            Args.INPOP             = celestial.INPOP.init({'Ear'});
+    Error in celestial.convert/test_j2000_toApparent>testMotionParallaxRV (line 73)
+        [OutRA, OutDec, ~, ~, Aux] = celestial.convert.j2000_toApparent(RA, Dec, JD,Args{:});
+Test Name: celestial.convert.test_j2000_toApparent/testRefractionApplication
+Diagnostics:
+Error occurred in celestial.convert.test_j2000_toApparent/testRefractionApplication and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP.init (line 457)
+                    Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in celestial.convert.j2000_toApparent (line 103)
+            Args.INPOP             = celestial.INPOP.init({'Ear'});
+    Error in celestial.convert/test_j2000_toApparent>testRefractionApplication (line 89)
+        [~, ~, ~, Refraction] = celestial.convert.j2000_toApparent(RA, Dec, JD, Args{:});
+Test Name: celestial.convert.test_j2000_toApparent/testHighDeclination
+Diagnostics:
+Error occurred in celestial.convert.test_j2000_toApparent/testHighDeclination and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP.init (line 457)
+                    Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in celestial.convert.j2000_toApparent (line 103)
+            Args.INPOP             = celestial.INPOP.init({'Ear'});
+    Error in celestial.convert/test_j2000_toApparent>testHighDeclination (line 103)
+        [~, OutDec, ~, ~] = celestial.convert.j2000_toApparent(RA, Dec, JD);
+Test Name: celestial.convert.test_j2000_toApparent/testBaselineExample1
+Diagnostics:
+Error occurred in celestial.convert.test_j2000_toApparent/testBaselineExample1 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP.init (line 457)
+                    Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in celestial.convert.j2000_toApparent (line 103)
+            Args.INPOP             = celestial.INPOP.init({'Ear'});
+    Error in celestial.convert/test_j2000_toApparent>testBaselineExample1 (line 123)
+        [OutRA, OutDec, Alt, Refraction] = celestial.convert.j2000_toApparent(RA, Dec, JD);
+Test Name: celestial.convert.test_j2000_toApparent/testBaselineNoAberrationRefraction
+Diagnostics:
+Error occurred in celestial.convert.test_j2000_toApparent/testBaselineNoAberrationRefraction and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP.init (line 457)
+                    Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in celestial.convert.j2000_toApparent (line 103)
+            Args.INPOP             = celestial.INPOP.init({'Ear'});
+    Error in celestial.convert/test_j2000_toApparent>testBaselineNoAberrationRefraction (line 139)
+        [OutRA, OutDec, Alt, Refraction] = celestial.convert.j2000_toApparent(RA, Dec, JD, Args{:});
+Test Name: celestial.coo.test_sphere_dist_fastSmall/testSmallAngleApproximation
+Diagnostics:
+Error occurred in celestial.coo.test_sphere_dist_fastSmall/testSmallAngleApproximation and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.coo.sphere_dist_fastSmall (line 13)
+    BUG
+    Error in celestial.coo/test_sphere_dist_fastSmall>testSmallAngleApproximation (line 26)
+        Dist = celestial.coo.sphere_dist_fastSmall(RA1, Dec1, RA2, Dec2);
+Test Name: celestial.coo.test_sphere_dist_fastSmall/testComparisonToSphereDistFast
+Diagnostics:
+Error occurred in celestial.coo.test_sphere_dist_fastSmall/testComparisonToSphereDistFast and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.coo.sphere_dist_fastSmall (line 13)
+    BUG
+    Error in celestial.coo/test_sphere_dist_fastSmall>testComparisonToSphereDistFast (line 42)
+        DistSmall = celestial.coo.sphere_dist_fastSmall(RA1, Dec1, RA2, Dec2);
+Test Name: celestial.coo.test_sphere_dist_fastSmall/testZeroDistance
+Diagnostics:
+Error occurred in celestial.coo.test_sphere_dist_fastSmall/testZeroDistance and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.coo.sphere_dist_fastSmall (line 13)
+    BUG
+    Error in celestial.coo/test_sphere_dist_fastSmall>testZeroDistance (line 57)
+        Dist = celestial.coo.sphere_dist_fastSmall(RA1, Dec1, RA2, Dec2);
+Test Name: celestial.coo.test_sphere_dist_fastSmall/testModulo2PiRA
+Diagnostics:
+Error occurred in celestial.coo.test_sphere_dist_fastSmall/testModulo2PiRA and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.coo.sphere_dist_fastSmall (line 13)
+    BUG
+    Error in celestial.coo/test_sphere_dist_fastSmall>testModulo2PiRA (line 72)
+        Dist = celestial.coo.sphere_dist_fastSmall(RA1, Dec1, RA2, Dec2);
+Test Name: celestial.coo.test_sphere_dist_fastSmall/testLargerDistancesFail
+Diagnostics:
+Error occurred in celestial.coo.test_sphere_dist_fastSmall/testLargerDistancesFail and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.coo.sphere_dist_fastSmall (line 13)
+    BUG
+    Error in celestial.coo/test_sphere_dist_fastSmall>testLargerDistancesFail (line 88)
+        DistSmall = celestial.coo.sphere_dist_fastSmall(RA1, Dec1, RA2, Dec2);
+Test Name: celestial.coo.test_sphere_dist_fastSmall/testNearZeroRA
+Diagnostics:
+Error occurred in celestial.coo.test_sphere_dist_fastSmall/testNearZeroRA and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.coo.sphere_dist_fastSmall (line 13)
+    BUG
+    Error in celestial.coo/test_sphere_dist_fastSmall>testNearZeroRA (line 104)
+        Dist = celestial.coo.sphere_dist_fastSmall(RA1, Dec1, RA2, Dec2);
+Test Name: celestial.coo.test_sphere_dist_fast_threshDist/testLargeInputPerformance
+Diagnostics:
+Verification failed in celestial.coo.test_sphere_dist_fast_threshDist/testLargeInputPerformance.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifySize failed.
+    --> The value had an incorrect size.
+        
+        Actual Size:
+              999999           1
+        Expected Size:
+             1000000           1
+    
+    Actual Value:
+    Array size ([999999       1]) exceeds the maximum number of displayable elements (5000). Displaying the first 100 elements:
+    
+       1.105923564458532
+       4.258875344527113
+       2.177056135016951
+       1.674318438349256
+       5.312071444429626
+       4.087867310329651
+       6.168933295097695
+       3.691065755789407
+                     NaN
+       5.894504187613767
+       5.781753405305985
+       4.223944923552553
+       5.886967225882183
+       1.144031735849296
+                     NaN
+       1.167391631385897
+       1.431065937914439
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+       5.619749063767713
+       6.164894069513594
+                     NaN
+       6.259916339568437
+       5.560482550344697
+                     NaN
+                     NaN
+       2.996230915156855
+       2.976578764164299
+       2.133478482474367
+       2.996796472963902
+       5.485473674254874
+                     NaN
+       3.270468285857204
+       4.493748375090783
+                     NaN
+       3.067880769564296
+       1.757355182786692
+       6.104929271093203
+       5.526575278043437
+                     NaN
+                     NaN
+       4.572663264462482
+       0.387283353516409
+       2.630337604760540
+       1.068444628070811
+       5.332287135186514
+       3.718924710924697
+       0.645203338130845
+       4.590189568385885
+       5.474687076955909
+       3.961163267177155
+       4.985440264893914
+       1.100568958707313
+       6.162171245741473
+                     NaN
+       3.427516367116459
+                     NaN
+                     NaN
+       4.341588657775122
+       0.525169932436323
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+       0.624584068979784
+       1.404809780186329
+       1.629381586531509
+       3.542527219993566
+                     NaN
+                     NaN
+       5.126980336411551
+       6.044663109296482
+                     NaN
+       2.743522135115592
+                     NaN
+       5.911082453841727
+       2.567925742751191
+       5.534997688452498
+       1.279279383115904
+                     NaN
+                     NaN
+       1.975224444907047
+       5.534596776022122
+                     NaN
+       4.144503474958675
+       1.603997997478836
+       2.824726057050778
+       3.253357752733129
+       4.844367522163182
+       0.354404379205701
+       3.684599035807156
+       0.217231051988670
+       4.422891865144109
+                     NaN
+       0.542783459785459
+                     NaN
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/astro/+celestial/+coo/test_sphere_dist_fast_threshDist.m (testLargeInputPerformance) at 115\nVerification failed in celestial.coo.test_sphere_dist_fast_threshDist/testLargeInputPerformance.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifySize failed.
+    --> The value had an incorrect size.
+        
+        Actual Size:
+              999999           1
+        Expected Size:
+             1000000           1
+    
+    Actual Value:
+    Array size ([999999       1]) exceeds the maximum number of displayable elements (5000). Displaying the first 100 elements:
+    
+       2.035669089131261
+       5.165902616242266
+       0.964536518572842
+       1.467274215240538
+       4.112706516339753
+       5.336910650439727
+       3.255844665671685
+       5.733712204979973
+                     NaN
+       3.530273773155612
+       3.643024555463394
+       5.200833037216826
+       3.537810734887196
+       1.997560917740497
+                     NaN
+       1.974201022203897
+       1.710526715675355
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+       3.805028897001667
+       3.259883891255785
+                     NaN
+       3.164861621200942
+       3.864295410424682
+                     NaN
+                     NaN
+       0.145361738432938
+       0.165013889425494
+       1.008114171115426
+       0.144796180625891
+       3.939304286514505
+                     NaN
+       6.154309674912176
+       4.931029585678596
+                     NaN
+       0.073711884025498
+       1.384237470803102
+       3.319848689676176
+       3.898202682725942
+                     NaN
+                     NaN
+       4.852114696306898
+       2.754309300073384
+       0.511255048829253
+       2.073148025518982
+       4.092490825582866
+       5.705853249844682
+       2.496389315458948
+       4.834588392383495
+       3.950090883813471
+       5.463614693592224
+       4.439337695875466
+       2.041023694882480
+       3.262606715027906
+                     NaN
+       5.997261593652920
+                     NaN
+                     NaN
+       5.083189302994257
+       2.616422721153471
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+       2.517008584610009
+       1.736782873403464
+       1.512211067058284
+       5.882250740775813
+                     NaN
+                     NaN
+       4.297797624357829
+       3.380114851472897
+                     NaN
+       0.398070518474202
+                     NaN
+       3.513695506927652
+       0.573666910838603
+       3.889780272316881
+       1.862313270473890
+                     NaN
+                     NaN
+       1.166368208682746
+       3.890181184747258
+                     NaN
+       5.280274485810704
+       1.537594656110958
+       0.316866596539015
+       6.171420208036250
+       4.580410438606196
+       2.787188274384092
+       5.740178924962223
+       2.924361601601123
+       5.001886095625269
+                     NaN
+       2.598809193804334
+                     NaN
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/astro/+celestial/+coo/test_sphere_dist_fast_threshDist.m (testLargeInputPerformance) at 116
+Test Name: celestial.coo.test_sphere_offset/testPoleMovement
+Diagnostics:
+Verification failed in celestial.coo.test_sphere_offset/testPoleMovement.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Incorrect longitude offset when moving across the pole.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within absolute tolerance.
+    --> Failure table:
+                   Actual               Expected             Error            RelativeError       AbsoluteTolerance
+            ____________________    ________________    ________________    __________________    _________________
+                                                                                                                   
+            2.00003338915273e-06    3.14159265358979    -3.1415906535564    -0.999999363369599          1e-09      
+    
+    Actual Value:
+         2.000033389152734e-06
+    Expected Value:
+       3.141592653589793
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/astro/+celestial/+coo/test_sphere_offset.m (testPoleMovement) at 99
+Test Name: celestial.grid.test_CelAnnulusArea/testInvalidNumberOfArguments
+Diagnostics:
+Verification failed in celestial.grid.test_CelAnnulusArea/testInvalidNumberOfArguments.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Error handling for too few arguments failed.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyError failed.
+    --> The function threw the wrong exception.
+        
+        Actual Exception:
+            <No Message Identifier>
+        Expected Exception:
+            'celestial:coo:cel_annulus_area:illegalNumberOfInputs'
+    --> Actual Error Report:
+            Error using celestial.coo.cel_annulus_area (line 31)
+            Illegal number of input arguments
+            Error in celestial.grid.test_CelAnnulusArea>@()celestial.coo.cel_annulus_area(1) (line 92)
+                verifyError(testCase, @() celestial.coo.cel_annulus_area(1),'celestial:coo:cel_annulus_area:illegalNumberOfInputs', ...
+    
+    Evaluated Function:
+      function_handle with value:
+        @()celestial.coo.cel_annulus_area(1)
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/astro/+celestial/+grid/test_CelAnnulusArea.m (testInvalidNumberOfArguments) at 92
+Test Name: celestial.grid.test_INPOP/testDownloadConstants
+Diagnostics:
+Verification failed in celestial.grid.test_INPOP/testDownloadConstants.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Could not load constants.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyNotEmpty failed.
+    --> The value must not be empty.
+    --> The value has a size of [0  0].
+    
+    Actual Value:
+         []
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/astro/+celestial/+grid/test_INPOP.m (testDownloadConstants) at 21
+Test Name: celestial.grid.test_INPOP/testPopulateTables
+Diagnostics:
+Error occurred in celestial.grid.test_INPOP/testPopulateTables and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:textio:textio:FileNotFound'
+    --------------
+    Error Details:
+    --------------
+    Error using readmatrix (line 171)
+    Unable to find or open 'inpop21a_TDB_m100_p100_asc_pos_Sun.asc'.
+    Check the path and filename or file permissions.
+    Error in celestial.INPOP.loadINPOP (line 337)
+                        Result = readmatrix(FullFileName, 'NumHeaderLines',2,'FileType','text');
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.grid/test_INPOP>testPopulateTables (line 27)
+        I = I.populateTables({'Sun', 'Ear'}, 'FileType', 'asc');
+Test Name: celestial.grid.test_INPOP/testPositionComparisonWithVSOP87
+Diagnostics:
+Error occurred in celestial.grid.test_INPOP/testPositionComparisonWithVSOP87 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.INPOP/getPos (line 803)
+    PosTables table for object Ear is not loaded - use populateTables
+    to load table
+    Error in celestial.grid/test_INPOP>testPositionComparisonWithVSOP87 (line 40)
+        PosINPOP = getPos(I, 'Ear', JD);
+Test Name: celestial.grid.test_INPOP/testVelocityComparisonWithVSOP87
+Diagnostics:
+Error occurred in celestial.grid.test_INPOP/testVelocityComparisonWithVSOP87 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.INPOP/getPos (line 803)
+    VelTables table for object Jup is not loaded - use populateTables
+    to load table
+    Error in celestial.grid/test_INPOP>testVelocityComparisonWithVSOP87 (line 55)
+        VelINPOP = getPos(I, 'Jup', JD, 'IsPos', false);
+Test Name: celestial.grid.test_INPOP/testPopulateAllObjects
+Diagnostics:
+Verification failed in celestial.grid.test_INPOP/testPopulateAllObjects.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed in populating and calculating objects.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyTrue failed.
+    --> The value must evaluate to "true".
+    
+    Actual Value:
+      logical
+       0
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/astro/+celestial/+grid/test_INPOP.m (testPopulateAllObjects) at 88
+Test Name: celestial.grid.test_INPOP/testTimeSpanOption
+Diagnostics:
+Error occurred in celestial.grid.test_INPOP/testTimeSpanOption and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Sun.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP/populateAll (line 693)
+                 Obj.populateTables('all', 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in celestial.grid/test_INPOP>testTimeSpanOption (line 97)
+        I.populateAll('TimeSpan', [2459000, 2461000], 'PopForce', true);
+Test Name: celestial.time.test_barycentricJD/testGeocentricPosition
+Diagnostics:
+Error occurred in celestial.time.test_barycentricJD/testGeocentricPosition and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:textio:textio:FileNotFound'
+    --------------
+    Error Details:
+    --------------
+    Error using readtable (line 517)
+    Unable to find or open 'EOP_C01_IAU2000_1846-now.txt'. Check the
+    path and filename or file permissions.
+    Error in io.files.readtable1 (line 21)
+        Var = readtable(TableFile, varargin{:});
+    Error in Installer.readIERS_EOP (line 465)
+                    T3 = io.files.readtable1(EOP_1846,'ReadVariableNames',false);
+    Error in celestial.time.ut1_tai (line 34)
+        [~, ~, TblEOP] = Ins.readIERS_EOP(3);
+    Error in celestial.time.tt_utc (line 43)
+            [UT1mTAI0, ~] = celestial.time.ut1_tai(AllJD, 'WhereToGet',Args.WhereToGet, 'FillVal',Args.FillVal);
+    Error in celestial.time/test_barycentricJD>testGeocentricPosition (line 38)
+        tt_utc = celestial.time.tt_utc(JD)/24/3600;
+Test Name: celestial.time.test_barycentricJD/testGeodeticPosition
+Diagnostics:
+Error occurred in celestial.time.test_barycentricJD/testGeodeticPosition and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.time.barycentricJD (line 52)
+            IP.populateTables(Args.Object, 'FileData', 'pos');
+    Error in celestial.time/test_barycentricJD>testGeodeticPosition (line 57)
+        [BJD, BVel] = celestial.time.barycentricJD(JD, RA, Dec, 'GeoPos', GeoPos);
+Test Name: celestial.time.test_barycentricJD/testCoordinateUnitsDegrees
+Diagnostics:
+Error occurred in celestial.time.test_barycentricJD/testCoordinateUnitsDegrees and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.time.barycentricJD (line 52)
+            IP.populateTables(Args.Object, 'FileData', 'pos');
+    Error in celestial.time/test_barycentricJD>testCoordinateUnitsDegrees (line 71)
+        [BJD, BVel] = celestial.time.barycentricJD(JD, RA, Dec, 'CooUnits', 'deg');
+Test Name: celestial.time.test_barycentricJD/testVelocityUnitsAuPerDay
+Diagnostics:
+Error occurred in celestial.time.test_barycentricJD/testVelocityUnitsAuPerDay and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.time.barycentricJD (line 52)
+            IP.populateTables(Args.Object, 'FileData', 'pos');
+    Error in celestial.time/test_barycentricJD>testVelocityUnitsAuPerDay (line 85)
+        [BJD, BVel] = celestial.time.barycentricJD(JD, RA, Dec, 'VelOutUnits', 'au/day');
+Test Name: celestial.time.test_barycentricJD/testINPOPObject
+Diagnostics:
+Error occurred in celestial.time.test_barycentricJD/testINPOPObject and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.time/test_barycentricJD>testINPOPObject (line 100)
+        INPOP.populateTables('Ear', 'FileData', 'pos');
+Test Name: celestial.time.test_barycentricJD/testKnownValues
+Diagnostics:
+Error occurred in celestial.time.test_barycentricJD/testKnownValues and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.time.barycentricJD (line 52)
+            IP.populateTables(Args.Object, 'FileData', 'pos');
+    Error in celestial.time/test_barycentricJD>testKnownValues (line 125)
+        [BJD, BVel] = celestial.time.barycentricJD(JD, RA, Dec, 'GeoPos', GeoPos);
+Test Name: celestial.time.test_barycentricJD/testDifferentDates
+Diagnostics:
+Error occurred in celestial.time.test_barycentricJD/testDifferentDates and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.time.barycentricJD (line 52)
+            IP.populateTables(Args.Object, 'FileData', 'pos');
+    Error in celestial.time/test_barycentricJD>testDifferentDates (line 146)
+        [BJD, BVel] = celestial.time.barycentricJD(JD, RA, Dec, 'GeoPos', GeoPos);
+Test Name: celestial.time.test_barycentricJD/testVernalEquinoxRA180
+Diagnostics:
+Error occurred in celestial.time.test_barycentricJD/testVernalEquinoxRA180 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.time.barycentricJD (line 52)
+            IP.populateTables(Args.Object, 'FileData', 'pos');
+    Error in celestial.time/test_barycentricJD>testVernalEquinoxRA180 (line 170)
+        [BJD, BVel] = celestial.time.barycentricJD(JD, RA, Dec, 'GeoPos', GeoPos);
+Test Name: celestial.time.test_barycentricJD/testVernalEquinoxRA90
+Diagnostics:
+Error occurred in celestial.time.test_barycentricJD/testVernalEquinoxRA90 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.time.barycentricJD (line 52)
+            IP.populateTables(Args.Object, 'FileData', 'pos');
+    Error in celestial.time/test_barycentricJD>testVernalEquinoxRA90 (line 193)
+        [BJD, BVel] = celestial.time.barycentricJD(JD, RA, Dec, 'GeoPos', GeoPos);
+Test Name: TestBase/testCreateNewObj
+Diagnostics:
+Verification failed in TestBase/testCreateNewObj.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    createNewObj did not create a new object as expected.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyNotEqual failed.
+    --> The objects are equal using "isequaln".
+    
+    Actual Value:
+      Base with properties:
+    
+        UserData: 'TestData'
+    Prohibited Value:
+      Base with properties:
+    
+        UserData: 'TestData'
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/base/TestBase.m (testCreateNewObj) at 61
+Test Name: TestBase/testCopyElement
+Diagnostics:
+Verification failed in TestBase/testCopyElement.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    copy method did not create a new object as expected.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyNotEqual failed.
+    --> The objects are equal using "isequaln".
+    
+    Actual Value:
+      Base with properties:
+    
+        UserData: 'DeepCopyTest'
+    Prohibited Value:
+      Base with properties:
+    
+        UserData: 'DeepCopyTest'
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/base/TestBase.m (testCopyElement) at 104
+Test Name: TestLogFile/testWriteLogEntry
+Diagnostics:
+Error occurred in TestLogFile/testWriteLogEntry and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Undefined function 'verifyContains' for input arguments of type
+    'matlab.unittest.FunctionTestCase'.
+    Error in TestLogFile>testWriteLogEntry (line 49)
+        verifyContains(testCase, content, 'This is a test log entry.', 'Log entry was not written correctly.');
+Test Name: TestLogFile/testWrite2
+Diagnostics:
+Error occurred in TestLogFile/testWrite2 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Undefined function 'verifyContains' for input arguments of type
+    'matlab.unittest.FunctionTestCase'.
+    Error in TestLogFile>testWrite2 (line 114)
+        verifyContains(testCase, content, 'INFO > This is a titled log entry.', 'Titled log entry was not written correctly.');
+Test Name: TestLogFile/testDestructor
+Diagnostics:
+Verification failed in TestLogFile/testDestructor.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    File handle should be invalid after destruction.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyError failed.
+    --> The function threw the wrong exception.
+        
+        Actual Exception:
+            'MATLAB:class:InvalidHandle'
+        Expected Exception:
+            'MATLAB:badfid_mx'
+    --> Actual Error Report:
+            Invalid or deleted object.
+            Error in TestLogFile>@()fprintf(logFile.Fid,'This should fail') (line 136)
+                verifyError(testCase, @() fprintf(logFile.Fid, 'This should fail'), 'MATLAB:badfid_mx', 'File handle should be invalid after destruction.');
+    
+    Evaluated Function:
+      function_handle with value:
+        @()fprintf(logFile.Fid,'This should fail')
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/base/TestLogFile.m (testDestructor) at 136
+Test Name: test_CelestialConvert/testJ2000toApparent
+Diagnostics:
+Error occurred in test_CelestialConvert/testJ2000toApparent and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Ear.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP.init (line 457)
+                    Result.populateTables(Objects, 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in celestial.convert.j2000_toApparent (line 103)
+            Args.INPOP             = celestial.INPOP.init({'Ear'});
+    Error in test_CelestialConvert>testJ2000toApparent (line 52)
+        [OutRA, OutDec] = celestial.convert.j2000_toApparent(RA, Dec, celestial.time.julday([1, 1, 2100]), ...
+Test Name: test_area_sphere_polygon/testBoxPolygon
+Diagnostics:
+Verification failed in test_area_sphere_polygon/testBoxPolygon.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for closed polygon.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                Actual             Expected              Error           RelativeError      RelativeTolerance
+            _______________    _________________    ________________    ________________    _________________
+                                                                                                             
+            9.4547030750117    0.822467033424113    8.63223604158759    10.4955404785644           0.1       
+    
+    Actual Value:
+       9.454703075011700
+    Expected Value:
+       0.822467033424113
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testBoxPolygon) at 63
+Test Name: test_area_sphere_polygon/testPolygonCrossingNorthPole
+Diagnostics:
+Verification failed in test_area_sphere_polygon/testPolygonCrossingNorthPole.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for a polygon crossing the North Pole.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                 Actual             Expected             Error           RelativeError      RelativeTolerance
+            ________________    ________________    ________________    ________________    _________________
+                                                                                                             
+            13.0899693899575    6.28318530717959    6.80678408277788    1.08333333333333           0.1       
+    
+    Actual Value:
+      13.089969389957471
+    Expected Value:
+       6.283185307179586
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testPolygonCrossingNorthPole) at 76
+Test Name: test_area_sphere_polygon/testPolygonCrossingSouthPole
+Diagnostics:
+Verification failed in test_area_sphere_polygon/testPolygonCrossingSouthPole.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for a polygon crossing the South Pole.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                 Actual             Expected             Error            RelativeError      RelativeTolerance
+            ________________    ________________    ________________    _________________    _________________
+                                                                                                              
+            12.0427718387609    6.28318530717959    5.75958653158129    0.916666666666667           0.1       
+    
+    Actual Value:
+      12.042771838760874
+    Expected Value:
+       6.283185307179586
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testPolygonCrossingSouthPole) at 89
+Test Name: test_area_sphere_polygon/testConcavePolygon
+Diagnostics:
+Verification failed in test_area_sphere_polygon/testConcavePolygon.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for a concave polygon.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                 Actual             Expected            Error          RelativeError      RelativeTolerance
+            ________________    ________________    ______________    ________________    _________________
+                                                                                                           
+            3.59190792453991    1.25663706143592    2.335270863104    1.85834950660739           0.1       
+    
+    Actual Value:
+       3.591907924539913
+    Expected Value:
+       1.256637061435917
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testConcavePolygon) at 102
+Test Name: test_area_sphere_polygon/testConvexPolygon
+Diagnostics:
+Verification failed in test_area_sphere_polygon/testConvexPolygon.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for a convex polygon.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                Actual             Expected             Error           RelativeError     RelativeTolerance
+            _______________    ________________    ________________    _______________    _________________
+                                                                                                           
+            14.022007307412    3.14159265358979    10.8804146538222    3.4633435500906           0.1       
+    
+    Actual Value:
+      14.022007307412007
+    Expected Value:
+       3.141592653589793
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testConvexPolygon) at 115
+Test Name: test_area_sphere_polygon/testLargePolygonCoveringThreeQuartersSphere
+Diagnostics:
+Verification failed in test_area_sphere_polygon/testLargePolygonCoveringThreeQuartersSphere.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for a large polygon covering 0.75 of the sphere.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                 Actual             Expected             Error            RelativeError      RelativeTolerance
+            ________________    ________________    ________________    _________________    _________________
+                                                                                                              
+            16.7551608191456    9.42477796076938    7.33038285837619    0.777777777777778           0.1       
+    
+    Actual Value:
+      16.755160819145566
+    Expected Value:
+       9.424777960769379
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testLargePolygonCoveringThreeQuartersSphere) at 128
+Test Name: test_area_sphere_polygon/testVerySmallPolygon
+Diagnostics:
+Verification failed in test_area_sphere_polygon/testVerySmallPolygon.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for a very small polygon.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within absolute tolerance.
+    --> Failure table:
+                Actual        Expected        Error         RelativeError    AbsoluteTolerance
+            ______________    ________    ______________    _____________    _________________
+                                                                                              
+            9.244924460978       0        9.244924460978         Inf               1e-09      
+    
+    Actual Value:
+       9.244924460978002
+    Expected Value:
+         0
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testVerySmallPolygon) at 141
+Test Name: test_area_sphere_polygon/testCollinearPointsPolygon
+Diagnostics:
+Verification failed in test_area_sphere_polygon/testCollinearPointsPolygon.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to return zero area for collinear points polygon.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within absolute tolerance.
+    --> Failure table:
+            Actual    Expected    Error    RelativeError    AbsoluteTolerance
+            ______    ________    _____    _____________    _________________
+                                                                             
+             NaN         0         NaN          NaN               1e-09      
+    
+    Actual Value:
+       NaN
+    Expected Value:
+         0
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testCollinearPointsPolygon) at 154
+Test Name: test_area_sphere_polygon/testCircularRegionArea
+Diagnostics:
+Verification failed in test_area_sphere_polygon/testCircularRegionArea.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for circular region on the sphere.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                 Actual              Expected              Error           RelativeError      RelativeTolerance
+            ________________    __________________    ________________    ________________    _________________
+                                                                                                               
+            13.3104354830605    0.0954557030567379    13.2149797800038    138.440966404584           0.1       
+    
+    Actual Value:
+      13.310435483060489
+    Expected Value:
+       0.095455703056738
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testCircularRegionArea) at 179\nVerification failed in test_area_sphere_polygon/testCircularRegionArea.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for circular region on the sphere.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                 Actual              Expected              Error           RelativeError      RelativeTolerance
+            ________________    __________________    ________________    ________________    _________________
+                                                                                                               
+            12.5452106635961    0.0954557030567379    12.4497549605394    130.424422657485           0.1       
+    
+    Actual Value:
+      12.545210663596105
+    Expected Value:
+       0.095455703056738
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testCircularRegionArea) at 179\nVerification failed in test_area_sphere_polygon/testCircularRegionArea.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for circular region on the sphere.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                 Actual              Expected              Error           RelativeError      RelativeTolerance
+            ________________    __________________    ________________    ________________    _________________
+                                                                                                               
+            11.4778922252521    0.0954557030567379    11.3824365221954    119.243126997135           0.1       
+    
+    Actual Value:
+      11.477892225252116
+    Expected Value:
+       0.095455703056738
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testCircularRegionArea) at 179\nVerification failed in test_area_sphere_polygon/testCircularRegionArea.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for circular region on the sphere.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                 Actual              Expected              Error           RelativeError      RelativeTolerance
+            ________________    __________________    ________________    ________________    _________________
+                                                                                                               
+            13.0351476301679    0.0954557030567379    12.9396919271112    135.557033396108           0.1       
+    
+    Actual Value:
+      13.035147630167941
+    Expected Value:
+       0.095455703056738
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testCircularRegionArea) at 179\nVerification failed in test_area_sphere_polygon/testCircularRegionArea.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for circular region on the sphere.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                 Actual              Expected              Error           RelativeError      RelativeTolerance
+            ________________    __________________    ________________    ________________    _________________
+                                                                                                               
+            12.5769886509993    0.0954557030567379    12.4815329479426    130.757330869207           0.1       
+    
+    Actual Value:
+      12.576988650999345
+    Expected Value:
+       0.095455703056738
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testCircularRegionArea) at 179\nVerification failed in test_area_sphere_polygon/testCircularRegionArea.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for circular region on the sphere.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                 Actual              Expected              Error           RelativeError      RelativeTolerance
+            ________________    __________________    ________________    ________________    _________________
+                                                                                                               
+            11.7578409531903    0.0954557030567379    11.6623852501335    122.175887628228           0.1       
+    
+    Actual Value:
+      11.757840953190261
+    Expected Value:
+       0.095455703056738
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testCircularRegionArea) at 179\nVerification failed in test_area_sphere_polygon/testCircularRegionArea.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for circular region on the sphere.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                Actual              Expected              Error           RelativeError      RelativeTolerance
+            _______________    __________________    ________________    ________________    _________________
+                                                                                                              
+            12.597708053672    0.0954557030567379    12.5022523506152    130.974388645841           0.1       
+    
+    Actual Value:
+      12.597708053671951
+    Expected Value:
+       0.095455703056738
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testCircularRegionArea) at 179\nVerification failed in test_area_sphere_polygon/testCircularRegionArea.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for circular region on the sphere.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                 Actual              Expected              Error           RelativeError      RelativeTolerance
+            ________________    __________________    ________________    ________________    _________________
+                                                                                                               
+            12.7437611226988    0.0954557030567379    12.6483054196421    132.504449861147           0.1       
+    
+    Actual Value:
+      12.743761122698805
+    Expected Value:
+       0.095455703056738
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testCircularRegionArea) at 179\nVerification failed in test_area_sphere_polygon/testCircularRegionArea.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for circular region on the sphere.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                 Actual              Expected              Error           RelativeError      RelativeTolerance
+            ________________    __________________    ________________    ________________    _________________
+                                                                                                               
+            22.0110562876046    0.0954557030567379    21.9156005845478    229.589221835404           0.1       
+    
+    Actual Value:
+      22.011056287604571
+    Expected Value:
+       0.095455703056738
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testCircularRegionArea) at 179\nVerification failed in test_area_sphere_polygon/testCircularRegionArea.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to correctly calculate area for circular region on the sphere.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> The error was not within relative tolerance.
+    --> Failure table:
+                 Actual              Expected              Error           RelativeError      RelativeTolerance
+            ________________    __________________    ________________    ________________    _________________
+                                                                                                               
+            22.5794210367085    0.0954557030567379    22.4839653336517    235.543446998526           0.1       
+    
+    Actual Value:
+      22.579421036708489
+    Expected Value:
+       0.095455703056738
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testCircularRegionArea) at 179
+Test Name: test_area_sphere_polygon/testLunePolygon
+Diagnostics:
+Verification failed in test_area_sphere_polygon/testLunePolygon.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to calculate non-negative area for open polygon.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> Failure table:
+                 Actual            Expected             Error          RelativeError
+            ________________    _______________    ________________    _____________
+                                                                                    
+            3.92699081698724    1.5707963267949    2.35619449019235         1.5     
+    
+    Actual Value:
+       3.926990816987242
+    Expected Value:
+       1.570796326794897
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testLunePolygon) at 193
+Test Name: test_area_sphere_polygon/testHemispherePolygon
+Diagnostics:
+Verification failed in test_area_sphere_polygon/testHemispherePolygon.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed to calculate non-negative area for open polygon.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> Failure table:
+                 Actual             Expected             Error           RelativeError  
+            ________________    ________________    ________________    ________________
+                                                                                        
+            18.8708355667138    6.28318530717959    12.5876502595343    2.00338676071686
+    
+    Actual Value:
+      18.870835566713847
+    Expected Value:
+       6.283185307179586
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_area_sphere_polygon.m (testHemispherePolygon) at 207
+Test Name: test_sphere_dist_fastSmall/testSmallAngleApproximation
+Diagnostics:
+Error occurred in test_sphere_dist_fastSmall/testSmallAngleApproximation and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.coo.sphere_dist_fastSmall (line 13)
+    BUG
+    Error in test_sphere_dist_fastSmall>testSmallAngleApproximation (line 26)
+        Dist = celestial.coo.sphere_dist_fastSmall(RA1, Dec1, RA2, Dec2);
+Test Name: test_sphere_dist_fastSmall/testComparisonToSphereDistFast
+Diagnostics:
+Error occurred in test_sphere_dist_fastSmall/testComparisonToSphereDistFast and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.coo.sphere_dist_fastSmall (line 13)
+    BUG
+    Error in test_sphere_dist_fastSmall>testComparisonToSphereDistFast (line 42)
+        DistSmall = celestial.coo.sphere_dist_fastSmall(RA1, Dec1, RA2, Dec2);
+Test Name: test_sphere_dist_fastSmall/testZeroDistance
+Diagnostics:
+Error occurred in test_sphere_dist_fastSmall/testZeroDistance and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.coo.sphere_dist_fastSmall (line 13)
+    BUG
+    Error in test_sphere_dist_fastSmall>testZeroDistance (line 57)
+        Dist = celestial.coo.sphere_dist_fastSmall(RA1, Dec1, RA2, Dec2);
+Test Name: test_sphere_dist_fastSmall/testModulo2PiRA
+Diagnostics:
+Error occurred in test_sphere_dist_fastSmall/testModulo2PiRA and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.coo.sphere_dist_fastSmall (line 13)
+    BUG
+    Error in test_sphere_dist_fastSmall>testModulo2PiRA (line 72)
+        Dist = celestial.coo.sphere_dist_fastSmall(RA1, Dec1, RA2, Dec2);
+Test Name: test_sphere_dist_fastSmall/testLargerDistancesFail
+Diagnostics:
+Error occurred in test_sphere_dist_fastSmall/testLargerDistancesFail and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.coo.sphere_dist_fastSmall (line 13)
+    BUG
+    Error in test_sphere_dist_fastSmall>testLargerDistancesFail (line 88)
+        DistSmall = celestial.coo.sphere_dist_fastSmall(RA1, Dec1, RA2, Dec2);
+Test Name: test_sphere_dist_fastSmall/testNearZeroRA
+Diagnostics:
+Error occurred in test_sphere_dist_fastSmall/testNearZeroRA and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.coo.sphere_dist_fastSmall (line 13)
+    BUG
+    Error in test_sphere_dist_fastSmall>testNearZeroRA (line 104)
+        Dist = celestial.coo.sphere_dist_fastSmall(RA1, Dec1, RA2, Dec2);
+Test Name: test_sphere_dist_fast_threshDist/testLargeInputPerformance
+Diagnostics:
+Verification failed in test_sphere_dist_fast_threshDist/testLargeInputPerformance.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifySize failed.
+    --> The value had an incorrect size.
+        
+        Actual Size:
+              999999           1
+        Expected Size:
+             1000000           1
+    
+    Actual Value:
+    Array size ([999999       1]) exceeds the maximum number of displayable elements (5000). Displaying the first 100 elements:
+    
+       1.105923564458532
+       4.258875344527113
+       2.177056135016951
+       1.674318438349256
+       5.312071444429626
+       4.087867310329651
+       6.168933295097695
+       3.691065755789407
+                     NaN
+       5.894504187613767
+       5.781753405305985
+       4.223944923552553
+       5.886967225882183
+       1.144031735849296
+                     NaN
+       1.167391631385897
+       1.431065937914439
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+       5.619749063767713
+       6.164894069513594
+                     NaN
+       6.259916339568437
+       5.560482550344697
+                     NaN
+                     NaN
+       2.996230915156855
+       2.976578764164299
+       2.133478482474367
+       2.996796472963902
+       5.485473674254874
+                     NaN
+       3.270468285857204
+       4.493748375090783
+                     NaN
+       3.067880769564296
+       1.757355182786692
+       6.104929271093203
+       5.526575278043437
+                     NaN
+                     NaN
+       4.572663264462482
+       0.387283353516409
+       2.630337604760540
+       1.068444628070811
+       5.332287135186514
+       3.718924710924697
+       0.645203338130845
+       4.590189568385885
+       5.474687076955909
+       3.961163267177155
+       4.985440264893914
+       1.100568958707313
+       6.162171245741473
+                     NaN
+       3.427516367116459
+                     NaN
+                     NaN
+       4.341588657775122
+       0.525169932436323
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+       0.624584068979784
+       1.404809780186329
+       1.629381586531509
+       3.542527219993566
+                     NaN
+                     NaN
+       5.126980336411551
+       6.044663109296482
+                     NaN
+       2.743522135115592
+                     NaN
+       5.911082453841727
+       2.567925742751191
+       5.534997688452498
+       1.279279383115904
+                     NaN
+                     NaN
+       1.975224444907047
+       5.534596776022122
+                     NaN
+       4.144503474958675
+       1.603997997478836
+       2.824726057050778
+       3.253357752733129
+       4.844367522163182
+       0.354404379205701
+       3.684599035807156
+       0.217231051988670
+       4.422891865144109
+                     NaN
+       0.542783459785459
+                     NaN
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_sphere_dist_fast_threshDist.m (testLargeInputPerformance) at 115\nVerification failed in test_sphere_dist_fast_threshDist/testLargeInputPerformance.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifySize failed.
+    --> The value had an incorrect size.
+        
+        Actual Size:
+              999999           1
+        Expected Size:
+             1000000           1
+    
+    Actual Value:
+    Array size ([999999       1]) exceeds the maximum number of displayable elements (5000). Displaying the first 100 elements:
+    
+       2.035669089131261
+       5.165902616242266
+       0.964536518572842
+       1.467274215240538
+       4.112706516339753
+       5.336910650439727
+       3.255844665671685
+       5.733712204979973
+                     NaN
+       3.530273773155612
+       3.643024555463394
+       5.200833037216826
+       3.537810734887196
+       1.997560917740497
+                     NaN
+       1.974201022203897
+       1.710526715675355
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+       3.805028897001667
+       3.259883891255785
+                     NaN
+       3.164861621200942
+       3.864295410424682
+                     NaN
+                     NaN
+       0.145361738432938
+       0.165013889425494
+       1.008114171115426
+       0.144796180625891
+       3.939304286514505
+                     NaN
+       6.154309674912176
+       4.931029585678596
+                     NaN
+       0.073711884025498
+       1.384237470803102
+       3.319848689676176
+       3.898202682725942
+                     NaN
+                     NaN
+       4.852114696306898
+       2.754309300073384
+       0.511255048829253
+       2.073148025518982
+       4.092490825582866
+       5.705853249844682
+       2.496389315458948
+       4.834588392383495
+       3.950090883813471
+       5.463614693592224
+       4.439337695875466
+       2.041023694882480
+       3.262606715027906
+                     NaN
+       5.997261593652920
+                     NaN
+                     NaN
+       5.083189302994257
+       2.616422721153471
+                     NaN
+                     NaN
+                     NaN
+                     NaN
+       2.517008584610009
+       1.736782873403464
+       1.512211067058284
+       5.882250740775813
+                     NaN
+                     NaN
+       4.297797624357829
+       3.380114851472897
+                     NaN
+       0.398070518474202
+                     NaN
+       3.513695506927652
+       0.573666910838603
+       3.889780272316881
+       1.862313270473890
+                     NaN
+                     NaN
+       1.166368208682746
+       3.890181184747258
+                     NaN
+       5.280274485810704
+       1.537594656110958
+       0.316866596539015
+       6.171420208036250
+       4.580410438606196
+       2.787188274384092
+       5.740178924962223
+       2.924361601601123
+       5.001886095625269
+                     NaN
+       2.598809193804334
+                     NaN
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/coo/test_sphere_dist_fast_threshDist.m (testLargeInputPerformance) at 116
+Test Name: test_CelAnnulusArea/testInvalidNumberOfArguments
+Diagnostics:
+Verification failed in test_CelAnnulusArea/testInvalidNumberOfArguments.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Error handling for too few arguments failed.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyError failed.
+    --> The function threw the wrong exception.
+        
+        Actual Exception:
+            <No Message Identifier>
+        Expected Exception:
+            'celestial:coo:cel_annulus_area:illegalNumberOfInputs'
+    --> Actual Error Report:
+            Error using celestial.coo.cel_annulus_area (line 31)
+            Illegal number of input arguments
+            Error in test_CelAnnulusArea>@()celestial.coo.cel_annulus_area(1) (line 92)
+                verifyError(testCase, @() celestial.coo.cel_annulus_area(1),'celestial:coo:cel_annulus_area:illegalNumberOfInputs', ...
+    
+    Evaluated Function:
+      function_handle with value:
+        @()celestial.coo.cel_annulus_area(1)
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/grid/test_CelAnnulusArea.m (testInvalidNumberOfArguments) at 92
+Test Name: test_INPOP/testDownloadConstants
+Diagnostics:
+Verification failed in test_INPOP/testDownloadConstants.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Could not load constants.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyNotEmpty failed.
+    --> The value must not be empty.
+    --> The value has a size of [0  0].
+    
+    Actual Value:
+         []
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/grid/test_INPOP.m (testDownloadConstants) at 21
+Test Name: test_INPOP/testPopulateTables
+Diagnostics:
+Error occurred in test_INPOP/testPopulateTables and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:textio:textio:FileNotFound'
+    --------------
+    Error Details:
+    --------------
+    Error using readmatrix (line 171)
+    Unable to find or open 'inpop21a_TDB_m100_p100_asc_pos_Sun.asc'.
+    Check the path and filename or file permissions.
+    Error in celestial.INPOP.loadINPOP (line 337)
+                        Result = readmatrix(FullFileName, 'NumHeaderLines',2,'FileType','text');
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in test_INPOP>testPopulateTables (line 27)
+        I = I.populateTables({'Sun', 'Ear'}, 'FileType', 'asc');
+Test Name: test_INPOP/testPositionComparisonWithVSOP87
+Diagnostics:
+Error occurred in test_INPOP/testPositionComparisonWithVSOP87 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.INPOP/getPos (line 803)
+    PosTables table for object Ear is not loaded - use populateTables
+    to load table
+    Error in test_INPOP>testPositionComparisonWithVSOP87 (line 40)
+        PosINPOP = getPos(I, 'Ear', JD);
+Test Name: test_INPOP/testVelocityComparisonWithVSOP87
+Diagnostics:
+Error occurred in test_INPOP/testVelocityComparisonWithVSOP87 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    ''
+    --------------
+    Error Details:
+    --------------
+    Error using celestial.INPOP/getPos (line 803)
+    VelTables table for object Jup is not loaded - use populateTables
+    to load table
+    Error in test_INPOP>testVelocityComparisonWithVSOP87 (line 55)
+        VelINPOP = getPos(I, 'Jup', JD, 'IsPos', false);
+Test Name: test_INPOP/testPopulateAllObjects
+Diagnostics:
+Verification failed in test_INPOP/testPopulateAllObjects.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Failed in populating and calculating objects.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyTrue failed.
+    --> The value must evaluate to "true".
+    
+    Actual Value:
+      logical
+       0
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/grid/test_INPOP.m (testPopulateAllObjects) at 88
+Test Name: test_INPOP/testTimeSpanOption
+Diagnostics:
+Error occurred in test_INPOP/testTimeSpanOption and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:load:couldNotReadFile'
+    --------------
+    Error Details:
+    --------------
+    Error using load
+    Unable to find file or directory
+    'inpop21a_TDB_m100_p100_mat_pos_Sun.mat'.
+    Error in io.files.load2 (line 23)
+        Tmp = load(MatFile, varargin{:});
+    Error in celestial.INPOP.loadINPOP (line 339)
+                        Result = io.files.load2(FullFileName);
+    Error in celestial.INPOP/populateTables (line 614)
+                                Table = celestial.INPOP.loadINPOP('TimeScale',Args.TimeScale,...
+    Error in celestial.INPOP/populateAll (line 693)
+                 Obj.populateTables('all', 'FileData','pos', 'TimeSpan',Args.TimeSpan, 'OriginType',Args.OriginType,...
+    Error in test_INPOP>testTimeSpanOption (line 97)
+        I.populateAll('TimeSpan', [2459000, 2461000], 'PopForce', true);
+Test Name: test_TileTheSky/testInvalidInput
+Diagnostics:
+Verification failed in test_TileTheSky/testInvalidInput.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    The function should throw an error when N_RA is 0.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyError failed.
+    --> The function did not throw any exception.
+        
+        Expected Exception:
+            'MATLAB:expectedPositiveScalar'
+    
+    Evaluated Function:
+      function_handle with value:
+        @()celestial.grid.tile_the_sky(0,180)
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/grid/test_TileTheSky.m (testInvalidInput) at 74\nVerification failed in test_TileTheSky/testInvalidInput.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    The function should throw an error when N_Dec is 0.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyError failed.
+    --> The function did not throw any exception.
+        
+        Expected Exception:
+            'MATLAB:expectedPositiveScalar'
+    
+    Evaluated Function:
+      function_handle with value:
+        @()celestial.grid.tile_the_sky(360,0)
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/celestial/grid/test_TileTheSky.m (testInvalidInput) at 78
+Test Name: test_mcount_01/length_find_q__VAL__
+Diagnostics:
+Error occurred in test_mcount_01/length_find_q__VAL__ and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Unrecognized function or variable 'MSG'.
+    Error in test_mcount_01 (line 134)
+    MSG = [MSG, sprintf('%-22s%-17.3f%-12s\n',sprintf(' length(find(X%sVAL))',COND),N_TESTS*p(1),N_HIT)];
+Test Name: test_mcount_01/mcount_X_VAL_COND_
+Diagnostics:
+Error occurred in test_mcount_01/mcount_X_VAL_COND_ and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:scriptNotAFunction'
+    --------------
+    Error Details:
+    --------------
+    Execution of script mcount as a function is not supported:
+    /Users/yarinms/matlab/AstroPack/matlab/external/mcount/mcount.m
+    Error in test_mcount_01 (line 139)
+        r(ix) = mcount(X,VAL,COND);
+Test Name: test_test_01/SetUpNearFieldCoordinates
+Diagnostics:
+Error occurred in test_test_01/SetUpNearFieldCoordinates and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Unrecognized function or variable 'sx'.
+    Error in test_test_01 (line 40)
+    deltax = sx/Nx;
+Test Name: test_test_01/CalculateNearFieldSolution
+Diagnostics:
+Error occurred in test_test_01/CalculateNearFieldSolution and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Unrecognized function or variable 'dia'.
+    Error in test_test_01 (line 49)
+    [E, H, P, S, C, ang] = calcmie_nf(dia/2., ns, nm, ...
+Test Name: test_test_01/PlotNearFieldSolution
+Diagnostics:
+Error occurred in test_test_01/PlotNearFieldSolution and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Unrecognized function or variable 'E'.
+    Error in test_test_01 (line 58)
+    fields = {E(:,:,1), E(:,:,2), E(:,:,3), H(:,:,1), H(:,:,2), ...
+Test Name: test_test_01/PlotPoyntingVector
+Diagnostics:
+Error occurred in test_test_01/PlotPoyntingVector and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Unrecognized function or variable 'nx'.
+    Error in test_test_01 (line 82)
+    imagesc(nx, ny, sqrt(P(:,:,1).^2 + P(:,:,2).^2 + P(:,:,3).^2))
+Test Name: test_test_01/PlotFarFieldSolution
+Diagnostics:
+Error occurred in test_test_01/PlotFarFieldSolution and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:undefinedVarOrClass'
+    --------------
+    Error Details:
+    --------------
+    Unable to resolve the name 'C.k'.
+    Error in test_test_01 (line 90)
+    fctr = 2/pi/C.k;
+Test Name: test_tests_01/test_1
+Diagnostics:
+Error occurred in test_tests_01/test_1 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Undefined function 'AC' for input arguments of type 'double'.
+    Error in test_tests_01 (line 22)
+    [CooType, NameX, NameY, IndInCellX, IndInCellY] = getCooTypeAuto(AC(1));
+Test Name: test_tests_01/test_2
+Diagnostics:
+Error occurred in test_tests_01/test_2 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:imagesci:fits:fileOpenError'
+    --------------
+    Error Details:
+    --------------
+    Error using FITS.readHeader1 (line 128)
+    Unable to open file. File might be corrupt or filename might have
+    unsupported characters.
+    Error in FITS.readTable1 (line 426)
+                HeadCell = FITS.readHeader1(TableName, Args.HDUnum);
+    Error in ImageIO.read1 (line 221)
+                                [Data, Header] = FITS.readTable1(FileName, Args.readTableArgs{:});
+    Error in ImageIO (line 134)
+                            [Obj(Iobj).Data, Obj(Iobj).Header] = ImageIO.read1(List{Iobj}, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',Args.IsTable, 'readTableArgs',Args.readTableArgs);
+    Error in AstroTable (line 175)
+                        ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
+    Error in AstroCatalog (line 59)
+                AT   = AstroTable(varargin{:});
+    Error in test_tests_01 (line 33)
+    AC=AstroCatalog({'asu.fit'},'HDU',2);
+Test Name: test_thomas_01/TestREALArrays_
+Diagnostics:
+Error occurred in test_thomas_01/TestREALArrays_ and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Undefined function 'tdma' for input arguments of type 'double'.
+    Error in test_thomas_01 (line 14)
+    y2 = tdma(main, lower, upper, f);
+Test Name: test_thomas_01/TestCOMPLEXArrays_
+Diagnostics:
+Error occurred in test_thomas_01/TestCOMPLEXArrays_ and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Unrecognized function or variable 'n'.
+    Error in test_thomas_01 (line 31)
+    main = 1i*2*(1:n)'; lower = 1i*(1:n)'; upper = 1i*(1:n)'; f = 1i*ones(n, 1);
+Test Name: test_thomas_01/TestREALMatrices_
+Diagnostics:
+Error occurred in test_thomas_01/TestREALMatrices_ and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Unrecognized function or variable 'n'.
+    Error in test_thomas_01 (line 54)
+    main = 2*(1:n)'; lower = (1:n)'; upper = (1:n)'; f = ones(n, 1);
+Test Name: test_thomas_01/TestCOMPLEXMatrices_
+Diagnostics:
+Error occurred in test_thomas_01/TestCOMPLEXMatrices_ and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Unrecognized function or variable 'n'.
+    Error in test_thomas_01 (line 80)
+    main = 1i*2*(1:n).'; lower = 1i*(1:n).'; upper = 1i*(1:n).'; f = 1i*ones(n, 1);
+Test Name: test_test_fits_01/test_test_fits_01
+Diagnostics:
+Error occurred in test_test_fits_01/test_test_fits_01 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:imagesci:fits:fileOverwriteError'
+    --------------
+    Error Details:
+    --------------
+    Error using matlab.io.fits.createFile (line 38)
+    Unable to overwrite existing file. Prefix name of the file with
+    exclamation point(!) to overwrite.
+    Error in test_test_fits_01 (line 43)
+    fptr = fits.createFile('myfile.fits');
+Test Name: test_Comparison_of_Handle_and_Value_Classes_01/test_Comparison_of_Handle_and_Value_Classes_01
+Diagnostics:
+Error occurred in test_Comparison_of_Handle_and_Value_Classes_01/test_Comparison_of_Handle_and_Value_Classes_01 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Unrecognized function or variable 'NumValue'.
+    Error in test_Comparison_of_Handle_and_Value_Classes_01 (line 4)
+    a = NumValue;
+Test Name: test_Developing_Classes_That_Work_Together_01/test_Developing_Classes_That_Work_Together_01
+Diagnostics:
+Error occurred in test_Developing_Classes_That_Work_Together_01/test_Developing_Classes_That_Work_Together_01 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Undefined function 'BankAccount' for input arguments of type
+    'double'.
+    Error in test_Developing_Classes_That_Work_Together_01 (line 3)
+    BA = BankAccount(1234567,500)
+Test Name: test_matlab_mixin_Copyable_class_01/test_matlab_mixin_Copyable_class_01
+Diagnostics:
+Error occurred in test_matlab_mixin_Copyable_class_01/test_matlab_mixin_Copyable_class_01 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Undefined function 'ShallowCp' for input arguments of type
+    'double'.
+    Error in test_matlab_mixin_Copyable_class_01 (line 4)
+    sc = ShallowCp(7);
+Test Name: test_memory_test_01/test_memory_test_01
+Diagnostics:
+Error occurred in test_memory_test_01/test_memory_test_01 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Unrecognized function or variable 'HandleClass'.
+    Error in test_memory_test_01>allocTest1 (line 20)
+        H = HandleClass();
+    Error in test_memory_test_01 (line 9)
+    allocTest1();
+Test Name: test_performance_test_01/test_performance_test_01
+Diagnostics:
+Error occurred in test_performance_test_01/test_performance_test_01 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Undefined function 'HandleClassCopy' for input arguments of type
+    'double'.
+    Error in test_performance_test_01>copyElementTest (line 163)
+        HandleC = HandleClassCopy(1);
+    Error in test_performance_test_01 (line 4)
+    copyElementTest();
+Test Name: db.testing.test_testing_01/test_testing_01
+Diagnostics:
+Error occurred in db.testing.test_testing_01/test_testing_01 and it did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:textio:textio:FileNotFound'
+    --------------
+    Error Details:
+    --------------
+    Error using readtable (line 517)
+    Unable to find or open 'c:/temp/ins1.csv'. Check the path and
+    filename or file permissions.
+    Error in io.files.readtable1 (line 21)
+        Var = readtable(TableFile, varargin{:});
+    Error in db.DbRecord (line 80)
+                        Obj.Data = table2struct(io.files.readtable1(Data));
+    Error in db.testing/test_testing_01 (line 9)
+    Rec = db.DbRecord('c:/temp/ins1.csv');
+Test Name: tools.array.TestNan2Val/testReplaceNaNsWithDefaultValue
+Diagnostics:
+Verification failed in tools.array.TestNan2Val/testReplaceNaNsWithDefaultValue.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Default NaN replacement failed.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> The numeric values are not equal using "isequaln".
+    --> Failure table:
+            Index    Subscripts    Actual    Expected    Error    RelativeError
+            _____    __________    ______    ________    _____    _____________
+                                                                               
+              6        (2,3)         0          10        -10          -1      
+    
+    Actual Value:
+         1     0     3
+         0     5     0
+    Expected Value:
+         1     0     3
+         0     5    10
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/util/+tools/+array/TestNan2Val.m (testReplaceNaNsWithDefaultValue) at 31
+Test Name: tools.array.mex.test_mex_01/test
+Diagnostics:
+Error occurred while setting up or tearing down tools.array.mex.test_mex_01.
+As a result, all tools.array.mex.test_mex_01 tests failed and did not run to completion.
+    ---------
+    Error ID:
+    ---------
+    'MATLAB:UndefinedFunction'
+    --------------
+    Error Details:
+    --------------
+    Undefined function 'mex_bitor_array_int64' for input arguments of
+    type 'uint64'.
+    Error in tools.array.mex/test_mex_01 (line 22)
+        mex_bitor_array_int64(Array3d, 3);    
+Test Name: tools.struct.TestStruct2KeyVal/testEmptyStructure
+Diagnostics:
+Verification failed in tools.struct.TestStruct2KeyVal/testEmptyStructure.
+    ----------------
+    Test Diagnostic:
+    ----------------
+    Empty structure conversion failed.
+    ---------------------
+    Framework Diagnostic:
+    ---------------------
+    verifyEqual failed.
+    --> Sizes do not match.
+        
+        Actual size:
+             1     0
+        Expected size:
+             0     0
+    
+    Actual Value:
+      1×0 empty cell array
+    Expected Value:
+      0×0 empty cell array
+    ------------------
+    Stack Information:
+    ------------------
+    In /Users/yarinms/matlab/AstroPack/tests/util/+tools/+struct/TestStruct2KeyVal.m (testEmptyStructure) at 57

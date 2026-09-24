@@ -1,0 +1,169 @@
+classdef MsgBox < matlab.apps.AppBase
+
+    % Properties that correspond to app components
+    properties (Access = public)
+        UIFigure       matlab.ui.Figure
+        TextArea       matlab.ui.control.TextArea
+        TextAreaLabel  matlab.ui.control.Label
+        TitlePanel     matlab.ui.container.Panel
+        TitleLabel     matlab.ui.control.Label
+        Panel          matlab.ui.container.Panel
+        CloseButton    matlab.ui.control.Button
+    end
+
+    methods (Static)
+        function about()
+            % About App
+            %
+            % This app displays information about the ULTRASAT Observation Planner,
+            % including version details, update history, developers, and support links.
+            %
+            % Features:
+            % - Shows the current version and last update date.
+            % - Lists the developers of the project.
+            % - Provides direct hyperlinks to the project website and support email.
+            % - Displays the project and institution logos.
+        end
+    end
+
+    properties (Access = public)
+        MainModule      % Reference to the main application module
+        Title           % Form title
+        Msg             % Message text to display in box
+        Status          % Required by PlannerMain.showModal() but not used
+    end
+    
+ methods (Access = public)
+
+        function beforeShow(app)
+            % Called from PlannerMain.showModal()
+            app.TitleLabel.Text = app.Title;
+            app.TextArea.Value = app.Msg;
+        end
+
+
+        function setMode(app, Mode)
+            if strcmp(Mode, 'ok')
+                app.TitleLabel.FontColor = [1.00,1.00,1.00];        % white
+                app.TitlePanel.BackgroundColor = [0.39,0.83,0.07];  % green                
+            elseif strcmp(Mode, 'error')
+                app.TitleLabel.FontColor = [1.00,1.00,1.00];        % white
+                app.TitlePanel.BackgroundColor = [1.00,0.00,0.00];  % red                
+            else
+                app.TitleLabel.FontColor = [1.00,1.00,1.00];        % white
+                app.TitlePanel.BackgroundColor = [0.72,0.27,1.00];  % purple
+            end
+        end
+    end
+
+
+
+    % Callbacks that handle component events
+    methods (Access = private)
+
+        % Code that executes after component creation
+        function startupFcn(app, MainModule)
+            app.MainModule = MainModule;
+            app.UIFigure.Name = 'Message';
+            app.MainModule.AppUtils.center(app);
+        end
+
+        % Button pushed function: CloseButton
+        function CloseButtonPushed(app, event)
+            uiresume(app.UIFigure);
+        end
+
+        % Callback function
+        function HyperlinkWebsiteClicked(app, event)
+            web(app.HyperlinkWebsite.Value);
+        end
+
+        % Callback function
+        function HyperlinkEmailClicked(app, event)
+            web(app.HyperlinkEmail.Value);
+        end
+    end
+
+    % Component initialization
+    methods (Access = private)
+
+        % Create UIFigure and components
+        function createComponents(app)
+
+            % Create UIFigure and hide until all components are created
+            app.UIFigure = uifigure('Visible', 'off');
+            app.UIFigure.Position = [100 100 829 347];
+            app.UIFigure.Name = 'MATLAB App';
+
+            % Create Panel
+            app.Panel = uipanel(app.UIFigure);
+            app.Panel.BackgroundColor = [0.8 0.8 0.8];
+            app.Panel.Position = [17 10 803 57];
+
+            % Create CloseButton
+            app.CloseButton = uibutton(app.Panel, 'push');
+            app.CloseButton.ButtonPushedFcn = createCallbackFcn(app, @CloseButtonPushed, true);
+            app.CloseButton.Position = [358 9 85 39];
+            app.CloseButton.Text = 'Close';
+
+            % Create TitlePanel
+            app.TitlePanel = uipanel(app.UIFigure);
+            app.TitlePanel.BackgroundColor = [0.7216 0.2706 1];
+            app.TitlePanel.Position = [9 303 811 37];
+
+            % Create TitleLabel
+            app.TitleLabel = uilabel(app.TitlePanel);
+            app.TitleLabel.HorizontalAlignment = 'center';
+            app.TitleLabel.FontSize = 18;
+            app.TitleLabel.FontWeight = 'bold';
+            app.TitleLabel.FontColor = [1 1 1];
+            app.TitleLabel.Position = [7 1 805 33];
+            app.TitleLabel.Text = 'Title';
+
+            % Create TextAreaLabel
+            app.TextAreaLabel = uilabel(app.UIFigure);
+            app.TextAreaLabel.HorizontalAlignment = 'right';
+            app.TextAreaLabel.FontSize = 16;
+            app.TextAreaLabel.Position = [41 262 25 22];
+            app.TextAreaLabel.Text = '';
+
+            % Create TextArea
+            app.TextArea = uitextarea(app.UIFigure);
+            app.TextArea.Editable = 'off';
+            app.TextArea.FontSize = 16;
+            app.TextArea.Position = [16 78 804 208];
+            app.TextArea.Value = {'Message'};
+
+            % Show the figure after all components are created
+            app.UIFigure.Visible = 'on';
+        end
+    end
+
+    % App creation and deletion
+    methods (Access = public)
+
+        % Construct app
+        function app = MsgBox(varargin)
+
+            % Create UIFigure and components
+            createComponents(app)
+
+            % Register the app with App Designer
+            registerApp(app, app.UIFigure)
+
+            % Execute the startup function
+            runStartupFcn(app, @(app)startupFcn(app, varargin{:}))
+
+            if nargout == 0
+                clear app
+            end
+        end
+
+        % Code that executes before app deletion
+        function delete(app)
+
+            % Delete UIFigure when app is deleted
+            delete(app.UIFigure)
+        end
+    end
+end

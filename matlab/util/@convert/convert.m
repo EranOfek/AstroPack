@@ -520,6 +520,58 @@ classdef convert
             
         end
         
+        function Val = pressure(In, Out, Val)
+            % Convert pressure units
+            % Input  : - Input units
+            %            'bar'|'mbar'|'mmhg'|'pa'|'atm'
+            %          - Output units.
+            %          - Value to convert.
+            %            Default is 1.
+            % Output : - Converted value.
+            % Author : Eran Ofek (Oct 2025)
+            % Example: convert.pressure('mmhg','mbar',1)
+
+            arguments
+                In
+                Out
+                Val = 1;
+            end
+
+            % convert to milli-bar
+            switch lower(In)
+                case 'bar'
+                    Conv = 1e-3;
+                case 'mbar'
+                    Conv = 1;
+                case 'mmhg'
+                    Conv = 1.33322;
+                case 'pa'
+                    Conv = 0.01;
+                case 'atm'
+                    Conv = 1013.25;
+                otherwise
+                    error('Unknown Pressure units');
+            end
+            Val = Val .* Conv;
+
+            % convert from millibar
+            switch lower(Out)
+                case 'bar'
+                    Conv = 1000;
+                case 'mbar'
+                    Conv = 1;
+                case 'mmhg'
+                    Conv = 1./1.33322;
+                case 'pa'
+                    Conv = 100;
+                case 'atm'
+                    Conv = 1./1013.25;
+                otherwise
+                    error('Unknown Pressure units');
+            end
+            Val = Val .* Conv;
+
+        end
         
         
         function Out=minusPi2Pi(In,Units)
@@ -960,23 +1012,47 @@ classdef convert
             % Reliable: 2
             %--------------------------------------------------------------------------
 
-            Def.Flux0 = 1;
-            Def.B     = 1e-10;
-            if (nargin==1)
-               Flux0 = Def.Flux0;
-               B     = Def.B;
-            elseif (nargin==2)
-               B     = Def.B;
-            elseif (nargin==3)
-               % do nothing
-            else
-               error('Illegal number of input arguments');
+            arguments
+                Flux
+                Flux0 = 1;
+                B     = 1e-10;
             end
 
-            Lup = -2.5./log(10).*(asinh((Flux/Flux0)./(2.*B))+log(B));
+            Lup = -2.5./log(10).*(asinh((Flux./Flux0)./(2.*B))+log(B));
 
         end % convert.luptitude function
-        
+
+        % flux to magnitude (NaN for non-positive flux)
+        function Mag=magnitude(Flux,Flux0)
+            % Convert flux to standard magnitude, NaN for non-positive flux.
+            % Package: @convert
+            % Description: Standard magnitude Mag = -2.5*log10(Flux/Flux0).
+            %              Unlike convert.luptitude (asinh magnitude, which is
+            %              finite for negative flux), this returns NaN wherever
+            %              the flux is non-positive or non-finite, so
+            %              non-detections are flagged rather than folded into a
+            %              soft asinh value. Signature matches convert.luptitude
+            %              so the two are drop-in interchangeable at call sites.
+            % Input  : - Flux.
+            %          - Reference flux (Flux0), default is 1. Note that this
+            %            parameter should equal 10.^(0.4.*ZP) - the SAME
+            %            convention as convert.luptitude.
+            % Output : - Magnitude; NaN where Flux <= 0 (or non-finite).
+            % Author : D. Kovaleva (Aug 2026)
+            % Example: Mag = convert.magnitude(100, 10.^(0.4.*25));
+            %--------------------------------------------------------------------------
+
+            arguments
+                Flux
+                Flux0 = 1;
+            end
+
+            Ratio = Flux ./ Flux0;
+            Mag   = -2.5 .* log10(Ratio);
+            Mag(~(Ratio > 0)) = NaN;   % non-positive/NaN flux -> NaN magnitude
+
+        end % convert.magnitude function
+
         function Mag=flux2mag(Flux,ZP,Luptitude,Soft)
             % Convert flux to magnitude or luptitude
             % Package: @convert
@@ -1369,7 +1445,7 @@ classdef convert
             %--------------------------------------------------------------------------
 
             switch lower(InType)
-                case {'j','jyear'}
+                case {'j','jy','jyear'}
                     % convert Julian years to JD
                     JD = (Input - 2000).*365.25 + 2451545.0;
                 case 'b'
@@ -1393,30 +1469,33 @@ classdef convert
                  error('Unknown InType option');
             end
 
-
-            switch lower(OutType)
-                case 'j'
-                    % convert JD to Julian years
-                    Output = 2000 + (JD-2451545.0)./365.25;
-                case 'b'
-                    % convert JD to Besselian years
-                    Output = 1900 + (JD-2415020.3135)./365.2421988;
-                case 'jd'
-                    Output = JD;
-                case 'mjd'
-                    Output = JD - 2400000.5;
-                case 'date'
-                    Output = convert.jd2date(JD);
-                case 'strdate'
-                    Output = convert.date2str(convert.jd2date(JD,'H'));
-                case 'strdateo'
-                    Output = convert.date2str(convert.jd2date(JD,'H'));
-                    Nout= numel(Output);
-                    for Iout=1:1:Nout
-                        Output{Iout} = Output{Iout}(1:10);
-                    end
-             otherwise
-                error('Unknown OutType option');
+            if isempty(JD)
+                Output = [];
+            else
+                switch lower(OutType)
+                    case {'j','jy','jyear'}
+                        % convert JD to Julian years
+                        Output = 2000 + (JD-2451545.0)./365.25;
+                    case 'b'
+                        % convert JD to Besselian years
+                        Output = 1900 + (JD-2415020.3135)./365.2421988;
+                    case 'jd'
+                        Output = JD;
+                    case 'mjd'
+                        Output = JD - 2400000.5;
+                    case 'date'
+                        Output = convert.jd2date(JD);
+                    case 'strdate'
+                        Output = convert.date2str(convert.jd2date(JD,'H'));
+                    case 'strdateo'
+                        Output = convert.date2str(convert.jd2date(JD,'H'));
+                        Nout= numel(Output);
+                        for Iout=1:1:Nout
+                            Output{Iout} = Output{Iout}(1:10);
+                        end
+                 otherwise
+                    error('Unknown OutType option');
+                end
             end
 
         end % convert.time function
@@ -1471,7 +1550,7 @@ classdef convert
                IsStr = true;
                
             end
-            if (ischar(Date) || iscell(Date))
+            if (ischar(Date) || iscell(Date) || isstring(Date))
                 Date=convert.str2date(Date);
                 IsStr = true;
                 

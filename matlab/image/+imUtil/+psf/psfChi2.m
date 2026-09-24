@@ -66,7 +66,7 @@ function [Chi2, WeightedFlux, Dof, ShiftedPSF] = psfChi2(Cube, Std, PSF, Args)
     if isempty(Args.VecXrel)
         % assume bith VecXrel and VecYrel are empty:
     
-        [Ny, Nx, Nim] = size(Cube);
+        [Ny, Nx, ~] = size(Cube);
         Xcenter = (Nx+1).*0.5;
         Ycenter = (Ny+1).*0.5;
         Dof     = Nx.*Ny - 3;

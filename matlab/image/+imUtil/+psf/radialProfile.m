@@ -1,5 +1,6 @@
 function Result = radialProfile(Image, CenterPos, Args)
     % Calculate the radial profile around a position 
+    %   see also: imUtil.psf.mex.radialProfile_mex
     % Input  : - A 2D image or a cube of images in which the image index is
     %            in the 3rd dimension.
     %          - A [Y, X] position around to calculate the radial profile.
@@ -10,6 +11,9 @@ function Result = radialProfile(Image, CenterPos, Args)
     %                   If empty, then set it to the smallest image dim.
     %                   Default is [].
     %            'Step' - Spep size for radial edges. Default is 1.
+    %            'Cut' - If true, and Radius is not [], then cut the image
+    %                   around the requested coordinates (will make the
+    %                   code faster). Default is true.
     % Output : - A structure array with element per image.
     %            The following fields are available:
     %            .R - radius
@@ -22,15 +26,18 @@ function Result = radialProfile(Image, CenterPos, Args)
     % Author : Eran Ofek (Jun 2022)
     % Example: R = imUtil.psf.radialProfile(rand(100,100));
     %          R = imUtil.psf.radialProfile(rand(100,100,3));
+    %          K=randn(6001,6001)+1000.*imUtil.kernel2.gauss(4,[6001 6001]);
+    %          R=imUtil.psf.radialProfile(K,[3001 3001],'Radius',500);
         
     arguments
         Image
         CenterPos          = [];
         Args.Radius        = [];  % if vector than Edges
         Args.Step          = 1;
+        Args.Cut logical   = true;
     end
-        
      
+         
     ImSize = size(Image);
     
     if isempty(CenterPos)
@@ -41,7 +48,7 @@ function Result = radialProfile(Image, CenterPos, Args)
         Args.Radius = min(ImSize(1:2));
     end
     
-    if numel(Args.Radius)==1
+    if isscalar(Args.Radius)
         % create vector of edges
         RadiusEdges = (0:Args.Step:Args.Radius);
     else
@@ -51,6 +58,13 @@ function Result = radialProfile(Image, CenterPos, Args)
     if RadiusEdges(1)~=0
         error('Radius edges must start with 0');
     end
+    
+    if Args.Cut && ~isempty(Args.Radius) && Args.Radius<(0.5.*max(ImSize))
+        Image=imUtil.cut.trim(Image, [CenterPos, Args.Radius, Args.Radius], 'center');
+        ImSize = size(Image);
+        CenterPos = [Args.Radius Args.Radius] + 1;
+    end
+    
     Radius2Edges = RadiusEdges.^2;
     R            = (RadiusEdges(2:end) + RadiusEdges(1:end-1)).*0.5;
    

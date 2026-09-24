@@ -65,6 +65,7 @@ classdef AstroWCS < Component
         LONPOLE      double = 180;          % Native Longitude of the Celestial Pole. Default for Zenithal projection
         LATPOLE      double = 0;            % Native Latitude of the Celestial Pole
         EQUINOX      double = 2000.0;       % EQUINOX
+        EPOCH        double                 % EPOCH (JD)
         CRPIX(1,:)   double = [0 0];        % Reference pixel
         CRVAL(1,:)   double = [1 1];        % World coordinate of reference pixel
         CD           double = [1 0;0 1];    % Linear projection matrix
@@ -97,7 +98,7 @@ classdef AstroWCS < Component
     properties  % quality of solution
         % why is this here? In principle this can be located in Tran2D.
         % However, Tran2D describes only part of the full transformaion.
-        Success(1,1) logical   = false;  % is astrometry solution reasnoable
+        Success logical        = false;  % is astrometry solution reasnoable
         ErrorOnMean            = NaN;    % assymptotic-rms/sqrt(Ngood)
         AssymRMS               = NaN;    % assymptotic-rms
         Ngood                  = NaN;    % number of good matches used for the solution
@@ -199,7 +200,7 @@ classdef AstroWCS < Component
         function Obj = populateSucess(Obj, Args)
             % Populate the sucess flag in the AstroWCS object
             %   The success flag indicate if the WCS solution and residuals
-            %   are reasnoble.
+            %   are reasonable.
             % Input  : - An AstroWCS object (single element)
             %          * ...,key,val,...
             %            'TestNbin' - Number of bins in each dim of the 2D hist
@@ -218,7 +219,7 @@ classdef AstroWCS < Component
             arguments
                 Obj(1,1)
                 Args.TestNbin                 = 2;
-                Args.RegionalMaxMedianRMS     = 1;     % arcsec OR pix?
+                Args.RegionalMaxMedianRMS     = 1.5;     % arcsec OR pix?
                 Args.RegionalMaxWithNoSrc     = 0;
                 Args.MaxErrorOnMean           = 0.05;  % arcsec OR pix?
                 Args.MinStarsForRegional      = 50;
@@ -733,7 +734,8 @@ classdef AstroWCS < Component
             % distorion for TPV
             if strcmpi(Obj.ProjType,'tpv') && includeDistortion
                 
-                R = sqrt(X.^2 + Y.^2);
+                %R = sqrt(X.^2 + Y.^2);
+                R = hypot(X, Y);  % faster
 
                 [X,Y]  = AstroWCS.forwardDistortion(Obj.PV,X,Y,'R',R);
 
@@ -787,7 +789,10 @@ classdef AstroWCS < Component
 
                     switch lower(Obj.ProjType)
                         case {'tan','tpv','tan-sip'}
-                            Rtheta = sqrt(X.^2 + Y.^2);        % deg
+                            %Rtheta = sqrt(X.^2 + Y.^2);        % deg
+                            % faster
+                            Rtheta = hypot(X, Y);        % deg
+
                             Theta  = atan(180./(pi.*Rtheta));  % rad
                             Phi    = atan2(X,-Y);              % rad
 
@@ -1237,7 +1242,16 @@ classdef AstroWCS < Component
                     if size(XY,1)>1
                         error('wrong XY dimensions');
                     else
-                        [PX,PY] = meshgrid(XY(1):Args.Sampling:XY(2),XY(3):Args.Sampling:XY(4));
+                        VecX = (XY(1):Args.Sampling:XY(2));
+                        if VecX(end)~=XY(2)
+                            VecX = [VecX, XY(2)];
+                        end
+                        VecY = (XY(3):Args.Sampling:XY(4));
+                        if VecY(end)~=XY(4)
+                            VecY = [VecY, XY(4)];
+                        end
+                        %[PX,PY] = meshgrid(XY(1):Args.Sampling:XY(2),XY(3):Args.Sampling:XY(4));
+                        [PX,PY] = meshgrid(VecX, VecY);
                     end
                 case 2                              % matrix of xy
                    PX = XY(:,1);
@@ -1355,6 +1369,9 @@ classdef AstroWCS < Component
             %            'read2axes' - Flag to read ONLY first 2 axis. Can
             %                          be used to ignore 3rd and up axis.
             %                          Default is false.
+            %            'KeyJD' - Header keyword containing MidJD that
+            %                   will populate the EPOCH property.
+            %                   Default is 'MIDJD'.
             % Output : - AstroWCS object.
             % Author : Yossi Shvartzvald (December 2021)
             % Example:
@@ -1363,6 +1380,7 @@ classdef AstroWCS < Component
             arguments
                 AH
                 Args.read2axes     =  false;
+                Args.KeyJD         = 'MIDJD';
             end
             
             Nobj   = numel(AH);
@@ -1373,8 +1391,9 @@ classdef AstroWCS < Component
                     warning('Can not generate WCS because header is empty');
                 else
                     % Read all single val parmeters
-                    KeyValStruct = AH(Iobj).getStructKey({'NAXIS','WCSAXES','LONPOLE','LATPOLE'});
-                    
+                    KeyValStruct = AH(Iobj).getStructKey({'NAXIS','WCSAXES','LONPOLE','LATPOLE', Args.KeyJD});
+                    Result(Iobj).EPOCH = KeyValStruct.(Args.KeyJD);  % populate the Epoch
+
                     % if WCSAXES is not available use NAXIS as default
                     Result(Iobj).NAXIS = KeyValStruct.NAXIS;
                     Result(Iobj).WCSAXES = KeyValStruct.WCSAXES;
@@ -1656,6 +1675,8 @@ classdef AstroWCS < Component
                     PV = AstroWCS.build_TANSIP_from_Header(Header);
                 case 'zpn'
                     error('Need to add ZPN - TODO');
+                 case 'ait'
+                    error('Need to add Hammer-Aitoff - TODO');
                 otherwise
                     error('Unsupported projection type (%s)',ProjType);
              end
@@ -2377,9 +2398,11 @@ classdef AstroWCS < Component
             %                            Default is 1.
             %            'plusXY_bool' - Add X,Y to the poliniomial. (e.g. in TAN-SIP)
             %                            Default is false.
+            %            'UseMex' - Use fast mex poly distortion
+            %                   evaluation. Default is true.
             % Output : - Distorted X coordinate vector
             %          - Distorted Y coordinate vector
-            % Author : Yossi Shvartzvald (December 2021)
+            % Author : Yossi Shvartzvald (December 2021) 
             % Example: [Xd,Yd]  = AstroWCS.forwardDistortion(PV,1,1);
 
             arguments
@@ -2388,6 +2411,7 @@ classdef AstroWCS < Component
                 Y
                 Args.R            = 1;
                 Args.plusXY_bool  = false;
+                Args.UseMex       = true;
             end
             
             if ~isempty(PV.PolyCoefX)
@@ -2430,12 +2454,48 @@ classdef AstroWCS < Component
                 end
             end
 
+            % Normalize CoefX/CoefY and the power vectors to class(X)/class(Y)
+            % unconditionally (previously only done in the UseMex=true
+            % branch), so both branches agree on the output class instead
+            % of the matlab branch relying on implicit type promotion -
+            % see issue #1207.
+            if ~strcmp(class(CoefX),class(X))
+                CoefX = cast(CoefX, 'like',X);
+                CoefY = cast(CoefY, 'like',Y);
+            end
+            if ~strcmp(class(X), class(X_Xpower))
+                X_Xpower = cast(X_Xpower, 'like',X);
+                X_Ypower = cast(X_Ypower, 'like',X);
+                X_Rpower = cast(X_Rpower, 'like',X);
+                Y_Xpower = cast(Y_Xpower, 'like',Y);
+                Y_Ypower = cast(Y_Ypower, 'like',Y);
+                Y_Rpower = cast(Y_Rpower, 'like',Y);
+            end
+            if ~strcmp(class(X), class(Args.R))
+                % Args.R (default scalar 1, double) was never cast even in
+                % the UseMex=true branch - the mex kernel requires X and R
+                % to share a class, so this broke outright for single X/Y
+                % before this fix, not just a latent asymmetry.
+                Args.R = cast(Args.R, 'like',X);
+            end
 
-            Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((Args.R(:).').^X_Rpower(:)),1);
-            Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((Args.R(:).').^Y_Rpower(:)),1);
+            if Args.UseMex
+                %if isscalar(X_Rpower)
+                %    X_Rpower = repmat(X_Rpower, size(X_Xpower));
+                %end
+                Xd = imUtil.trans.mex.polyRadialDistortion(X, Y, Args.R, CoefX, X_Xpower, X_Ypower, X_Rpower);
+                %if isscalar(Y_Rpower)
+                %    Y_Rpower = repmat(Y_Rpower, size(Y_Xpower));
+                %end
+                Yd = imUtil.trans.mex.polyRadialDistortion(X, Y, Args.R, CoefY, Y_Xpower, Y_Ypower, Y_Rpower);
 
-            Xd=reshape(Xd,size(X));
-            Yd=reshape(Yd,size(Y));
+            else
+                Xd = sum(CoefX(:) .* ((X(:).').^X_Xpower(:) ) .* ((Y(:).').^X_Ypower(:))  .* ((Args.R(:).').^X_Rpower(:)),1);
+                Yd = sum(CoefY(:) .* ((X(:).').^Y_Xpower(:) ) .* ((Y(:).').^Y_Ypower(:))  .* ((Args.R(:).').^Y_Rpower(:)),1);  
+                % reshape to the same shape of X and Y
+                Xd=reshape(Xd,size(X));
+                Yd=reshape(Yd,size(Y));
+            end
             
             if Args.plusXY_bool
                 Xd = Xd+X;
@@ -2546,7 +2606,8 @@ classdef AstroWCS < Component
                 if isempty(PV.PolyX_Rdeg) && isempty(PV.PolyY_Rdeg)
                     R = 1;
                 else
-                    R = sqrt(Xi.^2 + Yi.^2); % FFU - change to arbitrary function f(x,y)
+                    %R = sqrt(Xi.^2 + Yi.^2); % FFU - change to arbitrary function f(x,y)
+                    R = hypot(Xi, Yi); % faster and more accurate
                 end
                 
                 [Xi1,Yi1] = AstroWCS.forwardDistortion(PV,Xi,Yi,'R',R,'plusXY_bool',Args.plusXY_bool);
@@ -2602,7 +2663,56 @@ classdef AstroWCS < Component
     methods (Static) % Unit-Test
         Result = unitTest()
             % Unit-Test
+            
+        function WCS = buildSimpleWCS(RA0, Dec0, Args) 
+        % builds a simple WCS from the ref. pixel sky position, pixel size, axes lengths, and rotation angle
+        % Input  : - RA  [deg] of the ref. pont
+        %          - Dec [deg] of the ref. point 
+        %          * ...,key,val,... 
+        %          'PA' - [rad] position angle 
+        %          'PixScale' - [arcsec] pixel size
+        %          'Naxis1'   - number of pixels in X direction
+        %          'Naxis2'   - number of pixels in Y direction
+        %          'ProjType' - projection type (def. TPV)
+        %          'CTYPE'    - coo type (def. TPV)
+        % Output : - a simple WCS of the given size, position, and pixel scale
+        % Author : A.M. Krassilchtchikov (2026 Jan) 
+        % Example: WCS = AstroWCS.buildSimpleWCS(1.,1,'Naxis1',100,'Naxis2',100,'PixScale',3e-4);
+            arguments
+                RA0      
+                Dec0
+                Args.PA       = [];   % rad
+                Args.PixScale = 1.25; % arcsec
+                Args.Naxis1   = 1726; % pix 
+                Args.Naxis2   = 1726; % pix 
+                Args.ProjType = 'TPV'; 
+                Args.CTYPE    = {'RA---TPV', 'DEC--TPV'};
+            end
+            %
+            PixScaleDeg = Args.PixScale / 3600; % [deg] pixel scale
+            %
+            WCS = AstroWCS();
+            WCS.ProjType  = Args.ProjType;
+            WCS.ProjClass = 'ZENITHAL';
+            WCS.CooName   = {'RA'  'DEC'};
+            WCS.CTYPE     = Args.CTYPE;
+            WCS.CUNIT     = {'deg', 'deg'};
+            WCS.CD(1,1)   = PixScaleDeg;
+            WCS.CD(2,2)   = PixScaleDeg;
+            WCS.CRVAL(1)  = RA0;
+            WCS.CRVAL(2)  = Dec0;
+            WCS.CRPIX(1)  = Args.Naxis1/2;
+            WCS.CRPIX(2)  = Args.Naxis2/2;
+            WCS.AlphaP    = RA0;
+            WCS.DeltaP    = Dec0;
+            WCS.PhiP      = 180;        
+            % rotate the WCS if a PA is given:  
+            if ~isempty(Args.PA) 
+                RotMatrix = [cos(Args.PA), -sin(Args.PA);
+                             sin(Args.PA),  cos(Args.PA)];
+                WCS.CD = RotMatrix * WCS.CD;
+            end
+        end
                         
-    end
-    
+    end % static methods    
 end

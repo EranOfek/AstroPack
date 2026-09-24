@@ -55,7 +55,9 @@ function Result = match_catsHTMmerged(Obj, Args)
         Args.MergedCatRadiusCol           = 4;
         
     end
-   
+    RAD = 180./pi;
+    ARCSEC_DEG = 3600;
+
     if Args.CreateNewObj
         Result = Obj.copy;
     else
@@ -128,7 +130,8 @@ function Result = match_catsHTMmerged(Obj, Args)
                 % source within the search radius, then add the bit mask of the ref
                 % source to that of the Cat source.
                 % The addition is 
-                FlagNaN = ResInd.Obj2_Dist > CatH.Catalog(:,Args.MergedCatRadiusCol);
+                % Obj2_Dist is in radians - convert both to ARCSEC
+                FlagNaN = ResInd.Obj2_Dist.*RAD.*ARCSEC_DEG > CatH.Catalog(:,Args.MergedCatRadiusCol);
                 ResInd.Obj2_IndInObj1(FlagNaN) = NaN;
                 MergedCatFlag = zeros(numel(ResInd.Obj1_IndInObj2),1);
 

@@ -1,4 +1,4 @@
-function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd] = procMergeCoadd(AllSI, Args)
+function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd, OnlyMP] = procMergeCoadd(AllSI, Args)
     % Given a list of processed images, merged their catalogs, coadd
     % their images, and produce coadd catalogs.
     %   This is a basic generic pipeline conducting the following steps:
@@ -27,7 +27,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     arguments
         AllSI
         Args.mergeCatalogsArgs cell           = {};
-        Args.MergedMatchMergedCat logical     = true;
+        Args.MergedMatchMergedCat logical     = true; % false;  % issue 454
         Args.CoaddMatchMergedCat logical      = true;
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
         Args.backgroundArgs cell              = {};
@@ -40,19 +40,21 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                                                  'SN','BACK_IM','VAR_IM',...  
                                                  'BACK_ANNULUS', 'STD_ANNULUS', ...
                                                  'FLUX_APER', 'FLUXERR_APER',...
-                                                 'MAG_APER', 'MAGERR_APER',...
-                                                 'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
+                                                 'MAG_APER', 'MAGERR_APER'};
+                                                 %'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
         Args.Threshold                        = 5;
         Args.astrometryRefineArgs cell        = {};
+        Args.MinFracIsolated                  = 0.5;   % minimum fraction of isolated reference sources - see imProc.cat.getAstrometricCatalog
         Args.Scale                            = 1.25;
         Args.Tran                             = Tran2D('poly3');
         Args.CatName                          = 'GAIAEDR3';
-        Args.photometricZPArgs cell           = {};                                                              
+        Args.AstrometricCat                   = [];   % per sub image AstroCatalog already retrieved for the epoch images
+        Args.photometricZPArgs cell           = {};
         Args.ReturnRegisteredAllSI logical    = true; % false;  % if true it means that AllSI will be modified and contain the registered images
         Args.interp2affineArgs cell           = {};
         Args.interp2wcsArgs cell              = {};
 
-        Args.CoaddLessFrac                    = 0.6; % if number of imagesx in pix is below this frac, than open the CoaddLessImages bit - empty - ignore
+        Args.CoaddLessFrac                    = 0.6; % if number of images in pix is below this frac, than open the CoaddLessImages bit - empty - ignore
         Args.BitName_CoaddLess                = 'CoaddLessImages';
         
         %Args.RemoveHighBackImages logical     = true;   % remove images which background differ from median back by 'HighBackNsigma' sigma
@@ -60,7 +62,8 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         
         Args.ColX                             = 'X1';   % used for shift estimate
         Args.ColY                             = 'Y1';
-        Args.StackMethod                      = 'sigmaclip';        
+        Args.StackMethod                      = 'sigmaclip';      
+        Args.StackArgs                        = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
         Args.Asteroids_PM_MatchRadius         = 3;
 
         Args.DeleteBackBeforeCoadd logical    = false;
@@ -69,10 +72,20 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
         Args.AddGlobalMotion logical          = true;
         Args.UseShift logical                 = true;
         Args.UseInterp2 logical               = true;
-        Args.constructPSFArgs cell            = {};
+        Args.constructPSFArgs cell            = {}; % can be, e.g. {'CropByQuantile',true,'Quantile',0.999};
         Args.psfFitPhotArgs cell              = {};
         
         Args.Col2copy cell                    = {'Nobs'};  % cell array of columns to copy from MergedCat to Coadd
+
+        Args.SelectKnownAsteroid logical      = false;
+        Args.GeoPos                           = [];
+        Args.OrbEl                            = [];
+        Args.INPOP                            = [];
+        Args.AsteroidSearchRadius             = 10;
+    
+        Args.HostName                         = [];
+
+        Args.prepAstCrop                      = false; %true;   % execute imProc.asteroids.searchAsteroids_pmCat that generate AstCrop (Asteroids crops)
     end
     SEC_DAY = 86400;
     
@@ -88,6 +101,11 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     
     % continue only for fields for which all visits astrometry is good
     FlagGoodAstrometry = all(imProc.astrometry.isSuccessWCS(AllSI));
+    % look for catalogs which have different number od columns
+    [~,Ncol]=AllSI.sizeCatalog;
+    FlagGoodAstrometry = FlagGoodAstrometry & all(mean(Ncol)==Ncol);
+    
+    
     if ~all(FlagGoodAstrometry)
         warning('Some sub images have bad astrometry');
     end
@@ -97,12 +115,16 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                                                                                                             'MergedMatchMergedCat',Args.MergedMatchMergedCat);
     
     % search for asteroids - proper motion channel
-    [MergedCat, ResultAsteroids.AstCrop] = imProc.asteroids.searchAsteroids_pmCat(MergedCat,...
+    % Used to be: ResultAsteroids.AstCrop
+    if Args.prepAstCrop
+        [MergedCat, ResultAsteroids] = imProc.asteroids.searchAsteroids_pmCat(MergedCat,...
                                                                                   'BitDict',AllSI(1).MaskData.Dict,...
                                                                                   'JD',JD,...
                                                                                   'PM_Radius',Args.Asteroids_PM_MatchRadius,...
                                                                                   'Images',AllSI);
-    
+    else
+        ResultAsteroids = [];
+    end
     % search for asteroids - orphan channel
     % imProc.asteroids.searchAsteroids_orphans
     
@@ -142,7 +164,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
     for Ifields=1:1:Nfields
         
-        io.msgLog(LogLevel.Info, 'procMergeCoadd: coadding field %d',Ifields);
+        io.msgLog(LogLevel.Info, '%s: procMergeCoadd: coadding field %d',Args.HostName,Ifields);
         
         if FlagGoodAstrometry(Ifields)
             ResultCoadd(Ifields).ShiftX = median(diff(MatchedS(Ifields).Data.(Args.ColX),1,1), 2, 'omitnan');
@@ -212,9 +234,18 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
             [Coadd(Ifields), ResultCoadd(Ifields).CoaddN] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
                                                                                                  'Cube',PreAllocCube,...
                                                                                                  'StackMethod',Args.StackMethod,...
-                                                                                                 'StackArgs',{'MeanFun',@tools.math.stat.nanmean, 'Nsigma',[2 2]});
-
-
+                                                                                                 'StackArgs',Args.StackArgs);
+                                                                                                
+            % In some cases the first image of the stack is rejected, so
+            % the 'DATEOBS'/'FILENAME' in the resulting Coadd may not be
+            % the same in all the subimages (they get copied wholesale
+            % from ImObj(1) = the first surviving epoch for this specific
+            % crop, inside imProc.stack.coadd). Row 1 of AllSI is the same
+            % raw exposure for every crop/column, so we correct both here
+            % taking the values from the first Proc image:
+            Coadd(Ifields).HeaderData.setVal('DATEOBS',AllSI(1,1).HeaderData.getVal('DATEOBS'));
+            Coadd(Ifields).HeaderData.setVal('FILENAME',AllSI(1,1).HeaderData.getVal('FILENAME'));
+                                                                                             
             % Background
             Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...
                                                                           'SubSizeXY',Args.BackSubSizeXY);
@@ -232,14 +263,21 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
             
             % Source finding
             Coadd(Ifields) = imProc.sources.findMeasureSources(Coadd(Ifields), Args.findMeasureSourcesArgs{:},...
+                                                       'MomentsMethod','legacy',...
                                                        'RemoveBadSources',true,...
                                                        'ZP',Args.ZP,...
                                                        'ColCell',Args.ColCell,...
                                                        'Threshold',Args.Threshold,...
                                                        'CreateNewObj',false);
+            % Add JD and CropID to Catalog
+%             Coadd(Ifields) = imProc.cat.insertCol(Coadd(Ifields), 'InsertJD',true, 'ColNameJD','JD', 'InsertId',true, 'ColNameId','CropID');
+%           insert ID with imProc.cat.insertCol can do wrong if some of the
+%           subimages are missing in the Coadd matrix: in this case the
+%           subimage numbers after the missed crop will be shifted 
+            Coadd(Ifields) = imProc.cat.insertCol(Coadd(Ifields), 'InsertJD',true, 'ColNameJD','JD');
 
             % Estimate PSF
-           [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), 'Method', 'new', Args.constructPSFArgs{:}, 'DataType',@single);
+            [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), 'Method', 'new', 'WingsMethod', 'empirical', Args.constructPSFArgs{:}, 'DataType',@single);
 
             % PSF photometry
             [Coadd(Ifields), ResPSF] = imProc.sources.psfFitPhot(Coadd(Ifields), 'CreateNewObj',false, 'ZP',Args.ZP, Args.psfFitPhotArgs{:});                  
@@ -248,15 +286,27 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
             % Note that if available, will use the "X" & "Y" positions produced
             % by the PSF photometry
             MeanJD = mean(JD);
+            % Use the astrometric catalog already retrieved for the epoch
+            % images of this sub image. Re-querying by name would use the
+            % astrometryRefine default magnitude range, which in crowded
+            % fields leaves almost no reference stars after the neighbour
+            % rejection of getAstrometricCatalog.
+            if isa(Args.AstrometricCat, 'AstroCatalog') && Ifields<=numel(Args.AstrometricCat) && ~isempty(Args.AstrometricCat(Ifields).Catalog)
+                InCatName = Args.AstrometricCat(Ifields);
+            else
+                InCatName = Args.CatName;
+            end
+
             [ResultCoadd(Ifields).AstrometricFit, Coadd(Ifields), AstrometricCat] = imProc.astrometry.astrometryRefine(Coadd(Ifields), Args.astrometryRefineArgs{:},...
                                                                                                     'WCS',AllSI(1,Ifields).WCS,...
                                                                                                     'EpochOut',MeanJD,...
                                                                                                     'Scale',Args.Scale,...
-                                                                                                    'CatName',Args.CatName,...
+                                                                                                    'CatName',InCatName,...
+                                                                                                    'MinFracIsolated',Args.MinFracIsolated,...
                                                                                                     'Tran',Args.Tran,...
                                                                                                     'CreateNewObj',false);
 
-            % add PSF FWHM to header - after astrometry, beacuse WCS is needed
+            % add PSF FWHM to header - after astrometry, because WCS is needed
             imProc.psf.fwhm(Coadd(Ifields));
            
             % photometric calibration
@@ -264,10 +314,14 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
             %CatColNameMag            = 'MAG_APER_3';
             %CatColNameMagErr   = 'MAGERR_APER_3';
 
+            % Let photometricZP retrieve its own catalog rather than reusing
+            % the astrometric one: the two want different magnitude ranges,
+            % and the adaptive faint limit of getAstrometricCatalog now makes
+            % the deeper photometric range safe in crowded fields as well.
             [Coadd(Ifields), ResultCoadd(Ifields).ZP, ResultCoadd(Ifields).PhotCat] = imProc.calib.photometricZP(Coadd(Ifields),...
                                                                                                         'CreateNewObj',false,...
                                                                                                         'MagZP',Args.ZP,...
-                                                                                                        'CatName',AstrometricCat,...
+                                                                                                        'MinFracIsolated',Args.MinFracIsolated,...
                                                                                                         Args.photometricZPArgs{:});
 
             % Add GlobalMotion information to header
@@ -277,11 +331,11 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
                 Par                   = polyfit(RelTimeDay, ShiftXY(:,1),1);
                 GlobalMotion.ResidX   = ShiftXY(:,1) - polyval(Par, RelTimeDay);
                 GlobalMotion.StdX     = std(GlobalMotion.ResidX);
-                GlobalMotion.RateX    = Par(1)./SEC_DAY;
+                GlobalMotion.RateX    = Par(1)./SEC_DAY;       % pix/sec
                 Par                   = polyfit(RelTimeDay, ShiftXY(:,2),1);
                 GlobalMotion.ResidY   = ShiftXY(:,2) - polyval(Par, RelTimeDay);
                 GlobalMotion.StdY     = std(GlobalMotion.ResidY);
-                GlobalMotion.RateY    = Par(1)./SEC_DAY;
+                GlobalMotion.RateY    = Par(1)./SEC_DAY;  % pix/sec
 
                 Coadd(Ifields).HeaderData.insertKey({'GM_RATEX',GlobalMotion.RateX,''});
                 Coadd(Ifields).HeaderData.insertKey({'GM_STDX',GlobalMotion.StdX,''});
@@ -313,6 +367,14 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd]
     % match Coadd catalog against MergedCat
     [Coadd] = imProc.match.insertColFromMatched_matchIndices(Coadd, MergedCat, [], 'CreateNewObj',false, 'Col2copy', Args.Col2copy);
     
-        
+    % adding known minor planets
+    % FFU
+    if Args.SelectKnownAsteroid
+        [OnlyMP,~,Coadd] = imProc.match.match2solarSystem(Coadd, 'JD',[], 'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'SearchRadius',Args.AsteroidSearchRadius, 'INPOP',Args.INPOP);
+    else
+        OnlyMP = [];
+    end
+
+
 end
 

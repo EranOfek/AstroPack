@@ -93,7 +93,7 @@ switch Method
         Range   = abs(randn(N,1).*InList(:,Col_Err));
         Azimuth = rand(N,1).*2.*pi;
         [LatOut,LongOut] = reckon(InList(:,ColLat), InList(:,ColLong), Range, Azimuth,'radians');
-
+        LongOut(LongOut<0) = LongOut(LongOut<0) + 2*pi;
         RandCoo = [LongOut, LatOut];
      case 1
         % Fisher errors

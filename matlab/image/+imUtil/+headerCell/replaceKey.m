@@ -11,6 +11,8 @@ function Cell=replaceKey(Cell,Key,Val,Args)
 %            'RepVal'   - Replace value. Default is true.
 %            'Comment'  - A cell array of optional comments.
 %                   If empty, then do not replace comment. Default is [].
+%                   The comment is applied also to keys which are added
+%                   because they do not exist in the input cell array.
 %            'NewKey' - A cell array of new keys to replace the old keys.
 %                   If empty, then do not replace keys.
 %                   Default is {}.
@@ -49,7 +51,11 @@ function Cell=replaceKey(Cell,Key,Val,Args)
         if isnumeric(Val)
             Val = num2cell(Val);
         else
-            Val = {Val};
+            if isstring(Val)
+                Val = {Val{:}};
+            else
+                Val = {Val};
+            end
         end
     end
     
@@ -61,6 +67,18 @@ function Cell=replaceKey(Cell,Key,Val,Args)
 %     end
     
     Nkey = numel(Key);
+    
+    % An empty numeric Val denotes "no value". num2cell([]) above yields a
+    % zero-element cell, which would fail the per-key Val(Ikey) indexing
+    % below. Expand it to one NaN per key: NaN is written as a blank card by
+    % the mex FITS writers and reads back as NaN, which matches the value
+    % returned for a keyword that is absent altogether. An empty value ([])
+    % must NOT be used here - the mex writers turn it into a literal 0.
+    % Note this only triggers for a numeric empty; a '' value arrives as the
+    % one-element cell {''} and is left untouched.
+    if Args.RepVal && isempty(Val)
+        Val = repmat({NaN}, 1, Nkey);
+    end
     
     %[~,~,~,IK] = imUtil.headerCell.getByKey(Cell,Key,'SearchAlgo',Args.SearchAlgo,'CaseSens',Args.CaseSens,'ReturnN',Inf);
     [IK] = imUtil.headerCell.getIndKey(Cell,Key,'SearchAlgo',Args.SearchAlgo,'CaseSens',Args.CaseSens,'ReturnN',Inf);
@@ -78,8 +96,14 @@ function Cell=replaceKey(Cell,Key,Val,Args)
         end
         if Args.RepVal
             if Args.AddKey && isempty(IK{Ikey})
-                % add key/val if doesn't exist
-                Cell = imUtil.headerCell.insertKey(Cell, [Key(Ikey), Val(Ikey)], Args.AddPos);
+                % add key/val if doesn't exist, including the comment: it
+                % can not be assigned after the insertion, because IK holds
+                % the indices found before the key was added
+                NewLine = [Key(Ikey), Val(Ikey)];
+                if iscell(Args.Comment) && size(Cell,2)>=Args.ColComment
+                    NewLine = [NewLine, Args.Comment(Ikey)];
+                end
+                Cell = imUtil.headerCell.insertKey(Cell, NewLine, Args.AddPos);
             else
                 [Cell(IK{Ikey},Args.ColVal)] = deal(Val(Ikey));
             end

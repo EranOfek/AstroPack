@@ -54,6 +54,10 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
     %                   to pass to imUtil.sources.psfPhotCube.
     %                   Default is {}.
     %            'ZP' - ZP for magnitude calculations. Default is 25.
+    %            'FindSrc' - A logical indicating if to search for sources if
+    %                   catalog is empty. Default is false.
+    %            'Method' - Default is 'old' (Better).
+    %            'UseMex' - Default is false.
     % Output : - The input AstroImage object, where the following column
     %            names were optionally added to the AStroCatalog:
     %            {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'MAGERR_PSF', 'PSF_CHI2DOF','SN'}
@@ -72,6 +76,11 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
     
     arguments
         Obj AstroImage
+        Args.PsfPhotMethod           = 'legacy';  % 'legacy'|'1D'|'2D'|'2DGN'
+        Args.ShiftMethod             = 'fft'; % 1 lanczos3, 2-fft
+
+        Args.Gain                    = 1;
+
         Args.XY                      = [];  % empty - find sources, or read from catalog
         Args.PSF                     = [];  % PSF, or function_handle
         Args.PSFArgs cell            = {};
@@ -82,6 +91,10 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
         Args.ColBack                 = 'BACK_IM';
         Args.ColVar                  = 'VAR_IM';  % prefered over ColStd
         Args.ColStd                  = [];
+        
+        Args.BackStdFromAnnulus      = false;
+        Args.BackAnnulus             = [10 12];
+
         Args.FitRadius               = 3;
         Args.HalfSize                = 8;
         Args.backgroundCubeArgs cell = {};
@@ -91,8 +104,16 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
         Args.Circle logical          = false;
         Args.psfPhotCubeArgs cell    = {};
         Args.ZP                      = 25;
+        % Flux->magnitude conversion for the MAG_PSF column:
+        % 'lup' - convert.luptitude | 'mag' - convert.magnitude (NaN for Flux<=0)
+        Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup';
 
-        Args.ColSN                   = 'SN_3';  % if empty don't use
+        Args.ColSN                   = 'SN_2';  % if empty don't use
+        
+        Args.MaxIter                 = 8;
+        
+        Args.FindSrc logical         = false;
+        Args.UseMex                  = false;
     end
     
     ResultObj = Obj;
@@ -113,7 +134,8 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
             % try to read PSF from AstroPSF
             PSF = ResultObj(Iobj).PSFData.getPSF;
             if isempty(PSF)
-                error('No PSF found in AstroImage');
+                % revert to some default PSF
+                PSF = Args.PSF;
             end
         else
             PSF = Args.PSF;
@@ -127,14 +149,14 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
             if isempty(Args.ColSN)
                 SN = [];
             else
-                SN = getCol(Obj(Iobj).CatData, Args.ColSN);
+                SN = getColMulti(Obj(Iobj).CatData, Args.ColSN);
             end
     
             if isempty(Args.XY)
                 % get X/Y ccordinates from catalog
                 
                 XY = getXY(Obj(Iobj).CatData, 'ColX',Args.ColX, 'ColY', Args.ColY);
-                if isempty(XY)
+                if isempty(XY) && Args.FindSrc
                     % find sources
                     [Src] = imUtil.sources.findSources(Obj(Iobj).Image,...
                                                             'BackIm',Obj(Iobj).Back,...
@@ -146,64 +168,137 @@ function [ResultObj, Result] = psfFitPhot(Obj, Args)
                     Std  = sqrt(Src.VAR_IM);
                 else
                     % get also the Back and STD
-                    Back = getCol(Obj(Iobj).CatData, Args.ColBack);
+                    Back = getColMulti(Obj(Iobj).CatData, Args.ColBack);
                     if isempty(Args.ColVar)
                         if isempty(Args.ColStd)
                             error('Either ColStd or ColVar must be provided');
                         end
-                        Std = getCol(Obj(Iobj).CatData, Args.ColStd);
+                        Std = getColMulti(Obj(Iobj).CatData, Args.ColStd);
                     else
-                        Std = sqrt(getCol(Obj(Iobj).CatData, Args.ColVar));
+                        Std = sqrt(getColMulti(Obj(Iobj).CatData, Args.ColVar));
                     end
                 end 
             else
                 % XY provided by user
                 XY = Args.XY;
                 % get Back/Var at these positions
-                Ind  = imUtil.image.sub2ind_fast(size(Obj(Iobj).Image), XY(:,1), XY(:,2));
+                Ind  = imUtil.image.sub2ind_fast(size(Obj(Iobj).Image),XY(:,2), XY(:,1));
+                %Ind  = imUtil.image.mex.sub2ind_mex(size(Obj(Iobj).Image), XY(:,2), XY(:,1));
                 Back = Obj(Iobj).Back(Ind);
                 Var  = Obj(Iobj).Var(Ind);
                 Std  = sqrt(Var);
             end
+
             
             % subtract Background
-            ImageSubBack = Obj(Iobj).Image - Obj(Iobj).Back;
+            ImageSubBack = Obj(Iobj).Image - Obj(Iobj).Back;  %Not clear why this line is needed?
             
             % get Cube of stamps around sources
-            [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(ImageSubBack, XY(:,1), XY(:,2), Args.HalfSize, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
+            if ~isempty(XY)
+               
+                [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(ImageSubBack, XY(:,1), XY(:,2), Args.HalfSize, 'mexCutout',Args.mexCutout, 'Circle',Args.Circle);
+                
+                % PSF fitting
+                
+                % Cube is Background subtracted
+                % switch lower(Args.Method)  
+                %     case 'old'
+                Xinit = (Args.HalfSize+1+XY(:,1)-RoundX)';
+                Yinit = (Args.HalfSize+1+XY(:,2)-RoundY)';
+                   
+
+                if Args.BackStdFromAnnulus
+                    % Calculate back and std from annulus around star
+                    [Cube, Back, Std, Npix] =  imUtil.sources.mex.annulus_median(Cube, Args.BackAnnulus, 0);
+                    % Cube is now back subtracted
+                end
             
-            % PSF fitting
+
+                [Result, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
+                                                                'Gain',Args.Gain,...
+                                                                'Std',Std,...
+                                                                'Back',0,...
+                                                                'FitRadius',Args.FitRadius,...
+                                                                'ZP',Args.ZP,...
+                                                                'MagType',Args.MagType,...
+                                                                'SN',SN,...
+                                                                'backgroundCubeArgs',Args.backgroundCubeArgs,...
+                                                                'MaxIter',Args.MaxIter,...
+                                                                'Xinit', Xinit,...
+                                                                'Yinit', Yinit,...
+                                                                'UseMex',Args.UseMex,...
+                                                                'PsfPhotMethod',Args.PsfPhotMethod,...
+                                                                'ShiftMethod',Args.ShiftMethod,...
+                                                                 Args.psfPhotCubeArgs{:});
+    
+                    % case 'exp'
+                    %     % experimental branch
+                    %     Xinit = (Args.HalfSize+1+XY(:,1)-RoundX)';
+                    %     Yinit = (Args.HalfSize+1+XY(:,2)-RoundY)';
+                    % 
+                    %     [Result, CubePsfSub] = imUtil.sources.psfPhotCube_NEW(Cube, 'PSF',PSF,...
+                    %                                                     'Std',Std,...
+                    %                                                     'Back',0,...
+                    %                                                     'FitRadius',Args.FitRadius,...
+                    %                                                     'ZP',Args.ZP,...
+                    %                                                     'SN',SN,...
+                    %                                                     'backgroundCubeArgs',Args.backgroundCubeArgs,...
+                    %                                                     'MaxIter',Args.MaxIter,...
+                    %                                                     'Xinit', Xinit,...
+                    %                                                     'Yinit', Yinit,...
+                    %                                                     'UseMex',Args.UseMex,...
+                    %                                                      Args.psfPhotCubeArgs{:});
+                    % 
+                    % 
+                    % 
+                    % case 'new'    % appears unstable, so in fact we don't use it      
+                    %     % OBSOLETE
+                    %     Result                = imUtil.psf.psfPhot(Cube, 'PSF',PSF,...
+                    %                                             'Std',Std,...
+                    %                                             'Back',0,...
+                    %                                             'FitRadius',Args.FitRadius,...
+                    %                                             'ZP',Args.ZP,...
+                    %                                             'ConvThresh', 1e-4,... 
+                    %                                             'SN', SN,... % test (if SN is given, ConvThresh doesn't matter)
+                    %                                             'FitRadius', Args.HalfSize,... % 3, Args.HalfSize,... %test
+                    %                                             'RadiusRange', 0.5,... % test % 0.2, 0.5, 1.0
+                    %                                             'backgroundCubeArgs',Args.backgroundCubeArgs,...
+                    %                                             'MaxIter',Args.MaxIter,...
+                    %                                             Args.psfPhotCubeArgs{:}); 
+    
+                %     otherwise
+                %         error('Incorrect method in psfFitPhot');
+                % end
+                                                                    
+                
+                % source measured position is at:
+                % RoundX + Result.DX
+                Result.RoundX = RoundX;
+                Result.RoundY = RoundY;
+                Result.X = Result.RoundX + Result.DX;
+                Result.Y = Result.RoundY + Result.DY;
+                Result.MagErr = 1.086./abs(Result.SNm);     % mag err always positive
+                if strcmp(Args.MagType, 'mag')
+                    % Result.Mag is NaN for non-positive flux - the error
+                    % column must be NaN there as well.
+                    Result.MagErr(~(Result.Flux>0)) = NaN;
+                end
+                Res.Flux = Result.Flux; 
+                Res.ShiftedPSF = Result.ShiftedPSF;            
+                
+                % second iteration - need to round X/Y???
+                %Image = imUtil.cut.cutouts2image(Cube, Obj(Iobj).Image, X, Y)
             
-            % Cube is Background subtracted
-            [Result, CubePsfSub] = imUtil.sources.psfPhotCube(Cube, 'PSF',PSF,...
-                                                                    'Std',Std,...
-                                                                    'Back',0,...
-                                                                    'FitRadius',Args.FitRadius,...
-                                                                    'ZP',Args.ZP,...
-                                                                    'backgroundCubeArgs',Args.backgroundCubeArgs,...
-                                                                    Args.psfPhotCubeArgs{:});
-                 
             
-            % source measured position is at:
-            % RoundX + Result.DX
-            Result.RoundX = RoundX;
-            Result.RoundY = RoundY;
-            Result.X = Result.RoundX + Result.DX;
-            Result.Y = Result.RoundY + Result.DY;
-            Result.MagErr = 1.086./abs(Result.SNm);     % mag err always positive
-            
-            
-            % second iteration - need to round X/Y???
-            %Image = imUtil.cut.cutouts2image(Cube, Obj(Iobj).Image, X, Y)
-            
-            
-            % add sources to catalog
-            % calculate magnitude
-            if Args.UpdateCat
-                ResultObj(Iobj).CatData.insertCol(double([Result.X, Result.Y, Result.Flux, Result.Mag, Result.MagErr, Result.Chi2./Result.Dof,Result.SNm]),...
-                                        Inf,...
-                                        {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'MAGERR_PSF', 'PSF_CHI2DOF','SN'},...
-                                        {'pix',    'pix',    '',          'mag',     'mag',        '',''});
+                % add sources to catalog
+                % calculate magnitude
+                if Args.UpdateCat
+                    ResultObj(Iobj).CatData.insertCol(double([Result.X, Result.Y, Result.Flux, Result.Mag, Result.MagErr, Result.Chi2./Result.Dof,Result.SNm]),...
+                                            Inf,...
+                                            {'X',      'Y',      'FLUX_PSF',  'MAG_PSF', 'MAGERR_PSF', 'PSF_CHI2DOF','SN'},...
+                                            {'pix',    'pix',    '',          'mag',     'mag',        '',''});
+                end
+
             end
         else % empty PSF
             % PSF is empty - skip

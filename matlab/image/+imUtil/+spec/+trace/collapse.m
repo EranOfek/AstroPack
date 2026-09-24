@@ -13,6 +13,9 @@ function [Result,PeakDet]=collapse(Image, Args)
     %            'DimWave' - The dimension along to collapse the image
     %                   (e.g., wavelength dimension).
     %                   Default is 2.
+    %            'CCDSEC' - CCDSEC on which to apply the collapse.
+    %                   If empty, then use all.
+    %                   Default is [].
     %            'PreConv' - sigma-width of Gaussian to use to convolve the
     %                   image with prior to the collapse.
     %                   Alternatively, this can be a function handle that
@@ -36,7 +39,7 @@ function [Result,PeakDet]=collapse(Image, Args)
     %                   collapsed data. Default is 5 (sigmas).
     % Output : - Vector of collapse data.
     %          - A structure with the following fields:
-    %            .PeaksPos - Position (whole pixel) of found peaks.
+    %            .PeakPos - Position (whole pixel) of found peaks.
     %            .PeakSN - S/N of found peaks.
     %
     % AUthor : Eran Ofek (May 2023)
@@ -46,15 +49,20 @@ function [Result,PeakDet]=collapse(Image, Args)
     arguments
         Image
         Args.DimWave          = 2;  % i.e., collapse-dim
+        Args.CCDSEC           = [];
         Args.PreConv          = [];  % filter to convolve with prior to collapse
         Args.PreConvArgs cell = {};
         Args.PostFilter       = 2;  % sigma-width
         Args.Fun              = 'median';
         Args.Quant            = 0.95;
         Args.Threshold        = 5;
-        
+                
     end
     
+    if ~isempty(Args.CCDSEC)
+        Image = Image(Args.CCDSEC(3):Args.CCDSEC(4), Args.CCDSEC(1):Args.CCDSEC(2));
+    end
+
     if ~isempty(Args.PreConv)
         if isa(Args.PreConv, 'function_handle')
             Conv = Args.PreConv(Args.PreConvArgs{:});
@@ -81,7 +89,7 @@ function [Result,PeakDet]=collapse(Image, Args)
     end
            
     % post filter
-    Std = tools.math.stat.rstd(Result);
+    Std = tools.math.stat.rstd(Result(:));
     
     if ~isempty(Args.PostFilter)
         FiltSize = ceil(Args.PostFilter.*4);
@@ -102,8 +110,10 @@ function [Result,PeakDet]=collapse(Image, Args)
         Flag = logical((SN > Args.Threshold).*islocalmax(Result));
         %[find(Flag), SN(Flag)]
         
-        PeakDet.PeaksPos = find(Flag);
-        PrekDet.PeakSN   = SN(Flag);
+        
+        
+        PeakDet.PeakPos  = find(Flag);
+        PeakDet.PeakSN   = SN(Flag);
     end
         
     

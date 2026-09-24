@@ -33,7 +33,7 @@ function [Result,AISub] = psfFitPhotIter(AI,Args)
     %                   pass to imProc.sources.psfFitPhot.
     %                   Default is {}.
     %             'injectSourcesArgs' - A cell array of additional args to
-    %                   pass to imUtil.art.injectSources.
+    %                   pass to imUtil.art.injectSources_NS.
     %                   Default is {}.
     %             'backgroundArgs' - A cell array of additional args to
     %                   pass to imProc.background.background.
@@ -46,7 +46,7 @@ function [Result,AISub] = psfFitPhotIter(AI,Args)
     % Author  :  Noam Segev (Jun 2023)
     % Example :  
     %            PSF = imUtil.kernel2.gauss; Cat = [rand(10,2)*1000,rand(10,1)*1e5];
-    %            S = imUtil.art.injectSources(poissrnd(500,1000,1000),Cat,PSF);
+    %            S = imUtil.art.injectSources_NS(poissrnd(500,1000,1000),Cat,PSF);
     %            AI = AstroImage({S});AI.PSFData = AstroPSF(PSF);
     %            [Result,AISub] = imProc.sources.psfFitPhotIter(AI);
     
@@ -100,13 +100,13 @@ function [Result,AISub] = psfFitPhotIter(AI,Args)
             continue;
         end
         % psf photometry. The use of SN_1 isn't robust.
-        [AISub] = imProc.sources.psfFitPhot(AISub, 'PSF',PSF, 'ColSN',Args.ColSN, 'HalfSize',floor(numel(PSF(:,1))/2), Args.psfFitPhotArgs{:});
+        [AISub] = imProc.sources.psfFitPhot(AISub, 'PSF',AISub.PSF, 'ColSN',Args.ColSN, 'HalfSize',floor(numel(AISub.PSF(:,1))/2), Args.psfFitPhotArgs{:});
         if ~isempty(Args.ColNameIter) % Add iter number to the catalog.
             AISub.CatData.insertCol((Iiter).*ones(numel(AISub.CatData.Catalog(:,1)),2) ,Inf,{Args.ColNameIter},{''});
         end
         SrcCat = AISub.CatData.getCol({'X','Y','FLUX_PSF'});
         flagnan = ~any(isnan(SrcCat),2);
-        S = imUtil.art.injectSources([Imsz1,Imsz2] ,SrcCat(flagnan,:),AISub.PSF,Args.injectSourcesArgs{:});
+        S = imUtil.art.injectSources_NS([Imsz1,Imsz2] ,SrcCat(flagnan,:),AISub.PSF,Args.injectSourcesArgs{:});
         AISub = AISub- S;
         Cat(Iiter)= AISub.astroImage2AstroCatalog;
         AISub.CatData=AstroCatalog;

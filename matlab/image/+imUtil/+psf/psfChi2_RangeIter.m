@@ -1,6 +1,6 @@
 function [X1,Y1,MinChi2,Flux0,Dof,H, Result]=psfChi2_RangeIter(Cube, Std, PSF, Args)
     % Fit a PSF for multiple sources in several pertubed positions, and fit
-    %       a prabolic surface to find the local minima in the chi^2 surface.
+    %       a parabolic surface to find the local minima in the chi^2 surface.
     %       This function should be used iteratively to identify the best-fit
     %       PSF position.
     %   Given a PSF and stamps of stars:
@@ -19,10 +19,10 @@ function [X1,Y1,MinChi2,Flux0,Dof,H, Result]=psfChi2_RangeIter(Cube, Std, PSF, A
     % Input  : - A cube of stamps around sources, in which the stamps index
     %            is in the 3rd dimension.
     %          - A cube, matrix or scalar, of std (error) in stamps.
-    %          - A matrix of PSF which size is like the stamps size in the
+    %          - A matrix of PSF whose size is like the stamps' size in the
     %            first two dimensions.
     %          * ...,key,val,...
-    %            'DX' - A vector which length is like the number of stamps
+    %            'DX' - A vector whose length is like the number of stamps
     %                   containing the X shift to apply to the PSF prior to the
     %                   fit.
     %                   If empty, then do not shift PSF.
@@ -113,6 +113,14 @@ function [X1,Y1,MinChi2,Flux0,Dof,H, Result]=psfChi2_RangeIter(Cube, Std, PSF, A
         Args.GridPointsX     = cosd((0:60:359));
         Args.GridPointsY     = sind((0:60:359));
         Args.H               = [];
+        
+        Args.Regularize      = true; % apply regularization to MatChi2
+        Args.RegulLambda     = 1e-6;
+        Args.RegulTiny       = 1e-16;
+        
+        Args.Limit           = [];   % limit the shifts
+        
+        Args.ConvFlag        = [];   % conversion on individual stamps
     end
     
     
@@ -121,7 +129,7 @@ function [X1,Y1,MinChi2,Flux0,Dof,H, Result]=psfChi2_RangeIter(Cube, Std, PSF, A
     end
     
     if isempty(Args.VecXrel)
-        % assume bith VecXrel and VecYrel are empty:
+        % assume both VecXrel and VecYrel are empty:
     
         [Ny, Nx, Nim] = size(Cube);
         Xcenter = (Nx+1).*0.5;
@@ -131,8 +139,6 @@ function [X1,Y1,MinChi2,Flux0,Dof,H, Result]=psfChi2_RangeIter(Cube, Std, PSF, A
         Args.VecXrel = (1:1:Nx) - Xcenter;
         Args.VecYrel = (1:1:Ny) - Ycenter;
     end
-    
-    
     
     if numel(Args.DX)==1 && Args.DX==0
         DX = 0;
@@ -189,9 +195,20 @@ function [X1,Y1,MinChi2,Flux0,Dof,H, Result]=psfChi2_RangeIter(Cube, Std, PSF, A
     % fit chi^2 surface for all sources
     % Z = a + b*(X-X0)^2 + c*(Y-Y0)^2
     % Z = [a +b*x0^2 + c*y0^2] + X*[-2b x0] + Y*[-2c y0] +X^2 b + Y^2 c
-    Par = H\MatChi2;
+    
+    % fprintf('MatChi2 condition number: %d',cond(MatChi2)); 
+    
+    % The MatChi2 matrix tends to have high condition numbers, and that leads to
+    % instabilities, so it is better to use some regularization
+    % instead of the straightforward solution (Tikhonov regularization is applied here):  
+    if Args.Regularize                
+        Par = (H' * H + Args.RegulLambda * eye(size(H, 2))) \ (H' * MatChi2);
+        Par(Par==0) = Args.RegulTiny;
+    else
+        Par = H\MatChi2;
+    end
+    
     % Find the parameters 
-    %
     P_c   = Par(5,:);
     P_b   = Par(4,:);
     Ymin  = Par(3,:)./(-2.*P_c);
@@ -203,8 +220,14 @@ function [X1,Y1,MinChi2,Flux0,Dof,H, Result]=psfChi2_RangeIter(Cube, Std, PSF, A
     Xmin = Xmin.*min(Rmin, Args.MaxStep_RadiusRangeUnits);
     Ymin = Ymin.*min(Rmin, Args.MaxStep_RadiusRangeUnits);
     
-    X1    = DX(:) + Xmin(:).*Args.RadiusRange;
-    Y1    = DY(:) + Ymin(:).*Args.RadiusRange;
+    % additional limiter
+    if ~isempty(Args.Limit)
+        Xmin = sign(Xmin).*min(abs(Xmin),Args.Limit);
+        Ymin = sign(Xmin).*min(abs(Ymin),Args.Limit);
+    end
+    
+    X1    = DX(:) + Xmin(:).*Args.RadiusRange .* (1-Args.ConvFlag); % if Args.ConvFlag is true, do not change the position anymore
+    Y1    = DY(:) + Ymin(:).*Args.RadiusRange .* (1-Args.ConvFlag);
     
     Flux0 = squeeze(Flux0);
     

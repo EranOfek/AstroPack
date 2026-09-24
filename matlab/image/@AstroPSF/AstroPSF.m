@@ -49,16 +49,19 @@ classdef AstroPSF < Component
     properties (SetAccess = public)
         DataPSF           = [];    % parameters of a PSF-generating function or a data cube, where the first 2 dimensions are the PSF image stamp (X, Y)
         DataVar           = [];    % variance 
+        DataExtended      = [];
         Scale             = [1 1]; % pixel oversampling in X and Y (may be different) 
-        FunPSF            = [];    % PSF-generating function, e.g., Map = Fun(Data, X,Y, Color, Flux)
+        FunPSF            = {};    % a list of PSF-generating functions (additive components)
+        FunPars           = {};    % PSF functions parameters
         DimName cell      = {'Wave', 'PosX', 'PosY', 'PixPhaseX', 'PixPhaseY'}; % the standard set of dimensions, but may be changed 
-                            % NB: if the names here are changed, the dimension names a user provides to getPSF need to be changed accordingly 
+                            % NB: if the names here are changed, the dimension names and user provides to getPSF need to be changed accordingly 
         DimVals cell      = repmat({0}, 1, 5); % ADD x/y values with oversampling...  axes according to DimName
         InterpMethod      = {'nearest'}; % can be n-dimensional with different methods applied at different dimensions        
         StampSize         = [];     % PSF stamp size in X and Y (do we need it as a property?)
         FWHM              = [];     % can be defined for some "average" stamp
         FluxContainmentRadius = []; % can be defined for some "average" stamp  
         Nstars            = NaN;    % if Nstars=NaN, then PSF wasn't constructed yet 
+        SuppressRad       = NaN;
     end
     
     methods % Constructor
@@ -217,16 +220,25 @@ classdef AstroPSF < Component
             % the requested positions according to the Args.InterpMethod method(s)
             %
             % Input : - An AstroPSF object (or a matrix of objects) 
-            %         * ...,key,val,...
-            %         'FunPSF' - a PSF-generating function handle
-            %         'StampSize' - an option to pad the PSF stamp 
+            %         * ...,key,val,...            
+            %         'StampSize' - An option to pad the PSF stamp [I, J]. 
             %         'fftpshift' - if padding is requested, whether to perform fft shift: 
             %                       'none' (default),'fftshift','ifftshift'
             %         'PsfArgs'   - desired position of the stamp in the multi-D space of PSF.DataPSF:
             %                       a cell array of values (or value vectors) corresponding 
             %                       to each of the dimensions of PSF.DataPSF 
             %                       NB: the dynamic dimension names are stored in the DimName cell array
-            %         'FunArgs'   - optinal arguments to pass to FunPSF
+            %                       NB: for a dimension named 'Purpose' (used by
+            %                       imProc.psf.populatePSF's BuildDetectionPSF
+            %                       option to carry a photometry-wing PSF at
+            %                       value 1 and a detection-wing PSF at value
+            %                       2 in the same object), the unspecified-
+            %                       value default is the dimension's FIRST
+            %                       grid value rather than the usual midpoint
+            %                       average, since averaging would silently
+            %                       interpolate/blend the two unrelated PSFs.
+            %         'FunPSF'    - a PSF-generating function handle
+            %         'FunPars'   - optinal arguments to pass to FunPSF
             %         'InterpMethod' - interpolation method (may be a cell array with different methods for each dimension)
             %         'Oversampling' - resample the output stamp to this value (if not empty) 
             %         'ReNorm'       - whether to renormalize the output PSF stamp
@@ -238,11 +250,11 @@ classdef AstroPSF < Component
             arguments
                 %                 Obj(1,1)
                 Obj
-                Args.FunPSF         = [];
                 Args.StampSize      = [];     % if Args.StampSize > size(Result), pad the stamp with 0s
                 Args.fftshift       = 'none'; % perform fftshift when padding ('none','fftshift','ifftshift')
                 Args.PsfArgs        = {};    % Example: {'Wave', 2800, 'PosX', [2 3]'}
-                Args.FunArgs        = {};
+                Args.FunPSF         = [];
+                Args.FunPars        = {};
                 Args.InterpMethod   = [];
                 Args.Oversampling   = [];
                 Args.ReNorm logical = true;
@@ -283,7 +295,18 @@ classdef AstroPSF < Component
                             DName = Obj(IObj).DimName{Idim};
                             Ind = find( strcmpi( DName, Args.PsfArgs ), 1);
                             if isempty(Ind)
-                                DimVal{Idim} = ( Obj(IObj).DimVals{Idim}(1) + Obj(IObj).DimVals{Idim}( numel(Obj(IObj).DimVals{Idim}) ) ) / 2.;
+                                if strcmpi(DName, 'Purpose')
+                                    % Discrete/categorical dimension (e.g.
+                                    % photometry=1 vs. detection=2 wing
+                                    % treatment) -- averaging grid values
+                                    % would silently interpolate/blend two
+                                    % unrelated PSFs. Default to the first
+                                    % value (photometry) instead, matching
+                                    % pre-existing caller behavior.
+                                    DimVal{Idim} = Obj(IObj).DimVals{Idim}(1);
+                                else
+                                    DimVal{Idim} = ( Obj(IObj).DimVals{Idim}(1) + Obj(IObj).DimVals{Idim}( numel(Obj(IObj).DimVals{Idim}) ) ) / 2.;
+                                end
                             else
                                 DimVal{Idim} = Args.PsfArgs{Ind+1};
                             end
@@ -304,8 +327,8 @@ classdef AstroPSF < Component
                             Result = Int{Ndim+1};
                         end
                     end
-                else % pass the PSF cube to the FunPSF function
-                    Result = Args.FunPSF(Obj(IObj).DataPSF, Args.FunArgs{:});
+                else % generate a stamp with the FunPSF function
+                    Result = Args.FunPSF(Args.FunPars{:});
                 end                
                 % resample the output PSF stamp 
                 if ~isempty(Args.Oversampling)
@@ -392,8 +415,8 @@ classdef AstroPSF < Component
     
     methods % fitting
         
-        function [Result,FitRes] = fitFunPSF(Obj, Args)
-            % Fit a composite function to a PSF stamp and replace it.
+        function [Result,BestFit,FitRes] = fitFunPSF(Obj, Args)
+            % Fit a composite function to a PSF stamp and optionally replace it
             %   The fitted function is any combination of imUtil.kernel2 like
             %   functions. The function center is not fitted, and the free
             %   parameters are the normalization of each function, followed by the
@@ -440,11 +463,13 @@ classdef AstroPSF < Component
                 Args.Par0      = {[2 2 0]};
                 Args.Norm0     = [1];
                 Args.PosXY     = [];
-                Args.LB        = [];
-                Args.UB        = [];
-                Args.CreateNewObj logical = false;
+                Args.LB        = [0, 0.2, 0.2, -0.99];
+                Args.UB        = [Inf, 20, 20, 0.99];
+                Args.CreateNewObj = false;
+                Args.ReplaceStamp = false;
+                Args.LsqOptions = optimoptions('lsqcurvefit');                
             end
-       
+            %
             if Args.CreateNewObj
                 Result = Obj.copy;
             else
@@ -454,14 +479,19 @@ classdef AstroPSF < Component
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
                 P = Obj(Iobj).getPSF('PsfArgs',Args.PsfArgs);
-                [FitRes(Iobj), Result(Iobj).DataPSF] = imUtil.psf.fitFunPSF(P, 'Funs',Args.Funs,...
+                P = double(P); % this is a requirement of lsqcurvefit
+                [FitRes{Iobj}, BestFit{Iobj}] = imUtil.psf.fitFunPSF(P, 'Funs',Args.Funs,...
                                             'Par0',Args.Par0,...
                                             'Norm0',Args.Norm0,...
                                             'PosXY',Args.PosXY,...
                                             'LB',Args.LB,...
-                                            'UB',Args.UB);
-                % as the resulting stamp is 2D, additional dimensions do not exist any more:
-                Result(Iobj).DimVals = cellfun(@(x) [0], Result(Iobj).DimVals, 'UniformOutput', false);
+                                            'UB',Args.UB,...
+                                            'LsqOptions', Args.LsqOptions);
+                if Args.ReplaceStamp
+                    Result(Iobj).DataPSF = BestFit(Iobj);
+                 % as the resulting stamp is 2D, additional dimensions do not exist any more:
+                    Result(Iobj).DimVals = cellfun(@(x) [0], Result(Iobj).DimVals, 'UniformOutput', false);
+                end
             end
         end
         
@@ -471,6 +501,7 @@ classdef AstroPSF < Component
         
         function [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(Obj, Args)
             % Calculate curve of growth of a PSF including radii
+            %       This is obsolete: see also AstroPSF/radialProfile
             % Input  : - An AstroPSF object
             %          * ...,key,val,...
             %            'ReCenter' - A logical indicating if to find the
@@ -504,7 +535,7 @@ classdef AstroPSF < Component
             %          [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(AP);            
             arguments
                 Obj
-                Args.ReCenter(1,1) logical  = true;
+                Args.ReCenter               = true;
                 Args.CenterPSFxy            = [];
                 Args.Step                   = 1;
                 Args.Level                  = 0.5;
@@ -517,6 +548,7 @@ classdef AstroPSF < Component
                 % use 1st moment to find PSF center
                 M1 = moment2(Obj);
                 Args.CenterPSFxy = [M1.X, M1.Y];
+          
             end
             Nxy = size(Args.CenterPSFxy,1);
             
@@ -537,6 +569,12 @@ classdef AstroPSF < Component
                     EpsVec = (1:1:N)'.*Args.EpsStep;
                     RadHalfCumSum(Iobj) = interp1(Result(Iobj).CumSum + EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
                     RadHalfPeak(Iobj)   = interp1(Result(Iobj).Med./max(Result(Iobj).Med)-EpsVec, Result(Iobj).Radius, Args.Level, Args.InterpMethod);
+                    if isnan(RadHalfCumSum(Iobj))
+                        % PSF is likely to narrow and the fuisrt cumsum
+                        % point is above 0.5
+                        % set RadHalfCumSum to the value of RadHalfPeak
+                        RadHalfCumSum(Iobj) = RadHalfPeak(Iobj);
+                    end
                 end
             end
             
@@ -594,21 +632,41 @@ classdef AstroPSF < Component
             
             Cube     = images2cube(Obj,'PsfArgs',Args.PsfArgs);
             SizeCube = size(Cube);
-            X = (SizeCube(2)-1).*0.5;
-            Y = (SizeCube(1)-1).*0.5;
-            
-            [varargout{1:nargout}] = imUtil.image.moment2(Cube, X, Y, Args.moment2Args{:}, 'SubBack',false);
-            
+            X = (SizeCube(2)+1).*0.5;
+            Y = (SizeCube(1)+1).*0.5;
+
+            % imUtil.sources.moments subtracts the median of an annulus which it
+            % defaults to [10 12] pixels. That is sized for image cutouts and lies
+            % entirely outside a PSF stamp of less than 21x21, on which the mex then
+            % fails with "Annulus mask is empty". Keep the default whenever it does
+            % fit the stamp, so that nothing that works today changes, and fall back
+            % to the outermost ring of the stamp only when it does not.
+            HalfStamp = (min(SizeCube(1:2))-1)./2;
+            Annulus   = [10 12];
+            if hypot(HalfStamp, HalfStamp) < Annulus(1)
+                Annulus = [max(1, HalfStamp-2), HalfStamp];
+            end
+
+            %[varargout{1:nargout}] = imUtil.image.moment2(Cube, X, Y, Args.moment2Args{:}, 'SubBack',false);
+            % NB: Annulus is given before moment2Args, so that a caller supplied one wins
+            [varargout{1:nargout}] = imUtil.sources.moments(Cube, 'X',X, 'Y',Y, 'SN',100, ...
+                                            'Annulus',Annulus, Args.moment2Args{:}, 'Cut2D',false);
+
         end
         
-        function [FWHM_CumSum, FWHM_Flux] = fwhm(Obj, Args)
+        function [FWHE, FWHM] = fwhm(Obj, Args)
             % Calculate the FWHM of a PSF using the curve of growth
             %   (for alternative method use moment2).
             % Input  : - An AstroPSF object.
             %          * ...,key,val,...
             %            'PsfArgs' - a cell array of key,val arguments to pass to curve_of_growth. Default is {}. 
             %            'curveArgs' - a cell array of additional arguments to be passed to curve_of_growth
-            % Output : - The FWHM calculated from the half cumsum [pix]
+            %            'UseLegacy' - If true then Use old code (curve of
+            %                   growth), else use new mex.
+            %                   There are some differences between the two
+            %                   codes.
+            %                   Default is false.
+            % Output : - The FWHE calculated from the half cumsum [pix]
             %          - The FWHM calculated from the half peak flux [pix]
             %            radius.
             % Author : Eran Ofek (May 2021)
@@ -616,13 +674,51 @@ classdef AstroPSF < Component
             
             arguments
                 Obj
-                Args.PsfArgs cell     = {};    
-                Args.curveArgs cell   = {};
+                Args.PsfArgs          = {};    
+                Args.curveArgs        = {};
+                Args.UseLegacy        = true;
+
+                Args.ReCenter         = false;
             end
             
-            [~, FWHM_CumSum, FWHM_Flux] = curve_of_growth(Obj,'PsfArgs',Args.PsfArgs,Args.curveArgs{:});
-            FWHM_CumSum = 2.*FWHM_CumSum;
-            FWHM_Flux   = 2.*FWHM_Flux;
+            if ~isempty(Obj(1).Data)
+                [FWHM,FWHE]=imUtil.psf.fwhmOfStamp(Obj(1).Data, 'ReCenter',Args.ReCenter);
+            else
+                FWHM = NaN;
+                FWHE = NaN; 
+            end
+            % if Args.UseLegacy
+            %     [~, FWHM_CumSum, FWHM_Flux] = curve_of_growth(Obj,'PsfArgs',Args.PsfArgs,Args.curveArgs{:});
+            %     FWHM_CumSum = 2.*FWHM_CumSum;
+            %     FWHM_Flux   = 2.*FWHM_Flux;
+            % else
+            %     SizeStamp = size(Obj(1).Data);
+            %     X0        = (SizeStamp(2) + 1).*0.5;
+            %     Y0        = (SizeStamp(2) + 1).*0.5;
+            %     [Rad, Mean, Sum] = imUtil.psf.mex.radialProfile_mex(Obj(1).Data, X0, Y0, floor(X0), 1);
+            %     EpsVec = (1:1:numel(Mean)).'.*1e-4;
+            % 
+            %     CumSum  = cumsum(Sum(:));
+            %     CumSum  = CumSum./CumSum(end) + EpsVec;
+            %     Frac = 0.5;
+            %     if CumSum(1)>=Frac
+            %         FWHM_CumSum = 2.*Frac./CumSum(1);
+            %     else
+            %         %interp1(CumSum,Rad,0.5)
+            %         FWHM_CumSum = 2.*tools.interp.interp1crossVal(Rad, CumSum, Frac);
+            %     end
+            %     if nargout>1
+            %         %CumMean = Mean(:);
+            %         CumMean = Mean(:)./Mean(1) + EpsVec;
+            %         if CumMean(1)<=Frac
+            %             % interpolate below the 1st step
+            %             FWHM_Flux = 2.*Frac./CumMean(1);
+            %         else
+            %             FWHM_Flux = 2.*tools.interp.interp1crossVal(Rad, CumSum, Frac);
+            %         end
+            %     end
+            % 
+            % end
             
         end
         
@@ -637,6 +733,7 @@ classdef AstroPSF < Component
             %        'Step'   - Step size for radial edges. Default is 1
             %        'ReCenter' - a [Y, X] position around to calculate the radial profile.
             %                   If empty, use image center. Default is [].
+            %        'UseMex' - Use mex code. Default is false.
             % Output: - the radial profile: a vector of radii R and a vector of Sum
             % Author: A.M. Krassilchtchikov (Oct 2023)
             % Example: AP = AstroPSF; AP.DataPSF = imUtil.kernel2.gauss;
@@ -647,10 +744,28 @@ classdef AstroPSF < Component
                 Args.Radius   = [];
                 Args.Step     = 1;
                 Args.ReCenter = [];
+                Args.UseMex   = false;
             end           
             Stamp  = Obj.getPSF('PsfArgs',Args.PsfArgs); % get the stamp
-            Prof   = imUtil.psf.radialProfile(Stamp,Args.ReCenter,'Radius',Args.Radius,'Step',Args.Step);
-            Radius = Prof.R; Val = Prof.Sum; 
+            if Args.UseMex
+                SizeStamp = size(Stamp);
+                if isempty(Args.ReCenter)
+                    X0 = (SizeStamp(2) + 1).*0.5;
+                    Y0 = (SizeStamp(1) + 1).*0.5;
+                else
+                    X0 = Args.ReCenter(2);
+                    Y0 = Args.ReCenter(1);
+                end
+                if isempty(Args.Radius)
+                    Args.Radius = min(SizeStamp);
+                end
+                [Radius, Val]   = imUtil.psf.mex.radialProfile_mex(Stamp, X0, Y0, Args.Radius, Args.Step);
+                Val = Val.*Args.Step.*2.*pi.*Radius; % analog to sum
+            else
+                Prof   = imUtil.psf.radialProfile(Stamp,Args.ReCenter,'Radius',Args.Radius,'Step',Args.Step);
+
+                Radius = Prof.R; Val = Prof.Sum; 
+            end
         end
         
 %         function fitGaussians
@@ -770,18 +885,22 @@ classdef AstroPSF < Component
             %            'PsfArgs' - position in a multi-D PSF space to be passed to getPSF
             %            'StampHalfSize' - Output stamp half size in [X,Y].
             %                   Default is [7 7] (i.e., stamp will be 15 by 15).
-            %            'IsCorner' - A logical indicating if the PSF is in the
-            %                   image corner (true) or center (false) in the input
-            %                   full-size image.
-            %                   Default is true.
-            %            'Recenter' - Recenter the PSF using 1st moment estimation.
-            %                   Default is false (NOT AVAILABLE).
-            %            'zeroConv' - A logical indicating if to call the imUtil.psf.psf_zeroConverge
-            %                   in order to smooth the edges of the PSF.
-            %                   Default is true.
-            %            'zeroConvArgs' - A cell array of arguments to pass to
-            %                   imUtil.psf.psf_zeroConverge
-            %                   Default is {}.
+            %            NB: 'NewVer', 'IsCorner', 'Recenter', 'zeroConv' and
+            %                'zeroConvArgs' were removed in Sep 2026 together with the
+            %                branch that called imUtil.psf.obsolete.full2stamp; the
+            %                layout of the input is given by 'FullPosition' instead
+            %                ('corner' replaces IsCorner=true), see issue #1303.
+            %            'FullPosition' - Layout of the PSF in the full image, passed
+            %                   to imUtil.psf.full2stampPsf: 'center' (the index at
+            %                   which fftshift puts the DC element, floor(N/2)+1),
+            %                   'pixcenter' (ceil(N/2), the convention of
+            %                   imUtil.kernel2.*) or 'corner' (FFT order).
+            %                   The three coincide for an odd-sized input and differ
+            %                   by one pixel for an even-sized one, where a stamp
+            %                   built by imUtil.kernel2.* needs 'pixcenter'.
+            %                   Default is 'center'.
+            %            'SupressFunPars' - Taper width [pix] passed on to
+            %                   imUtil.psf.suppressEdges. Default is 2.
             %            'Norm' - Normalize the PSF stamp by this value.
             %                   If true, then will normalize the PSF by its sum
             %                   (such that integral will be 1).
@@ -796,12 +915,13 @@ classdef AstroPSF < Component
 
             arguments
                 Obj
+                Args.FullPosition         = 'center';   % or 'pixcenter' / 'corner', see below
+                Args.Supress              = true;
+                Args.SupressFunPars       = 2;
+                Args.suppressEdgesArgs    = {};
+
                 Args.PsfArgs              = {};
                 Args.StampHalfSize        = [7 7];   % [X, Y]
-                Args.IsCorner logical     = true;
-                Args.Recenter logical     = false;
-                Args.zeroConv logical     = true;
-                Args.zeroConvArgs cell    = {};
                 Args.Norm                 = true;
                 Args.CreateNewObj logical = false;
             end
@@ -814,15 +934,15 @@ classdef AstroPSF < Component
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                P = Obj.getPSF();
-                Result(Iobj).DataPSF = imUtil.psf.full2stamp(P, 'StampHalfSize',Args.StampHalfSize,...
-                                                                         'IsCorner',Args.IsCorner,...
-                                                                         'Recenter',Args.Recenter,...
-                                                                         'zeroConv',Args.zeroConv,...
-                                                                         'zeroConvArgs',Args.zeroConvArgs,...
-                                                                         'Norm',Args.Norm);
-            % as the resulting stamp is 2D, additional dimensions do not exist any more:
-            Result(Iobj).DimVals = cellfun(@(x) [0], Result(Iobj).DimVals, 'UniformOutput', false);
+                P = Obj(Iobj).getPSF();   % NB: without the index every element got the first PSF
+                Result(Iobj).DataPSF = imUtil.psf.full2stampPsf(P, Args.StampHalfSize.*2 + 1, ...
+                                                                'FullPosition',Args.FullPosition,...
+                                                                'Supress',Args.Supress,...
+                                                                'SupressFunPars',Args.SupressFunPars,...
+                                                                'suppressEdgesArgs',Args.suppressEdgesArgs,...
+                                                                'Norm',Args.Norm);
+                % as the resulting stamp is 2D, additional dimensions do not exist any more:
+                Result(Iobj).DimVals = cellfun(@(x) [0], Result(Iobj).DimVals, 'UniformOutput', false);
             end
         end
         
@@ -834,11 +954,16 @@ classdef AstroPSF < Component
             % Input  : - An AstroPSF object.
             %          * ...,key,val,...
             %            'Fun' - A 2-D function that will multiply the PSF.
-            %                   The function is of the form F(Pars, SizeXY)
+            %                   The function is of the form F(Pars, SizeXY).
+            %                   Its output is normalized to unit peak before
+            %                   use, so it acts as a [0,1] taper.
             %                   Default is @imUtil.kernel2.cosbell
-            %            'FunPars' - Vector of parameters that will be
-            %                   passed as the first argument to the Fun.
-            %                   Default is 5 7
+            %            'FunPars' - Parameters passed as the first argument
+            %                   to Fun. A scalar is the taper width in pixels
+            %                   from the stamp outer radius (see
+            %                   imUtil.psf.suppressEdgesPars); a two-element
+            %                   vector is used as is ([inner, outer] radii).
+            %                   Default is 2.
             %            'MultVar' - Multiply also the DataVar property.
             %                   Default is false.
             %            'Norm' - A logical indicating if to normalize the
@@ -854,7 +979,7 @@ classdef AstroPSF < Component
             arguments
                 Obj
                 Args.Fun                     = @imUtil.kernel2.cosbell;
-                Args.FunPars                 = [5 7];
+                Args.FunPars                 = 2;
                 Args.MultVar logical         = false;
                 Args.Norm logical            = true;
                 Args.CreateNewObj logical    = false;                
@@ -867,8 +992,12 @@ classdef AstroPSF < Component
             end
             
             Nobj = numel(Obj);
-            Size = size(Result(1).DataPSF);
-            Fun  = Args.Fun(Args.FunPars, [Size(2) Size(1)]);
+            Size    = size(Result(1).DataPSF);
+            SizeXY  = [Size(2) Size(1)];
+            FunPars = imUtil.psf.suppressEdgesPars(Args.FunPars, SizeXY);
+            % peak-normalize: a [0,1] taper, so the flux scale is preserved
+            Fun  = Args.Fun(FunPars, SizeXY);
+            Fun  = Fun./max(Fun, [], 'all');
             for Iobj=1:1:Nobj
                 Result(Iobj).DataPSF  = Result(Iobj).DataPSF .* Fun;
                 if Args.Norm

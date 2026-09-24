@@ -1,6 +1,6 @@
 function ListAllTiles=get_skytile_coo(Coo,HalfSize,N_RA,N_Dec,SubTile)
 % Search for coordinates in tiles
-% Description: Assuming some sky tileing (see tile_the_sky.m) and
+% Description: Assuming some sky tileing (see celestial.grid.tile_the_sky) and
 %              optional sub tileing for each tile, search for all the
 %              tiles which their centers found within some distance
 %              from a given celestial coordinates.
@@ -13,7 +13,7 @@ function ListAllTiles=get_skytile_coo(Coo,HalfSize,N_RA,N_Dec,SubTile)
 % Tested : Matlab 7.0
 %     By : Eran O. Ofek        Sep 2005
 %    URL : http://wise-obs.tau.ac.il/~eran/matlab.html
-% See also: tile_the_sky.m
+% See also: celestial.grid.tile_the_sky
 % Example: List=get_skytile_coo([1 1.4],0.2./RAD,360,180,[5 5]);
 %-----------------------------------------------------------------------
 

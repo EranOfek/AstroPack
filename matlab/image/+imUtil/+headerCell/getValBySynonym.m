@@ -8,8 +8,10 @@ function [Val, Key, Comment, Nfound] = getValBySynonym(CellHeader, KeySynonym, A
     %           'Occur'        - For each synonym return the ['first'] 
     %                   or 'last' match.
     %           'Fill' - Fill value for the keyword Val, in case that the
-    %                   key is not found. Default is NaN (comment will be
-    %                   '').
+    %                   key is not found, or is found with an undefined
+    %                   (blank) value. Default is NaN (comment will be
+    %                   '', except for an undefined value, for which the
+    %                   comment is returned).
     %           'Val2Num' - Attempt to convert the value to numeric.
     %                   Default is true.
     %           'ColKey' - Keywords column. Default is 1.
@@ -98,8 +100,17 @@ function [Val, Key, Comment, Nfound] = getValBySynonym(CellHeader, KeySynonym, A
         Val     = CellHeader{IndCell, Args.ColVal};
         Comment = CellHeader{IndCell, Args.ColComment};
         
+        % An undefined (blank) value - the FITS representation of a keyword that
+        % carries no value, e.g. a NaN written by the mex header writers (#1194) -
+        % reads back as an empty char (io.fits.mex.read_header) or an empty
+        % logical (FITS.readHeader1). Treat it as a missing value, so that a
+        % normally-numeric keyword stays numeric instead of poisoning any
+        % concatenation of values over several headers.
+        if isempty(Val)
+            Val = Args.Fill;
+
         % convert to number
-        if Args.Val2Num && ischar(Val)
+        elseif Args.Val2Num && ischar(Val)
             MatchedND = regexp(Val, '[^\d]', 'match');
             if isempty(MatchedND)
                 %ValNum  = str2double(Val);

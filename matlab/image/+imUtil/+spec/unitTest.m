@@ -15,30 +15,44 @@ function [Result] = unitTest()
     %       
     % * Find trace
     %       (Done) imUtil.spec.trace.moment1d
+    %       (Done) imUtil.spec.trace.fitTrace
     %
     % * Extract trace into a linearized trace
-    %       (Done) imUtil.trace.image2cutouts1d
-    %       (started) imUtil.spec.trace.trace - Return trace from 2D image
-    %
-    % * Arc/sky spectral libraries
-    %       (OLD) ImUtil.Spec.spec_get_arc
-    %       (TBD) imUtil.spec.wavecalib.getWaveCalibSpec
+    %       (Done) imUtil.spec.trace.image2cutouts1d
+    %       (Done) imUtil.spec.trace.linearizeTrace
+    %       (started) imUtil.spec.trace.traceByCollapse - Return trace from 2D image
     %
     % * Measure flux as a fun. of dispersion direction
     %       (Done) imUtil.spec.extract.fitBackground
-    %       (started) imUtil.spec.extract.fitPSF1d
+    %       (Done) imUtil.spec.extract.backStd
+    %       (Done) imUtil.spec.extract.measurePSF
+    %       (Done) imUtil.spec.extract.fitPSF1d
+    %       (Done) imUtil.spec.extract.aperPhot
     %
     % * Wavelength calibration
+    %       (Done) AstroSpec/getSkyArcsSpecLines
     %       (OLD) ImUtil.Spec.spec_wavecalib_xcorr
     %       (OLD) ImUtil.Spec.spec_wavecalib_lines
     %       (Done) imUtil.filter.xcorr1_fft_multi
-    %       (started/debug) imUtil.filter.xcorr1_scale_shift
+    %       (Done) imUtil.spec.lines.xcorrLineWidth
+    %       (Done) imUtil.filter.xcorr1_scale_shift
+    %       (Done) timeSeries.peaks.localMax
+    %       (Done) timeSeries.filter.filterStd
+    %       (Done) imUtil.spec.waveCalib.fitWaveCalib
+    %       (started) imUtil.spec.waveCalib.interactiveWaveCalib
+    %       (DONE) imUtil.spec.waveCalib.matchLines
+    %       (DONE) imUtil.spec.waveCalib.matchLines_Scale
+    %       (DONE) imUtil.spec.waveCalib.matchLines_Shift
     %
+    % * Lines
+    %       (Done) imUtil.spec.lines.filterLines_WhittakerIRLS
     %
     % * calibration/extinction
+    %       (Done) AstroSpec/getSpecPhotStandard
     % * Telluric correction
     % * stitching
     % * line width measurments (on lamp and sky)
+    %       (started) imUtil.spec.lines.xcorrLineWidth
     %
     
     %% imUtil.spec.trace.collapse
@@ -102,6 +116,24 @@ function [Result] = unitTest()
         error('imUtil.spec.extract.fitBackground - Not estimated back correctly');
     end
 
+    %% Match spectral lines
+    for I=1:100,
+        [sc(I), sh(I), Matched] = imUtil.spec.waveCalib.matchLines;
+    end
+    if abs(mean(sc)-3.27)>0.01 || abs(mean(sh)-1500)>2
+        error('imUtil.spec.waveCalib.matchLines - problem');
+    end
+    
+    %% imUtil.spec.waveCalib.fitWaveCalib
+    PixPos = [100  4000; 200 5000; 300 6000; 350 6500; 450 7500; 490 7900];
+    PixPos = PixPos +randn(size(PixPos)).*1;
+    R = imUtil.spec.waveCalib.fitWaveCalib(PixPos,[]);
+    % use the pix2wave function:
+    if any((R.pix2wave(PixPos(:,1), R) - PixPos(:,2))>10)
+        (R.pix2wave(PixPos(:,1), R) - PixPos(:,2))
+        error('Problem with imUtil.spec.waveCalib.fitWaveCalib');
+    end
+    
     
 
     Result = true;

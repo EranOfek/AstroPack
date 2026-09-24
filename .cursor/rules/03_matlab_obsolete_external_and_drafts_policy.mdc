@@ -1,0 +1,37 @@
+---
+description: How to treat obsolete, draft, backup, and external code in AstroPack
+globs: "**/obsolete/**,**/external/**,**/Drafts*/**,**/backup*/**"
+alwaysApply: false
+---
+
+# Obsolete, external, and drafts policy
+
+## Categories
+
+- **obsolete:** deprecated implementations; reference only
+- **Drafts-* / draft:** unfinished attempts; not standards
+- **backup-*:** historical snapshots; do not modify
+- **external/:** third-party code; own rules and licenses
+
+## Strict rules
+
+- Do not copy patterns from obsolete or draft code
+- Do not extend obsolete classes or add code into obsolete folders
+- Do not refactor external code unless explicitly instructed
+
+## Allowed
+
+- Read obsolete code to understand history
+- Compare old and new approaches conceptually
+
+## Disallowed
+
+- Reviving obsolete APIs silently
+- Mixing new code into legacy folders
+- Treating draft code as production-ready
+
+## Output expectations
+
+- Treat obsolete/external as read-only
+- Do not infer architectural rules from it
+- Ask before touching it

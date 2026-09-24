@@ -29,7 +29,8 @@ function [Lag,XC,Info]=xcorr1_fft_multi(S1, S2, Args)
     %                       column.
     %            .Shift   - Shift of first vector relative to the second vector.
     %            .Corr    - Correlation at shift.
-    %            .BestShift - Interpolated position of best shift.
+    %            .BestShift - Shift to add to second vector in order to
+    %                       match to the vector (BestCol) in the 1st matrix.
     %            .BestCorr  - Correlation at best shift.
     %            .Best2dr   - 2nd derivative at best shift.
     % See also: xcorr_fft.m

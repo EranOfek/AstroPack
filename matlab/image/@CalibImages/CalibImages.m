@@ -965,11 +965,11 @@ classdef CalibImages < Component
                 Result = Image;
             end
             
-            [Nobj, ~] = Obj.checkObjImageSize(Image);
+            [Nobj, Nim] = Obj.checkObjImageSize(Image);
                         
-            for Iim=1:1:Nobj
+            for Iim=1:1:Nim
                 Iobj = min(Iim, Nobj);
-                % Note taht CreateNewObj was already done (if needed)
+                % Note that CreateNewObj was already done (if needed)
                 if isemptyImage(Obj(Iobj).Bias)
                     error('Bias image is empty');
                 end                
@@ -1048,9 +1048,9 @@ classdef CalibImages < Component
                 Result = Image;
             end
            
-            [Nobj, ~] = Obj.checkObjImageSize(Image);
+            [Nobj, Nim] = Obj.checkObjImageSize(Image);
                         
-            for Iim=1:1:Nobj
+            for Iim=1:1:Nim
                 % FFU: Iobj = min(Iim, Nobj);
                 % Note taht CreateNewObj was already done (if needed)
                 Result(Iim) = imProc.dark.overscan(Result(Iim), 'CreateNewObj',false,...
@@ -1095,7 +1095,7 @@ classdef CalibImages < Component
             
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
                        
-            for Iim=1:1:Nobj
+            for Iim=1:1:Nim
                 Iobj = min(Iim, Nobj);
                 % Note taht CreateNewObj was already done (if needed)
                 if isemptyImage(Obj(Iobj).Flat)
@@ -1209,7 +1209,7 @@ classdef CalibImages < Component
             %           any size.
             %         * ...,key,val,...
             %           'CreateNewObj' - false, true. Default is false.
-            %           'BitDictinaryName' - Bit dictionary name.
+            %           'BitDict' - Bit dictionary name.
             %                   Default is 'BitMask.Image.Default'.
             %           'SingleFilter' - A logical indicating if the
             %                   provided images were taken using a single filter.
@@ -1281,7 +1281,7 @@ classdef CalibImages < Component
             %                   Default is true.
             %           'BitNameBadPix' - A cell array of bad pixels over
             %                   which to interpolate.
-            %                   Default is {'Saturated','NaN'}.
+            %                   Default is {}.
             %           'BitName_Interpolated' - Bit name for interpolated
             %                   pixels. Default is 'Interpolated'.
             %           'interpOverNanArgs' - A cell array of additional
@@ -1297,7 +1297,7 @@ classdef CalibImages < Component
                 Args.CreateNewObj logical           = false;   % refers to the Image and not the Obj!!!
                 
                 % bit dictionary
-                Args.BitDictinaryName               = 'BitMask.Image.Default';
+                Args.BitDict                        = 'BitMask.Image.Default'; % or BitDictionary object.
                 
                 Args.SingleFilter logical           = false;
                 Args.MaskSaturated logical          = true;
@@ -1317,11 +1317,11 @@ classdef CalibImages < Component
                 Args.MultiplyByGain logical         = true;
                 Args.BitNameNaN                     = 'NaN';
                 Args.BitNameNegative                = 'Negative';
-                Args.SetNegativeTo0 logical         = true;
-                Args.InterpolateOverBadPix logical  = true;
-                Args.BitNameBadPix                  = {'Saturated','NaN', 'Negative'};
+                Args.SetNegativeTo0                 = true;
+                Args.InterpolateOverBadPix          = false;
+                Args.BitNameBadPix                  = {}; %{'Saturated','NaN', 'Negative'};
                 Args.BitNameInterpolated            = 'Interpolated';
-                Args.interpOverNanArgs cell         = {};
+                Args.interpOverNanArgs              = {};
                 
             end
             
@@ -1332,20 +1332,25 @@ classdef CalibImages < Component
                 Result = Image;
             end
                 
+            if isa(Args.BitDict, 'BitDictionary')
+                BD = Args.BitDict;
+            else
+                BD = BitDictionary(Args.BitDict);
+            end
+
             [Nobj, Nim] = Obj.checkObjImageSize(Image);
                   
             % populate calibration images in a different function
                   
             Result.createMask;
             
-            for Iim=1:1:Nobj
-                % FFU: Iobj = min(Iim, Nobj);
-                
-                % mark satuarted pixels
-                if Args.MaskSaturated
+            % mark satuarted pixels
+            if Args.MaskSaturated
+               for Iim=1:1:Nim
+                    % FFU: Iobj = min(Iim, Nobj);
                     Result(Iim) = imProc.mask.maskSaturated(Result(Iim), Args.maskSaturatedArgs{:},...
                                                                      'CreateNewObj',false,...
-                                                                     'DefBitDict', BitDictionary(Args.BitDictinaryName) );
+                                                                     'DefBitDict', BD);
                 end
             end
                         

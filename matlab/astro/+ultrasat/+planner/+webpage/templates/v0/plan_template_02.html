@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULTRASAT Observation Plan {{plan_id}}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .image-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .image-container img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .matlab-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .matlab-table th, .matlab-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .matlab-table th {
+            background-color: #f5f5f5;
+        }
+        .matlab-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .debug-info {
+            font-family: monospace;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ULTRASAT Observation Plan {{plan_id}}</h1>
+        
+        <!-- Plan Parameters Section -->
+        <div class="section">
+            <h2>Plan Parameters</h2>
+            <div class="image-container">
+                <img src="{{img_plan_params}}" alt="Plan Parameters">
+            </div>
+            <div class="table-container">
+                {{table_parameters}}
+            </div>
+        </div>
+
+        <!-- Targets Section -->
+        <div class="section">
+            <h2>Observation Targets</h2>
+            <div class="image-container">
+                <img src="{{img_unique_targets}}" alt="Unique Targets">
+            </div>
+            <div class="table-container">
+                {{table_targets}}
+            </div>
+        </div>
+
+        <!-- Plan Visualization -->
+        <div class="section">
+            <h2>Plan Visualization</h2>
+            <div class="image-container">
+                <img src="{{img_plan}}" alt="Plan Visualization">
+            </div>
+        </div>
+
+        <!-- Approved Targets -->
+        <div class="section">
+            <h2>Approved Targets</h2>
+            <div class="image-container">
+                <img src="{{img_approved_targets}}" alt="Approved Targets">
+            </div>
+            <div class="table-container">
+                {{table_approved_targets}}
+            </div>
+        </div>
+
+        <!-- Sky Map -->
+        <div class="section">
+            <h2>Sky Map</h2>
+            <div class="image-container">
+                <img src="{{img_skymap}}" alt="Sky Map">
+            </div>
+        </div>
+
+        <!-- Additional Graphs -->
+        <div class="section">
+            <h2>Additional Graphs</h2>
+            <div class="image-container">
+                <img src="{{img_graphs}}" alt="Additional Graphs">
+            </div>
+        </div>
+
+        <!-- Debug Information -->
+        <div class="section debug-info">
+            <h2>Debug Information</h2>
+            <p>Generated on: {{generation_time}}</p>
+            <p>Plan ID: {{plan_id}}</p>
+        </div>
+    </div>
+</body>
+</html> 

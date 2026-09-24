@@ -25,7 +25,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %                   array) to query around the requested coordinates,
     %                   or an AstroCatalog object containing such a
     %                   catalaog.
-    %                   Default is 'GAIAEDR3'.
+    %                   Default is 'GAIADR3'.
     %            'CatOrigin' - Catalog origin (relevant if CatName is a
     %                   char array).
     %                   Default is 'catsHTM'.
@@ -48,6 +48,24 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %                   Default is {'Plx'}.
     %            'RefRangePlx' - Parllax range to retrieve.
     %                   Default is [-Inf 50].
+    %            'MinFracIsolated' - Minimum fraction of the reference
+    %                   sources that must survive the neighboors rejection.
+    %                   If the fraction is smaller, then the faint limit of
+    %                   'RefRangeMag' is brightened until it is satisfied.
+    %                   In crowded fields a deep reference catalog is left
+    %                   with almost no isolated sources, so this is what
+    %                   makes the astrometry work there.
+    %                   Set to [] to disable.
+    %                   The step in which the faint limit is brightened, and
+    %                   the brightest limit which may be selected, are
+    %                   'AdaptMagStep' (0.5 mag) and 'AdaptMaxDeltaMag' (5 mag) of
+    %                   imProc.cat.getAstrometricCatalog; together they also
+    %                   bound the number of trials. The faint limit is only
+    %                   ever brightened, so a supplied magnitude range -
+    %                   e.g., one already corrected for the exposure time -
+    %                   is never deepened or replaced.
+    %                   See imProc.cat.getAstrometricCatalog.
+    %                   Default is 0.5.
     %            'EpochOut' - Output epoch. Default units is 'JD' (see
     %                   imProc.cat.applyProperMotion for more options).
     %                   If empty, will not apply proper motion and
@@ -118,6 +136,16 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %                   RA column name. Default is AstroCatalog.DefNamesRA.
     %            'RefColNamesDec' - A cell array dictionary of reference astrometric catalog
     %                   Dec column name. Default is AstroCatalog.DefNamesDec.
+    %
+    %            'UpdateHeaderCoo' - A logical indicating if to update the
+    %                   RA/Dec keywords in the header with the image center
+    %                   coordinates. Header keywords are specified in
+    %                   'KeyRA','KeyDec'.
+    %                   Default is true.
+    %            'KeyRA' - RA header keyword to update. Default is 'RA'.
+    %            'KeyDec' - Dec header keyword to update. Default is 'DEC'.
+    %            'FilterCat' - Filter stars in catalog according to stellar
+    %                   density. Default is true.
     % Output : - A structure array of results.
     %            Element per input catalog.
     %            Available fields are:
@@ -130,7 +158,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %                       transformation (after projection).
     %               'Res' - A structure array (per solution) with the best
     %                       fit transformation information, including rms and
-    %                       number of matches.
+    %                       number of matches. RMS errors are measured in [deg]
     %               'ErrorOnMean' - A vector of assymptoticRMS/sqrt(Ngood)
     %                       for each solution.
     %               'BestInd' - Index of solution with minimal ErrorOnMean.
@@ -161,6 +189,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.RefRangeMag                  = [12 19]; %.5];
         Args.RefColNamePlx                = {'Plx'};
         Args.RefRangePlx                  = [-Inf 50];
+        Args.MinFracIsolated              = 0.5;   % adapt RefRangeMag to the crowding of the field
         
         Args.EpochOut                     = [];
         Args.argsGetAstrometricCat cell   = {};
@@ -221,6 +250,16 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         Args.RefColNamesRA                = AstroCatalog.DefNamesRA;
         Args.RefColNamesDec               = AstroCatalog.DefNamesDec;
         
+        Args.UpdateHeaderCoo logical      = true;
+        Args.KeyRA                        = 'RA';
+        Args.KeyDec                       = 'DEC';
+
+        Args.FilterCat logical            = true;
+
+        Args.MatchMethod                  = 'old'; % 'old'|'mex'
+
+        Args.AddColor logical             = false; % optionally attach Gaia colour (BP-RP) to the source catalog (issue #1289)
+        Args.AddColorArgs cell            = {};    % extra args forwarded to imProc.cat.addColor
     end
     RAD         = 180./pi;
     ARCSEC_DEG  = 3600;
@@ -230,27 +269,76 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     
     % ### IF YOU CHANGE SOMETHING IN THIS BLOCK - MAKE THE SAME IN astrometryCore
     %
-    
-    if isa(Obj, 'AstroImage')
-        % can read RA/Dec from Header if AstroImage
-        [Args.RA, Args.Dec] = getCoo(Obj(1).HeaderData, 'RA',Args.RA, 'Dec',Args.Dec, 'Units',Args.CooUnits, 'OutUnits',Args.CooUnits);
-    else
-        [Args.RA, Args.Dec] = celestial.coo.parseCooInput(1, 1, 'InUnits',Args.CooUnits, 'OutUnits',Args.CooUnits);
-    end
-        
-    
-    % make sure Tran is a new copy, otherwise may overwrite other Tran
-    Args.Tran = Args.Tran.copy;
-    
-    % get EpochOut
-    if isempty(Args.EpochOut)
-        if isa(Obj, 'AstroImage')
-            Args.EpochOut = julday(Obj);
-            if any(isnan(Args.EpochOut))
-                Args.EpochOut = [];
+    Args=imProc.astrometry.prepArgsForAstrometry(Obj, Args);
+
+    % For AstroCatalog input, determine whether RA/Dec contain valid
+    % coordinate values. The AstroImage defaults may be header-key
+    % placeholders, so they must not be interpreted as sky coordinates.
+    if isa(Obj, 'AstroCatalog')
+        UseCatalogCenter = isempty(Args.RA) || isempty(Args.Dec);
+
+        if ~UseCatalogCenter
+            try
+                [TestRA, TestDec] = celestial.coo.parseCooInput( ...
+                    Args.RA, Args.Dec, ...
+                    'InUnits', Args.CooUnits, ...
+                    'OutUnits', Args.CooUnits);
+
+                UseCatalogCenter = ...
+                    ~isscalar(TestRA) || ...
+                    ~isscalar(TestDec) || ...
+                    ~isfinite(double(TestRA)) || ...
+                    ~isfinite(double(TestDec));
+            catch
+                % Non-coordinate strings, such as header-key placeholders,
+                % are invalid for AstroCatalog input.
+                UseCatalogCenter = true;
+            end
+        end
+
+        if UseCatalogCenter
+            [SrcRA, SrcDec] = getLonLat(Obj(1), 'rad');
+            ValidCoo = isfinite(SrcRA) & isfinite(SrcDec);
+
+            if ~any(ValidCoo)
+                error('AstroCatalog contains no finite RA/Dec coordinates');
+            end
+
+            [Args.RA, Args.Dec, CatRadiusFromCatalog] = boundingCircle( ...
+                Obj(1), ...
+                'CooType', 'sphere', ...
+                'OutUnits', 'deg');
+
+            Args.CooUnits = 'deg';
+
+            % Preserve the caller-supplied/default CatRadius when nonempty.
+            if isempty(Args.CatRadius)
+                Args.CatRadius      = CatRadiusFromCatalog;
+                Args.CatRadiusUnits = 'deg';
             end
         end
     end
+
+    % if isa(Obj, 'AstroImage')
+    %     % can read RA/Dec from Header if AstroImage
+    %     [Args.RA, Args.Dec] = getCoo(Obj(1).HeaderData, 'RA',Args.RA, 'Dec',Args.Dec, 'Units',Args.CooUnits, 'OutUnits',Args.CooUnits);
+    % else
+    %     [Args.RA, Args.Dec] = celestial.coo.parseCooInput(1, 1, 'InUnits',Args.CooUnits, 'OutUnits',Args.CooUnits);
+    % end
+    % 
+    % 
+    % % make sure Tran is a new copy, otherwise may overwrite other Tran
+    % Args.Tran = Args.Tran.copy;
+    % 
+    % % get EpochOut
+    % if isempty(Args.EpochOut)
+    %     if isa(Obj, 'AstroImage')
+    %         Args.EpochOut = julday(Obj);
+    %         if any(isnan(Args.EpochOut))
+    %             Args.EpochOut = [];
+    %         end
+    %     end
+    % end
     
     % ### END OF COMMON BLOCK
 
@@ -276,7 +364,6 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     % RA and Dec output are in radians
     % If CatName is an AstroCatalog, then will retun as is, but RA and Dec
     % will be converted to OutUnits
-    
     [AstrometricCat, RA, Dec] = imProc.cat.getAstrometricCatalog(Args.RA, Args.Dec, 'CatName',Args.CatName,...
                                                                                     'CatOrigin',Args.CatOrigin,...
                                                                                     'Radius',Args.CatRadius,...
@@ -290,6 +377,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                                                                                     'RangeMag',Args.RefRangeMag,...
                                                                                     'ColNamePlx',Args.RefColNamePlx,...
                                                                                     'RangePlx',Args.RefRangePlx,...
+                                                                                    'MinFracIsolated',Args.MinFracIsolated,...
                                                                                     'OutRADecUnits','rad',...
                                                                                     Args.argsGetAstrometricCat{:});
           
@@ -315,16 +403,19 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     
     Nobj = numel(Obj);
     
-    % allocate Result
-    Result = struct('ImageCenterXY',cell(Nobj,1),...
-                    'Nsolutions',cell(Nobj,1),...
-                    'ResPattern',cell(Nobj,1),...
-                    'ErrorOnMean',cell(Nobj,1),...
-                    'BestInd',cell(Nobj,1),...
-                    'WCS',cell(Nobj,1),...
-                    'ParWCS',cell(Nobj,1),...
-                    'Tran',cell(Nobj,1),...
-                    'ResFit',cell(Nobj,1));
+    % allocate Result (same as astrometryRefine)
+    Result = imProc.astrometry.defResultFit([Nobj,1]);
+    % Result = struct('ImageCenterXY',cell(Nobj,1),...
+    %                 'Nsolutions',cell(Nobj,1),...
+    %                 'ResPattern',cell(Nobj,1),...
+    %                 'ErrorOnMean',cell(Nobj,1),...
+    %                 'BestInd',cell(Nobj,1),...
+    %                 'WCS',cell(Nobj,1),...
+    %                 'ParWCS',cell(Nobj,1),...
+    %                 'Tran',cell(Nobj,1),...
+    %                 'ResFit',cell(Nobj,1),...
+    %                 'Origin',cell(Nobj,1),...
+    %                 'Success',cell(Nobj,1));
                 
     for Iobj=1:1:Nobj
         % filter astrometric catalog
@@ -339,235 +430,316 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
             error('Unknown first input argument type - must be AstroImage or AstroCatalog');
         end
         
-        % FFU: get X/Y column indices once
-        
-        % can we add here CreateNewObj=false ? Answer: no - this is messing
-        % up the catalog in a bad way - not fully understood
-        % ProjAstCat is not used anymore 
-        
-        % ProjAstCat is not used anymore so no need to copy it
-        % make sure you are no overriding the previous catalog
-        FilteredCat = Cat.copy;  % shallow copy is enough      
-        
-%         SN = Cat.getCol('SN_3');
-%         FlagSN = SN>100;
-%         Cat.Catalog = Cat.Catalog(FlagSN,:);
-        
-        [FilteredCat, FilteredProjAstCat] = imProc.cat.filterForAstrometry(FilteredCat, ProjAstCat,...
-                                                                                    'ColCatX',Args.CatColNamesX,...
-                                                                                    'ColCatY',Args.CatColNamesY,...
-                                                                                    'ColCatMag',Args.CatColNamesMag,...
-                                                                                    'ColRefX',RefColNameX,...
-                                                                                    'ColRefY',RefColNameY,...
-                                                                                    'ColRefMag',Args.RefColNameMag,...
-                                                                                    'CreateNewObj',false,...
-                                                                                    Args.argsFilterForAstrometry{:});
+        if ~isempty(Cat.ColNames) && ~isempty(Cat.Catalog)
+            % If catalog is empty or doesn't exist than skip
 
-
-        % The Ref catalog is projected around some center that should coincide
-        % with the center of Cat.
-        % Therefore, we should shift Cat to its own center
-        if isempty(Args.ImageCenterXY)
-            % attempt to identify ImageCenterXY automatically
-            XY = getXY(Cat, 'ColX',Args.CatColNamesX, 'ColY',Args.CatColNamesY);
-            Result(Iobj).ImageCenterXY = max(XY).*0.5;
-        else
-            Result(Iobj).ImageCenterXY = Args.ImageCenterXY;
-        end
-        FilteredCat = imProc.trans.tranAffine(FilteredCat, -Result(Iobj).ImageCenterXY, true, 'CreateNewObj',false); %[-1024 -2048],true);
-  
-        % debuging
-        %figure(1); FilteredCat.plotSources; axis([-200 50 -400 100]);
-        %figure(2); FilteredProjAstCat.plotSources; axis([-200 50 -400 100])
-        % figure(1); [Dist1, Theta1, X, Y] = plot.distBetweenPoints
-        % figure(2); [Dist2, Theta2, X, Y] = plot.distBetweenPoints
-        
-        % Match pattern catalog to projected astrometric catalog
-        % FFU: CatColNamesX/Y are for both Cat and Ref!!
-        % NormScale - is the scale normalized to 1 (as the new ref was
-        % sacled)
-        [ResPattern] = imProc.trans.fitPattern(FilteredCat, FilteredProjAstCat, Args.argsFitPattern{:},...
-                                                                          'Scale',NormScale,...
-                                                                          'HistRotEdges',RotationEdges,...
-                                                                          'HistDistEdgesRot',Args.DistEdges,...
-                                                                          'HistDistEdgesRotScale',Args.HistDistEdgesRotScale,...
-                                                                          'RangeX',Args.RangeX,...
-                                                                          'RangeY',Args.RangeY,...
-                                                                          'StepX',Args.StepX,...
-                                                                          'StepY',Args.StepY,...
-                                                                          'Flip',Args.Flip,...
-                                                                          'SearchRadius',Args.SearchRadius,...
-                                                                          'FilterSigma',Args.FilterSigma,...
-                                                                          'ColNamesX',Args.CatColNamesX,...
-                                                                          'ColNamesY',Args.CatColNamesY);
-
-        % go over possible solutions:
-        Result(Iobj).Nsolutions = numel(ResPattern.Sol.SN);   % number of candidate solutions
-        Result(Iobj).ResPattern = ResPattern;
-
-        if Result(Iobj).Nsolutions==0
-            % no solution found
-            Result(Iobj).WCS.Success = false;
+            % FFU: get X/Y column indices once
             
-        else
-
-            % assume solutions are ordered by S/N
-            Nsol = min(Args.MaxSol2Check, Result(Iobj).Nsolutions);
-            for Isol=1:1:Nsol
-                % Apply affine transformation to Reference
-                % CreateNewObj=true, because FilteredProjAstCat is needed later on
-                TransformedProjAstCat = FilteredProjAstCat.copy;
-                % The TransformedProjAstCat is only used for matching
-                TransformedProjAstCat = imProc.trans.tranAffine(TransformedProjAstCat, ResPattern.Sol.AffineTran{Isol}, true,...
-                                                                'ColX',RefColNameX,...
-                                                                'ColY',RefColNameY,...
-                                                                'CreateNewObj',false);
-
-                MatchInd = imProc.match.matchReturnIndices(FilteredCat, TransformedProjAstCat,...
-                                                 'Radius',Args.SearchRadius.*mean(Args.Scale),...
-                                                 'CooType','pix',...
-                                                 'ColCatX',Args.CatColNamesX,...
-                                                 'ColCatY',Args.CatColNamesY,...
-                                                 'ColRefX',RefColNameX,...
-                                                 'ColRefY',RefColNameY);
-                                             
-                MatchedCat = FilteredCat.copy;
-                MatchedCat = selectRows(MatchedCat, MatchInd.Obj2_IndInObj1, 'CreateNewObj',false);
-                                             
-                % DEBUGING:
-                % FilteredCat.plot({'X','Y'},'o')          
-                % hold on
-                % TransformedProjAstCat.plot({'X','Y'},'.')
-                % MatchedCat.plot({'X','Y'},'o','MarkerSize',15)
-                % axis([-600 600 -600 600])
-
-                
-                % Count the number of matches
-                Flag = ~isnan(MatchedCat.Catalog(:,1));
-                Nmatches = sum(Flag);
-
-                % DEBUGING
-                % show table of [X, Y, RA, Dec] of matched sources    
-                % Note that XPEAK/YPEAK and X/Y are different because of the shift
-                % applied (shift coo to image center)
-                %XY = getCol(MatchedCat,{'XPEAK','YPEAK','X','Y'});   % X/Y in image
-                %XY = XY(Flag,:);
-                %RF = celestial.coo.convertdms(TransformedProjAstCat.Catalog(Flag,1),'r','SH');
-                %DF = celestial.coo.convertdms(TransformedProjAstCat.Catalog(Flag,2),'r','SD');
-                %T  = table(XY(:,1),XY(:,2), XY(:,3), XY(:,4), RF, DF)
-
-                % Fit transformation
-                [Xcat,~,IndCatX] = getColDic(MatchedCat, Args.CatColNamesX);
-                [Ycat,~,IndCatY] = getColDic(MatchedCat, Args.CatColNamesY);
-                Xref = getColDic(FilteredProjAstCat, RefColNameX);
-                Yref = getColDic(FilteredProjAstCat, RefColNameY);
-                Mag  = getColDic(FilteredProjAstCat, Args.RefColNameMag);
-                % fit the catalog to the reference and generate the Tran2D
-                % object and all the information required for the WCS
-                
-                %'Flip',ResPattern.Sol.Flip,...
-                [Tran, ParWCS, ResFit] = imProc.astrometry.fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
-                                                       'ImageCenterXY',Result(Iobj).ImageCenterXY,...
-                                                       'Scale',ResPattern.Sol.Scale(Isol).*Args.Scale,...
-                                                       'ProjType',Args.ProjType,...
-                                                       'TranMethod',Args.TranMethod,...
-                                                       'Tran',Args.Tran,...
-                                                       'ExtraData',[],...
-                                                       'ErrPos',Args.ErrPos,...
-                                                       'Niter',Args.Niter,...
-                                                       'FitMethod',Args.FitMethod,...
-                                                       'MaxResid',Args.MaxResid,...
-                                                       'MagRange',Args.MagRange,...
-                                                       'BinMethod',Args.BinMethod,...
-                                                       'PolyDeg',Args.PolyDeg,...
-                                                       'BinSize',Args.BinSize,...
-                                                       'FunMean',Args.FunMean,...
-                                                       'FunStd',Args.FunStd,...
-                                                       'InterpMethod',Args.InterpMethod,...
-                                                       'ThresholdSigma',Args.ThresholdSigma);
-        
-                Result(Iobj).ParWCS(Isol) = ParWCS;
-               
-
-                % DEBUG:
-                %plot(Xorig, ResFit.Resid.*3600,'.')
-                %plot(Yorig, ResFit.Resid.*3600,'.')
-                %  scatter(Xorig, Yorig, 10, ResFit.Resid.*3600,'filled')
-                %  colorbar
-
-                % store transformations
-                Result(Iobj).Tran(Isol)       = Tran;
-                Result(Iobj).ResFit(Isol)     = ResFit;
-
+            % can we add here CreateNewObj=false ? Answer: no - this is messing
+            % up the catalog in a bad way - not fully understood
+            % ProjAstCat is not used anymore 
+            
+            % ProjAstCat is not used anymore so no need to copy it
+            % make sure you are no overriding the previous catalog
+            FilteredCat = Cat.copy;  % shallow copy is enough      
+            
+    %         SN = Cat.getCol('SN_3');
+    %         FlagSN = SN>100;
+    %         Cat.Catalog = Cat.Catalog(FlagSN,:);
+            
+    
+            if Args.FilterCat
+                [FilteredCat, FilteredProjAstCat] = imProc.cat.filterForAstrometry(FilteredCat, ProjAstCat,...
+                                                                                        'ColCatX',Args.CatColNamesX,...
+                                                                                        'ColCatY',Args.CatColNamesY,...
+                                                                                        'ColCatMag',Args.CatColNamesMag,...
+                                                                                        'ColRefX',RefColNameX,...
+                                                                                        'ColRefY',RefColNameY,...
+                                                                                        'ColRefMag',Args.RefColNameMag,...
+                                                                                        'CreateNewObj',false,...
+                                                                                        Args.argsFilterForAstrometry{:});
+    
+            else
+                FilteredProjAstCat = ProjAstCat;
             end
+                                 
+            % The Ref catalog is projected around some center that should coincide
+            % with the center of Cat.
+            % Therefore, we should shift Cat to its own center
+            if isempty(Args.ImageCenterXY)
+                % attempt to identify ImageCenterXY automatically
+                XY = getXY(Cat, 'ColX',Args.CatColNamesX, 'ColY',Args.CatColNamesY);
+                Result(Iobj).ImageCenterXY = max(XY).*0.5;
+            else
+                Result(Iobj).ImageCenterXY = Args.ImageCenterXY;
+            end
+            FilteredCat = imProc.trans.tranAffine(FilteredCat, -Result(Iobj).ImageCenterXY, true, 'CreateNewObj',false); %[-1024 -2048],true);
+      
+            FilteredCat.sortrows('Y');
+            % debuging
+            %figure(1); FilteredCat.plotSources; axis([-200 50 -400 100]);
+            %figure(2); FilteredProjAstCat.plotSources; axis([-200 50 -400 100])
+            % figure(1); [Dist1, Theta1, X, Y] = plot.distBetweenPoints
+            % figure(2); [Dist2, Theta2, X, Y] = plot.distBetweenPoints
             
-            % classify the quality of solutions
-            %[Result(Iobj).Res.RMS]
-            Result(Iobj).ErrorOnMean = [Result(Iobj).ResFit.AssymRMS_mag]./sqrt([Result(Iobj).ResFit.Ngood]);
-            [~,Result(Iobj).BestInd] = min(Result(Iobj).ErrorOnMean);
-            Ibest = Result(Iobj).BestInd;
-            
-            % Generate AstroWCS for best solution
-            StructWCS = Result(Iobj).ParWCS(Ibest);
-            KeyValWCS = namedargs2cell(StructWCS);
-            Result(Iobj).WCS = AstroWCS.tran2wcs(Result(Iobj).Tran(Ibest), KeyValWCS{:});
-            
-            
-            Result(Iobj).WCS.ResFit   = Result(Iobj).ResFit(Ibest);
-            Result(Iobj).WCS          = populateSucess(Result(Iobj).WCS, 'TestNbin',Args.TestNbin,...
-                                                                         'RegionalMaxMedianRMS',Args.RegionalMaxMedianRMS,...
-                                                                         'RegionalMaxWithNoSrc',Args.RegionalMaxWithNoSrc,...
-                                                                         'MaxErrorOnMean',Args.MaxErrorOnMean);
-
-                        
-            
-                                                              
-            % add RA/Dec to the catalog and update Header
-            if nargout>1
+            % Match pattern catalog to projected astrometric catalog
+            % FFU: CatColNamesX/Y are for both Cat and Ref!!
+            % NormScale - is the scale normalized to 1 (as the new ref was
+            % sacled)
+            [ResPattern] = imProc.trans.fitPattern(FilteredCat, FilteredProjAstCat, Args.argsFitPattern{:},...
+                                                                              'Scale',NormScale,...
+                                                                              'HistRotEdges',RotationEdges,...
+                                                                              'HistDistEdgesRot',Args.DistEdges,...
+                                                                              'HistDistEdgesRotScale',Args.HistDistEdgesRotScale,...
+                                                                              'RangeX',Args.RangeX,...
+                                                                              'RangeY',Args.RangeY,...
+                                                                              'StepX',Args.StepX,...
+                                                                              'StepY',Args.StepY,...
+                                                                              'Flip',Args.Flip,...
+                                                                              'SearchRadius',Args.SearchRadius,...
+                                                                              'FilterSigma',Args.FilterSigma,...
+                                                                              'ColNamesX',Args.CatColNamesX,...
+                                                                              'ColNamesY',Args.CatColNamesY);
+    
+            % go over possible solutions:
+            Result(Iobj).Nsolutions = numel(ResPattern.Sol.SN);   % number of candidate solutions
+            Result(Iobj).ResPattern = ResPattern;
+    
+            if Result(Iobj).Nsolutions==0
+                % no solution found
+                Result(Iobj).WCS = AstroWCS;
+                Result(Iobj).WCS.Success = false;
                 
-                % update header with astrometric quality information
-                if Args.UpdateHeader
-                    Keys = {'AST_NSRC','AST_ARMS','AST_ERRM'};
-                    Obj(Iobj).HeaderData.replaceVal(Keys,...
-                                                    {Result(Iobj).ResFit(Ibest).Ngood,...
-                                                     Result(Iobj).ResFit(Ibest).AssymRMS.*ARCSEC_DEG,...
-                                                     Result(Iobj).ResFit(Ibest).ErrorOnMean.*ARCSEC_DEG},...
-                                                    'Comment',{'Number of astrometric sources',...
-                                                               'Astrometric assymptotic RMS [arcsec]',...
-                                                               'Astrometric error on the mean [arcsec]'});
-                end
+            else
+    
+                % assume solutions are ordered by S/N
+                Nsol = min(Args.MaxSol2Check, Result(Iobj).Nsolutions);
+                for Isol=1:1:Nsol
+                    % Apply affine transformation to Reference
+                    % CreateNewObj=true, because FilteredProjAstCat is needed later on
+                    TransformedProjAstCat = FilteredProjAstCat.copy;
+                    % The TransformedProjAstCat is only used for matching
+                    TransformedProjAstCat = imProc.trans.tranAffine(TransformedProjAstCat, ResPattern.Sol.AffineTran{Isol}, true,...
+                                                                    'ColX',RefColNameX,...
+                                                                    'ColY',RefColNameY,...
+                                                                    'CreateNewObj',false);
+    
+    
+                    switch Args.MatchMethod
+                        case 'old'
+                            % Old matching code:
+                            MatchInd = imProc.match.matchReturnIndices(FilteredCat, TransformedProjAstCat,...
+                                                             'Radius',Args.SearchRadius.*mean(Args.Scale),...
+                                                             'CooType','pix',...
+                                                             'ColCatX',Args.CatColNamesX,...
+                                                             'ColCatY',Args.CatColNamesY,...
+                                                             'ColRefX',RefColNameX,...
+                                                             'ColRefY',RefColNameY);
+            
+                            MatchedCat = FilteredCat.copy;
+                            MatchedCat = selectRows(MatchedCat, MatchInd.Obj2_IndInObj1, 'CreateNewObj',false);
+                        case 'mex'
+                            % New matching code
+                            % TransformedProjAstCat - not sorted
+                            % FilteredCat - is sorted
+    
+                            %[~, Ind2] = imProc.match.matchInd(FilteredCat, TransformedProjAstCat, 'IsSpherical',false, 'SearchRadius',Args.SearchRadius.*mean(Args.Scale));
+                            [Ind1] = imProc.match.matchInd(TransformedProjAstCat, FilteredCat, 'IsSpherical',false, 'SearchRadius',Args.SearchRadius.*mean(Args.Scale));
+                            MatchedCat = selectRows(FilteredCat, Ind1.Ind, 'CreateNewObj',true);
+    
+                            % alternatively:
+                            % [MatchedCat1] = imProc.match.matchCat(TransformedProjAstCat, FilteredCat, 'IsSpherical',false, 'SearchRadius',Args.SearchRadius.*mean(Args.Scale));
+    
+                            % debug (after name it MatchedCat1)
+                            % aa=~isnan(MatchedCat1.Catalog(:,1));
+                            % sum(~isnan(MatchedCat1.Catalog(:,1)) ~= ~isnan(MatchedCat.Catalog(:,1)))
+                            % max(abs(MatchedCat1.Catalog(aa,:) - MatchedCat.Catalog(aa,:)),[],'all')
+    
+                            % debuging:
+                            %sum(~isnan(MatchInd.Obj2_IndInObj1)  ~= ~isnan(Ind1.Ind))
+                            %bb = ~isnan(Ind1.Ind);
+                            %sum(MatchInd.Obj2_IndInObj1(bb) ~=Ind1.Ind(bb))
+    
+    
+    
+                        otherwise
+                            error('Unknown MatchMethod');
+                    end
+    
+                    
+    
+                    % DEBUGING:
+                    % FilteredCat.plot({'X','Y'},'o')          
+                    % hold on
+                    % TransformedProjAstCat.plot({'X','Y'},'.')
+                    % MatchedCat.plot({'X','Y'},'o','MarkerSize',15)
+                    % axis([-600 600 -600 600])
+    
+                    
+                    % Count the number of matches
+                    Flag = ~isnan(MatchedCat.Catalog(:,1));
+                    Nmatches = sum(Flag);
+    
+                    % DEBUGING
+                    % show table of [X, Y, RA, Dec] of matched sources    
+                    % Note that XPEAK/YPEAK and X/Y are different because of the shift
+                    % applied (shift coo to image center)
+                    %XY = getCol(MatchedCat,{'XPEAK','YPEAK','X','Y'});   % X/Y in image
+                    %XY = XY(Flag,:);
+                    %RF = celestial.coo.convertdms(TransformedProjAstCat.Catalog(Flag,1),'r','SH');
+                    %DF = celestial.coo.convertdms(TransformedProjAstCat.Catalog(Flag,2),'r','SD');
+                    %T  = table(XY(:,1),XY(:,2), XY(:,3), XY(:,4), RF, DF)
+    
+                    % Fit transformation
+                    [Xcat,~,IndCatX] = getColDic(MatchedCat, Args.CatColNamesX);
+                    [Ycat,~,IndCatY] = getColDic(MatchedCat, Args.CatColNamesY);
+                    Xref = getColDic(FilteredProjAstCat, RefColNameX);
+                    Yref = getColDic(FilteredProjAstCat, RefColNameY);
+                    Mag  = getColDic(FilteredProjAstCat, Args.RefColNameMag);
+                    % fit the catalog to the reference and generate the Tran2D
+                    % object and all the information required for the WCS
+                    
+                    %'Flip',ResPattern.Sol.Flip,...
+                    [Tran, ParWCS, ResFit] = imProc.astrometry.fitWCS(Xcat, Ycat, Xref, Yref, Mag, RAdeg, Decdeg,...
+                                                           'ImageCenterXY',Result(Iobj).ImageCenterXY,...
+                                                           'Scale',ResPattern.Sol.Scale(Isol).*Args.Scale,...
+                                                           'ProjType',Args.ProjType,...
+                                                           'TranMethod',Args.TranMethod,...
+                                                           'Tran',Args.Tran,...
+                                                           'ExtraData',[],...
+                                                           'ErrPos',Args.ErrPos,...
+                                                           'Niter',Args.Niter,...
+                                                           'FitMethod',Args.FitMethod,...
+                                                           'MaxResid',Args.MaxResid,...
+                                                           'MagRange',Args.MagRange,...
+                                                           'BinMethod',Args.BinMethod,...
+                                                           'PolyDeg',Args.PolyDeg,...
+                                                           'BinSize',Args.BinSize,...
+                                                           'FunMean',Args.FunMean,...
+                                                           'FunStd',Args.FunStd,...
+                                                           'InterpMethod',Args.InterpMethod,...
+                                                           'ThresholdSigma',Args.ThresholdSigma);
+            
+                    Result(Iobj).ParWCS(Isol) = ParWCS;
                    
-                
-                % update RA/Dec in catalog
-                [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
-                % insert or replace
-                Cat = insertCol(Cat, [ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
-                if ~isempty(Args.SortCat)
-                    Cat = sortrows(Cat, Args.SortCat);
+    
+                    % DEBUG:
+                    %plot(Xorig, ResFit.Resid.*3600,'.')
+                    %plot(Yorig, ResFit.Resid.*3600,'.')
+                    %  scatter(Xorig, Yorig, 10, ResFit.Resid.*3600,'filled')
+                    %  colorbar
+    
+                    % store transformations
+                    Result(Iobj).Tran(Isol)       = Tran;
+                    Result(Iobj).ResFit(Isol)     = ResFit;
+    
                 end
-
-
-                % update the Obj with the new CatData and new header:
-                if isa(Obj, 'AstroImage')
-                    Obj(Iobj).CatData = Cat;
-                    
-                    % update WCS in AstroImage
-                    Obj(Iobj).WCS = Result(Iobj).WCS;
-                    
-                    % add WCS kesy to Header
-                    %Obj(Iobj).HeaderData.Data = [];
-                    %warning('header deleted!!')
-                    Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
-                    % add RA/Dec corners to header
-                    Obj(Iobj).HeaderData = addCornersCoo2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
-                        
+                
+                % classify the quality of solutions
+                %[Result(Iobj).Res.RMS]
+                Result(Iobj).ErrorOnMean = [Result(Iobj).ResFit.AssymRMS_mag]./sqrt([Result(Iobj).ResFit.Ngood]);
+                [~,Result(Iobj).BestInd] = min(Result(Iobj).ErrorOnMean);
+                Ibest = Result(Iobj).BestInd;
+                
+                % Generate AstroWCS for best solution
+                StructWCS = Result(Iobj).ParWCS(Ibest);
+                KeyValWCS = namedargs2cell(StructWCS);
+                Result(Iobj).WCS = AstroWCS.tran2wcs(Result(Iobj).Tran(Ibest), KeyValWCS{:});
+                if isempty(Args.EpochOut)
+                    Result(Iobj).WCS.EPOCH = Obj(Iobj).julday();
                 else
-                    % assume Obj is AstroCatalog
-                    Obj(Iobj) = Cat;
+                    Result(Iobj).WCS.EPOCH = Args.EpochOut;
+                end
+                
+                Result(Iobj).WCS.ResFit   = Result(Iobj).ResFit(Ibest);
+                Result(Iobj).WCS          = populateSucess(Result(Iobj).WCS, 'TestNbin',Args.TestNbin,...
+                                                                             'RegionalMaxMedianRMS',Args.RegionalMaxMedianRMS,...
+                                                                             'RegionalMaxWithNoSrc',Args.RegionalMaxWithNoSrc,...
+                                                                             'MaxErrorOnMean',Args.MaxErrorOnMean);
+    
+                Result(Iobj).Success     =  Result(Iobj).WCS.Success;
+                Result(Iobj).Origin      = 'astrometryCore';
+                
+                                                                  
+                % add RA/Dec to the catalog and update Header
+                if nargout>1
+                    
+                    % update header with astrometric quality information
+                    if Args.UpdateHeader
+                        Keys = {'AST_NSRC','AST_ARMS','AST_ERRM'};
+                        Obj(Iobj).HeaderData.replaceVal(Keys,...
+                                                        {Result(Iobj).ResFit(Ibest).Ngood,...
+                                                         Result(Iobj).ResFit(Ibest).AssymRMS.*ARCSEC_DEG,...
+                                                         Result(Iobj).ResFit(Ibest).ErrorOnMean.*ARCSEC_DEG},...
+                                                        'Comment',{'Number of astrometric sources',...
+                                                                   'Astrometric assymptotic RMS [arcsec]',...
+                                                                   'Astrometric error on the mean [arcsec]'});
+                    end
+                       
+                    
+                    % update RA/Dec in catalog
+                    [ObjSrcRA, ObjSrcDec] = Result(Iobj).WCS.xy2sky(Cat.getCol(IndCatX), Cat.getCol(IndCatY), 'OutUnits',Args.OutCatCooUnits);
+                    % insert or replace
+                    Cat = insertCol(Cat, [ObjSrcRA, ObjSrcDec], Args.OutCatColPos, {Args.OutCatColRA, Args.OutCatColDec}, {Args.OutCatCooUnits, Args.OutCatCooUnits});
+                    if ~isempty(Args.SortCat)
+                        Cat = sortrows(Cat, Args.SortCat);
+                    end
+
+                    % Optionally attach Gaia colour (BP-RP) to the source
+                    % catalog (issue #1289), reusing the astrometric reference
+                    % already loaded to avoid a second catsHTM query.
+                    if Args.AddColor
+                        % A bare catalog carries no epoch, so hand addColor
+                        % this element's JD explicitly - otherwise its
+                        % proper-motion step would silently find no epoch and
+                        % skip. Placed before the splat, so an ObsJD given in
+                        % AddColorArgs still wins.
+                        ObsJDArg = {};
+                        if isa(Obj, 'AstroImage') && ~isempty(Obj(Iobj).HeaderData)
+                            for KeyJD = {'JD','MIDJD'}
+                                if isempty(ObsJDArg) && Obj(Iobj).HeaderData.isKeyExist(KeyJD{1})
+                                    ValJD = Obj(Iobj).HeaderData.getVal(KeyJD{1});
+                                    if ~isempty(ValJD) && isnumeric(ValJD) && isfinite(ValJD(1))
+                                        ObsJDArg = {'ObsJD', double(ValJD(1))};
+                                    end
+                                end
+                            end
+                        end
+                        Cat = imProc.cat.addColor(Cat, 'RefCat', AstrometricCat, ...
+                                                  ObsJDArg{:}, Args.AddColorArgs{:});
+                    end
+
+
+                    % update the Obj with the new CatData and new header:
+                    if isa(Obj, 'AstroImage')
+                        Obj(Iobj).CatData = Cat;
+                        
+                        % update WCS in AstroImage
+                        Obj(Iobj).WCS = Result(Iobj).WCS;
+                        
+                        % add WCS kesy to Header
+                        %Obj(Iobj).HeaderData.Data = [];
+                        %warning('header deleted!!')
+                        Obj(Iobj).HeaderData = wcs2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+                        % add RA/Dec corners to header
+                        Obj(Iobj).HeaderData = addCornersCoo2header(Obj(Iobj).WCS, Obj(Iobj).HeaderData);
+                            
+                        if Args.UpdateHeaderCoo
+                            % update RA/Dec keywords in header
+                            imProc.astrometry.getCooCenter(Obj(Iobj), 'OutCooUnits','deg',...
+                                                                      'UseWCS',true,...
+                                                                      'UpdateHeader',true,...
+                                                                      'KeyRA',Args.KeyRA,...
+                                                                      'KeyDec',Args.KeyDec);
+                        end
+    
+                    else
+                        % assume Obj is AstroCatalog
+                        Obj(Iobj) = Cat;
+                    end
                 end
             end
         end
-
-    end
+    end % for Iobj=1:1:Nobj
     
 end

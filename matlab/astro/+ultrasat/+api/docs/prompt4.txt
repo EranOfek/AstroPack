@@ -1,0 +1,36 @@
+PLAN MODE - PROMPT 4 - MODELS REFACTOR (MATLAB CLASSES, LESS MAGIC)
+
+Goal: simplify model handling to be closer to Python BaseModel / Delphi record.
+
+Scope:
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+models
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+utils
+
+Tasks:
+1) Domain models must be MATLAB classes with properties:
+- PlanData.m (keep, but simplify if needed)
+- ImagingTarget.m (create if currently only exists via MissionModels.newImagingTarget factory)
+- ScheduledTarget.m (create if needed based on schedule usage)
+- VirtualTimeState.m (if applicable)
+
+Each model must implement:
+- toStruct()
+- toJson()
+- static fromStruct(data)
+- static fromJson(js)
+
+2) ModelFactoryBase + MissionModels:
+- Keep these only for test/demo builders, NOT for real domain models.
+- If they are currently used in production code, refactor callers to use constructors/classes instead.
+
+3) Split ModelBase:
+- Move JSON + datetime conversion to ultrasat.api.utils.JsonUtils and DateTimeUtils.
+- Leave ModelBase as either:
+  a) a small compatibility wrapper that calls utils, OR
+  b) mark it deprecated and keep only minimal forwards for old callers.
+
+4) Enforce a single JSON serialization approach:
+- datetime to ISO UTC strings when encoding
+- ISO strings to datetime when decoding (when safe)
+
+Stop after model layer is simplified and callers updated.

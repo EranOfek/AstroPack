@@ -1,5 +1,6 @@
 function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     % Given a background-subtracted image and PSF star positions, construct a mean PSF stamp from cutouts
+    %   Obsolete: use imUtil.psf.bildPSF instead.
     % Input  : - A 2-D image, or a cube of cutouts around sources.
     %            If a cube then the image index must be in the 3rd
     %            dimesniosn.
@@ -55,7 +56,7 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     %                   in this range are excluded from the summation.
     %                   This may be useful in order to remove stamps which
     %                   contains more than one source.
-    %                   Default is [0.8 1.2].
+    %                   Default is [0.5 3].
     %            'SmoothWings' - A logical indicating if to smooth PSF wings
     %                   using imUtil.psf.psf_zeroConvergeArgs.
     %                   Default is true.
@@ -94,6 +95,8 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         XY                         = [];  % XY positions of sources in image
         
         Args.M1                    = []; % override the first moment calculation
+        Args.MomentsMethod         = 'legacy';  %'legacy'|'mex'
+
         Args.Norm                  = [];  % vector of normalization per cutout
         Args.FluxRadius            = 4; % if norm is not given.
         Args.Back                  = [];  % Back to subtract. If [] don't subtract.
@@ -102,10 +105,10 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         Args.SumMethod             = 'sigclip';
         Args.mean_sigclipArgs cell = {};
         Args.PostNormBySum logical = true;
-        Args.PostNorm              = 1;
+        Args.PostNorm logical      = true;
         
         Args.MedianCubeSumRange    = [0.9 1.1];
-        Args.CubeSumRange          = [0.8 1.2];
+        Args.CubeSumRange          = [0.5 3];
         Args.SmoothWings logical   = true;
         Args.psf_zeroConvergeArgs  = {};
         
@@ -115,7 +118,7 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         Args.MomRadius             = 8;
         Args.Annulus               = [10 12];        
         
-        Args.ShiftMethod           = 'fft';   % 'lanczos' | 'fft'
+        Args.ShiftMethod           = 'fft';   % 'lanczos3' | 'fft'
         Args.A                     = 2;
         Args.IsCircFilt logical    = true;
         Args.PadVal                = 0;
@@ -127,7 +130,21 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
 %         error('Norm argument must be provided');
 %     end
     
-    MaxRadius = Args.MomRadius;
+    % The re-centring call below hands the cutouts to imUtil.image.moment2
+    % together with Args.Annulus, whose outer radius must fit inside the stamp.
+    % With the shipped defaults it does not (MomRadius 8 -> 17x17 stamps, against
+    % an annulus reaching 12), so the default path failed with "MaxRadius is
+    % larger than stamp size". Cut the stamps wide enough to hold the annulus
+    % and crop the finished PSF back to 2*MomRadius+1 below, so the returned
+    % stamp size is unchanged - the same approach imUtil.psf.buildPSF takes with
+    % its CropToRadiusPSF (issue #1273).
+    MaxRadius   = Args.MomRadius;
+    GrownForAnn = false;
+    if ndims(Image)==2 && Args.ReCenter && isempty(Args.M1) && ~isempty(Args.Annulus) ...
+            && strcmpi(Args.MomentsMethod,'legacy') && max(Args.Annulus)>MaxRadius
+        MaxRadius   = max(Args.Annulus);
+        GrownForAnn = true;
+    end
     
     if isempty(XY)
         if ndims(Image)==3
@@ -175,7 +192,15 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
         
         %M1 = imUtil.image.moment2(Cube, X, Y, 'MomRadius',Args.MomRadius);
         if isempty(Args.M1)
-            M1 = imUtil.image.moment2(Cube, Xcen, Ycen, 'MomRadius',Args.MomRadius, 'Annulus',Args.Annulus);
+            switch Args.MomentsMethod
+                case 'mex'
+                    SN_W = ones(size(Xcen)).*100;
+                    [M1] = imUtil.sources.moments(Image, 'X',Xcen, 'Y',Ycen, 'SN',SN_W);
+                case 'legacy'
+                    M1 = imUtil.image.moment2(Cube, Xcen, Ycen, 'MomRadius',Args.MomRadius, 'Annulus',Args.Annulus);
+                otherwise
+                    error('Unknown MomentsMethod option');
+            end
         else
             M1 = Args.M1;
         end
@@ -190,7 +215,9 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
     
     
     switch lower(Args.ShiftMethod)
-        case 'lanczos'
+        case 'lanczos3'
+            [ShiftedCube] = imUtil.trans.mex.shift_lanczos3(Cube, ShiftXY(:,1), ShiftXY(:,2));
+        case 'lanczos_old'
             [ShiftedCube] = imUtil.trans.shift_lanczos(Cube, ShiftXY, Args.A, Args.IsCircFilt, Args.PadVal);
         case 'fft'            
             [ShiftedCube] = imUtil.trans.shift_fft(Cube, ShiftXY(:,1), ShiftXY(:,2));
@@ -258,6 +285,21 @@ function [Mean, Var, Nim, FlagSelected] = constructPSF_cutouts(Image, XY, Args)
                 error('Unknown SumMethod option');
         end
     
+        % crop back to the requested stamp size when the cutouts were grown to
+        % accommodate the background annulus (issue #1273). Done before the wing
+        % smoothing and the normalisation, so both act on the returned stamp.
+        if GrownForAnn
+            HalfCur = (size(Mean,1)-1)./2;
+            if HalfCur > Args.MomRadius
+                Ctr  = HalfCur + 1;
+                Rng  = (Ctr-Args.MomRadius):(Ctr+Args.MomRadius);
+                Mean = Mean(Rng, Rng);
+                if ~isempty(Var)
+                    Var = Var(Rng, Rng);
+                end
+            end
+        end
+
         % smooth wings...
         if Args.SmoothWings
             Mean = imUtil.psf.psf_zeroConverge(Mean, Args.psf_zeroConvergeArgs{:});

@@ -6,6 +6,24 @@ function Result = unitTest()
 
     %io.msgStyle(LogLevel.Test, '@start', 'AstroPSF test started');       
     
+    %% AstroPSF/fwhm
+
+    P=AstroPSF;
+    P.Data=imUtil.kernel2.gauss(2);
+    [a,b]=P.fwhm('UseLegacy',true);
+    2.*2.35./[a b] - 1
+    if abs(2.*2.35./[a b] - 1)>0.2
+        error('Problem with AstroPSF/fwhm');
+    end
+    [a,b]=P.fwhm('UseLegacy',false);
+    2.*2.35./[a b] - 1
+    if abs(2.*2.35./[a b] - 1)>0.2
+        error('Problem with AstroPSF/fwhm');
+    end
+    
+
+    %%
+
     % synthetic kernels:
     
     AP = AstroPSF('Synthetic','gauss','GaussSigma',[3 4 0],'StampSize',[15 19]);    
@@ -28,7 +46,7 @@ function Result = unitTest()
     % curve of growth and radial profile
     AP = AstroPSF;
     AP.DataPSF = imUtil.kernel2.gauss;
-    [R, V] = AP.radialProfile
+    [R, V] = AP.radialProfile;
 
     % @FIX - @Eran
     [Result, RadHalfCumSum, RadHalfPeak] = curve_of_growth(AP);
@@ -37,13 +55,16 @@ function Result = unitTest()
     AP = AstroPSF;
     AP.DataPSF = imUtil.kernel2.gauss;
     AP(2).DataPSF = imUtil.kernel2.gauss;
-    [Cube, CubeVar] = images2cube(AP)
+    [Cube, CubeVar] = images2cube(AP);
 
     % moments
     AP = AstroPSF;
     AP.DataPSF = imUtil.kernel2.gauss;
     AP(2).DataPSF = imUtil.kernel2.gauss;
-    [M1,M2,Aper] = moment2(AP,'moment2Args',{'Momradius',4,'Annulus',[3, 4]});
+    % NB: 'MaxRadiusM2' is what imUtil.sources.moments calls the second moment
+    % radius; 'Momradius' was the name used by imUtil.image.moment2, which this
+    % method stopped calling (issue #1302)
+    [M1,M2,Aper] = moment2(AP,'moment2Args',{'MaxRadiusM2',4,'Annulus',[3, 4]});
 
     % fwhm
     imUtil.psf.pseudoFWHM(AP(1).Data)
@@ -139,8 +160,8 @@ function Result = unitTest()
     Pg6 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5},'InterpMethod',{'linear','nearest'});
     Pg7 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5},'InterpMethod','linear');
     Pg8 = AP.getPSF('PsfArgs',{'Wave',3550,'PosX',5.5},'InterpMethod','nearest');
-    sum((Pg6-Pg7)^2,'all')
-    sum((Pg6-Pg8)^2,'all')
+    sum((Pg6-Pg7)^2,'all');
+    sum((Pg6-Pg8)^2,'all');
     
     % PSF fitting:
     fit = AP.fitFunPSF('CreateNewObj',true,'PsfArgs',{'Wave',3550,'PosX',5.5,'InterpMethod','linear'});
@@ -168,11 +189,11 @@ function Result = unitTest()
     Cube2 = AP.images2cube('PsfArgs',{'Wave',5300});
     
     % fwhm:
-    FWHM  = AP.fwhm
+    FWHM  = AP.fwhm;
     FWHM2 = AP.fwhm('PsfArgs',{'PosX',4.4})
     
     % moment2:
-    M2  = AP.moment2
+    M2  = AP.moment2;
     M21 = AP.moment2('PsfArgs',{'Wave',5300});
     
     % populate some properties:

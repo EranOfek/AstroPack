@@ -4,6 +4,7 @@ function LST=lst(JD,EastLong,STType)
     % Description: Local Sidereal Time, (mean or apparent), for vector of
     %              JDs and a given East Longitude.
     % Input  : - Vector of JD [days], in UT1 time scale.
+    %            If empty, use current JD. Default is [].
     %          - East Longitude in radians. Default is 0.
     %          - Sidereal Time Type,
     %            'm' - IAU1976 Mean sidereal time (default).
@@ -19,12 +20,16 @@ function LST=lst(JD,EastLong,STType)
     %--------------------------------------------------------------------------
 
     arguments
-        JD
-        EastLong   = 0;
+        JD          = [];
+        EastLong    = 0;
         STType      = 'm';
     end
     
     RAD = 180./pi;
+    
+    if isempty(JD)
+        JD = celestial.time.julday();
+    end
 
     % convert JD to integer day + fraction of day
     TJD = floor(JD - 0.5) + 0.5;
@@ -64,7 +69,7 @@ function LST=lst(JD,EastLong,STType)
             % do nothing
         case {'a'}
             % calculate nutation
-            NutMat = celestial.coo.nutation(JD);
+            NutMat = celestial.convert.nutation(JD);
             Obl    = celestial.coo.obliquity(JD);
             EquationOfEquinox = (RAD.*3600).*NutMat(:,1).*cos(Obl)./15;
             LST = LST + EquationOfEquinox./86400;    

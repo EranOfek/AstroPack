@@ -1,0 +1,70 @@
+---
+description: ULTRASAT planner layering — uplanner, helpers, DataModule, API client, GUI
+globs: "+planner/**"
+alwaysApply: false
+---
+
+# ULTRASAT planner structure
+
+## Role and context
+
+- Defines internal structure of the ULTRASAT Planner MATLAB code (`+planner`).
+- Mission-critical; must be cleanly layered.
+
+## High-level components
+
+- `uplanner` core class
+- Helper classes
+- DataModule class
+- API client (`+api`)
+- App Designer GUI (`+gui`, `+guiutils`)
+
+## uplanner core class
+
+- Contains planning and feasibility logic
+- No UI code
+- No backend communication
+- Deterministic and testable
+
+## Helper classes
+
+- Small focused responsibilities
+- Support planner or GUI
+- No UI and no API logic
+
+## DataModule
+
+- Owns planner instance
+- Holds application state
+- Mediates between GUI, planner, and API
+
+## API client
+
+- Handles backend communication only
+- No planning logic
+- Replaceable and mockable
+
+## App Designer GUI
+
+- Thin UI shell
+- Short callbacks
+- Delegates to DataModule
+
+## Data flow
+
+```
+GUI -> DataModule -> uplanner
+GUI -> DataModule -> API client
+```
+
+## What not to do
+
+- GUI calling planner directly
+- GUI calling API directly
+- Circular dependencies
+- Global state
+
+## Output expectations
+
+- Preserve separation of roles
+- Keep uplanner reusable and testable

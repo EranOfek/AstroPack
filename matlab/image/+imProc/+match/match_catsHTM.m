@@ -60,6 +60,7 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
         Args.CatRadiusUnits      = 'arcsec';
         Args.Con                 = {};
         Args.catsHTMisRef        = false;
+        Args.boundingCircleArgs  = {};
         
         Args.AddColDist logical   = true;
         Args.ColDistPos           = Inf;
@@ -72,7 +73,7 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
     end
 
     % convert AstroImage to AstroCatalog
-    if isa(Obj,'AstroImage')
+    if isa(Obj,'AstroImage') || isa(Obj, 'AstroDiff') || isa(Obj, 'AstroZOGY')
         Result = astroImage2AstroCatalog(Obj,'CreateNewObj',Args.CreateNewObj);
     elseif isa(Obj,'AstroCatalog')
         % do nothing
@@ -107,7 +108,7 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
     for Iobj=1:1:Nobj
         if isempty(Args.Coo) || isempty(Args.CatRadius)
             % get coordinates using boundingCircle
-            [CircX, CircY, CircR] = Obj(Iobj).boundingCircle('OutUnits','rad', 'CooType','sphere');
+            [CircX, CircY, CircR] = Result(Iobj).boundingCircle('OutUnits','rad', 'CooType','sphere',Args.boundingCircleArgs{:});
             Args.Coo                 = [CircX, CircY];
             Args.CatRadius      = CircR;
             Args.CooUnits       = 'rad';
@@ -119,14 +120,19 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM(Obj, CatName, Args)
         CatH(Iobj)  = catsHTM.cone_search(CatName, Args.Coo(Icoo,1), Args.Coo(Icoo,2), Args.CatRadius, 'RadiusUnits',Args.CatRadiusUnits, 'Con',Args.Con, 'OutType','astrocatalog');
 
         if Args.catsHTMisRef
-            ResInd = imProc.match.matchReturnIndices(Obj, CatH, 'CooType','sphere',...
+            ResInd = imProc.match.matchReturnIndices(Obj(Iobj), CatH(Iobj), 'CooType','sphere',...
                                                             'Radius',Args.Radius,...
                                                             'RadiusUnits',Args.RadiusUnits);
         else                                          
             % default!
-            ResInd = imProc.match.matchReturnIndices(CatH, Obj, 'CooType','sphere',...
+            ResInd = imProc.match.matchReturnIndices(CatH(Iobj), Obj(Iobj), 'CooType','sphere',...
                                                             'Radius',Args.Radius,...
                                                             'RadiusUnits',Args.RadiusUnits);
+        
+            % TBD: replace matchReturnINdices with this, but need to update
+            % insertCol_matchIndices
+            %[ResMatch] = imProc.match.matchInd(Obj(Iobj), CatH(Iobj), 'SearchRadius',Args.Radius, 'SearchRadiusUnits',Args.RadiusUnits, 'IsSpherical',true, 'ConvertCoo2toDouble',true);
+
         end
         
         [Result(Iobj), SelObj] = imProc.match.insertCol_matchIndices(Result(Iobj), ResInd, 'AddColDist',Args.AddColDist,...

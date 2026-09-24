@@ -34,7 +34,7 @@ classdef FileMap < Component
 
         % Constructor
         function Obj = FileMap()
-            % Constructor for FileProcessor
+            % Constructor for FileMap
             % Input   : - struct array, table, cell array, matrix,
             %
             %           * Pairs of ...,key,val,...
@@ -42,7 +42,7 @@ classdef FileMap < Component
             %             'InputPath' -
             %             'InputMask' -
             %             'ProcessedPath' -
-            % Output  : - New instance of FileProcessor object
+            % Output  : - New instance of FileMap object
             % Author  : Chen Tishler (2021)
             % Example :
 

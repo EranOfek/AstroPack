@@ -1,5 +1,6 @@
 function dydt=freePrecession(t,y,L,I1,I2,I3)
     % The diff. equations for triaxial rigid body free precession
+    %   For newer function see: astro.stars.rotationFlattening_freePrecession
     % Input  : - t
     %          - y
     %          - L

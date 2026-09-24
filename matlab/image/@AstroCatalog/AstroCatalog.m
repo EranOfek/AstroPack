@@ -40,13 +40,13 @@ classdef AstroCatalog < AstroTable
     properties (Hidden, Constant)
         DefNamesX cell                   = {'X','X1','X_IMAGE','XWIN_IMAGE','X1','X_PEAK','XPEAK','x','xpos'};
         DefNamesY cell                   = {'Y','Y1','Y_IMAGE','YWIN_IMAGE','Y1','Y_PEAK','YPEAK','y','ypos'};
-        DefNamesRA cell                  = {'RA','ra','Mean_RA','Median_RA','ALPHA','ALPHAWIN_J2000','ALPHA_J2000','RA_J2000','RAJ2000','RightAsc'};
-        DefNamesDec cell                 = {'Dec','dec','DEC','Mean_Dec','Median_Dec','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination'};
-        DefNamesPMRA cell                = {'PMRA'};
-        DefNamesPMDec cell               = {'PMDec'};
+        DefNamesRA cell                  = {'RA','ra','Mean_RA','Median_RA','ALPHA','ALPHAWIN_J2000','ALPHA_J2000','RA_J2000','RAJ2000','RightAsc','RA_ICRS','ra_icrs'};
+        DefNamesDec cell                 = {'Dec','dec','DEC','Mean_Dec','Median_Dec','DELTA','DELTAWIN_J2000','DELTA_J2000','DEC_J2000','DEJ2000','Declination','DE_ICRS','de_icrs','Dec_ICRS','dec_icrs'};
+        DefNamesPMRA cell                = {'PMRA','pmra'};
+        DefNamesPMDec cell               = {'PMDec','pmdec'};
         DefNamesRV cell                  = {'RV','radial_velocity'};
         DefNamesPlx cell                 = {'Plx'};
-        DefNamesMag cell                 = {'MAG','Mag','PSF_MAG','MAG_PSF','Mag_BP','Mag_G','Mag_RP','MAG_CONV_2','phot_g_mean_mag'};
+        DefNamesMag cell                 = {'MAG','Mag','PSF_MAG','MAG_PSF','Mag_BP','Mag_G','Mag_RP','MAG_APER_3','MAG_APER_2','MAG_CONV_2','phot_g_mean_mag'};
     end    
     
     methods % constructor
@@ -55,16 +55,34 @@ classdef AstroCatalog < AstroTable
             % For parameters input see: AstroTable
             % Example: AC=AstroCatalog({'asu.fit','asu.fit'},'HDU',2)
             
+
+            %Obj = Obj@AstroTable(varargin{:});
+
             % construct AstroTable
             AT   = AstroTable(varargin{:});
-            FN   = fieldnames(AT);
+
+            %FN   = fieldnames(AT);
+
+            MC = metaclass(AT);
+            NonDep  = ~[MC.PropertyList.Dependent];
+            AllProp = {MC.PropertyList.Name};
+            FN      = AllProp(NonDep);
+
             Nfn  = numel(FN);
             Nobj = numel(AT);
             for Iobj=1:1:Nobj
                 for Ifn=1:1:Nfn
-                    Obj(Iobj).(FN{Ifn}) = AT(Iobj).(FN{Ifn});
+%                     try
+                        Obj(Iobj).(FN{Ifn}) = AT(Iobj).(FN{Ifn});
+%                     catch ME
+%                         fprintf('%s',ME);
+%                     end
                 end
                 Obj(Iobj).DataType = AstroDataType.Cat;
+            end
+
+            if nargin>0 && isnumeric(varargin{1})
+                Obj = reshape(Obj, size(AT));
             end
                 
         end
@@ -490,6 +508,9 @@ classdef AstroCatalog < AstroTable
         
         function [varargout] = getLonLat(Obj, Units, Args)
             % Get Lon/Lat columns from AstroCatalog.
+            %   Units are obtained from the AstroCatalog Units.
+            %   If input units are not provided in the AstroCatalog then assumes
+            %   the units are deg.
             % Input - A single element AstroCatalog object.
             %       - Units of output Lon/Lat columns.
             %         Default is 'deg'.
@@ -528,10 +549,14 @@ classdef AstroCatalog < AstroTable
 
                 LonUnits = LonUnits{1};
                 LatUnits = LatUnits{1};
-                if ~isempty(LonUnits)
+                if isempty(LonUnits)
+                    Lon = convert.angular('deg', Units, Lon);
+                else
                     Lon = convert.angular(LonUnits, Units, Lon);
                 end
-                if ~isempty(LatUnits)
+                if isempty(LatUnits)
+                    Lat = convert.angular('deg', Units, Lat);
+                else
                     Lat = convert.angular(LatUnits, Units, Lat);
                 end
             end
@@ -549,6 +574,10 @@ classdef AstroCatalog < AstroTable
             % get RA/Dec/PM/Plx/RV from astrometric catalog
             % Input  : - A single element AstroCatalog object.
             %          * ...,key,val,...
+            %            'InColRA' - RA column name. Default is Obj.DefNamesRA
+            %            'InColDec' - Dec column name. Default is Obj.DefNamesDec
+            %            'InColPMRA' - PMRA column name. Default is Obj.DefNamesPMRA
+            %            'InColPMDec' - PMDec column name. Default is Obj.DefNamesPMDec
             %            'OutCooUnits' - Output coo units. Default is 'rad'
             %            'OutPMUnits' - Output PM units. Default is 'mas/yr'
             %            'OutPlxUnits' - Output Plx units. Default is 'mas'
@@ -565,6 +594,10 @@ classdef AstroCatalog < AstroTable
             
             arguments
                 Obj(1,1)
+                Args.InColRA         = Obj.DefNamesRA;
+                Args.InColDec        = Obj.DefNamesDec;
+                Args.InColPMRA       = Obj.DefNamesPMRA;
+                Args.InColPMDec      = Obj.DefNamesPMDec;
                 Args.OutCooUnits     = 'rad';
                 Args.OutPMUnits      = 'mas/yr';
                 Args.OutPlxUnits     = 'mas';
@@ -572,22 +605,22 @@ classdef AstroCatalog < AstroTable
             end
             
             % RA
-            ColInd_RA = colnameDict2ind(Obj, Obj.DefNamesRA);
+            ColInd_RA = colnameDict2ind(Obj, Args.InColRA);
             [RA, Units]  = getCol(Obj, ColInd_RA);
             RA = convert.angular(Units{1}, Args.OutCooUnits, RA);
             
             % Dec
-            ColInd_Dec = colnameDict2ind(Obj, Obj.DefNamesDec);
+            ColInd_Dec = colnameDict2ind(Obj, Args.InColDec);
             [Dec, Units]  = getCol(Obj, ColInd_Dec);
             Dec = convert.angular(Units{1}, Args.OutCooUnits, Dec);
             
             % PM_RA
-            ColInd_PMRA = colnameDict2ind(Obj, Obj.DefNamesPMRA);
+            ColInd_PMRA = colnameDict2ind(Obj, Args.InColPMRA);
             [PMRA, Units]  = getCol(Obj, ColInd_PMRA);
             PMRA = convert.proper_motion(Units{1}, Args.OutPMUnits, PMRA);
             
             % PM_Dec
-            ColInd_PMDec = colnameDict2ind(Obj, Obj.DefNamesPMDec);
+            ColInd_PMDec = colnameDict2ind(Obj, Args.InColPMDec);
             [PMDec, Units]  = getCol(Obj, ColInd_PMDec);
             PMDec = convert.proper_motion(Units{1}, Args.OutPMUnits, PMDec);
             
@@ -598,8 +631,12 @@ classdef AstroCatalog < AstroTable
             
             % RV
             ColInd_RV = colnameDict2ind(Obj, Obj.DefNamesRV);
-            [RV, Units]  = getCol(Obj, ColInd_RV);
-            RV = convert.velocity(Units{1}, Args.OutRVUnits, RV);
+            if isempty(ColInd_RV)
+                RV = zeros(size(RA));
+            else
+                [RV, Units]  = getCol(Obj, ColInd_RV);
+                RV = convert.velocity(Units{1}, Args.OutRVUnits, RV);
+            end
             
         end
         
@@ -661,6 +698,14 @@ classdef AstroCatalog < AstroTable
             %            'CooType' - Coordinate type {'sphere'|'pix'}.
             %                   If empty, use the AstroCatalog CooType.
             %                   Default is empty.
+            %            'UseMex' - Use Mex function options in:
+            %                   tools.math.geometry.boundingCircle
+            %                   and celestial.coo.boundingCircle
+            %                   The mex path is an exact minimal-enclosing-
+            %                   circle solver, faster and more accurate than
+            %                   the fminsearch approximation used when
+            %                   false - see issue #1197.
+            %                   Default is true.
             % Output : - The best fit circle X/Long
             %          - The best fit circle Y/Lat
             %          - The best fit circle radius
@@ -671,8 +716,9 @@ classdef AstroCatalog < AstroTable
             
             arguments
                 Obj
-                Args.OutUnits char       = 'deg';
+                Args.OutUnits            = 'deg';
                 Args.CooType             = [];
+                Args.UseMex              = true;
             end
             
             Nobj         = numel(Obj);
@@ -699,7 +745,7 @@ classdef AstroCatalog < AstroTable
                         if all(isnan(X))
                             error('All coordinates are NaN - cant find boundingCircle');
                         end
-                        [BestCoo, BestRadius] = celestial.coo.boundingCircle(X, Y);   % [radians]
+                        [BestCoo, BestRadius] = celestial.coo.boundingCircle(X, Y, [], 'UseMex',Args.UseMex);   % [radians]
                     case 'pix'
                         [X, Y] = getXY(Obj(Iobj));
                         if isempty(X) || isempty(Y)
@@ -708,7 +754,7 @@ classdef AstroCatalog < AstroTable
                         if all(isnan(X))
                             error('All coordinates are NaN - cant find boundingCircle');
                         end
-                        [BestCoo, BestRadius] = tools.math.geometry.boundingCircle(X, Y);  % [radians]
+                        [BestCoo, BestRadius] = tools.math.geometry.boundingCircle(X, Y, 'UseMex',Args.UseMex);  % [radians]
                     otherwise
                         error('Unknown CooType=%s option',CooType{Iobj});
                 end
@@ -756,7 +802,7 @@ classdef AstroCatalog < AstroTable
             Lat              = Lat.*ConvertFactor;
             
             [Dist, PA]    = celestial.coo.sphere_dist(ObjLon, ObjLat, Lon, Lat);
-            ConvertFactor = convert.angular('rad',LonLatUnits);
+            ConvertFactor = convert.angular('rad',OutUnits);
             Dist          = Dist.*ConvertFactor;
             PA            = PA.*ConvertFactor;
             
@@ -1289,7 +1335,7 @@ classdef AstroCatalog < AstroTable
             Result = AstroCatalog({zeros(numel(NewTime), Ncol)}, 'ColNames',Obj.ColNames, 'ColUnits',Obj.ColUnits);
             
             % convert to radians
-            ConvFactor = convert.angular(Units, 'rad');
+            ConvFactor = convert.angular(Units{1}, 'rad');
             RA         = RA.*ConvFactor;
             Dec        = Dec.*ConvFactor;
             [NewRA, NewDec] = celestial.coo.interp_coo(JD, RA, Dec, NewTime, Args.InterpCoo);
@@ -1302,7 +1348,13 @@ classdef AstroCatalog < AstroTable
             Result.replaceCol(NewDec,  ColDec);
             
             % interpolate all the other columns
-            Result.Catalog(:,NonCooCol) = interp1(JD, Obj.Catalog(:,NonCooCol), NewTime, Args.InterpOther);
+            if istable(Obj.Catalog)
+                ArrayNonCooCol = table2array(Obj.Catalog(:,NonCooCol));
+            else
+                ArrayNonCooCol = Obj.Catalog(:,NonCooCol);
+            end
+
+            Result.Catalog(:,NonCooCol) = interp1(JD, ArrayNonCooCol, NewTime, Args.InterpOther);
             
         end
         

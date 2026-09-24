@@ -26,8 +26,8 @@ function Result = replaceVal(Obj, InVal, OutVal, Args)
     % Author : Eran Ofek (May 2023)
     % Example: Image = AstroImage({rand(100,100).*10});
     %          Result = imProc.image.replaceVal(Image)
-    %          Result = ImProc.image.replaceVal(Image,[1.5 2.5])
-    %          Result = ImProc.image.replaceVal(Image,[1.5 2.5],0,'UseOutRange',true)
+    %          Result = imProc.image.replaceVal(Image,[1.5 2.5])
+    %          Result = imProc.image.replaceVal(Image,[1.5 2.5],0,'UseOutRange',true)
 
     arguments
         Obj AstroImage

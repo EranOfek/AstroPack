@@ -58,10 +58,12 @@ classdef AstroSpec < Component
         Mask
         WaveUnits
         FluxUnits
+        %X  % pixel position along the wavelength axis
+        %Y  % pixel position along the spatial axis
     end
     
     properties
-        Data table
+        Data table                % table 
         MaskData MaskImage   = MaskImage;
         Z                    = [];   % spectrum redshift-frame [0 - restframe]
         Vel                  = [];   % override Z
@@ -70,6 +72,9 @@ classdef AstroSpec < Component
         Ebv                  = [];   % Vector - [mag]
         Zext                 = 0;    % Vector - redshift of extinction
         R                    = 3.08; % Vector -
+        Lines                % optional lines list
+        Ref
+        ObjName              = '';   % object/spectrum name (e.g. for display)
     end
         
     
@@ -123,7 +128,7 @@ classdef AstroSpec < Component
                         Obj.Data.Properties.VariableUnits = Units;
                     end
                 elseif isnumeric(Matrix)
-                    if numel(Matrix)==1
+                    if isscalar(Matrix)
                         for I=1:1:Matrix
                             Obj(I) = AstroSpec(zeros(0,2), Columns, Units);
                         end
@@ -169,6 +174,9 @@ classdef AstroSpec < Component
         function set.Wave(Obj, Input)
             % setter for Wave
             
+            if isempty(Obj.Data)
+                Obj.Data = array2table(Input, 'VariableNames',{Obj.DefColNameWave});
+            end
             Obj.Data.(Obj.DefColNameWave) = Input;
         end
         
@@ -190,12 +198,15 @@ classdef AstroSpec < Component
             if ~any(Flag)
                 error('Wavelength column is not populated');
             end
-            CurUnits  = Obj.Data.Properties.VariableUnits{Flag};
-            WaveData  = Obj.Data.(Obj.DefColNameWave);
-            
-            Obj.Data.(Obj.DefColNameWave) = convert.length(CurUnits, OutUnits, WaveData);
-            Obj.Data.Properties.VariableUnits{Flag} = OutUnits;
-            
+            if isempty(Obj.Data.Properties.VariableUnits)
+                Obj.Data.Properties.VariableUnits{(Flag)} = OutUnits;
+            else
+                CurUnits  = Obj.Data.Properties.VariableUnits{Flag};
+                WaveData  = Obj.Data.(Obj.DefColNameWave);
+
+                Obj.Data.(Obj.DefColNameWave) = convert.length(CurUnits, OutUnits, WaveData);
+                Obj.Data.Properties.VariableUnits{Flag} = OutUnits;
+            end
         end
         
         function Result = get.Flux(Obj)
@@ -212,6 +223,9 @@ classdef AstroSpec < Component
         function set.Flux(Obj, Input)
             % setter for Flux
             
+            if isempty(Obj.Data)
+                Obj.Data = array2table(Input, 'VariableNames',{Obj.DefColNameFlux});
+            end
             Obj.Data.(Obj.DefColNameFlux) = Input;
         end
         
@@ -271,7 +285,7 @@ classdef AstroSpec < Component
             
             Flag = ismember(Obj.Data.Properties.VariableNames, Obj.DefColNameFlux); % index of flux columns
             if ~any(Flag)
-                'hi'
+                
                 error('Flux column is not populated');
             end
             
@@ -282,20 +296,22 @@ classdef AstroSpec < Component
             % setter for FluxUnits
             
             Flag = ismember(Obj.Data.Properties.VariableNames, Obj.DefColNameFlux); % index of wave columns
-            if ~any(Flag)
-                error('Wavelength column is not populated');
+            
+            if ~any(Flag) || isempty(Obj.Data.Properties.VariableUnits{(Flag)})
+                Obj.Data.Properties.VariableUnits{(Flag)} = OutUnits;
+            else
+                CurUnits     = Obj.Data.Properties.VariableUnits{Flag};
+                WaveData     = Obj.Data.(Obj.DefColNameWave);
+                FluxData     = Obj.Data.(Obj.DefColNameFlux);
+                FluxErrData  = Obj.Data.(Obj.DefColNameFlux);
+                BackData     = Obj.Data.(Obj.DefColNameFlux);
+
+                Obj.Data.(Obj.DefColNameFlux)    = convert.flux(FluxData,    CurUnits, OutUnits, WaveData, Obj.WaveUnits);
+                Obj.Data.(Obj.DefColNameFluxErr) = convert.flux(FluxErrData, CurUnits, OutUnits, WaveData, Obj.WaveUnits);
+                Obj.Data.(Obj.DefColNameBack)    = convert.flux(BackData,    CurUnits, OutUnits, WaveData, Obj.WaveUnits);
+
+                Obj.Data.Properties.VariableUnits{Flag} = OutUnits;
             end
-            CurUnits     = Obj.Data.Properties.VariableUnits{Flag};
-            WaveData     = Obj.Data.(Obj.DefColNameWave);
-            FluxData     = Obj.Data.(Obj.DefColNameFlux);
-            FluxErrData  = Obj.Data.(Obj.DefColNameFlux);
-            BackData     = Obj.Data.(Obj.DefColNameFlux);
-            
-            Obj.Data.(Obj.DefColNameFlux)    = convert.flux(FluxData,    CurUnits, OutUnits, WaveData, Obj.WaveUnits);
-            Obj.Data.(Obj.DefColNameFluxErr) = convert.flux(FluxErrData, CurUnits, OutUnits, WaveData, Obj.WaveUnits);
-            Obj.Data.(Obj.DefColNameBack)    = convert.flux(BackData,    CurUnits, OutUnits, WaveData, Obj.WaveUnits);
-            
-            Obj.Data.Properties.VariableUnits{Flag} = OutUnits;
             
         end
         
@@ -313,6 +329,101 @@ classdef AstroSpec < Component
         
     end
     
+
+    methods (Static) % read function
+        function AS=read1(File, Format)
+            % Read a single file (e.g., FITS) containing a spectrum into an AstroSpec object
+            % Input  : - A single file name
+            %          - Predefined file format - options are:
+            %            'sdss' - SDSS FITS file (default).
+            % Output : - An AstroSpc object containing the spectrum.
+            % Author : Eran Ofek (Dec 2025)
+            % Example: AS=AstroSpec.read1('spec-2858-54498-0426.fits');
+
+            arguments
+                File
+                Format  = 'sdss';
+            end
+            
+            AS = AstroSpec;
+            switch lower(Format)
+                case 'sdss'
+                    Data = FITS.readTable1(File);
+                    AS.Wave = 10.^Data.loglam;
+                    AS.Flux = Data.flux;
+                    AS.FluxErr = 1./sqrt(Data.ivar);
+                    AS.Back    = Data.sky;
+                    AS.Mask    = Data.or_mask;
+                    AS.WaveUnits = 'A';
+                    AS.FluxUnits = '1e-17 erg/s/cm^2/A';
+                otherwise
+                    error('Unknown format option');
+            end
+
+
+        end
+
+        function AS=read(Files, Format, Args)
+            % Read multiple files containing a spectrum into an AstroSpec object
+            % Input  : - A file name. Either a single file name (char
+            %            array), or a cell array of files names, or a
+            %            string array of file names.
+            %          - Predefined file format - options are:
+            %            'sdss' - SDSS FITS file (default).
+            %          * ...,key,val,...
+            %            'RegExp' - If true, then the file name will be
+            %                   interpreted as a regular expression for file names
+            %                   to search in the current directory.
+            %                   Relevant only if file name is a char array.
+            %                   Default is false.
+            %            'Path' - Directory from which to read files.
+            %                   If empty, then use current dir.
+            %                   Default is [].
+            % Output : - An AstroSpc object containing the spectra.
+            % Author : Eran Ofek (Dec 2025)
+            % Example: Q = "SELECT * FROM sdss_dr16.specobjall WHERE snmedian>10 AND subClass LIKE '%WD%'"
+            %          T   = Tap.query(Q,'TapUrl','https://datalab.noirlab.edu/tap','Ofmt','csv','TimeoutSec',120);
+            %          Url = VO.SDSS.sdssSpecURL(T)
+            %          AS=AstroSpec.read('.*fits','RegExp',true);
+            
+            arguments
+                Files
+                Format      = 'sdss';
+                Args.RegExp = false;
+                Args.Path   = [];
+            end
+
+            if ~isempty(Args.Path)
+                PWD = pwd;
+                cd(Args.Path);
+            end
+
+            if ischar(Files)
+                if Args.RegExp
+                    FilesDir = dir;
+                    ReE      = regexp({FilesDir.name}, Files, 'match');
+                    Flag     = ~tools.cell.isempty_cell(ReE);
+                    Files    = {FilesDir(Flag).name};
+                else
+                    Files = string(Files);
+                end
+            end
+
+            Nf = numel(Files);
+            AS = AstroSpec(Nf);
+            for If=1:1:Nf
+                AS(If) = AstroSpec.read1(Files{If}, Format);
+            end
+
+
+            if ~isempty(Args.Path)
+                cd(PWD);
+            end
+
+
+        end
+    end
+
     methods (Static)  % aux functions
         function [Factor] = applyExtinctionZ(ObsWave, Zext, EbvZ, RZ)
             % Calculate extinction to observed wavelngth vector in various redshifts.
@@ -347,7 +458,7 @@ classdef AstroSpec < Component
             A_LambdaMag = zeros(numel(ObsWaveMicrons), Nz);
             for Iz=1:1:Nz
                 ObsWaveMicronsZ = ObsWaveMicrons ./ (1 + Zext(Iz));
-                A_LambdaMag(:,Iz)  = astro.spec.extinction(EbvZ(Iz), ObsWaveMicronsZ, [], RZ(Iz));
+                A_LambdaMag(:,Iz)  = astro.extinction.extinction(EbvZ(Iz), ObsWaveMicronsZ, [], RZ(Iz));
             end
             Factor = 10.^(-0.4.*sum(A_LambdaMag, 2));
         end
@@ -482,6 +593,7 @@ classdef AstroSpec < Component
                 end
                 
                 Result(It) = AstroSpec({[WaveAng, Flux]}, {'Wave','Flux'}, {WaveUnits, 'cgs/A'});
+                Result(It).ObjName = sprintf('Planck spectrum T=%f', Temp(It));
             end
             
         end
@@ -678,8 +790,11 @@ classdef AstroSpec < Component
             % Load Pickles stellar spectra into an AstroSpec object
             % Input  : - Spectral type - e.g., 'G', 'G2',...
             %            or file name.
-            %            If empty, then return a cell array of all
-            %            available spectra names. Default is [].
+            %            If empty and no luminosity class is given, then
+            %            return a cell array of all available spectra
+            %            names. If empty and a luminosity class is given,
+            %            then return all spectral types of that class.
+            %            Default is [].
             %          - Luminosity class. e.g., 'V'. If empty, return all.
             %            Default is ''.
             %          - Output type: 'mat' | ['AstroSpec'].
@@ -706,11 +821,17 @@ classdef AstroSpec < Component
             I = Installer;
             [Files, Dir] = I.getFilesInDataDir(DataName);
             FilesList = {Files.name};
-            if isempty(SpType)
+            if isempty(SpType) && isempty(LumClass)
                 % get list of all spectra
                 Result = [];
             else
-                if ~contains(SpType,'.mat')
+                if isempty(SpType)
+                    % all spectral types of the requested luminosity class
+                    Template = sprintf('uk[obafgkm]+\\d+%s.mat', lower(LumClass));
+                    RE = regexp(FilesList, Template, 'match');
+                    Files = FilesList(~cellfun(@isempty, RE));
+
+                elseif ~contains(SpType,'.mat')
                     % not a single file
                     % Spectral type
                     if isempty(LumClass)
@@ -742,6 +863,7 @@ classdef AstroSpec < Component
                     switch lower(OutType)
                         case 'astrospec'
                             Result(If) = AstroSpec({Mat});
+                            Result(If).ObjName = AstroSpec.picklesName(Files{If});
                         case 'mat'
                             Result = Mat;
                         otherwise
@@ -753,6 +875,32 @@ classdef AstroSpec < Component
 
         end
         
+        function Name = picklesName(FileName)
+            % Convert a Pickles library file name into a spectral designation.
+            % Input  : - A Pickles library file name, e.g. 'uka0v.mat'.
+            % Output : - The spectral designation, e.g. 'A 0.0 V'. If the
+            %            file name does not follow the Pickles convention,
+            %            the file name without its extension is returned.
+            % Author : Eran Ofek (Feb 2016) - ported from AstSpec.get_pickles
+            % Example: Name = AstroSpec.picklesName('uka0v.mat');
+
+            arguments
+                FileName char
+            end
+
+            RE = regexp(FileName, 'uk(?<SpClass>[obafgkm]+)(?<SpNum>\d+)(?<SpLum>\w+)', 'names');
+            if isempty(RE)
+                [~, Name] = fileparts(FileName);
+            else
+                if numel(RE.SpNum)>1
+                    SpNum = str2double(RE.SpNum(1)) + 0.5;
+                else
+                    SpNum = str2double(RE.SpNum);
+                end
+                Name = sprintf('%s %3.1f %s', upper(RE.SpClass), SpNum, upper(RE.SpLum));
+            end
+        end
+
         function Result = specPhoenix(Args)
             % Get a Phoenix model stellar spectrum from a prepared grid
             % Reference: 
@@ -776,9 +924,9 @@ classdef AstroSpec < Component
             else
                 File = strcat(DataDir,'/phoenix_mtl0_rescale2.mat');
             end
-            io.files.load1(File); % 'Wave','PhoenSpec','T','logg'
-            Flux = interpn(Wave, T, logg, PhoenSpec, Wave, Args.T, Args.logg);
-            Result = AstroSpec({[Wave, Flux]},{'Wave','Flux'},{'A','cgs/A'});
+            io.files.load1(File); % 'PhoenixWaveGrid','PhoenixSpec','PhoenixTGrid','PhoenixLoggGrid'
+            Flux = interpn(PhoenixWaveGrid, PhoenixTGrid, PhoenixLoggGrid, PhoenixSpec, PhoenixWaveGrid, Args.T, Args.logg);
+            Result = AstroSpec({[PhoenixWaveGrid, Flux]},{'Wave','Flux'},{'A','cgs/A'});
             
         end
         
@@ -1025,9 +1173,157 @@ classdef AstroSpec < Component
             
             SunSpec = io.files.load2('SunSpec.mat');
             Result  = AstroSpec({SunSpec});
-            
+
         end
-         
+
+        function Result = zodiacSpectrum(Wave, Args)
+            % Get the zodiacal light / earthshine sky background spectrum.
+            %   The tabulated values are adopted from the HST STIS handbook,
+            %   where the high zodiacal light is defined by V=22.1
+            %   mag/arcsec^2.
+            % Input  : - Vector of wavelength [Ang] on which to interpolate
+            %            the spectrum. If empty, use the tabulated grid.
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'BackType' - Background component:
+            %                   'zodi'       - high zodiacal light (default)
+            %                   'earthshine' - high earthshine
+            %                   'total'      - total background
+            %                   'all'        - all three, as a 1x3 object
+            %                                  (earthshine, zodi, total)
+            %            'InterpMethod' - Interpolation method.
+            %                   Default is 'linear'.
+            %            'OutType' - ['AstroSpec'] | 'mat'.
+            % Output : - An AstroSpec object (or array, for 'all') with the
+            %            background spectrum, or a matrix
+            %            [Wave(Ang), Flux(erg/cm^2/s/A/arcsec^2)].
+            %            Note that the flux is a surface brightness; the
+            %            FluxUnits setter cannot convert such units, so read
+            %            the Flux property directly.
+            % Author : Eran Ofek (Nov 2014)
+            % References: https://hst-docs.stsci.edu/display/STISIHB/6.6+Tabular+Sky+Backgrounds
+            %            There is a discrepency with the WFC3 handbook; according
+            %            to the HST help desk the STIS table should be used.
+            % Example: Result = AstroSpec.zodiacSpectrum;
+            %          Result = AstroSpec.zodiacSpectrum([5000; 5500]);
+            %          Result = AstroSpec.zodiacSpectrum([], 'BackType','all');
+            %          % to verify normalization: synphot(Result,'Johnson','V','Vega')
+
+            arguments
+                Wave                   = [];
+                Args.BackType          = 'zodi';   % 'zodi' | 'earthshine' | 'total' | 'all'
+                Args.InterpMethod      = 'linear';
+                Args.OutType           = 'AstroSpec';
+            end
+            FluxUnits = 'erg*cm^-2*s^-1*Ang^-1*arcsec^-2';
+
+            % Wave(Ang), High Earthshine, High zodi, Total back
+            % erg/s/cm^2/A/arcsec^2
+            Spec=[
+            1000 2.41e-23 9.69e-29 2.41e-23
+            1100 4.38e-22 1.04e-26 4.38e-22
+            1200 4.01e-23 1.08e-25 4.03e-23
+            1300 7.41e-25 6.59e-25 1.40e-24
+            1400 4.29e-25 2.55e-24 2.98e-24
+            1500 4.16e-25 9.73e-24 1.01e-23
+            1600 2.55e-25 2.35e-22 2.35e-22
+            1700 7.89e-25 7.21e-21 7.21e-21
+            1800 9.33e-23 1.53e-20 1.54e-20
+            1900 4.39e-22 2.25e-20 2.29e-20
+            2000 1.01e-21 3.58e-20 3.68e-20
+            2100 1.60e-21 1.23e-19 1.25e-19
+            2200 7.49e-22 2.21e-19 2.22e-19
+            2300 3.32e-22 1.81e-19 1.81e-19
+            2400 2.50e-22 1.83e-19 1.83e-19
+            2500 2.39e-22 2.53e-19 2.53e-19
+            2600 5.62e-22 3.06e-19 3.06e-19
+            2700 6.77e-21 1.01e-18 1.02e-18
+            2800 2.03e-21 2.88e-19 2.90e-19
+            2900 4.32e-20 2.08e-18 2.12e-18
+            3000 9.34e-20 1.25e-18 1.35e-18
+            3100 2.07e-19 1.50e-18 1.70e-18
+            3200 3.60e-19 2.30e-18 2.66e-18
+            3300 4.27e-19 2.95e-18 3.38e-18
+            3400 6.40e-19 2.86e-18 3.50e-18
+            3500 8.20e-19 2.79e-18 3.61e-18
+            3600 1.06e-18 2.74e-18 3.80e-18
+            3700 1.22e-18 3.32e-18 4.54e-18
+            3800 1.23e-18 3.12e-18 4.35e-18
+            3900 1.52e-18 3.34e-18 4.86e-18
+            4000 2.38e-18 4.64e-18 7.01e-18
+            4250 2.38e-18 4.65e-18 7.03e-18
+            4500 2.86e-18 5.58e-18 8.44e-18
+            4750 2.79e-18 5.46e-18 8.25e-18
+            5000 2.63e-18 5.15e-18 7.77e-18
+            5250 2.67e-18 5.37e-18 8.04e-18
+            5500 2.58e-18 5.34e-18 7.92e-18
+            5750 2.54e-18 5.40e-18 7.94e-18
+            6000 2.42e-18 5.25e-18 7.67e-18
+            6250 2.26e-18 5.02e-18 7.28e-18
+            6500 2.17e-18 4.92e-18 7.09e-18
+            6750 2.07e-18 4.79e-18 6.87e-18
+            7000 1.93e-18 4.55e-18 6.48e-18
+            7250 1.85e-18 4.43e-18 6.29e-18
+            7500 1.74e-18 4.23e-18 5.97e-18
+            7750 1.63e-18 4.04e-18 5.67e-18
+            8000 1.56e-18 3.92e-18 5.49e-18
+            8250 1.48e-18 3.76e-18 5.23e-18
+            8500 1.35e-18 3.50e-18 4.85e-18
+            8750 1.31e-18 3.43e-18 4.74e-18
+            9000 1.22e-18 3.23e-18 4.44e-18
+            9250 1.15e-18 3.07e-18 4.21e-18
+            9500 1.10e-18 2.98e-18 4.08e-18
+            9750 1.04e-18 2.86e-18 3.91e-18
+            10000 1.00e-18 2.78e-18 3.78e-18
+            10250 9.54e-19 2.67e-18 3.63e-18
+            10500 9.04e-19 2.56e-18 3.46e-18
+            10750 8.41e-19 2.41e-18 3.25e-18
+            11000 8.03e-19 2.31e-18 3.11e-18];
+
+            ColWave = 1;
+            switch lower(Args.BackType)
+                case 'earthshine'
+                    Col = 2;
+                    Name = {'High earthshine'};
+                case 'zodi'
+                    Col = 3;
+                    Name = {'High zodiacal light'};
+                case 'total'
+                    Col = 4;
+                    Name = {'Total background'};
+                case 'all'
+                    Col = [2 3 4];
+                    Name = {'High earthshine', 'High zodiacal light', 'Total background'};
+                otherwise
+                    error('Unknown BackType option');
+            end
+
+            SpecInt = Spec(:,Col);
+            if isempty(Wave)
+                Wave = Spec(:,ColWave);
+            else
+                Wave    = Wave(:);
+                SpecInt = interp1(Spec(:,ColWave), SpecInt, Wave, Args.InterpMethod);
+            end
+
+            switch lower(Args.OutType)
+                case 'mat'
+                    Result = [Wave, SpecInt];
+                case 'astrospec'
+                    Ncol   = numel(Col);
+                    Result = AstroSpec(Ncol);
+                    for Icol=1:1:Ncol
+                        Result(Icol) = AstroSpec({[Wave, SpecInt(:,Icol)]}, ...
+                                                 {'Wave','Flux'}, {'Ang', FluxUnits});
+                        Result(Icol).Ref = sprintf('%s (HST STIS handbook)', Name{Icol});
+                        Result(Icol).Z   = 0;
+                    end
+                otherwise
+                    error('Unknown OutType option');
+            end
+
+        end
+
         function [Result_ST,Result_A,Result_S,Result_E,Result_STE,Result_AE] = mieScattering(Radius, RadiusW, Theta, N, Lambda)
             % Mie scattering spectrum for a specific scattering angle and
             %   linear combination of particle sizes.
@@ -1126,6 +1422,153 @@ classdef AstroSpec < Component
             
             
         end
+    
+        function AS=getSkyArcsSpecLines(Name)
+            % Get sky/arcs spectra and lines list DB
+            % Input  : - If empty, then return an AstroSpec object with all
+            %            spectra/lines list in DB.
+            %            If 'show', then return a cell array with spectra
+            %            names.
+            %            If a char array of spectra name (e.g., 'Cd'), then
+            %            return a single element AstroSpec object with the
+            %            requested spectra/lines list.
+            % Output : - An AstroSpec object or list of lines.
+            % Author : Eran Ofek (Dec 2023)
+            % Example: AS=AstroSpec.getSkyArcsSpecLines
+            %          AS=AstroSpec.getSkyArcsSpecLines('show')
+            %          AS=AstroSpec.getSkyArcsSpecLines('SkyLow')
+            
+            arguments
+                Name    = [];
+            end
+            
+            % prep AstroSpec from old format
+            % I=1;AS(I)=AstroSpec;AS(I).Wave=SpecArcs(I).Spec(:,1);AS(I).Flux=SpecArcs(I).Spec(:,2); S(I).WaveUnits='A';ASI=1;AS(I)=AstroSpec;AS(I).Wave=SpecArcs(I).Spec(:,1);AS(I).Flux=SpecArcs(I).Spec(:,2); S(I).WaveUnits='A';AS(I)I=1;AS(I)=AstroSpec;AS(I).Wave=SpecArcs(I).Spec(:,1);AS(I).Flux=SpecArcs(I).Spec(:,2); S(I).WaveUnits='A';AS(I).FluxUnits='';
+
+            AS = io.files.load2('WaveCalib_AstroSpec.mat');
+            
+            if isempty(Name)
+                % return all spectra and lines list
+            else
+                if strcmp(Name, 'show')
+                    AS = {AS.Name};
+                else
+                    % search specific spec/lines list
+                    
+                    Ind = strcmp(Name, {AS.Name});
+                    AS = AS(Ind);
+                    
+                end
+            end
+                
+                
+        end
+    
+        function AS=getSpecPhotStandard(Name, Dec, Args)
+            % Get spectrum of standard star
+            %   This function retrieve spectrum of spectrophotometric
+            %   standard stars as AstroSpec object.
+            %   The function supports one of the following standard stars
+            %   lists:
+            %       SpecPhotStandardStar.mat - 52 standard stars
+            % Input  : - Star name (e.g., 'HIP45880'), or RA [deg|rad]
+            %          - Optional Dec [deg|rad]
+            %          * ...,key,val,...
+            %            'SearchRadius' - Default is 100.
+            %            'SearchRadiusUnits' - Default is 'arcsec'.
+            %            'CooUnits' - Default is 'deg'.
+            %            'List' - List of std stars:
+            %                   'SpecPhotStandardStar.mat' - 52 std stars.
+            % Output : - An AstroSpec object.
+            %            Some info like RA, Dec, Mag is stored in the
+            %            Userdata.
+            %            The .Lines properties containing the grid points of
+            %               wavelengths [Ang] that can be used as ancor points
+            %               in the interpolation of the spectra over
+            %               emission/absorbtion lines.
+            % Author : Eran Ofek (Dec 2023)
+            % Example: AstroSpec.getSpecPhotStandard('HIP45880')
+            %          AstroSpec.getSpecPhotStandard(140.33, 81.724)
+
+            arguments
+                Name    = [];
+                Dec     = [];
+                Args.SearchRadius      = 100;
+                Args.SearchRadiusUnits = 'arcsec';
+                Args.CooUnits          = 'deg';
+                Args.List              = 'SpecPhotStandardStar.mat'
+            end
+
+            % prep AstroSpec from old format
+            %             for I=1:1:numel(SpecPhot_Stand)
+            %                 AS(I) = AstroSpec;
+            %                 AS(I).Name = SpecPhot_Stand(I).Name;
+            %                 AS(I).UserData.SpecType = SpecPhot_Stand(I).SpecType;
+            %                 AS(I).UserData.RA       = SpecPhot_Stand(I).RA;
+            %                 AS(I).UserData.Dec      = SpecPhot_Stand(I).Dec;
+            %                 AS(I).UserData.MagV     = SpecPhot_Stand(I).MagV;
+            %                 AS(I).Lines             = SpecPhot_Stand(I).GridWave;
+            %                 AS(I).Wave              = SpecPhot_Stand(I).Spec(:,1);
+            %                 AS(I).Flux              = SpecPhot_Stand(I).Spec(:,2);
+            %                 AS(I).WaveUnits         = 'A';
+            %                 AS(I).FluxUnits         = 'erg/cm^2/s/A'; 
+            %             end
+
+            AS = io.files.load2(Args.List);
+            Nas = numel(AS);
+            if isempty(Name)
+                % return all spectra
+            else
+                if ischar(Name)
+                    if strcmp(Name, 'show')
+                        % show spectra name
+                        AS = {AS.Name};
+                    else
+                        % search by star name
+                        Ind = [];
+                        for Ias=1:1:Nas
+                            Flag = strcmp(Name, AS(Ias).Name);
+                            if any(Flag)
+                                Ind = Ias;
+                            end
+                        end
+                        if isempty(Ind)
+                            error('Star name not found');
+                        end
+                        AS = AS(Ind);
+
+                    end
+                else
+                    % search by coordinates
+                    RA = Name;
+                    Factor = convert.angular(Args.CooUnits, 'rad');
+                    RA     = Factor.*RA;
+                    Dec    = Factor.*Dec;
+                    SearchRadius = convert.angular(Args.SearchRadiusUnits, 'rad', Args.SearchRadius); % [rad]
+                    
+                    StdRA  = zeros(Nas,1);
+                    StdDec = zeros(Nas,1);
+                    for Ias=1:1:Nas
+                        StdRA(Ias)  = AS(Ias).UserData.RA;  % [rad]
+                        StdDec(Ias) = AS(Ias).UserData.Dec; % [rad]
+                    end
+                    Dist = celestial.coo.sphere_dist_fast(RA, Dec, StdRA, StdDec);
+                    Flag = Dist<SearchRadius;
+                    if any(Flag)
+                        [~,Ias] = min(Dist);
+                        AS = AS(Ias);
+                    else
+                        AS = [];
+                    end
+                        
+                end
+            end
+
+
+                
+            
+        end
+        
     end
     
     methods  % resampling, sort, interpolation
@@ -1599,7 +2042,9 @@ classdef AstroSpec < Component
             Nobj2 = numel(Obj2);
             
             Nobj = max(Nobj1, Nobj2);
-            Result = AstroSpec([Nobj,1]);
+            % scalar argument = number of elements; a vector would be
+            % interpreted as a data matrix
+            Result = AstroSpec(Nobj);
             for Iobj=1:1:Nobj
                 Iobj1 = min(Iobj, Nobj1);
                 Iobj2 = min(Iobj, Nobj2);
@@ -1607,7 +2052,7 @@ classdef AstroSpec < Component
                 if Args.KeepOnlyOverlap
                     [New1, New2] = interpAndKeepOverlap(Obj1(Iobj1), Obj2(Iobj2), 'Method',Args.InterpMethod, 'CreateNewObj',true);
                 else
-                    New2 = interp1(Obj2, Obj1(Iobj1).Wave, 'Method',Args.InterpMethod, 'CreateNewObj',true);
+                    New2 = interp1(Obj2(Iobj2), Obj1(Iobj1).Wave, 'Method',Args.InterpMethod, 'CreateNewObj',true);
                     New1 = Obj1(Iobj1).copy();
                 end
                 
@@ -1701,7 +2146,10 @@ classdef AstroSpec < Component
                 if iscell(Obj2)
                     I1 = min(I,N1);
                     I2 = min(I,N2);
-                    Result(I) = AstroSpec({[Obj1(I1).Wave, Obj1(I2).Flux./Obj2{I2}]});
+                    Result(I) = AstroSpec({[Obj1(I1).Wave, Obj1(I1).Flux./Obj2{I2}]});
+                else
+                    % spectrum/filter divisors are not implemented yet
+                    error('Unsupported class for second input object');
                 end
             end
             
@@ -1897,6 +2345,10 @@ classdef AstroSpec < Component
         end
     end
     
+    methods % measure lines
+        % in imProc.spec.measure
+    end
+
     methods % filtering
         function Result = filterFun(Obj, Function, varargin)
             % Apply a 1-D function (filter) on the Flux field in AstroSpec
@@ -1988,7 +2440,7 @@ classdef AstroSpec < Component
                                 H    = [NewModelSpec.Flux(:), ones(Nw,1)];
                             case 'ext'
                                 WaveMicrons       = convert.length(NewModelSpec.WaveUnits, 'micrometer', NewModelSpec.Wave);
-                                A_W               = astro.spec.extinction(1, WaveMicrons, [], Args.R);
+                                A_W               = astro.extinction.extinction(1, WaveMicrons, [], Args.R);
                                 NewModelSpec.Flux = NewModelSpec.Flux.*10.^(-0.4.*A_W);
                                 H                 = [NewModelSpec.Flux(:)];
                             otherwise
@@ -2193,6 +2645,79 @@ classdef AstroSpec < Component
             
         end
         
+        function Result = scaleWave(Obj, Scale, Args)
+            % Scale wavelength axis (multiply by scale).
+            % Input  : - An AstroSpec object.
+            %          - A scalar or vector of scale.
+            %            One scale per AstroSpec element, or scalar for all
+            %            of them.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the object.
+            %                   Default is false.
+            % Output : - An AstroSpec object in which the wavelength axis
+            %            was multiplied by scale.
+            % Author : Eran Ofek (Dec 2023)
+            % Example: AS = AstroSpec({[ones(10,2)]});
+            %          AS.scaleWave(2)
+            
+            arguments
+                Obj
+                Scale
+                Args.CreateNewObj logical   = false;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Ns   = numel(Scale);
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Is = min(Iobj, Ns);
+                Result(Iobj).Wave = Result(Iobj).Wave .* Scale(Is);
+            end
+            
+        end
+        
+        function Result = shiftWave(Obj, Shift, Args)
+            % Shift wavelength axis (add a shift).
+            % Input  : - An AstroSpec object.
+            %          - A scalar or vector of shifts.
+            %            One shift per AstroSpec element, or scalar for all
+            %            of them.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the object.
+            %                   Default is false.
+            % Output : - An AstroSpec object in which the wavelength axis
+            %            were added to shift.
+            % Author : Eran Ofek (Dec 2023)
+            % Example: AS = AstroSpec({[ones(10,2)]});
+            %          AS.shiftWave(2)
+            
+            arguments
+                Obj
+                Shift
+                Args.CreateNewObj logical   = false;
+            end
+            
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+            
+            Ns   = numel(Shift);
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                Is = min(Iobj, Ns);
+                Result(Iobj).Wave = Result(Iobj).Wave + Shift(Is);
+            end
+            
+        end
         
     end
        

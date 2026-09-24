@@ -1,6 +1,7 @@
 function [FlagGood, BestPar, BestStd] = ransacLinearModel(H, Y, Args)
     % Fit a general linear model using a simplified RANSAC-like scheme
     % Input  : - Design matrix of linear model [f(x), g(x), h(x),...]
+    %            This must be non-empty.
     %          - Vector of observables.
     %          * ...,key,val,...
     %            'Nsim' - Number of simulations. Default is 100.
@@ -13,6 +14,10 @@ function [FlagGood, BestPar, BestStd] = ransacLinearModel(H, Y, Args)
     %                   Default is false.
     %            'NsigmaClip' - Sigma clipping in good points selection.
     %                   Default is [3 3].
+    %            'MinNunique' - Number of unique data points in each
+    %                   simulation. If the number of unique data points is
+    %                   smaller than this number then skip simulation.
+    %                   Default is 4.
     % Output : - A vector of logicals indicating good data points.
     %          - Vector of best fit parameters, using all good data points.
     %          - Vector of best std, using all good data points.
@@ -27,42 +32,51 @@ function [FlagGood, BestPar, BestStd] = ransacLinearModel(H, Y, Args)
         Args.NptSim             = []
         Args.CleanNaN logical   = false;
         Args.NsigmaClip         = [3 3];
+        
+        Args.MinNunique         = 4;
     end
     
-    if Args.CleanNaN
-        Flag = ~isnan(Y) & all(~isnan(H),2);
-        H    = H(Flag,:);
-        Y    = Y(Flag);
-    end
-    
-    Npt = numel(Y);
-    if isempty(Args.NptSim)
-        NptSim = ceil(Npt.*Args.FracPoints);
+    if isempty(H)
+        FlagGood = [];
+        BestPar  = [];
+        BestStd  = [];
     else
-        NptSim = Args.NptSim;
-    end
-    
-    PrevStd = Inf;
-    for Isim=1:1:Args.Nsim
-        IndRand = randi([1 Npt], NptSim, 1);
-        Par     = H(IndRand,:)\Y(IndRand);
-        Resid   = Y(IndRand) - H(IndRand,:)*Par;
-        Std     = std(Resid);
-        if Std<PrevStd
-            PrevStd     = Std;
-            BestIndRand = IndRand;
-            BestPar     = Par;
-            BestStd     = Std;
+        if Args.CleanNaN
+            Flag = ~isnan(Y) & all(~isnan(H),2);
+            H    = H(Flag,:);
+            Y    = Y(Flag);
         end
+        
+        Npt = numel(Y);
+        if isempty(Args.NptSim)
+            NptSim = ceil(Npt.*Args.FracPoints);
+        else
+            NptSim = Args.NptSim;
+        end
+        
+        PrevStd = Inf;
+        for Isim=1:1:Args.Nsim
+            IndRand = randi([1 Npt], NptSim, 1);
+            if numel(unique(IndRand))>=Args.MinNunique
+                Par     = H(IndRand,:)\Y(IndRand);
+                Resid   = Y(IndRand) - H(IndRand,:)*Par;
+                Std     = std(Resid);
+                if ~isnan(Std) && Std<PrevStd
+                    PrevStd     = Std;
+                    BestIndRand = IndRand;
+                    BestPar     = Par;
+                    BestStd     = Std;
+                end
+            end
+        end
+        
+        
+        % remove outliers
+        Resid   = Y - H*BestPar;
+        FlagGood = Resid<(BestStd.*Args.NsigmaClip(2)) & Resid>(-BestStd.*Args.NsigmaClip(1));
+        
+        BestPar = H(FlagGood,:)\Y(FlagGood);
+        Resid   = Y(FlagGood) - H(FlagGood,:)*BestPar;
+        BestStd = std(Resid);
     end
-    
-    
-    % remove outliers
-    Resid   = Y - H*BestPar;
-    FlagGood = Resid<(BestStd.*Args.NsigmaClip(2)) & Resid>(-BestStd.*Args.NsigmaClip(1));
-    
-    BestPar = H(FlagGood,:)\Y(FlagGood);
-    Resid   = Y(FlagGood) - H(FlagGood,:)*BestPar;
-    BestStd = std(Resid);
-    
 end

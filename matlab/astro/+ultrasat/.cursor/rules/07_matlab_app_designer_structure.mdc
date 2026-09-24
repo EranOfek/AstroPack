@@ -1,0 +1,40 @@
+---
+description: App Designer thin GUI shells — callbacks delegate to DataModule, no core logic in UI
+globs: "**/*.mlapp,**/+gui/**,**/*Gui*.m"
+alwaysApply: false
+---
+
+# App Designer structure
+
+## Model
+
+- Core logic in regular MATLAB files
+- GUI calls core through DataModule or manager class
+- ULTRASAT planner GUI: `02_matlab_ultrasat_planner_structure.mdc` (this folder)
+
+## App Designer responsibilities
+
+- Display data
+- Collect user input
+- Trigger actions
+
+## Callback rules
+
+- Short callbacks: read UI values, call core logic, update UI
+- No heavy computation in callbacks
+
+## State
+
+- UI holds view state only
+- Core state belongs to managers or planners
+
+## What not to do
+
+- No algorithms in callbacks
+- No file I/O in UI unless UI-specific
+- No backend communication from UI directly
+
+## Output expectations
+
+- Keep GUI thin
+- Push logic into helpers or managers

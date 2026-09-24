@@ -34,8 +34,24 @@ function [Result, Failed] = testAll(Args)
                 try
                     ResF  = FH();
                     %ResF = true;
+
+                    % FH
+                    % try 
+                    %     AI=AstroImage;
+                    % catch
+                    %     FH
+                    %     'a'
+                    % end
                 catch
                     ResF = false;
+
+                    % FH
+                    % try 
+                    %     AI=AstroImage;
+                    % catch
+                    %     FH
+                    %     'a'
+                    % end
                 end
                 Result(I).FunH    = FH;
                 Result(I).FunName = func2str(FH);

@@ -1,4 +1,4 @@
-function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
+function [Cat, ColCellOut, Res, FiltImage, Streaks]=find_measure_sources(Image, Args)
     % find sources in an image
     % Package: imUtil.sources
     % Description: Find sources in an image using a matched filter of template
@@ -63,6 +63,10 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
     %            'BackPar' - A cell array of additional parameters to pass to
     %                   the imUtil.background.background function.
     %                   Default is {}.
+    %            'AperRadius' - Aperture photometry radii.
+    %                   Default is [2 4 6] pix.
+    %            'Annulus' - Background annulus [iner, outer] radii.
+    %                   Default is [10 12] pix.
     %            'MomPar' - A cell array of additional parameters to pass to
     %                   the imUtil.image.moment2 function.
     %                   Default is {}.
@@ -83,15 +87,40 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
     %                   Default is 8.
     %            'Gain' - Default is 1.
     %            'LupSoftPar' - Luptitude softening parameter. Default is 1e-10.
+    %            'MagType' - Flux to magnitude conversion for the MAG_*
+    %                   columns: 'lup' - convert.luptitude (asinh magnitude,
+    %                   finite for non-positive flux); 'mag' -
+    %                   convert.magnitude (NaN for non-positive flux).
+    %                   LupSoftPar is used only when MagType='lup'.
+    %                   Default is 'lup'.
     %            'ZP' - ZP for magnitude. Default is 25.
     %            'ImageField' - Image field. Default is 'Im'.
     %            'BackField' - Background field. Default is 'Back'.
     %            'VarField' - Variance field. Default is 'Var'.
+    %            'MomentsMethod' - Options:
+    %                   'legacy' - use imUtil.image.moment2
+    %                   'mex' - use imUtil.sources.moments
+    %                   Default is 'mex'
+    %            --- Streak detection ---
+    %            'SearchStreaks' - A logical indicating if to search for
+    %                   streaks. Default is false.
+    %            'detectStreaksLSDArgs' - A cell array of arguments to pass
+    %                   to imUtil.streaks.detectStreaksLSD
+    %                   Default is {}.
+    %
     % Output : - A catalog of sources and their properties.
     %            Forced photometry requestes will have TEMP_ID=NaN.
     %          - A cell array of column names in the output catalog.
-    %          - A structure with additional calculated output (e.g., the
-    %            filtered image).
+    %          - A structure with additional calculated output.
+    %          - The filtered image.
+    %          - Structure containing information about streaks found in
+    %            the image. If non empty, then the following fields are available:
+    %            'Segs' - 4 x Nstreaks array of segments (x1,y1,x2,y2)
+    %            'Phot' - 1 x Nstreaks array of streaks flux.
+    %            'Parfit' - 3 x Nstreaks array of curvature model fit to the
+    %                   streak: h(t) = at^2 + bt + c
+    %                   describing the transverse offset from the base detected
+    %                   segment, as fitted from the pixel intensity data.
     % License: GNU general public license version 3
     % Tested : Matlab R2015b
     %     By : Eran O. Ofek                    Apr 2016
@@ -115,7 +144,12 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
         Args.BackIm                        = [];
         Args.VarIm                         = [];
         Args.BackPar cell                  = {};
-        Args.MomPar cell                   = {};
+        Args.AperRadius                    = [2 4 6];
+        Args.Annulus                       = [10 12];
+        Args.MomentsMethod                 = 'mex';  %'legacy'|'mex'
+        Args.AperPhotMethod                = 'interp';  % 'simple'|'interp'
+
+        Args.MomPar cell                   = {}; % for moments2
         Args.OutType                       = 'AstroCatalog';   % 'mat', 'table', 'catcl', 'struct'
         Args.ColCell cell                  = {'XPEAK','YPEAK','TEMP_ID','SN','FLUX_CONV','BACK_IM','VAR_IM',...           
                                                 'X1', 'Y1',...
@@ -128,11 +162,17 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
         
         Args.Gain                          = 1;      % only for errors calculation
         Args.LupSoftPar                    = 1e-10;
+        Args.MagType char {mustBeMember(Args.MagType, {'lup','mag'})} = 'lup';
         Args.ZP                            = 25;
         
         Args.ImageField char               = 'Im';
         Args.BackField char                = 'Back';
         Args.VarField char                 = 'Var';
+
+        Args.SearchStreaks                 = false;
+        Args.detectStreaksLSDArgs          = {};
+
+        
     end
     
     ZP_Flux = 10.^(0.4.*Args.ZP);
@@ -159,8 +199,7 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
     end
 
     
-
-    [Src,Template] = imUtil.sources.findSources(Image, 'Threshold',Args.Threshold,...
+    [Src,Template,FiltImage, ~, Streaks] = imUtil.sources.findSources(Image, 'Threshold',Args.Threshold,...
                                             'Psf',Args.Psf,...
                                             'PsfFun',Args.PsfFun,...
                                             'PsfFunPar',Args.PsfFunPar,...
@@ -171,7 +210,9 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
                                             'OutType','struct',...
                                             'Conn',Args.Conn,...
                                             'BackField',Args.BackField,...
-                                            'VarField',Args.VarField);
+                                            'VarField',Args.VarField,...
+                                            'SearchStreaks',Args.SearchStreaks,...
+                                            'detectStreaksLSDArgs',Args.detectStreaksLSDArgs);
     
     % Number of templates
     Ntemplate = size(Template,3);
@@ -191,16 +232,74 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
         %
         %Aper = imUtil.sources.aperPhotCube(Cube, X, Y, 'PSF',PSF,'SubPixShift','fft')
         
-        % old:
-        [M1,M2,Aper] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK,Args.MomPar{:});
-        
-    elseif any(ismember(Args.ColCell,Mom2Cell))
-        [M1,M2] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK,Args.MomPar{:});
+        switch Args.MomentsMethod
+            case 'legacy'
+                %tic; for i=1:100
+                [M1,M2,Aper] = imUtil.image.moment2(Image-Back, Src.XPEAK, Src.YPEAK, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, Args.MomPar{:});
+                % Note M1.Iter is a scalar! This may generate a crash
+                %end, toc
+            case 'mex'
+
+                % new:
+                % x7-10 faster     
+                %tic; for i=1:100
+                SN_W = Src.SN(:,2);
+                % ~isfinite is required: NaN<1 and Inf<1 are both false, so
+                % neither is caught by the comparison alone, and an Inf weight
+                % aborts moment1_cube with 'SN must be finite' (issue #1223)
+                SN_W(~isfinite(SN_W) | SN_W<1) = 1;
+                [M1, M2, Aper] = imUtil.sources.moments(Image-Back, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod);
+                
+                % %end, toc
+                % 
+                % % debuging plots:  
+                % % M1
+                % hist([M1a.X1-Src.XPEAK, M1.X-Src.XPEAK],20); xlabel('Final X - Initial X [pix]'); ylabel('N'); legend('New','Old')
+                % % M2
+                % hist(sqrt(M2a.X2),30)
+                % hist(M2.X2,100)
+                % % AperPhot
+                % ia=3; [H,Hl,Hu]=plot.plotSignedLogY(Apera.AperPhot(:,ia), (Aper.AperPhot(:,ia)-Apera.AperPhot(:,ia))./Apera.AperPhot(:,ia),'.');   
+                % ia=1;plot(Apera.AperPhot(:,ia), Aper.AperPhot(:,ia)-Apera.AperPhot(:,ia),'.')
+            otherwise
+                error('Unknown MomentsMethod option');
+        end
+
+    elseif any(ismember(Args.ColCell,Mom2Cell))            
         Aper    = [];
+        switch Args.MomentsMethod
+            case 'legacy'
+                [M1,M2] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, Args.MomPar{:});
+                
+            case 'mex'
+                
+                SN_W = Src.SN(:,2);
+                % ~isfinite is required: NaN<1 and Inf<1 are both false, so
+                % neither is caught by the comparison alone, and an Inf weight
+                % aborts moment1_cube with 'SN must be finite' (issue #1223)
+                SN_W(~isfinite(SN_W) | SN_W<1) = 1;
+                [M1, M2] = imUtil.sources.moments(Image, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod);
+            otherwise
+                error('Unknown MomentsMethod option');
+        end
+
     elseif any(ismember(Args.ColCell,Mom1Cell))
-        [M1] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK,Args.MomPar{:});
         M2   = [];
         Aper = [];
+        switch Args.MomentsMethod
+            case 'legacy'
+                [M1] = imUtil.image.moment2(Image-Back,Src.XPEAK,Src.YPEAK, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, Args.MomPar{:});
+            case 'mex'
+                
+                SN_W = Src.SN(:,2);
+                % ~isfinite is required: NaN<1 and Inf<1 are both false, so
+                % neither is caught by the comparison alone, and an Inf weight
+                % aborts moment1_cube with 'SN must be finite' (issue #1223)
+                SN_W(~isfinite(SN_W) | SN_W<1) = 1;
+                [M1] = imUtil.sources.moments(Image, 'X',Src.XPEAK, 'Y',Src.YPEAK, 'SN',SN_W, 'AperRadius',Args.AperRadius, 'Annulus',Args.Annulus, 'AperPhotMethod',Args.AperPhotMethod);
+            otherwise
+                error('Unknown MomentsMethod option');
+        end
     else
         % no need to call moment2
         M1   = [];
@@ -246,122 +345,173 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
 
     FluxErrAper = [];
     
-    K    = 0;
-    for Icol=1:1:Ncol
-        K = K + 1;
-        ColCellOut{K} = Args.ColCell{Icol};
-        switch lower(Args.ColCell{Icol})
-            case 'xpeak'
-                Cat(:,K) = Src.XPEAK;
-            case 'ypeak'
-                Cat(:,K) = Src.YPEAK;
-            case 'temp_id'
-                Cat(:,K) = Src.TEMP_ID;
-            case 'sn'
-                % may have multiple columns
-                NC = size(Src.SN,2);
-                Cat(:,K:K+NC-1) = Src.SN;
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
-                K  = K + NC - 1;
-            case 'flux_conv'
-                % may have multiple columns
-                NC = size(Src.FLUX_CONV,2);
-                Cat(:,K:K+NC-1) = Src.FLUX_CONV;
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
-                K = K + NC - 1;
-            case 'mag_conv'
-                % may have multiple columns
-                NC = size(Src.FLUX_CONV,2);
-                Cat(:,K:K+NC-1) = convert.luptitude(Src.FLUX_CONV, ZP_Flux, Args.LupSoftPar);  
-                %Cat(:,K:K+NC-1) = real(Cat(:,K:K+NC-1));
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
-                K = K + NC - 1;    
-            case 'magerr_conv'
-                % may have multiple columns
-                NC = size(Src.FLUX_CONV,2);
-                Cat(:,K:K+NC-1) = 1.086./Src.SN;
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
-                K = K + NC - 1;   
-            case 'back_im'
-                Cat(:,K) = Src.BACK_IM;
-            case 'var_im'
-                Cat(:,K) = Src.VAR_IM;
-            case 'x1'
-                Cat(:,K) = M1.X;
-            case 'y1'
-                Cat(:,K) = M1.Y;
-            case 'x2'
-                Cat(:,K) = M2.X2;
-            case 'y2'
-                Cat(:,K) = M2.Y2;
-            case 'xy'
-                Cat(:,K) = M2.XY;
-            case 'flux_aper'
-                % may have multiple columns
-                NC = size(Aper.AperPhot,2);
-                Cat(:,K:K+NC-1) = Aper.AperPhot;
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('FLUX_APER',(1:1:NC)));
-                K = K + NC - 1;
-            case 'fluxerr_aper'
-                % may have multiple columns
-                NC = size(Aper.AperPhot,2);
-                if isempty(FluxErrAper)
-                    AperPhot    = Aper.AperPhot.*Args.Gain;
-                    FluxErrAper = sqrt(abs(AperPhot) + Aper.AnnulusStd.^2)./AperPhot;
-                end
-                Cat(:,K:K+NC-1) = FluxErrAper;
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('FLUXERR_APER',(1:1:NC)));
-                K = K + NC - 1;
-            case 'mag_aper'
-                % may have multiple columns
-                NC = size(Aper.AperPhot,2);
-                Cat(:,K:K+NC-1) = convert.luptitude(Aper.AperPhot, ZP_Flux, Args.LupSoftPar);
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('MAG_APER',(1:1:NC)));
-                K = K + NC - 1;
-            case 'magerr_aper'
-                % may have multiple columns
-                NC = size(Aper.AperPhot,2);
-                if isempty(FluxErrAper)
-                    AperPhot    = Aper.AperPhot.*Args.Gain;
-                    FluxErrAper = sqrt(abs(AperPhot) + Aper.AnnulusStd.^2)./AperPhot;
-                end
-                Cat(:,K:K+NC-1) = 1.086 .* FluxErrAper;
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('MAGERR_APER',(1:1:NC)));
-                K = K + NC - 1;    
-            case 'aper_area'
-                % may have multiple columns
-                NC = size(Aper.AperArea,2);
-                Cat(:,K:K+NC-1) = Aper.AperArea.*ones(size(Cat(:,1)));
-                [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('APER_AREA',(1:1:NC)));
-                K = K + NC - 1;
-            case 'flux_box'
-                % this is no longer in use
-                Cat(:,K) = Aper.BoxPhot;
-            case 'back_annulus'
-                % need to add Src.BACK_IM because the background was subtract
-                % (in moment2 input)
-                Cat(:,K) = Aper.AnnulusBack + Src.BACK_IM;
-            case 'backmag_annulus'
-                % need to add Src.BACK_IM because the background was subtract
-                % (in moment2 input)
-                Cat(:,K) = convert.luptitude(Aper.AnnulusBack + Src.BACK_IM, ZP_Flux, Args.LupSoftPar);    
-            case 'std_annulus'
-                Cat(:,K) = Aper.AnnulusStd;
-            case 'flux_waper'
-                Cat(:,K) = Aper.WeightedAper;
-            otherwise
-                error('Unknown column in ColCell (%s)',Args.ColCell{Icol});
+    if ~isempty(Cat)
+        K    = 0;
+        for Icol=1:1:Ncol
+            K = K + 1;
+            ColCellOut{K} = Args.ColCell{Icol};
+            switch lower(Args.ColCell{Icol})
+                case 'forced'
+                    Cat(:,K) = 0;  % forced photometry : NO
+                case 'xpeak'
+                    Cat(:,K) = Src.XPEAK;
+                case 'ypeak'
+                    Cat(:,K) = Src.YPEAK;
+                case 'temp_id'
+                    Cat(:,K) = Src.TEMP_ID;
+                case 'sn'
+                    % may have multiple columns
+                    NC = size(Src.SN,2);
+                    Cat(:,K:K+NC-1) = Src.SN;
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
+                    K  = K + NC - 1;
+                case 'flux_conv'
+                    % may have multiple columns
+                    NC = size(Src.FLUX_CONV,2);
+                    Cat(:,K:K+NC-1) = Src.FLUX_CONV;
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
+                    K = K + NC - 1;
+                case 'mag_conv'
+                    % may have multiple columns
+                    NC = size(Src.FLUX_CONV,2);
+                    if strcmp(Args.MagType, 'mag')
+                        Cat(:,K:K+NC-1) = convert.magnitude(Src.FLUX_CONV, ZP_Flux);
+                    else
+                        Cat(:,K:K+NC-1) = convert.luptitude(Src.FLUX_CONV, ZP_Flux, Args.LupSoftPar);
+                    end
+                    %Cat(:,K:K+NC-1) = real(Cat(:,K:K+NC-1));
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
+                    K = K + NC - 1;    
+                case 'magerr_conv'
+                    % may have multiple columns
+                    NC = size(Src.FLUX_CONV,2);
+                    MagErrConv = 1.086./Src.SN;
+                    if strcmp(Args.MagType, 'mag')
+                        % MAG is NaN for non-positive flux - the error must
+                        % follow it (and a negative error is meaningless).
+                        MagErrConv(~(Src.FLUX_CONV>0)) = NaN;
+                    end
+                    Cat(:,K:K+NC-1) = MagErrConv;
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell(Args.ColCell{Icol},(1:1:NC)));
+                    K = K + NC - 1;   
+                case 'back_im'
+                    Cat(:,K) = Src.BACK_IM;
+                case 'var_im'
+                    Cat(:,K) = Src.VAR_IM;
+                case 'x1'
+                    Cat(:,K) = M1.X;
+                case 'y1'
+                    Cat(:,K) = M1.Y;
+                case 'm1iter'
+                    Cat(:,K) = M1.Iter;
+                case 'x2'
+                    Cat(:,K) = M2.X2;
+                case 'y2'
+                    Cat(:,K) = M2.Y2;
+                case 'xy'
+                    Cat(:,K) = M2.XY;
+                case 'flux_aper'
+                    % may have multiple columns
+                    NC = size(Aper.AperPhot,2);
+                    Cat(:,K:K+NC-1) = Aper.AperPhot;
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('FLUX_APER',(1:1:NC)));
+                    K = K + NC - 1;
+                case 'fluxerr_aper'
+                    % may have multiple columns
+                    NC = size(Aper.AperPhot,2);
 
+                    if isempty(FluxErrAper)
+                        
+                        FluxErrAper = sqrt(max(Aper.AperPhot, 0)./Args.Gain + Aper.AperArea.*Aper.AnnulusStd.^2 .* (1 + Aper.AperArea./Aper.AnnulusArea))./Aper.AperPhot;
+                        % non-positive flux: the relative error is
+                        % meaningless (and would be negative after the
+                        % division) - NaN, matching the NaN MAG (issue #1135)
+                        FluxErrAper(~(Aper.AperPhot>0)) = NaN;
+
+                        %AperPhot    = Aper.AperPhot.*Args.Gain;
+                        %FluxErrAper = sqrt(abs(AperPhot) + (Args.Gain.*Aper.AnnulusStd).^2)./AperPhot;
+                    end
+                    Cat(:,K:K+NC-1) = FluxErrAper;
+                    
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('FLUXERR_APER',(1:1:NC)));
+                    K = K + NC - 1;
+                case 'mag_aper'
+                    % may have multiple columns
+                    NC = size(Aper.AperPhot,2);
+                    if strcmp(Args.MagType, 'mag')
+                        Cat(:,K:K+NC-1) = convert.magnitude(Aper.AperPhot, ZP_Flux);
+                    else
+                        Cat(:,K:K+NC-1) = convert.luptitude(Aper.AperPhot, ZP_Flux, Args.LupSoftPar);
+                    end
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('MAG_APER',(1:1:NC)));
+                    K = K + NC - 1;
+                case 'magerr_aper'
+                    % may have multiple columns
+                    NC = size(Aper.AperPhot,2);
+                    if isempty(FluxErrAper)
+                        FluxErrAper = sqrt(max(Aper.AperPhot, 0)./Args.Gain + Aper.AperArea.*Aper.AnnulusStd.^2 .* (1 + Aper.AperArea./Aper.AnnulusArea))./Aper.AperPhot;
+                        % non-positive flux: the relative error is
+                        % meaningless (and would be negative after the
+                        % division) - NaN, matching the NaN MAG (issue #1135)
+                        FluxErrAper(~(Aper.AperPhot>0)) = NaN;
+
+                        %AperPhot    = Aper.AperPhot.*Args.Gain;
+                        %FluxErrAper = sqrt(abs(AperPhot) + (Args.Gain.*Aper.AnnulusStd).^2)./AperPhot;
+                    end
+                    MagErrAper = 1.086 .* FluxErrAper;
+                    if strcmp(Args.MagType, 'mag')
+                        % MAG_APER is NaN for non-positive flux - the error
+                        % must follow it (FluxErrAper is divided by AperPhot,
+                        % so it would otherwise come out negative).
+                        MagErrAper(~(Aper.AperPhot>0)) = NaN;
+                    end
+                    Cat(:,K:K+NC-1) = MagErrAper;
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('MAGERR_APER',(1:1:NC)));
+                    K = K + NC - 1;    
+                case 'aper_area'
+                    % may have multiple columns
+                    NC = size(Aper.AperArea,2);
+                    Cat(:,K:K+NC-1) = Aper.AperArea.*ones(size(Cat(:,1)));
+                    [ColCellOut(K:K+NC-1)] = deal(sprintf_cell('APER_AREA',(1:1:NC)));
+                    K = K + NC - 1;
+                case 'flux_box'
+                    % this is no longer in use
+                    Cat(:,K) = Aper.BoxPhot;
+                case 'back_annulus'
+                    % need to add Src.BACK_IM because the background was subtract
+                    % (in moment2 input)
+                    Cat(:,K) = Aper.AnnulusBack + Src.BACK_IM;
+                case 'backmag_annulus'
+                    % need to add Src.BACK_IM because the background was subtract
+                    % (in moment2 input)
+                    if strcmp(Args.MagType, 'mag')
+                        Cat(:,K) = convert.magnitude(Aper.AnnulusBack + Src.BACK_IM, ZP_Flux);
+                    else
+                        Cat(:,K) = convert.luptitude(Aper.AnnulusBack + Src.BACK_IM, ZP_Flux, Args.LupSoftPar);
+                    end
+                case 'std_annulus'
+                    Cat(:,K) = Aper.AnnulusStd;
+                case 'flux_waper'
+                    Cat(:,K) = Aper.WeightedAper;
+                case 'flux_xypeak'
+                    % flux at XPEAK, YPEAK
+                    Cat(:,K) = imUtil.image.getValPos(Image-Back, Src.XPEAK, Src.YPEAK);
+    
+                otherwise
+                    error('Unknown column in ColCell (%s)',Args.ColCell{Icol});
+    
+            end
+        end % for Icol=1:1:Ncol
+    
+
+        if ~isnan(Args.RemoveEdgeDist)
+            SizeIm = size(Image);
+            FlagEdge = Src.XPEAK<=(Args.RemoveEdgeDist+1) | ...
+                       Src.XPEAK>=(SizeIm(2)-Args.RemoveEdgeDist) | ...
+                       Src.YPEAK<=(Args.RemoveEdgeDist+1) | ...
+                       Src.YPEAK>=(SizeIm(1)-Args.RemoveEdgeDist);
+            Cat = Cat(~FlagEdge,:);
         end
-    end
-
-    if ~isnan(Args.RemoveEdgeDist)
-        SizeIm = size(Image);
-        FlagEdge = Src.XPEAK<=(Args.RemoveEdgeDist+1) | ...
-                   Src.XPEAK>=(SizeIm(2)-Args.RemoveEdgeDist) | ...
-                   Src.YPEAK<=(Args.RemoveEdgeDist+1) | ...
-                   Src.YPEAK>=(SizeIm(1)-Args.RemoveEdgeDist);
-        Cat = Cat(~FlagEdge,:);
     end
 
     if nargout>2
@@ -370,7 +520,8 @@ function [Cat, ColCellOut, Res]=find_measure_sources(Image, Args)
         Res.M2   = M2;
         Res.Aper = Aper;
         Res.FiltImage = FiltImage;
-        Res.FiltImageVar = FiltImageVar;
+        % commented this line because in most cases this is not needed.
+        %Res.FiltImageVar = FiltImageVar;
     end
 
     % Convert to output table

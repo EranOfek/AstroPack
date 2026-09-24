@@ -1,5 +1,6 @@
 function TrimStr=spacetrim(Str)
 % Recursively replace any occurance of two spaces with a single space.
+%   Obsolete: use tools.string.removeChars instead.
 % Package: tools.string
 % Description: Given a string, recursively replace any occurance of two
 %              spaces with a single

@@ -1,7 +1,7 @@
 function [Result1, ResInd, UnMatched1, UnMatched2]=match(Obj1, Obj2, Args)
     % Match the content of two AstroCatalog objects.
     %   
-    % Output : - (Obj1) The first input object. An AstroCatalog or an AstroImage 
+    % Input : - (Obj1) The first input object. An AstroCatalog or an AstroImage 
     %            containing AstroCatalog in the CatData property.
     %          - (Obj2) The second input object. An AstroCatalog or an AstroImage 
     %            containing AstroCatalog in the CatData property.

@@ -112,10 +112,12 @@ classdef Dictionary < Component
                 Obj(1,1)
                 Key char
                 Args.CaseSens(1,1) logical            = true;
-                Args.SearchAlgo char    {mustBeMember(Args.SearchAlgo,{'strcmp','regexp'})} = 'strcmp';
+                Args.SearchAlgo char                  = 'strcmp';
             end
             
             FN  = fieldnames(Obj.Dict);
+            % Remove 'FileName' from Dictionary:
+            FN  = FN(1:end-1);
             switch Args.SearchAlgo
                 case 'strcmp'
                     if Args.CaseSens

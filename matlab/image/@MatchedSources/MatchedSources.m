@@ -77,6 +77,12 @@ classdef MatchedSources < Component
         JD                % time per epoch
         SrcData(1,1) struct   % Data for sources (e.g., mean RA)
         FileName          % optional file name
+        % Flux->magnitude convention of the MAG_* fields in Data:
+        % 'lup' - convert.luptitude (asinh magnitude), 'mag' - convert.magnitude
+        % (NaN for non-positive flux), '' - unknown/not stamped.
+        % Written to (and restored from) the HDF5 root attribute 'MagType',
+        % so a saved product records which convention its magnitudes use.
+        MagType char {mustBeMember(MagType, {'','lup','mag'})} = ''
     end
     
     properties (Dependent)
@@ -143,7 +149,7 @@ classdef MatchedSources < Component
     end
     
     methods (Static) % static read
-        function Obj = read(FileName, Args)
+        function Obj = read(FileNameList, Args)
             % read mat file or HDF5 file containing MatchedSources
             %   Each dataset in the hdf5 file will be read into a matrix
             %   with the same name in the Data property.
@@ -170,64 +176,84 @@ classdef MatchedSources < Component
             %          delete('try.hdf5');
             
             arguments
-                FileName char
+                FileNameList
                 Args.Fields                  = [];  % read all fields
                 Args.FileType char           = 'auto';  % 'hdf5' | 'mat' | 'auto'
             end
            
-            switch lower(Args.FileType)
-                case 'auto'
-                    [~,~, Ext] = fileparts(FileName);
-                    Args.FileType = Ext(2:end);
+            if ischar(FileNameList)
+                FileNameList = string(FileNameList);
             end
-            
-            switch lower(Args.FileType)
-                case {'hdf5','h5','hd5'}
-                    if isempty(Args.Fields)
-                        % read all fields
-                        Info  = h5info(FileName);
-                        Ndata = numel(Info.Datasets);
-                        for Idata=1:1:Ndata
-                            DS   = sprintf('/%s',Info.Datasets(Idata).Name);
-                            Data = h5read(FileName, DS);
-                            Struct.(Info.Datasets(Idata).Name) = Data;
+
+            Nf = numel(FileNameList);
+            for If=1:1:Nf
+                FileName = FileNameList{If};
+
+
+                switch lower(Args.FileType)
+                    case 'auto'
+                        [~,~, Ext] = fileparts(FileName);
+                        Args.FileType = Ext(2:end);
+                end
+                
+                switch lower(Args.FileType)
+                    case {'hdf5','h5','hd5'}
+                        if isempty(Args.Fields)
+                            % read all fields
+                            Info  = h5info(FileName);
+                            Ndata = numel(Info.Datasets);
+                            for Idata=1:1:Ndata
+                                DS   = sprintf('/%s',Info.Datasets(Idata).Name);
+                                Data = h5read(FileName, DS);
+                                Struct.(Info.Datasets(Idata).Name) = Data;
+                            end
+                            Struct.JD = h5read(FileName, '/JD');
+                        else
+                            if ischar(Args.Fields)
+                                Args.Fields = {Args.Fields};
+                            end
+                            Ndata = numel(Args.Fields);
+                            for Idata=1:1:Ndata
+                                Data = h5read(FileName, sprintf('/%s',Args.Fields{Idata}));
+                                Struct.(Args.Fields{Idata}) = Data;
+                            end
                         end
-                        Struct.JD = h5read(FileName, '/JD');
-                    else
-                        if ischar(Args.Fields)
-                            Args.Fields = {Args.Fields};
+                            
+                    case {'mat'}
+                        % read mat file
+                        % assume contains a structure
+                        Struct = io.files.load2(FileName);
+                        if isa(Struct, 'MatchedSources')
+                            Struct = Struct.Data;
                         end
-                        Ndata = numel(Args.Fields);
-                        for Idata=1:1:Ndata
-                            Data = h5read(FileName, sprintf('/%s',Args.Fields{Idata}));
-                            Struct.(Args.Fields{Idata}) = Data;
+                    otherwise
+                        error('Unknown FileType');
+                end
+                Obj(If) = MatchedSources;
+                % treat special fields
+                if isfield(Struct, 'JD')
+                    Obj(If).JD = Struct.JD;
+                    Struct = rmfield(Struct, 'JD');
+                end
+                Obj(If).addMatrix(Struct);
+                
+                Obj(If).FileName = FileName;
+
+                % restore the flux->magnitude convention stamp, if present
+                switch lower(Args.FileType)
+                    case {'hdf5','h5','hd5'}
+                        try
+                            Obj(If).MagType = h5readatt(FileName, '/', 'MagType');
+                        catch
+                            % no stamp (e.g. a product written before the
+                            % attribute was introduced) - leave it empty
                         end
-                    end
-                        
-                case {'mat'}
-                    % read mat file
-                    % assume contains a structure
-                    Struct = io.files.load2(FileName);
-                    if isa(Struct, 'MatchedSources')
-                        Struct = Struct.Data;
-                    end
-                otherwise
-                    error('Unknown FileType');
+                end
             end
-            Obj = MatchedSources;
-            % treat special fields
-            if isfield(Struct, 'JD')
-                Obj.JD = Struct.JD;
-                Struct = rmfield(Struct, 'JD');
-            end
-            Obj.addMatrix(Struct);
-            
-            Obj.FileName = FileName;
-            
         end
         
         function Result = read_rdir(FileTemplate, Args)
-            % Read all MatchedSources files in a dir tree into a MatchedSources object.
+            % OBSOLETE - Read all MatchedSources files in a dir tree into a MatchedSources object.
             %   By default will read all Level=MergedMat files, recursivley
             %   from a tree of directories, into a MatchedSources object.
             %   If OrderPart argument is provided than will attempt to
@@ -391,6 +417,9 @@ classdef MatchedSources < Component
             %                   'FileName'.
             %            'FieldFolder' - The input structure field contains
             %                   the cell of folders. Default is 'Folder'.
+            %            'Fields' - A field, or cell array of fields to
+            %                   read from an HDF5 file. In the case of a
+            %                   mat file, all fields are read.
             % Output : - A MatchedSources object populated with the files.
             % Author : Eran Ofek (Nov 2023)
             % Example: L = MatchedSources.rdirMatchedSourcesSearch('CropID',[10]);
@@ -400,6 +429,7 @@ classdef MatchedSources < Component
                 List
                 Args.FieldFileName   = 'FileName';
                 Args.FieldFolder     = 'Folder';
+                Args.Fields          = [];
             end
 
             if iscell(List)
@@ -413,14 +443,113 @@ classdef MatchedSources < Component
                 Nfile = numel(ListSt(Ist).(Args.FieldFileName));
                 File = fullfile(ListSt(Ist).(Args.FieldFolder), ListSt(Ist).(Args.FieldFileName));
                 for Ifile=1:1:Nfile
-                    Result(Ifile) = MatchedSources.read(File{Ifile});
+                    Result(Ifile) = MatchedSources.read(File{Ifile}, 'Fields',Args.Fields);
                 end
             end
 
         end
+                
+        function [MergedCat, MatchedS] = createFromDBqueryTable(T, Args)
+            % sort the output table of a DB query by epochs and read it into a MatchedSources object 
+            % Input  : - a source table (usually, the output of a DB query)
+            %          * ...,key,val,... 
+            %        'IDcolumn'    - the name of the image ID column
+            %        'SearchRadius'- the search radius
+            %        'RadUnits'    - the search radius units
+            % Output - an array of AstroCatalog (one per field/column in the input Astrocatalog). 
+            %          Each AstroCatalog contains the merged catalog with all the sources and their properties
+            %        - a MatchedSources object 
+            % Author : A.M. Krassilchtchikov (2025 Aug) 
+            % Example: Start = celestial.time.date2jd([2025, 04, 18]);
+            %          Stop  = celestial.time.date2jd([2025, 05, 01]);
+            %          Q = db.search.querySourcesByField(["1678"],'Mount',3,'Camera',2,'Crop',13,'JDstart',Start,'JDstop',Stop,'MaxMag',19,'DB',D);
+            %          T = D.query(Q);
+            %          [MCat, MS] = MatchedSources.createFromDBqueryTable(T,'SearchRadius',3); 
+            %          plot(MS.Data.JD(:,200),MS.Data.MAG_APER_3(:,200),"*")            
+            arguments
+                T
+                Args.IDcolumn     = 'ID_VISIT_IM';
+                Args.SearchRadius = 3;
+                Args.RadiusUnits  = 'arcsec';                
+                Args.MatchedColumns = {'JD','BJD','RA','Dec','FLAGS','MAG_APER_3','MAGERR_APER_3','MAG_PSF','MAGERR_PSF',...
+                                        'X1','Y1','X2','Y2','XY','SN_1','SN_2','SN_3','SN_4',...
+                                        'PSF_CHI2DOF','MAG_APER_2','MAGERR_APER_2','FLUX_APER_3','BACK_IM','VAR_IM','BACK_ANNULUS',...
+                                        'STD_ANNULUS','ITER','MOUNTNUM','CAMNUM','CROPID'};
+                Args.ColNamesStat  = {'RA',  'Dec', 'X1',  'Y1',  'MAG_PSF','MAGERR_PSF','MAG_APER_2', 'MAG_APER_3',...
+                                        'SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS', 'PSF_CHI2DOF'};  % must be a subset of MatchedColums
+                Args.ColNamesAll   = {'MAG_PSF','MAG_APER_3'}; 
+                Args.RelPhot       = false;
+            end     
+            % clean the ingestion_time column:
+            if ismember('ingestion_time', T.Properties.VariableNames)
+                T.ingestion_time = [];
+            end                       
+            % convert the column names to uppercase, except for Dec:
+            T.Properties.VariableNames = upper(T.Properties.VariableNames);
+            T.Properties.VariableNames{'DEC'} = 'Dec';                        
+            % find the unique image ids
+            uniqueID = unique(T.(Args.IDcolumn));
+            AC = AstroCatalog([numel(uniqueID) 1]);
+            Ncol = width(T);
+            % convert each epoch into an AstroCatalog 
+            for Epoch = 1:numel(uniqueID)    
+                T1 = T(T.(Args.IDcolumn) == uniqueID(Epoch), :);
+                % convert all the values to double in order to make a catalog (this will spoil the IDs, but we do not need them any more) 
+                for Icol = 1:Ncol
+                    T1.(T1.Properties.VariableNames{Icol}) = double(T1.(T1.Properties.VariableNames{Icol}));
+                end
+                AC(Epoch) = AstroCatalog(T1);                
+                AC(Epoch).sortrows('Dec');
+                AC(Epoch).JD = AC(Epoch).Table.JD(1); % need to be improved?                 
+            end         
+            
+            [MergedCat, MatchedS] = imProc.match.mergeCatalogs(AC,'Radius',Args.SearchRadius,'RelPhot',Args.RelPhot,...
+                                                           'MatchedColums',Args.MatchedColumns,...
+                                                           'ColNamesStat', Args.ColNamesStat,...
+                                                           'ColNamesAll',  Args.ColNamesAll);     
+        end
     end
     
     methods % write
+        function Result = cast(Obj, Type, Args)
+            % Change the type of variables in the Data field.
+            % Input  : - self.
+            %          - Type. Default is 'single'.
+            %          * ...,key,val,...
+            %            'SkipFields' - Fields to skip (not to cast).
+            %                   Default is ["RA", "Dec", "FLAGS"].
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new copy of the object. Default is false.
+            % Output : - An updated MatchedSources object.
+            % Author : Eran Ofek (Dec 2024)
+            % Example: MS.cast
+
+            arguments
+                Obj
+                Type              = 'single';
+                Args.SkipFields   = ["RA", "Dec", "FLAGS"];
+                Args.CreateNewObj logical   = false;
+            end
+
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                % for all fields in Data
+                Nfield = numel(Result.Fields);
+                for Ifield=1:1:Nfield
+                    if ~any(strcmp(Result.Fields{Ifield}, Args.SkipFields))
+                        Result(Iobj).Data.(Result.Fields{Ifield}) = cast(Result(Iobj).Data.(Result.Fields{Ifield}), Type);
+                    end
+                end
+            end
+
+        end
+
         function Result = write1(Obj, FileName, Args)
             % Write a MatchedSources object to HDF5 or mat file
             % Input  : - A single element MatchedSources object.
@@ -430,12 +559,19 @@ classdef MatchedSources < Component
             %                   ['hdf5'] - HDF5 file with dataset named like
             %                       the field names.
             %                   'mat' - Save the Data struct to a mat file.
+            %                           Note: only the 'hdf5' branch stores the
+            %                           MagType stamp (as a root attribute);
+            %                           'mat' saves Obj.Data alone and drops it.
             %                   'matobj' - Save the entire MatchedSource object to
             %                       a mat file.
             %            'RealIfComplex' - A logical indicating if to take
             %                   the real value (of a complex value).
             %                   This is used only if FileType=hdf5.
             %                   Default is true.
+            %            'Type' - Type to cast the Data fields before writing.
+            %                   If empty, then skip. Default is 'single';
+            %            'SkipFields' - Fields to skip (not to cast).
+            %                   Default is ["RA", "Dec", "FLAGS"].
             % Output : - Return true if sucess.
             % Author : Eran Ofek (Jun 2021)
             % Example: MS = MatchedSources;
@@ -445,15 +581,23 @@ classdef MatchedSources < Component
             arguments
                 Obj(1,1)
                 FileName
-                Args.FileType             = 'hdf5';
+                Args.FileType              = 'hdf5';
                 Args.RealIfComplex logical = true;
+                Args.Type                  = 'single';
+                Args.SkipFields            = ["RA", "Dec", "FLAGS"];
             end
            
+            if ~isempty(Args.Type)
+                Obj.cast(Args.Type, 'SkipFields',Args.SkipFields);
+            end
+
+
             switch lower(Args.FileType)
                 case {'h5','hdf5','hd5'}
                     Ndata = numel(Obj.Fields);
                     for Idata=1:1:Ndata
-                        h5create(FileName, sprintf('/%s',Obj.Fields{Idata}), size(Obj.Data.(Obj.Fields{Idata})));
+                        Type = class(Obj.Data.(Obj.Fields{Idata}));
+                        h5create(FileName, sprintf('/%s',Obj.Fields{Idata}), size(Obj.Data.(Obj.Fields{Idata})), 'DataType',Type);
                         if Args.RealIfComplex
                             h5write(FileName, sprintf('/%s',Obj.Fields{Idata}), real(Obj.Data.(Obj.Fields{Idata})));
                         else
@@ -463,6 +607,12 @@ classdef MatchedSources < Component
                     % save also the JD
                     h5create(FileName, '/JD', size(Obj.JD));
                     h5write(FileName,  '/JD', Obj.JD);
+                    % stamp the flux->magnitude convention as a root attribute
+                    % (an attribute and not a dataset, so that read() - which
+                    % loads every dataset into Data - is not affected)
+                    if ~isempty(Obj.MagType)
+                        h5writeatt(FileName, '/', 'MagType', Obj.MagType);
+                    end
                 case {'mat'}
                     % save the Data structure
                     Tmp = Obj.Data;
@@ -478,6 +628,147 @@ classdef MatchedSources < Component
         end
     end
     
+    methods (Static)   % readAndAnalyze
+        function Result=readAndAnalyze(Args)
+            % Read MatchedSources files from a list an execute an analysis function.
+            %   Can be used to run a user defined function on a large
+            %   number of MatchedSources files.
+            % Input  : - * ...,key,val,...
+            %              'Fun' - Function handle to execute.
+            %                   The function is executed on a single
+            %                   MatchedSources object and return some data,
+            %                   and a modified version of the
+            %                   MatchedSources object.
+            %                   Default is [].
+            %              'FunArgs' - A cell array of arguments to pass to
+            %                   the user function. Default is {}.
+            %              'DirList' - A cell array or a strings array of
+            %                   dir list containing visit names on which to
+            %                   execute the function on each MatchedSources
+            %                   object in the dir.
+            %                   Alternatively, this can be a function
+            %                   handle that generates a strings array.
+            %                   Default is @pipeline.DemonLAST.findAllvisitDir
+            %              'DirListArgs' - A cell array of arguments to
+            %                   pass to the DirList function. Default is {}.
+            %              'FilePat' - File pattern to search and load in
+            %                   the visit dirs. 
+            %                   Default is 'LAST*_sci_merged_MergedMat_*.hdf5'
+            % Output : - A structure array, with element per MatchedSources
+            %            file. The following fields are available:
+            %            .Ivisit - Index of visit.   
+            %            .Ifile - Index of file in visit.
+            %            .FileName - File name.
+            %            .Folder - Folder name.
+            %            .JD - Mean JD.
+            %            .Nepoch - Number of epochs in visit.
+            %            .Nsrc - Number of sources in file.
+            %            .Out - Output of the user defined function.
+            % Author : Eran Ofek (Jun 2024)
+            % Example:S=pipeline.DemonLAST.findAllVisitsDir;
+            %         R=MatchedSources.readAndAnalyze('DirList',S(1:10));
+            %         R=MatchedSources.readAndAnalyze('Fun',@lcUtil.searchVarCoherent);
+
+            arguments
+                Args.Fun              = [];
+                Args.FunArgs cell     = {};
+                Args.DirList          = @pipeline.DemonLAST.findAllVisitsDir;  % or cell of dirs
+                Args.DirListArgs cell = {};
+                Args.FilePat          = 'LAST*_sci_merged_MergedMat_*.hdf5';
+            end
+
+            if isa(Args.DirList, 'function_handle')
+                DirList = Args.DirList(Args.DirListArgs{:});
+            else
+                DirList = Args.DirList;
+            end
+
+            PWD = pwd;
+            Ndl = numel(DirList);
+            Ind = 0;
+            for Idl=1:1:Ndl
+                cd(DirList{Idl});
+
+                Files = dir(Args.FilePat);
+                Nfiles = numel(Files);
+                for Ifiles=1:1:Nfiles
+                    MS = MatchedSources.read(Files(Ifiles).name);
+
+                    Ind = Ind + 1;
+                    Result(Ind).Ivisit   = Idl;
+                    Result(Ind).Ifile    = Ifiles;
+                    Result(Ind).FileName = Files(Ifiles).name;
+                    Result(Ind).Folder   = Files(Ifiles).folder;
+                    Result(Ind).JD       = mean(MS.JD,"all", "omitnan");
+                    Result(Ind).Nepoch   = MS.Nepoch;
+                    Result(Ind).Nsrc     = MS.Nsrc;
+
+                    if ~isempty(Args.Fun)
+                        [Result(Ind).Out, MS] = Args.Fun(MS, Args.FunArgs{:});
+
+                        if isfield(Result(Ind).Out, 'FlagRunMean')
+
+                            C2 = sqrt(Result(Ind).Out.CorrMagDec.^2 + Result(Ind).Out.CorrMagRA.^2);
+                            %C2 = sqrt(Result(Ind).Out.CorrMagDec.^2 + Result(Ind).Out.CorrMagRA.^2 + Result(Ind).Out.CorrMagChi2.^2);
+                            C2_Th = quantile(C2,0.98);
+
+                            GoodCand = Result(Ind).Out.FlagRunMean & Result(Ind).Out.FlagCorrGood & C2<C2_Th;
+
+                            if any(GoodCand)
+
+                                II  = find(Result(Ind).Out.FlagRunMean);
+                                RA  = Result(Ind).Out.MeanRA(II(1));
+                                Dec = Result(Ind).Out.MeanDec(II(1));
+                                MeanJD = Result(Ind).Out.MeanJD;
+    
+                                OrbEl= celestial.OrbitalEl.loadSolarSystem('merge');
+                                IN = celestial.INPOP; IN.populateAll;
+                                [MP] = searchMinorPlanetsNearPosition(OrbEl, MeanJD, RA, Dec, 10, 'CooUnits','deg', 'INPOP',IN);
+    
+                                RAD = 180./pi;
+                                AC  = catsHTM.cone_search('GAIADR3',RA./RAD, Dec./RAD, 3, 'OutType','AstroCatalog');
+                                WD  = catsHTM.cone_search('WDEDR3',RA./RAD, Dec./RAD, 3, 'OutType','AstroCatalog');
+                                Mag = AC.Table.phot_bp_mean_mag;
+                                Color = AC.Table.phot_bp_mean_mag- AC.Table.phot_rp_mean_mag;
+                                Plx   = AC.Table.Plx;
+                                Plx(Plx<0) = 0.01;
+                                AbsMag = Mag - (5.*log10(1000./Plx) - 5);
+                                WD.sizeCatalog
+                                
+                                fprintf('%15.5f  %10.5f %10.5f\n',[Result(Ind).JD, RA, Dec]);
+                                [Mag, AbsMag, Color]
+                                Result(Ind).FileName
+    
+                                %Result.LC = MS.
+                                MS.plotLC(II(1));
+                                drawnow;
+    
+                                Result(Ind).UserData.RA     = RA;
+                                Result(Ind).UserData.Dec    = Dec;
+                                Result(Ind).UserData.N_WD   = WD.sizeCatalog;
+                                Result(Ind).UserData.Mag    = Mag;
+                                Result(Ind).UserData.AbsMag = AbsMag;
+                                Result(Ind).UserData.Color  = Color;
+                                Result(Ind).UserData.LC     = [MS.JD, MS.Data.MAG_BEST(:,II(1))];
+                                Result(Ind).UserData.MP     = MP;
+
+                                'a'
+                            end
+                        end
+                    end
+                   
+                end
+
+
+            end
+
+            cd(PWD);
+
+        end
+
+    end
+
+
     methods (Static)  % design matrix
         function H=designMatrixCalib(Nep, Nsrc, Args)
             % Generate the design matrix for relative photometric calibration
@@ -1520,11 +1811,12 @@ classdef MatchedSources < Component
             % Output : - The MatchedSources object with the external
             %            catalog magnitude and color added.
             % Author : Eran Ofek (May 2023)
+            % Example: MS.addExtMagColor
 
             arguments
                 Obj
                 Args.Catalog       = 'GAIADR3';
-                Args.ColMag        = 'phot_g_mean_mag';
+                Args.ColMag        = 'phot_bp_mean_mag';
                 Args.ColColor      = {'phot_bp_mean_mag','phot_rp_mean_mag'};  % single column or two columns
                 Args.ColCoo        = {'RA','Dec'};
                 Args.SearchRadius  = 2;
@@ -1557,12 +1849,18 @@ classdef MatchedSources < Component
                 Nra = numel(RA);
                 MagVector   = nan(1, Nra);
                 ColorVector = nan(1, Nra);
+                RAVector    = nan(1, Nra);
+                DecVector   = nan(1, Nra);
                 for Ira=1:1:Nra
                     if ~isnan(RA(Ira)) && ~isnan(Dec(Ira))
                         [Cat] = catsHTM.cone_search(Args.Catalog, RA(Ira).*ConvertFactor, Dec(Ira).*ConvertFactor, Args.SearchRadius,...
                                         'RadiusUnits',Args.SearchUnits, 'OutType','astrocatalog');
 
                         EpochOut = convert.time(mean(Obj(Iobj).JD), 'JD','J');
+
+                        if EpochOut<0
+                            warning('It is possible that the JD doesnt contain actual JD');
+                        end
 
                         if Cat.sizeCatalog>0 && Args.ApplyPM
                             Cat = imProc.cat.applyProperMotion(Cat, Cat.Catalog(1,3), EpochOut,'EpochInUnits','J','EpochOutUnits','J','ApplyPlx',true);
@@ -1613,7 +1911,7 @@ classdef MatchedSources < Component
 
         end
             
-    
+        
     end
     
 
@@ -1823,6 +2121,23 @@ classdef MatchedSources < Component
             
         end
         
+        function Result = countNotNanEpochs(Obj, Args)
+            % Count the number of not NaN epochs per source
+            % Input  : - A single element MatchedSources object.
+            %          * ...,key,val,...
+            %            'Field' - Field name on which to count.
+            %                   Default is 'MAG_PSF'.
+            % Output : - A vector of numbers of not NaN epochs per source.
+            % Author : Eran Ofek (Feb 2024)
+            
+            arguments
+                Obj(1,1)
+                Args.Field    = 'MAG_PSF';
+            end
+
+            Result = sum(~isnan(Obj.Data.(Args.Field)), 1);
+        end
+
     end
     
     methods  % statistics and functions
@@ -2056,6 +2371,11 @@ classdef MatchedSources < Component
         
         function [Result] = searchFlags(MS, Args)
             % Search specific flags in MatchedSources matrix.
+            %   NOTE: expected to become obsolete with the new (v1) pipeline.
+            %   On new-pipeline products (issue #1180) the 'Overlap' bit is
+            %   raised in ALL the crops covering a pixel, so treating it as a
+            %   bad flag rejects every copy of a seam source; on such products
+            %   select the owned copy with the catalog 'primary' column instead.
             %   Return a matrix of logical indicating if the specific flags
             %   are present in each entry.
             % Input  : - A single element MatchedSources object.
@@ -2066,11 +2386,15 @@ classdef MatchedSources < Component
             %                   property. Default is 'FLAGS'.
             %            'FlagsList' - A cell array containing a list of
             %                   bit names to identify.
-            %                   Default is {'NearEdge','Saturated','NaN','Negative'}
+            %                   Default is {'NearEdge','Saturated','NaN','Negativge'}
             %            'Operator' - If multiple bit names are requested
             %                   then this is the operator to apply between
             %                   the bit names. Options are @or | @and.
             %                   Default is @or.
+            %            'UseSrcData' - A logical indicating if to search
+            %                   the flags on SrcData property (true), or the
+            %                   Data property (false).
+            %                   Default is false.
             % Output : - An array of logicals of size Nepoch X Nsrc.
             %            Each element in the array indicate if the
             %            requested bit names where found in this entry.
@@ -2083,10 +2407,19 @@ classdef MatchedSources < Component
                Args.PropFlags    = 'FLAGS';
                Args.FlagsList    = {'NearEdge','Saturated','NaN','Negative'};
                Args.Operator     = @or; % @or | @and
+               Args.UseSrcData logical = false;
+            end
+
+            if ~isfield(MS.SrcData, Args.PropFlags)
+                MS.addSrcData;
             end
 
             BitClass = Args.BitDic.Class;
-            Flags = BitClass(MS.Data.(Args.PropFlags));
+            if Args.UseSrcData
+                Flags = BitClass(MS.SrcData.(Args.PropFlags));
+            else
+                Flags = BitClass(MS.Data.(Args.PropFlags));
+            end
 
             Result = zeros(size(Flags));
             Nflag  = numel(Args.FlagsList);
@@ -2095,7 +2428,7 @@ classdef MatchedSources < Component
                 if ~isempty(FieldIndex)
                     Result = Args.Operator(Result, bitget(Flags,FieldIndex));
                 else
-                    error('Field "%s" not found in dictionary', Args.Flags{Iflag});
+                    error('Field "%s" not found in dictionary', Args.FlagsList{Iflag});
                 end
             end
         end
@@ -2143,7 +2476,96 @@ classdef MatchedSources < Component
              
         end
 
-        
+        function [MatchedCat, Ind] = match2AstroCatalog(MS, AI, Args)
+            % Match sources in MatchedSources object to sources in AstroCatalog
+            %   Returns the nearest object in the AstroCatalog that are within the
+            %   search radius from each of the sources in the MatchedSources object.
+            % Input  : - self.
+            %          - An AstroImage (or AstroDiff, or AstroZOGY) containing AstroCatalog, or an
+            %            AstroCatalog object.
+            %            The number of elements must be 1 or identical to
+            %            that of the MatchedSources object.
+            %            Each MatchedSources element will be matched
+            %            against the corresponding (or the first) element
+            %            in the AstroCatalog.
+            %          * ...,key,val,...
+            %            'SearchRadius' - Search radius for matching.
+            %                       Default is 3.
+            %            'SearchUnits' - Search radius units.
+            %                       Default is 'arcsec'.
+            %            See code for additional arguments.
+            % Output : - An AstroCatalog object. Each element corresponds
+            %            to element in the MatchedSources input.
+            %            Each catalog contains entry for each one of the
+            %            sources in the MatchedSources object, with the
+            %            nearest source in the AStroCatalog.
+            %          - A structure array with the following fields:
+            %            .IndTable - A three column matrix with, one line
+            %                   per line in MatchedSources
+            %                   Columns are [Index of nearest source, within search radius, in
+            %                    the AstroCatalog;
+            %                   Distance; Total number of matches within radius].
+            %            .RA - Median RA for sources in MatchedSources.
+            %                   This is the RA that was searched in the
+            %                   AstroCatalog.
+            %            .Dec - Like .RA, but for Dec.
+            % Example: 
+            % cd /marvin/LAST.01.01.01/2024/09/01/proc/165437v0
+            % MS=MatchedSources.read('LAST.01.01.01_20240901.165747.812_clear_Nagi1b_000_001_001_sci_merged_MergedMat_1.hdf5');
+            % Cat=AstroCatalog('LAST.01.01.01_20240901.165427.767_clear_Nagi1b_000_001_001_sci_coadd_Cat_1.fits');
+            % R=MS.match2AstroCatalog(Cat);
+
+            arguments
+                MS
+                AI
+                Args.SearchRadius  = 3;
+                Args.SearchUnits   = 'arcsec';
+                Args.ColRA   = 'RA';
+                Args.ColDec  = 'Dec';
+                Args.UnitsMS = 'deg';
+                Args.UnitsAI = 'deg';
+                Args.DistFun function_handle      = @celestial.coo.sphere_dist_fast; %@celestial.coo.sphere_dist_fast_threshDist; %@celestial.coo.sphere_dist_fast;
+                Args.DistFunArgs cell        = {}; %{4.8481e-5}; %{};
+            end
+
+            FactorMS = convert.angular(Args.UnitsMS, 'rad');
+            FactorAI = convert.angular(Args.UnitsAI, 'rad');
+            SearchRadius = convert.angular(Args.SearchUnits, 'rad', Args.SearchRadius);
+
+            Nms = numel(MS);
+            Nai = numel(AI);
+            for Ims=1:1:Nms
+                Iai = min(Nai, Ims);
+
+                if isa(AI, 'AstroCatalog')
+                    Cat = AI(Iai);
+                else
+                    % assume an AstroImage
+                    Cat = AI(Iai).CatData;
+                end
+
+                CatRA  = Cat.getCol(Args.ColRA);
+                CatDec = Cat.getCol(Args.ColDec);
+                [CatDec,Is] = sort(CatDec);
+                CatRA       = CatRA(Is);
+                CatRA       = CatRA.*FactorAI;
+                CatDec      = CatDec.*FactorAI;
+    
+                RA  = median(MS(Ims).Data.(Args.ColRA), 1, 'omitnan').';
+                Dec = median(MS(Ims).Data.(Args.ColDec), 1, 'omitnan').';
+                RA  = RA.*FactorMS;
+                Dec = Dec.*FactorMS;
+    
+    
+                [Ind(Ims).IndTable, CatFlagNearest, CatFlagAll, IndInObj2] = VO.search.search_sortedlat_multiNearest([CatRA, CatDec],...
+                                                        RA, Dec, SearchRadius, Args.DistFun, 'DistFunArgs',Args.DistFunArgs);
+                Ind(Ims).RA  = RA;
+                Ind(Ims).Dec = Dec;
+                
+                MatchedCat(Ims) = Cat.selectRows(Ind(Ims).IndTable(:,1), 'IgnoreNaN',false, 'CreateNewObj',true);
+            end
+        end
+    
         
     end
     
@@ -2183,7 +2605,7 @@ classdef MatchedSources < Component
                     JD = (1:1:Obj.Nepoch).';
                 end
                 JD = JD(:);
-                for If=1:1:Nfields
+                for If=1:1:Nfields+1
                     if Args.SameEpochBlock
                         % write blocks of the same epoch followed by next
                         % epoch
@@ -2402,6 +2824,43 @@ classdef MatchedSources < Component
 
         end
 
+        function Result=setBadPhotToNan(Obj, Args)
+            % set to NaN photometry with bad flags
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            'BadFlags' - A cell array of flags that if
+            %                   present, then photometry will be replaced with
+            %                   NaN. Default is {'Overlap','NearEdge','CR_DeltaHT','Saturated','NaN','Negative'}
+            %            'MagField' - Magnitude field to set to NaN.
+            %                   Default is 'MAG_BEST'.
+            %            'CreateNewObj' - A logical indicating if to create
+            %                   a new object copy. Default is false.
+            % Output : - A MatchedSources object, in which the mag.
+            %            field in the Data property is modified.
+            % Author : Eran Ofek (May 2024)
+            % Example: MS.setBadPhotToNan;
+
+            arguments
+                Obj
+                Args.BadFlags              = {'Overlap','NearEdge','CR_DeltaHT','Saturated','NaN','Negative'};
+                Args.MagField              = 'MAG_BEST';
+                Args.CreateNewObj logical  = false;
+            end
+
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            Nobj = numel(Result);
+            for Iobj=1:1:Nobj
+                [BadFlags] = searchFlags(Result(Iobj), 'FlagsList',Args.BadFlags);
+                Result(Iobj).Data.(Args.MagField)(BadFlags) = NaN;
+            end
+        end
+
+        
         function [Result]=lsqRelPhot(Obj, Args)
             % Perform relative photometry calibration using the linear least square method.
             %   This function solves the following linear problem:
@@ -2521,7 +2980,7 @@ classdef MatchedSources < Component
                 InstMag    = Obj(Iobj).Data.(Args.MagProp);
                 InstMagErr = Obj(Iobj).Data.(Args.MagErrProp);
                 
-                Result(Iobj)  = imUtil.calib.lsqRelPhot(InstMag,...
+                Result(Iobj)  = imUtil.relPhot.lsqRelPhot(InstMag,...
                                                       'MagErr',InstMagErr,...
                                                       'Method',Args.Method,...
                                                       'Algo',Args.Algo,...
@@ -2577,14 +3036,14 @@ classdef MatchedSources < Component
                 Args.CreateNewObj logical   = false;
             end
 
+            % add the SrcData property
+            Obj.addSrcData(Args.addSrcDataArgs{:});
+
             if Args.CreateNewObj
                 Result = Obj.copy;
             else
                 Result = Obj;
             end
-
-            % add the SrcData property
-            Result.addSrcData(Args.addSrcDataArgs{:});
 
             Nmag = numel(Args.MagFields);
 
@@ -2592,9 +3051,13 @@ classdef MatchedSources < Component
             for Iobj=1:1:Nobj
                 % for each element of the MatchedSources object
                 for Imag=1:1:Nmag
-                    [SysRemChi2,SysRemRes] = timeSeries.detrend.sysrem(Obj(Iobj).Data.(Args.MagFields{Imag}),...
+                    % create Resid matrix
+                    ResidMat = Obj(Iobj).Data.(Args.MagFields{Imag}) - Obj(Iobj).SrcData.(Args.MagFields{Imag});
+
+                    [SysRemChi2,SysRemRes] = timeSeries.detrend.sysrem(ResidMat,...
                                                                        Obj(Iobj).Data.(Args.MagErrFields{Imag}),...
                                                                        Args.sysremArgs{:});
+                   
                     Result(Iobj).Data.(Args.MagFields{Imag}) = Result(Iobj).SrcData.(Args.MagFields{Imag}) + SysRemRes(end).Resid;
                 end
 
@@ -2693,7 +3156,118 @@ classdef MatchedSources < Component
             
         end
         
+        function [Obj,Result] = bestMag(Obj, Args)
+            % Add a MAG_BEST matrix containing the best from several magnitudes.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            'Algo' - Algorithm:
+            %                   'std' - divide stars by their median std.
+            %                   'mag' - divide stars according to median
+            %                           mag at which typical error dominates.
+            %                   Default is 'mag'.
+            %            'SelectFromMagCol' - A cell array of magnitude
+            %                   fields in the Data property.
+            %                   The code will select the magnitude with the
+            %                   lowest std out of this list.
+            %                   Default is {'MAG_PSF','MAG_APER_3'}
+            %            'MagBestColName' - Field name for the best
+            %                   magnitude. Default is 'MAG_BEST'.
+            %            'StdFun' - Function handle to use for the std of
+            %                   magnitude calculation.
+            %                   Default is @tools.math.stat.rstd
+            %            'StdFunArgs' - A cell array of additional
+            %                   arguments to the StdFun.
+            %                   Default is {1}.
+            % Output : - A MatchedSources object with the best mag field
+            %            added to the Data property.
+            %          - A structure array:
+            %            For Algo='mat', this is the Mag crossing point,
+            %            and flag of faint sources.
+            % Author : Eran Ofek (Feb 2024)
+            % Example: MS.bestMag;
+
+            arguments
+                Obj
+                Args.Algo             = 'mag';
+                Args.SelectFromMagCol = {'MAG_PSF','MAG_APER_3'};
+                Args.MagBestColName   = 'MAG_BEST';
+                Args.StdFun           = @tools.math.stat.rstd;
+                Args.StdFunArgs cell  = {1};
+            end
+
+            Nsel = numel(Args.SelectFromMagCol);
+            Nobj = numel(Obj);
+
+            for Iobj=1:1:Nobj
+                switch Args.Algo
+                    case 'std'
+                        StdMat = zeros(Nsel, Obj(Iobj).Nsrc);
+                        for Isel=1:1:Nsel
+                            StdMat(Isel,:) = Args.StdFun(Obj(Iobj).Data.(Args.SelectFromMagCol{Isel}), Args.StdFunArgs{:});
+                        end
         
+                        [~,Result(Iobj).Imin] = min(StdMat,[],1);
+        
+                        Obj(Iobj).Data.(Args.MagBestColName) = Obj(Iobj).Data.(Args.SelectFromMagCol{1});
+                        for Isrc=1:1:Obj(Iobj).Nsrc
+                            if Result(Iobj).Imin(Isrc)>1
+                                Obj(Iobj).Data.(Args.MagBestColName)(:,Isrc) = Obj(Iobj).Data.(Args.SelectFromMagCol{Result(Iobj).Imin(Isrc)})(:,Isrc);
+                            end
+                        end
+                    case 'mag'
+                        if numel(Args.SelectFromMagCol)==2
+                            B1 = Obj(Iobj).calcRMS('FieldX',Args.SelectFromMagCol(1));
+                            B2 = Obj(Iobj).calcRMS('FieldX',Args.SelectFromMagCol(2));
+                            Z  = tools.find.find_local_zeros(B1.InterpB(:,1), B1.InterpB(:,2) - B2.InterpB(:,2));
+                            if size(Z,1)>1
+                                % more than on zero-crossing - chose
+                                % faintest
+                                [~,Iline] = max(Z(:,1));
+                                Z = Z(Iline,:);
+                            end
+                            if size(Z,1)==0
+                                if max(B1.InterpB(:,2) - B2.InterpB(:,2))<0
+                                    Ifaint  = 1;
+                                    Ibright = 2;
+                                else
+                                    Ifaint  = 2;
+                                    Ibright = 1;
+                                end
+                                MagCross = B1.InterpB(1,1);
+                            else
+                                if Z(1,2)<0
+                                    Ifaint  = 1;
+                                    Ibright = 2;
+                                else
+                                    Ifaint  = 2;
+                                    Ibright = 1;
+                                end
+                                MagCross = Z(1,1);
+                            end
+                            
+                            MedianMag = median(Obj(Iobj).Data.(Args.SelectFromMagCol{1}), 1, 'omitnan');
+                            Flag      = MedianMag<MagCross;
+                            Obj(Iobj).Data.(Args.MagBestColName) = Obj(Iobj).Data.(Args.SelectFromMagCol{Ifaint});
+                            Obj(Iobj).Data.(Args.MagBestColName)(:,Flag) = Obj(Iobj).Data.(Args.SelectFromMagCol{Ibright})(:,Flag);
+                        else
+                            error('When using Algo=mag, number of MAG columns must be 2');
+                        end
+                        %if Iobj==1
+                        %    Result = zeros(Nobj,1);
+                        %end
+                        Result(Iobj).MagCross  = MagCross;
+                        Result(Iobj).FlagFaint = Flag;
+
+                    otherwise
+                        error('Unknown Algo option');
+                end
+
+            end
+
+
+
+        end
+
         function [Result] = rmsMag(Obj, Args)
             % Calculate rms of some parameter as a function of magnitude.
             %       The mean magnitude over epochs, of all sources is
@@ -2725,17 +3299,31 @@ classdef MatchedSources < Component
             %            'Nsigma' - For the 'binning' method. This indicate
             %                   the number of sigma above mean of the std in
             %                   which to flag a source as variable. 
+            %            'MinDetRmsVar' - Minimum number of data points to
+            %                   declare variability. Default is 5.
             % Output : - A structure array (element per object element).
             %            .MeanMag - mean mag for all sources.
             %            .StdPar - par std for all sources.
             %            .InterpMeanStd - The interpolated binned/polyfitted
             %                   mean of the std for each source magnitude.
+            %            .InterpPredStd - The predicted noise in
+            %                   InterpMeanStd, calculated by dividing it by
+            %                   sqrt(Nep).
             %            .InterpStdStd - (avalable for 'binning' option)
             %                   The interpolated binned/polyfitted
             %                   rstd of the std for each source magnitude.
-            %            .Flag - (avalable for 'binning' option) A logical
+            %            .NsigmaStd - Number of sigmas above/below mean.
+            %            .FlagVar - (avalable for 'binning' option) A logical
             %                   flag indicating if a source is a possible
             %                   variable.
+            %            .FlagPred - Flag indicating if the source is a
+            %                   possible variable, based on the InterpPredStd.
+            %            .Ndet - number of detections per source.
+            %            .MinNpt - Minimum number of detections per source.
+            %                   Default is 10.
+            %            .MaxMeanRMS - Do not select variable stars where
+            %                   the predicted rms is larger than this value.
+            %                   Default is 0.2 mag.
             % Author : Eran Ofek (Jan 2022)
             % Example: MS = MatchedSources;
             %          MS.addMatrix(rand(100,200).*10,'MAG')
@@ -2746,14 +3334,21 @@ classdef MatchedSources < Component
                 Args.MagField                  = 'MAG';
                 Args.ParField                  = 'MAG';
                 Args.Method                    = 'binning';
-                Args.BinSize                   = 0.5;
+                Args.BinSize                   = 1;
                 Args.InterpMethod              = 'linear';
                 Args.PolyDeg                   = 3;
                 Args.MeanFun function_handle   = @median;
                 Args.MeanFunArgs cell          = {1, 'omitnan'}
-                Args.StdFun function_handle    = @std;
-                Args.StdFunArgs cell           = {[],1,'omitnan'};
-                Args.Nsigma                    = 3;
+                Args.StdFun function_handle    = @tools.math.stat.std_outlier1; %@std;
+                Args.StdFunArgs cell           = {[],1}; %{[],1,'omitnan'};
+                Args.NsigmaPred                = 7;
+                Args.NsigmaStd                 = 5;
+                
+                Args.MinNinBin                 = 5;
+                Args.MinDetRmsVar              = 5;
+
+                Args.MinNpt                    = 10;
+                Args.MaxMeanRMS                = 0.15;
             end
             
             Nobj = numel(Obj);
@@ -2770,15 +3365,35 @@ classdef MatchedSources < Component
 
                 Result(Iobj).MeanMag = Args.MeanFun(Mag, Args.MeanFunArgs{:});
                 Result(Iobj).StdPar  = Args.StdFun(Par, Args.StdFunArgs{:});
+                
+                Result(Iobj).Ndet    = sum(~isnan(Mag),1);
 
                 switch lower(Args.Method)
                     case 'binning'
-                        B = timeSeries.bin.binning([Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:)] ,Args.BinSize,[NaN NaN], {'MidBin',@numel, @median, @tools.math.stat.rstd});
+                        FlagN0 = Result(Iobj).StdPar>1e-10 & Result(Iobj).Ndet>Args.MinNpt;
+                        
+                        B = timeSeries.bin.binning([Result(Iobj).MeanMag(FlagN0).', Result(Iobj).StdPar(FlagN0).'] ,Args.BinSize,[NaN NaN],...
+                                                   {'MidBin',@numel, @median, @tools.math.stat.rstd});
+                        % clear zero entries
+                        Fmin = B(:,2)>Args.MinNinBin;
+                        B    = B(Fmin,:);
+                        B    = [[B(1,1)-10, B(1,2:end)]; B; [B(end,1)+2, 0, 1, NaN]];
+                        
                         Result(Iobj).B = B;
                         %Result(Iobj).EstimatedStdPar = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
-                        Result(Iobj).InterpMeanStd = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
+                        Result(Iobj).InterpMeanStd  = interp1(B(:,1), B(:,3), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
+                        Result(Iobj).InterpPredStd = Result(Iobj).InterpMeanStd./sqrt(Nep);
+                        
                         Result(Iobj).InterpStdStd = interp1(B(:,1), B(:,4), Result(Iobj).MeanMag, Args.InterpMethod, 'extrap');
-                        Result(Iobj).FlagVar      = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.Nsigma.*Result(Iobj).InterpStdStd(:));
+                        Result(Iobj).NsigmaStd    = (Result(Iobj).StdPar(:) - Result(Iobj).InterpMeanStd(:))./Result(Iobj).InterpStdStd(:);
+                        Result(Iobj).FlagVarStd   = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.NsigmaStd.*Result(Iobj).InterpStdStd(:)) & ...
+                                                    Result(Iobj).Ndet(:)>Args.MinDetRmsVar & Result(Iobj).InterpMeanStd(:)<Args.MaxMeanRMS;
+                        Result(Iobj).NsigmaPred   = (Result(Iobj).StdPar(:) - Result(Iobj).InterpMeanStd(:))./Result(Iobj).InterpPredStd(:);
+                        Result(Iobj).FlagVarPred  = Result(Iobj).StdPar(:)> (Result(Iobj).InterpMeanStd(:) + Args.NsigmaPred.*Result(Iobj).InterpPredStd(:)) & ...
+                                                    Result(Iobj).Ndet(:)>Args.MinDetRmsVar & Result(Iobj).InterpMeanStd(:)<Args.MaxMeanRMS;
+
+                        
+                        
                     case 'polyfit'
                         Par = polyfit(Result(Iobj).MeanMag(:), Result(Iobj).StdPar(:), Args.PolyDeg);
                         Result(Iobj).InterpMeanStd = polyval(Par, Result(Iobj).MeanMag);
@@ -2790,7 +3405,7 @@ classdef MatchedSources < Component
         end
         
         
-        function [FreqVec, PS] = period(Obj, Freq, Args)
+        function [FreqVec, PS, FlagVar] = period(Obj, Freq, Args)
             % Periodogram for all sources in MatchedSources object.
             % Input  : - A single element MatchedSources object.
             %          - Frequncies in which to calculate periodogram.
@@ -2807,9 +3422,24 @@ classdef MatchedSources < Component
             %            'MagField' - Field name containing the flux or
             %                   magnitude on which to calculate the periodogram.
             %                   Default is 'MAG_APER_3'.
+            %            'PowerSpecFun' - A function handle for calcualting
+            %                   the power spectrum.
+            %                   Default is @timeSeries.period.periodmulti_norm
+            %            'getFreqArgs' - A cell array of arguments to pass
+            %                   to timeSeries.period.getFreq
+            %            'Ind' - A vector of indices or logical flags
+            %                   indicating on which column to calculate the power
+            %                   spectrum. If empty, then use all sources.
+            %                   Default is [].
+            %            'ThresholdPS' - Threshold for flagging the source
+            %                   as variable.
+            %                   Default is 12.
             % Output : - A vector of frequencies.
             %          - A matrix of power spectra (freq. vs. star index).
-            %          
+            %          - A vector of logicals indicating if the power
+            %            spectrum, for each sources, peaks above the
+            %            threshold.
+            %            
             % Author : Eran Ofek (Jul 2023)
             % Example: [F, PS] = MS.period;
 
@@ -2817,64 +3447,793 @@ classdef MatchedSources < Component
                 Obj(1,1)
                 Freq      = [];
                 Args.MagField     = 'MAG_APER_3';
+                Args.PowerSpecFun = @timeSeries.period.periodmulti_norm;
+                Args.getFreqArgs cell = {};
+                Args.Ind              = [];
+                Args.ThresholdPS      = 12;
             end
 
             T        = Obj.JD(:);
+            T        = T - T(1);  % 
 
-            MinFreq  = 0;
-            MaxFreq  = [];
-            StepFreq = [];
-            FreqVec  = [];
-            switch numel(Freq)
-                case 0
-                    % auto choose
-                case 1
-                    % assume input is max frequency
-                    MaxFreq = Freq(1);
-                case 2
-                    StepFreq = Freq(1);
-                    MaxFreq  = Freq(2);
-                case 3
-                    MinFreq  = Freq(1);
-                    StepFreq = Freq(2);
-                    MaxFreq  = Freq(3);
-                otherwise
-                    FreqVec = Freq;
+            FreqVec = timeSeries.period.getFreq(T, Freq, Args.getFreqArgs{:});
+
+            if isempty(Args.Ind)
+                [FreqVec,PS] = Args.PowerSpecFun(T, Obj.Data.(Args.MagField), FreqVec);
+            else
+                [FreqVec,PS] = Args.PowerSpecFun(T, Obj.Data.(Args.MagField)(:,Ind), FreqVec);
+            end
+            
+            if nargout>2
+                FlagVar = any(PS>Args.ThresholdPS, 1);
+            end
+        end
+        
+        function [Flag,FlagAll]=searchFlares(Obj, DataField, Args)
+            % Search flares using timeSeries.stat.searchFlares
+            % Input  : - A MatchedSources object.
+            %          - A Field name on which to execute the search.
+            %            Default is 'MAG_PSF'.
+            %          * ...,key,val,...
+            %            'MovMeanWin' - A vector containig list of the size of the
+            %                   top-hat filter that will be implemented.
+            %                   Default is [2 4 8].
+            %            'MadType' - Type for tools.math.stat.std_mad
+            %                   that is used to calculate the std of the time.
+            %                   If empty, use tools.math.stat.rstd.
+            %                   series. Default is [].
+            %            'ScreenDeltaFun' - A logical indicating if to screen out
+            %                   events that are more consistent with a delta function
+            %                   flare. Default is true.
+            %            'ThresholdZ' - Threshold for detection (sigma).
+            %                   Default is 10.
+            %            'MinNotNaN' - For the 2nd search method the number of
+            %                   sucessive NaNs must be larger than this value.
+            %                   Default is 1 (i.e., 2 not NaNs are required).
+            %            'MaxNotNaN' - For the 2nd search method the number of
+            %                   sucessive NaNs must be samller than this value.
+            %                   Default is 11.
+            %            'LimMag' - Lim mag for images. If empty, then not used.
+            %            'MinMagRangeRel' - If LimMag is given then will calculate
+            %                   the range of star variability range and check if it
+            %                   is larger than this factor multiplied by the
+            %                   LimMag-min(mag).
+            %                   Default is 0.1.
+            % Output : - A structure array (element per MatchedSources
+            %            element), with a vector of logicals (one per
+            %            source) indicating if a flare was found by one of
+            %            the methods.
+            %            The information is stired in the .Any field.
+            %          - The second output from: timeSeries.stat.searchFlares
+            % Author : Eran Ofek (Feb 2024)
+            % Example: F=MS.searchFlares
+
+            arguments
+                Obj
+                DataField  = 'MAG_PSF';
+                
+                Args.MovMeanWin        = [2 4 8];
+                Args.MadType           = [];
+                Args.ScreenDeltaFun logical  = true;
+                Args.ThresholdZ        = 10;
+
+                Args.MinNotNaN         = 1;
+                Args.MaxNotNaN         = 11;
+
+                Args.LimMag            = [];
+                Args.MinMagRangeRel    = 0.1;
+            end
+            
+            Nobj = numel(Obj);
+            
+            for Iobj=1:1:Nobj
+                [Flag(Iobj).Any, FlagAll(Iobj), Flag(Iobj).Median, Flag(Iobj).Std] = timeSeries.stat.searchFlares(Obj(Iobj).Data.(DataField),...
+                                                                                 'DimEpoch',1,...
+                                                                                 'MovMeanWin',Args.MovMeanWin,...
+                                                                                 'MadType',Args.MadType,...
+                                                                                 'ScreenDeltaFun',Args.ScreenDeltaFun,...
+                                                                                 'ThresholdZ',Args.ThresholdZ,...
+                                                                                 'MinNotNaN',Args.MinNotNaN,...
+                                                                                 'MaxNotNaN',Args.MaxNotNaN,...
+                                                                                 'LimMag',Args.LimMag,...
+                                                                                 'MinMagRangeRel',Args.MinMagRangeRel);
+            end
+            
+        end
+    
+        function [RMFilt, Flag] = runMeanFilter(Obj, Args)
+            % Apply a running mean top-hat filter to data and normalize results by std.
+            %   Will also check that the significance of the filiter with the specified width 
+            %   is larger than that of a filter with width=1.
+            %   Using: timeSeries.filter.runMeanFilter
+            % Input  : - An MatchedSources object.
+            %            The time series are assumed to be equally spaced, but they
+            %            may contains NaNs.
+            %          * ...,key,val,... 
+            %            'MagField' - Field in the Data property that
+            %                   contains the Mag information.
+            %                   Default is 'MAG_BEST'.
+            %            'Dim' - Dimension of the time axis. Default is 1.
+            %            'PolyFit' - A vector of polynomial orders to fit and
+            %                   subtract from data prior to filtering.
+            %                   If empty, then skip this step.
+            %                   Default is [0 1].
+            %            'MeanFun' - Fuction handle to calcute the mean of the time
+            %                   series. This mean will be stubtracted from the ti
+            %                   series prior to filtering.
+            %                   Default is @median.
+            %            'MeanFunArgs' - A cell array of additional arguments to
+            %                   pass to the MeanFun. Default is {1, "omitnan"}.
+            %            'MoveFun' - Moving average function (e.g., @movmedian).
+            %                   Default is @movmean.
+            %            'WinSize' - Moving avergae window size.
+            %                   Default is 2.
+            %            'EndPoint' - Endpoints parameter for the MoveFun.
+            %                   Default is "fill".
+            %            'StdFun' - Std function.
+            %                   Default is @tools.math.stat.rstd.
+            %            'Threshold' - Threshold for flares detection.
+            %                   Default is 8.
+            %
+            % Output : - A structure array (element per MatchedSources element)
+            %            with the following fields:
+            %            .Z - Filter data divided by Std.
+            %            .FlagCand - A vector (element per source; i.e., columns of
+            %                   the input), indicating if the source have a flare
+            %                   or dip above threshold.
+            %                   A flare/dip is chosen if its above threshold and
+            %                   the number of valid data points within the window
+            %                   are equal to the window size, and the Z of the
+            %                   flare/dip is higher by one compared to the Z1.
+            %                   Z1 is the original data divided by the StD (i.e.,
+            %                   unfiltered data).
+            %            .NumberNotNaN - A vector (element per source) indicating
+            %                   the number of not NaN entries per source.
+            %          - A structure array (element per MatchedSources element)
+            %            with the following fields:
+            %            .RunMeanFilt - A vector of flags indicating if a
+            %                   flare or eclipse where found using the running
+            %                   mean filter.
+            % Author : Eran Ofek (2024 May) 
+            % Example: [R,F] = MS.runMeanFilter;
+
+            arguments
+                Obj
+                Args.MagField          = 'MAG_BEST';
+                Args.Dim               = 1;
+                Args.PolyFit           = [0 1];
+        
+                Args.MeanFun           = @median;
+                Args.MeanFunArgs       = {1, "omitnan"};
+        
+                Args.MoveFun           = @movmean; % @movmedian;
+                Args.WinSize           = 2;
+                Args.EndPoint          = "fill";
+        
+                Args.StdFun            = @tools.math.stat.rstd;
+        
+                Args.Threshold         = 8;
             end
 
-            if isempty(FreqVec)
-                if isempty(MaxFreq)
-                    MaxFreq  = 1./mean(diff(sort(T)));
-                end
-                if isempty(StepFreq)
-                    StepFreq = 1./(2.*range(T));
-                end
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                RMFilt(Iobj) = timeSeries.filter.runMeanFilter(Obj.Data.(Args.MagField));
 
-                FreqVec = (MinFreq:StepFreq:MaxFreq).';
+                Flag(Iobj).RunMeanFilt = any(RMFilt(Iobj).FlagCand, 1);
+            end
+        end
+
+
+        function [Result, FlagVar] = fitPolyHyp(Obj, Args)
+            % Hypothesis testing between fitting polynomials of various degrees to
+            %   a matrix of light curves in a MatchedSources object (with unknown errors).
+            %   Like timeSeries.fit.fitPolyHyp, but for a MatchedSources class.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,vals,...
+            %            'MagFieldNames' - A cell array of dictionary field names
+            %                   for the Magnitude matrix in the MatchedSources
+            %                   object.
+            %            'PolyDeg' - A cell array in wich each element contains all
+            %                   the degrees of the polynomial to fit.
+            %                   E.g., [0:1:2], is a full 2nd deg polynomial.
+            %                   The first cell corresponds to the null hypothesis.
+            %                   The Delta\chi2^2 is calculated relative to the null
+            %                   hypothesis. In addition, the error normalization is
+            %                   calculated such that the chi^2/dof of the null
+            %                   hypothesis will be 1 (with uniform errors).
+            %                   Default is {[0], [0:1:1], [0:1:2], [0:1:3], [0:1:4], [0:1:5]}.
+            %            'SubtractMeanT' - A logical indicating if to subtract the
+            %                   mean of the time vectors from all the times.
+            %                   Default is true.
+            %            'NormT' - A logical indicating if to normalize the times
+            %                   to unity (i.e., max of abs of times will be 1.
+            %                   Default is true.
+            %            'CalcProb' - Add a field to the output structure with the
+            %                   probability to reject the null hypothesis given the
+            %                   \Delta\chi^2. This may double the run time.
+            %                   Default is false.
+            %
+            %            'ThresholdChi2' - A vector of thresholds that will be
+            %                   used for variable candidate selection,
+            %                   using the criteria:
+            %                   Result(i).DeltaChi2>ThresholdChi2(i)
+            %                   Default is [Inf, 20, 25, 30, 35, 40].
+            %
+            % Output : - A structure array with parameters of the fit for each
+            %            tested polynomial (number of elements is like the number
+            %            of elements in PolyDeg).
+            %            .PolyDeg - Polynomial degrees in the fit.
+            %            .Npar - Number of free parameters in the fit.
+            %            .Par - The best fitted parameter for each LC. [Npar X Nsrc]
+            %            .Chi2 - chi^2 per source.
+            %            .Ndof - Number of degrees of freedom.
+            %            .ResidStd - Vector of std of residuals for each source.
+            %            .DeltaChi2 - A vector of \Delta\chi^2 per source.
+            %            .DeltaNdof - The difference in degrees of freedom between
+            %                   this hypotesis and the null hypothesis.
+            %            .ProbChi2 - (return only if ProbChi2=true). - The
+            %                   probability to reject the null hypothesis.
+            %          - A vector of logicals indicating if the
+            %                   source is a potential variable.
+            % Author : Eran Ofek (Sep 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(rand(100,200),'FLUX')
+            %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','X','Y'})
+            %          Result = fitPolyHyp(MS);
+
+            arguments
+                Obj(1,1) MatchedSources
+
+                Args.MagFieldNames               = AstroCatalog.DefNamesMag;
+                Args.PolyDeg cell                = {[0], [0:1:1], [0:1:2], [0:1:3], [0:1:4], [0:1:5]};
+                Args.SubtractMeanT(1,1) logical  = true;
+                Args.NormT(1,1) logical          = true;
+                Args.CalcProb(1,1) logical       = false;
+                
+                Args.ThresholdChi2               = [Inf, 20, 25, 30, 35, 40];
             end
 
-            [FreqVec,PS] = timeSeries.period.periodmulti_norm(T, Obj.Data.(Args.MagField), FreqVec);
+            % get field name from dictionary
+            [FieldName] = getFieldNameDic(Obj, Args.MagFieldNames);
+
+            % get Mag matrix
+            Mag = getMatrix(Obj, FieldName);
+
+            % poly hypothesis testing
+            Result = timeSeries.fit.fitPolyHyp(Obj.JD, Mag, 'PolyDeg',Args.PolyDeg);
+
+            if nargout>1
+                Nr = numel(Result);
+                FlagVar = false(1, numel(Result(1).DeltaChi2));
+                for Ir=1:1:Nr
+                    FlagVar = FlagVar | Result(Ir).DeltaChi2>Args.ThresholdChi2(Ir);
+                end
+            end
+                    
+            
+        end
+
+        function [Result] = corrFields(Obj, Isrc, Args)
+            % Calculate the correlation between two Data fields of each source.
+            %   The correlation can be calculated between all sources, or
+            %   between two properties of the same source.
+            % Input  : - A single element MatchedSources object.
+            %          - An optional src column index. If empty, then will
+            %            calculate correlations for all sources.
+            %            If Isrc is given, then 'type' will be
+            %            automatically switched to 'indiv'.
+            %            Default is [].
+            %          * ...,key,val,...
+            %            'Type' - One of the following:
+            %                   'all' - Calculate the corr. coef. between
+            %                       all pairs of sources (returns a matrix
+            %                       of correlations and P values).
+            %                   'pairs' - For each source, calculate the corr. coef.
+            %                       between the Field1 and Field2 of the
+            %                       source.
+            %                       (returns a vector
+            %                       of correlations and P values).
+            %                   'pairs_sim' - Same as 'pairs', but using the
+            %                       tools.math.stat.corrsim.
+            %                       In this case the PVal output contains
+            %                       the false alarm rate and not the P
+            %                       value.
+            %                   'indiv' - Same as 'pairs_sim', but for a
+            %                       single source which column index is
+            %                       provided in the second input argument.
+            %                       In this case the PVal output contains
+            %                       the false alarm rate and not the P
+            %                       value.
+            %                   Default is 'pairs'.
+            %            'Field1' - A cell array containing a list of fields in
+            %                   the Data property. This is the first field
+            %                   that will be correlated against the second
+            %                   field. Default is {'MAG_PSF'}.
+            %            'Field2' - Like 'Field1', but for the second
+            %                   field. Default is {'RA'}.
+            %            'CorrType' - 'Pearson'|'Kendall'|'Speartman'.
+            %                   Default is Pearson'
+            %            'CorrRows' - Ccorr argument 'rows'.
+            %                   Default is 'pairwise'.
+            %            'CorrTail' - corr argument 'tail'.
+            %                   Default is 'both'.
+            %            'Nsim' - If tools.math.stat.corrsim is used, then
+            %                   this is the number of bootstrap simulations.
+            %                   Default is 1000.
+            %            'DiagonalNaN' - Logical indicating if to set the
+            %                   diagonal to NaN. Default is false.
+            %                   This should be used when 'type'='all' and Field1 and Field2
+            %                   are the same.
+            % Output : - A structure array with element per field for which
+            %            the correlation was calculated.
+            %            The number of elements is
+            %            max(numel(Field1),numel(Field2)).
+            %            With the following fields:
+            %            .Corr - Matrix of size [Nsrc, Nsrc] with the
+            %                   correlation
+            %            .PVal - P value (for 'all'|'pairs'), or the
+            %                   probability to get larger correlation then
+            %                   the measured correlation (using bootstrap)
+            %                   for ther 'pairs_sim'|'indiv' options.
+            %            .Nnn - Number of not NaN values in the two columns
+            %                   used for calculating the correlation.
+            % Author : Eran Ofek (May 2024)
+            % Example: R=MS.corrFields;
+            %          R=MS.corrFields('type','all','Field1','MAG_PSF','Field2','MAG_PSF','DiagonalNaN',true);
+            %          R=MS.corrFields('type','pairs_sim');
+            %          R=MS.corrFields(1);
+
+
+            arguments
+                Obj(1,1)
+                Isrc          = [];
+                Args.Type     = 'pairs';
+                Args.Field1   = {'MAG_PSF'};
+                Args.Field2   = {'RA'};
+
+                Args.CorrType = 'Pearson';
+                Args.CorrRows = 'pairwise';
+                Args.CorrTail = 'both';
+                Args.Nsim     = 1000;
+
+                Args.DiagonalNaN logical = false;
+            end
+
+            if ~isempty(Isrc)
+                Args.Type = 'indiv';
+            end
+
+            if ischar(Args.Field1)
+                Args.Field1 = {Args.Field1};
+            end
+            if ischar(Args.Field2)
+                Args.Field2 = {Args.Field2};
+            end
+
+            Nf1 = numel(Args.Field1);
+            Nf2 = numel(Args.Field2);
+            Nf  = max(Nf1, Nf2);
+
+            %Nobj = numel(Obj);
+            Iobj = 1;
+
+            for If=1:1:Nf
+                If1  = min(If, Nf1);
+                If2  = min(If, Nf2);
+                
+                Nsrc    = Obj(Iobj).Nsrc;
+
+                switch lower(Args.Type)
+                    case 'all'
+                        [Result(If).Corr, Result(Iobj).PVal] = corr(Obj(Iobj).Data.(Args.Field1{If1}), Obj(Iobj).Data.(Args.Field2{If2}), 'type',Args.CorrType, 'rows',Args.CorrRows, 'tail',Args.CorrTail);
+        
+                        % count not NaN
+                        Result(If).Nnn = sum(~isnan(Obj(Iobj).Data.(Args.Field1{If1})) & ~isnan(Obj(Iobj).Data.(Args.Field2{If2})), 1);
+                    case 'pairs'
+
+                        Result(If).Corr = nan(1, Nsrc);
+                        Result(If).PVal = nan(1, Nsrc);
+                        for Isrc=1:1:Nsrc
+                            [Result(If).Corr(Isrc), Result(Iobj).PVal(Isrc)] = corr(Obj(Iobj).Data.(Args.Field1{If1})(:,Isrc), Obj(Iobj).Data.(Args.Field2{If2})(:,Isrc), 'type',Args.CorrType, 'rows',Args.CorrRows, 'tail',Args.CorrTail);
+                        end
+
+                        % count not NaN
+                        Result(If).Nnn = sum(~isnan(Obj(Iobj).Data.(Args.Field1{If1})) & ~isnan(Obj(Iobj).Data.(Args.Field2{If2})), 1);
+
+                    case 'pairs_sim'
+                        Result(If).Corr = nan(1, Nsrc);
+                        Result(If).PVal = nan(1, Nsrc);
+                        for Isrc=1:1:Nsrc
+                            [Result(If).Corr(Isrc), Result(Iobj).PVal(Isrc)] = tools.math.stat.corrsim(Obj(Iobj).Data.(Args.Field1{If1})(:,Isrc),...
+                                                                                                       Obj(Iobj).Data.(Args.Field2{If2})(:,Isrc),...
+                                                                                                       Args.Nsim,...
+                                                                                                       'y',...
+                                                                                                       'type',Args.CorrType);
+                        end
+
+                        % count not NaN
+                        Result(If).Nnn = sum(~isnan(Obj(Iobj).Data.(Args.Field1{If1})) & ~isnan(Obj(Iobj).Data.(Args.Field2{If2})), 1);
+
+                    case 'indiv'
+                        [Result(If).Corr(Isrc), Result(Iobj).PVal(Isrc)] = tools.math.stat.corrsim(Obj(Iobj).Data.(Args.Field1{If1})(:,Isrc),...
+                                                                                                       Obj(Iobj).Data.(Args.Field2{If2})(:,Isrc),...
+                                                                                                       Args.Nsim,...
+                                                                                                       'y',...
+                                                                                                       'type',Args.CorrType);
+                        
+
+                        % count not NaN
+                        Result(If).Nnn = sum(~isnan(Obj(Iobj).Data.(Args.Field1{If1})(:,Isrc)) & ~isnan(Obj(Iobj).Data.(Args.Field2{If2})(:,Isrc)), 1);
+
+                    otherwise
+                        error('Unknown Type option');
+                end
+
+
+                if Args.DiagonalNaN
+                    Nsrc    = size(Result(If).Corr,1);
+                    DiagNaN = diag(nan(Nsrc,1));
+                    Result(If).Corr = Result(If).Corr + DiagNaN;
+                    Result(If).PVal = Result(If).PVal + DiagNaN;
+
+                end
+            end
+            
 
         end
+       
 
     end
     
     methods % find sources
  
     end
+
+    methods % Orphans
+        function Result=searchOrphans(Obj, Args)
+            % Search orphans in MatchedSources object
+            %   Orphans are defined as sources with <=MinNdet good detections
+            %   possibly consecutive.
+            %   For such sources some mean properties are returned.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - A structure array, with element per MatchedSources
+            %            element, and the following fields:
+            %            .Ind - Vector of indices of orphan candidates.
+            %            .Norphan - Number of orphans.
+            %            .Ndet - Vector of number of detections.
+            %            .JD - Vector of mean JD per orphan.
+            %            .RA - Vector of mean RA per orphan.
+            %            .Dec - Vector of mean Dec per orphan.
+            %            .SN - Vector of mean SN per orphan.
+            %            .Mag - Vector of mean Mag per orphan.
+            %            .DistGAIA -
+            %            .N_GAIA - 
+            %            .Bp - 
+            %            .Rp - 
+            % 
+            % Author : Eran Ofek (Mar 2024)
+            % Example: RR=MS.searchOrphans
+            
+            
+            arguments
+                Obj
+                Args.MinNdet        = 3;
+                Args.ThreshDiffSN   = 0;
+                Args.FieldSN        = 'SN_2';
+                Args.FieldDeltaSN   = {'SN_1','SN_2'};
+                Args.MinSN          = 8;
+                Args.BadFlags       = {'CR_DeltaHT','NaN','NearEdge'};                
+                Args.OnlyConsecutive logical  = true;
+                
+                Args.MeanFun        = @median;
+                Args.MeanFunArgs    = {'omitnan'};
+                Args.FieldRA        = 'RA';
+                Args.FieldDec       = 'Dec';
+                Args.FieldMag       = 'MAG_PSF';
+                
+                Args.MatchCatName   = 'GAIADR3';
+                Args.matchcatsHTMArgs cell = {};
+                Args.MagCols        = {'phot_bp_mean_mag','phot_rp_mean_mag'}
+
+                Args.DetStreak logical        = true;
+                Args.orphansOnStreakArgs cell = {};
+                Args.StreakNonGAIA logical    = true;  % search streaks only for non-GAIA stars
+
+            end
+            RAD = 180./pi;
+            
+            % populate SrcData
+            Obj.addSrcData('MeanFun',Args.MeanFun, 'MeanFunArgs',Args.MeanFunArgs);
+            
+            Nobj = numel(Obj);
+            Result = struct('Ind',cell(Nobj,1), 'Norphan',cell(Nobj,1), 'Ndet',cell(Nobj,1),...
+                            'JD',cell(Nobj,1), 'RA',cell(Nobj,1), 'Dec',cell(Nobj,1),...
+                            'SN',cell(Nobj,1), 'Mag',cell(Nobj,1),...
+                            'DistGAIA',cell(Nobj,1), 'N_GAIA',cell(Nobj,1), 'Bp',cell(Nobj,1), 'Rp',cell(Nobj,1),...
+                            'StreakInd',cell(Nobj,1), 'StreakFit',cell(Nobj,1));
+
+            for Iobj=1:1:Nobj
+                % clean bad flags in Args.BadFlags
+                Fbadf = searchFlags(Obj(Iobj), 'FlagsList',Args.BadFlags);
+                
+                % Remove delta functions based on SN_2-SN_1>Args.ThreshDiffSN
+                DeltaSN  = Obj(Iobj).Data.(Args.FieldDeltaSN{2}) - Obj(Iobj).Data.(Args.FieldDeltaSN{1});
+                Fdeltasn = DeltaSN>Args.ThreshDiffSN;
+                
+                % Select sources with SN>Args.MinSN
+                SN       = Obj(Iobj).Data.(Args.FieldSN);
+                Fsn      = SN>Args.MinSN;
+                
+                % Select sources with detections
+                Fdet     = ~isnan(Obj(Iobj).Data.(Args.FieldSN));
+                
+                % Search for sources with <=Args.MinNdet detections
+                Fcand    = ~Fbadf & Fdeltasn & Fsn & Fdet;
+                Ndet     = sum(Fcand, 1);
+                
+                Fndet    = Ndet<=Args.MinNdet; 
+                Indet    = find(Fndet);
+                Ncand    = numel(Indet);
+                                
+                if Args.OnlyConsecutive
+                    % flag indicating if detections of source are consecutive
+                    Fcons    = false(1, Obj(Iobj).Nsrc);
+                    MeanJD   = nan(1, Obj(Iobj).Nsrc);
+                    for Icand=1:1:Ncand
+                        % check that detections are consecutive
+                        [ConsList] = tools.find.findListsOfConsecutiveTrue(Fcand(:,Indet(Icand)));
+                        if numel(ConsList)==1
+                            % all detections are consecutive
+                            Fcons(Indet(Icand)) = true;
+                            MeanJD(Indet(Icand)) = Args.MeanFun(Obj(Iobj).JD(ConsList{1}), Args.MeanFunArgs{:});
+                        %else
+                            % non consecutive detections
+                        end
+                    end
+                else
+                    % flag indicating if detections of source are consecutive
+                    % Ignore consecutive, so setting to Fndet
+                    Fcons    = Fndet;
+                end
+                
+                % Return a list of orphans
+                Result(Iobj).Ind     = find(Fcons);
+                Result(Iobj).Norphan = numel(Result(Iobj).Ind);
+                Result(Iobj).Ndet    = Ndet(Result(Iobj).Ind);
+                
+                % mean orphan JD
+                Result(Iobj).JD      = MeanJD(Result(Iobj).Ind);
+                
+                
+                if Result(Iobj).Norphan>0
+                    % mean Orphan position
+                    Result(Iobj).RA      = Obj(Iobj).SrcData.(Args.FieldRA)(Result(Iobj).Ind);
+                    Result(Iobj).Dec     = Obj(Iobj).SrcData.(Args.FieldDec)(Result(Iobj).Ind);
+
+                    % mean Orphan SN
+                    Result(Iobj).SN      = Obj(Iobj).SrcData.(Args.FieldSN)(Result(Iobj).Ind);
+
+                    % mean Orphan Mag
+                    Result(Iobj).Mag     = Obj(Iobj).SrcData.(Args.FieldMag)(Result(Iobj).Ind);
+
+                    % Orphan PM (if Ndet>1)
+                    
+                    % Match to GAIA
+                    TmpAC = AstroCatalog({[Result(Iobj).RA(:), Result(Iobj).Dec(:)]./RAD}, 'ColNames',{'RA','Dec'}); %, 'ColUnits',{'deg','deg'});
+                    [ResM, SelObj, ResInd, CatH] = imProc.match.match_catsHTM(TmpAC, Args.MatchCatName, Args.matchcatsHTMArgs{:});
+                    Dist = ResM.getCol('Dist');
+                    Nmatch = ResM.getCol('Nmatch');
+
+                    CatH = CatH.selectRows(ResInd.Obj2_IndInObj1);
+                    Mags = CatH.getCol(Args.MagCols);
+
+                    Result(Iobj).DistGAIA = Dist(:).';
+                    Result(Iobj).N_GAIA   = Nmatch(:).';
+                    Result(Iobj).Bp       = Mags(:,1).';
+                    Result(Iobj).Rp       = Mags(:,2).';
+                    
+                end
+                
+                if Args.DetStreak
+                    % search for orpphans on sreaks
+                    if Args.StreakNonGAIA
+                        UseSrc    = Result.N_GAIA==0;
+                    else
+                        UseSrc    = [];
+                    end
+                    
+                    ResStreak = imUtil.asteroids.orphansOnStreak(Result.JD, Result.RA, Result.Dec, Args.orphansOnStreakArgs{:}, 'UseSrc',UseSrc);
+                    
+                    Result(Iobj).StreakInd = ResStreak.StreakInd(:).';
+                    Result(Iobj).StreakFit = ResStreak.ResFit;
+                end
+            end % for Iobj=1:1:Nobj
+            
+        end
+        
+
+
+    end
+
     
     methods % plot
-        function H = plotRMS(Obj, Args)
+        function Result=calcRMS(Obj, Args)
+            % calculate rms of a property (field) vs. its mean.
+            % Input  : - A MatchedSources object.
+            %          * ...,key,val,...
+            %            'FieldX' - A cell array of field names. Will chose
+            %                   the first field name that appears in the
+            %                   Data structure, and its content will be plotted.
+            %                   Default is {'MAG_BEST','MAG','MAG_PSF','MAG_APER', 'MAG_APER_3', 'MAG_APER_2'}.
+            %            'FieldY' - Like 'FieldX', but for Y-axis (rms).
+            %                   If empty, will use rms of FieldX.
+            %                   Default is {}.
+            %            'UseFlag' - A vector of logicals of sources to
+            %                   plot. If empty, plot all. Default is [].
+            %            'RemoveFlags' - A cell array of flag names to remove
+            %                   from the plot. If empty, show all. Default is {}.
+            %            'FactorRMS' - Factor by which to multiply the
+            %                   Y-axis. E.g., for units conversion.
+            %                   Default is 1.
+            %            'MeanFun' - Default is @tools.math.stat.median.
+            %            'StdFun' - Default is @tools.math.stat.nanstd.
+            %            'MaxMag' - Max mag to use in calculating rms.
+            %            'MagInterpEdges' - Mag interpolation points.
+            %                   If is empty then do not provide
+            %                   iunterpolated mag std.
+            %                   Default is (8:0.5:21.5).';
+            %            ** Additional parameters available for adding a
+            %            noise curve.
+            % Output : - A structure array with the following fields:
+            %            .MinRMS - Min RMS as calculated in the binned
+            %                   plot.
+            %            .MagMinRMS - Mag corresponding to min rms.
+            % Author : Eran Ofek (Jun 2021)
+            % Example: MS = MatchedSources;
+            %          MS.addMatrix(rand(100,200),'MAG_PSF');
+            %          R=MS.calcRMS
+
+            arguments
+                Obj
+                Args.FieldX                   = {'MAG_BEST','MAG','MAG_PSF','MAG_APER','MAG_APER_3','MAG_APER_2'};
+               
+                Args.FieldY                   = {};
+                Args.UseFlag                  = [];
+                Args.RemoveFlags              = {};
+                Args.FieldFlags               = 'FLAGS';
+                Args.BitDict                  = BitDictionary;
+                Args.FactorRMS                = 1;
+                Args.PlotSymbol               = {'k.','MarkerFaceColor','k','MarkerSize',3};
+                Args.PlotColor                = 'k';
+                Args.BinSize                  = 1;
+                Args.DivideErrBySqrtN(1,1) logical = true;
+                
+                Args.MeanFun function_handle  = @tools.math.stat.nanmedian;
+                Args.StdFun function_handle   = @tools.math.stat.nanstd;
+                
+                Args.MaxMag                   = 18;
+                Args.MagInterpEdges           = (8:0.5:21.5).';
+                Args.MinNbin                  = 4;  % minimum number of bins required in order to calcaulate min rms.
+
+                % add noise curve
+                Args.AperArea                 = pi.*6.^2;
+                Args.RN                       = 3.5;
+                Args.Gain                     = 1;
+                Args.FluxField                = 'FLUX_APER_3';
+                Args.StdField                 = 'VAR_IM'; %'STD_ANNULUS';
+                Args.IsStd logical            = false;
+            end
+        
+            if ischar(Args.FieldX)
+                Args.FieldX = {Args.FieldX};
+            end
+            
+            
+            Nobj = numel(Obj);
+            [TmpNaN{1:Nobj}] = deal(NaN);
+            Result = struct('MinRMS',TmpNaN.', 'MagMinRMS',TmpNaN.', 'B',cell(Nobj,1), 'InterpB',cell(Nobj,1));
+            for Iobj=1:1:Nobj
+                FN = fieldnames(Obj(Iobj).Data);
+                if ~isempty(FN)
+                    % search for the first FieldX that appears in FN
+                    Ind = find(ismember(Args.FieldX, FN),1);
+                    if ~isempty(Ind)
+                        FieldX = Args.FieldX{Ind};
+                        
+                        if isempty(Args.FieldY)
+                            FieldY = FieldX;
+                        else
+                            if ischar(Args.FieldY)
+                                Args.FieldY = {Args.FieldY};
+                            end
+                            Ind = find(ismember(Args.FieldY, FN),1);
+                            FieldY = Args.FieldY{Ind};
+                        end
+                        
+                        Mat   = Obj(Iobj).Data.(FieldX);
+                        % axis x - e.g., mean mag
+                        AxisX = Args.MeanFun(Mat, Obj(Iobj).DimEpoch);
+                        
+                        if isempty(Args.FieldY)
+                            AxisY = Args.StdFun(Mat, [], Obj(Iobj).DimEpoch);
+                        else
+                            MatY = Obj(Iobj).Data.(FieldY);
+                            AxisY = Args.StdFun(MatY, [], Obj(Iobj).DimEpoch);
+                        end
+                        AxisY = AxisY.*Args.FactorRMS;
+                        
+                        if ~isempty(Args.RemoveFlags)
+                            Obj(Iobj).addSrcData;
+                            IndNN          = find(~isnan(Obj(Iobj).SrcData.(Args.FieldFlags)(:)));
+                            BitFlag        = false(Obj(Iobj).Nsrc, 1);
+                            BitFlag(IndNN) = ~imProc.cat.findBit(Obj(Iobj).SrcData.(Args.FieldFlags)(IndNN), Args.RemoveFlags, [], Args.BitDict);
+                            
+                            if isempty(Args.UseFlag)
+                                Args.UseFlag = true(Obj(Iobj).Nsrc, 1);
+                            end
+                            Args.UseFlag   = Args.UseFlag(:) & BitFlag(:);
+                        end
+                        
+                        if isempty(Args.UseFlag)
+                            CleanAxisX = AxisX;
+                            CleanAxisY = AxisY;
+                        else
+                            CleanAxisX = AxisX(Args.UseFlag);
+                            CleanAxisY = AxisY(Args.UseFlag);
+                        end
+                        
+                        if ~all(isnan(CleanAxisX)) || ~all(isnan(CleanAxisY))
+
+                            if ~isempty(Args.BinSize)
+                                B = timeSeries.bin.binning([CleanAxisX(:), CleanAxisY(:)], Args.BinSize, [NaN NaN], {'MidBin', @median, @std, @numel});
+                                %if Args.DivideErrBySqrtN
+                                %    plot.errorxy([B(:,1), B(:,2), B(:,3)./sqrt(B(:,4))],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
+                                %else
+                                %    plot.errorxy([B(:,1), B(:,2), B(:,3)],'Marker',Args.BinMarker,'MarkerEdgeColor',Args.BinColor,'MarkerFaceColor',Args.BinColor,'MarkerSize',Args.BinMarkerSize);
+                                %end
+                            end
+
+                            B = B(B(:,1)<Args.MaxMag & B(:,2)>1e-4,:);
+
+                            if size(B,1)>=Args.MinNbin
+                                [Result(Iobj).MinRMS, Ib] = min(B(:,2));
+                                Result(Iobj).MagMinRMS = B(Ib,1);
+                                Result(Iobj).B = B;
+
+                                if ~isempty(Args.MagInterpEdges)
+                                    Result(Iobj).InterpB = [Args.MagInterpEdges(:), interp1(B(:,1),B(:,2), Args.MagInterpEdges(:), 'linear','extrap')];
+                                end
+                            end
+
+                        else
+                            Result(Iobj).MinRMS    = NaN;
+                            Result(Iobj).MagMinRMS = NaN;
+                            Result(Iobj).B         = NaN;
+                            Result(Iobj).InterpB   = NaN;
+                        end
+                    end
+                end
+            end
+            
+        end
+
+        function [H, AxisX, AxisY] = plotRMS(Obj, Args)
             % plot rms of a propery (field) vs. its mean.
             % Input  : - A single element MatchedSources object.
             %          * ...,key,val,...
             %            'FieldX' - A cell array of field names. Will chose
             %                   the first field name that appears in the
             %                   Data structure, and its content will be plotted.
-            %                   Default is {'MAG','MAG_PSF','MAG_APER'}.
+            %                   Default is {'MAG_BEST','MAG','MAG_PSF','MAG_APER', 'MAG_APER_3', 'MAG_APER_2'}.
             %            'FieldY' - Like 'FieldX', but for Y-axis (rms).
             %                   If empty, will use rms of FieldX.
             %                   Default is {}.
+            %            'UseFlag' - A vector of logicals of sources to
+            %                   plot. If empty, plot all. Default is [].
+            %            'RemoveFlags' - A cell array of flag names to remove
+            %                   from the plot. If empty, show all. Default is {}.
             %            'FactorRMS' - Factor by which to multiply the
             %                   Y-axis. E.g., for units conversion.
             %                   Default is 1.
@@ -2902,16 +4261,23 @@ classdef MatchedSources < Component
             %            ** Additional parameters available for adding a
             %            noise curve.
             % Output : - Handle for data points plot.
+            %          - X positions of plotted points.
+            %          - Y positions of plotted points.
             % Author : Eran Ofek (Jun 2021)
             % Example: MS = MatchedSources;
             %          MS.addMatrix(rand(100,200),'MAG_PSF');
             %          MS.plotRMS
             %          MS.plotRMS('BinSize',0.1)
+            %          MS.plotRMS('FieldX','MAG_BEST','PlotColor','r','PlotSymbol','o','RemoveFlags',{'Saturated','NearEdge'})
            
             arguments
                 Obj(1,1)
-                Args.FieldX                   = {'MAG','MAG_PSF','MAG_APER','MAG_APER_3','MAG_APER_2'};
+                Args.FieldX                   = {'MAG_BEST','MAG','MAG_PSF','MAG_APER','MAG_APER_3','MAG_APER_2'};
                 Args.FieldY                   = {};
+                Args.UseFlag                  = [];
+                Args.RemoveFlags              = {};
+                Args.FieldFlags               = 'FLAGS';
+                Args.BitDict                  = BitDictionary;
                 Args.FactorRMS                = 1;
                 Args.PlotSymbol               = {'k.','MarkerFaceColor','k','MarkerSize',3};
                 Args.PlotColor                = 'k';
@@ -2975,7 +4341,23 @@ classdef MatchedSources < Component
             end
             AxisY = AxisY.*Args.FactorRMS;
             
-            H = plot(AxisX, AxisY, Args.PlotSymbol{:});
+            if ~isempty(Args.RemoveFlags)
+                Obj.addSrcData;
+                IndNN          = find(~isnan(Obj.SrcData.(Args.FieldFlags)(:)));
+                BitFlag        = false(Obj.Nsrc, 1);
+                BitFlag(IndNN) = ~imProc.cat.findBit(Obj.SrcData.(Args.FieldFlags)(IndNN), Args.RemoveFlags, [], Args.BitDict);
+                
+                if isempty(Args.UseFlag)
+                    Args.UseFlag = true(Obj.Nsrc, 1);
+                end
+                Args.UseFlag   = Args.UseFlag(:) & BitFlag(:);
+            end
+            
+            if isempty(Args.UseFlag)
+                H = plot(AxisX, AxisY, Args.PlotSymbol{:});
+            else
+                H = plot(AxisX(Args.UseFlag), AxisY(Args.UseFlag), Args.PlotSymbol{:});
+            end
             H.Color = Args.PlotColor;
             
             if ~isempty(Args.BinSize)
@@ -3047,8 +4429,299 @@ classdef MatchedSources < Component
             
         end
         
+        function H = plotRMSint(Obj, Args)
+            % plot rms vs. magnitude with interactive selection of stars
+            %   Run plotRMS and allow the user to interactively select
+            %   sources, plot their light curves and power spectrum.
+            %   In the rms vs. mag plot the following colors are used:
+            %       black - all
+            %       red - NearEgge or Overlap flags.
+            %       blue - NaN or Negative flags.
+            %       yellow - Cosmic ray flags.
+            %       green - Saturated flag.
+            % Input  : - A single element MatchedSources object.
+            %          * ...,key,val,...
+            %            'FieldX' - A cell array of field names. Will chose
+            %                   the first field name that appears in the
+            %                   Data structure, and its content will be plotted.
+            %                   Default is {'MAG','MAG_PSF','MAG_APER', 'MAG_APER_3', 'MAG_APER_2'}.
+            %            'plotRMSArgs' - A cell array of additional
+            %                   arguments to pass to plotRMS.
+            %                   Default is {}.
+            %            'MAG_LC' - Magnitude column to use while plotting
+            %                   the light curve.
+            %                   Default is {'MAG_PSF'}.
+            %            'PropFlags' - Default is 'FLAGS'.
+            %            'BitDic' - A BitDictionary object.
+            %                   Default is BitDictionary.
+            %            'UnitsLC' - Time units for LC. Default is 's'.
+            % Output : null.
+            % Author : Eran Ofek (Jan 2023)
+            % Example: MS.plotRMSint
+
+            arguments
+                Obj(1,1)
+
+                Args.FieldX                   = {'MAG','MAG_PSF','MAG_APER','MAG_APER_3','MAG_APER_2'};
+                Args.plotRMSArgs cell         = {};
+                
+                Args.MAG_LC                   = {'MAG_PSF'};
+                Args.PropFlags                = 'FLAGS';
+
+                Args.BitDic                   = BitDictionary;
+                Args.UnitsLC                  = 's';
+            end
+
+
+            Tmp = Obj.combineFlags('FlagsNameDic',Args.PropFlags);
+            CombFlags = Tmp.(Args.PropFlags);
+
+            FlagEdge = searchFlags(Obj, 'FlagsList',{'NearEdge','Overlap'}, 'UseSrcData',true);
+            FlagSat  = searchFlags(Obj, 'FlagsList',{'Saturated'}, 'UseSrcData',true);
+            FlagBad  = searchFlags(Obj, 'FlagsList',{'NaN','Negative'}, 'UseSrcData',true);
+            FlagCR   = searchFlags(Obj, 'FlagsList',{'CR_DeltaHT','CR_Laplacian','CR_Streak'}, 'UseSrcData',true);
+
+            [Hd, XP, YP] = Obj.plotRMS('FieldX',Args.FieldX, Args.plotRMSArgs{:});
+            Ha = gca;
+            Hf = gcf;
+            title('rms vs. mag.')
+            hold on;
+            plot(XP(FlagEdge), YP(FlagEdge), 'r.','MarkerSize',3)
+            plot(XP(FlagSat), YP(FlagSat), 'g.','MarkerSize',3)
+            plot(XP(FlagBad), YP(FlagBad), 'b.','MarkerSize',3)
+            plot(XP(FlagCR), YP(FlagCR), 'y.','MarkerSize',3)
+
+            Hlc = [];
+            Hps = [];
+            Cont = true;
+            while Cont
+
+                fprintf('Select source in the rms vs. mag plot\n');
+                figure(Hf);
+                
+                
+                [Res,FigH,Data,Nearest] = plot.getInteractive(Ha, 'mouse', 'DistAxis','scale', 'DataInd','end');
+                [JD, Mag] = getLC_ind(Obj, Nearest.Ind, Args.MAG_LC);
+    
+                if isempty(Hlc)
+                    Hlc = figure;
+                    title('Light Curve');
+                    H = xlabel(sprintf('Time [%s]', Args.UnitsLC));
+                    H.FontSize = 18;
+                    H.Interpreter = 'latex';
+                    H = ylabel('Magnitude');
+                    H.FontSize = 18;
+                    H.Interpreter = 'latex';
+                else
+                    figure(Hlc);
+                    clc;
+                end
+
+                Time = convert.timeUnits('day', Args.UnitsLC, JD-min(JD));
+                plot(Time, Mag, 'o')
+                [Obj.Data.BACK_ANNULUS(:,Nearest.Ind), Obj.Data.FLAGS(:,Nearest.Ind)]
+    
+                Ans = input('Click: q-quit; p-ps; other-continue : ','s');
+                switch lower(Ans)
+                    case 'p'
+                        PS = timeSeries.period.period([Time, Mag]);
+                        if isempty(Hps)
+                            Hps = figure;
+                            title('Power Spectrum');
+                            H = xlabel(sprintf('Frequency [1/%s]', Args.UnitsLC));
+                            H.FontSize = 18;
+                            H.Interpreter = 'latex';
+                            H = ylabel('Power');
+                            H.FontSize = 18;
+                            H.Interpreter = 'latex';
+                        else
+                            figure(Hps);
+                            clc;
+                        end
+                        plot(PS(:,1),PS(:,2));
+                    case 'q'
+                        Cont = false;
+                    otherwise
+                        % continue
+                end
+            end
+
+            close(Hf);
+            close(Hlc);
+            close(Hps);
+        end
+
+        function Fig = plotLC(Obj, IndSrc, Args)
+            % Plot LC of individual source in MatchedSources object.
+            % Input  : - A single MatchedSources object.
+            %          - Index of source (colum index) in the
+            %            MatchedSources Data matrices.
+            %          * ...,key,val,...
+            %            'SubPlot' - A logical indicating if to use
+            %                   subplot (true), or regular plot (false).
+            %                   Default is false.
+            %            'MagField' - Magnitude field name to display.
+            %                   Default is 'MAG_BEST'.
+            %            'UnitsTime' - Time units in MatachedSources JD.
+            %                   Default is 'day'.
+            %            'DispUnitsTime' - xlabel plot time units.
+            %                   Default is 'min'.
+            %            'SubT0' - Substrcat minimum time in time axis.
+            %                   Default is true.
+            %            'BD' - A BitDictionary object.
+            %                   Default is BitDictionary.
+            %            'FlagsField' - FLAGS field in the MatchedSources
+            %                   Data struct. Default is 'FLAGS'.
+            %            'DefaultSymbol' - Plot default symbols.
+            %                   Default is {'ko','MarkerFaceColor','k','MarkerSize',4}
+            %            'ListFlags' - Cell array of FLAGS names and their
+            %                   corresponding plot symbols.
+            %                   Default is {'Saturated',{'b^'}; ...
+            %                               'NaN',{'r>'}; ...
+            %                                'Negative',{'rv'}; ...
+            %                                'CR_DeltaHT',{'b<'}}
+            % Output : - Figure handle.
+            % Author : Eran Ofek (May 2024)
+            % Example: Cand(I).plotLC(Cand(I).IndSrc)
+            
+
+            arguments
+                Obj(1,1)
+                IndSrc
+
+                Args.SubPlot logical       = false;
+                Args.FigN                  = 1;
+
+                Args.MagField              = 'MAG_BEST';
+                Args.UnitsTime             = 'day';
+                Args.DispUnitsTime         = 'min';
+                Args.SubT0 logical         = true;
+
+                Args.BD                    = BitDictionary;
+                Args.FlagsField            = 'FLAGS';
+                Args.DefaultSymbol         = {'ko','MarkerFaceColor','k','MarkerSize',4};
+                Args.ListFlags             = {'Saturated',{'b^'}; ...
+                                              'NaN',{'r>'}; ...
+                                              'Negative',{'rv'}; ...
+                                              'CR_DeltaHT',{'b<'}};
+            end
+
+            JD = Obj.JD;
+            if Args.SubT0
+                JD = JD - min(JD);
+            end
+            Time = convert.timeUnits(Args.UnitsTime, Args.DispUnitsTime, JD);
+
+            if Args.SubPlot
+                subplot(2,2, Args.FigN);
+                Fig = Args.FigN;
+                cla;
+                box on;
+            else
+                %Fig=figure(Args.FigN);
+                %cla;
+                %box on;
+            end
+
+            Nflag = size(Args.ListFlags,1);
+            FlagPlot = false(Obj.Nepoch, Nflag);
+            for Iflag=1:1:Nflag
+                VecFlag = Obj.Data.(Args.FlagsField)(:,IndSrc);
+                VecFlag(isnan(VecFlag)) = 0;
+                FlagPlot(:,Iflag) = Args.BD.findBit(VecFlag, Args.ListFlags(Iflag,1), 'Method','any');
+
+                plot(Time(FlagPlot(:,Iflag)), Obj.Data.(Args.MagField)(FlagPlot(:,Iflag),IndSrc))
+                hold on;
+
+            end
+
+            FlagG = all(~FlagPlot, 2);
+            plot(Time(FlagG), Obj.Data.(Args.MagField)(FlagG,IndSrc), Args.DefaultSymbol{:});
+
+            
+            %plot(Time, Obj.MS.Data.(Args.MagField)(:,IndSrc))
+            plot.invy;
+
+            H = xlabel(sprintf('Time [%s]',Args.DispUnitsTime));
+            H.FontSize = 18;
+            H.Interpreter = 'latex';
+            H = ylabel('Magnitude');
+            H.FontSize = 18;
+            H.Interpreter = 'latex';
+
+            hold off;
+
+
+
+        end
+
+
         % get LC by source index
-        function [JD, Mag] = getLC_ind(Obj, Ind, FieldMag)
+        function [JD, LC, Ind] = getLC_nearest(Obj, RA, Dec, SearchRadius, Args)
+            % Get LC and data of nearest source to some coordinates.
+            % Input  : - self.
+            %          - RA
+            %          - Dec
+            %          - Search Radius. Default is 3.
+            %          * ...,key,val,...
+            %            'Props' - Properties to put in output LC.
+            %                   Default is ["RA","Dec","MAG_PSF","MAGERR_PSF"]
+            %            'SearchRadiusUnits' - SearchRadius units.
+            %                   Default is 'arcsec'.
+            %            'InCooUnits' - Input RA/Dec units.
+            %                   Default is 'deg'.
+            %            'CooUnits' - Coordinates units in the Data matrix.
+            %                   Default is 'deg'.
+            %            'FieldRA' - Field name containing the R.A.
+            %                   Default is 'RA'.
+            %            'FieldDec' - Field name containing the Dec.
+            %                   Default is 'Dec'.
+            % Output : - Column vector of JD
+            %          - LC with columns as indicated in 'Props'.
+            %          - Ind stryucture (output of coneSearch).
+            % Author : Eran Ofek (Jun 2025)
+            % Example: MS.getLC_nearest(RA,Dec)
+
+            arguments
+                Obj(1,1)
+                RA
+                Dec
+                SearchRadius   = 3;
+                Args.Props                   = ["RA","Dec","MAG_PSF","MAGERR_PSF"];
+                Args.SearchRadiusUnits       = 'arcsec';
+                Args.InCooUnits              = 'deg';   % 'deg' | 'rad'
+                Args.CooUnits                = 'deg';   % 'deg' | 'rad'
+                Args.FieldRA                 = 'RA';
+                Args.FieldDec                = 'Dec';
+            end
+
+
+            Ind=Obj.coneSearch(RA, Dec, SearchRadius, 'SearchRadiusUnits',Args.SearchRadiusUnits,...
+                                                  'InCooUnits',Args.InCooUnits,...
+                                                  'CooUnits',Args.CooUnits,...
+                                                  'FieldRA',Args.FieldRA,...
+                                                  'FieldDec',Args.FieldDec);
+
+
+            JD = Obj.JD;
+            if isempty(Ind.Ind)
+                LC = [];
+            else
+                [~,I] = min(Ind.Dist);
+                Isrc  = Ind.Ind(I);
+
+                Nprop = numel(Args.Props);
+                LC    = nan(numel(JD),Nprop);
+                for Iprop=1:1:Nprop
+                    LC(:,Iprop) = Obj.Data.(Args.Props{Iprop})(:,Isrc);
+                end
+
+            end
+
+
+        end
+
+        function [JD, Mag, Err] = getLC_ind(Obj, Ind, FieldMag, FieldMagErr)
             % get the LC [JD, Mag] of a source by its index (column number)
             % Input  : - A single-element MatchedSources object
             %          - The index/s of the source in the matched matrix
@@ -3059,6 +4732,7 @@ classdef MatchedSources < Component
             % Output : - JD vector.
             %          - Mag (or selected field) vector/array for the selected
             %            sources.
+            %          - Mag error.
             % Author : Eran Ofek (Jul 2021)
             % Example: MS = MatchedSources;
             %          MS.addMatrix(rand(100,200),'FLUX')
@@ -3069,12 +4743,15 @@ classdef MatchedSources < Component
                 Obj(1,1) MatchedSources
                 Ind
                 FieldMag             = AstroCatalog.DefNamesMag;
+                FieldMagErr          = {'MAGERR_PSF'};
             end
             
-            [~, Name] = tools.cell.strNameDict2ind(Obj.Fields, FieldMag);
+            Obj.bestMag;
+            [~, NameMag] = tools.cell.strNameDict2ind(FieldMag, Obj.Fields);
+            [~, NameErr] = tools.cell.strNameDict2ind(FieldMagErr, Obj.Fields);
             JD  = Obj.JD;
-            Mag = Obj.Data.(Name)(:,Ind);
-            
+            Mag = Obj.Data.(NameMag)(:,Ind);
+            Err = Obj.Data.(NameErr)(:,Ind);
         end
         
         % index from position
@@ -3110,7 +4787,7 @@ classdef MatchedSources < Component
             % Author : Eran Ofek (Mar 2022)
             % Example: MS = MatchedSources;
             %          MS.addMatrix({rand(100,200), rand(100,200), rand(100,200)},{'MAG','RA','Dec'})
-            %          [Ind,Flag,Dist] = coneSearch(MS, 0.5,0.5,100);
+            %          [Result] = coneSearch(MS, 0.5,0.5,100);
             
             arguments
                 Obj

@@ -1,6 +1,6 @@
 function [AlphaX,AlphaY,A_11,A_22,A_12]=alpha_kspl_fast(Theta,X0,Y0,Eccen,PA,S,Alpha,Norm)
-% Deflection for softened power law elliptical density
-% Package: AstroUtil.lensing
+% Deflection for softened power law elliptical density using the Barkana code
+% Package: astro.lensing
 % Description: Calculate deflection for softened power law elliptical
 %              density of the form:
 %              kappa = 0.5*b^(2-alpha)/((s^2 + r^2)^(1-0.5*alpha))
@@ -35,7 +35,6 @@ function [AlphaX,AlphaY,A_11,A_22,A_12]=alpha_kspl_fast(Theta,X0,Y0,Eccen,PA,S,A
 %          mex alpha_kspl_fast_sp.f
 %------------------------------------------------------------------------------
 
-import AstroUtil.lensing.*
 
 %  [AlphaX,AlphaY]=alpha_kspl_fast([1 1],-1,-5,0.7,1,1,0.8,1)
 
@@ -53,12 +52,12 @@ AxisRatio  = sqrt(Q2);
 
 Gamma      = 1 - 0.5.*Alpha;
 N          = size(Theta,1);
-if (length(AxisRatio)==1 & length(S2)==1 & length(Alpha)==1),
+if (length(AxisRatio)==1 && length(S2)==1 && length(Alpha)==1)
    Pars = [Gamma,AxisRatio,S2];
-   AlphaMag = alpha_kspl_fast_sp([X_1, Y_1].',Pars);
+   AlphaMag = astro.lensing.alpha_kspl_fast_sp([X_1, Y_1].',Pars);
 else
    Pars = [Gamma,AxisRatio,S2];
-   AlphaMag = alpha_kspl_fast_mp([X_1, Y_1].',Pars.');
+   AlphaMag = astro.lensing.alpha_kspl_fast_mp([X_1, Y_1].',Pars.');
 end
 
 ColX   = 1;
@@ -66,7 +65,7 @@ ColY   = 2;
 AlphaX = Norm.*(AlphaMag(ColX,:).'.*cos(PA) - AlphaMag(ColY,:).'.*sin(PA));
 AlphaY = Norm.*(AlphaMag(ColX,:).'.*sin(PA) + AlphaMag(ColY,:).'.*cos(PA));
 
-if (nargout>2),
+if (nargout>2)
    A_11_r   = Norm.*AlphaMag(3,:);
    A_22_r   = Norm.*AlphaMag(6,:);
    A_12_r   = Norm.*AlphaMag(4,:);

@@ -31,7 +31,9 @@ end
 Ntemp = numel(Radius);
 
 [MatX,MatY] = meshgrid( (1:1:SizeXY(1))-PosXY(1), (1:1:SizeXY(2))-PosXY(2) );
-MatR        = sqrt(MatX.^2 + MatY.^2);
+%MatR        = sqrt(MatX.^2 + MatY.^2);
+% faster
+MatR = hypot(MatX, MatY);
 
 K = zeros(SizeXY(2),SizeXY(1),Ntemp);
 for I=1:1:Ntemp

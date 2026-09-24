@@ -1,6 +1,6 @@
 function Result = unitTest(Obj)
 	%
-	io.msgStyle(LogLevel.Test, '@start', 'BitDictionary test started');
+	%io.msgStyle(LogLevel.Test, '@start', 'BitDictionary test started');
 
 	Obj = BitDictionary('BitMask.Image.Default');
 	
@@ -12,6 +12,6 @@ function Result = unitTest(Obj)
 	
 	[BitInd,BitDec,SumBitDec,BitDescription]=name2bit(Obj,{'Spike','DeadPix'});
 	
-	io.msgStyle(LogLevel.Test, '@passed', 'BitDictionary test passed');
+	%io.msgStyle(LogLevel.Test, '@passed', 'BitDictionary test passed');
 	Result = true;
 end

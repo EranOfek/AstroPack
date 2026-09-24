@@ -1,5 +1,6 @@
 function [Spec,VecR,VecT,Rs]=accretion_disk(M,Mdot,Rin,Rout,Wave,Nstep)
-% theoretical spectrum of a optically thick, thin accretion disk
+% theoretical spectrum of a optically thick, thin accretion disk -
+% OBSOLETE: use accretionDiskSpec
 % Package: AstroUtil.spec
 % Description: Calculate the theoretical spectrum of a optically thick,
 %              thin accretion disk given the mass of
@@ -25,7 +26,7 @@ function [Spec,VecR,VecT,Rs]=accretion_disk(M,Mdot,Rin,Rout,Wave,Nstep)
 % Tested : Matlab 7.0
 %     By : Eran O. Ofek                    Jul 2005
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: [Spec,VecR,VecT,Rs]=AstroUtil.spec.accretion_disk(1e6,0.1,10,100);
+% Example: [Spec,VecR,VecT,Rs]=astro.spec.accretion_disk(1e6,0.1,10,100);
 % Reliable: 2
 %--------------------------------------------------------------------------
 Rin_Def    = 10;
@@ -95,7 +96,7 @@ for R=Rin:StepR:(Rout-StepR)
    T       = (3.*G.*M.*Mdot./(8.*pi.*Sig.*R.^3)  .* (1 - sqrt(Rin./R)) ).^0.25;
    I = I + 1;
    VecT(I) = T;
-   [Il,~] = AstroUtil.spec.black_body(T,Wave);
+   [Il,~] = astro.spec.black_body(T,Wave);
 
    Sum     = Sum + Il.*Area;
 end

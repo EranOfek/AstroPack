@@ -1,0 +1,38 @@
+PLAN MODE - PROMPT 2 - SPLIT CLIENTS BY SERVICE (KEEP BEHAVIOR)
+
+Goal: split the monolithic mission client into service-aligned clients.
+
+Current location (after Prompt 1 moves):
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+clients
+
+Create new client classes under +clients:
+
+1) PlansManagerClient.m
+- Contains all plan-related client methods currently inside MissionApiClient:
+  create/get/update/list/delete plans, submit plan, etc. (whatever exists)
+- Must inherit from ultrasat.api.clients.ClientBase
+
+2) ScheduleManagerClient.m
+- Contains schedule-related methods from MissionApiClient:
+  add_targets/get_targets/get_schedule/whatever exists
+- Must inherit from ClientBase
+
+3) ValidatorClient.m (Targets validation service client)
+- Create based on existing ValidatorSim functionality and existing mission client usage patterns.
+- ONLY implement methods that already exist in MATLAB code (do not invent endpoints).
+- If backend endpoint names are unknown, leave TODOs and keep current behavior temporarily.
+
+4) VirtualTimeClient.m
+- Ensure it is under +clients and consistent.
+
+OPTIONAL / CONDITIONAL (create only if services exist in codebase):
+5) NamespaceManagerClient.m
+6) UserManagerClient.m
+
+Rules:
+- Keep behavior identical for now. If existing MissionApiClient uses JSON sim, allow these new clients to internally call the same internal code temporarily (but do not expand JSON sim usage). This is only a transitional step.
+- Add a thin compatibility wrapper MissionApiClient.m that forwards calls to the new clients, so existing callers don't break immediately.
+- Keep method names aligned with Python service clients where possible.
+
+Stop after split + wrappers + compilation fixes.
+Do not remove JSON sim yet.

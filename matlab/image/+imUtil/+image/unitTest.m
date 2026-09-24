@@ -5,8 +5,35 @@ function Result = unitTest()
     
 	%io.msgStyle(LogLevel.Test, '@start', 'test started');
     
-    func_unitTest();
-    
+    %%
+
+    VecXrel = (1:1:25);
+    VecYrel = (1:1:25);
+    DX      = rand(1000,1);
+    DY      = rand(1000,1);
+    Std     = rand(1,1,1000)+1;
+    FitRadius2 = 9;
+    Resid      = rand(25,25,1000);
+
+    [Flag1, ResidStd1] = imUtil.image.mex.cubeResidStd_Radius(VecXrel, VecYrel, DX, DY, Resid, real(Std), FitRadius2);
+
+    MatX     = permute(VecXrel - DX(:),[3 2 1]);
+    MatY     = permute(VecYrel - DY(:),[2 3 1]);
+    MatR2    = MatX.^2 + MatY.^2;
+    Flag     = MatR2<FitRadius2;
+    ResidStd = Flag.*Resid./Std;
+
+    if max(abs(Flag-Flag1),[],'all')>eps | max(abs(ResidStd-ResidStd1),[],'all')>eps
+        error('Problem with imUtil.image.mex.cubeResidStd_Radius');
+    end
+
+
+            
+
+
+
+    %%
+
     % sub2ind_fast
     Ind=imUtil.image.sub2ind_fast([3 3],2,2);
     if Ind~=5
@@ -51,9 +78,9 @@ function Result = unitTest()
         X1(Isim) = M1.X;
         Y1(Isim) = M1.Y;
     end
-    [mean(AllFlux),std(AllFlux), mean(AllFluxN), std(AllFluxN)]
-    [mean(X1), std(X1), mean(Y1), std(Y1)]
-    [mean(AllB), std(AllB)]
+    [mean(AllFlux),std(AllFlux), mean(AllFluxN), std(AllFluxN)];
+    [mean(X1), std(X1), mean(Y1), std(Y1)];
+    [mean(AllB), std(AllB)];
     if abs(mean(AllFlux)-SimFlux)>30
         error('imUtil.image.moment2 aper phot bias');
     end
@@ -61,22 +88,32 @@ function Result = unitTest()
         error('imUtil.image.moment2 position bias');
     end
     
+    %% sub2ind and ind2sub
+    Size = [100 120];
+    Npt  = 1e4;
+    LI = randi(prod(Size),Npt,1);
+    [I1, J1]=ind2sub(Size, LI);
+    [I2, J2]=imUtil.image.ind2sub_fast(Size, LI);
+    [I3, J3]=imUtil.image.mex.ind2sub_mex(Size, LI);
+
+    if ~all(I1==I2) || ~all(J1==J2)
+        error('Problem with imUtil.image.ind2sub_fast');
+    end
+    if ~all(I1==I3) || ~all(J1==J3)
+        error('Problem with imUtil.image.mex.ind2sub_mex');
+    end
+
+    LI2 = imUtil.image.sub2ind_fast(Size, I2, J2);
+    LI3 = sub2ind(Size, I3, J3);
+    if ~all(LI2 == LI)
+        error('Problem with imUtil.image.sub2ind_fast');
+    end
+    if ~all(LI3==LI)
+        error('Problem with imUtil.image.mex.sub2ind_mex');
+    end
+
+
     
 	%io.msgStyle(LogLevel.Test, '@passed', 'test passed');
 	Result = true;
 end
-
-%--------------------------------------------------------------------------
-
-
-function Result = func_unitTest()
-	% Function Unit-Test
-	%io.msgStyle(LogLevel.Test, '@start', 'test started');
-   
-	%io.msgStyle(LogLevel.Test, '@passed', 'passed');
-	Result = true;
-end
-
-
-%--------------------------------------------------------------------------
-

@@ -55,23 +55,32 @@ classdef UltrasatPerf < Component
         Rmm(1,:)            double = linspace(0,45,25)*sqrt(2); % [mm] Radial distance vector in mm 
         Rdeg(1,:)           double = []; % [deg] Radial distance vector in deg
         AOI_grid(:,1)       double = 0:1:45; % [deg] Detector+Filter AOI grid vector
-        Specs(:,1)          AstSpec = []; % Specs
+        Specs(1,:)          AstroSpec = AstroSpec.empty(1,0); % Specs
+        SpecIsBB(1,:)       logical = false(1,0); % true for the blackbody entries of Specs
 
         % Design
         FLmm                double = 360; % [mm] focal length
         obscuration(1,:)    double = [];  % [%] Obscuration as a function of radial distance
-        N_CaF2              double = 4;   % Number of CaF2 AR-coated surfaces
-        N_FS                double = 4;   % Number of FS AR-coated surfaces
         
+        N_CaF2              double = 4;   % Number of CaF2 AR-coated surfaces
+        N_FS                double = 4;   % Number of FS AR-coated surfaces        
         T_CaF2(:,1)         double = [];  % [%]  Transmission of single CaF2 AR-coated surface
         T_FS(:,1)           double = [];  % [%]  Transmission of single FS AR-coated surface
-        R_Mirror(:,1)       double = [];  % [%]  Mirror reflection
+
+        T_FF1_2surf(:,1)    double = [];  % [%]  Transmission of FF1 (FS AR-coated on two surfaces)
+        T_FF2_2surf(:,1)    double = [];  % [%]  Transmission of FF2 (CaF2 AR-coated on two surfaces)
+        T_SC1_2surf(:,1)    double = [];  % [%]  Transmission of SC1 (FS AR-coated on two surfaces)
+        T_SC2_2surf(:,1)    double = [];  % [%]  Transmission of SC2 (CaF2 AR-coated on two surfaces)
         
+
+        R_Mirror(:,1)       double = [];  % [%]  Mirror reflection        
         T_Filter(:,:)       double = [];  % [%]  2D (WL vs. AOI) Transmission of the sapphire filter (including ARC)
         QE(:,:)             double = [];  % [%]  2D (WL vs. AOI) detector QE
         AOI_dist(:,:)       double = [];  % [%]  2D (AOI vs R) AOI distribution for filter+detector
 
         chromPSF(:,:)       double = [];  % [arcsec] 2D (WL vs. R) chromatic PSF
+
+        TR_degradation                double = 0.95;%1.0     %  Degradation due to contamination / optical elemenets - deafult is 5% loss at launch
         
         % SNR param
         Aper                double = 33;     % Aperture [cm]
@@ -118,11 +127,14 @@ classdef UltrasatPerf < Component
             % Example:
             %          UF = UltrasatPerf(1);
             %          UF = UltrasatPerf([2 2]);
+            % UP1 = UltrasatPerf('Init',true,'calcPerf',true,'DesignFunPar',{'FF1_fname','FF1_asBuilt','SC1_fname','SC1_0'},'calcPerfFunPar',{'SpecsFunPar',{'MStype',[],'T_BB',2e4}});
 
             arguments
                 Nobj           = 1;   % array size
-                Args.PSF_name  = 'chromPSF_1';
+                Args.DesignFunPar    = {};
                 Args.calcPerf  = false;
+                Args.calcPerfFunPar    = {};%{'SpecsFunPar',{'MStype',[],'T_BB',2e4}};%{};%
+                Args.TR_degradation  = [];%
                 Args.Init = true;           % True to initialize, added by @Chen, 21/05/2023 for debugging
             end
             
@@ -130,15 +142,19 @@ classdef UltrasatPerf < Component
             Obj.msgLog(LogLevel.Debug, 'constructor started');
             
             if Args.Init
-                
                 % create an empty AstroWCS object
                 List = cell(Nobj);
                 Nh = numel(List);
                 for Ih=1:1:Nh
                     Obj(Ih).Rdeg = Obj(Ih).Rmm * convert.angular('rad','deg') / Obj(Ih).FLmm; % Fill Rdeg
-                    Obj(Ih).populate_Design('PSF_name',Args.PSF_name); % Populate design
+                    
+                    if ~isempty(Args.TR_degradation)
+                        Obj(Ih).TR_degradation = Args.TR_degradation;
+                    end
+                    Obj(Ih).populate_Design(Args.DesignFunPar{:});%'PSF_name',Args.PSF_name); % Populate design
+
                     if Args.calcPerf
-                        Obj(Ih).calculatePerformance;
+                        Obj(Ih).calculatePerformance(Args.calcPerfFunPar{:});
                     end
 
                 end
@@ -176,7 +192,7 @@ classdef UltrasatPerf < Component
                 Args.Nim                  = 3;
 
                 Args.TargetSpec           = []; %2e4; %3e3; %2e4;    % if given override Mag
-                Args.BackSpec             = @telescope.sn.back_comp;    % per arcsec^2 | handle | AstSpec | matrix
+                Args.BackSpec             = @telescope.sn.back_comp;    % per arcsec^2 | handle | AstroSpec | matrix
                 Args.BackCompFunPar       = {'CerenkovSupp',21};
                 Args.Ebv                  = 0.02;
                 Args.Filter               = [];
@@ -288,7 +304,7 @@ classdef UltrasatPerf < Component
                     legend('FoV center','Radial distances: 0-10 deg','Location','best','interpreter','latex','FontSize',Args.LegendFontSize)
                     
                 case 'ColorColor'
-                    F_BB = contains({Obj.Specs.ObjName},{'Planck'});
+                    F_BB = Obj.SpecIsBB;
 
                     plot(Obj.C_Gaia_BpRp(~F_BB),Obj.C_ULTRASAT_GaiaG(~F_BB),'ob','MarkerSize',6,'MarkerFaceColor','b');
                     plot(Obj.C_Gaia_BpRp(F_BB),Obj.C_ULTRASAT_GaiaG(F_BB),'or','MarkerSize',6,'MarkerFaceColor','r');
@@ -384,9 +400,10 @@ classdef UltrasatPerf < Component
                 Obj
                 Args.AW_radius   = 7.4; % degrees for 170 deg central region
                 Args.AW_r_step   = 0.1; % steps
+                Args.SpecsFunPar = {};
             end
             
-            Obj.Specs = Obj.create_Specs('wavelength',Obj.wavelength);
+            [Obj.Specs, Obj.SpecIsBB] = Obj.create_Specs('wavelength',Obj.wavelength,Args.SpecsFunPar{:});
             Obj.C_Gaia_BpRp = Obj.calcColor(Obj.Specs,'GAIA','BP','GAIA','RP');
             Obj.C_ULTRASAT_GaiaG = Obj.calcColor(Obj.Specs,Obj.U_AstFilt,[],'GAIA','G');
             Obj.C_ULTRASAT_GalexNUV = Obj.calcColor(Obj.Specs,Obj.U_AstFilt,[],'GALEX','NUV');
@@ -431,13 +448,18 @@ classdef UltrasatPerf < Component
                 Args.OBSC_name   = 'Obscuration';                
                 Args.CaF2_name   = 'CaF2_AR';
                 Args.FS_name     = 'FS_AR';
-                Args.Mirror_name = 'M2';%'Mirror';
-                Args.Filter_name = 'Filter';
+                Args.Mirror_name = 'Mirror_asBuilt';%'M2';%'Mirror';
+                Args.Filter_name = 'Filter_asBuilt';%'Filter';
                 Args.QE_name     = 's3_T2_211';%T2_211';
                 Args.QE_subDir   = 'QE_scouts_experimental';%'QE_scouts_AOI_weighted';
-                Args.PSF_name    = 'chromPSF_1';
+                Args.PSF_name    = 'chromPSF_60'; % This is the 90% PSF profile
                 Args.EE50_subDir = 'EE50';                
                 Args.AOI_fname   = 'aoi.txt';
+                Args.FF1_fname   = 'FF1_asBuilt';
+                Args.FF2_fname   = 'FF2asBuilt';
+                %Args.SC1test_subDir = 'SC1_test';                 
+                Args.SC1_fname   = 'SC1_asBuilt';
+                Args.SC2_fname   = 'SC2asBuilt';
                 Args.interp_mthd = 'linear';%'cubic'; % cubic generate negative tranimission....
             end
 
@@ -506,6 +528,35 @@ classdef UltrasatPerf < Component
             
             % AOI
             Obj.read_AOI_dist(fullfile(UltrasatPerf.RawDataDir,Args.AOI_fname));
+
+            % FF1 
+            if ~isempty(Args.FF1_fname)
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.FF1_fname));
+                FF1_2surf = eval(Args.FF1_fname);
+                Obj.T_FF1_2surf = interp1(FF1_2surf.wavelength,FF1_2surf.transmission,Obj.wavelength,Args.interp_mthd);
+            end
+
+            % FF2 
+            if ~isempty(Args.FF2_fname)
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.FF2_fname));
+                FF2_2surf = eval(Args.FF2_fname);
+                Obj.T_FF2_2surf = interp1(FF2_2surf.wavelength,FF2_2surf.transmission,Obj.wavelength,Args.interp_mthd);
+            end
+
+            % SC1 
+            if ~isempty(Args.SC1_fname)
+                %io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.SC1test_subDir,Args.SC1_fname));
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.SC1_fname));
+                SC1_2surf = eval(Args.SC1_fname);
+                Obj.T_SC1_2surf = interp1(SC1_2surf.wavelength,SC1_2surf.transmission,Obj.wavelength,Args.interp_mthd);
+            end
+
+            % SC2 
+            if ~isempty(Args.SC2_fname)
+                io.files.load1(fullfile(UltrasatPerf.RawDataDir,Args.SC2_fname));
+                SC2_2surf = eval(Args.SC2_fname);
+                Obj.T_SC2_2surf = interp1(SC2_2surf.wavelength,SC2_2surf.transmission,Obj.wavelength,Args.interp_mthd);
+            end
             
             % totT
             Obj.TotT = zeros(numel(Obj.wavelength),numel(Obj.Rdeg));
@@ -524,7 +575,7 @@ classdef UltrasatPerf < Component
                 Args.Family = 'ULTRASAT';
                 Args.BaseBandName = 'R';
                 Args.BaseComment = 'deg off FOV center';
-                Args.source_info = 'Measured QE + Measured Mirror + Measured CaF2 (4 surfaces) + Theoretical FS (4 surfaces) + Measured filter + Therotical Obscuration'      
+                Args.source_info = 'Measured QE + AsBuilt Mirror + Measured CaF2 (4 surfaces) + AsBuilt FF1 (V1) + Theoretical FS (2 surfaces) + AsBuilt filter + Therotical Obscuration' ; % 'Measured QE + Measured Mirror + Measured CaF2 (4 surfaces) + Theoretical FS (4 surfaces) + Measured filter + Therotical Obscuration'        
             end
             
             Nr = numel(Obj.Rdeg);
@@ -566,7 +617,35 @@ classdef UltrasatPerf < Component
             AOI_m = repmat(AOI',numel(Obj.wavelength),1);
             T_filter_QE = sum(Obj.T_Filter.*Obj.QE.*AOI_m,2);
             
-            totT = (Obj.T_CaF2.^Obj.N_CaF2) .* (Obj.T_FS.^Obj.N_FS) .* Obj.R_Mirror .* T_filter_QE .* (1-Obj.obscuration(R));
+            % Initiate totT with Miror, Filter_QE, and obscuraton
+            totT = Obj.R_Mirror .* T_filter_QE .* (1-Obj.obscuration(R));
+            %totT = (Obj.T_CaF2.^Obj.N_CaF2) .* (Obj.T_FS.^Obj.N_FS) .* Obj.R_Mirror .* T_filter_QE .* (1-Obj.obscuration(R));
+
+            % add FS lenses
+            N_FS = Obj.N_FS;
+            if ~isempty(Obj.T_FF1_2surf) % if FF1 is available
+                totT = totT.*Obj.T_FF1_2surf;
+                N_FS = N_FS-2;
+            end
+            if ~isempty(Obj.T_SC1_2surf) % if SC1 is available
+                totT = totT.*Obj.T_SC1_2surf;
+                N_FS = N_FS-2;
+            end
+            totT = totT.*(Obj.T_FS.^N_FS);
+
+            % add CaF2 lenses
+            N_CaF2 = Obj.N_CaF2;
+            if ~isempty(Obj.T_FF2_2surf) % if FF2 is available
+                totT = totT.*Obj.T_FF2_2surf;
+                N_CaF2 = N_CaF2-2;
+            end
+            if ~isempty(Obj.T_SC2_2surf) % if SC2 is available
+                totT = totT.*Obj.T_SC2_2surf;
+                N_CaF2 = N_CaF2-2;
+            end
+            totT = totT.*(Obj.T_CaF2.^N_CaF2);
+
+            totT = totT.* Obj.TR_degradation;
         end
         
         function Obj = populate_QE(Obj,Args)
@@ -644,6 +723,65 @@ classdef UltrasatPerf < Component
     end
     
     methods (Static)  % static methods
+
+        function Obj = loadobj(S)
+            % Load an UltrasatPerf, converting legacy AstSpec spectra.
+            %   Objects saved before the AstSpec -> AstroSpec migration hold
+            %   Specs as an AstSpec array, which no longer satisfies the
+            %   property declaration. Convert it so that such files keep
+            %   working.
+            % Input  : - A saved UltrasatPerf object, or the struct MATLAB
+            %            provides when the saved data does not match the
+            %            current class definition.
+            % Output : - An UltrasatPerf object with Specs as AstroSpec.
+            % Author : Aleksandr Krasilshchikov (Aug 2026)
+
+            if isstruct(S)
+                % 'Init',false - do not run populate_Design, the saved
+                % properties are restored below
+                Obj = UltrasatPerf(1, 'Init',false);
+                Fields = fieldnames(S);
+                for If=1:1:numel(Fields)
+                    if isprop(Obj, Fields{If})
+                        if strcmp(Fields{If}, 'Specs')
+                            Obj.Specs = UltrasatPerf.astSpec2astroSpec(S.Specs);
+                        else
+                            Obj.(Fields{If}) = S.(Fields{If});
+                        end
+                    end
+                end
+            else
+                Obj = S;
+            end
+
+            if isempty(Obj.SpecIsBB) && ~isempty(Obj.Specs)
+                % reconstruct the blackbody flag from the spectrum names
+                Obj.SpecIsBB = contains({Obj.Specs.ObjName}, 'Planck');
+            end
+        end
+
+        function Result = astSpec2astroSpec(Spec)
+            % Convert an obsolete AstSpec array into an AstroSpec array.
+            % Input  : - An AstSpec array (or an AstroSpec array, returned
+            %            unchanged).
+            % Output : - An AstroSpec array with Wave, Flux and ObjName
+            %            carried over.
+            % Author : Aleksandr Krasilshchikov (Aug 2026)
+            % Example: AS = UltrasatPerf.astSpec2astroSpec(AstSpec.get_pickles('M','V'));
+
+            if isa(Spec, 'AstroSpec') || isempty(Spec)
+                Result = Spec;
+                return
+            end
+
+            Nspec  = numel(Spec);
+            Result = AstroSpec(Nspec);
+            for Ispec=1:1:Nspec
+                Result(Ispec) = AstroSpec({[Spec(Ispec).Wave(:), Spec(Ispec).Int(:)]});
+                Result(Ispec).ObjName = Spec(Ispec).ObjName;
+            end
+        end
+
         function [effPSF,rPSF,PSF_all] = calc_eff_PSF(FWHM,ASpec,ASFilter,wavelength,Args)
             arguments
                 FWHM
@@ -656,10 +794,13 @@ classdef UltrasatPerf < Component
             rPSF(:,1) = (0:Args.dr:100);
 
 
-            ASpec = interp(ASpec,wavelength);
+            % interpolate the flux onto the wavelength grid - AstroSpec/interp1
+            % would also interpolate the Wave column and leave NaN in it
+            % outside the original range
+            SpecFlux = interp1(ASpec.Wave,ASpec.Flux,wavelength);
             ASFilter = interp(ASFilter,wavelength);
-            
-            TargetSpecPh = convert.flux(ASpec.Int,'cgs/A','ph/A',wavelength,'A'); % change Int to photons
+
+            TargetSpecPh = convert.flux(SpecFlux,'cgs/A','ph/A',wavelength,'A'); % change flux to photons
             Photon_flux = TargetSpecPh.*ASFilter.T(:,2);
             
             Sig_PSF = FWHM/2.355;
@@ -712,14 +853,14 @@ classdef UltrasatPerf < Component
             for Sidx = 1:Nsrc
                 for C = 1:NC
                     if NF1>1
-                       [MagF1,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Int],F1_family(C),[],Args.MagSys);
-                       [MagF2,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Int],F2_family,F2_band,Args.MagSys);
+                       [MagF1,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Flux],F1_family(C),[],Args.MagSys);
+                       [MagF2,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Flux],F2_family,F2_band,Args.MagSys);
                     elseif NF2>1
-                       [MagF1,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Int],F1_family,F1_band,Args.MagSys);
-                       [MagF2,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Int],F2_family(C),[],Args.MagSys);
+                       [MagF1,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Flux],F1_family,F1_band,Args.MagSys);
+                       [MagF2,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Flux],F2_family(C),[],Args.MagSys);
                     else
-                       [MagF1,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Int],F1_family,F1_band,Args.MagSys);
-                       [MagF2,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Int],F2_family,F2_band,Args.MagSys);
+                       [MagF1,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Flux],F1_family,F1_band,Args.MagSys);
+                       [MagF2,~] = astro.spec.synthetic_phot([Specs(Sidx).Wave Specs(Sidx).Flux],F2_family,F2_band,Args.MagSys);
                     end
                     Color(Sidx,C) = MagF1-MagF2;
                 end
@@ -728,18 +869,29 @@ classdef UltrasatPerf < Component
             
         end        
         
-        function Specs = create_Specs(Args)
+        function [Specs, IsBB] = create_Specs(Args)
+            % Output : - An AstroSpec array: the requested Pickles stellar
+            %            spectra followed by one blackbody per T_BB.
+            %          - A logical vector, true for the blackbody entries.
             arguments
                 Args.wavelength(:,1) = 2000:11000 ;
                 Args.MStype          = 'V';
                 Args.T_BB             = [2e3 ,4e3 ,6e3 ,8e3 ,1e4 ,2e4 ,3e4 ,4e4, 5e4, 6e4, 7e4];
             end
-            
-            Specs = AstSpec.get_pickles([],Args.MStype );
-            
-            for T = Args.T_BB
-                Specs(end+1) = AstSpec.blackbody(T,Args.wavelength);
+
+            if ~isempty(Args.MStype)
+                Specs = AstroSpec.specStarsPickles([],Args.MStype );
+            else
+                Specs = AstroSpec.empty(1,0);
             end
+            Nstar = numel(Specs);
+
+            for T = Args.T_BB
+                currSpec = AstroSpec.blackBody(Args.wavelength,T);
+                Specs = [Specs, currSpec];
+            end
+
+            IsBB = [false(1,Nstar), true(1,numel(Specs)-Nstar)];
         end
         
         

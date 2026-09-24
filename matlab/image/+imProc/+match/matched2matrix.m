@@ -53,6 +53,8 @@ function [Res, Summary, N_Ep, Units] = matched2matrix(MatchedObj, Cols, IsEpochB
         IsEpochByInd(1,1) logical           = true;
     end
 
+    Units = [];
+    
     CatField   = 'Catalog';
 
     Ncat        = numel(MatchedObj);

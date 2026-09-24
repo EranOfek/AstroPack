@@ -1,5 +1,6 @@
 function Result=image2cutouts1d(Array, Pos, Args)
-    % Cut line-stamps from an array, around some central position.
+    % Cut line-stamps from an array, around some central (whole pixel) position.
+    %   For interpolation of a non-whole pixel position use: 
     %   Given an array and positions along one of its dimensions.
     %   Around each position cut a line with half size given by the
     %   WinHalfSize argument and return a matrix in which the columns are
@@ -16,7 +17,7 @@ function Result=image2cutouts1d(Array, Pos, Args)
     %            cutout stamps.
     % Author : Eran Ofek (May 2023)
     % Example: R = rand(100,100); 
-    %          Result=imUtil.trace.image2cutouts1d(R, 5)
+    %          Result=imUtil.spec.trace.image2cutouts1d(R, 5)
     
     arguments
         Array

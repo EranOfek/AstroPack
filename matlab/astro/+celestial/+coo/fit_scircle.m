@@ -43,6 +43,7 @@ Radius = Par(3);
 Offset = Par(4);
 
 [LatCalc,LonCalc]     = reckon(LatC,LonC,Radius,HA+Offset,'radians');
+LonCalc(LonCalc<0)    = LonCalc(LonCalc<0)+2*pi;
 D = celestial.coo.sphere_dist_fast(LonCalc,LatCalc,Lon,Lat);
 MeanDist = mean(D);
 

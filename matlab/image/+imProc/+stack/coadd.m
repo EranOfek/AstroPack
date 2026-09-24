@@ -1,5 +1,6 @@
-function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
+function [Result, CoaddN, ImageCube, MidJD, SumExpTime] = coadd(ImObj, Args)
     % Coadd images in AstroImage object including pre/post normalization
+    %   OBSOLETE: use imProc.stack.coadd_WRobust/coadd_Proper instead.
     % Input  : - An AstroImage object.
     %          * ...,key,val,...
     %            'CCDSEC' - CCDSEC on which to operate:
@@ -121,6 +122,8 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
     %          - A matrix in which each pixel give the number of
     %            images on which the coaddition was based.
     %          - The cube of images
+    %          - MidJD (NaN if UpdateTimes is false).
+    %          - SumExpTime (NaN if UpdateTimes is false).
     % Author : Eran Ofek (Apr 2021)
     % Example: AI = AstroImage({ones(5,5), 2.*ones(5,5), 3.*ones(5,5)});
     %          [Result, CoaddN] = imProc.stack.coadd(AI);
@@ -178,9 +181,15 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
     % allocate output
     Result = AstroImage;
 
+    MidJD      = NaN;
+    SumExpTime = NaN;
+
     Nim = numel(ImObj);
 
     [ImageCube, BackCube, VarCube, MaskCube] = imProc.image.images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',IndexDim, 'DataProp',DataProp, 'DataPropIn',Args.DataPropIn, 'Cube',Args.Cube);
+
+    %DataProp                      = {'ImageData'};
+    %[ImageCube] = imProc.image.images2cube(ImObj, 'CCDSEC',Args.CCDSEC, 'DimIndex',IndexDim, 'DataProp',DataProp, 'DataPropIn',Args.DataPropIn, 'Cube',Args.Cube);
     
     if isa(ImageCube, 'ImageComponent')
         IsIC = true;
@@ -433,25 +442,31 @@ function [Result, CoaddN, ImageCube] = coadd(ImObj, Args)
         
         VecExpTime = funHeader(ImObj, @getVal,'EXPTIME');
         MidJD      = funHeader(ImObj, @julday);
+        % MEXPTIME - is the mean EXPTIME of the individual images
         InfoCell = {'IMTYPE',Type,'';...
                     'FILTER',Filter,'';...
+                    'MEXPTIME',mean(VecExpTime),'';...
                     'NCOADD',Nim,'Number of coadded images';...
                     'COADDOP',Args.StackMethod,'Coaddition method';...
                     'AVNCOADD',mean(CoaddN,'all'),'Mean number of coadded images per pixel';...
                     'MINCOADD',min(CoaddN,[],'all'),'Minimum number of coadded images per pixel';...
-                    'MIDJD',0.5.*(max(MidJD)+min(MidJD)),'Middle time of observations';...
+                    'MIDJD',sum(MidJD.*VecExpTime)/sum(VecExpTime),'Weighted mean time of observations';...
                     'MINJD',min(MidJD),'MIDJD of first coadded observation';...
                     'MAXJD',max(MidJD),'MIDJD of last coadded observation'};
                
+        %'MIDJD',0.5.*(max(MidJD)+min(MidJD)),'Middle time of observations';...
             
-        Result.HeaderData = insertKey(Result.HeaderData, InfoCell, 'end');
+        %Result.HeaderData = insertKey(Result.HeaderData, InfoCell, 'end');
+        Result.HeaderData = Result.HeaderData.replaceVal(InfoCell(:,1), InfoCell(:,2), 'Comment',InfoCell(:,3));
 
+        SumExpTime = sum(VecExpTime);
         if Args.SumExpTime
-            Result.HeaderData = replaceVal(Result.HeaderData, 'EXPTIME', {sum(VecExpTime)});
+            Result.HeaderData = replaceVal(Result.HeaderData, 'EXPTIME', {SumExpTime});
         else
             Result.HeaderData = replaceVal(Result.HeaderData, 'EXPTIME', {mean(VecExpTime)});
         end
-        Result.HeaderData = replaceVal(Result.HeaderData, 'MIDJD', {median(MidJD)});
+%         Result.HeaderData = replaceVal(Result.HeaderData, 'MIDJD', {median(MidJD)});
+        %Result.HeaderData = replaceVal(Result.HeaderData, 'MIDJD', {sum(MidJD.*VecExpTime)/sum(VecExpTime)});        
 
     end
     

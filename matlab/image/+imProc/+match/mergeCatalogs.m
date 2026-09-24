@@ -49,7 +49,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %                   input AstroCatalog which to propagate into the
     %                   MatchedSources object.
     %                   Default is
-    %                   {'RA','Dec','X1','Y1','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
+    %                   {'RA','Dec','X1','Y1','X2','Y2','XY','SN_1','SN_2','SN_3','SN_4','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','FLAGS'};
     %            'ColNameFlags' - A char array of the column name
     %                   containing a flags (propagated from the bit mask)
     %                   information. Default is 'FLAGS'.
@@ -80,13 +80,19 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %                   Default is {'MAG_CONV_2','MAGERR_CONV_2'};
     %            'MagCalibColName' - A char array of column name by which to
     %                   calculate the relative photometric calibration.
-    %                   Default is 'MAG_CONV_2'.
+    %                   Default is 'MAG_APER_3'.
     %            'MagCalibErrColName' - Error column name corresponding to
-    %                   'MagCalibColName'. Default is 'MAGERR_CONV_2'.
+    %                   'MagCalibColName'. Default is 'MAGERR_APER_3'.
     %           
     %            'unifiedSourcesCatalogArgs' - A cell array of additional
     %                   arguments to pass to MatchedSources/unifiedCatalogsIntoMatched
     %                   Default is {}.
+    %            'MergedMatchMergedCat' - A logical indicating if to add
+    %                   search for counterparts in MergedCat and to add a column
+    %                   with the bit mask containing information on possible
+    %                   counterparts. The search is performed using: 
+    %                   imProc.match.match_catsHTMmerged
+    %                   Default is false.
     % Output : - MergedCat is an array of AstroCatalog (one per
     %            field/column in the input Astrocatalog). Each AstroCatalog
     %            contains the merged catalog with all the sources and their
@@ -104,7 +110,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     %          - ResZP is a structure array with the ZP info, returned by
     %            lcUtil.zp_lsq
     %          - ResVar is a structure array with the variability info,
-    %            returned by lcUtil.fitPolyHyp
+    %            returned by MatchedSources/fitPolyHyp
     %          - FitMotion is a structure array with proper motion info,
     %            returned by lcUtil.fitMotion.
     % Author : Eran Ofek (Nov 2021)
@@ -131,13 +137,13 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
         Args.fitMotionArgs cell      = {'Prob',1e-5};
         
         %Args.MatchedColums           = {'RA','Dec','X1','Y1','SN_1','SN_2','SN_3','SN_4','MAG_PSF','MAGERR_PSF','PSF_CHI2DOF','MAG_CONV_2','MAGERR_CONV_2','MAG_CONV_3','MAGERR_CONV_3','MAG_APER_2','MAGERR_APER_2','MAG_APER_3','MAGERR_APER_3','FLUX_APER_3','FLAGS','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};
-        Args.MatchedColums           = {'RA','Dec','X1','Y1','SN_1','SN_2','SN_3','SN_4','MAG_PSF','MAGERR_PSF','PSF_CHI2DOF','MAG_APER_2','MAGERR_APER_2','MAG_APER_3','MAGERR_APER_3','FLUX_APER_3','FLAGS','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};
+        Args.MatchedColums           = {'RA','Dec','X1','Y1','X2','Y2','XY','SN_1','SN_2','SN_3','SN_4','MAG_PSF','MAGERR_PSF','PSF_CHI2DOF','FLUX_PSF','MAG_APER_2','MAGERR_APER_2','MAG_APER_3','MAGERR_APER_3','FLUX_APER_3','FLAGS','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};
         
         Args.ColNameFlags            = 'FLAGS';
         %Args.ColNamesStat            = {'RA',  'Dec', 'X1',  'Y1','MAG_CONV_2', 'MAG_CONV_3','SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};  % must be a subset of MatchedColums
         %Args.FunIndStat              = {[1 3], [1 3], [1 3], [1 3], [1:8],     [1:8],       [1 3], [1 3], [1 3], [1 3],  [1 3],    [1 3],   [1 3],         [1 3]};
-        Args.ColNamesStat            = {'RA',  'Dec', 'X1',  'Y1',  'MAG_PSF','MAGERR_PSF','MAG_APER_2', 'MAG_APER_3','SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS'};  % must be a subset of MatchedColums
-        Args.FunIndStat              = {[1 3], [1 3], [1 3], [1 3], [1:8],    [1 3],       [1 3],        [1:8],       [1 3], [1 3], [1 3], [1 3], [1 3],    [1 3],   [1 3],         [1 3]};
+        Args.ColNamesStat            = {'RA',  'Dec', 'X1',  'Y1',  'MAG_PSF','MAGERR_PSF','MAG_APER_2', 'MAG_APER_3','SN_1','SN_2','SN_3','SN_4','BACK_IM','VAR_IM','BACK_ANNULUS','STD_ANNULUS', 'PSF_CHI2DOF'};  % must be a subset of MatchedColums
+        Args.FunIndStat              = {[1 3], [1 3], [1 3], [1 3], [1:8],    [1 3],       [1 3],        [1:8],       [1 3], [1 3], [1 3], [1 3], [1 3],    [1 3],   [1 3],         [1 3],         [1 3]};
         
         
         %Args.ColNamesAll             = {'MAG_CONV_2','MAGERR_CONV_2'};
@@ -148,7 +154,7 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
 
         Args.unifiedSourcesCatalogArgs cell     = {};
        
-        Args.MergedMatchMergedCat logical       = true;
+        Args.MergedMatchMergedCat logical       = false;
     end
     
     % find all unique sources
@@ -156,6 +162,8 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     if isempty(Args.JD)
         if isa(Obj, 'AstroImage')
             JD  = julday(Obj(:,1));     
+        elseif isa(Obj,'AstroCatalog')
+            JD = [Obj(:,1).JD]';
         else
             JD  = (1:1:Nepochs).';
         end
@@ -166,14 +174,21 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
     FlagGood = true(1, Nfields) & Args.FlagGood(:).';
     
     
-    
-   for Ifields=1:1:Nfields
+    %ResZP  = [];
+    %ResVar = [];
+    for Ifields=1:1:Nfields
+        MatchedS(Ifields)  = MatchedSources;
+        
+        %FlagGoodAstrometry = imProc.astrometry.isSuccessWCS(Obj(:,Ifields)); % & ~strcmp(Args.CooType, 'sphere');
+            
         if FlagGood(Ifields)
-            MatchedS(Ifields) = MatchedSources;
+        %if sum(FlagGoodAstrometry)>10
+            
 
             % check if WCS is good - only if CooType is 'sphere'
             %FlagGoodWCS = ~strcmp(Args.CooType, 'sphere') | imProc.astrometry.isSuccessWCS(Obj(:,Ifields));
 
+            
             [MatchedS(Ifields), Matched(Ifields,:)] = MatchedS(Ifields).unifiedCatalogsIntoMatched(Obj(:,Ifields),...
                                                              'CooType',Args.CooType,...
                                                              'Radius',Args.Radius,...
@@ -203,9 +218,9 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
                 ResZP = [];
             end
 
-            % lcUtil.fitPolyHyp
+            % fitPolyHyp
             if Args.fitPolyHyp
-                [ResVar(Ifields).Result] = lcUtil.fitPolyHyp(MatchedS(Ifields), 'MagFieldNames',Args.MagCalibColName, 'PolyDeg',Args.PolyDeg, 'SubtractMeanT',true,'NormT',true);
+                [ResVar(Ifields).Result] = fitPolyHyp(MatchedS(Ifields), 'MagFieldNames',Args.MagCalibColName, 'PolyDeg',Args.PolyDeg, 'SubtractMeanT',true,'NormT',true);
             end
         end
     end    
@@ -237,23 +252,48 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
             ColUnits = cell(1, NumCol);
             Cat      = zeros(MatchedS(Ifields).Nsrc, NumCol);
             if Args.FitPM
-                ColNames(1:NumColPM) = {'RA','Dec','Nobs', 'Noutlier', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_TdistProb', 'JD_PM'};
-                ColUnits(1:NumColPM) = {'deg','deg','', '', 'deg','deg','deg/day','deg/day','','day'};
 
-                Cat(:,1)       = FitMotion(Ifields).RA.ParH1(1,:).';
-                Cat(:,2)       = FitMotion(Ifields).Dec.ParH1(1,:).';
-                Cat(:,3)       = FitMotion(Ifields).RA.Nobs(:);
-                Cat(:,4)       = FitMotion(Ifields).RA.Noutlier(:);
-                Cat(:,5)       = FitMotion(Ifields).RA.StdResid_H0(:);
-                Cat(:,6)       = FitMotion(Ifields).Dec.StdResid_H0(:);
-                Cat(:,7)       = FitMotion(Ifields).RA.ParH1(2,:).';
-                Cat(:,8)       = FitMotion(Ifields).Dec.ParH1(2,:).';
-                Cat(:,9)       = (1 - (1 - FitMotion(Ifields).RA.StudentT_ProbH1).*(1 - FitMotion(Ifields).Dec.StudentT_ProbH1)).';
-                % Reference time for PM fit
-                Cat(:,10)      = repmat(FitMotion(Ifields).MeanT , MatchedS(Ifields).Nsrc, 1);
+                CodeVer = 1;
+                if CodeVer==0
+                    ColNames(1:NumColPM) = {'RA','Dec','Nobs', 'Noutlier', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_TdistProb', 'JD_PM'};
+                    ColUnits(1:NumColPM) = {'deg','deg','', '', 'deg','deg','tdeg/day','deg/day','','day'};
+    
+                    Cat(:,1)       = FitMotion(Ifields).RA.ParH1(1,:).';
+                    Cat(:,2)       = FitMotion(Ifields).Dec.ParH1(1,:).';
+                    Cat(:,3)       = FitMotion(Ifields).RA.Nobs(:);
+                    Cat(:,4)       = FitMotion(Ifields).RA.Noutlier(:);
+                    Cat(:,5)       = FitMotion(Ifields).RA.StdResid_H0(:);
+                    Cat(:,6)       = FitMotion(Ifields).Dec.StdResid_H0(:);
+                    Cat(:,7)       = FitMotion(Ifields).RA.ParH1(2,:).';
+                    Cat(:,8)       = FitMotion(Ifields).Dec.ParH1(2,:).';
+                    Cat(:,9)       = (1 - (1 - FitMotion(Ifields).RA.StudentT_ProbH1).*(1 - FitMotion(Ifields).Dec.StudentT_ProbH1)).';
+                    % Reference time for PM fit
+                    Cat(:,10)      = repmat(FitMotion(Ifields).MeanT , MatchedS(Ifields).Nsrc, 1);
+    
+                    %Cat(:,8)       = (FitMotion(Ifields).RA.DeltaChi2 + FitMotion(Ifields).Dec.DeltaChi2).';
+                    Icol = NumColPM;
+                else
+                    % new version / under debuging
+                    ColNames(1:NumColPM) = {'RA','Dec','Nobs', 'Noutlier', 'StdRA','StdDec', 'PM_RA','PM_Dec', 'PM_TdistProb', 'JD_PM'};
+                    ColUnits(1:NumColPM) = {'deg','deg','', '', 'deg','deg','deg/day','deg/day','','day'};
+    
+                    Cat(:,1)       = FitMotion(Ifields).RA0(:); %.ParH1(1,:).';
+                    Cat(:,2)       = FitMotion(Ifields).Dec0(:); %.ParH1(1,:).';
+                    Cat(:,3)       = FitMotion(Ifields).Nobs(:);
+                    Cat(:,4)       = FitMotion(Ifields).Nobs(:) - FitMotion(Ifields).Ngood(:);
+                    Cat(:,5)       = FitMotion(Ifields).SigmaRA(:);
+                    Cat(:,6)       = FitMotion(Ifields).SigmaDec(:);
+                    Cat(:,7)       = FitMotion(Ifields).MuRA;
+                    Cat(:,8)       = FitMotion(Ifields).MuDec;
+                    Cat(:,9)       = FitMotion(Ifields).Prob;
+                    % Reference time for PM fit
+                    Cat(:,10)      = repmat(FitMotion(Ifields).MeanTime , MatchedS(Ifields).Nsrc, 1);
+    
+                    %Cat(:,8)       = (FitMotion(Ifields).RA.DeltaChi2 + FitMotion(Ifields).Dec.DeltaChi2).';
+                    Icol = NumColPM;
 
-                %Cat(:,8)       = (FitMotion(Ifields).RA.DeltaChi2 + FitMotion(Ifields).Dec.DeltaChi2).';
-                Icol = NumColPM;
+
+                end
             else
                 Icol = 0;
             end
@@ -318,13 +358,16 @@ function [MergedCat, MatchedS, ResZP, ResVar, FitMotion] = mergeCatalogs(Obj, Ar
             % imProc.asteroids.searchAsteroids_pmCat
 
             % FFU: match to external catalogs
+            
+            
+            if Args.MergedMatchMergedCat
+                % match against external catalogs
+                MergedCat(Ifields) = imProc.match.match_catsHTMmerged(MergedCat(Ifields), 'SameField',false, 'CreateNewObj',false);
+            end
         end
     end
     
-    if Args.MergedMatchMergedCat
-        % match against external catalogs
-        MergedCat = imProc.match.match_catsHTMmerged(MergedCat, 'SameField',false, 'CreateNewObj',false);
-    end
+    
     
     % DEBUG
     %I= 9;

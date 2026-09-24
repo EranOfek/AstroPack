@@ -49,7 +49,7 @@ RAD = 180./pi;
 
 % apply extinction
 if Ebv~=0
-    A = astro.spec.extinction(Ebv,FamilyCell, BandCell, R);
+    A = astro.extinction.extinction(Ebv,FamilyCell, BandCell, R);
     MagMat = MagMat(:).' + A(1,:);
 end
 

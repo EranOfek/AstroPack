@@ -85,4 +85,9 @@ end
 % end
 
 
-Flag = [bsxfun(@times,N(:,1),R(:,1).') + bsxfun(@times,N(:,2),R(:,2).') + bsxfun(@times,N(:,3),R(:,3).')>C];
+DotProd = bsxfun(@times,N(:,1),R(:,1).') + bsxfun(@times,N(:,2),R(:,2).') + bsxfun(@times,N(:,3),R(:,3).');
+if Crit == 1
+    Flag = DotProd > C;
+else
+    Flag = DotProd >= C;
+end

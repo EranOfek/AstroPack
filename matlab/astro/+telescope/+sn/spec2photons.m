@@ -8,7 +8,7 @@ function [Flux,Counts]=spec2photons(Spectrum,Filter,Extin,Radius,Dist)
 %            [Wavelengh(Ang), Emmitence(erg cm^-2 s^-1 A^-1)].
 %            Alternatively, a scalar representing a black-body
 %            temperature [K].
-%            Alternatively this can be an AstSpec object.
+%            Alternatively this can be an AstroSpec object.
 %          - Filter [Wavelength(Ang), EffectiveAreaOfInstrument(cm^2)].
 %            If two element vector than assumes it to be the wavelength
 %            range [Ang] of a top-hat filter with efective area of 1 cm^2.
@@ -59,14 +59,15 @@ if (numel(Filter)==2)
    Filter = [Filter, ones(size(Filter))];
 end
 
-if (AstSpec.isastspec(Spectrum))
-    Spectrum = astspec2mat(Spectrum,'mat');
+if (isa(Spectrum,'AstroSpec'))
+    Spectrum = [Spectrum.Wave, Spectrum.Flux];
 end
 
 if (numel(Spectrum)==1)
    % Assumes black-body spectrum
    %[Il,In,IlA,ImJy,Ip] = black_body(Spectrum,Filter(:,1));
-   Spectrum = AstSpec.blackbody(Spectrum,Filter(:,1),'cgs/A','ang','mat');
+   AS       = AstroSpec.blackBody(Filter(:,1),Spectrum);
+   Spectrum = [AS.Wave, AS.Flux];
    %Spectrum = [Filter(:,1), IlA];
 end
 

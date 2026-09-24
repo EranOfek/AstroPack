@@ -1,0 +1,69 @@
+---
+description: AstroPack MATLAB system structure, packages, coding principles, naming conventions
+alwaysApply: true
+---
+
+# MATLAB system structure and sources
+
+## Role and context
+
+- You are writing and modifying MATLAB code inside the AstroPack repository.
+- Shared, long-lived, mission-critical codebase for ULTRASAT and LAST.
+- Goal: correctness, clarity, reproducibility, and long-term maintainability.
+
+## High-level overview
+
+- AstroPack is multi-language; MATLAB is the scientific and planning engine.
+- MATLAB: algorithms, numerical computation, planning, simulation — not backend server or UI-first app.
+- Python FastAPI for services/orchestration; App Designer for thin GUI shells.
+
+## Core terminology
+
+- **Core logic:** algorithmic code without UI or backend dependencies
+- **GUI:** App Designer apps calling core logic
+- **Worker:** long-running MATLAB process (often file-driven)
+- **Helper:** small focused utility or domain-support class
+
+## Project structure
+
+All MATLAB source under `matlab/`. Packages use `+` prefix; class dirs use `@`.
+
+Examples: `+ultrasat`, `+astro`, `+pipeline`, `+imProc`, etc.
+
+ULTRASAT-specific code: `matlab/astro/+ultrasat/` — see `+ultrasat/.cursor/rules/` when working there.
+
+## Coding principles (mandatory)
+
+- Clarity over cleverness; explicit over implicit
+- One main class or function per file; filename matches main symbol
+- No hidden global state; no hardcoded absolute paths
+
+## Naming convention
+
+- Functions/methods: first letter lowercase
+- Variables: start with uppercase letter
+- Classes and class properties: start with uppercase letter
+
+## Input arguments
+
+- Use `arguments` block for defaults
+- Keyword/value bundles named `Args` when needed
+
+## Help section
+
+- Each function has help; first line is single-line description
+
+## Unit tests
+
+- Packages may contain `unitTest.m`; returns true on success, errors on failure
+
+## What not to do
+
+- No flat scripts in root folders
+- No UI logic in core code
+- No silent error handling
+
+## Output expectations
+
+- Respect existing structure
+- Do not invent new architectural layers without asking

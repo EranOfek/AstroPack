@@ -26,4 +26,5 @@ function Answer=unitTest
     std(ParM  - Mag)  % should be eq to MagErr/sqrt(Nstar)
 
     Answer = true;
+
 end

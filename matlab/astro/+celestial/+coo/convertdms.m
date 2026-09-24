@@ -133,10 +133,10 @@ switch InType
     RadData = (InData(:,1)+InData(:,2)./60+InData(:,3)./3600).*15./RAD;
  case {'HM'}
     RadData = (InData(:,1)+InData(:,2)./60).*15./RAD;
- case {'R','r'}
+ case {'R','r','rad'}
     RadData = InData;
     % do nothing
- case {'d'}
+ case {'d','deg'}
     RadData = InData./RAD;
  case {'h'}
     RadData = InData.*15./RAD;
@@ -312,7 +312,7 @@ switch OutType
     M(I) = 0;
     H(I) = H(I) + 1;
     OutData = [H M];
- case {'r'}
+ case {'r','rad'}
     % do nothing, allready in range [0,2*pi]
     OutData = RadData;
  case {'R'}
@@ -322,7 +322,7 @@ switch OutType
     OutData(I) = RadData(I) - 2.*pi;
  case {'f'}
     OutData = RadData./(2.*pi);
- case {'d'}
+ case {'d','deg'}
     OutData = RadData.*RAD;
  case {'h'}
     OutData = RadData.*RAD./15;

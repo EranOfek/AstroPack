@@ -1,0 +1,296 @@
+function [Result, SN, SN1, ResCollapse, PeakDet]  = traceByCollapse(Array, Args)
+    % Find, fit and linazrize traces from spectra in an image
+    %   This function is performing the following steps:
+    %   1. Measure global background and variance
+    %   2. Filter the 2D images with a short-line kernel for trace.
+    %      This include two kernels one with the instrumental PSF and the
+    %      second which is a delta function (for CR removal).
+    %   3. Optionally mask bad positions in the detector
+    %   4. Detect peaks in 2D filtered image.
+    %   5. Collapse filtered image and find locak maxima (initial trace
+    %      positions).
+    %   6. For each possible trace, calculate moments along the trace and
+    %      fit it with smooth polynomial.
+    %   7. For each trace, extract a linarized version of the trace.
+    %   Comments: The user can choose if to find all traces or only
+    %   significant traces near predefined/predicted positions.
+    %   The trace is calculated using several methods (see information in
+    %   output section).
+    %
+    % Input  : - A 2D array.
+    %          * ...,key,val,...
+    %            'DimWave' - Dim of spatial coordinate. Default is 1.
+    %            'TraceLineKernel' - 
+    %            'PSFsigma' - 
+    %            'Back' - An optional background image (or scalar).
+    %                   If empty, then calculate a global background using:
+    %                   tools.math.stat.rmean
+    %                   Back and Var are used for the filtering step.
+    %                   Default is [].
+    %            'Var' - An optional variance image (or scalar).
+    %                   If empty, then assume equal to the background image
+    %                   (i.e., assuming the image noise followin Poisson
+    %                   distribution).
+    %                   Default is [].
+    %            'Threshold' - Threshold used in:
+    %                   imUtil.spec.trace.peakDetectionFilter1
+    %                    Default is 12.
+    %            'ThresholdSum' - ThresholdSum used in:
+    %                   imUtil.spec.trace.peakDetectionFilter1
+    %                   This is the threshold in units of noise. For each
+    %                   local maxima above this threshold the S/N along the
+    %                   other dimension will be added sqrt(sum(SN^2)).
+    %                   Default is 3.
+    %
+    %            'GlobalStd' - ThresholdSum used in:
+    %                   imUtil.spec.trace.peakDetectionFilter1
+    %                   A logical indicating if to use the local
+    %                   std, or the std of the colums/rows. The std is used
+    %                   for the noise estimation. Default is false.
+    %            'GoodMask' - An optional array of logicals indicating if
+    %                   to use the pixel (true) or not (false) in the trace
+    %                   finding. If empty, will use all pixels.
+    %            'IgnoreWaveRangePos' - A two column matrix of
+    %                   [Xstart Xend]. Pixels in these ranges will be set
+    %                   with GoodMask values of false (will not be used).
+    %                   Default is [].
+    %
+    %            'ExpectedSpatPos' - A vector of spatial positions of expected
+    %                   traces. If given then only peaks found near the
+    %                   expected position (within +/- ExpectedSpatPosErr), will
+    %                   be selected. If empty, will returm all tarces
+    %                   found. Default is [].
+    %            'ExpectedSpatPosErr' - Error of the positions listed in
+    %                   ExpectedSpatPos. Default is 3 pix.
+    %            'Moments1dArgs' - Additional arguments to pass to:
+    %                   imUtil.spec.trace.moment1d
+    %                   Default is {}.
+    %            'UseWeightedMom' - Return and fit the Weighted moments
+    %                   (rather than the moments).
+    %                   Default is true.
+    %
+    %            'LinTraceHalfWidth' - Half width of linearzied trace
+    %                   cutout (HalfWidth argument of
+    %                   imUtil.spec.trace.linearizeTrace).
+    %                   Default is 50.
+    %            'linearizeTraceArgs' - Cell array of additional parameters
+    %                   to pass to: imUtil.spec.trace.linearizeTrace
+    %            'ExtractShift' - When extracting the linarize spectrum,
+    %                   this parameter indicate the shift to apply in the spatial
+    %                   direction before extraction.
+    %                   This maybe useful when you are interested in
+    %                   extracting the sky near the trace.
+    %                   Default is 0.
+    %            'Field1', 'Field2' - This are the fields in the output
+    %                   from which the linezrized trace is generated.
+    %                   Default are: 'FitMomFilt', 'FitY'.
+    %            'FieldMom1', 'FieldMom2' - This are the fields in the output
+    %                   from which the second moment trace is generated.
+    %                   Default are: 'FitMomFilt', 'X2W'.
+    %
+    % Output : - A structure array with element per trace, and the
+    %            following fields:
+    %            .Pos - The mean measured spatial position of the trace.
+    %            .ExpectedSpatPos - The expected spatial position of the trace.
+    %                   Empty if no expected position.
+    %            .SN - Integrated S/N of trace.
+    %            .ResMomFilt - Output of imUtil.spec.trace.moment1d
+    %                   measured on the filtered image.
+    %            .ResMomUnFilt - Output of imUtil.spec.trace.moment1d
+    %                   measured on the un-filtered (original) image.
+    %            .FitMomFilt - Output of imUtil.spec.trace.fitTrace
+    %                   measired on the filtered image.
+    %            .FitMomUnFilt - Output of imUtil.spec.trace.fitTrace
+    %                   measired on the un-filtered (original) image.
+    %            .LinTraceImage - Trace cutout image in which the trace is
+    %                   linear along the X (wavelength) direction.
+    %            .LinTracePos - The position of the trace center in LinTraceImage
+    %            .Intensity - Intensity at pixel position.
+    %            .ExtractShift - The value of the ExtractShift argument.
+    %
+    %          - S/N image.
+    %          - S/N image with delta function kernel.
+    %          - Collapseed S/N.
+    %          - Detected peaks information (output of:
+    %            imUtil.spec.trace.collapse).
+    %
+    % Author : Eran Ofek (Dec 2024)
+    % Example: RR=imUtil.spec.trace.traceByCollapse(Array);
+    
+    arguments
+        Array
+        Args.DimWave           = 1;   % Dim of spatial coordinate
+        Args.TraceLineKernel   = [100 3 0 0];  % [Length, Width, Angle, Gap, [sigma]]
+        Args.PSFsigma          = 3;
+        Args.Back              = [];
+        Args.Var               = [];
+        %Args.BackArgs cell     = {}; %'VarFun',@var, 'VarFunPar',{[],'all','omitnan'}};
+
+        
+        Args.Threshold          = 12;  % integrated 
+        Args.ThresholdSum       = 3;
+        Args.GlobalStd logical  = false;
+                
+        Args.GoodMask           = [];
+        Args.IgnoreWaveRangePos = []; %[0 30];
+        
+        Args.ExpectedSpatPos        = []; %[333, 500]; %[];
+        Args.ExpectedSpatPosErr     = 3;
+        
+        Args.Moments1dArgs      = {};
+        Args.UseWeightedMom logical = true;
+        
+        Args.LinTraceHalfWidth      = 50;
+        Args.linearizeTraceArgs     = {};
+        Args.ExtractShift           = 0;
+        
+        
+        Args.Field1                 = 'FitMomFilt';
+        Args.Field2                 = 'FitY';
+        Args.FieldMom1              = 'ResMomFilt';
+        Args.FieldMom2              = 'X2W';
+    end
+    
+    if Args.UseWeightedMom
+        MomField = 'X1W';
+    else
+        MomField = 'X1';
+    end
+    
+    if Args.DimWave==1
+        Array = Array.';
+    end
+    Dim = 1;
+    
+    % Estimate global background and variance
+    if isempty(Args.Back) || isempty(Args.Var)
+        % this is problematic - a different back sub approac is needed
+        %[Back,Var]=imUtil.background.background(Array, Args.BackArgs{:});
+        
+        Back = tools.math.stat.rmean(Array(:),1,[0 0.3]);
+        Var  = Back;
+        
+    else
+        Back = Args.Back;
+        Var  = Args.Var;
+    end
+    
+    
+    % Build trace kenel
+    StampSize       = Args.TraceLineKernel(1);
+    if (StampSize.*0.5)==floor(StampSize.*0.5)
+        % even number
+        StampSize = StampSize + 1;
+    end
+    StampSize = [StampSize StampSize];
+    
+    LineKernel      = imUtil.kernel2.line([Args.TraceLineKernel, Args.PSFsigma], StampSize);
+    LineDeltaKernel = imUtil.kernel2.line([Args.TraceLineKernel, 0.1],           StampSize);
+    
+    
+    
+    % filter image with trace kernel
+    [SN,Flux,FiltImage,FiltImageVar,Info] = imUtil.filter.filter2_sn(Array, Back, Var, LineKernel);
+    % S/N for delta functions
+    [SN1] = imUtil.filter.filter2_sn(Array, Back, Var, LineDeltaKernel);
+    
+    SNclean = SN.*(SN>SN1);
+    
+    % The options are:
+    % 1. Very bright/faint traces
+    %    collapse SNp
+    %    find local maxima
+    %    Clean peaks (some edge effects)
+    %    choose local maxima that are near predicted position (optional)
+    %    For each local maxima
+    %        Extract peaks position within local max region
+    %        fitTrace to positions
+    %    
+    % 2. faint broken traces using trace templates
+    %    Skip this function and use trace templates
+    
+    
+    GoodMask = imUtil.mask.maskByPos(Array, Args.GoodMask);
+    
+    % find local max in filtered image    
+    [SNp, Peaks] = imUtil.spec.trace.peakDetectionFilter1(SNclean, Dim, 'Filter',[],...
+                                                                      'Threshold',Args.Threshold,...
+                                                                      'ThresholdSum',Args.ThresholdSum,...
+                                                                      'GlobalStd',Args.GlobalStd,...
+                                                                      'GoodMask',GoodMask);
+
+    
+       
+    SNp(~GoodMask) = NaN;
+    [ResCollapse,PeakDet] = imUtil.spec.trace.collapse(SNp, 'Threshold',Args.Threshold);
+    
+    
+    if isempty(Args.ExpectedSpatPos)
+        % return all possible traces
+        Npos = numel(PeakDet.PeakPos);
+        Args.ExpectedSpatPos = PeakDet.PeakPos(:).';
+        
+    else
+        % return only traces consistent with ExpectedSpatPos
+        Npos = numel(Args.ExpectedSpatPos);
+    end
+    
+    Diff = PeakDet.PeakPos - Args.ExpectedSpatPos(:).';
+    [MinDist,MinInd] = min(abs(Diff),[],1);
+    FlagFound = MinDist<Args.ExpectedSpatPosErr;
+
+    
+    Result = struct('DinWave',cell(Npos,1), 'PosMean',cell(Npos,1), 'ExpectedSpatPos',cell(Npos,1), 'ExtractedShift',cell(Npos,1),...
+                    'SNdet',cell(Npos,1),...
+                    'WavePix',cell(Npos,1), ...
+                    'ResMomFilt',cell(Npos,1), 'ResMomUnFilt',cell(Npos,1),...
+                    'FitMomFilt',cell(Npos,1), 'FitMomUnFilt',cell(Npos,1),...
+                    'LinTraceImage',cell(Npos,1), 'LinTracePos',cell(Npos,1),...
+                    'PosMethod',cell(Npos,1), 'PosBest',cell(Npos,1),...
+                    'BestFit',cell(Npos,1),...
+                    'Mom2',cell(Npos,1),...
+                    'FluxPeak',cell(Npos,1));
+
+    for Ipos=1:1:Npos
+        Result(Ipos).ExpectedSpatPos = Args.ExpectedSpatPos(Ipos);
+        if FlagFound(Ipos)
+            IposMin  = MinInd(Ipos);
+            
+            % Properties common to SpecTrace
+            Result(Ipos).DimWave         = Args.DimWave;
+            %Result(Ipos).ExpectedSpatPos = Args.ExpectedSpatPos;
+            Result(Ipos).PosMean         = PeakDet.PeakPos(IposMin);
+            Result(Ipos).SNdet           = PeakDet.PeakSN(IposMin);
+            
+            
+            % properties not SpecTrace
+                      
+            %Result(Ipos).Pos         = PeakDet.PeakPos(IposMin);
+            %Result(Ipos).SN          = PeakDet.PeakSN(IposMin);
+
+            % fit the traces:
+            Result(Ipos).ResMomFilt   = imUtil.spec.trace.moment1d(SN, PeakDet.PeakPos(IposMin), 'Dim',1, Args.Moments1dArgs{:});
+            Result(Ipos).ResMomUnFilt = imUtil.spec.trace.moment1d(Array, PeakDet.PeakPos(IposMin), 'Dim',1, Args.Moments1dArgs{:});
+
+            Result(Ipos).FitMomFilt   = imUtil.spec.trace.fitTrace([],Result(Ipos).ResMomFilt.(MomField)(:));
+            Result(Ipos).FitMomUnFilt = imUtil.spec.trace.fitTrace([],Result(Ipos).ResMomUnFilt.(MomField)(:));
+            
+            %
+            Result(Ipos).PosMethod    = {Args.Field1, Args.Field2};
+            Result(Ipos).PosBest      = Result(Ipos).(Args.Field1).(Args.Field2);
+            Result(Ipos).Mom2         = Result(Ipos).(Args.FieldMom1).(Args.FieldMom2);
+            Result(Ipos).WavePix      = (1:1:numel(Result(Ipos).PosBest)).';
+            %Result(Ipos).BestFit      = Result(Ipos).(Args.Field1).(Args.Field2);
+            %Result(Ipos).PosPix       = (1:1:numel(Result(Ipos).BestFit)).';
+            [Result(Ipos).LinTraceImage, Result(Ipos).LinTracePos] = imUtil.spec.trace.linearizeTrace(Array,...
+                                    Result(Ipos).(Args.Field1).(Args.Field2)+Args.ExtractShift,...
+                                    'DimWave',2,...
+                                    'HalfWidth',Args.LinTraceHalfWidth,...
+                                    Args.linearizeTraceArgs{:});
+            %Result(Ipos).Intensity    = Result(Ipos).LinTraceImage(Result(Ipos).LinTracePos,:);
+            Result(Ipos).FluxPeak     = Result(Ipos).LinTraceImage(Result(Ipos).LinTracePos,:);
+            Result(Ipos).ExtractShift = Args.ExtractShift;
+        end
+    end
+            
+end

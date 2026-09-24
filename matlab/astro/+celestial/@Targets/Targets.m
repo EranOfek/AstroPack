@@ -239,7 +239,12 @@ classdef Targets < Component
             %            'Index' - If empty, use serial numbers.
             %                   Default is [].
             %            'TargetName' - If empty, use celestial.Targets.radec2name
-            %                   to generate names. Default is [].
+            %                   to generate names, or simple indices. Default is [].
+            %            'TargetNameOpt' - Indicating on how to generate
+            %                   TargetName:
+            %                   'Name' - use celestial.Targets.radec2name
+            %                   'Index' - Use indices.
+            %                   Default is 'Index'.
             %            'DeltaRA' - Default is 0.
             %            'DeltaDec' - Default is 0.
             %            'ExpTime' - Default is 20.
@@ -258,6 +263,7 @@ classdef Targets < Component
                 Args.Dec           = [];
                 Args.Index         = [];
                 Args.TargetName    = [];
+                Args.TargetNameOpt = 'Index';  % 'Index'|'Name'
                 Args.DeltaRA       = 0;
                 Args.DeltaDec      = 0;
                 Args.ExpTime       = 20;
@@ -288,7 +294,14 @@ classdef Targets < Component
                         end
                     case 'TargetName'
                         if isempty(Args.(FN{If}))
-                            Args.(FN{If}) = celestial.Targets.radec2name(Args.RA, Args.Dec);
+                            switch lower(Args.TargetNameOpt)
+                                case 'name'
+                                    Args.(FN{If}) = string(celestial.Targets.radec2name(Args.RA, Args.Dec));
+                                case 'index'
+                                    Args.(FN{If}) = string(num2cell(Args.Index));
+                                otherwise
+                                    error('Unknown TargetNameOpt');
+                            end
                         end
                     otherwise
                         Args.(FN{If}) = Args.(FN{If}).*ones(Ntarget,1);
@@ -336,7 +349,7 @@ classdef Targets < Component
                     case 'last'
                         Obj.VisibilityArgs.DecRange        = [-90 90];
                         
-                        [TileList,TileArea] = celestial.coo.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
+                        [TileList,TileArea] = celestial.grid.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
                         RA  = TileList(:,1).*RAD;
                         Dec = TileList(:,2).*RAD;
 
@@ -405,6 +418,8 @@ classdef Targets < Component
             fclose(FID);
             
         end
+        
+
         
         
             
@@ -752,8 +767,7 @@ classdef Targets < Component
             %            indicating if the target is visible.
             %          - Structure of specific flags.
             % Author : Eran Ofek (Jan 2022)
-            % Example: T=celestial.Targets;
-            %          T.generateTargetList('last');
+            % Example: T=celestial.Targets.generateTargetList('last');
             %          [FlagAll, Flag] = isVisible(T)
             
             arguments
@@ -902,7 +916,26 @@ classdef Targets < Component
         end
             
         
+          function [Obj, P, Ind]=cadence_highest(Obj, JD)
+            % observe the highest field
+            % Author: Nora Strotjohann (January 2023)
+                    
+            SEC_DAY = 86400;
+            
+            TimeOnTarget = (Obj.NperVisit+1).*Obj.ExpTime/SEC_DAY; % days
+            [FlagAllVisible, ~] = isVisible(Obj, JD,'MinVisibilityTime',TimeOnTarget);
+            FlagObserve = (Obj.GlobalCounter<Obj.MaxNobs) & FlagAllVisible;
+            
+            [~,Alt] = Obj.azalt(JD);
+            P = Alt/90+1;
+            [HA, ~]=Obj.ha(JD);
+            
+            P = P.*FlagObserve;
+            [~,Ind] = max(P);
+            
+          end
         
+      
         function [Obj, P, Ind]=cadence_predefined(Obj, JD)
             % observed according to predefined priority (order in
             % list if no priority given). Switch to next target
@@ -1126,6 +1159,12 @@ classdef Targets < Component
                     % implemented by Nora in May 2023
                     [Obj, P, Ind] = Obj.cadence_highest_setting(JD);
                     
+                    
+                 case 'highest'
+                    % observe the highest field 
+                    % implemented by Nora in January 2023
+                    [Obj, P, Ind] = Obj.cadence_highest(JD);
+                   
                     
                 case 'cycle'
                     % observe according to predefined priority (order in

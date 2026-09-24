@@ -111,15 +111,17 @@ function [Scorr, S, S2, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, Sdelta
     D  = ifft2(D_hat);
     Pd = ifft2(Pd_hat); 
     
-
+    S2 = S.^2;
+    
     if ~isempty(Args.SetToNaN)
         D(Args.SetToNaN)     = NaN;
         S(Args.SetToNaN)     = NaN;
+        S2(Args.SetToNaN)     = NaN;
     end
 
     if Args.NormS
-        MedS = median(S, [1 2], 'omitnan');
-        S = S - MedS;
+        MedS = median(S, 'all', 'omitnan');
+        S = S./MedS;
         StdS = tools.math.stat.rstd(S, [1 2]);
         S = S./StdS;
 
@@ -152,9 +154,10 @@ function [Scorr, S, S2, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, Sdelta
     end
     
     Scorr = S./sqrt(Vcorr + Vast);
-    
+
     if ~isempty(Args.SetToNaN)
         Scorr(Args.SetToNaN) = NaN;
+        S2(Args.SetToNaN) = NaN;
     end
 
     % normalize D
@@ -166,16 +169,17 @@ function [Scorr, S, S2, D, Pd, Fd, F_S, D_den, D_num, D_denSqrt, SdeltaN, Sdelta
         D = D./Fd;
     end
     
-    S2 = S.^2;
     % normalize S, S2 and Scorr
     if Args.NormS
         Scorr = Scorr - median(Scorr, [1 2], 'omitnan');
         Scorr = Scorr./tools.math.stat.rstd(Scorr, [1 2]);
-
-        k = 2;
-        median_expected = k.*(1 - 2./(9.*k)).^3;
-        S2 = S2 - median(S2, 'all', 'omitnan') + median_expected;
-        S2 = S2./tools.math.stat.rstd(S2, [1 2]).*sqrt(2.*k);
+        
+        % force median to be that of a chi2 with dof=1
+        k = 1;
+        expected_median = k.*(1 - 2./(9.*k)).^3;
+        S2 = S2./median(S2, 'all', 'omitnan')*expected_median;
+        %S2 = S2./mean(S2, 'all', 'omitnan')*k;
+        %S2 = S2./tools.math.stat.rstd(S2, [1 2])*sqrt(2*k);
     end
     
 end

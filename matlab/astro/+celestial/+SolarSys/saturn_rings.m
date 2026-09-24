@@ -32,9 +32,9 @@ function [SLO,SLS,DU,P,Major,Minor]=saturn_rings(JD)
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example: [SLO,SLS,DU,P,Major,Minor]=celestial.SolarSys.saturn_rings(2451545);
 % Reliable: 2
-%---------------------------------------------------------------------------
+
 RAD = 180./pi;
-if (nargin==1),
+if (nargin==1)
    [Coo,Dist]=celestial.SolarSys.planet_ephem(JD,'Saturn','Earth','ecliptic');
    R     = Dist(:,2);
    Delta = Dist(:,1);
@@ -109,7 +109,7 @@ L  = L + 0.005693.*cos(L0-L)./(RAD.*cos(B));
 B0 = pi./2 - I;
 B  = B + 0.005693.*sin(L0-L).*sin(B)./RAD;
 
-[Nut] = celestial.coo.nutation(JD,'f');
+[Nut] = celestial.convert.nutation(JD,'f');
 L  = L  + Nut(:,1);
 L0 = L0 + Nut(:,1);
 
@@ -117,7 +117,7 @@ RA   = zeros(size(L));
 Dec  = zeros(size(B));
 RA0  = zeros(size(L0));
 Dec0 = zeros(size(B0));
-for J=1:1:length(JD),
+for J=1:1:length(JD)
    RotM    = celestial.coo.rotm_coo('Ed',JD(J));
    X       = celestial.coo.cosined([L,B]);
    X0      = celestial.coo.cosined([L0,B0]);

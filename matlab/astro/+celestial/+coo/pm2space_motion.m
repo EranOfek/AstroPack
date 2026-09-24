@@ -22,10 +22,10 @@ S    = 2.*pi./(360.*3600.*36525);          % convert from "/cy to radians/day
 AU   = constant.au('SI')./1000;      % [km]
 K    = 86400./AU;                          % convert from km/s to au/day
 
-% conver PM_RA from mas/yr to second of time per cy
+% convert PM_RA from mas/yr to second of time per cy
 PM_RA  = PM_RA .* 100./1000 ./15 ./cos(Dec);
 
-% conver PM_Dec from mas/yr to arcsecond  per cy
+% convert PM_Dec from mas/yr to arcsecond  per cy
 PM_Dec = PM_Dec.* 100./1000;
 
 % make sure parallax is not zero

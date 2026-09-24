@@ -58,7 +58,8 @@ function Obj = insertImageVal(Obj, ColNameX, ColNameY, varargin)
         if isempty(Y)
             Ind = X;
         else
-            Ind = imUtil.image.sub2ind_fast([SizeY, SizeX], X, Y);
+            Ind = imUtil.image.sub2ind_fast([SizeY, SizeX], Y, X);
+            %Ind = imUtil.image.mex.sub2ind_mex([SizeY, SizeX], Y, X);
         end
             
         for Iarg=1:3:Nvarg

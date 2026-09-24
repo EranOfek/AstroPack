@@ -196,7 +196,7 @@ classdef DbQuery < Component
             % Setup component
             Obj.setName('DbQuery');
             Obj.needUuid();
-            Obj.DebugMode = true;
+            Obj.DebugMode = false;
             %Obj.msgLog(LogLevel.Debug, 'created: %s', Obj.Uuid);
 
             % Set connection
@@ -362,7 +362,7 @@ classdef DbQuery < Component
                     if Args.Load
                         tic();
                         Result = db.DbRecord(ClientFileName);
-                        Obj.msgStyle(LogLevel.Debug, 'blue', 'DbRecord from file: RowCount = %d, Time: %.6f', numel(Result.Data), toc());
+                        %Obj.msgStyle(LogLevel.Debug, 'blue', 'DbRecord from file: RowCount = %d, Time: %.6f', numel(Result.Data), toc());
                         if ~isempty(Args.OutType)
                             Result = Result.convert2(Args.OutType);
                         end
@@ -515,7 +515,7 @@ classdef DbQuery < Component
                    % Copy CsvFileName to shared folder, only if we need to copy it                    
                     copyfile(Args.CsvFileName, ClientFileName);
                     NeedDelete = true;
-                    Obj.msgLog(LogLevel.Debug, 'insert: Inserting CSV file, copied to: %s', ClientFileName);
+%                     Obj.msgLog(LogLevel.Debug, 'insert: Inserting CSV file, copied to: %s', ClientFileName);
                 end
 
                 % Prepare COPY FROM statement
@@ -525,7 +525,7 @@ classdef DbQuery < Component
                 t1 = tic();
                 Result = Obj.exec();
                 t2 = toc(t1);
-                Obj.msgLog(LogLevel.Debug, 'insert: COPY FROM: %0.6f', t2);
+%                 Obj.msgLog(LogLevel.Debug, 'insert: COPY FROM: %0.6f', t2);
                 
                 % Delete temporary file
                 if NeedDelete
@@ -567,7 +567,7 @@ classdef DbQuery < Component
                 TempFileName = sprintf('%s.dat', Component.newUuid());
                 [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
                 copyfile(Args.CsvFileName, ClientFileName);
-                Obj.msgLog(LogLevel.Debug, 'insert: Inserting Binary file, copied to: %s', ClientFileName);
+%                 Obj.msgLog(LogLevel.Debug, 'insert: Inserting Binary file, copied to: %s', ClientFileName);
 
                 Obj.SqlText = sprintf('COPY %s (%s) FROM ''%s'' BINARY', Args.TableName, Columns, ServerFileName);
                 Result = Obj.exec();
@@ -630,7 +630,7 @@ classdef DbQuery < Component
                 TempFileName = sprintf('%s.csv', Component.newUuid());
                 [ServerFileName, ClientFileName] = Obj.getSharedFileName(TempFileName);
                 Rec.writeCsv(ClientFileName);                
-                Obj.msgLog(LogLevel.Debug, 'insert: Using COPY FROM');
+%                 Obj.msgLog(LogLevel.Debug, 'insert: Using COPY FROM');
                 Obj.SqlText = ['COPY ', string(Args.TableName).char, ' FROM ''', string(ServerFileName).char, ''' DELIMITER '','' CSV HEADER;'];
                 Result = Obj.exec();            
                 return;
@@ -642,7 +642,7 @@ classdef DbQuery < Component
             % See: https://www.programcreek.com/java-api-examples/?class=java.sql.Statement&method=executeUpdate
             T1 = tic();
             RecSqlText = ['INSERT INTO ', string(Args.TableName).char, ' (', SqlColumns, ') VALUES (', SqlValues, ')'];
-            Obj.msgLog(LogLevel.Debug, 'insert: SqlText: %s', RecSqlText);
+%             Obj.msgLog(LogLevel.Debug, 'insert: SqlText: %s', RecSqlText);
 
             % @Todo - RETURNING
             if ~isempty(Args.Returning)
@@ -690,7 +690,7 @@ classdef DbQuery < Component
                 RecIndex = RecIndex + BatchSize;
                 Toc2 = toc(T2);
                 if Obj.PerfLog
-                    Obj.msgLog(LogLevel.Debug, 'insert (%d) prepare time: %f, BatchCount: %d', BatchNum, Toc2, BatchSize);
+                    %Obj.msgLog(LogLevel.Debug, 'insert (%d) prepare time: %f, BatchCount: %d', BatchNum, Toc2, BatchSize);
                 end
 
                 % Execute the statement
@@ -760,7 +760,7 @@ classdef DbQuery < Component
             Result = false;
 
             % Execute SQL statement (using java calls)
-            Obj.msgLog(LogLevel.Debug, 'DbQuery: updateRecord');
+            %Obj.msgLog(LogLevel.Debug, 'DbQuery: updateRecord');
             tic();
 
             % Use speified TableName or Obj.TableName
@@ -781,10 +781,10 @@ classdef DbQuery < Component
                 Obj.SqlText = ['UPDATE ', string(Args.TableName).char, ' SET ', string(SetColumns).char];
             end
             
-            Obj.msgLog(LogLevel.Debug, 'update: SqlText: %s', Obj.SqlText);
+            %Obj.msgLog(LogLevel.Debug, 'update: SqlText: %s', Obj.SqlText);
 
             % Prepare query
-            Obj.msgLog(LogLevel.Debug, 'updateRecord: %s', Obj.SqlText);
+            %Obj.msgLog(LogLevel.Debug, 'updateRecord: %s', Obj.SqlText);
             try
                 Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
             catch Ex
@@ -806,7 +806,7 @@ classdef DbQuery < Component
             end
 
             Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Perf, 'update time: %.6f', Obj.Toc);
+            %Obj.msgLog(LogLevel.Perf, 'update time: %.6f', Obj.Toc);
         end
 
 
@@ -840,7 +840,7 @@ classdef DbQuery < Component
             assert(~isempty(Args.TableName));
             
             % Execute SQL statement (using java calls)
-            Obj.msgLog(LogLevel.Debug, 'DbQuery: deleteRecord');
+            %Obj.msgLog(LogLevel.Debug, 'DbQuery: deleteRecord');
             tic();
 
             % Need connection, clear current query
@@ -856,7 +856,7 @@ classdef DbQuery < Component
             end
 
             % Prepare query
-            Obj.msgLog(LogLevel.Debug, 'deleteRecord: %s', Obj.SqlText);
+            %Obj.msgLog(LogLevel.Debug, 'deleteRecord: %s', Obj.SqlText);
             try
                 Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
             catch Ex
@@ -874,7 +874,7 @@ classdef DbQuery < Component
             end
 
             Obj.Toc = toc();
-            Obj.msgLog(LogLevel.Perf, 'deleteRecord time: %.6f', Obj.Toc);
+            %Obj.msgLog(LogLevel.Perf, 'deleteRecord time: %.6f', Obj.Toc);
         end
     end
 
@@ -915,7 +915,7 @@ classdef DbQuery < Component
             end
 
             % Prepare query
-            Obj.msgLog(LogLevel.Debug, 'query: %s', Obj.SqlText);
+%             Obj.msgLog(LogLevel.Debug, 'query: %s', Obj.SqlText);
             try
                 Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
             catch Ex
@@ -943,7 +943,7 @@ classdef DbQuery < Component
             end
 
             Obj.Toc = toc();
-            Obj.msgStyle(LogLevel.Debug, 'blue', 'query time: %.6f', Obj.Toc);
+            %Obj.msgStyle(LogLevel.Debug, 'blue', 'query time: %.6f', Obj.Toc);
         end
 
 
@@ -975,7 +975,7 @@ classdef DbQuery < Component
             end
 
             % Prepare query
-            Obj.msgLog(LogLevel.Debug, 'exec: %s', Obj.SqlText);
+            %Obj.msgLog(LogLevel.Debug, 'exec: %s', Obj.SqlText);
             try
                 Obj.JavaStatement = Obj.Conn.JavaConn.prepareStatement(Obj.SqlText);
             catch Ex
@@ -995,7 +995,7 @@ classdef DbQuery < Component
                 Obj.msgLogEx(LogLevel.Error, Ex, 'exec: executeQuery failed: %s', Obj.SqlText);
             end
             Obj.Toc = toc();
-            Obj.msgStyle(LogLevel.Debug, 'blue', 'exec time: %.6f', Obj.Toc);
+            %Obj.msgStyle(LogLevel.Debug, 'blue', 'exec time: %.6f', Obj.Toc);
         end        
     end
     
@@ -1113,7 +1113,7 @@ classdef DbQuery < Component
 
             Obj.Toc = toc();
             if Obj.PerfLog
-                Obj.msgStyle(LogLevel.Debug, 'blue', 'DbQuery.loadResultSet, RowCount = %d, Time: %.6f', RowIndex, Obj.Toc);
+                %Obj.msgStyle(LogLevel.Debug, 'blue', 'DbQuery.loadResultSet, RowCount = %d, Time: %.6f', RowIndex, Obj.Toc);
             end
         end
 
@@ -1789,7 +1789,7 @@ classdef DbQuery < Component
                 end
             end
 
-            Obj.msgLog(LogLevel.Debug, 'makeUpdateColumnText: %s', SqlColumns);
+            %Obj.msgLog(LogLevel.Debug, 'makeUpdateColumnText: %s', SqlColumns);
         end
 
 
@@ -1826,7 +1826,7 @@ classdef DbQuery < Component
                 end
             end
 
-            Obj.msgLog(LogLevel.Debug, 'makeWhereColumnsText: %s', SqlColumns);
+            %Obj.msgLog(LogLevel.Debug, 'makeWhereColumnsText: %s', SqlColumns);
         end
 
 
@@ -1952,7 +1952,7 @@ classdef DbQuery < Component
 
             % Iterate struct fields
             % See https://docs.oracle.com/javase/7/docs/api/java/sql/PreparedStatement.html
-            Obj.msgLog(LogLevel.Debug, 'getColumnNamesOfType: %s', ColumnType);
+            %Obj.msgLog(LogLevel.Debug, 'getColumnNamesOfType: %s', ColumnType);
 
             Result = {};
             for ColIndex = 1:Obj.ColCount

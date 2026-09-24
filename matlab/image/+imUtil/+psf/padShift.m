@@ -1,5 +1,6 @@
 function Result=padShift(StampPSF, NewSizeIJ, Args)
     % Pad a PSF with zeros and shift its center
+    %   For general case see: imUtil.psf.stamp2full
     % Input  : - A PSF stamp.
     %          - The [I, J] size of the the required output zero
     %            padded PSF.

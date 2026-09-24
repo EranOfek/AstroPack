@@ -66,12 +66,20 @@ classdef AstroTable < Component
     
     properties (SetAccess = public)
         Catalog                                                = [];
+        %Table                                                  = [];
         ColNames cell                                          = {};
         ColUnits cell                                          = {};
         ColDesc cell                                           = {};
         SortByCol                                              = [];
         IsSorted(1,1) logical                                  = false;
     end
+
+    % FFU: make Table a Dependent property!
+    properties (Dependent)
+        Table
+    end
+   
+
 
     properties (Hidden)
         Reference
@@ -89,7 +97,7 @@ classdef AstroTable < Component
             %            If file name or a cell array of file names, then
             %               attempt read data from files. Cell array
             %               contains a list of file names, while a single
-            %               file may contain wild cards or gegular
+            %               file may contain wild cards or regular
             %               expressions.
             %          * ...,Key,Val,...
             %            'ColNames' - A cell array of column names.
@@ -108,13 +116,15 @@ classdef AstroTable < Component
             %                   'ipac' | 'txt' | 'mat' | ...
             %            'TableType' - FITS table type: ['auto'] | 'bintable' | 'table'
             %            'HDU' - FITS HDU number or HDF5 dataset name.
-            %            'ArgsreadTable1' - A cell array of additional
-            %                   arguments to pass to FITS.readTable1.
-            %                   Default is {}.
+            %            'readTableArgs' - A cell array of additional
+            %                   arguments to pass to FITS.readTable1, 
+            %                   e.g. {'ValidateColumnNames',true} to avoid column names started with "_"
+            %                   Default is {}. 
             %            'ConvertTable2array' - When eading a FITS table,
             %                   attempt to convert the table to an array (only of
             %                   all columns are of class double).
             %                   Default is true.
+            %            'UseMex' - Use a Mex version of FITS image reader. Defaults is false  
             % Output : - An AstroTable object.
             % Author : Eran Ofek (Mar 2021)
             % Example: AC = AstroTable
@@ -140,14 +150,30 @@ classdef AstroTable < Component
                 Args.FileType                 = []; % 'fits' | 'hdf5' | ...
                 Args.HDU                      = 1;  % HDU or dataset name
                 Args.TableType                = 'auto'; % 'auto'|'bintable'|'table' for FITS.readTable1
-                Args.readTableArgs            = {};
+                Args.readTableArgs            = {}; % e.g., {'ValidateColumnNames',true} to avoid column names started with "_"
                 Args.ConvertTable2array       = true;  % only if all columns are double
+                                 
+                Args.UseMex                   = false;  
             end
             
             % FFU: use ImageIO instead!!!
             
             if isempty(FileName)
-                Obj.Catalog = [];
+                FileName = [1 1];
+            end
+            if isnumeric(FileName)
+                if isscalar(FileName)
+                    FileName = [FileName 1];
+                end
+
+                %Obj(FileName(1), FileName(2)) = AstroTable();
+                for I=1:1:prod(FileName)
+                    Obj(I).Catalog = [];
+                    % for J=1:1:FileName(2)
+                    %     Obj(I,J).Catalog = [];
+                    % end
+                end
+                Obj = reshape(Obj, FileName);
             else
                 if isa(FileName, 'AstroTable')
                     Obj = FileName;
@@ -175,14 +201,18 @@ classdef AstroTable < Component
                                              'FileType',Args.FileType,...
                                              'IsTable',true,...
                                              'UseRegExp',Args.UseRegExp,...
-                                             'readTableArgs',Args.readTableArgs);
+                                             'readTableArgs',Args.readTableArgs,...
+                                             'UseMex',Args.UseMex);
                                          
                     Nobj = numel(ImIO);
                     for Iobj=1:1:Nobj
                         Obj(Iobj) = AstroTable([]);
                         
-                        if ~isempty(ImIO(Iobj).Data)
-                            % otherwise generate an empty object
+                        if ~isempty(ImIO(Iobj).Data) || size(ImIO(Iobj).Data,2)>0
+                            % otherwise generate an empty object.
+                            % Data with columns but no rows is kept: the
+                            % column names do not depend on the number of
+                            % rows (issue #1279)
                             Obj(Iobj).Catalog  = ImIO(Iobj).Data;
                             if isempty(Args.ColNames)
                                 Args.ColNames = Obj(Iobj).Catalog.Properties.VariableNames;
@@ -240,6 +270,25 @@ classdef AstroTable < Component
 
  
     methods % Setter/Getters
+        function Result=get.Table(Obj)
+            % getter for dependent property Table
+            % create a table from the catalog
+            if istable(Obj.Catalog)
+                Result = Obj.Catalog;
+            else
+                Result = array2table(Obj.Catalog);
+                Result.Properties.VariableNames = Obj.ColNames;
+                Result.Properties.VariableUnits = Obj.ColUnits;
+            end
+        end
+
+        % function Result=set.Table(Obj,Data)
+        %     % setter for dependent property Table
+        % 
+        %     % currently do nothing
+        % 
+        % end
+
         function set.Catalog(Obj, Data)
             % setter for catalog - set also column names and units if table
             % and available
@@ -354,7 +403,8 @@ classdef AstroTable < Component
             Ans(1:MinN) = ~tools.cell.isempty_cell(regexp(ColNames1(1:MinN),ColNames2(1:MinN),'match'));
             
        end
-        
+       
+
        function NewArray = insertColumn(OldArray,NewData,ColInd)
             % Insert a single column into a matrix, table, or a cell array
             % Package: @AstroTable (Static)
@@ -392,6 +442,9 @@ classdef AstroTable < Component
                 elseif isnumeric(OldArray) && iscell(NewData)
                     OldArray = array2table(OldArray);
                     NewData = cell2table(NewData);
+                elseif isnumeric(OldArray) && isstring(NewData)
+                    OldArray = array2table(OldArray);
+                    NewData  = table(NewData);
                 else
                     error('First two input argumnets must be of compatible classes');
                 end
@@ -407,8 +460,11 @@ classdef AstroTable < Component
                 error('Column index in which to insert the column must be between 1 and number of columns +1');
             end
             
-            
-            NewArray = [OldArray(:,1:(ColInd-1)), NewData, OldArray(:,ColInd:end)];
+            if isempty(NewData)
+                NewArray = OldArray;
+            else
+                NewArray = [OldArray(:,1:(ColInd-1)), NewData, OldArray(:,ColInd:end)];
+            end
        end
         
        function [Name, IndInCell, IndInSynonym] = searchSynonym(Cell, SynonymCell, Args)
@@ -590,6 +646,40 @@ classdef AstroTable < Component
     
     
     methods % get general info
+        function Result = setCatData(Obj, Input, Args)
+            % Update the object with another object. Useful because exists in AstroImage
+            % Input  : - self.
+            %          - A new AstroCatalog object which will put instead
+            %            the 1st input argument.
+            %          * ...,key,val,...
+            %            'CreateNewObj' - Create new object. Default is false.
+            % Output : - The 1st input argument is replaced by the 2nd.
+            % Author : Eran Ofek (Feb 2026)
+
+            arguments
+                Obj
+                Input
+                Args.CreateNewObj  = false;
+            end
+
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            Result = Input;
+        end
+
+        function Result = getCatData(Obj)
+            % Return self. Useful because getCatData function also exists in AstroImage
+            % Input  : - self.
+            % Output : - self.
+            % Author : Eran Ofek (Feb 2026)
+
+            Result = Obj;
+        end
+
         function Result = getColUnits(Obj, Fields)
             % get column units
             % Input  : - A single element AstroTable object.
@@ -689,7 +779,7 @@ classdef AstroTable < Component
             
         end
         
-        function ColInd = colname2ind(Obj, ColName, FillValue)
+        function ColInd = colname2ind(Obj, ColName, FillValue, Args)
             % Convert column names to column indices
             % Input  : - A single element AstroTable object.
             %          - A column name, a cell array of column names or an
@@ -699,6 +789,8 @@ classdef AstroTable < Component
             %          - If the column name is char or cell, and it doesn't
             %            exist, this is the fill value for the column
             %            index. If empty, will fail. Default is NaN.
+            %          * ...,key,val,...
+            %            'CaseSens' - Case sensetive. Default is true.
             % Output : - A vector of column indices corresponding to the column names.
             % Author : Eran Ofek (Mar 2021)
             % Example: colname2ind(AC, {'Var1','aa'})
@@ -706,8 +798,9 @@ classdef AstroTable < Component
             
             arguments
                 Obj(1,1)
-                ColName        = [];
-                FillValue      = NaN;
+                ColName         = [];
+                FillValue       = NaN;
+                Args.CaseSens   = true;
             end
            
             if isempty(ColName)
@@ -717,8 +810,12 @@ classdef AstroTable < Component
                     % assumes columns are already column index
                     ColInd = ColName;
                 elseif ischar(ColName)
-                    ColInd = find(strcmp(Obj.ColNames, ColName));
-                    Tmp = find(strcmp(Obj.ColNames, ColName));
+                    %ColInd = find(strcmp(Obj.ColNames, ColName));
+                    if Args.CaseSens
+                        Tmp = find(strcmp(Obj.ColNames, ColName));
+                    else
+                        Tmp = find(strcmpi(Obj.ColNames, ColName));
+                    end
                     if isempty(Tmp)
                         if isempty(FillValue)
                             error('Column %s not found',ColName);
@@ -733,7 +830,11 @@ classdef AstroTable < Component
                     Ncol   = numel(ColName);
                     ColInd = nan(1,Ncol);
                     for Icol=1:1:Ncol
-                        Tmp = find(strcmp(Obj.ColNames, ColName{Icol}));
+                        if Args.CaseSens
+                            Tmp = find(strcmp(Obj.ColNames, ColName{Icol}));
+                        else
+                            Tmp = find(strcmpi(Obj.ColNames, ColName{Icol}));
+                        end
                         if isempty(Tmp)
                             if isempty(FillValue)
                                 error('Column %s not found',ColName{Icol});
@@ -761,6 +862,26 @@ classdef AstroTable < Component
                 ColName = ColInd;
             else
                 ColName = Obj.ColNames(ColInd);
+            end
+        end
+        
+        function ColUnit = colind2unit(Obj, ColInd)
+            % Return column units corresponding to column indices
+            % Input  : - A single element AstroCatlog object
+            %          - A vector of column indices.
+            % Output : - A cell array of column units corresponding to the
+            %            column indices.
+            % Example: colind2unit(AC,[2 1])
+           
+            if iscell(ColInd) || isstring(ColInd)
+                % assume already in cell format
+                ColUnit = ColInd;
+            else
+                if isempty(Obj.ColUnits)
+                    [ColUnit{1:numel(ColInd)}] = deal('');
+                else
+                    ColUnit = Obj.ColUnits(ColInd);
+                end
             end
         end
         
@@ -825,6 +946,7 @@ classdef AstroTable < Component
     methods  % columns get/edit
         function [Result, Units, ColInd] = getCol(Obj, Columns, OutputIsTable, UpdateAstroTable, Args)
             % Get a catalog columns by index or names
+            %   Recomended to use getColMulti instead
             % Input  : - A single element AstroTable object.
             %          - A vector of column indices, or a column name, or a
             %            cell array of column names.
@@ -836,11 +958,16 @@ classdef AstroTable < Component
             %            AstroTable object.
             %            Default is false.
             %          * ...,key,val,...
-            %            ' UseDict' - unsupported
+            %            'UseDict' - unsupported
             %            'SelectRows' - A vector of indices or logicals of
             %                   rows to select. If NaN, select all rows.
             %                   Default is NaN.
             %                   This is not using the selectRows function.
+            %            'CaseSens' - Case sensetive. Default is true.
+            %            'FillValue' - If column doens't exist, then will
+            %                   fill it with this value.
+            %                   If empty, then fail.
+            %                   Default is [].
             % Output : - A matrix or a table containing the selected
             %            columns.
             %          - A cell array of units corresponding to the
@@ -858,13 +985,17 @@ classdef AstroTable < Component
                 UpdateAstroTable(1,1) logical      = false;
                 Args.UseDict(1,1) logical          = true;
                 Args.SelectRows                    = NaN;
+                Args.CaseSens                      = true;
+                Args.FillValue                     = [];
             end
                 
             
 %             if Args.UseDict
 %                 error('FFU: Dictinary is not implemented yet');
 %             end
-            ColInd = colname2ind(Obj, Columns, []);
+           
+            ColInd = colname2ind(Obj, Columns, Args.FillValue, 'CaseSens',Args.CaseSens);
+           
             if istable(Obj.Catalog)
                 if OutputIsTable
                     Result = Obj.Catalog(:,ColInd);
@@ -879,7 +1010,11 @@ classdef AstroTable < Component
                         Result.Properties.VariableUnits = Obj.ColUnits(ColInd);
                     end
                 else
-                    Result = Obj.Catalog(:,ColInd);
+                    if isempty(Obj.Catalog)
+                        Result = zeros(0, numel(ColInd));
+                    else
+                        Result = Obj.Catalog(:,ColInd);
+                    end
                 end
             end
             if nargout>1
@@ -889,7 +1024,7 @@ classdef AstroTable < Component
                     Units = Obj.ColUnits(ColInd);
                 end
             end
-            
+
             if UpdateAstroTable
                 Obj.Catalog = Result;
             end
@@ -897,6 +1032,87 @@ classdef AstroTable < Component
             if ~isnan(Args.SelectRows)
                 Result = Result(Args.SelectRows, :);
             end
+            
+        end
+
+        function [Data, ColUnits] = getColMulti(Obj, ColName, Args)
+            % Get one or more columns from an AstroTable, with safe handling
+            %   of names that do not exist in the catalog.
+            %   Unlike getCol, when a requested column name is not present in
+            %   the AstroTable the corresponding output column is filled with
+            %   NaN (or the user-specified value) instead of raising an error.
+            % Input  : - A single-element AstroTable object.
+            %          - Column specifier. One of:
+            %             * a numeric vector of column indices, or
+            %             * a char with a single column name, or
+            %             * a cell array (or string array) of column names.
+            %          * ...,key,val,...
+            %            'FillValue'   - Value used by colname2ind when a
+            %                   requested column name is not found in the
+            %                   catalog. The corresponding output column will
+            %                   be filled with NaN in the data and an empty
+            %                   string in the units. If empty, missing names
+            %                   raise an error (see colname2ind).
+            %                   Default is NaN.
+            %            'SelectRows'  - A vector of row indices or logicals
+            %                   selecting which rows to return. If empty,
+            %                   return all rows.
+            %                   Default is [].
+            %            'CaseSens'    - Case-sensitive column-name matching,
+            %                   forwarded to colname2ind.
+            %                   Default is true.
+            %            'KeepAsTable' - If true and the catalog is stored as
+            %                   a MATLAB table, keep the output as a table;
+            %                   otherwise convert it to a numeric array.
+            %                   Default is false.
+            % Output : - Data, an [Nrow x numel(ColName)] matrix (or table if
+            %            KeepAsTable=true) with the requested columns in the
+            %            order given. Columns corresponding to names that do
+            %            not exist in the catalog are returned as NaN.
+            %          - ColUnits, a 1 x numel(ColName) cell array of unit
+            %            strings for the requested columns. Entries that
+            %            correspond to non-existing column names are left
+            %            empty.
+            % Author : Eran Ofek (May 2026)
+            % Example: AT = AstroTable({rand(5,2)},'ColNames',{'a','b'});
+            %          [D, U] = getColMulti(AT, {'a','zz'});  % 'zz' missing -> NaN column
+            %          D2     = getColMulti(AT, [1 2]);
+
+            arguments
+                Obj
+                ColName
+                Args.FillValue   = NaN;
+                Args.SelectRows  = [];
+                Args.CaseSens    = true;
+                Args.KeepAsTable = false;
+            end
+
+            if isnumeric(ColName)
+                ColInd = ColName;
+            else
+                ColInd = Obj.colname2ind(ColName, Args.FillValue, 'CaseSens',Args.CaseSens);
+            end
+            
+            Ncol = numel(ColInd);
+            Nrow = size(Obj.Catalog, 1);
+            Data = nan(Nrow, Ncol);
+            IsNN = ~isnan(ColInd);
+
+            Data(:,IsNN)   = Obj.Catalog(:,ColInd(IsNN));
+
+            ColUnits       = cell(1, Ncol);
+            if ~isempty(Obj.ColUnits)
+                ColUnits(IsNN) = Obj.ColUnits(ColInd(IsNN));
+            end
+
+            if ~Args.KeepAsTable && istable(Data)
+                Data = table2array(Data);
+            end
+
+            if ~isempty(Args.SelectRows)
+                Data = Data(Args.SelectRows,:);
+            end
+
         end
         
         function Result = getCol2struct(Obj, ColNames, Args)
@@ -988,79 +1204,160 @@ classdef AstroTable < Component
             end
         end
         
-        function Obj = insertCol(Obj, Data, Pos, NewColNames, NewColUnits)
+
+        function Obj = insertMultiCol(Obj, Data, NewColNames, NewColUnits)
+            % Insert data in multiple columns into AstroTable object
+            % Input  : - self (single element).
+            %          - Data matrix or table.
+            %          - Column names to add.
+            %          - Column units to add.
+            % Output : - AstroTable with new columns and data.
+            % Author : Eran Ofek (Apr 2026)
+            
+            arguments
+                Obj(1,1)
+                Data
+                NewColNames
+                NewColUnits = [];
+            end
+
+            Ncol     = size(Obj.Catalog,2);
+            NcolData = size(Data,2);
+
+            if istable(Obj.Catalog)
+                if istable(Data)
+                    Obj.Catalog = [Obj.Catalog, Data];
+                else
+                    Obj.Catalog = [Obj.Catalog, array2table(Data, 'VariableNames',NewColNames)];
+                end
+            else
+                if istable(Data)
+                    error('Data is table and catalog is an array');
+                else
+                    Obj.Catalog = [Obj.Catalog, Data];
+                end
+            end
+            ColInd      = (Ncol+1:1:Ncol+NcolData);
+            Obj.ColNames(ColInd) = NewColNames;
+            if ~isempty(NewColUnits)
+                Obj.ColUnits(ColInd) = NewColUnits;
+            end
+
+        end
+
+        function Obj = insertCol(Obj, Data, Pos, NewColNames, NewColUnits, Args)
             % Insert columns to AstroTable object
             % Input  : - An AstroTable object
             %          - Array, cell array, table, or another AstroTable
             %            object to insert.
             %          - Either number, or column name before which to insert
-            %            the new columns.
+            %            the new columns. Default is Inf.
             %          - Cell array of new column names. Default is {}.
             %            If empty, then use default names.
             %          - Cell array of new column units. Default is {}.
             %            If empty, then use ''.
+            %          * ...,key,val,...
+            %            'OmitValidation' - When true, take a fast in-place
+            %                   code path. Caller must guarantee: scalar
+            %                   Obj, numeric Catalog, single column Data
+            %                   matching size(Catalog,1), Pos==Inf, and
+            %                   NewColNames is one name. When the name
+            %                   already exists the column is REPLACED in
+            %                   place (the default path moves it to the
+            %                   rightmost position via delete-then-append).
+            %                   Skips deleteCol, colname2ind, and the
+            %                   three static insertColumn dispatches —
+            %                   ~2.8x faster than the default path.
+            %                   Default is false.
             % Output : - The AstroTable object with the new columns.
             % Example: A=AstroTable; A.Catalog=rand(10,3); A.ColNames={'a','b','c'}; insertCol(A,ones(10,2),'c')
 
             arguments
                 Obj
                 Data
-                Pos
+                Pos                                   = Inf;
                 NewColNames                           = {};
                 NewColUnits                           = {};
+                Args.OmitValidation logical           = false;
             end
-            
-            if ~iscell(NewColNames) && ~isstring(NewColNames)
-                NewColNames = {NewColNames};
-            end
-            if ~iscell(NewColUnits) && ~isstring(NewColUnits)
-                NewColUnits = {NewColUnits};
-            end
-           
-            % delete before insertion
-            Obj = deleteCol(Obj, NewColNames);
-            
-            Nobj = numel(Obj);
-            if isa(Data,'AstroTable')
-                Nobj2 = numel(Data);
-                for Iobj=1:1:Nobj
-                    if isempty(Obj(Iobj).ColUnits)
-                        Ncol = numel(Obj(Iobj).ColNames);
-                        [Obj(Iobj).ColUnits{1:Ncol}] = deal('');
-                    end
-                    Iobj2             = min(Nobj,Nobj2);
-                    ColInd            = colname2ind(Obj(Iobj), Pos);
-                    Obj(Iobj).Catalog = AstroTable.insertColumn(Obj(Iobj).Catalog, Data(Iobj2).Catalog, ColInd);
-                    if isempty(NewColNames)
-                        % attempt to copy ColNames from Data
-                        Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, Data(Iobj2).ColNames, ColInd);
-                        Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits, Data(Iobj2).ColUnits, ColInd);
+
+            % Fast in-place path — see OmitValidation docstring above.
+            if Args.OmitValidation
+                if iscell(NewColNames)
+                    Name = NewColNames{1};
+                elseif isstring(NewColNames)
+                    Name = char(NewColNames(1));
+                else
+                    Name = NewColNames;
+                end
+                Idx = find(strcmp(Obj.ColNames, Name), 1);
+                if isempty(Idx)
+                    Obj.Catalog  = [Obj.Catalog, Data];
+                    Obj.ColNames = [Obj.ColNames, {Name}];
+                    if isempty(Obj.ColUnits)
+                        Obj.ColUnits = repmat({''}, 1, numel(Obj.ColNames));
                     else
-                        Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, NewColNames, ColInd);
-                        Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits, NewColUnits, ColInd);
+                        Obj.ColUnits = [Obj.ColUnits, {''}];
                     end
-                    
+                else
+                    Obj.Catalog(:, Idx) = Data;
                 end
-            else
-                if isempty(NewColNames)
-                    NewColNames = AstroTable.defaultColNames(size(Data,2));
-                    
+                return
+            end
+
+            if ~isempty(Data)
+                if ~iscell(NewColNames) && ~isstring(NewColNames)
+                    NewColNames = {NewColNames};
                 end
-                if isempty(NewColUnits)
-                    NcolInsert = size(Data,2);
-                    [NewColUnits{1:NcolInsert}] = deal('');
+                if ~iscell(NewColUnits) && ~isstring(NewColUnits)
+                    NewColUnits = {NewColUnits};
                 end
+               
+                % delete before insertion
+                Obj = deleteCol(Obj, NewColNames);
                 
-                for Iobj=1:1:Nobj
-                    if isempty(Obj(Iobj).ColUnits)
-                        Ncol = numel(Obj(Iobj).ColNames);
-                        [Obj(Iobj).ColUnits{1:Ncol}] = deal('');
+                Nobj = numel(Obj);
+                if isa(Data,'AstroTable')
+                    Nobj2 = numel(Data);
+                    for Iobj=1:1:Nobj
+                        if isempty(Obj(Iobj).ColUnits)
+                            Ncol = numel(Obj(Iobj).ColNames);
+                            [Obj(Iobj).ColUnits{1:Ncol}] = deal('');
+                        end
+                        Iobj2             = min(Nobj,Nobj2);
+                        ColInd            = colname2ind(Obj(Iobj), Pos);
+                        Obj(Iobj).Catalog = AstroTable.insertColumn(Obj(Iobj).Catalog, Data(Iobj2).Catalog, ColInd);
+                        if isempty(NewColNames)
+                            % attempt to copy ColNames from Data
+                            Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, Data(Iobj2).ColNames, ColInd);
+                            Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits, Data(Iobj2).ColUnits, ColInd);
+                        else
+                            Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames, NewColNames, ColInd);
+                            Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits, NewColUnits, ColInd);
+                        end
+                        
                     end
-                    ColInd            = colname2ind(Obj(Iobj), Pos);
-                    Obj(Iobj).Catalog = AstroTable.insertColumn(Obj(Iobj).Catalog, Data, ColInd);
-                   
-                    Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames(:).', NewColNames, ColInd);
-                    Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits(:).', NewColUnits, ColInd);
+                else
+                    if isempty(NewColNames)
+                        NewColNames = AstroTable.defaultColNames(size(Data,2));
+                        
+                    end
+                    if isempty(NewColUnits)
+                        NcolInsert = size(Data,2);
+                        [NewColUnits{1:NcolInsert}] = deal('');
+                    end
+                    
+                    for Iobj=1:1:Nobj
+                        if isempty(Obj(Iobj).ColUnits)
+                            Ncol = numel(Obj(Iobj).ColNames);
+                            [Obj(Iobj).ColUnits{1:Ncol}] = deal('');
+                        end
+                        ColInd            = colname2ind(Obj(Iobj), Pos);
+                        Obj(Iobj).Catalog = AstroTable.insertColumn(Obj(Iobj).Catalog, Data, ColInd);
+                       
+                        Obj(Iobj).ColNames = AstroTable.insertColumn(Obj(Iobj).ColNames(:).', NewColNames, ColInd);
+                        Obj(Iobj).ColUnits = AstroTable.insertColumn(Obj(Iobj).ColUnits(:).', NewColUnits, ColInd);
+                    end
                 end
             end
         end
@@ -1094,7 +1391,7 @@ classdef AstroTable < Component
             %            cell array, a table or another AstroTable
             %            object. However, the data types should be
             %            consistent.
-            %            If AstroTable then numver of elements should be
+            %            If AstroTable then number of elements should be
             %            1 or equal to the number of elements in the first
             %            input.
             %          - Column names to replace insert.
@@ -1115,6 +1412,10 @@ classdef AstroTable < Component
                 ColUnits                 = {};
             end
             
+            if ischar(ColUnits)
+                ColUnits = {ColUnits};
+            end
+
             Nobj   = numel(Obj);
             if isa(NewData, 'AstroTable')
                 % Data is in AstroTable format
@@ -1142,6 +1443,9 @@ classdef AstroTable < Component
                         insertCol(Obj(Iobj), NewData, Pos, ColNames, ColUnits);
                     else
                         Obj(Iobj).Catalog(:,ColInd) = NewData;
+                        if ~isempty(ColUnits)
+                            Obj(Iobj).ColUnits(ColInd) = ColUnits;
+                        end
                     end
                 end
             end
@@ -1196,36 +1500,84 @@ classdef AstroTable < Component
             arguments
                 Obj
                 Columns                       = [];
-                Args.IsTable(1,1) logical     = false;
+                Args.IsTable logical          = false;
+                Args.AddEntryPerElement       = [];
+                Args.AddColNames cell         = {};
+                Args.AddColUnits cell         = {};                
             end
             
             Nobj     = numel(Obj);
-            ColNames = colind2name(Obj(1), Columns);
-            ColIndC  = colname2ind(Obj(1), Columns);
-            
-            Ncol     = numel(ColNames);
-            if isa(Obj, 'AstroCatalog')
-                NewObj   = AstroCatalog;
+            if Nobj==0
+                NewObj = Obj;
             else
-                % assume AstroTable
-                NewObj   = AstroTable;
+                [~,Nc] = Obj.sizeCatalog;
+                [~,Imax] = max(Nc);
+                if isempty(Columns)
+                    Columns = Obj(Imax).ColNames;
+                end
+                ColNames = colind2name(Obj(Imax), Columns);
+                ColIndC  = colname2ind(Obj(Imax), Columns);
+                ColUnits = colind2unit(Obj(Imax), ColIndC);
+                                
+                Ncol     = numel(ColNames);
+                if isa(Obj, 'AstroCatalog')
+                    NewObj   = AstroCatalog;
+                else
+                    % assume AstroTable
+                    NewObj   = AstroTable;
+                end
+                
+                NextraCol    = size(Args.AddEntryPerElement,2);
+                if isempty(Args.AddColUnits)
+                    % keep ColUnits as long as ColNames (issue #1309)
+                    Args.AddColUnits = repmat({''}, 1, numel(Args.AddColNames));
+                end
+
+                NewObj.ColNames = [ColNames, Args.AddColNames];
+                NewObj.ColUnits = [ColUnits, Args.AddColUnits];
+                NewObj.Catalog = zeros(0,Ncol+NextraCol);
+                if Args.IsTable
+                    NewObj.Catalog = array2table(NewObj.Catalog);
+                    NewObj.Catalog.Properties.VariableNames = NewObj.ColNames;
+                end
+                % the number of columns of the first element with rows is
+                % the reference: taking it from an empty first element (e.g.,
+                % 0x0) dropped all the other elements (issue #1279)
+                Ncol1 = [];
+                for Iobj=1:1:Nobj
+                    [Nrow, Ncol] = size(Obj(Iobj).Catalog);
+                    if isempty(Ncol1) && Nrow>0
+                        Ncol1 = Ncol;
+                    end
+                    if Nrow>0 && Ncol == Ncol1
+                        ColInd   = colname2ind(Obj(Iobj), Columns);
+                        if isempty(Args.AddEntryPerElement)
+                            %if Args.IsTable
+                            %    NewObj.Catalog = [NewObj.Catalog; [getCol(Obj(Iobj), ColInd, Args.IsTable, false), array2table(ExtraCols, 'VariableNames',Args.AddColNames)]];
+                            %else
+                                NewObj.Catalog = [NewObj.Catalog; getCol(Obj(Iobj), ColInd, Args.IsTable, false)];
+                            %end
+                        else
+                            ExtraCols = repmat(Args.AddEntryPerElement(Iobj,:),Nrow,1);
+                            if Args.IsTable
+                                NewObj.Catalog = [NewObj.Catalog; [getCol(Obj(Iobj), ColInd, Args.IsTable, false), array2table(ExtraCols, 'VariableNames',Args.AddColNames)]];
+                            else
+                                % ExtraCols already has Nrow rows (issue #1309)
+                                NewObj.Catalog = [NewObj.Catalog; [getCol(Obj(Iobj), ColInd, Args.IsTable, false), ExtraCols]];
+                            end
+                        end
+                        
+                    end
+                end
+                % if isempty(NewObj.ColNames)
+                %     NewObj.ColNames = Obj(Imax).ColNames;
+                % else
+                %     NewObj.ColNames = ColNames;
+                % end
+                %if ~isempty(Obj(Imax).ColUnits)
+                %    NewObj.ColUnits = Obj(Imax).ColUnits(ColIndC);
+                %end
             end
-            
-            NewObj.ColNames = ColNames;
-            NewObj.Catalog = zeros(0,Ncol);
-            for Iobj=1:1:Nobj
-                ColInd   = colname2ind(Obj(Iobj), Columns);
-                NewObj.Catalog = [NewObj.Catalog; getCol(Obj(Iobj), ColInd, Args.IsTable, false)];
-            end
-            if isempty(ColNames)
-                NewObj.ColNames = Obj(1).ColNames;
-            else
-                NewObj.ColNames = ColNames;
-            end
-            if ~isempty(Obj(1).ColUnits)
-                NewObj.ColUnits = Obj(1).ColUnits(ColIndC);
-            end
-              
         end
         
     end
@@ -1260,7 +1612,13 @@ classdef AstroTable < Component
                     SortByColumnInd           = colname2ind(Obj(Iobj), SortByColumn);
                 end
                 
-                if ~Obj(Iobj).IsSorted || any(SortByColumnInd~=Obj(Iobj).SortByCol)
+                % one index per sort column: the catalog is sorted by all of
+                % them, as in the built-in sortrows (issue #1308). A catalog
+                % flagged IsSorted with an empty SortByCol is trusted, as before.
+                SortByColumnInd = SortByColumnInd(:).';
+                IsSortedBy      = Obj(Iobj).IsSorted && (isempty(Obj(Iobj).SortByCol) || ...
+                                                         isequal(SortByColumnInd, Obj(Iobj).SortByCol(:).'));
+                if all(~isnan(SortByColumnInd)) && ~IsSortedBy
                     [Obj(Iobj).Catalog, Ind]   = sortrows(Obj(Iobj).Catalog, SortByColumnInd);
                     Obj(Iobj).SortByCol = SortByColumnInd;
                     Obj(Iobj).IsSorted  = true;
@@ -1541,8 +1899,12 @@ classdef AstroTable < Component
                 Obj = Obj.sortrows(InterpColX);
             end
 
-            NewY = interp1(Obj.Catalog(:,ColIndX), Obj.Catalog(:,ColIndY), NewX, Args.InterpMethod);
-
+            if istable(Obj.Catalog)
+                NewY = interp1(table2array(Obj.Catalog(:,ColIndX)), table2array(Obj.Catalog(:,ColIndY)), NewX, Args.InterpMethod);
+            else
+                NewY = interp1(Obj.Catalog(:,ColIndX), Obj.Catalog(:,ColIndY), NewX, Args.InterpMethod);
+            end
+            
             if isa(Obj, 'AstroCatalog')
                 Result = AstroCatalog({[NewX, NewY]});
             else
@@ -1975,6 +2337,7 @@ classdef AstroTable < Component
             %                       is false.
             %            'WriteTime'- Add creation time to image header.
             %                       Default is false.
+            %            'WriteMethodTables' - can be 'Standard' or 'MexHeader'
             % Output : null
             % Author : Eran Ofek (Jan 2022)
             % Example: 
@@ -1988,6 +2351,7 @@ classdef AstroTable < Component
                 Args.Append logical           = false;
                 Args.OverWrite logical        = false;
                 Args.WriteTime logical        = false;
+                Args.WriteMethodTables        = 'Standard';  % can be 'Standard' or 'MexHeader'
             end
             
             FITS.writeTable1(Obj, FileName, 'Header',Args.Header,...
@@ -1996,8 +2360,8 @@ classdef AstroTable < Component
                                                'HDU',Args.HDU,...
                                                'Append',Args.Append,...
                                                'OverWrite',Args.OverWrite,...
-                                               'WriteTime',Args.WriteTime);
-                                                                                
+                                               'WriteTime',Args.WriteTime,...
+                                               'WriteMethodTables',Args.WriteMethodTables);                                                                                
         end
         
         function Result = toTable(Obj)

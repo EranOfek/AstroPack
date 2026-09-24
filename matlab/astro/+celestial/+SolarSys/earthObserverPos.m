@@ -49,6 +49,7 @@ function [E_H, E_dotH, S_B, S_dotB]=earthObserverPos(Time, Args)
         Args.INPOP           = [];
         Args.TimeScale       = 'TDB';
         Args.OutUnits        = 'au';  % or AU/day
+        Args.TimeOutUnits    = 'day';
         Args.RefEllipsoid    = 'WGS84';
         Args.ObserverEphem   = [];
     end
@@ -119,6 +120,7 @@ function [E_H, E_dotH, S_B, S_dotB]=earthObserverPos(Time, Args)
     
     if ~isempty(Args.GeoPos)
         [Gau, Gdot] = celestial.coo.topocentricVector(Time, Args.GeoPos, 'OutUnits',Args.OutUnits,...
+                                                             'TimeOutUnits',Args.TimeOutUnits,...
                                                              'RefEllipsoid',Args.RefEllipsoid,...
                                                              'Convert2ecliptic',Frame_Ec,...
                                                              'Equinox','J2000');

@@ -1,0 +1,12 @@
+output/*
+**/output/**
+working_dir/*
+lcs_v3_output/*
+lcs_2029_scan/*
+
++lcs_v3/backup/
+
+!README.md
+!output/README.md
+!working_dir/README.md
+

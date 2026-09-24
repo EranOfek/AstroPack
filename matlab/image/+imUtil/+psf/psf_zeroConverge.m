@@ -50,7 +50,9 @@ function PSF = psf_zeroConverge(PSF, Args)
             
             MatR2 = VecX.^2 + VecY.^2;
             
-            PSF(MatR2 > Args.Radius.^2) = 0;
+            % PSF(MatR2 > Args.Radius.^2) = 0; % slow
+            PSF = PSF .* (MatR2 < Args.Radius.^2);
+
             
         case 'kernel'
             SizePSF  = size(PSF);

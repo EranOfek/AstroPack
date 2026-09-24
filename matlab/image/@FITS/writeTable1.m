@@ -9,6 +9,7 @@ function Result = writeTable1(Table, FileName, Args)
     %          - FileName   - FITS file name to save.
     %          * Arbitrary number of ...,key,val,... pairs.
     %            Following keywords are available:
+    %            'CompressedOutput' - Default is []; 'fz' will be implemented later  
     %            'TableType'- FITS table type {'bintable'|'binary','table','ascii'}.
     %                         Default is 'binary'. 
     %                         CURRENTLY ONLY 'binary' IS SUPPORTED.
@@ -32,6 +33,9 @@ function Result = writeTable1(Table, FileName, Args)
     %            'HeaderHDUnum' - HDU number of the additional header.
     %                             Default is [] which will be 'HDUnum'+1
     %            'WriteTime'    - Add creation time to Header. Default is false.
+    %            'RelPathToAbsPath' - A logical indicating to9 extend
+    %                   relative path to abs path using: tools.os.relPath2absPath
+    %                   Default is false.
     %
     % Example: 
     %   AC = AstroTable({rand(10, 2)}, 'ColNames', {'RA','Dec'});      
@@ -40,6 +44,7 @@ function Result = writeTable1(Table, FileName, Args)
     arguments
         Table
         FileName
+        Args.CompressedOutput = [];
         Args.TableType      = 'binary';
         Args.HDUnum         = 1;        
         Args.DataType       = '1D';
@@ -54,10 +59,25 @@ function Result = writeTable1(Table, FileName, Args)
         Args.ColUnits       = [];
         Args.HeaderHDUnum   = [];
         Args.Header         = {};
+        Args.WriteMethodTables = 'Standard';  % can be 'Standard' or 'MexHeader'
+        Args.RelPathToAbsPath  = false;
     end
     
     % sanify the file name so that it contain the absolute path
-    FileName = tools.os.relPath2absPath(FileName); 
+    if Args.RelPathToAbsPath
+        FileName = tools.os.relPath2absPath(FileName); 
+    end
+    if contains(FileName, filesep)
+        % File Name contains path
+        [Path, F1, F2] = fileparts(FileName);
+        FileName = strcat(F1,F2);
+        PWD      = pwd;
+        cd(Path);
+    else
+        PWD      = [];
+    end
+    FileName = char(FileName);
+
 
     % Try to convert Table to AstroTable
     if ~isa(Table, 'AstroTable') && ~isa(Table, 'AstroCatalog')
@@ -131,11 +151,19 @@ function Result = writeTable1(Table, FileName, Args)
         Args.ColNames, Args.ColDataType, Args.ColUnits, Args.ExtName);
                    
     % Process each column
-    for Icol=1:1:Ncol       
-        % Write elements into ASCII or binary table column
-        % writeCol(fptr,colnum,firstrow,coldata)
-        Data = Table.Catalog(:,Icol);        
-        matlab.io.fits.writeCol(Fptr, Icol, Args.StartRow, Data); 
+    % A table with no rows is skipped here: createTbl above already wrote the
+    % column definitions, while matlab.io.fits.writeCol rejects empty column
+    % data ('Expected COLDATA to be nonempty') and leaves a truncated,
+    % unreadable file behind. An empty catalog is a legitimate product - e.g., a
+    % crop whose background estimation failed extracts no sources, and it is
+    % still saved (issue #1226).
+    if TableSize(1)>0
+        for Icol=1:1:Ncol
+            % Write elements into ASCII or binary table column
+            % writeCol(fptr,colnum,firstrow,coldata)
+            Data = Table.Catalog(:,Icol);
+            matlab.io.fits.writeCol(Fptr, Icol, Args.StartRow, Data);
+        end
     end
             
     % Write optional header
@@ -148,6 +176,24 @@ function Result = writeTable1(Table, FileName, Args)
             Args.HeaderHDUnum = Args.HDUnum + 1;
         end
         
+        % Use mex function to append the image header to a catalog file, file must be closed
+        if strcmpi(Args.WriteMethodTables,'mexheader')
+            matlab.io.fits.closeFile(Fptr);
+            Result = (sign(Fptr) == 1);
+            % need to cast BITPIX and NAXIS to integer in order
+            % io.fits.mex.mex_fits_table_write_image_header not to write
+            % them as real ?
+%             Ind0 = find(strcmp(Header.Header(:,1),'BITPIX'));            
+%             Ind1 = find(strcmp(Header.Header(:,1),'NAXIS1'));
+%             Ind2 = find(strcmp(Header.Header(:,1),'NAXIS2'));
+%             Header.Header{Ind0,2} = int8(Header.Header{Ind0,2});            
+%             Header.Header{Ind1,2} = uint16(Header.Header{Ind1,2});
+%             Header.Header{Ind2,2} = uint16(Header.Header{Ind2,2});
+            %
+            io.fits.mex.mex_fits_table_write_image_header(Header.Header, FileName);
+            return;
+        end
+
         matlab.io.fits.movAbsHDU(Fptr, Args.HeaderHDUnum);
 
         % create empty Image
@@ -163,4 +209,8 @@ function Result = writeTable1(Table, FileName, Args)
     % Close FITS file
     matlab.io.fits.closeFile(Fptr);
     Result = (sign(Fptr) == 1);
+
+    if ~isempty(PWD)
+        cd(PWD);
+    end
 end

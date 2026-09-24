@@ -12,7 +12,7 @@ function K=line(Par,SizeXY,PosXY)
 %            anti-clock wise.
 %            Gap is the radius of a gap in the center of the line.
 %            Default is [11 1 0 0];
-%          - Stamp size [X,Y]. Default is [11 11].
+%          - Stamp size [X,Y]. Default is [13 13].
 %          - [X,Y] Position of the circle center in the stamp.
 %            Default is the ceil(stamp_size/2).
 % Output : - A matrix or a cube with the 2D lines which sum is
@@ -27,7 +27,7 @@ function K=line(Par,SizeXY,PosXY)
 if nargin<3
     PosXY = [];
     if nargin<2
-        SizeXY = [12 12];
+        SizeXY = [13 13];
         if nargin<1
             Par = [11 1 0 0];
         end
@@ -72,6 +72,8 @@ for I=1:1:Ntemp
 
     Tmp = imrotate(Tmp,Angle(I),'nearest','crop');
     Tmp(MatR<Gap(I)) = 0;
+    %Tmp = Tmp .* (MatR>Gap(I));  % no speed improvment
+
         
     if size(Par,2)>4
         % convolve with Gaussian

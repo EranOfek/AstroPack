@@ -188,14 +188,30 @@ classdef ds9 < handle
             % Example: ds9.system('xpaset -p ds9 frame frameno %d',FrameNumber);
             % Reliable: 2
             String = sprintf(String,varargin{:});
-            if ismac
-               String = strcat('set DYLD_LIBRARY_PATH "";', String);
-               [Status,Answer]=system(String);
-            elseif isunix
-               [Status,Answer]=system(String);
-            else
-               fprintf('\ds9.system(): Windows is not supported yet!\n');
+
+            Success = false;
+            FailCounter = 0;
+            while ~Success && FailCounter<2
+                try
+                    if ismac
+                       String = strcat('set DYLD_LIBRARY_PATH "";', String);
+                       [Status,Answer]=system(String);
+                    elseif isunix
+                       [Status,Answer]=system(String);
+                    else
+                       fprintf('\ds9.system(): Windows is not supported yet!\n');
+                    end
+                    Success = true;
+                catch ME
+                    FailCounter = FailCounter + 1;
+                    warning('catch error in ds9.system - try again');
+                    ME
+
+                    pause(2);
+    
+                end
             end
+
             if (Status~=0)
                 if contains(Answer,'not found')
                     % It is possible that xpa is not installed
@@ -372,19 +388,27 @@ classdef ds9 < handle
     methods (Static)
         
         % set/get frame
-        function Answer=frame(FrameNumber)
+        function Answer=frame(FrameNumber, GetNum)
             % Set ds9 frame
             % Package: @ds9
-            % Input  : - If not given than only get the current frame
+            % Input  : - If not given, then only get the current frame
             %            number. If numeric then set frame number.
             %            Alternatively, if a string than set to frame name.
             %            Possible names: 'first'|'prev'|'next'|'last'
             %            Additional possibilities include:
             %            'hide'|'move first'|'move last'|'move back'|
             %            'move forward'|'match wcs'|'lock wcs'|...
+            %          - A logical indicating if to convert to number.
+            %            Default is true.
             % Output : - Current frame number.
             % Reliable: 2
-            if (nargin==0)
+
+            arguments
+                FrameNumber = [];
+                GetNum logical   = true;
+            end
+
+            if isempty(FrameNumber)
                 % get frame number
                 Answer = ds9.system('xpaget ds9 frame frameno');
             else
@@ -402,6 +426,11 @@ classdef ds9 < handle
                     Answer = ds9.system('xpaget ds9 frame frameno');
                 end
             end
+    
+            if nargout>0 && GetNum 
+                Answer = sscanf(Answer,'%d');
+            end
+
             pause(0.2);
         end
         
@@ -667,10 +696,11 @@ classdef ds9 < handle
                         [Bl{1:Nkey}] = deal(' ');
                         Images(Iim).Header = [Images(Iim).Header(:,1:2),  Bl];
                         FITS.write(Images(Iim).(ImageField),TmpName,'Header',Images(Iim).Header);
-                    elseif isa(Images,'AstroImage')
-                        % FFU - need to fix header?
+                    elseif isa(Images,'AstroImage')                        
                         FITS.write(Images(Iim).(Args.ImageField), TmpName, 'Header',Images(Iim).Header);
-                        
+                        % fix header
+                        %FITS.delete_keys(TmpName, {'EXTVER','PCOUNT','GCOUNT','PSCALET1','PSCALET2',...
+                        %    'XTENSION','TTYPE1','TFORM1','TTYPE2','TFORM2','TTYPE3','TFORM3'}); 
                     elseif isa(Images,'ImageComponent')
                         % no header
                         FITS.write(Images(Iim).(Args.ImageField), TmpName);
@@ -1071,7 +1101,7 @@ classdef ds9 < handle
             %             'Color'   - A string or a cell array of strings
             %                         of marker colors
             %                         ('red'|'blue'|'green'|'black'|
-            %                          'white'|...).
+            %                          'white'|'yellow'|'cyan').
             %                         Default is 'red'.
             %             'Width'   - A scalar or a vector of markers
             %                         width. Default is 1.
@@ -1304,13 +1334,21 @@ classdef ds9 < handle
                 end
                 
                 % additional properties
+                Itext = min(Ireg,Ntext);
+                if isstring(Args.Text{1})
+                    Ntext = numel(Args.Text{1});
+                    Text = Args.Text{1}(Itext);
+                else
+                    Text = Args.Text{Itext};
+                end
+
                 fprintf(FID,'# color=%s width=%d font="%s %d %s" text={%s}\n',...
                             Args.Color{min(Ireg,Ncolor)},...
                             Args.Width(min(Ireg,Nwidth)),...
                             Args.Font{min(Ireg,Nfont)},...
                             Args.FontSize(min(Ireg,Nfontsize)),...
                             Args.FontStyle{min(Ireg,Nfontstyle)},...
-                            Args.Text{min(Ireg,Ntext)});
+                            Text);
                         
             end
             fclose(FID); % close region file
@@ -1318,6 +1356,55 @@ classdef ds9 < handle
             FileName = Args.FileName;
             pause(0.2);
             
+        end
+        
+        function write_polygon_region(Vertexes,FileName,Args)
+            % write a ds9 region file with one or more polygon lines 
+            % 
+            % Input: - a 2 column vector of vertex coordinates [RA, Dec] or a
+            %        3-column table where the 3rd column is the polygon number
+            %        - a filename
+            %       ...,key,val,... 
+            %       'CooType' - fk5 (default), fk4, image
+            %       'Color' - line color
+            %       'Width' - line width
+            %       'Font'  - font name
+            %       'FontSize' - font size in pt
+            %       'FontStyle' - font style (e.g., normal, condensed)
+            % Output: - a ds9 region file
+            % Author: A.M. Krassilchtchikov (Jan 2024)
+            % Example: 
+            arguments
+                Vertexes
+                FileName
+                Args.CooType         = 'fk5';   % 'image'|'fk5'
+                Args.Color           = 'green';
+                Args.Width           = 1;
+                Args.Size            = 10;
+                Args.Text            = '';
+                Args.Font            = 'helvetica';  %'helvetica 16 normal'
+                Args.FontSize        = 16;
+                Args.FontStyle       = 'normal';
+            end
+            fileID = fopen(FileName,'w');
+            fprintf(fileID,'# Region file format: DS9 version 4.1\n');
+            fprintf(fileID,'global color=%s dashlist=8 3 width=%d font="%s %d %s roman" select=1 highlite=1 dash=0 fixed=0 edit=1 move=1 delete=1 include=1 source=1\n',...
+                            Args.Color,Args.Width,Args.Font,Args.FontSize,Args.FontStyle);
+            fprintf(fileID,'%s\n',Args.CooType);
+            NumPol = size(Vertexes,3); % number of polygons lines to write
+            for IPol = 1:NumPol
+                fprintf(fileID,'polygon(');
+                X = Vertexes(:,1,IPol);
+                Y = Vertexes(:,2,IPol);
+                for Ivert = 1:numel(X)
+                    fprintf(fileID, '%g,%g,', X(Ivert), Y(Ivert));
+                end
+                % Move the file position indicator back to overwrite the last comma
+                fseek(fileID, -1, 'cof');
+                fprintf(fileID, ')\n'); % close the polygon line
+            end
+            % 
+            fclose(fileID);  
         end
         
         % load regions from file
@@ -1442,24 +1529,28 @@ classdef ds9 < handle
                     else
                         Marker = 'o';
                     end
-                    if (~isempty(strfind(varargin{2},'r')))
-                        Color = 'red';
-                    elseif (~isempty(strfind(varargin{2},'b')))
-                        Color = 'blue';
-                    elseif (~isempty(strfind(varargin{2},'g')))
-                        Color = 'green';
-                    elseif (~isempty(strfind(varargin{2},'k')))
-                        Color = 'black';
-                    elseif (~isempty(strfind(varargin{2},'w')))
-                        Color = 'white';
-                    elseif (~isempty(strfind(varargin{2},'m')))
-                        Color = 'magenta';
-                    elseif (~isempty(strfind(varargin{2},'c')))
-                        Color = 'cyan';
-                    elseif (~isempty(strfind(varargin{2},'y')))
-                        Color = 'yellow';
+                    if any(strcmpi(varargin,'Color'))
+                        Color = varargin{find(strcmpi(varargin,'Color'))+1};
                     else
-                        Color = 'red';
+                        if (~isempty(strfind(varargin{2},'r')))
+                            Color = 'red';
+                        elseif (~isempty(strfind(varargin{2},'b')))
+                            Color = 'blue';
+                        elseif (~isempty(strfind(varargin{2},'g')))
+                            Color = 'green';
+                        elseif (~isempty(strfind(varargin{2},'k')))
+                            Color = 'black';
+                        elseif (~isempty(strfind(varargin{2},'w')))
+                            Color = 'white';
+                        elseif (~isempty(strfind(varargin{2},'m')))
+                            Color = 'magenta';
+                        elseif (~isempty(strfind(varargin{2},'c')))
+                            Color = 'cyan';
+                        elseif (~isempty(strfind(varargin{2},'y')))
+                            Color = 'yellow';
+                        else
+                            Color = 'red';
+                        end
                     end
                     varargin = varargin([1, 3:end]);
                     if any(strcmpi(varargin,'size'))
@@ -1495,7 +1586,7 @@ classdef ds9 < handle
                 Args.MarkerUnits   = 'pix';
                 Args.Color         = 'r';
                 Args.Marker        = 'o';       % 'o','s'
-                Args.Coo           = 'image';   % 'image'|'fk5','icrs'
+                Args.CooType       = 'image';   % 'image'|'fk5','icrs'
                 Args.Width         = 1;
                 Args.Text          = '';
                 Args.Font          = 'helvetica';  %'helvetica 16 normal'
@@ -1555,12 +1646,12 @@ classdef ds9 < handle
                 case {'o','circle'}
                     Args.Marker = 'circle';
                 case {'s','box'}
-                    Args.Marker = 'box';
+                    Args.Marker = 'box';                
                 otherwise
                     error('Unknown Marker option');
             end
             
-            varargin = {'Coo',Args.Coo, 'Units','deg', 'Color',Args.Color, 'Marker',Args.Marker,...
+            varargin = {'Coo',Args.CooType, 'Units','deg', 'Color',Args.Color, 'Marker',Args.Marker,...
                         'Size',Args.MarkerSize, 'Width',Args.Width,...
                         'Text',Args.Text, 'Font',Args.Font, 'FontSize', Args.FontSize, 'FontStyle',Args.FontStyle,...
                         'ColNameX',Args.ColNameX, 'ColNameY',Args.ColNameY,...
@@ -2291,7 +2382,7 @@ classdef ds9 < handle
             % Input  : - Operation mode:
             %            If numeric than will return after the user clicked
             %            the specified number of times.
-            %            if 'q' than will return if the user clicked 'q'.
+            %            if 'q' then will return only when the user clicked 'q'.
             %            Default is 'q'.
             %          - Operation mode:
             %            'any'   - will return after any character or left click is
@@ -2340,7 +2431,7 @@ classdef ds9 < handle
             %            '<1>' for mouse left click.
             % Required: XPA - http://hea-www.harvard.edu/saord/xpa/
             % Tested : Matlab 7.0
-            %     By : Eran O. Ofek                    Feb 2007
+            %     By : Eran O. Ofek                    eb 2007
             %    URL : http://weizmann.ac.il/home/eofek/matlab/
             % Example: [X,Y,V]=ds9.getcoo(3);   % return the WCS RA/Dec position
             %          [X,Y,V,Key] = ds9.getcoo('q','key');

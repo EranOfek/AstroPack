@@ -73,18 +73,22 @@ classdef PhotonsList < Component
     end
     
     methods % constructor
-        function Obj = PhotonsList(List)
+        function Obj = PhotonsList(List, Args)
             % PhotonsList constructor
             % Input  : - If empty, return a single enpty PhotonsList
             %            object.
             %            If a char array or a cell of char arrays, then
             %            will read each photon events file into a
             %            PhotonsList object.
+            %          * ...,key,val,...
+            %            'Conv2LC' - Convert column names to lower case.
+            %                   Default is true.
             % Output : - A PhotonsList object.
             % Author : Eran Ofek (Apr 2023)
             
             arguments
                 List   = [];
+                Args.Conv2LC = true;
             end
             
             if isempty(List)
@@ -98,6 +102,10 @@ classdef PhotonsList < Component
                 Nlist = numel(List);
                 for Iobj=1:1:Nlist
                     Obj(Iobj) = PhotonsList.readPhotonsList1(List{Iobj});
+                    % convert column names to lower case
+                    if Args.Conv2LC
+                        Obj(Iobj).Events.ColNames = lower(Obj(Iobj).Events.ColNames);
+                    end
                 end
             end
             
@@ -169,7 +177,7 @@ classdef PhotonsList < Component
     
     methods % basic functions getCol
         function Result = getCol(Obj, ColNames)
-            % get content of column
+            % get the content of a column in the photon list table.
             % Input  : - A single elements PhotonsList object.
             %          - A Column name, or a cell array of column names.
             % Output : - A matrix of the requested columns content.
@@ -188,7 +196,7 @@ classdef PhotonsList < Component
     
     methods (Static)  % static methods / reading photon-tagged lists
         function [Obj] = readPhotonsList1(File, Args)
-            % Read time-taged photons list from a FITS file into a PhotonsList object
+            % Read time-tagged photons list from a FITS file into a PhotonsList object
             %   Read also the header and WCS from the header.
             % Input  : - A FITS file name to read.
             %          * ...,key,val,...
@@ -236,9 +244,10 @@ classdef PhotonsList < Component
                 case 'chandra'
                     % Chandra
                     Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT, 'Num1',11,'Num2',12);
-                case 'xrt'
+                case {'xrt','swift'}
                     % Swift-XRT
                     Obj.WCS = AstroWCS.xrayHeader2wcs(HeaderT, 'Num1',2,'Num2',3);
+                    Obj.ColSky = {'X','Y'};
                 otherwise
                     error('Unknown X-ray telescope');
             end
@@ -250,7 +259,7 @@ classdef PhotonsList < Component
     
     methods (Static)    % static functions
         function [Image,X,Y] = events2image(XY, Args)
-            % Generate an image from a list of [X,Y] positions.
+            % Generate an image (by binning) from a list of [X,Y] positions.
             % Input  : - A two column matrix of [X,Y] positions.
             %          * ...,key,val,...
             %            'BinSize' - Bin size in X and Y. Default is [1 1]. 
@@ -473,6 +482,31 @@ classdef PhotonsList < Component
             end
         end
         
+        function Obj=pi2energy(Obj, Args)
+            % Convert Swift-XRT PI column to energy (approximate)
+            %   For accurate convesrion see rmf files in XSPEC
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            'ColEnergy' - Energy column name to add.
+            %                   Default is 'Energy'.
+            % Output : - PhotonsList object with the "Energy" column added.
+            % Author : Eran Ofek (Jan 2026)
+            % Example:
+
+            arguments
+                Obj
+                Args.ColEnergy = 'Energy';
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                PI = Obj(Iobj).Events.getCol('pi',false,false,'CaseSens',false);
+                E  = 10.*PI;
+                Obj(Iobj).Events.insertCol(E, Inf, Args.ColEnergy, 'eV');
+                Obj(Iobj).ColEnergy = Args.ColEnergy;
+            end
+        end
+
         function [Obj, FlagEnergy] = selectEnergy(Obj, EnergyRange, Args)
             % Select photons within some energy ranges
             % Input  : - An PhotonsList object (multi elements supported).
@@ -517,7 +551,55 @@ classdef PhotonsList < Component
             end
                     
         end
+    
+        function Obj=markEventsNearBoundries(Obj, CCDSEC, Dist, Args)
+            % Mark events near image bounderies
+            % Input  : - self.
+            %          - CCDSEC [Xmin Xmax Ymin Ymax] of image bouneries.
+            %          - Distance to edge to mark.
+            %          * ...,key,val,...
+            %            'ColX' - Column name in the events file containing
+            %                   the raw X position.
+            %                   Default is 'RAWX'.
+            %            'ColY' - Like 'ColX', but for Y.
+            %                   Default is 'RAWY'.
+            %            'ColFlag' - Column name in which to insert the
+            %                   logical flag indicating if the event is
+            %                   near edge.
+            %                   Default is 'NearEdge'.
+            %            'ColDist' - Column name in which to insert the
+            %                   distance to the nearest edge of the event.
+            %                   Default is 'DistEdge'.
+            % Output : - A PhotonsList object in which two columns were
+            %            added. The new columns indicate if event is near
+            %            edge, and the distance of the event to the nearest
+            %            edge.
+            % Author : Eran Ofek (Jan 2026)
+            % Example: 
+
+            arguments
+                Obj
+                CCDSEC
+                Dist       = 10;
+                Args.ColX  = 'RAWX';  % for swift
+                Args.ColY  = 'RAWY';
+
+                Args.ColFlag = 'NearEdge';
+                Args.ColDist = 'DistEdge';
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=1:1:Nobj
+                XY = Obj(Iobj).Events.getCol({Args.ColX, Args.ColY});
+                [FlagNearEdge, DistToEdge] = imUtil.ccdsec.listNearEdges(XY, CCDSEC, Dist);
+                Obj(Iobj).Events.insertCol(double(FlagNearEdge), Inf, Args.ColFlag, '');
+                Obj(Iobj).Events.insertCol(DistToEdge, Inf, Args.ColDist, 'pix');
+            end
+        end
     end
+
+
+
 
     methods % sources
         function [Src] = getSrcPhotons(Obj, RA, Dec, Args)
@@ -576,12 +658,17 @@ classdef PhotonsList < Component
                 Args.SearchRadiusUnits = 'pix';
                 Args.ReturnCol         = {'time','energy','ccd_id','chipx','chipy','x','y','grade','RA','Dec'};
                 Args.ColSky            = [];
+                Args.ColEnergy         = [];
+                Args.ColNearEdge       = 'NearEdge';
             end
             
             ARCSEC_DEG = 3600;
             
             if isempty(Args.ColSky)
                 Args.ColSky = Obj.ColSky;
+            end
+            if isempty(Args.ColEnergy)
+                Args.ColEnergy = Obj.ColEnergy;
             end
             
             if any(strcmp(Args.ReturnCol, 'RA')) || any(strcmp(Args.ReturnCol, 'Dec'))
@@ -615,9 +702,12 @@ classdef PhotonsList < Component
                     % Convert to sky X/Y
                     [Xsrc, Ysrc] = Obj.sky2xy(RA, Dec, 'InUnits',Args.InUnits);
             end
-            XY     = getCol(Obj, Args.ColSky);   % XY of all photons
-            
+            XY       = getCol(Obj, Args.ColSky);   % XY of all photons
+            Energy   = getCol(Obj, Args.ColEnergy);
+            NearEdge = getCol(Obj, Args.ColNearEdge);
+
             ReturnData = getCol(Obj, Args.ReturnCol);
+
             
             Nsrc = numel(Xsrc);
             for Isrc=1:1:Nsrc
@@ -625,17 +715,34 @@ classdef PhotonsList < Component
                 
                 Dist2 = (XY(:,1) - Xsrc).^2 + (XY(:,2) - Ysrc).^2;
                 Src(Isrc).Flag     = Dist2<SearchRadius2;
-                Src(Iscc).FlagBack = Dist2<Annulus2; 
+                Src(Isrc).FlagBack = Dist2>Annulus2(1) & Dist2<Annulus2(2); 
+                Src(Isrc).AperEnergy = Energy(Src(Isrc).Flag);
+                Src(Isrc).BackEnergy = Energy(Src(Isrc).FlagBack);
+                Src(Isrc).IsNearEdge = any(NearEdge(Src(Isrc).FlagBack));
+
                 Src(Isrc).Data     = ReturnData(Src(Isrc).Flag,:);
                 Src(Isrc).DataBack = ReturnData(Src(Isrc).FlagBack,:);
+
+                Src(Isrc).AperAreaPix = pi.*SearchRadius2;
+                Src(Isrc).BackAreaPix = pi.*(Annulus2(2) - Annulus2(1));
                 
+                % N photins in aperture
+                Src(Isrc).Nflux = size(Src(Isrc).Data, 1);
+                % N photons in back
+                Nback = size(Src(Isrc).DataBack, 1);
+                % back exoectency in aperture
+                Src(Isrc).BackPerPix     = Nback./Src(Isrc).BackAreaPix;
+                Src(Isrc).BackExpectency = Nback .*Src(Isrc).AperAreaPix./Src(Isrc).BackAreaPix; 
+                Src(Isrc).AperFlux     = Src(Isrc).Nflux - Src(Isrc).BackExpectency;
+                Src(Isrc).ProbFromBack = poisscdf(Src(Isrc).Nflux, Src(Isrc).BackExpectency, 'upper');
+
+
             end
             
         end
         
         function [Obj, Image] = constructImage(Obj, Args)
-            % construct image in any coordinate system, and optionaly
-            % select energy and ccd_id.
+            % construct image in any coordinate system, and optionally select energy and ccd_id.
             % Input  : - A PhotonsList object.
             %          * ...,key,val,...
             %            'CooSys' - Coordinate system in which to construct
@@ -698,22 +805,22 @@ classdef PhotonsList < Component
             for Iobj=1:1:Nobj
                 if isempty(Args.CCDID)
                     % use all CCDID
-                    XY = getCol(Obj(Iobj), Col);
+                    XY = getCol(Obj(Iobj).Events, Col, false, false, 'CaseSens',false);
                     Flag = true(size(XY,1),1);
                 else
                     % use specific CCDID
-                    XY   = getCol(Obj(Iobj), [Col, Args.ColCCDID]);
+                    XY   = getCol(Obj(Iobj), [Col, Args.ColCCDID], false, false, 'CaseSens',false);
                     Flag = XY(:,3)==Args.CCDID;
                     XY   = XY(Flag,1:2);
                 end
                 if ~isempty(Args.EnergyRange)
                     % select events by Energy
-                    Energy = getCol(Obj(Iobj), Args.ColEnergy);
+                    Energy = getCol(Obj(Iobj).Events, Args.ColEnergy, false, false, 'CaseSens',false);
                     Energy = Energy(Flag);
                     FlagE  = Energy>Args.EnergyRange(1) & Energy<Args.EnergyRange(2);
                     XY     = XY(FlagE,:);
                 end
-                if ~isempty(XY)
+                if ~isempty(XY) && ~all(isnan(XY),'all') && ~isempty(Args.CCDSEC)
                     [Obj(Iobj).Image, Obj(Iobj).X, Obj(Iobj).Y] = PhotonsList.events2image(XY, 'BinSize',Args.BinSize, 'CCDSEC',Args.CCDSEC);
                 else
                     Obj(Iobj).Image = [];
@@ -866,7 +973,7 @@ classdef PhotonsList < Component
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                XY = getCol(Obj(Iobj), Obj(Iobj).ColSky);
+                XY = getCol(Obj(Iobj).Events, Obj(Iobj).ColSky, false, false, 'CaseSens',false);
                 [RA, Dec] = xy2sky(Obj(Iobj), XY(:,1), XY(:,2), 'OutUnits',Args.CooUnits);
                
                 % insert/replace columns

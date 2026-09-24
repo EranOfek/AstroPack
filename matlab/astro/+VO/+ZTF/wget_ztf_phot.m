@@ -43,6 +43,9 @@ DefV.email                = 'eran.ofek@weizmann.ac.il'; % note that in this serv
 DefV.BaseURL              = 'https://irsa.ipac.caltech.edu/cgi-bin/ZTF/nph_light_curves?';
 DefV.FilterDic            = {'zg','zr','zi'};
 DefV.SaveFile             = '';
+DefV.Plot                 = false;
+DefV.PlotPS               = false;
+DefV.AssignToBase         = [];  % e.g., 'TableZTFg'
 InPar = InArg.populate_keyval(DefV,varargin,mfilename);
 
 RadiusDeg = convert.angular(InPar.RadiusUnits,'deg',InPar.Radius);
@@ -149,4 +152,28 @@ if (~isempty(Table))
         FilterCode(FF) = If;
     end
     Table.filtercode = FilterCode;
+end
+
+if InPar.Plot
+    figure(101); errorbar(Table.hjd - 2450000, Table.mag, Table.magerr,'ko','MarkerFaceColor','k','MarkerSize',4);
+    plot.invy;
+    H = xlabel('HJD - 2450000');
+    H.Interpreter = 'latex';
+    H.FontSize    = 16;
+    H = ylabel('Mag');
+    H.Interpreter = 'latex';
+    H.FontSize    = 16;
+
+end
+
+if InPar.PlotPS
+    FreqVec = timeSeries.period.getFreq(Table.hjd, 'MaxFreq',48);          
+    PS = timeSeries.period.period([Table.hjd, Table.mag],FreqVec);
+    figure(102); plot(PS(:,1),PS(:,2));
+end
+
+if ~isempty(InPar.AssignToBase)
+    % assign the Table into the base session
+    assignin('base', InPar.AssignToBase, Table);
+    fprintf('Variable %s containing ZTF LC is assigned to base\n',InPar.AssignToBase);
 end

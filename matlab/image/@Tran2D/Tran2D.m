@@ -153,6 +153,11 @@ classdef Tran2D < Base
         FitData        % a general structure to store errors and residuals of best fit
         ParNX       = [0 1];
         ParNY       = [0 1];
+        SignConstraint = []  % per-ParX sign constraint vector ([] | -1/0/+1 per coef).
+                             % 0 = unconstrained; -1 = coef <= 0; +1 = coef >= 0.
+                             % Honored in fitDesignMatrix. Populated by the
+                             % constructor for basis names ending in
+                             % '_constrainedXY'.
     end
     
     properties (Constant)
@@ -205,6 +210,14 @@ classdef Tran2D < Base
                 AstC(Iarg).PolyX_Ydeg = PolyX_Ydeg;
                 AstC(Iarg).PolyY_Xdeg = PolyY_Xdeg;
                 AstC(Iarg).PolyY_Ydeg = PolyY_Ydeg;
+
+                % Populate SignConstraint based on basis name.
+                % Convention: cross-term (last coef) constrained to <= 0,
+                % matching the kxy = -p^2 reparameterisation used by
+                % external references with a one-sided cross-term.
+                if ischar(varargin{Iarg}) && strcmpi(varargin{Iarg}, 'cheby1_4_xt_constrainedXY')
+                    AstC(Iarg).SignConstraint = [0 0 0 0 0 0 0 0 0 -1];
+                end
             end
                 
         end
@@ -282,10 +295,30 @@ classdef Tran2D < Base
             %                   of the 3rd degree.
             %            'cheby1_4' -  Fitsr kind Chebyshev polynomials
             %                   of the 4th degree.
+            %            'cheby1_3_xt' - First kind Chebyshev polynomials
+            %                   of the 3rd degree with cross-term (8 parameters).
+            %                   Reduced-order analogue of 'cheby1_4_xt':
+            %                   X: kx0*T0 + kx*T1 + kx2*T2 + kx3*T3 (4 params)
+            %                   Y: ky*T1 + ky2*T2 + ky3*T3 (3 params, ky0=0)
+            %                   Cross: kxy*T1(x)*T1(y) (1 param).
+            %                   (Note: a '_xt' variant at order 2 would
+            %                   coincide with 'cheby1_2' modulo a slot
+            %                   permutation — same column space — so no
+            %                   'cheby1_2_xt' is defined; use 'cheby1_2'.)
+            %            'cheby1_4_xt' - First kind Chebyshev polynomials
+            %                   of the 4th degree with cross-term (10 parameters).
+            %                   LAST telescope field correction formulation:
+            %                   X: kx0*T0 + kx*T1 + kx2*T2 + kx3*T3 + kx4*T4 (5 params)
+            %                   Y: ky*T1 + ky2*T2 + ky3*T3 + ky4*T4 (4 params, ky0=0)
+            %                   Cross: kxy*T1(x)*T1(y) (1 param).
             %            'cheby1_4_c1' - Fitsr kind Chebyshev polynomials
             %                   of the 4th degre + color term of the first degree.
             %            'cheby1_2' -  Fitsr kind Chebyshev polynomials
             %                   of the 2nd degree.
+            %            'cheby1_1' -  First kind Chebyshev polynomials
+            %                   of the 1st degree with a cross-term
+            %                   (4 parameters, both axes symmetric):
+            %                   kx0*T0 + kx*T1(x) + ky*T1(y) + kxy*T1(x)*T1(y).
             %            'poly1' - 1st deg polynomials.
             %            'poly2' - 2nd deg polynomials.
             %            'poly3' - 3rd deg polynomials.
@@ -366,8 +399,113 @@ classdef Tran2D < Base
                                       @(x,y,c,AM,PA) (4.*x.^3 - 3.*x).*y,...
                                       @(x,y,c,AM,PA) (4.*y.^3 - 3.*y).*x,...
                                       @(x,y,c,AM,PA) (2.*x.^2-1).*(2.*y.^2-1)};
-                                      
+
                     FunY        = FunX;
+                case 'cheby1_3_xt'
+                    % Chebyshev polynomials of the first kind, order 3, with cross-term
+                    % Reduced-order analogue of 'cheby1_4_xt' (drops T4 in both axes).
+                    % Added by D. Kovaleva (Jun 2026)
+                    %
+                    % Formulation:
+                    %   X-axis: kx0*T0(x) + kx*T1(x) + kx2*T2(x) + kx3*T3(x)              [4 params]
+                    %   Y-axis: 0*T0(y) + ky*T1(y) + ky2*T2(y) + ky3*T3(y)                [3 params]
+                    %           (ky0 is hardcoded to zero, matching cheby1_4_xt convention)
+                    %   Cross:  kxy*T1(x)*T1(y)                                            [1 param]
+                    %   Total: 8 parameters
+                    %
+                    % Parameter order: [kx0, kx, kx2, kx3, ky, ky2, ky3, kxy]
+                    %
+                    % Note: Coordinates should be normalized to [-1, 1] using ParNX, ParNY
+                    %       (same convention as 'cheby1_4_xt'; for LAST detector
+                    %       ParNX = [863, 863]; ParNY = [863, 863]).
+
+                    ColCell     = {'x','y','c','AM','PA'};
+                    FunX        = {@(x,y,c,AM,PA) ones(size(x)),...           % 1: kx0 * T0(x)
+                                   @(x,y,c,AM,PA) x,...                        % 2: kx  * T1(x)
+                                   @(x,y,c,AM,PA) 2.*x.^2-1,...                % 3: kx2 * T2(x)
+                                   @(x,y,c,AM,PA) 4.*x.^3 - 3.*x,...           % 4: kx3 * T3(x)
+                                   @(x,y,c,AM,PA) y,...                        % 5: ky  * T1(y)
+                                   @(x,y,c,AM,PA) 2.*y.^2-1,...                % 6: ky2 * T2(y)
+                                   @(x,y,c,AM,PA) 4.*y.^3 - 3.*y,...           % 7: ky3 * T3(y)
+                                   @(x,y,c,AM,PA) x.*y};                       % 8: kxy * T1(x)*T1(y)
+                    FunY        = FunX;
+
+                    PolyX_Xdeg  = [0 1 2 3 0 0 0 1];
+                    PolyX_Ydeg  = [0 0 0 0 1 2 3 1];
+                    PolyY_Xdeg  = [0 1 2 3 0 0 0 1];
+                    PolyY_Ydeg  = [0 0 0 0 1 2 3 1];
+
+                case 'cheby1_4_xt'
+                    % Chebyshev polynomials of the first kind, order 4, with cross-term
+                    % LAST telescope field correction formulation
+                    % Reference: Garrappa et al. 2025, A&A 699, A50
+                    % Implemented in: telescope.optics.fieldCorrectionLAST
+                    % Added by D. Kovaleva (Dec 2025)
+                    %
+                    % Formulation:
+                    %   X-axis: kx0*T0(x) + kx*T1(x) + kx2*T2(x) + kx3*T3(x) + kx4*T4(x)  [5 params]
+                    %   Y-axis: 0*T0(y) + ky*T1(y) + ky2*T2(y) + ky3*T3(y) + ky4*T4(y)    [4 params]
+                    %           (ky0 is hardcoded to zero)
+                    %   Cross:  kxy*T1(x)*T1(y)                                            [1 param]
+                    %   Total: 10 parameters
+                    %
+                    % Parameter order: [kx0, kx, kx2, kx3, kx4, ky, ky2, ky3, ky4, kxy]
+                    %
+                    % Note: Coordinates should be normalized to [-1,1] using ParNX, ParNY
+                    %       For LAST detector:
+                    %       ParNX = [863, 863]; ParNY = [863, 863]
+                    %       produces the required [-1, 1] normalization
+
+                    ColCell     = {'x','y','c','AM','PA'};
+                    FunX        = {@(x,y,c,AM,PA) ones(size(x)),...           % 1: kx0 * T0(x)
+                                   @(x,y,c,AM,PA) x,...                        % 2: kx  * T1(x)
+                                   @(x,y,c,AM,PA) 2.*x.^2-1,...                % 3: kx2 * T2(x)
+                                   @(x,y,c,AM,PA) 4.*x.^3 - 3.*x,...           % 4: kx3 * T3(x)
+                                   @(x,y,c,AM,PA) 8.*x.^4 - 8.*x.^2 + 1,...    % 5: kx4 * T4(x)
+                                   @(x,y,c,AM,PA) y,...                        % 6: ky  * T1(y)
+                                   @(x,y,c,AM,PA) 2.*y.^2-1,...                % 7: ky2 * T2(y)
+                                   @(x,y,c,AM,PA) 4.*y.^3 - 3.*y,...           % 8: ky3 * T3(y)
+                                   @(x,y,c,AM,PA) 8.*y.^4 - 8.*y.^2 + 1,...    % 9: ky4 * T4(y)
+                                   @(x,y,c,AM,PA) x.*y};                       % 10: kxy * T1(x)*T1(y)
+                    FunY        = FunX;
+
+                    % Polynomial degree vectors (approximate for cross-term)
+                    PolyX_Xdeg  = [0 1 2 3 4 0 0 0 0 1];
+                    PolyX_Ydeg  = [0 0 0 0 0 1 2 3 4 1];
+                    PolyY_Xdeg  = [0 1 2 3 4 0 0 0 0 1];
+                    PolyY_Ydeg  = [0 0 0 0 0 1 2 3 4 1];
+
+                case 'cheby1_4_xt_constrainedxy'
+                    % Same basis as 'cheby1_4_xt', but with a one-sided sign
+                    % constraint on the cross-term coefficient kxy (ParX(10)).
+                    % The constraint kxy <= 0 mirrors a kxy = -p^2 reparameterisation
+                    % without going nonlinear: the LS solver lands at kxy = 0 (with
+                    % the other 9 coefficients refit) whenever the unconstrained
+                    % optimum would have kxy > 0.
+                    %
+                    % SignConstraint convention (per coefficient):
+                    %    0  - unconstrained
+                    %   -1  - coefficient forced <= 0
+                    %   +1  - coefficient forced >= 0
+                    %
+                    % Populated by the constructor based on the basis name.
+                    ColCell     = {'x','y','c','AM','PA'};
+                    FunX        = {@(x,y,c,AM,PA) ones(size(x)),...
+                                   @(x,y,c,AM,PA) x,...
+                                   @(x,y,c,AM,PA) 2.*x.^2-1,...
+                                   @(x,y,c,AM,PA) 4.*x.^3 - 3.*x,...
+                                   @(x,y,c,AM,PA) 8.*x.^4 - 8.*x.^2 + 1,...
+                                   @(x,y,c,AM,PA) y,...
+                                   @(x,y,c,AM,PA) 2.*y.^2-1,...
+                                   @(x,y,c,AM,PA) 4.*y.^3 - 3.*y,...
+                                   @(x,y,c,AM,PA) 8.*y.^4 - 8.*y.^2 + 1,...
+                                   @(x,y,c,AM,PA) x.*y};
+                    FunY        = FunX;
+                    PolyX_Xdeg  = [0 1 2 3 4 0 0 0 0 1];
+                    PolyX_Ydeg  = [0 0 0 0 0 1 2 3 4 1];
+                    PolyY_Xdeg  = [0 1 2 3 4 0 0 0 0 1];
+                    PolyY_Ydeg  = [0 0 0 0 0 1 2 3 4 1];
+
                 case 'cheby1_4_c1'
                     % chebyshev polynomials of the first kind, of order 4
                     ColCell     = {'x','y','c','AM','PA'};
@@ -400,7 +538,18 @@ classdef Tran2D < Base
                                       @(x,y,c,AM,PA) 2.*x.^2-1,...
                                       @(x,y,c,AM,PA) 2.*y.^2-1,...
                                       @(x,y,c,AM,PA) x.*y};
-                                      
+
+                    FunY        = FunX;
+                case 'cheby1_1'
+                    % First-kind Chebyshev polynomials of order 1 + cross-term.
+                    % Bilinear-plus-cross basis (4 parameters, symmetric in x,y):
+                    %   kx0*T0 + kx*T1(x) + ky*T1(y) + kxy*T1(x)*T1(y)
+                    % Parameter order: [kx0, kx, ky, kxy]
+                    ColCell     = {'x','y','c','AM','PA'};
+                    FunX        = {@(x,y,c,AM,PA) ones(size(x)),...   % 1: kx0 * T0
+                                      @(x,y,c,AM,PA) x,...             % 2: kx  * T1(x)
+                                      @(x,y,c,AM,PA) y,...             % 3: ky  * T1(y)
+                                      @(x,y,c,AM,PA) x.*y};            % 4: kxy * T1(x)*T1(y)
                     FunY        = FunX;
                 case 'poly1'
                     % chebyshev polynomials of the first kind, of order 3
@@ -584,8 +733,11 @@ classdef Tran2D < Base
             
         end
         
-        function [Xf,Yf]=forward(TC, varargin)
+        function [Xf,Yf]=forward(TC, Coo, Args)
             % Applay forward transformation to coordinates
+            % WARNING: as design_matrix also normalizes the coordinates, 
+            %          usually it is required to run with Args.Normalize = false
+            %          use Args.Normalize = true only if you understand well what you are doing! 
             % Package: @Tran2D
             % Input  : - A Tran2D object
             %          - A matrix of coordinates, line per point.
@@ -595,31 +747,28 @@ classdef Tran2D < Base
             %            Tran2D object. If the other coordinates are not
             %            provided then they assumed to be zero.
             %            Alternatively, two arguments, X, Y.
+            %          * ...,key,val,... ,
+            %          'Normalize' - Default is false, because design_matrix also normalizes the coordinates
             % Output : - X coordinate after applaying the forward
             %            transformation.
             %          - Y coordinate after applaying the forward
             %            transformation.
-            % Example: TC=Tran2D; TC.ParY=ones(1,13);  TC.ParX=ones(1,13);
+            % Example: TC=Tran2D; TC.ParY=ones(1,10);  TC.ParX=ones(1,10);
             %          [Xf,Yf]=forward(TC,[1 1;2 1])
-            
-            switch numel(varargin)
-                case 1
-                    Coo = varargin{1};
-                case 2
-                    Coo = [varargin{1}(:), varargin{2}(:)];
-                otherwise
-                    error('Number of argumnets need to be 2 or 3');
+            arguments
+                TC
+                Coo
+                Args.Normalize = false
             end
-            
-            % applay normalization
-            Normalize = true;
-            if Normalize
+
+            % apply normalization if needed
+            if Args.Normalize
                 if iscell(Coo)
                     Xref = TC.FunNX(Coo{1},TC.ParNX(1),TC.ParNX(2));
-                    Yref = TC.FunNX(Coo{2},TC.ParNY(1),TC.ParNY(2));
+                    Yref = TC.FunNY(Coo{2},TC.ParNY(1),TC.ParNY(2));
                 else
                     Xref = TC.FunNX(Coo(:,1),TC.ParNX(1),TC.ParNX(2));
-                    Yref = TC.FunNX(Coo(:,2),TC.ParNY(1),TC.ParNY(2));
+                    Yref = TC.FunNY(Coo(:,2),TC.ParNY(1),TC.ParNY(2));
                 end
                 Coo = [Xref(:), Yref(:)];
             end
@@ -721,7 +870,7 @@ classdef Tran2D < Base
                 end
                 if Iter>MaxIter
                     NotConverged = false;
-                    error('Tran2D.backward didnot converge after %d iterations',Iter);
+                    error('Tran2D.backward did not converge after %d iterations',Iter);
                 end
                 
             end
@@ -765,19 +914,51 @@ classdef Tran2D < Base
                     if isempty(Args.ErrY)
                         Args.ErrY = ones(Ny,1);
                     end
-                    
+
                     [ParX, ErrParX] = lscov(Hx, X, 1./(Args.ErrX.^2) );
                     [ParY, ErrParY] = lscov(Hy, Y, 1./(Args.ErrY.^2) );
                 otherwise
                     error('Unknown Method option');
             end
-            
+
+            % Enforce one-sided sign constraints on ParX coefficients.
+            % For each coefficient i with SignConstraint(i) ~= 0 whose fitted
+            % sign disagrees, drop column i from Hx, refit the reduced basis,
+            % and pin ParX(i) = 0. For a single active linear inequality this
+            % is the exact KKT solution; with multiple violated constraints we
+            % iterate until the active set is stable. ParY is left untouched
+            % (the constraint is on the magnitude polynomial ParX).
+            SC = Obj.SignConstraint;
+            if ~isempty(SC) && numel(SC) == numel(ParX) && any(SC ~= 0)
+                Pinned = false(size(ParX(:)));
+                for IterSC = 1:numel(SC)
+                    Active = SC(:) ~= 0 & ~Pinned & (sign(ParX(:)) == -sign(SC(:))) & ParX(:) ~= 0;
+                    if ~any(Active)
+                        break
+                    end
+                    Pinned = Pinned | Active;
+                    KeepCols = ~Pinned;
+                    Hx_red = Hx(:, KeepCols);
+                    switch Args.Method
+                        case '\'
+                            ParX_red = Hx_red\X;
+                            ErrParX_red = nan(size(ParX_red));
+                        case 'lscov'
+                            [ParX_red, ErrParX_red] = lscov(Hx_red, X, 1./(Args.ErrX.^2));
+                    end
+                    ParX = zeros(numel(SC),1);
+                    ParX(KeepCols) = ParX_red;
+                    ErrParX = nan(numel(SC),1);
+                    ErrParX(KeepCols) = ErrParX_red;
+                end
+            end
+
             Result.ParX     = ParX;
             Result.ParY     = ParY;
             Result.ErrParX  = ErrParX;
             Result.ErrParY  = ErrParY;
-            Result.ResidX   = X - Hx.*ParX;
-            Result.ResidY   = Y - Hy.*ParY;
+            Result.ResidX   = X - Hx*ParX;
+            Result.ResidY   = Y - Hy*ParY;
             Result.RmsX     = std(Result.ResidX);
             Result.RmsY     = std(Result.ResidY);
             
@@ -908,8 +1089,8 @@ classdef Tran2D < Base
                 switch lower(Args.FitMethod)
                     case 'lscov'
                         %warning('off')
-                        [ParX,ErrParX] = lscov(Hx(FlagSrc,:), Xind(FlagSrc), InvVar(FlagSrc), Args.FitMethod);
-                        [ParY,ErrParY] = lscov(Hy(FlagSrc,:), Yind(FlagSrc), InvVar(FlagSrc), Args.FitMethod);
+                        [ParX,ErrParX] = lscov(Hx(FlagSrc,:), Xind(FlagSrc), InvVar(FlagSrc)); %, Args.FitMethod);
+                        [ParY,ErrParY] = lscov(Hy(FlagSrc,:), Yind(FlagSrc), InvVar(FlagSrc)); %, Args.FitMethod);
                         %warning('on')
                     case '\'
                         ParX = Hx(FlagSrc,:)\Xind(FlagSrc);

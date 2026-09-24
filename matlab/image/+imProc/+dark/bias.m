@@ -15,7 +15,7 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
     %                   indicating which image is a bias/dark
     %                   image. If empty use all images.
     %                   The function must be a method of Dark.
-    %                   Default is @imProc.dark.isBias.
+    %                   Default is @imProc.dark.isBiasDark.
     %            'IsBiasArgs' - A cell array of arguments to pass
     %                   to the  IsBias function. Default is {}.
     %            'StackMethod' - For options, see
@@ -85,6 +85,12 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
     %            'SumExpTime' - A logical indicating if to sum
     %                   (true) or take the mean (false) of the
     %                   EXPTIME header keyword. Default is false.
+    %            'GenerateID' - A logical indicating if to generate image
+    %                   ID (using imProc.db.generateImageID) and to insert
+    %                   it to header. Default is true.
+    %            'ArgsGenerateID' - A cell array of additional arguments to
+    %                   pass to imProc.db.generateImageID
+    %                   Default is {'KeyID','ID_DARK'}.
     % Output : - An AstroImage containing the bias/dark image.
     %          - A vector of logical indicating which images were
     %            used.
@@ -97,7 +103,7 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
         ImObj AstroImage
         Args.BitDictinaryName           = 'BitMask.Image.Default';  % char array or BitDictionary
 
-        Args.IsBias                     = @imProc.dark.isBias;  % @isBias, @isDark, vector of logical or [] - use all.
+        Args.IsBias                     = @imProc.dark.isBiasDark;  % @isBias, @isDark, vector of logical or [] - use all.
         Args.IsBiasArgs cell            = {};
 
         Args.StackMethod                = 'sigmaclip';   
@@ -108,11 +114,11 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
 
         Args.getValArgs                 = {};
         Args.LowRN_BitName              = 'LowRN';
-        Args.LowRN_Threshold            = 0.05;
+        Args.LowRN_Threshold            = 0.03;
         Args.LowRN_MeanFun              = @median;   % or RN or RN keyword...
 
         Args.HighRN_BitName             = 'HighRN';
-        Args.HighRN_Threshold           = 10;
+        Args.HighRN_Threshold           = 20;
         Args.HighRN_MeanFun             = @median;   % or RN or RN keyword...
 
         Args.DarkHighVal_BitName        = 'DarkHighVal';
@@ -129,6 +135,8 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
         Args.AddHeaderPos               = 'end';
         Args.SumExpTime(1,1) logical    = false;
 
+        Args.GenerateID logical         = true;
+        Args.ArgsGenerateID cell        = {'KeyID','ID_DARK'};
     end
 
     Nim = numel(ImObj);
@@ -147,7 +155,7 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
         end
     end
 
-    [Result, CoaddN, ImageCube] = imProc.stack.coadd(ImObj, 'CCDSEC',[],...
+    [Result, CoaddN, ImageCube] = imProc.stack.coadd(ImObj(IsBias), 'CCDSEC',[],...
                                       'Offset',[],...
                                       'PreNorm',[],...
                                       'UseWeights',false,...
@@ -219,6 +227,11 @@ function [Result, IsBias, CoaddN] = bias(ImObj, Args)
      % Update Header
      if ~isempty(Args.AddHeader)
         Result.HeaderData = insertKey(Result.HeaderData, Args.AddHeader, Args.AddHeaderPos);
+     end
+
+     % Add Image ID to header
+     if Args.GenerateID
+        [Result] = imProc.db.generateImageID(Result, Args.ArgsGenerateID{:});
      end
 
 end

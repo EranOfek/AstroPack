@@ -1,0 +1,10 @@
+{
+	"id": "mermaid-view",
+	"name": "Mermaid View",
+	"version": "0.6.1",
+	"minAppVersion": "1.6.0",
+	"description": "Handle Mermaid files as first-class citizens, rendering them fullscreen when opened.",
+	"author": "Simone Carletti",
+	"authorUrl": "https://simonecarletti.com",
+	"isDesktopOnly": false
+}

@@ -1,23 +1,73 @@
-function NameAbs = relPath2absPath(NameRel)
-    % make the path of a file or of a directory absolute if it is relative
-    % WARNING: Tested on Linux only! Not sure that will work on Windows.
-    % Input: - a file name or a directory name
-    % Output: -- the same as input but with a full path
-    % Author: A.M. Krassilchtchikov (Oct 2023)
+function [AbsPath] = relPath2absPath(RelPath)
+    % Generate an absolute path from relative path
+    %     Given a relative path including '~' and '/../' create a clean
+    %     absolute path.
+    % Input  : - Relative path.
+    % Output : - Absolute path
+    % Author : Eran Ofek (2024 Jan) 
     % Example: FN = '~/matlab/data/spec/../a.fits'; FN1 = tools.os.relPath2absPath(FN)
     %          DN = '~/matlab/data/../AstroPack/../data/'; DN1 = tools.os.relPath2absPath(DN)
-    %
-    Wdir=pwd; 
-    if isfolder(NameRel)
-%         NameRel=strtrim(ls('-d',NameRel));        
-        cd(NameRel); NameAbs = pwd; cd(Wdir);
-    else 
-       [Fdir,Fname,Fext] = fileparts(NameRel);
-       if isempty(Fdir) % if a filename is given without any dir name, treat it as local
-           Fdir = '.';
-       end
-       FullDir = strtrim(ls('-d',Fdir));
-       cd(FullDir); FullDir = pwd; cd(Wdir);
-       NameAbs = strcat(FullDir,'/',Fname,Fext);
-    end    
+    %          DN = '~/matlab/AstroPack/../../matlab/../'; DN1 = tools.os.relPath2absPath(DN)
+    %          DN1 = tools.os.relPath2absPath('a.fits')
+    %          DN1 = tools.os.relPath2absPath('../a.fits')
+
+    FileSep = filesep;
+
+    if strcmp(RelPath(1), FileSep) || strcmp(RelPath(1), '~') || strcmp(RelPath(1), '.')
+        if strcmp(RelPath(1), '.')
+            RelPath = sprintf('%s%s%s', pwd, FileSep, RelPath);
+            AbsPath = tools.os.relPath2absPath(RelPath);
+        else
+
+            if strcmp(RelPath(1),'~')
+                HomePath = getenv('HOME');
+                if strcmp(RelPath(2), filesep)
+                    RelPath = sprintf('%s%s', HomePath, RelPath(2:end));
+                else
+                    RelPath = sprintf('%s%s%s', HomePath, FileSep, RelPath(2:end));
+                end
+            end
+            
+            FoundDots = true;
+            Splitted = split(RelPath, FileSep);
+            while FoundDots
+                
+                I = find(strcmp(Splitted,'..'),1,'first');
+                if ~isempty(I)
+                    Splitted{I-1} = [];
+                    Splitted{I}   = [];
+                else
+                    FoundDots = false;
+                end
+                Splitted = Splitted(~cellfun(@isempty, Splitted));
+            end
+            
+            % rebuilt path
+            Ns = numel(Splitted);
+            AbsPath = '';
+            for Is=1:1:Ns
+                AbsPath = sprintf('%s%s%s', AbsPath, FileSep, Splitted{Is});
+            end
+
+            % rebuilt path
+            Ns = numel(Splitted);
+            if Ns > 1
+                AbsPath = '';
+                for Is=1:1:Ns
+                    AbsPath = sprintf('%s%s%s', AbsPath, FileSep, Splitted{Is});
+                end
+            else
+                AbsPath = sprintf('%s%s%s',pwd,FileSep,Splitted{1});
+            end    
+
+        end       
+        
+    else
+        % No change
+%         AbsPath = RelPath;
+        % still needs some changes
+        RelPath = sprintf('%s%s%s', pwd, FileSep, RelPath);
+        AbsPath = tools.os.relPath2absPath(RelPath);    
+    end
+   
 end

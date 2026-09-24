@@ -5,14 +5,17 @@ matlab/startup/startup.m
 **/_unused/*
 **/_temp/*
 **/temp/*
+# **/mexa64/*
 **/_bkp/*
 **/_backup/*
+*.asv
 
 # config files
 config
 
 # Log files
 *.log
+wget-log*
 
 # Simulation outputs
 SimImage*
@@ -22,3 +25,13 @@ matlab_2021_10_05_before_copyObject/
 
 # Files to exclude from ignore
 !README.md
+
+# Python folders
+__pycache__/
+.idea/
+
+# Test results
+tests/TestResults.mat
+
+# Planner stuff
+data/

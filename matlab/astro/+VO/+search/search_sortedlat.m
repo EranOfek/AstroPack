@@ -11,7 +11,7 @@ function Ind=search_sortedlat(Cat,Long,Lat,Radius,Args)
 %          * ...,key,val,...
 %            'UseMex' - A logical indicating if to use the binarySearch mex
 %                   program instead of tools.find.mfind_bin
-%                   Default is true.
+%                   Default is false.
 % Output : - Indices of the entries in the input [Lon, Lat] catalog which
 %            are found within Radius of Long,Lat.
 %     By : Eran O. Ofek                    Feb 2017

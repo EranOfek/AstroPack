@@ -72,7 +72,8 @@ end
 Mean = Args.MeanFun(Data,Dim);
 switch lower(Args.StdFun)
     case 'std'
-        Std  = nanstd(Data,[],Dim);
+        %Std  = nanstd(Data,[],Dim);
+        Std  = std(Data,[],Dim, 'omitnan');
     case 'rstd'
         Std  = sqrt(imUtil.background.rvar(Data,Dim));
     otherwise

@@ -1,6 +1,7 @@
 function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 % Calculate 1st, 2nd moments and (weighted) aperture photometry 
-% Package: @imUtil.image
+%   OBSOLETE: Use instead: imUtil.sources.moments2
+% Package: imUtil.image
 % Description: Given a 2D image, or a 3D cube of image stamps, and X, Y
 %              coordinates of sources (or the center of the stamps),
 %              calculate for each stamp the 1st and 2nd moments, and
@@ -10,7 +11,7 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %              multiplying the stamp by a weight function). The user can
 %              supply the weight function, but by default is a Gaussian
 %              with a radius specified by the user. By default, the weight
-%              function width is adapeted iteratively, where in the first
+%              function width is adapted iteratively, where in the first
 %              iteration a flat window is used, and then a Gaussian with
 %              smaller and smaller sigma is used (see code for details).
 %              The central second moment is calculated around the 1st
@@ -77,6 +78,8 @@ function [M1,M2,Aper]=moment2(Image,X,Y,Args)
 %            'SubPixShift' - Method for sub pixels hift before during photometry
 %                       with imUtil.sources.aperPhotCube.
 %                       Default is 'fft'.
+%            'UseMex' - Use MEX functionality for speedup.
+%                       Default is false.
 % Output  : - First moment information. 
 %             A structure with the following fields.
 %             .RoundX - Vector of roundex X position
@@ -137,7 +140,10 @@ arguments
     Args.CalcBoxPhot logical                           = false;
     Args.CalcWeightedAper logical                      = false;
     %Args.SubPixShiftBeforePhot logical                 = false;
-    Args.SubPixShift                                   = 'fft'; %'fft';   % 'fft' | 'lanczos' | 'none'
+    Args.SubPixShift                                   = 'fft'; %'fft'; %'fft';   % 'fft' | 'lanczos' | 'none'
+    Args.Method                                        = 'prod'; % 'devel' 
+    
+    Args.UseMex logical                                = false;
 end
 
 % make sure all the variables has the same type as the Image
@@ -173,7 +179,7 @@ Vec  = VecX;
 % no need to use meshgrid:
 [MatX,MatY] = meshgrid(Vec,Vec);
 %MatR        = sqrt(MatX.^2 + MatY.^2);
-MatR2       = MatX.^2 + MatY.^2;
+%MatR2       = MatX.^2 + MatY.^2;
 MatR2        = VecX.^2 + VecY(:).^2;
 
 %MatR        = sqrt(MatR2);
@@ -194,7 +200,12 @@ if Args.SubBack || nargout>2
     BackCube = BackFilter.*Cube;
     % note - use NaN ignoring functions!
     Aper.AnnulusBack = squeeze(Args.BackFun(BackCube,Args.BackFunArgs{:}));
-    Aper.AnnulusStd  = squeeze(std(BackCube,0,[1 2],'omitnan'));
+    if Args.UseMex
+        [~,Aper.AnnulusStd] = tools.math.stat.mex.squeezeStdCube_Dim12(BackCube);
+    else
+        Aper.AnnulusStd  = squeeze(std(BackCube,0,[1 2],'omitnan'));
+    end
+    
 
     % subtract back
     if Args.SubBack
@@ -221,6 +232,7 @@ end
 % construct a window with maximal radiu
 W_Max = ones(size(MatR2),'like',Image);
 %W_Max = repmat(cast(1, 'like',Image), size(MatR2));  % no speed improvment
+% don't use: tools.array.conditionalReplace, because MatR2 array is small.
 W_Max(MatR2>MomRadius2) = 0;
 
 
@@ -240,8 +252,10 @@ if Args.NoWeightFirstIter
 else
     WInt = W.*W_Max.*Cube; % Weighted intensity
 end
-Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
+Norm = 1./squeeze(sum(WInt,[1 2],'omitnan'));  % normalization; omitnan: WInt derives from Cube, which may contain NaN-padded edge pixels (issue #1199) - defense in depth
 
+WInt1 = WInt; % keep it for the 2nd moment calculation
+Norm1 = Norm; 
 
 if Args.MaxIter==-1
     % No first moment
@@ -280,7 +294,7 @@ else
         MatR2      = MatXcen.^2 + MatYcen.^2;
         %MatR       = sqrt(MatR2);
         
-        % apply Gaussian weight to the new centeral matrix
+        % apply Gaussian weight to the new central matrix
         if ~Args.WindowOnlyOnLastIter
             if isa(Args.WeightFun,'function_handle')
                 % WeightFun is a function handle
@@ -310,15 +324,25 @@ else
 
         % construct a window with maximal radius
         %W_Max = ones(size(MatR2), 'like',Image); 
-        W_Max = repmat(cast(1, 'like',Image), size(MatR2));  % much faster
-        W_Max(MatR2>MomRadius2) = 0;
-
+        
+        % slow
+        %W_Max(MatR2>MomRadius2) = 0;
+        % fast
+        %W_Max = repmat(cast(1, 'like',Image), size(MatR2));  % much faster
+        %W_Max = W_Max.*(MatR2<MomRadius2);
+        % faster
+        W_Max = cast(1, 'like',Image).*(MatR2<MomRadius2);
 
         WInt = W.*W_Max.*Cube; % Weighted intensity
-        Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
-
-        DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
-        DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+        Norm = 1./squeeze(sum(WInt,[1 2],'omitnan'));  % normalization; omitnan: WInt derives from Cube, which may contain NaN-padded edge pixels (issue #1199) - defense in depth
+        
+        if Args.UseMex
+            DeltaX1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatXcen, Norm);
+            DeltaY1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatYcen, Norm);
+        else
+            DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2],'omitnan')).*Norm;
+            DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2],'omitnan')).*Norm;
+        end
 
         if ~isempty(Args.MaxStep)
             DeltaX1 = sign(DeltaX1).*min(abs(DeltaX1), Args.MaxStep);
@@ -363,19 +387,29 @@ else
         else
             error('WeightFun must be a function handle or a numeric scalar');
         end
-        % construct a window with maximal radiu
-        W_Max = ones(size(MatR2), 'like',Image);
-        W_Max(MatR2>(Args.MomRadius.^2)) = 0;
+        % construct a window with maximal radius
+        % slow
+        %W_Max = ones(size(MatR2), 'like',Image);
+        %W_Max(MatR2>(Args.MomRadius.^2)) = 0;
+        % fast
+        W_Max = repmat(cast(1, 'like',Image), size(MatR2));  % much faster
+        W_Max = W_Max.*(MatR2<Args.MomRadius.^2);
 
+        
 
         WW_Max = W.*W_Max;
         WInt = WW_Max.*Cube; % Weighted intensity
         %WInt = W.*W_Max.*Cube; % Weighted intensity
         
-        Norm = 1./squeeze(sum(WInt,[1 2]));  % normalization
+        Norm = 1./squeeze(sum(WInt,[1 2],'omitnan'));  % normalization; omitnan: WInt derives from Cube, which may contain NaN-padded edge pixels (issue #1199) - defense in depth
 
-        DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2])).*Norm;
-        DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2])).*Norm;
+        if Args.UseMex
+            DeltaX1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatXcen, Norm);
+            DeltaY1 = tools.array.mex.squeezeSumAmultB_Dim12(WInt, MatYcen, Norm);
+        else
+            DeltaX1 = squeeze(sum(WInt.*MatXcen,[1 2],'omitnan')).*Norm;
+            DeltaY1 = squeeze(sum(WInt.*MatYcen,[1 2],'omitnan')).*Norm;
+        end
 
         if ~isempty(Args.MaxStep)
             DeltaX1 = sign(DeltaX1).*min(abs(DeltaX1), Args.MaxStep);
@@ -420,9 +454,14 @@ if nargout>1
         MatR2   = MatXcen.^2 + MatYcen.^2;
     %end
     
-    M2.X2 = squeeze(sum(WInt.*MatXcen.^2,[1 2])).*Norm;
-    M2.Y2 = squeeze(sum(WInt.*MatYcen.^2,[1 2])).*Norm;
-    M2.XY = squeeze(sum(WInt.*MatXcen.*MatYcen,[1 2])).*Norm;
+    if strcmpi(Args.Method,'prod')
+        WInt1 = WInt;
+        Norm1 = Norm;
+    end
+    
+    M2.X2 = squeeze(sum(WInt1.*MatXcen.^2,[1 2],'omitnan')).*Norm1;
+    M2.Y2 = squeeze(sum(WInt1.*MatYcen.^2,[1 2],'omitnan')).*Norm1;
+    M2.XY = squeeze(sum(WInt1.*MatXcen.*MatYcen,[1 2],'omitnan')).*Norm1;
     
     if nargout>2
         Args.UseAperPhotCube = true;
@@ -446,6 +485,7 @@ if nargout>1
                                     'AnnulusRad',Args.Annulus, 'SubBack',false,...
                                     'AnnulusBack',AnnulusBack);
             Aper.AnnulusBack = AnnulusBack; % return annulus back to first value, otherwise will be zero...
+            Aper.AnnulusArea = Aper.AnnulusBackArea;
         else
         
             % aperture photometry

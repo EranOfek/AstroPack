@@ -1,0 +1,322 @@
+function [Result] = register(Obj, TransRef, Args)
+    % Interpolate/register images in AstroImage into a new reference frame.
+    %   Register images to a common frame.
+    %   By default, this function is not rotating the PSF of the registered
+    %   image; set the 'RotatePSF' argument to true to activate this (see below).
+    %   
+    % Input  : - AstroImage/AstroDiff/AstroZOGY object containing images.
+    %          - One of the following options:
+    %               An AstroWCS object, or AstroImage containing AstroWCS.
+    %            This is either a single element object, or have the same
+    %            number of elements as in the first input argument.
+    %            This is the reference WCS on which the input image will be
+    %            interpolated.
+    %               An affine2d, or affinetform2d object, or a two column
+    %            matrix. If a two column matrix, then the columns are the X
+    %            and Y shifts.
+    %            Note that the affine transformation must map in this direction:
+    %               output/reference coordinates -> input-image coordinates
+    %            Note in this object WCS.Success must be true in order for
+    %            the function to work.
+    %          * ...,key,val,... 
+    %            'InterpMethod' - Interpolation method for images.
+    %                   See interp2 for options.
+    %                   Default is 'cubic'.
+    %            'InterpMethodBackVar' - Interpolation method for Back and
+    %                   Var. Default is 'linear'.
+    %            'InterpMethodMask' - Interpolation method for the mask
+    %                   image. Default is 'nearest'.
+    %            'DataProp' - A cell array or string array of
+    %                   data properties in the AstroImage to register.
+    %                   Default is {'ImageData','MaskData'}.
+    %            'DataPropIn' - Data property of ImageComponent. 
+    %                   Default is 'Data'.
+    %            'ExtrapVal' - Extrapolation value. Default is NaN.
+    %            --- Other properties ---
+    %            'CreateNewObj' - When copying the WCS, PSF, Header, create
+    %                   new object. Default is true.
+    %            'WCS' - An optional (single element) AstroWCS or AstroImage to insert (WCS) into the registered image.
+    %                   If this is an AstroWCSm then also has to provide
+    %                   the RefCCDSEC argument.
+    %                   If empty, then do not insert WCS.
+    %                   Default is [].
+    %            'RefCCDSEC' - The CCDSEC of the ref image. This is needed
+    %                   and used only if 'WCS' is an AstroWCS object.
+    %                   Default is [].
+    %            'CopyPSF' - Copy PSF from input image.
+    %                   If the 'WCS' argument is not provided, then this
+    %                   argument will be set to false.
+    %                   Default is true.
+    %            'RotatePSF' - Activate by calling with 'RotatePSF',true
+    %                   (only takes effect if 'CopyPSF' is also true,
+    %                   which is the default). If true, the copied PSF is
+    %                   rotated to align it with the TransRef orientation,
+    %                   by the difference between the WCS position angles
+    %                   (PA) of Obj and TransRef (via
+    %                   imUtil.astrometry.cdmatrix2rotScale), applied with
+    %                   imUtil.trans.mex.imrotate_sinc.
+    %                   Only supported when TransRef is an AstroWCS,
+    %                   AstroImage, AstroZOGY, or AstroDiff object; if
+    %                   TransRef is an affine2d/affinetform2d object or a
+    %                   numeric shift, an error is thrown.
+    %                   Default is false (PSF is copied as-is, unrotated).
+    %            'CopyWCS' - Copy WCS from input image. Default is true.
+    %            'CopyHeader' - Copy Header from input image. Default is true.
+    %                   If CopyWCS is true, then will update header by the
+    %                   WCS.
+    %            'CopyFilename' - Copy file name. Default is true.
+    %            'CopyMaskDict' - Copy mask dictionary (pointer copy). Default is true.
+    %            --- Aux ---
+    %            'Sampling' - AstroWCS/xy2refxy sampling parameter.
+    %                   The WCS is evaluated with this steps and
+    %                   interpolated. For linear transformations, higher
+    %                   values may be used.
+    %                   Default is 20.
+    % Output : - An AstroImage object containing the registered images.
+    % Author : Eran Ofek (2026 Mar) 
+    % Example: R=imProc.transIm.register(AI, AI(1));
+
+    arguments
+        Obj
+        TransRef
+        Args.InterpMethod             = 'mex_lanczos3'; % 'cubic'; %'mex_lanczos3';
+        Args.InterpMethodBackVar      = 'mex_bilinear'; % 'linear'; %'mex_bilinear';
+        Args.InterpMethodMask         = 'mex_nearest'; % 'nearest'; %'mex_nearest';
+        Args.ExtrapVal                = NaN; % for mex_ interpolation options this is always NaN
+        Args.DataProp                 = {'ImageData','MaskData'};
+        Args.DataPropIn               = 'Data';
+        %Args.KeyBack                  = [];
+        %Args.KeyVar                   = [];
+
+        Args.CreateNewObj             = true;
+        Args.WCS                      = [];
+        Args.RefCCDSEC                = [];
+        Args.RotatePSF                = false;  % if true, then make hard copy / operate only if TransRef is an AstroImage!
+        Args.CopyPSF                  = true;
+        Args.CopyWCS                  = true;
+        Args.CopyHeader               = true;
+        Args.CopyFilename             = true;
+        Args.CopyMaskDict             = true;
+
+        Args.Sampling                 = 20;
+
+    end
+
+    if (isnumeric(TransRef) || isa(TransRef,'affine2d') || isa(TransRef, 'affinetform2d')) && isempty(Args.WCS)
+        error('When TransRef is %s WCS argument must be provided',class(TransRef));
+    end
+
+    if isempty(Args.WCS)
+        % BUG2
+        %Args.CopyWCS = false;
+        if ~TransRef.WCS.Success
+            error('Reference WCS (in TransRef) must have Success=true');
+        end
+    else
+        if numel(Args.WCS)>1
+            error('Args.WCS must be a single element AstroWCS or AstroImage');
+        end
+        if isa(Args.WCS, 'AstroWCS')
+            if ~Args.WCS.Success
+                error('Reference WCS must have Success=true');
+            end
+        else
+            if ~Args.WCS.WCS.Success
+                error('Reference WCS must have Success=true');
+            end
+        end
+    end
+
+
+    if isnumeric(TransRef)
+        % for numeric TransRef - count number of rows:
+        Nref = size(TransRef,1);
+    else
+        Nref = numel(TransRef);
+    end
+    Nprop = numel(Args.DataProp);
+    Nwcs = numel(Args.WCS);
+    Nobj = numel(Obj);
+    Result = AstroImage(size(Obj));
+    CanRotatePSF = false;
+    for Iobj=1:1:Nobj
+        
+        SizeIm = size(Obj(Iobj).ImageData.Data);
+        CCDSEC = [1 SizeIm(2) 1 SizeIm(1)];
+        
+        VecX = cast((1:1:SizeIm(2)), 'like',Obj(Iobj).ImageData.Data);
+        VecY = cast((1:1:SizeIm(1)), 'like',VecX);
+
+        % Transformation types
+        switch class(TransRef)
+            case 'AstroWCS'
+                CanRotatePSF = true;
+                Iref = min(Iobj, Nref);
+
+                % Need image size from external source
+                %SizeRefIm = size(TransRef(Iref).ImageData.Data);
+                %CCDSEC = [1 SizeRefIm(2) 1 SizeRefIm(1)];
+    
+                %
+                %SizeRefIm = size(TransRef(Iref).ImageData.Data);
+                CCDSEC = Args.RefCCDSEC; %[1 SizeRefIm(2) 1 SizeRefIm(1)];
+
+                % Object is AstroWCS
+                [RefX, RefY, X, Y] = TransRef(Iref).xy2refxy(CCDSEC, Obj(Iobj).WCS, 'Sampling',Args.Sampling);
+                
+                error('not completed yet, more input to detemine SizeRefIm is needed');
+                SizeRefIm = size(Ref(Iref).Image); % this is not correct, how to determine the image size in this case? 
+                VecRefX = (1:1:SizeRefIm(2));
+                VecRefY = (1:1:SizeRefIm(1));
+        
+                FullRefX = interp2(X, Y, RefX, VecRefX(:).', VecRefY(:), 'cubic');
+                FullRefY = interp2(X, Y, RefY, VecRefX(:).', VecRefY(:), 'cubic');
+
+            case {'AstroImage', 'AstroZOGY', 'AstroDiff'}
+                CanRotatePSF = true;
+                Iref = min(Iobj, Nref);
+
+                % issue: #926
+                SizeRefIm = size(TransRef(Iref).ImageData.Data);
+                CCDSEC = [1 SizeRefIm(2) 1 SizeRefIm(1)];
+
+    
+                % WCS in AstroImage:
+                [RefX, RefY, X, Y] = TransRef(Iref).WCS.xy2refxy(CCDSEC, Obj(Iobj).WCS, 'Sampling',Args.Sampling);
+        
+                %[RefX, RefY, X, Y] = Obj(Iobj).WCS.xy2refxy(CCDSEC, TransRef(Iref).WCS, 'Sampling',Args.Sampling);
+
+                SizeRefIm = size(TransRef(Iref).ImageData.Data);
+                VecRefX = (1:1:SizeRefIm(2));
+                VecRefY = (1:1:SizeRefIm(1));
+        
+                FullRefX = interp2(X, Y, RefX, VecRefX(:).', VecRefY(:), 'cubic');
+                FullRefY = interp2(X, Y, RefY, VecRefX(:).', VecRefY(:), 'cubic');
+                
+                % class verification (WCS.xy2refxy gives double RefX, RefY, thus FullRefX and FullRefY are also double)
+                if strcmpi(class(TransRef(Iref).ImageData.Data),'single')
+                    FullRefX = single(FullRefX);
+                    FullRefY = single(FullRefY);
+                end 
+
+            case {'affine2d', 'affinetform2d'}
+                Iref = min(Iobj, Nref);
+                [MatX, MatY] = meshgrid(VecX, VecY);
+                [FullRefX, FullRefY] = transformPointsForward(TransRef(Iref), MatX, MatY);
+                
+            otherwise
+                % assume numeric input
+                switch size(TransRef,2)
+                    case 2
+                        Iref = min(Iobj, Nref);
+                        [MatX, MatY] = meshgrid(VecX, VecY);
+                        FullRefX = MatX - TransRef(Iref,1);
+                        FullRefY = MatY - TransRef(Iref,2);
+                        
+                    otherwise
+                        error('Numeric transformation - only two columns option is supported');
+                end
+        end % switch class(TransRef)
+                
+        % Interpolation        
+        for Iprop=1:1:Nprop
+            if ~isempty(Obj(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn))
+                switch Args.DataProp{Iprop}
+                    case 'MaskData'
+                        Result(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn) = tools.interp.interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
+                    case {'BackData','VarData'}
+                        Result(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn) = tools.interp.interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn), FullRefX, FullRefY, Args.InterpMethodBackVar, Args.ExtrapVal);
+                    otherwise
+                        % Image part:
+                        Result(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn) = tools.interp.interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}).(Args.DataPropIn), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
+                end
+            end
+        end % for Iprop=1:1:Nprop
+
+        % Fill the other proprties of the regsitered object:
+        if Args.CopyPSF
+            if Args.RotatePSF
+                if CanRotatePSF
+                    Result(Iobj).PSFData = Obj(Iobj).PSFData.copy;
+                    % find ritation
+                    St1 = imUtil.astrometry.cdmatrix2rotScale(Obj(Iobj).WCS.CD);
+                    St2 = imUtil.astrometry.cdmatrix2rotScale(TransRef(Iref).WCS.CD);
+                    Rotation = St2.PA_deg - St1.PA_deg;
+                    % apply rotation / check direction
+                    Result(Iobj).PSFData.Data = imrotate_sinc(Result(Iobj).PSFData.Data, Rotation);
+                else
+                    error('RotatePSF is available only for some options / TBD')
+                end
+            else
+                if Args.CreateNewObj
+                    Result(Iobj).PSFData = Obj(Iobj).PSFData.copy;
+                else
+                    Result(Iobj).PSFData = Obj(Iobj).PSFData;
+                end
+            end
+        end
+        % WCS
+        if Args.CopyWCS
+            if isempty(Args.WCS)
+                % Args.WCS is empty - take WCS from TransRef object:
+                if isa(TransRef, 'AstroWCS')
+                    if Args.CreateNewObj
+                        Result(Iobj).WCS = TransRef(Iref).copy;
+                    else
+                        Result(Iobj).WCS = TransRef(Iref);
+                    end
+                else
+                     % TransRef is AstroImage/AstroDiff/AstroZOGY
+                     if Args.CreateNewObj
+                         Result(Iobj).WCS = TransRef(Iref).WCS.copy;
+                     else
+                         Result(Iobj).WCS = TransRef(Iref).WCS;
+                     end
+                end
+            else
+                % copy WCS from Args.WCS
+                if isa(Args.WCS, 'AstroWCS')
+                    if Args.CreateNewObj
+                        Result(Iobj).WCS = Args.WCS.copy;
+                    else
+                        Result(Iobj).WCS = Args.WCS;
+                    end
+                else
+                    % Args.WCS is an AstroImage/AstroDiff/AstroZOGY
+                    if Args.CreateNewObj
+                        Result(Iobj).WCS = Args.WCS.WCS.copy;
+                    else
+                        Result(Iobj).WCS = Args.WCS.WCS;
+                    end
+                end
+
+            end
+        end
+
+        if Args.CopyFilename
+            Result(Iobj).ImageData.FileName = Obj(Iobj).ImageData.FileName;
+        end
+        if Args.CopyHeader
+            if Args.CreateNewObj
+                Result(Iobj).HeaderData = Obj(Iobj).HeaderData.copy;
+            else
+                Result(Iobj).HeaderData = Obj(Iobj).HeaderData;
+            end
+
+            % update header
+            if Args.CopyWCS
+                Result(Iobj).HeaderData = wcs2header(Result(Iobj).WCS, Result(Iobj).HeaderData);
+            end
+        end
+
+        if Args.CopyMaskDict
+            Result(Iobj).MaskData.Dict = Obj(Iobj).MaskData.Dict;
+        end
+            
+
+
+
+    end % for Iobj=1:1:Nobj
+
+
+end

@@ -23,6 +23,19 @@ function Result = zp_meddiff(MS, Args)
     %            'UseWMedian' - A logical indicating if to use weighted
     %                   median instead of median.
     %                   Default is true.
+    %            'UseMex' - A logical indicating if to use MEX when
+    %                   possible. Default is false.
+    %
+    %            'RemoveFlags' - A cell array of flag names to remove
+    %                   from the plot. If empty, show all. Default is {}.
+    %            'FieldFlags' - Field containing the flags data.
+    %                   Default is 'FLAGS'.
+    %            'BitDict' - BitDictionary. This is needed only if
+    %                   RemovedFlags is not empty.
+    %                   Default is BitDictionary (but generated only if
+    %                   needed).
+    %
+    %
     % Output : - A structure array (element per MatchedSources element)
     %            with the following fields:
     %            .FitZP    - Fitted ZP [mag] per image. Add to image in
@@ -53,20 +66,43 @@ function Result = zp_meddiff(MS, Args)
         Args.MinNepoch              = Inf;  % Inf - source appear in all epochs
         Args.MinNsrc                = 10;
         Args.UseWMedian logical     = false;
+        Args.UseMex                 = false;
         
         %Args.Plot(1,1) logical      = false;
+        
+        Args.RemoveFlags              = {};
+        Args.FieldFlags               = 'FLAGS';
+        Args.BitDict                  = [];
+        
+    end
+    
+    % Generate BitDictionary only if needed:
+    if ~isempty(Args.RemoveFlags)
+        if isempty(Args.BitDict)
+            Args.BitDict = BitDictionary;
+        end
     end
     
     Nms = numel(MS);
     for Ims=1:1:Nms
+        BitFlag        = true(MS(Ims).Nsrc, 1);
+        if ~isempty(Args.RemoveFlags)
+           % remove data points with specific flags
+           MS(Ims).addSrcData;
+           
+           IndNN          = find(~isnan(MS(Ims).SrcData.(Args.FieldFlags)(:)));
+           BitFlag(IndNN) = ~imProc.cat.findBit(MS(Ims).SrcData.(Args.FieldFlags)(IndNN), Args.RemoveFlags, [], Args.BitDict);
+         
+        end
+        
         Mag    = getMatrix(MS(Ims), Args.MagField);
         MagErr = getMatrix(MS(Ims), Args.MagErrField);
 
         MedMagErr = median(MagErr, 1, 'omitnan');
-        FlagMM    = MedMagErr<Args.MaxMagErr;
+        FlagMM    = BitFlag(:).' & MedMagErr<Args.MaxMagErr;
         Mag       = Mag(:,FlagMM);
-        MagErr    = MagErr(:,FlagMM);
-
+        MagErr    = MagErr(:,FlagMM);        
+        
         %[Nep, Nsrc] = size(Mag);
 
         % select sources with minimum number of observations
@@ -87,14 +123,24 @@ function Result = zp_meddiff(MS, Args)
 
         DiffMagEpoch = Mag - Mag(Args.RefImInd,:);
 
-        if Args.UseWMedian
-            Result(Ims).FitZP(FlagGoodEpoch)    = tools.math.stat.wmedian(DiffMagEpoch, MagErr, 2); 
+        if Args.UseMex
+            if Args.UseWMedian
+                [Result(Ims).FitZP(FlagGoodEpoch),Result(Ims).FitStdZP(FlagGoodEpoch)]    = tools.math.stat.mex.wmedianStd_mex(DiffMagEpoch, 1./(MagErr.^2), 2);
+            else
+                Result(Ims).FitZP(FlagGoodEpoch)    = tools.math.stat.mex.median(DiffMagEpoch, 2, 'omitnan');
+                Result(Ims).FitStdZP(FlagGoodEpoch) = std(DiffMagEpoch, [], 2, 'omitnan');
+             end
         else
-            Result(Ims).FitZP(FlagGoodEpoch)    = median(DiffMagEpoch, 2, 'omitnan');
+            if Args.UseWMedian
+                Result(Ims).FitZP(FlagGoodEpoch)    = tools.math.stat.wmedian(DiffMagEpoch, MagErr, 2); 
+            else
+                Result(Ims).FitZP(FlagGoodEpoch)    = median(DiffMagEpoch, 2, 'omitnan');
+            end            
+            Result(Ims).FitStdZP(FlagGoodEpoch) = std(DiffMagEpoch, [], 2, 'omitnan');
         end
         Result(Ims).FitZP(~FlagGoodEpoch)   = NaN;
+        Result(Ims).FitStdZP(~FlagGoodEpoch)= NaN;
         
-        Result(Ims).FitStdZP = std(DiffMagEpoch, [], 2, 'omitnan');
         Result(Ims).FitErrZP = Result(Ims).FitStdZP./sqrt(Nsrc);
         Result(Ims).Nsrc     = Nsrc;
     end

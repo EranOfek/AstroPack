@@ -1,0 +1,524 @@
+#include "mex.h"
+#include <cmath>
+#include <vector>
+#include <algorithm>
+#include <limits>
+#include <string>
+#include <cstring>
+#include <type_traits>
+#include <utility>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
+#ifndef M_PI
+#define M_PI 3.141592653589793238462643383279502884
+#endif
+
+template <typename T>
+inline bool isFiniteT(T x) {
+    return std::isfinite(static_cast<double>(x));
+}
+
+inline bool isScalarLogicalTrue(const mxArray* A, bool defaultValue=false) {
+    if (A == nullptr) {
+        return defaultValue;
+    }
+
+    if (mxIsLogical(A)) {
+        if (mxGetNumberOfElements(A) != 1) {
+            mexErrMsgIdAndTxt("matchTwoCats:Input", "Logical scalar expected.");
+        }
+        return mxIsLogicalScalarTrue(A);
+    }
+
+    if (!mxIsNumeric(A) || mxIsComplex(A) || mxGetNumberOfElements(A) != 1) {
+        mexErrMsgIdAndTxt("matchTwoCats:Input", "Scalar logical/numeric expected.");
+    }
+
+    return mxGetScalar(A) != 0.0;
+}
+
+template <typename T>
+inline T clampCos(T x) {
+    if (x > static_cast<T>(1))  return static_cast<T>(1);
+    if (x < static_cast<T>(-1)) return static_cast<T>(-1);
+    return x;
+}
+
+template <typename T>
+inline T deg2radT(T x) {
+    return x * static_cast<T>(M_PI / 180.0);
+}
+
+template <typename T>
+inline T rad2degT(T x) {
+    return x * static_cast<T>(180.0 / M_PI);
+}
+
+template <typename T>
+inline T wrapModPositive(T x, T period) {
+    T y = std::fmod(x, period);
+    if (y < static_cast<T>(0)) {
+        y += period;
+    }
+    return y;
+}
+
+template <typename T>
+inline void normalizeRaDecRad(T& ra, T& dec) {
+    const T TwoPi  = static_cast<T>(2.0 * M_PI);
+    const T Pi     = static_cast<T>(M_PI);
+    const T HalfPi = static_cast<T>(0.5 * M_PI);
+
+    dec = wrapModPositive(dec + Pi, TwoPi) - Pi;
+
+    if (dec > HalfPi) {
+        dec = Pi - dec;
+        ra += Pi;
+    } else if (dec < -HalfPi) {
+        dec = -Pi - dec;
+        ra += Pi;
+    }
+
+    ra = wrapModPositive(ra, TwoPi);
+}
+
+template <typename T>
+inline void normalizeRaDecDeg(T& ra, T& dec) {
+    const T Full    = static_cast<T>(360);
+    const T Half    = static_cast<T>(180);
+    const T Quarter = static_cast<T>(90);
+
+    dec = wrapModPositive(dec + Half, Full) - Half;
+
+    if (dec > Quarter) {
+        dec = Half - dec;
+        ra += Half;
+    } else if (dec < -Quarter) {
+        dec = -Half - dec;
+        ra += Half;
+    }
+
+    ra = wrapModPositive(ra, Full);
+}
+
+template <typename T>
+inline void normalizeRaDec(T& ra, T& dec, bool isUnitsDeg) {
+    if (isUnitsDeg) {
+        normalizeRaDecDeg(ra, dec);
+    } else {
+        normalizeRaDecRad(ra, dec);
+    }
+}
+
+template <typename T>
+inline T deltaRaAbsRad(T a, T b) {
+    T d = std::fabs(a - b);
+    const T TwoPi = static_cast<T>(2.0 * M_PI);
+    const T Pi    = static_cast<T>(M_PI);
+    if (d > Pi) {
+        d = TwoPi - d;
+    }
+    return d;
+}
+
+template <typename T>
+struct MatchRecord {
+    mwIndex OrigIdx1;
+    T Dist;
+};
+
+template <typename T>
+void validateVectorRealSameType(const mxArray* A, const mxArray* B, const char* nameA, const char* nameB) {
+    if (!mxIsNumeric(A) || mxIsComplex(A) || mxIsSparse(A)) {
+        mexErrMsgIdAndTxt("matchTwoCats:Input", "%s must be a real full numeric array.", nameA);
+    }
+    if (!mxIsNumeric(B) || mxIsComplex(B) || mxIsSparse(B)) {
+        mexErrMsgIdAndTxt("matchTwoCats:Input", "%s must be a real full numeric array.", nameB);
+    }
+    if (mxGetClassID(A) != mxGetClassID(B)) {
+        mexErrMsgIdAndTxt("matchTwoCats:Input", "%s and %s must have the same class.", nameA, nameB);
+    }
+    if (mxGetNumberOfElements(A) != mxGetNumberOfElements(B)) {
+        mexErrMsgIdAndTxt("matchTwoCats:Input", "%s and %s must have the same number of elements.", nameA, nameB);
+    }
+}
+
+template <typename T>
+mxArray* createNumericVector(mwSize N, mxClassID classId) {
+    return mxCreateNumericMatrix(N, 1, classId, mxREAL);
+}
+
+inline bool shouldUseOpenMP(mwSize N1, mwSize N2, bool needIndAll) {
+#ifdef _OPENMP
+    if (N1 < 512 || N2 < 128) {
+        return false;
+    }
+    if (needIndAll) {
+        return (N2 >= 1024);
+    } else {
+        return (N2 >= 256);
+    }
+#else
+    (void)N1; (void)N2; (void)needIndAll;
+    return false;
+#endif
+}
+
+template <typename T>
+void runKernel(
+    int nlhs, mxArray* plhs[],
+    const mxArray* RA1_in, const mxArray* Dec1_in,
+    const mxArray* RA2_in, const mxArray* Dec2_in,
+    double searchRadiusInput,
+    bool isUnitsDeg,
+    bool checkList1sorted,
+    bool sortIndAll
+) {
+    const mwSize N1full = mxGetNumberOfElements(RA1_in);
+    const mwSize N2full = mxGetNumberOfElements(RA2_in);
+
+    const T* RA1ptr  = static_cast<const T*>(mxGetData(RA1_in));
+    const T* Dec1ptr = static_cast<const T*>(mxGetData(Dec1_in));
+    const T* RA2ptr  = static_cast<const T*>(mxGetData(RA2_in));
+    const T* Dec2ptr = static_cast<const T*>(mxGetData(Dec2_in));
+
+    T searchRadius = static_cast<T>(searchRadiusInput);
+    if (isUnitsDeg) {
+        searchRadius = deg2radT(searchRadius);
+    }
+
+    if (!(isFiniteT(searchRadius)) || searchRadius < static_cast<T>(0)) {
+        mexErrMsgIdAndTxt("matchTwoCats:Input", "SearchRadius must be finite and non-negative.");
+    }
+
+    // -----------------------------------------------------------------
+    // Preprocess catalog 1
+    // -----------------------------------------------------------------
+    std::vector<T> RA1v;
+    std::vector<T> Dec1v;
+    std::vector<T> SinDec1v;
+    std::vector<T> CosDec1v;
+    std::vector<mwIndex> OrigIdx1v;
+
+    RA1v.reserve(N1full);
+    Dec1v.reserve(N1full);
+    SinDec1v.reserve(N1full);
+    CosDec1v.reserve(N1full);
+    OrigIdx1v.reserve(N1full);
+
+    bool firstValid = true;
+    T prevDec = static_cast<T>(0);
+
+    for (mwIndex i = 0; i < N1full; ++i) {
+        T ra  = RA1ptr[i];
+        T dec = Dec1ptr[i];
+
+        if (!isFiniteT(ra) || !isFiniteT(dec)) {
+            continue;
+        }
+
+        normalizeRaDec(ra, dec, isUnitsDeg);
+
+        if (isUnitsDeg) {
+            ra  = deg2radT(ra);
+            dec = deg2radT(dec);
+        }
+
+        if (checkList1sorted) {
+            if (firstValid) {
+                prevDec = dec;
+                firstValid = false;
+            } else {
+                if (dec < prevDec) {
+                    mexErrMsgIdAndTxt("matchTwoCats:Sorted",
+                                      "RA1/Dec1 is not sorted by Dec after normalization.");
+                }
+                prevDec = dec;
+            }
+        }
+
+        RA1v.push_back(ra);
+        Dec1v.push_back(dec);
+        SinDec1v.push_back(std::sin(dec));
+        CosDec1v.push_back(std::cos(dec));
+        OrigIdx1v.push_back(i + 1);
+    }
+
+    const mwSize N1 = static_cast<mwSize>(RA1v.size());
+
+    const bool needDist   = (nlhs >= 2);
+    const bool needNmatch = (nlhs >= 3);
+    const bool needIndAll = (nlhs >= 4);
+
+    // -----------------------------------------------------------------
+    // Temporary C++ buffers only
+    // -----------------------------------------------------------------
+    std::vector<double> TmpIndNearest(N2full, mxGetNaN());
+
+    std::vector<T> TmpDistNearest;
+    if (needDist) {
+        TmpDistNearest.assign(N2full, std::numeric_limits<T>::quiet_NaN());
+    }
+
+    std::vector<uint32_T> TmpNmatch;
+    if (needNmatch) {
+        TmpNmatch.assign(N2full, 0);
+    }
+
+    std::vector< std::vector< MatchRecord<T> > > TmpAllMatches;
+    if (needIndAll) {
+        TmpAllMatches.resize(N2full);
+    }
+
+    if (N1 > 0) {
+        const T cosR = std::cos(searchRadius);
+        const T sinR = std::sin(searchRadius);
+        const bool useOMP = shouldUseOpenMP(N1, N2full, needIndAll);
+
+#ifdef _OPENMP
+#pragma omp parallel for if(useOMP) schedule(guided, 32)
+#endif
+        for (long long i2ll = 0; i2ll < static_cast<long long>(N2full); ++i2ll) {
+            const mwIndex i2 = static_cast<mwIndex>(i2ll);
+
+            T ra2  = RA2ptr[i2];
+            T dec2 = Dec2ptr[i2];
+
+            if (!isFiniteT(ra2) || !isFiniteT(dec2)) {
+                continue;
+            }
+
+            normalizeRaDec(ra2, dec2, isUnitsDeg);
+
+            if (isUnitsDeg) {
+                ra2  = deg2radT(ra2);
+                dec2 = deg2radT(dec2);
+            }
+
+            const T sinDec2 = std::sin(dec2);
+            const T cosDec2 = std::cos(dec2);
+
+            const T decLo = dec2 - searchRadius;
+            const T decHi = dec2 + searchRadius;
+
+            auto lowIt  = std::lower_bound(Dec1v.begin(), Dec1v.end(), decLo);
+            auto highIt = std::upper_bound(Dec1v.begin(), Dec1v.end(), decHi);
+
+            const mwIndex iLo = static_cast<mwIndex>(lowIt  - Dec1v.begin());
+            const mwIndex iHi = static_cast<mwIndex>(highIt - Dec1v.begin());
+
+            uint32_T count = 0;
+            bool foundAny = false;
+
+            T bestCosd = static_cast<T>(-2);
+            mwIndex bestOrigIdx = 0;
+            T bestDist = std::numeric_limits<T>::quiet_NaN();
+
+            std::vector< MatchRecord<T> > localMatches;
+            if (needIndAll) {
+                localMatches.reserve(16);
+            }
+
+            bool useRaPrefilter = false;
+            T deltaRaMax = static_cast<T>(0);
+
+            const T absCosDec2 = std::fabs(cosDec2);
+            if (absCosDec2 > static_cast<T>(1e-12)) {
+                T ratio = sinR / absCosDec2;
+                if (ratio < static_cast<T>(1)) {
+                    deltaRaMax = std::asin(ratio);
+                    if (deltaRaMax > static_cast<T>(0) && deltaRaMax < static_cast<T>(M_PI)) {
+                        useRaPrefilter = true;
+                    }
+                }
+            }
+
+            for (mwIndex j = iLo; j < iHi; ++j) {
+                const T dRA = deltaRaAbsRad(RA1v[j], ra2);
+
+                if (useRaPrefilter && dRA > deltaRaMax) {
+                    continue;
+                }
+
+                T cosd = SinDec1v[j] * sinDec2 + CosDec1v[j] * cosDec2 * std::cos(dRA);
+
+                if (cosd >= cosR) {
+                    ++count;
+                    foundAny = true;
+                    cosd = clampCos(cosd);
+
+                    const bool isBetter = (cosd > bestCosd);
+
+                    T dist = static_cast<T>(0);
+                    if (needIndAll || isBetter) {
+                        dist = std::acos(cosd);
+                    }
+
+                    if (isBetter) {
+                        bestCosd = cosd;
+                        bestOrigIdx = OrigIdx1v[j];
+                        bestDist = dist;
+                    }
+
+                    if (needIndAll) {
+                        MatchRecord<T> rec;
+                        rec.OrigIdx1 = OrigIdx1v[j];
+                        rec.Dist = dist;
+                        localMatches.push_back(rec);
+                    }
+                }
+            }
+
+            if (needNmatch) {
+                TmpNmatch[i2] = count;
+            }
+
+            if (foundAny) {
+                TmpIndNearest[i2] = static_cast<double>(bestOrigIdx);
+
+                if (needDist) {
+                    T outDist = bestDist;
+                    if (isUnitsDeg) {
+                        outDist = rad2degT(outDist);
+                    }
+                    TmpDistNearest[i2] = outDist;
+                }
+            }
+
+            if (needIndAll) {
+                if (sortIndAll && localMatches.size() > 1) {
+                    std::sort(localMatches.begin(), localMatches.end(),
+                              [](const MatchRecord<T>& a, const MatchRecord<T>& b) {
+                                  return a.Dist < b.Dist;
+                              });
+                } else if (!sortIndAll && localMatches.size() > 1) {
+                    size_t bestPos = 0;
+                    T minDist = localMatches[0].Dist;
+                    for (size_t k = 1; k < localMatches.size(); ++k) {
+                        if (localMatches[k].Dist < minDist) {
+                            minDist = localMatches[k].Dist;
+                            bestPos = k;
+                        }
+                    }
+                    if (bestPos != 0) {
+                        MatchRecord<T> bestRec = localMatches[bestPos];
+                        for (size_t k = bestPos; k > 0; --k) {
+                            localMatches[k] = localMatches[k - 1];
+                        }
+                        localMatches[0] = bestRec;
+                    }
+                }
+
+                TmpAllMatches[i2] = std::move(localMatches);
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------
+    // Create MATLAB outputs serially
+    // -----------------------------------------------------------------
+    plhs[0] = mxCreateDoubleMatrix(N2full, 1, mxREAL);
+    double* IndNearest = mxGetPr(plhs[0]);
+    std::memcpy(IndNearest, TmpIndNearest.data(), N2full * sizeof(double));
+
+    if (needDist) {
+        mxClassID outClass = std::is_same<T,double>::value ? mxDOUBLE_CLASS : mxSINGLE_CLASS;
+        plhs[1] = createNumericVector<T>(N2full, outClass);
+        T* DistNearest = static_cast<T*>(mxGetData(plhs[1]));
+        std::memcpy(DistNearest, TmpDistNearest.data(), N2full * sizeof(T));
+    }
+
+    if (needNmatch) {
+        plhs[2] = mxCreateNumericMatrix(N2full, 1, mxUINT32_CLASS, mxREAL);
+        uint32_T* NmatchPtr = static_cast<uint32_T*>(mxGetData(plhs[2]));
+        std::memcpy(NmatchPtr, TmpNmatch.data(), N2full * sizeof(uint32_T));
+    }
+
+    if (needIndAll) {
+        const char* fieldNames[] = {"Ind", "Dist"};
+        plhs[3] = mxCreateStructMatrix(N2full, 1, 2, fieldNames);
+
+        const mxClassID outClass = std::is_same<T,double>::value ? mxDOUBLE_CLASS : mxSINGLE_CLASS;
+
+        for (mwIndex i2 = 0; i2 < N2full; ++i2) {
+            const mwSize Nm = static_cast<mwSize>(TmpAllMatches[i2].size());
+
+            mxArray* IndCell = mxCreateDoubleMatrix(Nm, 1, mxREAL);
+            double* IndPtr = mxGetPr(IndCell);
+
+            mxArray* DistCell = mxCreateNumericMatrix(Nm, 1, outClass, mxREAL);
+            T* DistPtr = static_cast<T*>(mxGetData(DistCell));
+
+            for (mwIndex k = 0; k < Nm; ++k) {
+                IndPtr[k] = static_cast<double>(TmpAllMatches[i2][k].OrigIdx1);
+
+                T outDist = TmpAllMatches[i2][k].Dist;
+                if (isUnitsDeg) {
+                    outDist = rad2degT(outDist);
+                }
+                DistPtr[k] = outDist;
+            }
+
+            mxSetField(plhs[3], i2, "Ind", IndCell);
+            mxSetField(plhs[3], i2, "Dist", DistCell);
+        }
+    }
+}
+
+void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
+    if (nrhs < 5 || nrhs > 8) {
+        mexErrMsgIdAndTxt(
+            "matchTwoCats:Input",
+            "Usage: [IndNearest2to1, DistNearest, Nmatch, IndAll] = matchTwoCats(RA1, Dec1, RA2, Dec2, SearchRadius, IsUnitsDeg, CheckList1sorted, SortIndAll)"
+        );
+    }
+
+    if (nlhs > 4) {
+        mexErrMsgIdAndTxt("matchTwoCats:Output", "Too many output arguments.");
+    }
+
+    const mxArray* RA1 = prhs[0];
+    const mxArray* Dec1 = prhs[1];
+    const mxArray* RA2 = prhs[2];
+    const mxArray* Dec2 = prhs[3];
+    const mxArray* SearchRadius = prhs[4];
+
+    validateVectorRealSameType<double>(RA1, Dec1, "RA1", "Dec1");
+    validateVectorRealSameType<double>(RA2, Dec2, "RA2", "Dec2");
+
+    if (mxGetClassID(RA1) != mxGetClassID(RA2)) {
+        mexErrMsgIdAndTxt("matchTwoCats:Input",
+                          "RA1/Dec1 and RA2/Dec2 must all have the same numeric class.");
+    }
+
+    if (!mxIsNumeric(SearchRadius) || mxIsComplex(SearchRadius) || mxGetNumberOfElements(SearchRadius) != 1) {
+        mexErrMsgIdAndTxt("matchTwoCats:Input",
+                          "SearchRadius must be a real numeric scalar.");
+    }
+
+    const bool isUnitsDeg       = (nrhs >= 6) ? isScalarLogicalTrue(prhs[5], false) : false;
+    const bool checkList1sorted = (nrhs >= 7) ? isScalarLogicalTrue(prhs[6], false) : false;
+    const bool sortIndAll       = (nrhs >= 8) ? isScalarLogicalTrue(prhs[7], false) : false;
+
+    const double searchRadiusInput = mxGetScalar(SearchRadius);
+
+    const mxClassID cid = mxGetClassID(RA1);
+    switch (cid) {
+        case mxDOUBLE_CLASS:
+            runKernel<double>(nlhs, plhs, RA1, Dec1, RA2, Dec2,
+                              searchRadiusInput, isUnitsDeg, checkList1sorted, sortIndAll);
+            break;
+
+        case mxSINGLE_CLASS:
+            runKernel<float>(nlhs, plhs, RA1, Dec1, RA2, Dec2,
+                             searchRadiusInput, isUnitsDeg, checkList1sorted, sortIndAll);
+            break;
+
+        default:
+            mexErrMsgIdAndTxt("matchTwoCats:Input",
+                              "RA/Dec inputs must be single or double.");
+    }
+}

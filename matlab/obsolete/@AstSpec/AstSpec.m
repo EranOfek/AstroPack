@@ -1,6 +1,15 @@
 % A class for astronomical spectra
 % Package: @AstSpec
 % Description: A class of structure array of astronomical spectra.
+%
+%              DEPRECATED - use AstroSpec instead. This class is retained
+%              only so that previously saved objects and data files that
+%              contain AstSpec arrays remain loadable; do not use it in new
+%              code. UltrasatPerf.loadobj and the sky background branch of
+%              telescope.sn.sn_spec are the two places that still rely on
+%              it. See matlab/doc/AstSpec_to_AstroSpec_migration.md for the
+%              API mapping and for the pitfalls found while migrating.
+%
 %     By : Eran O. Ofek                    Feb 2016
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Reliable: 2
@@ -30,8 +39,18 @@ classdef AstSpec < HEAD
          function AstS=AstSpec(N,M)
              % AstSpec constructor
              % Package: @AstSpec
-             % Description: AstSpec constructor method
-            
+             % Description: AstSpec constructor method. Return an
+             %              initialized AstSpec object array.
+             % Input  : - Number of rows, or a size vector of the form
+             %            [Nrow, Ncol] (e.g., as returned by size).
+             %            Default is 1.
+             %          - Number of columns. Default is 1.
+             % Output : - An AstSpec object array of size [Nrow, Ncol].
+             % Example: AstS = AstSpec;
+             %          AstS = AstSpec(3);
+             %          AstS = AstSpec(2,3);
+             %          AstS = AstSpec([2 3]);   % same, size vector form
+
             WaveField = 'Wave';
             
             if (nargin==0)
@@ -39,7 +58,9 @@ classdef AstSpec < HEAD
                 M = 1;
             elseif (nargin==1)
                 if (numel(N)>1)
+                    % N is a size vector [Nrow, Ncol]
                     M = N(2);
+                    N = N(1);
                 else
                     M = 1;
                 end
@@ -3238,7 +3259,7 @@ classdef AstSpec < HEAD
                     Conv = convert.units('ang','micron',1);
                     warning('Assume wavelength for AstSpec %d is in ang',Is);
                 end
-                Ext = astro.spec.extinction(abs(Ebv(Is)),AS(Is).Wave.*Conv,[],R);
+                Ext = astro.extinction.extinction(abs(Ebv(Is)),AS(Is).Wave.*Conv,[],R);
                 if (~isempty(AS(Is).Int))
                     % apply extinction to .Int
                     AS(Is).Int = AS(Is).Int.*10.^(-sign(Ebv(Is)).*0.4.*Ext);

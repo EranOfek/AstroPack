@@ -23,14 +23,15 @@ classdef MsgLogger < handle
 
     % Properties
     properties (SetAccess = public)
-        CurFileLevel LogLevel   % Current level for log file
-        CurDispLevel LogLevel   % Current level for display
-        CurSyslogLevel LogLevel % Current level for display
-        Console                 % True to print messages also to console
-        Enabled logical         % True to enable logging, when false, calling msg..() function will do nothing
-        UserData                % Optional user data
-        LogF LogFile            % Log file, used internally
-        Syslog io.Syslog        % Syslog logger
+        CurFileLevel LogLevel       % Current level for log file
+        CurDispLevel LogLevel       % Current level for display
+        CurSyslogLevel LogLevel     % Current level for display
+        SuppressDispLevel           % LogLevel or cell array of LogLevels to suppress from display (overrides mustLog); [] means no suppression
+        Console                     % True to print messages also to console
+        Enabled logical             % True to enable logging, when false, calling msg..() function will do nothing
+        UserData                    % Optional user data
+        LogF LogFile                % Log file, used internally
+        Syslog io.Syslog            % Syslog logger
     end
 
     %--------------------------------------------------------
@@ -114,6 +115,7 @@ classdef MsgLogger < handle
             Obj.CurFileLevel = LogLevel.All;
             Obj.CurDispLevel = LogLevel.All;
             Obj.CurSyslogLevel = LogLevel.All;
+            Obj.SuppressDispLevel = [];
             Obj.Console = Args.Console;
                        
             % Load configuration file only once
@@ -176,7 +178,74 @@ classdef MsgLogger < handle
     end
 
 
-	methods
+	methods % msg logger
+        function writeLog(Obj, Msg, Level, Args)
+            % Write a log (or error stack) message to screen and log file
+            % Input  : - Self.
+            %          - One of the following:
+            %            Char array containing message to print/log.
+            %            A cell array of messages.
+            %            As truct array with messages in the .Msg field.
+            %            An MException object.
+            %            Empty (do nothing).
+            %          - A LogLevel object with the specified message
+            %            level. See LogLeve.<tab> for options.
+            %            Default is LogLevel.Info
+            %          * ...,key,val,...
+            %            'WriteLog' - write log file. Default is true.
+            %            'WriteDev' - write to screen. Default is true.
+            %            'ConcatenateImageEmpty' - instead of N "image is empty" lines put out just a summary
+            % Output : null
+            % Author : Eran Ofek (Apr 2023)
+            
+            arguments
+                Obj
+                Msg
+                Level LogLevel           = LogLevel.Info; % All       Assert    Debug     DebugEx   Error     Fatal     Info      None      Perf      Test      unitTest  Verbose   Warnin
+                Args.WriteLog logical    = true;
+                Args.WriteDev logical    = false;
+            end
+
+            if ~isempty(Msg)
+                if ischar(Msg)
+                    Lines{1} = Msg;
+                elseif isstruct(Msg)
+                    Lines = squeeze(struct2cell(Msg));
+                elseif isa(Msg, 'MException')
+                    Nst      = numel(Msg.stack);
+                    Lines    = cell(1+Nst,1);
+                    Lines{1} = sprintf('Exception: id=%s msg=%s',Msg.identifier, Msg.message);
+                    
+                    for Ist=1:1:Nst
+                        Lines{Ist+1} = sprintf('stack: Ind=%d; FunName=%s; line=%d',Ist, Msg.stack(Ist).name, Msg.stack(Ist).line);
+                    end
+                elseif iscell(Msg)
+                    % do nothing - already in cell format
+                    Lines = Msg;
+                else
+                    error('Unknown Msg option');
+                end
+                
+                %instead of N "image is empty" lines put out just a summary
+                %NumEmpty = sum(contains(Lines, "image is empty"));
+                %if NumEmpty > 0 && Args.ConcatenateImageEmpty
+                %    Lines = {sprintf('%d empty images were not written', NumEmpty)};
+                %end
+    
+                Nl    = numel(Lines);
+                Lines = cell(Nl,1); 
+                for Il=1:1:Nl
+                    Lines{Il} = {[Obj.HostName ': ' Lines{Il}]};
+                    if Args.WriteDev
+                        fprintf('%s\n', Lines{Il});
+                    end
+                    if Args.WriteLog
+                        Obj.Logger.msgLog(Level, Lines{Il});
+                    end
+                end
+            end
+        end
+
 
 		function msgLog(Obj, Level, varargin)
             % Log message to console/file according to current LogLevel settings
@@ -192,6 +261,10 @@ classdef MsgLogger < handle
 			
             % Check if first element is cell array
             is_cell = ~isempty(varargin) && iscell(varargin{1});
+            
+            if isempty(varargin)
+                return;
+            end
                 
             % Always use msgStyle to print errors in red color
             if (Level == LogLevel.Error || Level == LogLevel.Fatal || Level == LogLevel.Assert) && ~is_cell
@@ -207,13 +280,16 @@ classdef MsgLogger < handle
 			
 			LogToDisplay = Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel);
 			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);
-			LogToSyslog = uint32(Level) <= uint32(Obj.CurSyslogLevel);				
+			LogToSyslog = uint32(Level) <= uint32(Obj.CurSyslogLevel);
             if Obj.mustLog(Level)
                 LogToDisplay = true;
                 LogToFile = true;
                 LogToSyslog = true;
             end
-            
+            if Obj.isSuppressedFromDisp(Level)
+                LogToDisplay = false;
+            end
+
             % Prepare prompt with level
             LevStr = MsgLogger.getLevelStr(Level);
 
@@ -222,14 +298,24 @@ classdef MsgLogger < handle
                 if is_cell
                     cellArray = varargin{1};
                     for i = 1:numel(cellArray)
+                        msg = sprintf(cellArray{i});
+                        if msg == ""
+                            continue; % empty mesage
+                        end
+                        
                         fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
-                        fprintf(cellArray{i});
+                        fprintf(msg);
                         fprintf('\n');
                     end
                 else
-                    fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
-                    fprintf(varargin{:});
-                    fprintf('\n');
+                    if ~isempty(varargin)
+                        msg = sprintf(varargin{:});
+                        if msg ~= ""
+                            fprintf('%s [%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
+                            fprintf(msg);
+                            fprintf('\n');
+                        end
+                    end
                 end
             end
 
@@ -249,11 +335,13 @@ classdef MsgLogger < handle
             
             % Log to Syslog
             if LogToSyslog
-                if ~isempty(Obj.Syslog)
+                if ~isempty(Obj.Syslog) && ~isempty(Obj.Syslog.UdpSocket)
                     if is_cell
                         cellArray = varargin{1};
                         for i = 1:numel(cellArray)
-                            Obj.Syslog.sendMessage(Level, cellArray{i});
+                            if ~isempty(cellArray{i})
+                                Obj.Syslog.sendMessage(Level, cellArray{i});
+                            end
                         end
                     else                    
                         Obj.Syslog.sendMessage(Level, varargin{:});
@@ -277,19 +365,25 @@ classdef MsgLogger < handle
 
 			LogToDisplay = Obj.Console && uint32(Level) <= uint32(Obj.CurDispLevel);
 			LogToFile = uint32(Level) <= uint32(Obj.CurFileLevel);
-			LogToSyslog = uint32(Level) <= uint32(Obj.CurSyslogLevel);			
+			LogToSyslog = uint32(Level) <= uint32(Obj.CurSyslogLevel);
             if Obj.mustLog(Level)
                 LogToDisplay = true;
                 LogToFile = true;
                 LogToSyslog = true;
-            end            
-            
+            end
+            if Obj.isSuppressedFromDisp(Level)
+                LogToDisplay = false;
+            end
+
             % Prepare prompt with log level
-            LevStr = MsgLogger.getLevelStr(Level);
+            LevStr = "[" + MsgLogger.getLevelStr(Level) + "] ";
+            
+            DateStr = datestr(now, 'hh:MM:SS.FFF') + " ";
 
             % Log to display
             if LogToDisplay
-                cprintf(Style, '[%s] ', datestr(now, 'HH:MM:SS.FFF'), LevStr);
+                cprintf(Style, DateStr);
+                cprintf(Style, LevStr);
                 cprintf(Style, varargin{:});
                 fprintf('\n');
             end
@@ -316,8 +410,13 @@ classdef MsgLogger < handle
             %          varargin - Any fprintf arguments
             % Output:  -
             % Example: Obj.msgLogEx(LogLevel.Debug, Ex, 'Function failed, elapsed time: %f', toc)
-            MsgReport = getReport(Ex, 'extended', 'hyperlinks', 'off');
-            MsgReport = strrep(MsgReport, newline, [newline, '[ERR] ']);
+            MsgReport = getReport(Ex, 'extended', 'hyperlinks', 'off');            
+            DateStr = datestr(now, 'hh:MM:SS.FFF') + " ";
+            PrefixStr = newline + DateStr + "[Err] ";
+            if isprop(Obj, 'Tag')
+                PrefixStr = PrefixStr + Obj.Tag;
+            end
+            MsgReport = strrep(MsgReport, newline, [PrefixStr]);
             if ~isempty(varargin)
                 Msg = sprintf('Exception: %s - %s - %s - %s', Ex.identifier, Ex.message, MsgReport, sprintf(varargin{:}));
             else
@@ -367,6 +466,20 @@ classdef MsgLogger < handle
             end
         end
 
+        function Result = isSuppressedFromDisp(Obj, Level)
+            % Return true if Level should be suppressed from display via SuppressDispLevel
+            % Input  : - Self.
+            %          - LogLevel to check.
+            % Output : - true if display should be suppressed for this level.
+            if isempty(Obj.SuppressDispLevel)
+                Result = false;
+            elseif iscell(Obj.SuppressDispLevel)
+                Result = any(cellfun(@(L) Level == L, Obj.SuppressDispLevel));
+            else
+                Result = Level == Obj.SuppressDispLevel;
+            end
+        end
+
 		function msgStack(Obj, Level, varargin)
             % Log stack trace, @Todo - NOT fully tested yet!
             % Input:   Level
@@ -393,9 +506,68 @@ classdef MsgLogger < handle
             %Msg = sprintf('File: %s, Line: #%d, Caller: %s - %s', File, Line, CallerName, sprintf(varargin{:}));
             %Obj.msgLog(Level, Msg);
             Obj.msgLog(Level, '');
+        end   
+       
+        % =================================================================
+        %                                Shortcuts
+        % =================================================================
+
+        function debug(Obj, varargin)
+            % Log debug message
+            % Input:   varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.debug('This is a debug message');
+            Obj.msgLog(LogLevel.Debug, varargin{:});
+        end
+        
+        function info(Obj, varargin)
+            % Log info message
+            % Input:   varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.info('This is an info message');
+            Obj.msgLog(LogLevel.Info, varargin{:});
+        end
+
+        function warning(Obj, varargin)
+            % Log warning message
+            % Input:   varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.warning('This is a warning message');
+            Obj.msgLog(LogLevel.Warning, varargin{:});
+        end
+        
+        function error(Obj, varargin)
+            % Log error message
+            % Input:   varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.error('This is an error message');
+            Obj.msgLog(LogLevel.Error, varargin{:});
+        end
+        
+        function fatal(Obj, varargin)
+            % Log fatal message
+            % Input:   varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.fatal('This is a fatal message');
+            Obj.msgLog(LogLevel.Fatal, varargin{:});
+        end
+        
+        function assert(Obj, varargin)
+            % Log assert message
+            % Input:   varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.assert('This is an assert message');
+            Obj.msgLog(LogLevel.Assert, varargin{:});
+        end
+        
+        function test(Obj, varargin)        
+            % Log test message
+            % Input:   varargin - Any fprintf arguments
+            % Output:  -
+            % Example: Obj.test('This is a test message');
+            Obj.msgLog(LogLevel.Test, varargin{:});
         end
     end
-
 
 
     methods(Static) % Static functions

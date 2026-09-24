@@ -1,0 +1,26 @@
+PLAN MODE - PROMPT 6 - FINAL CLEANUP AND CONSISTENCY
+
+Goal: ensure consistent architecture and no leftover legacy access patterns.
+
+Tasks:
+1) Search for remaining references outside /obsolete to:
+- JSON simulation classes
+- namespace filesystem path based "API data"
+- direct file I/O used for API behavior
+
+2) Replace with:
+- API client calls
+- or move the code to obsolete if it is simulation-only
+
+3) Ensure public API surface:
+- clients exist per service
+- models are property-based classes
+- utils are stateless
+- debug scripts follow template
+
+4) Ensure naming consistency:
+- PlansManagerClient / ScheduleManagerClient (not PlansClient)
+- One consistent naming for validator service client (ValidatorClient)
+- Update READMEs and comments lightly if needed.
+
+Stop after consistency checks and compilation fixes.

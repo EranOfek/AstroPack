@@ -1,32 +1,386 @@
-% Package Unit-Test
-%
-% ### Requirements:
-%
-%
-%
-
-
 function Result = unitTest()
-    % Package Unit-Test   
-	io.msgStyle(LogLevel.Test, '@start', 'test started');
+    % unitTest for imUtil.psf package   
+
+
+    %% imUtil.psf.mex.fitGauss2D
+
+    N = 1000;
+    A = rand(N,1).*1.5+1;
+    B = rand(N,1).*0.5+1;
+    Rho = rand(N,1);
+
+    G = imUtil.kernel2.gauss([A,B,Rho]);
+    tic;
+    [a,b,c,d,e,f]=imUtil.psf.mex.fitGauss2D(G, 1e-2);
+    toc
+    tic;
+    for I=1:1:N
+        [R(I),BF] = imUtil.psf.fitFunPSF(G(:,:,I), 'Funs',{@imUtil.kernel2.gauss}, 'Par0',{[2 2 0]}, 'Norm0',1);
+    end
+    toc
+    Par=reshape([R.Par],4,1000)';
+    % allow for up to 3% results with errors exceeding 0.1
+    if max(sum(abs(   [b,c,d,e] - [ones(N,1), A,B,Rho])>0.1) )./N >0.03
+        error('Problem with imUtil.psf.mex.fitGauss2D');
+    end
+    if max( sum(abs(   [Par] - [ones(N,1), A,B,Rho])>0.1)     )./N > 0.03
+        error('Problem with imUtil.psf.fitFunPSF');
+    end
+
+    %% imUtil.psf.stamp2full
+
+    K=imUtil.kernel2.gauss(2.*ones(100,1));
+    F=imUtil.psf.stamp2full(K,[31 32],'CenterPosition','center');
+    M=imUtil.image.moment2(F(:,:,2),16,16);
+    if abs(M.X-16.5)>1e-4 || abs(M.Y-16)>1e-4
+        error('Problem with imUtil.psf.stamp2full');
+    end
+
+    %% 
+    K=imUtil.kernel2.gauss(2.*ones(100,1));
+    F=imUtil.psf.stamp2full(K,[31 31],'CenterPosition','center');
+    Fs = imUtil.psf.full2stamp(F, [15 15], 'FullPosition','center');
+    %old: Fs1 = imUtil.psf.full2stamp(K(:,:,1), 'StampHalfSize',[7 7],'IsCorner',false);
+
+    M = imUtil.image.moment2(Fs(:,:,1),8,7.6);
+    if abs(M.X-8)>1e-4 || abs(M.Y-8)>1e-4
+        error('Problem with imUtil.psf.full2stamp');
+    end
+    if max(abs(Fs-K),[],'all')>1e-3
+        error('Problem with imUtil.psf.full2stamp');
+    end
+    % no on even image
+    K=imUtil.kernel2.gauss(2.*ones(100,1));
+    F=imUtil.psf.stamp2full(K,[31 32],'CenterPosition','center');
+    Fs = imUtil.psf.full2stamp(F, [15 15], 'FullPosition','center');
+
+    M = imUtil.image.moment2(Fs(:,:,1),8,7.6);
+    if abs(M.X-8)>3e-4 || abs(M.Y-8)>3e-4
+        abs(M.X-8)
+        abs(M.Y-8)
+        error('Problem with imUtil.psf.full2stamp');
+    end
+    if max(abs(Fs-K),[],'all')>1e-3
+        error('Problem with imUtil.psf.full2stamp');
+    end
+
+    %% imUtil.psf.full2stampPsf
+    % The extracted stamp must be centered for every combination of input
+    % and output size parity, in each of the three input layouts. Odd sizes
+    % hide the bug: the "center" and "pixcenter" conventions differ only for
+    % even N (issue #1241).
+    for Nfull=[20 21 31 32]
+        for Nstamp=[15 16 25]
+            % "pixcenter": the imUtil.kernel2.* layout, center at ceil(N/2)
+            P  = imUtil.kernel2.gauss(2, [Nfull Nfull]);
+            St = imUtil.psf.full2stampPsf(P, [Nstamp Nstamp], 'FullPosition','pixcenter', 'Supress',false);
+            [~,Imax]  = max(St(:));
+            [Ipk,Jpk] = ind2sub(size(St), Imax);
+            if Ipk~=ceil(Nstamp./2) || Jpk~=ceil(Nstamp./2)
+                error('Problem with imUtil.psf.full2stampPsf: pixcenter %dx%d -> %dx%d', Nfull,Nfull,Nstamp,Nstamp);
+            end
+
+            % "center": the fftshift layout, center at floor(N/2)+1
+            P  = fftshift(real(ifft2(ones(Nfull,Nfull))));
+            St = imUtil.psf.full2stampPsf(P, [Nstamp Nstamp], 'FullPosition','center', 'Supress',false, 'Norm',false);
+            [~,Imax]  = max(St(:));
+            [Ipk,Jpk] = ind2sub(size(St), Imax);
+            if Ipk~=floor(Nstamp./2)+1 || Jpk~=floor(Nstamp./2)+1
+                error('Problem with imUtil.psf.full2stampPsf: center %dx%d -> %dx%d', Nfull,Nfull,Nstamp,Nstamp);
+            end
+
+            % "corner": FFT order, center at index 1
+            P  = real(ifft2(ones(Nfull,Nfull)));
+            St = imUtil.psf.full2stampPsf(P, [Nstamp Nstamp], 'FullPosition','corner', 'Supress',false, 'Norm',false);
+            [~,Imax]  = max(St(:));
+            [Ipk,Jpk] = ind2sub(size(St), Imax);
+            if Ipk~=floor(Nstamp./2)+1 || Jpk~=floor(Nstamp./2)+1
+                error('Problem with imUtil.psf.full2stampPsf: corner %dx%d -> %dx%d', Nfull,Nfull,Nstamp,Nstamp);
+            end
+        end
+    end
+
+    % a non-square stamp must be centered independently in I and J
+    P  = imUtil.kernel2.gauss(2, [40 41]);
+    St = imUtil.psf.full2stampPsf(P, [15 21], 'FullPosition','pixcenter', 'Supress',false);
+    [~,Imax]  = max(St(:));
+    [Ipk,Jpk] = ind2sub(size(St), Imax);
+    if Ipk~=ceil(15./2) || Jpk~=ceil(21./2)
+        error('Problem with imUtil.psf.full2stampPsf: non-square stamp');
+    end
+
+    % a cube is extracted slice by slice
+    Cube = imUtil.kernel2.gauss(2.*ones(5,1), [21 21]);
+    StC  = imUtil.psf.full2stampPsf(Cube, [15 15], 'Supress',false);
+    if ~isequal(size(StC), [15 15 5])
+        error('Problem with imUtil.psf.full2stampPsf: cube size');
+    end
+
+    % an unknown layout must be rejected rather than silently assumed
+    try
+        imUtil.psf.full2stampPsf(ones(21,21), [15 15], 'FullPosition','unknown');
+        error('Problem with imUtil.psf.full2stampPsf: bad FullPosition not rejected');
+    catch Ex
+        if ~strcmp(Ex.identifier, 'imUtil:psf:full2stampPsf:BadFullPosition')
+            rethrow(Ex);
+        end
+    end
+
+    %% imUtil.psf.suppressEdges / imUtil.psf.suppressEdgesPars
+    % A scalar FunPars W is a taper width from the stamp outer radius R:
+    % the cosbell must be 1 at R-W, 0.5 at R-1 (for W=2) and exactly 0 at
+    % R along the axis, for odd and even N alike. R is the largest on-axis
+    % radius about the imUtil.kernel2 center ceil(N/2): (N-1)/2 for odd N,
+    % N/2 for even N.
+    for N = [15 16 24 25]
+        Cen = ceil(N/2);
+        R   = N - Cen;
+        FunPars = imUtil.psf.suppressEdgesPars(2, [N N]);
+        if any(FunPars ~= [R-2, R])
+            error('Problem with imUtil.psf.suppressEdgesPars: N=%d', N);
+        end
+        % a flat input exposes the taper itself
+        T = imUtil.psf.suppressEdges(ones(N,N), 'Norm',false);
+        Row = T(Cen, :);
+        if abs(Row(Cen+R-2)-1)>1e-12 || abs(Row(Cen+R-1)-0.5)>1e-12 || Row(Cen+R)~=0 || any(Row(Cen:Cen+R-2)~=1)
+            error('Problem with imUtil.psf.suppressEdges: taper values for N=%d', N);
+        end
+        % the far edge (at distance R from the center) is zero; the near
+        % edge is at distance Cen-1, i.e. R for odd N (zero) and R-1 for
+        % even N (0.5 on the axis)
+        NearVal = 0.5.*(mod(N,2)==0);
+        if any(T(end,:)~=0) || any(T(:,end)~=0) || abs(T(Cen,1)-NearVal)>1e-12 || abs(T(1,Cen)-NearVal)>1e-12
+            error('Problem with imUtil.psf.suppressEdges: edge values for N=%d', N);
+        end
+        % Norm=false must not change the flux scale of the untapered core
+        % (the taper is peak-normalized to 1, not sum-normalized)
+        P = imUtil.kernel2.gauss(1, [N N]);
+        S = imUtil.psf.suppressEdges(P, 'Norm',false);
+        if abs(S(Cen,Cen) - P(Cen,Cen))>1e-12
+            error('Problem with imUtil.psf.suppressEdges: Norm=false rescales the PSF for N=%d', N);
+        end
+        % explicit [inner outer] radii are used as is
+        T2 = imUtil.psf.suppressEdges(ones(N,N), 'FunPars',[3 5], 'Norm',false);
+        Row2 = T2(Cen, :);
+        if abs(Row2(Cen+3)-1)>1e-12 || abs(Row2(Cen+4)-0.5)>1e-12 || Row2(Cen+5)~=0
+            error('Problem with imUtil.psf.suppressEdges: explicit FunPars for N=%d', N);
+        end
+    end
+    % non-square: the outer radius follows the shorter axis
+    FunPars = imUtil.psf.suppressEdgesPars(2, [21 15]);
+    if any(FunPars ~= [5 7])
+        error('Problem with imUtil.psf.suppressEdgesPars: non-square stamp');
+    end
+    % cube: each slice is tapered and normalized independently
+    C = imUtil.psf.suppressEdges(rand(25,25,3));
+    if any(abs(squeeze(sum(C,[1 2])) - 1)>1e-12) || any(C(1,:,:)~=0, 'all')
+        error('Problem with imUtil.psf.suppressEdges: cube');
+    end
+    % the default taper keeps the flux of a PSF much narrower than the stamp
+    P = imUtil.kernel2.gauss(2, [25 25]);
+    S = imUtil.psf.suppressEdges(P, 'Norm',false);
+    if sum(S,'all') < 0.999
+        error('Problem with imUtil.psf.suppressEdges: default taper removes flux');
+    end
+
+    %% imUtil.psf.radialProfile / imUtil.psf.mex.radialProfile_mex
+
+    K = imUtil.kernel2.gauss;
+    CenterX = (size(K,2)+1)./2;
+    CenterY = (size(K,1)+1)./2;
+    VecX = (1:size(K,2)) - CenterX;
+    VecY = (1:size(K,1)) - CenterY;
+    [MatX, MatY] = meshgrid(VecX, VecY);
+    MatR = sqrt(MatX.^2 + MatY.^2);
+     
+    R=imUtil.psf.radialProfile(K, [CenterY CenterX]);
+    [Rm,Mm,Sm]=imUtil.psf.mex.radialProfile_mex(K, CenterX, CenterY);
+
+    % manual:
     
-    func_unitTest();
-    
-	io.msgStyle(LogLevel.Test, '@passed', 'test passed');
+    II = find(MatR>=3 & MatR<4);
+    if abs(mean(K(II))-Mm(4))>(10.*eps)
+        error('Problem with imUtil.psf.mex.radialProfile_mex');
+    end
+
+    if any(abs(Mm(1:15)./R.MeanV - 1)>(10.*eps))
+        Mm(1:15)./R.MeanV - 1
+        error('Problem with imUtil.psf.mex.radialProfile_mex');
+    end
+
+
+    %% imUtil.psf.combinePSF
+
+    P1 = imUtil.kernel2.gauss([2 2 0],[15 15]);   P1 = P1./sum(P1,'all');
+    P2 = imUtil.kernel2.gauss([3 3 0],[15 15]);   P2 = P2./sum(P2,'all');
+    Tol = 100.*eps;
+
+    % equal weights give the plain mean
+    C = imUtil.psf.combinePSF({P1,P2});
+    if max(abs(C-(P1+P2)./2),[],'all') > Tol
+        error('Problem with imUtil.psf.combinePSF - equal weights');
+    end
+
+    % the weights act through their ratio only, and the result is normalized
+    C1 = imUtil.psf.combinePSF({P1,P2}, 'Weights',[1 3]);
+    C2 = imUtil.psf.combinePSF({P1,P2}, 'Weights',[10 30]);
+    if max(abs(C1-(0.25.*P1+0.75.*P2)),[],'all') > Tol || ~isequal(C1,C2) || abs(sum(C1,'all')-1) > Tol
+        error('Problem with imUtil.psf.combinePSF - weighted mean');
+    end
+
+    % the input stamps are normalized before the combination
+    C3 = imUtil.psf.combinePSF({5.*P1, P2}, 'Weights',[1 3]);
+    if max(abs(C3-C1),[],'all') > Tol
+        error('Problem with imUtil.psf.combinePSF - input normalization');
+    end
+
+    % the numeric [Ny,Nx,Npsf] form matches the cell array form
+    C4 = imUtil.psf.combinePSF(cat(3,P1,P2), 'Weights',[1 3]);
+    if max(abs(C4-C1),[],'all') > Tol
+        error('Problem with imUtil.psf.combinePSF - numeric input form');
+    end
+
+    % a single stamp is returned as it is
+    if max(abs(imUtil.psf.combinePSF({P1})-P1),[],'all') > Tol
+        error('Problem with imUtil.psf.combinePSF - single stamp');
+    end
+
+    % the variance of a weighted mean of independent estimates: sum(W_i^2*Var_i),
+    % and it follows the normalization applied to its own stamp
+    V1 = 0.1.*P1;  V2 = 0.2.*P2;
+    [~, CV]  = imUtil.psf.combinePSF({P1,P2}, 'Weights',[1 3], 'Var',{V1,V2});
+    [~, CV2] = imUtil.psf.combinePSF({5.*P1,P2}, 'Weights',[1 3], 'Var',{25.*V1,V2});
+    if max(abs(CV-(0.25.^2.*V1+0.75.^2.*V2)),[],'all') > Tol || max(abs(CV2-CV),[],'all') > Tol
+        error('Problem with imUtil.psf.combinePSF - variance propagation');
+    end
+
+    % extra stamp dimensions (e.g. a 'Purpose' cube) survive, each slice
+    % being combined on its own
+    D1 = imUtil.kernel2.gauss([2.5 2.5 0],[15 15]);  D1 = D1./sum(D1,'all');
+    D2 = imUtil.kernel2.gauss([3.5 3.5 0],[15 15]);  D2 = D2./sum(D2,'all');
+    CQ = imUtil.psf.combinePSF({cat(3,P1,D1), cat(3,P2,D2)}, 'Weights',[1 3]);
+    if ~isequal(size(CQ),[15 15 2]) || max(abs(CQ(:,:,1)-C1),[],'all') > Tol || ...
+            max(abs(CQ(:,:,2)-(0.25.*D1+0.75.*D2)),[],'all') > Tol
+        error('Problem with imUtil.psf.combinePSF - multi-D stamps');
+    end
+
+    % without normalization the scale of the input stamps is kept
+    if abs(sum(imUtil.psf.combinePSF({2.*P1, 2.*P2}, 'Norm',false),'all')-2) > Tol
+        error('Problem with imUtil.psf.combinePSF - Norm=false');
+    end
+
+    % invalid input must be rejected
+    BadInput = {};
+    try, imUtil.psf.combinePSF({P1,P2}, 'Weights',[1 2 3]); BadInput{end+1}='weight count'; end %#ok<TRYNC>
+    try, imUtil.psf.combinePSF({P1,P2}, 'Weights',[1 -1]);  BadInput{end+1}='negative weight'; end %#ok<TRYNC>
+    try, imUtil.psf.combinePSF({P1,P2(1:13,1:13)});         BadInput{end+1}='size mismatch'; end %#ok<TRYNC>
+    try, imUtil.psf.combinePSF({P1,P2}, 'Var',{V1});        BadInput{end+1}='variance count'; end %#ok<TRYNC>
+    try, imUtil.psf.combinePSF(cat(4,P1,P2));               BadInput{end+1}='4-D numeric input'; end %#ok<TRYNC>
+    if ~isempty(BadInput)
+        error('Problem with imUtil.psf.combinePSF - not rejected: %s', strjoin(BadInput,', '));
+    end
+
+    %% imUtil.psf.oversampling - the downsampling factor must be exact (issue #1296)
+    % The output size has to be size/Factor exactly. Rounding it instead makes
+    % imresize work at a slightly different scale: a 108 px stamp at Oversample 5
+    % used to give round(21.6) = 22 and hence an effective factor of 4.91.
+
+    Nfine = 108;
+    Over  = 5;
+    SepIn = 50;
+    [YY, XX] = ndgrid(1:Nfine, 1:Nfine);
+    Cfine = (Nfine+1)./2;
+    TwoSrc = exp(-((XX-(Cfine-SepIn./2)).^2 + (YY-Cfine).^2)./(2.*3.^2)) + ...
+             exp(-((XX-(Cfine+SepIn./2)).^2 + (YY-Cfine).^2)./(2.*3.^2));
+    Down = imUtil.psf.oversampling(TwoSrc, Over, 1, 'ReNorm',false, 'InterpMethod','box');
+    Ndown = size(Down,1);
+    [~, XXd] = ndgrid(1:Ndown, 1:Ndown);
+    LeftSrc  = Down;  LeftSrc(:, ceil(Ndown./2):end) = 0;
+    RightSrc = Down;  RightSrc(:, 1:floor(Ndown./2)) = 0;
+    SepOut = sum(RightSrc.*XXd,'all')./sum(RightSrc,'all') - sum(LeftSrc.*XXd,'all')./sum(LeftSrc,'all');
+    if abs(SepOut - SepIn./Over) > 1e-3
+        error('Problem with imUtil.psf.oversampling: effective factor is %.4f instead of %d', ...
+              SepIn./SepOut, Over);
+    end
+    % and a centered source must stay centered
+    Centred = imUtil.psf.oversampling(exp(-((XX-Cfine).^2+(YY-Cfine).^2)./(2.*(0.85.*Over).^2)), ...
+                                      Over, 1, 'ReNorm',true, 'InterpMethod','box');
+    Nc = size(Centred,1);
+    [YYc, XXc] = ndgrid(1:Nc, 1:Nc);
+    WCen = Centred./sum(Centred,'all');
+    if hypot(sum(WCen.*YYc,'all')-(Nc+1)./2, sum(WCen.*XXc,'all')-(Nc+1)./2) > 1e-3
+        error('Problem with imUtil.psf.oversampling: the stamp center is not preserved');
+    end
+
+    %% imUtil.psf.shiftResampleRotate - the subpixel shift must not ring (issue #1296)
+    % With an oversampled input the shift is applied before the rescaling, where the
+    % profile is well sampled; doing it afterwards left ~0.2% of the flux of a
+    % sigma = 0.85 pix core in negative pixels around it.
+
+    Nps  = 125;
+    Cps  = (Nps+1)./2;
+    [Yp, Xp] = ndgrid(1:Nps, 1:Nps);
+    Psf1 = exp(-((Xp-Cps).^2 + (Yp-Cps).^2)./(2.*(0.85.*Over).^2));
+    Psf1 = Psf1./sum(Psf1,'all');
+    rng(11);
+    ShiftSub = rand(10,2) - 0.5;
+    for Imeth = {'lanczos','fft'}
+        Shifted = imUtil.psf.shiftResampleRotate(repmat(Psf1,[1 1 10]), ShiftSub, Over, [], ...
+                        'ForceOdd',true, 'Recenter',true, 'RecenterMethod',Imeth{1}, 'Renorm',true);
+        NegFrac = sum(Shifted(Shifted<0))./sum(Shifted,'all');
+        if abs(NegFrac) > 1e-4
+            error('Problem with imUtil.psf.shiftResampleRotate: %s left %.4f%% of the flux negative', ...
+                  Imeth{1}, 100.*NegFrac);
+        end
+        % and the stamp must actually be shifted by what was asked
+        Nsh = size(Shifted,1);
+        [Ysh, Xsh] = ndgrid(1:Nsh, 1:Nsh);
+        for Ipsf = 1:10
+            Wsh = Shifted(:,:,Ipsf)./sum(Shifted(:,:,Ipsf),'all');
+            ErrSh = hypot(sum(Wsh.*Ysh,'all')-((Nsh+1)./2+ShiftSub(Ipsf,1)), ...
+                          sum(Wsh.*Xsh,'all')-((Nsh+1)./2+ShiftSub(Ipsf,2)));
+            if ErrSh > 0.02
+                error('Problem with imUtil.psf.shiftResampleRotate: %s misplaced a stamp by %.3f pix', ...
+                      Imeth{1}, ErrSh);
+            end
+        end
+    end
+
+    %% pseudoFWHM (issue #1310): no one-pixel shortfall, no whole-pixel quantisation,
+    % X = columns, and truncation at the stamp edge flagged
+    TopHat = zeros(11); TopHat(4:8,5:7) = 1;          % 5 rows (Y) x 3 columns (X)
+    [Wx, Wy, Trunc] = imUtil.psf.pseudoFWHM(TopHat);
+    if abs(Wx - 3) > 1e-12 || abs(Wy - 5) > 1e-12 || any(Trunc)
+        error('Problem with imUtil.psf.pseudoFWHM: a 5-row x 3-column top hat gave X %g, Y %g (expected 3, 5)', Wx, Wy);
+    end
+    % pixel-integrated Gaussian (sigma 3 px, FWHM 7.06 px) at random sub-pixel positions:
+    % the old pixel-centre extent read ~0.93 px short with +-0.34 px of scatter
+    rng(12);
+    Sig = 3; Nst = 41; Ss = 10;
+    Xs  = ((1:Nst*Ss) - 0.5)./Ss + 0.5;
+    [Xg, Yg] = meshgrid(Xs, Xs);
+    Wfit = zeros(50,1);
+    for Itr = 1:50
+        C0 = (Nst+1)./2 + rand(1,2) - 0.5;
+        Fine = exp(-((Xg-C0(1)).^2 + (Yg-C0(2)).^2)./(2.*Sig.^2));
+        Stamp = reshape(sum(sum(reshape(Fine,Ss,Nst,Ss,Nst),1),3), Nst, Nst);
+        [Wx, Wy] = imUtil.psf.pseudoFWHM(Stamp);
+        Wfit(Itr) = (Wx + Wy)./2;
+    end
+    TrueFWHM = 2.*sqrt(2.*log(2)).*sqrt(Sig.^2 + 1./12);   % incl. pixel integration
+    if abs(mean(Wfit) - TrueFWHM) > 0.1 || std(Wfit) > 0.05
+        error('Problem with imUtil.psf.pseudoFWHM: sigma=3 Gaussian gave %.3f +- %.3f px (expected %.3f)', ...
+              mean(Wfit), std(Wfit), TrueFWHM);
+    end
+    % a region reaching the stamp edge is a lower limit, and must say so
+    Edge = exp(-((Xg-3).^2 + (Yg-20).^2)./(2.*4.^2));
+    [~, ~, Trunc] = imUtil.psf.pseudoFWHM(Edge(1:Ss:end,1:Ss:end));
+    if ~isequal(Trunc, [true false])
+        error('Problem with imUtil.psf.pseudoFWHM: truncation flag %s for a PSF cut by the left edge (expected [1 0])', ...
+              mat2str(Trunc));
+    end
+
+    %%
+
 	Result = true;
 end
-
-%--------------------------------------------------------------------------
-
-
-function Result = func_unitTest()
-	% Function Unit-Test
-	io.msgStyle(LogLevel.Test, '@start', 'test started');
-   
-	io.msgStyle(LogLevel.Test, '@passed', 'passed');
-	Result = true;
-end
-
-
-%--------------------------------------------------------------------------
-

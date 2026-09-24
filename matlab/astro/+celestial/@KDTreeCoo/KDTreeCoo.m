@@ -2,8 +2,10 @@
 %       KDTree for spherical coordinates
 %       
 % Examples:
-% 
-
+% K=celestial.KDTreeCoo;
+% VLA=cats.radio.VLASS1;
+% K=K.populate(VLA.Catalog(:,1:2))
+% [ID,D] = K.coneSearch(1,1,1000);
 
 
 classdef KDTreeCoo < matlab.mixin.Copyable
@@ -87,7 +89,7 @@ classdef KDTreeCoo < matlab.mixin.Copyable
             %          * ...,key,val,...
             %            'Type' - search type:
             %                   'M' - use matlab KT tree.
-            %                       faster for lare number of coordinate to
+            %                       faster for large number of coordinate to
             %                       search.
             %                   'K' - use KDTree
             %                   If empty, choose method automatically.

@@ -1,607 +1,462 @@
-function Result = unitTest
-    % Package Unit-Test
-	io.msgStyle(LogLevel.Test, '@start', 'tools.array test started');
+function [Result] = unitTest()
+    % unitTest for: tools.array
+
+
+    %% tools.array.mex.allocateUninit
+    A = tools.array.mex.allocateUninit([10 10 3],'single');
+
     
-    Array = uint32([1 2 3; 2 3 4; 3 4 5]);
-    Val = tools.array.bitor_array(Array,1,true);
-    if ~all(Val==[3 7 7])
-        error('Error in tools.array.bitor_array');
+    %% tools.array.mex.countNaN
+
+    A=rand(100,100);
+    A(11:20)=NaN;
+    
+    if sum(isnan(A))~=tools.array.mex.countNaN(A)
+        error('Problem with: tools.array.mex.countNaN');
+    end
+
+    %% tools.array.mex.selectIndNaN
+
+    Matrix=rand(1000,100);
+    Ind=randi(1000,500,1);
+    Ind(2)=NaN;           
+    NewMatrix=tools.array.mex.selectIndNaN(Matrix,Ind);
+    Ind0 = double(Ind(:)); Good = ~isnan(Ind0);NewMatrix1 = NaN(numel(Ind0), size(Matrix,2));NewMatrix1(Good,:) = double(Matrix(Ind0(Good),:));
+
+    if max(abs(NewMatrix1-NewMatrix),[],'all')>0
+        error('problem with tools.array.mex.selectIndNaN');
     end
     
-    %test_onesExcept();
 
-    %test_onesCondition();
+    %% tools.array.bitor_array.m
+    Array = randi(2^16,1600,1600,20);   
+    I = rand(size(Array))>0.05;
+    Array(I)=0;
+    Array = uint32(Array);
+    Val1 = tools.array.bitor_array(Array,3,[false false]);
+    Val2 = tools.array.bitor_array(Array,3,false);
+    Val3 = tools.array.bitor_array(Array,3,true);
+    if any(Val1~=Val2)
+        error('Problem with: tools.array.bitor_array');
+    end
+    if any(Val1~=Val3)
+        error('Problem with: tools.array.mex.bitor_dim');
+    end
 
-    %test_init();
-    
-%     test_bitset();
-    %test_countVal();
-%     return; 
-%     test_bit_or();
-%     test_bit_or_and();
-%     test_bit_or_and_mex();	
-	io.msgStyle(LogLevel.Test, '@passed', 'tools.array test passed');
-	Result = true;
-end
+    %% tools.array.bitand_array.m
+    Array = randi(2^16,1600,1600,20);   
+    I = rand(size(Array))>0.05;
+    Array(I)=0;
+    Array = uint32(Array);
+    Val1 = tools.array.bitand_array(Array,3,[false false]);
+    Val2 = tools.array.bitand_array(Array,3,false);
+    Val3 = tools.array.bitand_array(Array,3,true);
 
-function Result = test_onesExcept()
-    io.msgLog(LogLevel.Test, 'tools.array.onesexcept test started');
-    
-    % Checking basic functionality and comparing mex and matlab
-    UseMex = 0;
-    UseMP = 0;
-%     mat = [3 6 9];
-%     mat = [3 6 9; 4 7 11];
-    mat = rand(5,4,4)*10;
-    scalar = 5;
-    image = true;
-    matlab_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);
-    
-    UseMex = 1;
-    mex_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);
-    
-    assert(isequal(matlab_res, mex_res));
-    
-    
-    iters = 50;
-    
-    for arr_sizes=1:3
-        
-        arr_size = power(10,arr_sizes);
-        
-        for var_types=1:6
+    if any(Val1~=Val2)
+        error('Problem with: tools.array.bitor_array');
+    end
+    if any(Val1~=Val3)
+        error('Problem with: tools.array.mex.bitand_dim');
+    end
 
-            MatlabTimeTotal = 0;
-            MexTimeTotal = 0;
-            MexMPTimeTotal = 0;            
-            MatlabTime = 0;
-            MexTime = 0;
-            MexMPTime = 0;
+    %% bitsetFlag
 
-            for iter=1:iters
+    Array = uint32(zeros(1716,1716));
+    Flag  = rand(1716,1716)>0.95;
+       
+    Res1 = tools.array.bitsetFlag(Array, Flag, 13, true, [false false]);
+    Res2 = tools.array.bitsetFlag(Array, Flag, 13, true, false);
+    Res3 = tools.array.bitsetFlag(Array, Flag, 13, true, true);
 
-                image = 1;
-                mat = rand(arr_size)*1000;
-                scalar = rand(1)*1000;        
+    if sum(Res1~=Res2)
+        error('Problem with tools.array.bitsetFlag - old mex');
+    end
+    if sum(Res1~=Res3)
+        error('Problem with tools.array.mex.bitsetFlag - new mex');
+    end
 
-                switch var_types
-                    case 1
-                        mat = int8(mat);
-                        scalar = int8(scalar);
-                        var_name = 'int8';
-                    case 2
-                        mat = int16(mat);
-                        scalar = int16(scalar);
-                        var_name = 'int16';
-                    case 3
-                        mat = int32(mat);
-                        scalar = int32(scalar);
-                        var_name = 'int32';
-                    case 4
-                        mat = int64(mat);
-                        scalar = int64(scalar);
-                        var_name = 'int64';
-                    case 5
-                        mat = single(mat);
-                        scalar = single(scalar);
-                        var_name = 'single';
-                    case 6
-                        mat = double(mat);
-                        scalar = double(scalar);
-                        var_name = 'double';
+    % Small arrays (issue #1237): the kernels split the array over the OpenMP
+    % threads by hand, and a thread whose start index fell past the end of the
+    % array used to send the vector loops off the heap. That only happens when
+    % the number of elements is small compared to the number of threads, which
+    % the 1716x1716 case above never reaches.
+    for Nel = [1 2 7 8 25 47 48 49 100 255 500]
+        ArrayS = uint32(randi([0 2^31-1], Nel, 1));
+        FlagS  = rand(Nel,1) > 0.5;
+        for Bit = [1 13 32]
+            for Val = [0 1]
+                RefS = tools.array.bitsetFlag(ArrayS, FlagS, Bit, Val, [false false]);
+                if ~isequal(RefS, tools.array.mex.bitsetFlag(ArrayS, FlagS, Bit, Val))
+                    error('Problem with tools.array.mex.bitsetFlag - N=%d, Bit=%d, Val=%d', Nel, Bit, Val);
                 end
-
-                UseMex = 0;
-                UseMP = 0;
-                t = tic;
-                matlab_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);        
-                MatlabTime = toc(t);
-                MatlabTimeTotal = MatlabTimeTotal + MatlabTime;
-
-                UseMex = 1;
-                UseMP = 0;
-                t = tic;
-                mex_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);
-                MexTime = toc(t);
-                MexTimeTotal = MexTimeTotal + MexTime;
-
-                UseMex = 1;
-                UseMP = 1;
-                t = tic;
-                mex_mp_res = tools.array.onesExcept(mat, scalar, image, UseMex, UseMP);
-                MexMPTime = toc(t);
-                MexMPTimeTotal = MexMPTimeTotal + MexMPTime;                
-                                        
-                assert(isequal(matlab_res, mex_res));
-            end
-
-            MatlabTime = MatlabTimeTotal / iters;
-            MexTime = MexTimeTotal / iters;
-            MexMPTime = MexMPTimeTotal / iters;
-
-            fprintf('Array_size: %d, Var_type: %s, Matlab: %.6f, Mex: %.6f, MexMP: %.6f, Ratio: %0.2f, MP_Ratio: %0.2f\n', arr_size, var_name, MatlabTime, MexTime, MexMPTime, MatlabTime/MexTime, MatlabTime/MexMPTime);
-
-        end
-    end
-    
-    io.msgStyle(LogLevel.Test, '@passed', 'tools.array.onesExcept passed')
-    Result = true;    
-
-end
-
-
-function Result = test_onesCondition()
-    io.msgLog(LogLevel.Test, 'tools.array.onesCondition test started');
-    
-    % Checking basic functionality and comparing mex and matlab
-    UseMex = 0;
-    UseMP = 0;
-    MatR2 = rand(10,10,'double');
-    MomRadius2 = 0.5;   
-    matlab_res = tools.array.onesCondition(MatR2,MomRadius2,'double',UseMex,false);    
-    UseMex = 1;
-    mex_res = tools.array.onesCondition(MatR2,MomRadius2,'double',UseMex,false);
-    
-    assert(isequal(matlab_res, mex_res));
-    
-    
-    iters = 10;
-    
-    for arr_sizes=1:2
-        
-        if arr_sizes == 1
-            arr_size = "1700x1700";
-        elseif arr_sizes == 2
-            arr_size = "25x25x1000";
-        end
-
-        for var_types=1:2
-
-            MatlabTimeTotal = 0;
-            MexTimeTotal = 0;
-            MexMPTimeTotal = 0;            
-            MatlabTime = 0;
-            MexTime = 0;
-            MexMPTime = 0;
-
-            for iter=1:iters
-                
-                MomRadius2 = 0.5;
-
-                switch var_types
-                    case 1
-                        if arr_sizes == 1
-                            MatR2 = rand(1700,1700,'single');
-                        elseif arr_sizes == 2
-                            MatR2 = rand(25,25,1000,'single');
+                % uniform flags, with and without the prescan, exercise the
+                % dedicated all-true / all-false kernels
+                for Uni = [false true]
+                    FlagU = repmat(Uni, Nel, 1);
+                    RefU  = tools.array.bitsetFlag(ArrayS, FlagU, Bit, Val, [false false]);
+                    for Pre = [false true]
+                        if ~isequal(RefU, tools.array.mex.bitsetFlag(ArrayS, FlagU, Bit, Val, Pre))
+                            error('Problem with tools.array.mex.bitsetFlag - uniform flags, N=%d, Bit=%d, Val=%d, Prescan=%d', Nel, Bit, Val, Pre);
                         end
-                        Type = 'single';
-                    case 2
-                        if arr_sizes == 1
-                            MatR2 = rand(1700,1700,'double');
-                        elseif arr_sizes == 2
-                            MatR2 = rand(25,25,1000,'double');
-                        end
-                        Type = 'double';                    
-                end
-
-                UseMex = 0;
-                UseMP = 0;
-                t = tic;
-                matlab_res = tools.array.onesCondition(MatR2,MomRadius2,Type,UseMex,UseMP);        
-                MatlabTime = toc(t);
-                MatlabTimeTotal = MatlabTimeTotal + MatlabTime;
-
-                UseMex = 1;
-                UseMP = 0;
-                t = tic;
-                mex_res = tools.array.onesCondition(MatR2,MomRadius2,Type,UseMex,UseMP);        
-                MexTime = toc(t);
-                MexTimeTotal = MexTimeTotal + MexTime;
-
-                UseMex = 1;
-                UseMP = 1;
-                t = tic;
-                mex_res = tools.array.onesCondition(MatR2,MomRadius2,Type,UseMex,UseMP);        
-                MexMPTime = toc(t);
-                MexMPTimeTotal = MexMPTimeTotal + MexMPTime;                
-                                        
-                assert(isequal(matlab_res, mex_res));
-            end
-
-            MatlabTime = MatlabTimeTotal / iters;
-            MexTime = MexTimeTotal / iters;
-            MexMPTime = MexMPTimeTotal / iters;
-
-            fprintf('Array_size: %s, Var_type: %s, Matlab: %.6f, Mex: %.6f, MexMP: %.6f, Ratio: %0.2f, MP_Ratio: %0.2f\n', arr_size, Type, MatlabTime, MexTime, MexMPTime, (MexTime/MatlabTime)*100, (MexMPTime/MatlabTime)*100);
-
-        end
-    end
-    
-    io.msgStyle(LogLevel.Test, '@passed', 'tools.array.onesCondition passed')
-    Result = true;    
-
-end
-
-function Result = test_init()
-    io.msgLog(LogLevel.Test, 'tools.array.init test started');
-    
-    % Checking basic functionality and comparing mex and matlab
-    UseMex = 0;
-    UseMP = 0;
-    Size = [3];
-    Val = 5;
-    Type = "int64";
-
-    matlab_res = tools.array.init(Size, Val, Type, UseMex, UseMP);
-    
-    UseMex = 1;
-    mex_res = tools.array.init(Size, Val, Type, UseMex, UseMP);
-    
-    assert(isequal(matlab_res, mex_res));
-    
-    
-    iters = 1;
-        
-            for var_types=1:7
-    
-                MatlabTimeTotal_1d = 0;
-                MexTimeTotal_1d = 0;
-                MexMPTimeTotal_1d = 0;            
-                MatlabTime_1d = 0;
-                MexTime_1d = 0;
-                MexMPTime_1d = 0;
-
-                MatlabTimeTotal_2d = 0;
-                MexTimeTotal_2d = 0;
-                MexMPTimeTotal_2d = 0;            
-                MatlabTime_2d = 0;
-                MexTime_2d = 0;
-                MexMPTime_2d = 0;
-
-                MatlabTimeTotal_3d = 0;
-                MexTimeTotal_3d = 0;
-                MexMPTimeTotal_3d = 0;            
-                MatlabTime_3d = 0;
-                MexTime_3d = 0;
-                MexMPTime_3d = 0;
-
-                for iter=1:iters
-    
-                    Size_1d = [2000];
-                    Size_2d = [2000 2000];
-                    Size_3d = [200 200 200];
-                    Val = 5;
-                                                
-                    switch var_types
-                        case 1
-                            var_name = 'int8';
-                        case 2
-                            var_name = 'int16';
-                        case 3
-                            var_name = 'int32';
-                        case 4
-                            var_name = 'int64';
-                        case 5
-                            var_name = 'single';
-                        case 6
-                            var_name = 'double';
-                        case 7
-                            var_name = 'logical';
                     end
-    
-                    UseMex = 0;
-                    UseMP = 0;
-                    t = tic;
-                    matlab_res_1d = tools.array.init(Size_1d, Val, Type, UseMex, UseMP);
-                    MatlabTime_1d = toc(t);
-                    MatlabTimeTotal_1d = MatlabTimeTotal_1d + MatlabTime_1d;
-                    t = tic;
-                    matlab_res_2d = tools.array.init(Size_2d, Val, Type, UseMex, UseMP);
-                    MatlabTime_2d = toc(t);
-                    MatlabTimeTotal_2d = MatlabTimeTotal_2d + MatlabTime_2d;
-                    t = tic;
-                    matlab_res_3d = tools.array.init(Size_3d, Val, Type, UseMex, UseMP);
-                    MatlabTime_3d = toc(t);
-                    MatlabTimeTotal_3d = MatlabTimeTotal_3d + MatlabTime_3d;
-    
-                    UseMex = 1;
-                    UseMP = 0;
-                    t = tic;
-                    mex_res_1d = tools.array.init(Size_1d, Val, Type, UseMex, UseMP);
-                    MexTime_1d = toc(t);
-                    MexTimeTotal_1d = MexTimeTotal_1d + MexTime_1d;
-                    t = tic;
-                    mex_res_2d = tools.array.init(Size_2d, Val, Type, UseMex, UseMP);
-                    MexTime_2d = toc(t);
-                    MexTimeTotal_2d = MexTimeTotal_2d + MexTime_2d;
-                    t = tic;
-                    mex_res_3d = tools.array.init(Size_3d, Val, Type, UseMex, UseMP);
-                    MexTime_3d = toc(t);
-                    MexTimeTotal_3d = MexTimeTotal_3d + MexTime_3d;    
-                    
-                    UseMex = 1;
-                    UseMP = 1;
-                    t = tic;
-                    mexMP_res_1d = tools.array.init(Size_1d, Val, Type, UseMex, UseMP);
-                    MexMPTime_1d = toc(t);
-                    MexMPTimeTotal_1d = MexMPTimeTotal_1d + MexMPTime_1d;
-                    t = tic;
-                    mexMP_res_2d = tools.array.init(Size_2d, Val, Type, UseMex, UseMP);
-                    MexMPTime_2d = toc(t);
-                    MexMPTimeTotal_2d = MexMPTimeTotal_2d + MexMPTime_2d;
-                    t = tic;
-                    mexMP_res_3d = tools.array.init(Size_3d, Val, Type, UseMex, UseMP);
-                    MexMPTime_3d = toc(t);
-                    MexMPTimeTotal_3d = MexMPTimeTotal_3d + MexMPTime_3d;
-                                            
-                    assert(isequal(matlab_res_1d, mex_res_1d));
-                    assert(isequal(matlab_res_2d, mex_res_2d));
-                    assert(isequal(matlab_res_3d, mex_res_3d));
                 end
-    
-                MatlabTime_1d = MatlabTimeTotal_1d / iters;
-                MexTime_1d = MexTimeTotal_1d / iters;
-                MexMPTime_1d = MexMPTimeTotal_1d / iters;
-                MatlabTime_2d = MatlabTimeTotal_2d / iters;
-                MexTime_2d = MexTimeTotal_2d / iters;
-                MexMPTime_2d = MexMPTimeTotal_2d / iters;
-                MatlabTime_3d = MatlabTimeTotal_3d / iters;
-                MexTime_3d = MexTimeTotal_3d / iters;
-                MexMPTime_3d = MexMPTimeTotal_3d / iters;
-
-                fprintf('Var_type: %s, Matlab 1D: %.6f, Mex 1D: %.6f, MexMP 1D: %.6f, Ratio 1D: %0.2f%%, MP_Ratio 1D: %0.2f%%\n', var_name, MatlabTime_1d, MexTime_1d, MexMPTime_1d, (MexTime_1d/MatlabTime_1d)*100, (MexMPTime_1d/MatlabTime_1d)*100);
-                fprintf('Var_type: %s, Matlab 2D: %.6f, Mex 2D: %.6f, MexMP 2D: %.6f, Ratio 2D: %0.2f%%, MP_Ratio 2D: %0.2f%%\n', var_name, MatlabTime_2d, MexTime_2d, MexMPTime_2d, (MexTime_2d/MatlabTime_2d)*100, (MexMPTime_2d/MatlabTime_2d)*100);
-                fprintf('Var_type: %s, Matlab 3D: %.6f, Mex 3D: %.6f, MexMP 3D: %.6f, Ratio 3D: %0.2f%%, MP_Ratio 3D: %0.2f%%\n', var_name, MatlabTime_3d, MexTime_3d, MexMPTime_3d, (MexTime_3d/MatlabTime_3d)*100, (MexMPTime_3d/MatlabTime_3d)*100);
-
-    
             end
-
-    io.msgStyle(LogLevel.Test, '@passed', 'tools.array.onesExcept passed')
-    Result = true;    
-
-end
-
-function Result = test_bitset()
-    %
-    io.msgLog(LogLevel.Test, 'tools.array.test_bitset test started');
-
-    %
-    % Windows: 
-    %
-    %   mex  mex_bitsetFlag_int32.cpp  COMPFLAGS="$COMPFLAGS /openmp"
-    %
-    % Linux:
-    %
-    %   mex mex_bitsetFlag_int32.cpp CXXFLAGS='$CXXFLAGS -fopenmp' LDFLAGS='$LDFLAGS -fopenmp'
-    %
-	
-	
-    % -------------------------------------------    
-    A=randi(1700,1700,'int32'); 
-    F=rand(1700,1700) > 0.9;
-    A(F) = bitset(A(F), 1, true);
-
-    array = zeros(3, 3, 'int32');
-    flag = false(3, 3);
-    flag(1,1) = true;
-    array = bitset(array, 5, true);
-    %disp(array);    
-    %array(flag) = bitset(array(flag), 2, true);    
-    %disp(array);    
-    % 
-    %b = tools.array.mex.mex_bitsetFlag_int32(array, flag, int32(2), int32(false));
-    %disp(array);
-    %return;
-    
-    % -------------------------------------------    
-    Iters = 10;
-    Loop = 1;    
-    Rows = 100;
-    Cols = 100;
-    Bit = 1;
-    Value = 1;
-      
-    for SizeIter=1:10
-      
-        Array = zeros(Rows, Cols, 'int32');
-        Flag = rand(Rows, Cols) > 0.9;
-        Rows = Rows*2;
-        Cols = Cols*2;
-    
-        fprintf('\n[%d] Array Size: %d MB\n', SizeIter, int32(numel(Array)*4 / 1024 / 1024));
-        % -------------------------------------------
-        for Iter=1:Iters
-
-            % MATLAB version
-            MatlabResult = Array;
-            t = tic;
-            for L=1:Loop
-                MatlabResult(Flag) = bitset(Array(Flag), Bit, Value);
-            end
-            MatlabTime = toc(t);
-
-            % MEX version
-            t = tic;
-            for L=1:Loop        
-                MexResult = tools.array.mex.mex_bitsetFlag_int32(Array, Flag, int32(Bit), int32(Value), int32(false));
-                %MexResult = tools.array.bitsetFlag(Array, Flag, Bit, Value);            
-            end
-            MexTime = toc(t);        
-            
-            % MEX with OpenMP
-            t = tic;
-            for L=1:Loop        
-                MpResult = tools.array.mex.mex_bitsetFlag_int32(Array, Flag, int32(Bit), int32(Value), int32(true));
-            end
-            MpTime = toc(t);                    
-
-            % MEX via bitsetFlag
-            t = tic;
-            for L=1:Loop        
-                WrapperResult = tools.array.bitsetFlag(Array, Flag, Bit, Value);            
-            end
-            WrapperTime = toc(t);                    
-
-            
-            fprintf('Matlab: %.6f, Mex: %.6f, MexMP: %.6f, Wrapper: %0.6f, Ratio: %0.2f\n', MatlabTime, MexTime, MpTime, WrapperTime, MatlabTime/WrapperTime);
-            %fprintf('isequal...\n');
-            assert(isequal(MatlabResult, MexResult));               
-            assert(isequal(MatlabResult, MpResult));                           
-            assert(isequal(MatlabResult, WrapperResult));                           
         end
     end
+
+    % more bitsetFlag tests
+
+    test_bitsetFlag();
+
+    %% tools.array.mex.bitsetFlagMulti
+    test_bitsetFlagMulti()
+
+
+    Array = uint32(zeros(1716,1716));
+    Flag1  = rand(1716,1716)>0.95;
+    Flag2  = rand(1716,1716)>0.95;
+
+    Nsim = 100;
+
+    Res3 = tools.array.bitsetFlag(Array, Flag1, 13, true, false);
+    Res3 = tools.array.bitsetFlag(Res3, Flag2, 14, true, false);
+    Res4 = tools.array.mex.bitsetFlagMulti(Array, Flag1, 13, 1, Flag2, 14, 1);
+
+    if sum(abs(Res3~=Res4),'all')>0
+        error('Problem with tools.array.mex.bitsetFlagMulti');
+    end
+
+    %% tools.array.mex.bitsetInd
+
+    Array = uint32(zeros(1716,1716));
+    Flag1  = find(rand(1716,1716)>0.95);
+
+    Nsim = 100;
+
+    Res2 = Array;
+    Res2(Flag1) = bitset(Array(Flag1), 13);
+    Res3 = tools.array.bitsetFlag(Array, Flag1, 13, 1, [false, false]);
+    Res4 = tools.array.mex.bitsetInd(Array, Flag1, 13, true);
+
+    if sum(abs(Res2~=Res3),'all')>0
+        error('Problem with tools.array.bitsetFlag (with indices)');
+    end
+
+    if sum(abs(Res2~=Res4),'all')>0
+        error('Problem with tools.array.mex.bitsetInd');
+    end
+
+
+
+    %% tools.array.unique_count
+    Vec=randi(100,10000,1);
+    [UnVal1,Count1]=tools.array.unique_count(Vec,@strcmpi,'search');
+    [UnVal2,Count2]=tools.array.unique_count(Vec,@strcmpi,'sort');  
+    [UnVal3,Count3]=tools.array.unique_count(Vec,@strcmpi,'scan'); 
+    if sum(UnVal1~=UnVal2)>0 || sum(UnVal1~=UnVal3) || sum(Count1~=Count2)>0 || sum(Count1~=Count3)>0
+        error('Problem with tools.array.unique_count');
+    end
+
+
+
+    %%
     
-    
-    io.msgStyle(LogLevel.Test, '@passed', 'tools.array.test_bitset passed')
     Result = true;
 end
 
 
+function test_bitsetFlag()
 
+    rng(1);
 
-%--------------------------------------------------------------------------
-function test_bit_or()
-    io.msgLog(LogLevel.Test, 'tools.array.test_bit_or test started');
-    
-    for Iter=1:5
-        Array = uint32(randi(2^16,1600,1600,20));
-        t = tic;
-        Val = tools.array.bitor_array(Array,3,false);
-        MatlabTime = toc(t);
-        t = tic;
-        ValMex = tools.array.bitor_array(Array,3,true);
-        MexTime = toc(t);
-        fprintf('Matlab: %.6f, Mex: %.6f\n', MatlabTime, MexTime);                    
-        assert(isequal(Val, ValMex));
+    Classes = {'uint8','uint16','uint32','uint64'};
+    NumTrialsPerClass = 50;
+
+    fprintf('Testing bitsetFlag...\n');
+
+    for Ic = 1:numel(Classes)
+        ClassName = Classes{Ic};
+
+        switch ClassName
+            case 'uint8'
+                MaxBit = 8;
+            case 'uint16'
+                MaxBit = 16;
+            case 'uint32'
+                MaxBit = 32;
+            case 'uint64'
+                MaxBit = 64;
+            otherwise
+                error('Unexpected class');
+        end
+
+        for It = 1:NumTrialsPerClass
+
+            % Random size
+            Size1 = randi([1,50]);
+            Size2 = randi([1,40]);
+            Sz = [Size1, Size2];
+
+            % Random array of requested integer class
+            A = randomIntegerArray(Sz, ClassName);
+
+            % Random logical flag mask
+            F = rand(Sz) > rand();
+
+            % Random bit number
+            BitNumber = randi(MaxBit);
+
+            % Random SetVal
+            SetVal = rand() > 0.5;
+
+            % ---- MATLAB reference ----
+            Ref = referenceBitsetFlag(A, F, BitNumber, SetVal);
+
+            % ---- MEX without prescan (default) ----
+            Out0 = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal);
+
+            if ~isequal(Out0, Ref)
+                error('Mismatch without prescan. Class=%s Trial=%d Bit=%d SetVal=%d', ...
+                    ClassName, It, BitNumber, SetVal);
+            end
+
+            % ---- MEX with explicit prescan=false ----
+            Out1 = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal, false);
+
+            if ~isequal(Out1, Ref)
+                error('Mismatch with prescan=false. Class=%s Trial=%d Bit=%d SetVal=%d', ...
+                    ClassName, It, BitNumber, SetVal);
+            end
+
+            % ---- MEX with prescan=true ----
+            Out2 = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal, true);
+
+            if ~isequal(Out2, Ref)
+                error('Mismatch with prescan=true. Class=%s Trial=%d Bit=%d SetVal=%d', ...
+                    ClassName, It, BitNumber, SetVal);
+            end
+        end
+
+        fprintf('  %s passed\n', ClassName);
     end
 
-    io.msgLog(LogLevel.Test, 'tools.array.test_bit_or test done');
-    Result = true;    
-end
+    % Extra edge/uniform-mask tests
+    testSpecialCases();
 
-%--------------------------------------------------------------------------
-
-function Result = test_bit_or_and()
-    io.msgLog(LogLevel.Test, 'tools.array.test_bit_or_and test started');
-    
-	% Input
-    Array     = uint32([ 0x0001, 0x0002, 0x0004, 0x000A;...
-                         0x0011, 0x0022, 0x0014, 0x0018 ]);
-                 
-    % Expected results
-    ArrayOr   = uint32([ 0x0011, 0x0022, 0x0014, 0x001A ]);
-    ArrayAnd  = uint32([ 0x0001, 0x0002, 0x0004, 0x0008 ]);
-    
-    % OR
-    Or = tools.array.bitor_array(Array);
-    disp(Or);
-    assert(strcmp(class(Or), 'uint32'));
-    assert(isequal(Or, ArrayOr));
-    
-    % AND
-    And = tools.array.bitand_array(Array);
-    disp(And);
-    assert(strcmp(class(And), 'uint32'));
-    assert(isequal(And, ArrayAnd));
-    
-	Result = true;
-    io.msgLog(LogLevel.Test, 'tools.array.test_bit_or_and test done');    
+    fprintf('All tests passed successfully.\n');
 end
 
 
-function Result = test_bit_or_and_mex()
-    %
-    io.msgLog(LogLevel.Test, 'tools.array.test_bit_or_and_mex test started');
-    Iters = 10;
-    
-    % ------------------------------------------- OR
-    % 2D - Compare MATLAB and MEX
-    for Iter=1:Iters
-        rows = int32(rand*100);
-        cols = int32(rand*100);
-        Array = int32(double(0xFFFFFFFF) * rand(rows, cols));
-        for dim=1:2
-            Output = tools.array.bitor_array(Array, dim, false);
-            MexOutput = tools.array.bitor_array(Array, dim, true);
-            assert(isequal(Output, MexOutput));   
+function Ref = referenceBitsetFlag(A, F, BitNumber, SetVal)
+    % MATLAB reference implementation
+
+    Ref = A;
+
+    if SetVal ~= 0
+        % Set the selected bit only where F is true
+        Ref(F) = bitset(Ref(F), BitNumber, 1);
+    else
+        % Clear the selected bit only where F is true
+        Ref(F) = bitset(Ref(F), BitNumber, 0);
+    end
+end
+
+
+function A = randomIntegerArray(Sz, ClassName)
+
+    switch ClassName
+        case 'uint8'
+            A = uint8(randi([0, intmax('uint8')], Sz));
+        case 'uint16'
+            A = uint16(randi([0, intmax('uint16')], Sz));
+        case 'uint32'
+            % Build uint32 from two uint16 chunks to avoid randi limitations
+            Hi = uint32(randi([0, 65535], Sz));
+            Lo = uint32(randi([0, 65535], Sz));
+            A = bitor(bitshift(Hi, 16), Lo);
+        case 'uint64'
+            % Build uint64 from four uint16 chunks
+            P1 = uint64(randi([0, 65535], Sz));
+            P2 = uint64(randi([0, 65535], Sz));
+            P3 = uint64(randi([0, 65535], Sz));
+            P4 = uint64(randi([0, 65535], Sz));
+            A = bitor( ...
+                    bitor(bitshift(P1, 48), bitshift(P2, 32)), ...
+                    bitor(bitshift(P3, 16), P4) );
+        otherwise
+            error('Unsupported class');
+    end
+end
+
+
+function testSpecialCases()
+
+    fprintf('  Running special-case tests...\n');
+
+    Cases = {
+        'uint8',  8
+        'uint16', 16
+        'uint32', 32
+        'uint64', 64
+        };
+
+    for I = 1:size(Cases,1)
+        ClassName = Cases{I,1};
+        MaxBit    = Cases{I,2};
+
+        A = randomIntegerArray([20,30], ClassName);
+
+        for BitNumber = [1, MaxBit]
+            for SetVal = [0, 1]
+
+                % All false mask
+                F = false(size(A));
+                Ref = referenceBitsetFlag(A, F, BitNumber, SetVal);
+                Out = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal);
+                assert(isequal(Out, Ref), 'Special case failed: all false');
+
+                Out = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal, true);
+                assert(isequal(Out, Ref), 'Special case failed: all false + prescan');
+
+                % All true mask
+                F = true(size(A));
+                Ref = referenceBitsetFlag(A, F, BitNumber, SetVal);
+                Out = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal);
+                assert(isequal(Out, Ref), 'Special case failed: all true');
+
+                Out = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal, true);
+                assert(isequal(Out, Ref), 'Special case failed: all true + prescan');
+
+                % Single true pixel
+                F = false(size(A));
+                F(randi(numel(F))) = true;
+                Ref = referenceBitsetFlag(A, F, BitNumber, SetVal);
+                Out = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal);
+                assert(isequal(Out, Ref), 'Special case failed: single true');
+
+                % Single false pixel
+                F = true(size(A));
+                F(randi(numel(F))) = false;
+                Ref = referenceBitsetFlag(A, F, BitNumber, SetVal);
+                Out = tools.array.mex.bitsetFlag(A, F, BitNumber, SetVal, true);
+                assert(isequal(Out, Ref), 'Special case failed: single false');
+            end
         end
     end
-       
-    % 3D - Compare MATLAB and MEX
-    for Iter=1:Iters
-        rows = int32(rand*100);
-        cols = int32(rand*100);
-        deps = 2 + int32(rand*100);        
-        Array = uint32(double(0xFFFFFFFF) * rand(rows, cols, deps));
-        for dim=1:3
-            Output = tools.array.bitor_array(Array, dim, false);
-            MexOutput = tools.array.bitor_array(Array, dim, true);
-            assert(isequal(Output, MexOutput));   
-        end
-    end    
-
-    % ------------------------------------------- AND
-    % 2D - Compare MATLAB and MEX
-    for Iter=1:Iters
-        rows = int32(rand*100);
-        cols = int32(rand*100);
-        Array = int32(double(0xFFFFFFFF) * rand(rows, cols));
-        for dim=1:2
-            Output = tools.array.bitand_array(Array, dim, false);
-            MexOutput = tools.array.bitand_array(Array, dim, true);
-            assert(isequal(Output, MexOutput));   
-        end
-    end
-       
-    % 3D - Compare MATLAB and MEX
-    for Iter=1:Iters
-        rows = int32(rand*100);
-        cols = int32(rand*100);
-        deps = 2 + int32(rand*100);        
-        Array = uint32(double(0xFFFFFFFF) * rand(rows, cols, deps));
-        for dim=1:3
-            Output = tools.array.bitand_array(Array, dim, false);
-            MexOutput = tools.array.bitand_array(Array, dim, true);
-            assert(isequal(Output, MexOutput));   
-        end
-    end    
-    
-    io.msgStyle(LogLevel.Test, '@passed', 'tools.array.test_bit_or_and_mex test passed')
-    Result = true;
 end
 
-%--------------------------------------------------------------------------
+function test_bitsetFlagMulti()
 
-function Result = test_countVal()
-    %
-    io.msgLog(LogLevel.Test, 'tools.array.test_countVal test started');
-    Iters = 10;
-    
-    Array = zeros(10000, 10000, 'double');
-    Val = 12345;
-    Array(1) = Val;
-    Array(10) = Val;
-    Array(100) = Val;
-    Array(1000) = Val;
-    % -------------------------------------------
-    for Iter=1:Iters
-    
-        t = tic;
-        MatlabResult = sum(Array(:) == Val);
-        MatlabTime = toc(t);
-        
-        t = tic;
-        MexResult = tools.array.countVal(Array, Val);
-        MexTime = toc(t);        
-                
-        fprintf('Matlab: %.6f, Mex: %.6f\n', MatlabTime, MexTime);
-        assert(isequal(MatlabResult, MexResult));               
+    rng(1);
+
+    Classes = {'uint8','uint16','uint32','uint64'};
+    NtrialPerClass = 40;
+
+    fprintf('Testing bitsetFlagMulti...\n');
+
+    for Ic = 1:numel(Classes)
+        ClassName = Classes{Ic};
+
+        switch ClassName
+            case 'uint8'
+                MaxBit = 8;
+            case 'uint16'
+                MaxBit = 16;
+            case 'uint32'
+                MaxBit = 32;
+            case 'uint64'
+                MaxBit = 64;
+            otherwise
+                error('Unexpected class');
+        end
+
+        for It = 1:NtrialPerClass
+            Sz = [randi([1,40]), randi([1,30])];
+            Mask = randomIntegerArray(Sz, ClassName);
+
+            Nops = randi([1,8]);
+
+            Args = cell(1, 1 + 3*Nops);
+            Args{1} = Mask;
+
+            Ops = repmat(struct('F',[],'Bit',[],'SetVal',[]), Nops, 1);
+
+            for Iop = 1:Nops
+                Ops(Iop).F      = rand(Sz) > rand();
+                Ops(Iop).Bit    = randi(MaxBit);
+                Ops(Iop).SetVal = rand() > 0.5;
+
+                Args{1 + 3*(Iop-1) + 1} = Ops(Iop).F;
+                Args{1 + 3*(Iop-1) + 2} = Ops(Iop).Bit;
+                Args{1 + 3*(Iop-1) + 3} = Ops(Iop).SetVal;
+            end
+
+            Ref = reference_bitsetFlagMulti(Mask, Ops);
+            Out = tools.array.mex.bitsetFlagMulti(Args{:});
+
+            if ~isequal(Out, Ref)
+                error('Mismatch in random test. Class=%s Trial=%d', ClassName, It);
+            end
+        end
+
+        fprintf('  %s passed random tests\n', ClassName);
     end
-           
-    io.msgStyle(LogLevel.Test, '@passed', 'tools.array test passed')
-    Result = true;
+
+    fprintf('  Running special-case tests...\n');
+
+    for Ic = 1:numel(Classes)
+        ClassName = Classes{Ic};
+
+        switch ClassName
+            case 'uint8'
+                MaxBit = 8;
+            case 'uint16'
+                MaxBit = 16;
+            case 'uint32'
+                MaxBit = 32;
+            case 'uint64'
+                MaxBit = 64;
+        end
+
+        Mask = randomIntegerArray([25,35], ClassName);
+
+        Ops = struct('F', false(size(Mask)), 'Bit', randi(MaxBit), 'SetVal', randi([0,1]));
+        Ref = reference_bitsetFlagMulti(Mask, Ops);
+        Out = tools.array.mex.bitsetFlagMulti(Mask, Ops.F, Ops.Bit, Ops.SetVal);
+        assert(isequal(Out, Ref), 'All-false flags case failed');
+
+        Ops = struct('F', true(size(Mask)), 'Bit', randi(MaxBit), 'SetVal', randi([0,1]));
+        Ref = reference_bitsetFlagMulti(Mask, Ops);
+        Out = tools.array.mex.bitsetFlagMulti(Mask, Ops.F, Ops.Bit, Ops.SetVal);
+        assert(isequal(Out, Ref), 'All-true flags case failed');
+
+        Bit = randi(MaxBit);
+        Ops(1) = struct('F', rand(size(Mask)) > 0.7, 'Bit', Bit, 'SetVal', 1);
+        Ops(2) = struct('F', rand(size(Mask)) > 0.7, 'Bit', Bit, 'SetVal', 0);
+        Ops(3) = struct('F', rand(size(Mask)) > 0.7, 'Bit', Bit, 'SetVal', 1);
+
+        Ref = reference_bitsetFlagMulti(Mask, Ops);
+        Out = tools.array.mex.bitsetFlagMulti(Mask, ...
+            Ops(1).F, Ops(1).Bit, Ops(1).SetVal, ...
+            Ops(2).F, Ops(2).Bit, Ops(2).SetVal, ...
+            Ops(3).F, Ops(3).Bit, Ops(3).SetVal);
+
+        assert(isequal(Out, Ref), 'Repeated same-bit updates failed');
+    end
+
+    fprintf('All bitsetFlagMulti tests passed successfully.\n');
 end
 
-%--------------------------------------------------------------------------
 
+function Out = reference_bitsetFlagMulti(Mask, Ops)
+
+    Out = Mask;
+
+    for Iop = 1:numel(Ops)
+        if Ops(Iop).SetVal ~= 0
+            Out(Ops(Iop).F) = bitset(Out(Ops(Iop).F), Ops(Iop).Bit, 1);
+        else
+            Out(Ops(Iop).F) = bitset(Out(Ops(Iop).F), Ops(Iop).Bit, 0);
+        end
+    end
+end

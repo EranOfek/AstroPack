@@ -1,0 +1,27 @@
+PLAN MODE - PROMPT 3 - REMOVE JSON SIMULATION FROM CLIENTS (API ONLY)
+
+Goal: ensure all clients use HTTP API calls and not JSON file simulation.
+
+Scope:
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\+clients
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\obsolete
+
+Tasks:
+1) Find any remaining usage in +clients of:
+- fileread / filewrite / fopen / fwrite / json files used as "API"
+- ApiSimProvider / MissionApiSim / SimpleFileClient / SimpleFileLocal / ValidatorSim / UserManagerSim
+- namespace-based path building to read "api data"
+
+2) Remove those dependencies from clients:
+- Replace with real HTTP calls via ClientBase patterns.
+- If an endpoint is missing/unknown, do NOT invent it. Instead:
+  - Leave a clear TODO with the intended endpoint name
+  - Keep the method stubbed but fail fast with a clear error explaining missing endpoint mapping.
+
+3) Ensure JSON simulation code remains only under:
+C:\Ultrasat\AstroPack\matlab\astro\+ultrasat\+api\obsolete
+and is not referenced by clients.
+
+4) Update any docs/comments that still imply JSON-file API is active.
+
+Stop after clients are API-only and sim is isolated.

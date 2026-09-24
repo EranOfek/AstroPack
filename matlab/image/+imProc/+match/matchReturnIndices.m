@@ -45,7 +45,7 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
     %            'Obj1_FlagAll' - A vector, for each source in Obj1,
     %                   of logicals indicating if this source is a
     %                   match (within search radius) to a source is Obj2.
-    %            'Obj1_Fist' - A vector, for each source in Obj1, of the
+    %            'Obj1_Dist' - A vector, for each source in Obj1, of the
     %                   angular distance ['rad' if 'sphere'] between the
     %                   matched sources.
     % Author : Eran Ofek (Sep 2021)
@@ -69,6 +69,8 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         Args.ColRefY                     = [];
         Args.CreateNewObj(1,1) logical   = false; % for the sorted version of Obj1
         
+        Args.SphereDistFun               = @celestial.coo.sphere_dist_fast; %@celestial.coo.sphere_dist_fast_threshDist; %Thresh;
+        Args.SphereDistFunArgs           = {}; %{4.8481e-5};
     end    
 
     if Args.CreateNewObj
@@ -98,7 +100,7 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
         end
         
         % convert AstroImage to AstroCatalog: Obj1
-        if isa(Obj1,'AstroImage')
+        if isa(Obj1,'AstroImage') || isa(Obj1, 'AstroDiff') || isa(Obj1, 'AstroZOGY')
             Cat1 = Obj1(Iobj1).CatData;
         elseif isa(Obj1,'AstroCatalog')
             Cat1 = Obj1(Iobj1);
@@ -126,23 +128,25 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
 
         switch lower(CommonCooType{Imax})
             case 'sphere'
-                DistFun = @celestial.coo.sphere_dist_fast; %Thresh; 
-                
+                %DistFun = @celestial.coo.sphere_dist_fast; %Thresh; 
+                DistFun = Args.SphereDistFun; %@celestial.coo.sphere_dist_fast_threshDist; %Thresh;
+                DistFunArgs = Args.SphereDistFunArgs; % {4.8481e-5};
+
                 Coo1    = double(getLonLat(Cat1, 'rad'));
                 Coo2    = double(getLonLat(Cat2, 'rad'));
 
                 RadiusRad = convert.angular(Args.RadiusUnits, 'rad', Args.Radius);
                 %DistFunArgs{1} = RadiusRad;
-                DistFunArgs = {}; %{RadiusRad};
+                
                 ConvertDist = true;
             case 'pix'
                 DistFun = @tools.math.geometry.plane_dist;
-                %DistFunArgs = {};
+                DistFunArgs = {};
                 Coo1    = double(getXY(Cat1));
                 Coo2    = double(getXY(Cat2));
 
                 RadiusRad = Args.Radius;
-                DistFunArgs = {};
+                %DistFunArgs = {};
                 ConvertDist = false;
             otherwise
                 error('Unknown CooType option');
@@ -150,13 +154,40 @@ function Result = matchReturnIndices(Obj1, Obj2, Args)
 
         % match
         [IndTable, CatFlagNearest, CatFlagAll, IndInObj2] = VO.search.search_sortedlat_multiNearest(Coo1,...
-                                                    Coo2(:,1), Coo2(:,2), RadiusRad, DistFun, DistFunArgs);
+                                                    Coo2(:,1), Coo2(:,2), RadiusRad, DistFun, 'DistFunArgs',DistFunArgs);
+
+        % % faster:
+        % tic;
+        % [Ind1, Dist1, Nmatch1, Ind2, Dist2, Nmatch2] = imUtil.match.mex.matchCatalogsXY(Coo2(:,1), Coo2(:,2), Coo1(:,1), Coo1(:,2), RadiusRad, true, [], [], true, true);
+        % toc
+        % 
+        % % debuging:
+        % aa=~isnan(Ind1);                   
+        % sum(abs(IndTable(aa,1)-Ind1(aa)))
+        % sum(~isnan(Ind1(aa)) ~= ~isnan(IndTable(aa,1)))
+        % 
+        % sum(abs(IndTable(aa,2)-Dist1(aa)))
+        % sum(~isnan(Dist1(aa)) ~= ~isnan(IndTable(aa,2)))
+        % 
+        % sum(abs(IndTable(aa,3)-Nmatch1(aa)))
+        % sum(~isnan(Nmatch1(aa)) ~= ~isnan(IndTable(aa,3)))
+        % 
+        % b=~isnan(Ind2);
+        % sum(~isnan(Ind2) ~= ~isnan(IndInObj2))
+        % sum(Ind2(bb) ~= IndInObj2(bb))
+        % 
+        % %Ind1 corresponds to IndTable(:,1)
+        % %Dist1 to IndTable(:,2)
+        % %Nmatch1 to IndTable(:,3)
+        % %Ind2 to IndInObj2
+
 
         % Columns of IndTable:
         % For each source in Obj2:
         % 1. Index of nearest source, within search radius, in Obj1
         % 2. Distance;
         % 3. Total number of matches within radius.
+
         Result(Imax).Obj2_IndInObj1   = IndTable(:,1);
         Result(Imax).Obj2_Dist        = IndTable(:,2);
         Result(Imax).Obj2_NmatchObj1  = IndTable(:,3);

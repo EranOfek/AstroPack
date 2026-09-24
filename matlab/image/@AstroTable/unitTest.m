@@ -21,6 +21,16 @@ function Result = unitTest()
     AC = AstroTable({array2table(rand(10,2))});                     
     AC = AstroTable({rand(10,2)},'ColNames',{'RA','Dec'});
 
+    % zero rows keep the columns and their names (issue #1279)
+    AC = AstroTable({zeros(0,2)},'ColNames',{'RA','Dec'});
+    assert(isequal(size(AC.Catalog),[0 2]) && isequal(AC.ColNames,{'RA','Dec'}),...
+           'AstroTable: a zero-row matrix lost its columns or ColNames')
+    AC = AstroCatalog({zeros(0,2)},'ColNames',{'RA','Dec'});
+    assert(isequal(size(AC.Catalog),[0 2]) && isequal(AC.ColNames,{'RA','Dec'}),...
+           'AstroCatalog: a zero-row matrix lost its columns or ColNames')
+    AC = AstroTable({zeros(0,0)});
+    assert(isempty(AC.Catalog) && isempty(AC.ColNames), 'AstroTable: a 0x0 matrix must give an empty table')
+
     % @FAILED - @Eran
     A = AstCat; A(1).Cat=rand(10,2);
     A(2).Cat=rand(10,2); 
@@ -38,8 +48,37 @@ function Result = unitTest()
     MAC = merge([AC,AC]);
     if length(AC.Catalog)*2 ~= length(MAC.Catalog)
         error('Merge error: Bad row count');
-    end    
-    
+    end
+
+    % an empty first element must not drop the other elements (issue #1279)
+    AE = AstroTable([1 3]);
+    AE(2).Catalog = rand(4,2); AE(2).ColNames = {'a','b'};
+    AE(3).Catalog = rand(5,2); AE(3).ColNames = {'a','b'};
+    MAE = merge(AE);
+    assert(isequal(MAE.Catalog, [AE(2).Catalog; AE(3).Catalog]),...
+           'Merge error: an empty (0x0) first element dropped the other elements')
+    AE(1).Catalog = zeros(0,3); AE(1).ColNames = {'a','b','c'};
+    MAE = merge(AE, {'a','b'});
+    assert(size(MAE.Catalog,1)==9,...
+           'Merge error: a zero-row first element of a different width dropped the other elements')
+
+    % a per-element entry added as extra columns, to multi-row elements (issue #1309)
+    AE = AstroTable([1 2]);
+    AE(1).Catalog = rand(4,2); AE(1).ColNames = {'a','b'}; AE(1).ColUnits = {'deg','mag'};
+    AE(2).Catalog = rand(5,2); AE(2).ColNames = {'a','b'}; AE(2).ColUnits = {'deg','mag'};
+    Extra = [10 100; 20 200];
+    for IsTable=[false true]
+        MAE = merge(AE, [], 'AddEntryPerElement',Extra, 'AddColNames',{'e','f'}, 'IsTable',IsTable);
+        Data = MAE.Catalog;
+        if IsTable
+            Data = table2array(Data);
+        end
+        assert(isequal(Data, [AE(1).Catalog, repmat(Extra(1,:),4,1); AE(2).Catalog, repmat(Extra(2,:),5,1)]),...
+               'Merge error: AddEntryPerElement (IsTable=%d)', IsTable)
+        assert(isequal(MAE.ColNames, {'a','b','e','f'}) && isequal(MAE.ColUnits, {'deg','mag','',''}),...
+               'Merge error: AddColNames/ColUnits (IsTable=%d)', IsTable)
+    end
+
 
     % Sort by second column
     %io.msgLog(LogLevel.Test, 'testing AstroTable sortrows')
@@ -48,6 +87,24 @@ function Result = unitTest()
     if ~(MAC.IsSorted && issorted(MAC.Catalog(:,ColIndDec)))
         error('Problem with sort flagging');
     end
+
+    % sort by several columns, as the built-in sortrows (issue #1308)
+    AS = AstroTable({[repmat([3;1;2],3,1), (9:-1:1).', (1:9).']}, 'ColNames',{'a','b','c'});
+    Orig = AS.Catalog;
+    [~, Ind] = sortrows(AS, {'a','b'});
+    assert(isequal(AS.Catalog, sortrows(Orig, [1 2])) && isequal(AS.Catalog, Orig(Ind,:)) && ...
+           isequal(AS.SortByCol, [1 2]) && AS.IsSorted, 'sortrows: multi-column sort failed')
+    sortrows(AS, [1 3]);
+    assert(issortedrows(AS.Catalog, [1 3]) && isequal(AS.SortByCol, [1 3]),...
+           'sortrows: a different column list must re-sort')
+    sortrows(AS, [1 3 2]);
+    assert(isequal(AS.SortByCol, [1 3 2]), 'sortrows: a longer column list must re-sort')
+    sortrows(AS, 'b');
+    assert(issorted(AS.Catalog(:,2)) && isequal(AS.SortByCol, 2), 'sortrows: back to one column failed')
+    Cat0 = AS.Catalog;
+    sortrows(AS, {'a','nosuchcol'});
+    assert(isequal(AS.Catalog, Cat0) && isequal(AS.SortByCol, 2),...
+           'sortrows: an unknown column must leave the catalog untouched')
 
     % get column
     %io.msgLog(LogLevel.Test, 'testing AstroTable getCol')

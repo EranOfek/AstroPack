@@ -1,25 +1,75 @@
-function Rstd=rstd(Mat,Dim)
+function Rstd=rstd(Mat,Dim,Algo)
 % Robust std calculated from the 50% inner percentile of the data.
 % Package: Util.stat
 % Description: Robust std calculated from the 50% inner percentile
 %              of the data.
 % Input  : - Matrix.
 %          - Dimension along to calculate the std. Default is 1.
+%          - Algorithm:
+%            1 - use direct prctile after sorting and taking the mean
+%               up/down.
+%            2 - use direct prctile after sorting
+%            3 - use prctile.
+%            0 - use prctile for both values.
+%            Default is 0. Best and fastest is 0 or 1.
 % Output : - Robust std.
 % License: GNU general public license version 3
 % Tested : Matlab R2015b
 %     By : Eran O. Ofek                    Mar 2016
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
-% Example: Rstd=rstd(randn(1000,3))
+% Example: Rstd=tools.math.stat.rstd(randn(1000,3))
 % Reliable: 2
 %--------------------------------------------------------------------------
 
-if (nargin==1)
-    Dim = 1;
+arguments
+    Mat
+    Dim   = 1;
+    Algo  = 0;
 end
 
-Factor = 1.4826;  % = 1./norminv(0.75,0,1)
+Factor = 0.7413; % 1.4826./2  %= 0.5./norminv(0.75,0,1)
 
-ValLow  = prctile(Mat,25,Dim);
-ValHigh = prctile(Mat,75,Dim);
-Rstd    = (ValHigh - ValLow).*0.5.*Factor;
+if Algo==0
+    Tmp     = prctile(Mat,[25,75],Dim);
+    if Dim==1
+        ValLow  = Tmp(1, :);
+        ValHigh = Tmp(2, :);
+    elseif Dim==2
+        ValLow  = Tmp(:, 1);
+        ValHigh = Tmp(:, 2);
+    else
+        error('Dim must be 1 or 2');
+    end
+    %ValLow  = Tmp(1);
+    %ValHigh = Tmp(2);
+elseif Algo==1
+    Mat     = sort(Mat);
+    SizeMat = size(Mat);
+    N       = SizeMat(Dim);
+    Ilow    = floor(N.*0.25);
+    Ihigh   = floor(N.*0.75);
+    if Dim==1
+        ValLow  = mean(Mat(Ilow:Ilow+1,:),1);
+        ValHigh = mean(Mat(Ihigh:Ihigh+1,:),1);
+    else
+        ValLow  = mean(Mat(:,Ilow:Ilow+1),Dim);
+        ValHigh = mean(Mat(:,Ihigh:Ihigh+1),Dim);
+    end
+elseif Algo==2
+    Mat     = sort(Mat);
+    SizeMat = size(Mat);
+    N       = SizeMat(Dim);
+    if Dim==1
+        ValLow  = Mat(floor(N.*0.25),:);
+        ValHigh = Mat(floor(N.*0.75),:);
+    else
+        ValLow  = Mat(:,floor(N.*0.25));
+        ValHigh = Mat(:,floor(N.*0.75));
+    end
+    
+elseif Algo==3
+    ValLow  = prctile(Mat,25,Dim);
+    ValHigh = prctile(Mat,75,Dim);
+end
+
+Rstd    = (ValHigh - ValLow).*Factor; %0.5.*Factor;

@@ -1,5 +1,6 @@
 function [Az,Alt]=hadec2azalt(HA,Dec,Lat,CooUnits)
 % Convert HA/Dec to Az/Alt
+%   See also: celestial.coo.mex.hadec2azalt celestial.coo.ha2alt
 % Package: +celestial.coo
 % Input  : - HA [rad]
 %          - Dec [rad]
@@ -19,11 +20,12 @@ end
 
 
 SinAlt = sin(Dec).*sin(Lat) + cos(Dec).*cos(HA).*cos(Lat);
+Alt    = asin(SinAlt);
 CosAlt = sqrt(1-SinAlt.*SinAlt);
 SinAz  = (-cos(Dec).*sin(HA))./CosAlt;
 CosAz  = (sin(Dec).*cos(Lat) - cos(Dec).*cos(HA).*sin(Lat))./CosAlt;
 Az     = atan2(SinAz, CosAz);
-Alt    = asin(SinAlt);
+
 I      = Az<0;
 Az(I)  = 2.*pi+Az(I);
 

@@ -6,17 +6,23 @@ function simImage = simulateKeplerField(Args)
         Args.RA0     = 291;    % the aimpoint (Kepler field -- 291, NEP -- 270, SEP -- 90)
         Args.Dec0    =  44.5;  % the aimpoint (Kepler field -- 44.5, NEP -- +66.560708, SEP -- -66.560708)
         Args.ExpNum  =   1;    % the number of exposures
-        Args.PlaneRotation = 0;
+        Args.PlaneRotation = 5;
         Args.OutDir  = '.';
         Args.OutName = 'SimKepler'
         Args.Ebv     =   0; % the updated table contains per-source Ebv, so we need this only for tests
-        Args.Catalog = 'Kepler_ULTRASAT_all.tbl'; % Kepler field: 'Kepler_ULTRASAT_all.tbl'
-        Args.Dir     = '/home/sasha/KeplerField';
+        Args.Catalog = 'Kepler_ULTRASAT_augm.tbl';  % Kepler field: 'Kepler_ULTRASAT_all.tbl'
+        Args.Dir     = '/home/sasha/UnderSampled'; % '/home/sasha/ULTRASAT/SimImages/KeplerField';
         Args.SpecType = 'Pickles'; % 'BB' or 'Pickels'
+        Args.SingleType = false; % one type of objects (for tests)
+        Args.SingleTeff = []; % employed for 'Single' type of objects 
+        Args.SingleLogg = []; % employed for 'Single' type of objects
+        Args.NoisePoisson = true;  % add Poission noise to the final image 
     end
     
+    Dir = pwd;
     cd(Args.Dir);
     SrcTab  = readtable(Args.Catalog,'FileType','text');
+    cd(Dir);
     
     switch Args.Tile 
         case 'A'
@@ -40,6 +46,12 @@ function simImage = simulateKeplerField(Args)
     end
     
     Tab = SrcTab(SrcTab.x_ra > ra1 & SrcTab.x_ra < ra2 & SrcTab.dec > dec1 & SrcTab.dec < dec2,:);
+    
+    %%% TEST ONLY!!: cut a small area        
+%     Tab = Tab(Tab.x_ra > 294.36 & Tab.x_ra < 294.48 & Tab.dec > 46.52 & Tab.dec < 46.64,:); 
+%     fprintf('ATTENSION! ARBITRATRY CUTS APPLIED TO THE SOURCE LIST!\n');
+    
+    %%%
 
     %%% TEST ONLY!!
 %     sortedTable = sortrows(Tab, 'Vmag');
@@ -55,7 +67,7 @@ function simImage = simulateKeplerField(Args)
     
     % deredden the V magnidues (the simulator deals with dereddened values!)
     Filt = AstFilter.get('Johnson','V');
-    deltaMag = astro.spec.extinction(Ebv,Filt.pivot_wl/1e4);
+    deltaMag = astro.extinction.extinction(Ebv,Filt.pivot_wl/1e4);
     Mag = Mag0 - deltaMag;    
     % figure(1);hold off; histogram(Mag); hold on; histogram(Mag0)
     
@@ -77,8 +89,12 @@ function simImage = simulateKeplerField(Args)
                 Spec(ISrc) = S(ind);
                 % Spec(ISrc)  = AstroSpec.blackBody(Wave',Tab.Teff(ISrc)); % DON't use: this is way to slow and voluminous!
             end            
-        case 'Pickles'            
-            Spec = [Tab.Teff Tab.logg]; % parameters of the Pickles' spectra            
+        case 'Pickles'       
+            if Args.SingleType
+                Spec = repmat([Args.SingleTeff Args.SingleLogg],height(Tab),1); % single type for all the objects 
+            else
+                Spec = [Tab.Teff Tab.logg]; % parameters of the Pickles' spectra from the input table
+            end
         otherwise            
             error('Unknown spectral type');
     end
@@ -87,6 +103,7 @@ function simImage = simulateKeplerField(Args)
     simImage = ultrasat.usim('Cat', Cat, 'Mag', Mag, 'FiltFam','Johnson', 'Filt','V',...
         'SpecType',Args.SpecType,'Spec', Spec, 'Exposure', [Args.ExpNum 300], 'Ebv', Ebv,...
         'OutDir', Args.OutDir,'SkyCat', 1, 'PlaneRotation', Args.PlaneRotation,...
-        'RA0', Args.RA0, 'Dec0', Args.Dec0, 'OutName', Args.OutName, 'Tile', Args.Tile);
+        'RA0', Args.RA0, 'Dec0', Args.Dec0, 'OutName', Args.OutName, 'Tile', Args.Tile,...
+        'NoisePoisson',Args.NoisePoisson);
 
 end

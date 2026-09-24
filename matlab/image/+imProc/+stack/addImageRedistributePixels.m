@@ -20,9 +20,7 @@ function Image = addImageRedistributePixels(Image, Image1, X, Y, Args)
     % Tested : Matlab R2020b
     % Author : A. Krassilchtchikov et al. (May 2023)
     % Example: Image = imProc.stack.addImageRedistributePixels(Image0, Image1, X, Y, 'Nx', NX, 'Ny', NY, 'XL', XL, 'YL', YL);
-
-    arguments
-        
+    arguments        
         Image
         Image1
         X
@@ -31,12 +29,10 @@ function Image = addImageRedistributePixels(Image, Image1, X, Y, Args)
         Args.Ny     = 0;  % Ny columns of Image1 are requested (if 0, use the full size of the image)  
         Args.XL     = 0;  % first XL rows of Image1 are not remapped
         Args.YL     = 0;  % first YL columns of Image1 are not remapped
-        Args.Method = 'redistribute' % redistribute the signal (default) or put all the signal into the nearest pixel (some pixels of the Image will be empty)
-        
+        Args.Method = 'redistribute' % redistribute the signal (default) or put all the signal into the nearest pixel (some pixels of the Image will be empty)        
     end
-    
-    % if Nx or Ny are not input explicitly, use the full size of Image1
-    
+    %
+    % if Nx or Ny are not input explicitly, use the full size of Image1    
     if Args.Nx == 0
         Args.Nx = size(Image1,1);
     end
@@ -44,18 +40,14 @@ function Image = addImageRedistributePixels(Image, Image1, X, Y, Args)
         Args.Ny = size(Image1,2);
     end
     
-    % check if there exists redistribution data for all the requested area of Image1 
-    
+    % check if there exists redistribution data for all the requested area of Image1     
     if size(X,1) < Args.Nx || size(Y,1) < Args.Nx || size(X,2) < Args.Ny || size(Y,2) < Args.Ny
         error('The size of a pixel redistribution array in addImageRedistributePixels is insufficient, exiting..');
     end
      
-    %
-    
-    switch lower(Args.Method)
-        
-        case 'redistribute'  % redistribute the pixel signal upon 4 neighbouring pixels
-    
+    %    
+    switch lower(Args.Method)        
+        case 'redistribute'  % redistribute the pixel signal upon 4 neighbouring pixels    
             X0 = floor(X);   Y0 = floor(Y);    
             X1 = X-X0;       Y1 = Y-Y0;      X1Y1 = X1 .* Y1;       
 
@@ -79,12 +71,10 @@ function Image = addImageRedistributePixels(Image, Image1, X, Y, Args)
                     Image ( X11+1, Y11+1 ) = Image ( X11+1, Y11+1 ) + S * X1Y1(iX,iY); 
                     Image ( X11+1, Y11 )   = Image ( X11+1, Y11 )   + S * X1(iX,iY) * (1 - Y1(iX,iY) );
                     Image ( X11  , Y11+1 ) = Image ( X11  , Y11+1 ) + S * ( 1 - X1(iX,iY) ) * Y1(iX,iY); 
-
                 end
-            end
+            end 
             
-        case 'direct' % put all the signal into the nearest pixel (some pixels of the Image will be empty)
-            
+        case 'direct' % put all the signal into the nearest pixel (some pixels of the Image will be empty)            
             X0 = round(X); Y0 = round(Y);        
 
             for iX = 1:1:Args.Nx      
@@ -140,15 +130,9 @@ function Image = addImageRedistributePixels(Image, Image1, X, Y, Args)
                     
                     Image( X11:X11+1 , Y11:Y11+1 ) = Stamp;
                     
-                end
-                
-            end
-            
-        otherwise
-            
-            error('Incorrect flux redistribution method, exiting..'); 
-            
+                end                
+            end  
+        otherwise   
+            error('Incorrect flux redistribution method, exiting..');    
     end
-    
-    
 end

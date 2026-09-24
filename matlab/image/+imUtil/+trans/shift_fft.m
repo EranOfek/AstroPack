@@ -1,6 +1,7 @@
-function [ShiftedImage,NY,NX,Nr,Nc]=shift_fft(Image,DX,DY,NY,NX,Nr,Nc)
+function [ShiftedImage,NY,NX,Nr,Nc,ShiftedImage_padded]=shift_fft(Image,DX,DY,NY,NX,Nr,Nc,Args)
 % Shift Image using the sub pixel Fourier shift theorem (sinc interp.)
-% Package: imUtil.image
+%   The reverse transformation is accurate to about 6e-5.
+%   For better and faster function use: imUtil.trans.mex.shift_lanczos3
 % Description: Shift an image using the FFT shift thorem. This works well
 %              when the image does not contain sharp artifacts.
 %              Sharp artifacts will produce ringing.
@@ -35,11 +36,76 @@ function [ShiftedImage,NY,NX,Nr,Nc]=shift_fft(Image,DX,DY,NY,NX,Nr,Nc)
 %          SI3   =imUtil.trans.shift_fft(PSF,[1.22;1.22],[-3.1;-3.1]);
 % Reliable: 2
 %--------------------------------------------------------------------------
+arguments
+    Image
+    DX
+    DY
+    NY                       = [];
+    NX                       = [];
+    Nr                       = []; 
+    Nc                       = [];
+    Args.Algo                = 3;   % switch to 30 and test!
+    Args.GaussianFilterSigma = 10;  % adjust the sigma for smoothness; lower sigma = smoother image
+                                    % Gaussian filtering is for Args.Algo = 6 only!
+end
 
-Algo = 3;
 
+if Args.Algo==3
+    % new / without the padding / for cube
+  
+    [NY,NX, Nim] = size(Image);  % must ask for Nim, otherwise wrong results
+   
+    DX = DX(:);
+    DY = DY(:);
+    
+    % Kernel for X dimension
+    OperX = fft([0 1 zeros(1,NX-2)]);
+%     KernelX = fftshift(exp(1i.*DX.*phase(OperX)),2);
+    KernelX = fftshift(exp(1i.*DX.*unwrap(angle(OperX))),2);
 
-if Algo==0
+    KernelX = KernelX./KernelX(:,1);
+    KernelX(:,floor(NX.*0.5+1)) = 1;
+    %KernelX = ifft(KernelX);
+
+    % Kernel for Y dimension
+    OperY = fft([0 1 zeros(1,NY-2)]);
+%     KernelY = fftshift(exp(1i.*DY.*phase(OperY)),2);
+    
+    KernelY = fftshift(exp(1i.*DY.*unwrap(angle(OperY))),2);
+    % somewhat faster
+    %KernelY = fftshift(exp(1i.*DY.*tools.math.fft.mex.unwrap_mex(angle(OperY))),2);
+
+    % somewhat slower - can be used only for scalar DX, DY
+    %KernelY = fftshift(tools.math.fft.mex.exp_i_dy_unwrap_mex(DY,OperY),2);
+
+    
+    KernelY = KernelY./KernelY(:,1);
+    KernelY(:,floor(NY.*0.5+1)) = 1;
+    %KernelY = ifft(KernelY);
+    KernelY = KernelY.';
+    
+    KernelX = permute(KernelX,[3 2 1]);  % e.g., size is 1x15x2
+    KernelY = permute(KernelY,[1 3 2]);  %e.g., size is 15x1x2
+    
+    % ChatGPT suggest to use this:
+    % This is faster, and return the same KernelX/Y, but from
+    % some reason the final output is not the same???
+    %KernelX = reshape(KernelX, [1, NX, Nim]); % Align dimensions
+    %KernelY = reshape(KernelY, [NY, 1, Nim]); % Align dimensions
+
+    
+    %SX = ifft( bsxfun(@times,fft(Image,[],2),KernelX) ,[],2);
+    SX = ifft(fft(Image,[],2).*KernelX, [], 2);
+    
+    % need to take the real part as there is some residual imaginary
+    % part due to computer precision errors
+    %ShiftedImage=real(ifft( bsxfun(@times,fft(SX,[],1), KernelY) ,[],1));
+    ShiftedImage=real(ifft( fft(SX,[],1).*KernelY ,[],1));
+    
+    Nr = [];
+    Nc = [];
+    
+elseif Args.Algo==0
     % new for cubes
     error('not working');
     
@@ -94,7 +160,7 @@ if Algo==0
     
     
     
-elseif Algo==1
+elseif Args.Algo==1
     % new
   
     [NY,NX] = size(Image);
@@ -147,7 +213,7 @@ elseif Algo==1
     end
     Nr = [];
     Nc = [];
-elseif Algo==2
+elseif Args.Algo==2
     % new / without the padding
   
     [NY,NX] = size(Image);
@@ -178,7 +244,7 @@ elseif Algo==2
     Nr = [];
     Nc = [];
     
-elseif Algo==3
+elseif Args.Algo==30
     % new / without the padding / for cube
   
     [NY,NX, Nim] = size(Image);  % must ask for Nim, otherwise wrong results
@@ -189,8 +255,62 @@ elseif Algo==3
     % Kernel for X dimension
     OperX = fft([0 1 zeros(1,NX-2)]);
 %     KernelX = fftshift(exp(1i.*DX.*phase(OperX)),2);
-    KernelX = fftshift(exp(1i.*DX.*unwrap(angle(OperX))),2);
+    KernelX = fftshift(exp(1i.*DX.*tools.math.fft.mex.unwrap_mex(angle(OperX))),2);
 
+    KernelX = KernelX./KernelX(:,1);
+    KernelX(:,floor(NX.*0.5+1)) = 1;
+    %KernelX = ifft(KernelX);
+
+    % Kernel for Y dimension
+    OperY = fft([0 1 zeros(1,NY-2)]);
+%     KernelY = fftshift(exp(1i.*DY.*phase(OperY)),2);
+    KernelY = fftshift(exp(1i.*DY.*tools.math.fft.mex.unwrap_mex(angle(OperY))),2);
+
+    KernelY = KernelY./KernelY(:,1);
+    KernelY(:,floor(NY.*0.5+1)) = 1;
+    %KernelY = ifft(KernelY);
+    KernelY = KernelY.';
+    
+    KernelX = permute(KernelX,[3 2 1]);  % e.g., size is 1x15x2
+    KernelY = permute(KernelY,[1 3 2]);  %e.g., size is 15x1x2
+    
+    % ChatGPT suggest to use this:
+    % This is faster, and return the same KernelX/Y, but from
+    % some reason the final output is not the same???
+    %KernelX = reshape(KernelX, [1, NX, Nim]); % Align dimensions
+    %KernelY = reshape(KernelY, [NY, 1, Nim]); % Align dimensions
+
+    
+    %SX = ifft( bsxfun(@times,fft(Image,[],2),KernelX) ,[],2);
+    SX = ifft(fft(Image,[],2).*KernelX, [], 2);
+    
+    % need to take the real part as there is some residual imaginary
+    % part due to computer precision errors
+    %ShiftedImage=real(ifft( bsxfun(@times,fft(SX,[],1), KernelY) ,[],1));
+    ShiftedImage=real(ifft( fft(SX,[],1).*KernelY ,[],1));
+    
+    Nr = [];
+    Nc = [];
+    
+    
+
+elseif Args.Algo==5
+    % new / without the padding / for cube
+  
+    [NY,NX, Nim] = size(Image);  % must ask for Nim, otherwise wrong results
+   
+    DX = DX(:);
+    DY = DY(:);
+    
+    % Kernel for X dimension
+    %OperX = fft([0 1 zeros(1,NX-2)]);
+%     KernelX = fftshift(exp(1i.*DX.*phase(OperX)),2);
+    %KernelX = fftshift(exp(1i.*DX.*unwrap(angle(OperX))),2);
+
+    OperX = 2 * pi * (0:(NX - 1)) / NX;
+    KernelX = fftshift(exp(1i .* DX .* OperX), 2);
+
+    
     KernelX = KernelX./KernelX(:,1);
     KernelX(:,floor(NX.*0.5+1)) = 1;
     %KernelX = ifft(KernelX);
@@ -220,7 +340,7 @@ elseif Algo==3
     Nc = [];
     
     
-elseif Algo==4
+elseif Args.Algo==4
     % old
     
     %function [ShiftedImage,NY,NX,Nr,Nc]=image_shift_fft(Image,DX,DY,NY,NX,Nr,Nc)
@@ -258,6 +378,51 @@ elseif Algo==4
     % add bias value to image
     ShiftedImage = abs(ShiftedImage) - MinVal;
     %ShiftedImage = ShiftedImage(NY1+1:2*NY1, NX1+1:2*NX1);
+    
+elseif Args.Algo == 6
+    % with a gaussian filter and insertion of zeros (padding) in the center of image
+    % in the frequency domain for dumping of parasite high frequency
+    
+    [NY,NX,Nim] = size(Image);
+    
+    % FFT of the image
+    Image_fft = fft2(Image); 
+
+    % Create the Fourier space coordinates (u, v)
+    [u, v] = meshgrid(0:(NX-1), 0:(NY-1));
+
+    % Shift the frequencies to be centered
+    u = ifftshift(u - floor(NX/2));
+    v = ifftshift(v - floor(NY/2));
+
+    % Compute the phase shift using the Fourier shift theorem and shift the image
+    PhaseShift = exp(-1i * 2 * pi * (u * DX / NX + v * DY / NY));
+    Image_fft_shifted = Image_fft .* PhaseShift;
+        
+    % Create a low-pass filter   
+    Filter = exp(-(u.^2 + v.^2) / (2 * Args.GaussianFilterSigma^2)); % a Gaussian filter (properly normalized!)
+    
+    % Filter the shifted image (in the frequency domain):
+    Image_fft_shifted_filtered = Image_fft_shifted .* Filter;
+    % this does not work by itself, need to dig? 
+%     Image_fft_shifted_filtered = imUtil.psf.suppressEdges(Image_fft_shifted, 'Fun',@imUtil.kernel2.cosbell, 'FunPars', [5, 8]);
+
+    % Pad the image with zeros in the frequency domain:
+    % (this is for odd-sized Nx = Ny matrices only!)
+    Nzer = NX; % number of additional rows and columns
+    Nnew = NX+Nzer;
+    Nh   = (NX+1)/2;
+    Image_fft_shifted_filtered_padded = repmat(0,Nnew,Nnew);
+    Image_fft_shifted_filtered_padded(1:Nh,1:Nh)                 = Image_fft_shifted_filtered(1:Nh,1:Nh);
+    Image_fft_shifted_filtered_padded(Nh+Nzer:Nnew,1:Nh)         = Image_fft_shifted_filtered(Nh:NX,1:Nh);
+    Image_fft_shifted_filtered_padded(1:Nh,Nh+Nzer:Nnew)         = Image_fft_shifted_filtered(1:Nh,Nh:NX);
+    Image_fft_shifted_filtered_padded(Nh+Nzer:Nnew,Nh+Nzer:Nnew) = Image_fft_shifted_filtered(Nh:NX,Nh:NX);
+    
+    % Inverse FFT to get the shifted and filtered image
+    % Take the real part, since ifft2 may introduce a small imaginary part due to numerical precision
+    ShiftedImage = real(ifft2(Image_fft_shifted_filtered));  
+    
+    ShiftedImage_padded = 4.*imresize(real(ifft2(Image_fft_shifted_filtered_padded)),0.5);
     
 else
     error('Unknown Algo');

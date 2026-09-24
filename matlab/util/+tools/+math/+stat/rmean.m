@@ -3,7 +3,7 @@ function Mean=rmean(Mat,Dim,Range)
 % Package: Util.stat
 % Description: Calculate the rubust mean over one of the dimensions.
 % Input  : - A matrix.
-%          - Dimension along to calculate the ribust mean.
+%          - Dimension along to calculate the robust mean.
 %            If empty calc over all dimensions.
 %            Deafult is 'all'.
 %          - [Low, High] fraction of the values to remove prior to the
@@ -52,15 +52,15 @@ if (Low>=High)
     Mean = [];
 else
     if ischar(Dim)
-        Mean = nanmean(SortedMat(Low:High,:),'all');
+        Mean = mean(SortedMat(Low:High,:),'all','omitnan');
     else
         
         if (Dim==1)
-            Mean = nanmean(SortedMat(Low:High,:),1);
+            Mean = mean(SortedMat(Low:High,:),1,'omitnan');
         elseif (Dim==2)
-            Mean = nanmean(SortedMat(:,Low:High),2);
+            Mean = mean(SortedMat(:,Low:High),2,'omitnan');
         elseif (Dim==3)
-            Mean = nanmean(SortedMat(:,:,Low:High),3);
+            Mean = mean(SortedMat(:,:,Low:High),3,'omitnan');
         else
             error('Dim must be 1,2 or 3');
         end

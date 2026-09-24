@@ -1,0 +1,340 @@
+%==========================================================================
+% Project     : ULTRASAT Planner
+% File        : +planner/+guiutils/PlannerMainNewPlanHelper.m
+% Author      : Chen Tishler
+% Created     : 07/01/2025
+% Updated     : 11/11/2025
+% Description : Create New Plan - HCS, LCS, DDT, AllSS, TOO
+%==========================================================================
+
+classdef PlannerMainNewPlanHelper < ultrasat.api.core.Loggable
+    % Helper class for PlannerMain.mlapp
+    %
+    % All methods require the PlannerMain instance as the first argument, named 'app'.
+    % This is NOT implicit: even when calling from PlannerMain.mlapp, pass 'app'
+    % explicitly to the helper method.
+    %
+    % Internal call example (from PlannerMain.mlapp):
+    %   app.UniqueTargetsHelper.setUniqueTargetParamsFields(app, UniqTarg, Index, ParamsApp);
+    %
+    % External call example (from another window/module):
+    %   app.MainModule.MainApp.PlanParamsHelper.applyCheckTimes(app.MainModule.MainApp, ParamsApp);
+    %
+    % Notes:
+    %   - 'app' always refers to the PlannerMain instance.
+    %   - Additional parameters (e.g., ParamsApp) are the calling window/modules as needed.
+    %
+
+    methods (Access = public)
+
+        function obj = PlannerMainNewPlanHelper()
+            % Constructor
+            obj.LogPrefix = 'NewPlanHelper';
+        end
+
+        % =================================================================
+        %                           CORE ACTIONS
+        % =================================================================
+
+        function createNewPlan(obj, app)
+            % Show NewPlan dialog and create uplanner instance for selected plan type
+            app.msglog('createNewPlan');
+
+            % Ask user confirmation if there are unsaved changes
+            if app.MainModule.Modified
+                if ~strcmp(app.AppUtils.askYesNo('Your changes are not saved. Do you want to discard the changes and create a new plan?', 'Confirm'), 'Yes')
+                    return;
+                end
+            end
+
+            % Close existing plan if any
+            app.StorageHelper.closePlan(app);
+
+            % Create NewPlanApp
+            if isempty(app.NewPlanApp) || ~isvalid(app.NewPlanApp)
+                app.NewPlanApp = ultrasat.planner.gui.NewPlan(app.MainModule);
+            end
+
+            % Set PlannerName field value, if logged in, use UserName, otherwise allow user to enter name
+            if app.SessionHelper.isLogin(app)
+                app.NewPlanApp.PlannerNameEditField.Value = app.MainModule.UserName;
+                app.NewPlanApp.PlannerNameEditField.Enable = false;
+            else
+                app.NewPlanApp.PlannerNameEditField.Value = '';
+                app.NewPlanApp.PlannerNameEditField.Enable = true;
+            end
+
+            % Show NewPlanApp and wait for user to click "Create" button
+            try
+                result = app.showModal(app.NewPlanApp);
+            catch ME
+                app.msgex('createNewPlan - showModal', ME);
+                return;
+            end
+            if ~strcmp(result, 'Create'), return; end
+
+            % Create new plan according to parameters in NewPlanApp
+            try
+                obj.doCreateNewPlan(app);
+            catch ME
+                app.msgex('createNewPlan', ME);
+            end
+
+            % Refresh toolbar buttons after create flow completes
+            app.SessionHelper.setButtons(app);
+        end
+
+    end
+
+    % =====================================================================
+    %                           PRIVATE METHODS
+    % =====================================================================
+
+    methods (Access = private)
+
+        % =================================================================
+        %                    CREATE HELPERS BY PLAN TYPE
+        % =================================================================
+
+        function doCreateNewPlan(obj, app)
+            % Instantiate uplanner by PlanType from NewPlanApp and initialize GUI state
+
+            % Create new plan according to parameters in app.NewPlanApp
+            PlanType = app.NewPlanApp.PlanType;
+            app.msglog(sprintf('doCreateNewPlan: PlanType: %s', PlanType));
+
+            % Create new PlanData instance
+            app.MainModule.createPlanData();
+
+            % Get StartTime and EndTime from the create dialog
+            StartTime = app.MainModule.GuiHelper.getFieldDateTime( app.NewPlanApp.StartTimeEditField.Value );
+            EndTime = app.MainModule.GuiHelper.getFieldDateTime( app.NewPlanApp.EndTimeEditField.Value );
+
+            % Dispatch uplanner construction by selected plan type
+            switch PlanType
+                case 'HCS',   obj.doCreateNewPlanHCS(app, StartTime, EndTime);   % Host-Coordinated Survey
+                case 'LCS',   obj.doCreateNewPlanLCS(app, StartTime, EndTime);   % Large Coordinated Survey
+                case 'DDT',   obj.doCreateNewPlanDDT(app, StartTime, EndTime);   % Director's Discretionary Time
+                case 'AllSS', obj.doCreateNewPlanAllSS(app, StartTime, EndTime); % All-Sky Survey
+                case 'TOO',   obj.doCreateNewPlanTOO(app, StartTime, EndTime);   % Target of Opportunity
+                otherwise
+                    app.msglog(sprintf('doCreateNewPlan: Unknown PlanType: %s', PlanType));
+            end
+
+            % Update data and references
+            app.MainModule.PlanData.planner = app.MainModule.Planner;
+            app.MainModule.AfterBuild = false;
+
+            % Update GUI - Disable Save button, set Build button text according to PlanType
+            app.SaveButton.Enable = 'off';
+            if strcmp(PlanType, 'DDT')
+                app.BuildButton.Text = 'Add';
+            else
+                app.BuildButton.Text = 'Build';
+            end
+
+            % Set Modified flag to true and show UniqueTargets and PlanTargets
+            app.setModified('doCreateNewPlan');
+            app.UniqueTargetsHelper.showUniqueTargets(app);
+            app.PlanTargetsHelper.showPlanTargets(app);
+            app.setStatus('OK', 'New plan created successfully');
+            app.msglog('doCreateNewPlan done');
+        end
+
+
+        function doCreateNewPlanHCS(obj, app, StartTime, EndTime)
+            % Create new plan according to parameters in app.NewPlanApp
+            app.msglog('doCreateNewPlanHCS started');
+
+            % Get logged-in user name, or user name entered in the dialog
+            UserName = obj.getNewPlanUserName(app);
+
+            % Create new uplanner instance
+            upHCS = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'HCS', ...
+                'StartTime', StartTime, 'EndTime', EndTime, ...
+                'BaseDataDir', app.MainModule.BaseDataDir);
+
+            % Set planner data from the create dialog: PlanTitle, StartTime, EndTime
+            obj.setNewPlanDataFromCreateDialog(app, upHCS);
+
+            app.MainModule.setPlanner(upHCS);
+            app.setModified('doCreateNewPlanHCS');
+            app.PlanParamsHelper.updatePlanParams(app);
+
+            % Load HCS unique targets from file
+            obj.loadUniqueTargetsFromDataFile(app, 'HCS_fields.csv', 'Name', 'loadHcsUniqueTargetsFromFile');
+
+            %app.debugSave('upHCS.mat', app.MainModule.Planner);
+            app.msglog('doCreateNewPlanHCS done');
+        end
+
+
+        function doCreateNewPlanLCS(obj, app, StartTime, EndTime)
+            % Create new plan according to parameters in app.NewPlanApp
+            app.msglog('doCreateNewPlanLCS started');
+
+            % Get logged-in user name, or user name entered in the dialog
+            UserName = obj.getNewPlanUserName(app);
+
+            % Create new uplanner instance
+            upLCS = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'LCS', ...
+                'StartTime', StartTime, 'EndTime', EndTime, ...
+                'BaseDataDir', app.MainModule.BaseDataDir);
+
+            % Set planner data from the create dialog: PlanTitle, StartTime, EndTime
+            obj.setNewPlanDataFromCreateDialog(app, upLCS);
+
+            app.MainModule.setPlanner(upLCS);
+            app.setModified('doCreateNewPlanLCS');
+            app.PlanParamsHelper.updatePlanParams(app);
+
+            % Load LCS unique targets from file
+            obj.loadUniqueTargetsFromDataFile(app, 'LCS_fields.csv', 'Field', 'loadLcsUniqueTargetsFromFile');
+
+            %app.debugSave('upLCS.mat', app.MainModule.Planner);
+            app.msglog('doCreateNewPlanLCS done');
+        end
+
+
+        function doCreateNewPlanDDT(obj, app, StartTime, EndTime)
+            % Create new plan according to parameters in app.NewPlanApp
+            app.msglog('doCreateNewPlanDDT started');
+
+            % Get logged-in user name, or user name entered in the dialog
+            UserName = obj.getNewPlanUserName(app);
+
+            % Create new uplanner instance
+            upDDT = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'DDT', ...
+                'StartTime', StartTime, 'EndTime', EndTime, ...
+                'BaseDataDir', app.MainModule.BaseDataDir);
+
+            % Set planner data from the create dialog: PlanTitle, StartTime, EndTime
+            obj.setNewPlanDataFromCreateDialog(app, upDDT);
+
+            app.MainModule.setPlanner(upDDT);
+            app.setModified('doCreateNewPlanDDT');
+            app.PlanParamsHelper.updatePlanParams(app);
+            %app.debugSave('upDDT.mat', app.MainModule.Planner);
+            app.msglog('doCreateNewPlanDDT done');
+        end
+
+
+        function doCreateNewPlanTOO(obj, app, StartTime, EndTime)
+            % Create new plan according to parameters in app.NewPlanApp
+            app.msglog('doCreateNewPlanTOO started');
+
+            % Get logged-in user name, or user name entered in the dialog
+            UserName = obj.getNewPlanUserName(app);
+
+            % Create new uplanner instance
+            upTOO = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'TOO', ...
+                'StartTime', StartTime, 'EndTime', EndTime, ...
+                'BaseDataDir', app.MainModule.BaseDataDir);
+
+            % Set planner data from the create dialog: PlanTitle, StartTime, EndTime
+            obj.setNewPlanDataFromCreateDialog(app, upTOO);
+
+            app.MainModule.setPlanner(upTOO);
+            app.setModified('doCreateNewPlanTOO');
+            app.PlanParamsHelper.updatePlanParams(app);
+            %app.debugSave('upTOO.mat', app.MainModule.Planner');
+            app.msglog('doCreateNewPlanTOO done');
+        end
+
+
+        function doCreateNewPlanAllSS(obj, app, StartTime, EndTime)
+            % Create new plan according to parameters in app.NewPlanApp
+            app.msglog('doCreateNewPlanAllSS started');
+
+            % Get logged-in user name, or user name entered in the dialog
+            UserName = obj.getNewPlanUserName(app);
+
+            % Create new uplanner instance
+            upAllSS = ultrasat.planner.uplanner('AstPlanner', UserName, 'Type', 'AllSS', ...
+                'StartTime', StartTime, 'EndTime', EndTime, ...
+                'BaseDataDir', app.MainModule.BaseDataDir);
+
+            % Set planner data from the create dialog: PlanTitle, StartTime, EndTime
+            obj.setNewPlanDataFromCreateDialog(app, upAllSS);
+
+            app.MainModule.setPlanner(upAllSS);
+            app.setModified('doCreateNewPlanAllSS');
+            app.PlanParamsHelper.updatePlanParams(app);
+            %app.debugSave('upLCS.mat', app.MainModule.Planner);
+            app.msglog('doCreateNewPlanAllSS done');
+        end
+
+
+        function FileName = resolvePlannerDataFile(obj, app, BaseName)
+            % Resolve planner data file from BaseDataDir or repo +planner/data/
+            FileName = fullfile(app.MainModule.BaseDataDir, BaseName);
+            if ~isfile(FileName)
+                PlannerDir = fileparts(mfilename('fullpath'));
+                FileName = fullfile(PlannerDir, '..', 'data', BaseName);
+            end
+        end
+
+
+        function loadUniqueTargetsFromDataFile(obj, app, BaseName, NameColumn, LogTag)
+            % Load unique targets from a CSV in +planner/data/ or BaseDataDir
+            app.msglog(sprintf('%s started', LogTag));
+
+            FileName = obj.resolvePlannerDataFile(app, BaseName);
+            if ~isfile(FileName)
+                app.msglog(sprintf('%s: file not found: %s', LogTag, FileName));
+                return;
+            end
+
+            app.showPleaseWait('Loading unique targets... expected duration: up to ~30 seconds.');
+            try
+                Grid = readtable(FileName);
+                if strcmp(NameColumn, 'Name')
+                    Names = Grid.Name;
+                else
+                    Names = num2cell(Grid.(NameColumn));
+                end
+                app.MainModule.Planner.addUniqTargets(Grid.RA, Grid.Dec, 'Name', Names);
+                app.setModified(LogTag);
+                app.msglog(sprintf('%s: loaded %d targets from %s', LogTag, height(Grid), FileName));
+            catch ME
+                app.msgex(LogTag, ME);
+            end
+            app.closePleaseWait();
+        end
+
+        % =================================================================
+        %                         UTILITY HELPERS
+        % =================================================================
+
+        function UserName = getNewPlanUserName(obj, app)
+            % Get logged-in user name, or user name entered in NewPlanApp dialog
+            if app.SessionHelper.isLogin(app)
+                UserName = app.MainModule.UserName;
+            else
+                UserName = strtrim(app.NewPlanApp.PlannerNameEditField.Value);
+            end
+        end
+
+
+        function setNewPlanDataFromCreateDialog(obj, app, Planner)
+            % Set planner data from the create dialog: PlanTitle, StartTime, EndTime
+
+            if isempty(app.NewPlanApp)
+                app.msglog('setNewPlanDataFromCreateDialog: NewPlanApp not initialized');
+                return;
+            end
+
+            % Get PlanTitle, StartTime, EndTime from NewPlanApp dialog
+            PlanTitle = app.MainModule.GuiHelper.getFieldTitle( app.NewPlanApp.TitleEditField.Value );
+            %StartTime = app.MainModule.GuiHelper.getFieldDateTime( app.NewPlanApp.StartTimeEditField.Value );
+            %EndTime = app.MainModule.GuiHelper.getFieldDateTime( app.NewPlanApp.EndTimeEditField.Value );
+
+            % Set Planner data
+            Planner.Title = PlanTitle;
+            %Planner.StartTime = StartTime;
+            %Planner.EndTime = EndTime;
+        end
+
+    end
+
+end

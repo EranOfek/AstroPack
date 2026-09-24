@@ -142,7 +142,7 @@ classdef DbConnection < Component
             
             % Register
             db.DbConnection.getDbConnection('', 'DbConn', Obj, 'Register', true);
-            Obj.msgLog(LogLevel.Debug, 'created: %s, uuid: %s', Obj.Db, Obj.Uuid);
+%             Obj.msgLog(LogLevel.Debug, 'created: %s, uuid: %s', Obj.Db, Obj.Uuid);
         end
         
                 
@@ -305,7 +305,7 @@ classdef DbConnection < Component
             if ~isempty(Args.DbConn) && Args.Register
                 Res = Map.find(Args.DbConn.Db);
                 if isempty(Res)
-                    io.msgLog(LogLevel.Debug, 'getDbConnection: Register: %s', Args.DbConn.Db);
+%                     io.msgLog(LogLevel.Debug, 'getDbConnection: Register: %s', Args.DbConn.Db);
                     Args.DbConn.MapKey = Args.DbConn.Db;
                     Map.add(Args.DbConn);
                 end

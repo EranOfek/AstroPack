@@ -4,6 +4,7 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
     %   celestial.SolarSys.jpl_horizons to generate ephemerides and
     %   celestial.SolarSys.conjunctionsStars to search for the
     %   conjunctions.
+    %   Time is in UTC.
     % Input  : * ...,key,val,...
     %            see code.
     % Output : - A structure array of found events.
@@ -15,22 +16,22 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
 
     arguments
         Args.ElementsIndex = 2;  % 1 for numbered asteroid; 2 for unnumbered
-        Args.DistRange = [9 Inf];
-        Args.HRange    = [-Inf 7];
-        Args.StartDate = [20 3 2023];
-        Args.EndDate   = [9 6 2023];
+        Args.DistRange = [9 Inf];   % dist range [au]
+        Args.HRange    = [-Inf 7];  % abs. mag range
+        Args.StartJD   = [20 3 2023];
+        Args.EndJD     = [9 6 2023];
         Args.AddPlanets  = {'799','899'};  % Uranus, Neptune
-        Args.PlanetsRadius = [25362, 24622];
+        Args.PlanetsRadius = [25362, 24622];  % radius of AddPlanets
 
-        Args.ObsCoo    = [35 30 0.415];
+        Args.ObsCoo    = [35.04073 30.05298 0.415];
         Args.MaxSunAlt = -11.0;
-        Args.MinAlt    = 25;
+        Args.MinAlt    = 20;
         
     end
     
     RAD = 180./pi;
 
-    E = celestial.OrbitalEl.loadSolarSystem;
+    E = celestial.OrbitalEl.loadSolarSystem('num',[136108]); %50000 88267 119066]);
 
     Ie = Args.ElementsIndex;
     Flag = E(Ie).A(:)>Args.DistRange(1) & E(Ie).A(:)<Args.DistRange(2) & ...
@@ -40,6 +41,7 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
 
     Nast = sum(Flag);
     Result = [];
+    NewAlgo = true;
     for Iast=1:1:Nast
         [Iast, Nast]
 
@@ -57,12 +59,19 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
         %ObjName
         
         try
-            [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',ObjName, 'StartJD',Args.StartDate,'StopJD',Args.EndDate, 'StepSize',3,'StepSizeUnits','h');
             
-            Hmag = E(Ie).MagPar(1);
+            Hmag = E(Ie).MagPar(Ind(Iast), 1);
             [OcculterRadius] = celestial.SolarSys.asteroid_radius(Hmag, 0.15);
         
-            Result = celestial.conjunctions.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',OcculterRadius);
+            if NewAlgo
+                [EphemTable,~,U] = celestial.SolarSys.getJPL_ephem(ObjName,'EPHEM_TYPE','OBSERVER','TimeScale','UT', 'GeoCoo',Args.ObsCoo); 
+
+                Result = celestial.conjunctions.conjunctionsStars(EphemTable, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',OcculterRadius);
+            else
+                [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',ObjName, 'StartJD',Args.StartJD,'StopJD',Args.EndJD, 'StepSize',3,'StepSizeUnits','h');
+
+                Result = celestial.conjunctions.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',OcculterRadius);
+            end
         catch ME
             ME
             fprintf('Failed %d',Iast);
@@ -71,20 +80,28 @@ function [Result, Table, TableCompact] = conjunctionsSearchStarMP(Args)
     
     Npl = numel(Args.AddPlanets);
     for Ipl=1:1:Npl
-        [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',Args.AddPlanets{Ipl}, 'StartJD',Args.StartDate,'StopJD',Args.EndDate, 'StepSize',3,'StepSizeUnits','h');
-    
         ObjName = Args.AddPlanets{Ipl};
-        Result = celestial.conjunctions.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',Args.PlanetsRadius(Ipl));
+
+        if NewAlgo
+            [EphemTable,~,U] = celestial.SolarSys.getJPL_ephem(ObjName,'EPHEM_TYPE','OBSERVER','TimeScale','UT', 'GeoCoo',Args.ObsCoo); 
+                
+            Result = celestial.conjunctions.conjunctionsStars(EphemTable, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',Args.PlanetsRadius(Ipl));
+        else
+            [EphemCat] = celestial.SolarSys.jpl_horizons('ObjectInd',Args.AddPlanets{Ipl}, 'StartJD',Args.StartJD,'StopJD',Args.EndJD, 'StepSize',3,'StepSizeUnits','h');
+            
+            Result = celestial.conjunctions.conjunctionsStars(EphemCat, 'Result',Result, 'ObjName',ObjName,'ObsCoo',Args.ObsCoo, 'OcculterRadius',Args.PlanetsRadius(Ipl));
+        end
     end
     
     if ~isempty(Result)
-        Flag = [Result.SunAlt]<Args.MaxSunAlt & [Result.Alt]<Args.MinAlt;
+        Flag = [Result.SunAlt]<Args.MaxSunAlt & [Result.Alt]>Args.MinAlt;
         Result = Result(Flag);
     end
+   
     
     Table = struct2table(Result);
     
-    TableCompact = table(Table.ObjName,...
+    TableCompact = table({Table.ObjName},...
                          convert.date2str(Table.Date),...
                          Table.phot_bp_mean_mag,...
                          Table.ImpactPar_inOcculterAngRadiusUnits,...

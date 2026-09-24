@@ -1,0 +1,348 @@
+function Image = addSources(Image, SrcPSF, XY, Args)
+    % Inject odd-sized fluxed source images (PSFs) into whole pixel positions of an image  
+    %     NB: first one needs to prepare fluxed and shifted source PSFs with imUtil.art.createSourceCube   
+    % Input  : - an image matrix  
+    %          - a prepared cube or cell array of fluxed source PSFs 
+    %            whose spatial scaling fits to that of the Image with account of the 'Oversample' parameter 
+    %          - a prepared list of whole pixel positions   
+    %          * ...,key,val,... 
+    %          'ImSize' - [X Y] a forced size of the resulting image [employed only if any(size(Image) < 2)]    
+    %          'Subtract' - whether to add or subtract the source images 
+    %          'Oversample' - oversampling of the PSF stamps (1 value or a vector)
+    %          'Method' - 'NS' -- use the old function of Noam Segev 
+    %          'ShiftInterp' - if true, use interpolation instead of FFT shift
+    % Output : - an image with injected source PSFs  
+    % Author : A.M. Krassilchtchikov (2024 May) 
+    % Example: for i = 1:10; P(:,:,i) = imUtil.kernel2.gauss([4 4 0],[24 24]) + 1e-2*rand(24,24); end
+    %          X1Y1 = 100.*rand(10,2); Flux = 100.*rand(10,1);
+    %          [CubePSF, XY] = imUtil.art.createSourceCube(P, X1Y1, Flux, 'Oversample', 3, 'FixPSFWings', true);
+    %          Image = rand(100);
+    %          ImageSrc = imUtil.art.addSources(Image,CubePSF,XY);
+    arguments
+        Image           
+        SrcPSF          
+        XY              = [];
+        Args.ImSize     = []; 
+        Args.Subtract   = false;
+        Args.Oversample = [];
+        Args.Method     = [];
+        Args.ShiftInterp = false; 
+    end 
+    % check if imUtil.art.createSourceCube has been used to produce the whole-pixel coordinates of the PSFs  
+%     if isempty(XY)
+%         
+%     end
+    % if requested, call the old function of Noam Segev:
+    if strcmpi(Args.Method,'ns')      
+        [N, ~, Nsrc] = size(SrcPSF);
+        if isempty(Args.Oversample)
+            Args.Oversample = 1;
+        end
+        M = round(N/Args.Oversample);    
+        SrcPSF1 = zeros(M, M, Nsrc);
+        for Isrc = 1:Nsrc
+            % 'box' integrates the flux over the detector pixel area; imresize's
+            % default (bicubic) would both narrow the PSF and ring into negative values
+            SrcPSF1(:, :, Isrc) = (Args.Oversample^2).*imresize(SrcPSF(:, :, Isrc), 1./Args.Oversample, 'box');
+        end              
+        Flux = repmat(1.0,1,Nsrc);   
+        Cat = [XY(:,2) XY(:,1) Flux'];
+        Image = injectSources_NS(Image,Cat,SrcPSF1,'RecenterPSF',false,'ShiftInterp',Args.ShiftInterp);
+        return
+    end
+    % if the PSF is yet not to scale, call the old directInjectSources function:
+    if ~isempty(Args.Oversample) 
+        Flux = repmat(1.0,1,size(SrcPSF,3));   
+        Cat = [XY(:,1) XY(:,2) Flux'];
+        Image = directInjectSources(Image, Cat, Args.Oversample, SrcPSF);
+        return
+    end
+    % sanity checks and PSF size 
+    if iscell(SrcPSF)             
+        Nsrc   = size(SrcPSF);
+        M      = cellfun(@size, SrcPSF, 'UniformOutput', false);
+        if any(cellfun(@(x) any(mod(x, 2) == 0), M)) 
+            error('Input PSFs must be odd-sized')
+        end
+        MaxM   = max(cellfun(@max, M));
+        PSFRad = cellfun(@(x) (x(1)-1)/2,M);
+    elseif isnumeric(SrcPSF)      
+        [M,~,Nsrc] = size(SrcPSF); 
+        if rem(M,2) == 0
+            error('Input PSFs must be odd-sized')
+        end
+        MaxM       = M; 
+        PSFRad     = (M-1)/2; 
+    else
+        error('Input PSF format is invalid');        
+    end
+        
+    if abs(size(XY,1)-Nsrc) > 0  
+        error('The length of the coordinate list and the PSF stack size do not match')
+    end
+            
+    % output image size     
+    if all(size(Image) > 1)       % match the size of the input image, if it exists
+        ImSize = size(Image);
+    elseif ~isempty(Args.ImSize)  % use the explicit sizes
+        ImSize = Args.ImSize; 
+    else                          % determine the sizes from the object coordinates and the maximal PSF size
+        ImSize(1) = max(XY(:,1)) + (MaxM-1)/2;  
+        ImSize(2) = max(XY(:,2)) + (MaxM-1)/2;        
+    end        
+        
+    % construct a source image  
+    if isempty(Image)
+        Image = zeros(ImSize);
+    end
+    SrcImage = zeros(ImSize, 'like',Image);     
+    
+    for Isrc = 1:Nsrc
+        % determine the region to be filled in the image
+        if iscell(SrcPSF) % individual PSF size
+            X1 = XY(Isrc,1)-PSFRad(Isrc); X2 = XY(Isrc,1)+PSFRad(Isrc);
+            Y1 = XY(Isrc,2)-PSFRad(Isrc); Y2 = XY(Isrc,2)+PSFRad(Isrc);
+            X11 = 1; Y11 = 1; X21 = 2*PSFRad(Isrc) + 1; Y21 = 2*PSFRad(Isrc) + 1;
+        else        
+            X1 = XY(Isrc,1)-PSFRad; X2 = XY(Isrc,1)+PSFRad;
+            Y1 = XY(Isrc,2)-PSFRad; Y2 = XY(Isrc,2)+PSFRad;
+            X11 = 1; Y11 = 1; X21 = 2*PSFRad + 1; Y21 = 2*PSFRad + 1;
+        end
+        % if the object is too close to a border, we need to cut the stamp
+        if X1 < 1
+            X11 = 2-X1; 
+            X1  = 1;
+        end
+        if Y1 < 1
+            Y11 = 2-Y1; 
+            Y1  = 1;
+        end
+        if X2 > ImSize(1)
+            X21 = X21-(X2-ImSize(1));
+            X2 = ImSize(1);
+        end
+        if Y2 > ImSize(2)
+            Y21 = Y21-(Y2-ImSize(2));
+            Y2 = ImSize(2);
+        end
+        %
+        if iscell(SrcPSF)
+            S = SrcPSF{Isrc};
+        else
+            S = SrcPSF(:,:,Isrc);
+        end
+        % this is the main injection line:
+        SrcImage(X1:X2,Y1:Y2) = SrcImage(X1:X2,Y1:Y2) + S(X11:X21,Y11:Y21);
+        % this appears quite slow, can be replaced by a mex-function of Chen Tishler?
+%         try
+%             tools.array.updateMatrixInplace(SrcImage, S, X1, Y1, X11, Y11, X21-X11+1, Y21-Y11+1);
+%         catch
+%             X1;
+%         end
+    end
+    
+    % add or subract the source image from the sky image:    
+    if Args.Subtract
+        Image = Image - SrcImage;
+    else
+        Image = Image + SrcImage;
+    end
+end
+
+%%%
+%%% internal functions
+%%%
+
+function Image = directInjectSources (Image0, Cat, Scaling, PSF)
+    % Inject sources to catalog positions with PSFs scaled by the Scaling factor 
+    % Package: imUtil.art
+    % Description: The image is brought to the oversampled scale of the PSF stamps with
+    %              a 'box' resize (which replicates pixels), the fluxed stamps are added
+    %              there, and the result is averaged back down. A detector pixel I covers
+    %              the oversampled pixels (I-1)*Scaling+1 : I*Scaling, so a source at the
+    %              detector position X sits at Scaling*(X-0.5)+0.5 on that grid; the stamp
+    %              is placed at the nearest whole oversampled pixel and shifted by the
+    %              remainder. Stamps reaching outside the image are cut, not moved inwards.
+    % Input:   - Image0: a 2D array containing the initial image 
+    %          - Cat: an 3-column table: X, Y, full band flux normalization
+    %          - Scaling: a scaling factor, a positive integer
+    %          - PSF: a 2+1 D array of source PSFs, normalized to unity
+    % Output : - Image: a 2D array containing the resulting image
+    % Author : A. Krassilchtchikov et al. (Feb 2023)
+    % Example: Image1 = imUtil.art.directInjectSources (Image0,Cat,Scaling,PSF)
+
+    % the 'box' up- and downsampling below is an exact round trip (pixel replication
+    % followed by block averaging) only for an integer Scaling; for a non-integer one
+    % the two grids do not align and the whole image would be silently smoothed
+    if ~isscalar(Scaling) || ~isfinite(Scaling) || Scaling < 1 || mod(Scaling,1) ~= 0
+        error('The oversampling factor must be a scalar integer >= 1, got %s', mat2str(Scaling));
+    end
+
+    % rescale the initial image to the PSF scale:    
+    Im      = imresize(Image0, Scaling, 'box');
+    SizeImX = size(Im,1);
+    SizeImY = size(Im,2);
+
+    SizeX  = size(PSF,1);
+    SizeY  = size(PSF,2);
+    NumSrc = size(PSF,3);
+
+    if NumSrc > 0
+        % source positions on the oversampled grid, and the corner the stamp is to occupy
+        Xcenter = Scaling.*(Cat(:,1) - 0.5) + 0.5;
+        Ycenter = Scaling.*(Cat(:,2) - 0.5) + 0.5;
+        XcornEx = Xcenter - (SizeX-1)./2;
+        YcornEx = Ycenter - (SizeY-1)./2;
+        Xcorn   = round(XcornEx);
+        Ycorn   = round(YcornEx);
+
+        % the subpixel remainder is applied to the stamps themselves, on the oversampled
+        % grid, where the interpolation kernel does not ring; the flux of each stamp is
+        % restored afterwards, so the injected flux stays exact
+        % NB: shift_lanczos takes [ShiftX, ShiftY] with X along the columns
+        ShiftXY = [YcornEx - Ycorn, XcornEx - Xcorn];
+        if any(ShiftXY ~= 0, 'all')
+            SumBefore = sum(PSF, [1 2]);
+            PSF       = imUtil.trans.shift_lanczos(PSF, ShiftXY);
+            SumAfter  = sum(PSF, [1 2]);
+            Keep      = SumAfter ~= 0;
+            PSF(:,:,Keep) = PSF(:,:,Keep) .* (SumBefore(Keep)./SumAfter(Keep));
+        end
+
+        for Isrc = 1:1:NumSrc
+            % the region to be filled in the oversampled image and the part of the stamp
+            % that falls into it: a stamp reaching outside the image is cut, not moved
+            X1 = Xcorn(Isrc); X2 = X1 + SizeX - 1;
+            Y1 = Ycorn(Isrc); Y2 = Y1 + SizeY - 1;
+            X11 = 1; X21 = SizeX; Y11 = 1; Y21 = SizeY;
+            if X1 < 1
+                X11 = 2 - X1;
+                X1  = 1;
+            end
+            if Y1 < 1
+                Y11 = 2 - Y1;
+                Y1  = 1;
+            end
+            if X2 > SizeImX
+                X21 = X21 - (X2 - SizeImX);
+                X2  = SizeImX;
+            end
+            if Y2 > SizeImY
+                Y21 = Y21 - (Y2 - SizeImY);
+                Y2  = SizeImY;
+            end
+            % NB! "imresize" scales the sum of the counts as Scaling^2, so we need to
+            % scale the added signal
+            if X2 >= X1 && Y2 >= Y1
+                Im(X1:X2, Y1:Y2) = Im(X1:X2, Y1:Y2) + ...
+                                   PSF(X11:X21, Y11:Y21, Isrc) .* Cat(Isrc,3) .* Scaling.^2;
+            end
+        end
+    end
+
+    % scale down to the original pixel size:    
+    Image = imresize(Im, 1./Scaling, 'box');
+end
+
+function S = injectSources_NS(Image,Cat,PSFin,Args)
+    % Inject artificial sources into an image.
+    %   The function build the sources image with user provided PSF and catalogs.
+    %   The function does not treat nans. Make sure that non of the inputs 
+    %    contain nans.
+    %       
+    % Input  :  - An image (matrix) to inject the source. In case of two
+    %             components vector (i.e., [1200,1000]), the function will
+    %             inject sources to an empty image with size set by Image. 
+    %             For a scalar, the function will inject into an equal
+    %             sized empty image. In case of a matrix with more than two
+    %             elements, the function will add the injected sources to
+    %             the input image.
+    %           - A three column vector containing X, Y and flux, for each
+    %             source. 
+    %           - PSF stamps. Either a single PSF stamp (2D) or PSF stamp per source
+    %             in a 3D matrix, where the size of third dimension equal the nubmer of sources.
+    %             The codes work with symmetric PSF (i.e., odd stamp size)
+    %
+    %           * ...,key,val,...
+    %             'RecenterPSF' - a logical indicating if to set the center
+    %                   of the PSF by the first moment instead of the central pixel. 
+    %                   Default is false.
+    %             'ShiftInterp' - use interpolation instead of FFT-shift 
+    %
+    % Output : - An image with the injected sources (matrix).
+    % Author : Noam Segev (Jan 2023)
+    %          refactored by Enrico Segre (Jul 2023)
+    % Example: PSF = imUtil.kernel2.gauss; 
+    %          Cat = [rand(10,2)*100,rand(10,1)*1e5];
+    %          S = imUtil.art.injectSources(100,Cat,PSF)
+    
+    arguments
+        Image;
+        Cat;
+        PSFin;
+        Args.RecenterPSF = false;
+        Args.ShiftInterp = false;
+    end
+
+    if numel(Image)==2     % Assume the output is imagesize
+        S = zeros(Image);
+    elseif numel(Image)==1 % In case of scalar
+        S = zeros([Image,Image]);
+    else
+        S = Image;
+    end
+
+    [SizeImageY,SizeImageX] = size(S);
+
+    X = Cat(:,1);
+    Y = Cat(:,2);
+    flux = Cat(:,3);
+    DX = mod(X,1);
+    DY = mod(Y,1);
+    Xround=  floor(X);
+    Yround=  floor(Y);
+    Nsrc = numel(flux);
+    Npsf = size(PSFin,3);
+    if Npsf~=1 && Npsf ~= Nsrc
+        error("injectSources must get either a single PSF or as many PSFs as sources")
+    end
+
+    for i = 1:Nsrc
+
+        if Npsf>1 || i==1
+            PSF(:,:) = PSFin(:,:,i);
+            [SizePSFX,SizePSFY] = size(PSF);
+            Xcenter = ceil(SizePSFX./2);
+            Ycenter = ceil(SizePSFY./2);
+
+            if Args.RecenterPSF
+                momt =imUtil.image.moment2(PSF,SizePSFX,SizePSFY);
+                DX = DX - (Xcenter - momt.X);
+                DY = DY - (Ycenter - momt.Y);
+            end
+
+            Xind_vec = 1:1:SizePSFX;
+            Yind_vec = 1:1:SizePSFY;
+            VecX= Xind_vec-Xcenter;
+            VecY= Yind_vec-Ycenter;
+            [matx,maty]= meshgrid(VecX,VecY);
+            if Args.ShiftInterp
+                PSF_shifted = imUtil.trans.shift_interp(PSF,DX,DY);
+            else
+                PSF_shifted = imUtil.trans.shift_fft(PSF,DX,DY);
+            end
+        end
+
+        Xind = matx+ Xround(i);
+        Yind = maty+ Yround(i);
+
+        flag = ~(Xind<=0 | Yind<=0 | Xind>SizeImageX | Yind>SizeImageY);
+        ind = sub2ind([SizeImageY,SizeImageX],Yind(flag),Xind(flag));
+        %Ind = imUtil.image.mex.sub2ind_mex([SizeImageY,SizeImageX],Yind(flag),Xind(flag));
+
+        % ind(isnan(ind))=[]; % ? for what pathological case ind may be NaN?
+
+        psf_t = squeeze(PSF_shifted(:,:,i));
+        S(Ind) = S(Ind) +  psf_t(flag(:)).*flux(i);
+    end
+end 

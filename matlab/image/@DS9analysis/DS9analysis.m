@@ -19,6 +19,7 @@ classdef DS9analysis < handle
 
     properties
         Images               % AstroImage | FileNames | cell
+        MatchedSources = [];
         Names cell   = {};
 
         % Frame2Ind    = [1];   % [ImageIndInFrame1, ImageIndInFram2,...]
@@ -119,17 +120,17 @@ classdef DS9analysis < handle
 
         end
 
-        function Obj=load(Obj, Image, Args)
+        function Obj=load(Obj, Image, Frames, Args)
             % Load images to a DS9analysis object
             % Input  : - Self.
             %          - An AstroImage object, or a cell array of images,
             %            or a file name.
             %            The images will be loaded to frame 1..N according
             %            to their order.
+            %          - A vector of frames into to load the
+            %            images. If empty, use 1..N.
+            %            Default is [].
             %          * ...,key,val,...
-            %            'Frames' - A vector of frames into to load the
-            %                   images. If empty, use 1..N.
-            %                   Default is [].
             %            'LikeLAST' - A logical indicating if to read LAST like names.
             %                   If true then will use AstroImage.readFileNamesObj
             %                   to read images and thir corresponding Mask, PSF,
@@ -150,7 +151,7 @@ classdef DS9analysis < handle
                 Obj
                 Image
 
-                Args.Frames              = [];
+                Frames                   = [];
                 Args.LikeLAST logical    = true;
                 Args.Names               = {};
                 Args.Disp logical        = true;
@@ -160,7 +161,7 @@ classdef DS9analysis < handle
             if isa(Image, 'AstroImage')
                 AI = Image;
             else
-                if LikeLAST
+                if Args.LikeLAST
                     AI = AstroImage.readFileNamesObj(Image);
                 else
                     if ischar(Image) || iscell(Image)
@@ -170,10 +171,8 @@ classdef DS9analysis < handle
             end
 
             Nim = numel(AI);
-            if isempty(Args.Frames)
+            if isempty(Frames)
                 Frames = (1:1:Nim);
-            else
-                Frames = Args.Frames;
             end
            
             for Iim=1:1:Nim
@@ -189,7 +188,12 @@ classdef DS9analysis < handle
 
             if Args.Disp
                 for Iim=1:1:Nim
-                    ds9.disp(Obj.Images(Iim), Frames(Iim));
+                    FrameInd = Frames(Iim);
+                    try
+                        ds9.disp(Obj.Images(FrameInd), FrameInd);
+                    catch ME
+                        fprintf('Failed displaying imag : %d\n',Iim);
+                    end
                     if ~isempty(Args.Zoom)
                         ds9.zoom(Args.Zoom);
                     end
@@ -287,120 +291,357 @@ classdef DS9analysis < handle
     end
 
     methods % asteroids/moving sources
-        function [AstData,AstTable,ReportMPC]=blinkAstCrop(Obj, AstData, Args)
+        function [AstData,AstTable,BadCand, ReportMPC]=blinkAstCrop(Obj, AstData, Args)
             % Display AstCrop
             % Example: D9=DS9analysis;
-            %          [AstData,AstTable,ReportMPC] = D9.blinkAstCrop;
-            %          [AstData,AstTable,ReportMPC] = D9.blinkAstCrop(AstData,'Id',2);
+            %          [AstData,AstTable,~,ReportMPC] = D9.blinkAstCrop;
+            %          [AstData,AstTable,~,ReportMPC] = D9.blinkAstCrop(AstData,'Id',2);
+            %          [AstData,AstTable,BadCand,ReportMPC] = D9.blinkAstCrop('all','Id',[]);
 
             arguments
                 Obj
-                AstData = [];
-                Args.Id          = 1;
+                AstData          = [];  % use 'all' for rdir
+                Args.Id          = 1;  % if [] loop over all
                 Args.StampsStep  = [];
                 Args.AstFileTemp = '*merged_Asteroids*.mat';
                 Args.Zoom        = 8;
                 Args.DispInfo logical = true;
-                Args.ReportType       = 'AllDetections'; %'FittedDetection';
+                Args.ReportType       = 'FittedDetection3'; %'AllDetections'; %'FittedDetection';
+                Args.generateReportMPCArgs cell  = {};
+                Args.PlotKnown logical           = true;
+                Args.INPOP                       = [];
+                Args.OrbEl                       = [];
+                Args.SearchGAIA logical          = true;
+                Args.SearchRadGAIA               = 3;
+                Args.MagGAIA                     = 20.5;
             end
+            RAD = 180./pi;
+
+            if Args.PlotKnown
+                Args.INPOP = celestial.INPOP;
+                Args.INPOP.populateAll;
+                Args.OrbEl = celestial.OrbitalEl.loadSolarSystem('merge');
+            end
+
 
             if isempty(AstData)
                 % attempt to load Asteroids MAT file
                 Files = dir(Args.AstFileTemp);
-                if numel(Files)>0
-                    AstData = io.files.load2(Files(1).name);
-                else
+                if numel(Files)==0
                     error('No asteroid file found');
                 end
-            end
+                Nf = 1;
 
-            if ischar(AstData)
-                AstData = io.files.load2(Files(1).name);
-            end
-
-            Nast = numel(AstData.AstCrop);
-            if Args.Id>Nast
-                error('Requested Id=%d is > Number of asteroids in file is %d',Args.Id, Nast);
-            end
-
-            Nstamp = numel(AstData.AstCrop(Args.Id).Stamps);
-            if isempty(Args.StampsStep)
-                % show only first and last images
-                StampInd = [1 Nstamp];
             else
-                StampInd = (1:Args.StampStep:Nstamp);
-            end
-            Obj.load(AstData.AstCrop(Args.Id).Stamps(StampInd), 'Zoom',Args.Zoom);
-            ds9.match_xy;
+                if (ischar(AstData) || isstring(AstData)) && strcmp(AstData, 'all')
+                    Files = io.files.rdir(Args.AstFileTemp);
+                    Nf    = numel(Files);
+                else
+                    % assume input is struct
+                    Nf = 1;
+                    Files = [];
 
-            % Display information
-            NsrcCat = sizeCatalog(AstData.AstCrop(Args.Id).SelectedCatPM);
-            switch NsrcCat
-                case 0
-                    error('Possible bug: %d sources found in catalog', NsrcCat);
-                case 1
-                    AstSrcId = 1;
-                otherwise
-                    [Dist, PA] = sphere_dist(AstData.AstCrop(Args.Id).SelectedCatPM, AstData.AstCrop(Args.Id).RA, AstData.AstCrop(Args.Id).Dec, 'rad', 'deg');
-                    [MinDist, AstSrcId] = min(Dist);
-                    if MinDist>(5./3600)
-                        error('Possible problem" distance of nearest source to cutout center is too large %f arcsec', MinDist.*3600);
-                    end
-            end
-            
-            AstTable = AstData.AstCrop(Args.Id).SelectedCatPM.toTable;
-            AstTable = AstTable(AstSrcId,:);
-
-            if Args.DispInfo
-                fprintf('SubImage      : %d\n',AstData.AstCrop(Args.Id).FieldIndex);
-                fprintf('RA            : %s\n', celestial.coo.convertdms(AstTable.RA, 'd', 'SH'));
-                fprintf('Dec           : %s\n',celestial.coo.convertdms(AstTable.Dec, 'd', 'SD'));
-                fprintf('Nobs          : %d\n',AstTable.Nobs);
-                fprintf('Noutlier      : %d\n',AstTable.Noutlier);
-                fprintf('PM_RA         : %f [deg/day]\n',AstTable.PM_RA);
-                fprintf('PM_Dec        : %f [deg/day]\n',AstTable.PM_Dec);
-                fprintf('JD_PM         : %15.6f\n',AstTable.JD_PM);
-                fprintf('MAG mean      : %f\n', AstTable.Mean_MAG_PSF);
-                fprintf('MAG range     : %f\n', AstTable.Range_MAG_PSF);
-                fprintf('S/N mean      : %f\n', AstTable.Mean_SN_3);
-                BD = BitDictionary;
-                FlagsName = BD.bitdec2name(AstTable.FLAGS);
-                FlagsName = FlagsName{1};
-                fprintf('FLAGS         :');
-                for I=1:1:numel(FlagsName)
-                    fprintf('  %s', FlagsName{I});
                 end
-                fprintf('\n');
-                fprintf('MergedCat flags : %d\n', AstTable.MergedCatMask);
-                fprintf('PolyDeltaChi2   : %f\n', AstTable.PolyDeltaChi2);
+
             end
 
-            % prep MPC report for asteroid
+            BD = BitDictionary;
 
-            %
-            switch Args.ReportType
-                case 'AllDetections'
-                    ReportMPC = imProc.asteroids.generateReportMPC(AstData.AstCrop(Args.Id).Stamps, 'RA', AstData.AstCrop(Args.Id).RA, 'Dec', AstData.AstCrop(Args.Id).Dec);
-                case 'FittedDetection'
-                    ReportMPC = imProc.asteroids.generateReportMPC(AstData.AstCrop(Args.Id).SelectedCatPM, 'RA', AstData.AstCrop(Args.Id).RA, 'Dec', AstData.AstCrop(Args.Id).Dec, 'ColMag','Mean_MAG_PSF');
-                otherwise
-                    error('Unknown ReportType option');
-            end
+            ReportMPC = '';
+            Ireport = 0;
+            Id = Args.Id;
+            Ibad = 0;
+            for If=1:1:Nf
+                if isempty(Files)
+                    % already loaded
+                else
+                    PWD = pwd;
+                    cd(Files(If).folder);
+                    AstData = io.files.load2(Files(If).name);
+                    
+                    cd(PWD);
+                    Id = [];
+                end
+                if isempty(Id)
+                    Id = (1:1:numel(AstData.AstCrop));
+                end
+                Nast = numel(AstData.AstCrop);
+                if max(Id)>Nast
+                    error('Requested Id=%d is > Number of asteroids in file is %d',max(Id), Nast);
+                end
+    
+                for Iid=1:1:numel(Id)
+                    I = Id(Iid);
 
+                    % check for GAIA star
+                    if Args.SearchGAIA
+                        
+                        [GaiaCat,Col] = catsHTM.cone_search('GAIADR3',AstData.AstCrop(I).SelectedCatPM.Table.RA./RAD, AstData.AstCrop(I).SelectedCatPM.Table.Dec./RAD, Args.SearchRadGAIA, 'OutType','astrocatalog');
+                        if min(GaiaCat.Table.phot_bp_mean_mag)<Args.MagGAIA     
+                            % skip - GAIA star found at position
+                            Skip = true;
+                        else
+                            Skip = false;
+                        end
+                    end
+
+                    % Skip if Overlap or NearEdge
+                    if BD.findBit(AstData.AstCrop(I).SelectedCatPM.Table.FLAGS,{'Overlap','NearEdge'}, 'Method','any');
+                        Skip = true;
+                    end
+
+
+                    if ~Skip
+                        Nstamp = numel(AstData.AstCrop(I).Stamps);
+                        if isempty(Args.StampsStep)
+                            % show only first and last images
+                            StampInd = [1 Nstamp];
+                        else
+                            StampInd = (1:Args.StampStep:Nstamp);
+                        end
+
+                        try
+                            Obj.load(AstData.AstCrop(I).Stamps(StampInd), 'Zoom',Args.Zoom);
+                            ds9.match_wcs;
+                        catch ME
+                            'a'
+                        end
+                        % Display information
+                        NsrcCat = sizeCatalog(AstData.AstCrop(I).SelectedCatPM);
+                        switch NsrcCat
+                            case 0
+                                error('Possible bug: %d sources found in catalog', NsrcCat);
+                            case 1
+                                AstSrcId = 1;
+                            otherwise
+                                [Dist, PA] = sphere_dist(AstData.AstCrop(I).SelectedCatPM, AstData.AstCrop(I).RA, AstData.AstCrop(Args.Id).Dec, 'rad', 'deg');
+                                [MinDist, AstSrcId] = min(Dist);
+                                if MinDist>(5./3600)
+                                    error('Possible problem" distance of nearest source to cutout center is too large %f arcsec', MinDist.*3600);
+                                end
+                        end
+                        
+                        AstTable = AstData.AstCrop(I).SelectedCatPM.toTable;
+                        AstTable = AstTable(AstSrcId,:);
+            
+                        if Args.DispInfo
+                            fprintf('Folder %s \n',Files(If).folder);
+                            fprintf('File %s loaded\n',Files(If).name);
+                            fprintf('SubImage      : %d\n',AstData.AstCrop(I).FieldIndex);
+                            fprintf('RA            : %s\n', celestial.coo.convertdms(AstTable.RA, 'd', 'SH'));
+                            fprintf('Dec           : %s\n',celestial.coo.convertdms(AstTable.Dec, 'd', 'SD'));
+                            fprintf('Nobs          : %d\n',AstTable.Nobs);
+                            fprintf('Noutlier      : %d\n',AstTable.Noutlier);
+                            fprintf('PM_RA         : %f [time-deg/day]\n',AstTable.PM_RA);
+                            fprintf('PM_Dec        : %f [deg/day]\n',AstTable.PM_Dec);
+                            fprintf('JD_PM         : %15.6f\n',AstTable.JD_PM);
+                            fprintf('MAG mean      : %f\n', AstTable.Mean_MAG_PSF);
+                            fprintf('MAG range     : %f\n', AstTable.Range_MAG_PSF);
+                            fprintf('S/N mean      : %f\n', AstTable.Mean_SN_3);
+                            
+                            FlagsName = BD.bitdec2name(AstTable.FLAGS);
+                            FlagsName = FlagsName{1};
+                            fprintf('FLAGS         :');
+                            for Ifn=1:1:numel(FlagsName)
+                                fprintf('  %s', FlagsName{Ifn});
+                            end
+                            fprintf('\n');
+                            BDmc = BitDictionary('BitMask.MergedCat.Default');
+                            FlagsName = BDmc.bitdec2name(AstTable.MergedCatMask);
+                            FlagsName = FlagsName{1};
+                            fprintf('MergedCat     :');
+                            for Ifn=1:1:numel(FlagsName)
+                                fprintf('  %s', FlagsName{Ifn});
+                            end
+                            fprintf('\n');
+            
+                            fprintf('PolyDeltaChi2 : %f\n', AstTable.PolyDeltaChi2);
+                        end
+            
+                        % plot known asteroids
+                        if Args.PlotKnown
+                            KA = Obj.plotKnownAst('OrbEl',Args.OrbEl, 'INPOP',Args.INPOP);
+                        end
+                        ds9.plotc(AstData.AstCrop(I).SelectedCatPM,'sg')
+            
+                        %if If<Nf || I<numel(Id)
+                        
+                        %end
+                        Ans = input('a - add to report; otherwise continue : ','s');
+                        switch lower(Ans)
+                            case 'a'
+                                % add to report
+                                Ireport = Ireport + 1;
+                                if Ireport==1
+                                    AddHeader = true;
+                                else
+                                    AddHeader = false;
+                                end
+    
+                                % prep MPC report for asteroid
+                                Args.generateReportMPCArgs{1} = 'ObsName';
+                                Args.generateReportMPCArgs{2} = sprintf('Large Array Survey Telescope (LAST) Node %02d Mount %02d Tel %02d',...
+                                                                        AstData.AstCrop(I).Stamps(1).HeaderData.Key.NODENUMB,...
+                                                                        AstData.AstCrop(I).Stamps(1).HeaderData.Key.MOUNTNUM,...
+                                                                        AstData.AstCrop(I).Stamps(1).HeaderData.Key.CAMNUM);
+                                %
+        
+        
+                                switch Args.ReportType
+                                    case 'AllDetections'
+                                        ReportMPC = imProc.asteroids.generateReportMPC(AstData.AstCrop(I).Stamps,...
+                                                                            'RA', AstData.AstCrop(I).RA, 'Dec', AstData.AstCrop(I).Dec,...
+                                                                            'generateReportMPCArgs',Args.generateReportMPCArgs, 'AstIndex',Ireport);
+                                    case 'FittedDetection'
+                                        ReportMPC = imProc.asteroids.generateReportMPC(AstData.AstCrop(I).SelectedCatPM,...
+                                                                            'RA', AstData.AstCrop(I).RA, 'Dec', AstData.AstCrop(I).Dec,...
+                                                                            'ColMag','Mean_MAG_PSF',...
+                                                                            'generateReportMPCArgs',Args.generateReportMPCArgs, 'AstIndex',Ireport);
+                                    case 'FittedDetection3'
+                                        % Evaluate fitted motion at two points
+                                        Nim = numel(AstData.AstCrop(I).Stamps);
+                                        JD1 = AstData.AstCrop(I).JD(1);
+                                        JDe = AstData.AstCrop(I).JD(Nim);
+                                        JDm = AstData.AstCrop(I).SelectedCatPM.JD;
+                                        
+                                        % Note PM_RA is in time units rather than angular units
+                                        % so no cos(Dec) correction is needed
+                                        RA1  = AstData.AstCrop(I).SelectedCatPM.Table.RA + AstData.AstCrop(I).SelectedCatPM.Table.PM_RA.*(JD1-JDm); %./cosd(AstData.AstCrop(I).SelectedCatPM.Table.Dec);
+                                        RA2  = AstData.AstCrop(I).SelectedCatPM.Table.RA + AstData.AstCrop(I).SelectedCatPM.Table.PM_RA.*(JDm-JDm); %./cosd(AstData.AstCrop(I).SelectedCatPM.Table.Dec);
+                                        RA3  = AstData.AstCrop(I).SelectedCatPM.Table.RA + AstData.AstCrop(I).SelectedCatPM.Table.PM_RA.*(JDe-JDm); %./cosd(AstData.AstCrop(I).SelectedCatPM.Table.Dec);
+                                        Dec1 = AstData.AstCrop(I).SelectedCatPM.Table.Dec + AstData.AstCrop(I).SelectedCatPM.Table.PM_Dec.*(JD1-JDm);
+                                        Dec2 = AstData.AstCrop(I).SelectedCatPM.Table.Dec + AstData.AstCrop(I).SelectedCatPM.Table.PM_Dec.*(JDm-JDm);
+                                        Dec3 = AstData.AstCrop(I).SelectedCatPM.Table.Dec + AstData.AstCrop(I).SelectedCatPM.Table.PM_Dec.*(JDe-JDm);
+                    
+                                        Mag = AstData.AstCrop(I).SelectedCatPM.Table.Mean_MAG_PSF;
+                                        Filter = AstData.AstCrop(I).Stamps(1).HeaderData.Key.FILTER;
+                    
+                                        % [JD, RA, Dec, Mag, Filter, AstIndex]
+                                        Table = [[JD1;JDm;JDe], [RA1;RA2;RA3], [Dec1;Dec2;Dec3], [Mag;Mag;Mag], [NaN; NaN; NaN], [1;1;1].*Ireport]; %, 'VariableNames',{'JD','RA','Dec','Mag','Filter','AstIndex'});
+                                        ReportMPC = [ReportMPC, imUtil.asteroids.generateReportMPC(Table, 'Filter','C', 'AddHeader',AddHeader, Args.generateReportMPCArgs{:})];
+                                        
+                                        ReportMPC
+    
+                                        % ReportMPC = imProc.asteroids.generateReportMPC(AstData.AstCrop(Args.Id).Stamps([1 Nim]),...
+                                        %                                     'RA', [RA1; RA2], 'Dec', [Dec1; Dec2],...
+                                        %                                     'ColMag','Mean_MAG_PSF',...
+                                        %                                     'generateReportMPCArgs',Args.generateReportMPCArgs);
+                                    otherwise
+                                        error('Unknown ReportType option');
+                                end
+                            case 'q'
+                                % quit
+                                break;
+                            otherwise
+                                % skip
+                                % but keep info about target
+                                Ibad = Ibad + 1;
+                                BadCand(Ibad).Folder = Files(If).folder;
+                                BadCand(Ibad).File   = Files(If).name;
+                                BadCand(Ibad).Id     = I;
+                                BadCand(Ibad).SubImage = AstData.AstCrop(I).FieldIndex;
+                                BadCand(Ibad).SelectedCatPM = AstData.AstCrop(I).SelectedCatPM;
+                            
+                        end
+                    end % if ~Skip
+                end %for Iid=1:1:numel(Id)
+            end % for If=1:1:Nf
 
         end
+
+        function [Result, OrbEl] = plotKnownAst(Obj, Args)
+            % Search for known minor bodies in image coordinates and plot their positions.
+            % Input  : - A DS9analayis object.
+            %          * ...,key,val,...
+            %            'MagLimit' - Search asteroid mag. limit.
+            %                   Default is Inf.
+            %            'PlotDesig' - Add designation label near each
+            %                   marked asteroid.
+            %                   Default is true.
+            %            'AddNumber' - Add Asteroid number to label.
+            %                   Default is true.
+            %            'AddMag' - Add asteroid mag to label.
+            %                   Default is true.
+            %            'OrbEl' - A celestial.OrbitalEl object containing
+            %                   the asteroids orbital elements.
+            %                   If empty, then will load the 'merge' file.
+            %                   Default is [].
+            %            'INPOP' - A populated celestial.INPOP object.
+            %                   If empty, then will create one.
+            %                   Default is [].
+            % Output : - An AstroCatalog containing the asteroids found
+            %            within the search radius + buffer.
+            %          - A populated celestial.OrbitalEl object.
+            % Author : Eran Ofek (Dec 2023)
+            % Example: D9 = DS9analayis;
+            %          [KA,OrbEl] = D9.plotKnownAst
+            %          [KA] = D9.plotKnownAst('OrbEl',OrbEl);
+
+
+            arguments
+                Obj
+                Args.MagLimit  = Inf;
+                Args.PlotDesig logical = true;
+                Args.AddNumber logical = true;
+                Args.AddMag logical    = true;
+                Args.OrbEl     = [];
+                Args.INPOP     = [];
+                
+            end
+
+            if isempty(Args.INPOP)
+                Args.INPOP = celestial.INPOP;
+                Args.INPOP.populateAll;
+            end
+
+            if isempty(Args.OrbEl)
+                OrbEl = celestial.OrbitalEl.loadSolarSystem('merge');
+            else
+                OrbEl = Args.OrbEl;
+            end
+
+            FrameInd = ds9.frame;
+            
+            CooCenter = imProc.astrometry.getCooCenter(Obj.Images(FrameInd), 'OutCooUnits','deg');
+            JD        = Obj.Images(FrameInd).julday;
+
+            [Result] = searchMinorPlanetsNearPosition(OrbEl, JD, CooCenter(1), CooCenter(2), CooCenter(3), 'INPOP',Args.INPOP, 'CooUnits','deg', 'SearchRadiusUnits','deg', 'MagLimit',Args.MagLimit);
+
+            if ~isemptyCatalog(Result)
+                DesigCell = Result.Catalog.Desig;
+                Nast      = numel(DesigCell);
+    
+                if Args.AddNumber
+                    AstNumber = OrbEl.desig2number(Result.Catalog.Desig);
+                    for Iast=1:1:Nast
+                        DesigCell{Iast} = sprintf('%s / %d', DesigCell{Iast}, AstNumber(Iast));
+                    end
+                end
+                if Args.AddMag
+                    for Iast=1:1:Nast
+                        DesigCell{Iast} = sprintf('%s / %4.1f', DesigCell{Iast}, Result.Catalog.Mag(Iast));
+                    end
+                end
+    
+                ds9.plotc(Result.Catalog.RA, Result.Catalog.Dec, 'Text',DesigCell)
+            end
+        end
+
 
     end
     
     methods  % basic utilities
-        function [X, Y, Val, AI, Key] = getXY(Obj, Coo, Mode, Args)
+        function [X, Y, Val, AI, Key, Coo] = getXY(Obj, Coo, Mode, Args)
             % Get X/Y position for user clicked/specified position
             % Input  : - self.
             %          - If empty, then prompt the user to click the ds9
             %            window in a give position.
-            %            Alterantively, a vector of [RA, Dec] in decimal or
+            %            Alternatively, a vector of [RA, Dec] in decimal or
             %            radians.
             %            Or, a cell of sexagesimal coordinates {RA, Dec}.
+            %            If Coo is provided, and multiple frames are
+            %            displayed in ds9, Coo is assumed to refer to the
+            %            frame currently highlighted.
             %          - Mode: Number of cliked mouse points to select, or
             %            'q' for multiple points selection
             %            terminated by clicking 'q'.
@@ -409,6 +650,8 @@ classdef DS9analysis < handle
             %            'CooSys' - Coordinate system of user specified
             %                   coordinates: 'sphere'|'pix'. Default is 'sphere.
             %            'CooUnits' - Coordinates units. Default is 'deg'.
+            %            'OutUnits' - Units of output RA/Dec coordinates.
+            %                   Default is 'deg'.
             %            'Msg' - Printed message for mouse click:
             %                   Default is 'Select point in ds9 using mouse'
             % Output : - X position.
@@ -417,7 +660,9 @@ classdef DS9analysis < handle
             %          - AstroImage at current frame for which
             %            positions/values where obtained.
             %          - Clicked key.
+            %          - [RA, Dec] at position.
             % Author : Eran Ofek (May 2023)
+            % Example: [X,Y, Val,~,Key,Coo] = D9.getXY()
 
             arguments
                 Obj
@@ -425,19 +670,21 @@ classdef DS9analysis < handle
                 Mode   = 1;
                 Args.CooSys    = 'sphere';
                 Args.CooUnits  = 'deg';
+                Args.OutUnits  = 'deg';
                 Args.Msg       = 'Select point in ds9 using mouse';
             end
-
-            Frame = str2double(ds9.frame);
-            Ind   = Frame; %Obj.MapInd(Frame);
-            AI    = Obj.getImage(Ind);
-
             
             Key = [];
             if isempty(Coo)
                 fprintf('%s\n',Args.Msg);
                 [X, Y, PixVal, Key] = ds9.getpos(1);
-            else
+            end
+            
+            Frame = ds9.frame;
+            Ind   = Frame; %Obj.MapInd(Frame);
+            AI    = Obj.getImage(Ind);
+
+            if ~isempty(Coo)
                 if iscell(Coo)
                     % assume Coo in sexagesimal coordinates
                     [X, Y] = AI.WCS.sky2xy(Coo{1}, Coo{2});
@@ -460,7 +707,10 @@ classdef DS9analysis < handle
                 Ypix      = round(Y);
                 Val       = AI.Image(Ypix, Xpix);
             end
-
+            if nargout>5
+                [RA, Dec] = AI.WCS.xy2sky(X, Y, 'OutUnits',Args.OutUnits);
+                Coo = [RA, Dec];
+            end
         end
 
     end
@@ -491,6 +741,7 @@ classdef DS9analysis < handle
             %            .DistAng - Angular distance.
             %            .PAang - P.A. relative to the North
             % Author : Eran Ofek (May 2023)
+            % Example: R=D9.dist
             
             
             arguments
@@ -521,9 +772,9 @@ classdef DS9analysis < handle
                 [Result.RA, Result.Dec] = AI.WCS.xy2sky(Result.X, Result.Y, 'OutUnits',Args.OutUnits);
                 
                 Factor = convert.angular(Args.OutUnits, 'rad', 1);
-                RA     = RA.*Factor;
-                Dec    = Dec.*Factor;
-                [Result.DistAng, Result.PA] = celestial.coo.sphere_dist(RA(1), Dec(1), RA(2), Dec(2));
+                Result.RA     = Result.RA.*Factor;
+                Result.Dec    = Result.Dec.*Factor;
+                [Result.DistAng, Result.PA] = celestial.coo.sphere_dist(Result.RA(1), Result.Dec(1), Result.RA(2), Result.Dec(2));
                 Result.DistAng = convert.angular('rad', Args.OutUnits, Result.DistAng);
                 Result.PAang   = convert.angular('rad', Args.OutUnits, Result.PA);
                 
@@ -566,7 +817,9 @@ classdef DS9analysis < handle
             %            .MeanV - Mean image val of points in bin.
             %            .MedV - Median image val of points in bin.
             %            .StdV - Std image val of points in bin.
-            
+            % Author : Eran Ofek (Oct 2023)
+            % Example: R=D9.radial
+
             arguments
                 Obj
                 Coo              = [];  % [X1 Y1; X2 Y2]
@@ -591,7 +844,7 @@ classdef DS9analysis < handle
             [M1, M2, Aper] = imUtil.image.moment2(Cube, Xcut, Ycut, Args.moments2args{:});
             
             % calc radial profiles
-            Result = imUtil.psf.radialProfile(Cube, M1.X, M1.Y, 'Radius',Args.Radius, 'Step',Args.Step);
+            Result = imUtil.psf.radialProfile(Cube, [M1.X, M1.Y], 'Radius',Args.Radius, 'Step',Args.Step);
             
             if Args.Plot
                 plot(Result(end).R, Result(end).MeanV, 'k-');
@@ -660,6 +913,7 @@ classdef DS9analysis < handle
             %           - The AstroImage object from which the information
             %             was extracted.
             % Author : Eran Ofek (May 2023)
+            % Example: [M1, M2, Aper, RADec, AI] = D9.moments;
             
             arguments
                 Obj
@@ -679,12 +933,13 @@ classdef DS9analysis < handle
             [X, Y, Val, AI] = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
             
             
-            [Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(AI.Image, X, Y, Args.HalfSize);
-            [M1, M2, Aper]               = imUtil.image.moment2(Cube, X, Y, 'SubBack',true,...
+            %[Cube, RoundX, RoundY, X, Y] = imUtil.cut.image2cutouts(AI.Image, X, Y, Args.HalfSize);
+            [M1, M2, Aper]               = imUtil.image.moment2(AI.Image, X, Y, 'SubBack',true,...
                                                                             'MaxIter',Args.MaxIter,...
                                                                             'MaxStep',Args.MaxStep,...
                                                                             'AperRadius',Args.AperRadius,...
                                                                             'Annulus',Args.Annulus);
+            
             if nargout>3
                 [RA, Dec] = AI.WCS.xy2sky(M1.X, M1.Y, 'OutUnits',Args.OutUnits);
                 RADec = [RA, Dec];
@@ -716,10 +971,12 @@ classdef DS9analysis < handle
             %                   'ac' - An AstroCatalog object.
             %                   't'  - A table object.
             %                   Default is 't'.
+            %            'AddInfo2Table'
             % Output : - A MatchedSources object with the output measured
             %            forced photometry parameters.
             % Author : Eran Ofek (May 2023)
-            
+            % Example: R=D9.forcedPhot
+
             arguments
                 Obj
                 Coo              = [];  % [X1 Y1; X2 Y2]
@@ -729,11 +986,12 @@ classdef DS9analysis < handle
                 
                 Args.forcedPhotArgs cell = {};
                 Args.OutType             = 't';
+                Args.AddInfo2Table       = true;
             end
             
             [X, Y, Val, AI] = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
             
-            MS = imProc.sources.forcedPhot(AI,'Coo',[X(:) Y(:)], 'AddRefStarsDist',false, 'Moving',false, Args.forcedPhotArgs{:});
+            MS = imProc.sources.forcedPhot(AI,'Coo',[X(:) Y(:)], 'AddRefStarsDist',false, 'Moving',false, 'CooUnits','pix', Args.forcedPhotArgs{:});
             
             switch lower(Args.OutType)
                 case {'ms','matchedsources'}
@@ -744,6 +1002,16 @@ classdef DS9analysis < handle
                 case {'t','table'}
                     Result = MS.convert2AstroCatalog;
                     Result = Result.toTable;
+
+                    % add info
+                    if Args.AddInfo2Table
+                        Keys = AI.getStructKey({'FWHM','EXPTIME'});
+                        Result.ExpTime = [Keys.EXPTIME]';
+                        Result.FWHM    = [Keys.FWHM]';
+                        Result.ErrRA   = Result.FWHM./(2.35.*Result.SN);
+                        Result.ErrDec  = Result.ErrRA;
+                    end
+                    
                 otherwise
                     error('Unknown OutType option');
             end
@@ -752,6 +1020,8 @@ classdef DS9analysis < handle
             
         function [MaskName, MaskVal]=getMask(Obj, Coo, Args)
             % Get Mask bit values/names at user clicked/specified position
+            %   Caution: you have to click on the highlighted frame. The
+            %   function have no idea which frame is highlighted.
             % Input  : - self.
             %          - If empty, then prompt the user to click the ds9
             %            window in a give position.
@@ -766,6 +1036,7 @@ classdef DS9analysis < handle
             %            position. If empty, then bit mask is 0.
             %          - Bit mask decimal value.
             % Author : Eran Ofek (May 2023)
+            % Example: D9.getMask
 
             arguments
                 Obj
@@ -774,8 +1045,12 @@ classdef DS9analysis < handle
                 Args.CooUnits = 'deg';
             end
 
+            fprintf('CAUTION: Make sure that you click on the highlighted frame\n');
+
             [X, Y, Val, AI] = getXY(Obj, Coo, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
             
+            
+
             Xpix      = round(X);
             Ypix      = round(Y);
             if isempty(AI.Mask)
@@ -789,6 +1064,8 @@ classdef DS9analysis < handle
 
         function [Back, Var, X, Y, AI] = getBack(Obj, Coo, Mode, Args)
             % Get Back/Var values at user clicked/specified position
+            %   Caution: you have to click on the highlighted frame. The
+            %   function have no idea which frame is highlighted.
             % Input  : - self.
             %          - If empty, then prompt the user to click the ds9
             %            window in a give position.
@@ -818,6 +1095,8 @@ classdef DS9analysis < handle
                 Args.CooUnits = 'deg';
             end
 
+            fprintf('CAUTION: Make sure that you click on the highlighted frame\n');
+
             [X, Y, Val, AI] = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
             
             Xpix      = round(X);
@@ -830,11 +1109,51 @@ classdef DS9analysis < handle
             
         end
             
+        function [JD, Mag]=plotLC(Obj, Coo, Mode, Args)
+            %
+
+             arguments
+                Obj
+                Coo              = [];  % [X1 Y1; X2 Y2]
+                Mode             = 1;
+                Args.CooSys      = 'sphere';
+                Args.CooUnits    = 'deg';
+                
+                Args.forcedPhotArgs cell = {};
+                Args.OutType             = 't';
+
+                Args.ColX          = 'X1';
+                Args.ColY          = 'Y1';
+                Args.MinDist       = 15; % [pix]
+                Args.FieldMag      = {'MAG_PSF','MAG_APER_3'}
+                Args.FieldMagErr   = {'MAGERR_PSF'};
+            end
+            
+            [X, Y] = getXY(Obj, Coo, Mode, 'CooSys',Args.CooSys, 'CooUnits',Args.CooUnits);
+            
+            Ind = ds9.frame;
+
+            Obj.MatchedSources(Ind).addSrcData;
+            Dist2 = (Obj.MatchedSources(Ind).SrcData.(Args.ColX) - X).^2 + (Obj.MatchedSources(Ind).SrcData.(Args.ColY) - Y).^2;
+            [MinDist2, MinInd] = min(Dist2);
+            if MinDist2<(Args.MinDist.^2)
+                 [JD, Mag] = getLC_ind(Obj.MatchedSources(Ind), MinInd, Args.FieldMag, Args.FieldMagErr);
+                 plot(JD, Mag, 'o'); plot.invy
+            else
+                JD  = [];
+                Mag = [];
+                fprintf('No source found at position X=%f, Y=%f, in MatchedSources object\n',X,Y);
+            end
+
+        end
+
         % plot
         % plotAll  % in all frames
         
         function [Result,Dist,CatInd]=near(Obj, Coo, Radius, Args)
             % Get sources in AstroImage catalog within search radius from clicked/specified position.
+            %   Caution: you have to click on the highlighted frame. The
+            %   function have no idea which frame is highlighted.
             % Input  : - self.
             %          - If empty, then prompt the user to click the ds9
             %            window in a give position.
@@ -857,6 +1176,7 @@ classdef DS9analysis < handle
             %          - Vector of indices of the returned sources in the
             %            original AstroCatalog in the AstroImage.
             % Author : Eran Ofek (May 2023)
+            % Example: [R,Dist]=D9.near
             
             arguments
                 Obj

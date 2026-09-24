@@ -144,7 +144,7 @@ addOptional(InPar,'Plot',true);
 parse(InPar,varargin{:});
 InPar = InPar.Results;
 
-[TileList,TileArea]=celestial.coo.tile_the_sky(56,42);
+[TileList,TileArea]=celestial.grid.tile_the_sky(56,42);
 Flag = TileList(:,2)>=InPar.DecRange(1) & TileList(:,2)<=InPar.DecRange(2);
 TileList = TileList(Flag,:);
 Ntarget  = size(TileList,1);

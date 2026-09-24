@@ -7,5 +7,6 @@ function Result = getTestDataDir()
     Result  = fullfile(Dir,'..','..','..','..','..','data','TestImages','unitTest');
     %DataDir = sprintf('%s%s%s%s%s','data',filesep,'test_images',filesep,'fits_samples');
     %Result  = sprintf('%s%s..%s..%s..%s..%s%s',Dir,filesep,filesep,filesep,filesep,filesep,DataDir);
+    Result  = tools.os.relPath2absPath(Result);
     
 end

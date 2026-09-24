@@ -53,8 +53,8 @@ if (InPar.CheckSorted)
     end
 end
 
-Im1 = Util.find.mfind_bin(Data2(:,InPar.ColDec2),Data1(:,InPar.ColDec1).'-Radius.');
-Im2 = Util.find.mfind_bin(Data2(:,InPar.ColDec2),Data1(:,InPar.ColDec1).'+Radius.');
+Im1 = tools.find.mfind_bin(Data2(:,InPar.ColDec2),Data1(:,InPar.ColDec1).'-Radius.');
+Im2 = tools.find.mfind_bin(Data2(:,InPar.ColDec2),Data1(:,InPar.ColDec1).'+Radius.');
 [N2,Ncol2]  = size(Data2);
 I1  = max(Im1-1,1);
 I2  = min(Im2+1,N2);

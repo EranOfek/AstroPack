@@ -76,7 +76,7 @@ end
 InvVar = 1./Var;
 
 % weighted mean
-Mean = nansum(Data.*InvVar,Dim)./nansum(InvVar,Dim);
+Mean = sum(Data.*InvVar, Dim, 'omitnan')./sum(InvVar, Dim, 'omitnan');
 if nargout>1
     % weighted variance
     Var  = 1./nansum(InvVar,Dim);

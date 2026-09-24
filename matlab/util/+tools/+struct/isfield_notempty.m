@@ -3,7 +3,7 @@ function Flag=isfield_notempty(Struct,Field)
 % Package: Util.struct
 % Description: Check if a field exist in a structure and if it is not
 %              empty.
-% Input  : - Structure array.
+% Input  : - Structure array, or an object with properties.
 %          - String containing field name.
 % Output : - A flag indicating if the field exist and not empty (true),
 %            or otherwise (false).
@@ -15,11 +15,23 @@ function Flag=isfield_notempty(Struct,Field)
 %--------------------------------------------------------------------------
 
 Flag = false(size(Struct));
-if (isfield(Struct,Field))
-    Nst = numel(Struct);
-    for Ist=1:1:Nst
-        if (~isempty(Struct(Ist).(Field)))
-            Flag(Ist) = true;
+if isstruct(Struct)
+    if all(isfield(Struct,Field))
+        Nst = numel(Struct);
+        for Ist=1:1:Nst
+            if (~isempty(Struct(Ist).(Field)))
+                Flag(Ist) = true;
+            end
+        end
+    end
+else
+    
+    if all(isprop(Struct,Field))
+        Nst = numel(Struct);
+        for Ist=1:1:Nst
+            if (~isempty(Struct(Ist).(Field)))
+                Flag(Ist) = true;
+            end
         end
     end
 end

@@ -38,7 +38,7 @@ end
 [MatX,MatY] = meshgrid((1:1:SizeXY(1))-CenterPSFxy(1),(1:1:SizeXY(2))-CenterPSFxy(2));
 MatR = sqrt(MatX.^2 + MatY.^2);
 
-MaxR = min([SizeXY - CenterPSFxy; abs(1-CenterPSFxy)]);
+MaxR = min([SizeXY - CenterPSFxy; abs(1-CenterPSFxy)],[],'all');
 
 Radius = (0:Step:floor(MaxR)).';
 Nrad   = numel(Radius) - 1;
@@ -57,6 +57,10 @@ for Irad=1:1:Nrad
     Curve.Mean(Irad) = Curve.Sum(Irad)./Curve.Npix(Irad);
     Curve.Med(Irad)  = median(Matrix(Flag));
 end
+% if Npix=0, then output is NaN - replace with zero
+I0 = find(Curve.Npix==0);
+Curve.Mean(I0) = 0;
+Curve.Med(I0)  = 0;
 Curve.CumSum = cumsum(Curve.Sum);
     
     

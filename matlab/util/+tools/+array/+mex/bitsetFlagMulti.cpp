@@ -1,0 +1,263 @@
+#include "mex.h"
+#include <cstdint>
+#include <cstddef>
+#include <cstring>
+#include <vector>
+
+#if defined(_OPENMP)
+  #include <omp.h>
+#endif
+#if defined(__AVX2__)
+  #include <immintrin.h>
+#endif
+
+struct OpSpec {
+    const mxLogical* F;
+    unsigned Bit0;   // 0-based
+    bool SetOne;
+};
+
+static void checkSameSize(const mxArray* A, const mxArray* B)
+{
+    if (mxGetNumberOfDimensions(A) != mxGetNumberOfDimensions(B)) {
+        mexErrMsgIdAndTxt("bitsetFlagMulti:size",
+                          "All FlagArray inputs must have the same size as Mask.");
+    }
+
+    const mwSize Nd = mxGetNumberOfDimensions(A);
+    const mwSize* DA = mxGetDimensions(A);
+    const mwSize* DB = mxGetDimensions(B);
+
+    for (mwSize i = 0; i < Nd; ++i) {
+        if (DA[i] != DB[i]) {
+            mexErrMsgIdAndTxt("bitsetFlagMulti:size",
+                              "All FlagArray inputs must have the same size as Mask.");
+        }
+    }
+}
+
+
+
+template <typename T>
+static void run_scalar_multi(const T* __restrict A,
+                             T* __restrict Out,
+                             size_t N,
+                             const std::vector<OpSpec>& Ops)
+{
+    #if defined(_OPENMP)
+    #pragma omp parallel for schedule(static) if(N >= (1u<<18))
+    #endif
+    for (mwIndex i = 0; i < (mwIndex)N; ++i) {
+        T X = A[i];
+
+        for (size_t k = 0; k < Ops.size(); ++k) {
+            const T M   = T(1) << Ops[k].Bit0;
+            const T Sel = T(0) - T((unsigned)(Ops[k].F[i] != 0));
+
+            if (Ops[k].SetOne) {
+                X = X | (M & Sel);
+            } else {
+                X = X & (~(M & Sel));
+            }
+        }
+
+        Out[i] = X;
+    }
+}
+
+
+
+#if defined(__AVX2__)
+static void run_u32_avx2_multi(const uint32_T* __restrict A,
+                               uint32_T* __restrict Out,
+                               size_t N,
+                               const std::vector<OpSpec>& Ops)
+{
+    const __m256i vZero = _mm256_setzero_si256();
+    const __m256i vAll  = _mm256_set1_epi32(-1);
+
+    const size_t N8 = (N / 8) * 8;
+
+    #if defined(_OPENMP)
+    #pragma omp parallel for schedule(static) if(N8 >= (1u<<18))
+    #endif
+    for (mwIndex i = 0; i < (mwIndex)N8; i += 8) {
+        __m256i X = _mm256_loadu_si256((const __m256i*)(A + i));
+
+        for (size_t k = 0; k < Ops.size(); ++k) {
+            const __m256i vBit = _mm256_set1_epi32((int32_T)(uint32_T(1u) << Ops[k].Bit0));
+
+            __m128i vf8  = _mm_loadl_epi64((const __m128i*)(Ops[k].F + i));   // 8 bytes
+            __m256i vf   = _mm256_cvtepu8_epi32(vf8);                         // 8 lanes
+            __m256i vSel = _mm256_cmpgt_epi32(vf, vZero);                     // all-ones where flag != 0
+            __m256i vMsk = _mm256_and_si256(vSel, vBit);
+
+            if (Ops[k].SetOne) {
+                X = _mm256_or_si256(X, vMsk);
+            } else {
+                X = _mm256_and_si256(X, _mm256_xor_si256(vAll, vMsk));
+            }
+        }
+
+        _mm256_storeu_si256((__m256i*)(Out + i), X);
+    }
+
+    for (size_t i = N8; i < N; ++i) {
+        uint32_T X = A[i];
+
+        for (size_t k = 0; k < Ops.size(); ++k) {
+            const uint32_T M   = (uint32_T(1u) << Ops[k].Bit0);
+            const uint32_T Sel = uint32_T(0) - uint32_T(Ops[k].F[i] != 0);
+
+            if (Ops[k].SetOne) {
+                X = X | (M & Sel);
+            } else {
+                X = X & (~(M & Sel));
+            }
+        }
+
+        Out[i] = X;
+    }
+}
+#endif
+
+
+static std::vector<OpSpec> parseOps(const mxArray* Mask, int nrhs, const mxArray* prhs[])
+{
+    if (nrhs < 4 || ((nrhs - 1) % 3) != 0) {
+        mexErrMsgIdAndTxt("bitsetFlagMulti:usage",
+            "Usage: NewMask = bitsetFlagMulti(Mask, FlagArray1, BitNumber1, SetVal1, ...)");
+    }
+
+    const mxClassID Id = mxGetClassID(Mask);
+    int MaxBit = 0;
+    switch (Id) {
+        case mxUINT8_CLASS:  MaxBit = 8;  break;
+        case mxUINT16_CLASS: MaxBit = 16; break;
+        case mxUINT32_CLASS: MaxBit = 32; break;
+        case mxUINT64_CLASS: MaxBit = 64; break;
+        default:
+            mexErrMsgIdAndTxt("bitsetFlagMulti:type",
+                              "Mask must be uint8, uint16, uint32, or uint64.");
+    }
+
+    const int Nops = (nrhs - 1) / 3;
+    std::vector<OpSpec> Ops;
+    Ops.reserve((size_t)Nops);
+
+    for (int Iop = 0; Iop < Nops; ++Iop) {
+        const mxArray* Flg = prhs[1 + 3*Iop];
+        const mxArray* Bit = prhs[2 + 3*Iop];
+        const mxArray* Set = prhs[3 + 3*Iop];
+
+        if (!mxIsLogical(Flg)) {
+            mexErrMsgIdAndTxt("bitsetFlagMulti:flag",
+                              "Each FlagArray must be logical.");
+        }
+        checkSameSize(Mask, Flg);
+
+        if (mxIsComplex(Bit) || mxGetNumberOfElements(Bit) != 1) {
+            mexErrMsgIdAndTxt("bitsetFlagMulti:bit",
+                              "Each BitNumber must be a real scalar.");
+        }
+        const double B = mxGetScalar(Bit);
+        if (!(B == B)) {
+            mexErrMsgIdAndTxt("bitsetFlagMulti:bit",
+                              "BitNumber must not be NaN.");
+        }
+        const int Bit1 = (int)((B >= 0) ? (B + 0.5) : (B - 0.5));
+        if (Bit1 < 1 || Bit1 > MaxBit) {
+            mexErrMsgIdAndTxt("bitsetFlagMulti:bit",
+                              "BitNumber is out of range for Mask class.");
+        }
+
+        if (mxIsComplex(Set) || mxGetNumberOfElements(Set) != 1) {
+            mexErrMsgIdAndTxt("bitsetFlagMulti:set",
+                              "Each SetVal must be a real or logical scalar.");
+        }
+        const double Sv = mxGetScalar(Set);
+        const bool SetOne = (Sv != 0.0);
+
+        OpSpec Op;
+        Op.F = mxGetLogicals(Flg);
+        Op.Bit0 = (unsigned)(Bit1 - 1);
+        Op.SetOne = SetOne;
+        Ops.push_back(Op);
+    }
+
+    return Ops;
+}
+
+void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
+{
+    if (nlhs > 1) {
+        mexErrMsgIdAndTxt("bitsetFlagMulti:usage", "One output only.");
+    }
+    if (nrhs < 4 || ((nrhs - 1) % 3) != 0) {
+        mexErrMsgIdAndTxt("bitsetFlagMulti:usage",
+            "Usage: NewMask = bitsetFlagMulti(Mask, FlagArray1, BitNumber1, SetVal1, ...)");
+    }
+
+    const mxArray* Mask = prhs[0];
+
+    if (mxIsComplex(Mask)) {
+        mexErrMsgIdAndTxt("bitsetFlagMulti:type", "Mask must be real.");
+    }
+
+    const mxClassID Id = mxGetClassID(Mask);
+    if (!(Id == mxUINT8_CLASS || Id == mxUINT16_CLASS ||
+          Id == mxUINT32_CLASS || Id == mxUINT64_CLASS)) {
+        mexErrMsgIdAndTxt("bitsetFlagMulti:type",
+                          "Mask must be uint8, uint16, uint32, or uint64.");
+    }
+
+    const std::vector<OpSpec> Ops = parseOps(Mask, nrhs, prhs);
+
+    const mwSize Nd = mxGetNumberOfDimensions(Mask);
+    const mwSize* Dims = mxGetDimensions(Mask);
+    const size_t N = mxGetNumberOfElements(Mask);
+
+    #if defined(mxCreateUninitNumericArray)
+      std::vector<size_t> DimsCopy((size_t)Nd);
+      for (mwSize k = 0; k < Nd; ++k) {
+          DimsCopy[(size_t)k] = (size_t)Dims[k];
+      }
+      plhs[0] = mxCreateUninitNumericArray((size_t)Nd, DimsCopy.data(), Id, mxREAL);
+    #else
+      plhs[0] = mxCreateNumericArray(Nd, Dims, Id, mxREAL);
+    #endif
+
+    switch (Id) {
+        case mxUINT8_CLASS: {
+            const uint8_T* A = (const uint8_T*)mxGetData(Mask);
+            uint8_T* Out = (uint8_T*)mxGetData(plhs[0]);
+            run_scalar_multi<uint8_T>(A, Out, N, Ops);
+        } break;
+
+        case mxUINT16_CLASS: {
+            const uint16_T* A = (const uint16_T*)mxGetData(Mask);
+            uint16_T* Out = (uint16_T*)mxGetData(plhs[0]);
+            run_scalar_multi<uint16_T>(A, Out, N, Ops);
+        } break;
+
+        case mxUINT32_CLASS: {
+            const uint32_T* A = (const uint32_T*)mxGetData(Mask);
+            uint32_T* Out = (uint32_T*)mxGetData(plhs[0]);
+            #if defined(__AVX2__)
+            run_u32_avx2_multi(A, Out, N, Ops);
+            #else
+            run_scalar_multi<uint32_T>(A, Out, N, Ops);
+            #endif
+        } break;
+
+        case mxUINT64_CLASS: {
+            const uint64_T* A = (const uint64_T*)mxGetData(Mask);
+            uint64_T* Out = (uint64_T*)mxGetData(plhs[0]);
+            run_scalar_multi<uint64_T>(A, Out, N, Ops);
+        } break;
+
+        default:
+            mexErrMsgIdAndTxt("bitsetFlagMulti:type",
+                              "Unsupported Mask class.");
+    }
+}

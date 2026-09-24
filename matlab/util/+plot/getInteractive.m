@@ -10,10 +10,12 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
     %                      right click to abort.
     %          * ...,key,val,...
     %            'DistAxis' - Dimension along to calculate distances to the
-    %                   nearest point: 'X'|'Y'|'XY'.
-    %                   Default is 'X'.
-    %          - Waitfor action {'y'|'n'}. Will return only after the user
-    %            clicked a key/mouse. Default is 'y'.
+    %                   nearest point: 'X'|'Y'|'XY'|'scale'.
+    %                   Default is 'scale'.
+    %            'DataInd' - Index of data in plot.
+    %                   If 'end', then use last element, which is the first
+    %                   data set that was plotted.
+    %                   Default is 1.
     % Output : - Result structure containing the following fields.
     %            .Key    - Keyborad key entered.
     %            .Pos    - Mouse position [X,Y] or rectangule position
@@ -36,7 +38,8 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
         Ha        = [];
         Type      = 'mouse';
         %WaitFor   = 'y';
-        Args.DistAxis   = 'X'; % 'XY' | 'X' | 'Y'
+        Args.DistAxis   = 'scale'; % 'XY' | 'X' | 'Y'
+        Args.DataInd    = 1;
     end
 
     % must define Res as global because of the WindowButtonDownFcn call
@@ -71,9 +74,14 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
     
         switch lower(Type)
             case 'key'
+                [XY, Key] = plot.ginputKeyboard;
+                Res.Pos   = XY;
+                Res.Key   = Key;
+                Res.MB    = [];
+                
                 %fprintf('Interactive mode\n');
-                set(Hf,'WindowButtonDownFcn','',...
-                       'KeyPressFcn','[Res]=plot.selectInteractive(''key_press'');');
+                %set(Hf,'WindowButtonDownFcn','',...
+                %       'KeyPressFcn','[Res]=plot.selectInteractive(''key_press'');');
                 
             case 'mouse'
                 [X,Y,MB] = ginput(1);
@@ -101,15 +109,23 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
         if nargout>2
             AxObjs = Hf.Children;
             DataObjs = AxObjs.Children;
-            Data.X   = DataObjs.XData;
-            Data.Y   = DataObjs.YData;
-            Data.Z   = DataObjs.ZData;
+            if ~isnumeric(Args.DataInd)
+                Args.DataInd = numel(DataObjs);
+            end
+            Data.X   = DataObjs(Args.DataInd).XData;
+            Data.Y   = DataObjs(Args.DataInd).YData;
+            Data.Z   = DataObjs(Args.DataInd).ZData;
 
             if nargout>3
                 % look for nearest point
                 switch lower(Args.DistAxis)
+                    case 'scale'
+                        [DataPosX, DataPosY] = plot.xy2axesPos(Ha, Data.X, Data.Y);
+                        [IntPosX,  IntPosY] = plot.xy2axesPos(Ha, Res.Pos(1), Res.Pos(2));
+
+                        Dist = sqrt((IntPosX - DataPosX).^2 + (IntPosY - DataPosY).^2);
                     case 'xy'
-                        Dist = sqrt((Res.Pos(1).^2 - Data.X).^2 + (Res.Pos(2).^2 - Data.Y).^2);
+                        Dist = sqrt((Res.Pos(1) - Data.X).^2 + (Res.Pos(2) - Data.Y).^2);
                     case 'x'
                         Dist = abs(Res.Pos(1)-Data.X);
                     case 'y'
@@ -121,6 +137,7 @@ function [Res,FigH,Data,Nearest]=getInteractive(Ha, Type, Args)
                 Nearest.MinDist = MinDist;
                 Nearest.X = Data.X(MinInd);
                 Nearest.Y = Data.Y(MinInd);
+                Nearest.Ind = MinInd;
                 %Nearest.Z = Data.Z(MinInd);
 
                 % if nargout>4

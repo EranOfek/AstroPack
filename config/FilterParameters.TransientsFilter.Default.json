@@ -1,0 +1,69 @@
+{
+    "PixelScale": 1.25,
+    "SaturatedNeighborDistanceThreshold": 100,
+
+    "flagNegatives": true,
+
+    "flagChi2": true,
+    "Chi2dofLimitsLocal": [0.1, 2.0, 100.0],
+    "Chi2dofLimitsGlobal": [0.0, 1.2],
+
+    "flagSaturated": true,
+
+    "flagBadPix_Hard": true,
+    "BadPix_Hard": ["Interpolated", "NaN", "NearEdge", "Hole", "Negative"],
+
+    "flagBadPix_Soft": true,
+    "BadPix_Soft": [["DarkHighVal", 1.2], ["CR_DeltaHT", 2.9]],
+
+    "flagStarMatches": true,
+    "flagMP": true,
+
+    "flagRinging": true,
+
+    "flagNPsfShape": true,
+    "SecondMomSoftLim": 1.2,
+    "SecondMomHardLim": 2.7,
+    "SecondMomAsymLim": 1.0,
+    "OmniDirectionThreshold": [0.7, 57.0],
+    "PeakDistThreshold": 3.0,
+    "ContaminationFlux": 0.01,
+    "ContaminationRadius": 1.5,
+
+    "flagDPSFShape": true,
+    "PSFShapeXYMeanD": [1.06919192, 1.24191919],
+    "PSFShapeCovD": [
+        [0.06467546, 0.02720397],
+        [0.02720397, 0.06933742]
+    ],
+    "PSFShapeConfThreshD": 0.95,
+
+    "flagLimitingMag": true,
+
+    "flagPeakValley": true,
+    "PVDistThresh": 10,
+
+    "flagStreak": true,
+    "ignoreStreakPoints": ["BadPixelHard", "StarMatch", "Ringing", "Translient", "Streak"],
+    "StreakDistanceThreshold": 20,
+    "NumStreaks": 1,
+
+    "flagDensity": true,
+    "NeighborDistanceThreshold": 100,
+    "NeighborDenThreshold": 1.0,
+    "NeighborExclude": ["BadPixelHard", "BadPixelSoft", "StarMatch", "Ringing", "Translient", "Streak"],
+    "NeighborNumThresholdSaturated": 2,
+
+    "flagVariable": true,
+
+    "flagNuclearNoise": true,
+    "BrightGalMagThresh": 17.0,
+    "BrightGalPrcThresh": 80,
+
+    "flagScorr": true,
+    "ScorrThreshold": 5.0,
+    "ScorrCorrectionParam": 0.7,
+
+    "flagTranslients": true,
+    "TranslientThresh": 0.48
+}

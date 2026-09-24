@@ -1,4 +1,4 @@
-function [Table,FilterList]=read_ipac_ztfforcedphot(File,varargin)
+function [Table,FilterList,Comment]=read_ipac_ztfforcedphot(File,varargin)
 % Read ZTF forced photometry file
 % Package: VO.ZTF
 % Description: Read ZTF forced photometry file generated using

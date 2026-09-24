@@ -1,5 +1,5 @@
 function [NewCat]=star_apparent_place(Catalog,Equinox,Epoch,ObsEpoch,GeodCoo)
-% Compute the apparent place of stars at a given epoch
+% Compute the apparent place of stars at a given epoch - OBSOLETE: see celestial.convert.apparentStarPos
 % Description: Compute the apparent place of stars at a given epoch,
 %              given the star mean place, proper motion, parallax,
 %              radial velocity, at a reference epoch T0.

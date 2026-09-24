@@ -23,6 +23,7 @@
 % Functionality:
 %       AstroImage - Constructor and image reader for AstroImage class
 %       isemptyImage - Check if data images in AstroImage object are empty
+%       isemptyCatalog - Check if the catalog in AstroImage is empty
 %       sizeImage - Return the size of images in AstroImage object.
 %       astroImage2ImageComponent - Convert an AstroImage data into SciImage, BackImage, etc. objects.
 %       astroImage2AstroCatalog - Convert the CataData in AstroImage object into an AstroCatalog object array.
@@ -87,6 +88,7 @@
 % getStructKey - Get multiple  keys from headers in multiple AstroImage and store in a structure array The keyword search can be exact (UseDict=false), or using a keywords dictionary (UseDict=true).
 % imageIO2AstroImage - Convert an ImageIO object into an AstroImage object
 % isImType - Check if header IMTYPE keyword value equal some type
+% isemptyCatalog - Check if the catalog in AstroImage is empty
 % isemptyImage - Check if data images in AstroImage object are empty
 % julday - Return the Julian day for AstroImage object
 % maskSet - Set the value of a bit in a bit mask (Maskdata) in AstroImage
@@ -122,6 +124,7 @@ classdef AstroImage < Component
         Header  % e.g., Header, Header('EXPTIME'), Header({'EXPTIME','IMTYPE'}), Header('IMTYPE',{additional args to keyVal})
         Key
         PSF
+        Table
         %WCS
     end
     
@@ -129,7 +132,7 @@ classdef AstroImage < Component
         % Data
         %ImageData(1,1) NoisyImage
         
-        Table     = [];
+        
         
         ImageData(1,1) SciImage              %= SciImage;
         BackData(1,1) BackImage              %= BackImage;
@@ -142,7 +145,14 @@ classdef AstroImage < Component
         PSFData(1,1) AstroPSF                %= AstroPSF;
         WCS(1,1) AstroWCS
         
+        Streaks    % Streaks in image
+        Trace   % A SpecTrace object: spectral trace and wave solutions 
+    end
+
+    
+    properties (Hidden)
         PropagateErr(1,1) logical          = false;
+        BackSub logical                    = false;
         
     end
     
@@ -204,6 +214,7 @@ classdef AstroImage < Component
             %                   Default is [].
             %            'UseRegExp' - Ues regexp for file name
             %                   interpretation. Default is false.
+            %            'UseMex' - Use a Mex version of FITS image reader. Defaults is false 
             % Output : - An AstroImage object.
             % Author : Eran Ofek (Jun 2021)
             % Example:
@@ -248,6 +259,7 @@ classdef AstroImage < Component
                 Args.FileType                 = [];
                 Args.UseRegExp(1,1) logical   = false;
                 
+                Args.UseMex                   = false;
             end
             
             if isempty(FileNames)
@@ -269,7 +281,11 @@ classdef AstroImage < Component
                     for Iobj=1:1:Nobj
                         Obj(Iobj) = AstroImage([]);
                     end
-                    Obj = reshape(Obj, FileNames);
+                    if prod(FileNames)>0
+                        Obj = reshape(Obj, FileNames);
+                    else
+                        Obj = AstroImage.empty;
+                    end
                     
                 else
                     if isa(FileNames,'AstroImage')
@@ -296,7 +312,8 @@ classdef AstroImage < Component
                                                                         'Scale',Args.Scale,...
                                                                         'ReadHeader',Args.ReadHeader,...
                                                                         'DataProp','ImageData',...
-                                                                        'FileNames',FN);
+                                                                        'FileNames',FN,...
+                                                                        'UseMex',Args.UseMex);
                                                                         
                         % Other data properties
                         ListProp  = {'Back','Var','Mask', 'Exp', 'PSF','Cat'};
@@ -320,7 +337,8 @@ classdef AstroImage < Component
                                                                             'UseRegExp',Args.UseRegExp,...
                                                                             'Scale',Args.(ListScale{Ilist}),...
                                                                             'ReadHeader',false,...
-                                                                            'DataProp',ListData{Ilist});
+                                                                            'DataProp',ListData{Ilist},...
+                                                                            'UseMex',Args.UseMex);
                                 catch
                                     warning('Fail reading data product %s - likely does not exist in directory', ListProp{Ilist});
                                 end
@@ -458,6 +476,7 @@ classdef AstroImage < Component
             %            'FileNames' - A cell array of file names to write
             %                   in the ImageComponent.FileName property.
             %                   Default is {}.
+            %            'UseMex' - use Mex version of FITS file reader (def. false) 
             % Outout : - An AstroImage object with the images stored in the
             %            requested field.
             % Author : Eran Ofek (Apr 2021)
@@ -481,7 +500,8 @@ classdef AstroImage < Component
                 Args.Scale                  = [];
                 Args.DataProp               = 'ImageData';
                 Args.ReadHeader             = true;
-                Args.FileNames cell         = {};
+                Args.FileNames              = {};
+                Args.UseMex                 = false;
             end
             
             try
@@ -492,7 +512,8 @@ classdef AstroImage < Component
                                                  'CCDSEC',Args.CCDSEC,...
                                                  'IsTable',false,...
                                                  'ReadHeader',Args.ReadHeader,...
-                                                 'UseRegExp',Args.UseRegExp);
+                                                 'UseRegExp',Args.UseRegExp,...
+                                                 'UseMex',Args.UseMex);
                         
                     case {'cat','catdata'}
                         ImIO = ImageIO(FileName, 'HDU',Args.HDU,...
@@ -511,8 +532,23 @@ classdef AstroImage < Component
                         error('DataProp %s is not supported',Args.DataProp);
                 end
                 Obj = AstroImage.imageIO2AstroImage(ImIO, Args.DataProp, Args.Scale, Args.FileNames, Args.ReadHeader, Args.Obj);
-            catch
-                if iscell(FileName)
+            catch ME
+                % Only a file name which matches nothing is skipped with a
+                % warning; any other failure (e.g. a header which cannot be
+                % parsed) is rethrown - reporting it as "not found" hid the
+                % real cause (issue #1285).
+                IsFileSpec = ischar(FileName) || isstring(FileName) || iscellstr(FileName);
+                if IsFileSpec
+                    try
+                        Found = io.files.filelist(FileName, 'UseRegExp',Args.UseRegExp);
+                    catch
+                        Found = {};
+                    end
+                end
+                if ~IsFileSpec || ~isempty(Found)
+                    rethrow(ME);
+                end
+                if iscell(FileName) || isstring(FileName)
                     Tmp = FileName{1};
                 else
                     Tmp = FileName;
@@ -533,6 +569,8 @@ classdef AstroImage < Component
             %            'ReadHeader' - A logical indicating if to read the
             %                   header. Default is 1.
             %            'HDU' - HDU number to read. Default is 1.
+            %            'UseMex' - employ a MeX version of FITS image
+            %            reader (def. false)
             % Output : - An AstroImage array of sub images.
             % AUthor : Eran Ofek (Dec 2021)
             % Example: Obj = AstroImage.readByCCDSEC(FileName, [1 100 1 100;101 200 101 200])
@@ -542,6 +580,7 @@ classdef AstroImage < Component
                 CCDSEC
                 Args.ReadHeader logical    = true;
                 Args.HDU                   = 1;
+                Args.UseMex                = false;
             end
             
             Nsec = size(CCDSEC,1);
@@ -554,7 +593,7 @@ classdef AstroImage < Component
             
             Obj = AstroImage([Nsec 1]);
             for Isec=1:1:Nsec
-                Obj(Isec).Image = FITS.read1(FileName,Args.HDU, 'CCDSEC', CCDSEC(Isec,:));
+                Obj(Isec).Image = FITS.read1(FileName,Args.HDU, 'CCDSEC', CCDSEC(Isec,:),'UseMex',Args.UseMex);
                 Obj(Isec).HeaderData.Data = HeadCell;
             end
             
@@ -604,6 +643,8 @@ classdef AstroImage < Component
             %            'CCDSEC' - CCDSEC for image to read [Xmin Xmax
             %                   Ymin Ymax]. If empty, read the entire image.
             %                   Default is [].
+            %            'UseMex' - use a Mex FITS image reader (def.
+            %            false)
             % Output : - An AstroImage object populated with the loaded
             %            images and metadata.
             % Author : Eran Ofek (Jul 2022)
@@ -616,6 +657,7 @@ classdef AstroImage < Component
                 Args.HDU         = 1;
                 Args.FileType    = [];
                 Args.CCDSEC      = [];
+                Args.UseMex      = false;
             end
             
             Nprod = numel(Args.ReadProd);
@@ -644,14 +686,14 @@ classdef AstroImage < Component
                                     T = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',true);
                                     Result.CatData = AstroCatalog(T);
                                 case 'Image'
-                                    [Im,Header] = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',false);
+                                    [Im,Header] = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',false,'UseMex',Args.UseMex);
                                     Result.(Args.ReadProd{Iprod}) = Im;
                                     Result.HeaderData.Data        = Header;
                                 case 'PSF'
-                                    [Im,Header] = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'IsTable',false);
+                                    [Im,Header] = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'IsTable',false,'UseMex',Args.UseMex);
                                     Result.PSFData.DataPSF = Im;
                                 otherwise
-                                    Im = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',false);
+                                    Im = ImageIO.read1(FileName, 'HDU',Args.HDU, 'FileType',Args.FileType, 'CCDSEC',Args.CCDSEC, 'IsTable',false,'UseMex',Args.UseMex);
                                     Result.(Args.ReadProd{Iprod}) = Im;
                             end
                             
@@ -661,14 +703,66 @@ classdef AstroImage < Component
             end
         end
         
+        function Result = readProducts(Files, Args)
+            % Read all products associated with an image
+            % Input  : - Files to load - either:
+            %            Strings or cell array of file names.
+            %            An AstroFileName, or empty. If empty, then search
+            %            all files in current directory with Level, given
+            %            by 'Level' argument.
+            %          * ...,key,val,...
+            %            'Path' - Path. Default is empty.
+            %            'ExtraOutProduct' - Additional Products to load in
+            %                   addition to the 'Image' product.
+            %                   Default is ["Mask", "PSF", "Cat"]
+            %            'UseMex' - whether to read with the MeX FITS reader
+            %            'Level' - Level to load (if files is []).
+            %                   Default is 'coadd'.
+            % Output : - An AstroImage object with the loaded products.
+            % Author : Eran Ofek (Dec 2024)
+            % Example: AI=AstroImage.readProducts;
+            
+            
+            arguments
+                Files       = [];  % AstroFileName object, or file name
+                
+                Args.Path                 = [];
+                Args.ExtraOutProduct      = ["Mask", "PSF", "Cat"];
+                Args.UseMex               = false;
+                Args.Level                = 'coadd';
+            end
+
+            if isempty(Files)
+                % all files
+                Files = AstroFileName.dirLiteral('Level',Args.Level);
+            end
+            
+            if isa(Files, 'AstroFileName')
+                AFN = Files;
+            else
+                AFN = AstroFileName(Files, 'Path',Args.Path);
+            end
+            
+            FileProd = AFN.genProducts('OutProduct',["Image", Args.ExtraOutProduct]);
+            Nfile    = size(FileProd,1);
+            Nex = numel(Args.ExtraOutProduct);
+            Cell = cell(1, Nex);
+            for Iex=1:1:Nex
+                Cell{Iex.*2-1} = Args.ExtraOutProduct{Iex};
+                Cell{Iex.*2}   = FileProd(:,Iex+1);
+            end
+            Result   = AstroImage(FileProd(:,1), Cell{:}, 'UseMex', Args.UseMex);
+            
+        end
+
         function Result = readFileNamesObj(ObjFN, Args)
             % Read the images and products associated with an image contained in a FileNames object into an AstroImage object.
             %   Optionally read not only the image but also additional
             %   products (e.g., 'Cat','PSF').
-            % Input  : - A single element FileNames object (that may contain
-            %            multiple file names) from which file names can be
-            %            generated, or a file name with optional wild cards,
-            %            or a cell array of file names.
+            % Input  : - A single element FileNames or AstroFileName object
+            %            (that may contain multiple file names) from which
+            %            file names can be generated, or a file name with
+            %            optional wild cards, or a cell array of file names.
             %            If the 'AddProduct' is empty, then just read the
             %            specified files into an AstroImage.
             %            However, if the 'AddProduct' is not empty, then in
@@ -708,14 +802,26 @@ classdef AstroImage < Component
                 Args.AddProduct = {Args.AddProduct};
             end
             
-            if isa(ObjFN, 'FileNames')
-                % already a FileNames object
+            if isa(ObjFN, 'AstroFileName')
+                % the full names of each product, as FileNames.genFull gives
+                % them (a cell array), 'Path' replacing the object's path
+                % (issue #1315)
+                if ~isempty(Args.Path)
+                    ObjFN      = ObjFN.copy;
+                    ObjFN.Path = string(Args.Path);
+                end
+                GenFull = @(Product) cellstr(ObjFN.genFull([], 'genFileArgs',{'Product',Product}));
             else
-                ObjFN = FileNames.generateFromFileName(ObjFN);
+                if isa(ObjFN, 'FileNames')
+                    % already a FileNames object
+                else
+                    ObjFN = FileNames.generateFromFileName(ObjFN);
+                end
+                GenFull = @(Product) ObjFN.genFull('Product',Product, 'FullPath',Args.Path);
             end
 
 
-            FilesList = ObjFN.genFull('Product',Args.MainProduct, 'FullPath',Args.Path);
+            FilesList = GenFull(Args.MainProduct);
         
             Nprod  = numel(Args.AddProduct);
             if Nprod==0
@@ -723,7 +829,7 @@ classdef AstroImage < Component
             end
             for Iprod=1:1:Nprod
                 AI_Args{Iprod.*2-1} = Args.AddProduct{Iprod};
-                AI_Args{Iprod.*2}   = ObjFN.genFull('Product',Args.AddProduct{Iprod}, 'FullPath',Args.Path);
+                AI_Args{Iprod.*2}   = GenFull(Args.AddProduct{Iprod});
             end
             
             Result = AstroImage(FilesList, AI_Args{:});
@@ -746,13 +852,16 @@ classdef AstroImage < Component
             % Get Catdata.Catalog in table format
             % To update set it to []
            
-            if isempty(Obj.Table)
-                Data = array2table(Obj.CatData.Catalog);
-                Data.Properties.VariableNames = Obj.CatData.ColNames;
-                Obj.Table = Data;
-            else
-                Data = Obj.Table;
-            end
+            Data = array2table(Obj.CatData.Catalog);
+            Data.Properties.VariableNames = Obj.CatData.ColNames;
+
+            % if isempty(Obj.Table)
+            %     Data = array2table(Obj.CatData.Catalog);
+            %     Data.Properties.VariableNames = Obj.CatData.ColNames;
+            %     Obj.Table = Data;
+            % else
+            %     Data = Obj.Table;
+            % end
         end
         
         function Data = get.Image(Obj)
@@ -954,13 +1063,29 @@ classdef AstroImage < Component
             %            each image element.
             % Author : Eran Ofek (May 2022)
             % Example: AI=AstroImage; AI.isemptyPSF
-           
+
             Nobj = numel(Obj);
             Result = false(size(Obj));
             for Iobj=1:1:Nobj
                 Result(Iobj) = isempty(Obj(Iobj).PSFData.Data);
             end
-            
+
+        end
+
+        function Result = isemptyCatalog(Obj)
+            % Check if the catalog in AstroImage is empty
+            % Input  : - An AstroImage object (multi elements supported).
+            % Output : - An array of logicals indicating if CatData.Catalog
+            %            is empty in each image element.
+            % Author : A.M. Krassilchtchikov (May 2026)
+            % Example: AI=AstroImage; AI.isemptyCatalog
+
+            Nobj = numel(Obj);
+            Result = false(size(Obj));
+            for Iobj=1:1:Nobj
+                Result(Iobj) = isempty(Obj(Iobj).CatData.Catalog);
+            end
+
         end
     
         function Obj = createMask(Obj, Type)
@@ -1158,8 +1283,7 @@ classdef AstroImage < Component
             %          - Data property to write. Default is 'Image'.
             %          * ...,key,val,...
             %            'FileType' - Default is 'fits'.
-            %            'IsSimpleFITS' - If true, use FITS.writeSimpleFITS
-            %                       Default is false.
+            %            'CompressedOutput' - Default is [], may be 'fz' 
             %            'WriteHeader' - Default is true.
             %            'Append' - Append in a new HDU.
             %                   Default is false.
@@ -1169,6 +1293,11 @@ classdef AstroImage < Component
             %            'Mkdir' - A logical indicating if to create
             %                   directory if file name contains full path.
             %                   Default is false.
+            %            'WriteEmptyCat' - A logical indicating if to write a
+            %                   Cat product whose catalog has columns but no
+            %                   rows. Such a product records that the image was
+            %                   processed and yielded no sources (issue #1226).
+            %                   Default is false, i.e. it is not written.
             %            'Status' - Status structure to which to append the
             %                   new status.
             % Output : - Status structure with entry per problem.
@@ -1180,13 +1309,18 @@ classdef AstroImage < Component
                 Name
                 DataProp                      = 'Image';
                 Args.FileType                 = 'fits';
-                Args.IsSimpleFITS logical     = false;
+                Args.CompressedOutput         = []; 
                 Args.WriteHeader logical      = true;
                 Args.Append logical           = false;
                 Args.OverWrite logical        = false;
                 Args.WriteTime logical        = false;
                 Args.MkDir logical            = false;
                 Args.Status                   = [];
+                Args.SanifyPath               = true; 
+                Args.FastHeader logical       = false;                
+                Args.WriteMethodImages        = 'Simple';    % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
+                Args.WriteMethodTables        = 'Standard';  % can be 'Standard' or 'MexHeader'
+                Args.WriteEmptyCat logical    = false;       % write a catalog which has columns but no rows (issue #1226)
             end
             
             if Args.WriteHeader
@@ -1201,12 +1335,11 @@ classdef AstroImage < Component
                     mkdir(Path);
                 end
             end
-
-
+    
             Istat  = numel(Args.Status);
             Status = Args.Status;
             switch lower(Args.FileType)
-                case 'fits'
+                case {'fits', 'fits.fz'}  % if needed, later will extend to 'bz2', 'gz' 
                     switch DataProp
                         case {'Image','Back','Var','Mask','PSF','Exp'}
                             switch DataProp
@@ -1220,26 +1353,49 @@ classdef AstroImage < Component
                                 Istat = Istat + 1;
                                 Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', Name, DataProp);
                             else
-                                if Args.IsSimpleFITS
-                                    FITS.writeSimpleFITS(Obj.(DataProp), Name, 'Header',HeaderDataToWrite); %,...
-                                                               %    'DataType',class(Obj.(DataProp)));
-                                else
+                                if strcmpi(Args.WriteMethodImages,'full')  
                                     FITS.write(Obj.(DataProp), Name, 'Header',HeaderDataToWrite,...
                                                                    'DataType',class(Obj.(DataProp)),...
+                                                                   'CompressedOutput',Args.CompressedOutput,...
                                                                    'Append',Args.Append,...
                                                                    'OverWrite',Args.OverWrite,...
-                                                                   'WriteTime',Args.WriteTime);
+                                                                   'SanifyPath',Args.SanifyPath,...
+                                                                   'WriteTime',Args.WriteTime);                                    
+                                else                                    
+                                    FITS.writeSimpleFITS(Obj.(DataProp), Name, 'Header',HeaderDataToWrite,...
+                                                                   'SanifyPath',Args.SanifyPath,...
+                                                                   'CompressedOutput',Args.CompressedOutput,...
+                                                                   'WriteMethodImages',Args.WriteMethodImages); %,...
+                                                               %    'DataType',class(Obj.(DataProp)));
                                 end
                             end
                         case {'Cat','CatData'}
-                            if isempty(Obj.CatData.ColNames)
-                                stat = Istat + 1;
-                                Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, is empty - not saved', Name, 'CatData');
+                            % With WriteEmptyCat, a catalog which has columns
+                            % but no rows is written: the zero-row table records
+                            % that the image was processed and produced no
+                            % sources - e.g., a crop whose background estimation
+                            % failed (issue #1226). It is off by default, so
+                            % that only the callers which asked for it (the
+                            % epoch products of pipeline I) gain files.
+                            % A catalog with no columns cannot be represented as
+                            % a FITS binary table in any case, and neither can
+                            % one whose column names do not match its columns -
+                            % the table is created from the names and filled
+                            % from the data, so a mismatch would abort mid-write
+                            % and leave a truncated file.
+                            NoCatData = isempty(Obj.CatData.ColNames) || ...
+                                        numel(Obj.CatData.ColNames)~=size(Obj.CatData.Catalog,2) || ...
+                                        (isempty(Obj.CatData.Catalog) && ~Args.WriteEmptyCat);
+                            if NoCatData
+                                Istat = Istat + 1;
+                                Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, is empty or has a column mismatch - not saved', Name, 'CatData');
                             else
                                 FITS.writeTable1(Obj.CatData, Name, 'Header',HeaderData,...
+                                                                    'CompressedOutput',Args.CompressedOutput,...
                                                                    'Append',Args.Append,...
                                                                    'OverWrite',Args.OverWrite,...
-                                                                   'WriteTime',Args.WriteTime);
+                                                                   'WriteTime',Args.WriteTime,...
+                                                                   'WriteMethodTables',Args.WriteMethodTables);
                             end
                         otherwise
                             % FFU
@@ -1248,6 +1404,8 @@ classdef AstroImage < Component
                 otherwise
                     error('FileType %s is not yet supported',Args.FileType);
             end
+
+            %cd(PWD);
             
         end
         
@@ -1340,7 +1498,45 @@ classdef AstroImage < Component
     end
     
     methods % functions on specific data properties
-        
+        function Result=setCatData(Obj, Cat, Args)
+            % Set catalog data (CatData) into AstroImage
+            % Input  : - An AstroIamge object;
+            % Output : - An AstroCatalog object containing the CatData
+            %            properties of the AstroImage object.
+            % Author : Eran Ofek (Feb 2026)
+
+            arguments
+                Obj
+                Cat
+                Args.CreateNewObj = false;
+            end
+
+            if Args.CreateNewObj
+                Result = Obj.copy;
+            else
+                Result = Obj;
+            end
+
+            Nobj = numel(Obj);
+            for Iobj=Nobj:-1:1
+                Result(Iobj).CatData = Cat;
+            end
+        end
+
+        function Result=getCatData(Obj)
+            % Get catalog data (CatData) from AstroImage
+            % Input  : - An AstroIamge object;
+            % Output : - An AstroCatalog object containing the CatData
+            %            properties of the AstroImage object.
+            % Author : Eran Ofek (Feb 2026)
+
+            Nobj=numel(Obj);
+            for Iobj=Nobj:-1:1
+                Result(Iobj) = Obj(Iobj).CatData;
+            end
+        end
+
+
         function Result = cast(Obj, NewClass, CreateNewObj, DataProp)
             % Cast the image/back/var data in AstroImage (transform to a new type)
             %  Input  : - An AstroImage object.
@@ -1716,6 +1912,7 @@ classdef AstroImage < Component
             %            .Center - [RA, Dec] of center (of CCDSEC).
             %            .Corners - [RA, Dec] of 4 image corners.
             %            .FOV_Radius - max Radius to corners.
+            %            .CCDSEC - CCDSEC used.
             % Author : Eran Ofek (Jan 2023)
             % Example: RR=AI.cooImage([1 1000 1 1000])
             %          RR=AI.cooImage([])
@@ -1750,6 +1947,8 @@ classdef AstroImage < Component
                 % add Radius:
                 Result(Iobj).FOV_Radius = max(celestial.coo.sphere_dist_fast(Result(Iobj).Center(1).*Factor, Result(Iobj).Center(2).*Factor, Result(Iobj).Corners(:,1).*Factor, Result(Iobj).Corners(:,2).*Factor))./Factor;
                 
+                % add CCDSEC
+                Result(Iobj).CCDSEC = CCDSECxy;
             end
             
             
@@ -1798,9 +1997,14 @@ classdef AstroImage < Component
                         % get CCDSEC from header keyword
                         %CCDSEC = eval(Obj(Iobj).HeaderData.getVal(CCDSEC));
                         CCDSECxy = sscanf(Obj(Iobj).HeaderData.getVal('CCDSEC'),'[ %d %d %d %d]');
-                    
                     end
-                    
+                    if isnumeric(CCDSEC) && ~isempty(CCDSEC)
+                        if numel(CCDSEC)<4
+                            CCDSECxy=[1, CCDSEC(1), 1 ,CCDSEC(2)];
+                        else
+                            CCDSECxy=CCDSEC(1:4);
+                        end
+                    end
                     
                     [Result(Iobj).InImage, Result(Iobj).MinDist] = isSkyCooInImage(Obj(Iobj).WCS, Alpha, Delta, CCDSECxy, Units);
                 else
@@ -1824,6 +2028,9 @@ classdef AstroImage < Component
             %          - Bit name, or bit index (start from 0), to set.
             %          - Value to set (0 | 1). Default is 1.
             %          * ...,key,val,...
+            %            'DefBitDict' - Default bit dictionary if
+            %                   not exist. Default is
+            %                   BitDictionary('BitMask.Image.Default').
             %            'CreateNewObj' - Indicating if the output
             %                   is a new copy of the input (true), or an
             %                   handle of the input (false).
@@ -1841,6 +2048,7 @@ classdef AstroImage < Component
                 Flag                         % matrix of logicals
                 BitName                      % name or bit index (start with zero)
                 SetVal                 = 1;
+                Args.DefBitDict           = BitDictionary('BitMask.Image.Default');
                 Args.CreateNewObj logical = false;
             end
             
@@ -1852,7 +2060,7 @@ classdef AstroImage < Component
                     
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                Result.MaskData = maskSet(Result(Iobj).MaskData, Flag, BitName, SetVal, 'CreateNewObj', Args.CreateNewObj);
+                Result.MaskData = maskSet(Result(Iobj).MaskData, Flag, BitName, SetVal, 'DefBitDict',Args.DefBitDict, 'CreateNewObj', Args.CreateNewObj);
             end
          
         end
@@ -1919,7 +2127,7 @@ classdef AstroImage < Component
                     warning('Note that the IsBackSubtracted property in the ImageComponent of AstroImage %d is set to true - subtracting anyhow',Iobj);
                     Sub = true;
                 else
-                    if Args.Obj(Iobj).ImageData.IsBackSubtracted
+                    if Obj(Iobj).ImageData.IsBackSubtracted
                         Sub = false;
                     else
                         Sub = true;
@@ -1998,7 +2206,8 @@ classdef AstroImage < Component
             % Return the Julian day for AstroImage object
             % Input  : - An AstroImage object
             %          * Arbitrary number of arguments to pass to the
-            %          AstroHeader/juday function.
+            %            AstroHeader/juday function.
+            %            For example 'KeyJD'...
             % Output : - An array of JD (one per AstroImage element).
             %          - An array of ExpTime.
             % Author : Eran Ofek
@@ -2019,18 +2228,22 @@ classdef AstroImage < Component
         function varargout = getImageVal(Obj, X, Y, Args)
             % Get AstroImage image value at specific positions.
             % Input  : - A single element AstroImage object.
-            %          - X coordinates, or indices/flags of image positions
+            %          - Rounded X coordinates, or indices/flags of image positions
             %            to return.
-            %          - Y coordinates. If empty, then assume 'X' is
-            %            indices oe flags. Default is [].
+            %          - Rounded Y coordinates. If empty, then assume 'X' is
+            %            indices or flags. Default is [].
             %          * ...,key,val,...
             %            'DataProp' - Cell of image data properties for which to
             %                   return values. Default is 
             %                   {'Image','Back','Var','Mask','Exp'}
+            %            'ReturnNaN' - If true then return
+            %                   NaN if pixel is outside the image.
+            %                   If false, then return [].
+            %                   Default is false.
             % Output : * Vector of values at requested image positions.
             %            Output argument per each 'DataProp' element.
             %            If pixel position is out of image bounds than
-            %            return [].
+            %            return [] (or NaN).
             % Author : Eran Ofek (May 2021)
             % Example: AI = AstroImage({rand(100,80)});
             %          [V1] = getImageVal(AI,2,2)
@@ -2040,8 +2253,10 @@ classdef AstroImage < Component
                 X
                 Y                = [];
                 Args.DataProp    = {'Image','Back','Var','Mask','Exp'};
+                Args.ReturnNaN   = false;
             end
             
+
             if ischar(Args.DataProp)
                 Args.DataProp = {Args.DataProp};
             end
@@ -2056,10 +2271,13 @@ classdef AstroImage < Component
             if isempty(Y)
                 Ind = X;
             else
-                FlagOut = X<1 | Y<1 | X>SizeX | Y>SizeY;
-                XNN = X(~FlagOut);
-                YNN = Y(~FlagOut);
+                FlagOut = ~(X<1 | Y<1 | X>SizeX | Y>SizeY | isnan(X) | isnan(Y));
+                XNN = X(FlagOut);
+                YNN     = Y(FlagOut);
                 Ind = imUtil.image.sub2ind_fast([SizeY, SizeX], round(YNN), round(XNN));
+                Nfull = numel(FlagOut);
+                %Ind = imUtil.image.mex.sub2ind_mex([SizeY, SizeX], round(YNN), round(XNN));
+                %Ind = sub2ind([SizeY, SizeX], round(YNN), round(XNN));
 %                 
 %                 if X<1 || Y<1 || X>SizeX || Y>SizeY
 %                     Ind = NaN;
@@ -2077,8 +2295,12 @@ classdef AstroImage < Component
                     if isnan(Ind)
                         varargout{Iarg} = [];
                     else
-                        varargout{Iarg} = Obj.(Args.DataProp{Iarg})(Ind);
+                        varargout{Iarg} = nan(Nfull,1);
+                        varargout{Iarg}(FlagOut) = Obj.(Args.DataProp{Iarg})(Ind);
                     end
+                end
+                if Args.ReturnNaN && isempty(varargout{Iarg})
+                    varargout{Iarg} = NaN;
                 end
             end
             
@@ -2443,6 +2665,8 @@ classdef AstroImage < Component
         function Result = funBinaryProp(Obj1, Obj2, Operator, Args)
             % Apply binary function on a single property of AstroImage
             %       without error propagation.
+            %       Note that Mask image will be propagated only if the
+            %       Mask of the 1st operand is not empty.
             % Input  : - 1st operand - An AstroImage object.
             %          - 2nd operand - An AstroImage object or a
             %            cell array of matrices, or an array of numbers.
@@ -2930,6 +3154,9 @@ classdef AstroImage < Component
             %            or 'center' [Xcenter, Ycenter, Xhalfsize, Yhalfsize].
             %            If multiple lines then each line corresponding to
             %            an AstroImage element.
+            %            The Xmax and Ymax can be replaced with Inf. In
+            %            this case , the max number of pix along this
+            %            dimension will be used.
             %            If empty, then do not crop.
             %          * ...,key,val,...
             %            'Type' - ['ccdsec'] | 'center'
@@ -2948,6 +3175,11 @@ classdef AstroImage < Component
             %                   header keywords. Default is true.
             %            'UpdateWCS' - A logical indicating if to update
             %                   the WCS. Default is true.
+            %            'FillVal' - In case that the trim section is near the edge,
+            %                   this is the fill value to insert into the edge, such that the
+            %                   trim section will have the requires size. If empty, then
+            %                   return only the overlap region.
+            %                   Default is [].
             %            'CreateNewObj' - Indicating if the output
             %                   is a new copy of the input (true), or an
             %                   handle of the input (false).
@@ -2968,6 +3200,7 @@ classdef AstroImage < Component
                 Args.cropXYargs cell           = {};
                 Args.UpdateHeader(1,1) logical = true;
                 Args.UpdateWCS(1,1) logical    = true;
+                Args.FillVal                   = [];
                 Args.CreateNewObj logical      = false;
             end
 
@@ -2990,10 +3223,21 @@ classdef AstroImage < Component
                 Nsec  = size(CCDSEC,1);
                 for Iobj=1:1:Nobj
                     Isec = min(Iobj, Nsec);
+                    % replace Inf with actual size
+                    if isinf(CCDSEC(Isec,2))
+                        [SizeX, SizeY] = sizeImage(Result(Iobj));
+                        CCDSEC(Isec,2) = SizeX;
+                    end
+                    if isinf(CCDSEC(Isec,4))
+                        [SizeX, SizeY] = sizeImage(Result(Iobj).(Args.DataProp{1}));
+                        CCDSEC(Isec,4) = SizeY;
+                    end
+                    
                     for Iprop=1:1:Nprop
                         Result(Iobj).(Args.DataProp{Iprop}) = crop(Result(Iobj).(Args.DataProp{Iprop}), CCDSEC(Isec,:),...
                                                         'Type',Args.Type,...
                                                         'DataPropIn',Args.DataPropIn,...
+                                                        'FillVal',Args.FillVal,...
                                                         'CreateNewObj',false);
                     end
                     % make sure CCDSEC is in 'ccdsec' format and not 'center'
@@ -3006,7 +3250,12 @@ classdef AstroImage < Component
                     end
                     if Args.UpdateWCS
                         %warning('UpdateWCS in AstroImage/crop is not implemented');
-                        Result(Iobj).WCS.CRPIX = Result(Iobj).WCS.CRPIX - CCDSEC(Isec,[1 3]) + [1 1];
+                        if isempty(Args.FillVal)
+                            CCDSEC_Min = max(CCDSEC(Isec,[1 3]),1);
+                            Result(Iobj).WCS.CRPIX = Result(Iobj).WCS.CRPIX - CCDSEC_Min + [1 1];
+                        else
+                            Result(Iobj).WCS.CRPIX = Result(Iobj).WCS.CRPIX - CCDSEC(Isec,[1 3]) + [1 1];
+                        end
                         Result(Iobj).propagateWCS('UpdateCat',false);
                     end
                     
@@ -3104,6 +3353,7 @@ classdef AstroImage < Component
                                                        'cropXYargs',Args.cropXYargs,...
                                                        'UpdateHeader',Args.UpdateHeader,...
                                                        'UpdateWCS',Args.UpdateWCS,...
+                                                       'FillVal',[],...
                                                        'CreateNewObj',Args.CreateNewObj);
             end
         
@@ -3491,8 +3741,24 @@ classdef AstroImage < Component
     end
        
     methods % utilities
-        function DataProp = depandentProp2DataProp(Obj, Prop)
-            % Depandent property to data property containing the ImageComponent object.
+        function FileNames = getFileNames(Obj)
+            % Get stored file names from AstroImage object
+            % Input  : - self.
+            % Output : - A cell array of file names as stored in the
+            %            ImageData.FileName property.
+            % Author : Eran Ofek (Sep 2025)
+
+            
+            Nim = numel(Obj);
+            FileNames = cell(Nim,1);
+            for Iim=1:1:Nim
+                FileNames{Iim} = Obj(Iim).ImageData.FileName;
+            end
+
+        end
+
+        function DataProp = dependentProp2DataProp(Obj, Prop)
+            % Dependent property to data property containing the ImageComponent object.
             %   Given a dependent data property (e.g., 'Image') convert to
             %   property name containing the ImageComponent object (e.g., 'ImageData').
             % Input  : - An AstroImage object.
@@ -3501,7 +3767,7 @@ classdef AstroImage < Component
             %            to the dependent property
             %            (e.g., 'ImageData','BackData','ExpData').
             % Author : Eran Ofek (May 2023)
-            % Example: AI.depandentProp2DataProp('Exp')
+            % Example: AI.dependentProp2DataProp('Exp')
             
             arguments
                 Obj(1,1)
@@ -3538,7 +3804,7 @@ classdef AstroImage < Component
                     SizeProp = Obj(Iobj).sizeImage(Args.ImageProp{Iprop});
                     Scale    = SizeImage./SizeProp;
                     
-                    DataProp = Obj(Iobj).depandentProp2DataProp(Args.ImageProp{Iprop});
+                    DataProp = Obj(Iobj).dependentProp2DataProp(Args.ImageProp{Iprop});
                     %FN = fieldnames(Obj.Relations);
                     %Ind = strcmp(FN, Args.ImageProp{Iprop});
                     %DataProp = Obj.Relations.(FN{Ind});

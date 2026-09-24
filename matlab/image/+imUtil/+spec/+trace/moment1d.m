@@ -14,6 +14,9 @@ function Result=moment1d(Array, Pos, Args)
     %            If scalar, then assume all columns have the same initial
     %            position.
     %          * ...,key,val,...
+    %            'Dim' - Dimension over to calculate the moments.
+    %                   For spectra, this will be the spatial dimension.
+    %                   Default is 1.
     %            'WinHalfSize' - Half size of window in which to calculate
     %                   the moments.
     %                   Default is 7.
@@ -21,6 +24,7 @@ function Result=moment1d(Array, Pos, Args)
     %                   Default is 10.
     %            'WeightSigma' - The Gaussian sigma-width used in the
     %                   calculation of the weighted moments.
+    %                   Default is 3.
     % Output : - A structure with the following fields:
     %            .X1 - First central moment for each colum (row, if Dim=2) in the input
     %                   matrix.
@@ -45,7 +49,7 @@ function Result=moment1d(Array, Pos, Args)
     arguments
         Array
         Pos
-        Args.Dim = 1;
+        Args.Dim           = 1;
         Args.WinHalfSize   = 7;
         Args.MaxIter       = 10;
         Args.WeightSigma   = 3;

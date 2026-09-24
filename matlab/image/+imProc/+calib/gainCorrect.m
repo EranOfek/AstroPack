@@ -30,7 +30,7 @@ function Result = gainCorrect(Obj, Gain, Args)
         Gain                      = 'GAIN';  % keyword, scalar, vector [e/ADU]
         Args.CreateNewObj logical = false;
         Args.getValArgs cell      = {};
-        Args.DataProp             = {'Image','Var','Back'};
+        Args.DataProp             = {'ImageData','VarData','BackData'}; %{'Image','Var','Back'}; 
         Args.replaceValArgs cell  = {};
         Args.OrigGainKey          = 'ORIGGAIN';
         Args.DefaultGain          = 1;
@@ -54,17 +54,17 @@ function Result = gainCorrect(Obj, Gain, Args)
             Igain   = min(Iobj, Ngain);
             GainVal = Gain(Igain);
         else
-            GainVal = getVal(Obj(Iobj).HeaderData, Gain, Args.getValArgs{:});
+            GainVal = getVal(Obj(Iobj).HeaderData, Gain, Args.getValArgs{:}, 'UseDict',false);
         end
         if isnan(GainVal)
-            Gain = Args.DefaultGain; 
+            GainVal = Args.DefaultGain; 
         else
-            Gain = GainVal;
+            GainVal = GainVal;
         end
         
         % divide image by gain
         for Iprop=1:1:Nprop
-            Result(Iobj).(Args.DataProp{Iprop}) = Result(Iobj).(Args.DataProp{Iprop}).*Gain;
+            Result(Iobj).(Args.DataProp{Iprop}).Data = Result(Iobj).(Args.DataProp{Iprop}).Data.*GainVal;
         end
         
         % update header keywords
@@ -75,7 +75,7 @@ function Result = gainCorrect(Obj, Gain, Args)
         end
         
         % write old GAIN value
-        Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, Args.OrigGainKey, Gain, Args.replaceValArgs{:});
+        Result(Iobj).HeaderData = replaceVal(Result(Iobj).HeaderData, Args.OrigGainKey, GainVal, Args.replaceValArgs{:});
                
         % Set the DataType of the AstroImage to electrons
         Result(Iobj).DataType = AstroDataType.Electrons;

@@ -2,7 +2,7 @@ function [Il,In,IlA,ImJy,Ip]=black_body(T,W,Type)
 % Black body spectrum
 % Package: astro.spec
 % Description: Black body spectrum.
-%              OBSOLETE: Use AstSpec.blackbody instead.
+%              OBSOLETE: Use AstroSpec.blackBody instead.
 % Input  : - Temperature [K].
 %          - Vector of wavelength [Ang].
 %          - Calculation type:
@@ -14,7 +14,7 @@ function [Il,In,IlA,ImJy,Ip]=black_body(T,W,Type)
 %          - Emittance [erg/sec/cm^2/Ang(lambda)]
 %          - Emittance [mJy] (i.e., (erg/sec/cm^2/Hz)/1e-26) 
 %          - Number of photons [photons/sec/cm^2/Ang(lambda)]
-% See also: AstSpec.blackbody
+% See also: AstroSpec.blackBody
 % Tested : Matlab 5.3
 %     By : Eran O. Ofek                    Jan 2003
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
@@ -30,9 +30,9 @@ else
    error('Illegal number of input arguments');
 end
 
-h      = 6.6261e-27;      % = get_constant('h','cgs');          % Planck constant [cgs] 
-c      = 29979245800;     % = get_constant('c','cgs');          % speed of light [cm]
-k      = 1.380648813e-16; % = get_constant('kB','cgs');         % Boltzmann constant [cgs]
+h      = constant.h;      % Planck constant [cgs]
+c      = constant.c;      % speed of light [cm]
+k      = constant.kB;     % Boltzmann constant [cgs]
 
 Lam    = W.*1e-8;            % convert Ang to cm
 Nu     = c./Lam;             % convert wavelength to frequency [Hz]

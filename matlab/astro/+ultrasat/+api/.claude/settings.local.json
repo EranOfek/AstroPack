@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -X GET http://socsrv/api/namespace-manager/health)",
+      "Bash(curl *)",
+      "Bash(C:\\\\Matlab\\\\R2025b\\\\bin\\\\win64\\\\MATLAB.exe *)"
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 function C=cross_fast(A,B)
 % Fast cross product of two 3-elements matrices
-% Package: Util.math
+% Package: tools.math.geometry
 % Description: cross product of two 3-columns matrices. This is a fast
 %              version of the cross.m function. 
 % Input  : - First 3-element vector.
@@ -11,7 +11,7 @@ function C=cross_fast(A,B)
 %     By : Eran O. Ofek                    Jan 2015
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % See also: cross1_fast.m
-% Example: C=Util.math.cross_fast(rand(10,3),rand(10,3))
+% Example: C=tools.math.geometry.cross_fast(rand(10,3),rand(10,3))
 % Reliable: 2
 %--------------------------------------------------------------------------
 

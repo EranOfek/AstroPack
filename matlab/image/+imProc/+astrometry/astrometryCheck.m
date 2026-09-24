@@ -10,8 +10,26 @@ function [Result, AstrometricCat]=astrometryCheck(Obj, Args)
     %            'CatName' - Catalog name. Default is 'GAIAEDR3'.
     %                   If AstroCatalog, then will return the catalog as
     %                   is.
+    %            'MinFracIsolated' - Minimum fraction of the reference
+    %                   sources that must survive the neighboors rejection.
+    %                   Without it a crowded field is left with too few
+    %                   reference sources to check the solution against
+    %                   (e.g. 196 in the galactic bulge), and the check
+    %                   would report a misleading verdict on a good
+    %                   solution. Set to [] to disable.
+    %                   The step in which the faint limit is brightened, and
+    %                   the brightest limit which may be selected, are
+    %                   'AdaptMagStep' (0.5 mag) and 'AdaptMaxDeltaMag' (5 mag) of
+    %                   imProc.cat.getAstrometricCatalog; together they also
+    %                   bound the number of trials. The faint limit is only
+    %                   ever brightened and the bright limit is never
+    %                   touched, so a field which already satisfies the
+    %                   fraction is unaffected.
+    %                   See imProc.cat.getAstrometricCatalog.
+    %                   Default is 0.5.
     %            'getAstrometricCatalogArgs' - A cell array of additional
-    %                   arguments to pass to imProc.cat.getAstrometricCatalog
+    %                   arguments to pass to imProc.cat.getAstrometricCatalog.
+    %                   Passed last, so it can override 'MinFracIsolated'.
     %            'Radius' - Matching radius between the input catalog and
     %                   the astrometric catalog. Default is 5.
     %            'RadiusUnits' - Units for matching radius.
@@ -58,6 +76,7 @@ function [Result, AstrometricCat]=astrometryCheck(Obj, Args)
         Obj 
         Args.WCS                              = [];
         Args.CatName                          = 'GAIAEDR3';  % or AstroCatalog
+        Args.MinFracIsolated                  = 0.5;   % adapt the reference mag range to the crowding of the field
         Args.getAstrometricCatalogArgs cell   = {};
         
         Args.Radius                           = 5;
@@ -129,6 +148,7 @@ function [Result, AstrometricCat]=astrometryCheck(Obj, Args)
                                                                      'RadiusUnits','rad',...
                                                                      'CooUnits','rad',...
                                                                      'OutUnits','rad',...
+                                                                     'MinFracIsolated',Args.MinFracIsolated,...
                                                                      Args.getAstrometricCatalogArgs{:});
         
         % Match AstrometricCat with SrcRA, SrcDec

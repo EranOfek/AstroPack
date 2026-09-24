@@ -22,7 +22,7 @@ function [ThetaE,Theta1,Theta2,Mu1,Mu2,Delay1,Delay2,ThetaC]=pointsource_lens(Ma
 %     By : Eran O. Ofek                    Jun 2005
 %    URL : http://weizmann.ac.il/home/eofek/matlab/
 % Example:
-% [ER,T1,T2,Mu1,Mu2,TD1,TD2,Tcm]=AstroUtil.microlensing.pointsource_lens(1,5000,10000,5000,1./(1000.*RAD.*3600));
+% [ER,T1,T2,Mu1,Mu2,TD1,TD2,Tcm]=astro.microlensing.pointsource_lens(1,5000,10000,5000,1./(1000.*RAD.*3600));
 %-----------------------------------------------------------------------------
 H0     = 70;
 OmegaM = 0.3;

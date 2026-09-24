@@ -30,6 +30,14 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
     % Author : Amir Sharon (April 2022)
     % Example: [X,V] = celestial.SolarSys.orbitIntegration([2451545 2451546],[1 1 1]',[0.001 0.001 0.001]')
     %          [X,V] = celestial.SolarSys.orbitIntegration([2451545 2451546],[1 2; 1 1; 1 3],[0.001 0.001; 0.001 0.001; -0.001 0.001])
+    %
+    %          Ts = 2460000;
+    %          Te = 2463000;
+    %          IN = celestial.INPOP.init;
+    %          [T,~,U] = celestial.SolarSys.getJPL_ephem('299;','EPHEM_TYPE','VECTORS','TimeScale','TT','StartTime',Ts,'StopTime',Te,'StepSize',100);
+    %          XJ  = celestial.INPOP.ecliptic_2eqJ2000([T.X.'; T.Y.'; T.Z.']);
+    %          VJ  = celestial.INPOP.ecliptic_2eqJ2000([T.VX.'; T.VY.'; T.VZ.']);
+    %          [X,V] = celestial.SolarSys.orbitIntegration([Ts Te],XJ(:,1), VJ(:,1), 'INPOP',IN);
 
     arguments
         JD
@@ -37,7 +45,7 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
         V0
         Args.RelTol     = 1e-10; 
         Args.AbsTol     = 1e-10;
-        Args.INPOP      = [];   % if empty use celestial.SolarSys.ple_force
+        Args.INPOP      = celestial.INPOP.init;   % if empty use celestial.SolarSys.ple_force
         Args.TimeScale  = 'TDB';
         %Args.RefFrame   = 'eq';
     end
@@ -46,6 +54,7 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
     if JD(1)~=JD(2)
         Nobj = size(X0,2);
         
+        % BUG : NOT UPDATED!
         Opts = odeset('RelTol',Args.RelTol, 'AbsTol',Args.AbsTol);
 
         if size(X0,2)==1
@@ -53,7 +62,12 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
         else
             Method = 'ode45';
         end
-        
+        Method = 'ode45';
+        %Method = 'gaussjackson';
+        %Method = 'rknmex';
+        %Method = 'rkn1210';
+        %Method = 'rkn1210v';
+        %Method = 'rkn86';
         switch Method
             case 'ode45'
                 InitialValues = [X0;V0];
@@ -62,14 +76,55 @@ function [X,V] = orbitIntegration(JD, X0, V0, Args)
 
                 X = FinalValues(1:3,:);
                 V = FinalValues(4:6,:);
+            case 'gaussjackson'
+                InitialValues = [X0;V0];
+            
+                [FinalTime, FinalXV, TimeVec, XVCube] = odeGaussJackson( ...
+                    @(T,XVmat) odeSecondOrderGJ(T, XVmat, Nobj, Args.INPOP, Args.TimeScale), ...
+                    JD, InitialValues, ...
+                    'Step', 0.01, ...
+                    'StoreAll', true, ...
+                    'CorrectorIters', 1);
+            
+                X = FinalXV(1:3,:);
+                V = FinalXV(4:6,:);    
+           
             case 'rkn86'
                 [Times, X, V] = tools.math.ode.rkn86(@(T,XVmat) odeSecondOrder(T,XVmat,Nobj,Args.INPOP, Args.TimeScale),...
                                                        JD(1), JD(2), X0, V0, Args.RelTol);
                 X = X(end,:).';
                 V = V(end,:).';
+            case 'rkn1210v'
+
+                [Times, X, V] = tools.math.ode.rkn1210v(@(T,XVmat) odeSecondOrderVec(T,XVmat,Nobj,Args.INPOP, Args.TimeScale),...
+                                                        [JD(1), JD(2)], X0, V0, Opts);
+
+                % Here we have a problem:
+                % In cases in which the force is large (distance is small)
+                % this function fails, but ode45 works well.
+                % Need to modify rkn1210 such that it will return NaN in
+                % finte time and in these cases ode45 will be used.
+
+                X = X(end,:).';
+                V = V(end,:).';
+                X = reshape(X,[],Nobj);
+                V = reshape(V,[],Nobj);  
+                 
             case 'rkn1210'
 
                 [Times, X, V] = tools.math.ode.rkn1210(@(T,XVmat) odeSecondOrder(T,XVmat,Nobj,Args.INPOP, Args.TimeScale),...
+                                                        [JD(1), JD(2)], X0, V0, Opts);
+
+                % Here we have a problem:
+                % In cases in which the force is large (distance is small)
+                % this function fails, but ode45 works well.
+                % Need to modify rkn1210 such that it will return NaN in
+                % finte time and in these cases ode45 will be used.
+
+                 X = X(end,:).';
+                 V = V(end,:).';
+            case 'rknmex'
+                [Times, X, V] = RKN_multithreaded(@(T,XVmat) odeSecondOrder(T,XVmat,Nobj,Args.INPOP, Args.TimeScale),...
                                                         [JD(1), JD(2)], X0, V0, Opts);
 
                  X = X(end,:).';
@@ -96,6 +151,7 @@ end
 
 
 
+
 function DXVDt = odeDirectVectorized(T,XVmat,Nobj, ObjINPOP, TimeScale)
     % DXVDt - elements 1:3 contains:
     %           \dot{X} = V
@@ -118,6 +174,42 @@ function DXVDt = odeDirectVectorized(T,XVmat,Nobj, ObjINPOP, TimeScale)
     DXVDt = DXVDt(:);
 end
 
+function Acc = odeSecondOrderGJ(T, XVmat, Nobj, ObjINPOP, TimeScale)
+    % Gauss-Jackson callback:
+    % input  XVmat : 6xNobj state matrix
+    % output Acc   : 3xNobj acceleration matrix
+
+    XVmat = reshape(XVmat, 6, Nobj);
+    X = XVmat(1:3,:);
+
+    if isempty(ObjINPOP)
+        Acc = celestial.SolarSys.ple_force(X, T, 'EqJ2000', true);
+    else
+        Acc = ObjINPOP.forceAll(T, X, ...
+            'IsEclipticOut', false, ...
+            'OutUnits', 'au', ...
+            'TimeScale', TimeScale);
+    end
+end
+
+
+function DXDt = odeSecondOrderVec(T,XVmat,Nobj, ObjINPOP, TimeScale)
+    %
+    
+    XVmat = reshape(XVmat, [], Nobj);
+    DXDt = zeros(size(XVmat));
+    X = XVmat(1:3, :);
+    
+    % Second derivatives calcualtion
+    if isempty(ObjINPOP)
+        DXDt(1:3, :) = celestial.SolarSys.ple_force(X,T,'EqJ2000',true);
+    else
+        DXDt(1:3, :) = ObjINPOP.forceAll(T,X,'IsEclipticOut',false,'OutUnits','au','TimeScale',TimeScale);
+    end
+    
+    DXDt = DXDt(:);
+    
+end
 
 function DXDt = odeSecondOrder(T,XVmat,Nobj, ObjINPOP, TimeScale)
     %
@@ -127,5 +219,6 @@ function DXDt = odeSecondOrder(T,XVmat,Nobj, ObjINPOP, TimeScale)
     else
         DXDt(1:3,:) = ObjINPOP.forceAll(T, XVmat(1:3,:), 'IsEclipticOut',false, 'OutUnits','au', 'TimeScale',TimeScale);
     end
+    %DXDt
 
 end

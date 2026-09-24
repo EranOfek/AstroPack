@@ -6,7 +6,7 @@ function Msg = generateReportMPC(Table, Args)
     %            'ColDec', 'ColJD', 'ColRA', 'ColDec', 'ColMag',
     %            'ColFilter', 'ColAstIndex', to specify the column index.
     %            ColAstIndex is a some integer uniquly indicating asteroids
-    %            in the same batch.
+    %            
     %          * ...,key,val,...
     %            'Filter' - If not empty, will overrid the filter in the
     %                   table. Default is 'C'.
@@ -22,7 +22,7 @@ function Msg = generateReportMPC(Table, Args)
     
     arguments
         Table                % [JD, RA, Dec, Mag, Filter, AstIndex]
-        Args.Filter           = 'C';
+        Args.Filter           = 'c';
         Args.ColJD            = 1;
         Args.ColRA            = 2;
         Args.ColDec           = 3;
@@ -34,7 +34,7 @@ function Msg = generateReportMPC(Table, Args)
         Args.AddHeader logical = true;
         Args.IsComet logical   = false;
         Args.IsPrecision logical = true;
-        Args.ObsCode          = 'XXX';
+        Args.ObsCode          = 'M01';
         Args.Contributer1     = 'E. O. Ofek'; %'D. Polishook';
         Args.Contributer2     = 'D. Polishook';
         Args.EMail            = 'david.polishook@weizmann.ac.il';
@@ -45,10 +45,10 @@ function Msg = generateReportMPC(Table, Args)
         Args.ObsAlt           = 415.4;
         Args.ObsAltUnits      = 'm';
         Args.ObsSys           = 'WGS84';
-        Args.ObsName          = 'Large Array Survey Telescope (LAST) Node 01 Mount 01';  %'Weizmann Institute Observatory at Neot Smadar';
+        Args.ObsName          = 'Large Array Survey Telescope (LAST) Node 01 Mount 03 Camera 02';  %'Weizmann Institute Observatory at Neot Smadar';
         Args.ObsAddress       = 'Weizmann Institute of Science, 234 Herzl St. Rehovot 76100, Israel';
         Args.Telescope        = '11-inch f/2.2 Schmidt + 9K x 6K CMOS';
-        Args.RefCatalog       = 'GAIA-DRE3';
+        Args.RefCatalog       = 'GAIA-DR3';
         
         Args.InstType         = 'B';  % B for CMOS; C for CCD   % https://minorplanetcenter.net/iau/info/OpticalObs.html
         Args.SkyCond          = '';    % https://minorplanetcenter.net/iau/info/ObsNote.html
@@ -105,12 +105,19 @@ function Msg = generateReportMPC(Table, Args)
     N = size(Table(:,1));
     DesigCounter = 1;
     for I=1:1:N
-        if Table(I,Args.ColAstIndex)==LastAstIndex
-            % keep DesigCounter as is
+        if Table(I,Args.ColAstIndex)==0
+            % User AstIndex is 0 - use internal counter
+            if Table(I,Args.ColAstIndex)==LastAstIndex
+                % keep DesigCounter as is
+            else
+                DesigCounter = DesigCounter + 1;
+            end
+            LastAstIndex = Table(I,Args.ColAstIndex);
         else
-            DesigCounter = DesigCounter + 1;
+            % user user provided index
+            DesigCounter = Table(I,Args.ColAstIndex);
         end
-        LastAstIndex = Table(I,Args.ColAstIndex);
+        
         
         
         Desig   = sprintf('%s%05d', Args.DesigPrefix, DesigCounter);

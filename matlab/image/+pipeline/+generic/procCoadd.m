@@ -1,6 +1,6 @@
 function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     % Coadd a list of processed images, estimate background and find sources in the coadd images.
-    %   The function works on 2-D array of of AstroImage objects in which
+    %   The function works on 2-D array of of AstroImage objects in whichmas
     %   one dimension (default is 1) corresponds to the epoch and the other
     %   to the field (i.e., different field). Each field will be coadded,
     %   so the result is a vector of AstroImage objects which length equal
@@ -26,6 +26,8 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %            'EpochDim' - Dimension (1 or 2) of the epoch axis in the
     %                   input AstroImage object. Default is 1.
     %
+    %            'WCS' - Reference WCS (must have Success=true).
+    %                   Default is [].
     %            'coaddArgs' - A cell array of arguments to pass to the 
     %                   imProc.stack.coadd function.
     %                   default is {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
@@ -54,7 +56,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %                                'MAG_APER', 'MAGERR_APER',...
     %                                'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
     %            'Threshold' - Detection threshold for source finding.
-    %                   Default is 5.
+    %                   Default is [500 50 5].
     %            'astrometryRefineArgs' - A cell array of arguments to pass
     %                   to imProc.astrometry.astrometryRefine
     %                   Default is {}.
@@ -65,6 +67,23 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %            'CatName' - catsHTM astrometric catalog to use for the
     %                   astrometric solution.
     %                   Default is 'GAIADR3'
+    %            'MinFracIsolated' - Minimum fraction of the reference
+    %                   catalog sources that must survive the neighboors
+    %                   rejection. In a crowded field a deep reference
+    %                   catalog is left with almost no isolated sources;
+    %                   when the fraction is not met the faint limit of the
+    %                   magnitude range is brightened automatically.
+    %                   Set to [] to disable.
+    %                   The step in which the faint limit is brightened, and
+    %                   the brightest limit which may be selected, are
+    %                   'AdaptMagStep' (0.5 mag) and 'AdaptMaxDeltaMag' (5 mag) of
+    %                   imProc.cat.getAstrometricCatalog; together they also
+    %                   bound the number of trials. The faint limit is only
+    %                   ever brightened, so a supplied magnitude range -
+    %                   e.g., one already corrected for the exposure time -
+    %                   is never deepened or replaced.
+    %                   See imProc.cat.getAstrometricCatalog.
+    %                   Default is 0.5.
     %            'photometricZPArgs' - A cell array of arguments to pass to
     %                   the imProc.calib.photometricZP function.
     %                   Default is {}.
@@ -80,6 +99,39 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %            'BitName_CoaddLess' - The bit name in the bit mask image
     %                   containing the coadd less images.
     %                   Default is 'CoaddLessImages'.
+    %            'UNIQSEC' - The UNIQSEC [Xmin Xmax Ymin Ymax] of the sub
+    %                   images (i.e., their unique, non overlapping,
+    %                   sections in their own frame), either a single line
+    %                   applied to all the fields, or a line per field.
+    %                   If not empty, then the Overlap bit propagated from
+    %                   the single epoch masks (and smeared by the
+    %                   registration shifts) is dropped from the coadd mask
+    %                   and re-set according to the coadd own geometry
+    %                   (EXCLSEC when given, this section otherwise). This
+    %                   is done before the source extraction, so that the
+    %                   coadd catalog FLAGS follow the coadd geometry.
+    %                   Also used (with 'AddPrimary') to add the 'primary'
+    %                   ownership column to the coadd catalog.
+    %                   Default is [] (i.e., keep the propagated bit).
+    %            'EXCLSEC' - The EXCLSEC [Xmin Xmax Ymin Ymax] of the sub
+    %                   images: their exclusive (single-coverage) sections
+    %                   in their own frame, same format as 'UNIQSEC'.
+    %                   If not empty, the Overlap bit is re-set outside
+    %                   this section instead of outside UNIQSEC, so that
+    %                   the bit marks the full overlap region in all the
+    %                   crops covering it (issue #1180), and the ownership
+    %                   is recorded in the catalog 'primary' column.
+    %                   Default is [].
+    %            'BitName_Overlap' - The bit name of the overlap region.
+    %                   Used only when 'UNIQSEC' or 'EXCLSEC' is not empty.
+    %                   Default is 'Overlap'.
+    %            'AddPrimary' - A logical indicating if to add the
+    %                   'primary' ownership column to the coadd catalog
+    %                   (via imProc.cat.addPrimary): 1 if the source exact
+    %                   X,Y is inside the field UNIQSEC, 0 otherwise.
+    %                   Used only when 'UNIQSEC' is not empty and sources
+    %                   are extracted.
+    %                   Default is true.
     %            'HighBackNsigma' - If not empty, then will remove images
     %                   with high background. This is the number of sigmas
     %                   of the background above the median images
@@ -133,22 +185,91 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %                   the MergedCat input argument to the catalog of the
     %                   coadd image.
     %                   Default is {'Nobs'}.
+    %            'UseMex' - Default is false.
     % Output : - A vector of AstroImage object containing the coadd images.
     %            One image per field.
     %          - A structure array containing information regarding the
-    %            coaddition process.
+    %            coaddition process. The 'RegisteredBy' field records the
+    %            registration route per field: 'shift' (by the supplied
+    %            ShiftXY), 'wcs' (no ShiftXY supplied), or 'wcs-fallback'
+    %            (ShiftXY supplied but unusable for this field - empty,
+    %            non-finite, or row-mismatched; issue #1162).
     % Author : Eran Ofek (Jun 2023)
     % Example: 
    
     arguments
         AllSI
-        Args.EpochDim   = 1;
+        Args.DefScale                         = 1.25; % Default scale if WCS is empty
+        Args.EpochDim                         = 1;
+        Args.JD                               = [];
+        Args.IsGood                           = [];
+        Args.MinNumCoadd                      = 10;
+        Args.ShiftXY                          = [];  % if empty, then, register by WCS. May be a struct array (element per field) with the shifts in PropShiftXY; a field whose resolved shifts are empty, non-finite, or row-mismatched falls back to WCS registration, recorded in ResultCoadd.RegisteredBy (issue #1162).
+        Args.WCS                              = [];
+        Args.PropShiftXY                      = 'ShiftXY';
+        Args.IsShiftXYfiltered                = true;
+        Args.UseMultiIterPSF                  = true;
+        % --- registration ---
+        Args.registerArgs                     = {};
+        Args.DataProp                         = {'ImageData','BackData','VarData','MaskData'};
+        Args.SubBack                          = true;  % subtract background before coaddition. false is useful for visit coaddition; for general coaddition use true.
+                                                        % NOTE: StackMethod='proper' ALWAYS subtracts the background - imProc.stack.coadd_Proper is
+                                                        % called with a hardcoded 'SubBack',true regardless of this flag (proper coaddition requires it).
+                                                        % This flag therefore controls only the 'wrobust'/'sigmaclip' channels. However SetBackTo0 (below)
+                                                        % and the 'IsBackSub' value forwarded to imProc.sources.multiIterExtractor still follow THIS flag, so
+                                                        % with StackMethod='proper' keep SubBack=true to stay consistent with the background that was actually
+                                                        % subtracted (setting it false would tell the extractor the coadd is not background-subtracted when it is).
+        
+        Args.SetBackTo0                       = true; % if SubBack=true and SetBackTo0 then set back to 0.
+        %Args.ReMeasureBackVar                 = true; % if SetBackT0=false and this is true than remeasure back and var
+        Args.ReMeasureBack                    = true;
+        %Args.ReMeasureVar                     = true; % now it is always remeasured during coadd_WRobust  
+        %Args.PropagateVar                     = false; % propagate variance from coaddition.
+
+        %Args.UseShift logical                 = true;
+        %Args.UseInterp2 logical               = true;
+        %Args.interp2affineArgs cell           = {};
+        %Args.interp2wcsArgs cell              = {};
+
+        %--- stacking ---
+        Args.BackVarFromHeader                = false;
+        Args.KeyBack                          = 'MEDBCK'; % Header keyword name from which to get the background.
+        Args.KeyVar                           = 'MEDVAR'; % Header keyword name from which to get the variance.
+        Args.StackMethod                      = 'wrobust'; %'sigmaclip';  
+        Args.ZP                               = [];  % [] - equal weights; use 'PH_ZP' for ref images.
+        Args.ZP0                              = 25;  % the ZP that used to convert inst. mag to mag.
+        Args.coadd_WRobustArgs                = {};
+        Args.coadd_ProperArgs                 = {};
+        Args.StackArgs                        = {'MeanFun',@tools.math.stat.nanmean, 'StdFun', @tools.math.stat.std_mad, 'Nsigma',[2 2]};
         
         Args.coaddArgs cell                   = {'StackArgs',{'MeanFun',@mean, 'StdFun',@tools.math.stat.nanstd, 'Nsigma',[3 3], 'MaxIter',2}};
-        Args.backgroundArgs cell              = {};
-        Args.BackSubSizeXY                    = [128 128];
+        
+        % Gain handling (unified; issue #1251):
+        %   Gain    - the INPUT single-image gain [e-/ADU] of the frames
+        %             being coadded. [] (default) -> read the mean over the
+        %             input images from header KeyGain (->1 if the keyword is
+        %             missing). Scalar -> use that value for all inputs. Used
+        %             by every StackMethod to derive the OUTPUT effective gain
+        %             (wrobust: imProc.stack.coadd_WRobust's weighted
+        %             EffectiveGain; proper/sigmaclip: Gain.*MeanN).
+        %   KeyGain - header keyword: (a) source of the input gain when
+        %             Gain=[], and (b) destination for the OUTPUT effective
+        %             gain (written when UpdateGain=true).
+        %   (Replaces the former InputMeanGain + Gain/KeyGain split.)
+        Args.Gain                             = [];
+        Args.KeyGain                          = 'GAIN';
+        % output gain:
+        Args.UpdateGain                       = true;
+
+        %Args.backgroundArgs cell              = {};
+        %Args.BackSubSizeXY                    = [128 128];
+        Args.backVarArgs                      = {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256]}
+        Args.backVarIndivArgs                 = {}; % if empty use the same as backVarArgs   {'Method',@imUtil.background.modeVar_LogHist, 'Block',[256 256]}
+        %Args.PoissVar                         = false;  % Assume Poisson noise for coadd image Var
+        %Args.RN2                              = 12;  % RN^2 for Poissnon noise var calculation
+
         Args.findMeasureSourcesArgs cell      = {};
-        Args.ZP                               = 25;
+        Args.maskCR_Args                      = {};
         Args.ColCell cell                     = {'XPEAK','YPEAK',...
                                                  'X1', 'Y1',...
                                                  'X2','Y2','XY',...
@@ -157,17 +278,59 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                  'FLUX_APER', 'FLUXERR_APER',...
                                                  'MAG_APER', 'MAGERR_APER',...
                                                  'FLUX_CONV', 'MAG_CONV', 'MAGERR_CONV'};
-        Args.Threshold                        = 5;
+        Args.Threshold                        = [500 50 5];
+        %Args.BS_Ncoadd                        = 1;
+        Args.AddBackNoise                     = true;
+        Args.BS_BackMaxR                      = 1501;
+        Args.AddExtraBack                     = true;
+        Args.AddExtraVar                      = true;
+        %Args.NcoaddFactor                     = 1;
+        Args.CleanSN                          = 4;
+       
+
+        Args.multiIterExtractorArgs           = {};
+        Args.FlagCR                           = true;
+        Args.AperRadius                       = [3, 5, 6, 7];
+        Args.Annulus                          = [10 12];
+        Args.MomentsMethod                    = 'mex';  %'legacy'|'mex'
+        Args.AperPhotMethod                   = 'simple'; %'interp';  % 'simple'|'interp'
+
+        Args.PsfPhotMethod                    = '2DGN'; %'legacy';
+        Args.ShiftMethod                      = 'lanczos3'; % 'lanczos3' | 'fft'
+
+        Args.RefineAstrometry                 = true;
         Args.astrometryRefineArgs cell        = {};
+        Args.MinFracIsolated                  = 0.5;   % minimum fraction of isolated reference sources - see imProc.cat.getAstrometricCatalog
         Args.Scale                            = 1.25;
         Args.Tran                             = Tran2D('poly3');
-        Args.CatName                          = 'GAIAEDR3';
-        Args.photometricZPArgs cell           = {};                                                              
+        Args.CatName                          = 'GAIADR3';
+        Args.AddColor logical                 = false;  % attach the Gaia colour BP_RP to the coadd catalog (issue #1289) - passed on to astrometryRefine
+        Args.AddColorArgs                     = {};     % extra args for imProc.cat.addColor
+
+        Args.fitPhotCalibTransArgs            = {};
         Args.ReturnRegisteredAllSI logical    = true; % false;  % if true it means that AllSI will be modified and contain the registered images
           
         Args.CoaddLessFrac                    = 0.6; % if number of imagesx in pix is below this frac, than open the CoaddLessImages bit - empty - ignore
         Args.BitName_CoaddLess                = 'CoaddLessImages';
-        
+
+        Args.UNIQSEC                          = [];  % UNIQSEC of the sub images, line per field; if not empty, reset the Overlap bit of the coadd + add the 'primary' catalog column
+        Args.EXCLSEC                          = [];  % exclusive (single-coverage) sections, line per field; if not empty, the Overlap bit is reset outside them (the full overlap region; issue #1180) instead of outside UNIQSEC
+        Args.BitName_Overlap                  = 'Overlap';
+        Args.AddPrimary logical               = true; % add the 'primary' ownership column to the coadd catalog (needs a non-empty UNIQSEC)
+
+        Args.RefineSearchRadius               = 3;
+        Args.FindStars                        = true;
+        Args.PhotCalibSimple                  = true;  % execute simple photometric calibration
+        Args.photometricZPArgs                = {}; 
+        Args.photometricZP_UpdateMagCols      = false;
+        Args.PhotCalibTrans                   = true;  % execute transmission fit calibratio
+
+        Args.AddLimMag                        = false;
+        Args.LimMagArgs                       = {};
+        Args.AddBackMag                       = false;
+        Args.KeyZP                            = 'PT_ZP';
+        Args.BackMagArgs                      = {};
+
         %Args.RemoveHighBackImages logical     = true;   % remove images which background differ from median back by 'HighBackNsigma' sigma
         Args.HighBackNsigma                   = 3;
         
@@ -185,18 +348,59 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.CoaddMatchMergedCat logical      = true;
         Args.MergedCat                        = [];
         Args.Col2copy cell                    = {'Nobs'};  % cell array of columns to copy from MergedCat to Coadd
+        Args.AddMaskSrcNoise                  = true;
+        Args.MinFracNepoch                    = [];  % if fraction of caood images is below this, then set pixel to NaN.
+        Args.BitNameNaN                       = 'NaN';
+        Args.CorrectVarByNcoadd               = false;
+
+        Args.WriteStatHeader                  = true;
+
+        Args.UseMex                           = false;
+
+        Args.MatchMethod                      = 'old'; % 'old'|'mex'
     end
     
-    SEC_DAY = 86400;
     
+    if isempty(Args.backVarIndivArgs)
+        Args.backVarIndivArgs = Args.backVarArgs;
+    end
+
     if Args.EpochDim==2
         % transpose in order to make the epochs in the 1st dimension
         AllSI = AllSI.';
     end
-    
+    [Nepoch, Nfields]  = size(AllSI);
+
+    % Resolve the INPUT single-image gain once (issue #1251): use the
+    % supplied scalar, else the mean of the input-image KeyGain headers,
+    % falling back to 1 when the keyword is missing. This single value feeds
+    % every StackMethod branch below.
+    if isempty(Args.Gain)
+        InGainKeys = AllSI.getStructKey(Args.KeyGain);
+        InGain     = mean([InGainKeys.(Args.KeyGain)], 'all', 'omitnan');
+        if isempty(InGain) || ~isfinite(InGain)
+            InGain = 1;
+        end
+    else
+        InGain = Args.Gain;
+    end
+
     % get JD
-    JD = julday(AllSI(:,1));
+    if isempty(Args.JD)
+        JD = julday(AllSI(:,1));
+    else
+        JD = Args.JD;
+    end
     
+
+    if Args.BackVarFromHeader
+        % Get Back/Var from header, therefore no need to register Back/Var
+        DataProp = setdiff(Args.DataProp, {'BackData','VarData'});
+    else
+        DataProp = Args.DataProp;
+    end
+
+
     % merge catalogs % note that the merging works only on columns of AllSI !!!
     % In principle mergeCatalogs can work on all sub images simoultanouly
     % however, if one of the ephocs in one of the sub images is missing
@@ -205,10 +409,15 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     % loop
     
     % continue only for fields for which all visits astrometry is good
-    FlagGoodAstrometry = all(imProc.astrometry.isSuccessWCS(AllSI));
-    if ~all(FlagGoodAstrometry)
-        warning('Some sub images have bad astrometry');
+    if isempty(Args.IsGood)
+        Args.IsGood = imProc.astrometry.isSuccessWCS(AllSI);
     end
+    
+
+    %FlagGoodAstrometry = all(imProc.astrometry.isSuccessWCS(AllSI));
+    %if ~all(FlagGoodAstrometry)
+    %    warning('Some sub images have bad astrometry');
+    %end
    
     
     % delete Back and Var before coaddition
@@ -221,7 +430,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     
     % coadd images
     %Nfields = numel(MatchedS);
-    [Nepoch, Nfields]  = size(AllSI);
+    
     % check if all sub images has equal size
     % if so preallocate memory for cube
     [SizeSI, SizeSJ] = sizeImage(AllSI);
@@ -233,63 +442,113 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         PreAllocCube = [];
     end
         
-    ResultCoadd = struct('ShiftX',cell(Nfields,1),...
-                         'ShiftY',cell(Nfields,1),...
-                         'CoaddN',cell(Nfields,1),...
-                         'AstrometricFit',cell(Nfields,1),...
-                         'ZP',cell(Nfields,1),...
-                         'PhotCat',cell(Nfields,1)); % ini ResultCoadd struct
+    ResultCoadd = struct('WMeanJD',cell(Nfields,1), 'IndivMidJD',cell(Nfields,1), 'CoaddN',cell(Nfields,1), 'AstrometricFit',cell(Nfields,1), 'ZP',cell(Nfields,1), 'PhotCat',cell(Nfields,1), 'TransFit',cell(Nfields,1), 'RegisteredBy',cell(Nfields,1));
+
+    % resolve the Overlap bit index once, before the loop over the fields.
+    % The bit is re-set outside the exclusive section (EXCLSEC) when given,
+    % so that it marks the full overlap region in all the crops covering it
+    % (issue #1180); outside UNIQSEC (the older, asymmetric policy) otherwise.
+    OverlapBitInd = [];
+    OverlapSEC    = Args.EXCLSEC;
+    if isempty(OverlapSEC)
+        OverlapSEC = Args.UNIQSEC;
+    end
+    if ~isempty(OverlapSEC)
+        if isempty(AllSI(1,1).MaskData.Dict)
+            OverlapBitDict = BitDictionary('BitMask.Image.Default');
+        else
+            OverlapBitDict = AllSI(1,1).MaskData.Dict;
+        end
+        OverlapBitInd = OverlapBitDict.name2bit(Args.BitName_Overlap);
+        if size(OverlapSEC,1)~=1 && size(OverlapSEC,1)~=Nfields
+            error('The Overlap section (EXCLSEC/UNIQSEC) must contain either a single line or a line per field');
+        end
+    end
+    if ~isempty(Args.UNIQSEC) && size(Args.UNIQSEC,1)~=1 && size(Args.UNIQSEC,1)~=Nfields
+        error('UNIQSEC must contain either a single line or a line per field');
+    end
+
     Coadd       = AstroImage([Nfields, 1]);  % ini Coadd AstroImage
     for Ifields=1:1:Nfields
-        if FlagGoodAstrometry(Ifields)
-            if isempty(Args.MatchedS)
-                ResultCoadd(Ifields).ShiftX = NaN;
-                ResultCoadd(Ifields).ShiftY = NaN;
+        
+        FlagGood = Args.IsGood(:,Ifields);
+        Ngood = sum(FlagGood);  % number of good epochs per field
+        if Ngood>=Args.MinNumCoadd || Ngood==Nepoch
+            % coadd images Args.MinNumCoadd
+            
+            IfirstGood = find(FlagGood, 1, 'first');
+            ResultCoadd(Ifields).IndivMidJD = JD(FlagGood);
+            
+            %(MidJD(1) + MidJD(end)).*0.5;
+           
+        
+            % Resolve the per-field ShiftXY first, then pick the
+            % registration branch on the RESOLVED value (issue #1162):
+            % lcUtil.positionDrift leaves the ShiftXY field EMPTY for a
+            % crop whose MatchedSources has fewer than MinEpoch epochs,
+            % and an empty/NaN shift matrix used to crash (or silently
+            % corrupt) imProc.transIm.register. A shift matrix is usable
+            % only when it is non-empty, all-finite, and has exactly one
+            % row per registered image (register silently REUSES its last
+            % row for extra images, misregistering them). Otherwise fall
+            % back to registration by WCS.
+            if isstruct(Args.ShiftXY)
+                if Ifields <= numel(Args.ShiftXY)
+                    ShiftXY = Args.ShiftXY(Ifields).(Args.PropShiftXY);
+                else
+                    ShiftXY = [];
+                end
             else
-                ResultCoadd(Ifields).ShiftX = median(diff(Args.MatchedS(Ifields).Data.(Args.ColX),1,1), 2, 'omitnan');
-                ResultCoadd(Ifields).ShiftY = median(diff(Args.MatchedS(Ifields).Data.(Args.ColY),1,1), 2, 'omitnan');
+                ShiftXY = Args.ShiftXY;
+            end
+            if ~isempty(ShiftXY) && ~Args.IsShiftXYfiltered
+                ShiftXY = ShiftXY(FlagGood,:);
+            end
+            UseShiftXY = ~isempty(ShiftXY) && all(isfinite(ShiftXY(:))) && ...
+                         size(ShiftXY,1) == Ngood;
+            % The fallback is RECORDED, not warned: no console output by
+            % default. ResultCoadd(Ifields).RegisteredBy is 'shift',
+            % 'wcs' (caller passed no ShiftXY), or 'wcs-fallback' (caller
+            % passed ShiftXY but this field's resolved shifts are
+            % unusable); pipelineI counts the fallbacks into
+            % Status.NbadShiftXY and PipelineDemon writes them to its
+            % log / the systemd journal.
+            if UseShiftXY
+                ResultCoadd(Ifields).RegisteredBy = 'shift';
+            elseif isempty(Args.ShiftXY)
+                ResultCoadd(Ifields).RegisteredBy = 'wcs';
+            else
+                ResultCoadd(Ifields).RegisteredBy = 'wcs-fallback';
             end
 
-            ShiftXY = cumsum([0 0; -[ResultCoadd(Ifields).ShiftX, ResultCoadd(Ifields).ShiftY]]);
-
-            % Check that all images have astrometric solution
-            FlagGoodWCS = imProc.astrometry.isSuccessWCS(AllSI(:,Ifields));
-
-            % Remove Images with high background
-            if isempty(Args.HighBackNsigma)
-                FlagGood = FlagGoodWCS;
+            if UseShiftXY
+                % register images by the resolved ShiftXY
+                RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), ShiftXY,...
+                                                       'WCS',AllSI(IfirstGood,Ifields).WCS,...
+                                                       Args.registerArgs{:},...
+                                                       'DataProp',DataProp);
             else
-                MedBack = imProc.stat.median(AllSI(:,Ifields));
-                FlagGoodBack = MedBack < (median(MedBack) + Args.HighBackNsigma.*tools.math.stat.rstd(MedBack));
-
-                FlagGood = FlagGoodWCS & FlagGoodBack;
+                if isempty(Args.WCS)
+                    % register by the WCS of the fisrt available image:
+                    % CAVEAT (issue #1162): imProc.transIm.register does
+                    % NOT support a bare AstroWCS TransRef (its AstroWCS
+                    % branch is unimplemented), so this sub-branch
+                    % currently errors inside register; pass 'WCS' (an
+                    % AstroImage), or pass AllSI(IfirstGood,Ifields)
+                    % here, once the registration target is decided.
+                    RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), AllSI(IfirstGood,Ifields).WCS,...
+                                                           Args.registerArgs{:},...
+                                                           'DataProp',DataProp);
+                else
+                    RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), Args.WCS,...
+                                                           Args.registerArgs{:},...
+                                                           'DataProp',DataProp);
+                end
             end
-            
-            % no need to transform WCS - as this will be dealt later on
-            % 'ShiftXY',ShiftXY,...
-            % 'RefWCS',AllSI(1,Ifields).WCS,...
-            % if sum(FlagGood)<20
-            %     'a'
-            % end
-            
-            error('Need to update - copy from procMergedCoadd')
 
-            if isempty(Args.MatchedS)
-                Igood = find(FlagGood, 1, 'first');
-
-                RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), AllSI(Igood, Ifields).WCS,...
-                                                     'TransWCS',false,...
-                                                     'FillValues',0,...
-                                                     'ReplaceNaN',true,...
-                                                     'CreateNewObj',~Args.ReturnRegisteredAllSI);
-
-            else
-                RegisteredImages = imProc.transIm.imwarp(AllSI(FlagGood,Ifields), ShiftXY(FlagGood,:),...
-                                                     'TransWCS',false,...
-                                                     'FillValues',0,...
-                                                     'ReplaceNaN',true,...
-                                                     'CreateNewObj',~Args.ReturnRegisteredAllSI);
-
+            % Add Back/Var from header into Back/Var properties
+            if Args.BackVarFromHeader
+                [RegisteredImages] = imProc.background.populateBackVarFromHeader(AllSI(FlagGood,Ifields), RegisteredImages);
             end
 
             % use sigma clipping...
@@ -297,114 +556,253 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             % is now Gain/Nimages
             % 2. RegisteredImages has no header so no JD...
 
-            [Coadd(Ifields), ResultCoadd(Ifields).CoaddN] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
+            %Args.StackMethod = 'sigmaclip';            
+            switch Args.StackMethod
+                case 'wrobust'
+                    % Effective Ncoadd - remove 3 for min.max rejection +
+                    % mean calc...
+                    NcoaddEff = numel(RegisteredImages); %max(1, numel(RegisteredImages)-3);
+                    % RegisteredImages contains also the Back and Var
+                    % Ncoadd is Nimages-3 because of one dof for mode
+                    % estimation, and 2 fir min/max rejection
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_WRobust(RegisteredImages, 'SubBack',Args.SubBack,...
+                                                            'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_WRobustArgs{:},...
+                                                            'AddBack', Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs, ...
+                                                            'Gain',InGain,...
+                                                            'Ncoadd',NcoaddEff);
+                        
+                   
+                case 'proper'
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_Proper(RegisteredImages, 'SubBack',true,...
+                                                                                 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:},...
+                                                                                 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs,...
+                                                                                 'Gain',InGain, 'ProperMethod','fft');
+
+                    % BUG : Need to return EffectiveGain
+                    %EffectiveGain = NaN;
+                case 'rproper'
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, MidJD, EffectiveGain] = imProc.stack.coadd_Proper(RegisteredImages, 'SubBack',true,...
+                                                                                 'ZP',Args.ZP, 'ZP0',Args.ZP0, Args.coadd_ProperArgs{:},...
+                                                                                 'AddBack',Args.ReMeasureBack, 'backArgs',Args.backVarIndivArgs, 'backVarArgs',Args.backVarArgs,...
+                                                                                 'Gain',InGain, 'ProperMethod','robust');
+                        
+                case 'sigmaclip'
+                    % obsolete channel
+                    [Coadd(Ifields), ResultCoadd(Ifields).CoaddN, ~, MidJD, SumExpTime] = imProc.stack.coadd(RegisteredImages, Args.coaddArgs{:},...
                                                                                                  'Cube',PreAllocCube,...
                                                                                                  'StackMethod',Args.StackMethod,...
                                                                                                  'StackArgs',{'MeanFun',@tools.math.stat.nanmean, 'Nsigma',[2 2]});
+                    % BUG : Need to return EffectiveGain
+                    EffectiveGain = NaN;
+                otherwise
+                    error('Unknown StackMethod option');
+            end
+            ResultCoadd(Ifields).WMeanJD = MidJD;
+
+            if ~isempty(Args.MinFracNepoch)
+                MinNc  = min(ResultCoadd(Ifields).CoaddN(:));
+                MinNepochThreshold = Nepoch.*Args.MinFracNepoch;
+                if MinNc<MinNepochThreshold
+                    FlagLow = ResultCoadd(Ifields).CoaddN<MinNepochThreshold;
+                    Coadd(Ifields).ImageData.Data(FlagLow) = NaN;
+                    Coadd(Ifields).MaskData = maskSet(Coadd(Ifields).MaskData, FlagLow, Args.BitNameNaN, 1);
+                end
+            end
+
+
+            % Background and Variance
+            if Args.SetBackTo0 && Args.SubBack
+                Coadd(Ifields).BackData.Data = zeros(size(Coadd(Ifields).ImageData.Data), 'like',Coadd(Ifields).ImageData.Data);
+            end
+
+
+
+            % if Args.ReMeasureBack
+            %     Coadd(Ifields) = imProc.background.backVar(Coadd(Ifields), 'ReCalc',true, Args.backVarArgs{:});                
+            % end
+
+            MeanN = mean(ResultCoadd(Ifields).CoaddN(:));
+            if Args.CorrectVarByNcoadd
+                Coadd(Ifields).VarData.Data = Coadd(Ifields).VarData.Data .* (MeanN./ResultCoadd(Ifields).CoaddN).^2;
+            end
+
+            if isnan(EffectiveGain)
+                % proper/sigmaclip do not return an effective gain: scale the
+                % resolved input gain by the mean coadd count (issue #1251).
+                Gain = InGain.*MeanN;
+            else
+                % wrobust: coadd_WRobust already returned the (weighted)
+                % effective output gain.
+                Gain = EffectiveGain;
+            end
+            if Args.UpdateGain
+                % write the OUTPUT effective gain into the KeyGain keyword
+                Coadd(Ifields).HeaderData.replaceVal(Args.KeyGain, Gain);
+            end
+            
+
+            % In some cases the first image of the stack is rejected, so
+            % the 'DATEOBS' in the resulting Coadd may be not the same 
+            % in all the subimages. Here we correct it taking the date from the first Proc image:
+            % HERE RegisteredImages contains only good images - so the next
+            % line should be irrelevant
+            %Coadd(Ifields).HeaderData.setVal('DATEOBS',AllSI(1,1).HeaderData.getVal('DATEOBS'));
+
+
+            %--- source detection ---
 
 
             % Background
-            Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...
-                                                                          'SubSizeXY',Args.BackSubSizeXY);
+            %Coadd(Ifields) = imProc.background.background(Coadd(Ifields), Args.backgroundArgs{:},...
+            %                                                              'SubSizeXY',Args.BackSubSizeXY);
+            
+            % This is already done in imProc.stack.coadd_*
+            %Coadd(Ifields)  = imProc.background.backVar(Coadd(Ifields), Args.backVarArgs{:}, 'ReCalc',true);
 
 
             % Mask Source noise dominated pixels
-            Coadd(Ifields) = imProc.mask.maskSourceNoise(Coadd(Ifields), 'Factor',1, 'CreateNewObj',false);
+            if Args.AddMaskSrcNoise
+                Coadd(Ifields) = imProc.mask.maskSourceNoise(Coadd(Ifields), 'Factor',1, 'CreateNewObj',false);
+            end
+         
 
             % Mask pixels with less than X% of the images
             if ~isempty(Args.CoaddLessFrac)
                 NregIm = numel(RegisteredImages);
-                FlagCoaddLess = ResultCoadd(Ifields).CoaddN<(NregIm.*Args.CoaddLessFrac);
+                FlagCoaddLess = squeeze(ResultCoadd(Ifields).CoaddN<(NregIm.*Args.CoaddLessFrac));
                 maskSet(Coadd(Ifields).MaskData, FlagCoaddLess, Args.BitName_CoaddLess, 1, 'CreateNewObj',false);  %, 'DefBitDict',Args.DefBitDict);
             end
-            
-            % Source finding
-            Coadd(Ifields) = imProc.sources.findMeasureSources(Coadd(Ifields), Args.findMeasureSourcesArgs{:},...
-                                                       'RemoveBadSources',true,...
-                                                       'ZP',Args.ZP,...
-                                                       'ColCell',Args.ColCell,...
-                                                       'Threshold',Args.Threshold,...
-                                                       'CreateNewObj',false);
 
-            % Estimate PSF 
-            [Coadd(Ifields), Summary] = imProc.psf.populatePSF(Coadd(Ifields), Args.constructPSFArgs{:},'DataType',@single);
+            % The Overlap bit propagated from the dithered single epoch masks is
+            % smeared by the registration shifts. Drop it and set it according to
+            % the coadd own geometry - before the source extraction, so that the
+            % coadd catalog FLAGS follow the same geometry.
+            if ~isempty(OverlapSEC)
+                Isec = min(Ifields, size(OverlapSEC,1));
+                Coadd(Ifields).MaskData.Data = imUtil.mask.setCoaddOverlap(Coadd(Ifields).MaskData.Data,...
+                                                    OverlapSEC(Isec,:), 'BitInd',OverlapBitInd);
+            end
 
+            %Ifields
+            if Args.FindStars
+                % Pass the resolved Gain (not the raw EffectiveGain): for
+                % StackMethod 'proper'/'sigmaclip' EffectiveGain is NaN and
+                % would propagate into all FLUXERR/MAGERR columns; Gain
+                % falls back to header-GAIN * MeanN in that case (issue #1134).
+                [Coadd(Ifields)] = imProc.sources.multiIterExtractor(Coadd(Ifields), ...
+                                                    Args.multiIterExtractorArgs{:},...
+                                                    'Gain',Gain,...
+                                                    'FlagCR',Args.FlagCR,...
+                                                    'maskCR_Args',Args.maskCR_Args,...
+                                                    'AperRadius',Args.AperRadius,...
+                                                    'Annulus',Args.Annulus,...
+                                                    'MomentsMethod',Args.MomentsMethod,...
+                                                    'AperPhotMethod',Args.AperPhotMethod,...
+                                                    'PsfPhotMethod',Args.PsfPhotMethod,...
+                                                    'ShiftMethod',Args.ShiftMethod,...
+                                                    'Threshold',Args.Threshold,...
+                                                    'AddBackNoise',Args.AddBackNoise,...
+                                                    'AddSkyCoo',false,...
+                                                    'IsBackSub',Args.SubBack,...
+                                                    'BS_BackMaxR',Args.BS_BackMaxR,...
+                                                    'AddExtraBack',Args.AddExtraBack,...
+                                                    'AddExtraVar',Args.AddExtraVar,...
+                                                    'CleanSN',Args.CleanSN,...
+                                                    'UpdateHeaderDataBkgVar',false,...
+                                                    'UseMex',Args.UseMex);
+            end
 
-            % PSF photometry
-            [Coadd(Ifields), ResPSF] = imProc.sources.psfFitPhot(Coadd(Ifields), 'CreateNewObj',false, 'ZP',Args.ZP, Args.psfFitPhotArgs{:}); 
+            % ownership column (issue #1180): primary=1 for the sources whose
+            % exact X,Y is inside the field unique section, 0 for the copies
+            % in the overlapping neighbours. The Overlap FLAGS bit marks the
+            % full overlap region symmetrically, so de-duplication of the
+            % concatenated crop catalogs uses this column.
+            if Args.AddPrimary && ~isempty(Args.UNIQSEC) && Coadd(Ifields).CatData.sizeCatalog>0
+                IsecU = min(Ifields, size(Args.UNIQSEC,1));
+                imProc.cat.addPrimary(Coadd(Ifields), Args.UNIQSEC(IsecU,:), 'CreateNewObj',false);
+            end
 
-            % astrometry    
-            % Note that if available, will use the "X" & "Y" positions produced
-            % by the PSF photometry
-            MeanJD = mean(JD);
-            [ResultCoadd(Ifields).AstrometricFit, Coadd(Ifields), AstrometricCat] = imProc.astrometry.astrometryRefine(Coadd(Ifields), Args.astrometryRefineArgs{:},...
-                                                                                                    'WCS',AllSI(1,Ifields).WCS,...
-                                                                                                    'EpochOut',MeanJD,...
+            % prelimnary astrometry by copying the WCS
+            %Coadd(Ifields).WCS = RegisteredImages(1).WCS.copy; %AllSI(IfirstGood,Ifields).WCS.copy;
+            % astrometry / refine
+            if Args.RefineAstrometry && Coadd(Ifields).CatData.sizeCatalog>0
+                if isa(Args.CatName, 'AstroCatalog')
+                    AstrometricCat = Args.CatName(Ifields);
+                else
+                    AstrometricCat = Args.CatName;
+                end
+                
+                % This part also add the RA/Dec coordinates [deg] to the
+                % catalog:
+                % if isempty(Args.WCS)
+                %     WCSpointer = AllSI(IfirstGood,Ifields).WCS;
+                % else
+                %     WCSpointer = Args.WCS;
+                % end
+                    
+                [ResultCoadd(Ifields).AstrometricFit, Coadd(Ifields), AstrometricCat] = imProc.astrometry.astrometryRefine(Coadd(Ifields), Args.astrometryRefineArgs{:},...
+                                                                                                    'WCS',RegisteredImages(1).WCS,...
+                                                                                                    'EpochOut',MidJD,...
                                                                                                     'Scale',Args.Scale,...
-                                                                                                    'CatName',Args.CatName,...
+                                                                                                    'SearchRadius',Args.RefineSearchRadius,...
+                                                                                                    'CatName',AstrometricCat,...
                                                                                                     'Tran',Args.Tran,...
+                                                                                                    'MatchMethod',Args.MatchMethod,...
+                                                                                                    'MinFracIsolated',Args.MinFracIsolated,...
+                                                                                                    'AddColor',Args.AddColor,...
+                                                                                                    'AddColorArgs',Args.AddColorArgs,...
                                                                                                     'CreateNewObj',false);
+                
+                %ResultCoadd(Ifields).MidMidJD = MidMidJD;
+                Coadd(Ifields).WCS.Success = ResultCoadd(Ifields).AstrometricFit.Success;
+            end
 
-            % add PSF FWHM to header - after astrometry, beacuse WCS is needed
-            imProc.psf.fwhm(Coadd(Ifields));
+            if Args.FindStars
+                % add PSF FWHM to header - after astrometry, beacuse WCS is needed
+                imProc.psf.fwhm(Coadd(Ifields), 'AddMorphology',true, 'AddErr',true, 'UseLegacy',false, 'DefScale',Args.DefScale);
+            end
+            
            
-            % photometric calibration
-            % change to PSF phot...
-            %CatColNameMag            = 'MAG_APER_3';
-            %CatColNameMagErr   = 'MAGERR_APER_3';
 
-            [Coadd(Ifields), ResultCoadd(Ifields).ZP, ResultCoadd(Ifields).PhotCat] = imProc.calib.photometricZP(Coadd(Ifields),...
-                                                                                                        'CreateNewObj',false,...
-                                                                                                        'MagZP',Args.ZP,...
-                                                                                                        'CatName',AstrometricCat,...
-                                                                                                        Args.photometricZPArgs{:});
+            % Need to check that the astrometry suceeded
+            if Args.PhotCalibSimple && Coadd(Ifields).WCS.Success
+           
+                % photometric calibration
+                % change to PSF phot...
+                %CatColNameMag            = 'MAG_APER_3';
+                %CatColNameMagErr   = 'MAGERR_APER_3';
+                [Coadd(Ifields), ResultCoadd(Ifields).ZP, ResultCoadd(Ifields).PhotCat] = imProc.calib.photometricZP(Coadd(Ifields),...
+                                                                                                            'CreateNewObj',false,...
+                                                                                                            'MagZP',Args.ZP0,...
+                                                                                                            'CatName',AstrometricCat,...
+                                                                                                            'UpdateMagCols',Args.photometricZP_UpdateMagCols,...
+                                                                                                            'MinFracIsolated',Args.MinFracIsolated,...
+                                                                                                            Args.photometricZPArgs{:});
+            end
 
-            % Add GlobalMotion information to header
-            % calculate tracking rate information
-            if Args.AddGlobalMotion
-                RelTimeDay            = JD-mean(JD);
-                Par                   = polyfit(RelTimeDay, ShiftXY(:,1),1);
-                GlobalMotion.ResidX   = ShiftXY(:,1) - polyval(Par, RelTimeDay);
-                GlobalMotion.StdX     = std(GlobalMotion.ResidX);
-                GlobalMotion.RateX    = Par(1)./SEC_DAY;
-                Par                   = polyfit(RelTimeDay, ShiftXY(:,2),1);
-                GlobalMotion.ResidY   = ShiftXY(:,2) - polyval(Par, RelTimeDay);
-                GlobalMotion.StdY     = std(GlobalMotion.ResidY);
-                GlobalMotion.RateY    = Par(1)./SEC_DAY;
+            if Args.PhotCalibTrans && Coadd(Ifields).WCS.Success
+                [Coadd, PC, ResultCoadd(Ifields).TransFit] = imProc.calib.fitPhotCalibTrans(Coadd, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', false); % 8.7s for all in loop
+            end
 
-                Coadd(Ifields).HeaderData.insertKey({'GM_RATEX',GlobalMotion.RateX,''});
-                Coadd(Ifields).HeaderData.insertKey({'GM_STDX',GlobalMotion.StdX,''});
-                Coadd(Ifields).HeaderData.insertKey({'GM_RATEY',GlobalMotion.RateY,''});
-                Coadd(Ifields).HeaderData.insertKey({'GM_STDY',GlobalMotion.StdY,''});
+            % write stat data to header: Nstars, PSF, Scale, Rotation,...
+            % background, var: written as part of the background estimation
+            %ProcessingStep = 431;
+            if Args.WriteStatHeader
+                Coadd(Ifields) = imProc.header.writeStat2Header(Coadd(Ifields), 'WriteBack',false);
+            end
+
+            if Args.AddLimMag
+                [Coadd(Ifields)] = imProc.calib.limmag(Coadd(Ifields), Args.LimMagArgs{:});
+            end
+            if Args.AddBackMag
+                [Coadd(Ifields)] = imProc.calib.backmag(Coadd(Ifields), 'KeyZP',Args.KeyZP, Args.BackMagArgs{:}); 
             end
 
 
-        end
-    end
+        end % if Ngood>=Args.MinNumCoadd || Ngood==Nepoch
+    end % for Ifields=1:1:Nfields
     
-    
-    % plot for LAST pipeline paper
-    % semilogy(ResultCoadd(1).AstrometricFit.ResFit.RefMag, ResultCoadd(1).AstrometricFit.ResFit.Resid.*3600,'k.')
-    % H=xlabel('$B_{\rm p}$ [mag]'); H.Interpreter='latex'; H.FontSize=18;                                 
-    % H=ylabel('Residual [arcsec]'); H.Interpreter='latex'; H.FontSize=18;
 
-    % semilogy(ResultCoadd(5).ZP.RefMag, abs(ResultCoadd(5).ZP.Resid),'k.')
-    % H=xlabel('$B_{\rm p}$ [mag]'); H.Interpreter='latex'; H.FontSize=18;
-    % H=ylabel('$|$Residual$|$ [mag]'); H.Interpreter='latex'; H.FontSize=18;
     
-    % 
-    
-    if Args.CoaddMatchMergedCat
-        % match against external catalogs
-        Coadd = imProc.match.match_catsHTMmerged(Coadd, 'SameField',false, 'CreateNewObj',false);
-    end
-    
-    % match Coadd catalog against MergedCat
-    if ~isempty(Args.MergedCat)
-        [Coadd] = imProc.match.insertColFromMatched_matchIndices(Coadd, Args.MergedCat, [], 'CreateNewObj',false, 'Col2copy', Args.Col2copy);
-    end
-    
-       
-
 
 end

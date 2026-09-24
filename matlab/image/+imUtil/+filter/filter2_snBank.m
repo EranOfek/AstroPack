@@ -75,6 +75,7 @@ function [SN,Flux,FiltImage,FiltImageVar,Info]=filter2_snBank(Image,Background,V
 % Reliable: 2
 %--------------------------------------------------------------------------
 
+
 %LogMode = true;  % true will not work if image contains negative numbers.
 
 if nargin<4

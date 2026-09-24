@@ -36,7 +36,7 @@ AlphaR_d_Rad  = Norm.*(SS2R2 - S)./Rad2;
 AlphaX  = AlphaR_d_Rad .* X;
 AlphaY  = AlphaR_d_Rad .* Y; 
 
-if (nargout>2),
+if (nargout>2)
 
    A_11 = (S.*X.^2 + S2.*S + sqrt(S2 + Rad2).*S2+ sqrt(S2 + Rad2).*Y.^2 + S.*Y.^2).*Norm./(S2 + Rad2)./(S + sqrt(S2 + Rad2)).^2;
 

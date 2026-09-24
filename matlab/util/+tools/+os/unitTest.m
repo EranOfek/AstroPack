@@ -2,7 +2,6 @@
 
 function Result = unitTest()
     % Package Unit-Test
-    io.msgStyle(LogLevel.Test, '@start', 'test started');
 
     if isunix()
         [~, cmdOut] = system('lscpu');
@@ -22,7 +21,6 @@ function Result = unitTest()
 
     mex_result = tools.os.mex.is_avx512_supported()
 
-    io.msgStyle(LogLevel.Test, '@passed', 'test passed');
     Result = true;
 end
 

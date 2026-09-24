@@ -12,7 +12,6 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
     %          * ...,key,val,...
     %            'Save' - A logical indicating if to save data products.
     %                   Default is true.
-    %            'IsSimpleFITS' - Default is true.
     %            'Type' - FileNames type. If empty, then use the
     %                   Type provided in the FileNames object.
     %                   Default is [].
@@ -62,12 +61,21 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
     %                   CropID. Default is 'CROPID'.
     %            'KeyCounter' - Header keyword containing the
     %                   Counter. Default is 'COUNTER'.
+    %            'AddSubDirKey' - A logical indicating if to update the
+    %                   SubDir keyword in header. Default is false.
+    %            'SubDirKey' - SubDir Header keyword. Default is 'SUBDIR'.
     %            'BasePath' - Like 'Type', but for 'BasePath'.
     %                   Default is [].
     %            'FullPath' - Like 'Type', but for 'FullPath'.
     %                   Default is [].
     %            'WriteEmpty' - Logical indicating if to write an empty
     %                   product. Default is false.
+    %            'Write1mat' - A logical. If saving mat file save only one
+    %                   file (true), or file per element (false).
+    %                   Default is false.
+    %             'SanifyPath' - A logical. true can be time-consuming
+    %             'WriteMethodImages' - can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
+    %             'WriteMethodTables' - can be 'Standard' or 'MexHeader'  
     % Output : - A FileNames object for the written files
     %            (Product='Image').
     %          - Used SubDir.
@@ -76,9 +84,8 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
 
     arguments
         Obj
-        FNin FileNames
+        FNin 
         Args.Save logical           = true;
-        Args.IsSimpleFITS logical   = true;
         Args.Type                   = [];
         Args.Level                  = [];
         Args.LevelPath              = [];
@@ -104,20 +111,28 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
         Args.KeyCropID                 = 'CROPID';
         Args.KeyCounter                = 'COUNTER';
 
+        Args.AddSubDirKey logical      = false;
+        Args.SubDirKey                 = 'SUBDIR';
 
         Args.BasePath               = [];
         Args.FullPath               = [];
         Args.WriteEmpty logical     = false;
+        Args.Write1mat logical      = false;
+        Args.SanifyPath logical     = false; % true can be time-consuming
+        
+        Args.WriteMethodImages      = 'Simple';    % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
+        Args.WriteMethodTables      = 'Standard';  % can be 'Standard' or 'MexHeader'     
     end
-
+    
     if Args.Save
+
         % Save data products
         Nprod = numel(Args.Product);
         if numel(Args.WriteHeader)==1
             WriteHeader = repmat(Args.WriteHeader, Nprod,1);
         else
             WriteHeader = Args.WriteHeader;
-            if numel(WriteHeader)~=Nprod
+            if numel(WriteHeader)~=Nprod && ~Args.Write1mat
                 error('Number of elements in WriteHeader must be 1 or equal to the number of products');
             end
         end
@@ -151,15 +166,23 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                                              'SelectFirst',true,...
                                              'CreateNewObj',true);
                 end
+                % change Counter number for COADDs to 0 and the timestamp
+                % to the start time of the whole visit:
+                if strcmpi(Args.Level,'coadd')
+                    FN = FN.updateIfNotEmpty('Counter',0);
+                    IsEmpty = Obj.isemptyImage;
+                    Ind1 = find(~IsEmpty, 1, 'first');
+                    JDstart = repmat(celestial.time.julday(Obj(Ind1).HeaderData.getVal('DATEOBS')),Nobj,1);
+                    FN = FN.updateIfNotEmpty('Time',JDstart);
+                end
         end
         
-        % change Counter number for COADDs to 0
-        if strcmpi(Args.Level,'coadd')            
-            FN = FN.updateIfNotEmpty('Counter',0);
+        if isa(FN, 'AstroFileName')
+            Nfn   = FN.nFiles;
+        else
+            Nfn   = FN.nfiles;
         end
-        
-        Nfn   = FN.nfiles;
-        if Nobj~=Nfn
+        if Nobj~=Nfn && ~Args.Write1mat
             error('Number of elements in AstroImage and FileNames object must be identical');
         end
 
@@ -170,6 +193,10 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
             SubDir = FN.SubDir;
         end
 
+        
+        if Args.AddSubDirKey && isa(Obj, 'AstroImage')
+            Obj.setKeyVal(Args.SubDirKey, SubDir);
+        end
 
         % loop for writing the products
         
@@ -177,7 +204,7 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
         Istat  = 0;
         DirCreated = false;
         switch class(Obj)
-            case 'AstroImage'
+            case {'AstroImage','AstroZOGY'}
                 % AstroImage input
 
                 for Iprod=1:1:Nprod
@@ -192,17 +219,23 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                             % create dir only on first file
                             
                             if (FlagGoodTimes(Iobj) && ~isempty(Obj(Iobj).Image)) || Args.WriteEmpty
-                                
-                                Obj(Iobj).write1(OutFileNames{Iobj}, Args.Product{Iprod},...
-                                             'FileType',FN.FileType{1},...
-                                             'IsSimpleFITS',Args.IsSimpleFITS,...
+                                % select the correct image (may have
+                                % different JD):
+                                FN1 = FN.reorderEntries(Iobj, 'CreateNewObj',true);
+                                OutFileNames1  = FN1.genFull('Product',Args.Product{Iprod}, 'LevelPath',Args.LevelPath);
+                                Obj(Iobj).write1(OutFileNames1{1}, Args.Product{Iprod},...
+                                             'FileType',FN1.FileType{1},...
                                              'WriteHeader',WriteHeader(Iprod),...
                                              'MkDir',~DirCreated,...
-                                             'OverWrite',Args.OverWrite);
-                                
+                                             'OverWrite',Args.OverWrite,...
+                                             'SanifyPath',Args.SanifyPath,...
+                                             'WriteMethodImages',Args.WriteMethodImages,...
+                                             'WriteMethodTables',Args.WriteMethodTables);
+
                                 DirCreated = true;
                                 % Update FileName in Obj
-                                Obj(Iobj).ImageData.FileName = OutFileNames{Iobj};
+                                %Obj(Iobj).ImageData.FileName = OutFileNames{Iobj};
+                                Obj(Iobj).ImageData.FileName = OutFileNames1{1};
                             else
                                 Istat = Istat + 1;
                                 Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', OutFileNames{Iobj}, Args.Product{Iprod});
@@ -214,10 +247,15 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                 % AstroCatalog input
                 %OutFileNames = FN.genFull('Product','Cat', 'LevelPath',Args.LevelPath);
                 OutFileNames = FN.genFull('Product',Args.Product{1}, 'LevelPath',Args.LevelPath);
+
                 for Iobj=1:1:Nobj
                     if ~isempty(Obj(Iobj).ColNames) || Args.WriteEmpty
-                        Obj(Iobj).write1(OutFileNames{Iobj},...
-                                     'FileType',FN.FileType{1});
+                        FN1 = FN.reorderEntries(Iobj, 'CreateNewObj',true);
+                        OutFileNames1  = FN1.genFull('Product',Args.Product{1}, 'LevelPath',Args.LevelPath);
+                        Obj(Iobj).write1(OutFileNames1{1},...
+                                     'FileType',FN1.FileType{1},...
+                                     'OverWrite',Args.OverWrite,...
+                                     'WriteMethodTables',Args.WriteMethodTables);
                     else
                         Istat = Istat + 1;
                         Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', OutFileNames{Iobj}, 'CatData');
@@ -231,8 +269,12 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                 OutFileNames = FN.genFull('Product','MergedMat', 'LevelPath',Args.LevelPath);
                 for Iobj=1:1:Nobj
                     if ~isempty(Obj(Iobj).Fields) || Args.WriteEmpty
-                        Obj(Iobj).write1(OutFileNames{Iobj},...
-                                     'FileType',FN.FileType{1});
+
+                        FN1 = FN.reorderEntries(Iobj, 'CreateNewObj',true);
+                        OutFileNames1  = FN1.genFull('Product',Args.Product{1}, 'LevelPath',Args.LevelPath);
+
+                        Obj(Iobj).write1(OutFileNames1{1},...
+                                     'FileType',FN1.FileType{1});
                     else
                         Istat = Istat + 1;
                         Status(Istat).Msg = sprintf('FileName=%s, DataProperty=%s, image is empty - not saved', OutFileNames{Iobj}, 'MergedMat');
@@ -245,10 +287,18 @@ function [FN,SubDir,Status]=writeProduct(Obj, FNin, Args)
                 FN.Level    = Args.Level;
                 FN.FileType = {'mat'};
                 OutFileNames = FN.genFull('Product',Args.Product, 'LevelPath',Args.LevelPath);
-                for Iobj=1:1:Nobj
-                    save(OutFileNames{Iobj}, 'Obj', '-v7.3');
+                if Args.Write1mat
+                    save(OutFileNames, 'Obj', '-v7.3');
+                else
+                    for Iobj=1:1:Nobj
+                        save(OutFileNames{Iobj}, 'Obj', '-v7.3');
+                    end
                 end
 
         end
+    else
+        FN = [];
+        SubDir = [];
+        Status = [];
     end  % if Args.Save
 end

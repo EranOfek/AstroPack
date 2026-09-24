@@ -40,7 +40,7 @@ data = matfile(sprintf('%s_data.mat',sn_name));
 LCs  = matfile(sprintf('%s_%s_LCs.mat', sn_name, model));
 gridfile = matfile(sprintf('%s_%s_grid', sn_name, model),'Writable',true);
 
-Ebv = AstroUtil.spec.sky_ebv(data.RArad ,data.decRad);
+Ebv = astro.extinction.sky_ebv(data.RArad ,data.decRad);
 if (LCs.VecEbv(1,1)>Ebv)||(LCs.VecEbv(end,1)<Ebv)
     warning('The local galaxy Ebv is outside VecEbv');
 end

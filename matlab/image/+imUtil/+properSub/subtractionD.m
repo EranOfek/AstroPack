@@ -81,13 +81,14 @@ function [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt, P_deltaNhat, P_deltaR
         Pr_hat = fft2(Pr_hat);
     end
 
-
     D_den     = (SigmaN.^2 .* Fr.^2) .* Args.AbsFun(Pr_hat).^2 + (SigmaR.^2 .*Fn.^2) .* Args.AbsFun(Pn_hat).^2 + Args.Eps;
     D_num     = Fr.*Pr_hat.*N_hat - Fn.*Pn_hat.*R_hat;
     D_denSqrt = sqrt(D_den);
     D_hat     = D_num./D_denSqrt;
     
-    F_num     = sqrt( (SigmaN.*Fr).^2 + (SigmaR.*Fn).^2 );
+    %F_num     = sqrt( (SigmaN.*Fr).^2 + (SigmaR.*Fn).^2 );
+    % faster
+    F_num      = hypot(SigmaN.*Fr, SigmaR.*Fn);
 
     Fd        = Fr .* Fn ./F_num;
     
@@ -104,7 +105,7 @@ function [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt, P_deltaNhat, P_deltaR
 
     % clean Pd
     % if Args.CleanPd
-    %     PdS    = imUtil.psf.full2stamp(ifft2(Pd_hat), 'IsCorner',true, 'StampHalfSize',[7 7]);
+    %     PdS    = imUtil.psf.obsolete.full2stamp(ifft2(Pd_hat), 'IsCorner',true, 'StampHalfSize',[7 7]);
     %     PdSS   = imUtil.psf.padShift(PdS,size(D_hat));
     %     PdSS   = fftshift(fftshift(PdSS,1),2);
     %     Pd_hat = fft2(PdSS);

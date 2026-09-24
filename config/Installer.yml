@@ -98,9 +98,26 @@ Items:
         SubDir               : 'spec/Atmosphere'
         #        URL                  : ['https://euler1.weizmann.ac.il/archive/AstroPack/data/spec/Atmosphere/Atmosphere.tar']
         URL                  : ['http://data.astropack.org/spec/Atmosphere/Atmosphere.tar']
-        Size                 : 0.09
+        Size                 : 1.2
         SearchFile           : ''
         Description          : 'Earth Atmosphere and Extinction'
+
+    Telescope:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'Telescope'
+        SubDir               : 'spec/Telescope'
+        URL                  : ['http://data.astropack.org/spec/Telescope/Telescope.tar']
+        Size                 : 0.25
+        SearchFile           : ''
+        Description          : 'Telescope Transmission'
+
+    LAST:
+        DataName             : 'LAST'
+        SubDir               : 'LAST'
+        URL                  : ['http://data.astropack.org/pipeline/LAST.tar']
+        Size                 : 6
+        SearchFile           : ''
+        Description          : 'LAST Fields IDs and additional parameters'
 
     LASTpipelineUnitTest:
         # The following are cell arrays of entry per dataset
@@ -124,7 +141,8 @@ Items:
         # The following are cell arrays of entry per dataset
         DataName             : 'TestImagesAstroPack'
         SubDir               : 'TestImages/unitTest'
-        URL                  : ['http://euler1.weizmann.ac.il/archive/AstroPack/data/TestImages/unitTest/index.html']
+#        URL                  : ['http://euler1.weizmann.ac.il/archive/AstroPack/data/TestImages/unitTest/index.html']
+        URL                  : ['http://data.astropack.org/TestImages/unitTest/unitTest.tar']
         Size                 : 203
         SearchFile           : ''
         Description          : 'FITS test images for AstroPack unitTest'
@@ -133,7 +151,7 @@ Items:
         # The following are cell arrays of entry per dataset
         DataName             : 'Time'
         SubDir               : 'SolarSystem/Time'
-        URL                  : ['https://datacenter.iers.org/data/csv/finals2000A.data.csv','https://datacenter.iers.org/data/latestVersion/EOP_14_C04_IAU1980_one_file_1962-now.txt','https://datacenter.iers.org/data/latestVersion/EOP_C01_IAU2000_1846-now.txt']
+        URL                  : ['https://datacenter.iers.org/data/csv/finals2000A.data.csv','https://datacenter.iers.org/data/csv/finals2000A.daily.csv','https://datacenter.iers.org/data/latestVersion/EOP_14_C04_IAU1980_one_file_1962-now.txt','https://datacenter.iers.org/data/latestVersion/EOP_C01_IAU2000_1846-now.txt']
         Size                 : 1805
         SearchFile           : ''
         Description          : 'Time and Earth Rotation Orientation Parameters'
@@ -146,6 +164,15 @@ Items:
         Size                 : 120
         SearchFile           : ''
         Description          : 'JPL Orbital Elements of Minor Planets'
+
+    MinorPlanetsCT:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'MinorPlanetsCT'
+        SubDir               : 'SolarSystem/MinorPlanetsCT'
+        URL                  : ['http://data.astropack.org/SolarSystem/MinorPlanetsCT.tar']
+        Size                 : 695
+        SearchFile           : ''
+        Description          : 'Minor Planets Merged Common Epoch Orbital Elements'
 
     EarthGravity:
         # The following are cell arrays of entry per dataset
@@ -207,11 +234,20 @@ Items:
         SearchFile           : ''
         Description          : 'modelled ULTRASAT PSF data'
 
+    ULTRASAT_grid:
+        # The following are cell arrays of entry per dataset
+        DataName             : 'ULTRASAT_grid'
+        SubDir               : 'ULTRASAT'
+        URL                  : ['http://data.astropack.org/ultrasat/grid.tar']
+        Size                 : 1300
+        SearchFile           : ''
+        Description          : 'ULTRASAT sky grids'
+
     Chandra_PSF:
         # The following are cell arrays of entry per dataset
         DataName             : 'Chandra_PSF'
         SubDir               : 'Chandra/PSF'
-        URL                  : ['http://data.astropack.org/chandra/ChandraACIS_PSF.tar']
+        URL                  : ['http://data.astropack.org/Chandra/ChandraACIS_PSF.tar']
         Size                 : 1126
         SearchFile           : ''
         Description          : 'modelled Chandra ACIS PSF data'
@@ -224,3 +260,51 @@ Items:
         #        Size                 : 76
         #        SearchFile           : ''
         #        Description          : 'ULTRASAT Raw Data of Optical Design'
+
+    ClickHouseJar070:
+        DataName             : 'ClickHouseJar070'
+        SubDir               : 'Java/Clickhouse'
+        URL                  : ['https://repo1.maven.org/maven2/com/clickhouse/clickhouse-jdbc/0.7.0/clickhouse-jdbc-0.7.0.jar', 'https://repo1.maven.org/maven2/com/clickhouse/clickhouse-data/0.7.0/clickhouse-data-0.7.0.jar', 'https://repo1.maven.org/maven2/com/clickhouse/clickhouse-http-client/0.7.0/clickhouse-http-client-0.7.0.jar', 'https://repo1.maven.org/maven2/com/clickhouse/clickhouse-client/0.7.0/clickhouse-client-0.7.0.jar']
+        Size                 : 7700000
+        SearchFile           : ''
+        Description          : 'Clickhouse 0.7.0 JAVA Jar file'
+
+    ClickHouseJar070Github:
+        DataName             : 'ClickHouseJar070Github'
+        SubDir               : 'Java/Clickhouse'
+        URL                  : ['https://github.com/ClickHouse/clickhouse-java/releases/download/v0.7.0/clickhouse-jdbc-0.7.0-all.jar']
+        Size                 : 7700000
+        SearchFile           : 'clickhouse-jdbc-0.7.0-all.jar'
+        Description          : 'ClickHouse JDBC 0.7.0 (all) from GitHub releases [legacy, incompatible with CH 26.6+]'
+
+    ClickHouseJar:
+        DataName             : 'ClickHouseJar'
+        SubDir               : 'Java/Clickhouse'
+        URL                  : ['https://repo1.maven.org/maven2/com/clickhouse/clickhouse-jdbc/0.9.3/clickhouse-jdbc-0.9.3-all.jar']
+        Size                 : 10000000
+        SearchFile           : 'clickhouse-jdbc-0.9.3-all.jar'
+        Description          : 'ClickHouse JDBC 0.9.3 (all) — default driver for db.Db / ClickHouse 26.6+'
+
+    ClickHouseJar085:
+        DataName             : 'ClickHouseJar085'
+        SubDir               : 'Java/Clickhouse'
+        URL                  : ['https://repo1.maven.org/maven2/com/clickhouse/clickhouse-jdbc/0.8.5/clickhouse-jdbc-0.8.5-all.jar']
+        Size                 : 9337234
+        SearchFile           : ''
+        Description          : 'Clickhouse 0.8.5 JAVA Jar file (fat)'
+
+    TopCatJar:
+        DataName             : 'TopCatJar'
+        SubDir               : 'Java/TopCat'
+        URL                  : ['https://www.star.bris.ac.uk/~mbt/stilts/stilts.jar']
+        Size                 : 17219944
+        SearchFile           : ''
+        Description          : 'TopCat Stilts https://www.star.bris.ac.uk/~mbt/stilts/?utm_source=chatgpt.com'
+
+    SwiftXRTcaldb:
+        DataName             : 'SwiftXRTcaldb'
+        SubDir               : 'caldb/Swift/XRT'
+        URL                  : ['https://heasarc.gsfc.nasa.gov/FTP/caldb/data/swift/xrt/goodfiles_swift_xrt.tar.Z']
+        Size                 : 17219944
+        SearchFile           : ''
+        Description          : 'Swift-XRT CalDB: https://heasarc.gsfc.nasa.gov/docs/heasarc/caldb/swift/'

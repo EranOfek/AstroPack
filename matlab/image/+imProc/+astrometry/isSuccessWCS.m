@@ -7,7 +7,7 @@ function Result = isSuccessWCS(Obj)
     % Example: imProc.astrometry.isSuccessWCS(AI)
 
     arguments
-        Obj AstroImage
+        Obj
     end
    
     Nobj = numel(Obj);

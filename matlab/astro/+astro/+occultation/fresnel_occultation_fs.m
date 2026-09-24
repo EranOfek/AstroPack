@@ -91,7 +91,7 @@ deltaY = bsxfun(@minus, Y(starCoordinatesIndices), occultorCoordinatesAtTimeT(2,
 D = sqrt(deltaX.^2 + deltaY.^2);
 
 %   Calculating the diffraction pattern:
-[M_I_rho, M_A_rho] = fresnel_occultation_ps(rhoOccultor, D);
+[M_I_rho, M_A_rho] = astro.occultation.fresnel_occultation_ps(rhoOccultor, D);
 
 s = size(M_I_rho);
 Itot = sum(M_I_rho) / s(1);

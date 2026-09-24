@@ -59,7 +59,13 @@ classdef FITS < handle
                 List = convertCharsToStrings(FileName);
             elseif ischar(FileName) || isstring(FileName)
                 % read into cell of files
-                List = io.files.filelist(FileName);
+                if ~isempty(FileName)
+                    List = io.files.filelist(FileName);
+                else
+                    % this happens when the constructor is called
+                    % recursively, like it happens below in line 86
+                    List={};
+                end
             else
                 error('Unknown FileName type');
             end
@@ -77,7 +83,7 @@ classdef FITS < handle
             
             for Ilist=1:1:Nlist
                 Ihdu            = min(Ilist,Nhdu);
-                Obj(Ilist).File = List{Ilist};
+                Obj(Ilist).File = List{Ilist}; % (recursive call)
                 Obj(Ilist).HDU  = ListHDU(Ihdu);
             end
             
@@ -117,7 +123,6 @@ classdef FITS < handle
                 HDUnum               = 1;
             end
                         
-            KeyPos = 9;
             ComPos = 32;
             
             Fptr = matlab.io.fits.openFile(FileName);
@@ -130,20 +135,79 @@ classdef FITS < handle
                 Nkey = matlab.io.fits.getHdrSpace(Fptr);
                 HeadCell = cell(Nkey,3);
                 for Ikey = 1:1:Nkey
+                   KeyPos = 9;
                    Card     = matlab.io.fits.readRecord(Fptr,Ikey);
                    LenCard = length(Card);
-                   if (LenCard>=9)
+                   if (LenCard>=KeyPos)
 
-                       if (strcmpi(Card(KeyPos),'='))
-                           HeadCell{Ikey,1}  = tools.string.spacedel(Card(1:KeyPos-1));
-                           % update comment position due to over flow
-                           Islash = strfind(Card(ComPos:end),'/');
-                           if (isempty(Islash))
+                       % HEASARCH long keys
+                       if strcmpi(Card(1:8),'HIERARCH')
+                           Card=Card(10:end);
+                           KeyPos = strfind(Card,'=');
+                           KeyPos=KeyPos(1); % error if = is missing
+                       end
+
+                       if strcmpi(Card(KeyPos),'=') || strcmpi(Card(1:8),'CONTINUE') 
+                           HeadCell{Ikey,1}  = tools.string.removeChars(Card(1:KeyPos-1));
+                           % Normally, the comment should start at column
+                           %  32. However, Value may be a long string, and
+                           %  the delimiting slash may be moved further.
+                           %  Moreover, the long string may contain itself
+                           %  a slash (e.g., in a path). In this case the 
+                           %  string starts with a quote, and we
+                           %  must first search for the closing quote.
+                           PosAp = strfind(Card(KeyPos+1:end),'''');
+                           % Locate the true closing quote, skipping over any
+                           % doubled '' pairs (the FITS standard's escape for a
+                           % literal quote inside a string). Taking PosAp(2) as
+                           % the closing quote is wrong as soon as the value
+                           % contains an escaped quote: it points at the first
+                           % half of the escape pair, so the value was cut at
+                           % the default comment column instead of at the real
+                           % closing quote, truncating the card - most visibly
+                           % on CONTINUE segments. See issue #1212.
+                           PosClose = [];
+                           if ~isempty(PosAp)
+                               Str = Card(KeyPos+1:end);
+                               Ic  = PosAp(1)+1;
+                               while Ic<=length(Str)
+                                   if Str(Ic)==''''
+                                       if Ic<length(Str) && Str(Ic+1)==''''
+                                           Ic = Ic + 2;
+                                       else
+                                           PosClose = Ic;
+                                           break;
+                                       end
+                                   else
+                                       Ic = Ic + 1;
+                                   end
+                               end
+                           end
+                           % Update comment position due to over flow
+                           Islash = strfind(Card(1:end),'/');
+                           if (isempty(Islash)) && isempty(PosClose)
                                UpdatedComPos = ComPos;
                            else
-                               UpdatedComPos = ComPos + Islash(1)-1;
+                               if ~isempty(PosClose)
+                                   if isempty(Islash)
+                                       UpdatedComPos = max(ComPos,KeyPos+1+PosClose);
+                                   else
+                                       % first slash after the closing quote (a comment
+                                       % may itself contain slashes; a vector here is a
+                                       % colon-operand error from R2025b on, issue #1285)
+                                       UpdatedComPos = Islash(find(Islash>KeyPos+1+PosClose, 1));
+                                   end
+                               else
+                                   UpdatedComPos = Islash(1);
+                               end
                            end
-                           Value = Card(KeyPos+1:min(LenCard,UpdatedComPos-1));
+                           if ~isempty(UpdatedComPos)
+                               Value = Card(KeyPos+1:min(LenCard,UpdatedComPos-1));
+                           else
+                               % long string and no comment (e.g.
+                               %  continuing)
+                               Value = Card(KeyPos+1:end);
+                           end
                            PosAp = strfind(Value,'''');
 
                            if (isempty(PosAp))
@@ -157,16 +221,51 @@ classdef FITS < handle
                                end
                            else
                                if (length(PosAp)>=2)
-                                   % a string
-                                   Value = strtrim(Value(PosAp(1)+1:PosAp(2)-1));
+                                   % a string - find the true closing quote,
+                                   % skipping over any doubled '' (escaped
+                                   % literal quote) pairs per the FITS
+                                   % standard, and unescape them to a single
+                                   % ' in the extracted value. Previously
+                                   % this just took the substring up to the
+                                   % *second* apostrophe found, which is
+                                   % wrong whenever the string contains an
+                                   % escaped quote - it would truncate at
+                                   % the first escaped quote instead of the
+                                   % real closing quote. See issue #1212.
+                                   Inner = Value(PosAp(1)+1:end);
+                                   Ic    = 1;
+                                   Out   = '';
+                                   while Ic <= length(Inner)
+                                       if Inner(Ic)==''''
+                                           if Ic<length(Inner) && Inner(Ic+1)==''''
+                                               Out = [Out, '''']; %#ok<AGROW>
+                                               Ic = Ic + 2;
+                                           else
+                                               break;  % true closing quote
+                                           end
+                                       else
+                                           Out = [Out, Inner(Ic)]; %#ok<AGROW>
+                                           Ic = Ic + 1;
+                                       end
+                                   end
+                                   Value = Out;
                                else
                                    Value = Card(PosAp(1)+10:end);
                                end
                            end
 
+                           % Unmeasured-value convention (issue #1252): a
+                           % blank card - a quoted all-blank string or a
+                           % value-less (FITS undefined) card - reads as
+                           % NaN, so consumers that take the stored value
+                           % directly (e.g. getValSimple, raw Data access)
+                           % agree with getVal's conversion.
+                           if isempty(Value) || (ischar(Value) && isempty(strtrim(Value)))
+                               Value = NaN;
+                           end
                            HeadCell{Ikey,2}  = Value; %Card(KeyPos+1:min(LenCard,ComPos-1));
                            if (LenCard>UpdatedComPos)
-                               HeadCell{Ikey,3}  = Card(UpdatedComPos+1:end);
+                               HeadCell{Ikey,3}  = strtrim(Card(UpdatedComPos+1:end));
                            else
                                HeadCell{Ikey,3}  = '';
                            end
@@ -176,26 +275,67 @@ classdef FITS < handle
 
                    % look for history and comment keywords
                    if numel(Card) > 6
-                       if (strcmpi(Card(1:7),'HISTORY'))
+                       if strcmpi(Card(1:7),'HISTORY')
                            HeadCell{Ikey,1} = 'HISTORY';
                            HeadCell{Ikey,2} = Card(KeyPos:end);
                            HeadCell{Ikey,3} = '';
                        end
-                       if (strcmpi(Card(1:7),'COMMENT'))
+                       if strcmpi(Card(1:7),'COMMENT')
                            HeadCell{Ikey,1} = 'COMMENT';
-                           HeadCell{Ikey,2} = Card(KeyPos:end);
+                           HeadCell{Ikey,2} = Card(KeyPos+2:end);
                            HeadCell{Ikey,3} = '';
                        end
+                   end
+                   if numel(Card) > 7
+                       % HEASARCH (sic) continuation lines, append content
+                       %   to the previous record, and then empty the
+                       %   current one (which will be removed later)
+                       % I think this will work only for string values
+                       if strcmpi(Card(1:8),'CONTINUE')
+                           ValuePart = HeadCell{LastBegunKey,2};
+                           if strcmp(ValuePart(end),'&')
+                               ValuePart=ValuePart(1:end-1);
+                           end
+                           CommPart = HeadCell{LastBegunKey,3};
+                           if ~isempty(CommPart) && strcmp(CommPart(end),'&')
+                               CommPart=CommPart(1:end-1);
+                           end
+                           HeadCell{LastBegunKey,2} = [ValuePart,HeadCell{Ikey,2}];
+                           HeadCell{LastBegunKey,3} = [CommPart,HeadCell{Ikey,3}];
+                           HeadCell{Ikey,1} = [];
+                           HeadCell{Ikey,2} = [];
+                           HeadCell{Ikey,3} = [];
+                       else
+                           LastBegunKey = Ikey;
+                       end
+                       
                    end
                 end
 
             end
             matlab.io.fits.closeFile(Fptr);
-            
+
+            % remove HeadCell records which are all empty, which result
+            %  either from blank lines in the header, comments with no key,
+            %  or after continuing lines have been joined
+            %  -- How, compactly?
+            emptyRecord=false(1,Nkey);
+            for i=1:Nkey
+                emptyRecord(i)=isempty(HeadCell{i,1}) & ...
+                               isempty(HeadCell{i,2}) & ...
+                               isempty(HeadCell{i,3});
+                % trim also string values here. We couldn't have done it
+                %  earlier, because we handled continuing strings, which may
+                %  have been split at space positions
+                if ischar(HeadCell{i,2})
+                    HeadCell{i,2}=strtrim(HeadCell{i,2});
+                end
+            end
+            HeadCell=HeadCell(~emptyRecord,:);
         end
         
         function [Image, HeadCell, Nhdu] = read1(FileName, HDUnum, Args)
-            % Read a single image from a FITS file
+            % Read a single image from a FITS, FITS.fz, FITS.bz2 or FITS.gz file
             % A static function of FITS class
             % Input  : - FITS file name.
             %          - HDU number. default is 1.
@@ -203,39 +343,53 @@ classdef FITS < handle
             %            'CCDSEC' - [xmin xmax ymin ymax] of image to read.
             %                   If empty read entire image.
             %                   Default is empty.
+            %            'UseMex' - use a mex function based on a C++ fitsio library (def. false)
             % Output : - Image.
             %          - A 3 column cell array of header entries.
+            %          - the number of HDUs in FITS file (regular version) or the HDU that was actually read (MeX version) 
             % Author : Eran Ofek
             % Example: [Image,HeadCell,Nhdu]=FITS.read1(FileName,HDUnum)
             
             arguments
                 FileName char
-                HDUnum             = 1;
-                Args.CCDSEC        = [];
+                HDUnum             = 1
+                Args.CCDSEC        = []
+                Args.UseMex        = false
             end
                          
-            Fptr = matlab.io.fits.openFile(FileName);
-            %Fptr = matlab.io.fits.openDiskFile(FileName);
-            matlab.io.fits.movAbsHDU(Fptr, HDUnum);
-
-            if isempty(Args.CCDSEC) || all(isinf(Args.CCDSEC))
-                % read full image
-                Image = matlab.io.fits.readImg(Fptr);
+            if Args.UseMex
+                [Image, HeadCell, Nhdu] = io.fits.mex.read_image(FileName, HDUnum-1, Args.CCDSEC); 
+                Image = Image'; % the Mex function itself does not transpose the image into the matlab style 
             else
-                % read image section
-                % set up start/end pixel positions
-                EndPix   = fliplr(Args.CCDSEC([2,4]));
-                StartPix = fliplr(Args.CCDSEC([1,3]));
-
-                Image = matlab.io.fits.readImg(Fptr,StartPix,EndPix);
+                Fptr = matlab.io.fits.openFile(FileName);
+                %Fptr = matlab.io.fits.openDiskFile(FileName);
+                
+                if endsWith(FileName, '.fz') % in the compressed FITS the HDU numbers are shifted  
+                   HDUnum = HDUnum +1; 
+                   cprintf('red',"NB: reading fits.fz with matlab.io.fits leads to incorrect header! \n" + ...
+                           "Use the MeX reader instead: e.g., AI = AstroImage(File,'UseMex',true); \n"); 
+                end
+                
+                matlab.io.fits.movAbsHDU(Fptr, HDUnum);
+                
+                if isempty(Args.CCDSEC) || all(isinf(Args.CCDSEC))
+                    % read full image
+                    Image = matlab.io.fits.readImg(Fptr);
+                else
+                    % read image section
+                    % set up start/end pixel positions
+                    EndPix   = fliplr(Args.CCDSEC([2,4]));
+                    StartPix = fliplr(Args.CCDSEC([1,3]));
+                    
+                    Image = matlab.io.fits.readImg(Fptr,StartPix,EndPix);
+                end
+                if nargout>1
+                    % read header
+                    [HeadCell,Nhdu] = FITS.readHeader1(FileName,HDUnum);
+                end
+                
+                matlab.io.fits.closeFile(Fptr);
             end
-            if nargout>1
-                % read header
-                [HeadCell,Nhdu] = FITS.readHeader1(FileName,HDUnum);
-            end
-
-            matlab.io.fits.closeFile(Fptr);
-
         end
         
         function [Cube] = read2cube(List,HDUnum,Args)
@@ -248,6 +402,7 @@ classdef FITS < handle
             %            'CCDSEC' - [xmin xmax ymin ymax] of image to read.
             %                   If empty read entire image.
             %                   Default is empty.
+            %            'UseMex' - use a Mex-based FITS reader (def. false)
             % Output : - A cube of images. Image index is in 3rd dimension.
             % Author : Eran Ofek
             % Example: [Cube]=read2cube(List,HDUnum);
@@ -256,6 +411,7 @@ classdef FITS < handle
                 List
                 HDUnum         = 1;
                 Args.CCDSEC    = [];
+                Args.UseMex    = false;
             end
             if ~iscell(List)
                 List = io.files.filelist(List);
@@ -267,7 +423,7 @@ classdef FITS < handle
             for Imax=1:1:Nmax
                 Ilist = min(Nlist,Imax);
                 Ihdu  = min(Nhdu,Imax);
-                [Image] = FITS.read1(List{Ilist},HDUnum(Ihdu),'CCDSEC',Args.CCDSEC);
+                [Image] = FITS.read1(List{Ilist},HDUnum(Ihdu),'CCDSEC',Args.CCDSEC,'UseMex',Args.UseMex);
                 if Imax==1
                     SizeIm = size(Image);
                     Cube = zeros(SizeIm(1),SizeIm(2), Nmax);
@@ -319,6 +475,10 @@ classdef FITS < handle
             %            'IdentifyNaN' - A logical indicating if to replace
             %                         -9.1191e-36 with NaN.
             %                         Default is true.
+            %             'ValidateColumnNames' -- repair matlab-invalid
+            %             column names with matlab.lang.makeValidName, in particlar, 
+            %             prepend the name with 'x' when the first
+            %             character is not alphabetical 
             % Output : - A table containing the FITS table content.
             %          - The FITS file header.
             %          - A structure array of additional columns
@@ -344,6 +504,7 @@ classdef FITS < handle
                 Args.NullVal                  = NaN;       % [] do nothing
                 Args.BreakRepCol(1,1) logical = true;
                 Args.IdentifyNaN logical      = true;
+                Args.ValidateColumnNames logical = false; 
             end
                       
             % get header as cell array
@@ -429,6 +590,9 @@ classdef FITS < handle
             end
             
             %
+            if Args.ValidateColumnNames
+                Col.Cell = matlab.lang.makeValidName(Col.Cell);
+            end
             Col.Col = cell2struct(num2cell(1:1:length(Col.Cell)), Col.Cell, 2);
 
             % Set output
@@ -436,11 +600,15 @@ classdef FITS < handle
                 case 'table'
                    Out = table(Col.Data{:});
                    try
-                   Out.Properties.VariableNames = Col.Cell;
+                        Out.Properties.VariableNames = Col.Cell;
                    catch
                        'a'
                    end
-                   Out.Properties.VariableUnits = Col.Units;
+                   try
+                        Out.Properties.VariableUnits = Col.Units;
+                   catch
+                       'b'
+                   end
 
                 case {'astrocatalog', 'astrotable'}
                     Out = AstroCatalog;
@@ -958,6 +1126,55 @@ classdef FITS < handle
             end
         end
         
+        function correctHeaders(DirName,NameTemplate,Keys,Args)
+            % Check and correct headers of FITS files in a given directory  
+            % Input : - full path of the directory
+            %         - template of a file name 
+            %         - a 3-column cell array of keywords, values, and comment lines (see Example) 
+            %           NB: the value can be also a function handle; in this case the function will be used 
+            %               to produce the actual value given the filename
+            %               as an argument
+            %         * ...,key,val,... 
+            %         'CheckKeyExist' - logical whether to correct the values of the existing keywords  
+            % Output: - updated headers in all the FITS files 
+            % Author: A.M. Krassilchtchikov (2024 Nov)
+            % Example: Dir = '/mnt/marvin/LAST.01.01.01/2023/04/24/proc/185438v0'; 
+            %          Template = '*coadd*Ima*fits';
+            %          Keys = {'NODENUMB',1,'node number'; 'MOUNTNUM',1,'mount number'};
+            %          or: Keys = {'NODENUMB',1,'node number'; 'MOUNTNUM', @(x) str2num(x(14:15)),'mount number'};
+            %          FITS.correctHeaders(Dir,Template,Keys,'CheckKeyExist',false);
+            arguments
+                DirName
+                NameTemplate = '*';
+                Keys         = [];
+                Args.CheckKeyExist logical = true;
+            end
+            %
+            FN     = AstroFileName(strcat(DirName,'/',NameTemplate));
+            Files  = FN.genFull;
+            Nfiles = numel(Files);
+            Nkeys  = size(Keys,1);
+            
+            for Ifile = 1:Nfiles
+                Fptr = matlab.io.fits.openFile(Files{Ifile},'readwrite');
+                for Ikey = 1:Nkeys
+                    if ishandle(Keys{Ikey,2}) % if there is a function handle instead of a value, it should be evaluated 
+                        Val = Keys{Ikey,2}(Files{Ifile}); 
+                        Keys{Ikey,2} = Val;
+                    end
+                    try
+                        K = matlab.io.fits.readKey(Fptr,Keys{Ikey,1}); 
+                        if ~Args.CheckKeyExist
+                            matlab.io.fits.writeKey(Fptr,Keys{Ikey,1:2},strcat(Keys{Ikey,3},', corrected by FITS.correctHeaders'));
+                        end
+                    catch                        
+                        matlab.io.fits.writeKey(Fptr,Keys{Ikey,1:2},strcat(Keys{Ikey,3},', added by FITS.correctHeaders'));
+                    end
+                end
+                matlab.io.fits.closeFile(Fptr);
+            end
+        end
+        
         function Result = write(Image, FileName, Args)
             % Write or append an image into FITS file.
             % Static function
@@ -967,6 +1184,7 @@ classdef FITS < handle
             %          - FITS file name to save.
             %          * Arbitrary number of ...,key,val,... pairs.
             %            Following keywords are available:
+            %            'CompressedOutput' - Default is []; 'fz' will be implemented later  
             %            'Header' - Cell array of {key,val,comment} header
             %                       or an HEAD object to write into the
             %                       FITS file.
@@ -978,6 +1196,7 @@ classdef FITS < handle
             %                       is false.
             %            'WriteTime'- Add creation time to image header.
             %                       Default is false.
+            %            'SanifyPath' - whether to sanify the file name
             % Example: Result = FITS.write(rand(100,100),'Try.fits');
             %          Result = FITS.write(rand(10,10,3),'Try.fits');
             %
@@ -985,11 +1204,13 @@ classdef FITS < handle
             arguments
                 Image
                 FileName
+                Args.CompressedOutput         = [];
                 Args.Header cell              = {};
                 Args.DataType                 = 'single';
                 Args.Append(1,1) logical      = false;
-                Args.OverWrite(1,1) logical  = false;
+                Args.OverWrite(1,1) logical   = false;
                 Args.WriteTime(1,1) logical   = false;
+                Args.SanifyPath logical       = true;
             end
             
             HeaderField = HEAD.HeaderField;
@@ -1006,10 +1227,12 @@ classdef FITS < handle
             end
             
             % sanify the file name so that it contain the absolute path
-            if strcmp(FileName(1),'!') % need this for the case when overwrite is requested 
-                FileName = strcat('!',tools.os.relPath2absPath(FileName(2:end)));
-            else
-                FileName = tools.os.relPath2absPath(FileName);
+            if Args.SanifyPath
+                if strcmp(FileName(1),'!') % need this for the case when overwrite is requested
+                    FileName = strcat('!',tools.os.relPath2absPath(FileName(2:end)));
+                else
+                    FileName = tools.os.relPath2absPath(FileName);
+                end
             end
             
             % Prepare header
@@ -1052,6 +1275,7 @@ classdef FITS < handle
             %                   header.
             %            'DataType' - Image data type. If empty, use image type.
             %                   Default is [].
+            %            'CompressedOutput' - Default is []; 'fz' will be implemented later 
             %            'CompressType' which CFITS compression to use (see
             %                   'help matlab.io.fits.setCompressionType' and
             %                   https://heasarc.gsfc.nasa.gov/docs/software/fitsio/compression.html).
@@ -1065,23 +1289,79 @@ classdef FITS < handle
             %                 All algorithms are said to be lossless for
             %                 integer images, but PLIO works only for
             %                 positive integer values.
+            %             'SanifyPath' - whether to sanify the file path (may appear slow)
+            %             'WriteMethod' - 'Standard', 'Mex', 'ThreadedMex'
             %
             % Output : null
-            % Author : Eran Ofek (Jan 2022)
+            % Author : Eran Ofek (Jan 2022), A.M. Krassilchtchikov (Apr 2024)
             % Example: FITS.writeSimpleFITS(AI.Image, 'try.fits','Header',AI.HeaderData.Data);
 
             arguments
                 Image
                 FileName
+                Args.CompressedOutput         = [];
                 Args.Header cell              = {};
                 Args.DataType                 = [];
-                Args.CompressType  char        = 'NOCOMPRESS';
+                Args.CompressType  char       = 'NOCOMPRESS';
+                Args.SanifyPath logical       = true;                
+                Args.WriteMethodImages        = 'Simple';    % can be 'Simple', 'Mex', or 'ThreadedMex'
+                Args.ReportLongKeys logical   = false;
+                Args.ReportLongKeysFile       = '/tmp/fits_longkeys.log';
             end
             
-            io.fits.writeSimpleFITS(Image, FileName, 'Header',Args.Header,...
-                                     'DataType',Args.DataType,'UseMatlabIo',true,...
-                                     'CompressType',Args.CompressType);
+            if isstring(FileName)
+                FileName = char(FileName);
+            end
             
+            % sanify the file name so that it contains the absolute path
+            if Args.SanifyPath
+                FileName = tools.os.relPath2absPath(FileName);
+            end
+            
+            if isempty(Args.DataType)
+                Args.DataType = class(Image);
+            end
+            
+            % if the class is unsigned, we must write Image-bzero as signed, and change the required class
+            switch Args.DataType
+                case 'int8'
+                    NewDataType='uint8';
+                case 'uint16'
+                    NewDataType='int16';
+                case 'uint32'
+                    NewDataType='int32';
+                otherwise
+                    NewDataType=Args.DataType;
+            end
+            [BitPix,bzero]  = io.fits.dataType2bitpix(Args.DataType);
+            % shift the image if unsigned
+            if ~strcmp(NewDataType,Args.DataType)
+                Image=reshape(typecast(bitxor(Image(:),cast(bzero,Args.DataType)),...
+                    NewDataType),size(Image));
+            end            
+            
+            if isempty(Args.Header) % create a minimal default FITS header                
+                Args.Header = io.fits.defaultHeader(Args.DataType, size(Image));
+            end
+            
+            Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BITPIX',{BitPix});
+            Args.Header = imUtil.headerCell.replaceKey(Args.Header,'BZERO',{bzero});
+                        
+            switch lower(Args.WriteMethodImages)
+                case 'simple'
+                    io.fits.writeSimpleFITS(Image, FileName, 'Header',Args.Header,...
+                        'DataType',NewDataType,'UseMatlabIo',true,...
+                        'CompressType',Args.CompressType,'SanifyPath',Args.SanifyPath,...
+                        'CalledFromClass',true,'NewDataType',NewDataType,'Bzero',bzero);
+                case 'mex'
+                    io.fits.writeMexFITS(FileName, Image, Args.Header);
+                case 'threadedmex'
+                    io.fits.writeThreadMexFITS(FileName, Image, Args.Header, ...
+                        'ReportLongKeys', Args.ReportLongKeys, 'ReportLongKeysFile', Args.ReportLongKeysFile);
+                otherwise
+                    error('Requested WriteMethod is not supported');
+            end
+                    
         end
         
         function DataType = getDataType(ArgDataType)
@@ -1148,8 +1428,9 @@ classdef FITS < handle
             % Write creation date to header
             if (Args.WriteTime)
                 Time = celestial.time.get_atime([],0,0); % Na'ama, 20180516
-                Header = replace_key(Header,'CRDATE',  Time.ISO,'Creation date of FITS file',...
-                                            'COMMENT', 'File created by MATLAB FITS.write.m written by E. Ofek', '');                                        
+                Header = replace_key(Header,'CRDATE',  Time.ISO,'Creation date of FITS file');
+                %,...
+                %                            'COMMENT', 'File created by MATLAB FITS.write.m written by E. Ofek', '');                                        
             end
         end
         
@@ -1194,6 +1475,7 @@ classdef FITS < handle
                             if any(isnan(Header.(HeaderField){Inl,2}))
                                 Header.(HeaderField){Inl,2} = ' ';
                             end
+                            
                             if (isempty(Header.(HeaderField){Inl,3}))
                                 Header.(HeaderField){Inl,3} = ' ';
                             end
@@ -1205,6 +1487,10 @@ classdef FITS < handle
                                 Header.(HeaderField){Inl,2} = ' ';
                             end
                             %if any(strcmp(HeaderField){Inl,2},{'uint16','uint32','int16','int32'}))
+
+                            if isinf(Header.(HeaderField){Inl,2})
+                                Header.(HeaderField){Inl,2} = 'Inf';
+                            end
                             
                             matlab.io.fits.writeKey(Fptr,Header.(HeaderField){Inl,1},...
                                                Header.(HeaderField){Inl,2},...
@@ -1244,6 +1530,7 @@ classdef FITS < handle
             %            'ReadHead'- Read header into SIM. Default is true.
             %            'HDUnum' - Index of HDU. Default is 1.
             %            'PopWCS' - Populate WCS. Default is true.
+            %            'UseMex' - use a MEX-based FITS reader (def. false)
             % Output: - A SIM object with the FITS images.
             % Example: S=FITS.read2sim('Image*.fits');
             %          S=FITS.read2sim('Image6[15-28].fits');
@@ -1259,6 +1546,7 @@ classdef FITS < handle
                 Args.ExecField            = SIM.ImageField;   % read into field
                 Args.ReadHead             = true;
                 Args.PopWCS(1,1) logical  = true;
+                Args.UseMex               = false;
             end
             
             HeaderField = HEAD.HeaderField;
@@ -1296,9 +1584,9 @@ classdef FITS < handle
                     Isim = Isim + 1;
                     % Read image to SIM
                     if (isempty(Args.CCDSEC))
-                        Sim(Isim).(Args.ExecField) = FITS.read1(ListIm{Iim},HDUnum(Ihdu));
+                        Sim(Isim).(Args.ExecField) = FITS.read1(ListIm{Iim},HDUnum(Ihdu),'UseMex',Args.UseMex);
                     else
-                        Sim(Isim).(Args.ExecField) = FITS.read1(ListIm{Iim},HDUnum(Ihdu),'CCDSEC',Args.CCDSEC(min(Iim,Nccdsec),:));
+                        Sim(Isim).(Args.ExecField) = FITS.read1(ListIm{Iim},HDUnum(Ihdu),'CCDSEC',Args.CCDSEC(min(Iim,Nccdsec),:),'UseMex',Args.UseMex);
                     end
                     Sim(Isim).(FileField) = ListIm{Iim};
 
@@ -1314,6 +1602,91 @@ classdef FITS < handle
             
         end
         
+    end
+
+    methods (Static)
+        function fpack(List, Command, Args)
+            % Compress FITS files using fpack
+            % Input  : - A file name, a file name containing wild
+            %            cards or regular expression, a cell array of
+            %            file names, or a structure arrawy which is the
+            %            output of the dir command.
+            %          - fpack command string.
+            %            Default is 'fpack -r'.
+            %          * ...,key,val,...
+            %            'RegExp' - A logical indicating if to use regular expression (true) or
+            %                   wild cards (false). Default is false.
+            %            'ListList' - If this argument is true, and the file name in the first
+            %                   argument starts with '@', then will read the file names from
+            %                   this files (lines start with % and # ignored).
+            %                   Default is true.
+            % Output : null.
+            % Author : Eran Ofek (Dec 2023)
+
+            arguments
+                List
+                Command                       = 'fpack -r';
+                Args.RegExp logical        = false;
+                Args.ListList logical      = true;
+            end
+
+            List = io.files.filelist(List, Args.RegExp, Args.ListList);
+
+            Nlist = numel(List);
+
+            % check if external code installed
+            Res = system(Command);
+            if Res~=255
+                error('fpack not installed - in linux use: apt-get install libcfitsio-bin')
+            end
+
+            for Ilist=1:1:Nlist
+                system(sprintf('%s %s',Command, List{Ilist}));
+            end
+
+        end
+
+        function funpack(List, Command, Args)
+            % Uncompress FITS files using fpack
+            % Input  : - A file name, a file name containing wild
+            %            cards or regular expression, a cell array of
+            %            file names, or a structure arrawy which is the
+            %            output of the dir command.
+            %          - fpack command string.
+            %            Default is 'funpack'.
+            %          * ...,key,val,...
+            %            'RegExp' - A logical indicating if to use regular expression (true) or
+            %                   wild cards (false). Default is false.
+            %            'ListList' - If this argument is true, and the file name in the first
+            %                   argument starts with '@', then will read the file names from
+            %                   this files (lines start with % and # ignored).
+            %                   Default is true.
+            % Output : null.
+            % Author : Eran Ofek (Dec 2023)
+
+            arguments
+                List
+                Command                       = 'funpack';
+                Args.RegExp logical        = false;
+                Args.ListList logical      = true;
+            end
+
+            List = io.files.filelist(List, Args.RegExp, Args.ListList);
+
+            Nlist = numel(List);
+
+            % check if external code installed
+            Res = system(Command);
+            if Res~=255
+                error('fpack not installed - in linux use: apt-get install libcfitsio-bin')
+            end
+
+            for Ilist=1:1:Nlist
+                system(sprintf('%s %s',Command, List{Ilist}));
+            end
+
+        end
+
     end
     
     methods (Static)   % write_old
@@ -1987,6 +2360,7 @@ classdef FITS < handle
             %            'ReadHead' - Read the header. Default is true.
             %            'CCDSEC' - [xmin xmax ymin ymax] to read.
             %                   If empty read all. Default is empty.
+            %            'UseMex' - use the Mex FITS reader function (def. false) 
             % Output : - A FITS object with the Data andHeader fields
             %            populated.
             % Author : Eran Ofek (Mar 2021)
@@ -1998,6 +2372,7 @@ classdef FITS < handle
                 HDUnum                   = [];
                 Args.ReadHead logical    = true;
                 Args.CCDSEC double       = [];  % Inf for the entire image [Xmin xmax ymin ymax]
+                Args.UseMex              = false;
             end
             
             if ~isempty(FileName)
@@ -2018,9 +2393,9 @@ classdef FITS < handle
                 if ~isempty(Obj(Iobj).File)
                     
                     if Args.ReadHead
-                        [Obj(Iobj).Data, Obj(Iobj).Header] = FITS.read1(Obj(Iobj).File, Obj(Iobj).HDU, 'CCDSEC',Obj(Iobj).CCDSEC);
+                        [Obj(Iobj).Data, Obj(Iobj).Header] = FITS.read1(Obj(Iobj).File, Obj(Iobj).HDU, 'CCDSEC',Obj(Iobj).CCDSEC,'UseMex',Args.UseMex);
                     else
-                        [Obj(Iobj).Data] = FITS.read1(Obj(Iobj).File, Obj(Iobj).HDU, 'CCDSEC',Obj(Iobj).CCDSEC);
+                        [Obj(Iobj).Data] = FITS.read1(Obj(Iobj).File, Obj(Iobj).HDU, 'CCDSEC',Obj(Iobj).CCDSEC,'UseMex',Args.UseMex);
                     end
                     
                     %Data = fitsread(Obj(Iobj).File,PixelRegion);

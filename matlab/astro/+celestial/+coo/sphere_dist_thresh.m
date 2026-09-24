@@ -34,6 +34,7 @@ switch lower(Shape)
         Flag      = Dist<=MaxDist;
     case 'box'
         [LatCor,LongCor] = reckon(LatRef.*RAD,LongRef.*RAD,sqrt(2).*0.5.*MaxDist.*RAD, 45 +(0:90:270)');
+        LongCor(LongCor<0) = LongCor(LongCor<0) + 360.;
         Corners   = [LongCor, LatCor]./RAD;
         Flag      = celestial.htm.in_polysphere([Long Lat],Corners,Crit);
         

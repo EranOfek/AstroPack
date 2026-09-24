@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant Client as Python client
+    participant Bridge as FastAPI bridge
+    participant FS as Shared filesystem
+    participant Worker as MATLAB service
+    participant Logic as processRequest
+
+    Client->>Bridge: HTTP POST
+    Bridge->>FS: write request.json
+    Worker->>FS: poll input folder
+    Worker->>Logic: decode JSON, dispatch action
+    Logic->>Logic: compute / filter / plan
+    Logic->>Worker: result struct
+    Worker->>FS: write request.out.json
+    Bridge->>FS: read response
+    Bridge->>Client: typed HTTP response
+
+    Note over FS: $SOC_PATH/runtime/exchange/service_name/input/
+    Note over Worker: JsonFileIpc.processLoop

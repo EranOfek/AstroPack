@@ -57,13 +57,22 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
     
     methods % functionality
         function Result = maskSet(Obj, Flag, BitName, SetVal, Args)
-            % Set the value of a single bit in a bit mask
+            % Set the value of one, or several, bits in a bit mask
             % Input  : - An ImageMask Object.
             %          - A matrix of logical, with the same size as the
             %            Image in the ImageMask, in which values which are
             %            true will be set.
             %            Alternatively, this can be a vector of indices.
+            %            For multi-bit mode (BitName is a cell array), this
+            %            must be a cell array of logical matrices of the
+            %            same length as BitName (indices are not supported).
             %          - Bit name, or bit index (start from 0), to set.
+            %            Alternatively, a cell array of bit names/indices,
+            %            to set several bits in a single pass (multi-bit
+            %            mode); in this case Flag must be a matching cell
+            %            array of logical matrices, and SetVal must be a
+            %            scalar (applied to all bits) or a vector matching
+            %            BitName. Multi-bit mode requires UseMex=true.
             %          - Value to set (0 | 1). Default is 1.
             %          * ...,key,val,...
             %            'DefBitDict' - Default bit dictionary if
@@ -74,7 +83,7 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             %            'UseFlags' - A logical indicating if to use flags
             %                   or indices (speed considerations).
             %                   Default is true.
-            %            'UseMex' - Use the tools.array.mex_bitsetFlag
+            %            'UseMex' - Use the tools.array.mex.bitsetFlag
             %                   mex function. Default is true.
             % Output : - An ImageMaks object.
             % Author : Eran Ofek (May 2021)
@@ -84,45 +93,81 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             %       Flag = false(3,3); Flag(1,2)=true;
             %       Result = MI.maskSet(Flag,'Saturated')
             %       Result = MI.maskSet(Flag,'Streak')
-            
+            %       Result = MI.maskSet({Flag,Flag},{'Saturated','Streak'},[1 0])
+
             arguments
                 Obj
-                Flag                         % matrix of logicals, or vector of indices
-                BitName                      % name or bit index (start with zero)
+                Flag                         % matrix of logicals, or vector of indices, or a cell array of these (multi-bit mode)
+                BitName                      % name or bit index (start with zero), or a cell array of these (multi-bit mode)
                 SetVal                            = 1;
-                Args.DefBitDict BitDictionary     = BitDictionary('BitMask.Image.Default');
-                Args.CreateNewObj logical         = false;
-                Args.UseFlags logical             = false;
-                Args.UseMex logical               = true;
+                Args.DefBitDict                   = BitDictionary('BitMask.Image.Default');
+                Args.CreateNewObj                 = false;
+                Args.UseFlags                     = false;
+                Args.UseMex                       = true;
             end
-            
+
             if Args.CreateNewObj
                 Result = Obj.copy();
             else
                 Result = Obj;
             end
-                    
+
             Nobj = numel(Obj);
-            
+
+            IsMulti = iscell(BitName);
+            if IsMulti
+                Nbit = numel(BitName);
+                if ~iscell(Flag) || numel(Flag)~=Nbit
+                    error('When BitName is a cell array, Flag must be a cell array of the same length');
+                end
+                if ~Args.UseMex
+                    error('Multi-bit mode (cell array BitName) requires UseMex=true');
+                end
+                if isscalar(SetVal)
+                    SetVal = repmat(SetVal, 1, Nbit);
+                elseif numel(SetVal)~=Nbit
+                    error('SetVal must be scalar or match the number of BitNames');
+                end
+            end
+
             % a single Flag image
-            if islogical(Flag)
-                SizeImage = size(Flag);
+            if IsMulti
+                if ~isempty(Flag) && islogical(Flag{1})
+                    SizeImage = size(Flag{1});
+                else
+                    SizeImage = [];
+                end
             else
-                SizeImage = [];
+                if islogical(Flag)
+                    SizeImage = size(Flag);
+                else
+                    SizeImage = [];
+                end
             end
             for Iobj=1:1:Nobj
                 % check that BitDictionary is populated
                 if isempty(Obj(Iobj).Dict)
                     Result(Iobj).Dict = Args.DefBitDict;
                 end
-                
-                if isnumeric(BitName)
-                    BitInd = BitName + 1;
+
+                if IsMulti
+                    BitInd = zeros(1,Nbit);
+                    for Ibit=1:1:Nbit
+                        if isnumeric(BitName{Ibit})
+                            BitInd(Ibit) = BitName{Ibit} + 1;
+                        else
+                            BitInd(Ibit) = Result(Iobj).Dict.name2bit(BitName{Ibit}) + 1;
+                        end
+                    end
                 else
-                    BitInd = Result(Iobj).Dict.name2bit(BitName) + 1;
+                    if isnumeric(BitName)
+                        BitInd = BitName + 1;
+                    else
+                        BitInd = Result(Iobj).Dict.name2bit(BitName) + 1;
+                    end
                 end
 
-                if isempty(Obj(Iobj).Image)
+                if isempty(Obj(Iobj).Data)
                     % no maks image - allocate
                     if isempty(SizeImage)
                         error('When Flag is a vector of indices, image mask must be pre defined');
@@ -130,31 +175,43 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
                     Result(Iobj).Image = Result(Iobj).Dict.Class(zeros(SizeImage));
                 end
 
-                if Args.UseMex
+                if IsMulti
+                    % set several bits in a single pass over the array
+                    if ~all(cellfun(@(F) islogical(F) && numel(F)==numel(Result(Iobj).Data), Flag))
+                        error('In multi-bit mode all Flag cells must be logical arrays of the same size as the mask');
+                    end
+                    Triplets = cell(1,3*Nbit);
+                    for Ibit=1:1:Nbit
+                        Triplets{3*(Ibit-1)+1} = squeeze(Flag{Ibit});
+                        Triplets{3*(Ibit-1)+2} = BitInd(Ibit);
+                        Triplets{3*(Ibit-1)+3} = SetVal(Ibit);
+                    end
+                    Result(Iobj).Data = tools.array.mex.bitsetFlagMulti(Result(Iobj).Data, Triplets{:});
+                elseif Args.UseMex
                     if ~isempty(Flag)
-                        
-                        if numel(Flag)==numel(Result(Iobj).Image)
+                        if numel(Flag)==numel(Result(Iobj).Data)
                             % assume that Flag in logical array of the same
-                            % size 
-                            Result(Iobj).Image = tools.array.bitsetFlag(Result(Iobj).Image, Flag, BitInd, SetVal, true, true);
+                            % size
+                            Result(Iobj).Data = tools.array.bitsetFlag(Result(Iobj).Data, squeeze(Flag), BitInd, SetVal, true, true);
                         else
                             % Flag is indices:
-                            Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);
+                            % consider using: tools.array.mex.bitsetInd (only slightly faster)
+                            Result(Iobj).Data(Flag) = bitset(Result(Iobj).Data(Flag), BitInd, SetVal);
                         end
                     end
                 else
 
                     % use indices instead of flags - maybe faster in some cases
                     if Args.UseFlags
-                        Result(Iobj).Image(Flag) = bitset(Result(Iobj).Image(Flag), BitInd, SetVal);
+                        Result(Iobj).Data(Flag) = bitset(Result(Iobj).Data(Flag), BitInd, SetVal);
                     else
                         Ind = find(Flag);
-                        Result(Iobj).Image(Ind) = bitset(Result(Iobj).Image(Ind), BitInd, SetVal);
+                        Result(Iobj).Data(Ind) = bitset(Result(Iobj).Data(Ind), BitInd, SetVal);
                     end
                 end
             end
-            
-                 
+
+
         end
                 
         function [Result, XY, Ind] = findBit(Obj, BitNames, Args)
@@ -301,19 +358,21 @@ classdef MaskImage < ImageComponent    % ImageComponent & BitDictionary
             
             switch lower(Operator)
                 case 'or'
-                    Fun = @tools.array.bitor_array;
+                    Fun    = @tools.array.bitor_array;
+                    PadVal = 0;   % OR identity element
                 case 'and'
-                    Fun = @tools.array.bitand_array;
+                    Fun    = @tools.array.bitand_array;
+                    PadVal = intmax(class(Obj.Data));   % AND identity element (all bits set) - see issue #1204
                 otherwise
                     error('Unnown Operator option');
             end
-                
+
             if Args.UseMex
                 % use the mex version (considerably faster)
                 Result = imUtil.cut.bitwise_cutouts(Obj.Data, XY(:,1), XY(:,2), Args.HalfSize, strcmp(Operator,'or'));
             else
                 Result = funCutouts(Obj, XY, Fun, 'HalfSize',Args.HalfSize,...
-                                                      'PadVal',0,...
+                                                      'PadVal',PadVal,...
                                                       'CutALgo',Args.CutAlgo,...
                                                       'IsCircle',Args.IsCircle,...
                                                       'DataProp',Args.DataProp);

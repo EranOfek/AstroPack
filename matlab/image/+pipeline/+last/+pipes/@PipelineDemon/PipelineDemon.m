@@ -1,0 +1,4149 @@
+% ImagePath - A class for generating stand storing image/path names
+%       for ULTRASAT and LAST.
+%
+% File name format: <ProjName>_YYYYMMDD.HHMMSS.FFF_<filter>_<FieldID>_<counter>_<CCDID>_<CropID>_<type>_<level>.<sublevel>_<product>_<version>.<FileType>
+% Example:
+%          D = pipeline.last.pipes.PipelineDemon;
+%          D.CalibPath = <put here the output directory of the calibration images>
+%          D.prepMasterDark
+%
+
+classdef PipelineDemon < Component
+    % 
+            
+    properties       
+        %
+        CI CalibImages   = CalibImages;    % CalibImages
+
+        % These fields are the input parameters for getPath() and getFileName()
+        ProjectName  = 'LAST';
+        Node         = 1;
+        DataDir      = 1;
+        CamNumber    = [];
+        HostName     = [];
+
+        BasePath     = [];
+   
+        NewPath      = []; %'new';    % if start with '/' then abs path
+        CalibPath    = []; %'calib';  % if start with '/' then abs path
+        FailedPath   = []; %'failed'; % if start with '/' then abs path
+        LogPath      = []; %'log';    % if start with '/' then abs path
+        FocusPath    = []; %'focus';  % if start with '/' then abs path
+
+        SciPath      = []; %'science';
+
+        AutoPath     = [];  % 'LAST',...
+
+        RefPath      = [];
+        
+
+        ObsCoo       = [35.04073 30.05298 415];  % [deg deg m]
+
+        % Flux->magnitude conversion, 'mag' uses convert.magnitude
+        % (standard magnitude, NaN for non-positive flux); 'lup' uses
+        % convert.luptitude.
+        MagType char {mustBeMember(MagType, {'lup','mag'})} = 'mag';
+
+        % If true, crops whose photometric calibration did not run (no coadd
+        % for the visit, or a crop with no relative-ZP fit) get their
+        % MAG_*/MAGERR_* columns NaN-filled instead of keeping the
+        % extractor's uncalibrated instrumental values. See issue #1161.
+        NaNUncalibMag logical = true;
+    end
+    
+    properties (Hidden)
+        % Fields formatting
+        %FormatFieldID   = '%06d';       % Used with FieldID
+        FormatCounter   = '%03d';       % Used with Counter        
+        FormatCCDID     = '%03d';       % Used with CCDID
+        FormatCropID    = '%03d';       % Used with CropID
+        FormatVersion   = '%03d';       % Used with Version
+        
+
+        
+        DefNewPath      = 'new';    % if start with '/' then abs path
+        DefCalibPath    = 'calib';  % if start with '/' then abs path
+        DefFailedPath   = 'failed'; % if start with '/' then abs path
+        DefLogPath      = 'log';    % if start with '/' then abs path
+        DefFocusPath    = 'focus';  % if start with '/' then abs path
+        DefRefPath      = 'data/references';   %/last01e/data/refreences'
+
+        FieldList       = pipeline.DemonLAST.fieldsListLAST;
+
+        RedisPV         = [];
+    end
+
+    properties (Hidden, SetAccess=protected, GetAccess=public)
+     
+    end
+    
+    properties (Hidden, Constant)
+        ListType        = { 'bias', 'dark', 'flat', 'domeflat', 'twflat', 'skyflat', 'fringe', 'focus', 'sci', 'wave', 'type' };
+        ListLevel       = {'log', 'raw', 'proc', 'stack', 'ref', 'coadd', 'merged', 'calib', 'junk'};
+        ListProduct     = { 'Image', 'Back', 'Var', 'Exp', 'Nim', 'PSF', 'Cat', 'Spec', 'Mask', 'Evt', 'MergedMat', 'Asteroids'};
+    end
+    
+    
+    methods % setter/getters
+        function Obj=set.AutoPath(Obj, Val)
+            % Setter for AutoPath
+            
+            if ~isempty(Val)
+                if isempty(Obj.BasePath)
+                    % BasePath is empty - first populate it:
+                    Obj.BasePath = pipeline.last.pipes.PipelineDemon.getBasePath('DataDir',Obj.DataDir, 'CamNumber',Obj.CamNumber, 'ProjectName',Obj.ProjectName, 'Node',Obj.Node);
+                end
+                Obj.autoDetectPath(Val);
+                Obj.AutoPath = Val;
+            end
+
+        end
+
+        %function Result=get.BasePath(Obj)            
+            % getter for BasePath
+
+            % if isempty(Obj.BasePath)
+            %     if isempty(Obj.DataDir) && isempty(Obj.CamNumber)
+            %         Result = [];
+            %     else
+            %         % get base path
+            %         Result = pipeline.DemonLAST.getBasePath('DataDir',Obj.DataDir, 'CamNumber',Obj.CamNumber, 'ProjectName',Obj.ProjectName, 'Node',Obj.Node);
+            %     end
+            % else
+            %     Result         = Obj.BasePath;
+            %     Obj.NewPath    = Obj.DefNewPath;
+            %     Obj.CalibPath  = Obj.DefCalibPath;
+            %     Obj.FailedPath = Obj.DefFailedPath;
+            %     Obj.LogPath    = Obj.DefLogPath;
+            % end
+        %end
+
+        function Result=get.NewPath(Obj)
+            % getter fore NewPath
+
+            if isempty(Obj.NewPath)
+                Result = [];
+            else
+                if strcmp(Obj.NewPath(1),filesep)
+                    % NewPath contains full dir name
+                    Result = Obj.NewPath;
+                else
+                    % NewPath contains relative path (relative to BasePath)
+                    Obj.NewPath = fullfile(Obj.BasePath,Obj.NewPath);
+                    Result      = Obj.NewPath;
+                end
+            end
+
+        end
+
+        function Result=get.CalibPath(Obj)
+            % getter fore CalibPath
+
+            if isempty(Obj.CalibPath)
+                Result = [];
+            else
+                if strcmp(Obj.CalibPath(1),filesep)
+                    % CalibPath contains full dir name
+                    Result = Obj.CalibPath;
+                else
+                    % CalibPath contains relative path (relative to BasePath)
+                    Obj.CalibPath = fullfile(Obj.BasePath,Obj.CalibPath);
+                    Result      = Obj.CalibPath;
+                end
+            end
+
+        end
+
+        function Result=get.FailedPath(Obj)
+            % getter fore FailedPath
+
+            if isempty(Obj.FailedPath)
+                Result = [];
+            else
+                if strcmp(Obj.FailedPath(1),filesep)
+                    % FailedPath contains full dir name
+                    Result = Obj.FailedPath;
+                else
+                    % FailedPath contains relative path (relative to BasePath)
+                    Obj.FailedPath = fullfile(Obj.BasePath,Obj.FailedPath);
+                    Result      = Obj.FailedPath;
+                end
+            end
+
+        end
+
+        function Result=get.LogPath(Obj)
+            % getter fore LogPath
+
+            if isempty(Obj.LogPath)
+                Result = [];
+            else
+                if strcmp(Obj.LogPath(1),filesep)
+                    % FailedPath contains full dir name
+                    Result = Obj.LogPath;
+                else
+                    % FailedPath contains relative path (relative to BasePath)
+                    Obj.LogPath = fullfile(Obj.BasePath,Obj.LogPath);
+                    Result      = Obj.LogPath;
+                end
+            end
+
+        end
+
+        function Result=get.FocusPath(Obj)
+            % getter for FocusPath
+
+            if isempty(Obj.FocusPath)
+                Result = [];
+            else
+                if strcmp(Obj.FocusPath(1),filesep)
+                    % FocusPath contains full dir name
+                    Result = Obj.FocusPath;
+                else
+                    % FocusPath contains relative path (relative to BasePath)
+                    Obj.FocusPath = fullfile(Obj.BasePath,Obj.FocusPath);
+                    Result        = Obj.FocusPath;
+                end
+            end
+
+        end
+
+        function Result=get.SciPath(Obj)
+            % getter fore SciPath
+
+            if isempty(Obj.SciPath)
+                Result = [];
+            else
+                if strcmp(Obj.SciPath(1),filesep)
+                    % FailedPath contains full dir name
+                    Result = Obj.SciPath;
+                else
+                    % FailedPath contains relative path (relative to BasePath)
+                    Obj.SciPath = fullfile(Obj.BasePath,Obj.SciPath);
+                    Result      = Obj.SciPath;
+                end
+            end
+
+        end
+
+
+        function set.DataDir(Obj, Val)
+            % Set DataDir and modify BasePath
+            
+            Obj.DataDir = Val;
+            Obj.BasePath = Obj.getPath;
+            
+        end
+        
+        function Result=get.RefPath(Obj)
+            % getter for RefPath
+
+            if isempty(Obj.RefPath)
+                Obj.RefPath = Obj.populateRefPath;
+            end
+%                 [~,~,~,HostName] = Obj.getPath;
+%                 Obj.RefPath = fullfile(filesep, HostName, 'data', 'reference');
+%             end
+            Result = Obj.RefPath;
+
+        end
+    end
+      
+    methods (Static) % path and files
+           
+
+        function Result = constructProjectName(Project,Node,Mount,Camera)
+            % Construct project name of the form LAST.01.02.03
+            % Input  : - Project name.
+            %          - Node number
+            %          - Mount number (integer or string).
+            %          - Camera number
+            % Output : - Projet name
+            % Author : Eran Ofek (Mar 2023)
+
+            if ~ischar(Mount)
+                Mount = sprintf('%02d',Mount);
+            end
+            Result = sprintf('%s.%02d.%s.%02d',Project, Node, Mount, Camera);
+        end
+
+        function [MountNumberStr, MountNumber]=getMountNumber            
+            % Get mount number from computer name
+            % Output : - Mount number string.
+            %          - Mount number. NaN if not xxxx## name.
+            % Author : Eran Ofek (Mar 2023)
+
+            HostName = tools.os.get_computer;
+            if numel(HostName)==6
+                MountNumberStr = HostName(5:6);
+                if nargout>1
+                    MountNumber = str2double(MountNumberStr);
+                end
+            else
+                MountNumberStr = '';
+                MountNumber    = NaN;
+            end
+        end
+
+        function [DataNumber, DataDir]=camNumber2dataDir(CameraNumber)
+            % Camera number to data dir
+            % Input  : - Camera number (1 to 4)
+            % Output : - Data dir number (1 or 2)
+            %          - Data dir name (e.g., 'data1')
+            % Author : Eran Ofek (Mar 2023)
+            
+            DataNumber = mod(CameraNumber-1,2)+1;
+            if nargout>1
+                DataDir = sprintf('data%d',DataNumber);
+            end
+        end
+
+        function Side=camNumber2computerSide(CameraNumber)
+            % Camera number to computer side
+            % Input  : - camera number (1 to 4)
+            % Output : - computer side ('e'|'w')
+            % AUthor : Eran Ofek (Mar 2023)
+
+            switch ceil(CameraNumber./2)
+                case 1
+                    Side = 'e';
+                case 2
+                    Side = 'w';
+                otherwise
+                    error('Unknown Computer side');
+            end
+        end
+
+        function [CameraNumber,Side]=dataDir2cameraNumber(DataDirNum,HostName)
+            % data dir number to camera number and computer side
+            % Input  : - DataDir number (1 or 2)
+            %          - Host name (e.g., 'last02w'). If empty, then will
+            %            get from computer host name.
+            %            Default is [].
+            % Output : - Camera number (1 to 4)
+            %          - Computer side ('e'|'w')
+            % Author : Eran Ofek (Mar 2023)
+
+            arguments
+                DataDirNum
+                HostName = [];
+            end
+            if isempty(HostName)
+                HostName = tools.os.get_computer;
+            end
+            Side = HostName(7);
+
+            switch Side
+                case 'e'
+                    CameraNumber = DataDirNum;
+                case 'w'
+                    CameraNumber = DataDirNum + 2;
+                otherwise
+                    error('Unknown Side')
+            end
+
+        end
+
+        function [BasePath,CameraNumber,Side,HostName,ProjName,MountNumberStr]=getBasePath(Args)
+            % get base path for LAST computers
+            % Input  : * ...,key,val,...
+            %            'DataDir' - DataDir number (1 or 2). If given than
+            %                   superceed the CameraNumber. Default is [].
+            %            'CamNumber' - Camera number (1 to 4).
+            %                   Default is [].
+            %            'HostName' - Computer host name. If empty, then
+            %                   get from computer host name.
+            %                   Default is [].
+            %            'ProjectName' - e.g., 'LAST'. Default is ''.
+            %            'Node' - e.g., 1. Default is [].
+            % Output : - Base path - e.g., '/last02e/data1/archive/LAST.01.02.01'
+            %          - Camera number
+            %          - Computer side
+            %          - Computer host name
+            %          - Project name
+            %          - Mount number string
+            % Author : Eran Ofek (Mar 2023)
+
+            arguments
+                Args.DataDir     = [];
+                Args.CamNumber   = [];
+                Args.HostName    = [];
+                Args.ProjectName = '';
+                Args.Node        = [];
+            end
+
+            if isempty(Args.CamNumber)
+                if isempty(Args.DataDir)
+                    error('DataDir or CamNumber must be supplied');
+                else
+                    % only DataDir is given
+                    DataDir = Args.DataDir;
+                end
+            else
+                if isempty(Args.DataDir)
+                    % only CamNumber is given
+                    [DataDir] = pipeline.DemonLAST.camNumber2dataDir(Args.CamNumber);
+
+                else
+                    % both DataDir and CamNumber are given - use DataDir
+                    DataDir = Args.DataDir;
+                end
+            end
+
+            if isempty(Args.HostName)
+                HostName = tools.os.get_computer;
+            else
+                HostName = Args.HostName;
+            end
+
+            %'need to remove this line when going to production - getBasePath'
+            %HostName = 'last02w'
+
+            if numel(HostName)<6
+                HostName       = 'last01e';
+                warning('HostName has less than 6 chars');
+            end
+            MountNumberStr = HostName(5:6);
+            
+         
+            [CameraNumber,Side] = pipeline.DemonLAST.dataDir2cameraNumber(DataDir,HostName);
+            ProjName            = pipeline.DemonLAST.constructProjectName(Args.ProjectName, Args.Node, MountNumberStr, CameraNumber);
+
+            % e.g., '/last02e/data1/archive/LAST.01.02.01'
+
+            DataStr = sprintf('data%d',DataDir);
+            BasePath = fullfile(filesep,HostName,DataStr,'archive',ProjName);
+
+        end
+
+        function [Path, SubDir] = getArchivePath(FN, SubDir, Args)
+            % get archive (proc/raw) images directory from FileNames object.
+            % Input  : - A FileNames object containing images from which we
+            %            want to find the proc images directory.
+            %          - A SubDir indicating additional directory in the
+            %            proc/ dir in which the data resides.
+            %            If numeric empty (i.e., []) then automatically
+            %            find the SubDir by incrimenting the largest
+            %            existing SubDir by 1.
+            %            If '' or chra array, then use it as a SubDir.
+            %          * ...,Key,Val,...
+            %            'BasePath' - Override the BasePath in the input
+            %                   FileNames object. If empty, use currently
+            %                   available BasePath in FileNames object.
+            %                   Default is [].
+            % Output : - Path for proc images, including SubDir.
+            %          - SubDir char array.
+            % Author : Eran Ofek (Apr 2023)
+
+            arguments
+                FN FileNames
+                SubDir           = [];  % [] - auto find ; '' - SubDir is '' 
+                Args.BasePath    = [];
+                %Args.DataDir     = [];
+                %Args.CamNumber   = [];
+                %Args.HostName    = [];
+                %Args.ProjectName = '';
+                %Args.Node        = [];
+            end
+
+            if ~isempty(Args.BasePath)
+                FN.BasePath = Args.BasePath;
+            end
+            %[BasePath,CameraNumber,Side,HostName,ProjName,MountNumberStr] = getBasePath('DataDir',Args.DataDir, 'CamNumber',Args.CamNumber, 'HostName',Args.HostName, 'ProjectName',Args.ProjectName, 'Node',Args.Node);
+
+            PathProc = FN.genPath;
+
+            if ischar(SubDir)
+                % SubDir is provided by user
+            else
+                if isempty(SubDir)
+                    SubDir = nextSubDir(FN);
+                else
+                    error('Unknown SubDir option');
+                end
+            end
+
+            Path = fullfile(PathProc,SubDir);
+
+        end
+        
+    end
+
+    methods (Static)  % fields related utilities
+        
+        function List = fieldsListLAST(Args)
+            % (Static) Return a table with list of LAST predefined field indices
+            % Input  : * ...,key,val,...
+            %            'N_LonLat' - Arguments for celestial.grid.tile_the_sky
+            %                   Default is [85 28]
+            % Output : - A table with the LAST predefined fields.
+            % Author : Eran Ofek (Jul 2023)
+            % Example: List = pipeline.DemonLAST.fieldsListLAST
+
+            arguments
+                Args.N_LonLat   = [88 30] %[85 28];
+            end
+
+            RAD = 180./pi;
+            
+            [TileList,TileArea] = celestial.grid.tile_the_sky(Args.N_LonLat(1), Args.N_LonLat(2));
+            try
+                Ebv      = astro.extinction.sky_ebv(TileList(:,1),TileList(:,2));
+            catch
+                Ebv      = nan(size(TileList,1),1);
+            end
+            
+            TileList = TileList.*RAD;
+            
+            List = table(TileList(:,1), TileList(:,2), TileList(:,3), TileList(:,4), TileList(:,5), TileList(:,6), Ebv, TileArea);
+            List.Properties.VariableNames = {'RA','Dec','MinRA','MaxRA','MinDec','MaxDec','Ebv','Area'};
+            List.Properties.VariableUnits = {'deg','deg','deg','deg','deg','deg','mag','sr'};
+
+        end
+
+        function Str = radec2str(RA,Dec, InUnits)
+            % Convert RA/Dec to RA/Dec degree accuracy string (e.g., 045-01)
+            % Input  : - RA
+            %          - Dec
+            %          - Input units. Default is 'deg'.
+            % Output : - String of decimal degrees- e.g., 351-12
+            % Author : Eran Ofek (Jul 2023)
+            % Example: Str = pipeline.DemonLAST.radec2str([101.8 0.8],[+12.1;-1.1])
+           
+            arguments
+                RA
+                Dec
+                InUnits   = 'deg';
+            end
+            
+            Conv = convert.angular(InUnits, 'deg');
+            RA   = RA.*Conv;
+            Dec  = Dec.*Conv;
+            
+            RA   = mod(RA, 360);
+            
+            RA   = round(RA);
+            Dec  = round(Dec);
+            
+            Ncoo = numel(RA);
+            Str  = cell(Ncoo,1);
+            for Icoo=1:1:Ncoo
+                Str{Icoo} = sprintf('%03d%+03d',RA(Icoo), Dec(Icoo));
+            end
+            
+        end
+        
+        function [RA, Dec]=str2radec(Str, OutUnits)
+            % Convert RA/Dec decimal string (e.g., '351-09') to RA/Dec.
+            % Input  : - String
+            %          - Output units. Default is 'deg'
+            % Output : - RA
+            %          - Dec
+            % Author : Eran Ofek (Jul 2023)
+            % Example: [RA, Dec]=pipeline.DemonLAST.str2radec({'351-09','009-01'})
+            
+            arguments
+                Str
+                OutUnits = 'deg';
+            end
+            
+            if ischar(Str)
+                Str = {Str};
+            end
+            Nstr = numel(Str);
+            RA   = zeros(Nstr,1);
+            Dec  = zeros(Nstr,1);
+            for Istr=1:1:Nstr
+                RA(Istr)  = str2double(Str{Istr}(1:3));
+                Dec(Istr) = str2double(Str{Istr}(4:6));
+            end
+            
+            Conv = convert.angular('deg',OutUnits);
+            RA   = RA.*Conv;
+            Dec  = Dec.*Conv;
+            
+        end
+        
+        function [ID, MinDist, List] = searchFieldLAST(List, RA, Dec)
+            % Search coordinates in fields list
+            % Input  : - List of fields generated by:
+            %            pipeline.DemonLAST.fieldsListLAST
+            %            If empty, will generate the default list.
+            %            Default is [].
+            %          - RA (deg, sexagesimal string, or RA+Dec string
+            %            (e.g., '045-12')
+            %          - Dec. If empty, then RA is in RA+Dec string format.
+            %            Default is empty.
+            % Output : - ID of fields.
+            %          - Min dist to field center (radians).
+            %          - The table of fields.
+            % Author : Eran Ofek (Jul 2023)
+            % Example: [ID,M]=pipeline.DemonLAST.searchFieldLAST([],1,1)
+            %          [ID,M]=pipeline.DemonLAST.searchFieldLAST([],'045-01')
+            %          [ID,M]=pipeline.DemonLAST.searchFieldLAST([],'05:12:01','-01:19:10')
+            
+            
+            arguments
+                List
+                RA
+                Dec    = [];
+            end
+            RAD = 180./pi;
+            
+            if isempty(List)
+                List = pipeline.DemonLAST.fieldsListLAST;
+            end
+
+            if ~isempty(Dec) && isnumeric(Dec)
+                % assume RA and Dec are in deg, convert to radian
+                RA  = RA./RAD;
+                Dec = Dec./RAD;
+            end            
+            if isempty(Dec)
+                % assume RA is string of the format '045-01'
+                [RA, Dec]=pipeline.DemonLAST.str2radec(RA, 'rad');
+            end
+            if iscell(Dec) || ischar(Dec)
+                % assume RA and Dec are in sexagesinal
+                RA  = celestial.coo.convertdms(RA, 'SH', 'r');
+                Dec = celestial.coo.convertdms(Dec, 'SD', 'R');
+            end
+
+            % RA/Dec are in radians
+            CatRA  = List.RA./RAD;
+            CatDec = List.Dec./RAD;
+            Nra = numel(RA);
+            MinDist = zeros(Nra,1);
+            ID      = zeros(Nra,1);
+            
+            for Ira=1:1:Nra
+                Dist = celestial.coo.sphere_dist_fast(RA(Ira), Dec(Ira), CatRA, CatDec);
+                [MinDist(Ira), ID(Ira)] = min(Dist);
+            end
+
+        end
+
+        function [CamNum,Mount,Node] = getCamNumFromProjName(ProjName,Convert2Num)
+            % get camera number from project name
+            % Input  : - Project name - e.g., 'LAST.01.02.03'
+            %          - Convert to number. Default is true.
+            % Output : - Camera number (e.g., '03')
+            %          - Mount
+            %          - Node
+            % Author : Eran Ofek (Oct 2023)
+            % Example: [C,M,N]=pipeline.DemonLAST.getCamNumFromProjName('LAST.01.02.03');
+            
+            arguments
+                ProjName
+                Convert2Num logical  = true;
+            end
+            
+            Node   = ProjName(6:7);
+            Mount  = ProjName(9:10);
+            CamNum = ProjName(12:13);
+            
+            if Convert2Num
+                Node   = str2double(Node);
+                Mount  = str2double(Mount);
+                CamNum = str2double(CamNum);
+            end
+            
+        end        
+    
+        function NewVal = PrepSaveProductArg(Val)
+            % Convert SaveEpochProduct/SaveVisitProduct char to cell array
+            %   Given the value of the aveEpochProduct/SaveVisitProduc if
+            %   it is char ('all'|'cat') then convert it to cell array of
+            %   data products to save.
+            % Input  : - Argument value.
+            % Output : - Updated argument value.
+            % Author : Eran Ofek (Dec 2023)
+
+            if ischar(Val)
+                switch Val
+                    case 'all'
+                        NewVal  = {'Image','Mask','Cat','PSF'};
+                    case 'cat'
+                        NewVal  = {[],[],'Cat',[]};
+                    otherwise
+                        error('Unknown Val option');
+                end
+            else
+                NewVal = Val;
+            end
+        end
+    
+        function prep_zSpecialInstruction(File, Mount, Camera, OutFile, Args)
+            % prep a zSpecialInst.txt file from a list
+            %   Given a file of format: fieldName, mount, cam, Nimages, StartJD, EndJD
+            %   prep a zSpecial.txt file
+            % Input  : - Input File name
+            %          - Mount
+            %          - Camera
+            %          - Output file name.
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - A zSpecialInst.txt file
+            % Author : Eran Ofek (Jan 2024)
+            % Example: pipeline.DemonLAST.prep_zSpecialInstruction('flares_m5',5,[1 2],'zSpecial.txt_05')
+
+            arguments
+                File
+                
+                Mount
+                Camera
+                OutFile
+                Args.ColName   = 'SNName'
+                Args.ColMount  = 'Mount';
+                Args.ColCamera = 'Camera';
+                Args.ColStart  = 'StartJD';
+                Args.ColEnd    = 'EndJD';
+                Args.Parameter = 'SaveEpochProduct'
+                Args.AddName logical = false;
+            end
+            
+            T = readtable(File);
+
+            T = sortrows(T, 'StartJD');
+        
+            Flag = T.(Args.ColMount) == Mount & any(T.(Args.ColCamera) == Camera, 2);
+            T    = T(Flag,:);
+            [~,Iu]    = unique(T.StartJD);
+            T         = T(Iu,:);
+
+            % remove overlapping times
+          %  FlagDup = T.StartJD(2:end) < T.EndJD(1:end-1);
+          %  T       = T(~FlagDup,:);
+
+            FID = fopen(OutFile,'w');
+            Nt = size(T,1);
+            for It=1:1:Nt
+                Name = T.(Args.ColName){It};
+                Start = T.(Args.ColStart)(It) - 20./86400;
+                End   = T.(Args.ColEnd)(It) + 20./86400;
+
+                DateStart = celestial.time.jd2date(Start,'H');
+                DateEnd   = celestial.time.jd2date(End,'H');
+            
+                if Args.AddName
+                    fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  %% %s\n', DateStart, Args.Parameter, 'all', Name);
+                    fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  %% %s\n', DateEnd,   Args.Parameter, 'cat', Name);
+                else
+                    fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  \n', DateStart, Args.Parameter, 'all');
+                    fprintf(FID,'%02d %02d %04d %02d %02d %04.1f  %s %s  \n', DateEnd,   Args.Parameter, 'cat');
+                end
+            end
+            fclose(FID);
+        end
+        
+    end
+
+    
+    methods % utilities
+        function Obj=autoDetectPath(Obj, Type, Args)
+            % Auto detect path for various directories
+            % Input  : - self.
+            %          - One of the following options:
+            %            'LAST' - Path on some LAST computer (in site).
+            %            'test/data' - Path for local AstroPack data dir.
+            %          * ...,key,val,...
+            %            'SetRefPath' - A logical indicating if to set also
+            %                   RefPath. If false, RefPath is left as is -
+            %                   use it when only the working directories
+            %                   should be derived, so that an explicitly
+            %                   set RefPath is not overwritten (issue #1260).
+            %                   An unset RefPath is still auto detected on
+            %                   read (see populateRefPath).
+            %                   Default is true.
+            % Output : - Updated object.
+            % Author : Eran Ofek (Jan 2026)
+
+            arguments
+                Obj
+                Type  = 'LAST';
+                Args.SetRefPath logical = true;
+            end
+
+            switch lower(Type)
+                case 'last'
+
+                    if ~isempty(Obj.BasePath)
+                        Obj.NewPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefNewPath);
+                        Obj.CalibPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefCalibPath);
+                        Obj.FailedPath = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFailedPath);
+                        Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
+                        Obj.FocusPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFocusPath);
+
+                        if Args.SetRefPath
+                            Obj.RefPath = fullfile(filesep, tools.os.get_computer, Obj.DefRefPath);   % issue #1246
+                        end
+                    end
+                case 'marvin'
+                    % Obj.BasePath = '/marvin';
+                    % 
+                    % Obj.NewPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefNewPath);
+                    % Obj.CalibPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefCalibPath);
+                    % Obj.FailedPath = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFailedPath);
+                    % Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
+                    % 
+                    % Obj.RefPath    = '/lastdata/references/v4';
+
+                case 'test/data'
+                    Obj.BasePath = sprintf('%s/matlab/data/pipeline/LAST',tools.os.get_userhome);
+                    
+                    Obj.NewPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefNewPath);
+                    Obj.CalibPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefCalibPath);
+                    Obj.FailedPath = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFailedPath);
+                    Obj.LogPath    = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefLogPath);
+                    Obj.FocusPath  = sprintf('%s%s%s',Obj.BasePath, filesep, Obj.DefFocusPath);
+
+                    if Args.SetRefPath
+                        Obj.RefPath = '/lastdata/references/v4';
+                    end
+
+
+                otherwise
+                    error('Unknown Type option');
+            end
+
+        end
+
+        function Result=getBasePathWithOutProjName(Obj)
+            % Get the BasePath without the last directory
+            % Input  : - self
+            % Output : - BasePath from which the last dir is removed.
+            % Author : Eran Ofek (Jun 2023)
+            
+            Ind = strfind(Obj.BasePath, filesep);
+            if isempty(Ind)
+                Result = Obj.BasePath;
+            else
+                Result = Obj.BasePath(1:Ind(end)-1);
+            end
+
+        end
+
+        function [Path,CameraNumber,Side,HostName,ProjName,MountNumberStr]=getPath(Obj, SubDir, Args)
+            % get base path, computer, data, camera,...
+            % Input  : - A pipeline.DemonLAST object
+            %          - Sub directory to concat to base path
+            %            (e.g., 'new'). Default is ''.
+            %          * ...,key,val,...
+            %            'DataDir' - A data dir number. If given will
+            %                   overwrite the pipeline.DemonLAST property.
+            %                   If empty, will use the pipeline.DemonLAST property.
+            %                   Superceed the CamNumber.
+            %                   Default is [].
+            %            'CamNumber' - A camera number. If given will
+            %                   overwrite the pipeline.DemonLAST property.
+            %                   If empty, will use the pipeline.DemonLAST property.
+            %                   Default is [].
+            %            'HostName' - set the host name by hand and not 
+            %                       from the actual machine name (for pipeline runs outside the LAST nodes)
+            % Output : - Path
+            %          - Camera number
+            %          - Computer side
+            %          - Computer host name
+            %          - Project name
+            %          - Mount number string
+            % Author : Eran Ofek (Mar 2023)
+            arguments
+                Obj
+                SubDir          = '';
+                Args.DataDir    = [];
+                Args.CamNumber  = [];
+                Args.HostName   = [];                
+            end
+
+            if ~isempty(Args.DataDir)
+                Obj.DataDir = Args.DataDir;
+            end
+            if ~isempty(Args.CamNumber)
+                Obj.CamNumber = Args.CamNumber;
+            end
+
+            [BasePath,CameraNumber,Side,HostName,ProjName,MountNumberStr] = pipeline.DemonLAST.getBasePath('DataDir',Obj.DataDir,...
+                                        'CamNumber',Obj.CamNumber,...
+                                        'Node',Obj.Node,...
+                                        'ProjectName',Obj.ProjectName,...
+                                         'HostName',Args.HostName);
+            Path = fullfile(BasePath,SubDir);
+        end
+
+        function [FN, Flag]=deleteDayTimeImages(Obj, Args)
+            % Delete science images taken when the Sun is above the horizon
+            % Input  : - A pipeline.DemonLAST object.
+            %          * ...,key,val,...
+            %            'TempFileName' - File name template to select.
+            %                   Default is '*.fits'.
+            %            'Type' - Type of images to delete.
+            %                   Default is {'sci','science'}.
+            %            'SunAlt' - Sun altitude threshold above to delete
+            %                   the images. Default is 0.
+            %            'Delete' - Logical indicating if to delete the
+            %                   images. Default is true.
+            % Output : - AstroFileName object of all found images
+            %          - Logical indicating, for each image, if Alt>0 
+            % Author : Eran Ofek (Apr 2023)
+            
+            arguments
+                Obj
+                Args.TempFileName = '*.fits';
+                Args.Type         = 'sci'; %{'sci','science'};
+                Args.SunAlt       = 0;
+                Args.Delete logical = true;
+                
+            end
+            
+            PWD = pwd;
+            cd(Obj.NewPath);
+            
+            % unparsable names go to failed/ rather than failing the listing (issue #1290)
+            FN = Obj.listRawFiles(Args.TempFileName);
+            FN.selectByPropVal('Type',Args.Type);
+            
+            [SunAlt] = FN.sunAlt('GeoPos',Obj.ObsCoo(1:2));
+            Flag     = SunAlt>Args.SunAlt;
+            
+            FN.reorderEntries(Flag);
+            if Args.Delete
+                io.files.delete_cell(FN.genFile());
+            end
+            
+            cd(PWD);
+        end
+        
+       
+        function Obj=setPath(Obj, BasePath, Args)
+            % set the BasePath and other paths of pipeline.DemonLAST object
+            % Input  : - A pipeline.DemonLAST object.
+            %          - BasePath.
+            %          * ...,key,val,...
+            %            'NewPath' - If empty, do not set NewPath.
+            %                   Default is 'new'.
+            %            'CalibPath' - If empty, do not set CalibPath.
+            %                   Default is 'calib'.
+            %            'FailedPath' - If empty, do not set FailedPath.
+            %                   Default is 'failed'.
+            %            'FocusPath' - If empty, do not set FocusPath.
+            %                   Default is 'focus'.
+            % Output : - A pipeline.DemonLAST object in which the paths are
+            %            updated.
+            % Author : Eran Ofek (Apr 2023)
+
+            arguments
+                Obj
+                BasePath
+                Args.NewPath    = 'new';
+                Args.CalibPath  = 'calib';
+                Args.FailedPath = 'failed';
+                Args.FocusPath  = 'focus';
+            end
+
+            FIELDS = {'NewPath','CalibPath','FailedPath','FocusPath'};
+            Nf     = numel(FIELDS);
+
+            if ~isempty(BasePath)
+                Obj.BasePath = BasePath;
+            end
+            for If=1:1:Nf
+                if ~isempty(Args.(FIELDS{If}))
+                    Obj.(FIELDS{If}) = Args.(FIELDS{If});
+                end
+            end
+
+        end
+
+    end
+    
+    methods % status file, lock file, special files
+
+        function writeStatus(Obj, Path, Args)
+            % Write ready-to-transfer in status file
+            % Input  : - A pipeline.DemonLAST object
+            %          - Path in which to write the file
+            %          * ...,key,val,...
+            %            'FileName' - Default is '.status'.
+            %            'Msg' - Default is 'ready-to-transfer'.
+            % Output : null
+            % Author : Eran Ofek (Apr 2023)
+
+            arguments
+                Obj
+                Path
+                Args.FileName = '.status';
+                Args.Msg      = 'ready-for-transfer';
+            end
+
+            FileName = fullfile(Path,Args.FileName);
+            FID = fopen(FileName,'a+');
+            if FID<0
+                % e.g. Path is a file, or a directory that does not exist:
+                % report, but never throw out of the main loop (issue #1242)
+                Obj.writeLog(sprintf('writeStatus: cannot open %s for writing', FileName), LogLevel.Error);
+                return;
+            end
+            fprintf(FID,'%s %s\n',datestr(now,'yyyy-mm-ddTHH:MM:SS'),Args.Msg);
+            fclose(FID);
+
+        end
+
+
+        function ResultOK = lockFile(Obj, Args)
+            % Create, check and manage lock file for pipelines
+            % Author : Eran Ofek (Mar 2024)
+
+            arguments
+                Obj
+                Args.LockDir   = '/var/run/1001';
+                Args.LockFileBase = 'pipeline';
+                
+            end
+
+            ResultOK = true;
+
+            LockFile = sprintf('%s%s%s%d', Args.LockDir, filesep, Args.LockFileBase, Obj.DataDir);
+            Pid      = tools.os.getPid;
+            if isfile(LockFile)
+                % lock file exist
+                % read Pid from lock file
+                FID = fopen(LockFile);
+                LockPid = fscanf(FID,'%d');
+                fclose(FID);
+
+                % Check if LockPid exist in system
+                [~,OutStr] = system(sprintf('ps %d',LockPid));
+                if contains(OutStr,'matlab')
+                    % Pid exist
+                    ResultOK = false;
+
+                    Obj.setLogFile('HostName',Args.HostName);
+                    Msg = sprintf('Lock File exist: %s - clear and try again',LockFile);
+                    fprintf(Msg);
+                    Obj.writeLog(Msg);
+
+                else
+                    % Pid doesnt exist - delete LockFile
+                    delete(LockFile);
+
+                    % create new lock file
+                    FID = fopen(LockFile, 'w');
+                    fprintf(FID,'%d',Pid);
+                    fclose(FID);
+                end
+
+            else
+                % no lock file - create
+                FID = fopen(LockFile, 'w');
+                fprintf(FID,'%d',Pid);
+                fclose(FID);
+            end
+
+
+        end
+
+        function writeLog(Obj, Msg, Level, Args)
+            % write a log message to screen and log file
+            % Input  : - A pipeline.DemonLAST object.
+            %          - One of the following:
+            %            Char array containing message to print/log.
+            %            A cell array of messages.
+            %            As truct array with messages in the .Msg field.
+            %            An MException object.
+            %            Empty (do nothing).
+            %          - A LogLevel object with the specified message
+            %            level. See LogLeve.<tab> for options.
+            %            Default is LogLevel.Info
+            %          * ...,key,val,...
+            %            'WriteLog' - write log file. Default is true.
+            %            'WriteDev' - write to screen. Default is true.
+            %            'ConcatenateImageEmpty' - instead of N "image is empty" lines put out just a summary
+            % Output : null
+            % Author : Eran Ofek (Apr 2023)
+            
+            arguments
+                Obj
+                Msg
+                Level LogLevel           = LogLevel.Info; % All       Assert    Debug     DebugEx   Error     Fatal     Info      None      Perf      Test      unitTest  Verbose   Warnin
+                Args.WriteLog logical    = true;
+                Args.WriteDev logical    = false;
+                Args.ConcatenateImageEmpty logical = true;
+            end
+
+            if ~isempty(Msg)
+                if ischar(Msg)
+                    Lines{1} = Msg;
+                elseif isstruct(Msg)
+                    Lines = squeeze(struct2cell(Msg));
+                elseif isa(Msg, 'MException')
+                    Nst      = numel(Msg.stack);
+                    Lines    = cell(1+Nst,1);
+                    Lines{1} = sprintf('Exception: id=%s msg=%s',Msg.identifier, Msg.message);
+                    
+                    for Ist=1:1:Nst
+                        Lines{Ist+1} = sprintf('stack: Ind=%d; FunName=%s; line=%d',Ist, Msg.stack(Ist).name, Msg.stack(Ist).line);
+                    end
+                elseif iscell(Msg)
+                    % do nothing - already in cell format
+                    Lines = Msg;
+                else
+                    error('Unknown Msg option');
+                end
+                
+                %instead of N "image is empty" lines put out just a summary
+                NumEmpty = sum(contains(Lines, "image is empty"));
+                if NumEmpty > 0 && Args.ConcatenateImageEmpty
+                    Lines = {sprintf('%d empty images were not written', NumEmpty)};
+                end
+    
+                Nl = numel(Lines);
+                for Il=1:1:Nl
+                    Lines{Il} = {[Obj.HostName ': ' Lines{Il}]};
+                    if Args.WriteDev
+                        fprintf('%s\n', Lines{Il});
+                    end
+                    if Args.WriteLog
+                        Obj.Logger.msgLog(Level, Lines{Il});
+                    end
+                end
+            end
+        end
+
+        function Obj=setLogFile(Obj, Args)
+            % Set the log file name according to current date
+            % Input  : - A pipeline.DemonLAST object.
+            %          * ...,key,val,...
+            %            'ProjName' - Project name. If empty, read from
+            %                   system. Default is [].
+            %            'HostName' - Host name. If empty, get from OS
+            % Output : - A pipeline.DemonLAST object in which the Logger
+            %            property is updated with the log file name.
+            % Author : Eran Ofek (May 2023)
+
+            arguments
+                Obj
+                Args.ProjName = [];
+                Args.HostName = []; 
+            end
+
+            if isempty(Args.ProjName)
+            end
+
+            [~,~,~,~,ProjName,~]=getPath(Obj,'HostName',Args.HostName);
+
+            % AstroFileName, not FileNames (issue #1315)
+            FN = AstroFileName;
+            FN.ProjName = ProjName;
+            FN.julday2time(celestial.time.julday);
+            LogFileName = char(FN.genFile([], 'IsLog',true, 'Product','Pipeline'));
+            Path        = Obj.LogPath;
+            mkdir(Path);
+            LogFileName = fullfile(Path, LogFileName);
+
+            Obj.Logger.LogF.FileName = LogFileName;
+
+        end
+        
+        function SpecialArgs=specialInstruction(Obj, JD, InArgs, Args)
+            % Check for pipeline special instructions and modify arguments using new instructions
+            %   If the 'zSpecialInst.txt' file exist in the new/ dir, then
+            %   will be read. This file contains lines of:
+            %   D M Y HH MM SS Key Val, where Key is a main pipeline
+            %   argument name, and Val is its value.
+            %   E.g., 1 1 2023 10 0 0   SaveEpochProduct all
+            %   allways a last line of Inf JD is added.
+            %   The code checks if there are any special instructions for
+            %   the time range containing the JD input argument.
+            % Input  : - A pipeline.DemonLAST object
+            %          - Date [D M Y H M S] or JD in which to check if
+            %            there are any special instructions.
+            %          - A structure array of input argumnets passed to the
+            %            pipeline.
+            %          * ...,key,val,...
+            %            See code for options
+            % Output : - Updated structure array of input arguments.
+            % Author : Eran Ofek (Dec 2023)
+            % Example: SA=D.specialInstruction([2 1 2023], Args)
+
+            arguments
+                Obj
+                JD
+                InArgs
+                Args.InstructionFileName = 'zSpecialInst.txt';  % [D M Y HH MM SS  | SaveEpochProduct all/cat
+                Args.InstTable           = [];
+            end
+
+            if numel(JD)>1
+                JD = celestial.time.julday(JD);
+            end
+
+            if isempty(Args.InstTable)
+                InstFile = fullfile(Obj.NewPath, Args.InstructionFileName);
+                if isfile(InstFile)
+                    T        = readtable(InstFile);
+                else
+                    T        = [];
+                end
+            else
+                T        = Args.InstTable;
+            end
+
+            SpecialArgs = InArgs;
+            if isempty(T)
+                % do nothing
+            else
+                TableJD  = celestial.time.julday([T.Var1 T.Var2 T.Var3 T.Var4 T.Var5 T.Var6]);
+                TableJD  = [TableJD; Inf];
+                Flag     = JD>TableJD(1:end-1) & JD<TableJD(2:end);
+    
+                if any(Flag)
+                    if sum(Flag)>1
+                        error('InstFile=%s contains conflicting dates',InstFile);
+                    end
+                    Ncol = size(T,2);
+                    
+                    I = 0;
+                    for Icol=7:2:Ncol
+                        I = I + 1;
+                        Tmp1 = table2array(T(Flag,Icol));
+                        Tmp2 = table2array(T(Flag,Icol+1));
+                        I = I + 1;
+                        SpecialArgs.(Tmp1{1}) = Tmp2{1};
+                    end
+                else
+                    % do nothing
+                end
+            end
+
+        end
+    
+        function updateRedis(Obj, Key, Val, Args)
+            % Update the Redis DB with Key and Val
+            % Input  : - self.
+            %          - Keyword. E.g. 'last03e.pipeline.num_images'
+            %          - Value (string).
+            %          * ...,key,val,...
+            %            'UpdateRedis' - Operate if true. Default is true.
+            %            'ExpireTime' - Default is 1000 s.
+            % Output : null.
+            % Example: Obj.updateRedis('last03e.pipeline.num_image, sprintf('%d',Nimages));
+
+            arguments
+                Obj
+                Key
+                Val
+                Args.UpdateRedis = true;
+                Args.ExpireTime  = 1000;
+            end
+
+            if Args.UpdateRedis
+                try
+                    % Check if Redis object already exist and alive
+                    if isempty(Obj.RedisPV)
+                        % Create the Redis object
+                        Obj.RedisPV = Redis('localhost', 6379, 'password', 'foobared'); % password probably not needed on last nodes
+                    end
+                    
+                    % Check that Redis is connected
+                    % FFU
+                    
+                    % Get Unix time
+                    UnixTime = posixtime(datetime("now","TimeZone","UTC"));
+                    
+                    Obj.RedisPV.hset(Key, 't',UnixTime, 'v',jsonencode(Val));
+                    Obj.RedisPV.expire(Key,Args.ExpireTime);
+                catch ME
+                    ErrorMsg = sprintf('Connection or ingestion to Redis DB failed: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, MEs.stack(1).line);
+                    Obj.writeLog(ErrorMsg, LogLevel.Error); 
+                    Obj.writeLog(ME, LogLevel.Info); 
+                end
+            end
+
+        end
+    end
+
+    methods % cleanup utilities
+        function moveRaw2New_AndDeleteProc(Obj, Args)
+            % Move raw images back to new/ dir and delete the proc/ dir
+            % Input  : - see code for options
+            % Output : null
+            % Author : Eran Ofek (Feb 2024)
+            % Example: D=pipeline.DemonLAST;
+            %          D.DataDir = 1 % 2
+            %          D.moveRaw2New_AndDeleteProc
+
+            arguments
+                Obj
+                Args.YearList  = {'2023','2024'};
+                
+                Args.StartJD       = -Inf;           % refers only to Science observations: JD, or [D M Y]
+                Args.EndJD         = Inf; 
+
+                Args.DeleteFocus logical   = true;
+                Args.DeleteProc logical    = true;
+                Args.DeleteRawDir logical  = true;
+            end
+
+            cd(Obj.BasePath);
+            
+            if numel(Args.StartJD)>1
+                Args.StartJD = celestial.time.julday(Args.StartJD);
+            end
+            if numel(Args.EndJD)>1
+                Args.EndJD = celestial.time.julday(Args.EndJD);
+            end
+
+
+            Nyear = numel(Args.YearList);
+            for Iy=1:1:Nyear
+                cd(Args.YearList{Iy});
+                
+                DirMonth = io.files.dirDir;
+                Nm       = numel(DirMonth);
+                for Im=1:1:Nm
+                    cd(DirMonth(Im).name);
+
+                    DirDay   = io.files.dirDir;
+                    Nd       = numel(DirDay);
+
+                    for Id=1:1:Nd
+                        cd(DirDay(Id).name);
+
+                        %Simone: loop to check daterange and unpack .fz
+                        %files before moving
+                        if ~isempty(Args.StartJD)
+                            % Check if date is in allowed range (in
+                            % DateRange)
+                            FN_JD  = celestial.time.julday([str2num(DirDay(Id).name) str2num(DirMonth(Im).name) str2num(Args.YearList{Iy})]);
+                            
+                            FlagJD = FN_JD>Args.StartJD & FN_JD<Args.EndJD;
+                            %disp([FlagJD Args.StartJD Args.EndJD FN_JD])
+                            if FlagJD
+      
+                                Execute = true; 
+                            else
+                                Execute = false;
+                            end
+                        else
+                            Execute = false;
+                        end
+
+                        if isfolder('raw') && Execute
+                            cd ('raw');
+                            
+                            if Args.DeleteFocus
+                                delete('LAST*focus*.fits');
+                            end
+                            
+                            % funpack images...
+                            CompFiles = dir('*.fz');
+                            if ~isempty(CompFiles)
+                                for k = 1:length(CompFiles)
+                                    baseFileName = CompFiles(k).name;
+
+                                    system(append('funpack ',baseFileName))
+
+                                end
+                            end
+
+                            % move raw to new
+                            !mv LAST*.fits ../../../../new/.
+
+                            %List=io.files.filelist('LAST*.fits', 'UseRegExp',false, 'AddPath',false);
+                            %io.files.moveFiles(List,[],'',Obj.NewPath);
+
+                            cd ..
+                            % delete raw dir
+                            if Args.DeleteRawDir
+                                %rmdir('raw');
+                                !rm -rf raw/
+                            end
+                        end
+
+                        if Args.DeleteProc
+                            if isfolder('proc')
+                                %rmdir('proc','s');
+                                !rm -rf proc/
+                            end
+                        end
+                        cd ..
+                    end
+                    cd ..
+                end
+                cd ..
+            end
+        end
+        
+        function removeUnderlineFromFileName(Obj, Args)
+            % Remove _ from file name and fix header
+            % Input  : - A pipeline.DemonLAST object
+            %          * ...,key,val,...
+            %            See code.
+            % Output : null
+            % Author : Eran Ofek (Mar 2024)
+            
+            arguments
+                Obj
+                Args.BasePath          = [];
+                Args.Nsplit            = 10;
+                Args.UnderLine         = '_';
+                Args.Modify logical    = false;
+            end
+            
+            PWD = pwd;
+            
+            cd(Obj.NewPath);
+            
+            List = io.files.filelist('LAST*.fits');
+            List = io.files.removeFilePath(List);
+            
+            Nlist = numel(List);
+            Count = 0;
+            for Ilist=1:1:Nlist
+                Tmp = split(List{Ilist}, Args.UnderLine);
+                if (numel(Tmp)-1)~=Args.Nsplit
+                    % file name problem
+                    if (numel(Tmp)-1)==(Args.Nsplit+1)
+                        
+                        Count = Count + 1;
+                        if Args.Modify
+                            FieldID = sprintf('%s%s', Tmp{4}, Tmp{5});
+                            TmpNew  = [Tmp(1:3); FieldID; Tmp(6:end)];
+
+                            NewFileName = join(TmpNew, Args.UnderLine);
+                            OldFileName = List{Ilist};
+
+                            % delete OBJECT key
+                            FITS.delete_keys(OldFileName,'OBJECT');
+                            % add OBJECT key
+                            FITS.write_keys(OldFileName, {'OBJECT',FieldID,''});
+
+                            % delete FILENAME
+                            try
+                                FITS.delete_keys(OldFileName,'FILENAME');
+                                % add FILENAME key
+                                FITS.write_keys(OldFileName, {'FILENAME',NewFileName,''});
+                            end
+                            % move file
+                            io.files.moveFiles(OldFileName, NewFileName);
+                        end
+                        
+                    else
+                        error('Unknown problem with file name %s',List{Ilist});
+                    end
+            
+                end
+            end
+            
+            cd(PWD);
+            
+        end
+        
+    end
+    
+    methods (Static)  % find all files
+        function Result=findAllVisitsDir(Args)
+            % Get all proc visits directories under some base path
+            % Input  : * ...,key,val,...
+            %            'BasePath' - Default is '/marvin/LAST.01.01.01'
+            %            'YearPat' - Year pattern to scan. Default is '20*'.
+            %            'MinNfile' - Min. number of images in visit.
+            %                   Default is 10.
+            % Output : - A strings array of dir names.
+            % Author : Eran Ofek (Jun 2025)
+            % Example: S=pipeline.DemonLAST.findAllVisitsDir;
+
+            arguments
+                Args.BasePath             = '/marvin/LAST.01.01.01';
+                Args.YearPat              = '20*';
+                Args.MinNfile             = 10;
+            end
+
+            D = pipeline.DemonLAST;
+            D.BasePath = Args.BasePath;
+            
+            [St] = D.findAllVisits('YearPat',Args.YearPat, 'MinNfile',Args.MinNfile, 'ReadHeader',false);
+            
+            Nst = numel(St);
+            Result = strings(1,Nst);
+            for Ist=1:1:Nst
+                Result{Ist} = fullfile(St(Ist).BasePath, St(Ist).Year, St(Ist).Month, St(Ist).Day, 'proc', St(Ist).Visit);
+            end
+
+        end
+
+        function AI=readCalibFrames(FileList)
+            % (Static) Read raw calibration frames (dark/flat) into an AstroImage,
+            %   handling tile-compressed (.fz/.gz) input.
+            %   Reading a .fits.fz with matlab.io.fits returns the compressed
+            %   container's header instead of the image header, which later
+            %   breaks the master write (CFITSIO 407). Compressed input is thus
+            %   read with the mex reader and the container keywords are removed
+            %   (issues #1248, #1323). The input HDU checksums are removed in
+            %   any case - they are stale for the master (issue #1324).
+            % Input  : - A cell array of file names.
+            % Output : - An AstroImage array.
+            % Author : A.M. Krassilchtchikov (Sep 2026)
+            % Example: AI = pipeline.last.pipes.PipelineDemon.readCalibFrames(FlatList);
+
+            ContainerKeys = {'XTENSION','PCOUNT','GCOUNT','TFIELDS','EXTNAME','TTYPE1','TFORM1',...
+                             'ZIMAGE','ZSIMPLE','ZBITPIX','ZNAXIS','ZNAXIS1','ZNAXIS2',...
+                             'ZTILE1','ZTILE2','ZCMPTYPE','ZNAME1','ZVAL1','ZNAME2','ZVAL2',...
+                             'ZQUANTIZ','ZDITHER0','ZTENSION','ZPCOUNT','ZGCOUNT','ZTHEAP',...
+                             'ZHECKSUM','ZDATASUM'};
+
+            IsCompressed = any(endsWith(string(FileList), [".fz",".gz"]));
+            AI = AstroImage(FileList, 'UseMex',IsCompressed);
+            DelKeys = {'CHECKSUM','DATASUM'};
+            if IsCompressed
+                DelKeys = [DelKeys, ContainerKeys];
+            end
+            for Iim=1:1:numel(AI)
+                AI(Iim).HeaderData.deleteKey(DelKeys, 'UseRegExp',false);
+            end
+        end
+    end
+
+    
+    methods % ref image utilities
+         function Path=populateRefPath(Obj, Args)
+            % Get path for reference imags location on the LAST computers
+            % Input  : - A pipeline.DemonLAST object
+            %          * ...,key,val,...
+            %            'HostName' - HostName. If empty, get it from OS.
+            %                   Default is [].
+            %            'DefRefPath' - Reference path above the host name.
+            %                   Default is 'data/references'.
+            % Output : - Base path for reference images dir.
+            % Author : Eran Ofek (Oct 2023)
+            % Example: Path=D.populateRefPath
+            
+            arguments
+                Obj
+                Args.HostName     = [];
+                Args.DefRefPath   = 'data/references';
+            end
+            
+            if isempty(Args.HostName)
+                HostName = tools.os.get_computer;
+            else
+                HostName = Args.HostName;
+            end
+            
+            Path = fullfile(filesep, HostName, Args.DefRefPath);
+        end
+
+        function [Path, File, AI] = getRefImage(Obj, Args)
+            % Get reference images corresponding to some field
+            % Input  : * ...,key,val,...
+            %            'FN' - Either [], a file name char array,
+            %                   a cell array of char arrays, or a FileNames
+            %                   object.
+            %                   If empty, then the image details are provided
+            %                   in the other argumnets.
+            %                   If given, then the other argumnets are
+            %                   overwritten.
+            %                   Default is [].
+            %            'Camera' - Camera index. Default is 1.
+            %            'Filter' - Filter name. Default is 'clear'.
+            %            'CropID' - CropID. If empty, then will attemt to
+            %                   read all possible crop IDs.
+            %                   default is [].
+            %            'Version' - Ref. version. If Inf, then will
+            %                   attempt to read the latest available
+            %                   version.
+            %                   Default is Inf.
+            %            'AddProduct' - Add the following products to the
+            %                   AstroImage, in addition to the 'Image' product.
+            %                   Default is {'Mask','Cat','PSF'}
+            %            'RefPath' - RefPath (to overwrite the object
+            %                   Refpath). If empty, then will use the
+            %                   object RefPath.
+            %                   Default is [].
+            % Output : - Path for the reference images.
+            %          - File names of the refernce images.
+            %          - An AstroImage object with all the ref images.
+            % Author : Eran Ofek & Nora (Oct 2023)
+            % Example:
+            %
+            % FN=FileNames.generateFromFileName({'LAST.01.01.01_20220826.182338.681_clear_297+41_20_001_021_sci_proc_Image_001.fits'});
+            % D=pipeline.DemonLAST;
+            % [Path,File,AI]=D.getRefImage('FN',FN)
+            % or
+            % [Path,File,AI]=D.getRefImage('Camera',1,'CropID',10,'FieldID',1220)
+            
+            arguments
+                
+                Obj
+                Args.FN           = []; % FileNames object
+                Args.Camera       = 1;
+                Args.Filter       = 'clear';
+                Args.FieldID      = []; % ID or RA+Dec str
+                Args.CropID       = [];
+                Args.Version      = Inf;
+                
+                Args.AddProduct   = {'Mask','Cat','PSF'};  
+                Args.RefPath      = [];
+            end
+            
+            
+            % FN is provided - overwrite other argumnets
+            if ~isempty(Args.FN)
+                if ~isa(Args.FN, 'FileNames')
+                    Args.FN = FileNames.generateFromFileName(Args.FN);
+                end
+                
+
+                Args.Filter   = Args.FN.Filter;
+                Args.FieldID  = Args.FN.FieldID;
+                Args.CropID   = Args.FN.CropID;
+                Args.Version  = Args.FN.Version;
+                
+                Args.Camera   = pipeline.DemonLAST.getCamNumFromProjName(Args.FN.ProjName{1});  % return a number
+                
+            end
+            
+            if isempty(Args.RefPath)
+                Args.RefPath = Obj.RefPath;
+            end
+            
+            
+            if ~isnumeric(str2double(Args.FieldID))
+                % FieldID is likely in RA+Dec str - convert to FieldID
+                % index
+                [Args.FieldID, ~, ~] = pipeline.DemonLAST.searchFieldLAST(Obj.FieldList, Args.FieldID);
+                
+            elseif ~isnumeric(Args.FieldID)
+                Args.FieldID = str2double(Args.FieldID);
+            end
+                               
+            Path = fullfile(Args.RefPath, string(Args.FieldID), sprintf('%d',Args.Camera));
+            
+            if nargout>1
+                % construct FileName using a FileNames object
+                % treat Version=Inf as the last available version
+                %RefFN = copy(Args.FN);
+                RefFN = FileNames;
+                RefFN.ProjName = {'LAST.01*'};
+                RefFN.Time = {'*'};
+                RefFN.FieldID = {string(Args.FieldID)};
+                RefFN.Counter = 1;
+                RefFN.Level = 'coadd';
+                RefFN.FullPath = Path;
+                RefFN.CCDID = 1;
+                RefFN.CropID = Args.CropID;
+                
+                
+                % check whether reference image exists
+                AbsFile = fullfile(Path, RefFN.genFile);
+                RefName = dir(AbsFile);
+                
+                if isempty(RefName)
+                    File = [];
+                    AI = [];
+                    fprintf('No reference image found.')
+                    return;
+                elseif length(RefName)>1
+                    fprintf('Found several reference images. Using the first one.')
+                    File = RefName.name;
+                else
+                    % do nothing
+                    File = RefName.name;
+                end
+                
+                if nargout>2
+                    % read all files into an AstroImage object
+                    FullRefName = char(fullfile(Path, File));
+                    RefFN = FileNames.generateFromFileName(FullRefName);
+                    RefFN.FullPath = Path;
+
+                    AI = AstroImage.readFileNamesObj(RefFN,'AddProduct',Args.AddProduct);
+                    
+                    
+                end
+            end
+            
+        end     
+        
+    end
+
+
+    methods % preperations
+        function DB = connectDB(Obj, Args)
+            % Prepare and connect to local DB
+            % Input  : - self.
+            %          - demon ARgs structure
+            % Output : - db.Db object
+            % Author : Eran Ofek (Sep 2025)
+            
+            try
+                if Args.Insert2DB
+
+                    Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+                    PM = PasswordsManager;    
+    
+                
+                    if isempty(Args.DB)
+
+                        DB          = db.Db;
+                        DB.Host     = Args.DBHost;
+                        DB.DbName   = Args.DbName;
+                        DB.User     = Args.DbUser;
+                        DB.Password = PM.search(Args.DbName).Pass;
+                        DB.connect;
+                    else
+                        DB = Args.DB;
+                        
+                    end
+                
+
+                    if DB.isConnected
+                        MsgLog = 'DB connected sucessfully';
+                        LogL = LogLevel.Info;
+                    else
+                        MsgLog = 'DB connection failed';
+                        LogL = LogLevel.Error;
+                        DB = [];
+                    end
+                else
+                    MsgLog = 'DB InsertTransients2DB is false';
+                    LogL = LogLevel.Info;
+                    DB = [];
+                end
+            catch ME_DB
+                Obj.writeLog(ME_DB, LogLevel.Error);
+                DB = [];
+            end
+          
+        end
+
+
+        function [Args] = prepSolarSystemEphem(Obj, Args)
+            % Populate GeoPos, OrbEl, INPOP arguments
+            % Input  : - self
+            %          - The demon Args structure
+            % Output : - The updated demon Args structure
+            % Author : Eran Ofek (Jun 2025)
+
+            RAD = 180./pi;
+
+            if isempty(Args.GeoPos)
+                ObsCooSt = celestial.earth.observatoryCoo('Name','LAST');
+                Args.GeoPos = [ObsCooSt.Lon./RAD, ObsCooSt.Lat./RAD, ObsCooSt.Height];
+            end
+            if isempty(Args.OrbEl)
+                Args.OrbEl  = celestial.OrbitalEl.loadSolarSystem('merge');
+            end
+            if isempty(Args.INPOP)
+                Args.INPOP = celestial.INPOP;
+                Args.INPOP.populateTables('all', 'MaxOrder',5);
+                Args.INPOP.populateTables({'Ear','Sun'}, 'FileData','vel', 'MaxOrder',5);
+            end
+        end
+    
+        function Args = prepPath(Obj, Args)
+            % Path preparations
+            % Input  : - self
+            %          - Args structure.
+            % Output : - Updated Args structure
+            % Author : Eran Ofek (Sep 2025)
+        
+            switch Args.ReductionMode
+                case 'last'
+                    % do nothing
+                case 'local'
+                    if isempty(Args.CalibPath)
+                        % use CalibBasePath - the project name is taken from NewPath
+                        if isempty(Args.NewPath)
+                            error('prepPath: ReductionMode=''local'' requires NewPath (or an explicit CalibPath)');
+                        end
+                        SplittedNewPath = split(Args.NewPath, filesep);
+                        Fc  = contains(SplittedNewPath, 'LAST.');
+                        Ind = find(Fc, 1);
+                        if isempty(Ind)
+                            error('prepPath: no project name (LAST.*) found in NewPath: %s', Args.NewPath);
+                        end
+                        ProjName = SplittedNewPath{Ind};
+                        Args.CalibPath = fullfile(Args.CalibBasePath, ProjName, 'calib');
+                    end
+
+                    Obj.BasePath    = Args.LocalPath;
+                    Obj.NewPath     = Args.NewPath;
+                    Obj.CalibPath   = Args.CalibPath;
+                    Obj.LogPath     = fullfile(Args.LocalPath, 'log');
+                    Obj.FailedPath  = fullfile(Args.LocalPath, 'failed');
+                    % unset, the focus frames were "moved" onto themselves (issue #1312)
+                    Obj.FocusPath   = fullfile(Args.LocalPath, 'focus');
+                    if ~isempty(Args.RefPath)
+                        % if empty - auto detected (see populateRefPath)
+                        Obj.RefPath = Args.RefPath;
+                    end
+                case 'test'
+                    Obj.BasePath = sprintf('%s/matlab/data/pipeline/LAST',tools.os.get_userhome);
+                    if ~isempty(Args.RefPath)
+                        Obj.RefPath = Args.RefPath;
+                    end
+
+                otherwise
+                    error('Unknown ReductionMode option');
+            end
+        end
+
+
+        function cleanNewDir(Obj)
+            % Clean 0 size files and day time images
+
+            % remove files with zero size (claening)
+            Fsize0 = io.files.deleteZeroSizeFiles(true);
+            if numel(Fsize0)>0
+                warning('Files with zero size where found in new/ dir (N=%d) - deleted',numel(Fsize0));
+            end
+           
+            % remove day time images (non-dark)
+            Obj.deleteDayTimeImages;
+
+        end
+
+        function [IndStartGroup]=selectVisitForReduction(Obj, FN_Sci_Groups, Args)
+            % Select visit for reduction
+            % Input  : - self.
+            %          - AstroFileName objects of all identified groups
+            %          - Structure of arguments
+            % Output : - Index of selected visit for reduction
+            % Author : Eran Ofek (Sep 2025)
+
+            arguments
+                Obj
+                FN_Sci_Groups
+                Args
+            end
+            SEC_DAY = 86400;
+
+            % number of groups
+            NinGroup = FN_Sci_Groups.nFiles;
+            Ngroup   = numel(NinGroup);
+            if Ngroup==0
+                % wait for more images
+                pause(200);   % pause for 200 s (i.e., 10x20 s)
+                Skip        = true;
+            else
+                Skip = false;
+            end
+
+            %--- Chose visit for reduction ---
+            if ~Skip
+                % at least one group was found
+                IndStartGroup = find(NinGroup==Args.MaxInGroup, 1, 'first');
+            else
+                IndStartGroup = [];
+            end
+
+
+            if ~isempty(Args.ReduceVisitContainingImage)
+                % Select only the visit that contains this image name
+                IndStartGroup = find(FN_Sci_Groups.isFileInList(Args.ReduceVisitContainingImage),1);
+                if isempty(IndStartGroup)
+                    error('ReduceVisitContainingImage file name: %s was not found - Abort', Args.ReduceVisitContainingImage);
+                end
+            else
+            
+                if ~Skip && Ngroup>0 && isempty(IndStartGroup)
+                    % at least one group was found, but less than
+                    % Args.MaxInGroup (20) images in group.
+
+                    % A visit is regarded as finished only after this long
+                    % without a new image. Scaled with the exposure time, as
+                    % the pause below is: at 20 s it is the previous 60 s
+                    % (three cadences), while a hard 60 s would declare a
+                    % visit with longer exposures finished after one frame
+                    % (issue #641).
+                    StaleDay = max(60, 3.*Args.ExpTime)./SEC_DAY;
+
+                    MaxJDPerGroup = FN_Sci_Groups.juldayFun(@max);
+                    TimeSinceLastImage = celestial.time.julday() - MaxJDPerGroup;
+                    if Ngroup==1
+                        % get max JD of each sequence:
+
+                        if TimeSinceLastImage>StaleDay
+                            % check if there are enough images in visit
+                            if NinGroup(1)>=Args.MinInGroup
+                                % continue with current visit
+                                IndStartGroup = 1;
+                            end
+                        else
+                            % wait for more images
+                            pause((Args.MaxInGroup - NinGroup).*Args.ExpTime+5);
+                            Skip = true;
+                        end
+
+
+
+                        % if TimeSinceLastImage<(60./SEC_DAY)
+                        %     % Don't wait for more images
+                        % else
+                        %     % wait for more images
+                        %     pause((Args.MaxInGroup - NinGroup).*Args.ExpTime+5);
+                        %     Skip = true;
+                        % end
+                    else
+                        switch lower(Args.SortDirection)
+                            case 'ascend'
+                                IndStartGroup = Ngroup - 1;
+                            case 'descend'
+                                IndStartGroup = 2;
+                            otherwise
+                                Msg = sprintf('Unknown SortDirection option : %s', Args.SortDirection);
+                                Obj.writeLog(Msg, LogLevel.Error);
+            
+                                error('Unknown SortDirection option');
+                        end
+
+                        % The index above only avoids the newest group; it says
+                        % nothing about whether the chosen one is finished. Left
+                        % unchecked, a visit still being written was taken and
+                        % its remaining images were stranded in new/ for ever,
+                        % since a run shorter than MinInGroup is never regrouped.
+                        % Apply the same two tests as the single-group branch
+                        % above: take it only if it is complete, or has stopped
+                        % receiving images and holds enough of them (issue #641).
+                        if NinGroup(IndStartGroup)~=Args.MaxInGroup && ...
+                                ~(TimeSinceLastImage(IndStartGroup)>StaleDay && ...
+                                  NinGroup(IndStartGroup)>=Args.MinInGroup)
+                            % not finished - wait for the rest of the visit
+                            IndStartGroup = [];
+                        end
+
+                    end
+
+                end
+            end
+
+        end
+
+        function [Obj,Args]=prepArgs(Obj, Args)
+            % Prepare arguments for main pipeline function
+
+            %---Update input arguments ---
+            Args = Obj.prepPath(Args);
+           
+            % Update argumenst from configuration file:
+            Args = tools.args.updateParFromConfig(Args, Obj.Config, Args.ArgsConfigName);
+            
+            if isempty(Args.HostName)
+                Args.HostName = tools.os.get_computer;            
+            end
+            Obj.HostName = Args.HostName;
+
+
+            % Prepare and connect to DB:
+            Args.DB = connectDB(Obj, Args);
+
+
+            if Args.SelectKnownAsteroid
+                Args = Obj.prepSolarSystemEphem(Args);
+            end
+              
+           
+            % convert 'all'|'cat' to cell array of data products
+            Args.SaveEpochProduct = pipeline.DemonLAST.PrepSaveProductArg(Args.SaveEpochProduct);
+            Args.SaveVisitProduct = pipeline.DemonLAST.PrepSaveProductArg(Args.SaveVisitProduct);            
+
+
+            if numel(Args.StartJD)>1
+                Args.StartJD = celestial.time.julday(Args.StartJD);
+            end
+            if numel(Args.EndJD)>1
+                Args.EndJD = celestial.time.julday(Args.EndJD);
+            end
+            if Args.EndJD<0 && ~isinf(Args.EndJD)
+                Args.EndJD = Args.StartJD - Args.EndJD;
+                Args.StopWhenDone = true;
+            end
+
+
+        end
+    end
+
+
+    methods % sub pipelines
+        
+        function [Obj, FN, FN_Master]=prepMasterDark(Obj, Args)
+            % prepare master dark images
+            %   Given a (D=) pipeline.DemonLAST object select files in either
+            %   current dir or D.NewPath, and create master dark images
+            %   from images which belongs to the same counter series.
+            %   The function also checks if the last dark image was
+            %   obtained in the last 1minute, then wait for more images.
+            %   The master dark image, mask and variance are saved in the
+            %   D.CalibPath directory.
+            % Input  : - A ipeline.DemonLAST object.
+            %          * ...,key,val,...
+            %            'FilesList' - Files to select: either a file name
+            %                   template, or an AstroFileName or FileNames object
+            %                   (a FileNames object is converted to an
+            %                   AstroFileName). A caller-supplied object must carry
+            %                   its own path - that is what allows building a master
+            %                   from frames outside new/, e.g. when reprocessing an
+            %                   archived night.
+            %                   Default is '*dark*.fits*'.
+            %            'BiasArgs' - A cell array of additional arguments
+            %                   to pass to the CalibImages/createBias
+            %                   function. Default is {}.
+            %            'MinDT' - Minimum time since the last image was
+            %                   taken. Default is 1./1440 [days].
+            %            'WaitForMoreImages' - Wait time for additional
+            %                   images. Default is 10 [s].
+            %            'MinInGroup' - Minimum number of images in counter
+            %                   group from which to construct the master dark.
+            %                   Default is 9.
+            %            'move2newPath' - A logical indicating if to move
+            %                   to the D.NewPath before running the function.
+            %                   Default is true (i.e., working in current
+            %                   dir).
+            %            'Repopulate' - A logical indicating if to
+            %                   repopulate the dark image even if it is already
+            %                   exist.
+            %            'ClearVar' - Clear the Var image from the
+            %                   CalibImages. Default is true.
+            %            'Move2raw' - Move images to raw dir after
+            %                   processing. Default is true.
+            % Output : - A pipeline.DemonLAST with updated CI property.
+            %          - AstroFileName object of raw dark images.
+            %          - AstroFileName object of proc dark master image.
+            %          * Write files to disk
+            % Author : Eran Ofek (Apr 2023)
+            % Example: D = pipeline.DemonLAST;
+            %          D.CalibPath = <put here the output directory of the calibration images>
+            %          D.prepMasterDark
+
+            arguments
+                Obj
+                Args.FilesList            = '*dark*.fits*';
+                Args.BiasArgs             = {};
+                Args.MinDT                = 1./1440;  % [d]
+                Args.WaitForMoreImages    = 10;   % [s]
+                Args.MinInGroup           = 9;
+                Args.move2newPath logical = true;
+                Args.Repopulate logical   = true;
+                Args.ClearVar logical     = true;
+                Args.Move2raw logical     = true;
+            end
+
+            FN        = AstroFileName;   % nFiles==0; keeps the Move2raw guard below valid
+                                         % on the path where FN is never assigned (issue #1221)
+            FN_Master = [];
+            NoImages = false;
+            if Args.Repopulate || ~exist(Obj.CI,'Bias',{'Image','Mask'})
+                % create a master Bias
+
+                if Args.move2newPath
+                    cd(Obj.NewPath);
+                end
+    
+                WaitForMoreImages = true;
+                while WaitForMoreImages
+                    
+                    if isa(Args.FilesList,'AstroFileName') || isa(Args.FilesList,'FileNames')
+                        % use the caller-supplied object; its own path is kept,
+                        % which is what allows building a master from frames
+                        % outside new/ (issue #1221). A FileNames object is
+                        % converted to an AstroFileName (issue #1315)
+                        FN = Obj.toAstroFileName(Args.FilesList);
+                        WaitForMoreImages = false;
+                    else
+                        % generate file names
+                        % find all images in directory
+                        if ischar(Args.FilesList) || isstring(Args.FilesList)
+                            % a template: files whose name the parser rejects
+                            % go to failed/ (issue #1311)
+                            FN = Obj.listRawFiles(Args.FilesList);
+                        else
+                            FN = Obj.toAstroFileName(Args.FilesList);
+                        end
+                        FN.BasePath = Obj.BasePath;
+                        % BasePath includes the ProjName, as FileNames assumed
+                        FN.BasePathIncludeProjName = false;
+                    end
+    
+                    % identify new bias images
+                    [FN_Dark,Flag] = FN.selectByPropVal('Type', ["dark","bias"], 'Operator',@ismember, 'CreateNewObj',true);
+    
+                    % check that the dark images are ready and group by night
+                    [Ind, LastJD, DT] = selectLastJD(FN_Dark);
+                    if isempty(Ind)
+                        % no images
+                        WaitForMoreImages = false;
+                        NoImages = true;
+                    else
+                        if DT>Args.MinDT
+                            % prep master dark
+                            PrepMaster = true;
+                        else
+                            % wait for more images
+                            PrepMaster = false;
+                        end
+                    
+                        if PrepMaster==true
+                            WaitForMoreImages = false;
+                        else
+                            pause(Args.WaitForMoreImages)
+                        end
+                    end
+                end
+                
+                if ~NoImages
+                    % group dark images by time groups
+                    [~, FN_Dark_Groups] = groupByCounter(FN_Dark, 'MinInGroup',Args.MinInGroup);
+                    
+                    Ngr = numel(FN_Dark_Groups);
+                    if Ngr>0
+                        for Igr=1:1:Ngr
+                            DarkList = cellstr(FN_Dark_Groups(Igr).genFull([]));
+
+
+                            % prepare master bias
+                            CI = CalibImages;
+
+                            CI.createBias(Obj.readCalibFrames(DarkList), 'BiasArgs',Args.BiasArgs, 'Convert2single',true);
+
+                            % save processed bias images in raw/ dir
+
+                            %readFromHeader(FN_Dark_Groups(Igr), CI.Bias)
+
+
+                            %Obj = readFromHeader(, Input, DataProp
+
+                            % check if bias/dark is good
+                            if Obj.checkMasterDark(CI.Bias)
+
+                                % write file
+                                JD = CI.Bias.julday;
+                                FN_Master = Obj.masterFileName(CI.Bias, "dark", FN_Dark.ProjName(1));
+
+                                if ~isfolder(Obj.CalibPath)
+                                    mkdir(Obj.CalibPath);
+                                end
+
+
+                                % add ID to image
+                                [CI.Bias,ID]=imProc.db.generateImageID(CI.Bias, 'KeyID','ID_DARK');
+
+                                write1(CI.Bias, char(fullfile(Obj.CalibPath, FN_Master.genFile)), 'Image');
+                                FN_Master.Product  = "Mask";
+                                write1(CI.Bias, char(fullfile(Obj.CalibPath, FN_Master.genFile)), 'Mask');
+                                FN_Master.Product  = "Var";
+                                write1(CI.Bias, char(fullfile(Obj.CalibPath, FN_Master.genFile)), 'Var');
+
+                                % keep in CI.Bias 
+                                Obj.CI.Bias = CI.Bias;
+
+                                if Args.ClearVar
+                                    Obj.CI.Bias.Var = [];
+                                end
+                            end
+
+                        end
+                    else
+                        % read master image from disk
+                        Obj = Obj.loadCalib('ReadProduct',{'Bias'});
+                    end
+                else
+                    % read master image from disk
+                    Obj = Obj.loadCalib('ReadProduct',{'Bias'});
+                end
+            else % ~Repopulate...
+                % no need to create a Master bias - already exist       
+                % read master image from disk
+                Obj = Obj.loadCalib('ReadProduct',{'Bias'});
+            end
+
+            % check that was able to read master image
+            if ~Obj.CI.exist('Bias')
+                error('No Bias image found - can not run pipeline');
+            end
+            
+            if Args.Move2raw && FN.nFiles>0
+                Obj.moveCalibToRaw(FN);
+            end
+
+
+        end
+        
+        function [Obj, FN, FN_Master]=prepMasterFlat(Obj, Args)
+            % prepare master flat images
+            %   Given a (D=) pipeline.DemonLAST object select files in either
+            %   current dir or D.NewPath, and create master flat images
+            %   from images which belongs to the same counter series.
+            %   The function also checks if the last flat image was
+            %   obtained in the last 1minute, then wait for more images.
+            %   The master flat image, mask and variance are saved in the
+            %   D.CalibPath directory.
+            % Input  : - A ipeline.DemonLAST object.
+            %          * ...,key,val,...
+            %            'FilesList' - Files to select: either a file name
+            %                   template, or an AstroFileName or FileNames object
+            %                   (a FileNames object is converted to an
+            %                   AstroFileName). A caller-supplied object must carry
+            %                   its own path - that is what allows building a master
+            %                   from frames outside new/, e.g. when reprocessing an
+            %                   archived night.
+            %                   Default is '*flat*.fits*'.
+            %            'debiasArgs' - A cell array of additional
+            %                   arguments to pass to imProc.dark.debias.
+            %                   Default is {}.
+            %            'FlatArgs' - A cell array of additional arguments
+            %                   to pass to the CalibImages/createFlat
+            %                   function. Default is {}.
+            %            'MinDT' - Minimum time since the last image was
+            %                   taken. Default is 1./1440 [days].
+            %            'WaitForMoreImages' - Wait time for additional
+            %                   images. Default is 10 [s].
+            %            'MinInGroup' - Minimum number of images in counter
+            %                   group from which to construct the master flat.
+            %                   Default is 6.
+            %            'move2newPath' - A logical indicating if to move
+            %                   to the D.NewPath before running the function.
+            %                   Default is false (i.e., working in current
+            %                   dir).
+            %            'Repopulate' - A logical indicating if to
+            %                   repopulate the dark image even if it is already
+            %                   exist.
+            %            'ClearVar' - Clear the Var image from the
+            %                   CalibImages. Default is true.
+            %            'Move2raw' - Move images to raw dir after
+            %                   processing. Default is true.
+            %            'Convert2single' - A logical indicating if to
+            %                   convert the images to single. Default is true.
+            %            'OverWrite' - Over write files.
+            %                   Default is true.
+            % Output : - A pipeline.DemonLAST with updated CI property.
+            %          - AstroFileName object of raw flat images.
+            %          - AstroFileName object of proc flat master image.
+            %          * Write files to disk
+            % Author : Eran Ofek (Apr 2023)
+            % Example: D = pipeline.DemonLAST;
+            %          D.CalibPath = <put here the output directory of the calibration images>
+            %          D.D.prepMasterFlat
+
+            arguments
+                Obj
+                Args.FilesList   = '*flat*.fits*';
+                Args.BiasImage   = [];  % if not given use Demon.CI
+                Args.debiasArgs  = {};
+                Args.FlatArgs    = {};
+                Args.MinDT       = 1./1440;  % [d]
+                Args.WaitForMoreImages = 10;   % [s]
+                Args.MinInGroup  = 6;
+                Args.move2newPath logical = false;
+                Args.Repopulate logical   = true;
+                Args.ClearVar logical     = true;
+                Args.Move2raw logical     = true;
+                Args.Convert2single logical = true;
+                Args.OverWrite logical      = true;
+            end
+
+            if ~exist(Obj.CI, 'Bias',{'Image','Mask'})
+                error('Can not execute prepMasterFlat without bias/dark images');
+            end
+
+            PWD = pwd;
+            cd(Obj.NewPath);
+
+            FN        = AstroFileName;   % nFiles==0; keeps the Move2raw guard below valid
+                                         % on the path where FN is never assigned (issue #1221)
+            FN_Master = [];
+            NoImages = false;
+            if Args.Repopulate || ~exist(Obj.CI,'Flat',{'Image','Mask'})
+                % create a master Flat
+
+                if Args.move2newPath
+                    cd(Obj.NewPath);
+                end
+    
+                WaitForMoreImages = true;
+                while WaitForMoreImages
+                    
+                    if isa(Args.FilesList,'AstroFileName') || isa(Args.FilesList,'FileNames')
+                        % use the caller-supplied object; its own path is kept,
+                        % which is what allows building a master from frames
+                        % outside new/ (issue #1221). A FileNames object is
+                        % converted to an AstroFileName (issue #1315)
+                        FN = Obj.toAstroFileName(Args.FilesList);
+                        WaitForMoreImages = false;
+                    else
+                        % generate file names
+                        % find all images in directory
+                        if ischar(Args.FilesList) || isstring(Args.FilesList)
+                            % a template: files whose name the parser rejects
+                            % go to failed/ (issue #1311)
+                            FN = Obj.listRawFiles(Args.FilesList);
+                        else
+                            FN = Obj.toAstroFileName(Args.FilesList);
+                        end
+                        FN.BasePath = Obj.BasePath;
+                        % BasePath includes the ProjName, as FileNames assumed
+                        FN.BasePathIncludeProjName = false;
+                    end
+    
+                    % identify new flat images
+                    [FN_Flat,Flag] = FN.selectByPropVal('Type', ["twflat","flat"], 'Operator',@ismember, 'CreateNewObj',true);
+    
+                    % check that the dark images are ready and group by night
+                    [Ind, LastJD, DT] = selectLastJD(FN_Flat);
+                    if isempty(Ind)
+                        % no images
+                        WaitForMoreImages = false;
+                        NoImages = true;
+                    else
+                        if DT>Args.MinDT
+                            % prep master dark
+                            PrepMaster = true;
+                        else
+                            % wait for more images
+                            PrepMaster = false;
+                        end
+                    
+                        if PrepMaster==true
+                            WaitForMoreImages = false;
+                        else
+                            pause(Args.WaitForMoreImages)
+                        end
+                    end
+                end
+                
+                % group flat images time
+
+                if ~NoImages
+
+                    [~, FN_Flat_Groups] = groupByTimeGaps(FN_Flat, 'MinInGroup',Args.MinInGroup);
+                    
+                    Ngr = numel(FN_Flat_Groups);
+                    if Ngr>0
+                        for Igr=1:1:Ngr
+                            FlatList = cellstr(FN_Flat_Groups(Igr).genFull([]));
+
+
+                            % prepare master flat
+
+                            % read the images
+                            AI = Obj.readCalibFrames(FlatList);
+
+                            % subtract bias/dark
+                            if Args.Convert2single
+                                AI.cast('single');
+                            end
+                            AI = imProc.dark.debias(AI, Obj.CI.Bias, Args.debiasArgs{:});
+
+                            CI = CalibImages;
+
+                            CI.createFlat(AI, 'FlatArgs',Args.FlatArgs, 'Convert2single',true);
+
+                            % check if flat is good
+                            if Obj.checkMasterFlat(CI.Flat)
+
+                                % write file
+                                JD = CI.Flat.julday;
+                                FN_Master = Obj.masterFileName(CI.Flat, "twflat", FN_Flat.ProjName(1));
+
+                                % add ID to image
+                                [CI.Flat,ID]=imProc.db.generateImageID(CI.Flat, 'KeyID','ID_FLAT');
+
+                                write1(CI.Flat, char(fullfile(Obj.CalibPath, FN_Master.genFile)), 'Image', 'Overwrite',Args.OverWrite);
+                                FN_Master.Product  = "Mask";
+                                write1(CI.Flat, char(fullfile(Obj.CalibPath, FN_Master.genFile)), 'Mask', 'Overwrite',Args.OverWrite);
+                                FN_Master.Product  = "Var";
+                                write1(CI.Flat, char(fullfile(Obj.CalibPath, FN_Master.genFile)), 'Var', 'Overwrite',Args.OverWrite);
+
+                                % keep in CI.Bias 
+                                Obj.CI.Flat = CI.Flat;
+
+                                if Args.ClearVar
+                                    Obj.CI.Flat.Var = [];
+                                end
+                            end % if Obj.checkMasterFlat(CI.Flat)
+                        end % for Igr=1:1:Ngr
+                        if isempty(FN_Master)
+                            Obj = Obj.loadCalib('ReadProduct',{'Flat'});
+                        end
+                    else
+                        % read master image from disk
+                        Obj = Obj.loadCalib('ReadProduct',{'Flat'});
+                    end % if Ngr>0
+                    
+                else
+                    % read master image from disk
+                    Obj = Obj.loadCalib('ReadProduct',{'Flat'});
+                end
+            else
+                % no need to create a Master bias - already exist
+                % read master image from disk
+                Obj = Obj.loadCalib('ReadProduct',{'Flat'});
+            end
+
+            % check that was able to read master image
+            if ~Obj.CI.exist('Flat')
+                error('No Flat image found - can not run pipeline');
+            end
+            
+            if Args.Move2raw && FN.nFiles>0
+                Obj.moveCalibToRaw(FN);
+            end
+
+            cd(PWD);
+        end
+        
+        function [Flag, Info,AI]=checkMasterDark(Obj, AI, Args)
+            % Check if MasterDark image is good
+            % Input  : - A pipeline.DemonLAST object
+            %          - Either an AstroImage containing dark image,
+            %            or a char array of template file name. Will look
+            %            for files in the CalibPath dir.
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - A vector of logical flags indicating, for each
+            %            image, if its good dark image.
+            %          - A structure array with information per image.
+            % Author : Eran Ofek (Feb 2024)
+            % Example: D.checkMasterDark;  % check all images in Calib dir
+            %          D.checkMasterDark(D.CI.Bias) % check current dark
+            
+            arguments
+                Obj
+                AI                = 'LAST*_dark_proc_Image*.fits';
+                Args.MedianRange  = [20 200];
+                Args.RStdRange    = [1 3];
+                Args.StdRange     = [0 60];
+                Args.MaxNaN       = 20000;
+            end
+            
+            PWD = pwd;
+            cd(Obj.CalibPath);
+            if ischar(AI) || isstring(AI)
+                % a file name or template in CalibPath: AstroFileName, not
+                % FileNames (issue #1315)
+                if any(contains(string(AI), '*'))
+                    AI = AstroImage.readFileNamesObj(AstroFileName.dir(AI));
+                else
+                    AI = AstroImage.readFileNamesObj(Obj.toAstroFileName(AI));
+                end
+            else
+                % AI is supplied by user
+            end
+            
+            Nai = numel(AI);
+            Flag = false(Nai,1);
+            for Iai=1:1:Nai
+                Info(Iai).Median  = imProc.stat.median(AI(Iai));
+                Info(Iai).Std     = imProc.stat.std(AI(Iai));
+                Info(Iai).RStd    = imProc.stat.rstd(AI(Iai));
+                Info(Iai).CountNaN = sum(isnan(AI(Iai).Image(:)));
+                
+                Info(Iai).FileName = AI(Iai).ImageData.FileName;
+                if Info(Iai).Median>Args.MedianRange(1) && Info(Iai).Median<Args.MedianRange(2) && ...
+                        Info(Iai).Std>Args.StdRange(1) && Info(Iai).Std<Args.StdRange(2) && ...
+                        Info(Iai).RStd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2) && ...
+                        Info(Iai).CountNaN<Args.MaxNaN
+                    Flag(Iai) = true;
+                end
+                    
+            end
+                            
+            
+            cd(PWD);
+        end
+        
+        function [Flag, Info,AI]=checkMasterFlat(Obj, AI, Args)
+            % Check if MasterFlat image is good
+            % Input  : - A pipeline.DemonLAST object
+            %          - Either an AstroImage containing flat image,
+            %            or a char array of template file name. Will look
+            %            for files in the CalibPath dir.
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - A vector of logical flags indicating, for each
+            %            image, if its good flat image.
+            %          - A structure array with information per image.
+            % Author : Eran Ofek (Feb 2024)
+            % Example: D.checkMasterFlat;  % check all images in Calib dir
+            %          D.checkMasterFlat(D.CI.Flat) % check current flat
+            
+            arguments
+                Obj
+                AI                = 'LAST*_twflat_proc_Image*.fits';
+                Args.MedianRange  = [0.95 1.05];
+                Args.RStdRange    = [0.01 0.05];
+                Args.StdRange     = [0 1];
+                Args.MaxNaN       = 1000;
+                Args.OverScanWidth= 24;
+                Args.MaxAbsGrad   = 0.05;
+                Args.MaxNmaxGrad  = 50000;
+            end
+            
+            PWD = pwd;
+            if ~isempty(Obj.CalibPath)
+                cd(Obj.CalibPath);
+            end
+            if ischar(AI) || isstring(AI)
+                % a file name or template in CalibPath: AstroFileName, not
+                % FileNames (issue #1315)
+                if any(contains(string(AI), '*'))
+                    AI = AstroImage.readFileNamesObj(AstroFileName.dir(AI));
+                else
+                    AI = AstroImage.readFileNamesObj(Obj.toAstroFileName(AI));
+                end
+            else
+                % AI is supplied by user
+            end
+            
+            Nai = numel(AI);
+            Flag = false(Nai,1);
+            for Iai=1:1:Nai
+                Info(Iai).Median  = imProc.stat.median(AI(Iai));
+                Info(Iai).Std     = imProc.stat.std(AI(Iai));
+                Info(Iai).RStd    = imProc.stat.rstd(AI(Iai));
+                Info(Iai).CountNaN = sum(isnan(AI(Iai).Image(Args.OverScanWidth+1:end,:)),'all');
+
+                [Gx] = gradient(AI(Iai).Image);
+                NmaxGrad = sum(abs(Gx(:))>Args.MaxAbsGrad);
+                Info(Iai).NmaxGrad = NmaxGrad;
+
+                Info(Iai).FileName = AI(Iai).ImageData.FileName;
+                if Info(Iai).Median>Args.MedianRange(1) && Info(Iai).Median<Args.MedianRange(2) && ...
+                        Info(Iai).Std>Args.StdRange(1) && Info(Iai).Std<Args.StdRange(2) && ...
+                        Info(Iai).RStd>Args.RStdRange(1) && Info(Iai).RStd<Args.RStdRange(2) && ...
+                        Info(Iai).CountNaN<Args.MaxNaN && Info(Iai).NmaxGrad<Args.MaxNmaxGrad
+                    Flag(Iai) = true;
+                end
+                    
+            end
+                            
+            
+            cd(PWD);
+        end
+        
+
+        function Obj=loadCalib(Obj, Args)
+            % load CalibImages into the pipeline.DemonLAST object
+            % Input  : - A pipeline.DemonLAST object.
+            %          * ...,key,val,...
+            %            'CalibPath' - A path to the calib images. If
+            %                   empty, use the object CalibPath property.
+            %                   Default is [].
+            %            'ReadProduct' - A cell array of products to read.
+            %                   Default is {'bias','flat'}.
+            %            'BiasTemplate' - File name template of bias images.
+            %                   Default is '*dark_proc_Image*.fits'.
+            %            'FlatTemplate' - File name template of flat images.
+            %                   Default is '*flat_proc_Image*.fits'.
+            %            'AddImages' - Additional products to be loaded, in
+            %                   addition to the 'Image' product.
+            %                   Default is {'Mask'}.
+            %            'BiasNearJD' - If given this is a date [D M Y [H M S]]
+            %                   or JD, and will select the nearest in time
+            %                   bias file.
+            %                   Default is [].
+            %            'FlatNearJD' - Like 'BiasNearJD', but for flat
+            %                   file. Default is [].
+            %            'ForceReload' - A logical indicating if to force
+            %                   reload bias/flat images. Default is false.
+            %
+            % Output : - A ipeline.DemonLAST object in which the CI
+            %            property is populated with bias, flat, and
+            %            linearity data.
+            % Author : Eran Ofek (Apr 2023)
+            % Example: D=pipeline.DemonLAST;
+            %          D.loadCalib
+
+            arguments
+                Obj
+                Args.CalibPath       = [];
+                Args.ReadProduct     = {'bias','flat'}
+                Args.BiasTemplate    = '*dark_proc_Image*.fits';
+                Args.FlatTemplate    = '*twflat_proc_Image*.fits';
+                Args.AddImages       = {'Mask'};
+                Args.BiasNearJD      = [];
+                Args.FlatNearJD      = [];
+
+                Args.ForceReload     = false;
+                Args.KeyID_Dark      = 'ID_DARK';
+                Args.KeyID_Flat      = 'ID_FLAT';
+            end
+
+            PWD = pwd;
+            if ~isempty(Args.CalibPath)
+                CalibPathUsed = Args.CalibPath;
+            else
+                CalibPathUsed = Obj.CalibPath;
+            end
+            cd(CalibPathUsed);
+            % restore the working dir on every exit path, including errors (issue #1264)
+            Cleanup = onCleanup(@() cd(PWD));
+            
+            %fprintf('\n\nAvailable storage space:\n')
+            %unix('df -h | grep data');
+            %fprintf('\n\nPlease only run the pipeline if disk less than 80percent full.\n\n')
+
+            
+            IsBiasEmpty = Obj.CI.Bias.isemptyImage;
+            IsFlatEmpty = Obj.CI.Flat.isemptyImage;
+
+
+            % read latest bias image
+            if ismember('bias',lower(Args.ReadProduct))
+                if Args.ForceReload || IsBiasEmpty
+                    % a malformed name in calib/ is logged and left out, not moved (issue #1311);
+                    % AstroFileName, not FileNames (issue #1315)
+                    FN_Bias = Obj.listRawFiles(Args.BiasTemplate, 'Quarantine',false);
+                    if FN_Bias.nFiles==0
+                        % nothing matched: report it here, while "no file" is still
+                        % distinguishable from "old file without an ID" (issue #1264)
+                        Obj.writeLog(sprintf('loadCalib: no bias images matching %s in %s', ...
+                                             Args.BiasTemplate, CalibPathUsed), LogLevel.Error);
+                        error('PipelineDemon:loadCalib:NoBiasImages', ...
+                              'loadCalib: no bias/dark images matching ''%s'' found in %s', ...
+                              Args.BiasTemplate, CalibPathUsed);
+                    end
+                    if isempty(Args.BiasNearJD)
+                        [~,~,~,FN_Bias] = FN_Bias.selectLastJD;
+                    else
+                        [~,~,FN_Bias] = FN_Bias.selectNearest2JD(Args.BiasNearJD);
+                    end
+                        
+                    Obj.CI.Bias = AstroImage.readFileNamesObj(FN_Bias, 'AddProduct',Args.AddImages);
+
+                    % add ID
+                    if ~isempty(Args.KeyID_Dark)
+                        if isnan(Obj.CI.Bias.HeaderData.getVal(Args.KeyID_Dark))
+                            % This block is an ugly patch to fix the fact
+                            % that old dark/flats doesn't have an image ID:
+                            SpProjName = split(char(FN_Bias.ProjName(1)),'.'); % This command is specific for LAST
+                            Node = str2double(SpProjName{2});
+                            Mount = str2double(SpProjName{3});
+                            
+                            Obj.CI.Bias.HeaderData.deleteKey('CROPID');
+                            Obj.CI.Bias.HeaderData.insertKey({'NODENUMB', Node, ''; 'MOUNTNUM', Mount, ''; 'CROPID', 0 , ''});
+                            [Obj.CI.Bias] = imProc.db.generateImageID(Obj.CI.Bias, 'KeyID',Args.KeyID_Dark);
+                        end
+                    end
+
+                    Obj.writeLog(sprintf('Using dark: %s\n', char(FN_Bias.genFile)), LogLevel.Info);
+                    %fprintf('\nUsing dark: %s\n', char(FN_Bias.genFile))
+                end
+            end
+
+            % read latest flat image
+            if ismember('flat',lower(Args.ReadProduct))
+                if Args.ForceReload || IsFlatEmpty
+                    % a malformed name in calib/ is logged and left out, not moved (issue #1311);
+                    % AstroFileName, not FileNames (issue #1315)
+                    FN_Flat = Obj.listRawFiles(Args.FlatTemplate, 'Quarantine',false);
+                    if FN_Flat.nFiles==0
+                        % see the bias case above (issue #1264)
+                        Obj.writeLog(sprintf('loadCalib: no flat images matching %s in %s', ...
+                                             Args.FlatTemplate, CalibPathUsed), LogLevel.Error);
+                        error('PipelineDemon:loadCalib:NoFlatImages', ...
+                              'loadCalib: no flat images matching ''%s'' found in %s', ...
+                              Args.FlatTemplate, CalibPathUsed);
+                    end
+                    if isempty(Args.FlatNearJD)
+                        [~,~,~,FN_Flat] = FN_Flat.selectLastJD;
+                    else
+                        [~,~,FN_Flat] = FN_Flat.selectNearest2JD(Args.FlatNearJD);
+                    end
+
+                    Obj.CI.Flat = AstroImage.readFileNamesObj(FN_Flat, 'AddProduct',Args.AddImages);
+
+                    % add ID
+                    if ~isempty(Args.KeyID_Flat)
+                        if isnan(Obj.CI.Flat.HeaderData.getVal(Args.KeyID_Flat))
+                            % This block is an ugly patch to fix the fact
+                            % that old dark/flats doesn't have an image ID:
+                            SpProjName = split(char(FN_Flat.ProjName(1)),'.'); % This command is specific for LAST
+                            Node = str2double(SpProjName{2});
+                            Mount = str2double(SpProjName{3});
+                            
+                            Obj.CI.Flat.HeaderData.deleteKey('CROPID');
+                            Obj.CI.Flat.HeaderData.insertKey({'NODENUMB', Node, ''; 'MOUNTNUM', Mount, ''; 'CROPID', 0 , ''});   
+
+                            [Obj.CI.Flat] = imProc.db.generateImageID(Obj.CI.Flat, 'KeyID',Args.KeyID_Flat);
+                        end
+                    end
+
+
+                    Obj.writeLog(sprintf('Using flat: %s\n', char(FN_Flat.genFile)), LogLevel.Info);
+                    %fprintf('Using flat: %s\n\n', char(FN_Flat.genFile))
+                end
+            end
+
+            % Read linearity file
+            % Result = populateLinearity(Obj.CI, Name, Args)
+
+            % the working dir is restored by Cleanup (issue #1264)
+
+        end
+
+
+        
+
+
+
+        function [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I]=runPipelineI(Obj, RawImageList, FN_I, Args)
+            % Reduce + save + error catching a single visit  
+            
+            arguments
+                Obj
+                RawImageList
+                FN_I
+                Args   % struct of Args
+            end
+
+
+            Status.PipeI   = false;
+            Status.WriteI  = false;
+            Status.MoveRaw = false;
+            
+            MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI start executing pipeline for visit');
+            Obj.writeLog(MsgF, LogLevel.Info);
+
+            Tstart = clock;
+
+            % executing pipelineI
+            AllForcedPhot = []; % TEMPORARY / not used
+            % Solar System ephemeris prepared by prepSolarSystemEphem (issue #1320);
+            % only non-empty ones, placed before pipelineIArgs so the latter take precedence
+            EphemArgs = {'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'INPOP',Args.INPOP};
+            EphemArgs = EphemArgs(repelem(~cellfun(@isempty, EphemArgs(2:2:end)), 2));
+            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, 'MagType', Obj.MagType, 'NaNUncalibMag', Obj.NaNUncalibMag, ...
+                                                                     EphemArgs{:}, 'AsteroidSearchRadius',Args.AsteroidSearchRadius, ...
+                                                                     Args.pipelineIArgs{:},'Status',Status);
+            %ProcImageList = TableRaw.FileName;                
+            RunTime = etime(clock, Tstart);
+            Ntr = size(TableRaw,1);
+            TableRaw.TimePipeI = RunTime.*ones(Ntr,1);
+            RawImageListFinal = TableRaw.FileName;
+
+            % Notify watchdog that process is running
+            tools.systemd.mex.notify_watchdog;
+
+            if Status.PipeI
+                % success
+
+                MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI finished executing pipeline for visit');
+                MsgF{2} = sprintf('pipeline run time : %f', RunTime);
+                Obj.writeLog(MsgF, LogLevel.Info);
+
+                % Background estimation failures (issue #1226). Such crops are
+                % saved, with blank background keywords, but take no part in
+                % the coadd, the matched sources or the forced photometry.
+                % Logged here rather than by a warning inside the extractor,
+                % which runs under parfor and whose warnings do not reliably
+                % reach this log.
+                if isfield(Status,'NfailedBack') && Status.NfailedBack>0
+                    MsgB{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: background estimation failed for %d sub image(s) - saved, but excluded from the coadd and the matched sources', Status.NfailedBack);
+                    Obj.writeLog(MsgB, LogLevel.Warning);
+                end
+
+                % Unusable per-crop ShiftXY (issue #1162): procCoadd registered
+                % those crops by WCS instead. Recorded in ResultCoadd /
+                % Status rather than warned on the console, and logged here.
+                if isfield(Status,'NbadShiftXY') && Status.NbadShiftXY>0
+                    MsgS{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: unusable ShiftXY for %d sub image group(s) - registered by WCS instead (issue #1162)', Status.NbadShiftXY);
+                    Obj.writeLog(MsgS, LogLevel.Warning);
+                end
+
+                % saving data products of pipelineI
+
+                try
+                    Tstart = clock;
+                    
+                    [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, JD, Args);
+                    RunTime = etime(clock, Tstart);
+                    TableRaw.TimeSaveI = RunTime.*ones(Ntr,1);
+
+                    MsgF{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI finished saving products for visit');
+                    MsgF{2} = sprintf('pipeline run time : %f', RunTime);
+                    Obj.writeLog(MsgF, LogLevel.Info);
+
+
+                    Status.WriteI = true;
+                
+                
+                    % Move images to raw/ dir                
+                    if Args.MoveNew2Raw     
+                        % the date of the night, as the proc/ dir, v0 and the
+                        % LAST archive use (not the UT date) - issue #1315
+                        RawImageListFinal = FN_I.genPath('PathType','raw', 'RawDateFromJD',true);
+                        io.files.moveFiles(RawImageList, [], '', RawImageListFinal);
+                        
+                        Status.MoveRaw = true;
+                    else
+                        RawImageListFinal = FN_I.genPath;
+                        Status.MoveRaw = false;
+                    end
+                    %TableRaw.SaveStatus = true(Ntr,1);
+                    
+                    % for test runs / debugging:
+                    if Args.RemoveAfterWrite
+                        SubDir = FN_I.genPath;
+                        Command = sprintf('rm %s/*',SubDir);
+                        system(Command);
+                        Command = sprintf('rmdir %s',SubDir);
+                        system(Command);
+                    end
+                catch MEs
+                    % save failed
+                    Status.WriteI = false;
+                    TableRaw.SaveStatus = false(Ntr,1);
+
+                    ErrorMsg = sprintf('Save data products Pipeline I failed: %s / funname: %s @ line: %d', MEs.message, MEs.stack(1).name, MEs.stack(1).line);
+                    Obj.writeLog(ErrorMsg, LogLevel.Error);
+                    Obj.writeLog(MEs, LogLevel.Info);
+                end % try
+            else
+                if isfield(Status,'NoGoodImages') && Status.NoGoodImages
+                    % Peaceful exit: no useful RAW images in this visit.
+                    % Log as a warning (not an error) and still record the RAW
+                    % status table so the rejected visit is registered.
+                    Obj.writeLog(sprintf('Pipeline I skipped visit: %s', Status.Msg), LogLevel.Warning);
+                    try
+                        Obj.saveTableRaw(FN_I, TableRaw, 'SaveTableRaw',Args.SaveTableRaw);
+                    catch MEsr
+                        Obj.writeLog(sprintf('Failed saving RAW status table for rejected visit: %s', MEsr.message), LogLevel.Error);
+                    end
+                elseif ~isempty(Status.ME)
+                    ErrorMsg = sprintf('Pipeline I failed: %s / funname: %s @ line: %d', Status.ME.message, Status.ME.stack(1).name, Status.ME.stack(1).line);
+                    Obj.writeLog(ErrorMsg, LogLevel.Error);
+                    Obj.writeLog(Status.ME, LogLevel.Info);
+                else
+                    Obj.writeLog('Pipeline I failed with no exception information', LogLevel.Error);
+                end
+
+            end % if Status.PipeI
+        end
+
+
+        function [FN_I, FN_C, FN_A, FN_MS, FN_Raw, FN_FP] = saveDataProductsI(Obj, FN_I, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, JD,Args)
+            % Save data products for pipeline I
+
+            % save products
+            % Debug: FN_I=AstroFileName.dir('LAST*.fits');
+            FN_I.BasePathIncludeProjName = false;
+            FN_I.BasePath = Obj.BasePath;
+            FN_I.Path     = [];
+            %
+            FN_C = FN_I.reorderEntries(1, 'CreateNewObj',true);
+            [Nim, Nsub] = size(AllSI);
+            FN_I.reorderEntries(TableRaw.SelectedImages);
+            FN_I.Level  = repmat("proc", Nim, 1);
+            FN_I.duplicateCrop(Nsub);
+            FN_I.JD = FN_I.julday;
+            
+
+            % WriteEmptyCat: a crop which extracted no sources - e.g. one
+            % whose background estimation failed - is saved as a zero-row
+            % catalog rather than silently producing no file (issue #1226).
+            % Only the epoch (crop) products opt in; the coadd and the merged
+            % products below keep the previous behaviour.
+            [SaveStatus,FN_I] = imProc.io.saveProductImage(AllSI, FN_I, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveEpochProduct, 'WriteHeader',Args.SaveEpochHeader, 'WriteMethodImages',Args.WriteMethodImages, 'WriteMethodTables',Args.WriteMethodTables, 'CompressedOutput', Args.CompressedOutput, 'WriteEmptyCat',true);  % 20 s
+
+            % A product which was not written leaves a message in SaveStatus.
+            % It used to be discarded here, so a visit could end with fewer
+            % epoch products than crops and nothing said why (issue #1226).
+            if ~isempty(SaveStatus)
+                MsgS = cell(1, numel(SaveStatus)+1);
+                MsgS{1} = sprintf('pipeline.last.pipes.PipelineDemon/saveDataProductsI: %d epoch product(s) not saved', numel(SaveStatus));
+                MsgS(2:end) = SaveStatus(:).';
+                Obj.writeLog(MsgS, LogLevel.Warning);
+            end
+
+            % Streaks
+            % need JD
+            FN_Str = FN_I.reorderEntries(1, 'CreateNewObj',true);
+            Nf = FN_Str.nFiles;
+            FN_Str.FileType = repmat("mat",Nf,1);
+            FN_Str.Product  = repmat("Streaks",Nf,1);
+            FN_Str.CropID   = 0;
+            FN_Str.Counter  = 0;
+            imProc.io.saveProductStreak(AllSI, FN_Str);
+
+            % Coadd
+            Ncoadd = numel(Coadd);
+            for Icoadd=1:1:Ncoadd
+                JDc = Coadd(Icoadd).julday('KeyJD','MIDJD');
+                if ~isnan(JDc)
+                    break;
+                end
+            end
+            if isnan(JDc)
+                % skip Coadd
+            else
+                FN_C.JD = JDc;
+                FN_C.julday2time;
+                FN_C.Level = "coadd";
+                FN_C.duplicateCrop(Nsub);
+                FN_C.SubDir  = FN_I.SubDir;
+                FN_C.Counter = zeros(numel(Coadd),1);
+                imProc.io.saveProductImage(Coadd, FN_C, 'BasePath',Obj.BasePath, 'OutProduct',Args.SaveVisitProduct, 'WriteHeader',Args.SaveVisitHeader, 'CompressedOutput', Args.CompressedOutput);  % 3 s
+            end
+
+            % Asteroids:
+            if OnlyMP.sizeCatalog>0 && Args.SaveVisitAsteroids
+                FN_A = FN_C.reorderEntries(1, 'CreateNewObj',true);
+                FN_A.CropID = 0;
+                FN_A.Product = "Asteroids.Known";
+                FN_A.FileType = 'mat';
+                AI_tmp = AstroImage;
+                AI_tmp.CatData = OnlyMP;
+                imProc.io.saveProductMat(AI_tmp, FN_A, 'BasePath',Obj.BasePath,'SavedProductName','Asteroids');
+            else
+                FN_A = [];
+            end
+
+            % MatchedSources
+            if Args.SaveMergedMat
+                FN_MS = FN_C.copy;
+                FN_MS.Level    = repmat("merged", Nsub, 1);
+                FN_MS.Product  = repmat("MergedMat", Nsub, 1);
+                FN_MS.FileType = repmat("hdf5", Nsub, 1);
+                if ~isempty([MS.Nepoch]) && ~isempty([MS.Nsrc])
+                    [~,FN_MS]   = imProc.io.saveProductMatchedSources(MS, FN_MS, 'BasePath',Obj.BasePath);
+                else
+                    FN_MS = [];
+                end
+            else
+                FN_MS = [];
+            end
+
+            % TableRaw
+            FN_Raw = Obj.saveTableRaw(FN_I, TableRaw, 'SaveTableRaw',Args.SaveTableRaw);
+
+            % AllForcedPhot
+            FN_FP = FN_I.reorderEntries(1, 'CreateNewObj',true);
+            % FN_FP.FileType = "fits";
+            % FN_FP.Level    = "proc";
+            % FN_FP.Product  = "Cat.forced";
+            % FN_FP.Counter  = 0;
+            % FN_FP.CropID   = 0;
+            % imProc.io.saveProductImage(AllForcedPhot, FN_FP, 'BasePath',DD.BasePath, 'OutProduct',["Cat"], 'WriteHeader',false);
+            
+            
+            % Insert pipeline products to the DB
+            if Args.Insert2DB
+                Msg{1} = sprintf('pipeline.DemonLAST started preparing DB data for group %d',Igroup);
+                Obj.writeLog(Msg, LogLevel.Info);
+                if isempty(ADB) % && ( ~Args.DB_ImageBulk || ~Args.DB_CatalogBulk) % connect to DB
+                    ADB = db.AstroDb(Args.AstroDBArgs{:});
+                end
+                try
+                    Obj.insert2DB(ADB, RawHeader, AllSI, Coadd, RawImageListFinal, FN_I, FN_Proc, FN_Coadd, ...
+                        'DB_ImageBulk',Args.DB_ImageBulk,'DB_CatalogBulk',Args.DB_CatalogBulk,...
+                        'DB_Table_Raw',Args.DB_Table_Raw,'DB_Table_Proc',Args.DB_Table_Proc,'DB_Table_Coadd',Args.DB_Table_Coadd,...
+                        'UpdateStatusFile',Args.UpdateStatusFile,'Tstart',Tstart);
+                catch DBMsg
+                    DBErrorMsg = sprintf('pipeline.DemonLAST try error: %s / funname: %s @ line: %d', DBMsg.message, DBMsg.stack(1).name, DBMsg.stack(1).line);
+                    Obj.writeLog(DBErrorMsg, LogLevel.Error);
+                    Obj.writeLog(DBMsg, LogLevel.Error);
+                end
+            end
+            
+        end
+        
+        function FN_Raw = saveTableRaw(Obj, FN_I, TableRaw, Args)
+            % Save the per-visit RAW status table as a 'StatusRAW' .mat product.
+            % Used on both the success path (from saveDataProductsI) and the
+            % no-useful-images path (from runPipelineI), so a rejected visit
+            % produces the same status product as a reduced one.
+            % Input  : - self.
+            %          - A FileNames object for the visit.
+            %          - The TableRaw (header + per-image quality flags) table.
+            %          * ...,key,val,...
+            %            'SaveTableRaw' - If false, do nothing and return [].
+            %                   Default is true.
+            % Output : - The FileNames object of the saved product, or [] if
+            %            not saved.
+            arguments
+                Obj
+                FN_I
+                TableRaw
+                Args.SaveTableRaw = true;
+            end
+
+            if Args.SaveTableRaw
+                FN_Raw = FN_I.reorderEntries(1, 'CreateNewObj',true);
+                FN_Raw.BasePathIncludeProjName = false;
+                FN_Raw.BasePath = Obj.BasePath;
+                FN_Raw.Path     = [];
+                FN_Raw.FileType = "mat";
+                FN_Raw.Level    = "raw";
+                FN_Raw.Product  = "Cat";
+                FN_Raw.Counter  = 0;
+                FN_Raw.CropID   = 0;
+                [~,FN_Raw] = imProc.io.saveProductMat(TableRaw, FN_Raw, 'BasePath',Obj.BasePath,'SavedProductName','StatusRAW');
+            else
+                FN_Raw = [];
+            end
+        end
+
+
+        function [AD, ADc, TCL1, TCL2] = runPipelineII(Obj, Coadd, FN_Proc, UpArgs)
+            % excute transients detection pipeline
+
+            Msg{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineII start executing pipelineII for visit');
+            Obj.writeLog(Msg, LogLevel.Info);
+
+            [AD, ADc, TCL1, TCL2, StatusPipeII] = pipeline.last.pipes.pipelineII(Coadd, 'RefPath', Obj.RefPath,...
+                                                  'MinimumNCoadd',UpArgs.PipelineIIMininumNCoadd);
+            Obj.writeLog(sprintf('Transients detection - %s', StatusPipeII.Msg), LogLevel.Info);
+
+            if StatusPipeII.Success && UpArgs.SendTransientAlerts && ~ADc(1).ImageData.isemptyImage
+                % TODO: This part should move out of pipeII
+                % Match to multi-epochs via DB
+                try
+                    [ADc, TCL2, MultiEpochStatus] = pipeline.last.transients.matchTransientsToMultiEpochs(...
+                        ADc, TCL1, 'DbHost', UpArgs.DbHostTransients, 'DB', UpArgs.DB);
+                    Obj.writeLog(sprintf('Transients match multi epoch - %s', MultiEpochStatus), LogLevel.Info);
+                catch
+                    Msg{1} = sprintf('Transients match multi epoch / Failed');
+                    Obj.writeLog(Msg, LogLevel.Error);
+                end
+            
+                Msg{1} = sprintf('Transients alerting');
+                Obj.writeLog(Msg, LogLevel.Info);
+                try
+                    TranAlertStatus = pipeline.last.transients.sendTransientsAlert(ADc, 'SaveProducts', true, ...
+                            'SavePath', FN_Proc.genPath,'UseLASTtools', true);
+                    Obj.writeLog(sprintf('Transients alerting - %s', TranAlertStatus), LogLevel.Info);
+                catch
+                    Msg{1} = sprintf('Transients alerting / Failed');
+                    Obj.writeLog(Msg, LogLevel.Error);
+                end
+            end
+
+            if StatusPipeII.Success
+                saveDataProductsII(Obj, AD, Coadd, TCL1, TCL2, FN_Proc, UpArgs);
+            end
+        end
+
+        function saveDataProductsII(Obj, AD, Coadd, TCL1, TCL2, FN_Proc, UpArgs)
+   
+            Nobj = numel(AD);
+    
+            % The products are named after the coadd, in the visit's proc/ dir.
+            % The FileType is reduced to its first extension ("fits.fz" ->
+            % "fits"), as FileNames parsed it (issue #1315)
+            ProcPath = FN_Proc.genPath;
+            ProcPath = ProcPath(1);
+            % the visit's SubDir (the last folder of ProcPath, should FN_Proc
+            % carry none): without it genFullPath would generate a new one
+            SubDir = FN_Proc.SubDir;
+            if isempty(SubDir) || strlength(SubDir(1))==0
+                [~, SubDir] = fileparts(ProcPath);
+            end
+            SubDir = SubDir(1);
+
+            % Save sub-image products
+            if ~isempty(UpArgs.SaveVisitProductII)
+                % one header flag per product, as writeProduct took them;
+                % saveProductImage replaces a vector of fewer than 4 flags
+                % by its own defaults, so pad it
+                Nprod       = numel(UpArgs.SaveVisitProductII);
+                WriteHeader = UpArgs.SaveVisitHeaderII;
+                if isscalar(WriteHeader)
+                    WriteHeader = repmat(WriteHeader, 1, Nprod);
+                end
+                WriteHeader = [WriteHeader(:).', false(1, 4-numel(WriteHeader))];
+                for Iobj=Nobj:-1:1
+                    % Set AD name
+                    FNad = AstroFileName.parseString2AstroFileName(AD(Iobj).New.ImageData.FileName);
+                    FNad.FileType = extractBefore(FNad.FileType + ".", ".");
+                    FNad.Level = "coadd.zogyD";
+                    FNad.SubDir = SubDir;
+
+                    % as writeProduct wrote them: no FILENAME/SUBDIR header
+                    % update, the same FITS writers
+                    imProc.io.saveProductImage(AD(Iobj), FNad, 'Path',ProcPath, 'AddSubDir',false, ...
+                        'OutProduct', UpArgs.SaveVisitProductII, 'WriteHeader', WriteHeader, ...
+                        'UpdateFileNameKey',false, 'OverWrite',true, ...
+                        'WriteMethodImages','Simple', 'WriteMethodTables','Standard');
+                    AD(Iobj).ImageData.FileName = char(fullfile(ProcPath, FNad.genFile));
+                end
+            end
+
+            % Save TCL1 to disk
+            % saveProductImage writes nothing for an object without an image,
+            % so the catalog is written directly, as writeProduct did
+            if UpArgs.SaveTCL1 && ~TCL1.isemptyCatalog
+                FN_merged = AstroFileName.parseString2AstroFileName(AD(1).New.ImageData.FileName);
+                FN_merged.FileType = extractBefore(FN_merged.FileType + ".", ".");
+                FN_merged.Level   = "coadd.zogyD";
+                FN_merged.CropID  = 0;
+                FN_merged.Product = "Cat";
+                TCL1.write1(char(fullfile(ProcPath, FN_merged.genFile)), 'FileType',char(FN_merged.FileType(1)), ...
+                    'OverWrite',true, 'WriteMethodTables','Standard');
+            end
+
+            % Inject TCL2 to DB
+            if UpArgs.InjectTCL2 && ~TCL2.isemptyCatalog
+                Err = [];
+                try
+                    Err = pipeline.last.insertDB.insertTransients2DB( ...
+                        TCL2, [Coadd.HeaderData],'DbHost', UpArgs.DbHostTransients,'DB', UpArgs.DB,'DBConnector',UpArgs.DBConnector);
+                catch ME
+                    Obj.writeLog(ME, LogLevel.Error);
+                end
+                if ~isempty(Err)
+                    Obj.writeLog(Err, LogLevel.Error);
+                end
+                Msg{1} = sprintf('Finished injecting transients to the DB.');
+                Obj.writeLog(Msg, LogLevel.Info);
+            end
+        end
+
+        function moveImagesToFailedDir(Obj, RawImageList)
+            % move images to failed directory
+            %   Never throws: a file that can not be moved (e.g., it does
+            %   not exist) is reported to the log and the rest of the
+            %   list is still moved (issue #1286).
+
+            RawImageList = cellstr(RawImageList);
+            RawImageList = RawImageList(:).';
+            Nraw         = numel(RawImageList);
+            if Nraw==0
+                Obj.writeLog('PipelineI moveImagesToFailedDir called with an empty image list', LogLevel.Error);
+                return;
+            end
+
+            % move images to failed/ dir
+            Nmoved = 0;
+            try
+                Exist    = isfile(RawImageList);
+                IndExist = find(Exist);
+                [~, Ok, MoveMsg] = io.files.moveFiles(RawImageList(IndExist), [], '', Obj.FailedPath, 'ErrorOnFail',false);
+                Nmoved = sum(Ok);
+
+                Failed    = [RawImageList(~Exist), RawImageList(IndExist(~Ok))];
+                FailedMsg = [repmat({'file not found'}, 1, sum(~Exist)), MoveMsg(~Ok)];
+                for Ifail=1:1:numel(Failed)
+                    ErrorMsg = sprintf('PipelineI could not move %s to failed directory: %s', Failed{Ifail}, FailedMsg{Ifail});
+                    Obj.writeLog(ErrorMsg, LogLevel.Error);
+                end
+            catch ME
+                ErrorMsg = sprintf('PipelineI error while moving images to failed directory: %s', ME.message);
+                Obj.writeLog(ErrorMsg, LogLevel.Error);
+            end
+
+            % write log file
+            ErrorMsg = sprintf('PipelineI %d of %d images moved to failed directory', Nmoved, Nraw);
+            Obj.writeLog(ErrorMsg, LogLevel.Error);
+
+            Msg{1} = sprintf('PipelineI summary line - Failed - First image: %s', RawImageList{1});
+            Obj.writeLog(Msg, LogLevel.Info);
+        end
+
+        function FN = quarantineMalformedRaw(Obj, FN, DiskNames)
+            % Move raw files with an unusable name out of new/ into failed/
+            %   A file whose name parses into a NaN counter, or that does
+            %   not round-trip through genFile, can never be assigned to a
+            %   visit; left in new/ it corrupts the counter grouping of
+            %   its neighbours and is re-selected forever (issue #1286).
+            % Input  : - PipelineDemon object.
+            %          - AstroFileName object of the raw files found in new/.
+            %          - String array of the on-disk file names, in the
+            %            same order as the AstroFileName entries.
+            % Output : - The AstroFileName object without the quarantined
+            %            entries.
+
+            if FN.nFiles==0
+                return;
+            end
+
+            DiskNames = string(DiskNames(:));
+            Bad = isnan(str2double(FN.Counter)) | FN.genFile~=DiskNames;
+            if ~any(Bad)
+                return;
+            end
+
+            SrcPath = char(FN.Path);
+            if isempty(SrcPath)
+                SrcPath = Obj.NewPath;
+            end
+            Obj.moveMalformedRaw(cellstr(DiskNames(Bad)), SrcPath);
+
+            % drop the malformed entries whether or not the move succeeded
+            FN = FN.reorderEntries(~Bad);
+        end
+
+        function moveMalformedRaw(Obj, BadNames, SrcPath, Reasons)
+            % Move raw files with a malformed name to failed/, one log line per file
+            %   Never throws: a file that can not be moved is reported to
+            %   the log (issues #1286, #1290).
+            % Input  : - PipelineDemon object.
+            %          - Cell array of the file names.
+            %          - The directory in which the files reside.
+            %          - Optional cell array (one per file) of the reasons
+            %            the names were rejected, appended to the log lines.
+            %            Default is {} (no reasons).
+
+            arguments
+                Obj
+                BadNames cell
+                SrcPath
+                Reasons cell = {};
+            end
+
+            try
+                [~, Ok, MoveMsg] = io.files.moveFiles(BadNames, [], SrcPath, Obj.FailedPath, 'ErrorOnFail',false);
+                for Ibad=1:1:numel(BadNames)
+                    if Ok(Ibad)
+                        Msg = sprintf('Raw file with a malformed name moved to failed directory: %s', BadNames{Ibad});
+                    else
+                        Msg = sprintf('Raw file with a malformed name could not be moved to failed directory: %s (%s)', BadNames{Ibad}, MoveMsg{Ibad});
+                    end
+                    if ~isempty(Reasons)
+                        Msg = sprintf('%s - %s', Msg, Reasons{Ibad});
+                    end
+                    Obj.writeLog(Msg, LogLevel.Error);
+                end
+            catch ME
+                Msg = sprintf('Error while quarantining malformed raw files: %s', ME.message);
+                Obj.writeLog(Msg, LogLevel.Error);
+            end
+        end
+
+        function [FN, DirSt] = listRawFiles(Obj, Template, Args)
+            % List the files matching a template in the current directory (e.g., new/)
+            %   As AstroFileName.dir, but a file whose name the parser
+            %   rejects is moved to failed/ instead of taking the whole
+            %   listing, and with it the demon, down (issues #1290, #1311).
+            %   The parser rejects a listing with mixed numbers of "_"
+            %   separators (split) and a name with an unknown
+            %   Type/Level/Product (the property validators).
+            %   The listing is parsed in one go, as before; only if that
+            %   fails is every file parsed on its own to find the
+            %   offenders. A file is kept if it parses on its own and has
+            %   the number of separators the parser expects, so that the
+            %   files kept can be parsed together.
+            % Input  : - PipelineDemon object.
+            %          - File name template, e.g., '*_sci_raw_*.fit*'.
+            %          * ...,key,val,...
+            %            'Quarantine' - If true, move the rejected files
+            %                   to failed/. If false, only leave them out
+            %                   of the listing (e.g., for pipeline products
+            %                   in calib/). Either way one [ERR] line per
+            %                   file is logged. Default is true.
+            % Output : - AstroFileName object of the files kept.
+            %          - The dir struct array of the files kept, in the
+            %            same order as the AstroFileName entries.
+            % Author : A.M. Krassilchtchikov (Sep 2026)
+            % Example: [FN, DirSt] = Obj.listRawFiles('*_sci_raw_*.fit*');
+            %          FN = Obj.listRawFiles('*dark_proc_Image*.fits', 'Quarantine',false);
+
+            arguments
+                Obj
+                Template
+                Args.Quarantine logical      = true;
+            end
+
+            DirSt = dir(Template);
+            if isempty(DirSt)
+                FN = AstroFileName;
+                return;
+            end
+            try
+                FN = AstroFileName.parseString2AstroFileName(DirSt);
+                return;
+            catch
+                % find the offenders below
+            end
+
+            % the last "_" token holds both Version and FileType
+            Nsep   = numel(AstroFileName.FIELDS) - 2;
+            Names  = {DirSt.name};
+            Folder = DirSt(1).folder;
+            NsepF  = count(Names, '_');
+            Nfile  = numel(DirSt);
+            Good   = false(1, Nfile);
+            Reason = cell(1, Nfile);
+            for Ifile=1:1:Nfile
+                if NsepF(Ifile)~=Nsep
+                    Reason{Ifile} = sprintf('%d "_" separators instead of %d', NsepF(Ifile), Nsep);
+                else
+                    try
+                        AstroFileName.parseString2AstroFileName(DirSt(Ifile));
+                        Good(Ifile) = true;
+                    catch ME
+                        Reason{Ifile} = ME.message;
+                    end
+                end
+            end
+
+            if any(~Good)
+                if Args.Quarantine
+                    Obj.moveMalformedRaw(Names(~Good), Folder, Reason(~Good));
+                else
+                    for Ibad=find(~Good)
+                        Msg = sprintf('File with a malformed name ignored: %s - %s', fullfile(Folder, Names{Ibad}), Reason{Ibad});
+                        Obj.writeLog(Msg, LogLevel.Error);
+                    end
+                end
+            end
+
+            DirSt = DirSt(Good);
+            if isempty(DirSt)
+                FN = AstroFileName;
+            else
+                FN = AstroFileName.parseString2AstroFileName(DirSt);
+            end
+        end
+
+        function FN = toAstroFileName(Obj, In)
+            % An AstroFileName object of the given files (issue #1315)
+            %   An AstroFileName is returned as is. A FileNames object is
+            %   converted from its full names, keeping its BasePath and
+            %   TimeZone and the meaning of its BasePathIncludeProjName,
+            %   which is inverted in AstroFileName (FileNames: true =
+            %   BasePath already includes the ProjName; AstroFileName: true
+            %   = add it). A cell/string array of file names is parsed; names
+            %   without a path are taken in the current directory, as
+            %   FileNames.generateFromFileName did.
+            % Input  : - PipelineDemon object.
+            %          - An AstroFileName or FileNames object, or a cell/string
+            %            array of file names.
+            % Output : - An AstroFileName object.
+            % Author : A.M. Krassilchtchikov (Sep 2026)
+
+            if isa(In, 'AstroFileName')
+                FN = In;
+            elseif isa(In, 'FileNames')
+                FN = AstroFileName.parseString2AstroFileName(string(In.genFull([])));
+                FN.BasePath = string(In.BasePath);
+                FN.BasePathIncludeProjName = ~In.BasePathIncludeProjName;
+                FN.TimeZone = In.TimeZone(1);
+            else
+                FN = AstroFileName.parseString2AstroFileName(string(In(:)));
+                if all(strlength(FN.Path)==0)
+                    FN.Path = string(pwd);
+                end
+            end
+        end
+
+        function FN = masterFileName(Obj, AI, Type, ProjName)
+            % The AstroFileName of a master dark/flat image (Product 'Image')
+            %   Named as FileNames.readFromHeader and the LAST calibration
+            %   values named it: the Time from the JD of the header
+            %   (AstroHeader.julday), the Filter from FILTER, the ProjName of
+            %   the raw frames, empty FieldID/Counter/CCDID/CropID, Level
+            %   'proc', Version 1, FileType 'fits' (issue #1315).
+            %   AstroFileName.readFromHeader is not used: it reads a keyword
+            %   per field (e.g., TIME, TYPE), which a master does not carry.
+            % Input  : - PipelineDemon object.
+            %          - The master AstroImage (with its header).
+            %          - Type: "dark" | "twflat".
+            %          - ProjName (of the raw frames).
+            % Output : - An AstroFileName object.
+            % Author : A.M. Krassilchtchikov (Sep 2026)
+
+            FN = AstroFileName;
+            FN.ProjName = string(ProjName);
+            FN.julday2time(julday(AI.HeaderData));
+            Filter = AI.HeaderData.getVal('FILTER');
+            if isnumeric(Filter) && all(isnan(Filter))
+                Filter = "";
+            end
+            FN.Filter   = string(Filter);
+            FN.FieldID  = "";
+            FN.Counter  = "";
+            FN.CCDID    = "";
+            FN.CropID   = "";
+            FN.Type     = string(Type);
+            FN.Level    = "proc";
+            FN.Product  = "Image";
+            FN.Version  = "1";
+            FN.FileType = "fits";
+        end
+
+        function moveCalibToRaw(Obj, FN)
+            % Move raw calibration frames to raw/, under the night of the first one
+            %   As FileNames did (genFull with the path of the first file):
+            %   every frame goes to <BasePath>/YYYY/MM/DD/raw of the first
+            %   frame, the date being the date of the night, i.e. the JD +
+            %   TimeZone floored, as in the LAST archive (issue #1315).
+            % Input  : - PipelineDemon object.
+            %          - AstroFileName object of the frames (with their Path).
+            % Author : A.M. Krassilchtchikov (Sep 2026)
+
+            RawList = cellstr(FN.genFull([]));
+            FNraw = FN.copy;
+            FNraw.Path = [];
+            RawPath = FNraw.genPath(1, 'PathType','raw', 'RawDateFromJD',true);
+            io.files.moveFiles(RawList, cellstr(fullfile(RawPath, FN.genFile)));
+        end
+
+
+    end
+
+    methods % main
+
+ 
+        function Obj=main(Obj, Args)
+            % The main LAST pipeline demon.
+            %   The demon waits for images in the new/ directory, analyze
+            %   the images and distribute them.
+            % Input  : - self.
+            %          * ...,key,val,...
+            %            See code.
+            % Output : - Updated object.
+            % Author : Eran Ofek (Jul 2023)
+            % Example: cd /raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/new
+            %          D=pipeline.DemonLAST;
+            %          D.setPath('/raid/eran/projects/telescopes/LAST/Images_PipeTest/testPipe/LAST.01.02.02')
+            %          
+            %          D.main('StartJD',[24 4 2023],'EndJD',[26 4 2023], 'StopWhenDone',true, 'Insert2DB',false, 'SaveEpochProduct',{'Image','Mask','Cat','PSF'});
+
+            arguments
+                Obj
+
+                Args.ArgsConfigName         = 'LAST.Pipeline.PipeDemon';
+
+                Args.DataDir       = 1;              % LAST data dir: 1|2
+                Args.CamNumber     = [];             % Camera number: 1|2|3|4
+                
+                Args.NewSubDir     = 'new';          % new sub dir
+                Args.NonStandardNew= '';             % non-standard new dir
+                
+                Args.AbortFileName = '~/abortPipe';  % if this file exit, then abort.
+                Args.StopButton logical = true;      % Display stop button
+                Args.StopDiskFull  = [];             % e.g., use 99 to pause processing while disk storage is above 99% (resumes automatically once it drops back below)
+                Args.PauseDiskFull = 60;             % [s] time to wait between disk space rechecks while paused on StopDiskFull
+
+                Args.multiRaw2procCoaddArgs = {'DoCoadd',true};
+
+                Args.pipelineIArgs  = {'UseParfor',true};
+
+                Args.histAnomalyArgs = {};           % args for the prePrep histogram-anomaly quality check
+                                                     % (imUtil.image.histAnomaly), propagated down via
+                                                     % pipelineIArgs -> prePrepArgs.
+                                                     % Default {} = defer to pipelineI's default, which
+                                                     % restricts the histogram to the LIGHTSEC region
+                                                     % [1 6388 25 9600] (excludes the overscan strip whose
+                                                     % bias-level peak falsely triggers the bi-modality
+                                                     % detector on dark-sky nights; issue #1216).
+                                                     % Pass {'CCDSEC',[]} to force the full-frame
+                                                     % (overscan-included) histogram.
+
+                Args.StopWhenDone logical = false;   % if true, will not look for new images (i.e., images that were created after the function started)
+                                
+                Args.CleanNewDir     = true;         % if true, remove files with zero size and day-time images from the new dir               
+                Args.FocusTreatment  = 'move';       % 'move'|'keep'|'delete'                 
+
+                Args.MinNumImageVisit  = 10;
+                Args.PauseDay          = 100;
+                Args.PauseNight        = 30;
+               
+                 % DataBase
+                
+                Args.DB_Table_Raw      = 'test_raw_images'; % 'raw_images';
+                Args.DB_Table_Proc     = 'proc_images';
+                Args.DB_Table_Coadd    = 'coadd_images';
+                Args.DB_Table_ProcCat  = 'proc_src_catalog';
+                Args.DB_Table_CoaddCat = 'coadd_src_catalog';
+                Args.DB_ImageBulk   logical = true;  % whether to use bulk or direct injection method
+                Args.DB_CatalogBulk logical = true;  % whether to use bulk or direct injection method
+                Args.AstroDBArgs cell  = {'Host','10.23.1.25','DatabaseName','last_operational','Port',5328};
+                Args.AstroDBPassFile   = '~/.astropack/Passwords.yml';
+                
+                Args.DbHost              = '10.23.1.25';
+                Args.DbPort              =  9000;                
+                Args.DbName              = 'last';
+                Args.DbUser              = 'default';                
+
+                Args.DbHostTransients    = 'localhost';
+                %% NEW
+
+
+                Args.HostName          = []; 
+
+                Args.ReductionMode = 'last';
+                Args.ReduceVisitContainingImage = []; % if provided this is an image name that must exist in the visit to reduce
+                Args.LocalPath     = [];
+                Args.NewPath       = [];
+                Args.CalibBasePath = '/marvin';
+                Args.CalibPath     = [];
+                Args.RefPath       = [];         % if empty - auto detected: /<HostName>/data/references (populateRefPath)
+
+                Args.ConnectDB     = true;    % get a DB connector (e.g., for multiepoch matching of PipeII)
+                Args.DBConnector   = 'legacy'; 
+                Args.Insert2DB     = false;   % Insert images data to LAST DB or prepare CSV dumps for further insertion
+                Args.DB            = [];
+
+                Args.SelectKnownAsteroid logical      = true;
+                Args.GeoPos                           = [];    %[Lon (rad), Lat (rad), Height (m)].
+                Args.OrbEl                            = [];
+                Args.INPOP                            = [];
+                Args.AsteroidSearchRadius             = 10;
+                                        
+                Args.StartJD       = 0;           % refers only to Science observations: JD, or [D M Y]
+                Args.EndJD         = Inf;         % if <0, then this is the number of nighst to reduce after StarJD
+                
+                Args.RegenCalib logical   = true; %false;     % Generate a new calib dark/flat images and load - if false: will be loaded once at the start
+                
+                Args.ReloadCalibTimeDiff   = 0.7;
+                
+                Args.DeleteSciDayTime logical = false;   % Delete 'sci' images taken during day time.
+                Args.DeleteSunAlt  = 0;                  % SunAlt for previous argument
+                
+                Args.TempRawFocus    = '*_focus_raw_*.fit*';
+                Args.TempRawSci      = '*_sci_raw_*.fit*';   % file name template to search
+
+                Args.MinInGroup    = 10;             % min. number of images in visit/group to analyze.
+                Args.MaxInGroup    = 20;             % max. number of images in visit/group to analyze.
+                Args.SortDirection = 'descend';      % 'ascend'|'descend' - analyze last image first
+
+                Args.ExpTime       = 20;
+
+                Args.RepackRaw     = false;             % pack raw FITS images after processing 
+
+                Args.PauseNotFound = 60;
+
+
+                % Save data products
+                Args.SaveEpochProduct  = ["Cat"]; %{[],[],'Cat',[]}; %{'Image','Mask','Cat','PSF'}; % {[],[],'Cat',[]}; %{[],[],'Cat',[]}; %{[],[],'Cat'};  %{'Image','Mask','Cat','PSF'};,  % 'all'
+                Args.SaveVisitProduct  = ["Image","Mask","Cat","PSF"];      % 'all'
+                Args.SaveEpochHeader  = [true, false, true, false];
+                Args.SaveVisitHeader  = [true, false, true, false];
+
+                Args.SaveMergedMat     = true;
+                Args.SaveVisitAsteroids  = true;
+                Args.SaveTableRaw        = true;
+
+                Args.WriteMethodImages = 'ThreadedMex';     % can be 'Simple', 'Full', 'Mex', or 'ThreadedMex'
+                Args.WriteMethodTables = 'MexHeader';       % can be 'Standard' or 'MexHeader'  
+                Args.UpdateStatusFile  = true;              % write update strings to the .status files in the output directories
+                
+                Args.CompressedOutput  = [];                % if empty, write FITS files ('fz' will lead to FITS.fz compression) 
+
+                % -- PipelineII 
+                
+                Args.PipelineIIMininumNCoadd = 10;
+
+                % -- PipelineII products
+
+                Args.SaveVisitProductII = {'Image','Mask','Cat','PSF'};
+                Args.SaveVisitHeaderII = [true,false,true,false];
+                Args.SaveTCL1 logical = true;
+                % Default false: injecting transient candidates into the live
+                % table is a side effect on the outside world, and a run that
+                % does not ask for it (a re-reduction of archived data, a
+                % regression test) must not produce one (issue #1253)
+                Args.InjectTCL2 logical = false;
+                Args.SendTransientAlerts logical = true;
+
+                %Args.RunAsService logical  = false;
+                
+                Args.UncompressRaw     = false;             % not used: compressed RAW frames are read directly - prePrep forces the mex reader for .fz/.gz (issue #1248)
+                
+                Args.MoveNew2Raw       = true;     % move RAW images from new/ to YYYY/MM/DD/raw/ after processing
+                Args.RemoveAfterWrite  = false;    % remove the output YYYY/MM/DD/raw/subdir/ folder after writing into it (usefull for multiple tests)
+                Args.StaticRAWDir      = false;    % when NewPath holds a fixed archive (e.g. for testing), process all full groups in order instead of only the most recent
+                Args.DebugMode         = false;
+
+                Args.FailMethod        = 'move';  % 'move'|'report'|'none'
+                Args.Backup            = false;
+
+                Args.UpdateRedis       = true;
+            end
+            PipeName   = [];
+            PipeStatus = 'Entered Demon';
+            %Obj.updateRedis('last03e.pipeline.num_image, sprintf('%d',Nimages), 'UpdateRedis',Args.UpdateRedis);
+
+            RAD = 180./pi;
+            SEC_DAY = 86400;
+            
+            % prep arguments
+            [Obj, Args] = prepArgs(Obj, Args);
+
+            % Complete the paths that were not set explicitly (issue #1245):
+            % when only DataDir is set, set.DataDir populates BasePath, but the
+            % new/calib/failed/log/focus directories are not derived from it.
+            % RefPath is deliberately left out (issue #1260): it is not derived
+            % from BasePath, prepPath may have just taken it from the caller,
+            % and if it is unset its getter auto detects it anyway
+            if isempty(Obj.NewPath)
+                if isempty(Obj.BasePath)
+                    Obj.BasePath = Obj.getPath;
+                end
+                Obj.autoDetectPath('LAST', 'SetRefPath', false);
+            end
+
+            % Propagate the histogram-anomaly check arguments down the chain:
+            % main -> pipelineI -> prePrep -> imProc.quality.histAnomaly.
+            % Appended AFTER any caller-supplied pipelineIArgs so that on a
+            % duplicate 'histAnomalyArgs' entry this dedicated argument wins
+            % (in MATLAB name-value parsing the last occurrence prevails).
+            if ~isempty(Args.histAnomalyArgs)
+                Args.pipelineIArgs = [Args.pipelineIArgs(:).', {'histAnomalyArgs', Args.histAnomalyArgs}];
+            end
+            
+
+
+            % set Logger log file 
+            Obj.setLogFile('HostName',Args.HostName);
+            Obj.writeLog('******* pipeline.last.pipes.PipelineDemon started ********', LogLevel.Info);
+            
+            PWD = pwd;
+            
+            cd(Obj.NewPath);
+
+            % clean Files from NewPath
+            % remove files with zero size and day-time images:
+            if Args.CleanNewDir
+                % must not take the demon down: this runs on every restart
+                % (issue #1290)
+                try
+                    Obj.cleanNewDir;
+                catch ME
+                    Msg = sprintf('PipelineDemon failed to clean new/ at startup: %s', ME.message);
+                    Obj.writeLog(Msg, LogLevel.Error);
+                end
+            end
+
+            %IsRunningOnLAST = false;
+            %if numel(Args.HostName)>=4
+            %    if contains(Args.HostName,'last')
+            %        IsRunningOnLAST = true;
+            %    end
+            %end
+
+            % Stop GUI
+            if all(get(0, 'ScreenSize')==1)
+                % No display mode - set StopButton to false
+                Args.StopButton = false;
+            end
+
+            if Args.StopButton
+                GUI_Text = sprintf('Abort : Pipeline');
+                [StopGUI, Hstop]  = tools.gui.stopButton('Msg',GUI_Text);
+            end
+            
+            % connect a DB  
+            if Args.ConnectDB
+                Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+                PM = PasswordsManager;
+                DB.Password = PM.search(Args.DbName).Pass;
+                if strcmpi(Args.DBConnector,'native')
+                    Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
+                    Args.DB.query(sprintf('use %s',Args.DbName));
+                else                    
+                    Args.DB = db.Db.connectLASTdb('User',Args.DbUser,'Pass',DB.Password);                    
+                end
+                % Args.pipelineIArgs = [Args.pipelineIArgs,{'DBobj',Args.DB,'DB_Table_Raw',Args.DB_Table_Raw}];
+            end
+
+            % loop indefently
+            JDlastCalib = 0;
+            Cont = true;
+            MainLoopCounter = 0;
+            while Cont
+                if ~isempty(PipeName)
+                    PipeStatus = 'In inf loop';
+                    Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus,'UpdateRedis',Args.UpdateRedis);
+                end
+
+                MainLoopCounter = MainLoopCounter + 1;
+                % Notify watchdog that process is running
+                tools.systemd.mex.notify_watchdog;
+
+                % check disk storage state - pause processing while critically full
+                if ~isempty(Args.StopDiskFull)
+                    [~,DiskP] = tools.os.df(Obj.BasePath);
+                    while DiskP>Args.StopDiskFull
+                        WarnMsg = sprintf('pipeline.last.pipes.PipelineDemon: disk data%d is %.1f%% full (threshold %.1f%%) on %s - pausing processing', ...
+                            Obj.DataDir, DiskP, Args.StopDiskFull, Args.HostName);
+                        warning(WarnMsg);
+                        try
+                            Obj.writeLog(WarnMsg, LogLevel.Error);
+                        catch
+                            % local log write failed (disk likely full) - warning above already fired
+                        end
+                        if Args.StopButton && StopGUI()
+                            Cont = false;
+                            break;
+                        end
+                        if isfile(Args.AbortFileName)
+                            Cont = false;
+                            delete(Args.AbortFileName);
+                            break;
+                        end
+                        pause(Args.PauseDiskFull);
+                        [~,DiskP] = tools.os.df(Obj.BasePath);
+                    end
+                    if ~Cont
+                        break;
+                    end
+                end
+
+                cd(Obj.NewPath);
+
+                if Args.RegenCalib
+                    % must not take the demon down: on an error the loop goes on
+                    % with the calibration already loaded (issue #1311)
+                    try
+                        % prep Master dark and move to raw/ dir
+                        [Obj, FN_Dark] = Obj.prepMasterDark('Move2raw',true);
+                            
+                        % prep Master flat and move to raw/ dir
+                        [Obj, FN_Flat] = Obj.prepMasterFlat('Move2raw',true);
+                    catch ME
+                        Msg = sprintf('PipelineDemon failed to prepare the master dark/flat, will retry: %s', ME.message);
+                        Obj.writeLog(Msg, LogLevel.Error);
+                        % the listings below are relative to new/
+                        cd(Obj.NewPath);
+                    end
+                else
+                    % reload calib only if not already loaded in CI
+                    [IsEmB, IsEmF] = Obj.CI.isemptyProp({'Bias','Flat'});
+                    if IsEmB || IsEmF
+                        Obj.loadCalib;
+                    end
+                end
+
+                %--- Select group ---
+
+                % delete test images taken during daytime
+                if Args.DeleteSciDayTime
+                    % must not take the demon down (issue #1290)
+                    try
+                        deleteDayTimeImages(Obj, 'SunAlt',Args.DeleteSunAlt);
+                    catch ME
+                        Msg = sprintf('PipelineDemon failed to delete the day-time images in new/, will retry: %s', ME.message);
+                        Obj.writeLog(Msg, LogLevel.Error);
+                    end
+                end
+
+                % The listing of new/ must never take the demon down: an
+                % error here would recur on every restart (issue #1290).
+                % Files the name parser rejects are moved to failed/ by
+                % listRawFiles; anything else is logged and retried in the
+                % next iteration.
+
+                % move focus images
+                try
+                    %FN_Foc   = FileNames.generateFromFileName(Args.TempRawFocus);
+                    FN_Foc   = Obj.listRawFiles(Args.TempRawFocus);
+                    FN_Foc.BasePath = Obj.BasePath;
+
+                    %FN_Foc.FullPath = [];
+                    % The empty argument in genPath is required for moving each image to the correct (date) directory.
+                    if FN_Foc.nFiles>0
+                       FN_Foc.moveImages('Operator',Args.FocusTreatment, 'SrcPath',FN_Foc.genPath([]), 'DestPath', Obj.FocusPath, 'Level','raw', 'Type','focus');
+                    end
+                catch ME
+                    Msg = sprintf('PipelineDemon failed to list or move the focus images in new/, will retry: %s', ME.message);
+                    Obj.writeLog(Msg, LogLevel.Error);
+                end
+
+                % look for new images
+                try
+                    [FN_Sci, DirSci] = Obj.listRawFiles(Args.TempRawSci);
+                    % files whose name can not form a visit go to failed/ (issue #1286)
+                    FN_Sci   = Obj.quarantineMalformedRaw(FN_Sci, {DirSci.name});
+                    FN_Sci.JD=FN_Sci.julday;
+                catch ME
+                    Msg = sprintf('PipelineDemon failed to list the images in new/, will retry: %s', ME.message);
+                    Obj.writeLog(Msg, LogLevel.Error);
+                    % no files: the loop pauses and checks the stop conditions
+                    FN_Sci = AstroFileName;
+                end
+
+                if FN_Sci.nFiles>Args.MinInGroup
+                    if ~isempty(PipeName)
+                        PipeStatus = sprintf('Found %d files to reduce',FN_Sci.nFiles);
+                        Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus, 'UpdateRedis',Args.UpdateRedis);
+                    end
+                    
+                    % select observations by date
+                    [FN_Sci] = FN_Sci.selectByDate(Args.StartJD, Args.EndJD, 'CreateNewObj',false);
+                    FN_Sci   = FN_Sci.sortBy('JD', 'Direction', Args.SortDirection, 'CreateNewObj',false);  % sort by JD
+    
+                    % group images by counter
+                    [Groups, FN_Sci_Groups] = groupByCounter(FN_Sci, 'MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup, 'CreateNewObj',true);
+    
+    
+                    % sort groups by JD (be default last observed group is
+                    % first)
+                    FN_Sci_Groups = FN_Sci_Groups.sortByFunJD(Args.SortDirection);
+    
+                    % Select visit for reduction:
+                    if Args.StaticRAWDir
+                        % Test mode: queue all groups with more than
+                        % MinInGroup images, oldest-first - the same
+                        % acceptance criterion selectVisitForReduction
+                        % applies in production. Requiring exactly
+                        % MaxInGroup here silently dropped every visit
+                        % whose sequence ended early (16-19 of 20 frames),
+                        % which production does process.
+                        NinGroup   = FN_Sci_Groups.nFiles;
+                        GroupQueue = fliplr(find(NinGroup > Args.MinInGroup));
+                    else
+                        GroupQueue = selectVisitForReduction(Obj, FN_Sci_Groups, Args);
+                    end
+
+                    %--- End Select group ---
+                    
+                    % check if stop loop
+                    if Args.StopButton && StopGUI()
+                        Cont = false;
+                    end
+                    if isfile(Args.AbortFileName)
+                        Cont = false;
+                        delete(Args.AbortFileName);
+                    end
+    
+                    if isempty(GroupQueue)
+                        % no files for reduction found
+                        Msg = sprintf('Waiting for new visit - pause for %f seconds', Args.PauseNotFound);
+                        Obj.writeLog(Msg, LogLevel.Info);
+                        pause(Args.PauseNotFound);
+
+                        if ~isempty(PipeName)
+                            PipeStatus = 'Waiting for new visit';
+                            Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus, 'UpdateRedis',Args.UpdateRedis);
+                        end
+                        
+                    else
+                        for IndStartGroup = GroupQueue
+                            % visit found
+                            TstartAll = clock;
+        
+                            % --- files compression ---
+                            % Check if images are compressed
+                            if any(FN_Sci_Groups(IndStartGroup).isCompressed) && Args.UncompressRaw
+                                % files are compressed
+                                FN_Sci_Groups(IndStartGroup).uncompress('Type','fz');
+                                FilesUncomp = true;
+            
+                                Msg = 'Uncompress visit';
+                                Obj.writeLog(Msg, LogLevel.Info);
+            
+                            else
+                                FilesUncomp = false;
+                            end % if any(FN_Sci_Groups(IndStartGroup).isCompressed) && Args.UncompressRaw
+                            RepackRaw = Args.RepackRaw && FilesUncomp;
+                            
+                            RawImageList   = FN_Sci_Groups(IndStartGroup).genFile();
+                            NimagesInVisit = numel(RawImageList);
+
+                            if isempty(PipeName)
+                                TmpSplit = split(RawImageList{1},'_');
+                                PipeName = TmpSplit{1};
+                            end
+                            
+        
+                            % log
+                            MsgV{1} = sprintf('New visit found - Number of images in visit: %d', NimagesInVisit);
+                            MsgV{2} = sprintf('New visit first image : %s', RawImageList{1});
+                            MsgV{3} = sprintf('New visit last image : %s', RawImageList{end});
+                            Obj.writeLog(MsgV, LogLevel.Info);
+        
+                            
+                            % special instruction block
+                            % FFU
+                            UpArgs = Args;
+        
+                            % reload calibration files
+                            FN_I = FN_Sci_Groups(IndStartGroup);
+                            JDgr = FN_I.juldayFun(@mean);
+                            if abs(JDgr-JDlastCalib)>Args.ReloadCalibTimeDiff
+                                % if time difference between the last time
+                                % calibration was loaded and current image >
+                                % 0.7 days, then reload...
+                                Obj.loadCalib('FlatNearJD',JDgr, 'BiasNearJD',JDgr, 'ForceReload',true);
+                                JDlastCalib = JDgr(1);
+        
+                                Msg = 'Reload calibration files';
+                                Obj.writeLog(Msg, LogLevel.Info);
+                            end % if abs(JDgr-JDlastCalib)>Args.ReloadCalibTimeDiff
+                            
+                            % FFU
+        
+                            %ProjName = RawImageList{1}(1:13);
+                            %Obj.updateRedis(sprintf('%s.pipeline.waiting_visits',ProjName), numel(FN_Sci_Groups));
+        
+                            % visit found - start reduction
+                            if ~isempty(PipeName)
+                                PipeStatus = sprintf('Reducing visit %s',RawImageList{1});
+                                Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus,'UpdateRedis',Args.UpdateRedis);
+                            end
+                                        
+                            [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
+        
+                            if ~Status.PipeI || ~Status.WriteI
+                                % Move images to failed directory:
+                                switch Args.FailMethod
+                                    case 'move'
+                                        Obj.moveImagesToFailedDir(RawImageList);
+
+                                        % Write the Status info to the failed
+                                        % directory:
+                                        try
+                                            [~, FailName, FailExt] = fileparts(RawImageList{1});
+                                            FailedInfoFileName = strrep([FailName, FailExt], 'sci_raw_Image', 'sci_raw_Failure');
+                                            FailedInfoFileName = strrep(FailedInfoFileName, '.fits', '.mat');
+                                            FailedInfoFileName = fullfile(Obj.FailedPath, FailedInfoFileName);
+
+                                            Status.RawImageList = RawImageList;
+                                            Status.TableRaw     = TableRaw;
+                                            save('-v7.3', FailedInfoFileName, 'Status');
+                                        catch MEsave
+                                            Obj.writeLog(sprintf('Failed writing failure info file: %s', MEsave.message), LogLevel.Error);
+                                        end
+                                    case 'report'
+                                        if ~isfolder(Obj.FailedPath)
+                                            mkdir(Obj.FailedPath);
+                                        end
+                                        FN  = fullfile(Obj.FailedPath, 'report.txt');
+                                        FID = fopen(FN,'a');
+                                        fprintf(FID,'%% == pipelineI failed at %s == \n',datetime);
+                                        fprintf(FID,'%% RAWImageDir: \n');
+                                        fprintf(FID,'%s \n',Obj.NewPath);
+                                        fprintf(FID,'%% StartImage: \n');                                        
+                                        fprintf(FID,'%s \n',RawImageList(1));    
+                                        fprintf(FID,'%% Full input image list: \n');        
+                                        fprintf(FID,'%s \n',RawImageList{:});   
+                                        fclose(FID);
+                                    case 'none'
+                                        % do nothing
+                                    otherwise
+                                        error('Unknown FailMethod option %s',Args.FailMethod);
+                                end
+                                   
+                            end % if ~Status.PipeI || ~Status.WriteI
+        
+                            if Status.PipeI && Status.WriteI && Status.MoveRaw
+                                % continue to pipeline II
+                                try
+                                    % call method runPipelineII(Obj, Coadd, FN_I, Args)
+                                    % This function creates the products and writes them to the disk                                   
+                                    runPipelineII(Obj, Coadd, FN_I, UpArgs);
+
+                                    Status.PipeII  = true;
+                                    Status.WriteII = true;
+                                catch MEs
+                                    % the handler itself must never throw (issue #1243)
+                                    Status.ME           = MEs;
+                                    Status.RawImageList = RawImageList;
+                                    Status.TableRaw     = TableRaw;
+                                    Status.PipeII       = false;
+                                    Status.WriteII      = false;
+
+                                    Obj.writeLog('pipeline.last.pipes.PipelineDemon: pipelineII failed', LogLevel.Error);
+                                    Obj.writeLog(MEs, LogLevel.Error);
+
+                                    % failure report, named after the first RAW frame of the visit
+                                    try
+                                        [~, RawBase] = fileparts(char(RawImageList{1}));
+                                        RawBase = regexprep(RawBase, '\.fits$', '');   % handles .fits.fz
+                                        FailedInfoFileName = [strrep(RawBase, 'sci_raw_Image', 'sci_zogy_Failure'), '.mat'];
+                                        save(fullfile(Obj.FailedPath, FailedInfoFileName), 'Status', '-v7.3');
+                                    catch MEsave
+                                        Obj.writeLog(sprintf('pipelineII failure report not saved: %s', MEsave.message), LogLevel.Error);
+                                    end
+                                end
+                            else
+                                Status.PipeII  = false;
+                                Status.WriteII = false;
+                            end %if Status.PipeI && Status.WriteI && Status.MoveRaw
+          
+                                
+                            % Write ready-to-transfer
+                            %   Only a successfully processed visit is marked: a failed
+                            %   visit must not be transferred (issue #1242).
+                            if Args.UpdateStatusFile && Status.PipeI && Status.WriteI
+                                writeStatus(Obj, FN_I.genPath);
+                                if Status.MoveRaw
+                                    % RawImageListFinal is the raw/ directory once the RAW
+                                    % frames have been moved there; guard against it still
+                                    % holding the list of RAW file names
+                                    RawStatusPath = string(RawImageListFinal);
+                                    RawStatusPath = RawStatusPath(1);
+                                    if ~isfolder(RawStatusPath)
+                                        RawStatusPath = fileparts(RawStatusPath);
+                                    end
+                                    writeStatus(Obj, RawStatusPath);
+                                end
+                            end
+        
+                            % Backup the data
+                            if Args.Backup
+                                BackupPath = FN_I.genPath;
+                                %     BackupPath = strrep(BackupPath,'//','/');
+                                BackupStr = sprintf("last-backup --source %s --extra ""--exclude=*/raw --exclude=*_sci_proc_Image_* --exclude=*_sci_proc_Mask_* --exclude=*_sci_proc_PSF_* "" &", BackupPath);
+                                system(BackupStr);
+                                Msg{1} = sprintf('pipeline.DemonLAST backup started');
+                                Obj.writeLog(Msg, LogLevel.Info);
+                            end
+        
+                            Msg = sprintf('Pipeline summary status - PipeI: %d, Write: %d, Move: %d', Status.PipeI, Status.WriteI, Status.MoveRaw);
+                            Obj.writeLog(Msg, LogLevel.Info);
+                            Msg = sprintf('Pipeline summary status - PipeII: %d, Write: %d', Status.PipeII, Status.WriteII);
+                            Obj.writeLog(Msg, LogLevel.Info);                            
+        
+                            % check if stop loop
+                            if Args.StopButton && StopGUI()
+                                Cont = false;
+                            end
+                            if isfile(Args.AbortFileName)
+                                Cont = false;
+                                delete(Args.AbortFileName);
+                            end
+            
+                            % check disk storage state - pause processing while critically full
+                            if ~isempty(Args.StopDiskFull)
+                                [~,DiskP] = tools.os.df(Obj.BasePath);
+                                while DiskP>Args.StopDiskFull
+                                    WarnMsg = sprintf('pipeline.last.pipes.PipelineDemon: disk data%d is %.1f%% full (threshold %.1f%%) on %s - pausing processing', ...
+                                        Obj.DataDir, DiskP, Args.StopDiskFull, Args.HostName);
+                                    warning(WarnMsg);
+                                    try
+                                        Obj.writeLog(WarnMsg, LogLevel.Error);
+                                    catch
+                                        % local log write failed (disk likely full) - warning above already fired
+                                    end
+                                    if Args.StopButton && StopGUI()
+                                        Cont = false;
+                                        break;
+                                    end
+                                    if isfile(Args.AbortFileName)
+                                        Cont = false;
+                                        delete(Args.AbortFileName);
+                                        break;
+                                    end
+                                    pause(Args.PauseDiskFull);
+                                    [~,DiskP] = tools.os.df(Obj.BasePath);
+                                end
+                            end
+        
+                            if RepackRaw
+                                FN_Sci_Groups(IndStartGroup).compress('fz');
+                                
+                                Msg = 'Re-compress visit';
+                                Obj.writeLog(MsgV, LogLevel.Info);  
+                            end
+                            
+                            RunTime = etime(clock, TstartAll);
+                            Msg = sprintf('Visit total run time : %.1f',RunTime);
+                            Obj.writeLog(Msg, LogLevel.Info);
+    
+                            if ~Cont
+                                break;
+                            end
+                        end % for IndStartGroup
+                    end % if isempty(GroupQueue)
+    
+                    if ~Cont
+                        % exist the visit loop
+                        break;
+                    end
+         
+                else
+                    % slow down - 
+                    if FN_Sci.nFiles<Args.MinInGroup && ~Args.StopWhenDone
+                        pause(20);
+                    end
+                end % if FN_Sci.nFiles>Args.MinInGroup
+
+                % Stop when done - at the level of the main loop, so that it
+                % also applies when new/ holds fewer images than MinInGroup.
+                % Nested inside the branch above, a batch run over leftovers
+                % never returned (as in pipeline.DemonLAST, which checks here)
+                if Args.StopWhenDone
+                    Cont = false;
+                end
+
+                % The abort file and the stop button are checked inside the
+                % branch above as well, i.e. only when there are more than
+                % MinInGroup images in new/. A demon left with a handful of
+                % stranded frames could then not be stopped at all (#1262).
+                if Args.StopButton && StopGUI()
+                    Cont = false;
+                end
+                if isfile(Args.AbortFileName)
+                    Cont = false;
+                    delete(Args.AbortFileName);
+                end
+
+            end % while Cont
+            cd(PWD);
+
+        end % function main
+        % delete abort msg box
+        %Hstop.delete;
+    end
+
+    methods % image subtraction
+        
+        function [Path, FieldName, Telescope, CropID] = getRefPath(Obj, FN)
+            % Get path for reference images
+            % Input  : - A pipeline.DemonLAST object
+            %          - One of the following options:
+            %            1. A FileNames object.
+            %            2. A cell array of {FieldName, Telescope, CROPID}
+            %            3. A vector of [FieldID, Telescope, CROPID]
+            %            4. A vector of [RA, Dec, Telescope, CROPID]
+            % Output : - A path for the reference images
+            %          - Field ID
+            %          - Telescope ID
+            %          - Crop ID
+            % Author : Eran Ofek (Jul 2023)
+            % Example: D.getRefPath([1 1 1]) 
+
+            arguments
+                Obj
+                FN      % FileNames object or {FieldName, Telescope, CROPID} or [FieldID, Telescope, CROPID] or [RA, Dec, Telescope, CROPID]
+            end
+
+            if isa(FN, 'FileNames')
+                FieldName  = FN.FieldID;
+                SpProjName = split(FN.ProjName,'.');
+                Telescope  = SpProjName{end};
+                CropID     = FN.CropID;
+            else
+                if iscell(FN)
+                    FieldName = FN{1};
+                    Telescope = FN{2};
+                    CropID    = FN{3};
+                else
+                    if numel(FN)==3
+                        FieldName = FN(1);
+                        Telescope = FN(2);
+                        CropID    = FN(3);
+                    elseif numel(FN)==4
+                        RA  = FN(1);
+                        Dec = FN(2);
+                        FieldName = pipeline.DemonLAST.searchFieldLAST(Obj.FieldList, RA, Dec);
+                        Telescope = FN(3);
+                        CropID    = FN(4);
+                    else
+                        error('Numeric FN must contain 3 or 4 elements');
+                    end
+                end
+            end
+            if ischar(FieldName)
+                % convert field name to field ID
+                [FieldName, MinDist, List] = searchFieldLAST(Obj.FieldList, FieldName);
+            end
+            % FieldName now contains FieldID number
+            Path = fullfile(Obj.RefPath, sprintf('%d',FieldName));
+
+        end
+
+
+    end
+
+    %----------------------------------------------------------------------
+    % Unit test
+    methods(Static)
+        Result = unitTest()
+    end
+    
+end

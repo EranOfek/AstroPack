@@ -7,7 +7,7 @@ function [Back, Std] = backgroundCube(Cube, Args)
     %            'AnnulusRad' - Either [inner, outer] or [width] of
     %                   annulus. If width, then the outer radius is given
     %                   by the stamp (size - 1)/2.
-    %                   Default is 2.
+    %                   Default is 3.
     %            'StdFun' - A function handle for calculating the std in
     %                   the cube (where the non annulus pixels are set to
     %                   NaN). Default is @std.
@@ -27,7 +27,7 @@ function [Back, Std] = backgroundCube(Cube, Args)
     
     arguments
         Cube
-        Args.AnnulusRad                = 2;  % if scalar than width of annulus
+        Args.AnnulusRad                = 3;  % if scalar than width of annulus
         Args.StdFun function_handle    = @std
         Args.StdFunArgs cell           = {[],[1 2],'omitnan'};
         Args.MeanFun function_handle   = @median;

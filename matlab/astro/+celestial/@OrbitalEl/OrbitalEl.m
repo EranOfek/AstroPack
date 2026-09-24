@@ -6,7 +6,6 @@
 % Typically, orbital elements of a single object as a function of epoch are stored in the same row,
 % while orbital elements for different targets are stored in different
 % rows.
-% 
 % Examples:
 % % To download the JPL orbital elements use the Installer.
 % % Load arguments of all numbered asteroids
@@ -241,11 +240,15 @@ classdef OrbitalEl < Base
                 Ndata = size(Result.(Prop{Iprop}), 1);
                 %if numel(Flag)==Ndata
                 if Ndata>1 || Ne==1
-                    if iscell(Result.(Prop{Iprop}))
+                    %if iscell(Result.(Prop{Iprop}))
+                    if Ndata>0
                         Result.(Prop{Iprop}) = Result.(Prop{Iprop})(Flag,:);
                     else
-                        Result.(Prop{Iprop}) = Result.(Prop{Iprop})(Flag,:);
+                        Result.(Prop{Iprop}) = Result.(Prop{Iprop});
                     end
+                    %else
+                    %    Result.(Prop{Iprop}) = Result.(Prop{Iprop})(Flag,:);
+                    %end
                 end
             end
             
@@ -284,6 +287,7 @@ classdef OrbitalEl < Base
                 Ind                        = [];
                 IndNew                     = [];
                 Args.CreateNewObj logical  = true;
+                Args.SkipProp              = {'K'};
             end
 
             if Args.CreateNewObj
@@ -300,30 +304,32 @@ classdef OrbitalEl < Base
             FN  = fieldnames(Obj);
             Nfn = numel(FN);
             for Ifn=1:1:Nfn
-                if isempty(Ind)
-                    % concat on end
-                    if isempty(Obj.(FN{Ifn})) || size(Obj.(FN{Ifn}), 1)==1 || isempty(NewObj.(FN{Ifn}))
-                        % skip
-                    else
-                        Result.(FN{Ifn}) = [Obj.(FN{Ifn}); NewObj.(FN{Ifn})(IndNew,:)];
-                    end
-                else
-                    % insert in specific positions
-                    %if isempty(Obj.(FN{Ifn})) || size(Obj.(FN{Ifn}), 1)==1 || isempty(NewObj.(FN{Ifn}))
-                    if isempty(Obj.(FN{Ifn})) || isempty(NewObj.(FN{Ifn}))
-                        % skip
-                    else
-%                         if size(NewObj.(FN{Ifn}), 1)==1
-%                             Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn});
-%                         else
-%                             Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn})(IndNew,:);
-                        if (numel( NewObj.(FN{Ifn}) )==1 &&  numel(IndNew)>1)
-                            Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn})(1,:);
+                if ~strcmp(FN{Ifn}, Args.SkipProp)
+                    if isempty(Ind)
+                        % concat on end
+                        if isempty(Obj.(FN{Ifn})) || size(Obj.(FN{Ifn}), 1)==1 || isempty(NewObj.(FN{Ifn}))
+                            % skip
                         else
-                            if ischar(NewObj.(FN{Ifn}))
-                                Result.(FN{Ifn}) = NewObj.(FN{Ifn});
+                            Result.(FN{Ifn}) = [Obj.(FN{Ifn}); NewObj.(FN{Ifn})(IndNew,:)];
+                        end
+                    else
+                        % insert in specific positions
+                        %if isempty(Obj.(FN{Ifn})) || size(Obj.(FN{Ifn}), 1)==1 || isempty(NewObj.(FN{Ifn}))
+                        if isempty(Obj.(FN{Ifn})) || isempty(NewObj.(FN{Ifn}))
+                            % skip
+                        else
+    %                         if size(NewObj.(FN{Ifn}), 1)==1
+    %                             Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn});
+    %                         else
+    %                             Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn})(IndNew,:);
+                            if (numel( NewObj.(FN{Ifn}) )==1 &&  numel(IndNew)>1)
+                                Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn})(1,:);
                             else
-                                Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn})(IndNew,:);
+                                if ischar(NewObj.(FN{Ifn}))
+                                    Result.(FN{Ifn}) = NewObj.(FN{Ifn});
+                                else
+                                    Result.(FN{Ifn})(Ind,:) = NewObj.(FN{Ifn})(IndNew,:);
+                                end
                             end
                         end
                     end
@@ -344,15 +350,19 @@ classdef OrbitalEl < Base
             %                   one. Default is -Inf.
             %            'MaxEccen' - Select bodies with Eccen below this
             %                   one. Default is Inf.
+            %            'MaxH' - Select bodies with abs. mah (H) below
+            %                   this one. Default is Inf.
             % Output : - A merged OrbitalEl objt with a single element.
             %            This is always a new copy.
             % Example: OrbEl = celestial.OrbitalEl.loadSolarSystem;
             %          O = merge(OrbEl);
+            %          E=merge(OrbEl,'MinEpoch',celestial.time.julday([1 1 2015]),'MaxEccen',0.99,'MaxH',26)
             
             arguments
                 Obj
                 Args.MinEpoch = -Inf;
                 Args.MaxEccen = Inf;
+                Args.MaxH     = Inf;
             end
             
             ConCatProp  = {'Number','Designation','Node','W','Incl','Eccen','PeriDist','A','Epoch','Tp','Mepoch','Ref','MagPar'};
@@ -390,7 +400,7 @@ classdef OrbitalEl < Base
             end
             
             % clean file
-            Flag = Result.Epoch>Args.MinEpoch & Result.Eccen<Args.MaxEccen;
+            Flag = Result.Epoch>Args.MinEpoch & Result.Eccen<Args.MaxEccen & Result.MagPar(:,1)<Args.MaxH;
             if ~all(Flag)
                 Result = selectFlag(Result, Flag, false);
             end
@@ -1034,6 +1044,9 @@ classdef OrbitalEl < Base
             %            If empty, then ignore.
             %            Default is [].
             %          * ...,key,val,...
+            %            'S_B' - Column vector of Sun barycentric position.
+            %                   If empty, then assume [0 0 0]'.
+            %                   Default is [].
             %            'OutType' - Output type:
             %                   'mat' - A matrix output.
             %                   'AstroCatalog' - An AstroCatalog object.
@@ -1072,6 +1085,8 @@ classdef OrbitalEl < Base
                 AllE_H
                 AllE_dotH                  = [];
                 
+                Args.S_B                   = []; % if provided then use it to calculate heliocentric R instead of barycentric R
+
                 Args.OutType               = 'AstroCatalog'; % 'mat'|'astrocatalog'|'table'
                                 
                 Args.Aberration logical    = false;
@@ -1079,6 +1094,8 @@ classdef OrbitalEl < Base
                 Args.IncludeMag logical    = true;
                 Args.IncludeAngles logical = true;
                 Args.IncludeDesignation logical = true;
+
+                %Args.TreatInaccurateDist logical  = true;
             end
             
             if Args.OutUnitsDeg
@@ -1090,7 +1107,11 @@ classdef OrbitalEl < Base
             % Topocentric distance
             Delta = sqrt(sum(AllU.^2, 1));
 
-            R     = sqrt(sum(AllU_B.^2, 1));
+            if isempty(Args.S_B)
+                R     = sqrt(sum(AllU_B.^2, 1));
+            else
+                R     = sqrt(sum((AllU_B-Args.S_B).^2, 1));
+            end
 
             
             % U2 is already in equatorial caretesian coordinates
@@ -1104,6 +1125,10 @@ classdef OrbitalEl < Base
             % calculate angles
             if Args.IncludeAngles
                 R_obs_sun = sqrt(sum(AllE_H.^2, 1));  % Sun-Earth distance
+                % if Args.TreatInaccurateDist
+                %     Flag = (R_obs_sun+Delta)<R;
+                %     R_obs_sun
+
                 [Ang_SOT, Ang_STO, Ang_TSO] = celestial.SolarSys.anglesFromDistances(R_obs_sun, R, Delta, Args.OutUnitsDeg);
                 
                 Cat = [Cat, Ang_SOT(:), Ang_STO(:), Ang_TSO(:)];
@@ -1134,7 +1159,7 @@ classdef OrbitalEl < Base
                 if ischar(Designation)
                     Designation = {Designation};
                 end
-                if iscell(Designation)
+                if iscell(Designation) || isstring(Designation)
                     if numel(Designation)==1
                         Desig = repmat(Designation, Ncat, 1);
                     else
@@ -1615,7 +1640,7 @@ classdef OrbitalEl < Base
             %          
             %          % full example to the most common epoch
             %          OrbEl = celestial.OrbitalEl.loadSolarSystem;
-            %          E=merge(OrbEl,'MinEpoch',2451545.5,'MaxEccen',0.9999);
+            %          E=merge(OrbEl,'MinEpoch',celestial.time.julday([1 1 2014]),'MaxEccen',0.9999);
             %          IN = celestial.INPOP;
             %          IN.populateTables('all','TimeSpan',[min(E.Epoch)-100, max(E.Epoch)+100])
             %          IN.populateTables('Sun','FileData','vel');
@@ -1657,7 +1682,7 @@ classdef OrbitalEl < Base
             end
 
             for IunEpoch=1:1:NunEpoch
-                [IunEpoch, NunEpoch, SumUn(IunEpoch)]
+                [IunEpoch, NunEpoch, SumUn(IunEpoch), UniqueEpochs(IunEpoch)-CommonEpoch]
                 ObjUn = selectFlag(Obj, FlagUn{IunEpoch}, true);
                 if UniqueEpochs(IunEpoch)==CommonEpoch
                     % skip - no need to integrate
@@ -1699,7 +1724,7 @@ classdef OrbitalEl < Base
             %            'MagLimit' - Magnitude limit. Default is Inf.
             %            'INPOP' - A populated celestial.INPOP object.
             %                   If empty then will be generated.
-            %                   Default is [].
+            %                   Default is celestial.INPOP.init;
             %            'AddDist' - A logical indicating if to add a
             %                   'Dist' column to the output table, containing the
             %                   distance between the search position and asteroid
@@ -1718,6 +1743,8 @@ classdef OrbitalEl < Base
             %                   within the search radius. Otherwise will
             %                   return all sources found in the intial
             %                   search + buffer.
+            %                   This is operational only if 'AddDist' is
+            %                   true.
             %                   Default is false.
             %            'coneSearchArgs' - A cell array of additional
             %                   arguments to pass to imProc.match.coneSearch
@@ -1762,6 +1789,8 @@ classdef OrbitalEl < Base
             %            'IncludeDesignation' - A logical indicatig if to
             %                   include desigmation.
             %                   Default is true.
+            %            'AddAngSpeed' - Add angular speed ["/min].
+            %                   Default is false.
             % Output : - An AstroCatalog object with the ephemerides of the
             %            minor planets / comets found near the search
             %            position. The number of elements are equal to the
@@ -1772,7 +1801,12 @@ classdef OrbitalEl < Base
             %          OrbEl1.propagate2commonEpoch;
             %          IN = celestial.INPOP; IN.populateAll;
             %          [Result] = searchMinorPlanetsNearPosition(OrbEl1, 2461000, 0, 0, 1000, 'INPOP',IN)
-            
+            %          % Search many:
+            %          AngSpeed = nan(numel(Ast.JD),1);
+            %          for I=1:numel(Ast.JD), I,
+            %              [Result] = searchMinorPlanetsNearPosition(OrbEl, Ast.JD(I), Ast.RA(I), Ast.Dec(I), 5, 'INPOP',IN,'ConeSearch',true,'AddAngSpeed',1);
+            %              if Result.sizeCatalog==1, AngSpeed(I) = Result.Table.AngSpeed; end
+            %          end
 
             arguments
                 Obj
@@ -1786,14 +1820,14 @@ classdef OrbitalEl < Base
                 Args.AddDist logical       = true;
                 
                 Args.MagLimit              = Inf;
-                Args.INPOP                 = [];
+                Args.INPOP                 = celestial.INPOP.init;
                 Args.GeoPos                = [];
                 Args.RefEllipsoid          = 'WGS84';
 
                 
                 Args.ConeSearch logical    = false;
                 Args.coneSearchArgs cell   = {};
-                Args.QuickSearchBuffer     = 500;    % to be added to SearchRadis (same units).
+                Args.QuickSearchBuffer     = 1000;    % to be added to SearchRadis (same units).
                 Args.SearchBufferUnits     = 'arcsec';
                 
                 Args.Integration logical   = true;
@@ -1809,6 +1843,7 @@ classdef OrbitalEl < Base
                 Args.IncludeMag logical    = true;
                 Args.IncludeAngles logical = true;
                 Args.IncludeDesignation logical = true;
+                Args.AddAngSpeed                = false;
                 
             end
             RAD = 180./pi;
@@ -1912,19 +1947,70 @@ classdef OrbitalEl < Base
                         
                     end                           
                
-                    if Args.ConeSearch
-                        [Result(Iobj), Flag] = imProc.match.coneSearch(Result(Iobj), [RA, Dec], 'CooType','sphere',...
-                                                      'Radius',SearchRadiusRAD,...
-                                                      'RadiusUnits','rad',...
-                                                      'CooUnits','rad',...
-                                                      'CreateNewObj',false,...
-                                                      Args.coneSearchArgs{:});
-                    end
-                    
                     % add Dist
                     if Args.AddDist
-                        Dist = celestial.coo.sphere_dist_fast(RA, Dec, Result(Iobj).Catalog.RA./RAD, Result(Iobj).Catalog.Dec./RAD) ;
+                        AstLonLat = getLonLat(Result(Iobj), 'rad');
+                        Dist = celestial.coo.sphere_dist_fast(RA, Dec, AstLonLat(:,1), AstLonLat(:,2));
+                        
                         Result(Iobj).insertCol(Dist.*RAD.*3600, Inf, {'Dist'}, {'arcsec'});
+                    end
+
+                    if Args.ConeSearch && Args.AddDist
+                        SearchRadiusAS = convert.angular('rad','arcsec', SearchRadiusRAD);
+                        Flag = Result(Iobj).getCol('Dist')<SearchRadiusAS;
+                        Result(Iobj).selectRows(Flag, 'CreateNewObj',false);
+
+
+
+                        % [Result(Iobj), Flag] = imProc.match.coneSearch(Result(Iobj), [RA, Dec], 'CooType','sphere',...
+                        %                               'Radius',SearchRadiusRAD,...
+                        %                               'RadiusUnits','rad',...
+                        %                               'CooUnits','rad',...
+                        %                               'CreateNewObj',false,...
+                        %                               Args.coneSearchArgs{:});
+                    else
+                        Flag = true(ObjNew(Iobj).numEl, 1);
+                    end
+
+                    % add angular speed
+                    if Args.AddAngSpeed 
+                        
+                        ObjNew(Iobj) = selectFlag(ObjNew(Iobj), Flag, false);
+                        if ObjNew(Iobj).numEl>0
+                            DeltaTime = 1./1440;
+                            [Rt1] = celestial.ephem.ephemKepler(ObjNew(Iobj), JD, 'INPOP',Args.INPOP,...
+                                                                          'GeoPos',Args.GeoPos,...
+                                                                          'RefEllipsoid',Args.RefEllipsoid,...
+                                                                          'MaxIterLT',2,...
+                                                                          'TimeScale',Args.TimeScale,...
+                                                                          'ObserverEphem',Args.ObserverEphem,...
+                                                                          'Tol',Args.Tol,...
+                                                                          'OutType',Args.OutType,...
+                                                                          'Aberration',false,...
+                                                                          'OutUnitsDeg',Args.OutUnitsDeg,...
+                                                                          'IncludeMag',false,...
+                                                                          'IncludeAngles',false,...
+                                                                          'IncludeDesignation',false);
+                            [Rt2] = celestial.ephem.ephemKepler(ObjNew(Iobj), JD+DeltaTime, 'INPOP',Args.INPOP,...
+                                                                          'GeoPos',Args.GeoPos,...
+                                                                          'RefEllipsoid',Args.RefEllipsoid,...
+                                                                          'MaxIterLT',2,...
+                                                                          'TimeScale',Args.TimeScale,...
+                                                                          'ObserverEphem',Args.ObserverEphem,...
+                                                                          'Tol',Args.Tol,...
+                                                                          'OutType',Args.OutType,...
+                                                                          'Aberration',false,...
+                                                                          'OutUnitsDeg',Args.OutUnitsDeg,...
+                                                                          'IncludeMag',false,...
+                                                                          'IncludeAngles',false,...
+                                                                          'IncludeDesignation',false);
+                            AngSpeed = celestial.coo.sphere_dist_fast(Rt1.Table.RA./RAD,...
+                                                                   Rt1.Table.Dec./RAD,...
+                                                                   Rt2.Table.RA./RAD,...
+                                                                   Rt2.Table.Dec./RAD).*RAD.*3600;  % [arcse/min]
+    
+                           Result(Iobj).insertCol(AngSpeed, Inf, {'AngSpeed'}, {'arcsec/min'});
+                        end
                     end
                 end
                
@@ -1932,10 +2018,50 @@ classdef OrbitalEl < Base
                         
                         
         end
+    
+        
     end
     
     methods % conversion
-        
+        function Number = desig2number(Obj, Desig)
+            % Convert asteroid designation to number
+            % Input  : - A single element celestial.OrbitalEl object.
+            %          - Asteroid designation, or a cell array of asteroids
+            %            designation.
+            % Output : - Asteroid number.
+            %            If 0, then the designation was not found.
+            %            If NaN, then the designation was found but the
+            %            number is NaN.
+            % Author : Eran Ofek (Dec 2023)
+            % Example: OrbEl.desig2number('1998 ST50')
+            %          OrbEl.desig2number({'1998 ST50','Ceres'})
+
+            arguments
+                Obj(1,1)
+                Desig
+            end
+
+            if ischar(Desig)
+                Desig = {Desig};
+            end
+
+            % if the search Desig is a long list then use:
+            %Ind = tools.string.mex.findAllInAll(A,B)
+
+            Ndesig = numel(Desig);
+            Number = zeros(Ndesig,1);
+            for Idesig=1:1:Ndesig
+                
+                Ind = find(strcmp(Obj.Designation, Desig{Idesig}), 1);
+                if isempty(Ind)
+                    Number(Idesig) = 0;
+                else
+                    Number(Idesig) = Obj.Number(Ind);
+                end
+            end
+    
+        end
+
         function TI=thiele_innes(Obj)
             % Convert orbital elements to Thiele-Innes elements
             % Description: Convert orbital elements to Thiele-Innes
@@ -2004,13 +2130,20 @@ classdef OrbitalEl < Base
     end
     
     methods (Static)   % upload orbital elenments
-        function Result = loadSolarSystem(Type, Desig)
+        function Result = loadSolarSystem(Type, Desig, Args)
             % Load the JPL Solar System orbital elements from local disk
             %   To install the orbital elements use the Installer class.
-            % Input  : - Type: [] - read all | 'num' | 'unnum' | 'comet'
+            % Input  : - Type: [] - read all | 'num' | 'unnum' | 'comet' |
+            %            'merge'.
+            %            'merge' is stored in
+            %            ~/matlab/data/SolarSystem/MinorPlanetsCT and
+            %            contains a merged catalog with a common epoch.
             %            Default is [].
             %          - Minor planets designation (string) or number.
             %            If empty, return all. Default is [].
+            %          * ...,key,name,...
+            %            'MergedFile' - Default is
+            %            {'MergedEpoch_2460400.mat','MergedEpoch_2460200.mat'}
             % Output : - OrbitalEl object.
             %            Number of elements equal to the number of files
             %            read, and in each elements there may be multiple
@@ -2024,6 +2157,7 @@ classdef OrbitalEl < Base
             arguments
                 Type     = [];   % [] - read all | 'num' | 'unnum' | 'comet'
                 Desig    = [];   % [] - read all
+                Args.MergedFile = {'MergedEpoch.mat', 'MergedEpoch_2460800.mat', 'MergedEpoch_2460400.mat', 'MergedEpoch_2460200.mat'};
             end
             MJD0 = 2400000.5;
             
@@ -2119,9 +2253,30 @@ classdef OrbitalEl < Base
                             %Result(Itype).Tp          = T.Tp(Flag);
                             Result(Itype).Ref         = T.Ref(Flag);
                         end
+                    case 'merge'
+                        % load the merged common epoch orbital elements
+                        % file
+                        I = Installer; 
+                        Nfile = numel(Args.MergedFile);
+                        TryLoading = true;
+                        Ifile = 0;
+                        while TryLoading 
+                            Ifile = Ifile + 1;
+                            try
+                                DataFile = strcat(I.getDataDir(I.Items.MinorPlanetsCT),filesep,Args.MergedFile{Ifile});
+                                Result   = io.files.load2(DataFile);
+                                TryLoading = false;
+                            catch
+                                warning('File %s does not exit - trying next file',Args.MergedFile{Ifile});
+                            end
+                        end
+                        
+
                     otherwise
                         error('Unknown Type option');
                 end
+                Result(Itype).Designation = string(Result(Itype).Designation);
+                Result(Itype).Ref         = string(Result(Itype).Ref);
             end
             % populate missing parameters
             Result.populate;
@@ -2135,7 +2290,7 @@ classdef OrbitalEl < Base
             %            'RangeE' - Eccntricity range.
             %                   Default is [0, 0.9].
             %            'Epoch' - Epoch of observations.
-            %                   Default is 0.
+            %                   Default is 2451545.
             % Output : - An OrbitalEl object with random elements.
             % Author : Eran Ofek (Apr 2022)
             % Example: R = celestial.OrbitalEl.randomElements;
@@ -2144,7 +2299,8 @@ classdef OrbitalEl < Base
                 N             = 1e6;
                 Args.A        = 1;
                 Args.RangeE   = [0, 0.9];
-                Args.Epoch    = 0;
+                Args.Epoch    = 2451545;
+                Args.RangeIncl = [-90, 90];
             end
             
             Result = celestial.OrbitalEl;
@@ -2152,11 +2308,22 @@ classdef OrbitalEl < Base
             Result.A         = ones(N,1).*Args.A;
             Result.Node      = rand(N,1).*360;
             Result.W         = rand(N,1).*360;
-            Result.Incl      = rand(N,1).*180 - 90;
+            %Result.Incl      = rand(N,1).*180 - 90;
+            % Inc        = (-90:1:90).';
+            if min(Args.RangeIncl) ~= max(Args.RangeIncl)
+                Inc         = (min(Args.RangeIncl):1:max(Args.RangeIncl)).';
+                Result.Incl      = tools.math.stat.randgen([Inc, cosd(Inc)],N);
+            else
+                Result.Incl = min(Args.RangeIncl);
+            end
+
             Result.Eccen     = rand(N,1).*range(Args.RangeE) + min(Args.RangeE);
             Result.Epoch     = ones(N,1).*Args.Epoch;
             Result.Mepoch    = rand(N,1).*360;
-            
+            Result.PeriDist  = Result.A.*(1 - Result.Eccen);
+
+            % M = n*(t-T)
+            Result.Tp = Args.Epoch - Result.Mepoch./Result.meanMotion('deg');
             
         end
         

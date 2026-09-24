@@ -1,6 +1,7 @@
 function Result=interp2wcs(Obj, Ref, Args)
     % Transform an image with a WCS into a new grid defined by a ref WCS, using interp2.
-    % Input  : - An AstroImage object, with WCS updated.
+    %   Obsoloete: use imProc.transIm.interp2 instead.
+    % Input  : - An (new) AstroImage object, with WCS updated.
     %            Use populateWCS to update WCS from the header.
     %          - An AstroWCS object, or AstroImage containing AstroWCS.
     %            This is either a single element object, or have the same
@@ -11,6 +12,8 @@ function Result=interp2wcs(Obj, Ref, Args)
     %            'InterpMethod' - Interpolation method for images.
     %                   See interp2 for options.
     %                   Default is 'cubic'.
+    %            'InterpMethodBackVar' - Interpolation method for Back and
+    %                   Var. Default is 'linear'.
     %            'InterpMethodMask' - Interpolation method for the mask
     %                   image. Default is 'nearest'.
     %            'DataProp' - data properties in the AstroImage to
@@ -28,14 +31,15 @@ function Result=interp2wcs(Obj, Ref, Args)
     %                   Default is true.
     %            'Sampling' - AstroWCS/xy2refxy sampling parameter.
     %                   Default is 20.
-    % Output : - An AstroImage registered to the reference WCS.
+    % Output : - The new AstroImage registered to the reference WCS.
     % Author : Eran Ofek (Jun 2023)
     % Example: AIreg1=imProc.transIm.interp2wcs(AI, AI(1))
 
     arguments
-        Obj AstroImage
+        Obj 
         Ref
         Args.InterpMethod             = 'cubic';  % 'makima'
+        Args.InterpMethodBackVar      = 'linear';
         Args.InterpMethodMask         = 'nearest';
         Args.DataProp                 = {'Image','Mask'};
         Args.ExtrapVal                = NaN;
@@ -43,6 +47,7 @@ function Result=interp2wcs(Obj, Ref, Args)
         Args.CopyWCS logical          = true;
         Args.CopyHeader logical       = true;
         Args.CreateNewObj logical     = true;
+        Args.CopyFilename logical     = true;
 
         Args.Sampling                 = 20;
         
@@ -94,6 +99,8 @@ function Result=interp2wcs(Obj, Ref, Args)
                 switch Args.DataProp{Iprop}
                     case 'Mask'
                         Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodMask, Args.ExtrapVal);
+                    case {'Back','Var'}
+                        Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethodBackVar, Args.ExtrapVal);
                     otherwise
                         Result(Iobj).(Args.DataProp{Iprop}) = interp2(VecX, VecY, Obj(Iobj).(Args.DataProp{Iprop}), FullRefX, FullRefY, Args.InterpMethod, Args.ExtrapVal);
                 end
@@ -114,6 +121,9 @@ function Result=interp2wcs(Obj, Ref, Args)
                 Result(Iobj).WCS = RefWCS(Iref);
             end
             %Result(Iobj).WCS = Obj(Iobj).WCS.copy;
+        end
+        if Args.CopyFilename
+            Result(Iobj).ImageData.FileName = Obj(Iref).ImageData.FileName;
         end
         if Args.CopyHeader
             if Args.CreateNewObj

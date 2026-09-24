@@ -1,5 +1,6 @@
 function [Res]=satellite_mag(varargin)
 % Satellite apparent magnitude
+%   Obsoltete: Use celestial.earth.satelliteMag
 % Package: celestial
 % Description: Satellite apparent magnitude
 % Input  : * Arbitrary number of pairs of arguments: ...,keyword,value,...

@@ -56,7 +56,7 @@ function Cand = pairsMotionMatchKDTree(Time,X,Y,Args)
         Time
         X
         Y
-        Args.HalfRangeVec = ones(1,4).*10./3600;
+        Args.HalfRangeVec = ones(1,4).*10./3600;  % [X Y, dx/dt, dy/dt]
         Args.MinNpairs    = 2;
         Args.MinNprev     = 2;
         Args.MinDist      = 3;
@@ -65,12 +65,14 @@ function Cand = pairsMotionMatchKDTree(Time,X,Y,Args)
     
     Args.HalfRangeVec = Args.HalfRangeVec(:);
     
+    % switch to mean time reference frame
     MeanTime = mean(Time);
     Time = Time(:) - MeanTime;
     X    = X(:);
     Y    = Y(:);
 
     N = numel(Time);
+    % choose all pairs permutations:
     if Args.UseVChooshK
         IndAllPairs = VChooseK((1:1:N),2).';
     else

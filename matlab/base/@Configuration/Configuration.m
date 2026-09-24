@@ -124,6 +124,10 @@ classdef Configuration < handle
         Data struct = struct()  % Initialize empty struct, all YML files are added here in tree structure
     end
 
+    properties (Hidden)
+        IsLoaded = false;
+    end
+
     properties (Constant)
         InputArgsLevel = 'InputArgs';
     end
@@ -220,7 +224,7 @@ classdef Configuration < handle
                 if isfield(Obj.Data, PropName)
                     io.msgLog(LogLevel.Debug, 'Property already exist: Data.%s', PropName);
                 else
-                    io.msgLog(LogLevel.Debug, 'Adding property: %s', PropName);
+%                     io.msgLog(LogLevel.Debug, 'Adding property: %s', PropName);
                 end
 
                 % Note: Yml is used below by eval()
@@ -248,6 +252,7 @@ classdef Configuration < handle
         function loadFolder(Obj, Path, Args)
             % Load all configuration files inside the specified folder
             % Each file is loaded to Obj.Data.FileName struct.
+            %   Also updated IsLoaded to true.
             % Input: - A Configuration object.
             %        - Path - folder name to look for *.yml files
             %        * ...,key,val,...
@@ -263,7 +268,7 @@ classdef Configuration < handle
             end
             
             Obj.Path = Path;
-            io.msgLog(LogLevel.Debug, 'loadFolderInternal: %s', Obj.Path);
+            %io.msgLog(LogLevel.Debug, 'loadFolderInternal: %s', Obj.Path);
 
             % Scan folder for YML files
             List = dir(fullfile(Path, '*.yml'));
@@ -276,6 +281,7 @@ classdef Configuration < handle
                     Obj.loadFolder(Folder);
                 end
             end
+            Obj.IsLoaded = true;
         end
 
 
@@ -519,7 +525,7 @@ classdef Configuration < handle
         function Result = reloadSysConfig()
             % Reload entire system configuration, Warning: calls 'clear java'
             % Example: Configuration.reloadSysConfig()          
-            io.msgStyle(LogLevel.Debug, 'red', 'Configuration.reload: Calling "clear java", required until we find better solution');
+            %io.msgStyle(LogLevel.Debug, 'red', 'Configuration.reload: Calling "clear java", required until we find better solution');
             clear java;
             Result = Configuration.internal_initSysConfig('clear');
         end
@@ -535,20 +541,21 @@ classdef Configuration < handle
 
             % Optionally clear configuration
             if numel(varargin) > 0 && strcmp(varargin{1}, 'clear') && ~isempty(Conf)
-                io.msgLog(LogLevel.Debug, 'Configuration.init: Clearing Conf');
+                %io.msgLog(LogLevel.Debug, 'Configuration.init: Clearing Conf');
+                
                 Conf.Data = struct();
                 %Conf = [];
             end
 
             % Load/reload entire configuration
             if isempty(Conf)
-                io.msgLog(LogLevel.Debug, 'Configuration.init: Creating Conf');
+                %io.msgLog(LogLevel.Debug, 'Configuration.init: Creating Conf');
                 Conf = Configuration;
             end
 
             % Load ALL configuration files in Obj.SysConfig/ and Obj.SysConfig/local/
-            if isempty(Conf.Data) || numel(fieldnames(Conf.Data)) == 0
-
+            %if isempty(Conf.Data) || numel(fieldnames(Conf.Data)) == 0
+            if ~Conf.IsLoaded
                 % Get path to config
                 Path = Configuration.getSysConfigPath();
                 assert(~isempty(Path));
@@ -601,7 +608,7 @@ classdef Configuration < handle
             % Input:   FileName - File name of YAML file to be loaded
             % Output:  struct with hierarchical data loaded from YAML file 
             % Example: MyStruct = Configuration.internal_loadYaml('conf.yml')
-            io.msgLog(LogLevel.Debug, 'loadYaml: Loading file: %s', FileName);
+%             io.msgLog(LogLevel.Debug, 'loadYaml: Loading file: %s', FileName);
             try
                 if ~isfile(FileName)
                     io.msgLog(LogLevel.Error, 'loadYaml: File not found: %s', FileName);
@@ -660,12 +667,12 @@ classdef Configuration < handle
                             FuncName = Value(2:end);
                             FuncHandle = str2func(FuncName);
                             Struct.(FieldName) = FuncHandle; 
-                            io.msgLog(LogLevel.Debug, 'Configuration.convert: %s', Value);                            
+                            %io.msgLog(LogLevel.Debug, 'Configuration.convert: %s', Value);                            
                             
                         % Eval (any expression)
                         elseif startsWith(Value, 'eval(')
                             Struct.(FieldName) = eval(Value);
-                            io.msgLog(LogLevel.Debug, 'Configuration.convert: %s', Value);                            
+                            %io.msgLog(LogLevel.Debug, 'Configuration.convert: %s', Value);                            
                         end
                     end
                 end
@@ -673,6 +680,48 @@ classdef Configuration < handle
             Result = Struct;
         end
         
+    end
+
+    methods (Static)  % wriite config
+        function rewriteSimple(Key, Val, FileName, Args)
+            % rewrite config file with a single key, val
+            % Input  : - Key name.
+            %          - Val string. E.g., '3.14', or "['hello']"
+            %          - Config file name.
+            %          * ...,key,val,...
+            %            'SubDir' - Subdir in the config dir.
+            %                   Default is 'local' (i.e., ignored by git).
+            % Output : null
+            % Author : Eran Ofek (Jul 2025)
+            % Example: Configuration.rewriteSimple('IngestionTime','2460000','VisitVariability.State.yml')
+
+            arguments
+                Key         
+                Val
+                FileName    
+                Args.SubDir = 'local';
+            end
+
+            if ~contains(FileName, '.yml')
+                FileName = sprintf('%s.yml',FileName);
+            end
+            
+            if ~(ischar(Val) || isstring(Val))
+                error('Val must be a string or char array');
+            end
+
+            ConfigPath = Configuration.getSysConfigPath;
+            if ~isempty(Args.SubDir)
+                ConfigPath = fullfile(ConfigPath, Args.SubDir);
+            end
+            PWD = pwd;
+            cd(ConfigPath);
+            FID = fopen(FileName,'w');
+            fprintf(FID, '%s : %s\n', Key, Val);
+            fclose(FID);
+
+            cd(PWD);
+        end
     end
 
     %----------------------------------------------------------------------
