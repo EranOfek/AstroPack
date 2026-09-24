@@ -210,12 +210,6 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
     [Result.ImageData.Data, Result.VarData.Data, CoaddN] = imUtil.stack.wcoaddRobust(ImageCube, BackCube, 'Var',Var, 'F',FluxMatch, 'ZP',[],'ZP0',[],...
                                                                        'RemoveMinMax',Args.RemoveMinMax,'Niter',Args.Niter,'SigmaClip',Args.SigmaClip, 'StdMethod',Args.StdMethod,...
                                                                        'UseMex',Args.CoaddUseMex);
-    % measure background and variance
-    if Args.AddBack
-        Result = imProc.background.backVar(Result, Args.backVarArgs{:}, 'Ncoadd',Args.Ncoadd); %, 'PoissVar',Args.PoissVar', 'Ncoadd',Args.Ncoadd, 'RN2',Args.RN2);
-        %Result.Var = Result.Var.*20./3648;
-    end
-
     % coadd mask
     if Args.AddMask
         Result.MaskData.Dict  = Obj(1).MaskData.Dict; % copy dictionary (pointer)
@@ -237,4 +231,13 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_WRobust(Obj, Args)
                                                       'StackMethod',StackMethod,...
                                                       'CoaddN',CoaddN,...
                                                       'KeyExpTime',Args.KeyExpTime);
+
+    % measure background and variance of the coadd. Must follow coaddHeader:
+    % backVar writes MEDBCK/MEDVAR/... into Result.HeaderData, and
+    % coaddHeader replaces that header by a copy of the first input image
+    % header, i.e. the keywords would describe the first epoch (issue #1326).
+    if Args.AddBack
+        Result = imProc.background.backVar(Result, Args.backVarArgs{:}, 'Ncoadd',Args.Ncoadd); %, 'PoissVar',Args.PoissVar', 'Ncoadd',Args.Ncoadd, 'RN2',Args.RN2);
+        %Result.Var = Result.Var.*20./3648;
+    end
 end

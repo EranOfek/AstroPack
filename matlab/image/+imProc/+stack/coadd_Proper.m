@@ -208,10 +208,6 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
     Result.ImageData.Data = real(Result.ImageData.Data);
     
 
-    if Args.AddBack
-        Result = imProc.background.backVar(Result, Args.backVarArgs{:});
-    end
-
     % coadd mask
     if Args.AddMask
         Result.MaskData.Dict  = Obj(1).MaskData.Dict; % copy dictionary (pointer)
@@ -232,6 +228,14 @@ function [Result, CoaddN, MidJD, EffectiveGain] = coadd_Proper(Obj, Args)
                                                       'StackMethod',StackMethod,...
                                                       'CoaddN',CoaddN,...
                                                       'KeyExpTime',Args.KeyExpTime);
+
+    % measure background and variance of the coadd. Must follow coaddHeader:
+    % backVar writes MEDBCK/MEDVAR/... into Result.HeaderData, and
+    % coaddHeader replaces that header by a copy of the first input image
+    % header, i.e. the keywords would describe the first epoch (issue #1326).
+    if Args.AddBack
+        Result = imProc.background.backVar(Result, Args.backVarArgs{:});
+    end
 
     % Effective gain of the proper (ZOGY) coadd (issue #1251).
     % The proper coadd R is normalized to unit background variance, so its
