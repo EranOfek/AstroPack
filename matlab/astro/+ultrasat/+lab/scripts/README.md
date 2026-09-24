@@ -19,6 +19,7 @@ package: run the `.m` files with `run('<path>/<script>.m')`.
 | `desy_ptc_shape_plots.py` | (Var − RN²)/(Mean·Gain) panels for Gain = 1.02…1.10, light and dark ladders (report §8.3). |
 | `desy_ptc_perpixel_extract.m` | Per-pixel means and temporal variances of both ladders + per-pixel ZE noise (binary dumps + `meta.json`), same three die-runs. |
 | `desy_ptc_perpixel_plots.py` | Single-pixel version of the same panels, each pixel with its own mean, variance and read noise (report §8.4); the scatter-across-pixels figure of §8.5 is built from the same dumps. |
+| `desy_var_mean_plots.py` | Variance vs mean of the individual pixels, one figure per regime (light / dark) per die-run, from the same dumps: per-pixel density, per-step median/ln2 and mean, fitted line and the (Var − RN²)/(g·Mean) ratio. `--tag`, `--ladder`, `--fit-range`, `--gain`. |
 | `desy_regenerate_all.sh` | Sequential chain of the above (drivers, zero stats, TX scan, FITS export) with a log. |
 
 Reports: runs 31/32 reproduction (deck UC-3400-TN175-05) and the TX-scan report;
