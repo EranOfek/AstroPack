@@ -256,9 +256,16 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         %             Gain=[], and (b) destination for the OUTPUT effective
         %             gain (written when UpdateGain=true).
         %   (Replaces the former InputMeanGain + Gain/KeyGain split.)
+        %   KeyReadNoise - header keyword of the read noise [e-]. When
+        %             UpdateGain=true it is rewritten for the coadd as
+        %             mean input READNOI * sqrt(OutputGain/InputGain), i.e.
+        %             READNOI/GAIN stays the read noise in coadd ADU. Not
+        %             updated for StackMethod 'proper'/'rproper', whose
+        %             effective gain does not obey this relation.
         Args.Gain                             = [];
         Args.KeyGain                          = 'GAIN';
-        % output gain:
+        Args.KeyReadNoise                     = 'READNOI';
+        % output gain (and read noise):
         Args.UpdateGain                       = true;
 
         %Args.backgroundArgs cell              = {};
@@ -383,6 +390,13 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         end
     else
         InGain = Args.Gain;
+    end
+    % the INPUT read noise [e-]: mean of the input-image KeyReadNoise
+    % headers; NaN (-> the coadd keyword is left as is) if missing.
+    InReadNoiseKeys = AllSI.getStructKey(Args.KeyReadNoise);
+    InReadNoise     = mean([InReadNoiseKeys.(Args.KeyReadNoise)], 'all', 'omitnan');
+    if isempty(InReadNoise)
+        InReadNoise = NaN;
     end
 
     % get JD
@@ -638,6 +652,14 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             if Args.UpdateGain
                 % write the OUTPUT effective gain into the KeyGain keyword
                 Coadd(Ifields).HeaderData.replaceVal(Args.KeyGain, Gain);
+                % and the matching read noise [e-]. For a weighted mean with
+                % weights w (sum(w)=1) the read noise variance in coadd ADU is
+                % RN^2*sum(w.^2)/InGain^2 and Gain=InGain/sum(w.^2), hence
+                % RN_out = RN_in*sqrt(Gain/InGain) (RN*sqrt(N) for N equal
+                % weights).
+                if isfinite(InReadNoise) && ~any(strcmp(Args.StackMethod, {'proper','rproper'}))
+                    Coadd(Ifields).HeaderData.replaceVal(Args.KeyReadNoise, InReadNoise.*sqrt(Gain./InGain));
+                end
             end
             
 
