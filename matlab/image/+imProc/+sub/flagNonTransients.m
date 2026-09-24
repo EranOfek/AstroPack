@@ -58,7 +58,11 @@ function TranCat = flagNonTransients(Obj, Args)
                        a faint defect cannot be told from a point source by
                        shape. Not applied when smearTemplate reports
                        Info.NoSmear, i.e. the coadd holds no smear at all.
-                       Default is 12.
+                       Default is 14, set by what survives the whole chain:
+                       at 12, three defects came through across 11 crops, all
+                       at SCORE 12.6 to 12.7. Costs 0.15 per cent of real
+                       transients, being those that land on a marked pixel by
+                       chance alignment within the widened band.
 
                 'flagBadPix_Dense' - Flag candidates sitting on mask
                        structure wider than the defects the smear template
@@ -152,6 +156,17 @@ function TranCat = flagNonTransients(Obj, Args)
                 'StreakThresholdDistMin' - Minimum distance threshold (pix)
                        for streak association.
                        Default is 5.0.
+
+                'StreakSeed' - Seed for the RANSAC trial draw, so the streak
+                       flagging is reproducible run to run (issue #1321).
+                       'header' - derive it from the observational header
+                           keys of New and Ref via tools.rand.seedFromHeader.
+                       [] - unseeded, the previous behaviour.
+                       A numeric scalar - use it as the seed.
+                       One stream is built per crop and both stability-check
+                       fits draw from it, so they stay independent of each
+                       other while the pair stays reproducible.
+                       Default is 'header'.
 
                 'flagPSFShape' - Flag candidates likely caused by poor PSF
                        reconstruction and contamination from nearby
@@ -284,7 +299,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.BadPix_Soft cell = {'DarkHighVal', 'CR_DeltaHT'}
         Args.SmearThreshold double = []        % [BinCen BinThr...], empty to calibrate
         Args.smearThresholdArgs cell = {}      % passed to imProc.sub.smearThreshold
-        Args.BadPix_SoftMinScore double = 12   % below this, marked candidates are flagged on the mask
+        Args.BadPix_SoftMinScore double = 14   % below this, marked candidates are flagged on the mask
         Args.flagBadPix_Dense logical = true
         Args.BadPix_DenseSigma double = 1      % Gaussian sigma for the local mask density
         Args.BadPix_DenseOffset double = 0.2  % above the calibrators' density
@@ -327,6 +342,7 @@ function TranCat = flagNonTransients(Obj, Args)
         Args.StreakThresholdDistFWHMFactor double = 2.0
         Args.StreakThresholdDistMin double = 5.0
         Args.StreakMinStableOverlap double = 0.7
+        Args.StreakSeed = 'header';  % 'header' | [] (unseeded) | numeric scalar
 
         % N-image PSF shape
         Args.flagPSFShape logical = true
@@ -844,16 +860,23 @@ function TranCat = flagNonTransients(Obj, Args)
             % onto real marked sites land among the defects themselves below
             % SCORE ~10, so the statistic can only decide at random there and
             % the mask is the real information.
-            %   The value 12 comes from counting trials. Taking each marked
-            % defect in a subtraction as one trial, with a Gaussian tail of
-            % the smear statistic at its SCORE, a floor of 12 leaves of order
-            % 0.02 defect false positives per subtraction on crops where the
-            % template works, a tenth of the ~0.2 per subtraction expected
-            % from 5 sigma noise fluctuations alone.
-            %   A real transient reaches a marked pixel only by chance
-            % alignment, of order 2 per cent of the detector, which bounds
-            % what this costs. Independent of the smear calibration, so it
-            % applies even when no template or threshold could be built.
+            %   The value is set by what actually survives. At a floor of 12,
+            % three defects came through the whole filter chain across 11
+            % crops, 0.27 per subtraction, and all three sat at SCORE 12.62,
+            % 12.65 and 12.73, in a band barely above the floor itself. An
+            % earlier trials argument had predicted 0.02 per subtraction at
+            % that floor; it assumed defects follow their own injected branch
+            % with Gaussian scatter, and the ones that get through are
+            % precisely the ones that do not.
+            %   Raising it to 14 clears all three by 1.3 in SCORE. The cost is
+            % real transients that land on a marked pixel by chance alignment
+            % and fall in the widened band: the mask covers a mean 6.4 per
+            % cent of the detector once dilated by the 7x7 N_FLAGS footprint,
+            % and SCORE 12 to 14 holds 2.3 per cent of injected sources, so
+            % 0.15 per cent of real transients. Going to 15 would cost 0.23
+            % per cent and buy no further margin on the observed cases.
+            %   Independent of the smear calibration, so it applies even when
+            % no template or threshold could be built.
             %   Except when there is no smear in this coadd at all.
             % imProc.sub.smearTemplate sets Info.NoSmear when the drift is
             % about a pixel per epoch or more: each defect deposit then lands
@@ -1005,6 +1028,28 @@ function TranCat = flagNonTransients(Obj, Args)
                 SubSel = SubSel & ~BitFound;
             end
 
+            %   One stream for the whole streak search of this crop, so the
+            %   flagging is reproducible run to run (issue #1321) without
+            %   reseeding the global generator. Deliberately one stream and
+            %   not one seed per call: the two fits below are a stability
+            %   check on the same points, so they have to stay independent
+            %   draws. Successive calls continue this stream; a shared seed
+            %   would make them identical and the check vacuous.
+            if isempty(Args.StreakSeed)
+                StreakStream = RandStream.getGlobalStream;      % unseeded, as before
+            elseif isnumeric(Args.StreakSeed)
+                StreakStream = RandStream('threefry', 'Seed',uint32(Args.StreakSeed));
+            else
+                Heads = [Obj(Iobj).New, Obj(Iobj).Ref];
+                if isempty(Heads)
+                    Heads = Obj(Iobj);
+                end
+                StreakStream = RandStream('threefry', 'Seed', ...
+                                   tools.rand.seedFromHeader(Heads, ...
+                                       'Salt','imProc.sub.flagNonTransients:flagStreak', ...
+                                       'FallbackVals',@() [NumCand, size(Obj(Iobj).Image)]));
+            end
+
             for IStreak = 1:Args.NumStreaks
 
                 Xt = X(SubSel);
@@ -1019,7 +1064,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 %---------------------------
                 Res1.Found = false;
                 for IMinNumPts = numel(Args.StreakRansacMinNumPts):-1:1
-                    Res1 = tools.math.fit.ransacLinear([Xt,Yt], ...
+                    Res1 = tools.math.fit.ransacLinear([Xt,Yt], 'Stream', StreakStream, ...
                         'Ntrial', Args.StreakRansacNtrial, ...
                         'MinRMS', Args.StreakRansacMinRMS, ...
                         'MinNpt', Args.StreakRansacMinNumPts(IMinNumPts), ...
@@ -1041,7 +1086,7 @@ function TranCat = flagNonTransients(Obj, Args)
                 %---------------------------
                 Res2.Found = false;
                 for IMinNumPts = numel(Args.StreakRansacMinNumPts):-1:1
-                    Res2 = tools.math.fit.ransacLinear([Xt,Yt], ...
+                    Res2 = tools.math.fit.ransacLinear([Xt,Yt], 'Stream', StreakStream, ...
                         'Ntrial', Args.StreakRansacNtrial, ...
                         'MinRMS', Args.StreakRansacMinRMS, ...
                         'MinNpt', Args.StreakRansacMinNumPts(IMinNumPts), ...

@@ -12,6 +12,13 @@ function Result = ransacLinear(Data, Args)
     %                   points. Default is 0.5.
     %            'MinNpt' - Min number of points in solution.
     %                   Default is 5.
+    %            'Stream' - A RandStream to draw the trial samples from, for
+    %                   a reproducible fit (issue #1321). Empty uses the
+    %                   global generator, i.e. the draw is not reproducible.
+    %                   Pass a stream rather than a seed when several calls
+    %                   must stay independent of each other: successive calls
+    %                   on one stream continue it instead of repeating it.
+    %                   Default is [].
     % Output : - A structure with the following fields:
     %            .Found - if false, then this is the only available field.
     %            .FlagGoodPt - Flag of selected points in best fit.
@@ -31,6 +38,7 @@ function Result = ransacLinear(Data, Args)
         Args.MinRMS           = 0.5;
         Args.ThresholdDist    = 0.5;
         Args.MinNpt           = 5;
+        Args.Stream           = [];
 
         
     end
@@ -46,6 +54,13 @@ function Result = ransacLinear(Data, Args)
     
         Hall         = [ones(Ndata,1), X];
         
+        %   Resolve the stream once, outside the trial loop. Empty means the
+        %   global generator, i.e. exactly the previous behaviour.
+        Stream = Args.Stream;
+        if isempty(Stream)
+            Stream = RandStream.getGlobalStream;
+        end
+
         % generate a random selection of K out of N
         SimInd = zeros(Args.NptFit, Args.Ntrial);
         Itrial = 0;
@@ -53,7 +68,7 @@ function Result = ransacLinear(Data, Args)
         while Itrial<Args.Ntrial && ~Found
             Itrial = Itrial + 1;
             % generate NptFit unique times indices
-            Ind = randperm(Ndata, Args.NptFit);
+            Ind = randperm(Stream, Ndata, Args.NptFit);
             
             H = [ones(Args.NptFit,1), X(Ind)];
             
