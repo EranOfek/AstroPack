@@ -1479,7 +1479,8 @@ classdef PipelineDemon < Component
             %   container's header instead of the image header, which later
             %   breaks the master write (CFITSIO 407). Compressed input is thus
             %   read with the mex reader and the container keywords are removed
-            %   (issues #1248, #1323).
+            %   (issues #1248, #1323). The input HDU checksums are removed in
+            %   any case - they are stale for the master (issue #1324).
             % Input  : - A cell array of file names.
             % Output : - An AstroImage array.
             % Author : A.M. Krassilchtchikov (Sep 2026)
@@ -1493,10 +1494,12 @@ classdef PipelineDemon < Component
 
             IsCompressed = any(endsWith(string(FileList), [".fz",".gz"]));
             AI = AstroImage(FileList, 'UseMex',IsCompressed);
+            DelKeys = {'CHECKSUM','DATASUM'};
             if IsCompressed
-                for Iim=1:1:numel(AI)
-                    AI(Iim).HeaderData.deleteKey(ContainerKeys, 'UseRegExp',false);
-                end
+                DelKeys = [DelKeys, ContainerKeys];
+            end
+            for Iim=1:1:numel(AI)
+                AI(Iim).HeaderData.deleteKey(DelKeys, 'UseRegExp',false);
             end
         end
     end
