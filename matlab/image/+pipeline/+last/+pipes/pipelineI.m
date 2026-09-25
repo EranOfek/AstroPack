@@ -104,7 +104,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.MatchedCols                   = {'RA','Dec',...
                                               'X','Y',...
                                               'X1','Y1','X2','Y2','XY',...
-                                              'SN','SN_1','SN_2',...
+                                              'SN','SN_1','SN_2','SN_ITER1',...
                                               'MAG_PSF','MAGERR_PSF','PSF_CHI2DOF','FLUX_PSF',...
                                               'MAG_APER_2','MAGERR_APER_2',...
                                               'MAG_APER_3','MAGERR_APER_3',...
@@ -229,6 +229,17 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
     % MatchedCols by name and errors on a missing column.
     if Args.AddColor && Args.AddColorEpochs && ~any(strcmp(Args.MatchedCols, 'BP_RP'))
         Args.MatchedCols = [Args.MatchedCols(:).', {'BP_RP'}];
+    end
+    % Likewise for the first-iteration S/N column (issue #1113): follow a
+    % renamed multiIterExtractor 'ColSNIter1', drop it if disabled
+    IndColSN1 = find(strcmp(Args.multiIterExtractorArgs(1:2:end), 'ColSNIter1'), 1, 'last');
+    if ~isempty(IndColSN1)
+        ColSN1 = Args.multiIterExtractorArgs{2*IndColSN1};
+        if isempty(ColSN1)
+            Args.MatchedCols = Args.MatchedCols(~strcmp(Args.MatchedCols, 'SN_ITER1'));
+        else
+            Args.MatchedCols(strcmp(Args.MatchedCols, 'SN_ITER1')) = {ColSN1};
+        end
     end
 
     % Coadd catalogs get their colour inside astrometryRefine, which offers it
