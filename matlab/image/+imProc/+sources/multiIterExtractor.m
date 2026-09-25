@@ -252,6 +252,18 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
     %            'ColPITER' - Column name storing the extraction
     %                   iteration index of each source.
     %                   Default is 'MITER'.
+    %            'ColSNIter1' - Column name storing, for every source, the
+    %                   S/N of the first-iteration matched-filter image
+    %                   (detection template, before any subtraction), taken
+    %                   as the maximum within 1 pixel of XPEAK/YPEAK.
+    %                   For sources with MITER>1, SN_ITER1/SN > ~2 marks a
+    %                   likely residual of a PSF-subtracted extended source
+    %                   (e.g., a galaxy): the original image there is
+    %                   dominated by the subtracted source, not by the new
+    %                   one (issue #1113). Do not apply it to MITER=1, where
+    %                   SN includes the source noise and the ratio of bright
+    %                   stars exceeds 1. If empty, the column is not added.
+    %                   Default is 'SN_ITER1'.
     %            'RedoUpIter' - If non-empty, run an additional bright-
     %                   sources-only refinement step using iterations up
     %                   to this index. The brightest catalog is then
@@ -452,6 +464,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
         Args.ColRA                     = 'RA';
         Args.ColDec                    = 'Dec';
         Args.ColPITER                  = 'MITER';  % column name for the iteration index of the PSF multi-iteration
+        Args.ColSNIter1                = 'SN_ITER1'; % column name for the first-iteration matched-filter S/N (issue #1113); empty - not added
 
         % cleaning of the subtracted image:        
         %Args.RemoveMasked              = false;  % the input AI.Mask should be filled, but seems like this filter does not influence the result much ? 
@@ -786,6 +799,7 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             [BWB_Prof, BWB_ShapeAnchor] = i_buildHaloProfile(WingProfBWB, ...
                 Args.BWB_MaxR, BWB_CutR, mean(Args.BWB_AnnulusR), Args.BWB_FallbackAlpha);
         end
+        SNIter1 = [];   % first-iteration S/N map, per object (issue #1113)
         if isempty(AI.PSFData.DataPSF)
             % No PSF - do not look for stars!
             % See issue #963 - consider calling findMeasureSources
@@ -876,7 +890,19 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
                         Result(Iobj).Streaks = Streaks;
                     end
                     ColSN = 'SN_2';
-                end % if Args.FindWithEmpiricalPSF                             
+                end % if Args.FindWithEmpiricalPSF
+
+                % first-iteration S/N map of the detection template (the SN_2
+                % layer), kept to test later-iteration sources (issue #1113)
+                if Iiter==1 && ~isempty(Args.ColSNIter1)
+                    if Args.FindWithEmpiricalPSF
+                        TemplateIter1 = PSFTemplate(:,:,2);
+                    else
+                        TemplateIter1 = imUtil.kernel2.gauss(Args.PsfFunPar{:});
+                        TemplateIter1 = TemplateIter1(:,:,min(2, size(TemplateIter1,3)));
+                    end
+                    SNIter1 = imUtil.filter.filter2_snBank(AI.ImageData.Image, AI.BackData.Image, AI.VarData.Image, TemplateIter1);
+                end
                 
                 NumSrc = height(AI.CatData.Catalog);
                 
@@ -1373,6 +1399,12 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             Result(Iobj).CatData = merge(Cat);
         end % if ~isempty(Args.RedoUpIter)
 
+        % first-iteration S/N at each source position (issue #1113)
+        if ~isempty(Args.ColSNIter1) && ~isempty(SNIter1) && ~isempty(Result(Iobj).CatData.ColNames)
+            XYPeak = Result(Iobj).CatData.getColMulti({'XPEAK','YPEAK'});
+            Result(Iobj).CatData.insertCol(i_maxNearPos(SNIter1, XYPeak(:,1), XYPeak(:,2)), Inf, Args.ColSNIter1, '');
+        end
+
 
 
 
@@ -1472,6 +1504,26 @@ function writeDS9region(AI, Args)
     DS9_new.regionWrite([AI.CatData.getCol('X') AI.CatData.getCol('Y')],...
                         'FileName',RegName,'Color',Clr,'Marker','o','Size',1,'Width',4,'Precision','%.2f','PrintIndividualProp',0);
 
+end
+
+
+function Val = i_maxNearPos(Map, X, Y)
+    % Maximum of Map in the 3x3 pixel neighbourhood of each (X,Y), clipped
+    % at the image edges; NaN for non-finite positions (issue #1113)
+    [Ny, Nx] = size(Map);
+    Val  = nan(numel(X), 1);
+    Good = isfinite(X) & isfinite(Y);
+    Xr   = round(X(Good));
+    Yr   = round(Y(Good));
+    ValG = -Inf(numel(Xr), 1);
+    for Dx=-1:1:1
+        for Dy=-1:1:1
+            Ind  = sub2ind([Ny Nx], min(max(Yr+Dy,1),Ny), min(max(Xr+Dx,1),Nx));
+            ValG = max(ValG, double(Map(Ind)));   % max ignores NaN
+        end
+    end
+    ValG(isinf(ValG)) = NaN;
+    Val(Good) = ValG;
 end
 
 
