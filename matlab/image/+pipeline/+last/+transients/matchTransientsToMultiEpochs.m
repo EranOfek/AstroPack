@@ -47,6 +47,21 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
         Args.DbPass = ''; 
 
         Args.SingleEpochThresh = 7.5;
+
+        % Registration-smear SCORE floor. The smear statistic separates a
+        % smeared defect from a point source only insofar as the template and
+        % the D PSF differ, so the single-epoch bar has to rise as they become
+        % alike. Floor is clamped below at SingleEpochThresh, so enabling this
+        % can only ever raise the bar relative to the flat threshold.
+        % Coefficients are fitted over 30k random crop subtractions; see #1192.
+        Args.SmearFloor logical  = true;
+        Args.SmearFloorZ         = 5.017;   % norminv(1-1/Ncand), <1 FP/night
+        Args.SmearFloorKcont     = 2.326;   % norminv(0.01), the 1% contour
+        Args.SmearFloorSigSmrA   = 2.288;   % sigma_s = A*sigma_p*u^B
+        Args.SmearFloorSigSmrB   = 0.444;
+        Args.SmearFloorSepA      = 1.246;   % sep = A*u^B
+        Args.SmearFloorSepB      = 0.807;
+        Args.SmearFloorDint      = 0.362;   % median smearint - psfint
     end
     
     Status = 'Uncontrolled exit.';
@@ -253,7 +268,14 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
         % should probably move elsewhere in the future.
         Score = ADc(Ipos).CatData.getCol('SCORE');
 
-        if (PassingMatches > 1) || (Score >= Args.SingleEpochThresh)
+        % A candidate is reported if it clears the floor on its own, or if it
+        % was seen in more than one epoch. Only the floor varies with overlap.
+        Floor = Args.SingleEpochThresh;
+        if Args.SmearFloor
+            Floor = max(Floor, smearFloor(ADc(Ipos).CatData, Args));
+        end
+
+        if (PassingMatches > 1) || (Score >= Floor)
             UTCNow = datetime('now', 'TimeZone', 'UTC');
             JDNow = juliandate(UTCNow);
             ADc(Ipos).CatData.replaceCol(JDNow, 'Reported');
@@ -383,4 +405,50 @@ function IsPassing = isPassingDBMatch(MatchDB, SingleEpochThresh, Args)
         (MatchDB.star_prob <= MatchDB.gal_prob);
 
     IsPassing = Positive & (IsHigh | IsClean);
+end
+
+function Floor = smearFloor(CatData, Args)
+    % Overlap-dependent SCORE floor for registration-smear defects.
+    %
+    % A defect at SCORE S escapes the smear contour with probability
+    %   Phi( (dint - sep*S + Kcont*sigma_p) / sigma_s )
+    % so requiring that to stay below 1/Ncand gives
+    %   SCORE_min = (Kcont*sigma_p + z*sigma_s + dint) / sep
+    %
+    % sep and sigma_s are only measured when smearThreshold runs with
+    % InjectSmear, which production does not, so both are substituted from
+    % the crop's template/PSF overlap and its PSF-branch scatter:
+    %   u        = 1/overlap - 1
+    %   sigma_s  = SigSmrA * sigma_p * u^SigSmrB
+    %   sep      = SepA * u^SepB
+    %
+    % Returns -Inf when the crop carries no usable overlap, so the caller's
+    % max() falls back to the flat threshold. That covers NoSmear crops and
+    % any catalogue written before these columns existed -- in both cases
+    % there is no coherent smear for the floor to protect against.
+    Floor = -Inf;
+
+    if ~CatData.isColumn('SMROVL') || ~CatData.isColumn('SIGPSF')
+        return
+    end
+
+    Ovl    = CatData.getCol('SMROVL');
+    SigPsf = CatData.getCol('SIGPSF');
+    if isempty(Ovl) || isempty(SigPsf)
+        return
+    end
+    Ovl    = Ovl(1);
+    SigPsf = SigPsf(1);
+
+    if ~isfinite(Ovl) || ~isfinite(SigPsf) || Ovl <= 0 || Ovl >= 1 || SigPsf <= 0
+        return
+    end
+
+    U      = 1./Ovl - 1;
+    SigSmr = Args.SmearFloorSigSmrA .* SigPsf .* U.^Args.SmearFloorSigSmrB;
+    Sep    = Args.SmearFloorSepA    .* U.^Args.SmearFloorSepB;
+
+    Floor  = (Args.SmearFloorKcont .* SigPsf + ...
+              Args.SmearFloorZ     .* SigSmr + ...
+              Args.SmearFloorDint) ./ Sep;
 end

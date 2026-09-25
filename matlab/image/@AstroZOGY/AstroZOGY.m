@@ -867,6 +867,7 @@ classdef AstroZOGY < AstroDiff
                 Args.PopS_smear logical      = true;
                 Args.SmearTemplate           = [];   % if given, used as is
                 Args.smearTemplateArgs cell  = {};
+                Args.KeySmearOverlap         = 'SMROVL';
 
                 Args.PopS_PSFresid logical      = true;
                 Args.PSFresidTemplate           = [];   % if given, used as is
@@ -928,6 +929,23 @@ classdef AstroZOGY < AstroDiff
                     end
 
                     Obj(Iobj).SmearTemplate = SmearPSF;
+
+                    % How much the smear kernel looks like a point source in
+                    % D. At one the two are the same shape and the smear
+                    % statistic cannot separate a defect from a real source
+                    % whatever threshold is used, so a consumer of the
+                    % catalogue needs to know it. Written even when no
+                    % template was built, as NaN, so the keyword is always
+                    % present and its absence never has to be interpreted.
+                    SmearOverlap = NaN;
+                    if ~isempty(Obj(Iobj).SmearTemplateInfo) && ...
+                            isfield(Obj(Iobj).SmearTemplateInfo, 'OverlapPSF')
+                        SmearOverlap = Obj(Iobj).SmearTemplateInfo.OverlapPSF;
+                    end
+                    if ~isempty(Obj(Iobj).HeaderData)
+                        Obj(Iobj).HeaderData.replaceVal(Args.KeySmearOverlap, ...
+                                                        SmearOverlap);
+                    end
 
                     % Leaving S_smear empty is a supported outcome. A
                     % subimage with too few DarkHighVal defects cannot yield

@@ -114,6 +114,8 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
     Info   = struct('Ninj',0, 'NumGrid',0, 'NumClear',0, 'MinSep',NaN, ...
                     'RadiusSmear',NaN, ...
                     'NumPerBin',[], 'PsfSlope',NaN, 'SmearSlope',NaN, ...
+                    'PsfInt',NaN, 'SmearInt',NaN, ...
+                    'PsfScatter',NaN, 'SmearScatter',NaN, ...
                     'Fun',[], 'Reason','');
 
     Template = Obj.SmearTemplate;
@@ -262,10 +264,19 @@ function [BinCen, BinThr, Info] = smearThreshold(Obj, Args)
 
     Ppsf          = polyfit(abs(ScorePsf), Dpsf, 1);
     Info.PsfSlope = Ppsf(1);
+    Info.PsfInt   = Ppsf(2);
+
+    % Scatter of the PSF branch about its own fit, taken over all injections
+    % rather than per bin. This is the sigma_p a SCORE floor is built on; the
+    % per-bin MAD below sets the contour and is a different quantity.
+    Info.PsfScatter = 1.4826 .* mad(Dpsf - polyval(Ppsf, abs(ScorePsf)), 1);
 
     if Args.InjectSmear
-        Psmr            = polyfit(abs(Sc{2}), Sc{2} - Sm{2}, 1);
-        Info.SmearSlope = Psmr(1);
+        Dsmr              = Sc{2} - Sm{2};
+        Psmr              = polyfit(abs(Sc{2}), Dsmr, 1);
+        Info.SmearSlope   = Psmr(1);
+        Info.SmearInt     = Psmr(2);
+        Info.SmearScatter = 1.4826 .* mad(Dsmr - polyval(Psmr, abs(Sc{2})), 1);
     end
     
     % --- the contour ---

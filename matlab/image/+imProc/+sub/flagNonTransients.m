@@ -950,6 +950,27 @@ function TranCat = flagNonTransients(Obj, Args)
                                         1:1:size(BinThr,2), 'UniformOutput',false);
                 end
 
+                % Per-crop scalars broadcast to every row, so they survive
+                % into diff_src and reach the multi-epoch stage, which sees
+                % CatData only and has no access to the header.
+                SigPsf = NaN;
+                if isfield(SmearInfo,'PsfScatter')
+                    SigPsf = SmearInfo.PsfScatter;
+                end
+                Ovl = NaN;
+                STI = Obj(Iobj).SmearTemplateInfo;
+                if ~isempty(STI) && isfield(STI,'OverlapPSF')
+                    Ovl = STI.OverlapPSF;
+                end
+                if ~CandCat.isColumn('SMROVL')
+                    CandCat.insertCol(repmat(double(Ovl), NumCand, 1), ...
+                        'SCORE', {'SMROVL'}, {''});
+                end
+                if ~CandCat.isColumn('SIGPSF')
+                    CandCat.insertCol(repmat(double(SigPsf), NumCand, 1), ...
+                        'SCORE', {'SIGPSF'}, {''});
+                end
+
                 if ~isempty(BinCen)
                     % With more than one keep fraction, marked candidates
                     % above the floor get the last contour. The default is a
