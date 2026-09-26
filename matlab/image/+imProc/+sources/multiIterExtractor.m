@@ -1399,6 +1399,21 @@ function [Result, SourceLess, SubtractedImage] = multiIterExtractor(Obj, Args)
             Result(Iobj).CatData = merge(Cat);
         end % if ~isempty(Args.RedoUpIter)
 
+        % Propagate the mask of the working copy back into the output.
+        % The iterations are carried out on AI, a deep copy taken above, so
+        % every bit set while extracting - the cosmic-ray flags among them -
+        % was discarded together with AI, while the catalog it produced was
+        % kept (issue #1331). Bits are OR-ed in, never cleared, so the bits
+        % the input arrived with are preserved.
+        if ~isemptyImage(AI, 'Mask')
+            if isemptyImage(Result(Iobj), 'Mask')
+                Result(Iobj).MaskData = AI.MaskData.copy;
+            else
+                Result(Iobj).MaskData.Data = bitor(Result(Iobj).MaskData.Data, ...
+                                    cast(AI.MaskData.Data, 'like', Result(Iobj).MaskData.Data));
+            end
+        end
+
         % first-iteration S/N at each source position (issue #1113)
         if ~isempty(Args.ColSNIter1) && ~isempty(SNIter1) && ~isempty(Result(Iobj).CatData.ColNames)
             XYPeak = Result(Iobj).CatData.getColMulti({'XPEAK','YPEAK'});
