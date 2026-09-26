@@ -194,6 +194,9 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %            ShiftXY), 'wcs' (no ShiftXY supplied), or 'wcs-fallback'
     %            (ShiftXY supplied but unusable for this field - empty,
     %            non-finite, or row-mismatched; issue #1162).
+    %            The 'CoaddSkipped' field is true for a field which had
+    %            fewer than MinNumCoadd good epochs (and not all of its
+    %            epochs good), so that no coadd was made for it (issue #1318).
     % Author : Eran Ofek (Jun 2023)
     % Example: 
    
@@ -456,7 +459,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         PreAllocCube = [];
     end
         
-    ResultCoadd = struct('WMeanJD',cell(Nfields,1), 'IndivMidJD',cell(Nfields,1), 'CoaddN',cell(Nfields,1), 'AstrometricFit',cell(Nfields,1), 'ZP',cell(Nfields,1), 'PhotCat',cell(Nfields,1), 'TransFit',cell(Nfields,1), 'RegisteredBy',cell(Nfields,1));
+    ResultCoadd = struct('WMeanJD',cell(Nfields,1), 'IndivMidJD',cell(Nfields,1), 'CoaddN',cell(Nfields,1), 'AstrometricFit',cell(Nfields,1), 'ZP',cell(Nfields,1), 'PhotCat',cell(Nfields,1), 'TransFit',cell(Nfields,1), 'RegisteredBy',cell(Nfields,1), 'CoaddSkipped',cell(Nfields,1));
 
     % resolve the Overlap bit index once, before the loop over the fields.
     % The bit is re-set outside the exclusive section (EXCLSEC) when given,
@@ -487,6 +490,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         
         FlagGood = Args.IsGood(:,Ifields);
         Ngood = sum(FlagGood);  % number of good epochs per field
+        ResultCoadd(Ifields).CoaddSkipped = false;
         if Ngood>=Args.MinNumCoadd || Ngood==Nepoch
             % coadd images Args.MinNumCoadd
             
@@ -821,6 +825,11 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
             end
 
 
+        else
+            % Too few good epochs - no coadd for this field. Recorded, not
+            % warned (issue #1318): pipelineI counts these fields into
+            % Status and PipelineDemon writes them to its log.
+            ResultCoadd(Ifields).CoaddSkipped = true;
         end % if Ngood>=Args.MinNumCoadd || Ngood==Nepoch
     end % for Ifields=1:1:Nfields
     

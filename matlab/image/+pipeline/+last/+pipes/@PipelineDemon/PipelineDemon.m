@@ -2751,6 +2751,24 @@ classdef PipelineDemon < Component
                     Obj.writeLog(MsgS, LogLevel.Warning);
                 end
 
+                % Sub images without a PSF, and sub image groups left without
+                % a coadd (issue #1318). Both are saved, but the cause is
+                % recorded only here - the buildPSF warning runs under parfor
+                % and procCoadd does not warn. Crop IDs are listed since the
+                % same crop tends to fail throughout a visit.
+                if isfield(Status,'NnoPSF') && any(Status.NnoPSF>0)
+                    IndCrop  = find(Status.NnoPSF>0);
+                    CropList = strjoin(arrayfun(@(I) sprintf('%03d x%d', I, Status.NnoPSF(I)), IndCrop, 'UniformOutput',false), ', ');
+                    MsgP{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: no PSF built (too few PSF stars) for %d sub image(s) - saved without sources, excluded from the coadd; crop(s): %s (issue #1318)', sum(Status.NnoPSF), CropList);
+                    Obj.writeLog(MsgP, LogLevel.Warning);
+                end
+                if isfield(Status,'CoaddSkipped') && any(Status.CoaddSkipped)
+                    IndCrop  = find(Status.CoaddSkipped);
+                    CropList = strjoin(arrayfun(@(I) sprintf('%03d (%d/%d good epochs)', I, Status.NgoodEpoch(I), Status.Nepoch), IndCrop, 'UniformOutput',false), ', ');
+                    MsgC{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: coadd skipped for %d sub image group(s) - fewer good epochs than MinNumCoadd; crop(s): %s (issue #1318)', numel(IndCrop), CropList);
+                    Obj.writeLog(MsgC, LogLevel.Warning);
+                end
+
                 % saving data products of pipelineI
 
                 try

@@ -188,6 +188,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
     Status.ME      = [];
     Status.NfailedBack = 0;   % sub images whose background estimation failed (#1226)
     Status.NbadShiftXY = 0;   % sub image groups whose ShiftXY was unusable and were registered by WCS (#1162)
+    Status.NnoPSF       = 0;  % per sub image group: epochs for which no PSF was built (#1318)
+    Status.CoaddSkipped = false;  % per sub image group: too few good epochs, no coadd made (#1318)
+    Status.NgoodEpoch   = 0;  % per sub image group: number of good epochs (#1318)
+    Status.Nepoch       = 0;  % number of epochs in the visit (#1318)
     %ProcessingStep = 11;
 
     if isempty(RawImageList)
@@ -516,6 +520,17 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             end
 
             IsGood = IsGoodWCS & Nstars>Args.MinNstars & MaxFracGrad<Args.MaxFracGrad & ~IsFailedBack;
+
+            % Sub images for which no PSF was built (issue #1318) - e.g. too
+            % few isolated PSF stars for a broad/multi-peaked PSF. No sources
+            % are extracted without a PSF, so they are saved with an empty
+            % catalogue and are already excluded by the Nstars term above.
+            % Counted per sub image group, logged by PipelineDemon.
+            % Failed-background sub images are counted in NfailedBack.
+            IsNoPSF = reshape(isemptyPSF([AllSI.PSFData]), size(AllSI)) & ~IsFailedBack;
+            Status.NnoPSF     = sum(IsNoPSF, 1);
+            Status.NgoodEpoch = sum(IsGood, 1);
+            Status.Nepoch     = Nepoch;
         
             % Photometric calibration of individual images:
             %[Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AllSI);
@@ -725,6 +740,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % by WCS instead (issue #1162). Counted here, logged by
             % PipelineDemon (no console warning by design).
             Status.NbadShiftXY = sum(strcmp({ResCoadd.RegisteredBy}, 'wcs-fallback'));
+            % Sub image groups with too few good epochs, for which no coadd
+            % was made (issue #1318). Logged by PipelineDemon.
+            Status.CoaddSkipped = [ResCoadd.CoaddSkipped];
             % NOTE: multiIterExtractorArgs is passed as procCoadd's dedicated
             % pass-through (procCoadd forwards it to the coadd's own
             % multiIterExtractor call). Splatting the cell directly into the
