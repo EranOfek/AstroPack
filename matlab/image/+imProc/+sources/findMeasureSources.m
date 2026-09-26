@@ -241,8 +241,11 @@ function [Result,Streaks] = findMeasureSources(Obj, Args)
         Result = Obj;
     end
 
-    % create Mask if needed
-    if Args.FlagCR && isemptyImage(Obj(1), 'Mask')
+    % create Mask if needed.
+    % Both this test and the maskCR guard below refer to Result, not Obj: with
+    % CreateNewObj=true the mask created here lives on Result, so testing Obj
+    % made the CR flagging skip exactly the images whose mask was just created.
+    if Args.FlagCR && isemptyImage(Result(1), 'Mask')
         Result.createMask(Args.MaskType);
     end
     
@@ -308,7 +311,7 @@ function [Result,Streaks] = findMeasureSources(Obj, Args)
                    
             % remove bad sources
             % works only for Gaussian PSF
-            if Args.FlagCR && ~isemptyImage(Obj(Iobj), 'Mask')
+            if Args.FlagCR && ~isemptyImage(Result(Iobj), 'Mask')
                 Result(Iobj) = imProc.mask.maskCR(Result(Iobj), 'BitDict',Args.BitDict, Args.maskCR_Args{:});
             end
             if Args.FlagDiffXY
