@@ -70,6 +70,22 @@ function Result = unitTest()
        ~isequal(size(Arr(1).CatData.Catalog), [5 3])
         error('Problem with imProc.cat.fillEmptyCatColumns: catalog shapes');
     end
+    % a zero-row catalog which got only XFULL/YFULL (addXYfull, issue #1332)
+    % is filled too; the reference is the catalog with rows and the most
+    % columns, not a partial one (A5) listed first; a zero-row catalog which
+    % already has the reference columns (A6) is left alone
+    A5 = AstroImage({single(rand(10))}); A5.CatData = AstroCatalog({rand(4,2)}, 'ColNames',{'X','Y'});
+    A3 = AstroImage({single(rand(10))}); A3.CatData = AstroCatalog({zeros(0,2)}, 'ColNames',{'XFULL','YFULL'});
+    A6 = AstroImage({single(rand(10))}); A6.CatData = AstroCatalog({zeros(0,3)}, 'ColNames',ColNames);
+    A1 = AstroImage({single(rand(10))}); A1.CatData = C1.copy;
+    [Arr3, Filled] = imProc.cat.fillEmptyCatColumns([A5, A3, A1, A6]);
+    if ~isequal(Filled(:).', [false true false false])
+        error('Problem with imProc.cat.fillEmptyCatColumns: Filled flag (partial columns)');
+    end
+    if ~isequal(size(Arr3(2).CatData.Catalog), [0 3]) || ~isequal(Arr3(2).CatData.ColNames(:).', ColNames) || ...
+       ~isequal(size(Arr3(1).CatData.Catalog), [4 2])
+        error('Problem with imProc.cat.fillEmptyCatColumns: catalog shapes (partial columns)');
+    end
     OutDir = fullfile(tempdir, 'unitTest_fillEmptyCat');
     if isfolder(OutDir), rmdir(OutDir,'s'); end
     Arr(2).HeaderData.replaceVal({'EXPTIME'},{20});

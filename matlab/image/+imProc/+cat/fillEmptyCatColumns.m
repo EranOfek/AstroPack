@@ -1,5 +1,5 @@
 function [Result, Flag] = fillEmptyCatColumns(Obj)
-    % Give the column-less catalogs in an object the column set of the others.
+    % Give the zero-row catalogs in an object the full column set of the others.
     %     An AstroImage which extracted no sources at all ends up with a
     %     catalog that has neither rows nor columns. Such a catalog cannot be
     %     represented as a FITS binary table (matlab.io.fits.createTbl requires
@@ -7,13 +7,20 @@ function [Result, Flag] = fillEmptyCatColumns(Obj)
     %     a catalog with columns and no rows is a valid product which records
     %     that the image was processed and yielded nothing - e.g., an image
     %     whose background estimation failed (issue #1226).
-    %     The columns are copied from the first element which has them, so the
-    %     empty catalogs match the ones actually written alongside them. If no
-    %     element has columns there is nothing to copy and the object is
-    %     returned unchanged.
+    %     Every zero-row catalog whose column set differs from the reference
+    %     one is replaced by an empty catalog with the reference columns. This
+    %     includes catalogs which got only a few columns from a later stage
+    %     run on the empty catalog (e.g., XFULL/YFULL by imProc.cat.addXYfull;
+    %     issue #1332).
+    %     The reference is the catalog with rows and the most columns (the
+    %     first one on ties), so a catalog missing some columns (e.g., after a
+    %     failed astrometry) is not taken as the reference. If no catalog has
+    %     rows, the one with the most columns is used. If no element has
+    %     columns there is nothing to copy and the object is returned
+    %     unchanged. Catalogs with rows are never modified.
     % Input  : - An AstroImage object (multi elements supported).
-    % Output : - The object, with the column-less catalogs replaced by empty
-    %            (zero rows) catalogs with the columns of the other elements.
+    % Output : - The object, with the zero-row catalogs replaced by empty
+    %            catalogs with the columns of the reference catalog.
     %            The input object is modified in place (handle class).
     %          - An array of logicals, the size of the input object, which is
     %            true for the elements whose catalog was filled.
@@ -25,15 +32,29 @@ function [Result, Flag] = fillEmptyCatColumns(Obj)
     end
 
     Result = Obj;
+    Flag   = false(size(Obj));
 
-    Flag = arrayfun(@(AI) isempty(AI.CatData.ColNames), Obj);
-    if ~any(Flag, 'all') || all(Flag, 'all')
-        % nothing to fill, or no columns anywhere to fill them from
-        Flag = false(size(Obj));
+    Nrow = arrayfun(@(AI) size(AI.CatData.Catalog, 1), Obj);
+    Ncol = arrayfun(@(AI) numel(AI.CatData.ColNames), Obj);
+    if all(Ncol==0, 'all')
+        % no columns anywhere to fill them from
         return
     end
 
-    RefCat = Obj(find(~Flag, 1)).CatData;
+    % reference: the most columns among the catalogs with rows, else among all
+    NcolRef = Ncol;
+    if any(Nrow>0, 'all')
+        NcolRef(Nrow==0) = -1;
+    end
+    [~, Iref] = max(NcolRef(:));
+    RefCat    = Obj(Iref).CatData;
+    RefNames  = RefCat.ColNames(:).';
+
+    Flag = Nrow==0 & arrayfun(@(AI) ~isequal(AI.CatData.ColNames(:).', RefNames), Obj);
+    if ~any(Flag, 'all')
+        return
+    end
+
     if istable(RefCat.Catalog)
         EmptyCat = RefCat.Catalog([],:);
     else
