@@ -9,6 +9,7 @@ matlab/startup/startup.m
 **/_bkp/*
 **/_backup/*
 *.asv
+*~
 
 # config files
 config/local

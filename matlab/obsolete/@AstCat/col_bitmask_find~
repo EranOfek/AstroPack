@@ -1,4 +1,0 @@
-function Flag=col_bitmask_find(AstC,BitMask,Col,Operator)
-% Find specific bitmask values in a catalog column
-% Package: class/@AstCat
-% Description: 
