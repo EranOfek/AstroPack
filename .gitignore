@@ -11,7 +11,7 @@ matlab/startup/startup.m
 *.asv
 
 # config files
-config
+config/local
 
 # Log files
 *.log

@@ -1,0 +1,5 @@
+NO_BKG           : [0,       'No image background and variance']
+NO_SRC           : [1,       'No sources in image']
+NO_PSF           : [2,       'No PSF for image']
+NO_ASTR          : [3,       'No astrometric solution for image']
+NO_PHOTCAL       : [4,       'No photometric calibration for image']
