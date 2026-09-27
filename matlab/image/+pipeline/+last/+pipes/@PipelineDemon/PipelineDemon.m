@@ -3015,14 +3015,23 @@ classdef PipelineDemon < Component
 
             if StatusPipeII.Success && UpArgs.SendTransientAlerts && ~ADc(1).ImageData.isemptyImage
                 % TODO: This part should move out of pipeII
-                % Match to multi-epochs via DB
-                try
-                    [ADc, TCL2, MultiEpochStatus] = pipeline.last.transients.matchTransientsToMultiEpochs(...
-                        ADc, TCL1, 'DbHost', UpArgs.DbHostTransients, 'DB', UpArgs.DB);
-                    Obj.writeLog(sprintf('Transients match multi epoch - %s', MultiEpochStatus), LogLevel.Info);
-                catch
-                    Msg{1} = sprintf('Transients match multi epoch / Failed');
-                    Obj.writeLog(Msg, LogLevel.Error);
+                % Match to multi-epochs via DB. Without a DB connection it is
+                % skipped: matchTransientsToMultiEpochs would otherwise open
+                % its own JDBC connection to DbHostTransients.
+                if isempty(UpArgs.DB)
+                    Obj.writeLog('Transients match multi epoch - skipped: no DB connection', LogLevel.Warning);
+                else
+                    try
+                        [ADc, TCL2, MultiEpochStatus] = pipeline.last.transients.matchTransientsToMultiEpochs(...
+                            ADc, TCL1, 'DbHost', UpArgs.DbHostTransients, 'DB', UpArgs.DB);
+                        Obj.writeLog(sprintf('Transients match multi epoch - %s', MultiEpochStatus), LogLevel.Info);
+                    catch ME
+                        MsgME = {sprintf('Transients match multi epoch / Failed: %s', ME.message)};
+                        if ~isempty(ME.stack)
+                            MsgME{2} = sprintf('    at %s (line %d)', ME.stack(1).name, ME.stack(1).line);
+                        end
+                        Obj.writeLog(MsgME, LogLevel.Error);
+                    end
                 end
             
                 Msg{1} = sprintf('Transients alerting');
@@ -3490,7 +3499,7 @@ classdef PipelineDemon < Component
                 Args.RefPath       = [];         % if empty - auto detected: /<HostName>/data/references (populateRefPath)
 
                 Args.ConnectDB     = true;    % get a DB connector (e.g., for multiepoch matching of PipeII)
-                Args.DBConnector   = 'legacy'; 
+                Args.DBConnector   = 'native';  % 'native' - db.mex.ClickHouseClient to DbHost:DbPort (the local DB on last0) | 'legacy' - JDBC db.Db
                 Args.Insert2DB     = false;   % Insert images data to LAST DB or prepare CSV dumps for further insertion
                 Args.DB            = [];
 
@@ -3645,14 +3654,23 @@ classdef PipelineDemon < Component
             
             % connect a DB  
             if Args.ConnectDB
-                Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
-                PM = PasswordsManager;
-                DB.Password = PM.search(Args.DbName).Pass;
-                if strcmpi(Args.DBConnector,'native')
-                    Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
-                    Args.DB.query(sprintf('use %s',Args.DbName));
-                else                    
-                    Args.DB = db.Db.connectLASTdb('User',Args.DbUser,'Pass',DB.Password);                    
+                % The native client connects at once, so a DB outage must not
+                % stop the demon: log it and run without a DB - the
+                % multi-epoch matching of pipelineII is then skipped.
+                try
+                    Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords
+                    PM = PasswordsManager;
+                    DB.Password = PM.search(Args.DbName).Pass;
+                    if strcmpi(Args.DBConnector,'native')
+                        Args.DB = db.mex.ClickHouseClient(Args.DbHost, Args.DbPort, Args.DbUser, DB.Password);
+                        Args.DB.query(sprintf('use %s',Args.DbName));
+                    else                    
+                        Args.DB = db.Db.connectLASTdb('User',Args.DbUser,'Pass',DB.Password, 'Host',Args.DbHost);
+                    end
+                    Obj.writeLog(sprintf('DB connected: %s client to %s', Args.DBConnector, Args.DbHost), LogLevel.Info);
+                catch ME
+                    Args.DB = [];
+                    Obj.writeLog(sprintf('DB connection (%s client to %s) failed: %s - running without a DB', Args.DBConnector, Args.DbHost, ME.message), LogLevel.Error);
                 end
                 % Args.pipelineIArgs = [Args.pipelineIArgs,{'DBobj',Args.DB,'DB_Table_Raw',Args.DB_Table_Raw}];
             end

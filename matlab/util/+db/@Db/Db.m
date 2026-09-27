@@ -1546,6 +1546,7 @@ rs = stmt.executeQuery(Query);
             end
             if strcmpi(Args.Client,'java')
                 DB = db.Db;
+                DB.Host = Args.Host;   % was silently left at the class default
                 DB.User = Args.User;                
                 if isempty(Args.Pass)
                     Configuration.getSingleton().loadFile(Args.AstroDBPassFile); % tell the PM where to look for passwords

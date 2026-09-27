@@ -140,7 +140,7 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
     RAInCat = RealTranCands.getCol('RA');
     DecInCat = RealTranCands.getCol('Dec');
 
-    DBQueryFails = 0;
+    NnoHistory = 0;   % candidates whose field/crop has no DB entries in the look-back window
 
 
     if numel(ADc) ~= Npos
@@ -259,8 +259,10 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
 
             PassingMatches = PassingMatches + sum(isPassingDBMatch(MatchDB, Args.SingleEpochThresh));
         else
+            % the query succeeded but returned nothing: no history for
+            % this field/crop in the look-back window (not a DB failure)
             MatchJDs = [];
-            DBQueryFails = DBQueryFails + 1;
+            NnoHistory = NnoHistory + 1;
         end
         % See if this candidate is worth reporting. If yes, set its report
         % jd to now.
@@ -354,9 +356,9 @@ function [ADc, TranCatLevel2, Status] = matchTransientsToMultiEpochs(ADc, TranCa
     % Return with succesful status
     Status = 'Succesful exit, transients matched to multi-epochs.';
 
-    if DBQueryFails > 0
-        Status = sprintf('Exited, but DB query failed %i out of %i times',...
-            DBQueryFails, Npos);
+    if NnoHistory > 0
+        Status = sprintf('Succesful exit, transients matched to multi-epochs; no DB history (last %g days) for %i of %i candidates.',...
+            Args.LookBackJD, NnoHistory, Npos);
     end
     
 end
