@@ -1,0 +1,8 @@
+NO_BKG           : [0,       'No image background']
+NO_VAR           : [1,       'No image variance']
+NO_SRC           : [2,       'No sources in image']
+NO_PSF           : [3,       'No PSF for image']
+NO_ASTR          : [4,       'No astrometric solution for image']
+NO_PHOTCAL       : [5,       'No photometric calibration for image']
+NO_MERGED        : [6,       'No merged mat catalog']
+NO_COADD         : [7,       'No visit coadd image']
