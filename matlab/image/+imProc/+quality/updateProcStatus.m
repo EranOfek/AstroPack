@@ -1,76 +1,109 @@
-function [Result] = updateProcStatus(AllSI, Coadd, MS, CoaddPC, Args)
-    % Update the PSTATUS (Processed status) in the image header.
-    %   Add/update PSTATUS header keyword. This keyword is a bit mask
-    %   of flags indicating which processing steps were failed.
-    %   The default bit mask is defined in the config/ dir:
-    %   BitMask.ImageQuality.Default.yml
-    % Input  : - An array of AstroImage object
-    %          * ...,key,val,... 
-    %            'KeyProcStatus' - Proc. status header keyword name.
-    %                   Default is 'PSTATUS'.
+function [AllSI, Coadd] = updateProcStatus(AllSI, Coadd, MS, CoaddPC, Args)
+    % Update the PSTATUS (processed status) bit mask in image headers.
+    %   For every epoch image and every coadd, set the PSTATUS header
+    %   keyword to the decimal bit mask of failed processing steps.
+    %   Bit names are defined in config/BitMask.ImageQuality.Default.yml.
+    %   A value of 0 means every listed step succeeded.
     %
-    % Output : - The array of AstroIage object in which the header was
-    %            updated.
-    % Author : Eran Ofek (2026 Sep) 
-    % Example: 
+    %   Image-local bits (from that AstroImage):
+    %     NO_BKG, NO_SRC, NO_PSF, NO_ASTR
+    %   Crop-level bits (copied onto every epoch of the crop and the coadd):
+    %     NO_PHOTCAL, NO_MERGE, NO_COADD
+    %
+    % Input  : - AllSI: AstroImage array, [Nepoch x Ncrop].
+    %          - Coadd: AstroImage array, one coadd per crop. May be [].
+    %          - MS: MatchedSources array, one object per crop. May be [].
+    %          - CoaddPC: PhotCalibTrans array, one object per crop. May be [].
+    %          * ...,key,val,...
+    %            'KeyProcStatus' - Header keyword. Default is 'PSTATUS'.
+    %            'BitDictionary' - BitDictionary, or a dictionary name.
+    %                   Default is 'BitMask.ImageQuality.Default'.
+    % Output : - AllSI with PSTATUS written into each header.
+    %          - Coadd with PSTATUS written into each existing coadd header.
+    % Author : Eran Ofek (2026 Sep)
+    % Example: [AllSI, Coadd] = imProc.quality.updateProcStatus(AllSI, Coadd, MS, PC);
 
     arguments
-        AllSI  % Epoxh X Crop
+        AllSI
         Coadd
         MS
         CoaddPC
-        Args.KeyProcstatus     = 'PSTATUS';
-        Args.BitDictionary     = BitDictionary('BitMask.ImageQuality.Default.yml');
+        Args.KeyProcStatus  = 'PSTATUS';
+        Args.BitDictionary  = 'BitMask.ImageQuality.Default';
     end
 
-    SizeSI = size(AllSI);
+    if ischar(Args.BitDictionary) || isstring(Args.BitDictionary)
+        BitDict = BitDictionary(char(Args.BitDictionary));
+    else
+        BitDict = Args.BitDictionary;
+    end
+
+    [Nepoch, Ncrop] = size(AllSI);
     Ncoadd = numel(Coadd);
     Nms    = numel(MS);
     Npc    = numel(CoaddPC);
 
-    for Icrop=1:1:SizeSI(2)
-        % for each crop
-        
-        % check Coadd
-        if Icrop>Ncoadd
-            % No coadd image
-        else
-            if isempty(Coadd(Icrop).ImageData.Data)
-                % No Coadd image
-            else
-                % Coadd image exist
-                [NoBck, NoVar, NoSrc, NoPsf, NoAstr, NoPhotCal, NoMerged, NoCaodd] = checkSingleImage(AllSI,PC);
-            end
+    for Icrop = 1:1:Ncrop
+        NoCoadd   = Icrop > Ncoadd || coaddImageIsEmpty(Coadd(Icrop));
+        NoMerge   = Icrop > Nms    || mergedIsEmpty(MS(Icrop));
+        NoPhotCal = Icrop > Npc    || photZPMissing(CoaddPC(Icrop));
 
+        for Iep = 1:1:Nepoch
+            writePstatus(AllSI(Iep, Icrop), BitDict, Args.KeyProcStatus, ...
+                NoPhotCal, NoMerge, NoCoadd);
+        end
 
-
-
-
-
-        Coadd(Icoadd)
-        % for each image
-        Nsrc   = size(AI(Iai).CatData.catalog,1);
-        IsPSF  = ~isempty(AI(Iai).PSFData.Data);
-        IsAstr = AI(Iai).WCS.Success;
-        IsPhot = AI(Iai). - where is it?
-
-        % create bit mask
-
-        % update bit mask in header
-
-
+        if Icrop <= Ncoadd
+            writePstatus(Coadd(Icrop), BitDict, Args.KeyProcStatus, ...
+                NoPhotCal, NoMerge, NoCoadd);
+        end
     end
+
 end
 
 
-function [NoBck, NoVar, NoSrc, NoPsf, NoAstr, NoPhotCal, NoMerged, NoCaodd] = checkSingleImage(AI,PC)
-    % Check single image
+function writePstatus(AI, BitDict, Key, NoPhotCal, NoMerge, NoCoadd)
+    % Write the PSTATUS decimal mask into one AstroImage header.
+    [NoBack, NoVar] = AI.isemptyImage({'Back','Var'});
+    NoBkg  = NoBack || NoVar;
+    NoSrc  = AI.isemptyCatalog || AI.sizeCatalog == 0;
+    NoPsf  = AI.isemptyPSF;
+    NoAstr = isempty(AI.WCS) || ~AI.WCS.Success;
 
-    IsBackEmpty = isempty(AI.BackData.Data);
-    IsVarEmpty  = isempty(AI.VarData.Data); 
-    IsCatEmpty  = isempty(AI.CatData.Catalog);
-    IsPsfEmpty  = isempty(AI.PSFData.Data);
-    IsAstrOK    = AI.WCS.Success;
-    IsPhotCalib = ~(isempty(PC.PhotZP) || isnan(PC.PhotZP));
+    Names = {'NO_BKG','NO_SRC','NO_PSF','NO_ASTR','NO_PHOTCAL','NO_MERGE','NO_COADD'};
+    Names = Names([NoBkg, NoSrc, NoPsf, NoAstr, NoPhotCal, NoMerge, NoCoadd]);
+    if isempty(Names)
+        BitDec = 0;
+    else
+        [~,~,BitDec] = BitDict.name2bit(Names);
+    end
+    AI.HeaderData.replaceVal(Key, BitDec, 'Comment', {'Processing status bit mask'});
+end
 
+
+function Tf = coaddImageIsEmpty(AI)
+    % True when the coadd AstroImage has no science image.
+    Tf = AI.isemptyImage('Image');
+end
+
+
+function Tf = mergedIsEmpty(M)
+    % True when the matched-sources product has no sources.
+    if isempty(M)
+        Tf = true;
+        return;
+    end
+    Nsrc = M.Nsrc;
+    Tf = isempty(Nsrc) || Nsrc == 0;
+end
+
+
+function Tf = photZPMissing(PC)
+    % True when the coadd photometric ZP was not measured.
+    if isempty(PC)
+        Tf = true;
+        return;
+    end
+    Zp = PC.PhotZP;
+    Tf = isempty(Zp) || ~isscalar(Zp) || ~isfinite(Zp);
 end
