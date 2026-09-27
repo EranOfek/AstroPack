@@ -4388,9 +4388,18 @@ classdef PhotCalibTrans < Component
                             ColAll = [];
                         end
                         if isempty(ColAll)
-                            Obj.msgLog(LogLevel.Warning, sprintf( ...
-                                'calcAperCorr: colour term requested but %s missing - skipping (run imProc.cat.addColor)', ...
-                                Args.ColorColName));
+                            % A catalog made without colour at all (e.g. an
+                            % older reference image) is expected: Debug only.
+                            % A colour column without usable values is not.
+                            if any(ismember(CatObj.ColNames, {Args.ColorColName, 'BP_RP_NEAR'}))
+                                Obj.msgLog(LogLevel.Warning, sprintf( ...
+                                    'calcAperCorr: colour term requested but %s has no usable values - skipping', ...
+                                    Args.ColorColName));
+                            else
+                                Obj.msgLog(LogLevel.Debug, sprintf( ...
+                                    'calcAperCorr: colour term requested but the catalog has no %s column - skipping (run imProc.cat.addColor)', ...
+                                    Args.ColorColName));
+                            end
                         else
                             ColAll = ColAll(Mask);
                             % One anchor per image, from the aperture-correction
