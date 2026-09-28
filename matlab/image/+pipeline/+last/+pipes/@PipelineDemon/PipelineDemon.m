@@ -2798,7 +2798,10 @@ classdef PipelineDemon < Component
                         % the date of the night, as the proc/ dir, v0 and the
                         % LAST archive use (not the UT date) - issue #1315
                         RawImageListFinal = FN_I.genPath('PathType','raw', 'RawDateFromJD',true);
-                        io.files.moveFiles(RawImageList, [], '', RawImageListFinal);
+                        % full source paths: the current directory need not be
+                        % new/ here (issue #1344); destination names stay bare
+                        [RawFull, RawBare] = Obj.fullRawPath(RawImageList);
+                        io.files.moveFiles(RawFull, RawBare, '', RawImageListFinal);
                         
                         Status.MoveRaw = true;
                     else
@@ -3133,14 +3136,36 @@ classdef PipelineDemon < Component
             end
         end
 
+        function [Result, Bare] = fullRawPath(Obj, RawImageList)
+            % Resolve bare raw file names against NewPath.
+            %   The visit lists hold bare file names; resolving them
+            %   against the current directory fails once a stage has
+            %   changed it (issue #1344). Names with a path are kept.
+            % Input  : - self.
+            %          - A cell or string array of file names.
+            % Output : - A cell array (row) of file names with full path.
+            %          - A cell array (row) of the bare file names, for the
+            %            destination names of io.files.moveFiles (which
+            %            otherwise appends the source name, path included,
+            %            to the destination path).
+            % Author : A.M. Krassilchtchikov (Sep 2026)
+            Result = cellstr(RawImageList);
+            Result = Result(:).';
+            IsBare = cellfun(@(F) isempty(fileparts(F)), Result);
+            if any(IsBare) && ~isempty(Obj.NewPath)
+                Result(IsBare) = fullfile(Obj.NewPath, Result(IsBare));
+            end
+            [~, Name, Ext] = cellfun(@fileparts, Result, 'UniformOutput',false);
+            Bare = strcat(Name, Ext);
+        end
+
         function moveImagesToFailedDir(Obj, RawImageList)
             % move images to failed directory
             %   Never throws: a file that can not be moved (e.g., it does
             %   not exist) is reported to the log and the rest of the
             %   list is still moved (issue #1286).
 
-            RawImageList = cellstr(RawImageList);
-            RawImageList = RawImageList(:).';
+            [RawImageList, RawBare] = Obj.fullRawPath(RawImageList);   % issue #1344
             Nraw         = numel(RawImageList);
             if Nraw==0
                 Obj.writeLog('PipelineI moveImagesToFailedDir called with an empty image list', LogLevel.Error);
@@ -3152,7 +3177,7 @@ classdef PipelineDemon < Component
             try
                 Exist    = isfile(RawImageList);
                 IndExist = find(Exist);
-                [~, Ok, MoveMsg] = io.files.moveFiles(RawImageList(IndExist), [], '', Obj.FailedPath, 'ErrorOnFail',false);
+                [~, Ok, MoveMsg] = io.files.moveFiles(RawImageList(IndExist), RawBare(IndExist), '', Obj.FailedPath, 'ErrorOnFail',false);
                 Nmoved = sum(Ok);
 
                 Failed    = [RawImageList(~Exist), RawImageList(IndExist(~Ok))];
