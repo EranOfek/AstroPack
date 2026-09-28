@@ -3709,6 +3709,7 @@ classdef PipelineDemon < Component
 
             % loop indefently
             JDlastCalib = 0;
+            StuckRaw    = {};   % frames of failed visits left in new/ - not grouped again (issue #1345)
             Cont = true;
             MainLoopCounter = 0;
             while Cont
@@ -3815,6 +3816,12 @@ classdef PipelineDemon < Component
                     [FN_Sci, DirSci] = Obj.listRawFiles(Args.TempRawSci);
                     % files whose name can not form a visit go to failed/ (issue #1286)
                     FN_Sci   = Obj.quarantineMalformedRaw(FN_Sci, {DirSci.name});
+                    % frames of a failed visit that stayed in new/ are not
+                    % reduced again in this session (issue #1345); a logical
+                    % mask, as reorderEntries ignores an empty index
+                    if ~isempty(StuckRaw) && FN_Sci.nFiles>0
+                        FN_Sci = FN_Sci.reorderEntries(~ismember(cellstr(FN_Sci.genFile()), StuckRaw));
+                    end
                     FN_Sci.JD=FN_Sci.julday;
                 catch ME
                     Msg = sprintf('PipelineDemon failed to list the images in new/, will retry: %s', ME.message);
@@ -3985,6 +3992,17 @@ classdef PipelineDemon < Component
                                         error('Unknown FailMethod option %s',Args.FailMethod);
                                 end
                                    
+
+                                % frames still in new/ would be selected again on the
+                                % next loop, forever: leave them out of the grouping for
+                                % the rest of this session (issue #1345)
+                                StillInNew = cellstr(RawImageList);
+                                StillInNew = StillInNew(isfile(Obj.fullRawPath(StillInNew)));
+                                if ~isempty(StillInNew)
+                                    StuckRaw = union(StuckRaw, StillInNew(:).');
+                                    Obj.writeLog(sprintf('PipelineDemon: %d frame(s) of the failed visit are still in new/ - they are not reduced again until the demon restarts (issue #1345); first: %s', ...
+                                                         numel(StillInNew), StillInNew{1}), LogLevel.Error);
+                                end
                             end % if ~Status.PipeI || ~Status.WriteI
         
                             if Status.PipeI && Status.WriteI && Status.MoveRaw
