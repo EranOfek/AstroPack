@@ -33,8 +33,8 @@ function [Result] = addStreak2Mask(AI, Args)
     %                   in place. Default is false.
     % Output : - AstroImage with MaskData updated; Streak bit set for all
     %            pixels within SemiWidth of any detected streak.
-    % Author : Eran Ofek + Cursor s.addStreak2Mask(AI, AI.Streaks);
-    %   Result = imProc.streaks.addStreak2Mask(AI, St, ...
+    % Author : Eran Ofek
+    %   Result = imProc.streaks.addStreak2Mask(AI, ...
     %               'BitName','Streak','SemiWidth',5);
 
     arguments
@@ -112,7 +112,15 @@ function [Result] = addStreak2Mask(AI, Args)
 
 end
 
-function [Cx, Cy] = localCurveXY(St, Istreak)
+function [Cx, Cy] = localCurveXY(St, Istreak, firstNonPoint)
+    arguments
+        St imUtil.streaks.AstroStreak
+        Istreak double
+        firstNonPoint logical =true; % for validated streak points ('gaussianfit'
+                                     % slice photometry), extend and return also
+                                     % the coordinates of the first 
+                                     % neighbors of the streak ends
+    end
     % Finite column/row samples of one streak, in along-streak order.
     Cx = [];
     Cy = [];
@@ -121,7 +129,17 @@ function [Cx, Cy] = localCurveXY(St, Istreak)
     end
     Cx = double(St.Curve(Istreak).X(:).');
     Cy = double(St.Curve(Istreak).Y(:).');
+    acceptable=St.Curve(Istreak).Acceptable;
     Q = isfinite(Cx) & isfinite(Cy);
+    if ~isempty(acceptable)
+        if firstNonPoint
+            % extend to the first nonacceptable extremes, to include
+            %  streak ends (X,Y are the centers of the slices)
+            acceptable(max(find(acceptable,1,'first')-1,1))=true;
+            acceptable(min(find(acceptable,1,'last')+1,numel(acceptable)))=true;
+        end
+        Q =Q & acceptable;
+    end
     Cx = Cx(Q);
     Cy = Cy(Q);
 end
