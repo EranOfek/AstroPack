@@ -3014,7 +3014,7 @@ classdef AstroFileName < Component
             %   Given the Counter entry in an AstroFileNames object, create
             %   groups of entries by running counter, only for groups that
             %   contains at least MinInGroup and not more than MaxInGroup
-            %   entries.
+            %   entries. A group never spans a change of FieldID.
             % Input  : - A single element AstroFileName object.
             %            Note that after running this function the input
             %            object will be sorted by JD.
@@ -3062,8 +3062,24 @@ classdef AstroFileName < Component
                 Result     = Result.sortBy('JD');
                 JD         = Result.julday;
                 CounterVec = str2double(Result.Counter);
-                
-                Groups = tools.find.groupCounter(CounterVec, 'MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
+
+                % A visit is a single field: group each run of equal
+                % FieldID separately and shift the indices back (issue #1343)
+                Field    = string(Result.FieldID(:));
+                SegStart = find([true; Field(2:end)~=Field(1:end-1)]);
+                SegEnd   = [SegStart(2:end)-1; numel(Field)];
+                Groups   = struct('I1',{}, 'I2',{}, 'Ind',{}, 'N',{});
+                for Iseg=1:1:numel(SegStart)
+                    GrSeg = tools.find.groupCounter(CounterVec(SegStart(Iseg):SegEnd(Iseg)), 'MinInGroup',Args.MinInGroup, 'MaxInGroup',Args.MaxInGroup);
+                    for Igr=1:1:numel(GrSeg)
+                        GrSeg(Igr).I1  = GrSeg(Igr).I1  + SegStart(Iseg) - 1;
+                        GrSeg(Igr).I2  = GrSeg(Igr).I2  + SegStart(Iseg) - 1;
+                        GrSeg(Igr).Ind = GrSeg(Igr).Ind + SegStart(Iseg) - 1;
+                    end
+                    if ~isempty(GrSeg)
+                        Groups = [Groups, GrSeg(:).'];
+                    end
+                end
                 
                 if nargout>1
                     % the group indices refer to the JD-sorted copy, not

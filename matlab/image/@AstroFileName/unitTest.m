@@ -70,6 +70,18 @@ function Result=unitTest()
         assert(contains(ME.message, '(element 2): bad'), 'AstroFileName: unexpected error: %s', ME.message)
     end
 
+    %% groupByCounter does not merge fields into one visit (issue #1343)
+    Names = strings(20,1);
+    for I=1:20
+        Fld = "1001";
+        if I>10, Fld = "1002"; end
+        Names(I) = sprintf("LAST.01.01.01_20260820.2200%02d.000_clear_%s_%03d_001_001_sci_raw_Image_1.fits", I, Fld, I);
+    end
+    AF = AstroFileName(cellstr(Names));
+    [Gr, AFG] = AF.groupByCounter('MinInGroup',10, 'MaxInGroup',20);
+    assert(numel(Gr)==2 && isequal([Gr.N], [10 10]) && numel(AFG)==2, ...
+           'AstroFileName.groupByCounter: a change of FieldID must break the group');
+
 
 
     %%
