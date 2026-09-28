@@ -192,6 +192,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
     Status.CoaddSkipped = false;  % per sub image group: too few good epochs, no coadd made (#1318)
     Status.NgoodEpoch   = 0;  % per sub image group: number of good epochs (#1318)
     Status.Nepoch       = 0;  % number of epochs in the visit (#1318)
+    Status.NoRelZP      = false;  % per sub image group: relative photometric ZP could not be fitted (#1339)
     %ProcessingStep = 11;
 
     if isempty(RawImageList)
@@ -660,6 +661,15 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Merge catalogs
             %ProcessingStep = 501;
             [MS,ResRelZP] = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse, 'MatchedCols',Args.MatchedCols);   % 9.6 s -> 1.3s (with MatchMethod='unify')
+
+            % Sub image groups whose relative photometric ZP could not be
+            % fitted - too few bright sources in every epoch (issue #1339).
+            % Their matched-source magnitudes are left uncorrected. Groups
+            % that never reached the fit (too few good epochs) have an empty
+            % FitZP and are not counted. Logged by PipelineDemon.
+            if isstruct(ResRelZP) && isfield(ResRelZP, 'FitZP')
+                Status.NoRelZP = arrayfun(@(R) ~isempty(R.FitZP) && all(isnan(R.FitZP)), ResRelZP(:).');
+            end
 
             % Stamp the flux->magnitude convention of the MAG_* fields onto the
             % MatchedSources, so that the saved product records whether its

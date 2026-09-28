@@ -78,7 +78,9 @@ function [ResZP, MatchedS, ApplyToMagField] = relZPfit(MatchedS, Args)
                 error('Unknown RelPhotAlgo option');
         end
     
-        if ~isempty(Args.ApplyToMagField)
+        % an all-NaN ZP means the fit failed (issue #1339): leave the
+        % magnitudes uncorrected rather than turning them into NaN
+        if ~isempty(Args.ApplyToMagField) && ~all(isnan(ResZP(Ifields).FitZP))
             % apply ZP to all Magnitudes...
             [MatchedS(Ifields) ,ApplyToMagField] = applyZP(MatchedS(Ifields), ResZP(Ifields).FitZP,...
                 'FieldZP','FitZP',...

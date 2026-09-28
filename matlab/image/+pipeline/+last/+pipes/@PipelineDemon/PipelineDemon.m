@@ -2768,6 +2768,13 @@ classdef PipelineDemon < Component
                     MsgC{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: coadd skipped for %d sub image group(s) - fewer good epochs than MinNumCoadd; crop(s): %s (issue #1318)', numel(IndCrop), CropList);
                     Obj.writeLog(MsgC, LogLevel.Warning);
                 end
+                % Relative photometric ZP not fitted (issue #1339)
+                if isfield(Status,'NoRelZP') && any(Status.NoRelZP)
+                    IndCrop  = find(Status.NoRelZP);
+                    CropList = strjoin(arrayfun(@(I) sprintf('%03d', I), IndCrop, 'UniformOutput',false), ', ');
+                    MsgZ{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: relative photometric ZP could not be fitted for %d sub image group(s) - too few bright sources; their matched-source magnitudes are not corrected; crop(s): %s (issue #1339)', numel(IndCrop), CropList);
+                    Obj.writeLog(MsgZ, LogLevel.Warning);
+                end
 
                 % saving data products of pipelineI
 
