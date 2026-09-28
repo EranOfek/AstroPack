@@ -3,6 +3,8 @@ function Gr = groupCounter(Counter, Args)
     %   Given a vector of integer counters, generate groups of successive
     %   increasing counters. each group must contain at least MinInGroup
     %   elements and MaxInGroup elements.
+    %   A group is a maximal run in which each counter is the previous one
+    %   plus 1; equal consecutive counters never form a group.
     % Input  : - Vector of integers.
     %            Non-finite counters (e.g., NaN from an unparsable file
     %            name) never belong to a group: they break the vector
@@ -72,42 +74,20 @@ function Gr = groupFiniteRun(Counter, Args)
     %   The original Algo=1 of groupCounter, applied to a single run.
     %   Returns a 1xN struct array (empty if no group qualifies).
     
-    Nc          = numel(Counter);
-
-    D1 = [diff(Counter(:));1];
-    D1(D1>1) = 0;
-
-    %Diff = [Counter.',[diff(Counter),1].', [0;diff([diff(Counter),1].')], (1:1:Nc).'];
-    Diff = [Counter(:), D1, [0;diff(D1)], (1:1:Nc).'];
-
-    IgroupStart = [1; find(Diff(:,3)>0)];
-    Ng          = numel(IgroupStart);
+    % A group is a maximal run of +1 counter steps. The previous detection
+    % opened a group wherever diff(Counter) rose, so a run of equal counters
+    % after a drop (e.g. 20 -> 1, 1, 1, ...) became a group (issue #1342).
+    IsStep   = diff(Counter(:))==1;
+    DiffStep = diff([false; IsStep; false]);
+    RunStart = find(DiffStep==1);        % first element of each run
+    RunEnd   = find(DiffStep==-1);       % last element: the step index + 1
+    Ng       = numel(RunStart);
+    Gr       = struct('I1',cell(1,Ng), 'I2',[], 'Ind',[], 'N',[]);
     for Ig=1:1:Ng
-        I1 = IgroupStart(Ig);
-        In = find(Diff(I1+1:end,3)<0, 1, 'first');
-        Ip = find(Diff(I1+1:end,3)>0, 1, 'first');
-        if isempty(In) && isempty(Ip)
-            I2 = Nc;
-        else
-            if isempty(Ip)
-                I2 = In + I1;
-            else
-                if Ip<In
-                    % skip
-                    I2 = [];
-                else
-                    I2 = In + I1;
-                end
-            end
-        end
-        if isempty(I2)
-            I2 = NaN;
-        end
-        Gr(Ig).I1 = I1;
-        Gr(Ig).I2 = I2;
-        Gr(Ig).Ind = (I1:1:I2).';
+        Gr(Ig).I1  = RunStart(Ig);
+        Gr(Ig).I2  = RunEnd(Ig);
+        Gr(Ig).Ind = (RunStart(Ig):1:RunEnd(Ig)).';
         Gr(Ig).N   = numel(Gr(Ig).Ind);
-
     end
 
     NinGroup = [Gr.I2] - [Gr.I1] + 1;
