@@ -28,7 +28,7 @@ function [Result] = addStreak2Mask(AI, Args)
     %            'AddCurvature' - If true, the mask follows the measured
     %                   streak curve (St.Curve). If false, the mask is the
     %                   straight line between that curve's endpoints.
-    %                   Default is false.
+    %                   Default is true.
     %            'CreateNewObj' - If true return a copy; if false update AI
     %                   in place. Default is false.
     % Output : - AstroImage with MaskData updated; Streak bit set for all
@@ -42,7 +42,7 @@ function [Result] = addStreak2Mask(AI, Args)
         
         Args.BitName       = 'Streak';
         Args.SemiWidth     = 3;
-        Args.AddCurvature  = false;
+        Args.AddCurvature  = true;
         Args.CreateNewObj  = false;
     end
 

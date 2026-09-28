@@ -66,7 +66,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
         Args.BitName       = 'Streak';
         Args.SemiWidth     = 3;
-        Args.AddCurvature  = false; % false: straight mask between streak ends; true: follow St.Curve
+        Args.AddCurvature  = true; % false: straight mask between streak ends; true: follow St.Curve
 
         Args.image2subimagesArgs           = {};
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
