@@ -743,23 +743,14 @@ classdef AstroZOGY < AstroDiff
                     HalfSizePSF = (HalfSizePSF(:).*ones(2,1)).';
                     StampSize   = HalfSizePSF.*2 + 1;
 
-                    % ifft2 leaves Pd in FFT-corner order (centre at pixel 1).
-                    % fftshift moves it to floor(N/2)+1 for both even and odd N.
-                    PdSize = size(Pd);
-
-                    CenterI = floor(PdSize(1)./2) + 1;
-                    CenterJ = floor(PdSize(2)./2) + 1;
-
-                    % anchor inside the stamp - same ceil(Size/2) convention
-                    % used by the Pn_hat/Pr_hat getters
-                    AnchorI = ceil(StampSize(1)./2);
-                    AnchorJ = ceil(StampSize(2)./2);
-
-                    CropI1 = CenterI - AnchorI + 1;
-                    CropJ1 = CenterJ - AnchorJ + 1;
-
-                    Pd = Pd(CropI1:CropI1+StampSize(1)-1, CropJ1:CropJ1+StampSize(2)-1);
-                    
+                    % ifft2 leaves Pd in FFT-corner order (centre at pixel 1);
+                    % the fftshift above moved it to floor(N/2)+1, which is the
+                    % "center" layout. StampSize is odd, so that convention and
+                    % the ceil(Size/2) anchor used by the Pn_hat/Pr_hat getters
+                    % coincide. 'Supress' is false because suppressEdges is
+                    % applied below under its own flag.
+                    Pd = imUtil.psf.full2stampPsf(Pd, StampSize, ...
+                                    'FullPosition','center', 'Supress',false);
                 end
                 if Args.SuppressEdgesPSF
                     Pd = imUtil.psf.suppressEdges(Pd, Args.SuppressEdgesArgs{:});
