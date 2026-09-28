@@ -36,3 +36,4 @@ tests/TestResults.mat
 
 # Planner stuff
 data/
+.#*
