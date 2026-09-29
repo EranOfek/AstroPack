@@ -547,14 +547,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                        'DataProp',DataProp);
             else
                 if isempty(Args.WCS)
-                    % register by the WCS of the fisrt available image:
-                    % CAVEAT (issue #1162): imProc.transIm.register does
-                    % NOT support a bare AstroWCS TransRef (its AstroWCS
-                    % branch is unimplemented), so this sub-branch
-                    % currently errors inside register; pass 'WCS' (an
-                    % AstroImage), or pass AllSI(IfirstGood,Ifields)
-                    % here, once the registration target is decided.
-                    RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), AllSI(IfirstGood,Ifields).WCS,...
+                    % register by the WCS of the first good image - the
+                    % same target as the ShiftXY branch. Passed as the
+                    % AstroImage, not its AstroWCS: register's AstroWCS
+                    % branch is unimplemented and needs the image size
+                    % (issues #1162, #1353)
+                    RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), AllSI(IfirstGood,Ifields),...
                                                            Args.registerArgs{:},...
                                                            'DataProp',DataProp);
                 else
