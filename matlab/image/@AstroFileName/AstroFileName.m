@@ -2830,9 +2830,15 @@ classdef AstroFileName < Component
             
             
             if ~isempty(Ind) && Obj.nFiles>0
+                Nf     = Obj.nFiles;   % before the FIELDS are reordered (Result may be Obj)
                 Nfield = numel(Obj.FIELDS);
                 for Ifield=1:1:Nfield
                     Result.(Obj.FIELDS{Ifield}) = Obj.(Obj.FIELDS{Ifield})(Ind);
+                end
+                % JD is not one of the FIELDS: keep it aligned with the
+                % files when it holds one value per file (issue #1356)
+                if numel(Obj.JD)==Nf
+                    Result.JD = Obj.JD(Ind);
                 end
             end
             

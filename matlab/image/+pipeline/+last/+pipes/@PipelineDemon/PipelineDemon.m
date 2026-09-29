@@ -2834,6 +2834,9 @@ classdef PipelineDemon < Component
                     % status table so the rejected visit is registered.
                     Obj.writeLog(sprintf('Pipeline I skipped visit: %s', Status.Msg), LogLevel.Warning);
                     try
+                        % the visit's own JDs name its proc dir, as on the
+                        % success path (issue #1356)
+                        FN_I.JD = FN_I.julday;
                         Obj.saveTableRaw(FN_I, TableRaw, 'SaveTableRaw',Args.SaveTableRaw);
                     catch MEsr
                         Obj.writeLog(sprintf('Failed saving RAW status table for rejected visit: %s', MEsr.message), LogLevel.Error);
