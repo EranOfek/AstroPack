@@ -522,6 +522,16 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
             IsGood = IsGoodWCS & Nstars>Args.MinNstars & MaxFracGrad<Args.MaxFracGrad & ~IsFailedBack;
 
+            % Why a sub image is not good, for the PSTATUS bit mask (issue
+            % #1318). Two of the four terms above already have a status bit
+            % of their own (NO_ASTR, NO_BKG); these two do not. The negated
+            % form is used so that the reasons decompose IsGood exactly, also
+            % when a quantity is NaN. MaxFracGrad is a property of the epoch -
+            % it is the spread of the background over the sub images of that
+            % epoch - so HIGH_BKGRAD marks all the sub images of the epoch.
+            IsFewSrc      = ~(Nstars > Args.MinNstars);
+            IsHighBkgGrad = repmat(~(MaxFracGrad < Args.MaxFracGrad), 1, Nsub);
+
             % Sub images for which no PSF was built (issue #1318) - e.g. too
             % few isolated PSF stars for a broad/multi-peaked PSF. No sources
             % are extracted without a PSF, so they are saved with an empty
@@ -667,8 +677,13 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Their matched-source magnitudes are left uncorrected. Groups
             % that never reached the fit (too few good epochs) have an empty
             % FitZP and are not counted. Logged by PipelineDemon.
+            % The PSTATUS bit records the plain fact that the group has no
+            % relative zero point, so unlike the counter above it also covers
+            % the groups which never reached the fit (empty FitZP).
+            NoRelZPbit = true(1, Nsub);
             if isstruct(ResRelZP) && isfield(ResRelZP, 'FitZP')
                 Status.NoRelZP = arrayfun(@(R) ~isempty(R.FitZP) && all(isnan(R.FitZP)), ResRelZP(:).');
+                NoRelZPbit     = arrayfun(@(R)  isempty(R.FitZP) || all(isnan(R.FitZP)), ResRelZP(:).');
             end
 
             % Stamp the flux->magnitude convention of the MAG_* fields onto the
@@ -904,6 +919,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Photometric calibration of coadd images:
             %ProcessingStep = 971;
             %tic;
+            % Empty when there is no coadd at all - it is also the
+            % photometric calibration input of the processing status below
+            PC = [];
             if AnyCoaddExist
                 [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, 'MagType', Args.MagType, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', true); % 8.7s for all in loop
             end
@@ -989,6 +1007,19 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Done here, after every stage that adds columns, so that the empty
             % catalogues match the ones actually written for this visit.
             AllSI = imProc.cat.fillEmptyCatColumns(AllSI);
+
+            % Processing status (issue #1318): the PSTATUS header keyword, a
+            % bit mask of the steps which produced no result for that image.
+            % Written last, when every product of the visit exists, so that
+            % the sub image group bits are final. A header keyword is not
+            % worth a visit, hence the catch.
+            try
+                [AllSI, Coadd] = imProc.quality.updateProcStatus(AllSI, Coadd, MS, PC, ...
+                                        'IsGood',IsGood, 'FewSrc',IsFewSrc, ...
+                                        'HighBkgGrad',IsHighBkgGrad, 'NoRelZP',NoRelZPbit);
+            catch ME
+                fprintf('pipelineI: processing status (PSTATUS) not written: %s\n', ME.message);
+            end
 
             % Finish
             %ProcessingStep = 1000;
