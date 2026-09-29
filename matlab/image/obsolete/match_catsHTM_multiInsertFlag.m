@@ -1,4 +1,6 @@
 function [Result, SelObj, ResInd, CatH] = match_catsHTM_multiInsertFlag(Obj, Args)
+    % RETIRED (2026-09-29): an unfinished 2023 draft that never parsed, moved here
+    % from imProc.match. Use imProc.match.match_catsHTMmerged (MergedCatMask column).
     %
     
     
