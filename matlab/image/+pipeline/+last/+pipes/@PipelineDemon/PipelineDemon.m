@@ -2930,6 +2930,16 @@ classdef PipelineDemon < Component
             % MatchedSources
             if Args.SaveMergedMat
                 FN_MS = FN_C.copy;
+                if isnan(JDc)
+                    % No coadd was saved, so FN_C is still the single raw
+                    % entry; name the per-crop products as the coadds would
+                    % have been, by the mean JD of the epochs (issue #1352)
+                    FN_MS.JD = mean(JD(:), 'omitnan');
+                    FN_MS.julday2time;
+                    FN_MS.duplicateCrop(Nsub);
+                    FN_MS.SubDir  = FN_I.SubDir;
+                    FN_MS.Counter = zeros(Nsub,1);
+                end
                 FN_MS.Level    = repmat("merged", Nsub, 1);
                 FN_MS.Product  = repmat("MergedMat", Nsub, 1);
                 FN_MS.FileType = repmat("hdf5", Nsub, 1);
