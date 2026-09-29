@@ -70,7 +70,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %                   array) to query around the requested coordinates,
     %                   or an AstroCatalog object containing such a
     %                   catalaog.
-    %                   Default is 'GAIAEDR3'.
+    %                   Default is 'GAIADR3'.
     %            'CatOrigin' - Catalog origin (relevant if CatName is a
     %                   char array).
     %                   Default is 'catsHTM'.
@@ -673,6 +673,13 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     
                 %Result(Iobj).HeaderData.insertKey([Keys(:), Vals(:)], Inf);
                 Result(Iobj).HeaderData.replaceVal(Keys, Vals);
+
+                % The reference catalog is known whether or not the fit
+                % succeeded, so it is written outside the branches above,
+                % where the other PH_ values may be NaN (issue #1347).
+                Result(Iobj).HeaderData.replaceVal({'PH_CAT'}, ...
+                                                   {imProc.cat.catalogNameStr(Args.CatName)}, ...
+                                                   'Comment',{'Photometric reference catalog'});
                 
 
             end

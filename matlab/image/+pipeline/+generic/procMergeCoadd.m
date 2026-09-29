@@ -47,7 +47,7 @@ function [MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, ResultCoadd,
         Args.MinFracIsolated                  = 0.5;   % minimum fraction of isolated reference sources - see imProc.cat.getAstrometricCatalog
         Args.Scale                            = 1.25;
         Args.Tran                             = Tran2D('poly3');
-        Args.CatName                          = 'GAIAEDR3';
+        Args.CatName                          = 'GAIADR3';
         Args.AstrometricCat                   = [];   % per sub image AstroCatalog already retrieved for the epoch images
         Args.photometricZPArgs cell           = {};
         Args.ReturnRegisteredAllSI logical    = true; % false;  % if true it means that AllSI will be modified and contain the registered images

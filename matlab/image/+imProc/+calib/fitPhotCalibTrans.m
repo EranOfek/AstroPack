@@ -992,15 +992,15 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
             % then carry PT_ZP = 0. as a plausible zero point. An in-memory []
             % is also unusable: photCalibTransFromHeader's
             % `if ~isnan(Val) && Val > 0` throws on an empty operand.
-            % Only PT_AREF/PT_SPEC carry values: they are configuration
+            % Only PT_AREF/PT_SPEC/PT_CAT carry values: they are configuration
             % strings known regardless of the fit outcome.
             % Failure detection: isnan(getVal('PT_NCALI')) (or any other
             % PT_ numeric).
             if Args.UpdateHeader && IsAstroImage
                 H = Result(Iobj).HeaderData;
                 H = H.replaceVal(...
-                    {'PT_RMS', 'PT_ARMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALI', 'PT_AREF', 'PT_SPEC'}, ...
-                    {NaN,      NaN,       NaN,       NaN,      NaN,         'SMART v2.9.8', 'GaiaDR3'});
+                    {'PT_RMS', 'PT_ARMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALI', 'PT_AREF', 'PT_SPEC', 'PT_CAT'}, ...
+                    {NaN,      NaN,       NaN,       NaN,      NaN,         'SMART v2.9.8', 'GaiaDR3', Args.CalibCatName});
 
                 % Blank fill for PT_ZP (photometric ZP) on the failure path
                 if Args.EvaluatePhotZP

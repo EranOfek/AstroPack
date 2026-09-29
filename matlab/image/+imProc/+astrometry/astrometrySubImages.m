@@ -72,7 +72,7 @@ function [ResultFit, ResultObj, AstrometricCat] = astrometrySubImages(Obj, Args)
         
         Args.CreateNewObj logical                = false;
         
-        Args.CatName                             = 'GAIAEDR3';  % or AstroCatalog array
+        Args.CatName                             = 'GAIADR3';  % or AstroCatalog array
         Args.CooOffset                           = [0 0];
         Args.astrometryCoreArgs cell             = {};
         Args.astrometryRefineArgs cell           = {};

@@ -4,7 +4,7 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     % Input  : - J2000.0 R.A. [rad, deg, [H M S], or sexagesimal string]
     %          - J2000.0 Dec. [rad, deg, [Sign D M S], or sexagesimal string]
     %          * ...,key,val,...
-    %            'CatName' - Catalog name. Default is 'GAIAEDR3'.
+    %            'CatName' - Catalog name. Default is 'GAIADR3'.
     %                   If AstroCatalog, then will return the catalog as
     %                   is.
     %            'CatOrigin' - Catalog origin. Default is 'catsHTM'.
@@ -123,7 +123,7 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     arguments
         RA
         Dec
-        Args.CatName                  = 'GAIADR3'; %'GAIAEDR3';   % or AstroCatalog
+        Args.CatName                  = 'GAIADR3';   % or AstroCatalog
         Args.CatOrigin                = 'catsHTM';
         Args.Radius                   = 1000;
         Args.RadiusUnits              = 'arcsec';
@@ -227,6 +227,8 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     else
         % assume CatName contains an actual catalog
         Result = Args.CatName;   % no need to copy
+        % Its Name was stamped below when the catalog was first fetched by
+        % name, so the provenance travels with the object when it is reused.
         % FFU: add treatment for sexagesimal coordinates
 %         if numel(RA)>1
 %             error('FFU: Current version treat only RA/Dec deg/rad when CatName is AstroCatalog');
@@ -238,6 +240,13 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
         % convert catalog to OutUnits
         Result.convertCooUnits(Args.OutUnits);
         
+    end
+
+    % Record which catalog this is, so that the name reaches the AST_/PH_
+    % header keywords even when the object is later passed on instead of the
+    % name (issue #1347).
+    if (ischar(Args.CatName) || isstring(Args.CatName)) && ~isempty(Result)
+        Result.Name = char(Args.CatName);
     end
     
     % convert RA/Dec to OutRADecUnits units

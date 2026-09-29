@@ -78,7 +78,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
     %            'SameField' - A logical indicating if analyzing the same
     %                   field. Default is true.
     %            'CatName' - Astrometric and photometric catalog name.
-    %                   Default is 'GAIAEDR3'.
+    %                   Default is 'GAIADR3'.
     %            'CooOffset' - Approximate [RA Dec] offsets in deg of the image
     %                   center compared to the header RA/Dec.
     %                   Default is [0 0].
@@ -229,7 +229,7 @@ function [AllSI, MergedCat, MatchedS, Coadd, ResultSubIm, ResultAsteroids, Resul
         Args.AstroImageReadArgs cell          = {};
         
         Args.SameField logical                = true;
-        Args.CatName                          = 'GAIADR3'; %'GAIAEDR3';
+        Args.CatName                          = 'GAIADR3';
         Args.CooOffset                        = [0 0];    % [deg]
         
         Args.singleRaw2procArgs cell          = {};
