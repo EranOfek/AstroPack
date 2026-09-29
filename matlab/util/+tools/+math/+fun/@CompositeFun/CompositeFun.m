@@ -3864,8 +3864,14 @@ classdef CompositeFun < handle
                 % branches). Any other WeightingMode leaves CurrentCostArgs
                 % alone.
                 CurOverride = RecipeIterOverrides(OuterIter);
+                % Whether the empty MagErr the stage handlers will see is the
+                % recipe's doing rather than missing data. Used below to report
+                % an intentionally unweighted iteration as info, and to keep a
+                % warning for the case where weights were expected (issue #1338).
+                WeightsDisabledByRecipe = false;
                 if isfield(CurOverride, 'WeightingMode') && ...
                         strcmpi(CurOverride.WeightingMode, 'none')
+                    WeightsDisabledByRecipe = true;
                     Idx = find(strcmp(CurrentCostArgs(1:2:end), 'PrecomputedMagErr'));
                     if ~isempty(Idx)
                         CurrentCostArgs{2*Idx} = [];
@@ -4331,9 +4337,16 @@ classdef CompositeFun < handle
                                         'Method', 'lscov', 'ErrMag', BaseMagErrJ, 'Verbose', false);
                                 else
                                     if IterClip == 0
-                                        Obj.addStatus('fitMultiStage', 'warning', ...
-                                            'JOINT_FC: MagErr unavailable, using unweighted LS', ...
-                                            'CompositeFun:JointFC:Unweighted');
+                                        if WeightsDisabledByRecipe
+                                            Obj.addStatus('fitMultiStage', 'info', ...
+                                                sprintf(['JOINT_FC: unweighted LS, WeightingMode=''none'' ', ...
+                                                         'for outer iteration %d'], OuterIter), ...
+                                                'CompositeFun:JointFC:UnweightedByRecipe');
+                                        else
+                                            Obj.addStatus('fitMultiStage', 'warning', ...
+                                                'JOINT_FC: MagErr unavailable or invalid, using unweighted LS', ...
+                                                'CompositeFun:JointFC:Unweighted');
+                                        end
                                     end
                                     [~, Obj] = Obj.fitPositionPolynomial(LocalX, LocalY, BaseResidualsJ, ...
                                         'Verbose', false);
