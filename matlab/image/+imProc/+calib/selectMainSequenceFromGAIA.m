@@ -1,6 +1,6 @@
 function [Result, FlagRes, FitPar] = selectMainSequenceFromGAIA(Obj, Args)
     % Select main sequence stars from GAIA catalog in AstroCatalog object.
-    % Input  : - An AstroCatalog object containing a GAIA EDR3 catalog
+    % Input  : - An AstroCatalog object containing a GAIA DR3 catalog
     %            (e.g., using catsHTM).
     %          * ...,key,val,...
     %            'CreateNewObj' - true|false. Create a new copy of the input catalog.

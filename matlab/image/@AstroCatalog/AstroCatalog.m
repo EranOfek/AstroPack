@@ -1242,7 +1242,7 @@ classdef AstroCatalog < AstroTable
             %            'Color' - Symbol color. Default is 'k'.
             % Example: AT = AstroCatalog({rand(100,3)},'ColNames',{'X','Y','Mag'});
             %          AT.plotSources
-            %          CC=catsHTM.cone_search('GAIAEDR3', '01:21:39.560','+15:12:25.70',600,'OutType','AstroCatalog');
+            %          CC=catsHTM.cone_search('GAIADR3', '01:21:39.560','+15:12:25.70',600,'OutType','AstroCatalog');
             %          CC.plotSources('ColX',{'RA'},'ColY',{'Dec'})
            
             arguments

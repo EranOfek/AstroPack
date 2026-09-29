@@ -68,7 +68,7 @@ function [Result, AstrometricCat]=astrometryCheck(Obj, Args)
     %            'BinMedian' - median dist in positional bin.
     %            'MagResid' - Output of imUtil.calib.resid_vs_mag
     % Author : Eran Ofek (Jul 2021)
-    % Example: AstrometricCat = catsHTM.cone_search('GAIAEDR3',1,1,1000);
+    % Example: AstrometricCat = catsHTM.cone_search('GAIADR3',1,1,1000);
     %          % or load AstrometricCat_PTF_Cropped.mat
     %          R=imProc.astrometry.astrometryCheck(AstrometricCat,'CatName',AstrometricCat)
     

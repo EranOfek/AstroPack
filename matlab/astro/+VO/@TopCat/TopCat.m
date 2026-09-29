@@ -8,9 +8,9 @@
 % 
 % Examples:
 %
-%   Q='SELECT TOP 100 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12'
+%   Q='SELECT TOP 100 source_id, ra, dec FROM gaiadr3.gaia_source WHERE phot_g_mean_mag < 12'
 %   T = VO.TopCat.queryHttp(Q)
-%   Q = "SELECT TOP 50 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12";
+%   Q = "SELECT TOP 50 source_id, ra, dec FROM gaiadr3.gaia_source WHERE phot_g_mean_mag < 12";
 %   T = VO.TopCat.queryStilts(Q);
 %
 %   Tap = VO.TopCat;
@@ -117,7 +117,7 @@ classdef TopCat < Base
         % Common/useful catalogs:
         % CommonName, Description, NameInDB, TapUrl
         CommonCat = ["PS1", "Pan-STARRS DR1 catalogue", "II/349/ps1", "https://tapvizier.cds.unistra.fr/TAPVizieR/tap";...
-                     "GAIA-DR3", "GAIA DR3", "gaiaedr3.gaia_source", "https://gea.esac.esa.int/tap-server/tap"];
+                     "GAIA-DR3", "GAIA DR3", "gaiadr3.gaia_source", "https://gea.esac.esa.int/tap-server/tap"];
     end
     
     properties (Hidden)
@@ -181,7 +181,7 @@ classdef TopCat < Base
             %                   Default is VO.TopCat.getStiltsJarPath()
             % Output : - A table with results.
             % Author : Eran Ofek (Aug 2025)
-            % Example: Q='SELECT TOP 100 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12';
+            % Example: Q='SELECT TOP 100 source_id, ra, dec FROM gaiadr3.gaia_source WHERE phot_g_mean_mag < 12';
             %          Tap = VO.TopCat;
             %          T = Tap.query(Q);
             %
@@ -477,7 +477,7 @@ classdef TopCat < Base
             %            'TimeoutSec' - Timeout in sec. Default is 600.
             % Output : - A table with results.
             % Author : ChatGPT, Eran Ofek (Aug 2025)
-            % Example: Q='SELECT TOP 100 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12'
+            % Example: Q='SELECT TOP 100 source_id, ra, dec FROM gaiadr3.gaia_source WHERE phot_g_mean_mag < 12'
             %          T = VO.TopCat.queryHttp(Q)
                     
             arguments
@@ -709,7 +709,7 @@ classdef TopCat < Base
             %            'WorkDir' - (string) directory for temp files. Default: tempdir
             % Output : T - table with query results (csv/tsv parsed via readtable)
             % Author : ChatGPT + Eran Ofek (Aug 2025)
-            % Example: Q = "SELECT TOP 50 source_id, ra, dec FROM gaiaedr3.gaia_source WHERE phot_g_mean_mag < 12";
+            % Example: Q = "SELECT TOP 50 source_id, ra, dec FROM gaiadr3.gaia_source WHERE phot_g_mean_mag < 12";
             %          T = VO.TopCat.queryStilts(Q);
 
 
@@ -899,7 +899,7 @@ classdef TopCat < Base
             %            .MergedFile - Path to merged file (if Merge~='none').
             % Author : Dana Kovaleva (Feb 2026)
             % Example:
-            %   Q = ['SELECT * FROM gaiaedr3.gaia_source ', ...
+            %   Q = ['SELECT * FROM gaiadr3.gaia_source ', ...
             %        'WHERE parallax > 1 AND parallax_over_error > 5'];
             %   Result = VO.TopCat.splittedQuery(Q, 'DryRun', true);
             %   Result = VO.TopCat.splittedQuery(Q, ...

@@ -15,7 +15,7 @@ function Result = unitTest()
     % get catalog
     LocalDisk   = false;
     try
-        Ref    = catsHTM.cone_search('GAIAEDR3', RA, Dec, Radius, 'OutType','AstroCatalog');
+        Ref    = catsHTM.cone_search('GAIADR3', RA, Dec, Radius, 'OutType','AstroCatalog');
         Cont   = true;
     catch
         %io.msgStyle(LogLevel.Test, '@failed', 'imProc.astrometry failed probably because GAIA catalog is not installed - skip problem');
@@ -50,10 +50,10 @@ function Result = unitTest()
     % %ds9(AI)
     % %ds9.plot(AI.CatData.Catalog(:,1:2))
     % RAD = 180./pi;
-    % %CatG = catsHTM.cone_search('GAIAEDR3', 149.1026601./RAD, 69.4547688./RAD, 1400, 'OutType','AstroCatalog');
+    % %CatG = catsHTM.cone_search('GAIADR3', 149.1026601./RAD, 69.4547688./RAD, 1400, 'OutType','AstroCatalog');
     % 
     % if ~LocalDisk
-    %     % if GAIA-EDR3 catalog is available locally
+    %     % if GAIA-DR3 catalog is available locally
     %     [Result, AI.CatData, AstrometricCat] = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688+0.1, 'CatColNamesMag','MAG_CONV_2');
     %     AI = AI.propagateWCS;
     % 

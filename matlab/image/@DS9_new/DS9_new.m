@@ -3961,7 +3961,7 @@ classdef DS9_new < handle
                 case 'p'
                     CatName = 'PS1';
                 case 'g'
-                    CatNAME = 'GAIAEDR3';
+                    CatName = 'GAIADR3';
                 otherwise
                     error('Unknown Catalog name option');
             end

@@ -401,15 +401,15 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                                 %VegaToAB_Filters  = {'Mag_G','Mag_BP','Mag_RP'};
                                 VegaToAB_Filters  = {'phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag'};
     
-                                GAIA_EDR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
+                                GAIA_DR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
     
                                 %I1 = find(strcmp(Args.RefColNameMag, VegaToAB_Filters));
                                 I1 = (strcmp(Args.RefColNameMag, VegaToAB_Filters));
-                                RefMag = RefMag - GAIA_EDR3_ZP_VegaMinusAB(I1);
+                                RefMag = RefMag - GAIA_DR3_ZP_VegaMinusAB(I1);
     
                                 %I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
                                 I2 = (ismember(VegaToAB_Filters, Args.RefColNameMagBands));
-                                RefMagBands = RefMagBands - GAIA_EDR3_ZP_VegaMinusAB(I2);
+                                RefMagBands = RefMagBands - GAIA_DR3_ZP_VegaMinusAB(I2);
                                 %end
                             otherwise
                                 error('Unknown MagSys option');
@@ -508,13 +508,13 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                                 VegaToAB_Filters  = {'phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag'};
                                 
     
-                                GAIA_EDR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
+                                GAIA_DR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
     
                                 I1 = find(strcmp(Args.RefColNameMag, VegaToAB_Filters));
-                                RefMag = RefMag - GAIA_EDR3_ZP_VegaMinusAB(I1);
+                                RefMag = RefMag - GAIA_DR3_ZP_VegaMinusAB(I1);
     
                                 I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
-                                RefMagBands = RefMagBands - GAIA_EDR3_ZP_VegaMinusAB(I2);
+                                RefMagBands = RefMagBands - GAIA_DR3_ZP_VegaMinusAB(I2);
                                 %end
                             otherwise
                                 error('Unknown MagSys option');
