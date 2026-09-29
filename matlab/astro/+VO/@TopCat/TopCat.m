@@ -221,7 +221,7 @@ classdef TopCat < Base
 
                 Args.TapUrl = Obj.CommonCat(IndCat,4);
                 TableName   = Obj.CommonCat(IndCat,3);
-                TableName   = sprintf('"%s"', TableName);    
+                TableName   = VO.TopCat.convertTableName(TableName);   % quoted only if needed (issue #1351)
                 Query = sprintf(Query, TableName);
                 
             end
@@ -391,14 +391,20 @@ classdef TopCat < Base
 
 
         function SafeName = convertTableName(TableName, SchemaName)
-            %CONVERTTABLENAME Quote a TAP/VizieR table (and optional schema) for ADQL.
+            %CONVERTTABLENAME Prepare a TAP/VizieR table (and optional schema) name for ADQL.
+            % A name that is a regular ADQL identifier chain (letters, digits,
+            % '_', parts joined by '.') is returned as is, e.g. 'gaiadr3.gaia_source';
+            % double-quoting it would make the whole chain one delimited identifier,
+            % which the server does not find (issue #1351). Any other name is
+            % double-quoted, e.g. VizieR's 'II/349/ps1' -> '"II/349/ps1"'.
             % Usage:
-            %   Safe = convertTableName('J/A+A/635/A13/table1');
-            %   Safe = convertTableName('gaiadr3');                       % simple
-            %   Safe = convertTableName('J/A+A/635/A13/table1','J_AA');   % -> "J_AA"."J/A+A/635/A13/table1"
+            %   Safe = convertTableName('J/A+A/635/A13/table1');          % -> "J/A+A/635/A13/table1"
+            %   Safe = convertTableName('gaiadr3.gaia_source');           % -> gaiadr3.gaia_source
+            %   Safe = convertTableName('J/A+A/635/A13/table1','J_AA');   % -> J_AA."J/A+A/635/A13/table1"
             %
             % Notes:
             % - ADQL identifiers with special chars (/ + etc.) MUST be double-quoted.
+            % - A name given already double-quoted is kept quoted.
             % - We escape any embedded double quotes by doubling them per SQL rules.
             % - Returns a char vector (works on older MATLAB releases, too).
             
@@ -406,26 +412,27 @@ classdef TopCat < Base
                 SchemaName = '';
             end
         
-            % Coerce to char
-            TN = char(TableName);
-            SN = char(SchemaName);
-        
-            % Strip surrounding double quotes if already quoted
-            if ~isempty(TN) && TN(1) == '"' && TN(end) == '"'
-                TN = TN(2:end-1);
+            SafeName = quoteIfNeeded(char(TableName), true);
+            if ~isempty(SchemaName)
+                SafeName = [quoteIfNeeded(char(SchemaName), false) '.' SafeName];
             end
-            if ~isempty(SN) && SN(1) == '"' && SN(end) == '"'
-                SN = SN(2:end-1);
-            end
-        
-            % Escape embedded double quotes by doubling them
-            TN = strrep(TN, '"', '""');
-            SN = strrep(SN, '"', '""');
-        
-            if isempty(SN)
-                SafeName = ['"' TN '"'];
-            else
-                SafeName = ['"' SN '"."' TN '"'];
+
+            function Out = quoteIfNeeded(In, AllowDots)
+                % already double-quoted - keep as is
+                if numel(In)>=2 && In(1)=='"' && In(end)=='"'
+                    Out = In;
+                    return
+                end
+                if AllowDots
+                    Regular = ~isempty(regexp(In, '^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)*$', 'once'));
+                else
+                    Regular = ~isempty(regexp(In, '^[A-Za-z][A-Za-z0-9_]*$', 'once'));
+                end
+                if Regular
+                    Out = In;
+                else
+                    Out = ['"' strrep(In, '"', '""') '"'];
+                end
             end
         end
 
