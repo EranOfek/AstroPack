@@ -1,4 +1,4 @@
-function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
+function [Result, Obj, AstrometricCat, GaiaCone] = astrometryCore(Obj, Args)
     % A core function for astrometry. Match pattern and fit transformation.
     %       The function is designed to solve the astrometry of an image in
     %       a single shoot (no partitioning).
@@ -74,6 +74,9 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %            'argsProperMotion' - A cell array of additional arguments
     %                   to pass to imProc.cat.applyProperMotion.
     %                   Default is {}.
+    %            'RawConeArgs' - A cell array of 'RawCone*' arguments of
+    %                   imProc.cat.getAstrometricCatalog, shaping the 4th
+    %                   output. Default is {}.
     %            'argsFilterForAstrometry' - A cell array of additional
     %                   arguments to pass to imProc.cat.filterForAstrometry
     %                   Default is {}.
@@ -171,6 +174,9 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     %            used, after applying proper motions, and queryRange.
     %            If the input is AstroImage, this is an AstroImage with the
     %            WCS and Headers updated with the new WCS.
+    %          - The raw catalog cone (issue #1348), before any filtering -
+    %            see the 4th output of imProc.cat.getAstrometricCatalog.
+    %            Computed only if requested.
     % Author : Eran Ofek (Jul 2021)
     % Example: Result = imProc.astrometry.astrometryCore(AI.CatData, 'RA',149.1026601, 'Dec',69.4547688, 'CatColNamesMag','MAG_CONV_2');
    
@@ -193,6 +199,7 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
         
         Args.EpochOut                     = [];
         Args.argsGetAstrometricCat cell   = {};
+        Args.RawConeArgs cell             = {};   % RawCone* args of imProc.cat.getAstrometricCatalog (issue #1348)
         Args.argsProperMotion cell        = {};
         Args.argsFilterForAstrometry cell = {};
         Args.argsFitPattern cell          = {};
@@ -364,7 +371,10 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
     % RA and Dec output are in radians
     % If CatName is an AstroCatalog, then will retun as is, but RA and Dec
     % will be converted to OutUnits
-    [AstrometricCat, RA, Dec] = imProc.cat.getAstrometricCatalog(Args.RA, Args.Dec, 'CatName',Args.CatName,...
+    % The raw cone is kept only if requested (issue #1348)
+    GaiaCone = [];
+    CatOut   = cell(1, 3 + (nargout>3));
+    [CatOut{:}] = imProc.cat.getAstrometricCatalog(Args.RA, Args.Dec, 'CatName',Args.CatName,...
                                                                                     'CatOrigin',Args.CatOrigin,...
                                                                                     'Radius',Args.CatRadius,...
                                                                                     'RadiusUnits',Args.CatRadiusUnits,...
@@ -379,7 +389,12 @@ function [Result, Obj, AstrometricCat] = astrometryCore(Obj, Args)
                                                                                     'RangePlx',Args.RefRangePlx,...
                                                                                     'MinFracIsolated',Args.MinFracIsolated,...
                                                                                     'OutRADecUnits','rad',...
+                                                                                    Args.RawConeArgs{:},...
                                                                                     Args.argsGetAstrometricCat{:});
+    [AstrometricCat, RA, Dec] = CatOut{1:3};
+    if nargout>3
+        GaiaCone = CatOut{4};
+    end
           
     % RA/Dec in [deg]
     RAdeg  = RA.*RAD;

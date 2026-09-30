@@ -1,4 +1,4 @@
-function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
+function [Result, RA, Dec, RawCone] = getAstrometricCatalog(RA, Dec, Args)
     % Get Astrometric catalog from local/external database
     %   and optionally apply proper motion, parallax and units conversions.
     % Input  : - J2000.0 R.A. [rad, deg, [H M S], or sexagesimal string]
@@ -113,9 +113,32 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     %            'flagSrcWithNeighborsArgs' - A cell array of additional
     %                   arguments to pass to flagSrcWithNeighbors.
     %                   Default is {}.
+    %            'Cone' - A raw cone structure (the 4th output of a previous
+    %                   call). If given (and 'CatName' is a name), the
+    %                   catalog is not searched: a copy of Cone.Cat is cut
+    %                   to the RA/Dec/Radius circle and filtered as usual,
+    %                   so the result equals a fresh search of that
+    %                   circle. An error is thrown if the cone does not
+    %                   cover the circle (see imProc.cat.coneCovers).
+    %                   Default is [].
+    %            'RawConeRadiusFactor' - Search the catalog to this factor
+    %                   times 'Radius', return that wider cone as the 4th
+    %                   output, and cut it to 'Radius' before filtering,
+    %                   so the astrometric catalog is unchanged.
+    %                   Default is 1.
+    %            'RawConeCols' - Columns kept in the 4th output. Empty for
+    %                   all columns. Default is {}.
     % Output : - An AstroCatalog object with the astrometric catalog.
     %          - The input RA [units from 'OutRADecUnits'].
     %          - The input Dec [units from 'OutRADecUnits'].
+    %          - The raw cone (issue #1348), a structure with the fields:
+    %            .Cat - AstroCatalog as searched, before any magnitude,
+    %                   parallax, isolation cut or proper motion, at the
+    %                   catalog epoch, coordinates in rad, Name = catalog
+    %                   name, columns per 'RawConeCols'.
+    %            .Circle - The searched circle [RA, Dec, Radius] (rad).
+    %            Empty ([]) if 'CatName' is an AstroCatalog. Computed only
+    %            if requested.
     % Author : Eran Ofek (Jun 2021)
     % Example: Result = imProc.cat.getAstrometricCatalog(1,1);
     
@@ -152,8 +175,13 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
         Args.RemoveNeighboors(1,1) logical      = true;
         Args.RemoveNeighboorsRadius             =10;
         Args.flagSrcWithNeighborsArgs cell      = {};
-           
+
+        % raw cone shared with the other consumers (issue #1348)
+        Args.Cone                               = [];
+        Args.RawConeRadiusFactor(1,1) double    = 1;
+        Args.RawConeCols                        = {};
     end
+    RawCone = [];
     
     % convert RA/Dec to radians (if in degrees)
     if isnumeric(RA) && numel(RA)==1
@@ -166,12 +194,40 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
     if ischar(Args.CatName)
         switch lower(Args.CatOrigin)
             case 'catshtm'
-                % use catsHTM
-                Result = catsHTM.cone_search(Args.CatName, RA, Dec, Args.Radius, 'Con', Args.Con,...
-                                                                                 'RadiusUnits',Args.RadiusUnits,...
-                                                                                 'UseIndex',Args.UseIndex,...
-                                                                                 'OnlyCone',true,...
-                                                                                 'OutType','astrocatalog');
+                RadiusRad = convert.angular(Args.RadiusUnits, 'rad', Args.Radius);
+                if isempty(Args.Cone)
+                    % use catsHTM
+                    Result = catsHTM.cone_search(Args.CatName, RA, Dec, Args.Radius.*Args.RawConeRadiusFactor, 'Con', Args.Con,...
+                                                                                     'RadiusUnits',Args.RadiusUnits,...
+                                                                                     'UseIndex',Args.UseIndex,...
+                                                                                     'OnlyCone',true,...
+                                                                                     'OutType','astrocatalog');
+                    ConeCircle = [RA, Dec, RadiusRad.*Args.RawConeRadiusFactor];
+                    CutCone    = Args.RawConeRadiusFactor~=1;
+                else
+                    % cut a copy of the given raw cone instead of searching
+                    if ~imProc.cat.coneCovers(Args.Cone, RA, Dec, RadiusRad)
+                        error('getAstrometricCatalog: the given Cone does not cover the requested circle');
+                    end
+                    Result     = Args.Cone.Cat.copy;
+                    ConeCircle = Args.Cone.Circle;
+                    CutCone    = true;
+                end
+
+                % Keep the raw cone for the other consumers (issue #1348),
+                % before any filtering modifies Result in place
+                if nargout>3
+                    RawCone = struct('Cat',selectConeCols(Result, Args.RawConeCols, Args.CatName), 'Circle',ConeCircle);
+                end
+
+                % Cut to the requested circle with the same test as
+                % catsHTM.cone_search (OnlyCone), so the rows are exactly
+                % those of a search of this circle
+                if CutCone && ~isemptyCatalog(Result)
+                    ConeCoo = getCol(Result, {'RA','Dec'});   % catsHTM native [rad]
+                    Dist    = celestial.coo.sphere_dist_fast(RA, Dec, ConeCoo(:,1), ConeCoo(:,2));
+                    Result  = selectRows(Result, Dist<RadiusRad, 'CreateNewObj',false);
+                end
 
                 % Adapt the faint limit to the source density of the field.
                 % The cone is searched once and the trials only re-filter it.
@@ -202,6 +258,22 @@ function [Result, RA, Dec] = getAstrometricCatalog(RA, Dec, Args)
                         EpochInUnits = 'jd';
                     end                    
                     Result = imProc.cat.applyProperMotion(Result, EpochIn(:), Args.EpochOut(1), Args.argsProperMotion{:},'EpochInUnits',EpochInUnits, 'CreateNewObj',false);
+
+                    % The positions are now at EpochOut: say so in the Epoch
+                    % column [Julian yr], so a later consumer that propagates
+                    % from it (e.g., imProc.cat.addColor) does not apply the
+                    % proper motion twice (issue #1348)
+                    if any(strcmp(Result.ColNames, 'Epoch')) && ~isemptyCatalog(Result)
+                        IndUnits = find(strcmpi(Args.argsProperMotion(1:2:end), 'EpochOutUnits'), 1, 'last');
+                        if isempty(IndUnits)
+                            EpochOutUnits = 'jd';   % applyProperMotion default
+                        else
+                            EpochOutUnits = Args.argsProperMotion{2.*IndUnits};
+                        end
+                        EpochOutJD = convert.time(Args.EpochOut(1), EpochOutUnits, 'JD');
+                        EpochOutYr = 2000 + (EpochOutJD - 2451545.0)./365.25;
+                        Result     = replaceCol(Result, repmat(EpochOutYr, sizeCatalog(Result), 1), 'Epoch');
+                    end
                 end
 
                 % coordinates are in radians
@@ -356,3 +428,27 @@ function [Nin, Nkept] = countKept(Cone, RangeMag, Args)
     end
 end
 
+
+
+function Cat = selectConeCols(Cone, Cols, CatName)
+    % A new AstroCatalog with the requested columns of the raw cone.
+    % Input  : - The AstroCatalog as returned by the catalog search.
+    %          - Cell array of column names to keep. Empty for all.
+    %            Names missing from the cone are ignored.
+    %          - The catalog name, stamped as the Name.
+    % Output : - A new AstroCatalog (never a handle to the input).
+    % Author : Alexander Gioffe (Sep 2026)
+
+    if isempty(Cols)
+        Cat = Cone.copy;
+    else
+        Keep = ismember(Cone.ColNames, Cols);
+        Cat  = AstroCatalog;
+        Cat.Catalog  = Cone.Catalog(:,Keep);
+        Cat.ColNames = Cone.ColNames(Keep);
+        if ~isempty(Cone.ColUnits)
+            Cat.ColUnits = Cone.ColUnits(Keep);
+        end
+    end
+    Cat.Name = char(CatName);
+end

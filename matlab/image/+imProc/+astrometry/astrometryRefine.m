@@ -1,4 +1,4 @@
-function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
+function [Result, Obj, AstrometricCat, GaiaCone] = astrometryRefine(Obj, Args)
     % Refine an astrometric solution of an AstroCatalog object
     %   This function may work on images which have either an approximate
     %   WCS (either in AstroHeader or AstroWCS), or a catalog with RA/Dec
@@ -178,6 +178,25 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     %                   Default is true.
     %            'KeyRA' - RA header keyword to update. Default is 'RA'.
     %            'KeyDec' - Dec header keyword to update. Default is 'DEC'.
+    %            'RawConeArgs' - A cell array of 'RawCone*' arguments of
+    %                   imProc.cat.getAstrometricCatalog, shaping the 4th
+    %                   output. Default is {}.
+    %            'AddColor' - A logical indicating if to attach the Gaia
+    %                   colour to the source catalog with imProc.cat.addColor
+    %                   (issue #1289). Default is false.
+    %            'AddColorArgs' - A cell array of additional arguments to
+    %                   pass to imProc.cat.addColor. Default is {}.
+    %            'AddColorRefCat' - The Gaia reference for addColor:
+    %                   'astrometric' - the astrometric catalog of the
+    %                           element (magnitude limited). Proper motion
+    %                           was already applied to it, so addColor
+    %                           does not apply it again.
+    %                   AstroCatalog array - a raw (unfiltered) Gaia cone per
+    %                           element (or one for all), e.g., the .Cat of
+    %                           the 4th output of an earlier call (issue #1348).
+    %                           An empty element makes addColor search.
+    %                   [] - addColor searches the catalog itself.
+    %                   Default is 'astrometric'.
     % Output : - A structure array with the following fields (each element
     %            corresponds to an AstroCatalog elelemt):
     %            'ParWCS' - The WCS parameters.
@@ -188,6 +207,11 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     %            columns. The columns are added only if the second output 
     %            argument is requested.
     %          - An AstroCatalog containing the AstrometricCat catalog.
+    %          - A structure array (element per input element) of the raw
+    %            catalog cones searched (issue #1348) - see the 4th output
+    %            of imProc.cat.getAstrometricCatalog. Elements for which
+    %            no search was made (e.g., 'CatName' is an AstroCatalog)
+    %            have empty fields. Computed only if requested.
     % Author : Eran Ofek (Aug 2021)
     % Example: RR = imProc.astrometry.astrometryRefine(AI.CatData, 'WCS',Result.WCS, 'CatName',AstrometricCat, 'RA',149.1026601, 'Dec',69.4547688);
     
@@ -270,6 +294,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
 
         Args.AddColor logical             = false; % optionally attach Gaia colour (BP-RP) to the source catalog (issue #1289)
         Args.AddColorArgs cell            = {};    % extra args forwarded to imProc.cat.addColor
+        Args.AddColorRefCat               = 'astrometric'; % 'astrometric' | AstroCatalog array | [] (addColor searches) - issue #1348
+        Args.RawConeArgs cell             = {};    % RawCone* args of imProc.cat.getAstrometricCatalog (issue #1348)
     end
     RAD        = 180./pi;
     ARCSEC_DEG = 3600;
@@ -330,6 +356,9 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
     
     % allocate Result (same as astrometryCore)
     Result = imProc.astrometry.defResultFit([Nobj,1]);
+    % raw catalog cones (issue #1348)
+    KeepCone = nargout>3;
+    GaiaCone = repmat(struct('Cat',[], 'Circle',[]), Nobj, 1);
     % Result = struct('ImageCenterXY',cell(Nobj,1),...
     %                 'Nsolutions',cell(Nobj,1),...
     %                 'ResPattern',cell(Nobj,1),...
@@ -451,7 +480,8 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
             % RA and Dec output are in radians
             % If CatName is an AstroCatalog, then will retun as is, but RA and Dec
             % will be converted to OutUnits
-            [AstrometricCat(Iobj), RA, Dec] = imProc.cat.getAstrometricCatalog(Args.RA, Args.Dec, 'CatName',CatName,...
+            CatOut = cell(1, 3 + KeepCone);
+            [CatOut{:}] = imProc.cat.getAstrometricCatalog(Args.RA, Args.Dec, 'CatName',CatName,...
                                                                                             'CatOrigin',Args.CatOrigin,...
                                                                                             'Radius',Args.CatRadius,...
                                                                                             'RadiusUnits',Args.CatRadiusUnits,...
@@ -466,7 +496,12 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                                                                                             'RangePlx',Args.RefRangePlx,...
                                                                                             'RemoveNeighboors',Args.RemoveNeighboors,...
                                                                                             'MinFracIsolated',Args.MinFracIsolated,...
-                                                                                            'flagSrcWithNeighborsArgs',Args.flagSrcWithNeighborsArgs);
+                                                                                            'flagSrcWithNeighborsArgs',Args.flagSrcWithNeighborsArgs,...
+                                                                                            Args.RawConeArgs{:});
+            [AstrometricCat(Iobj), RA, Dec] = CatOut{1:3};
+            if KeepCone && isstruct(CatOut{4})
+                GaiaCone(Iobj) = CatOut{4};
+            end
 
             % RA/Dec in [deg]
             RAdeg  = RA.*RAD;
@@ -618,7 +653,7 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                 end
 
                 % Optionally attach Gaia colour (BP-RP) to the source catalog
-                % (issue #1289), reusing this element's astrometric reference.
+                % (issue #1289), see 'AddColorRefCat' for the reference used.
                 if Args.AddColor
                     % A bare catalog carries no epoch, so hand addColor this
                     % element's JD explicitly - otherwise its proper-motion
@@ -636,7 +671,22 @@ function [Result, Obj, AstrometricCat] = astrometryRefine(Obj, Args)
                             end
                         end
                     end
-                    Cat = imProc.cat.addColor(Cat, 'RefCat', AstrometricCat(Iobj), ...
+                    % the Gaia reference (issue #1348): the astrometric
+                    % catalog, a raw cone given by the caller, or [] for a
+                    % search by addColor
+                    if ischar(Args.AddColorRefCat) || isstring(Args.AddColorRefCat)
+                        ColorRefCat = AstrometricCat(Iobj);
+                    elseif isempty(Args.AddColorRefCat)
+                        ColorRefCat = [];
+                    else
+                        ColorRefCat = Args.AddColorRefCat(min(Iobj, numel(Args.AddColorRefCat)));
+                        if isemptyCatalog(ColorRefCat)
+                            ColorRefCat = [];
+                        else
+                            ColorRefCat = ColorRefCat.copy;   % own copy - the caller's cone is shared
+                        end
+                    end
+                    Cat = imProc.cat.addColor(Cat, 'RefCat', ColorRefCat, ...
                                               ObsJDArg{:}, Args.AddColorArgs{:});
                 end
 

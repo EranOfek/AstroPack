@@ -1,5 +1,10 @@
-function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageList, CI, Args)
+function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(RawImageList, CI, Args)
     %
+    % Output : ..., GaiaCone - A structure array (1 x sub image) of the raw
+    %            Gaia cones searched by the astrometry, kept for the other
+    %            Gaia consumers of the visit (issue #1348) - see the 4th
+    %            output of imProc.cat.getAstrometricCatalog. [] if pipelineI
+    %            failed before the astrometry.
     % Example: D.loadCalib();
     %          [AllSI, MS, Coadd, OnlyMP]=pipeline.last.pipes.pipelineI([],D.CI);
 
@@ -86,6 +91,12 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.maskHolesArgs                 = {};
         Args.astrometryVisitSubImageArgs   = {};
         Args.RefCatName char               = 'GAIADR3'; % catsHTM Gaia catalog of the visit: astrometry and BP_RP colour; pipelineII reads it back from AST_CAT. A 'CatName' in astrometryVisitSubImageArgs/AddColorArgs must match it (issue #1348)
+        Args.GaiaConeRadiusFactor          = 1.25;  % the astrometric Gaia cones are searched this much wider and kept (GaiaCone output) for the other Gaia consumers of the visit - colour here, and pipelineII (issue #1348)
+        Args.GaiaConeCols                  = {'RA','Dec','Epoch','Plx','ErrPlx','PMRA','ErrPMRA','PMDec','ErrPMDec', ...
+                                              'astrometric_excess_noise','phot_g_mean_mag','phot_g_mean_flux_over_error', ...
+                                              'phot_bp_mean_mag','phot_bp_mean_flux_over_error','phot_rp_mean_mag', ...
+                                              'phot_rp_mean_flux_over_error','bp_rp','radial_velocity', ...
+                                              'in_qso_candidates','in_galaxy_candidates'}; % columns kept in GaiaCone (memory); a consumer needing another column searches itself
         Args.MinFracIsolated               = 0.5;   % minimum fraction of isolated reference sources - see imProc.cat.getAstrometricCatalog
         Args.AddColor logical              = true;  % attach the Gaia colour BP_RP to the epoch and coadd catalogs (issue #1289), for the colour-dependent photometric calibration of issues #1287/#1270
         Args.AddColorArgs                  = {};    % extra args for imProc.cat.addColor
@@ -264,14 +275,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         end
     end
 
-    % Coadd catalogs get their colour inside astrometryRefine, which offers it
-    % the astrometric reference. That reference is magnitude limited, so for a
-    % complete colour column the reference is overridden with [] - the args
-    % below are splatted after it and the last name-value pair wins.
+    % Coadd catalogs get their colour inside astrometryRefine. Its reference
+    % is chosen by 'AddColorRefCat' of procCoadd, set after the astrometry
+    % (issue #1348); the catalog name is for the case addColor searches.
     AddColorArgsCoadd = [{'CatName', Args.RefCatName}, Args.AddColorArgs(:).'];
-    if Args.AddColor && Args.AddColorComplete
-        AddColorArgsCoadd = [{'RefCat', []}, AddColorArgsCoadd];
-    end
+    GaiaCone          = [];
     try
         [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime_AI] = pipeline.generic.prePrep(RawImageList, PrePrepArgs{:});  %5.9s
         % Note that AI may be shorter than TableRaw
@@ -297,6 +305,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             Coadd    = [];
             OnlyMP   = [];
             JD       = [];
+            GaiaCone = [];
         else
             RawImageList = RawImageList(FlagGoodImages,:);
         end
@@ -313,6 +322,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Coadd    = [];
         OnlyMP   = [];
         JD       = [];
+        GaiaCone = [];
     end
 
     if Status.PipeI
@@ -449,7 +459,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
             % solve astrometry of all images
             %ProcessingStep = 301;
-            [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, 'MatchMethod',Args.MatchMethod, 'JD',JD, 'MinFracIsolated',Args.MinFracIsolated, 'CatName',Args.RefCatName, Args.astrometryVisitSubImageArgs{:}); % 22s
+            % GaiaCone: the raw Gaia cones searched, reused by the other Gaia
+            % consumers of the visit instead of searching again (issue #1348)
+            RawConeArgs = {'RawConeRadiusFactor',Args.GaiaConeRadiusFactor, 'RawConeCols',Args.GaiaConeCols};
+            [ResFit, AllSI, CatName, GaiaCone] = imProc.astrometry.astrometryVisitSubImage(AllSI, 'MatchMethod',Args.MatchMethod, 'JD',JD, 'MinFracIsolated',Args.MinFracIsolated, 'CatName',Args.RefCatName, ...
+                                                                                          'RawConeArgs',RawConeArgs, Args.astrometryVisitSubImageArgs{:}); % 22s
         
             % add coordinates to catalogs
             %ProcessingStep = 401;
@@ -458,11 +472,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Attach the Gaia colour (BP_RP) to every epoch catalog (issue
             % #1289). Done here, immediately after the sky coordinates exist,
             % and per sub image, so that a single Gaia reference serves all the
-            % epochs of that sub image (one Dec-sort, one query). With
-            % AddColorComplete the reference is a fresh cone search over the
-            % union of that sub image's epoch footprints - the astrometric
-            % catalog already in memory would be cheaper but is magnitude
-            % limited, so the colour column would be empty outside RefRangeMag.
+            % epochs of that sub image (one Dec-sort). With AddColorComplete
+            % the reference is the raw Gaia cone of the astrometry, if it
+            % covers the epoch footprints, else a fresh search by addColor
+            % (issue #1348) - the astrometric catalog is magnitude limited, so
+            % the colour column would be empty outside RefRangeMag.
             % Catalogs whose astrometry failed get a NaN column.
             ReuseRefCat = isa(CatName, 'AstroCatalog') && numel(CatName)==Nsub;
             if Args.AddColor && Args.AddColorEpochs
@@ -470,7 +484,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                     if ~Args.AddColorComplete && ReuseRefCat
                         RefCatSub = CatName(Isub);
                     else
-                        RefCatSub = [];   % addColor queries catsHTM itself
+                        RefCatSub = gaiaConeRefCat(GaiaCone, Isub, AllSI(:,Isub), true);
                     end
                     AllSI(:,Isub) = imProc.cat.addColor(AllSI(:,Isub), 'RefCat',RefCatSub, 'CatName',Args.RefCatName, ...
                                                         'SharedRefCat',true, Args.AddColorArgs{:});
@@ -617,7 +631,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                     if ~Args.AddColorComplete && ReuseRefCat
                                         RefCatFP = CatName(Ind(IsubGood));
                                     else
-                                        RefCatFP = [];
+                                        RefCatFP = gaiaConeRefCat(GaiaCone, Ind(IsubGood), AllSI(IsGoodEpoch,Ind(IsubGood)), true);
                                     end
                                     AllSI(IsGoodEpoch,Ind(IsubGood)) = imProc.cat.addColor(AllSI(IsGoodEpoch,Ind(IsubGood)), ...
                                                                             'RefCat',RefCatFP, 'CatName',Args.RefCatName, 'SharedRefCat',true, Args.AddColorArgs{:});
@@ -745,6 +759,21 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Phot calib is done later (after adding airmass columns):
             %ProcessingStep = 801;
             % If there is not ShiftInfo, the no poinmt of coadding images
+            % Gaia reference of the coadd colour (issue #1348): with
+            % AddColorComplete the raw Gaia cone of each sub image (an empty
+            % element makes addColor search), else the astrometric catalog
+            if Args.AddColor && Args.AddColorComplete
+                CoaddColorRef = AstroCatalog([1, Nsub]);
+                for Isub=1:1:Nsub
+                    RefCatSub = gaiaConeRefCat(GaiaCone, Isub, AllSI(:,Isub), false);
+                    if ~isempty(RefCatSub)
+                        CoaddColorRef(Isub) = RefCatSub;
+                    end
+                end
+            else
+                CoaddColorRef = 'astrometric';
+            end
+
             [Coadd, ResCoadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
                                                           'DefScale',Args.DefScale,...
                                                           'SubBack',false,...
@@ -753,6 +782,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                           'CatName',CatName,...
                                                           'AddColor',Args.AddColor,...
                                                           'AddColorArgs',AddColorArgsCoadd,...
+                                                          'AddColorRefCat',CoaddColorRef,...
                                                           'ShiftXY',ShiftInfo,...
                                                           'IsGood',IsGood,...
                                                           'PropShiftXY','ShiftXY',...
@@ -1054,9 +1084,52 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             Coadd    = [];
             OnlyMP   = [];
             JD       = [];
+            GaiaCone = [];
 
         end
     end % if Status.Success
+end
+
+
+function RefCat = gaiaConeRefCat(GaiaCone, Isub, AI, MakeCopy)
+    % The raw Gaia cone of a sub image, if it covers the sky footprints of
+    % the given images (issue #1348); [] otherwise, which makes
+    % imProc.cat.addColor search the catalog itself.
+    % Input  : - The GaiaCone structure array (1 x sub image), or [].
+    %          - Sub image index.
+    %          - AstroImage array of that sub image. Images without sky
+    %            coordinates (failed astrometry) are ignored.
+    %          - Return a copy (true), or a handle to the cone (false) for a
+    %            consumer that copies it at the point of use.
+    % Output : - AstroCatalog or [].
+    % Author : Alexander Gioffe (Sep 2026)
+
+    RefCat = [];
+    if isempty(GaiaCone) || numel(GaiaCone)<Isub || isempty(GaiaCone(Isub).Cat) || isemptyCatalog(GaiaCone(Isub).Cat)
+        return;
+    end
+
+    % the footprint of each image: the bounding circle of its sources,
+    % as addColor searches it
+    Covers = true;
+    Nim    = numel(AI);
+    for Iim=1:1:Nim
+        Cat = AI(Iim).CatData;
+        if Covers && ~isemptyCatalog(Cat) && all(ismember({'RA','Dec'}, Cat.ColNames))
+            [CircRA, CircDec, CircR] = Cat.boundingCircle('OutUnits','rad', 'CooType','sphere');
+            if isfinite(CircRA) && isfinite(CircDec) && isfinite(CircR)
+                Covers = imProc.cat.coneCovers(GaiaCone(Isub), CircRA, CircDec, CircR);
+            end
+        end
+    end
+
+    if Covers
+        if MakeCopy
+            RefCat = GaiaCone(Isub).Cat.copy;
+        else
+            RefCat = GaiaCone(Isub).Cat;
+        end
+    end
 end
 
 
