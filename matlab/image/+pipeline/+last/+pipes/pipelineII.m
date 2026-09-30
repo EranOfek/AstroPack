@@ -47,6 +47,20 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                        keyword; otherwise the catalog named there (the one
                        pipelineI's astrometry used) is taken. Default is
                        'GAIADR3'.
+                'GaiaCone' - The raw Gaia cones kept by pipelineI's
+                       astrometry (its GaiaCone output). The photometric
+                       ZP and the smear-template star cut take their Gaia
+                       sources from the cone covering their search circle
+                       instead of searching again; where none covers it,
+                       or if empty, they search as before (issue #1348).
+                       The star match keeps its own visit-wide search (its
+                       bright-star halo margin reaches beyond the cones).
+                       Default is [].
+                'GaiaProperMotion' - Apply the Gaia proper motion to the
+                       epoch of each image for the photometric ZP (New and
+                       Ref, each at its own JD), the smear-template star
+                       cut and the star match (issue #1348).
+                       Default is true.
     Output  : - Result message
               - AstroDiff objects holding all products and results derived 
                 by the algorithm.
@@ -78,6 +92,10 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
         % Fallback Gaia catalog of the visit; AST_CAT wins (issue #1348)
         Args.RefCatName = 'GAIADR3';
+        % Raw Gaia cones of the visit from pipelineI, and proper motion for
+        % all the Gaia consumers below (issue #1348)
+        Args.GaiaCone = [];
+        Args.GaiaProperMotion logical = true;
 
         Args.CropIDs = [];
 
@@ -389,7 +407,8 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                 % from the populatePSF/buildPSF uniPSF defaults.
             AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref, 'PsfPhotMethod',Args.PsfPhotMethod, ...
                                                                     'ShiftMethod',Args.ShiftMethod);
-            AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName);
+            AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName, ...
+                                                      'GaiaCone',Args.GaiaCone, 'EpochOut',gaiaEpoch(AD(Iobj).Ref, Args.GaiaProperMotion));
         end
     end
 
@@ -404,7 +423,8 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                                                                              % flow is validated on uniPSF defaults
             AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New, 'PsfPhotMethod',Args.PsfPhotMethod, ...
                                                                     'ShiftMethod',Args.ShiftMethod);
-            AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName);
+            AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName, ...
+                                                      'GaiaCone',Args.GaiaCone, 'EpochOut',gaiaEpoch(AD(Iobj).New, Args.GaiaProperMotion));
         end
     end    
 
@@ -468,7 +488,8 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Derive Gabor stat image
     AD.matchfilterGabor;
     % Derive S stat image
-    AD.subtractionS('smearTemplateArgs', {'StarCatName',GaiaCatName});
+    AD.subtractionS('smearTemplateArgs', {'StarCatName',GaiaCatName, 'StarCone',Args.GaiaCone, ...
+                                          'StarProperMotion',Args.GaiaProperMotion});
     % Derive Scorr stat image
     AD.subtractionScorr;
     % Derive Z2 stat image
@@ -531,6 +552,21 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % sources
     StarCat = catsHTM.cone_search(GaiaCatName, C_RA_med, C_Dec_med, ...
         MaxDistRad, 'RadiusUnits', 'rad', 'OutType','AstroCatalog');
+    % Move the stars to the epoch of the visit (issue #1348)
+    if Args.GaiaProperMotion && ~isemptyCatalog(StarCat) && any(strcmp(StarCat.ColNames, 'Epoch'))
+        VisitJD = nan(Nobj, 1);
+        for Iobj=1:1:Nobj
+            ValJD = gaiaEpoch(AD(Iobj).New, true);
+            if ~isempty(ValJD)
+                VisitJD(Iobj) = ValJD;
+            end
+        end
+        VisitJD = median(VisitJD, 'omitnan');
+        if isfinite(VisitJD)
+            StarCat = imProc.cat.applyProperMotion(StarCat, StarCat.getCol('Epoch'), VisitJD, ...
+                                                   'EpochInUnits','j', 'CreateNewObj',false);
+        end
+    end
     StarCat.sortrows('Dec');
 
     % Search for star matches on cutdown catalog
@@ -1010,4 +1046,27 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     
     Status.Msg = StatusCell{1};
     Status.Success = true;
+end
+
+
+function JD = gaiaEpoch(Image, ApplyPM)
+    % The epoch [JD] to move the Gaia sources to for an image (issue #1348).
+    % Input  : - An AstroImage.
+    %          - Apply the proper motion (true) or not (false).
+    % Output : - The image JD from its header; [] if ApplyPM is false or
+    %            the header has no usable JD (no proper motion is then
+    %            applied).
+    % Author : Alexander Gioffe (Sep 2026)
+
+    JD = [];
+    if ApplyPM
+        try
+            Val = Image.julday;
+            if ~isempty(Val) && isfinite(Val(1))
+                JD = Val(1);
+            end
+        catch
+            JD = [];   % no readable JD - no proper motion
+        end
+    end
 end

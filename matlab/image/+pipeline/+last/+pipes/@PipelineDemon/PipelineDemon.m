@@ -2687,7 +2687,7 @@ classdef PipelineDemon < Component
 
 
 
-        function [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I]=runPipelineI(Obj, RawImageList, FN_I, Args)
+        function [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I, GaiaCone]=runPipelineI(Obj, RawImageList, FN_I, Args)
             % Reduce + save + error catching a single visit  
             
             arguments
@@ -2713,7 +2713,8 @@ classdef PipelineDemon < Component
             % only non-empty ones, placed before pipelineIArgs so the latter take precedence
             EphemArgs = {'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'INPOP',Args.INPOP};
             EphemArgs = EphemArgs(repelem(~cellfun(@isempty, EphemArgs(2:2:end)), 2));
-            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, 'MagType', Obj.MagType, 'NaNUncalibMag', Obj.NaNUncalibMag, ...
+            % GaiaCone: the raw Gaia cones of the visit, reused by pipelineII (issue #1348)
+            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, 'MagType', Obj.MagType, 'NaNUncalibMag', Obj.NaNUncalibMag, ...
                                                                      EphemArgs{:}, 'AsteroidSearchRadius',Args.AsteroidSearchRadius, ...
                                                                      Args.pipelineIArgs{:},'Status',Status);
             %ProcImageList = TableRaw.FileName;                
@@ -3026,14 +3027,19 @@ classdef PipelineDemon < Component
         end
 
 
-        function [AD, ADc, TCL1, TCL2] = runPipelineII(Obj, Coadd, FN_Proc, UpArgs)
+        function [AD, ADc, TCL1, TCL2] = runPipelineII(Obj, Coadd, FN_Proc, UpArgs, GaiaCone)
             % excute transients detection pipeline
+            % GaiaCone - the raw Gaia cones of the visit from pipelineI, reused
+            %            by pipelineII's Gaia consumers (issue #1348); [] - they search
+            if nargin<5
+                GaiaCone = [];
+            end
 
             Msg{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineII start executing pipelineII for visit');
             Obj.writeLog(Msg, LogLevel.Info);
 
             [AD, ADc, TCL1, TCL2, StatusPipeII] = pipeline.last.pipes.pipelineII(Coadd, 'RefPath', Obj.RefPath,...
-                                                  'MinimumNCoadd',UpArgs.PipelineIIMininumNCoadd);
+                                                  'MinimumNCoadd',UpArgs.PipelineIIMininumNCoadd, 'GaiaCone',GaiaCone);
             Obj.writeLog(sprintf('Transients detection - %s', StatusPipeII.Msg), LogLevel.Info);
 
             if StatusPipeII.Success && UpArgs.SendTransientAlerts && ~ADc(1).ImageData.isemptyImage
@@ -3963,7 +3969,7 @@ classdef PipelineDemon < Component
                                 Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus,'UpdateRedis',Args.UpdateRedis);
                             end
                                         
-                            [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
+                            [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I, GaiaCone] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
         
                             if ~Status.PipeI || ~Status.WriteI
                                 % Move images to failed directory:
@@ -4023,7 +4029,7 @@ classdef PipelineDemon < Component
                                 try
                                     % call method runPipelineII(Obj, Coadd, FN_I, Args)
                                     % This function creates the products and writes them to the disk                                   
-                                    runPipelineII(Obj, Coadd, FN_I, UpArgs);
+                                    runPipelineII(Obj, Coadd, FN_I, UpArgs, GaiaCone);
 
                                     Status.PipeII  = true;
                                     Status.WriteII = true;

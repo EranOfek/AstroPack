@@ -85,6 +85,15 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %                   See catsHTM.cone_search. Default is {}.
     %            'UseIndex' - UseIndex paramter for catsHTM.
     %                   Default is false.
+    %            'GaiaCone' - A structure array of raw catalog cones (e.g.,
+    %                   the GaiaCone output of pipeline.last.pipes.pipelineI;
+    %                   see imProc.cat.getAstrometricCatalog). If 'CatName'
+    %                   is a name and one of the cones covers the query
+    %                   circle, the catalog is cut from that cone instead of
+    %                   being searched (issue #1348). Default is [].
+    %            'EpochOut' - Epoch [JD] to which the proper motion of the
+    %                   reference catalog is applied (relevant if 'CatName'
+    %                   is a name). If empty, not applied. Default is [].
     %
     %            'RangeMag' - Magnitude range to retrieve.
     %                   Default is [12 19.5].
@@ -196,6 +205,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.ColNamePlx                = {'Plx'};
         Args.RangePlx                  = [0.1 100];  % remove galaxies
         Args.MinFracIsolated           = 0.5;   % adapt RangeMag to the field density - see imProc.cat.getAstrometricCatalog
+        Args.GaiaCone                  = [];    % raw catalog cones to cut from instead of searching (issue #1348)
+        Args.EpochOut                  = [];    % [JD] apply proper motion to this epoch; empty - not applied
         
         % Update catalog
         Args.UpdateMagCols logical     = true;
@@ -308,7 +319,14 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     PhotCat = AstroCatalog([Nobj 1]);
                 end
 
-                % get photometric catalog
+                % get photometric catalog - from a raw cone covering the
+                % circle if one is given (issue #1348), else by a search
+                Cone = imProc.cat.findCone(Args.GaiaCone, Args.CatName, RA, Dec, CircleRadius);
+                if isempty(Cone)
+                    ConeArgs = {};
+                else
+                    ConeArgs = {'Cone',Cone};
+                end
                 Ipc = Iobj;
                 [PhotCat(Iobj)] = imProc.cat.getAstrometricCatalog(RA, Dec, 'CatName',Args.CatName,...
                                                                       'CatOrigin',Args.CatOrigin,...
@@ -322,7 +340,9 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                                                                       'RangeMag',Args.RangeMag,...
                                                                       'ColNamePlx',Args.ColNamePlx,...
                                                                       'RangePlx',Args.RangePlx,...
-                                                                      'MinFracIsolated',Args.MinFracIsolated);
+                                                                      'MinFracIsolated',Args.MinFracIsolated,...
+                                                                      'EpochOut',Args.EpochOut,...
+                                                                      ConeArgs{:});
             end
 
             if Args.UseOnlyMainSeq
