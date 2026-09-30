@@ -24,11 +24,23 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
     %                   against Info.NumUsed before trusting a template.
     %            'IsoRadius' - Reject a source with a comparable neighbour
     %                   this close, in pixels. Default is 20.
-    %            'NbrMagMax' - What counts as a comparable neighbour.
-    %                   Requiring no neighbour of ANY magnitude is hopeless at
-    %                   LAST source densities, since the Ref catalogue reaches
+    %            'NbrMagMax' - What counts as a comparable neighbour when
+    %                   IsoRelDeltaMag is empty: any Ref source brighter than
+    %                   this. Requiring no neighbour of ANY magnitude is hopeless
+    %                   at LAST source densities, since the Ref catalogue reaches
     %                   the limiting magnitude and those sources contribute
     %                   nothing. Default is 19.
+    %            'IsoRelDeltaMag' - Isolation relative to the stacking star: a
+    %                   neighbour counts only if it is brighter than the star's
+    %                   own MAG_PSF plus this, i.e. if it adds more than
+    %                   10^(-0.4*IsoRelDeltaMag) of the star's flux to the
+    %                   flux-normalised cutout. A fixed NbrMagMax rejects bright
+    %                   stars for neighbours too faint to matter, and tightens
+    %                   whenever the Ref catalogue gets deeper: on the v5
+    %                   references it cut the stack by ~35% and pushed the
+    %                   template below significance on 12 of 39 crops, with the
+    %                   residual itself unchanged (issue #1267). [] restores the
+    %                   absolute NbrMagMax rule. Default is 2.5.
     %            'AlignOnMin' - Shift each cutout so its central minimum sits
     %                   at the centre. Cut positions are catalogue positions
     %                   rounded to whole pixels, so each cutout carries up to
@@ -53,8 +65,12 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
     % Output : - The template normalised to unit sum, or [] if it could not be
     %            measured. Unit sum means a fitted amplitude is directly a
     %            flux in counts, so A/SourceFlux is the residual fraction.
-    %          - A struct with NumSrc, NumUsed, FluxFraction, Norm,
-    %            CoreFraction, Scatter, CentroidOffset, X, Y and Reason.
+    %          - A struct with NumSrc, NumInMag, NumIsolated, NumUsed,
+    %            FluxFraction, Norm, CoreFraction, Scatter, CentroidOffset, X,
+    %            Y and Reason. NumInMag and NumIsolated count the sources in
+    %            the magnitude window and those also passing the isolation
+    %            cut, so a template that fails can be traced to where its
+    %            stars were lost.
     %            Template.*Norm is the physical template, in residual flux per
     %            unit source flux. FluxFraction is the total residual fraction
     %            including the masked core, a diagnostic rather than a scale
@@ -71,6 +87,7 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
         Args.MaxMag               = 17;
         Args.IsoRadius            = 20;
         Args.NbrMagMax            = 19;
+        Args.IsoRelDeltaMag       = 2.5;
         Args.AlignOnMin logical   = true;
         Args.AlignSearchHalf      = 1;
         Args.ZeroCoreHalf         = 1;
@@ -89,7 +106,8 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
     end
 
     Template = [];
-    Info     = struct('NumSrc',0, 'NumUsed',0, 'FluxFraction',NaN, 'Norm',NaN, ...
+    Info     = struct('NumSrc',0, 'NumInMag',0, 'NumIsolated',0, ...
+                      'NumUsed',0, 'FluxFraction',NaN, 'Norm',NaN, ...
                       'CoreFraction',NaN, 'Scatter',NaN, 'BlobArea',NaN, ...
                       'RadiusPrc',NaN, 'MatchRadius',NaN, 'PeakSN',NaN, ...
                       'CentroidOffset',[NaN NaN], 'X',[], 'Y',[], 'Reason','');
@@ -130,8 +148,15 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
     InMag   = (R_Mag > Args.MinMag) & (R_Mag < Args.MaxMag);
 
     %--- isolation, against comparable neighbours only ---
-    NbrSel = Finite & (R_Mag < Args.NbrMagMax);
+    if isempty(Args.IsoRelDeltaMag)
+        NbrSel = Finite & (R_Mag < Args.NbrMagMax);
+    else
+        % Only sources that can count for some star in the window: to count,
+        % a neighbour must be brighter than MaxMag + IsoRelDeltaMag.
+        NbrSel = Finite & (R_Mag < Args.MaxMag + Args.IsoRelDeltaMag);
+    end
     NbrXY  = [SrcX(NbrSel), SrcY(NbrSel)];
+    NbrMag = R_Mag(NbrSel);
     
     % Only evaluated for sources that already pass the cuts above, so this is
     % not a standalone "is this source isolated" flag.
@@ -143,12 +168,17 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
         Isrc = Cand(Ii);
         % <=1 rather than ==0: the source counts itself whenever it is
         % bright enough to be in the neighbour list.
-        NumNear = sum( (NbrXY(:,1)-SrcX(Isrc)).^2 + ...
-                       (NbrXY(:,2)-SrcY(Isrc)).^2 < IsoRadSq );
+        Near = (NbrXY(:,1)-SrcX(Isrc)).^2 + (NbrXY(:,2)-SrcY(Isrc)).^2 < IsoRadSq;
+        if ~isempty(Args.IsoRelDeltaMag)
+            Near = Near & (NbrMag < R_Mag(Isrc) + Args.IsoRelDeltaMag);
+        end
+        NumNear = sum(Near);
         Isolated(Isrc) = (NumNear <= 1);
     end
 
     Keep = Finite & InFrame & InMag & Isolated;
+    Info.NumInMag    = sum(Finite & InFrame & InMag);
+    Info.NumIsolated = sum(Keep);
 
     if sum(Keep) < Args.MinNumStars
         Info.Reason = sprintf('only %d isolated sources in mag %.1f-%.1f', ...
