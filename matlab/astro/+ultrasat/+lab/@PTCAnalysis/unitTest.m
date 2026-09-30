@@ -188,6 +188,116 @@ function Result = unitTest()
     Tf = Fp.parityTable;
     assert(max(abs(Tf.Even - T.Even)) < 1e-6 && max(abs(Tf.Odd - T.Odd)) < 1e-6);
 
+    % --- individual-pixel statistics -------------------------------------
+    % varSpread: chi2 sampling scatter removed (chi2(2K)/(2K) = mean of K exponentials)
+    rng(7);
+    Ex   = @(N,K) mean(-log(rand(N,K)), 2);
+    Nsim = 2e5;
+    Sv   = ultrasat.lab.PTCAnalysis.varSpread(100.*Ex(Nsim,1), 2);      % identical pixels
+    assert(abs(Sv.MeanVar-100)<2 && abs(Sv.StdObs-100)<3 && abs(Sv.Sigma)<5 && Sv.RelUL95>Sv.RelIntr);
+    Sv   = ultrasat.lab.PTCAnalysis.varSpread(max(100.*(1+0.3.*randn(Nsim,1)),1).*Ex(Nsim,1), 2);
+    assert(abs(Sv.RelIntr-0.3)<0.03 && Sv.Sigma>20);
+    Sv   = ultrasat.lab.PTCAnalysis.varSpread(100.*Ex(Nsim,2), 4);      % Dof=4: less scatter
+    assert(abs(Sv.StdObs-100.*sqrt(2/4))<3 && abs(Sv.Sigma)<5);
+    % paramSpread: analytic fit noise removed from the observed spread
+    Sp = ultrasat.lab.PTCAnalysis.paramSpread(10 + 2.*randn(Nsim,1) + 3.*randn(Nsim,1), 9.*ones(Nsim,1), 'Robust',false);
+    assert(abs(Sp.StdFit-3)<1e-9 && abs(Sp.StdIntr-2)<0.1 && Sp.Sigma>20);
+    Sp = ultrasat.lab.PTCAnalysis.paramSpread(10 + 3.*randn(Nsim,1), 9.*ones(Nsim,1), 'Robust',false);
+    assert(Sp.StdIntr<0.5 && Sp.Sigma<5);
+
+    % rawColGeom agrees with the parity map in both orientations
+    Gd = Pp.rawColGeom;
+    assert(Gd.Dim==1 && Gd.Ny==Ny && Gd.Nx==Nx && isequal(mod(Gd.RawCol,2)==1, Pp.ParityMap(:,1)));
+    Gt = Pt.rawColGeom;
+    assert(Gt.Dim==2 && isequal(mod(Gt.RawCol,2)==1, Pt.ParityMap(1,:)));
+
+    % badColumns: nothing to flag on the synthetic device, one injected column found
+    Bc = Pp.badColumns;
+    assert(Bc.Nbad==0 && all(Bc.GoodMask(:)) && numel(Bc.RawCol)==Ny && numel(Bc.NoiseProfile)==Ny);
+    ZN = Pp.ZeroNoise;
+    Pp.ZeroNoise(3,:) = 50.*ZN(3,:);
+    Bc2 = Pp.badColumns;
+    assert(Bc2.Nbad==1 && ~any(Bc2.GoodMask(3,:)) && all(Bc2.GoodMask(4,:)) && Bc2.BadNoise(3));
+    Pp.ZeroNoise = ZN;
+
+    % zeroNoiseStats: uniform synthetic read noise, no fixed pattern
+    Zn = Pp.zeroNoiseStats;
+    assert(Zn.Nframes==Nz && Zn.Dof==Nz-1 && numel(Zn.CommonMode.Levels)==Nz);
+    assert(abs(Zn.All.BiasLevel-ZeroLevel)<1 && Zn.All.Npix==Ny*Nx);
+    assert(abs(Zn.All.ReadNoiseMedian-2)<0.5 && abs(Zn.All.ReadNoiseRobust-2)<0.5 && abs(Zn.All.ReadNoiseRMS-2)<0.5);
+    assert(Zn.All.FixedPatternRMS < 0.6 && Zn.All.Spread.Sigma < 5);   % neither is present in the model
+    assert(Zn.Even.Npix+Zn.Odd.Npix==Zn.All.Npix && Zn.Structure.ReadoutDim==1);
+    assert(numel(Zn.Structure.LagDim1)==3 && all(abs(Zn.Structure.LagDim1)<0.3));
+    Zm = Pp.zeroNoiseStats('Mask',Bc2.GoodMask);
+    assert(Zm.All.Npix==(Ny-1)*Nx);
+
+    % perPixelFits: every step below the limit, per-pixel truth recovered
+    Fd = Pp.perPixelFits('D', 'Select','linlimit', 'LinLimit',1e9, 'Robust',false);
+    assert(numel(Fd.Steps)==numel(DarkExp) && strcmp(Fd.Weights,'measured') && all(Fd.Nused(:)==numel(DarkExp)));
+    assert(all(isfinite(Fd.VarStep)) && issorted(Fd.VarStep));        % measured step variances grow with signal
+    assert(max(abs(Fd.Slope(:)-SlopeD(:)))<0.5 && abs(median(Fd.Intercept(:))-median(InterD(:)))<8);
+    assert(abs(median(Fd.Chi2Dof(:),'omitnan')-1)<0.5);               % weights are the true variances
+    assert(abs(Fd.Odd.SlopeSpread.Median./Fd.Even.SlopeSpread.Median - 1.1)<0.02);
+    ExpStd = std(InterD(:));                                          % fit noise must be deconvolved out
+    Is = Fd.All.InterceptSpread;
+    assert(abs(Is.StdIntr-ExpStd)./ExpStd < 0.3, 'intr %.3f vs %.3f', Is.StdIntr, ExpStd);
+    assert(Fd.All.InterceptSpread.StdObs > Fd.All.InterceptSpread.StdIntr);
+    Fm = Pp.perPixelFits('D', 'Select','linlimit', 'LinLimit',1e9, 'Weights','model', 'Robust',false);
+    assert(Fm.All.InterceptSpread.StdFit < Is.StdFit);                % the modelled weight misses g*T
+    Fl = Pp.perPixelFits('D', 'Select','linlimit', 'LinLimit',1500, 'Robust',false);       % truncation shortens the lever arm
+    assert(numel(Fl.Steps)<numel(DarkExp) && Fl.All.InterceptSpread.StdFit > Is.StdFit);
+    Fo = Pp.perPixelFits('D', 'Select','linlimit', 'LinLimit',1e9, 'Weighted',false, 'Robust',false);
+    assert(strcmp(Fo.Weights,'none') && Fo.All.InterceptSpread.StdFit > Is.StdFit);   % OLS is less efficient
+
+    % default selection reproduces fitResponse exactly (same steps, OLS)
+    Fr = Pp.perPixelFits('D', 'Weighted',false);
+    assert(strcmp(Fr.Select,'fitrange') && isequal(Fr.Steps, Pp.Dark.Step(any(any(Pp.DarkFit.Used,1),2))));
+    assert(max(abs(Fr.Slope(:)-Pp.DarkFit.Slope(:)))<1e-9 && max(abs(Fr.Intercept(:)-Pp.DarkFit.Intercept(:)))<1e-9);
+    assert(isequal(Fr.Nused, Pp.DarkFit.Nused));
+
+    % perPixelThreshold: both methods and the error propagation
+    Th = Pp.perPixelThreshold('Select','linlimit', 'LinLimit',1e9, 'DarkFit',Fd);
+    assert(max(abs(Th.DarkADU(:) + Fd.Intercept(:)))<1e-9 && isequal(Th.VarDarkADU, Fd.VarIntercept));
+    assert(abs(median(Th.DarkADU(:)) + median(InterD(:)))<8);
+    assert(abs(Th.All.MedianDarkE - Th.All.DarkSpread.Median./Pp.PTC.GainUsed)<1e-9);
+    assert(abs(median(Th.LightADU(:)) - (median(SlopeD(:)).*ExpSen - median(InterB(:))))<25);
+    assert(all(Th.VarLightADU(:) >= Th.VarDarkADU(:)*0));             % finite and non-negative
+    assert(isfinite(Th.All.PRNU) && Th.All.PRNU_UL95 >= Th.All.PRNU);
+    assert(isfinite(Th.PatternStep) && isfinite(Th.PatternX));
+
+    % stepFixedPattern: the PRNU built into the synthetic device (1.05%)
+    Pb = Pp.stepFixedPattern('B', 'Robust',false);
+    ExpPRNU = std(SlopeB(:))./median(SlopeB(:));
+    assert(numel(Pb.All.RelFixed)==numel(BrightInt) && all(Pb.All.StdNoise>0));
+    assert(abs(Pb.All.RelFixed(end)-ExpPRNU)./ExpPRNU < 0.2, 'PRNU %.4f vs %.4f', Pb.All.RelFixed(end), ExpPRNU);
+    assert(Pb.All.RelUL95(end) >= Pb.All.RelFixed(end) && Pb.All.Sigma(end) > 10);
+    Top = Pb.All.Median > 0.5.*max(Pb.All.Median);                    % multiplicative: relative value stable
+    assert(max(Pb.All.RelFixed(Top))./min(Pb.All.RelFixed(Top)) < 1.5);
+    Pr = Pp.stepFixedPattern('B');                                    % MAD on a uniform spread reads ~1.28x
+    assert(Pr.All.RelFixed(end) > Pb.All.RelFixed(end));
+    assert(isfield(Pb,'Even') && numel(Pb.Even.Median)==numel(BrightInt));
+    % additive (+) multiplicative decomposition recovers the built-in PRNU
+    assert(Pb.All.PatternNsteps>=3 && isfinite(Pb.All.Multiplicative) && isfinite(Pb.All.Additive));
+    assert(abs(Pb.All.Multiplicative-ExpPRNU)./ExpPRNU < 0.25, 'b %.4f vs %.4f', Pb.All.Multiplicative, ExpPRNU);
+    ExpAdd = std(InterB(:));                                          % additive offset pattern [ADU]
+    assert(Pb.All.Additive < 5.*max(ExpAdd,1));                       % small, and not confused with b
+    % the threshold summary takes its PRNU from that fit, not the slope spread
+    assert(abs(Th.All.PRNU - Pr.All.Multiplicative) < 1e-12 && Th.PatternStep==Pb.Step(end));
+    assert(isfield(Th.All, 'PRNU_slope') && isfinite(Th.All.OffsetFPN_e));
+    assert(abs(Th.All.OffsetFPN_e - Th.All.OffsetFPN_ADU./Pp.PTC.GainUsed)<1e-12);
+
+    % noiseBudget: electrons, gain direction and the threshold dead zone
+    Nb = Pp.noiseBudget('Threshold',Th, 'Zero',Zn, 'Method','none', 'Q',[1 10 100 1000]);
+    assert(abs(Nb.RN_e - Zn.All.ReadNoiseMedian./Pp.PTC.GainUsed)<1e-9);
+    assert(Nb.RN_e < Zn.All.ReadNoiseMedian);                         % Gain > 1 ADU/e-
+    Expect = sqrt(Nb.RN_e.^2 + Nb.Q + Nb.DC_e.*Nb.ExpTime);
+    assert(max(abs(Nb.SigmaEff_cal - Expect))<1e-9 && isequal(Nb.Qc, Nb.Q));
+    assert(all(Nb.SigmaEff_raw >= Nb.SigmaEff_cal) && all(Nb.SNR_raw <= Nb.SNR_cal));
+    assert(isfinite(Nb.Qlim_cal) && Nb.Qlim_cal>Nb.RN_e);
+    Nl = Pp.noiseBudget('Threshold',Th, 'Zero',Zn, 'Method','light');
+    assert(Nl.Threshold_e>0 && Nl.Qlim_cal > Nl.Threshold_e && Nl.Qlim_cal > Nb.Qlim_cal);
+    assert(all(Nl.Qc(Nl.Q<=Nl.Threshold_e)==0) && all(Nl.SNR_cal(Nl.Q<=Nl.Threshold_e)==0));
+
     % FITS export through the class
     FitsDir = fullfile(TmpDir, 'fits');
     Files = P.writeFITS(FitsDir, 'FrameType','ZE', 'FrameIndex',1);

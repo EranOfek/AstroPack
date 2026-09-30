@@ -26,6 +26,16 @@ classdef PTCAnalysis < Component
     %   With Parity='rawcol' every statistic is also computed separately for
     %   the pixels in even and odd columns of the stored TIFF (the readout
     %   columns; rows in the DESY orientation) and compared in summary.
+    %   For the individual-pixel regime (comparison of setups rather than
+    %   reproduction of the deck) the pipeline above is followed by
+    %     badColumns        - flag / mask the bad readout columns
+    %     zeroNoiseStats    - bias common mode, fixed pattern, read noise
+    %                         and its intrinsic pixel-to-pixel spread
+    %     perPixelFits      - weighted per-pixel ladder fits below the
+    %                         linearity limit, with the analytic fit noise
+    %     stepFixedPattern  - per-step fixed pattern (PRNU, DSNU)
+    %     perPixelThreshold - per-pixel thresholds, dark current, PRNU
+    %     noiseBudget       - sigma_eff and SNR versus signal in electrons
     % Author : Sasha Krassilchtchikov (Sep 2026)
     % Example: P = ultrasat.lab.PTCAnalysis('/data/LOT_TH02954_W04_D07');
     %          P.run;  S = P.summary;
@@ -479,6 +489,16 @@ classdef PTCAnalysis < Component
         end
     end
 
+    methods % individual-pixel statistics (implemented in separate files)
+        G = rawColGeom(Obj)               % raw readout-column index per image row / column
+        S = badColumns(Obj, Args)         % flag and mask the bad readout columns
+        S = zeroNoiseStats(Obj, Args)     % ZE common mode, fixed pattern, read noise and its intrinsic spread
+        S = perPixelFits(Obj, Type, Args) % weighted per-pixel ladder fit with analytic fit noise
+        S = stepFixedPattern(Obj, Type, Args) % per-step fixed pattern (PRNU / DSNU) with the temporal noise removed
+        S = perPixelThreshold(Obj, Args)  % per-pixel thresholds and dark current with propagated errors
+        S = noiseBudget(Obj, Args)        % sigma_eff and SNR curves in electrons
+    end
+
     methods % plots
         function H = plotPTC(Obj, Args)
             % Plot the photon transfer curve: variance vs mean signal.
@@ -743,6 +763,8 @@ classdef PTCAnalysis < Component
             Fit.Used = isfinite(Y) & Y>=FitRange(1) & Y<=FitRange(2);
         end
 
+        S = varSpread(V, Dof)             % intrinsic spread of a per-pixel variance (chi2 deconvolution)
+        S = paramSpread(P, VarFit, Args)  % intrinsic spread of a fitted parameter (fit noise removed)
         Result = unitTest()   % implemented in @PTCAnalysis/unitTest.m
     end
 
