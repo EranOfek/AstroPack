@@ -99,7 +99,10 @@ function [D_hat, Pd_hat, Fd, F_S, D_den, D_num, D_denSqrt, P_deltaNhat, P_deltaR
     if nargout>3
         FnPn2 = Fn.^2.*Args.AbsFun(Pn_hat).^2;
         FrPr2 = Fr.^2.*Args.AbsFun(Pr_hat).^2;
-        F_S   = sum(FnPn2 .* FrPr2./(SigmaN.^2 .* FrPr2 + SigmaR.^2 .* FnPn2 + Args.Eps),[1 2]);
+        % ZOGY Eq. 42 assumes a unitary FFT; fft2 is not, so divide
+        % the sum by Npix (Parseval, issue #741)
+        F_S   = sum(FnPn2 .* FrPr2./(SigmaN.^2 .* FrPr2 + SigmaR.^2 .* FnPn2 + Args.Eps),[1 2]) ./ ...
+                (size(Pn_hat,1).*size(Pn_hat,2));
         F_S   = squeeze(F_S);
     end
 
