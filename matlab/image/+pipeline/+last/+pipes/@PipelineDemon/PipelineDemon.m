@@ -3064,7 +3064,8 @@ classdef PipelineDemon < Component
             Obj.writeLog(Msg, LogLevel.Info);
 
             [AD, ADc, TCL1, TCL2, StatusPipeII] = pipeline.last.pipes.pipelineII(Coadd, 'RefPath', Obj.RefPath,...
-                                                  'MinimumNCoadd',UpArgs.PipelineIIMininumNCoadd, 'GaiaCone',GaiaCone);
+                                                  'MinimumNCoadd',UpArgs.PipelineIIMininumNCoadd, 'GaiaCone',GaiaCone, ...
+                                                  'DumpComplexPath',Obj.FailedPath);  % issue #1360
             Obj.writeLog(sprintf('Transients detection - %s', StatusPipeII.Msg), LogLevel.Info);
 
             if StatusPipeII.Success && UpArgs.SendTransientAlerts && ~ADc(1).ImageData.isemptyImage
