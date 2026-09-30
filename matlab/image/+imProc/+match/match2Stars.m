@@ -6,8 +6,6 @@ function match2Stars(Obj, StarCat, Args)
                property.
              - An AstroCatalog containing the catalog of stars.
              * ...,key,val,...
-               'StarCatName' - Name of the GAIA catalog. Default is
-                      'GAIADR3'.
                'ColNMatchName' - Name of appended column with number of
                       accepted matches. Default is 'STAR_N'.
                'ColDistName' - Name of appended column with the distance
@@ -33,18 +31,17 @@ function match2Stars(Obj, StarCat, Args)
                       astrometric excess noise in the GAIA catalog.
                       Default is 'astrometric_excess_noise'.
                'ColParallaxGAIA' - Name of column holding the parallax in
-                      the GAIA catalog. Default is 'parallax'.
+                      the GAIA catalog. Default is 'Plx'.
                'ColParallaxErrGAIA' - Name of column holding the parallax
-                      error in the GAIA catalog. Default is
-                      'parallax_error'.
+                      error in the GAIA catalog. Default is 'ErrPlx'.
                'ColPmraGAIA' - Name of column holding pmRA in the GAIA
-                      catalog. Default is 'pmra'.
+                      catalog. Default is 'PMRA'.
                'ColPmraErrGAIA' - Name of column holding pmRA error in the
-                      GAIA catalog. Default is 'pmra_error'.
+                      GAIA catalog. Default is 'ErrPMRA'.
                'ColPmdecGAIA' - Name of column holding pmDec in the GAIA
-                      catalog. Default is 'pmdec'.
+                      catalog. Default is 'PMDec'.
                'ColPmdecErrGAIA' - Name of column holding pmDec error in the
-                      GAIA catalog. Default is 'pmdec_error'.
+                      GAIA catalog. Default is 'ErrPMDec'.
                'ColInQsoCandGAIA' - Name of column holding the flag
                       indicating membership in the GAIA QSO candidates.
                       Default is 'in_qso_candidates'.
@@ -120,7 +117,6 @@ function match2Stars(Obj, StarCat, Args)
         Obj
         StarCat
 
-        Args.StarCatName = 'GAIADR3';
         Args.ColNmatchName = 'STAR_N';
         Args.ColDistName = 'STAR_DIST';
         Args.ColProbName = 'STAR_PROB';
