@@ -1357,7 +1357,9 @@ classdef AstroZOGY < AstroDiff
                     Vtotal = Vtotal./Args.VarNormMethod(Vtotal(:));
                 end
 
-                Obj(Iobj).Scorr = Obj(Iobj).Sflux./sqrt(Vtotal);
+                % ZOGY Eq. 25: numerator is the raw S, not Sflux. Obj.S is
+                % already normalized, so recover raw S as Sflux*F_S (issue #741)
+                Obj(Iobj).Scorr = (Obj(Iobj).Sflux .* Obj(Iobj).F_S)./sqrt(Vtotal);
                 
                 switch lower(Args.NormMethod(1:4))
                     case 'norm'
