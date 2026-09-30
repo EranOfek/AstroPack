@@ -16,6 +16,13 @@ function [GlobalMotion, Result] = positionDrift(MS, Args)
     %            'MinEpoch' - Minimum number of epochs required. If not
     %                   enough epochs then and empty result will be returned.
     %                   Default is 5.
+    %            'MinFracEpoch' - Use only sources measured in at least
+    %                   max(2, ceil(MinFracEpoch*Nepoch)) epochs. Short
+    %                   tracks are mostly hot pixels that the RA/Dec matching
+    %                   chains across epochs as the sky drifts; their ~0
+    %                   steps drag the median drift toward zero (issue #1361).
+    %                   If no source qualifies, the shifts are NaN.
+    %                   Default is 0.5.
     % Output : - A structure array (element per MatchedSources element)
     %            with the field global motion as a function of time.
     %            Fields include:
@@ -43,6 +50,7 @@ function [GlobalMotion, Result] = positionDrift(MS, Args)
         Args.ColY        = 'Y';
         Args.ColSN       = 'SN';
         Args.MinEpoch    = 5;
+        Args.MinFracEpoch = 0.5;
     end
     SEC_DAY = 86400;
 
@@ -53,15 +61,18 @@ function [GlobalMotion, Result] = positionDrift(MS, Args)
         if MS(Ims).Nepoch>=Args.MinEpoch
             switch lower(Args.Method)
                 case 'diff'
-                    if isempty(Args.MinSN)
-                        Result(Ims).DShiftX    = median(diff(MS(Ims).Data.(Args.ColX),1,1), 2, 'omitnan');
-                        Result(Ims).DShiftY    = median(diff(MS(Ims).Data.(Args.ColY),1,1), 2, 'omitnan');
-                       
-                    else
-                        IndSN = find(mean(MS(Ims).Data.(Args.ColSN), 1, 'omitnan')>Args.MinSN);
-                        Result(Ims).DShiftX    = median(diff(MS(Ims).Data.(Args.ColX)(:,IndSN),1,1), 2, 'omitnan');
-                        Result(Ims).DShiftY    = median(diff(MS(Ims).Data.(Args.ColY)(:,IndSN),1,1), 2, 'omitnan');
-                        
+                    % sources seen in enough epochs (issue #1361)
+                    Nep   = size(MS(Ims).Data.(Args.ColX), 1);
+                    Flag  = sum(isfinite(MS(Ims).Data.(Args.ColX)), 1) >= max(2, ceil(Args.MinFracEpoch.*Nep));
+                    if ~isempty(Args.MinSN)
+                        Flag = Flag & mean(MS(Ims).Data.(Args.ColSN), 1, 'omitnan')>Args.MinSN;
+                    end
+                    Result(Ims).DShiftX    = median(diff(MS(Ims).Data.(Args.ColX)(:,Flag),1,1), 2, 'omitnan');
+                    Result(Ims).DShiftY    = median(diff(MS(Ims).Data.(Args.ColY)(:,Flag),1,1), 2, 'omitnan');
+                    if ~any(Flag)
+                        % median over zero columns returns an empty-size result
+                        Result(Ims).DShiftX = nan(Nep-1, 1);
+                        Result(Ims).DShiftY = nan(Nep-1, 1);
                     end
                     JD = MS(Ims).JD;
                     Result(Ims).DeltaTime = median(diff(JD));
