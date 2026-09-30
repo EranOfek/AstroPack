@@ -869,8 +869,11 @@ classdef AstroZOGY < AstroDiff
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                % ZOGY Eq 16:
-                Obj(Iobj).S = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Obj(Iobj).Image, Obj(Iobj).PSF);
+                % ZOGY Eq 16: S = Fd * D (x) Pd, with D the unit-variance
+                % D of Eq. 13. Image may hold D/Fd (NormDbyFd), so rebuild
+                % D from D_hat rather than use Image (issue #741).
+                Dunit = ifft2(Obj(Iobj).D_hat);
+                Obj(Iobj).S = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Dunit, Obj(Iobj).PSF);
                 
                 if Args.PopS_delta
                     DeltaPSF = imUtil.kernel2.gauss(Args.DeltaWidth, Args.DeltaStampSize);
@@ -895,7 +898,7 @@ classdef AstroZOGY < AstroDiff
                     DeltaKernel(:,1)   = Args.DeltaPunishWeight;
                     DeltaKernel(:,end) = Args.DeltaPunishWeight;
                     
-                    Obj(Iobj).S_delta = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Obj(Iobj).Image, DeltaKernel);
+                    Obj(Iobj).S_delta = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Dunit, DeltaKernel);
                 end
 
                 if Args.PopS_ext
@@ -904,7 +907,7 @@ classdef AstroZOGY < AstroDiff
                     ExtendedFun = Args.ExtendedFun(Args.ExtendedFunArgs, size(PSF));
                     ExtPSF      = conv2(PSF, ExtendedFun, 'same');
                     
-                    Obj(Iobj).S_ext = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Obj(Iobj).Image, ExtPSF);
+                    Obj(Iobj).S_ext = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Dunit, ExtPSF);
                 end
 
                 if Args.PopS_smear
@@ -944,7 +947,7 @@ classdef AstroZOGY < AstroDiff
                     % that rather than fail.
                     if ~isempty(SmearPSF)
                         Obj(Iobj).S_smear = Obj(Iobj).Fd .* ...
-                            imUtil.filter.filter2_fast(Obj(Iobj).Image, SmearPSF);
+                            imUtil.filter.filter2_fast(Dunit, SmearPSF);
                     end
                 end
 
@@ -967,7 +970,7 @@ classdef AstroZOGY < AstroDiff
                     % everything downstream must tolerate that rather than fail.
                     if ~isempty(ResidPSF)
                         Obj(Iobj).S_PSFresid = Obj(Iobj).Fd .* ...
-                            imUtil.filter.filter2_fast(Obj(Iobj).Image, ResidPSF);
+                            imUtil.filter.filter2_fast(Dunit, ResidPSF);
                     end
                 end
 
