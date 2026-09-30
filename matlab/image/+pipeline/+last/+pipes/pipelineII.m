@@ -56,6 +56,9 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                        The star match keeps its own visit-wide search (its
                        bright-star halo margin reaches beyond the cones).
                        Default is [].
+                'DumpComplexPath' - Directory in which AstroZOGY.subtractionD
+                       saves the inputs of a sub image whose D or Pd came out
+                       complex (issue #1360). If empty, no check. Default is ''.
                 'GaiaProperMotion' - Apply the Gaia proper motion to the
                        epoch of each image for the photometric ZP (New and
                        Ref, each at its own JD), the smear-template star
@@ -96,6 +99,8 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         % all the Gaia consumers below (issue #1348)
         Args.GaiaCone = [];
         Args.GaiaProperMotion logical = true;
+        % Where to save a sub image whose ZOGY D/Pd is complex (issue #1360); '' - off
+        Args.DumpComplexPath char = '';
 
         Args.CropIDs = [];
 
@@ -484,7 +489,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % 7: ----- Produce subtraction images -----
     
     % Create proper subtraction image D
-    AD.subtractionD;
+    AD.subtractionD('DumpComplexPath',Args.DumpComplexPath);
     % Derive Gabor stat image
     AD.matchfilterGabor;
     % Derive S stat image

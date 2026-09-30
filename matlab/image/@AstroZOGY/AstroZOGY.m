@@ -594,6 +594,11 @@ classdef AstroZOGY < AstroDiff
             %                   Default is 'MEDVAR'.
             %            'KeyStd' - Std header keyword.
             %                   Default is 'STDBCK'.
+            %            'DumpComplexPath' - Directory in which to save the
+            %                   inputs and diagnostics of a sub image whose D
+            %                   or Pd came out complex (issue #1360). The
+            %                   processing itself is not changed. If empty,
+            %                   no check is made. Default is ''.
             %
             % Output : - An AstroDiff object with the populated
             %            D in the Image property.
@@ -643,6 +648,7 @@ classdef AstroZOGY < AstroDiff
                 Args.KeyVar         = 'MEDVAR';
                 Args.KeyStd         = 'STDBCK';
                 
+                Args.DumpComplexPath char = '';  % dump a sub image whose D/Pd is complex (issue #1360); '' - off
                 
             end
             
@@ -727,6 +733,14 @@ classdef AstroZOGY < AstroDiff
 
                 % calculate Pd
                 Pd = fftshift(ifft2(Obj(Iobj).Pd_hat));
+
+                % ifft2 returns a complex D/Pd when D_hat/Pd_hat are not
+                % exactly conjugate-symmetric (e.g. NaN). Record the case for
+                % offline replay (issue #1360); the processing is unchanged.
+                if ~isempty(Args.DumpComplexPath) && (~isreal(D) || ~isreal(Pd))
+                    dumpComplexSub(Obj(Iobj), D, Pd, FrVal, Args.DumpComplexPath);
+                end
+
                 if ischar(Args.HalfSizePSF)
                     % keep full
                 else
@@ -1634,4 +1648,54 @@ classdef AstroZOGY < AstroDiff
         Result = unitTest()
     end
     
+end
+
+
+function dumpComplexSub(Obj, D, Pd, FrVal, DumpPath)
+    % Save the inputs and diagnostics of one sub image whose ZOGY D/Pd came out complex (issue #1360)
+    %   Everything needed to replay imUtil.properSub.subtractionD offline, as
+    %   plain arrays, plus the NaN/Inf counts and the conjugate-symmetry error
+    %   of each Fourier-domain input. Never throws: a failed dump is only
+    %   reported, the subtraction goes on as without the check.
+    % Input  : - A single AstroZOGY element (after subtractionD).
+    %          - The D image and the full Pd (before the stamp cut).
+    %          - The Fr value used.
+    %          - Directory for the dump file.
+    try
+        % max|X(k) - conj(X(-k))|: 0 for the FFT of a real array
+        HermErr  = @(X) max(abs(X - conj(X([1, end:-1:2], [1, end:-1:2]))), [], 'all');
+        NonFin   = @(X) nnz(~isfinite(X));
+        Hat      = {'N_hat','R_hat','Pn_hat','Pr_hat','D_hat','Pd_hat','D_den_hat','D_denSqrt_hat'};
+        Diag     = struct();
+        for Ih=1:1:numel(Hat)
+            X = Obj.(Hat{Ih});
+            Diag.(Hat{Ih}) = struct('Size',size(X), 'Nnonfinite',NonFin(X), 'HermErr',HermErr(X));
+        end
+        Diag.MaxImagD  = max(abs(imag(D)), [], 'all');
+        Diag.MaxImagPd = max(abs(imag(Pd)), [], 'all');
+        Diag.Fn    = Obj.Fn;
+        Diag.Fr    = FrVal;
+        Diag.Fd    = Obj.Fd;
+        Diag.VarN  = Obj.VarN;
+        Diag.VarR  = Obj.VarR;
+
+        Side = {'New','Ref'};
+        for Is=1:1:2
+            AI = Obj.(Side{Is});
+            In.(Side{Is}) = struct('Image',AI.Image, 'Mask',AI.MaskData.Image, 'Back',AI.Back, 'Var',AI.Var, ...
+                                   'PSF',AI.PSFData.getPSF, 'Header',{AI.HeaderData.Data});
+        end
+
+        CropID = Obj.New.HeaderData.getVal('CROPID');
+        JD     = Obj.New.HeaderData.getVal('JD');
+        File   = fullfile(DumpPath, sprintf('zogy_complexPd_JD%.5f_crop%03d.mat', JD, CropID));
+        if ~isfolder(DumpPath)
+            mkdir(DumpPath);
+        end
+        save(File, 'Diag', 'In', '-v7.3');
+        warning('AstroZOGY:complexSub', 'Complex ZOGY D/Pd (max imag D %g, Pd %g) - inputs saved to %s (issue #1360)', ...
+                Diag.MaxImagD, Diag.MaxImagPd, File);
+    catch ME
+        warning('AstroZOGY:complexSubDump', 'Complex ZOGY D/Pd - dump failed: %s (issue #1360)', ME.message);
+    end
 end
