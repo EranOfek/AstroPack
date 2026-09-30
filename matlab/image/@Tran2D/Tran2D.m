@@ -1186,7 +1186,7 @@ classdef Tran2D < Base
             Res.Xdep     = Xdep;
             Res.Ydep     = Ydep;
             
-            if isempty(ResResid)
+            if isempty(ResResid) || isempty(ResResid.InterpMeanResid)
                 % no asymptotic rms
                 Res.AssymRMS     = NaN;
                 Res.AssymRMS_mag = NaN;

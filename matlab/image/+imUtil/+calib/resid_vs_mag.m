@@ -9,6 +9,9 @@ function [Flag,Res]=resid_vs_mag(Mag, Resid, Args)
 %              Or, binning the data and calculate the mean and std in each
 %              bin. Outliers are defined to be ThresholdSigma times the std
 %              above the mean value.
+%              If the binning yields fewer than two bins (e.g., the
+%              magnitudes span less than 1.5 BinSize), the mean and std
+%              are calculated over all the sources in MagRange.
 % Input  : - A vector of magnitudes.
 %          - A vector of residuals (one per magnitude).
 %          * Pairs of ...,key,val,... arguments. Options are:
@@ -62,6 +65,15 @@ arguments
     Args.Plot(1,1) logical = false;
 end
 
+if isempty(Mag)
+    % no sources
+    Flag                 = false(size(Mag));
+    Res.Mag              = Mag;
+    Res.Resid            = Resid;
+    Res.InterpMeanResid  = nan(size(Mag));
+    Res.InterpStdResid   = nan(size(Mag));
+    return
+end
 
 if isempty(Args.MagRange)
     Args.MagRange = [min(Mag), max(Mag)];
@@ -86,12 +98,19 @@ switch lower(Args.BinMethod)
 
     case 'bin'
         % binning of resid vs. mag
+        % number of bins returned by binningFast
+        Nbin = numel(Args.MagRange(1)+0.5.*Args.BinSize:Args.BinSize:Args.MagRange(2));
+        if Nbin<2
+            % interpolation requires two bins - use the single-bin limit
+            Res.InterpMeanResid = Args.FunMean(Resid(FlagMag)).*ones(size(Mag));
+            Res.InterpStdResid  = Args.FunStd(Resid(FlagMag)).*ones(size(Mag));
+        else
+            B = timeSeries.bin.binningFast([Mag, Resid], Args.BinSize, Args.MagRange, {'MidBin',Args.FunMean,Args.FunStd,@numel});
+            % interpolate B over missing points
+            Res.InterpMeanResid = interp1(B(:,1), B(:,2), Mag, Args.InterpMethod,'extrap');
+            Res.InterpStdResid  = interp1(B(:,1), B(:,3), Mag, Args.InterpMethod,'extrap');
+        end
 
-        B = timeSeries.bin.binningFast([Mag, Resid], Args.BinSize, Args.MagRange, {'MidBin',Args.FunMean,Args.FunStd,@numel});
-        % interpolate B over missing points
-        Res.InterpMeanResid = interp1(B(:,1), B(:,2), Mag, Args.InterpMethod,'extrap');
-        Res.InterpStdResid  = interp1(B(:,1), B(:,3), Mag, Args.InterpMethod,'extrap');
-        
         Flag = abs(Resid - Res.InterpMeanResid)./Res.InterpStdResid < Args.ThresholdSigma & FlagMag;
 
     case 'fitpred'
