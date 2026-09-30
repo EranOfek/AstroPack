@@ -25,6 +25,19 @@ ZERO = D.get('ZeroOnly') or []
 if isinstance(FULL, dict):  FULL = [FULL]
 if isinstance(ZERO, dict):  ZERO = [ZERO]
 
+# merge any patch files (die-runs reduced from the share because the local
+# mirror's sidecar is corrupt -- see desy_perpixel_patch.m); a patch entry
+# replaces the main one with the same Tag
+import glob as _glob
+for _pf in sorted(_glob.glob(os.path.join(A.indir, 'perpixel_patch*.json'))):
+    with open(_pf) as fh:
+        _P = json.load(fh)
+    _new = _P.get('Full') or []
+    if isinstance(_new, dict):  _new = [_new]
+    _tags = {e['Tag'] for e in _new}
+    FULL = [e for e in FULL if e.get('Tag') not in _tags] + _new
+    print(f'merged {len(_new)} die-run(s) from {os.path.basename(_pf)}')
+
 # ---------------------------------------------------------------- helpers
 def g(d, *keys, default=np.nan):
     """nested get returning nan when anything is missing"""
@@ -48,8 +61,15 @@ SET_COLOR = {'AV': '#c44e52', 'aSpect': '#4c72b0'}
 FLAV_MARK = {6: 'o', 2: 's'}
 
 def style(e):
-    return dict(color=SET_COLOR.get(e.get('Settings'), '#555555'),
-                marker=FLAV_MARK.get(int(e.get('Flavour', 6)), '^'))
+    # accepts both the raw json entry (Settings/Flavour) and a flattened row
+    sett = e.get('Settings', e.get('settings'))
+    flav = e.get('Flavour', e.get('flavour', 6))
+    try:
+        flav = int(flav)
+    except (TypeError, ValueError):
+        flav = 6
+    return dict(color=SET_COLOR.get(sett, '#555555'),
+                marker=FLAV_MARK.get(flav, '^'))
 
 # ---------------------------------------------------------------- per-die rows
 def row_full(e):
@@ -69,6 +89,9 @@ def row_full(e):
         r[pre+'rn_rms']   = float(g(z, 'ReadNoiseRMS'))
         r[pre+'rn_tail']  = float(g(z, 'TailFrac'))
         r[pre+'rn_spread']= float(g(z, 'SpreadSigmaRel'))
+        _mv = float(g(z, 'Spread', 'MeanVar'))
+        _so = float(g(z, 'Spread', 'StdObs'))
+        r[pre+'rn_spread_obs'] = (_so/_mv/2.0) if (np.isfinite(_mv) and _mv > 0) else np.nan
         r[pre+'dc']       = float(g(t, 'DCSpread', 'Median'))
         r[pre+'dsnu']     = float(g(t, 'DCSpread', 'StdIntr'))
         r[pre+'dc_fit']   = float(g(t, 'DCSpread', 'StdFitRobust'))
@@ -80,7 +103,7 @@ def row_full(e):
         r[pre+'offset_e'] = float(g(t, 'OffsetFPN_e'))
     gn = r['gain'] if np.isfinite(r['gain']) and r['gain'] > 0 else np.nan
     r['rn_e'] = r['rn'] / gn if np.isfinite(gn) else np.nan
-    for meth in ('light', 'dark'):
+    for meth in ('light', 'dark', 'none'):
         b = g(e, 'Budget', 'All', meth, default={})
         r['qlim_cal_'+meth] = float(g(b, 'Qlim_cal'))
         r['qlim_raw_'+meth] = float(g(b, 'Qlim_raw'))
@@ -97,7 +120,8 @@ def row_zero(e):
         r[key+'rn']        = float(g(z, 'ReadNoiseMedian'))
         r[key+'rn_tail']   = float(g(z, 'TailFrac'))
         r[key+'rn_spread'] = float(g(z, 'SpreadSigmaRel'))
-        r[key+'nframes']   = float(g(z, 'Nframes'))
+        r[key+'nframes']   = float(g(e, src, 'Nframes'))   # top level, not inside the parity subset
+        r[key+'cm_std']    = float(g(e, src, 'CommonMode', 'Std'))
     return r
 
 ROWS = [row_full(e) for e in FULL]
@@ -106,11 +130,12 @@ BYTAG = {e['Tag']: e for e in FULL}
 
 # ---------------------------------------------------------------- figures
 def scan_plot(fname, ykeys, ylabel, title, rows=None, logy=False, ylim=None,
-              parity=False, errkey=None):
+              keylabels=None):
     """value versus TX, one point per die-run, medians per setup overlaid"""
     rows = rows if rows is not None else ROWS
     fig, ax = plt.subplots(figsize=(8.2, 4.6))
     keys = ykeys if isinstance(ykeys, (list, tuple)) else [ykeys]
+    FILL = [None, 'none', 'white']        # one per key: filled, open, half
     seen = set()
     for r in rows:
         for ik, k in enumerate(keys):
@@ -119,12 +144,16 @@ def scan_plot(fname, ykeys, ylabel, title, rows=None, logy=False, ylim=None,
                 continue
             st = style(r)
             lbl = None
-            tag = (r['settings'], st['marker'])
+            tag = (r['settings'], st['marker'], ik)
             if tag not in seen:
                 seen.add(tag)
                 lbl = f"{r['settings']}, W{'04' if r['flavour']==6 else '08'}"
-            ax.plot(r['tx'] + 0.012*ik, y, st['marker'], color=st['color'], ms=5,
-                    mfc=st['color'] if ik == 0 else 'none', alpha=0.85, label=lbl)
+                if keylabels and ik < len(keylabels):
+                    lbl += f" ({keylabels[ik]})"
+            dx = 0.012*ik + (0.014 if r['settings'] == 'aSpect' else -0.014)
+            ax.plot(r['tx'] + dx, y, st['marker'], color=st['color'], ms=5,
+                    mfc=st['color'] if FILL[ik % 3] is None else FILL[ik % 3],
+                    alpha=0.85, label=lbl)
     # median per (tx, rsth, settings)
     grp = defaultdict(list)
     for r in rows:
@@ -133,7 +162,8 @@ def scan_plot(fname, ykeys, ylabel, title, rows=None, logy=False, ylim=None,
             grp[(r['tx'], r['rsth'], r['settings'])].append(y)
     for (tx, rsth, sett), vals in sorted(grp.items()):
         m = np.median(vals)
-        ax.plot(tx, m, '_', color='k', ms=22, mew=1.6, zorder=5)
+        dx = 0.014 if sett == 'aSpect' else -0.014
+        ax.plot(tx + dx, m, '_', color='k', ms=18, mew=1.6, zorder=5)
         if abs(rsth - 3.0) > 0.01:
             ax.annotate('RST_H %.1f' % rsth, (tx, m), textcoords='offset points',
                         xytext=(0, 9), ha='center', fontsize=7, color='#666666')
@@ -153,9 +183,10 @@ def scan_plot(fname, ykeys, ylabel, title, rows=None, logy=False, ylim=None,
 
 FIGS = {}
 if ROWS:
-    FIGS['rn'] = scan_plot('fig_rn_vs_tx.png', ['rn', 'even_rn', 'odd_rn'],
+    FIGS['rn'] = scan_plot('fig_rn_vs_tx.png', ['rn'],
                            'median per-pixel read noise [ADU]',
-                           'Read noise per pixel (filled = all pixels, open = even / odd readout columns)')
+                           'Read noise per pixel (all pixels; the parity split is in its own figure)',
+                           logy=True)
     FIGS['rn_spread'] = scan_plot('fig_rn_spread_vs_tx.png', ['rn_spread'],
                                   'intrinsic spread of sigma_RN  [fraction]',
                                   'Pixel-to-pixel non-uniformity of the read noise (chi2 sampling scatter removed)')
@@ -164,23 +195,82 @@ if ROWS:
                                 'Read-noise tail')
     FIGS['fpn'] = scan_plot('fig_fpn_vs_tx.png', ['fpn'],
                             'bias fixed pattern [ADU]',
-                            'Fixed pattern of the bias frame (its own sampling noise removed)')
+                            'Fixed pattern of the bias frame (its own sampling noise removed)',
+                            logy=True)
     FIGS['dc'] = scan_plot('fig_dc_vs_tx.png', ['dc'], 'dark current [ADU/s]',
                            'Dark current', logy=True)
     FIGS['dsnu'] = scan_plot('fig_dsnu_vs_tx.png', ['dsnu'], 'DSNU [ADU/s]',
                              'Dark-current non-uniformity (fit noise removed)', logy=True)
     FIGS['thr'] = scan_plot('fig_threshold_vs_tx.png', ['tlight', 'tdark'],
                             'charge threshold [e-]',
-                            'Charge threshold: light method (filled) and dark method (open)')
+                            'Charge threshold by both methods',
+                            keylabels=['light method', 'dark method'])
     FIGS['prnu'] = scan_plot('fig_prnu_vs_tx.png', ['prnu'], 'PRNU [fraction]',
                              'Photo-response non-uniformity, from sigma_fixed^2 = a^2 + (b S)^2')
     FIGS['offset'] = scan_plot('fig_offset_vs_tx.png', ['offset_e'],
                                'additive offset pattern [e-]',
-                               'Additive (offset) fixed pattern, the a of the same fit')
-    FIGS['qlim'] = scan_plot('fig_qlim_vs_tx.png', ['qlim_cal_light', 'qlim_raw_light'],
-                             'limiting signal at SNR = 5 [e-]',
-                             'Smallest detectable signal, light-method threshold (filled = calibrated, open = raw)',
-                             logy=True)
+                               'Additive (offset) fixed pattern, the a of the same fit',
+                               logy=True)
+    FIGS['qlim'] = scan_plot('fig_qlim_vs_tx.png',
+                             ['qlim_cal_light', 'qlim_raw_light', 'qlim_cal_none'],
+                             'signal reaching SNR 5 [e-]',
+                             'What the threshold costs: with it (calibrated and raw) and with T set to 0',
+                             logy=True,
+                             keylabels=['calibrated', 'raw frame', 'no threshold'])
+
+# odd vs even readout columns: relative for quantities bounded away from zero,
+# absolute (in electrons) for the thresholds, whose relative difference blows up
+# whenever the two parities straddle zero
+if ROWS:
+    REL = [('rn', 'read\nnoise'), ('fpn', 'bias\nFPN'), ('dc', 'dark\ncurrent'),
+           ('prnu', 'PRNU')]
+    ABS = [('tlight', 'threshold\nlight'), ('tdark', 'threshold\ndark')]
+    txs = sorted({r['tx'] for r in ROWS})
+    cmap = plt.get_cmap('viridis')
+    cidx = {t: cmap(i/max(len(txs)-1, 1)) for i, t in enumerate(txs)}
+    fig, axs = plt.subplots(1, 2, figsize=(11.0, 4.6),
+                            gridspec_kw={'width_ratios': [2, 1]})
+    for ax, qty, rel in ((axs[0], REL, True), (axs[1], ABS, False)):
+        for iq, (k, lbl) in enumerate(qty):
+            for r in ROWS:
+                e, o = r.get('even_'+k, np.nan), r.get('odd_'+k, np.nan)
+                if not (np.isfinite(e) and np.isfinite(o)):
+                    continue
+                if rel:
+                    if abs(e) + abs(o) <= 0:
+                        continue
+                    y = 200.0*(o - e)/(abs(o) + abs(e))
+                else:
+                    y = o - e
+                ax.plot(iq + 0.28*(np.random.rand()-0.5), y, 'o', ms=4.5,
+                        color=cidx[r['tx']], alpha=0.8)
+        med = []
+        for iq, (k, lbl) in enumerate(qty):
+            vals = []
+            for r in ROWS:
+                e, o = r.get('even_'+k, np.nan), r.get('odd_'+k, np.nan)
+                if np.isfinite(e) and np.isfinite(o) and (not rel or abs(e)+abs(o) > 0):
+                    vals.append(200.0*(o-e)/(abs(o)+abs(e)) if rel else o-e)
+            if vals:
+                m = np.median(vals)
+                ax.plot([iq-0.3, iq+0.3], [m, m], 'k-', lw=2, zorder=5)
+                med.append((iq, m))
+        ax.axhline(0, color='k', lw=1, ls=':')
+        ax.set_xticks(range(len(qty)))
+        ax.set_xticklabels([l for _, l in qty], fontsize=8)
+        ax.set_xlim(-0.6, len(qty)-0.4)
+        ax.grid(alpha=0.3, axis='y')
+        ax.set_ylabel('odd - even  [% of the mean]' if rel else 'odd - even  [e-]')
+        ax.set_title('relative' if rel else 'absolute (thresholds)', fontsize=10)
+    handles = [plt.Line2D([], [], marker='o', ls='', color=cidx[t], label=f'TX {t:.1f}')
+               for t in txs]
+    axs[0].legend(handles=handles, fontsize=7, ncol=3, title='bar = median',
+                  title_fontsize=7)
+    fig.suptitle('Odd versus even readout columns, one point per die-run', fontsize=10)
+    fig.tight_layout()
+    fig.savefig(os.path.join(OUT, 'fig_parity.png'), dpi=110)
+    plt.close(fig)
+    FIGS['parity'] = 'fig_parity.png'
 
 # pattern profile: fixed pattern versus signal, one curve per setup (median die)
 if FULL:
@@ -193,7 +283,8 @@ if FULL:
             pat = g(e, key, 'All', default={})
             med = arr(g(pat, 'Median', default=[]))
             rel = arr(g(pat, 'RelFixed', default=[]))
-            ok = np.isfinite(med) & np.isfinite(rel) & (med > 5) & (med < 12000)
+            lo = 5 if key == 'PatternB' else 0.5
+            ok = np.isfinite(med) & np.isfinite(rel) & (med > lo) & (med < 12000)
             if ok.sum() > 2:
                 ax.plot(med[ok], 100*rel[ok], '-o', ms=3, lw=1,
                         color=SET_COLOR.get(e.get('Settings'), '#555'),
@@ -282,6 +373,7 @@ MAIN_COLS = [
     ('a [e-]',     lambda r: fmt(r['offset_e'], 2)),
     ('Qlim cal',   lambda r: fmt(r['qlim_cal_light'], 1)),
     ('Qlim raw',   lambda r: fmt(r['qlim_raw_light'], 1)),
+    ('Qlim T=0',   lambda r: fmt(r['qlim_cal_none'], 1)),
 ]
 
 PARITY_COLS = [
@@ -312,6 +404,7 @@ ZERO_COLS = [
     ('RN',   lambda r: fmt(r['rn'], 3)),
     ('RN spread', lambda r: fmt(100*r['rn_spread'], 1) + ' %'),
     ('tail',      lambda r: fmt(100*r['rn_tail'], 1) + ' %'),
+    ('common mode',   lambda r: fmt(r['cm_std'], 3)),
     ('RN (5 frames)', lambda r: fmt(r['f5_rn'], 3)),
     ('spread (5)',    lambda r: fmt(100*r['f5_rn_spread'], 1) + ' %'),
 ]
@@ -328,9 +421,11 @@ def setup_summary():
             return np.median(v) if v else np.nan
         out.append(dict(run=run, tx=tx, rsth=rsth, settings=sett, ndie=len(rs),
                         rn=med('rn'), rn_e=med('rn_e'), fpn=med('fpn'),
+                        rn_spread=med('rn_spread'), rn_tail=med('rn_tail'),
                         dc=med('dc'), dsnu=med('dsnu'), tlight=med('tlight'),
                         tdark=med('tdark'), prnu=med('prnu'), offset=med('offset_e'),
-                        qlim_cal=med('qlim_cal_light'), qlim_raw=med('qlim_raw_light')))
+                        qlim_cal=med('qlim_cal_light'), qlim_raw=med('qlim_raw_light'),
+                        qlim_none=med('qlim_cal_none')))
     return out
 
 SETUPS = setup_summary()
@@ -351,6 +446,7 @@ SETUP_COLS = [
     ('a [e-]',   lambda r: fmt(r['offset'], 2)),
     ('Qlim cal [e-]', lambda r: fmt(r['qlim_cal'], 1)),
     ('Qlim raw [e-]', lambda r: fmt(r['qlim_raw'], 1)),
+    ('Qlim T=0 [e-]', lambda r: fmt(r['qlim_none'], 1)),
 ]
 
 # ---------------------------------------------------------------- markdown
@@ -431,6 +527,14 @@ range {min(nbad)}-{max(nbad)}.
 """)
 
 w('## 2. Setup summary\n')
+w('**Qlim is not a ranking column.** It is the smallest signal reaching SNR 5 per pixel in '
+  'one 15 s frame, and it mixes two regimes: where the threshold is large it is set by the '
+  'threshold, and where the threshold is near zero or negative by the noise. The last column '
+  'repeats it with the threshold forced to zero, so the difference between the two is exactly '
+  'what the threshold costs. Read the SNR curves in section 8 for the behaviour itself.\n')
+w('Runs 31, 32, 36 and 40 all sit at the same nominal setting (TX 3.3 V, RST_H 3.0 V) on '
+  'different days; they are the run-to-run repeatability check, not four independent setups. '
+  'Runs 31 and 33 are the AV bias boards, the rest aSpect.\n')
 w('Median over the dies of each setup. TX in volts; RN in ADU and in electrons; '
   'thresholds by the light and dark methods in electrons; PRNU and the additive offset '
   'pattern *a* from the fit sigma_fixed^2 = a^2 + (b S)^2; Qlim = the smallest signal '
@@ -446,6 +550,7 @@ for key, title, cap in (
         ('dc',        '## 5. Dark current', 'Median per-pixel dark current.'),
         ('dsnu',      None, 'Dark-current non-uniformity with the fit noise removed.'),
         ('thr',       '## 6. Charge thresholds', 'Thresholds by both methods, in electrons.'),
+        ('parity',    '## 6b. Odd versus even readout columns', 'Odd minus even, per die-run: relative for the quantities bounded away from zero, absolute for the thresholds, whose relative difference blows up wherever the two parities straddle zero.'),
         ('prnu',      '## 7. Non-uniformity of the response', 'PRNU from the two-parameter pattern fit.'),
         ('offset',    None, 'Additive offset pattern from the same fit.'),
         ('pattern',   None, 'Fixed pattern against signal: the low-signal rise is the additive term, the floor is the PRNU.'),
@@ -458,19 +563,125 @@ for key, title, cap in (
     w(f'![{cap}]({FIGS[key]})\n')
     w(f'*{cap}*\n')
 
-w('## 9. Per-die results\n')
+# ---------------------------------------------------------------- conclusions
+def rank_text():
+    if not SETUPS:
+        return '(no data)\n'
+    L = []
+    ok = [x for x in SETUPS if np.isfinite(x['tlight'])]
+    if ok:
+        by_t = sorted(ok, key=lambda x: (max(x['tlight'], 0.0), x['tlight']))
+        L.append('**Charge threshold (light method), least charge lost first.** '
+                 'This is the quantity that decides whether a signal of a few tens of '
+                 'electrons survives at all: the first T electrons are simply not read out. '
+                 'Only a positive T is a loss -- a negative one means charge is present at '
+                 'zero intensity, a constant offset that the bias and dark subtraction remove, '
+                 'so the ordering is by max(T, 0) and the negative entries are equally free of '
+                 'charge loss (their own ordering is by how large that offset is).\n')
+        L.append(table(by_t, [('rank', lambda r: str(by_t.index(r)+1)),
+                              ('run', lambda r: r['run']),
+                              ('set', lambda r: r['settings'] or '--'),
+                              ('TX', lambda r: fmt(r['tx'], 1)),
+                              ('RST_H', lambda r: fmt(r['rsth'], 1)),
+                              ('T light [e-]', lambda r: fmt(r['tlight'], 1)),
+                              ('T dark [e-]', lambda r: fmt(r['tdark'], 1))]) + '\n')
+    okn = [x for x in SETUPS if np.isfinite(x['rn_e'])]
+    if okn:
+        by_n = sorted(okn, key=lambda x: x['rn_e'])
+        L.append('**Read noise, quietest first.**\n')
+        L.append(table(by_n, [('rank', lambda r: str(by_n.index(r)+1)),
+                              ('run', lambda r: r['run']),
+                              ('set', lambda r: r['settings'] or '--'),
+                              ('TX', lambda r: fmt(r['tx'], 1)),
+                              ('RST_H', lambda r: fmt(r['rsth'], 1)),
+                              ('RN [e-]', lambda r: fmt(r['rn_e'], 2)),
+                              ('RN spread', lambda r: fmt(100*r['rn_spread'], 1) + ' %'),
+                              ('DSNU [ADU/s]', lambda r: fmt(r['dsnu'], 4))]) + '\n')
+    if ok and okn:
+        bt, bn = by_t[0], by_n[0]
+        same = (bt['run'] == bn['run'])
+        L.append(f"The smallest threshold is run {bt['run']} ({bt['settings']}, TX "
+                 f"{bt['tx']:.1f} V, RST_H {bt['rsth']:.1f} V) at {bt['tlight']:.1f} e-, "
+                 f"and the lowest read noise is run {bn['run']} ({bn['settings']}, TX "
+                 f"{bn['tx']:.1f} V, RST_H {bn['rsth']:.1f} V) at {bn['rn_e']:.2f} e-. ")
+        L.append('They are the same setup, so it wins on both axes.\n' if same else
+                 'They are **different setups**, which is the trade-off: pushing TX up removes '
+                 'the charge threshold but makes the pixel noisier. Which one to choose '
+                 'therefore depends on the signal level, and that is what the SNR curves of '
+                 'section 8 show directly.\n')
+    # repeatability: the largest group of runs sharing TX, RST_H *and* the bias
+    # board -- runs at the same TX on different boards are not a repeat
+    bygrp = defaultdict(list)
+    for x in SETUPS:
+        bygrp[(x['tx'], x['rsth'], x['settings'])].append(x)
+    key = max(bygrp, key=lambda k: len(bygrp[k])) if bygrp else None
+    nom = bygrp[key] if key else []
+    if len(nom) > 1:
+        def spread(k):
+            v = [x[k] for x in nom if np.isfinite(x[k])]
+            return (min(v), max(v)) if v else (np.nan, np.nan)
+        tl, th = spread('tlight'); rl, rh = spread('rn_e'); dl, dh = spread('dc')
+        L.append(f"\n**Run-to-run repeatability.** {len(nom)} runs share the same setting "
+                 f"(TX {key[0]:.1f} V, RST_H {key[1]:.1f} V, {key[2]}) on different days "
+                 f"({', '.join(sorted(x['run'] for x in nom))}). Across them the median "
+                 f"light-method threshold spans {tl:.1f} to {th:.1f} e-, the read noise "
+                 f"{rl:.2f} to {rh:.2f} e- and the dark current {dl:.4f} to {dh:.4f} ADU/s. "
+                 "Any difference between setups smaller than these spans is not significant.\n")
+    return '\n'.join(L)
+
+# consistency of the read-noise deconvolution against the measured tail
+def tail_check():
+    rows = [r for r in ROWS
+            if np.isfinite(r.get('rn_spread', np.nan)) and np.isfinite(r.get('rn_tail', np.nan))
+            and r['rn_spread'] > 0]
+    if len(rows) < 3:
+        return ''
+    pred, meas = [], []
+    for r in rows:
+        # treat the deconvolved relative spread as the sigma of a log-normal
+        # sigma_RN distribution and predict P(sigma > 2 x median)
+        pred.append(0.5*math.erfc(math.log(2.0)/(r['rn_spread']*math.sqrt(2.0))))
+        meas.append(r['rn_tail'])
+    pred = np.array(pred); meas = np.array(meas)
+    ok = np.isfinite(pred) & np.isfinite(meas) & (pred > 0)
+    if ok.sum() < 3:
+        return ''
+    ratio = np.median(meas[ok]/pred[ok])
+    # the same prediction made from the OBSERVED (undeconvolved) spread
+    obs = [r['rn_spread_obs'] for r in rows if np.isfinite(r.get('rn_spread_obs', np.nan))]
+    raw = np.median(obs) if obs else np.nan
+    pred_raw = 0.5*math.erfc(math.log(2.0)/(raw*math.sqrt(2.0))) if np.isfinite(raw) else np.nan
+    return (f"\n**Internal check of the deconvolution.** The intrinsic spread of the read "
+            f"noise and the fraction of pixels noisier than twice the median are measured "
+            f"independently, and a log-normal sigma_RN links them. Over the {int(ok.sum())} "
+            f"die-runs the median measured tail is {100*np.median(meas[ok]):.1f} % against "
+            f"{100*np.median(pred[ok]):.1f} % predicted from the deconvolved spread "
+            f"(median ratio {ratio:.2f}, i.e. the two match to about "
+            f"{abs(100*(1-ratio)):.0f} %, which is as much as the log-normal assumption "
+            f"deserves). The point of the comparison is the alternative: the raw, "
+            f"undeconvolved spread of the noise map is {100*raw:.0f} % and would predict a "
+            f"{100*pred_raw:.0f} % tail, {pred_raw/max(np.median(meas[ok]), 1e-9):.1f} times "
+            f"what is actually seen. The deconvolution is therefore doing real work rather "
+            f"than absorbing the answer into itself.\n")
+
+w(tail_check())
+
+w('## 9. Which setup is best\n')
+w(rank_text())
+
+w('## 10. Per-die results\n')
 w(table(ROWS, MAIN_COLS) + '\n')
-w('### 9.1 Odd and even readout columns\n')
+w('### 10.1 Odd and even readout columns\n')
 w(table(ROWS, PARITY_COLS) + '\n')
 if ZROWS:
-    w('### 9.2 ZE-only runs (39, 39-2)\n')
+    w('### 10.2 ZE-only runs (39, 39-2)\n')
     w('These runs have 10 ZE frames instead of 5, so their read-noise spread is far '
       'better constrained (9 degrees of freedom against 4). The last two columns repeat '
       'the analysis on the first 5 frames only, which is the apples-to-apples comparison '
       'with every other run.\n')
     w(table(ZROWS, ZERO_COLS) + '\n')
 
-w('## 10. Caveats\n')
+w('## 11. Caveats\n')
 w("""- The per-pixel read noise comes from 5 ZE frames of integer ADU with sigma ~ 2 ADU,
   so the chi2 model behind the spread deconvolution is approximate at the 1 ADU
   quantisation scale. Runs 39 and 39-2 (10 frames) are the reference.

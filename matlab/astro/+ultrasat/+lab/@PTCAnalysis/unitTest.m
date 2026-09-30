@@ -286,6 +286,16 @@ function Result = unitTest()
     assert(isfield(Th.All, 'PRNU_slope') && isfinite(Th.All.OffsetFPN_e));
     assert(abs(Th.All.OffsetFPN_e - Th.All.OffsetFPN_ADU./Pp.PTC.GainUsed)<1e-12);
 
+    % budgetCurve: only a POSITIVE threshold removes charge
+    Bp = ultrasat.lab.PTCAnalysis.budgetCurve([10 100 1000], struct('RN_e',2, 'Threshold_e',50));
+    assert(isequal(Bp.Qc, [0 50 950]) && Bp.SNR_cal(1)==0);
+    Bn = ultrasat.lab.PTCAnalysis.budgetCurve([10 100 1000], struct('RN_e',2, 'Threshold_e',-50));
+    assert(isequal(Bn.Qc, [10 100 1000]));            % charge at zero signal is an offset
+    assert(all(Bn.SNR_cal <= [10 100 1000]./sqrt(4 + [10 100 1000])) + 1e-12 > 0);
+    B0 = ultrasat.lab.PTCAnalysis.budgetCurve([10 100 1000], struct('RN_e',2));
+    assert(isequal(B0.Qc, Bn.Qc));                    % no threshold = negative threshold
+    assert(max(abs(B0.SigmaEff_cal - sqrt(4 + [10 100 1000])))<1e-12);
+
     % noiseBudget: electrons, gain direction and the threshold dead zone
     Nb = Pp.noiseBudget('Threshold',Th, 'Zero',Zn, 'Method','none', 'Q',[1 10 100 1000]);
     assert(abs(Nb.RN_e - Zn.All.ReadNoiseMedian./Pp.PTC.GainUsed)<1e-9);

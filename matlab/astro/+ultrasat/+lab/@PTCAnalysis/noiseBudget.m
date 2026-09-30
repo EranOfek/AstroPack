@@ -2,8 +2,8 @@ function S = noiseBudget(Obj, Args)
     % Noise budget and signal-to-noise curve of one setup, per pixel, in
     % electrons -- the quantity that decides whether signals of several tens
     % of ADU can be measured.
-    %   For an incident charge Q the pixel collects Qc = max(Q-T, 0), the
-    %   first T electrons being lost to the threshold, and
+    %   For an incident charge Q the pixel collects Qc = Q - max(T, 0), the
+    %   first T electrons being lost to the threshold when there is one, and
     %     sigma_eff^2(Q) = RN^2 + Qc + DC*t
     %                      + [(1-f)*sigma_T]^2        offset fixed pattern
     %                      + [(1-f)*sigma_DC*t]^2     DSNU
@@ -26,7 +26,9 @@ function S = noiseBudget(Obj, Args)
     %            'Mask'      - pixels to use ([] = all).
     %            'Parity'    - 'All' (default) | 'Even' | 'Odd'.
     %            'Method'    - threshold method for T: 'light' (default) or
-    %                          'dark'; 'none' sets T = 0.
+    %                          'dark'; 'none' sets T = 0 while keeping the
+    %                          fixed patterns, which isolates what the
+    %                          threshold alone costs (compare Qlim).
     %            'Q'         - charge grid [e-] (default logspace(0,3,181)).
     %            'ExpTime'   - [s] integration time (default ExpSen).
     %            'SNR'       - detection SNR for the limiting signal (5).
@@ -96,9 +98,7 @@ function S = noiseBudget(Obj, Args)
             otherwise,    Se = 0;
         end
     end
-    if strcmpi(Args.Method, 'none')
-        Se = 0;
-    end
+
     RNe  = Zq.ReadNoiseMedian./G;
     DCe  = Tq.MedianDCE;
     SDCe = Tq.StdDCIntrE;
@@ -107,32 +107,11 @@ function S = noiseBudget(Obj, Args)
     if ~isfinite(Se),   Se = 0;   end
     if ~isfinite(SDCe), SDCe = 0; end
 
-    Qc = max(Q - Te, 0);                              % charge actually collected
-    S  = struct('Q',Q, 'Qc',Qc, 'Parity',Args.Parity, 'Method',Args.Method, ...
-                'Gain',G, 'ExpTime',Tt, 'SNRdet',Args.SNR);
-    S.RN_e = RNe;  S.DC_e = DCe;  S.SigmaT_e = Se;  S.SigmaDC_e = SDCe;
-    S.PRNU = PRNU; S.Threshold_e = Te;
-    S.Terms = struct('RN',RNe.^2 + 0.*Q, 'Shot',Qc, 'DarkShot',DCe.*Tt + 0.*Q, ...
-                     'OffsetFPN',Se.^2 + 0.*Q, 'DSNU',(SDCe.*Tt).^2 + 0.*Q, 'PRNU',(PRNU.*Qc).^2);
-    Base = S.Terms.RN + S.Terms.Shot + S.Terms.DarkShot;
-    S.SigmaEff_cal = sqrt(Base);
-    S.SigmaEff_raw = sqrt(Base + S.Terms.OffsetFPN + S.Terms.DSNU + S.Terms.PRNU);
-    S.SNR_cal = Qc./S.SigmaEff_cal;
-    S.SNR_raw = Qc./S.SigmaEff_raw;
-    S.Qlim_cal = local_lim(S.SNR_cal);
-    S.Qlim_raw = local_lim(S.SNR_raw);
-
-    function Ql = local_lim(Snr)
-        % lowest Q at which SNR crosses the detection level (log interpolation)
-        Ql = NaN;
-        Ix = find(Snr>=Args.SNR, 1, 'first');
-        if isempty(Ix)
-            return
-        end
-        if Ix==1
-            Ql = Q(1);
-        else
-            Ql = exp(interp1(Snr([Ix-1 Ix]), log(Q([Ix-1 Ix])), Args.SNR, 'linear'));
-        end
-    end
+    B = ultrasat.lab.PTCAnalysis.budgetCurve(Q, ...
+            struct('RN_e',RNe, 'DC_e',DCe, 'SigmaT_e',Se, 'SigmaDC_e',SDCe, ...
+                   'PRNU',PRNU, 'Threshold_e',Te, 'ExpTime',Tt, 'SNRdet',Args.SNR));
+    S = B;
+    S.Parity = Args.Parity;
+    S.Method = Args.Method;
+    S.Gain   = G;
 end

@@ -765,6 +765,7 @@ classdef PTCAnalysis < Component
 
         S = varSpread(V, Dof)             % intrinsic spread of a per-pixel variance (chi2 deconvolution)
         S = paramSpread(P, VarFit, Args)  % intrinsic spread of a fitted parameter (fit noise removed)
+        S = budgetCurve(Q, In)            % sigma_eff / SNR curves from plain scalars
         Result = unitTest()   % implemented in @PTCAnalysis/unitTest.m
     end
 

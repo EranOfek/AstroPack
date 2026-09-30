@@ -11,7 +11,14 @@
 %   removal of the fit noise from every pixel-to-pixel spread.
 %   Run 35 is skipped (its TX / RST_H settings are not recorded).
 %   Output: desy_perpixel/perpixel.json (scalars + curves, no pixel maps).
-Root   = '/bigdata3/projects/ultrasat/DESY';
+% Data root: /bigdata3/projects is an NFS mount from euclid and /Data1/DESY a
+% local mirror of the same share. The reduction is read-bound (a region read
+% costs 0.55 s over NFS against 0.06 s locally, so a whole ladder takes ~450 s
+% against ~90 s), hence the local mirror is used whenever it is present.
+Root = '/Data1/DESY';
+if ~isfolder(Root)
+    Root = '/bigdata3/projects/ultrasat/DESY';
+end
 OutDir = '/home/sasha/claude/desy_perpixel';
 if ~isfolder(OutDir), mkdir(OutDir); end
 LinLimit = 2900;                 % [ADU] measured INL still <0.5% below this
@@ -61,7 +68,7 @@ for Ir = 1:1:size(Runs,1)
             Th = P.perPixelThreshold('DarkFit',FD, 'BrightFit',FB, 'Pattern',S.PatternB, 'Mask',B.GoodMask);
             S.Threshold = stripMaps(Th);
             for Pn = {'All','Even','Odd'}
-                for Mt = {'light','dark'}
+                for Mt = {'light','dark','none'}
                     N = P.noiseBudget('Threshold',Th, 'Zero',Zn, 'Parity',Pn{1}, ...
                                       'Method',Mt{1}, 'Q',Qgrid);
                     S.Budget.(Pn{1}).(Mt{1}) = N;
