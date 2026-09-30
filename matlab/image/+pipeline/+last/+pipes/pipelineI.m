@@ -85,6 +85,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.MaskHole                      = true;
         Args.maskHolesArgs                 = {};
         Args.astrometryVisitSubImageArgs   = {};
+        Args.RefCatName char               = 'GAIADR3'; % catsHTM Gaia catalog of the visit: astrometry and BP_RP colour; pipelineII reads it back from AST_CAT. A 'CatName' in astrometryVisitSubImageArgs/AddColorArgs must match it (issue #1348)
         Args.MinFracIsolated               = 0.5;   % minimum fraction of isolated reference sources - see imProc.cat.getAstrometricCatalog
         Args.AddColor logical              = true;  % attach the Gaia colour BP_RP to the epoch and coadd catalogs (issue #1289), for the colour-dependent photometric calibration of issues #1287/#1270
         Args.AddColorArgs                  = {};    % extra args for imProc.cat.addColor
@@ -247,11 +248,27 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         end
     end
 
+    % One Gaia catalog for the whole visit (issue #1348): a 'CatName' in the
+    % sub-function args may only repeat Args.RefCatName.
+    SubArgs     = {Args.astrometryVisitSubImageArgs, Args.AddColorArgs};
+    SubArgsName = {'astrometryVisitSubImageArgs', 'AddColorArgs'};
+    for Iargs=1:1:numel(SubArgs)
+        IndCatName = find(strcmpi(SubArgs{Iargs}(1:2:end), 'CatName'));
+        for Ind=IndCatName(:).'
+            SubCatName = imProc.cat.catalogNameStr(SubArgs{Iargs}{2*Ind});
+            if ~strcmp(SubCatName, Args.RefCatName)
+                error('pipelineI:RefCatNameConflict', ...
+                      '%s sets CatName=%s but RefCatName=%s - set the Gaia catalog via RefCatName only', ...
+                      SubArgsName{Iargs}, SubCatName, Args.RefCatName);
+            end
+        end
+    end
+
     % Coadd catalogs get their colour inside astrometryRefine, which offers it
     % the astrometric reference. That reference is magnitude limited, so for a
     % complete colour column the reference is overridden with [] - the args
     % below are splatted after it and the last name-value pair wins.
-    AddColorArgsCoadd = Args.AddColorArgs(:).';
+    AddColorArgsCoadd = [{'CatName', Args.RefCatName}, Args.AddColorArgs(:).'];
     if Args.AddColor && Args.AddColorComplete
         AddColorArgsCoadd = [{'RefCat', []}, AddColorArgsCoadd];
     end
@@ -432,7 +449,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
             % solve astrometry of all images
             %ProcessingStep = 301;
-            [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, 'MatchMethod',Args.MatchMethod, 'JD',JD, 'MinFracIsolated',Args.MinFracIsolated, Args.astrometryVisitSubImageArgs{:}); % 22s
+            [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, 'MatchMethod',Args.MatchMethod, 'JD',JD, 'MinFracIsolated',Args.MinFracIsolated, 'CatName',Args.RefCatName, Args.astrometryVisitSubImageArgs{:}); % 22s
         
             % add coordinates to catalogs
             %ProcessingStep = 401;
@@ -455,7 +472,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                     else
                         RefCatSub = [];   % addColor queries catsHTM itself
                     end
-                    AllSI(:,Isub) = imProc.cat.addColor(AllSI(:,Isub), 'RefCat',RefCatSub, ...
+                    AllSI(:,Isub) = imProc.cat.addColor(AllSI(:,Isub), 'RefCat',RefCatSub, 'CatName',Args.RefCatName, ...
                                                         'SharedRefCat',true, Args.AddColorArgs{:});
                 end
             end
@@ -603,7 +620,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                         RefCatFP = [];
                                     end
                                     AllSI(IsGoodEpoch,Ind(IsubGood)) = imProc.cat.addColor(AllSI(IsGoodEpoch,Ind(IsubGood)), ...
-                                                                            'RefCat',RefCatFP, 'SharedRefCat',true, Args.AddColorArgs{:});
+                                                                            'RefCat',RefCatFP, 'CatName',Args.RefCatName, 'SharedRefCat',true, Args.AddColorArgs{:});
                                 end
                             end
                         end

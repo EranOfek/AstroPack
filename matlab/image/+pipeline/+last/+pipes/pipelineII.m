@@ -41,6 +41,12 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                        removed before multi-epoch matching.
                        Default is {'BadPixelHard', 'StarMatch', 'LIMMAG', 
                        'MPMatch', 'Negative'}.
+                'RefCatName' - catsHTM Gaia catalog for all Gaia queries
+                       (photometric ZP, smear template, star match), used
+                       only when the New images carry no usable AST_CAT
+                       keyword; otherwise the catalog named there (the one
+                       pipelineI's astrometry used) is taken. Default is
+                       'GAIADR3'.
     Output  : - Result message
               - AstroDiff objects holding all products and results derived 
                 by the algorithm.
@@ -69,6 +75,9 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         Args.AsteroidLimMag = 21.5;
         Args.CometSearchRad = 90;
         Args.GeoPos = [35.05 30.04 415];
+
+        % Fallback Gaia catalog of the visit; AST_CAT wins (issue #1348)
+        Args.RefCatName = 'GAIADR3';
 
         Args.CropIDs = [];
 
@@ -180,6 +189,28 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Only use non-empty images.
     New = New(NonEmptyNew);
     Nobj = numel(New);
+
+    % Gaia catalog of the visit: the one the astrometry of the New images
+    % used, as recorded in AST_CAT, so that pipelineI's RefCatName governs
+    % every Gaia query below (issue #1348). Args.RefCatName if no header
+    % names one.
+    AstCat = strings(1, Nobj);
+    for Iobj=1:1:Nobj
+        Val = New(Iobj).HeaderData.getVal('AST_CAT');
+        if ischar(Val) || isstring(Val)
+            AstCat(Iobj) = strtrim(string(Val));
+        end
+    end
+    AstCat = unique(AstCat(AstCat~="" & AstCat~="USER"));
+    if isempty(AstCat)
+        GaiaCatName = Args.RefCatName;
+    elseif isscalar(AstCat)
+        GaiaCatName = char(AstCat);
+    else
+        error('pipelineII:MixedRefCat', ...
+              'The New images name %d astrometric catalogs in AST_CAT (%s) - one Gaia catalog per visit is expected', ...
+              numel(AstCat), strjoin(AstCat, ', '));
+    end
    
     % 4: ----- Load and verify Ref images -----
     
@@ -358,7 +389,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                 % from the populatePSF/buildPSF uniPSF defaults.
             AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref, 'PsfPhotMethod',Args.PsfPhotMethod, ...
                                                                     'ShiftMethod',Args.ShiftMethod);
-            AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF');
+            AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName);
         end
     end
 
@@ -373,7 +404,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                                                                              % flow is validated on uniPSF defaults
             AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New, 'PsfPhotMethod',Args.PsfPhotMethod, ...
                                                                     'ShiftMethod',Args.ShiftMethod);
-            AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF');
+            AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName);
         end
     end    
 
@@ -437,7 +468,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Derive Gabor stat image
     AD.matchfilterGabor;
     % Derive S stat image
-    AD.subtractionS;
+    AD.subtractionS('smearTemplateArgs', {'StarCatName',GaiaCatName});
     % Derive Scorr stat image
     AD.subtractionScorr;
     % Derive Z2 stat image
@@ -498,7 +529,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Use the visit center coordinates and the distance to the furthest
     % sub-image to cone search the GAIA catalog and keep only the matched
     % sources
-    StarCat = catsHTM.cone_search('GAIADR3', C_RA_med, C_Dec_med, ...
+    StarCat = catsHTM.cone_search(GaiaCatName, C_RA_med, C_Dec_med, ...
         MaxDistRad, 'RadiusUnits', 'rad', 'OutType','AstroCatalog');
     StarCat.sortrows('Dec');
 
