@@ -553,7 +553,7 @@ function [Status] = sendTransientsAlert(ADc, Args)
             CMD0 = strcat('last-transient-slack-alert --message-file',{' '},Text_DirFilename,' --image-file',{' '},Image_DirFilename, ' --json-file',{' '},Json_DirFilename);
             [CMD0Status, CMD0Out] = system(CMD0{1});
             if CMD0Status > 0
-                Status = sprint('Alerting via last-tools failed: %s', CMD0Out);
+                Status = sprintf('Alerting via last-tools failed: %s', CMD0Out);
                 return
             end
 
