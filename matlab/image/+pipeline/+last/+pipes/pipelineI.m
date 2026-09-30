@@ -90,6 +90,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
         Args.MaskHole                      = true;
         Args.maskHolesArgs                 = {};
         Args.astrometryVisitSubImageArgs   = {};
+        Args.AstRetryFieldID logical       = true;  % if no sub image is solved, retry the astrometry once at the FIELDID grid pointing (issue #1350)
+        Args.AstRetryMinDist               = 0.3;   % [deg] retry only if the header mount pointing is farther than this from the FIELDID grid centre
+        Args.FieldGridN                    = [88 30];  % celestial.grid.tile_the_sky of the LAST fields (row = FIELDID)
+        Args.KeyFieldID                    = 'OBJECT';  % header keyword holding the FIELDID, possibly with a '.' extension
         Args.RefCatName char               = 'GAIADR3'; % catsHTM Gaia catalog of the visit: astrometry and BP_RP colour; pipelineII reads it back from AST_CAT. A 'CatName' in astrometryVisitSubImageArgs/AddColorArgs must match it (issue #1348)
         Args.GaiaConeRadiusFactor          = 1.35;  % the astrometric Gaia cones are searched this much wider and kept (GaiaCone output) for the other Gaia consumers of the visit - colour here, and pipelineII (issue #1348); 1.35 so the cone also covers pipelineII's smear star cut (1.2 x the crop half-diagonal)
         Args.GaiaConeCols                  = {'RA','Dec','Epoch','Plx','ErrPlx','PMRA','ErrPMRA','PMDec','ErrPMDec', ...
@@ -205,6 +209,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
     Status.NgoodEpoch   = 0;  % per sub image group: number of good epochs (#1318)
     Status.Nepoch       = 0;  % number of epochs in the visit (#1318)
     Status.NoRelZP      = false;  % per sub image group: relative photometric ZP could not be fitted (#1339)
+    Status.NnoWCS       = 0;  % per sub image group: epochs whose astrometry failed, no-PSF/failed-background ones excluded (#1350)
+    Status.AstRetry     = [];  % astrometry retry at the FIELDID grid pointing, if made (#1350)
     %ProcessingStep = 11;
 
     if isempty(RawImageList)
@@ -465,6 +471,33 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             [ResFit, AllSI, CatName, GaiaCone] = imProc.astrometry.astrometryVisitSubImage(AllSI, 'MatchMethod',Args.MatchMethod, 'JD',JD, 'MinFracIsolated',Args.MinFracIsolated, 'CatName',Args.RefCatName, ...
                                                                                           'RawConeArgs',RawConeArgs, Args.astrometryVisitSubImageArgs{:}); % 22s
         
+            % Retry at the FIELDID grid pointing (issue #1350). The header
+            % pointing is at times frozen at an earlier field while the
+            % telescope moves on, and then no sub image is solved. Done here,
+            % before CatName/GaiaCone are used, as the retry replaces them.
+            % A failed retry is not worth the visit, hence the catch: the
+            % sub images are then saved without WCS, as without the retry.
+            UserCoo = any(strcmpi(Args.astrometryVisitSubImageArgs(1:2:end), 'RA'));
+            if Args.AstRetryFieldID && ~UserCoo && ~any(imProc.astrometry.isSuccessWCS(AllSI(1,:)))
+                Retry = fieldGridPointing(AllSI(1,1).HeaderData, Args);
+                if ~isempty(Retry)
+                    Retry.Error = '';
+                    try
+                        [ResFit, AllSI, CatName, GaiaCone] = imProc.astrometry.astrometryVisitSubImage(AllSI, 'MatchMethod',Args.MatchMethod, 'JD',JD, 'MinFracIsolated',Args.MinFracIsolated, 'CatName',Args.RefCatName, ...
+                                                                                                      'RawConeArgs',RawConeArgs, 'RA',Retry.RA, 'Dec',Retry.Dec, Args.astrometryVisitSubImageArgs{:});
+                    catch ME
+                        Retry.Error = ME.message;
+                    end
+                    Retry.Nsolved   = sum(imProc.astrometry.isSuccessWCS(AllSI), 'all');
+                    Retry.Nsub      = numel(AllSI);
+                    Status.AstRetry = Retry;
+                    for Iobj=1:1:Nobj
+                        AllSI(Iobj).HeaderData.insertKey({'AST_RTRY', 'FIELDID', 'Astrometry retried at the FIELDID grid pointing (#1350)'; ...
+                                                          'AST_HOFF', Retry.Offset, 'Header to FIELDID-grid camera pointing [deg]'});
+                    end
+                end
+            end
+
             % add coordinates to catalogs
             %ProcessingStep = 401;
             AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true, 'OutUnits','deg');  % 0.8s
@@ -571,6 +604,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             % Failed-background sub images are counted in NfailedBack.
             IsNoPSF = reshape(isemptyPSF([AllSI.PSFData]), size(AllSI)) & ~IsFailedBack;
             Status.NnoPSF     = sum(IsNoPSF, 1);
+            % Sub images whose astrometry failed (issue #1350). The no-PSF and
+            % failed-background ones fail it as a consequence and are counted
+            % above. Recorded in the header by the NO_ASTR bit of PSTATUS.
+            Status.NnoWCS     = sum(~IsGoodWCS & ~IsNoPSF & ~IsFailedBack, 1);
             Status.NgoodEpoch = sum(IsGood, 1);
             Status.Nepoch     = Nepoch;
         
@@ -1130,6 +1167,57 @@ function RefCat = gaiaConeRefCat(GaiaCone, Isub, AI, MakeCopy)
             RefCat = GaiaCone(Isub).Cat;
         end
     end
+end
+
+
+function Retry = fieldGridPointing(Header, Args)
+    % The camera pointing at the FIELDID grid centre, for the astrometry retry (issue #1350)
+    %   The camera offset from the mount is taken from the header itself
+    %   (RA/DEC relative to M_JRA/M_JDEC), which stays consistent when the
+    %   recorded pointing is frozen, and is applied at the grid centre.
+    % Input  : - The AstroHeader of a sub image.
+    %          - pipelineI Args (KeyFieldID, FieldGridN, AstRetryMinDist).
+    % Output : - A structure with FieldID, HeaderRA, HeaderDec, RA, Dec
+    %            (retry camera pointing) [deg], and Offset (header to retry
+    %            camera pointing) [deg]. [] if the FIELDID is not a grid field,
+    %            a pointing keyword is missing, or the header mount pointing
+    %            is within AstRetryMinDist of the grid centre.
+    RAD   = 180./pi;
+    Retry = [];
+
+    FieldID = Header.getValSimple(Args.KeyFieldID);
+    if ~isnumeric(FieldID)
+        FieldID = str2double(extractBefore([char(FieldID) '.'], '.'));  % strip a '.' extension, e.g. '1746.GBMTrigID...'
+    end
+    Grid = celestial.grid.tile_the_sky(Args.FieldGridN(1), Args.FieldGridN(2));  % [rad]
+
+    Coo = cellfun(@(K) toDouble(Header.getValSimple(K)), {'RA','DEC','M_JRA','M_JDEC'})./RAD;
+    if isscalar(FieldID) && FieldID==fix(FieldID) && FieldID>=1 && FieldID<=size(Grid,1) && all(isfinite(Coo))
+        GridRA  = Grid(FieldID,1);
+        GridDec = Grid(FieldID,2);
+        if celestial.coo.sphere_dist(Coo(3), Coo(4), GridRA, GridDec).*RAD > Args.AstRetryMinDist
+            [CamDist, CamPA] = celestial.coo.sphere_dist(Coo(3), Coo(4), Coo(1), Coo(2));
+            [RA, Dec]        = celestial.coo.add_offset(GridRA, GridDec, CamDist, CamPA);
+            Retry.FieldID   = FieldID;
+            Retry.HeaderRA  = Coo(1).*RAD;
+            Retry.HeaderDec = Coo(2).*RAD;
+            Retry.RA        = RA.*RAD;
+            Retry.Dec       = Dec.*RAD;
+            Retry.Offset    = celestial.coo.sphere_dist(Coo(1), Coo(2), RA, Dec).*RAD;
+        end
+    end
+end
+
+
+function Val = toDouble(Val)
+    % A header value as a double scalar (NaN if not numeric)
+    if ~isnumeric(Val)
+        Val = str2double(Val);
+    end
+    if ~isscalar(Val)
+        Val = NaN;
+    end
+    Val = double(Val);
 end
 
 

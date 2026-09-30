@@ -2763,6 +2763,31 @@ classdef PipelineDemon < Component
                     MsgP{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: no PSF built (too few PSF stars) for %d sub image(s) - saved without sources, excluded from the coadd; crop(s): %s (issue #1318)', sum(Status.NnoPSF), CropList);
                     Obj.writeLog(MsgP, LogLevel.Warning);
                 end
+
+                % Astrometry retried at the FIELDID grid pointing, and sub
+                % images whose astrometry failed (issue #1350). The latter are
+                % saved without a WCS (PSTATUS NO_ASTR). If none was solved,
+                % the header pointing is given: that usually means a pointing
+                % or header problem rather than a data problem.
+                if isfield(Status,'AstRetry') && ~isempty(Status.AstRetry)
+                    R = Status.AstRetry;
+                    MsgR{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: no sub image solved at the header pointing RA=%.4f, Dec=%.4f - astrometry retried at the FIELDID %d grid pointing RA=%.4f, Dec=%.4f (%.2f deg away): %d of %d sub image(s) solved (issue #1350)', ...
+                                      R.HeaderRA, R.HeaderDec, R.FieldID, R.RA, R.Dec, R.Offset, R.Nsolved, R.Nsub);
+                    if ~isempty(R.Error)
+                        MsgR{1} = sprintf('%s; retry failed: %s', MsgR{1}, R.Error);
+                    end
+                    Obj.writeLog(MsgR, LogLevel.Warning);
+                end
+                if isfield(Status,'NnoWCS') && any(Status.NnoWCS>0)
+                    IndCrop  = find(Status.NnoWCS>0);
+                    CropList = strjoin(arrayfun(@(I) sprintf('%03d x%d', I, Status.NnoWCS(I)), IndCrop, 'UniformOutput',false), ', ');
+                    MsgW{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: astrometry failed for %d sub image(s) - saved without WCS, excluded from the coadd; crop(s): %s (issue #1350)', sum(Status.NnoWCS), CropList);
+                    if ~any(imProc.astrometry.isSuccessWCS(AllSI), 'all')
+                        MsgW{1} = sprintf('%s; no sub image solved, header pointing RA=%.4f, Dec=%.4f', MsgW{1}, ...
+                                          AllSI(1).HeaderData.getValSimple('RA'), AllSI(1).HeaderData.getValSimple('DEC'));
+                    end
+                    Obj.writeLog(MsgW, LogLevel.Warning);
+                end
                 if isfield(Status,'CoaddSkipped') && any(Status.CoaddSkipped)
                     IndCrop  = find(Status.CoaddSkipped);
                     CropList = strjoin(arrayfun(@(I) sprintf('%03d (%d/%d good epochs)', I, Status.NgoodEpoch(I), Status.Nepoch), IndCrop, 'UniformOutput',false), ', ');
