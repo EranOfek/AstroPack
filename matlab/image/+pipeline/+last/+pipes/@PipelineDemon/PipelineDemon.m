@@ -3088,15 +3088,17 @@ classdef PipelineDemon < Component
                     end
                 end
             
-                Msg{1} = sprintf('Transients alerting');
-                Obj.writeLog(Msg, LogLevel.Info);
-                try
-                    TranAlertStatus = pipeline.last.transients.sendTransientsAlert(ADc, 'SaveProducts', true, ...
-                            'SavePath', FN_Proc.genPath,'UseLASTtools', true);
-                    Obj.writeLog(sprintf('Transients alerting - %s', TranAlertStatus), LogLevel.Info);
-                catch
-                    Msg{1} = sprintf('Transients alerting / Failed');
-                    Obj.writeLog(Msg, LogLevel.Error);
+                if UpArgs.SendSlackAlerts
+                    Msg{1} = sprintf('Transients alerting');
+                    Obj.writeLog(Msg, LogLevel.Info);
+                    try
+                        TranAlertStatus = pipeline.last.transients.sendTransientsAlert(ADc, 'SaveProducts', true, ...
+                                'SavePath', FN_Proc.genPath,'UseLASTtools', true);
+                        Obj.writeLog(sprintf('Transients alerting - %s', TranAlertStatus), LogLevel.Info);
+                    catch
+                        Msg{1} = sprintf('Transients alerting / Failed');
+                        Obj.writeLog(Msg, LogLevel.Error);
+                    end
                 end
             end
 
@@ -3639,7 +3641,9 @@ classdef PipelineDemon < Component
                 % does not ask for it (a re-reduction of archived data, a
                 % regression test) must not produce one (issue #1253)
                 Args.InjectTCL2 logical = false;
-                Args.SendTransientAlerts logical = true;
+                Args.SendTransientAlerts logical = true;    % multi-epoch DB matching of the transients
+                % Slack alerts are no longer used; kept for reference, off by default
+                Args.SendSlackAlerts logical = false;
 
                 %Args.RunAsService logical  = false;
                 
