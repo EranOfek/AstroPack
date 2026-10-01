@@ -211,6 +211,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
     Status.NoRelZP      = false;  % per sub image group: relative photometric ZP could not be fitted (#1339)
     Status.NnoWCS       = 0;  % per sub image group: epochs whose astrometry failed, no-PSF/failed-background ones excluded (#1350)
     Status.AstRetry     = [];  % astrometry retry at the FIELDID grid pointing, if made (#1350)
+    Status.CoaddNoWCS   = false;  % per sub image group: coadd with sources but failed astrometry, catalog dropped (#1364)
     %ProcessingStep = 11;
 
     if isempty(RawImageList)
@@ -864,6 +865,16 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
 
             
         
+            % A coadd with sources whose astrometric refine failed has no
+            % RA/Dec in its catalog, and the catalog steps below (MergedCat,
+            % Ndet, ZP, ...) would abort the whole visit (issue #1364). Its
+            % catalog is dropped, so it follows the empty-catalog path; the
+            % image is kept. Logged by PipelineDemon.
+            Status.CoaddNoWCS = reshape(~Coadd.isemptyCatalog & ~imProc.astrometry.isSuccessWCS(Coadd), 1, []);
+            for Isub=find(Status.CoaddNoWCS)
+                Coadd(Isub).deleteProp('CatData');
+            end
+
             % Add image ID to coadd images: in: ID_PROC
             NotIsEmptyCoadd = ~Coadd.isemptyImage;
             NotIsEmptyCat   = ~Coadd.isemptyCatalog;

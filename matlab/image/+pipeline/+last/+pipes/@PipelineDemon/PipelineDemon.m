@@ -2794,6 +2794,14 @@ classdef PipelineDemon < Component
                     MsgC{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: coadd skipped for %d sub image group(s) - fewer good epochs than MinNumCoadd; crop(s): %s (issue #1318)', numel(IndCrop), CropList);
                     Obj.writeLog(MsgC, LogLevel.Warning);
                 end
+                % Coadd astrometry failed (issue #1364): the coadd image is
+                % saved, its catalog (no RA/Dec) is dropped.
+                if isfield(Status,'CoaddNoWCS') && any(Status.CoaddNoWCS)
+                    IndCrop  = find(Status.CoaddNoWCS);
+                    CropList = strjoin(arrayfun(@(I) sprintf('%03d', I), IndCrop, 'UniformOutput',false), ', ');
+                    MsgA{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: coadd astrometry failed for %d sub image group(s) - coadd image saved without a catalog; crop(s): %s (issue #1364)', numel(IndCrop), CropList);
+                    Obj.writeLog(MsgA, LogLevel.Warning);
+                end
                 % Relative photometric ZP not fitted (issue #1339)
                 if isfield(Status,'NoRelZP') && any(Status.NoRelZP)
                     IndCrop  = find(Status.NoRelZP);

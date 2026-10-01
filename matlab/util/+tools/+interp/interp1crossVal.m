@@ -9,7 +9,8 @@ function [Result] = interp1crossVal(Pos, Vec, CrossVal, IsAscending, FirstLast, 
     %          - A vector of values - Y coordinates.
     %            Note that this values must be monotonic, and if they are
     %            not (e.g., due to noise), the function will force
-    %            montonicity on the data.
+    %            montonicity on the data (running max for ascending,
+    %            running min for descending values).
     %          - Y Crossing value. 
     %          - True for asending Y values.
     %            False for descening Y values.
@@ -18,6 +19,8 @@ function [Result] = interp1crossVal(Pos, Vec, CrossVal, IsAscending, FirstLast, 
     %          - Find 'first' | 'last' point. Default is 'first'.
     %          - Alogorithm: 'interp'|'find'. Default is 'interp'.
     % Output : - The interpolated position of the Y crossing value.
+    %            If Vec does not cross CrossVal, the end position in
+    %            the search direction is returned.
     % Author : Eran Ofek (2026 Apr) 
     % Example: R=tools.interp.interp1crossVal([1 2 3 4 5],[0.3 0.4 0.5 0.6 0.9], 0.5)
 
@@ -38,19 +41,19 @@ function [Result] = interp1crossVal(Pos, Vec, CrossVal, IsAscending, FirstLast, 
         end
     end
 
-    % Force monotonicity on the data
-    % See issue #966
+    % Force monotonicity on the data (issue #966) by a running envelope.
+    % The former cumulative sum of the reversals lifted the tail of a
+    % bumpy descending vector above its raw values, so a profile that does
+    % cross CrossVal seemed not to (issue #1364).
     Vec = Vec(:);
     Pos = Pos(:);
-    Diff = [0;diff(Vec)];
     if IsAscending
         Sign = 1;
-        Diff(Diff>0) = 0;
+        Vec  = cummax(Vec);
     else
         Sign = -1;
-        Diff(Diff<0) = 0;
+        Vec  = cummin(Vec);
     end
-    Vec = Vec - Sign.*cumsum(Diff);
 
     switch Algo
         case 'interp'
@@ -65,7 +68,8 @@ function [Result] = interp1crossVal(Pos, Vec, CrossVal, IsAscending, FirstLast, 
                     Result = Pos(end);
                 else
                     if I==1
-                        Result = CrossVal./Vec(I);
+                        % already above CrossVal at the first position
+                        Result = Pos(1);
                     else
                         DY = Vec(I) - Vec(I-1);
                         DX = Pos(I) - Pos(I-1);
@@ -80,7 +84,8 @@ function [Result] = interp1crossVal(Pos, Vec, CrossVal, IsAscending, FirstLast, 
                     Result = Pos(end);
                 else
                     if I==1
-                        Result = CrossVal./Vec(I);
+                        % still above CrossVal at the last position
+                        Result = Pos(1);
                     else
                         DY = Vec(I) - Vec(I-1);
                         DX = Pos(I) - Pos(I-1);

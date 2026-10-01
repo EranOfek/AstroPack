@@ -293,6 +293,9 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Tack number of images with no overlap to any reference image
     NoOverlap = 0;
 
+    % Track number of New images without a source catalog
+    Status.NnoCatalog = 0;
+
     for Iobj=Nobj:-1:1
 
         % Check if New image meets NCoadd criterium. If it does not,
@@ -301,6 +304,13 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
         if NCOADD < Args.MinimumNCoadd
             NBelowMinNCoadd = NBelowMinNCoadd + 1;
+            continue
+        end
+
+        % A New coadd saved without a catalog (no PSF, or failed coadd
+        % astrometry - issue #1364) cannot be calibrated or searched.
+        if New(Iobj).isemptyCatalog || ~New(Iobj).CatData.isColumn('RA')
+            Status.NnoCatalog = Status.NnoCatalog + 1;
             continue
         end
 
@@ -1048,7 +1058,10 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Update Status and finish
     StatusCell = strcat('Succesful exit,',{' '}, ...
         num2str(NADc),{' '},'transient(s) found.');
-    
+    if Status.NnoCatalog>0
+        StatusCell{1} = sprintf('%s %d New image(s) without a catalog skipped (issue #1364).', StatusCell{1}, Status.NnoCatalog);
+    end
+
     Status.Msg = StatusCell{1};
     Status.Success = true;
 end
