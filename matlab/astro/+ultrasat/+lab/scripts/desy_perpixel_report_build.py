@@ -1001,8 +1001,69 @@ w("""- The per-pixel read noise comes from 5 bias frames of integer ADU with sig
   They are separated here only at TX 3.9 V, where both values were measured.
 """)
 
+w('## 12. Appendix A: glossary\n')
+w("""Abbreviations used above, with the values measured on this lot where they are useful.
+
+### PTC — Photon Transfer Curve
+
+A plot of the **variance** of the signal against the **mean** signal, built by stepping the
+illumination (or the exposure time) and measuring both at every step. It is the standard way to
+characterise a sensor, and it works because photon arrivals are Poisson: if a pixel collects Q
+electrons then Var(Q) = Q, and the sensor reports S = g*Q in ADU, so
+
+    Var(S) = g^2 * Var(Q) = g^2 * Q = g * S
+
+Variance is proportional to mean and **the slope is the conversion gain g**. That is what makes
+the PTC so useful: it converts ADU into electrons with no external calibration. The other
+features of the curve carry the rest of the physics, and section 7.8 shows them directly.
+
+| feature of the curve | what it measures | measured on this lot |
+|---|---|---|
+| slope | conversion gain g | 1.07-1.22 ADU/e-, nearly the same in every setup |
+| intercept | normally read noise^2, here **g*T** with T the charge threshold | predicted 100 / 148 / 34 ADU^2 against measured 57 / 85 / 40, while RN^2 is only 5-7 |
+| low-signal floor | read noise squared | 8 ADU^2 at TX 3.3 V rising to 240 at TX 3.9 V with RST_H 2.7 V |
+| dip below the line | F'(Q)^2, the square of the differential response | the ~20 % non-linearity |
+| collapse at the top | saturation | ADC rail at 16383 ADU |
+
+**Convention warning.** In this codebase `Gain` is in **ADU per electron**, so electrons =
+ADU / gain. Much of the literature defines the gain the other way round, in e-/ADU. The unit
+test pins the direction deliberately, because a silent inversion would be uniform across setups
+and so would not show up in any comparison.
+
+### General sensor abbreviations
+
+| term | meaning |
+|---|---|
+| **ADU** | Analogue-to-Digital Unit, the raw integer the ADC returns. |
+| **RN** | Read Noise: noise added by the readout chain, independent of the signal level. |
+| **DC** | Dark Current: charge accumulating without illumination, in ADU/s or e-/s. |
+| **FPN** | Fixed Pattern Noise: a *static* pixel-to-pixel pattern, repeatable frame to frame and so in principle calibratable. On this detector it repeats to 95-103 % between runs. |
+| **PRNU** | Photo-Response Non-Uniformity, the *multiplicative* fixed pattern: pixels differ in sensitivity, so it grows in proportion to the signal. 0.46-0.58 % here. |
+| **DSNU** | Dark Signal Non-Uniformity: pixel-to-pixel spread of the dark current, i.e. the fixed pattern that grows with exposure time. About 6 % of the dark current on both bias boards. |
+| **INL** | Integral Non-Linearity: departure of the response from a straight line. Below 0.5 % up to ~2.9 kADU, -5 % at 5-12 kADU, -29 to -33 % near saturation. |
+| **SNR** | Signal-to-Noise Ratio. |
+| **dof** | Degrees of freedom. Three repeated frames give 2 dof, which is why a single pixel's variance is meaningless (exponentially distributed, sd/mean = 1) and only the distribution over 10^4 pixels is usable. |
+| **MAD** | Median Absolute Deviation, a robust alternative to the standard deviation; 1.4826*MAD matches sigma for a Gaussian. |
+| **threshold (T)** | Charge lost before anything is read out: the first T electrons do not appear in the signal. Positive T is a loss; a negative value means charge present at zero illumination, an offset the bias subtraction removes. |
+
+### Specific to this campaign
+
+| term | meaning |
+|---|---|
+| **TX** | A bias voltage on the device, and the main parameter scanned: 3.0, 3.3, 3.5, 3.6, 3.7, 3.8 and 3.9 V. |
+| **RST_H** | The "reset high" bias level, 2.7 or 3.0 V, the second knob. 2.7 V doubles the read noise and quadruples the bias fixed pattern where both were measured at the same TX. |
+| **AV / aSpect** | The two bias-board variants of the test station. Same read noise, but the AV boards carry 22x the dark current and a much larger charge threshold. |
+| **ZE / D / B** | The three frame types: Zero-Exposure (bias), Dark (exposure ladder, no light) and Bright (intensity ladder at fixed exposure). |
+| **ladder** | The sequence of steps of one frame type: 9 dark steps from 15 to 600 s, 34 bright steps at a fixed 15 s, each repeated 3 times. |
+| **CCDSEC** | The image section read from each frame. The DESY analysis region is 100x100 pixels, so 10 000 pixels per statistic. |
+| **parity** | Odd or even readout column. In the DESY orientation the readout columns run along the image rows, counted from the first pixel column of the selected gain half, so odd = detector columns 1, 3, 5 ... |
+| **high / low gain half** | Every frame holds the same pixels read through two gain paths, side by side in the TIFF. The high-gain half (~15x the response) is the faint-signal channel and the one used throughout. |
+| **die / wafer** | A die is one device on a wafer, named like W04_D07 = wafer 04, device 07. |
+| **DESY** | Deutsches Elektronen-Synchrotron, Hamburg, where the wafer tests were run. |
+""")
+
 if VARMEAN:
-    w('## 12. Appendix: variance against mean, every setup\n')
+    w('## 13. Appendix B: variance against mean, every setup\n')
     w('One reference die per setup, ordered by TX. Dark ladder on the left, light on the right; '
       'the cloud is every masked pixel at every step below saturation, the red and blue curves '
       'are the even and odd readout columns, the green triangles the mean over pixels and the '
@@ -1031,6 +1092,7 @@ th{background:#f5f5f5}
 td:nth-child(-n+5),th:nth-child(-n+5){text-align:left}
 img{max-width:100%;margin:.6rem 0;border:1px solid #eee}
 em{color:#666;font-size:13px}
+table em,table strong{font-size:inherit;color:inherit}
 code{background:#f5f5f5;padding:1px 4px}
 
 /* Print: the screen rule above scrolls wide tables sideways, which a PDF
@@ -1039,7 +1101,10 @@ code{background:#f5f5f5;padding:1px 4px}
 @page{size:A4 portrait;margin:11mm 9mm}
 @media print{
   body{max-width:none;margin:0;padding:0;font-size:11.5px}
-  table{display:table;width:100%;overflow:visible;font-size:6.8px;margin:.5rem 0}
+  /* prose tables (the glossary) stay readable; only the wide numeric ones,
+     which carry six columns or more, need the very small type */
+  table{display:table;width:100%;overflow:visible;font-size:9.5px;margin:.5rem 0}
+  table:has(th:nth-child(6)){font-size:6.8px}
   th,td{white-space:normal;overflow-wrap:anywhere;padding:1px 2px;line-height:1.15}
   th{font-weight:600}
   img{page-break-inside:avoid;max-width:100%}
