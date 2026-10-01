@@ -495,6 +495,23 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Remember new number of AstroDiffs
     Nobj = numel(AD);
 
+    % Drop AstroDiffs whose New or Ref PSF is empty: subtractionD raises
+    % 'New PSF is not populated' and aborts the whole visit otherwise (#1363).
+    NoPSF = false(1, Nobj);
+    for Iobj = 1:Nobj
+        NoPSF(Iobj) = AD(Iobj).New.isemptyPSF || AD(Iobj).Ref.isemptyPSF;
+    end
+    if any(NoPSF)
+        warning('Missing New or Ref PSF for CROPID %s, skipping these crops.', ...
+                mat2str(arrayfun(@(A) A.New.HeaderData.getVal('CROPID'), AD(NoPSF))));
+        AD   = AD(~NoPSF);
+        Nobj = numel(AD);
+    end
+    if Nobj == 0
+        Status.Msg = 'All New or Ref images have no PSF.';
+        return
+    end
+
 
     % 7: ----- Produce subtraction images -----
     
