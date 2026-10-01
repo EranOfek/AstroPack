@@ -36,6 +36,9 @@ function S = zeroNoiseStats(Obj, Args)
     %            'TailFactor' - tail threshold in units of the median read
     %                      noise (default 2).
     %            'MaxLag' - highest lag of the autocorrelations (default 3).
+    %            'Maps'  - also return the per-pixel maps (Bias, Sigma,
+    %                      SigmaRaw) as single, for plotting. Off by default
+    %                      because on a full die they are 90 MB each.
     %            'Frames' - indices of the ZE frames to use ([] = all).
     %                      Runs 39 / 39-2 have 10 ZE frames instead of 5, so
     %                      their noise spread is far better constrained;
@@ -61,9 +64,7 @@ function S = zeroNoiseStats(Obj, Args)
         Args.TailFactor (1,1) double = 2;
         Args.MaxLag (1,1) double = 3;
         Args.Frames = [];
-    end
-    if ~strcmp(Obj.Mode, 'region')
-        error('ultrasat:lab:PTCAnalysis:mode', 'zeroNoiseStats needs region mode (the ZE cube is not kept in full mode)');
+        Args.Maps logical = false;
     end
     Cube = double(Obj.loadFrames('ZE', []));
     if ~isempty(Args.Frames) && ~isempty(Cube)
@@ -93,18 +94,19 @@ function S = zeroNoiseStats(Obj, Args)
         end
         CM(If) = mean(V);
     end
+    clear C2
     S  = struct('Nframes',Nf, 'Dof',Dof, 'Npix',nnz(Mask), 'RemoveCommonMode',Args.RemoveCommonMode, ...
                 'TailFactor',Args.TailFactor);
     S.CommonMode = struct('Levels',CM, 'Mean',mean(CM), 'Std',std(CM), 'PtP',max(CM)-min(CM));
-    if Args.RemoveCommonMode
-        R = Cube - reshape(CM - mean(CM), 1, 1, Nf);   % only the frame-to-frame deviation
-    else
-        R = Cube;
-    end
-    Bias    = Obj.combine(single(R));
-    Bias    = double(Bias);
-    Sigma2  = var(R, 0, 3);
+    % the common mode is taken out of the cube in place: on a full die the cube
+    % is already ~0.9 GB and a second copy of it is worth avoiding
     Sig2Raw = var(Cube, 0, 3);
+    if Args.RemoveCommonMode
+        Cube = Cube - reshape(CM - mean(CM), 1, 1, Nf);   % only the frame-to-frame deviation
+    end
+    Bias    = Obj.combine(Cube);
+    Sigma2  = var(Cube, 0, 3);
+    clear Cube
     Chi2Med = 2.*gammaincinv(0.5, Dof./2);            % median of chi2(Dof)
 
     S.All = local_stat(Mask);
@@ -123,6 +125,10 @@ function S = zeroNoiseStats(Obj, Args)
                          'MaxLag',Args.MaxLag);
     S.Structure.LagDim1 = local_lag(Res, 1, Args.MaxLag);
     S.Structure.LagDim2 = local_lag(Res, 2, Args.MaxLag);
+    if Args.Maps
+        S.Maps = struct('Bias',single(Bias), 'Sigma',single(sqrt(Sigma2)), ...
+                        'SigmaRaw',single(sqrt(Sig2Raw)), 'Mask',Mask);
+    end
 
     function Q = local_stat(M)
         % ensemble statistics of one pixel subset
