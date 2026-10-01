@@ -1253,7 +1253,7 @@ classdef PipelineDemon < Component
                     Obj.RedisPV.hset(Key, 't',UnixTime, 'v',jsonencode(Val));
                     Obj.RedisPV.expire(Key,Args.ExpireTime);
                 catch ME
-                    ErrorMsg = sprintf('Connection or ingestion to Redis DB failed: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, MEs.stack(1).line);
+                    ErrorMsg = sprintf('Connection or ingestion to Redis DB failed: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);
                     Obj.writeLog(ErrorMsg, LogLevel.Error); 
                     Obj.writeLog(ME, LogLevel.Info); 
                 end
