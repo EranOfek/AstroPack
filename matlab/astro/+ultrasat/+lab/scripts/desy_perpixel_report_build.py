@@ -38,6 +38,15 @@ for _pf in sorted(_glob.glob(os.path.join(A.indir, 'perpixel_patch*.json'))):
     FULL = [e for e in FULL if e.get('Tag') not in _tags] + _new
     print(f'merged {len(_new)} die-run(s) from {os.path.basename(_pf)}')
 
+# variance-versus-mean figures, if desy_perpixel_varmean_plots.py has been run
+VARMEAN = []
+_vmp = os.path.join(A.indir, 'varmean_figs.json')
+if os.path.isfile(_vmp):
+    with open(_vmp) as fh:
+        VARMEAN = json.load(fh)
+    VARMEAN.sort(key=lambda v: (v['tx'], -v['rsth'], v['run']))
+    print(f'{len(VARMEAN)} variance-vs-mean figures found')
+
 # ---------------------------------------------------------------- helpers
 def g(d, *keys, default=np.nan):
     """nested get returning nan when anything is missing"""
@@ -868,6 +877,51 @@ figblock('prnu', 'PRNU from the two-parameter pattern fit; it is 0.46-0.58 % in 
 figblock('offset', 'Additive offset pattern, the a of the same fit.')
 figblock('pattern', 'Fixed pattern against signal. The 1/S rise at low signal is the additive term and the floor is the PRNU, which is how the two are separated.')
 
+if VARMEAN or os.path.isfile(os.path.join(A.indir, 'fig_varmean_overlay.png')):
+    w('### 7.8 Variance against mean\n')
+    w("""The photon-transfer curve is where most of these quantities come from, so it is worth
+seeing directly. Each point of the cloud is one of the 10 000 masked pixels at one ladder step;
+the two coloured curves are the per-step estimator for the even and the odd readout columns,
+computed as median(V) * Dof/median(chi2_Dof) -- with three repeats that is median/ln2, the
+unbiased robust estimator, because a per-pixel variance from 3 frames is exponentially
+distributed and its mean over pixels is pulled up by cosmic rays. The green triangles are that
+mean over pixels, shown precisely so the difference is visible. The dashed line is the PTC fit
+actually used for the gain, over the range it was fitted on, and the dotted line is the read
+noise squared.
+
+The lower panel of each column divides out the expectation: (V - RN^2)/(S*g) is 1 wherever the
+variance is pure shot noise. It is the same ratio plot as before, now with the bad columns
+masked and the two parities separated.
+""")
+    if os.path.isfile(os.path.join(A.indir, 'fig_varmean_overlay.png')):
+        w('![Per-step variance against mean for one reference die in every setup.](fig_varmean_overlay.png)\n')
+        w('*Per-step variance against mean, one reference die per setup; dashed curves are the '
+          'RST_H 2.7 V runs. Three things are visible at once. At low signal each dark curve '
+          'flattens onto its own read-noise floor, and those floors span a factor of 30 between '
+          'the setups -- from about 8 ADU^2 at TX 3.3 V to 240 at TX 3.9 V with RST_H 2.7 V. The '
+          'two curves that reach 3 kADU are the AV bias boards, which get there in the same 600 s '
+          'because their dark current is 22x larger. And the light ladders lie on top of each '
+          'other below ~3 kADU, which is the statement that the conversion gain barely changes '
+          'between setups, before they peel apart in the non-linear region.*\n')
+    # two contrasting setups in the body, the rest in the appendix
+    pick = []
+    for want in ('run38_', 'run36-2_'):
+        for v in VARMEAN:
+            if v['tag'].startswith(want):
+                pick.append(v)
+                break
+    for v in pick:
+        rs = '' if abs(v['rsth']-3.0) < 0.01 else f", RST_H {v['rsth']:.1f} V"
+        w(f"![Variance against mean, {v['die']}, run {v['run']}.]({v['file']})\n")
+        w(f"*{v['die']}, run {v['run']} ({v['settings']}, TX {v['tx']:.1f} V{rs}), "
+          f"gain {v['gain']:.3f} ADU/e-, {v['nbad']} bad columns masked.*\n")
+    if pick:
+        w('The two are the chosen optimum and the worst setting, and the difference is visible '
+          'without any fitting: at TX 3.9 V with RST_H 2.7 V the cloud starts an order of '
+          'magnitude higher on the variance axis, which is the read noise, and the ratio panel '
+          'needs a far larger signal before it reaches 1. Every remaining setup is in the '
+          'appendix.\n')
+
 w('## 8. Noise budget and SNR\n')
 w("""In electrons, with Qc = Q - max(T, 0) the charge actually collected,
 
@@ -946,6 +1000,17 @@ w("""- The per-pixel read noise comes from 5 bias frames of integer ADU with sig
 - TX and RST_H are confounded in the original design at TX 3.0 and 3.9 V, where RST_H is 2.7 V.
   They are separated here only at TX 3.9 V, where both values were measured.
 """)
+
+if VARMEAN:
+    w('## 12. Appendix: variance against mean, every setup\n')
+    w('One reference die per setup, ordered by TX. Dark ladder on the left, light on the right; '
+      'the cloud is every masked pixel at every step below saturation, the red and blue curves '
+      'are the even and odd readout columns, the green triangles the mean over pixels and the '
+      'dashed line the fitted PTC.\n')
+    for v in VARMEAN:
+        rs = '' if abs(v['rsth']-3.0) < 0.01 else f", RST_H {v['rsth']:.1f} V"
+        w(f"**Run {v['run']} — {v['settings']}, TX {v['tx']:.1f} V{rs} — {v['die']}**\n")
+        w(f"![Variance against mean, run {v['run']}, {v['die']}.]({v['file']})\n")
 
 md = '\n'.join(MD)
 with open(os.path.join(OUT, 'report.md'), 'w') as fh:
