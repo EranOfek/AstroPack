@@ -1142,8 +1142,12 @@ classdef AstroZOGY < AstroDiff
 
         function Obj=subtractionScorr(Obj, Args)
             % Calculate the ZOGY Scorr statistics - S corrected for source noise and astrometric noise
-            %   This function requires that New and Ref will be in units of
-            %   electrons.
+            %   New and Ref are assumed to be mean coadds in units of
+            %   electrons per single image. The variance of each pixel is
+            %   VarN + Source/NcoaddNew + (SysNoiseN*Source)^2 (and the same
+            %   for Ref), where VarN/VarR is the measured background variance
+            %   (sky + read noise) and Source is the background-subtracted
+            %   image clipped at 0 (issue #741).
             % Input  : - An AstroZOGY object.
             %          * ...,key,val,...
             %            'IncludeSourceNoise' - A logical indicating if to
@@ -1170,12 +1174,17 @@ classdef AstroZOGY < AstroDiff
             %                   Default is 'NCOADD'.
             %            'NcoaddRef' - Like 'NcoaddNew' but for the Ref
             %                   image. Default is 'NCOADD'.
-            %            'RN_New' - Readout noise [e] of the New image.
-            %                       If this is a coadd, tghen use the RN of
-            %                       a single image.
-            %                   Default is 2.7
-            %            'RN_New' - Readout noise [e] of the Ref image.
-            %                   Default is 2.7
+            %            'RN_New' - Not used: the read noise is included in the
+            %                   measured background variance VarN. Kept for
+            %                   backward compatibility. Default is 2.7
+            %            'RN_Ref' - Not used (see RN_New). Default is 2.7
+            %            'SysNoiseN' - Fractional systematic (calibration)
+            %                   noise of the New image, applied to the
+            %                   background-subtracted source flux only.
+            %                   If empty (either N or R), not used.
+            %                   Default is 0.015.
+            %            'SysNoiseR' - Like SysNoiseN, for the Ref image.
+            %                   Default is 0.015.
             %            'SigmaAstNew' - sigma of the single axis
             %                   astrometric noise of the New image [pix].
             %                   Default is 0.1.
@@ -1314,25 +1323,28 @@ classdef AstroZOGY < AstroDiff
                     end
                 end
                 
-                RN_New = Args.RN_New;
-                RN_Ref = Args.RN_Ref;
 
                 [Kn_hat, Kr_hat, Kn, Kr] = knkr(Obj(Iobj), 'AbsFun',Args.AbsFun, ...
                                                            'Norm',Args.NormKnKr,'OverwriteFr',Args.OverwriteFr,...
                                                            'OverwriteFrVal',Args.OverwriteFrVal);
 
-                % New and Ref should contain the images including
-                % background in units of electrons - i.e., the variance
-                % images.
+                % Variance of each coadd pixel (issue #741): for a mean coadd
+                % of N frames, Var = (sky + RN^2)/N + source/N + (SysNoise*source)^2.
+                % The background term is the measured VarN/VarR: it is already
+                % per coadd pixel and still exists for sky-subtracted refs, where
+                % the sky level is gone but its noise is not (issue #614).
+                % The source term uses the background-subtracted image clipped
+                % at 0, and SysNoise applies to the source only.
 
                 if Args.IncludeSourceNoise
-                    % including background
-                    VN = NcoaddNew.*(Obj(Iobj).New.Image + RN_New.^2);
-                    VR = NcoaddRef.*(Obj(Iobj).Ref.Image + RN_Ref.^2);
+                    SrcN = max(Obj(Iobj).Nbs, 0);
+                    SrcR = max(Obj(Iobj).Rbs, 0);
+                    VN = Obj(Iobj).VarN + SrcN./NcoaddNew;
+                    VR = Obj(Iobj).VarR + SrcR./NcoaddRef;
 
                     if ~isempty(Args.SysNoiseN) && ~isempty(Args.SysNoiseR)
-                        VN = VN + (Args.SysNoiseN.*VN).^2;
-                        VR = VR + (Args.SysNoiseR.*VR).^2;
+                        VN = VN + (Args.SysNoiseN.*SrcN).^2;
+                        VR = VR + (Args.SysNoiseR.*SrcR).^2;
                     end
 
                     [Vsrc]      = abs(imUtil.properSub.sourceNoise(VN, VR, Kn, Kr));
