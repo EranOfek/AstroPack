@@ -1034,6 +1034,12 @@ classdef Tran2D < Base
             %            'InterpMethod' - Interpolation method. Default is 'linear'.
             %            'ThresholdSigma' - Threshold in sigmas (std) for flagging good
             %                   data. Default is 3.
+            %            'MinDof' - Min. number of degrees of freedom (Ngood
+            %                   minus the number of parameters per axis) for
+            %                   which AssymRMS and ErrorOnMean are calculated.
+            %                   Otherwise they are NaN (issue #1366).
+            %                   If empty, use the number of parameters per
+            %                   axis. Default is [].
             % Output : - A Tran2D object with the ParX, ParY, ErrParX,
             %            ErrParY populated.
             %          - A structure of fit quality parameters.
@@ -1062,7 +1068,7 @@ classdef Tran2D < Base
                 Args.FunStd            = @imUtil.background.rstd;
                 Args.InterpMethod      = 'linear';
                 Args.ThresholdSigma    = 3;
-
+                Args.MinDof            = [];
             end
 
             % calculate the design matrix
@@ -1186,8 +1192,15 @@ classdef Tran2D < Base
             Res.Xdep     = Xdep;
             Res.Ydep     = Ydep;
             
-            if isempty(ResResid) || isempty(ResResid.InterpMeanResid)
-                % no asymptotic rms
+            % number of free parameters per axis
+            Npar = size(Hx,2);
+            if isempty(Args.MinDof)
+                Args.MinDof = Npar;
+            end
+
+            if isempty(ResResid) || isempty(ResResid.InterpMeanResid) || Res.Ngood<(Npar + Args.MinDof)
+                % no asymptotic rms: no sources, or too few degrees of
+                % freedom - an (almost) exact fit has meaningless residuals
                 Res.AssymRMS     = NaN;
                 Res.AssymRMS_mag = NaN;
                 Res.AssymRMS_RMS = NaN;

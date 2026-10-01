@@ -93,6 +93,23 @@ function Result = unitTest
     TC=polyRep(TC,true)
 
 
+    % fitAstrometricTran: AssymRMS/ErrorOnMean are NaN with too few
+    % degrees of freedom (issue #1366)
+    rng(5);
+    for N=[8 15 60]
+        X   = rand(N,1).*1700;
+        Y   = rand(N,1).*1700;
+        Mag = 12 + rand(N,1).*5;
+        Xi  = 1e-4.*X + 0.01 + 1e-6.*randn(N,1);
+        Yi  = 1e-4.*Y - 0.02 + 1e-6.*randn(N,1);
+        [~,Res] = fitAstrometricTran(Tran2D('poly3'), Xi, Yi, X, Y, 'ExtraData',[], 'Mag',Mag, 'ErrPos',1e-6);
+        if Res.Ngood<20
+            assert(isnan(Res.AssymRMS) && isnan(Res.ErrorOnMean), 'fitAstrometricTran: exact fit not flagged');
+        else
+            assert(isfinite(Res.AssymRMS) && isfinite(Res.ErrorOnMean), 'fitAstrometricTran: no AssymRMS');
+        end
+    end
+
 
     %io.msgStyle(LogLevel.Test, '@passed', 'Tran2D test passed');
 

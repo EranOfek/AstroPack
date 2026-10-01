@@ -269,7 +269,16 @@ function Result = unitTest()
     PV = AstroWCS.fill_TANSIP_KeyNames(AW.RevPV); 
     AW2 = AstroWCS();
     PV2 = AstroWCS.fill_TPV_KeyNames(AW2.RevPV);
-    
+
+    % populateSucess: too few sources is not a success (issue #1366)
+    AW = AstroWCS();
+    AW.ResFit = struct('SrcX',(1:12).', 'SrcY',(1:12).', 'FlagSrc',true(12,1), 'Resid',zeros(12,1), 'ErrorOnMean',1e-10);
+    AW = populateSucess(AW);
+    assert(~AW.Success, 'populateSucess: success with 12 sources');
+    AW.ResFit.SrcX = (1:30).'; AW.ResFit.SrcY = (1:30).'; AW.ResFit.FlagSrc = true(30,1); AW.ResFit.Resid = zeros(30,1);
+    AW = populateSucess(AW);
+    assert(AW.Success, 'populateSucess: no success with 30 sources');
+
     cd(PWD);                
     io.msgStyle(LogLevel.Test, '@passed', 'AstroWCS test passed');
     Result = true;            
