@@ -1001,66 +1001,57 @@ w("""- The per-pixel read noise comes from 5 bias frames of integer ADU with sig
   They are separated here only at TX 3.9 V, where both values were measured.
 """)
 
-w('## 12. Appendix A: glossary\n')
-w("""Abbreviations used above, with the values measured on this lot where they are useful.
-
-### PTC — Photon Transfer Curve
+GLOSSARY_MD = r"""### PTC — Photon Transfer Curve
 
 A plot of the **variance** of the signal against the **mean** signal, built by stepping the
-illumination (or the exposure time) and measuring both at every step. It is the standard way to
-characterise a sensor, and it works because photon arrivals are Poisson: if a pixel collects Q
-electrons then Var(Q) = Q, and the sensor reports S = g*Q in ADU, so
+illumination (or the exposure time) and measuring both at every step. It works because photon
+arrivals are Poisson: if a pixel collects Q electrons then Var(Q) = Q, and the sensor reports
+S = g·Q in ADU, so Var(S) = g²·Var(Q) = g²·Q = **g·S**. Variance is proportional to mean and
+**the slope is the conversion gain g**, which is what makes the PTC so useful: it turns ADU into
+electrons with no external calibration. Section 7.8 shows the curves themselves.
 
-    Var(S) = g^2 * Var(Q) = g^2 * Q = g * S
-
-Variance is proportional to mean and **the slope is the conversion gain g**. That is what makes
-the PTC so useful: it converts ADU into electrons with no external calibration. The other
-features of the curve carry the rest of the physics, and section 7.8 shows them directly.
-
-| feature of the curve | what it measures | measured on this lot |
+| feature of the curve | what it measures | on this lot |
 |---|---|---|
-| slope | conversion gain g | 1.07-1.22 ADU/e-, nearly the same in every setup |
-| intercept | normally read noise^2, here **g*T** with T the charge threshold | predicted 100 / 148 / 34 ADU^2 against measured 57 / 85 / 40, while RN^2 is only 5-7 |
-| low-signal floor | read noise squared | 8 ADU^2 at TX 3.3 V rising to 240 at TX 3.9 V with RST_H 2.7 V |
-| dip below the line | F'(Q)^2, the square of the differential response | the ~20 % non-linearity |
+| slope | conversion gain g | 1.07-1.22 ADU/e-, nearly setup-independent |
+| intercept | normally RN², here **g·T**, T = charge threshold | predicted 100/148/34 ADU² vs measured 57/85/40, RN² only 5-7 |
+| low-signal floor | read noise squared | 8 ADU² at TX 3.3 V up to 240 at TX 3.9 V, RST_H 2.7 V |
+| dip below the line | F′(Q)², squared differential response | the ~20 % non-linearity |
 | collapse at the top | saturation | ADC rail at 16383 ADU |
 
-**Convention warning.** In this codebase `Gain` is in **ADU per electron**, so electrons =
-ADU / gain. Much of the literature defines the gain the other way round, in e-/ADU. The unit
-test pins the direction deliberately, because a silent inversion would be uniform across setups
-and so would not show up in any comparison.
+**Convention.** `Gain` is in **ADU per electron**, so electrons = ADU / gain. Much of the
+literature uses e-/ADU instead. The measured slope settles it without appealing to convention:
+Var/Mean = 1.089 here, and a slope above 1 is only possible if it is ADU/e-.
 
-### General sensor abbreviations
+### Sensor terms
 
-| term | meaning |
-|---|---|
-| **ADU** | Analogue-to-Digital Unit, the raw integer the ADC returns. |
-| **RN** | Read Noise: noise added by the readout chain, independent of the signal level. |
-| **DC** | Dark Current: charge accumulating without illumination, in ADU/s or e-/s. |
-| **FPN** | Fixed Pattern Noise: a *static* pixel-to-pixel pattern, repeatable frame to frame and so in principle calibratable. On this detector it repeats to 95-103 % between runs. |
-| **PRNU** | Photo-Response Non-Uniformity, the *multiplicative* fixed pattern: pixels differ in sensitivity, so it grows in proportion to the signal. 0.46-0.58 % here. |
-| **DSNU** | Dark Signal Non-Uniformity: pixel-to-pixel spread of the dark current, i.e. the fixed pattern that grows with exposure time. About 6 % of the dark current on both bias boards. |
-| **INL** | Integral Non-Linearity: departure of the response from a straight line. Below 0.5 % up to ~2.9 kADU, -5 % at 5-12 kADU, -29 to -33 % near saturation. |
-| **SNR** | Signal-to-Noise Ratio. |
-| **dof** | Degrees of freedom. Three repeated frames give 2 dof, which is why a single pixel's variance is meaningless (exponentially distributed, sd/mean = 1) and only the distribution over 10^4 pixels is usable. |
-| **MAD** | Median Absolute Deviation, a robust alternative to the standard deviation; 1.4826*MAD matches sigma for a Gaussian. |
-| **threshold (T)** | Charge lost before anything is read out: the first T electrons do not appear in the signal. Positive T is a loss; a negative value means charge present at zero illumination, an offset the bias subtraction removes. |
+- **ADU** — Analogue-to-Digital Unit, the raw integer the ADC returns.
+- **RN** — Read Noise: readout noise, independent of signal level.
+- **DC** — Dark Current: charge accumulating without illumination, ADU/s or e-/s.
+- **FPN** — Fixed Pattern Noise: a *static* pixel-to-pixel pattern, so calibratable. It repeats to 95-103 % between runs here.
+- **PRNU** — Photo-Response Non-Uniformity: the *multiplicative* FPN, growing in proportion to signal. 0.46-0.58 %.
+- **DSNU** — Dark Signal Non-Uniformity: spread of the dark current, the FPN that grows with exposure time. ~6 % of DC.
+- **INL** — Integral Non-Linearity: departure from a straight response. <0.5 % below ~2.9 kADU, -5 % at 5-12 kADU, -29 to -33 % near saturation.
+- **SNR** — Signal-to-Noise Ratio.
+- **dof** — degrees of freedom. Three repeats give 2 dof, so a single pixel's variance is meaningless (exponential, sd/mean = 1); only the distribution over 10⁴ pixels is usable.
+- **MAD** — Median Absolute Deviation, a robust alternative to sigma; 1.4826·MAD matches sigma for a Gaussian.
+- **threshold (T)** — charge lost before readout: the first T electrons never appear. Positive T is a loss; negative means charge present at zero illumination, an offset the bias subtraction removes.
 
-### Specific to this campaign
+### This campaign
 
-| term | meaning |
-|---|---|
-| **TX** | A bias voltage on the device, and the main parameter scanned: 3.0, 3.3, 3.5, 3.6, 3.7, 3.8 and 3.9 V. |
-| **RST_H** | The "reset high" bias level, 2.7 or 3.0 V, the second knob. 2.7 V doubles the read noise and quadruples the bias fixed pattern where both were measured at the same TX. |
-| **AV / aSpect** | The two bias-board variants of the test station. Same read noise, but the AV boards carry 22x the dark current and a much larger charge threshold. |
-| **ZE / D / B** | The three frame types: Zero-Exposure (bias), Dark (exposure ladder, no light) and Bright (intensity ladder at fixed exposure). |
-| **ladder** | The sequence of steps of one frame type: 9 dark steps from 15 to 600 s, 34 bright steps at a fixed 15 s, each repeated 3 times. |
-| **CCDSEC** | The image section read from each frame. The DESY analysis region is 100x100 pixels, so 10 000 pixels per statistic. |
-| **parity** | Odd or even readout column. In the DESY orientation the readout columns run along the image rows, counted from the first pixel column of the selected gain half, so odd = detector columns 1, 3, 5 ... |
-| **high / low gain half** | Every frame holds the same pixels read through two gain paths, side by side in the TIFF. The high-gain half (~15x the response) is the faint-signal channel and the one used throughout. |
-| **die / wafer** | A die is one device on a wafer, named like W04_D07 = wafer 04, device 07. |
-| **DESY** | Deutsches Elektronen-Synchrotron, Hamburg, where the wafer tests were run. |
-""")
+- **TX** — a device bias voltage, the main parameter scanned: 3.0 to 3.9 V.
+- **RST_H** — the "reset high" bias, 2.7 or 3.0 V, the second knob. 2.7 V doubles the read noise and quadruples the bias FPN at the same TX.
+- **AV / aSpect** — the two bias-board variants. Same read noise, but AV carries 22× the dark current and a much larger threshold.
+- **ZE / D / B** — the frame types: Zero-Exposure (bias), Dark (exposure ladder), Bright (intensity ladder at fixed exposure).
+- **ladder** — the steps of one frame type: 9 dark steps 15-600 s, 34 bright steps at 15 s, each repeated 3 times.
+- **CCDSEC** — the image section read from each frame; the DESY region is 100×100 pixels, so 10⁴ pixels per statistic.
+- **parity** — odd or even readout column. In the DESY orientation the readout columns run along image *rows*, counted from the first pixel column of the gain half, so odd = detector columns 1, 3, 5 ...
+- **high / low gain half** — every frame holds the same pixels read through two gain paths side by side in the TIFF; the high-gain half (~15×) is the faint-signal channel and the one used throughout.
+- **die / wafer** — a die is one device on a wafer: W04_D07 = wafer 04, device 07.
+"""
+
+w('## 12. Appendix A: glossary\n')
+w('Abbreviations used above, with the values measured on this lot where they are useful.\n')
+w(GLOSSARY_MD)
 
 if VARMEAN:
     w('## 13. Appendix B: variance against mean, every setup\n')
@@ -1124,5 +1115,49 @@ document.getElementById('c').innerHTML =
 </body></html>"""
 with open(os.path.join(OUT, 'report.html'), 'w') as fh:
     fh.write(HTML.replace('__MD__', md_src))
+
+# ---------------------------------------------------------------- standalone glossary
+# Same text as appendix A, laid out to fit one page: the abbreviation lists flow
+# in two columns, which is what makes it fit at a readable size.
+GLOSS_HTML = """<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>TH02954 glossary</title>
+<style>
+body{font:9pt/1.34 Georgia,"Times New Roman",serif;color:#1d1d1f;margin:0;padding:0}
+h1{font-size:14pt;margin:0 0 .15em;border-bottom:1.5px solid #ccc;padding-bottom:.15em}
+p.sub{color:#666;font-style:italic;margin:.2em 0 .7em;font-size:8.5pt}
+h3{font-size:10pt;color:#8b1a1a;margin:.8em 0 .3em;break-after:avoid}
+p{margin:.35em 0}
+table{border-collapse:collapse;width:100%;margin:.4em 0 .6em;font-size:7.6pt}
+th,td{border:1px solid #dcdcdc;padding:1.5px 4px;text-align:left;vertical-align:top}
+th{background:#f4f4f4}
+ul{margin:.2em 0;padding-left:1.1em}
+li{margin:.15em 0;break-inside:avoid}
+strong{font-weight:bold}
+code{font-family:"DejaVu Sans Mono",monospace;font-size:8pt;background:#f5f5f5;padding:0 2px}
+.cols{column-count:2;column-gap:7mm;column-rule:1px solid #eee}
+@page{size:A4 portrait;margin:11mm 10mm}
+</style></head><body>
+<h1>Glossary &mdash; DESY wafer tests, lot TH02954</h1>
+<p class="sub">Abbreviations used in the ULTRASAT wafer-test analysis, with the values measured
+on this lot where they are useful.</p>
+<div id="head"></div>
+<div class="cols" id="cols"></div>
+<script type="text/markdown" id="src">
+__MD__
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script>
+var html = marked.parse(document.getElementById('src').textContent);
+// the PTC section runs full width, the abbreviation lists flow in two columns
+var cut = html.indexOf('<h3 id="sensor-terms">');
+if (cut < 0) { cut = html.indexOf('<h3>Sensor terms'); }
+if (cut < 0) { cut = html.length; }
+document.getElementById('head').innerHTML = html.slice(0, cut);
+document.getElementById('cols').innerHTML = html.slice(cut);
+</script>
+</body></html>"""
+with open(os.path.join(OUT, 'glossary.html'), 'w') as fh:
+    fh.write(GLOSS_HTML.replace('__MD__', GLOSSARY_MD.replace('</script', '<\\/script')))
 
 print(f'{len(ROWS)} die-runs, {len(ZROWS)} ZE-only, {len(FIGS)} figures -> {OUT}')
