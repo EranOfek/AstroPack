@@ -2,10 +2,27 @@
 
 Drivers and report builders used for the lot TH02954 flavour-test analysis with
 `ultrasat.lab.PTCAnalysis` / `ultrasat.lab.writeFITS` (September 2026). They are
-plain scripts with hard-coded paths (data under `/bigdata3/projects/ultrasat/DESY`,
-outputs under `~/claude/desy_*_report`, FITS under `/Data1/DESY_FITS`); edit the
-`Root` / `OutDir` / `D` lines to run them elsewhere. This folder is not a MATLAB
-package: run the `.m` files with `run('<path>/<script>.m')`.
+plain scripts with hard-coded paths (data under `/Data1/DESY`, falling back to the
+`/bigdata3/projects/ultrasat/DESY` share; outputs under `~/claude/desy_*`, FITS
+under `/Data1/DESY_FITS`); edit the `Root` / `OutDir` / `D` lines at the top to
+run them elsewhere.
+
+This folder is the MATLAB package **`ultrasat.lab.scripts`**, so the drivers are
+reachable by name once AstroPack is on the path:
+
+```matlab
+ultrasat.lab.scripts.desy_rn_single_die          % no arguments, settings at the top of the file
+ultrasat.lab.scripts.desy_perpixel_run
+```
+
+They are scripts rather than functions, so they run in the caller's workspace
+and leave their variables there — convenient when something fails half way and
+you want to inspect `P`. R2020b resolves package-qualified scripts; note that
+`exist('ultrasat.lab.scripts.x','file')` returns 0 for them even though `which`
+finds them, so test with `which`, not `exist`.
+
+The `.py` and `.sh` files live in the same folder and are run by path as usual;
+MATLAB ignores them.
 
 | Script | Purpose |
 |---|---|
