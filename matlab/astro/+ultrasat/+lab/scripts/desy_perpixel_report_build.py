@@ -812,8 +812,9 @@ per-pixel dark current, intercept and PRNU, and asserts that each estimator reco
 including the two deconvolutions and both signs of the threshold. It also asserts that the
 default step selection reproduces `fitResponse` bit for bit.
 
-**Internally, on the real data.** The intrinsic read-noise spread and the fraction of pixels
-noisier than twice the median are measured separately but are linked by a log-normal sigma_RN.
+**Internally, on the real data**, by reducing the same pixels twice with different sampling
+noise -- which tests the chi2 deconvolution without assuming anything about the distribution
+of the read noise.
 """)
 w(tail_check())
 
@@ -966,6 +967,20 @@ td:nth-child(-n+5),th:nth-child(-n+5){text-align:left}
 img{max-width:100%;margin:.6rem 0;border:1px solid #eee}
 em{color:#666;font-size:13px}
 code{background:#f5f5f5;padding:1px 4px}
+
+/* Print: the screen rule above scrolls wide tables sideways, which a PDF
+   cannot do -- it just clips them. On paper the table must lay itself out
+   within the page instead, with the headers allowed to wrap. */
+@page{size:A4 portrait;margin:11mm 9mm}
+@media print{
+  body{max-width:none;margin:0;padding:0;font-size:11.5px}
+  table{display:table;width:100%;overflow:visible;font-size:6.8px;margin:.5rem 0}
+  th,td{white-space:normal;overflow-wrap:anywhere;padding:1px 2px;line-height:1.15}
+  th{font-weight:600}
+  img{page-break-inside:avoid;max-width:100%}
+  h1,h2,h3{page-break-after:avoid}
+  p,li{orphans:2;widows:2}
+}
 </style></head><body>
 <div id="c"></div>
 <script type="text/markdown" id="src">
