@@ -9,6 +9,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     %       Estimate the global bcakground
     %       Check that there are not too many pixels with high level
     %       Check for image histogram anomalies.
+    %       Check for excess pixel-to-pixel (salt-and-pepper) noise.
     %       Check for large number of pixels with fixed value.
     %       Estimate the PSF using the ACF.
     %       Check for bad PSF.
@@ -53,6 +54,12 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     %                   (via imProc.quality.histAnomaly). Default is true.
     %            'histAnomalyArgs' - Cell array of args for histAnomaly.
     %                   Default is {}.
+    %            'NoiseExcess' - If true, flag images whose pixel-to-pixel
+    %                   noise in a central patch exceeds the noise expected
+    %                   from their sky level (via imProc.quality.noiseExcess;
+    %                   issue #1359). Default is true.
+    %            'noiseExcessArgs' - Cell array of args for noiseExcess
+    %                   (e.g., {'MaxRatio',3}). Default is {}.
     %            'BadVal' - Pixel value considered “bad/fixed”. If empty,
     %                   do not check. Default is 32768.
     %            'MaxNBadVal' - Maximum allowed number of pixels equal to BadVal.
@@ -162,6 +169,9 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
 
         Args.HistAnomaly                 = true;
         Args.histAnomalyArgs             = {};
+
+        Args.NoiseExcess                 = true;
+        Args.noiseExcessArgs             = {};
 
         Args.BadVal                      = 32768;  % if empty do not check
         Args.MaxNBadVal                  = 1e4;   
@@ -331,6 +341,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     % RejectStage records the first check that rejected all images (if any).
     FlagGoodImages = true(Nim,1);
     NotEmptyImage  = true(Nim,1);   % default; overwritten if CheckEmpty is used
+    FlagCorrectSize = true(Nim,1);  % default; overwritten if RequiredSizeXY is used
     RejectStage    = '';
 
     % Check for empty images
@@ -400,6 +411,20 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
         TableForDB.HistOK = HistOK;
         FlagGoodImages = FlagGoodImages & TableForDB.HistOK;
         RejectStage    = updateRejectStage(RejectStage, FlagGoodImages, 'histogram anomaly');
+    end
+
+    % excess pixel-to-pixel (salt-and-pepper) noise (issue #1359).
+    % Only non-empty images of the correct size: the patch and overscan
+    % positions refer to the full raw frame.
+    if Args.NoiseExcess && any(FlagGoodImages)
+        Valid   = NotEmptyImage & FlagCorrectSize;
+        NoiseOK = false(Nim,1);
+        if any(Valid)
+            [NoiseOK(Valid), TableForDB.NoiseRatio(Valid)] = imProc.quality.noiseExcess(AI(Valid), Args.noiseExcessArgs{:});
+        end
+        TableForDB.NoiseRatioOK = NoiseOK;
+        FlagGoodImages = FlagGoodImages & TableForDB.NoiseRatioOK;
+        RejectStage    = updateRejectStage(RejectStage, FlagGoodImages, 'pixel noise excess');
     end
 
     % many pixels with the same value (skipped if BadVal is empty, issue #1325)
@@ -556,6 +581,8 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
                                 'FracPixAboveThreshold',nan(Nim,1),...
                                 'Median',nan(Nim,1),...
                                 'HistOK',false(Nim,1),...
+                                'NoiseRatio',nan(Nim,1),...
+                                'NoiseRatioOK',false(Nim,1),...
                                 'NpixWithBadVal',nan(Nim,1),...
                                 'NpixWithBadValOK',false(Nim,1),...
                                 'ACF_FWHM',nan(Nim,1),...
@@ -579,6 +606,8 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
             TableForDB.FracPixAboveThreshold = nan(Nim,1);
             TableForDB.Median                = nan(Nim,1);
             TableForDB.HistOK                = false(Nim,1);
+            TableForDB.NoiseRatio            = nan(Nim,1);
+            TableForDB.NoiseRatioOK          = false(Nim,1);
             TableForDB.NpixWithBadVal        = nan(Nim,1);
             TableForDB.NpixWithBadValOK      = false(Nim,1);
             TableForDB.ACF_FWHM              = nan(Nim,1);
