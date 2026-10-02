@@ -21,7 +21,7 @@ function [Flag, Ratio, Sigma, SigmaExp] = noiseExcess(AI, Args)
     %                   available. If empty, the ratio of such an image is
     %                   NaN and the image is not flagged. Default is [].
     %            'MaxRatio' - An image with Sigma/SigmaExp above this value
-    %                   is flagged as bad. Default is 3.
+    %                   is flagged as bad. Default is 5.
     %            'GainKey' - Header keyword of the gain [e/ADU].
     %                   Default is 'GAIN'.
     %            'ReadNoiseKey' - Header keyword of the read noise [e].
@@ -44,7 +44,7 @@ function [Flag, Ratio, Sigma, SigmaExp] = noiseExcess(AI, Args)
         Args.HalfSize       = 250;
         Args.OverscanSec    = [6392 6420 100 9500];
         Args.Offset         = [];
-        Args.MaxRatio       = 3;
+        Args.MaxRatio       = 5;
         Args.GainKey        = 'GAIN';
         Args.ReadNoiseKey   = 'READNOI';
         Args.Gain           = 0.75;
