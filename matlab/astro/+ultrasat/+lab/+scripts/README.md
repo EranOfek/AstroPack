@@ -53,7 +53,8 @@ would need, and every frame is read exactly once.
 | 1 | `desy_rn_single_die.m` + `_plots.py` | bias, fixed pattern, per-pixel read noise and its intrinsic spread, common mode, column parity (ZE frames only) |
 | 2 | `desy_die_dark.m` + `desy_die_dark_plots.py` | per-pixel dark current and dark threshold from the weighted ladder fit, their spreads with the fit noise deconvolved, DSNU per step |
 | 3 | `desy_die_light.m` + `desy_die_light_plots.py` | per-pixel photo-response, PRNU from the per-step fixed pattern, light-method threshold with the dark current of stage 2 and both fit variances propagated |
-| 4-6 | — | bad columns, PTC gain, noise budget (not written yet) |
+| 4 | `desy_die_badcol.m` + `desy_die_badcol_plots.py` | bad readout columns from the stage 1-3 maps (no frames read): excess read noise, dead response, the mask stages 5-6 use |
+| 5-6 | — | PTC gain, noise budget (not written yet) |
 
 `desy_die_config.m` holds the run / die / gain / fit-step settings; every stage
 runs it first, so it is the only file to edit when moving to another dataset.
@@ -71,7 +72,16 @@ illumination/response patches. The **local** spread (residual to a 32x32 block
 median, fit noise removed) is the pixel-to-pixel term a noise budget needs: on
 run 32 W04_D07 it is 5.64 % against 20.0 % for the dark current, and 0.41 %
 against 1.14 % for the response, the local values agreeing with what the
-region-based reports measured in the DESY 100x100 window.
+region-based reports measured in the DESY 100x100 window. The spreads are
+computed by `ultrasat.lab.PTCAnalysis.localSpread`.
+
+`DieThreshold` records which charge threshold the budget takes, and the choice
+is evidence-based: on run 32 W04_D07 the dark-method threshold moves from 8.9
+to 25.0 ADU as the fit window is raised from all 9 steps to the top 3, because
+the dark ladder is bent at the bottom (residuals +11.6, +9.9, +7.2, +3.4 ADU
+at steps 1-4) and this run's whole dark ladder sits inside that knee, whereas
+the light-method intercept moves only 25.5 to 29.5 ADU over every window
+inside the linear range of the bright ladder. Hence `'light'`.
 
 Reports: runs 31/32 reproduction (deck UC-3400-TN175-05) and the TX-scan report;
 the analysis conventions (TIFF = counter columns + low-gain + high-gain halves,

@@ -53,8 +53,8 @@ fprintf('  per-pixel dark fit done, %.0f s\n', toc(T0));
 F = P.stepFixedPattern('D');
 fprintf('  per-step fixed pattern done, %.0f s\n', toc(T0));
 
-Ldc = localSpread(D.Slope,     32, D.All.SlopeSpread.StdFitRobust);
-Lt  = localSpread(-D.Intercept, 32, D.All.InterceptSpread.StdFitRobust);
+Ldc = ultrasat.lab.PTCAnalysis.localSpread(D.Slope,      'Block',DieBlock, 'StdFit',D.All.SlopeSpread.StdFitRobust);
+Lt  = ultrasat.lab.PTCAnalysis.localSpread(-D.Intercept, 'Block',DieBlock, 'StdFit',D.All.InterceptSpread.StdFitRobust);
 Chi2Exp = 2.*gammaincinv(0.5, max(numel(D.Steps)-2,1)./2)./max(numel(D.Steps)-2,1);
 
 G = P.rawColGeom;
@@ -101,7 +101,7 @@ fprintf('\nfit noise removed: DC %.4f -> %.4f ADU/s, T %.2f -> %.2f ADU (observe
 fprintf('spread over the whole die %.2f %% of the median, but that is large-scale structure;\n', ...
     100.*D.All.SlopeSpread.RelIntr);
 fprintf('  pixel-to-pixel (%dx%d blocks detrended, fit noise removed): DC %.2f %%, T %.2f ADU\n', ...
-    Ldc.Block, Ldc.Block, 100.*Ldc.Rel, Lt.Intr);
+    Ldc.Block, Ldc.Block, 100.*Ldc.RelIntr, Lt.StdIntr);
 fprintf('chi2/dof median %.3f against %.3f expected for exact weights (%+.1f %%)\n', ...
     D.All.MedianChi2Dof, Chi2Exp, 100.*(D.All.MedianChi2Dof./Chi2Exp - 1));
 fprintf('per-step dark fixed pattern (median signal: fixed / signal):\n  ');
@@ -125,27 +125,6 @@ function writeBin(Path, A, Type)
     Fid = fopen(Path, 'w');
     fwrite(Fid, A, Type);
     fclose(Fid);
-end
-
-function R = localSpread(M, B, StdFit)
-    % Pixel-to-pixel spread of a map: the robust spread of the residual to a
-    % BxB block median, with the fit noise of the individual pixels removed in
-    % quadrature. Everything varying on scales above B pixels -- gradients,
-    % banding, the bright patches of a dark-current map -- is absorbed by the
-    % block median and so does not enter, which is what distinguishes this
-    % from the spread over the whole die.
-    [Ny, Nx] = size(M);
-    ny = floor(Ny./B).*B;
-    nx = floor(Nx./B).*B;
-    C  = double(M(1:ny, 1:nx));
-    C  = reshape(permute(reshape(C, B, ny./B, B, nx./B), [1 3 2 4]), B.*B, []);
-    Med = median(C, 1, 'omitnan');
-    Res = C - Med;
-    Res = Res(isfinite(Res));
-    Obs = 1.4826.*median(abs(Res - median(Res)));
-    R = struct('Block',B, 'Level',median(Med,'omitnan'), 'StdObs',Obs, 'StdFit',StdFit, ...
-               'Intr',sqrt(max(Obs.^2 - StdFit.^2, 0)));
-    R.Rel = R.Intr./abs(R.Level);
 end
 
 function R = local_stage1(Dir, Run, Die, Gain, Siz)

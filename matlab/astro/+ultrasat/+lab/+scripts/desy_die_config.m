@@ -27,6 +27,18 @@ DieLot       = 'TH02954';
 DieFitStepsD = [5 6 7 8 9];
 DieFitStepsB = [5 6 7];
 DieGainADU   = [];                     % [ADU/e-] for the electron columns; [] = report ADU only
+% Which threshold the budget uses. Measured on run 32 W04_D07 (whole die):
+% the DARK method moves from 8.9 to 25.0 ADU as the fit window is raised from
+% all 9 steps to the top 3, monotonically, because the dark ladder is bent at
+% the bottom -- residuals to the published window are +11.6, +9.9, +7.2 and
+% +3.4 ADU at steps 1-4 -- and this run's whole dark ladder (39-172 ADU) sits
+% inside that knee. The LIGHT method's intercept moves only 25.5 to 29.5 ADU
+% over every window inside the linear range of the bright ladder (500-2900
+% ADU, where its own residuals are below 2 ADU), and the dark current enters
+% it only as DC*ExpSen = 4.7 ADU, so the dark window barely matters. Hence
+% 'light'; 'dark' is kept for comparison.
+DieThreshold = 'light';                % 'light' | 'dark'
+DieBlock     = 32;                     % block side of the pixel-to-pixel (local) spreads
 DieRoot      = '/Data1/DESY';
 if ~isfolder(DieRoot)
     DieRoot = '/bigdata3/projects/ultrasat/DESY';

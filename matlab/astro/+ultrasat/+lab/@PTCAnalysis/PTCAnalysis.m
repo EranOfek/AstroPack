@@ -37,6 +37,8 @@ classdef PTCAnalysis < Component
     %     perPixelFits      - weighted per-pixel ladder fits below the
     %                         linearity limit, with the analytic fit noise
     %     stepFixedPattern  - per-step fixed pattern (PRNU, DSNU)
+    %     localSpread       - pixel-to-pixel spread of a map, with the
+    %                         structure above the block scale removed
     %     perPixelThreshold - per-pixel thresholds, dark current, PRNU
     %     noiseBudget       - sigma_eff and SNR versus signal in electrons
     % Author : Sasha Krassilchtchikov (Sep 2026)
@@ -848,6 +850,7 @@ classdef PTCAnalysis < Component
 
         S = varSpread(V, Dof)             % intrinsic spread of a per-pixel variance (chi2 deconvolution)
         S = paramSpread(P, VarFit, Args)  % intrinsic spread of a fitted parameter (fit noise removed)
+        S = localSpread(M, Args)          % pixel-to-pixel spread of a map (block detrended, fit noise removed)
         S = budgetCurve(Q, In)            % sigma_eff / SNR curves from plain scalars
         Result = unitTest()   % implemented in @PTCAnalysis/unitTest.m
     end

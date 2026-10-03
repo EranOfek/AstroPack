@@ -53,8 +53,8 @@ def sp(key, par, field):
     return float(F[key][par][field])
 
 LOC   = S.get('Local', {})
-DCLOC = float(LOC.get('DC', {}).get('Rel', float('nan')))
-TLOC  = float(LOC.get('T', {}).get('Intr', float('nan')))
+DCLOC = float(LOC.get('DC', {}).get('RelIntr', float('nan')))
+TLOC  = float(LOC.get('T', {}).get('StdIntr', float('nan')))
 BLK   = int(LOC.get('DC', {}).get('Block', 32))
 DCMED = sp('All', 'SlopeSpread', 'Median')
 DCINT = sp('All', 'SlopeSpread', 'StdIntr')

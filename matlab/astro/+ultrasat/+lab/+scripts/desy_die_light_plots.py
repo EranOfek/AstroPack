@@ -59,12 +59,12 @@ def sp(key, par, field):
 RMED  = sp('All', 'SlopeSpread', 'Median')
 RINT  = sp('All', 'SlopeSpread', 'StdIntr')
 RFIT  = sp('All', 'SlopeSpread', 'StdFitRobust')
-RLOC  = float(LOC['Resp']['Rel'])
+RLOC  = float(LOC['Resp']['RelIntr'])
 BLK   = int(LOC['Resp']['Block'])
 PRNU  = float(S['PRNU']['Multiplicative'])
 TMED, TOBS = float(TH['Median']), float(TH['StdRobust'])
 TFIT, TINT = float(TH['StdFitRobust']), float(TH['StdIntr'])
-TLOC  = float(LOC['T']['Intr'])
+TLOC  = float(LOC['T']['StdIntr'])
 
 def savefig(fig, name):
     fig.tight_layout()

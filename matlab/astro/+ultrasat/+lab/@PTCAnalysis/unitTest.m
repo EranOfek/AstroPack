@@ -299,6 +299,33 @@ function Result = unitTest()
     assert(isfield(Th.All, 'PRNU_slope') && isfinite(Th.All.OffsetFPN_e));
     assert(abs(Th.All.OffsetFPN_e - Th.All.OffsetFPN_ADU./Pp.PTC.GainUsed)<1e-12);
 
+    % localSpread: a large-scale ramp must not be counted as pixel-to-pixel spread
+    rng(3);
+    [Xr, ~] = meshgrid(1:256, 1:256);
+    Ramp = 100 + 0.05.*Xr;                                            % 12.8 ADU across the map
+    Mp   = Ramp + 2.*randn(256);                                      % 2 ADU pixel to pixel
+    Ls   = ultrasat.lab.PTCAnalysis.localSpread(Mp, 'Block',32);
+    assert(std(Mp(:)) > 3.5 && abs(Ls.StdObs-2) < 0.2, 'local %.3f global %.3f', Ls.StdObs, std(Mp(:)));
+    assert(Ls.Nblock==64 && abs(Ls.Level-median(Ramp(:)))<0.5 && Ls.StdFit==0);
+    Ls2 = ultrasat.lab.PTCAnalysis.localSpread(Mp, 'Block',32, 'StdFit',1.5);
+    assert(abs(Ls2.StdIntr - sqrt(4-2.25)) < 0.3 && abs(Ls2.RelIntr - Ls2.StdIntr./Ls2.Level) < 1e-12);
+    Ls3 = ultrasat.lab.PTCAnalysis.localSpread(Mp, 'Block',32, 'StdFit',1e3);
+    assert(Ls3.StdIntr==0 && Ls3.RelIntr==0);                         % never negative
+    Lm  = ultrasat.lab.PTCAnalysis.localSpread(Mp, 'Block',32, 'Mask',Xr>128);
+    assert(Lm.Npix < Ls.Npix && abs(Lm.StdObs-2) < 0.25);
+    Lw  = ultrasat.lab.PTCAnalysis.localSpread(Mp, 'Block',256, 'Robust',false);
+    assert(Lw.Nblock==1 && Lw.StdObs > 3);                            % one block = no detrending
+
+    % badColumns can profile maps measured earlier instead of the object's
+    Bn = Pp.badColumns;
+    Bm = Pp.badColumns('NoiseMap',Pp.ZeroNoise, 'RespMap',Pp.BrightFit.Slope);
+    assert(isequal(Bn.NoiseProfile, Bm.NoiseProfile) && isequal(Bn.RespProfile, Bm.RespProfile));
+    assert(isequal(Bn.GoodMask, Bm.GoodMask));
+    Hot = Pp.ZeroNoise;
+    Hot(3,:) = 50.*Hot(3,:);
+    Bh = Pp.badColumns('NoiseMap',Hot);
+    assert(Bh.Nbad > Bn.Nbad && ~Bh.GoodMask(3,1) && Bh.GoodMask(1,1));
+
     % --- streamed per-pixel fits: accumulateFit / solveFit and full == region
     % the sums reproduce a weighted straight line and its covariance
     Xs = [1 2 4 8].';

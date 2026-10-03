@@ -19,6 +19,13 @@ function S = badColumns(Obj, Args)
     %                            twice as noisy is a 30-sigma outlier but
     %                            only 2x the median.
     %            'NoiseFactor' - also reject above this ratio (default 3).
+    %            'NoiseMap'    - read-noise map to profile ([] = the
+    %                            object's ZeroNoise). Lets the test run on
+    %                            maps measured earlier and stored, which is
+    %                            what the single-die stage chain does: the
+    %                            whole-die response map costs a full ladder
+    %                            read and is not worth recomputing.
+    %            'RespMap'     - bright-response map ([] = BrightFit.Slope).
     %            'RespSigma', 'RespFactor' - the same on the low side of the
     %                            response profile (5, 0.5); both ignored
     %                            when the bright fit is not done.
@@ -39,22 +46,32 @@ function S = badColumns(Obj, Args)
         Args.NoiseSigma  (1,1) double = 5;
         Args.RespFactor  (1,1) double = 0.5;
         Args.RespSigma   (1,1) double = 5;
+        Args.NoiseMap    = [];
+        Args.RespMap     = [];
     end
-    if isempty(Obj.ZeroNoise)
-        error('ultrasat:lab:PTCAnalysis:order', 'Run subtractZero before badColumns');
+    Noise = Args.NoiseMap;
+    if isempty(Noise)
+        Noise = Obj.ZeroNoise;
+    end
+    if isempty(Noise)
+        error('ultrasat:lab:PTCAnalysis:order', 'Run subtractZero before badColumns (or pass NoiseMap)');
+    end
+    Resp = Args.RespMap;
+    if isempty(Resp) && isstruct(Obj.BrightFit) && isfield(Obj.BrightFit, 'Slope')
+        Resp = Obj.BrightFit.Slope;
     end
     G   = Obj.rawColGeom;
     Red = 3 - G.Dim;                                  % dimension to reduce over
     S   = struct('RawCol',G.RawCol, 'Dim',G.Dim, 'Nrawcol',numel(G.RawCol));
-    S.NoiseProfile = squeeze(median(double(Obj.ZeroNoise), Red, 'omitnan'));
+    S.NoiseProfile = squeeze(median(double(Noise), Red, 'omitnan'));
     [Mn, Sn]       = robustLevel(S.NoiseProfile);
     S.NoiseMedian  = Mn;   S.NoiseSigma = Sn;
     S.BadNoise     = S.NoiseProfile > Mn + Args.NoiseSigma.*Sn | ...
                      S.NoiseProfile > Args.NoiseFactor.*Mn;
     S.RespProfile  = [];
     S.BadResp      = false(size(S.BadNoise));
-    if isstruct(Obj.BrightFit) && isfield(Obj.BrightFit, 'Slope') && ~isempty(Obj.BrightFit.Slope)
-        S.RespProfile = squeeze(median(double(Obj.BrightFit.Slope), Red, 'omitnan'));
+    if ~isempty(Resp)
+        S.RespProfile = squeeze(median(double(Resp), Red, 'omitnan'));
         [Mr, Sr]      = robustLevel(S.RespProfile);
         S.RespMedian  = Mr;   S.RespSigma = Sr;
         S.BadResp     = ~isfinite(S.RespProfile) | ...

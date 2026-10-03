@@ -57,8 +57,8 @@ VarTlight = (P.ExpSen.^2).*VarDC + B.VarIntercept;
 Ok  = isfinite(Tlight) & isfinite(VarTlight);
 Spt = ultrasat.lab.PTCAnalysis.paramSpread(Tlight(Ok), VarTlight(Ok), 'Robust',true);
 
-Lr = localSpread(B.Slope,  32, B.All.SlopeSpread.StdFitRobust);
-Lt = localSpread(Tlight,   32, Spt.StdFitRobust);
+Lr = ultrasat.lab.PTCAnalysis.localSpread(B.Slope, 'Block',DieBlock, 'StdFit',B.All.SlopeSpread.StdFitRobust);
+Lt = ultrasat.lab.PTCAnalysis.localSpread(Tlight,  'Block',DieBlock, 'StdFit',Spt.StdFitRobust);
 Chi2Exp = 2.*gammaincinv(0.5, max(numel(B.Steps)-2,1)./2)./max(numel(B.Steps)-2,1);
 
 G = P.rawColGeom;
@@ -109,7 +109,7 @@ fprintf('  the response slope alone would read %.2f %% -- %d closely spaced step
 fprintf('light threshold: median %.2f ADU, observed spread %.2f, fit noise %.2f, intrinsic %.2f ADU\n', ...
     Spt.Median, Spt.StdRobust, Spt.StdFitRobust, Spt.StdIntr);
 fprintf('  pixel-to-pixel (%dx%d blocks detrended): T %.2f ADU, response %.2f %%\n', ...
-    Lt.Block, Lt.Block, Lt.Intr, 100.*Lr.Rel);
+    Lt.Block, Lt.Block, Lt.StdIntr, 100.*Lr.RelIntr);
 fprintf('  dark method gave %.2f ADU (stage 2); the two methods differ by %.2f ADU\n', ...
     -Dark.Fit.All.InterceptSpread.Median, Spt.Median + Dark.Fit.All.InterceptSpread.Median);
 fprintf('chi2/dof median %.3f against %.3f expected for exact weights (%+.1f %%)\n', ...
@@ -127,22 +127,6 @@ function writeBin(Path, A, Type)
     Fid = fopen(Path, 'w');
     fwrite(Fid, A, Type);
     fclose(Fid);
-end
-
-function R = localSpread(M, B, StdFit)
-    % pixel-to-pixel spread: residual to a BxB block median, fit noise removed
-    [Ny, Nx] = size(M);
-    ny = floor(Ny./B).*B;
-    nx = floor(Nx./B).*B;
-    C  = double(M(1:ny, 1:nx));
-    C  = reshape(permute(reshape(C, B, ny./B, B, nx./B), [1 3 2 4]), B.*B, []);
-    Med = median(C, 1, 'omitnan');
-    Res = C - Med;
-    Res = Res(isfinite(Res));
-    Obs = 1.4826.*median(abs(Res - median(Res)));
-    R = struct('Block',B, 'Level',median(Med,'omitnan'), 'StdObs',Obs, 'StdFit',StdFit, ...
-               'Intr',sqrt(max(Obs.^2 - StdFit.^2, 0)));
-    R.Rel = R.Intr./abs(R.Level);
 end
 
 function R = local_stage1(Dir, Run, Die, Gain, Siz)
