@@ -165,6 +165,19 @@ function Result = unitTest()
     F2.run;
     assert(max(abs(F2.DarkFit.Slope(:) - P2.DarkFit.Slope(:)))<1e-3 && isequal(F2.BrightFit.Nused, P2.BrightFit.Nused));
 
+    % full mode honours Gain and Orient: the streamed reader used to fall back to
+    % the readPTC defaults, so a low-gain or tiff-oriented full run silently
+    % returned the high-gain DESY half
+    Rl = ultrasat.lab.PTCAnalysis(Dev, 'CCDSEC',[1 Nx 1 Ny], 'Gain','low', 'FitRange',[-1e9 1e9]);
+    Rl.read;  Rl.subtractZero;  Rl.combineSteps;
+    Fl = ultrasat.lab.PTCAnalysis(Dev, 'CCDSEC',[], 'Gain','low', 'FitRange',[-1e9 1e9]);
+    Fl.read;  Fl.subtractZero;  Fl.combineSteps;
+    assert(isequal(Fl.Zero, Rl.Zero) && max(abs(Fl.Dark.RegionMean - Rl.Dark.RegionMean))<1e-3);
+    assert(Fl.Dark.RegionMean(end) < 0.2.*F.Dark.RegionMean(end));   % the /15 half, not the high-gain one
+    Ft = ultrasat.lab.PTCAnalysis(Dev, 'CCDSEC',[], 'Orient','tiff', 'FitRange',[-1e9 1e9]);
+    Ft.read;  Ft.subtractZero;
+    assert(isequal(size(Ft.Zero), [Nx Ny]) && isequal(size(F.Zero), [Ny Nx]));
+
     % raw-column parity: map orientation and detection of the 10% slope difference
     Pp = ultrasat.lab.PTCAnalysis(Dev, 'CCDSEC',[1 Nx 1 Ny], 'FitRange',[-1e9 1e9], 'GainRange',[100 1e5], 'Parity','rawcol');
     Pp.run;

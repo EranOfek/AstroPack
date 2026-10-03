@@ -788,7 +788,8 @@ classdef PTCAnalysis < Component
                     Cube(:,:,Ii) = single(Obj.AI(Ind(Ii)).Image);
                 end
             else
-                A = ultrasat.lab.readPTC(Obj.DeviceDir, 'Test',Obj.Test, 'FrameType',Type, 'Step',Step, 'Verbosity',Obj.Verbosity);
+                A = ultrasat.lab.readPTC(Obj.DeviceDir, 'Test',Obj.Test, 'FrameType',Type, 'Step',Step, ...
+                                         'Gain',Obj.Gain, 'Orient',Obj.Orient, 'Verbosity',Obj.Verbosity);
                 if isempty(A)
                     Cube = [];
                     return;
