@@ -52,13 +52,26 @@ would need, and every frame is read exactly once.
 |---|---|---|
 | 1 | `desy_rn_single_die.m` + `_plots.py` | bias, fixed pattern, per-pixel read noise and its intrinsic spread, common mode, column parity (ZE frames only) |
 | 2 | `desy_die_dark.m` + `desy_die_dark_plots.py` | per-pixel dark current and dark threshold from the weighted ladder fit, their spreads with the fit noise deconvolved, DSNU per step |
-| 3-6 | — | light ladder, bad columns, PTC gain, noise budget (not written yet) |
+| 3 | `desy_die_light.m` + `desy_die_light_plots.py` | per-pixel photo-response, PRNU from the per-step fixed pattern, light-method threshold with the dark current of stage 2 and both fit variances propagated |
+| 4-6 | — | bad columns, PTC gain, noise budget (not written yet) |
 
 `desy_die_config.m` holds the run / die / gain / fit-step settings; every stage
 runs it first, so it is the only file to edit when moving to another dataset.
 Note that the streamed mode needs an explicit step list (`FitSteps`): the
 `'auto'` rule resolves the steps from the cached region ladder, which full mode
-does not build.
+does not build. The defaults in the config are what `'auto'` picks for run 32
+from the published window: dark steps 5-9 (there is none inside 1000-2500 ADU,
+so the rule falls back to the steps above 15 % of the top), bright steps 5-7
+(1173, 1842, 2374 ADU).
+
+Every stage reports two spreads, and they are not interchangeable. The spread
+over the **whole die** is a total non-uniformity, dominated on this device by
+large-scale structure -- a 2:1 dark-current ramp along the readout columns, and
+illumination/response patches. The **local** spread (residual to a 32x32 block
+median, fit noise removed) is the pixel-to-pixel term a noise budget needs: on
+run 32 W04_D07 it is 5.64 % against 20.0 % for the dark current, and 0.41 %
+against 1.14 % for the response, the local values agreeing with what the
+region-based reports measured in the DESY 100x100 window.
 
 Reports: runs 31/32 reproduction (deck UC-3400-TN175-05) and the TX-scan report;
 the analysis conventions (TIFF = counter columns + low-gain + high-gain halves,

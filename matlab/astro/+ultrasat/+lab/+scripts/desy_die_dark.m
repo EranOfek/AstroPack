@@ -19,9 +19,10 @@
 %   median, 32x32 by default) and then takes out the fit noise, which leaves
 %   the genuine pixel-to-pixel term.
 %   Settings: ultrasat.lab.scripts.desy_die_config. Output in DieOut:
-%   dc.bin, tdark.bin, chi2.bin (single, [Ny Nx], column-major), nused.bin
-%   (uint8), rawcol.bin (int32, raw readout column of every image row) and
-%   dark.json.
+%   dc.bin, tdark.bin, dc_var.bin (the fit variance of the dark current, which
+%   stage 3 propagates into the light threshold), chi2.bin (single, [Ny Nx],
+%   column-major), nused.bin (uint8), rawcol.bin (int32, raw readout column of
+%   every image row) and dark.json.
 ultrasat.lab.scripts.desy_die_config;
 
 T0 = tic;
@@ -59,6 +60,7 @@ Chi2Exp = 2.*gammaincinv(0.5, max(numel(D.Steps)-2,1)./2)./max(numel(D.Steps)-2,
 G = P.rawColGeom;
 writeBin(fullfile(DieOut, 'dc.bin'),     D.Slope);
 writeBin(fullfile(DieOut, 'tdark.bin'), -D.Intercept);
+writeBin(fullfile(DieOut, 'dc_var.bin'), D.VarSlope);      % fit variance, for the stage 3 threshold
 writeBin(fullfile(DieOut, 'chi2.bin'),   D.Chi2Dof);
 writeBin(fullfile(DieOut, 'nused.bin'),  uint8(min(D.Nused, 255)), 'uint8');
 writeBin(fullfile(DieOut, 'rawcol.bin'), int32(G.RawCol), 'int32');
