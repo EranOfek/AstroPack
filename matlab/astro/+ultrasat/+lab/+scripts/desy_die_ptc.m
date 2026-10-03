@@ -4,8 +4,16 @@
 %   because the shot noise follows the COLLECTED charge Q while the measured
 %   signal is S = g*(Q-T): Var(S) = g^2*Q = g*S + g*T_ADU. So the slope is the
 %   conversion gain in ADU/e- and the intercept is NOT the read noise -- it is
-%   the read noise plus the threshold's shot noise, which stages 1 and 3 have
-%   already measured, and comparing the two closes the chain.
+%   the read noise plus the threshold's shot noise.
+%   That makes this stage a MEASUREMENT of the threshold, not a check of one.
+%   Stages 2 and 3 get their thresholds by extrapolating a response curve to
+%   zero signal, which is only as good as the curve is straight there, and on
+%   this device it is not: the dark route moves over 16 ADU with the fit
+%   window. The shot noise instead reports the charge actually collected,
+%   Q = (Var-RN^2)/g^2, against the signal recorded, S = g*(Q-T), so T follows
+%   step by step with no extrapolation at all. A real threshold must then come
+%   out the same at every step, which is a stronger test than any of the three
+%   routes passing on its own. All three values are stored in ptc.json.
 %
 %   The statistics here are NOT those of the earlier stages and the difference
 %   decides everything. A ladder point is a per-pixel VARIANCE from 3 frames,
@@ -218,13 +226,18 @@ end
 
 Gm   = S.Unmasked.All.GainMean;
 RNm  = median(double(RN(:)), 'omitnan');
-Tadu = NaN;
-if isfile(fullfile(DieOut, 'light.json')) && strcmpi(DieThreshold, 'light')
-    L    = jsondecode(fileread(fullfile(DieOut, 'light.json')));
-    Tadu = L.Threshold.Median;
-elseif isfile(fullfile(DieOut, 'dark.json'))
-    D    = jsondecode(fileread(fullfile(DieOut, 'dark.json')));
-    Tadu = -D.Fit.All.InterceptSpread.Median;
+Tlight = NaN;  Tdark = NaN;
+if isfile(fullfile(DieOut, 'light.json'))
+    L      = jsondecode(fileread(fullfile(DieOut, 'light.json')));
+    Tlight = L.Threshold.Median;
+end
+if isfile(fullfile(DieOut, 'dark.json'))
+    D     = jsondecode(fileread(fullfile(DieOut, 'dark.json')));
+    Tdark = -D.Fit.All.InterceptSpread.Median;
+end
+Tadu = Tlight;
+if strcmpi(DieThreshold, 'dark')
+    Tadu = Tdark;
 end
 S.Closure = struct('Method',DieThreshold, 'RN',RNm, 'ThresholdADU',Tadu, 'GainMean',Gm, ...
                    'Predicted',RNm.^2 + Gm.*Tadu, 'Measured',S.Unmasked.All.OffsetMean, ...
@@ -237,6 +250,15 @@ S.Closure.Ratio = S.Closure.Measured./S.Closure.Predicted;
 % same at every step; a drift means the PTC is curved there and the intercept
 % of a straight line through it is not a threshold at all.
 S.Closure.ThresholdPTC = (S.Closure.Measured - RNm.^2)./Gm;
+% All three routes are stored, whatever DieThreshold says, so that stage 6 and
+% any report can carry the systematic instead of inheriting one choice.
+S.Thresholds = struct('PTC_ADU',S.Closure.ThresholdPTC, 'Light_ADU',Tlight, 'Dark_ADU',Tdark, ...
+                      'PTC_e',S.Closure.ThresholdPTC./Gm, 'Light_e',Tlight./Gm, 'Dark_e',Tdark./Gm, ...
+                      'Selected',DieThreshold);
+% The gain itself carries a window systematic: see Scan. It propagates into
+% every electron-unit number, so it is recorded next to the gain.
+Gs = [Scan.GainPixelMean];
+S.GainSystematic = struct('Min',min(Gs), 'Max',max(Gs), 'Rel',(max(Gs)-min(Gs))./Gm);
 S.PerStepThreshold = struct('Step',Sid, 'Median',Med, 'Variance',VarEns, ...
                             'ThresholdADU',(VarEns - RNm.^2)./Gm - Med);
 S.GainElectrons = struct('ADUperE',Gm, 'RN_e',RNm./Gm, 'Threshold_e',Tadu./Gm);
@@ -279,13 +301,13 @@ fprintf('  per %dx%d block (%d blocks): median %.4f, spread %.4f, null %.4f -> i
     DieBlock, DieBlock, numel(Fblk.Slope), S.BlockGain.Median, S.BlockGain.StdObs, ...
     S.BlockGain.StdNull, S.BlockGain.StdIntr, 100.*S.BlockGain.RelIntr);
 
-fprintf('\nclosure of the chain: the PTC intercept is RN^2 + g*T, not RN^2\n');
+fprintf('\nthreshold: the PTC intercept is RN^2 + g*T, so the shot noise measures T directly\n');
 fprintf('  RN %.4f ADU (stage 1), T %.2f ADU (%s method), g %.4f ADU/e-\n', RNm, Tadu, DieThreshold, Gm);
 fprintf('  predicted %.2f ADU^2 (RN^2 alone is only %.2f), measured %.2f +- %.2f -> ratio %.3f\n', ...
     S.Closure.Predicted, RNm.^2, S.Closure.Measured, S.Closure.MeasuredSE, S.Closure.Ratio);
-fprintf('  turned round, the PTC itself implies T = %.2f ADU = %.1f e-, against %.2f (light) and %.2f (dark)\n', ...
+fprintf('  the PTC gives T = %.2f ADU = %.1f e-, against %.2f (light) and %.2f (dark)\n', ...
     S.Closure.ThresholdPTC, S.Closure.ThresholdPTC./Gm, Tadu, ...
-    local_dark(DieOut));
+    Tdark);
 fprintf('  per step, T = (Var-RN^2)/g - S [ADU] (constant only where the PTC is straight):\n    ');
 for J = 1:1:numel(Sid)
     In = '';
@@ -299,19 +321,11 @@ for Iw = 1:1:numel(Scan)
     fprintf('%-16s %7d %12.4f %12.2f %12.4f %12.2f\n', mat2str(Scan(Iw).Range), Scan(Iw).Nsteps, ...
         Scan(Iw).Gain, Scan(Iw).Offset, Scan(Iw).GainPixelMean, Scan(Iw).OffsetPixelMean);
 end
-fprintf('\nin electrons: gain %.4f ADU/e-, read noise %.3f e-; threshold %.1f e- (%s method) or %.1f e- (PTC)\n', ...
-    Gm, RNm./Gm, Tadu./Gm, DieThreshold, S.Closure.ThresholdPTC./Gm);
+fprintf('\nin electrons: gain %.4f ADU/e- (%.1f %% window systematic), read noise %.3f e-\n', ...
+    Gm, 100.*S.GainSystematic.Rel, RNm./Gm);
+fprintf('  threshold %.1f e- (PTC), %.1f e- (light), %.1f e- (dark) -- stage 6 must carry all three\n', ...
+    S.Thresholds.PTC_e, S.Thresholds.Light_e, S.Thresholds.Dark_e);
 fprintf('[%4.0f s] PTC DONE -> %s\n', toc(T0), DieOut);
-
-function T = local_dark(Dir)
-    % the dark-method threshold of stage 2, for comparison
-    T = NaN;
-    P = fullfile(Dir, 'dark.json');
-    if isfile(P)
-        D = jsondecode(fileread(P));
-        T = -D.Fit.All.InterceptSpread.Median;
-    end
-end
 
 function [Ge, Ce] = local_ens(X, Y, Nrep)
     % ensemble PTC of the per-step medians, weighted by the sampling error of
