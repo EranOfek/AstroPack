@@ -427,8 +427,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                                 I1 = (strcmp(Args.RefColNameMag, VegaToAB_Filters));
                                 RefMag = RefMag - GAIA_DR3_ZP_VegaMinusAB(I1);
     
-                                %I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
-                                I2 = (ismember(VegaToAB_Filters, Args.RefColNameMagBands));
+                                % offsets in the order of the band columns (issue #1370)
+                                [~, I2] = ismember(Args.RefColNameMagBands, VegaToAB_Filters);
                                 RefMagBands = RefMagBands - GAIA_DR3_ZP_VegaMinusAB(I2);
                                 %end
                             otherwise
@@ -533,7 +533,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                                 I1 = find(strcmp(Args.RefColNameMag, VegaToAB_Filters));
                                 RefMag = RefMag - GAIA_DR3_ZP_VegaMinusAB(I1);
     
-                                I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
+                                % offsets in the order of the band columns (issue #1370)
+                                [~, I2] = ismember(Args.RefColNameMagBands, VegaToAB_Filters);
                                 RefMagBands = RefMagBands - GAIA_DR3_ZP_VegaMinusAB(I2);
                                 %end
                             otherwise
