@@ -39,6 +39,27 @@ MATLAB ignores them.
 | `desy_var_mean_plots.py` | Variance vs mean of the individual pixels, one figure per regime (light / dark) per die-run, from the same dumps: per-pixel density, per-step median/ln2 and mean, fitted line and the (Var − RN²)/(g·Mean) ratio. `--tag`, `--ladder`, `--fit-range`, `--gain`. |
 | `desy_regenerate_all.sh` | Sequential chain of the above (drivers, zero stats, TX scan, FITS export) with a log. |
 
+## Single-die stage chain
+
+Step-by-step tools for ONE run / wafer / die / gain half, each stage writing its
+own binary maps and `stats.json` so the stages are independent and rerunnable.
+The whole die is processed in the **streamed** mode (`CCDSEC` empty): the
+per-pixel methods read one ladder step at a time and keep only the running sums,
+so 22.5 M pixels cost ~3 GB rather than the ~20 GB a cached whole-die ladder
+would need, and every frame is read exactly once.
+
+| Stage | Script | What it measures |
+|---|---|---|
+| 1 | `desy_rn_single_die.m` + `_plots.py` | bias, fixed pattern, per-pixel read noise and its intrinsic spread, common mode, column parity (ZE frames only) |
+| 2 | `desy_die_dark.m` + `desy_die_dark_plots.py` | per-pixel dark current and dark threshold from the weighted ladder fit, their spreads with the fit noise deconvolved, DSNU per step |
+| 3-6 | — | light ladder, bad columns, PTC gain, noise budget (not written yet) |
+
+`desy_die_config.m` holds the run / die / gain / fit-step settings; every stage
+runs it first, so it is the only file to edit when moving to another dataset.
+Note that the streamed mode needs an explicit step list (`FitSteps`): the
+`'auto'` rule resolves the steps from the cached region ladder, which full mode
+does not build.
+
 Reports: runs 31/32 reproduction (deck UC-3400-TN175-05) and the TX-scan report;
 the analysis conventions (TIFF = counter columns + low-gain + high-gain halves,
 DESY orientation `rot90(Half.',2)`, region `CCDSEC [1361 1460 1861 1960]`, deck

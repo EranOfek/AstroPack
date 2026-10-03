@@ -33,6 +33,15 @@ function S = perPixelFits(Obj, Type, Args)
     %   dark-current run whose dark ladder only reaches ~150 ADU has a much
     %   noisier intercept than one reaching 3500 ADU, and without the
     %   correction that difference would be read as a larger true spread.
+    %   Both modes are supported. In region mode the cached per-pixel ladder
+    %   is used (combineSteps first); in full mode the steps are streamed one
+    %   at a time straight from the frames, so only the sums are held and
+    %   combineSteps is not needed -- the step list comes from the frame
+    %   inventory. Streaming reads every frame exactly once: the residual sum
+    %   of squares is expanded from the sums instead of being accumulated in
+    %   a second pass. The only feature that still needs the cached ladder is
+    %   'Select','linlimit', whose step selection must know the step levels
+    %   before the pass.
     % Input  : - 'D' (signal vs exposure time) or 'B' (vs intensity).
     %          * ...,key,val,...
     %            'Select'    - 'fitrange' (default): the steps chosen by
@@ -53,8 +62,9 @@ function S = perPixelFits(Obj, Type, Args)
     %            VarSlope, VarIntercept, CovSlopeIntercept, ResidRMS,
     %            Chi2Dof (with 'Weights','none' the parameter variances are
     %            scaled by the OLS residual variance and Chi2Dof is that
-    %            variance rather than a goodness of fit); the selection (Steps, X, StepMedian, Nused,
-    %            LinLimit, GainADU, Weighted); and All / Even / Odd
+    %            variance rather than a goodness of fit); the selection
+    %            (Mode, Steps, X, StepMedian, Nused, LinLimit, GainADU,
+    %            Weights, VarStep); and All / Even / Odd
     %            summaries, each with SlopeSpread and InterceptSpread
     %            (paramSpread structures: Median, StdObs, StdRobust, StdFit,
     %            StdIntr, RelIntr, RelUL95, Sigma), CorrSlopeIntercept and
@@ -75,18 +85,36 @@ function S = perPixelFits(Obj, Type, Args)
     if ~Args.Weighted
         Args.Weights = 'none';
     end
-    if ~strcmp(Obj.Mode, 'region')
-        error('ultrasat:lab:PTCAnalysis:mode', 'perPixelFits needs region mode (per-pixel ladders are not kept in full mode)');
-    end
-    L = Obj.ladderOf(Type);
-    if ~isfield(L, 'Mean') || isempty(L.Mean)
-        error('ultrasat:lab:PTCAnalysis:order', 'Run combineSteps before perPixelFits');
-    end
     if isempty(Obj.ZeroNoise)
         error('ultrasat:lab:PTCAnalysis:order', 'Run subtractZero before perPixelFits');
     end
-    Nstep = numel(L.X);
-    Med   = median(reshape(L.Mean, [], Nstep), 1, 'omitnan');
+    IsRegion = strcmp(Obj.Mode, 'region');
+    L = Obj.ladderOf(Type);
+    if IsRegion
+        if ~isfield(L, 'Mean') || isempty(L.Mean)
+            error('ultrasat:lab:PTCAnalysis:order', 'Run combineSteps before perPixelFits');
+        end
+        Nstep = numel(L.X);
+        Med   = median(reshape(L.Mean, [], Nstep), 1, 'omitnan');
+    else
+        % Streamed: the step list comes from the frame inventory, so
+        % combineSteps -- which would read both ladders of the whole die just
+        % to list the steps -- is not needed. The per-step medians are
+        % measured during the pass; only the 'linlimit' selection needs them
+        % beforehand, and there the ladder means of combineSteps are used.
+        if ~isfield(L, 'X') || isempty(L.X)
+            L = Obj.stepInventory(Type);
+        end
+        Nstep = numel(L.X);
+        Med   = NaN(1, Nstep);
+        if isfield(L, 'RegionMean') && ~isempty(L.RegionMean)
+            Med = double(L.RegionMean);
+        end
+        if strcmpi(Args.Select, 'linlimit') && ~any(isfinite(Med))
+            error('ultrasat:lab:PTCAnalysis:order', ...
+                  'Select ''linlimit'' in full mode needs combineSteps first (the step levels decide the selection)');
+        end
+    end
     switch lower(Args.Select)
         case 'fitrange'                              % same window as fitResponse
             [Range, Sel] = Obj.fitSelection(Type, L.Step, L);
@@ -119,7 +147,7 @@ function S = perPixelFits(Obj, Type, Args)
     end
     RN2med = median(RN2(WMask & isfinite(RN2)), 'omitnan');
     VarStep = NaN(1, numel(Idx));                  % [ADU^2] variance of ONE frame of the step
-    if strcmpi(Args.Weights, 'measured')
+    if IsRegion && strcmpi(Args.Weights, 'measured')
         if ~isfield(L, 'VarTemporal') || isempty(L.VarTemporal)
             error('ultrasat:lab:PTCAnalysis:noVar', 'No VarTemporal in the ladder: use Weights=''model''');
         end
@@ -131,54 +159,90 @@ function S = perPixelFits(Obj, Type, Args)
         end
     end
 
-    % weighted sums over the selected steps
-    Z = zeros(size(RN2));
-    Sw = Z;  Swx = Z;  Swy = Z;  Swxx = Z;  Swxy = Z;  Nok = Z;
-    for I = 1:1:numel(Idx)
-        Yi = double(L.Mean(:,:,Idx(I)));
-        Wi = local_weight(I);
-        Ok = isfinite(Yi) & isfinite(Wi) & Wi>0 & Yi>=Range(1) & Yi<=Range(2);
-        Wi(~Ok) = 0;  Yi(~Ok) = 0;
-        Sw   = Sw   + Wi;
-        Swx  = Swx  + Wi.*X(I);
-        Swy  = Swy  + Wi.*Yi;
-        Swxx = Swxx + Wi.*X(I).^2;
-        Swxy = Swxy + Wi.*Yi.*X(I);
-        Nok  = Nok  + Ok;
+    % Weighted sums over the selected steps. Region mode works from the
+    % cached per-pixel ladder in two passes (fit, then residuals); full mode
+    % streams one step at a time and accumulates Swyy and the unweighted sums
+    % as well, so chi2 and the residual rms follow from the sums and every
+    % frame is read exactly once (see accumulateFit / solveFit).
+    if IsRegion
+        Z = zeros(size(RN2));
+        Sw = Z;  Swx = Z;  Swy = Z;  Swxx = Z;  Swxy = Z;  Nok = Z;
+        for I = 1:1:numel(Idx)
+            Yi = double(L.Mean(:,:,Idx(I)));
+            Wi = local_weight(I);
+            Ok = isfinite(Yi) & isfinite(Wi) & Wi>0 & Yi>=Range(1) & Yi<=Range(2);
+            Wi(~Ok) = 0;  Yi(~Ok) = 0;
+            Sw   = Sw   + Wi;
+            Swx  = Swx  + Wi.*X(I);
+            Swy  = Swy  + Wi.*Yi;
+            Swxx = Swxx + Wi.*X(I).^2;
+            Swxy = Swxy + Wi.*Yi.*X(I);
+            Nok  = Nok  + Ok;
+        end
+        D      = Sw.*Swxx - Swx.^2;
+        Bad    = Nok<3 | ~isfinite(D) | D<=0;
+        D(Bad) = NaN;
+        F = struct();
+        F.Slope             = (Sw.*Swxy - Swx.*Swy)./D;
+        F.Intercept         = (Swy.*Swxx - Swx.*Swxy)./D;
+        F.VarSlope          = Sw./D;
+        F.VarIntercept      = Swxx./D;
+        F.CovSlopeIntercept = -Swx./D;
+        F.Nused             = Nok;
+        % residuals
+        Chi2 = Z;  Res2 = Z;
+        for I = 1:1:numel(Idx)
+            Yi = double(L.Mean(:,:,Idx(I)));
+            Ri = Yi - F.Intercept - F.Slope.*X(I);
+            Wi = local_weight(I);
+            Ok = isfinite(Ri) & Yi>=Range(1) & Yi<=Range(2);
+            Ri(~Ok) = 0;
+            Chi2 = Chi2 + Wi.*Ri.^2;
+            Res2 = Res2 + Ri.^2;
+        end
+        F.Res2     = Res2;
+        F.ResidRMS = sqrt(Res2./Nok);
+        F.Chi2Dof  = Chi2./max(Nok-2, 1);
+        F.ResidRMS(Bad) = NaN;  F.Chi2Dof(Bad) = NaN;
+    else
+        Sums = [];
+        for I = 1:1:numel(Idx)
+            [Mi, Vi, Nf] = Obj.stepMaps(Type, Steps(I));
+            Nrep(I) = Nf;
+            Yi      = double(Mi);
+            Med(Idx(I)) = median(Yi(WMask & isfinite(Yi)), 'omitnan');
+            if strcmpi(Args.Weights, 'measured')
+                Dof = max(Nf-1, 1);
+                Vv  = double(Vi);
+                Vv  = Vv(WMask & isfinite(Vv));
+                VarStep(I) = median(Vv).*Dof./(2.*gammaincinv(0.5, Dof./2));
+            end
+            Sums = ultrasat.lab.PTCAnalysis.accumulateFit(Sums, Yi, X(I), local_weight(I), Range);
+            if Obj.Verbosity>0
+                fprintf('perPixelFits: %s step %d/%d (median %.1f ADU)\n', Type, I, numel(Idx), Med(Idx(I)));
+            end
+        end
+        F = ultrasat.lab.PTCAnalysis.solveFit(Sums);
+        clear Sums
     end
-    D      = Sw.*Swxx - Swx.^2;
-    Bad    = Nok<3 | ~isfinite(D) | D<=0;
-    D(Bad) = NaN;
-    S = struct('Type',Type, 'Select',Args.Select, 'Steps',Steps, 'X',X, ...
+    S = struct('Type',Type, 'Mode',Obj.Mode, 'Select',Args.Select, 'Steps',Steps, 'X',X, ...
                'StepMedian',Med(Idx), 'FitRange',Range, 'LinLimit',Args.LinLimit, ...
                'GainADU',Gn, 'Weights',Args.Weights, 'VarStep',VarStep, ...
                'SlopeUnit',Obj.slopeUnit(Type));
-    S.Slope             = (Sw.*Swxy - Swx.*Swy)./D;
-    S.Intercept         = (Swy.*Swxx - Swx.*Swxy)./D;
-    S.VarSlope          = Sw./D;
-    S.VarIntercept      = Swxx./D;
-    S.CovSlopeIntercept = -Swx./D;
-    S.Nused             = Nok;
-    % residuals
-    Chi2 = Z;  Res2 = Z;
-    for I = 1:1:numel(Idx)
-        Yi = double(L.Mean(:,:,Idx(I)));
-        Ri = Yi - S.Intercept - S.Slope.*X(I);
-        Wi = local_weight(I);
-        Ok = isfinite(Ri) & Yi>=Range(1) & Yi<=Range(2);
-        Ri(~Ok) = 0;
-        Chi2 = Chi2 + Wi.*Ri.^2;
-        Res2 = Res2 + Ri.^2;
-    end
-    S.ResidRMS = sqrt(Res2./Nok);
-    S.Chi2Dof  = Chi2./max(Nok-2, 1);
-    S.ResidRMS(Bad) = NaN;  S.Chi2Dof(Bad) = NaN;
+    S.Slope             = F.Slope;
+    S.Intercept         = F.Intercept;
+    S.VarSlope          = F.VarSlope;
+    S.VarIntercept      = F.VarIntercept;
+    S.CovSlopeIntercept = F.CovSlopeIntercept;
+    S.Nused             = F.Nused;
+    S.ResidRMS          = F.ResidRMS;
+    S.Chi2Dof           = F.Chi2Dof;
     if strcmpi(Args.Weights, 'none')
         % Equal weights: Sw/D and Swxx/D are in units of the (unknown)
         % variance of one point, so they must be scaled by its OLS estimate
         % s^2 = sum(resid^2)/(n-2). With real weights that scaling is 1 by
         % construction and Chi2Dof is the goodness of fit instead.
-        Sig2 = Res2./max(Nok-2, 1);
+        Sig2 = F.Res2./max(F.Nused-2, 1);
         S.VarSlope          = S.VarSlope.*Sig2;
         S.VarIntercept      = S.VarIntercept.*Sig2;
         S.CovSlopeIntercept = S.CovSlopeIntercept.*Sig2;

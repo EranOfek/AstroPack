@@ -1,0 +1,122 @@
+% Stage 2 of the single-die chain: per-pixel DARK CURRENT and DARK THRESHOLD.
+%   Whole die, streamed: the dark ladder is read one step at a time and only
+%   the running sums of the weighted per-pixel fit are kept (see
+%   ultrasat.lab.PTCAnalysis.perPixelFits in full mode).
+%   Signal(t) = DC*t + I_D per pixel over the steps of DieFitStepsD, with
+%   each point weighted by its MEASURED variance (the shot noise of a ladder
+%   point follows the collected charge, which no model of the measured signal
+%   reproduces when a threshold eats the first electrons). From the fit:
+%     DC      = Slope                  [ADU/s]  dark current per pixel
+%     T_dark  = -Intercept             [ADU]    charge threshold, dark method
+%   and the pixel-to-pixel spread of both with the analytic fit noise removed
+%   (paramSpread), which is the only way to compare setups whose ladders have
+%   different lever arms. DSNU per step comes from stepFixedPattern.
+%   Settings: ultrasat.lab.scripts.desy_die_config. Output in DieOut:
+%   dc.bin, tdark.bin, chi2.bin (single, [Ny Nx], column-major), nused.bin
+%   (uint8), rawcol.bin (int32, raw readout column of every image row) and
+%   dark.json.
+ultrasat.lab.scripts.desy_die_config;
+
+T0 = tic;
+fprintf('%s stage 2 (dark): streaming the whole die\n', DieTag);
+P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol', ...
+                             'FitSteps',struct('D',DieFitStepsD, 'B',DieFitStepsB), ...
+                             'GainADU',DieGainADU, 'Verbosity',1);
+P.read;
+P.subtractZero;
+fprintf('  %d ZE frames, %d x %d pixels, bias %.3f ADU, RN median %.4f ADU, %.0f s\n', ...
+    P.NZero, size(P.Zero,1), size(P.Zero,2), median(P.Zero(:)), median(P.ZeroNoise(:)), toc(T0));
+
+% --- stage 1 cross-check (the read noise of these very pixels sets the fit weights)
+Ref = local_stage1(DieStage1, DieRun, Die, DieGain, size(P.Zero));
+if ~isempty(Ref)
+    dBias = median(P.Zero(:)) - Ref.BiasLevelAll;
+    dRN   = median(P.ZeroNoise(:))./Ref.All.ReadNoiseMedianRaw - 1;
+    fprintf('  stage 1 agrees: d(bias) %+.3f ADU, d(RN median) %+.3f %%\n', dBias, 100.*dRN);
+    if abs(dBias)>0.05 || abs(dRN)>1e-3
+        error('ultrasat:lab:scripts:stage1', 'stage 1 dump disagrees with the frames just read');
+    end
+else
+    fprintf('  no stage 1 dump in %s: nothing to cross-check\n', DieStage1);
+end
+
+D = P.perPixelFits('D');
+fprintf('  per-pixel dark fit done, %.0f s\n', toc(T0));
+F = P.stepFixedPattern('D');
+fprintf('  per-step fixed pattern done, %.0f s\n', toc(T0));
+
+G = P.rawColGeom;
+writeBin(fullfile(DieOut, 'dc.bin'),     D.Slope);
+writeBin(fullfile(DieOut, 'tdark.bin'), -D.Intercept);
+writeBin(fullfile(DieOut, 'chi2.bin'),   D.Chi2Dof);
+writeBin(fullfile(DieOut, 'nused.bin'),  uint8(min(D.Nused, 255)), 'uint8');
+writeBin(fullfile(DieOut, 'rawcol.bin'), int32(G.RawCol), 'int32');
+
+% --- summary (no maps in the json)
+S = struct('Stage',2, 'Tag',DieTag, 'Run',DieRun, 'Die',Die, 'GainHalf',DieGain, ...
+           'Lot',P.Info.Lot, 'Wafer',P.Info.Wafer, 'Device',P.Info.Device, ...
+           'Size',size(P.Zero), 'ReadoutDim',G.Dim, 'Mode',P.Mode, ...
+           'NZero',P.NZero, 'BiasLevel',median(P.Zero(:)), 'RNMedian',median(P.ZeroNoise(:)), ...
+           'GainADU',DieGainADU, 'FitSteps',D.Steps, 'ExpTime',D.X, ...
+           'StepMedian',D.StepMedian, 'VarStep',D.VarStep, 'Weights',D.Weights);
+for Pn = {'All','Even','Odd'}
+    if isfield(D, Pn{1})
+        S.Fit.(Pn{1})     = D.(Pn{1});
+        S.Pattern.(Pn{1}) = F.(Pn{1});
+    end
+end
+S.PatternStep = F.Step;  S.PatternX = F.X;  S.PatternNframes = F.Nframes;
+Fid = fopen(fullfile(DieOut, 'dark.json'), 'w');
+fwrite(Fid, jsonencode(S));
+fclose(Fid);
+
+fprintf('\n%-5s %9s %10s %10s %9s %9s %9s %8s %8s\n', ...
+    'set', 'Npix', 'DC [ADU/s]', 'DSNU', 'DSNU/DC', 'T [ADU]', 'sigma(T)', 'chi2', 'resid');
+for Pn = {'All','Even','Odd'}
+    if ~isfield(D, Pn{1}), continue; end
+    Q  = D.(Pn{1});
+    Sl = Q.SlopeSpread;  In = Q.InterceptSpread;
+    fprintf('%-5s %9d %10.4f %10.4f %8.2f %% %9.2f %9.2f %8.2f %8.3f\n', Pn{1}, Q.Npix, ...
+        Sl.Median, Sl.StdIntr, 100.*Sl.RelIntr, -In.Median, In.StdIntr, ...
+        Q.MedianChi2Dof, Q.MedianResidRMS);
+end
+fprintf('\nfit noise removed: DC %.4f -> %.4f ADU/s, T %.2f -> %.2f ADU (observed -> intrinsic)\n', ...
+    D.All.SlopeSpread.StdRobust, D.All.SlopeSpread.StdIntr, ...
+    D.All.InterceptSpread.StdRobust, D.All.InterceptSpread.StdIntr);
+fprintf('per-step dark fixed pattern (median signal: fixed / signal):\n  ');
+for J = 1:1:numel(F.Step)
+    fprintf('%.0f:%.2f%% ', F.All.Median(J), 100.*F.All.RelFixed(J));
+end
+fprintf('\n  additive %.3f ADU, multiplicative %.3f %% (%d steps)\n', ...
+    F.All.Additive, 100.*F.All.Multiplicative, F.All.PatternNsteps);
+if ~isempty(DieGainADU) && isfinite(DieGainADU)
+    % the conversion gain is measured in stage 5; until then it is a setting
+    fprintf('electrons (gain %.4f ADU/e-): DC %.4f e-/s, T %.2f e-\n', DieGainADU, ...
+        D.All.SlopeSpread.Median./DieGainADU, -D.All.InterceptSpread.Median./DieGainADU);
+end
+fprintf('[%4.0f s] DARK DONE -> %s\n', toc(T0), DieOut);
+
+function writeBin(Path, A, Type)
+    if nargin<3
+        Type = 'single';
+        A = single(A);
+    end
+    Fid = fopen(Path, 'w');
+    fwrite(Fid, A, Type);
+    fclose(Fid);
+end
+
+function R = local_stage1(Dir, Run, Die, Gain, Siz)
+    % stage 1 summary, validated against the dataset actually being processed
+    R = [];
+    Path = fullfile(Dir, 'stats.json');
+    if ~isfile(Path)
+        return
+    end
+    R = jsondecode(fileread(Path));
+    if ~strcmp(R.Run, Run) || ~strcmp(R.Die, Die) || ~strcmp(R.GainHalf, Gain) || ~isequal(R.Size(:).', Siz)
+        error('ultrasat:lab:scripts:stage1', ...
+              'stage 1 dump %s is run %s %s %s %dx%d, not run %s %s %s %dx%d', ...
+              Path, R.Run, R.Die, R.GainHalf, R.Size(1), R.Size(2), Run, Die, Gain, Siz(1), Siz(2));
+    end
+end

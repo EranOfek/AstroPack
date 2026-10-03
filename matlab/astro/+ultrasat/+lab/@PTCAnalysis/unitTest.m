@@ -299,6 +299,56 @@ function Result = unitTest()
     assert(isfield(Th.All, 'PRNU_slope') && isfinite(Th.All.OffsetFPN_e));
     assert(abs(Th.All.OffsetFPN_e - Th.All.OffsetFPN_ADU./Pp.PTC.GainUsed)<1e-12);
 
+    % --- streamed per-pixel fits: accumulateFit / solveFit and full == region
+    % the sums reproduce a weighted straight line and its covariance
+    Xs = [1 2 4 8].';
+    Ys = 3 + 2.*Xs + [0.1; -0.2; 0.05; 0.3];
+    Ws = [1 2 0.5 4].';
+    Sm = [];
+    for Is=1:1:numel(Xs)
+        Sm = ultrasat.lab.PTCAnalysis.accumulateFit(Sm, Ys(Is).*ones(2,2), Xs(Is), Ws(Is).*ones(2,2), [-Inf Inf]);
+    end
+    Fs = ultrasat.lab.PTCAnalysis.solveFit(Sm);
+    Ad = [ones(numel(Xs),1), Xs];
+    Cd = (Ad.'*(Ws.*Ad))\(Ad.'*(Ws.*Ys));
+    Vd = inv(Ad.'*(Ws.*Ad));
+    assert(max(abs(Fs.Slope(:)-Cd(2)))<1e-12 && max(abs(Fs.Intercept(:)-Cd(1)))<1e-12);
+    assert(abs(Fs.VarSlope(1)-Vd(2,2))<1e-12 && abs(Fs.VarIntercept(1)-Vd(1,1))<1e-12);
+    Rd = Ys - Ad*Cd;
+    assert(abs(Fs.Chi2Dof(1) - sum(Ws.*Rd.^2)./(numel(Xs)-2))<1e-10);
+    assert(abs(Fs.ResidRMS(1) - sqrt(mean(Rd.^2)))<1e-10 && all(Fs.Nused(:)==numel(Xs)));
+    Sw2 = ultrasat.lab.PTCAnalysis.accumulateFit([], [1 2; 3 4], 1, [1 0; -1 NaN], [-Inf Inf]);
+    assert(isequal(Sw2.Nok, [1 0; 0 0]) && isequal(Sw2.Nr, ones(2,2)));   % bad weights drop from the fit only
+
+    % full (streamed) mode reproduces the region-mode per-pixel fit exactly
+    Fs2 = ultrasat.lab.PTCAnalysis(Dev, 'CCDSEC',[], 'FitRange',[-1e9 1e9], 'Parity','rawcol');
+    Fs2.read;  Fs2.subtractZero;                      % no combineSteps: the inventory is enough
+    Ff = Fs2.perPixelFits('D', 'Robust',false);
+    Fg = Pp.perPixelFits('D', 'Robust',false);
+    assert(strcmp(Ff.Mode,'full') && isequal(Ff.Steps, Fg.Steps) && max(abs(Ff.VarStep-Fg.VarStep))<1e-9);
+    assert(max(abs(Ff.Slope(:)-Fg.Slope(:)))<1e-9 && max(abs(Ff.Intercept(:)-Fg.Intercept(:)))<1e-9);
+    assert(max(abs(Ff.VarIntercept(:)-Fg.VarIntercept(:)))<1e-9 && isequal(Ff.Nused, Fg.Nused));
+    assert(max(abs(Ff.ResidRMS(:)-Fg.ResidRMS(:)))<1e-9 && max(abs(Ff.Chi2Dof(:)-Fg.Chi2Dof(:)))<1e-9);
+    assert(abs(Ff.All.InterceptSpread.StdIntr-Fg.All.InterceptSpread.StdIntr)<1e-9);
+    assert(abs(Ff.Odd.SlopeSpread.Median-Fg.Odd.SlopeSpread.Median)<1e-9);
+    Fn = Fs2.perPixelFits('D', 'Weighted',false, 'Robust',false);       % OLS branch too
+    Gn2 = Pp.perPixelFits('D', 'Weighted',false, 'Robust',false);
+    assert(max(abs(Fn.VarSlope(:)-Gn2.VarSlope(:)))<1e-9);
+    try
+        Fs2.perPixelFits('D', 'Select','linlimit');                    % needs the step levels
+        error('unitTest:nothrow', 'linlimit must fail in full mode without combineSteps');
+    catch Me
+        assert(strcmp(Me.identifier, 'ultrasat:lab:PTCAnalysis:order'));
+    end
+
+    % full mode reproduces the per-step fixed pattern as well
+    Sf = Fs2.stepFixedPattern('B', 'Robust',false);
+    Sg = Pp.stepFixedPattern('B', 'Robust',false);
+    assert(strcmp(Sf.Mode,'full') && isequal(Sf.Step, Sg.Step) && isequal(Sf.Nframes, Sg.Nframes));
+    assert(max(abs(Sf.All.StdFixed-Sg.All.StdFixed))<1e-9 && max(abs(Sf.All.Median-Sg.All.Median))<1e-9);
+    assert(abs(Sf.All.Multiplicative-Sg.All.Multiplicative)<1e-9 && Sf.All.PatternNsteps==Sg.All.PatternNsteps);
+    assert(max(abs(Sf.Even.RelFixed-Sg.Even.RelFixed))<1e-9 && max(abs(Sf.Odd.Sigma-Sg.Odd.Sigma))<1e-9);
+
     % budgetCurve: only a POSITIVE threshold removes charge
     Bp = ultrasat.lab.PTCAnalysis.budgetCurve([10 100 1000], struct('RN_e',2, 'Threshold_e',50));
     assert(isequal(Bp.Qc, [0 50 950]) && Bp.SNR_cal(1)==0);
