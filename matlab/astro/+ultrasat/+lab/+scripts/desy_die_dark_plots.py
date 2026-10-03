@@ -52,6 +52,10 @@ rng = np.random.default_rng(A.seed)
 def sp(key, par, field):
     return float(F[key][par][field])
 
+LOC   = S.get('Local', {})
+DCLOC = float(LOC.get('DC', {}).get('Rel', float('nan')))
+TLOC  = float(LOC.get('T', {}).get('Intr', float('nan')))
+BLK   = int(LOC.get('DC', {}).get('Block', 32))
 DCMED = sp('All', 'SlopeSpread', 'Median')
 DCINT = sp('All', 'SlopeSpread', 'StdIntr')
 DCFIT = sp('All', 'SlopeSpread', 'StdFitRobust')
@@ -76,9 +80,10 @@ im = ax.imshow(Mb, origin='lower', cmap='viridis', vmin=lo, vmax=hi,
 fig.colorbar(im, ax=ax, label='dark current [ADU/s]', shrink=0.85)
 ax.set_xlabel('image column')
 ax.set_ylabel('image row  (readout column index runs along the rows)')
-ax.set_title(f'Dark current per pixel, {TAG}\n{B}x{B} binned; '
-             f'median {DCMED:.4f} ADU/s, intrinsic spread {DCINT:.4f} '
-             f'({100*DCINT/DCMED:.1f} %)', fontsize=10)
+ax.set_title(f'Dark current per pixel, {TAG}\n{B}x{B} binned; median {DCMED:.4f} ADU/s. '
+             f'Spread over the die {100*DCINT/DCMED:.1f} %, but that is this structure: '
+             f'\npixel to pixel ({BLK}x{BLK} blocks detrended) it is only {100*DCLOC:.2f} %',
+             fontsize=10)
 savefig(fig, 'fig_dark_dc_map.png')
 
 # ------------------------------------------------------------------ 2. DC distribution
@@ -139,7 +144,8 @@ ax.set_xlabel('per-pixel dark threshold  T = -intercept [ADU]')
 ax.set_ylabel('pixels per bin')
 ax.set_title(f'Dark threshold, {TAG}\nobserved spread '
              f"{sp('All','InterceptSpread','StdRobust'):.2f} ADU, of which "
-             f'{TFIT:.2f} is fit noise, leaving {TINT:.2f} ADU intrinsic', fontsize=10)
+             f'{TFIT:.2f} is fit noise, leaving {TINT:.2f} ADU over the die '
+             f'and {TLOC:.2f} ADU pixel to pixel', fontsize=10)
 ax.grid(alpha=0.25)
 ax.legend(fontsize=8.5, loc='upper right')
 savefig(fig, 'fig_dark_threshold.png')

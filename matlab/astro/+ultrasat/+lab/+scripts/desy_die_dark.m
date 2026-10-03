@@ -8,9 +8,16 @@
 %   reproduces when a threshold eats the first electrons). From the fit:
 %     DC      = Slope                  [ADU/s]  dark current per pixel
 %     T_dark  = -Intercept             [ADU]    charge threshold, dark method
-%   and the pixel-to-pixel spread of both with the analytic fit noise removed
-%   (paramSpread), which is the only way to compare setups whose ladders have
-%   different lever arms. DSNU per step comes from stepFixedPattern.
+%   and the spread of both with the analytic fit noise removed (paramSpread),
+%   which is the only way to compare setups whose ladders have different lever
+%   arms. DSNU per step comes from stepFixedPattern.
+%   Two spreads are reported and they mean different things. The spread over
+%   the WHOLE die is dominated by large-scale structure (on this device the
+%   dark current ramps 0.53 -> 0.25 ADU/s across the readout columns), so it
+%   is a total non-uniformity, not the pixel-to-pixel DSNU that a noise budget
+%   needs. The LOCAL spread removes everything above the block scale (a block
+%   median, 32x32 by default) and then takes out the fit noise, which leaves
+%   the genuine pixel-to-pixel term.
 %   Settings: ultrasat.lab.scripts.desy_die_config. Output in DieOut:
 %   dc.bin, tdark.bin, chi2.bin (single, [Ny Nx], column-major), nused.bin
 %   (uint8), rawcol.bin (int32, raw readout column of every image row) and
@@ -45,6 +52,10 @@ fprintf('  per-pixel dark fit done, %.0f s\n', toc(T0));
 F = P.stepFixedPattern('D');
 fprintf('  per-step fixed pattern done, %.0f s\n', toc(T0));
 
+Ldc = localSpread(D.Slope,     32, D.All.SlopeSpread.StdFitRobust);
+Lt  = localSpread(-D.Intercept, 32, D.All.InterceptSpread.StdFitRobust);
+Chi2Exp = 2.*gammaincinv(0.5, max(numel(D.Steps)-2,1)./2)./max(numel(D.Steps)-2,1);
+
 G = P.rawColGeom;
 writeBin(fullfile(DieOut, 'dc.bin'),     D.Slope);
 writeBin(fullfile(DieOut, 'tdark.bin'), -D.Intercept);
@@ -66,23 +77,31 @@ for Pn = {'All','Even','Odd'}
     end
 end
 S.PatternStep = F.Step;  S.PatternX = F.X;  S.PatternNframes = F.Nframes;
+S.Local = struct('DC',Ldc, 'T',Lt);
+S.Chi2DofExpected = Chi2Exp;
 Fid = fopen(fullfile(DieOut, 'dark.json'), 'w');
 fwrite(Fid, jsonencode(S));
 fclose(Fid);
 
-fprintf('\n%-5s %9s %10s %10s %9s %9s %9s %8s %8s\n', ...
-    'set', 'Npix', 'DC [ADU/s]', 'DSNU', 'DSNU/DC', 'T [ADU]', 'sigma(T)', 'chi2', 'resid');
+fprintf('\n%-5s %9s %10s %11s %10s %9s %9s %8s %8s\n', ...
+    'set', 'Npix', 'DC [ADU/s]', 'spread(DC)', 'of the die', 'T [ADU]', 'spread(T)', 'chi2', 'resid');
 for Pn = {'All','Even','Odd'}
     if ~isfield(D, Pn{1}), continue; end
     Q  = D.(Pn{1});
     Sl = Q.SlopeSpread;  In = Q.InterceptSpread;
-    fprintf('%-5s %9d %10.4f %10.4f %8.2f %% %9.2f %9.2f %8.2f %8.3f\n', Pn{1}, Q.Npix, ...
+    fprintf('%-5s %9d %10.4f %11.4f %8.2f %%  %9.2f %9.2f %8.2f %8.3f\n', Pn{1}, Q.Npix, ...
         Sl.Median, Sl.StdIntr, 100.*Sl.RelIntr, -In.Median, In.StdIntr, ...
         Q.MedianChi2Dof, Q.MedianResidRMS);
 end
 fprintf('\nfit noise removed: DC %.4f -> %.4f ADU/s, T %.2f -> %.2f ADU (observed -> intrinsic)\n', ...
     D.All.SlopeSpread.StdRobust, D.All.SlopeSpread.StdIntr, ...
     D.All.InterceptSpread.StdRobust, D.All.InterceptSpread.StdIntr);
+fprintf('spread over the whole die %.2f %% of the median, but that is large-scale structure;\n', ...
+    100.*D.All.SlopeSpread.RelIntr);
+fprintf('  pixel-to-pixel (%dx%d blocks detrended, fit noise removed): DC %.2f %%, T %.2f ADU\n', ...
+    Ldc.Block, Ldc.Block, 100.*Ldc.Rel, Lt.Intr);
+fprintf('chi2/dof median %.3f against %.3f expected for exact weights (%+.1f %%)\n', ...
+    D.All.MedianChi2Dof, Chi2Exp, 100.*(D.All.MedianChi2Dof./Chi2Exp - 1));
 fprintf('per-step dark fixed pattern (median signal: fixed / signal):\n  ');
 for J = 1:1:numel(F.Step)
     fprintf('%.0f:%.2f%% ', F.All.Median(J), 100.*F.All.RelFixed(J));
@@ -104,6 +123,27 @@ function writeBin(Path, A, Type)
     Fid = fopen(Path, 'w');
     fwrite(Fid, A, Type);
     fclose(Fid);
+end
+
+function R = localSpread(M, B, StdFit)
+    % Pixel-to-pixel spread of a map: the robust spread of the residual to a
+    % BxB block median, with the fit noise of the individual pixels removed in
+    % quadrature. Everything varying on scales above B pixels -- gradients,
+    % banding, the bright patches of a dark-current map -- is absorbed by the
+    % block median and so does not enter, which is what distinguishes this
+    % from the spread over the whole die.
+    [Ny, Nx] = size(M);
+    ny = floor(Ny./B).*B;
+    nx = floor(Nx./B).*B;
+    C  = double(M(1:ny, 1:nx));
+    C  = reshape(permute(reshape(C, B, ny./B, B, nx./B), [1 3 2 4]), B.*B, []);
+    Med = median(C, 1, 'omitnan');
+    Res = C - Med;
+    Res = Res(isfinite(Res));
+    Obs = 1.4826.*median(abs(Res - median(Res)));
+    R = struct('Block',B, 'Level',median(Med,'omitnan'), 'StdObs',Obs, 'StdFit',StdFit, ...
+               'Intr',sqrt(max(Obs.^2 - StdFit.^2, 0)));
+    R.Rel = R.Intr./abs(R.Level);
 end
 
 function R = local_stage1(Dir, Run, Die, Gain, Siz)
