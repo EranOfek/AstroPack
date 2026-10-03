@@ -157,7 +157,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
         Args.CornersRA                   = {'RA1','RA2','RA3','RA4'};
         Args.CornersDec                  = {'DEC1','DEC2','DEC3','DEC4'};
         Args.MinNstars                   = 50;
-        Args.MaxFracGrad                 = 1.0;
+        Args.MaxFracGrad                 = 1.5; % normal visits reach ~1.45 (issue #1372)
 
         Args.AddMergedCat                = true;
         Args.AddKnownAst                 = true;
