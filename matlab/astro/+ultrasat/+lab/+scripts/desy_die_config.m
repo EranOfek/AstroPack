@@ -39,6 +39,23 @@ DieGainADU   = [];                     % [ADU/e-] for the electron columns; [] =
 % 'light'; 'dark' is kept for comparison.
 DieThreshold = 'light';                % 'light' | 'dark'
 DieBlock     = 32;                     % block side of the pixel-to-pixel (local) spreads
+% Bad-column cut (stage 4). This has a bigger effect on the headline numbers
+% than the threshold choice: at 5 sigma it masks 275 of 4740 readout columns,
+% 5.8 % of the pixels, and improves the read-noise median by 2.7 %. The noisy
+% columns are a smooth tail, not a separate population (488 columns at 3
+% sigma, 271 at 5, 93 at 10), so this is a choice, not a defect count, and
+% every ensemble number from stage 5 on is reported both masked and unmasked.
+DieNoiseSigma = 5;
+% Signal window of the per-pixel PTC fit (stage 5), [ADU] of the measured
+% bright signal. Steps are selected by the ENSEMBLE median, not per pixel: the
+% top edge sits only 2.6 % above step 5 (1170 ADU), so a per-pixel test would
+% include or drop that step according to the pixel's own response and build a
+% selection effect into the gain. The window stays below the 3-5 kADU variance
+% dip and the INL above 2900 ADU. It does include the bright ladder's
+% low-signal knee, which shifts a PTC intercept but not its slope as long as
+% the knee is additive -- DieGainScan tests that.
+DieGainRange = [100 1200];
+DieGainScan  = {[100 1200], [100 800], [300 1200], [300 2500], [100 2900]};
 DieRoot      = '/Data1/DESY';
 if ~isfolder(DieRoot)
     DieRoot = '/bigdata3/projects/ultrasat/DESY';

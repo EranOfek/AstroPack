@@ -54,7 +54,8 @@ would need, and every frame is read exactly once.
 | 2 | `desy_die_dark.m` + `desy_die_dark_plots.py` | per-pixel dark current and dark threshold from the weighted ladder fit, their spreads with the fit noise deconvolved, DSNU per step |
 | 3 | `desy_die_light.m` + `desy_die_light_plots.py` | per-pixel photo-response, PRNU from the per-step fixed pattern, light-method threshold with the dark current of stage 2 and both fit variances propagated |
 | 4 | `desy_die_badcol.m` + `desy_die_badcol_plots.py` | bad readout columns from the stage 1-3 maps (no frames read): excess read noise, dead response, the mask stages 5-6 use |
-| 5-6 | — | PTC gain, noise budget (not written yet) |
+| 5 | `desy_die_ptc.m` + `desy_die_ptc_plots.py` | per-pixel PTC gain, the gain per readout column and per block, and what the shot noise says about the charge threshold |
+| 6 | — | noise budget (not written yet) |
 
 `desy_die_config.m` holds the run / die / gain / fit-step settings; every stage
 runs it first, so it is the only file to edit when moving to another dataset.
@@ -88,3 +89,16 @@ the analysis conventions (TIFF = counter columns + low-gain + high-gain halves,
 DESY orientation `rot90(Half.',2)`, region `CCDSEC [1361 1460 1861 1960]`, deck
 intensity = config x 1000) are documented in `ultrasat.lab.readPTC` and
 `ultrasat.lab.PTCAnalysis`.
+
+Stage 5 does not use the same statistics as stages 2-4, and the difference is
+not cosmetic. Its ladder points are per-pixel VARIANCES from 3 frames, so each
+carries 2 degrees of freedom and is chi2 distributed with a 100 % error and a
+long tail, not a Gaussian mean. The fitted slope is then unbiased in the mean
+but its median is 10 % low, the Gaussian deconvolution of `paramSpread` does
+not apply (it pairs a robust observed spread with an analytic rms and returns
+a meaningless zero), and one pixel's gain is good only to ~70 %. The stage
+therefore quotes the MEAN as the gain, compares the observed spread with a
+null simulation in which every pixel has exactly the same gain, and measures
+the gain where it is measurable -- per readout column (4742 pixels, ~1 %) and
+per 32x32 block (~2 %). Every one of those effects was first seen as an
+anomaly in the output and then reproduced to three digits by the null.

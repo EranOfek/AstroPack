@@ -27,7 +27,7 @@ RN   = readBin(fullfile(DieStage1, 'rn.bin'),  Siz, 'stage 1 (desy_rn_single_die
 DC   = readBin(fullfile(DieOut,    'dc.bin'),  Siz, 'stage 2 (desy_die_dark)');
 RESP = readBin(fullfile(DieOut,    'resp.bin'),Siz, 'stage 3 (desy_die_light)');
 
-B = P.badColumns('NoiseMap',RN, 'RespMap',RESP);
+B = P.badColumns('NoiseMap',RN, 'RespMap',RESP, 'NoiseSigma',DieNoiseSigma);
 Red = 3 - G.Dim;
 DcProfile = squeeze(median(double(DC), Red, 'omitnan'));
 DcMed     = median(DcProfile(isfinite(DcProfile)));
