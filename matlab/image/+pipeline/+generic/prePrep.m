@@ -590,7 +590,11 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
                                 'GoodImages',false(Nim,1),...
                                 'SelectedImages',false(Nim,1),...
                                 'BasicCalib',false(Nim,1),...
-                                'MaxFracGrad',nan(Nim,1));
+                                'MaxFracGrad',nan(Nim,1),...
+                                'NsubNoPSF',nan(Nim,1),...
+                                'NsubNoSrc',nan(Nim,1),...
+                                'NsubGood',nan(Nim,1),...
+                                'NsrcSum',nan(Nim,1));
         else
             % Add columns:
             %TableForDB.FileName              = strings(Nim,1); already in
@@ -616,6 +620,10 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
             TableForDB.SelectedImages        = false(Nim,1);
             TableForDB.BasicCalib            = false(Nim,1);
             TableForDB.MaxFracGrad           = nan(Nim,1);
+            TableForDB.NsubNoPSF             = nan(Nim,1);
+            TableForDB.NsubNoSrc             = nan(Nim,1);
+            TableForDB.NsubGood              = nan(Nim,1);
+            TableForDB.NsrcSum               = nan(Nim,1);
         end
     end
 end

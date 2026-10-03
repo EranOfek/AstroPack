@@ -603,7 +603,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             % catalogue and are already excluded by the Nstars term above.
             % Counted per sub image group, logged by PipelineDemon.
             % Failed-background sub images are counted in NfailedBack.
-            IsNoPSF = reshape(isemptyPSF([AllSI.PSFData]), size(AllSI)) & ~IsFailedBack;
+            IsEmptyPSF = reshape(isemptyPSF([AllSI.PSFData]), size(AllSI));
+            IsNoPSF    = IsEmptyPSF & ~IsFailedBack;
             Status.NnoPSF     = sum(IsNoPSF, 1);
             % Sub images whose astrometry failed (issue #1350). The no-PSF and
             % failed-background ones fail it as a consequence and are counted
@@ -611,7 +612,17 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             Status.NnoWCS     = sum(~IsGoodWCS & ~IsNoPSF & ~IsFailedBack, 1);
             Status.NgoodEpoch = sum(IsGood, 1);
             Status.Nepoch     = Nepoch;
-        
+
+            % Per raw image summary of its sub images, for the raw images
+            % table (issue #1372): e.g. a field partly blocked by the
+            % observatory wall gives sub images without a PSF and sources.
+            % NsubNoPSF counts all sub images without a PSF, failed-background
+            % ones included. Rows not processed keep NaN.
+            TableRaw.NsubNoPSF(TableRaw.SelectedImages) = sum(IsEmptyPSF, 2);
+            TableRaw.NsubNoSrc(TableRaw.SelectedImages) = sum(Nstars==0, 2);
+            TableRaw.NsubGood(TableRaw.SelectedImages)  = sum(IsGood, 2);
+            TableRaw.NsrcSum(TableRaw.SelectedImages)   = sum(Nstars, 2);
+
             % Photometric calibration of individual images:
             %[Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AllSI);
         
