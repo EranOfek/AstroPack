@@ -34,7 +34,16 @@ if isfile(fullfile(DieOut, 'mask.bin'))
     fclose(Fid);
 end
 Nsim = 4e5;
+RN2med = median(RN2(:), 'omitnan');
+DofZ   = max(P.NZero-1, 1);
 rng(41);
+% The null keeps the read noise REAL. Each synthetic pixel is given a read-noise
+% variance drawn from the measured map, so the null carries the long tail of noisy
+% pixels that the die actually has; what the null asserts is only that every pixel
+% shares one GAIN, which is the thing being tested. Giving every synthetic pixel
+% the median read noise instead leaves the measured distribution looking far more
+% tailed than the null for a reason that has nothing to do with the gain.
+RN2sub = RN2(randperm(numel(RN2), Nsim));
 
 Lad = struct('Name',{'Dark','Bright'}, 'Type',{'D','B'}, 'Range',{[-Inf Inf], DieGainRange});
 Out = struct();
@@ -43,7 +52,7 @@ for Il = 1:1:numel(Lad)
     Ty   = Lad(Il).Type;
     Flag = strcmp(P.Frames.FrameType, Ty);
     Steps = unique(P.Frames.Step(Flag)).';
-    Mm = {};  Vv = {};  Sid = [];  Med = [];  Ven = [];  Nrp = [];
+    Mm = {};  Vv = {};  Sid = [];  Med = [];  Ven = [];  Vtt = [];  Nrp = [];
     for Is = 1:1:numel(Steps)
         A = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'FrameType',Ty, 'Step',Steps(Is), 'Gain',DieGain);
         C = zeros([size(A(1).Image), numel(A)], 'single');
@@ -57,18 +66,20 @@ for Il = 1:1:numel(Lad)
             clear C M
             continue
         end
-        V   = var(double(C), 0, 3) - RN2;        % the variance the signal added
+        Vt  = var(double(C), 0, 3);              % total, which is what fluctuates
+        V   = Vt - RN2;                          % the variance the signal added
         Dof = max(Nf-1, 1);
         % one common mask for both axes: the pixels outside the top 0.1 % of the
         % variance, which is where the cosmic rays are
-        Kp = isfinite(M) & isfinite(V) & V <= quantile(V(:), 1-1e-3);
+        Kp = isfinite(M) & isfinite(Vt) & Vt <= quantile(Vt(:), 1-1e-3);
         Mm{end+1} = M;                                                       %#ok<SAGROW>
         Vv{end+1} = single(V);                                               %#ok<SAGROW>
         Sid(end+1) = Steps(Is);                                              %#ok<SAGROW>
         Med(end+1) = mean(double(M(Kp)));                                    %#ok<SAGROW>
         Ven(end+1) = mean(V(Kp));                                            %#ok<SAGROW>
+        Vtt(end+1) = mean(Vt(Kp));         % TOTAL variance: what sets the noise %#ok<SAGROW>
         Nrp(end+1) = Nf;                                                     %#ok<SAGROW>
-        clear C M V
+        clear C M V Vt
     end
     if numel(Sid)<3
         error('ultrasat:lab:scripts:ptc9', '%s ladder has only %d steps in range', Ty, numel(Sid));
@@ -88,7 +99,11 @@ for Il = 1:1:numel(Lad)
     for Ii = 1:1:numel(Sid)
         Xi = double(Mm{Ii});
         Yi = double(Vv{Ii});
-        Wi = Dofs(Ii)./(2.*max(Ge.*Xi + Ce, 1).^2);
+        % Var[y] = 2*Vtot^2/Dof, and Vtot is the TOTAL variance, read noise
+        % included: subtracting RN^2 changes the mean of y, not how much it
+        % fluctuates. Using the excess here instead would over-weight the lowest
+        % dark steps several-fold, where the read noise is most of the total.
+        Wi = Dofs(Ii)./(2.*Vtt(Ii).^2) + 0.*Xi;
         Wi(~isfinite(Xi) | ~isfinite(Yi)) = 0;
         Sums = ultrasat.lab.PTCAnalysis.accumulateFit(Sums, Yi, Xi, Wi, [-Inf Inf]);
     end
@@ -99,7 +114,7 @@ for Il = 1:1:numel(Lad)
     Keep.(Ty) = struct('Slope',single(F.Slope), 'Inter',single(F.Intercept));
 
     % null: identical pixels, taken through the whole measurement
-    N = local_null(Med, Ge.*Med + Ce, Nrp, Ge, Ce, Nsim);
+    N = local_null(Med, Vtt - mean(RN2sub), Nrp, Dofs, RN2sub, DofZ, Nsim);
     fprintf('    null: truth %.4f -> mean %.4f, median %.4f (%+.1f %%), MAD %.4f; %.0f s\n', ...
         Ge, N.SlopeMean, N.SlopeMedian, 100*(N.SlopeMedian/Ge-1), N.SlopeMAD, toc(T0));
 
@@ -176,13 +191,17 @@ Fid = fopen(fullfile(DieOut, 'ptc_perpixel.json'), 'w');
 fwrite(Fid, jsonencode(S));
 fclose(Fid);
 
-fprintf('\n%-8s %10s %10s %10s %10s %10s %10s\n', ...
-    'ladder', 'g mean', 'g median', 'null med', 'g MAD', 'MAD/null', 'chi2 med');
+fprintf('\n%-8s %9s %9s %9s %9s %9s %9s %9s\n', ...
+    'ladder', 'g mean', 'g trim', 'ensemble', 'g median', 'null med', 'MAD/null', 'chi2 med');
 for Ty = {'D','B'}
     Q = Out.(Ty{1});
-    fprintf('%-8s %10.4f %10.4f %10.4f %10.4f %10.4f %10.3f\n', Q.Name, Q.Slope.Mean, ...
-        Q.Slope.Median, Q.Null.SlopeMedian, Q.Slope.MAD, Q.Slope.MADoverNull, Q.Chi2.Median);
+    fprintf('%-8s %9.4f %9.4f %9.4f %9.4f %9.4f %9.4f %9.3f\n', Q.Name, Q.Slope.Mean, ...
+        Q.Slope.TrimMean, Q.GainEnsemble, Q.Slope.Median, Q.Null.SlopeMedian, ...
+        Q.Slope.MADoverNull, Q.Chi2.Median);
 end
+fprintf(['  the plain mean is tail-sensitive here: y = V - RN_i^2 carries the read-noise map''s own\n', ...
+    '  scatter, 50 %% per pixel from five frames with a long tail, so the trimmed mean is the one\n', ...
+    '  to compare with the ensemble value.\n']);
 fprintf('\nintercept (RN^2 + g*T): dark %.2f, bright %.2f ADU^2 (means)\n', ...
     Out.D.Inter.Mean, Out.B.Inter.Mean);
 fprintf(['\nCovariance of the two fit parameters. The analytic value is what the fit predicts for\n', ...
@@ -204,16 +223,26 @@ fprintf('  spread %.4f against a null of %.4f -> ratio %.3f\n', ...
     Out.Difference.MAD, Out.Difference.NullMAD, Out.Difference.MADoverNull);
 fprintf('[%4.0f s] PERPIXEL PTC DONE -> %s\n', toc(T0), DieOut);
 
-function N = local_null(Med, Sig2, Nrp, Ge, Ce, Nsim)
-    % identical pixels taken through the whole measurement: integer frames, the
-    % mean and variance computed from them, the same weighted fit
+function N = local_null(Med, Vex, Nrp, Dofs, RN2true, DofZ, Nsim)
+    % Identical pixels taken through the whole measurement: integer frames drawn
+    % with the TOTAL variance, the mean and variance computed from them, a read
+    % noise subtracted that carries its own sampling error exactly as the measured
+    % map does, and the same weights. Drawing the frames with the EXCESS variance
+    % instead -- which an earlier version did -- leaves the null too quiet at the
+    % low dark steps, where the read noise is most of the total, and the measured
+    % distribution then looks far wider than it is.
     Ns  = numel(Med);
     Sw=0; Swx=0; Swy=0; Swxx=0; Swxy=0; Swyy=0;
+    % each synthetic pixel: its own true read noise, and its own noisy ESTIMATE of
+    % it, measured from DofZ+1 zero-exposure frames exactly as the map was
+    Rt  = double(RN2true(:));
+    Rn  = Rt.*sum(randn(Nsim, DofZ).^2, 2)./DofZ;
     for I = 1:1:Ns
-        Fr = round(Med(I) + sqrt(Sig2(I)).*randn(Nsim, Nrp(I)));
+        Vt = Rt + Vex(I);                            % total variance of this pixel
+        Fr = round(Med(I) + sqrt(max(Vt,0)).*randn(Nsim, Nrp(I)));
         Xi = mean(Fr, 2);
-        Yi = var(Fr, 0, 2);
-        Wi = max(Nrp(I)-1,1)./(2.*max(Ge.*Xi + Ce, 1).^2);
+        Yi = var(Fr, 0, 2) - Rn;
+        Wi = Dofs(I)./(2.*mean(Vt).^2) + 0.*Xi;
         Sw=Sw+Wi; Swx=Swx+Wi.*Xi; Swy=Swy+Wi.*Yi;
         Swxx=Swxx+Wi.*Xi.^2; Swxy=Swxy+Wi.*Xi.*Yi; Swyy=Swyy+Wi.*Yi.^2;
     end
@@ -221,7 +250,8 @@ function N = local_null(Med, Sig2, Nrp, Ge, Ce, Nsim)
     Sl = (Sw.*Swxy - Swx.*Swy)./D;
     In = (Swy.*Swxx - Swx.*Swxy)./D;
     Ch = (Swyy - 2.*In.*Swy - 2.*Sl.*Swxy + In.^2.*Sw + 2.*In.*Sl.*Swx + Sl.^2.*Swxx)./max(Ns-2,1);
-    N  = struct('Nsim',Nsim, 'Slope',Sl, 'Inter',In, 'Chi2',max(Ch,0), ...
+    Tr = NaN;  %#ok<NASGU>
+    N  = struct('Nsim',Nsim, 'Slope',Sl, 'Inter',In, 'Chi2',max(Ch,0), 'RN2Scatter',std(Rn), ...
                 'SlopeMean',mean(Sl), 'SlopeMedian',median(Sl), ...
                 'SlopeMAD',1.4826.*median(abs(Sl-median(Sl))));
 end
@@ -230,7 +260,14 @@ function Q = local_stat(V, Vn)
     V  = double(V(:));  V = V(isfinite(V));
     Vn = double(Vn(:)); Vn = Vn(isfinite(Vn));
     Md = median(V);  Mn = median(Vn);
-    Q  = struct('N',numel(V), 'Mean',mean(V), 'Median',Md, 'Std',std(V), ...
+    % The mean is tail-sensitive, and subtracting the per-pixel RN^2 feeds the
+    % read-noise map's own tail into y: a pixel whose RN^2 is measured from five
+    % frames carries ~50 % error on it, and the noisy-pixel tail is long. The
+    % symmetric 0.2 % trimmed mean is quoted beside it.
+    Vs = sort(V);
+    Nt = max(round(0.001.*numel(Vs)), 1);
+    Q  = struct('N',numel(V), 'Mean',mean(V), 'TrimMean',mean(Vs(Nt+1:end-Nt)), ...
+                'Median',Md, 'Std',std(V), ...
                 'MAD',1.4826.*median(abs(V-Md)), ...
                 'NullMean',mean(Vn), 'NullMedian',Mn, 'NullStd',std(Vn), ...
                 'NullMAD',1.4826.*median(abs(Vn-Mn)));

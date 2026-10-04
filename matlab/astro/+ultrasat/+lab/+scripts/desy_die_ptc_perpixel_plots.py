@@ -70,7 +70,10 @@ for ax, ty in zip(axs, ('D', 'B')):
     es = np.array(J['EdgesSlope'], dtype=float)
     ei = np.array(J['EdgesInter'], dtype=float)
     H  = np.array(J['Counts'], dtype=float).T
-    ax.pcolormesh(es, ei, np.log10(H + 1), cmap='viridis', shading='auto')
+    pc = ax.pcolormesh(es, ei, np.log10(H + 1), cmap='viridis', shading='auto')
+    cb = fig.colorbar(pc, ax=ax, pad=0.02)
+    cb.set_label('log$_{10}$(pixels per cell + 1)', fontsize=8)
+    cb.ax.tick_params(labelsize=7)
     Cv = Q['Cov']
     ax.set_xlabel('slope [ADU/e-]')
     ax.set_ylabel('intercept [ADU$^2$]')
