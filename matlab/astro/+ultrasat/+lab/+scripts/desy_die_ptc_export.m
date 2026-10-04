@@ -83,6 +83,19 @@ for Ij = 1:1:size(Jobs,1)
     S.Circular  = strcmp(Ty, 'ZE');             % E is zero by construction there
     S.SignalMedian   = Sg;
     S.SignalTrimMean = local_trimmean(M(:), 1e-3);
+    % The pair that belongs on a PTC. Var = g*S + c holds PER PIXEL, so averaging
+    % over pixels needs E[Var] against E[S] -- means on both axes, over the SAME
+    % pixels. A median on one axis and a mean on the other is not a point on any
+    % curve: the dark signal is right-skewed (its mean is 6 % above its median)
+    % while the bright signal is not, so mixing the two biases the ladders
+    % differently. The common mask drops the pixels in the top Trim of the
+    % variance, which is where the cosmic rays are, and both means are then taken
+    % over what is left.
+    Keep = isfinite(V) & isfinite(M) & V <= quantile(V(:), 1-1e-3);
+    S.KeepFrac    = nnz(Keep)./numel(V);
+    S.SignalMean  = mean(M(Keep));
+    S.VarMean     = mean(V(Keep));
+    S.ExcessMean  = mean(V(Keep) - RN2(Keep));
     S.VarMedian        = Vm;
     S.VarMeanChi2      = Vm.*Cf2;
     S.SpreadRel        = Sp;
@@ -103,8 +116,8 @@ for Ij = 1:1:size(Jobs,1)
     S.Excess = Ex;
     S.Sample = struct('Excess',single(E(Idx)), 'Signal',single(M(Idx)));
     PTC = [PTC, S];                                                        %#ok<AGROW>
-    fprintf('  %-2s step %2d: signal %9.1f  median V %9.2f  excess mean %9.2f (trimmed %9.2f)\n', ...
-        Ty, St, Sg, Vm, Ex.Mean, Ex.TrimMean);
+    fprintf('  %-2s step %2d: signal(mean) %9.1f  V(mean) %9.2f  excess mean %9.2f (trimmed %9.2f)\n', ...
+        Ty, St, S.SignalMean, S.VarMean, Ex.Mean, Ex.TrimMean);
     clear M V E Ev
 end
 
@@ -127,6 +140,12 @@ Meta.Correction = ['Plotted variance = VarMedian * Chi2MedianFactor * sqrt(1+Spr
 
 README = local_readme();
 save(fullfile(DieOut, 'ptc_data.mat'), 'PTC', 'Meta', 'README', '-v7.3');
+% the same points as json, for the python plotters (a -v7.3 MAT is HDF5 and
+% needs h5py, which is not assumed here)
+Pts = rmfield(PTC, {'Excess','Sample'});
+Fid = fopen(fullfile(DieOut, 'ptc_points.json'), 'w');
+fwrite(Fid, jsonencode(struct('Meta',rmfield(Meta,{'SampleIndex','SampleRN2'}), 'Points',{num2cell(Pts)})));
+fclose(Fid);
 D = dir(fullfile(DieOut, 'ptc_data.mat'));
 fprintf('\nwrote %s  (%d points, %.0f MB)\n', fullfile(DieOut,'ptc_data.mat'), numel(PTC), D.bytes./2^20);
 fprintf('  load it and type  README  to see the field list\n');
@@ -144,6 +163,14 @@ function R = local_readme()
     '                         built from those same frames)'
     '  SignalMedian           median over pixels of the bias-subtracted mean signal [ADU]'
     '  SignalTrimMean         the same, trimmed mean (top 0.1 % dropped)'
+    '  SignalMean, VarMean    THE PAIR TO PLOT: means over one common set of pixels, those'
+    '                         outside the top 0.1 % of the variance. Var = g*S + c holds per'
+    '                         pixel, so averaging needs a mean on BOTH axes over the same'
+    '                         pixels; a median on one and a mean on the other is not a point'
+    '                         on any curve. The dark signal is right-skewed (mean 6 % above'
+    '                         median) and the bright signal is not, so mixing biases the two'
+    '                         ladders differently and halves the apparent gap between them.'
+    '  ExcessMean, KeepFrac   mean of V-RN^2 over the same pixels, and the fraction kept'
     '  VarMedian              median over pixels of the per-pixel temporal variance [ADU^2]'
     '  Chi2MedianFactor       Dof/(2*gammaincinv(0.5,Dof/2)), the chi2 median-to-mean factor'
     '  VarMeanChi2            VarMedian * Chi2MedianFactor'
@@ -164,7 +191,7 @@ function R = local_readme()
     '       Meta.Correction explains the two factors applied to the plotted variance.'
     ''
     'To redraw the PTC figure:'
-    '  x = [PTC.SignalMedian];  y = [PTC.VarMeanCorrected];  t = {PTC.Type};'
+    '  x = [PTC.SignalMean];  y = [PTC.VarMean];  t = {PTC.Type};'
     '  loglog(x(strcmp(t,"B")), y(strcmp(t,"B")), "s", x(strcmp(t,"D")), y(strcmp(t,"D")), "o")'
     'To draw the excess-variance distribution of one point:'
     '  k = 12;  E = PTC(k).Excess;  stairs(E.Edges(1:end-1), E.Counts)'

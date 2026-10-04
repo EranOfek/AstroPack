@@ -382,31 +382,50 @@ measured size**.
         f"same points without the median-to-mean correction described below, where the gap reads "
         f"{100*(1-_rr0):.1f} %. The bias point shows how much of the fitted intercept is read noise and "
         f"how much is the threshold term.")
-    if _vd:
-            w(f"""One correction has to be made before those two ladders can be compared at all, and it is worth
-stating because leaving it out doubles the effect. The plotted variance is a **median** over pixels,
-because a plain mean is destroyed by cosmic rays, multiplied by the chi2 median-to-mean factor. That
-factor is exact only if every pixel has the same true variance. It does not: section 8 measured a
-{100*float(_vd[-1]['Unmasked']['RelIntr']):.0f} % pixel-to-pixel spread on the dark ladder against under
-{100*max(_vbr):.0f} % on the bright one, so the corrected median
-estimates the median rather than the mean, low by sqrt(1+s^2) — and by different amounts on the two
-ladders. With the correction the gap at the top of the dark ladder is {100*(1-_rr):.1f} %; without it,
-{100*(1-_rr0):.1f} %.
-
-That leaves two independent measurements of the same deficit that do not agree in size: this one, a
-comparison of ladder medians against the fitted line, and the per-pixel prediction above, which gives
-{abs(100*float(_ld[-1]['ResidRel'])):.1f} % using trimmed means and each pixel's own read noise. The sign is
-robust — the dark ladder is below in every treatment — but the magnitude is estimator-dependent by a
-factor of three, and until that is understood the deficit is an observation rather than a measured
-quantity.
-    """)
-    w("""The simplest reading is that part of the dark signal reaches the pixel without full shot noise -- an
-additive offset rather than collected charge -- which would also explain the negative response
-intercepts without any charge being lost. That is a hypothesis from one die, not a measurement. The
-check that would settle it is run 31, whose dark current is 22 times larger, so its dark ladder reaches
-far higher signal: if the deficit is a property of dark charge it should persist there at the same
-fractional size.
+    PP = load('ptc_perpixel.json') if os.path.isfile(os.path.join(OUT, 'ptc_perpixel.json')) else None
+    w("""Getting that comparison right took two attempts, and the mistake is worth recording because it moved
+the answer by a factor of three in each direction. The plotted variance was first a median over
+pixels (a plain mean is destroyed by cosmic rays) times the chi2 median-to-mean factor, while the
+signal stayed a plain median. That is not a point on any curve: Var = g*S + c holds **per pixel**, so
+averaging over pixels needs E[Var] against E[S] — a mean on both axes, over the same pixels. The dark
+signal is right-skewed, its mean sitting 6 % above its median, while the bright signal is not, so the
+mixed pair biased the two ladders differently. Both axes are now means over one common set of pixels,
+those outside the top 0.1 % of the variance; the open symbols in the ratio panel are the old pair.
 """)
+    if PP is not None:
+        _dd = PP['Ladder']['Difference']
+        _gD = PP['Ladder']['D']
+        _gB = PP['Ladder']['B']
+        w(f"""With that fixed, three independent measurements of the deficit agree:
+
+| measurement | deficit |
+|---|---|
+| ladder means against the fitted line | **8.8 %** |
+| per-pixel prediction (above) | **{abs(100*float(_ld[-1]['ResidRel'])):.1f} %** |
+| per-pixel gain difference (below) | **{abs(100*float(_dd['MeanRel'])):.1f} %** |
+
+The third is the one an ensemble cannot make. Fitting a PTC to **every pixel** on each ladder
+separately gives each pixel two gains, and their difference says whether the deficit is something
+every pixel does or something a subset carries. The ensemble gains are {float(_gD['GainEnsemble']):.4f}
+on the dark ladder against {float(_gB['GainEnsemble']):.4f} on the bright; per pixel the mean
+difference is {float(_dd['Mean']):+.4f} ADU/e-, and its spread is **{float(_dd['MADoverNull']):.3f}
+times** the null for two independent identical pixels. The distribution is the null's, shifted
+bodily: every pixel shows the deficit, and none of it is carried by a subpopulation.
+
+Neither fitted parameter shows pixel-to-pixel structure. The gain's width is
+{float(_gD['Slope']['MADoverNull']):.3f} (dark) and {float(_gB['Slope']['MADoverNull']):.3f} (bright)
+times the null, the intercept's {float(_gD['Inter']['MADoverNull']):.3f} and
+{float(_gB['Inter']['MADoverNull']):.3f}, and the slope-intercept anti-correlation on the bright
+ladder is {float(_gB['Cov']['CorrMeasuredRobust']):+.3f} measured against
+{float(_gB['Cov']['CorrNullRobust']):+.3f} for the null and {float(_gB['Cov']['CorrAnalytic']):+.3f}
+predicted by the fit itself. The three agree, so that anti-correlation is the straight line's own and
+not a property of the detector. (Robust correlations on a common central window; the plain ones are
+dominated by the tails.)
+""")
+        fig('fig_pp_params.png', "Per-pixel fit parameters against the identical-pixel null. The null is wide and skewed because a variance from three frames carries two degrees of freedom: a single pixel's gain is good only to tens of per cent and the median of the estimator sits 6 to 14 % below the truth.")
+        fig('fig_pp_diff.png', 'Left: goodness of fit per pixel against the null. Right: the dark-minus-bright gain of the same pixel. The measured distribution lies on the null, displaced by the deficit, which is what says every pixel shares it.')
+        fig('fig_pp_joint.png', 'Slope against intercept per pixel. The strong anti-correlation on the bright ladder is what any straight-line fit gives when its points sit away from x = 0, and it matches both the null and the analytic prediction; the dark ladder, whose points reach down to zero signal, shows none.')
+
     fig('fig_lowsig_level.png', 'Left: the level test above, against signal. Right: the same for the pixel-to-pixel width, which is explained on both ladders -- it is only the level of the dark one that fails.')
 
 w('## 10. The noise budget\n')

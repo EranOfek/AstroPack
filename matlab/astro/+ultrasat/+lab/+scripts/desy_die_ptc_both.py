@@ -7,7 +7,16 @@ photo-charge are the same kind of charge, the two ladders lie on one line: the
 shot noise does not know where the electrons came from. Where they separate,
 part of the dark signal is reaching the pixel without full shot noise.
 
-Variances are per-step medians over all pixels, corrected twice. The first
+Both axes are MEANS over one common set of pixels -- those outside the top 0.1 %
+of the variance, where the cosmic rays are. That is the only consistent choice:
+Var = g*S + c holds per pixel, so averaging over pixels needs E[Var] against
+E[S]. An earlier version plotted a median signal against a mean variance, which
+is not a point on any curve, and because the dark signal is right-skewed (its
+mean is 6 % above its median) while the bright signal is not, it halved the
+apparent gap between the two ladders. Those points are kept in the ratio panel
+as open symbols.
+
+For reference, the discarded recipe was: per-step medians corrected twice. The first
 correction is the chi2 median bias, x Dof/(2*gammaincinv(0.5,Dof/2)): a
 per-pixel variance is chi2 distributed, so its median sits below its mean by a
 known factor. The plain mean cannot be used -- a cosmic ray in one of three
@@ -37,28 +46,34 @@ OUT = A.out or A.indir
 
 with open(os.path.join(A.indir, 'ptc.json')) as fh:
     PT = json.load(fh)
-with open(os.path.join(A.indir, 'varspread.json')) as fh:
-    VS = json.load(fh)
-ST = VS['Steps'] if not isinstance(VS['Steps'], dict) else [VS['Steps']]
+with open(os.path.join(A.indir, 'ptc_points.json')) as fh:
+    PP = json.load(fh)
+ST = PP['Points'] if not isinstance(PP['Points'], dict) else [PP['Points']]
 TAG = f"{PT['Lot']} {PT['Die']}, run {PT['Run']}, {PT['GainHalf']} gain"
 G   = float(PT['GainEnsemble'])
 C   = float(PT['OffsetEnsemble'])
 WIN = [float(v) for v in PT['GainRange']]
-RN2 = float(VS['Steps'][0]['SigmaNull'])**2 if ST else np.nan
+
 
 def pts(ty):
     s = [e for e in ST if e['Type'] == ty and not e.get('Saturated')]
-    x = np.array([float(e['Signal']) for e in s])
-    # chi2 median -> mean, then median -> mean of the true variance itself
-    y = np.array([float(e['SigmaNull'])**2 * np.sqrt(1 + float(e['Unmasked']['RelIntr'])**2)
-                  for e in s])
-    y0 = np.array([float(e['SigmaNull'])**2 for e in s])
-    n = np.array([int(e['Step']) for e in s])
-    return x, y, n, y0
+    # The pair that belongs on a PTC: means of BOTH the signal and the variance,
+    # over one common set of pixels (those outside the top 0.1 % of the variance,
+    # which is where the cosmic rays are). Var = g*S + c holds per pixel, so
+    # averaging over pixels needs E[Var] against E[S]; a median on one axis and a
+    # mean on the other is not a point on any curve, and because the dark signal
+    # is right-skewed and the bright signal is not, mixing them halves the
+    # apparent gap between the two ladders.
+    x  = np.array([float(e['SignalMean']) for e in s])
+    y  = np.array([float(e['VarMean']) for e in s])
+    x0 = np.array([float(e['SignalMedian']) for e in s])     # the earlier, mixed pair
+    y0 = np.array([float(e['VarMeanCorrected']) for e in s])
+    n  = np.array([int(e['Step']) for e in s])
+    return x, y, n, (x0, y0)
 
-xd, yd, nd, yd0 = pts('D')
-xb, yb, nb, yb0 = pts('B')
-xz, yz, _,  yz0 = pts('ZE')
+xd, yd, nd, md = pts('D')
+xb, yb, nb, mb = pts('B')
+xz, yz, _,  mz = pts('ZE')
 XMAX = A.xmax                      # left panel: the band where both ladders live
 XALL = 1.15*max(xb.max() if xb.size else 0, xd.max() if xd.size else 0)
 
@@ -99,21 +114,21 @@ ax.legend(fontsize=8, loc='upper left')
 ax = axs[1]
 ax.axhline(1, color='k', lw=1.1)
 ax.axvspan(WIN[0], WIN[1], color='#dd8452', alpha=0.12)
-for x, y, y0, lab, col, mk in ((xb, yb, yb0, 'bright ladder', '#c44e52', 's'),
-                               (xd, yd, yd0, 'dark ladder', '#4c72b0', 'o')):
+for x, y, m0, lab, col, mk in ((xb, yb, mb, 'bright ladder', '#c44e52', 's'),
+                               (xd, yd, md, 'dark ladder', '#4c72b0', 'o')):
     ok = x > 1
-    ax.plot(x[ok], y0[ok]/(G*x[ok] + C), mk, ms=6, mfc='none', color=col, alpha=0.55)
+    ok0 = m0[0] > 1
+    ax.plot(m0[0][ok0], m0[1][ok0]/(G*m0[0][ok0] + C), mk, ms=6, mfc='none', color=col, alpha=0.5)
     ax.plot(x[ok], y[ok]/(G*x[ok] + C), mk + '-', ms=7, lw=1.2, color=col, label=lab)
 if xz.size:
-    ax.plot([1.0], [yz[0]/(G*0 + C)], '^', ms=10, color='#55a868',
-            label='bias frames (at S = 0)')
+    ax.plot([1.0], [yz[0]/C], '^', ms=10, color='#55a868', label='bias frames (at S = 0)')
 ax.set_xscale('log')
 ax.axvline(XMAX, color='#888888', ls=':', lw=1.2)
 ax.set_xlim(1, XALL)
 ax.set_xlabel('mean signal [ADU]  (dotted line: the left panel ends here)')
 ax.set_ylabel('variance / fitted line')
 ax.set_title('The same points as a ratio to the fitted line\n'
-             '(open symbols: without the median-to-mean correction)', fontsize=9.5)
+             '(open symbols: the earlier mixed median/mean pair)', fontsize=9.5)
 ax.grid(alpha=0.25, which='both')
 ax.legend(fontsize=8.5, loc='lower right')
 fig.suptitle(f'Photon transfer curve, dark and light together — {TAG}', fontsize=11)
@@ -124,8 +139,9 @@ print('wrote', os.path.join(OUT, 'fig_ptc_both.png'))
 # a number to quote with it
 if xd.size and xb.size:
     hi = xd.max()
-    r  = yd[np.argmax(xd)]/(G*hi + C)
-    r0 = yd0[np.argmax(xd)]/(G*hi + C)
+    j  = int(np.argmax(xd))
+    r  = yd[j]/(G*hi + C)
+    r0 = md[1][j]/(G*md[0][j] + C)
     print(f'at the top of the dark ladder ({hi:.0f} ADU) the dark variance is '
           f'{100*(r-1):+.1f} % against the bright-ladder line '
-          f'({100*(r0-1):+.1f} % without the median-to-mean correction)')
+          f'({100*(r0-1):+.1f} % with the earlier mixed median/mean pair)')
