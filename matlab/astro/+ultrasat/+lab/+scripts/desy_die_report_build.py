@@ -534,7 +534,7 @@ to be stated rather than assumed:
 | per-step means, unweighted — **used here and in section 9** | **{float(_R['c']['Gain']):.4f}** | **{float(_R['d']['Gain']):.4f}** |
 | per-step means, weighted by 1/Var^2 | {float(_R['c']['GainWeighted']):.4f} | {float(_R['d']['GainWeighted']):.4f} |
 | per-step medians, weighted (the earlier convention) | 1.0635 | 1.1392 |
-| mean over pixels of the per-pixel fitted slope | {float(PP['Ladder']['D']['Slope']['Mean']):.4f} | {float(PP['Ladder']['B']['Slope']['Mean']):.4f} |
+| trimmed mean over pixels of the per-pixel fitted slope | {float(PP['Ladder']['D']['Slope']['TrimMean']):.4f} | {float(PP['Ladder']['B']['Slope']['TrimMean']):.4f} |
 
 The first is the unbiased estimator of the ensemble relation and is what both this table and the
 per-pixel section now use; earlier drafts of this report quoted the third in one section and the

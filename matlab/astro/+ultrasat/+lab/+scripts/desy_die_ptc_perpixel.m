@@ -180,7 +180,11 @@ Out.Difference = local_stat(Dg(Ok), Dn);
 % sits well below the truth on both ladders (-5.9 % dark, -13.6 % bright), and the
 % median of the difference inherits both biases unequally: it reads -0.7 % where
 % the means differ by -9.3 %.
-Out.Difference.MeanRel   = Out.Difference.Mean./Out.B.Slope.Mean;
+% Trimmed, not plain. Subtracting the per-pixel RN^2 feeds the read-noise map's
+% own long tail into both gains, and the plain mean of the difference is carried
+% by it: it reads +0.040 where the trimmed mean reads the physical -0.11.
+Out.Difference.MeanRel     = Out.Difference.TrimMean./Out.B.Slope.TrimMean;
+Out.Difference.PlainMeanRel = Out.Difference.Mean./Out.B.Slope.Mean;
 Out.Difference.MedianRel = Out.Difference.Median./Out.B.Slope.Median;
 writeBin(fullfile(DieOut, 'gain_diff.bin'), Dg);
 
@@ -215,10 +219,10 @@ for Ty = {'D','B'}
         Cv.Measured, Cv.Null, Cv.Analytic, Cv.CorrMeasured, Cv.CorrNull, Cv.CorrAnalytic, ...
         Cv.CorrMeasuredRobust, Cv.CorrNullRobust);
 end
-fprintf(['same pixel, dark gain minus bright gain: mean %+.4f ADU/e- (%+.1f %% of the bright gain)\n', ...
-    '  the median, %+.4f, is not the number to quote: the estimator is skewed and the two\n', ...
-    '  ladders are biased by different amounts (-5.9 %% and -13.6 %%), which the difference inherits\n'], ...
-    Out.Difference.Mean, 100.*Out.Difference.MeanRel, Out.Difference.Median);
+fprintf(['same pixel, dark gain minus bright gain: trimmed mean %+.4f ADU/e- (%+.1f %% of the\n', ...
+    '  bright gain). Neither the plain mean (%+.4f, carried by the read-noise tail that\n', ...
+    '  subtracting RN_i^2 introduces) nor the median (%+.4f, skewed) is the number to quote.\n'], ...
+    Out.Difference.TrimMean, 100.*Out.Difference.MeanRel, Out.Difference.Mean, Out.Difference.Median);
 fprintf('  spread %.4f against a null of %.4f -> ratio %.3f\n', ...
     Out.Difference.MAD, Out.Difference.NullMAD, Out.Difference.MADoverNull);
 fprintf('[%4.0f s] PERPIXEL PTC DONE -> %s\n', toc(T0), DieOut);
