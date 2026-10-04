@@ -24,6 +24,7 @@ L  = load('light.json')
 BC = load('badcol.json')
 PT = load('ptc.json')
 BU = load('budget.json')
+ME = load('methods.json') if os.path.isfile(os.path.join(OUT, 'methods.json')) else None
 VS = load('varspread.json') if os.path.isfile(os.path.join(OUT, 'varspread.json')) else None
 LS = load('lowsignal.json') if os.path.isfile(os.path.join(OUT, 'lowsignal.json')) else None
 
@@ -94,8 +95,10 @@ rows = [
  ('Gain spread pixel to pixel', 'not detected (&lt; 7 % per pixel)', 'observed spread 1.006 x the null'),
  ('Bad readout columns', f"{int(BC['Nbad'])} of {int(BC['Nrawcol'])} ({100*(1-float(BC['GoodFraction'])):.2f} % of pixels)",
   f"{int(BC['NbadInPairs'])} of them in complete pairs"),
- ('**Charge threshold**', f"**{f3(float(PT['Thresholds']['PTC_e']),1)}** / {f3(float(PT['Thresholds']['Dark_e']),1)} / "
-  f"{f3(float(PT['Thresholds']['Light_e']),1)} e-", '**three routes disagree — section 11**'),
+ ('**Charge threshold**', (f"**{float(ME['Routes']['c']['Threshold_e']):.1f} ± {float(ME['Routes']['c']['Threshold_e_err']):.1f}** / "
+   f"{float(ME['Routes']['d']['Threshold_e']):.1f} / {float(ME['Routes']['b']['Threshold_e']):.1f} / "
+   f"{float(ME['Routes']['a']['Threshold_e']):.1f} e-") if ME else
+  f"{f3(float(PT['Thresholds']['PTC_e']),1)} e-", '**four routes disagree — section 11**'),
  ('**Limiting signal, SNR 5**', f"**{f3(min(QLIM),0)}** to {f3(max(QLIM),0)} e-",
   'calibrated; the range is the threshold'),
 ]
@@ -444,15 +447,76 @@ fig('fig_budget_terms.png', 'The budget decomposed, uncalibrated, with the shot-
 fig('fig_budget_snr.png', 'Signal to noise against incident charge for the three threshold routes. Solid is calibrated, dashed a single raw frame; the circles mark where each curve reaches SNR 5 and 3.')
 
 # ================================================================= threshold
-w('## 11. The charge threshold: three answers\n')
+w('## 11. The gain and the threshold: four routes, with errors\n')
 TH = PT['Thresholds']
-w(f"""| route | T [e-] | what it assumes | limiting signal, SNR 5 |
-|---|---|---|---|
-| shot noise (stage 5) | **{f3(TH['PTC_e'],1)}** | the PTC is straight in the fit window | **{f3(float(UM['PTC']['Qlim_cal_5']),1)} e-** |
-| dark response (stage 2) | {f3(TH['Dark_e'],1)} | the dark ladder extrapolates linearly to t = 0 | {f3(float(UM['Dark']['Qlim_cal_5']),1)} e- |
-| light response (stage 3) | {f3(TH['Light_e'],1)} | the bright ladder extrapolates linearly to zero intensity | {f3(float(UM['Light']['Qlim_cal_5']),1)} e- |
+if ME is not None:
+    _R = ME['Routes']
+    _nm = {'a': 'dark response (steps 7-9)', 'b': 'light response (below 1000 ADU)',
+           'c': 'PTC, dark ladder', 'd': 'PTC, bright ladder'}
+    def _g(k):
+        Q = _R[k]
+        if Q.get('Gain') is None or not np.isfinite(float(Q['Gain'])):
+            return '—'          # a response curve has no noise in it, so no gain
+        return f"**{float(Q['Gain']):.4f}** ± {float(Q['GainStat']):.4f} ± {float(Q['GainSyst']):.4f}"
+    def _t(k):
+        Q = _R[k]
+        return (f"{float(Q['Threshold']):.2f} ± {float(Q['ThresholdStat']):.2f} ± "
+                f"{float(Q['ThresholdSyst']):.2f}")
+    _gc, _gd = float(_R['c']['Gain']), float(_R['d']['Gain'])
+    _ec = np.hypot(float(_R['c']['GainStat']), float(_R['c']['GainSyst']))
+    _ed = np.hypot(float(_R['d']['GainStat']), float(_R['d']['GainSyst']))
+    _ns = abs(_gd - _gc)/np.hypot(_ec, _ed)
+    _ta, _tc = float(_R['a']['Threshold_e']), float(_R['c']['Threshold_e'])
+    _ea, _ec2 = float(_R['a']['Threshold_e_err']), float(_R['c']['Threshold_e_err'])
+    _nt = abs(_ta - _tc)/np.hypot(_ea, _ec2)
+    w(f"""Four independent routes reach these two numbers, and putting them in one table with their
+errors is the clearest statement of what this device does and does not have.
 
-The two response routes get their threshold by extrapolating a curve to zero signal, and section 2
+| route | gain [ADU/e-] | threshold [ADU] | threshold [e-] |
+|---|---|---|---|
+| a) {_nm['a']} | {_g('a')} | {_t('a')} | **{float(_R['a']['Threshold_e']):.1f} ± {float(_R['a']['Threshold_e_err']):.1f}** |
+| b) {_nm['b']} | {_g('b')} | {_t('b')} | **{float(_R['b']['Threshold_e']):.1f} ± {float(_R['b']['Threshold_e_err']):.1f}** |
+| c) {_nm['c']} | {_g('c')} | {_t('c')} | **{float(_R['c']['Threshold_e']):.1f} ± {float(_R['c']['Threshold_e_err']):.1f}** |
+| d) {_nm['d']} | {_g('d')} | {_t('d')} | **{float(_R['d']['Threshold_e']):.1f} ± {float(_R['d']['Threshold_e_err']):.1f}** |
+
+Errors are quoted statistical first, then systematic. **Only the two photon-transfer routes measure a
+gain**: a response curve contains no noise, so it cannot. All four give a threshold.
+
+**What the errors are.** The statistical one is the scatter between
+{int(ME['NBlock'])}x{int(ME['NBlock'])} = {int(ME['NBlock'])**2} independent blocks of the die, each
+{int(ME['BlockSize'][0])}x{int(ME['BlockSize'][1])} pixels, not a formal error from the pixel count:
+with 22.5 M pixels the latter reads 1e-5 and means nothing, while the block version carries the
+spatial structure, which is what makes "the gain of this die" uncertain at all. The systematic is the
+fit window, refitted over every defensible choice, and on a convex ladder it dominates everywhere —
+the dark threshold moves {float(_R['a']['ThresholdSyst']):.1f} ADU across windows against a block
+error of {float(_R['a']['ThresholdStat']):.1f}, the light threshold
+{float(_R['b']['ThresholdSyst']):.1f} against {float(_R['b']['ThresholdStat']):.1f}.
+
+The two PTC routes carry a third term, folded into their systematic rather than hidden: the choice of
+estimator. The nominal fit is unweighted, the mean variance against the mean signal, which is the
+unbiased estimator of the ensemble relation. Weighting by 1/Var^2 instead, as the per-pixel stage
+does, lets the low-signal points set the slope of a slightly curved PTC and gives
+{float(_R['c']['GainWeighted']):.4f} and {float(_R['d']['GainWeighted']):.4f} rather than
+{_gc:.4f} and {_gd:.4f}. Neither is wrong, so half the difference joins the error.
+
+**The two gains differ by {100*abs(_gd-_gc)/_gd:.1f} %**, {_gc:.4f} against {_gd:.4f} with combined
+errors of about {np.hypot(_ec,_ed):.4f} — a {_ns:.0f} sigma separation. That is the dark deficit of
+section 9 again, now as a gain with an error bar on it.
+
+**The four thresholds span {min(float(_R[k]['Threshold_e']) for k in 'abcd'):.1f} to
+{max(float(_R[k]['Threshold_e']) for k in 'abcd'):.1f} e- and are mutually inconsistent.** Taking the
+two best determined, c) at {_tc:.1f} ± {_ec2:.1f} and a) at {_ta:.1f} ± {_ea:.1f}, they sit
+{_nt:.0f} sigma apart, and no choice of window brings them together. The threshold is not a quantity
+this device has a single value of, and whichever route the noise budget adopts has to be carried as a
+stated assumption rather than a measurement.
+
+One number in that table moved against what section 4 reports and both are right: the dark current
+here is {float(_R['a']['Slope']):.4f} ± {float(_R['a']['SlopeStat']):.4f} ± {float(_R['a']['SlopeSyst']):.4f} ADU/s,
+the **mean** over pixels, while section 4 quotes the **median pixel**. The dark-current distribution
+is skewed by about 5 %, which is the whole of the difference.
+""")
+
+w(f"""The two response routes get their threshold by extrapolating a curve to zero signal, and section 2
 showed that neither curve is straight: the responsivity of both ladders rises with signal, so each
 window extrapolates its own local tangent and lands somewhere different. Measured on this die, the
 dark threshold moves from 8.9 ADU fitting all nine steps to 25.0 ADU fitting the top three, and the
@@ -463,9 +527,22 @@ therefore claim its own number.
 The shot-noise route extrapolates nothing. The variance measures the charge actually collected,
 Q = (Var - RN^2)/g^2, against the signal recorded, S = g(Q - T), so T follows step by step — and a
 real threshold must then come out the same at every step.
+
+**How this table relates to the budget in section 10.** The budget was computed before this
+comparison existed and uses three values taken straight from the stage summaries:
+{f3(TH['PTC_e'],1)}, {f3(TH['Dark_e'],1)} and {f3(TH['Light_e'],1)} e-. Two of them match the table
+within its errors — the dark response and the light response — and the third, labelled there simply
+"shot noise", is the bright-ladder PTC, whose value shifts from {f3(TH['PTC_e'],1)} to
+{float(_R['d']['Threshold_e']):.1f} e- when the unweighted mean-mean estimator replaces the weighted
+one. The dark-ladder PTC, route c), has no counterpart in the budget at all. Nothing in section 10
+needs redoing for that: its point was that the threshold choice moves the limiting signal by far
+more than any other term, and a fourth route at {float(_R['c']['Threshold_e']):.1f} e- only widens
+the range it already shows.
 """)
 fig('fig_ptc_threshold.png', 'The threshold implied by the shot noise, step by step. Flat at 7-10 ADU across the whole fit window, and drifting only above it, where the PTC itself bends and an intercept fitted there would not be a threshold at all.')
-w(f"""**Which I would use.** The shot-noise value, {f3(TH['PTC_e'],1)} e-. It is the only route that does
+w(f"""**Which I would use.** A photon-transfer value — route d), {float(_R['d']['Threshold_e']):.1f} ±
+{float(_R['d']['Threshold_e_err']):.1f} e-, measured on the ladder whose variance is fully explained
+(section 9). It is the only kind of route that does
 not extrapolate a curved response at all: it reads the threshold from the shot noise step by step,
 and gets the same answer at every step of the window. Section 9 adds a second argument for it --
 the bright ladder's variance is explained to better than a per cent with this threshold in the
