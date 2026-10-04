@@ -1046,6 +1046,11 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
             ADc(~NotKilled) = [];
             % Update number of cutouts.
             NADc = numel(ADc);
+            % If all cutouts were killed, keep one empty object, as when
+            % there are no candidates at all (issue #1374)
+            if NADc == 0
+                ADc = AstroZOGY();
+            end
         end
 
     end

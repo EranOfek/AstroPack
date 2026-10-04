@@ -3076,7 +3076,7 @@ classdef PipelineDemon < Component
                                                   'DumpComplexPath',Obj.FailedPath);  % issue #1360
             Obj.writeLog(sprintf('Transients detection - %s', StatusPipeII.Msg), LogLevel.Info);
 
-            if StatusPipeII.Success && UpArgs.SendTransientAlerts && ~ADc(1).ImageData.isemptyImage
+            if StatusPipeII.Success && UpArgs.SendTransientAlerts && ~isempty(ADc) && ~ADc(1).ImageData.isemptyImage
                 % TODO: This part should move out of pipeII
                 % Match to multi-epochs via DB. Without a DB connection it is
                 % skipped: matchTransientsToMultiEpochs would otherwise open
