@@ -103,6 +103,13 @@ the gain where it is measurable -- per readout column (4742 pixels, ~1 %) and
 per 32x32 block (~2 %). Every one of those effects was first seen as an
 anomaly in the output and then reproduced to three digits by the null.
 
+`desy_die_report_build.py` builds the report of one die from the six json
+dumps alone (`--indir` the stage output directory, `--rndir` the stage 1 one):
+a one-page datasheet, a section per stage with the figures that carry each
+conclusion, the three places the first answer was wrong, the threshold
+question, what the chain does not determine, and how to rerun it. The PDF is
+rendered from `report.html` with headless chromium, as for the other reports.
+
 Stage 6 reads no frames either, and it deliberately refuses to choose a charge
 threshold. The three routes give 7.7 e- (shot noise, stage 5), 17.1 e- (dark
 response, stage 2) and 29.0 e- (light response, stage 3), and on run 32
