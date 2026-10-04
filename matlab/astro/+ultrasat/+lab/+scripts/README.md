@@ -56,6 +56,7 @@ would need, and every frame is read exactly once.
 | 4 | `desy_die_badcol.m` + `desy_die_badcol_plots.py` | bad readout columns from the stage 1-3 maps (no frames read): excess read noise, dead response, the mask stages 5-6 use |
 | 5 | `desy_die_ptc.m` + `desy_die_ptc_plots.py` | per-pixel PTC gain, the gain per readout column and per block, and what the shot noise says about the charge threshold |
 | 6 | `desy_die_budget.m` + `desy_die_budget_plots.py` | sigma_eff and SNR in electrons, the limiting signal, and which noise term dominates where -- all three charge thresholds carried side by side |
+| 7 | `desy_die_varspread.m` + `desy_die_varspread_plots.py` | the distribution of the per-pixel variance at every ladder step against a simulated identical-pixel null: how much the variance really differs between pixels, and the tail |
 
 `desy_die_config.m` holds the run / die / gain / fit-step settings; every stage
 runs it first, so it is the only file to edit when moving to another dataset.
@@ -117,3 +118,24 @@ W04_D07 that alone moves the limiting signal at SNR 5 from 38 to 60 e-, against
 0.4 e- for the gain's window systematic and 0.2 e- for the bad-column mask. All
 the fixed-pattern terms it uses are the LOCAL (block-detrended) spreads, since
 a budget asks what varies between neighbouring pixels, not across the die.
+
+Stage 7 needs three things that are easy to get wrong. The null is **simulated
+with integer frames**, because a variance from three integers can only take
+multiples of 1/18 and both distributions are combs -- a continuous chi2 null
+would differ from the data for a reason that has nothing to do with the
+pixels, and the figure shows the simulated comb falling on the measured one.
+The width is **trimmed** (top 0.1 %, the same rule applied to the null),
+because a cosmic ray in one of three frames puts a pixel's variance at 10^7
+ADU^2 and on the long darks the untrimmed sd of V is 2700 times the chi2
+expectation, almost all of it from 0.001 % of the pixels; a median-based width
+will not do either, since the MAD of a quantised variance ties exactly with
+the null. And the significance counts **the null's own simulation error**,
+which dominates: the data has 22.5 M pixels against the null's 10^6, so above
+a few hundred ADU the upper limits are what mean something.
+
+On run 32 W04_D07 the pixel-to-pixel spread of the true variance falls from
+120 % at zero signal (where the variance is read noise, which varies a great
+deal) through 27 % at the top of the dark ladder (where it is dark signal, and
+the dark current itself spreads 20 % over the die) to below 6 % everywhere on
+the bright ladder, where shot noise dominates and the only expected spread is
+the 0.4 % PRNU.
