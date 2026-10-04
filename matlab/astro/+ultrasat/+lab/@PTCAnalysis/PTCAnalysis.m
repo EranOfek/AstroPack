@@ -20,12 +20,27 @@ classdef PTCAnalysis < Component
     %   half in the DESY orientation (see its Gain / Orient arguments).
     %   Two modes: 'region' (CCDSEC read into memory, default the DESY
     %   100x100 region) and 'full' (whole die, streamed step by step; only
-    %   the fit maps are kept).
+    %   the fit maps and the running sums are kept). perPixelFits and
+    %   stepFixedPattern work in both: in full mode they stream the ladder
+    %   themselves from the frame inventory, so combineSteps is not needed
+    %   and every frame is read exactly once (see accumulateFit / solveFit).
     %   The conversion gain for ADU->e- is the measured PTC gain unless the
     %   GainADU property is set (override, e.g. the DESY 1.05 ADU/e-).
     %   With Parity='rawcol' every statistic is also computed separately for
     %   the pixels in even and odd columns of the stored TIFF (the readout
     %   columns; rows in the DESY orientation) and compared in summary.
+    %   For the individual-pixel regime (comparison of setups rather than
+    %   reproduction of the deck) the pipeline above is followed by
+    %     badColumns        - flag / mask the bad readout columns
+    %     zeroNoiseStats    - bias common mode, fixed pattern, read noise
+    %                         and its intrinsic pixel-to-pixel spread
+    %     perPixelFits      - weighted per-pixel ladder fits below the
+    %                         linearity limit, with the analytic fit noise
+    %     stepFixedPattern  - per-step fixed pattern (PRNU, DSNU)
+    %     localSpread       - pixel-to-pixel spread of a map, with the
+    %                         structure above the block scale removed
+    %     perPixelThreshold - per-pixel thresholds, dark current, PRNU
+    %     noiseBudget       - sigma_eff and SNR versus signal in electrons
     % Author : Sasha Krassilchtchikov (Sep 2026)
     % Example: P = ultrasat.lab.PTCAnalysis('/data/LOT_TH02954_W04_D07');
     %          P.run;  S = P.summary;
@@ -479,6 +494,16 @@ classdef PTCAnalysis < Component
         end
     end
 
+    methods % individual-pixel statistics (implemented in separate files)
+        G = rawColGeom(Obj)               % raw readout-column index per image row / column
+        S = badColumns(Obj, Args)         % flag and mask the bad readout columns
+        S = zeroNoiseStats(Obj, Args)     % ZE common mode, fixed pattern, read noise and its intrinsic spread
+        S = perPixelFits(Obj, Type, Args) % weighted per-pixel ladder fit with analytic fit noise
+        S = stepFixedPattern(Obj, Type, Args) % per-step fixed pattern (PRNU / DSNU) with the temporal noise removed
+        S = perPixelThreshold(Obj, Args)  % per-pixel thresholds and dark current with propagated errors
+        S = noiseBudget(Obj, Args)        % sigma_eff and SNR curves in electrons
+    end
+
     methods % plots
         function H = plotPTC(Obj, Args)
             % Plot the photon transfer curve: variance vs mean signal.
@@ -743,6 +768,90 @@ classdef PTCAnalysis < Component
             Fit.Used = isfinite(Y) & Y>=FitRange(1) & Y<=FitRange(2);
         end
 
+        function S = accumulateFit(S, Y, X, W, FitRange)
+            % Add one step to the running sums of a WEIGHTED per-pixel linear fit.
+            %   Streaming counterpart of the two-pass fit of perPixelFits:
+            %   besides the weighted sums it keeps Swyy and the unweighted
+            %   sums, so chi2 and the residual rms follow from the sums alone
+            %   and every frame is read exactly once.
+            % Input  : - Sums structure or [] to start.
+            %          - Signal map [Ny Nx] of one step (single or double).
+            %          - X value of that step (scalar).
+            %          - Weight map [Ny Nx], or a scalar for all pixels.
+            %          - [Low High] signal window; a pixel contributes only
+            %            where Low<=Y<=High and Y is finite.
+            % Output : - Updated sums (double). The weighted set (Nok, Sw,
+            %            Swx, Swy, Swxx, Swxy, Swyy) also requires a finite
+            %            positive weight; the unweighted set (Nr, Sx, Sxx,
+            %            Sy, Sxy, Syy) does not, which is what makes the
+            %            residual rms match the region-mode two-pass loop.
+            % Example: S = ultrasat.lab.PTCAnalysis.accumulateFit([], M, 15, W, [0 1e4]);
+            Yi = double(Y);
+            Xi = double(X);
+            Wi = double(W);
+            if isscalar(Wi)
+                Wi = repmat(Wi, size(Yi));
+            end
+            if isempty(S)
+                Z = zeros(size(Yi));
+                S = struct('Nok',Z, 'Sw',Z, 'Swx',Z, 'Swy',Z, 'Swxx',Z, 'Swxy',Z, 'Swyy',Z, ...
+                           'Nr',Z, 'Sx',Z, 'Sxx',Z, 'Sy',Z, 'Sxy',Z, 'Syy',Z);
+            end
+            OkR = isfinite(Yi) & Yi>=FitRange(1) & Yi<=FitRange(2);
+            OkF = OkR & isfinite(Wi) & Wi>0;
+            Yr  = Yi;  Yr(~OkR) = 0;
+            Yf  = Yi;  Yf(~OkF) = 0;
+            Wf  = Wi;  Wf(~OkF) = 0;
+            S.Nok  = S.Nok  + OkF;
+            S.Sw   = S.Sw   + Wf;
+            S.Swx  = S.Swx  + Wf.*Xi;
+            S.Swy  = S.Swy  + Wf.*Yf;
+            S.Swxx = S.Swxx + Wf.*Xi.^2;
+            S.Swxy = S.Swxy + Wf.*Yf.*Xi;
+            S.Swyy = S.Swyy + Wf.*Yf.^2;
+            S.Nr   = S.Nr   + OkR;
+            S.Sx   = S.Sx   + OkR.*Xi;
+            S.Sxx  = S.Sxx  + OkR.*Xi.^2;
+            S.Sy   = S.Sy   + Yr;
+            S.Sxy  = S.Sxy  + Yr.*Xi;
+            S.Syy  = S.Syy  + Yr.^2;
+        end
+
+        function Fit = solveFit(S)
+            % Solve the weighted per-pixel linear fit from its running sums.
+            %   chi2 and the residual sum of squares are expanded from the
+            %   sums, sum w (y-a-b x)^2 = Swyy - 2a Swy - 2b Swxy + a^2 Sw
+            %   + 2ab Swx + b^2 Swxx, which is exact here (the residuals are
+            %   never small compared with the double-precision resolution of
+            %   y^2) and needs no second pass over the frames.
+            % Output : - Slope, Intercept, VarSlope, VarIntercept,
+            %            CovSlopeIntercept, Chi2Dof, ResidRMS, Res2, Nused;
+            %            NaN where fewer than 3 points were used.
+            % Example: Fit = ultrasat.lab.PTCAnalysis.solveFit(S)
+            D   = S.Sw.*S.Swxx - S.Swx.^2;
+            Bad = S.Nok<3 | ~isfinite(D) | D<=0;
+            D(Bad) = NaN;
+            Fit = struct();
+            Fit.Slope             = (S.Sw.*S.Swxy - S.Swx.*S.Swy)./D;
+            Fit.Intercept         = (S.Swy.*S.Swxx - S.Swx.*S.Swxy)./D;
+            Fit.VarSlope          = S.Sw./D;
+            Fit.VarIntercept      = S.Swxx./D;
+            Fit.CovSlopeIntercept = -S.Swx./D;
+            Fit.Nused             = S.Nok;
+            A = Fit.Intercept;  B = Fit.Slope;
+            Chi2 = S.Swyy - 2.*A.*S.Swy - 2.*B.*S.Swxy + A.^2.*S.Sw + 2.*A.*B.*S.Swx + B.^2.*S.Swxx;
+            Res2 = S.Syy  - 2.*A.*S.Sy  - 2.*B.*S.Sxy  + A.^2.*S.Nr + 2.*A.*B.*S.Sx  + B.^2.*S.Sxx;
+            Fit.Res2     = max(Res2, 0);
+            Fit.Chi2Dof  = max(Chi2, 0)./max(S.Nok-2, 1);
+            Fit.ResidRMS = sqrt(Fit.Res2./S.Nok);
+            Fit.Chi2Dof(Bad)  = NaN;
+            Fit.ResidRMS(Bad) = NaN;
+        end
+
+        S = varSpread(V, Dof)             % intrinsic spread of a per-pixel variance (chi2 deconvolution)
+        S = paramSpread(P, VarFit, Args)  % intrinsic spread of a fitted parameter (fit noise removed)
+        S = localSpread(M, Args)          % pixel-to-pixel spread of a map (block detrended, fit noise removed)
+        S = budgetCurve(Q, In)            % sigma_eff / SNR curves from plain scalars
         Result = unitTest()   % implemented in @PTCAnalysis/unitTest.m
     end
 
@@ -765,7 +874,8 @@ classdef PTCAnalysis < Component
                     Cube(:,:,Ii) = single(Obj.AI(Ind(Ii)).Image);
                 end
             else
-                A = ultrasat.lab.readPTC(Obj.DeviceDir, 'Test',Obj.Test, 'FrameType',Type, 'Step',Step, 'Verbosity',Obj.Verbosity);
+                A = ultrasat.lab.readPTC(Obj.DeviceDir, 'Test',Obj.Test, 'FrameType',Type, 'Step',Step, ...
+                                         'Gain',Obj.Gain, 'Orient',Obj.Orient, 'Verbosity',Obj.Verbosity);
                 if isempty(A)
                     Cube = [];
                     return;
@@ -786,6 +896,37 @@ classdef PTCAnalysis < Component
                     M = median(Cube, 3);
                 otherwise
                     error('ultrasat:lab:PTCAnalysis:combiner', 'Unknown Combiner %s', Obj.Combiner);
+            end
+        end
+
+        function [M, V, Nf] = stepMaps(Obj, Type, Step)
+            % Bias-subtracted mean and per-pixel temporal variance of one step:
+            % from the cached frames in region mode, streamed in full mode.
+            Cube = Obj.loadFrames(Type, Step) - Obj.Zero;
+            Nf   = size(Cube, 3);
+            M    = Obj.combine(Cube);
+            V    = var(Cube, 0, 3);
+        end
+
+        function L = stepInventory(Obj, Type)
+            % Step numbers, X values and repeat counts of one ladder from the
+            % frame inventory alone, with no pixels read. This is what lets the
+            % streamed per-pixel methods run without combineSteps, which would
+            % otherwise read both ladders of the whole die just to get the
+            % step list.
+            Flag  = strcmp(Obj.Frames.FrameType, Type);
+            Steps = unique(Obj.Frames.Step(Flag)).';
+            Ns    = numel(Steps);
+            L = struct('Type',Type, 'Step',Steps, 'X',nan(1,Ns), 'Nframes',zeros(1,Ns));
+            for Is=1:1:Ns
+                Rows = Flag & Obj.Frames.Step==Steps(Is);
+                Row  = find(Rows, 1);
+                if strcmp(Type, 'D')
+                    L.X(Is) = Obj.Frames.ExpTime(Row);
+                else
+                    L.X(Is) = Obj.Frames.Intensity(Row).*Obj.IntensityScale;
+                end
+                L.Nframes(Is) = nnz(Rows);
             end
         end
 

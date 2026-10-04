@@ -24,11 +24,23 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
     %                   against Info.NumUsed before trusting a template.
     %            'IsoRadius' - Reject a source with a comparable neighbour
     %                   this close, in pixels. Default is 20.
-    %            'NbrMagMax' - What counts as a comparable neighbour.
-    %                   Requiring no neighbour of ANY magnitude is hopeless at
-    %                   LAST source densities, since the Ref catalogue reaches
+    %            'NbrMagMax' - What counts as a comparable neighbour when
+    %                   IsoRelDeltaMag is empty: any Ref source brighter than
+    %                   this. Requiring no neighbour of ANY magnitude is hopeless
+    %                   at LAST source densities, since the Ref catalogue reaches
     %                   the limiting magnitude and those sources contribute
     %                   nothing. Default is 19.
+    %            'IsoRelDeltaMag' - Isolation relative to the stacking star: a
+    %                   neighbour counts only if it is brighter than the star's
+    %                   own MAG_PSF plus this, i.e. if it adds more than
+    %                   10^(-0.4*IsoRelDeltaMag) of the star's flux to the
+    %                   flux-normalised cutout. A fixed NbrMagMax rejects bright
+    %                   stars for neighbours too faint to matter, and tightens
+    %                   whenever the Ref catalogue gets deeper: on the v5
+    %                   references it cut the stack by ~35% and pushed the
+    %                   template below significance on 12 of 39 crops, with the
+    %                   residual itself unchanged (issue #1267). [] restores the
+    %                   absolute NbrMagMax rule. Default is 2.5.
     %            'AlignOnMin' - Shift each cutout so its central minimum sits
     %                   at the centre. Cut positions are catalogue positions
     %                   rounded to whole pixels, so each cutout carries up to
@@ -50,11 +62,31 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
     %                   Default is 4000.
     %            'MinNumStars' - Below this, return an empty template.
     %                   Default is 50.
-    % Output : - The template normalised to unit sum, or [] if it could not be
-    %            measured. Unit sum means a fitted amplitude is directly a
-    %            flux in counts, so A/SourceFlux is the residual fraction.
-    %          - A struct with NumSrc, NumUsed, FluxFraction, Norm,
-    %            CoreFraction, Scatter, CentroidOffset, X, Y and Reason.
+    %            'NormMethod' - What the template is normalised by.
+    %                   'abs' - sum|T|, the total absolute residual. It cannot
+    %                   cancel between the lobes of a two-lobed residual or
+    %                   change sign, so the scale stays put when the balance
+    %                   between the lobes shifts.
+    %                   'net' - |sum T|, the net residual, as before issue
+    %                   #1267. The net sum is the small difference of the two
+    %                   lobes and becomes unstable when they nearly cancel.
+    %                   Default is 'abs'.
+    %            'RadiusSigma' - With NormMethod 'abs', MatchRadius is taken
+    %                   from |T| over the pixels at least this many sigma from
+    %                   zero (MAD error of the stack). |noise| never cancels, so
+    %                   over the whole stamp it accumulates with area and drags
+    %                   the radius out to the stamp edge. 0 uses every pixel.
+    %                   Ignored for 'net'. Default is 2.
+    % Output : - The template, or [] if it could not be measured. It has unit
+    %            sum|T| (NormMethod 'abs') or unit |sum T| ('net'). A fitted
+    %            amplitude is then directly a flux in counts: the total
+    %            absolute residual flux, or the net residual flux.
+    %          - A struct with NumSrc, NumInMag, NumIsolated, NumUsed,
+    %            FluxFraction, Norm, CoreFraction, Scatter, CentroidOffset, X,
+    %            Y and Reason. NumInMag and NumIsolated count the sources in
+    %            the magnitude window and those also passing the isolation
+    %            cut, so a template that fails can be traced to where its
+    %            stars were lost.
     %            Template.*Norm is the physical template, in residual flux per
     %            unit source flux. FluxFraction is the total residual fraction
     %            including the masked core, a diagnostic rather than a scale
@@ -71,6 +103,7 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
         Args.MaxMag               = 17;
         Args.IsoRadius            = 20;
         Args.NbrMagMax            = 19;
+        Args.IsoRelDeltaMag       = 2.5;
         Args.AlignOnMin logical   = true;
         Args.AlignSearchHalf      = 1;
         Args.ZeroCoreHalf         = 1;
@@ -86,10 +119,20 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
 
         Args.RadiusPrc            = 90;
         Args.RadiusPad            = 1;
+        Args.RadiusSigma          = 2;
+
+        Args.NormMethod           = 'abs';
     end
 
+    if ~any(strcmpi(Args.NormMethod, {'abs','net'}))
+        error('psfResidTemplate:NormMethod', ...
+              'NormMethod must be ''abs'' or ''net'', got ''%s''', Args.NormMethod);
+    end
+    NormAbs = strcmpi(Args.NormMethod, 'abs');
+
     Template = [];
-    Info     = struct('NumSrc',0, 'NumUsed',0, 'FluxFraction',NaN, 'Norm',NaN, ...
+    Info     = struct('NumSrc',0, 'NumInMag',0, 'NumIsolated',0, ...
+                      'NumUsed',0, 'FluxFraction',NaN, 'Norm',NaN, ...
                       'CoreFraction',NaN, 'Scatter',NaN, 'BlobArea',NaN, ...
                       'RadiusPrc',NaN, 'MatchRadius',NaN, 'PeakSN',NaN, ...
                       'CentroidOffset',[NaN NaN], 'X',[], 'Y',[], 'Reason','');
@@ -130,8 +173,15 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
     InMag   = (R_Mag > Args.MinMag) & (R_Mag < Args.MaxMag);
 
     %--- isolation, against comparable neighbours only ---
-    NbrSel = Finite & (R_Mag < Args.NbrMagMax);
+    if isempty(Args.IsoRelDeltaMag)
+        NbrSel = Finite & (R_Mag < Args.NbrMagMax);
+    else
+        % Only sources that can count for some star in the window: to count,
+        % a neighbour must be brighter than MaxMag + IsoRelDeltaMag.
+        NbrSel = Finite & (R_Mag < Args.MaxMag + Args.IsoRelDeltaMag);
+    end
     NbrXY  = [SrcX(NbrSel), SrcY(NbrSel)];
+    NbrMag = R_Mag(NbrSel);
     
     % Only evaluated for sources that already pass the cuts above, so this is
     % not a standalone "is this source isolated" flag.
@@ -143,12 +193,17 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
         Isrc = Cand(Ii);
         % <=1 rather than ==0: the source counts itself whenever it is
         % bright enough to be in the neighbour list.
-        NumNear = sum( (NbrXY(:,1)-SrcX(Isrc)).^2 + ...
-                       (NbrXY(:,2)-SrcY(Isrc)).^2 < IsoRadSq );
+        Near = (NbrXY(:,1)-SrcX(Isrc)).^2 + (NbrXY(:,2)-SrcY(Isrc)).^2 < IsoRadSq;
+        if ~isempty(Args.IsoRelDeltaMag)
+            Near = Near & (NbrMag < R_Mag(Isrc) + Args.IsoRelDeltaMag);
+        end
+        NumNear = sum(Near);
         Isolated(Isrc) = (NumNear <= 1);
     end
 
     Keep = Finite & InFrame & InMag & Isolated;
+    Info.NumInMag    = sum(Finite & InFrame & InMag);
+    Info.NumIsolated = sum(Keep);
 
     if sum(Keep) < Args.MinNumStars
         Info.Reason = sprintf('only %d isolated sources in mag %.1f-%.1f', ...
@@ -264,43 +319,33 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
         T(Ring) = T(Ring) .* Args.RingWeight;
     end
 
-    % Difference images carry negative flux, so a net-negative template is a
-    % legitimate outcome, not an error. Normalise by the magnitude: dividing
-    % by the signed sum would invert the template and silently invert every
-    % statistic built from it, while dividing by |sum| preserves the shape
-    % and makes a fitted amplitude the magnitude of the net residual flux.
-    % Only a sum of zero is unusable, since it carries no scale at all.
+    % Difference images carry negative flux, and the residual is typically
+    % two-lobed, over-subtracted on one side and under-subtracted on the
+    % other. Dividing by the signed sum would invert a net-negative template
+    % and every statistic built from it. Dividing by |sum| keeps the shape,
+    % but the net sum is the small difference of the two lobes: it swings
+    % with small changes in their balance and can approach zero, scaling the
+    % template up by ~20x between reference sets on crops where the residual
+    % itself was unchanged (issue #1267). sum|T| cannot cancel, so 'abs'
+    % keeps the scale stable, and a fitted amplitude is then the total
+    % absolute residual flux. Only a zero norm is unusable, since it carries
+    % no scale at all.
     NormSigned = sum(T(:));
-    if ~isfinite(NormSigned) || NormSigned == 0
-        Info.Reason = sprintf('template sum is %.4g, no scale to normalise by', ...
-                              NormSigned);
+    if NormAbs
+        Norm = sum(abs(T(:)));
+    else
+        Norm = abs(NormSigned);
+    end
+    if ~isfinite(Norm) || Norm == 0
+        Info.Reason = sprintf('template norm is %.4g, no scale to normalise by', ...
+                              Norm);
         return
     end
-
-    Norm = abs(NormSigned);
 
     Template        = T ./ Norm;
     Info.Norm       = Norm;
     Info.NormSigned = NormSigned;   % negative means the net residual is negative
     Info.NumUsed    = NumUsed;
-
-
-    % Radius the template's flux occupies, used downstream as the candidate
-    % match radius. Clamped down to HalfSize: past the stamp edge the
-    % template is undefined, and on a template whose last few percent are
-    % spread thinly the percentile lands beyond it.
-    [Gxr, Gyr] = meshgrid((1:2*HalfSize+1)-Cen, (1:2*HalfSize+1)-Cen);
-    Rgrid = hypot(Gxr, Gyr);
-    Total = sum(Template(:));
-
-    Info.RadiusPrc = HalfSize;
-    for Rr = 1:HalfSize
-        if sum(Template(Rgrid <= Rr)) >= (Args.RadiusPrc./100)*Total
-            Info.RadiusPrc = Rr;
-            break
-        end
-    end
-    Info.MatchRadius = min(Info.RadiusPrc + Args.RadiusPad, HalfSize);
 
     Info.X       = X;
     Info.Y       = Y;
@@ -362,6 +407,45 @@ function [Template, Info] = psfResidTemplate(Obj, Args)
     else
         Info.BlobArea = max(Areas);
     end
+
+    % Radius the template's residual occupies, used downstream as the
+    % candidate match radius. Clamped down to HalfSize: past the stamp edge
+    % the template is undefined, and on a template whose last few percent are
+    % spread thinly the percentile lands beyond it.
+    %
+    % 'abs' measures it on |T| over the significant pixels. Every pixel's
+    % |noise| counts as positive, so over the whole stamp the percentile is
+    % set by the noise floor and the stamp size rather than by the residual,
+    % and lands at the edge (issue #1267). The MAD map is the unbiased one,
+    % for the same reason as in the blob test. If no pixel is significant,
+    % fall back to all of them.
+    %
+    % 'net' measures it on the template taken in the direction of its net
+    % sum. A net-negative template sums to -1, and against a negative total
+    % the test "enclosed >= 90% of total" is already met at r = 1.
+    [Gxr, Gyr] = meshgrid((1:2*HalfSize+1)-Cen, (1:2*HalfSize+1)-Cen);
+    Rgrid = hypot(Gxr, Gyr);
+    if NormAbs
+        Wrad = abs(Template);
+        if Args.RadiusSigma > 0
+            Wsig = Wrad .* (abs(SNmad) >= Args.RadiusSigma);
+            if sum(Wsig(:)) > 0
+                Wrad = Wsig;
+            end
+        end
+    else
+        Wrad = Template .* sign(NormSigned);
+    end
+    Total = sum(Wrad(:));
+
+    Info.RadiusPrc = HalfSize;
+    for Rr = 1:HalfSize
+        if sum(Wrad(Rgrid <= Rr)) >= (Args.RadiusPrc./100)*Total
+            Info.RadiusPrc = Rr;
+            break
+        end
+    end
+    Info.MatchRadius = min(Info.RadiusPrc + Args.RadiusPad, HalfSize);
 
     % Rejected only when BOTH tests find nothing. Either a strong peak or a
     % coherent blob is enough to say there is something to correct for.

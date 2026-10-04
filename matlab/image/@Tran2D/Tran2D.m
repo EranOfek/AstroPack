@@ -1034,6 +1034,20 @@ classdef Tran2D < Base
             %            'InterpMethod' - Interpolation method. Default is 'linear'.
             %            'ThresholdSigma' - Threshold in sigmas (std) for flagging good
             %                   data. Default is 3.
+            %            'MinDof' - Min. number of degrees of freedom (Ngood
+            %                   minus the number of parameters per axis) for
+            %                   which AssymRMS and ErrorOnMean are calculated.
+            %                   Otherwise they are NaN (issue #1366).
+            %                   If empty, use the number of parameters per
+            %                   axis. Default is [].
+            %            'MinNperBin' - Min. number of sources in a magnitude
+            %                   bin for its median residual to be used for
+            %                   AssymRMS. Default is 3.
+            %            'BrightFrac' - AssymRMS is searched only in the
+            %                   bins (bright to faint) that start within
+            %                   this fraction of the brightest sources, to
+            %                   ignore faint bins with a lucky low median
+            %                   (issue #1373). Default is 0.5.
             % Output : - A Tran2D object with the ParX, ParY, ErrParX,
             %            ErrParY populated.
             %          - A structure of fit quality parameters.
@@ -1062,7 +1076,9 @@ classdef Tran2D < Base
                 Args.FunStd            = @imUtil.background.rstd;
                 Args.InterpMethod      = 'linear';
                 Args.ThresholdSigma    = 3;
-
+                Args.MinDof            = [];
+                Args.MinNperBin        = 3;
+                Args.BrightFrac        = 0.5;
             end
 
             % calculate the design matrix
@@ -1186,11 +1202,40 @@ classdef Tran2D < Base
             Res.Xdep     = Xdep;
             Res.Ydep     = Ydep;
             
-            if isempty(ResResid)
-                % no asymptotic rms
+            % number of free parameters per axis
+            Npar = size(Hx,2);
+            if isempty(Args.MinDof)
+                Args.MinDof = Npar;
+            end
+
+            if isempty(ResResid) || isempty(ResResid.InterpMeanResid) || Res.Ngood<(Npar + Args.MinDof)
+                % no asymptotic rms: no sources, or too few degrees of
+                % freedom - an (almost) exact fit has meaningless residuals
                 Res.AssymRMS     = NaN;
                 Res.AssymRMS_mag = NaN;
                 Res.AssymRMS_RMS = NaN;
+            elseif isfield(ResResid, 'BinN')
+                % min. median residual over the populated magnitude bins
+                % holding the brightest BrightFrac of the sources
+                % (no extrapolation, no faint bins - issues #1366, #1373)
+                BinN       = ResResid.BinN(:);
+                FracBefore = [0; cumsum(BinN(1:end-1))]./sum(BinN);
+                FlagBin    = BinN>=Args.MinNperBin;
+                Ib = find(FlagBin & FracBefore<Args.BrightFrac);
+                if isempty(Ib)
+                    % no populated bright bin - use all populated bins
+                    Ib = find(FlagBin);
+                end
+                [MinMeanRMS, MinMeanInd] = min(ResResid.BinMeanResid(Ib));
+                if isempty(MinMeanRMS)
+                    Res.AssymRMS     = NaN;
+                    Res.AssymRMS_RMS = NaN;
+                else
+                    Res.AssymRMS     = MinMeanRMS;
+                    Res.AssymRMS_RMS = ResResid.BinStdResid(Ib(MinMeanInd));
+                end
+                % AssymRMS_mag is the residual (not a mag) - used so in astrometryCore
+                Res.AssymRMS_mag = Res.AssymRMS;
             else
                 TmpMag = ResResid.InterpMeanResid; %(Res.FlagSrc);
                 TmpStd = ResResid.InterpStdResid;  %(Res.FlagSrc);

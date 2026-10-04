@@ -1,5 +1,10 @@
-function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageList, CI, Args)
+function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(RawImageList, CI, Args)
     %
+    % Output : ..., GaiaCone - A structure array (1 x sub image) of the raw
+    %            Gaia cones searched by the astrometry, kept for the other
+    %            Gaia consumers of the visit (issue #1348) - see the 4th
+    %            output of imProc.cat.getAstrometricCatalog. [] if pipelineI
+    %            failed before the astrometry.
     % Example: D.loadCalib();
     %          [AllSI, MS, Coadd, OnlyMP]=pipeline.last.pipes.pipelineI([],D.CI);
 
@@ -66,7 +71,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
         Args.BitName       = 'Streak';
         Args.SemiWidth     = 3;
-        Args.AddCurvature  = false; % false: straight mask between streak ends; true: follow St.Curve
+        Args.AddCurvature  = true; % false: straight mask between streak ends; true: follow St.Curve
 
         Args.image2subimagesArgs           = {};
         Args.multiIterExtractorArgs        = {}; %{'psfFitPhotArgs',{'Method','exp'}};
@@ -85,6 +90,17 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.MaskHole                      = true;
         Args.maskHolesArgs                 = {};
         Args.astrometryVisitSubImageArgs   = {};
+        Args.AstRetryFieldID logical       = true;  % if no sub image is solved, retry the astrometry once at the FIELDID grid pointing (issue #1350)
+        Args.AstRetryMinDist               = 0.3;   % [deg] retry only if the header mount pointing is farther than this from the FIELDID grid centre
+        Args.FieldGridN                    = [88 30];  % celestial.grid.tile_the_sky of the LAST fields (row = FIELDID)
+        Args.KeyFieldID                    = 'OBJECT';  % header keyword holding the FIELDID, possibly with a '.' extension
+        Args.RefCatName char               = 'GAIADR3'; % catsHTM Gaia catalog of the visit: astrometry and BP_RP colour; pipelineII reads it back from AST_CAT. A 'CatName' in astrometryVisitSubImageArgs/AddColorArgs must match it (issue #1348)
+        Args.GaiaConeRadiusFactor          = 1.35;  % the astrometric Gaia cones are searched this much wider and kept (GaiaCone output) for the other Gaia consumers of the visit - colour here, and pipelineII (issue #1348); 1.35 so the cone also covers pipelineII's smear star cut (1.2 x the crop half-diagonal)
+        Args.GaiaConeCols                  = {'RA','Dec','Epoch','Plx','ErrPlx','PMRA','ErrPMRA','PMDec','ErrPMDec', ...
+                                              'astrometric_excess_noise','phot_g_mean_mag','phot_g_mean_flux_over_error', ...
+                                              'phot_bp_mean_mag','phot_bp_mean_flux_over_error','phot_rp_mean_mag', ...
+                                              'phot_rp_mean_flux_over_error','bp_rp','radial_velocity', ...
+                                              'in_qso_candidates','in_galaxy_candidates'}; % columns kept in GaiaCone (memory); a consumer needing another column searches itself
         Args.MinFracIsolated               = 0.5;   % minimum fraction of isolated reference sources - see imProc.cat.getAstrometricCatalog
         Args.AddColor logical              = true;  % attach the Gaia colour BP_RP to the epoch and coadd catalogs (issue #1289), for the colour-dependent photometric calibration of issues #1287/#1270
         Args.AddColorArgs                  = {};    % extra args for imProc.cat.addColor
@@ -141,7 +157,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Args.CornersRA                   = {'RA1','RA2','RA3','RA4'};
         Args.CornersDec                  = {'DEC1','DEC2','DEC3','DEC4'};
         Args.MinNstars                   = 50;
-        Args.MaxFracGrad                 = 1.0;
+        Args.MaxFracGrad                 = 1.5; % normal visits reach ~1.45 (issue #1372)
 
         Args.AddMergedCat                = true;
         Args.AddKnownAst                 = true;
@@ -192,6 +208,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
     Status.CoaddSkipped = false;  % per sub image group: too few good epochs, no coadd made (#1318)
     Status.NgoodEpoch   = 0;  % per sub image group: number of good epochs (#1318)
     Status.Nepoch       = 0;  % number of epochs in the visit (#1318)
+    Status.NoRelZP      = false;  % per sub image group: relative photometric ZP could not be fitted (#1339)
+    Status.NnoWCS       = 0;  % per sub image group: epochs whose astrometry failed, no-PSF/failed-background ones excluded (#1350)
+    Status.AstRetry     = [];  % astrometry retry at the FIELDID grid pointing, if made (#1350)
+    Status.CoaddNoWCS   = false;  % per sub image group: coadd with sources but failed astrometry, catalog dropped (#1364)
     %ProcessingStep = 11;
 
     if isempty(RawImageList)
@@ -246,14 +266,27 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         end
     end
 
-    % Coadd catalogs get their colour inside astrometryRefine, which offers it
-    % the astrometric reference. That reference is magnitude limited, so for a
-    % complete colour column the reference is overridden with [] - the args
-    % below are splatted after it and the last name-value pair wins.
-    AddColorArgsCoadd = Args.AddColorArgs(:).';
-    if Args.AddColor && Args.AddColorComplete
-        AddColorArgsCoadd = [{'RefCat', []}, AddColorArgsCoadd];
+    % One Gaia catalog for the whole visit (issue #1348): a 'CatName' in the
+    % sub-function args may only repeat Args.RefCatName.
+    SubArgs     = {Args.astrometryVisitSubImageArgs, Args.AddColorArgs};
+    SubArgsName = {'astrometryVisitSubImageArgs', 'AddColorArgs'};
+    for Iargs=1:1:numel(SubArgs)
+        IndCatName = find(strcmpi(SubArgs{Iargs}(1:2:end), 'CatName'));
+        for Ind=IndCatName(:).'
+            SubCatName = imProc.cat.catalogNameStr(SubArgs{Iargs}{2*Ind});
+            if ~strcmp(SubCatName, Args.RefCatName)
+                error('pipelineI:RefCatNameConflict', ...
+                      '%s sets CatName=%s but RefCatName=%s - set the Gaia catalog via RefCatName only', ...
+                      SubArgsName{Iargs}, SubCatName, Args.RefCatName);
+            end
+        end
     end
+
+    % Coadd catalogs get their colour inside astrometryRefine. Its reference
+    % is chosen by 'AddColorRefCat' of procCoadd, set after the astrometry
+    % (issue #1348); the catalog name is for the case addColor searches.
+    AddColorArgsCoadd = [{'CatName', Args.RefCatName}, Args.AddColorArgs(:).'];
+    GaiaCone          = [];
     try
         [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime_AI] = pipeline.generic.prePrep(RawImageList, PrePrepArgs{:});  %5.9s
         % Note that AI may be shorter than TableRaw
@@ -279,6 +312,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             Coadd    = [];
             OnlyMP   = [];
             JD       = [];
+            GaiaCone = [];
         else
             RawImageList = RawImageList(FlagGoodImages,:);
         end
@@ -295,6 +329,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
         Coadd    = [];
         OnlyMP   = [];
         JD       = [];
+        GaiaCone = [];
     end
 
     if Status.PipeI
@@ -431,8 +466,39 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
             % solve astrometry of all images
             %ProcessingStep = 301;
-            [ResFit, AllSI, CatName] = imProc.astrometry.astrometryVisitSubImage(AllSI, 'MatchMethod',Args.MatchMethod, 'JD',JD, 'MinFracIsolated',Args.MinFracIsolated, Args.astrometryVisitSubImageArgs{:}); % 22s
+            % GaiaCone: the raw Gaia cones searched, reused by the other Gaia
+            % consumers of the visit instead of searching again (issue #1348)
+            RawConeArgs = {'RawConeRadiusFactor',Args.GaiaConeRadiusFactor, 'RawConeCols',Args.GaiaConeCols};
+            [ResFit, AllSI, CatName, GaiaCone] = imProc.astrometry.astrometryVisitSubImage(AllSI, 'MatchMethod',Args.MatchMethod, 'JD',JD, 'MinFracIsolated',Args.MinFracIsolated, 'CatName',Args.RefCatName, ...
+                                                                                          'RawConeArgs',RawConeArgs, Args.astrometryVisitSubImageArgs{:}); % 22s
         
+            % Retry at the FIELDID grid pointing (issue #1350). The header
+            % pointing is at times frozen at an earlier field while the
+            % telescope moves on, and then no sub image is solved. Done here,
+            % before CatName/GaiaCone are used, as the retry replaces them.
+            % A failed retry is not worth the visit, hence the catch: the
+            % sub images are then saved without WCS, as without the retry.
+            UserCoo = any(strcmpi(Args.astrometryVisitSubImageArgs(1:2:end), 'RA'));
+            if Args.AstRetryFieldID && ~UserCoo && ~any(imProc.astrometry.isSuccessWCS(AllSI(1,:)))
+                Retry = fieldGridPointing(AllSI(1,1).HeaderData, Args);
+                if ~isempty(Retry)
+                    Retry.Error = '';
+                    try
+                        [ResFit, AllSI, CatName, GaiaCone] = imProc.astrometry.astrometryVisitSubImage(AllSI, 'MatchMethod',Args.MatchMethod, 'JD',JD, 'MinFracIsolated',Args.MinFracIsolated, 'CatName',Args.RefCatName, ...
+                                                                                                      'RawConeArgs',RawConeArgs, 'RA',Retry.RA, 'Dec',Retry.Dec, Args.astrometryVisitSubImageArgs{:});
+                    catch ME
+                        Retry.Error = ME.message;
+                    end
+                    Retry.Nsolved   = sum(imProc.astrometry.isSuccessWCS(AllSI), 'all');
+                    Retry.Nsub      = numel(AllSI);
+                    Status.AstRetry = Retry;
+                    for Iobj=1:1:Nobj
+                        AllSI(Iobj).HeaderData.insertKey({'AST_RTRY', 'FIELDID', 'Astrometry retried at the FIELDID grid pointing (#1350)'; ...
+                                                          'AST_HOFF', Retry.Offset, 'Header to FIELDID-grid camera pointing [deg]'});
+                    end
+                end
+            end
+
             % add coordinates to catalogs
             %ProcessingStep = 401;
             AllSI = imProc.astrometry.addCoordinates2catalog(AllSI, 'UpdateCoo',true, 'OutUnits','deg');  % 0.8s
@@ -440,11 +506,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Attach the Gaia colour (BP_RP) to every epoch catalog (issue
             % #1289). Done here, immediately after the sky coordinates exist,
             % and per sub image, so that a single Gaia reference serves all the
-            % epochs of that sub image (one Dec-sort, one query). With
-            % AddColorComplete the reference is a fresh cone search over the
-            % union of that sub image's epoch footprints - the astrometric
-            % catalog already in memory would be cheaper but is magnitude
-            % limited, so the colour column would be empty outside RefRangeMag.
+            % epochs of that sub image (one Dec-sort). With AddColorComplete
+            % the reference is the raw Gaia cone of the astrometry, if it
+            % covers the epoch footprints, else a fresh search by addColor
+            % (issue #1348) - the astrometric catalog is magnitude limited, so
+            % the colour column would be empty outside RefRangeMag.
             % Catalogs whose astrometry failed get a NaN column.
             ReuseRefCat = isa(CatName, 'AstroCatalog') && numel(CatName)==Nsub;
             if Args.AddColor && Args.AddColorEpochs
@@ -452,9 +518,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                     if ~Args.AddColorComplete && ReuseRefCat
                         RefCatSub = CatName(Isub);
                     else
-                        RefCatSub = [];   % addColor queries catsHTM itself
+                        RefCatSub = gaiaConeRefCat(GaiaCone, Isub, AllSI(:,Isub), true);
                     end
-                    AllSI(:,Isub) = imProc.cat.addColor(AllSI(:,Isub), 'RefCat',RefCatSub, ...
+                    AllSI(:,Isub) = imProc.cat.addColor(AllSI(:,Isub), 'RefCat',RefCatSub, 'CatName',Args.RefCatName, ...
                                                         'SharedRefCat',true, Args.AddColorArgs{:});
                 end
             end
@@ -521,17 +587,42 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
             IsGood = IsGoodWCS & Nstars>Args.MinNstars & MaxFracGrad<Args.MaxFracGrad & ~IsFailedBack;
 
+            % Why a sub image is not good, for the PSTATUS bit mask (issue
+            % #1318). Two of the four terms above already have a status bit
+            % of their own (NO_ASTR, NO_BKG); these two do not. The negated
+            % form is used so that the reasons decompose IsGood exactly, also
+            % when a quantity is NaN. MaxFracGrad is a property of the epoch -
+            % it is the spread of the background over the sub images of that
+            % epoch - so HIGH_BKGRAD marks all the sub images of the epoch.
+            IsFewSrc      = ~(Nstars > Args.MinNstars);
+            IsHighBkgGrad = repmat(~(MaxFracGrad < Args.MaxFracGrad), 1, Nsub);
+
             % Sub images for which no PSF was built (issue #1318) - e.g. too
             % few isolated PSF stars for a broad/multi-peaked PSF. No sources
             % are extracted without a PSF, so they are saved with an empty
             % catalogue and are already excluded by the Nstars term above.
             % Counted per sub image group, logged by PipelineDemon.
             % Failed-background sub images are counted in NfailedBack.
-            IsNoPSF = reshape(isemptyPSF([AllSI.PSFData]), size(AllSI)) & ~IsFailedBack;
+            IsEmptyPSF = reshape(isemptyPSF([AllSI.PSFData]), size(AllSI));
+            IsNoPSF    = IsEmptyPSF & ~IsFailedBack;
             Status.NnoPSF     = sum(IsNoPSF, 1);
+            % Sub images whose astrometry failed (issue #1350). The no-PSF and
+            % failed-background ones fail it as a consequence and are counted
+            % above. Recorded in the header by the NO_ASTR bit of PSTATUS.
+            Status.NnoWCS     = sum(~IsGoodWCS & ~IsNoPSF & ~IsFailedBack, 1);
             Status.NgoodEpoch = sum(IsGood, 1);
             Status.Nepoch     = Nepoch;
-        
+
+            % Per raw image summary of its sub images, for the raw images
+            % table (issue #1372): e.g. a field partly blocked by the
+            % observatory wall gives sub images without a PSF and sources.
+            % NsubNoPSF counts all sub images without a PSF, failed-background
+            % ones included. Rows not processed keep NaN.
+            TableRaw.NsubNoPSF(TableRaw.SelectedImages) = sum(IsEmptyPSF, 2);
+            TableRaw.NsubNoSrc(TableRaw.SelectedImages) = sum(Nstars==0, 2);
+            TableRaw.NsubGood(TableRaw.SelectedImages)  = sum(IsGood, 2);
+            TableRaw.NsrcSum(TableRaw.SelectedImages)   = sum(Nstars, 2);
+
             % Photometric calibration of individual images:
             %[Result, PC, FitRes] = imProc.calib.fitPhotCalibTrans(AllSI);
         
@@ -589,10 +680,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                     if ~Args.AddColorComplete && ReuseRefCat
                                         RefCatFP = CatName(Ind(IsubGood));
                                     else
-                                        RefCatFP = [];
+                                        RefCatFP = gaiaConeRefCat(GaiaCone, Ind(IsubGood), AllSI(IsGoodEpoch,Ind(IsubGood)), true);
                                     end
                                     AllSI(IsGoodEpoch,Ind(IsubGood)) = imProc.cat.addColor(AllSI(IsGoodEpoch,Ind(IsubGood)), ...
-                                                                            'RefCat',RefCatFP, 'SharedRefCat',true, Args.AddColorArgs{:});
+                                                                            'RefCat',RefCatFP, 'CatName',Args.RefCatName, 'SharedRefCat',true, Args.AddColorArgs{:});
                                 end
                             end
                         end
@@ -661,6 +752,20 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             %ProcessingStep = 501;
             [MS,ResRelZP] = pipeline.generic.proc2MatchedSources(AllSI, Args.proc2MatchedSourcesArgs{:}, 'FlagGood',IsGood, 'DimEpoch',1, 'ColUse',Args.ColUse, 'AddUnUse',Args.AddUnUse, 'MatchedCols',Args.MatchedCols);   % 9.6 s -> 1.3s (with MatchMethod='unify')
 
+            % Sub image groups whose relative photometric ZP could not be
+            % fitted - too few bright sources in every epoch (issue #1339).
+            % Their matched-source magnitudes are left uncorrected. Groups
+            % that never reached the fit (too few good epochs) have an empty
+            % FitZP and are not counted. Logged by PipelineDemon.
+            % The PSTATUS bit records the plain fact that the group has no
+            % relative zero point, so unlike the counter above it also covers
+            % the groups which never reached the fit (empty FitZP).
+            NoRelZPbit = true(1, Nsub);
+            if isstruct(ResRelZP) && isfield(ResRelZP, 'FitZP')
+                Status.NoRelZP = arrayfun(@(R) ~isempty(R.FitZP) && all(isnan(R.FitZP)), ResRelZP(:).');
+                NoRelZPbit     = arrayfun(@(R)  isempty(R.FitZP) || all(isnan(R.FitZP)), ResRelZP(:).');
+            end
+
             % Stamp the flux->magnitude convention of the MAG_* fields onto the
             % MatchedSources, so that the saved product records whether its
             % magnitudes are luptitudes or magnitudes (issue #1161).
@@ -703,6 +808,21 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Phot calib is done later (after adding airmass columns):
             %ProcessingStep = 801;
             % If there is not ShiftInfo, the no poinmt of coadding images
+            % Gaia reference of the coadd colour (issue #1348): with
+            % AddColorComplete the raw Gaia cone of each sub image (an empty
+            % element makes addColor search), else the astrometric catalog
+            if Args.AddColor && Args.AddColorComplete
+                CoaddColorRef = AstroCatalog([1, Nsub]);
+                for Isub=1:1:Nsub
+                    RefCatSub = gaiaConeRefCat(GaiaCone, Isub, AllSI(:,Isub), false);
+                    if ~isempty(RefCatSub)
+                        CoaddColorRef(Isub) = RefCatSub;
+                    end
+                end
+            else
+                CoaddColorRef = 'astrometric';
+            end
+
             [Coadd, ResCoadd] = pipeline.generic.procCoadd(AllSI, Args.procCoaddArgs{:},...
                                                           'DefScale',Args.DefScale,...
                                                           'SubBack',false,...
@@ -711,6 +831,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
                                                           'CatName',CatName,...
                                                           'AddColor',Args.AddColor,...
                                                           'AddColorArgs',AddColorArgsCoadd,...
+                                                          'AddColorRefCat',CoaddColorRef,...
                                                           'ShiftXY',ShiftInfo,...
                                                           'IsGood',IsGood,...
                                                           'PropShiftXY','ShiftXY',...
@@ -755,6 +876,16 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
 
             
         
+            % A coadd with sources whose astrometric refine failed has no
+            % RA/Dec in its catalog, and the catalog steps below (MergedCat,
+            % Ndet, ZP, ...) would abort the whole visit (issue #1364). Its
+            % catalog is dropped, so it follows the empty-catalog path; the
+            % image is kept. Logged by PipelineDemon.
+            Status.CoaddNoWCS = reshape(~Coadd.isemptyCatalog & ~imProc.astrometry.isSuccessWCS(Coadd), 1, []);
+            for Isub=find(Status.CoaddNoWCS)
+                Coadd(Isub).deleteProp('CatData');
+            end
+
             % Add image ID to coadd images: in: ID_PROC
             NotIsEmptyCoadd = ~Coadd.isemptyImage;
             NotIsEmptyCat   = ~Coadd.isemptyCatalog;
@@ -894,6 +1025,9 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % Photometric calibration of coadd images:
             %ProcessingStep = 971;
             %tic;
+            % Empty when there is no coadd at all - it is also the
+            % photometric calibration input of the processing status below
+            PC = [];
             if AnyCoaddExist
                 [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, 'MagType', Args.MagType, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', true); % 8.7s for all in loop
             end
@@ -980,8 +1114,24 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % catalogues match the ones actually written for this visit.
             AllSI = imProc.cat.fillEmptyCatColumns(AllSI);
 
+
             % Add PSTATUS Header keyword re problems in processings
             [AllSI, Coadd] = imProc.quality.updateProcStatus(AllSI, Coadd, MS, PC); % about 0.3s
+
+            % Processing status (issue #1318): the PSTATUS header keyword, a
+            % bit mask of the steps which produced no result for that image.
+            % Written last, when every product of the visit exists, so that
+            % the sub image group bits are final. A header keyword is not
+            % worth a visit, hence the catch.
+            try
+                [AllSI, Coadd] = imProc.quality.updateProcStatus(AllSI, Coadd, MS, PC, ...
+                                        'IsGood',IsGood, 'FewSrc',IsFewSrc, ...
+                                        'HighBkgGrad',IsHighBkgGrad, 'NoRelZP',NoRelZPbit);
+            catch ME
+                fprintf('pipelineI: processing status (PSTATUS) not written: %s\n', ME.message);
+            end
+
+>>>>>>> 9a6c9d182546cd43a7bd1477adf53228035df9d7
             % Finish
             %ProcessingStep = 1000;
         catch ME
@@ -998,9 +1148,103 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             Coadd    = [];
             OnlyMP   = [];
             JD       = [];
+            GaiaCone = [];
 
         end
     end % if Status.Success
+end
+
+
+function RefCat = gaiaConeRefCat(GaiaCone, Isub, AI, MakeCopy)
+    % The raw Gaia cone of a sub image, if it covers the sky footprints of
+    % the given images (issue #1348); [] otherwise, which makes
+    % imProc.cat.addColor search the catalog itself.
+    % Input  : - The GaiaCone structure array (1 x sub image), or [].
+    %          - Sub image index.
+    %          - AstroImage array of that sub image. Images without sky
+    %            coordinates (failed astrometry) are ignored.
+    %          - Return a copy (true), or a handle to the cone (false) for a
+    %            consumer that copies it at the point of use.
+    % Output : - AstroCatalog or [].
+    % Author : Alexander Gioffe (Sep 2026)
+
+    RefCat = [];
+    if isempty(GaiaCone) || numel(GaiaCone)<Isub || isempty(GaiaCone(Isub).Cat) || isemptyCatalog(GaiaCone(Isub).Cat)
+        return;
+    end
+
+    % the footprint of each image: the bounding circle of its sources,
+    % as addColor searches it
+    Covers = true;
+    Nim    = numel(AI);
+    for Iim=1:1:Nim
+        Cat = AI(Iim).CatData;
+        if Covers && ~isemptyCatalog(Cat) && all(ismember({'RA','Dec'}, Cat.ColNames))
+            [CircRA, CircDec, CircR] = Cat.boundingCircle('OutUnits','rad', 'CooType','sphere');
+            if isfinite(CircRA) && isfinite(CircDec) && isfinite(CircR)
+                Covers = imProc.cat.coneCovers(GaiaCone(Isub), CircRA, CircDec, CircR);
+            end
+        end
+    end
+
+    if Covers
+        if MakeCopy
+            RefCat = GaiaCone(Isub).Cat.copy;
+        else
+            RefCat = GaiaCone(Isub).Cat;
+        end
+    end
+end
+
+
+function Retry = fieldGridPointing(Header, Args)
+    % The camera pointing at the FIELDID grid centre, for the astrometry retry (issue #1350)
+    %   The camera offset from the mount is taken from the header itself
+    %   (RA/DEC relative to M_JRA/M_JDEC), which stays consistent when the
+    %   recorded pointing is frozen, and is applied at the grid centre.
+    % Input  : - The AstroHeader of a sub image.
+    %          - pipelineI Args (KeyFieldID, FieldGridN, AstRetryMinDist).
+    % Output : - A structure with FieldID, HeaderRA, HeaderDec, RA, Dec
+    %            (retry camera pointing) [deg], and Offset (header to retry
+    %            camera pointing) [deg]. [] if the FIELDID is not a grid field,
+    %            a pointing keyword is missing, or the header mount pointing
+    %            is within AstRetryMinDist of the grid centre.
+    RAD   = 180./pi;
+    Retry = [];
+
+    FieldID = Header.getValSimple(Args.KeyFieldID);
+    if ~isnumeric(FieldID)
+        FieldID = str2double(extractBefore([char(FieldID) '.'], '.'));  % strip a '.' extension, e.g. '1746.GBMTrigID...'
+    end
+    Grid = celestial.grid.tile_the_sky(Args.FieldGridN(1), Args.FieldGridN(2));  % [rad]
+
+    Coo = cellfun(@(K) toDouble(Header.getValSimple(K)), {'RA','DEC','M_JRA','M_JDEC'})./RAD;
+    if isscalar(FieldID) && FieldID==fix(FieldID) && FieldID>=1 && FieldID<=size(Grid,1) && all(isfinite(Coo))
+        GridRA  = Grid(FieldID,1);
+        GridDec = Grid(FieldID,2);
+        if celestial.coo.sphere_dist(Coo(3), Coo(4), GridRA, GridDec).*RAD > Args.AstRetryMinDist
+            [CamDist, CamPA] = celestial.coo.sphere_dist(Coo(3), Coo(4), Coo(1), Coo(2));
+            [RA, Dec]        = celestial.coo.add_offset(GridRA, GridDec, CamDist, CamPA);
+            Retry.FieldID   = FieldID;
+            Retry.HeaderRA  = Coo(1).*RAD;
+            Retry.HeaderDec = Coo(2).*RAD;
+            Retry.RA        = RA.*RAD;
+            Retry.Dec       = Dec.*RAD;
+            Retry.Offset    = celestial.coo.sphere_dist(Coo(1), Coo(2), RA, Dec).*RAD;
+        end
+    end
+end
+
+
+function Val = toDouble(Val)
+    % A header value as a double scalar (NaN if not numeric)
+    if ~isnumeric(Val)
+        Val = str2double(Val);
+    end
+    if ~isscalar(Val)
+        Val = NaN;
+    end
+    Val = double(Val);
 end
 
 

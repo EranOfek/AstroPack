@@ -43,6 +43,8 @@ function Result = zp_meddiff(MS, Args)
     %            .FitStdZP - Std in fitted ZP.
     %            .FitErrZP - Error in fitted ZP.
     %            .Nsrc - Number of sources used in estimating the ZP.
+    %            If no epoch has more than MinNsrc usable sources, all the
+    %            ZP fields are NaN and Nsrc is 0 (issue #1339).
     % Author : Eran Ofek (Nov 2021)
     % Example: Fzp   = 1 + rand(100,1);
     %          Fstar = rand(1,200).*3900 + 100; 
@@ -116,32 +118,42 @@ function Result = zp_meddiff(MS, Args)
 
         FlagMin    = NdetPerSrc>=MinNepoch;
 
-        Mag    = Mag(FlagGoodEpoch,FlagMin);
-        MagErr = MagErr(FlagGoodEpoch,FlagMin);
-
-        [~, Nsrc] = size(Mag);
-
-        DiffMagEpoch = Mag - Mag(Args.RefImInd,:);
-
-        if Args.UseMex
-            if Args.UseWMedian
-                [Result(Ims).FitZP(FlagGoodEpoch),Result(Ims).FitStdZP(FlagGoodEpoch)]    = tools.math.stat.mex.wmedianStd_mex(DiffMagEpoch, 1./(MagErr.^2), 2);
-            else
-                Result(Ims).FitZP(FlagGoodEpoch)    = tools.math.stat.mex.median(DiffMagEpoch, 2, 'omitnan');
-                Result(Ims).FitStdZP(FlagGoodEpoch) = std(DiffMagEpoch, [], 2, 'omitnan');
-             end
+        if Nep==0
+            % No epoch has enough usable sources (e.g., short exposures or
+            % clouds): the ZP is unknown - return NaN rather than fail on
+            % the empty magnitude matrix (issue #1339).
+            Result(Ims).FitZP    = nan(1, numel(FlagGoodEpoch));
+            Result(Ims).FitStdZP = nan(1, numel(FlagGoodEpoch));
+            Result(Ims).FitErrZP = nan(1, numel(FlagGoodEpoch));
+            Result(Ims).Nsrc     = 0;
         else
-            if Args.UseWMedian
-                Result(Ims).FitZP(FlagGoodEpoch)    = tools.math.stat.wmedian(DiffMagEpoch, MagErr, 2); 
+            Mag    = Mag(FlagGoodEpoch,FlagMin);
+            MagErr = MagErr(FlagGoodEpoch,FlagMin);
+
+            [~, Nsrc] = size(Mag);
+
+            DiffMagEpoch = Mag - Mag(Args.RefImInd,:);
+
+            if Args.UseMex
+                if Args.UseWMedian
+                    [Result(Ims).FitZP(FlagGoodEpoch),Result(Ims).FitStdZP(FlagGoodEpoch)]    = tools.math.stat.mex.wmedianStd_mex(DiffMagEpoch, 1./(MagErr.^2), 2);
+                else
+                    Result(Ims).FitZP(FlagGoodEpoch)    = tools.math.stat.mex.median(DiffMagEpoch, 2, 'omitnan');
+                    Result(Ims).FitStdZP(FlagGoodEpoch) = std(DiffMagEpoch, [], 2, 'omitnan');
+                 end
             else
-                Result(Ims).FitZP(FlagGoodEpoch)    = median(DiffMagEpoch, 2, 'omitnan');
-            end            
-            Result(Ims).FitStdZP(FlagGoodEpoch) = std(DiffMagEpoch, [], 2, 'omitnan');
+                if Args.UseWMedian
+                    Result(Ims).FitZP(FlagGoodEpoch)    = tools.math.stat.wmedian(DiffMagEpoch, MagErr, 2);
+                else
+                    Result(Ims).FitZP(FlagGoodEpoch)    = median(DiffMagEpoch, 2, 'omitnan');
+                end
+                Result(Ims).FitStdZP(FlagGoodEpoch) = std(DiffMagEpoch, [], 2, 'omitnan');
+            end
+            Result(Ims).FitZP(~FlagGoodEpoch)   = NaN;
+            Result(Ims).FitStdZP(~FlagGoodEpoch)= NaN;
+
+            Result(Ims).FitErrZP = Result(Ims).FitStdZP./sqrt(Nsrc);
+            Result(Ims).Nsrc     = Nsrc;
         end
-        Result(Ims).FitZP(~FlagGoodEpoch)   = NaN;
-        Result(Ims).FitStdZP(~FlagGoodEpoch)= NaN;
-        
-        Result(Ims).FitErrZP = Result(Ims).FitStdZP./sqrt(Nsrc);
-        Result(Ims).Nsrc     = Nsrc;
     end
 end

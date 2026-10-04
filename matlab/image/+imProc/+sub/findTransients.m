@@ -403,22 +403,33 @@ function TranCat=findTransients(AD, Args)
             CHI2DOF_New = CHI2DOF_New(~NearEdge_New);
 
             MinMag_New = floor(min(MAGPSF_New));
+            MaxMag_New = [];
             if AD(Iobj).New.HeaderData.isKeyExist('LIMMAG')
                 MaxMag_New = ceil(AD(Iobj).New.HeaderData.getVal('LIMMAG'));
-            else
+            end
+            % a blank LIMMAG (failed photometric calibration) reads as NaN
+            % and must not define the bins (issue #1346)
+            if isempty(MaxMag_New) || ~isfinite(MaxMag_New)
                 MaxMag_New = ceil(max(MAGPSF_New));
             end
 
             MinMag_New = min(MinMag_New, MaxMag_New - 1);
             binEdges_New = MinMag_New:1.0:MaxMag_New;
-            binIndices_New = discretize(MAGPSF_New, binEdges_New);
+            if numel(binEdges_New)>=2 && all(isfinite(binEdges_New))
+                binIndices_New = discretize(MAGPSF_New, binEdges_New);
 
-            ValidMag_New = ~isnan(binIndices_New);
-            BinIndicesValid_New = binIndices_New(ValidMag_New);
-            ValuesIndices_New = CHI2DOF_New(ValidMag_New);
+                ValidMag_New = ~isnan(binIndices_New);
+                BinIndicesValid_New = binIndices_New(ValidMag_New);
+                ValuesIndices_New = CHI2DOF_New(ValidMag_New);
 
-            MedianValues_New = accumarray(BinIndicesValid_New(:), ...
-                ValuesIndices_New(:), [], @median, NaN);
+                MedianValues_New = accumarray(BinIndicesValid_New(:), ...
+                    ValuesIndices_New(:), [], @median, NaN);
+            else
+                % no usable magnitude range (e.g., no finite MAG_PSF): no
+                % chi2-vs-magnitude statistic for this crop (issue #1346)
+                binEdges_New      = [];
+                MedianValues_New  = [];
+            end
 
             % Initialize result array
             MedianAtMag_New = NaN(size(ResultN.Mag));
@@ -442,22 +453,33 @@ function TranCat=findTransients(AD, Args)
             CHI2DOF_Ref = CHI2DOF_Ref(~NearEdge_Ref);
 
             MinMag_Ref = floor(min(MAGPSF_Ref));
+            MaxMag_Ref = [];
             if AD(Iobj).Ref.HeaderData.isKeyExist('LIMMAG')
                 MaxMag_Ref = ceil(AD(Iobj).Ref.HeaderData.getVal('LIMMAG'));
-            else
+            end
+            % a blank LIMMAG (failed photometric calibration) reads as NaN
+            % and must not define the bins (issue #1346)
+            if isempty(MaxMag_Ref) || ~isfinite(MaxMag_Ref)
                 MaxMag_Ref = ceil(max(MAGPSF_Ref));
             end
 
             MinMag_Ref = min(MinMag_Ref, MaxMag_Ref -1);
             binEdges_Ref = MinMag_Ref:1.0:MaxMag_Ref;
-            binIndices_Ref = discretize(MAGPSF_Ref, binEdges_Ref);
+            if numel(binEdges_Ref)>=2 && all(isfinite(binEdges_Ref))
+                binIndices_Ref = discretize(MAGPSF_Ref, binEdges_Ref);
             
-            ValidMag_Ref = ~isnan(binIndices_Ref);
-            BinIndicesValid_Ref = binIndices_Ref(ValidMag_Ref);
-            ValuesIndices_Ref = CHI2DOF_Ref(ValidMag_Ref);
+                ValidMag_Ref = ~isnan(binIndices_Ref);
+                BinIndicesValid_Ref = binIndices_Ref(ValidMag_Ref);
+                ValuesIndices_Ref = CHI2DOF_Ref(ValidMag_Ref);
 
-            MedianValues_Ref = accumarray(BinIndicesValid_Ref(:), ...
-                ValuesIndices_Ref(:), [], @median, NaN);
+                MedianValues_Ref = accumarray(BinIndicesValid_Ref(:), ...
+                    ValuesIndices_Ref(:), [], @median, NaN);
+            else
+                % no usable magnitude range (e.g., no finite MAG_PSF): no
+                % chi2-vs-magnitude statistic for this crop (issue #1346)
+                binEdges_Ref      = [];
+                MedianValues_Ref  = [];
+            end
 
             % Initialize result array
             MedianAtMag_Ref = NaN(size(ResultR.Mag));

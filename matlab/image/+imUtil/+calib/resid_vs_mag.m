@@ -9,6 +9,9 @@ function [Flag,Res]=resid_vs_mag(Mag, Resid, Args)
 %              Or, binning the data and calculate the mean and std in each
 %              bin. Outliers are defined to be ThresholdSigma times the std
 %              above the mean value.
+%              If the binning yields fewer than two bins (e.g., the
+%              magnitudes span less than 1.5 BinSize), the mean and std
+%              are calculated over all the sources in MagRange.
 % Input  : - A vector of magnitudes.
 %          - A vector of residuals (one per magnitude).
 %          * Pairs of ...,key,val,... arguments. Options are:
@@ -45,6 +48,9 @@ function [Flag,Res]=resid_vs_mag(Mag, Resid, Args)
 %                   at the source magnitude.
 %            .InterpStdResid - Vector of interpolated or global std of
 %                   residuals at the source mag.
+%            .BinMag, .BinMeanResid, .BinStdResid, .BinN - Mid
+%                   magnitude, mean and std of residuals, and number of
+%                   sources in each magnitude bin ('bin' method only).
 %      By: Eran O. Ofek                         Jun 2020
 % Example: Flag=imUtil.calib.resid_vs_mag(Mag,Resid);
 
@@ -62,6 +68,19 @@ arguments
     Args.Plot(1,1) logical = false;
 end
 
+if isempty(Mag)
+    % no sources
+    Flag                 = false(size(Mag));
+    Res.Mag              = Mag;
+    Res.Resid            = Resid;
+    Res.InterpMeanResid  = nan(size(Mag));
+    Res.InterpStdResid   = nan(size(Mag));
+    Res.BinMag           = zeros(0,1);
+    Res.BinMeanResid     = zeros(0,1);
+    Res.BinStdResid      = zeros(0,1);
+    Res.BinN             = zeros(0,1);
+    return
+end
 
 if isempty(Args.MagRange)
     Args.MagRange = [min(Mag), max(Mag)];
@@ -86,12 +105,27 @@ switch lower(Args.BinMethod)
 
     case 'bin'
         % binning of resid vs. mag
+        % number of bins returned by binningFast
+        Nbin = numel(Args.MagRange(1)+0.5.*Args.BinSize:Args.BinSize:Args.MagRange(2));
+        if Nbin<2
+            % interpolation requires two bins - use the single-bin limit
+            Res.InterpMeanResid = Args.FunMean(Resid(FlagMag)).*ones(size(Mag));
+            Res.InterpStdResid  = Args.FunStd(Resid(FlagMag)).*ones(size(Mag));
+            Res.BinMag          = median(Mag(FlagMag));
+            Res.BinMeanResid    = Res.InterpMeanResid(1);
+            Res.BinStdResid     = Res.InterpStdResid(1);
+            Res.BinN            = sum(FlagMag);
+        else
+            B = timeSeries.bin.binningFast([Mag, Resid], Args.BinSize, Args.MagRange, {'MidBin',Args.FunMean,Args.FunStd,@numel});
+            % interpolate B over missing points
+            Res.InterpMeanResid = interp1(B(:,1), B(:,2), Mag, Args.InterpMethod,'extrap');
+            Res.InterpStdResid  = interp1(B(:,1), B(:,3), Mag, Args.InterpMethod,'extrap');
+            Res.BinMag          = B(:,1);
+            Res.BinMeanResid    = B(:,2);
+            Res.BinStdResid     = B(:,3);
+            Res.BinN            = B(:,4);
+        end
 
-        B = timeSeries.bin.binningFast([Mag, Resid], Args.BinSize, Args.MagRange, {'MidBin',Args.FunMean,Args.FunStd,@numel});
-        % interpolate B over missing points
-        Res.InterpMeanResid = interp1(B(:,1), B(:,2), Mag, Args.InterpMethod,'extrap');
-        Res.InterpStdResid  = interp1(B(:,1), B(:,3), Mag, Args.InterpMethod,'extrap');
-        
         Flag = abs(Resid - Res.InterpMeanResid)./Res.InterpStdResid < Args.ThresholdSigma & FlagMag;
 
     case 'fitpred'

@@ -9,6 +9,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     %       Estimate the global bcakground
     %       Check that there are not too many pixels with high level
     %       Check for image histogram anomalies.
+    %       Check for excess pixel-to-pixel (salt-and-pepper) noise.
     %       Check for large number of pixels with fixed value.
     %       Estimate the PSF using the ACF.
     %       Check for bad PSF.
@@ -53,21 +54,33 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     %                   (via imProc.quality.histAnomaly). Default is true.
     %            'histAnomalyArgs' - Cell array of args for histAnomaly.
     %                   Default is {}.
+    %            'NoiseExcess' - If true, flag images whose pixel-to-pixel
+    %                   noise in a central patch exceeds the noise expected
+    %                   from their sky level (via imProc.quality.noiseExcess;
+    %                   issue #1359). Default is true.
+    %            'noiseExcessArgs' - Cell array of args for noiseExcess
+    %                   (e.g., {'MaxRatio',3}). Default is {}.
     %            'BadVal' - Pixel value considered “bad/fixed”. If empty,
     %                   do not check. Default is 32768.
     %            'MaxNBadVal' - Maximum allowed number of pixels equal to BadVal.
     %                   Images exceeding this are flagged. Default is 1e4.
     %            'GlobalBadPSF' - If true, estimate PSF via ACF and flag
-    %                   images with too-large FWHM. Default is false.
+    %                   images with too-large FWHM. Default is true.
     %            'MaxRadius' - Max radius (pixels) for ACF-based PSF measure.
     %                   Default is 50.
-    %            'ACF_HalfSize' - Half-size [X Y] of the cutout used for ACF.
+    %            'ACF_HalfSize' - Half-size [X Y] of the cutout, centred on
+    %                   the image centre, used for the first ACF measurement.
     %                   Default is [500 500].
-    %            'CCDSEC2' - Alternate CCDSEC [X1 X2 Y1 Y2] for a second PSF
-    %                   attempt if the first fails (e.g., streaks). Default is
-    %                   [1 1000 1 1000].
+    %            'CCDSEC2' - CCDSEC [X1 X2 Y1 Y2], nearer the image edge, for
+    %                   a second ACF measurement if the central FWHM is
+    %                   outside [MinFWHM, MaxFWHM) (e.g., streaks); its
+    %                   result is final. Default is [2701 3700 1501 2500].
     %            'MaxFWHM' - Maximum acceptable ACF-based FWHM (pixels).
-    %                   Default is 5.
+    %                   Default is 6.
+    %            'MinFWHM' - Minimum acceptable ACF-based FWHM (pixels).
+    %                   Smaller values are not a reliable measurement (PSF
+    %                   sharper than the 1-pixel ACF step, or only isolated
+    %                   hot pixels above threshold). Default is 0.7.
     %            'UseMex' - If true, use MEX-accelerated implementations where
     %                   available. Default is true.
     %            % ---------- Header updates & table ----------
@@ -163,14 +176,18 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
         Args.HistAnomaly                 = true;
         Args.histAnomalyArgs             = {};
 
+        Args.NoiseExcess                 = true;
+        Args.noiseExcessArgs             = {};
+
         Args.BadVal                      = 32768;  % if empty do not check
         Args.MaxNBadVal                  = 1e4;   
 
         Args.GlobalBadPSF                = true;
         Args.MaxRadius                   = 50;
         Args.ACF_HalfSize                = [500 500];
-        Args.CCDSEC2                     = [1 1000 1 1000];   % failure region
-        Args.MaxFWHM                     = 5;
+        Args.CCDSEC2                     = [2701 3700 1501 2500];   % failure region, halfway to the edge (issue #1362)
+        Args.MaxFWHM                     = 6;
+        Args.MinFWHM                     = 0.7;  % below = unreliable ACF measurement (issue #1362)
         Args.UseMex                      = true;
 
         Args.TimeZone                    = 2;  % must be consistent with AddHeadKeys
@@ -331,6 +348,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     % RejectStage records the first check that rejected all images (if any).
     FlagGoodImages = true(Nim,1);
     NotEmptyImage  = true(Nim,1);   % default; overwritten if CheckEmpty is used
+    FlagCorrectSize = true(Nim,1);  % default; overwritten if RequiredSizeXY is used
     RejectStage    = '';
 
     % Check for empty images
@@ -402,6 +420,20 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
         RejectStage    = updateRejectStage(RejectStage, FlagGoodImages, 'histogram anomaly');
     end
 
+    % excess pixel-to-pixel (salt-and-pepper) noise (issue #1359).
+    % Only non-empty images of the correct size: the patch and overscan
+    % positions refer to the full raw frame.
+    if Args.NoiseExcess && any(FlagGoodImages)
+        Valid   = NotEmptyImage & FlagCorrectSize;
+        NoiseOK = false(Nim,1);
+        if any(Valid)
+            [NoiseOK(Valid), TableForDB.NoiseRatio(Valid)] = imProc.quality.noiseExcess(AI(Valid), Args.noiseExcessArgs{:});
+        end
+        TableForDB.NoiseRatioOK = NoiseOK;
+        FlagGoodImages = FlagGoodImages & TableForDB.NoiseRatioOK;
+        RejectStage    = updateRejectStage(RejectStage, FlagGoodImages, 'pixel noise excess');
+    end
+
     % many pixels with the same value (skipped if BadVal is empty, issue #1325)
     if ~isempty(Args.BadVal) && ~isempty(Args.MaxNBadVal) && any(FlagGoodImages)
         for Iim=1:1:Nim
@@ -423,14 +455,17 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
                 else
                     BackImage = TableForDB.Median(Iim);
                 end
-                BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Data, [Args.ACF_HalfSize, Args.ACF_HalfSize], false, [], Args.UseMex);
+                % [Xhalf Yhalf] = cutout around the image centre (a 4-element
+                % vector would be read as [Xc Yc Xhalf Yhalf] - issue #1362)
+                BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Data, Args.ACF_HalfSize, false, [], Args.UseMex);
                 % subtract background
                 BackSubImage = BackSubImage - BackImage;
                             
                 [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius, 'UseMex',Args.UseMex, 'Back',[]); %BackImage);                                                
-                if FWHM_ACF>Args.MaxFWHM
+                if ~(FWHM_ACF>=Args.MinFWHM && FWHM_ACF<Args.MaxFWHM)
                     % run it again in a different CCDSEC
-                    % this may be due to satellite streaks
+                    % this may be due to satellite streaks, or an ACF
+                    % dominated by isolated (hot) pixels
                     BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Data, Args.CCDSEC2, true, [], Args.UseMex);
                     % subtract background                    
                     BackSubImage = BackSubImage - BackImage;                   
@@ -441,7 +476,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
                 
             end
         end
-        TableForDB.GoodACF_FWHM = TableForDB.ACF_FWHM<Args.MaxFWHM;
+        TableForDB.GoodACF_FWHM = TableForDB.ACF_FWHM>=Args.MinFWHM & TableForDB.ACF_FWHM<Args.MaxFWHM;
         FlagGoodImages = FlagGoodImages & TableForDB.GoodACF_FWHM;
         RejectStage    = updateRejectStage(RejectStage, FlagGoodImages, 'bad PSF (ACF FWHM)');
     end
@@ -556,6 +591,8 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
                                 'FracPixAboveThreshold',nan(Nim,1),...
                                 'Median',nan(Nim,1),...
                                 'HistOK',false(Nim,1),...
+                                'NoiseRatio',nan(Nim,1),...
+                                'NoiseRatioOK',false(Nim,1),...
                                 'NpixWithBadVal',nan(Nim,1),...
                                 'NpixWithBadValOK',false(Nim,1),...
                                 'ACF_FWHM',nan(Nim,1),...
@@ -563,7 +600,11 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
                                 'GoodImages',false(Nim,1),...
                                 'SelectedImages',false(Nim,1),...
                                 'BasicCalib',false(Nim,1),...
-                                'MaxFracGrad',nan(Nim,1));
+                                'MaxFracGrad',nan(Nim,1),...
+                                'NsubNoPSF',nan(Nim,1),...
+                                'NsubNoSrc',nan(Nim,1),...
+                                'NsubGood',nan(Nim,1),...
+                                'NsrcSum',nan(Nim,1));
         else
             % Add columns:
             %TableForDB.FileName              = strings(Nim,1); already in
@@ -579,6 +620,8 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
             TableForDB.FracPixAboveThreshold = nan(Nim,1);
             TableForDB.Median                = nan(Nim,1);
             TableForDB.HistOK                = false(Nim,1);
+            TableForDB.NoiseRatio            = nan(Nim,1);
+            TableForDB.NoiseRatioOK          = false(Nim,1);
             TableForDB.NpixWithBadVal        = nan(Nim,1);
             TableForDB.NpixWithBadValOK      = false(Nim,1);
             TableForDB.ACF_FWHM              = nan(Nim,1);
@@ -587,6 +630,10 @@ function TableForDB=allocateTableForDB(TableForDB, Nim, ClassID)
             TableForDB.SelectedImages        = false(Nim,1);
             TableForDB.BasicCalib            = false(Nim,1);
             TableForDB.MaxFracGrad           = nan(Nim,1);
+            TableForDB.NsubNoPSF             = nan(Nim,1);
+            TableForDB.NsubNoSrc             = nan(Nim,1);
+            TableForDB.NsubGood              = nan(Nim,1);
+            TableForDB.NsrcSum               = nan(Nim,1);
         end
     end
 end

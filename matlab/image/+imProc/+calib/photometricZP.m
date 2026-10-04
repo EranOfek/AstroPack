@@ -70,7 +70,7 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %                   array) to query around the requested coordinates,
     %                   or an AstroCatalog object containing such a
     %                   catalaog.
-    %                   Default is 'GAIAEDR3'.
+    %                   Default is 'GAIADR3'.
     %            'CatOrigin' - Catalog origin (relevant if CatName is a
     %                   char array).
     %                   Default is 'catsHTM'.
@@ -85,6 +85,15 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
     %                   See catsHTM.cone_search. Default is {}.
     %            'UseIndex' - UseIndex paramter for catsHTM.
     %                   Default is false.
+    %            'GaiaCone' - A structure array of raw catalog cones (e.g.,
+    %                   the GaiaCone output of pipeline.last.pipes.pipelineI;
+    %                   see imProc.cat.getAstrometricCatalog). If 'CatName'
+    %                   is a name and one of the cones covers the query
+    %                   circle, the catalog is cut from that cone instead of
+    %                   being searched (issue #1348). Default is [].
+    %            'EpochOut' - Epoch [JD] to which the proper motion of the
+    %                   reference catalog is applied (relevant if 'CatName'
+    %                   is a name). If empty, not applied. Default is [].
     %
     %            'RangeMag' - Magnitude range to retrieve.
     %                   Default is [12 19.5].
@@ -196,6 +205,8 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
         Args.ColNamePlx                = {'Plx'};
         Args.RangePlx                  = [0.1 100];  % remove galaxies
         Args.MinFracIsolated           = 0.5;   % adapt RangeMag to the field density - see imProc.cat.getAstrometricCatalog
+        Args.GaiaCone                  = [];    % raw catalog cones to cut from instead of searching (issue #1348)
+        Args.EpochOut                  = [];    % [JD] apply proper motion to this epoch; empty - not applied
         
         % Update catalog
         Args.UpdateMagCols logical     = true;
@@ -308,7 +319,14 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     PhotCat = AstroCatalog([Nobj 1]);
                 end
 
-                % get photometric catalog
+                % get photometric catalog - from a raw cone covering the
+                % circle if one is given (issue #1348), else by a search
+                Cone = imProc.cat.findCone(Args.GaiaCone, Args.CatName, RA, Dec, CircleRadius);
+                if isempty(Cone)
+                    ConeArgs = {};
+                else
+                    ConeArgs = {'Cone',Cone};
+                end
                 Ipc = Iobj;
                 [PhotCat(Iobj)] = imProc.cat.getAstrometricCatalog(RA, Dec, 'CatName',Args.CatName,...
                                                                       'CatOrigin',Args.CatOrigin,...
@@ -322,7 +340,9 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                                                                       'RangeMag',Args.RangeMag,...
                                                                       'ColNamePlx',Args.ColNamePlx,...
                                                                       'RangePlx',Args.RangePlx,...
-                                                                      'MinFracIsolated',Args.MinFracIsolated);
+                                                                      'MinFracIsolated',Args.MinFracIsolated,...
+                                                                      'EpochOut',Args.EpochOut,...
+                                                                      ConeArgs{:});
             end
 
             if Args.UseOnlyMainSeq
@@ -401,15 +421,15 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                                 %VegaToAB_Filters  = {'Mag_G','Mag_BP','Mag_RP'};
                                 VegaToAB_Filters  = {'phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag'};
     
-                                GAIA_EDR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
+                                GAIA_DR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
     
                                 %I1 = find(strcmp(Args.RefColNameMag, VegaToAB_Filters));
                                 I1 = (strcmp(Args.RefColNameMag, VegaToAB_Filters));
-                                RefMag = RefMag - GAIA_EDR3_ZP_VegaMinusAB(I1);
+                                RefMag = RefMag - GAIA_DR3_ZP_VegaMinusAB(I1);
     
-                                %I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
-                                I2 = (ismember(VegaToAB_Filters, Args.RefColNameMagBands));
-                                RefMagBands = RefMagBands - GAIA_EDR3_ZP_VegaMinusAB(I2);
+                                % offsets in the order of the band columns (issue #1370)
+                                [~, I2] = ismember(Args.RefColNameMagBands, VegaToAB_Filters);
+                                RefMagBands = RefMagBands - GAIA_DR3_ZP_VegaMinusAB(I2);
                                 %end
                             otherwise
                                 error('Unknown MagSys option');
@@ -508,13 +528,14 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                                 VegaToAB_Filters  = {'phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag'};
                                 
     
-                                GAIA_EDR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
+                                GAIA_DR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
     
                                 I1 = find(strcmp(Args.RefColNameMag, VegaToAB_Filters));
-                                RefMag = RefMag - GAIA_EDR3_ZP_VegaMinusAB(I1);
+                                RefMag = RefMag - GAIA_DR3_ZP_VegaMinusAB(I1);
     
-                                I2 = find(ismember(VegaToAB_Filters, Args.RefColNameMagBands));
-                                RefMagBands = RefMagBands - GAIA_EDR3_ZP_VegaMinusAB(I2);
+                                % offsets in the order of the band columns (issue #1370)
+                                [~, I2] = ismember(Args.RefColNameMagBands, VegaToAB_Filters);
+                                RefMagBands = RefMagBands - GAIA_DR3_ZP_VegaMinusAB(I2);
                                 %end
                             otherwise
                                 error('Unknown MagSys option');
@@ -673,6 +694,13 @@ function [Result, ResFit, PhotCat] = photometricZP(Obj, Args)
                     
                 %Result(Iobj).HeaderData.insertKey([Keys(:), Vals(:)], Inf);
                 Result(Iobj).HeaderData.replaceVal(Keys, Vals);
+
+                % The reference catalog is known whether or not the fit
+                % succeeded, so it is written outside the branches above,
+                % where the other PH_ values may be NaN (issue #1347).
+                Result(Iobj).HeaderData.replaceVal({'PH_CAT'}, ...
+                                                   {imProc.cat.catalogNameStr(Args.CatName)}, ...
+                                                   'Comment',{'Photometric reference catalog'});
                 
 
             end

@@ -594,6 +594,11 @@ classdef AstroZOGY < AstroDiff
             %                   Default is 'MEDVAR'.
             %            'KeyStd' - Std header keyword.
             %                   Default is 'STDBCK'.
+            %            'DumpComplexPath' - Directory in which to save the
+            %                   inputs and diagnostics of a sub image whose D
+            %                   or Pd came out complex (issue #1360). The
+            %                   processing itself is not changed. If empty,
+            %                   no check is made. Default is ''.
             %
             % Output : - An AstroDiff object with the populated
             %            D in the Image property.
@@ -643,6 +648,7 @@ classdef AstroZOGY < AstroDiff
                 Args.KeyVar         = 'MEDVAR';
                 Args.KeyStd         = 'STDBCK';
                 
+                Args.DumpComplexPath char = '';  % dump a sub image whose D/Pd is complex (issue #1360); '' - off
                 
             end
             
@@ -727,6 +733,14 @@ classdef AstroZOGY < AstroDiff
 
                 % calculate Pd
                 Pd = fftshift(ifft2(Obj(Iobj).Pd_hat));
+
+                % ifft2 returns a complex D/Pd when D_hat/Pd_hat are not
+                % exactly conjugate-symmetric (e.g. NaN). Record the case for
+                % offline replay (issue #1360); the processing is unchanged.
+                if ~isempty(Args.DumpComplexPath) && (~isreal(D) || ~isreal(Pd))
+                    dumpComplexSub(Obj(Iobj), D, Pd, FrVal, Args.DumpComplexPath);
+                end
+
                 if ischar(Args.HalfSizePSF)
                     % keep full
                 else
@@ -869,8 +883,11 @@ classdef AstroZOGY < AstroDiff
             
             Nobj = numel(Obj);
             for Iobj=1:1:Nobj
-                % ZOGY Eq 16:
-                Obj(Iobj).S = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Obj(Iobj).Image, Obj(Iobj).PSF);
+                % ZOGY Eq 16: S = Fd * D (x) Pd, with D the unit-variance
+                % D of Eq. 13. Image may hold D/Fd (NormDbyFd), so rebuild
+                % D from D_hat rather than use Image (issue #741).
+                Dunit = ifft2(Obj(Iobj).D_hat);
+                Obj(Iobj).S = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Dunit, Obj(Iobj).PSF);
                 
                 if Args.PopS_delta
                     DeltaPSF = imUtil.kernel2.gauss(Args.DeltaWidth, Args.DeltaStampSize);
@@ -895,7 +912,7 @@ classdef AstroZOGY < AstroDiff
                     DeltaKernel(:,1)   = Args.DeltaPunishWeight;
                     DeltaKernel(:,end) = Args.DeltaPunishWeight;
                     
-                    Obj(Iobj).S_delta = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Obj(Iobj).Image, DeltaKernel);
+                    Obj(Iobj).S_delta = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Dunit, DeltaKernel);
                 end
 
                 if Args.PopS_ext
@@ -904,7 +921,7 @@ classdef AstroZOGY < AstroDiff
                     ExtendedFun = Args.ExtendedFun(Args.ExtendedFunArgs, size(PSF));
                     ExtPSF      = conv2(PSF, ExtendedFun, 'same');
                     
-                    Obj(Iobj).S_ext = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Obj(Iobj).Image, ExtPSF);
+                    Obj(Iobj).S_ext = Obj(Iobj).Fd .* imUtil.filter.filter2_fast(Dunit, ExtPSF);
                 end
 
                 if Args.PopS_smear
@@ -944,7 +961,7 @@ classdef AstroZOGY < AstroDiff
                     % that rather than fail.
                     if ~isempty(SmearPSF)
                         Obj(Iobj).S_smear = Obj(Iobj).Fd .* ...
-                            imUtil.filter.filter2_fast(Obj(Iobj).Image, SmearPSF);
+                            imUtil.filter.filter2_fast(Dunit, SmearPSF);
                     end
                 end
 
@@ -967,7 +984,7 @@ classdef AstroZOGY < AstroDiff
                     % everything downstream must tolerate that rather than fail.
                     if ~isempty(ResidPSF)
                         Obj(Iobj).S_PSFresid = Obj(Iobj).Fd .* ...
-                            imUtil.filter.filter2_fast(Obj(Iobj).Image, ResidPSF);
+                            imUtil.filter.filter2_fast(Dunit, ResidPSF);
                     end
                 end
 
@@ -1125,8 +1142,12 @@ classdef AstroZOGY < AstroDiff
 
         function Obj=subtractionScorr(Obj, Args)
             % Calculate the ZOGY Scorr statistics - S corrected for source noise and astrometric noise
-            %   This function requires that New and Ref will be in units of
-            %   electrons.
+            %   New and Ref are assumed to be mean coadds in units of
+            %   electrons per single image. The variance of each pixel is
+            %   VarN + Source/NcoaddNew + (SysNoiseN*Source)^2 (and the same
+            %   for Ref), where VarN/VarR is the measured background variance
+            %   (sky + read noise) and Source is the background-subtracted
+            %   image clipped at 0 (issue #741).
             % Input  : - An AstroZOGY object.
             %          * ...,key,val,...
             %            'IncludeSourceNoise' - A logical indicating if to
@@ -1153,12 +1174,17 @@ classdef AstroZOGY < AstroDiff
             %                   Default is 'NCOADD'.
             %            'NcoaddRef' - Like 'NcoaddNew' but for the Ref
             %                   image. Default is 'NCOADD'.
-            %            'RN_New' - Readout noise [e] of the New image.
-            %                       If this is a coadd, tghen use the RN of
-            %                       a single image.
-            %                   Default is 2.7
-            %            'RN_New' - Readout noise [e] of the Ref image.
-            %                   Default is 2.7
+            %            'RN_New' - Not used: the read noise is included in the
+            %                   measured background variance VarN. Kept for
+            %                   backward compatibility. Default is 2.7
+            %            'RN_Ref' - Not used (see RN_New). Default is 2.7
+            %            'SysNoiseN' - Fractional systematic (calibration)
+            %                   noise of the New image, applied to the
+            %                   background-subtracted source flux only.
+            %                   If empty (either N or R), not used.
+            %                   Default is 0.015.
+            %            'SysNoiseR' - Like SysNoiseN, for the Ref image.
+            %                   Default is 0.015.
             %            'SigmaAstNew' - sigma of the single axis
             %                   astrometric noise of the New image [pix].
             %                   Default is 0.1.
@@ -1297,25 +1323,28 @@ classdef AstroZOGY < AstroDiff
                     end
                 end
                 
-                RN_New = Args.RN_New;
-                RN_Ref = Args.RN_Ref;
 
                 [Kn_hat, Kr_hat, Kn, Kr] = knkr(Obj(Iobj), 'AbsFun',Args.AbsFun, ...
                                                            'Norm',Args.NormKnKr,'OverwriteFr',Args.OverwriteFr,...
                                                            'OverwriteFrVal',Args.OverwriteFrVal);
 
-                % New and Ref should contain the images including
-                % background in units of electrons - i.e., the variance
-                % images.
+                % Variance of each coadd pixel (issue #741): for a mean coadd
+                % of N frames, Var = (sky + RN^2)/N + source/N + (SysNoise*source)^2.
+                % The background term is the measured VarN/VarR: it is already
+                % per coadd pixel and still exists for sky-subtracted refs, where
+                % the sky level is gone but its noise is not (issue #614).
+                % The source term uses the background-subtracted image clipped
+                % at 0, and SysNoise applies to the source only.
 
                 if Args.IncludeSourceNoise
-                    % including background
-                    VN = NcoaddNew.*(Obj(Iobj).New.Image + RN_New.^2);
-                    VR = NcoaddRef.*(Obj(Iobj).Ref.Image + RN_Ref.^2);
+                    SrcN = max(Obj(Iobj).Nbs, 0);
+                    SrcR = max(Obj(Iobj).Rbs, 0);
+                    VN = Obj(Iobj).VarN + SrcN./NcoaddNew;
+                    VR = Obj(Iobj).VarR + SrcR./NcoaddRef;
 
                     if ~isempty(Args.SysNoiseN) && ~isempty(Args.SysNoiseR)
-                        VN = VN + (Args.SysNoiseN.*VN).^2;
-                        VR = VR + (Args.SysNoiseR.*VR).^2;
+                        VN = VN + (Args.SysNoiseN.*SrcN).^2;
+                        VR = VR + (Args.SysNoiseR.*SrcR).^2;
                     end
 
                     [Vsrc]      = abs(imUtil.properSub.sourceNoise(VN, VR, Kn, Kr));
@@ -1340,7 +1369,9 @@ classdef AstroZOGY < AstroDiff
                     Vtotal = Vtotal./Args.VarNormMethod(Vtotal(:));
                 end
 
-                Obj(Iobj).Scorr = Obj(Iobj).Sflux./sqrt(Vtotal);
+                % ZOGY Eq. 25: numerator is the raw S, not Sflux. Obj.S is
+                % already normalized, so recover raw S as Sflux*F_S (issue #741)
+                Obj(Iobj).Scorr = (Obj(Iobj).Sflux .* Obj(Iobj).F_S)./sqrt(Vtotal);
                 
                 switch lower(Args.NormMethod(1:4))
                     case 'norm'
@@ -1631,4 +1662,54 @@ classdef AstroZOGY < AstroDiff
         Result = unitTest()
     end
     
+end
+
+
+function dumpComplexSub(Obj, D, Pd, FrVal, DumpPath)
+    % Save the inputs and diagnostics of one sub image whose ZOGY D/Pd came out complex (issue #1360)
+    %   Everything needed to replay imUtil.properSub.subtractionD offline, as
+    %   plain arrays, plus the NaN/Inf counts and the conjugate-symmetry error
+    %   of each Fourier-domain input. Never throws: a failed dump is only
+    %   reported, the subtraction goes on as without the check.
+    % Input  : - A single AstroZOGY element (after subtractionD).
+    %          - The D image and the full Pd (before the stamp cut).
+    %          - The Fr value used.
+    %          - Directory for the dump file.
+    try
+        % max|X(k) - conj(X(-k))|: 0 for the FFT of a real array
+        HermErr  = @(X) max(abs(X - conj(X([1, end:-1:2], [1, end:-1:2]))), [], 'all');
+        NonFin   = @(X) nnz(~isfinite(X));
+        Hat      = {'N_hat','R_hat','Pn_hat','Pr_hat','D_hat','Pd_hat','D_den_hat','D_denSqrt_hat'};
+        Diag     = struct();
+        for Ih=1:1:numel(Hat)
+            X = Obj.(Hat{Ih});
+            Diag.(Hat{Ih}) = struct('Size',size(X), 'Nnonfinite',NonFin(X), 'HermErr',HermErr(X));
+        end
+        Diag.MaxImagD  = max(abs(imag(D)), [], 'all');
+        Diag.MaxImagPd = max(abs(imag(Pd)), [], 'all');
+        Diag.Fn    = Obj.Fn;
+        Diag.Fr    = FrVal;
+        Diag.Fd    = Obj.Fd;
+        Diag.VarN  = Obj.VarN;
+        Diag.VarR  = Obj.VarR;
+
+        Side = {'New','Ref'};
+        for Is=1:1:2
+            AI = Obj.(Side{Is});
+            In.(Side{Is}) = struct('Image',AI.Image, 'Mask',AI.MaskData.Image, 'Back',AI.Back, 'Var',AI.Var, ...
+                                   'PSF',AI.PSFData.getPSF, 'Header',{AI.HeaderData.Data});
+        end
+
+        CropID = Obj.New.HeaderData.getVal('CROPID');
+        JD     = Obj.New.HeaderData.getVal('JD');
+        File   = fullfile(DumpPath, sprintf('zogy_complexPd_JD%.5f_crop%03d.mat', JD, CropID));
+        if ~isfolder(DumpPath)
+            mkdir(DumpPath);
+        end
+        save(File, 'Diag', 'In', '-v7.3');
+        warning('AstroZOGY:complexSub', 'Complex ZOGY D/Pd (max imag D %g, Pd %g) - inputs saved to %s (issue #1360)', ...
+                Diag.MaxImagD, Diag.MaxImagPd, File);
+    catch ME
+        warning('AstroZOGY:complexSubDump', 'Complex ZOGY D/Pd - dump failed: %s (issue #1360)', ME.message);
+    end
 end

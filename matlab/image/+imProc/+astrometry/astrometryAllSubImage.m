@@ -1,4 +1,4 @@
-function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
+function [ResultFit, AI, CatName, GaiaCone] = astrometryAllSubImage(Obj, Args)
     % Solve astrometry to all sub images belonging to one image.
     %     Given a vector of AstroImage object containing sub images
     %     belonging to a single image, perform astrometry to all sub
@@ -101,6 +101,9 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
     %            'astrometryRefineArgs' - A cell array of additional arguments to pass
     %                   to imProc.astrometry.astrometryRefine.
     %                   Default is {}.
+    %            'RawConeArgs' - A cell array of 'RawCone*' arguments of
+    %                   imProc.cat.getAstrometricCatalog, shaping the 4th
+    %                   output. Default is {}.
     %
     % Output : - A structure array of astrometry fit results.
     %            This structure array is common to astrometryCore,
@@ -114,6 +117,10 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
     %          - An array of AstroCatalog contains the astrometric (e.g., GAIA)
     %            catalog for each one of the elements in the input
     %            AstroImage.
+    %          - A structure array (element per input element) of the raw
+    %            catalog cones searched (issue #1348) - see the 4th output
+    %            of imProc.cat.getAstrometricCatalog. Empty fields where no
+    %            search was made. Computed only if requested.
     % Author : Eran Ofek (2025 Nov) 
     % Example: [ResFit,AI,CatName]=imProc.astrometry.astrometryAllSubImage(AI);
     %          [ResFit,AI,CatName]=imProc.astrometry.astrometryAllSubImage(AllSI(1,:),'SkipSolved',true,'CatName',CatName);
@@ -160,6 +167,7 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
         Args.astrometryRefineArgs   = {};
 
         Args.MatchMethod            = 'old'; % 'old'|'mex'
+        Args.RawConeArgs cell       = {};    % RawCone* args of imProc.cat.getAstrometricCatalog (issue #1348)
     end
 
     if Args.CreateNewObj
@@ -203,6 +211,9 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
 
  
     ResultFit = imProc.astrometry.defResultFit(Nai);
+    % raw catalog cone per sub image (issue #1348)
+    KeepCone = nargout>3;
+    GaiaCone = repmat(struct('Cat',[], 'Circle',[]), Nai, 1);
 
     Istart = 0;
     NotFound = true;
@@ -233,7 +244,8 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
             CatName   = AstroCatalog([Nai,1]);
         end
 
-        [ResultFit(Args.StartSubImage(Istart)), AI(Args.StartSubImage(Istart)), CatName(Args.StartSubImage(Istart))] = imProc.astrometry.astrometrySingleImage(AI(Args.StartSubImage(Istart)),...
+        CallOut = cell(1, 3 + KeepCone);
+        [CallOut{:}] = imProc.astrometry.astrometrySingleImage(AI(Args.StartSubImage(Istart)),...
                                                                                                 'InitWCS',InitWCS,...
                                                                                                 'RA',Args.RA,...
                                                                                                 'Dec',Args.Dec,...
@@ -260,7 +272,12 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
                                                                                                 'RefRangeMagExpTimeFun',Args.RefRangeMagExpTimeFun,...
                                                                                                 'MatchMethod',Args.MatchMethod,...
                                                                                                 'astrometryCoreArgs',Args.astrometryCoreArgs,...
-                                                                                                'astrometryRefineArgs',Args.astrometryRefineArgs);
+                                                                                                'astrometryRefineArgs',Args.astrometryRefineArgs,...
+                                                                                                'RawConeArgs',Args.RawConeArgs);
+        [ResultFit(Args.StartSubImage(Istart)), AI(Args.StartSubImage(Istart)), CatName(Args.StartSubImage(Istart))] = CallOut{1:3};
+        if KeepCone && isstruct(CallOut{4})
+            GaiaCone(Args.StartSubImage(Istart)) = CallOut{4};
+        end
 
         if Istart>=Nstart || (~isempty(ResultFit(Args.StartSubImage(Istart)).Success) && ResultFit(Args.StartSubImage(Istart)).Success)
         %if ~isempty(ResultFit(Args.StartSubImage(Istart)).Success) && (ResultFit(Args.StartSubImage(Istart)).Success || Istart>=Nstart)
@@ -302,7 +319,8 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
         % run astrometry only if there are stars in catalog
         %issue #1018
         if AI(Iwcs).sizeCatalog>0
-            [ResultFit(Iwcs), AI(Iwcs), CatTmp] = imProc.astrometry.astrometrySingleImage(AI(Iwcs),...
+            CallOut = cell(1, 3 + KeepCone);
+            [CallOut{:}] = imProc.astrometry.astrometrySingleImage(AI(Iwcs),...
                                                                                                     'InitWCS',InitWCS,...
                                                                                                     'CatName',CatNameI,...
                                                                                                     'Scale',Args.Scale,...
@@ -327,7 +345,12 @@ function [ResultFit, AI, CatName] = astrometryAllSubImage(Obj, Args)
                                                                                                     'RefRangeMagExpTimeFun',Args.RefRangeMagExpTimeFun,...
                                                                                                     'MatchMethod',Args.MatchMethod,...
                                                                                                     'astrometryCoreArgs',Args.astrometryCoreArgs,...
-                                                                                                    'astrometryRefineArgs',Args.astrometryRefineArgs);
+                                                                                                    'astrometryRefineArgs',Args.astrometryRefineArgs,...
+                                                                                                    'RawConeArgs',Args.RawConeArgs);
+            [ResultFit(Iwcs), AI(Iwcs), CatTmp] = CallOut{1:3};
+            if KeepCone && isstruct(CallOut{4})
+                GaiaCone(Iwcs) = CallOut{4};
+            end
         
         
 

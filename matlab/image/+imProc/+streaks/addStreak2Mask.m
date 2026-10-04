@@ -28,7 +28,7 @@ function [Result] = addStreak2Mask(AI, Args)
     %            'AddCurvature' - If true, the mask follows the measured
     %                   streak curve (St.Curve). If false, the mask is the
     %                   straight line between that curve's endpoints.
-    %                   Default is false.
+    %                   Default is true.
     %            'CreateNewObj' - If true return a copy; if false update AI
     %                   in place. Default is false.
     % Output : - AstroImage with MaskData updated; Streak bit set for all
@@ -42,7 +42,7 @@ function [Result] = addStreak2Mask(AI, Args)
         
         Args.BitName       = 'Streak';
         Args.SemiWidth     = 3;
-        Args.AddCurvature  = false;
+        Args.AddCurvature  = true;
         Args.CreateNewObj  = false;
     end
 
@@ -133,10 +133,15 @@ function [Cx, Cy] = localCurveXY(St, Istreak, firstNonPoint)
     Q = isfinite(Cx) & isfinite(Cy);
     if ~isempty(acceptable)
         if firstNonPoint
-            % extend to the first nonacceptable extremes, to include
-            %  streak ends (X,Y are the centers of the slices)
-            acceptable(max(find(acceptable,1,'first')-1,1))=true;
-            acceptable(min(find(acceptable,1,'last')+1,numel(acceptable)))=true;
+            % One slice past each end of the accepted run. Slice
+            % coordinates are centers, so this reaches the streak ends.
+            % If no slice was accepted, leave the flags unchanged.
+            i1 = find(acceptable, 1, 'first');
+            i2 = find(acceptable, 1, 'last');
+            if ~isempty(i1)
+                acceptable(max(i1 - 1, 1)) = true;
+                acceptable(min(i2 + 1, numel(acceptable))) = true;
+            end
         end
         Q =Q & acceptable;
     end

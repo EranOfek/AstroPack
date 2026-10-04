@@ -67,6 +67,19 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
     %            'CatName' - catsHTM astrometric catalog to use for the
     %                   astrometric solution.
     %                   Default is 'GAIADR3'
+    %            'AddColor' - Attach the Gaia colour BP_RP to the coadd
+    %                   catalog (issue #1289), via astrometryRefine.
+    %                   Default is false.
+    %            'AddColorArgs' - Extra arguments for imProc.cat.addColor.
+    %                   Default is {}.
+    %            'AddColorRefCat' - The Gaia reference for the colour, per
+    %                   sub image (see the same argument of
+    %                   imProc.astrometry.astrometryRefine): 'astrometric',
+    %                   [] (addColor searches), or an AstroCatalog array
+    %                   with an element per sub image - e.g., the raw
+    %                   Gaia cones kept by the astrometry (issue #1348); an
+    %                   empty element makes addColor search.
+    %                   Default is 'astrometric'.
     %            'MinFracIsolated' - Minimum fraction of the reference
     %                   catalog sources that must survive the neighboors
     %                   rejection. In a crowded field a deep reference
@@ -316,6 +329,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
         Args.CatName                          = 'GAIADR3';
         Args.AddColor logical                 = false;  % attach the Gaia colour BP_RP to the coadd catalog (issue #1289) - passed on to astrometryRefine
         Args.AddColorArgs                     = {};     % extra args for imProc.cat.addColor
+        Args.AddColorRefCat                   = 'astrometric'; % 'astrometric' | [] | AstroCatalog per sub image (issue #1348)
 
         Args.fitPhotCalibTransArgs            = {};
         Args.ReturnRegisteredAllSI logical    = true; % false;  % if true it means that AllSI will be modified and contain the registered images
@@ -547,14 +561,12 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                        'DataProp',DataProp);
             else
                 if isempty(Args.WCS)
-                    % register by the WCS of the fisrt available image:
-                    % CAVEAT (issue #1162): imProc.transIm.register does
-                    % NOT support a bare AstroWCS TransRef (its AstroWCS
-                    % branch is unimplemented), so this sub-branch
-                    % currently errors inside register; pass 'WCS' (an
-                    % AstroImage), or pass AllSI(IfirstGood,Ifields)
-                    % here, once the registration target is decided.
-                    RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), AllSI(IfirstGood,Ifields).WCS,...
+                    % register by the WCS of the first good image - the
+                    % same target as the ShiftXY branch. Passed as the
+                    % AstroImage, not its AstroWCS: register's AstroWCS
+                    % branch is unimplemented and needs the image size
+                    % (issues #1162, #1353)
+                    RegisteredImages = imProc.transIm.register(AllSI(FlagGood,Ifields), AllSI(IfirstGood,Ifields),...
                                                            Args.registerArgs{:},...
                                                            'DataProp',DataProp);
                 else
@@ -757,6 +769,11 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                 else
                     AstrometricCat = Args.CatName;
                 end
+                if isa(Args.AddColorRefCat, 'AstroCatalog')
+                    ColorRefCat = Args.AddColorRefCat(Ifields);
+                else
+                    ColorRefCat = Args.AddColorRefCat;
+                end
                 
                 % This part also add the RA/Dec coordinates [deg] to the
                 % catalog:
@@ -777,6 +794,7 @@ function [Coadd,ResultCoadd]=procCoadd(AllSI, Args)
                                                                                                     'MinFracIsolated',Args.MinFracIsolated,...
                                                                                                     'AddColor',Args.AddColor,...
                                                                                                     'AddColorArgs',Args.AddColorArgs,...
+                                                                                                    'AddColorRefCat',ColorRefCat,...
                                                                                                     'CreateNewObj',false);
                 
                 %ResultCoadd(Ifields).MidMidJD = MidMidJD;

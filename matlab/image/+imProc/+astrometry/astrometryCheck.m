@@ -7,7 +7,7 @@ function [Result, AstrometricCat]=astrometryCheck(Obj, Args)
     %            'WCS' - An AstroWCS object containing the WCS of the
     %                   catalog. If given, will override the AstroWCS on
     %                   the AstroImage. Default is [].
-    %            'CatName' - Catalog name. Default is 'GAIAEDR3'.
+    %            'CatName' - Catalog name. Default is 'GAIADR3'.
     %                   If AstroCatalog, then will return the catalog as
     %                   is.
     %            'MinFracIsolated' - Minimum fraction of the reference
@@ -68,14 +68,14 @@ function [Result, AstrometricCat]=astrometryCheck(Obj, Args)
     %            'BinMedian' - median dist in positional bin.
     %            'MagResid' - Output of imUtil.calib.resid_vs_mag
     % Author : Eran Ofek (Jul 2021)
-    % Example: AstrometricCat = catsHTM.cone_search('GAIAEDR3',1,1,1000);
+    % Example: AstrometricCat = catsHTM.cone_search('GAIADR3',1,1,1000);
     %          % or load AstrometricCat_PTF_Cropped.mat
     %          R=imProc.astrometry.astrometryCheck(AstrometricCat,'CatName',AstrometricCat)
     
     arguments
         Obj 
         Args.WCS                              = [];
-        Args.CatName                          = 'GAIAEDR3';  % or AstroCatalog
+        Args.CatName                          = 'GAIADR3';  % or AstroCatalog
         Args.MinFracIsolated                  = 0.5;   % adapt the reference mag range to the crowding of the field
         Args.getAstrometricCatalogArgs cell   = {};
         

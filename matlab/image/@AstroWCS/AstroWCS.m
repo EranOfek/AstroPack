@@ -212,6 +212,9 @@ classdef AstroWCS < Component
             %                   with less than 2 matches. Default is 0.
             %            'MaxErrorOnMean' - Max error on th mean.
             %                   [pix/arcsec???]. Default is 0.05.
+            %            'MinNgood' - Min. number of sources used in the
+            %                   fit. Below it Success is false (issue #1366).
+            %                   Default is 20.
             % Output : - An AstroWCS object with the Success property
             %            populated.
             % Author : Eran Ofek (Sep 2021)
@@ -223,14 +226,18 @@ classdef AstroWCS < Component
                 Args.RegionalMaxWithNoSrc     = 0;
                 Args.MaxErrorOnMean           = 0.05;  % arcsec OR pix?
                 Args.MinStarsForRegional      = 50;
+                Args.MinNgood                 = 20;
             end
             ARCSEC_DEG = 3600;
-            
+
             % sucess
             ImSize = min(range(Obj.ResFit.SrcX), range(Obj.ResFit.SrcY));
             Step   = ImSize./Args.TestNbin;
 
-            if sum(Obj.ResFit.FlagSrc)<Args.MinStarsForRegional
+            if sum(Obj.ResFit.FlagSrc)<Args.MinNgood
+                % too few sources for a meaningful fit
+                Obj.Success = false;
+            elseif sum(Obj.ResFit.FlagSrc)<Args.MinStarsForRegional
                 % treat images with small number of stars
                 if isempty(Obj.ResFit.ErrorOnMean)
                     Obj.Success = false;

@@ -69,8 +69,11 @@ function ContamCat = psfResidContamCat(Obj, Args)
     BorderSub = @(C) C - reshape(median(reshape(C(repmat(Border,1,1,size(C,3))), ...
                                  sum(Border(:)), []), 1, 'omitnan'), 1, 1, []);
 
-    % Both kernels carry unit sum, so both fitted amplitudes are fluxes in
-    % counts and their ratio is directly the residual fraction.
+    % Both kernels are unit-normalised, so both fitted amplitudes are fluxes
+    % in counts and their ratio is directly the residual fraction. The Ref
+    % PSF has unit sum. The template's scale is set by psfResidTemplate's
+    % NormMethod: FLUX_TEMPLATE is the total absolute residual flux for 'abs'
+    % (unit sum|T|) and the net residual flux for 'net' (unit |sum T|).
     Kt = double(reshape(T, [], 1));
     % getPSF's StampSize only pads (imUtil.psf.padShift errors when the
     % existing stamp is larger). The Ref coadd PSF can exceed the D PSF

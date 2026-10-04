@@ -7,6 +7,17 @@ function Result = unitTest()
     if (R~=4.05)
         error('Problem with tools.interp.interp1crossVal');
     end
+
+    % bump in a descending vector must not lift its tail (issue #1364)
+    R=tools.interp.interp1crossVal([1 2 3 4 5],[1 0.5 0.6 0.2 0.005],0.1,false);
+    if abs(R - (5 - 0.095./0.195))>1e-12
+        error('Problem with tools.interp.interp1crossVal: bumpy descending vector');
+    end
+    % no crossing: return the end position in the search direction
+    if tools.interp.interp1crossVal([1 2 3],[1 0.8 0.6],0.5,false)~=3 || ...
+       tools.interp.interp1crossVal([1 2 3],[0.6 0.8 1],0.5,true)~=1
+        error('Problem with tools.interp.interp1crossVal: no crossing');
+    end
     
 
     %% mex.interp2_*

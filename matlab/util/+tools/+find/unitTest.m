@@ -147,6 +147,23 @@ function Result = unitTest()
     if numel(Gr)~=3 || ~isequal([Gr.I1], [1 21 41]) || ~isequal([Gr.I2], [20 40 50])
         error('tools.find.groupCounter: MaxInGroup split of a long run');
     end
+    % equal counters never form a group, also after a counter drop (issue #1342)
+    Gr = tools.find.groupCounter([1:20, ones(1,20)]);
+    if numel(Gr)~=1 || ~isequal(Gr(1).Ind, (1:20).')
+        error('tools.find.groupCounter: equal counters after a visit');
+    end
+    Gr = tools.find.groupCounter([3 4 5 6, ones(1,20), 20]);   % single-frame fields (last01e 2026-08)
+    if ~isempty(Gr)
+        error('tools.find.groupCounter: a run of single frames must give no group');
+    end
+    Gr = tools.find.groupCounter([ones(1,12), 1:20]);
+    if numel(Gr)~=1 || ~isequal(Gr(1).Ind, (12:31).'+1)
+        error('tools.find.groupCounter: visit after single frames');
+    end
+    Gr = tools.find.groupCounter([1 1 1 1 2 3 4 5 1:20, 1 1, 1:20]);
+    if numel(Gr)~=2 || ~isequal([Gr.I1], [9 31]) || ~isequal([Gr.I2], [28 50])
+        error('tools.find.groupCounter: help example');
+    end
     if ~isempty(tools.find.groupCounter([]))
         error('tools.find.groupCounter: empty input');
     end
