@@ -69,7 +69,7 @@ def f3(x, n=3):
 w(f'# {PT["Lot"]} {PT["Die"]} — single-die characterisation, run {PT["Run"]}\n')
 w(f'Whole die, {NY}x{NX} = {NY*NX/1e6:.1f} M pixels of the {PT["GainHalf"]}-gain half, '
   f'individual pixels throughout, every statistic also split by readout-column parity. '
-  f'Six stages, about six minutes end to end.\n')
+  f'Eight stages, about fifteen minutes end to end.\n')
 
 w('## The die in one table\n')
 rows = [
@@ -80,8 +80,10 @@ rows = [
   'odd columns are 2.5 % noisier'),
  ('Bias fixed pattern', f"{f3(Z['All']['FixedPatternRMS'],2)} ADU", 'spatial spread, sampling noise removed'),
  ('Common mode', f"{f3(Z['CommonMode']['Std'],4)} ADU", 'frame-to-frame, clipped mean'),
- ('Conversion gain', f"{f3(G,4)} ADU/e- &plusmn; {f3(100*float(PT['GainSystematic']['Rel']),1)} % (window)",
-  'per-pixel PTC, mean over 22.5 M pixels'),
+ ('Conversion gain', (f"**{float(ME['Routes']['d']['Gain']):.4f}** &plusmn; {float(ME['Routes']['d']['GainStat']):.4f} &plusmn; {float(ME['Routes']['d']['GainSyst']):.4f} ADU/e-" if ME else f"{f3(G,4)} ADU/e-"),
+  'bright-ladder PTC, section 11 (stat, syst)'),
+ ('Conversion gain, dark ladder', (f"{float(ME['Routes']['c']['Gain']):.4f} &plusmn; {float(ME['Routes']['c']['GainStat']):.4f} &plusmn; {float(ME['Routes']['c']['GainSyst']):.4f} ADU/e-" if ME else '&mdash;'),
+  '**7 % lower than the bright one — section 9**'),
  ('Dark current', f"{f3(float(IN['DC_ADU']),4)} ADU/s = {f3(float(IN['DC_ADU'])/G,4)} e-/s",
   f'weighted per-pixel fit, {len(np.atleast_1d(D["FitSteps"]))} steps'),
  ('Photo-response', f"{f3(float(L['Fit']['All']['SlopeSpread']['Median']),0)} ADU per intensity unit",
@@ -106,6 +108,10 @@ w('| quantity | value | how it was measured |\n|---|---|---|\n'
   + '\n'.join(f'| {a} | {b} | {c} |' for a, b, c in rows) + '\n')
 if ME is not None:
     _T4 = sorted(float(ME['Routes'][k]['Threshold_e']) for k in 'abcd')
+    w(f"The electron columns above are converted with the gain the noise budget of section 10 used, "
+      f"{f3(G,4)} ADU/e-. Section 11's value is {float(ME['Routes']['d']['Gain']):.4f}; the two "
+      f"differ by {100*abs(G/float(ME['Routes']['d']['Gain'])-1):.1f} %, which is the estimator "
+      f"choice explained there and not a disagreement about the device.\n")
     w(f'The one number this report cannot give as a single value is the **charge threshold**. '
       f'Four independent routes give {", ".join(f"{v:.1f}" for v in _T4[:-1])} and {_T4[-1]:.1f} e-, '
       f'and they are mutually inconsistent beyond their errors; section 11 sets them out with those '
@@ -123,8 +129,9 @@ else:
 
 # ================================================================= method
 w('## 1. What was done\n')
-w(f"""One configuration, one die, nothing averaged into superpixels. The dataset is
-{int(np.atleast_1d(D['FitSteps']).size)}-step dark and 34-step bright ladders with 3 frames each
+w(f"""One configuration, one die, nothing averaged into superpixels. The dataset is a
+{len(np.atleast_1d(np.array(D['PatternStep'])))}-step dark and
+{len(np.atleast_1d(np.array(L['PatternStep'])))}-step bright ladder with 3 frames each
 plus 5 zero-exposure frames, 134 TIFF files and 12 GB, read once per stage.
 
 The whole die is processed in a **streamed** mode: each ladder step is read, reduced to a mean
@@ -279,10 +286,18 @@ fig('fig_badcol_cut.png', 'Where to cut. The flagged columns are the tail of a c
 w('## 7. Conversion gain, and an estimator that had to be calibrated\n')
 nul = PT['Null']
 U5  = PT['Unmasked']['All']
-w(f"""Conversion gain **{f3(G,4)} ADU/e-**, with a {100*float(PT['GainSystematic']['Rel']):.1f} %
-systematic from the choice of fit window. The PTC slope is the gain and its intercept is *not* the
+w(f"""Conversion gain **{f3(G,4)} ADU/e-** on stage 5's own convention, with a
+{100*float(PT['GainSystematic']['Rel']):.1f} % systematic from the choice of fit window. The PTC slope is the gain and its intercept is *not* the
 read noise: the shot noise follows the collected charge while the signal recorded is what is left
 after the threshold, so the intercept is RN^2 + g*T.
+
+The gain quoted in this section comes from stage 5, which forms its ensemble line by weighting
+per-step **medians** — the third row of the estimator table in section 11. Section 11's own value,
+{float(ME['Routes']['d']['Gain']):.4f}, comes from the unweighted mean-mean fit and is the one to
+quote for the device; the two differ by
+{100*abs(float(PT['GainEnsemble'])/float(ME['Routes']['d']['Gain'])-1):.1f} %, which is an estimator
+difference and not a measurement. What this section is actually about is the shape of the per-pixel
+distribution, and that is unaffected by the choice.
 
 This stage is where the statistics of the chain change, and the first run of it looked broken: a
 median gain 10 % below the ensemble, a negative intercept, and an "intrinsic" pixel-to-pixel spread
@@ -421,7 +436,9 @@ The third is the one an ensemble cannot make. Fitting a PTC to **every pixel** o
 separately gives each pixel two gains, and their difference says whether the deficit is something
 every pixel does or something a subset carries. The ensemble gains are {float(_gD['GainEnsemble']):.4f}
 on the dark ladder against {float(_gB['GainEnsemble']):.4f} on the bright; per pixel the mean
-difference is {float(_dd['Mean']):+.4f} ADU/e-, and its spread is **{float(_dd['MADoverNull']):.3f}
+difference is {float(_dd['TrimMean']):+.4f} ADU/e- (trimmed; the plain mean reads
+{float(_dd['Mean']):+.4f}, carried by the tails of two heavy-tailed estimators, and the median
+{float(_dd['Median']):+.4f}, skewed — neither is the number to quote), and its spread is **{float(_dd['MADoverNull']):.3f}
 times** the null for two independent identical pixels. The distribution is the null's, shifted
 bodily: every pixel shows the deficit, and none of it is carried by a subpopulation.
 
