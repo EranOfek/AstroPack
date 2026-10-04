@@ -510,6 +510,36 @@ two best determined, c) at {_tc:.1f} ± {_ec2:.1f} and a) at {_ta:.1f} ± {_ea:.
 this device has a single value of, and whichever route the noise budget adopts has to be carried as a
 stated assumption rather than a measurement.
 
+**The fit is on Var - RN^2, not on Var.** Each pixel's own read-noise variance is removed before
+averaging rather than subtracted from the intercept afterwards. The term is small — 3.5 of 150 ADU^2
+at the lowest bright step — but it makes the intercept mean one thing only, g*T, and it takes a
+quantity that varies strongly from pixel to pixel out of a whole-die constant.
+
+**What if the two ladders share a gain?** Forcing the bright value
+{float(_R['d']['Gain']):.4f} on the dark points and fitting only the offset gives an offset of
+{float(ME['Routes']['constrained']['Offset']):+.2f} ADU^2, so T = {float(ME['Routes']['constrained']['Threshold']):+.2f} ADU — and
+it does not work. The residuals run {' '.join(f"{v:+.0f}" for v in np.atleast_1d(np.array(ME['Routes']['constrained']['Residual'], dtype=float))[[0,3,6,8]])} ADU^2
+from the lowest step to the highest, a clean monotonic trend, and the residual rms is
+{float(ME['Routes']['constrained']['ResidRMS']):.2f} ADU^2 against
+{float(ME['Routes']['constrained']['FreeResidRMS']):.2f} when the gain is free — worse by a factor
+{float(ME['Routes']['constrained']['ResidRMS'])/float(ME['Routes']['constrained']['FreeResidRMS']):.0f}. A
+shared gain cannot be rescued by any offset: the two ladders differ in slope, not in intercept.
+
+**Four numbers for one gain.** The same bright ladder yields different gains depending on how the
+ensemble is formed, and the differences are larger than the statistical errors, so the convention has
+to be stated rather than assumed:
+
+| how the ensemble is formed | dark | bright |
+|---|---|---|
+| per-step means, unweighted — **used here and in section 9** | **{float(_R['c']['Gain']):.4f}** | **{float(_R['d']['Gain']):.4f}** |
+| per-step means, weighted by 1/Var^2 | {float(_R['c']['GainWeighted']):.4f} | {float(_R['d']['GainWeighted']):.4f} |
+| per-step medians, weighted (the earlier convention) | 1.0635 | 1.1392 |
+| mean over pixels of the per-pixel fitted slope | {float(PP['Ladder']['D']['Slope']['Mean']):.4f} | {float(PP['Ladder']['B']['Slope']['Mean']):.4f} |
+
+The first is the unbiased estimator of the ensemble relation and is what both this table and the
+per-pixel section now use; earlier drafts of this report quoted the third in one section and the
+first in another, which differed by 1.1 % on the bright ladder for no physical reason.
+
 One number in that table moved against what section 4 reports and both are right: the dark current
 here is {float(_R['a']['Slope']):.4f} ± {float(_R['a']['SlopeStat']):.4f} ± {float(_R['a']['SlopeSyst']):.4f} ADU/s,
 the **mean** over pixels, while section 4 quotes the **median pixel**. The dark-current distribution

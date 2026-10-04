@@ -1,8 +1,13 @@
 % Stage 10: the four routes to the gain and the charge threshold, with errors.
 %   a) dark response    S = DC*t + I_D            -> T = -I_D            (no gain)
 %   b) light response   S = R*int + I_B           -> T = DC*ExpSen - I_B (no gain)
-%   c) PTC, dark ladder   Var = g*S + c           -> g, and T = (c-RN^2)/g
-%   d) PTC, bright ladder Var = g*S + c           -> g, and T = (c-RN^2)/g
+%   c) PTC, dark ladder   Var - RN^2 = g*(S + T) -> g, and T = intercept/g
+%   d) PTC, bright ladder Var - RN^2 = g*(S + T) -> g, and T = intercept/g
+%   The photon-transfer routes are fitted on Var - RN^2, the pixel's own read
+%   noise taken out before the fit rather than subtracted from the intercept
+%   afterwards. The term is small here (3.5 of 150 ADU^2 at the lowest bright
+%   step) but it makes the intercept mean one thing only, g*T, and it removes a
+%   whole-die constant from a quantity that varies pixel to pixel.
 %   Only the two photon-transfer routes measure a gain: a response curve has no
 %   noise in it. All four give a threshold, and they disagree, which is the point
 %   of putting them in one table.
@@ -46,7 +51,7 @@ for Il = 1:1:numel(Lad)
     Ty    = Lad(Il).Type;
     Flag  = strcmp(P.Frames.FrameType, Ty);
     Steps = unique(P.Frames.Step(Flag)).';
-    Sid=[]; Xv=[]; Sm=[]; Vm=[]; Nf=[]; Sb=[]; Vb=[]; Rb=[];
+    Sid=[]; Xv=[]; Sm=[]; Vm=[]; Nf=[]; Sb=[]; Vb=[]; Rb=[]; Rm=[];
     for Is = 1:1:numel(Steps)
         A = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'FrameType',Ty, 'Step',Steps(Is), 'Gain',DieGain);
         C = zeros([size(A(1).Image), numel(A)], 'single');
@@ -69,13 +74,16 @@ for Il = 1:1:numel(Lad)
         Nf(end+1) = numel(A);                                              %#ok<SAGROW>
         Sm(end+1) = mean(M(Keep));                                         %#ok<SAGROW>
         Vm(end+1) = mean(V(Keep));                                         %#ok<SAGROW>
+        Rm(end+1) = mean(RN2(Keep));                                       %#ok<SAGROW>
         Sb(:,end+1) = local_blocks(M, Keep, Nb, By, Bx);                   %#ok<SAGROW>
         Vb(:,end+1) = local_blocks(V, Keep, Nb, By, Bx);                   %#ok<SAGROW>
         Rb(:,end+1) = local_blocks(RN2, Keep, Nb, By, Bx);                 %#ok<SAGROW>
         clear M V Keep
     end
-    Dat.(Ty) = struct('Step',Sid, 'X',Xv, 'Signal',Sm, 'Var',Vm, 'Nframes',Nf, ...
-                      'SignalBlock',Sb, 'VarBlock',Vb, 'RN2Block',Rb);
+    % the quantity the PTC routes fit: the variance the signal added
+    Dat.(Ty) = struct('Step',Sid, 'X',Xv, 'Signal',Sm, 'Var',Vm, 'RN2',Rm, ...
+                      'Excess',Vm-Rm, 'Nframes',Nf, 'SignalBlock',Sb, 'VarBlock',Vb, ...
+                      'RN2Block',Rb, 'ExcessBlock',Vb-Rb);
     fprintf('  %s ladder: %d steps, signals %.1f .. %.1f ADU, %.0f s\n', ...
         Ty, numel(Sid), min(Sm), max(Sm), toc(T0));
 end
@@ -94,6 +102,24 @@ R.a = local_route('a', 'dark response',  Dat.D, Win.a, [], RN2b, RN2m, P.ExpSen)
 R.c = local_route('c', 'PTC dark',       Dat.D, Win.c, [], RN2b, RN2m, P.ExpSen);
 R.d = local_route('d', 'PTC bright',     Dat.B, Win.d, [], RN2b, RN2m, P.ExpSen);
 R.b = local_route('b', 'light response', Dat.B, Win.b, R.a, RN2b, RN2m, P.ExpSen);
+
+% ---- what if the gain is the same on both ladders?
+% Force g = g_bright on the dark points and fit only the offset. If the two
+% ladders really share a gain, the residuals are flat and the implied threshold is
+% the dark one; if they do not, the constrained fit has to absorb the difference
+% in its offset and leaves a trend behind.
+Sel  = find(ismember(Dat.D.Step, Win.c{1}));
+Gb   = R.d.Gain;
+Off  = mean(Dat.D.Excess(Sel) - Gb.*Dat.D.Signal(Sel));
+Res  = Dat.D.Excess(Sel) - (Gb.*Dat.D.Signal(Sel) + Off);
+Free = R.c;
+Con  = struct('GainImposed',Gb, 'Offset',Off, 'Threshold',Off./Gb, ...
+              'Signal',Dat.D.Signal(Sel), 'Residual',Res, ...
+              'ResidRMS',sqrt(mean(Res.^2)), ...
+              'FreeGain',Free.Gain, 'FreeOffset',Free.Intercept, ...
+              'FreeResidRMS',sqrt(mean((Dat.D.Excess(Sel) - ...
+                   (Free.Gain.*Dat.D.Signal(Sel) + Free.Intercept)).^2)));
+R.constrained = Con;
 
 % threshold in electrons needs a gain: use the bright PTC, and propagate its error
 Gn = R.d.Gain;  Ge = hypot(R.d.GainStat, R.d.GainSyst);
@@ -131,6 +157,14 @@ fprintf('  a) dark current %.4f +- %.4f (stat) +- %.4f (syst) ADU/s\n', ...
     R.a.Slope, R.a.SlopeStat, R.a.SlopeSyst);
 fprintf('  b) response     %.1f +- %.1f (stat) +- %.1f (syst) ADU per intensity unit\n', ...
     R.b.Slope, R.b.SlopeStat, R.b.SlopeSyst);
+fprintf('\nforcing the bright gain %.4f on the dark ladder: offset %+.2f ADU^2 -> T = %+.2f ADU,\n', ...
+    Con.GainImposed, Con.Offset, Con.Threshold);
+fprintf('  residual rms %.2f ADU^2 against %.2f when the gain is free; residuals by step:\n    ', ...
+    Con.ResidRMS, Con.FreeResidRMS);
+for I = 1:1:numel(Con.Signal)
+    fprintf('%.0f:%+.1f  ', Con.Signal(I), Con.Residual(I));
+end
+fprintf('\n');
 fprintf('\nthe PTC routes also carry an estimator systematic: fitting the same points weighted by\n');
 fprintf('1/Var^2, as stage 9 does, gives g = %.4f (dark) and %.4f (bright) instead of %.4f and %.4f.\n', ...
     R.c.GainWeighted, R.d.GainWeighted, R.c.Gain, R.d.Gain);
@@ -159,7 +193,7 @@ function Q = local_route(Tag, Name, L, Wins, Dark, RN2b, RN2m, ExpSen)
         Sel = find(ismember(L.Step, Wins{Iw}));
         if numel(Sel)<2, continue; end
         if IsPTC
-            Vals(Iw,:) = local_fit(L.Signal(Sel), L.Var(Sel));
+            Vals(Iw,:) = local_fit(L.Signal(Sel), L.Excess(Sel));
         else
             Vals(Iw,:) = local_fit(L.X(Sel), L.Signal(Sel));
         end
@@ -171,7 +205,7 @@ function Q = local_route(Tag, Name, L, Wins, Dark, RN2b, RN2m, ExpSen)
     Bv  = nan(Nbk, 2);
     for Ib = 1:1:Nbk
         if IsPTC
-            Bv(Ib,:) = local_fit(L.SignalBlock(Ib,Sel), L.VarBlock(Ib,Sel));
+            Bv(Ib,:) = local_fit(L.SignalBlock(Ib,Sel), L.ExcessBlock(Ib,Sel));
         else
             Bv(Ib,:) = local_fit(L.X(Sel), L.SignalBlock(Ib,Sel));
         end
@@ -209,11 +243,11 @@ function Q = local_route(Tag, Name, L, Wins, Dark, RN2b, RN2m, ExpSen)
             Q.GainEstimatorSyst = abs(Cw(2) - Nom(1))./2;
             Q.Gain = Nom(1);  Q.GainStat = Se(1);
             Q.GainSyst = hypot(Sy(1), Q.GainEstimatorSyst);
-            Q.Threshold     = (Nom(2) - RN2m)./Nom(1);
-            Bt = (Bv(:,2) - RN2b)./Bv(:,1);
+            Q.Threshold     = Nom(2)./Nom(1);          % the fit is on Var - RN^2
+            Bt = Bv(:,2)./Bv(:,1);
             Q.ThresholdStat = std(Bt, 'omitnan')./sqrt(sum(isfinite(Bt)));
-            Tw = (Vals(:,2) - RN2m)./Vals(:,1);
-            Tweight = (Cw(1) - RN2m)./Cw(2);
+            Tw = Vals(:,2)./Vals(:,1);
+            Tweight = Cw(1)./Cw(2);
             Q.ThresholdWeighted = Tweight;
             Q.ThresholdSyst = hypot((max(Tw)-min(Tw))./2, abs(Tweight - Q.Threshold)./2);
     end

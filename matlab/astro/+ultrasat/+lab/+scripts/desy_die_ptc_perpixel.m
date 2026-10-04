@@ -6,7 +6,8 @@
 %   is something every pixel does or something a subset carries; the difference
 %   of the two per-pixel gains can.
 %   For each pixel and each ladder, x is that pixel's own mean signal at a step
-%   and y its own temporal variance there, fitted by weighted least squares with
+%   and y its own temporal variance there MINUS its own read-noise variance, so
+%   the fitted intercept is g*T alone, fitted by weighted least squares with
 %   the ensemble model as the weight (never the pixel's own variance: with 2
 %   degrees of freedom that would weight a point by its own fluctuation).
 %   Every parameter is read against a NULL in which all pixels are identical,
@@ -25,6 +26,7 @@ P.read;
 P.subtractZero;
 G    = P.rawColGeom;
 Siz  = [G.Ny G.Nx];
+RN2  = double(readBin(fullfile(DieStage1,'rn.bin'), Siz, 'stage 1')).^2;
 Mask = [];
 if isfile(fullfile(DieOut, 'mask.bin'))
     Fid  = fopen(fullfile(DieOut, 'mask.bin'), 'r');
@@ -50,31 +52,36 @@ for Il = 1:1:numel(Lad)
         end
         Nf = size(C,3);
         M  = single(double(mean(C,3)) - double(P.Zero));
-        Mk = median(double(M(:)), 'omitnan');
+        Mk = mean(double(M(:)), 'omitnan');
         if Mk < Lad(Il).Range(1) || Mk > Lad(Il).Range(2)
             clear C M
             continue
         end
-        V   = var(double(C), 0, 3);
+        V   = var(double(C), 0, 3) - RN2;        % the variance the signal added
         Dof = max(Nf-1, 1);
+        % one common mask for both axes: the pixels outside the top 0.1 % of the
+        % variance, which is where the cosmic rays are
+        Kp = isfinite(M) & isfinite(V) & V <= quantile(V(:), 1-1e-3);
         Mm{end+1} = M;                                                       %#ok<SAGROW>
         Vv{end+1} = single(V);                                               %#ok<SAGROW>
         Sid(end+1) = Steps(Is);                                              %#ok<SAGROW>
-        Med(end+1) = Mk;                                                     %#ok<SAGROW>
-        Ven(end+1) = median(V(:),'omitnan').*Dof./(2.*gammaincinv(0.5,Dof./2)); %#ok<SAGROW>
+        Med(end+1) = mean(double(M(Kp)));                                    %#ok<SAGROW>
+        Ven(end+1) = mean(V(Kp));                                            %#ok<SAGROW>
         Nrp(end+1) = Nf;                                                     %#ok<SAGROW>
         clear C M V
     end
     if numel(Sid)<3
         error('ultrasat:lab:scripts:ptc9', '%s ladder has only %d steps in range', Ty, numel(Sid));
     end
-    % ensemble line of this ladder, used only to set the weights
-    Dofs = max(Nrp-1,1);
-    Wv   = (Dofs./(2.*Ven.^2)).';
+    % Ensemble line of this ladder. Unweighted, with means on both axes, which is
+    % the unbiased estimator of the ensemble relation and the same convention the
+    % stage 10 table uses -- an earlier version fitted weighted to per-step medians
+    % and reported a gain 1 to 3 % different from the table for the same ladder.
     Am   = [ones(numel(Med),1), Med(:)];
-    Cf   = (Am.'*(Wv.*Am))\(Am.'*(Wv.*Ven(:)));
+    Cf   = Am\Ven(:);
     Ce   = Cf(1);  Ge = Cf(2);
-    fprintf('  %s ladder: %d steps %s, ensemble Var = %.4f*S + %.2f\n', ...
+    Dofs = max(Nrp-1,1);
+    fprintf('  %s ladder: %d steps %s, ensemble Var-RN^2 = %.4f*S + %.2f (unweighted, means)\n', ...
         Lad(Il).Name, numel(Sid), mat2str(Sid), Ge, Ce);
 
     Sums = [];
@@ -249,6 +256,15 @@ function R = local_corr(A, B)
     Ok = isfinite(A) & isfinite(B);
     C  = corrcoef(A(Ok), B(Ok));
     R  = C(1,2);
+end
+
+function A = readBin(Path, Siz, Who)
+    if ~isfile(Path)
+        error('ultrasat:lab:scripts:stage', 'stage 9 needs %s from %s', Path, Who);
+    end
+    Fid = fopen(Path, 'r');
+    A   = fread(Fid, Siz, 'single');
+    fclose(Fid);
 end
 
 function writeBin(Path, A, Type)

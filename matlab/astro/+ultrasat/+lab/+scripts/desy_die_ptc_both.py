@@ -7,6 +7,11 @@ photo-charge are the same kind of charge, the two ladders lie on one line: the
 shot noise does not know where the electrons came from. Where they separate,
 part of the dark signal is reaching the pixel without full shot noise.
 
+The ordinate is Var - RN^2, each pixel's own read noise removed before averaging
+rather than subtracted from the intercept afterwards. The term is small (3.5 of
+150 ADU^2 at the lowest bright step) but it makes the intercept mean one thing,
+g*T, and takes a whole-die constant out of a quantity that varies pixel to pixel.
+
 Both axes are MEANS over one common set of pixels -- those outside the top 0.1 %
 of the variance, where the cosmic rays are. That is the only consistent choice:
 Var = g*S + c holds per pixel, so averaging over pixels needs E[Var] against
@@ -46,12 +51,16 @@ OUT = A.out or A.indir
 
 with open(os.path.join(A.indir, 'ptc.json')) as fh:
     PT = json.load(fh)
+with open(os.path.join(A.indir, 'methods.json')) as fh:
+    ME = json.load(fh)
 with open(os.path.join(A.indir, 'ptc_points.json')) as fh:
     PP = json.load(fh)
 ST = PP['Points'] if not isinstance(PP['Points'], dict) else [PP['Points']]
 TAG = f"{PT['Lot']} {PT['Die']}, run {PT['Run']}, {PT['GainHalf']} gain"
-G   = float(PT['GainEnsemble'])
-C   = float(PT['OffsetEnsemble'])
+# the line is the bright-ladder PTC of stage 10: unweighted, means on both axes,
+# fitted on Var - RN^2 so its intercept is g*T and nothing else
+G   = float(ME['Routes']['d']['Gain'])
+C   = float(ME['Routes']['d']['Intercept'])
 WIN = [float(v) for v in PT['GainRange']]
 
 
@@ -65,7 +74,7 @@ def pts(ty):
     # is right-skewed and the bright signal is not, mixing them halves the
     # apparent gap between the two ladders.
     x  = np.array([float(e['SignalMean']) for e in s])
-    y  = np.array([float(e['VarMean']) for e in s])
+    y  = np.array([float(e['ExcessMean']) for e in s])     # Var - RN^2, read noise removed
     x0 = np.array([float(e['SignalMedian']) for e in s])     # the earlier, mixed pair
     y0 = np.array([float(e['VarMeanCorrected']) for e in s])
     n  = np.array([int(e['Step']) for e in s])
@@ -86,7 +95,7 @@ ax.axvspan(WIN[0], WIN[1], color='#dd8452', alpha=0.12,
            label=f'PTC fit window {WIN[0]:.0f}-{WIN[1]:.0f} ADU')
 xs = np.logspace(np.log10(max(_xlo0, 0.5)), np.log10(XMAX), 200)
 ax.plot(xs, G*xs + C, 'k--', lw=1.6,
-        label=f'fit to the bright ladder: Var = {G:.4f}·S + {C:.1f}')
+        label=f'bright ladder: Var-RN$^2$ = {G:.4f}·S + {C:.1f}')
 ax.plot(xb, yb, 's-', ms=7, lw=1.0, color='#c44e52', label='bright ladder')
 ax.plot(xd, yd, 'o-', ms=7, lw=1.0, color='#4c72b0', label='dark ladder')
 if xz.size:
@@ -105,7 +114,7 @@ ax.set_xlim(_xlo, XMAX)
 _yv = np.concatenate([yd[(xd > 0) & (xd < XMAX)], yb[xb < XMAX]])
 ax.set_ylim(0.6*_yv.min(), 1.6*_yv.max())
 ax.set_xlabel('mean signal [ADU]')
-ax.set_ylabel('variance [ADU$^2$]')
+ax.set_ylabel('variance - RN$^2$ [ADU$^2$]')
 ax.set_title(f'Both ladders on one curve, below {XMAX:.0f} ADU (log-log)', fontsize=10)
 ax.grid(alpha=0.25, which='both')
 ax.legend(fontsize=8, loc='upper left')
