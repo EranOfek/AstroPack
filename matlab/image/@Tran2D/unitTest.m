@@ -94,7 +94,7 @@ function Result = unitTest
 
 
     % fitAstrometricTran: AssymRMS/ErrorOnMean are NaN with too few
-    % degrees of freedom (issue #1366)
+    % degrees of freedom, and never negative (issue #1366)
     rng(5);
     for N=[8 15 60]
         X   = rand(N,1).*1700;
@@ -106,9 +106,35 @@ function Result = unitTest
         if Res.Ngood<20
             assert(isnan(Res.AssymRMS) && isnan(Res.ErrorOnMean), 'fitAstrometricTran: exact fit not flagged');
         else
-            assert(isfinite(Res.AssymRMS) && isfinite(Res.ErrorOnMean), 'fitAstrometricTran: no AssymRMS');
+            assert(Res.AssymRMS>0 && Res.ErrorOnMean>0, 'fitAstrometricTran: bad AssymRMS');
         end
     end
+    % residuals jump at mag 13: the extrapolated curve goes negative
+    rng(6);
+    N   = 80;
+    X   = rand(N,1).*1700;
+    Y   = rand(N,1).*1700;
+    Mag = 12 + rand(N,1).*5;
+    Err = 1e-8 + 5e-6.*(Mag>13);
+    Xi  = 1e-4.*X + 0.01 + Err.*randn(N,1);
+    Yi  = 1e-4.*Y - 0.02 + Err.*randn(N,1);
+    [~,Res] = fitAstrometricTran(Tran2D('poly3'), Xi, Yi, X, Y, 'ExtraData',[], 'Mag',Mag, 'ErrPos',1e-6);
+    assert(min(Res.ResResid.InterpMeanResid)<0 && Res.AssymRMS>0, 'fitAstrometricTran: negative AssymRMS');
+    % a faint bin of 6 lucky sources must not set AssymRMS (issue #1373)
+    rng(7);
+    N   = 100;
+    Nf  = 6;
+    X   = rand(N,1).*1700;
+    Y   = rand(N,1).*1700;
+    Mag = [11.9 + 2.9.*rand(N-Nf,1); 15.2 + 0.6.*rand(Nf,1)];
+    Err = [2e-6.*ones(N-Nf,1); 5e-7.*ones(Nf,1)];
+    Xi  = 1e-4.*X + 0.01 + Err.*randn(N,1);
+    Yi  = 1e-4.*Y - 0.02 + Err.*randn(N,1);
+    [~,Res] = fitAstrometricTran(Tran2D('poly3'), Xi, Yi, X, Y, 'ExtraData',[], 'Mag',Mag, 'ErrPos',1e-6);
+    B = Res.ResResid;
+    FlagBin = B.BinN>=3;
+    assert(min(B.BinMeanResid(FlagBin)) < 0.5.*Res.AssymRMS && ...
+           Res.AssymRMS==min(B.BinMeanResid(FlagBin & B.BinMag<14)), 'fitAstrometricTran: faint bin sets AssymRMS');
 
 
     %io.msgStyle(LogLevel.Test, '@passed', 'Tran2D test passed');
