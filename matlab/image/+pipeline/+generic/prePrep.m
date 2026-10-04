@@ -65,16 +65,22 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     %            'MaxNBadVal' - Maximum allowed number of pixels equal to BadVal.
     %                   Images exceeding this are flagged. Default is 1e4.
     %            'GlobalBadPSF' - If true, estimate PSF via ACF and flag
-    %                   images with too-large FWHM. Default is false.
+    %                   images with too-large FWHM. Default is true.
     %            'MaxRadius' - Max radius (pixels) for ACF-based PSF measure.
     %                   Default is 50.
-    %            'ACF_HalfSize' - Half-size [X Y] of the cutout used for ACF.
+    %            'ACF_HalfSize' - Half-size [X Y] of the cutout, centred on
+    %                   the image centre, used for the first ACF measurement.
     %                   Default is [500 500].
-    %            'CCDSEC2' - Alternate CCDSEC [X1 X2 Y1 Y2] for a second PSF
-    %                   attempt if the first fails (e.g., streaks). Default is
-    %                   [1 1000 1 1000].
+    %            'CCDSEC2' - CCDSEC [X1 X2 Y1 Y2], nearer the image edge, for
+    %                   a second ACF measurement if the central FWHM is
+    %                   outside [MinFWHM, MaxFWHM) (e.g., streaks); its
+    %                   result is final. Default is [2701 3700 1501 2500].
     %            'MaxFWHM' - Maximum acceptable ACF-based FWHM (pixels).
-    %                   Default is 5.
+    %                   Default is 6.
+    %            'MinFWHM' - Minimum acceptable ACF-based FWHM (pixels).
+    %                   Smaller values are not a reliable measurement (PSF
+    %                   sharper than the 1-pixel ACF step, or only isolated
+    %                   hot pixels above threshold). Default is 0.7.
     %            'UseMex' - If true, use MEX-accelerated implementations where
     %                   available. Default is true.
     %            % ---------- Header updates & table ----------
@@ -179,8 +185,9 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
         Args.GlobalBadPSF                = true;
         Args.MaxRadius                   = 50;
         Args.ACF_HalfSize                = [500 500];
-        Args.CCDSEC2                     = [1 1000 1 1000];   % failure region
-        Args.MaxFWHM                     = 5;
+        Args.CCDSEC2                     = [2701 3700 1501 2500];   % failure region, halfway to the edge (issue #1362)
+        Args.MaxFWHM                     = 6;
+        Args.MinFWHM                     = 0.7;  % below = unreliable ACF measurement (issue #1362)
         Args.UseMex                      = true;
 
         Args.TimeZone                    = 2;  % must be consistent with AddHeadKeys
@@ -448,14 +455,17 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
                 else
                     BackImage = TableForDB.Median(Iim);
                 end
-                BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Data, [Args.ACF_HalfSize, Args.ACF_HalfSize], false, [], Args.UseMex);
+                % [Xhalf Yhalf] = cutout around the image centre (a 4-element
+                % vector would be read as [Xc Yc Xhalf Yhalf] - issue #1362)
+                BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Data, Args.ACF_HalfSize, false, [], Args.UseMex);
                 % subtract background
                 BackSubImage = BackSubImage - BackImage;
                             
                 [FWHM_ACF,~,~,ACF] = imUtil.psf.fwhm_fromACF(BackSubImage, 'CCDSEC',[], 'MaxRadius',Args.MaxRadius, 'UseMex',Args.UseMex, 'Back',[]); %BackImage);                                                
-                if FWHM_ACF>Args.MaxFWHM
+                if ~(FWHM_ACF>=Args.MinFWHM && FWHM_ACF<Args.MaxFWHM)
                     % run it again in a different CCDSEC
-                    % this may be due to satellite streaks
+                    % this may be due to satellite streaks, or an ACF
+                    % dominated by isolated (hot) pixels
                     BackSubImage = imUtil.cut.trim(AI(Iim).ImageData.Data, Args.CCDSEC2, true, [], Args.UseMex);
                     % subtract background                    
                     BackSubImage = BackSubImage - BackImage;                   
@@ -466,7 +476,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
                 
             end
         end
-        TableForDB.GoodACF_FWHM = TableForDB.ACF_FWHM<Args.MaxFWHM;
+        TableForDB.GoodACF_FWHM = TableForDB.ACF_FWHM>=Args.MinFWHM & TableForDB.ACF_FWHM<Args.MaxFWHM;
         FlagGoodImages = FlagGoodImages & TableForDB.GoodACF_FWHM;
         RejectStage    = updateRejectStage(RejectStage, FlagGoodImages, 'bad PSF (ACF FWHM)');
     end
