@@ -1114,10 +1114,6 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             % catalogues match the ones actually written for this visit.
             AllSI = imProc.cat.fillEmptyCatColumns(AllSI);
 
-
-            % Add PSTATUS Header keyword re problems in processings
-            [AllSI, Coadd] = imProc.quality.updateProcStatus(AllSI, Coadd, MS, PC); % about 0.3s
-
             % Processing status (issue #1318): the PSTATUS header keyword, a
             % bit mask of the steps which produced no result for that image.
             % Written last, when every product of the visit exists, so that
@@ -1131,7 +1127,6 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
                 fprintf('pipelineI: processing status (PSTATUS) not written: %s\n', ME.message);
             end
 
->>>>>>> 9a6c9d182546cd43a7bd1477adf53228035df9d7
             % Finish
             %ProcessingStep = 1000;
         catch ME
