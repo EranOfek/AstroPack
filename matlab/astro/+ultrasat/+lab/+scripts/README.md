@@ -55,7 +55,7 @@ would need, and every frame is read exactly once.
 | 3 | `desy_die_light.m` + `desy_die_light_plots.py` | per-pixel photo-response, PRNU from the per-step fixed pattern, light-method threshold with the dark current of stage 2 and both fit variances propagated |
 | 4 | `desy_die_badcol.m` + `desy_die_badcol_plots.py` | bad readout columns from the stage 1-3 maps (no frames read): excess read noise, dead response, the mask stages 5-6 use |
 | 5 | `desy_die_ptc.m` + `desy_die_ptc_plots.py` | per-pixel PTC gain, the gain per readout column and per block, and what the shot noise says about the charge threshold |
-| 6 | — | noise budget (not written yet) |
+| 6 | `desy_die_budget.m` + `desy_die_budget_plots.py` | sigma_eff and SNR in electrons, the limiting signal, and which noise term dominates where -- all three charge thresholds carried side by side |
 
 `desy_die_config.m` holds the run / die / gain / fit-step settings; every stage
 runs it first, so it is the only file to edit when moving to another dataset.
@@ -102,3 +102,11 @@ null simulation in which every pixel has exactly the same gain, and measures
 the gain where it is measurable -- per readout column (4742 pixels, ~1 %) and
 per 32x32 block (~2 %). Every one of those effects was first seen as an
 anomaly in the output and then reproduced to three digits by the null.
+
+Stage 6 reads no frames either, and it deliberately refuses to choose a charge
+threshold. The three routes give 7.7 e- (shot noise, stage 5), 17.1 e- (dark
+response, stage 2) and 29.0 e- (light response, stage 3), and on run 32
+W04_D07 that alone moves the limiting signal at SNR 5 from 38 to 60 e-, against
+0.4 e- for the gain's window systematic and 0.2 e- for the bad-column mask. All
+the fixed-pattern terms it uses are the LOCAL (block-detrended) spreads, since
+a budget asks what varies between neighbouring pixels, not across the die.
