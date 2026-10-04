@@ -4176,11 +4176,7 @@ classdef PipelineDemon < Component
                             RunTime = etime(clock, TstartAll);
                             Msg = sprintf('Visit total run time : %.1f',RunTime);
                             Obj.writeLog(Msg, LogLevel.Info);
-
-                            % release the visit's products before the next visit; otherwise they stay
-                            % referenced until the next runPipelineI returns (issue #1368)
-                            clear AllSI MS Coadd OnlyMP AllForcedPhot GaiaCone TableRaw RawImageListFinal
-
+    
                             if ~Cont
                                 break;
                             end
