@@ -1,4 +1,4 @@
-function [ResFit, AI, CatName] = astrometryVisitSubImage(Obj, Args)
+function [ResFit, AI, CatName, GaiaCone] = astrometryVisitSubImage(Obj, Args)
     % Perform astrometry for all sub images in all the images in a visit.
     %   The function input is a an AstroImage matrix in which the 1st
     %   dimension is epoch, and 2nd dimension is sub image index.
@@ -102,7 +102,19 @@ function [ResFit, AI, CatName] = astrometryVisitSubImage(Obj, Args)
     %            'astrometryRefineArgs' - A cell array of additional arguments to pass
     %                   to imProc.astrometry.astrometryRefine.
     %                   Default is {}.
-    % Output : - 
+    %            'RawConeArgs' - A cell array of 'RawCone*' arguments of
+    %                   imProc.cat.getAstrometricCatalog, shaping the 4th
+    %                   output. Default is {}.
+    % Output : - A structure array (epoch x sub image) of astrometry fit
+    %            results.
+    %          - The input AstroImage array with the WCS updated.
+    %          - An array (1 x sub image) of AstroCatalog with the
+    %            astrometric catalog of each sub image (first epoch).
+    %          - A structure array (1 x sub image) of the raw catalog cones
+    %            searched for the first epoch (issue #1348) - see the 4th
+    %            output of imProc.cat.getAstrometricCatalog. Empty fields
+    %            where no search was made (e.g., 'CatName' is an
+    %            AstroCatalog). Computed only if requested.
     % Author : Eran Ofek (2025 Nov) 
     % Example: 
     % [ResFit, AI, CatName]=imProc.astrometry.astrometryVisitSubImage(AllSI);
@@ -150,7 +162,7 @@ function [ResFit, AI, CatName] = astrometryVisitSubImage(Obj, Args)
         Args.astrometryRefineArgs   = {};
 
         Args.MatchMethod            = 'old'; % 'old'|'mex'
-
+        Args.RawConeArgs cell       = {};    % RawCone* args of imProc.cat.getAstrometricCatalog (issue #1348)
     end
 
     if Args.CreateNewObj
@@ -176,7 +188,9 @@ function [ResFit, AI, CatName] = astrometryVisitSubImage(Obj, Args)
 
 
     % Solve all sub images in the first epoch
-    [ResFit(1,:),AI(1,:),CatName] = imProc.astrometry.astrometryAllSubImage(AI(1,:),...
+    KeepCone = nargout>3;
+    CallOut  = cell(1, 3 + KeepCone);
+    [CallOut{:}] = imProc.astrometry.astrometryAllSubImage(AI(1,:),...
                                                                             'CatName',CatNameEpoch1,...
                                                                             'StartSubImage',Args.StartSubImage,...
                                                                             'CCDSEC',Args.CCDSEC,...
@@ -206,7 +220,12 @@ function [ResFit, AI, CatName] = astrometryVisitSubImage(Obj, Args)
                                                                             'RefRangeMagExpTimeFun',Args.RefRangeMagExpTimeFun,...
                                                                             'MatchMethod',Args.MatchMethod,...
                                                                             'astrometryCoreArgs',Args.astrometryCoreArgs,...
-                                                                            'astrometryRefineArgs',Args.astrometryRefineArgs);              
+                                                                            'astrometryRefineArgs',Args.astrometryRefineArgs,...
+                                                                            'RawConeArgs',Args.RawConeArgs);
+    [ResFit(1,:),AI(1,:),CatName] = CallOut{1:3};
+    if KeepCone
+        GaiaCone = reshape(CallOut{4}, 1, Nsub);
+    end
 
 
     if Nep>1

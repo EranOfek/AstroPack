@@ -519,6 +519,16 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
         Args.CalibArgs = [Args.CalibArgs, Args.ExtraCalibArgs];
     end
 
+    % Calibrator catalog of the recipe in use, for the PT_CAT keyword
+    % (issue #1347): the last 'CalibCatName' in CalibArgs wins, as it does
+    % at the receiving end; otherwise the PhotCalibTrans default.
+    IndCat = find(strcmpi(Args.CalibArgs(1:2:end), 'CalibCatName'), 1, 'last');
+    if isempty(IndCat)
+        CalibCatName = 'GAIADR3spec';
+    else
+        CalibCatName = Args.CalibArgs{2*IndCat};
+    end
+
     % Promote 'CollectCalibTrajectory' from CalibArgs to the wrapper-level
     % flag. Motivation: the wrapper splats CalibArgs first, then appends
     % explicit args (last value wins), so an 'CollectCalibTrajectory' the
@@ -919,10 +929,10 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
             % Update header if requested (always per-crop, for diagnostics)
             if Args.UpdateHeader
                 if IsAstroImage
-                    PC.photCalibTransToHeader(Result(Iobj).HeaderData);
+                    PC.photCalibTransToHeader(Result(Iobj).HeaderData, 'CalibCatName',CalibCatName);
                 else
                     % For AstroCatalog, create new header (not stored)
-                    PC.photCalibTransToHeader(AstroHeader());
+                    PC.photCalibTransToHeader(AstroHeader(), 'CalibCatName',CalibCatName);
                 end
                 if Args.Verbose
                     fprintf('  Header updated with calibration results\n');
@@ -992,15 +1002,15 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
             % then carry PT_ZP = 0. as a plausible zero point. An in-memory []
             % is also unusable: photCalibTransFromHeader's
             % `if ~isnan(Val) && Val > 0` throws on an empty operand.
-            % Only PT_AREF/PT_SPEC carry values: they are configuration
+            % Only PT_AREF/PT_SPEC/PT_CAT carry values: they are configuration
             % strings known regardless of the fit outcome.
             % Failure detection: isnan(getVal('PT_NCALI')) (or any other
             % PT_ numeric).
             if Args.UpdateHeader && IsAstroImage
                 H = Result(Iobj).HeaderData;
                 H = H.replaceVal(...
-                    {'PT_RMS', 'PT_ARMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALI', 'PT_AREF', 'PT_SPEC'}, ...
-                    {NaN,      NaN,       NaN,       NaN,      NaN,         'SMART v2.9.8', 'GaiaDR3'});
+                    {'PT_RMS', 'PT_ARMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALI', 'PT_AREF', 'PT_SPEC', 'PT_CAT'}, ...
+                    {NaN,      NaN,       NaN,       NaN,      NaN,         'SMART v2.9.8', 'GaiaDR3', CalibCatName});
 
                 % Blank fill for PT_ZP (photometric ZP) on the failure path
                 if Args.EvaluatePhotZP

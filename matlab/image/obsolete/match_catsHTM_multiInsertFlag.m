@@ -1,10 +1,12 @@
 function [Result, SelObj, ResInd, CatH] = match_catsHTM_multiInsertFlag(Obj, Args)
+    % RETIRED (2026-09-29): an unfinished 2023 draft that never parsed, moved here
+    % from imProc.match. Use imProc.match.match_catsHTMmerged (MergedCatMask column).
     %
     
     
     arguments
         Obj
-        Args.CatNames cell       = {'GAIAEDR3','PS1','SDSSDR10','DECaLS','ztfSrcLCDR1','HST','unWISE','GALEX','IPHAS','TMASS','TMASSxsc', 'PGC','GLADE', 'ztfDR1var','SpecSDSS','NED','FIRST','NVSS','ROSAT','XMM'};
+        Args.CatNames cell       = {'GAIADR3','PS1','SDSSDR10','DECaLS','ztfSrcLCDR1','HST','unWISE','GALEX','IPHAS','TMASS','TMASSxsc', 'PGC','GLADE', 'ztfDR1var','SpecSDSS','NED','FIRST','NVSS','ROSAT','XMM'};
         Args.CatBitsInd          = [         1,    2,         3,       4,            5,    6,       7,      8,      9,     10,        11,    12,     13,          14,        15,   16,     17,    18,     19,   20];
         Args.SearchRadii         = [         2,    2,         2,       2,            2,    2,       3,      3,      2,      2,         5,   NaN,    NaN,           1,         5,    5,      5,    15,     20,   10];
         Args.PhysicalSearchRadKpc= [       
@@ -29,7 +31,7 @@ function [Result, SelObj, ResInd, CatH] = match_catsHTM_multiInsertFlag(Obj, Arg
     
     Icat = 0;
     Icat = Icat + 1;
-    CatInfo(Icat).Name   = 'GAIAEDR3';
+    CatInfo(Icat).Name   = 'GAIADR3';
     CatInfo(Icat).BitInd = Icat;
     CatInfo(Icat).RadAS  = 2;
     CatInfo(Icat).RadKPC = NaN;

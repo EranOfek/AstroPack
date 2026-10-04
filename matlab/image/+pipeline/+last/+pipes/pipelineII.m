@@ -41,6 +41,29 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                        removed before multi-epoch matching.
                        Default is {'BadPixelHard', 'StarMatch', 'LIMMAG', 
                        'MPMatch', 'Negative'}.
+                'RefCatName' - catsHTM Gaia catalog for all Gaia queries
+                       (photometric ZP, smear template, star match), used
+                       only when the New images carry no usable AST_CAT
+                       keyword; otherwise the catalog named there (the one
+                       pipelineI's astrometry used) is taken. Default is
+                       'GAIADR3'.
+                'GaiaCone' - The raw Gaia cones kept by pipelineI's
+                       astrometry (its GaiaCone output). The photometric
+                       ZP and the smear-template star cut take their Gaia
+                       sources from the cone covering their search circle
+                       instead of searching again; where none covers it,
+                       or if empty, they search as before (issue #1348).
+                       The star match keeps its own visit-wide search (its
+                       bright-star halo margin reaches beyond the cones).
+                       Default is [].
+                'DumpComplexPath' - Directory in which AstroZOGY.subtractionD
+                       saves the inputs of a sub image whose D or Pd came out
+                       complex (issue #1360). If empty, no check. Default is ''.
+                'GaiaProperMotion' - Apply the Gaia proper motion to the
+                       epoch of each image for the photometric ZP (New and
+                       Ref, each at its own JD), the smear-template star
+                       cut and the star match (issue #1348).
+                       Default is true.
     Output  : - Result message
               - AstroDiff objects holding all products and results derived 
                 by the algorithm.
@@ -69,6 +92,15 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         Args.AsteroidLimMag = 21.5;
         Args.CometSearchRad = 90;
         Args.GeoPos = [35.05 30.04 415];
+
+        % Fallback Gaia catalog of the visit; AST_CAT wins (issue #1348)
+        Args.RefCatName = 'GAIADR3';
+        % Raw Gaia cones of the visit from pipelineI, and proper motion for
+        % all the Gaia consumers below (issue #1348)
+        Args.GaiaCone = [];
+        Args.GaiaProperMotion logical = true;
+        % Where to save a sub image whose ZOGY D/Pd is complex (issue #1360); '' - off
+        Args.DumpComplexPath char = '';
 
         Args.CropIDs = [];
 
@@ -180,6 +212,28 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Only use non-empty images.
     New = New(NonEmptyNew);
     Nobj = numel(New);
+
+    % Gaia catalog of the visit: the one the astrometry of the New images
+    % used, as recorded in AST_CAT, so that pipelineI's RefCatName governs
+    % every Gaia query below (issue #1348). Args.RefCatName if no header
+    % names one.
+    AstCat = strings(1, Nobj);
+    for Iobj=1:1:Nobj
+        Val = New(Iobj).HeaderData.getVal('AST_CAT');
+        if ischar(Val) || isstring(Val)
+            AstCat(Iobj) = strtrim(string(Val));
+        end
+    end
+    AstCat = unique(AstCat(AstCat~="" & AstCat~="USER"));
+    if isempty(AstCat)
+        GaiaCatName = Args.RefCatName;
+    elseif isscalar(AstCat)
+        GaiaCatName = char(AstCat);
+    else
+        error('pipelineII:MixedRefCat', ...
+              'The New images name %d astrometric catalogs in AST_CAT (%s) - one Gaia catalog per visit is expected', ...
+              numel(AstCat), strjoin(AstCat, ', '));
+    end
    
     % 4: ----- Load and verify Ref images -----
     
@@ -239,6 +293,9 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Tack number of images with no overlap to any reference image
     NoOverlap = 0;
 
+    % Track number of New images without a source catalog
+    Status.NnoCatalog = 0;
+
     for Iobj=Nobj:-1:1
 
         % Check if New image meets NCoadd criterium. If it does not,
@@ -247,6 +304,13 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
         if NCOADD < Args.MinimumNCoadd
             NBelowMinNCoadd = NBelowMinNCoadd + 1;
+            continue
+        end
+
+        % A New coadd saved without a catalog (no PSF, or failed coadd
+        % astrometry - issue #1364) cannot be calibrated or searched.
+        if New(Iobj).isemptyCatalog || ~New(Iobj).CatData.isColumn('RA')
+            Status.NnoCatalog = Status.NnoCatalog + 1;
             continue
         end
 
@@ -358,7 +422,8 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                 % from the populatePSF/buildPSF uniPSF defaults.
             AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref, 'PsfPhotMethod',Args.PsfPhotMethod, ...
                                                                     'ShiftMethod',Args.ShiftMethod);
-            AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF');
+            AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName, ...
+                                                      'GaiaCone',Args.GaiaCone, 'EpochOut',gaiaEpoch(AD(Iobj).Ref, Args.GaiaProperMotion));
         end
     end
 
@@ -373,7 +438,8 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                                                                              % flow is validated on uniPSF defaults
             AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New, 'PsfPhotMethod',Args.PsfPhotMethod, ...
                                                                     'ShiftMethod',Args.ShiftMethod);
-            AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF');
+            AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName, ...
+                                                      'GaiaCone',Args.GaiaCone, 'EpochOut',gaiaEpoch(AD(Iobj).New, Args.GaiaProperMotion));
         end
     end    
 
@@ -429,15 +495,33 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Remember new number of AstroDiffs
     Nobj = numel(AD);
 
+    % Drop AstroDiffs whose New or Ref PSF is empty: subtractionD raises
+    % 'New PSF is not populated' and aborts the whole visit otherwise (#1363).
+    NoPSF = false(1, Nobj);
+    for Iobj = 1:Nobj
+        NoPSF(Iobj) = AD(Iobj).New.isemptyPSF || AD(Iobj).Ref.isemptyPSF;
+    end
+    if any(NoPSF)
+        warning('Missing New or Ref PSF for CROPID %s, skipping these crops.', ...
+                mat2str(arrayfun(@(A) A.New.HeaderData.getVal('CROPID'), AD(NoPSF))));
+        AD   = AD(~NoPSF);
+        Nobj = numel(AD);
+    end
+    if Nobj == 0
+        Status.Msg = 'All New or Ref images have no PSF.';
+        return
+    end
+
 
     % 7: ----- Produce subtraction images -----
     
     % Create proper subtraction image D
-    AD.subtractionD;
+    AD.subtractionD('DumpComplexPath',Args.DumpComplexPath);
     % Derive Gabor stat image
     AD.matchfilterGabor;
     % Derive S stat image
-    AD.subtractionS;
+    AD.subtractionS('smearTemplateArgs', {'StarCatName',GaiaCatName, 'StarCone',Args.GaiaCone, ...
+                                          'StarProperMotion',Args.GaiaProperMotion});
     % Derive Scorr stat image
     AD.subtractionScorr;
     % Derive Z2 stat image
@@ -498,8 +582,23 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Use the visit center coordinates and the distance to the furthest
     % sub-image to cone search the GAIA catalog and keep only the matched
     % sources
-    StarCat = catsHTM.cone_search('GAIADR3', C_RA_med, C_Dec_med, ...
+    StarCat = catsHTM.cone_search(GaiaCatName, C_RA_med, C_Dec_med, ...
         MaxDistRad, 'RadiusUnits', 'rad', 'OutType','AstroCatalog');
+    % Move the stars to the epoch of the visit (issue #1348)
+    if Args.GaiaProperMotion && ~isemptyCatalog(StarCat) && any(strcmp(StarCat.ColNames, 'Epoch'))
+        VisitJD = nan(Nobj, 1);
+        for Iobj=1:1:Nobj
+            ValJD = gaiaEpoch(AD(Iobj).New, true);
+            if ~isempty(ValJD)
+                VisitJD(Iobj) = ValJD;
+            end
+        end
+        VisitJD = median(VisitJD, 'omitnan');
+        if isfinite(VisitJD)
+            StarCat = imProc.cat.applyProperMotion(StarCat, StarCat.getCol('Epoch'), VisitJD, ...
+                                                   'EpochInUnits','j', 'CreateNewObj',false);
+        end
+    end
     StarCat.sortrows('Dec');
 
     % Search for star matches on cutdown catalog
@@ -947,6 +1046,11 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
             ADc(~NotKilled) = [];
             % Update number of cutouts.
             NADc = numel(ADc);
+            % If all cutouts were killed, keep one empty object, as when
+            % there are no candidates at all (issue #1374)
+            if NADc == 0
+                ADc = AstroZOGY();
+            end
         end
 
     end
@@ -976,7 +1080,33 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Update Status and finish
     StatusCell = strcat('Succesful exit,',{' '}, ...
         num2str(NADc),{' '},'transient(s) found.');
-    
+    if Status.NnoCatalog>0
+        StatusCell{1} = sprintf('%s %d New image(s) without a catalog skipped (issue #1364).', StatusCell{1}, Status.NnoCatalog);
+    end
+
     Status.Msg = StatusCell{1};
     Status.Success = true;
+end
+
+
+function JD = gaiaEpoch(Image, ApplyPM)
+    % The epoch [JD] to move the Gaia sources to for an image (issue #1348).
+    % Input  : - An AstroImage.
+    %          - Apply the proper motion (true) or not (false).
+    % Output : - The image JD from its header; [] if ApplyPM is false or
+    %            the header has no usable JD (no proper motion is then
+    %            applied).
+    % Author : Alexander Gioffe (Sep 2026)
+
+    JD = [];
+    if ApplyPM
+        try
+            Val = Image.julday;
+            if ~isempty(Val) && isfinite(Val(1))
+                JD = Val(1);
+            end
+        catch
+            JD = [];   % no readable JD - no proper motion
+        end
+    end
 end

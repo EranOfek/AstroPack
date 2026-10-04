@@ -86,6 +86,14 @@ function [Template, Info] = smearTemplate(Obj, Args)
     %                   Default is 50.
     %            'StarCatName' - catsHTM catalogue used to reject calibrators
     %                   sitting on a star. Default is 'GAIADR3'.
+    %            'StarCone' - A structure array of raw catalog cones (e.g.,
+    %                   the GaiaCone output of pipeline.last.pipes.pipelineI;
+    %                   see imProc.cat.getAstrometricCatalog). If one of
+    %                   them covers the star search circle, the stars are
+    %                   cut from it instead of being searched (issue #1348).
+    %                   Default is [].
+    %            'StarProperMotion' - Move the stars to the epoch of the New
+    %                   image (its header JD) before use. Default is false.
     %            'MinStarDistFWHM' - Reject a calibrator closer than this many
     %                   FWHM to a catalogue star. Zero disables the cut.
     %                   Default is 2.5.
@@ -166,6 +174,8 @@ function [Template, Info] = smearTemplate(Obj, Args)
         Args.MinPeakSig           = 25;    % peak / border scatter of the template
         Args.MinSigPix            = 12;    % pixels above it for the template to count
         Args.StarCatName          = 'GAIADR3';
+        Args.StarCone             = [];      % raw catalog cones to cut from instead of searching (issue #1348)
+        Args.StarProperMotion logical = false;
         Args.MinStarDistFWHM      = 2.5;
         Args.SrcXY                = [];
 
@@ -419,7 +429,7 @@ function [Template, Info] = buildOne(Obj, Args, Info, Method)
         SrcXY = Args.SrcXY;
 
         if isempty(SrcXY)
-            SrcXY = getStarXY(Obj, SizeIm, Args.StarCatName);
+            SrcXY = getStarXY(Obj, SizeIm, Args);
         end
 
         if ~isempty(SrcXY)
@@ -901,8 +911,11 @@ function [T, Core] = normaliseCore(T, LocateCore)
 end
 
 
-function SrcXY = getStarXY(Obj, SizeIm, CatName)
+function SrcXY = getStarXY(Obj, SizeIm, Args)
     % Star positions over the subimage, in image pixels.
+    %   The stars are cut from a raw catalog cone covering the search
+    %   circle, if one is given in Args.StarCone (issue #1348), else
+    %   searched in Args.StarCatName.
     %   A failed query is not fatal. Returning empty leaves the caller
     %   without the star cut rather than stopping the subtraction, which
     %   matters on a machine with no local catalogue or for a field the
@@ -918,18 +931,36 @@ function SrcXY = getStarXY(Obj, SizeIm, CatName)
         Radius = 1.2 .* 3600 .* sqrt( ((RAcor-RAcen).*cosd(Deccen)).^2 + ...
                                       (Deccor-Deccen).^2 );
 
-        [StarCat, StarCol] = catsHTM.cone_search(CatName, ...
-            RAcen./180.*pi, Deccen./180.*pi, Radius);
+        RAcenRad  = RAcen./180.*pi;
+        DeccenRad = Deccen./180.*pi;
+        RadiusRad = Radius./(3600.*180).*pi;
+        Cone = imProc.cat.findCone(Args.StarCone, Args.StarCatName, RAcenRad, DeccenRad, RadiusRad);
+        if isempty(Cone)
+            StarCat = catsHTM.cone_search(Args.StarCatName, RAcenRad, DeccenRad, Radius, 'OutType','astrocatalog');
+        else
+            % the same rows as the search: cut with its OnlyCone test
+            StarCat = Cone.Cat.copy;
+            if ~isemptyCatalog(StarCat)
+                ConeCoo = getCol(StarCat, {'RA','Dec'});   % catsHTM native [rad]
+                Dist    = celestial.coo.sphere_dist_fast(RAcenRad, DeccenRad, ConeCoo(:,1), ConeCoo(:,2));
+                StarCat = selectRows(StarCat, Dist<convert.angular('arcsec','rad',Radius), 'CreateNewObj',false);
+            end
+        end
 
-        if isempty(StarCat)
+        if isemptyCatalog(StarCat)
             return
         end
 
-        IcolRA  = find(strcmp(StarCol, 'RA'));
-        IcolDec = find(strcmp(StarCol, 'Dec'));
+        if Args.StarProperMotion && any(strcmp(StarCat.ColNames, 'Epoch'))
+            ObsJD = Obj.New.julday;
+            if ~isempty(ObsJD) && isfinite(ObsJD(1))
+                StarCat = imProc.cat.applyProperMotion(StarCat, StarCat.getCol('Epoch'), ObsJD(1), ...
+                                                       'EpochInUnits','j', 'CreateNewObj',false);
+            end
+        end
 
-        [SrcX, SrcY] = Obj.WCS.sky2xy(StarCat(:,IcolRA)./pi.*180, ...
-                                      StarCat(:,IcolDec)./pi.*180);
+        StarCoo = getCol(StarCat, {'RA','Dec'});   % [rad]
+        [SrcX, SrcY] = Obj.WCS.sky2xy(StarCoo(:,1)./pi.*180, StarCoo(:,2)./pi.*180);
 
         SrcXY = [SrcX(:), SrcY(:)];
         SrcXY = SrcXY(all(isfinite(SrcXY), 2), :);
@@ -940,6 +971,7 @@ function SrcXY = getStarXY(Obj, SizeIm, CatName)
                  'star cut: %s'], ME.message);
     end
 end
+
 
 function [VisitDir, CropID] = resolveVisit(Obj, Args)
     % Visit directory and crop, from the arguments when given and from the

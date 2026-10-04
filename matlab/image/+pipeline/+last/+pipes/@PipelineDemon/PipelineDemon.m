@@ -1253,7 +1253,7 @@ classdef PipelineDemon < Component
                     Obj.RedisPV.hset(Key, 't',UnixTime, 'v',jsonencode(Val));
                     Obj.RedisPV.expire(Key,Args.ExpireTime);
                 catch ME
-                    ErrorMsg = sprintf('Connection or ingestion to Redis DB failed: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, MEs.stack(1).line);
+                    ErrorMsg = sprintf('Connection or ingestion to Redis DB failed: %s / funname: %s @ line: %d', ME.message, ME.stack(1).name, ME.stack(1).line);
                     Obj.writeLog(ErrorMsg, LogLevel.Error); 
                     Obj.writeLog(ME, LogLevel.Info); 
                 end
@@ -2687,7 +2687,7 @@ classdef PipelineDemon < Component
 
 
 
-        function [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I]=runPipelineI(Obj, RawImageList, FN_I, Args)
+        function [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I, GaiaCone]=runPipelineI(Obj, RawImageList, FN_I, Args)
             % Reduce + save + error catching a single visit  
             
             arguments
@@ -2713,7 +2713,8 @@ classdef PipelineDemon < Component
             % only non-empty ones, placed before pipelineIArgs so the latter take precedence
             EphemArgs = {'GeoPos',Args.GeoPos, 'OrbEl',Args.OrbEl, 'INPOP',Args.INPOP};
             EphemArgs = EphemArgs(repelem(~cellfun(@isempty, EphemArgs(2:2:end)), 2));
-            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, 'MagType', Obj.MagType, 'NaNUncalibMag', Obj.NaNUncalibMag, ...
+            % GaiaCone: the raw Gaia cones of the visit, reused by pipelineII (issue #1348)
+            [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipeline.last.pipes.pipelineI(RawImageList, Obj.CI, 'MagType', Obj.MagType, 'NaNUncalibMag', Obj.NaNUncalibMag, ...
                                                                      EphemArgs{:}, 'AsteroidSearchRadius',Args.AsteroidSearchRadius, ...
                                                                      Args.pipelineIArgs{:},'Status',Status);
             %ProcImageList = TableRaw.FileName;                
@@ -2762,11 +2763,51 @@ classdef PipelineDemon < Component
                     MsgP{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: no PSF built (too few PSF stars) for %d sub image(s) - saved without sources, excluded from the coadd; crop(s): %s (issue #1318)', sum(Status.NnoPSF), CropList);
                     Obj.writeLog(MsgP, LogLevel.Warning);
                 end
+
+                % Astrometry retried at the FIELDID grid pointing, and sub
+                % images whose astrometry failed (issue #1350). The latter are
+                % saved without a WCS (PSTATUS NO_ASTR). If none was solved,
+                % the header pointing is given: that usually means a pointing
+                % or header problem rather than a data problem.
+                if isfield(Status,'AstRetry') && ~isempty(Status.AstRetry)
+                    R = Status.AstRetry;
+                    MsgR{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: no sub image solved at the header pointing RA=%.4f, Dec=%.4f - astrometry retried at the FIELDID %d grid pointing RA=%.4f, Dec=%.4f (%.2f deg away): %d of %d sub image(s) solved (issue #1350)', ...
+                                      R.HeaderRA, R.HeaderDec, R.FieldID, R.RA, R.Dec, R.Offset, R.Nsolved, R.Nsub);
+                    if ~isempty(R.Error)
+                        MsgR{1} = sprintf('%s; retry failed: %s', MsgR{1}, R.Error);
+                    end
+                    Obj.writeLog(MsgR, LogLevel.Warning);
+                end
+                if isfield(Status,'NnoWCS') && any(Status.NnoWCS>0)
+                    IndCrop  = find(Status.NnoWCS>0);
+                    CropList = strjoin(arrayfun(@(I) sprintf('%03d x%d', I, Status.NnoWCS(I)), IndCrop, 'UniformOutput',false), ', ');
+                    MsgW{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: astrometry failed for %d sub image(s) - saved without WCS, excluded from the coadd; crop(s): %s (issue #1350)', sum(Status.NnoWCS), CropList);
+                    if ~any(imProc.astrometry.isSuccessWCS(AllSI), 'all')
+                        MsgW{1} = sprintf('%s; no sub image solved, header pointing RA=%.4f, Dec=%.4f', MsgW{1}, ...
+                                          AllSI(1).HeaderData.getValSimple('RA'), AllSI(1).HeaderData.getValSimple('DEC'));
+                    end
+                    Obj.writeLog(MsgW, LogLevel.Warning);
+                end
                 if isfield(Status,'CoaddSkipped') && any(Status.CoaddSkipped)
                     IndCrop  = find(Status.CoaddSkipped);
                     CropList = strjoin(arrayfun(@(I) sprintf('%03d (%d/%d good epochs)', I, Status.NgoodEpoch(I), Status.Nepoch), IndCrop, 'UniformOutput',false), ', ');
                     MsgC{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: coadd skipped for %d sub image group(s) - fewer good epochs than MinNumCoadd; crop(s): %s (issue #1318)', numel(IndCrop), CropList);
                     Obj.writeLog(MsgC, LogLevel.Warning);
+                end
+                % Coadd astrometry failed (issue #1364): the coadd image is
+                % saved, its catalog (no RA/Dec) is dropped.
+                if isfield(Status,'CoaddNoWCS') && any(Status.CoaddNoWCS)
+                    IndCrop  = find(Status.CoaddNoWCS);
+                    CropList = strjoin(arrayfun(@(I) sprintf('%03d', I), IndCrop, 'UniformOutput',false), ', ');
+                    MsgA{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: coadd astrometry failed for %d sub image group(s) - coadd image saved without a catalog; crop(s): %s (issue #1364)', numel(IndCrop), CropList);
+                    Obj.writeLog(MsgA, LogLevel.Warning);
+                end
+                % Relative photometric ZP not fitted (issue #1339)
+                if isfield(Status,'NoRelZP') && any(Status.NoRelZP)
+                    IndCrop  = find(Status.NoRelZP);
+                    CropList = strjoin(arrayfun(@(I) sprintf('%03d', I), IndCrop, 'UniformOutput',false), ', ');
+                    MsgZ{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineI: relative photometric ZP could not be fitted for %d sub image group(s) - too few bright sources; their matched-source magnitudes are not corrected; crop(s): %s (issue #1339)', numel(IndCrop), CropList);
+                    Obj.writeLog(MsgZ, LogLevel.Warning);
                 end
 
                 % saving data products of pipelineI
@@ -2791,7 +2832,10 @@ classdef PipelineDemon < Component
                         % the date of the night, as the proc/ dir, v0 and the
                         % LAST archive use (not the UT date) - issue #1315
                         RawImageListFinal = FN_I.genPath('PathType','raw', 'RawDateFromJD',true);
-                        io.files.moveFiles(RawImageList, [], '', RawImageListFinal);
+                        % full source paths: the current directory need not be
+                        % new/ here (issue #1344); destination names stay bare
+                        [RawFull, RawBare] = Obj.fullRawPath(RawImageList);
+                        io.files.moveFiles(RawFull, RawBare, '', RawImageListFinal);
                         
                         Status.MoveRaw = true;
                     else
@@ -2824,6 +2868,9 @@ classdef PipelineDemon < Component
                     % status table so the rejected visit is registered.
                     Obj.writeLog(sprintf('Pipeline I skipped visit: %s', Status.Msg), LogLevel.Warning);
                     try
+                        % the visit's own JDs name its proc dir, as on the
+                        % success path (issue #1356)
+                        FN_I.JD = FN_I.julday;
                         Obj.saveTableRaw(FN_I, TableRaw, 'SaveTableRaw',Args.SaveTableRaw);
                     catch MEsr
                         Obj.writeLog(sprintf('Failed saving RAW status table for rejected visit: %s', MEsr.message), LogLevel.Error);
@@ -2920,6 +2967,16 @@ classdef PipelineDemon < Component
             % MatchedSources
             if Args.SaveMergedMat
                 FN_MS = FN_C.copy;
+                if isnan(JDc)
+                    % No coadd was saved, so FN_C is still the single raw
+                    % entry; name the per-crop products as the coadds would
+                    % have been, by the mean JD of the epochs (issue #1352)
+                    FN_MS.JD = mean(JD(:), 'omitnan');
+                    FN_MS.julday2time;
+                    FN_MS.duplicateCrop(Nsub);
+                    FN_MS.SubDir  = FN_I.SubDir;
+                    FN_MS.Counter = zeros(Nsub,1);
+                end
                 FN_MS.Level    = repmat("merged", Nsub, 1);
                 FN_MS.Product  = repmat("MergedMat", Nsub, 1);
                 FN_MS.FileType = repmat("hdf5", Nsub, 1);
@@ -3003,17 +3060,23 @@ classdef PipelineDemon < Component
         end
 
 
-        function [AD, ADc, TCL1, TCL2] = runPipelineII(Obj, Coadd, FN_Proc, UpArgs)
+        function [AD, ADc, TCL1, TCL2] = runPipelineII(Obj, Coadd, FN_Proc, UpArgs, GaiaCone)
             % excute transients detection pipeline
+            % GaiaCone - the raw Gaia cones of the visit from pipelineI, reused
+            %            by pipelineII's Gaia consumers (issue #1348); [] - they search
+            if nargin<5
+                GaiaCone = [];
+            end
 
             Msg{1} = sprintf('pipeline.last.pipes.PipelineDemon/pipelineII start executing pipelineII for visit');
             Obj.writeLog(Msg, LogLevel.Info);
 
             [AD, ADc, TCL1, TCL2, StatusPipeII] = pipeline.last.pipes.pipelineII(Coadd, 'RefPath', Obj.RefPath,...
-                                                  'MinimumNCoadd',UpArgs.PipelineIIMininumNCoadd);
+                                                  'MinimumNCoadd',UpArgs.PipelineIIMininumNCoadd, 'GaiaCone',GaiaCone, ...
+                                                  'DumpComplexPath',Obj.FailedPath);  % issue #1360
             Obj.writeLog(sprintf('Transients detection - %s', StatusPipeII.Msg), LogLevel.Info);
 
-            if StatusPipeII.Success && UpArgs.SendTransientAlerts && ~ADc(1).ImageData.isemptyImage
+            if StatusPipeII.Success && UpArgs.SendTransientAlerts && ~isempty(ADc) && ~ADc(1).ImageData.isemptyImage
                 % TODO: This part should move out of pipeII
                 % Match to multi-epochs via DB. Without a DB connection it is
                 % skipped: matchTransientsToMultiEpochs would otherwise open
@@ -3034,15 +3097,17 @@ classdef PipelineDemon < Component
                     end
                 end
             
-                Msg{1} = sprintf('Transients alerting');
-                Obj.writeLog(Msg, LogLevel.Info);
-                try
-                    TranAlertStatus = pipeline.last.transients.sendTransientsAlert(ADc, 'SaveProducts', true, ...
-                            'SavePath', FN_Proc.genPath,'UseLASTtools', true);
-                    Obj.writeLog(sprintf('Transients alerting - %s', TranAlertStatus), LogLevel.Info);
-                catch
-                    Msg{1} = sprintf('Transients alerting / Failed');
-                    Obj.writeLog(Msg, LogLevel.Error);
+                if UpArgs.SendSlackAlerts
+                    Msg{1} = sprintf('Transients alerting');
+                    Obj.writeLog(Msg, LogLevel.Info);
+                    try
+                        TranAlertStatus = pipeline.last.transients.sendTransientsAlert(ADc, 'SaveProducts', true, ...
+                                'SavePath', FN_Proc.genPath,'UseLASTtools', true);
+                        Obj.writeLog(sprintf('Transients alerting - %s', TranAlertStatus), LogLevel.Info);
+                    catch
+                        Msg{1} = sprintf('Transients alerting / Failed');
+                        Obj.writeLog(Msg, LogLevel.Error);
+                    end
                 end
             end
 
@@ -3126,14 +3191,36 @@ classdef PipelineDemon < Component
             end
         end
 
+        function [Result, Bare] = fullRawPath(Obj, RawImageList)
+            % Resolve bare raw file names against NewPath.
+            %   The visit lists hold bare file names; resolving them
+            %   against the current directory fails once a stage has
+            %   changed it (issue #1344). Names with a path are kept.
+            % Input  : - self.
+            %          - A cell or string array of file names.
+            % Output : - A cell array (row) of file names with full path.
+            %          - A cell array (row) of the bare file names, for the
+            %            destination names of io.files.moveFiles (which
+            %            otherwise appends the source name, path included,
+            %            to the destination path).
+            % Author : A.M. Krassilchtchikov (Sep 2026)
+            Result = cellstr(RawImageList);
+            Result = Result(:).';
+            IsBare = cellfun(@(F) isempty(fileparts(F)), Result);
+            if any(IsBare) && ~isempty(Obj.NewPath)
+                Result(IsBare) = fullfile(Obj.NewPath, Result(IsBare));
+            end
+            [~, Name, Ext] = cellfun(@fileparts, Result, 'UniformOutput',false);
+            Bare = strcat(Name, Ext);
+        end
+
         function moveImagesToFailedDir(Obj, RawImageList)
             % move images to failed directory
             %   Never throws: a file that can not be moved (e.g., it does
             %   not exist) is reported to the log and the rest of the
             %   list is still moved (issue #1286).
 
-            RawImageList = cellstr(RawImageList);
-            RawImageList = RawImageList(:).';
+            [RawImageList, RawBare] = Obj.fullRawPath(RawImageList);   % issue #1344
             Nraw         = numel(RawImageList);
             if Nraw==0
                 Obj.writeLog('PipelineI moveImagesToFailedDir called with an empty image list', LogLevel.Error);
@@ -3145,7 +3232,7 @@ classdef PipelineDemon < Component
             try
                 Exist    = isfile(RawImageList);
                 IndExist = find(Exist);
-                [~, Ok, MoveMsg] = io.files.moveFiles(RawImageList(IndExist), [], '', Obj.FailedPath, 'ErrorOnFail',false);
+                [~, Ok, MoveMsg] = io.files.moveFiles(RawImageList(IndExist), RawBare(IndExist), '', Obj.FailedPath, 'ErrorOnFail',false);
                 Nmoved = sum(Ok);
 
                 Failed    = [RawImageList(~Exist), RawImageList(IndExist(~Ok))];
@@ -3563,7 +3650,9 @@ classdef PipelineDemon < Component
                 % does not ask for it (a re-reduction of archived data, a
                 % regression test) must not produce one (issue #1253)
                 Args.InjectTCL2 logical = false;
-                Args.SendTransientAlerts logical = true;
+                Args.SendTransientAlerts logical = true;    % multi-epoch DB matching of the transients
+                % Slack alerts are no longer used; kept for reference, off by default
+                Args.SendSlackAlerts logical = false;
 
                 %Args.RunAsService logical  = false;
                 
@@ -3677,6 +3766,7 @@ classdef PipelineDemon < Component
 
             % loop indefently
             JDlastCalib = 0;
+            StuckRaw    = {};   % frames of failed visits left in new/ - not grouped again (issue #1345)
             Cont = true;
             MainLoopCounter = 0;
             while Cont
@@ -3783,6 +3873,12 @@ classdef PipelineDemon < Component
                     [FN_Sci, DirSci] = Obj.listRawFiles(Args.TempRawSci);
                     % files whose name can not form a visit go to failed/ (issue #1286)
                     FN_Sci   = Obj.quarantineMalformedRaw(FN_Sci, {DirSci.name});
+                    % frames of a failed visit that stayed in new/ are not
+                    % reduced again in this session (issue #1345); a logical
+                    % mask, as reorderEntries ignores an empty index
+                    if ~isempty(StuckRaw) && FN_Sci.nFiles>0
+                        FN_Sci = FN_Sci.reorderEntries(~ismember(cellstr(FN_Sci.genFile()), StuckRaw));
+                    end
                     FN_Sci.JD=FN_Sci.julday;
                 catch ME
                     Msg = sprintf('PipelineDemon failed to list the images in new/, will retry: %s', ME.message);
@@ -3911,7 +4007,7 @@ classdef PipelineDemon < Component
                                 Obj.updateRedis(sprintf('%s.pipeline.status',PipeName), PipeStatus,'UpdateRedis',Args.UpdateRedis);
                             end
                                         
-                            [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
+                            [Status, RawImageListFinal, TableRaw, AllSI, MS, Coadd, OnlyMP, AllForcedPhot, FN_I, GaiaCone] = runPipelineI(Obj, RawImageList, FN_I, UpArgs);
         
                             if ~Status.PipeI || ~Status.WriteI
                                 % Move images to failed directory:
@@ -3953,6 +4049,17 @@ classdef PipelineDemon < Component
                                         error('Unknown FailMethod option %s',Args.FailMethod);
                                 end
                                    
+
+                                % frames still in new/ would be selected again on the
+                                % next loop, forever: leave them out of the grouping for
+                                % the rest of this session (issue #1345)
+                                StillInNew = cellstr(RawImageList);
+                                StillInNew = StillInNew(isfile(Obj.fullRawPath(StillInNew)));
+                                if ~isempty(StillInNew)
+                                    StuckRaw = union(StuckRaw, StillInNew(:).');
+                                    Obj.writeLog(sprintf('PipelineDemon: %d frame(s) of the failed visit are still in new/ - they are not reduced again until the demon restarts (issue #1345); first: %s', ...
+                                                         numel(StillInNew), StillInNew{1}), LogLevel.Error);
+                                end
                             end % if ~Status.PipeI || ~Status.WriteI
         
                             if Status.PipeI && Status.WriteI && Status.MoveRaw
@@ -3960,7 +4067,7 @@ classdef PipelineDemon < Component
                                 try
                                     % call method runPipelineII(Obj, Coadd, FN_I, Args)
                                     % This function creates the products and writes them to the disk                                   
-                                    runPipelineII(Obj, Coadd, FN_I, UpArgs);
+                                    runPipelineII(Obj, Coadd, FN_I, UpArgs, GaiaCone);
 
                                     Status.PipeII  = true;
                                     Status.WriteII = true;
@@ -4069,7 +4176,11 @@ classdef PipelineDemon < Component
                             RunTime = etime(clock, TstartAll);
                             Msg = sprintf('Visit total run time : %.1f',RunTime);
                             Obj.writeLog(Msg, LogLevel.Info);
-    
+
+                            % release the visit's products before the next visit; otherwise they stay
+                            % referenced until the next runPipelineI returns (issue #1368)
+                            clear AllSI MS Coadd OnlyMP AllForcedPhot GaiaCone TableRaw RawImageListFinal
+
                             if ~Cont
                                 break;
                             end

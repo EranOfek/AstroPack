@@ -1,6 +1,6 @@
 function [ZP, Filters] = survey_ZP(DR, Type)
     % return zero points of different surveys
-    % Input  : - Version. Default is 'GAIAEDR3'.
+    % Input  : - Version. Default is 'GAIADR3'.
     %          - Mag type: 'Vega' | ['AB'] | 'VegaMinusAB'
     % Output : - ZP for filters
     %          - Filter names

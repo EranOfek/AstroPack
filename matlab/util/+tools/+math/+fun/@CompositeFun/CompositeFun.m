@@ -3864,10 +3864,19 @@ classdef CompositeFun < handle
                 % branches). Any other WeightingMode leaves CurrentCostArgs
                 % alone.
                 CurOverride = RecipeIterOverrides(OuterIter);
+                % Whether the empty MagErr the stage handlers will see is the
+                % recipe's doing rather than missing data. Used below to report
+                % an intentionally unweighted iteration as info, and to keep a
+                % warning for the case where weights were expected (issue #1338).
+                WeightsDisabledByRecipe = false;
                 if isfield(CurOverride, 'WeightingMode') && ...
                         strcmpi(CurOverride.WeightingMode, 'none')
+                    WeightsDisabledByRecipe = true;
+                    % MagErr count before the wipe, quoted in that info message
+                    NMagErrDisabled = 0;
                     Idx = find(strcmp(CurrentCostArgs(1:2:end), 'PrecomputedMagErr'));
                     if ~isempty(Idx)
+                        NMagErrDisabled = numel(CurrentCostArgs{2*Idx});
                         CurrentCostArgs{2*Idx} = [];
                     end
                     if Args.Verbose
@@ -4331,9 +4340,31 @@ classdef CompositeFun < handle
                                         'Method', 'lscov', 'ErrMag', BaseMagErrJ, 'Verbose', false);
                                 else
                                     if IterClip == 0
-                                        Obj.addStatus('fitMultiStage', 'warning', ...
-                                            'JOINT_FC: MagErr unavailable, using unweighted LS', ...
-                                            'CompositeFun:JointFC:Unweighted');
+                                        if WeightsDisabledByRecipe
+                                            % Say explicitly where MagErr is used (issue #1338)
+                                            IsWeightedIter = ~arrayfun(@(O) isfield(O, 'WeightingMode') && ...
+                                                strcmpi(O.WeightingMode, 'none'), RecipeIterOverrides);
+                                            WeightedList = strjoin(string(find(IsWeightedIter)), ', ');
+                                            if ~any(IsWeightedIter)
+                                                UseText = 'no outer iteration of this recipe is weighted';
+                                            elseif NMagErrDisabled == 0
+                                                UseText = sprintf(['no MagErr was supplied for the ', ...
+                                                    'weighted outer iteration(s) %s'], WeightedList);
+                                            else
+                                                UseText = sprintf(['MagErr (%d calibrators) is used in ', ...
+                                                    'the weighted outer iteration(s) %s'], ...
+                                                    NMagErrDisabled, WeightedList);
+                                            end
+                                            Obj.addStatus('fitMultiStage', 'info', ...
+                                                sprintf(['JOINT_FC: outer iteration %d of %d is unweighted ', ...
+                                                         'by recipe (WeightingMode=''none''); %s'], ...
+                                                         OuterIter, NumOuterIter, UseText), ...
+                                                'CompositeFun:JointFC:UnweightedByRecipe');
+                                        else
+                                            Obj.addStatus('fitMultiStage', 'warning', ...
+                                                'JOINT_FC: MagErr unavailable or invalid, using unweighted LS', ...
+                                                'CompositeFun:JointFC:Unweighted');
+                                        end
                                     end
                                     [~, Obj] = Obj.fitPositionPolynomial(LocalX, LocalY, BaseResidualsJ, ...
                                         'Verbose', false);

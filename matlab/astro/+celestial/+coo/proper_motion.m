@@ -13,7 +13,10 @@ function varargout=proper_motion(EpochOut,EpochInRA,EpochInDec,RA,Dec,PM_RA,PM_D
 %          - Proper motion in RA [mas/yr].
 %          - Proper motion in Dec [mas/yr].
 %          - Parallax [mas], default is 1e-4;
+%            NaN, zero or negative values are replaced by 1e-4.
 %          - Radial velocity [km/s], default is 0.
+%            NaN values of PM and RV are treated as 0, i.e., a source
+%            without measured motion keeps its catalog position.
 % Output * Either 2 or 3 output arguments.
 %          If two output arguments, these are the final RA and Dec
 %          in radians.
@@ -47,8 +50,14 @@ else
     SameEpoch  = false;
 end
 
-% remove negative parallax and zero parallax
-Parallax(Parallax<Def.Parallax) = Def.Parallax;
+% remove negative, zero and missing (NaN) parallax
+% (NaN<x is false, so NaN must be caught explicitly - e.g., Gaia 2-parameter solutions)
+Parallax(isnan(Parallax) | Parallax<Def.Parallax) = Def.Parallax;
+
+% missing PM and RV - no motion
+PM_RA(isnan(PM_RA))   = 0;
+PM_Dec(isnan(PM_Dec)) = 0;
+RadVel(isnan(RadVel)) = 0;
 
 [Rdot,R] = celestial.coo.pm2space_motion(RA,Dec,PM_RA,PM_Dec,Parallax,RadVel);
 

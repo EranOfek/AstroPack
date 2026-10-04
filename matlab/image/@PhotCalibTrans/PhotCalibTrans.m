@@ -3205,6 +3205,7 @@ classdef PhotCalibTrans < Component
                 Obj
                 HeaderObj
                 Args.WriteComments logical = false
+                Args.CalibCatName          = 'GAIADR3spec';  % catsHTM catalog of the calibrators (issue #1347)
             end
 
             % Preallocate history comments array if requested
@@ -3253,6 +3254,8 @@ classdef PhotCalibTrans < Component
             HeaderObj = HeaderObj.replaceVal('PT_NCALI', NCalFinal);
             HeaderObj = HeaderObj.replaceVal('PT_AREF', 'SMART v2.9.8');
             HeaderObj = HeaderObj.replaceVal('PT_SPEC', 'GaiaDR3');
+            % catsHTM catalog the calibrators were taken from (issue #1347)
+            HeaderObj = HeaderObj.replaceVal('PT_CAT',  Args.CalibCatName);
             HeaderObj = HeaderObj.replaceVal('PT_REFSL', Obj.RefSpecSlope);
             HeaderObj = HeaderObj.replaceVal('PT_REFPV', Obj.RefSpecPivot);
             % AB zero-point offset of the reference slope vs a flat reference

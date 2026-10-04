@@ -111,13 +111,13 @@ function [Mag, MagErr, Color, ColorErr, SelectedInd] = getGaiaMagColor(Cat, Args
             %VegaToAB_Filters  = {'Mag_G','Mag_BP','Mag_RP'};
             VegaToAB_Filters  = {'phot_g_mean_mag','phot_bp_mean_mag','phot_rp_mean_mag'};
             
-            GAIA_EDR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
+            GAIA_DR3_ZP_VegaMinusAB = astro.mag.survey_ZP(Args.CatZP, 'VegaMinusAB');
 
             I1 = strcmp(Args.ColMag, VegaToAB_Filters);
-            Mag = Mag - GAIA_EDR3_ZP_VegaMinusAB(I1);
+            Mag = Mag - GAIA_DR3_ZP_VegaMinusAB(I1);
 
             I2 = ismember(VegaToAB_Filters, Args.ColColor);
-            Color = Color + diff(GAIA_EDR3_ZP_VegaMinusAB(I2),1,2);  % note the + sign here is because its B-R, while diff do R-B...
+            Color = Color + diff(GAIA_DR3_ZP_VegaMinusAB(I2),1,2);  % note the + sign here is because its B-R, while diff do R-B...
             %end
         otherwise
             error('Unknown MagSys option');

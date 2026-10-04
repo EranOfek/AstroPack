@@ -1,5 +1,5 @@
 
-GAIADR3          : [0,  'GAIA-EDR3']
+GAIADR3          : [0,  'GAIA-DR3']
 unWISE           : [1,  'unWISE (Schlafly et al. 2019)']
 TMASS            : [2,  '2MASS (Skrutskie et al. 2006)']
 GLADEp           : [3,  'GLADE']

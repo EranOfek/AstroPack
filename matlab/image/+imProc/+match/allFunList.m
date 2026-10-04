@@ -13,7 +13,6 @@
 %          imProc.match.matchOld - Match two catalogs in AstroCatalog objects
 % imProc.match.matchReturnIndices - Match two catalogs in AstroCatalog objects and return the matched indices.
 %     imProc.match.match_catsHTM - Match an AstroCatalog object with catsHTM catalog and add columns to catalog.
-% imProc.match.match_catsHTM_multiInsertFlag - 
 % imProc.match.match_catsHTMmerged - Match an AstroCatalog with the catsHTM MergedCat.
 %    imProc.match.matched2matrix - A matched AstroCatalog object into a matrix of epochs by index
 %  imProc.match.matchedReturnCat - Match AsstroCatalogs and return array of matched catalogs.

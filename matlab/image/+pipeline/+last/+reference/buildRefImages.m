@@ -206,7 +206,8 @@ function [Result,Info] = buildRefImages(RefID, Args)
             RefID = 1:height(RefGrid);
         end
     end
-    Nref = height(RefGrid);
+    RefID = RefID(:).';   % a row: for loops over columns, so a column vector would give one iteration with all IDs (issue #1349)
+    Nref  = numel(RefID);
 
     Ibp = find(isfolder(Args.BasePath), 1, 'first');
     Args.BasePath = Args.BasePath(Ibp);
@@ -230,7 +231,7 @@ function [Result,Info] = buildRefImages(RefID, Args)
 
         if Args.Verbose > 0
             tstart = tic;
-            cprintf('blue','Starting to build a reference image for field %d of %d at RA %.2f Dec %.2f \n',Iref,Nref,RefGrid.RA(Iref),RefGrid.Dec(Iref));
+            cprintf('blue','Starting to build reference image %d of %d (field %d) at RA %.2f Dec %.2f \n',K,Nref,Iref,RefGrid.RA(Iref),RefGrid.Dec(Iref));
         end
             
         % read or build the WCS of the target reference image
