@@ -172,6 +172,31 @@ for Il = 1:1:numel(Lad)
                    'CorrNullRobust',Cnr(1,2)./sqrt(Cnr(1,1).*Cnr(2,2)), ...
                    'KeptFracMeasured',nnz(Km)./numel(Km), 'KeptFracNull',nnz(Kn)./numel(Kn));
     Q.Cov.Ratio       = Q.Cov.Measured./Q.Cov.Null;
+    % The same fit read on Var - RN^2 instead of on the total variance. The slope
+    % is identical -- subtracting a per-pixel CONSTANT cannot tilt a line -- so only
+    % the intercept moves, by exactly that constant, and no refit is needed. This is
+    % what an earlier version fitted, and it is kept here to show why it should not
+    % be: the error of RN^2_i, measured from DofZ+1 frames, is subtracted once and
+    % therefore lands entirely in the intercept.
+    Ie = double(F.Intercept(Use)) - RN2(Use);
+    Ne = double(N.Inter) - double(N.RN2Est);
+    Q.InterExcess = local_stat(Ie, Ne);
+    % and where that extra width lives: binned by the pixel's own read noise
+    Rv = RN2(Use);
+    Ed = quantile(Rv, 0:0.1:1);
+    Dc = struct('Edges',Ed, 'RN2',nan(1,10), 'MADexcess',nan(1,10), 'MADtotal',nan(1,10), ...
+                'Npix',nan(1,10), 'Predicted',nan(1,10));
+    It = double(F.Intercept(Use));
+    for Id = 1:1:10
+        Kd = Rv>=Ed(Id) & Rv<Ed(Id+1);
+        if nnz(Kd)<1000, continue; end
+        Dc.Npix(Id)      = nnz(Kd);
+        Dc.RN2(Id)       = median(Rv(Kd));
+        Dc.MADexcess(Id) = 1.4826.*median(abs(Ie(Kd) - median(Ie(Kd))));
+        Dc.MADtotal(Id)  = 1.4826.*median(abs(It(Kd) - median(It(Kd))));
+        Dc.Predicted(Id) = Dc.RN2(Id).*sqrt(2./DofZ);   % sampling error of RN^2 itself
+    end
+    Q.ReadNoiseDecile = Dc;
     Q.Cov.RatioRobust = Q.Cov.MeasuredRobust./Q.Cov.NullRobust;
     Out.(Ty) = Q;
     clear F
@@ -199,9 +224,35 @@ Out.Difference.PlainMeanRel = Out.Difference.Mean./Out.B.Slope.Mean;
 Out.Difference.MedianRel = Out.Difference.Median./Out.B.Slope.Median;
 writeBin(fullfile(DieOut, 'gain_diff.bin'), Dg);
 
+% Independent check on what survives: the PTC intercept and the stage 2 response
+% fit both measure T, by routes that share no data beyond the frames themselves.
+% If a common T of width sigma_T is in both, they must correlate by
+% sigma_T^2/(sa*sb), so the measured r inverts to a shared spread.
+Cross = struct('Available',false);
+if isfile(fullfile(DieOut,'tdark.bin'))
+    Td = readBin(fullfile(DieOut,'tdark.bin'), Siz, 'stage 2');
+    Ug = isfinite(Keep.D.Slope) & isfinite(Td);
+    if ~isempty(Mask), Ug = Ug & Mask; end
+    Ta = (double(Keep.D.Inter(Ug)) - RN2(Ug))./Out.D.GainEnsemble;   % T from the PTC
+    Tb = double(Td(Ug));                                            % T from the response
+    Ka = abs(Ta-median(Ta)) < 5.*1.4826.*median(abs(Ta-median(Ta)));
+    Kb = abs(Tb-median(Tb)) < 5.*1.4826.*median(abs(Tb-median(Tb)));
+    Kk = Ka & Kb;
+    Cc = corrcoef(Ta(Kk), Tb(Kk));
+    Sa = 1.4826.*median(abs(Ta(Kk)-median(Ta(Kk))));
+    Sb = 1.4826.*median(abs(Tb(Kk)-median(Tb(Kk))));
+    Cross = struct('Available',true, 'Npix',nnz(Kk), 'Corr',Cc(1,2), ...
+                   'WidthPTC',Sa, 'WidthResponse',Sb, ...
+                   'SharedSigmaT',sqrt(max(Cc(1,2),0).*Sa.*Sb), ...
+                   'MedianPTC',median(Ta(Kk)), 'MedianResponse',median(Tb(Kk)));
+    fprintf(['\ntwo threshold maps, two routes: r = %+.4f over %.1f M pixels (widths %.2f and %.2f ADU)\n', ...
+             '  -> a shared threshold spread of %.2f ADU\n'], Cross.Corr, Cross.Npix./1e6, Sa, Sb, ...
+             Cross.SharedSigmaT);
+end
+
 S = struct('Stage',9, 'Tag',DieTag, 'Run',DieRun, 'Die',Die, 'GainHalf',DieGain, ...
            'Lot',P.Info.Lot, 'Wafer',P.Info.Wafer, 'Device',P.Info.Device, 'Size',Siz, ...
-           'Nsim',Nsim, 'GainRange',DieGainRange, 'Ladder',Out);
+           'Nsim',Nsim, 'GainRange',DieGainRange, 'DofZ',DofZ, 'Ladder',Out, 'Cross',Cross);
 Fid = fopen(fullfile(DieOut, 'ptc_perpixel.json'), 'w');
 fwrite(Fid, jsonencode(S));
 fclose(Fid);
@@ -219,6 +270,19 @@ fprintf(['  the plain mean is tail-sensitive: the per-pixel estimator is heavy-t
     '  the ensemble value.\n']);
 fprintf('\nintercept (RN^2 + g*T, the per-pixel fit is on the total variance): dark %.2f, bright %.2f ADU^2\n', ...
     Out.D.Inter.Mean, Out.B.Inter.Mean);
+fprintf('  width / null: %.3f (dark) and %.3f (bright). Fitting Var - RN^2 instead would give\n', ...
+    Out.D.Inter.MADoverNull, Out.B.Inter.MADoverNull);
+fprintf('  %.3f and %.3f -- the error of the subtracted RN^2 lands entirely in the intercept.\n', ...
+    Out.D.InterExcess.MADoverNull, Out.B.InterExcess.MADoverNull);
+fprintf('  by read-noise decile (dark, Var - RN^2): ');
+for Id = 1:1:10
+    fprintf('%.1f ', Out.D.ReadNoiseDecile.MADexcess(Id));
+end
+fprintf('ADU^2\n    against RN^2/sqrt(2) = ');
+for Id = 1:1:10
+    fprintf('%.1f ', Out.D.ReadNoiseDecile.Predicted(Id));
+end
+fprintf('\n');
 fprintf(['\nCovariance of the two fit parameters. The analytic value is what the fit predicts for\n', ...
     'each pixel (-Swx/D); the null is identical pixels put through the same measurement. Plain cov\n', ...
     'is tail-dominated, so the robust columns repeat it on a common central window.\n\n']);
@@ -251,7 +315,7 @@ function N = local_null(Med, Vex, Nrp, Dofs, RN2true, DofZ, Nsim)
     % each synthetic pixel: its own true read noise, and its own noisy ESTIMATE of
     % it, measured from DofZ+1 zero-exposure frames exactly as the map was
     Rt  = double(RN2true(:));
-    Rn  = Rt.*sum(randn(Nsim, DofZ).^2, 2)./DofZ;   %#ok<NASGU> kept for reference
+    Rn  = Rt.*sum(randn(Nsim, DofZ).^2, 2)./DofZ;   % each pixel's noisy RN^2 estimate
     for I = 1:1:Ns
         Vt = Rt + Vex(I);                            % total variance of this pixel
         Fr = round(Med(I) + sqrt(max(Vt,0)).*randn(Nsim, Nrp(I)));
@@ -266,7 +330,7 @@ function N = local_null(Med, Vex, Nrp, Dofs, RN2true, DofZ, Nsim)
     In = (Swy.*Swxx - Swx.*Swxy)./D;
     Ch = (Swyy - 2.*In.*Swy - 2.*Sl.*Swxy + In.^2.*Sw + 2.*In.*Sl.*Swx + Sl.^2.*Swxx)./max(Ns-2,1);
     Tr = NaN;  %#ok<NASGU>
-    N  = struct('Nsim',Nsim, 'Slope',Sl, 'Inter',In, 'Chi2',max(Ch,0), 'RN2Scatter',std(Rn), ...
+    N  = struct('Nsim',Nsim, 'Slope',Sl, 'Inter',In, 'Chi2',max(Ch,0), 'RN2Est',Rn, ...
                 'SlopeMean',mean(Sl), 'SlopeMedian',median(Sl), ...
                 'SlopeMAD',1.4826.*median(abs(Sl-median(Sl))));
 end

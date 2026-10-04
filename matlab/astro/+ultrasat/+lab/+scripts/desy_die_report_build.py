@@ -425,27 +425,47 @@ predicted by the fit itself. The three agree, so that anti-correlation is the st
 not a property of the detector. (Robust correlations on a common central window; the plain ones are
 dominated by the tails.)
 """)
-        w(f"""One of those widths needed chasing. Fitting the per-pixel PTC on Var - RN^2 instead of on the
-total variance — removing each pixel's own read noise before the fit, as the ensemble routes of
-section 11 do — raised the dark intercept's width to **1.30 times** its null, and that looked at first
-like real pixel-to-pixel threshold structure. It is not. Binned by read noise, the intercept width
-rises from 3.95 ADU^2 in the lowest decile, where it matches the null exactly, to 7.31 in the highest,
-tracking RN^2/sqrt(2) — the sampling error of the very quantity being subtracted. RN^2_i is itself
-measured from five frames, so it carries about 50 % error with a long tail, and because one value is
-subtracted at every step of the ladder its error lands **entirely in the intercept**. Fitting the
-total variance per pixel, and letting the intercept mean RN^2 + g*T, brings the ratio to
-{float(_gD['Inter']['MADoverNull']):.3f}.
+        _ie = _gD['InterExcess']
+        _dc = _gD['ReadNoiseDecile']
+        _cr = PP.get('Cross', {})
+        _ex = np.sqrt(max(float(_gD['Inter']['MAD'])**2 - float(_gD['Inter']['NullMAD'])**2, 0))
+        _rows = []
+        for _k in (0, 4, 7, 9):
+            _rows.append(f"| {_k+1} | {float(np.atleast_1d(_dc['RN2'])[_k]):.2f} | "
+                         f"{float(np.atleast_1d(_dc['MADexcess'])[_k]):.2f} | "
+                         f"{float(np.atleast_1d(_dc['Predicted'])[_k]):.2f} |")
+        w(f"""One of those widths needed chasing, and the answer is a rule worth carrying. Fitting the
+per-pixel PTC on Var - RN^2 instead of on the total variance — removing each pixel's own read noise
+before the fit, as the ensemble routes of section 11 do — raises the dark intercept's width from
+**{float(_gD['Inter']['MADoverNull']):.3f}** to **{float(_ie['MADoverNull']):.3f}** times its null,
+and that looked at first like real pixel-to-pixel threshold structure.
 
-What survives is small and consistent. The residual excess,
-{np.sqrt(max(float(_gD['Inter']['MAD'])**2 - float(_gD['Inter']['NullMAD'])**2, 0)):.2f} ADU^2 in
-quadrature, corresponds to about 1.5 ADU of threshold variation — and the two threshold maps measured
-by wholly independent routes, the PTC intercept and the dark response, correlate at r = +0.020, which
-implies a shared spread of 1.4 ADU. Two numbers from different directions agreeing at that level is
-the measurement; the 1.30 was an artefact of the subtraction.
+It is not. Binned by the pixel's own read noise, the extra width appears only where the read noise is
+large, and it tracks the sampling error of the very quantity being subtracted:
 
-The lesson generalises: **subtract the read noise in an ensemble fit, never in a per-pixel one.** An
-ensemble subtracts an average and loses nothing; a per-pixel fit subtracts a noisy estimate and puts
-its error straight into the parameter being measured.
+| read-noise decile | median RN^2 [ADU^2] | intercept width on Var - RN^2 | RN^2/sqrt({int(PP['DofZ'])}/2) |
+|---|---|---|---|
+{chr(10).join(_rows)}
+
+In the quietest decile the measured width equals the null; by the noisiest it has nearly doubled.
+RN^2_i is itself a variance measured from {int(PP['DofZ'])+1} frames, so it carries about
+{100*np.sqrt(2/float(PP['DofZ'])):.0f} % error with a long tail, and because **one** value is
+subtracted at **every** step of the ladder its error cannot go anywhere but the intercept. The slope
+is untouched by it — a per-pixel constant cannot tilt a line — which is the signature that identifies
+the cause.
+
+What survives, once the fit uses the total variance, is small and independently confirmed. The
+residual excess is {_ex:.2f} ADU^2 in quadrature, about
+{_ex/float(_gD['GainEnsemble']):.1f} ADU of threshold variation. Separately, the two threshold maps
+measured by routes that share no data beyond the frames — this PTC intercept and the dark response of
+section 4 — correlate at r = {float(_cr.get('Corr', float('nan'))):+.4f} over
+{float(_cr.get('Npix', 0))/1e6:.1f} M pixels, which inverts to a shared spread of
+**{float(_cr.get('SharedSigmaT', float('nan'))):.2f} ADU**. Those two agree; the
+{float(_ie['MADoverNull']):.2f} did not mean anything.
+
+**Subtract the read noise in an ensemble fit, never in a per-pixel one.** An ensemble subtracts an
+average and loses nothing — section 11 does exactly that and is better for it. A per-pixel fit
+subtracts a noisy estimate and puts its error straight into the parameter being measured.
 """)
         fig('fig_pp_params.png', "Per-pixel fit parameters against the identical-pixel null. The null is wide and skewed because a variance from three frames carries two degrees of freedom: a single pixel's gain is good only to tens of per cent and the median of the estimator sits 6 to 14 % below the truth.")
         fig('fig_pp_diff.png', 'Left: goodness of fit per pixel against the null. Right: the dark-minus-bright gain of the same pixel. The measured distribution lies on the null, displaced by the deficit, which is what says every pixel shares it.')
