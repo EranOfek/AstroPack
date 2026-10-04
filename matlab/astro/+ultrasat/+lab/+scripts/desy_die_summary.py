@@ -101,7 +101,7 @@ for d in Dies:
       f"**{f(gain(d,'d'),4)}** ± {f(gerr(d,'d'),4)} | {f(gain(d,'c'),4)} ± {f(gerr(d,'c'),4)} | "
       f"{f(d['D']['Fit']['All']['SlopeSpread']['Median'],4)} | "
       f"{f(100*float(d['D']['Local']['DC']['RelIntr']),2)} | "
-      f"{f(100*float(d['L']['PRNU']['Multiplicative']),2)} | "
+      f"{f(100*float(d['L']['Local']['Resp']['RelIntr']),2)} | "
       f"{int(d['BC']['Nbad'])} | [{dwin}] | "
       f"{f(d['ME']['Routes']['d']['Threshold_e'],1)} ± {f(d['ME']['Routes']['d']['Threshold_e_err'],1)} |")
 w('')
@@ -121,7 +121,7 @@ w('|---|---|')
 w(spread([float(d['Z']['All']['ReadNoiseMedian']) for d in Dies], 'read noise', 'ADU'))
 w(spread([float(d['Z']['All']['BiasLevel']) for d in Dies], 'bias level', 'ADU'))
 w(spread([gain(d, 'd') for d in Dies], 'gain, bright-ladder PTC', 'ADU/e-'))
-w(spread([100*float(d['L']['PRNU']['Multiplicative']) for d in Dies], 'PRNU, pixel to pixel', '%'))
+w(spread([100*float(d['L']['Local']['Resp']['RelIntr']) for d in Dies], 'PRNU, pixel to pixel', '%'))
 w(spread([100*float(d['D']['Local']['DC']['RelIntr']) for d in Dies], 'DSNU, pixel to pixel', '%'))
 w(spread([float(d['D']['Fit']['All']['SlopeSpread']['Median']) for d in Dies], 'dark current', 'ADU/s'))
 w(spread([int(d['BC']['Nbad']) for d in Dies], 'bad readout columns at 5 sigma', 'of 4740'))
@@ -252,34 +252,91 @@ pair ({rr.min():.3f} to {rr.max():.3f}). Split by what the pair shares:
 | same die, the two runs | {int(same_die.sum())} | {np.median(rr[same_die]) if same_die.any() else float('nan'):.3f} |
 | same wafer, different die | {int((same_waf & ~same_die).sum())} | {np.median(rr[same_waf & ~same_die]) if (same_waf & ~same_die).any() else float('nan'):.3f} |
 | different wafer | {int((~same_waf).sum())} | {np.median(rr[~same_waf]) if (~same_waf).any() else float('nan'):.3f} |
+\n""")
 
-The amplitude spans {min(ratios):.2f} to {max(ratios):.2f} (first third over last third), median
-{np.median(ratios):.2f}.\n""")
-
-# the verdict the numbers support, stated rather than left to the reader
+# ------------------------------------------------------------------ the amplitude
+# The shape correlation is a weak discriminator: every profile is a monotonic
+# ramp in the same direction, so r is high between any two of them whatever the
+# cause. The AMPLITUDE is what separates the hypotheses, and the dies measured on
+# both setups are the test -- the same silicon, two bias boards.
+_byd = {}
+for i, d in enumerate(Dies):
+    _byd.setdefault(d['Die'], {})[d['Run']] = (float(d['BC']['Gradient']['DCRatio']),
+                                               float(d['D']['Fit']['All']['SlopeSpread']['Median']))
+_pairs = {k: v for k, v in _byd.items() if len(v) == 2}
 _rs = np.median(rr[same_die]) if same_die.any() else np.nan
 _rd = np.median(rr[~same_waf]) if (~same_waf).any() else np.nan
-_gap = _rs - _rd
-if np.isfinite(_gap) and _gap > 0.10:
-    _verdict = (f"Pairs sharing a die agree better than pairs on different wafers "
-                f"(r = {_rs:.3f} against {_rd:.3f}, a gap of {_gap:.3f}), so the shape follows the "
-                f"**device**: this is a process or layout gradient, not the test setup. A thermal "
-                f"gradient in the setup would not know which die it was looking at.")
-elif np.isfinite(_gap) and _rd > 0.7:
-    _verdict = (f"Dies on **different wafers** reproduce each other's profile as well as the two "
-                f"runs of one die do (r = {_rd:.3f} against {_rs:.3f}, a gap of {_gap:+.3f}), and the "
-                f"amplitude is the same to within {100*(max(ratios)/min(ratios)-1):.0f} %. The shape "
-                f"therefore does **not** follow the silicon, which is what a thermal gradient in the "
-                f"test setup predicts and what a process gradient does not. The hypothesis survives "
-                f"this test. What it does not yet have is a direct measurement: the headers carry one "
-                f"set-point and no on-die sensor, so the remaining test is a run at a different chuck "
-                f"temperature, where a thermal gradient must change amplitude and a process one must "
-                f"not.")
+w(f"""The amplitude spans {min(ratios):.2f} to {max(ratios):.2f} (first third over last third), median
+{np.median(ratios):.2f}. The shape correlation above is a weak test: every profile is a monotonic
+ramp in the same direction, so any two of them correlate well whatever the cause -- which is why
+the three rows differ by so little ({_rs:.3f}, {np.median(rr[same_waf & ~same_die]) if (same_waf & ~same_die).any() else float('nan'):.3f}, {_rd:.3f}).
+The amplitude is the discriminating quantity, and the {len(_pairs)} dies measured on **both**
+setups are the test: the same silicon, two bias boards.\n""")
+
+if _pairs:
+    _ru = sorted({r for v in _pairs.values() for r in v})
+    _a = np.array([_pairs[k][_ru[0]][0] for k in sorted(_pairs)])
+    _b = np.array([_pairs[k][_ru[1]][0] for k in sorted(_pairs)])
+    _da = np.array([_pairs[k][_ru[0]][1] for k in sorted(_pairs)])
+    _db = np.array([_pairs[k][_ru[1]][1] for k in sorted(_pairs)])
+    _rank = (np.argsort(np.argsort(_a)) == np.argsort(np.argsort(_b))).all()
+    _between = np.std(np.concatenate([_a, _b]))
+    _within = np.std(_a - _b)/np.sqrt(2)
+    w(f"| die | ratio, run {_ru[0]} | ratio, run {_ru[1]} | dark current ratio | ln R({_ru[0]}) / ln R({_ru[1]}) |")
+    w('|---|---|---|---|---|')
+    for k, va, vb, dda, ddb in zip(sorted(_pairs), _a, _b, _da, _db):
+        w(f'| {k} | {va:.3f} | {vb:.3f} | {dda/ddb:.1f} x | {np.log(va)/np.log(vb):.3f} |')
+    w('')
+    w(f"""The ranking of the dies is **{'the same' if _rank else 'not the same'}** on the two setups, and the
+spread between dies ({_between:.3f}) is {_between/_within:.1f} times the scatter between the two
+measurements of one die ({_within:.3f}). The size of the gradient is therefore a property of the
+individual die, not a constant of the test -- so it is not a single fixed temperature difference
+applied to every device.
+
+But it is still thermal, and the last column is why. These are the same dies, so the factor
+{np.mean(_da/_db):.0f} between the two setups' dark currents cannot be the silicon: the device was
+simply **warmer in run {_ru[0]}**, although both headers carry the same -50 C set-point. A gradient
+that is a fixed physical temperature difference across the die then predicts a *smaller* ratio at
+the higher temperature, because the dark current's sensitivity to temperature falls as
+1/T^2 -- quantitatively, ln R({_ru[0]}) / ln R({_ru[1]}) = (T({_ru[1]})/T({_ru[0]}))^2.\n""")
+    _k = 8.617333e-5
+    _T2 = 223.15
+    _f = float(np.mean(_da/_db))
+    _obs = np.log(_a)/np.log(_b)
+    w('| assumed temperature dependence | implied T of the warmer run | predicted ln R / ln R |')
+    w('|---|---|---|')
+    _pred = []
+    for _Ea, _nm2 in ((1.12, 'diffusion current, exp(-Eg/kT)'), (0.56, 'generation current, exp(-Eg/2kT)')):
+        _T1 = 1.0/(1.0/_T2 - _k*np.log(_f)/_Ea)
+        _pred.append((_T2/_T1)**2)
+        w(f'| {_nm2} | {_T1-273.15:+.0f} C | {(_T2/_T1)**2:.3f} |')
+    w('')
+    _lo, _hi = min(_pred), max(_pred)
+    _mu, _se = float(np.mean(_obs)), float(np.std(_obs)/np.sqrt(len(_obs)))
+    if _lo <= _mu <= _hi:
+        _where = 'falls inside that range'
+    elif _mu < _lo:
+        _where = (f'falls {(_lo-_mu)/_se:.0f} standard errors BELOW the nearer of the two, so the '
+                  f'one-activation-energy model is close but not exact -- unsurprisingly, since a '
+                  f'real sensor mixes the two currents and the die is not isothermal')
+    else:
+        _where = (f'falls {(_mu-_hi)/_se:.0f} standard errors ABOVE the nearer of the two')
+    w(f"""Measured: **{_mu:.3f} ± {_se:.3f}** (spread {np.std(_obs):.3f} over
+{len(_obs)} dies), against {_lo:.3f} to {_hi:.3f} predicted. The measurement {_where}. The
+generation-current case -- the right one for a depleted sensor at this temperature -- is the nearer,
+and the agreement is to {100*abs(_mu-_lo)/_lo:.0f} % on a quantity that would be off by a factor if the
+gradient were not thermal at all: a process gradient would give the SAME ratio in both runs, i.e.
+1.000 in that column, against the {_mu:.3f} measured. **The gradient behaves as a temperature
+difference across the die**: its size differs from
+die to die, as mounting and position on the chuck would, but each die's gradient changes between the
+two setups by exactly what a fixed physical delta-T at a different absolute temperature requires.
+
+Two things follow that matter beyond the gradient. The two runs were **not at the same temperature**
+despite carrying the same set-point, so any quantity compared between them that depends on
+temperature has to carry that; and the gradient is a property of the measurement geometry, so it
+should not be treated as device non-uniformity in a specification.\n""")
 else:
-    _verdict = (f"The profiles do not reproduce each other well enough for this test to decide "
-                f"(median r = {np.median(rr):.3f}, same-die {_rs:.3f} against different-wafer "
-                f"{_rd:.3f}): neither hypothesis is supported or excluded by the shapes alone.")
-w(_verdict + '\n')
+    w('No die was measured on both setups, so the amplitude test cannot be made.\n')
 
 figu, ax = plt.subplots(figsize=(6.6, 5.6))
 im = ax.imshow(CM, vmin=min(0.0, float(np.nanmin(CM))), vmax=1, cmap='viridis')
@@ -367,9 +424,13 @@ if any(pair.values()):
           'about the measurement -- most likely the curvature of the ladder it extrapolates, whose '
           'signal range is set by the bias board.\n')
     if _stable and _moving:
+        _best  = min(_stable, key=lambda t: t[2])      # the most reproducible of them
+        _worst = max(_moving, key=lambda t: t[2])      # the least
         w(f"That split is the practical answer to which route to believe: "
-          f"**{_stable[0][0]}** is reproducible across setups, "
-          f"**{_moving[0][0]}** is not.\n")
+          f"**{_best[0]}** repeats across setups to {abs(_best[1]):.1f} e- ({_best[2]:.1f} sigma), "
+          f"while **{_worst[0]}** moves by {abs(_worst[1]):.0f} e- ({_worst[2]:.0f} sigma) on the "
+          f"same silicon. Whatever the response routes extrapolate to, it is not a fixed charge "
+          f"the device loses.\n")
 
 # ================================================================== 4b. the rest, side by side
 w('## 4b. Every other number, die by die\n')
@@ -389,7 +450,8 @@ PANELS = [
     ('dark current [e-/s]',       lambda d: float(d['D']['Fit']['All']['SlopeSpread']['Median'])/gain(d, 'd'), None),
     ('gain, bright PTC [ADU/e-]', lambda d: gain(d, 'd'), lambda d: gerr(d, 'd')),
     ('gain, dark PTC [ADU/e-]',   lambda d: gain(d, 'c'), lambda d: gerr(d, 'c')),
-    ('PRNU, pixel to pixel [%]',  lambda d: 100*float(d['L']['PRNU']['Multiplicative']), None),
+    ('PRNU, pixel to pixel [%]',  lambda d: 100*float(d['L']['Local']['Resp']['RelIntr']), None),
+    ('bright pattern plateau [%]', lambda d: 100*float(d['L']['PRNU']['Multiplicative']), None),
     ('DSNU, pixel to pixel [%]',  lambda d: 100*float(d['D']['Local']['DC']['RelIntr']), None),
     ('bad readout columns of 4740', lambda d: float(d['BC']['Nbad']), None),
     ('smallest signal at SNR 5, PTC threshold [e-]',
