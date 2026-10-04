@@ -117,7 +117,24 @@ for Il = 1:1:numel(Lad)
         Sums = ultrasat.lab.PTCAnalysis.accumulateFit(Sums, Yi, Xi, Wi, [-Inf Inf]);
     end
     F = ultrasat.lab.PTCAnalysis.solveFit(Sums);
-    clear Sums Mm Vv
+    clear Sums
+    % Weight sensitivity. Var[y] = 2*Vtot^2/Dof depends on the STEP, not on the
+    % pixel, so the right weight is one scalar per step -- that is what the fit
+    % above uses. An earlier version weighted per pixel by the ensemble model
+    % evaluated at that pixel's own signal, 1/(g*x+c)^2, which is a different
+    % estimator: it lets a pixel's own brightness decide how much each of its
+    % points counts. Refitting that way here costs nothing (the maps are already
+    % in memory) and says how much the choice moves the answer.
+    S2 = [];
+    for Ii = 1:1:numel(Sid)
+        Xi = double(Mm{Ii});
+        Yi = double(Vv{Ii});
+        Wm = Dofs(Ii)./(2.*max(Ge.*Xi + Ce, 1).^2);
+        Wm(~isfinite(Xi) | ~isfinite(Yi)) = 0;
+        S2 = ultrasat.lab.PTCAnalysis.accumulateFit(S2, Yi, Xi, Wm, [-Inf Inf]);
+    end
+    F2 = ultrasat.lab.PTCAnalysis.solveFit(S2);
+    clear S2 Mm Vv
     writeBin(fullfile(DieOut, ['gain' Ty '.bin']),  F.Slope);
     writeBin(fullfile(DieOut, ['inter' Ty '.bin']), F.Intercept);
     Keep.(Ty) = struct('Slope',single(F.Slope), 'Inter',single(F.Intercept));
@@ -197,6 +214,13 @@ for Il = 1:1:numel(Lad)
         Dc.Predicted(Id) = Dc.RN2(Id).*sqrt(2./DofZ);   % sampling error of RN^2 itself
     end
     Q.ReadNoiseDecile = Dc;
+    Sv2 = double(F2.Slope(Use));
+    Sv2 = sort(Sv2(isfinite(Sv2)));
+    Nt2 = max(round(0.001.*numel(Sv2)), 1);
+    Q.ModelWeighted = struct('Mean',mean(Sv2), 'TrimMean',mean(Sv2(Nt2+1:end-Nt2)), ...
+                             'Median',median(Sv2), ...
+                             'MAD',1.4826.*median(abs(Sv2-median(Sv2))));
+    clear F2
     Q.Cov.RatioRobust = Q.Cov.MeasuredRobust./Q.Cov.NullRobust;
     Out.(Ty) = Q;
     clear F
@@ -268,6 +292,13 @@ end
 fprintf(['  the plain mean is tail-sensitive: the per-pixel estimator is heavy-tailed and even the\n', ...
     '  null''s own mean misses its truth by 3 %%, so the trimmed mean is the one to compare with\n', ...
     '  the ensemble value.\n']);
+fprintf('\nweight sensitivity (per-step scalar, as used, against the per-pixel model 1/(g*x+c)^2):\n');
+for Ty = {'D','B'}
+    Q = Out.(Ty{1});
+    fprintf('  %-7s mean %7.4f -> %7.4f   trimmed %7.4f -> %7.4f   median %7.4f -> %7.4f\n', ...
+        Q.Name, Q.Slope.Mean, Q.ModelWeighted.Mean, Q.Slope.TrimMean, Q.ModelWeighted.TrimMean, ...
+        Q.Slope.Median, Q.ModelWeighted.Median);
+end
 fprintf('\nintercept (RN^2 + g*T, the per-pixel fit is on the total variance): dark %.2f, bright %.2f ADU^2\n', ...
     Out.D.Inter.Mean, Out.B.Inter.Mean);
 fprintf('  width / null: %.3f (dark) and %.3f (bright). Fitting Var - RN^2 instead would give\n', ...

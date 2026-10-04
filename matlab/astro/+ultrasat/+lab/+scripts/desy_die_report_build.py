@@ -463,6 +463,28 @@ section 4 — correlate at r = {float(_cr.get('Corr', float('nan'))):+.4f} over
 **{float(_cr.get('SharedSigmaT', float('nan'))):.2f} ADU**. Those two agree; the
 {float(_ie['MADoverNull']):.2f} did not mean anything.
 
+**A second methodological point, about the weights.** The variance of a ladder point is
+Var[y] = 2*Vtot^2/Dof, which depends on the **step** and not on the pixel, so the right weight is one
+scalar per step — which is what the fits above use. An earlier version instead weighted each point by
+the ensemble model evaluated at that pixel's own signal, 1/(g*x+c)^2, which is a different estimator:
+it lets a pixel's own brightness decide how much each of its points counts. Refitting that way costs
+nothing once the maps are loaded, so the stage measures the difference:
+
+| ladder | trimmed mean gain, per-step weights | with per-pixel model weights | change |
+|---|---|---|---|
+| dark | {float(_gD['Slope']['TrimMean']):.4f} | {float(_gD['ModelWeighted']['TrimMean']):.4f} | **{100*(float(_gD['ModelWeighted']['TrimMean'])/float(_gD['Slope']['TrimMean'])-1):+.1f} %** |
+| bright | {float(_gB['Slope']['TrimMean']):.4f} | {float(_gB['ModelWeighted']['TrimMean']):.4f} | {100*(float(_gB['ModelWeighted']['TrimMean'])/float(_gB['Slope']['TrimMean'])-1):+.2f} % |
+
+The asymmetry is the physics of the two ladders. The bright signal is uniform to about a per cent, so
+a weight built from each pixel's own signal is nearly the same for every pixel and agrees with a
+per-step scalar. The dark signal is not: the dark current varies about
+{100*float(D['Fit']['All']['SlopeSpread']['RelIntr']):.0f} % across the die, so the per-pixel weight
+varies with it and the two estimators part company. The per-pixel **dark** gain therefore carries a
+weighting systematic of several per cent — larger than its own departure from the null — while the
+ensemble routes of section 11 are free of it, since they weight per step by construction. It is one
+more reason to read the per-pixel fits for their *distributions*, which is what they are for, and to
+take the gain itself from the ensemble.
+
 **Subtract the read noise in an ensemble fit, never in a per-pixel one.** An ensemble subtracts an
 average and loses nothing — section 11 does exactly that and is better for it. A per-pixel fit
 subtracts a noisy estimate and puts its error straight into the parameter being measured.
