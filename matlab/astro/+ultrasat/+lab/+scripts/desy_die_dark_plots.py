@@ -199,11 +199,20 @@ lim = np.nanpercentile(np.abs(res), 99)
 ax.set_xlim(-lim, lim);  ax.set_ylim(-lim, lim)
 ax.set_xlabel('detrended dark current of the first column [ADU/s]')
 ax.set_ylabel('of the second column [ADU/s]')
-ax.set_title(f'Pairing test, trend removed: read noise gave +0.991 / -0.013', fontsize=10)
+_rnp = os.path.join(OUT, 'rnplots.json')
+if os.path.isfile(_rnp):
+    with open(_rnp) as fh:
+        _rn = json.load(fh)
+    _ttl = f"Pairing test, trend removed: read noise gave {_rn['PairR']:+.3f} / {_rn['CrossR']:+.3f}"
+else:
+    _ttl = 'Pairing test, trend removed'
+ax.set_title(_ttl, fontsize=10)
 ax.grid(alpha=0.25)
 ax.legend(fontsize=8.5)
 fig.suptitle(f'Dark current per readout column, {TAG}', fontsize=11)
 savefig(fig, 'fig_dark_column_profile.png')
+with open(os.path.join(OUT, 'darkplots.json'), 'w') as fh:
+    json.dump({'PairR': float(rp), 'CrossR': float(rc2)}, fh)
 
 # ------------------------------------------------------------------ 5. per-step fixed pattern
 fig, axs = plt.subplots(1, 2, figsize=(13.0, 5.0))

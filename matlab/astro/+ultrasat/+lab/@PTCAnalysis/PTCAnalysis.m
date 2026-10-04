@@ -855,6 +855,43 @@ classdef PTCAnalysis < Component
         Result = unitTest()   % implemented in @PTCAnalysis/unitTest.m
     end
 
+    methods % step-level data access
+        % Public because the whole-die chain scripts need one ladder step at a
+        % time without building a cached ladder: desy_die_darkwindow holds the
+        % mean maps of the dark ladder in memory and solves the whole grid of
+        % candidate fit windows from them, so the scan costs one pass over the
+        % frames instead of one pass per window.
+        function [M, V, Nf] = stepMaps(Obj, Type, Step)
+            % Bias-subtracted mean and per-pixel temporal variance of one step:
+            % from the cached frames in region mode, streamed in full mode.
+            Cube = Obj.loadFrames(Type, Step) - Obj.Zero;
+            Nf   = size(Cube, 3);
+            M    = Obj.combine(Cube);
+            V    = var(Cube, 0, 3);
+        end
+        function L = stepInventory(Obj, Type)
+            % Step numbers, X values and repeat counts of one ladder from the
+            % frame inventory alone, with no pixels read. This is what lets the
+            % streamed per-pixel methods run without combineSteps, which would
+            % otherwise read both ladders of the whole die just to get the
+            % step list.
+            Flag  = strcmp(Obj.Frames.FrameType, Type);
+            Steps = unique(Obj.Frames.Step(Flag)).';
+            Ns    = numel(Steps);
+            L = struct('Type',Type, 'Step',Steps, 'X',nan(1,Ns), 'Nframes',zeros(1,Ns));
+            for Is=1:1:Ns
+                Rows = Flag & Obj.Frames.Step==Steps(Is);
+                Row  = find(Rows, 1);
+                if strcmp(Type, 'D')
+                    L.X(Is) = Obj.Frames.ExpTime(Row);
+                else
+                    L.X(Is) = Obj.Frames.Intensity(Row).*Obj.IntensityScale;
+                end
+                L.Nframes(Is) = nnz(Rows);
+            end
+        end
+    end
+
     methods (Access = protected) % data access shared by the two modes
         function Cube = loadFrames(Obj, Type, Step)
             % Frames of one type (and step) as a single cube [Ny Nx Nframes];
@@ -899,36 +936,7 @@ classdef PTCAnalysis < Component
             end
         end
 
-        function [M, V, Nf] = stepMaps(Obj, Type, Step)
-            % Bias-subtracted mean and per-pixel temporal variance of one step:
-            % from the cached frames in region mode, streamed in full mode.
-            Cube = Obj.loadFrames(Type, Step) - Obj.Zero;
-            Nf   = size(Cube, 3);
-            M    = Obj.combine(Cube);
-            V    = var(Cube, 0, 3);
-        end
 
-        function L = stepInventory(Obj, Type)
-            % Step numbers, X values and repeat counts of one ladder from the
-            % frame inventory alone, with no pixels read. This is what lets the
-            % streamed per-pixel methods run without combineSteps, which would
-            % otherwise read both ladders of the whole die just to get the
-            % step list.
-            Flag  = strcmp(Obj.Frames.FrameType, Type);
-            Steps = unique(Obj.Frames.Step(Flag)).';
-            Ns    = numel(Steps);
-            L = struct('Type',Type, 'Step',Steps, 'X',nan(1,Ns), 'Nframes',zeros(1,Ns));
-            for Is=1:1:Ns
-                Rows = Flag & Obj.Frames.Step==Steps(Is);
-                Row  = find(Rows, 1);
-                if strcmp(Type, 'D')
-                    L.X(Is) = Obj.Frames.ExpTime(Row);
-                else
-                    L.X(Is) = Obj.Frames.Intensity(Row).*Obj.IntensityScale;
-                end
-                L.Nframes(Is) = nnz(Rows);
-            end
-        end
 
         function L = ladder(Obj, Type)
             % Reduce all steps of one frame type (see combineSteps).

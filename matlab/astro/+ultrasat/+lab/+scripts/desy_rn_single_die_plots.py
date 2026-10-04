@@ -223,6 +223,10 @@ fig.tight_layout()
 fig.savefig(os.path.join(OUT, 'fig_rn_column_pairing.png'), dpi=110)
 plt.close(fig)
 print(f'  column pairing: r(within pair) = {r1:.3f}, r(across pairs) = {r2:.3f}')
+# The report quotes these, so they are written out rather than left in the figure:
+# a number that exists only inside a PNG cannot be checked and cannot follow the die.
+with open(os.path.join(OUT, 'rnplots.json'), 'w') as fh:
+    json.dump({'PairR': float(r1), 'CrossR': float(r2), 'Npair': int(n1)}, fh)
 
 # ------------------------------------------------------------------ 4. bias
 BFIN = np.isfinite(BIAS)

@@ -15,10 +15,21 @@
 %   Output in desy_rn/<tag>/: rn.bin, rn_raw.bin and bias.bin (single,
 %   [Ny Nx], column-major), rawcol.bin (int32, the raw readout-column index of
 %   every image row) and stats.json.
-Run    = '32';
-Folder = 'LOT_TH02954_32_FT_PTCint_-50_2026-08-27';
-Die    = 'W04_D07';
-Gain   = 'high';
+% A driver can select the dataset by defining DieSelect (Run, Folder, Die, Gain)
+% before running this file -- the same struct the desy_die_* stages take through
+% desy_die_config -- so that one batch driver sets the dataset once for the whole
+% chain. Without it the defaults below apply.
+if exist('DieSelect', 'var') && isstruct(DieSelect)
+    Run    = DieSelect.Run;
+    Folder = DieSelect.Folder;
+    Die    = DieSelect.Die;
+    Gain   = DieSelect.Gain;
+else
+    Run    = '32';
+    Folder = 'LOT_TH02954_32_FT_PTCint_-50_2026-08-27';
+    Die    = 'W04_D07';
+    Gain   = 'high';
+end
 Root   = '/Data1/DESY';
 if ~isfolder(Root)
     Root = '/bigdata3/projects/ultrasat/DESY';

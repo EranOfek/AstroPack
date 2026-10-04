@@ -54,7 +54,13 @@ rng(41);
 % tailed than the null for a reason that has nothing to do with the gain.
 RN2sub = RN2(randperm(numel(RN2), Nsim));
 
-Lad = struct('Name',{'Dark','Bright'}, 'Type',{'D','B'}, 'Range',{[-Inf Inf], DieGainRange});
+% The dark ladder is capped at the linearity limit for the same reason the dark
+% response fit is: on the high-dark-current setup its longest exposures reach
+% 3829 ADU, where the INL and the start of the PTC variance dip would bend the
+% per-pixel line this stage fits. On the low-dark-current setup the whole ladder
+% is far below the limit and nothing is dropped.
+Lad = struct('Name',{'Dark','Bright'}, 'Type',{'D','B'}, ...
+             'Range',{[-Inf DieLinLimit], DieGainRange});
 Out = struct();
 Keep = struct();
 for Il = 1:1:numel(Lad)

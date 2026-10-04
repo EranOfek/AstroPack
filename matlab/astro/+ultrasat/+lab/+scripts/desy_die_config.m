@@ -5,36 +5,55 @@
 %   The stages are independent and rerunnable: each writes its own binary
 %   maps and stats.json under DieOut and validates the dumps of the earlier
 %   stages (run, die, gain half and image size) before using them.
-%     stage 1  desy_rn_single_die   bias and read noise from the ZE frames
-%     stage 2  desy_die_dark        per-pixel dark current and dark threshold
-%     stage 3  desy_die_light       per-pixel response, PRNU, light threshold
-%     stage 4  desy_die_badcol      bad readout columns (needs 1 and 3)
-%     stage 5  desy_die_ptc         per-pixel variance vs mean, gain
-%     stage 6  desy_die_budget      sigma_eff and SNR in electrons
+%     stage 1   desy_rn_single_die   bias and read noise from the ZE frames
+%     stage 2a  desy_die_darkwindow  which dark steps are the straight part
+%     stage 2   desy_die_dark        per-pixel dark current and dark threshold
+%     stage 3   desy_die_light       per-pixel response, PRNU, light threshold
+%     stage 4   desy_die_badcol      bad readout columns (needs 1 and 3)
+%     stage 5   desy_die_ptc         per-pixel variance vs mean, gain
+%     stage 6   desy_die_budget      sigma_eff and SNR in electrons
+%     stage 7   desy_die_varspread   spread of the per-pixel variance per step
+%     stage 8   desy_die_lowsignal   is that variance explained, pixel by pixel
+%     stage 9   desy_die_ptc_perpixel  a gain per pixel on each ladder
+%     stage 10  desy_die_methods     four routes to gain and threshold, with errors
 %   The whole die is processed in the STREAMED mode (CCDSEC empty): the
 %   per-pixel methods read one step at a time and keep only the running sums,
 %   so 22.5 M pixels cost ~3 GB instead of the ~20 GB a cached ladder of the
 %   whole die would need.
-DieRun       = '32';
-DieFolder    = 'LOT_TH02954_32_FT_PTCint_-50_2026-08-27';
-Die          = 'W04_D07';
-DieGain      = 'high';                 % 'high' | 'low'
+% A driver can select the dataset by defining DieSelect (Run, Folder, Die, Gain)
+% before running this file; otherwise the defaults below apply. The stage scripts
+% run in the caller's workspace, so nothing else has to change.
+if exist('DieSelect', 'var') && isstruct(DieSelect)
+    DieRun    = DieSelect.Run;
+    DieFolder = DieSelect.Folder;
+    Die       = DieSelect.Die;
+    DieGain   = DieSelect.Gain;
+else
+    DieRun    = '32';
+    DieFolder = 'LOT_TH02954_32_FT_PTCint_-50_2026-08-27';
+    Die       = 'W04_D07';
+    DieGain   = 'high';                % 'high' | 'low'
+end
 DieLot       = 'TH02954';
 % Fit windows. The streamed mode needs an explicit step list ('auto' resolves
-% the steps from the cached region ladder, which full mode does not build);
-% these are the published steps of run 32 -- dark medians 34..151 ADU, bright
-% 120..508 ADU. Run 31 (22x the dark current) uses D [5 6 7] instead.
-% Dark: the three longest exposures only (360, 480, 600 s). The dark ladder is
-% bent at the bottom -- residuals to the published five-step fit are +11.6,
-% +9.9, +7.2 and +3.4 ADU at steps 1-4 -- and the goodness of fit tracks it
-% exactly: chi2/dof divided by its expectation is 1.00, 1.01 and 1.03 for the
-% top three, four and five steps, then 1.12, 1.41 and 1.88 as the lower steps
-% join. Steps 7-9 are the straight part. The price is precision: the per-pixel
-% fit noise on the dark current rises from 0.0179 to 0.0414 ADU/s, and the
-% dark current itself from 0.3151 to 0.3302 ADU/s. Two points would be fewer
-% still, and solveFit rejects them -- it requires at least three, so that a
-% fit always has a degree of freedom left to judge it by.
+% the steps from the cached region ladder, which full mode does not build).
+% Dark: NOT a setting. stage 2a (desy_die_darkwindow) measures it per die and
+% writes darkwindow.json, which this file reads below; the list here is only the
+% fallback for a die whose scan has not been run. The reason it cannot be a
+% setting is that the two bias-board setups put their dark ladders in signal
+% ranges that barely overlap -- at the same nine exposures one reaches 172 ADU
+% and the other 3829 -- so the straight part of the ladder is not the same steps
+% in both, and the ladder bends at BOTH ends: a charge threshold lifts the
+% shortest exposures above the line, and the INL bends the longest ones down.
 DieFitStepsD = [7 8 9];
+DieDarkTol   = 1.10;      % goodness-of-fit tolerance for the automatic dark window
+% Highest step median any fit may use, [ADU]. Above it the measured integral
+% non-linearity exceeds 0.5 % and the PTC starts into the 3-5 kADU variance dip,
+% so a point there is not on the straight line the fits assume. Only the
+% high-dark-current setup reaches it on the dark ladder (3829 ADU at the longest
+% exposure against 172 on the low one), which is why it has to be a limit rather
+% than a step list.
+DieLinLimit  = 2900;
 % Bright: every step whose median signal is below 1000 ADU (120, 248, 507 and
 % 772 ADU). The bright ladder's knee is at the BOTTOM -- steps 1 and 2 sit
 % +15.0 and +9.6 ADU above the line of the published window -- so two of these
@@ -69,8 +88,19 @@ DieNoiseSigma = 5;
 % dip and the INL above 2900 ADU. It does include the bright ladder's
 % low-signal knee, which shifts a PTC intercept but not its slope as long as
 % the knee is additive -- DieGainScan tests that.
-DieGainRange = [100 1000];
-DieGainScan  = {[100 1000], [100 800], [300 1000], [100 1200], [300 2500]};
+% The lower edge is 80, not 100, and the reason is a cross-die one. The window
+% is meant to hold the same four lowest bright steps as the response fit, so
+% that the gain and the response are measured over one signal range. But the
+% level of the lowest bright step is not a constant of the test: it follows each
+% die's response, and across this lot it runs from 93 to 142 ADU (highest on run
+% 31 W04_D05, lowest on run 32 W08_D04). A 100 ADU floor therefore kept step 1
+% on six die-runs and silently dropped it on two, so those two would have been
+% compared with the rest at a different window -- in exactly the quantities, the
+% gain and the shot-noise threshold, that the cross-die comparison is about. At
+% 80 every die-run uses steps 1-4 in both routes. Nothing physical happens at
+% either number: the floor exists only to keep the saturating upper ladder out.
+DieGainRange = [80 1000];
+DieGainScan  = {[80 1000], [80 800], [300 1000], [80 1200], [300 2500]};
 DieRoot      = '/Data1/DESY';
 if ~isfolder(DieRoot)
     DieRoot = '/bigdata3/projects/ultrasat/DESY';
@@ -81,4 +111,23 @@ DieOut    = fullfile('/home/sasha/claude/desy_die', DieTag);
 DieStage1 = fullfile('/home/sasha/claude/desy_rn', DieTag);     % desy_rn_single_die output
 if ~isfolder(DieOut)
     mkdir(DieOut);
+end
+% The dark window is chosen per die by desy_die_darkwindow (goodness of fit),
+% because the two bias-board setups put their dark ladders in signal ranges that
+% do not overlap: at the same exposures run 31 reaches 3500 ADU and run 32 only
+% 172, so one fixed list of steps cannot be right for both. The list above is
+% the fallback when that stage has not been run.
+if isfile(fullfile(DieOut, 'darkwindow.json'))
+    DwJ = jsondecode(fileread(fullfile(DieOut, 'darkwindow.json')));
+    if ~isequal(DwJ.Run, DieRun) || ~isequal(DwJ.Die, Die) || ~isequal(DwJ.GainHalf, DieGain)
+        error('ultrasat:lab:scripts:darkwindow', ...
+              'darkwindow.json in %s is run %s %s %s, not run %s %s %s', ...
+              DieOut, DwJ.Run, DwJ.Die, DwJ.GainHalf, DieRun, Die, DieGain);
+    end
+    if abs(DwJ.Tol - DieDarkTol) > 1e-12
+        error('ultrasat:lab:scripts:darkwindow', ...
+              'darkwindow.json in %s was scanned at tolerance %.4f, not the %.4f now set: rerun desy_die_darkwindow', ...
+              DieOut, DwJ.Tol, DieDarkTol);
+    end
+    DieFitStepsD = DwJ.Chosen(:).';
 end

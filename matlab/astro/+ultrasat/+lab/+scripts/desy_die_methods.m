@@ -45,7 +45,11 @@ Bx   = floor(Siz(2)./Nb);
 fprintf('  %d x %d blocks of %d x %d pixels, %.0f s\n', Nb, Nb, By, Bx, toc(T0));
 
 % ---- per step and per block: mean signal, mean variance, over a common mask
-Lad = struct('Type',{'D','B'}, 'Max',{Inf, 1200});
+% The dark ladder is capped at the linearity limit, not left open: on the
+% high-dark-current setup its longest exposures reach 3829 ADU, above both the
+% INL limit and the start of the PTC variance dip, and a route fitted there is
+% not measuring the same straight line as the rest of the chain.
+Lad = struct('Type',{'D','B'}, 'Max',{DieLinLimit, 1200});
 Dat = struct();
 for Il = 1:1:numel(Lad)
     Ty    = Lad(Il).Type;
@@ -91,11 +95,32 @@ RN2b = mean(Dat.D.RN2Block, 2);
 RN2m = mean(RN2(:), 'omitnan');
 
 % ---- the four routes, each over its nominal window and over alternatives
+% The windows cannot be fixed step numbers: the two bias-board setups put their
+% dark ladders in signal ranges that barely overlap, so step 7 is 94 ADU on one
+% and 2277 on the other. The dark response starts from the window stage 2a chose
+% by goodness of fit and varies it; the dark PTC takes the whole linear part of
+% the ladder and trims it. Both are intersected with the steps actually read, so
+% a window can never reach outside the linear range.
 Win = struct();
-Win.a = {[7 8 9], [6 7 8 9], [5 6 7 8 9], [8 9]};                 % dark response
+AvD   = Dat.D.Step;
+Win.a = local_vary(DieFitStepsD, AvD);
+Win.c = local_trim(AvD);
 Win.b = {[1 2 3 4], [2 3 4], [1 2 3], [3 4 5]};                   % light response
-Win.c = {1:9, 3:9, 5:9, 2:8};                                     % PTC dark
 Win.d = {[1 2 3 4], [2 3 4], [1 2 3 4 5], [1 2 3]};               % PTC light
+% The bright ladder is the same optical setup in every run, so its step numbers
+% are stable -- but not guaranteed, and a step that drifted out of the PTC signal
+% window would silently be fitted by the response route and dropped by the PTC
+% one, which is exactly the "one signal range" property the config claims.
+BmedB = Dat.B.Signal(ismember(Dat.B.Step, DieFitStepsB));
+if numel(BmedB)~=numel(DieFitStepsB) || any(BmedB<DieGainRange(1)) || any(BmedB>DieGainRange(2))
+    error('ultrasat:lab:scripts:brightwindow', ...
+          ['the bright response window [%s] has medians %s ADU, which do not all lie inside the ' ...
+           'PTC window %g-%g ADU: the two routes would no longer share a signal range'], ...
+          strtrim(sprintf('%d ', DieFitStepsB)), strtrim(sprintf('%.0f ', BmedB)), ...
+          DieGainRange(1), DieGainRange(2));
+end
+fprintf('  dark windows: nominal [%s], %d variants; dark PTC over %d linear steps (<= %g ADU)\n', ...
+    strtrim(sprintf('%d ', Win.a{1})), numel(Win.a)-1, numel(AvD), DieLinLimit);
 
 R = struct();
 R.a = local_route('a', 'dark response',  Dat.D, Win.a, [], RN2b, RN2m, P.ExpSen);
@@ -171,6 +196,43 @@ fprintf('1/Var^2, as stage 9 does, gives g = %.4f (dark) and %.4f (bright) inste
 fprintf('\nthe systematic is the fit window and it dominates everywhere; the statistical error is\n');
 fprintf('the scatter between %d independent blocks of the die, which already includes its structure.\n', Nb.^2);
 fprintf('[%4.0f s] METHODS DONE -> %s\n', toc(T0), DieOut);
+
+function W = local_vary(Sd, Avail)
+    % The nominal dark-response window and the defensible variations of it: drop
+    % the lowest step, drop the highest, add the next lower one. Each is kept
+    % only if it still has three steps -- two leave no degree of freedom to
+    % judge a fit by -- and lies inside the steps that were read.
+    Sd = sort(Sd(ismember(Sd, Avail)));
+    if numel(Sd)<3
+        error('ultrasat:lab:scripts:window', ...
+              'the chosen dark window has only %d of its steps inside the linear range', numel(Sd));
+    end
+    C = {Sd, Sd(2:end), Sd(1:end-1), unique([Sd(1)-1, Sd])};
+    W = local_keep(C, Avail);
+end
+
+function W = local_trim(Avail)
+    % The whole linear dark ladder and shorter versions of it, which is what the
+    % fixed {1:9, 3:9, 5:9, 2:8} did for a nine-step ladder.
+    Avail = sort(Avail);
+    N = numel(Avail);
+    C = {Avail, Avail(min(3, max(N-2,1)):end), Avail(min(5, max(N-2,1)):end), Avail(2:max(N-1,3))};
+    W = local_keep(C, Avail);
+end
+
+function W = local_keep(C, Avail)
+    % drop the candidates that fall outside the ladder, are too short, or repeat
+    W = {};
+    for I = 1:1:numel(C)
+        V = sort(C{I}(ismember(C{I}, Avail)));
+        if numel(V)>=3 && (isempty(W) || ~any(cellfun(@(U) isequal(U, V), W)))
+            W{end+1} = V;                                                  %#ok<AGROW>
+        end
+    end
+    if isempty(W)
+        error('ultrasat:lab:scripts:window', 'no window of 3 steps inside the linear range');
+    end
+end
 
 function B = local_blocks(A, Keep, Nb, By, Bx)
     % mean of A over the kept pixels of each block, as a column of Nb^2 values

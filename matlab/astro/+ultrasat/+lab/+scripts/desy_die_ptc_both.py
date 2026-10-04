@@ -154,3 +154,22 @@ if xd.size and xb.size:
     print(f'at the top of the dark ladder ({hi:.0f} ADU) the dark variance is '
           f'{100*(r-1):+.1f} % against the bright-ladder line '
           f'({100*(r0-1):+.1f} % with the earlier mixed median/mean pair)')
+    # The deficit of the whole dark ladder against the bright line, which the
+    # report quotes as the ensemble measurement of the dark deficit. Only the
+    # steps inside the PTC fit window count: outside it the bright line itself
+    # is an extrapolation, so a ratio there would not be a comparison of the
+    # two ladders but of one ladder with an extrapolation.
+    inw = (xd >= WIN[0]) & (xd <= WIN[1])
+    if not np.any(inw):
+        inw = xd > 1
+    rat = yd[inw]/(G*xd[inw] + C)
+    with open(os.path.join(OUT, 'ptc_both.json'), 'w') as fh:
+        json.dump({'Gain': G, 'Intercept': C, 'Window': WIN,
+                   'DarkSteps': [int(v) for v in nd[inw]],
+                   'DarkSignal': [float(v) for v in xd[inw]],
+                   'DarkRatio': [float(v) for v in rat],
+                   'DarkDeficit': float(1 - np.mean(rat)),
+                   'DarkDeficitTop': float(1 - r),
+                   'TopSignal': float(hi)}, fh)
+    print(f'dark-ladder deficit against the bright line, inside the window: '
+          f'{100*(1-np.mean(rat)):+.1f} %')
