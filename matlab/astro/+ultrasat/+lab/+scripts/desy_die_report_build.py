@@ -104,12 +104,22 @@ rows = [
 ]
 w('| quantity | value | how it was measured |\n|---|---|---|\n'
   + '\n'.join(f'| {a} | {b} | {c} |' for a, b, c in rows) + '\n')
-w(f'The one number this report cannot give as a single value is the **charge threshold**. '
-  f'Three independent routes give {f3(float(PT["Thresholds"]["PTC_e"]),1)}, '
-  f'{f3(float(PT["Thresholds"]["Dark_e"]),1)} and {f3(float(PT["Thresholds"]["Light_e"]),1)} e-, '
-  f'which moves the smallest measurable signal from {f3(min(QLIM),0)} to '
-  f'{f3(max(QLIM),0)} e-. Section 11 says which one I would use and why, '
-  'and what would settle it.\n')
+if ME is not None:
+    _T4 = sorted(float(ME['Routes'][k]['Threshold_e']) for k in 'abcd')
+    w(f'The one number this report cannot give as a single value is the **charge threshold**. '
+      f'Four independent routes give {", ".join(f"{v:.1f}" for v in _T4[:-1])} and {_T4[-1]:.1f} e-, '
+      f'and they are mutually inconsistent beyond their errors; section 11 sets them out with those '
+      f'errors, says which one I would use and what would settle it. The noise budget of section 10 '
+      f'was computed earlier from three of the four and puts the smallest measurable signal between '
+      f'{f3(min(QLIM),0)} and {f3(max(QLIM),0)} e-; a fourth route only widens that range, which is '
+      f'why nothing in it needs redoing.\n')
+else:
+    w(f'The one number this report cannot give as a single value is the **charge threshold**. '
+      f'Three independent routes give {f3(float(PT["Thresholds"]["PTC_e"]),1)}, '
+      f'{f3(float(PT["Thresholds"]["Dark_e"]),1)} and {f3(float(PT["Thresholds"]["Light_e"]),1)} e-, '
+      f'which moves the smallest measurable signal from {f3(min(QLIM),0)} to '
+      f'{f3(max(QLIM),0)} e-. Section 11 says which one I would use and why, '
+      'and what would settle it.\n')
 
 # ================================================================= method
 w('## 1. What was done\n')
