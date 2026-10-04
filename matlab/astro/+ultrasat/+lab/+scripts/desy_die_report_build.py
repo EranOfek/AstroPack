@@ -363,7 +363,43 @@ pixel-to-pixel width. **The dark ladder is not.** Its variance runs
 the uniformity, that is wrong: dark charge produces **less shot noise than photo-charge of the same
 measured size**.
 """)
-    fig('fig_ptc_both.png', 'Both ladders on one photon transfer curve. Shot noise should not know where the electrons came from, so if dark charge and photo-charge were the same thing the two ladders would lie on one line. The bright points do; the dark points run below, and the bias point shows how much of the fitted intercept is read noise and how much is the threshold term.')
+    # the same comparison made against the fitted PTC line, with both corrections
+    _G, _C = float(PT['GainEnsemble']), float(PT['OffsetEnsemble'])
+    _vd = [e for e in steps_of(VS) if e['Type'] == 'D'] if VS is not None else []
+    _vbr = ([float(e['Unmasked']['RelIntr']) for e in steps_of(VS)
+             if e['Type'] == 'B' and float(e['Signal']) < 1000] if VS is not None else [0.0])
+    _rr = _rr0 = float('nan')
+    if _vd:
+        _e  = max(_vd, key=lambda e: float(e['Signal']))
+        _s  = float(_e['Unmasked']['RelIntr'])
+        _y0 = float(_e['SigmaNull'])**2
+        _rr0 = _y0/(_G*float(_e['Signal']) + _C)
+        _rr  = _rr0*np.sqrt(1 + _s**2)
+    fig('fig_ptc_both.png', f"Both ladders on one photon transfer curve, log-log. Shot noise should not "
+        f"know where the electrons came from, so if dark charge and photo-charge were the same thing the "
+        f"two ladders would lie on one line. The bright points do; the dark points run below, by "
+        f"{100*(1-_rr):.1f} % at the top of the dark ladder. The open symbols in the right panel are the "
+        f"same points without the median-to-mean correction described below, where the gap reads "
+        f"{100*(1-_rr0):.1f} %. The bias point shows how much of the fitted intercept is read noise and "
+        f"how much is the threshold term.")
+    if _vd:
+            w(f"""One correction has to be made before those two ladders can be compared at all, and it is worth
+stating because leaving it out doubles the effect. The plotted variance is a **median** over pixels,
+because a plain mean is destroyed by cosmic rays, multiplied by the chi2 median-to-mean factor. That
+factor is exact only if every pixel has the same true variance. It does not: section 8 measured a
+{100*float(_vd[-1]['Unmasked']['RelIntr']):.0f} % pixel-to-pixel spread on the dark ladder against under
+{100*max(_vbr):.0f} % on the bright one, so the corrected median
+estimates the median rather than the mean, low by sqrt(1+s^2) — and by different amounts on the two
+ladders. With the correction the gap at the top of the dark ladder is {100*(1-_rr):.1f} %; without it,
+{100*(1-_rr0):.1f} %.
+
+That leaves two independent measurements of the same deficit that do not agree in size: this one, a
+comparison of ladder medians against the fitted line, and the per-pixel prediction above, which gives
+{abs(100*float(_ld[-1]['ResidRel'])):.1f} % using trimmed means and each pixel's own read noise. The sign is
+robust — the dark ladder is below in every treatment — but the magnitude is estimator-dependent by a
+factor of three, and until that is understood the deficit is an observation rather than a measured
+quantity.
+    """)
     w("""The simplest reading is that part of the dark signal reaches the pixel without full shot noise -- an
 additive offset rather than collected charge -- which would also explain the negative response
 intercepts without any charge being lost. That is a hypothesis from one die, not a measurement. The
