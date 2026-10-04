@@ -980,6 +980,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD] = pipelineI(RawImageLi
             % catalogues match the ones actually written for this visit.
             AllSI = imProc.cat.fillEmptyCatColumns(AllSI);
 
+            % Add PSTATUS Header keyword re problems in processings
+            [AllSI, Coadd] = imProc.quality.updateProcStatus(AllSI, Coadd, MS, PC); % about 0.3s
             % Finish
             %ProcessingStep = 1000;
         catch ME
