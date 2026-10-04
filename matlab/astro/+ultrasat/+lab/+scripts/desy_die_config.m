@@ -24,8 +24,24 @@ DieLot       = 'TH02954';
 % the steps from the cached region ladder, which full mode does not build);
 % these are the published steps of run 32 -- dark medians 34..151 ADU, bright
 % 120..508 ADU. Run 31 (22x the dark current) uses D [5 6 7] instead.
-DieFitStepsD = [5 6 7 8 9];
-DieFitStepsB = [5 6 7];
+% Dark: the three longest exposures only (360, 480, 600 s). The dark ladder is
+% bent at the bottom -- residuals to the published five-step fit are +11.6,
+% +9.9, +7.2 and +3.4 ADU at steps 1-4 -- and the goodness of fit tracks it
+% exactly: chi2/dof divided by its expectation is 1.00, 1.01 and 1.03 for the
+% top three, four and five steps, then 1.12, 1.41 and 1.88 as the lower steps
+% join. Steps 7-9 are the straight part. The price is precision: the per-pixel
+% fit noise on the dark current rises from 0.0179 to 0.0414 ADU/s, and the
+% dark current itself from 0.3151 to 0.3302 ADU/s. Two points would be fewer
+% still, and solveFit rejects them -- it requires at least three, so that a
+% fit always has a degree of freedom left to judge it by.
+DieFitStepsD = [7 8 9];
+% Bright: every step whose median signal is below 1000 ADU (120, 248, 507 and
+% 772 ADU). The bright ladder's knee is at the BOTTOM -- steps 1 and 2 sit
+% +15.0 and +9.6 ADU above the line of the published window -- so two of these
+% four points are inside it, and this window's intercept, and with it the
+% light-route threshold, is not the same quantity the published window
+% measures. The slope is barely affected; the intercept is.
+DieFitStepsB = [1 2 3 4];
 DieGainADU   = [];                     % [ADU/e-] for the electron columns; [] = report ADU only
 % Which threshold the budget uses. Measured on run 32 W04_D07 (whole die):
 % the DARK method moves from 8.9 to 25.0 ADU as the fit window is raised from
@@ -48,14 +64,13 @@ DieBlock     = 32;                     % block side of the pixel-to-pixel (local
 DieNoiseSigma = 5;
 % Signal window of the per-pixel PTC fit (stage 5), [ADU] of the measured
 % bright signal. Steps are selected by the ENSEMBLE median, not per pixel: the
-% top edge sits only 2.6 % above step 5 (1170 ADU), so a per-pixel test would
-% include or drop that step according to the pixel's own response and build a
-% selection effect into the gain. The window stays below the 3-5 kADU variance
+% window now covers the same four steps as the bright response fit, so the
+% gain and the response are measured over one signal range. The window stays below the 3-5 kADU variance
 % dip and the INL above 2900 ADU. It does include the bright ladder's
 % low-signal knee, which shifts a PTC intercept but not its slope as long as
 % the knee is additive -- DieGainScan tests that.
-DieGainRange = [100 1200];
-DieGainScan  = {[100 1200], [100 800], [300 1200], [300 2500], [100 2900]};
+DieGainRange = [100 1000];
+DieGainScan  = {[100 1000], [100 800], [300 1000], [100 1200], [300 2500]};
 DieRoot      = '/Data1/DESY';
 if ~isfolder(DieRoot)
     DieRoot = '/bigdata3/projects/ultrasat/DESY';

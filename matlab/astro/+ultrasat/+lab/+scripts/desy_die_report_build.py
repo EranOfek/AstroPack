@@ -24,6 +24,25 @@ L  = load('light.json')
 BC = load('badcol.json')
 PT = load('ptc.json')
 BU = load('budget.json')
+VS = load('varspread.json') if os.path.isfile(os.path.join(OUT, 'varspread.json')) else None
+LS = load('lowsignal.json') if os.path.isfile(os.path.join(OUT, 'lowsignal.json')) else None
+
+def steps_of(S):
+    st = S['Steps']
+    return [st] if isinstance(st, dict) else st
+
+def resid(S):
+    '''per-step residual of the median signal to that ladder's own fit'''
+    x  = np.atleast_1d(np.array(S['PatternX'], dtype=float))
+    m  = np.atleast_1d(np.array(S['Pattern']['All']['Median'], dtype=float))
+    n  = np.atleast_1d(np.array(S['PatternStep'], dtype=int))
+    a  = float(S['Fit']['All']['SlopeSpread']['Median'])
+    b  = float(S['Fit']['All']['InterceptSpread']['Median'])
+    fs = set(np.atleast_1d(np.array(S['FitSteps'], dtype=int)).tolist())
+    return n, x, m, m - (a*x + b), fs
+
+def chi2ratio(S):
+    return float(S['Fit']['All']['MedianChi2Dof'])/float(S['Chi2DofExpected'])
 
 for f in os.listdir(A.rndir):
     if f.endswith('.png'):
@@ -32,6 +51,7 @@ for f in os.listdir(A.rndir):
 TAG  = f"{PT['Lot']} {PT['Die']}, run {PT['Run']}, {PT['GainHalf']}-gain half"
 NY, NX = [int(v) for v in PT['Size']]
 UM   = BU['Unmasked']
+QLIM = [float(UM[k]['Qlim_cal_5']) for k in ('PTC', 'Dark', 'Light')]
 IN   = UM['Inputs']
 G    = float(IN['GainADU'])
 TT   = float(BU['ExpTime'])
@@ -70,13 +90,13 @@ rows = [
   'same method'),
  ('Offset fixed pattern', f"{f3(float(IN['SigmaTdark_ADU'])/G,2)} e-", 'dark-threshold map, detrended'),
  ('Gain spread between columns', f"{f3(100*float(PT['Column']['RelIntr']),2)} %",
-  'null-calibrated, see section 6'),
+  'null-calibrated, see section 7'),
  ('Gain spread pixel to pixel', 'not detected (&lt; 7 % per pixel)', 'observed spread 1.006 x the null'),
  ('Bad readout columns', f"{int(BC['Nbad'])} of {int(BC['Nrawcol'])} ({100*(1-float(BC['GoodFraction'])):.2f} % of pixels)",
   f"{int(BC['NbadInPairs'])} of them in complete pairs"),
  ('**Charge threshold**', f"**{f3(float(PT['Thresholds']['PTC_e']),1)}** / {f3(float(PT['Thresholds']['Dark_e']),1)} / "
-  f"{f3(float(PT['Thresholds']['Light_e']),1)} e-", '**three routes disagree — section 8**'),
- ('**Limiting signal, SNR 5**', f"**{f3(float(UM['PTC']['Qlim_cal_5']),0)}** to {f3(float(UM['Light']['Qlim_cal_5']),0)} e-",
+  f"{f3(float(PT['Thresholds']['Light_e']),1)} e-", '**three routes disagree — section 11**'),
+ ('**Limiting signal, SNR 5**', f"**{f3(min(QLIM),0)}** to {f3(max(QLIM),0)} e-",
   'calibrated; the range is the threshold'),
 ]
 w('| quantity | value | how it was measured |\n|---|---|---|\n'
@@ -84,8 +104,8 @@ w('| quantity | value | how it was measured |\n|---|---|---|\n'
 w(f'The one number this report cannot give as a single value is the **charge threshold**. '
   f'Three independent routes give {f3(float(PT["Thresholds"]["PTC_e"]),1)}, '
   f'{f3(float(PT["Thresholds"]["Dark_e"]),1)} and {f3(float(PT["Thresholds"]["Light_e"]),1)} e-, '
-  f'which moves the smallest measurable signal from {f3(float(UM["PTC"]["Qlim_cal_5"]),0)} to '
-  f'{f3(float(UM["Light"]["Qlim_cal_5"]),0)} e-. Section 8 says which one I would use and why, '
+  f'which moves the smallest measurable signal from {f3(min(QLIM),0)} to '
+  f'{f3(max(QLIM),0)} e-. Section 11 says which one I would use and why, '
   'and what would settle it.\n')
 
 # ================================================================= method
@@ -108,6 +128,8 @@ squares is expanded from the sums instead of being accumulated in a second pass.
 | 4 bad columns | nothing | 5 s | the column mask |
 | 5 PTC | 24 frames | 59 s | conversion gain, shot-noise threshold |
 | 6 noise budget | nothing | 12 s | sigma_eff, SNR, limiting signal |
+| 7 variance distributions | 134 frames | 248 s | how much the variance differs between pixels |
+| 8 low-signal prediction | 48 frames | 273 s | is that variance explained, pixel by pixel |
 
 Stages 4 and 6 read no frames at all: they consume the maps the earlier stages wrote. Each stage
 validates the dumps it inherits against the dataset it was asked for, so a stale map cannot leak
@@ -117,11 +139,45 @@ Points are weighted by their **measured** variance, never by a model of the sign
 of a ladder point follows the charge actually collected, not the signal recorded, and when a
 threshold removes the first electrons after they have already fluctuated no model of the measured
 signal reproduces that. The weighting is checked model-free at every stage by comparing the median
-chi2 per degree of freedom with its expectation: +3.3 % on the dark ladder, -0.3 % on the bright.
+chi2 per degree of freedom with its expectation: __CHI2__.
 """)
 
 # ================================================================= stage 1
-w('## 2. Bias and read noise\n')
+w('## 2. Both ladders are curved, and that is why the windows are what they are\n')
+_nd, _xd, _md, _rd, _fd = resid(D)
+_nl, _xl, _ml, _rl, _fl = resid(L)
+w(f"""Neither ladder is a straight line, and every threshold in this report is an extrapolation of one
+of them to zero signal, so the curvature decides more than the fit window does.
+
+The **dark ladder** is fitted on steps {sorted(_fd)} ({float(np.atleast_1d(np.array(D['ExpTime'],dtype=float))[0]):.0f}-{float(np.atleast_1d(np.array(D['ExpTime'],dtype=float))[-1]):.0f} s). Residuals of
+every step to that fit, in ADU:
+
+| step | {' | '.join(str(int(n)) for n in _nd)} |
+|---|{'---|'*len(_nd)}
+| exposure [s] | {' | '.join(f'{v:.0f}' for v in _xd)} |
+| median signal [ADU] | {' | '.join(f'{v:.1f}' for v in _md)} |
+| residual [ADU] | {' | '.join(f'{v:+.2f}' + ('*' if int(n) in _fd else '') for n, v in zip(_nd, _rd))} |
+
+The **bright ladder** is fitted on steps {sorted(_fl)} ({float(_ml[0]):.0f}-{float(_ml[max(_fl)-1]):.0f} ADU):
+
+| step | {' | '.join(str(int(n)) for n in _nl[:9])} |
+|---|{'---|'*9}
+| median signal [ADU] | {' | '.join(f'{v:.0f}' for v in _ml[:9])} |
+| residual [ADU] | {' | '.join(f'{v:+.1f}' + ('*' if int(n) in _fl else '') for n, v in zip(_nl[:9], _rl[:9]))} |
+
+(* marks the fitted steps.) Both run the same way: the residuals are positive away from the fitted
+range on the side of **lower** responsivity, which means the response per unit charge **rises with
+signal**. On the bright ladder the local slope goes from about {(_ml[4]-_ml[0])/(_xl[4]-_xl[0]):.0f} ADU per intensity unit
+between steps 1 and 5 to about {(_ml[6]-_ml[4])/(_xl[6]-_xl[4]):.0f} between steps 5 and 7, a rise of
+{100*(((_ml[6]-_ml[4])/(_xl[6]-_xl[4]))/((_ml[4]-_ml[0])/(_xl[4]-_xl[0]))-1):.1f} %. The dark ladder behaves the same way against exposure time.
+
+This is the single fact behind the threshold disagreement in section 11. A convex response has no
+unique intercept: every window extrapolates its own local tangent to zero and gets a different
+answer, and the slope is robust while the intercept is not. The dark current moves 5 % between the
+widest and narrowest windows; the dark threshold moves by a factor three.
+""")
+
+w('## 3. Bias and read noise\n')
 w(f"""Median read noise **{f3(Z['All']['ReadNoiseMedian'],3)} ADU**
 ({f3(float(IN['RN_ADU'])/G,3)} e- at the measured gain), bias level
 {f3(Z['All']['BiasLevel'],2)} ADU, bias fixed pattern {f3(Z['All']['FixedPatternRMS'],2)} ADU, and a
@@ -138,16 +194,16 @@ noisier than even ones. That effect is known, but the whole-die map shows it is 
 effect at all.
 """)
 fig('fig_rn_column_pairing.png', 'Readout columns 2k-1 and 2k share their noise amplitude: the median read noise of a column correlates with its partner at r = 0.991, and with the next column across the pair boundary at r = -0.013. The pixels themselves are independent (within-pair pixel correlation 0.706, across-pair 0.665), so what is shared is the noise amplitude, not the samples.')
-w('The same pairing turns up again in the defects (section 5) and is absent from the dark current '
-  '(section 3) — so whatever is shared sits in the readout chain, not in the pixel.\n')
+w('The same pairing turns up again in the defects (section 6) and is absent from the dark current '
+  '(section 4) — so whatever is shared sits in the readout chain, not in the pixel.\n')
 
 # ================================================================= stage 2
-w('## 3. Dark current\n')
+w('## 4. Dark current\n')
 dloc = D['Local']['DC']
 w(f"""Dark current **{f3(float(IN['DC_ADU']),4)} ADU/s** = {f3(float(IN['DC_ADU'])/G,4)} e-/s,
-from a weighted fit of signal against exposure over the published steps.
+from a weighted fit of signal against exposure over the steps of section 2.
 
-The spread needs care, and this is the first of three places where the obvious answer was wrong.
+The spread needs care, and this is the first of three places in this report where the obvious answer was wrong.
 Over the whole die the dark current spreads **{100*float(D['Fit']['All']['SlopeSpread']['RelIntr']):.1f} %**
 of its median — but the map shows why.
 """)
@@ -158,11 +214,16 @@ quadrature leaves **{100*float(dloc['RelIntr']):.2f} %** — and the DESY 100x10
 measured independently, gives 5.72 %. That agreement is the check that the detrending removes
 structure rather than signal. Every fixed-pattern number in this report is the local one.
 """)
-fig('fig_dark_threshold.png', 'Dark-route threshold, T = -intercept. The observed spread is 7.27 ADU of which 5.96 is fit noise, leaving 4.17 ADU over the die and 2.72 pixel to pixel. Without that deconvolution the die would look 75 % less uniform than it is.')
+_is = D['Fit']['All']['InterceptSpread']
+fig('fig_dark_threshold.png', f"Dark-route threshold, T = -intercept. The observed spread is "
+    f"{float(_is['StdRobust']):.2f} ADU of which {float(_is['StdFitRobust']):.2f} is fit noise, leaving "
+    f"{float(_is['StdIntr']):.2f} ADU over the die and {float(D['Local']['T']['StdIntr']):.2f} pixel to pixel. "
+    f"Without that deconvolution the die would look "
+    f"{100*(1-float(_is['StdIntr'])/float(_is['StdRobust'])):.0f} % less uniform than it is.")
 fig('fig_dark_column_profile.png', 'Dark current per readout column. The profile carries the ramp, so the pairing test is made on the residual to a running median: within a pair r = +0.226, across pairs +0.177 — the same. The pairing of the read noise does not repeat in the leakage current.')
 
 # ================================================================= stage 3
-w('## 4. Response, PRNU and the light-route threshold\n')
+w('## 5. Response, PRNU and the light-route threshold\n')
 lloc = L['Local']
 w(f"""Photo-response {f3(float(L['Fit']['All']['SlopeSpread']['Median']),0)} ADU per intensity unit.
 PRNU is deliberately **not** taken from the spread of that response: the published bright window
@@ -171,14 +232,22 @@ than the pattern being measured — so that spread is almost all fit noise. It i
 from the spatial spread of each step's mean map with the temporal noise removed, over all 34 steps,
 where one step already determines the pattern from 22.5 M pixels.
 """)
-fig('fig_light_prnu.png', 'Per-step bright fixed pattern. The relative pattern plateaus at 1.14 % above ~2000 ADU; the pixel-to-pixel part, after detrending, is 0.41 %, which the DESY region independently gives as 0.46 %.')
+fig('fig_light_prnu.png', f"Per-step bright fixed pattern, measured over all 34 steps and so independent "
+    f"of the response fit window. The relative pattern plateaus at "
+    f"{100*float(L['PRNU']['Multiplicative']):.2f} % at high signal; the pixel-to-pixel part of the fitted "
+    f"response, after detrending, is {100*float(L['Local']['Resp']['RelIntr']):.2f} %.")
 w(f"""The light-route threshold is {f3(float(L['Threshold']['Median']),2)} ADU, and its figure is the
 clearest statement in the whole chain of why these deconvolutions are needed.
 """)
-fig('fig_light_threshold.png', 'The light-route threshold distribution lies exactly on the pure-fit-noise curve: 52.4 ADU observed, 51.4 ADU of fit noise, 9.9 ADU left. The dark route, with its longer lever arm, is the narrow spike beside it. Without the deconvolution one would report 52 ADU of threshold non-uniformity where there is 10.')
+_th = L['Threshold']
+fig('fig_light_threshold.png', f"The light-route threshold distribution sits almost entirely on the "
+    f"pure-fit-noise curve: {float(_th['StdRobust']):.1f} ADU observed, {float(_th['StdFitRobust']):.1f} of "
+    f"fit noise, {float(_th['StdIntr']):.1f} left. The dark route is the narrow spike beside it. Without the "
+    f"deconvolution one would report {float(_th['StdRobust']):.0f} ADU of threshold non-uniformity where "
+    f"there is {float(_th['StdIntr']):.0f}.")
 
 # ================================================================= stage 4
-w('## 5. Bad readout columns\n')
+w('## 6. Bad readout columns\n')
 w(f"""{int(BC['Nbad'])} of {int(BC['Nrawcol'])} readout columns are flagged, {100*(1-float(BC['GoodFraction'])):.2f} %
 of the pixels — and **{int(BC['NbadInPairs'])} of them are complete (2k-1, 2k) pairs**. Only six fail
 on response: columns 1-4, the known blind first columns of the high-gain half, and the dead pair
@@ -194,7 +263,7 @@ without the mask. It makes very little difference: the limiting signal moves by 
 fig('fig_badcol_cut.png', 'Where to cut. The flagged columns are the tail of a continuous distribution, so the 5-sigma line is a convention.')
 
 # ================================================================= stage 5
-w('## 6. Conversion gain, and an estimator that had to be calibrated\n')
+w('## 7. Conversion gain, and an estimator that had to be calibrated\n')
 nul = PT['Null']
 U5  = PT['Unmasked']['All']
 w(f"""Conversion gain **{f3(G,4)} ADU/e-**, with a {100*float(PT['GainSystematic']['Rel']):.1f} %
@@ -229,7 +298,82 @@ real spread is **{100*float(PT['Column']['RelIntr']):.2f} %**, per 32x32 block
 fig('fig_ptc_gain_column.png', 'Gain per readout column. The observed histogram is only slightly wider than the null, and the difference is the 0.47 % real column-to-column variation.')
 
 # ================================================================= stage 6
-w('## 7. The noise budget\n')
+if VS is not None:
+    w('## 8. How much does the variance itself differ between pixels?\n')
+    _vs = steps_of(VS)
+    _ze = [e for e in _vs if e['Type'] == 'ZE']
+    _dk = [e for e in _vs if e['Type'] == 'D']
+    _br = [e for e in _vs if e['Type'] == 'B' and not e.get('Saturated')]
+    def _row(e):
+        U = e['Unmasked']
+        sig = float(U['Sigma'])
+        val = f"{100*float(U['RelIntr']):.0f} %" if sig > 5 else f"< {100*float(U['RelIntrUL95']):.0f} %"
+        return f"| {e['Type']} {e['Step']} | {float(e['Signal']):.0f} | {float(U['Shape']):.3f} | {float(e['Null']['Shape']):.3f} | {val} |"
+    w(f"""Everything above is an average over pixels. This asks the distribution question directly: at each
+step, how widely does the per-pixel variance itself vary, once the estimator's own width is taken out?
+
+The estimator's width is not a detail. A variance from {int(_dk[0]['Nframes'])} frames carries
+{int(_dk[0]['Dof'])} degrees of freedom, so even with perfectly identical pixels its spread is 100 % of
+its mean. The comparison is therefore against a **simulated** null in which every pixel has exactly the
+same true variance, with the frames rounded to integers as the detector rounds them -- a variance built
+from three integers can only take multiples of 1/18, so both distributions are combs, and a continuous
+chi2 null would differ from the data for a reason that has nothing to do with the pixels.
+
+| step | signal [ADU] | measured width | null | spread of the true variance |
+|---|---|---|---|---|
+{chr(10).join(_row(e) for e in (_ze + _dk + _br[:4]))}
+
+The trend is physics, not noise: **the variance inherits the non-uniformity of whatever dominates it.**
+At zero signal that is read noise, which varies enormously from pixel to pixel
+({100*float(_ze[0]['Unmasked']['RelIntr']):.0f} %). Down the dark ladder it becomes dark signal, and settles near
+{100*float(_dk[-1]['Unmasked']['RelIntr']):.0f} % -- close to the {100*float(D['Fit']['All']['SlopeSpread']['RelIntr']):.0f} % by which the dark current itself varies over
+the die. On the bright ladder shot noise takes over and nothing is detected: the only spread expected
+there is the {100*float(L['Local']['Resp']['RelIntr']):.2f} % of the response, far below what this measurement can reach.
+""")
+    fig('fig_varspread_comb.png', 'The quantisation, and the reason the null has to be simulated with integer frames rather than drawn from a continuous chi2: the simulated comb falls on the measured one spike for spike.')
+    fig('fig_varspread_trend.png', 'Left: the pixel-to-pixel spread of the true variance against signal, with arrows where the excess is not significant. Right: the tail above ten times the median -- hot pixels at zero signal, cosmic rays on the long darks, and nothing above the null on the bright steps.')
+
+if LS is not None:
+    w('## 9. Is that variance explained?\n')
+    _ls = steps_of(LS)
+    _lb = [e for e in _ls if e['Type'] == 'B']
+    _ld = [e for e in _ls if e['Type'] == 'D']
+    _lz = [e for e in _ls if e['Circular']]
+    w(f"""Section 8 measured the spread; this asks what it is made of, by predicting **every pixel's** variance
+from quantities measured elsewhere,
+
+  sigma^2_pred,i = RN_i^2 + g*(S_i + T)
+
+with RN_i the read-noise map of stage 1, S_i the pixel's own signal at that step, g the gain of stage 7
+and T the charge threshold. The prediction is never compared with the data directly: it is first
+*measured* the way the data were, sampled through its own chi2 with the frames rounded to integers, so
+both sides go through identical processing. The bias frames are included as a wiring check, where the
+prediction is circular by construction and must come out exact -- it does, to
+{100*float(_lz[0]['ResidRel']):+.2f} %.
+
+| | signal [ADU] | measured | predicted | difference |
+|---|---|---|---|---|
+{chr(10).join(f"| bright step {e['Step']} | {float(e['Signal']):.0f} | {float(e['MeanV']):.1f} | {float(e['MeanPred']):.1f} | **{100*float(e['ResidRel']):+.2f} %** |" for e in _lb)}
+{chr(10).join(f"| dark step {e['Step']} | {float(e['Signal']):.0f} | {float(e['MeanV']):.1f} | {float(e['MeanPred']):.1f} | **{100*float(e['ResidRel']):+.2f} %** |" for e in _ld[-4:])}
+
+**The bright ladder is fully explained** -- to {abs(100*float(_lb[-1]['ResidRel'])):.2f} % at {float(_lb[-1]['Signal']):.0f} ADU -- and so is its
+pixel-to-pixel width. **The dark ladder is not.** Its variance runs
+{abs(100*float(_ld[-1]['ResidRel'])):.1f} % below the prediction at the top of the ladder and
+{abs(100*float(_ld[4]['ResidRel'])):.1f} % below at {float(_ld[4]['Signal']):.0f} ADU, while the widths still match. So it is the level, not
+the uniformity, that is wrong: dark charge produces **less shot noise than photo-charge of the same
+measured size**.
+""")
+    fig('fig_ptc_both.png', 'Both ladders on one photon transfer curve. Shot noise should not know where the electrons came from, so if dark charge and photo-charge were the same thing the two ladders would lie on one line. The bright points do; the dark points run below, and the bias point shows how much of the fitted intercept is read noise and how much is the threshold term.')
+    w("""The simplest reading is that part of the dark signal reaches the pixel without full shot noise -- an
+additive offset rather than collected charge -- which would also explain the negative response
+intercepts without any charge being lost. That is a hypothesis from one die, not a measurement. The
+check that would settle it is run 31, whose dark current is 22 times larger, so its dark ladder reaches
+far higher signal: if the deficit is a property of dark charge it should persist there at the same
+fractional size.
+""")
+    fig('fig_lowsig_level.png', 'Left: the level test above, against signal. Right: the same for the pixel-to-pixel width, which is explained on both ladders -- it is only the level of the dark one that fails.')
+
+w('## 10. The noise budget\n')
 w(f"""In electrons, per pixel, at the {TT:g} s exposure of the bright frames: read noise
 {f3(float(IN['RN_ADU'])/G,3)} e-, dark signal {f3(float(IN['DC_ADU'])*TT/G,2)} e-, offset fixed
 pattern {f3(float(IN['SigmaTdark_ADU'])/G,2)} e-, DSNU {f3(float(IN['SigmaDC_ADU'])*TT/G,2)} e- and
@@ -237,24 +381,15 @@ PRNU {100*float(IN['PRNU']):.2f} %.
 
 Which of them matters depends entirely on where you look:
 
-| Q [e-] | read noise | signal shot | dark shot | offset FPN |
-|---|---|---|---|---|
-| 10 | 18 % | 15 % | 28 % | **39 %** |
-| 30 | 8 % | 63 % | 12 % | 17 % |
-| 100 | 3 % | 88 % | 4 % | 6 % |
-| 300 | 1 % | 95 % | 1 % | 2 % |
+__TERMS__
 
-At the faint end — exactly the regime this test is about — an uncalibrated frame is dominated by
-the **offset fixed pattern and the dark shot noise**, with read noise only 18 % of the variance at
-10 e-. Both are removable: the pattern by calibration, the dark signal by a shorter exposure. Read
-noise only becomes the thing worth improving once they are gone, and PRNU never matters below
-about 1000 e-.
+__TERMSTEXT__
 """)
 fig('fig_budget_terms.png', 'The budget decomposed, uncalibrated, with the shot-noise threshold. Below the threshold there is no signal at all; above it the floor is the offset pattern, the dark shot noise and the read noise, in that order.')
 fig('fig_budget_snr.png', 'Signal to noise against incident charge for the three threshold routes. Solid is calibrated, dashed a single raw frame; the circles mark where each curve reaches SNR 5 and 3.')
 
 # ================================================================= threshold
-w('## 8. The charge threshold: three answers\n')
+w('## 11. The charge threshold: three answers\n')
 TH = PT['Thresholds']
 w(f"""| route | T [e-] | what it assumes | limiting signal, SNR 5 |
 |---|---|---|---|
@@ -262,22 +397,24 @@ w(f"""| route | T [e-] | what it assumes | limiting signal, SNR 5 |
 | dark response (stage 2) | {f3(TH['Dark_e'],1)} | the dark ladder extrapolates linearly to t = 0 | {f3(float(UM['Dark']['Qlim_cal_5']),1)} e- |
 | light response (stage 3) | {f3(TH['Light_e'],1)} | the bright ladder extrapolates linearly to zero intensity | {f3(float(UM['Light']['Qlim_cal_5']),1)} e- |
 
-The two response routes get their threshold by extrapolating a curve to zero signal, which is only
-as good as the curve is straight there — and neither is. The dark ladder is visibly bent at the
-bottom: residuals to its own fit are +11.6, +9.9, +7.2 and +3.4 ADU at the four lowest steps, and
-as a result the dark threshold moves **from 8.9 to 25.0 ADU** depending on which steps are fitted,
-monotonically. The bright ladder is better behaved, and its intercept moves only 25.5 to 29.5 ADU
-across every window inside its linear range, which is why the light route was preferred earlier.
+The two response routes get their threshold by extrapolating a curve to zero signal, and section 2
+showed that neither curve is straight: the responsivity of both ladders rises with signal, so each
+window extrapolates its own local tangent and lands somewhere different. Measured on this die, the
+dark threshold moves from 8.9 ADU fitting all nine steps to 25.0 ADU fitting the top three, and the
+light threshold from 27.8 ADU on the published window to {float(L['Threshold']['Median']):.1f} ADU on the window below 1000 ADU
+used here. Neither motion is noise -- both are monotonic with the window -- and neither route can
+therefore claim its own number.
 
 The shot-noise route extrapolates nothing. The variance measures the charge actually collected,
 Q = (Var - RN^2)/g^2, against the signal recorded, S = g(Q - T), so T follows step by step — and a
 real threshold must then come out the same at every step.
 """)
 fig('fig_ptc_threshold.png', 'The threshold implied by the shot noise, step by step. Flat at 7-10 ADU across the whole fit window, and drifting only above it, where the PTC itself bends and an intercept fitted there would not be a threshold at all.')
-w(f"""**Which I would use.** The shot-noise value, {f3(TH['PTC_e'],1)} e-. It is the only route that
-measures the lost charge instead of extrapolating a response, and its internal consistency check —
-the same answer at every step of the window — is stronger than "the intercept moves less than the
-other one's". On that value the die measures signals down to **{f3(float(UM['PTC']['Qlim_cal_5']),0)} e-**
+w(f"""**Which I would use.** The shot-noise value, {f3(TH['PTC_e'],1)} e-. It is the only route that does
+not extrapolate a curved response at all: it reads the threshold from the shot noise step by step,
+and gets the same answer at every step of the window. Section 9 adds a second argument for it --
+the bright ladder's variance is explained to better than a per cent with this threshold in the
+prediction. On that value the die measures signals down to **{f3(float(UM['PTC']['Qlim_cal_5']),0)} e-**
 at SNR 5 and {f3(float(UM['PTC']['Qlim_cal_3']),0)} e- at SNR 3, calibrated.
 
 **What would confirm it.** Two measurements, neither expensive. First, a run whose bright ladder
@@ -291,7 +428,7 @@ already mirrored locally and the test is one configuration edit and six minutes.
 fig('fig_budget_limit.png', 'The smallest measurable signal under each route. The threshold choice moves it by 21 e-; the gain systematic (error bars) by 0.4 e- and the bad-column mask by 0.2 e-.')
 
 # ================================================================= open
-w('## 9. What this chain does not determine\n')
+w('## 12. What this chain does not determine\n')
 w(f"""**The charge threshold**, as above: a factor four, and the dominant uncertainty on every
 number that matters. Everything else in this report is known to a few per cent.
 
@@ -338,7 +475,38 @@ cached region ladder, which the whole-die mode does not build. The settings in t
 `'auto'` picks for this run from the published window.
 """)
 
-md = '\n'.join(MD)
+# ---------------------------------------------------------------- derived substitutions
+_cd = chi2ratio(D)
+_cl = chi2ratio(L)
+_chi = (f'{100*(_cd-1):+.1f} % on the dark ladder, {100*(_cl-1):+.1f} % on the bright')
+
+_C  = UM['PTC']
+_T  = _C['Terms']
+_qs = [10, 30, 100, 300, 1000]
+_rows = []
+for _q in _qs:
+    _i = int(np.argmin(np.abs(np.array(_C['Q'], dtype=float) - _q)))
+    _v = {k: float(np.atleast_1d(np.array(_T[k], dtype=float)).repeat(len(_C['Q']))[_i])
+          if np.size(_T[k]) == 1 else float(np.array(_T[k], dtype=float)[_i])
+          for k in ('RN', 'Shot', 'DarkShot', 'OffsetFPN', 'DSNU', 'PRNU')}
+    _tot = sum(_v.values())
+    _rows.append((float(np.array(_C['Q'], dtype=float)[_i]), _v, _tot))
+_terms = ('| Q [e-] | read noise | signal shot | dark shot | offset FPN |\n|---|---|---|---|---|\n'
+          + '\n'.join(f"| {_q:.0f} | {100*_v['RN']/_tot:.0f} % | {100*_v['Shot']/_tot:.0f} % | "
+                       f"{100*_v['DarkShot']/_tot:.0f} % | {100*_v['OffsetFPN']/_tot:.0f} % |"
+                       for _q, _v, _tot in _rows))
+_q0, _v0, _t0 = _rows[0]
+_dom = max(('read noise', _v0['RN']), ('signal shot', _v0['Shot']), ('dark shot', _v0['DarkShot']),
+           ('offset fixed pattern', _v0['OffsetFPN']), key=lambda t: t[1])
+_termstext = (f"At the faint end — exactly the regime this test is about — an uncalibrated frame is "
+              f"dominated by the **{_dom[0]} and the dark shot noise**, with read noise only "
+              f"{100*_v0['RN']/_t0:.0f} % of the variance at {_q0:.0f} e-. Both are removable: the pattern by "
+              f"calibration, the dark signal by a shorter exposure. Read noise only becomes the thing "
+              f"worth improving once they are gone, and PRNU never matters below about 1000 e-.")
+
+md = '\n'.join(MD).replace('__CHI2__', _chi).replace('__TERMS__', _terms) \
+                   .replace('__TERMSTEXT__', _termstext) \
+
 with open(os.path.join(OUT, 'report.md'), 'w') as fh:
     fh.write(md)
 
