@@ -51,10 +51,10 @@ for r, ty in enumerate(('D', 'B')):
     hist(axs[r][0], Q['Slope'], COL[ty], Q['Name'], 'fitted slope = gain [ADU/e-]')
     axs[r][0].axvline(float(Q['GainEnsemble']), color='k', ls=':', lw=1.3,
                       label=f"ensemble {float(Q['GainEnsemble']):.4f}")
-    axs[r][0].set_title(f"{Q['Name']} ladder: gain, mean {float(Q['Slope']['Mean']):.4f}, "
-                        f"median {float(Q['Slope']['Median']):.4f}\n"
-                        f"width {float(Q['Slope']['MADoverNull']):.4f} x the null — no pixel-to-pixel "
-                        'variation detected', fontsize=9.5)
+    axs[r][0].set_title(f"{Q['Name']} gain: ensemble {float(Q['GainEnsemble']):.4f}, "
+                        f"trimmed per-pixel {float(Q['Slope']['TrimMean']):.4f}\n"
+                        f"width {float(Q['Slope']['MADoverNull']):.3f} x null — none detected"
+                        f"  (plain mean {float(Q['Slope']['Mean']):.4f}: heavy tail)", fontsize=9)
     axs[r][0].legend(fontsize=8)
     hist(axs[r][1], Q['Inter'], COL[ty], Q['Name'], 'fitted intercept = RN$^2$ + gT [ADU$^2$]')
     axs[r][1].set_title(f"{Q['Name']} ladder: intercept, mean {float(Q['Inter']['Mean']):.2f} ADU$^2$\n"

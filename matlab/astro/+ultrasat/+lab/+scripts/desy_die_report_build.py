@@ -280,6 +280,45 @@ fig('fig_dark_threshold.png', f"Dark-route threshold, T = -intercept. The observ
     f"{float(_is['StdIntr']):.2f} ADU over the die and {float(D['Local']['T']['StdIntr']):.2f} pixel to pixel. "
     f"Without that deconvolution the die would look "
     f"{100*(1-float(_is['StdIntr'])/float(_is['StdRobust'])):.0f} % less uniform than it is.")
+_gr = BC.get('Gradient')
+if _gr:
+    _g3 = lambda k: np.atleast_1d(np.array(_gr[k], dtype=float))
+    w(f"""The most prominent feature of that map is the bright band along one edge, and it is worth saying
+what it is, because it is neither a patch nor an edge. The dark current rises **monotonically along
+the readout-column direction** across the whole die, by a factor
+{float(_gr['DCRatio']):.2f} from one end to the other; the band is simply the hot end of that ramp,
+picked out by the colour scale. Taking the die in thirds of raw column, band 1 being the columns read
+out first:
+
+| | band 1 (first read) | band 2 | band 3 (last read) |
+|---|---|---|---|
+| raw column | {_g3('BandRawCol')[0]:.0f} | {_g3('BandRawCol')[1]:.0f} | {_g3('BandRawCol')[2]:.0f} |
+| dark current [ADU/s] | **{_g3('DC')[0]:.4f}** | {_g3('DC')[1]:.4f} | **{_g3('DC')[2]:.4f}** |
+| bias [ADU] | {_g3('Bias')[0]:.2f} | {_g3('Bias')[1]:.2f} | {_g3('Bias')[2]:.2f} |
+| read noise [ADU] | {_g3('RN')[0]:.3f} | {_g3('RN')[1]:.3f} | {_g3('RN')[2]:.3f} |
+| **photo-response [ADU/int]** | {_g3('Resp')[0]:.0f} | {_g3('Resp')[1]:.0f} | {_g3('Resp')[2]:.0f} |
+| dark threshold [ADU] | {_g3('Tdark')[0]:.2f} | {_g3('Tdark')[1]:.2f} | {_g3('Tdark')[2]:.2f} |
+
+Two things that rules out. **It is not amplifier glow**: glow accumulates during readout, which takes
+the same time whatever the exposure, so it would be a constant offset. The excess here is
+{float(_gr['DCDiff']):.4f} ADU/s of slope against a {float(_gr['TdarkDiff']):+.2f} ADU offset, so it
+grows with exposure — and the two ends in fact cross at t = {float(_gr['CrossTime']):.0f} s, below
+which the first-read columns are the *darker* of the two. **It is not a photodiode defect** either:
+the photo-response across the same bands is flat to
+{100*abs(float(_gr['RespRatio'])-1):.2f} %, so charge collection is normal and it is specifically the
+leakage that is elevated.
+
+What does change alongside the leakage is the operating point — the bias falls
+{abs(float(_gr['BiasDiff'])):.1f} ADU and the read noise is
+{100*(1-float(_gr['RNRatio'])):.0f} % lower at the hot end. A thermal gradient from the readout end
+fits all of it: dark current roughly doubles per 7 to 10 K, so this ratio needs about 5 to 10 K, and
+the output amplifier is where the power is dissipated. The headers carry a single set-point
+(TESTTEMP = CHUCKTMP = -50) and no on-die sensor, so they can neither confirm nor refute a gradient of
+that size. Two tests in data already taken would: the shape should repeat on every die if it is
+thermal, where a process gradient would track position on the wafer, and the amplitude should scale
+between runs at different chuck temperatures.
+""")
+
 fig('fig_dark_column_profile.png', 'Dark current per readout column. The profile carries the ramp, so the pairing test is made on the residual to a running median: within a pair r = +0.226, across pairs +0.177 — the same. The pairing of the read noise does not repeat in the leakage current.')
 
 # ================================================================= stage 3

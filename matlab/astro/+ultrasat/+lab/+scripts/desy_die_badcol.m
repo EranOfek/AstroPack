@@ -26,10 +26,38 @@ Siz = [G.Ny G.Nx];
 RN   = readBin(fullfile(DieStage1, 'rn.bin'),  Siz, 'stage 1 (desy_rn_single_die)');
 DC   = readBin(fullfile(DieOut,    'dc.bin'),  Siz, 'stage 2 (desy_die_dark)');
 RESP = readBin(fullfile(DieOut,    'resp.bin'),Siz, 'stage 3 (desy_die_light)');
+BIAS = readBin(fullfile(DieStage1, 'bias.bin'),Siz, 'stage 1');
+TDRK = readBin(fullfile(DieOut,    'tdark.bin'),Siz, 'stage 2 (desy_die_dark)');
 
 B = P.badColumns('NoiseMap',RN, 'RespMap',RESP, 'NoiseSigma',DieNoiseSigma);
 Red = 3 - G.Dim;
 DcProfile = squeeze(median(double(DC), Red, 'omitnan'));
+BiasProfile  = squeeze(median(double(BIAS), Red, 'omitnan'));
+TdarkProfile = squeeze(median(double(TDRK), Red, 'omitnan'));
+% The dark current is not flat across the die: it rises monotonically along the
+% readout-column direction. Summarise the two ends and the middle so the report
+% can describe it without re-reading the frames. Bands are in RAW COLUMN order,
+% so band 1 is the columns read out first.
+[~, Ord] = sort(G.RawCol);
+Nc3 = floor(numel(Ord)./3);
+Grad = struct('BandRawCol',nan(1,3), 'DC',nan(1,3), 'Bias',nan(1,3), 'RN',nan(1,3), ...
+              'Resp',nan(1,3), 'Tdark',nan(1,3));
+for Ib = 1:1:3
+    Sel = Ord((Ib-1).*Nc3 + (1:Nc3));
+    Grad.BandRawCol(Ib) = median(G.RawCol(Sel));
+    Grad.DC(Ib)    = median(DcProfile(Sel), 'omitnan');
+    Grad.Bias(Ib)  = median(BiasProfile(Sel), 'omitnan');
+    Grad.RN(Ib)    = median(B.NoiseProfile(Sel), 'omitnan');
+    Grad.Resp(Ib)  = median(B.RespProfile(Sel), 'omitnan');
+    Grad.Tdark(Ib) = median(TdarkProfile(Sel), 'omitnan');
+end
+Grad.DCRatio   = Grad.DC(1)./Grad.DC(3);
+Grad.RespRatio = Grad.Resp(1)./Grad.Resp(3);
+Grad.RNRatio   = Grad.RN(1)./Grad.RN(3);
+Grad.BiasDiff  = Grad.Bias(1) - Grad.Bias(3);
+Grad.TdarkDiff = Grad.Tdark(1) - Grad.Tdark(3);
+Grad.DCDiff    = Grad.DC(1) - Grad.DC(3);
+Grad.CrossTime = Grad.TdarkDiff./max(Grad.DCDiff, eps);   % excess(t) = dDC*t - dT
 DcMed     = median(DcProfile(isfinite(DcProfile)));
 DcSig     = 1.4826.*median(abs(DcProfile(isfinite(DcProfile)) - DcMed));
 
@@ -49,6 +77,7 @@ S = struct('Stage',4, 'Tag',DieTag, 'Run',DieRun, 'Die',Die, 'GainHalf',DieGain,
            'NoiseProfile',B.NoiseProfile, 'NoiseMedian',B.NoiseMedian, 'NoiseSigma',B.NoiseSigma, ...
            'RespProfile',B.RespProfile, 'RespMedian',B.RespMedian, 'RespSigma',B.RespSigma, ...
            'DcProfile',DcProfile, 'DcMedian',DcMed, 'DcSigma',DcSig, ...
+           'BiasProfile',BiasProfile, 'TdarkProfile',TdarkProfile, 'Gradient',Grad, ...
            'BadNoise',B.BadNoise, 'BadResp',B.BadResp, 'BadRawCol',B.BadRawCol, ...
            'Nbad',B.Nbad, 'Nrawcol',B.Nrawcol, 'NbadInPairs',Npair, ...
            'NoiseSigmaCut',B.NoiseSigmaCut, 'NoiseFactor',B.NoiseFactor, ...
@@ -105,6 +134,16 @@ Dz = (DcProfile - DcMed)./DcSig;
 [~, Od] = sort(Dz, 'descend');
 fprintf('dark-current outliers (not masked): %s\n', ...
     strjoin(arrayfun(@(I) sprintf('%d:%+.1fs', G.RawCol(I), Dz(I)), Od(1:6).', 'UniformOutput',false), ' '));
+fprintf(['\ngradient along the readout direction (thirds, band 1 = read out first):\n', ...
+    '  raw column   %8.0f %8.0f %8.0f\n', ...
+    '  dark current %8.4f %8.4f %8.4f ADU/s   (first/last %.2f)\n', ...
+    '  bias         %8.2f %8.2f %8.2f ADU      (difference %+.2f)\n', ...
+    '  read noise   %8.3f %8.3f %8.3f ADU      (ratio %.3f)\n', ...
+    '  response     %8.0f %8.0f %8.0f ADU/int  (ratio %.4f)\n', ...
+    '  T_dark       %8.2f %8.2f %8.2f ADU      (difference %+.2f)\n', ...
+    '  the two ends cross at t = %.0f s; below it the first-read columns are the darker\n'], ...
+    Grad.BandRawCol, Grad.DC, Grad.DCRatio, Grad.Bias, Grad.BiasDiff, ...
+    Grad.RN, Grad.RNRatio, Grad.Resp, Grad.RespRatio, Grad.Tdark, Grad.TdarkDiff, Grad.CrossTime);
 fprintf('[%4.0f s] BADCOL DONE -> %s\n', toc(T0), DieOut);
 
 function writeBin(Path, A, Type)
