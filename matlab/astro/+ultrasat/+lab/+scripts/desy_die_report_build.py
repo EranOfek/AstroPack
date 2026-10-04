@@ -208,6 +208,46 @@ most of the width of the observed distribution is the measurement, not real pixe
 variation, which is why every distribution below is drawn against the curve expected if every
 pixel were identical.
 """)
+_bd = Z.get('BiasDist')
+if _bd:
+    _q = np.atleast_1d(np.array(_bd['Quantiles'], dtype=float))
+    w(f"""Four quite different numbers get called the error on that bias level, and they span three orders
+of magnitude, so it is worth separating them once.
+
+| what is being asked | value |
+|---|---|
+| error on **one pixel's** bias, RN/sqrt({int(Z['Nframes'])}) | {float(_bd['ErrOnePixel']):.2f} ADU |
+| spread **across pixels**, sampling noise removed | {float(Z['All']['FixedPatternRMS']):.2f} ADU |
+| error on the **die-level** value | **{float(_bd['ErrDieTotal']):.3f} ADU** |
+| quantisation of a mean of {int(Z['Nframes'])} integers | {float(_bd['Quantisation']):.1f} ADU |
+
+The second is not an error at all but real structure, which is why it is the one that enters a noise
+budget. The third is the one to quote for the device, and its two parts are instructive: the pixel
+statistics contribute only {float(_bd['ErrDieFromPixels']):.5f} ADU, while the frame-to-frame common
+mode contributes {float(_bd['ErrDieFromCommonMode']):.5f} ADU and dominates. With
+{float(Z['Npix'])/1e6:.1f} M pixels the spatial average is free; what limits the bias level is that
+there are only {int(Z['Nframes'])} zero-exposure frames, so more pixels would not help and more
+frames would.
+
+The fourth matters for how the number is written. A mean of {int(Z['Nframes'])} integers can only land
+on multiples of {float(_bd['Quantisation']):.1f} ADU, so the median of {float(_bd['Median']):.2f} is an
+exact grid point and is not meaningful finer than that; the mean, {float(_bd['Mean']):.4f}, averages
+over the grid and is. The distribution itself is far from Gaussian — MAD
+{float(_bd['MAD']):.2f} ADU against a standard deviation of {float(_bd['Std']):.2f}, with percentiles
+1/25/50/75/99 at {_q[0]:.1f} / {_q[1]:.0f} / {_q[2]:.0f} / {_q[3]:.0f} / {_q[4]:.1f} and
+{100*float(_bd['TailFrac5MAD']):.2f} % of pixels beyond five MAD — so the core is about
+{float(_bd['MAD']):.1f} ADU wide and the {float(Z['All']['FixedPatternRMS']):.1f} ADU fixed pattern is
+carried by the tails and the large-scale structure.
+
+This also settles the parity offset. By medians the two parities read
+{float(Z['Even']['BiasLevel']):.2f} and {float(Z['Odd']['BiasLevel']):.2f}, a difference of exactly
+{(float(Z['Odd']['BiasLevel'])-float(Z['Even']['BiasLevel']))*int(Z['Nframes']):.0f} quantisation
+steps, which would be reason for suspicion. By means they read {float(Z['Even']['BiasMean']):.4f} and
+{float(Z['Odd']['BiasMean']):.4f}, a difference of
+{float(Z['Odd']['BiasMean'])-float(Z['Even']['BiasMean']):+.4f} ADU against a standard error of about
+{float(_bd['Std'])/np.sqrt(float(Z['Npix'])/2):.4f} — real, and resolved to well under a per cent.
+""")
+
 fig('fig_rn_distribution.png', 'Read noise over the whole die. The dashed curve is what the same measurement would give if every pixel had the same noise. The parity comparison is made on the cumulative distribution, which is immune to the quantisation of a sigma built from integer frames.')
 w(f"""Odd columns are {100*(float(Z['Odd']['ReadNoiseMedian'])/float(Z['Even']['ReadNoiseMedian'])-1):.1f} %
 noisier than even ones. That effect is known, but the whole-die map shows it is not a parity

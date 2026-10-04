@@ -44,6 +44,30 @@ writeBin(fullfile(OutDir, 'rn_raw.bin'),  Z.Maps.SigmaRaw);
 writeBin(fullfile(OutDir, 'bias.bin'),    Z.Maps.Bias);
 writeBin(fullfile(OutDir, 'rawcol.bin'),  int32(G.RawCol), 'int32');
 
+% Distribution of the bias map, and the four quite different things that get
+% called "the error on the bias level":
+%   one pixel's estimate   RN/sqrt(Nframes)
+%   spread over pixels     the fixed pattern, already in FixedPatternRMS
+%   the die-level value    limited by the frame-to-frame common mode, not by the
+%                          pixel count -- with 22.5 M pixels the spatial average
+%                          is free and only the number of FRAMES matters
+%   the quantisation       a mean of Nframes integers lands on multiples of
+%                          1/Nframes, so the median is granular at that step and
+%                          the mean is not
+Bm = double(Z.Maps.Bias(:));
+Bm = Bm(isfinite(Bm));
+Bmed = median(Bm);
+Z.BiasDist = struct('Mean',mean(Bm), 'Median',Bmed, 'Std',std(Bm), ...
+                    'MAD',1.4826.*median(abs(Bm - Bmed)), ...
+                    'QuantileP',[0.01 0.25 0.5 0.75 0.99], ...
+                    'Quantiles',quantile(Bm, [0.01 0.25 0.5 0.75 0.99]), ...
+                    'TailFrac5MAD',mean(abs(Bm-Bmed) > 5.*1.4826.*median(abs(Bm-Bmed))), ...
+                    'Quantisation',1./Z.Nframes, ...
+                    'ErrOnePixel',Z.All.ReadNoiseMedian./sqrt(Z.Nframes), ...
+                    'ErrDieFromPixels',std(Bm)./sqrt(numel(Bm)), ...
+                    'ErrDieFromCommonMode',Z.CommonMode.Std./sqrt(Z.Nframes));
+Z.BiasDist.ErrDieTotal = hypot(Z.BiasDist.ErrDieFromPixels, Z.BiasDist.ErrDieFromCommonMode);
+
 S = rmfield(Z, 'Maps');
 S.Tag = Tag;  S.Run = Run;  S.Die = Die;  S.GainHalf = Gain;
 S.Size = size(P.Zero);  S.ReadoutDim = G.Dim;
