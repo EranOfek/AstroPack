@@ -6,8 +6,17 @@
 %   is something every pixel does or something a subset carries; the difference
 %   of the two per-pixel gains can.
 %   For each pixel and each ladder, x is that pixel's own mean signal at a step
-%   and y its own temporal variance there MINUS its own read-noise variance, so
-%   the fitted intercept is g*T alone, fitted by weighted least squares with
+%   and y its own TOTAL temporal variance there, so the fitted intercept is
+%   RN^2 + g*T. Subtracting each pixel's own RN^2 first -- which the ensemble fits
+%   of stage 10 do, and should -- is wrong HERE: RN^2_i is itself measured from
+%   five frames, carries 50 % error with a long tail, and is subtracted once and
+%   so lands entirely in the intercept. Doing it inflated the dark intercept's
+%   width to 1.30 times its null, with the excess living wholly in the noisy
+%   pixels: the width rises from 3.95 ADU^2 in the lowest read-noise decile,
+%   which matches the null exactly, to 7.31 in the highest, tracking RN^2/sqrt(2),
+%   the sampling error of the subtracted quantity. Fitting the total variance
+%   instead brings the ratio to 1.08. An ensemble fit subtracts an average and
+%   suffers none of this, fitted by weighted least squares with
 %   the ensemble model as the weight (never the pixel's own variance: with 2
 %   degrees of freedom that would weight a point by its own fluctuation).
 %   Every parameter is read against a NULL in which all pixels are identical,
@@ -66,8 +75,8 @@ for Il = 1:1:numel(Lad)
             clear C M
             continue
         end
-        Vt  = var(double(C), 0, 3);              % total, which is what fluctuates
-        V   = Vt - RN2;                          % the variance the signal added
+        Vt  = var(double(C), 0, 3);              % total: what is fitted per pixel
+        V   = Vt;
         Dof = max(Nf-1, 1);
         % one common mask for both axes: the pixels outside the top 0.1 % of the
         % variance, which is where the cosmic rays are
@@ -76,7 +85,7 @@ for Il = 1:1:numel(Lad)
         Vv{end+1} = single(V);                                               %#ok<SAGROW>
         Sid(end+1) = Steps(Is);                                              %#ok<SAGROW>
         Med(end+1) = mean(double(M(Kp)));                                    %#ok<SAGROW>
-        Ven(end+1) = mean(V(Kp));                                            %#ok<SAGROW>
+        Ven(end+1) = mean(Vt(Kp)) - mean(RN2(Kp));   % ensemble line: excess     %#ok<SAGROW>
         Vtt(end+1) = mean(Vt(Kp));         % TOTAL variance: what sets the noise %#ok<SAGROW>
         Nrp(end+1) = Nf;                                                     %#ok<SAGROW>
         clear C M V Vt
@@ -115,6 +124,8 @@ for Il = 1:1:numel(Lad)
 
     % null: identical pixels, taken through the whole measurement
     N = local_null(Med, Vtt - mean(RN2sub), Nrp, Dofs, RN2sub, DofZ, Nsim);
+    % the per-pixel fit is on the TOTAL variance, so neither data nor null
+    % subtracts a read noise and the intercept is RN^2 + g*T in both
     fprintf('    null: truth %.4f -> mean %.4f, median %.4f (%+.1f %%), MAD %.4f; %.0f s\n', ...
         Ge, N.SlopeMean, N.SlopeMedian, 100*(N.SlopeMedian/Ge-1), N.SlopeMAD, toc(T0));
 
@@ -180,9 +191,9 @@ Out.Difference = local_stat(Dg(Ok), Dn);
 % sits well below the truth on both ladders (-5.9 % dark, -13.6 % bright), and the
 % median of the difference inherits both biases unequally: it reads -0.7 % where
 % the means differ by -9.3 %.
-% Trimmed, not plain. Subtracting the per-pixel RN^2 feeds the read-noise map's
-% own long tail into both gains, and the plain mean of the difference is carried
-% by it: it reads +0.040 where the trimmed mean reads the physical -0.11.
+% Trimmed, not plain. Both per-pixel gains are heavy-tailed, and the plain mean of
+% their difference is carried by the tails: it reads +0.040 where the trimmed mean
+% reads the physical -0.11.
 Out.Difference.MeanRel     = Out.Difference.TrimMean./Out.B.Slope.TrimMean;
 Out.Difference.PlainMeanRel = Out.Difference.Mean./Out.B.Slope.Mean;
 Out.Difference.MedianRel = Out.Difference.Median./Out.B.Slope.Median;
@@ -203,10 +214,10 @@ for Ty = {'D','B'}
         Q.Slope.TrimMean, Q.GainEnsemble, Q.Slope.Median, Q.Null.SlopeMedian, ...
         Q.Slope.MADoverNull, Q.Chi2.Median);
 end
-fprintf(['  the plain mean is tail-sensitive here: y = V - RN_i^2 carries the read-noise map''s own\n', ...
-    '  scatter, 50 %% per pixel from five frames with a long tail, so the trimmed mean is the one\n', ...
-    '  to compare with the ensemble value.\n']);
-fprintf('\nintercept (RN^2 + g*T): dark %.2f, bright %.2f ADU^2 (means)\n', ...
+fprintf(['  the plain mean is tail-sensitive: the per-pixel estimator is heavy-tailed and even the\n', ...
+    '  null''s own mean misses its truth by 3 %%, so the trimmed mean is the one to compare with\n', ...
+    '  the ensemble value.\n']);
+fprintf('\nintercept (RN^2 + g*T, the per-pixel fit is on the total variance): dark %.2f, bright %.2f ADU^2\n', ...
     Out.D.Inter.Mean, Out.B.Inter.Mean);
 fprintf(['\nCovariance of the two fit parameters. The analytic value is what the fit predicts for\n', ...
     'each pixel (-Swx/D); the null is identical pixels put through the same measurement. Plain cov\n', ...
@@ -240,12 +251,12 @@ function N = local_null(Med, Vex, Nrp, Dofs, RN2true, DofZ, Nsim)
     % each synthetic pixel: its own true read noise, and its own noisy ESTIMATE of
     % it, measured from DofZ+1 zero-exposure frames exactly as the map was
     Rt  = double(RN2true(:));
-    Rn  = Rt.*sum(randn(Nsim, DofZ).^2, 2)./DofZ;
+    Rn  = Rt.*sum(randn(Nsim, DofZ).^2, 2)./DofZ;   %#ok<NASGU> kept for reference
     for I = 1:1:Ns
         Vt = Rt + Vex(I);                            % total variance of this pixel
         Fr = round(Med(I) + sqrt(max(Vt,0)).*randn(Nsim, Nrp(I)));
         Xi = mean(Fr, 2);
-        Yi = var(Fr, 0, 2) - Rn;
+        Yi = var(Fr, 0, 2);
         Wi = Dofs(I)./(2.*mean(Vt).^2) + 0.*Xi;
         Sw=Sw+Wi; Swx=Swx+Wi.*Xi; Swy=Swy+Wi.*Yi;
         Swxx=Swxx+Wi.*Xi.^2; Swxy=Swxy+Wi.*Xi.*Yi; Swyy=Swyy+Wi.*Yi.^2;
@@ -264,10 +275,10 @@ function Q = local_stat(V, Vn)
     V  = double(V(:));  V = V(isfinite(V));
     Vn = double(Vn(:)); Vn = Vn(isfinite(Vn));
     Md = median(V);  Mn = median(Vn);
-    % The mean is tail-sensitive, and subtracting the per-pixel RN^2 feeds the
-    % read-noise map's own tail into y: a pixel whose RN^2 is measured from five
-    % frames carries ~50 % error on it, and the noisy-pixel tail is long. The
-    % symmetric 0.2 % trimmed mean is quoted beside it.
+    % The mean of a per-pixel slope is tail-sensitive whatever is fitted: the
+    % estimator itself is heavy-tailed, and even the null's own mean misses its
+    % truth by 3 %. The symmetric 0.2 % trimmed mean is quoted beside it and is
+    % the one to compare with the ensemble value.
     Vs = sort(V);
     Nt = max(round(0.001.*numel(Vs)), 1);
     Q  = struct('N',numel(V), 'Mean',mean(V), 'TrimMean',mean(Vs(Nt+1:end-Nt)), ...
