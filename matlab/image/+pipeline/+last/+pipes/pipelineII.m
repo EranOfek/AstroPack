@@ -415,20 +415,34 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
     if Args.RePopRefPSF
         for Iobj = Nobj:-1:1
+            % keep the reference PSF; it is restored below, with its
+            % photometry and zero point, if the re-populated one is not
+            % sane (#1355)
+            OrigPSF = AD(Iobj).Ref.PSFData.copy();
             AD(Iobj).Ref = imProc.psf.populatePSF(AD(Iobj).Ref, 'RePopulatePSF', true, 'Method', 'new');
                 % uniPSF repop: every PSF-shape argument (RadiusPSF 12, Annulus
                 % [16 20], analytic 3.7 wings @ 1e-2, elliptical, no ellipticity
                 % fallback, CropByQuantile false, single detection PSF) comes
                 % from the populatePSF/buildPSF uniPSF defaults.
-            AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref, 'PsfPhotMethod',Args.PsfPhotMethod, ...
-                                                                    'ShiftMethod',Args.ShiftMethod);
-            AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName, ...
-                                                      'GaiaCone',Args.GaiaCone, 'EpochOut',gaiaEpoch(AD(Iobj).Ref, Args.GaiaProperMotion));
+            if ~AD(Iobj).Ref.isemptyPSF && ~isSanePSF(AD(Iobj).Ref.PSFData.getPSF)
+                warning('Re-populated Ref PSF of CROPID %d is not sane (non-positive or off-centre peak), keeping the reference PSF.', ...
+                        AD(Iobj).New.HeaderData.getVal('CROPID'));
+                AD(Iobj).Ref.PSFData = OrigPSF;
+            else
+                AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref, 'PsfPhotMethod',Args.PsfPhotMethod, ...
+                                                                        'ShiftMethod',Args.ShiftMethod);
+                AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName, ...
+                                                          'GaiaCone',Args.GaiaCone, 'EpochOut',gaiaEpoch(AD(Iobj).Ref, Args.GaiaProperMotion));
+            end
         end
     end
 
     if Args.RePopNewPSF
         for Iobj = Nobj:-1:1
+            % keep the PipelineI PSF; it is restored below, with its
+            % photometry and zero point, if the re-populated one is not
+            % sane (#1355)
+            OrigPSF = AD(Iobj).New.PSFData.copy();
             AD(Iobj).New = imProc.psf.populatePSF(AD(Iobj).New, 'RePopulatePSF', true,...
                 'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
                 'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'new', ...
@@ -436,10 +450,16 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                 'Annulus', [10 12], 'WingsPowerLaw', 2, ...           % pinned pre-uniPSF values: the repop
                 'EllipticalWings', false, 'SkipEllipticityFallback', false); % recipe is frozen until the subtraction
                                                                              % flow is validated on uniPSF defaults
-            AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New, 'PsfPhotMethod',Args.PsfPhotMethod, ...
-                                                                    'ShiftMethod',Args.ShiftMethod);
-            AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName, ...
-                                                      'GaiaCone',Args.GaiaCone, 'EpochOut',gaiaEpoch(AD(Iobj).New, Args.GaiaProperMotion));
+            if ~AD(Iobj).New.isemptyPSF && ~isSanePSF(AD(Iobj).New.PSFData.getPSF)
+                warning('Re-populated New PSF of CROPID %d is not sane (non-positive or off-centre peak), keeping the PipelineI PSF.', ...
+                        AD(Iobj).New.HeaderData.getVal('CROPID'));
+                AD(Iobj).New.PSFData = OrigPSF;
+            else
+                AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New, 'PsfPhotMethod',Args.PsfPhotMethod, ...
+                                                                        'ShiftMethod',Args.ShiftMethod);
+                AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName, ...
+                                                          'GaiaCone',Args.GaiaCone, 'EpochOut',gaiaEpoch(AD(Iobj).New, Args.GaiaProperMotion));
+            end
         end
     end    
 
@@ -1088,4 +1108,18 @@ function JD = gaiaEpoch(Image, ApplyPM)
             JD = [];   % no readable JD - no proper motion
         end
     end
+end
+
+function Flag = isSanePSF(P)
+    % A PSF stamp is sane if it is finite and its maximum is positive and
+    % within 1 pix of the stamp centre. An inverted PSF (e.g. built from
+    % stamps with a negative sum, #1355) has its maximum in the noise floor.
+    Flag = false;
+    if isempty(P) || any(~isfinite(P(:)))
+        return
+    end
+    [MaxVal, Imax] = max(P(:));
+    [Iy, Ix] = ind2sub(size(P), Imax);
+    Ctr = (size(P) + 1)./2;
+    Flag = MaxVal > 0 && abs(Iy - Ctr(1)) <= 1 && abs(Ix - Ctr(2)) <= 1;
 end

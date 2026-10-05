@@ -162,11 +162,16 @@ function TranCat=findTransients(AD, Args)
             % x-y-coordinates
             NewPSF = AD(Iobj).New.PSF;
             PSFbw = imbinarize(NewPSF);
-            stats = regionprops(PSFbw, 'Orientation');
-            if numel(stats) > 1
-                stats = stats([stats.Orientation] ~= 0);
+            % orientation of the largest region (ignores small specks
+            % from the binarized wings); no rotation if there is none (#1355)
+            stats = regionprops(PSFbw, 'Orientation', 'Area');
+            if isempty(stats)
+                PSFOrient = 0;
+            else
+                [~, Imax] = max([stats.Area]);
+                PSFOrient = stats(Imax).Orientation;
             end
-            PSFnew = imrotate(NewPSF, -stats.Orientation, 'bilinear', 'crop');
+            PSFnew = imrotate(NewPSF, -PSFOrient, 'bilinear', 'crop');
             [~, M2N, ~] = imUtil.image.moment2(PSFnew, ...
                 NewPSFHalfSize, NewPSFHalfSize,...
                 'MomRadius',1.7*AD(Iobj).New.PSFData.fwhm);
@@ -215,11 +220,16 @@ function TranCat=findTransients(AD, Args)
             % x-y-coordinates
             RefPSF = AD(Iobj).Ref.PSF;
             PSFbw = imbinarize(RefPSF);
-            stats = regionprops(PSFbw, 'Orientation');
-            if numel(stats) > 1
-                stats = stats([stats.Orientation] ~= 0);
+            % orientation of the largest region (ignores small specks
+            % from the binarized wings); no rotation if there is none (#1355)
+            stats = regionprops(PSFbw, 'Orientation', 'Area');
+            if isempty(stats)
+                PSFOrient = 0;
+            else
+                [~, Imax] = max([stats.Area]);
+                PSFOrient = stats(Imax).Orientation;
             end
-            PSFref = imrotate(RefPSF, -stats.Orientation, 'bilinear', 'crop');
+            PSFref = imrotate(RefPSF, -PSFOrient, 'bilinear', 'crop');
 
             [~, M2R, ~] = imUtil.image.moment2(PSFref, ...
                 RefPSFHalfSize,RefPSFHalfSize,...
