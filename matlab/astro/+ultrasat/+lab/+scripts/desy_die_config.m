@@ -23,18 +23,27 @@
 % A driver can select the dataset by defining DieSelect (Run, Folder, Die, Gain)
 % before running this file; otherwise the defaults below apply. The stage scripts
 % run in the caller's workspace, so nothing else has to change.
+DieLotDefault = 'TH02954';
 if exist('DieSelect', 'var') && isstruct(DieSelect)
     DieRun    = DieSelect.Run;
     DieFolder = DieSelect.Folder;
     Die       = DieSelect.Die;
     DieGain   = DieSelect.Gain;
+    % The lot was fixed while only one was being analysed. It is selectable now
+    % that TH02260 is in scope, and defaults to the old value so that every
+    % caller written before this still means what it meant.
+    if isfield(DieSelect, 'Lot') && ~isempty(DieSelect.Lot)
+        DieLot = DieSelect.Lot;
+    else
+        DieLot = DieLotDefault;
+    end
 else
     DieRun    = '32';
     DieFolder = 'LOT_TH02954_32_FT_PTCint_-50_2026-08-27';
     Die       = 'W04_D07';
     DieGain   = 'high';                % 'high' | 'low'
+    DieLot    = DieLotDefault;
 end
-DieLot       = 'TH02954';
 % Fit windows. The streamed mode needs an explicit step list ('auto' resolves
 % the steps from the cached region ladder, which full mode does not build).
 % Dark: NOT a setting. stage 2a (desy_die_darkwindow) measures it per die and
@@ -124,7 +133,15 @@ DieRoot      = '/Data1/DESY';
 if ~isfolder(DieRoot)
     DieRoot = '/bigdata3/projects/ultrasat/DESY';
 end
-DieTag    = sprintf('run%s_%s_%s', DieRun, Die, DieGain);
+% Die names repeat between lots -- TH02260 and TH02954 both have a W07_D06, and
+% both were measured in run 35 -- so the lot has to be in the tag or the two
+% would write over each other. It is left out for the default lot, which keeps
+% the directories of everything analysed so far exactly as they are.
+if strcmp(DieLot, DieLotDefault)
+    DieTag = sprintf('run%s_%s_%s', DieRun, Die, DieGain);
+else
+    DieTag = sprintf('run%s_%s_%s_%s', DieRun, DieLot, Die, DieGain);
+end
 DieDev    = fullfile(DieRoot, DieFolder, ['LOT_', DieLot, '_', Die]);
 % 'signal' mode writes beside the default results rather than over them, so the
 % two ways of choosing the window can be compared on the same die. Stage 1 is

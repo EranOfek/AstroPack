@@ -70,7 +70,10 @@ Dies = []
 for tag in A.dies:
     d = {'Tag': tag}
     try:
-        d['Z']  = load(tag, 'stats.json', os.path.join(A.rnroot, tag))
+        # stage 1 does not depend on any fit window, so the signal-window run
+        # shares it with the default one and it is not under a '_sig' name
+        d['Z']  = load(tag, 'stats.json',
+                       os.path.join(A.rnroot, tag[:-4] if tag.endswith('_sig') else tag))
         d['D']  = load(tag, 'dark.json')
         d['L']  = load(tag, 'light.json')
         d['BC'] = load(tag, 'badcol.json')
@@ -78,7 +81,14 @@ for tag in A.dies:
         d['BU'] = load(tag, 'budget.json')
         d['ME'] = load(tag, 'methods.json')
         d['PP'] = load(tag, 'ptc_perpixel.json')
-        d['DW'] = load(tag, 'darkwindow.json')
+        # 'chi2' mode writes darkwindow.json, 'signal' mode fitwindow.json;
+        # a die-run has exactly one of them
+        d['DW'] = load(tag, 'darkwindow.json') if \
+                  os.path.isfile(os.path.join(A.root, tag, 'darkwindow.json')) else None
+        d['FW'] = load(tag, 'fitwindow.json') if \
+                  os.path.isfile(os.path.join(A.root, tag, 'fitwindow.json')) else None
+        if d['DW'] is None and d['FW'] is None:
+            raise FileNotFoundError(2, 'no window dump', os.path.join(A.root, tag, 'darkwindow.json'))
         d['PB'] = load(tag, 'ptc_both.json')
         d['Cfg'] = readconfig(load(tag, 'chain.json').get('Dataset', '')) if \
                    os.path.isfile(os.path.join(A.root, tag, 'chain.json')) else {}
@@ -189,7 +199,7 @@ w('| die / run | bias [ADU] | RN [ADU] | gain bright [ADU/e-] | gain dark | DC [
   'DSNU [%] | PRNU [%] | bad cols | dark window | T, PTC bright [e-] |')
 w('|---|---|---|---|---|---|---|---|---|---|---|')
 for d in Dies:
-    dwin = ' '.join(str(int(v)) for v in arr(d['DW']['Chosen']))
+    dwin = ' '.join(str(int(v)) for v in arr((d['DW'] or d['FW']['D'])['Chosen']))
     w(f"| {d['Label']} | {f(d['Z']['All']['BiasLevel'],2)} | {f(d['Z']['All']['ReadNoiseMedian'],3)} | "
       f"**{f(gain(d,'d'),4)}** ± {f(gerr(d,'d'),4)} | {f(gain(d,'c'),4)} ± {f(gerr(d,'c'),4)} | "
       f"{f(d['D']['Fit']['All']['SlopeSpread']['Median'],4)} | "
@@ -769,21 +779,55 @@ else:
       'stated here.\n')
 
 # ================================================================== 5. the windows
-w('## 5. The dark fit windows the goodness of fit chose\n')
-w('| die / run | ladder span [ADU] | window | medians [ADU] | chi2 ratio | '
-  'DC spread over the windows | T span over the windows |')
-w('|---|---|---|---|---|---|---|')
-for d in Dies:
-    sc = d['DW']['Scan'] if isinstance(d['DW']['Scan'], list) else [d['DW']['Scan']]
-    dcs = [float(e['DC']) for e in sc]
-    tds = [float(e['Tdark']) for e in sc]
-    med = arr(d['DW']['StepMedian'])
-    cm  = arr(d['DW']['ChosenMedian'])
-    w(f"| {d['Label']} | {med.min():.0f} to {med.max():.0f} | "
-      f"[{' '.join(str(int(v)) for v in arr(d['DW']['Chosen']))}] | {cm.min():.0f}-{cm.max():.0f} | "
-      f"{float(d['DW']['ChosenRatio']):.3f} | {100*(max(dcs)/min(dcs)-1):.0f} % | "
-      f"{min(tds):.1f}-{max(tds):.1f} |")
-w(f"""
+SIGMODE = all(d['FW'] for d in Dies)
+if SIGMODE:
+    w('## 5. The fit windows, and where the rule had to give ground\n')
+    w(f"""Both ladders of every die are fitted over the same signal window,
+{float(Dies[0]['FW']['SigLo']):.0f}-{float(Dies[0]['FW']['SigHi']):.0f} ADU on the mean signal, and within a
+ladder the response fit and the photon-transfer fit use exactly the same steps. Three points is the
+minimum that leaves a degree of freedom, so where the window holds fewer the FLOOR is lowered to the
+nearest step below until three are in -- never the ceiling, above which the ladder leaves the linear
+range. The column that matters is the last one: it says how far the rule had to reach.\n""")
+    w('| die / run | dark steps | dark span [ADU] | in window | floor | bright steps | bright span [ADU] |')
+    w('|---|---|---|---|---|---|---|')
+    for d in Dies:
+        D_, B_ = d['FW']['D'], d['FW']['B']
+        ds, bs = arr(D_['ChosenSignal']), arr(B_['ChosenSignal'])
+        flo = (f"**lowered to {float(D_['Floor']):.1f}**" if D_['FloorLowered'] else 'as set')
+        w(f"| {d['Label']} | [{' '.join(str(int(v)) for v in arr(D_['Chosen']))}] | "
+          f"{ds.min():.1f}-{ds.max():.1f} | {int(D_['NinWindow'])} | {flo} | "
+          f"[{' '.join(str(int(v)) for v in arr(B_['Chosen']))}] | {bs.min():.0f}-{bs.max():.0f} |")
+    nlow = sum(1 for d in Dies if d['FW']['D']['FloorLowered'])
+    blow = sum(1 for d in Dies if d['FW']['B']['FloorLowered'])
+    worst = min(Dies, key=lambda d: float(d['FW']['D']['Floor']))
+    w(f"""
+The dark ladder needed the floor lowered on **{nlow} of the {len(Dies)}** die-runs and the bright
+ladder on {blow}. The furthest any die had to reach is **{worst['Label']}**, down to
+{float(worst['FW']['D']['Floor']):.1f} ADU -- {100*(1-float(worst['FW']['D']['Floor'])/float(worst['FW']['SigLo'])):.0f} %
+below the nominal floor, so on that die the rule's name and the window it actually used differ enough
+to be worth saying out loud. Everywhere else the reach is small.
+
+Why the dark ladder needs it at all: the two bias-board setups put their dark ladders in signal
+ranges that barely overlap, and neither places three of its nine steps inside a window chosen to suit
+the bright ladder. That is the cost of making the two ladders directly comparable, and it is paid in
+lever arm -- the dark fits here span a few hundred ADU where the per-ladder windows spanned
+thousands.\n""")
+else:
+    w('## 5. The dark fit windows the goodness of fit chose\n')
+    w('| die / run | ladder span [ADU] | window | medians [ADU] | chi2 ratio | '
+      'DC spread over the windows | T span over the windows |')
+    w('|---|---|---|---|---|---|---|')
+    for d in Dies:
+        sc = d['DW']['Scan'] if isinstance(d['DW']['Scan'], list) else [d['DW']['Scan']]
+        dcs = [float(e['DC']) for e in sc]
+        tds = [float(e['Tdark']) for e in sc]
+        med = arr(d['DW']['StepMedian'])
+        cm  = arr(d['DW']['ChosenMedian'])
+        w(f"| {d['Label']} | {med.min():.0f} to {med.max():.0f} | "
+          f"[{' '.join(str(int(v)) for v in arr(d['DW']['Chosen']))}] | {cm.min():.0f}-{cm.max():.0f} | "
+          f"{float(d['DW']['ChosenRatio']):.3f} | {100*(max(dcs)/min(dcs)-1):.0f} % | "
+          f"{min(tds):.1f}-{max(tds):.1f} |")
+    w(f"""
 The windows differ between the runs because the ladders do: at the same nine exposures the
 high-dark-current setup reaches {max(arr(d['DW']['StepMedian']).max() for d in Dies):.0f} ADU and the
 low-dark-current one {min(arr(d['DW']['StepMedian']).max() for d in Dies):.0f}. The last two columns
