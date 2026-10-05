@@ -655,12 +655,14 @@ function TranCat = flagNonTransients(Obj, Args)
         RA = RADec(:,1);
         Dec = RADec(:,2);    
 
-        % Get candidates near saturated sources
-        BitsSatCut = Obj(Iobj).MaskData.bitwise_cutouts([X,Y], ...
-                'or', 'HalfSize', Args.SaturatedNeighborDistanceThreshold);
-        NearSaturated = BD_IM.findBit(BitsSatCut,'Saturated');
-
+        % Get candidates near saturated sources: any Saturated pixel in the
+        % box of half-size SaturatedNeighborDistanceThreshold around each
+        % candidate. Counted from one summed-area table of the Saturated
+        % bit instead of OR-ing the mask in a box per candidate (#1257).
+        % Positions are truncated and boxes clipped to the image as in
+        % MaskImage.bitwise_cutouts, so the flag is identical.
         SaturatedPixels = BD_IM.findBit(Obj.Mask,'Saturated');
+        NearSaturated   = boxAnyTrue(SaturatedPixels, X, Y, Args.SaturatedNeighborDistanceThreshold);
         SaturatedIslands = bwconncomp(SaturatedPixels, 8);
         SaturatedIslands_Props = regionprops(SaturatedIslands, ...
             'Centroid', 'Area', 'PixelIdxList');
@@ -1855,4 +1857,28 @@ function CandProps = setCandPropBit(CandProps, Mask, BD_CP, BitName)
     [~, BitDec] = BD_CP.name2bit(BitName);
     Sel = logical(Mask);
     CandProps(Sel) = bitor(CandProps(Sel), BitDec);
+end
+
+
+function Flag = boxAnyTrue(Mask, X, Y, HalfSize)
+    % True where the box [fix(X)-H, fix(X)+H] x [fix(Y)-H, fix(Y)+H], clipped
+    % to the image, contains any true pixel of Mask (H = fix(HalfSize)).
+    [Ny, Nx] = size(Mask);
+    H  = fix(HalfSize);
+    Cs = zeros(Ny+1, Nx+1);
+    Cs(2:end, 2:end) = cumsum(cumsum(double(Mask), 1), 2);
+    Xi = fix(X(:));
+    Yi = fix(Y(:));
+    X1 = max(Xi - H, 1);
+    X2 = min(Xi + H, Nx);
+    Y1 = max(Yi - H, 1);
+    Y2 = min(Yi + H, Ny);
+    Valid = isfinite(Xi) & isfinite(Yi) & X1 <= X2 & Y1 <= Y2;
+    Flag  = false(numel(Xi), 1);
+    if any(Valid)
+        Sz = [Ny+1, Nx+1];
+        Count = Cs(sub2ind(Sz, Y2(Valid)+1, X2(Valid)+1)) - Cs(sub2ind(Sz, Y1(Valid),   X2(Valid)+1)) ...
+              - Cs(sub2ind(Sz, Y2(Valid)+1, X1(Valid)))   + Cs(sub2ind(Sz, Y1(Valid),   X1(Valid)));
+        Flag(Valid) = Count > 0;
+    end
 end
