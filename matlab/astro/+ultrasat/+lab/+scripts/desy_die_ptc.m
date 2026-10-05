@@ -94,10 +94,27 @@ end
 fprintf('  %d steps held, %.0f s\n', numel(Sid), toc(T0));
 
 % --- ensemble PTC of the step medians, over every candidate window
+% The scan measures the window systematic. In 'signal' mode it is given STEP
+% LISTS rather than signal ranges, for the same reason the nominal window is: a
+% range is applied here to the per-step median while the lists were chosen on
+% the mean, and a margin tight enough to exclude a neighbouring step can also
+% clip the intended one (on run 31 W04_D07 the top bright step has mean 807.2
+% and median 808.3, so a range built from the means dropped it and left the scan
+% with too few steps to fit at all).
+UseList = exist('DieGainScanSteps','var') && ~isempty(DieGainScanSteps);
+Nscan   = numel(DieGainScan);
+if UseList
+    Nscan = numel(DieGainScanSteps);
+end
 Scan = struct('Range',{}, 'Nsteps',{}, 'Gain',{}, 'Offset',{}, 'GainPixelMean',{}, 'OffsetPixelMean',{});
-for Iw = 1:1:numel(DieGainScan)
-    W   = DieGainScan{Iw};
-    Sel = find(Med>=W(1) & Med<=W(2));
+for Iw = 1:1:Nscan
+    if UseList
+        Sel = find(ismember(Sid, DieGainScanSteps{Iw}));
+        W   = [min(Med(Sel)) max(Med(Sel))];
+    else
+        W   = DieGainScan{Iw};
+        Sel = find(Med>=W(1) & Med<=W(2));
+    end
     if numel(Sel)<3
         continue
     end
@@ -105,9 +122,22 @@ for Iw = 1:1:numel(DieGainScan)
     Scan(end+1) = struct('Range',W, 'Nsteps',numel(Sel), 'Gain',Ge, 'Offset',Ce, ...
                          'GainPixelMean',NaN, 'OffsetPixelMean',NaN);              %#ok<SAGROW>
 end
-Sel = find(Med>=DieGainRange(1) & Med<=DieGainRange(2));
+% In 'signal' mode the steps are the list the window stage chose, taken verbatim
+% rather than re-selected here: this stage selects on the per-step MEDIAN and
+% stage 9 on the MEAN, so a shared signal RANGE does not guarantee a shared set
+% of STEPS, which is what "the same points" has to mean.
+if exist('DieStepsExplicit','var') && DieStepsExplicit
+    Sel = find(ismember(Sid, DieFitStepsB));
+else
+    Sel = find(Med>=DieGainRange(1) & Med<=DieGainRange(2));
+end
 if numel(Sel)<3
     error('ultrasat:lab:scripts:ptc', 'Only %d steps inside [%g %g] ADU', numel(Sel), DieGainRange);
+end
+if isempty(Scan)
+    error('ultrasat:lab:scripts:ptc', ...
+          ['the gain scan produced no window with 3 steps, so there is no window systematic. ' ...
+           'Steps held: %s ADU (medians).'], strtrim(sprintf('%.1f ', Med)));
 end
 [Gens, Cens] = local_ens(Med(Sel), VarEns(Sel), Nrep(Sel));
 Dofs = max(Nrep(Sel)-1, 1);
@@ -147,7 +177,11 @@ Null.BlkSigma = Null.Analytic./sqrt(DieBlock.^2);
 fprintf('  null simulation done, %.0f s\n', toc(T0));
 
 for Iw = 1:1:numel(Scan)
-    Sw = find(Med>=Scan(Iw).Range(1) & Med<=Scan(Iw).Range(2));
+    if UseList
+        Sw = find(ismember(Sid, DieGainScanSteps{Iw}));
+    else
+        Sw = find(Med>=Scan(Iw).Range(1) & Med<=Scan(Iw).Range(2));
+    end
     S2 = [];
     for Is = Sw
         Xi = double(Mm{Is});

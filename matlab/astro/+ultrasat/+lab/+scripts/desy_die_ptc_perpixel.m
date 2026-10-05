@@ -77,7 +77,16 @@ for Il = 1:1:numel(Lad)
         Nf = size(C,3);
         M  = single(double(mean(C,3)) - double(P.Zero));
         Mk = mean(double(M(:)), 'omitnan');
-        if Mk < Lad(Il).Range(1) || Mk > Lad(Il).Range(2)
+        % 'signal' mode: the step list is the one the window stage chose, so that
+        % this stage and the ensemble stages fit the very same points
+        if exist('DieStepsExplicit','var') && DieStepsExplicit
+            Want = DieFitStepsB;
+            if strcmp(Ty,'D'), Want = DieFitStepsD; end
+            if ~ismember(Steps(Is), Want)
+                clear C M
+                continue
+            end
+        elseif Mk < Lad(Il).Range(1) || Mk > Lad(Il).Range(2)
             clear C M
             continue
         end
