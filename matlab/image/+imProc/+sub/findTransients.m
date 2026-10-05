@@ -367,7 +367,7 @@ function TranCat=findTransients(AD, Args)
             StdD = sqrt(VarD);
             [ResultD, ~] = imUtil.sources.psfPhotCube(Cube, ...
                 'PSF', AD(Iobj).PSFData.getPSF, ...
-                'ZP', AD(Iobj).ZpD, 'FitRadius',5);
+                'ZP', AD(Iobj).ZpD, 'FitRadius',5, 'UseMex',true);
 
             % PSF fit all candidates in the New image
             CutHalfSize =  floor(size(AD(Iobj).New.PSFData.getPSF,2)/2);
@@ -376,7 +376,7 @@ function TranCat=findTransients(AD, Args)
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
             [ResultN, ~] = imUtil.sources.psfPhotCube(Cube,...
                 'PSF', AD(Iobj).New.PSFData.getPSF, ...
-                'ZP', AD(Iobj).ZpN, 'MaxIter', 2, 'SmallStep', 0.05, 'MaxStep', 0.1, 'FitRadius',5);
+                'ZP', AD(Iobj).ZpN, 'MaxIter', 2, 'SmallStep', 0.05, 'MaxStep', 0.1, 'FitRadius',5, 'UseMex',true);
             
             % PSF fit all candidates in the Ref image
             CutHalfSize = floor(size(AD(Iobj).Ref.PSFData.getPSF,2)/2);
@@ -385,7 +385,7 @@ function TranCat=findTransients(AD, Args)
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
             [ResultR, ~] = imUtil.sources.psfPhotCube(Cube, ...
                 'PSF', AD(Iobj).Ref.PSFData.getPSF, ...
-                'ZP', AD(Iobj).ZpR, 'MaxIter', 2, 'SmallStep', 0.05, 'MaxStep', 0.1, 'FitRadius',5);
+                'ZP', AD(Iobj).ZpR, 'MaxIter', 2, 'SmallStep', 0.05, 'MaxStep', 0.1, 'FitRadius',5, 'UseMex',true);
 
             % Get chi2 per degrees of freedom of the PSF fit on the difference
             % image.
