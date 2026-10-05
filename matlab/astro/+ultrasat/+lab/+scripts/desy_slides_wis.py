@@ -18,8 +18,9 @@ P = argparse.ArgumentParser()
 P.add_argument('--root', default='/home/sasha/claude/desy_die')
 P.add_argument('--rnroot', default='/home/sasha/claude/desy_rn')
 P.add_argument('--summary', default='/home/sasha/claude/desy_die/summary')
-P.add_argument('--summary-sig', default='/home/sasha/claude/desy_die/summary_sig',
-               help='the signal-window cross-die summary; slide 12 shows both when it exists')
+P.add_argument('--summary-sig', default='/home/sasha/claude/desy_die/summary_sig16',
+               help=('the signal-window summary over the SAME die-runs as --summary; the two panels '
+                     'of slide 12 must cover the same dies to be a comparison at all'))
 P.add_argument('--out', default='/home/sasha/DESY_reports/WIS_TH02954_aSpect_flavour_comparison.pptx')
 A = P.parse_args()
 
@@ -264,7 +265,7 @@ if both:
     d.picture(fold, int(0.35*EMU), y, int(6.3*EMU), int(3.5*EMU))
     cap(int(0.35*EMU), y+int(3.5*EMU), int(6.3*EMU), 'BEFORE — each ladder over its own best range')
     d.picture(fnew, int(6.85*EMU), y, int(6.3*EMU), int(3.5*EMU))
-    cap(int(6.85*EMU), y+int(3.5*EMU), int(6.3*EMU), 'AFTER — both ladders over 100-1000 ADU')
+    cap(int(6.85*EMU), y+int(3.5*EMU), int(6.3*EMU), 'AFTER — both ladders over 100-1000 ADU (same 16 die-runs)')
     # The aggregate alone would mislead: the common window helps where the dark
     # ladder is long and hurts where it is short, and those are different runs.
     def med(sel):
@@ -282,7 +283,10 @@ if both:
     d.text(int(0.6*EMU), y+int(5.3*EMU), int(12.3*EMU), int(0.5*EMU),
            'A common window helps where the dark ladder is long enough to reach it, and hurts where it '
            'is not: on the low dark-current runs it forces the dark fit into 100-200 ADU, high on a '
-           'convex ladder, which raises the dark-response threshold.', 1050, False, GREY)
+           'convex ladder, which raises the dark-response threshold.   Run 35 adds 10 more dies on '
+           'these settings (a second lot, 7 new wafers, all flavour 6); it has no default-window '
+           'counterpart, so it is in the full cross-die summary rather than in this before/after.',
+           1050, False, GREY)
 else:
     d.picture(fold, int(0.5*EMU), y, int(12.3*EMU), int(4.3*EMU))
     cap(int(0.5*EMU), y+int(4.3*EMU), int(12.3*EMU),

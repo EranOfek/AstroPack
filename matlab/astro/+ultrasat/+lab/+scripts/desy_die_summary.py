@@ -98,8 +98,13 @@ for tag in A.dies:
     d['Run']   = str(d['PT']['Run'])
     d['Die']   = str(d['PT']['Die'])
     d['Wafer'] = d['Die'].split('_')[0]
-    d['Label']  = f"{d['Die']} / {d['PT']['GainHalf']} / run {d['Run']}"
-    d['XLabel'] = f"{d['Die']}\n{d['PT']['GainHalf']}"
+    # Die names repeat between lots: TH02260 and TH02954 both have a W07_D06 and
+    # both were measured in run 35, so without the lot the two are one row and
+    # one point, silently.
+    d['Lot'] = str(d['PT'].get('Lot', ''))
+    _lot = '' if d['Lot'] in ('', 'TH02954') else f" {d['Lot']}"
+    d['Label']  = f"{d['Die']}{_lot} / {d['PT']['GainHalf']} / run {d['Run']}"
+    d['XLabel'] = f"{d['Die']}{_lot}\n{d['PT']['GainHalf']}"
     Dies.append(d)
 if not Dies:
     raise SystemExit('no die-run has a complete set of dumps')
@@ -194,13 +199,54 @@ which is what makes the comparison worth making: anything common to both setups 
 anything that follows the setup is not.\n""")
 
 # ================================================================== 1. datasheet
+# ---------------------------------------------------------------- outliers
+# Flagged against the lot itself rather than against fixed limits: a quantity
+# more than 5 median-absolute-deviations from the median over all the die-runs,
+# or a threshold that comes out negative, which no route can mean physically.
+# The flag says "do not read this row as typical", not "this die is broken":
+# some of it is a real device difference and some is a fit with nothing to hold
+# on to, and the per-die report is where that is decided.
+nm = {'a': 'dark response', 'b': 'light response', 'c': 'PTC dark', 'd': 'PTC bright'}
+def _mad(v):
+    v = np.asarray(v, dtype=float)
+    m = np.median(v)
+    return m, (1.4826*np.median(np.abs(v-m)) or np.nan)
+
+_qd = {'DSNU [%]': [100*float(d['D']['Local']['DC']['RelIntr']) for d in Dies],
+       'dark-ladder gain': [gain(d, 'c') for d in Dies]}
+_lim = {k: _mad(v) for k, v in _qd.items()}
+FLAG = {}
+for _i, _d in enumerate(Dies):
+    _why = []
+    for _k, _v in _qd.items():
+        _m, _sd = _lim[_k]
+        if np.isfinite(_sd) and abs(_v[_i]-_m) > 5*_sd:
+            _why.append(f'{_k} = {_v[_i]:.2f} against {_m:.2f} typical')
+    # negative by more than 2 sigma: a threshold of -0.6 +- 4.9 e- is consistent
+    # with zero and says nothing, while -72 +- 3 says the fit found nothing real
+    for _r in 'abcd':
+        _t = float(_d['ME']['Routes'][_r]['Threshold_e'])
+        _te = float(_d['ME']['Routes'][_r]['Threshold_e_err'])
+        if _t + 2*_te < 0:
+            _why.append(f'{nm[_r]} threshold {_t:.1f} +- {_te:.1f} e-, negative beyond its error')
+    if _why:
+        FLAG[_d['Label']] = '; '.join(_why)
+
 w('## 1. The lot in one table\n')
+if FLAG:
+    w(f"""Of the {len(Dies)} die-runs, **{len(FLAG)} are marked &dagger;**: at least one
+quantity sits more than 5 MAD from the median over all of them, or a threshold came out negative.
+They are left in rather than dropped, and the mark means only that the row should not be read as
+typical -- whether it is the device or the fit is decided in that die's own report. The run 38-2
+shift in bias and read noise is deliberately NOT flagged: it is the transfer-gate voltage, measured
+and understood in section 4c.\n""")
 w('| die / run | bias [ADU] | RN [ADU] | gain bright [ADU/e-] | gain dark | DC [ADU/s] | '
   'DSNU [%] | PRNU [%] | bad cols | dark window | T, PTC bright [e-] |')
 w('|---|---|---|---|---|---|---|---|---|---|---|')
 for d in Dies:
     dwin = ' '.join(str(int(v)) for v in arr((d['DW'] or d['FW']['D'])['Chosen']))
-    w(f"| {d['Label']} | {f(d['Z']['All']['BiasLevel'],2)} | {f(d['Z']['All']['ReadNoiseMedian'],3)} | "
+    w(f"| {d['Label']}{' &dagger;' if d['Label'] in FLAG else ''} | "
+      f"{f(d['Z']['All']['BiasLevel'],2)} | {f(d['Z']['All']['ReadNoiseMedian'],3)} | "
       f"**{f(gain(d,'d'),4)}** ± {f(gerr(d,'d'),4)} | {f(gain(d,'c'),4)} ± {f(gerr(d,'c'),4)} | "
       f"{f(d['D']['Fit']['All']['SlopeSpread']['Median'],4)} | "
       f"{f(100*float(d['D']['Local']['DC']['RelIntr']),2)} | "
@@ -218,6 +264,13 @@ def spread(vals, name, unit='', rel=True):
         s += f", spread {np.std(v):.4g} ({v.min():.4g} to {v.max():.4g})"
     return f'| {name} | {s} |'
 
+if FLAG:
+    w('&dagger; and why:\n')
+    w('| die / run | what is out of family |')
+    w('|---|---|')
+    for _k, _v in FLAG.items():
+        w(f'| {_k} | {_v} |')
+    w('')
 w('How much of that is common to the lot:\n')
 w('| quantity | median over the die-runs, and the spread |')
 w('|---|---|')
@@ -343,8 +396,10 @@ for d, x, yn, ok in prof:
 SH = np.array(sh)
 CM = np.corrcoef(SH)
 iu = np.triu_indices(len(Dies), 1)
-same_die = np.array([Dies[i]['Die'] == Dies[j]['Die'] for i, j in zip(*iu)])
-same_waf = np.array([Dies[i]['Wafer'] == Dies[j]['Wafer'] for i, j in zip(*iu)])
+same_die = np.array([(Dies[i]['Lot'], Dies[i]['Die']) == (Dies[j]['Lot'], Dies[j]['Die'])
+                     for i, j in zip(*iu)])
+same_waf = np.array([(Dies[i]['Lot'], Dies[i]['Wafer']) == (Dies[j]['Lot'], Dies[j]['Wafer'])
+                     for i, j in zip(*iu)])
 rr = CM[iu]
 ratios = [float(d['BC']['Gradient']['DCRatio']) for d in Dies]
 w(f"""The profile shapes correlate across the die-runs with r = {np.median(rr):.3f} on the median
@@ -364,7 +419,7 @@ pair ({rr.min():.3f} to {rr.max():.3f}). Split by what the pair shares:
 # both setups are the test -- the same silicon, two bias boards.
 _byd = {}
 for i, d in enumerate(Dies):
-    _byd.setdefault(d['Die'], {})[d['Run']] = (float(d['BC']['Gradient']['DCRatio']),
+    _byd.setdefault(d['Lot'] + '/' + d['Die'], {})[d['Run']] = (float(d['BC']['Gradient']['DCRatio']),
                                                float(d['D']['Fit']['All']['SlopeSpread']['Median']))
 _nboth = sum(1 for v in _byd.values() if len(v) >= 2)
 _rs = np.median(rr[same_die]) if same_die.any() else np.nan
@@ -535,7 +590,7 @@ the device must not change when only the bias board does.\n""")
 # same route, same die, two runs
 bydie = {}
 for d in Dies:
-    bydie.setdefault(d['Die'], {})[d['Run']] = d
+    bydie.setdefault(d['Lot'] + '/' + d['Die'], {})[d['Run']] = d
 
 def route_pair(k, ra, rb):
     """(die, value in run ra, value in run rb, separation in sigma) for each die in both"""
