@@ -13,10 +13,25 @@
 %                 high-dark-current run reaches (run 31 step 9 at -39 ADU)
 %   so the window has to be chosen from BOTH sides, per die, by how well the
 %   straight line actually fits.
-%   The rule: of every contiguous window of at least 3 steps whose highest
-%   step median is below LinLimit, keep those whose per-pixel goodness of fit
-%   is within DieDarkTol of its expectation, and take the widest; ties go to
-%   the longest lever arm. The goodness of fit is the MEDIAN over the 22.5 M
+%   The rule: widen the window DOWNWARD from the highest step inside the
+%   linear range, and take the widest whose per-pixel goodness of fit is within
+%   DieDarkTol of its expectation; ties go to the longest lever arm.
+%   The anchor at the top is not a convenience, it is what makes the criterion
+%   mean anything. A chi2 criterion on its own rewards the windows where the
+%   data constrain the line LEAST: at the bottom of a dark ladder the signal is
+%   a few ADU, the per-point variance is read-noise dominated and large, and any
+%   curvature hides inside it, so a low window can pass the tolerance that every
+%   informative window fails. Measured on run 38 W08_D02, whose dark ladder is
+%   curved at every scale: the four lowest steps (-3 to 18 ADU, a ninth of the
+%   ladder) passed at 1.09 and gave a dark current of 0.19 ADU/s and a threshold
+%   of 6.5 ADU, against 0.35 and 32 ADU from the top of the same ladder and
+%   0.345 / 32.5 from the same die in run 32. The dark current is the asymptotic
+%   slope, reached once the threshold has been overcome, so the window has to be
+%   anchored where that is true. Every other die-run of the lot chose a
+%   top-anchored window unprompted; only this one did not.
+%   The whole grid is still scanned and written out, because the spread of the
+%   dark current and the threshold over all the windows is the systematic error
+%   on them -- only the CHOICE is restricted to the anchored ones. The goodness of fit is the MEDIAN over the 22.5 M
 %   pixels of chi2/dof from the same weighted fit stage 2 will run, compared
 %   with the median of the chi2/dof distribution itself
 %   (2*gammaincinv(0.5,dof/2)/dof, 0.693 for 1 dof, 0.839 for 2, ...), which
@@ -67,8 +82,9 @@ X = double(Inv.X);
 % --- the window grid
 LinLimit = DieLinLimit;          % [ADU] measured INL still <0.5 % below this
 Allowed  = isfinite(Med) & Med<min(LinLimit, P.SatLevel);
+TopIdx = find(Allowed, 1, 'last');       % the highest step inside the linear range
 Scan = struct('Lo',{}, 'Hi',{}, 'Nsteps',{}, 'Steps',{}, 'Median',{}, 'Lever',{}, ...
-              'Chi2Dof',{}, 'Chi2Exp',{}, 'Ratio',{}, 'DC',{}, 'Tdark',{}, ...
+              'Anchored',{}, 'Chi2Dof',{}, 'Chi2Exp',{}, 'Ratio',{}, 'DC',{}, 'Tdark',{}, ...
               'SpreadDC',{}, 'SpreadT',{}, 'FitNoiseDC',{}, 'FitNoiseT',{});
 for Hi = Ns:-1:3
     if ~Allowed(Hi)
@@ -90,7 +106,7 @@ for Hi = Ns:-1:3
         In   = ultrasat.lab.PTCAnalysis.paramSpread(F.Intercept(Ok), F.VarIntercept(Ok), 'Robust',true);
         Cm   = median(F.Chi2Dof(Ok), 'omitnan');
         Scan(end+1) = struct('Lo',Lo, 'Hi',Hi, 'Nsteps',numel(Idx), 'Steps',Inv.Step(Idx), ...
-            'Median',Med(Idx), 'Lever',X(Hi)-X(Lo), 'Chi2Dof',Cm, 'Chi2Exp',Cexp, ...
+            'Median',Med(Idx), 'Lever',X(Hi)-X(Lo), 'Anchored',Hi==TopIdx, 'Chi2Dof',Cm, 'Chi2Exp',Cexp, ...
             'Ratio',Cm./Cexp, 'DC',Sl.Median, 'Tdark',-In.Median, ...
             'SpreadDC',Sl.StdIntr, 'SpreadT',In.StdIntr, ...
             'FitNoiseDC',Sl.StdFit, 'FitNoiseT',In.StdFit);   %#ok<SAGROW>
@@ -104,22 +120,30 @@ if isempty(Scan)
           nnz(Allowed), Ns, LinLimit);
 end
 
-% --- the choice: widest window inside the tolerance, ties to the longest lever arm
+% --- the choice: of the windows anchored at the top of the linear range, the
+%     widest one inside the tolerance; ties to the longest lever arm
 Ratio = [Scan.Ratio];
 Nst   = [Scan.Nsteps];
 Lev   = [Scan.Lever];
-Pass  = Ratio<=DieDarkTol;
+Anch  = [Scan.Anchored];
+Pass  = Ratio<=DieDarkTol & Anch;
 if any(Pass)
     Cand = find(Pass);
     Key  = Nst(Cand).*1e6 + Lev(Cand);
     [~, J] = max(Key);
     Pick = Cand(J);
-    Why  = sprintf('widest window with chi2/dof within %.0f %% of expectation', 100.*(DieDarkTol-1));
+    Why  = sprintf('widest window from the top of the linear range with chi2/dof within %.0f %% of expectation', ...
+                   100.*(DieDarkTol-1));
 else
-    % Nothing qualifies (a ladder bent everywhere): take the best fit there is.
-    [~, Pick] = min(Ratio);
-    Why = 'no window inside the tolerance: the best goodness of fit';
-    fprintf('  WARNING: no window reaches the tolerance (best ratio %.3f)\n', min(Ratio));
+    % A ladder bent at every scale: keep the anchor and take the best fit that
+    % has it, rather than falling to a low window whose chi2 only looks good
+    % because nothing is measured there.
+    Ca = find(Anch);
+    [~, J] = min(Ratio(Ca));
+    Pick = Ca(J);
+    Why = 'no anchored window inside the tolerance: the best goodness of fit among them';
+    fprintf('  WARNING: no window from the top reaches the tolerance (best anchored ratio %.3f)\n', ...
+            min(Ratio(Ca)));
 end
 
 fprintf('\n%-18s %6s %8s %9s %8s %9s %10s %9s\n', ...
@@ -127,6 +151,7 @@ fprintf('\n%-18s %6s %8s %9s %8s %9s %10s %9s\n', ...
 [~, Order] = sortrows([-Nst(:), -Lev(:)]);
 for K = Order(:).'
     Mark = ' ';
+    if Scan(K).Anchored, Mark = '.'; end      % eligible: anchored at the top
     if K==Pick, Mark = '*'; end
     fprintf('%s %-16s %6d %8.0f %9.4f %8.4f %9.3f %10.4f %9.2f\n', Mark, ...
         ['[', strtrim(sprintf('%d ', Scan(K).Steps)), ']'], Scan(K).Nsteps, Scan(K).Lever, ...
@@ -135,7 +160,11 @@ end
 
 Out = struct('Stage','2a', 'Tag',DieTag, 'Run',DieRun, 'Die',Die, 'GainHalf',DieGain, ...
              'Size',size(P.Zero), 'Tol',DieDarkTol, 'LinLimit',LinLimit, ...
-             'Rule','widest contiguous window of >=3 steps, top step below LinLimit, median chi2/dof within Tol of expectation; ties to the longest lever arm', ...
+             'Rule',['widest window of >=3 steps widened downward from the highest step below ' ...
+                     'LinLimit, median chi2/dof within Tol of expectation; ties to the longest ' ...
+                     'lever arm. The whole grid is scanned for the systematic, but only ' ...
+                     'top-anchored windows are eligible to be chosen.'], ...
+             'TopStep',Inv.Step(TopIdx), ...
              'Chosen',Scan(Pick).Steps, 'ChosenMedian',Scan(Pick).Median, ...
              'ChosenRatio',Scan(Pick).Ratio, 'Why',Why, ...
              'Step',Inv.Step, 'X',X, 'StepMedian',Med, 'VarStep',VarSt, 'Nframes',Nrep, ...
