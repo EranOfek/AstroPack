@@ -103,16 +103,29 @@ RN2m = mean(RN2(:), 'omitnan');
 % a window can never reach outside the linear range.
 Win = struct();
 AvD   = Dat.D.Step;
-Win.a = local_vary(DieFitStepsD, AvD);
-Win.c = local_trim(AvD);
-Win.b = {[1 2 3 4], [2 3 4], [1 2 3], [3 4 5]};                   % light response
-Win.d = {[1 2 3 4], [2 3 4], [1 2 3 4 5], [1 2 3]};               % PTC light
+if exist('DieStepsExplicit','var') && DieStepsExplicit
+    % 'signal' mode: one list per ladder, used by the response route and the PTC
+    % route of that ladder alike, so a) and c) fit the same dark points and b)
+    % and d) the same bright ones. The window systematic is then the sub-windows
+    % of that list, not other windows of the ladder: varying it further would
+    % leave the signal range the mode exists to fix.
+    Win.a = local_vary(DieFitStepsD, AvD);
+    Win.c = Win.a;
+    Win.b = local_vary(DieFitStepsB, Dat.B.Step);
+    Win.d = Win.b;
+else
+    Win.a = local_vary(DieFitStepsD, AvD);
+    Win.c = local_trim(AvD);
+    Win.b = {[1 2 3 4], [2 3 4], [1 2 3], [3 4 5]};               % light response
+    Win.d = {[1 2 3 4], [2 3 4], [1 2 3 4 5], [1 2 3]};           % PTC light
+end
 % The bright ladder is the same optical setup in every run, so its step numbers
 % are stable -- but not guaranteed, and a step that drifted out of the PTC signal
 % window would silently be fitted by the response route and dropped by the PTC
 % one, which is exactly the "one signal range" property the config claims.
 BmedB = Dat.B.Signal(ismember(Dat.B.Step, DieFitStepsB));
-if numel(BmedB)~=numel(DieFitStepsB) || any(BmedB<DieGainRange(1)) || any(BmedB>DieGainRange(2))
+if ~(exist('DieStepsExplicit','var') && DieStepsExplicit) && ...
+        (numel(BmedB)~=numel(DieFitStepsB) || any(BmedB<DieGainRange(1)) || any(BmedB>DieGainRange(2)))
     error('ultrasat:lab:scripts:brightwindow', ...
           ['the bright response window [%s] has medians %s ADU, which do not all lie inside the ' ...
            'PTC window %g-%g ADU: the two routes would no longer share a signal range'], ...

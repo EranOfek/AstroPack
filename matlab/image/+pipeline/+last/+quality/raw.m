@@ -96,19 +96,29 @@ function [Result, Files] = raw(Dirs, Args)
     %                   for the ACF based FWHM. Default is 500.
     %            'MaxRadius' - Max radius [pix] for the ACF.
     %                   Default is 50.
-    %            'ThresholdBack' - Pixel value above which a pixel counts
-    %                   as "high" for the high-pixel-fraction test.
-    %                   Default is 4000.
+    %            'RelThresholdBack' - Pixel value, relative to the median
+    %                   of the light band, above which a pixel counts as
+    %                   "high" for the high-pixel-fraction test, as in
+    %                   imUtil.quality.backgroundLevel (issue #1179). If
+    %                   empty, use 'ThresholdBack'. Default is 1.2.
+    %            'MaxThresholdBack' - Upper limit [ADU] of the relative
+    %                   threshold, so that saturated frames are still
+    %                   flagged. If empty, no limit. Default is 40000.
+    %            'ThresholdBack' - Absolute pixel value [ADU] used if
+    %                   'RelThresholdBack' is empty. Default is 4000.
     %            'histAnomalyArgs' - Cell array of additional arguments for
     %                   imUtil.image.histAnomaly. Note that the light
     %                   region is passed to it already trimmed, so its
     %                   'CCDSEC' argument is neither needed nor used - this
     %                   is what avoids the overscan bias peak being
-    %                   mistaken for a bimodality (issue #1216).
+    %                   mistaken for a bimodality (issue #1216). The
+    %                   overscan median of the band is passed as its
+    %                   'Offset', so the bin width scales with the sky
+    %                   level as in prePrep (issue #1179).
     %                   Default is {}.
     %            % ---------- anomaly thresholds ----------
-    %            'MaxPixFraction' - Fraction of pixels above
-    %                   'ThresholdBack' above which HighPixAnomaly is set.
+    %            'MaxPixFraction' - Fraction of pixels above the
+    %                   threshold above which HighPixAnomaly is set.
     %                   Default is 0.4.
     %            'SkyRange' - [Min Max] allowed sky level [ADU] above the
     %                   overscan. Outside this range BackLevelAnomaly is
@@ -171,7 +181,7 @@ function [Result, Files] = raw(Dirs, Args)
     %            Var, VarOver, VarRatio - variance of the light region, of
     %              the overscan [ADU^2], and their ratio (see above).
     %            FracPixAbove - fraction of light pixels above
-    %              'ThresholdBack'.
+    %              the high-pixel threshold ('RelThresholdBack'/'ThresholdBack').
     %            HistAnomaly, HighPixAnomaly, BackLevelAnomaly - the three
     %              individual background tests (1/0).
     %            BackAnomaly - 1 if any of the three above is 1.
@@ -207,6 +217,8 @@ function [Result, Files] = raw(Dirs, Args)
         Args.Gain                 = [];
         Args.ACF_HalfSize         = 500;
         Args.MaxRadius            = 50;
+        Args.RelThresholdBack     = 1.2;
+        Args.MaxThresholdBack     = 40000;
         Args.ThresholdBack        = 4000;
         Args.histAnomalyArgs      = {};
 
@@ -356,13 +368,21 @@ function Row = measureImage(Row, FullName, Args)
         VarList  = [VarList;  blockStat(Light{Ib}, [Args.BlockSize Args.BlockSize])]; %#ok<AGROW>
         VarOList = [VarOList; blockStat(Over{Ib},  [Args.BlockSize size(Over{Ib},2)])]; %#ok<AGROW>
 
-        FracB(Ib) = sum(Light{Ib}(:)>Args.ThresholdBack)./numel(Light{Ib});
+        if isempty(Args.RelThresholdBack)
+            ThreshB = Args.ThresholdBack;
+        else
+            ThreshB = Args.RelThresholdBack.*BackB(Ib);
+            if ~isempty(Args.MaxThresholdBack)
+                ThreshB = min(ThreshB, Args.MaxThresholdBack);
+            end
+        end
+        FracB(Ib) = sum(Light{Ib}(:)>ThreshB)./numel(Light{Ib});
 
         % The light region is passed already trimmed - this is the point of
         % issue #1216: histogramming the frame together with its overscan
         % strip makes the bias peak look like a second mode and rejects
         % perfectly healthy frames.
-        HistB(Ib) = imUtil.image.histAnomaly(Light{Ib}, Args.histAnomalyArgs{:});
+        HistB(Ib) = imUtil.image.histAnomaly(Light{Ib}, 'Offset',BackOB(Ib), Args.histAnomalyArgs{:});
 
         FWHM_B(Ib) = fwhmFromBand(Light{Ib}, BackB(Ib), Args);
     end

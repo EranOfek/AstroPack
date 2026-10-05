@@ -216,7 +216,7 @@ if DW is not None:
     _lines = []
     for _e in sorted(_sc, key=lambda e: (-int(e['Nsteps']), -float(e['Lever']))):
         _st = np.atleast_1d(np.array(_e['Steps'], dtype=int)).tolist()
-        _mk = ' **chosen**' if set(_st) == _ch else ''
+        _mk = ' **chosen**' if set(_st) == _ch else (' *eligible*' if _e.get('Anchored') else '')
         _lines.append(f"| [{' '.join(str(v) for v in _st)}]{_mk} | "
                       f"{np.atleast_1d(np.array(_e['Median'],dtype=float))[0]:.0f}-"
                       f"{np.atleast_1d(np.array(_e['Median'],dtype=float))[-1]:.0f} | "
@@ -228,12 +228,22 @@ if DW is not None:
                   f"{100*(max(_dcs)/min(_dcs)-1):.0f} % and the dark threshold by a factor "
                   f"{max(_tds)/min(_tds):.1f} ({min(_tds):.1f} to {max(_tds):.1f} ADU).")
     DARK_WINDOW_TEXT = f"""
-The dark window is not a setting: it is chosen for this die by goodness of fit, because the two
-bias-board setups of this lot differ by a factor 22 in dark current and so put their dark ladders
-in signal ranges that barely overlap. Of every contiguous window of at least three steps whose
-highest step is below the {float(DW['LinLimit']):.0f} ADU linearity limit, the widest whose median
+The dark window is not a setting: it is chosen for this die by goodness of fit, because the
+bias-board setups of this lot differ by up to a factor 22 in dark current and so put their dark
+ladders in signal ranges that barely overlap. The window is widened **downward from the highest
+step below the {float(DW['LinLimit']):.0f} ADU linearity limit**, and the widest one whose median
 chi2/dof is within {100*(float(DW['Tol'])-1):.0f} % of its expectation is taken; ties go to the
-longest lever arm. On this die that is **[{' '.join(str(v) for v in sorted(_ch))}]**
+longest lever arm.
+
+The anchor at the top is what makes the criterion mean anything. A goodness of fit on its own
+rewards the windows where the data constrain the line *least*: at the bottom of a dark ladder the
+signal is a few ADU, the per-point variance is read-noise dominated and large, and curvature hides
+inside it, so a low window can pass the tolerance that every informative window fails. The dark
+current wanted here is the asymptotic slope, reached once the threshold has been overcome, which
+is the top of the ladder by construction. Rows marked *eligible* below are the anchored ones; the
+rest are scanned only to measure how far the answer moves with the window.
+
+On this die the choice is **[{' '.join(str(v) for v in sorted(_ch))}]**
 ({np.atleast_1d(np.array(DW['ChosenMedian'],dtype=float))[0]:.0f}-{np.atleast_1d(np.array(DW['ChosenMedian'],dtype=float))[-1]:.0f} ADU),
 at a ratio of {float(DW['ChosenRatio']):.3f}. The whole scan:
 

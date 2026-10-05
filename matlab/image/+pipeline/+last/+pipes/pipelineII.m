@@ -415,20 +415,34 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
     if Args.RePopRefPSF
         for Iobj = Nobj:-1:1
+            % keep the reference PSF; it is restored below, with its
+            % photometry and zero point, if the re-populated one is not
+            % sane (#1355)
+            OrigPSF = AD(Iobj).Ref.PSFData.copy();
             AD(Iobj).Ref = imProc.psf.populatePSF(AD(Iobj).Ref, 'RePopulatePSF', true, 'Method', 'new');
                 % uniPSF repop: every PSF-shape argument (RadiusPSF 12, Annulus
                 % [16 20], analytic 3.7 wings @ 1e-2, elliptical, no ellipticity
                 % fallback, CropByQuantile false, single detection PSF) comes
                 % from the populatePSF/buildPSF uniPSF defaults.
-            AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref, 'PsfPhotMethod',Args.PsfPhotMethod, ...
-                                                                    'ShiftMethod',Args.ShiftMethod);
-            AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName, ...
-                                                      'GaiaCone',Args.GaiaCone, 'EpochOut',gaiaEpoch(AD(Iobj).Ref, Args.GaiaProperMotion));
+            if ~AD(Iobj).Ref.isemptyPSF && ~isSanePSF(AD(Iobj).Ref.PSFData.getPSF)
+                warning('Re-populated Ref PSF of CROPID %d is not sane (non-positive or off-centre peak), keeping the reference PSF.', ...
+                        AD(Iobj).New.HeaderData.getVal('CROPID'));
+                AD(Iobj).Ref.PSFData = OrigPSF;
+            else
+                AD(Iobj).Ref = imProc.sources.psfFitPhot(AD(Iobj).Ref, 'PsfPhotMethod',Args.PsfPhotMethod, ...
+                                                                        'ShiftMethod',Args.ShiftMethod);
+                AD(Iobj).Ref = imProc.calib.photometricZP(AD(Iobj).Ref, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName, ...
+                                                          'GaiaCone',Args.GaiaCone, 'EpochOut',gaiaEpoch(AD(Iobj).Ref, Args.GaiaProperMotion));
+            end
         end
     end
 
     if Args.RePopNewPSF
         for Iobj = Nobj:-1:1
+            % keep the PipelineI PSF; it is restored below, with its
+            % photometry and zero point, if the re-populated one is not
+            % sane (#1355)
+            OrigPSF = AD(Iobj).New.PSFData.copy();
             AD(Iobj).New = imProc.psf.populatePSF(AD(Iobj).New, 'RePopulatePSF', true,...
                 'SmoothWings', false, 'SuppressWidth', 3, 'RadiusPSF', 8,...
                 'CropByQuantile', true, 'Quantile', 0.99999, 'Method', 'new', ...
@@ -436,10 +450,16 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
                 'Annulus', [10 12], 'WingsPowerLaw', 2, ...           % pinned pre-uniPSF values: the repop
                 'EllipticalWings', false, 'SkipEllipticityFallback', false); % recipe is frozen until the subtraction
                                                                              % flow is validated on uniPSF defaults
-            AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New, 'PsfPhotMethod',Args.PsfPhotMethod, ...
-                                                                    'ShiftMethod',Args.ShiftMethod);
-            AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName, ...
-                                                      'GaiaCone',Args.GaiaCone, 'EpochOut',gaiaEpoch(AD(Iobj).New, Args.GaiaProperMotion));
+            if ~AD(Iobj).New.isemptyPSF && ~isSanePSF(AD(Iobj).New.PSFData.getPSF)
+                warning('Re-populated New PSF of CROPID %d is not sane (non-positive or off-centre peak), keeping the PipelineI PSF.', ...
+                        AD(Iobj).New.HeaderData.getVal('CROPID'));
+                AD(Iobj).New.PSFData = OrigPSF;
+            else
+                AD(Iobj).New = imProc.sources.psfFitPhot(AD(Iobj).New, 'PsfPhotMethod',Args.PsfPhotMethod, ...
+                                                                        'ShiftMethod',Args.ShiftMethod);
+                AD(Iobj).New = imProc.calib.photometricZP(AD(Iobj).New, 'CatColNameMag', 'MAG_PSF', 'CatName',GaiaCatName, ...
+                                                          'GaiaCone',Args.GaiaCone, 'EpochOut',gaiaEpoch(AD(Iobj).New, Args.GaiaProperMotion));
+            end
         end
     end    
 
@@ -944,8 +964,13 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Kill duplicates
     % Candidates (real and not) in overlap areas between sub-images will 
     % appear multiple times, i.e. we will have duplicates. Here we clean
-    % them. We find the duplicates by matching candidates within 1.5 arcsec
-    % and keep only those closest to the center of its sub-image
+    % them. Candidates within 1.5 arcsec in different sub-images are
+    % linked, and each connected group is one set of duplicates. In each
+    % group, the candidate closest to the center of its sub-image is the
+    % survivor, regardless of FLAGS_TRANSIENT (issue #1374), and all
+    % group members in the survivor's sub-image are kept (near candidates
+    % in the same sub-image are distinct detections). Ties are broken by
+    % the lowest CROPID.
     if Args.killDuplicates
 
         % Remember the number of positive candidates before removing
@@ -955,56 +980,30 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         % Clean merged catalog
         % Match all candidates within 1.5 arcsec
         [MRA, MDec] = TCL1.getLonLat('rad');
-        HalfSize = size(AD(1).Image)./2;
-        SelfMatches = VO.search.search_sortedlat_multi( ...
-                [MRA, MDec], MRA, MDec, -1.5*Arcsec2Rad);
-        SelfMachthesN = vertcat(SelfMatches.Nmatch);
-        % Count all candidates with more than one match as duplicates
-        Duplicates = SelfMachthesN > 1;
-        DuplicatesMatches = SelfMatches(Duplicates);
-        DuplicatesNMatches = vertcat(DuplicatesMatches.Nmatch);
-        % Get number of duplicates
-        NDup = numel(DuplicatesNMatches);
+        NCand = numel(MRA);
+        Duplicates = false(NCand,1);
+        if NCand > 1
+            HalfSize = size(AD(1).Image)./2;
+            SelfMatches = VO.search.search_sortedlat_multi( ...
+                    [MRA, MDec], MRA, MDec, 1.5*Arcsec2Rad);
+            IMatch = repelem((1:NCand)', vertcat(SelfMatches.Nmatch));
+            JMatch = vertcat(SelfMatches.Ind);
+            % Link only matches in different sub-images
+            CropIDs = TCL1.getCol('CROPID');
+            Link = IMatch ~= JMatch & CropIDs(IMatch) ~= CropIDs(JMatch);
+            LinkMat = sparse(IMatch(Link), JMatch(Link), 1, NCand, NCand);
+            % Duplicate groups (single candidates are groups of one)
+            Group = conncomp(graph(LinkMat | LinkMat'))';
 
-        % Loop over duplicates
-        for IDup=1:NDup
-
-            % Get duplicate entry
-            IDuplicates = DuplicatesMatches(IDup);
-            IDuplicatesInd = IDuplicates.Ind;
-            % Remember which duplicate entry is the current candidate
-            SelfIdx = IDuplicatesInd == IDuplicates.Ind1;
-
-            % Get catalog values for current duplicates            
-            DuplicatesCat = TCL1.selectRows(IDuplicatesInd);
-            
-            % Remove false duplicates, i.e. near candidates
-            % in the same sub-image
-            CropIDs = DuplicatesCat.Table.CROPID;
-            SelfCrop = CropIDs(SelfIdx);
-            % Get flag of all duplicates that are not in the same crop-id
-            % as the current candidate plus the current candidate, i.e. the
-            % current candidate is the only duplicate with its crop-id
-            NonSelfImgDup = ((CropIDs ~= SelfCrop) | SelfIdx);
-
-            % Update duplicates catalog
-            DuplicatesCat = DuplicatesCat.selectRows(NonSelfImgDup);
-            IDuplicatesInd = IDuplicatesInd(NonSelfImgDup);
-            
-            % If the candidate is the only one left, then it is not a
-            % duplicate. Mark it as not a duplicate and continue.
-            if DuplicatesCat.sizeCatalog == 1
-               Duplicates(DuplicatesMatches(IDup).Ind1) = 0;
-               continue
-            end
-            
-            % Choose the duplicate that is closest to the center as the
-            % survivor. Mark it as not a duplicate, leave all others
-            % marked as duplicates.
-            [DupX, DupY] = DuplicatesCat.getXY('ColX','XPEAK','ColY','YPEAK');
-            CenterDistance = sqrt((DupX-HalfSize(1)).^2+(DupY-HalfSize(2)).^2);
-            Survivor = CenterDistance == min(CenterDistance);
-            Duplicates(IDuplicatesInd(Survivor)) = 0;
+            % Choose the candidate closest to the center as the survivor of
+            % each group, and keep the group members in its sub-image.
+            [DupX, DupY] = TCL1.getXY('ColX','XPEAK','ColY','YPEAK');
+            CenterDistance = sqrt((DupX-HalfSize(2)).^2+(DupY-HalfSize(1)).^2);
+            MinDistance = accumarray(Group, CenterDistance, [], @min);
+            Survivor = CenterDistance == MinDistance(Group);
+            SurvivorCrop = accumarray(Group(Survivor), CropIDs(Survivor), ...
+                    [max(Group) 1], @min);
+            Duplicates = CropIDs ~= SurvivorCrop(Group);
         end
         % Update the merged catalog by keeping only the candidates not
         % marked as duplicates.
@@ -1109,4 +1108,18 @@ function JD = gaiaEpoch(Image, ApplyPM)
             JD = [];   % no readable JD - no proper motion
         end
     end
+end
+
+function Flag = isSanePSF(P)
+    % A PSF stamp is sane if it is finite and its maximum is positive and
+    % within 1 pix of the stamp centre. An inverted PSF (e.g. built from
+    % stamps with a negative sum, #1355) has its maximum in the noise floor.
+    Flag = false;
+    if isempty(P) || any(~isfinite(P(:)))
+        return
+    end
+    [MaxVal, Imax] = max(P(:));
+    [Iy, Ix] = ind2sub(size(P), Imax);
+    Ctr = (size(P) + 1)./2;
+    Flag = MaxVal > 0 && abs(Iy - Ctr(1)) <= 1 && abs(Ix - Ctr(2)) <= 1;
 end

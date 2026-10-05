@@ -23,18 +23,27 @@
 % A driver can select the dataset by defining DieSelect (Run, Folder, Die, Gain)
 % before running this file; otherwise the defaults below apply. The stage scripts
 % run in the caller's workspace, so nothing else has to change.
+DieLotDefault = 'TH02954';
 if exist('DieSelect', 'var') && isstruct(DieSelect)
     DieRun    = DieSelect.Run;
     DieFolder = DieSelect.Folder;
     Die       = DieSelect.Die;
     DieGain   = DieSelect.Gain;
+    % The lot was fixed while only one was being analysed. It is selectable now
+    % that TH02260 is in scope, and defaults to the old value so that every
+    % caller written before this still means what it meant.
+    if isfield(DieSelect, 'Lot') && ~isempty(DieSelect.Lot)
+        DieLot = DieSelect.Lot;
+    else
+        DieLot = DieLotDefault;
+    end
 else
     DieRun    = '32';
     DieFolder = 'LOT_TH02954_32_FT_PTCint_-50_2026-08-27';
     Die       = 'W04_D07';
     DieGain   = 'high';                % 'high' | 'low'
+    DieLot    = DieLotDefault;
 end
-DieLot       = 'TH02954';
 % Fit windows. The streamed mode needs an explicit step list ('auto' resolves
 % the steps from the cached region ladder, which full mode does not build).
 % Dark: NOT a setting. stage 2a (desy_die_darkwindow) measures it per die and
@@ -47,6 +56,25 @@ DieLot       = 'TH02954';
 % shortest exposures above the line, and the INL bends the longest ones down.
 DieFitStepsD = [7 8 9];
 DieDarkTol   = 1.10;      % goodness-of-fit tolerance for the automatic dark window
+% How the fit windows are chosen. Two modes, and they answer different questions.
+%   'chi2'   (default) each ladder gets the widest window, anchored at the top of
+%            its linear range, that still fits a straight line -- so each ladder
+%            is measured over as much of itself as is straight, and the two
+%            ladders are measured over quite different signal ranges.
+%   'signal' both ladders get the SAME signal window, [DieSigLo DieSigHi], and
+%            within a ladder the response fit and the PTC fit use exactly the
+%            same steps -- so the gain and the response refer to the same charge
+%            over the same points, at the price of fewer points and, on a dark
+%            ladder that barely reaches the window, of a much shorter lever.
+% In 'signal' mode stage 2a is desy_die_fitwindow rather than desy_die_darkwindow,
+% and stages 5, 9 and 10 take their steps from the lists rather than re-selecting
+% by signal range, which is what makes "exactly the same points" true rather than
+% nearly true (stage 5 selected on the per-step median, stage 9 on the mean).
+if ~exist('DieWindowMode', 'var')
+    DieWindowMode = 'chi2';
+end
+DieSigLo = 100;           % [ADU] 'signal' mode window, on the MEAN signal
+DieSigHi = 1000;
 % Highest step median any fit may use, [ADU]. Above it the measured integral
 % non-linearity exceeds 0.5 % and the PTC starts into the 3-5 kADU variance dip,
 % so a point there is not on the straight line the fits assume. Only the
@@ -105,9 +133,23 @@ DieRoot      = '/Data1/DESY';
 if ~isfolder(DieRoot)
     DieRoot = '/bigdata3/projects/ultrasat/DESY';
 end
-DieTag    = sprintf('run%s_%s_%s', DieRun, Die, DieGain);
+% Die names repeat between lots -- TH02260 and TH02954 both have a W07_D06, and
+% both were measured in run 35 -- so the lot has to be in the tag or the two
+% would write over each other. It is left out for the default lot, which keeps
+% the directories of everything analysed so far exactly as they are.
+if strcmp(DieLot, DieLotDefault)
+    DieTag = sprintf('run%s_%s_%s', DieRun, Die, DieGain);
+else
+    DieTag = sprintf('run%s_%s_%s_%s', DieRun, DieLot, Die, DieGain);
+end
 DieDev    = fullfile(DieRoot, DieFolder, ['LOT_', DieLot, '_', Die]);
+% 'signal' mode writes beside the default results rather than over them, so the
+% two ways of choosing the window can be compared on the same die. Stage 1 is
+% shared: bias and read noise do not depend on any fit window.
 DieOut    = fullfile('/home/sasha/claude/desy_die', DieTag);
+if strcmpi(DieWindowMode, 'signal')
+    DieOut = [DieOut, '_sig'];
+end
 DieStage1 = fullfile('/home/sasha/claude/desy_rn', DieTag);     % desy_rn_single_die output
 if ~isfolder(DieOut)
     mkdir(DieOut);
@@ -117,7 +159,46 @@ end
 % do not overlap: at the same exposures run 31 reaches 3500 ADU and run 32 only
 % 172, so one fixed list of steps cannot be right for both. The list above is
 % the fallback when that stage has not been run.
-if isfile(fullfile(DieOut, 'darkwindow.json'))
+DieStepsExplicit = false;        % do stages 5/9/10 take the step lists verbatim?
+DieGainScanSteps = {};           % 'signal' mode: the gain scan as step lists
+if strcmpi(DieWindowMode, 'signal')
+    FwPath = fullfile(DieOut, 'fitwindow.json');
+    % desy_die_fitwindow is the stage that WRITES that file, so it runs this
+    % config before the file can exist; it sets DieWindowBootstrap to say so.
+    Boot = exist('DieWindowBootstrap', 'var') && DieWindowBootstrap;
+    if ~isfile(FwPath) && ~Boot
+        error('ultrasat:lab:scripts:fitwindow', ...
+              'DieWindowMode is ''signal'' but %s does not exist: run desy_die_fitwindow first', FwPath);
+    end
+end
+if strcmpi(DieWindowMode, 'signal') && isfile(fullfile(DieOut, 'fitwindow.json'))
+    FwJ = jsondecode(fileread(fullfile(DieOut, 'fitwindow.json')));
+    if ~isequal(FwJ.Run, DieRun) || ~isequal(FwJ.Die, Die) || ~isequal(FwJ.GainHalf, DieGain)
+        error('ultrasat:lab:scripts:fitwindow', ...
+              'fitwindow.json in %s is run %s %s %s, not run %s %s %s', ...
+              DieOut, FwJ.Run, FwJ.Die, FwJ.GainHalf, DieRun, Die, DieGain);
+    end
+    if abs(FwJ.SigLo-DieSigLo)>1e-9 || abs(FwJ.SigHi-DieSigHi)>1e-9
+        error('ultrasat:lab:scripts:fitwindow', ...
+              'fitwindow.json was built for %g-%g ADU, not the %g-%g now set: rerun desy_die_fitwindow', ...
+              FwJ.SigLo, FwJ.SigHi, DieSigLo, DieSigHi);
+    end
+    DieFitStepsD     = FwJ.D.Chosen(:).';
+    DieFitStepsB     = FwJ.B.Chosen(:).';
+    DieGainRange     = [min(FwJ.B.ChosenSignal) max(FwJ.B.ChosenSignal)].*[0.999 1.001];
+    % The window systematic inside this mode is the SUB-windows of the chosen
+    % list, not other windows of the ladder: varying it further would leave the
+    % signal range the mode exists to fix. A single-entry scan would instead
+    % report a zero systematic, which is not the same as having measured one.
+    FwBst = sort(DieFitStepsB);
+    DieGainScan      = {DieGainRange};
+    DieGainScanSteps = {FwBst};
+    if numel(FwBst)>=4
+        DieGainScanSteps{end+1} = FwBst(2:end);       % drop the lowest point
+        DieGainScanSteps{end+1} = FwBst(1:end-1);     % drop the highest point
+    end
+    DieStepsExplicit = true;
+elseif isfile(fullfile(DieOut, 'darkwindow.json'))
     DwJ = jsondecode(fileread(fullfile(DieOut, 'darkwindow.json')));
     if ~isequal(DwJ.Run, DieRun) || ~isequal(DwJ.Die, Die) || ~isequal(DwJ.GainHalf, DieGain)
         error('ultrasat:lab:scripts:darkwindow', ...

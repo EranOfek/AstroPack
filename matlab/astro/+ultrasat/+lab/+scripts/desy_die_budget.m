@@ -110,13 +110,18 @@ for Mk = {'Unmasked','Masked'}
         Alt.SNRdet = Sdet(1);
         Ca = ultrasat.lab.PTCAnalysis.budgetCurve(Qgrid, Alt);
         B.(Mk{1}).(Names{It}).Qlim_raw_altFPN = Ca.Qlim_raw;
-        % gain systematic: the whole budget scales with g
-        for Gg = [Ptc.GainSystematic.Min Ptc.GainSystematic.Max]
+        % gain systematic: the whole budget scales with g. Indexed rather than
+        % compared by value: when the gain scan holds a single window the two
+        % ends are equal, and `if Gg==Min` would then take the same branch twice
+        % and leave Qlim_cal_gmax undefined.
+        Gends = [Ptc.GainSystematic.Min Ptc.GainSystematic.Max];
+        for Ig = 1:1:2
+            Gg = Gends(Ig);
             Ag = struct('RN_e',In.RN_ADU./Gg, 'DC_e',In.DC_ADU./Gg, 'ExpTime',Tt, ...
                         'SigmaT_e',Sig./Gg, 'SigmaDC_e',In.SigmaDC_ADU./Gg, ...
                         'PRNU',In.PRNU, 'Threshold_e',Tadu(It)./Gg, 'SNRdet',Sdet(1));
             Cg = ultrasat.lab.PTCAnalysis.budgetCurve(Qgrid, Ag);
-            if Gg==Ptc.GainSystematic.Min
+            if Ig==1
                 B.(Mk{1}).(Names{It}).Qlim_cal_gmin = Cg.Qlim_cal;
             else
                 B.(Mk{1}).(Names{It}).Qlim_cal_gmax = Cg.Qlim_cal;

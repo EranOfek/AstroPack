@@ -49,7 +49,7 @@ function [AI, TableForDB, TableHeader, JD_AI, FlagGoodImages, ExpTime] = prePrep
     %            'backgroundLevelArgs' - Cell array of args forwarded to
     %                   imProc.quality.backgroundLevel (e.g.,
     %                   {'DiluteFactor',101,'UseMex',true,'MaxPixFraction',0.4,
-    %                    'ThresholdBack',4000}). Default is {}.
+    %                    'RelThresholdBack',1.2}). Default is {}.
     %            'HistAnomaly' - If true, check for histogram anomalies
     %                   (via imProc.quality.histAnomaly). Default is true.
     %            'histAnomalyArgs' - Cell array of args for histAnomaly.

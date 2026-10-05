@@ -318,7 +318,8 @@ function Result = photTransientFromCalibratedImages(AD, X_New, Y_New, X_Ref, Y_R
 
         [Result, ~] = imUtil.sources.psfPhotCube(Cube, ...
             'PSF', AD.PSFData.getPSF, ...
-            'ZP', AD.HeaderData.getVal('PH_ZP'));
+            'ZP', AD.HeaderData.getVal('PH_ZP'), ...
+            'UseMex',true);
 
         Result.FluxErr = sqrt(abs(Result.Flux));
         Result.MagErr = 1.086 ./ Result.FluxErr;

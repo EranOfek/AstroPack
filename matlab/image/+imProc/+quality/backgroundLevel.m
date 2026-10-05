@@ -11,10 +11,16 @@ function [Flag, FracPixAboveThreshold, Med] = backgroundLevel(AI, varargin)
     %                   Default is true.
     %            'MaxPixFraction' - Max fraction of pixels above threshold
     %                   to define a bad image. Default is 0.4.
-    %            'ThresholdBack' - Threshold vale. Default is 4000.
+    %            'RelThresholdBack' - Threshold relative to the image
+    %                   median. If empty, use 'ThresholdBack'.
+    %                   Default is 1.2.
+    %            'MaxThresholdBack' - Upper limit [ADU] of the relative
+    %                   threshold (flags saturated frames). Default is 40000.
+    %            'ThresholdBack' - Absolute threshold value [ADU], used if
+    %                   'RelThresholdBack' is empty. Default is 4000.
     %
     % Output : - Array of Flags indicating if the image is ok.
-    %            I.e., the fraction of pixels above Args.ThresholdBack is
+    %            I.e., the fraction of pixels above the threshold is
     %            smaller than Args.MaxPixFraction.
     %          - Array of Fraction of pixels above threshold.
     %          - Array of medians of the images.

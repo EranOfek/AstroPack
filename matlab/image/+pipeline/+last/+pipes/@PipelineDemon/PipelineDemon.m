@@ -973,6 +973,7 @@ classdef PipelineDemon < Component
                 Path
                 Args.FileName = '.status';
                 Args.Msg      = 'ready-for-transfer';
+                Args.Verify   = true;
             end
 
             FileName = fullfile(Path,Args.FileName);
@@ -983,8 +984,24 @@ classdef PipelineDemon < Component
                 Obj.writeLog(sprintf('writeStatus: cannot open %s for writing', FileName), LogLevel.Error);
                 return;
             end
-            fprintf(FID,'%s %s\n',datestr(now,'yyyy-mm-ddTHH:MM:SS'),Args.Msg);
+            StatusLine = sprintf('%s %s', datestr(now,'yyyy-mm-ddTHH:MM:SS'), Args.Msg);
+            fprintf(FID,'%s\n',StatusLine);
             fclose(FID);
+
+            % Read the file back. A .status that lost our line, or that is not
+            % text at all, makes the visit look never-transferred to every later
+            % reader and nothing ever retries it -- two such files were found
+            % months after the fact (issue #1376). Log and continue; the write
+            % itself already happened and the demon must not stop for this.
+            if Args.Verify
+                [StatusOK, Reason] = io.files.verifyTextFile(FileName, ...
+                                         'MustContain', StatusLine, ...
+                                         'LinePattern', '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}');
+                if ~StatusOK
+                    Obj.writeLog(sprintf('writeStatus: %s is damaged after write - %s', ...
+                                         FileName, Reason), LogLevel.Error);
+                end
+            end
 
         end
 
