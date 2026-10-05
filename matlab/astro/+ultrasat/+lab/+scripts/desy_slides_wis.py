@@ -51,7 +51,10 @@ VOLT = {'31':   dict(RST_L='1.0', RST_SEL='3.8', SF='3.3', TX='3.3'),
         '32':   dict(RST_L='1.2', RST_SEL='3.5', SF='3.0', TX='3.3'),
         '38':   dict(RST_L='1.2', RST_SEL='3.5', SF='3.0', TX='3.5'),
         '38-2': dict(RST_L='1.2', RST_SEL='3.5', SF='3.0', TX='3.7')}
-SETNAME = {'31': 'setting A', '32': 'aSpect', '38': 'aSpect', '38-2': 'aSpect'}
+# Run 31 is the AV setting, runs 32 onward the aSpect one; they differ in
+# V_RST_L, V_RST_SEL and V_SF, which is why run 31 is not part of the V_TX scan.
+SETNAME = {'31': 'AV', '32': 'aSpect', '38': 'aSpect', '38-2': 'aSpect',
+           '35': 'aSpect'}
 CTX = (f"TH02954 {DIE}  ·  wafer 04 = flavour {FLAV['W04']}  ·  run {RUN} ({SETNAME[RUN]} settings, "
        f"V$_TX$ {VOLT[RUN]['TX']} V)  ·  high-gain half  ·  whole die, 22.5 M pixels")
 CTX = CTX.replace('$_TX$', 'DD_TX')
@@ -223,7 +226,7 @@ cap(int(6.9*EMU), y+int(4.0*EMU), int(6.1*EMU), 'Difference of the two gains, pi
 
 # ------------------------------------------------------------------ 11. the ~50 e- gap
 y = slide('Where the ~50 e- difference came from — and what fixes it',
-          f"TH02954 {DIE} · run 31 (setting A) · the run in which the gap was seen",
+          f"TH02954 {DIE} · run 31 (AV settings) · the run in which the gap was seen",
           kicker='The two response routes disagreed because they were fitted over different signal '
                  'ranges. Fitting both over 100–1000 ADU removes most of the gap.')
 d.picture(os.path.join(OLD31, 'fig_dark_ladder_fit.png'), int(0.35*EMU), y, int(6.3*EMU), int(2.0*EMU))

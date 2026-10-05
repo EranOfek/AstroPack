@@ -750,7 +750,8 @@ if len(_runcfg) >= 2:
                     if len({_runcfg[r].get(k) for r in _rk}) > 1})
     if _diff:
         w('The test configuration recorded with each run, for every setting that is not the same '
-          'in all of them:\n')
+          'in all of them. Run 31 is the **AV** setting; runs 32 onward are the **aSpect** one, '
+          'and differ from AV in V_RST_L, V_RST_SEL and V_SF:\n')
         w('| setting | ' + ' | '.join(f'run {r}' for r in _rk) + ' |')
         w('|---' * (len(_rk)+1) + '|')
         for k in _diff:
