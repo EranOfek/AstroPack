@@ -9,13 +9,17 @@ function [Result] = histAnomaly(AI, varargin)
     %            'CCDSEC' - CCDSEC in which to calculate the histogram.
     %                   If empty, use all image. Default is [].
     %            'Dilute' - Dilute factor to data. Default is 1.
-    %            'HistEdges' - Histogram edges.
-    %                   Default is (-0.5:5:5000.5)
+    %            'HistEdges' - Histogram edges. If empty, the bin width
+    %                   scales with the sky level (issue #1179).
+    %                   Default is [].
+    %            'OverscanSec' - Overscan section used for the sky level.
+    %                   Default is [].
     %            'RelPeakHeight' - Select peak with height relative to
     %                   maximum are larger than this value.
-    %                   Default is 0.2
+    %                   Default is 0.04
     %            'RangeDistPeaks' - Distance range of peaks that will
     %                   define a bad image.
+    %            See imUtil.image.histAnomaly for all arguments.
     % Output : - An array of logicals indicating if the bi-modal anomaly was detected
     %            in image. If true, then the image is bad.
     % Author : Eran Ofek (2025 Mar) 

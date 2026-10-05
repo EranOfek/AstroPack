@@ -20,7 +20,7 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
                                                   % the machine and lose 35%. See issue #1263.
         Args.TempName                      = 'LAST*.fit*';
         Args.prePrepArgs                   = {}; % e.g., {'AstroImageReadArgs',{'UseMex', true}};
-        Args.histAnomalyArgs               = {'CCDSEC',[1 6388 25 9600]};
+        Args.histAnomalyArgs               = {'CCDSEC',[1 6388 25 9600], 'OverscanSec',[6389 6422 1 9600]};
                                                  % args for prePrep's histogram-anomaly check
                                                  % (imUtil.image.histAnomaly); appended to prePrepArgs
                                                  % as {'histAnomalyArgs',...}.
@@ -30,6 +30,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
                                                  % on dark-sky nights (issue #1216).
                                                  % Pass {'CCDSEC',[]} to restore the full-frame
                                                  % (overscan-included) histogram.
+                                                 % OverscanSec: the bin width scales with the sky
+                                                 % level above the overscan (issue #1179).
         Args.basicCalibArgs                = {};
         Args.KeyMidJD                      = 'MIDJD';
 
