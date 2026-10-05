@@ -19,28 +19,43 @@
 % before running this file -- the same struct the desy_die_* stages take through
 % desy_die_config -- so that one batch driver sets the dataset once for the whole
 % chain. Without it the defaults below apply.
+LotDefault = 'TH02954';
 if exist('DieSelect', 'var') && isstruct(DieSelect)
     Run    = DieSelect.Run;
     Folder = DieSelect.Folder;
     Die    = DieSelect.Die;
     Gain   = DieSelect.Gain;
+    if isfield(DieSelect, 'Lot') && ~isempty(DieSelect.Lot)
+        Lot = DieSelect.Lot;
+    else
+        Lot = LotDefault;
+    end
 else
     Run    = '32';
     Folder = 'LOT_TH02954_32_FT_PTCint_-50_2026-08-27';
     Die    = 'W04_D07';
     Gain   = 'high';
+    Lot    = LotDefault;
 end
 Root   = '/Data1/DESY';
 if ~isfolder(Root)
     Root = '/bigdata3/projects/ultrasat/DESY';
 end
-Tag    = sprintf('run%s_%s_%s', Run, Die, Gain);
+% The lot joins the tag for any lot that is not the default, because die names
+% repeat between lots -- TH02260 and TH02954 both have a W07_D06 and both were
+% measured in run 35 -- and the two would otherwise share this directory. The
+% rule matches desy_die_config so the two halves of the chain agree.
+if strcmp(Lot, LotDefault)
+    Tag = sprintf('run%s_%s_%s', Run, Die, Gain);
+else
+    Tag = sprintf('run%s_%s_%s_%s', Run, Lot, Die, Gain);
+end
 OutDir = fullfile('/home/sasha/claude/desy_rn', Tag);
 if ~isfolder(OutDir), mkdir(OutDir); end
 
 T0 = tic;
 fprintf('%s: reading the ZE frames of the whole die\n', Tag);
-P = ultrasat.lab.PTCAnalysis(fullfile(Root, Folder, ['LOT_TH02954_', Die]), ...
+P = ultrasat.lab.PTCAnalysis(fullfile(Root, Folder, ['LOT_', Lot, '_', Die]), ...
                              'CCDSEC',[], 'Gain',Gain, 'Parity','rawcol');
 P.read;
 P.subtractZero;
