@@ -18,8 +18,8 @@ function [Data, Ephem]=getJPL_CloseApproachNEO(Args)
     % Example: [Data,Ephem]=celestial.SolarSys.getJPL_CloseApproachNEO
 
     arguments
-        Args.MinJD       = celestial.time.julday - 3;
-        Args.MaxJD       = celestial.time.julday + 3;
+        Args.MinJD       = celestial.time.julday - 0;
+        Args.MaxJD       = celestial.time.julday + 1;
         Args.MaxDist     = 10;
         Args.DistUnits   = 'LD';
         Args.GeodCoo     = [35.0407331, 30.0529838 0.4154];
