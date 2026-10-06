@@ -719,7 +719,6 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Clear for memory
     clear AstCatNew;
     clear AstCatRef;
-    clear INPOP;
     clear OrbElMerge;
 
     % Comet matching
@@ -730,6 +729,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
     [ComCatNew] = OrbElComet.searchMinorPlanetsNearPosition(...
         NewJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
+        'INPOP', INPOP, ...      % reuse the ephemeris built for the asteroids (#1257)
         'CooUnits','rad', 'SearchRadiusUnits','rad',...
         'OutUnitsDeg', true, 'Integration', false, ...
         'GeoPos', Args.GeoPos);
@@ -798,6 +798,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
     [ComCatRef] = OrbElComet.searchMinorPlanetsNearPosition(...
         RefJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
+        'INPOP', INPOP, ...      % reuse the ephemeris built for the asteroids (#1257)
         'CooUnits','rad', 'SearchRadiusUnits','rad',...
         'OutUnitsDeg',true,'Integration', false, ...
         'GeoPos', Args.GeoPos);
@@ -860,6 +861,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
     %Clear for memory
     clear ComCatRef;
+    clear INPOP;
     
     % Measure transients
     AD.measureTransients;
