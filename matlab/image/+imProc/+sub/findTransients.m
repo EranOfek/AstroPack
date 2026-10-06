@@ -150,10 +150,6 @@ function TranCat=findTransients(AD, Args)
                 'MomRadius',1.7*AD(Iobj).PSFData.fwhm, ...
                 'Annulus',[Aper_Annulus_min Aper_Annulus_Max]);
 
-            [M1N, ~, ~] = imUtil.image.moment2(AD(Iobj).New.Image, ...
-                LocalMax(:,1), LocalMax(:,2),...
-                'MomRadius',1.7*AD(Iobj).New.PSFData.fwhm);
-
             NewPSFHalfSize =  floor(size(AD(Iobj).New.PSFData.getPSF,2)/2)+1;
 
             % rotate the PSF so that ellipse axes agree with
@@ -170,7 +166,7 @@ function TranCat=findTransients(AD, Args)
                 PSFOrient = stats(Imax).Orientation;
             end
             PSFnew = imrotate(NewPSF, -PSFOrient, 'bilinear', 'crop');
-            [~, M2N, ~] = imUtil.image.moment2(PSFnew, ...
+            [~, M2N] = imUtil.image.moment2(PSFnew, ...
                 NewPSFHalfSize, NewPSFHalfSize,...
                 'MomRadius',1.7*AD(Iobj).New.PSFData.fwhm);
 
@@ -229,7 +225,7 @@ function TranCat=findTransients(AD, Args)
             end
             PSFref = imrotate(RefPSF, -PSFOrient, 'bilinear', 'crop');
 
-            [~, M2R, ~] = imUtil.image.moment2(PSFref, ...
+            [~, M2R] = imUtil.image.moment2(PSFref, ...
                 RefPSFHalfSize,RefPSFHalfSize,...
                 'MomRadius',1.7*AD(Iobj).Ref.PSFData.fwhm);
 
@@ -275,23 +271,19 @@ function TranCat=findTransients(AD, Args)
 
         if Args.includePsfFit
             
-            ZeroBack = zeros(Nsrc,1);
-
             % PSF fit all candidates in the D image
             PSFSize = floor(size(AD(Iobj).PSFData.getPSF,2)/2);
             [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Dbs, M1.RoundX, M1.RoundY, PSFSize);
             % Change the sign of negative sources
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
-            XYind = sub2ind(size(AD(Iobj).Dbs), M1.RoundY, M1.RoundX);
-            VarD = AD(Iobj).Var(XYind);
-            StdD = sqrt(VarD);
+
             [ResultD, ~] = imUtil.sources.psfPhotCube(Cube, ...
                 'PSF', AD(Iobj).PSFData.getPSF, ...
                 'ZP', AD(Iobj).ZpD, 'FitRadius',5, 'UseMex',true);
 
             % PSF fit all candidates in the New image
             CutHalfSize =  floor(size(AD(Iobj).New.PSFData.getPSF,2)/2);
-            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Nbs, M1N.RoundX, M1N.RoundY, CutHalfSize);
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Nbs, M1.RoundX, M1.RoundY, CutHalfSize);
             % Change the sign of negative sources
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
             [ResultN, ~] = imUtil.sources.psfPhotCube(Cube,...
@@ -300,7 +292,7 @@ function TranCat=findTransients(AD, Args)
             
             % PSF fit all candidates in the Ref image
             CutHalfSize = floor(size(AD(Iobj).Ref.PSFData.getPSF,2)/2);
-            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Rbs, M1N.RoundX, M1N.RoundY, CutHalfSize);
+            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD(Iobj).Rbs, M1.RoundX, M1.RoundY, CutHalfSize);
             % Change the sign of negative sources
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
             [ResultR, ~] = imUtil.sources.psfPhotCube(Cube, ...
@@ -430,10 +422,7 @@ function TranCat=findTransients(AD, Args)
             [XCat_Ref, YCat_Ref] = AD(Iobj).Ref.CatData.getXY();
             XCat_Ref = XCat_Ref(~NearEdge_Ref);
             YCat_Ref = YCat_Ref(~NearEdge_Ref);
-            
-            LocalMedianChi2_New = NaN(Nsrc,1);
-            LocalMedianChi2_Ref = NaN(Nsrc,1);
-            
+                       
             % Median chi2/dof of the catalogue sources within LocalChi2Radius
             % of each candidate. The sources are binned in cells of that
             % size, so only the 3x3 cells around a candidate are searched
@@ -498,8 +487,6 @@ function TranCat=findTransients(AD, Args)
         if Args.include2ndMoments
             % Get moments
 
-            PeakDist = sqrt((M1N.X-M1.X).^2+(M1N.Y-M1.Y).^2);
-
             M2NX2 = M2N.X2*ones(Nsrc,1);
             M2NY2 = M2N.Y2*ones(Nsrc,1);
             M2NXY = M2N.XY*ones(Nsrc,1);
@@ -511,14 +498,12 @@ function TranCat=findTransients(AD, Args)
             Data = cell2mat({cast(M1.X,'double'), cast(M1.Y,'double'), ...
                 cast(M2.X2,'double'), cast(M2.Y2,'double'), cast(M2.XY,'double'),...
                 cast(M2NX2,'double'), cast(M2NY2,'double'), cast(M2NXY,'double'),...
-                cast(M2RX2,'double'), cast(M2RY2,'double'), cast(M2RXY,'double'),...
-                cast(PeakDist,'double')});
+                cast(M2RX2,'double'), cast(M2RY2,'double'), cast(M2RXY,'double')});
             TranCat(Iobj) = TranCat(Iobj).insertCol( Data, 'SCORE',...
                 {'X1', 'Y1', 'X2', 'Y2', 'XY',...
                 'N_X2','N_Y2','N_XY',...
-                'R_X2','R_Y2','R_XY',...
-                'PEAK_DIST'}, ...
-                {'','','','','','','','','','','',''});
+                'R_X2','R_Y2','R_XY'}, ...
+                {'','','','','','','','','','',''});
         end
 
         if Args.includeBitMaskVal
