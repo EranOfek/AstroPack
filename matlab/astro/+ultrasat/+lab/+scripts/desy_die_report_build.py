@@ -143,6 +143,15 @@ VOLUME = f" and {float(CH['Bytes'])/1e9:.0f} GB" if CH else ''
 # How long the chain took on this die. The runner records it; without that record
 # the table simply has no time column rather than an invented one.
 STIME = {d['Name']: float(d['Seconds']) for d in CH['Stages']} if CH else {}
+# Stage 1 depends on no fit window, so signal mode shares the default mode's run
+# of it and does not record its time here. Take it from the default-mode chain
+# record of the same die rather than printing a nan. This die's own times win.
+if OUT.endswith('_sig'):
+    _sib = os.path.join(os.path.dirname(OUT), os.path.basename(OUT)[:-4], 'chain.json')
+    if os.path.isfile(_sib):
+        with open(_sib) as fh:
+            for _d in json.load(fh)['Stages']:
+                STIME.setdefault(_d['Name'], float(_d['Seconds']))
 TOTMIN = (f"about {float(CH['TotalSeconds'])/60:.0f} minutes end to end"
           if CH else 'a quarter of an hour or so end to end')
 
@@ -214,8 +223,14 @@ else:
 w('## 1. What was done\n')
 _ST = [('desy_rn_single_die',    '1 bias and read noise',    f'{int(Z["Nframes"])} ZE frames',
         'bias, fixed pattern, per-pixel read noise'),
-       ('desy_die_darkwindow',   '2a dark fit window',       f'{ND} frames',
-        'which dark steps are the straight part'),
+       # the window stage has a different name and a different job in the two
+       # modes: chi2 mode scans the dark ladder alone, signal mode measures both
+       # ladders to put one signal window on them
+       (('desy_die_fitwindow', 'desy_die_darkwindow'),
+        '2a fit window' if FW else '2a dark fit window',
+        (f'{int(sum(np.atleast_1d(np.array(FW["D"]["Nframes"], dtype=float))) + sum(np.atleast_1d(np.array(FW["B"]["Nframes"], dtype=float)))) } frames'
+         if FW else f'{ND} frames'),
+        'one signal window for both ladders' if FW else 'which dark steps are the straight part'),
        ('desy_die_dark',         '2 dark ladder',            f'{ND} frames',
         'dark current, dark-route threshold, DSNU'),
        ('desy_die_light',        '3 bright ladder',          f'{NB} frames',
@@ -239,8 +254,13 @@ if not STIME:
     _hdr = '| stage | reads | what it settles |\n|---|---|---|'
 _rows = []
 for _nm_, _lb, _rd, _wh in _ST:
+    # a stage can be recorded under either of two names, and a stage this die
+    # never ran says so rather than printing a nan
+    _cand = (_nm_,) if isinstance(_nm_, str) else tuple(_nm_)
+    _sec  = next((STIME[c] for c in _cand if c in STIME), None)
     if STIME:
-        _rows.append(f'| {_lb} | {_rd} | {STIME.get(_nm_, float("nan")):.0f} s | {_wh} |')
+        _rows.append(f'| {_lb} | {_rd} | ' +
+                     (f'{_sec:.0f} s' if _sec is not None else 'not run') + f' | {_wh} |')
     else:
         _rows.append(f'| {_lb} | {_rd} | {_wh} |')
 STAGE_TABLE = _hdr + '\n' + '\n'.join(_rows)
@@ -701,20 +721,22 @@ measured size**.
     _vd = [e for e in steps_of(VS) if e['Type'] == 'D'] if VS is not None else []
     _vbr = ([float(e['Unmasked']['RelIntr']) for e in steps_of(VS)
              if e['Type'] == 'B' and float(e['Signal']) < 1000] if VS is not None else [0.0])
-    _rr = _rr0 = float('nan')
-    if _vd:
-        _e  = max(_vd, key=lambda e: float(e['Signal']))
-        _s  = float(_e['Unmasked']['RelIntr'])
-        _y0 = float(_e['SigmaNull'])**2
-        _rr0 = _y0/(_G*float(_e['Signal']) + _C)
-        _rr  = _rr0*np.sqrt(1 + _s**2)
-    fig('fig_ptc_both.png', f"Both ladders on one photon transfer curve, log-log. Shot noise should not "
-        f"know where the electrons came from, so if dark charge and photo-charge were the same thing the "
-        f"two ladders would lie on one line. The bright points do; the dark points run below, by "
-        f"{100*(1-_rr):.1f} % at the top of the dark ladder. The open symbols in the right panel are the "
-        f"same points without the median-to-mean correction described below, where the gap reads "
-        f"{100*(1-_rr0):.1f} %. The bias point shows how much of the fitted intercept is read noise and "
-        f"how much is the threshold term.")
+    # Both gaps come from ptc_both.json, which the figure itself wrote. They were
+    # previously rebuilt here out of stage 7's SigmaNull, a different estimator
+    # of the same thing: the caption then disagreed with its own figure by up to
+    # a factor of four, and printed nan on a die where stage 7 had not been run.
+    _dt  = 100*float(PB['DarkDeficitTop'])    if PB and 'DarkDeficitTop'    in PB else float('nan')
+    _dt0 = 100*float(PB['DarkDeficitTopRaw']) if PB and 'DarkDeficitTopRaw' in PB else float('nan')
+    _tops = f" ({float(PB['TopSignal']):.0f} ADU)" if PB and 'TopSignal' in PB else ''
+    fig('fig_ptc_both.png', "Both ladders on one photon transfer curve, log-log. Shot noise should not "
+        "know where the electrons came from, so if dark charge and photo-charge were the same thing the "
+        "two ladders would lie on one line. The bright points do; the dark points run below"
+        + (f", by {_dt:.1f} % at the top of the dark ladder{_tops}" if np.isfinite(_dt) else "")
+        + ". The open symbols in the right panel are the same points without the median-to-mean "
+          "correction described below"
+        + (f", where the same deficit reads {_dt0:+.1f} %" if np.isfinite(_dt0) else "")
+        + ". The bias point shows how much of the fitted intercept is read noise and "
+          "how much is the threshold term.")
     PP = load('ptc_perpixel.json') if os.path.isfile(os.path.join(OUT, 'ptc_perpixel.json')) else None
     w("""Getting that comparison right took two attempts, and the mistake is worth recording because it moved
 the answer by a factor of three in each direction. The plotted variance was first a median over
