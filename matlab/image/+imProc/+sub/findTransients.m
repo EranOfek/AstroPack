@@ -162,11 +162,16 @@ function TranCat=findTransients(AD, Args)
             % x-y-coordinates
             NewPSF = AD(Iobj).New.PSF;
             PSFbw = imbinarize(NewPSF);
-            stats = regionprops(PSFbw, 'Orientation');
-            if numel(stats) > 1
-                stats = stats([stats.Orientation] ~= 0);
+            % orientation of the largest region (ignores small specks
+            % from the binarized wings); no rotation if there is none (#1355)
+            stats = regionprops(PSFbw, 'Orientation', 'Area');
+            if isempty(stats)
+                PSFOrient = 0;
+            else
+                [~, Imax] = max([stats.Area]);
+                PSFOrient = stats(Imax).Orientation;
             end
-            PSFnew = imrotate(NewPSF, -stats.Orientation, 'bilinear', 'crop');
+            PSFnew = imrotate(NewPSF, -PSFOrient, 'bilinear', 'crop');
             [~, M2N, ~] = imUtil.image.moment2(PSFnew, ...
                 NewPSFHalfSize, NewPSFHalfSize,...
                 'MomRadius',1.7*AD(Iobj).New.PSFData.fwhm);
@@ -215,11 +220,16 @@ function TranCat=findTransients(AD, Args)
             % x-y-coordinates
             RefPSF = AD(Iobj).Ref.PSF;
             PSFbw = imbinarize(RefPSF);
-            stats = regionprops(PSFbw, 'Orientation');
-            if numel(stats) > 1
-                stats = stats([stats.Orientation] ~= 0);
+            % orientation of the largest region (ignores small specks
+            % from the binarized wings); no rotation if there is none (#1355)
+            stats = regionprops(PSFbw, 'Orientation', 'Area');
+            if isempty(stats)
+                PSFOrient = 0;
+            else
+                [~, Imax] = max([stats.Area]);
+                PSFOrient = stats(Imax).Orientation;
             end
-            PSFref = imrotate(RefPSF, -stats.Orientation, 'bilinear', 'crop');
+            PSFref = imrotate(RefPSF, -PSFOrient, 'bilinear', 'crop');
 
             [~, M2R, ~] = imUtil.image.moment2(PSFref, ...
                 RefPSFHalfSize,RefPSFHalfSize,...
@@ -357,7 +367,7 @@ function TranCat=findTransients(AD, Args)
             StdD = sqrt(VarD);
             [ResultD, ~] = imUtil.sources.psfPhotCube(Cube, ...
                 'PSF', AD(Iobj).PSFData.getPSF, ...
-                'ZP', AD(Iobj).ZpD, 'FitRadius',5);
+                'ZP', AD(Iobj).ZpD, 'FitRadius',5, 'UseMex',true);
 
             % PSF fit all candidates in the New image
             CutHalfSize =  floor(size(AD(Iobj).New.PSFData.getPSF,2)/2);
@@ -366,7 +376,7 @@ function TranCat=findTransients(AD, Args)
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
             [ResultN, ~] = imUtil.sources.psfPhotCube(Cube,...
                 'PSF', AD(Iobj).New.PSFData.getPSF, ...
-                'ZP', AD(Iobj).ZpN, 'MaxIter', 2, 'SmallStep', 0.05, 'MaxStep', 0.1, 'FitRadius',5);
+                'ZP', AD(Iobj).ZpN, 'MaxIter', 2, 'SmallStep', 0.05, 'MaxStep', 0.1, 'FitRadius',5, 'UseMex',true);
             
             % PSF fit all candidates in the Ref image
             CutHalfSize = floor(size(AD(Iobj).Ref.PSFData.getPSF,2)/2);
@@ -375,7 +385,7 @@ function TranCat=findTransients(AD, Args)
             Cube = Cube.*reshape(sign(LocalMax(:,3)), [1 1 Nsrc]);
             [ResultR, ~] = imUtil.sources.psfPhotCube(Cube, ...
                 'PSF', AD(Iobj).Ref.PSFData.getPSF, ...
-                'ZP', AD(Iobj).ZpR, 'MaxIter', 2, 'SmallStep', 0.05, 'MaxStep', 0.1, 'FitRadius',5);
+                'ZP', AD(Iobj).ZpR, 'MaxIter', 2, 'SmallStep', 0.05, 'MaxStep', 0.1, 'FitRadius',5, 'UseMex',true);
 
             % Get chi2 per degrees of freedom of the PSF fit on the difference
             % image.

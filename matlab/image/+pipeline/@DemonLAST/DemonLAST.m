@@ -930,6 +930,13 @@ classdef DemonLAST < Component
 
             FileName = fullfile(Path,Args.FileName);
             FID = fopen(FileName,'a+');
+            if FID<0
+                % e.g. Path is a file, or a directory that does not exist:
+                % report, but never throw out of the main loop (issue #1242).
+                % Without this, fprintf(-1,...) raises and kills the demon.
+                Obj.writeLog(sprintf('writeStatus: cannot open %s for writing', FileName), LogLevel.Error);
+                return;
+            end
             fprintf(FID,'%s %s\n',datestr(now,'yyyy-mm-ddTHH:MM:SS'),Args.Msg);
             fclose(FID);
 
