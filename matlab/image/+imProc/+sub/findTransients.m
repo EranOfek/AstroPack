@@ -93,8 +93,6 @@ function TranCat=findTransients(AD, Args)
         Args.LocalChi2Radius = 300;   % pixels
         Args.LocalChi2MinSrc = 30;   % below this the neighbourhood is not measurable
 
-        Args.includeGradientDir logical = true;
-
         Args.includeBitMaskVal logical  = true;
         Args.BitCutHalfSize             = 3;
 
@@ -275,84 +273,6 @@ function TranCat=findTransients(AD, Args)
           
         end
 
-        if Args.includeGradientDir
-            PSFSize = floor(size(AD(Iobj).New.PSFData.getPSF,2)/2);
-            % Make a larger cut so we won't have to pad it later.
-            CutSize = PSFSize + 1;
-            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(...
-                AD(Iobj).New.Image, LocalMax(:,1), LocalMax(:,2), CutSize);
-
-            FullSizeX = 2*PSFSize + 1;
-            FullSizeY = 2*PSFSize + 1;
-            CenterX = PSFSize + 1;
-            CenterY = PSFSize + 1;
-            
-            StartX = 2;
-            EndX = StartX + FullSizeX - 1;
-            StartY = 2;
-            EndY = StartY + FullSizeY - 1;
-
-            % Compute expected radial direction
-            [Xmesh, Ymesh] = meshgrid(1:FullSizeX, 1:FullSizeY);
-            % Flip the X-axis so the convetion agrees with imgradient
-            ExpectedAngle = atan2(-(Ymesh - CenterY), -(Xmesh - CenterX));
-            ExpectedAngleDeg = rad2deg(ExpectedAngle);
-
-            GDIRCVAR = zeros(Nsrc,1);
-            GDIRERROR = zeros(Nsrc,1);
-            
-            BackThreshold = AD(Iobj).BackN + sqrt(AD(Iobj).VarN);
-
-            CubeList = squeeze(mat2cell( ...
-                Cube, FullSizeX+2, FullSizeY+2, ones(1, Nsrc)));
-
-            for ITran=1:Nsrc
-
-                ICube = CubeList{ITran};
-                
-                MaskBack = (ICube > BackThreshold);
-                if sum(MaskBack(:)) < 1
-                    MaskBack = ones(size(ICube));
-                end
-                MaskBack = MaskBack(StartY:EndY, StartX:EndX);
-                
-                % Assuming ICube is small and fixed-size
-                
-                % Convolution with Sobel kernels
-                % This is the fastest way to do it.
-                Gx = ...
-                    -1 * ICube(1:end-2, 1:end-2) +  1 * ICube(1:end-2, 3:end) + ...
-                    -2 * ICube(2:end-1, 1:end-2) +  2 * ICube(2:end-1, 3:end) + ...
-                    -1 * ICube(3:end,   1:end-2) +  1 * ICube(3:end,   3:end);
-                
-                Gy = ...
-                    -1 * ICube(1:end-2, 1:end-2) + -2 * ICube(1:end-2, 2:end-1) + ...
-                    -1 * ICube(1:end-2, 3:end)   +  1 * ICube(3:end,   1:end-2) + ...
-                     2 * ICube(3:end,   2:end-1) +  1 * ICube(3:end,   3:end);
-                
-                Gdir = atan2d(Gy, Gx);
-
-                Gdir_rad = deg2rad(Gdir(MaskBack));
-                % 'omitnan': a Sobel-gradient pixel adjacent to a
-                % NaN-padded cutout edge (image2cutouts now defaults to
-                % NaN-padding - see issue #1199) is itself NaN; without
-                % omitnan a single such pixel would silently NaN out the
-                % whole transient score.
-                GDIRCVAR(ITran,1) = 1 - abs(mean(exp(1i * Gdir_rad),"all",'omitnan'));
-
-                AngleDiff = abs(Gdir - ExpectedAngleDeg);
-                % Correct for wrapping issues (e.g., -179° vs 179° should be close)
-                AngleDiff = min(AngleDiff, 360 - AngleDiff);
-                % Compute the mean alignment error
-                GDIRERROR(ITran,1) = mean(AngleDiff(MaskBack),"all",'omitnan');
-            end
-
-            TranCat(Iobj) = TranCat(Iobj).insertCol(cast(GDIRCVAR,'double'), ...
-                'SCORE', {'GDIRCVAR'}, {''});
-            TranCat(Iobj) = TranCat(Iobj).insertCol(cast(GDIRERROR,'double'), ...
-                'SCORE', {'GDIRERROR'}, {''});
-        end
-
         if Args.includePsfFit
             
             ZeroBack = zeros(Nsrc,1);
@@ -514,19 +434,15 @@ function TranCat=findTransients(AD, Args)
             LocalMedianChi2_New = NaN(Nsrc,1);
             LocalMedianChi2_Ref = NaN(Nsrc,1);
             
-            for i = 1:Nsrc
-                DistNew = sqrt((XCat_New - LocalMax(i,1)).^2 + (YCat_New - LocalMax(i,2)).^2);
-                NearbyNew = DistNew < Args.LocalChi2Radius;
-                if sum(NearbyNew) >= Args.LocalChi2MinSrc
-                    LocalMedianChi2_New(i) = median(CHI2DOF_New(NearbyNew));
-                end
-            
-                DistRef = sqrt((XCat_Ref - LocalMax(i,1)).^2 + (YCat_Ref - LocalMax(i,2)).^2);
-                NearbyRef = DistRef < Args.LocalChi2Radius;
-                if sum(NearbyRef) >= Args.LocalChi2MinSrc
-                    LocalMedianChi2_Ref(i) = median(CHI2DOF_Ref(NearbyRef));
-                end
-            end
+            % Median chi2/dof of the catalogue sources within LocalChi2Radius
+            % of each candidate. The sources are binned in cells of that
+            % size, so only the 3x3 cells around a candidate are searched
+            % instead of the whole catalogue (#1257); same distances, same
+            % sets, same medians.
+            LocalMedianChi2_New = localMedianNearby(LocalMax(:,1), LocalMax(:,2), ...
+                XCat_New, YCat_New, CHI2DOF_New, Args.LocalChi2Radius, Args.LocalChi2MinSrc);
+            LocalMedianChi2_Ref = localMedianNearby(LocalMax(:,1), LocalMax(:,2), ...
+                XCat_Ref, YCat_Ref, CHI2DOF_Ref, Args.LocalChi2Radius, Args.LocalChi2MinSrc);
 
             % Insert results into catalog.
             Data = cell2mat({ResultD.SNm, CHI2DOF, ...
@@ -674,11 +590,10 @@ function TranCat=findTransients(AD, Args)
             if min(sign(Score)) == max(sign(Score))
                 MinDists = NaN(Ntran,1);
             else
-                for Itran = Ntran:-1:1
-                    Dists = sqrt((XY(Itran,1) - XY(:,1)).^2+(XY(Itran,2) - XY(:,2)).^2);
-                    SignFlip = ~(sign(Score(Itran)) == sign(Score));
-                    MinDists(Itran,1) = min(Dists(SignFlip));   
-                end
+                % Distance to the nearest candidate of opposite sign,
+                % one distance matrix per sign class instead of a loop
+                % over candidates (#1257); same distances and minima.
+                MinDists = minDistOppositeSign(XY(:,1), XY(:,2), Score);
             end
 
             TranCat(Iobj) = TranCat(Iobj).insertCol(cast(MinDists,'double'), ...
@@ -693,4 +608,71 @@ function TranCat=findTransients(AD, Args)
   
     end
 
+end
+
+
+function Med = localMedianNearby(X, Y, Xs, Ys, Vals, Radius, MinSrc)
+    % Median of Vals over the sources (Xs,Ys) with distance < Radius from
+    % each point (X,Y); NaN where fewer than MinSrc sources qualify.
+    % Distances are computed as sqrt((Xs-X)^2 + (Ys-Y)^2), as before.
+    N   = numel(X);
+    Med = NaN(N,1);
+    if N==0 || isempty(Xs)
+        return
+    end
+    Xs = Xs(:); Ys = Ys(:); Vals = Vals(:);
+    % cell of each source; sources with non-finite positions are never
+    % within Radius (their distance is NaN) and are dropped
+    Fin = isfinite(Xs) & isfinite(Ys);
+    Xs = Xs(Fin); Ys = Ys(Fin); Vals = Vals(Fin);
+    % cells slightly larger than Radius, so that rounding in the division
+    % can never put a source within Radius two cells away
+    Cell = Radius.*(1 + 1e-6);
+    Cxs = floor(Xs./Cell); Cys = floor(Ys./Cell);
+    Cx  = floor(X(:)./Cell); Cy = floor(Y(:)./Cell);
+    [Key, ~, Grp] = unique([Cx Cy], 'rows');
+    for Ig = 1:size(Key,1)
+        Ip = find(Grp==Ig);
+        if any(~isfinite(Key(Ig,:)))
+            continue              % point with a non-finite position: no source qualifies
+        end
+        InNb = abs(Cxs - Key(Ig,1)) <= 1 & abs(Cys - Key(Ig,2)) <= 1;
+        if ~any(InNb)
+            continue
+        end
+        XsN = Xs(InNb).'; YsN = Ys(InNb).'; ValsN = Vals(InNb);
+        Near = sqrt((XsN - X(Ip)).^2 + (YsN - Y(Ip)).^2) < Radius;
+        Num  = sum(Near, 2);
+        for k = find(Num >= MinSrc).'
+            Med(Ip(k)) = median(ValsN(Near(k,:)));
+        end
+    end
+end
+
+
+function MinDists = minDistOppositeSign(X, Y, Score)
+    % For each point, the minimum distance to the points whose sign(Score)
+    % differs from its own (NaN-aware like min).
+    X = X(:); Y = Y(:);
+    S = sign(Score(:));
+    MinDists = NaN(numel(X),1);
+    Classes  = unique(S(~isnan(S))).';
+    Chunk    = 2000;
+    % a NaN score differs from every sign, its own included, as in the
+    % original loop: its minimum runs over all points
+    for Ij = find(isnan(S)).'
+        MinDists(Ij) = min(sqrt((X(Ij) - X.').^2 + (Y(Ij) - Y.').^2), [], 2);
+    end
+    for C = Classes
+        Ia = find(S == C);
+        Ib = find(~(S == C));
+        if isempty(Ib)
+            continue
+        end
+        XB = X(Ib).'; YB = Y(Ib).';
+        for J = 1:Chunk:numel(Ia)
+            Ij = Ia(J:min(J+Chunk-1, numel(Ia)));
+            MinDists(Ij) = min(sqrt((X(Ij) - XB).^2 + (Y(Ij) - YB).^2), [], 2);
+        end
+    end
 end

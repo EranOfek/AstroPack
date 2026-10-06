@@ -170,6 +170,11 @@ if xd.size and xb.size:
                    'DarkRatio': [float(v) for v in rat],
                    'DarkDeficit': float(1 - np.mean(rat)),
                    'DarkDeficitTop': float(1 - r),
+                   # the same gap for the open symbols of the ratio panel, the
+                   # earlier mixed median/mean pair. Saved because the report
+                   # captions this figure and must quote the figure's own
+                   # numbers rather than reconstruct them from another stage.
+                   'DarkDeficitTopRaw': float(1 - r0),
                    'TopSignal': float(hi)}, fh)
     print(f'dark-ladder deficit against the bright line, inside the window: '
           f'{100*(1-np.mean(rat)):+.1f} %')
