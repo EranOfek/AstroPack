@@ -449,10 +449,11 @@ sets out both for all four routes.
 &plusmn;{float(IN['DC_ADU'])*DCAY/DCA:.4f} ADU/s above is the spread over the
 {len(ME['Routes']['a']['WindowValues'])} variants of the chosen window. Refitting this same ladder over
 *every* contiguous window of three or more steps inside the {LINLIM:.0f} ADU linear range
-({DCNW} windows) gives dark currents from **{DCLO:.4f}** to **{DCHI:.4f} ADU/s**, a span of
-{100*(DCHI-DCLO)/float(np.median([DCLO, DCHI])):.0f} % — that is what the curvature costs. The quoted
-systematic is only the part of that span the chosen window is exposed to, so this dark current should
-not be quoted to better than its window.
+({DCNW} windows) puts the slope anywhere between **{DCLO:.4f}** and **{DCHI:.4f} ADU/s** — a half-range
+{0.5*(DCHI-DCLO)*DCA/(DCAY*float(IN['DC_ADU'])):.0f} times the systematic quoted above. That range is
+where a straight line lands depending on which steps it is given, not an error bar around the value
+above; the quoted systematic covers only the part of it the chosen window is exposed to, so this dark
+current should not be quoted to better than its window.
 """)
 w(f"""The spread needs care, and this is the first of three places in this report where the obvious answer was wrong.
 Over the whole die the dark current spreads **{100*float(D['Fit']['All']['SlopeSpread']['RelIntr']):.1f} %**
