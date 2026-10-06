@@ -1287,6 +1287,15 @@ function TranCat = flagNonTransients(Obj, Args)
             IsDiffSpike = false(NumCand,1);
             IsDiffSpikeSubSel = false(NNearSat, 1);
 
+            % One interpolant for the crop, queried for every line below,
+            % instead of converting the image and rebuilding the
+            % interpolant in interp2 for each line (#1257). Built on the
+            % transposed image and queried as (x, y), exactly as interp2
+            % does, so the values are identical; NaN outside the image.
+            if NNearSat > 0
+                ImageInterp = griddedInterpolant(double(Obj(Iobj).Image).', 'linear', 'none');
+            end
+
             for INearSat = 1:NNearSat
                 X_INearSat = X_NearSaturated(INearSat);
                 Y_INearSat = Y_NearSaturated(INearSat);
@@ -1312,8 +1321,8 @@ function TranCat = flagNonTransients(Obj, Args)
                     X_Line = linspace(X_INearSat, X_SatCent(ISatIdx), NumLinePixels);
                     Y_Line = linspace(Y_INearSat, Y_SatCent(ISatIdx), NumLinePixels);
                     
-                    % sample matrix values (interp2 uses x=col, y=row)
-                    Vals_Line = interp2(double(Obj(Iobj).Image), X_Line, Y_Line, 'linear', NaN);
+                    % sample matrix values (x=col, y=row, as in interp2)
+                    Vals_Line = ImageInterp(X_Line, Y_Line);
                                     
                     % remove NaNs (edges etc.)
                     Good = ~isnan(Vals_Line);
