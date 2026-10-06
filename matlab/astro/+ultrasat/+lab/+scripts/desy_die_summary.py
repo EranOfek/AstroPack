@@ -175,6 +175,15 @@ def gain(d, route):
 def gerr(d, route):
     Q = d['ME']['Routes'][route]
     return float(np.hypot(float(Q['GainStat']), float(Q['GainSyst'])))
+def dcerr(d):
+    '''error on the dark current of the table. The table quotes the median pixel
+    and the errors live on route a, which fits the mean over pixels, so they are
+    carried across as relative ones. Block scatter and window variants combined,
+    to match the single +- of the gain columns.'''
+    Q = d['ME']['Routes']['a']
+    return (abs(float(d['D']['Fit']['All']['SlopeSpread']['Median']))
+            * float(np.hypot(float(Q['SlopeStat']), float(Q['SlopeSyst'])))
+            / abs(float(Q['Slope'])))
 def f(x, n=3):
     return ('%.' + str(n) + 'f') % float(x)
 
@@ -248,12 +257,17 @@ for d in Dies:
     w(f"| {d['Label']}{' &dagger;' if d['Label'] in FLAG else ''} | "
       f"{f(d['Z']['All']['BiasLevel'],2)} | {f(d['Z']['All']['ReadNoiseMedian'],3)} | "
       f"**{f(gain(d,'d'),4)}** ± {f(gerr(d,'d'),4)} | {f(gain(d,'c'),4)} ± {f(gerr(d,'c'),4)} | "
-      f"{f(d['D']['Fit']['All']['SlopeSpread']['Median'],4)} | "
+      f"{f(d['D']['Fit']['All']['SlopeSpread']['Median'],4)} ± {f(dcerr(d),4)} | "
       f"{f(100*float(d['D']['Local']['DC']['RelIntr']),2)} | "
       f"{f(100*float(d['L']['Local']['Resp']['RelIntr']),2)} | "
       f"{int(d['BC']['Nbad'])} | [{dwin}] | "
       f"{f(d['ME']['Routes']['d']['Threshold_e'],1)} ± {f(d['ME']['Routes']['d']['Threshold_e_err'],1)} |")
 w('')
+w('Every error in that table is the scatter between the 64 blocks of a die combined with the spread '
+  'over the fit windows refitted, never the formal error of a fit: the dark ladder is averaged over '
+  '22.5 M pixels, so a straight line through it is rejected at chi2 of order 1e6 and its formal error '
+  'is thousands of times too small to quote. Section 4 of each per-die report gives that arithmetic, '
+  'and the full span of the window choice, which is wider than the window term here.\n')
 
 def spread(vals, name, unit='', rel=True):
     v = np.array(vals, dtype=float)

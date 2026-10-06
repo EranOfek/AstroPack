@@ -28,6 +28,7 @@ ME = load('methods.json') if os.path.isfile(os.path.join(OUT, 'methods.json')) e
 VS = load('varspread.json') if os.path.isfile(os.path.join(OUT, 'varspread.json')) else None
 LS = load('lowsignal.json') if os.path.isfile(os.path.join(OUT, 'lowsignal.json')) else None
 DW = load('darkwindow.json') if os.path.isfile(os.path.join(OUT, 'darkwindow.json')) else None
+FW = load('fitwindow.json') if os.path.isfile(os.path.join(OUT, 'fitwindow.json')) else None
 PB = load('ptc_both.json')  if os.path.isfile(os.path.join(OUT, 'ptc_both.json'))  else None
 RP = load('rnplots.json')   if os.path.isfile(os.path.join(OUT, 'rnplots.json'))   else None
 DP = load('darkplots.json') if os.path.isfile(os.path.join(OUT, 'darkplots.json')) else None
@@ -61,6 +62,59 @@ QLIM = [float(UM[k]['Qlim_cal_5']) for k in ('PTC', 'Dark', 'Light')]
 IN   = UM['Inputs']
 G    = float(IN['GainADU'])
 TT   = float(BU['ExpTime'])
+
+# ---- the dark current, with an error, and with the span of the window choice.
+# Routes.a is the slope of the dark ladder and carries both errors already: the
+# scatter between blocks of the die, and the spread over the windows it was
+# refitted on. The datasheet table and section 4 quote the median pixel, a
+# different estimator of the same slope, so those errors are carried across as
+# relative ones rather than invented afresh.
+# DCLO..DCHI is the honest span of the window choice: every contiguous window of
+# three or more steps inside the linear range, refitted. Route a's systematic
+# covers only the two to four variants of the chosen window, which on a curved
+# ladder is much narrower, so both numbers are reported.
+LINLIM = float(DW['LinLimit']) if (DW and 'LinLimit' in DW) else 2900.0   # DieLinLimit
+DCA = float(ME['Routes']['a']['Slope'])     if ME else None
+DCAS = float(ME['Routes']['a']['SlopeStat']) if ME else None
+DCAY = float(ME['Routes']['a']['SlopeSyst']) if ME else None
+RSB = float(ME['Routes']['b']['Slope'])     if ME else None
+RSBS = float(ME['Routes']['b']['SlopeStat']) if ME else None
+RSBY = float(ME['Routes']['b']['SlopeSyst']) if ME else None
+def _dcspan():
+    '''(lo, hi, nwindows) of the ensemble dark current over every contiguous
+    window of >=3 steps within the linear range. The chi2-mode dump already
+    holds that grid; in signal mode it is refitted here from the per-step means
+    the window stage measured.'''
+    if DW and DW.get('Scan'):
+        v = [float(q['DC']) for q in DW['Scan']]
+        return min(v), max(v), len(v)
+    if FW:
+        x = np.atleast_1d(np.array(FW['D']['X'], dtype=float))
+        y = np.atleast_1d(np.array(FW['D']['SignalMean'], dtype=float))
+        kmax = int(np.argmax(y > LINLIM)) if np.any(y > LINLIM) else y.size
+        v = [np.polyfit(x[i:j+1], y[i:j+1], 1)[0]
+             for i in range(kmax) for j in range(i+2, kmax)]
+        if v:
+            return float(min(v)), float(max(v)), len(v)
+    return None, None, 0
+DCLO, DCHI, DCNW = _dcspan()
+def _darkgof():
+    '''residuals of the ensemble dark ladder to its own straight line, against
+    the error on each step mean. With 22.5 M pixels that error is ~0.002 ADU, so
+    a curved ladder gives an enormous chi2 and the formal fit error on the slope
+    is meaningless - which is why the error quoted is the block scatter.'''
+    x  = np.atleast_1d(np.array(D['ExpTime'], dtype=float))
+    y  = np.atleast_1d(np.array(D['StepMedian'], dtype=float))
+    v  = np.atleast_1d(np.array(D['VarStep'], dtype=float))
+    nf = np.atleast_1d(np.array(D['PatternNframes'], dtype=float))[
+         np.atleast_1d(np.array(D['FitSteps'], dtype=int)) - 1]
+    r  = y - np.polyval(np.polyfit(x, y, 1), x)
+    se = np.sqrt(v/(NY*NX*nf))
+    wt = 1.0/se**2                                  # the formal error on the slope
+    xb = float(np.sum(wt*x)/np.sum(wt))             # of that same weighted fit
+    sf = float(1.0/np.sqrt(np.sum(wt*(x - xb)**2)))
+    return r, se, float(np.sum((r/se)**2)), max(x.size - 2, 1), sf
+DGR, DGSE, DGCHI2, DGDOF, DGSEF = _darkgof()
 MD   = []
 def w(t):
     MD.append(t)
@@ -69,6 +123,16 @@ def fig(name, cap):
     w(f'*{cap}*\n')
 def f3(x, n=3):
     return ('%.' + str(n) + 'f') % float(x)
+def pm(val, ref, stat, syst, n=3):
+    '''val with the relative errors of ref carried across. Used where the
+    datasheet quotes one estimator of a slope (the median pixel) and section 11
+    carries the errors on another (the mean over pixels): the errors are
+    fractions of the slope, so they transfer, and inventing a second pair would
+    be worse than saying which fit they came from.'''
+    if ref is None:
+        return f3(val, n)
+    return (f"{f3(val, n)} &plusmn; {f3(abs(val)*stat/abs(ref), n)} "
+            f"&plusmn; {f3(abs(val)*syst/abs(ref), n)}")
 def nfr(S):
     return int(np.sum(np.atleast_1d(np.array(S['PatternNframes'], dtype=float))))
 ND, NB = nfr(D), nfr(L)
@@ -102,10 +166,10 @@ rows = [
  ('Conversion gain, dark ladder', (f"{float(ME['Routes']['c']['Gain']):.4f} &plusmn; {float(ME['Routes']['c']['GainStat']):.4f} &plusmn; {float(ME['Routes']['c']['GainSyst']):.4f} ADU/e-" if ME else '&mdash;'),
   (f"**{100*(1-float(ME['Routes']['c']['Gain'])/float(ME['Routes']['d']['Gain'])):.0f} % lower than "
    'the bright one — section 9**' if ME else '&mdash;')),
- ('Dark current', f"{f3(float(IN['DC_ADU']),4)} ADU/s = {f3(float(IN['DC_ADU'])/G,4)} e-/s",
-  f'weighted per-pixel fit, {len(np.atleast_1d(D["FitSteps"]))} steps'),
- ('Photo-response', f"{f3(float(L['Fit']['All']['SlopeSpread']['Median']),0)} ADU per intensity unit",
-  f'{len(np.atleast_1d(L["FitSteps"]))} steps of the bright ladder'),
+ ('Dark current', f"{pm(float(IN['DC_ADU']), DCA, DCAS, DCAY, 4)} ADU/s = {f3(float(IN['DC_ADU'])/G,4)} e-/s",
+  f'weighted per-pixel fit, {len(np.atleast_1d(D["FitSteps"]))} steps; errors section 11 (blocks, window)'),
+ ('Photo-response', f"{pm(float(L['Fit']['All']['SlopeSpread']['Median']), RSB, RSBS, RSBY, 0)} ADU per intensity unit",
+  f'{len(np.atleast_1d(L["FitSteps"]))} steps of the bright ladder; errors section 11'),
  ('PRNU, pixel to pixel', f"{f3(100*float(IN['PRNU']),2)} %", '32x32 detrended, fit noise removed'),
  ('DSNU, pixel to pixel', f"{f3(100*float(D['Local']['DC']['RelIntr']),2)} % of the dark current",
   'same method'),
@@ -365,10 +429,32 @@ w('The same pairing turns up again in the defects (section 6) and is absent from
 # ================================================================= stage 2
 w('## 4. Dark current\n')
 dloc = D['Local']['DC']
-w(f"""Dark current **{f3(float(IN['DC_ADU']),4)} ADU/s** = {f3(float(IN['DC_ADU'])/G,4)} e-/s,
+w(f"""Dark current **{pm(float(IN['DC_ADU']), DCA, DCAS, DCAY, 4)} ADU/s** = {f3(float(IN['DC_ADU'])/G,4)} e-/s,
 from a weighted fit of signal against exposure over the steps of section 2.
-
-The spread needs care, and this is the first of three places in this report where the obvious answer was wrong.
+""")
+if ME:
+    w(f"""**That error is not the error of the fit, and it cannot be.** The ladder is averaged over
+{NY*NX/1e6:.1f} M pixels, so each step mean is known to about {np.median(DGSE):.4f} ADU, while the
+residuals of those means to their own straight line are
+{', '.join('%+.2f' % q for q in DGR)} ADU: chi2 = {DGCHI2:.3g} on
+{DGDOF} degree{'' if DGDOF == 1 else 's'} of freedom. The straight line is rejected outright — section 2
+shows why, the ladder is curved — so the formal error such a fit hands back,
+{DGSEF:.2g} ADU/s, is {DCAS/DGSEF:.0f} times smaller than the error quoted above and
+describes nothing about this device. What is quoted instead is the scatter between the
+{int(ME['NBlock'])**2} blocks of the die, and then the spread over the fit windows refitted; section 11
+sets out both for all four routes.
+""")
+    if DCNW:
+        w(f"""**And the window term is a lower bound.** The
+&plusmn;{float(IN['DC_ADU'])*DCAY/DCA:.4f} ADU/s above is the spread over the
+{len(ME['Routes']['a']['WindowValues'])} variants of the chosen window. Refitting this same ladder over
+*every* contiguous window of three or more steps inside the {LINLIM:.0f} ADU linear range
+({DCNW} windows) gives dark currents from **{DCLO:.4f}** to **{DCHI:.4f} ADU/s**, a span of
+{100*(DCHI-DCLO)/float(np.median([DCLO, DCHI])):.0f} % — that is what the curvature costs. The quoted
+systematic is only the part of that span the chosen window is exposed to, so this dark current should
+not be quoted to better than its window.
+""")
+w(f"""The spread needs care, and this is the first of three places in this report where the obvious answer was wrong.
 Over the whole die the dark current spreads **{100*float(D['Fit']['All']['SlopeSpread']['RelIntr']):.1f} %**
 of its median — but the map shows why.
 """)
@@ -437,7 +523,8 @@ fig('fig_dark_column_profile.png',
 # ================================================================= stage 3
 w('## 5. Response, PRNU and the light-route threshold\n')
 lloc = L['Local']
-w(f"""Photo-response {f3(float(L['Fit']['All']['SlopeSpread']['Median']),0)} ADU per intensity unit.
+w(f"""Photo-response {pm(float(L['Fit']['All']['SlopeSpread']['Median']), RSB, RSBS, RSBY, 0)} ADU
+per intensity unit (block scatter, then fit window — section 11).
 PRNU is deliberately **not** taken from the spread of that response: the published bright window
 holds three closely spaced steps, which fixes a pixel's slope to about a per cent — far coarser
 than the pattern being measured — so that spread is almost all fit noise. It is measured instead
@@ -774,11 +861,23 @@ if ME is not None:
     _nm = {'a': f"dark response (steps {_fsd[0]}-{_fsd[-1]})",
            'b': f"light response (below {_bmed[_fsb[-1]-1]:.0f} ADU)",
            'c': 'PTC, dark ladder', 'd': 'PTC, bright ladder'}
+    # Every route has a slope, and it is a different quantity in each: the dark
+    # current, the photo-response, and for the two photon-transfer routes the
+    # conversion gain. An earlier version of this table headed the column "gain"
+    # and so printed a dash for a) and b), which threw the dark current and the
+    # photo-response, both with errors, out of the report.
+    _su  = {'a': 'ADU/s', 'b': 'ADU/intensity', 'c': 'ADU/e-', 'd': 'ADU/e-'}
+    _snd = {'a': 4, 'b': 1, 'c': 4, 'd': 4}
     def _g(k):
-        Q = _R[k]
-        if Q.get('Gain') is None or not np.isfinite(float(Q['Gain'])):
-            return '—'          # a response curve has no noise in it, so no gain
-        return f"**{float(Q['Gain']):.4f}** ± {float(Q['GainStat']):.4f} ± {float(Q['GainSyst']):.4f}"
+        # c) and d) quote the gain errors rather than the bare slope errors: on
+        # those two the systematic also carries the choice of ensemble estimator,
+        # discussed below the table, and dropping it would understate them.
+        Q, n = _R[k], _snd[k]
+        if Q.get('Gain') is not None and np.isfinite(float(Q['Gain'])):
+            v, st, sy = float(Q['Gain']), float(Q['GainStat']), float(Q['GainSyst'])
+        else:
+            v, st, sy = float(Q['Slope']), float(Q['SlopeStat']), float(Q['SlopeSyst'])
+        return f"**{v:.{n}f}** ± {st:.{n}f} ± {sy:.{n}f} {_su[k]}"
     def _t(k):
         Q = _R[k]
         return (f"{float(Q['Threshold']):.2f} ± {float(Q['ThresholdStat']):.2f} ± "
@@ -797,22 +896,26 @@ if ME is not None:
     w(f"""Four independent routes reach these two numbers, and putting them in one table with their
 errors is the clearest statement of what this device does and does not have.
 
-| route | gain [ADU/e-] | threshold [ADU] | threshold [e-] |
+| route | slope, value ± stat ± syst | threshold [ADU] | threshold [e-] |
 |---|---|---|---|
 | a) {_nm['a']} | {_g('a')} | {_t('a')} | **{float(_R['a']['Threshold_e']):.1f} ± {float(_R['a']['Threshold_e_err']):.1f}** |
 | b) {_nm['b']} | {_g('b')} | {_t('b')} | **{float(_R['b']['Threshold_e']):.1f} ± {float(_R['b']['Threshold_e_err']):.1f}** |
 | c) {_nm['c']} | {_g('c')} | {_t('c')} | **{float(_R['c']['Threshold_e']):.1f} ± {float(_R['c']['Threshold_e_err']):.1f}** |
 | d) {_nm['d']} | {_g('d')} | {_t('d')} | **{float(_R['d']['Threshold_e']):.1f} ± {float(_R['d']['Threshold_e_err']):.1f}** |
 
-Errors are quoted statistical first, then systematic. **Only the two photon-transfer routes measure a
-gain**: a response curve contains no noise, so it cannot. All four give a threshold.
+Errors are quoted statistical first, then systematic. The slope is a different quantity on each route:
+a) is the dark current, b) the photo-response, c) and d) the conversion gain. **Only the two
+photon-transfer routes measure a gain** — a response curve contains no noise, so it cannot — but all
+four have a slope and all four give a threshold, which is why both columns are filled.
 
 **What the errors are.** The statistical one is the scatter between
 {int(ME['NBlock'])}x{int(ME['NBlock'])} = {int(ME['NBlock'])**2} independent blocks of the die, each
 {int(ME['BlockSize'][0])}x{int(ME['BlockSize'][1])} pixels, not a formal error from the pixel count:
 with {NY*NX/1e6:.1f} M pixels the latter reads 1e-5 and means nothing, while the block version carries the
 spatial structure, which is what makes "the gain of this die" uncertain at all. The systematic is the
-fit window, refitted over every defensible choice, and on a convex ladder it dominates everywhere —
+fit window, refitted over the variants of the chosen window — not over every window the ladder admits,
+which is wider, and which section 4 quantifies for the dark current — and on a convex ladder it
+dominates everywhere —
 the dark threshold moves {float(_R['a']['ThresholdSyst']):.1f} ADU across windows against a block
 error of {float(_R['a']['ThresholdStat']):.1f}, the light threshold
 {float(_R['b']['ThresholdSyst']):.1f} against {float(_R['b']['ThresholdStat']):.1f}.
