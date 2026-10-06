@@ -19,5 +19,7 @@ function [CorrJD]=rollingShutterTime(JD, Pos, Args)
         Args.TimePerLine  = 46.2e-6;
     end
 
-    CorrJD = JD - (Args.Offset + Pos.*Args.TimePerLine)/86400;
+    CorrJD = JD - (Args.Offset - (Pos-1).*Args.TimePerLine)/86400; % presuming that Pos is 1 based.
+
+
 end
