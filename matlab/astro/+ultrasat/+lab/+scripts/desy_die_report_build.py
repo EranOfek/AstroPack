@@ -30,6 +30,7 @@ LS = load('lowsignal.json') if os.path.isfile(os.path.join(OUT, 'lowsignal.json'
 DW = load('darkwindow.json') if os.path.isfile(os.path.join(OUT, 'darkwindow.json')) else None
 FW = load('fitwindow.json') if os.path.isfile(os.path.join(OUT, 'fitwindow.json')) else None
 PB = load('ptc_both.json')  if os.path.isfile(os.path.join(OUT, 'ptc_both.json'))  else None
+PX = load('ptc_points.json') if os.path.isfile(os.path.join(OUT, 'ptc_points.json')) else None
 RP = load('rnplots.json')   if os.path.isfile(os.path.join(OUT, 'rnplots.json'))   else None
 DP = load('darkplots.json') if os.path.isfile(os.path.join(OUT, 'darkplots.json')) else None
 CH = load('chain.json')     if os.path.isfile(os.path.join(OUT, 'chain.json'))     else None
@@ -738,12 +739,30 @@ measured size**.
         + ". The bias point shows how much of the fitted intercept is read noise and "
           "how much is the threshold term.")
     PP = load('ptc_perpixel.json') if os.path.isfile(os.path.join(OUT, 'ptc_perpixel.json')) else None
-    w("""Getting that comparison right took two attempts, and the mistake is worth recording because it moved
-the answer by a factor of three in each direction. The plotted variance was first a median over
+    # how right-skewed each ladder's signal is at the top of the dark ladder,
+    # measured rather than quoted: it is the whole reason the mixed pair biased
+    # the two ladders differently, and it is a property of this die
+    def _skew(ty):
+        if PX is None:
+            return None
+        pp = [e for e in PX['Points'] if e.get('Type') == ty]
+        if not pp:
+            return None
+        e = max(pp, key=lambda q: float(q['SignalMean']))
+        return 100*(float(e['SignalMean'])/float(e['SignalMedian']) - 1)
+    _skD, _skB = _skew('D'), _skew('B')
+    _movep = (f"moved the answer from {_dt0:+.1f} % to {_dt:.1f} % at the top of the dark ladder"
+              if np.isfinite(_dt) and np.isfinite(_dt0) else
+              "moved the answer by more than the effect being measured")
+    _skewp = ((f"The dark signal is right-skewed, its mean sitting {_skD:.1f} % above its median, "
+               f"against {_skB:.1f} % on the bright ladder, ")
+              if _skD is not None and _skB is not None else
+              "The dark signal is right-skewed and the bright signal is not, ")
+    w(f"""Getting that comparison right took two attempts, and the mistake is worth recording because it
+{_movep}. The plotted variance was first a median over
 pixels (a plain mean is destroyed by cosmic rays) times the chi2 median-to-mean factor, while the
 signal stayed a plain median. That is not a point on any curve: Var = g*S + c holds **per pixel**, so
-averaging over pixels needs E[Var] against E[S] — a mean on both axes, over the same pixels. The dark
-signal is right-skewed, its mean sitting 6 % above its median, while the bright signal is not, so the
+averaging over pixels needs E[Var] against E[S] — a mean on both axes, over the same pixels. {_skewp}so the
 mixed pair biased the two ladders differently. Both axes are now means over one common set of pixels,
 those outside the top 0.1 % of the variance; the open symbols in the ratio panel are the old pair.
 """)
