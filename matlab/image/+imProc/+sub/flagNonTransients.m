@@ -1523,26 +1523,13 @@ function TranCat = flagNonTransients(Obj, Args)
                     BD_TF.findBit(FilterFlags, Args.NeighborExclude{IExclude});
             end
 
-            % Initialize arrays, number of neighbors and the local density.
-            NumNeighbors = zeros(NumCand,1);
-            LocalDensity = zeros(NumCand,1);
-
-            % Iterate through each candidate
-            for Itran = NumCand:-1:1
-                % Get distance to all other candidates
-                NeighborDist = sqrt((X(Itran)-X(:)).^2+(Y(Itran)-Y(:)).^2);
-                % Test distance against threshold
-                IsNeighbor = NeighborDist < Args.NeighborDistanceThreshold;
-                % Exclude itself
-                IsNeighbor = IsNeighbor & (NeighborDist > 0);
-                % Remove excluded neighbors
-                IsNeighbor = IsNeighbor & ~ExcludeNeighbor;
-                % Count remaining neighbors and remember.
-                NumNeighbors(Itran) = sum(IsNeighbor);
-                % Sum the reciprocal distance to each neighbor and save as
-                % the local density.
-                LocalDensity(Itran) = sum(1./NeighborDist(IsNeighbor));
-            end
+            % Number of neighbors within NeighborDistanceThreshold (not
+            % itself, not excluded) and the sum of their reciprocal
+            % distances. Candidates are binned in cells of the threshold
+            % size, so only the 3x3 cells around a candidate are searched
+            % (#1257); same distances, same neighbor sets, same sums.
+            [NumNeighbors, LocalDensity] = neighborDensity(X, Y, ExcludeNeighbor, ...
+                Args.NeighborDistanceThreshold);
 
             % Add number of neighbors and the local density to catalog
             NumNeighbors = cast(NumNeighbors,'double');
@@ -1889,5 +1876,39 @@ function Flag = boxAnyTrue(Mask, X, Y, HalfSize)
         Count = Cs(sub2ind(Sz, Y2(Valid)+1, X2(Valid)+1)) - Cs(sub2ind(Sz, Y1(Valid),   X2(Valid)+1)) ...
               - Cs(sub2ind(Sz, Y2(Valid)+1, X1(Valid)))   + Cs(sub2ind(Sz, Y1(Valid),   X1(Valid)));
         Flag(Valid) = Count > 0;
+    end
+end
+
+
+function [NumNeighbors, LocalDensity] = neighborDensity(X, Y, Exclude, Radius)
+    % For each point: the number of other points with 0 < distance < Radius
+    % that are not excluded, and the sum of their reciprocal distances.
+    % Distances are sqrt((X(i)-X(j))^2 + (Y(i)-Y(j))^2) and each sum runs
+    % over the neighbors in index order, as in the per-candidate loop.
+    X = X(:); Y = Y(:); Exclude = Exclude(:);
+    N = numel(X);
+    NumNeighbors = zeros(N,1);
+    LocalDensity = zeros(N,1);
+    if N == 0
+        return
+    end
+    % cells slightly larger than Radius, so that rounding in the division
+    % can never put a neighbor within Radius two cells away; points with a
+    % non-finite position have NaN distances and are never neighbors
+    Cell = Radius.*(1 + 1e-6);
+    Cx = floor(X./Cell); Cy = floor(Y./Cell);
+    Fin = isfinite(Cx) & isfinite(Cy);
+    [Key, ~, Grp] = unique([Cx(Fin) Cy(Fin)], 'rows');
+    IndFin = find(Fin);
+    for Ig = 1:size(Key,1)
+        Ip = IndFin(Grp==Ig);
+        Jn = find(Fin & abs(Cx - Key(Ig,1)) <= 1 & abs(Cy - Key(Ig,2)) <= 1);   % ascending index order
+        Dist = sqrt((X(Ip) - X(Jn).').^2 + (Y(Ip) - Y(Jn).').^2);
+        IsNb = Dist < Radius & Dist > 0 & ~Exclude(Jn).';
+        NumNeighbors(Ip) = sum(IsNb, 2);
+        for k = 1:numel(Ip)
+            Dk = Dist(k, IsNb(k,:)).';
+            LocalDensity(Ip(k)) = sum(1./Dk);
+        end
     end
 end
