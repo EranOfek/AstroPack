@@ -318,10 +318,14 @@ function match2Stars(Obj, StarCat, Args)
             DistThresholdClose = max(DistThresholdClose0, PointLimit + AstrometricCompClose);
             RoughRadiusClose = max(DistThresholdClose);
 
+            % only the stars that can lie within RoughRadiusClose of a
+            % candidate of this crop; the rest cannot match (#1257)
+            K = nearCandidates(LonClose, LatClose, RA, Dec, RoughRadiusClose .* Arcsec2Rad);
+
             [Mclose, Dclose, BPclose, RPclose, Pclose] = matchStarSubset( ...
-                LonClose, LatClose, DistThresholdClose, BpMagsClose, RpMagsClose, ...
-                ParallaxClose, ParallaxErrClose, PmraClose, PmraErrClose, PmdecClose, PmdecErrClose, ...
-                InQsoCandClose, InGalaxyCandClose, ...
+                LonClose(K), LatClose(K), DistThresholdClose(K), BpMagsClose(K), RpMagsClose(K), ...
+                ParallaxClose(K), ParallaxErrClose(K), PmraClose(K), PmraErrClose(K), PmdecClose(K), PmdecErrClose(K), ...
+                InQsoCandClose(K), InGalaxyCandClose(K), ...
                 RA, Dec, RoughRadiusClose, Rad2Arcsec, Arcsec2Rad, ...
                 Args.AstroWeightFloor, Args.QsoPenalty, Args.GalaxyPenalty);
 
@@ -337,10 +341,12 @@ function match2Stars(Obj, StarCat, Args)
             DistThresholdFar = max(DistThresholdFar0, PointLimit + AstrometricCompFar);
             RoughRadiusFar = max(DistThresholdFar);
 
+            K = nearCandidates(LonFar, LatFar, RA, Dec, RoughRadiusFar .* Arcsec2Rad);
+
             [Mfar, Dfar, BPfar, RPfar, Pfar] = matchStarSubset( ...
-                LonFar, LatFar, DistThresholdFar, BpMagsFar, RpMagsFar, ...
-                ParallaxFar, ParallaxErrFar, PmraFar, PmraErrFar, PmdecFar, PmdecErrFar, ...
-                InQsoCandFar, InGalaxyCandFar, ...
+                LonFar(K), LatFar(K), DistThresholdFar(K), BpMagsFar(K), RpMagsFar(K), ...
+                ParallaxFar(K), ParallaxErrFar(K), PmraFar(K), PmraErrFar(K), PmdecFar(K), PmdecErrFar(K), ...
+                InQsoCandFar(K), InGalaxyCandFar(K), ...
                 RA, Dec, RoughRadiusFar, Rad2Arcsec, Arcsec2Rad, ...
                 Args.AstroWeightFloor, Args.QsoPenalty, Args.GalaxyPenalty);
 
@@ -467,4 +473,23 @@ function Col = getColOrFalse(Cat, ColName)
     else
         Col = false(size(Cat.Catalog, 1), 1);
     end
+end
+
+
+function Keep = nearCandidates(Lon, Lat, RA, Dec, RadiusRad)
+    % Stars (Lon,Lat) that can be within RadiusRad of at least one candidate
+    % (RA,Dec) [rad]: within Rc + RadiusRad of the candidates' centre, where
+    % Rc is the largest candidate distance from it (triangle inequality),
+    % plus a 1 arcsec margin. A logical mask, so the order (sorted by Lat)
+    % is kept. If any candidate position is not finite, all stars are kept.
+    Keep = true(size(Lon));
+    if isempty(Lon) || isempty(RA) || ~all(isfinite(RA)) || ~all(isfinite(Dec))
+        return
+    end
+    Xc = mean(cos(Dec).*cos(RA)); Yc = mean(cos(Dec).*sin(RA)); Zc = mean(sin(Dec));
+    RA0  = atan2(Yc, Xc);
+    Dec0 = atan2(Zc, hypot(Xc, Yc));
+    Rc   = max(celestial.coo.sphere_dist_fast(RA0, Dec0, RA, Dec));
+    Margin = 4.84814e-6;   % 1 arcsec
+    Keep = celestial.coo.sphere_dist_fast(RA0, Dec0, Lon, Lat) <= Rc + RadiusRad + Margin;
 end
