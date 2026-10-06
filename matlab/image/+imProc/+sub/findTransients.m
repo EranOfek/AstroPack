@@ -93,8 +93,6 @@ function TranCat=findTransients(AD, Args)
         Args.LocalChi2Radius = 300;   % pixels
         Args.LocalChi2MinSrc = 30;   % below this the neighbourhood is not measurable
 
-        Args.includeGradientDir logical = true;
-
         Args.includeBitMaskVal logical  = true;
         Args.BitCutHalfSize             = 3;
 
@@ -273,84 +271,6 @@ function TranCat=findTransients(AD, Args)
                 M2R.Y2 = max(M2RY2Top, M2RY2Bottom);
             end
           
-        end
-
-        if Args.includeGradientDir
-            PSFSize = floor(size(AD(Iobj).New.PSFData.getPSF,2)/2);
-            % Make a larger cut so we won't have to pad it later.
-            CutSize = PSFSize + 1;
-            [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(...
-                AD(Iobj).New.Image, LocalMax(:,1), LocalMax(:,2), CutSize);
-
-            FullSizeX = 2*PSFSize + 1;
-            FullSizeY = 2*PSFSize + 1;
-            CenterX = PSFSize + 1;
-            CenterY = PSFSize + 1;
-            
-            StartX = 2;
-            EndX = StartX + FullSizeX - 1;
-            StartY = 2;
-            EndY = StartY + FullSizeY - 1;
-
-            % Compute expected radial direction
-            [Xmesh, Ymesh] = meshgrid(1:FullSizeX, 1:FullSizeY);
-            % Flip the X-axis so the convetion agrees with imgradient
-            ExpectedAngle = atan2(-(Ymesh - CenterY), -(Xmesh - CenterX));
-            ExpectedAngleDeg = rad2deg(ExpectedAngle);
-
-            GDIRCVAR = zeros(Nsrc,1);
-            GDIRERROR = zeros(Nsrc,1);
-            
-            BackThreshold = AD(Iobj).BackN + sqrt(AD(Iobj).VarN);
-
-            CubeList = squeeze(mat2cell( ...
-                Cube, FullSizeX+2, FullSizeY+2, ones(1, Nsrc)));
-
-            for ITran=1:Nsrc
-
-                ICube = CubeList{ITran};
-                
-                MaskBack = (ICube > BackThreshold);
-                if sum(MaskBack(:)) < 1
-                    MaskBack = ones(size(ICube));
-                end
-                MaskBack = MaskBack(StartY:EndY, StartX:EndX);
-                
-                % Assuming ICube is small and fixed-size
-                
-                % Convolution with Sobel kernels
-                % This is the fastest way to do it.
-                Gx = ...
-                    -1 * ICube(1:end-2, 1:end-2) +  1 * ICube(1:end-2, 3:end) + ...
-                    -2 * ICube(2:end-1, 1:end-2) +  2 * ICube(2:end-1, 3:end) + ...
-                    -1 * ICube(3:end,   1:end-2) +  1 * ICube(3:end,   3:end);
-                
-                Gy = ...
-                    -1 * ICube(1:end-2, 1:end-2) + -2 * ICube(1:end-2, 2:end-1) + ...
-                    -1 * ICube(1:end-2, 3:end)   +  1 * ICube(3:end,   1:end-2) + ...
-                     2 * ICube(3:end,   2:end-1) +  1 * ICube(3:end,   3:end);
-                
-                Gdir = atan2d(Gy, Gx);
-
-                Gdir_rad = deg2rad(Gdir(MaskBack));
-                % 'omitnan': a Sobel-gradient pixel adjacent to a
-                % NaN-padded cutout edge (image2cutouts now defaults to
-                % NaN-padding - see issue #1199) is itself NaN; without
-                % omitnan a single such pixel would silently NaN out the
-                % whole transient score.
-                GDIRCVAR(ITran,1) = 1 - abs(mean(exp(1i * Gdir_rad),"all",'omitnan'));
-
-                AngleDiff = abs(Gdir - ExpectedAngleDeg);
-                % Correct for wrapping issues (e.g., -179° vs 179° should be close)
-                AngleDiff = min(AngleDiff, 360 - AngleDiff);
-                % Compute the mean alignment error
-                GDIRERROR(ITran,1) = mean(AngleDiff(MaskBack),"all",'omitnan');
-            end
-
-            TranCat(Iobj) = TranCat(Iobj).insertCol(cast(GDIRCVAR,'double'), ...
-                'SCORE', {'GDIRCVAR'}, {''});
-            TranCat(Iobj) = TranCat(Iobj).insertCol(cast(GDIRERROR,'double'), ...
-                'SCORE', {'GDIRERROR'}, {''});
         end
 
         if Args.includePsfFit
