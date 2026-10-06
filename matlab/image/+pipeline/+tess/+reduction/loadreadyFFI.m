@@ -11,7 +11,7 @@ function FFI=loadreadyFFI(FFIPath, Args)
                 'SectorToken' - Regular expression token used to extract the
                        TESS sector number from the file name. The first
                        capturing group must correspond to the sector number.
-                       Default is '-s00(\d+)-'.
+                       Default is '-s(\d{4})-'.
                 'ZP' - Photometric zero point to be added to the FITS header
                        under the key 'PH_ZP'. Default is 20.44.
     
@@ -24,21 +24,26 @@ function FFI=loadreadyFFI(FFIPath, Args)
     
     Author  : Ruslan Konno (Jan 2026)
     Example : FFIPath = 'tess2018213055942-s0001-2-3-0120-s_ffic.fits';
-              FFI = pipeline.tess.io.loadreadyFFI(FFIPath);
+              FFI = pipeline.tess.reduction.loadreadyFFI(FFIPath);
     %}
 
     arguments
         FFIPath
 
-        Args.SectorToken = '-s00(\d+)-';
+        Args.SectorToken = '-s(\d{4})-';
         Args.ZP = 20.44;
     end
 
     % Load image
     FFI = AstroImage.readImages2AstroImage(FFIPath, 'HDU', 2);
     
-    % Identify sector
-    Tokens = regexp(FFIPath, Args.SectorToken, 'tokens');
+    % Identify sector (match on the file name only, not the directory)
+    [~, FFIName] = fileparts(FFIPath);
+    Tokens = regexp(FFIName, Args.SectorToken, 'tokens');
+    if isempty(Tokens)
+        error('loadreadyFFI:NoSector', ...
+            'Could not identify the TESS sector in %s using token %s', FFIName, Args.SectorToken);
+    end
     Sector = str2double(Tokens{1}{1});
 
     % Add sector to header
