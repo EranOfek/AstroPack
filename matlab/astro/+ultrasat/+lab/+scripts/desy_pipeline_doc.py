@@ -998,10 +998,13 @@ block(["Qc              = Q - max(T, 0)",
 w(f"""everything in electrons, so only the read noise is converted (`RN_e =
 RN_ADU / g`); the shot-noise variance of `Qc` electrons is `Qc` electrons squared
 and needs no gain at all. `f = 1` when the fixed patterns are removed by
-calibration and `f = 0` for a single raw frame, and **both** curves are returned,
-because the dark pattern of this detector was measured to repeat to 95-103 %
-between runs -- it is static, so `f = 1` is defensible -- while a single raw
-frame is what an instrument actually reads out. The limiting signal is found by
+calibration and `f = 0` for a single raw frame, and **both** curves are returned.
+Which one to believe depends on how static the pattern is, and the header of
+`noiseBudget.m` records the measurement that justified `f = 1` -- the dark
+pattern of this detector repeating between runs to within a few per cent. That
+figure is not regenerated here, so treat it as a citation of that measurement
+rather than as a number this document recomputed; the uncalibrated curve is
+reported alongside precisely so that the budget does not depend on it. The limiting signal is found by
 interpolating the SNR curve in `log Q`.
 
 Two details in that formula were decided against alternatives.
