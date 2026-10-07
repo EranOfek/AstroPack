@@ -92,6 +92,7 @@ function TranCat=findTransients(AD, Args)
         Args.Aper_Annulus_min = 5;
         Args.LocalChi2Radius = 300;   % pixels
         Args.LocalChi2MinSrc = 30;   % below this the neighbourhood is not measurable
+        Args.LocalChi2NumSrc = 200;   % use at most the nearest this many sources within LocalChi2Radius
 
         Args.includeBitMaskVal logical  = true;
         Args.BitCutHalfSize             = 3;
@@ -423,15 +424,14 @@ function TranCat=findTransients(AD, Args)
             XCat_Ref = XCat_Ref(~NearEdge_Ref);
             YCat_Ref = YCat_Ref(~NearEdge_Ref);
                        
-            % Median chi2/dof of the catalogue sources within LocalChi2Radius
-            % of each candidate. The sources are binned in cells of that
-            % size, so only the 3x3 cells around a candidate are searched
-            % instead of the whole catalogue (#1257); same distances, same
-            % sets, same medians.
-            LocalMedianChi2_New = localMedianNearby(LocalMax(:,1), LocalMax(:,2), ...
-                XCat_New, YCat_New, CHI2DOF_New, Args.LocalChi2Radius, Args.LocalChi2MinSrc);
-            LocalMedianChi2_Ref = localMedianNearby(LocalMax(:,1), LocalMax(:,2), ...
-                XCat_Ref, YCat_Ref, CHI2DOF_Ref, Args.LocalChi2Radius, Args.LocalChi2MinSrc);
+            % Median chi2/dof of the catalogue sources around each
+            % candidate: the LocalChi2NumSrc nearest within LocalChi2Radius
+            % (all of them where fewer lie within it), NaN if fewer than
+            % LocalChi2MinSrc do (#1257).
+            LocalMedianChi2_New = localMedianNearest(LocalMax(:,1), LocalMax(:,2), ...
+                XCat_New, YCat_New, CHI2DOF_New, Args.LocalChi2Radius, Args.LocalChi2MinSrc, Args.LocalChi2NumSrc);
+            LocalMedianChi2_Ref = localMedianNearest(LocalMax(:,1), LocalMax(:,2), ...
+                XCat_Ref, YCat_Ref, CHI2DOF_Ref, Args.LocalChi2Radius, Args.LocalChi2MinSrc, Args.LocalChi2NumSrc);
 
             % Insert results into catalog.
             Data = cell2mat({ResultD.SNm, CHI2DOF, ...
@@ -596,45 +596,6 @@ function TranCat=findTransients(AD, Args)
 end
 
 
-function Med = localMedianNearby(X, Y, Xs, Ys, Vals, Radius, MinSrc)
-    % Median of Vals over the sources (Xs,Ys) with distance < Radius from
-    % each point (X,Y); NaN where fewer than MinSrc sources qualify.
-    % Distances are computed as sqrt((Xs-X)^2 + (Ys-Y)^2), as before.
-    N   = numel(X);
-    Med = NaN(N,1);
-    if N==0 || isempty(Xs)
-        return
-    end
-    Xs = Xs(:); Ys = Ys(:); Vals = Vals(:);
-    % cell of each source; sources with non-finite positions are never
-    % within Radius (their distance is NaN) and are dropped
-    Fin = isfinite(Xs) & isfinite(Ys);
-    Xs = Xs(Fin); Ys = Ys(Fin); Vals = Vals(Fin);
-    % cells slightly larger than Radius, so that rounding in the division
-    % can never put a source within Radius two cells away
-    Cell = Radius.*(1 + 1e-6);
-    Cxs = floor(Xs./Cell); Cys = floor(Ys./Cell);
-    Cx  = floor(X(:)./Cell); Cy = floor(Y(:)./Cell);
-    [Key, ~, Grp] = unique([Cx Cy], 'rows');
-    for Ig = 1:size(Key,1)
-        Ip = find(Grp==Ig);
-        if any(~isfinite(Key(Ig,:)))
-            continue              % point with a non-finite position: no source qualifies
-        end
-        InNb = abs(Cxs - Key(Ig,1)) <= 1 & abs(Cys - Key(Ig,2)) <= 1;
-        if ~any(InNb)
-            continue
-        end
-        XsN = Xs(InNb).'; YsN = Ys(InNb).'; ValsN = Vals(InNb);
-        Near = sqrt((XsN - X(Ip)).^2 + (YsN - Y(Ip)).^2) < Radius;
-        Num  = sum(Near, 2);
-        for k = find(Num >= MinSrc).'
-            Med(Ip(k)) = median(ValsN(Near(k,:)));
-        end
-    end
-end
-
-
 function MinDists = minDistOppositeSign(X, Y, Score)
     % For each point, the minimum distance to the points whose sign(Score)
     % differs from its own (NaN-aware like min).
@@ -659,5 +620,30 @@ function MinDists = minDistOppositeSign(X, Y, Score)
             Ij = Ia(J:min(J+Chunk-1, numel(Ia)));
             MinDists(Ij) = min(sqrt((X(Ij) - XB).^2 + (Y(Ij) - YB).^2), [], 2);
         end
+    end
+end
+
+
+function Med = localMedianNearest(X, Y, Xs, Ys, Vals, Radius, MinSrc, NumSrc)
+    % Median of Vals over the NumSrc sources (Xs,Ys) nearest to each point
+    % (X,Y), among those with distance < Radius. NaN where fewer than
+    % MinSrc sources lie within Radius; where fewer than NumSrc do, all of
+    % them are used.
+    N   = numel(X);
+    Med = NaN(N,1);
+    Fin = isfinite(Xs(:)) & isfinite(Ys(:));
+    Xs = Xs(Fin); Ys = Ys(Fin); Vals = Vals(:); Vals = Vals(Fin);
+    if N==0 || numel(Xs) < MinSrc
+        return
+    end
+    K = min(NumSrc, numel(Xs));
+    [Idx, Dist] = knnsearch([Xs Ys], [X(:) Y(:)], 'K',K);    % rows sorted by distance
+    In  = Dist < Radius;
+    Num = sum(In, 2);
+    V   = Vals(Idx);
+    Full = Num == K & K >= MinSrc;                           % all K nearest are within Radius
+    Med(Full) = median(V(Full,:), 2);
+    for i = find(~Full & Num >= MinSrc).'                    % fewer than K within Radius
+        Med(i) = median(V(i, In(i,:)));
     end
 end
