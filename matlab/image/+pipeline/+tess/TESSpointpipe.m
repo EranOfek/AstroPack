@@ -335,6 +335,10 @@ function TESSpointpipe(FFIDataPath, RA, Dec, SavePath, Args)
         [X,Y] = AD.WCS.sky2xy(RA,Dec);
         X = cast(X,'single');
         Y = cast(Y,'single');
+
+        % TESS FFIs are in e-/s: the number of electrons per image unit is
+        % the exposure time, so it is the Gain for the source Poisson noise.
+        ExposureN = AD.New.HeaderData.getVal('Exposure')*24*3600;
         
         % PSF fit source in the D image
         PSFSize = floor(size(AD.PSFData.getPSF,2)/2);
@@ -344,7 +348,7 @@ function TESSpointpipe(FFIDataPath, RA, Dec, SavePath, Args)
         StdD = sqrt(VarD);
         [ResultD, ~] = imUtil.sources.psfPhotCube(Cube, ...
             'PSF', AD.PSFData.getPSF, 'Back', 0, 'Std', StdD,...
-            'ZP', AD.ZpD);
+            'ZP', AD.ZpD, 'Gain', ExposureN);
         
         % PSF fit source in the New image
         CutHalfSize =  floor(size(AD.New.PSFData.getPSF,2)/2);
@@ -352,12 +356,10 @@ function TESSpointpipe(FFIDataPath, RA, Dec, SavePath, Args)
         
         [ResultN, ~] = imUtil.sources.psfPhotCube(Cube,...
             'PSF', AD.New.PSFData.getPSF, 'Back', 0, 'Std', AD.SigmaN, ...
-            'ZP', AD.ZpN);
+            'ZP', AD.ZpN, 'Gain', ExposureN);
                 
         % Get JD
         JD(IFFI) = AD.New.julday;
-
-        ExposureN = AD.New.HeaderData.getVal('Exposure')*24*3600;
         
         % Get chi2 per degrees of freedom of the PSF fit on the difference
         % image.
@@ -366,15 +368,15 @@ function TESSpointpipe(FFIDataPath, RA, Dec, SavePath, Args)
         % Estimate flux and magnitude error
         D_SN(IFFI) = ResultD.SNm;
         D_FLUX_PSF(IFFI) = ResultD.Flux;
-        D_FLUXERR_PSF(IFFI) = sqrt(abs(ResultD.Flux))/sqrt(ExposureN);
+        D_FLUXERR_PSF(IFFI) = ResultD.FluxErr;
         D_MAG_PSF(IFFI) = ResultD.Mag;
-        D_MAGERR_PSF(IFFI) = 1.086./D_FLUXERR_PSF(IFFI);
+        D_MAGERR_PSF(IFFI) = 1.086./abs(ResultD.SNm);
         
         N_SN(IFFI) = ResultN.SNm;
         N_FLUX_PSF(IFFI) = ResultN.Flux;
-        N_FLUXERR_PSF(IFFI) = sqrt(abs(ResultN.Flux))/sqrt(ExposureN);
+        N_FLUXERR_PSF(IFFI) = ResultN.FluxErr;
         N_MAG_PSF(IFFI) = ResultN.Mag;
-        N_MAGERR_PSF(IFFI) = 1.086./N_FLUXERR_PSF(IFFI);
+        N_MAGERR_PSF(IFFI) = 1.086./abs(ResultN.SNm);
 
         Logger.msgLog(LogLevel.Info, '<<< FFI processed.');
 
