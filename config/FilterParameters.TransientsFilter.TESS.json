@@ -32,7 +32,7 @@
     "flagLimitingMag": false,
 
     "flagPeakValley": true,
-    "PVDistThresh": 10,
+    "PVDistThresh": 3.25,
 
     "flagStreak": false,
     "ignoreStreakPoints": ["BadPixelHard", "StarMatch", "Ringing", "Translient", "Streak"],
