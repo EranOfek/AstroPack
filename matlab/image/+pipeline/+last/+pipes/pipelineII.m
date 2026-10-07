@@ -92,6 +92,10 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
         Args.AsteroidLimMag = 21.5;
         Args.CometSearchRad = 90;
         Args.GeoPos = [35.05 30.04 415];
+        % Populated celestial.INPOP for the asteroid and comet searches; if
+        % empty, one is built here with populateAll. Pass one to avoid
+        % rebuilding it for every visit (#1257).
+        Args.INPOP = [];
 
         % Fallback Gaia catalog of the visit; AST_CAT wins (issue #1348)
         Args.RefCatName = 'GAIADR3';
@@ -633,8 +637,12 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     end
 
     % Get asteroid catalogs for New and Ref
-    INPOP = celestial.INPOP;
-    INPOP.populateAll;
+    if isempty(Args.INPOP)
+        INPOP = celestial.INPOP;
+        INPOP.populateAll;
+    else
+        INPOP = Args.INPOP;
+    end
     OrbElMerge= celestial.OrbitalEl.loadSolarSystem('merge');
 
     % Propogate catalog to New image epoch
@@ -719,7 +727,6 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
     % Clear for memory
     clear AstCatNew;
     clear AstCatRef;
-    clear INPOP;
     clear OrbElMerge;
 
     % Comet matching
@@ -730,6 +737,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
     [ComCatNew] = OrbElComet.searchMinorPlanetsNearPosition(...
         NewJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
+        'INPOP', INPOP, ...      % reuse the ephemeris built for the asteroids (#1257)
         'CooUnits','rad', 'SearchRadiusUnits','rad',...
         'OutUnitsDeg', true, 'Integration', false, ...
         'GeoPos', Args.GeoPos);
@@ -798,6 +806,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
     [ComCatRef] = OrbElComet.searchMinorPlanetsNearPosition(...
         RefJulDay, C_RA_med, C_Dec_med, MaxDistRad,...
+        'INPOP', INPOP, ...      % reuse the ephemeris built for the asteroids (#1257)
         'CooUnits','rad', 'SearchRadiusUnits','rad',...
         'OutUnitsDeg',true,'Integration', false, ...
         'GeoPos', Args.GeoPos);
@@ -860,6 +869,7 @@ function [AD, ADc, TCL1, TCL2, Status] = pipelineII(VisitData, Args)
 
     %Clear for memory
     clear ComCatRef;
+    clear INPOP;
     
     % Measure transients
     AD.measureTransients;

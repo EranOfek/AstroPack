@@ -318,10 +318,14 @@ function match2Stars(Obj, StarCat, Args)
             DistThresholdClose = max(DistThresholdClose0, PointLimit + AstrometricCompClose);
             RoughRadiusClose = max(DistThresholdClose);
 
+            % only the stars that can lie within RoughRadiusClose of a
+            % candidate of this crop; the rest cannot match (#1257)
+            K = nearCandidates(LonClose, LatClose, RA, Dec, RoughRadiusClose .* Arcsec2Rad);
+
             [Mclose, Dclose, BPclose, RPclose, Pclose] = matchStarSubset( ...
-                LonClose, LatClose, DistThresholdClose, BpMagsClose, RpMagsClose, ...
-                ParallaxClose, ParallaxErrClose, PmraClose, PmraErrClose, PmdecClose, PmdecErrClose, ...
-                InQsoCandClose, InGalaxyCandClose, ...
+                LonClose(K), LatClose(K), DistThresholdClose(K), BpMagsClose(K), RpMagsClose(K), ...
+                ParallaxClose(K), ParallaxErrClose(K), PmraClose(K), PmraErrClose(K), PmdecClose(K), PmdecErrClose(K), ...
+                InQsoCandClose(K), InGalaxyCandClose(K), ...
                 RA, Dec, RoughRadiusClose, Rad2Arcsec, Arcsec2Rad, ...
                 Args.AstroWeightFloor, Args.QsoPenalty, Args.GalaxyPenalty);
 
@@ -337,10 +341,12 @@ function match2Stars(Obj, StarCat, Args)
             DistThresholdFar = max(DistThresholdFar0, PointLimit + AstrometricCompFar);
             RoughRadiusFar = max(DistThresholdFar);
 
+            K = nearCandidates(LonFar, LatFar, RA, Dec, RoughRadiusFar .* Arcsec2Rad);
+
             [Mfar, Dfar, BPfar, RPfar, Pfar] = matchStarSubset( ...
-                LonFar, LatFar, DistThresholdFar, BpMagsFar, RpMagsFar, ...
-                ParallaxFar, ParallaxErrFar, PmraFar, PmraErrFar, PmdecFar, PmdecErrFar, ...
-                InQsoCandFar, InGalaxyCandFar, ...
+                LonFar(K), LatFar(K), DistThresholdFar(K), BpMagsFar(K), RpMagsFar(K), ...
+                ParallaxFar(K), ParallaxErrFar(K), PmraFar(K), PmraErrFar(K), PmdecFar(K), PmdecErrFar(K), ...
+                InQsoCandFar(K), InGalaxyCandFar(K), ...
                 RA, Dec, RoughRadiusFar, Rad2Arcsec, Arcsec2Rad, ...
                 Args.AstroWeightFloor, Args.QsoPenalty, Args.GalaxyPenalty);
 
@@ -380,76 +386,83 @@ function [Matches, Distances, MatchedBpMags, MatchedRpMags, MatchProb] = matchSt
     MatchRes = VO.search.search_sortedlat_multi( ...
         [StarLon, StarLat], RA, Dec, RoughRadiusArcsec .* Arcsec2Rad);
 
-    for Isrc = 1:CatSize
-        Match = MatchRes(Isrc);
-        if Match.Nmatch < 1
-            continue
-        end
-
-        Dist = celestial.coo.sphere_dist_fast( ...
-            StarLon(Match.Ind), StarLat(Match.Ind), RA(Isrc), Dec(Isrc));
-        Dist = Dist .* Rad2Arcsec;
-
-        Thresh = DistThreshold(Match.Ind);
-        FlagM = Dist < Thresh;
-
-        Matches(Isrc) = sum(FlagM);
-
-        if any(FlagM)
-            DistGood = Dist(FlagM);
-            ThreshGood = Thresh(FlagM);
-            IndGood = Match.Ind(FlagM);
-
-            % Geometry term
-            Pdist = exp(-0.5 .* (DistGood ./ ThreshGood).^2);
-
-            % Astrometric term
-            Plx = Parallax(IndGood);
-            PlxErr = ParallaxErr(IndGood);
-            MuRa = Pmra(IndGood);
-            MuRaErr = PmraErr(IndGood);
-            MuDec = Pmdec(IndGood);
-            MuDecErr = PmdecErr(IndGood);
-
-            PlxSig = zeros(size(Plx));
-            GoodPlx = isfinite(Plx) & isfinite(PlxErr) & (PlxErr > 0);
-            PlxSig(GoodPlx) = max(0, Plx(GoodPlx) ./ PlxErr(GoodPlx));
-
-            MuSig = zeros(size(MuRa));
-            GoodMu = isfinite(MuRa) & isfinite(MuRaErr) & (MuRaErr > 0) & ...
-                     isfinite(MuDec) & isfinite(MuDecErr) & (MuDecErr > 0);
-            MuSig(GoodMu) = sqrt(MuRa(GoodMu).^2 + MuDec(GoodMu).^2) ./ ...
-                            sqrt(MuRaErr(GoodMu).^2 + MuDecErr(GoodMu).^2);
-
-            Pastro = 1 - exp(-0.5 .* (PlxSig.^2 + MuSig.^2));
-
-            % Galaxy candidate punishment
-            QsoFlag = logical(InQsoCand(IndGood));
-            GalaxyFlag = logical(InGalaxyCand(IndGood));
-
-            ExtraPenalty = ones(size(Pdist));
-            ExtraPenalty(QsoFlag) = ExtraPenalty(QsoFlag) .* QsoPenalty;
-            ExtraPenalty(GalaxyFlag) = ExtraPenalty(GalaxyFlag) .* GalaxyPenalty;
-
-            % Strong stellar astrometry overrides Gaia extragalactic candidate flags.
-            StrongAstrometry = (PlxSig > 5) | (MuSig > 5);
-            
-            ExtraPenalty(StrongAstrometry) = 1;
-
-            % Combined score
-            ProbGood = Pdist .* ...
-                (AstroWeightFloor + (1 - AstroWeightFloor) .* Pastro) .* ...
-                ExtraPenalty;
-
-            [BestProb, iBest] = max(ProbGood);
-            iStar = IndGood(iBest);
-
-            MatchProb(Isrc) = BestProb;
-            Distances(Isrc) = DistGood(iBest);
-            MatchedBpMags(Isrc) = BpMags(iStar);
-            MatchedRpMags(Isrc) = RpMags(iStar);
-        end
+    % All (candidate, star) pairs of the rough search at once instead of a
+    % loop over candidates (#1257). Every quantity is computed element-wise
+    % as before, and the best match of a candidate is the first maximum of
+    % its pairs in star order, as max returns it.
+    Nm = reshape([MatchRes.Nmatch], [], 1);
+    if ~any(Nm)
+        return
     end
+    Src = repelem((1:CatSize).', Nm);
+    Ind = vertcat(MatchRes.Ind);
+
+    Dist = celestial.coo.sphere_dist_fast(StarLon(Ind), StarLat(Ind), RA(Src), Dec(Src));
+    Dist = Dist .* Rad2Arcsec;
+
+    Thresh = DistThreshold(Ind);
+    FlagM  = Dist < Thresh;
+
+    Matches = accumarray(Src(FlagM), 1, [CatSize 1]);
+
+    if ~any(FlagM)
+        return
+    end
+    SrcGood    = Src(FlagM);
+    DistGood   = Dist(FlagM);
+    ThreshGood = Thresh(FlagM);
+    IndGood    = Ind(FlagM);
+
+    % Geometry term
+    Pdist = exp(-0.5 .* (DistGood ./ ThreshGood).^2);
+
+    % Astrometric term
+    Plx = Parallax(IndGood);
+    PlxErr = ParallaxErr(IndGood);
+    MuRa = Pmra(IndGood);
+    MuRaErr = PmraErr(IndGood);
+    MuDec = Pmdec(IndGood);
+    MuDecErr = PmdecErr(IndGood);
+
+    PlxSig = zeros(size(Plx));
+    GoodPlx = isfinite(Plx) & isfinite(PlxErr) & (PlxErr > 0);
+    PlxSig(GoodPlx) = max(0, Plx(GoodPlx) ./ PlxErr(GoodPlx));
+
+    MuSig = zeros(size(MuRa));
+    GoodMu = isfinite(MuRa) & isfinite(MuRaErr) & (MuRaErr > 0) & ...
+             isfinite(MuDec) & isfinite(MuDecErr) & (MuDecErr > 0);
+    MuSig(GoodMu) = sqrt(MuRa(GoodMu).^2 + MuDec(GoodMu).^2) ./ ...
+                    sqrt(MuRaErr(GoodMu).^2 + MuDecErr(GoodMu).^2);
+
+    Pastro = 1 - exp(-0.5 .* (PlxSig.^2 + MuSig.^2));
+
+    % Galaxy candidate punishment
+    QsoFlag = logical(InQsoCand(IndGood));
+    GalaxyFlag = logical(InGalaxyCand(IndGood));
+
+    ExtraPenalty = ones(size(Pdist));
+    ExtraPenalty(QsoFlag) = ExtraPenalty(QsoFlag) .* QsoPenalty;
+    ExtraPenalty(GalaxyFlag) = ExtraPenalty(GalaxyFlag) .* GalaxyPenalty;
+
+    % Strong stellar astrometry overrides Gaia extragalactic candidate flags.
+    StrongAstrometry = (PlxSig > 5) | (MuSig > 5);
+    ExtraPenalty(StrongAstrometry) = 1;
+
+    % Combined score
+    ProbGood = Pdist .* ...
+        (AstroWeightFloor + (1 - AstroWeightFloor) .* Pastro) .* ...
+        ExtraPenalty;
+
+    % Best pair per candidate: highest score, first in star order on ties
+    [~, Ord] = sortrows([SrcGood, -ProbGood, (1:numel(SrcGood)).']);
+    Best = Ord([true; diff(SrcGood(Ord)) ~= 0]);
+    Isrc = SrcGood(Best);
+    iStar = IndGood(Best);
+
+    MatchProb(Isrc) = ProbGood(Best);
+    Distances(Isrc) = DistGood(Best);
+    MatchedBpMags(Isrc) = BpMags(iStar);
+    MatchedRpMags(Isrc) = RpMags(iStar);
 end
 
 function Col = getColOrNaN(Cat, ColName)
@@ -467,4 +480,23 @@ function Col = getColOrFalse(Cat, ColName)
     else
         Col = false(size(Cat.Catalog, 1), 1);
     end
+end
+
+
+function Keep = nearCandidates(Lon, Lat, RA, Dec, RadiusRad)
+    % Stars (Lon,Lat) that can be within RadiusRad of at least one candidate
+    % (RA,Dec) [rad]: within Rc + RadiusRad of the candidates' centre, where
+    % Rc is the largest candidate distance from it (triangle inequality),
+    % plus a 1 arcsec margin. A logical mask, so the order (sorted by Lat)
+    % is kept. If any candidate position is not finite, all stars are kept.
+    Keep = true(size(Lon));
+    if isempty(Lon) || isempty(RA) || ~all(isfinite(RA)) || ~all(isfinite(Dec))
+        return
+    end
+    Xc = mean(cos(Dec).*cos(RA)); Yc = mean(cos(Dec).*sin(RA)); Zc = mean(sin(Dec));
+    RA0  = atan2(Yc, Xc);
+    Dec0 = atan2(Zc, hypot(Xc, Yc));
+    Rc   = max(celestial.coo.sphere_dist_fast(RA0, Dec0, RA, Dec));
+    Margin = 4.84814e-6;   % 1 arcsec
+    Keep = celestial.coo.sphere_dist_fast(RA0, Dec0, Lon, Lat) <= Rc + RadiusRad + Margin;
 end
