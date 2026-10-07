@@ -435,8 +435,11 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
                 %ProcessingStep = 102;
                 %tic;
                 % parfor (Iobj=1:1:Nobj, 0)  % no par for!
+                % maskHoles runs here too, on the worker that has just made the
+                % image's background and variance, instead of serially after
+                % the parfor (issue #1256)
                 parfor Iobj=1:1:Nobj
-                    [AllSI(Iobj)] = imProc.sources.multiIterExtractor(AllSI(Iobj), Args.multiIterExtractorArgs{:},...
+                    SI = imProc.sources.multiIterExtractor(AllSI(Iobj), Args.multiIterExtractorArgs{:},...
                                                             WingArgCell{Iobj}{:},...
                                                             'JD',JD(Iobj),...
                                                             'ColCell',Args.ColCell,...
@@ -453,6 +456,10 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
                                                             'SearchStreaks',Args.SearchStreaksEpoch,...
                                                             'Threshold',Args.Threshold,...
                                                             'AddSkyCoo',false);  % 119 s (on 16 cores): 169s -> 135s (with UseMex=true)
+                    if Args.MaskHole
+                        SI = imProc.mask.maskHoles(SI, Args.maskHolesArgs{:});
+                    end
+                    AllSI(Iobj) = SI;
                 end
                 %toc
             end
@@ -461,8 +468,8 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             %TableRaw.BasicCalib(TableRaw.SelectedImages) = true(numel(AI),1); 
         
             
-            % Mask holes
-            if Args.MaskHole
+            % Mask holes (done in the source-extraction parfor when it is used)
+            if Args.MaskHole && isempty(PP)
                 AllSI = imProc.mask.maskHoles(AllSI, Args.maskHolesArgs{:}); % 9s
             end
 
@@ -551,7 +558,34 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             % add PSF FWHM to header - after astrometry, beacuse WCS is needed
             %ProcessingStep = 201;
             % This must be done after astrometry as the Scale is used
-            AllSI = imProc.psf.fwhm(AllSI, 'AddMorphology',true, 'AddErr',true, 'UseLegacy',true, 'DefScale',Args.DefScale);
+            FwhmArgs = {'AddMorphology',true, 'AddErr',true, 'UseLegacy',true, 'DefScale',Args.DefScale};
+            if Args.UseParfor
+                % Light copies (issue #1256): fwhm uses only the PSF, WCS and
+                % header of each image, so only these go to the workers; the
+                % PSF and the header are put back afterwards.
+                PP = gcp('nocreate');
+                if isempty(PP)
+                    PP = parpool(localCluster(Args.Nworkers), Args.Nworkers);
+                end
+                PSFc = {AllSI.PSFData};
+                Hc   = {AllSI.HeaderData};
+                Wc   = {AllSI.WCS};
+                parfor Iobj=1:1:Nobj
+                    Light = AstroImage([1 1]);
+                    Light.PSFData    = PSFc{Iobj};
+                    Light.HeaderData = Hc{Iobj};
+                    Light.WCS        = Wc{Iobj};
+                    Light = imProc.psf.fwhm(Light, FwhmArgs{:});
+                    PSFc{Iobj} = Light.PSFData;
+                    Hc{Iobj}   = Light.HeaderData;
+                end
+                for Iobj=1:1:Nobj
+                    AllSI(Iobj).PSFData    = PSFc{Iobj};
+                    AllSI(Iobj).HeaderData = Hc{Iobj};
+                end
+            else
+                AllSI = imProc.psf.fwhm(AllSI, FwhmArgs{:});
+            end
                 
             
             % Update Airmass header keyword to based on measured crop center
@@ -1031,7 +1065,24 @@ function [Status, TableRaw, AllSI, MS, Coadd, OnlyMP, JD, GaiaCone] = pipelineI(
             % photometric calibration input of the processing status below
             PC = [];
             if AnyCoaddExist
-                [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, 'MagType', Args.MagType, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', true); % 8.7s for all in loop
+                if Args.UseParfor
+                    % each coadd is calibrated independently: one coadd per
+                    % parfor iteration (issue #1256)
+                    PP = gcp('nocreate');
+                    if isempty(PP)
+                        PP = parpool(localCluster(Args.Nworkers), Args.Nworkers);
+                    end
+                    PCc     = cell(1, Nsub);
+                    FitResc = cell(1, Nsub);
+                    parfor Isub=1:1:Nsub
+                        [CoaddI, PCc{Isub}, FitResc{Isub}] = imProc.calib.fitPhotCalibTrans(Coadd(Isub), 'MagType', Args.MagType, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', true);
+                        Coadd(Isub) = CoaddI;
+                    end
+                    PC     = [PCc{:}];
+                    FitRes = vertcat(FitResc{:});
+                else
+                    [Coadd, PC, FitRes] = imProc.calib.fitPhotCalibTrans(Coadd, 'MagType', Args.MagType, Args.fitPhotCalibTransArgs{:}, 'Verbose',false, 'AddMagErr', true); % 8.7s for all in loop
+                end
             end
             %toc
         
