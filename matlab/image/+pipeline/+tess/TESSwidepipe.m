@@ -366,6 +366,22 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
         end
 
         AD.register;
+
+        % Background noise per pixel of New and Ref (e-/s): sky photons plus
+        % read noise. The robust spatial variance of a crowded TESS tile is
+        % dominated by static structure and overestimates it ~20x, which
+        % makes ZOGY's noise model and the Scorr source-noise term wrong.
+        for Iobj = 1:numel(AD)
+            if isempty(AD(Iobj).New)
+                continue
+            end
+            AD(Iobj).New.Var = tessPixelVar(AD(Iobj).New, AD(Iobj).New.Back);
+            if isempty(AD(Iobj).Ref.Back)
+                AD(Iobj).Ref.Back = repmat(AD(Iobj).Ref.HeaderData.getVal('MEDBCK'), size(AD(Iobj).Ref.Image));
+            end
+            AD(Iobj).Ref.Var = tessPixelVar(AD(Iobj).Ref, AD(Iobj).Ref.Back);
+        end
+
         % Estimate backround and variance of New and Ref
         AD.estimateBackVar;
         % Estimate zero points
@@ -378,8 +394,14 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
         AD.matchfilterGabor;
         % Derive S stat image
         AD.subtractionS('PopS_PSFresid', PopPSFresid);
-        % Derive Scorr stat image
-        AD.subtractionScorr();
+        % Derive Scorr stat image. TESS images are in e-/s, so the source
+        % variance is image/t: pass the exposure times as Ncoadd in Scorr's
+        % image/Ncoadd source term (and not EXPTIME/20 s as for LAST).
+        ExpNew = FFI.HeaderData.getVal('EXPOSURE')*86400;
+        IRef   = find(~arrayfun(@(a) isempty(a.Ref), AD), 1);
+        ExpRef = AD(IRef).Ref.HeaderData.getVal('EXPOSURE')*86400;
+        AD.subtractionScorr('ExpTimeNewArr', {0,0}, 'ExpTimeRefArr', {0,0}, ...
+            'NcoaddNew', ExpNew, 'NcoaddRef', ExpRef);
         % Derive Z2 stat image
         AD.translient('PrecompKxKySize',[744, 744]);
         
@@ -445,4 +467,22 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
 
         Logger.msgLog(LogLevel.Info, '<<< FFI processed.');
     end
+end
+
+function Var = tessPixelVar(AI, Back)
+    % Per-pixel noise variance of a TESS FFI tile in (e-/s)^2: sky photons
+    % Back/t plus read noise NREADOUT*RN^2/t^2, with RN of the CCD output
+    % (512 columns each) of every column, located through the tile CCDSEC.
+    H  = AI.HeaderData;
+    t  = H.getVal('EXPOSURE')*86400;
+    NR = H.getVal('NREADOUT');
+    RN = [H.getVal('READNOIA') H.getVal('READNOIB') H.getVal('READNOIC') H.getVal('READNOID')];
+    CCDSEC = H.getVal('CCDSEC');
+    if ischar(CCDSEC) || isstring(CCDSEC)
+        CCDSEC = str2num(CCDSEC); %#ok<ST2NM>
+    end
+    [Ny, Nx] = size(AI.Image);
+    XFFI   = CCDSEC(1) - 1 + (1:Nx);
+    Output = min(4, max(1, ceil(XFFI./512)));
+    Var = double(Back)./t + repmat(NR.*RN(Output).^2./t.^2, Ny, 1);
 end
