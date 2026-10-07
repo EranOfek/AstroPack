@@ -1,0 +1,64 @@
+{
+    "PixelScale": 21,
+    "SaturatedNeighborDistanceThreshold": 400,
+
+    "flagNegatives": true,
+
+    "flagChi2": false,
+    "Chi2dofLimitsLocal": [0.1, 2.0, 100.0],
+    "Chi2dofLimitsGlobal": [0.0, 1.2],
+
+    "flagSaturated": false,
+
+    "flagBadPix_Hard": true,
+    "BadPix_Hard": ["Interpolated", "NaN", "NearEdge", "Hole", "Negative"],
+
+    "flagBadPix_Soft": false,
+    "BadPix_Soft": [["DarkHighVal", 1.2], ["CR_DeltaHT", 2.9]],
+
+    "flagBadPix_Dense": false,
+    "flagRefHole": false,
+
+    "flagStarMatches": false,
+    "flagMP": false,
+
+    "flagRinging": true,
+
+    "flagPSFShape": false,
+    "SecondMomHardLim": 2.7,
+    "flagLocalBack": false,
+    "flagExtended": false,
+
+    "flagLimitingMag": false,
+
+    "flagPeakValley": true,
+    "PVDistThresh": 10,
+
+    "flagStreak": false,
+    "ignoreStreakPoints": ["BadPixelHard", "StarMatch", "Ringing", "Translient", "Streak"],
+    "StreakDistanceThreshold": 20,
+    "NumStreaks": 1,
+
+    "flagDensity": false,
+    "NeighborDistanceThreshold": 100,
+    "NeighborDenThreshold": 1.0,
+    "NeighborExclude": ["BadPixelHard", "BadPixelSoft", "StarMatch", "Ringing", "Translient", "Streak"],
+
+    "flagVariable": false,
+
+    "flagNuclearNoise": false,
+    "BrightGalMagThresh": 17.0,
+    "BrightGalPrcThresh": 80,
+
+    "flagScorr": true,
+    "ScorrThreshold": 5.0,
+    "ScorrCorrectionParam": 0.7,
+
+    "flagTranslients": true,
+    "TranslientThresh": 0.0,
+
+    "flagDiffSpike": false,
+    "SatCentroidDistThreshold": 400,
+
+    "flagSubVisit": false
+}

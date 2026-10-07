@@ -50,7 +50,9 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
                        reference tile located under Args.RefPath. Default is false.
                 'FilterConfigFile' - Path to a JSON configuration file used by
                        AD.flagNonTransients to reject non-transient candidates.
-                       Default is ''.
+                       Its flagPSFShape also sets whether subtractionS builds
+                       the PSF-residual template. Default is
+                       config/FilterParameters.TransientsFilter.TESS.json.
                 'saveMergedCat' - Bool on whether to save the per-FFI merged
                        transient catalog (after filtering) to the visit directory.
                        The merged catalog is written only if it is non-empty.
@@ -90,7 +92,8 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
         
         Args.FFIRefDataPath = '';
 
-        Args.FilterConfigFile = '';
+        Args.FilterConfigFile = fullfile(Configuration.getSysConfigPath, ...
+            'FilterParameters.TransientsFilter.TESS.json');
 
         Args.saveMergedCat = false;
     end
@@ -232,6 +235,18 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
 
     NumSaveProd = numel(Args.SaveProducts);
 
+    % The PSF-residual template is only used by the flagPSFShape filter, and
+    % needs RA/Dec and PSF photometry in the Ref catalogue, which TESS
+    % reference tiles do not carry. Build it only if the filter is on
+    % (flagNonTransients defaults to on when the config does not set it).
+    PopPSFresid = true;
+    if isfile(Args.FilterConfigFile)
+        FilterConfig = jsondecode(fileread(Args.FilterConfigFile));
+        if isfield(FilterConfig, 'flagPSFShape')
+            PopPSFresid = logical(FilterConfig.flagPSFShape);
+        end
+    end
+
     % Some unit conversion parameters
     Rad2Arcsec = 3600.*180./pi; %206265;
     Arcsec2Rad = 1./Rad2Arcsec; %4.84814e-6;
@@ -362,7 +377,7 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
         % Derive Gabor stat image
         AD.matchfilterGabor;
         % Derive S stat image
-        AD.subtractionS;
+        AD.subtractionS('PopS_PSFresid', PopPSFresid);
         % Derive Scorr stat image
         AD.subtractionScorr();
         % Derive Z2 stat image
