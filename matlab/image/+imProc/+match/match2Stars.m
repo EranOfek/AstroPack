@@ -383,6 +383,12 @@ function [Matches, Distances, MatchedBpMags, MatchedRpMags, MatchProb] = matchSt
     MatchedRpMags = NaN(CatSize, 1);
     MatchProb = NaN(CatSize, 1);
 
+    % no star of the subset near a candidate (nearCandidates cut, #1257):
+    % nothing can match; an empty Cat breaks search_sortedlat_multi
+    if isempty(StarLon)
+        return
+    end
+
     MatchRes = VO.search.search_sortedlat_multi( ...
         [StarLon, StarLat], RA, Dec, RoughRadiusArcsec .* Arcsec2Rad);
 
@@ -403,11 +409,13 @@ function [Matches, Distances, MatchedBpMags, MatchedRpMags, MatchProb] = matchSt
     Thresh = DistThreshold(Ind);
     FlagM  = Dist < Thresh;
 
-    Matches = accumarray(Src(FlagM), 1, [CatSize 1]);
-
+    % before accumarray: with a single pair, Src(false) is 0x0, which
+    % accumarray rejects; Matches is already zeros
     if ~any(FlagM)
         return
     end
+    Matches = accumarray(Src(FlagM), 1, [CatSize 1]);
+
     SrcGood    = Src(FlagM);
     DistGood   = Dist(FlagM);
     ThreshGood = Thresh(FlagM);
