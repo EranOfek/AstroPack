@@ -8,7 +8,10 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
       (4) write requested per-tile products (Image/Mask/Cat/PSF) to a per-FFI
           visit directory under SavePath,
       (5) optionally build reference sub-images from a separate reference FFI
-          directory and write them to Args.RefPath,
+          directory and write them to Args.RefPath; per sector/camera/CCD,
+          the reference is the FFI within Args.RefIntervals that passes the
+          base quality check with the lowest median background (ties: the
+          latest),
       (6) optionally perform tile-by-tile image subtraction with the matching
           reference tiles using AstroZOGY, derive statistics images, find and
           measure transient candidates, flag non-transients using a filter
@@ -38,9 +41,20 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
                 'makeRefs' - Bool on whether to generate reference tiles from
                        FFIs in Args.FFIRefDataPath and save them into Args.RefPath.
                        Default is false.
-                'FFIRefDataPath' - Path to directory containing reference FFIs
-                       (matched by "*.fits") used when makeRefs is true.
+                'FFIRefDataPath' - Path to directory containing candidate
+                       reference FFIs (matched by "*.fits") used when makeRefs
+                       is true; one is selected per sector/camera/CCD.
                        Default is ''.
+                'RefIntervals' - Collection of [start end] time intervals in
+                       which a reference FFI may be selected. A bound is a JD
+                       or a UTC datetime string (yyyy-MM-dd'T'HH:mm:ss[.SSS],
+                       yyyy-MM-dd HH:mm:ss or yyyy-MM-dd); an empty bound
+                       (or NaN, or JSON null) leaves that side open. Given as
+                       an N x 2 numeric array, an N x 2 cell array, or nested
+                       pairs as decoded from JSON. A candidate is eligible if
+                       its mid-exposure time is within any interval. If the
+                       collection is empty, all candidates are eligible.
+                       Default is [].
                 'SaveRefProducts' - Cell array of product names to write for
                        reference tiles using AstroImage.write1. The Var of a
                        reference tile is its physical per-pixel noise
@@ -96,6 +110,7 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
         Args.SaveRefProducts = {'Image','Mask','Cat','PSF','Back','Var'};
         
         Args.FFIRefDataPath = '';
+        Args.RefIntervals = [];
 
         Args.FilterConfigFile = fullfile(Configuration.getSysConfigPath, ...
             'FilterParameters.TransientsFilter.TESS.json');
@@ -136,10 +151,11 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
             Logger.msgLog(LogLevel.Error, 'No reference FFIs found in %s', Args.FFIRefDataPath);
         end
     
-        NRefFFIs = numel(FFIRefPaths);
+        RefFFIPaths = selectReferenceFFIs(FFIRefPaths, intervalsJD(Args.RefIntervals), Logger);
+        NRefFFIs = numel(RefFFIPaths);
 
         for IRefFFI = 1:NRefFFIs
-            FFIRefPath = fullfile(FFIRefPaths(IRefFFI).folder, FFIRefPaths(IRefFFI).name);
+            FFIRefPath = RefFFIPaths{IRefFFI};
 
             Logger.msgLog(LogLevel.Info, '>>> Processing reference %s (%i/%i)', FFIRefPath, IRefFFI, NRefFFIs);
         
@@ -147,21 +163,7 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
                 RefFFI = pipeline.tess.reduction.loadreadyFFI(FFIRefPath);
             catch ME
                 Logger.msgLog(LogLevel.Error, 'Failure opening FFI');
-                Logger.msgLog(LogLevel.Error, ME.message);
-    
-                Logger.msgLog(LogLevel.Error, 'Traceback: ');
-                for k = 1:numel(ME.stack)
-                    s = ME.stack(k);
-                    Logger.msgLog(LogLevel.Error, "%s (line %d)", s.name, s.line);
-                end
-                
-                continue
-            end
-    
-            BaseQuality = pipeline.tess.quality.checkBaseQuality(RefFFI, 'Logger', Logger);
-    
-            if ~BaseQuality
-                Logger.msgLog(LogLevel.Info, 'FFI fails base quality check, skipping processing.')
+                logTraceback(Logger, ME);
                 continue
             end
     
@@ -273,5 +275,116 @@ function logTraceback(Logger, ME)
     Logger.msgLog(LogLevel.Error, 'Traceback: ');
     for k = 1:numel(ME.stack)
         Logger.msgLog(LogLevel.Error, "%s (line %d)", ME.stack(k).name, ME.stack(k).line);
+    end
+end
+
+function Selected = selectReferenceFFIs(Files, Intervals, Logger)
+    % Choose one reference FFI per sector/camera/CCD among the candidate FFIs
+    % in Files (dir output): of those within the time Intervals (N x 2 JD;
+    % empty: no constraint) that pass the base quality check, the one with
+    % the lowest median background (least scattered light); ties go to the
+    % latest. Returns the full paths of the selected FFIs.
+    N = numel(Files);
+    Path = cell(N,1);  Key = strings(N,1);  Pass = false(N,1);  Back = nan(N,1);  JD = nan(N,1);
+    InWin = true(N,1);
+    for I = 1:N
+        Path{I} = fullfile(Files(I).folder, Files(I).name);
+        try
+            FFI = pipeline.tess.reduction.loadreadyFFI(Path{I});
+        catch ME
+            Logger.msgLog(LogLevel.Error, 'Failure opening reference candidate %s', Path{I});
+            logTraceback(Logger, ME);
+            continue
+        end
+        Key(I)  = sprintf('sector %d camera %d CCD %d', FFI.HeaderData.getVal('Sector'), ...
+            FFI.HeaderData.getVal('CAMERA'), FFI.HeaderData.getVal('CCD'));
+        JD(I)   = midExposureJD(FFI);
+        if ~isempty(Intervals)
+            InWin(I) = any(JD(I) >= Intervals(:,1) & JD(I) <= Intervals(:,2));
+        end
+        Pass(I) = pipeline.tess.quality.checkBaseQuality(FFI, 'Logger', Logger);
+        Back(I) = median(FFI.Image(:), 'omitnan');
+        Logger.msgLog(LogLevel.Info, 'Reference candidate %s: %s, JD %.5f, in permitted interval %d, base quality %d, median background %.2f e-/s', ...
+            Files(I).name, Key(I), JD(I), InWin(I), Pass(I), Back(I));
+    end
+
+    Selected = {};
+    for K = unique(Key(Key ~= ""))'
+        Cand = find(Key == K & InWin & Pass);
+        if isempty(Cand)
+            Logger.msgLog(LogLevel.Error, 'No reference candidate for %s is within the permitted intervals and passes the base quality check (%d candidates, %d within the intervals).', ...
+                K, nnz(Key == K), nnz(Key == K & InWin));
+            continue
+        end
+        [~, Order] = sortrows([Back(Cand), -JD(Cand)]);
+        Best = Cand(Order(1));
+        Logger.msgLog(LogLevel.Info, 'Selected reference for %s: %s (median background %.2f e-/s, %d of %d candidates pass)', ...
+            K, Files(Best).name, Back(Best), numel(Cand), nnz(Key == K));
+        Selected{end+1} = Path{Best}; %#ok<AGROW>
+    end
+end
+
+function JD = midExposureJD(FFI)
+    % Mid-exposure JD of a TESS FFI from DATE-OBS and DATE-END.
+    Fmt = "yyyy-MM-dd'T'HH:mm:ss.SSS";
+    T0 = datetime(FFI.HeaderData.getVal('DATE-OBS'), 'InputFormat', Fmt, 'TimeZone', 'UTC');
+    T1 = datetime(FFI.HeaderData.getVal('DATE-END'), 'InputFormat', Fmt, 'TimeZone', 'UTC');
+    JD = juliandate(T0 + (T1 - T0)/2);
+end
+
+function JD = intervalsJD(Intervals)
+    % Collection of [start end] intervals as an N x 2 array of JD, with
+    % -Inf/Inf for open bounds. Accepts an N x 2 numeric array (NaN: open),
+    % an N x 2 cell array, or nested pairs as decoded from JSON; bounds are
+    % JD numbers, UTC datetime strings, or empty (open).
+    if isempty(Intervals)
+        JD = [];
+        return
+    end
+    if isnumeric(Intervals)
+        if isvector(Intervals)
+            Intervals = reshape(Intervals, 1, []);
+        end
+        Pairs = num2cell(Intervals);
+    elseif iscell(Intervals) && all(cellfun(@(P) numel(P) == 2 && (iscell(P) || isnumeric(P)), Intervals(:)))
+        % nested pairs, e.g. from JSON: each a 2-element cell or numeric pair
+        Pairs = cellfun(@(P) reshape(pairCell(P), 1, []), Intervals(:), 'UniformOutput', false);
+        Pairs = vertcat(Pairs{:});
+    elseif iscell(Intervals) && isvector(Intervals)
+        Pairs = reshape(Intervals, 1, []);
+    else
+        Pairs = Intervals;
+    end
+    if size(Pairs, 2) ~= 2
+        error('TESSwidepipe:RefIntervals', 'RefIntervals must be a collection of [start end] pairs.');
+    end
+    JD = [cellfun(@(B) boundJD(B, -Inf), Pairs(:,1)), cellfun(@(B) boundJD(B, Inf), Pairs(:,2))];
+end
+
+function P = pairCell(P)
+    % A [start end] pair as a cell.
+    if isnumeric(P)
+        P = num2cell(P);
+    end
+end
+
+function JD = boundJD(B, Open)
+    % One interval bound as JD; Open (-Inf or Inf) if empty or NaN.
+    if isempty(B) || (isnumeric(B) && isnan(B)) || (isstring(B) && strlength(B) == 0)
+        JD = Open;
+    elseif isnumeric(B)
+        JD = double(B);
+    else
+        JD = NaN;
+        for Fmt = ["yyyy-MM-dd'T'HH:mm:ss.SSS", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd"]
+            try
+                JD = juliandate(datetime(char(B), 'InputFormat', Fmt, 'TimeZone', 'UTC'));
+                break
+            catch
+            end
+        end
+        if isnan(JD)
+            error('TESSwidepipe:RefIntervals', 'Cannot parse the RefIntervals bound "%s".', char(B));
+        end
     end
 end
