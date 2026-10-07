@@ -726,6 +726,19 @@ classdef PhotCalibTrans < Component
                 Args.OuterStdFunc     = 'mad_std'   % 'mad_std' (robust) | 'std'
                 Args.OuterMaxIter     = 5
                 Args.OuterMinNewClipped = 1
+                % Minimum number of calibrators, enforced end to end: the fit is
+                % not attempted at all below it, and the clipping stages inside
+                % fitPar must not reduce the pool past it. The transmission fit
+                % has 8 free parameters (Norm, Center_Ang, TauAod500, PWV_cm and
+                % 4 Tran2D ParX), so a smaller pool makes the system
+                % underdetermined and least squares interpolates it exactly -
+                % residuals at machine epsilon and a zero point nothing
+                % constrains (PT_ARMS == 0; see issue #1381 and discussion #932).
+                % The default is twice the parameter count; 9 would be the bare
+                % minimum (one degree of freedom) and 0 disables the gate,
+                % restoring the previous behaviour. One argument governs both
+                % roles, so the two can never disagree.
+                Args.MinCalibrators (1,1) double {mustBeNonnegative} = 16
                 % Per-outer-iter weighting toggle (forwarded to fitPar).
                 % Empty (default) leaves every iter weighted. When non-empty,
                 % must be a logical vector of length OuterMaxIter.
@@ -1182,12 +1195,33 @@ classdef PhotCalibTrans < Component
             % STEP 5: Fit transmission if calibrators found
             % ====================================================================
 
-            if ~Obj.CalFound
+            % Entry gate: too small a calibrator pool cannot constrain the model,
+            % so the fit is refused outright rather than producing an exactly
+            % interpolated solution. Clipping inside fitPar enforces the same
+            % floor from above, so the two ends share Args.MinCalibrators.
+            NCalibAvail = 0;
+            if Obj.CalFound && ~isempty(Obj.SourceData)
+                NCalibAvail = size(Obj.SourceData.Catalog, 1);
+            end
+            TooFewCalib = Obj.CalFound && Args.MinCalibrators > 0 && ...
+                          NCalibAvail < Args.MinCalibrators;
+            if TooFewCalib
+                Obj.msgLog(LogLevel.Warning, sprintf(['calibrate: %d calibrators < ' ...
+                    'MinCalibrators=%d - transmission fit not attempted'], ...
+                    NCalibAvail, Args.MinCalibrators));
+            end
+
+            if ~Obj.CalFound || TooFewCalib
                 if Args.Verbose
-                    fprintf('  No calibrators found - skipping transmission fitting.\n\n');
+                    if TooFewCalib
+                        fprintf('  Only %d calibrators (< %d) - skipping transmission fitting.\n\n', ...
+                                NCalibAvail, Args.MinCalibrators);
+                    else
+                        fprintf('  No calibrators found - skipping transmission fitting.\n\n');
+                    end
                 end
-                % Object already has CalFound = false
-                % TransModel is present but not fitted
+                % TransModel is present but not fitted: every PT_* quantity
+                % derived from it stays NaN, i.e. blank in the header.
             else
                 % Calibrators found - proceed with fitting
 
@@ -1353,6 +1387,7 @@ classdef PhotCalibTrans < Component
                     'OuterStdFunc',       Args.OuterStdFunc, ...
                     'OuterMaxIter',       Args.OuterMaxIter, ...
                     'OuterMinNewClipped', Args.OuterMinNewClipped, ...
+                    'MinCalibrators',     Args.MinCalibrators, ...
                     'WeightedOuterIters', Args.WeightedOuterIters, ...
                     'UseTypicalX',        Args.UseTypicalX, ...
                     'Tran2DPerturbStd',   Args.Tran2DPerturbStd, ...
