@@ -1044,12 +1044,16 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
                     Funs = PC.TransModel.Funs;
                     for iFun = 1:length(Funs)
                         Fun = Funs(iFun);
-                        % Function reference
-                        if iFun == 1 && strcmp(Fun.Desc, 'Normalization')
-                            FunRef = '@(Lambda,Par)Par';
-                        else
-                            FunRef = func2str(Fun.Handle);
-                        end
+                        % Function reference. The handle is the real named
+                        % function even when nothing was fitted (the model is
+                        % built before calibrator selection), so it is written
+                        % as-is - the same value a successful fit records. The
+                        % previous special case replaced the Normalization
+                        % entry with the literal '@(Lambda,Par)Par', which is
+                        % the only PT_ keyword that ever carried a placeholder
+                        % instead of a value or a blank, and which str2func
+                        % cannot resolve back to a component on read.
+                        FunRef = func2str(Fun.Handle);
                         H = H.replaceVal(sprintf('PT_%d_N', iFun), FunRef);
 
                         % Parameters: values and flags = blank (NaN)
