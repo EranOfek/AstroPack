@@ -160,8 +160,14 @@ function [AD, ADc, TranCat, Status] = TESSwideFFI(FFI, Args)
                 int2str(Version), '.',FileType);
         RefFilename = strcat(Args.RefPath,'/',RefFilename);
 
-        % Load Ref image as AstroImage and Ref image FileName object
-        Ref = AstroImage.readFileNamesObj(RefFilename, 'Path', Args.RefPath);
+        % Load Ref image and products; Back and Var are read when the
+        % reference was made with them
+        RefProducts = {'Mask','Cat','PSF'};
+        if ~isempty(dir(strrep(RefFilename, '_proc_Image_', '_proc_Back_'))) && ...
+                ~isempty(dir(strrep(RefFilename, '_proc_Image_', '_proc_Var_')))
+            RefProducts = [RefProducts, {'Back','Var'}]; %#ok<AGROW>
+        end
+        Ref = AstroImage.readFileNamesObj(RefFilename, 'Path', Args.RefPath, 'AddProduct', RefProducts);
 
         if Ref.isemptyImage()
             logMsg(Args.Logger, LogLevel.Info, 'No reference for crop %d.', CropID);
@@ -178,20 +184,27 @@ function [AD, ADc, TranCat, Status] = TESSwideFFI(FFI, Args)
     end
     AD = [ADcell{:}];
 
-    AD.register;
-
-    % Background noise per pixel of New and Ref (e-/s): sky photons plus
-    % read noise.
+    % Background noise per pixel of New (e-/s): sky photons plus read
+    % noise. The reference tiles carry their own Back and Var; a reference
+    % made without them gets a constant MEDBCK background.
     for Iobj = 1:numel(AD)
-        AD(Iobj).New.Var = tessPixelVar(AD(Iobj).New, AD(Iobj).New.Back);
-        if isempty(AD(Iobj).Ref.Back)
+        AD(Iobj).New.Var = pipeline.tess.reduction.tessPixelVar(AD(Iobj).New, AD(Iobj).New.Back);
+        if isempty(AD(Iobj).Ref.Back) || isempty(AD(Iobj).Ref.Var)
+            logMsg(Args.Logger, LogLevel.Warning, ...
+                'Reference for crop %d has no Back/Var products: using MEDBCK and the physical noise of a single FFI.', ...
+                AD(Iobj).New.HeaderData.getVal('CropID'));
             AD(Iobj).Ref.Back = repmat(AD(Iobj).Ref.HeaderData.getVal('MEDBCK'), size(AD(Iobj).Ref.Image));
+            AD(Iobj).Ref.Var  = pipeline.tess.reduction.tessPixelVar(AD(Iobj).Ref, AD(Iobj).Ref.Back);
         end
-        AD(Iobj).Ref.Var = tessPixelVar(AD(Iobj).Ref, AD(Iobj).Ref.Back);
     end
 
-    % Estimate backround and variance of New and Ref
-    AD.estimateBackVar;
+    % Background and variance of New and Ref before registration, which
+    % fills the Ref pixels outside the New footprint with noise drawn from
+    % them; again after it, with NaN-skipping medians as registration
+    % leaves NaN at the border of the resampled Ref maps.
+    AD.estimateBackVar('FunBackImage', @(x) median(x, 'omitnan'));
+    AD.register;
+    AD.estimateBackVar('FunBackImage', @(x) median(x, 'omitnan'));
     % Estimate zero points
     AD.estimateFnFr;
 
@@ -294,22 +307,4 @@ function logMsg(Logger, Level, varargin)
     if ~isempty(Logger)
         Logger.msgLog(Level, varargin{:});
     end
-end
-
-function Var = tessPixelVar(AI, Back)
-    % Per-pixel noise variance of a TESS FFI tile in (e-/s)^2: sky photons
-    % Back/t plus read noise NREADOUT*RN^2/t^2, with RN of the CCD output
-    % (512 columns each) of every column, located through the tile CCDSEC.
-    H  = AI.HeaderData;
-    t  = H.getVal('EXPOSURE')*86400;
-    NR = H.getVal('NREADOUT');
-    RN = [H.getVal('READNOIA') H.getVal('READNOIB') H.getVal('READNOIC') H.getVal('READNOID')];
-    CCDSEC = H.getVal('CCDSEC');
-    if ischar(CCDSEC) || isstring(CCDSEC)
-        CCDSEC = str2num(CCDSEC); %#ok<ST2NM>
-    end
-    [Ny, Nx] = size(AI.Image);
-    XFFI   = CCDSEC(1) - 1 + (1:Nx);
-    Output = min(4, max(1, ceil(XFFI./512)));
-    Var = double(Back)./t + repmat(NR.*RN(Output).^2./t.^2, Ny, 1);
 end

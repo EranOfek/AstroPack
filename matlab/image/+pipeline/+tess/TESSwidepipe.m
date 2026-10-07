@@ -42,8 +42,10 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
                        (matched by "*.fits") used when makeRefs is true.
                        Default is ''.
                 'SaveRefProducts' - Cell array of product names to write for
-                       reference tiles using AstroImage.write1. Default is
-                       {'Image','Mask','Cat','PSF'}.
+                       reference tiles using AstroImage.write1. The Var of a
+                       reference tile is its physical per-pixel noise
+                       (pipeline.tess.reduction.tessPixelVar). Default is
+                       {'Image','Mask','Cat','PSF','Back','Var'}.
                 'RefPath' - Output directory for reference tile products when
                        makeRefs is true, and also the directory searched for
                        reference tiles when runSubtraction is true. Default
@@ -91,7 +93,7 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
         Args.RefPath = '';
 
         Args.makeRefs = false;
-        Args.SaveRefProducts = {'Image','Mask','Cat','PSF'};
+        Args.SaveRefProducts = {'Image','Mask','Cat','PSF','Back','Var'};
         
         Args.FFIRefDataPath = '';
 
@@ -207,8 +209,10 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
                 
                 RefFFIs(ISubFFI) = RefFFIs(ISubFFI).maskSet(Saturated, ...
                     'Saturated', true, 'CreateNewObj',false);
+
+                RefFFIs(ISubFFI).Var = pipeline.tess.reduction.tessPixelVar(RefFFIs(ISubFFI), RefFFIs(ISubFFI).Back);
     
-                for ISaveProducts=1:4
+                for ISaveProducts=1:numel(Args.SaveRefProducts)
                     ISaveProd = Args.SaveRefProducts{ISaveProducts};
                     ISaveProdFilename = strcat(ProjName,'_',Time,'_',Filter,'_', ...
                         num2str(Sector,'%04.f'),'_', '000','_', ...
