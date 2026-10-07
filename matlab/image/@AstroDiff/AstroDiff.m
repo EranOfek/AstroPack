@@ -466,16 +466,18 @@ classdef AstroDiff < AstroImage
                     end
             end
 
-            switch lower(Args.NormMethod(1:4))
-                case 'norm'
-                    Obj(Iobj).GaborSN = imUtil.image.normalize(...
-                        Obj(Iobj).GaborSN, 'PreDef',Args.NormMethod,...
-                        'K',1, 'Fun2Prob',[], 'Prob2Sig',false);
-    
-                case 'none'
-                    % do nothing
-                otherwise
-                    error('Unknown NormMethod option');         
+            for Iobj=1:1:Nobj
+                switch lower(Args.NormMethod(1:4))
+                    case 'norm'
+                        Obj(Iobj).GaborSN = imUtil.image.normalize(...
+                            Obj(Iobj).GaborSN, 'PreDef',Args.NormMethod,...
+                            'K',1, 'Fun2Prob',[], 'Prob2Sig',false);
+
+                    case 'none'
+                        % do nothing
+                    otherwise
+                        error('Unknown NormMethod option');
+                end
             end
 
        end
