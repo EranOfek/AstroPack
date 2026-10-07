@@ -56,7 +56,13 @@ function startBatchLASTPipeline(Args)
 
     % Run the actual daemon - pause (rather than crash) and warn loudly if
     % the data disk gets critically full, resuming once space frees up
-    D.main('StopButton', false, 'StopDiskFull', 99, 'PauseDiskFull', 300);
+    MainArgs = {'StopButton', false, 'StopDiskFull', 99, 'PauseDiskFull', 300};
+    if strcmpi(Args.PipelineVersion, 'v1')
+        % production sends the reported transients to the remote archive
+        % (PipelineDemon skips visits older than TransferMaxAgeDays)
+        MainArgs = [MainArgs, {'TransferTransients', true}];
+    end
+    D.main(MainArgs{:});
 end
 
 
