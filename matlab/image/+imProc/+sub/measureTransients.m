@@ -116,6 +116,7 @@ function TranCat = measureTransientsAstroZOGY(AD, Args)
         CatSize = CandCat.sizeCatalog;
         % Get image (x,y) coordinates of transients candidates
         XY = CandCat.getXY('ColX', 'XPEAK', 'ColY', 'YPEAK');
+        Nsrc = size(XY,1);
 
         % If catalog is empty, continue.
         if CatSize < 1
