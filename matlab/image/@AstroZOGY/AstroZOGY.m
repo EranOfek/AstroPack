@@ -1074,11 +1074,10 @@ classdef AstroZOGY < AstroDiff
                         otherwise
                             error('Unknown NormMethod option');
                     end      
+                end
 
-                    if Args.PopS2
-                        Obj(Iobj).S2 = Obj(Iobj).S.^2;
-                    end
-                    
+                if Args.PopS2
+                    Obj(Iobj).S2 = Obj(Iobj).S.^2;
                 end
 
                 NormMap = Obj(Iobj).S./(PreNormalizedS+Args.Eps);
