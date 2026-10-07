@@ -3274,13 +3274,21 @@ classdef PhotCalibTrans < Component
             HeaderObj = HeaderObj.replaceVal('PT_CHI2', Chi2val);
             HeaderObj = HeaderObj.replaceVal('PT_DOF',  DOFval);
             % Use final calibrator count (after sigma clipping) from last stage.
-            % NaN when nothing was fit.
+            % When no fit was run - MinCalibrators refused it, or it failed -
+            % fall back to the size of the selected pool, which was measured
+            % even though it was never fitted. PT_NCALI is then the number of
+            % calibrators FOUND rather than used, and the pair
+            % (PT_NCALI finite, PT_DOF blank) is the signature of a refused
+            % calibration, telling a reader how far below the floor it fell.
+            % NaN only when no calibrator was selected at all.
             if ~isempty(Obj.FitResults)
                 if numel(Obj.FitResults) > 1
                     NCalFinal = Obj.FitResults(end).NCalUsed;
                 else
                     NCalFinal = Obj.FitResults.NCalUsed;
                 end
+            elseif ~isempty(Obj.SourceData) && ~isempty(Obj.SourceData.Catalog)
+                NCalFinal = size(Obj.SourceData.Catalog, 1);
             elseif ~isempty(Obj.SpecData) && ~isempty(Obj.SpecData.Spec)
                 NCalFinal = size(Obj.SpecData.Spec, 1);  % Fallback to initial
             else

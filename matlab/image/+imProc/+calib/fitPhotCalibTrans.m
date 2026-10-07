@@ -1004,13 +1004,24 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
             % `if ~isnan(Val) && Val > 0` throws on an empty operand.
             % Only PT_AREF/PT_SPEC/PT_CAT carry values: they are configuration
             % strings known regardless of the fit outcome.
-            % Failure detection: isnan(getVal('PT_NCALI')) (or any other
-            % PT_ numeric).
+            % PT_NCALI is the exception: the calibrator pool was measured even
+            % when the fit was never run (MinCalibrators refused it), so the
+            % count is written rather than blanked. It then reports how many
+            % calibrators were FOUND, which says how far below the floor the
+            % crop fell - a crop refused with 15 is a different story from one
+            % refused with 1. It stays blank only when nothing was selected.
+            % Failure detection: isnan(getVal('PT_DOF')) - or any PT_ numeric
+            % other than PT_NCALI. The pair (PT_NCALI finite, PT_DOF blank)
+            % identifies a refused calibration specifically.
+            NCalSel = NaN;
+            if ~isempty(PC) && ~isempty(PC(1).SourceData) && ~isempty(PC(1).SourceData.Catalog)
+                NCalSel = size(PC(1).SourceData.Catalog, 1);
+            end
             if Args.UpdateHeader && IsAstroImage
                 H = Result(Iobj).HeaderData;
                 H = H.replaceVal(...
                     {'PT_RMS', 'PT_ARMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALI', 'PT_AREF', 'PT_SPEC', 'PT_CAT'}, ...
-                    {NaN,      NaN,       NaN,       NaN,      NaN,         'SMART v2.9.8', 'GaiaDR3', CalibCatName});
+                    {NaN,      NaN,       NaN,       NaN,      NCalSel,     'SMART v2.9.8', 'GaiaDR3', CalibCatName});
 
                 % Blank fill for PT_ZP (photometric ZP) on the failure path
                 if Args.EvaluatePhotZP
