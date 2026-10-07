@@ -368,9 +368,7 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
         AD.register;
 
         % Background noise per pixel of New and Ref (e-/s): sky photons plus
-        % read noise. The robust spatial variance of a crowded TESS tile is
-        % dominated by static structure and overestimates it ~20x, which
-        % makes ZOGY's noise model and the Scorr source-noise term wrong.
+        % read noise.
         for Iobj = 1:numel(AD)
             if isempty(AD(Iobj).New)
                 continue
@@ -396,7 +394,7 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
         AD.subtractionS('PopS_PSFresid', PopPSFresid);
         % Derive Scorr stat image. TESS images are in e-/s, so the source
         % variance is image/t: pass the exposure times as Ncoadd in Scorr's
-        % image/Ncoadd source term (and not EXPTIME/20 s as for LAST).
+        % image/Ncoadd source term.
         ExpNew = FFI.HeaderData.getVal('EXPOSURE')*86400;
         IRef   = find(~arrayfun(@(a) isempty(a.Ref), AD), 1);
         ExpRef = AD(IRef).Ref.HeaderData.getVal('EXPOSURE')*86400;

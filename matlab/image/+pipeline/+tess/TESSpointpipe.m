@@ -342,9 +342,7 @@ function TESSpointpipe(FFIDataPath, RA, Dec, SavePath, Args)
 
         % Background noise per pixel of the New image (e-/s): sky photons
         % plus read noise (NREADOUT reads of READNOI[A-D] electrons; the
-        % CCD output is set by the column, 512 columns per output). The
-        % robust spatial variance (AD.SigmaN) is dominated by static
-        % structure in the crowded TESS field and overestimates it.
+        % CCD output is set by the column, 512 columns per output).
         [XFFI, ~] = FFI.WCS.sky2xy(RA, Dec);
         Outputs = 'ABCD';
         Output  = Outputs(min(4, max(1, ceil(XFFI/512))));
