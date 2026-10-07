@@ -7682,6 +7682,67 @@ classdef PhotCalibTrans < Component
             end
         end
 
+        function HeaderObj = blankCalibKeys(HeaderObj, AperCols, Args)
+            % Write every calibration keyword as blank, so that a product whose
+            % calibration failed carries the SAME keyword set as a calibrated
+            % one, with the unmeasured values blank (NaN) rather than missing.
+            %   Call it before the real writers: anything that is actually
+            %   measured overwrites its blank afterwards. Keeping the key set
+            %   uniform matters for table/DB ingestion and for any reader that
+            %   addresses a card by name; blank-vs-absent is invisible to
+            %   AstroHeader.getVal but not to isKeyExist or to a FITS reader
+            %   outside MATLAB.
+            %   Configuration constants (reference spectrum, anchor colour,
+            %   CO2) are NOT blanked - they are known whatever the fit did, and
+            %   are supplied through 'Const'.
+            % Input  : - An AstroHeader (handle; mutated in place).
+            %          - Cell array of aperture/PSF magnitude or flux column
+            %            names whose aperture-correction keys must exist, e.g.
+            %            {'MAG_APER_1','MAG_APER_2','MAG_APER_4','MAG_PSF'}.
+            %            The reference aperture carries no correction and is
+            %            normally absent from this list.
+            %          * ...,key,val,...
+            %            'Const' - Struct of configuration keywords to write
+            %                   with real values, e.g.
+            %                   struct('PT_REFSL',1.642,'PT_REFPV',5500).
+            %                   Default struct().
+            % Output : - The same AstroHeader.
+            % Author : D. Kovaleva (Oct 2026)
+            % Example: H = PhotCalibTrans.blankCalibKeys(H, {'MAG_PSF'});
+            arguments
+                HeaderObj
+                AperCols cell = {}
+                Args.Const struct = struct()
+            end
+
+            % Scalar fit products and the transmission colour term.
+            Blank = {'PT_RMS','PT_ARMS','PT_CHI2','PT_DOF','PT_ZP', ...
+                     'PT_CTA','PT_CTA2','PT_CTA3','PT_CTA4','PT_CTAE','PT_DZPAB'};
+            % Position-dependent (Tran2D) coefficients, their fit flags and the
+            % coordinate normalisation that makes them evaluable.
+            for I = 1:4
+                Blank{end+1} = sprintf('PT_P_V%d', I); %#ok<AGROW>
+                Blank{end+1} = sprintf('PT_P_F%d', I); %#ok<AGROW>
+            end
+            Blank = [Blank, {'PT_P_NX1','PT_P_NX2','PT_P_NY1','PT_P_NY2'}];
+            % Aperture correction: the shared entries plus the per-column set.
+            Blank = [Blank, {'APCOR_N','APCC_REF'}];
+            for I = 1:numel(AperCols)
+                K = PhotCalibTrans.fluxCol2AperCorrKeys(AperCols{I});
+                Blank = [Blank, {K.C0, K.Cx, K.Cy, K.Cxy, K.Ccol, K.CcolErr}]; %#ok<AGROW>
+            end
+
+            for I = 1:numel(Blank)
+                HeaderObj = HeaderObj.replaceVal(Blank{I}, NaN);
+            end
+
+            % Configuration constants, written with their real values.
+            CF = fieldnames(Args.Const);
+            for I = 1:numel(CF)
+                HeaderObj = HeaderObj.replaceVal(CF{I}, Args.Const.(CF{I}));
+            end
+        end
+
         function Keys = fluxCol2AperCorrKeys(ColName)
             % FITS header keyword names for an aperture correction (all <=8 chars).
             %   Returns a struct with every keyword for this aperture column:

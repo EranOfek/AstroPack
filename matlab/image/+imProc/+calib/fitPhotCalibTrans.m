@@ -1019,6 +1019,38 @@ function [Result, PhotCalib, FitRes, CalibTrajectory] = fitPhotCalibTrans(Obj, A
             end
             if Args.UpdateHeader && IsAstroImage
                 H = Result(Iobj).HeaderData;
+                % Blank-fill the whole calibration keyword set first, so a
+                % product whose calibration failed carries the same keywords as
+                % a calibrated one, with the unmeasured values blank rather
+                % than missing. The specific values below then overwrite their
+                % blanks. Aperture columns come from the catalog so the
+                % APC*_<tag> set matches what a successful fit would write;
+                % the reference aperture carries no correction and is excluded.
+                AperColsBlank = {};
+                if IsAstroImage && ~isempty(Result(Iobj).CatData)
+                    CN = Result(Iobj).CatData.ColNames;
+                    IsAper = cellfun(@(c) ~isempty(regexp(c, '^MAG_APER_\d+$', 'once')) || ...
+                                          strcmp(c, 'MAG_PSF'), CN);
+                    AperColsBlank = CN(IsAper);
+                    RefTag = PhotCalibTrans.fluxCol2AperCorrKeys(Args.FluxColName);
+                    Keep = true(size(AperColsBlank));
+                    for Ia = 1:numel(AperColsBlank)
+                        Ka = PhotCalibTrans.fluxCol2AperCorrKeys(AperColsBlank{Ia});
+                        Keep(Ia) = ~strcmp(Ka.C0, RefTag.C0);
+                    end
+                    AperColsBlank = AperColsBlank(Keep);
+                end
+                Const = struct();
+                if ~isempty(PC)
+                    Const.PT_REFSL = PC(1).RefSpecSlope;
+                    Const.PT_REFPV = PC(1).RefSpecPivot;
+                    Const.PT_REFC  = PC(1).RefColor;
+                    Const.PT_CO2PP = PC(1).Co2_ppm;
+                    if ~isempty(PC(1).TransModel) && ~isempty(PC(1).TransModel.NameTran2D)
+                        Const.PT_P_N = PC(1).TransModel.NameTran2D;
+                    end
+                end
+                H = PhotCalibTrans.blankCalibKeys(H, AperColsBlank, 'Const',Const);
                 H = H.replaceVal(...
                     {'PT_RMS', 'PT_ARMS', 'PT_CHI2', 'PT_DOF', 'PT_NCALI', 'PT_AREF', 'PT_SPEC', 'PT_CAT'}, ...
                     {NaN,      NaN,       NaN,       NaN,      NCalSel,     'SMART v2.9.8', 'GaiaDR3', CalibCatName});
