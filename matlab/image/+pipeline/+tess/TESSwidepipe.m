@@ -14,9 +14,12 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
           measure transient candidates, flag non-transients using a filter
           configuration file, and optionally write a merged transient catalog.
     
+    Steps (2)-(6) for a single FFI are done by pipeline.tess.TESSwideFFI,
+    which can also be called directly to get the AstroZOGY objects back.
+    
     Logging is written to Args.LogFile using MsgLogger. The pipeline is designed
-    to continue to the next FFI if a given file fails to load or tile creation
-    fails, while recording errors and stack traces in the log.
+    to continue to the next FFI if a given file fails to load or to process,
+    while recording errors and stack traces in the log.
     
     Input   : - FFIDataPath. Path to directory containing TESS FFI FITS files
                 (currently matched by "*.fits").
@@ -233,24 +236,6 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
 
     Logger.msgLog(LogLevel.Info, 'Found %i FFIs fits files', NFFIs);
 
-    NumSaveProd = numel(Args.SaveProducts);
-
-    % The PSF-residual template is only used by the flagPSFShape filter, and
-    % needs RA/Dec and PSF photometry in the Ref catalogue, which TESS
-    % reference tiles do not carry. Build it only if the filter is on
-    % (flagNonTransients defaults to on when the config does not set it).
-    PopPSFresid = true;
-    if isfile(Args.FilterConfigFile)
-        FilterConfig = jsondecode(fileread(Args.FilterConfigFile));
-        if isfield(FilterConfig, 'flagPSFShape')
-            PopPSFresid = logical(FilterConfig.flagPSFShape);
-        end
-    end
-
-    % Some unit conversion parameters
-    Rad2Arcsec = 3600.*180./pi; %206265;
-    Arcsec2Rad = 1./Rad2Arcsec; %4.84814e-6;
-
     for IFFI = 1:NFFIs
 
         FFIPath = fullfile(FFIPaths(IFFI).folder, FFIPaths(IFFI).name);
@@ -260,227 +245,29 @@ function TESSwidepipe(FFIDataPath, SavePath, Args)
             FFI = pipeline.tess.reduction.loadreadyFFI(FFIPath);
         catch ME
             Logger.msgLog(LogLevel.Error, 'Failure opening FFI');
-            Logger.msgLog(LogLevel.Error, ME.message);
-
-            Logger.msgLog(LogLevel.Error, 'Traceback: ');
-            for k = 1:numel(ME.stack)
-                s = ME.stack(k);
-                Logger.msgLog(LogLevel.Error, "%s (line %d)", s.name, s.line);
-            end
-            
+            logTraceback(Logger, ME);
             continue
         end
 
-        BaseQuality = pipeline.tess.quality.checkBaseQuality(FFI, 'Logger', Logger);
-
-        if ~BaseQuality
-            Logger.msgLog(LogLevel.Info, 'FFI fails base quality check, skipping processing.')
-            continue
-        end
-
-        Logger.msgLog(LogLevel.Info, 'Creating sub-images');
-        
         try
-            FFIs = pipeline.tess.reduction.FFI2calibSubimages(FFI);
+            pipeline.tess.TESSwideFFI(FFI, 'RefPath', Args.RefPath, ...
+                'runSubtraction', Args.runSubtraction, ...
+                'FilterConfigFile', Args.FilterConfigFile, ...
+                'SavePath', SavePath, 'SaveProducts', Args.SaveProducts, ...
+                'saveMergedCat', Args.saveMergedCat, 'Logger', Logger);
         catch ME
-            Logger.msgLog(LogLevel.Error, 'Failure creating cutout');
-            Logger.msgLog(LogLevel.Error, ME.message);
-
-            Logger.msgLog(LogLevel.Error, 'Traceback: ');
-            for k = 1:numel(ME.stack)
-                s = ME.stack(k);
-                Logger.msgLog(LogLevel.Error, "%s (line %d)", s.name, s.line);
-            end
-
+            Logger.msgLog(LogLevel.Error, 'Failure processing FFI');
+            logTraceback(Logger, ME);
             continue
         end
-
-        ObsDate = FFI.HeaderData.getVal('DATE-OBS');
-        CamID = FFI.HeaderData.getVal('CAMERA');
-        CCDID = FFI.HeaderData.getVal('CCD');
-        Sector = FFI.HeaderData.getVal('Sector');
-
-        DateTime = datetime(ObsDate,"InputFormat","yyyy-MM-dd'T'HH:mm:ss.SSS");
-        Time =  convertStringsToChars(string(DateTime,'yyyyMMdd.HHmmss.SSS'));
-
-        SaveVisitPath = strcat(SavePath, '/', Time);
-
-        if ~exist(SaveVisitPath, 'dir')
-           mkdir(SaveVisitPath)
-        end
-                
-        ProjName = strcat('TESS.',sprintf('%02.0f', CamID),'.',sprintf('%02.0f', CCDID));
-
-        Logger.msgLog(LogLevel.Info, 'Saving sub-image products to %s', SaveVisitPath);
-       
-        NSubFFIs = numel(FFIs);
-
-        for ISubFFI = 1:NSubFFIs
-        
-            CropID  = ISubFFI;
-            FFIs(ISubFFI).HeaderData.insertKey({'CropID', CropID});
-
-            Saturated = FFIs(ISubFFI).ImageData.Image > 100000;
-
-            FFIs(ISubFFI) = FFIs(ISubFFI).maskSet(Saturated, ...
-                'Saturated', true, 'CreateNewObj',false);
-
-            for ISaveProducts=1:NumSaveProd
-                ISaveProd = Args.SaveProducts{ISaveProducts};
-                ISaveProdFilename = strcat(ProjName,'_',Time,'_',Filter,'_', ...
-                    num2str(Sector,'%04.f'),'_', '000','_', ...
-                    num2str(Counter,'%03.f'),'_', ...
-                    num2str(CropID,'%03.f'),'_', Type,'_', Level,'_', ISaveProd, '_', ...
-                    int2str(Version), '.',FileType);
-                ISaveProdFilename = strcat(SaveVisitPath,'/',ISaveProdFilename);
-                FFIs(ISubFFI).write1(ISaveProdFilename, ISaveProd, ...
-                    'OverWrite', true, 'WriteHeader', true);                
-           end
-        end
-
-        if ~Args.runSubtraction
-            Logger.msgLog(LogLevel.Info, '<<< FFI processed.');
-            continue
-        end
-
-        Logger.msgLog(LogLevel.Info, 'Finding references.');
-
-        for ISubFFI = NSubFFIs:-1:1
-            CropID  = ISubFFI;
-            RefFilename = strcat(ProjName,'_*.*.*_',Filter,'_', ...
-                    num2str(Sector,'%04.f'),'_', '000','_', ...
-                    num2str(Counter,'%03.f'),'_', ...
-                    num2str(CropID,'%03.f'),'_', Type,'_proc_Image_', ...
-                    int2str(Version), '.',FileType);
-            RefFilename = strcat(Args.RefPath,'/',RefFilename);
-
-            % Load Ref image as AstroImage and Ref image FileName object
-            Ref = AstroImage.readFileNamesObj(RefFilename, 'Path', Args.RefPath);
-
-            if Ref.isemptyImage()
-                continue
-            end
-
-            AD(ISubFFI) = AstroZOGY(FFIs(ISubFFI), Ref);
-
-        end
-
-        AD.register;
-
-        % Background noise per pixel of New and Ref (e-/s): sky photons plus
-        % read noise.
-        for Iobj = 1:numel(AD)
-            if isempty(AD(Iobj).New)
-                continue
-            end
-            AD(Iobj).New.Var = tessPixelVar(AD(Iobj).New, AD(Iobj).New.Back);
-            if isempty(AD(Iobj).Ref.Back)
-                AD(Iobj).Ref.Back = repmat(AD(Iobj).Ref.HeaderData.getVal('MEDBCK'), size(AD(Iobj).Ref.Image));
-            end
-            AD(Iobj).Ref.Var = tessPixelVar(AD(Iobj).Ref, AD(Iobj).Ref.Back);
-        end
-
-        % Estimate backround and variance of New and Ref
-        AD.estimateBackVar;
-        % Estimate zero points
-        AD.estimateFnFr;
-        
-        Logger.msgLog(LogLevel.Info, 'Performing subtraction.');
-        % Create proper subtraction image D
-        AD.subtractionD;
-        % Derive Gabor stat image
-        AD.matchfilterGabor;
-        % Derive S stat image
-        AD.subtractionS('PopS_PSFresid', PopPSFresid);
-        % Derive Scorr stat image. TESS images are in e-/s, so the source
-        % variance is image/t: pass the exposure times as Ncoadd in Scorr's
-        % image/Ncoadd source term.
-        ExpNew = FFI.HeaderData.getVal('EXPOSURE')*86400;
-        IRef   = find(~arrayfun(@(a) isempty(a.Ref), AD), 1);
-        ExpRef = AD(IRef).Ref.HeaderData.getVal('EXPOSURE')*86400;
-        AD.subtractionScorr('ExpTimeNewArr', {0,0}, 'ExpTimeRefArr', {0,0}, ...
-            'NcoaddNew', ExpNew, 'NcoaddRef', ExpRef);
-        % Derive Z2 stat image
-        AD.translient('PrecompKxKySize',[744, 744]);
-        
-        % 7: ----- Find and process transients -----
-
-        Logger.msgLog(LogLevel.Info, 'Finding transient candidates.');
-        
-        % Find transients
-        AD.findTransients('includePsfFit', false, 'includeAperturePhot', false, ...
-            'include2ndMoments', false);
-
-        % Measure transients
-        AD.measureTransients('applyDSDFcorrection',false);
-        
-        % Flag non transients
-        AD.flagNonTransients('ConfigFile', Args.FilterConfigFile);
-        
-        % Get cutouts only for transients
-        ADn = AD.removeNonTransients;
-        
-        for Iobj=NSubFFIs:-1:1
-            NumTran = size(ADn(Iobj).CatData.Catalog,1);
-            OnesArray = ones(NumTran,1);
-
-            Sector_Array = ADn(Iobj).HeaderData.getVal('Sector')*OnesArray;
-            CamID_Array = ADn(Iobj).HeaderData.getVal('CAMERA')*OnesArray;
-            CCDID_Array = ADn(Iobj).HeaderData.getVal('CCD')*OnesArray;
-            CropID_Array = ADn(Iobj).HeaderData.getVal('CropID')*OnesArray;
-    
-            ADn(Iobj).CatData.insertCol(...
-                cell2mat({...
-                    cast(Sector_Array,'double'), cast(CamID_Array,'double'), ...
-                    cast(CCDID_Array,'double'), cast(CropID_Array,'double')}), ...
-                'SCORE',...
-                {'Sector','CAM','CCD','CropID'}, ...
-                {'','','',''});
-        
-            TranCat(Iobj) = ADn(Iobj).CatData;
-        end
-
-        MergedTranCat = merge(TranCat);
-        MergedTranCat.sortrows('Dec');
-
-        % Save merged catalog
-        if Args.saveMergedCat && MergedTranCat.sizeCatalog > 0
-                MergedCatFilename = strcat(ProjName,'_',Time,'_',Filter,'_', ...
-                    num2str(Sector,'%04.f'),'_', '000','_', ...
-                    num2str(Counter,'%03.f'),'_000_', ...
-                    Type,'_proc.zogyD_Cat_', ...
-                    int2str(Version), '.',FileType);
-
-                Logger.msgLog(LogLevel.Info, 'Saving catalog %s.', MergedCatFilename);
-
-
-                MergedCatFN = FileNames.generateFromFileName({MergedCatFilename});
-                MergedCatFN.FullPath = SaveVisitPath;
-                
-                [~,~,~] = imProc.io.writeProduct(MergedTranCat, MergedCatFN, ...
-                    'Level', 'coadd.zogyD', 'Product', {'Cat'},...
-                    'WriteHeader',false,'Overwrite', true, 'GetHeaderJD', false, ...
-                    'CropID_FromIndex',false);
-        end
-
-        Logger.msgLog(LogLevel.Info, '<<< FFI processed.');
     end
 end
 
-function Var = tessPixelVar(AI, Back)
-    % Per-pixel noise variance of a TESS FFI tile in (e-/s)^2: sky photons
-    % Back/t plus read noise NREADOUT*RN^2/t^2, with RN of the CCD output
-    % (512 columns each) of every column, located through the tile CCDSEC.
-    H  = AI.HeaderData;
-    t  = H.getVal('EXPOSURE')*86400;
-    NR = H.getVal('NREADOUT');
-    RN = [H.getVal('READNOIA') H.getVal('READNOIB') H.getVal('READNOIC') H.getVal('READNOID')];
-    CCDSEC = H.getVal('CCDSEC');
-    if ischar(CCDSEC) || isstring(CCDSEC)
-        CCDSEC = str2num(CCDSEC); %#ok<ST2NM>
+function logTraceback(Logger, ME)
+    % Log an error message and its stack.
+    Logger.msgLog(LogLevel.Error, ME.message);
+    Logger.msgLog(LogLevel.Error, 'Traceback: ');
+    for k = 1:numel(ME.stack)
+        Logger.msgLog(LogLevel.Error, "%s (line %d)", ME.stack(k).name, ME.stack(k).line);
     end
-    [Ny, Nx] = size(AI.Image);
-    XFFI   = CCDSEC(1) - 1 + (1:Nx);
-    Output = min(4, max(1, ceil(XFFI./512)));
-    Var = double(Back)./t + repmat(NR.*RN(Output).^2./t.^2, Ny, 1);
 end
