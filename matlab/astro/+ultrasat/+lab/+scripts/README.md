@@ -1,5 +1,12 @@
 # DESY wafer-test (PTCint) analysis scripts
 
+> **The full specification of the single-die chain is
+> `DESY_pipeline_description.pdf`** in `~/DESY_reports/`, generated from the stage
+> dumps by `desy_pipeline_doc.py`: every step with its formula and the reason for
+> it, the data model, the error model, every command and the re-run dependency
+> graph. This file is the short orientation; where the two disagree the generated
+> document is the current one, because it is rebuilt from the analysis.
+
 Drivers and report builders used for the lot TH02954 flavour-test analysis with
 `ultrasat.lab.PTCAnalysis` / `ultrasat.lab.writeFITS` (September 2026). They are
 plain scripts with hard-coded paths (data under `/Data1/DESY`, falling back to the

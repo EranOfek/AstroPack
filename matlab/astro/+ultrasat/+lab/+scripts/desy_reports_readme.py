@@ -114,6 +114,19 @@ for f in sums:
     w('      across dies, flavours and runs; every other datasheet number die by')
     w('      die; and the fit windows each die was given.')
     w('')
+_pipe = [f for f in pdfs if 'pipeline' in f]
+if _pipe:
+    w('THE PIPELINE ITSELF')
+    w('-' * 72)
+    for f in _pipe:
+        w(f'  {f}')
+        w(f'      {pages(os.path.join(A.dir,f))} pages. What every step of the analysis computes,')
+        w('      the formula it uses and why that one, which MATLAB object and which dump')
+        w('      holds each result, the error model, every command, and the table of what')
+        w('      has to be re-run after what. Read this to reproduce or extend the chain;')
+        w('      read a per-die report for the numbers of one die. Generated from the')
+        w('      dumps by desy_pipeline_doc.py, so it cannot drift from the analysis.')
+        w('')
 w('PER-DIE REPORTS')
 w('-' * 72)
 w('  DESY_<lot>_<wafer>_<die>_run<run>[_sigwin]_report.pdf')
@@ -128,12 +141,44 @@ w('  The dumps behind all 16 remain under ~/claude/desy_die/, so the default-win
 w('  summary and the deck\'s before/after panels can be rebuilt at any time, and so')
 w('  can any of the deleted PDFs.')
 w('')
-w('  One thing the default window does better: it gives the dark ladder more points')
-w('  and a longer lever, so the dark current and the dark-route threshold are more')
-w('  precisely determined there (on run 32 W04_D07, 2.3x and 3.2x). The signal')
-w('  window buys comparability between the four threshold routes and pays for it in')
-w('  lever arm. For a dark-current or DSNU datasheet number, prefer the default-')
-w('  window dumps.')
+# which convention determines the DARK quantities better is not a matter of
+# opinion and not the same on every run, so it is measured here over every
+# die-run that has both. The total (stat (+) syst) relative error decides.
+def _darkprec():
+    out = {}
+    for d in sorted(glob.glob(os.path.join(A.root, 'run*_sig'))):
+        b = d[:-4]
+        if not os.path.isfile(os.path.join(b, 'methods.json')):
+            continue
+        try:
+            Ra = json.load(open(os.path.join(b, 'methods.json')))['Routes']['a']
+            Rb = json.load(open(os.path.join(d, 'methods.json')))['Routes']['a']
+        except Exception:
+            continue
+        rd = (float(np.hypot(Ra['SlopeStat'], Ra['SlopeSyst'])/abs(Ra['Slope'])),
+              float(np.hypot(Rb['SlopeStat'], Rb['SlopeSyst'])/abs(Rb['Slope'])))
+        rt = (float(np.hypot(Ra['ThresholdStat'], Ra['ThresholdSyst'])/abs(Ra['Threshold'])),
+              float(np.hypot(Rb['ThresholdStat'], Rb['ThresholdSyst'])/abs(Rb['Threshold'])))
+        run = os.path.basename(b)[3:].split('_')[0]
+        out[os.path.basename(b)] = (run, rd, rt)
+    return out
+_dp = _darkprec()
+_defwin = sorted({v[0] for v in _dp.values() if v[1][0] < v[1][1] and v[2][0] < v[2][1]})
+_sigwin = sorted({v[0] for v in _dp.values() if not (v[1][0] < v[1][1] and v[2][0] < v[2][1])})
+_ndef = sum(1 for v in _dp.values() if v[1][0] < v[1][1] and v[2][0] < v[2][1])
+if _dp:
+    w('  Which convention measures the DARK quantities more precisely is not the same')
+    w('  on every run, and it is measured rather than assumed. Taking the total')
+    w('  (statistical (+) window) relative error of the dark current and of the')
+    w(f'  dark-route threshold over the {len(_dp)} die-runs that have both windows, the')
+    w(f'  default window wins on {_ndef} of them and the signal window on {len(_dp)-_ndef}.')
+    w('  The split is by setup, not by die: the default window is better on exactly')
+    w('  the runs whose dark ladder is long (run ' + ', '.join(_defwin) + '), where more')
+    w('  steps and a longer lever outweigh everything else, and the signal window is')
+    w('  better on the low-dark-current runs (run ' + ', '.join(_sigwin) + '), whose')
+    w('  default window reaches down into the knee and pays for it in the window')
+    w('  systematic. For a dark-current or DSNU number, use the dumps of whichever')
+    w('  convention wins for that run; the per-die reports quote both errors.')
 w('')
 _pg = sorted({pages(os.path.join(A.dir, f)) for f in die_pdfs})
 w(f'  {len(die_pdfs)} files, '
