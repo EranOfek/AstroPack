@@ -3115,16 +3115,12 @@ classdef PipelineDemon < Component
                     end
                 end
             
-                if UpArgs.SendSlackAlerts
-                    Msg{1} = sprintf('Transients alerting');
-                    Obj.writeLog(Msg, LogLevel.Info);
+                if UpArgs.TransferTransients
                     try
-                        TranAlertStatus = pipeline.last.transients.sendTransientsAlert(ADc, 'SaveProducts', true, ...
-                                'SavePath', FN_Proc.genPath,'UseLASTtools', true);
-                        Obj.writeLog(sprintf('Transients alerting - %s', TranAlertStatus), LogLevel.Info);
-                    catch
-                        Msg{1} = sprintf('Transients alerting / Failed');
-                        Obj.writeLog(Msg, LogLevel.Error);
+                        TranAlertStatus = pipeline.last.transients.sendTransientsAlert(ADc, 'SavePath', FN_Proc.genPath);
+                        Obj.writeLog(sprintf('Transients transfer - %s', TranAlertStatus), LogLevel.Info);
+                    catch ME
+                        Obj.writeLog(sprintf('Transients transfer / Failed: %s', ME.message), LogLevel.Error);
                     end
                 end
             end
@@ -3669,8 +3665,9 @@ classdef PipelineDemon < Component
                 % regression test) must not produce one (issue #1253)
                 Args.InjectTCL2 logical = false;
                 Args.SendTransientAlerts logical = true;    % multi-epoch DB matching of the transients
-                % Slack alerts are no longer used; kept for reference, off by default
-                Args.SendSlackAlerts logical = false;
+                % Send the reported transients (stamps + JSON) to the remote archive.
+                % Off by default: re-reductions of archived data would send old transients.
+                Args.TransferTransients logical = false;
 
                 %Args.RunAsService logical  = false;
                 

@@ -3266,8 +3266,7 @@ classdef DemonLAST < Component
                                     Msg{1} = sprintf('pipeline.DemonLAST - Transients alerting / group %d', Igroup);
                                     Obj.writeLog(Msg, LogLevel.Info);
                                     try
-                                        TranAlertStatus = pipeline.last.transients.sendTransientsAlert(TransientCutouts, 'SaveProducts', true, ...
-                                                'SavePath', FN_Proc.genPath,'UseLASTtools', true);
+                                        TranAlertStatus = pipeline.last.transients.sendTransientsAlert(TransientCutouts, 'SavePath', FN_Proc.genPath);
                                         Obj.writeLog(sprintf('pipeline.DemonLAST / Transients alerting - %s', TranAlertStatus), LogLevel.Info);
                                     catch MEtran
                                         Msg{1} = sprintf('pipeline.DemonLAST - Alerting / Failed');
