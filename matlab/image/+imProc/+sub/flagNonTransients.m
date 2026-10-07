@@ -470,6 +470,7 @@ function TranCat = flagNonTransients(Obj, Args)
 
         DgreaterR = []; % object is brighter in D than R
         DgreaterNearbyR = []; % D magnitude brighter than any nearby R catalog source
+        NoNearbyRSrc = [];    % no R catalog point source near the candidate
 
         % PSF magnitudes
         if CandCat.isColumn('N_MAG_PSF')
