@@ -339,6 +339,22 @@ function TESSpointpipe(FFIDataPath, RA, Dec, SavePath, Args)
         % TESS FFIs are in e-/s: the number of electrons per image unit is
         % the exposure time, so it is the Gain for the source Poisson noise.
         ExposureN = AD.New.HeaderData.getVal('Exposure')*24*3600;
+
+        % Background noise per pixel of the New image (e-/s): sky photons
+        % plus read noise (NREADOUT reads of READNOI[A-D] electrons; the
+        % CCD output is set by the column, 512 columns per output). The
+        % robust spatial variance (AD.SigmaN) is dominated by static
+        % structure in the crowded TESS field and overestimates it.
+        [XFFI, ~] = FFI.WCS.sky2xy(RA, Dec);
+        Outputs = 'ABCD';
+        Output  = Outputs(min(4, max(1, ceil(XFFI/512))));
+        ReadNoise = AD.New.HeaderData.getVal(['READNOI' Output]);
+        NReadout  = AD.New.HeaderData.getVal('NREADOUT');
+        StdN = sqrt(median(AD.New.Back(:), 'omitnan')./ExposureN + NReadout.*ReadNoise.^2./ExposureN.^2);
+        if ~isfinite(StdN)
+            Logger.msgLog(LogLevel.Warning, 'No read noise/background for the New noise model, using SigmaN.');
+            StdN = AD.SigmaN;
+        end
         
         % PSF fit source in the D image
         PSFSize = floor(size(AD.PSFData.getPSF,2)/2);
@@ -355,7 +371,7 @@ function TESSpointpipe(FFIDataPath, RA, Dec, SavePath, Args)
         [Cube, ~, ~, ~, ~] = imUtil.cut.image2cutouts(AD.Nbs, X, Y, CutHalfSize);
         
         [ResultN, ~] = imUtil.sources.psfPhotCube(Cube,...
-            'PSF', AD.New.PSFData.getPSF, 'Back', 0, 'Std', AD.SigmaN, ...
+            'PSF', AD.New.PSFData.getPSF, 'Back', 0, 'Std', StdN, ...
             'ZP', AD.ZpN, 'Gain', ExposureN);
                 
         % Get JD
