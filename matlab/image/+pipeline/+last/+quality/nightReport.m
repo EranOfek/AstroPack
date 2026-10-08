@@ -90,6 +90,16 @@ function [OutFile, Summary] = nightReport(Data, Args)
                       'Ncrop',height(T), 'NcropExpect',NaN, 'HarvestSec',NaN, ...
                       'TimeSpanUT',[NaN NaN], 'CadenceSec',NaN);
     end
+    if (~isfield(Info,'DurationHr') || ~isfinite(Info.DurationHr)) && ...
+            ismember('MIDJD', T.Properties.VariableNames)
+        % Older caches predate DurationHr: derive it from the table.
+        UTd = mod(mod(T.MIDJD - 0.5, 1) * 24 - 12, 24) + 12;
+        UTd = UTd(isfinite(UTd));
+        if ~isempty(UTd)
+            Info.DurationHr = max(UTd) - min(UTd);
+        end
+    end
+
     Vars = T.Properties.VariableNames;
 
     % ---------- per-metric statistics
@@ -241,7 +251,12 @@ function B64 = figureTime(T, Keys)
     % Run of the metrics across the night (per crop, UT hours).
     B64 = '';
     if ~isempty(Keys) && ismember('MIDJD', T.Properties.VariableNames)
-        UT  = mod(T.MIDJD - 0.5, 1) * 24;
+        % Night-continuous time axis: a night starts in the evening of its date
+        % and runs past midnight into the next, so plotting raw UT would split
+        % it, with the morning hours drawn to the LEFT of the evening ones.
+        % Shift to a local-noon origin (evening 12..24, morning 24..36) and
+        % label the ticks back in UT.
+        UT  = mod(mod(T.MIDJD - 0.5, 1) * 24 - 12, 24) + 12;
         Nk  = numel(Keys);
         Fig = figure('Visible','off', 'Position',[10 10 1100 230*Nk], 'Color','w');
         for Ik = 1:Nk
@@ -257,8 +272,16 @@ function B64 = figureTime(T, Keys)
             end
             grid on;
             ylabel(strrep(Keys{Ik},'_','\_'));
+            % Ticks every two hours, labelled as the UT hour they represent.
+            Lo = floor(min(UT(Ok))); Hi = ceil(max(UT(Ok)));
+            if isfinite(Lo) && isfinite(Hi) && Hi > Lo
+                Tk = Lo:2:Hi;
+                set(gca, 'XTick', Tk, 'XTickLabel', ...
+                    arrayfun(@(h) sprintf('%02d', mod(h,24)), Tk, 'UniformOutput',false));
+                xlim([Lo Hi]);
+            end
             if Ik == Nk
-                xlabel('UT [h]');
+                xlabel('UT [h]  (night of the title date, continuing past midnight)');
             end
         end
         B64 = fig2base64(Fig);
@@ -317,7 +340,9 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, Args
                   'img{max-width:100%%;height:auto;margin:8px 0}' ...
                   '.bad{color:#b00;font-weight:600}.note{color:#555;font-size:13px}' ...
                   '</style></head><body>\n']);
-    fprintf(Fid, '<h1>%s &mdash; night %s</h1>\n', Title, Info.Night);
+    fprintf(Fid, '<h1>%s &mdash; night of %s</h1>\n', Title, Info.Night);
+    fprintf(Fid, ['<p class="note">The date is the evening the night began; ' ...
+                  'visits after midnight belong to the following day.</p>\n']);
     fprintf(Fid, '<p class="note">Generated %s from %s</p>\n', ...
             datestr(now, 'yyyy-mm-dd HH:MM'), Info.BasePath); %#ok<DATST,TNOW1>
 
@@ -332,8 +357,17 @@ function writeHtml(OutFile, Title, Info, Summary, ImgHist, ImgTime, ImgCam, Args
         fprintf(Fid, '<tr><td>Coadd crops</td><td>%d</td></tr>\n', Info.Ncrop);
     end
     if all(isfinite(Info.TimeSpanUT))
-        fprintf(Fid, '<tr><td>Time span</td><td>%05.2f&ndash;%05.2f UT</td></tr>\n', ...
-                Info.TimeSpanUT(1), Info.TimeSpanUT(2));
+        % Round to the minute BEFORE splitting, otherwise 19.000 - 1e-9 prints
+        % as 18:60.
+        HM = @(H) deal(mod(floor(round(H*60)/60), 24), mod(round(H*60), 60));
+        [H1, M1] = HM(Info.TimeSpanUT(1));
+        [H2, M2] = HM(Info.TimeSpanUT(2));
+        fprintf(Fid, '<tr><td>First visit</td><td>%02d:%02d UT</td></tr>\n', H1, M1);
+        fprintf(Fid, '<tr><td>Last visit</td><td>%02d:%02d UT%s</td></tr>\n', H2, M2, ...
+                repmat(' (next day)', 1, double(Info.TimeSpanUT(2) < Info.TimeSpanUT(1))));
+    end
+    if isfield(Info,'DurationHr') && isfinite(Info.DurationHr)
+        fprintf(Fid, '<tr><td>Duration</td><td>%.1f h</td></tr>\n', Info.DurationHr);
     end
     if isfinite(Info.CadenceSec)
         fprintf(Fid, '<tr><td>Cadence</td><td>%.0f s</td></tr>\n', Info.CadenceSec);

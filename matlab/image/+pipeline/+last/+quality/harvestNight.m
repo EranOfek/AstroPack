@@ -34,8 +34,9 @@ function [T, Info] = harvestNight(Args)
     % Output : - A table with one row per crop: Camera, Visit, CropID, plus one
     %            column per requested keyword.
     %          - A structure with night-level bookkeeping: Night, BasePath,
-    %            Ncam, Nvisit, Ncrop, NcropExpected, TimeSpanUT, CadenceSec,
-    %            and the harvest duration.
+    %            Ncam, Nvisit, Ncrop, NcropExpected, TimeSpanUT (first and
+    %            last visit in UT hours, correct across midnight), DurationHr,
+    %            CadenceSec, and the harvest duration.
     % Author : D. Kovaleva (Oct 2026)
     % Example: T = pipeline.last.quality.harvestNight('Night','2026-10-04');
     %          [T,Info] = pipeline.last.quality.harvestNight('Night','2026-10-04',...
@@ -182,15 +183,37 @@ function [T, Info] = harvestNight(Args)
         VisJD = sort(T.MIDJD(Ifirst));
         VisJD = VisJD(isfinite(VisJD));
         if numel(VisJD) > 1
-            UT = mod(VisJD - 0.5, 1) * 24;
-            Info.TimeSpanUT = [min(UT), max(UT)];
-            Info.CadenceSec = median(diff(VisJD)) * 86400;
+            % A night runs from the evening of its date through midnight into
+            % the morning of the next, so raw UT hours wrap (19..24 then 0..4)
+            % and min/max on them would report the span as 0-24. Work on a
+            % night-continuous axis instead, local-noon based: evening hours
+            % stay 12..24 and post-midnight hours become 24..36.
+            UT  = mod(VisJD - 0.5, 1) * 24;
+            UTc = mod(UT - 12, 24) + 12;
+            Info.TimeSpanUT = [mod(min(UTc), 24), mod(max(UTc), 24)];
+            Info.DurationHr = max(UTc) - min(UTc);
+            % Cadence is a per-camera property: all cameras observe at once, so
+            % differencing the pooled visit times measures the spread WITHIN one
+            % simultaneous round (~0.2 s) instead of the gap between rounds.
+            % Take each camera's own median gap, then the median over cameras.
+            CamList = unique(T.Camera);
+            CadCam  = nan(numel(CamList), 1);
+            for Ic = 1:numel(CamList)
+                JDc = unique(T.MIDJD(T.Camera == CamList(Ic)));
+                JDc = sort(JDc(isfinite(JDc)));
+                if numel(JDc) > 1
+                    CadCam(Ic) = median(diff(JDc));
+                end
+            end
+            Info.CadenceSec = median(CadCam, 'omitnan') * 86400;
         else
             Info.TimeSpanUT = [NaN NaN];
+            Info.DurationHr = NaN;
             Info.CadenceSec = NaN;
         end
     else
         Info.TimeSpanUT = [NaN NaN];
+        Info.DurationHr = NaN;
         Info.CadenceSec = NaN;
     end
 
