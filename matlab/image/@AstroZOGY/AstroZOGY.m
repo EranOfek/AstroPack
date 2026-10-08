@@ -1460,7 +1460,10 @@ classdef AstroZOGY < AstroDiff
                 Args.OverwriteFr logical = false;
                 Args.OverwriteFrVal = 1;
 
-                Args.PrecompKxKySize = [1726, 1726];
+                % Empty means translientAuxiliary_fast sizes Kx/Ky from the
+                % transform itself. Callers that know the image size should
+                % pass it; a constant here silently mismatches other crops.
+                Args.PrecompKxKySize = [];
             end
 
             if Args.ReplaceNaN

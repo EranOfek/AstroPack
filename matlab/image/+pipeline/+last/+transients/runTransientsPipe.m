@@ -433,7 +433,15 @@ function [AD, ADc, MergedTranCat, Status] = runTransientsPipe(VisitData, Args)
     % Derive Scorr stat image
     AD.subtractionScorr;
     % Derive Z2 stat image
-    AD.translient;
+    % Kx/Ky must match the image being transformed, so take the size from it
+    % rather than relying on a default. Same as pipelineII does before its own
+    % translient call.
+    PrecompKxKySize = [];
+    if ~isempty(AD)
+        [PrecompKxKySize(1), PrecompKxKySize(2)] = AD(1).ImageData.sizeImage;
+    end
+
+    AD.translient('PrecompKxKySize', PrecompKxKySize);
 
     % 8: ----- Find and process transients -----
     
