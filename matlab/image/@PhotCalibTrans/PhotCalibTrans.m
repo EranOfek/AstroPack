@@ -289,7 +289,7 @@ classdef PhotCalibTrans < Component
         DeltaZP_CB = NaN        % Constant-band delta ZP [mag] (set by applyConstBand)
 
         % Bright-star RMS
-        ARMS = NaN              % sqrt(median(R²)) of N brightest calibrators [mag] (set by calibrate)
+        ARMS = NaN              % Asymptotic RMS [mag]: smallest robust scatter among the magnitude bins of the bright calibrators (set by calibrate; NaN when the fit has too few degrees of freedom)
 
         % Limiting magnitude and sky surface brightness (legacy compat keywords)
         LimMag  = NaN           % Limiting magnitude at SN=LimMagSN [mag] (set by evaluateLimMag)
@@ -844,6 +844,20 @@ classdef PhotCalibTrans < Component
                 Args.ARMSMode        char   {mustBeMember(Args.ARMSMode, {'percent','count'})} = 'percent'
                 Args.ARMS_Percent    (1,1) double {mustBeNonnegative, mustBeLessThanOrEqual(Args.ARMS_Percent, 100)} = 20
                 Args.N_ARMS          (1,1) double = 20   % legacy count for ARMSMode='count' (0 skips ARMS in either mode)
+                % ARMS is computed by binning the calibrator residuals in
+                % MAGNITUDE and taking the smallest robust scatter among the
+                % bins of the bright part of the distribution - the same
+                % construction as the astrometric AssymRMS in
+                % Tran2D.fitAstrometricTran. ARMSMode/ARMS_Percent/N_ARMS
+                % above are superseded: they selected a sliding window of
+                % ceil(ARMS_Percent*N) sources, whose width and count both
+                % grew with N, which made ARMS depend on the number of
+                % calibrators rather than on the photometry. N_ARMS=0 still
+                % skips ARMS, for callers that rely on it.
+                Args.ARMS_BinSize    (1,1) double {mustBePositive} = 0.5  % magnitude bin [mag]
+                Args.ARMS_MinNperBin (1,1) double = 5    % a bin below this cannot win
+                Args.ARMS_BrightFrac (1,1) double {mustBePositive} = 0.5  % only bins inside the brightest fraction compete
+                Args.ARMS_MinDof     double = []         % [] -> require Ngood >= 2*Nparams
                 Args.Verbose logical  = false
 
                 % --- Alternate calibrator selection (forwarded to selectCalibrators) ---
@@ -1648,8 +1662,9 @@ classdef PhotCalibTrans < Component
                     end
                 end
 
-            % Compute ARMS (bright-star RMS) if requested. ARMSMode picks
-            % between fixed-count and percent-of-pool selection.
+            % Asymptotic RMS: the bright-end noise floor of the calibrated
+            % photometry. See the binned construction below.
+            Obj.ARMS = NaN;
             ARMSEnabled = ~isempty(Obj.TransModel) && ~isempty(Obj.SourceData) && ...
                 (strcmp(Args.ARMSMode, 'percent') || Args.N_ARMS > 0);
             if ARMSEnabled
@@ -1660,19 +1675,66 @@ classdef PhotCalibTrans < Component
                 ValidMask = isfinite(FluxUsed) & isfinite(ResUsed);
                 FluxValid = FluxUsed(ValidMask);
                 ResValid  = ResUsed(ValidMask);
-                K = armsSampleSize(numel(FluxValid), Args.ARMSMode, ...
-                    Args.ARMS_Percent, Args.N_ARMS);
-                if K > 0 && K <= numel(FluxValid)
-                    % Sliding-window-min-median: sort survivors by Flux
-                    % descending, slide a K-wide window across the sorted
-                    % list, take the median of R^2 in each window, and
-                    % pick the minimum across all windows. sqrt gives
-                    % the "best-behaving-bin's" root-median-square
-                    % residual - a robust bright-to-mid-mag noise floor.
-                    [~, SortIdx] = sort(FluxValid, 'descend');
-                    R2Sorted     = ResValid(SortIdx).^2;
-                    WindowMed    = movmedian(R2Sorted, K, 'Endpoints', 'discard');
-                    Obj.ARMS     = sqrt(min(WindowMed));
+                % Bin the residuals in MAGNITUDE and take the smallest
+                % robust scatter among the bins of the bright part of the
+                % distribution. This mirrors the astrometric AssymRMS
+                % (Tran2D.fitAstrometricTran) and fixes three faults of the
+                % sliding-window scheme it replaces:
+                %   - bins are fixed in magnitude, so their NUMBER does not
+                %     grow with the calibrator count; the old window width
+                %     and window count both scaled with N, which made ARMS a
+                %     function of how many calibrators the field happened to
+                %     have rather than of the photometry;
+                %   - a bin must hold at least MinNperBin calibrators, so a
+                %     single star can never win (the old K could fall to 1,
+                %     which is how ARMS reached 1e-16);
+                %   - only bins inside the brightest BrightFrac compete, so
+                %     this is a bright-end floor and not the best bin
+                %     anywhere, while still being free to skip a spoiled
+                %     brightest bin.
+                % Unlike the astrometric residuals, which are distances and
+                % therefore positive, photometric residuals are signed and
+                % centred on zero: the per-bin statistic is the robust
+                % SCATTER, not the mean.
+                MagCol = [Obj.MagColPrefix, 'APER_3'];
+                if ismember(MagCol, Tab.Properties.VariableNames)
+                    MagUsed = Tab.(MagCol)(UsedMask);
+                elseif ismember('MAG_AB', Tab.Properties.VariableNames)
+                    MagUsed = Tab.MAG_AB(UsedMask);
+                else
+                    MagUsed = -2.5*log10(FluxUsed);
+                end
+                MagValid = MagUsed(ValidMask) ;
+                GoodMR   = isfinite(MagValid) & isfinite(ResValid);
+                NGood    = sum(GoodMR);
+
+                % Degrees-of-freedom guard: an (almost) exact fit has
+                % meaningless residuals, so report no asymptotic RMS.
+                NPar = NaN;
+                if ~isempty(Obj.TransModel) && isfinite(Obj.TransModel.DOF)
+                    NPar = NGood - Obj.TransModel.DOF;
+                end
+                MinDof = Args.ARMS_MinDof;
+                if isempty(MinDof); MinDof = NPar; end
+
+                if Args.N_ARMS >= 0 && NGood > 0 && isfinite(NPar) && ...
+                        NGood >= (NPar + MinDof)
+                    [~, ResR] = imUtil.calib.resid_vs_mag(MagValid(GoodMR), ResValid(GoodMR), ...
+                                    'BinMethod','bin', 'BinSize',Args.ARMS_BinSize, ...
+                                    'FunMean',@median, 'FunStd',@imUtil.background.rstd);
+                    if ~isempty(ResR) && isfield(ResR,'BinN') && ~isempty(ResR.BinN)
+                        BinN       = ResR.BinN(:);
+                        FracBefore = [0; cumsum(BinN(1:end-1))]./sum(BinN);
+                        FlagBin    = BinN >= Args.ARMS_MinNperBin;
+                        Ib = find(FlagBin & FracBefore < Args.ARMS_BrightFrac);
+                        if isempty(Ib)
+                            % no populated bright bin - fall back to all populated
+                            Ib = find(FlagBin);
+                        end
+                        if ~isempty(Ib)
+                            Obj.ARMS = min(ResR.BinStdResid(Ib));
+                        end
+                    end
                 end
             end
 
