@@ -292,7 +292,11 @@ function TranCat = flagNonTransients(Obj, Args)
 
         % Hard bad-pixel filters
         Args.flagBadPix_Hard logical = true
-        Args.BadPix_Hard cell = {'Interpolated','NaN','NearEdge','Hole','Negative'}
+        % CR_DeltaHT as a hard bit: on 2026-10-07, 938 of 985 reported candidates
+        % sat on one. The smear filter cannot cover them while the NoSmear gate
+        % rejects the template on 96% of crops, which also skips the
+        % BadPix_SoftMinScore floor. Stopgap, see #1383.
+        Args.BadPix_Hard cell = {'Interpolated','NaN','NearEdge','Hole','Negative','CR_DeltaHT'}
 
         % Soft bad-pixel filters
         Args.flagBadPix_Soft logical = true
