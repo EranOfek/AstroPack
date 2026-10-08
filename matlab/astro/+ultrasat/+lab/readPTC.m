@@ -47,6 +47,14 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
     %                   returned orientation (after Gain/Orient, before
     %                   FlipUD). Mapped to the raw TIFF so only that
     %                   section is read. Default is [].
+    %            'ExpTimeOffset' - [s] subtracted from the B and D exposure
+    %                   times, 0 by default. The commanded exposure of this
+    %                   tester is t_exp = RO_time + Reset_delay, with RO_time
+    %                   the full-die readout time recorded in the config as
+    %                   zDUT_ExpTimeOffset, so the charge-collecting interval
+    %                   is t_exp - RO_time. Pass Sidecar.Config's value (or
+    %                   12.3292 for a 4742-row device) to work in collecting
+    %                   time; the applied value is stored as EXPTOFFA.
     %            'FlipUD' - Flip the returned frames vertically (FITS row
     %                   order). Default is false.
     %            'Verbosity' - 0 silent, 1 report progress. Default is 0.
@@ -74,6 +82,7 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
         Args.MetaCols(1,1) double     = 2;
         Args.CCDSEC                   = [];
         Args.FlipUD(1,1) logical      = false;
+        Args.ExpTimeOffset(1,1) double = 0;
         Args.Verbosity(1,1) double    = 0;
     end
 
@@ -138,7 +147,7 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
         if Args.Verbosity>0
             fprintf('readPTC: %d/%d %s\n', If, Nf, TifFiles(If).name);
         end
-        [ExpTime(If), Intensity(If)] = frameExposure(P(If), Sidecar.Config);
+        [ExpTime(If), Intensity(If)] = frameExposure(P(If), Sidecar.Config, Args.ExpTimeOffset);
         try
             [AI(If).Image, TiffHeader] = readFrame(File, Args);
             DateObs{If} = TiffHeader{strcmp(TiffHeader(:,1), 'FILEDATE'), 2};
@@ -146,7 +155,8 @@ function [AI, Frames, Sidecar] = readPTC(DeviceDir, Args)
                            'FRMTYPE',  P(If).FrameType,  'Frame type: B bright, D dark, ZE zero exposure';
                            'STEP',     P(If).Step,       'Step number within the frame type';
                            'FRMINDEX', P(If).FrameIndex, 'Frame index within the step';
-                           'EXPTIME',  ExpTime(If),      'Exposure time as in PTC_Config';
+                           'EXPTIME',  ExpTime(If),      'Exposure time, PTC_Config minus EXPTOFFA';
+                           'EXPTOFFA', Args.ExpTimeOffset, 'Exposure-time offset APPLIED [s]';
                            'INTENS',   Intensity(If),    'Illumination intensity as in PTC_Config'};
             AI(If).HeaderData.Data = [TiffHeader; FrameHeader; CommonHeader];
             AI(If).ImageData.FileName = File;
@@ -232,19 +242,28 @@ function G = frameGeometry(Width, Height, Gain, Orient, CCDSEC, MetaCols)
     end
 end
 
-function [ExpTime, Intensity] = frameExposure(P, Config)
+function [ExpTime, Intensity] = frameExposure(P, Config, Offset)
     % exposure time and intensity of a frame from the PTC configuration
+    %   Offset [s] is subtracted from the B and D exposure times. The commanded
+    %   exposure of this tester is t_exp = RO_time + Reset_delay, with RO_time
+    %   the full-die readout (zDUT_ExpTimeOffset, 12.3 s on a 4742-row device),
+    %   so the CHARGE-COLLECTING interval is t_exp - RO_time. Default 0 leaves
+    %   the commanded value, which is what every result before October 2026
+    %   used. ZE frames are not touched: they have no exposure to correct.
     ExpTime   = NaN;
     Intensity = NaN;
     if isempty(Config)
         return;
     end
+    if nargin<3 || isempty(Offset)
+        Offset = 0;
+    end
     switch upper(P.FrameType)
         case 'B'
-            ExpTime   = pick(Config, 'PTC_ExpTime', P.Step);
+            ExpTime   = pick(Config, 'PTC_ExpTime', P.Step) - Offset;
             Intensity = pick(Config, 'Bright_Intensity', P.Step);
         case 'D'
-            ExpTime   = pick(Config, 'Dark_ExpTime', P.Step);
+            ExpTime   = pick(Config, 'Dark_ExpTime', P.Step) - Offset;
             Intensity = 0;
         case 'ZE'
             ExpTime   = 0;

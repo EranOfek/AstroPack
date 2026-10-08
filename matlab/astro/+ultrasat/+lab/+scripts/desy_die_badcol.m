@@ -18,7 +18,7 @@ ultrasat.lab.scripts.desy_die_config;
 
 T0 = tic;
 fprintf('%s stage 4 (bad columns): from the stage 1-3 maps, no frames read\n', DieTag);
-P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol');
+P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol', 'ExpTimeOffset',DieExpOffset);
 P.read;
 G   = P.rawColGeom;
 Siz = [G.Ny G.Nx];

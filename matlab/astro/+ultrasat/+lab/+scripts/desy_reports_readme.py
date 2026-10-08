@@ -61,12 +61,17 @@ w('nothing is typed in by hand.')
 w('')
 w('WHAT WAS MEASURED')
 w('-' * 72)
-_sigpdf = [f for f in die_pdfs if '_sigwin_' in f]
+_offpdf = [f for f in die_pdfs if '_sigwin_offset_' in f]
+_sigpdf = [f for f in die_pdfs if '_sigwin_' in f and f not in _offpdf]
 _defpdf = [f for f in die_pdfs if '_sigwin_' not in f]
 _ndump  = sum(e['def'] for e in runs.values())
-w(f'{len(die_pdfs)} per-die reports: {len(_sigpdf)} under the SIGNAL WINDOW, which is the rule this')
-w(f'analysis uses, and {len(_defpdf)} under the default window, kept only as the "before" of the')
-w(f'before/after in the slide deck. Covering {len(runs)} runs and '
+w(f'{len(die_pdfs)} per-die reports, in three flavours: {len(_sigpdf)} under the SIGNAL WINDOW,')
+w(f'which is the rule this analysis uses; {len(_defpdf)} under the default window, kept only as')
+w('the "before" of the before/after in the slide deck; and' if _offpdf else 'the "before" of the before/after in the slide deck.')
+if _offpdf:
+    w(f'{len(_offpdf)} in CHARGE-COLLECTING TIME, the signal window with the readout time taken')
+    w('off every exposure (see THE EXPOSURE-TIME OFFSET below).')
+w(f'Covering {len(runs)} runs and '
   f'{len(set().union(*[e["lots"] for e in runs.values()]))} lots.')
 w('')
 w(f"  {'run':<7}{'lot(s)':<22}{'dies':<6}{'settings':<34}")
@@ -113,6 +118,38 @@ for f in sums:
     w('      dark-current gradient and what it tracks; the four threshold routes')
     w('      across dies, flavours and runs; every other datasheet number die by')
     w('      die; and the fit windows each die was given.')
+    w('')
+_cmp = [f for f in pdfs if 'offset_comparison' in f]
+if _offpdf or _cmp:
+    w('THE EXPOSURE-TIME OFFSET')
+    w('-' * 72)
+    w('The commanded exposure of the tester is t_exp = RO_time + Reset_delay, with')
+    w('RO_time the full-die readout: the configuration records it as')
+    w('zDUT_ExpTimeOffset = 12 and DESY confirmed (8 Oct 2026) RO_time =')
+    w('2 x 4742 rows x 1.3 ms = 12.3292 s. The charge-collecting interval is')
+    w('therefore t_exp - RO_time, and the chain had been fitting against t_exp.')
+    w('')
+    w('A shift of the time axis cannot change a slope, so the dark current, the gain,')
+    w('the read noise, the DSNU and the PRNU are unaffected and need no revision, and')
+    w('the two photon-transfer thresholds never use the time axis at all. What moves is')
+    w('the two RESPONSE-route thresholds, by DC x 12.329 s - most of their value on the')
+    w('high-dark-current AV setting (run 31) and about a fifth of it on aSpect.')
+    w('')
+    for f in sorted(_cmp):
+        w(f'  {f}')
+        w(f'      {pages(os.path.join(A.dir,f))} page. The two sets side by side: what cannot move and')
+        w('      does not, what moves and by how much, and what it does downstream to the')
+        w('      threshold fixed pattern and the limiting signal. Read this first.')
+        w('')
+    if _offpdf:
+        w(f'  DESY_<lot>_<die>_run<run>_sigwin_offset_report.pdf    ({len(_offpdf)} files)')
+        w('      The full per-die report in collecting time, each marked as such in its')
+        w('      own header. Same 21 pages and same structure as the signal-window')
+        w('      reports, so any two can be compared line by line.')
+        w('')
+    w('Dumps: ~/claude/desy_die/<tag>_sig_off/. The offset is applied in')
+    w('ultrasat.lab.readPTC through ExpTimeOffset and selected by DieExpOffset in')
+    w('desy_die_config; at 0 the chain reproduces every earlier result.')
     w('')
 _pipe = [f for f in pdfs if 'pipeline' in f]
 if _pipe:

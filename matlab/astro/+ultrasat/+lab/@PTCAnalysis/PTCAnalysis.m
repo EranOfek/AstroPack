@@ -66,7 +66,8 @@ classdef PTCAnalysis < Component
         SatLevel   = 15000;                   % [ADU] steps with a mean above this are excluded from the gain fit (ADC 16383 - zero ~400 saturates at ~15985)
         GainADU    = [];                      % [ADU/e-] conversion override for ADU->e-; [] = measured PTC gain
         GainEstimator = 'temporal';           % PTC variance estimator used for GainUsed: 'temporal' | 'diff' | 'spatial'
-        ExpSen     = [];                      % [s] sensor exposure of the bright frames; [] = PTC_ExpTime
+        ExpSen     = [];                      % [s] sensor exposure of the bright frames; [] = PTC_ExpTime - ExpTimeOffset
+        ExpTimeOffset = 0;                    % [s] subtracted from the B and D exposure times. The commanded exposure of this tester is t_exp = RO_time + Reset_delay, RO_time being the full-die readout (config zDUT_ExpTimeOffset, 12.3292 s on a 4742-row device), so the CHARGE-COLLECTING interval is t_exp - RO_time. 0 reproduces every result before October 2026.
         Parity     = 'none';                  % 'none' | 'rawcol': also split all statistics by raw-TIFF column parity
         Verbosity  = 0;
     end
@@ -97,7 +98,8 @@ classdef PTCAnalysis < Component
             %          * ...,key,val,... any public property, e.g.
             %            'Test', 'CCDSEC', 'Gain', 'Orient', 'Combiner',
             %            'FitRange', 'FitSteps', 'IntensityScale', 'GainRange',
-            %            'SatLevel', 'GainADU', 'GainEstimator', 'ExpSen', 'Parity',
+            %            'SatLevel', 'GainADU', 'GainEstimator', 'ExpSen',
+            %            'ExpTimeOffset', 'Parity',
             %            'Verbosity'.
             % Output : - A PTCAnalysis object (nothing read yet).
             % Example: P = ultrasat.lab.PTCAnalysis(Dir, 'CCDSEC',[1 200 1 200]);
@@ -118,6 +120,7 @@ classdef PTCAnalysis < Component
                 Args.GainADU        = [];
                 Args.GainEstimator  = 'temporal';
                 Args.ExpSen         = [];
+                Args.ExpTimeOffset  = 0;
                 Args.Parity         = 'none';
                 Args.Verbosity      = 0;
             end
@@ -150,19 +153,23 @@ classdef PTCAnalysis < Component
             if isempty(Obj.CCDSEC)
                 Obj.Mode = 'full';
                 [~, Obj.Frames, Obj.Sidecar] = ultrasat.lab.readPTC(Obj.DeviceDir, 'Test',Obj.Test, 'ReadImage',false, ...
-                                                       'Gain',Obj.Gain, 'Orient',Obj.Orient);
+                                                       'Gain',Obj.Gain, 'Orient',Obj.Orient, ...
+                                                       'ExpTimeOffset',Obj.ExpTimeOffset);
                 Obj.AI = [];
             else
                 Obj.Mode = 'region';
                 [Obj.AI, Obj.Frames, Obj.Sidecar] = ultrasat.lab.readPTC(Obj.DeviceDir, 'Test',Obj.Test, ...
-                                                       'CCDSEC',Obj.CCDSEC, 'Gain',Obj.Gain, 'Orient',Obj.Orient, 'Verbosity',Obj.Verbosity);
+                                                       'CCDSEC',Obj.CCDSEC, 'Gain',Obj.Gain, 'Orient',Obj.Orient, ...
+                                                       'ExpTimeOffset',Obj.ExpTimeOffset, 'Verbosity',Obj.Verbosity);
             end
             R = Obj.Sidecar.Result.Info;
             Obj.Info = struct('Lot',R.LOTID, 'Wafer',R.WaferID, 'Device',R.DeviceNo, ...
                               'Base',regexprep(Obj.Frames.FileName{1}, ['_', Obj.Test, '_#.*$'], ''), ...
                               'Test',Obj.Test);
             if isempty(Obj.ExpSen) && ~isempty(Obj.Sidecar.Config) && isfield(Obj.Sidecar.Config, 'PTC_ExpTime')
-                Obj.ExpSen = Obj.Sidecar.Config.PTC_ExpTime(1);
+                % the sensor exposure of the bright frames is a COLLECTING time
+                % like any other, so the offset applies to it too
+                Obj.ExpSen = Obj.Sidecar.Config.PTC_ExpTime(1) - Obj.ExpTimeOffset;
             end
             Obj.ParityMap = [];
             if strcmpi(Obj.Parity, 'rawcol')
@@ -912,7 +919,8 @@ classdef PTCAnalysis < Component
                 end
             else
                 A = ultrasat.lab.readPTC(Obj.DeviceDir, 'Test',Obj.Test, 'FrameType',Type, 'Step',Step, ...
-                                         'Gain',Obj.Gain, 'Orient',Obj.Orient, 'Verbosity',Obj.Verbosity);
+                                         'Gain',Obj.Gain, 'Orient',Obj.Orient, ...
+                                         'ExpTimeOffset',Obj.ExpTimeOffset, 'Verbosity',Obj.Verbosity);
                 if isempty(A)
                     Cube = [];
                     return;

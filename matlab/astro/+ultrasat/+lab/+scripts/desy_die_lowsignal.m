@@ -41,7 +41,7 @@ end
 
 T0 = tic;
 fprintf('%s stage 8 (low signal, below %g ADU): predicting every pixel''s variance\n', DieTag, DieLowMax);
-P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol');
+P = ultrasat.lab.PTCAnalysis(DieDev, 'CCDSEC',[], 'Gain',DieGain, 'Parity','rawcol', 'ExpTimeOffset',DieExpOffset);
 P.read;
 P.subtractZero;
 G    = P.rawColGeom;
@@ -80,7 +80,7 @@ Resid = [];
 for Ij = 1:1:size(Jobs,1)
     Ty = Jobs{Ij,1};
     St = Jobs{Ij,2};
-    A  = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'FrameType',Ty, 'Gain',DieGain, ...
+    A  = ultrasat.lab.readPTC(DieDev, 'Test',P.Test, 'FrameType',Ty, 'Gain',DieGain, 'ExpTimeOffset',DieExpOffset, ...
                               'Step',local_step(St));
     C = zeros([size(A(1).Image), numel(A)], 'single');
     for Ii = 1:1:numel(A)
