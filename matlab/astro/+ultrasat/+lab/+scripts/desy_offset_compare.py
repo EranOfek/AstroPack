@@ -108,7 +108,14 @@ for p in PR:
       % (p.label, va[0], vb[0], va[1], vb[1], va[2], va[3],
          max(va)-min(va), max(vb)-min(vb), sa, sb, min(qa), max(qa), min(qb), max(qb)))
 w()
-w('*All thresholds in e-. Routes c and d are identical either way, so one column each.*')
+w(f"""*All thresholds in e-. Routes c and d are identical either way, so one column each.
+The limiting signal is given as the range over the three threshold routes the budget
+carries. Its lower end moves even though the photon-transfer threshold does not -
+e.g. {PR[0].label}, PTC branch: threshold
+{dig(PR[0].a['budget.json'],'Unmasked','PTC','Threshold_e'):.3f} e- both ways, but
+Qlim {dig(PR[0].a['budget.json'],'Unmasked','PTC','Qlim_cal_5'):.0f} -> {dig(PR[0].b['budget.json'],'Unmasked','PTC','Qlim_cal_5'):.0f} e-.
+That is not a contradiction: every branch of the budget uses the same offset
+fixed-pattern term, and that term is one of the things the offset corrects.*""")
 w()
 _s = lambda P, side: [max(rows(getattr(p, side)))-min(rows(getattr(p, side))) for p in P]
 R31 = [p for p in PR if p.a['ptc.json']['Run'] == '31']
