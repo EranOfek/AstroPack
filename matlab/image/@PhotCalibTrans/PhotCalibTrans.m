@@ -289,6 +289,7 @@ classdef PhotCalibTrans < Component
         DeltaZP_CB = NaN        % Constant-band delta ZP [mag] (set by applyConstBand)
 
         % Bright-star RMS
+        FitMode = 'full'        % 'full' = every parameter of the OptSeq was fitted; 'norm' = Norm-only fallback, the rest left at their defaults and reported as not fitted (issue #1381)
         ARMS = NaN              % Asymptotic RMS [mag]: smallest robust scatter among the magnitude bins of the bright calibrators (set by calibrate; NaN when the fit has too few degrees of freedom)
 
         % Limiting magnitude and sky surface brightness (legacy compat keywords)
@@ -1209,10 +1210,12 @@ classdef PhotCalibTrans < Component
             % STEP 5: Fit transmission if calibrators found
             % ====================================================================
 
-            % Entry gate: too small a calibrator pool cannot constrain the model,
-            % so the fit is refused outright rather than producing an exactly
-            % interpolated solution. Clipping inside fitPar enforces the same
-            % floor from above, so the two ends share Args.MinCalibrators.
+            % Entry gate: a pool below MinCalibrators cannot constrain the full
+            % model, so the full fit is not attempted. It is not refused
+            % outright - the calibrators that do exist still determine the zero
+            % point, so the fit falls back to Norm only (issue #1381). The same
+            % floor is enforced from above by the clipping stages, which report
+            % BelowMinCalibrators and route into the same fallback.
             NCalibAvail = 0;
             if Obj.CalFound && ~isempty(Obj.SourceData)
                 NCalibAvail = size(Obj.SourceData.Catalog, 1);
@@ -1221,18 +1224,13 @@ classdef PhotCalibTrans < Component
                           NCalibAvail < Args.MinCalibrators;
             if TooFewCalib
                 Obj.msgLog(LogLevel.Warning, sprintf(['calibrate: %d calibrators < ' ...
-                    'MinCalibrators=%d - transmission fit not attempted'], ...
+                    'MinCalibrators=%d - falling back to a Norm-only fit'], ...
                     NCalibAvail, Args.MinCalibrators));
             end
 
-            if ~Obj.CalFound || TooFewCalib
+            if ~Obj.CalFound
                 if Args.Verbose
-                    if TooFewCalib
-                        fprintf('  Only %d calibrators (< %d) - skipping transmission fitting.\n\n', ...
-                                NCalibAvail, Args.MinCalibrators);
-                    else
-                        fprintf('  No calibrators found - skipping transmission fitting.\n\n');
-                    end
+                    fprintf('  No calibrators found - skipping transmission fitting.\n\n');
                 end
                 % TransModel is present but not fitted: every PT_* quantity
                 % derived from it stays NaN, i.e. blank in the header.
@@ -1391,6 +1389,26 @@ classdef PhotCalibTrans < Component
                     end
                 end
 
+                % Parameter state before the fit, so a Norm-only fallback can
+                % start from the defaults rather than from wherever the
+                % abandoned full fit left the atmosphere (issue #1381).
+                ParBeforeFit = Obj.TransModel.getAllFunPar();
+                if ~isempty(Obj.TransModel.Tran2DObj)
+                    ParXBeforeFit = Obj.TransModel.Tran2DObj.ParX;
+                else
+                    ParXBeforeFit = [];
+                end
+
+                if TooFewCalib
+                    % Pool was already below the floor: go straight to the
+                    % reduced model, without attempting the full one.
+                    Obj = Obj.fitNormOnly(Flux, X, Y, CostArgs, ParBeforeFit, ...
+                                          ParXBeforeFit, Args.Verbose);
+                    % Downstream (trajectory, DOF, ARMS) reads these locals.
+                    Model      = Obj.TransModel;
+                    FitResult  = Obj.FitResults;
+                else
+
                 % Fit transmission parameters
                 [Model, FitResult] = Obj.TransModel.fitPar(Obj.TransWvl, Flux, ...
                     'X', X, 'Y', Y, ...
@@ -1412,6 +1430,27 @@ classdef PhotCalibTrans < Component
                 % Store fitted model and fit results
                 Obj.TransModel = Model;
                 Obj.FitResults = FitResult;
+
+                % --- Norm-only fallback -------------------------------------
+                % If any clipping step hit the MinCalibrators floor, the full
+                % model is not supported by the surviving pool: abandon it and
+                % re-fit the single parameter the data can still constrain.
+                % The remaining parameters keep their defaults and are reported
+                % as not fitted, so the header describes the model that was
+                % actually applied to the magnitudes.
+                FloorHit = false;
+                if ~isempty(FitResult) && isfield(FitResult, 'BelowMinCalibrators')
+                    FloorHit = any([FitResult.BelowMinCalibrators]);
+                end
+                if FloorHit && Args.MinCalibrators > 0
+                    Obj = Obj.fitNormOnly(Flux, X, Y, CostArgs, ParBeforeFit, ...
+                                          ParXBeforeFit, Args.Verbose);
+                    Model     = Obj.TransModel;
+                    FitResult = Obj.FitResults;
+                else
+                    Obj.FitMode = 'full';
+                end
+                end   % TooFewCalib
 
                 % Assemble per-inner-iter calibrator-trajectory snapshots
                 % from FitResult(IStage).IterSnapshots into a flat struct
@@ -3549,8 +3588,16 @@ classdef PhotCalibTrans < Component
                     end
 
                     % Fit flag (all coefficients of position-dependent correction are fitted if UseTran2D=true)
+                    % Were the position coefficients actually fitted? This used
+                    % to be hardcoded to 1, which was harmless while Tran2D was
+                    % fitted in every production sequence. The Norm-only
+                    % fallback leaves them at zero and unfitted, and a flag
+                    % claiming otherwise is the one card that would tell a
+                    % reader the spatial model had been applied when it had not
+                    % (issue #1381).
                     KeyName = sprintf('PT_P_F%d', ICoeff);
-                    HeaderObj = HeaderObj.replaceVal(KeyName, 1);
+                    HeaderObj = HeaderObj.replaceVal(KeyName, ...
+                        double(~strcmpi(Obj.FitMode, 'norm')));
                     if Args.WriteComments
                         IComment = IComment + 1;
                         HistoryComments{IComment} = sprintf('%s: Fit flag (1=fitted, 0=fixed)', KeyName);
@@ -6931,6 +6978,73 @@ classdef PhotCalibTrans < Component
     end
 
     methods
+
+        function Obj = fitNormOnly(Obj, Flux, X, Y, CostArgs, ParBefore, ParXBefore, Verbose)
+            % Re-fit the zero point alone, after the full model proved unsupported.
+            %   Called by calibrate when a clipping step hit the MinCalibrators
+            %   floor. The full transmission model has 8 free parameters; a pool
+            %   below the floor cannot constrain them, and fitting them anyway
+            %   produces an (almost) exactly interpolated solution whose zero
+            %   point nothing determines (issue #1381).
+            %
+            %   What this does instead: restore every parameter to the value it
+            %   had before the abandoned fit, zero the position-dependent
+            %   coefficients so the zero point is spatially flat, and solve the
+            %   single remaining scale parameter. Norm is a pure scale, so its
+            %   optimum is one shift rather than an iteration, and it is taken
+            %   as the UNWEIGHTED MEDIAN of the per-star zero points: this path
+            %   deliberately does no sigma clipping, so the estimator has to
+            %   carry its own robustness.
+            %
+            %   The magnitudes that follow are therefore real, with a flat
+            %   zero point; the header records Norm as fitted and everything
+            %   else at its default and not fitted, so a reader can tell
+            %   exactly which model produced them.
+            % Input  : - PhotCalibTrans, mid-calibrate.
+            %          - Calibrator flux vector, and their X/Y positions.
+            %          - CostArgs forwarded to fitPar.
+            %          - Parameter state captured before the full fit, and the
+            %            Tran2D ParX before it.
+            %          - Verbose flag.
+            % Output : - The object, with TransModel re-fitted and FitMode 'norm'.
+            % Author : D. Kovaleva (Oct 2026)
+
+            if Verbose
+                fprintf(['  Calibrator floor reached - abandoning the full model and ' ...
+                         'fitting Norm only (median, unweighted).\n']);
+            end
+
+            % Back to the pre-fit defaults, and a spatially flat correction.
+            if ~isempty(ParBefore)
+                Obj.TransModel.setAllFunPar(ParBefore);
+            end
+            if ~isempty(Obj.TransModel.Tran2DObj) && ~isempty(ParXBefore)
+                Obj.TransModel.Tran2DObj.ParX = zeros(size(ParXBefore));
+            end
+
+            % Single linear stage over Norm, no clipping.
+            NormStage = struct('StageName', 'NormOnly_Fallback', ...
+                               'Method',    'linear', ...
+                               'FreeParams', struct('Function', 'Normalization', ...
+                                                    'Parameter', 'Norm'), ...
+                               'SigmaClip',      false, ...
+                               'SigmaThresh',    3.0, ...
+                               'SigmaIter',      0, ...
+                               'MinCalibrators', 0, ...
+                               'Description', 'Norm-only fallback below MinCalibrators');
+            Obj.TransModel.OptSeq = NormStage;
+
+            [Model, FitResult] = Obj.TransModel.fitPar(Obj.TransWvl, Flux, ...
+                'X', X, 'Y', Y, ...
+                'CostArgs',       CostArgs, ...
+                'NormEstimator',  'median', ...
+                'MinCalibrators', 0, ...
+                'Verbose',        Verbose);
+
+            Obj.TransModel = Model;
+            Obj.FitResults = FitResult;
+            Obj.FitMode    = 'norm';
+        end
         function [EpochAIs, NormPerEpoch, DeltaZP] = applyPhotCalibShifts(Obj, EpochAIs, Args)
             % Apply coadd photometric calibration to individual epoch images.
             %   Handles multi-crop layout: EpochAIs is [Nepoch × Ncrop] and

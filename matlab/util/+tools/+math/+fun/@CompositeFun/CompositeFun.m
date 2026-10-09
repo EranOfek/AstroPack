@@ -3146,6 +3146,11 @@ classdef CompositeFun < handle
             % Matches Python fit_transmission: 1 initial fit + N clip-refit cycles
             NumIterations = 1 + Args.SigmaClip * Args.SigmaIter;
             ConvergedSigmaClip = false;
+            % Set when a clipping step was stopped or skipped because it would have
+            % taken the calibrator pool below MinCalibrators. Reported on FitResult so
+            % the caller can fall back to a reduced model (issue #1381); CompositeFun
+            % itself does not decide what to do about it.
+            BelowMinCalib = false;
 
             % Per-iter snapshot accumulator (opt-in). Records the survivor
             % set + the rolling-update residuals after each clip+refit pass.
@@ -3226,6 +3231,7 @@ classdef CompositeFun < handle
                         % Skip clipping if already below MinCalibrators
                         if atOrBelowCalibFloor(length(CurrentObs), Args.MinCalibrators)
                             ConvergedSigmaClip = true;
+                            BelowMinCalib      = true;
                             if Args.Verbose
                                 fprintf('--- Sigma clipping skipped: %d calibrators <= %d minimum ---\n', ...
                                     length(CurrentObs), Args.MinCalibrators);
@@ -3271,6 +3277,7 @@ classdef CompositeFun < handle
 
                         if SafeguardTriggered
                             ConvergedSigmaClip = true;
+                            BelowMinCalib      = true;
                             if Args.Verbose
                                 fprintf('Sigma clipping stopped: would leave %d < %d calibrators\n', ...
                                     NRemaining, Args.MinCalibrators);
@@ -3511,6 +3518,7 @@ classdef CompositeFun < handle
             FitResult.MagErr = MagErr;  % Magnitude errors from error propagation
             FitResult.PredictedFlux = PredictedFlux;  % Model-predicted flux for calibrators
             FitResult.IterSnapshots = IterSnapshots;  % per-inner-iter snapshots (empty unless CollectCalibTrajectory)
+            FitResult.BelowMinCalibrators = BelowMinCalib;  % clipping hit the MinCalibrators floor
 
             if Args.Verbose
                 fprintf('\nTransmission optimization complete\n');
@@ -4903,6 +4911,16 @@ classdef CompositeFun < handle
                 FitResult(IStage).DOF = StageResult.DOF;
                 FitResult(IStage).MagErr = StageResult.MagErr;  % Magnitude errors from error propagation
                 FitResult(IStage).PredictedFlux = StageResult.PredictedFlux;  % Model-predicted flux
+                % Did this stage's clipping hit the MinCalibrators floor? The
+                % per-stage flag comes from fitPar; the outer-clip loop below
+                % ORs its own floor abort into every stage, so the caller can
+                % test any([FitResult.BelowMinCalibrators]) regardless of which
+                % clipping path fired (issue #1381).
+                if isfield(StageResult, 'BelowMinCalibrators')
+                    FitResult(IStage).BelowMinCalibrators = StageResult.BelowMinCalibrators;
+                else
+                    FitResult(IStage).BelowMinCalibrators = false;
+                end
 
                 % Translate per-iter snapshots from stage-entry local frame
                 % to the global (original SourceData) frame, and stamp
@@ -5016,6 +5034,9 @@ classdef CompositeFun < handle
                 % Floor check: if removing these outliers would drop below
                 % MinCalibrators, abort the outer loop without applying.
                 if belowCalibFloor(sum(ProposedGKM), Args.MinCalibrators)
+                    for IfrFloor = 1:numel(FitResult)
+                        FitResult(IfrFloor).BelowMinCalibrators = true;
+                    end
                     if Args.Verbose
                         fprintf('  Outer-clip iter %d would drop below MinCalibrators=%d; aborting outer loop\n', ...
                                 OuterIter, Args.MinCalibrators);
