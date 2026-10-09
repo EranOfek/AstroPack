@@ -2899,6 +2899,13 @@ classdef CompositeFun < handle
                 %               field-correction stage to match Simone).
                 Args.SigmaStdFunc = 'mad_std'
                 Args.MinCalibrators = 30  % Minimum calibrators to keep (0 = no limit)
+                % Estimator for the analytical Norm (pure scale) solve:
+                %   'wmean'  - weighted mean of the base residuals (least
+                %              squares; the historical behaviour)
+                %   'median' - unweighted median, robust to a bad calibrator
+                %              and needing no clipping; used by the Norm-only
+                %              fallback when the pool is below MinCalibrators.
+                Args.NormEstimator char {mustBeMember(Args.NormEstimator, {'wmean','median'})} = 'wmean'
                 Args.OptimOptions = []
                 Args.OptimizationSequence = []  % Multi-stage optimization sequence
                 % Outer clip-and-refit loop (multi-stage only). When enabled, the
@@ -4107,8 +4114,17 @@ classdef CompositeFun < handle
                                         CurrentCostArgsNorm{:});
                                 end
 
-                                % Analytical solution: weighted mean of base residuals
-                                if ~isempty(MagErr_base) && all(MagErr_base > 0)
+                                % Analytical solution for the pure scale parameter.
+                                % 'wmean' (default) is the weighted mean, the
+                                % least-squares answer. 'median' is the robust
+                                % one, used by the Norm-only fallback: when the
+                                % calibrator pool is too small to clip, a median
+                                % tolerates a bad star where a mean does not,
+                                % and for a one-parameter scale it needs no
+                                % iteration (issue #1381).
+                                if strcmpi(Args.NormEstimator, 'median')
+                                    MeanResidual = median(Residuals_base);
+                                elseif ~isempty(MagErr_base) && all(MagErr_base > 0)
                                     Weights = 1 ./ (MagErr_base.^2);
                                     MeanResidual = sum(Residuals_base .* Weights) / sum(Weights);
                                 else
@@ -4126,7 +4142,7 @@ classdef CompositeFun < handle
                                 Residuals = Residuals_base - MeanResidual;
 
                                 if Args.Verbose
-                                    fprintf('  Norm = %.6f (analytical, weighted)\n', Norm_opt);
+                                    fprintf('  Norm = %.6f (analytical, %s)\n', Norm_opt, Args.NormEstimator);
                                 end
 
                                 % Per-iter snapshot (opt-in). Scatter the
