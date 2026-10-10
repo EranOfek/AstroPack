@@ -276,10 +276,15 @@ cap(int(6.85*EMU), y+int(4.1*EMU), int(6.3*EMU), LB['after'])
 gap_o = abs(T31old['a'][0]-T31old['b'][0]); gap_n = abs(T31new['a'][0]-T31new['b'][0])
 d.rect(int(0.35*EMU), y+int(4.55*EMU), int(12.8*EMU), int(0.62*EMU), 'F2F4F7')
 d.text(int(0.55*EMU), y+int(4.62*EMU), int(12.5*EMU), int(0.5*EMU),
-       f"dark route {T31old['a'][0]:.1f} → {T31new['a'][0]:.1f} e-     "
-       f"light route {T31old['b'][0]:.1f} → {T31new['b'][0]:.1f} e-     "
-       f"GAP {gap_o:.1f} → {gap_n:.1f} e-     "
-       f"dark-ladder PTC {T31old['c'][0]:.1f} → {T31new['c'][0]:.1f} e-",
+       (f"dark route {T31old['a'][0]:.1f} → {T31new['a'][0]:.1f} e-     "
+        f"light route {T31old['b'][0]:.1f} → {T31new['b'][0]:.1f} e-     "
+        f"GAP {gap_o:.1f} → {gap_n:.1f} e-     "
+        f"dark-ladder PTC {T31old['c'][0]:.1f} → {T31new['c'][0]:.1f} e-"
+        if A.variant != 'offset' else
+        f"dark route {T31old['a'][0]:.1f} → {T31new['a'][0]:.1f} e-     "
+        f"light route {T31old['b'][0]:.1f} → {T31new['b'][0]:.1f} e-     "
+        f"gap between them {gap_o:.1f} → {gap_n:.1f} e- (unchanged — both shift by DC x 12.329 s)     "
+        f"PTC routes {T31old['c'][0]:.1f} / {T31old['d'][0]:.1f} e- (untouched)"),
        1250, True, '28406B')
 
 # ------------------------------------------------------------------ 12. comparison
