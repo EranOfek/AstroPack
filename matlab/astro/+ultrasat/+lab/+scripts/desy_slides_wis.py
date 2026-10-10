@@ -22,13 +22,45 @@ P.add_argument('--summary-sig', default='/home/sasha/claude/desy_die/summary_sig
                help=('the signal-window summary over the SAME die-runs as --summary; the two panels '
                      'of slide 12 must cover the same dies to be a comparison at all'))
 P.add_argument('--out', default='/home/sasha/DESY_reports/WIS_TH02954_aSpect_flavour_comparison.pptx')
+P.add_argument('--variant', choices=('window', 'offset'), default='window',
+               help=('window: the original deck, before/after the 100-1000 ADU window rule. '
+                     'offset: the collecting-time deck, before/after the 12.329 s exposure '
+                     'correction, with the window rule used throughout.'))
 A = P.parse_args()
 
 DIE, RUN = 'W04_D07', '32'
-OLD = os.path.join(A.root, f'run{RUN}_{DIE}_high')          # default windows
-NEW = OLD + '_sig'                                           # 100-1000 ADU rule
-OLD31 = os.path.join(A.root, f'run31_{DIE}_high')
-NEW31 = OLD31 + '_sig'
+# Three pointers, so the body of the deck and the two panels of a before/after
+# can come from different runs of the chain:
+#   BODY  the result the deck is about
+#   PRE   the "before" of slides 11 and 12
+#   POST  the "after"
+# --variant window (default) is the original deck: the body and the "before" are
+# the per-ladder windows and the "after" is the 100-1000 ADU rule. --variant
+# offset keeps the window rule throughout and makes the before/after the
+# exposure-time correction, so the deck is about the collecting-time results.
+if A.variant == 'offset':
+    SUF_BODY, SUF_PRE, SUF_POST = '_sig_off', '_sig', '_sig_off'
+    LB = dict(before='BEFORE \u2014 commanded exposure, t_exp',
+              after='AFTER \u2014 charge-collecting time, t_exp \u2212 12.329 s',
+              after12='AFTER \u2014 collecting time, t_exp \u2212 12.329 s (same 16 die-runs)',
+              axis='subtracting the 12.329 s full-die readout time from every exposure',
+              hi='run 31 (AV, 20x the dark current)', lo='runs 32 / 38 / 38-2 (aSpect)',
+              only='', short='the exposure-time correction')
+else:
+    SUF_BODY, SUF_PRE, SUF_POST = '', '', '_sig'
+    LB = dict(before='BEFORE \u2014 each ladder over its own best range',
+              after='AFTER \u2014 both ladders over 100\u20131000 ADU',
+              after12='AFTER \u2014 both ladders over 100-1000 ADU (same 16 die-runs)',
+              axis='fitting both ladders over the same 100-1000 ADU',
+              hi='run 31, long dark ladder', lo='runs 32 / 38 / 38-2, short dark ladder',
+              only='only ', short='the common window')
+_base  = os.path.join(A.root, f'run{RUN}_{DIE}_high')
+_base31 = os.path.join(A.root, f'run31_{DIE}_high')
+BODY   = _base + SUF_BODY
+PRE    = _base + SUF_PRE
+POST   = _base + SUF_POST
+PRE31  = _base31 + SUF_PRE
+POST31 = _base31 + SUF_POST
 
 def J(d, n):
     p = os.path.join(d, n)
@@ -39,12 +71,12 @@ def thr(d):
     return {k: (float(M['Routes'][k]['Threshold_e']),
                 float(M['Routes'][k]['Threshold_e_err'])) for k in 'abcd'} if M else None
 
-ME, DK, LT = J(OLD, 'methods.json'), J(OLD, 'dark.json'), J(OLD, 'light.json')
+ME, DK, LT = J(BODY, 'methods.json'), J(BODY, 'dark.json'), J(BODY, 'light.json')
 ZE = J(os.path.join(A.rnroot, f'run{RUN}_{DIE}_high'), 'stats.json')
-PT, BU = J(OLD, 'ptc.json'), J(OLD, 'budget.json')
+PT, BU = J(BODY, 'ptc.json'), J(BODY, 'budget.json')
 G = float(ME['Routes']['d']['Gain'])
-Told, Tnew = thr(OLD), thr(NEW)
-T31old, T31new = thr(OLD31), thr(NEW31)
+Told, Tnew = thr(BODY), thr(POST)
+T31old, T31new = thr(PRE31), thr(POST31)
 
 FLAV = {'W04': 6, 'W08': 2}            # General/Lots_Cassette_table.xlsx
 VOLT = {'31':   dict(RST_L='1.0', RST_SEL='3.8', SF='3.3', TX='3.3'),
@@ -128,7 +160,7 @@ d.text(int(1.0*EMU), int(4.6*EMU), W-int(2.0*EMU), int(1.2*EMU), [
 
 # ------------------------------------------------------------------ 4. read noise
 y = slide('General behaviour — read noise', CTX)
-d.picture(os.path.join(OLD, 'fig_rn_distribution.png'),
+d.picture(os.path.join(BODY, 'fig_rn_distribution.png'),
           int(0.5*EMU), y, int(8.3*EMU), int(4.6*EMU))
 cap(int(0.5*EMU), y+int(4.6*EMU), int(8.3*EMU),
     'Per-pixel read noise over the 5 zero-exposure frames; dashed = the same measurement if every pixel were identical')
@@ -148,12 +180,12 @@ d.text(int(9.35*EMU), y+int(0.2*EMU), int(3.3*EMU), int(3.0*EMU), [
 # ------------------------------------------------------------------ 5. dark current
 y = slide('General behaviour — dark current', CTX,
           kicker='Left: where the dark current comes from. Right: how it varies over the die.')
-d.picture(os.path.join(OLD, 'fig_dark_ladder_fit.png'),
+d.picture(os.path.join(BODY, 'fig_dark_ladder_fit.png'),
           int(0.4*EMU), y, int(6.3*EMU), int(2.4*EMU))
 cap(int(0.4*EMU), y+int(2.4*EMU), int(6.3*EMU),
     f"Dark ladder and its fit — steps {list(np.atleast_1d(np.array(DK['FitSteps'],dtype=int)))}, "
     f"slope = dark current, −intercept = dark-route threshold")
-d.picture(os.path.join(OLD, 'fig_dark_dc_map.png'),
+d.picture(os.path.join(BODY, 'fig_dark_dc_map.png'),
           int(7.0*EMU), y-int(0.1*EMU), int(5.9*EMU), int(4.5*EMU))
 cap(int(7.0*EMU), y+int(4.4*EMU), int(5.9*EMU), 'Dark current per pixel')
 d.text(int(0.4*EMU), y+int(2.95*EMU), int(6.3*EMU), int(1.9*EMU), [
@@ -168,11 +200,11 @@ d.text(int(0.4*EMU), y+int(2.95*EMU), int(6.3*EMU), int(1.9*EMU), [
 # ------------------------------------------------------------------ 6. gain
 y = slide('General behaviour — conversion gain', CTX,
           kicker='Left: where the gain comes from (new plot). Right: how much it varies between pixels.')
-d.picture(os.path.join(OLD, 'fig_ptc_window.png'),
+d.picture(os.path.join(BODY, 'fig_ptc_window.png'),
           int(0.4*EMU), y, int(6.4*EMU), int(2.5*EMU))
 cap(int(0.4*EMU), y+int(2.5*EMU), int(6.4*EMU),
     'Bright photon-transfer curve: slope = gain, intercept = g·T (not the read noise)')
-d.picture(os.path.join(OLD, 'fig_ptc_gain_null.png'),
+d.picture(os.path.join(BODY, 'fig_ptc_gain_null.png'),
           int(7.1*EMU), y-int(0.05*EMU), int(5.8*EMU), int(3.9*EMU))
 cap(int(7.1*EMU), y+int(3.85*EMU), int(5.8*EMU), 'Gain fitted to every pixel, against the identical-pixel null')
 d.text(int(0.4*EMU), y+int(3.05*EMU), int(6.4*EMU), int(1.8*EMU), [
@@ -188,9 +220,9 @@ d.text(int(0.4*EMU), y+int(3.05*EMU), int(6.4*EMU), int(1.8*EMU), [
 y = slide('Threshold, routes 1–2: extrapolate the response to zero', CTX,
           kicker='Both ladders: the fitted points, the line, and its extrapolation to zero signal. '
                  '−intercept is the threshold.')
-d.picture(os.path.join(OLD, 'fig_dark_ladder_fit.png'), int(0.35*EMU), y, int(12.6*EMU), int(2.3*EMU))
+d.picture(os.path.join(BODY, 'fig_dark_ladder_fit.png'), int(0.35*EMU), y, int(12.6*EMU), int(2.3*EMU))
 cap(int(0.35*EMU), y+int(2.28*EMU), int(12.6*EMU), 'Dark ladder (signal against exposure time)')
-d.picture(os.path.join(OLD, 'fig_light_ladder_fit.png'), int(0.35*EMU), y+int(2.75*EMU), int(12.6*EMU), int(2.3*EMU))
+d.picture(os.path.join(BODY, 'fig_light_ladder_fit.png'), int(0.35*EMU), y+int(2.75*EMU), int(12.6*EMU), int(2.3*EMU))
 cap(int(0.35*EMU), y+int(5.03*EMU), int(12.6*EMU),
     f"Bright ladder (signal against intensity).   dark route {Told['a'][0]:.1f} ± {Told['a'][1]:.1f} e-,"
     f"   light route {Told['b'][0]:.1f} ± {Told['b'][1]:.1f} e-")
@@ -199,10 +231,10 @@ cap(int(0.35*EMU), y+int(5.03*EMU), int(12.6*EMU),
 y = slide('Threshold, routes 1–2: pixel-to-pixel distributions', CTX,
           kicker='The same two routes, fitted to every pixel. The dashed curve is pure fit noise — '
                  'what is left over is the real pixel-to-pixel spread.')
-d.picture(os.path.join(OLD, 'fig_dark_threshold.png'), int(0.4*EMU), y, int(6.2*EMU), int(4.0*EMU))
+d.picture(os.path.join(BODY, 'fig_dark_threshold.png'), int(0.4*EMU), y, int(6.2*EMU), int(4.0*EMU))
 cap(int(0.4*EMU), y+int(4.0*EMU), int(6.2*EMU),
     f"Dark route: {float(DK['Local']['T']['StdIntr'])/G:.1f} e- pixel to pixel after deconvolution")
-d.picture(os.path.join(OLD, 'fig_light_threshold.png'), int(6.8*EMU), y, int(6.2*EMU), int(4.0*EMU))
+d.picture(os.path.join(BODY, 'fig_light_threshold.png'), int(6.8*EMU), y, int(6.2*EMU), int(4.0*EMU))
 cap(int(6.8*EMU), y+int(4.0*EMU), int(6.2*EMU),
     f"Light route: {float(LT['Threshold']['StdIntr'])/G:.1f} e- pixel to pixel after deconvolution")
 
@@ -210,7 +242,7 @@ cap(int(6.8*EMU), y+int(4.0*EMU), int(6.2*EMU),
 y = slide('Threshold, routes 3–4: the shot noise, which extrapolates nothing', CTX,
           kicker='Variance − RN² against signal for both ladders. The intercept is g·T, so the threshold '
                  'is read from the noise rather than from a curved response.')
-d.picture(os.path.join(OLD, 'fig_ptc_both.png'), int(0.5*EMU), y, int(12.3*EMU), int(4.0*EMU))
+d.picture(os.path.join(BODY, 'fig_ptc_both.png'), int(0.5*EMU), y, int(12.3*EMU), int(4.0*EMU))
 cap(int(0.5*EMU), y+int(4.0*EMU), int(12.3*EMU),
     f"dark-ladder PTC {Told['c'][0]:.1f} ± {Told['c'][1]:.1f} e-,   "
     f"bright-ladder PTC {Told['d'][0]:.1f} ± {Told['d'][1]:.1f} e-   "
@@ -219,22 +251,28 @@ cap(int(0.5*EMU), y+int(4.0*EMU), int(12.3*EMU),
 # ------------------------------------------------------------------ 10. PTC per pixel
 y = slide('Threshold, routes 3–4: pixel-to-pixel distributions', CTX,
           kicker='A photon-transfer fit to every pixel, on each ladder separately.')
-d.picture(os.path.join(OLD, 'fig_pp_params.png'), int(0.4*EMU), y, int(6.3*EMU), int(4.0*EMU))
+d.picture(os.path.join(BODY, 'fig_pp_params.png'), int(0.4*EMU), y, int(6.3*EMU), int(4.0*EMU))
 cap(int(0.4*EMU), y+int(4.0*EMU), int(6.3*EMU), 'Per-pixel gain and intercept, both ladders, against the null')
-d.picture(os.path.join(OLD, 'fig_pp_diff.png'), int(6.9*EMU), y, int(6.1*EMU), int(4.0*EMU))
+d.picture(os.path.join(BODY, 'fig_pp_diff.png'), int(6.9*EMU), y, int(6.1*EMU), int(4.0*EMU))
 cap(int(6.9*EMU), y+int(4.0*EMU), int(6.1*EMU), 'Difference of the two gains, pixel by pixel')
 
 # ------------------------------------------------------------------ 11. the ~50 e- gap
-y = slide('Where the ~50 e- difference came from — and what fixes it',
+y = slide('Where the ~50 e- difference came from — and what fixes it'
+          if not A.variant == 'offset' else
+          'Where the large AV thresholds came from — the exposure axis',
           f"TH02954 {DIE} · run 31 (AV settings) · the run in which the gap was seen",
-          kicker='The two response routes disagreed because they were fitted over different signal '
-                 'ranges. Fitting both over 100–1000 ADU removes most of the gap.')
-d.picture(os.path.join(OLD31, 'fig_dark_ladder_fit.png'), int(0.35*EMU), y, int(6.3*EMU), int(2.0*EMU))
-d.picture(os.path.join(OLD31, 'fig_light_ladder_fit.png'), int(0.35*EMU), y+int(2.1*EMU), int(6.3*EMU), int(2.0*EMU))
-cap(int(0.35*EMU), y+int(4.1*EMU), int(6.3*EMU), 'BEFORE — each ladder over its own best range')
-d.picture(os.path.join(NEW31, 'fig_dark_ladder_fit.png'), int(6.85*EMU), y, int(6.3*EMU), int(2.0*EMU))
-d.picture(os.path.join(NEW31, 'fig_light_ladder_fit.png'), int(6.85*EMU), y+int(2.1*EMU), int(6.3*EMU), int(2.0*EMU))
-cap(int(6.85*EMU), y+int(4.1*EMU), int(6.3*EMU), 'AFTER — both ladders over 100–1000 ADU')
+          kicker=('The two response routes disagreed because they were fitted over different signal '
+                  'ranges. Fitting both over 100–1000 ADU removes most of the gap.'
+                  if not A.variant == 'offset' else
+                  'The commanded exposure includes the 12.329 s full-die readout, so the charge-'
+                  'collecting interval is t_exp - 12.329 s. Both response routes absorbed the '
+                  'difference; the photon-transfer routes never use the time axis.'))
+d.picture(os.path.join(PRE31, 'fig_dark_ladder_fit.png'), int(0.35*EMU), y, int(6.3*EMU), int(2.0*EMU))
+d.picture(os.path.join(PRE31, 'fig_light_ladder_fit.png'), int(0.35*EMU), y+int(2.1*EMU), int(6.3*EMU), int(2.0*EMU))
+cap(int(0.35*EMU), y+int(4.1*EMU), int(6.3*EMU), LB['before'])
+d.picture(os.path.join(POST31, 'fig_dark_ladder_fit.png'), int(6.85*EMU), y, int(6.3*EMU), int(2.0*EMU))
+d.picture(os.path.join(POST31, 'fig_light_ladder_fit.png'), int(6.85*EMU), y+int(2.1*EMU), int(6.3*EMU), int(2.0*EMU))
+cap(int(6.85*EMU), y+int(4.1*EMU), int(6.3*EMU), LB['after'])
 gap_o = abs(T31old['a'][0]-T31old['b'][0]); gap_n = abs(T31new['a'][0]-T31new['b'][0])
 d.rect(int(0.35*EMU), y+int(4.55*EMU), int(12.8*EMU), int(0.62*EMU), 'F2F4F7')
 d.text(int(0.55*EMU), y+int(4.62*EMU), int(12.5*EMU), int(0.5*EMU),
@@ -258,17 +296,16 @@ def spread_of(suffix):
 
 fold, fnew = os.path.join(A.summary, 'fig_sum_threshold.png'), \
              os.path.join(getattr(A, 'summary_sig'), 'fig_sum_threshold.png')
-sold, snew = spread_of(''), spread_of('_sig')
+sold, snew = spread_of(SUF_PRE), spread_of(SUF_POST)
 both = os.path.isfile(fnew) and snew
 y = slide('Comparison across dies, flavours and runs',
-          kicker=('Four threshold routes on every die-run, before and after fitting both ladders over '
-                  'the same 100-1000 ADU.' if both else
+          kicker=(f'Four threshold routes on every die-run, before and after {LB["axis"]}.' if both else
                   'Four threshold routes on every die-run. x axis: die, gain half and setup.'))
 if both:
     d.picture(fold, int(0.35*EMU), y, int(6.3*EMU), int(3.5*EMU))
-    cap(int(0.35*EMU), y+int(3.5*EMU), int(6.3*EMU), 'BEFORE — each ladder over its own best range')
+    cap(int(0.35*EMU), y+int(3.5*EMU), int(6.3*EMU), LB['before'])
     d.picture(fnew, int(6.85*EMU), y, int(6.3*EMU), int(3.5*EMU))
-    cap(int(6.85*EMU), y+int(3.5*EMU), int(6.3*EMU), 'AFTER — both ladders over 100-1000 ADU (same 16 die-runs)')
+    cap(int(6.85*EMU), y+int(3.5*EMU), int(6.3*EMU), LB['after12'])
     # The aggregate alone would mislead: the common window helps where the dark
     # ladder is long and hurts where it is short, and those are different runs.
     def med(sel):
@@ -280,15 +317,21 @@ if both:
     d.rect(int(0.35*EMU), y+int(3.95*EMU), int(12.8*EMU), int(1.25*EMU), 'F2F4F7')
     d.text(int(0.6*EMU), y+int(4.02*EMU), int(12.3*EMU), int(1.1*EMU), [
         'Spread between the four routes, median:',
-        f'   run 31, long dark ladder:  {hi[0]:.0f} -> {hi[1]:.0f} e-   (narrower on {hi[2]} of {hi[3]})',
-        f'   runs 32 / 38 / 38-2, short dark ladder:  {lo[0]:.0f} -> {lo[1]:.0f} e-   '
-        f'(narrower on only {lo[2]} of {lo[3]})'], 1150, True, '28406B')
+        f'   {LB["hi"]}:  {hi[0]:.0f} -> {hi[1]:.0f} e-   (narrower on {hi[2]} of {hi[3]})',
+        f'   {LB["lo"]}:  {lo[0]:.0f} -> {lo[1]:.0f} e-   '
+        f'(narrower on {LB["only"]}{lo[2]} of {lo[3]})'], 1150, True, '28406B')
     d.text(int(0.6*EMU), y+int(5.3*EMU), int(12.3*EMU), int(0.5*EMU),
-           'A common window helps where the dark ladder is long enough to reach it, and hurts where it '
-           'is not: on the low dark-current runs it forces the dark fit into 100-200 ADU, high on a '
-           'convex ladder, which raises the dark-response threshold.   Run 35 adds 10 more dies on '
-           'these settings (a second lot, 7 new wafers, all flavour 6); it has no default-window '
-           'counterpart, so it is in the full cross-die summary rather than in this before/after.',
+           ('A common window helps where the dark ladder is long enough to reach it, and hurts where it '
+            'is not: on the low dark-current runs it forces the dark fit into 100-200 ADU, high on a '
+            'convex ladder, which raises the dark-response threshold.   Run 35 adds 10 more dies on '
+            'these settings (a second lot, 7 new wafers, all flavour 6); it has no default-window '
+            'counterpart, so it is in the full cross-die summary rather than in this before/after.'
+            if not A.variant == 'offset' else
+            'The correction is DC x 12.329 s, so it is large where the dark current is large: it takes '
+            'most of the AV thresholds and about a fifth of the aSpect ones. The dark current, the gain, '
+            'the read noise, the PRNU and the DSNU are unchanged by construction - a shift of the time '
+            'axis cannot alter a slope - and the two photon-transfer routes are unchanged as well. '
+            'All 26 die-runs are in the cross-die summary.'),
            1050, False, GREY)
 else:
     d.picture(fold, int(0.5*EMU), y, int(12.3*EMU), int(4.3*EMU))
@@ -301,13 +344,20 @@ mx_o = max(Told[k][0] for k in 'abcd'); mx_n = max(Tnew[k][0] for k in 'abcd') i
 d.text(int(0.6*EMU), y, W-int(1.2*EMU), int(4.6*EMU), [
     f'•  Flavour 6 on the aSpect setting (run 32): the charge threshold is below '
     f'{np.ceil(max(mx_o, mx_n)):.0f} e- on all four methods',
-    f'    — {mx_o:.1f} e- on the per-ladder windows and {mx_n:.1f} e- when both ladders are fitted '
-    f'over 100–1000 ADU.',
+    (f'    — {mx_o:.1f} e- on the per-ladder windows and {mx_n:.1f} e- when both ladders are fitted '
+     f'over 100–1000 ADU.' if not A.variant == 'offset'
+     else f'    — {mx_o:.1f} e- in charge-collecting time, on the common 100–1000 ADU window.'),
     '',
-    f'•  The ~50 e- difference between the two response routes is understood: it was the two ladders '
-    f'being fitted over',
-    f'    different signal ranges. On run 31 the gap falls from {gap_o:.0f} e- to {gap_n:.0f} e- when '
-    f'both use 100–1000 ADU.',
+    *( [f'•  The ~50 e- difference between the two response routes is understood: it was the two ladders '
+        f'being fitted over',
+        f'    different signal ranges. On run 31 the gap falls from {gap_o:.0f} e- to {gap_n:.0f} e- when '
+        f'both use 100–1000 ADU.']
+       if not A.variant == 'offset' else
+       [f'•  The large AV thresholds are understood: the commanded exposure includes the 12.329 s '
+        f'full-die readout, confirmed by DESY,',
+        f'    so the collecting time is t_exp - 12.329 s. On run 31 the dark route falls from '
+        f"{T31old['a'][0]:.0f} e- to {T31new['a'][0]:.0f} e- and the light route from "
+        f"{T31old['b'][0]:.0f} to {T31new['b'][0]:.0f} e-."] ),
     '',
     f'•  Pixel-to-pixel variation of the threshold is of order {float(DK["Local"]["T"]["StdIntr"])/G:.0f}–'
     f'{float(LT["Threshold"]["StdIntr"])/G:.0f} e- on this die, after the fit noise is deconvolved',
@@ -316,9 +366,14 @@ d.text(int(0.6*EMU), y, W-int(1.2*EMU), int(4.6*EMU), [
     '•  We recommend moving forward with wafer-level testing of all dies.'], 1500, False, '1A1A1A')
 d.rect(int(0.6*EMU), int(6.25*EMU), W-int(1.2*EMU), int(0.75*EMU), 'FDF1F0')
 d.text(int(0.8*EMU), int(6.33*EMU), W-int(1.6*EMU), int(0.6*EMU),
-       f"To check before circulating: on the common 100–1000 ADU window the dark-response route gives "
-       f"{Tnew['a'][0]:.1f} ± {Tnew['a'][1]:.1f} e-, so the \"≤ 20 e- in all methods\" wording holds "
-       f"for the per-ladder windows but not for the common one.", 1050, False, RED)
+       (f"To check before circulating: on the common 100–1000 ADU window the dark-response route gives "
+        f"{Tnew['a'][0]:.1f} ± {Tnew['a'][1]:.1f} e-, so the \"≤ 20 e- in all methods\" wording holds "
+        f"for the per-ladder windows but not for the common one."
+        if not A.variant == 'offset' else
+        f"Open before circulating: the 12.329 s readout time rests on row_ro_time being 1.3 ms, not "
+        f"1.3 us as written in DESY's reply (which would give 12.3 ms and no correction at all). "
+        f"Everything we measure says milliseconds; the confirmation is outstanding."),
+       1050, False, RED)
 
 d.save(A.out)
 print('wrote', A.out, f'({len(d.slides)} slides)')
