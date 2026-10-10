@@ -85,6 +85,7 @@ classdef PhotCalibTrans < Component
     %     evaluateTransmission - Evaluate transmission at specific positions
     %     integralTransmission - Mean transmission as fraction of 100% throughput
     %     evaluateZP - Evaluate photometric zero point at specific positions
+    %                  (count-rate scale; PhotZP / PT_ZP is this plus 2.5*log10(ExpTime_eff))
     %     evaluateMag - Evaluate calibrated magnitudes from observed flux (AB or Vega)
     %     evaluatePredictedFlux - Evaluate model-predicted flux for calibrators
     %   Pre-computation Methods:
@@ -2662,7 +2663,20 @@ classdef PhotCalibTrans < Component
             %                         [N_pos x 1]. When non-empty, evaluates per-source
             %                         atmospheric transmission for each source.
             %                         Default is [] (use single fitted airmass).
-            % Output : - Zero point(s) [N_pos x 1] or scalar.
+            % Output : - Zero point(s) [N_pos x 1] or scalar, on the COUNT-RATE
+            %                 scale: MAG = -2.5*log10(FLUX/ExpTime_eff) + ZP,
+            %                 i.e. the magnitude of a source of 1 count per
+            %                 second. This is NOT the Obj.PhotZP / header PT_ZP
+            %                 convention, which is the magnitude of a source of
+            %                 1 count over the whole exposure:
+            %                     PhotZP = evaluateZP() + 2.5*log10(ExpTime_eff)
+            %                 (see evaluatePhotZP). The two differ by 3.25 mag
+            %                 for a 20 s LAST frame, so a caller that writes a
+            %                 ZP into a header, or compares one with PT_ZP /
+            %                 PH_ZP, must add the exposure term first - as
+            %                 imProc.sub.calibrateTransients does - while a
+            %                 caller that forms magnitudes pairs this ZP with
+            %                 FLUX/ExpTime_eff, as addMag does.
             %                 If X, Y provided: vector with ZP for each position.
             %                 If X, Y empty: scalar ZP at field center.
             % Author : D. Kovaleva (Dec 2025)
