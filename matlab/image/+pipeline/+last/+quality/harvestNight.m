@@ -21,6 +21,10 @@ function [T, Info] = harvestNight(Args)
     %            'Keys' - Header keywords to extract. Each becomes a numeric
     %                   table column of the same name (non-numeric values -> NaN).
     %                   Default is the standard night-report set.
+    %                   PT_P_F1, the Tran2D fit flag, is kept because it is what
+    %                   tells the two calibration modes apart: 1 = regular (full
+    %                   transmission model fitted), 0 = reduced (Norm-only fit
+    %                   below MinCalibrators), blank = not calibrated (#1381).
     %            'StrKeys' - Header keywords to extract as strings.
     %                   Default is {'FIELDID'}.
     %            'ProductTemplate' - File template of the product to read.
@@ -49,7 +53,7 @@ function [T, Info] = harvestNight(Args)
         Args.Keys cell            = {'AIRMASS','FWHM','LIMMAG','BACKMAG', ...
                                      'AST_ARMS','AST_ERRM','AST_NSRC','N_STARS', ...
                                      'PT_ZP','PT_ARMS','PT_RMS','PT_NCALI','PT_DOF', ...
-                                     'PT_CHI2','PT_CTA','APC0_PS','RP_MRMS','PH_RMS', ...
+                                     'PT_CHI2','PT_CTA','PT_P_F1','APC0_PS','RP_MRMS','PH_RMS', ...
                                      'MED_X2','MED_Y2','MED_XY','FOCUS','MNTTEMP', ...
                                      'CAMTEMP','MIDJD','EXPTIME','NCOADD','CROPID'}
         Args.StrKeys cell         = {'FIELDID'}
