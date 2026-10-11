@@ -34,12 +34,17 @@ def load_dotenv(path: Path) -> None:
 
 
 def ch_query(client_cmd: list[str], sql: str) -> str:
+    # TSVRaw: the default TSV format escapes \n and \' in SHOW CREATE TABLE output,
+    # which makes the statement invalid when it is sent back as SQL.
     proc = subprocess.run(
-        client_cmd + ["--query", sql],
-        check=True,
+        client_cmd + ["--format", "TSVRaw", "--query", sql],
         capture_output=True,
         text=True,
     )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"clickhouse-client failed (exit {proc.returncode}):\n{proc.stderr.strip()}\n--- SQL ---\n{sql}"
+        )
     return proc.stdout.strip()
 
 
